@@ -472,9 +472,9 @@ public:
 	virtual bool GeneratePossibleValues(TArray< TSharedPtr<FString> >& OutOptionStrings, TArray< FText >& OutToolTips, TArray<bool>& OutRestrictedItems) override;
 	virtual FPropertyAccess::Result SetObjectValueFromSelection() override;
 	virtual void NotifyPreChange() override;
-	virtual void NotifyPostChange( EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified ) override;
+	virtual void NotifyPostChange(EPropertyChangeType::Type ChangeType) override;
 	virtual void NotifyFinishedChangingProperties() override;
-	virtual void AddRestriction( TSharedRef<const FPropertyRestriction> Restriction )override;
+	virtual void AddRestriction(TSharedRef<const FPropertyRestriction> Restriction) override;
 	virtual bool IsHidden(const FString& Value) const override;
 	virtual bool IsHidden(const FString& Value, TArray<FText>& OutReasons) const override;
 	virtual bool IsDisabled(const FString& Value) const override;
@@ -483,7 +483,7 @@ public:
 	virtual bool IsRestricted(const FString& Value, TArray<FText>& OutReasons) const override;
 	virtual bool GenerateRestrictionToolTip(const FString& Value, FText& OutTooltip) const override;
 	virtual void SetIgnoreValidation(bool bInIgnore) override;
-	virtual TArray<TSharedPtr<IPropertyHandle>> AddChildStructure( TSharedRef<FStructOnScope> ChildStructure ) override;
+	virtual TArray<TSharedPtr<IPropertyHandle>> AddChildStructure(TSharedRef<FStructOnScope> ChildStructure) override;
 	virtual bool CanResetToDefault() const override;
 	virtual void ExecuteCustomResetToDefault(const FResetToDefaultOverride& InOnCustomResetToDefault) override;
 	virtual FName GetDefaultCategoryName() const override;

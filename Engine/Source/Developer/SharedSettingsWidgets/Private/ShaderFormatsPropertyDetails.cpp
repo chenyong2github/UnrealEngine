@@ -175,7 +175,8 @@ void FShaderFormatsPropertyDetails::OnTargetedRHIChanged(ECheckBoxState InNewVal
 				Array.Remove(InRHIName.ToString());
 			}
 		}
-		ShaderFormatsPropertyHandle->NotifyPostChange();
+
+		ShaderFormatsPropertyHandle->NotifyPostChange(EPropertyChangeType::Unspecified);
 	}
 }
 

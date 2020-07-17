@@ -81,7 +81,7 @@ void FMaterialLayersFunctionsCustomization::ResetToDefault()
 	const FScopedTransaction Transaction(LOCTEXT("ResetMaterialLayersFunctions", "Reset all Layers and Blends"));
 	SavedStructPropertyHandle->NotifyPreChange();
 	*MaterialLayersFunctions = FMaterialLayersFunctions();
-	SavedStructPropertyHandle->NotifyPostChange();
+	SavedStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 	// Refresh the header so the reset to default button is no longer visible
 	SavedLayoutBuilder->ForceRefreshDetails();
@@ -251,7 +251,7 @@ void FMaterialLayersFunctionsCustomization::OnNameChanged(const FText& InText, E
 	const FScopedTransaction Transaction(LOCTEXT("RenamedSection", "Renamed layer and blend section"));
 	SavedStructPropertyHandle->NotifyPreChange();
 	MaterialLayersFunctions->LayerNames[Counter] = InText;
-	SavedStructPropertyHandle->NotifyPostChange();
+	SavedStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 };
 #endif
 
@@ -274,7 +274,7 @@ void FMaterialLayersFunctionsCustomization::AddLayer()
 	const FScopedTransaction Transaction(LOCTEXT("AddLayerAndBlend", "Add a new Layer and a Blend into it"));
 	SavedStructPropertyHandle->NotifyPreChange();
 	MaterialLayersFunctions->AppendBlendedLayer();
-	SavedStructPropertyHandle->NotifyPostChange();
+	SavedStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 }
 
 void FMaterialLayersFunctionsCustomization::RemoveLayer(int32 Index)
@@ -282,7 +282,7 @@ void FMaterialLayersFunctionsCustomization::RemoveLayer(int32 Index)
 	const FScopedTransaction Transaction(LOCTEXT("RemoveLayerAndBlend", "Remove a Layer and the attached Blend"));
 	SavedStructPropertyHandle->NotifyPreChange();
 	MaterialLayersFunctions->RemoveBlendedLayerAt(Index);
-	SavedStructPropertyHandle->NotifyPostChange();
+	SavedStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 }
 
 
@@ -329,7 +329,7 @@ void FMaterialLayerFunctionElement::ResetLayerAssetToDefault(TSharedPtr<IPropert
 	}
 	}
 
-	InPropertyHandle->NotifyPostChange();
+	InPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	InCustomization->RebuildChildren();
 }
 

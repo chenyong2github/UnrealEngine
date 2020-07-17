@@ -149,7 +149,7 @@ void FMaterialPropertyHelpers::OnMaterialLayerAssetChanged(const struct FAssetDa
 		break;
 		}
 	}
-	InHandle->NotifyPostChange();
+	InHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 bool FMaterialPropertyHelpers::FilterLayerAssets(const struct FAssetData& InAssetData, FMaterialLayersFunctions* LayerFunction, EMaterialParameterAssociation MaterialType, int32 Index)
@@ -1187,7 +1187,7 @@ void FMaterialPropertyHelpers::SetVectorChannelMaskValue(const FString& StringVa
 			MaterialInstanceEditor->CopyToSourceInstance();
 		}
 
-		PropertyHandle->NotifyPostChange();
+		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 

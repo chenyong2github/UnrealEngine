@@ -123,10 +123,15 @@ void FBodyInstanceCustomization::AddCollisionCategory(TSharedRef<class IProperty
 	CollisionGroup.HeaderRow()
 	.NameContent()
 	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("CollisionPresetsLabel", "Collision Presets"))
-		.ToolTip(ProfileTooltip)
-		.Font( IDetailLayoutBuilder::GetDetailFont() )
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		[ 
+			SNew(STextBlock)
+			.Text(LOCTEXT("CollisionPresetsLabel", "Collision Presets"))
+			.ToolTip(ProfileTooltip)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
 	]
 	.ValueContent()
 	.MinDesiredWidth(131.0f)
@@ -853,7 +858,7 @@ void FBodyInstanceCustomization::MarkAllBodiesDefaultCollision(bool bUseDefaultC
 		}
 	}
 
-	CollisionResponsesHandle->NotifyPostChange();
+	CollisionResponsesHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 void FBodyInstanceCustomization::OnCollisionProfileChanged( TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo, IDetailGroup* CollisionGroup )
@@ -1149,7 +1154,7 @@ void FBodyInstanceCustomization::SetResponse(int32 ValidIndex, ECollisionRespons
 		}
 	}
 
-	CollisionResponsesHandle->NotifyPostChange();
+	CollisionResponsesHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 ECheckBoxState FBodyInstanceCustomization::IsCollisionChannelChecked( int32 ValidIndex, ECollisionResponse InCollisionResponse) const
@@ -1263,7 +1268,7 @@ void FBodyInstanceCustomization::SetCollisionResponseContainer(const FCollisionR
 			}
 		}
 
-		CollisionResponsesHandle->NotifyPostChange();
+		CollisionResponsesHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 	
 }
@@ -1671,6 +1676,7 @@ void FBodyInstanceCustomizationHelper::AddBodyConstraint(IDetailCategoryBuilder&
 			.Text(LOCTEXT("LockPositionLabel", "Lock Position"))
 			.ToolTipText(LOCTEXT("LockPositionTooltip", "Locks movement along the specified axis"))
 			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Justification(ETextJustify::Right)
 		]
 		.ValueContent()
 		[

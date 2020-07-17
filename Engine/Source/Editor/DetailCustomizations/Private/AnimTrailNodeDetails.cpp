@@ -93,7 +93,7 @@ void FAnimTrailNodeDetails::FTrailRelaxCurveEditor::ModifyOwner()
 		GraphNodeOwner->Modify();
 		if (TrailRelaxCurveHandle.IsValid())
 		{
-			TrailRelaxCurveHandle->NotifyPostChange();
+			TrailRelaxCurveHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

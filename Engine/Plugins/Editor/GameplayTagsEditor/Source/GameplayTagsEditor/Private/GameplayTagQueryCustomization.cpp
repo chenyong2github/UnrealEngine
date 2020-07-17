@@ -116,7 +116,7 @@ FReply FGameplayTagQueryCustomization::OnClearAllButtonClicked()
 
 	if (StructPropertyHandle.IsValid())
 	{
-		StructPropertyHandle->NotifyPostChange();
+		StructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
 	return FReply::Handled();
@@ -263,7 +263,7 @@ void FGameplayTagQueryCustomization::CloseWidgetWindow(bool WasCancelled)
 	// Notify change.
 	if (!WasCancelled && StructPropertyHandle.IsValid())
 	{
-		StructPropertyHandle->NotifyPostChange();
+		StructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
 	if (GameplayTagQueryWidgetWindow.IsValid())

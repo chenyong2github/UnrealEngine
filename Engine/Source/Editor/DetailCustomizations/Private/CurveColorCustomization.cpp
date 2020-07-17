@@ -254,7 +254,7 @@ void FCurveColorCustomization::MakeTransactional()
 
 void FCurveColorCustomization::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
 {
-	StructPropertyHandle->NotifyPostChange();
+	StructPropertyHandle->NotifyPostChange(EPropertyChangeType::Unspecified);
 }
 
 FLinearColor FCurveColorCustomization::GetLinearColorValue(float InTime) const
@@ -308,7 +308,7 @@ void FCurveColorCustomization::OnExternalCurveChanged(TSharedRef<IPropertyHandle
 			CurveWidget->SetCurveOwner(this);
 		}
 
-		CurvePropertyHandle->NotifyPostChange();
+		CurvePropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 

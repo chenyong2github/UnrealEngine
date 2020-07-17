@@ -541,7 +541,7 @@ void FLocalizationTargetDetailCustomization::OnTargetNameCommitted(const FText& 
 
 			if (TargetNamePropertyHandle.IsValid() && TargetNamePropertyHandle->IsValidHandle())
 			{
-				TargetNamePropertyHandle->NotifyPostChange();
+				TargetNamePropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			}
 		}
 	}
@@ -839,7 +839,7 @@ void FLocalizationTargetDetailCustomization::OnTargetDependencyCheckStateChanged
 
 	if (TargetDependenciesPropertyHandle.IsValid() && TargetDependenciesPropertyHandle->IsValidHandle())
 	{
-		TargetDependenciesPropertyHandle->NotifyPostChange();
+		TargetDependenciesPropertyHandle->NotifyPostChange(State == ECheckBoxState::Checked ? EPropertyChangeType::ArrayAdd : EPropertyChangeType::ArrayRemove);
 	}
 
 	RebuildTargetDependenciesBox();
@@ -1129,7 +1129,7 @@ void FLocalizationTargetDetailCustomization::UpdateTargetFromReports()
 		LocalizationTarget->UpdateStatusFromConflictReport();
 		for (const TSharedPtr<IPropertyHandle>& WordCountPropertyHandle : WordCountPropertyHandles)
 		{
-			WordCountPropertyHandle->NotifyPostChange();
+			WordCountPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

@@ -321,7 +321,7 @@ void FSceneCaptureDetails::OnShowFlagCheckStateChanged(ECheckBoxState InNewRadio
 		}
 	}
 
-	ShowFlagSettingsProperty->NotifyPostChange();
+	ShowFlagSettingsProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 	ShowFlagSettingsProperty->NotifyFinishedChangingProperties();
 }
 

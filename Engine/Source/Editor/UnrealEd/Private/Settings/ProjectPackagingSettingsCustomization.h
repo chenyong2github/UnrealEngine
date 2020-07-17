@@ -333,7 +333,7 @@ protected:
 		RawCultureStringArray->Add(CultureName);
 		if(!IsInBatchSelectOperation)
 		{
-			CulturesPropertyHandle->NotifyPostChange();
+			CulturesPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 		}
 	}
 
@@ -349,7 +349,7 @@ protected:
 		RawCultureStringArray->Remove(CultureName);
 		if(!IsInBatchSelectOperation)
 		{
-			CulturesPropertyHandle->NotifyPostChange();
+			CulturesPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 		}
 	}
 
@@ -366,7 +366,7 @@ protected:
 
 	void OnPostBatchSelect()
 	{
-		CulturesPropertyHandle->NotifyPostChange();
+		CulturesPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		IsInBatchSelectOperation = false;
 	}
 

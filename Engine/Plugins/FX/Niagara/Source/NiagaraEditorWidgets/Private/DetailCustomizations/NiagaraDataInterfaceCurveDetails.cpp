@@ -197,7 +197,7 @@ private:
 		{
 			if (GetCurveFromPropertyHandle(CurveProperty) == ChangedCurve)
 			{
-				CurveProperty->NotifyPostChange();
+				CurveProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 				break;
 			}
 		}
@@ -347,7 +347,7 @@ void FNiagaraDataInterfaceCurveDetailsBase::ImportSelectedAsset(UObject* Selecte
 		CustomizedCurveInterface->UpdateLUT(); // we need this done before notify change because of the internal copy methods
 		for (auto CurveProperty : CurveProperties)
 		{
-			CurveProperty->NotifyPostChange();
+			CurveProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

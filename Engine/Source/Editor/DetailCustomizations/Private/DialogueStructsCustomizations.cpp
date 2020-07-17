@@ -236,7 +236,7 @@ void SSpeakerDropDown::OnSelectionChanged(TSharedPtr<UDialogueVoice*> Speaker, E
 	{
 		SpeakerPropertyHandle->NotifyPreChange();
 		*SpeakerToChange = *Speaker;
-		SpeakerPropertyHandle->NotifyPostChange();
+		SpeakerPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 
@@ -464,7 +464,7 @@ void STargetSetDropDown::OnSelectionChanged(TSharedPtr<FTargetSet> TargetSet, ES
 	{
 		TargetsPropertyHandle->NotifyPreChange();
 		*TargetSetToChange = *TargetSet;
-		TargetsPropertyHandle->NotifyPostChange();
+		TargetsPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 
@@ -877,7 +877,7 @@ void SValidatedDialogueContextHeaderWidget::Tick( const FGeometry& AllottedGeome
 					{
 						TargetsPropertyHandle->NotifyPreChange();
 						*TargetSet = DialogueWave->ContextMappings[0].Context.Targets;
-						TargetsPropertyHandle->NotifyPostChange();
+						TargetsPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 					}
 				}
 			}
@@ -886,39 +886,39 @@ void SValidatedDialogueContextHeaderWidget::Tick( const FGeometry& AllottedGeome
 
 	if( !IsDialogueWaveValid() )
 	{
-		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError(	LOCTEXT("InvalidDialogueWaveError", "Invalid dialogue wave.") ); }
-
-		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError(	FText::GetEmpty() ); }
-		if( SpeakerErrorText.IsValid() )		{ SpeakerErrorText->SetError(		LOCTEXT("SelectDialogueWaveError", "Select a valid dialogue wave.") ); }
-		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError(	FText::GetEmpty() ); }
-		if( TargetsErrorText.IsValid() )		{ TargetsErrorText->SetError(		LOCTEXT("SelectDialogueWaveError", "Select a valid dialogue wave.") ); }
-	}
-	else if( !IsSpeakerValid() )
-	{
-		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError(	FText::GetEmpty() ); }
-
-		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError(	LOCTEXT("InvalidSpeakerError", "Invalid speaker for dialogue wave.") ); }
-		if( SpeakerErrorText.IsValid() )		{ SpeakerErrorText->SetError(		FText::GetEmpty() ); }
-		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError(	FText::GetEmpty() ); }
-		if( TargetsErrorText.IsValid() )		{ TargetsErrorText->SetError(		LOCTEXT("SelectSpeakerError", "Select a valid speaker.") ); }
-	}
-	else if( !IsTargetSetValid() )
-	{
-		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError(	FText::GetEmpty() ); }
-
-		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError(	FText::GetEmpty() ); }
-		if( SpeakerErrorText.IsValid() )		{ SpeakerErrorText->SetError(		FText::GetEmpty() ); }
-		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError(	LOCTEXT("SelectTargetsError", "Select a valid target set.") ); }
-		if( TargetsErrorText.IsValid() )		{ TargetsErrorText->SetError(		FText::GetEmpty() ); }
-	}
-	else
-	{
-		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError(	FText::GetEmpty() ); }
-
-		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError(	FText::GetEmpty() ); }
-		if( SpeakerErrorText.IsValid() )		{ SpeakerErrorText->SetError(		FText::GetEmpty() ); }
-		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError(	FText::GetEmpty() ); }
-		if( TargetsErrorText.IsValid() )		{ TargetsErrorText->SetError(		FText::GetEmpty() ); }
+		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError( LOCTEXT("InvalidDialogueWaveError", "Invalid dialogue wave.") ); }
+																		  
+		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError( FText::GetEmpty() ); }
+		if( SpeakerErrorText.IsValid() )	{ SpeakerErrorText->SetError( LOCTEXT("SelectDialogueWaveError", "Select a valid dialogue wave.") ); }
+		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorText.IsValid() )	{ TargetsErrorText->SetError( LOCTEXT("SelectDialogueWaveError", "Select a valid dialogue wave.") ); }
+	}																	  
+	else if( !IsSpeakerValid() )										  
+	{																	  
+		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError( FText::GetEmpty() ); }
+																		  
+		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError( LOCTEXT("InvalidSpeakerError", "Invalid speaker for dialogue wave.") ); }
+		if( SpeakerErrorText.IsValid() )	{ SpeakerErrorText->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorText.IsValid() )	{ TargetsErrorText->SetError( LOCTEXT("SelectSpeakerError", "Select a valid speaker.") ); }
+	}																	  
+	else if( !IsTargetSetValid() )										  
+	{																	  
+		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError( FText::GetEmpty() ); }
+																		  
+		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError( FText::GetEmpty() ); }
+		if( SpeakerErrorText.IsValid() )	{ SpeakerErrorText->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError( LOCTEXT("SelectTargetsError", "Select a valid target set.") ); }
+		if( TargetsErrorText.IsValid() )	{ TargetsErrorText->SetError( FText::GetEmpty() ); }
+	}																	  
+	else																  
+	{																	  
+		if( ContextErrorHint.IsValid() )	{ ContextErrorHint->SetError( FText::GetEmpty() ); }
+																		  
+		if( SpeakerErrorHint.IsValid() )	{ SpeakerErrorHint->SetError( FText::GetEmpty() ); }
+		if( SpeakerErrorText.IsValid() )	{ SpeakerErrorText->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorHint.IsValid() )	{ TargetsErrorHint->SetError( FText::GetEmpty() ); }
+		if( TargetsErrorText.IsValid() )	{ TargetsErrorText->SetError( FText::GetEmpty() ); }
 	}
 }
 

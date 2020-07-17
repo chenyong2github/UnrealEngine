@@ -137,7 +137,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::OnNameChanged(const FText& InText
 	InTree->FunctionInstanceHandle->NotifyPreChange();
 	InTree->FunctionInstance->LayerNames[Counter] = InText;
 	InTree->MaterialEditorInstance->CopyToSourceInstance(true);
-	InTree->FunctionInstanceHandle->NotifyPostChange();
+	InTree->FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEvent& DragDropEvent)
@@ -193,7 +193,7 @@ FReply SMaterialLayersFunctionsInstanceTreeItem::OnLayerDrop(const FDragDropEven
 
 				Tree->OnExpansionChanged(SwappablePropertyData, bOriginalSwappingExpansion);
 				Tree->OnExpansionChanged(SwappingPropertyData, bOriginalSwappableExpansion);
-				Tree->FunctionInstanceHandle->NotifyPostChange();
+				Tree->FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 				Tree->CreateGroupsWidget();
 				Tree->RequestTreeRefresh();
 				Tree->SetParentsExpansionState();
@@ -1201,7 +1201,7 @@ void SMaterialLayersFunctionsInstanceTree::AddLayer()
 	const FScopedTransaction Transaction(LOCTEXT("AddLayerAndBlend", "Add a new Layer and a Blend into it"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->AppendBlendedLayer();
-	FunctionInstanceHandle->NotifyPostChange();
+	FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	CreateGroupsWidget();
 	RequestTreeRefresh();
 }
@@ -1211,7 +1211,7 @@ void SMaterialLayersFunctionsInstanceTree::RemoveLayer(int32 Index)
 	const FScopedTransaction Transaction(LOCTEXT("RemoveLayerAndBlend", "Remove a Layer and the attached Blend"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->RemoveBlendedLayerAt(Index);
-	FunctionInstanceHandle->NotifyPostChange();
+	FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 	CreateGroupsWidget();
 	RequestTreeRefresh();
 }
@@ -1221,7 +1221,7 @@ FReply SMaterialLayersFunctionsInstanceTree::UnlinkLayer(int32 Index)
 	const FScopedTransaction Transaction(LOCTEXT("UnlinkLayerFromParent", "Unlink a layer from the parent"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->UnlinkLayerFromParent(Index);
-	FunctionInstanceHandle->NotifyPostChange();
+	FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	CreateGroupsWidget();
 	return FReply::Handled();
 }
@@ -1231,7 +1231,7 @@ FReply SMaterialLayersFunctionsInstanceTree::RelinkLayersToParent()
 	const FScopedTransaction Transaction(LOCTEXT("RelinkLayersToParent", "Relink layers to parent"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->RelinkLayersToParent();
-	FunctionInstanceHandle->NotifyPostChange();
+	FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	MaterialEditorInstance->RegenerateArrays();
 	CreateGroupsWidget();
 	return FReply::Handled();
@@ -1263,7 +1263,7 @@ FReply SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility(int32 Index)
 		const FScopedTransaction Transaction(LOCTEXT("ToggleLayerAndBlendVisibility", "Toggles visibility for a blended layer"));
 		FunctionInstanceHandle->NotifyPreChange();
 		FunctionInstance->ToggleBlendedLayerVisibility(Index);
-		FunctionInstanceHandle->NotifyPostChange();
+		FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		CreateGroupsWidget();
 		return FReply::Handled();
 	}
@@ -1286,7 +1286,7 @@ FReply SMaterialLayersFunctionsInstanceTree::ToggleLayerVisibility(int32 Index)
 		}
 
 		bLayerIsolated = !bLayerIsolated;
-		FunctionInstanceHandle->NotifyPostChange();
+		FunctionInstanceHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		CreateGroupsWidget();
 		return FReply::Handled();
 	}

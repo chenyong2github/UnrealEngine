@@ -112,7 +112,7 @@ void FTimespanStructCustomization::HandleTextBoxTextCommited(const FText& NewTex
 			*(FTimespan*)RawDataInstance = ParsedTimespan;
 		}
 
-		PropertyHandle->NotifyPostChange();
+		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		PropertyHandle->NotifyFinishedChangingProperties();
 	}
 }

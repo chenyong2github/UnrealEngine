@@ -87,7 +87,7 @@ void FHoloLensLocalizedResourcesNodeBuilder::AddLocalizedEntry(const FString& Cu
 		DlcPluginProperty->SetValue(OptionalPluginName);
 	}
 	NewlyAddedItem->GetChildHandle("CultureId")->SetValue(CultureId);
-	NewlyAddedItem->NotifyPostChange();
+	NewlyAddedItem->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	OnRebuildChildren.ExecuteIfBound();
 }
 

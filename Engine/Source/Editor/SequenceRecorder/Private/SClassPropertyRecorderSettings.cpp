@@ -178,7 +178,7 @@ void SClassPropertyRecorderSettings::HandlePropertyCheckStateChanged(ECheckBoxSt
 				PropertiesToRecord->Remove(PropertyPath);
 			}
 
-			PropertiesHandle->NotifyPostChange();
+			PropertiesHandle->NotifyPostChange(InState == ECheckBoxState::Checked ? EPropertyChangeType::ArrayAdd : EPropertyChangeType::ArrayRemove);
 		}
 	}
 }

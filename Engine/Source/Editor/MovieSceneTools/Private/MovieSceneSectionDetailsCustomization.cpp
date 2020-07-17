@@ -206,7 +206,7 @@ void FMovieSceneSectionDetailsCustomization::OnRangeStartTextCommitted(const FTe
 		}
 	}
 
-	MovieSceneSectionPropertyHandle->NotifyPostChange();
+	MovieSceneSectionPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	MovieSceneSectionPropertyHandle->NotifyFinishedChangingProperties();
 
 	GEditor->EndTransaction();
@@ -406,7 +406,7 @@ void FMovieSceneSectionDetailsCustomization::OnRangeEndTextCommitted(const FText
 		}
 	}
 
-	MovieSceneSectionPropertyHandle->NotifyPostChange();
+	MovieSceneSectionPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	MovieSceneSectionPropertyHandle->NotifyFinishedChangingProperties();
 
 	GEditor->EndTransaction();

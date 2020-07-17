@@ -347,7 +347,7 @@ void UpdateInputScaleBiasWithMinValue(float MinValue, TSharedRef<class IProperty
 		*BiasPtr = -MinValue * *ScalePtr;
 	}
 
-	InputBiasScaleStructPropertyHandle->NotifyPostChange();
+	InputBiasScaleStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 void UpdateInputScaleBiasWithMaxValue(float MaxValue, TSharedRef<class IPropertyHandle> InputBiasScaleStructPropertyHandle)
@@ -374,7 +374,7 @@ void UpdateInputScaleBiasWithMaxValue(float MaxValue, TSharedRef<class IProperty
 		*BiasPtr = -MinValue * *ScalePtr;
 	}
 
-	InputBiasScaleStructPropertyHandle->NotifyPostChange();
+	InputBiasScaleStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 TOptional<float> GetMinValueInputScaleBias(TSharedRef<class IPropertyHandle> InputBiasScaleStructPropertyHandle)

@@ -318,7 +318,7 @@ public:
 	 * Called to manually notify root objects that this property has changed
 	 * This does not need to be called when SetValue functions are used since it will be called automatically
 	 */
-	virtual void NotifyPostChange( EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified ) = 0;
+	virtual void NotifyPostChange(EPropertyChangeType::Type ChangeType) = 0;
 
 	/**
 	 * Called to manually notify root objects that this property has finished changing

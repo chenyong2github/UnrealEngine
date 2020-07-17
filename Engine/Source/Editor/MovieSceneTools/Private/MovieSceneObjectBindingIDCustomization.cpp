@@ -140,7 +140,7 @@ void FMovieSceneObjectBindingIDCustomization::SetCurrentValue(const FMovieSceneO
 		*static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) = InObjectBinding;
 	}
 	
-	StructProperty->NotifyPostChange();
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 	StructProperty->NotifyFinishedChangingProperties();
 }
 

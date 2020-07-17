@@ -297,7 +297,7 @@ void SLocalizationTargetEditorCultureRow::OnNativeCultureCheckStateChanged( cons
 
 				TargetSettingsPropertyHandle->NotifyPreChange();
 				TargetSettings->NativeCultureIndex = CultureIndex;
-				TargetSettingsPropertyHandle->NotifyPostChange();
+				TargetSettingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			}
 			break;
 		}
@@ -385,7 +385,7 @@ void SLocalizationTargetEditorCultureRow::UpdateTargetFromReports()
 		LocalizationTarget->UpdateStatusFromConflictReport();
 		for (const TSharedPtr<IPropertyHandle>& WordCountPropertyHandle : WordCountPropertyHandles)
 		{
-			WordCountPropertyHandle->NotifyPostChange();
+			WordCountPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

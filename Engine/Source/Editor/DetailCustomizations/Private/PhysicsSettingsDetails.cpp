@@ -256,7 +256,7 @@ private:
 			PhysicsSettings->UpdateDefaultConfigFile();
 			PhysicsSettings->LoadSurfaceType();
 
-			PhysicalSurfacesProperty->NotifyPostChange();
+			PhysicalSurfacesProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 private:

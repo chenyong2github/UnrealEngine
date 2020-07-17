@@ -786,7 +786,7 @@ void FDeviceProfileConsoleVariablesPropertyDetails::HandleCVarAdded(const FStrin
 
 				Array.Add(CompleteCVarString);
 			}
-			CVarsHandle->NotifyPostChange();
+			CVarsHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 		}
 
 		// Update the UI with the selection

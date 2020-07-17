@@ -248,7 +248,7 @@ void FCurveStructCustomization::MakeTransactional()
 
 void FCurveStructCustomization::OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos)
 {
-	StructPropertyHandle->NotifyPostChange();
+	StructPropertyHandle->NotifyPostChange(EPropertyChangeType::Unspecified);
 }
 
 bool FCurveStructCustomization::IsValidCurve( FRichCurveEditInfo CurveInfo )
@@ -280,7 +280,7 @@ void FCurveStructCustomization::OnExternalCurveChanged(TSharedRef<IPropertyHandl
 			CurveWidget->SetCurveOwner(this, CurvePropertyHandle->IsEditable());
 		}
 
-		CurvePropertyHandle->NotifyPostChange();
+		CurvePropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 

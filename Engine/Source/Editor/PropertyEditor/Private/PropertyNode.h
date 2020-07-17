@@ -1073,7 +1073,7 @@ protected:
 	TWeakPtr< class FDetailTreeNode > TreeNode;
 
 	/**
-	 * Stores metadata for this instasnce of the property (in contrast
+	 * Stores metadata for this instance of the property (in contrast
 	 * to regular metadata, which is stored per-class)
 	 */
 	TMap<FName, FString> InstanceMetaData;

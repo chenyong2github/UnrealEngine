@@ -239,7 +239,7 @@ FReply FMovieSceneBuiltInEasingFunctionCustomization::SetType(EMovieSceneBuiltIn
 		*((EMovieSceneBuiltInEasing*)Ptr) = NewType;
 	}
 
-	TypeProperty->NotifyPostChange();
+	TypeProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 	TypeProperty->NotifyFinishedChangingProperties();
 
 	return FReply::Unhandled();

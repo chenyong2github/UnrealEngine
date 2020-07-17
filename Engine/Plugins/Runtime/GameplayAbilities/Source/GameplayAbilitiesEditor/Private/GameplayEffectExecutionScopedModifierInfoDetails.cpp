@@ -443,7 +443,7 @@ void FGameplayEffectExecutionScopedModifierInfoDetails::SetCurrentBackingData(TS
 				ScopedModifierInfo.CapturedAttribute = FGameplayEffectAttributeCaptureDefinition();
 				ScopedModifierInfo.TransientAggregatorIdentifier = InBackingData->TransientAggregatorIdentifier;
 			}
-			ScopedModifierStructPropertyHandle->NotifyPostChange();
+			ScopedModifierStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

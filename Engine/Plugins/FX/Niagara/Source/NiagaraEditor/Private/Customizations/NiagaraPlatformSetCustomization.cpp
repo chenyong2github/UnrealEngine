@@ -313,7 +313,7 @@ void FNiagaraPlatformSetCustomization::InvalidateSiblingConflicts() const
 		TSharedPtr<IPropertyHandle> SiblingPlatformSet = FindChildPlatformSet(Sibling);
 		if (SiblingPlatformSet.IsValid())
 		{
-			SiblingPlatformSet->NotifyPostChange();
+			SiblingPlatformSet->NotifyPostChange(EPropertyChangeType::ValueSet);
 		}
 	}
 }

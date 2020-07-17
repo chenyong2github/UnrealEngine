@@ -278,7 +278,7 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 
 		SetDefaultCapabilitiesProperty->NotifyPreChange();
 		SetDefaultCapabilitiesProperty->SetValue(false);
-		SetDefaultCapabilitiesProperty->NotifyPostChange();
+		SetDefaultCapabilitiesProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
 	AudioPluginManager.BuildAudioCategory(DetailBuilder, TEXT("HoloLens"));
@@ -502,15 +502,14 @@ void FHoloLensTargetSettingsCustomization::OnCapabilityStateChanged(ECheckBoxSta
 	{
 		// Remove existing capability from the list
 		RawCapabilityStringArray->RemoveAt(Index);
+		CapabilityList->NotifyPostChange(EPropertyChangeType::ArrayRemove);
 	}
 	else if (!Found && IsEnabled)
 	{
 		//Add new capability to the list
 		RawCapabilityStringArray->AddUnique(*CapabilityName);
+		CapabilityList->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
-
-	// Save settings to Ini
-	CapabilityList->NotifyPostChange();
 }
 
 FReply FHoloLensTargetSettingsCustomization::GenerateSigningCertificate()
@@ -763,7 +762,7 @@ void FHoloLensTargetSettingsCustomization::OnAutoDetectWin10SDKChanged(ECheckBox
 			WindowsSDKSelector->SetEnabled(true);
 		}
 	}
-	Win10SDKVersionPropertyHandle->NotifyPostChange();
+	Win10SDKVersionPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 }
 
 ECheckBoxState FHoloLensTargetSettingsCustomization::IsAutoDetectWin10SDKChecked() const

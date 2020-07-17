@@ -431,7 +431,7 @@ void SPDD_TargetRow::NotifyTargetChanged()
 	TSharedPtr<FPoseDriverDetails> PoseDriverDetails = PoseDriverDetailsPtr.Pin();
 	if (PoseDriverDetails.IsValid())
 	{
-		PoseDriverDetails->NodePropHandle->NotifyPostChange(); // Will push change to preview node instance
+		PoseDriverDetails->NodePropHandle->NotifyPostChange(EPropertyChangeType::ValueSet); // Will push change to preview node instance
 	}
 }
 
@@ -1119,7 +1119,7 @@ void FPoseDriverDetails::ClickedOnCopyFromPoseAsset()
 		PoseDriver->Node.RBFParams.Radius = 0.5f * MaxDist; // reasonable default radius
 
 		UpdateTargetInfosList();
-		NodePropHandle->NotifyPostChange();
+		NodePropHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 
@@ -1138,7 +1138,7 @@ void FPoseDriverDetails::ClickedOnAutoScaleFactors()
 		float MaxDist;
 		PoseDriver->AutoSetTargetScales(MaxDist);
 		PoseDriver->Node.RBFParams.Radius = 0.5f * MaxDist; // reasonable default radius
-		NodePropHandle->NotifyPostChange();
+		NodePropHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 }
 
@@ -1155,7 +1155,7 @@ FReply FPoseDriverDetails::ClickedAddTarget()
 	{
 		PoseDriver->AddNewTarget();
 		UpdateTargetInfosList();
-		NodePropHandle->NotifyPostChange(); // will push changes to preview node instance
+		NodePropHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd); // will push changes to preview node instance
 	}
 	return FReply::Handled();
 }
@@ -1167,7 +1167,7 @@ void FPoseDriverDetails::RemoveTarget(int32 TargetIndex)
 	{
 		PoseDriver->Node.PoseTargets.RemoveAt(TargetIndex);
 		UpdateTargetInfosList();
-		NodePropHandle->NotifyPostChange(); // will push changes to preview node instance
+		NodePropHandle->NotifyPostChange(EPropertyChangeType::ArrayRemove); // will push changes to preview node instance
 	}
 }
 

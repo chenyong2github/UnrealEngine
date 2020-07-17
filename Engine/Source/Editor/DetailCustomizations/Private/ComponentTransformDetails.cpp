@@ -321,7 +321,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.CopyAction( CreateCopyAction( ETransformField::Location ) )
 		.PasteAction( CreatePasteAction( ETransformField::Location ) )
 		.NameContent()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
 			BuildTransformFieldLabel( ETransformField::Location )
@@ -394,7 +393,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.CopyAction( CreateCopyAction(ETransformField::Rotation) )
 		.PasteAction( CreatePasteAction(ETransformField::Rotation) )
 		.NameContent()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
 			BuildTransformFieldLabel(ETransformField::Rotation)
@@ -460,7 +458,6 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.CopyAction( CreateCopyAction(ETransformField::Scale) )
 		.PasteAction( CreatePasteAction(ETransformField::Scale) )
 		.NameContent()
-		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
 			BuildTransformFieldLabel(ETransformField::Scale)

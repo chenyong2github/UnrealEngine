@@ -159,7 +159,7 @@ void FActionMappingsNodeBuilder::AddActionMappingButton_OnClick()
 		FInputActionKeyMapping NewMapping(NewActionMappingName);
 		InputSettings->AddActionMapping(NewMapping);
 
-		ActionMappingsPropertyHandle->NotifyPostChange();
+		ActionMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 
@@ -214,7 +214,7 @@ void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const FMa
 		FInputActionKeyMapping NewMapping(MappingSet.SharedName);
 		InputSettings->AddActionMapping(NewMapping);
 
-		ActionMappingsPropertyHandle->NotifyPostChange();
+		ActionMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 
@@ -450,7 +450,7 @@ void FAxisMappingsNodeBuilder::AddAxisMappingButton_OnClick()
 		FInputAxisKeyMapping NewMapping(NewAxisMappingName);
 		InputSettings->AddAxisMapping(NewMapping);
 
-		AxisMappingsPropertyHandle->NotifyPostChange();
+		AxisMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 
@@ -505,7 +505,7 @@ void FAxisMappingsNodeBuilder::AddAxisMappingToGroupButton_OnClick(const FMappin
 		FInputAxisKeyMapping NewMapping(MappingSet.SharedName);
 		InputSettings->AddAxisMapping(NewMapping);
 
-		AxisMappingsPropertyHandle->NotifyPostChange();
+		AxisMappingsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayAdd);
 	}
 }
 
