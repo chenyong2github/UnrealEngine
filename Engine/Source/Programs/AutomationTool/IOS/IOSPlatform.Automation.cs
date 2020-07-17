@@ -224,35 +224,6 @@ public class IOSPlatform : Platform
 		return true;
 	}
 
-	private bool InstallCert(FileRetriever Retriever)
-	{
-		// get the cert password from Studio settings
-		string CertPassword = "Epic123!";
-
-		string CertLoc = Retriever.RetrieveByTags(new string[] { "IOS_Cert_Generic_Development" }, null);
-
-		if (CertLoc != null)
-		{
-			Console.WriteLine("Will install cert from: '{0}'", CertLoc);
-
-			string CommandLine = string.Format("-e 'require \"cert\"; " +
-				"FastlaneCore::KeychainImporter.import_file(\"{0}\", FastlaneCore::Helper.keychain_path(\"login\"), certificate_password:\"{1}\")'",
-				CertLoc, CertPassword);
-			UnrealBuildTool.Utils.RunLocalProcessAndLogOutput("ruby", CommandLine);
-
-			// @todo turnkey verify output
-
-			return true;
-		}
-		else
-		{
-			Console.WriteLine("Unable to find a tagged source for IOS_Cert_Generic_Development");
-
-			return false;
-		}
-
-	}
-
 	private class VerifyIOSSettings
 	{
 		public string CodeSigningIdentity = null;
@@ -263,9 +234,11 @@ public class IOSPlatform : Platform
 
 		public string RubyScript = Path.Combine(CommandUtils.EngineDirectory.FullName, "Build/Turnkey/VerifyIOS.ru");
 
-		public VerifyIOSSettings(BuildCommand Command)
+		public VerifyIOSSettings(BuildCommand Command, FileRetriever Retriever)
 		{
 			FileReference ProjectPath = Command.ParseProjectParam();
+			string ProjectName = ProjectPath == null ? "" : ProjectPath.GetFileNameWithoutAnyExtensions();
+
 			ConfigHierarchy EngineConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectPath == null ? null : ProjectPath.Directory, UnrealTargetPlatform.IOS);
 
 			// first look for settings on the commandline:
@@ -275,65 +248,33 @@ public class IOSPlatform : Platform
 			Password = Command.ParseParamValue("devcenterpassword");
 			Team = Command.ParseParamValue("teamid");
 
+			if (string.IsNullOrEmpty(Team)) Team = Retriever.GetVariable("User_AppleDevCenterTeamID");
+			if (string.IsNullOrEmpty(Account)) Account = Retriever.GetVariable("User_AppleDevCenterUsername");
+
 			// fall back to ini for anything else
 			if (string.IsNullOrEmpty(CodeSigningIdentity)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out CodeSigningIdentity);
 			if (string.IsNullOrEmpty(BundleId)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "BundleIdentifier", out BundleId);
-			if (string.IsNullOrEmpty(Account)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterUsername", out Account);
-			if (string.IsNullOrEmpty(Password)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterPassword", out Password);
-			if (string.IsNullOrEmpty(Team)) EngineConfig.GetString("TurnkeySettings", "IOS_DevCenterPassword", out Password);
+			if (string.IsNullOrEmpty(Team)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "IOSTeamID", out Team);
+			if (string.IsNullOrEmpty(Account)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCenterUsername", out Account);
+			if (string.IsNullOrEmpty(Password)) EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCenterPassword", out Password);
 
-			string Foo;
-			bool Bar = EngineConfig.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "DevCodeSigningIdentity", out Foo);
+			BundleId.Replace("[PROJECT_NAME]", ProjectName);
 
 			// some are required
-			if (string.IsNullOrEmpty(CodeSigningIdentity) || string.IsNullOrEmpty(BundleId))
+			if (string.IsNullOrEmpty(BundleId))
 			{
-				throw new AutomationException("Turnkey IOS verification requires code signing identity (have ='{0}', ex: iPhone Developer) and a bundle id (have '{1}', ex: com.company.foo)", CodeSigningIdentity, BundleId);
+				throw new AutomationException("Turnkey IOS verification requires bundle id (have '{1}', ex: com.company.foo)", CodeSigningIdentity, BundleId);
 			}
 		}
 
-		public int RunRubyCommand(bool bCertOnly, bool bVerifyOnly, string DeviceName)
+		public int RunCommandMaybeInteractive(string Command, string Params, bool bInteractive)
 		{
-			string Params;
 			int ExitCode;
-
-			if (bCertOnly)
-			{
-				Params = string.Format("--certonly --identity '{0}'", CodeSigningIdentity);
-			}
-			else
-			{
-				Params = string.Format("--identity '{0}' --bundleid {1}", CodeSigningIdentity, BundleId);
-
-				if (!string.IsNullOrEmpty(Account))
-				{
-					Params += string.Format(" --login {0}", Account);
-				}
-				if (!string.IsNullOrEmpty(Password))
-				{
-					Params += string.Format(" --password {0}", Password);
-				}
-				if (!string.IsNullOrEmpty(Team))
-				{
-					Params += string.Format(" --team {0}", Team);
-				}
-
-
-				if (!string.IsNullOrEmpty(DeviceName))
-				{
-					Params += string.Format(" --device {0}", DeviceName);
-				}
-
-				if (bVerifyOnly)
-				{
-					Params += string.Format(" --verifyonly");
-				}
-			}
-
 			// if non-interactive, we can just run directly in the current shell
-			if (bVerifyOnly)
+			if (!bInteractive)
 			{
-				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(RubyScript, Params, out ExitCode, true);
+				Console.WriteLine("Running '{0} {1}'", Command, Params);
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Command, Params, out ExitCode, true);
 			}
 			else
 			{
@@ -355,16 +296,99 @@ public class IOSPlatform : Platform
 						" -e     \"close newWindow\"" +
 						" -e   \"end if\"" +
 						" -e \"end tell\"",
-						RubyScript, Params, ReturnCodeFilename);
+						Command, Params.Replace("\"", "\\\\\\\""), ReturnCodeFilename);
 
 				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("osascript", Params, out ExitCode, true);
 				if (ExitCode == 0)
 				{
 					ExitCode = int.Parse(File.ReadAllText(ReturnCodeFilename));
+					File.Delete(ReturnCodeFilename);
 				}
+				
 			}
 			return ExitCode;
 		}
+
+		public int RunRubyCommand(bool bVerifyOnly, string DeviceName)
+		{
+			string Params;
+
+			Params = string.Format("--bundleid {0}", BundleId);
+
+			if (!string.IsNullOrEmpty(CodeSigningIdentity))
+			{
+				Params += string.Format(" --identity '{0}'", CodeSigningIdentity);
+			}
+
+			if (!string.IsNullOrEmpty(Account))
+			{
+				Params += string.Format(" --login {0}", Account);
+			}
+			if (!string.IsNullOrEmpty(Password))
+			{
+				Params += string.Format(" --password {0}", Password);
+			}
+			if (!string.IsNullOrEmpty(Team))
+			{
+				Params += string.Format(" --team {0}", Team);
+			}
+
+
+			if (!string.IsNullOrEmpty(DeviceName))
+			{
+				Params += string.Format(" --device {0}", DeviceName);
+			}
+
+			if (bVerifyOnly)
+			{
+				Params += string.Format(" --verifyonly");
+			}
+
+			return RunCommandMaybeInteractive(RubyScript, Params, !bVerifyOnly);
+		}
+	}
+
+	private bool InstallCert(FileRetriever Retriever, VerifyIOSSettings Settings)
+	{
+//		string ProjectName = Retriever.GetVariable("Project");
+
+		string CertLoc = null;
+
+		if (!string.IsNullOrEmpty(Settings.BundleId))
+		{
+			CertLoc = Retriever.RetrieveByTags(new string[] { "DevCert: " + Settings.BundleId }, null);
+		}
+		if (CertLoc == null)
+		{
+			CertLoc = Retriever.RetrieveByTags(new string[] { "DevCert" }, null);
+		}
+
+		if (CertLoc != null)
+		{
+			// get the cert password from Studio settings
+			string CertPassword = "Epic123!";// Retriever.GetVariable("IOSCertificatePassword");
+
+Console.WriteLine("Will install cert from: '{0}'", CertLoc);
+
+
+			// osascript -e 'Tell application "System Events" to display dialog "Enter the network password:" with hidden answer default answer ""' -e 'text returned of result' 2>/dev/null
+			string CommandLine = string.Format("-e 'require \"cert\"; " +
+				"FastlaneCore::KeychainImporter.import_file(\"{0}\", FastlaneCore::Helper.keychain_path(\"login\"), certificate_password:\"{1}\")'",
+				CertLoc, CertPassword);
+			
+			Settings.RunCommandMaybeInteractive("ruby", CommandLine, true);
+			
+			// @todo turnkey verify output
+
+			return true;
+		}
+		else
+		{
+			Console.WriteLine("Unable to find a tagged source for DevCert");
+
+			return false;
+		}
+
 	}
 
 	string GetConfiguratorLocation()
@@ -423,10 +447,10 @@ public class IOSPlatform : Platform
 			}
 		}
 
-		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, Retriever);
 
 		// look if we have a cert that matches it
-		ExitCode = Settings.RunRubyCommand(true, bVerifyOnly, null);
+		ExitCode = Settings.RunRubyCommand(bVerifyOnly, null);
 
 		Console.WriteLine("Host VerifyIOS exited with code {0}", ExitCode);
 
@@ -437,7 +461,8 @@ public class IOSPlatform : Platform
 				return false;
 			}
 
-			if (!InstallCert(Retriever))
+			// ExitCode 3 means we need to install a cert
+			if (ExitCode == 3 && !InstallCert(Retriever, Settings))
 			{
 				return false;
 			}
@@ -453,15 +478,21 @@ public class IOSPlatform : Platform
 			return base.UpdateDevicePrerequisites(Device, Command, Retriever, bVerifyOnly);
 		}
 
-		VerifyIOSSettings Settings = new VerifyIOSSettings(Command);
+		VerifyIOSSettings Settings = new VerifyIOSSettings(Command, Retriever);
 
 		// @todo turnkey - better to use the device's udid if it's set properly in DeviceInfo
 		string DeviceName = Device == null ? null : Device.Name;
 
 		// now look for a provision that can be used with a (maybe newly) instally cert
-		int ExitCode = Settings.RunRubyCommand(false, bVerifyOnly, DeviceName);
+		int ExitCode = Settings.RunRubyCommand(bVerifyOnly, DeviceName);
 
 		Console.WriteLine("Device VerifyIOS exited with code {0}", ExitCode);
+
+		// ExitCode 3 means we need to install a cert
+		if (ExitCode == 3 && !InstallCert(Retriever, Settings))
+		{
+			return false;
+		}
 
 		return ExitCode == 0;
 	}

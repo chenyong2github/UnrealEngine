@@ -18,7 +18,7 @@ namespace Turnkey
 			if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac && Operation.StartsWith("smb://"))
 			{
 				// match the form smb://server.net/Foo/Bar/Baz and retrieve the Foo, which will be the name in /Volumes/Foo
-				Match Match = Regex.Match(Operation, @"^smb:\/\/.+?\/(.+?)\/(.*)$");
+				Match Match = Regex.Match(Operation, @"^(smb:\/\/.+?)\/(.+?)\/(.*)$");
 
 				// make sure regex matched
 				if (!Match.Success)
@@ -26,9 +26,12 @@ namespace Turnkey
 					return;
 				}
 
+				// mount the drive
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("osascript", string.Format("-e 'mount volume \"{0}/{1}\"'", Match.Groups[1].Value, Match.Groups[2].Value));
+
 				// convert smb://server.net/Foo/Bar/Baz to /Volumes/Foo/Bar/Baz
 				TurnkeyUtils.Log("SMB Before: {0}", Operation);
-				Operation = string.Format("/Volumes/{0}/{1}", Match.Groups[1].Value, Match.Groups[2].Value);
+				Operation = string.Format("/Volumes/{0}/{1}", Match.Groups[2].Value, Match.Groups[3].Value);
 				TurnkeyUtils.Log("SMB After: {0}", Operation);
 			}
 		}

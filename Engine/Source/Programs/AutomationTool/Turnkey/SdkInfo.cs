@@ -135,7 +135,7 @@ namespace Turnkey
 			LocalAvailability Result = LocalAvailability.None;
 
 			// no need to retrieve anything if we aren't allowing updates
-			CopyProviderRetriever Retriever = bAllowUpdatingPrerequisites ? new CopyProviderRetriever() : null;
+			CopyProviderRetriever Retriever = new CopyProviderRetriever();
 
 			if (AutomationPlatform.UpdateHostPrerequisites(TurnkeyUtils.CommandUtilHelper, Retriever, !bAllowUpdatingPrerequisites))
 			{

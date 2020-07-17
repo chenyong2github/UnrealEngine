@@ -222,7 +222,24 @@ namespace Turnkey
 
 			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
 
-			Sdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Misc && x.CustomSdkId == RequiredTags[0]);
+			string Tag = RequiredTags[0];
+			Sdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Misc);
+
+			Sdks = Sdks.FindAll(x =>
+			{
+				if (Tag.StartsWith("regex:"))
+				{
+					return TurnkeyUtils.IsValueValid(x.CustomSdkId, Tag, null);
+				}
+				// this will handle the case of x.CustomSdkId starting with regex: or just doing a case insensitive string comparison of tag and CustomSdkId
+				// range: is not supported, at least yet - we would have to check Tag with range: above, and also support range without a Platform (or pass in a platform somehow?)
+				return TurnkeyUtils.IsValueValid(Tag, x.CustomSdkId, null);
+			});
+
+			if (Sdks == null || Sdks.Count == 0)
+			{
+				return null;
+			}
 
 			SdkInfo Sdk = Sdks.First();
 
@@ -235,6 +252,11 @@ namespace Turnkey
 			}
 
 			return null;
+		}
+
+		public string GetVariable(string VariableName)
+		{
+			return TurnkeyUtils.GetVariableValue(VariableName);
 		}
 	}
 }

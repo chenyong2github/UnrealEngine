@@ -13,7 +13,8 @@ namespace AutomationTool
 {
 	public interface FileRetriever
 	{
-		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string,string> ExtraVariables=null);
+		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null);
+		string GetVariable(string VariableName);
 	}
 
 	//public interface InputOutput

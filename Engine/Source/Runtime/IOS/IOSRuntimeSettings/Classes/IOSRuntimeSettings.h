@@ -444,11 +444,13 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (EditCondition = "bEnableFacebookSupport"))
 	FString FacebookAppID;
     
-    // Mobile provision to utilize when signing
+    // Mobile provision to utilize when signing.
+	// This value is stripped out when making builds.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	FString MobileProvision;
 
-	// Signing certificate to utilize when signing
+	// Signing certificate to utilize when signing.
+	// This value is stripped out when making builds.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	FString SigningCertificate;
 	
@@ -456,10 +458,23 @@ public:
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
 	bool bAutomaticSigning;
 
-	// The team ID of the apple developer account to be used to autmatically sign IOS builds
+	// The team ID of the apple developer account to be used to autmatically sign IOS builds.
+	// This can be overridden in Turnkey with "RunUAT Turnkey -command=ManageSettings"
+	// This value is stripped out when making builds.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (ConfigHierarchyEditable))
 	FString IOSTeamID;
 
+	// The username/email to use when logging in to DevCenter with Turnkey.
+	// This can be overridden in Turnkey with "RunUAT Turnkey -command=ManageSettings"
+	// This value is stripped out when making builds.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (ConfigHierarchyEditable))
+	FString DevCenterUsername;
+	
+	// The password to use when logging in to DevCenter with Turnkey. NOTE: This is saved in plaintext, and is meant for shared accounts!
+	// This value is stripped out when making builds.
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (ConfigHierarchyEditable))
+	FString DevCenterPassword;
+	
 	// Whether the app supports HTTPS
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (DisplayName = "Allow web connections to non-HTTPS websites"))
 	bool bDisableHTTPS;
