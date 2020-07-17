@@ -907,8 +907,8 @@ public:
 		}
 		
 		const bool bLightAtmospherePerPixelTransmittance = ShouldRenderSkyAtmosphere(LightSceneInfo->Scene, View.Family->EngineShowFlags) &&
-														(  (AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy->GetUsePerPixelAtmosphereTransmittance())
-														|| (AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy->GetUsePerPixelAtmosphereTransmittance()));
+														(  (AtmosphereLight0Proxy && AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy->GetUsePerPixelAtmosphereTransmittance())
+														|| (AtmosphereLight1Proxy && AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy->GetUsePerPixelAtmosphereTransmittance()));
 		SetShaderValue(RHICmdList, ShaderRHI, AtmospherePerPixelTransmittanceEnabled, bLightAtmospherePerPixelTransmittance ? 1 : 0);
 	}
 
