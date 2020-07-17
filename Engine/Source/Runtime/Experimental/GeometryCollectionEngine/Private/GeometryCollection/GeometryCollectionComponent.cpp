@@ -84,7 +84,7 @@ static void RecreateGlobalRenderState(IConsoleVariable* Var)
 	FGlobalComponentRecreateRenderStateContext Context;
 }
 
-int32 GGeometryCollectionNanite = 0;
+int32 GGeometryCollectionNanite = 1;
 FAutoConsoleVariableRef CVarGeometryCollectionNanite(
 	TEXT("r.GeometryCollection.Nanite"),
 	GGeometryCollectionNanite,
