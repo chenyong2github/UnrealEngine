@@ -105,6 +105,7 @@ void FHierarchicalLODBuilder::PreviewBuild()
 			if (LevelIter->bIsVisible)
 			{
 				BuildClusters(LevelIter);
+				DeleteEmptyHLODPackages(LevelIter);
 			}
 			else
 			{
@@ -803,7 +804,6 @@ void FHierarchicalLODBuilder::ClearHLODs()
 		}
 	}
 
-
 	// Fire map check warnings for hidden levels 
 	if (bVisibleLevelsWarning)
 	{
@@ -950,6 +950,30 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 	}
 }
 
+void FHierarchicalLODBuilder::DeleteEmptyHLODPackages(ULevel* InLevel)
+{
+	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
+
+	// Look for HLODProxy packages associated with this level
+	int32 NumLODLevels = InLevel->GetWorldSettings()->GetHierarchicalLODSetup().Num();
+	for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+	{
+		// Obtain HLOD package for the current HLOD level
+		UHLODProxy* HLODProxy = Utilities->RetrieveLevelHLODProxy(InLevel, LODIndex);
+		if (HLODProxy)
+		{
+			HLODProxy->Clean();
+
+			// If this proxy is empty, we can delete the package
+			if (HLODProxy->IsEmpty())
+			{
+				HLODProxy->DeletePackage();
+			}
+		}
+	}
+}
+
 void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPackage*>& InHLODPackagesToSave, const FString& PreviousLevelName /*= ""*/)
 {
 	const TArray<FHierarchicalSimplification>& BuildLODLevelSettings = InLevel->GetWorldSettings()->GetHierarchicalLODSetup();
@@ -981,11 +1005,10 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			if (HLODProxy)
 			{
 				// Ensure the HLOD descs are up to date.
-				bool bPackageDeleted = HLODProxy->Clean();
-				if (!bPackageDeleted)
-				{
-					InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
-				}
+				HLODProxy->Clean();
+
+				// Add the HLODProxy package to the list of packages to save
+				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
 			}
 			// If we couldn't find the HLOD package, the level may have been renamed, 
 			// so we need to relocate our old HLOD package before saving it.
