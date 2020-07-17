@@ -2513,7 +2513,10 @@ namespace ObjectTools
 					FText::FromString( ObjectToDelete->GetFullName() ), FText::FromString( *Ar ) ) );
 
 				// Reselect the object as it failed to be deleted
-				GEditor->GetSelectedObjects()->Select( ObjectToDelete );
+				if (GEditor)
+				{
+					GEditor->GetSelectedObjects()->Select(ObjectToDelete);
+				}
 
 				return false;
 			}
