@@ -11,6 +11,10 @@
 #include "UObject/Object.h"
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"
+#include "Physics/GenericPhysicsInterface.h"
+#include "Engine/EngineTypes.h"
+#include "CollisionQueryParams.h"
+#include "PhysicsEngine/BodyInstance.h"
 
 NETSIMCUE_REGISTER(FMockPhysicsJumpCue, TEXT("MockPhysicsJumpCue"));
 NETSIMCUE_REGISTER(FMockPhysicsChargeCue, TEXT("FMockPhysicsChargeCue"));
@@ -156,14 +160,23 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 				//UE_LOG(LogTemp, Warning, TEXT("  Hit: %s"), *GetNameSafe(Result.Actor.Get()));
 				if (UPrimitiveComponent* PrimitiveComp = Result.Component.Get())
 				{
-					FVector Dir = (PrimitiveComp->GetComponentLocation() - TracePosition);
-					Dir.Z = 0.f;
-					Dir.Normalize();
+					// We can't use the Primitive component's data here because it is not up to date!
+					// We need to get the real physics data from the underlying body.
+					FBodyInstance* Instance = PrimitiveComp->GetBodyInstance();
+					if (Instance)
+					{
+						FPhysicsActorHandle HitHandle = Instance->GetPhysicsActorHandle();
+						FVector PhysicsLocation = HitHandle->X();
 
-					FVector Impulse = Dir * 100000.f;
-					Impulse.Z = 100000.f;
+						FVector Dir = (PhysicsLocation - TracePosition);
+						Dir.Z = 0.f;
+						Dir.Normalize();
 
-					PrimitiveComp->AddImpulseAtLocation(Impulse, TracePosition);
+						FVector Impulse = Dir * 100000.f;
+						Impulse.Z = 100000.f;
+
+						PrimitiveComp->AddImpulseAtLocation(Impulse, TracePosition);
+					}
 				}
 			}
 			Output.CueDispatch.Invoke<FMockPhysicsChargeCue>( TracePosition );
