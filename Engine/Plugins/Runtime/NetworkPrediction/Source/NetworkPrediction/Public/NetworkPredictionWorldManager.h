@@ -84,7 +84,8 @@ private:
 		// Set when we first have a registered instance of a ModelDef with a valid physics state.
 		// This does not mean physics recording has been enabled, just that the system has to account
 		// for physics ticking
-		bool bUsingPhysics = false;									
+		bool bUsingPhysics = false;
+		bool bRecordingEnabled = false;
 
 		FChaosSolversModule* Module = nullptr;
 		Chaos::FPBDRigidsSolver* Solver = nullptr;
@@ -330,7 +331,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		if (FNetworkPredictionDriverBase<ModelDef>::HasPhysics())
 		{
 			ServiceMask |= ENetworkPredictionService::FixedPhysics;
-			if (bUsePhysicsRecording && Physics.Solver == nullptr)
+			if (bUsePhysicsRecording && !Physics.bRecordingEnabled)
 			{
 				InitPhysicsCapture();
 			}

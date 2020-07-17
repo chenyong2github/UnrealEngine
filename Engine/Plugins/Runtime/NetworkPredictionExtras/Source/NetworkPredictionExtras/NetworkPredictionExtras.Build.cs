@@ -29,14 +29,16 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"PhysicsCore",
 					"Chaos",
-					"ChaosSolvers"
+					"ChaosSolvers",
+					"Engine"
 				}
 				);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"TraceLog"                    
+					"TraceLog",
+					"Engine"
                 }
 				);
 

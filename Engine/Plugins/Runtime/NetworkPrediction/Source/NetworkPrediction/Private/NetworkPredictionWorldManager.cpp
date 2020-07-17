@@ -498,9 +498,10 @@ void UNetworkPredictionWorldManager::InitPhysicsCapture()
 {
 	constexpr int32 PhysicsBufferSize = 64; // fixme
 
-	npCheckSlow(Physics.Solver == nullptr);
-	Physics.Module = FChaosSolversModule::GetModule();
-	Physics.Solver = GetWorld()->GetPhysicsScene()->GetSolver();
+	npCheckSlow(Physics.Solver != nullptr);
+	npCheckSlow(!Physics.bRecordingEnabled);
+
+	Physics.bRecordingEnabled = true;
 	Physics.Solver->EnableRewindCapture(PhysicsBufferSize, true);
 	FixedTickState.PhysicsRewindData = Physics.Solver->GetRewindData();
 }
@@ -524,7 +525,22 @@ void UNetworkPredictionWorldManager::SetUsingPhysics()
 {
 	if (!Physics.bUsingPhysics)
 	{
+		npCheckSlow(Physics.Solver == nullptr);
 		Physics.bUsingPhysics = true;
+		Physics.Module = FChaosSolversModule::GetModule();
+		Physics.Solver = GetWorld()->GetPhysicsScene()->GetSolver();
+
+		const UObject* ExistingOwner = Physics.Solver->GetOwner();
+		if (!ExistingOwner)
+		{
+			Physics.Solver->SetOwner(GetWorld());
+		}
+		else
+		{
+			// We don't care if the solver's owner is the actual world or not, just as long as the owner's GetWorld() matches our GetWorld().
+			npEnsureMsgf(ExistingOwner->GetWorld() == GetWorld(), TEXT("Mismatch worlds betwen Solver %s and NP %s"), *GetNameSafe(ExistingOwner->GetWorld()), *GetNameSafe(GetWorld()));
+		}
+
 		npCheckSlow(GEngine);
 		if (!GEngine->bUseFixedFrameRate)
 		{

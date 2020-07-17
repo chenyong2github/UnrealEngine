@@ -43,6 +43,9 @@ NP_MODEL_REGISTER(FMockPhysicsModelDef);
 //	UMockPhysicsComponent
 // ----------------------------------------------------------------------------------------------------------
 
+// UMockPhysicsComponent implements the FMockPhysicsCueSet
+NETSIMCUESET_REGISTER(UMockPhysicsComponent, FMockPhysicsCueSet);
+
 UMockPhysicsComponent::UMockPhysicsComponent()
 {
 
@@ -77,6 +80,13 @@ void UMockPhysicsComponent::ProduceInput(const int32 DeltaTimeMS, FMockPhysicsIn
 
 void UMockPhysicsComponent::FinalizeFrame(const void* SyncState, const FMockPhysicsAuxState* AuxState)
 {
+	npCheckSlow(AuxState);
+	const bool bNewIsCharging = AuxState->ChargeStartTime != 0;
+	if (bNewIsCharging != bIsCharging)
+	{
+		bIsCharging = bNewIsCharging;
+		OnChargeStateChange.Broadcast(bNewIsCharging);
+	}
 }
 
 void UMockPhysicsComponent::InitializeSimulationState(const void* Sync, FMockPhysicsAuxState* Aux)
@@ -90,3 +100,14 @@ void UMockPhysicsComponent::InitMockPhysicsSimulation(FMockPhysicsSimulation* Si
 	check(ActiveSimulation == nullptr); // Reinstantiation not supported
 	ActiveSimulation = Simulation;
 }
+
+void UMockPhysicsComponent::HandleCue(const FMockPhysicsJumpCue& JumpCue, const FNetSimCueSystemParamemters& SystemParameters)
+{
+	OnJumpActivatedEvent.Broadcast(JumpCue.Start, (float)SystemParameters.TimeSinceInvocation / 1000.f);
+}
+
+void UMockPhysicsComponent::HandleCue(const FMockPhysicsChargeCue& ChargeCue, const FNetSimCueSystemParamemters& SystemParameters)
+{
+	OnChargeActivatedEvent.Broadcast(ChargeCue.Start, (float)SystemParameters.TimeSinceInvocation / 1000.f);
+}
+
