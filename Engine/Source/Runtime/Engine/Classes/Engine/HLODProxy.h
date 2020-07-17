@@ -34,11 +34,8 @@ public:
 	/** Adds a static mesh and the key used to generate it */
 	void AddMesh(ALODActor* InLODActor, UStaticMesh* InStaticMesh, const FName& InKey);
 
-	/**
-	 * Clean out invalid proxy mesh entries 
-	 * @return true if proxy is now invalid and it's package deleted.
-	 **/
-	bool Clean();
+	/** Clean out invalid proxy mesh entries */
+	void Clean();
 
 	/** Spawn LODActors from the HLODProxyDescs found in this proxy. */
  	void SpawnLODActors(ULevel* InLevel);
@@ -62,6 +59,12 @@ public:
 
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+
+	/** Returns true if proxy doesn't contain any mesh entry. */
+	bool IsEmpty() const;
+
+	/** Destroy all assets & delete this HLOD proxy package. */
+	void DeletePackage();
 #endif
 
 	/**
