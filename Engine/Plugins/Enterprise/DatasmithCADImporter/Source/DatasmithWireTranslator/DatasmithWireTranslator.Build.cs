@@ -26,11 +26,20 @@ public class DatasmithWireTranslator : ModuleRules
 				"DatasmithCoreTechParametricSurfaceData",
 				"DatasmithTranslator",
 				"Engine",
- 				"MessageLog",
 				"MeshDescription",
                 "StaticMeshDescription",
             }
         );
+
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+ 					"MessageLog",
+				}
+			);
+		}
 
 		if (System.Type.GetType("OpenModel") != null)
 		{
