@@ -10,13 +10,14 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-				"LiveStreamAnimation",
-				"Core",
-				"CoreUObject",
-				"UnrealEd",
-				"AssetTools",
-				"LiveLinkInterface",
-				"Engine"
+					"LiveStreamAnimation",
+					"Core",
+					"CoreUObject",
+					"UnrealEd",
+					"AssetTools",
+					"LiveLinkInterface",
+					"Engine",
+					"DeveloperSettings"
 				}
 			);
 		}
