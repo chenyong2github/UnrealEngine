@@ -22,6 +22,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Text.h"
+#include "CoreGlobals.h"
 
 #if RHI_RAYTRACING
 #include "GlobalShader.h"
@@ -403,11 +404,14 @@ void USkyLightComponent::PostLoad()
 
 	SanitizeCubemapSize();
 
-	// All components are queued for update on creation by default. But we do not want this top happen in some cases.
-	if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this) || IsRealTimeCaptureEnabled())
+	if (!GIsCookerLoadingPackage)
 	{
-		FScopeLock Lock(&SkyCapturesToUpdateLock);
-		SkyCapturesToUpdate.Remove(this);
+		// All components are queued for update on creation by default. But we do not want this top happen in some cases.
+		if (!GetVisibleFlag() || HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || SkipStaticSkyLightCapture(*this) || IsRealTimeCaptureEnabled())
+		{
+			FScopeLock Lock(&SkyCapturesToUpdateLock);
+			SkyCapturesToUpdate.Remove(this);
+		}
 	}
 }
 
