@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "UObject/NameTypes.h"
+
 class UNiagaraSystem;
 class UNiagaraEmitter;
 class UNiagaraNodeFunctionCall;
