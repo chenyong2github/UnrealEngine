@@ -44,25 +44,20 @@ static bool ShouldPipelineCompileVolumetricRenderTargetShaders(EShaderPlatform S
 	return GetMaxSupportedFeatureLevel(ShaderPlatform) >= ERHIFeatureLevel::SM5;
 }
 
-bool ShouldViewRenderVolumetricRenderTarget(const FViewInfo& ViewInfo)
+bool ShouldViewRenderVolumetricCloudRenderTarget(const FViewInfo& ViewInfo)
 {
 	return CVarVolumetricRenderTarget.GetValueOnRenderThread() && ShouldPipelineCompileVolumetricRenderTargetShaders(ViewInfo.GetShaderPlatform())
 		&& (ViewInfo.ViewState != nullptr) && !(ViewInfo.bIsReflectionCapture || ViewInfo.bIsSceneCapture);
 }
 
-uint32 GetVolumetricRenderTargetMode()
+static bool ShouldViewComposeVolumetricRenderTarget(const FViewInfo& ViewInfo)
 {
-	return FMath::Clamp(CVarVolumetricRenderTargetMode.GetValueOnAnyThread(), 0, 2);
+	return ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo) && ViewInfo.ViewState->VolumetricCloudRenderTarget.GetVolumetricTracingRTValid();
 }
 
-static bool ShouldViewRenderVolumetricRenderTargetAndTracingValid(const FViewInfo& ViewInfo)
+static uint32 GetMainDownsampleFactor(int32 Mode)
 {
-	return ShouldViewRenderVolumetricRenderTarget(ViewInfo) && ViewInfo.ViewState->VolumetricRenderTarget.GetVolumetricTracingRTValid();
-}
-
-static uint32 GetMainDownsampleFactor()
-{
-	switch (GetVolumetricRenderTargetMode())
+	switch (Mode)
 	{
 	case 0:
 		return 2; // Reconstruct at half resolution of view
@@ -76,9 +71,9 @@ static uint32 GetMainDownsampleFactor()
 	return 2;
 }
 
-static uint32 GetTraceDownsampleFactor()
+static uint32 GetTraceDownsampleFactor(int32 Mode)
 {
-	switch (GetVolumetricRenderTargetMode())
+	switch (Mode)
 	{
 	case 0:
 		return 2; // Trace at half resolution of the view
@@ -118,19 +113,31 @@ FVolumetricRenderTargetViewStateData::FVolumetricRenderTargetViewStateData()
 	, bHistoryValid(false)
 	, bVolumetricTracingRTValid(false)
 	, bVolumetricTracingRTDepthValid(false)
+	, FullResolution(FIntPoint::ZeroValue)
 	, VolumetricReconstructRTResolution(FIntPoint::ZeroValue)
 	, VolumetricTracingRTResolution(FIntPoint::ZeroValue)
 {
-	VolumetricReconstructRTDownsampleFactor = GetMainDownsampleFactor();
-	VolumetricTracingRTDownsampleFactor = GetTraceDownsampleFactor();
+	VolumetricReconstructRTDownsampleFactor = 0;
+	VolumetricTracingRTDownsampleFactor = 0;
 }
 
 FVolumetricRenderTargetViewStateData::~FVolumetricRenderTargetViewStateData()
 {
 }
 
-void FVolumetricRenderTargetViewStateData::Initialise(FIntPoint& ViewRectResolutionIn)
+void FVolumetricRenderTargetViewStateData::Initialise(
+	FIntPoint& ViewRectResolutionIn,
+	float InUvNoiseScale,
+	int32 InMode,
+	int32 InUpsamplingMode,
+	float InTemporalFactor)
 {
+	// Update internal settings
+	TemporalFactor = FMath::Clamp(InTemporalFactor, 0.0f, 1.0f);
+	UpsamplingMode = FMath::Clamp(InUpsamplingMode, 0, 3);
+	Mode = FMath::Clamp(InMode, 0, 2);
+	UvNoiseScale = InUvNoiseScale;
+
 	if (bFirstTimeUsed)
 	{
 		bFirstTimeUsed = false;
@@ -142,16 +149,15 @@ void FVolumetricRenderTargetViewStateData::Initialise(FIntPoint& ViewRectResolut
 	}
 
 	{
-
 		CurrentRT = 1 - CurrentRT;
 		const uint32 PreviousRT = 1 - CurrentRT;
 
 		// We always reallocate on a resolution change to adapt to dynamic resolution scaling.
 		// TODO allocate once at max resolution and change source and destination coord/uvs/rect.
-		if (FullResolution != ViewRectResolutionIn || GetMainDownsampleFactor() != VolumetricReconstructRTDownsampleFactor || GetTraceDownsampleFactor() != VolumetricTracingRTDownsampleFactor)
+		if (FullResolution != ViewRectResolutionIn || GetMainDownsampleFactor(Mode) != VolumetricReconstructRTDownsampleFactor || GetTraceDownsampleFactor(Mode) != VolumetricTracingRTDownsampleFactor)
 		{
-			VolumetricReconstructRTDownsampleFactor = GetMainDownsampleFactor();
-			VolumetricTracingRTDownsampleFactor = GetTraceDownsampleFactor();
+			VolumetricReconstructRTDownsampleFactor = GetMainDownsampleFactor(Mode);
+			VolumetricTracingRTDownsampleFactor = GetTraceDownsampleFactor(Mode);
 
 			FullResolution = ViewRectResolutionIn;
 			VolumetricReconstructRTResolution = FIntPoint::DivideAndRoundUp(FullResolution, VolumetricReconstructRTDownsampleFactor);							// Half resolution
@@ -333,24 +339,29 @@ void FSceneRenderer::InitVolumetricRenderTargetForViews(FRHICommandListImmediate
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
-		if (!ShouldViewRenderVolumetricRenderTarget(ViewInfo))
+		if (!ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo))
 		{
 			continue;
 		}
-		FVolumetricRenderTargetViewStateData& VolumetricRT = ViewInfo.ViewState->VolumetricRenderTarget;
+		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
 
 
 		//FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		FIntPoint ViewRect = ViewInfo.ViewRect.Size();
-		VolumetricRT.Initialise(ViewRect);	// TODO this is going to reallocate a buffer each time dynamic resolution scaling is applied
+		VolumetricCloudRT.Initialise(	// TODO this is going to reallocate a buffer each time dynamic resolution scaling is applied 
+			ViewRect,
+			CVarVolumetricRenderTargetUvNoiseScale.GetValueOnAnyThread(), 
+			CVarVolumetricRenderTargetMode.GetValueOnRenderThread(),
+			CVarVolumetricRenderTargetUpsamplingMode.GetValueOnAnyThread(),
+			CVarVolumetricRenderTargetTemporalFactor.GetValueOnAnyThread());
 
-		FViewUniformShaderParameters ViewVolumetricRTParameters = *ViewInfo.CachedViewUniformShaderParameters;
+		FViewUniformShaderParameters ViewVolumetricCloudRTParameters = *ViewInfo.CachedViewUniformShaderParameters;
 		{
-			const FIntPoint& VolumetricReconstructResolution = VolumetricRT.GetCurrentVolumetricReconstructRTResolution();
-			const FIntPoint& VolumetricTracingResolution = VolumetricRT.GetCurrentVolumetricTracingRTResolution();
-			const FIntPoint& CurrentPixelOffset = VolumetricRT.GetCurrentTracingPixelOffset();
-			const uint32 VolumetricReconstructRTDownSample = VolumetricRT.GetVolumetricReconstructRTDownsampleFactor();
-			const uint32 VolumetricTracingRTDownSample = VolumetricRT.GetVolumetricTracingRTDownsampleFactor();
+			const FIntPoint& VolumetricReconstructResolution = VolumetricCloudRT.GetCurrentVolumetricReconstructRTResolution();
+			const FIntPoint& VolumetricTracingResolution = VolumetricCloudRT.GetCurrentVolumetricTracingRTResolution();
+			const FIntPoint& CurrentPixelOffset = VolumetricCloudRT.GetCurrentTracingPixelOffset();
+			const uint32 VolumetricReconstructRTDownSample = VolumetricCloudRT.GetVolumetricReconstructRTDownsampleFactor();
+			const uint32 VolumetricTracingRTDownSample = VolumetricCloudRT.GetVolumetricTracingRTDownsampleFactor();
 
 			// We jitter and reconstruct the volumetric view before TAA so we do not want any of its jitter.
 			// We do use TAA remove bilinear artifact at up sampling time.
@@ -366,14 +377,14 @@ void FSceneRenderer::InitVolumetricRenderTargetForViews(FRHICommandListImmediate
 			ViewMatrices.HackAddTemporalAAProjectionJitter(OffsetCoord);
 
 			ViewInfo.SetupViewRectUniformBufferParameters(
-				ViewVolumetricRTParameters,
+				ViewVolumetricCloudRTParameters,
 				VolumetricTracingResolution,
 				FIntRect(0, 0, VolumetricTracingResolution.X, VolumetricTracingResolution.Y),
 				ViewMatrices,
 				ViewInfo.PrevViewInfo.ViewMatrices // This could also be changed if needed
 			);
 		}
-		ViewInfo.VolumetricRenderTargetViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewVolumetricRTParameters, UniformBuffer_SingleFrame);
+		ViewInfo.VolumetricRenderTargetViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewVolumetricCloudRTParameters, UniformBuffer_SingleFrame);
 	}
 }
 
@@ -434,7 +445,7 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRHICommandListImmediate&
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
-		bAnyViewRequiresProcessing |= ShouldViewRenderVolumetricRenderTargetAndTracingValid(ViewInfo);
+		bAnyViewRequiresProcessing |= ShouldViewComposeVolumetricRenderTarget(ViewInfo);
 	}
 	if (!bAnyViewRequiresProcessing)
 	{
@@ -447,23 +458,23 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRHICommandListImmediate&
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
-		if (!ShouldViewRenderVolumetricRenderTargetAndTracingValid(ViewInfo))
+		if (!ShouldViewComposeVolumetricRenderTarget(ViewInfo))
 		{
 			continue;
 		}
-		FVolumetricRenderTargetViewStateData& VolumetricRT = ViewInfo.ViewState->VolumetricRenderTarget;
+		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
 
-		FRDGTextureRef DstVolumetric = VolumetricRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
-		FRDGTextureRef DstVolumetricDepth = VolumetricRT.GetOrCreateDstVolumetricReconstructRTDepth(GraphBuilder);
-		FRDGTextureRef SrcTracingVolumetric = VolumetricRT.GetOrCreateVolumetricTracingRT(GraphBuilder);
-		FRDGTextureRef SrcTracingVolumetricDepth = VolumetricRT.GetOrCreateVolumetricTracingRTDepth(GraphBuilder);
-		FRDGTextureRef PreviousFrameVolumetricTexture = VolumetricRT.GetHistoryValid() ? VolumetricRT.GetOrCreateSrcVolumetricReconstructRT(GraphBuilder) : BlackDummy;
-		FRDGTextureRef PreviousFrameVolumetricDepthTexture = VolumetricRT.GetHistoryValid() ? VolumetricRT.GetOrCreateSrcVolumetricReconstructRTDepth(GraphBuilder) : BlackDummy;
+		FRDGTextureRef DstVolumetric = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
+		FRDGTextureRef DstVolumetricDepth = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRTDepth(GraphBuilder);
+		FRDGTextureRef SrcTracingVolumetric = VolumetricCloudRT.GetOrCreateVolumetricTracingRT(GraphBuilder);
+		FRDGTextureRef SrcTracingVolumetricDepth = VolumetricCloudRT.GetOrCreateVolumetricTracingRTDepth(GraphBuilder);
+		FRDGTextureRef PreviousFrameVolumetricTexture = VolumetricCloudRT.GetHistoryValid() ? VolumetricCloudRT.GetOrCreateSrcVolumetricReconstructRT(GraphBuilder) : BlackDummy;
+		FRDGTextureRef PreviousFrameVolumetricDepthTexture = VolumetricCloudRT.GetHistoryValid() ? VolumetricCloudRT.GetOrCreateSrcVolumetricReconstructRTDepth(GraphBuilder) : BlackDummy;
 
-		const uint32 TracingVolumetricRTDownSample = VolumetricRT.GetVolumetricTracingRTDownsampleFactor();
+		const uint32 TracingVolumetricCloudRTDownSample = VolumetricCloudRT.GetVolumetricTracingRTDownsampleFactor();
 
 		FReconstructVolumetricRenderTargetPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FReconstructVolumetricRenderTargetPS::FHistoryAvailable>(VolumetricRT.GetHistoryValid());
+		PermutationVector.Set<FReconstructVolumetricRenderTargetPS::FHistoryAvailable>(VolumetricCloudRT.GetHistoryValid());
 		TShaderMapRef<FReconstructVolumetricRenderTargetPS> PixelShader(ViewInfo.ShaderMap, PermutationVector);
 
 		FReconstructVolumetricRenderTargetPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReconstructVolumetricRenderTargetPS::FParameters>();
@@ -475,9 +486,9 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRHICommandListImmediate&
 		PassParameters->PreviousFrameVolumetricTexture = PreviousFrameVolumetricTexture;
 		PassParameters->PreviousFrameVolumetricDepthTexture = PreviousFrameVolumetricDepthTexture;
 		PassParameters->LinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		PassParameters->CurrentTracingPixelOffset = VolumetricRT.GetCurrentTracingPixelOffset();
-		PassParameters->DownSampleFactor = TracingVolumetricRTDownSample;
-		PassParameters->VolumetricRenderTargetMode = GetVolumetricRenderTargetMode();
+		PassParameters->CurrentTracingPixelOffset = VolumetricCloudRT.GetCurrentTracingPixelOffset();
+		PassParameters->DownSampleFactor = TracingVolumetricCloudRTDownSample;
+		PassParameters->VolumetricRenderTargetMode = VolumetricCloudRT.GetMode();
 		GetTextureSafeUvCoordBound(SrcTracingVolumetric, PassParameters->TracingVolumetricTextureValidCoordRect, PassParameters->TracingVolumetricTextureValidUvRect);
 		GetTextureSafeUvCoordBound(PreviousFrameVolumetricTexture, PassParameters->PreviousFrameVolumetricTextureValidCoordRect, PassParameters->PreviousFrameVolumetricTextureValidUvRect);
 		PassParameters->TemporalFactor = FMath::Clamp(CVarVolumetricRenderTargetTemporalFactor.GetValueOnAnyThread(), 0.0f, 1.0f);
@@ -492,8 +503,8 @@ void FSceneRenderer::ReconstructVolumetricRenderTarget(FRHICommandListImmediate&
 			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricReconstruct"), PixelShader, PassParameters, 
 			FIntRect(0, 0, DstVolumetricSize.X, DstVolumetricSize.Y));
 
-		VolumetricRT.ExtractDstVolumetricReconstructRT(GraphBuilder, DstVolumetric);
-		VolumetricRT.ExtractDstVolumetricReconstructRTDepth(GraphBuilder, DstVolumetricDepth);
+		VolumetricCloudRT.ExtractDstVolumetricReconstructRT(GraphBuilder, DstVolumetric);
+		VolumetricCloudRT.ExtractDstVolumetricReconstructRTDepth(GraphBuilder, DstVolumetricDepth);
 	}
 
 	GraphBuilder.Execute();
@@ -561,18 +572,17 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRHICommandListImmed
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
-		if (!ShouldViewRenderVolumetricRenderTarget(ViewInfo))
+		if (!ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo))
 		{
 			continue;
 		}
-		FVolumetricRenderTargetViewStateData& VolumetricRT = ViewInfo.ViewState->VolumetricRenderTarget;
-		FRDGTextureRef VolumetricTexture = VolumetricRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
-		FRDGTextureRef VolumetricDepthTexture = VolumetricRT.GetOrCreateDstVolumetricReconstructRTDepth(GraphBuilder);
-
-		int UpsamplingMode = FMath::Clamp(CVarVolumetricRenderTargetUpsamplingMode.GetValueOnAnyThread(), 0, 3);
+		FVolumetricRenderTargetViewStateData& VolumetricCloudRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
+		FRDGTextureRef VolumetricTexture = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRT(GraphBuilder);
+		FRDGTextureRef VolumetricDepthTexture = VolumetricCloudRT.GetOrCreateDstVolumetricReconstructRTDepth(GraphBuilder);
 
 		// When reconstructed and back buffer resolution matches, force using a pixel perfect upsampling.
-		uint32 VRTMode = GetVolumetricRenderTargetMode();
+		const uint32 VRTMode = VolumetricCloudRT.GetMode();
+		int UpsamplingMode = VolumetricCloudRT.GetUpsamplingMode();
 		UpsamplingMode = UpsamplingMode == 3 && (VRTMode == 1 || VRTMode == 2) ? 2 : UpsamplingMode;
 
 		FComposeVolumetricRTOverScenePS::FPermutationDomain PermutationVector; 
@@ -586,8 +596,8 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverScene(FRHICommandListImmed
 		PassParameters->VolumetricDepthTexture = VolumetricDepthTexture;
 		PassParameters->SceneDepthBuffer = GraphBuilder.RegisterExternalTexture(SceneDepthZ);
 		PassParameters->LinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-		PassParameters->UvOffsetScale = CVarVolumetricRenderTargetUvNoiseScale.GetValueOnAnyThread();
-		PassParameters->FullResolutionToVolumetricBufferResolution = FVector2D(1.0f / float(GetMainDownsampleFactor()), float(GetMainDownsampleFactor()));
+		PassParameters->UvOffsetScale = VolumetricCloudRT.GetUvNoiseScale();
+		PassParameters->FullResolutionToVolumetricBufferResolution = FVector2D(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		GetTextureSafeUvCoordBound(PassParameters->VolumetricTexture, PassParameters->VolumetricTextureValidCoordRect, PassParameters->VolumetricTextureValidUvRect);
 
 		FVector2D VolumetricTextureSize = FVector2D(float(VolumetricTexture->Desc.GetSize().X), float(VolumetricTexture->Desc.GetSize().Y));

@@ -30,9 +30,18 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 	, LayerBottomAltitude(5.0f)
 	, LayerHeight(10.0f)
+	, TracingStartMaxDistance(350.0f)
+	, TracingMaxDistance(50.0f)
 	, PlanetRadius(6360.0f)					// Default to earth-like
 	, GroundAlbedo(FColor(170, 170, 170))	// 170 => 0.4f linear
-	, AtmosphericLightsContributionFactor(FLinearColor::White)
+	, Material(nullptr)
+	, bUsePerSampleAtmosphericLightTransmittance(false)
+	, SkyLightCloudBottomOcclusion(0.5f)
+	, ViewSampleCountScale(1.0f)
+	, ReflectionSampleCountScale(1.0f)
+	, ShadowViewSampleCountScale(1.0f)
+	, ShadowReflectionSampleCountScale(1.0f)
+	, ShadowTracingDistance(15.0f)
 	, VolumetricCloudSceneProxy(nullptr)
 {
 }

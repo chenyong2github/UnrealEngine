@@ -48,15 +48,17 @@ float2 CloudShadowWorldSpaceToUv(in float3 WorldSpace, in float4x4 WorldToLightC
 // WorldSpace in centimeters
 // returns transmittance
 float GetCloudVolumetricShadow(in float3 WorldSpace, in float4x4 CloudShadowmapWorldToLightClipMatrix, in float ShadowmapFarDepthKm,
-	Texture2D<float2> VolumetricCloudShadowMapTexture, SamplerState VolumetricCloudShadowMapTextureSampler, inout float OutOpticalDepth)
+	Texture2D<float3> VolumetricCloudShadowMapTexture, SamplerState VolumetricCloudShadowMapTextureSampler, inout float OutOpticalDepth)
 {
 	float CloudShadowSampleZ = 0.0f;
 	float2 UVs = CloudShadowWorldSpaceToUv(WorldSpace, CloudShadowmapWorldToLightClipMatrix, CloudShadowSampleZ);
-	const float2 CloudShadowData = VolumetricCloudShadowMapTexture.SampleLevel(VolumetricCloudShadowMapTextureSampler, UVs.xy, 0).rg;
-	const float ShadowFrontDepthKm = CloudShadowData.r;
-	const float MeanPathExtinction = CloudShadowData.g; // unit 1/m
+	const float3 CloudShadowData = VolumetricCloudShadowMapTexture.SampleLevel(VolumetricCloudShadowMapTextureSampler, UVs.xy, 0).rgb;
+	const float ShadowFrontDepthKm = CloudShadowData.r;	// unit kilometer
+	const float MeanExtinction = CloudShadowData.g;		// unit 1/m
+	const float MaxOpticalDepth = CloudShadowData.b;	// unitless
 	const float SampleDepthKm = saturate(1.0f - CloudShadowSampleZ) * ShadowmapFarDepthKm;
-	OutOpticalDepth = MeanPathExtinction * (max(0.0f, SampleDepthKm - ShadowFrontDepthKm) * KILOMETER_TO_METERS);
+	OutOpticalDepth = MeanExtinction * (max(0.0f, SampleDepthKm - ShadowFrontDepthKm) * KILOMETER_TO_METERS);
+	OutOpticalDepth = min(MaxOpticalDepth, OutOpticalDepth);
 	const float CloudShadowFactor = saturate(exp(-OutOpticalDepth));
 	return CloudShadowFactor;
 }

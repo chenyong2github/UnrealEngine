@@ -197,10 +197,17 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, OcclusionExponent(FMath::Clamp(InLightComponent->OcclusionExponent, .1f, 10.0f))
 	, MinOcclusion(FMath::Clamp(InLightComponent->MinOcclusion, 0.0f, 1.0f))
 	, OcclusionTint(InLightComponent->OcclusionTint)
+	, bCloudAmbientOcclusion(InLightComponent->bCloudAmbientOcclusion)
+	, CloudAmbientOcclusionExtent(InLightComponent->CloudAmbientOcclusionExtent)
+	, CloudAmbientOcclusionStrength(InLightComponent->CloudAmbientOcclusionStrength)
+	, CloudAmbientOcclusionMapResolutionScale(InLightComponent->CloudAmbientOcclusionMapResolutionScale)
+	, CloudAmbientOcclusionApertureScale(InLightComponent->CloudAmbientOcclusionApertureScale)
 	, SamplesPerPixel(InLightComponent->SamplesPerPixel)
 	, bRealTimeCaptureEnabled(InLightComponent->IsRealTimeCaptureEnabled())
 	, CapturePosition(InLightComponent->GetComponentTransform().GetLocation())
 	, CaptureCubeMapResolution(InLightComponent->CubemapResolution)
+	, LowerHemisphereColor(InLightComponent->LowerHemisphereColor)
+	, bLowerHemisphereIsSolidColor(InLightComponent->bLowerHemisphereIsBlack)
 #if RHI_RAYTRACING
 	, ImportanceSamplingData(InLightComponent->ImportanceSamplingData)
 #endif
@@ -258,6 +265,11 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	bAffectGlobalIllumination = true;
 	SamplesPerPixel = 4;
 	bRealTimeCapture = false;
+	bCloudAmbientOcclusion = 0;
+	CloudAmbientOcclusionExtent = 150.0f;
+	CloudAmbientOcclusionStrength = 1.0f;
+	CloudAmbientOcclusionMapResolutionScale = 1.0f;
+	CloudAmbientOcclusionApertureScale = 0.5f;
 }
 
 FSkyLightSceneProxy* USkyLightComponent::CreateSceneProxy() const
@@ -553,6 +565,14 @@ bool USkyLightComponent::CanEditChange(const FProperty* InProperty) const
 		if (FCString::Strcmp(*PropertyName, TEXT("SourceType")) == 0)
 		{
 			return !IsRealTimeCaptureEnabled();
+		}
+
+		if (FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionExtent")) == 0 
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionMapResolutionScale")) == 0
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionStrength")) == 0
+			|| FCString::Strcmp(*PropertyName, TEXT("CloudAmbientOcclusionApertureScale")) == 0)
+		{
+			return bCloudAmbientOcclusion;
 		}
 
 		if (FCString::Strcmp(*PropertyName, TEXT("Contrast")) == 0

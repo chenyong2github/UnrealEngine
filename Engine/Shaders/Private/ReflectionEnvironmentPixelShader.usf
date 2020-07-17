@@ -52,7 +52,7 @@ SamplerState ScreenSpaceReflectionsSampler;
 
 #if ENABLE_DYNAMIC_SKY_LIGHT
 #include "VolumetricCloudCommon.ush"
-Texture2D<float2> CloudSkyAOTexture;
+Texture2D<float3> CloudSkyAOTexture;
 SamplerState CloudSkyAOSampler;
 float4x4 CloudSkyAOWorldToLightClipMatrix;
 float CloudSkyAOFarDepthKm;
@@ -361,14 +361,15 @@ void ReflectionEnvironmentSkyLighting(
 	// Only light pixels marked as lit
 	if (ShadingModelID != SHADINGMODELID_UNLIT)
 	{
+		float CloudAmbientOcclusion = 1.0f;
 		if (CloudSkyAOEnabled)
 		{
 			float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 			float OutOpticalDepth = 0.0f;
-			AmbientOcclusion *= GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
+			CloudAmbientOcclusion = GetCloudVolumetricShadow(WorldPosition, CloudSkyAOWorldToLightClipMatrix, CloudSkyAOFarDepthKm, CloudSkyAOTexture, CloudSkyAOSampler, OutOpticalDepth);
 		}
 
-		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor) * CloudAmbientOcclusion;
 
 		// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
 		FLightAccumulator LightAccumulator = (FLightAccumulator)0;

@@ -42,7 +42,7 @@ struct FILCUpdatePrimTaskData;
 class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 struct FExposureBufferData;
-struct CloudRenderContext;
+struct FCloudRenderContext;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -1140,7 +1140,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
 	const FAtmosphereUniformShaderParameters* SkyAtmosphereUniformShaderParameters;
 
-	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowMap;
+	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowMap[2];
 	TRefCountPtr<IPooledRenderTarget> VolumetricCloudSkyAO;
 	TUniformBufferRef<FViewUniformShaderParameters> VolumetricRenderTargetViewUniformBuffer;
 
@@ -1659,10 +1659,10 @@ public:
 	void UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList);
 
 	/** Common function to render a sky using shared LUT resources from any view point (if not using the SkyView and AerialPerspective textures). */
-	void RenderSkyAtmosphereInternal(FRDGBuilder& GraphBuilder, SkyAtmosphereRenderContext& SkyRenderContext);
+	void RenderSkyAtmosphereInternal(FRDGBuilder& GraphBuilder, FSkyAtmosphereRenderContext& SkyRenderContext);
 
 	/** Common function to render a cloud layer using shared LUT resources. */
-	void  RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, CloudRenderContext& CloudRC);
+	void  RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC);
 	
 protected:
 

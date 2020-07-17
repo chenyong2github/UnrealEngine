@@ -242,6 +242,29 @@ void DownsamplePS(
 #endif
 }
 
+#ifdef USE_COMPUTE
+float4 LowerHemisphereSolidColor;
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ApplyLowerHemisphereColorCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const uint2 FaceCoord = uint2(ThreadId.x % uint(FaceThreadGroupSize), ThreadId.y);
+	if (any(FaceCoord >= uint2(ValidDispatchCoord)))
+	{
+		return;
+	}
+	const int SelectedCubeFace = int(ThreadId.x) / FaceThreadGroupSize;
+	float2 ScaledUVs = ((float2(FaceCoord) + 0.5f) / float2(ValidDispatchCoord)) * 2.0f - 1.0f;
+	float4 OutColor;
+
+	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, SelectedCubeFace);
+	float3 N = normalize(CubeCoordinates);
+	if (N.z < 0.0f)
+	{
+		OutTextureMipColor[uint3(FaceCoord, SelectedCubeFace)] = float4(LowerHemisphereSolidColor.rgb * LowerHemisphereSolidColor.a, 1.0f);
+	}
+}
+#endif
+
 int NumCaptureArrayMips;
 
 /** Cube map array of reflection captures. */
@@ -628,6 +651,46 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 		OutIrradianceEnvMapSH[6].w = 1.0f;
 	}
 }
+#endif
+
+
+
+#ifdef REALTIME_REFLECTION_HEIGHT_FOG
+
+#include "HeightFogCommon.ush"
+
+void RenderRealTimeReflectionHeightFogVS(
+	in uint VertexId : SV_VertexID,
+	out float4 Position : SV_POSITION,
+	out float3 OutScreenVector : TEXCOORD0)
+{
+	float2 UV = -1.0f;
+	UV = VertexId == 1 ? float2(-1.0f, 3.0f) : UV;
+	UV = VertexId == 2 ? float2(3.0f, -1.0f) : UV;
+	Position = float4(UV, 0.5f, 1.0f);
+	OutScreenVector = mul(float4(Position.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
+}
+
+
+void RenderRealTimeReflectionHeightFogPS(
+	in float4 SVPos : SV_POSITION,
+	in float3 ScreenVector : TEXCOORD0,
+	out float4 OutLuminance : SV_Target0
+)
+{
+	ResolvedView = ResolveView();
+
+	float4 WorldVector = mul(float4((SVPos.xy / 128.0f) * float2(2.0, -2.0) + float2(1.0, -1.0), 0.0, 0), ResolvedView.ScreenToTranslatedWorld);
+
+	const float HeightFogFarDistance = 100000.0f * 10.0f;	// 10 kilometers
+	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(normalize(ScreenVector)* HeightFogFarDistance);
+
+	const float OutputPreExposure = (ResolvedView.RealTimeReflectionCapture ? ResolvedView.RealTimeReflectionCapturePreExposure : ResolvedView.PreExposure);
+	HeightFogInscatteringAndOpacity.rgb *= OutputPreExposure;
+
+	OutLuminance = HeightFogInscatteringAndOpacity;
+}
+
 #endif
 
 

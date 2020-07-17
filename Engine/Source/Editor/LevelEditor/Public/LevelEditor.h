@@ -52,6 +52,7 @@ public:
 	static const FName WorldBrowserDetails;
 	static const FName LevelEditorHierarchicalLODOutliner;
 	static const FName OutputLog;
+	static const FName LevelEditorEnvironmentLightingViewer;
 };
 
 /**

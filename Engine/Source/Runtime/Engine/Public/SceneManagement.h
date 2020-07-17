@@ -1082,10 +1082,17 @@ public:
 	float OcclusionExponent;
 	float MinOcclusion;
 	FLinearColor OcclusionTint;
+	bool bCloudAmbientOcclusion;
+	float CloudAmbientOcclusionExtent;
+	float CloudAmbientOcclusionStrength;
+	float CloudAmbientOcclusionMapResolutionScale;
+	float CloudAmbientOcclusionApertureScale;
 	int32 SamplesPerPixel;
 	bool bRealTimeCaptureEnabled;
 	FVector CapturePosition;
 	uint32 CaptureCubeMapResolution;
+	FLinearColor LowerHemisphereColor;
+	bool bLowerHemisphereIsSolidColor;
 #if RHI_RAYTRACING
 	FSkyLightImportanceSamplingData* ImportanceSamplingData;
 #endif
@@ -1116,6 +1123,8 @@ public:
 	FLinearColor GetTransmittanceAtZenith() const { return TransmittanceAtZenith; };
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
 	float GetHeightFogContribution() const { return HeightFogContribution; }
+	float GetAerialPerspectiveStartDepthKm() const { return AerialPerspectiveStartDepthKm; }
+	float GetTraceSampleCountScale() const { return TraceSampleCountScale; }
 
 	const FAtmosphereSetup& GetAtmosphereSetup() const { return AtmosphereSetup; }
 
@@ -1134,6 +1143,8 @@ private:
 	FLinearColor SkyLuminanceFactor;
 	float AerialPespectiveViewDistanceScale;
 	float HeightFogContribution;
+	float AerialPerspectiveStartDepthKm;
+	float TraceSampleCountScale;
 
 	bool OverrideAtmosphericLight[NUM_ATMOSPHERE_LIGHTS];
 	FVector OverrideAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
@@ -1427,6 +1438,15 @@ public:
 	 * @return the light half apex angle (half angular diameter) in radian.
 	 */
 	virtual float GetSunLightHalfApexAngleRadian() const { return GetSunOnEarthHalfApexAngleRadian() ; }
+
+	virtual bool GetCastShadowsOnClouds() const { return false; }
+	virtual bool GetCastShadowsOnAtmosphere() const { return false; }
+	virtual bool GetCastCloudShadows() const { return false; }
+	virtual float GetCloudShadowExtent() const { return 1.0f; }
+	virtual float GetCloudShadowMapResolutionScale() const { return 1.0f; }
+	virtual float GetCloudShadowStrength() const { return 1.0f; }
+	virtual FLinearColor GetCloudScatteredLuminanceScale() const { return FLinearColor::White; }
+	virtual bool GetUsePerPixelAtmosphereTransmittance() const { return false; }
 
 protected:
 
