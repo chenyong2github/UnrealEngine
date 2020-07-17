@@ -8550,7 +8550,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 
 	TArray<TSharedPtr<FSequencerObjectBindingNode>> ObjectNodes;
 
-	if (bClearSelection)
+	if (!bClearSelection)
 	{
 		for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 		{
