@@ -201,7 +201,8 @@ public:
 	{
 		if (PlatformData)
 		{
-			return FMath::Max(0, PlatformData->Mips.Num() - (int32)PlatformData->GetNumMipsInTail());
+			const int32 NumMipsInTail = PlatformData->GetNumMipsInTail();
+			return FMath::Max(0, NumMipsInTail > 0 ? (PlatformData->Mips.Num() - NumMipsInTail) : (PlatformData->Mips.Num() - 1));
 		}
 		return 0;
 	}
