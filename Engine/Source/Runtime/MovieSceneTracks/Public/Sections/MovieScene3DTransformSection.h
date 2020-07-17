@@ -246,6 +246,11 @@ public:
 	*/
 	MOVIESCENETRACKS_API bool GetUseQuaternionInterpolation() const;
 
+	/**
+	* Set whether we should use quaternion interpolation for our rotations.
+	*/
+	MOVIESCENETRACKS_API void SetUseQuaternionInterpolation(bool bInUseQuaternionInterpolation);
+
 protected:
 
 	virtual TSharedPtr<FStructOnScope> GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles) override;
@@ -289,7 +294,12 @@ public:
 	/**
 	 * Return the trajectory visibility
 	 */
-	MOVIESCENETRACKS_API EShow3DTrajectory GetShow3DTrajectory() { return Show3DTrajectory; }
+	MOVIESCENETRACKS_API EShow3DTrajectory GetShow3DTrajectory() const { return Show3DTrajectory; }
+
+	/**
+	 * Return the trajectory visibility
+	 */
+	MOVIESCENETRACKS_API void SetShow3DTrajectory(EShow3DTrajectory InShow3DTrajectory) { Show3DTrajectory = InShow3DTrajectory; }
 
 private:
 
