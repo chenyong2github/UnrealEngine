@@ -42,7 +42,7 @@ namespace Metasound
 
 			static void ExecuteFunction(IOperator* InOperator);
 
-			TArray<FExecutableOperatorWrapper> OperatorStack;
+			TArray<FExecuter> OperatorStack;
 
 			FDataReferenceCollection Inputs;
 			FDataReferenceCollection Outputs;

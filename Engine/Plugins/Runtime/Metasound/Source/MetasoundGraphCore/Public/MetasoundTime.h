@@ -35,6 +35,9 @@ namespace Metasound
 			static_assert(TIsFloatingPoint<TimeType>::Value, "TimeType must be floating point");
 
 		public:
+			using FQuantizationType = QuantizationType;
+			using FTimeTYpe = TimeType;
+
 			/** Default constructor */
 			TTime()
 			:	Value(0)

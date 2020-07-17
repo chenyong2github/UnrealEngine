@@ -53,7 +53,7 @@ namespace Metasound
 
 	void FGraphOperator::Execute()
 	{
-		FExecutableOperatorWrapper* StackPtr = OperatorStack.GetData();
+		FExecuter* StackPtr = OperatorStack.GetData();
 		const int32 Num = OperatorStack.Num();
 		for (int32 i = 0; i < Num; i++)
 		{

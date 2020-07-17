@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "MetasoundOperatorInterface.h"
 
 namespace Metasound
@@ -22,6 +23,7 @@ namespace Metasound
 	 * 	  }
 	 * 	};
 	 */
+
 	template<class DerivedOperatorType>
 	class TExecutableOperator : public IOperator
 	{
@@ -46,20 +48,42 @@ namespace Metasound
 			}
 	};
 
-	/** FExecutableOperatorWrapper 
+	class FNoOpOperator : public IOperator
+	{
+		public:
+			virtual ~FNoOpOperator() {}
+
+			virtual FExecuteFunction GetExecuteFunction() override
+			{
+				return nullptr;
+			}
+	};
+
+	/** FExecuter
 	 *
 	 * Wraps an IOperator and provides an Execute() member function.
 	 */
-	class FExecutableOperatorWrapper 
+	class FExecuter : public IOperator
 	{
 		public:
 			using FOperatorPtr = TUniquePtr<IOperator>;
 			using FExecuteFunction = IOperator::FExecuteFunction;
 
-			FExecutableOperatorWrapper(FOperatorPtr InOperator)
-			:	Operator(MoveTemp(InOperator))
-			,	ExecuteFunction(&FExecutableOperatorWrapper::NoOp)
+			FExecuter()
+			:	ExecuteFunction(&FExecuter::NoOp)
 			{
+			}
+
+			FExecuter(FOperatorPtr InOperator)
+			:	ExecuteFunction(&FExecuter::NoOp)
+			{
+				SetOperator(MoveTemp(InOperator));
+			}
+
+			void SetOperator(FOperatorPtr InOperator)
+			{
+				Operator = MoveTemp(InOperator);
+
 				if (Operator.IsValid())
 				{
 					FExecuteFunction Func = Operator->GetExecuteFunction();
@@ -69,10 +93,10 @@ namespace Metasound
 						ExecuteFunction = Func;
 					}
 				}
-			}
-
-			virtual ~FExecutableOperatorWrapper()
-			{
+				else
+				{
+					ExecuteFunction = &FExecuter::NoOp;
+				}
 			}
 
 			void Execute()
@@ -82,7 +106,41 @@ namespace Metasound
 
 			bool IsNoOp()
 			{
-				return (ExecuteFunction == &FExecutableOperatorWrapper::NoOp);
+				return (ExecuteFunction == &FExecuter::NoOp);
+			}
+
+			bool IsValid() const
+			{
+				return Operator.IsValid();
+			}
+
+			virtual const FDataReferenceCollection& GetInputs() const override
+			{
+				static FDataReferenceCollection EmptyCollection;
+
+				if (Operator.IsValid())
+				{
+					return Operator->GetInputs();
+				}
+
+				return EmptyCollection;
+			}
+
+			virtual const FDataReferenceCollection& GetOutputs() const override
+			{
+				static FDataReferenceCollection EmptyCollection;
+
+				if (Operator.IsValid())
+				{
+					return Operator->GetOutputs();
+				}
+
+				return EmptyCollection;
+			}
+
+			virtual FExecuteFunction GetExecuteFunction() override
+			{
+				return ExecuteFunction;
 			}
 
 		private:

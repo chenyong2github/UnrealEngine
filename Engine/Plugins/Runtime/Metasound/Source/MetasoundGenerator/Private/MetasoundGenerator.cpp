@@ -16,85 +16,114 @@
 
 namespace Metasound
 {
-	FMetasoundGenerator::FMetasoundGenerator(FOperatorUniquePtr InOperator, const FAudioReadRef& InOperatorReadBuffer)
-	:	Operator(MoveTemp(InOperator))
-	,	OperatorReadBuffer(InOperatorReadBuffer)
-	,	OperatorReadNum(InOperatorReadBuffer->Num())
-	,	ExecuteOperator(nullptr)
+	FMetasoundGenerator::FMetasoundGenerator(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef)
+	:	NumChannels(0)
+	,	NumFramesPerExecute(0)
+	,	NumSamplesPerExecute(0)
+	,	GraphOutputAudioRef(InGraphOutputAudioRef) // Copy audio ref here to avoid unneeded construction of unused graph output audio object.
 	{
-		if (Operator.IsValid())
-		{
-			ExecuteOperator = Operator->GetExecuteFunction();
-			FDataReferenceCollection Inputs = Operator->GetInputs();
-
-			if (Inputs.ContainsDataWriteReference<FFrequency>(TEXT("Frequency")))
-			{
-				FrequencyRef = Inputs.GetDataWriteReference<FFrequency>(TEXT("Frequency"));
-			}
-
-			if (Inputs.ContainsDataWriteReference<FFloatTime>(TEXT("BopPeriod")))
-			{
-				BopPeriodRef = Inputs.GetDataWriteReference<FFloatTime>(TEXT("BopPeriod"));
-			}
-		}
+		SetGraph(MoveTemp(InGraphOperator), InGraphOutputAudioRef);
 	}
 
 	FMetasoundGenerator::~FMetasoundGenerator()
 	{
 	}
 
-	void FMetasoundGenerator::SetFrequency(float InFrequency)
+	bool FMetasoundGenerator::UpdateGraphOperator(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef)
 	{
-		FrequencyRef->SetHertz(InFrequency);
+		if (InGraphOutputAudioRef->GetNumChannels() == NumChannels)
+		{
+			SetGraph(MoveTemp(InGraphOperator), InGraphOutputAudioRef);
+
+			return true;
+		}
+
+		return false;
 	}
 
-	void FMetasoundGenerator::SetBopPeriod(float InPeriodInSeconds)
+	void FMetasoundGenerator::SetGraph(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef)
 	{
-		BopPeriodRef->SetSeconds(InPeriodInSeconds);
+		InterleavedAudioBuffer.Reset();
+		NumFramesPerExecute = 0;
+		NumSamplesPerExecute = 0;
+
+		// The graph operator and graph audio output contain all the values needed
+		// by the sound generator.
+		RootExecuter.SetOperator(MoveTemp(InGraphOperator));
+		GraphOutputAudioRef = InGraphOutputAudioRef;
+
+		// Query the graph output to get the number of output audio channels.
+		NumChannels = GraphOutputAudioRef->GetNumChannels();
+
+		if (NumChannels > 0)
+		{
+			// All buffers have same number of frames, so only need to query
+			// first buffer to know number of frames.
+			NumFramesPerExecute = GraphOutputAudioRef->GetBuffers()[0]->Num();
+
+			NumSamplesPerExecute = NumFramesPerExecute * NumChannels;
+
+			if (NumSamplesPerExecute > 0)
+			{
+				// Preallocate interleaved buffer as it is necessary for any audio generation calls.
+				InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
+			}
+		}
 	}
 
-	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
+	int32 FMetasoundGenerator::GetNumChannels() const
 	{
-		if ((NumSamples <= 0) || (nullptr == ExecuteOperator) || (OperatorReadNum <= 0))
+		return GraphOutputAudioRef->GetNumChannels();
+	}
+
+	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
+	{
+		if (NumSamplesRemaining <= 0)
 		{
 			return 0;
 		}
 
-		int32 WriteCount = FillWithBuffer(OverflowBuffer, OutAudio, NumSamples);
+		// If we have any audio left in the internal overflow buffer from 
+		// previous calls, write that to the output before generating more audio.
+		int32 NumSamplesWritten = FillWithBuffer(OverflowBuffer, OutAudio, NumSamplesRemaining);
 
-		if (WriteCount > 0)
+		if (NumSamplesWritten > 0)
 		{
-			NumSamples -= WriteCount;
-			OverflowBuffer.RemoveAtSwap(0 /* Index */, WriteCount /* Count */, false /* bAllowShrinking */);
+			NumSamplesRemaining -= NumSamplesWritten;
+			OverflowBuffer.RemoveAtSwap(0 /* Index */, NumSamplesWritten /* Count */, false /* bAllowShrinking */);
+
 		}
 
-
-		while (NumSamples > 0)
+		while (NumSamplesRemaining > 0)
 		{
-			// TODO: figure out good wrapper for this.
-			ExecuteOperator(Operator.Get());
+			// Call metasound graph operator.
+			RootExecuter.Execute();
 
-			int32 ThisLoopWriteCount = FillWithBuffer(*OperatorReadBuffer, &OutAudio[WriteCount], NumSamples);
+			// Interleave audio because ISoundGenerator interface expects interleaved audio.
+			InterleaveGeneratedAudio();
 
-			NumSamples -= ThisLoopWriteCount;
-			WriteCount += ThisLoopWriteCount;
+			// Add audio generated during graph execution to the output buffer.
+			int32 ThisLoopNumSamplesWritten = FillWithBuffer(InterleavedAudioBuffer, &OutAudio[NumSamplesWritten], NumSamplesRemaining);
 
-			if (0 == NumSamples)
+			NumSamplesRemaining -= ThisLoopNumSamplesWritten;
+			NumSamplesWritten += ThisLoopNumSamplesWritten;
+
+			// If not all the samples were written, then we have to save the 
+			// additional samples to the overflow buffer.
+			if (ThisLoopNumSamplesWritten < InterleavedAudioBuffer.Num())
 			{
-				if (ThisLoopWriteCount < OperatorReadBuffer->Num())
-				{
-					int32 OverflowCount = OperatorReadBuffer->Num() - ThisLoopWriteCount;
+				int32 OverflowCount = InterleavedAudioBuffer.Num() - ThisLoopNumSamplesWritten;
 
-					OverflowBuffer.Reset();
-					OverflowBuffer.AddUninitialized(OverflowCount);
+				OverflowBuffer.Reset();
+				OverflowBuffer.AddUninitialized(OverflowCount);
 
-					FMemory::Memcpy(OverflowBuffer.GetData(), &(OperatorReadBuffer->GetData()[ThisLoopWriteCount]), OverflowCount);
-				}
+				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount);
 			}
 		}
 
-		return WriteCount;
+		return NumSamplesWritten;
 	}
+
 
 	int32 FMetasoundGenerator::FillWithBuffer(const Audio::AlignedFloatBuffer& InBuffer, float* OutAudio, int32 MaxNumOutputSamples)
 	{
@@ -116,138 +145,37 @@ namespace Metasound
 
 		return 0;
 	}
-} /* End namespace Metasound */
 
-
-USynthComponentMetasoundGenerator::USynthComponentMetasoundGenerator(const FObjectInitializer& ObjInitializer)
-:	Super(ObjInitializer)
-{
-}
-
-USynthComponentMetasoundGenerator::~USynthComponentMetasoundGenerator()
-{
-}
-
-void USynthComponentMetasoundGenerator::SetBopPeriod(float InBopPeriod)
-{
-	using namespace Metasound;
-
-	BopPeriod = InBopPeriod;
-	if (Generator.IsValid())
+	void FMetasoundGenerator::InterleaveGeneratedAudio()
 	{
-		FMetasoundGenerator* MetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
-		MetasoundGenerator->SetBopPeriod(BopPeriod);
-	}
-}
+		const FMultichannelAudioFormat& DeinterleavedAudio = *GraphOutputAudioRef;
 
-void USynthComponentMetasoundGenerator::SetFrequency(float InFrequency)
-{
-	using namespace Metasound;
+		// Prepare output buffer
+		InterleavedAudioBuffer.Reset();
 
-	Frequency = InFrequency;
-	if (Generator.IsValid())
-	{
-		FMetasoundGenerator* MetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
-		MetasoundGenerator->SetFrequency(Frequency);
-	}
-}
-
-#if WITH_EDITOR
-void USynthComponentMetasoundGenerator::PostEditChangeProperty(struct FPropertyChangedEvent & PropertyChangedEvent)
-{
-	using namespace Metasound;
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	static const FName FrequencyFName = GET_MEMBER_NAME_CHECKED(USynthComponentMetasoundGenerator, Frequency);
-	static const FName BopPeriodFName = GET_MEMBER_NAME_CHECKED(USynthComponentMetasoundGenerator, BopPeriod);
-
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		if (Generator.IsValid())
+		if (NumSamplesPerExecute > 0)
 		{
-			if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
+			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
+		}
+
+		const TArrayView<const FAudioBufferReadRef>& Buffers = DeinterleavedAudio.GetBuffers();
+
+		// Iterate over channels
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
+		{
+			const FAudioBuffer& InputBuffer = *Buffers[ChannelIndex];
+
+			const float* InputPtr = InputBuffer.GetData();
+			float* OutputPtr = &InterleavedAudioBuffer.GetData()[ChannelIndex];
+
+			// Assign values to output for single channel.
+			for (int32 FrameIndex = 0; FrameIndex < NumFramesPerExecute; FrameIndex++)
 			{
-				const FName& Name = PropertyThatChanged->GetFName();
-				if (Name == FrequencyFName)
-				{
-					FMetasoundGenerator* MetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
-					MetasoundGenerator->SetFrequency(Frequency);
-				}
-				else if (Name == BopPeriodFName)
-				{
-					FMetasoundGenerator* MetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
-					MetasoundGenerator->SetBopPeriod(BopPeriod);
-				}
+				*OutputPtr = InputPtr[FrameIndex];
+				OutputPtr += NumChannels;
 			}
 		}
 	}
-
-}
-#endif
-
-ISoundGeneratorPtr USynthComponentMetasoundGenerator::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
-{
-	using namespace Metasound;
-	using FDataEdge = Metasound::FDataEdge; // Need to make explicit to disambiguate with existing FDataEdge.
-	using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
-
-	TInputNode<FFloatTime> BopPeriodInputNode(TEXT("Input Bop Period Node"), TEXT("BopPeriod"), 1.f, ETimeResolution::Seconds);
-	TInputNode<FFrequency> FrequencyInputNode(TEXT("Input Frequency Node"), TEXT("Frequency"), 100.f, EFrequencyResolution::Hertz);
-
-	FPeriodicBopNode BopNode(TEXT("Bop"), 1.f);
-	FOscNode OscNode(TEXT("Osc"), 100.f);
-	FADSRNode ADSRNode(TEXT("ADSR"), 10.f /* AttackMs */, 10.f /* DecayMs */, 50.f /* SustainMs */, 10.f /* ReleaseMs */);
-	FAudioMultiplyNode MultiplyNode(TEXT("Multiply"));
-
-	TOutputNode<FAudioBuffer> OutputNode(TEXT("Output Audio Node"), TEXT("Audio"));
-
-	FGraph Graph(TEXT("Graph"));
-
-	// Add rate of bop.
-	Graph.AddDataEdge(BopPeriodInputNode, TEXT("BopPeriod"), BopNode, TEXT("Period"));
-	// Add frequency controls
-	Graph.AddDataEdge(FrequencyInputNode, TEXT("Frequency"), OscNode, TEXT("Frequency"));
-
-	// TODO: maybe nodes should have name accessors to inputs and outputs instead of an array?
-	Graph.AddDataEdge(BopNode, TEXT("Bop"), ADSRNode, TEXT("Bop"));
-
-	// Hookup multiply nodes
-	Graph.AddDataEdge(OscNode, TEXT("Audio"), MultiplyNode, TEXT("InputBuffer1"));
-	Graph.AddDataEdge(ADSRNode, TEXT("Envelope"), MultiplyNode, TEXT("InputBuffer2"));
-
-	// Route to output.
-	Graph.AddDataEdge(MultiplyNode, TEXT("Audio"), OutputNode, TEXT("Audio"));
-
-	Graph.AddInputDataDestination(BopPeriodInputNode, TEXT("BopPeriod"));
-	Graph.AddInputDataDestination(FrequencyInputNode, TEXT("Frequency"));
-	Graph.AddOutputDataSource(OutputNode, TEXT("Audio"));
-
-
-	// Build everything
-	
-	FOperatorSettings Settings(InSampleRate, 256);
-	FOperatorBuilder Builder(Settings);
-
-	TArray<IOperatorBuilder::FBuildErrorPtr> Errors;
-	FOperatorUniquePtr Operator = Builder.BuildGraphOperator(Graph, Errors);
-
-	if (!Operator.IsValid())
-	{
-		return ISoundGeneratorPtr(nullptr);
-	}
-
-	FDataReferenceCollection OutputCollection = Operator->GetOutputs();
-	FAudioBufferReadRef OutAudio = OutputCollection.GetDataReadReference<FAudioBuffer>(TEXT("Audio"));
-
-	Generator = MakeShared<FMetasoundGenerator, ESPMode::ThreadSafe>(MoveTemp(Operator), OutAudio);
-	FMetasoundGenerator* MetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
-	MetasoundGenerator->SetFrequency(Frequency);
-	MetasoundGenerator->SetBopPeriod(BopPeriod);
-
-	return Generator;
-}
-
-
+} 
 
 

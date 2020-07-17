@@ -78,6 +78,14 @@ namespace Metasound
 		// without specialization.
 		static_assert(TSpecializationHelper<DataType>::Value, "TDataReferenceTypeInfo must be specialized.  Use macro DECLARE_METASOUND_DATA_REFERENCE_TYPES");
 	};
+
+	template<typename DataType>
+	const FName GetMetasoundDataTypeName() 
+	{
+		static const FName TypeName = FName(TDataReferenceTypeInfo< TDecay<DataType>::Type >::TypeName);
+
+		return TypeName;
+	}
 	
 	/** Template class for a paramter reference. 
 	 *
@@ -136,7 +144,7 @@ namespace Metasound
 			/** Return the name of the underlying type. */
 			virtual const FName& GetDataTypeName() const override
 			{
-				static const FName TypeName = FName(FInfoType::TypeName);
+				static const FName TypeName = GetMetasoundDataTypeName<DataType>();
 				return TypeName;
 			}
 
@@ -257,6 +265,8 @@ namespace Metasound
 			{
 			}
 	};
+
+
 
 	/** Cast a TDataReadReference to a TDataWriteReference. 
 	 *
