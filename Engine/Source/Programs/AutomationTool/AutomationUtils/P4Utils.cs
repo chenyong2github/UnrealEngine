@@ -2101,6 +2101,16 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Invokes p4 delete command.
+		/// </summary>
+		/// <param name="CL">Changelist where the files should be added to.</param>
+		/// <param name="CommandLine">Commandline for the command.</param>
+		public void Delete(int CL, string CommandLine)
+		{
+			LogP4("delete " + String.Format("-c {0} ", CL) + CommandLine);
+		}
+
+		/// <summary>
 		/// Invokes p4 reconcile command.
 		/// </summary>
 		/// <param name="CL">Changelist to check the files out.</param>
@@ -4044,7 +4054,7 @@ namespace AutomationTool
 			}
 		}
 
-		static P4Action ParseAction(string Action)
+		public static P4Action ParseAction(string Action)
 		{
 			P4Action Result = P4Action.Unknown;
 			var AllActions = GetEnumValuesAndKeywords(typeof(P4Action));
