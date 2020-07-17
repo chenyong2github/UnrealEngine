@@ -392,7 +392,7 @@ void FSlateDebugging::BroadcastInputEvent(ESlateDebuggingInputEvent InputEventTy
 {
 	if (InputEvent.IsBound())
 	{
-		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, FReply::Handled(), TSharedPtr<SWidget>(), FString()));
+		InputEvent.Broadcast(FSlateDebuggingInputEventArgs(InputEventType, FReply::Handled(), HandlerWidget, FString()));
 	}
 	for (IWidgetInputRoutingEvent* Event : RoutingEvents)
 	{
