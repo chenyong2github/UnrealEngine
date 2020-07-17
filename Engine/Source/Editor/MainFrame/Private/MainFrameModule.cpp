@@ -516,14 +516,6 @@ void FMainFrameModule::StartupModule( )
 	SourceCodeAccessModule.OnOpenFileFailed().AddRaw( this, &FMainFrameModule::HandleCodeAccessorOpenFileFailed );
 #endif
 
-	// load sounds
-	CompileStartSound = LoadObject<USoundBase>(NULL, TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
-	CompileStartSound->AddToRoot();
-	CompileSuccessSound = LoadObject<USoundBase>(NULL, TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
-	CompileSuccessSound->AddToRoot();
-	CompileFailSound = LoadObject<USoundBase>(NULL, TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
-	CompileFailSound->AddToRoot();
-
 	ModuleCompileStartTime = 0.0f;
 
 	// migrate old layout settings
@@ -563,33 +555,6 @@ void FMainFrameModule::ShutdownModule( )
 		SourceCodeAccessModule.OnOpenFileFailed().RemoveAll( this );
 	}
 #endif
-
-	if(CompileStartSound != NULL)
-	{
-		if (!GExitPurge)
-		{
-			CompileStartSound->RemoveFromRoot();
-		}
-		CompileStartSound = NULL;
-	}
-
-	if(CompileSuccessSound != NULL)
-	{
-		if (!GExitPurge)
-		{
-			CompileSuccessSound->RemoveFromRoot();
-		}
-		CompileSuccessSound = NULL;
-	}
-
-	if(CompileFailSound != NULL)
-	{
-		if (!GExitPurge)
-		{
-			CompileFailSound->RemoveFromRoot();
-		}
-		CompileFailSound = NULL;
-	}
 }
 
 
@@ -616,7 +581,7 @@ void FMainFrameModule::HandleLevelEditorModuleCompileStarted( bool bIsAsyncCompi
 
 	if ( GEditor )
 	{
-		GEditor->PlayEditorSound(CompileStartSound);
+		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileStart_Cue.CompileStart_Cue"));
 	}
 
 	FNotificationInfo Info( NSLOCTEXT("MainFrame", "RecompileInProgress", "Compiling C++ Code") );
@@ -667,7 +632,7 @@ void FMainFrameModule::HandleLevelEditorModuleCompileFinished(const FString& Log
 		{
 			if ( GEditor )
 			{
-				GEditor->PlayEditorSound(CompileSuccessSound);
+				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
 			}
 
 			NotificationItem->SetText(NSLOCTEXT("MainFrame", "RecompileComplete", "Compile Complete!"));
@@ -687,7 +652,7 @@ void FMainFrameModule::HandleLevelEditorModuleCompileFinished(const FString& Log
 
 			if ( GEditor )
 			{
-				GEditor->PlayEditorSound(CompileFailSound);
+				GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileFailed_Cue.CompileFailed_Cue"));
 			}
 
 			if (CompilationResult == ECompilationResult::FailedDueToHeaderChange)
@@ -735,7 +700,7 @@ void FMainFrameModule::HandleHotReloadFinished( bool bWasTriggeredAutomatically 
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
 		NotificationItem->ExpireAndFadeout();
 	
-		GEditor->PlayEditorSound(CompileSuccessSound);
+		GEditor->PlayEditorSound(TEXT("/Engine/EditorSounds/Notifications/CompileSuccess_Cue.CompileSuccess_Cue"));
 	}
 }
 
