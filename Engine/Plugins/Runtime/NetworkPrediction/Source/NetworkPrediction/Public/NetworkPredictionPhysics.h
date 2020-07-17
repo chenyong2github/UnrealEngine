@@ -168,13 +168,17 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	{
 		npCheckSlow(RecvState);
 
-		npEnsure(RecvState->Rotation.IsNormalized());
+		npEnsureSlow(RecvState->Rotation.IsNormalized());
+		npEnsureSlow(!RecvState->Location.ContainsNaN());
 
 		Handle->SetX(RecvState->Location);
 		Handle->SetR(RecvState->Rotation);
 
 		if (Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle())
 		{
+			npEnsureSlow(!RecvState->LinearVelocity.ContainsNaN());
+			npEnsureSlow(!RecvState->AngularVelocity.ContainsNaN());
+
 			Kinematic->SetV(RecvState->LinearVelocity);
 			Kinematic->SetW(RecvState->AngularVelocity);
 		}
@@ -183,8 +187,14 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	static void PostResimulate(UPrimitiveComponent* Driver, FPhysicsActorHandle ActorHandle)
 	{
 		npCheckSlow(Driver);
-		Driver->WakeAllRigidBodies();
-		Driver->SyncComponentToRBPhysics();
+
+		// We need to force a marshal of physics data -> PrimitiveComponent in cases where a sleeping object was asleep before and after a correction,
+		// but waking up and calling SyncComponentToRBPhysics() is causing some bad particle data to feed back into physics. This is probably not the right
+		// way. Disabling for now to avoid the asserts but will cause the sleeping object-not-updated bug to reappear.
+		
+		//Driver->WakeAllRigidBodies();
+		//Driver->SyncComponentToRBPhysics();
+		//npEnsureSlow(ActorHandle->R().IsNormalized());
 	}
 
 	// Interpolation related functions currently need to go through a UPrimitiveComponent
