@@ -1277,8 +1277,8 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Paste,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteNodes ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteNodes )
+				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteGeneric ),
+				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteGeneric )
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Duplicate,
@@ -6810,6 +6810,33 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 
 	// Update UI
 	FocusedGraphEd->NotifyGraphChanged();
+}
+
+void FBlueprintEditor::PasteGeneric()
+{
+	if (CanPasteNodes())
+	{
+		PasteNodes();
+	}
+	else if (MyBlueprintWidget.IsValid())
+	{
+		if (MyBlueprintWidget->CanPasteGeneric())
+		{
+			MyBlueprintWidget->OnPasteGeneric();
+		}
+	}
+}
+
+bool FBlueprintEditor::CanPasteGeneric() const
+{
+	if (CanPasteNodes())
+	{
+		return true;
+	}
+	else
+	{
+		return MyBlueprintWidget.IsValid() && MyBlueprintWidget->CanPasteGeneric();
+	}
 }
 
 

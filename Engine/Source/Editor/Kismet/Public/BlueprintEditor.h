@@ -925,6 +925,10 @@ protected:
 	/** Paste on graph at specific location */
 	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
 
+	/** Paste Variable Definition or Nodes */
+	virtual void PasteGeneric();
+	virtual bool CanPasteGeneric() const;
+
 	virtual void PasteNodes();
 	virtual bool CanPasteNodes() const override;
 
