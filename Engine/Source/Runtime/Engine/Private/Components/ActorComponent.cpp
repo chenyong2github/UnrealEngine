@@ -2020,7 +2020,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 				{
 					uint8* DataPtr      = Property->ContainerPtrToValuePtr           <uint8>((uint8*)this, Idx);
 					uint8* DefaultValue = Property->ContainerPtrToValuePtrForDefaults<uint8>(ComponentClass, (uint8*)ComponentArchetype, Idx);
-					if (!Property->Identical( DataPtr, DefaultValue))
+					if (!Property->Identical( DataPtr, DefaultValue, PPF_DeepCompareInstances))
 					{
 						UCSModifiedProperties.Add(FSimpleMemberReference());
 						FMemberReference::FillSimpleMemberReference<FProperty>(Property, UCSModifiedProperties.Last());
