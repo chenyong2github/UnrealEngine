@@ -27,11 +27,13 @@ public class SequencerScriptingEditor : ModuleRules
 				"Core",
 				"TimeManagement",
 				"MovieScene",
-                "MovieSceneTools",
+				"MovieSceneCaptureDialog",
+				"MovieSceneTools",
                 "MovieSceneTracks",
-                "CinematicCamera",
-            }
-        );
+				"CinematicCamera",
+				"SequencerScripting",
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -42,10 +44,8 @@ public class SequencerScriptingEditor : ModuleRules
 				"PythonScriptPlugin",
 				"Slate",
 				"SlateCore",
-				"MovieSceneCaptureDialog",
                 "MovieSceneCapture",
                 "LevelSequence",
-				"SequencerScripting",
                 "UnrealEd",
             }
 		);
