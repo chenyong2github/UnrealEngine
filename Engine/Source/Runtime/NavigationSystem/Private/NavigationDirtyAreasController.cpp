@@ -66,11 +66,15 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 	}
 
 #if !UE_BUILD_SHIPPING
-	UE_CLOG(ShouldReportOversizedDirtyArea() && BoundsSize.GetMax() > DirtyAreaWarningSizeThreshold,
-		LogNavigationDirtyArea, Warning, TEXT("Adding an oversized dirty area (object:%s size:%s threshold:%.2f)"),
-		*GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr),
-		*BoundsSize.ToString(),
-		DirtyAreaWarningSizeThreshold);
+	UE_LOG(LogNavigationDirtyArea, VeryVerbose, TEXT("Adding dirty area (object:%s size:%s)"), *GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr), *BoundsSize.ToString());
+
+	if (ShouldReportOversizedDirtyArea() && BoundsSize.GetMax() > DirtyAreaWarningSizeThreshold)
+	{
+		UE_LOG(LogNavigationDirtyArea, Warning, TEXT("Adding an oversized dirty area (object:%s size:%s threshold:%.2f)"),
+			*GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr),
+			*BoundsSize.ToString(),
+			DirtyAreaWarningSizeThreshold);
+	}
 #endif // !UE_BUILD_SHIPPING
 
 	if (Flags > 0 && bCanAccumulateDirtyAreas)
