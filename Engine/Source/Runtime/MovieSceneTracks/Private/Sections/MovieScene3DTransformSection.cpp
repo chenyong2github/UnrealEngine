@@ -620,6 +620,11 @@ bool UMovieScene3DTransformSection::GetUseQuaternionInterpolation() const
 	return bUseQuaternionInterpolation;
 }
 
+void UMovieScene3DTransformSection::SetUseQuaternionInterpolation(bool bInUseQuaternionInterpolation)
+{
+	bUseQuaternionInterpolation = bInUseQuaternionInterpolation;
+}
+
 bool UMovieScene3DTransformSection::ShowCurveForChannel(const void *ChannelPtr) const
 {
 	if (GetUseQuaternionInterpolation())
