@@ -2734,7 +2734,7 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 			// Now gather the world external packages and save them if needed
 			if (World->PersistentLevel)
 			{
-				for (UPackage* ExternalPackage : World->PersistentLevel->GetExternalActorPackages())
+				for (UPackage* ExternalPackage : World->PersistentLevel->GetLoadedExternalActorPackages())
 				{
 					if (ExternalPackage->IsDirty() && (bForceIfNotInList || DirtyPackagesForAutoSave.Contains(ExternalPackage))
 						&& FPackageName::IsValidLongPackageName(ExternalPackage->GetName(), /*bIncludeReadOnlyRoots=*/false))
@@ -3592,7 +3592,7 @@ bool FEditorFileUtils::SaveCurrentLevel()
 			}
 
 			// Gather the level owned packages (i.e external actors and save them)
-			TArray<UPackage*> PackagesToSave = Level->GetExternalActorPackages();
+			TArray<UPackage*> PackagesToSave = Level->GetLoadedExternalActorPackages();
 			for (auto It = PackagesToSave.CreateIterator(); It; ++It)
 			{
 				UPackage* Package = *It;

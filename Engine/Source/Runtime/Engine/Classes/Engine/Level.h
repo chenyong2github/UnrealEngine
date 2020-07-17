@@ -935,10 +935,16 @@ public:
 	ENGINE_API void ConvertAllActorsToPackaging(bool bExternal);
 
 	/**
-	 * Get the list of loaded external actor packages associated with this level
+	 * Get the list of (on disk) external actor packages associated with this level
 	 * @return Array of packages associated with this level
 	 */
-	ENGINE_API TArray<UPackage*> GetExternalActorPackages() const;
+	ENGINE_API TArray<FString> GetOnDiskExternalActorPackages() const;
+
+	/**
+	 * Get the list of (loaded) external actor packages associated with this level
+	 * @return Array of packages associated with this level
+	 */
+	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
 
 	/**
 	 * Get the folder containing the external actors for this level
