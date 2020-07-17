@@ -392,7 +392,7 @@ namespace Metasound
 			{
 				FDescPath NodePath = NodePtr.GetPath();
 				FString ClassName = GetNodeClassName();
-				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, ClassName , OwningAsset };
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, ClassName, OwningAsset };
 				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, InputDescription.Name);
 			}
 
@@ -467,7 +467,7 @@ namespace Metasound
 			return FOutputHandle::InvalidHandle();
 		}
 
-		EMetasoundClassType FNodeHandle::GetNodeType()
+		EMetasoundClassType FNodeHandle::GetNodeType() const
 		{
 			if (!IsValid())
 			{
@@ -477,11 +477,12 @@ namespace Metasound
 			return NodeClass->Metadata.NodeType;
 		}
 
-		FString FNodeHandle::GetNodeClassName()
+		const FString& FNodeHandle::GetNodeClassName() const
 		{
 			if (!IsValid())
 			{
-				return FString();
+				static const FString DefaultClassName;
+				return DefaultClassName;
 			}
 
 			return NodeClass->Metadata.NodeName;
@@ -505,7 +506,7 @@ namespace Metasound
 			OutGraph = FGraphHandle(FHandleInitParams::PrivateToken, InitParams);
 		}
 
-		uint32 FNodeHandle::GetNodeID()
+		uint32 FNodeHandle::GetNodeID() const
 		{
 			if (!IsValid())
 			{
@@ -635,7 +636,7 @@ namespace Metasound
 			return FGraphHandle(FHandleInitParams::Token, InitParams);
 		}
 
-		bool FGraphHandle::IsValid()
+		bool FGraphHandle::IsValid() const
 		{
 			return GraphPtr.IsValid() && GraphsClassDeclaration.IsValid();
 		}
@@ -1012,7 +1013,7 @@ namespace Metasound
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
 		}
 
-		bool FGraphHandle::RemoveNode(FNodeHandle& InNode, bool bEvenIfInputOrOutputNode /*= false*/)
+		bool FGraphHandle::RemoveNode(const FNodeHandle& InNode, bool bEvenIfInputOrOutputNode /*= false*/)
 		{
 			if (!IsValid())
 			{
@@ -1149,7 +1150,7 @@ namespace Metasound
 			return GraphsClassDeclaration->Metadata;
 		}
 
-		bool FGraphHandle::ExportToJSONAsset(const FString& InAbsolutePath)
+		bool FGraphHandle::ExportToJSONAsset(const FString& InAbsolutePath) const
 		{
 			if (!IsValid())
 			{

@@ -6,9 +6,13 @@
 #include "MetasoundGraph.h"
 #include "MetasoundFrontendDataLayout.h"
 #include "MetasoundFrontendBaseClasses.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Serialization/Public/IStructSerializerBackend.h"
+#include "Serialization/Public/Backends/JsonStructSerializerBackend.h"
+#include "Serialization/Public/StructSerializer.h"
 
-
-class UMetasound;
+// Forward Declarations
+class FMetasoundAssetBase;
 
 namespace Metasound
 {	
@@ -32,7 +36,6 @@ namespace Metasound
 	 */
 	namespace Frontend
 	{
-
 		// Struct with the basics of a node class' information,
 		// used to look up that node from our node browser functions,
 		// and also used in FGraphHandle::AddNewNode.
@@ -109,10 +112,10 @@ namespace Metasound
 			friend class FInputHandle;
 			friend class FNodeHandle;
 			friend class FGraphHandle;
-			friend class ::UMetasound;
+			friend class FMetasoundAssetBase;
 		};
 
-		class FOutputHandle : protected ITransactable
+		class METASOUNDFRONTEND_API FOutputHandle : protected ITransactable
 		{
 		public:
 			FOutputHandle() = delete;
@@ -148,7 +151,7 @@ namespace Metasound
 			TDescriptionPtr<FMetasoundOutputDescription> OutputPtr;
 		};
 
-		class FInputHandle : protected ITransactable
+		class METASOUNDFRONTEND_API FInputHandle : protected ITransactable
 		{
 		public:
 			FInputHandle() = delete;
@@ -188,7 +191,7 @@ namespace Metasound
 		// Opaque handle to a single node on a graph.
 		// Can retrieve metadata about that node,
 		// get FNodeHandles for other nodes it is connected to, and validate and modify connections.
-		class FNodeHandle : protected ITransactable
+		class METASOUNDFRONTEND_API FNodeHandle : protected ITransactable
 		{
 		public:
 			FNodeHandle() = delete;
@@ -207,15 +210,15 @@ namespace Metasound
 			FInputHandle GetInputWithName(const FString& InName);
 			FOutputHandle GetOutputWithName(const FString& InName);
 
-			EMetasoundClassType GetNodeType();
-			FString GetNodeClassName();
+			EMetasoundClassType GetNodeType() const;
+			const FString& GetNodeClassName() const;
 
 			// If this node is itself a Metasound,
 			// use this to return the contained graph for the metasound.
 			// Otherwise it will return an invalid FGraphHandle.
 			void GetContainedGraph(FGraphHandle& OutGraph);
 
-			uint32 GetNodeID();
+			uint32 GetNodeID() const;
 			static uint32 GetNodeID(const FDescPath& InNodePath);
 
 		private:
@@ -235,9 +238,18 @@ namespace Metasound
 			// Sole constructor for FGraphHandle. Can only be used by friends of FHandleInitParams.
 			FGraphHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams);
 
+			static FGraphHandle GetHandle(UObject* InOwner, FMetasoundDocument& InRootMetasoundDocument, TSharedPtr<Metasound::Frontend::FDescriptionAccessPoint>& InAccessPoint)
+			{
+				using namespace Path;
+
+				FDescPath PathToGraph = FDescPath()[EFromDocument::ToRootClass][EFromClass::ToGraph];
+				FHandleInitParams InitParams = { InAccessPoint, PathToGraph, InRootMetasoundDocument.RootClass.Metadata.NodeName, MakeWeakObjectPtr(InOwner) };
+				return FGraphHandle(FHandleInitParams::PrivateToken, InitParams);
+			}
+
 			static FGraphHandle InvalidHandle();
 
-			bool IsValid();
+			bool IsValid() const;
 
 			TArray<FNodeHandle> GetAllNodes();
 			TArray<FNodeHandle> GetOutputNodes();
@@ -256,14 +268,14 @@ namespace Metasound
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.
-			bool RemoveNode(FNodeHandle& InNode, bool bEvenIfInputOrOutputNode = false);
+			bool RemoveNode(const FNodeHandle& InNode, bool bEvenIfInputOrOutputNode = false);
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			FMetasoundClassMetadata GetGraphMetadata();
 
 			// Exports this graph to a JSON at the given path.
 			// @returns true on success.
-			bool ExportToJSONAsset(const FString& InAbsolutePath);
+			bool ExportToJSONAsset(const FString& InAbsolutePath) const;
 
 			// If the FNodeHandle given is itself a Metasound graph,
 			// and the FNodeHandle is a direct member of this FGraphHandle,
@@ -311,5 +323,5 @@ namespace Metasound
 		// this can be used to attempt to find which asset that node is implemented in,
 		// and return a graph handle for that node.
 		FGraphHandle GetGraphHandleForClass(const FMetasoundClassDescription& InClass);
-	}	
-}
+	} // namespace Frontend
+} // namespace Metasound

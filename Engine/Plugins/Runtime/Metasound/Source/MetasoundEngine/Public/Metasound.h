@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDataLayout.h"
+#include "MetasoundAssetBase.h"
+
 
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
@@ -17,7 +19,7 @@
  * Because of this, they can have any inputs or outputs they need.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetasound : public UObject
+class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBase
 {
 	GENERATED_BODY()
 
@@ -30,8 +32,6 @@ protected:
 	UEdGraph* Graph;
 #endif // WITH_EDITORONLY_DATA
 
-	TSharedPtr<Metasound::Frontend::FDescriptionAccessPoint> AccessPoint;
-
 public:
 	UMetasound(const FObjectInitializer& ObjectInitializer);
 
@@ -41,7 +41,9 @@ public:
 	// Metasound UObject for editor serialization purposes.
 	// @return Editor graph associated with UMetasound.
 	UEdGraph* GetGraph();
+	const UEdGraph* GetGraph() const;
 	UEdGraph& GetGraphChecked();
+	const UEdGraph& GetGraphChecked() const;
 
 	// Sets the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
@@ -49,25 +51,20 @@ public:
 	void SetGraph(UEdGraph* InGraph);
 #endif // WITH_EDITORONLY_DATA
 
-	FMetasoundClassMetadata GetMetadata();
+	FMetasoundDocument& GetDocument() override
+	{
+		return RootMetasoundDocument;
+	}
+
+	UObject* GetOwningAsset() override
+	{
+		return this;
+	}
 
 	// Updates the Metasound's metadata (name, author, etc).
 	// @param InMetadata Metadata containing corrections to the class metadata.
-	void SetMetadata(FMetasoundClassMetadata& InMetadata);
+	void SetMetadata(FMetasoundClassMetadata& InMetadata) override;
 
 	// Deletes Metasound's current metasound document, and replaces it with InClassDescription.
 	void SetMetasoundDocument(const FMetasoundDocument& InDocument);
-
-	// returns a weak pointer that can be used to build a TDescriptionPtr
-	// for direct editing of the FMetasoundClassDescription tree.
-	// For advance use only, and requires knowledge of Metasound::Frontend::FDescPath syntax.
-	// For most use cases, use GetGraphHandle() instead.
-	TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint> GetGraphAccessPoint();
-
-	// Get the handle for the root metasound graph of this asset.
-	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
-
-	TArray<Metasound::Frontend::FGraphHandle> GetAllSubgraphHandles();
-
-	bool ExportToJSON(const FString& InAbsolutePath);
 };
