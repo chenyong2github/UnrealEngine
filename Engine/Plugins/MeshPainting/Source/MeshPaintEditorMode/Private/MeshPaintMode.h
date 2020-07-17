@@ -72,7 +72,7 @@ protected:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void ActorSelectionChangeNotify() override;
 	virtual void ActivateDefaultTool() override;
-	virtual void UpdateOnPaletteChange() override;
+	virtual void UpdateOnPaletteChange(FName NewPalette);
 	// end UEdMode Interface
 	void UpdateSelectedMeshes();
 	void OnResetViewMode();
@@ -107,6 +107,8 @@ protected:
 	FGetSelectedMeshComponents MeshComponentDelegate;
 	uint32 CachedVertexDataSize;
 	bool bRecacheVertexDataSize;
+
+	FDelegateHandle PaletteChangedHandle;
 
 };
 

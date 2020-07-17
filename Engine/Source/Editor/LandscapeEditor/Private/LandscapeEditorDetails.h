@@ -43,8 +43,6 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
-	void CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder, const TSharedRef<FLandscapeToolKit> LandscapeToolkit);
-
 protected:
 	static FText GetLocalizedName(FString Name);
 
@@ -59,15 +57,21 @@ protected:
 	bool GetToolSelectorIsVisible() const;
 	EVisibility GetToolSelectorVisibility() const;
 
+	FName GetCurrentBrushFName() const;
 	FText GetCurrentBrushName() const;
 	FSlateIcon GetCurrentBrushIcon() const;
 	TSharedRef<SWidget> GetBrushSelector();
 	bool GetBrushSelectorIsVisible() const;
+	EVisibility GetBrushSelectorVisibility() const;
 
+	FName GetCurrentBrushFalloffFName() const;
 	FText GetCurrentBrushFalloffName() const;
 	FSlateIcon GetCurrentBrushFalloffIcon() const;
 	TSharedRef<SWidget> GetBrushFalloffSelector();
 	bool GetBrushFalloffSelectorIsVisible() const;
+	EVisibility GetBrushFalloffSelectorVisibility() const;
+
+	void SetBrushCommand(FName);
 
 	bool IsBrushSetEnabled() const;
 

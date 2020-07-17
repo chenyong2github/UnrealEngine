@@ -55,7 +55,7 @@ void FMeshPaintEditorModeCommands::RegisterCommands()
 	ColorCommands.Add(ColorPaint);
 	UI_COMMAND(WeightPaint, "Paint", "Paint the mesh", EUserInterfaceActionType::ToggleButton, FInputChord());
 	WeightCommands.Add(WeightPaint);
-	UI_COMMAND(SwitchForeAndBackgroundColor, "Swap Colors", "Switches the Foreground and Background Colors used for Vertex Painting", EUserInterfaceActionType::Button, FInputChord(EKeys::X));
+	UI_COMMAND(SwitchForeAndBackgroundColor, "Swap", "Switches the Foreground and Background Colors used for Vertex Painting", EUserInterfaceActionType::Button, FInputChord(EKeys::X));
 	VertexCommands.Add(SwitchForeAndBackgroundColor);
 	UI_COMMAND(Fill, "Fill", "Fills the selected Meshes with the Paint Color", EUserInterfaceActionType::Button, FInputChord());
 	VertexCommands.Add(Fill);
@@ -75,10 +75,9 @@ void FMeshPaintEditorModeCommands::RegisterCommands()
 	VertexCommands.Add(Fix);
 	UI_COMMAND(PropagateVertexColorsToLODs, "All LODs", "Applied the Vertex Colors from LOD0 to all LOD levels", EUserInterfaceActionType::Button, FInputChord());
 	VertexCommands.Add(PropagateVertexColorsToLODs);
+
 	UI_COMMAND(CycleToPreviousLOD, "Previous LOD", "Cycles to the previous possible Mesh LOD to Paint on", EUserInterfaceActionType::Button, FInputChord(EKeys::B));
-	VertexCommands.Add(CycleToPreviousLOD);
 	UI_COMMAND(CycleToNextLOD, "Next LOD", "Cycles to the next possible Mesh LOD to Paint on", EUserInterfaceActionType::Button, FInputChord(EKeys::N));
-	VertexCommands.Add(CycleToNextLOD);
 
 	ColorCommands.Append(VertexCommands);
 	WeightCommands.Append(VertexCommands);
@@ -89,10 +88,10 @@ void FMeshPaintEditorModeCommands::RegisterCommands()
 	TextureCommands.Add(TextureSelect);
 	UI_COMMAND(TexturePaint, "Paint", "Paint the mesh", EUserInterfaceActionType::ToggleButton, FInputChord());
 	TextureCommands.Add(TexturePaint);
+	
 	UI_COMMAND(PreviousTexture, "Previous Texture", "Cycle To Previous Texture", EUserInterfaceActionType::Button, FInputChord(EKeys::Comma));
-	TextureCommands.Add(PreviousTexture);
 	UI_COMMAND(NextTexture, "Next Texture", "Cycle To Next Texture", EUserInterfaceActionType::Button, FInputChord(EKeys::Period));
-	TextureCommands.Add(NextTexture);
+
 	UI_COMMAND(PropagateTexturePaint, "Commit", "Commits Texture Painting Changes", EUserInterfaceActionType::Button, FInputChord(EKeys::C, EModifierKey::Control | EModifierKey::Shift));
 	TextureCommands.Add(PropagateTexturePaint);
 	UI_COMMAND(SaveTexturePaint, "Save", "Saves the Modified Textures for the selected Mesh Components", EUserInterfaceActionType::Button, FInputChord());

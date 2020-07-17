@@ -282,23 +282,11 @@ public:
 		return TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>();
 	};
 
-	void SetCurrentPaletteName(FName InName)
-	{
-		CurrentPaletteName = InName;
-		UpdateOnPaletteChange();
-	};
-
-	FName GetCurrentPaletteName() const
-	{
-		return CurrentPaletteName;
-	}
-
 protected:
 	virtual void CreateToolkit();
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
 	virtual void ActivateDefaultTool() {};
-	virtual void UpdateOnPaletteChange() {};
 
 protected:
 
@@ -314,6 +302,5 @@ protected:
 	UPROPERTY(Transient)
 	UObject* SettingsObject;
 
-	FName CurrentPaletteName;
 };
 

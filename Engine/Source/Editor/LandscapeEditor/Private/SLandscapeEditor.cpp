@@ -202,7 +202,6 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.BeginSection("Manage");
 
 		ToolBarBuilder.AddToolBarButton(Commands.NewLandscape);
-		ToolBarBuilder.AddSeparator();	
 
 		ToolBarBuilder.AddToolBarButton(Commands.SelectComponentTool);
 		ToolBarBuilder.AddToolBarButton(Commands.AddComponentTool);
@@ -210,9 +209,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.MoveToLevelTool);
 		ToolBarBuilder.AddToolBarButton(Commands.ResizeLandscape);
 
-		ToolBarBuilder.AddSeparator();	
 		ToolBarBuilder.AddToolBarButton(Commands.SplineTool);
-		ToolBarBuilder.EndSection();
 	}
 
 	else if (PaletteName == LandscapeEditorNames::Sculpt)
@@ -238,17 +235,8 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		}
 		ToolBarBuilder.AddToolBarButton(Commands.MirrorTool);
 
-		ToolBarBuilder.AddSeparator();
-
 		ToolBarBuilder.AddToolBarButton(Commands.RegionSelectTool);
 		ToolBarBuilder.AddToolBarButton(Commands.RegionCopyPasteTool);
-
-		ToolBarBuilder.AddSeparator();
-
-		if (BrushesWidgets)
-		{
-			BrushesWidgets->CustomizeToolBarPalette(ToolBarBuilder, SharedThis(this));
-		}
 
 	}
 
@@ -262,13 +250,6 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 		{
 			ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
-		}
-
-		ToolBarBuilder.AddSeparator();	
-
-		if (BrushesWidgets)
-		{
-			BrushesWidgets->CustomizeToolBarPalette(ToolBarBuilder, SharedThis(this));
 		}
 	}
 

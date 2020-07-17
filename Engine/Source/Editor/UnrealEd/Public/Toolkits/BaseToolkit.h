@@ -146,8 +146,12 @@ public:
 	virtual FText GetActiveToolDisplayName() const { return FText(); }
 	virtual FText GetActiveToolMessage() const { return FText(); }
 
-	virtual void OnToolPaletteChanged(FName PaletteName);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPaletteChanged, FName);
+	FOnPaletteChanged& OnPaletteChanged() { return OnPaletteChangedDelegate; }
 
+	virtual void OnToolPaletteChanged(FName PaletteName) {};
+	void SetCurrentPalette(FName InName);
+	FName GetCurrentPalette() const;
 	void SetModeSettingsObject(UObject* InSettingsObject);
 
 protected:
@@ -163,4 +167,7 @@ protected:
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<IDetailsView> ModeDetailsView;
 	TSharedPtr<IDetailsView> DetailsView;
+
+	FName CurrentPaletteName;
+	FOnPaletteChanged OnPaletteChangedDelegate;
 };

@@ -1773,35 +1773,67 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	{
 
 		FToolBarStyle PaletteToolBarStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		PaletteToolBarStyle.SetLabelStyle( GetParentStyle()->GetWidgetStyle<FTextBlockStyle>("SmallText") );
 		
-		PaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Background));
+		PaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Input));
+
 		PaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
-		PaletteToolBarStyle.SetCheckBoxPadding(FMargin(4.0f, 2.0f, 4.0f, 2.0f));
-		PaletteToolBarStyle.SetComboButtonPadding(FMargin(2.0f, 0.0f));
-		PaletteToolBarStyle.SetIndentedBlockPadding(FMargin(4.0f, 2.0f, 4.0f, 2.0f) );
-		PaletteToolBarStyle.SetBlockPadding(FMargin(4.0f, 2.0f, 4.0f, 2.0f));
 
-		Set("PaletteToolBar.MaxUniformToolbarSize", 50.f);
-		Set("PaletteToolbar.MinUniformToolbarSize", 22.f);
+		PaletteToolBarStyle.SetButtonPadding(       FMargin(2.0f, 2.0f));
+		PaletteToolBarStyle.SetCheckBoxPadding(     FMargin(1.0f, 1.0f));
+		PaletteToolBarStyle.SetComboButtonPadding(  FMargin(1.0f, 1.0f));
+		PaletteToolBarStyle.SetIndentedBlockPadding(FMargin(1.0f, 1.0f));
+		PaletteToolBarStyle.SetBlockPadding(        FMargin(1.0f, 1.0f));
 
+		Set( "PaletteToolBar.Tab",  FCheckBoxStyle()
+			.SetCheckBoxType(            ESlateCheckBoxType::ToggleButton)
+			.SetCheckedImage(            FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+			.SetCheckedHoveredImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+			.SetCheckedPressedImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+			.SetUncheckedImage(          FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
+			.SetUncheckedHoveredImage(   FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
+			.SetUncheckedPressedImage(   FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
+			.SetForegroundColor(         FStyleColors::Foreground)
+			.SetHoveredForegroundColor(  FStyleColors::ForegroundHover)
+			.SetPressedForegroundColor(  FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(  FStyleColors::Primary)
+			.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
+			.SetPadding(FMargin(2.f, 6.f))
+		);
+
+		Set("PaletteToolBar.MaxUniformToolbarSize", 64.f);
+		Set("PaletteToolBar.MinUniformToolbarSize", 64.f);
+		
 		FLinearColor ButtonHoverColor(FColor(81, 81, 81));
 
 			/* Create style for "ToolBar.ToggleButton" widget ... */
 		const FCheckBoxStyle ToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
 				.SetCheckBoxType( ESlateCheckBoxType::ToggleButton )
-				.SetUncheckedImage( FSlateNoResource() )
-				.SetUncheckedPressedImage( 	BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed) )
-				.SetUncheckedHoveredImage( 	BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, ButtonHoverColor ) )
-				.SetCheckedImage( 		   	BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-				.SetCheckedHoveredImage( 	BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) )
-				.SetCheckedPressedImage( 	BOX_BRUSH( "Common/RoundedSelection_16x", 4.0f/16.0f, SelectionColor_Pressed ) );
+				.SetUncheckedImage(       FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+				.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+				.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+				.SetCheckedImage(         FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+				.SetCheckedHoveredImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+				.SetCheckedPressedImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+				.SetForegroundColor(       FStyleColors::Foreground)
+				.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+				.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+				.SetCheckedForegroundColor(FStyleColors::Primary)
+				.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
+				.SetPadding(FMargin(2.f, 6.f));
 		
 		PaletteToolBarStyle.SetToggleButtonStyle(ToolBarToggleButtonCheckBoxStyle);
 		PaletteToolBarStyle.SetButtonStyle(FButtonStyle(Button)
-			.SetNormal(FSlateNoResource())
-			.SetNormalPadding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
-			.SetPressed(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, SelectionColor_Pressed))
-			.SetHovered(BOX_BRUSH("Common/RoundedSelection_16x", 4.0f / 16.0f, ButtonHoverColor)));
+			.SetNormal( FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
+			.SetNormalForeground(         FStyleColors::Foreground)
+			.SetHoveredForeground(        FStyleColors::ForegroundHover)
+			.SetPressedForeground(        FStyleColors::ForegroundHover)
+			.SetNormalPadding(FMargin(2.0f, 6.0f))
+			.SetPressedPadding(FMargin(2.0f, 6.0f))
+		);
 
 		Set("PaletteToolBar", PaletteToolBarStyle);
 
@@ -4370,6 +4402,13 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 			.SetUndeterminedPressedImage( FSlateNoResource() )
 		);	
 		Set( "ToolPalette.DockingWell", new FSlateColorBrush(FLinearColor(FColor(34, 34, 34, 255))));
+
+		Set( "ToolPalette.DockingLabel", FTextBlockStyle(NormalText)
+			.SetFont( DEFAULT_FONT( "Regular", 9 ) ) 
+			.SetShadowOffset(FVector2D(1, 1))
+			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f))
+		);
+
 
 		Set("LevelEditor.SelectMode", new IMAGE_BRUSH_SVG("Starship/MainToolBar/select", Icon20x20));
 

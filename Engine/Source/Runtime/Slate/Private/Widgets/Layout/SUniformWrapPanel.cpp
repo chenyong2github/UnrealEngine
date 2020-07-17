@@ -17,6 +17,8 @@ void SUniformWrapPanel::Construct( const FArguments& InArgs )
 	NumRows = 0;
 	MinDesiredSlotWidth = InArgs._MinDesiredSlotWidth.Get();
 	MinDesiredSlotHeight = InArgs._MinDesiredSlotHeight.Get();
+	MaxDesiredSlotWidth = InArgs._MaxDesiredSlotWidth.Get();
+	MaxDesiredSlotHeight = InArgs._MaxDesiredSlotHeight.Get();
 	EvenRowDistribution =  InArgs._EvenRowDistribution.Get();
 	HAlign = InArgs._HAlign.Get();
 
@@ -114,6 +116,9 @@ FVector2D SUniformWrapPanel::ComputeUniformCellSize() const
 	
 	const float CachedMinDesiredSlotWidth = MinDesiredSlotWidth.Get();
 	const float CachedMinDesiredSlotHeight = MinDesiredSlotHeight.Get();
+
+	const float CachedMaxDesiredSlotWidth = MaxDesiredSlotWidth.Get();
+	const float CachedMaxDesiredSlotHeight = MaxDesiredSlotHeight.Get();
 	
 	NumColumns = 0;
 	NumRows = 0;
@@ -135,8 +140,10 @@ FVector2D SUniformWrapPanel::ComputeUniformCellSize() const
 
 				MaxChildDesiredSize.X = FMath::Max( MaxChildDesiredSize.X, ChildDesiredSize.X );
 				MaxChildDesiredSize.Y = FMath::Max( MaxChildDesiredSize.Y, ChildDesiredSize.Y );
-			}
 
+				MaxChildDesiredSize.X = FMath::Min( MaxChildDesiredSize.X, CachedMaxDesiredSlotWidth);
+				MaxChildDesiredSize.Y = FMath::Min( MaxChildDesiredSize.Y, CachedMaxDesiredSlotHeight);
+			}
 		}
 	}
 
@@ -187,6 +194,16 @@ void SUniformWrapPanel::SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlo
 void SUniformWrapPanel::SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight)
 {
 	MinDesiredSlotHeight = InMinDesiredSlotHeight;
+}
+
+void SUniformWrapPanel::SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth)
+{
+	MaxDesiredSlotWidth = InMaxDesiredSlotWidth;
+}
+
+void SUniformWrapPanel::SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight)
+{
+	MaxDesiredSlotHeight = InMaxDesiredSlotHeight;
 }
 
 void SUniformWrapPanel::SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment)

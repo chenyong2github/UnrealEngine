@@ -7,8 +7,10 @@
 #include "Toolkits/BaseToolkit.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "IDetailCustomization.h"
 
 class IDetailsView;
+class IPropertyHandle;
 class SScrollBox;
 class UFractureTool;
 class UEditableMesh;
@@ -18,17 +20,31 @@ class SGeometryCollectionOutliner;
 class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 class UGeometryCollection;
+class FFractureEditorModeToolkit;
 
 namespace GeometryCollection
 {
 enum class ESelectionMode: uint8;
 }
 
+class FFractureViewSettingsCustomization : public IDetailCustomization
+{
+public:
+	FFractureViewSettingsCustomization(FFractureEditorModeToolkit* FractureToolkit);
+	static TSharedRef<IDetailCustomization> MakeInstance(FFractureEditorModeToolkit* FractureToolkit);
+
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+	private:
+		FFractureEditorModeToolkit* Toolkit;
+};
+
 class FFractureEditorModeToolkit : public FModeToolkit, public FGCObject
 {
 public:
 
 	FFractureEditorModeToolkit();
+	~FFractureEditorModeToolkit();
 	
 	/** FModeToolkit interface */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
@@ -58,9 +74,16 @@ public:
 	bool GetShowBoneColors() const;
 	void OnSetExplodedViewValue(float NewValue);
 	void OnSetLevelViewValue(int32 NewValue);
-	void OnSetShowBoneColors();
+	void OnToggleShowBoneColors();
+	void OnSetShowBoneColors(bool NewValue);
 
-	TSharedRef<SWidget> GetLevelViewMenuContent();
+	void OnExplodedViewValueChanged();
+	void OnLevelViewValueChanged();
+
+	// Update any View Property Changes 
+	void OnObjectPostEditChange( UObject* Object, FPropertyChangedEvent& PropertyChangedEvent );
+
+	TSharedRef<SWidget> GetLevelViewMenuContent(TSharedRef<IPropertyHandle> PropertyHandle);
 	TSharedRef<SWidget> GetViewMenuContent();
 
 
@@ -98,7 +121,6 @@ public:
 
 	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
-	// static int32 GetLevelCount();
 	int32 GetLevelCount();
 
 	FText GetStatisticsSummary() const;
@@ -123,16 +145,16 @@ protected:
 	static bool IsStaticMeshSelected();
 	static bool IsSelectedActorsInEditorWorld();
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
+
 private:
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void BindCommands();
-private:
-	float ExplodeAmount;
-	int32 FractureLevel;
 
+private:
 	UFractureTool* ActiveTool;
 
 	TSharedPtr<IDetailsView> DetailsView;
+	TSharedPtr<IDetailsView> ViewSettingsDetailsView;
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<SGeometryCollectionOutliner> OutlinerView;
 

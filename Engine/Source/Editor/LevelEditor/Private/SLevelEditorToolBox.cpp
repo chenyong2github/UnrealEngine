@@ -16,7 +16,10 @@
 #include "Classes/EditorStyleSettings.h"
 #include "EdMode.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Layout/SUniformWrapPanel.h"
 #include "StatusBarSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditorToolBox"
@@ -41,36 +44,40 @@ void SLevelEditorToolBox::Construct( const FArguments& InArgs, const TSharedRef<
 
 	ChildSlot
 	[
-		SNew( SVerticalBox )
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign( HAlign_Left )
-		.Padding(1.f)
-		[
-			SAssignNew( ModeToolBarContainer, SBorder )
-			.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
-			.Padding( FMargin(4, 0, 0, 0) )
-		]
-
-		+ SVerticalBox::Slot()
-		.FillHeight( 1.0f )
-		.Padding( 2, 0, 0, 0 )
+		SNew( SBorder )
+		.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+		.Padding(0.0f)
 		[
 			SNew( SVerticalBox )
-
-			+SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
 			.AutoHeight()
+			.HAlign( HAlign_Left )
 			[
-				SAssignNew(ModeToolHeader, SBorder)
-				.BorderImage( FEditorStyle::GetBrush( "NoBorder" ) )
+				SAssignNew( ModeToolBarContainer, SBorder )
+				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+				.Padding( FMargin(4, 0, 0, 0) )
 			]
 
 			+ SVerticalBox::Slot()
+			.FillHeight( 1.0f )
 			[
-				SAssignNew(InlineContentHolder, SBorder)
-				.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-				.Padding(0.f)
-				.Visibility( this, &SLevelEditorToolBox::GetInlineContentHolderVisibility )
+				SNew( SVerticalBox )
+
+				+SVerticalBox::Slot()
+				.Padding(0.0, 8.0, 0.0, 0.0)
+				.AutoHeight()
+				[
+					SAssignNew(ModeToolHeader, SBorder)
+					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+				]
+
+				+ SVerticalBox::Slot()
+				.FillHeight(1)
+				[
+					SAssignNew(InlineContentHolder, SBorder)
+					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.Visibility( this, &SLevelEditorToolBox::GetInlineContentHolderVisibility )
+				]
 			]
 		]
 	];
@@ -173,28 +180,81 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 
 			TSharedPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
 
+			TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
+				.SlotPadding( FMargin(1.f, 2.f) )
+				.HAlign(HAlign_Center);
+
+			// Only show if there is more than one child in the switcher
+			PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility { return PaletteTabBox->GetChildren()->Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed; }) ));
+
+			// Also build the toolkit here 
+			TArray<FName> PaletteNames;
+			ModeToolkit->GetToolPaletteNames(PaletteNames);
+
+			TSharedPtr<FUICommandList> CommandList;
+			CommandList = ModeToolkit->GetToolkitCommands();
+
+			TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
+			.WidgetIndex_Lambda( [PaletteNames, ModeToolkit] () -> int32 { 
+				int32 FoundIndex;
+				if (PaletteNames.Find(ModeToolkit->GetCurrentPalette(), FoundIndex))
+				{
+					return FoundIndex;	
+				}
+				return 0;
+			} );
+			
+			for(auto Palette : PaletteNames)
+			{
+				FName ToolbarCustomizationName = ModeToolkit->GetEditorMode() ? ModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : ModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
+				FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
+				ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
+
+				ModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
+
+				TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
+
+				PaletteTabBox->AddSlot()
+				[
+					SNew(SCheckBox)
+					.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
+					.Style( FEditorStyle::Get(),  "PaletteToolBar.Tab" )
+					.OnCheckStateChanged_Lambda( [/*PaletteSwitcher, PaletteWidget, */ModeToolkit, Palette] (const ECheckBoxState) { 
+							ModeToolkit->SetCurrentPalette(Palette);
+						} 
+					)
+					// .IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.IsChecked_Lambda( [ModeToolkit, Palette] () -> ECheckBoxState { return ModeToolkit->GetCurrentPalette() == Palette ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+					[
+						SNew(STextBlock)
+						.TextStyle(FAppStyle::Get(), "NormalText")
+						.Text(ModeToolkit->GetToolPaletteDisplayName(Palette))
+						.Justification(ETextJustify::Center)
+					]
+				];
+
+
+				PaletteSwitcher->AddSlot()
+				[
+					PaletteWidget
+				]; 
+			}
+
+
 			ModeToolHeader->SetContent(
-				SNew(SExpandableArea)
-				.HeaderPadding(FMargin(2.0f))
-				.Padding(FMargin(10.f))
-				.BorderImage(FEditorStyle::Get().GetBrush("DetailsView.CategoryTop"))
-				.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
-				.BodyBorderBackgroundColor(FLinearColor::Transparent)
-				.AreaTitleFont(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
-				.Visibility_Lambda([ModeToolkit] { return ModeToolkit->GetActiveToolDisplayName().IsEmpty() && ModeToolkit->GetActiveToolMessage().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;  })
-				.BodyContent()
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.Padding(8.f, 0.f, 0.f, 8.f)
+				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(ModeToolkit.Get(), &FModeToolkit::GetActiveToolMessage)
-					.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.ToolDescriptionFont"))
-					.AutoWrapText(true)
+					PaletteTabBox
 				]
-				.HeaderContent()
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.Text(ModeToolkit.Get(), &FModeToolkit::GetActiveToolDisplayName)
-					.Justification(ETextJustify::Center)
-					.Font(FEditorStyle::Get().GetFontStyle("EditorModesPanel.CategoryFontStyle"))
+					PaletteSwitcher
 				]
 			);
 

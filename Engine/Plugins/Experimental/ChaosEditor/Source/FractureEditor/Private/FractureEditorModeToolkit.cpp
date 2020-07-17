@@ -34,6 +34,7 @@
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollection.h"
 
+#include "Styling/AppStyle.h"
 #include "EditorStyleSet.h"
 #include "FractureEditor.h"
 #include "FractureEditorCommands.h"
@@ -54,6 +55,13 @@
 #include "LevelEditorViewport.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 
+#include "DetailWidgetRow.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "PropertyHandle.h"
+
+#include "FractureSettings.h"
+
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
 TArray<UClass*> FindFractureToolClasses()
@@ -71,11 +79,88 @@ TArray<UClass*> FindFractureToolClasses()
 	return Classes;
 }
 
-FFractureEditorModeToolkit::FFractureEditorModeToolkit()
-	: ExplodeAmount(0.0f)
-	, FractureLevel(-1)
-	, ActiveTool(nullptr)
+FFractureViewSettingsCustomization::FFractureViewSettingsCustomization(FFractureEditorModeToolkit* InToolkit) 
+	: Toolkit(InToolkit)
 {
+
+}
+
+TSharedRef<IDetailCustomization> FFractureViewSettingsCustomization::MakeInstance(FFractureEditorModeToolkit* InToolkit)
+{
+	return MakeShareable(new FFractureViewSettingsCustomization(InToolkit));
+}
+
+void 
+FFractureViewSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) 
+{
+	IDetailCategoryBuilder& ViewCategory = DetailBuilder.EditCategory("ViewSettings", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
+
+	TSharedRef<IPropertyHandle> LevelProperty = DetailBuilder.GetProperty("FractureLevel");
+
+	ViewCategory.AddCustomRow(FText::GetEmpty())
+	.NameContent()
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
+		.Text(LOCTEXT("ShowBoneColors", "Show Bone Colors"))
+
+	]
+	.ValueContent()
+	[
+		SNew(SCheckBox)
+		.IsChecked_Lambda([this]() -> ECheckBoxState { return this->Toolkit->GetShowBoneColors() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+		.OnCheckStateChanged_Lambda([this] (ECheckBoxState CheckState) { this->Toolkit->OnSetShowBoneColors( CheckState == ECheckBoxState::Checked ); } )
+	];
+
+
+	ViewCategory.AddProperty(LevelProperty)
+	.CustomWidget()
+	.NameContent()
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
+		.Text(LevelProperty->GetPropertyDisplayName())
+	]
+	.ValueContent()
+	[
+		SNew( SComboButton)
+		.ContentPadding(0)
+		.OnGetMenuContent(Toolkit, &FFractureEditorModeToolkit::GetLevelViewMenuContent, LevelProperty) 
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.Justification(ETextJustify::Left)
+			.Text_Lambda( [=]() -> FText {
+
+				int32 FractureLevel = 5;
+				LevelProperty->GetValue(FractureLevel);
+
+				if (FractureLevel < 0)
+				{
+					return LOCTEXT("FractureViewAllLevels", "All");
+				}
+				else if (FractureLevel == 0)
+				{
+					return LOCTEXT("FractureViewRootLevel", "Root");
+				}
+
+				return FText::Format(NSLOCTEXT("FractureEditor", "CurrentLevel", "{0}"), FText::AsNumber(FractureLevel));
+
+			})
+		]
+	];
+};
+
+FFractureEditorModeToolkit::FFractureEditorModeToolkit()
+	: ActiveTool(nullptr)
+{
+}
+
+FFractureEditorModeToolkit::~FFractureEditorModeToolkit()
+{
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 }
 
 void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
@@ -85,6 +170,8 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
 
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FFractureEditorModeToolkit::OnObjectPostEditChange);
 
 	FDetailsViewArgs DetailsViewArgs(
 		false,  //bUpdateFromSelection=
@@ -104,66 +191,14 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	DetailsViewArgs.bShowAnimatedPropertiesOption = false;
 
 	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	EditModule.RegisterCustomClassLayout("FractureSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FFractureViewSettingsCustomization::MakeInstance, this));
+
+	TArray<UObject*> Settings;
+	Settings.Add(GetMutableDefault<UFractureSettings>());
+	DetailsView->SetObjects(Settings);
 
 	float Padding = 4.0f;
 	FMargin MorePadding = FMargin(10.0f, 2.0f);
-
-	SAssignNew(ExplodedViewWidget, SSpinBox<int32>)
-	.Style(&FFractureEditorStyle::Get().GetWidgetStyle<FSpinBoxStyle>("FractureEditor.SpinBox"))
-	.PreventThrottling(true)
-	.Value_Lambda([=]() -> int32 { return (int32) (ExplodeAmount * 100.0f); })
-	.OnValueChanged_Lambda( [=](int32 NewValue) { this->OnSetExplodedViewValue( (float)NewValue / 100.0f); } )
-	.MinValue(0)
-	.MaxValue(100)
-	.Delta(1)
-	.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
-	.MinDesiredWidth(36.f)
-	.Justification(ETextJustify::Center)
-	.ToolTipText(LOCTEXT("FractureEditor.Exploded_Tooltip", "How much to seperate the drawing of the bones to aid in setup.  Does not effect simulation"))
-	;
-
-	SAssignNew(LevelViewWidget, SComboButton)
-	.ContentPadding(0)
-	.ButtonStyle(FEditorStyle::Get(), "Toolbar.Button")
-	.ForegroundColor(FEditorStyle::Get().GetSlateColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"))
-	.OnGetMenuContent(this, &FFractureEditorModeToolkit::GetLevelViewMenuContent) 
-	.ButtonContent()
-	[
-		SNew(SBox)
-		.WidthOverride(36)
-		[
-			SNew(STextBlock)
-			.Justification(ETextJustify::Center)
-			.Text_Lambda( [=]() -> FText {
-				if (FractureLevel < 0)
-				{
-					return LOCTEXT("FractureViewAllLevels", "All");
-				}
-				else if (FractureLevel == 0)
-				{
-					return LOCTEXT("FractureViewRootLevel", "Root");
-				}
-
-				return FText::Format(NSLOCTEXT("FractureEditor", "CurrentLevel", "{0}"), FText::AsNumber(FractureLevel));
-
-			})
-			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 11))
-			.ToolTipText(LOCTEXT("FractureEditor.Level_Tooltip", "Set the currently view level of the geometry collection"))
-		]
-
-	];
-
-	SAssignNew(ShowBoneColorsWidget, SComboButton)
-	.ContentPadding(0)
-	.ButtonStyle(FEditorStyle::Get(), "ToolBar.Button")
-	.ForegroundColor(FEditorStyle::Get().GetSlateColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"))
-	.OnGetMenuContent(this, &FFractureEditorModeToolkit::GetViewMenuContent)
-	.ButtonContent()
-	[
-		SNew(SImage)
-		.Image(FFractureEditorStyle::Get().GetBrush("FractureEditor.Visibility"))
-		.ToolTipText(LOCTEXT("FractureEditor.Visibility_Tooltip", "Toggle showing the bone colours of the geometry collection"))
-	];
 
 	TSharedRef<SExpandableArea> OutlinerExpander = SNew(SExpandableArea)
 	.AreaTitle(FText(LOCTEXT("Outliner", "Outliner")))
@@ -173,6 +208,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
 	.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
 	.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+	.Visibility_Lambda([this]() -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Visible: EVisibility::Collapsed; })
 	.BodyContent()
 	[
 		SAssignNew(OutlinerView, SGeometryCollectionOutliner )
@@ -187,6 +223,7 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	.BorderBackgroundColor( FLinearColor( .6,.6,.6, 1.0f ) )
 	.BodyBorderBackgroundColor (FLinearColor( 1.0, 0.0, 0.0))
 	.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+	.Visibility_Lambda([this]() -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Visible: EVisibility::Collapsed; })
 	.BodyContent()
 	[
 		SNew(STextBlock)
@@ -199,64 +236,81 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 
 		+SVerticalBox::Slot()
 		[
-			SNew(SWidgetSwitcher)
-			.WidgetIndex_Lambda( [this] () -> uint32 { return (GetActiveTool() != nullptr ? 1 : 0); })
 
-			+ SWidgetSwitcher::Slot()
+			SNew(SSplitter)
+			.Orientation( Orient_Vertical )
+			+SSplitter::Slot()
+			.SizeRule( TAttribute<SSplitter::ESizeRule>::Create( [this] () { 
+				return (GetActiveTool() != nullptr) ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; 
+			} ) )
+			.Value(1.f)
 			[
-				SNew(SSplitter)
-				.Orientation( Orient_Vertical )
+				SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.FillHeight(1.0)
+				[
+					SNew(SScrollBox)
+					+SScrollBox::Slot()
+					[
+						DetailsView.ToSharedRef()
+					]
+				]
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					[
+						SNew(SSpacer)	
+					]	
 
-				+SSplitter::Slot()
-				.SizeRule( TAttribute<SSplitter::ESizeRule>::Create( [this, OutlinerExpander] () { 
-					return OutlinerExpander->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; 
-				} ) )
-				.Value(1.f)
-				[
-					OutlinerExpander
-				]
-
-				+SSplitter::Slot()
-				.SizeRule( TAttribute<SSplitter::ESizeRule>::Create( [this, StatisticsExpander] () { 
-					return StatisticsExpander->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; 
-				} ) )
-				.Value(0.25f)
-				[
-					StatisticsExpander
-				]
-			]
-			+ SWidgetSwitcher::Slot()
-			[
-				SNew(SScrollBox)
-				+SScrollBox::Slot()
-				.Padding(0.0f, 10.0f, 0.0f, 0.0f)
-				[
-					DetailsView.ToSharedRef()
-				]
-				+SScrollBox::Slot()
-				.HAlign(HAlign_Center)
-				[
-					SNew(SUniformGridPanel)
-					.MinDesiredSlotWidth(100.f)
-					.SlotPadding(10.f)
-					+SUniformGridPanel::Slot(0, 0)
+					+SHorizontalBox::Slot()
+					.Padding(4.0)
+					.AutoWidth()
 					[
 						SNew( SButton )
+						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+						.TextStyle( FAppStyle::Get(), "ButtonText" )
 						.HAlign(HAlign_Center)
 						.ContentPadding(FMargin(10.f, Padding))
 						.OnClicked(this, &FFractureEditorModeToolkit::OnFractureClicked)
 						.IsEnabled( this, &FFractureEditorModeToolkit::CanExecuteFracture)
-						.Text_Lambda( [this] () -> FText { return ActiveTool ? ActiveTool->GetApplyText() :  LOCTEXT("FractureApplyButton", "Apply"); })
+						.Text_Lambda( [this] () -> FText { return ActiveTool ? ActiveTool->GetApplyText().ToUpper() :  LOCTEXT("FractureApplyButton", "APPLY"); })
+						.Visibility_Lambda( [this] () -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Collapsed : EVisibility::Visible; })
 					]
-					+ SUniformGridPanel::Slot(1, 0)
+
+					+ SHorizontalBox::Slot()
+					.Padding(4.0)
+					.AutoWidth()
 					[
 						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "Button")
+						.TextStyle( FAppStyle::Get(), "ButtonText" )
 						.HAlign(HAlign_Center)
 						.ContentPadding(FMargin(10.f, Padding))
 						.OnClicked_Lambda( [this] () -> FReply { SetActiveTool(0); return FReply::Handled(); } )
-						.Text(FText(LOCTEXT("FractureCancelButton", "Cancel")))
+						.Text(FText(LOCTEXT("FractureCancelButton", "CANCEL")))
+						.Visibility_Lambda( [this] () -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Collapsed : EVisibility::Visible; })
 					]
 				]
+			]
+
+			+SSplitter::Slot()
+			.SizeRule( TAttribute<SSplitter::ESizeRule>::Create( [this, OutlinerExpander] () { 
+				return OutlinerExpander->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; 
+			} ) )
+			.Value(1.f)
+			[
+				OutlinerExpander
+			]
+
+			+SSplitter::Slot()
+			.SizeRule( TAttribute<SSplitter::ESizeRule>::Create( [this, StatisticsExpander] () { 
+				return StatisticsExpander->IsExpanded() ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; 
+			} ) )
+			.Value(0.25f)
+			[
+				StatisticsExpander
 			]
 		]
 	];
@@ -268,7 +322,22 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 
 }
 
-const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Fracture")), FName(TEXT("Cluster")) };
+void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPropertyChangedEvent& PropertyChangedEvent )
+{
+	if (PropertyChangedEvent.Property)
+	{
+		if ( PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureSettings, ExplodeAmount))
+		{
+			OnExplodedViewValueChanged();
+		} 
+		else if ( PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureSettings, FractureLevel))
+		{
+			OnLevelViewValueChanged();
+		} 
+	}
+}
+
+const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Fracture")) };
 
 FText FFractureEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
@@ -293,11 +362,6 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 
 		ToolbarBuilder.AddSeparator();
 
-		ToolbarBuilder.AddToolBarWidget(ExplodedViewWidget.ToSharedRef(), FText(LOCTEXT("FractureExplodedPercentage", "Explode")));
-		ToolbarBuilder.AddToolBarWidget(LevelViewWidget.ToSharedRef(), LOCTEXT("FractureViewLevel", "Level"));
-		// ToolbarBuilder.AddToolBarWidget(ShowBoneColorsWidget.ToSharedRef(), LOCTEXT("FractureViewOptions", "View"));
-		ToolbarBuilder.AddToolBarButton(Commands.ToggleShowBoneColors);
-
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.Uniform);
 		ToolbarBuilder.AddToolBarButton(Commands.Clustered);
@@ -305,43 +369,19 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Planar);
 		ToolbarBuilder.AddToolBarButton(Commands.Slice);
 		ToolbarBuilder.AddToolBarButton(Commands.Brick);
-	}	
 
-	else if (PaletteIndex == PaletteNames[1])
-	{
-		ToolbarBuilder.AddWidget(SNew(SBox).WidthOverride(4));
-		ToolbarBuilder.AddToolBarButton(Commands.GenerateAsset);
-		ToolbarBuilder.AddSeparator();
-
-		ToolbarBuilder.AddToolBarButton(Commands.SelectAll);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectNone);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectNeighbors);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectSiblings);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectAllInCluster);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectInvert);
-
-		ToolbarBuilder.AddSeparator();
-
-		ToolbarBuilder.AddToolBarWidget(ExplodedViewWidget.ToSharedRef(), FText(LOCTEXT("FractureExplodedPercentage", "Explode")));
-		ToolbarBuilder.AddToolBarWidget(LevelViewWidget.ToSharedRef(), LOCTEXT("FractureViewLevel", "Level"));
-		// ToolbarBuilder.AddToolBarWidget(ShowBoneColorsWidget.ToSharedRef(), LOCTEXT("FractureViewOptions", "View"));
-		ToolbarBuilder.AddToolBarButton(Commands.ToggleShowBoneColors);
 
 		ToolbarBuilder.AddSeparator();
 
 		ToolbarBuilder.AddToolBarButton(Commands.AutoCluster);
-		ToolbarBuilder.AddSeparator();
-
 		ToolbarBuilder.AddToolBarButton(Commands.Flatten);
 		// ToolbarBuilder.AddToolBarButton(Commands.FlattenToLevel);
 		ToolbarBuilder.AddToolBarButton(Commands.Cluster);
 		ToolbarBuilder.AddToolBarButton(Commands.Uncluster);
 		// ToolbarBuilder.AddToolBarButton(Commands.Merge);
 		ToolbarBuilder.AddToolBarButton(Commands.MoveUp);
-
 	}
 }
-
 
 void FFractureEditorModeToolkit::BindCommands()
 {
@@ -470,7 +510,7 @@ void FFractureEditorModeToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.ToggleShowBoneColors,
-		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::OnSetShowBoneColors),
+		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::OnToggleShowBoneColors),
 		FCanExecuteAction(),//::CreateLambda([]() { return true; }),
 		FIsActionChecked::CreateSP(this, &FFractureEditorModeToolkit::GetShowBoneColors)
 	);
@@ -487,14 +527,14 @@ void FFractureEditorModeToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.ExplodeMore,
-		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Min(1.0, ExplodeAmount + .1) ); } ),
+		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Min(1.0, this->GetExplodedViewValue() + .1) ); } ),
 		EUIActionRepeatMode::RepeatEnabled
 	);
 
 
 	ToolkitCommands->MapAction(
 		Commands.ExplodeLess,
-		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Max(0.0, ExplodeAmount - .1) ); } ),
+		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Max(0.0, this->GetExplodedViewValue() - .1) ); } ),
 		EUIActionRepeatMode::RepeatEnabled
 	);
 }
@@ -529,17 +569,19 @@ void FFractureEditorModeToolkit::AddReferencedObjects(FReferenceCollector& Colle
 
 float FFractureEditorModeToolkit::GetExplodedViewValue() const
 {
-	return ExplodeAmount;
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	return FractureSettings->ExplodeAmount;
 }
 
 int32 FFractureEditorModeToolkit::GetLevelViewValue() const
 {
-	return FractureLevel;
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	return FractureSettings->FractureLevel;
 }
-
 
 bool FFractureEditorModeToolkit::GetShowBoneColors() const
 {
+	
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
 	if (GeomCompSelection.Num() > 0)
@@ -552,57 +594,66 @@ bool FFractureEditorModeToolkit::GetShowBoneColors() const
 	return false;
 }
 
-void FFractureEditorModeToolkit::OnSetShowBoneColors()
+void FFractureEditorModeToolkit::OnToggleShowBoneColors()
 {
-	bool OldState = GetShowBoneColors();
+	OnSetShowBoneColors(!GetShowBoneColors());
+}
 
+void FFractureEditorModeToolkit::OnSetShowBoneColors(bool NewValue)
+{
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
 	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
 	{
 		FScopedColorEdit EditBoneColor = Comp->EditBoneSelection();
-		EditBoneColor.SetShowBoneColors(!OldState);
+		EditBoneColor.SetShowBoneColors(NewValue);
 		Comp->MarkRenderStateDirty();
 		Comp->MarkRenderDynamicDataDirty();
 	}
 	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
-
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 {
-	if ( FMath::Abs<float>( ExplodeAmount - NewValue ) >= .01f)
+	FScopedTransaction Transaction(LOCTEXT("SetExplodedViewValue", "Adjust Exploded View"));
+
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	if ( FMath::Abs<float>( FractureSettings->ExplodeAmount - NewValue ) >= .01f)
 	{
-		ExplodeAmount = NewValue;
+		FractureSettings->ExplodeAmount = NewValue;
+		OnExplodedViewValueChanged();
+	}
+}
 
-		USelection* SelectionSet = GEditor->GetSelectedActors();
+void FFractureEditorModeToolkit::OnExplodedViewValueChanged()
+{
+	USelection* SelectionSet = GEditor->GetSelectedActors();
 
-		TArray<AActor*> SelectedActors;
-		SelectedActors.Reserve(SelectionSet->Num());
-		SelectionSet->GetSelectedObjects(SelectedActors);
+	TArray<AActor*> SelectedActors;
+	SelectedActors.Reserve(SelectionSet->Num());
+	SelectionSet->GetSelectedObjects(SelectedActors);
 
-		for (AActor* Actor : SelectedActors)
+	for (AActor* Actor : SelectedActors)
+	{
+		TInlineComponentArray<UPrimitiveComponent*> Components;
+		Actor->GetComponents(Components);
+		for (UPrimitiveComponent* PrimitiveComponent : Components)
 		{
-			TInlineComponentArray<UPrimitiveComponent*> Components;
-			Actor->GetComponents(Components);
-			for (UPrimitiveComponent* PrimitiveComponent : Components)
+			AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
+			if(GeometryCollectionActor)
 			{
-				AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
-				if(GeometryCollectionActor)
-				{
-					UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
-					FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
-					UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
+				UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
+				FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+				UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
 
-					UpdateExplodedVectors(GeometryCollectionComponent);
+				UpdateExplodedVectors(GeometryCollectionComponent);
 
-					GeometryCollectionComponent->MarkRenderStateDirty();
-				}
+				GeometryCollectionComponent->MarkRenderStateDirty();
 			}
 		}
-
-		GCurrentLevelEditingViewportClient->Invalidate();
 	}
+
+	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 
@@ -645,7 +696,16 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 
 void FFractureEditorModeToolkit::OnSetLevelViewValue(int32 NewValue)
 {
-	FractureLevel = NewValue;//  * (float) GetLevelCount();
+	FScopedTransaction Transaction(LOCTEXT("SetLevelViewValue", "Adjust View Level"));
+
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	FractureSettings->FractureLevel = NewValue;
+	OnLevelViewValueChanged();
+}
+
+void FFractureEditorModeToolkit::OnLevelViewValueChanged()
+{
+	int32 FractureLevel = GetLevelViewValue();
 
 	USelection* SelectionSet = GEditor->GetSelectedActors();
 
@@ -676,19 +736,21 @@ void FFractureEditorModeToolkit::OnSetLevelViewValue(int32 NewValue)
 void FFractureEditorModeToolkit::ViewUpOneLevel()
 {
 	int32 CountMax = GetLevelCount() + 1;
-	int32 NewLevel = ((FractureLevel + CountMax) % CountMax) - 1;
+	int32 NewLevel = ((GetLevelViewValue() + CountMax) % CountMax) - 1;
 	OnSetLevelViewValue(NewLevel);
 }
 
 void FFractureEditorModeToolkit::ViewDownOneLevel()
 {
 	int32 CountMax = GetLevelCount() + 1;
-	int32 NewLevel = ((FractureLevel + CountMax + 2 ) % CountMax) - 1;
+	int32 NewLevel = ((GetLevelViewValue() + CountMax + 2 ) % CountMax) - 1;
 	OnSetLevelViewValue(NewLevel);
 }
 
-TSharedRef<SWidget> FFractureEditorModeToolkit::GetLevelViewMenuContent()
+TSharedRef<SWidget> FFractureEditorModeToolkit::GetLevelViewMenuContent(TSharedRef<IPropertyHandle> PropertyHandle)
 {
+	int32 FractureLevel = GetLevelViewValue();
+
 	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
 
 	MenuBuilder.AddMenuEntry(
@@ -696,7 +758,7 @@ TSharedRef<SWidget> FFractureEditorModeToolkit::GetLevelViewMenuContent()
 		LOCTEXT("LevelMenuAllTooltip", "View All Leaf Bones in this Geometry Collection"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::OnSetLevelViewValue, -1),
+			FExecuteAction::CreateLambda([=] { PropertyHandle->SetValue(-1); } ),
 			FCanExecuteAction(),
 			FGetActionCheckState::CreateLambda([=] {return FractureLevel == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;})
 		)
@@ -711,9 +773,9 @@ TSharedRef<SWidget> FFractureEditorModeToolkit::GetLevelViewMenuContent()
 			FText::Format(LOCTEXT("LevelMenuNTooltip", "View Level {0} in this Geometry Collecdtion"), FText::AsNumber(i)),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::OnSetLevelViewValue, i),
+				FExecuteAction::CreateLambda([=] { PropertyHandle->SetValue(i); } ),
 				FCanExecuteAction(),
-				FGetActionCheckState::CreateLambda([=] {return FractureLevel == -1 ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;})
+				FGetActionCheckState::CreateLambda([=] {return FractureLevel == i ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;})
 			)
 		);
 	}
@@ -739,9 +801,11 @@ void FFractureEditorModeToolkit::SetActiveTool(UFractureTool* InActiveTool)
 	CommonSettings->OwnerTool = ActiveTool;
 
 	TArray<UObject*> Settings;
+	Settings.Add(GetMutableDefault<UFractureSettings>());
+
 	if (ActiveTool != nullptr)
 	{
-		Settings = ActiveTool->GetSettingsObjects();
+		Settings.Append(ActiveTool->GetSettingsObjects());
 
 		ActiveTool->FractureContextChanged();
 	}
@@ -1180,6 +1244,7 @@ void FFractureEditorModeToolkit::OnCluster()
 
 void FFractureEditorModeToolkit::OnUncluster()
 {
+	int32 FractureLevel = GetLevelViewValue();
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
@@ -1317,7 +1382,6 @@ void FFractureEditorModeToolkit::GenerateAsset()
 
 	OpenGenerateAssetDialog(SelectedActors);
 }
-
 
 void FFractureEditorModeToolkit::OpenGenerateAssetDialog(TArray<AActor*>& Actors)
 {
@@ -1594,6 +1658,8 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection();
 	const FGeometryCollection* OutGeometryCollectionConst = GeometryCollectionPtr.Get();
+
+	float ExplodeAmount = GetExplodedViewValue();
 
 	if (FMath::IsNearlyEqual(ExplodeAmount, 0.0f))
 	{

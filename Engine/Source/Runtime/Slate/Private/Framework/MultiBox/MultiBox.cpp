@@ -581,9 +581,15 @@ EVisibility SMultiBoxWidget::GetCustomizationBorderDragVisibility(const FName In
 	return EVisibility::Collapsed;
 }
 
-void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons )
+void SMultiBoxWidget::AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation,  bool bSectionContainsIcons )
 {
 	check( MultiBox.IsValid() );
+
+	// Skip Separators for Uniform Tool Bars
+	if ( Block.GetType() == EMultiBlockType::Separator  && MultiBox->GetType() == EMultiBoxType::UniformToolBar)
+	{
+		return;
+	}
 
 	bool bDisplayExtensionHooks = FMultiBoxSettings::DisplayMultiboxHooks.Get() && Block.GetExtensionHook() != NAME_None;
 
@@ -755,6 +761,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 
 	TSharedPtr< STileView< TSharedPtr<SWidget> > > TileView;
 
+
 	switch (MultiBox->GetType())
 	{
 	case EMultiBoxType::MenuBar:
@@ -776,14 +783,20 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 		break;
 	case EMultiBoxType::UniformToolBar:
 		{
-			MainWidget = UniformToolbarPanel =
-				SAssignNew(UniformToolbarPanel, SUniformToolbarPanel)
-				.Orientation(Orient_Horizontal)
-				.StyleSet(StyleSet)
-				.StyleName(StyleName)
-				.MinUniformSize(StyleSet->GetFloat(StyleName, ".MinUniformToolbarSize", 0.0f))
-				.MaxUniformSize(StyleSet->GetFloat(StyleName, ".MaxUniformToolbarSize", 0.0f))
-				.OnDropdownOpened(FOnGetContent::CreateSP(this, &SMultiBoxWidget::OnWrapButtonClicked));
+			MainWidget = VerticalBox = SNew (SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.Padding(FMargin(0.f, 2.f))
+			.AutoHeight()
+			[
+				SAssignNew(UniformToolbarPanel, SUniformWrapPanel)
+				.HAlign(HAlign_Left)
+				.MinDesiredSlotWidth(68)
+				.MinDesiredSlotHeight(52)
+				.MaxDesiredSlotWidth(68)
+				.MaxDesiredSlotHeight(52)
+				.SlotPadding( 0.0 )
+			];
 		}
 		break;
 	case EMultiBoxType::ButtonRow:
@@ -982,16 +995,10 @@ TSharedRef<SWidget> SMultiBoxWidget::OnWrapButtonClicked()
 {
 	FMenuBuilder MenuBuilder(true, NULL, TSharedPtr<FExtender>(), false, GetStyleSet());
 	{ 
-		const int32 ClippedIndex = ClippedHorizontalBox.IsValid() ? ClippedHorizontalBox->GetClippedIndex() : UniformToolbarPanel->GetClippedIndex();
-		// Iterate through the array of blocks telling each one to add itself to the menu
 		const TArray< TSharedRef< const FMultiBlock > >& Blocks = MultiBox->GetBlocks();
-		for (int32 BlockIdx = ClippedIndex; BlockIdx < Blocks.Num(); ++BlockIdx)
+		for (int32 BlockIdx = ClippedHorizontalBox->GetClippedIndex(); BlockIdx < Blocks.Num(); ++BlockIdx)
 		{
-			// Skip the first entry if its a separator
-			if (BlockIdx != ClippedIndex || !Blocks[BlockIdx]->IsSeparator())
-			{
-				Blocks[BlockIdx]->CreateMenuEntry(MenuBuilder);
-			}
+			Blocks[BlockIdx]->CreateMenuEntry(MenuBuilder);
 		}
 	}
 

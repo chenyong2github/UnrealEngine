@@ -118,7 +118,6 @@ UMeshPaintMode::UMeshPaintMode()
 {
 	SettingsClass = UMeshPaintModeSettings::StaticClass();
 	ToolsContextClass = UMeshToolsContext::StaticClass();
-	CurrentPaletteName = MeshPaintMode_Color;
 
 	FModuleManager::Get().LoadModule("EditorStyle");
 
@@ -145,14 +144,20 @@ void UMeshPaintMode::Enter()
 	RegisterTool(ToolManagerCommands.TexturePaint, TexturePaintToolName, NewObject<UMeshTexturePaintingToolBuilder>());
 	UpdateSelectedMeshes();
 
+
+	// Toolkit
+	PaletteChangedHandle = Toolkit->OnPaletteChanged().AddUObject(this, &UMeshPaintMode::UpdateOnPaletteChange);
+
 	// disable tool change tracking to activate default tool, and then switch to full undo/redo tracking mode
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
-	ActivateDefaultTool();
+	Toolkit->SetCurrentPalette(MeshPaintMode_Color);
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 }
 
 void UMeshPaintMode::Exit()
 {
+	Toolkit->OnPaletteChanged().Remove(PaletteChangedHandle);
+
 	GEditor->OnEditorClose().RemoveAll(this);
 	OnResetViewMode();
 	const FMeshPaintEditorModeCommands& Commands = FMeshPaintEditorModeCommands::Get();
@@ -211,7 +216,7 @@ void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime
 	// Make sure that correct tab is visible for the current tool
 	// Note that currently Color and Weight mode share the same Select tool
 	FString ActiveTool = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
-	FName ActiveTab = GetCurrentPaletteName();
+	FName ActiveTab = Toolkit->GetCurrentPalette();
 	FName TargetTab = ActiveTab;
 	if (ActiveTool == TexturePaintToolName || ActiveTool == TextureSelectToolName)
 	{
@@ -227,7 +232,7 @@ void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime
 	}
 	if ( TargetTab != ActiveTab)
 	{
-		GetModeManager()->InvokeToolPaletteTab(GetID(), TargetTab);
+		Toolkit->SetCurrentPalette(TargetTab);
 	}
 }
 
@@ -800,21 +805,22 @@ int32 UMeshPaintMode::GetNumberOfPendingPaintChanges()
 
 void UMeshPaintMode::ActivateDefaultTool()
 {
-	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Color)
+	FName PaletteName = Toolkit->GetCurrentPalette();
+	if (PaletteName == UMeshPaintMode::MeshPaintMode_Color)
 	{
 		ToolsContext->StartTool(VertexSelectToolName);
 	}
-	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Weights)
+	if (PaletteName == UMeshPaintMode::MeshPaintMode_Weights)
 	{
 		ToolsContext->StartTool(VertexSelectToolName);
 	}
-	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Texture)
+	if (PaletteName == UMeshPaintMode::MeshPaintMode_Texture)
 	{
 		ToolsContext->StartTool(TextureSelectToolName);
 	}
 }
 
-void UMeshPaintMode::UpdateOnPaletteChange()
+void UMeshPaintMode::UpdateOnPaletteChange(FName NewPaletteName)
 {
 	UpdateSelectedMeshes();
 
@@ -823,15 +829,15 @@ void UMeshPaintMode::UpdateOnPaletteChange()
 
 	// figure out which tool we would like to be in based on currently-active tool
 	FString SwitchToTool;
-	if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Color)
+	if (NewPaletteName == UMeshPaintMode::MeshPaintMode_Color)
 	{
 		SwitchToTool = (bInAnyPaintTool) ? ColorPaintToolName : VertexSelectToolName;
 	}
-	else if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Weights)
+	else if (NewPaletteName == UMeshPaintMode::MeshPaintMode_Weights)
 	{
 		SwitchToTool = (bInAnyPaintTool) ? WeightPaintToolName: VertexSelectToolName;
 	}
-	else if (GetCurrentPaletteName() == UMeshPaintMode::MeshPaintMode_Texture)
+	else if (NewPaletteName == UMeshPaintMode::MeshPaintMode_Texture)
 	{
 		SwitchToTool = (bInAnyPaintTool) ? TexturePaintToolName : TextureSelectToolName;
 	}

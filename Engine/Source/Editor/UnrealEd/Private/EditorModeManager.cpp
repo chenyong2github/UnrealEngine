@@ -644,7 +644,7 @@ void FEditorModeTools::RebuildModeToolBar()
 							.Style( FEditorStyle::Get(),  "ToolPalette.DockingTab" )
 							.OnCheckStateChanged_Lambda( [PaletteSwitcher, Row, RowToolkit] (const ECheckBoxState) { 
 									PaletteSwitcher->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
-									RowToolkit->OnToolPaletteChanged(Row.PaletteName);
+									RowToolkit->SetCurrentPalette(Row.PaletteName);
 								} 
 							)
 							.IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
@@ -695,55 +695,6 @@ void FEditorModeTools::RebuildModeToolBar()
 			ModeToolbarTab.Pin()->RequestCloseTab();
 		}
 	}
-}
-
-void FEditorModeTools::SpawnOrUpdateModeToolbar()
-{
-	if(ShouldShowModeToolbar())
-	{
-		if (ModeToolbarTab.IsValid())
-		{
-			RebuildModeToolBar();
-		}
-		else if (ToolkitHost.IsValid())
-		{
-			ToolkitHost.Pin()->GetTabManager()->TryInvokeTab(EditorModeToolbarTabName);
-		}
-	}
-}
-
-void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPaletteName)
-{
-	if (!ModeToolbarPaletteSwitcher.Pin()) 
-	{
-		return;
-	}
-
-	for (auto Row: ActiveToolBarRows)
-	{
-		if (Row.ModeID == InModeID && Row.PaletteName == InPaletteName)
-		{
-			TSharedRef<SWidget> PaletteWidget = Row.ToolbarWidget.ToSharedRef();
-
-			TSharedPtr<FModeToolkit> RowToolkit;
-			if (FEdMode* Mode = GetActiveMode(InModeID))
-			{
-				RowToolkit = Mode->GetToolkit();
-			}
-			else if (UEdMode* ScriptableMode = GetActiveScriptableMode(InModeID))
-			{
-				RowToolkit = ScriptableMode->GetToolkit();
-			}
-
-			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
-			if (RowToolkit && ActiveWidget.Get() != Row.ToolbarWidget.Get())
-			{
-				ModeToolbarPaletteSwitcher.Pin()->SetActiveWidget(Row.ToolbarWidget.ToSharedRef());
-				RowToolkit->OnToolPaletteChanged(Row.PaletteName);
-			}
-			break;	
-		}
-	}	
 }
 
 void FEditorModeTools::RemoveAllDelegateHandlers()
@@ -953,11 +904,6 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 
 			ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, Toolkit->GetToolPaletteDisplayName(Palette), ModeToolbarBuilder.MakeWidget());
 			PaletteCount++;
-		}
-
-		if (PaletteCount > 0)
-		{
-			SpawnOrUpdateModeToolbar();
 		}
 	}
 	

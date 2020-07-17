@@ -11,6 +11,7 @@
 #include "Widgets/Layout/SLinkedBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SMenuOwner.h"
+#include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Commands/UICommandList.h"
@@ -24,7 +25,7 @@ class SMultiBoxWidget;
 class STableViewBase;
 class SVerticalBox;
 class UToolMenuBase;
-class SUniformToolbarPanel;
+class SUniformWrapPanel;
 
 namespace MultiBoxConstants
 {	
@@ -723,7 +724,7 @@ public:
 
 private:
 	/** Adds a block Widget to this widget */
-	void AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons );
+	void AddBlockWidget( const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation,  bool bSectionContainsIcons );
 
 	/**
 	 * Updates the preview block being dragged.  The drag area is where the users dragged block will be dropped
@@ -776,7 +777,7 @@ private:
 	TSharedPtr<class SClippingHorizontalBox> ClippedHorizontalBox;
 
 	/** Specialized box widget to handle clipping of toolbars and menubars */
-	TSharedPtr<SUniformToolbarPanel> UniformToolbarPanel;
+	TSharedPtr<SUniformWrapPanel> UniformToolbarPanel;
 
 	/** A preview of a block being dragged inside this box */
 	FDraggedMultiBlockPreview DragPreview;

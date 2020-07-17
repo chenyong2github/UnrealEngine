@@ -326,12 +326,16 @@ void FModeToolkit::BuildToolPalette(FName PaletteName, class FToolBarBuilder& To
 	}
 }
 
-void FModeToolkit::OnToolPaletteChanged(FName PaletteName)
+FName FModeToolkit::GetCurrentPalette() const
 {
-	if (UEdMode* EditorMode = GetScriptableEditorMode())
-	{
-		EditorMode->SetCurrentPaletteName(PaletteName);
-	}
+	return CurrentPaletteName;
+}
+
+void FModeToolkit::SetCurrentPalette(FName InPalette)
+{
+	CurrentPaletteName = InPalette;
+	OnToolPaletteChanged(CurrentPaletteName);
+	OnPaletteChangedDelegate.Broadcast(InPalette);
 }
 
 void FModeToolkit::SetModeSettingsObject(UObject* InSettingsObject)

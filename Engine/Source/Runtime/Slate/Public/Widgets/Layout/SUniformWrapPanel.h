@@ -43,6 +43,8 @@ public:
 		: _SlotPadding( FMargin(0.0f) )
 		, _MinDesiredSlotWidth( 0.0f )
 		, _MinDesiredSlotHeight( 0.0f )
+		, _MaxDesiredSlotWidth( FLT_MAX )
+		, _MaxDesiredSlotHeight( FLT_MAX )
 		, _EvenRowDistribution(false)
 		, _HAlign(EHorizontalAlignment::HAlign_Left)
 		{
@@ -60,6 +62,12 @@ public:
 
 		/** The minimum desired height of the slots */
 		SLATE_ATTRIBUTE(float, MinDesiredSlotHeight)
+
+		/** The minimum desired width of the slots */
+		SLATE_ATTRIBUTE(float, MaxDesiredSlotWidth)
+
+		/** The minimum desired height of the slots */
+		SLATE_ATTRIBUTE(float, MaxDesiredSlotHeight)
 
 		/** If the distribution to evenly distribute down rows */
 		SLATE_ATTRIBUTE(bool, EvenRowDistribution)
@@ -84,6 +92,12 @@ public:
 
 	/** See MinDesiredSlotHeight attribute */
 	void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
+
+	/** See MinDesiredSlotWidth attribute */
+	void SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth);
+
+	/** See MinDesiredSlotHeight attribute */
+	void SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight);
 
 	/** See HAlign attribute */
 	void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
@@ -124,6 +138,9 @@ private:
 
 	TAttribute<float> MinDesiredSlotWidth;
 	TAttribute<float> MinDesiredSlotHeight;
+
+	TAttribute<float> MaxDesiredSlotWidth;
+	TAttribute<float> MaxDesiredSlotHeight;
 
 	TAttribute< EHorizontalAlignment > HAlign; 
 	TAttribute<bool> EvenRowDistribution; 
