@@ -702,6 +702,8 @@ void FSlateApplication::Shutdown(bool bShutdownPlatform)
 {
 	if (FSlateApplication::IsInitialized())
 	{
+		CurrentApplication->OnPreShutdown().Broadcast();
+
 		FAsyncTaskNotificationFactory::Get().UnregisterFactory(TEXT("Slate"));
 
 		CurrentApplication->OnShutdown();
