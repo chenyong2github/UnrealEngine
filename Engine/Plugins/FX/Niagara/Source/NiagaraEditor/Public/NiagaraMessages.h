@@ -113,27 +113,6 @@ private:
 	const TArray<FObjectKey> AssociatedObjectKeys;
 };
 
-class FNiagaraMessageNeedRecompile : public INiagaraMessage
-{
-public:
-	FNiagaraMessageNeedRecompile(const FText& InNeedRecompileMessage)
-		: INiagaraMessage()
-		, NeedRecompileMessage(InNeedRecompileMessage)
-	{
-	};
-
-	virtual FText GenerateMessageText() const override;
-
-	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
-
-	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override { }
-
-	virtual const FName GetMessageTopic() const override { return FNiagaraMessageTopics::CompilerTopicName; };
-
-private:
-	const FText NeedRecompileMessage;
-};
-
 class FNiagaraMessageText : public INiagaraMessage
 {
 public:
@@ -172,6 +151,8 @@ public:
 		, Links(InLinks)
 	{
 	};
+
+	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
 
 	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override;
 

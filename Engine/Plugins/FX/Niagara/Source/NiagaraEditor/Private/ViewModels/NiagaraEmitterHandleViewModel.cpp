@@ -22,6 +22,7 @@
 #include "ViewModels/Stack/NiagaraStackRoot.h"
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
+#include "NiagaraMessages.h"
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
@@ -72,6 +73,26 @@ TSharedRef<FNiagaraSystemViewModel> FNiagaraEmitterHandleViewModel::GetOwningSys
 	TSharedPtr<FNiagaraSystemViewModel> OwningSystemViewModelPinned = OwningSystemViewModelWeak.Pin();
 	checkf(OwningSystemViewModelPinned.IsValid(), TEXT("Owning system view model was destroyed before child handle view model."));
 	return OwningSystemViewModelPinned.ToSharedRef();
+}
+
+FGuid FNiagaraEmitterHandleViewModel::AddMessage(UNiagaraMessageData* NewMessage, const FGuid& InNewGuid /*= FGuid()*/) const
+{
+	if (ensureMsgf(EmitterHandle != nullptr, TEXT("EmitterHandleViewModel had a null EmitterHandle!")))
+	{
+		const FGuid NewGuid = InNewGuid.IsValid() ? InNewGuid : FGuid::NewGuid();
+		
+		EmitterHandle->GetInstance()->AddMessage(NewGuid, static_cast<UNiagaraMessageDataBase*>(NewMessage));
+		return NewGuid;
+	}
+	return FGuid();
+}
+
+void FNiagaraEmitterHandleViewModel::RemoveMessage(const FGuid& MessageKey) const
+{
+	if (ensureMsgf(EmitterHandle != nullptr, TEXT("EmitterHandleViewModel had a null EmitterHandle!")))
+	{
+		EmitterHandle->GetInstance()->RemoveMessage(MessageKey);
+	}
 }
 
 FNiagaraEmitterHandleViewModel::~FNiagaraEmitterHandleViewModel()
