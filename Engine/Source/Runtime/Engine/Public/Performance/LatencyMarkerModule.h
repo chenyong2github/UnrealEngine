@@ -29,4 +29,9 @@ public:
 	virtual float GetDriverLatencyInMs() = 0;
 	virtual float GetOSWorkQueueLatencyInMs() = 0;
 	virtual float GetGPURenderLatencyInMs() = 0;
+
+	virtual float GetRenderOffsetFromGameInMs() = 0;
+	virtual float GetDriverOffsetFromGameInMs() = 0;
+	virtual float GetOSWorkQueueOffsetFromGameInMs() = 0;
+	virtual float GetGPURenderOffsetFromGameInMs() = 0;
 };
