@@ -311,38 +311,20 @@ const analysis::Constant* FoldFPBinaryOp(
   const analysis::Type* result_type = type_mgr->GetType(result_type_id);
   const analysis::Vector* vector_type = result_type->AsVector();
 
-  /* UE Begin Change: Workraround a crash caused by DXC using null constants */
-  if (constants[0] == nullptr || constants[1] == nullptr || constants[0]->AsNullConstant() || constants[1]->AsNullConstant()) {
+  if (constants[0] == nullptr || constants[1] == nullptr) {
     return nullptr;
   }
-  /* UE End Change: Workraround a crash caused by DXC using null constants */
 
   if (vector_type != nullptr) {
     std::vector<const analysis::Constant*> a_components;
     std::vector<const analysis::Constant*> b_components;
     std::vector<const analysis::Constant*> results_components;
 
-    /* UE Begin Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
-    if (constants[0]->AsVectorConstant()) {
-      a_components = constants[0]->GetVectorComponents(const_mgr);
-    }
-    else if ((constants[0]->AsScalarConstant())) {
-      for (uint32_t i = 0; i < vector_type->element_count(); i++) {
-        a_components.push_back(constants[0]);
-      }
-    }
-
-    if (constants[1]->AsVectorConstant()) {
-      b_components = constants[1]->GetVectorComponents(const_mgr);
-    }
-    else if ((constants[1]->AsScalarConstant())) {
-      for (uint32_t i = 0; i < vector_type->element_count(); i++) {
-        b_components.push_back(constants[1]);
-      }
-    }
+    a_components = constants[0]->GetVectorComponents(const_mgr);
+    b_components = constants[1]->GetVectorComponents(const_mgr);
 
     // Fold each component of the vector.
-    for (uint32_t i = 0; i < vector_type->element_count(); ++i) {
+    for (uint32_t i = 0; i < a_components.size(); ++i) {
       results_components.push_back(scalar_rule(vector_type->element_type(),
                                                a_components[i], b_components[i],
                                                const_mgr));
@@ -350,7 +332,6 @@ const analysis::Constant* FoldFPBinaryOp(
         return nullptr;
       }
     }
-    /* UE End Change: Workaround a crash caused by vector binOp(scalar, vector) somehow ending up in here */
 
     // Build the constant object and return it.
     std::vector<uint32_t> ids;

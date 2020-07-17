@@ -37,8 +37,8 @@ else
 fi
 
 # Copy binary files from source to destination
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libdxcompiler.dylib "$DST_DIR/libdxcompiler.dylib"
-cp -f Build/ninja-osx-clang-x64-RelWithDebInfo/Lib/libShaderConductor.dylib "$DST_DIR/libShaderConductor.dylib"
+cp -f "$SRC_DIR/libdxcompiler.dylib" "$DST_DIR/libdxcompiler.dylib"
+cp -f "$SRC_DIR/libShaderConductor.dylib" "$DST_DIR/libShaderConductor.dylib"
 
 # Replace dummy RPATH value, so ShaderConductor can manually load libdxcompiler.dylib via the 'dlopen' API
 install_name_tool -rpath RPATH_DUMMY ../ThirdParty/ShaderConductor/Mac "$DST_DIR/libShaderConductor.dylib"

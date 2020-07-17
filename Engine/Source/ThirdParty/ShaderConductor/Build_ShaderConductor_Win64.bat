@@ -1,9 +1,9 @@
 @echo off
 
-REM Change CONFIG to Debug to get debuggable shader conductor
 set CONFIG=RelWithDebInfo
-REM set CONFIG=Debug
 
+REM Run build script with "-debug" argument to get debuggable shader conductor
+if "%1"=="-debug" set CONFIG=Debug
 
 
 if exist ShaderConductor\lib\Win64 goto Continue
