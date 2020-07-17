@@ -232,7 +232,7 @@ void GetVectorFieldMesh(
 	{
 		FColoredMaterialRenderProxy* VisualizationMaterial = new FColoredMaterialRenderProxy(
 			GEngine->LevelColorationUnlitMaterial->GetRenderProxy(),
-			FLinearColor::White
+			FLinearColor::Red
 		);
 
 		Collector.RegisterOneFrameMaterialProxy(VisualizationMaterial);
