@@ -58,6 +58,9 @@ IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory(FName CategoryNam
 		if (!NewCategoryImpl.IsValid())
 		{
 			NewCategoryImpl = MakeShareable(new FDetailCategoryImpl(CategoryName, SharedThis(this)));
+			// Categories within a type should display in the order they were added but sorting is unstable so numbers are made unique
+			const int32 SortOrder = CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
+			NewCategoryImpl->SetSortOrder( SortOrder );
 		}
 		CategoryImpl = NewCategoryImpl;
 	}
@@ -66,11 +69,11 @@ IDetailCategoryBuilder& FDetailLayoutBuilderImpl::EditCategory(FName CategoryNam
 		// Custom category should not exist yet as it was in the default category map
 		checkSlow(!CustomCategoryMap.Contains(CategoryName) && CategoryImpl.IsValid());
 		CustomCategoryMap.Add(CategoryName, CategoryImpl);
-	}
 
-	// Categories within a type should display in the order they were added but sorting is unstable so numbers are made unique
-	const int32 SortOrder = CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
-	CategoryImpl->SetSortOrder(SortOrder);
+		// Categories within a type should display in the order they were added but sorting is unstable so numbers are made unique
+		const int32 SortOrder = CategoryType * 1000 + (CustomCategoryMap.Num() - 1);
+		CategoryImpl->SetSortOrder( SortOrder );
+	}
 	CategoryImpl->SetDisplayName(CategoryName, LocalizedDisplayName);
 
 	return *CategoryImpl;
