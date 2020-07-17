@@ -98,7 +98,7 @@ float ComputeVolumeShadowing(
 		}
 	}		
 
-#if DYNAMICALLY_SHADOWED
+#if DYNAMICALLY_SHADOWED && FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	bool bUseCubemapShadowing = bPointLight;
 	float DynamicShadowFactor = 1;
 
