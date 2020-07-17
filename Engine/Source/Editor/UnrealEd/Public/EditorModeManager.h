@@ -112,7 +112,6 @@ protected:
 		
 private:
 	void RebuildModeToolBar();
-	void SpawnOrUpdateModeToolbar();
 public:
 
 	/**
@@ -556,11 +555,6 @@ public:
 
 	/** returns true if all active EdModes are OK with an AutoSave happening now  */
 	bool CanAutoSave() const;
-
-	/*
-	* Sets the active Modes ToolBar Palette Tab to the named Palette
-	*/
-	void  InvokeToolPaletteTab(FEditorModeID InMode, FName InPaletteName);
 
 	void RemoveAllDelegateHandlers();
 
