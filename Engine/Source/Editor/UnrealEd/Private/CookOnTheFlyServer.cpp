@@ -5999,6 +5999,10 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	CookByTheBookOptions->bRunning = false;
 	CookByTheBookOptions->bFullLoadAndSave = false;
 
+	if (!IsCookingInEditor())
+	{
+		FCoreUObjectDelegates::PackageCreatedForLoad.RemoveAll(this);
+	}
 	PlatformManager->ClearSessionPlatforms();
 
 	PrintFinishStats();
@@ -6518,13 +6522,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	GenerateAssetRegistry();
-	if (!bHasRunCookByTheBookBefore)
+	if (!IsCookingInEditor())
 	{
-		bHasRunCookByTheBookBefore = true;
-		if (!IsCookingInEditor())
-		{
-			FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
-		}
+		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
 	// SelectSessionPlatforms does not check for uniqueness and non-null, and we rely on those properties for performance, so ensure it here before calling SelectSessionPlatforms
