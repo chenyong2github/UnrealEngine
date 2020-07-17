@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "LiveStreamAnimationLiveLinkFrameTranslatorFactory.generated.h"
+#include "LSALiveLinkFrameTranslatorFactory.generated.h"
 
 UCLASS()
-class LIVESTREAMANIMATIONEDITOR_API ULiveStreamAnimationLiveLinkFrameTranslatorFactory : public UFactory
+class LSAEDITOR_API ULSALiveLinkFrameTranslatorFactory : public UFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	ULiveStreamAnimationLiveLinkFrameTranslatorFactory();
+	ULSALiveLinkFrameTranslatorFactory();
 
 	//~ Begin UFactory Interface
 	virtual uint32 GetMenuCategories() const override;

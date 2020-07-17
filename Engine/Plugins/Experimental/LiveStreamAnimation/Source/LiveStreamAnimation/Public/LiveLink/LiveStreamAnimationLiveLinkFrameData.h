@@ -33,9 +33,6 @@ public:
 		const FLiveStreamAnimationLiveLinkSourceOptions& InOptions,
 		const FLiveStreamAnimationHandle& InTranslationProfileHandle);
 
-	UPROPERTY()
 	FLiveStreamAnimationLiveLinkSourceOptions Options;
-
-	UPROPERTY()
 	FLiveStreamAnimationHandle TranslationProfileHandle;
 };
