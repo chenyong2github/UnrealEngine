@@ -17,7 +17,7 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "LiveStreamAnimationEditor",
+			"Name": "LSAEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

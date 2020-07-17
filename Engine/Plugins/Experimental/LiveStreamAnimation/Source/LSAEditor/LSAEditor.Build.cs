@@ -2,12 +2,10 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class LiveStreamAnimationEditor : ModuleRules
+	public class LSAEditor : ModuleRules
 	{
-		public LiveStreamAnimationEditor(ReadOnlyTargetRules Target) : base(Target)
+		public LSAEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"LiveStreamAnimation",
@@ -17,7 +15,11 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"LiveLinkInterface",
 					"Engine",
-					"DeveloperSettings"
+					"PropertyEditor",
+					"SlateCore",
+					"Slate",
+					"InputCore",
+					"EditorStyle",
 				}
 			);
 		}
