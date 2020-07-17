@@ -269,7 +269,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 			// Cannot blend with this capture mode as of today.
 			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
 		}
-		else
+		else if (Scene->SkyLight->ProcessedTexture)
 		{
 			SkyLightTextureResource = SkyLight.ProcessedTexture->TextureRHI;
 			SkyLightCubemapSampler = SkyLight.ProcessedTexture->SamplerStateRHI;
