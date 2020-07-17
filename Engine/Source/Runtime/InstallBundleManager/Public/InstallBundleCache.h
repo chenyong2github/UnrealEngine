@@ -29,7 +29,7 @@ enum class EInstallBundleCacheReserveResult : int8
 
 struct FInstallBundleCacheReserveResult
 {
-	TArray<FName> BundlesToEvict;
+	TMap<FName, TArray<EInstallBundleSourceType>> BundlesToEvict;
 	EInstallBundleCacheReserveResult Result = EInstallBundleCacheReserveResult::Success;
 };
 
@@ -41,11 +41,11 @@ public:
 	void Init(FInstallBundleCacheInitInfo InitInfo);
 
 	// Add a bundle to the cache.  
-	void AddOrUpdateBundle(const FInstallBundleCacheBundleInfo& AddInfo);
+	void AddOrUpdateBundle(EInstallBundleSourceType Source, const FInstallBundleCacheBundleInfo& AddInfo);
 
-	void RemoveBundle(FName BundleName);
+	void RemoveBundle(EInstallBundleSourceType Source, FName BundleName);
 
-	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(FName BundleName);
+	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName);
 
 	// Return the total size of the cache
 	uint64 GetSize() const;
@@ -66,7 +66,15 @@ public:
 private:
 	void CheckInvariants() const;
 
+	void UpdateCacheInfoFromSourceInfo(FName BundleName);
+
 private:
+	struct FPerSourceBundleCacheInfo
+	{
+		uint64 FullInstallSize = 0;
+		uint64 CurrentInstallSize = 0;
+	};
+
 	enum class ECacheState : uint8
 	{
 		Released, //Transitions to Reserved or PendingEvict
@@ -99,6 +107,8 @@ private:
 	};
 
 private:
+
+	TMap<FName, TMap<EInstallBundleSourceType, FPerSourceBundleCacheInfo>> PerSourceCacheInfo;
 
 	TMap<FName, FBundleCacheInfo> CacheInfo;
 

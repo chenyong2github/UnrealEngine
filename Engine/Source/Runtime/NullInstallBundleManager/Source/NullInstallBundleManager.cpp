@@ -63,6 +63,11 @@ class FNullInstallBundleManager : public IInstallBundleManager
 	{
 	}
 
+	virtual TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestReleaseContent(TArrayView<const FName> ReleaseNames, EInstallBundleReleaseRequestFlags Flags, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
+	{
+		return MakeValue(FInstallBundleRequestInfo());
+	}
+
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
 	{
 	}

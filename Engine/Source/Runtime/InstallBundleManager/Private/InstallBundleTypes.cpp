@@ -93,6 +93,17 @@ const TCHAR* LexToString(EInstallBundleResult Result)
 	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
 }
 
+const TCHAR* LexToString(EInstallBundleReleaseResult Result)
+{
+	static const TCHAR* Strings[] =
+	{
+		TEXT("OK"),
+	};
+
+	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleReleaseResult::Count) == UE_ARRAY_COUNT(Strings), "");
+	return Strings[InstallBundleUtil::CastToUnderlying(Result)];
+}
+
 const TCHAR* LexToString(EInstallBundleStatus Status)
 {
 	static const TCHAR* Strings[] =

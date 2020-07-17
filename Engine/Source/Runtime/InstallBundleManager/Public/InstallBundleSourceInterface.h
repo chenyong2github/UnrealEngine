@@ -81,6 +81,7 @@ public:
 	struct FRequestRemoveContentBundleContext
 	{
 		FName BundleName;
+		EInstallBundleReleaseRequestFlags Flags = EInstallBundleReleaseRequestFlags::None;
 		FInstallBundleRemovedDelegate CompleteCallback;
 	};
 
