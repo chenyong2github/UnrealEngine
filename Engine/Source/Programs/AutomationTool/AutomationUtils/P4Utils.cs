@@ -4071,7 +4071,7 @@ namespace AutomationTool
 			}
 		}
 
-		public static P4Action ParseAction(string Action)
+		static P4Action ParseAction(string Action)
 		{
 			P4Action Result = P4Action.Unknown;
 			var AllActions = GetEnumValuesAndKeywords(typeof(P4Action));
