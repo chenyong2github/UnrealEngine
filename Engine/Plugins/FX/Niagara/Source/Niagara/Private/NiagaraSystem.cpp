@@ -67,7 +67,9 @@ static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+, bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
+, bTrimAttributesOnCook(true)
 #endif
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
@@ -311,6 +313,14 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 			NiagaraEmitterCompiledDataStruct->SerializeTaggedProperties(Ar, (uint8*)&ConstCastSharedRef<FNiagaraEmitterCompiledData>(EmitterCompiledData[EmitterIndex]).Get(), NiagaraEmitterCompiledDataStruct, nullptr);
 		}
 	}
+
+#if WITH_EDITOR
+	if (GIsCookerLoadingPackage && Ar.IsLoading())
+	{
+		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
+		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
+	}
+#endif
 }
 
 #if WITH_EDITOR
