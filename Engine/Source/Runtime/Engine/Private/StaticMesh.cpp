@@ -1651,18 +1651,16 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 	}
 #endif
 
-	// Skip resources that have their render data stripped
-	if( NaniteResources.PageStreamingStates.Num() > 0 )
-	{
-		NaniteResources.InitResources();
-	}
+	NaniteResources.InitResources();
 
 	ENQUEUE_RENDER_COMMAND(CmdSetStaticMeshReadyForStreaming)(
 		[this, Owner](FRHICommandListImmediate&)
-	{
-		bReadyForStreaming = true;
-		Owner->SetCachedReadyForStreaming(true);
-	});
+		{
+			bReadyForStreaming = true;
+			Owner->SetCachedReadyForStreaming(true);
+		}
+	);
+
 	bIsInitialized = true;
 }
 
@@ -1685,10 +1683,7 @@ void FStaticMeshRenderData::ReleaseResources()
 		}
 	}
 
-	if( NaniteResources.PageStreamingStates.Num() > 0 )
-	{
-		NaniteResources.ReleaseResources();
-	}
+	NaniteResources.ReleaseResources();
 }
 
 void FStaticMeshRenderData::AllocateLODResources(int32 NumLODs)

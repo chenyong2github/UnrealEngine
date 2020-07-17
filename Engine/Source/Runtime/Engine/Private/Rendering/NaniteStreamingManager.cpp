@@ -213,12 +213,12 @@ void FStreamingManager::InitRHI()
 void FStreamingManager::ReleaseRHI()
 {
 	LLM_SCOPE(ELLMTag::Nanite);
-	for( uint32 i = 0; i < MaxStreamingReadbackBuffers; i++ )
+	for (uint32 BufferIndex = 0; BufferIndex < MaxStreamingReadbackBuffers; ++BufferIndex)
 	{
-		if( StreamingRequestReadbackBuffers[i] )
+		if (StreamingRequestReadbackBuffers[BufferIndex])
 		{
-			delete StreamingRequestReadbackBuffers[i];
-			StreamingRequestReadbackBuffers[i] = nullptr;
+			delete StreamingRequestReadbackBuffers[BufferIndex];
+			StreamingRequestReadbackBuffers[BufferIndex] = nullptr;
 		}
 	}
 
@@ -232,7 +232,7 @@ void FStreamingManager::ReleaseRHI()
 void FStreamingManager::Add( FResources* Resources )
 {
 	LLM_SCOPE(ELLMTag::Nanite);
-	if( Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID )
+	if (Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID)
 	{
 		Resources->HierarchyOffset = Hierarchy.Allocator.Allocate(Resources->HierarchyNodes.Num());
 		Hierarchy.TotalUpload += Resources->HierarchyNodes.Num();
@@ -251,7 +251,7 @@ void FStreamingManager::Add( FResources* Resources )
 void FStreamingManager::Remove( FResources* Resources )
 {
 	LLM_SCOPE(ELLMTag::Nanite);
-	if( Resources->RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID )
+	if (Resources->RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
 	{
 		Hierarchy.Allocator.Free( Resources->HierarchyOffset, Resources->HierarchyNodes.Num() );
 		Resources->HierarchyOffset = -1;
@@ -259,7 +259,7 @@ void FStreamingManager::Remove( FResources* Resources )
 		RootPagesAllocator.Free( Resources->RootPageIndex, 1 );
 		Resources->RootPageIndex = -1;
 
-		uint32 NumResourcePages = Resources->PageStreamingStates.Num();
+		const uint32 NumResourcePages = Resources->PageStreamingStates.Num();
 		INC_DWORD_STAT_BY( STAT_NaniteTotalPages, NumResourcePages );
 		DEC_DWORD_STAT_BY( STAT_NaniteRootPages, 1 );
 

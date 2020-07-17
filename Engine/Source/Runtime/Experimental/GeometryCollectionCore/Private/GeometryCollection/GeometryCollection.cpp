@@ -1499,9 +1499,7 @@ TArray<TArray<int32>> FGeometryCollection::ConnectionGraph()
 	return Connectivity;
 }
 
-
-void
-FGeometryCollection::UpdateOldAttributeNames()
+void FGeometryCollection::UpdateOldAttributeNames()
 {
 
 	// Faces Group

@@ -115,23 +115,36 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 
 void FResources::InitResources()
 {
-	ENQUEUE_RENDER_COMMAND( InitNaniteResources )(
-		[this]( FRHICommandListImmediate& RHICmdList )
+	if (PageStreamingStates.Num() == 0)
+	{
+		// Skip resources that have their render data stripped
+		return;
+	}
+
+	ENQUEUE_RENDER_COMMAND(InitNaniteResources)(
+		[this](FRHICommandListImmediate& RHICmdList)
 		{
-			GStreamingManager.Add( this );
-		});
+			GStreamingManager.Add(this);
+		}
+	);
 }
 
 void FResources::ReleaseResources()
 {
-	ENQUEUE_RENDER_COMMAND( ReleaseNaniteResources )(
-		[this]( FRHICommandListImmediate& RHICmdList )
+	if (PageStreamingStates.Num() == 0)
+	{
+		return;
+	}
+
+	ENQUEUE_RENDER_COMMAND(ReleaseNaniteResources)(
+		[this]( FRHICommandListImmediate& RHICmdList)
 		{
-		GStreamingManager.Remove( this );
-		});
+			GStreamingManager.Remove(this);
+		}
+	);
 }
 
-void FResources::Serialize( FArchive& Ar, UObject* Owner )
+void FResources::Serialize(FArchive& Ar, UObject* Owner)
 {
 	LLM_SCOPE(ELLMTag::Nanite);
 
@@ -514,7 +527,7 @@ void FSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 		MeshBatch.ReverseCulling = false;
 		MeshBatch.bDisableBackfaceCulling = true;
 		MeshBatch.DepthPriorityGroup = SDPG_World;
-		MeshBatch.LODIndex = -1;
+		MeshBatch.LODIndex = INDEX_NONE;
 		MeshBatch.MaterialRenderProxy = MaterialProxy;
 		MeshBatch.bWireframe = false;
 		MeshBatch.bCanApplyViewModeOverrides = false;

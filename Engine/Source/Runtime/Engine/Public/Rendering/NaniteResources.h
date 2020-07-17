@@ -315,13 +315,13 @@ struct FResources
 	TArray< uint32 >				PageDependencies;
 
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
-	int32	HierarchyOffset			= -1;
-	int32	RootPageIndex			= -1;
+	int32	HierarchyOffset			= INDEX_NONE;
+	int32	RootPageIndex			= INDEX_NONE;
 	
 	ENGINE_API void InitResources();
 	ENGINE_API void ReleaseResources();
 
-	ENGINE_API void Serialize( FArchive& Ar, UObject* Owner );
+	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
 };
 
 class FSceneProxyBase : public FPrimitiveSceneProxy
