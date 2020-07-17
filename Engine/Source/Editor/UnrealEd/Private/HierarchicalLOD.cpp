@@ -981,9 +981,11 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			if (HLODProxy)
 			{
 				// Ensure the HLOD descs are up to date.
-				HLODProxy->Clean();
-
-				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
+				bool bPackageDeleted = HLODProxy->Clean();
+				if (!bPackageDeleted)
+				{
+					InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
+				}
 			}
 			// If we couldn't find the HLOD package, the level may have been renamed, 
 			// so we need to relocate our old HLOD package before saving it.
