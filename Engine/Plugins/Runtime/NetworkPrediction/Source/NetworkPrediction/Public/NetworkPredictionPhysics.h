@@ -168,6 +168,8 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	{
 		npCheckSlow(RecvState);
 
+		npEnsure(RecvState->Rotation.IsNormalized());
+
 		Handle->SetX(RecvState->Location);
 		Handle->SetR(RecvState->Rotation);
 

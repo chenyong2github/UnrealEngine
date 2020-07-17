@@ -9,6 +9,7 @@
 
 struct FMockPhysicsInputCmd;
 struct FMockPhysicsAuxState;
+struct FMockPhysicsJumpCue;
 
 class FMockPhysicsSimulation;
 
@@ -45,6 +46,35 @@ public:
 
 	// Seed initial values based on component's state
 	void InitializeSimulationState(const void* Sync, FMockPhysicsAuxState* Aux);
+
+
+	// --------------------------------------------------------------------------------
+	// Cues: cosmetic events emitted from simulation code
+	// --------------------------------------------------------------------------------
+
+	// Assignable delegates chosen so that owning actor can implement in BPs. May not be the best choice for all cases.
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPhysicsJumpCueEvent, FVector, Location, float, ElapsedTimeSeconds);
+	UPROPERTY(BlueprintAssignable, Category="Mock Physics Cues")
+	FPhysicsJumpCueEvent OnJumpActivatedEvent;
+
+	void HandleCue(const FMockPhysicsJumpCue& JumpCue, const FNetSimCueSystemParamemters& SystemParameters);
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPhysicsChargeCueEvent, FVector, Location, float, ElapsedTimeSeconds);
+	UPROPERTY(BlueprintAssignable, Category="Mock Physics Cues")
+	FPhysicsChargeCueEvent OnChargeActivatedEvent;
+	
+	void HandleCue(const FMockPhysicsChargeCue& ChargeCue, const FNetSimCueSystemParamemters& SystemParameters);
+
+
+	// Charge (not a Cue event, just state)
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMockPhysicsNotifyStateChange, bool, bNewStateValue);
+	
+	UPROPERTY(BlueprintAssignable, Category="Mock Physics Cues")
+	FMockPhysicsNotifyStateChange OnChargeStateChange;
+
+	// Currently charging up charge attack
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Mock Physics")
+	bool bIsCharging;
 
 protected:
 

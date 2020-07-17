@@ -3,6 +3,17 @@
 #include "MockPhysicsSimulation.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
+#include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "PBDRigidsSolver.h"
+#include "Chaos/ChaosScene.h"
+#include "Chaos/EvolutionTraits.h"
+#include "UObject/Object.h"
+#include "GameFramework/Actor.h"
+#include "Components/PrimitiveComponent.h"
+
+NETSIMCUE_REGISTER(FMockPhysicsJumpCue, TEXT("MockPhysicsJumpCue"));
+NETSIMCUE_REGISTER(FMockPhysicsChargeCue, TEXT("FMockPhysicsChargeCue"));
 
 // --------------------------------------------------------------------------------------------------------------
 //	Super simple mock example of a NP simulation running on top of physics
@@ -61,6 +72,12 @@ namespace MockPhysics
 			}
 		}
 	}
+
+	bool GeomOverlapMulti(UWorld* World, const FCollisionShape& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
+	{
+		return FGenericPhysicsInterface::GeomOverlapMulti(World, InGeom, InPosition, InRotation, OutOverlaps, TraceChannel, Params, ResponseParams, ObjectParams);
+		
+	}
 }
 
 // -------------------------------------------------------
@@ -74,6 +91,7 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 
 	FVector Force = Input.Cmd->MovementInput;
 	Force *= (1000.f * Input.Aux->ForceMultiplier);
+	Force.Z = 0.f;
 
 	// Apply constant force based on MovementInput vector
 	FPhysicsCommand::ExecuteWrite(PhysicsActorHandle, [&](const FPhysicsActorHandle& Actor)
@@ -97,12 +115,75 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 			{
 				if(FChaosScene* PhysScene = MockPhysics::GetPhysicsScene(Actor))
 				{
-					FVector JumpForce(0.f, 0.f, 100000.f);
+					FVector JumpForce(0.f, 0.f, 50000.f);
 					MockPhysics::AddForce_AssumesLocked(Actor, JumpForce, bAllowSubstepping, bAccelChange);
 				}
 			}
 		});
 		
 		Output.Aux.Get()->JumpCooldownTime = TimeStep.TotalSimulationTime + 2000; // 2 seccond cooldown
+
+		// Jump cue: this will emit an event to the game code to play a particle or whatever they want
+		Output.CueDispatch.Invoke<FMockPhysicsJumpCue>( PhysicsActorHandle->X() );
+	}
+
+
+	// Charge: do radial impulse when Charge input is released + some delay
+	if (Input.Aux->ChargeEndTime != 0)
+	{
+		const int32 TimeSinceChargeEnd = TimeStep.TotalSimulationTime - Input.Aux->ChargeEndTime;
+		if (TimeSinceChargeEnd > 100)
+		{
+			Output.Aux.Get()->ChargeEndTime = 0;
+			
+
+			UWorld* World = FPhysicsInterface::GetCurrentScene(PhysicsActorHandle)->GetSolver()->GetOwner()->GetWorld();	// Awkward isn't really actually needed (only used by GeomOverlapMultiImp to get physics scene and debug drawing)
+			FCollisionShape Shape = FCollisionShape::MakeSphere(250.f);
+			FVector TracePosition = PhysicsActorHandle->X();
+
+			FQuat Rotation = FQuat::Identity;
+			ECollisionChannel CollisionChannel = ECollisionChannel::ECC_PhysicsBody; // obviously not good to hardcode, could be some property accessed via this simulation object
+			FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+			FCollisionResponseParams ResponseParams = FCollisionResponseParams::DefaultResponseParam;
+			FCollisionObjectQueryParams ObjectParams(ECollisionChannel::ECC_PhysicsBody);
+
+			TArray<FOverlapResult> Overlaps;
+
+			MockPhysics::GeomOverlapMulti(World, Shape, TracePosition, Rotation, Overlaps, CollisionChannel, QueryParams, ResponseParams, ObjectParams);
+
+			for (FOverlapResult& Result : Overlaps)
+			{
+				//UE_LOG(LogTemp, Warning, TEXT("  Hit: %s"), *GetNameSafe(Result.Actor.Get()));
+				if (UPrimitiveComponent* PrimitiveComp = Result.Component.Get())
+				{
+					FVector Dir = (PrimitiveComp->GetComponentLocation() - TracePosition);
+					Dir.Z = 0.f;
+					Dir.Normalize();
+
+					FVector Impulse = Dir * 100000.f;
+					Impulse.Z = 100000.f;
+
+					PrimitiveComp->AddImpulseAtLocation(Impulse, TracePosition);
+				}
+			}
+			Output.CueDispatch.Invoke<FMockPhysicsChargeCue>( TracePosition );
+		}
+	}
+	else
+	{
+		const bool bWasCharging = (Input.Aux->ChargeStartTime != 0);
+
+		if (!bWasCharging && Input.Cmd->bChargePressed)
+		{
+			// Press
+			Output.Aux.Get()->ChargeStartTime = TimeStep.TotalSimulationTime;
+			Output.Aux.Get()->ChargeEndTime = 0;
+		}
+
+		if (bWasCharging && !Input.Cmd->bChargePressed)
+		{
+			Output.Aux.Get()->ChargeStartTime = 0;
+			Output.Aux.Get()->ChargeEndTime = TimeStep.TotalSimulationTime;
+		}
 	}
 }
