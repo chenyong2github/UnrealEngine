@@ -3,10 +3,12 @@
 #include "LiveLink/Test/SkelMeshToLiveLinkSource.h"
 #include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
 #include "LiveStreamAnimationSubsystem.h"
+#include "LiveStreamAnimationSettings.h"
 
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkPresetTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ReferenceSkeleton.h"
 #include "Engine/SkeletalMesh.h"
@@ -204,7 +206,7 @@ class USkeleton* ULiveLinkTestSkelMeshTrackerComponent::GetSkeleton(bool& bInval
 	// If this happens, it's likely because we're in a Blueprint.
 	if (Skeleton == nullptr)
 	{
-		if (ULiveStreamAnimationLiveLinkFrameTranslator* LocalTranslator = Translator.LoadSynchronous())
+		if (const ULiveStreamAnimationLiveLinkFrameTranslator* LocalTranslator = ULiveStreamAnimationSettings::GetFrameTranslator())
 		{
 			if (const FLiveStreamAnimationLiveLinkTranslationProfile* Profile = LocalTranslator->GetTranslationProfile(TranslationProfile))
 			{

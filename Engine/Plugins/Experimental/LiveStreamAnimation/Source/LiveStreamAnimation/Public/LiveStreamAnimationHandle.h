@@ -7,7 +7,7 @@
 
 /**
  * Generic handle that can be used to identify things over the network.
- * This works by using a preconfigured / preshared list of names (see ULiveStreamAnimationSubsystem::HandleNames)
+ * This works by using a preconfigured / preshared list of names (see ULiveStreamAnimationSettings)
  * and only replicating indices of that list.
  */
 USTRUCT(BlueprintType, Category = "Live Stream Animation")

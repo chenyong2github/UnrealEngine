@@ -17,43 +17,6 @@
 
 ULiveStreamAnimationSubsystem::ULiveStreamAnimationSubsystem()
 {
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		// These are just default names, but any can be added / removed
-		// using Configs.
-		HandleNames.Append({
-			FName(TEXT("LiveLinkSubject1")),
-			FName(TEXT("LiveLinkSubject2")),
-			FName(TEXT("LiveLinkSubject3")),
-			FName(TEXT("LiveLinkSubject4")),
-			FName(TEXT("LiveLinkSubject5")),
-			FName(TEXT("LiveLinkSubject6")),
-			FName(TEXT("LiveLinkSubject7")),
-			FName(TEXT("LiveLinkSubject8")),
-			FName(TEXT("LiveLinkSubject9")),
-			FName(TEXT("LiveLinkSubject10")),
-			FName(TEXT("LiveStreamAnimationHandle1")),
-			FName(TEXT("LiveStreamAnimationHandle2")),
-			FName(TEXT("LiveStreamAnimationHandle3")),
-			FName(TEXT("LiveStreamAnimationHandle4")),
-			FName(TEXT("LiveStreamAnimationHandle5")),
-			FName(TEXT("LiveStreamAnimationHandle6")),
-			FName(TEXT("LiveStreamAnimationHandle7")),
-			FName(TEXT("LiveStreamAnimationHandle8")),
-			FName(TEXT("LiveStreamAnimationHandle9")),
-			FName(TEXT("LiveStreamAnimationHandle10")),
-			FName(TEXT("LiveLinkFrameTranslation1")),
-			FName(TEXT("LiveLinkFrameTranslation2")),
-			FName(TEXT("LiveLinkFrameTranslation3")),
-			FName(TEXT("LiveLinkFrameTranslation4")),
-			FName(TEXT("LiveLinkFrameTranslation5")),
-			FName(TEXT("LiveLinkFrameTranslation6")),
-			FName(TEXT("LiveLinkFrameTranslation7")),
-			FName(TEXT("LiveLinkFrameTranslation8")),
-			FName(TEXT("LiveLinkFrameTranslation9")),
-			FName(TEXT("LiveLinkFrameTranslation10")),
-		});
-	}
 }
 
 void ULiveStreamAnimationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -84,7 +47,6 @@ void ULiveStreamAnimationSubsystem::Deinitialize()
 	bInitialized = false;
 	ForwardingGroup.Reset();
 	LiveLinkStreamingHelper.Reset();
-	FrameTranslator.Reset();
 }
 
 FName ULiveStreamAnimationSubsystem::GetChannelName()
@@ -193,20 +155,6 @@ void ULiveStreamAnimationSubsystem::StopTrackingLiveLinkSubject(const FName Regi
 	LiveLinkStreamingHelper->StopTrackingSubject(FLiveStreamAnimationHandle(RegisteredName));
 }
 
-void ULiveStreamAnimationSubsystem::SetLiveLinkFrameTranslator(TSoftObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> NewTranslator)
-{
-	if (!IsEnabledAndInitialized())
-	{
-		return;
-	}
-
-	if (NewTranslator != FrameTranslator)
-	{
-		FrameTranslator = NewTranslator;
-		OnLiveLinkFrameTranslatorChanged.Broadcast();
-	}
-}
-
 void ULiveStreamAnimationSubsystem::ReceivedPacket(const TSharedRef<const LiveStreamAnimation::FLiveStreamAnimationPacket>& Packet, ForwardingChannels::FForwardingChannel& FromChannel)
 {
 	using namespace LiveStreamAnimation;
@@ -282,9 +230,4 @@ TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> ULiveStreamAnimat
 	}
 
 	return LiveLinkStreamingHelper->GetOrCreateSkelMeshToLiveLinkSource();
-}
-
-class ULiveStreamAnimationLiveLinkFrameTranslator* ULiveStreamAnimationSubsystem::GetLiveLinkFrameTranslator() const
-{
-	return FrameTranslator.LoadSynchronous();
 }

@@ -117,9 +117,6 @@ private:
 	FLiveLinkSubjectKey GetSubjectKey() const;
 
 	UPROPERTY(EditAnywhere, Category = "Live Stream Animation|Live Link")
-	TSoftObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> Translator;
-
-	UPROPERTY(EditAnywhere, Category = "Live Stream Animation|Live Link")
 	FName TranslationProfile;
 
 	// The SkeletalMeshComponent that we are going to track.
