@@ -11,7 +11,8 @@ public class DynamicMesh : ModuleRules
         PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"GeometricObjects"
+				"GeometricObjects",
+				"GeometryAlgorithms"
 			}
 		);
 
