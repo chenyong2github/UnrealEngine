@@ -132,6 +132,14 @@ struct TFrame3
 		}
 	}
 
+	/**
+	 * @return X/Y/Z axes of frame. This is more efficient than calculating each axis separately.
+	 */
+	void GetAxes(FVector3<RealType>& X, FVector3<RealType>& Y, FVector3<RealType>& Z) const
+	{
+		Rotation.GetAxes(X, Y, Z);
+	}
+
 	/** @return X axis of frame (axis 0) */
 	FVector3<RealType> X() const
 	{

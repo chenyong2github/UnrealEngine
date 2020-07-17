@@ -13,6 +13,7 @@
 #include <ThirdParty/GTEngine/Mathematics/GteLinearSystem.h>
 #include <algorithm>
 #include <random>
+#include <functional>
 
 // Compute the minimum volume sphere containing the input set of points.  The
 // algorithm randomly permutes the input points so that the construction
@@ -44,6 +45,8 @@ namespace gte
     class MinimumVolumeSphere3
     {
     public:
+		typedef std::pair<Sphere3<ComputeType>, bool> UpdateResult;
+
         bool operator()(int numPoints, Vector3<InputType> const* points, Sphere3<InputType>& minimal)
         {
             if (numPoints >= 1 && points)
@@ -318,8 +321,6 @@ namespace gte
             }
             return minimal;
         }
-
-        typedef std::pair<Sphere3<ComputeType>, bool> UpdateResult;
 
         UpdateResult UpdateSupport1(int i)
         {
