@@ -332,6 +332,11 @@ public:
 			check(TypeInfo->Dispatch);
 			TypeInfo->Dispatch(SavedCue.CueInstance.Get(), Handler, {DispatchTime - SavedCue.Time, SavedCue.bAllowRollback ? &SavedCue.Callbacks : nullptr });
 		}
+		else
+		{
+			// Trying to dispatch a Cue to a handler who doesn't have an implementation of HandleCue for this type (or forgot to register)
+			UE_LOG(LogNetSimCues, Warning, TEXT("Could not Find NetCue %s in dispatch table."), *FGlobalCueTypeTable::Get().GetTypeName(SavedCue.ID));
+		}
 	}
 
 private:
