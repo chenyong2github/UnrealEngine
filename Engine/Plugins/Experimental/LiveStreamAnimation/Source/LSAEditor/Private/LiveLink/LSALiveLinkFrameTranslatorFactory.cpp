@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserverd.
 
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslatorFactory.h"
+#include "LiveLink/LSALiveLinkFrameTranslatorFactory.h"
 #include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
 #include "AssetTypeCategories.h"
 
-ULiveStreamAnimationLiveLinkFrameTranslatorFactory::ULiveStreamAnimationLiveLinkFrameTranslatorFactory()
+ULSALiveLinkFrameTranslatorFactory::ULSALiveLinkFrameTranslatorFactory()
 {
 	bCreateNew = true;
 	bEditAfterNew = true;
@@ -12,18 +12,18 @@ ULiveStreamAnimationLiveLinkFrameTranslatorFactory::ULiveStreamAnimationLiveLink
 }
 
 //~ Begin UFactory Interface
-uint32 ULiveStreamAnimationLiveLinkFrameTranslatorFactory::GetMenuCategories() const
+uint32 ULSALiveLinkFrameTranslatorFactory::GetMenuCategories() const
 {
 	return EAssetTypeCategories::Animation;
 }
 
-UObject* ULiveStreamAnimationLiveLinkFrameTranslatorFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+UObject* ULSALiveLinkFrameTranslatorFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	ULiveStreamAnimationLiveLinkFrameTranslator* Translator = NewObject<ULiveStreamAnimationLiveLinkFrameTranslator>(InParent, InClass, InName, Flags);
 	return Translator;
 }
 
-bool ULiveStreamAnimationLiveLinkFrameTranslatorFactory::ShouldShowInNewMenu() const
+bool ULSALiveLinkFrameTranslatorFactory::ShouldShowInNewMenu() const
 {
 	return true;
 }

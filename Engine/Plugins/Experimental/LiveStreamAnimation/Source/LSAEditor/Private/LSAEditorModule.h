@@ -6,12 +6,12 @@
 #include "Modules/ModuleInterface.h"
 #include "IAssetTypeActions.h"
 
-class FLiveStreamAnimationEditorModule : public IModuleInterface
+class FLSAEditorModule : public IModuleInterface
 {
 public:
 
-	FLiveStreamAnimationEditorModule() = default;
-	virtual ~FLiveStreamAnimationEditorModule() = default;
+	FLSAEditorModule() = default;
+	virtual ~FLSAEditorModule() = default;
 
 	// IModuleInterface
 	virtual void StartupModule() override;
@@ -26,7 +26,7 @@ protected:
 
 	static FName GetModuleName()
 	{
-		static FName ModuleName = FName(TEXT("LiveStreamAnimationEditor"));
+		static FName ModuleName = FName(TEXT("LSAEditor"));
 		return ModuleName;
 	}
 

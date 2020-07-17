@@ -10,11 +10,8 @@
  * This works by using a preconfigured / preshared list of names (see ULiveStreamAnimationSettings)
  * and only replicating indices of that list.
  */
-USTRUCT(BlueprintType, Category = "Live Stream Animation")
 struct LIVESTREAMANIMATION_API FLiveStreamAnimationHandle
 {
-	GENERATED_BODY()
-
 public:
 
 	/**
@@ -85,4 +82,46 @@ private:
 	static int32 ValidateHandle(int32 Handle);
 	
 	int32 Handle = INDEX_NONE;
+};
+
+
+/** Blueprint wrapper around FLiveStreamAnimationHandle that is also safe to serialize. */
+USTRUCT(BlueprintType, Category = "Live Stream Animation")
+struct LIVESTREAMANIMATION_API FLiveStreamAnimationHandleWrapper
+{
+	GENERATED_BODY()
+public:
+
+	FLiveStreamAnimationHandleWrapper() :
+		Handle(NAME_None)
+	{
+	}
+
+	explicit FLiveStreamAnimationHandleWrapper(FName InName) :
+		Handle(InName)
+	{
+	}
+
+	explicit FLiveStreamAnimationHandleWrapper(int32 InHandle) :
+		Handle(FLiveStreamAnimationHandle(InHandle).GetName())
+	{
+	}
+
+	explicit FLiveStreamAnimationHandleWrapper(FLiveStreamAnimationHandle InHandle) :
+		Handle(InHandle.GetName())
+	{
+	}
+
+	bool IsValid() const
+	{
+		return Handle != NAME_None && FLiveStreamAnimationHandle(Handle).IsValid();
+	}
+
+	operator FLiveStreamAnimationHandle() const
+	{
+		return FLiveStreamAnimationHandle(Handle);
+	}
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Live Stream Animation")
+	FName Handle;
 };
