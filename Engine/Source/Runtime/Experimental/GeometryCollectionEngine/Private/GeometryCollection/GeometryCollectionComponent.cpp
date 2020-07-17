@@ -335,43 +335,44 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	Super::CreateRenderState_Concurrent(Context);
-
-	if (SceneProxy && RestCollection && RestCollection->HasVisibleGeometry())
-	{
-		FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
-		// Re-init subsections
-		if (bIsTransformSelectionModeEnabled)
-		{
-			GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
-		}
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
-
-		FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
-		InitConstantData(ConstantData);
-
-		FGeometryCollectionDynamicData* const DynamicData = ::new FGeometryCollectionDynamicData;
-		InitDynamicData(DynamicData);
-
-		ENQUEUE_RENDER_COMMAND(CreateRenderState)(
-			[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
-			{
-				if (GeometryCollectionSceneProxy)
-				{
-					GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-					GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-				}
-			}
-		);
-	}
 }
-
 
 FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 {
 	if (RestCollection)
 	{
-		return new FGeometryCollectionSceneProxy(this);
+		FGeometryCollectionSceneProxy* NewProxy =  new FGeometryCollectionSceneProxy(this);
+
+		if(RestCollection->HasVisibleGeometry())
+		{
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			// Re-init subsections
+			if(bIsTransformSelectionModeEnabled)
+			{
+				NewProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
+			}
+#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+
+			FGeometryCollectionConstantData* const ConstantData = ::new FGeometryCollectionConstantData;
+			InitConstantData(ConstantData);
+
+			FGeometryCollectionDynamicData* const DynamicData = ::new FGeometryCollectionDynamicData;
+			InitDynamicData(DynamicData);
+
+			// Send constant data and first dynamic data over to the proxy on the render thread
+			ENQUEUE_RENDER_COMMAND(CreateRenderState)(
+				[NewProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
+				{
+					if(NewProxy)
+					{
+						NewProxy->SetConstantData_RenderThread(ConstantData);
+						NewProxy->SetDynamicData_RenderThread(DynamicData);
+					}
+				}
+			);
+		}
+
+		return NewProxy;
 	}
 	return nullptr;
 }
