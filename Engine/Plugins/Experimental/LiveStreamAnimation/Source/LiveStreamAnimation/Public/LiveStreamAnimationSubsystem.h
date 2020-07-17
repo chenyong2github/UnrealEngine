@@ -169,9 +169,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
 	LIVESTREAMANIMATION_API bool StartTrackingLiveLinkSubject(
 		const FName LiveLinkSubject,
-		const FName RegisteredName,
+		const FLiveStreamAnimationHandleWrapper RegisteredName,
 		const FLiveStreamAnimationLiveLinkSourceOptions Options,
-		const FName TranslationProfile);
+		const FLiveStreamAnimationHandleWrapper TranslationProfile);
+
+	LIVESTREAMANIMATION_API bool StartTrackingLiveLinkSubject(
+		const FName LiveLinkSubject,
+		const FLiveStreamAnimationHandle RegisteredName,
+		const FLiveStreamAnimationLiveLinkSourceOptions Options,
+		const FLiveStreamAnimationHandle TranslationProfile);
 
 	/**
 	 * Stop tracking a Live Link subject.
@@ -179,7 +185,8 @@ public:
 	 * @param RegisteredName		The registered remote name for the Live Link Subject.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
-	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FName RegisteredName);
+	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandleWrapper RegisteredName);
+	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandle RegisteredName);
 
 	static FName GetChannelName();
 

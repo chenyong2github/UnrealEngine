@@ -109,9 +109,23 @@ void ULiveStreamAnimationSubsystem::SetAcceptClientPackets(bool bInShouldAcceptC
 
 bool ULiveStreamAnimationSubsystem::StartTrackingLiveLinkSubject(
 	const FName LiveLinkSubject,
-	const FName RegisteredName,
+	const FLiveStreamAnimationHandleWrapper RegisteredName,
 	const FLiveStreamAnimationLiveLinkSourceOptions Options,
-	const FName TranslationProfile)
+	const FLiveStreamAnimationHandleWrapper TranslationProfile)
+{
+	return StartTrackingLiveLinkSubject(
+		LiveLinkSubject,
+		FLiveStreamAnimationHandle(RegisteredName),
+		Options,
+		FLiveStreamAnimationHandle(TranslationProfile)
+	);
+}
+
+bool ULiveStreamAnimationSubsystem::StartTrackingLiveLinkSubject(
+	const FName LiveLinkSubject,
+	const FLiveStreamAnimationHandle RegisteredName,
+	const FLiveStreamAnimationLiveLinkSourceOptions Options,
+	const FLiveStreamAnimationHandle TranslationProfile)
 {
 	using namespace LiveStreamAnimation;
 	
@@ -130,12 +144,17 @@ bool ULiveStreamAnimationSubsystem::StartTrackingLiveLinkSubject(
 
 	return LiveLinkStreamingHelper->StartTrackingSubject(
 		LiveLinkSubject,
-		FLiveStreamAnimationHandle(RegisteredName),
+		RegisteredName,
 		Options,
-		FLiveStreamAnimationHandle(TranslationProfile));
+		TranslationProfile);
 }
 
-void ULiveStreamAnimationSubsystem::StopTrackingLiveLinkSubject(const FName RegisteredName)
+void ULiveStreamAnimationSubsystem::StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandleWrapper RegisteredName)
+{
+	StopTrackingLiveLinkSubject(FLiveStreamAnimationHandle(RegisteredName));
+}
+
+void ULiveStreamAnimationSubsystem::StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandle RegisteredName)
 {
 	using namespace LiveStreamAnimation;
 
