@@ -19,7 +19,10 @@
 		{
 			"Name": "LSAEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [
