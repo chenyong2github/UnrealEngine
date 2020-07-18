@@ -112,7 +112,7 @@ namespace Metasound
 			friend class FInputHandle;
 			friend class FNodeHandle;
 			friend class FGraphHandle;
-			friend class FMetasoundAssetBase;
+			friend class ::FMetasoundAssetBase;
 		};
 
 		class METASOUNDFRONTEND_API FOutputHandle : protected ITransactable
