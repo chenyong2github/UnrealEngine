@@ -96,6 +96,8 @@ namespace Metasound
 	class METASOUNDGRAPHCORE_API FMultichannelAudioFormat
 	{
 		public:
+			FMultichannelAudioFormat();
+
 			/** FMultichannelAudioFormat Constructor.
 			 *
 			 * @param InNumFrames - The number of frames per an audio buffer.

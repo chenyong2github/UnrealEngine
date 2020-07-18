@@ -82,7 +82,7 @@ namespace Metasound
 	template<typename DataType>
 	const FName GetMetasoundDataTypeName() 
 	{
-		static const FName TypeName = FName(TDataReferenceTypeInfo< TDecay<DataType>::Type >::TypeName);
+		static const FName TypeName = FName(TDataReferenceTypeInfo<typename TDecay<DataType>::Type >::TypeName);
 
 		return TypeName;
 	}
@@ -122,6 +122,7 @@ namespace Metasound
 			}
 
 	
+			// TODO: having issues compiling this on linux when no default constructor is available. 
 			/** Construct operator with no arguments if the DataType has a default constructor.  */
 			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
 			TDataReference()

@@ -43,6 +43,11 @@ namespace Metasound
 
 	/* FMultichannelAudioFormat */
 
+	FMultichannelAudioFormat::FMultichannelAudioFormat()
+	:	NumChannels(0)
+	{
+	}
+
 	FMultichannelAudioFormat::FMultichannelAudioFormat(int32 InNumFrames, int32 InNumChannels)
 	:	NumChannels(InNumChannels)
 	{
