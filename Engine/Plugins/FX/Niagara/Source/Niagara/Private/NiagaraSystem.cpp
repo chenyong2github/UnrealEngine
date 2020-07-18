@@ -317,6 +317,27 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 #if WITH_EDITOR
 	if (GIsCookerLoadingPackage && Ar.IsLoading())
 	{
+		// start temp fix
+		// we will disable the default behavior of baking out the rapid iteration parameters on cook if one of the emitters
+		// is using the old experimental sim stages as FHlslNiagaraTranslator::RegisterFunctionCall hardcodes the use of the
+		// symbolic constants that are being stripped out
+		bool UsingOldSimStages = false;
+
+		for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+		{
+			if (const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+			{
+				if (Emitter->bDeprecatedShaderStagesEnabled)
+				{
+					UsingOldSimStages = true;
+					break;
+				}
+			}
+		}
+
+		bBakeOutRapidIterationOnCook = bBakeOutRapidIterationOnCook && !UsingOldSimStages;
+		// end temp fix
+
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
 	}
