@@ -77,7 +77,7 @@ void FOptimusEditor::Construct(
 	// This call relies on virtual functions, so cannot be called from the constructor, hence
 	// the dual-construction style.
 	InitAssetEditor(InMode, InToolkitHost, OptimusEditorAppName, Layout,
-		bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, { InDeformerObject });
+		bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InDeformerObject);
 
 	DeformerGraph->InitFromNodeGraph(DeformerObject->GetGraphs()[0]);
 
