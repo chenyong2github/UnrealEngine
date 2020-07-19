@@ -7,6 +7,8 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Modules/ModuleManager.h"
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOptimusEditor, Log, All);
 

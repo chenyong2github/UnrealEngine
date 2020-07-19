@@ -8,7 +8,7 @@
 #include "OptimusDeformer.h"
 
 #include "Styling/SlateIconFinder.h"
-
+#include "Widgets/Images/SImage.h"
 
 
 void FOptimusDeformerAssetActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>() */)
