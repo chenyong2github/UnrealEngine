@@ -101,7 +101,7 @@ FReply FDMXLibraryRecorderAddAllPatchesButtonCustomization::HandleOnClicked()
 			}
 		}
 
-		StructHandle->NotifyPostChange();
+		StructHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
 	StructHandle->NotifyFinishedChangingProperties();
