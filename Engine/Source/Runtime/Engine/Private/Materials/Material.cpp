@@ -4379,7 +4379,6 @@ void UMaterial::RebuildShadingModelField()
 	UsedShadingModels = GetShadingModelFieldString(ShadingModels, FShadingModelToStringDelegate::CreateLambda(ShadingModelToStringLambda), " | ");
 #endif
 }
-#endif // WITH_EDITOR
 
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {
@@ -4491,6 +4490,7 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 	return bRet;
 }
+#endif // WITH_EDITOR
 
 void UMaterial::BeginDestroy()
 {
