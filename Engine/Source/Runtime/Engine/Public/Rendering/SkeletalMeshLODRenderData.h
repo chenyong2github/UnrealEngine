@@ -251,7 +251,7 @@ public:
 	/**
 	* Get Resource Size
 	*/
-	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+	ENGINE_API void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
 	// O(1)
 	// @return -1 if not found
