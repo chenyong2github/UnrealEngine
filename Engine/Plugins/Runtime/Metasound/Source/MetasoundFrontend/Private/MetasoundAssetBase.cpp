@@ -5,6 +5,7 @@
 #include "Backends/JsonStructSerializerBackend.h"
 #include "IStructSerializerBackend.h"
 #include "StructSerializer.h"
+#include "HAL/FileManager.h"
 
 
 void FMetasoundAssetBase::SetMetadata(FMetasoundClassMetadata& InMetadata)
