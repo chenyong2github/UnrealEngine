@@ -9,6 +9,9 @@ lib_LTLIBRARIES = libopus.la
 
 DIST_SUBDIRS = doc
 
+AM_LDFLAGS =
+AM_CFLAGS =
+AM_CXXFLAGS =
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/celt -I$(top_srcdir)/silk \
               -I$(top_srcdir)/silk/float -I$(top_srcdir)/silk/fixed
 
@@ -27,9 +30,24 @@ else
 OPUS_SOURCES += $(OPUS_SOURCES_FLOAT)
 endif
 
+if CLANG_ARCH_X86_64
+AM_CPPFLAGS += -arch x86_64
+AM_CFLAGS += -arch x86_64
+AM_CXXFLAGS += -arch x86_64
+AM_LDFLAGS += -arch x86_64
+endif
+
+if CLANG_ARCH_ARM64
+AM_CPPFLAGS += -arch arm64
+AM_CFLAGS += -arch arm64
+AM_CXXFLAGS += -arch arm64
+AM_LDFLAGS += -arch arm64
+endif
+
 if CPU_ARM
 CELT_SOURCES += $(CELT_SOURCES_ARM)
 SILK_SOURCES += $(SILK_SOURCES_ARM)
+
 if OPUS_ARM_EXTERNAL_ASM
 nodist_libopus_la_SOURCES = $(CELT_SOURCES_ARM_ASM:.s=-gnu.S)
 BUILT_SOURCES = $(CELT_SOURCES_ARM_ASM:.s=-gnu.S) \
