@@ -961,7 +961,7 @@ namespace Metasound
 		{
 			if (!IsValid())
 			{
-				return nullptr;
+				return false;
 			}
 
 			// scan through our inputs to find a match.
