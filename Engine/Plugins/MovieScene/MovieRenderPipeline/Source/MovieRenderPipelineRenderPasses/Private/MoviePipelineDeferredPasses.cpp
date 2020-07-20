@@ -443,7 +443,7 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 		if (PlayerCameraManager && PlayerCameraManager->GetCameraCachePOV().bConstrainAspectRatio)
 		{
 			const FMinimalViewInfo CameraCache = PlayerCameraManager->GetCameraCachePOV();
-			const float DestAspectRatio = ViewInitOptions.GetViewRect().Width() / ViewInitOptions.GetViewRect().Height();
+			const float DestAspectRatio = ViewInitOptions.GetViewRect().Width() / (float)ViewInitOptions.GetViewRect().Height();
 
 			// If the camera's aspect ratio has a thinner width, then stretch the horizontal fov more than usual to 
 			// account for the extra with of (before constraining - after constraining)
