@@ -122,6 +122,26 @@ public:
 		return FLiveStreamAnimationHandle(Handle);
 	}
 
+	friend uint32 GetTypeHash(const FLiveStreamAnimationHandleWrapper& Wrapper)
+	{
+		return GetTypeHash(Wrapper.Handle);
+	}
+
+	friend bool operator==(const FLiveStreamAnimationHandleWrapper& LHS, const FLiveStreamAnimationHandleWrapper& RHS)
+	{
+		return LHS.Handle == RHS.Handle;
+	}
+
+	friend bool operator==(const FLiveStreamAnimationHandleWrapper& LHS, const FName& RHS)
+	{
+		return LHS.Handle == RHS;
+	}
+
+	friend bool operator==(const FName& LHS, const FLiveStreamAnimationHandleWrapper& RHS)
+	{
+		return RHS == LHS;
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Live Stream Animation")
 	FName Handle;
 };

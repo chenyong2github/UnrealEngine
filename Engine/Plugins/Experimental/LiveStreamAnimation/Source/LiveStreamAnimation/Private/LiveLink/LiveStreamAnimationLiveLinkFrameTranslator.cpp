@@ -217,7 +217,7 @@ ULiveStreamAnimationLiveLinkFrameTranslator::FWorkerSharedPtr ULiveStreamAnimati
 			{
 				UE_LOG(LogLiveStreamAnimation, Warning,
 					TEXT("ULiveStreamAnimationLiveLinkFrameTranslator::FetchWorker: %s is not a registered LiveStreamAnimationHandle! Skipping translation profile. Class=%s"),
-					*It.Key().ToString(), *GetClass()->GetName());
+					*It.Key().Handle.ToString(), *GetClass()->GetName());
 
 				continue;
 			}
@@ -227,7 +227,7 @@ ULiveStreamAnimationLiveLinkFrameTranslator::FWorkerSharedPtr ULiveStreamAnimati
 			{
 				UE_LOG(LogLiveStreamAnimation, Warning,
 					TEXT("ULiveStreamAnimationLiveLinkFrameTranslator::FetchWorker: %s failed to update bone mappings for Skeleton %s! Skipping translation profile. Class=%s"),
-					*It.Key().ToString(), *LocalTranslationProfile.Skeleton.ToString(), *GetClass()->GetName());
+					*It.Key().Handle.ToString(), *LocalTranslationProfile.Skeleton.ToString(), *GetClass()->GetName());
 
 				continue;
 			}
