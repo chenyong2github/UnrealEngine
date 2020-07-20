@@ -62,7 +62,7 @@ void FReplaceNodeReferencesHelper::ReplaceReferences(FMemberReference& InReplace
 			}
 			else
 			{
-				VariableNode->VariableReference.SetFromField<FProperty>(InReplacement.ResolveMember<FProperty>(InBlueprint), InBlueprint->GeneratedClass);
+				VariableNode->VariableReference.SetFromField<FProperty>(InReplacement.ResolveMember<FProperty>(InBlueprint), Blueprint->GeneratedClass);
 			}
 			VariableNode->ReconstructNode();
 		}
