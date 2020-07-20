@@ -4331,9 +4331,9 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 	FVector4 OutSkyIrradianceEnvironmentMap[7];
 	// Make sure there's no padding since we're going to cast to FVector4*
 	checkSlow(sizeof(OutSkyIrradianceEnvironmentMap) == sizeof(FVector4) * 7);
-
-	const bool bUploadIrradiance = Scene
-		&& Scene->SkyLight
+	check(Scene);
+	const bool bUploadIrradiance = 
+		Scene->SkyLight
 		// Skylights with static lighting already had their diffuse contribution baked into lightmaps
 		&& !Scene->SkyLight->bHasStaticLighting
 		&& ViewFamily.EngineShowFlags.SkyLighting
