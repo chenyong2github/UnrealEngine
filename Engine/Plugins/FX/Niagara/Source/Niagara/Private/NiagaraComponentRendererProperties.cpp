@@ -194,7 +194,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 		{
 			TemplateComponent->DestroyComponent();
 		}
-		if (ComponentType)
+		if (ComponentType && UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
 		{
 			CreateTemplateComponent();
 
@@ -238,6 +238,11 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
 
 	OutInfo.Add(FText::FromString(TEXT("The component renderer is still a very experimental feature that offers great flexibility, \nbut is *not* optimized for performance or safety. \nWith great power comes great responsibility.")));
+
+	if (ComponentType && !UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
+	{
+		OutErrors.Add(FText::Format(LOCTEXT("NiagaraClassWithinComponentError", "The selected component type is not valid because it can only be attached to an object of type {0}."), FText::FromString(ComponentType->ClassWithin->GetName())));
+	}
 
 	if (InEmitter && TemplateComponent)
 	{
