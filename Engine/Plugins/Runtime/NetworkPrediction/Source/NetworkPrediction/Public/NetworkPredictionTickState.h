@@ -60,13 +60,16 @@ struct FFixedTickState
 	// This is seemingly the best choice while fixed tick physics has to be 1:1.
 	float FixedStepRealTimeMS = 1/30.f;
 
-	int32 PendingFrame=0;	
-	int32 ConfirmedFrame=INDEX_NONE; // FIXME: Not used, remove?
+	// Next frame to be ticked (used as input to generated PendingFrame+1)
+	int32 PendingFrame=0;
+
+	// Latest confirmed local frame number. Anything at or before this frame is "set in stone"
+	int32 ConfirmedFrame=INDEX_NONE;
 	
 	// Maps ForwardPredicted authority frames to local frame.
 	// E.g, server says "I processed your frame 1 on my frame 101" client calcs Offset as 100.
 	// "LocalFrame" = "ServerFrame" - Offset. 
-	int32 Offset=0; // int32 ForwardOffset;
+	int32 Offset=0;
 
 	// Accumulates raw delta time into our fixed steps, Note this not used when physics recording is enabled since NP must stay in sync with physics tick.
 	float UnspentTimeMS = 0.f;
