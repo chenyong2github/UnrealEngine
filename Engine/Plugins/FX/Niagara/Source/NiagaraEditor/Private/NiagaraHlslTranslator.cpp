@@ -4432,8 +4432,28 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 	}
 	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
 	{
+		ENiagaraScriptUsage Usage = TranslationStages[ActiveStageIdx].ScriptUsage;
 		FNiagaraInt32 EnumValue;
-		EnumValue.Value = (uint8)GetCurrentUsage();
+		if (Usage == ENiagaraScriptUsage::ParticleEventScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Event;
+		}
+		else if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::SimulationStage;
+		}
+		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || Usage == ENiagaraScriptUsage::ParticleSpawnScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Spawn;
+		}
+		else if (Usage == ENiagaraScriptUsage::EmitterUpdateScript || Usage == ENiagaraScriptUsage::SystemUpdateScript || Usage == ENiagaraScriptUsage::ParticleUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Update;
+		}
+		else
+		{
+			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
+		}
 		OutVar.SetValue(EnumValue);
 		return true;
 	}
