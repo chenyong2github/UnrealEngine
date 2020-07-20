@@ -1,11 +1,240 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundFrontendBaseClasses.h"
+#include "MetasoundDataReference.h"
+
+#include "MetasoundFrontendRegistries.h"
+
+
 
 namespace Metasound
 {
 	namespace Frontend
 	{
+		
+
+		TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry()
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->GetExternalNodeRegistry();
+		}
+
+		TUniquePtr<INode> ConstructInputNode(const FName& InInputType, const FInputNodeConstructorParams& InParams)
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InInputType, InParams);
+		}
+
+		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams)
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructOutputNode(InOutputType, InParams);
+		}
+
+		TUniquePtr<INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const FNodeInitData& InInitData)
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructExternalNode(InNodeType, InNodeHash, InInitData);
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, bool InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::Bool;
+			OutDescription.AsBool = InValue;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString.Empty();
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::Integer;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = InValue;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString.Empty();
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::Float;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = InValue;
+			OutDescription.AsString.Empty();
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::String;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString = InValue;
+		}
+
+		void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::None;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString.Empty();
+		}
+
+		FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription)
+		{
+			EMetasoundLiteralType LiteralType = InDescription.LiteralType;
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+			switch (LiteralType)
+			{
+				case EMetasoundLiteralType::None:
+				{
+					return GetDefaultParamForDataType(InDataType);
+				}
+				case EMetasoundLiteralType::Bool:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Boolean))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return FDataTypeLiteralParam(InDescription.AsBool);
+					}
+				}
+				case EMetasoundLiteralType::Float:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Float))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return FDataTypeLiteralParam(InDescription.AsFloat);
+					}
+				}
+				case EMetasoundLiteralType::Integer:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Integer))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return FDataTypeLiteralParam(InDescription.AsInteger);
+					}
+				}
+				case EMetasoundLiteralType::String:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::String))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return FDataTypeLiteralParam(InDescription.AsString);
+					}
+				}
+				case EMetasoundLiteralType::Invalid:
+				default:
+				{
+					return FDataTypeLiteralParam::InvalidParam();
+				}
+			}
+		}
+
+		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundLiteralType InLiteralType)
+		{
+			switch (InLiteralType)
+			{
+			case EMetasoundLiteralType::None:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::None);
+			case EMetasoundLiteralType::Bool:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Boolean);
+			case EMetasoundLiteralType::Float:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Float);
+			case EMetasoundLiteralType::Integer:
+				return DoesDataTypeSupportLiteralType(InDataType, EMetasoundLiteralType::Integer);
+			case EMetasoundLiteralType::String:
+				return DoesDataTypeSupportLiteralType(InDataType, EMetasoundLiteralType::String);
+			case EMetasoundLiteralType::Invalid:
+			default:
+				return false;
+			}
+		}
+
+		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralArgType InLiteralType)
+		{
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+			return Registry->DoesDataTypeSupportLiteralType(InDataType, InLiteralType);
+		}
+
+		Metasound::FDataTypeLiteralParam GetLiteralParam(const FMetasoundLiteralDescription& InDescription)
+		{
+			EMetasoundLiteralType LiteralType = InDescription.LiteralType;
+
+			switch (LiteralType)
+			{
+				case EMetasoundLiteralType::Bool:
+				{
+					return FDataTypeLiteralParam(InDescription.AsBool);
+				}
+				case EMetasoundLiteralType::Float:
+				{
+					return FDataTypeLiteralParam(InDescription.AsFloat);
+				}
+				case EMetasoundLiteralType::Integer:
+				{
+					return FDataTypeLiteralParam(InDescription.AsInteger);
+				}
+				case EMetasoundLiteralType::String:
+				{
+					return FDataTypeLiteralParam(InDescription.AsString);
+				}
+				case EMetasoundLiteralType::None:
+				case EMetasoundLiteralType::Invalid:
+				default:
+				{
+					return FDataTypeLiteralParam::InvalidParam();
+				}
+			}
+		}
+
+		Metasound::FDataTypeLiteralParam GetDefaultParamForDataType(FName InDataType)
+		{
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+			ELiteralArgType DesiredArgType = Registry->GetDesiredLiteralTypeForDataType(InDataType);
+
+			switch (DesiredArgType)
+			{
+				case Metasound::ELiteralArgType::Boolean:
+				{
+					return FDataTypeLiteralParam(false);
+				}
+				case Metasound::ELiteralArgType::Integer:
+				{
+					return FDataTypeLiteralParam(0);
+				}
+				case Metasound::ELiteralArgType::Float:
+				{
+					return FDataTypeLiteralParam(0.0f);
+				}
+				case Metasound::ELiteralArgType::String:
+				{
+					return FDataTypeLiteralParam(FString());
+				}
+				case Metasound::ELiteralArgType::None:
+				{
+					return FDataTypeLiteralParam();
+				}
+				case Metasound::ELiteralArgType::Invalid:
+				default:
+				{
+					return FDataTypeLiteralParam::InvalidParam();
+				}
+			}
+
+		}
 
 		ITransactable::ITransactable(uint32 InUndoLimit, TWeakObjectPtr<UObject> InOwningAsset /* = nullptr */)
 			: UndoLimit(InUndoLimit)
@@ -377,7 +606,7 @@ namespace Metasound
 				CurrentStep = GoToNext(CurrentPath, CurrentStep);
 			}
 
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
+			if (ensureAlwaysMsgf(CurrentStep.Type != Path::EDescType::Invalid && CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
 			{
 				return CurrentStep.DescriptionStructPtr.Get<FClassDependencyIDs*>();
 			}
@@ -558,7 +787,7 @@ namespace Metasound
 							TArray<FMetasoundOutputDescription>& OutputsList = ClassDescription->Outputs;
 							for (FMetasoundOutputDescription& Output : OutputsList)
 							{
-								if (Output.Name == NextStep.LookupName)
+								if (Output.Name == OutputElement.LookupName)
 								{
 									FDescriptionUnwindStep UnwindStep;
 									UnwindStep.DescriptionStructPtr.Set<FMetasoundOutputDescription*>(&Output);
@@ -690,6 +919,16 @@ namespace Metasound
 			return FDescPath()[Path::EFromDocument::ToDependencies][InDependencyID];
 		}
 
+		FDescPath Path::GetInputDescriptionPath(FDescPath InPathForInputNode, const FString& InputName)
+		{
+			return (InPathForInputNode << 3)[Path::EFromClass::ToInputs][*InputName];
+		}
+
+		FDescPath Path::GetOutputDescriptionPath(FDescPath InPathForOutputNode, const FString& OutputName)
+		{
+			return (InPathForOutputNode << 3)[Path::EFromClass::ToOutputs][*OutputName];
+		}
+
 		FString Path::GetPrintableString(FDescPath InPath)
 		{
 			FString OutString = FString(TEXT("//"));
@@ -787,5 +1026,13 @@ namespace Metasound
 			return OutString;
 		}
 
+		
+
+		void InitializeFrontend()
+		{
+			FMetasoundFrontendRegistryContainer::Get()->InitializeFrontend();
+		}
 	}
 }
+
+

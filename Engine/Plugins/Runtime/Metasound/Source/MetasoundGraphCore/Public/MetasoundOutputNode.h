@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundBuilderInterface.h"
 #include "MetasoundNodeInterface.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundOutputNode"
@@ -13,6 +14,8 @@ namespace Metasound
 	template<typename DataType>
 	class TOutputNode : public INode
 	{
+			static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an output node with it.");
+			
 			class FOutputOperator : public IOperator
 			{
 				public:
@@ -87,17 +90,37 @@ namespace Metasound
 				Outputs.Add(OutputKey, OutputVertex);
 			}
 
-			virtual const FString& GetDescription() const override
+			virtual const FName& GetClassName() const override
+			{
+				// TODO: Any special formatting for these node type names?
+				// TODO: although this is ok with MSVC's lax template instantiation, every other compiler will complain about TDataReferenceTypeInfo.
+				//static const FName ClassName = FName(FString(TEXT("Input_")) + FString(TDataReferenceTypeInfo<DataType>::TypeName));
+				static const FName ClassName = FName(TEXT("OutputNode"));
+
+				return ClassName;
+			}
+
+			virtual const FString& GetInstanceName() const override
 			{
 				return NodeDescription;
 			}
 
-			virtual const FName& GetClassName() const override
+			virtual const FString& GetDescription() const override
 			{
-				// TODO: Any special formatting for these node type names?
-				static const FName ClassName = FName(FString(TEXT("Output_")) + FString(TDataReferenceTypeInfo<DataType>::TypeName));
+				static FString Description = TEXT("This node can be used as an output for a given type.");
+				return Description;
+			}
 
-				return ClassName;
+			virtual const FString& GetAuthorName() const override
+			{
+				static FString Author = TEXT("Epic Games");
+				return Author;
+			}
+
+			virtual const FString& GetPromptIfMissing() const override
+			{
+				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
+				return Prompt;
 			}
 
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const override

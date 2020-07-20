@@ -8,6 +8,8 @@
 
 namespace Metasound
 {
+	METASOUND_REGISTER_NODE(FOscNode)
+
 	class FOscOperator : public TExecutableOperator<FOscOperator>
 	{
 		public:
@@ -16,7 +18,7 @@ namespace Metasound
 			,	TwoPi(2.f * PI)
 			,	Phase(0.f)
 			,	Frequency(InFrequency)
-			,	AudioBuffer(InSettings.FramesPerExecute)
+			,	AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 			{
 				check(AudioBuffer->Num() == InSettings.FramesPerExecute);
 
@@ -64,7 +66,7 @@ namespace Metasound
 	TUniquePtr<IOperator> FOscNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) 
 	{
 		const FOscNode& OscNode = static_cast<const FOscNode&>(InNode);
-		FFrequencyReadRef Frequency(OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
+		FFrequencyReadRef Frequency = FFrequencyReadRef::CreateNew(OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
 
 		if (InInputDataReferences.ContainsDataReadReference<FFrequency>(TEXT("Frequency")))
 		{
@@ -75,11 +77,16 @@ namespace Metasound
 	}
 
 	FOscNode::FOscNode(const FString& InName, float InDefaultFrequency)
-	:	FNode(InName)
-	,	DefaultFrequency(InDefaultFrequency)
+		:	FNode(InName)
+		,	DefaultFrequency(InDefaultFrequency)
 	{
 		AddInputDataVertex<FFrequency>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator."));
 		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
+	}
+
+	FOscNode::FOscNode(const FNodeInitData& InInitData)
+		: FOscNode(InInitData.InstanceName, 440.0f)
+	{
 	}
 
 	FOscNode::~FOscNode()
@@ -93,7 +100,7 @@ namespace Metasound
 
 	const FName& FOscNode::GetClassName() const
 	{
-		return ClassName;
+		return ::Metasound::FOscNode::ClassName;
 	}
 
 	IOperatorFactory& FOscNode::GetDefaultOperatorFactory() 

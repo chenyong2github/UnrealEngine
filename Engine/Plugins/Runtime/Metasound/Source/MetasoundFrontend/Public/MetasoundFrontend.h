@@ -6,13 +6,12 @@
 #include "MetasoundGraph.h"
 #include "MetasoundFrontendDataLayout.h"
 #include "MetasoundFrontendBaseClasses.h"
+#include "MetasoundBuilderInterface.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Serialization/Public/IStructSerializerBackend.h"
-#include "Serialization/Public/Backends/JsonStructSerializerBackend.h"
-#include "Serialization/Public/StructSerializer.h"
 
 // Forward Declarations
 class FMetasoundAssetBase;
+
 
 namespace Metasound
 {	
@@ -41,9 +40,14 @@ namespace Metasound
 		// and also used in FGraphHandle::AddNewNode.
 		struct FNodeClassInfo
 		{
+			// The descriptive name of this node class.
 			FString NodeName;
+
+			// The type for this node.
 			EMetasoundClassType NodeType;
 
+			// The lookup key used for the internal node registry.
+			FNodeRegistryKey LookupKey;
 		};
 
 		// Get all available nodes of any type.
@@ -61,11 +65,18 @@ namespace Metasound
 		TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType);
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundClassMetadata GetMetadataForNode(const FNodeClassInfo& InInfo);
+		FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo);
 
 
 		// Generates a new FMetasoundClassDescription for a given node class. Only used by classes that manipulate Metasound Description data directly.
-		FMetasoundClassDescription GetClassDescriptionForNode(const FNodeClassInfo& InInfo);
+		FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo);
+
+		// Returns a list of all available data types.
+		TArray<FName> GetAllAvailableDataTypes();
+
+		// outputs the traits for a given data type.
+		// returns false if InDataType couldn't be found.
+		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
@@ -122,6 +133,9 @@ namespace Metasound
 
 			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams, const FString& InOutputName);
 
+			// Constructor used for the outgoing connection from an input node.
+			explicit FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams);
+
 			~FOutputHandle() = default;
 
 			static FOutputHandle InvalidHandle();
@@ -134,7 +148,7 @@ namespace Metasound
 
 			FName GetOutputType() const;
 			FString GetOutputName() const;
-			FString GetOutputTooltip() const;
+			FText GetOutputTooltip() const;
 			uint32 GetOwningNodeID() const;
 
 			// @todo: with the current spec, we'd have to scan all nodes in the graph for this output to solve this.
@@ -148,7 +162,13 @@ namespace Metasound
 		private:
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;
 			TDescriptionPtr<FMetasoundClassDescription> NodeClass;
+
+			// owning output description ptr for the node's class.
+			// This can be none if the node that owns this output is an input node itself.
 			TDescriptionPtr<FMetasoundOutputDescription> OutputPtr;
+
+			// Optional description pointer used when this output connection is owned by an input node.
+			TDescriptionPtr<FMetasoundInputDescription> InputNodePtr;
 		};
 
 		class METASOUNDFRONTEND_API FInputHandle : protected ITransactable
@@ -160,6 +180,9 @@ namespace Metasound
 			// Sole constructor for FInputHandle. Can only be used by friend classes for FHandleInitParams.
 			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName);
 
+			// constructor used exclusively by output nodes.
+			explicit FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams);
+
 			static FInputHandle InvalidHandle();
 
 			bool IsValid() const;
@@ -167,7 +190,7 @@ namespace Metasound
 
 			FName GetInputType() const;
 			FString GetInputName() const;
-			FString GetInputTooltip() const;
+			FText GetInputTooltip() const;
 
 			FOutputHandle GetCurrentlyConnectedOutput() const;
 
@@ -177,8 +200,17 @@ namespace Metasound
 
 		private:
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;
+
+			// owning node class for the node that owns this input connection.
+			// This can be none if the node that owns this output is an output node itself.
 			TDescriptionPtr<FMetasoundClassDescription> NodeClass;
+
+			// owning input description ptr for the node's class.
+			// This can be none if the node that owns this output is an output node itself.
 			TDescriptionPtr<FMetasoundInputDescription> InputPtr;
+
+			// Optional description pointer used when this input connection is owned by an output node.
+			TDescriptionPtr<FMetasoundOutputDescription> OutputNodePtr;
 
 			FString InputName;
 
@@ -198,7 +230,7 @@ namespace Metasound
 			~FNodeHandle() = default;
 
 			// Sole constructor for FNodeHandle. Can only be used by friends of FHandleInitParams.
-			explicit FNodeHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams);
+			explicit FNodeHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, EMetasoundClassType InNodeClassType);
 
 			static FNodeHandle InvalidHandle();
 
@@ -226,6 +258,10 @@ namespace Metasound
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;
 			TDescriptionPtr<FMetasoundClassDescription> NodeClass;
 
+			// whether this node is an input or output to it's owning graph,
+			// an externally implemented node, or a metasound graph itself.
+			EMetasoundClassType NodeClassType;
+
 			uint32 NodeID;
 		};
 
@@ -252,6 +288,7 @@ namespace Metasound
 			bool IsValid() const;
 
 			TArray<FNodeHandle> GetAllNodes();
+			FNodeHandle GetNodeWithId(uint32 InNodeId);
 			TArray<FNodeHandle> GetOutputNodes();
 			TArray<FNodeHandle> GetInputNodes();
 
@@ -296,9 +333,8 @@ namespace Metasound
 			// This invokes the Metasound Builder to synchronously compile a 
 			// metasound operator, which can then be used for playback.
 			// @returns nullptr on failure.
-			// @todo: forward errors from the Metasound Builder.
 			// @todo: make an API for doing this async.
-			TUniquePtr<IOperator> BuildOperator();
+			TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const;
 
 		private:
 

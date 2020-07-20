@@ -15,7 +15,7 @@ namespace Metasound
 	{
 	}
 
-	const FString& FNode::GetDescription() const
+	const FString& FNode::GetInstanceName() const
 	{
 		return Description;
 	}

@@ -112,6 +112,26 @@ namespace Metasound
 		return InVertex.VertexName;
 	}
 
+	/**
+	 * This struct is used to pass in any arguments required for constructing a single node instance.
+	 * because of this, all FNode implementations have to implement a constructor that takes an FNodeInitData instance.
+	 */
+	struct FNodeInitData
+	{
+		FString InstanceName;
+		TMap<FName, FDataTypeLiteralParam> ParamMap;
+
+		template<typename ParamType>
+		ParamType GetParamValue(FName ParamName)
+		{
+			checkf(ParamMap.Contains(ParamName), TEXT("Tried to use node initialization parameter that didn't exist!"));
+
+			// If this hits, check that you have a constructor for DataType that can interpret the parameter.
+			checkf(ParamMap[ParamName].IsCompatibleWithType<ParamType>(), TEXT("Tried to parse initialization parameter to an invalid type!"));
+			return ParamMap[ParamName].ParseTo<ParamType>();
+		}
+	};
+
 	/** INodeBase
 	 * 
 	 * Interface for all nodes that can describe their name, type, inputs and outputs.
@@ -121,11 +141,23 @@ namespace Metasound
 		public:
 			virtual ~INodeBase() {}
 
-			/** Return the name of this node. */
-			virtual const FString& GetDescription() const = 0;
+			/** Return the name of this specific instance of the node class. */
+			virtual const FString& GetInstanceName() const = 0;
 
 			/** Return the type name of this node. */
 			virtual const FName& GetClassName() const = 0;
+
+			/** Return a longer text description describing how this node is used. */
+			virtual const FString& GetDescription() const = 0;
+
+			/** Return the original author of this node class. */
+			virtual const FString& GetAuthorName() const = 0;
+
+			/** 
+			 *  Return an optional prompt on how users can get the plugin this node is in,
+			 *  if they have found a metasound that uses this node but don't have this plugin downloaded or enabled.
+			 */
+			virtual const FString& GetPromptIfMissing() const = 0;
 
 			/** Return a collection of input parameter descriptions for this node. */
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const = 0;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundNodeRegistrationMacro.h"
 
 namespace Metasound
 {
@@ -13,7 +14,7 @@ namespace Metasound
 			FNode(const FString& InDescription);
 			virtual ~FNode();
 
-			virtual const FString& GetDescription() const override;
+			virtual const FString& GetInstanceName() const override;
 
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const override;
 			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const override;

@@ -15,6 +15,8 @@
 
 namespace Metasound
 {
+	METASOUND_REGISTER_NODE(FPeriodicBopNode)
+
 	class FPeriodicBopOperator : public TExecutableOperator<FPeriodicBopOperator>
 	{
 		public:
@@ -23,6 +25,7 @@ namespace Metasound
 
 			FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod)
 			:	OperatorSettings(InSettings)
+			,	Bop(FBopWriteRef::CreateNew())
 			,	Period(InPeriod)
 			,	ExecuteDurationInSamples(InSettings.FramesPerExecute)
 			,	SampleCountdown(0.f)
@@ -76,7 +79,9 @@ namespace Metasound
 	TUniquePtr<IOperator> FPeriodicBopNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors)
 	{
 		const FPeriodicBopNode& PeriodicBopNode = static_cast<const FPeriodicBopNode&>(InNode);
-		FFloatTimeReadRef Period(PeriodicBopNode.GetDefaultPeriodInSeconds(), ETimeResolution::Seconds);
+
+		// Note- won't this cause the Period input to not update after we build the operator?
+		FFloatTimeReadRef Period = FFloatTimeReadRef::CreateNew(PeriodicBopNode.GetDefaultPeriodInSeconds(), ETimeResolution::Seconds);
 
 		if (InInputDataReferences.ContainsDataReadReference<FFloatTime>(TEXT("Period")))
 		{
@@ -95,6 +100,10 @@ namespace Metasound
 		AddInputDataVertex<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period of the bops in seconds."));
 		AddOutputDataVertex<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "The output bop"));
 	}
+
+	FPeriodicBopNode::FPeriodicBopNode(const FNodeInitData& InInitData)
+		: FPeriodicBopNode(InInitData.InstanceName, 1.0f)
+	{}
 
 	FPeriodicBopNode::~FPeriodicBopNode()
 	{

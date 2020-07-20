@@ -24,6 +24,8 @@ namespace UnrealBuildTool.Rules
 					"Serialization"
 				}
 			);
+
+			PublicDefinitions.Add("WITH_METASOUND_FRONTEND=1");
 		}
 	}
 }

@@ -9,6 +9,7 @@
 
 namespace Metasound
 {
+	METASOUND_REGISTER_NODE(FAudioMultiplyNode);
 
 	class FAudioMultiplyOperator : public TExecutableOperator<FAudioMultiplyOperator>
 	{
@@ -17,7 +18,7 @@ namespace Metasound
 			:	OperatorSettings(InSettings)
 			,	InputBuffer1(InBuffer1)
 			,	InputBuffer2(InBuffer2)
-			,	OutputBuffer(InSettings.FramesPerExecute)
+			,	OutputBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 			{
 				check(OutputBuffer->Num() == InSettings.FramesPerExecute);
 				check(InputBuffer1->Num() == InSettings.FramesPerExecute);
@@ -62,8 +63,8 @@ namespace Metasound
 	{
 		const FAudioMultiplyNode& AudioMultiplyNode = static_cast<const FAudioMultiplyNode&>(InNode);
 
-		FAudioBufferReadRef InputBuffer1;
-		FAudioBufferReadRef InputBuffer2;
+		FAudioBufferReadRef InputBuffer1 = FAudioBufferReadRef::CreateNew();
+		FAudioBufferReadRef InputBuffer2 = FAudioBufferReadRef::CreateNew();
 
 		FAudioBuffer Ones(InOperatorSettings.FramesPerExecute);
 
@@ -76,12 +77,12 @@ namespace Metasound
 
 		if (!SetReadableRefIfInCollection(TEXT("InputBuffer1"), InInputDataReferences, InputBuffer1))
 		{
-			InputBuffer1 = FAudioBufferReadRef(Ones);
+			InputBuffer1 = FAudioBufferReadRef::CreateNew(Ones);
 		}
 
 		if (!SetReadableRefIfInCollection(TEXT("InputBuffer2"), InInputDataReferences, InputBuffer2))
 		{
-			InputBuffer2 = FAudioBufferReadRef(Ones);
+			InputBuffer2 = FAudioBufferReadRef::CreateNew(Ones);
 		}
 
 		return MakeUnique<FAudioMultiplyOperator>(InOperatorSettings, InputBuffer1, InputBuffer2);
@@ -95,6 +96,10 @@ namespace Metasound
 
 		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("OutpuBufferTooltip", "The output audio."));
 	}
+
+	FAudioMultiplyNode::FAudioMultiplyNode(const FNodeInitData& InInitData)
+		: FAudioMultiplyNode(InInitData.InstanceName)
+	{}
 
 	FAudioMultiplyNode::~FAudioMultiplyNode()
 	{

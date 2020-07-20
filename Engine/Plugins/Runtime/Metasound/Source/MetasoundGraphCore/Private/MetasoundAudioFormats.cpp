@@ -8,6 +8,10 @@
 
 namespace Metasound
 {
+	REGISTER_METASOUND_DATATYPE(FAudioBuffer)
+	REGISTER_METASOUND_DATATYPE(FUnformattedAudio)
+	REGISTER_METASOUND_DATATYPE(FMultichannelAudioFormat)
+
 	/* FUnformattedAudio */
 
 	FUnformattedAudio::FUnformattedAudio(int32 InNumFrames, int32 InNumChannels, int32 InMaxNumChannels)
@@ -20,7 +24,7 @@ namespace Metasound
 
 		for (int32 i = 0; i < MaxNumChannels; i++)
 		{
-			FAudioBufferWriteRef Audio(NumFrames);
+			FAudioBufferWriteRef Audio = FAudioBufferWriteRef::CreateNew(NumFrames);
 			Audio->Zero();
 
 			WritableBufferStorage.Add(Audio);
@@ -28,6 +32,11 @@ namespace Metasound
 		}
 
 		SetNumChannels(InNumChannels);
+	}
+
+	FUnformattedAudio::FUnformattedAudio(int32 InInitialNumChannels, const FOperatorSettings& InSettings)
+		: FUnformattedAudio(InSettings.FramesPerExecute, InInitialNumChannels, 8)
+	{
 	}
 
 	int32 FUnformattedAudio::SetNumChannels(int32 InNumChannels)
@@ -56,7 +65,7 @@ namespace Metasound
 
 		for (int32 i = 0; i < NumChannels; i++)
 		{
-			FAudioBufferWriteRef Audio(InNumFrames);
+			FAudioBufferWriteRef Audio = FAudioBufferWriteRef::CreateNew(InNumFrames);
 			Audio->Zero();
 
 			WritableBufferStorage.Add(Audio);
@@ -66,6 +75,11 @@ namespace Metasound
 		WritableBuffers = WritableBufferStorage;
 		ReadableBuffers = ReadableBufferStorage;
 	}
+
+	FMultichannelAudioFormat::FMultichannelAudioFormat(int32 InNumChannels, const FOperatorSettings& InSettings)
+		: FMultichannelAudioFormat(InSettings.FramesPerExecute, InNumChannels)
+	{}
+
 
 	FMultichannelAudioFormat::FMultichannelAudioFormat(TArrayView<const FAudioBufferWriteRef> InWriteRefs)
 	:	NumChannels(InWriteRefs.Num())

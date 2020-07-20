@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 namespace Metasound
 {
@@ -28,6 +29,15 @@ namespace Metasound
 			 * @param InMaxNumChannels - Maximum number of audio channels.
 			 */
 			FUnformattedAudio(int32 InNumFrames, int32 InNumChannels, int32 InMaxNumChannels);
+
+			/**
+			 * FUnformattedAudio Constructor used by the metasound frontend.
+			 *
+			 * @param InNumChannels - initial number of audio channels.
+			 * @param InSettings - Operator Settings passed in on construction.
+			 */
+			explicit FUnformattedAudio(int32 InNumChannels, const FOperatorSettings& InSettings);
+
 
 			/** Sets the number of audio channels.
 			 * 
@@ -105,6 +115,14 @@ namespace Metasound
 			 */
 			FMultichannelAudioFormat(int32 InNumFrames, int32 InNumChannels);
 
+			/**
+			 * FMultichannelAudioFormat Constructor used by the metasound frontend.
+			 *
+			 * @param InNumChannels - initial number of audio channels.
+			 * @param InSettings - Operator Settings passed in on construction.
+			 */
+			explicit FMultichannelAudioFormat(int32 InNumChannels, const FOperatorSettings& InSettings);
+
 			/** FMultichannelAudioFormat Constructor.
 			 *
 			 * This constructor accepts an array of writable audio buffer references. Each 
@@ -118,13 +136,13 @@ namespace Metasound
 			FMultichannelAudioFormat(const FMultichannelAudioFormat& InOther) = default;
 
 			// Disable move constructor as incoming object should not be altered. 
-			FMultichannelAudioFormat(FMultichannelAudioFormat&& InOther) = delete;
+			//FMultichannelAudioFormat(FMultichannelAudioFormat&& InOther) = delete;
 
 			// Disable equal operator so channel count does not change
 			FMultichannelAudioFormat& operator=(const FMultichannelAudioFormat& Other) = delete;
 
 			// Disable move operator so channel count does not change
-			FMultichannelAudioFormat& operator=(FMultichannelAudioFormat&& Other) = delete;
+			//FMultichannelAudioFormat& operator=(FMultichannelAudioFormat&& Other) = delete;
 
 			/** Return the number of audio channels. */
 			int32 GetNumChannels() const { return NumChannels; }
@@ -202,7 +220,7 @@ namespace Metasound
 
 				for (int32 i = 0; i < NumChannels; i++)
 				{
-					FAudioBufferWriteRef Audio(InNumFrames);
+					FAudioBufferWriteRef Audio = FAudioBufferWriteRef::CreateNew(InNumFrames);
 					Audio->Zero();
 
 					WritableBufferStorage.Add(Audio);
@@ -439,12 +457,16 @@ namespace Metasound
 
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FUnformattedAudio, "Audio:Unformatted", 0xd78a3ed1 , FUnformattedAudioTypeInfo, FUnformattedAudioReadRef, FUnformattedAudioWriteRef);
+	
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMultichannelAudioFormat, "Audio:Multichannel", 0x56bdcbe0 , FMultichannelAudioFormatTypeInfo, FMultichannelAudioFormatReadRef, FMultichannelAudioFormatWriteRef);
+	
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMonoAudioFormat, "Audio:Mono", 0x6f468c8c, FMonoAudioFormatTypeInfo, FMonoAudioFormatReadRef, FMonoAudioFormatWriteRef);
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FStereoAudioFormat, "Audio:Stereo", 0xb55304e2 , FStereoAudioFormatTypeInfo, FStereoAudioFormatReadRef, FStereoAudioFormatWriteRef);
-
-
+	
+	// TODO: Neither of these are trivially constructible, becuase they are actually views into a preexisting buffer.
+	//REGISTER_METASOUND_DATATYPE(FMonoAudioFormat)
+	//REGISTER_METASOUND_DATATYPE(FStereoAudioFormat)
 }

@@ -12,6 +12,7 @@ namespace Metasound
 {
 	class METASOUNDGRAPHCORE_API FAudioMultiplyNode : public FNode
 	{
+
 			class FOperatorFactory : public IOperatorFactory
 			{
 				public:
@@ -37,14 +38,37 @@ namespace Metasound
 
 			FAudioMultiplyNode(const FString& InName);
 
+			// Constructor used by the Metasound Frontend.
+			FAudioMultiplyNode(const FNodeInitData& InInitData);
+
 			virtual ~FAudioMultiplyNode();
 
 			virtual const FName& GetClassName() const override;
 
 			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
 
+			virtual const FString& GetDescription() const override
+			{
+				static FString StaticDescription = TEXT("This node multiplies to audio signals together. This is useful for amplitude modulation and other applications.");
+				return StaticDescription;
+			}
+
+			virtual const FString& GetAuthorName() const override
+			{
+				static FString Author = TEXT("Epic Games");
+				return Author;
+			}
+
+			virtual const FString& GetPromptIfMissing() const override
+			{
+				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
+				return Prompt;
+			}
+
 		private:
 
 			FOperatorFactory Factory;
 	};
+
+	
 }

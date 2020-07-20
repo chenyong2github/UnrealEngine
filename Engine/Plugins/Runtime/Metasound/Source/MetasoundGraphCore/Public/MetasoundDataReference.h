@@ -3,27 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/TVariant.h"
 
-
-/** Macros to make declaring a metasound parameter simple.  */
-
+/** Macro to make declaring a metasound parameter simple.  */
 // Declares a metasound parameter type by
 // - Adding typedefs for commonly used template types.
 // - Defining parameter type traits.
 #define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, DataTypeName, DataTypeMagicNumber, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
 	template<> \
-	struct TDataReferenceTypeInfo<DataType> \
+	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
 	{ \
 		static constexpr const TCHAR* TypeName = TEXT(DataTypeName); \
-		static constexpr FDataTypeMagicNumber MagicNumber = (DataTypeMagicNumber); \
+		static constexpr ::Metasound::FDataTypeMagicNumber MagicNumber = (DataTypeMagicNumber); \
+		static constexpr bool bIsStringParsable = TTestIfDataTypeCtorIsImplemented<DataType, const FString&>::Value; \
+		static constexpr bool bIsBoolParsable = TTestIfDataTypeCtorIsImplemented<DataType, bool>::Value; \
+		static constexpr bool bIsIntParsable = TTestIfDataTypeCtorIsImplemented<DataType, int32>::Value; \
+		static constexpr bool bIsFloatParsable = TTestIfDataTypeCtorIsImplemented<DataType, float>::Value; \
+		static constexpr bool bIsConstructableWithSettings = TTestIfDataTypeDefaultCtorIsImplemented<DataType>::Value; \
+		static constexpr bool bCanUseDefaultConstructor = TIsConstructible<DataType>::Value; \
+		static constexpr bool bIsValidSpecialization = true; \
 	}; \
 	\
-	typedef TDataReferenceTypeInfo<DataType> DataTypeInfoTypeName; \
+	typedef ::Metasound::TDataReferenceTypeInfo<DataType> DataTypeInfoTypeName; \
 	\
-	typedef TDataReadReference<DataType> DataReadReferenceTypeName; \
-	typedef TDataWriteReference<DataType> DataWriteReferenceTypeName; \
-
-
+	typedef ::Metasound::TDataReadReference<DataType> DataReadReferenceTypeName; \
+	typedef ::Metasound::TDataWriteReference<DataType> DataWriteReferenceTypeName; \
 
 namespace Metasound
 {
@@ -77,6 +81,14 @@ namespace Metasound
 		// This static assert is triggered if TDataReferenceTypeInfo is used 
 		// without specialization.
 		static_assert(TSpecializationHelper<DataType>::Value, "TDataReferenceTypeInfo must be specialized.  Use macro DECLARE_METASOUND_DATA_REFERENCE_TYPES");
+	
+		static constexpr bool bIsStringParsable = false;
+		static constexpr bool bIsBoolParsable = false;
+		static constexpr bool bIsIntParsable = false;
+		static constexpr bool bIsFloatParsable = false;
+		static constexpr bool bIsConstructableWithSettings = false;
+		static constexpr bool bCanUseDefaultConstructor = false;
+		static constexpr bool bIsValidSpecialization = false;
 	};
 
 	template<typename DataType>
@@ -87,6 +99,14 @@ namespace Metasound
 		return TypeName;
 	}
 	
+
+	// This enum is used as a token to explicitly delineate when we should create a new object for the reference,
+	// or use a different constructor.
+	enum class EDataRefShouldConstruct
+	{
+		NewObject
+	};
+
 	/** Template class for a paramter reference. 
 	 *
 	 * This fulfills the IParamterRef interface, utilizing TDataReferenceTypeInfo to
@@ -95,15 +115,27 @@ namespace Metasound
 	template <typename DataType>
 	class TDataReference : public IDataReference
 	{
+	protected:
+		/**
+		 * This constructor forwards arguments to an underlying constructor.
+		 */
+		template <typename... ArgTypes>
+		TDataReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
+			: ObjectReference(MakeShared<DataType, ESPMode::NotThreadSafe>(Forward<ArgTypes>(Args)...))
+		{
+		}
+
 		public:
 			typedef TSharedRef<DataType, ESPMode::NotThreadSafe> FRefType;
 
 			typedef TDataReferenceTypeInfo<DataType> FInfoType;
 
-			/** This constructor forwards arguments to the constructor of the underlying DataType.
+
+			/*
+			 * This constructor forwards arguments to the constructor of the underlying DataType.
 			 *
 			 * SFINAE is used to disable copy and move constructors as those are defined separately. 
-			 */
+			 
 			template <
 				typename... ArgTypes,
 				typename = typename TEnableIf<
@@ -111,7 +143,7 @@ namespace Metasound
 						sizeof...(ArgTypes) != 0,
 						TOrValue<
 							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, /*typename*/ TDataReference<DataType> > >
+							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type,  TDataReference<DataType> > >
 						>
 					>::Value
 				>::Type
@@ -121,13 +153,23 @@ namespace Metasound
 			{
 			}
 
-	
+			
+			
 			// TODO: having issues compiling this on linux when no default constructor is available. 
-			/** Construct operator with no arguments if the DataType has a default constructor.  */
+			// Construct operator with no arguments if the DataType has a default constructor.
 			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
 			TDataReference()
 			:	ObjectReference(MakeShared<DataType, ESPMode::NotThreadSafe>())
 			{
+			}
+			*/
+
+			// This should be used to construct a new DataType object and return this TDataReference as a wrapper around it.
+			template <typename... ArgTypes>
+			static TDataReference<DataType> CreateNew(ArgTypes&&... Args)
+			{
+				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataReference::CreateNew with args that don't match any constructor for an underlying type!");
+				return TDataReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
 			/** Enable copy constructor */
@@ -180,10 +222,18 @@ namespace Metasound
 	template <typename DataType>
 	class TDataWriteReference : public TDataReference<DataType>
 	{
+		// Construct operator with no arguments if the DataType has a default constructor.
+		template <typename... ArgTypes>
+		TDataWriteReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
+			: FDataReference(InToken, Forward<ArgTypes>(Args)...)
+		{
+		}
+
 		public:
 			typedef TDataReference<DataType> FDataReference;
 
-			/** Construct operator type with arguments to "DataType" constructor. */
+			/*
+			// Construct operator type with arguments to "DataType" constructor. 
 			template<
 				typename... ArgTypes,
 				typename = typename TEnableIf<
@@ -191,7 +241,7 @@ namespace Metasound
 						sizeof...(ArgTypes) != 0,
 						TOrValue<
 							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, /*typename*/ TDataReference<DataType> > >
+							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, TDataReference<DataType> > >
 						>
 					>::Value
 				>::Type
@@ -201,12 +251,22 @@ namespace Metasound
 			{
 			}
 
-	
-			/** Construct operator with no arguments if the DataType has a default constructor.  */
+			
+			// Construct operator with no arguments if the DataType has a default constructor.
 			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
 			TDataWriteReference()
 			:	FDataReference()
 			{
+			}
+
+			*/
+
+			// This should be used to construct a new DataType object and return this TDataWriteReference as a wrapper around it.
+			template <typename... ArgTypes>
+			static TDataWriteReference<DataType> CreateNew(ArgTypes&&... Args)
+			{
+				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataWriteReference::CreateNew with args that don't match any constructor for an underlying type!");
+				return TDataWriteReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
 			/** Enable copy constructor */
@@ -289,10 +349,18 @@ namespace Metasound
 	template <typename DataType>
 	class TDataReadReference : public TDataReference<DataType>
 	{
+		// Construct operator with no arguments if the DataType has a default constructor.
+		template <typename... ArgTypes>
+		TDataReadReference(EDataRefShouldConstruct InToken, ArgTypes&&... Args)
+			: FDataReference(InToken, Forward<ArgTypes>(Args)...)
+		{
+		}
+
 		public:
 			typedef TDataReference<DataType> FDataReference;
 
-			/** Construct operator type with arguments to "DataType" constructor. */
+			/*
+			// Construct operator type with arguments to "DataType" constructor. 
 			template<
 				typename... ArgTypes,
 				typename = typename TEnableIf<
@@ -300,7 +368,7 @@ namespace Metasound
 						sizeof...(ArgTypes) != 0,
 						TOrValue<
 							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, /*typename*/ TDataReference<DataType> > >
+							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, TDataReference<DataType> > >
 						>
 					>::Value
 				>::Type
@@ -310,11 +378,21 @@ namespace Metasound
 			{
 			}
 
-			/** Construct operator with no arguments if the DataType has a default constructor.  */
+			
+			// Construct operator with no arguments if the DataType has a default constructor.
 			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
 			TDataReadReference()
 			:	FDataReference()
 			{
+			}
+			*/
+
+			// This should be used to construct a new DataType object and return this TDataReadReference as a wrapper around it.
+			template <typename... ArgTypes>
+			static TDataReadReference<DataType> CreateNew(ArgTypes&&... Args)
+			{
+				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataReadReference::CreateNew with args that don't match any constructor for an underlying type!");
+				return TDataReadReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
 			TDataReadReference(const TDataReadReference& Other) = default;
@@ -360,5 +438,46 @@ namespace Metasound
 
 				return MakeUnique< FDataReadReference >(*this);
 			}
+	};
+
+	enum class ELiteralArgType : uint8
+	{
+		Boolean,
+		Integer,
+		Float,
+		String,
+		None, // If this is set, we will invoke TType(const FOperatorSettings&) If that constructor exists, or the default constructor if not.
+		Invalid,
+	};
+
+	// Various elements that we pass to the frontend registry based on templated type traits.
+	struct FDataTypeRegistryInfo
+	{
+		// The name of the data type itself.
+		FName DataTypeName;
+
+		// What type we should default to using for literals.
+		ELiteralArgType PreferredLiteralType;
+
+		// These bools signify what basic
+		// UProperty primitives we can use to describe this data type as a literal in a document.
+		bool bIsBoolParsable;
+		bool bIsIntParsable;
+		bool bIsFloatParsable;
+		bool bIsStringParsable;
+
+		// This indicates the type can only be constructed with FOperatorSettings and no other args.
+		// TODO: these can be consolidated to a single bool, since FDataTypeLiteralParam automatically falls back to not using the settings.
+		bool bIsConstructableWithSettings;
+		bool bIsDefaultConstructible;
+
+		FDataTypeRegistryInfo()
+			: bIsBoolParsable(false)
+			, bIsIntParsable(false)
+			, bIsFloatParsable(false)
+			, bIsStringParsable(false)
+			, bIsConstructableWithSettings(false)
+			, bIsDefaultConstructible(false)
+		{}
 	};
 }

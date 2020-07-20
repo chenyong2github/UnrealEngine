@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MetasoundDataReference.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 namespace Metasound
 { 
@@ -68,6 +69,11 @@ namespace Metasound
 						SetSeconds(InValue);
 				}
 			}
+
+			/** Constructor used by the metasound backend. */
+			TTime(QuantizationType InSeconds)
+				: TTime(InSeconds, ETimeResolution::Seconds)
+			{}
 
 			/** Returns the time as seconds. */
 			TimeType GetSeconds() const 
@@ -289,6 +295,16 @@ namespace Metasound
 						SetSeconds(InValue);
 				}
 			}
+
+			/**
+			 * Constructor used by the Metasound Frontend.
+			 *
+			 * @param InSeconds The number in time to initialize to.
+			 * @param InSettings the operator settings to use.
+			 */
+			TTime(float InSeconds, const FOperatorSettings& InSettings)
+				: TTime(InSeconds, ETimeResolution::Seconds, InSettings.SampleRate)
+			{}
 
 			/** Construct a sample count based TTime using a number of samples
 			 * and a sample rate.

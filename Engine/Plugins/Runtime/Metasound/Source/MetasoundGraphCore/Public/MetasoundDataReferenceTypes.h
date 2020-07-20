@@ -4,6 +4,7 @@
 
 #include "MetasoundDataReference.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 namespace Metasound
 {

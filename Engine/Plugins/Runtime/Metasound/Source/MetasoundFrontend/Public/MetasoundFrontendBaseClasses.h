@@ -5,12 +5,53 @@
 #include "CoreMinimal.h"
 #include "Misc/TVariant.h"
 #include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontendRegistries.h"
+
 
 
 namespace Metasound
-{	
+{
 	namespace Frontend
 	{
+		// This is called by FMetasoundFrontendModule, and flushes any node or datatype registration that was done prior to boot.
+		void InitializeFrontend();
+
+		/** Use this to get a reference to the static registry of all nodes implemented in C++. */
+		TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
+
+		// Convenience functions to create an INode corresponding to a specific input or output for a metasound graph.
+		// @returns nullptr if the type given wasn't found.
+		TUniquePtr<INode> ConstructInputNode(const FName& InInputType, const FInputNodeConstructorParams& InParams);
+		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams);
+
+		// Convenience functions to create an INodeB corresponding to a specific externally declared node type.
+		// InNodeType and InNodeHash can be retrieved from the FNodeClassInfo generated from the node registry queries in the metasound frontend (GetAllAvailableNodeClasses, GetAllNodeClassesInNamespace, etc.)
+		// @returns nullptr if the type given wasn't found.
+		TUniquePtr<INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const FNodeInitData& InInitData);
+
+		// Utility functions for setting serialized literals.
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, bool InValue);
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue);
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue);
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue);
+		void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription);
+
+		// Utility functions for building a ::Metasound::FDataInitParam corresponding to a literal.
+
+		// Return the literal description parsed into a init param. 
+		// @Returns an invalid init param if the data type couldn't be found, or if the literal type was incompatible with the data type.
+		FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription);
+
+		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundLiteralType InLiteralType);
+		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralArgType InLiteralType);
+		
+		// Returns a literal param without any type checking.
+		FDataTypeLiteralParam GetLiteralParam(const FMetasoundLiteralDescription& InDescription);
+
+		// Returns the defaulted version of a literal param for the given data type.
+		// @Returns an invalid init param if the data type couldn't be found.
+		FDataTypeLiteralParam GetDefaultParamForDataType(FName InDataType);
+
 		// Utility base class for classes that want to support naive multi-level undo/redo.
 		class METASOUNDFRONTEND_API ITransactable : public TSharedFromThis<ITransactable>
 		{
@@ -458,6 +499,11 @@ namespace Metasound
 			FDescPath GetDependencyPath(const FString& InDependencyName);
 
 			FDescPath GetDependencyPath(uint32 InDependencyID);
+
+			// Given the path to an input node, returns the path to the corresponding  input description.
+			FDescPath GetInputDescriptionPath(FDescPath InPathForInputNode, const FString& InputName);
+
+			FDescPath GetOutputDescriptionPath(FDescPath InPathForOutputNode, const FString& OutputName);
 
 			// Generates a human readable string for a path into a Metasound description. Used for debugging.
 			FString GetPrintableString(FDescPath InPath);

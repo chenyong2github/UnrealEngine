@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 
 #include "MetasoundAudioFormats.h"
+#include "MetasoundOperatorBuilder.h"
 
 
 static int32 MetasoundUndoRollLimitCvar = 128;
@@ -25,52 +26,190 @@ namespace Metasound
 	{
 		TArray<FNodeClassInfo> GetAllAvailableNodeClasses()
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return TArray<FNodeClassInfo>();
+			TArray<FNodeClassInfo> OutClasses;
+
+			auto& Registry = GetExternalNodeRegistry();
+			for (auto& NodeClassTuple : Registry)
+			{
+				FNodeClassInfo ClassInfo;
+				ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
+				ClassInfo.NodeType = EMetasoundClassType::External;
+				ClassInfo.LookupKey = NodeClassTuple.Key;
+
+				OutClasses.Add(ClassInfo);
+			}
+
+			return OutClasses;
 		}
 
 		TArray<FNodeClassInfo> GetAllNodeClassesInNamespace(const FString& InNamespace)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return TArray<FNodeClassInfo>();
+			TArray<FNodeClassInfo> OutClasses;
+
+			auto& Registry = GetExternalNodeRegistry();
+			for (auto& NodeClassTuple : Registry)
+			{
+				// TODO: Build fname namespace tree. as we register nodes and types.
+				// for now we just parse the string here.
+				FString NodeName = NodeClassTuple.Key.NodeName.ToString();
+				if (NodeName.StartsWith(InNamespace))
+				{
+					FNodeClassInfo ClassInfo;
+					ClassInfo.NodeName = NodeName;
+					ClassInfo.NodeType = EMetasoundClassType::External;
+					ClassInfo.LookupKey = NodeClassTuple.Key;
+
+					OutClasses.Add(ClassInfo);
+				}
+			}
+
+			return OutClasses;
 		}
 
 		TArray<FNodeClassInfo> GetAllNodesWhoseNameContains(const FString& InSubstring)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return TArray<FNodeClassInfo>();
+			TArray<FNodeClassInfo> OutClasses;
+
+			auto& Registry = GetExternalNodeRegistry();
+			for (auto& NodeClassTuple : Registry)
+			{
+				FString NodeName = NodeClassTuple.Key.NodeName.ToString();
+				if (NodeName.Contains(InSubstring))
+				{
+					FNodeClassInfo ClassInfo;
+					ClassInfo.NodeName = NodeName;
+					ClassInfo.NodeType = EMetasoundClassType::External;
+					ClassInfo.LookupKey = NodeClassTuple.Key;
+
+					OutClasses.Add(ClassInfo);
+				}
+			}
+
+			return OutClasses;
 		}
 
 		TArray<FNodeClassInfo> GetAllNodesWithAnOutputOfType(const FName& InType)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return TArray<FNodeClassInfo>();
+			TArray<FNodeClassInfo> OutClasses;
+
+			auto& Registry = GetExternalNodeRegistry();
+			for (auto& NodeClassTuple : Registry)
+			{
+				if (NodeClassTuple.Value.OutputTypes.Contains(InType))
+				{
+					FNodeClassInfo ClassInfo;
+					ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
+					ClassInfo.NodeType = EMetasoundClassType::External;
+					ClassInfo.LookupKey = NodeClassTuple.Key;
+
+					OutClasses.Add(ClassInfo);
+					break;
+				}
+			}
+
+			return OutClasses;
 		}
 
 		TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return TArray<FNodeClassInfo>();
+			TArray<FNodeClassInfo> OutClasses;
+
+			auto& Registry = GetExternalNodeRegistry();
+			for (auto& NodeClassTuple : Registry)
+			{
+				if (NodeClassTuple.Value.InputTypes.Contains(InType))
+				{
+					FNodeClassInfo ClassInfo;
+					ClassInfo.NodeName = NodeClassTuple.Key.NodeName.ToString();
+					ClassInfo.NodeType = EMetasoundClassType::External;
+					ClassInfo.LookupKey = NodeClassTuple.Key;
+
+					OutClasses.Add(ClassInfo);
+					break;
+				}
+			}
+
+			return OutClasses;
 		}
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundClassMetadata GetMetadataForNode(const FNodeClassInfo& InInfo)
+		FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return FMetasoundClassMetadata();
+			return GenerateClassDescriptionForNode(InInfo).Metadata;
 		}
 
-		FMetasoundClassDescription GetClassDescriptionForNode(const FNodeClassInfo& InInfo)
+		FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo)
 		{
-			// UEAU-471
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return FMetasoundClassDescription();
+			FNodeInitData DummyInitData;
+			DummyInitData.InstanceName = FString(TEXT("Unused node for registration"));
+
+			auto& Registry = GetExternalNodeRegistry();
+			if (Registry.Contains(InInfo.LookupKey))
+			{
+				TUniquePtr<Metasound::INode> DummyNode = Registry[InInfo.LookupKey].GetterCallback(DummyInitData);
+
+				if (!ensureAlwaysMsgf(DummyNode.IsValid(), TEXT("Node class %s failed to return a valid node. Likely something is wrong with the METASOUND_REGISTER_NODE macro.")))
+				{
+					return FMetasoundClassDescription();
+				}
+
+				const FName NodeName = DummyNode->GetClassName();
+				const FInputDataVertexCollection& Inputs = DummyNode->GetInputDataVertices();
+				const FOutputDataVertexCollection& Outputs = DummyNode->GetOutputDataVertices();
+
+				FMetasoundClassMetadata NodeMetadata;
+				NodeMetadata.NodeName = NodeName.ToString();
+				NodeMetadata.NodeType = EMetasoundClassType::External;
+				NodeMetadata.AuthorName = DummyNode->GetAuthorName();
+				NodeMetadata.MetasoundDescription = DummyNode->GetDescription();
+				NodeMetadata.PromptIfMissing = DummyNode->GetPromptIfMissing();
+
+				FMetasoundClassDescription ClassDescription;
+				ClassDescription.Metadata = NodeMetadata;
+
+				// External metasounds aren't dependent on any other nodes by definition, so all we need to do
+				// is populate the Input and Output sets.
+				for (auto& InputTuple : Inputs)
+				{
+					FMetasoundInputDescription InputDescription;
+					InputDescription.Name = InputTuple.Value.VertexName;
+					InputDescription.TypeName = InputTuple.Value.DataReferenceTypeName;
+					InputDescription.ToolTip = InputTuple.Value.Description;
+
+					ClassDescription.Inputs.Add(InputDescription);
+				}
+
+				for (auto& OutputTuple : Outputs)
+				{
+					FMetasoundOutputDescription OutputDescription;
+					OutputDescription.Name = OutputTuple.Value.VertexName;
+					OutputDescription.TypeName = OutputTuple.Value.DataReferenceTypeName;
+					OutputDescription.ToolTip = OutputTuple.Value.Description;
+
+					ClassDescription.Outputs.Add(OutputDescription);
+				}
+
+				// Populate lookup data.
+				ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassName = InInfo.LookupKey.NodeName;
+				ClassDescription.ExternalNodeClassLookupInfo.ExternalNodeClassHash = InInfo.LookupKey.NodeHash;
+
+				return ClassDescription;
+			}
+			else
+			{
+				ensureAlwaysMsgf(false, TEXT("Tried to get Class Description for unknown node %s!"), *InInfo.NodeName);
+				return FMetasoundClassDescription();
+			}
+		}
+
+		TArray<FName> GetAllAvailableDataTypes()
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->GetAllValidDataTypes();
+		}
+
+		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo)
+		{
+			return FMetasoundFrontendRegistryContainer::Get()->GetInfoForDataType(InDataType, OutInfo);
 		}
 
 		FInputHandle::FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName)
@@ -78,11 +217,26 @@ namespace Metasound
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
 			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.InClassName))
 			, InputPtr(InParams.InAccessPoint, NodeClass.GetPath()[Path::EFromClass::ToInputs][*InputName])
+			, OutputNodePtr(nullptr, FDescPath())
 		{
 			if (InParams.InAccessPoint.IsValid())
 			{
 				// Test both pointers to the graph and it's owning class description.
 				ensureAlwaysMsgf(NodePtr.IsValid() && NodeClass.IsValid() && InputPtr.IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
+			}
+		}
+
+		FInputHandle::FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams)
+			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
+			, NodePtr(InParams.InAccessPoint, InParams.InPath)
+			, NodeClass(nullptr, FDescPath())
+			, InputPtr(nullptr, FDescPath())
+			, OutputNodePtr(InParams.InAccessPoint, Path::GetOutputDescriptionPath(InParams.InPath, InParams.InClassName))
+		{
+			if (InParams.InAccessPoint.IsValid())
+			{
+				// Test both pointers to the graph and it's owning class description.
+				ensureAlwaysMsgf(NodePtr.IsValid() && OutputNodePtr.IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
 			}
 		}
 
@@ -96,7 +250,8 @@ namespace Metasound
 
 		bool FInputHandle::IsValid() const
 		{
-			return NodePtr.IsValid() && NodeClass.IsValid() && InputPtr.IsValid();
+			return (NodePtr.IsValid() && NodeClass.IsValid() && InputPtr.IsValid())
+				|| (NodePtr.IsValid() && OutputNodePtr.IsValid());
 		}
 
 		bool FInputHandle::IsConnected() const
@@ -124,7 +279,19 @@ namespace Metasound
 				return FName();
 			}
 
-			return InputPtr->TypeName;
+			if (InputPtr.IsValid())
+			{
+				return InputPtr->TypeName;
+			}
+			else if (OutputNodePtr.IsValid())
+			{
+				return OutputNodePtr->TypeName;
+			}
+			else
+			{
+				checkNoEntry();
+				return FName();
+			}
 		}
 
 		FString FInputHandle::GetInputName() const
@@ -134,17 +301,41 @@ namespace Metasound
 				return FString();
 			}
 
-			return InputPtr->Name;
+			if (InputPtr.IsValid())
+			{
+				return InputPtr->Name;
+			}
+			else if (OutputNodePtr.IsValid())
+			{
+				return OutputNodePtr->Name;
+			}
+			else
+			{
+				checkNoEntry();
+				return FString();
+			}
 		}
 
-		FString FInputHandle::GetInputTooltip() const
+		FText FInputHandle::GetInputTooltip() const
 		{
 			if (!IsValid())
 			{
-				return FString();
+				return FText();
 			}
 
-			return InputPtr->ToolTip;
+			if (InputPtr.IsValid())
+			{
+				return InputPtr->ToolTip;
+			}
+			else if (OutputNodePtr.IsValid())
+			{
+				return OutputNodePtr->ToolTip;
+			}
+			else
+			{
+				checkNoEntry();
+				return FText();
+			}
 		}
 
 		FOutputHandle FInputHandle::GetCurrentlyConnectedOutput() const
@@ -162,15 +353,28 @@ namespace Metasound
 			const FMetasoundNodeConnectionDescription* Connection = GetConnectionDescription();
 			check(Connection);
 
-			FString OutputName = Connection->OutputNameOrLiteral;
+			FString OutputName = Connection->OutputName;
 			uint32 OutputNodeID = Connection->NodeID;
 
 			// All node connections are in the same graph, so we just need to go up one level to the Nodes array
 			// and look up the node by it's unique ID.
 			FDescPath OutputNodePath = (NodePtr.GetPath() << 1)[OutputNodeID];
-			FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, NodeClass->Metadata.NodeName, OwningAsset };
 
-			return FOutputHandle(FHandleInitParams::PrivateToken, InitParams,  OutputName);
+			if (NodeClass.IsValid())
+			{
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, NodeClass->Metadata.NodeName, OwningAsset };
+				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputName);
+			}
+			else if (OutputNodePtr.IsValid())
+			{
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), OutputNodePath, OutputNodePtr->Name, OwningAsset };
+				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputName);
+			}
+			else
+			{
+				checkNoEntry();
+				return FOutputHandle::InvalidHandle();
+			}
 		}
 
 		FConnectability FInputHandle::CanConnectTo(const FOutputHandle& InHandle) const
@@ -214,7 +418,7 @@ namespace Metasound
 			}
 
 			Connection->NodeID = OutputNodeID;
-			Connection->OutputNameOrLiteral = OutputName;
+			Connection->OutputName = OutputName;
 
 			return true;
 		}
@@ -233,7 +437,7 @@ namespace Metasound
 				return nullptr;
 			}
 
-			const TArray<FMetasoundNodeConnectionDescription>& Connections = (*NodePtr).InputConnections;
+			const TArray<FMetasoundNodeConnectionDescription>& Connections = NodePtr->InputConnections;
 
 			for (const FMetasoundNodeConnectionDescription& Connection : Connections)
 			{
@@ -253,7 +457,7 @@ namespace Metasound
 				return nullptr;
 			}
 
-			TArray<FMetasoundNodeConnectionDescription>& Connections = (*NodePtr).InputConnections;
+			TArray<FMetasoundNodeConnectionDescription>& Connections = NodePtr->InputConnections;
 
 			for (FMetasoundNodeConnectionDescription& Connection : Connections)
 			{
@@ -271,11 +475,26 @@ namespace Metasound
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
 			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.InClassName))
 			, OutputPtr(InParams.InAccessPoint, NodeClass.GetPath()[Path::EFromClass::ToOutputs][*InOutputName])
+			, InputNodePtr(nullptr, FDescPath())
 		{
 			if (InParams.InAccessPoint.IsValid())
 			{
 				// Test both pointers to the graph and it's owning class description.
 				ensureAlwaysMsgf(NodePtr.IsValid() && NodeClass.IsValid() && OutputPtr.IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
+			}
+		}
+
+		FOutputHandle::FOutputHandle(FHandleInitParams::EPrivateToken InToken, const FHandleInitParams& InParams)
+			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
+			, NodePtr(InParams.InAccessPoint, InParams.InPath)
+			, NodeClass(nullptr, FDescPath())
+			, OutputPtr(nullptr, FDescPath())
+			, InputNodePtr(InParams.InAccessPoint, Path::GetInputDescriptionPath(InParams.InPath, InParams.InClassName))
+		{
+			if (InParams.InAccessPoint.IsValid())
+			{
+				// Test both pointers to the graph and it's owning class description.
+				ensureAlwaysMsgf(NodePtr.IsValid() && InputNodePtr.IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
 			}
 		}
 
@@ -289,7 +508,8 @@ namespace Metasound
 
 		bool FOutputHandle::IsValid() const
 		{
-			return NodePtr.IsValid() && NodeClass.IsValid() && OutputPtr.IsValid();
+			return (NodePtr.IsValid() && NodeClass.IsValid() && OutputPtr.IsValid())
+				|| (NodePtr.IsValid() && InputNodePtr.IsValid());
 		}
 
 		FName FOutputHandle::GetOutputType() const
@@ -299,7 +519,19 @@ namespace Metasound
 				return FName();
 			}
 
-			return OutputPtr->TypeName;
+			if (OutputPtr.IsValid())
+			{
+				return OutputPtr->TypeName;
+			}
+			else if (InputNodePtr.IsValid())
+			{
+				return InputNodePtr->TypeName;
+			}
+			else
+			{
+				checkNoEntry();
+				return FName();
+			}
 		}
 
 		FString FOutputHandle::GetOutputName() const
@@ -309,17 +541,41 @@ namespace Metasound
 				return FString();
 			}
 
-			return OutputPtr->Name;
+			if (OutputPtr.IsValid())
+			{
+				return OutputPtr->Name;
+			}
+			else if (InputNodePtr.IsValid())
+			{
+				return InputNodePtr->Name;
+			}
+			else
+			{
+				checkNoEntry();
+				return FString();
+			}
 		}
 
-		FString FOutputHandle::GetOutputTooltip() const
+		FText FOutputHandle::GetOutputTooltip() const
 		{
 			if (!IsValid())
 			{
-				return FString();
+				return FText();
 			}
 
-			return OutputPtr->ToolTip;
+			if (OutputPtr.IsValid())
+			{
+				return OutputPtr->ToolTip;
+			}
+			else if (InputNodePtr.IsValid())
+			{
+				return InputNodePtr->ToolTip;
+			}
+			else
+			{
+				checkNoEntry();
+				return FText();
+			}
 		}
 
 		uint32 FOutputHandle::GetOwningNodeID() const
@@ -352,15 +608,16 @@ namespace Metasound
 			return InHandle.ConnectWithConverterNode(*this, InNodeClassName);
 		}
 
-		FNodeHandle::FNodeHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams)
+		FNodeHandle::FNodeHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, EMetasoundClassType InNodeClassType)
 			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
 			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.InClassName))
+			, NodeClassType(InNodeClassType)
 		{
 			if (InParams.InAccessPoint.IsValid())
 			{
 				// Test both pointers to the graph and it's owning class description.
-				ensureAlwaysMsgf(NodePtr.IsValid() && NodeClass.IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
+				ensureAlwaysMsgf(IsValid(), TEXT("Tried to build FGraphHandle with Invalid Path: %s"), *Path::GetPrintableString(InParams.InPath));
 			}
 		}
 
@@ -369,31 +626,46 @@ namespace Metasound
 			FDescPath InvalidPath;
 			FString InvalidClassName;
 			FHandleInitParams InitParams = { nullptr, InvalidPath, InvalidClassName, nullptr };
-			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, EMetasoundClassType::Invalid);
 		}
 
 		bool FNodeHandle::IsValid() const
 		{
-			return NodePtr.IsValid() && NodeClass.IsValid();
+			const bool bNeedsNodeClass = NodeClassType == EMetasoundClassType::External || NodeClassType == EMetasoundClassType::MetasoundGraph;
+			return NodePtr.IsValid() && (!bNeedsNodeClass || NodeClass.IsValid());
 		}
 
 		TArray<FInputHandle> FNodeHandle::GetAllInputs()
 		{
 			TArray<FInputHandle> OutArray;
 
-			if (!IsValid())
+			if (!IsValid() || NodeClassType == EMetasoundClassType::Input)
 			{
 				return OutArray;
 			}
 
-			TArray<FMetasoundInputDescription>& InputDescriptions = NodeClass->Inputs;
-
-			for (FMetasoundInputDescription& InputDescription : InputDescriptions)
+			if (NodeClassType == EMetasoundClassType::Output)
 			{
+				// Output nodes only have one input- the outgoing parameter.
 				FDescPath NodePath = NodePtr.GetPath();
-				FString ClassName = GetNodeClassName();
-				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, ClassName, OwningAsset };
-				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, InputDescription.Name);
+
+				const FString& NodeClassName = NodePtr->Name;
+
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName, OwningAsset };
+				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams);
+			}
+			else
+			{
+				// Iterate over our input descriptions and emplace a new handle for each of them.
+
+				TArray<FMetasoundInputDescription>& InputDescriptions = NodeClass->Inputs;
+				for (FMetasoundInputDescription& InputDescription : InputDescriptions)
+				{
+					FDescPath NodePath = NodePtr.GetPath();
+					FString ClassName = GetNodeClassName();
+					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, ClassName, OwningAsset };
+					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, InputDescription.Name);
+				}
 			}
 
 			return OutArray;
@@ -403,19 +675,32 @@ namespace Metasound
 		{
 			TArray<FOutputHandle> OutArray;
 
-			if (!IsValid())
+			if (!IsValid() || NodeClassType == EMetasoundClassType::Output)
 			{
 				return OutArray;
 			}
 
-			TArray<FMetasoundOutputDescription>& OutputDescriptions = NodeClass->Outputs;
-
-			for (FMetasoundOutputDescription& OutputDescription : OutputDescriptions)
+			if (NodeClassType == EMetasoundClassType::Input)
 			{
+				// Input nodes nodes only have one output- the incoming parameter.
 				FDescPath NodePath = NodePtr.GetPath();
-				FString NodeClassName = GetNodeClassName();
+
+				const FString& NodeClassName = NodePtr->Name;
+
 				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName, OwningAsset };
-				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, OutputDescription.Name);
+				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams);
+			}
+			else
+			{
+				TArray<FMetasoundOutputDescription>& OutputDescriptions = NodeClass->Outputs;
+
+				for (FMetasoundOutputDescription& OutputDescription : OutputDescriptions)
+				{
+					FDescPath NodePath = NodePtr.GetPath();
+					FString NodeClassName = GetNodeClassName();
+					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName, OwningAsset };
+					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, OutputDescription.Name);
+				}
 			}
 
 			return OutArray;
@@ -423,9 +708,19 @@ namespace Metasound
 
 		FInputHandle FNodeHandle::GetInputWithName(const FString& InName)
 		{
-			if (!IsValid())
+			if (!IsValid() || NodeClassType == EMetasoundClassType::Input)
 			{
 				return FInputHandle::InvalidHandle();
+			}
+
+			if (NodeClassType == EMetasoundClassType::Output)
+			{
+				const FString& NodeClassName = NodePtr->Name;
+				ensureAlwaysMsgf(InName == NodeClassName, TEXT("An output node's input connection should always be the same as it's class name!"));
+
+				FDescPath NodePath = NodePtr.GetPath();
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName , OwningAsset };
+				return FInputHandle(FHandleInitParams::PrivateToken, InitParams);
 			}
 
 			TArray<FMetasoundInputDescription>& InputDescriptions = NodeClass->Inputs;
@@ -435,7 +730,8 @@ namespace Metasound
 				if (InputDescription.Name == InName)
 				{
 					FString ClassName = GetNodeClassName();
-					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePtr.GetPath(), ClassName, OwningAsset };
+					FDescPath NodePath = NodePtr.GetPath();
+					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, ClassName, OwningAsset };
 					return FInputHandle(FHandleInitParams::PrivateToken, InitParams, InputDescription.Name);
 				}
 			}
@@ -446,9 +742,19 @@ namespace Metasound
 
 		FOutputHandle FNodeHandle::GetOutputWithName(const FString& InName)
 		{
-			if (!IsValid())
+			if (!IsValid() || NodeClassType == EMetasoundClassType::Output)
 			{
 				return FOutputHandle::InvalidHandle();
+			}
+
+			// all input nodes have one connectable output, which is the input param they represent.
+			if (NodeClassType == EMetasoundClassType::Input)
+			{
+				const FString& NodeClassName = NodePtr->Name;
+				ensureAlwaysMsgf(InName == NodeClassName, TEXT("An input node's output connection should always be the same as it's class name!"));
+				FDescPath NodePath = NodePtr.GetPath();
+				FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName , OwningAsset };
+				return FOutputHandle(FHandleInitParams::PrivateToken, InitParams);
 			}
 
 			TArray<FMetasoundOutputDescription>& OutputDescriptions = NodeClass->Outputs;
@@ -458,7 +764,8 @@ namespace Metasound
 				if (OutputDescription.Name == InName)
 				{
 					FString NodeClassName = GetNodeClassName();
-					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePtr.GetPath(), NodeClassName , OwningAsset };
+					FDescPath NodePath = NodePtr.GetPath();
+					FHandleInitParams InitParams = { NodePtr.GetAccessPoint(), NodePath, NodeClassName , OwningAsset };
 					return FOutputHandle(FHandleInitParams::PrivateToken, InitParams, OutputDescription.Name);
 				}
 			}
@@ -656,10 +963,32 @@ namespace Metasound
 				FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NodeDescription.UniqueID];
 
 				FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NodeDescription.Name, OwningAsset };
-				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams);
+				OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
 			}
 
 			return OutArray;
+		}
+
+		FNodeHandle FGraphHandle::GetNodeWithId(uint32 InNodeId)
+		{
+			if (!IsValid())
+			{
+				return FNodeHandle::InvalidHandle();
+			}
+
+			const TArray<FMetasoundNodeDescription>& NodeDescriptions = GraphPtr->Nodes;
+			for (const FMetasoundNodeDescription& NodeDescription : NodeDescriptions)
+			{
+				if (NodeDescription.UniqueID == InNodeId)
+				{
+					FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][InNodeId];
+					FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NodeDescription.Name, OwningAsset };
+					return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
+				}
+			}
+
+			ensureAlwaysMsgf(false, TEXT("Couldn't find node in graph with ID %u!"), InNodeId);
+			return FNodeHandle::InvalidHandle();
 		}
 
 		TArray<FNodeHandle> FGraphHandle::GetOutputNodes()
@@ -678,7 +1007,7 @@ namespace Metasound
 				{
 					FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NodeDescription.UniqueID];
 					FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NodeDescription.Name, OwningAsset };
-					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams);
+					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
 				}
 			}
 
@@ -701,7 +1030,7 @@ namespace Metasound
 				{
 					FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NodeDescription.UniqueID];
 					FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NodeDescription.Name, OwningAsset };
-					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams);
+					OutArray.Emplace(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
 				}
 			}
 
@@ -723,7 +1052,7 @@ namespace Metasound
 					FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NodeDescription.UniqueID];
 
 					FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, InName, OwningAsset };
-					return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+					return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
 				}
 			}
 
@@ -747,7 +1076,7 @@ namespace Metasound
 
 					// todo: add special enum for input/output nodes
 					FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, InName, OwningAsset };
-					return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+					return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NodeDescription.ObjectTypeOfNode);
 				}
 			}
 
@@ -796,7 +1125,7 @@ namespace Metasound
 			FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NewNodeDescription.UniqueID];
 			FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NewNodeDescription.Name, OwningAsset };
 			// todo: add special enum for input and output nodes
-			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
 
 		bool FGraphHandle::RemoveInput(const FString& InputName)
@@ -889,7 +1218,7 @@ namespace Metasound
 
 			// todo: add special enum or class for input/output nodes
 			FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NewNodeDescription.Name, OwningAsset };
-			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
 
 		bool FGraphHandle::RemoveOutput(const FString& OutputName)
@@ -984,7 +1313,7 @@ namespace Metasound
 			// If we haven't added a node of this class to the graph yet, add it to the dependencies for this class.
 			if (!bFoundMatchingDependencyInDocument)
 			{
-				FMetasoundClassDescription NewDependencyClassDescription = GetClassDescriptionForNode(InNodeClass);
+				FMetasoundClassDescription NewDependencyClassDescription = GenerateClassDescriptionForNode(InNodeClass);
 				NewDependencyClassDescription.UniqueID = FindNewUniqueDependencyId();
 				Dependencies.Add(NewDependencyClassDescription);
 				GraphsClassDeclaration->DependencyIDs.Add(NewDependencyClassDescription.UniqueID);
@@ -1010,7 +1339,7 @@ namespace Metasound
 
 			FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NewNodeDescription.UniqueID];
 			FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NewNodeDescription.Name, OwningAsset };
-			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams);
+			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
 
 		bool FGraphHandle::RemoveNode(const FNodeHandle& InNode, bool bEvenIfInputOrOutputNode /*= false*/)
@@ -1246,16 +1575,295 @@ namespace Metasound
 
 			FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NewNodeDescription.UniqueID];
 			FHandleInitParams NodeInitParams = { GraphPtr.GetAccessPoint(), NodePath, InInfo.NodeName, OwningAsset };
-			FNodeHandle SubgraphNode = FNodeHandle(FHandleInitParams::PrivateToken, NodeInitParams);
+			FNodeHandle SubgraphNode = FNodeHandle(FHandleInitParams::PrivateToken, NodeInitParams, NewNodeDescription.ObjectTypeOfNode);
 
 			return TTuple<FGraphHandle, FNodeHandle>(SubgraphHandle, SubgraphNode);
 		}
 
-		TUniquePtr<Metasound::IOperator> FGraphHandle::BuildOperator()
+		TUniquePtr<IOperator> FGraphHandle::BuildOperator(const FOperatorSettings& InSettings, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const
 		{
-			// @todo: bring over operator builder from previous frontend draft with this new implementation.
-			ensureAlwaysMsgf(false, TEXT("Implement Me!"));
-			return nullptr;
+			if (!IsValid())
+			{
+				return nullptr;
+			}
+
+			// TODO: Implement inflation step here.
+
+			// At this point, we should be left with a flat graph of externally implemented nodes.
+			using FGraph = Metasound::FGraph;
+			using FDataEdge = Metasound::FDataEdge;
+			using INodePtr = TUniquePtr<INode>;
+
+			TArray<FName> DataTypes = GetAllAvailableDataTypes();
+
+			auto IsInputNode = [](const FMetasoundNodeDescription& InDescription) -> bool
+			{
+				return InDescription.ObjectTypeOfNode == EMetasoundClassType::Input;
+			};
+
+			auto IsOutputNode = [](const FMetasoundNodeDescription& InDescription) -> bool
+			{
+				return InDescription.ObjectTypeOfNode == EMetasoundClassType::Output;
+			};
+
+			int32 TotalNodesGenerated = 0;
+
+			// These maps are used to fix up input and output destinations after we have fully connected the graph.
+			TMap<int32, uint32> InputIndexToInputNodeIDs;
+			TMap<int32, uint32> OutputIndexToInputNodeIDs;
+
+			// Helper for auto-generating nodes.
+			auto GetNodePtr = [&](const FMetasoundNodeDescription& InDescription) -> INodePtr
+			{
+				if (IsInputNode(InDescription))
+				{
+					// Find this in the graph's class description's list of inputs, until we find a match.
+					const TArray<FMetasoundInputDescription>& InputDescriptions = GraphsClassDeclaration->Inputs;
+
+					int32 InputDescriptionIndex = 0;
+
+					for (const FMetasoundInputDescription& InputDescription : InputDescriptions)
+					{
+						if (InputDescription.Name == InDescription.Name)
+						{
+							// We found a match. now we just need to create the input node.
+							FDataTypeLiteralParam LiteralParam = GetLiteralParamForDataType(InputDescription.TypeName, InputDescription.LiteralValue);
+
+							if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(InputDescription.TypeName, InputDescription.LiteralValue.LiteralType), TEXT("Tried to use an unsupported literal type!")))
+							{
+								// print out some info about the type.
+								UE_LOG(LogTemp, Display, TEXT("Data Type %s supports the following literal types:"), *InputDescription.TypeName.ToString());
+
+								FDataTypeRegistryInfo DataTypeInfo;
+
+								// this shouldn't hit at all, because this should be a registered data type.
+								ensure(GetTraitsForDataType(InputDescription.TypeName, DataTypeInfo));
+
+								if (DataTypeInfo.bIsBoolParsable)
+								{
+									UE_LOG(LogTemp, Display, TEXT("   Boolean"));
+								}
+
+								if (DataTypeInfo.bIsIntParsable)
+								{
+									UE_LOG(LogTemp, Display, TEXT("    Integer"));
+								}
+
+								if (DataTypeInfo.bIsFloatParsable)
+								{
+									UE_LOG(LogTemp, Display, TEXT("    Float"));
+								}
+
+								if (DataTypeInfo.bIsStringParsable)
+								{
+									UE_LOG(LogTemp, Display, TEXT("    String"));
+								}
+
+								return nullptr;
+							}
+
+							FInputNodeConstructorParams InitParams =
+							{
+								InputDescription.Name,
+								InputDescription.Name,
+								InSettings,
+								LiteralParam
+							};
+
+							INodePtr InputNode = ConstructInputNode(InputDescription.TypeName, InitParams);
+							if (!ensureAlwaysMsgf(InputNode.IsValid(), TEXT("Failed to construct a valid input node for Data Type %s!"), *InputDescription.TypeName.ToString()))
+							{
+								return nullptr;
+							}
+
+							TotalNodesGenerated++;
+
+							InputIndexToInputNodeIDs.Add(InputDescriptionIndex, InDescription.UniqueID);
+
+							return InputNode;
+						}
+						else
+						{
+							InputDescriptionIndex++;
+						}
+					}
+
+					// if we hit this, the document has been corrupted in some way, because we didn't have a matching Input Description for this node.
+					ensureAlwaysMsgf(false, TEXT("Document corrupted! found input node %s but couldn't find a matching Input Description for it in the Class Description."), *InDescription.Name);
+					return nullptr;
+				}
+				else if (IsOutputNode(InDescription))
+				{
+					int32 OutputDescriptionIndex = 0;
+
+					// Find this in the graph's class description's list of inputs, until we find a match.
+					const TArray<FMetasoundOutputDescription>& OutputDescriptions = GraphsClassDeclaration->Outputs;
+					for (const FMetasoundOutputDescription& OutputDescription : OutputDescriptions)
+					{
+						if (OutputDescription.Name == InDescription.Name)
+						{
+							// We found a match. now we just need to create the input node.
+							FOutputNodeConstrutorParams InitParams =
+							{
+								OutputDescription.Name,
+								OutputDescription.Name,
+							};
+
+							INodePtr OutputNode = ConstructOutputNode(OutputDescription.TypeName, InitParams);
+							if (!ensureAlwaysMsgf(OutputNode.IsValid(), TEXT("Failed to construct a valid input node for Data Type %s!"), *OutputDescription.TypeName.ToString()))
+							{
+								return nullptr;
+							}
+
+							TotalNodesGenerated++;
+
+							OutputIndexToInputNodeIDs.Add(OutputDescriptionIndex, InDescription.UniqueID);
+
+							return OutputNode;
+						}
+						else
+						{
+							OutputDescriptionIndex++;
+						}
+					}
+
+					// if we hit this, the document has been corrupted in some way, because we didn't have a matching Input Description for this node.
+					ensureAlwaysMsgf(false, TEXT("Document corrupted! found input node %s but couldn't find a matching Input Description for it in the Class Description."), *InDescription.Name);
+					return nullptr;
+				}
+				else
+				{
+					if (!ensureAlwaysMsgf(InDescription.ObjectTypeOfNode == EMetasoundClassType::External, TEXT("At this point in construction, we should only need to look up external nodes.")))
+					{
+						return nullptr;
+					}
+
+					// Find the node class in the dependencies.
+					const TArray<FMetasoundClassDescription>& DependencyDescriptions = OwningDocument->Dependencies;
+					for (const FMetasoundClassDescription& DependencyDescription : DependencyDescriptions)
+					{
+						// TODO: Add the dependency ID to the node so that we can look it up directly.
+						if (DependencyDescription.Metadata.NodeName == InDescription.Name)
+						{
+							// We found a match. now we just need to create the input node.
+							const FMetasoundExternalClassLookupInfo& LookupInfo = DependencyDescription.ExternalNodeClassLookupInfo;
+							FNodeInitData InitData;
+							InitData.InstanceName.Append(InDescription.Name);
+							InitData.InstanceName.AppendChar('_');
+							InitData.InstanceName.AppendInt(InDescription.UniqueID);
+							
+							// Copy over our initialization params.
+							for (auto& StaticParamTuple : InDescription.StaticParameters)
+							{
+								FDataTypeLiteralParam LiteralParam = GetLiteralParam(StaticParamTuple.Value);
+
+								if (LiteralParam.IsValid())
+								{
+									InitData.ParamMap.Add(StaticParamTuple.Key, LiteralParam);
+								}
+							}
+
+							INodePtr ExternalNode = ConstructExternalNode(LookupInfo.ExternalNodeClassName, LookupInfo.ExternalNodeClassHash, InitData);
+							if (!ensureAlwaysMsgf(ExternalNode.IsValid(), TEXT("Failed to construct a valid external node for Node Class %s!"), *DependencyDescription.Metadata.NodeName))
+							{
+								return nullptr;
+							}
+
+							TotalNodesGenerated++;
+							return ExternalNode;
+						}
+					}
+
+					ensureAlwaysMsgf(false, TEXT("Document corrupted! found node %s but couldn't find a matching Class Description for it in the Dependencies."), *InDescription.Name);
+					return nullptr;
+				}
+			};
+
+			FGraph GraphToBuild = FGraph(GraphsClassDeclaration->Metadata.NodeName);
+
+			TMap<uint32, INodePtr> GraphNodes;
+
+			// Step 1: Initialize Nodes
+			const TArray<FMetasoundNodeDescription>& NodeDescriptions = GraphPtr->Nodes;
+
+			for (const FMetasoundNodeDescription& NodeDescription : NodeDescriptions)
+			{
+				INodePtr NodePtr = GetNodePtr(NodeDescription);
+				
+				if (!NodePtr.IsValid())
+				{
+					return nullptr;
+				}
+				else
+				{
+					GraphNodes.Add(NodeDescription.UniqueID, MoveTemp(NodePtr));
+				}
+			}
+
+			// Sanity check that we created enough input nodes and output nodes.
+			const int32 NumInputsInMetasoundClass = GraphsClassDeclaration->Inputs.Num();
+			if (InputIndexToInputNodeIDs.Num() != NumInputsInMetasoundClass)
+			{
+				ensureAlwaysMsgf(false, TEXT("Mismatch between number of inputs in the metasound graph (%d) and number of inputs declared in it's class description (%d)!"), InputIndexToInputNodeIDs.Num(), NumInputsInMetasoundClass);
+				return nullptr;
+			}
+
+			const int32 NumOutputsInMetasoundClass = GraphsClassDeclaration->Outputs.Num();
+			if (OutputIndexToInputNodeIDs.Num() != NumOutputsInMetasoundClass)
+			{
+				ensureAlwaysMsgf(false, TEXT("Mismatch between number of outputs in the metasound graph (%d) and number of outputs declared in it's class description (%d)!"), OutputIndexToInputNodeIDs.Num(), NumOutputsInMetasoundClass);
+				return nullptr;
+			}
+
+			if (TotalNodesGenerated != GraphPtr->Nodes.Num())
+			{
+				ensureAlwaysMsgf(false, TEXT("Created %d of %d needed nodes!"), TotalNodesGenerated, GraphPtr->Nodes.Num());
+				return nullptr;
+			}
+
+			// Step 2: Connect Nodes Inside The Graph
+			for (const FMetasoundNodeDescription& NodeDescription : NodeDescriptions)
+			{
+				// TODO: create a INode type that houses literals.
+
+				INodePtr& NodeToConnectTo = GraphNodes[NodeDescription.UniqueID];
+
+				for (const FMetasoundNodeConnectionDescription& InputConnection : NodeDescription.InputConnections)
+				{
+					const bool bCanMakeConnection = InputConnection.NodeID != FMetasoundNodeConnectionDescription::DisconnectedNodeID
+						&& ensureAlwaysMsgf(GraphNodes.Contains(InputConnection.NodeID), TEXT("Connection in document describes a node ID that doesn't exist!"));
+					
+					if (bCanMakeConnection)
+					{
+						INodePtr& NodeToConnectFrom = GraphNodes[InputConnection.NodeID];
+						GraphToBuild.AddDataEdge(*NodeToConnectFrom, *InputConnection.OutputName, *NodeToConnectTo, *InputConnection.InputName);
+					}
+				}
+			}
+
+			// Step 3: Declare our Input Destinations
+			const TArray<FMetasoundInputDescription>& InputDescriptions = GraphsClassDeclaration->Inputs;
+			for (auto& InputTuple : InputIndexToInputNodeIDs)
+			{
+				INodePtr& InputNodePtr = GraphNodes[InputTuple.Value];
+				const FString& InVertexName = InputDescriptions[InputTuple.Key].Name;
+				GraphToBuild.AddInputDataDestination(*InputNodePtr, *InVertexName);
+			}
+
+			// Step 4: Declare our Output Destinations
+			const TArray<FMetasoundOutputDescription>& OutputDescriptions = GraphsClassDeclaration->Outputs;
+			for (auto& OutputTuple : OutputIndexToInputNodeIDs)
+			{
+				INodePtr& OutputNodePtr = GraphNodes[OutputTuple.Value];
+				const FString& OutVertexName = OutputDescriptions[OutputTuple.Key].Name;
+				GraphToBuild.AddOutputDataSource(*OutputNodePtr, *OutVertexName);
+			}
+
+			/** NOTE: In the future- we should split steps 1-4 above, and 5 below. GraphToBuild and the node map can be cached on the graph handle. */
+
+			// Step 5: Invoke Operator Builder
+			FOperatorBuilder Builder(InSettings);
+			return Builder.BuildGraphOperator(GraphToBuild, OutBuildErrors);
 		}
 
 		FGraphHandle GetGraphHandleForClass(const FMetasoundClassDescription& InClass)
@@ -1271,4 +1879,12 @@ namespace Metasound
 	}
 }
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, MetasoundFrontend);
+class FMetasoundFrontendModule : public IModuleInterface
+{
+	virtual void StartupModule() override
+	{
+		Metasound::Frontend::InitializeFrontend();
+	}
+};
+
+IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

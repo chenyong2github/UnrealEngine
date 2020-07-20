@@ -22,6 +22,9 @@ namespace Metasound
 
 			FOscNode(const FString& InName, float InDefaultFrequency);
 
+			// constructor used by the Metasound Frontend.
+			FOscNode(const FNodeInitData& InInitData);
+
 			virtual ~FOscNode();
 
 			float GetDefaultFrequency() const;
@@ -29,6 +32,24 @@ namespace Metasound
 			virtual const FName& GetClassName() const override;
 
 			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
+
+			virtual const FString& GetDescription() const override
+			{
+				static FString StaticDescription = TEXT("This node emits an audio signal of a sinusoid.");
+				return StaticDescription;
+			}
+
+			virtual const FString& GetAuthorName() const override
+			{
+				static FString Author = TEXT("Epic Games");
+				return Author;
+			}
+
+			virtual const FString& GetPromptIfMissing() const override
+			{
+				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
+				return Prompt;
+			}
 
 		private:
 

@@ -211,7 +211,7 @@ namespace Metasound
 				}
 				else
 				{
-					return FDataRefType(Forward<ConstructorArgTypes>(ConstructorArgs)...);
+					return FDataRefType::CreateNew(Forward<ConstructorArgTypes>(ConstructorArgs)...);
 				}
 			}
 

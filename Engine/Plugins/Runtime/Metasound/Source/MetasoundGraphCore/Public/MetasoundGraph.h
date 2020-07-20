@@ -17,14 +17,22 @@ namespace Metasound
 		public:
 			static const FName ClassName;
 
-			FGraph(const FString& InDescription);
+			FGraph(const FString& InInstanceName);
 			virtual ~FGraph();
 
-			/** Return the name of this graph. */
+			/** Return the name of this specific instance of the node class. */
+			virtual const FString& GetInstanceName() const override;
+
+			/** Return the type name of this node. */
+			virtual const FName& GetClassName() const override;
+
+			/** Return a longer text description describing how this node is used. */
 			virtual const FString& GetDescription() const override;
 
-			/** Return the type name of this graph. */
-			virtual const FName& GetClassName() const override;
+			/** Return the original author of this node class. */
+			virtual const FString& GetAuthorName() const override;
+
+			virtual const FString& GetPromptIfMissing() const override;
 
 			/** Return a collection of input parameter descriptions for this graph. */
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const override;

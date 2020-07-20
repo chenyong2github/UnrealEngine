@@ -16,6 +16,7 @@ namespace Metasound
 	 */
 	class METASOUNDGRAPHCORE_API FADSRNode : public FNode
 	{
+
 			// The operator factory for this node.
 			class FOperatorFactory : public IOperatorFactory
 			{
@@ -48,6 +49,11 @@ namespace Metasound
 			 */
 			FADSRNode(const FString& InName, float InDefaultAttackMs, float InDefaultDecayMs, float InDefaultSustainMs, float InDefaultReleaseMs);
 
+			/**
+			 * Constructor used by the Metasound Frontend.
+			 */
+			FADSRNode(const FNodeInitData& InitData);
+
 			virtual ~FADSRNode();
 
 			/** Return default attack time in milliseconds */
@@ -62,6 +68,24 @@ namespace Metasound
 			/** Returns the type name of the FADSRNode */
 			virtual const FName& GetClassName() const override;
 
+			virtual const FString& GetDescription() const override
+			{
+				static FString StaticDescription = TEXT("This node, when bopped, emits an envelope that can be applied to .");
+				return StaticDescription;
+			}
+
+			virtual const FString& GetAuthorName() const override
+			{
+				static FString Author = TEXT("Epic Games");
+				return Author;
+			}
+
+			virtual const FString& GetPromptIfMissing() const override
+			{
+				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
+				return Prompt;
+			}
+
 			/** Return a factory for building a metasound operator. */
 			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
 
@@ -74,4 +98,6 @@ namespace Metasound
 
 			FOperatorFactory Factory;
 	};
+
+
 }

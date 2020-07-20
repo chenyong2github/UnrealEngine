@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MetasoundDataReference.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 namespace Metasound
 {
@@ -57,6 +58,13 @@ namespace Metasound
 						break;
 				}
 			}
+
+			/**
+			 * FFrequency constructor used to pass in float literals from the metasound frontend.
+			 */
+			FFrequency(float InValue)
+				: FFrequency(InValue, EFrequencyResolution::Hertz)
+			{}
 
 			/** Set the frequency in hertz. */
 			void SetHertz(float InHz)
@@ -143,5 +151,4 @@ namespace Metasound
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFrequency, "Primitive:Frequency", 0xf1c430a4 , FFrequencyTypeInfo, FFrequencyReadRef, FFrequencyWriteRef);
-
 }

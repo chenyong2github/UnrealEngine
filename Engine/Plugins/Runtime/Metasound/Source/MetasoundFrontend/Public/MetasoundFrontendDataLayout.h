@@ -9,10 +9,7 @@
 UENUM()
 enum class EMetasoundClassType : uint8
 {
-	// Objects with the type Primitive are always available as part of the Metasound specification.
-	// The Metasound Builder can optimize usage of these types of nodes.
-	Primitive,
-	// Objects with the type External are implemented in compiled code.
+	// Any classes of the external type are implemented in C++..
 	External,
 	// Objects with this type are Metasound graphs unto themselves,
 	// they can be used like any other node.
@@ -21,6 +18,18 @@ enum class EMetasoundClassType : uint8
 	Input,
 	//Output from the owning metasound. Only used in FMetasoundNodeDescription.
 	Output,
+	Invalid UMETA(Hidden)
+};
+
+// The type of a given literal for an input value.
+UENUM()
+enum class EMetasoundLiteralType : uint8
+{
+	None,
+	Bool,
+	Float,
+	Integer,
+	String,
 	Invalid UMETA(Hidden)
 };
 
@@ -53,6 +62,31 @@ struct FMetasoundClassMetadata
 	FString AuthorName;
 };
 
+
+// This ustruct represents the serialized version of our variant literal type.
+// Currently, we only support bools, integers, floats, and strings as literals.
+USTRUCT()
+struct FMetasoundLiteralDescription
+{
+	GENERATED_BODY()
+
+	// The actual type of this literal.
+	UPROPERTY()
+	EMetasoundLiteralType LiteralType;
+
+	UPROPERTY()
+	bool AsBool;
+
+	UPROPERTY();
+	int32 AsInteger;
+
+	UPROPERTY()
+	float AsFloat;
+
+	UPROPERTY()
+	FString AsString;
+};
+
 USTRUCT()
 struct FMetasoundInputDescription
 {
@@ -68,7 +102,11 @@ struct FMetasoundInputDescription
 
 	// Optional description text about this input.
 	UPROPERTY()
-	FString ToolTip;
+	FText ToolTip;
+
+	// The optional literal value, if we have one.
+	UPROPERTY()
+	FMetasoundLiteralDescription LiteralValue;
 };
 
 USTRUCT()
@@ -86,7 +124,7 @@ struct FMetasoundOutputDescription
 
 	// Optional description text about this output.
 	UPROPERTY()
-	FString ToolTip;
+	FText ToolTip;
 };
 
 // This is used to describe a single incoming connection or literal for a given input on a FMetasoundNodeDescription.
@@ -106,9 +144,13 @@ struct FMetasoundNodeConnectionDescription
 	uint32 NodeID;
 
 	// FMetasoundOutputDescription::Name of the output this connection is from if NodeID is valid,
-	// or a literal value if NodeID is FMetasoundNodeConnectionDescription::DisconnectedNodeID.
+	// if FMetasoundNodeConnectionDescription::DisconnectedNodeID.
 	UPROPERTY()
-	FString OutputNameOrLiteral;
+	FString OutputName;
+
+	// The optional literal value, if we have one.
+	UPROPERTY()
+	FMetasoundLiteralDescription LiteralValue;
 };
 
 // description for an individual node within the FMetasoundGraphDescription.
@@ -137,6 +179,10 @@ struct FMetasoundNodeDescription
 	// list of connections or literal values for each connected input pin on this node.
 	UPROPERTY()
 	TArray<FMetasoundNodeConnectionDescription> InputConnections;
+
+	// todo: create way to control init params for specific node instances.
+	UPROPERTY()
+	TMap<FName, FMetasoundLiteralDescription> StaticParameters;
 };
 
 USTRUCT()
@@ -144,8 +190,17 @@ struct FMetasoundGraphDescription
 {
 	GENERATED_BODY()
 
-		UPROPERTY()
-		TArray<FMetasoundNodeDescription> Nodes;
+	UPROPERTY()
+	TArray<FMetasoundNodeDescription> Nodes;
+};
+
+USTRUCT()
+struct FMetasoundExternalClassLookupInfo
+{
+	GENERATED_BODY()
+
+	FName ExternalNodeClassName;
+	uint32 ExternalNodeClassHash;
 };
 
 // Full saved out description of a Metasound object,
@@ -183,6 +238,10 @@ struct FMetasoundClassDescription
 	// we will attempt to find the implemented version of this Metasound in the asset registry using Metasound::Frontend::FindGraphHandleForClass.
 	UPROPERTY()
 	FMetasoundGraphDescription Graph;
+
+	// If this object is an external node type (implemented in C++), this name is used to quickly look up the class in the Node Registry.
+	UPROPERTY()
+	FMetasoundExternalClassLookupInfo ExternalNodeClassLookupInfo;
 };
 
 // This is used to describe the required inputs and outputs for a metasound, and is used to make sure we can use a metasound graph for specific applications.
@@ -197,10 +256,12 @@ struct FMetasoundArchetype
 	FName ArchetypeName;
 
 	// whatever inputs are required to support this archetype.
+	// call Special Inputs
 	UPROPERTY()
 	TArray<FMetasoundInputDescription> RequiredInputs;
 
 	// whatever outputs are required to support this archetype.
+	// call Special Outputs
 	UPROPERTY()
 	TArray<FMetasoundOutputDescription> RequiredOutputs;
 };

@@ -7,7 +7,7 @@ namespace Metasound
 	const FName FGraph::ClassName = FName(TEXT("Graph"));
 
 	FGraph::FGraph(const FString& InDescription)
-	:	Description(InDescription)
+		: Description(InDescription)
 	{
 	}
 
@@ -17,12 +17,31 @@ namespace Metasound
 
 	const FString& FGraph::GetDescription() const
 	{
+		static FString ClassDescription(TEXT("Unused"));
+		return ClassDescription;
+	}
+
+	const FString& FGraph::GetInstanceName() const
+	{
 		return Description;
 	}
 
 	const FName& FGraph::GetClassName() const
 	{
 		return ClassName;
+	}
+
+
+	const FString& FGraph::GetAuthorName() const
+	{
+		static FString Author(TEXT("Unused"));
+		return Author;
+	}
+
+	const FString& FGraph::GetPromptIfMissing() const
+	{
+		static FString Prompt(TEXT("Unused"));
+		return Prompt;
 	}
 
 	const FInputDataVertexCollection& FGraph::GetInputDataVertices() const

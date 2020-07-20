@@ -8,8 +8,12 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundADSRNode"
 
+
+
 namespace Metasound
 {
+	METASOUND_REGISTER_NODE(FADSRNode)
+
 	struct FADSRDataReferences
 	{
 		FFloatTimeReadRef Attack;
@@ -26,7 +30,7 @@ namespace Metasound
 			,	Bop(InBop)
 			,	StopEnvelopePos(-1)
 			,	ADSRDataReferences(InADSRData)
-			,	EnvelopeBuffer(InSettings.FramesPerExecute)
+			,	EnvelopeBuffer(FAudioBufferWriteRef::CreateNew(InSettings.FramesPerExecute))
 			{
 				check(EnvelopeBuffer->Num() == InSettings.FramesPerExecute);
 
@@ -128,17 +132,17 @@ namespace Metasound
 	{
 		const FADSRNode& ADSRNode = static_cast<const FADSRNode&>(InNode);
 
-		FBopReadRef Bop;
+		FBopReadRef Bop = FBopReadRef::CreateNew();
 
 		// TODO: Could no-op this if the bop is not connected.
 		SetReadableRefIfInCollection(TEXT("Bop"), InInputDataReferences, Bop);
 
 		FADSRDataReferences ADSRDataReferences = 
 			{
-				FFloatTimeReadRef(ADSRNode.GetDefaultAttackMs(), ETimeResolution::Milliseconds),
-				FFloatTimeReadRef(ADSRNode.GetDefaultDecayMs(), ETimeResolution::Milliseconds),
-				FFloatTimeReadRef(ADSRNode.GetDefaultSustainMs(), ETimeResolution::Milliseconds),
-				FFloatTimeReadRef(ADSRNode.GetDefaultReleaseMs(), ETimeResolution::Milliseconds)
+				FFloatTimeReadRef::CreateNew(ADSRNode.GetDefaultAttackMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef::CreateNew(ADSRNode.GetDefaultDecayMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef::CreateNew(ADSRNode.GetDefaultSustainMs(), ETimeResolution::Milliseconds),
+				FFloatTimeReadRef::CreateNew(ADSRNode.GetDefaultReleaseMs(), ETimeResolution::Milliseconds)
 			};
 
 		// TODO: If none of these are connected, could pregenerate ADSR envelope and return a different operator. 
@@ -164,6 +168,11 @@ namespace Metasound
 		AddInputDataVertex<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseTooltip", "Release time in milliseconds."));
 
 		AddOutputDataVertex<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope"));
+	}
+
+	FADSRNode::FADSRNode(const FNodeInitData& InitData)
+		: FADSRNode(InitData.InstanceName, 10.0f, 20.0f, 50.0f, 20.0f)
+	{
 	}
 
 	FADSRNode::~FADSRNode()
