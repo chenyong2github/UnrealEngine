@@ -30,6 +30,43 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
+
+	TYPED_TEST(AllTraits, VehicleTest_SteeringUtilityTurnRadius)
+	{
+		float RadiusTolerance = 0.01f;
+
+		float Radius = 3.0f;
+		FVector PtA(0.f, Radius, 0.f);
+		FVector PtB(Radius, 0.f, 0.f);
+		FVector PtC(0.f, -Radius, 0.f);
+		FVector PtD(FMath::Sin(PI/5.f)* Radius, FMath::Cos(PI / 5.f)* Radius, 0.f);
+
+		float CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(PtA, PtB, PtC);
+		EXPECT_LT(CalculatedRadius - Radius, RadiusTolerance);
+
+		CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(PtB, PtA, PtC);
+		EXPECT_LT(CalculatedRadius - Radius, RadiusTolerance);
+
+		CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(PtC, PtB, PtA);
+		EXPECT_LT(CalculatedRadius - Radius, RadiusTolerance);
+
+		CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(PtA, PtB, PtD);
+		EXPECT_LT(CalculatedRadius - Radius, RadiusTolerance);
+
+		// no answer all points lie on a line, no radius possible, returns 0
+		CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(FVector(1.f,0.f,0.f), FVector(2.f, 0.f, 0.f), FVector(3.f, 0.f, 0.f));
+		EXPECT_LT(CalculatedRadius, RadiusTolerance);
+
+		float LargeRadius = 55.0f;
+		FVector LargePtA(FMath::Sin(PI / 5.f) * LargeRadius, FMath::Cos(PI / 5.f) * LargeRadius, 0.f);
+		FVector LargePtB(FMath::Sin(PI / 4.f) * LargeRadius, FMath::Cos(PI / 4.f) * LargeRadius, 0.f);
+		FVector LargePtC(FMath::Sin(PI / 3.f) * LargeRadius, FMath::Cos(PI / 3.f) * LargeRadius, 0.f);
+
+		CalculatedRadius = FVehicleUtility::TurnRadiusFromThreePoints(LargePtA, LargePtB, LargePtC);
+		EXPECT_LT(CalculatedRadius - LargeRadius, RadiusTolerance);
+
+	}
+
 	TYPED_TEST(AllTraits, VehicleTest_SteeringUtilityIntersectTwoCircles)
 	{
 		{

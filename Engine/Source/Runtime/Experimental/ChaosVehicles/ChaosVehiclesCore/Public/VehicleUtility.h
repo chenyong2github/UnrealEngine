@@ -79,20 +79,26 @@ namespace Chaos
 			InOutValue = FMath::Clamp(InOutValue, 0.f, 1.f);
 		}
 
+		/** Calculate Yaw angle in Radians from a Normalized Forward facing vector */
 		static float YawFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
 		{
 			return FMath::Atan2(NormalizedForwardsVector.Y, NormalizedForwardsVector.X);
 		}
 
+		/** Calculate Pitch angle in Radians from a Normalized Forward facing vector */
 		static float PitchFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
 		{
 			return FMath::Atan2(NormalizedForwardsVector.Z, FMath::Sqrt(NormalizedForwardsVector.X * NormalizedForwardsVector.X + NormalizedForwardsVector.Y * NormalizedForwardsVector.Y));
 		}
 
+		/** Calculate Roll angle in Radians from a Normalized Right facing vector */
 		static float RollFromRightVectorRadians(const FVector& NormalizedRightVector)
 		{
 			return FMath::Atan2(NormalizedRightVector.Z, FMath::Sqrt(NormalizedRightVector.X * NormalizedRightVector.X + NormalizedRightVector.Y * NormalizedRightVector.Y));
 		}
+
+		/** Calculate turn radius from three points. Note: this function is quite inaccurate for large radii. Return 0 if there is no answer, i.e. points lie on a line */
+		static float TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC);
 	};
 
 	/** revolutions per minute to radians per second */

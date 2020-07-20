@@ -113,6 +113,10 @@ using namespace Chaos;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CheatSkidFactor;
 
+		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		float SideSlipModifier;
+
 		///** Damping rate for this wheel (Kgm^2/s) */
 		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		//float DampingRate;
@@ -184,6 +188,12 @@ using namespace Chaos;
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SuspensionDampingRatio;
 
+		/**
+		 *	When 0 no weight load is transferred, 1 is Normal weight shift. Lower value cures lift off oversteer.
+		 */
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float WheelLoadRatio;
+
 		/** Spring Force (N/m) */
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SpringRate;
@@ -195,6 +205,10 @@ using namespace Chaos;
 		/** Smooth suspension [0-off, 10-max] - Warning might cause momentary visual inter-penetration of the wheel against objects/terrain */
 		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "10"))
 		int SuspensionSmoothing;
+
+		/** Anti-roll effect */
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "1"))
+		float RollbarScaling;
 
 		// Now calculating damping from Suspension Damping Ratio - normalized value is slightly more meaningful
 		///** Dampen rate of change of spring compression */
@@ -348,6 +362,7 @@ using namespace Chaos;
 			PWheelConfig.CheatLongitudinalFrictionMultiplier = this->CheatLongitudinalFrictionForce;
 			PWheelConfig.CheatLateralFrictionMultiplier = this->CheatLateralFrictionForce;
 			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
+			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 		}
 
 		void FillSuspensionSetup()
@@ -361,6 +376,7 @@ using namespace Chaos;
 			PSuspensionConfig.SpringPreload = MToCm(this->SpringPreload);
 
 			PSuspensionConfig.DampingRatio = this->SuspensionDampingRatio;
+			PSuspensionConfig.WheelLoadRatio = this->WheelLoadRatio;
 
 			PSuspensionConfig.SuspensionSmoothing = this->SuspensionSmoothing;
 
