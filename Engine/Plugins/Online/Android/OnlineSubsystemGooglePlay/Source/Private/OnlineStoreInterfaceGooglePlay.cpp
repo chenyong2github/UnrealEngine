@@ -81,6 +81,97 @@ bool FOnlineStoreGooglePlay::QueryForAvailablePurchases(const TArray<FString>& P
 	return true;
 }
 
+#if OSSGOOGLEPLAY_WITH_AIDL
+
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray productIDs, jobjectArray titles, jobjectArray descriptions, jobjectArray prices, jfloatArray pricesRaw, jobjectArray currencyCodes)
+{
+	TArray<FInAppPurchaseProductInfo> ProvidedProductInformation;
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+
+	if (jenv && bWasSuccessful)
+	{
+		jsize NumProducts = jenv->GetArrayLength(productIDs);
+		jsize NumTitles = jenv->GetArrayLength(titles);
+		jsize NumDescriptions = jenv->GetArrayLength(descriptions);
+		jsize NumPrices = jenv->GetArrayLength(prices);
+		jsize NumPricesRaw = jenv->GetArrayLength(pricesRaw);
+		jsize NumCurrencyCodes = jenv->GetArrayLength(currencyCodes);
+
+		ensure((NumProducts == NumTitles) && (NumProducts == NumDescriptions) && (NumProducts == NumPrices) && (NumProducts == NumPricesRaw) && (NumProducts == NumCurrencyCodes));
+
+		jfloat *PricesRaw = jenv->GetFloatArrayElements(pricesRaw, 0);
+
+		for (jsize Idx = 0; Idx < NumProducts; Idx++)
+		{
+			// Build the product information strings.
+
+			FInAppPurchaseProductInfo NewProductInfo;
+
+			NewProductInfo.Identifier = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(productIDs, Idx));
+			NewProductInfo.DisplayName = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(titles, Idx));
+			NewProductInfo.DisplayDescription = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(descriptions, Idx));
+			NewProductInfo.DisplayPrice = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(prices, Idx));
+			
+			NewProductInfo.RawPrice = PricesRaw[Idx];
+			
+			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx));
+
+			ProvidedProductInformation.Add(NewProductInfo);
+
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\nProduct Identifier: %s, Name: %s, Description: %s, Price: %s, Price Raw: %f, Currency Code: %s\n"),
+				*NewProductInfo.Identifier,
+				*NewProductInfo.DisplayName,
+				*NewProductInfo.DisplayDescription,
+				*NewProductInfo.DisplayPrice,
+				NewProductInfo.RawPrice,
+				*NewProductInfo.CurrencyCode);
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessQueryIapResult"), STAT_FSimpleDelegateGraphTask_ProcessQueryIapResult, STATGROUP_TaskGraphTasks);
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Adding task Success: %d Response: %s"), bWasSuccessful, ToString(EGPResponse));
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("TriggerOnGooglePlayAvailableIAPQueryCompleteDelegates %s Size: %d"), ToString(EGPResponse), ProvidedProductInformation.Num());
+				OnlineSubGP->TriggerOnGooglePlayAvailableIAPQueryCompleteDelegates(EGPResponse, ProvidedProductInformation);
+			}
+		}
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("In-App Purchase query was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_ProcessQueryIapResult),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+
+
+void FOnlineStoreGooglePlay::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FInAppPurchaseProductInfo>& AvailablePurchases)
+{
+	UE_LOG_ONLINE_STORE(Display, TEXT("FOnlineStoreGooglePlay::OnGooglePlayAvailableIAPQueryComplete"));
+
+	if (ReadObject.IsValid())
+	{
+		ReadObject->ReadState = (InResponseCode == EGooglePlayBillingResponseCode::Ok) ? EOnlineAsyncTaskState::Done : EOnlineAsyncTaskState::Failed;
+		ReadObject->ProvidedProductInformation.Insert(AvailablePurchases, 0);
+	}
+
+	CurrentQueryTask->ProcessQueryAvailablePurchasesResults(InResponseCode == EGooglePlayBillingResponseCode::Ok);
+
+	// clear the pointer, it will be destroyed by the async task manager
+	CurrentQueryTask = nullptr;
+}
+
+#else
+
 TSharedRef<FInAppPurchaseProductInfo> ConvertStoreOfferToProduct(const FOnlineStoreOffer& Offer)
 {
 	TSharedRef<FInAppPurchaseProductInfo> NewProductInfo = MakeShareable(new FInAppPurchaseProductInfo());
@@ -127,6 +218,8 @@ void FOnlineStoreGooglePlay::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBi
 	CurrentQueryTask = nullptr;
 }
 
+#endif
+
 bool FOnlineStoreGooglePlay::BeginPurchase(const FInAppPurchaseProductRequest& ProductRequest, FOnlineInAppPurchaseTransactionRef& InPurchaseStateObject)
 {
 	UE_LOG_ONLINE_STORE(Display, TEXT( "FOnlineStoreGooglePlay::BeginPurchase" ));
@@ -138,8 +231,8 @@ bool FOnlineStoreGooglePlay::BeginPurchase(const FInAppPurchaseProductRequest& P
 		CachedPurchaseStateObject = InPurchaseStateObject;
 		CachedPurchaseStateObject->bIsConsumable = ProductRequest.bIsConsumable;
 
-		extern bool AndroidThunkCpp_Iap_BeginPurchase(const FString&);
-		bCreatedNewTransaction = AndroidThunkCpp_Iap_BeginPurchase(ProductRequest.ProductIdentifier);
+		extern bool AndroidThunkCpp_Iap_BeginPurchase(const FString&, const FString&);
+		bCreatedNewTransaction = AndroidThunkCpp_Iap_BeginPurchase(ProductRequest.ProductIdentifier, FString());
 		UE_LOG_ONLINE_STORE(Display, TEXT("Created Transaction? - %s"), 
 			bCreatedNewTransaction ? TEXT("Created a transaction.") : TEXT("Failed to create a transaction."));
 
@@ -164,6 +257,48 @@ bool FOnlineStoreGooglePlay::BeginPurchase(const FInAppPurchaseProductRequest& P
 
 	return bCreatedNewTransaction;
 }
+
+#if OSSGOOGLEPLAY_WITH_AIDL
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativePurchaseComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jstring productId, jstring productToken, jstring receiptData, jstring signature)
+{
+	FString ProductId, ProductToken, ReceiptData, Signature;
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+	if (bWasSuccessful)
+	{
+		ProductId = FJavaHelper::FStringFromParam(jenv, productId);
+		ProductToken = FJavaHelper::FStringFromParam(jenv, productToken);
+		ReceiptData = FJavaHelper::FStringFromParam(jenv, receiptData);
+		Signature = FJavaHelper::FStringFromParam(jenv, signature);
+	}
+
+	FGoogleTransactionData TransactionData(ProductId, ProductToken, ReceiptData, Signature);
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("1... Response: %s, Transaction %s"), ToString(EGPResponse), *TransactionData.ToDebugString());
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.ProcessIapResult"), STAT_FSimpleDelegateGraphTask_ProcessIapResult, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("In-App Purchase was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("2... Response %s Transaction %s"), ToString(EGPResponse), *TransactionData.ToDebugString());
+				OnlineSubGP->TriggerOnGooglePlayProcessPurchaseCompleteDelegates(EGPResponse, TransactionData);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_ProcessIapResult),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+#endif
 
 void FOnlineStoreGooglePlay::OnProcessPurchaseResult(EGooglePlayBillingResponseCode InResponseCode, const FGoogleTransactionData& InTransactionData)
 {
@@ -226,6 +361,63 @@ bool FOnlineStoreGooglePlay::RestorePurchases(const TArray<FInAppPurchaseProduct
 	return bSentAQueryRequest;
 }
 
+#if OSSGOOGLEPLAY_WITH_AIDL
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeRestorePurchasesComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray ProductIDs, jobjectArray ProductTokens, jobjectArray ReceiptsData, jobjectArray Signatures)
+{
+	TArray<FGoogleTransactionData> RestoredPurchaseInfo;
+
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+
+	if (jenv && bWasSuccessful)
+	{
+		jsize NumProducts = jenv->GetArrayLength(ProductIDs);
+		jsize NumProductTokens = jenv->GetArrayLength(ProductTokens);
+		jsize NumReceipts = jenv->GetArrayLength(ReceiptsData);
+		jsize NumSignatures = jenv->GetArrayLength(Signatures);
+
+		ensure((NumProducts == NumProductTokens) && (NumProducts == NumReceipts) && (NumProducts == NumSignatures));
+
+		for (jsize Idx = 0; Idx < NumProducts; Idx++)
+		{
+			// Build the restore product information strings.
+			FInAppPurchaseRestoreInfo RestoreInfo;
+
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+			
+			FGoogleTransactionData RestoredPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
+			RestoredPurchaseInfo.Add(RestoredPurchase);
+
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Restored Transaction: %s"), *RestoredPurchase.ToDebugString());
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.RestorePurchases"), STAT_FSimpleDelegateGraphTask_RestorePurchases, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Restoring In-App Purchases was completed  %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				OnlineSubGP->TriggerOnGooglePlayRestorePurchasesCompleteDelegates(EGPResponse, RestoredPurchaseInfo);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_RestorePurchases),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+#endif
+
 void FOnlineStoreGooglePlay::OnRestorePurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InRestoredPurchases)
 {
 	UE_LOG_ONLINE_STORE(Verbose, TEXT("FOnlineStoreGooglePlay::OnRestorePurchasesComplete Response: %s Num: %d"), ToString(InResponseCode), InRestoredPurchases.Num());
@@ -253,3 +445,56 @@ void FOnlineStoreGooglePlay::OnRestorePurchasesComplete(EGooglePlayBillingRespon
 	TriggerOnInAppPurchaseRestoreCompleteDelegates(IAPState);
 }
 
+#if OSSGOOGLEPLAY_WITH_AIDL
+JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryExistingPurchasesComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray ProductIDs, jobjectArray ProductTokens, jobjectArray ReceiptsData, jobjectArray Signatures)
+{
+	TArray<FGoogleTransactionData> ExistingPurchaseInfo;
+
+	EGooglePlayBillingResponseCode EGPResponse = (EGooglePlayBillingResponseCode)responseCode;
+
+	bool bWasSuccessful = (EGPResponse == EGooglePlayBillingResponseCode::Ok);
+	if (jenv && bWasSuccessful)
+	{
+		jsize NumProducts = jenv->GetArrayLength(ProductIDs);
+		jsize NumProductTokens = jenv->GetArrayLength(ProductTokens);
+		jsize NumReceipts = jenv->GetArrayLength(ReceiptsData);
+		jsize NumSignatures = jenv->GetArrayLength(Signatures);
+
+		ensure((NumProducts == NumProductTokens) && (NumProducts == NumReceipts) && (NumProducts == NumSignatures));
+
+		for (jsize Idx = 0; Idx < NumProducts; Idx++)
+		{
+			// Build the product information strings.
+			const auto OfferId = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductIDs, Idx));
+			const auto ProductToken = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ProductTokens, Idx));
+			const auto ReceiptData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(ReceiptsData, Idx));
+			const auto SignatureData = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(Signatures, Idx));
+			
+			FGoogleTransactionData ExistingPurchase(OfferId, ProductToken, ReceiptData, SignatureData);
+			ExistingPurchaseInfo.Add(ExistingPurchase);
+
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\Existing Product Identifier: %s"), *ExistingPurchase.ToDebugString());
+		}
+	}
+
+	DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.QueryExistingPurchases"), STAT_FSimpleDelegateGraphTask_QueryExistingPurchases, STATGROUP_TaskGraphTasks);
+
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+		FSimpleDelegateGraphTask::FDelegate::CreateLambda([=]()
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Query existing purchases was completed %s\n"), bWasSuccessful ? TEXT("successfully") : TEXT("unsuccessfully"));
+		if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::Get(GOOGLEPLAY_SUBSYSTEM))
+		{
+			FOnlineSubsystemGooglePlay* const OnlineSubGP = static_cast<FOnlineSubsystemGooglePlay* const>(OnlineSub);
+			if (OnlineSubGP)
+			{
+				OnlineSubGP->TriggerOnGooglePlayQueryExistingPurchasesCompleteDelegates(EGPResponse, ExistingPurchaseInfo);
+			}
+		}
+	}),
+		GET_STATID(STAT_FSimpleDelegateGraphTask_QueryExistingPurchases),
+		nullptr,
+		ENamedThreads::GameThread
+		);
+}
+#endif
