@@ -360,6 +360,10 @@ bool FFileHelper::SaveArrayToFile(const TArray64<uint8>& Array, const TCHAR* Fil
 		return false;
 	}
 	Ar->Serialize(const_cast<uint8*>(Array.GetData()), Array.Num());
+
+	// Always explicitly close to catch errors from flush/close
+	Ar->Close();
+
 	return !Ar->IsError() && !Ar->IsCriticalError();
 }
 
