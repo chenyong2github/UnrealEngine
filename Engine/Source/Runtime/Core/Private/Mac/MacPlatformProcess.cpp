@@ -17,8 +17,11 @@
 #include <mach/thread_act.h>
 #include <mach/thread_policy.h>
 #include <libproc.h>
-#include <cpuid.h>
 #include "Apple/PostAppleSystemHeaders.h"
+
+#if PLATFORM_MAC_X86
+    #include <cpuid.h>
+#endif
 
 void* FMacPlatformProcess::GetDllHandle( const TCHAR* Filename )
 {
@@ -674,9 +677,14 @@ uint32 FMacPlatformProcess::GetCurrentProcessId()
 
 uint32 FMacPlatformProcess::GetCurrentCoreNumber()
 {
+#if PLATFORM_MAC_X86
 	int CPUInfo[4];
 	__cpuid(1, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
 	return (CPUInfo[1] >> 24) & 0xff;
+#else
+    // MAC_ARM TODO - not implemented on iOS either.
+    return 0;
+#endif
 }
 
 bool FMacPlatformProcess::GetProcReturnCode( FProcHandle& ProcessHandle, int32* ReturnCode )
