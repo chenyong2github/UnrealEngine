@@ -23,7 +23,7 @@ struct FWheeledVehicleDebugParams
 
 	bool DisableSuspensionForces = false;
 	bool DisableFrictionForces = false;
-	bool DisableRollbarForces = true;
+	bool DisableRollbarForces = false;
 	bool ApplyWheelForcetoSurface = true;
 
 	float ThrottleOverride = 0.f;
@@ -164,7 +164,9 @@ private:
 		float NumSamples = 20;
 		for (float X = 0; X <= this->MaxRPM; X+= (this->MaxRPM / NumSamples))
 		{ 
-			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / this->MaxTorque;
+			float MinVal = 0.f, MaxVal = 0.f;
+			this->TorqueCurve.GetRichCurveConst()->GetValueRange(MinVal, MaxVal);
+			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / MaxVal;
 			PEngineConfig.TorqueCurve.AddNormalized(Y);
 		}
 		PEngineConfig.MaxTorque = this->MaxTorque;
@@ -409,20 +411,29 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	bool bSuspensionEnabled;
+
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	bool bWheelFrictionEnabled;
+
 	/** Wheels to create */
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
 
-	/** Engine */
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	bool bMechanicalSimEnabled;
+
+	/** Engine */
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleEngineConfig EngineSetup;
 
 	/** Differential */
-	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleDifferentialConfig DifferentialSetup;
 
 	/** Transmission data */
-	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleTransmissionConfig TransmissionSetup;
 
 	/** Transmission data */
@@ -440,18 +451,6 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Get current engine's max rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	float GetEngineMaxRotationSpeed() const;
-
-	/** Get current gear */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	int32 GetCurrentGear() const;
-
-	/** Get target gear */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	int32 GetTargetGear() const;
-
-	/** Are gears being changed automatically? */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	bool GetUseAutoGears() const;
 
 	float GetMaxSpringForce() const; //??
 
@@ -485,22 +484,26 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	static void PrevDebugPage();
 
 	/** Enable or completely bypass the ProcessMechanicalSimulation call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableMechanicalSim(bool InState)
 	{
-		MechanicalSimEnabled = InState;
+		bMechanicalSimEnabled = InState;
 	}
 
 	/** Enable or completely bypass the ApplySuspensionForces call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableSuspension(bool InState)
 	{
-		SuspensionEnabled = InState;
+		bSuspensionEnabled = InState;
 	}
 
 	/** Enable or completely bypass the ApplyWheelFrictionForces call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableWheelFriction(bool InState)
 	{
-		WheelFrictionEnabled = InState;
+		bWheelFrictionEnabled = InState;
 	}
+
 protected:
 
 	//////////////////////////////////////////////////////////////////////////
@@ -523,6 +526,9 @@ protected:
 
 	/** Setup calculated suspension parameters */
 	void SetupSuspension();
+
+	/** Maps UChaosVehicleWheel Axle to a wheel index */
+	void RecalculateAxles();
 
 	/** Get the local position of the wheel at rest */
 	virtual FVector GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup);
@@ -581,11 +587,9 @@ protected:
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
 	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
+	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
 
 	FPerformanceMeasure PerformanceMeasure;
-	bool MechanicalSimEnabled;
-	bool SuspensionEnabled;
-	bool WheelFrictionEnabled;
 };
 
 #if VEHICLE_DEBUGGING_ENABLED
