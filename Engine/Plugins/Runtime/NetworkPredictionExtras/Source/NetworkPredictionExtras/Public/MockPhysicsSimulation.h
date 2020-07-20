@@ -136,7 +136,7 @@ struct FMockPhysicsChargeCue
 		: Start(InStart) { }
 
 	NETSIMCUE_BODY();
-	using Traits = NetSimCueTraits::ReplicatedXOrPredicted;
+	using Traits = NetSimCueTraits::Strong;
 
 	FVector_NetQuantize100 Start;
 
@@ -148,7 +148,10 @@ struct FMockPhysicsChargeCue
 
 	bool NetIdentical(const FMockPhysicsChargeCue& Other) const
 	{
-		const float ErrorTolerance = 1.f;
+		// Large error tolerance is acceptable here
+		//	-Since its a "burst" particle we aren't bothering to rollback/redo it in the user code
+		//	-Better to just allow "close enough" to avoid double playing. This cue is not conveying gameplay critical information to the player.
+		const float ErrorTolerance = 10.f;
 		return Start.Equals(Other.Start, ErrorTolerance);
 	}
 };
