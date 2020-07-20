@@ -26,7 +26,7 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 #if WITH_EDITORONLY_DATA
 	/** Controls where the this parameter is displayed in a material instance parameter list. The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category = MaterialParameter)
-	int32 SortPriority;
+	int32 SortPriority = 32;
 #endif
 
 #if WITH_EDITOR
