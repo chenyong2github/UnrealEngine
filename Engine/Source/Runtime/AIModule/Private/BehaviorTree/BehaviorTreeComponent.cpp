@@ -694,6 +694,19 @@ EBTTaskStatus::Type UBehaviorTreeComponent::GetTaskStatus(const UBTTaskNode* Tas
 	return Status;
 }
 
+void UBehaviorTreeComponent::RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node)
+{
+	const int32 InstanceIdx = FindInstanceContainingNode(Node);
+	if (InstanceIdx != INDEX_NONE)
+	{
+		PendingUnregisterAuxNodesRequests.Ranges.Emplace(
+			FBTNodeIndex(InstanceIdx, Node->GetExecutionIndex()),
+			FBTNodeIndex(InstanceIdx, Node->GetLastExecutionIndex()));
+
+		ScheduleNextTick(0.0f);
+	}
+}
+
 void UBehaviorTreeComponent::RequestExecution(const UBTDecorator* RequestedBy)
 {
 	check(RequestedBy);
@@ -2673,19 +2686,6 @@ void UBehaviorTreeComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) con
 
 		Snapshot->Status.Add(StatusCategory);
 	}
-}
-
-void UBehaviorTreeComponent::RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node)
-{
-	const int32 InstanceIdx = FindInstanceContainingNode(Node);
-	if (InstanceIdx != INDEX_NONE)
-	{
-		PendingUnregisterAuxNodesRequests.Ranges.Emplace(
-			FBTNodeIndex(InstanceIdx, Node->GetExecutionIndex()),
-			FBTNodeIndex(InstanceIdx, Node->GetLastExecutionIndex()));
-
-		ScheduleNextTick(0.0f);
-	}	
 }
 
 #endif // ENABLE_VISUAL_LOG
