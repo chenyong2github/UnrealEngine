@@ -614,6 +614,11 @@ void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 
 void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
 {
+	if (InRawDataList.Num() == 0)
+	{
+		return;
+	}
+
 	if (!bFindWithinBlueprint)
 	{
 		SReplaceReferencesConfirmation::EDialogResponse Response = SReplaceReferencesConfirmation::CreateModal(&InRawDataList);
@@ -956,7 +961,7 @@ TSharedRef<SWidget> FReplaceConfirmationListItem::CreateWidget()
 		.Padding(5.0f, 3.0f)
 		[
 			SNew(STextBlock)
-			.Text(Blueprint ? FText::FromString(Blueprint->GetName()) : FText::FromString(TEXT("<UNKNOWN>")))
+			.Text(Blueprint ? FText::FromString(Blueprint->GetPathName()) : FText::FromString(TEXT("<UNKNOWN>")))
 		];
 }
 
@@ -1022,6 +1027,7 @@ void SReplaceReferencesConfirmation::Construct(const FArguments& InArgs)
 			]
 
 			+SVerticalBox::Slot()
+			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -1062,8 +1068,10 @@ SReplaceReferencesConfirmation::EDialogResponse SReplaceReferencesConfirmation::
 
 	Window = SNew(SWindow)
 		.Title(LOCTEXT("ConfirmReplace", "Confirm Replacements"))
-		.SizingRule(ESizingRule::Autosized)
-		.SupportsMaximize(false)
+		.SizingRule(ESizingRule::UserSized)
+		.MinWidth(400.f)
+		.MinHeight(300.f)
+		.SupportsMaximize(true)
 		.SupportsMinimize(false)
 		[
 			SNew(SBorder)
