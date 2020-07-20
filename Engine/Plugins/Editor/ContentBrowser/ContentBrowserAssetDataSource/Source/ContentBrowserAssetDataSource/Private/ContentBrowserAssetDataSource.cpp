@@ -734,7 +734,7 @@ void UContentBrowserAssetDataSource::EnumerateItemsAtPath(const FName InPath, co
 	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 	{
 		FARFilter ARFilter;
-		ARFilter.PackageNames.Add(InternalPath);
+		ARFilter.ObjectPaths.Add(InternalPath);
 		AssetRegistry->EnumerateAssets(ARFilter, [this, &InCallback](const FAssetData& AssetData)
 		{
 			if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
