@@ -110,9 +110,14 @@ public:
 	//~ End UObject Interface
 #endif
 
-	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileName) const
+	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileHandleName) const
 	{
-		return TranslationProfiles.Find(TranslationProfileName);
+		return GetTranslationProfile(FLiveStreamAnimationHandleWrapper(TranslationProfileHandleName));
+	}
+
+	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandleWrapper TranslationProfileHandle) const
+	{
+		return TranslationProfiles.Find(TranslationProfileHandle);
 	}
 
 private:
@@ -125,7 +130,7 @@ private:
 	 * See @ULiveStreamAnimationSubsystem::HandleNames.
 	 */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Live Stream Animation|Live Link|Translation")
-	TMap<FName, FLiveStreamAnimationLiveLinkTranslationProfile> TranslationProfiles;
+	TMap<FLiveStreamAnimationHandleWrapper, FLiveStreamAnimationLiveLinkTranslationProfile> TranslationProfiles;
 
 	FWorkerSharedPtr Worker;
 };
