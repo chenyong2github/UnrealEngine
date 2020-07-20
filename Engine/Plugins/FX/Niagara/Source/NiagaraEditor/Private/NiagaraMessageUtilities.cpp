@@ -18,11 +18,11 @@ FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& Compiled
 		{
 			if (bHasWarnings)
 			{
-				MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo", "{0} failed to compile with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
+				MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo_ErrorsWarnings", "{0} failed to compile with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
 				MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
 				break;
 			}
-			MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo", "{0} failed to compile with {1} {1}|plural(one=error,other=errors).");
+			MessageText = LOCTEXT("NiagaraCompileStatusErrorInfo_Errors", "{0} failed to compile with {1} {1}|plural(one=error,other=errors).");
 			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(ErrorCount)));
 		}
 		else
@@ -41,7 +41,7 @@ FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& Compiled
 	case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
 		if (bHasWarnings)
 		{
-			MessageText = LOCTEXT("NiagaraCompileStatusWarningInfo", "{0} successfully compiled with {1} {1}|plural(one=warning,other=warnings).");
+			MessageText = LOCTEXT("NiagaraCompileStatusWarningInfo_Warnings", "{0} successfully compiled with {1} {1}|plural(one=warning,other=warnings).");
 			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)));
 		}
 		else
@@ -56,17 +56,17 @@ FText FNiagaraMessageUtilities::MakePostCompileSummaryText(const FText& Compiled
 	case ENiagaraScriptCompileStatus::NCS_Dirty:
 		if (bHasWarnings && bHasErrors)
 		{
-			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo_ErrorsWarnings", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors).");
 			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
 		}
 		else if (bHasErrors)
 		{
-			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=error,other=errors).");
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo_Errors", "{0} compile status unknown with {1} {1}|plural(one=error,other=errors).");
 			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(ErrorCount)));
 		}
 		else if (bHasWarnings)
 		{
-			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings).");
+			MessageText = LOCTEXT("NiagaraCompileStatusUnknownInfo_Warnings", "{0} compile status unknown with {1} {1}|plural(one=warning,other=warnings).");
 			MessageText = FText::Format(MessageText, CompiledObjectNameText, FText::FromString(FString::FromInt(WarningCount)));
 		}
 		else
