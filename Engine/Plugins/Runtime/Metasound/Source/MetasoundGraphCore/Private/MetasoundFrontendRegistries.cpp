@@ -2,6 +2,8 @@
 
 #include "MetasoundFrontendRegistries.h"
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
+#include "HAL/PlatformTime.h"
 
 #ifndef WITH_METASOUND_FRONTEND
 #define WITH_METASOUND_FRONTEND 0
