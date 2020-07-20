@@ -301,6 +301,21 @@ namespace Metasound
 			FNodeHandle AddNewOutput(const FMetasoundOutputDescription& OutDescription);
 			bool RemoveOutput(const FString& OutputName);
 
+			// This can be used to determine what kind of property editor we should use for the data type of a given input.
+			// Will return Invalid if the input couldn't be found, or if the input doesn't support any kind of literals.
+			ELiteralArgType GetPreferredLiteralTypeForInput(const FString& InInputName);
+
+			// These can be used to set the default value for a given input on this graph.
+			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
+			bool SetInputToLiteral(const FString& InInputName, bool bInValue);
+			bool SetInputToLiteral(const FString& InInputName, int32 InValue);
+			bool SetInputToLiteral(const FString& InInputName, float InValue);
+			bool SetInputToLiteral(const FString& InInputName, const FString& InValue);
+
+			// This can be used to clear the current literal for a given input.
+			// @returns false if the input name couldn't be found.
+			bool ClearLiteralForInput(const FString& InInputName);
+
 			FNodeHandle AddNewNode(const FNodeClassInfo& InNodeClass);
 
 			// Remove the node corresponding to this node handle.
@@ -352,6 +367,10 @@ namespace Metasound
 
 			// Scans all existing dependency IDs in the root dependency list to guarantee a new unique ID when adding a dependency.
 			uint32 FindNewUniqueDependencyId();
+
+			FMetasoundLiteralDescription* GetLiteralDescriptionForInput(const FString& InInputName, FName& OutDataType) const;
+
+			bool GetDataTypeForInput(const FString& InInputName, FName& OutDataType);
 		};
 
 		// If there's a Metasound node referenced by a class in it's dependencies list,

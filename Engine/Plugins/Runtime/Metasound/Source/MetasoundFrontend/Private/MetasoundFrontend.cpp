@@ -935,6 +935,50 @@ namespace Metasound
 			return INDEX_NONE;
 		}
 
+		FMetasoundLiteralDescription* FGraphHandle::GetLiteralDescriptionForInput(const FString& InInputName, FName& OutDataType) const
+		{
+			if (!IsValid())
+			{
+				return nullptr;
+			}
+
+			// scan through our inputs to find a match.
+			TArray<FMetasoundInputDescription>& Inputs = GraphsClassDeclaration->Inputs;
+			for (FMetasoundInputDescription& Input : Inputs)
+			{
+				if (Input.Name == InInputName)
+				{
+					OutDataType = Input.TypeName;
+					return &(Input.LiteralValue);
+				}
+			}
+
+			ensureAlwaysMsgf(false, TEXT("Couldn't find Input of name %s in this Metasoud graph!"), *InInputName);
+			return nullptr;
+		}
+
+		bool FGraphHandle::GetDataTypeForInput(const FString& InInputName, FName& OutDataType)
+		{
+			if (!IsValid())
+			{
+				return nullptr;
+			}
+
+			// scan through our inputs to find a match.
+			TArray<FMetasoundInputDescription>& Inputs = GraphsClassDeclaration->Inputs;
+			for (FMetasoundInputDescription& Input : Inputs)
+			{
+				if (Input.Name == InInputName)
+				{
+					OutDataType = Input.TypeName;
+					return true;
+				}
+			}
+
+			ensureAlwaysMsgf(false, TEXT("Couldn't find Input of name %s in this Metasoud graph!"), *InInputName);
+			return false;
+		}
+
 		FGraphHandle FGraphHandle::InvalidHandle()
 		{
 			FDescPath InvalidPath;
@@ -1266,6 +1310,102 @@ namespace Metasound
 
 			Outputs.RemoveAt(IndexOfOutputToRemove);
 			return true;
+		}
+
+		ELiteralArgType FGraphHandle::GetPreferredLiteralTypeForInput(const FString& InInputName)
+		{
+			FName DataType;
+			if (GetDataTypeForInput(InInputName, DataType))
+			{
+				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+				return Registry->GetDesiredLiteralTypeForDataType(DataType);
+			}
+			else
+			{
+				return ELiteralArgType::Invalid;
+			}
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, bool bInValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::Boolean), TEXT("Tried to set Data Type %s to an unsupported literal type (Boolean)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, bInValue);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, int32 InValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::Integer), TEXT("Tried to set Data Type %s to an unsupported literal type (Integer)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, InValue);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, float InValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::Float), TEXT("Tried to set Data Type %s to an unsupported literal type (Float)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, InValue);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, const FString& InValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::String), TEXT("Tried to set Data Type %s to an unsupported literal type (String)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, InValue);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::ClearLiteralForInput(const FString& InInputName)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+
+				ClearLiteralDescription(*Literal);
+				return true;
+			}
+
+			return false;
 		}
 
 		FNodeHandle FGraphHandle::AddNewNode(const FNodeClassInfo& InNodeClass)
