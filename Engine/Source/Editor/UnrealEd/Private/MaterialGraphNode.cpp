@@ -98,7 +98,13 @@ void UMaterialGraphNode::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 			if (MaterialExpression)
 			{
 				MaterialExpression->Modify();
-				MaterialExpression->Desc = NodeComment;
+
+				// Note: This if prevents an infinite loop where the comment update triggers a node update that then triggers a comment update.
+				if (MaterialExpression->Desc != NodeComment)
+				{
+					MaterialExpression->Desc = NodeComment;
+					MaterialExpression->Material->PropagateExpressionParameterChanges(MaterialExpression);
+				}
 			}
 		}
 	}
@@ -745,7 +751,13 @@ void UMaterialGraphNode::OnUpdateCommentText( const FString& NewComment )
 	if( MaterialExpression )
 	{
 		MaterialExpression->Modify();
-		MaterialExpression->Desc = NewComment;
+
+		// Note: This if prevents an infinite loop where the comment update triggers a node update that then triggers a comment update.
+		if (MaterialExpression->Desc != NewComment)
+		{
+			MaterialExpression->Desc = NewComment;
+			MaterialExpression->Material->PropagateExpressionParameterChanges(MaterialExpression);
+		}
 		MaterialDirtyDelegate.ExecuteIfBound();
 	}
 }
