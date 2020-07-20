@@ -14,6 +14,10 @@
 #endif
 #if !defined(PLATFORM_MAC)
 	#define PLATFORM_MAC 0
+	// If PLATFORM_MAC is defined these will be set appropriately in
+	// MacPlatform.h
+	#define PLATFORM_MAC_X86 0
+	#define PLATFORM_MAC_ARM64 0
 #endif
 #if !defined(PLATFORM_PS4)
 	#define PLATFORM_PS4 0

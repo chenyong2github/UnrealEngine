@@ -4,6 +4,7 @@
 	MacPlatformMemory.cpp: Mac platform memory functions
 =============================================================================*/
 
+
 #include "Mac/MacPlatformMemory.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/MallocTBB.h"
@@ -25,10 +26,11 @@ extern "C"
 }
 #endif
 
-#include "rd_route.h"
-
 // Set rather to use BinnedMalloc2 for binned malloc, can be overridden below
 #define USE_MALLOC_BINNED2 (1)
+
+#if PLATFORM_MAC_X86
+#include "rd_route.h"
 
 void* CFNetwork_CFAllocatorOperatorNew_Replacement(unsigned long Size, CFAllocatorRef Alloc)
 {
@@ -42,11 +44,15 @@ void* CFNetwork_CFAllocatorOperatorNew_Replacement(unsigned long Size, CFAllocat
 	}
 }
 
+#endif // PLATFORM_MAC_X86
+
 FMalloc* FMacPlatformMemory::BaseAllocator()
 {
+#if PLATFORM_MAC_X86
 	//c++filt __ZnwmPK13__CFAllocator => "operator new(unsigned long, __CFAllocator const*)"
 	int err = rd_route_byname("_ZnwmPK13__CFAllocator", "/System/Library/Frameworks/CFNetwork.framework/Versions/A/CFNetwork", (void*)&CFNetwork_CFAllocatorOperatorNew_Replacement, nullptr);
 	check(err == 0);
+#endif
 	
 	bool bIsMavericks = false;
 

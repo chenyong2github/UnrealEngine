@@ -108,10 +108,27 @@ namespace UnrealBuildTool
 		/// </summary>
 		MacToolChainOptions Options;
 
-		public MacToolChain(FileReference InProjectFile, MacToolChainOptions InOptions)
+		/// <summary>
+		/// Architectures to build for
+		/// </summary>
+		public List<string> Architectures = new List<string>();
+
+		public MacToolChain(FileReference InProjectFile, MacToolChainOptions InOptions, IReadOnlyList<string> InArchitectures)
 			: base(InProjectFile)
 		{
 			this.Options = InOptions;
+
+			// Mac-Arm todo: Change this to the host architecture? Should it be different for local tools vs UE targets?
+			const string DefaultArchitecture = "x86_64";
+
+			if (InArchitectures.Any())
+			{
+				Architectures.AddRange(InArchitectures);
+			}
+			else
+			{
+				Architectures.Add(DefaultArchitecture);			
+			}
 		}
 
 		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false));
@@ -199,7 +216,7 @@ namespace UnrealBuildTool
 			{
 				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
 			}
-
+			
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
 				Result += " -Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef");
@@ -207,7 +224,9 @@ namespace UnrealBuildTool
 
 			Result += " -c";
 
-			Result += " -arch x86_64";
+			// Pass through the list of architectures			
+			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));				
+
 			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);
 
@@ -355,7 +374,9 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 
-			Result += " -arch x86_64";
+			// Pass through the list of architectures			
+			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));
+
 			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
 			Result += " -mmacosx-version-min=" + Settings.MacOSVersion;
 			Result += " -dead_strip";
