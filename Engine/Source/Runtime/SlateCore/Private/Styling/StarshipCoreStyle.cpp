@@ -348,6 +348,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("Icons.CircleArrowUp", new IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-up", Icon16x16));
 		Style->Set("Icons.CircleArrowDown", new IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-down", Icon16x16));
+
+		Style->Set("Icons.Check", new IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16));
 	}
 
 	// Tool panels
@@ -1782,9 +1784,9 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetUncheckedImage(FSlateNoResource(Icon14x14))
 			.SetUncheckedHoveredImage(FSlateNoResource(Icon14x14))
 			.SetUncheckedPressedImage(FSlateNoResource(Icon14x14))
-			.SetCheckedImage(IMAGE_BRUSH("Starship/Icons/Quixel/Common/Check_32x", Icon16x16))
-			.SetCheckedHoveredImage(IMAGE_BRUSH("Starship/Icons/Quixel/Common/Check_32x", Icon16x16))
-			.SetCheckedPressedImage(IMAGE_BRUSH("Starship/Icons/Quixel/Common/Check_32x", Icon16x16))
+			.SetCheckedImage(	    IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
+			.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
+			.SetCheckedPressedImage(IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
 			.SetUndeterminedImage(FSlateNoResource())
 			.SetUndeterminedHoveredImage(FSlateNoResource())
 			.SetUndeterminedPressedImage(FSlateNoResource());
