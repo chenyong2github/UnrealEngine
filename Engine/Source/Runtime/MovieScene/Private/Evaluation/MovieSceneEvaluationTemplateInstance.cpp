@@ -163,6 +163,26 @@ bool FMovieSceneRootEvaluationTemplateInstance::HasEverUpdated() const
 	return false;
 }
 
+UE::MovieScene::FSequenceInstance* FMovieSceneRootEvaluationTemplateInstance::FindInstance(FMovieSceneSequenceID SequenceID)
+{
+	using namespace UE::MovieScene;
+
+	 FSequenceInstance* SequenceInstance = &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(RootInstanceHandle);
+
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		return SequenceInstance;
+	}
+
+	FInstanceHandle SubHandle = SequenceInstance->FindSubInstance(SequenceID);
+	if (SubHandle.IsValid())
+	{
+		return &EntitySystemLinker->GetInstanceRegistry()->MutateInstance(SubHandle);
+	}
+
+	return nullptr;
+}
+
 const UE::MovieScene::FSequenceInstance* FMovieSceneRootEvaluationTemplateInstance::FindInstance(FMovieSceneSequenceID SequenceID) const
 {
 	using namespace UE::MovieScene;
