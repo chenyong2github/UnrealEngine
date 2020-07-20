@@ -200,7 +200,7 @@ public:
 	 * Initialize render data (e.g. vertex buffers) from model info
 	 * @param BuildFlags See ESkeletalMeshVertexFlags.
 	 */
-	void BuildFromLODModel(const FSkeletalMeshLODModel* LODModel, uint32 BuildFlags);
+	void ENGINE_API BuildFromLODModel(const FSkeletalMeshLODModel* LODModel, uint32 BuildFlags);
 #endif // WITH_EDITOR
 
 	uint32 GetNumVertices() const
