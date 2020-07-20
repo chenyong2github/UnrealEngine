@@ -36,6 +36,7 @@ namespace Chaos
 			, RestingForce(0.f)
 			, Swaybar(0.5f)
 			, DampingRatio(0.3f)
+			, WheelLoadRatio(1.f)
 			, RaycastSafetyMargin(0.0f)
 			, SuspensionSmoothing(6)
 		{
@@ -58,6 +59,7 @@ namespace Chaos
 		float Swaybar;				// Anti-roll bar
 
 		float DampingRatio;			// value between (0-no damping) and (1-critical damping)
+		float WheelLoadRatio;		// Normalized value, 0 no weight transfer, 1 Normal Weight transfer. A lower value cures lift off oversteer.
 		float RaycastSafetyMargin;	// raise start of raycast [cm]
 
 		int SuspensionSmoothing;	// [0-off , 10-max] smoothing visual appearance of wheel movement
