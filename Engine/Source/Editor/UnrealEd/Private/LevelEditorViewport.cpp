@@ -2956,8 +2956,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 	{
 		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It && !bIsTrackingBrushModification; ++It)
 		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
+			AActor* Actor = CastChecked<AActor>(*It);
 
 			if (bIsDraggingWidget)
 			{
@@ -3118,91 +3117,34 @@ void FLevelEditorViewportClient::TrackingStopped()
 		FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(GetWidgetMode());
 		FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
 
-		TArray<AActor*> MovedActors;
-
-		for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It) 
+		// Move components and actors
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (!LegacyTrackingStoppedForSelectedComponentsAndActors(PropertyChangedEvent))
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
-			AActor* Actor = static_cast<AActor*>( *It );
-			checkSlow(Actor->IsA(AActor::StaticClass()));
+			TArray<USceneComponent*> ComponentsToMove;
+			TArray<AActor*> ActorsToMove;
+			GetSelectedActorsAndComponentsForMove(ActorsToMove, ComponentsToMove);
 
-			// Verify that the actor is in the same world as the viewport before moving it.
-			if (GEditor->PlayWorld)
+			for (USceneComponent* Component : ComponentsToMove)
 			{
-				if (bIsSimulateInEditorViewport)
-				{
-					// If the Actor's outer (level) outer (world) is not the PlayWorld then it cannot be moved in this viewport.
-					if (!( GEditor->PlayWorld == Actor->GetOuter()->GetOuter() ))
-					{
-						continue;
-					}
-				}
-				else if (!( GEditor->EditorWorld == Actor->GetOuter()->GetOuter() ))
-				{
-					continue;
-				}
-			}
-
-			bool bComponentsMoved = false;
-			if (GEditor->GetSelectedComponentCount() > 0)
-			{
-				USelection* ComponentSelection = GEditor->GetSelectedComponents();
-
-				// Only move the parent-most component(s) that are selected 
-				// Otherwise, if both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
-				TInlineComponentArray<USceneComponent*> ComponentsToMove;
-				for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
-				{
-					USceneComponent* SceneComponent = Cast<USceneComponent>(*EditableComponentIt);
-					if (SceneComponent)
-					{
-						// Check to see if any parent is selected
-						bool bParentAlsoSelected = false;
-						USceneComponent* Parent = SceneComponent->GetAttachParent();
-						while (Parent != nullptr)
-						{
-							if (ComponentSelection->IsSelected(Parent))
-							{
-								bParentAlsoSelected = true;
-								break;
-							}
-
-							Parent = Parent->GetAttachParent();
-						}
-
-						// If no parent of this component is also in the selection set, move it!
-						if (!bParentAlsoSelected)
-						{
-							ComponentsToMove.Add(SceneComponent);
-						}
-					}
-				}
-
-				// Now actually apply the delta to the appropriate component(s)
-				for (USceneComponent* SceneComp : ComponentsToMove)
-				{
-					// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
-					FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(SceneComp, PropertyChangedEvent);
-					SceneComp->PostEditComponentMove(true);
-
-					GEditor->BroadcastEndObjectMovement(*SceneComp);
-
-					bComponentsMoved = true;
-				}
-			}
+				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Component, PropertyChangedEvent);
 				
-			if (!bComponentsMoved)
+				Component->PostEditComponentMove(true);
+				GEditor->BroadcastEndObjectMovement(*Component);
+			}
+
+			for (AActor* Actor : ActorsToMove)
 			{
 				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
 				Actor->PostEditMove(true);
-
-				MovedActors.Add(Actor);
-	
 				GEditor->BroadcastEndObjectMovement(*Actor);
 			}
-		}
 
-		GEditor->BroadcastActorsMoved(MovedActors);
+			GEditor->BroadcastActorsMoved(ActorsToMove);
+		}
 
 		if (!GUnrealEd->IsPivotMovedIndependently())
 		{
@@ -3275,6 +3217,321 @@ void FLevelEditorViewportClient::OnActorMoved(AActor* InActor)
 {
 	// Update the cameras from their locked actor (if any)
 	UpdateLockedActorViewport(InActor, false);
+}
+
+void FLevelEditorViewportClient::GetSelectedActorsAndComponentsForMove(TArray<AActor*>& OutActorsToMove, TArray<USceneComponent*>& OutComponentsToMove) const
+{
+	OutActorsToMove.Reset();
+	OutComponentsToMove.Reset();
+
+	// Get the list of parent-most component(s) that are selected
+	if (GEditor->GetSelectedComponentCount() > 0)
+	{
+		// Otherwise, if both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
+		for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
+		{
+			USceneComponent* SceneComponent = Cast<USceneComponent>(*EditableComponentIt);
+			if (!SceneComponent)
+			{
+				continue;
+			}
+
+			// Check to see if any parent is selected
+			bool bParentAlsoSelected = false;
+			USceneComponent* Parent = SceneComponent->GetAttachParent();
+			while (Parent != nullptr)
+			{
+				if (Parent->IsSelected())
+				{
+					bParentAlsoSelected = true;
+					break;
+				}
+
+				Parent = Parent->GetAttachParent();
+			}
+
+			AActor* ComponentOwner = SceneComponent->GetOwner();
+			if (!CanMoveActorInViewport(ComponentOwner))
+			{
+				continue;
+			}
+
+			const bool bIsRootComponent = (ComponentOwner && (ComponentOwner->GetRootComponent() == SceneComponent));
+			if (bIsRootComponent)
+			{
+				// If it is a root component, use the parent actor instead
+				OutActorsToMove.Add(ComponentOwner);
+			}
+			else if (!bParentAlsoSelected)
+			{
+				// If no parent of this component is also in the selection set, move it
+				OutComponentsToMove.Add(SceneComponent);
+			}
+		}
+	}
+
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = CastChecked<AActor>(*It);
+
+		// If the root component was selected, this actor is already accounted for
+		USceneComponent* RootComponent = Actor->GetRootComponent();
+		if (RootComponent && RootComponent->IsSelected())
+		{
+			continue;
+		}
+
+		if (!CanMoveActorInViewport(Actor))
+		{
+			continue;
+		}
+
+		OutActorsToMove.Add(Actor);
+	}
+}
+
+bool FLevelEditorViewportClient::CanMoveActorInViewport(const AActor* InActor) const
+{
+	if (!GEditor || !InActor)
+	{
+		return false;
+	}
+
+	// The actor cannot be location locked
+	if (InActor->bLockLocation)
+	{
+		return false;
+	}
+
+	// The actor needs to be in the current viewport world
+	if (GEditor->PlayWorld)
+	{
+		if (bIsSimulateInEditorViewport)
+		{
+			// If the Actor's outer (level) outer (world) is not the PlayWorld then it cannot be moved in this viewport.
+			if (!(GEditor->PlayWorld == InActor->GetOuter()->GetOuter()))
+			{
+				return false;
+			}
+		}
+		else if (!(GEditor->EditorWorld == InActor->GetOuter()->GetOuter()))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FLevelEditorViewportClient::LegacyTrackingStoppedForSelectedComponentsAndActors(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	{
+		return false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	TArray<AActor*> MovedActors;
+
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = static_cast<AActor*>(*It);
+		checkSlow(Actor->IsA(AActor::StaticClass()));
+
+		// Verify that the actor is in the same world as the viewport before moving it.
+		if (GEditor->PlayWorld)
+		{
+			if (bIsSimulateInEditorViewport)
+			{
+				// If the Actor's outer (level) outer (world) is not the PlayWorld then it cannot be moved in this viewport.
+				if (!(GEditor->PlayWorld == Actor->GetOuter()->GetOuter()))
+				{
+					continue;
+				}
+			}
+			else if (!(GEditor->EditorWorld == Actor->GetOuter()->GetOuter()))
+			{
+				continue;
+			}
+		}
+
+		bool bComponentsMoved = false;
+		if (GEditor->GetSelectedComponentCount() > 0)
+		{
+			USelection* ComponentSelection = GEditor->GetSelectedComponents();
+
+			// Only move the parent-most component(s) that are selected 
+			// Otherwise, if both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
+			TInlineComponentArray<USceneComponent*> ComponentsToMove;
+			for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
+			{
+				USceneComponent* SceneComponent = Cast<USceneComponent>(*EditableComponentIt);
+				if (SceneComponent)
+				{
+					// Check to see if any parent is selected
+					bool bParentAlsoSelected = false;
+					USceneComponent* Parent = SceneComponent->GetAttachParent();
+					while (Parent != nullptr)
+					{
+						if (ComponentSelection->IsSelected(Parent))
+						{
+							bParentAlsoSelected = true;
+							break;
+						}
+
+						Parent = Parent->GetAttachParent();
+					}
+
+					// If no parent of this component is also in the selection set, move it!
+					if (!bParentAlsoSelected)
+					{
+						ComponentsToMove.Add(SceneComponent);
+					}
+				}
+			}
+
+			// Now actually apply the delta to the appropriate component(s)
+			for (USceneComponent* SceneComp : ComponentsToMove)
+			{
+				// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(SceneComp, PropertyChangedEvent);
+				SceneComp->PostEditComponentMove(true);
+
+				GEditor->BroadcastEndObjectMovement(*SceneComp);
+
+				bComponentsMoved = true;
+			}
+		}
+
+		if (!bComponentsMoved)
+		{
+			// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
+			Actor->PostEditMove(true);
+
+			MovedActors.Add(Actor);
+
+			GEditor->BroadcastEndObjectMovement(*Actor);
+		}
+	}
+
+	GEditor->BroadcastActorsMoved(MovedActors);
+
+	return true;
+}
+
+bool FLevelEditorViewportClient::LegacyApplyDeltasForSelectedComponentsAndActors(const FVector& InDrag, const FRotator& InRot, const FVector& ModifiedScale)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	{
+		return false;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	TArray<AGroupActor*> ActorGroups;
+
+	// Apply the deltas to any selected actors.
+	for ( FSelectionIterator SelectedActorIt( GEditor->GetSelectedActorIterator() ) ; SelectedActorIt ; ++SelectedActorIt )
+	{
+		AActor* Actor = static_cast<AActor*>( *SelectedActorIt );
+		checkSlow( Actor->IsA(AActor::StaticClass()) );
+
+		// Verify that the actor is in the same world as the viewport before moving it.
+		if(GEditor->PlayWorld)
+		{
+			if(bIsSimulateInEditorViewport)
+			{
+				// If the Actor's outer (level) outer (world) is not the PlayWorld then it cannot be moved in this viewport.
+				if( !(GEditor->PlayWorld == Actor->GetWorld()) )
+				{
+					continue;
+				}
+			}
+			else if( !(GEditor->EditorWorld == Actor->GetWorld()) )
+			{
+				continue;
+			}
+		}
+
+		if ( !Actor->bLockLocation )
+		{
+			if (GEditor->GetSelectedComponentCount() > 0)
+			{
+				USelection* ComponentSelection = GEditor->GetSelectedComponents();
+
+				// Only move the parent-most component(s) that are selected 
+				// Otherwise, if both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
+				TInlineComponentArray<USceneComponent*> ComponentsToMove;
+				for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
+				{
+					USceneComponent* SelectedComponent = Cast<USceneComponent>(*EditableComponentIt);
+					if (SelectedComponent)
+					{
+						// Check to see if any parent is selected
+						bool bParentAlsoSelected = false;
+						USceneComponent* Parent = SelectedComponent->GetAttachParent();
+						while (Parent != nullptr)
+						{
+							if (ComponentSelection->IsSelected(Parent))
+							{
+								bParentAlsoSelected = true;
+								break;
+							}
+
+							Parent = Parent->GetAttachParent();
+						}
+
+						// If no parent of this component is also in the selection set, move it!
+						if (!bParentAlsoSelected)
+						{
+							ComponentsToMove.Add(SelectedComponent);
+						}
+					}	
+				}
+
+				// Now actually apply the delta to the appropriate component(s)
+				for (USceneComponent* SceneComp : ComponentsToMove)
+				{
+					ApplyDeltaToComponent(SceneComp, InDrag, InRot, ModifiedScale);
+				}
+			}
+			else
+			{
+				AGroupActor* ParentGroup = AGroupActor::GetRootForActor(Actor, true, true);
+				if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
+				{
+					ActorGroups.AddUnique(ParentGroup);
+				}
+				else
+				{
+					// Finally, verify that no actor in the parent hierarchy is also selected
+					bool bHasParentInSelection = false;
+					AActor* ParentActor = Actor->GetAttachParentActor();
+					while (ParentActor != NULL && !bHasParentInSelection)
+					{
+						if (ParentActor->IsSelected())
+						{
+							bHasParentInSelection = true;
+						}
+						ParentActor = ParentActor->GetAttachParentActor();
+					}
+					if (!bHasParentInSelection)
+					{
+						ApplyDeltaToActor(Actor, InDrag, InRot, ModifiedScale);
+					}
+				}
+			}
+		}
+	}
+	AGroupActor::RemoveSubGroupsFromArray(ActorGroups);
+	for(int32 ActorGroupsIndex=0; ActorGroupsIndex<ActorGroups.Num(); ++ActorGroupsIndex)
+	{
+		ActorGroups[ActorGroupsIndex]->GroupApplyDelta(this, InDrag, InRot, ModifiedScale);
+	}
+
+	return true;
 }
 
 void FLevelEditorViewportClient::NudgeSelectedObjects( const struct FInputEventState& InputState )
@@ -3777,106 +4034,40 @@ void FLevelEditorViewportClient::ApplyDeltaToActors(const FVector& InDrag,
 
 	// Transact the actors.
 	GEditor->NoteActorMovement();
-
-	TArray<AGroupActor*> ActorGroups;
-
-	// Apply the deltas to any selected actors.
-	for ( FSelectionIterator SelectedActorIt( GEditor->GetSelectedActorIterator() ) ; SelectedActorIt ; ++SelectedActorIt )
+		
+	// Move Components and Actors
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!LegacyApplyDeltasForSelectedComponentsAndActors(InDrag, InRot, ModifiedScale))
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
-		AActor* Actor = static_cast<AActor*>( *SelectedActorIt );
-		checkSlow( Actor->IsA(AActor::StaticClass()) );
+		TArray<USceneComponent*> ComponentsToMove;
+		TArray<AActor*> ActorsToMove;
+		GetSelectedActorsAndComponentsForMove(ActorsToMove, ComponentsToMove);
 
-		// Verify that the actor is in the same world as the viewport before moving it.
-		if(GEditor->PlayWorld)
+		for (USceneComponent* SceneComp : ComponentsToMove)
 		{
-			if(bIsSimulateInEditorViewport)
-			{
-				// If the Actor's outer (level) outer (world) is not the PlayWorld then it cannot be moved in this viewport.
-				if( !(GEditor->PlayWorld == Actor->GetWorld()) )
-				{
-					continue;
-				}
-			}
-			else if( !(GEditor->EditorWorld == Actor->GetWorld()) )
-			{
-				continue;
-			}
+			ApplyDeltaToComponent(SceneComp, InDrag, InRot, ModifiedScale);
 		}
 
-		if ( !Actor->bLockLocation )
+		TArray<AGroupActor*> ActorGroups;
+		for (AActor* Actor : ActorsToMove)
 		{
-			if (GEditor->GetSelectedComponentCount() > 0)
+			AGroupActor* ParentGroup = AGroupActor::GetRootForActor(Actor, true, true);
+			if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
 			{
-				USelection* ComponentSelection = GEditor->GetSelectedComponents();
-
-				// Only move the parent-most component(s) that are selected 
-				// Otherwise, if both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
-				TInlineComponentArray<USceneComponent*> ComponentsToMove;
-				for (FSelectedEditableComponentIterator EditableComponentIt(GEditor->GetSelectedEditableComponentIterator()); EditableComponentIt; ++EditableComponentIt)
-				{
-					USceneComponent* SelectedComponent = Cast<USceneComponent>(*EditableComponentIt);
-					if (SelectedComponent)
-					{
-						// Check to see if any parent is selected
-						bool bParentAlsoSelected = false;
-						USceneComponent* Parent = SelectedComponent->GetAttachParent();
-						while (Parent != nullptr)
-						{
-							if (ComponentSelection->IsSelected(Parent))
-							{
-								bParentAlsoSelected = true;
-								break;
-							}
-
-							Parent = Parent->GetAttachParent();
-						}
-
-						// If no parent of this component is also in the selection set, move it!
-						if (!bParentAlsoSelected)
-						{
-							ComponentsToMove.Add(SelectedComponent);
-						}
-					}	
-				}
-
-				// Now actually apply the delta to the appropriate component(s)
-				for (USceneComponent* SceneComp : ComponentsToMove)
-				{
-					ApplyDeltaToComponent(SceneComp, InDrag, InRot, ModifiedScale);
-				}
+				ActorGroups.AddUnique(ParentGroup);
 			}
 			else
 			{
-				AGroupActor* ParentGroup = AGroupActor::GetRootForActor(Actor, true, true);
-				if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
-				{
-					ActorGroups.AddUnique(ParentGroup);
-				}
-				else
-				{
-					// Finally, verify that no actor in the parent hierarchy is also selected
-					bool bHasParentInSelection = false;
-					AActor* ParentActor = Actor->GetAttachParentActor();
-					while (ParentActor != NULL && !bHasParentInSelection)
-					{
-						if (ParentActor->IsSelected())
-						{
-							bHasParentInSelection = true;
-						}
-						ParentActor = ParentActor->GetAttachParentActor();
-					}
-					if (!bHasParentInSelection)
-					{
-						ApplyDeltaToActor(Actor, InDrag, InRot, ModifiedScale);
-					}
-				}
+				ApplyDeltaToActor(Actor, InDrag, InRot, ModifiedScale);
 			}
 		}
-	}
-	AGroupActor::RemoveSubGroupsFromArray(ActorGroups);
-	for(int32 ActorGroupsIndex=0; ActorGroupsIndex<ActorGroups.Num(); ++ActorGroupsIndex)
-	{
-		ActorGroups[ActorGroupsIndex]->GroupApplyDelta(this, InDrag, InRot, ModifiedScale);
+
+		AGroupActor::RemoveSubGroupsFromArray(ActorGroups);
+		for (AGroupActor* ActorGroup : ActorGroups)
+		{
+			ActorGroup->GroupApplyDelta(this, InDrag, InRot, ModifiedScale);
+		}
 	}
 }
 
