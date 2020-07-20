@@ -885,6 +885,16 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 	ExecutionIdx.ExecutionIndex = RequestedBy->GetExecutionIndex();
 	uint16 LastExecutionIndex = MAX_uint16;
 
+	// make sure that the request is not coming from a node that has pending unregistration since it won't be accessible anymore
+	for (const FBTNodeIndexRange& Range : PendingUnregisterAuxNodesRequests.Ranges)
+	{
+		if (Range.Contains(ExecutionIdx))
+		{
+			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: request by %s that is in pending unregister aux nodes range %s"), *ExecutionIdx.Describe(), *Range.Describe());
+			return;
+		}
+	}
+
 	if (bSwitchToHigherPriority && RequestedByChildIndex >= 0)
 	{
 		ExecutionIdx.ExecutionIndex = RequestedOn->GetChildExecutionIndex(RequestedByChildIndex, EBTChildIndex::FirstNode);
@@ -1327,6 +1337,9 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	check(this != nullptr && this->IsPendingKill() == false);
 	float NextNeededDeltaTime = FLT_MAX;
 
+	// process all auxiliary nodes unregister requests
+	bDoneSomething |= ProcessPendingUnregister();
+
 	// tick active auxiliary nodes (in execution order, before task)
 	// do it before processing execution request to give BP driven logic chance to accumulate execution requests
 	// newly added aux nodes are ticked as part of SearchData application
@@ -1439,7 +1452,7 @@ void UBehaviorTreeComponent::ScheduleNextTick(const float NextNeededDeltaTime)
 		NextTickDeltaTime = 0.0f;
 	}
 
-	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("BT(%i) schedule next tick %f, asked %f."), GFrameCounter, NextTickDeltaTime, NextNeededDeltaTime);
+	UE_VLOG(GetOwner(), LogBehaviorTree, VeryVerbose, TEXT("BT(%i) schedule next tick %f, asked %f."), GFrameCounter, NextTickDeltaTime, NextNeededDeltaTime);
 	if (NextTickDeltaTime == FLT_MAX)
 	{
 		if (IsComponentTickEnabled())
@@ -1568,6 +1581,14 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 		}
 		else
 		{
+			// mark all decorators less important than current search start node for removal
+			// (keep aux nodes for requesting node since it is higher priority)
+			if (ExecutionRequest.ContinueWithResult == EBTNodeResult::Failed)
+			{
+				BT_SEARCHLOG(SearchData, Verbose, TEXT("Unregistering aux nodes up to %s"), *ExecutionRequest.SearchStart.Describe());
+				UnregisterAuxNodesUpTo(ExecutionRequest.SearchStart);
+			}
+
 			// make sure it's reset before starting new search
 			SearchData.SearchStart = FBTNodeIndex();
 			SearchData.SearchEnd = FBTNodeIndex();
@@ -1911,6 +1932,28 @@ void UBehaviorTreeComponent::UnregisterAuxNodesInBranch(const UBTCompositeNode* 
 			SearchData.PendingUpdates = UpdateListCopy;
 		}
 	}
+}
+
+bool UBehaviorTreeComponent::ProcessPendingUnregister()
+{
+	if (PendingUnregisterAuxNodesRequests.Ranges.Num() == 0)
+	{
+		// no work done
+		return false;
+	}
+
+	TGuardValue<TArray<FBehaviorTreeSearchUpdate>> ScopedList(SearchData.PendingUpdates, {});
+
+	for (const FBTNodeIndexRange& Range : PendingUnregisterAuxNodesRequests.Ranges)
+	{
+		UnregisterAuxNodesInRange(Range.FromIndex, Range.ToIndex);
+	}
+	PendingUnregisterAuxNodesRequests = {};
+
+	ApplySearchUpdates(SearchData.PendingUpdates, 0);
+
+	// has done work
+	return true;
 }
 
 void UBehaviorTreeComponent::ExecuteTask(UBTTaskNode* TaskNode)
@@ -2635,6 +2678,20 @@ void UBehaviorTreeComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) con
 		Snapshot->Status.Add(StatusCategory);
 	}
 }
+
+void UBehaviorTreeComponent::RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node)
+{
+	const int32 InstanceIdx = FindInstanceContainingNode(Node);
+	if (InstanceIdx != INDEX_NONE)
+	{
+		PendingUnregisterAuxNodesRequests.Ranges.Emplace(
+			FBTNodeIndex(InstanceIdx, Node->GetExecutionIndex()),
+			FBTNodeIndex(InstanceIdx, Node->GetLastExecutionIndex()));
+
+		ScheduleNextTick(0.0f);
+	}	
+}
+
 #endif // ENABLE_VISUAL_LOG
 
 void UBehaviorTreeComponent::StoreDebuggerExecutionStep(EBTExecutionSnap::Type SnapType)

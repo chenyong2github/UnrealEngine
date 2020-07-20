@@ -67,6 +67,12 @@ struct FBTPendingExecutionInfo
 	void Unlock() { bLocked = false; }
 };
 
+struct FBTPendingAuxNodesUnregisterInfo
+{
+	/** list of node index ranges pending aux nodes unregistration */
+	TArray<FBTNodeIndexRange> Ranges;
+};
+
 struct FBTTreeStartInfo
 {
 	UBehaviorTree* Asset;
@@ -131,6 +137,9 @@ public:
 	/** request execution change: helpers for task nodes */
 	void RequestExecution(EBTNodeResult::Type ContinueWithResult);
 
+	/** request unregistration of aux nodes in the specified branch */
+	void RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node);
+
 	/** finish latent execution or abort */
 	void OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult);
 
@@ -155,6 +164,7 @@ public:
 	void UnregisterAuxNodesInRange(const FBTNodeIndex& FromIndex, const FBTNodeIndex& ToIndex);
 
 	/** unregister all aux nodes in branch of tree */
+	UE_DEPRECATED(4.26, "This function is deprecated. Please use RequestUnregisterAuxNodesInBranch instead.")
 	void UnregisterAuxNodesInBranch(const UBTCompositeNode* Node, bool bApplyImmediately = true);
 
 	/** BEGIN UActorComponent overrides */
@@ -259,6 +269,9 @@ protected:
 
 	/** result of ExecutionRequest, will be applied when current task finish aborting */
 	FBTPendingExecutionInfo PendingExecution;
+
+	/** list of all pending aux nodes unregistration requests */
+	FBTPendingAuxNodesUnregisterInfo PendingUnregisterAuxNodesRequests;
 
 	/** stored data for starting new tree, waits until previously running finishes aborting */
 	FBTTreeStartInfo TreeStartInfo;
@@ -365,6 +378,12 @@ protected:
 
 	/** apply pending tree initialization */
 	void ProcessPendingInitialize();
+
+	/**
+	 * apply pending unregister aux nodes requests
+	 * @return true if some request were processed, false otherwise
+	 */
+	bool ProcessPendingUnregister();
 
 	/** restore state of tree to state before search */
 	void RollbackSearchChanges();
