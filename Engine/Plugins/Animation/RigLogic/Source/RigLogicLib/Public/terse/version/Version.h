@@ -1,0 +1,6 @@
+#pragma once
+
+#define TERSE_MAJOR_VERSION 1
+#define TERSE_MINOR_VERSION 1
+#define TERSE_PATCH_VERSION 0
+#define TERSE_VERSION_STRING "1.1.0"

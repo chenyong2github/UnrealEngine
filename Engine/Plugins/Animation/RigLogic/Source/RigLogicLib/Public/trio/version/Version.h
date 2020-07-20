@@ -1,0 +1,6 @@
+#pragma once
+
+#define TRIO_MAJOR_VERSION 1
+#define TRIO_MINOR_VERSION 0
+#define TRIO_PATCH_VERSION 1
+#define TRIO_VERSION_STRING "1.0.1"
