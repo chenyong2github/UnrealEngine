@@ -158,7 +158,7 @@ MinimumAreaBox2<InputType, ComputeType>::MinimumAreaBox2()
     mNegOne(-1),
     mHalf((InputType)0.5)
 {
-    mSupportIndices = { 0, 0, 0, 0 };
+	mSupportIndices = { { 0, 0, 0, 0 } };
 }
 
 template <typename InputType, typename ComputeType>

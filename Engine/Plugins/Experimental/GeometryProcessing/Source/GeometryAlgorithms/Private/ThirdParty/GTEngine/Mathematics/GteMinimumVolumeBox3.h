@@ -655,7 +655,9 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
     ETManifoldMesh::EMap const& emap, Box& localMinBox)
 {
     // Get the supporting triangle information.
-    Vector3<ComputeType> const& supportNormal = normal[triNormalMap.find(supportTri)->second];
+	auto foundSupport = triNormalMap.find(supportTri);
+	if (foundSupport == triNormalMap.end()) return;
+    Vector3<ComputeType> const& supportNormal = normal[foundSupport->second];
 
     // Build the polyline of supporting edges.  The pair (v,polyline[v])
     // represents an edge directed appropriately (see next set of
@@ -667,8 +669,12 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
         auto const& edge = *edgeElement.second;
         auto const& tri0 = edge.T[0].lock();
         auto const& tri1 = edge.T[1].lock();
-        auto const& normal0 = normal[triNormalMap.find(tri0)->second];
-        auto const& normal1 = normal[triNormalMap.find(tri1)->second];
+		auto found0 = triNormalMap.find(tri0);
+		if (found0 == triNormalMap.end()) return;
+		auto found1 = triNormalMap.find(tri1);
+		if (found1 == triNormalMap.end()) return;
+		auto const& normal0 = normal[found0->second];
+        auto const& normal1 = normal[found1->second];
         ComputeType dot0 = Dot(supportNormal, normal0);
         ComputeType dot1 = Dot(supportNormal, normal1);
 
@@ -707,6 +713,11 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
         }
     }
 
+	if (polylineStart < 0)	// abort if start search failed
+	{
+		return;
+	}
+
     // Rearrange the edges to form a closed polyline.  For M vertices, each
     // ComputeBoxFor*() function starts with the edge from closedPolyline[M-1]
     // to closedPolyline[0].
@@ -728,6 +739,11 @@ void MinimumVolumeBox3<InputType, ComputeType>::ProcessFace(std::shared_ptr<Tria
     // This avoids redundant face testing in the O(n^2) or O(n) algorithms
     // and it simplifies the O(n) implementation.
     RemoveCollinearPoints(supportNormal, closedPolyline);
+
+	if (closedPolyline.size() < 2)	// abort if we no longer have a polygon
+	{
+		return;
+	}
 
     // Compute the box coincident to the hull triangle that has minimum
     // area on the face coincident with the triangle.
@@ -983,7 +999,7 @@ MinimumVolumeBox3<InputType, ComputeType>::SmallestRectangle(int i0, int i1,
         mComputePoints[polyline[i1]] - mComputePoints[polyline[i0]];
     rct.U[1] = Cross(N, E);
     rct.U[0] = Cross(rct.U[1], N);
-    rct.index = { i1, i1, i1, i1 };
+	rct.index = { { i1, i1, i1, i1 } };
     rct.sqrLenU[0] = Dot(rct.U[0], rct.U[0]);
     rct.sqrLenU[1] = Dot(rct.U[1], rct.U[1]);
 
