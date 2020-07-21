@@ -66,7 +66,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 
 	// Make a simple linked list array of the previous and next vertex numbers, for each vertex number
 	// in the polygon.  This will just save us having to iterate later on.
-	static TArray<int32> PrevVertexNumbers, NextVertexNumbers;
+	TArray<int32> PrevVertexNumbers, NextVertexNumbers;
 
 	PrevVertexNumbers.SetNumUninitialized(PolygonVertexCount, false);
 	NextVertexNumbers.SetNumUninitialized(PolygonVertexCount, false);
@@ -273,7 +273,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector3<T>>& V
 
 	// Make a simple linked list array of the previous and next vertex numbers, for each vertex number
 	// in the polygon.  This will just save us having to iterate later on.
-	static TArray<int32> PrevVertexNumbers, NextVertexNumbers;
+	TArray<int32> PrevVertexNumbers, NextVertexNumbers;
 
 	PrevVertexNumbers.SetNumUninitialized(PolygonVertexCount, false);
 	NextVertexNumbers.SetNumUninitialized(PolygonVertexCount, false);
