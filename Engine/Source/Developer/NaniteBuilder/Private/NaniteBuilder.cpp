@@ -54,9 +54,18 @@ public:
 
 	virtual bool Build(
 		FResources& Resources,
-		TArray< FStaticMeshBuildVertex >& Verts,
-		TArray< uint32 >& Indexes,
-		TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
+		TArray<uint32>& TriangleIndices,
+		TArray<int32>& MaterialIndices,
+		uint32& NumTexCoords,
+		bool& bHasColors,
+		const FMeshNaniteSettings& Settings) override;
+
+	virtual bool Build(
+		FResources& Resources,
+		TArray< FStaticMeshBuildVertex>& Vertices,
+		TArray< uint32 >& TriangleIndices,
+		TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
 		uint32& NumTexCoords,
 		bool& bHasColors,
 		const FMeshNaniteSettings& Settings) override;
@@ -2506,8 +2515,8 @@ static uint32 BuildCoarseRepresentation(
 	{
 		FStaticMeshBuildVertex Vertex;
 		Vertex.Position = CoarseVert.GetPos();
-		Vertex.TangentX = FVector::ZeroVector;
-		Vertex.TangentY = FVector::ZeroVector;
+		Vertex.TangentX = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
+		Vertex.TangentY = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
 		Vertex.TangentZ = CoarseVert.Normal;
 		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 		{
@@ -2595,297 +2604,277 @@ static uint32 BuildCoarseRepresentation(
 	return CoarseMaterialTris.Num();
 }
 
-bool FBuilderModule::Build(
+static bool BuildNaniteData(
 	FResources& Resources,
-	TArray< FStaticMeshBuildVertex >& Verts,
-	TArray< uint32 >& Indexes,
-	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+	TArray<FStaticMeshSection, TInlineAllocator<1>>& CoarseSections,
+	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
+	TArray<uint32>& TriangleIndices,
+	TArray<int32>&  MaterialIndices,
 	uint32& NumTexCoords,
 	bool& bHasColors,
-	const FMeshNaniteSettings& Settings)
+	const FMeshNaniteSettings& Settings
+)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FBuilderModule::Build"));
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::BuildData"));
+
+	uint32 NumTriangles = TriangleIndices.Num() / 3;
 
 	uint32 Time0 = FPlatformTime::Cycles();
-	
-	//UE_LOG( LogStaticMesh, Log, TEXT("Source Verts CRC %u"), FCrc::MemCrc32( Verts.GetData(), Verts.Num() * Verts.GetTypeSize() ) );
-	//UE_LOG( LogStaticMesh, Log, TEXT("Source Indexes CRC %u"), FCrc::MemCrc32( Indexes.GetData(), Indexes.Num() * Indexes.GetTypeSize() ) );
+
+	//UE_LOG(LogStaticMesh, Log, TEXT("Source Vertices CRC %u"), FCrc::MemCrc32( Vertices.GetData(), Vertices.Num() * Vertices.GetTypeSize()));
+	//UE_LOG(LogStaticMesh, Log, TEXT("Source Indices CRC %u"), FCrc::MemCrc32( TriangleIndices.GetData(), Indexes.Num() * TriangleIndices.GetTypeSize()));
 
 	uint32 BoundaryTime = Time0;
-	uint32 NumTriangles = Indexes.Num() / 3;
-
-	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
-	// TODO: HACK: Temp disabled to allow for geometry collection to have a redundant material per section that gets de-duplicated back under this count.
-	// TODO: Make a version that takes the MaterialIndexes list instead of Sections->Derived
-	//check(Sections.Num() > 0 && Sections.Num() <= 64);
-
-	// Build associated array of triangle index and material index.
-	TArray<int32> MaterialIndexes;
-	MaterialIndexes.Reserve(Indexes.Num() / 3);
-	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
-	{
-		FStaticMeshSection& Section = Sections[SectionIndex];
-
-		// TODO: Safe to enforce valid materials always?
-		check(Section.MaterialIndex != INDEX_NONE);
-		for (uint32 i = 0; i < Section.NumTriangles; ++i)
-		{
-			MaterialIndexes.Add(Section.MaterialIndex);
-		}
-	}
-
-	// Make sure there is 1 material index per triangle.
-	check(MaterialIndexes.Num() * 3 == Indexes.Num());
 
 	FBounds	MeshBounds;
-	
-	// Normalize UVWeights using min/max UV range.
-	float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
-	float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
-	for( auto& Vert : Verts )
-	{
-		MeshBounds += Vert.Position;
 
-		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+	// Normalize UVWeights using min/max UV range.
+	float MinUV[MAX_STATIC_TEXCOORDS] = { +FLT_MAX, +FLT_MAX };
+	float MaxUV[MAX_STATIC_TEXCOORDS] = { -FLT_MAX, -FLT_MAX };
+	for (const auto& Vertex : Vertices)
+	{
+		MeshBounds += Vertex.Position;
+
+		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 		{
-			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
-			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
+			MinUV[UVIndex] = FMath::Min(MinUV[UVIndex], Vertex.UVs[UVIndex].X);
+			MinUV[UVIndex] = FMath::Min(MinUV[UVIndex], Vertex.UVs[UVIndex].Y);
+			MaxUV[UVIndex] = FMath::Max(MaxUV[UVIndex], Vertex.UVs[UVIndex].X);
+			MaxUV[UVIndex] = FMath::Max(MaxUV[UVIndex], Vertex.UVs[UVIndex].Y);
 		}
 	}
 
-	float UVWeights[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
-	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+	float UVWeights[MAX_STATIC_TEXCOORDS] = { 0.0f };
+	for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 	{
-		UVWeights[ UVIndex ] = 1.0f / ( 32.0f * NumTexCoords * FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] ) );
+		UVWeights[UVIndex] = 1.0f / (32.0f * NumTexCoords * FMath::Max(1.0f, MaxUV[UVIndex] - MinUV[UVIndex]));
 	}
 
-	TArray< uint32 > SharedEdges;
-	SharedEdges.AddUninitialized( Indexes.Num() );
+	TArray<uint32> SharedEdges;
+	SharedEdges.AddUninitialized(TriangleIndices.Num());
 
 	TBitArray<> BoundaryEdges;
-	BoundaryEdges.Init( false, Indexes.Num() );
+	BoundaryEdges.Init(false, TriangleIndices.Num());
 
-	FHashTable EdgeHash( 1 << FMath::FloorLog2( Indexes.Num() ), Indexes.Num() );
+	FHashTable EdgeHash(1 << FMath::FloorLog2(TriangleIndices.Num()), TriangleIndices.Num());
 
-	ParallelFor( Indexes.Num(),
-		[&]( int32 EdgeIndex )
-		{
-
-			uint32 VertIndex0 = Indexes[ EdgeIndex ];
-			uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-			const FVector& Position0 = Verts[ VertIndex0 ].Position;
-			const FVector& Position1 = Verts[ VertIndex1 ].Position;
-				
-			uint32 Hash0 = HashPosition( Position0 );
-			uint32 Hash1 = HashPosition( Position1 );
-			uint32 Hash = Murmur32( { Hash0, Hash1 } );
-
-			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
-		} );
-
-	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
-
-	ParallelFor( NumDwords,
-		[&]( int32 DwordIndex )
-		{
-			const int32 NumIndexes = Indexes.Num();
-			const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
-
-			uint32 Mask = 1;
-			uint32 Dword = 0;
-			for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
-			{
-				int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
-
-				uint32 VertIndex0 = Indexes[ EdgeIndex ];
-				uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-				const FVector& Position0 = Verts[ VertIndex0 ].Position;
-				const FVector& Position1 = Verts[ VertIndex1 ].Position;
-				
-				uint32 Hash0 = HashPosition( Position0 );
-				uint32 Hash1 = HashPosition( Position1 );
-				uint32 Hash = Murmur32( { Hash1, Hash0 } );
-	
-				// Find edge with opposite direction that shares these 2 verts.
-				/*
-					  /\
-					 /  \
-					o-<<-o
-					o->>-o
-					 \  /
-					  \/
-				*/
-				uint32 FoundEdge = ~0u;
-				for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
-				{
-					uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
-					uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
-			
-					if( Position0 == Verts[ OtherVertIndex1 ].Position &&
-						Position1 == Verts[ OtherVertIndex0 ].Position )
-					{
-						// Found matching edge.
-						// Hash table is not in deterministic order. Find stable match not just first.
-						FoundEdge = FMath::Min( FoundEdge, OtherEdgeIndex );
-					}
-				}
-				SharedEdges[ EdgeIndex ] = FoundEdge;
-			
-				if( FoundEdge == ~0u )
-				{
-					Dword |= Mask;
-				}
-			}
-			
-			if( Dword )
-			{
-				BoundaryEdges.GetData()[ DwordIndex ] = Dword;
-			}
-		} );
-
-	FDisjointSet DisjointSet( NumTriangles );
-
-	for( uint32 EdgeIndex = 0, Num = SharedEdges.Num(); EdgeIndex < Num; EdgeIndex++ )
+	ParallelFor(TriangleIndices.Num(),
+		[&](int32 EdgeIndex)
 	{
-		uint32 OtherEdgeIndex = SharedEdges[ EdgeIndex ];
-		if( OtherEdgeIndex != ~0u )
+
+		uint32 VertIndex0 = TriangleIndices[EdgeIndex];
+		uint32 VertIndex1 = TriangleIndices[Cycle3(EdgeIndex)];
+
+		const FVector& Position0 = Vertices[VertIndex0].Position;
+		const FVector& Position1 = Vertices[VertIndex1].Position;
+
+		uint32 Hash0 = HashPosition(Position0);
+		uint32 Hash1 = HashPosition(Position1);
+		uint32 Hash = Murmur32({ Hash0, Hash1 });
+
+		EdgeHash.Add_Concurrent(Hash, EdgeIndex);
+	});
+
+	const int32 NumDwords = FMath::DivideAndRoundUp(BoundaryEdges.Num(), NumBitsPerDWORD);
+
+	ParallelFor(NumDwords,
+		[&](int32 DwordIndex)
+	{
+		const int32 NumIndexes = TriangleIndices.Num();
+		const int32 NumBits = FMath::Min(NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD);
+
+		uint32 Mask = 1;
+		uint32 Dword = 0;
+		for (int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1)
+		{
+			int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
+
+			uint32 VertIndex0 = TriangleIndices[EdgeIndex];
+			uint32 VertIndex1 = TriangleIndices[Cycle3(EdgeIndex)];
+
+			const FVector& Position0 = Vertices[VertIndex0].Position;
+			const FVector& Position1 = Vertices[VertIndex1].Position;
+
+			uint32 Hash0 = HashPosition(Position0);
+			uint32 Hash1 = HashPosition(Position1);
+			uint32 Hash  = Murmur32({ Hash1, Hash0 });
+
+			// Find edge with opposite direction that shares these 2 verts.
+			/*
+				  /\
+				 /  \
+				o-<<-o
+				o->>-o
+				 \  /
+				  \/
+			*/
+			uint32 FoundEdge = ~0u;
+			for (uint32 OtherEdgeIndex = EdgeHash.First(Hash); EdgeHash.IsValid(OtherEdgeIndex); OtherEdgeIndex = EdgeHash.Next(OtherEdgeIndex))
+			{
+				uint32 OtherVertIndex0 = TriangleIndices[OtherEdgeIndex];
+				uint32 OtherVertIndex1 = TriangleIndices[Cycle3(OtherEdgeIndex)];
+
+				if (Position0 == Vertices[OtherVertIndex1].Position &&
+					Position1 == Vertices[OtherVertIndex0].Position)
+				{
+					// Found matching edge.
+					// Hash table is not in deterministic order. Find stable match not just first.
+					FoundEdge = FMath::Min(FoundEdge, OtherEdgeIndex);
+				}
+			}
+			SharedEdges[EdgeIndex] = FoundEdge;
+
+			if (FoundEdge == ~0u)
+			{
+				Dword |= Mask;
+			}
+		}
+
+		if (Dword)
+		{
+			BoundaryEdges.GetData()[DwordIndex] = Dword;
+		}
+	});
+
+	FDisjointSet DisjointSet(NumTriangles);
+
+	for (uint32 EdgeIndex = 0, Num = SharedEdges.Num(); EdgeIndex < Num; EdgeIndex++)
+	{
+		uint32 OtherEdgeIndex = SharedEdges[EdgeIndex];
+		if (OtherEdgeIndex != ~0u)
 		{
 			// OtherEdgeIndex is smallest that matches EdgeIndex
 			// ThisEdgeIndex is smallest that matches OtherEdgeIndex
 
-			uint32 ThisEdgeIndex = SharedEdges[ OtherEdgeIndex ];
-			check( ThisEdgeIndex != ~0u );
-			check( ThisEdgeIndex <= EdgeIndex );
+			uint32 ThisEdgeIndex = SharedEdges[OtherEdgeIndex];
+			check(ThisEdgeIndex != ~0u);
+			check(ThisEdgeIndex <= EdgeIndex);
 
-			if( EdgeIndex > ThisEdgeIndex )
+			if (EdgeIndex > ThisEdgeIndex)
 			{
 				// Previous element points to OtherEdgeIndex
-				SharedEdges[ EdgeIndex ] = ~0u;
+				SharedEdges[EdgeIndex] = ~0u;
 			}
-			else if( EdgeIndex > OtherEdgeIndex )
+			else if (EdgeIndex > OtherEdgeIndex)
 			{
 				// Second time seeing this
-				DisjointSet.UnionSequential( EdgeIndex / 3, OtherEdgeIndex / 3 );
+				DisjointSet.UnionSequential(EdgeIndex / 3, OtherEdgeIndex / 3);
 			}
 		}
 	}
 
 	BoundaryTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Boundary [%.2fs], verts: %i, tris: %i"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Verts.Num(), Indexes.Num() / 3 );
+	UE_LOG(LogStaticMesh, Log, TEXT("Boundary [%.2fs], verts: %i, tris: %i"), FPlatformTime::ToMilliseconds(BoundaryTime - Time0) / 1000.0f, Vertices.Num(), TriangleIndices.Num() / 3);
 	//UE_LOG( LogStaticMesh, Log, TEXT("Boundary CRC %u"), FCrc::MemCrc32( BoundaryEdges.GetData(), BoundaryEdges.GetAllocatedSize() ) );
 	//UE_LOG( LogStaticMesh, Log, TEXT("SharedEdges CRC %u"), FCrc::MemCrc32( SharedEdges.GetData(), SharedEdges.Num() * SharedEdges.GetTypeSize() ) );
 
 	FMeshlet CoarseRepresentation;
 
-	FGraphPartitioner Partitioner( NumTriangles );
+	FGraphPartitioner Partitioner(NumTriangles);
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::PartitionGraph"));
 
-		auto GetCenter = [ &Verts, &Indexes ]( uint32 TriIndex )
+		auto GetCenter = [&Vertices, &TriangleIndices](uint32 TriIndex)
 		{
 			FVector Center;
-			Center  = Verts[ Indexes[ TriIndex * 3 + 0 ] ].Position;
-			Center += Verts[ Indexes[ TriIndex * 3 + 1 ] ].Position;
-			Center += Verts[ Indexes[ TriIndex * 3 + 2 ] ].Position;
+			Center  = Vertices[TriangleIndices[TriIndex * 3 + 0]].Position;
+			Center += Vertices[TriangleIndices[TriIndex * 3 + 1]].Position;
+			Center += Vertices[TriangleIndices[TriIndex * 3 + 2]].Position;
 			return Center * (1.0f / 3.0f);
 		};
-		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
+		Partitioner.BuildLocalityLinks(DisjointSet, MeshBounds, GetCenter);
 
-		auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
+		auto* RESTRICT Graph = Partitioner.NewGraph(NumTriangles * 3);
 
-		for( uint32 i = 0; i < NumTriangles; i++ )
+		for (uint32 Triangle = 0; Triangle < NumTriangles; ++Triangle)
 		{
-			Graph->AdjacencyOffset[i] = Graph->Adjacency.Num();
+			Graph->AdjacencyOffset[Triangle] = Graph->Adjacency.Num();
 
-			uint32 TriIndex = Partitioner.Indexes[i];
+			uint32 TriIndex = Partitioner.Indexes[Triangle];
 
-			for( int k = 0; k < 3; k++ )
+			for (int32 Edge = 0; Edge < 3; ++Edge)
 			{
-				uint32 EdgeIndex = SharedEdges[ 3 * TriIndex + k ];
-				if( EdgeIndex != ~0u )
+				uint32 EdgeIndex = SharedEdges[3 * TriIndex + Edge];
+				if (EdgeIndex != ~0u)
 				{
-					Partitioner.AddAdjacency( Graph, EdgeIndex / 3, 4 * 65 );
+					Partitioner.AddAdjacency(Graph, EdgeIndex / 3, 4 * 65);
 				}
 			}
 
-			Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
+			Partitioner.AddLocalityLinks(Graph, TriIndex, 1);
 		}
-		Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
+		Graph->AdjacencyOffset[NumTriangles] = Graph->Adjacency.Num();
 
-		Partitioner.PartitionStrict( Graph, FMeshlet::ClusterSize - 4, FMeshlet::ClusterSize, true );
+		Partitioner.PartitionStrict(Graph, FMeshlet::ClusterSize - 4, FMeshlet::ClusterSize, true);
 	}
 
-	const uint32 OptimalNumClusters = FMath::DivideAndRoundUp< int32 >( Indexes.Num(), FMeshlet::ClusterSize * 3 );
+	const uint32 OptimalNumClusters = FMath::DivideAndRoundUp<int32>(TriangleIndices.Num(), FMeshlet::ClusterSize * 3);
 
 	uint32 ClusterTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Clustering [%.2fs]. Ratio: %f"), FPlatformTime::ToMilliseconds( ClusterTime - BoundaryTime ) / 1000.0f, (float)Partitioner.Ranges.Num() / OptimalNumClusters );
+	UE_LOG(LogStaticMesh, Log, TEXT("Clustering [%.2fs]. Ratio: %f"), FPlatformTime::ToMilliseconds(ClusterTime - BoundaryTime) / 1000.0f, (float)Partitioner.Ranges.Num() / OptimalNumClusters);
 
-	TArray< FMeshlet >		Meshlets;
-	TArray< FTriCluster >	Clusters;
+	TArray<FMeshlet> Meshlets;
+	TArray<FTriCluster> Clusters;
 
-	if( Partitioner.Ranges.Num() )
+	if (Partitioner.Ranges.Num())
 	{
 		//UE_LOG( LogStaticMesh, Log, TEXT("TriIndexes CRC %u"), FCrc::MemCrc32( Partitioner.Indexes.GetData(), Partitioner.Indexes.Num() * Partitioner.Indexes.GetTypeSize() ) );
 		//UE_LOG( LogStaticMesh, Log, TEXT("ClusterRanges CRC %u"), FCrc::MemCrc32( Partitioner.Ranges.GetData(), Partitioner.Ranges.Num() * Partitioner.Ranges.GetTypeSize() ) );
 
-		Meshlets.AddDefaulted( Partitioner.Ranges.Num() );
-		Clusters.AddDefaulted( Partitioner.Ranges.Num() );
+		Meshlets.AddDefaulted(Partitioner.Ranges.Num());
+		Clusters.AddDefaulted(Partitioner.Ranges.Num());
 
 		const bool bSingleThreaded = false;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildClusters"));
-			ParallelFor( Partitioner.Ranges.Num(),
-				[&]( int32 Index )
-				{
-					auto& Range = Partitioner.Ranges[ Index ];
+			ParallelFor(Partitioner.Ranges.Num(),
+				[&](int32 Index)
+			{
+				auto& Range = Partitioner.Ranges[Index];
 
-					Meshlets[ Index ] = FMeshlet( Verts, Indexes, MaterialIndexes, BoundaryEdges, Range.Begin, Range.End, Partitioner.Indexes );
-					Clusters[ Index ] = BuildCluster( Meshlets[ Index ] );
+				Meshlets[Index] = FMeshlet(Vertices, TriangleIndices, MaterialIndices, BoundaryEdges, Range.Begin, Range.End, Partitioner.Indexes);
+				Clusters[Index] = BuildCluster(Meshlets[Index]);
 
-					// Negative notes it's a leaf
-					Clusters[ Index ].EdgeLength *= -1.0f;
-				}, bSingleThreaded);
+				// Negative notes it's a leaf
+				Clusters[Index].EdgeLength *= -1.0f;
+			}, bSingleThreaded);
 		}
 
 		uint32 LeavesTime = FPlatformTime::Cycles();
-		UE_LOG( LogStaticMesh, Log, TEXT("Leaves [%.2fs]"), FPlatformTime::ToMilliseconds( LeavesTime - ClusterTime ) / 1000.0f );
+		UE_LOG(LogStaticMesh, Log, TEXT("Leaves [%.2fs]"), FPlatformTime::ToMilliseconds(LeavesTime - ClusterTime) / 1000.0f);
 
-		TArray< FClusterGroup > Groups;
-		FMeshletDAG DAG( Meshlets, Clusters, Groups, UVWeights, CoarseRepresentation);
+		TArray<FClusterGroup> Groups;
+		FMeshletDAG DAG(Meshlets, Clusters, Groups, UVWeights, CoarseRepresentation);
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::DAG.Reduce"));
-			DAG.Reduce( Settings );
+			DAG.Reduce(Settings);
 		}
 
 		uint32 ReduceTime = FPlatformTime::Cycles();
 		UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - LeavesTime) / 1000.0f);
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT("Nanite::Build::BuildMaterialRanges") );
-			BuildMaterialRanges( Clusters, Meshlets );
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildMaterialRanges"));
+			BuildMaterialRanges(Clusters, Meshlets);
 		}
 
 
-#if USE_CONSTRAINED_CLUSTERS
+	#if USE_CONSTRAINED_CLUSTERS
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::ConstrainClusters" ) );
-			ConstrainClusters( Groups, Clusters, Meshlets );
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::ConstrainClusters"));
+			ConstrainClusters(Groups, Clusters, Meshlets);
 		}
-#if DO_CHECK
+		#if DO_CHECK
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::VerifyClusterConstraints" ) );
-			VerifyClusterContraints( Clusters, Meshlets );
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::VerifyClusterConstraints"));
+			VerifyClusterContraints(Clusters, Meshlets);
 		}
-#endif
-#endif
+		#endif
+	#endif
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateQuantizedPositions"));	
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateQuantizedPositions"));
 			CalculateQuantizedPositions(Clusters, Meshlets, DAG.MeshBounds);	// Needs to happen after clusters have been constrained and split.
 		}
 
@@ -2902,9 +2891,9 @@ bool FBuilderModule::Build(
 			EncodeClustersAndAssignToPages(Resources, Groups, Clusters, Meshlets, NumTexCoords, Pages, GroupParts);
 		}
 
-		TArray< Nanite::FHierarchyNode > HierarchyNodes;
+		TArray<Nanite::FHierarchyNode> HierarchyNodes;
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT( "Nanite::Build::BuildHierarchyNodes" ) );
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildHierarchyNodes"));
 			BuildHierarchyNodesKMeans(HierarchyNodes, Groups, GroupParts);
 		}
 
@@ -2912,30 +2901,30 @@ bool FBuilderModule::Build(
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildPages"));
 			WritePages(Resources, Pages, Groups, GroupParts, Clusters);
 		}
-		
+
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::PackHierarchyNodes"));
 			const uint32 NumHierarchyNodes = HierarchyNodes.Num();
 			Resources.HierarchyNodes.AddUninitialized(NumHierarchyNodes);
 			for (uint32 i = 0; i < NumHierarchyNodes; i++)
 			{
-				PackHierarchyNode( Resources.HierarchyNodes[i], HierarchyNodes[i], Groups, GroupParts );
+				PackHierarchyNode(Resources.HierarchyNodes[i], HierarchyNodes[i], Groups, GroupParts);
 			}
 		}
 
 		uint32 EncodeTime = FPlatformTime::Cycles();
-		UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime - ReduceTime ) / 1000.0f );
+		UE_LOG(LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds(EncodeTime - ReduceTime) / 1000.0f);
 	}
 
 	// Replace original static mesh data with coarse representation.
 	{
-		const uint32 OldTriangleCount = Indexes.Num() / 3;
+		const uint32 OldTriangleCount = TriangleIndices.Num() / 3;
 		uint32 CoarseTriangleCount = OldTriangleCount;
 		const uint32 CoarseStartTime = FPlatformTime::Cycles();
 		const bool bUseCoarseRepresentation = Settings.PercentTriangles < 1.0f;
 		if (bUseCoarseRepresentation)
 		{
-			CoarseTriangleCount = BuildCoarseRepresentation(CoarseRepresentation, Sections, Indexes, Verts, NumTexCoords);
+			CoarseTriangleCount = BuildCoarseRepresentation(CoarseRepresentation, CoarseSections, TriangleIndices, Vertices, NumTexCoords);
 		}
 		const uint32 CoarseEndTime = FPlatformTime::Cycles();
 		UE_LOG(LogStaticMesh, Log, TEXT("Coarse [%.2fs], original tris: %d, coarse tris: %d"), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriangleCount);
@@ -2943,9 +2932,81 @@ bool FBuilderModule::Build(
 
 	uint32 Time1 = FPlatformTime::Cycles();
 
-	UE_LOG( LogStaticMesh, Log, TEXT("Nanite build [%.2fs]\n"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f );
+	UE_LOG(LogStaticMesh, Log, TEXT("Nanite build [%.2fs]\n"), FPlatformTime::ToMilliseconds(Time1 - Time0) / 1000.0f);
 
 	return true;
+}
+
+bool FBuilderModule::Build(
+	FResources& Resources,
+	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
+	TArray<uint32>& TriangleIndices,
+	TArray<int32>&  MaterialIndices,
+	uint32& NumTexCoords,
+	bool& bHasColors,
+	const FMeshNaniteSettings& Settings)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));
+
+	check(Settings.PercentTriangles == 1.0f); // No coarse representation used by this path
+	TArray<FStaticMeshSection, TInlineAllocator<1>> IgnoredCoarseSections;
+	return BuildNaniteData(
+		Resources,
+		IgnoredCoarseSections,
+		Vertices,
+		TriangleIndices,
+		MaterialIndices,
+		NumTexCoords,
+		bHasColors,
+		Settings
+	);
+}
+
+bool FBuilderModule::Build(
+	FResources& Resources,
+	TArray< FStaticMeshBuildVertex>& Vertices,
+	TArray< uint32 >& TriangleIndices,
+	TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
+	uint32& NumTexCoords,
+	bool& bHasColors,
+	const FMeshNaniteSettings& Settings)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));
+
+	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
+	check(Sections.Num() > 0 && Sections.Num() <= 64);
+
+	// Build associated array of triangle index and material index.
+	TArray<int32> MaterialIndices;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::BuildSections"));
+		MaterialIndices.Reserve(TriangleIndices.Num() / 3);
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
+		{
+			FStaticMeshSection& Section = Sections[SectionIndex];
+
+			// TODO: Safe to enforce valid materials always?
+			check(Section.MaterialIndex != INDEX_NONE);
+			for (uint32 i = 0; i < Section.NumTriangles; ++i)
+			{
+				MaterialIndices.Add(Section.MaterialIndex);
+			}
+		}
+	}
+
+	// Make sure there is 1 material index per triangle.
+	check(MaterialIndices.Num() * 3 == TriangleIndices.Num());
+
+	return BuildNaniteData(
+		Resources,
+		Sections,
+		Vertices,
+		TriangleIndices,
+		MaterialIndices,
+		NumTexCoords,
+		bHasColors,
+		Settings
+	);
 }
 
 } // namespace Nanite

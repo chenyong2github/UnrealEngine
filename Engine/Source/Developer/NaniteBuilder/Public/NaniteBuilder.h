@@ -44,9 +44,21 @@ public:
 
 	virtual bool Build(
 		FResources& Resources,
-		TArray< FStaticMeshBuildVertex >& Verts,
-		TArray< uint32 >& Indexes,
-		TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
+		TArray<uint32>& TriangleIndices,
+		TArray<int32>& MaterialIndices,
+		uint32& NumTexCoords,
+		bool& bHasColors,
+		const FMeshNaniteSettings& Settings)
+	{
+		return false;
+	}
+
+	virtual bool Build(
+		FResources& Resources,
+		TArray<FStaticMeshBuildVertex>& Vertices,
+		TArray<uint32>& TriangleIndices,
+		TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 		uint32& NumTexCoords,
 		bool& bHasColors,
 		const FMeshNaniteSettings& Settings)

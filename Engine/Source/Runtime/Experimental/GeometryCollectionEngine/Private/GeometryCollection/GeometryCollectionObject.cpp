@@ -539,10 +539,10 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 		const int32 FaceStart = FaceStartArray[GeometryGroupIndex];
 		const int32 FaceCount = FaceCountArray[GeometryGroupIndex];
 
-		TArray<FStaticMeshSection, TInlineAllocator<1>> BuildSections;
 		// TODO: Respect multiple materials like in FGeometryCollectionConversion::AppendStaticMesh
-		// TODO: Cleanup super section hack
-		BuildSections.Reserve(FaceCount);
+
+		TArray<int32> MaterialIndices;
+		MaterialIndices.Reserve(FaceCount);
 
 		TArray<uint32> BuildIndices;
 		BuildIndices.Reserve(FaceCount * 3);
@@ -558,13 +558,8 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 			BuildIndices.Add(FaceIndices.Y - VertexStart);
 			BuildIndices.Add(FaceIndices.Z - VertexStart);
 
-			// TODO: Cleanup super hack
-			FStaticMeshSection& BuildSection = BuildSections.Emplace_GetRef();
-			BuildSection.MaterialIndex = MaterialIDArray[FaceStart + FaceIndex];
-			BuildSection.FirstIndex = FaceIndex * 3;
-			BuildSection.MinVertexIndex = BuildSection.FirstIndex;
-			BuildSection.MaxVertexIndex = BuildSection.FirstIndex;
-			BuildSection.NumTriangles = 1;
+			const int32 MaterialIndex = MaterialIDArray[FaceStart + FaceIndex];
+			MaterialIndices.Add(MaterialIndex);
 		}
 
 		if (BuildIndices.Num() == 0)
@@ -577,7 +572,7 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 		NaniteSettings.bEnabled = true;
 		NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
 
-		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, BuildSections, NumTexCoords, bHasColors, NaniteSettings))
+		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, MaterialIndices, NumTexCoords, bHasColors, NaniteSettings))
 		{
 			UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
 		}
