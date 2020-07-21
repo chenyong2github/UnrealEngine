@@ -1008,8 +1008,16 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 		InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(InShot->ShotInfo.NumEngineWarmUpFramesRemaining - InNumHandleFrames, 0);
 	}
 
-	FFrameNumber LeftDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
-	FFrameNumber RightDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+	FFrameNumber LeftDeltaTicks = 0;
+	FFrameNumber RightDeltaTicks = 0;
+
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	const bool bHasMultipleTemporalSamples = AntiAliasingSettings->TemporalSampleCount > 1;
+	if (bHasMultipleTemporalSamples)
+	{
+		LeftDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+		RightDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+	}
 
 	// Account for handle frame expansion
 	LeftDeltaTicks += HandleFrameTicks;
