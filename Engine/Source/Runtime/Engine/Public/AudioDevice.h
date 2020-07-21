@@ -786,6 +786,7 @@ public:
 		float Priority;
 		FReverbSettings ReverbSettings;
 		FInteriorSettings InteriorSettings;
+		TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
 	};
 
 	void GetAudioVolumeSettings(const uint32 WorldID, const FVector& Location, FAudioVolumeSettings& OutSettings) const;
