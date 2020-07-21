@@ -85,7 +85,12 @@ public:
 	// Direct edit functions. Used by the actions.
 	UOptimusNode* AddNodeDirect(
 		const UClass* InNodeClass,
-		const FVector2D& InPosition
+		FName InName = NAME_None,
+		const FVector2D * InPosition = nullptr
+		);
+
+	bool AddNodeDirect(
+		UOptimusNode* InNode
 	);
 
 	// Remove a node directly. Also removes the links, unless bFailIfLinks is set to true,

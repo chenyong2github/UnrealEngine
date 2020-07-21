@@ -4,6 +4,8 @@
 
 #include "OptimusAction.h"
 
+#include "UObject/UnrealNames.h"
+
 #include "OptimusNodeGraphActions.generated.h"
 
 class UOptimusNode;
@@ -11,34 +13,10 @@ class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
 
-// A base action for adding/removing nodes.
-USTRUCT(Atomic)
-struct FOptimusNodeGraphAction_AddRemoveNode :
-	public FOptimusAction
-{
-	GENERATED_BODY()
-
-protected:
-	bool AddNode(IOptimusNodeGraphCollectionOwner* InRoot);
-	bool RemoveNode(IOptimusNodeGraphCollectionOwner* InRoot);
-
-	// The path of the graph the node should be added to.
-	FString GraphPath;
-
-	// The class path of the node to add.
-	FString NodeClassPath;
-
-	// THe position the node should be added at in the graph.
-	FVector2D GraphPosition;
-
-	// The path of the newly added node or the node to remove.
-	FString NodePath;
-};
-
 
 USTRUCT()
 struct FOptimusNodeGraphAction_AddNode : 
-	public FOptimusNodeGraphAction_AddRemoveNode
+	public FOptimusAction
 {
 	GENERATED_BODY()
 
@@ -55,14 +33,31 @@ public:
 	UOptimusNode* GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddNode(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveNode(InRoot); }
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph the node should be added to.
+	FString GraphPath;
+
+	// The class path of the node to add.
+	FString NodeClassPath;
+
+	// THe position the node should be added at in the graph.
+	FVector2D GraphPosition;
+
+	// The path of the newly added node or the node to remove.
+	FString NodePath;
+
+	// The name of the newly added node. Used if we undo and then redo the action to
+	// ensure we reconstruct the node with the same name.
+	FName NodeName = NAME_None;
 };
 
 
 USTRUCT()
 struct FOptimusNodeGraphAction_RemoveNode :
-	public FOptimusNodeGraphAction_AddRemoveNode
+	public FOptimusAction
 {
 	GENERATED_BODY()
 
@@ -74,8 +69,24 @@ public:
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveNode(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddNode(InRoot); }
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// Path to the node to remove.
+	FString NodePath;
+
+	// The path of the graph the node should be added to.
+	FString GraphPath;
+
+	// The class path of the node to reconstruct.
+	FString NodeClassPath;
+
+	// The name to reconstruct the node as.
+	FName NodeName;
+
+	// The stored node data.
+	TArray<uint8> NodeData;
 };
 
 

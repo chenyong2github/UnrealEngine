@@ -81,7 +81,7 @@ public:
 	FString GetNodePath() const;
 
 	/// Returns the owning node graph of this node.
-	UOptimusNodeGraph *GetGraph() const;
+	UOptimusNodeGraph *GetOwningGraph() const;
 
 	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
 
@@ -121,7 +121,7 @@ private:
 	UPROPERTY()
 	FText DisplayName;
 
-	UPROPERTY()
+	// The list of pins. These are not persisted but are instead always constructed on creation.
 	TArray<UOptimusNodePin *> Pins;
 
 	/// Cached pin lookups

@@ -25,7 +25,10 @@ TArray<UClass*> UOptimusNode::CachedNodesClasses;
 UOptimusNode::UOptimusNode()
 {
 	// Construct the pins that will represent the input/outputs for this node.
-	CreatePinsFromStructLayout(GetClass(), nullptr);
+	if (!(GetFlags() & RF_ClassDefaultObject))
+	{
+		CreatePinsFromStructLayout(GetClass(), nullptr);
+	}
 }
 
 
@@ -99,7 +102,7 @@ FString UOptimusNode::GetNodePath() const
 }
 
 
-UOptimusNodeGraph* UOptimusNode::GetGraph() const
+UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 {
 	return Cast<UOptimusNodeGraph>(GetOuter());
 }

@@ -183,21 +183,38 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 
 UOptimusNode* UOptimusNodeGraph::AddNodeDirect(
 	const UClass* InNodeClass,
-	const FVector2D& InPosition
-	)
+	FName InName /* = NAME_None */,
+	const FVector2D* InPosition /* = nullptr */
+)
 {
 	check(InNodeClass->IsChildOf(UOptimusNode::StaticClass()));
 
-	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, NAME_None, RF_Transactional);
-	NewNode->GraphPosition = InPosition;
+	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName, RF_Transactional);
+	if (InPosition)
+	{
+		NewNode->GraphPosition = *InPosition;
+	}
 
-	Nodes.Add(NewNode);
-
-	Notify(EOptimusNodeGraphNotifyType::NodeAdded, NewNode);
-
-	NewNode->MarkPackageDirty();
+	AddNodeDirect(NewNode);
 
 	return NewNode;
+}
+
+
+bool UOptimusNodeGraph::AddNodeDirect(UOptimusNode* InNode)
+{
+	if (InNode == nullptr)
+	{
+		return false;
+	}
+
+	Nodes.Add(InNode);
+
+	Notify(EOptimusNodeGraphNotifyType::NodeAdded, InNode);
+
+	InNode->MarkPackageDirty();
+
+	return true;
 }
 
 

@@ -135,7 +135,7 @@ UOptimusNodePin* UOptimusDeformer::ResolvePinPath(const FString& InPinPath)
 
 	UOptimusNode* Node = ResolveNodePath(InPinPath, PinPath);
 
-	return Node->FindPin(PinPath);
+	return Node ? Node->FindPin(PinPath) : nullptr;
 }
 
 

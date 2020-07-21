@@ -9,50 +9,10 @@
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
 
-
-bool FOptimusNodeGraphAction_AddRemoveNode::AddNode(IOptimusNodeGraphCollectionOwner* InRoot)
-{
-	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
-	if (!Graph)
-	{
-		return false;
-	}
-	UClass* NodeClass = Optimus::FindObjectInPackageOrGlobal<UClass>(NodeClassPath);
-	if (!NodeClass)
-	{
-		return false;
-	}
-
-	UOptimusNode* Node = Graph->AddNodeDirect(NodeClass, GraphPosition);
-	if (!Node)
-	{
-		return false;
-	}
-
-	NodePath = Node->GetNodePath();
-	return true;
-}
-
-
-bool FOptimusNodeGraphAction_AddRemoveNode::RemoveNode(IOptimusNodeGraphCollectionOwner* InRoot)
-{
-	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
-	if (!Node)
-	{
-		return false;
-	}
-
-	UOptimusNodeGraph* Graph = Cast<UOptimusNodeGraph>(Node->GetOuter());
-	if (!Graph)
-	{
-		return false;
-	}
-
-	return Graph->RemoveNodeDirect(Node);
-}
-
-
-
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "UObject/UObjectGlobals.h"
 
 FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
 	UOptimusNodeGraph* InGraph, 
@@ -78,25 +38,119 @@ UOptimusNode* FOptimusNodeGraphAction_AddNode::GetNode(IOptimusNodeGraphCollecti
 }
 
 
+bool FOptimusNodeGraphAction_AddNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+	UClass* NodeClass = Optimus::FindObjectInPackageOrGlobal<UClass>(NodeClassPath);
+	if (!NodeClass)
+	{
+		return false;
+	}
+
+	UOptimusNode* Node = Graph->AddNodeDirect(NodeClass, NodeName, &GraphPosition);
+	if (!Node)
+	{
+		return false;
+	}
+
+	NodePath = Node->GetNodePath();
+
+	return true;
+}
+
+
+bool FOptimusNodeGraphAction_AddNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
+	if (!Node)
+	{
+		return false;
+	}
+
+	UOptimusNodeGraph* Graph = Node->GetOwningGraph();
+	if (!Graph)
+	{
+		return false;
+	}
+
+	// Save the assigned node name for when Do gets called again.
+	NodeName = Node->GetFName();
+
+	return Graph->RemoveNodeDirect(Node);
+}
+
+
 FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(UOptimusNode* InNode)
 {
 	if (ensure(InNode != nullptr))
 	{
-		UOptimusNodeGraph* Graph = Cast<UOptimusNodeGraph>(InNode->GetOuter());
-
-		// Grab information required to reconstruct the node.
-		if (ensure(Graph != nullptr))
-		{
-			GraphPath = Graph->GetGraphPath();
-		}
-
-		NodeClassPath = InNode->GetClass()->GetPathName();
-		GraphPosition = InNode->GetGraphPosition();
 		NodePath = InNode->GetNodePath();
+
+		GraphPath = InNode->GetOwningGraph()->GetGraphPath();
+		NodeName = InNode->GetFName();
+		NodeClassPath = InNode->GetClass()->GetPathName();
 
 		// FIXME: Prettier name.
 		SetTitlef(TEXT("Remove Node"));
 	}
+}
+
+
+bool FOptimusNodeGraphAction_RemoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
+	if (!Node)
+	{
+		return false;
+	}
+
+	UOptimusNodeGraph* Graph = Node->GetOwningGraph();
+	if (!ensure(Graph))
+	{
+		return false;
+	}
+
+	// Take a copy of the node's contents.
+	{
+		FMemoryWriter NodeArchive(NodeData);
+		// This fella does the heavy lifting of serializing object references. 
+		// FMemoryWriter and fam do not handle UObject* serialization on their own.
+		FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+				NodeArchive, /* bInLoadIfFindFails=*/ false);
+		Node->SerializeScriptProperties(NodeProxyArchive);
+	}
+
+	return Graph->RemoveNodeDirect(Node);
+}
+
+
+bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+	UClass* NodeClass = Optimus::FindObjectInPackageOrGlobal<UClass>(NodeClassPath);
+	if (!NodeClass)
+	{
+		return false;
+	}
+
+	UOptimusNode* Node = NewObject<UOptimusNode>(Graph, NodeClass, NodeName);
+
+	{
+		FMemoryReader NodeArchive(NodeData);
+		FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+			NodeArchive, /* bInLoadIfFindFails=*/ true);
+		Node->SerializeScriptProperties(NodeProxyArchive);
+	}
+
+	return Graph->AddNodeDirect(Node);
 }
 
 
@@ -109,7 +163,7 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 		ensure(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output) && 
 		ensure(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input) && 
 		ensure(InNodeOutputPin->GetNode() != InNodeInputPin->GetNode()) &&
-		ensure(InNodeOutputPin->GetNode()->GetGraph() == InNodeInputPin->GetNode()->GetGraph())
+		ensure(InNodeOutputPin->GetNode()->GetOwningGraph() == InNodeInputPin->GetNode()->GetOwningGraph())
 		)
 	{
 		NodeOutputPinPath = InNodeOutputPin->GetPinPath();
@@ -131,7 +185,7 @@ bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(IOptimusNodeGraphCollectionO
 		return false;
 	}
 
-	UOptimusNodeGraph *Graph = InNodeOutputPin->GetNode()->GetGraph();
+	UOptimusNodeGraph *Graph = InNodeOutputPin->GetNode()->GetOwningGraph();
 	return Graph->AddLinkDirect(InNodeOutputPin, InNodeInputPin);
 }
 
@@ -150,7 +204,7 @@ bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(IOptimusNodeGraphCollecti
 		return false;
 	}
 
-	UOptimusNodeGraph* Graph = InNodeOutputPin->GetNode()->GetGraph();
+	UOptimusNodeGraph* Graph = InNodeOutputPin->GetNode()->GetOwningGraph();
 	return Graph->RemoveLinkDirect(InNodeOutputPin, InNodeInputPin);
 }
 
