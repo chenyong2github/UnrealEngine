@@ -46,7 +46,6 @@ struct FInstallBundleReleaseRequestResultInfo
 {
 	FName BundleName;
 	EInstallBundleReleaseResult Result = EInstallBundleReleaseResult::OK; 
-	bool bContentWasRemoved = false;
 };
 
 enum class EInstallBundleManagerInitErrorHandlerResult
