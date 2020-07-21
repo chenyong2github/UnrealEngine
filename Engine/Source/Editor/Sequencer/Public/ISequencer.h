@@ -343,7 +343,10 @@ public:
 	/** Set the global time directly, without performing any auto-scroll, snapping or other adjustments to the supplied time  */
 	virtual void SetGlobalTime(FFrameTime Time) = 0;
 
-	/** Forcefully reevaluate the sequence */
+	/** Forcefully reevaluate the sequence on the next frame */
+	virtual void RequestEvaluate() = 0;
+
+	/** Forcefully reevaluate the sequence immediately */
 	virtual void ForceEvaluate() = 0;
 
 	/** Reset the timing manager to the clock source specified by the root movie scene */
