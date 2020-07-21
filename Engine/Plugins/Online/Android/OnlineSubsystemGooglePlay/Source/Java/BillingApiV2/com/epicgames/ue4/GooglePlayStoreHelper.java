@@ -518,6 +518,7 @@ public class GooglePlayStoreHelper implements StoreHelper
 	public boolean onActivityResult(int requestCode, int resultCode, Intent data)
 	{
 		Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::onActivityResult unimplemented on BillingApiV2");
+		return false;
 	}
 
 	///////////////////////////////////////////////////////
