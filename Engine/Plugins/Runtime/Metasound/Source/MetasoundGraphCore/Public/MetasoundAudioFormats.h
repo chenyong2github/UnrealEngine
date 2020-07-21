@@ -456,17 +456,15 @@ namespace Metasound
 	};
 
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FUnformattedAudio, "Audio:Unformatted", 0xd78a3ed1 , FUnformattedAudioTypeInfo, FUnformattedAudioReadRef, FUnformattedAudioWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FUnformattedAudio, 0xd78a3ed1 , FUnformattedAudioTypeInfo, FUnformattedAudioReadRef, FUnformattedAudioWriteRef);
 	
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMultichannelAudioFormat, "Audio:Multichannel", 0x56bdcbe0 , FMultichannelAudioFormatTypeInfo, FMultichannelAudioFormatReadRef, FMultichannelAudioFormatWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMultichannelAudioFormat, 0x56bdcbe0 , FMultichannelAudioFormatTypeInfo, FMultichannelAudioFormatReadRef, FMultichannelAudioFormatWriteRef);
 	
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMonoAudioFormat, "Audio:Mono", 0x6f468c8c, FMonoAudioFormatTypeInfo, FMonoAudioFormatReadRef, FMonoAudioFormatWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FMonoAudioFormat, 0x6f468c8c, FMonoAudioFormatTypeInfo, FMonoAudioFormatReadRef, FMonoAudioFormatWriteRef);
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FStereoAudioFormat, "Audio:Stereo", 0xb55304e2 , FStereoAudioFormatTypeInfo, FStereoAudioFormatReadRef, FStereoAudioFormatWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FStereoAudioFormat, 0xb55304e2 , FStereoAudioFormatTypeInfo, FStereoAudioFormatReadRef, FStereoAudioFormatWriteRef);
 	
-	// TODO: Neither of these are trivially constructible, becuase they are actually views into a preexisting buffer.
-	//REGISTER_METASOUND_DATATYPE(FMonoAudioFormat)
-	//REGISTER_METASOUND_DATATYPE(FStereoAudioFormat)
+	
 }

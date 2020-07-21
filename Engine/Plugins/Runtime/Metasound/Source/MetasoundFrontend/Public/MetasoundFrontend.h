@@ -117,7 +117,7 @@ namespace Metasound
 		private:
 			// This is used to grant specific classes the ability to create handles.
 			enum EPrivateToken { Token };
-			static const EPrivateToken PrivateToken = EPrivateToken::Token;
+			static const EPrivateToken PrivateToken;
 
 			friend class FOutputHandle;
 			friend class FInputHandle;

@@ -49,6 +49,8 @@ namespace Metasound
 			// TODO: Would be nice if we didn't utilize the copy constructor by default here. But it's a nice catch-all
 			// for our use case.  Could store constructor parameters of the paramtype, but run the risk of holding rvalues
 			// or pointers to objects which are no longer valid. 
+
+			// TODO: instead of this copy factory, register a DataType factory lambda that uses a FDataTypeLiteralParam
 			class FCopyOperatorFactory : public IOperatorFactory
 			{
 				static_assert(TIsConstructible<DataType, const DataType&>::Value, "Data Type must be copy constructible!");

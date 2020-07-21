@@ -12,19 +12,23 @@
 
 DEFINE_LOG_CATEGORY(LogMetasoundGraphCore);
 
-REGISTER_METASOUND_DATATYPE(bool, ::Metasound::ELiteralArgType::Boolean)
-REGISTER_METASOUND_DATATYPE(int32, ::Metasound::ELiteralArgType::Integer)
-REGISTER_METASOUND_DATATYPE(int64, ::Metasound::ELiteralArgType::Integer)
-REGISTER_METASOUND_DATATYPE(float, ::Metasound::ELiteralArgType::Float)
-REGISTER_METASOUND_DATATYPE(double, ::Metasound::ELiteralArgType::Float)
+REGISTER_METASOUND_DATATYPE(bool, "Primitive:Bool", ::Metasound::ELiteralArgType::Boolean)
+
+REGISTER_METASOUND_DATATYPE(int32, "Primitive:Int32", ::Metasound::ELiteralArgType::Integer)
+
+REGISTER_METASOUND_DATATYPE(int64, "Primitive:Int64", ::Metasound::ELiteralArgType::Integer)
+
+REGISTER_METASOUND_DATATYPE(float, "Primitive:Float", ::Metasound::ELiteralArgType::Float)
+
+REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralArgType::Float)
 
 namespace Metasound
 {
-	REGISTER_METASOUND_DATATYPE(FBop)
-	REGISTER_METASOUND_DATATYPE(FFloatTime)
-	REGISTER_METASOUND_DATATYPE(FDoubleTime)
-	REGISTER_METASOUND_DATATYPE(FSampleTime)
-	REGISTER_METASOUND_DATATYPE(FFrequency)
+	REGISTER_METASOUND_DATATYPE(FBop, "Primitive:Bop")
+	REGISTER_METASOUND_DATATYPE(FFloatTime, "Primitive:Time")
+	REGISTER_METASOUND_DATATYPE(FDoubleTime, "Primitive:Time:HighResolution")
+	REGISTER_METASOUND_DATATYPE(FSampleTime, "Primitive:Time:SampleResolution")
+	REGISTER_METASOUND_DATATYPE(FFrequency, "Primitive:Frequency")
 }
 
 namespace Metasound 

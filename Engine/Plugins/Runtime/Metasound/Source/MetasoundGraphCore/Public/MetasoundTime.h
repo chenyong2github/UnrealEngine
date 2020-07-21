@@ -624,19 +624,19 @@ namespace Metasound
 	 */
 	typedef TTime<float, float> FFloatTime;
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFloatTime, "Primitive:Time", 0x2490848e, FFloatTimeTypeInfo, FFloatTimeReadRef, FFloatTimeWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFloatTime, 0x2490848e, FFloatTimeTypeInfo, FFloatTimeReadRef, FFloatTimeWriteRef);
 
 	/** FDoubleTime stores and represents all time values as 64bit floating
 	 * point values.
 	 */
 	typedef TTime<double, double> FDoubleTime;
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FDoubleTime, "Primitive:Time:HighResolution", 0x407fcff1, FDoubleTimeTypeInfo, FDoubleTimeReadRef, FDoubleTimeWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FDoubleTime, 0x407fcff1, FDoubleTimeTypeInfo, FDoubleTimeReadRef, FDoubleTimeWriteRef);
 
 	/** FSampleTime stores time quantized to sample boundaries. It returns time
 	 * as 32bit floating point values.
 	 */
 	typedef TTime<FTimeSampleCounter, float> FSampleTime;
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FSampleTime, "Primitive:Time:SampleResolution", 0xf1de8f2d, FSampleTimeTypeInfo, FSampleTimeReadRef, FSampleTimeWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FSampleTime, 0xf1de8f2d, FSampleTimeTypeInfo, FSampleTimeReadRef, FSampleTimeWriteRef);
 }

@@ -6,11 +6,29 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundAudioBuffer.h"
 
+struct FMyType
+{
+public:
+	FMyType() = delete;
+
+private:
+	FMyType Get();
+	friend class FMyOtherType;
+};
+
 namespace Metasound
 {
-	REGISTER_METASOUND_DATATYPE(FAudioBuffer)
-	REGISTER_METASOUND_DATATYPE(FUnformattedAudio)
-	REGISTER_METASOUND_DATATYPE(FMultichannelAudioFormat)
+	REGISTER_METASOUND_DATATYPE(FAudioBuffer, "Audio:Buffer")
+	REGISTER_METASOUND_DATATYPE(FUnformattedAudio, "Audio:Unformatted")
+	REGISTER_METASOUND_DATATYPE(FMultichannelAudioFormat, "Audio:Multichannel")
+
+
+
+	// TODO: Neither of these are trivially constructible, becuase they are actually views into a preexisting buffer.
+	//REGISTER_METASOUND_DATATYPE(FMonoAudioFormat)
+	//REGISTER_METASOUND_DATATYPE(FStereoAudioFormat)
+	IMPL_METASOUND_DATA_TYPE(FMonoAudioFormat, "Audio:Mono")
+	IMPL_METASOUND_DATA_TYPE(FStereoAudioFormat, "Audio:Stereo")
 
 	/* FUnformattedAudio */
 

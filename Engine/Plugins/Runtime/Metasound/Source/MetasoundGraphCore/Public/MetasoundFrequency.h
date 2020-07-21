@@ -150,5 +150,5 @@ namespace Metasound
 			float FrequencyInHz;
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFrequency, "Primitive:Frequency", 0xf1c430a4 , FFrequencyTypeInfo, FFrequencyReadRef, FFrequencyWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FFrequency, 0xf1c430a4, FFrequencyTypeInfo, FFrequencyReadRef, FFrequencyWriteRef)
 }

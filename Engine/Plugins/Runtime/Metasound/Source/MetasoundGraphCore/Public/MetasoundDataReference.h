@@ -9,11 +9,11 @@
 // Declares a metasound parameter type by
 // - Adding typedefs for commonly used template types.
 // - Defining parameter type traits.
-#define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, DataTypeName, DataTypeMagicNumber, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
+#define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, DataTypeMagicNumber, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
 	template<> \
 	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
 	{ \
-		static constexpr const TCHAR* TypeName = TEXT(DataTypeName); \
+		static const TCHAR* TypeName; \
 		static constexpr ::Metasound::FDataTypeMagicNumber MagicNumber = (DataTypeMagicNumber); \
 		static constexpr bool bIsStringParsable = TTestIfDataTypeCtorIsImplemented<DataType, const FString&>::Value; \
 		static constexpr bool bIsBoolParsable = TTestIfDataTypeCtorIsImplemented<DataType, bool>::Value; \
@@ -28,6 +28,10 @@
 	\
 	typedef ::Metasound::TDataReadReference<DataType> DataReadReferenceTypeName; \
 	typedef ::Metasound::TDataWriteReference<DataType> DataWriteReferenceTypeName; \
+
+// This only needs to be called if you don't plan on calling REGISTER_METASOUND_DATATYPE.
+#define IMPL_METASOUND_DATA_TYPE(DataType, DataTypeName) \
+	const TCHAR* ::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName);
 
 namespace Metasound
 {
@@ -73,7 +77,7 @@ namespace Metasound
 		 * Users should be aware of FName case-insensitivity and other 
 		 * limitiations. 
 		 */
-		static constexpr const TCHAR* TypeName = nullptr;
+		static constexpr const TCHAR TypeName[] = TEXT("");
 
 		/** Magic number used to check the data type when casting. */
 		static constexpr const FDataTypeMagicNumber MagicNumber = -1;
@@ -481,3 +485,8 @@ namespace Metasound
 		{}
 	};
 }
+
+struct FMyRandomDataType
+{
+	explicit FMyRandomDataType(bool bInValue);
+};

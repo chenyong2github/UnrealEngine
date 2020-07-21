@@ -24,6 +24,8 @@ namespace Metasound
 {
 	namespace Frontend
 	{
+		const FHandleInitParams::EPrivateToken FHandleInitParams::PrivateToken = FHandleInitParams::EPrivateToken::Token;
+
 		TArray<FNodeClassInfo> GetAllAvailableNodeClasses()
 		{
 			TArray<FNodeClassInfo> OutClasses;

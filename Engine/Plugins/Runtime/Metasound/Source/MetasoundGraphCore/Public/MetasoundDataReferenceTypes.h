@@ -60,5 +60,5 @@ namespace Metasound
 			TArray<uint32> Frames;
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FBop, "Bop", 2, FBopTypeInfo, FBopReadRef, FBopWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FBop, 2, FBopTypeInfo, FBopReadRef, FBopWriteRef);
 }
