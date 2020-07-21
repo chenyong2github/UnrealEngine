@@ -160,7 +160,7 @@ public:
 		return Devices[GPUIndex];
 	}
 
-	void CreateDXGIFactory();
+	void CreateDXGIFactory(bool bWithDebug);
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 
