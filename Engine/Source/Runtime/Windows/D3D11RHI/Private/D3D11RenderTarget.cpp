@@ -1010,7 +1010,8 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 
 	bool bIsRGBAFmt = TextureDesc.Format == GPixelFormats[PF_FloatRGBA].PlatformFormat;
 	bool bIsR16FFmt = TextureDesc.Format == GPixelFormats[PF_R16F].PlatformFormat;	
-	check(bIsRGBAFmt || bIsR16FFmt);
+	bool bIsR32FFmt = TextureDesc.Format == GPixelFormats[PF_R32_FLOAT].PlatformFormat;
+	check(bIsRGBAFmt || bIsR16FFmt || bIsR32FFmt);
 
 	// Allocate the output buffer.
 	OutData.Empty(SizeX * SizeY * SizeZ * sizeof(FFloat16Color));
@@ -1084,6 +1085,24 @@ void FD3D11DynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRec
 					check(Index < OutData.Num());
 					OutData[Index].R = SrcPtr[X];
 					OutData[Index].A = FFloat16(1.0f); // ensure full alpha (as if you sampled on GPU)
+				}
+			}
+		}
+	}
+	else if (bIsR32FFmt)
+	{
+		// Texture data is R32F
+		for (int32 Z = ZMinMax.X; Z < ZMinMax.Y; ++Z)
+		{
+			for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; ++Y)
+			{
+				const float* SrcPtr = (const float*)((const uint8*)LockedRect.pData + (Y - InRect.Min.Y) * LockedRect.RowPitch + (Z - ZMinMax.X) * LockedRect.DepthPitch);
+				for (int32 X = InRect.Min.X; X < InRect.Max.X; ++X)
+				{
+					int32 Index = (Y - InRect.Min.Y) * SizeX + (Z - ZMinMax.X) * SizeX * SizeY + X;
+					check(Index < OutData.Num());
+					OutData[Index].R = FFloat16(SrcPtr[X]);
+					OutData[Index].A = FFloat16(1.0f);
 				}
 			}
 		}
