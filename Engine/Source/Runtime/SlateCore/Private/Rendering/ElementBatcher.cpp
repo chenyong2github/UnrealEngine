@@ -483,8 +483,11 @@ void FSlateElementBatcher::AddCachedElements(FSlateCachedElementData& CachedElem
 }
 
 template<ESlateVertexRounding Rounding>
-void FSlateElementBatcher::AddQuadElement( const FSlateDrawElement& DrawElement, FColor Color )
+void FSlateElementBatcher::AddQuadElement( const FSlateDrawElement& DrawElement )
 {
+	const FSlateBoxPayload& DrawElementPayload = DrawElement.GetDataPayload<FSlateBoxPayload>();
+
+	const FColor Tint = PackVertexColor(DrawElementPayload.GetTint());
 	const FSlateRenderTransform& RenderTransform = DrawElement.GetRenderTransform();
 	const FVector2D& LocalSize = DrawElement.GetLocalSize();
 	ESlateDrawEffect InDrawEffects = DrawElement.GetDrawEffects();
@@ -503,10 +506,10 @@ void FSlateElementBatcher::AddQuadElement( const FSlateDrawElement& DrawElement,
 	const uint32 IndexStart = 0;
 
 	// Add four vertices to the list of verts to be added to the vertex buffer
-	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, TopLeft, FVector2D(0.0f,0.0f),  Color));
-	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, TopRight, FVector2D(1.0f,0.0f), Color));
-	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, BotLeft, FVector2D(0.0f,1.0f),  Color));
-	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, BotRight, FVector2D(1.0f,1.0f), Color));
+	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, TopLeft, FVector2D(0.0f,0.0f),  Tint));
+	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, TopRight, FVector2D(1.0f,0.0f), Tint));
+	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, BotLeft, FVector2D(0.0f,1.0f),  Tint));
+	RenderBatch.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, BotRight, FVector2D(1.0f,1.0f), Tint));
 
 	// Add 6 indices to the vertex buffer.  (2 tri's per quad, 3 indices per tri)
 	RenderBatch.AddIndex(IndexStart + 0);
