@@ -899,7 +899,7 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 			HighlightText.Bind(OwnerMultiBoxWidget.Pin().Get(), &SMultiBoxWidget::GetSearchText);
 			TheTextBlock->SetHighlightText(HighlightText);
 
-			OwnerMultiBoxWidget.Pin()->AddSearchElement( this->AsWidget(), TheTextBlock.Get().GetText() );
+			OwnerMultiBoxWidget.Pin()->AddElement( this->AsWidget(), TheTextBlock.Get().GetText(), MultiBlock->GetSearchable());
 		}
 		else
 		{
@@ -908,8 +908,7 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 	}
 	else
 	{
-		if (MultiBlock->GetSearchable() && !BuildParams.Label.Get().IsEmpty())
-			OwnerMultiBoxWidget.Pin()->AddSearchElement( this->AsWidget(), BuildParams.Label.Get() );
+		OwnerMultiBoxWidget.Pin()->AddElement( this->AsWidget(), BuildParams.Label.Get(), MultiBlock->GetSearchable());
 	}
 
 	// Tool tips are optional so if the tool tip override is empty and there is no UI command just use the empty tool tip.
@@ -944,7 +943,7 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 			ChildSlot.AttachWidget( BuildMenuEntryWidget( BuildParams ) );
 		}
 	}
-	else if( ensure( MultiBox->GetType() == EMultiBoxType::MenuBar || MultiBox->GetType() == EMultiBoxType::ToolMenuBar ) )
+	else if( ensure( MultiBox->GetType() == EMultiBoxType::MenuBar) )
 	{
 		// Menu bar items cannot be submenus
 		check( !MenuEntryBlock->bIsSubMenu );

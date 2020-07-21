@@ -23,9 +23,13 @@ namespace EditorAnalyticsDefs
 
 	// The storage location is used to version the different data format. This is to prevent one version of the Editor/CRC to send sessions produced by another incompatible version.
 	//   Version 1_0 : Used from creation up to 4.25.0 release (included).
-	//   Version 1_1 : Changed for 4.25.1. To avoid public API changes, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
+	//   Version 1_1 : To avoid public API changes in 4.25.1, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
+	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
 	static const FString StoreId(TEXT("Epic Games"));
-	static const FString SessionSummarySection(TEXT("Unreal Engine/Session Summary/1_1"));
+	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
+	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
+	static const FString SessionSummarySection_1_1 = SessionSummaryRoot / TEXT("1_1");
+	static const FString SessionSummarySection = SessionSummaryRoot / TEXT("1_2"); // The current section format.
 	static const FString GlobalLockName(TEXT("UE4_SessionSummary_Lock"));
 	static const FString SessionListStoreKey(TEXT("SessionList"));
 
@@ -52,7 +56,6 @@ namespace EditorAnalyticsDefs
 	static const FString Idle1MinStoreKey(TEXT("Idle1Min"));
 	static const FString Idle5MinStoreKey(TEXT("Idle5Min"));
 	static const FString Idle30MinStoreKey(TEXT("Idle30Min"));
-	static const FString TotalUserInactivitySecondsStoreKey(TEXT("TotalUserInactivitySecs"));
 	static const FString TotalEditorInactivitySecondsStoreKey(TEXT("TotalEditorInactivitySecs"));
 	static const FString CurrentUserActivityStoreKey(TEXT("CurrentUserActivity"));
 	static const FString PluginsStoreKey(TEXT("Plugins"));
@@ -150,7 +153,7 @@ namespace EditorAnalyticsUtils
 			FPlatformAtomics::AtomicRead(&Session.Idle1Min),
 			FPlatformAtomics::AtomicRead(&Session.Idle5Min),
 			FPlatformAtomics::AtomicRead(&Session.Idle30Min),
-			FPlatformAtomics::AtomicRead(&Session.TotalUserInactivitySeconds), // To avoid changing public API in 4.25.1, TotalUserInactivitySeconds was repurposed to holds the session duration. Should be fixed in 4.26.
+			FPlatformAtomics::AtomicRead(&Session.SessionDuration),
 			TimestampStr);
 
 		IFileManager::Get().MakeDirectory(Pathname, /*Tree*/true);
@@ -196,10 +199,10 @@ namespace EditorAnalyticsUtils
 						Session.Idle30Min = ParsedTime;
 					}
 
-					ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(6)); // SessionDuration. (To avoid breaking public API, TotalUserInactivitySeconds was repurposed to hold session duration in 4.25.x branch)
-					if (ParsedTime > Session.TotalUserInactivitySeconds)
+					ParsedTime = FCString::Atoi(*Matcher.GetCaptureGroup(6)); // SessionDuration.
+					if (ParsedTime > Session.SessionDuration)
 					{
-						Session.TotalUserInactivitySeconds = ParsedTime;
+						Session.SessionDuration = ParsedTime;
 					}
 
 					FDateTime ParsedTimestamp = FDateTime::FromUnixTimestamp(FCString::Atoi64(*Matcher.GetCaptureGroup(6))); // Unix timestamp (UTC)
@@ -292,10 +295,10 @@ namespace EditorAnalyticsUtils
 			Session.Timestamp = EditorAnalyticsUtils::StringToTimestamp(TimestampString);
 		}
 
+		GET_STORED_INT(SessionDuration);
 		GET_STORED_INT(Idle1Min);
 		GET_STORED_INT(Idle5Min);
 		GET_STORED_INT(Idle30Min);
-		GET_STORED_INT(TotalUserInactivitySeconds);
 		GET_STORED_INT(TotalEditorInactivitySeconds);
 
 		GET_STORED_STRING(CurrentUserActivity);
@@ -494,10 +497,10 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::ProjectDescriptionStoreKey,  ProjectDescription},
 			{EditorAnalyticsDefs::ProjectVersionStoreKey,  ProjectVersion},
 			{EditorAnalyticsDefs::TimestampStoreKey,       EditorAnalyticsUtils::TimestampToString(Timestamp)},
+			{EditorAnalyticsDefs::SessionDurationStoreKey,  FString::FromInt(SessionDuration)},
 			{EditorAnalyticsDefs::Idle1MinStoreKey,  FString::FromInt(Idle1Min)},
 			{EditorAnalyticsDefs::Idle5MinStoreKey,  FString::FromInt(Idle5Min)},
 			{EditorAnalyticsDefs::Idle30MinStoreKey, FString::FromInt(Idle30Min)},
-			{EditorAnalyticsDefs::TotalUserInactivitySecondsStoreKey, FString::FromInt(TotalUserInactivitySeconds)},
 			{EditorAnalyticsDefs::TotalEditorInactivitySecondsStoreKey, FString::FromInt(TotalEditorInactivitySeconds)},
 			{EditorAnalyticsDefs::CurrentUserActivityStoreKey, CurrentUserActivity},
 			{EditorAnalyticsDefs::AverageFPSStoreKey,     FString::SanitizeFloat(AverageFPS)},
@@ -568,7 +571,6 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle1MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle5MinStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::Idle30MinStoreKey);
-	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalUserInactivitySecondsStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TotalEditorInactivitySecondsStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::CurrentUserActivityStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::PluginsStoreKey);
@@ -663,6 +665,52 @@ bool FEditorAnalyticsSession::SaveStoredSessionIDs(const TArray<FString>& InSess
 
 	FPlatformMisc::SetStoredValue(EditorAnalyticsDefs::StoreId, EditorAnalyticsDefs::SessionSummarySection, EditorAnalyticsDefs::SessionListStoreKey, SessionListString);
 	return true;
+}
+
+void FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(const FTimespan& MaxAge)
+{
+	if (!ensure(IsLocked()))
+	{
+		return;
+	}
+
+	// Helper function to scan and clear sessions stored in sections corresponding to format version '1_0' and '1_1'.
+	auto CleanupVersionedSection = [&MaxAge](const FString& SectionVersion)
+	{
+		// Try to retreive the session list corresponding the specified session format.
+		FString SessionListString;
+		FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionVersion, EditorAnalyticsDefs::SessionListStoreKey, SessionListString);
+
+		if (!SessionListString.IsEmpty())
+		{
+			TArray<FString> SessionIDs;
+			SessionListString.ParseIntoArray(SessionIDs, TEXT(","));
+
+			for (const FString& SessionID : SessionIDs)
+			{
+				// All versions (1_0, 1_1 and 1_2) have a 'Timestamp' field. If it is not found, the session was partially deleted and should be cleaned up.
+				FString SessionSectionName = SectionVersion / SessionID;
+				FString TimestampStr;
+				if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SessionSectionName, EditorAnalyticsDefs::TimestampStoreKey, TimestampStr))
+				{
+					const FTimespan SessionAge = FDateTime::UtcNow() - EditorAnalyticsUtils::StringToTimestamp(TimestampStr);
+					if (SessionAge < MaxAge)
+					{
+						// Don't delete the section yet, it contains a session young enough that could be sent if the user launch the Editor corresponding to this session format again.
+						return;
+					}
+				}
+			}
+		}
+
+		// Nothing in the section is worth keeping, delete it entirely.
+		FPlatformMisc::DeleteStoredSection(EditorAnalyticsDefs::StoreId, SectionVersion);
+	};
+
+	// The current section format is 1_2. The older sections are considered incompatible and will be trimmed unless it contains a valid session young enough that would be picked up
+	// if an older Editor with compatible format was launched again.
+	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_0);
+	CleanupVersionedSection(EditorAnalyticsDefs::SessionSummarySection_1_1);
 }
 
 void FEditorAnalyticsSession::LogEvent(EEventType InEventType, const FDateTime& InTimestamp)

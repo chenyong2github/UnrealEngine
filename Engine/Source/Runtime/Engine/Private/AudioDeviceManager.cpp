@@ -67,6 +67,14 @@ FAutoConsoleVariableRef CVarFlushAudioRenderCommandsOnSuspend(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 GCVarNeverMuteNonRealtimeAudioDevices = 0;
+FAutoConsoleVariableRef CVarNeverMuteNonRealtimeAudioDevices(
+	TEXT("au.NeverMuteNonRealtimeAudioDevices"),
+	GCVarNeverMuteNonRealtimeAudioDevices,
+	TEXT("When set to 1, nonrealtime audio devices will be exempt from normal audio device muting (for example, when a window goes out of focus.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
 static FAutoConsoleCommand GReportAudioDevicesCommand(
 	TEXT("au.ReportAudioDevices"),
 	TEXT("This will log any active audio devices (instances of the audio engine) alive right now."),
@@ -1257,6 +1265,11 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	}
 
 	bPlayAllDeviceAudio = !bPlayAllDeviceAudio;
+}
+
+bool FAudioDeviceManager::IsAlwaysPlayNonRealtimeDeviceAudio() const
+{
+	return GCVarNeverMuteNonRealtimeAudioDevices != 0;
 }
 
 bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const

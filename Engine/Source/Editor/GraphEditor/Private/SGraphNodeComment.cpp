@@ -398,6 +398,7 @@ void SGraphNodeComment::EndUserInteraction() const
 		TSharedPtr<SGraphPanel> Panel = GetOwnerPanel();
 		FChildren* PanelChildren = Panel->GetAllChildren();
 		int32 NumChildren = PanelChildren->Num();
+		static FString SGraphNodeCommentType = "SGraphNodeComment";
 
 		for ( int32 NodeIndex=0; NodeIndex < NumChildren; ++NodeIndex )
 		{

@@ -308,7 +308,14 @@ HRESULT STDCALL FWindowsUIAControlProvider::QueryInterface(REFIID riid, void** p
 	{
 		*ppInterface = static_cast<IWindowProvider*>(this);
 	}
-
+	else if (riid == __uuidof(ISelectionProvider))
+	{
+		*ppInterface = static_cast<ISelectionProvider*>(this);
+	}
+	else if (riid == __uuidof(ISelectionItemProvider))
+	{
+		*ppInterface = static_cast<ISelectionItemProvider*>(this);
+	}
 	if (*ppInterface)
 	{
 		AddRef();
@@ -469,7 +476,34 @@ HRESULT STDCALL FWindowsUIAControlProvider::get_SupportedTextSelection(Supported
 
 HRESULT STDCALL FWindowsUIAControlProvider::GetSelection(SAFEARRAY** pRetVal)
 {
-	return E_NOTIMPL;
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+			if (IsValid())
+			{
+				if (Widget->AsTable())
+				{
+					// @TODOAccessibility: MSDN does not state what to do if there is nothing selected for the C++ implementation 
+					// We'll return an empty array and hope nothing blows up 
+					TArray<TSharedPtr<IAccessibleWidget>> SelectedItems = Widget->AsTable()->GetSelectedItems();
+					ULONG NumElements = static_cast<ULONG>(SelectedItems.Num());
+					*pRetVal = SafeArrayCreateVector(VT_UNKNOWN, 0, NumElements);
+					for(int32 Index = 0; Index < SelectedItems.Num(); ++Index)
+					{ 
+						const TSharedPtr<IAccessibleWidget>& CurrentSelectedItem = SelectedItems[Index];
+						FScopedWidgetProvider ScopedProvider(UIAManager->GetWidgetProvider(CurrentSelectedItem.ToSharedRef()));
+						LONG PutIndex = static_cast<LONG>(Index);
+						ReturnValue = SafeArrayPutElement(*pRetVal, &PutIndex, &ScopedProvider.Provider);
+						if (ReturnValue != S_OK)
+						{
+							break;
+						}
+					}
+					
+				}
+			}
+		});
+	return ReturnValue;
 }
 
 HRESULT STDCALL FWindowsUIAControlProvider::GetVisibleRanges(SAFEARRAY** pRetVal)
@@ -754,4 +788,114 @@ HRESULT STDCALL FWindowsUIAControlProvider::WaitForInputIdle(int milliseconds, B
 	return E_NOTIMPL;
 }
 
+// ISelectionProvider
+// Left here for clarity. There is a clash between ISelectionProvider::GetSelection() and ITextProvider::GetSelection().
+// We implement both versions in ITextProvider
+//HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::GetSelection(SAFEARRAY** pRetVal)
+//{
+//	return E_NOTIMPL;
+//	}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::get_CanSelectMultiple(BOOL* pRetVal)
+{
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+			if (IsValid())
+			{
+				if (Widget->AsTable())
+				{
+					*pRetVal = Widget->AsTable()->CanSupportMultiSelection();
+					ReturnValue = S_OK;
+				}
+			}
+		});
+	return ReturnValue;
+}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::get_IsSelectionRequired(BOOL* pRetVal)
+{
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+			if (IsValid())
+			{
+				if (Widget->AsTable())
+				{
+					*pRetVal = Widget->AsTable()->IsSelectionRequired();
+					ReturnValue = S_OK;
+				}
+			}
+		});
+	return ReturnValue;
+}
+// ~
+
+// ISelectionItemProvider
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::Select()
+{
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue]() {
+			if (IsValid())
+			{
+				if (Widget->AsTableRow())
+				{
+					Widget->AsTableRow()->Select();
+					ReturnValue = S_OK;
+				}
+			}
+		});
+	return ReturnValue;
+}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::AddToSelection()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::RemoveFromSelection()
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::get_IsSelected(BOOL* pRetVal)
+{
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+			if (IsValid())
+			{
+				if (Widget->AsTableRow())
+				{
+					*pRetVal = Widget->AsTableRow()->IsSelected();
+					ReturnValue = S_OK;
+				}
+			}
+		});
+	return ReturnValue;
+}
+
+HRESULT STDMETHODCALLTYPE FWindowsUIAControlProvider::get_SelectionContainer(IRawElementProviderSimple** pRetVal)
+{
+	HRESULT ReturnValue = E_NOTIMPL;
+	UIAManager->RunInGameThreadBlocking(
+		[this, &ReturnValue, &pRetVal]() {
+			if (IsValid())
+			{
+				if (Widget->AsTableRow())
+				{
+					TSharedPtr<IAccessibleWidget> AccessibleContainer = Widget->AsTableRow()->GetOwningTable();
+					if (AccessibleContainer.IsValid())
+					{
+						FScopedWidgetProvider ScopedProvider(UIAManager->GetWidgetProvider(AccessibleContainer.ToSharedRef()));
+						*pRetVal = &ScopedProvider.Provider;
+						ReturnValue = S_OK;
+					}
+				}
+			}
+		});
+	return ReturnValue;
+}
+// ~
 #endif

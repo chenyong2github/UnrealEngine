@@ -40,6 +40,9 @@ public:
 	/** Used to callback into calling code when a UAT task completes. First param is the result type, second param is the runtime in sec. */
 	typedef TFunction<void(FString, double)> UatTaskResultCallack;
 
-	virtual void CreateUatTask(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, UatTaskResultCallack ResultCallback = UatTaskResultCallack()) = 0;
+	/** Creates and starts up a UAT Task
+	  * @param	ResultLocation	The folder where the result of the task will be stored  
+	  */
+	virtual void CreateUatTask(const FString& CommandLine, const FText& PlatformDisplayName, const FText& TaskName, const FText &TaskShortName, const FSlateBrush* TaskIcon, UatTaskResultCallack ResultCallback = UatTaskResultCallack(), const FString& ResultLocation = FString()) = 0;
 };
 

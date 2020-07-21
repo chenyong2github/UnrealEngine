@@ -42,6 +42,9 @@ namespace EditorSessionWriterDefs
 	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
 	static const float EarlyHeartbeatPeriodSeconds = 1;
 
+	// In the first minutes, update every seconds because lot of crashes occurs in the first minute.
+	static const float DebuggerCheckPeriodSeconds = 1;
+
 	// The upper CPU usage % considered as Idle. If the CPU usage goes above this threshold, the Editor is considered 'active'.
 	constexpr float IdleCpuUsagePercent = 20;
 
@@ -51,6 +54,7 @@ namespace EditorSessionWriterDefs
 
 FEditorSessionSummaryWriter::FEditorSessionSummaryWriter(uint32 InProcessMonitorProcessId)
 	: HeartbeatTimeElapsed(0.0f)
+	, NextDebuggerCheckSecs(FPlatformTime::Seconds())
 	, LastUserActivityTimeSecs(FPlatformTime::Seconds())
 	, AccountedUserIdleSecs(0)
 	, LastEditorActivityTimeSecs(FPlatformTime::Seconds())
@@ -78,28 +82,32 @@ void FEditorSessionSummaryWriter::Initialize()
 	{
 		// Create a session Session for this session
 		CurrentSession = CreateCurrentSession(SessionStartTimeUtc, OutOfProcessMonitorProcessId);
+
+		// Update the idle/inactivity timers. The session start time is taken when the FEditorSessionSummaryWriter is created, but it is possible to have a very long gap of time until the
+		// session itself is created if the session lock is contented. In such case, the session is created at the next Tick() and it may come much later if the computer hibernated in-between.
+		double CurrTimeSecs = FPlatformTime::Seconds();
+		UpdateUserIdleTime(CurrTimeSecs, /*bReset*/false);
+		UpdateEditorIdleTime(CurrTimeSecs, /*bReset*/false);
+		UpdateSessionDuration(CurrTimeSecs);
+
 		CurrentSession->Save();
 
 		UE_LOG(LogEditorSessionSummary, Log, TEXT("EditorSessionSummaryWriter initialized"));
 
-		// update session list string
+		// Update the session list.
 		TArray<FString> StoredSessions;
-
 		FEditorAnalyticsSession::GetStoredSessionIDs(StoredSessions);
 		StoredSessions.Add(CurrentSession->SessionId);
-
 		FEditorAnalyticsSession::SaveStoredSessionIDs(StoredSessions);
 
 		FEditorAnalyticsSession::Unlock();
+
+		// Attached debugger was checked during session creation, schedule the next one in n seconds.
+		NextDebuggerCheckSecs = CurrTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
 	}
 
 	if (CurrentSession)
 	{
-		// Reset all 'inactivity' timers to 'now'.
-		double CurrTimSecs = FPlatformTime::Seconds();
-		LastUserActivityTimeSecs.Store(CurrTimSecs);
-		LastEditorActivityTimeSecs.Store(CurrTimSecs);
-
 		// Register for crash and app state callbacks
 		FCoreDelegates::OnHandleSystemError.AddRaw(this, &FEditorSessionSummaryWriter::OnCrashing); // WARNING: Don't assume this function is only called from game thread.
 		FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FEditorSessionSummaryWriter::OnTerminate); // WARNING: Don't assume this function is only called from game thread.
@@ -120,11 +128,10 @@ void FEditorSessionSummaryWriter::UpdateSessionDuration(double CurrTimeSecs)
 	int32 NewSessionDuration = FMath::FloorToInt(static_cast<float>(CurrTimeSecs - SessionStartTimeSecs));
 	do
 	{
-		// WARNING: To avoid breaking public API in 4.25.1, TotalUserInactivitySeconds field was repurposed to store the session duration. It should be renamed appropriately in 4.26.
-		int32 OldSessionDurationSecs = FPlatformAtomics::AtomicRead(&CurrentSession->TotalUserInactivitySeconds);
+		int32 OldSessionDurationSecs = FPlatformAtomics::AtomicRead(&CurrentSession->SessionDuration);
 		if (NewSessionDuration > OldSessionDurationSecs)
 		{
-			if (FPlatformAtomics::InterlockedCompareExchange(&CurrentSession->TotalUserInactivitySeconds, NewSessionDuration, OldSessionDurationSecs) == OldSessionDurationSecs)
+			if (FPlatformAtomics::InterlockedCompareExchange(&CurrentSession->SessionDuration, NewSessionDuration, OldSessionDurationSecs) == OldSessionDurationSecs)
 			{
 				return; // Value was exchanged successfully.
 			}
@@ -241,6 +248,23 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 	// Update other session stats approximatively every minute.
 	HeartbeatTimeElapsed += DeltaTime;
 
+	// Frequently check if the debugger is attached. (More than once per minute)
+	if (CurrentTimeSecs >= NextDebuggerCheckSecs)
+	{
+		// Check if the debugger is present.
+		bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
+		if (CurrentSession->bIsDebugger != bIsDebuggerPresent)
+		{
+			CurrentSession->bIsDebugger = bIsDebuggerPresent;
+			if (bIsDebuggerPresent && !CurrentSession->bWasEverDebugger)
+			{
+				CurrentSession->bWasEverDebugger = true;
+			}
+			TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
+		}
+		NextDebuggerCheckSecs = CurrentTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
+	}
+
 	// In the first seconds of the session, be more granular about updating the session (many crashes occurs there), update/save every second or so, then every minutes later on.
 	if (HeartbeatTimeElapsed >= EditorSessionWriterDefs::HeartbeatPeriodSeconds || (CurrentTimeSecs - SessionStartTimeSecs <= 30.0 && HeartbeatTimeElapsed >= EditorSessionWriterDefs::EarlyHeartbeatPeriodSeconds))
 	{
@@ -253,18 +277,6 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 			if (!FPlatformProcess::IsApplicationRunning(CurrentSession->MonitorProcessID))
 			{
 				CurrentSession->MonitorExceptCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
-			}
-		}
-
-		// check if the debugger is present
-		bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
-		if (CurrentSession->bIsDebugger != bIsDebuggerPresent)
-		{
-			CurrentSession->bIsDebugger = bIsDebuggerPresent;
-
-			if (!CurrentSession->bWasEverDebugger && CurrentSession->bIsDebugger)
-			{
-				CurrentSession->bWasEverDebugger = true;
 			}
 		}
 
@@ -414,10 +426,12 @@ void FEditorSessionSummaryWriter::OnCrashing()
 		UpdateEditorIdleTime(CurrTimeSecs, /*bSaveSession*/false);
 		UpdateSessionDuration(CurrTimeSecs);
 		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Crashed, FDateTime::UtcNow());
+		CurrentSession->bCrashed = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
 
 		if (GIsGPUCrashed)
 		{
 			CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::GpuCrashed, FDateTime::UtcNow());
+			CurrentSession->bGPUCrashed = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
 		}
 
 		// At last, try to save the session. It may fail, but the locklessly logged events above will carry the most important information.
@@ -435,6 +449,7 @@ void FEditorSessionSummaryWriter::OnTerminate()
 		UpdateEditorIdleTime(CurrTimeSecs, /*bSaveSession*/false);
 		UpdateSessionDuration(CurrTimeSecs);
 		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Terminated, FDateTime::UtcNow());
+		CurrentSession->bIsTerminating = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
 
 		// At last, try to save the session. It may fail, but the locklessly logged events above will carry the most important information.
 		TrySaveCurrentSession(FDateTime::UtcNow(), FPlatformTime::Seconds());

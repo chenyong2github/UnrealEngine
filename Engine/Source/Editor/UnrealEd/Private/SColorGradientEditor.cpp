@@ -475,7 +475,7 @@ FReply SColorGradientEditor::OnMouseButtonUp( const FGeometry& MyGeometry, const
 			bDraggingStop = false;
 			return FReply::Handled().ReleaseMouseCapture();
 		}
-		else if( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton )
+		else if( MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && !bDraggingStop)
 		{
 			// Didnt move the mouse too far, open a context menu
 			if( DistanceDragged < DragThresholdDist && SelectedStop.IsValid( *CurveOwner ) )

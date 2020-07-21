@@ -596,7 +596,7 @@ FRotator ALandscapeGizmoActiveActor::SnapToLandscapeGrid(const FRotator& GizmoRo
 	//const FRotator ResultRotation = (SnappedLandscapeSpaceRotation.Quaternion() * LToW.GetRotation()).Rotator().GetNormalized();
 
 	// Gizmo rotation is used as if it was relative to the landscape even though it isn't, so snap in world space
-	const FRotator ResultRotation = FRotator(0, FMath::GridSnap(GizmoRotation.Yaw, 90), 0);
+	const FRotator ResultRotation = FRotator(0.f, FMath::GridSnap(GizmoRotation.Yaw, 90.f), 0.f);
 	return ResultRotation;
 }
 

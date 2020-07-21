@@ -127,6 +127,9 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 
 			FEditorAnalyticsSession::SaveStoredSessionIDs(SessionIDs);
 
+			// Trim left-over sessions that were written using an older format (so weren't loaded above) and that are now expired because the corresponding Editor version wasn't used recently.
+			FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(EditorSessionSenderDefs::SessionExpiration);
+
 			FEditorAnalyticsSession::Unlock();
 			bSessionsLoaded = true;
 		}
@@ -176,11 +179,10 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("SessionDurationWall"), FMath::FloorToInt(static_cast<float>((Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds()))); // Session duration from system date/time.
-	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.TotalUserInactivitySeconds); // Session duration using FTimePlatform::Seconds(). Less accurate (+/- few seconds per day) but doesn't depend on system date time.	
+	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.SessionDuration);
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Session.Idle5Min);
 	AnalyticsAttributes.Emplace(TEXT("30MinIdle"), Session.Idle30Min);
-	//AnalyticsAttributes.Emplace(TEXT("TotalUserInactivitySecs"), Session.TotalUserInactivitySeconds); // To avoid breaking public API, Session.TotalUserInactivitySeconds was repurposed to contain the session duration in 4.25.1. Should be removed in 4.26
 	AnalyticsAttributes.Emplace(TEXT("TotalEditorInactivitySecs"), Session.TotalEditorInactivitySeconds);
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);

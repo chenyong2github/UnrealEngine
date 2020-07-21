@@ -769,6 +769,11 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 
 	for (int tid : Triangles)
 	{
+		if (Normals->IsSetTriangle(tid))
+		{
+			Normals->UnsetTriangle(tid);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(tid);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)
@@ -801,6 +806,11 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles)
 
 	for (int tid : Triangles)
 	{
+		if (Normals->IsSetTriangle(tid))
+		{
+			Normals->UnsetTriangle(tid);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(tid);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)
@@ -1035,6 +1045,11 @@ void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangl
 
 	for (int TID : Triangles)
 	{
+		if (UVs->IsSetTriangle(TID))
+		{
+			UVs->UnsetTriangle(TID);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(TID);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)

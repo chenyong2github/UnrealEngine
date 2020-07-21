@@ -30,15 +30,27 @@ SFbxReimportSceneTreeView::~SFbxReimportSceneTreeView()
 	NodeTreeData.Empty();
 }
 
-void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArguments& InArgs)
+void SFbxReimportSceneTreeView::FillNodeStatusMapInternal(FbxSceneReimportStatusMapPtr NodeStatusMap
+							, TSharedPtr<FFbxSceneInfo> SceneInfo
+							, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal
+							, TMap<FbxNodeInfoPtr, TSharedPtr<FTreeNodeValue>>* NodeTreeDataPtr
+							, TArray<FbxNodeInfoPtr>* FbxRootNodeArrayPtr)
 {
-	SceneInfo = InArgs._SceneInfo;
-	SceneInfoOriginal = InArgs._SceneInfoOriginal;
-	NodeStatusMap = InArgs._NodeStatusMap;
-	//Build the FbxNodeInfoPtr tree data
-	check(SceneInfo.IsValid());
-	check(SceneInfoOriginal.IsValid());
-	check(NodeStatusMap != nullptr);
+	auto AddToNodeTreeDataPtr = [&NodeTreeDataPtr](FbxNodeInfoPtr NodeInfo, TSharedPtr<FTreeNodeValue> NodeValue)
+	{
+		if (NodeTreeDataPtr)
+		{
+			NodeTreeDataPtr->Add(NodeInfo, NodeValue);
+		}
+	};
+
+	auto AddToFbxRootNodeArrayPtr = [&FbxRootNodeArrayPtr](FbxNodeInfoPtr CurrentNode)
+	{
+		if (FbxRootNodeArrayPtr)
+		{
+			FbxRootNodeArrayPtr->Add(CurrentNode);
+		}
+	};
 
 	TMap<FString, TSharedPtr<FTreeNodeValue>> NodeTreePath;
 	//Build hierarchy path
@@ -46,7 +58,7 @@ void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArgu
 	{
 		TSharedPtr<FTreeNodeValue> NodeValue = MakeShareable(new FTreeNodeValue());
 		NodeValue->CurrentNode = NodeInfo;
-		NodeTreeData.Add(NodeInfo, NodeValue);
+		AddToNodeTreeDataPtr(NodeInfo, NodeValue);
 		NodeValue->OriginalNode = nullptr;
 		NodeTreePath.Add(NodeInfo->NodeHierarchyPath, NodeValue);
 	}
@@ -65,7 +77,7 @@ void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArgu
 			NodeTreePath.Add(NodeInfo->NodeHierarchyPath, NodeValue);
 		}
 		NodeValue->OriginalNode = NodeInfo;
-		NodeTreeData.Add(NodeInfo, NodeValue);
+		AddToNodeTreeDataPtr(NodeInfo, NodeValue);
 	}
 
 	//build the status array
@@ -79,7 +91,7 @@ void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArgu
 			if (!NodeValue->CurrentNode->ParentNodeInfo.IsValid())
 			{
 				//Add root node to the UI tree view
-				FbxRootNodeArray.Add(NodeValue->CurrentNode);
+				AddToFbxRootNodeArrayPtr(NodeValue->CurrentNode);
 			}
 			if (NodeValue->OriginalNode.IsValid())
 			{
@@ -101,7 +113,7 @@ void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArgu
 			if (!NodeValue->OriginalNode->ParentNodeInfo.IsValid())
 			{
 				//Add root node to the UI tree view
-				FbxRootNodeArray.Add(NodeValue->OriginalNode);
+				AddToFbxRootNodeArrayPtr(NodeValue->OriginalNode);
 			}
 			NodeStatus |= EFbxSceneReimportStatusFlags::Removed;
 			if (NodeValue->OriginalNode->bImportNode)
@@ -110,9 +122,27 @@ void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArgu
 			}
 			NodeStatusMap->Add(NodeValue->OriginalNode->NodeHierarchyPath, NodeStatus);
 		}
-		
+
 	}
 	NodeTreePath.Empty();
+}
+
+void SFbxReimportSceneTreeView::FillNodeStatusMap(FbxSceneReimportStatusMapPtr NodeStatusMap, TSharedPtr<FFbxSceneInfo> SceneInfo, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal)
+{
+	FillNodeStatusMapInternal(NodeStatusMap, SceneInfo, SceneInfoOriginal, nullptr, nullptr);
+}
+
+void SFbxReimportSceneTreeView::Construct(const SFbxReimportSceneTreeView::FArguments& InArgs)
+{
+	SceneInfo = InArgs._SceneInfo;
+	SceneInfoOriginal = InArgs._SceneInfoOriginal;
+	NodeStatusMap = InArgs._NodeStatusMap;
+	//Build the FbxNodeInfoPtr tree data
+	check(SceneInfo.IsValid());
+	check(SceneInfoOriginal.IsValid());
+	check(NodeStatusMap != nullptr);
+
+	FillNodeStatusMapInternal(NodeStatusMap, SceneInfo, SceneInfoOriginal, &NodeTreeData, &FbxRootNodeArray);
 
 	STreeView::Construct
 	(

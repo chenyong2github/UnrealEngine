@@ -938,7 +938,7 @@ bool FAssetThumbnailPool::IsTickable() const
 void FAssetThumbnailPool::Tick( float DeltaTime )
 {
 	// If throttling do not tick unless drag dropping which could have a thumbnail as the cursor decorator
-	if (!FSlateApplication::Get().IsDragDropping() && !FSlateThrottleManager::Get().IsAllowingExpensiveTasks() && !FSlateApplication::Get().AnyMenusVisible())
+	if (FSlateApplication::IsInitialized() && !FSlateApplication::Get().IsDragDropping() && !FSlateThrottleManager::Get().IsAllowingExpensiveTasks() && !FSlateApplication::Get().AnyMenusVisible())
 	{
 		return;
 	}

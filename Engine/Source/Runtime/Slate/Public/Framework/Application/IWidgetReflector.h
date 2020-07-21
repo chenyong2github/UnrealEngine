@@ -21,7 +21,8 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FAccessAsset, UObject* /*InAsset*/);
 class IWidgetReflector
 {
 public:
-	virtual void OnEventProcessed( const FInputEvent& Event, const FReplyBase& InReply ) = 0;
+	UE_DEPRECATED(4.26, "OnEventProcessed is deprecated. Use FSlateDebugging.")
+	virtual void OnEventProcessed( const FInputEvent& Event, const FReplyBase& InReply ) {}
 
 public:
 
@@ -62,7 +63,8 @@ public:
 	virtual int32 Visualize( const FWidgetPath& InWidgetsToVisualize, FSlateWindowElementList& OutDrawElements, int32 LayerId ) = 0;
 
 	/** Visualize the cursor position and any pressed keys for demo-recording purposes. */
-	virtual int32 VisualizeCursorAndKeys(FSlateWindowElementList& OutDrawElements, int32 LayerId) const = 0;
+	UE_DEPRECATED(4.26, "VisualizeCursorAndKeys is deprecated. Use FSlateDebugging.")
+	virtual int32 VisualizeCursorAndKeys(FSlateWindowElementList& OutDrawElements, int32 LayerId) const { return LayerId; }
 
 	/**
 	 * Sets the widget that should be visualized.

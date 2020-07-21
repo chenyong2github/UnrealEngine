@@ -215,7 +215,28 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
 
 	const bool bRecompilingOnLoad = Blueprint->bIsRegeneratingOnLoad;
-	const ERenameFlags RenFlags = REN_DontCreateRedirectors | (bRecompilingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
+	auto RenameObjectToTransientPackage = [bRecompilingOnLoad](UObject* ObjectToRename, const FName BaseName,  bool bClearFlags)
+	{
+		const ERenameFlags RenFlags = REN_DontCreateRedirectors | (bRecompilingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
+
+		if (BaseName.IsNone())
+		{
+			ObjectToRename->Rename(nullptr, GetTransientPackage(), RenFlags);
+		}
+		else
+		{
+			FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), ObjectToRename->GetClass(), BaseName);
+			ObjectToRename->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
+		}
+
+		ObjectToRename->SetFlags(RF_Transient);
+
+		if (bClearFlags)
+		{
+			ObjectToRename->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
+		}
+		FLinkerLoad::InvalidateExport(ObjectToRename);
+	};
 
 	if ( !Blueprint->bIsRegeneratingOnLoad && bIsFullCompile )
 	{
@@ -223,12 +244,8 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 		{
 			if (UWidgetTree* OldArchetype = WBC_ToClean->GetWidgetTreeArchetype())
 			{
-				FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_TREE_%s"), *OldArchetype->GetName());
-				FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), OldArchetype->GetClass(), FName(*TransientArchetypeString));
-				OldArchetype->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
-				OldArchetype->SetFlags(RF_Transient);
-				OldArchetype->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-				FLinkerLoad::InvalidateExport(OldArchetype);
+				FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_TREE%s"), *OldArchetype->GetName());
+				RenameObjectToTransientPackage(OldArchetype, *TransientArchetypeString, true);
 
 				TArray<UObject*> Children;
 				ForEachObjectWithOuter(OldArchetype, [&Children] (UObject* Child) {
@@ -237,12 +254,31 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 
 				for ( UObject* Child : Children )
 				{
-					Child->Rename(nullptr, GetTransientPackage(), RenFlags);
-					Child->SetFlags(RF_Transient);
-					FLinkerLoad::InvalidateExport(Child);
+					RenameObjectToTransientPackage(Child, FName(), false);
 				}
 
 				WBC_ToClean->SetWidgetTreeArchetype(nullptr);
+			}
+		}
+	}
+
+	// Remove widgets that are created but not referenced by the widget tree. This could happen when another referenced UserWidget is modified.
+	{
+		TArray<UWidget*> OuterWidgets = WidgetBP->GetAllSourceWidgets();
+		TArray<UWidget*> TreeWidgets;
+		if (WidgetBP->WidgetTree)
+		{
+			WidgetBP->WidgetTree->GetAllWidgets(TreeWidgets);
+		}
+
+		for (UWidget* OuterWidget : OuterWidgets)
+		{
+			if (!TreeWidgets.Contains(OuterWidget))
+			{
+				MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemoved", "Removed unused widget '{0}'."), FText::FromName(OuterWidget->GetFName())).ToString());
+
+				FString TransientCDOString = FString::Printf(TEXT("TRASH_%s"), *OuterWidget->GetName());
+				RenameObjectToTransientPackage(OuterWidget, *TransientCDOString, true);
 			}
 		}
 	}
@@ -254,7 +290,7 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 
 	for (UWidgetAnimation* Animation : NewWidgetBlueprintClass->Animations)
 	{
-		Animation->Rename(nullptr, GetTransientPackage(), RenFlags);
+		RenameObjectToTransientPackage(Animation, FName(), false);
 	}
 	NewWidgetBlueprintClass->Animations.Empty();
 

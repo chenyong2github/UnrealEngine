@@ -116,6 +116,9 @@ private:
 	/** Invoked when the search text changes */
 	void OnSearchTextChanged(const FText& ChangedText);
 
+	/** Sets the current selection to the first valid match when user presses enter in the filter box */
+	void OnSearchTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
+
 	/** Handle clicking on the content menu */
 	virtual FReply OnButtonClicked() override;
 
@@ -139,6 +142,7 @@ private:
 	FOnGenerateWidget OnGenerateWidget;
 
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+	TArray< TSharedPtr<FString> > FilteredOptionsSource;
 };
 
 

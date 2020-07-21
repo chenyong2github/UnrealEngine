@@ -19,7 +19,7 @@ UMovieSceneCameraCutTrack::UMovieSceneCameraCutTrack( const FObjectInitializer& 
 	, bCanBlend(false)
 {
 #if WITH_EDITORONLY_DATA
-	TrackTint = FColor(0, 0, 0, 65);
+	TrackTint = FColor(120, 120, 120, 65);
 #endif
 
 	// By default, don't evaluate camera cuts in pre and postroll

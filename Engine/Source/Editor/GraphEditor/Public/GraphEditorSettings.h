@@ -43,7 +43,7 @@ public:
 
 	/** Switch between using the right and middle mouse button for panning (defaults to right) */
 	UPROPERTY(config, EditAnywhere, Category = GeneralStyle)
-	EGraphPanningMouseButton PanningMouseButton;
+		EGraphPanningMouseButton PanningMouseButton;
 
 	/** The amount of padding above a pin (defaults to 4) */
 	UPROPERTY(config, EditAnywhere, Category=GeneralStyle, AdvancedDisplay)
@@ -312,4 +312,13 @@ public:
 
 	UPROPERTY()
 	float TracePositionExponent;
+
+public:
+	/** The amount of padding to add in order to auto collate multiple created nodes when using tab context menu (defaults to 20) */
+	UPROPERTY(config, EditAnywhere, Category=ContextMenu)
+	float PaddingAutoCollateIncrement;
+
+	/** If a key press (default Tab) should open the create node context menu when the mouse is on top of blank areas of the graph (defaults to true) */
+	UPROPERTY(config, EditAnywhere, Category=ContextMenu)
+	bool bOpenCreateMenuOnBlankGraphAreas;
 };

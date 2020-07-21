@@ -843,9 +843,9 @@ void SSizeMap::RefreshMap()
 		}
 
 		// Set the overview text
-		OverviewText = FText::Format(LOCTEXT("RootNode_Format", "Size map for {0}  ({1} total assets))"),
+		OverviewText = FText::Format(LOCTEXT("RootNode_Format", "Size map for {0}  ({1} total {1}|plural(one=asset,other=assets)))"),
 			FText::AsCultureInvariant(OnlyAssetName),
-			FText::AsNumber(TotalAssetCount));
+			TotalAssetCount);
 	}
 	else
 	{
@@ -881,9 +881,9 @@ void SSizeMap::RefreshMap()
 			*SizeMapInternals::MakeBestSizeString(TotalSize, !bAnyUnknownSizes));
 		RootTreeMapNode->LogicalName = LogicalName;
 
-		OverviewText = FText::Format(LOCTEXT("RootNode_FormatForAssets", "Size map for {0} assets  ({1} total assets))"),
-			FText::AsNumber(RootAssetIdentifiers.Num()),
-			FText::AsNumber(TotalAssetCount));
+		OverviewText = FText::Format(LOCTEXT("RootNode_FormatForAssets", "Size map for {0} {0}|plural(one=asset,other=assets)  ({1} total {1}|plural(one=asset,other=assets)))"),
+			RootAssetIdentifiers.Num(),
+			TotalAssetCount);
 	}
 
 	// OK, now refresh the actual tree map widget so our new tree will be displayed.

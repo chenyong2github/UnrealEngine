@@ -44,6 +44,9 @@ private:
 	FCriticalSection SaveSessionLock;
 	float HeartbeatTimeElapsed;
 
+	/** The next time to check if the debugger is attached */
+	double NextDebuggerCheckSecs;
+
 	/** Last activity (user input, crash, terminate, shutdown) timestamp from FPlatformTime::Seconds() to track user inactivity. */
 	TAtomic<double> LastUserActivityTimeSecs;
 

@@ -260,7 +260,11 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 			TempImportDataTable->RowStruct = ImportSettings.ImportRowStruct;
 			
 			NewTable->CopyImportOptions(TempImportDataTable);
-			NewTable->AssetImportData->Update(CurrentFilename);
+			if (!CurrentFilename.IsEmpty())
+			{
+				NewTable->AssetImportData->Update(CurrentFilename);
+
+			}
 
 			// Go ahead and create table from string
 			Problems = DoImportDataTable(ImportSettings, NewTable);
@@ -289,7 +293,10 @@ UObject* UCSVImportFactory::FactoryCreateText(UClass* InClass, UObject* InParent
 
 			// Create/reset table
 			UCurveTable* NewTable = NewObject<UCurveTable>(InParent, CurveTableClass, InName, Flags);
-			NewTable->AssetImportData->Update(CurrentFilename);
+			if (!CurrentFilename.IsEmpty())
+			{
+				NewTable->AssetImportData->Update(CurrentFilename);
+			}
 
 			// Go ahead and create table from string
 			Problems = DoImportCurveTable(ImportSettings, NewTable);

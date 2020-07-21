@@ -174,7 +174,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)
 	bool bIsFocusable = true;
 
-	UPROPERTY(EditAnywhere, Category = ListEntries, meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView, meta = (ClampMin = 0))
 	float EntrySpacing = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ListView)

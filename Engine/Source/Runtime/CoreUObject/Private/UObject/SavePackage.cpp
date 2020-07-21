@@ -3278,6 +3278,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	check(Filename);
 	const bool bIsCooking = TargetPlatform != nullptr;
 
+
 #if WITH_EDITOR
 	TMap<UObject*, UObject*> ReplacedImportOuters;
 

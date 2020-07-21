@@ -38,12 +38,12 @@ static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipeline
 	TArray<UMoviePipelineRenderPass*> RenderPasses;
 
 	// Master Configuration first.
-	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>());
+	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>(true));
 
 	// And then any additional passes requested by the shot.
 	if (InShot->ShotOverrideConfig != nullptr)
 	{
-		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>());
+		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>(true));
 	}
 
 	return RenderPasses;
@@ -367,13 +367,18 @@ void UMoviePipeline::RenderFrame()
 	SetProgressWidgetVisible(true);
 }
 
+void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
+{
+	OutputFutures.Add(MoveTemp(OutputFuture));
+}
+
 void UMoviePipeline::ProcessOutstandingFinishedFrames()
 {
 	while (!OutputBuilder->FinishedFrames.IsEmpty())
 	{
 		FMoviePipelineMergerOutputFrame OutputFrame;
 		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
-
+	
 		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 		{
 			OutputContainer->OnRecieveImageData(&OutputFrame);

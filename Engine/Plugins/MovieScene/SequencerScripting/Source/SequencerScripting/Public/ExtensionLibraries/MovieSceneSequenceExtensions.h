@@ -300,6 +300,16 @@ public:
 	static FSequencerBindingProxy FindBindingByName(UMovieSceneSequence* Sequence, FString Name);
 
 	/**
+	 * Attempt to locate a binding in this sequence by its Id
+	 *
+	 * @param Sequence        The sequence within which to find the binding
+	 * @param BindingId       The binding Id to look up
+	 * @return A unique identifier for the binding, or invalid
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	static FSequencerBindingProxy FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId);
+
+	/**
 	 * Get all the bindings in this sequence
 	 *
 	 * @param Sequence        The sequence to get bindings for

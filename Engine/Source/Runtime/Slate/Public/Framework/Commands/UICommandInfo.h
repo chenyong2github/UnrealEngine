@@ -66,7 +66,7 @@ public:
 
 public:
 
-	FUICommandInfoDecl( const TSharedRef<class FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc  );
+	FUICommandInfoDecl( const TSharedRef<class FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc, const FName InBundle = NAME_None);
 
 private:
 
@@ -132,6 +132,23 @@ public:
 	 */
 	const FText& GetContextDesc() const { return ContextDesc; }
 
+	/**
+	 * Adds a new command bundle to this context that can be referenced by name
+	 * from commands within the context.
+	 *
+	 * @param Name A unique identifier for the bundle in this context
+	 * @param Desc A localized description of the bundle
+	 */
+	void AddBundle(const FName Name, const FText& Desc);
+
+	/**
+	 * Gets a localized label of a command bundle
+	 *
+	 * @param Name The name of the bundle to get a label for
+	 * @return The localized label of the bundle
+	 */
+	const FText& GetBundleLabel(const FName Name);
+
 	friend uint32 GetTypeHash( const FBindingContext& Context )
 	{
 		return GetTypeHash( Context.ContextName );
@@ -158,6 +175,9 @@ private:
 
 	/** The style set to find the icons in */
 	FName StyleSetName;
+
+	/** A list of command bundles and their friendly names that can be referenced in this context */
+	TMap<FName, FText> Bundles;
 };
 
 
@@ -222,7 +242,7 @@ public:
 	const FInputChord& GetDefaultChord(const EMultipleKeyBindingIndex InChordIndex) const { return DefaultChords[static_cast<uint8>(InChordIndex)]; }
 
 	/** Utility function to make an FUICommandInfo */
-	static void MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord = FInputChord());
+	static void MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord = FInputChord(), const FName InBundle = NAME_None);
 
 	/** Utility function to unregister an FUICommandInfo */
 	static void UnregisterCommandInfo(const TSharedRef<class FBindingContext>& InContext, const TSharedRef<FUICommandInfo>& InCommand);
@@ -244,6 +264,9 @@ public:
 
 	/** @return The name of the context where the command is valid */
 	FName GetBindingContext() const { return BindingContext; }
+
+	/** @return The name of the bundle this command is assigned to */
+	FName GetBundle() const { return Bundle; }
 
 	/** Sets the new active chord for this command */
 	void SetActiveChord( const FInputChord& NewChord, const EMultipleKeyBindingIndex InChordIndex );
@@ -283,6 +306,9 @@ private:
 
 	/** The context in which this command is active */
 	FName BindingContext;
+
+	/** The bundle to group this command into. The bundle must have been added to the BindingContext first. */
+	FName Bundle;
 
 	/** The type of user interface to associated with this action */
 	EUserInterfaceActionType UserInterfaceType;

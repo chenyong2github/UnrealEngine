@@ -84,6 +84,9 @@ bool FUnitUnitTests::RunTest(const FString& Parameters)
 		{ 3,		0.25,		1e-6,	EUnit::Months,				EUnit::Years,				},
 		{ 0.5,		6,			1e-6,	EUnit::Years,				EUnit::Months,				},
 
+		{ 22.5,		0.225,		1e-6,	EUnit::Percentage,			EUnit::Multiplier,			},
+		{ 22.5,		2250,		0.f,	EUnit::Multiplier,			EUnit::Percentage,			},
+
 	};
 
 	bool bSuccess = true;

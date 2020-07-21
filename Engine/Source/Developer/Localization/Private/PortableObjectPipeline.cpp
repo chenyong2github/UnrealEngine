@@ -212,7 +212,7 @@ namespace
 		return true;
 	}
 
-	bool ImportPortableObject(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const FCollapsedData& InCollapsedData)
+	bool ImportPortableObject(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat, const FCollapsedData& InCollapsedData)
 	{
 		using namespace PortableObjectPipeline;
 
@@ -242,17 +242,16 @@ namespace
 				// Some warning messages for data we don't process at the moment
 				if (!POEntry->MsgIdPlural.IsEmpty() || POEntry->MsgStr.Num() > 1)
 				{
-					UE_LOG(LogPortableObjectPipeline, Error, TEXT("Portable Object entry has plural form we did not process.  File: %s  MsgCtxt: %s  MsgId: %s"), *InPOFilePath, *POEntry->MsgCtxt, *POEntry->MsgId);
+					UE_LOG(LogPortableObjectPipeline, Warning, TEXT("Portable Object entry has plural form we did not process.  File: %s  MsgCtxt: %s  MsgId: %s"), *InPOFilePath, *POEntry->MsgCtxt, *POEntry->MsgId);
 				}
 
-				const FString SourceText = ConditionPoStringForArchive(POEntry->MsgId);
-				const FString Translation = ConditionPoStringForArchive(POEntry->MsgStr[0]);
-
+				FString SourceText;
+				FString Translation;
 				TArray<FLocKeyPair> NamespacesAndKeys; // Namespace (First) and Key (Second)
 				{
 					FString ParsedNamespace;
 					FString ParsedKey;
-					ParsePOMsgCtxtForIdentity(POEntry->MsgCtxt, ParsedNamespace, ParsedKey);
+					ParseBasicPOFileEntry(*POEntry, ParsedNamespace, ParsedKey, SourceText, Translation, InTextCollapseMode, InPOFormat);
 
 					if (ParsedKey.IsEmpty())
 					{
@@ -279,17 +278,22 @@ namespace
 					const FLocKey& Key = NamespaceAndKey.Second;
 
 					// Get key metadata from the manifest, using the namespace and key.
-					const FManifestContext* ItemContext = nullptr;
-					{
-						// Find manifest entry by namespace and key
-						TSharedPtr<FManifestEntry> ManifestEntry = InLocTextHelper.FindSourceText(Namespace, Key);
-						if (ManifestEntry.IsValid())
-						{
-							ItemContext = ManifestEntry->FindContextByKey(Key);
-						}
-					}
+					TSharedPtr<FManifestEntry> ManifestEntry = InLocTextHelper.FindSourceText(Namespace, Key);
+					const FManifestContext* ItemContext = ManifestEntry ? ManifestEntry->FindContextByKey(Key) : nullptr;
 
 					//@TODO: Take into account optional entries and entries that differ by keymetadata.  Ex. Each optional entry needs a unique msgCtxt
+
+					// Not all formats contain the source string, so if the source is empty then 
+					// we'll assume the translation was made against the most up-to-date source
+					// Note: This sets the source text for all future iterations of this loop
+					if (SourceText.IsEmpty())
+					{
+						// Find the correct translation based upon the native source text
+						FLocItem ExportedSource;
+						FLocItem ExportedTranslation;
+						InLocTextHelper.GetExportText(InCulture, Namespace, Key, ItemContext ? ItemContext->KeyMetadataObj : nullptr, ELocTextExportSourceMethod::NativeText, ManifestEntry ? ManifestEntry->Source : FLocItem(), ExportedSource, ExportedTranslation);
+						SourceText = ExportedSource.Text;
+					}
 
 					// Attempt to import the new text (if required)
 					const TSharedPtr<FArchiveEntry> FoundEntry = InLocTextHelper.FindTranslation(InCulture, Namespace, Key, ItemContext ? ItemContext->KeyMetadataObj : nullptr);
@@ -320,7 +324,7 @@ namespace
 		return true;
 	}
 
-	bool ExportPortableObject(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, TSharedRef<FInternationalizationManifest> InCollapsedManifest, const FCollapsedData& InCollapsedData, const bool bShouldPersistComments)
+	bool ExportPortableObject(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat, TSharedRef<FInternationalizationManifest> InCollapsedManifest, const FCollapsedData& InCollapsedData, const bool bShouldPersistComments)
 	{
 		using namespace PortableObjectPipeline;
 
@@ -335,6 +339,7 @@ namespace
 
 		NewPortableObject.SetProjectName(FPaths::GetBaseFilename(InPOFilePath));
 		NewPortableObject.CreateNewHeader();
+		UpdatePOFileHeaderForSettings(NewPortableObject, InTextCollapseMode, InPOFormat);
 
 		// Add each manifest entry to the PO file
 		for (FManifestEntryByStringContainer::TConstIterator ManifestIterator = InCollapsedManifest->GetEntriesBySourceTextIterator(); ManifestIterator; ++ManifestIterator)
@@ -354,9 +359,7 @@ namespace
 				FLocItem ExportedTranslation;
 				InLocTextHelper.GetExportText(InCulture, ExportNamespaceKeyPair.First, ExportNamespaceKeyPair.Second, Context.KeyMetadataObj, ELocTextExportSourceMethod::NativeText, ManifestEntry->Source, ExportedSource, ExportedTranslation);
 
-				PoEntry->MsgId = ConditionArchiveStrForPo(ExportedSource.Text);
-				PoEntry->MsgCtxt = ConditionIdentityForPOMsgCtxt(ManifestEntry->Namespace.GetString(), Context.Key.GetString(), Context.KeyMetadataObj, InTextCollapseMode);
-				PoEntry->MsgStr.Add(ConditionArchiveStrForPo(ExportedTranslation.Text));
+				PopulateBasicPOFileEntry(*PoEntry, ManifestEntry->Namespace.GetString(), Context.Key.GetString(), Context.KeyMetadataObj, ExportedSource.Text, ExportedTranslation.Text, InTextCollapseMode, InPOFormat);
 
 				//@TODO: We support additional metadata entries that can be translated.  How do those fit in the PO file format?  Ex: isMature
 				const FString PORefString = ConvertSrcLocationToPORef(Context.SourceLocation);
@@ -372,7 +375,7 @@ namespace
 					{
 						const FString KeyName = InfoMetaDataPair.Key;
 						const TSharedPtr<FLocMetadataValue> Value = InfoMetaDataPair.Value;
-						InfoMetaDataStrings.Add(GetConditionedInfoMetaDataForExtractedComment(KeyName, Value->ToString()));
+						InfoMetaDataStrings.Add(GetConditionedInfoMetaDataForExtractedComment(KeyName, ConditionArchiveStrForPO(Value->ToString())));
 					}
 				}
 				if (InfoMetaDataStrings.Num())
@@ -440,7 +443,7 @@ namespace
 	}
 }
 
-bool PortableObjectPipeline::Import(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode)
+bool PortableObjectPipeline::Import(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat)
 {
 	// This function only works when not splitting per-platform data
 	if (InLocTextHelper.ShouldSplitPlatformData())
@@ -455,10 +458,10 @@ bool PortableObjectPipeline::Import(FLocTextHelper& InLocTextHelper, const FStri
 	TMap<FName, TSharedRef<FInternationalizationManifest>> PerPlatformManifests;
 	BuildCollapsedManifest(InLocTextHelper, InTextCollapseMode, CollapsedData, PlatformAgnosticManifest, PerPlatformManifests);
 
-	return ImportPortableObject(InLocTextHelper, InCulture, InPOFilePath, CollapsedData);
+	return ImportPortableObject(InLocTextHelper, InCulture, InPOFilePath, InTextCollapseMode, InPOFormat, CollapsedData);
 }
 
-bool PortableObjectPipeline::ImportAll(FLocTextHelper& InLocTextHelper, const FString& InPOCultureRootPath, const FString& InPOFilename, const ELocalizedTextCollapseMode InTextCollapseMode, const bool bUseCultureDirectory)
+bool PortableObjectPipeline::ImportAll(FLocTextHelper& InLocTextHelper, const FString& InPOCultureRootPath, const FString& InPOFilename, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat, const bool bUseCultureDirectory)
 {
 	// We may only have a single culture if using this setting
 	const bool bSingleCultureMode = !bUseCultureDirectory;
@@ -499,7 +502,7 @@ bool PortableObjectPipeline::ImportAll(FLocTextHelper& InLocTextHelper, const FS
 				POFilePath = InPOCultureRootPath / InPOFilename;
 			}
 
-			return ImportPortableObject(InLocTextHelper, CultureName, POFilePath, CollapsedData);
+			return ImportPortableObject(InLocTextHelper, CultureName, POFilePath, InTextCollapseMode, InPOFormat, CollapsedData);
 		};
 
 		bSuccess &= ImportSinglePortableObject(FName());
@@ -512,7 +515,7 @@ bool PortableObjectPipeline::ImportAll(FLocTextHelper& InLocTextHelper, const FS
 	return bSuccess;
 }
 
-bool PortableObjectPipeline::Export(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, const bool bShouldPersistComments)
+bool PortableObjectPipeline::Export(FLocTextHelper& InLocTextHelper, const FString& InCulture, const FString& InPOFilePath, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat, const bool bShouldPersistComments)
 {
 	// This function only works when not splitting per-platform data
 	if (InLocTextHelper.ShouldSplitPlatformData())
@@ -527,10 +530,10 @@ bool PortableObjectPipeline::Export(FLocTextHelper& InLocTextHelper, const FStri
 	TMap<FName, TSharedRef<FInternationalizationManifest>> PerPlatformManifests;
 	BuildCollapsedManifest(InLocTextHelper, InTextCollapseMode, CollapsedData, PlatformAgnosticManifest, PerPlatformManifests);
 
-	return ExportPortableObject(InLocTextHelper, InCulture, InPOFilePath, InTextCollapseMode, PlatformAgnosticManifest.ToSharedRef(), CollapsedData, bShouldPersistComments);
+	return ExportPortableObject(InLocTextHelper, InCulture, InPOFilePath, InTextCollapseMode, InPOFormat, PlatformAgnosticManifest.ToSharedRef(), CollapsedData, bShouldPersistComments);
 }
 
-bool PortableObjectPipeline::ExportAll(FLocTextHelper& InLocTextHelper, const FString& InPOCultureRootPath, const FString& InPOFilename, const ELocalizedTextCollapseMode InTextCollapseMode, const bool bShouldPersistComments, const bool bUseCultureDirectory)
+bool PortableObjectPipeline::ExportAll(FLocTextHelper& InLocTextHelper, const FString& InPOCultureRootPath, const FString& InPOFilename, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat, const bool bShouldPersistComments, const bool bUseCultureDirectory)
 {
 	// We may only have a single culture if using this setting
 	const bool bSingleCultureMode = !bUseCultureDirectory;
@@ -578,7 +581,7 @@ bool PortableObjectPipeline::ExportAll(FLocTextHelper& InLocTextHelper, const FS
 				POFilePath = InPOCultureRootPath / InPOFilename;
 			}
 
-			return ExportPortableObject(InLocTextHelper, CultureName, POFilePath, InTextCollapseMode, InCollapsedManifest, CollapsedData, bShouldPersistComments);
+			return ExportPortableObject(InLocTextHelper, CultureName, POFilePath, InTextCollapseMode, InPOFormat, InCollapsedManifest, CollapsedData, bShouldPersistComments);
 		};
 
 		bSuccess &= ExportSinglePortableObject(PlatformAgnosticManifest.ToSharedRef(), FName());
@@ -591,7 +594,7 @@ bool PortableObjectPipeline::ExportAll(FLocTextHelper& InLocTextHelper, const FS
 	return bSuccess;
 }
 
-FString PortableObjectPipeline::ConditionIdentityForPOMsgCtxt(const FString& Namespace, const FString& Key, const TSharedPtr<FLocMetadataObject>& KeyMetaData, const ELocalizedTextCollapseMode InTextCollapseMode)
+FString PortableObjectPipeline::ConditionIdentityForPO(const FString& Namespace, const FString& Key, const TSharedPtr<FLocMetadataObject>& KeyMetaData, const ELocalizedTextCollapseMode InTextCollapseMode)
 {
 	auto EscapeMsgCtxtParticleInline = [](FString& InStr)
 	{
@@ -605,23 +608,23 @@ FString PortableObjectPipeline::ConditionIdentityForPOMsgCtxt(const FString& Nam
 	EscapeMsgCtxtParticleInline(EscapedKey);
 
 	const bool bAppendKey = InTextCollapseMode != ELocalizedTextCollapseMode::IdenticalNamespaceAndSource || KeyMetaData.IsValid();
-	return ConditionArchiveStrForPo(bAppendKey ? FString::Printf(TEXT("%s,%s"), *EscapedNamespace, *EscapedKey) : EscapedNamespace);
+	return ConditionArchiveStrForPO(bAppendKey ? FString::Printf(TEXT("%s,%s"), *EscapedNamespace, *EscapedKey) : EscapedNamespace);
 }
 
-void PortableObjectPipeline::ParsePOMsgCtxtForIdentity(const FString& MsgCtxt, FString& OutNamespace, FString& OutKey)
+void PortableObjectPipeline::ParseIdentityFromPO(const FString& InIdentity, FString& OutNamespace, FString& OutKey)
 {
 	auto UnescapeMsgCtxtParticleInline = [](FString& InStr)
 	{
 		InStr.ReplaceInline(TEXT("\\,"), TEXT(","), ESearchCase::CaseSensitive);
 	};
 
-	const FString ConditionedMsgCtxt = ConditionPoStringForArchive(MsgCtxt);
+	FString ConditionedIdentity = ConditionPOStringForArchive(InIdentity);
 
 	// Find the unescaped comma that defines the breaking point between the namespace and the key
 	int32 CommaIndex = INDEX_NONE;
 	{
 		bool bIsEscaped = false;
-		for (int32 Index = 0; Index < ConditionedMsgCtxt.Len(); ++Index)
+		for (int32 Index = 0; Index < ConditionedIdentity.Len(); ++Index)
 		{
 			if (bIsEscaped)
 			{
@@ -630,14 +633,14 @@ void PortableObjectPipeline::ParsePOMsgCtxtForIdentity(const FString& MsgCtxt, F
 				continue;
 			}
 
-			if (ConditionedMsgCtxt[Index] == TEXT(','))
+			if (ConditionedIdentity[Index] == TEXT(','))
 			{
 				// Found the unescaped comma
 				CommaIndex = Index;
 				break;
 			}
 
-			if (ConditionedMsgCtxt[Index] == TEXT('\\'))
+			if (ConditionedIdentity[Index] == TEXT('\\'))
 			{
 				// Next character will be escaped
 				bIsEscaped = true;
@@ -648,20 +651,20 @@ void PortableObjectPipeline::ParsePOMsgCtxtForIdentity(const FString& MsgCtxt, F
 
 	if (CommaIndex == INDEX_NONE)
 	{
-		OutNamespace = ConditionedMsgCtxt;
+		OutNamespace = MoveTemp(ConditionedIdentity);
 		OutKey.Reset();
 	}
 	else
 	{
-		OutNamespace = ConditionedMsgCtxt.Mid(0, CommaIndex);
-		OutKey = ConditionedMsgCtxt.Mid(CommaIndex + 1);
+		OutNamespace = ConditionedIdentity.Mid(0, CommaIndex);
+		OutKey = ConditionedIdentity.Mid(CommaIndex + 1);
 	}
 
 	UnescapeMsgCtxtParticleInline(OutNamespace);
 	UnescapeMsgCtxtParticleInline(OutKey);
 }
 
-FString PortableObjectPipeline::ConditionArchiveStrForPo(const FString& InStr)
+FString PortableObjectPipeline::ConditionArchiveStrForPO(const FString& InStr)
 {
 	FString Result = InStr;
 	Result.ReplaceInline(TEXT("\\"), TEXT("\\\\"), ESearchCase::CaseSensitive);
@@ -672,7 +675,7 @@ FString PortableObjectPipeline::ConditionArchiveStrForPo(const FString& InStr)
 	return Result;
 }
 
-FString PortableObjectPipeline::ConditionPoStringForArchive(const FString& InStr)
+FString PortableObjectPipeline::ConditionPOStringForArchive(const FString& InStr)
 {
 	FString Result = InStr;
 	Result.ReplaceInline(TEXT("\\t"), TEXT("\t"), ESearchCase::CaseSensitive);
@@ -704,4 +707,44 @@ FString PortableObjectPipeline::GetConditionedReferenceForExtractedComment(const
 FString PortableObjectPipeline::GetConditionedInfoMetaDataForExtractedComment(const FString& KeyName, const FString& ValueString)
 {
 	return FString::Printf(TEXT("InfoMetaData:\t\"%s\" : \"%s\""), *KeyName, *ValueString);
+}
+
+void PortableObjectPipeline::UpdatePOFileHeaderForSettings(FPortableObjectFormatDOM& PortableObject, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat)
+{
+	if (InTextCollapseMode == ELocalizedTextCollapseMode::IdenticalTextIdAndSource && InPOFormat == EPortableObjectFormat::Crowdin)
+	{
+		PortableObject.SetHeaderValue(TEXT("X-Crowdin-SourceKey"), TEXT("msgstr"));
+	}
+}
+
+void PortableObjectPipeline::PopulateBasicPOFileEntry(FPortableObjectEntry& POEntry, const FString& InNamespace, const FString& InKey, const TSharedPtr<FLocMetadataObject>& InKeyMetaData, const FString& InSourceString, const FString& InTranslation, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat)
+{
+	if (InTextCollapseMode == ELocalizedTextCollapseMode::IdenticalTextIdAndSource && InPOFormat == EPortableObjectFormat::Crowdin)
+	{
+		POEntry.MsgCtxt.Reset();
+		POEntry.MsgId = ConditionIdentityForPO(InNamespace, InKey, InKeyMetaData, InTextCollapseMode);
+		POEntry.MsgStr.Add(ConditionArchiveStrForPO(InTranslation));
+	}
+	else
+	{
+		POEntry.MsgCtxt = ConditionIdentityForPO(InNamespace, InKey, InKeyMetaData, InTextCollapseMode);
+		POEntry.MsgId = ConditionArchiveStrForPO(InSourceString);
+		POEntry.MsgStr.Add(ConditionArchiveStrForPO(InTranslation));
+	}
+}
+
+void PortableObjectPipeline::ParseBasicPOFileEntry(const FPortableObjectEntry& POEntry, FString& OutNamespace, FString& OutKey, FString& OutSourceString, FString& OutTranslation, const ELocalizedTextCollapseMode InTextCollapseMode, const EPortableObjectFormat InPOFormat)
+{
+	if (InTextCollapseMode == ELocalizedTextCollapseMode::IdenticalTextIdAndSource && InPOFormat == EPortableObjectFormat::Crowdin)
+	{
+		ParseIdentityFromPO(POEntry.MsgId, OutNamespace, OutKey);
+		OutSourceString.Reset(); // This format doesn't contain the source string
+		OutTranslation = ConditionPOStringForArchive(POEntry.MsgStr[0]);
+	}
+	else
+	{
+		ParseIdentityFromPO(POEntry.MsgCtxt, OutNamespace, OutKey);
+		OutSourceString = ConditionPOStringForArchive(POEntry.MsgId);
+		OutTranslation = ConditionPOStringForArchive(POEntry.MsgStr[0]);
+	}
 }

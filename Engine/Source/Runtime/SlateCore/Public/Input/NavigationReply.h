@@ -91,7 +91,7 @@ public:
 	}
 
 	/**
-	 * An event should return a FNavigationReply::Explicit() to let the system know to wrap at the bounds of this widget.
+	 * An event should return a FNavigationReply::Wrap() to let the system know to wrap at the bounds of this widget.
 	 */
 	static FNavigationReply Wrap()
 	{
@@ -101,7 +101,7 @@ public:
 	}
 
 	/**
-	 * An event should return a FNavigationReply::Explicit() to let the system know to stop at the bounds of this widget.
+	 * An event should return a FNavigationReply::Stop() to let the system know to stop at the bounds of this widget.
 	 */
 	static FNavigationReply Stop()
 	{
@@ -157,5 +157,6 @@ private:
 	EUINavigationRule BoundaryRule;
 
 	friend class FSlateApplication;
+	friend class FSlateNavigationEventSimulator;
 	friend class SWidget;
 };

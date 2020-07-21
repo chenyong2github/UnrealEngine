@@ -323,6 +323,9 @@ public:
 				openvdb::math::Mat4<float> VDBMatFloat(data);
 
 				openvdb::Mat4R VDBMatDouble(VDBMatFloat);
+				// NB: rounding errors in the inverse may have resulted in error in this col.
+				// openvdb explicitly checks this matrix row to insure the tranform is affine and will throw 
+				VDBMatDouble.setCol(3, openvdb::Vec4R(0, 0, 0, 1));
 				OpenVDBTransform::Ptr LocalXForm = OpenVDBTransform::createLinearTransform(VDBMatDouble);
 
 				// Create a wrapper with OpenVDB semantics. 

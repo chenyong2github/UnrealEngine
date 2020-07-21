@@ -472,23 +472,18 @@ private:
 			return;
 		}
 
-		// Only call the delegates if we have a valid numeric value
-		if (bCommit)
-		{
-			TOptional<NumericType> ExistingValue = ValueAttribute.Get();
-			TOptional<NumericType> NumericValue = Interface->FromString(NewValue.ToString(), ExistingValue.Get(0));
+		TOptional<NumericType> ExistingValue = ValueAttribute.Get();
+		TOptional<NumericType> NumericValue = Interface->FromString(NewValue.ToString(), ExistingValue.Get(0));
 
-			if (NumericValue.IsSet())
-			{
-				OnValueCommitted.ExecuteIfBound(NumericValue.GetValue(), CommitInfo );
-			}
-		}
-		else
+		if (NumericValue.IsSet())
 		{
-			NumericType NumericValue;
-			if (LexTryParseString(NumericValue, *NewValue.ToString()))
+			if (bCommit)
 			{
-				OnValueChanged.ExecuteIfBound( NumericValue );
+				OnValueCommitted.ExecuteIfBound(NumericValue.GetValue(), CommitInfo);
+			}
+			else
+			{
+				OnValueChanged.ExecuteIfBound(NumericValue.GetValue());
 			}
 		}
 	}

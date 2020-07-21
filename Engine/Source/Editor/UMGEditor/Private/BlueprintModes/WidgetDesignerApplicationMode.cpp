@@ -16,6 +16,7 @@
 #include "TabFactory/SequencerTabSummoner.h"
 #include "TabFactory/DetailsTabSummoner.h"
 #include "TabFactory/AnimationTabSummoner.h"
+#include "TabFactory/NavigationTabSummoner.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 
 #define LOCTEXT_NAMESPACE "WidgetDesignerMode"
@@ -114,6 +115,7 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	TabFactories.RegisterFactory(MakeShareable(new FSequencerTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FAnimationTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FCompilerResultsSummoner(InWidgetEditor)));
+	TabFactories.RegisterFactory(MakeShareable(new FNavigationTabSummoner(InWidgetEditor)));
 
 	// setup toolbar - clear existing toolbar extender from the BP mode
 	//@TODO: Keep this in sync with BlueprintEditorModes.cpp

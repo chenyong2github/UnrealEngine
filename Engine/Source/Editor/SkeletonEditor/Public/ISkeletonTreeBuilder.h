@@ -83,29 +83,6 @@ private:
 	TArray<TSharedPtr<class ISkeletonTreeItem>>& LinearItems;
 };
 
-/** Filter utility class */
-class FSkeletonTreeFilterContext : public ITextFilterExpressionContext
-{
-public:
-	explicit FSkeletonTreeFilterContext(const FName& InName)
-		: Name(InName)
-	{
-	}
-
-	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-	{
-		return TextFilterUtils::TestBasicStringExpression(Name.ToString(), InValue, InTextComparisonMode);
-	}
-
-	virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-	{
-		return false;
-	}
-
-private:
-	FName Name;
-};
-
 /** Basic filter used when re-filtering the tree */
 struct FSkeletonTreeFilterArgs
 {

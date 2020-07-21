@@ -43,6 +43,8 @@ public:
 	 */
 	virtual void InitDataTableEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table );
 
+	virtual bool CanEditRows() const;
+
 	/** Constructor */
 	FDataTableEditor();
 

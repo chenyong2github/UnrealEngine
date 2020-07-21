@@ -789,7 +789,7 @@ public:
 				case CPT_Byte:
 					return FString::Printf(TEXT("%u"), Byte);
 				case CPT_Int64:
-					return FString::Printf(TEXT("%ld"), Int64);
+					return FString::Printf(TEXT("%" INT64_FMT), Int64);
 				case CPT_Int:
 					return FString::Printf(TEXT("%i"), Int);
 				case CPT_Bool:

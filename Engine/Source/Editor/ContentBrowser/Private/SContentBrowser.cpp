@@ -837,6 +837,9 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 
 	// Update the breadcrumb trail path
 	OnContentBrowserSettingsChanged(NAME_None);
+
+	// Initialize the search options
+	HandleAssetViewSearchOptionsChanged();
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

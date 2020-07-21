@@ -115,6 +115,36 @@ public:
 	 */
 	static UNREALED_API ULevel* AddLevelsToWorld(UWorld* InWorld, TArray<FString> LevelPackageNames, TSubclassOf<ULevelStreaming> LevelStreamingClass);
 
+	/**
+	 * Adds the named level package to the world.  Does nothing if the level already exists in the world.
+	 *
+	 * @param	InWorld				World in which to add the level.
+	 * @param	LevelPackageName	The package name ("e.g /Game/MyLevel") of the level package to add.
+	 * @param	LevelStreamingClass	The streaming class type to use for the level.
+	 *
+	 * @return								The new level, or NULL if the level couldn't added.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Creation", meta=(DisplayName="Add Level to World", ScriptName="AddLevelToWorld"))
+	static ULevelStreaming* K2_AddLevelToWorld(UWorld* World, const FString& LevelPackageName, TSubclassOf<ULevelStreaming> LevelStreamingClass)
+	{
+		return AddLevelToWorld(World, *LevelPackageName, LevelStreamingClass, FTransform::Identity);
+	}
+
+	/**
+	 * Adds the named level package to the world at the given position.  Does nothing if the level already exists in the world.
+	 *
+	 * @param	InWorld				World in which to add the level.
+	 * @param	LevelPackageName	The package name ("e.g /Game/MyLevel") of the level package to add.
+	 * @param	LevelStreamingClass	The streaming class type to use for the level.
+	 * @param	LevelTransform		The origin of the new level in the world.
+	 *
+	 * @return								The new level, or NULL if the level couldn't added.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Creation", meta=(DisplayName="Add Level to World with Transform", ScriptName="AddLevelToWorldWithTransform"))
+	static ULevelStreaming* K2_AddLevelToWorldWithTransform(UWorld* World, const FString& LevelPackageName, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FTransform& LevelTransform)
+	{
+		return AddLevelToWorld(World, *LevelPackageName, LevelStreamingClass, LevelTransform);
+	}
 
 	/**
 	 * Adds the named level package to the world.  Does nothing if the level already exists in the world.
