@@ -4,7 +4,7 @@
 
 /**
  * Structures used by VirtualHeightfieldMesh.
- * These all should be kept in sync with C++ definitions in VirtualHeightfieldMeshSceneProxy.cpp
+ * These need to be kept in sync with any C++ buffer definitions in VirtualHeightfieldMeshSceneProxy.cpp
  */
 
 /** Structure used for tracking work queues in persistent wave style shaders. */
@@ -15,32 +15,117 @@ struct WorkerQueueInfo
 	int	NumActive;
 };
 
-/** Item description used when traversing the virtual page table quad tree. */
+/** Item description used when traversing the virtual page table quad tree. Packs as uint so store in Buffer declared as uint. */
 struct QuadItem
 {
 	uint Address;
 	uint Level;
 };
 
-/** Description for items that are kept by the quad tree traversal stage. */
+uint Pack(QuadItem Item)
+{
+	uint PackedItem = 0;
+	PackedItem |= Item.Address;
+	PackedItem |= Item.Level << 24;
+	return PackedItem;
+}
+
+QuadItem InitQuadItem(uint Address, uint Level)
+{
+	QuadItem Item;
+	Item.Address = Address;
+	Item.Level = Level;
+	return Item;
+}
+
+QuadItem UnpackQuadItem(uint PackedItem)
+{
+	QuadItem Item;
+	Item.Address = PackedItem & 0x00FFFFFF;
+	Item.Level = PackedItem >> 24;
+	return Item;
+}
+
+/** Description for items that are kept by the quad tree traversal stage. Packs as uint2 so store in Buffer declared as uint2. */
 struct QuadRenderItem
 {
 	uint Address;
 	uint Level;
-	float3 LocalToPhysicalUV;
+	uint PhysicalAddress;
+	float FractionalLod;
+	bool bCull;
+};
+
+uint2 Pack(QuadRenderItem Item)
+{
+	uint2 PackedItem = 0;
+	PackedItem.x |= Item.Address;
+	PackedItem.x |= Item.Level << 24;
+	PackedItem.y |= Item.PhysicalAddress & 0x000FFFFF;
+	PackedItem.y |= (uint)floor(Item.FractionalLod * 255.f) << 20;
+	PackedItem.y |= Item.bCull ? 1 << 28 : 0;
+	return PackedItem;
+}
+
+QuadRenderItem InitQuadRenderItem(uint Address, uint Level, uint PhysicalAddress, float FractionalLod, bool bCull)
+{
+	QuadRenderItem Item;
+	Item.Address = Address;
+	Item.Level = Level;
+	Item.PhysicalAddress = PhysicalAddress;
+	Item.FractionalLod = FractionalLod;
+	Item.bCull = bCull;
+	return Item;
+}
+
+QuadRenderItem UnpackQuadRenderItem(uint2 PackedItem)
+{
+	QuadRenderItem Item;
+	Item.Address = PackedItem.x & 0x00FFFFFF;
+	Item.Level = PackedItem.x >> 24;
+	Item.PhysicalAddress = PackedItem.y & 0x000FFFFF;
+	Item.FractionalLod = (float)((PackedItem.y & 0x0FF00000) >> 20) / 255.f;
+	Item.bCull = ((PackedItem.y & 0x10000000) >> 28) == 1;
+	return Item;
+}
+
+/** Description of neighbor items. We fill 4 of these for each QuadRenderItem. Packs as uint so store in Buffer declared as uint. */
+struct QuadNeighborItem
+{
+	uint PhysicalAddress;
 	float Lod;
 };
 
-/** Description of neighbor items. We fill 4 of these for each QuadRenderItem. */
-struct QuadNeighborItem
+uint Pack(QuadNeighborItem Item)
 {
-	float3 LocalToPhysicalUV;
-	float Lod;
-};
+	uint PackedItem = 0;
+	PackedItem |= Item.PhysicalAddress & 0x000FFFFF;
+	PackedItem |= (uint)floor(Item.Lod * 255.f) << 20;
+	return PackedItem;
+}
+
+QuadNeighborItem InitQuadNeighborItem(uint PhysicalAddress, float Lod)
+{
+	QuadNeighborItem Item;
+	Item.PhysicalAddress = PhysicalAddress;
+	Item.Lod = Lod;
+	return Item;
+}
+
+QuadNeighborItem UnpackQuadNeighborItem(uint PackedItem)
+{
+	QuadNeighborItem Item;
+	Item.PhysicalAddress = PackedItem & 0x000FFFFF;
+	Item.Lod = (float)(PackedItem >> 20) / 255.f;
+	return Item;
+}
 
 /** Final render instance description used by the DrawInstancedIndirect(). */
 struct QuadRenderInstance
 {
-	QuadRenderItem Quad;
-	QuadNeighborItem Neighbor[4];
+	uint Address;
+	uint Level;
+	uint Pad[2];
+	float4 PackedInfo;
+	float4 NeigborPackedInfo[4];
 };
