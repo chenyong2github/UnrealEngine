@@ -31,7 +31,7 @@ class UMaterialExpressionParameter : public UMaterialExpression
 
 	/** Controls where the this parameter is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionParameter)
-	int32 SortPriority;
+	int32 SortPriority = 32;
 #endif
 	static FName ParameterDefaultName;
 
