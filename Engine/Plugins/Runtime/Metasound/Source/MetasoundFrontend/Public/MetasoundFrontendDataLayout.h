@@ -199,7 +199,10 @@ struct FMetasoundExternalClassLookupInfo
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
 	FName ExternalNodeClassName;
+
+	UPROPERTY()
 	uint32 ExternalNodeClassHash;
 };
 

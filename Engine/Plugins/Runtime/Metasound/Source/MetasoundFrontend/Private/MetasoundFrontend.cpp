@@ -3,7 +3,9 @@
 #include "MetasoundFrontend.h"
 
 #include "Backends/JsonStructSerializerBackend.h"
+#include "Backends/JsonStructDeserializerBackend.h"
 #include "StructSerializer.h"
+#include "StructDeserializer.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
@@ -212,6 +214,20 @@ namespace Metasound
 		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo)
 		{
 			return FMetasoundFrontendRegistryContainer::Get()->GetInfoForDataType(InDataType, OutInfo);
+		}
+
+		bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument)
+		{
+			if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*InPath)))
+			{
+				FJsonStructDeserializerBackend Backend(*FileReader);
+				bool DeserializeResult = FStructDeserializer::Deserialize(OutMetasoundDocument, Backend);
+
+				FileReader->Close();
+				return DeserializeResult && !FileReader->IsError();
+			}
+
+			return false;
 		}
 
 		FInputHandle::FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName)

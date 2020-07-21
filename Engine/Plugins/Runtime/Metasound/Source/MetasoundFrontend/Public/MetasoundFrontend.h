@@ -78,6 +78,11 @@ namespace Metasound
 		// returns false if InDataType couldn't be found.
 		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
+		// This will open a json document at the given absolute path and convert it into a 
+		// metasound document struct. 
+		// @returns false if the file couldn't be found or parsed into a document.
+		bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
+
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
 		struct FConnectability
