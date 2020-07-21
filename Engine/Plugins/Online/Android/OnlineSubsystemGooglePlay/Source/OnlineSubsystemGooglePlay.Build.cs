@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
+using Tools.DotNETCommon;
 using UnrealBuildTool;
 
 public class OnlineSubsystemGooglePlay : ModuleRules
 {
+	[ConfigFile(ConfigHierarchyType.Engine, "OnlineSubsystemGooglePlay.Store")]
+	bool bUseGooglePlayBillingApiV2 = true;
+
 	public OnlineSubsystemGooglePlay(ReadOnlyTargetRules Target) : base(Target)
     {
-		PublicDefinitions.Add("ONLINESUBSYSTEMGOOGLEPLAY_PACKAGE=1");
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		ConfigCache.ReadSettings(DirectoryReference.FromFile(Target.ProjectFile), Target.Platform, this);
+
+		PublicDefinitions.Add("ONLINESUBSYSTEMGOOGLEPLAY_PACKAGE=1");
+		PublicDefinitions.Add("OSSGOOGLEPLAY_WITH_AIDL=" + (bUseGooglePlayBillingApiV2 ? "0" : "1"));
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
@@ -36,10 +44,7 @@ public class OnlineSubsystemGooglePlay : ModuleRules
 			}
 			);
 
-        if (Target.Platform == UnrealTargetPlatform.Android)
-        {
-            string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-            AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OnlineSubsystemGooglePlay_UPL.xml"));
-        }
+        string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+        AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OnlineSubsystemGooglePlay_UPL.xml"));
     }
 }

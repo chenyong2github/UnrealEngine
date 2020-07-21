@@ -134,7 +134,7 @@ PACKAGE_SCOPE:
 	 * @param InResponseCode response from the GooglePlay backend
 	 * @param ProvidedProductInformation information returned from the backend about the queried offers
 	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FOnlineStoreOffer>& /*ProvidedProductInformation*/);
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnGooglePlayAvailableIAPQueryComplete, EGooglePlayBillingResponseCode /*InResponseCode*/, const TArray<FProvidedProductInformation>& /*ProvidedProductInformation*/);
 
 	/**
 	 * Delegate fired internally when the Java in app purchase has completed, notifying any GooglePlay OSS listeners

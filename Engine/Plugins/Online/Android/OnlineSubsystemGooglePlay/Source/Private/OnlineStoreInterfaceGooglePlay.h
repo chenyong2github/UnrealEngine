@@ -61,7 +61,7 @@ private:
 	 * @param InResponseCode response from Google backend
 	 * @param AvailablePurchases list of offers returned in response to a query on available offer ids
 	 */
-	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FOnlineStoreOffer>& AvailablePurchases);
+	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FProvidedProductInformation>& AvailablePurchases);
 	FDelegateHandle AvailableIAPQueryDelegateHandle;
 
 	/**

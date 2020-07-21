@@ -4592,10 +4592,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				return;
 			}
 		}
-		else if( IapStoreHelper != null )
-		{
-				super.onActivityResult(requestCode, resultCode, data);
-		}
+//$${gameActivityOnActivityResultIapStoreHelperHandler}$$
 		else
 		{
 			super.onActivityResult(requestCode, resultCode, data);
@@ -4609,20 +4606,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 	
-	public boolean AndroidThunkJava_IapBeginPurchase(String ProductId)
-	{
-		Log.debug("[JAVA] - AndroidThunkJava_IapBeginPurchase");
-		boolean bTriggeredPurchase = false;
-		if( IapStoreHelper != null )
-		{
-			bTriggeredPurchase = IapStoreHelper.BeginPurchase(ProductId);
-		}
-		else
-		{
-			Log.debug("[JAVA] - Store Helper is invalid");
-		}
-		return bTriggeredPurchase;
-	}
+//$${gameActivityAndroidThunkJavaIapBeginPurchase}$$
 
 	public boolean AndroidThunkJava_IapIsAllowedToMakePurchases()
 	{
