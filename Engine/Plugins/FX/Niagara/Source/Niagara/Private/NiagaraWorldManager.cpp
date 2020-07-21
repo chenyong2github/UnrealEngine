@@ -590,20 +590,20 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		{
 			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 			{
-				const auto& System = SimulationsWithPostActorWork[i];
-				if (System->GetSystem()->IsValid())
+				const auto& Simulation = SimulationsWithPostActorWork[i];
+				if (Simulation->IsValid())
 				{
-					System->WaitForSystemTickComplete();
-					System->UpdateTickGroups_GameThread();
+					Simulation->WaitForSystemTickComplete();
+					Simulation->UpdateTickGroups_GameThread();
 				}
 			}
 
 			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 			{
-				const auto& System = SimulationsWithPostActorWork[i];
-				if (System->GetSystem()->IsValid())
+				const auto& Simulation = SimulationsWithPostActorWork[i];
+				if (Simulation->IsValid())
 				{
-					System->Spawn_GameThread(DeltaSeconds, true);
+					Simulation->Spawn_GameThread(DeltaSeconds, true);
 				}
 			}
 			SimulationsWithPostActorWork.Reset();
@@ -761,7 +761,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
 			const auto& Simulation = SimulationsWithPostActorWork[i];
-			if (Simulation->GetSystem()->IsValid() && (Simulation->GetTickGroup() < TickGroup))
+			if (Simulation->IsValid() && (Simulation->GetTickGroup() < TickGroup))
 			{
 				Simulation->Spawn_GameThread(DeltaSeconds, false);
 			}
