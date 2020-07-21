@@ -84,8 +84,13 @@ USoundWave* DeriveSoundWave(UMovieSceneAudioSection* AudioSection)
 
 float DeriveUnloopedDuration(UMovieSceneAudioSection* AudioSection)
 {
-	USoundWave* SoundWave = DeriveSoundWave(AudioSection);
+	USoundBase* Sound = AudioSection->GetSound();
+	if (Sound && Sound->GetDuration() != INDEFINITELY_LOOPING_DURATION)
+	{
+		return Sound->GetDuration();
+	}
 
+	USoundWave* SoundWave = DeriveSoundWave(AudioSection);
 	const float Duration = (SoundWave ? SoundWave->GetDuration() : 0.f);
 	return Duration == INDEFINITELY_LOOPING_DURATION ? SoundWave->Duration : Duration;
 }
