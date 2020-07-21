@@ -5,14 +5,16 @@
 #include "DNAAsset.h"
 #include "SkelMeshDNAReader.h"
 
-#include "Runtime/Core/Public/Serialization/BufferArchive.h"
-#include "Runtime/Core/Public/Serialization/MemoryReader.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
-#include "Runtime/Core/Public/Misc/FileHelper.h"
-#include "Runtime/CoreUObject/Public/UObject/UObjectGlobals.h"
-#include "Runtime/Engine/Public/Rendering/SkeletalMeshModel.h"
-#include "Runtime/Engine/Public/Rendering/SkeletalMeshLODModel.h"
-#include "Runtime/Engine/Classes/Animation/SmartName.h"
+#include "Serialization/BufferArchive.h"
+#include "Serialization/MemoryReader.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "UObject/UObjectGlobals.h"
+#include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "Animation/SmartName.h"
+#include "Engine/SkeletalMesh.h"
+
 
 #include "riglogic/RigLogic.h"
 
