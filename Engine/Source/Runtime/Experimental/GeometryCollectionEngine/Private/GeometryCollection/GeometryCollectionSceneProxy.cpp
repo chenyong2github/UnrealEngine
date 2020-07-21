@@ -1253,19 +1253,24 @@ uint32 FNaniteGeometryCollectionSceneProxy::GetMemoryFootprint() const
 
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
 {
-	const TManagedArray<int32>& TransformToGeometryIndices = GeometryCollection->GetGeometryCollection()->TransformToGeometryIndex;
-	check(NewConstantData->RestTransforms.Num() == TransformToGeometryIndices.Num());
+	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
+	const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
 
+	check(NewConstantData->RestTransforms.Num() == TransformToGeometryIndices.Num());
 	Instances.Reset(NewConstantData->RestTransforms.Num());
 
 	for (int32 TransformIndex = 0; TransformIndex < NewConstantData->RestTransforms.Num(); ++TransformIndex)
 	{
 		const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
-		if (TransformToGeometryIndex == INDEX_NONE)
+		if (!Collection->IsGeometry(TransformIndex))
 		{
-			// Not geometry
 			continue;
 		}
+
+		//if (Collection->IsClustered(TransformIndex))
+		//{
+		//	continue;
+		//}
 
 		const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
@@ -1286,28 +1291,34 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData)
 {
-	//if (NewDynamicData->IsLoading)
-	{
-		// Ignored for now (rest transforms are already set)
-		//return;
-	}
-
 	// Are we currently simulating?
 	if (NewDynamicData->IsDynamic)
 	{
-		const TManagedArray<int32>& TransformToGeometryIndices = GeometryCollection->GetGeometryCollection()->TransformToGeometryIndex;
-		check(NewDynamicData->Transforms.Num() == TransformToGeometryIndices.Num());
+		const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
+		const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
+		const TManagedArray<TSet<int32>>& TransformChildren = Collection->Children;
 
+		check(NewDynamicData->Transforms.Num() == TransformToGeometryIndices.Num());
+		check(NewDynamicData->Transforms.Num() == TransformChildren.Num());
 		Instances.Reset(NewDynamicData->Transforms.Num());
 
 		for (int32 TransformIndex = 0; TransformIndex < NewDynamicData->Transforms.Num(); ++TransformIndex)
 		{
 			const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
-			if (TransformToGeometryIndex == INDEX_NONE)
+			if (!Collection->IsGeometry(TransformIndex))
 			{
-				// Not geometry
 				continue;
 			}
+
+			//if (Collection->IsClustered(TransformIndex))
+			//{
+			//	continue;
+			//}
+
+			//if (TransformChildren[TransformIndex].Num() > 0)
+			//{
+			//	continue;
+			//}
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 

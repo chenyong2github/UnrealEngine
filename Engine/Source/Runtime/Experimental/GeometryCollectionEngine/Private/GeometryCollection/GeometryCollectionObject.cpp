@@ -16,6 +16,7 @@
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "NaniteBuilder.h"
@@ -547,10 +548,15 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 		BuildIndices.Reserve(FaceCount * 3);
 		for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
 		{
+			if (!VisibleArray[FaceStart + FaceIndex]) // TODO: Always in range?
+			{
+				continue;
+			}
+
 			const FIntVector FaceIndices = IndicesArray[FaceStart + FaceIndex];
-			BuildIndices.Add(FaceIndices.X - VertexStart);// -(FaceStart * 3));
-			BuildIndices.Add(FaceIndices.Y - VertexStart);// -(FaceStart * 3));
-			BuildIndices.Add(FaceIndices.Z - VertexStart);// -(FaceStart * 3));
+			BuildIndices.Add(FaceIndices.X - VertexStart);
+			BuildIndices.Add(FaceIndices.Y - VertexStart);
+			BuildIndices.Add(FaceIndices.Z - VertexStart);
 
 			// TODO: Cleanup super hack
 			FStaticMeshSection& BuildSection = BuildSections.Emplace_GetRef();
@@ -559,6 +565,12 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 			BuildSection.MinVertexIndex = BuildSection.FirstIndex;
 			BuildSection.MaxVertexIndex = BuildSection.FirstIndex;
 			BuildSection.NumTriangles = 1;
+		}
+
+		if (BuildIndices.Num() == 0)
+		{
+			// No visible faces of entire geometry, skip any building/rendering.
+			continue;
 		}
 
 		FMeshNaniteSettings NaniteSettings = {};
@@ -582,12 +594,15 @@ void UGeometryCollection::InitResources()
 
 	ReleaseResources();
 
-	for (Nanite::FResources& Resource : NaniteResources)
+	if (EnableNanite)
 	{
-		// Skip resources that have their render data stripped
-		if (Resource.PageStreamingStates.Num() > 0)
+		for (Nanite::FResources& Resource : NaniteResources)
 		{
-			Resource.InitResources();
+			// Skip resources that have their render data stripped
+			if (Resource.PageStreamingStates.Num() > 0)
+			{
+				Resource.InitResources();
+			}
 		}
 	}
 
@@ -628,10 +643,21 @@ FGuid UGeometryCollection::GetStateGuid() const
 #if WITH_EDITOR
 void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
+	if (PropertyChangedEvent.Property)
 	{
-		InvalidateCollection();
-		CreateSimulationData();
+		if (PropertyChangedEvent.Property->GetFName() != GET_MEMBER_NAME_CHECKED(UGeometryCollection, Materials))
+		{
+			InvalidateCollection();
+			CreateSimulationData();
+		}
+
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, EnableNanite))
+		{
+			if (FApp::CanEverRender())
+			{
+				InitResources();
+			}
+		}
 	}
 }
 
@@ -662,7 +688,7 @@ void UGeometryCollection::PostLoad()
 {
 	Super::PostLoad();
 
-	// initialize rendering resources
+	// Initialize rendering resources.
 	if (FApp::CanEverRender())
 	{
 		InitResources();

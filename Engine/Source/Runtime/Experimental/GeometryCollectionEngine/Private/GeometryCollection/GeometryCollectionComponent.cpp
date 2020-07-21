@@ -1179,9 +1179,26 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::TickComponent()"), this);
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+#if WITH_EDITOR
+	if (IsRegistered() && SceneProxy && RestCollection)
+	{
+		const bool bWantNanite = RestCollection->EnableNanite && GGeometryCollectionNanite != 0;
+		const bool bHaveNanite = SceneProxy->IsNaniteMesh();
+		bool bRecreateProxy = bWantNanite != bHaveNanite;
+		if (bRecreateProxy)
+		{
+			// Wait until resources are released
+			FlushRenderingCommands();
+
+			FComponentReregisterContext ReregisterContext(this);
+			UpdateAllPrimitiveSceneInfosForSingleComponent(this);
+		}
+	}
+#endif
+
 #if WITH_CHAOS
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
-	if(RestCollection)
+	if (RestCollection)
 	{
 		if(ensureMsgf(DynamicCollection, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
