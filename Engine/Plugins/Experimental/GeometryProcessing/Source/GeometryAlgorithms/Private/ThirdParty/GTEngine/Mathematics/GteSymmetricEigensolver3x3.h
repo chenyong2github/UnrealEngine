@@ -250,7 +250,7 @@ int SymmetricEigensolver3x3<Real>::operator()(Real a00, Real a01, Real a02,
         }
     }
 
-    std::array<Real, 3> diagonal = { b00, b11, b22 };
+	std::array<Real, 3> diagonal = { { b00, b11, b22 } };
     int i0, i1, i2;
     if (sortType >= 1)
     {
