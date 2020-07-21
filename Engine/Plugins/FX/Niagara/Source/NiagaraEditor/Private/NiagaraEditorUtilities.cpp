@@ -925,6 +925,28 @@ bool FNiagaraEditorUtilities::IsCompilableAssetClass(UClass* AssetClass)
 	return CompilableClasses.Contains(AssetClass);
 }
 
+FText FNiagaraEditorUtilities::GetVariableTypeCategory(const FNiagaraVariable& Variable)
+{
+	FText Category = FText::GetEmpty();
+	if (Variable.GetType().IsDataInterface())
+	{
+		Category = LOCTEXT("NiagaraParameterMenuGroupDI", "Data Interface");
+	}
+	else if (Variable.GetType().IsEnum())
+	{
+		Category = LOCTEXT("NiagaraParameterMenuGroupEnum", "Enum");
+	}
+	else if (Variable.GetType().IsUObject())
+	{
+		Category = LOCTEXT("NiagaraParameterMenuGroupObject", "Object");
+	}
+	else if (Variable.GetName().ToString().Contains("event"))
+	{
+		Category = LOCTEXT("NiagaraParameterMenuGroupObject", "Event");
+	}
+	return Category;
+}
+
 void FNiagaraEditorUtilities::MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects)
 {
 	const FText LoadAndMarkDirtyDisplayName = NSLOCTEXT("NiagaraEditor", "MarkDependentAssetsDirtySlowTask", "Loading and marking dependent assets dirty.");

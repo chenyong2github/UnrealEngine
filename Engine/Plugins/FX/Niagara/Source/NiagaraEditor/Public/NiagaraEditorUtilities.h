@@ -144,6 +144,8 @@ namespace FNiagaraEditorUtilities
 
 	bool IsCompilableAssetClass(UClass* AssetClass);
 
+	FText GetVariableTypeCategory(const FNiagaraVariable& Variable);
+
 	void MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects);
 
 	void ResolveNumerics(UNiagaraGraph* SourceGraph, bool bForceParametersToResolveNumerics, TArray<FNiagaraVariable>& ChangedNumericParams);
