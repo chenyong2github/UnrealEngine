@@ -55,6 +55,7 @@ private:
 	bool bLogWidgetNameOnce;
 	bool bLogWarningIfWidgetIsPaintedMoreThanOnce;
 	FLinearColor DrawBoxColor;
+	FLinearColor DrawQuadColor;
 	FLinearColor DrawWidgetNameColor;
 	int32 MaxNumberOfWidgetInList;
 	float CacheDuration;
