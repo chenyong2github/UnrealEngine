@@ -51,6 +51,19 @@ static FAutoConsoleVariableRef CVarVerboseScriptStats(
 	ECVF_Default
 );
 
+#if PER_FUNCTION_SCRIPT_STATS
+static int32 GMaxFunctionStatDepth = -1;
+static FAutoConsoleVariableRef CVarMaxFunctionStatDepth(
+	TEXT("bp.MaxFunctionStatDepth"),
+	GMaxFunctionStatDepth,
+	TEXT("Script stack threshold for recording per function stats.\n")
+	TEXT("-1: Record all function stats (default)\n")
+	TEXT("0: Record no function stats\n")
+	TEXT(">0: Record functions with depth < MaxFunctionStatDepth \n"),
+	ECVF_Default
+);
+#endif
+
 /*-----------------------------------------------------------------------------
 	Globals.
 -----------------------------------------------------------------------------*/
@@ -1745,7 +1758,7 @@ bool FScriptAuditExec::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 // which can taint profiling results:
 #define LIGHTWEIGHT_PROCESS_EVENT_COUNTER 0 && !DO_BLUEPRINT_GUARD
 
-#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
+#if LIGHTWEIGHT_PROCESS_EVENT_COUNTER || PER_FUNCTION_SCRIPT_STATS
 thread_local int32 ProcessEventCounter = 0;
 #endif
 
@@ -1796,8 +1809,17 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	}
 	checkSlow((Function->ParmsSize == 0) || (Parms != NULL));
 
+#if DO_BLUEPRINT_GUARD
+	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
+	const int32 ProcessEventDepth = BlueprintExceptionTracker.ScriptEntryTag;
+	TGuardValue<int32> EntryCounter(BlueprintExceptionTracker.ScriptEntryTag, BlueprintExceptionTracker.ScriptEntryTag + 1);
+#elif PER_FUNCTION_SCRIPT_STATS || LIGHTWEIGHT_PROCESS_EVENT_COUNTER
+	const int32 ProcessEventDepth = ProcessEventCounter;
+	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
+#endif
+
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = Stats::IsThreadCollectingData();
+	const bool bShouldTrackFunction = (GMaxFunctionStatDepth == -1 || ProcessEventDepth < GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
@@ -1808,13 +1830,9 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 #if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 0);
-	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
 #endif
 
 #if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
-	TGuardValue<int32> EntryCounter(BlueprintExceptionTracker.ScriptEntryTag, BlueprintExceptionTracker.ScriptEntryTag + 1);
-
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintExceptionTracker.ScriptEntryTag == 1);
 #endif
 
