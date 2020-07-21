@@ -115,7 +115,7 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 
 void FResources::InitResources()
 {
-	if (PageStreamingStates.Num() == 0)
+	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
 	{
 		// Skip resources that have their render data stripped
 		return;
@@ -131,7 +131,7 @@ void FResources::InitResources()
 
 void FResources::ReleaseResources()
 {
-	if (PageStreamingStates.Num() == 0)
+	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
 	{
 		return;
 	}
