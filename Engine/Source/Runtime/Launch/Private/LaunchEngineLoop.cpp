@@ -28,6 +28,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
+#include "HAL/IPlatformFileManagedStorageWrapper.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.h"
 #include "ProfilingDebugging/MiscTrace.h"
@@ -5638,6 +5639,11 @@ bool FEngineLoop::AppInit( )
 		SCOPED_BOOT_TIMING("FApp::InitializeSession");
 		FApp::InitializeSession();
 	}
+#endif
+
+#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
+	// Delay initialization of FPersistentStorageManager to a point where GConfig is initialized
+	FPersistentStorageManager::Get().Initialize();
 #endif
 
 	// Checks.
