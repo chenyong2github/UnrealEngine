@@ -2649,7 +2649,13 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			ULODInfoUILayout* LODInfoUILayout = NewObject<ULODInfoUILayout>(GetTransientPackage(), FName(*(FGuid::NewGuid().ToString())), RF_Standalone | RF_Transactional);
 			LODInfoUILayout->AddToRoot();
 			FSkeletalMeshLODInfo* LODInfoPtr = SkelMesh->GetLODInfo(LODIndex);
-			check(LODInfoPtr);
+			if (!LODInfoPtr || !SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+			{
+				//Trip an ensure so user is aware of this
+				UE_ASSET_LOG(LogSkeletalMeshPersonaMeshDetail, Error, SkelMesh, TEXT("Missing LOD %d data, cannot build persona mesh UI"), LODIndex);
+				continue;
+			}
+			const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
 			LODInfoUILayout->SetReferenceLODInfo(GetPersonaToolkit(), LODIndex);
 			LODInfoUILayouts.Add(LODInfoUILayout);
 
@@ -2717,8 +2723,6 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			{
 				//Display the LODInfo settings
 				CustomizeLODInfoSetingsDetails(DetailLayout, LODInfoUILayout, LODInfoProperty, LODCategory);
-				
-				const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
 				
 				bool bIsbuildAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
 

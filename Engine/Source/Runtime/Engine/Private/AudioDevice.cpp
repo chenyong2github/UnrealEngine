@@ -6288,11 +6288,19 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 {
 	check(IsInAudioThread());
 
-	// First check to see if the device manager has "bPlayAllPIEAudio" enabled
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager && DeviceManager->IsPlayAllDeviceAudio())
+	if(DeviceManager)
 	{
-		return false;
+		// Check to see if the device manager has "bPlayAllPIEAudio" enabled
+		const bool bIsPlayAllDeviceAudio = DeviceManager->IsPlayAllDeviceAudio();
+
+		// Check if always playing NonRealtime devices, and this is a NonRealtime device
+		const bool bIsAlwaysPlayNonRealtime = DeviceManager->IsAlwaysPlayNonRealtimeDeviceAudio() && IsNonRealtime();
+
+		if (bIsPlayAllDeviceAudio || bIsAlwaysPlayNonRealtime)
+		{
+			return false;
+		}
 	}
 
 	return bIsDeviceMuted;

@@ -5,6 +5,7 @@
 #include "Engine/EngineCustomTimeStep.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieSceneTimeController.h"
+#include "Async/Future.h"
 #include "MoviePipeline.generated.h"
 
 // Forward Declares
@@ -124,6 +125,8 @@ public:
 
 	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
+	void AddOutputFuture(TFuture<bool>&& OutputFuture);
+
 	void ProcessOutstandingFinishedFrames();
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
@@ -386,6 +389,7 @@ private:
 	UPROPERTY(Transient)
 	UMoviePipelineExecutorJob* CurrentJob;
 
+	TArray<TFuture<bool>> OutputFutures;
 	FMovieSceneChanges SequenceChanges;
 };
 

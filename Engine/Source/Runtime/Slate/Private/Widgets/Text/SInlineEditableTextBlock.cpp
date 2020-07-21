@@ -229,7 +229,17 @@ FReply SInlineEditableTextBlock::OnMouseButtonDoubleClick( const FGeometry& InMy
 
 EActiveTimerReturnType SInlineEditableTextBlock::TriggerEditMode(double InCurrentTime, float InDeltaTime)
 {
-	EnterEditingMode();
+	// If someone clicks on us then clicks again and starts dragging it away quickly we might not get OnDragOver
+	// called (which cancels the timer), meaning the trigger timer will end up firing later on while they're dragging 
+	// something around, which is unexpected. So as an extra safe guard, we'll just avoid entering edit 
+	// mode while drag dropping (and parent visibility might mean we never get drag events called on us at all anyway)
+	// Note: Doing this check in here rather than in EnterEditingMode just in case a caller actually did want to enter 
+	// editing mode during a drag drop, given it's public API
+	if (!FSlateApplication::Get().IsDragDropping())
+	{
+		EnterEditingMode();
+	}
+
 	return EActiveTimerReturnType::Stop;
 }
 

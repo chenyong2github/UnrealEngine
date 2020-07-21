@@ -146,7 +146,7 @@ void UMovieSceneTrack::UpdateEasing()
 					OtherSectionRange = OuterScene->GetPlaybackRange();
 				}
 
-				bIsEntirelyUnderlapped = OtherSectionRange.Contains(CurrentSectionRange);
+				bIsEntirelyUnderlapped = bIsEntirelyUnderlapped || OtherSectionRange.Contains(CurrentSectionRange);
 
 				// Check the lower bound of the current section against the other section's upper bound
 				const bool bSectionRangeContainsOtherUpperBound = !OtherSectionRange.GetUpperBound().IsOpen() && !CurrentSectionRange.GetLowerBound().IsOpen() && CurrentSectionRange.Contains(OtherSectionRange.GetUpperBoundValue());

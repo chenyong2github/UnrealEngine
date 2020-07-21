@@ -10,7 +10,7 @@ UFbxSceneImportOptions::UFbxSceneImportOptions(const FObjectInitializer& ObjectI
 	bBakePivotInVertex = false;
 	bCreateContentFolderHierarchy = false;
 	bImportAsDynamic = false;
-	HierarchyType = FBXSOCHT_CreateBlueprint;
+	HierarchyType = EFBXSceneOptionsCreateHierarchyType::FBXSOCHT_CreateBlueprint;
 	bForceFrontXAxis = false;
 	bImportStaticMeshLODs = false;
 	bImportSkeletalMeshLODs = false;

@@ -80,6 +80,8 @@ class FWindowsUIAControlProvider
 	, public ITransformProvider
 	, public IValueProvider
 	, public IWindowProvider
+	, public ISelectionProvider
+	, public ISelectionItemProvider
 {
 public:
 	FWindowsUIAControlProvider(FWindowsUIAManager& Manager, TSharedRef<IAccessibleWidget> InWidget);
@@ -145,6 +147,19 @@ public:
 	virtual HRESULT STDCALL WaitForInputIdle(int milliseconds, BOOL* pRetVal) override;
 	// ~
 
+	// ISelectionProvider
+	//HRESULT STDMETHODCALLTYPE GetSelection(SAFEARRAY** pRetVal) override; // duplicate from ITextProvider. Implementation also there 
+	virtual HRESULT STDMETHODCALLTYPE get_CanSelectMultiple(BOOL* pRetVal) override;
+	virtual HRESULT STDMETHODCALLTYPE get_IsSelectionRequired(BOOL* pRetVal) override;
+	// ~
+
+	// ISelectionItemProvider
+	virtual HRESULT STDMETHODCALLTYPE Select() override;
+	virtual HRESULT STDMETHODCALLTYPE AddToSelection() override;
+	virtual HRESULT STDMETHODCALLTYPE RemoveFromSelection() override;
+	virtual HRESULT STDMETHODCALLTYPE get_IsSelected(BOOL* pRetVal) override;
+	virtual HRESULT STDMETHODCALLTYPE get_SelectionContainer(IRawElementProviderSimple** pRetVal) override;
+	// ~
 private:
 	virtual ~FWindowsUIAControlProvider();
 };

@@ -39,6 +39,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static bool SetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, const FString& InValue);
 	static bool GetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, FString& OutValue);
 	static bool DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName);
+	static bool DeleteStoredSection(const FString& InStoreId, const FString& InSectionName);
 	static void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
 	static ENetworkConnectionType GetNetworkConnectionType();
 	static bool HasActiveWiFiConnection();

@@ -32,6 +32,7 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 	OnClose = InArgs._OnClose;
 
 	const bool bForceShowEngineContent = PropertyHandle ? PropertyHandle->HasMetaData(TEXT("ForceShowEngineContent")) : false;
+	const bool bForceShowPluginContent = PropertyHandle ? PropertyHandle->HasMetaData(TEXT("ForceShowPluginContent")) : false;
 
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	const bool bCloseSelfOnly = true;
@@ -153,6 +154,8 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		AssetPickerConfig.AdditionalReferencingAssets = OwnerAssetArray;
 		// Force show engine content if meta data says so
 		AssetPickerConfig.bForceShowEngineContent = bForceShowEngineContent;
+		// Force show plugin content if meta data says so
+		AssetPickerConfig.bForceShowPluginContent = bForceShowPluginContent;
 
 		MenuContent =
 			SNew(SBox)

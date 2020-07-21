@@ -106,6 +106,8 @@ public:
 	TSharedPtr< FUICommandInfo > StartWatchingPin;
 	TSharedPtr< FUICommandInfo > StopWatchingPin;
 	TSharedPtr< FUICommandInfo > ResetPinToDefaultValue;
+	TSharedPtr< FUICommandInfo > SelectAllInputNodes;
+	TSharedPtr< FUICommandInfo > SelectAllOutputNodes;
 
 	// SkeletalControl specific commands
 	TSharedPtr< FUICommandInfo > SelectBone;
@@ -141,6 +143,9 @@ public:
 
 	// Go to node documentation
 	TSharedPtr< FUICommandInfo > GoToDocumentation;
+
+	// Open the context menu at last known mouse position
+	TSharedPtr< FUICommandInfo > SummonCreateNodeMenu;
 
 	// Quick jump commands
 	struct FQuickJumpCommandInfo

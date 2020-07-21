@@ -341,6 +341,9 @@ public:
 	/** Is this event a pointer event (touch or cursor). */
 	SLATECORE_API virtual bool IsPointerEvent() const;
 
+	/** Is this event a key event. */
+	SLATECORE_API virtual bool IsKeyEvent() const;
+
 protected:
 
 	// State of modifier keys when this event happened.
@@ -436,7 +439,9 @@ public:
 		return KeyCode;
 	}
 
-	SLATECORE_API virtual FText ToText() const override;	
+	SLATECORE_API virtual FText ToText() const override;
+
+	SLATECORE_API virtual bool IsKeyEvent() const override;
 
 private:
 	// Name of the key that was pressed.

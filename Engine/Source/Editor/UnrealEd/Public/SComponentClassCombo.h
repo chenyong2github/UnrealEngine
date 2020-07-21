@@ -13,6 +13,7 @@
 
 class FComponentClassComboEntry;
 class SToolTip;
+class FTextFilterExpressionEvaluator;
 
 typedef TSharedPtr<class FComponentClassComboEntry> FComponentClassComboEntryPtr;
 
@@ -187,9 +188,8 @@ public:
 
 	/**
 	 * Updates the filtered list of component names.
-	 * @param InSearchText The search text from the search control.
 	 */
-	void GenerateFilteredComponentList(const FString& InSearchText);
+	void GenerateFilteredComponentList();
 
 	FText GetCurrentSearchString() const;
 
@@ -227,7 +227,7 @@ private:
 	TArray<FComponentClassComboEntryPtr> FilteredComponentClassList;
 
 	/** The current search string */
-	FText CurrentSearchString;
+	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
 
 	/** The search box control - part of the combo drop down */
 	TSharedPtr<SSearchBox> SearchBox;

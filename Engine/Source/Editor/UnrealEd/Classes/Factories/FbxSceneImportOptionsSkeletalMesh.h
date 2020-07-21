@@ -9,7 +9,7 @@
 #include "MeshBuild.h"
 #include "FbxSceneImportOptionsSkeletalMesh.generated.h"
 
-UCLASS(config=EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
 class UFbxSceneImportOptionsSkeletalMesh : public UObject
 {
 	GENERATED_UCLASS_BODY()

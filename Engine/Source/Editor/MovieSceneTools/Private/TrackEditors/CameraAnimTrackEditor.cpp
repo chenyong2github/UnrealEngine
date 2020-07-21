@@ -239,6 +239,7 @@ FKeyPropertyResult FCameraAnimTrackEditorHelper::AddCameraAnimKey(FMovieSceneTra
 			{
 				UMovieSceneSection* NewSection = Cast<UMovieSceneCameraAnimTrack>(Track)->AddNewCameraAnim(KeyTime, CameraAnim);
 				KeyPropertyResult.bTrackModified = true;
+				KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 				Sequencer->EmptySelection();
 				Sequencer->SelectSection(NewSection);

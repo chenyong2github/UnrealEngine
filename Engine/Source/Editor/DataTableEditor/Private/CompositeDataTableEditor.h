@@ -19,6 +19,7 @@ public:
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
 	virtual void InitDataTableEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table) override;
+	virtual bool CanEditRows() const override;
 
 	/**	Spawns the tab with the details view inside */
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);

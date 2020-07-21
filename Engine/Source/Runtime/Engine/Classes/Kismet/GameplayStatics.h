@@ -1273,5 +1273,15 @@ public:
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities")
 	static bool HasLaunchOption(const FString& OptionToCheck);
+
+	/**
+	 * If accessibility is enabled, have the platform announce a string to the player.
+	 * These announcements can be interrupted by system accessibiliity announcements or other accessibility announcement requests.
+	 * This should be used judiciously as flooding a player with announcements can be overrwhelming and confusing.
+	 * Try to make announcements concise and clear.
+	 * NOTE: Currently only supported on Win10, Mac, iOS
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Utilities")
+	static void AnnounceAccessibleString(const FString& AnnouncementString);
 };
 

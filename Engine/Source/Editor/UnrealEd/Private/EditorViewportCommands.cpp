@@ -17,6 +17,25 @@
 
 #define LOCTEXT_NAMESPACE "EditorViewportCommands"
 
+namespace
+{
+	const FName ShowTextureScaleBundle = "ShowTextureScale";
+	const FName ShowTextureResolutionBundle = "ShowTextureResolution";
+}
+
+FEditorViewportCommands::FEditorViewportCommands()
+	: TCommands<FEditorViewportCommands>
+	(
+		TEXT("EditorViewport"), // Context name for fast lookup
+		NSLOCTEXT("Contexts", "EditorViewportCommands", "Common Viewport Commands"), // Localized context name for displaying
+		TEXT("MainFrame"),
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+	)
+{
+	AddBundle(ShowTextureScaleBundle, LOCTEXT("ShowTextureCommands_TextureScale_Bundle", "Show Texture Scale"));
+	AddBundle(ShowTextureResolutionBundle, LOCTEXT("ShowTextureCommands_TextureResolution_Bundle", "Show Texture Resolution"));
+}
+
 void FEditorViewportCommands::RegisterCommands()
 {
 	UI_COMMAND( Perspective, "Perspective", "Switches the viewport to perspective view", EUserInterfaceActionType::RadioButton, FInputChord( EModifierKey::Alt, EKeys::G ) );
@@ -83,8 +102,8 @@ void FEditorViewportCommands::RegisterCommands()
 		const FText LocalizedTextureScaleTooltip = FText::Format(LOCTEXT("ShowTextureCommands_TextureScale_ToolTip", "Visualize the scale accuracy of texture {0}"), TextureIndex);
 		const FText LocalizedTextureResolutionTooltip = FText::Format(LOCTEXT("ShowTextureCommands_TextureResolution_ToolTip", "Visualize the ratio between the currently streamed resolution of texture {0} texture resolution and the resolution wanted by the GPU."), TextureIndex);
 
-		TexStreamAccMaterialTextureScaleSingle[TextureIndex] = FUICommandInfoDecl(this->AsShared(), TextureScaleCommandName, LocalizedName, LocalizedTextureScaleTooltip).UserInterfaceType(EUserInterfaceActionType::RadioButton);
-		RequiredTextureResolutionSingle[TextureIndex] = FUICommandInfoDecl(this->AsShared(), TextureResolutionCommandName, LocalizedName, LocalizedTextureResolutionTooltip).UserInterfaceType(EUserInterfaceActionType::RadioButton);
+		TexStreamAccMaterialTextureScaleSingle[TextureIndex] = FUICommandInfoDecl(this->AsShared(), TextureScaleCommandName, LocalizedName, LocalizedTextureScaleTooltip, ShowTextureScaleBundle).UserInterfaceType(EUserInterfaceActionType::RadioButton);
+		RequiredTextureResolutionSingle[TextureIndex] = FUICommandInfoDecl(this->AsShared(), TextureResolutionCommandName, LocalizedName, LocalizedTextureResolutionTooltip, ShowTextureResolutionBundle).UserInterfaceType(EUserInterfaceActionType::RadioButton);
 	}
 
 	UI_COMMAND( StationaryLightOverlapMode, "Stationary Light Overlap View Mode", "Visualizes overlap of stationary lights", EUserInterfaceActionType::RadioButton, FInputChord() );

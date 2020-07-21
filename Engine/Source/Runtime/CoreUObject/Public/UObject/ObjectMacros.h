@@ -1201,6 +1201,9 @@ namespace UM
 		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show engine content
 		ForceShowEngineContent,
 
+		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show plugin content
+		ForceShowPluginContent,
+
 		/// [PropertyMetadata] Used for FColor and FLinearColor properties. Indicates that the Alpha property should be hidden when displaying the property widget in the details.
 		HideAlphaChannel,
 

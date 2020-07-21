@@ -698,7 +698,7 @@ public:
 	static bool GetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, FString& OutValue);
 
 	/**
-  	 *	Deletes value for the given section and key in the platform specific key->value store
+	 *	Deletes value for the given section and key in the platform specific key->value store
 	 *  Note: The key->value store is user-specific, but may be used to share data between different applications for the same user
 	 *
 	 *  @param	InStoreId			The name used to identify the store you want to use (eg, MyGame)
@@ -707,6 +707,16 @@ public:
 	 *	@return	bool				true if the value was deleted correctly, false if not found or couldn't delete
 	 */
 	static bool DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName);
+
+	/**
+	 *	Deletes the given section and its contained values in the platform specific key->value store
+	 *  Note: The key->value store is user-specific, but may be used to share data between different applications for the same user
+	 *
+	 *  @param	InStoreId			The name used to identify the store you want to use (eg, MyGame)
+	 *	@param	InSectionName		The section to delete.
+	 *	@return	bool				true if the section was deleted, false if not found or couldn't delete
+	 */
+	static bool DeleteStoredSection(const FString& InStoreId, const FString& InSectionName);
 
 	/** Sends a message to a remote tool, and debugger consoles */
 	static void LowLevelOutputDebugString(const TCHAR *Message);

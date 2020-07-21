@@ -97,6 +97,18 @@ public:
 	UPROPERTY()
 	FSlateColor BorderBackgroundColor_DEPRECATED;
 
+	/** The type of mouse action required by the user to trigger the buttons 'Click' */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	TEnumAsByte<EButtonClickMethod::Type> ClickMethod;
+
+	/** The type of touch action required by the user to trigger the buttons 'Click' */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	TEnumAsByte<EButtonTouchMethod::Type> TouchMethod;
+
+	/** The type of keyboard/gamepad button press action required by the user to trigger the buttons 'Click' */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	TEnumAsByte<EButtonPressMethod::Type> PressMethod;
+
 	/** Sometimes a button should only be mouse-clickable and never keyboard focusable. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	bool IsFocusable;
@@ -128,6 +140,15 @@ public:
 	/** Sets the checked state. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetCheckedState(ECheckBoxState InCheckedState);
+
+	UFUNCTION(BlueprintCallable, Category = "Button")
+	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+
+	UFUNCTION(BlueprintCallable, Category = "Button")
+	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
+
+	UFUNCTION(BlueprintCallable, Category = "Button")
+	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
 public:
 	

@@ -922,7 +922,7 @@ FText SFoliageEdit::GetFoliageEditorErrorText() const
 
 TSharedRef<SWidget> SFoliageEdit::BuildToolBar()
 {
-	FToolBarBuilder Toolbar(FoliageEditMode->UICommandList, FMultiBoxCustomization::None, nullptr, Orient_Vertical);
+	FVerticalToolBarBuilder Toolbar(FoliageEditMode->UICommandList, FMultiBoxCustomization::None);
 	Toolbar.SetLabelVisibility(EVisibility::Collapsed);
 	Toolbar.SetStyle(&FEditorStyle::Get(), "FoliageEditToolbar");
 	{

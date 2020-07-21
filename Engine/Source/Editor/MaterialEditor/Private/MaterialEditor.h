@@ -420,6 +420,8 @@ public:
 	/** Add entry to hierarchy menu */
 	static void AddInheritanceMenuEntry(FToolMenuSection& Section, const FAssetData& AssetData, bool bIsFunctionPreviewMaterial);
 
+	virtual void AddGraphEditorPinActionsToContextMenu(FToolMenuSection& InSection) const override;
+
 public:
 	/** Set to true when modifications have been made to the material */
 	bool bMaterialDirty;
@@ -667,13 +669,13 @@ private:
 	void OnFindInMaterial();
 
 	/** Will promote selected pin to a parameter of the pin type */
-	void OnPromoteToParameter();
+	void OnPromoteToParameter(const FToolMenuContext& InMenuContext) const;
 
 	/** Used to know if we can promote selected pin to a parameter of the pin type */
-	bool OnCanPromoteToParameter();
+	bool OnCanPromoteToParameter(const FToolMenuContext& InMenuContext) const;
 
 	/** Will  return the UClass to create from the Pin Type */
-	UClass* GetOnPromoteToParameterClass(UEdGraphPin* TargetPin);
+	UClass* GetOnPromoteToParameterClass(const UEdGraphPin* TargetPin) const;
 
 	/** Open documentation for the selected node class */
 	void OnGoToDocumentation();

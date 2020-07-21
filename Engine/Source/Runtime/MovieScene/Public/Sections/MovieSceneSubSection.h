@@ -33,7 +33,7 @@ struct FSubSequenceInstanceDataParams
 /**
  * Implements a section in sub-sequence tracks.
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
 class MOVIESCENE_API UMovieSceneSubSection
 	: public UMovieSceneSection
 {
@@ -158,7 +158,7 @@ public:
 
 public:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="General", meta=(ShowOnlyInnerProperties))
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category="General", meta=(ShowOnlyInnerProperties))
 	FMovieSceneSectionParameters Parameters;
 
 private:

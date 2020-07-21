@@ -117,14 +117,14 @@ void USinglePropertyView::SetPropertyName(FName InPropertyName)
 	if (PropertyName != InPropertyName)
 	{
 		PropertyName = InPropertyName;
-		AsynBuildContentWidget();
+		BuildContentWidget();
 	}
 }
 
 
 void USinglePropertyView::OnObjectChanged()
 {
-	AsynBuildContentWidget();
+	BuildContentWidget();
 }
 
 
@@ -143,7 +143,7 @@ void USinglePropertyView::PostEditChangeProperty(FPropertyChangedEvent& Property
 		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(USinglePropertyView, PropertyName)
 			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(USinglePropertyView, NameOverride))
 		{
-			AsynBuildContentWidget();
+			BuildContentWidget();
 		}
 	}
 }

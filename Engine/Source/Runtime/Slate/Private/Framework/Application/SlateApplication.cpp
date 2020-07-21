@@ -336,15 +336,6 @@ public:
 		const FWidgetPath& RoutingPath;
 	};
 
-	static void LogEvent( FSlateApplication* ThisApplication, const FInputEvent& Event, const FReplyBase& Reply )
-	{
-		TSharedPtr<IWidgetReflector> Reflector = ThisApplication->WidgetReflectorPtr.Pin();
-		if (Reflector.IsValid() && Reply.IsEventHandled())
-		{
-			Reflector->OnEventProcessed( Event, Reply );
-		}
-	}
-
 	/**
 	 * Route an event along a focus path (as opposed to PointerPath)
 	 *
@@ -396,8 +387,6 @@ public:
 			ProcessReply(ThisApplication, RoutingPath, Reply, WidgetsUnderCursor, &TranslatedEvent);
 #endif
 		}
-
-		LogEvent(ThisApplication, EventCopy, Reply);
 
 		return Reply;
 	}
@@ -802,7 +791,7 @@ FSlateApplication::FSlateApplication()
 	{
 		CVarGlobalInvalidation->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([this](IConsoleVariable* Variable)
 		{
-			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation != 0 ? true : false);
+			OnGlobalInvalidationToggledEvent.Broadcast(GSlateEnableGlobalInvalidation);
 		}));
 	}
 }
@@ -1092,13 +1081,6 @@ void FSlateApplication::DrawWindowAndChildren( const TSharedRef<SWindow>& Window
 		if ( bCapturingFromThisWindow || (WidgetReflector.IsValid() && WidgetReflector->ReflectorNeedsToDrawIn(WindowToDraw)) )
 		{
 			MaxLayerId = WidgetReflector->Visualize( DrawWindowArgs.WidgetsToVisualizeUnderCursor, WindowElementList, MaxLayerId );
-		}
-
-		// Visualize pointer presses and pressed keys for demo-recording purposes.
-		const bool bVisualiseMouseClicks = WidgetReflector.IsValid() && PlatformApplication->Cursor.IsValid() && PlatformApplication->Cursor->GetType() != EMouseCursor::None;
-		if (bVisualiseMouseClicks )
-		{
-			MaxLayerId = WidgetReflector->VisualizeCursorAndKeys( WindowElementList, MaxLayerId );
 		}
 
 #endif
@@ -5519,11 +5501,6 @@ bool FSlateApplication::OnMouseMove()
 			PlatformApplication->GetModifierKeys()
 			);
 
-		if (InputPreProcessors.HandleMouseMoveEvent(*this, MouseEvent))
-		{
-			return true;
-		}
-
 		Result = ProcessMouseMoveEvent( MouseEvent );
 	}
 
@@ -5557,11 +5534,6 @@ bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 			PlatformApplication->GetModifierKeys()
 		);
 
-		if (InputPreProcessors.HandleMouseMoveEvent(*this, MouseEvent))
-		{
-			return true;
-		}
-
 		ProcessMouseMoveEvent(MouseEvent);
 	}
 	
@@ -5578,6 +5550,11 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 
 	if ( !bIsSynthetic )
 	{
+		if (InputPreProcessors.HandleMouseMoveEvent(*this, MouseEvent))
+		{
+			return true;
+		}
+
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ProcessMouseMove_Tooltip);
 		
 		GetOrCreateUser(MouseEvent)->UpdateTooltip(MenuStack, /*bCanSpawnNewTooltip =*/true);

@@ -213,14 +213,14 @@ namespace PropertyCustomizationHelpers
 			.IsFocusable( false );
 	}
 
-	TSharedRef<SWidget> MakeNewBlueprintButton( FSimpleDelegate OnFindClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled )
+	TSharedRef<SWidget> MakeNewBlueprintButton( FSimpleDelegate OnNewBlueprintClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled )
 	{
 		return
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "NewBlueprintButtonLabel", "New Blueprint") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "NewBlueprintButtonToolTipText", "Create New Blueprint") : OptionalToolTipText )
 			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_CreateNewBlueprint") )
-			.OnClickAction( OnFindClicked )
+			.OnClickAction( OnNewBlueprintClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
 	}

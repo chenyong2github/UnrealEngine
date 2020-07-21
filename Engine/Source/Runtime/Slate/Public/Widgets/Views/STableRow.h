@@ -26,6 +26,12 @@
 #include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Framework/Views/TableViewTypeTraits.h"
+#if WITH_ACCESSIBILITY
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleWidgetCache.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 template <typename ItemType> class SListView;
 
@@ -264,6 +270,98 @@ public:
 			InnerContentSlot = InnerContentSlotNativePtr;
 		}
 	}
+
+#if WITH_ACCESSIBILITY
+	protected:
+	friend class FSlateAccessibleTableRow;
+	/**
+	* An accessible implementation of STableRow exposed to platform accessibility APIs.
+	* For subclasses of STableRow, inherit from this class and override any functions
+	* to give the desired behavior.
+	*/
+	class FSlateAccessibleTableRow
+		: public FSlateAccessibleWidget
+		, public IAccessibleTableRow
+	{
+	public:
+		FSlateAccessibleTableRow(TWeakPtr<SWidget> InWidget, EAccessibleWidgetType InWidgetType)
+			: FSlateAccessibleWidget(InWidget, InWidgetType)
+		{}
+
+		// IAccessibleWidget
+		virtual IAccessibleTableRow* AsTableRow() 
+		{ 
+			return this; 
+		}
+		// ~
+		// IAccessibleTableRow
+		virtual void Select() override
+		{
+			if (Widget.IsValid())
+			{
+				TSharedPtr<STableRow<ItemType>> TableRow = StaticCastSharedPtr<STableRow<ItemType>>(Widget.Pin());
+				if(TableRow->OwnerTablePtr.IsValid())
+				{
+					TSharedRef< ITypedTableView<ItemType> > OwnerTable = TableRow->OwnerTablePtr.Pin().ToSharedRef();
+					const bool bIsActive = OwnerTable->AsWidget()->HasKeyboardFocus();
+
+					if (const ItemType* MyItemPtr = TableRow->GetItemForThis(OwnerTable))
+					{
+						const ItemType& MyItem = *MyItemPtr;
+						const bool bIsSelected = OwnerTable->Private_IsItemSelected(MyItem);
+						OwnerTable->Private_ClearSelection();
+						OwnerTable->Private_SetItemSelection(MyItem, true, true);
+						// @TODOAccessibility: Not sure if  irnoring  the signal selection mode will affect anything 
+						OwnerTable->Private_SignalSelectionChanged(ESelectInfo::Direct);
+					}
+				}
+			}
+		}
+
+		virtual void AddToSelection() override
+		{
+			// @TODOAccessibility: When multiselection is supported 
+		}
+
+		virtual void RemoveFromSelection() override
+		{
+			// @TODOAccessibility: When multiselection is supported 
+		}
+
+		virtual bool IsSelected() const override
+		{
+			if (Widget.IsValid())
+			{
+				TSharedPtr<STableRow<ItemType>> TableRow = StaticCastSharedPtr<STableRow<ItemType>>(Widget.Pin());
+				return TableRow->IsItemSelected();
+			}
+			return false; 
+		}
+
+		virtual TSharedPtr<IAccessibleWidget> GetOwningTable() const override
+		{
+			if (Widget.IsValid())
+			{
+				TSharedPtr<STableRow<ItemType>> TableRow = StaticCastSharedPtr<STableRow<ItemType>>(Widget.Pin());
+				if (TableRow->OwnerTablePtr.IsValid())
+				{
+					TSharedRef<SWidget> OwningTableWidget = TableRow->OwnerTablePtr.Pin()->AsWidget();
+					return FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(OwningTableWidget);
+				}
+			}
+			return nullptr;
+		}
+		// ~
+	};
+	public: 
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
+	{
+		// @TODOAccessibility: Add support for tile table rows and tree table rows etc 
+		// The widget type passed in should be based on the table type of the owning tabel
+		EAccessibleWidgetType WidgetType = EAccessibleWidgetType::ListItem;
+		return MakeShareable<FSlateAccessibleWidget>(new STableRow<ItemType>::FSlateAccessibleTableRow(SharedThis(this), WidgetType));
+	}
+#endif
 
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
 	{
@@ -1003,7 +1101,16 @@ public:
 		: IndexInList(0)
 		, bShowSelection(true)
 		, SignalSelectionMode( ETableRowSignalSelectionMode::Deferred )
-	{ }
+	{ 
+#if WITH_ACCESSIBILITY
+		// As the contents of table rows could be anything,
+		// Ideally, somebody would assign a custom label to each table row with non-accessible content.
+		// However, that's not always feasible so we want the screen reader to read out the concatenated contents of children.
+		// E.g If ItemType == FString, then the screen reader can just read out the contents of the text box.
+		AccessibleBehavior = EAccessibleBehavior::Summary;
+		bCanChildrenBeAccessible = true;
+#endif
+	}
 
 protected:
 

@@ -117,13 +117,13 @@ FTransform FFbxDataConverter::ConvertTransform(FbxAMatrix Matrix)
 	return Out;
 }
 
-FMatrix FFbxDataConverter::ConvertMatrix(FbxAMatrix Matrix)
+FMatrix FFbxDataConverter::ConvertMatrix(const FbxAMatrix& Matrix)
 {
 	FMatrix UEMatrix;
 
 	for(int i=0; i<4; ++i)
 	{
-		FbxVector4 Row = Matrix.GetRow(i);
+		const FbxVector4 Row = Matrix.GetRow(i);
 		if(i==1)
 		{
 			UEMatrix.M[i][0] = -Row[0];
@@ -141,6 +141,33 @@ FMatrix FFbxDataConverter::ConvertMatrix(FbxAMatrix Matrix)
 	}
 	
 	return UEMatrix;
+}
+
+FbxAMatrix FFbxDataConverter::ConvertMatrix(const FMatrix& UEMatrix)
+{
+	FbxAMatrix FbxMatrix;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		FbxVector4 Row;
+		if (i == 1)
+		{
+			Row[0] = -UEMatrix.M[i][0];
+			Row[1] = UEMatrix.M[i][1];
+			Row[2] = -UEMatrix.M[i][2];
+			Row[3] = -UEMatrix.M[i][3];
+		}
+		else
+		{
+			Row[0] = UEMatrix.M[i][0];
+			Row[1] = -UEMatrix.M[i][1];
+			Row[2] = UEMatrix.M[i][2];
+			Row[3] = UEMatrix.M[i][3];
+		}
+		FbxMatrix.SetRow(i, Row);
+	}
+
+	return FbxMatrix;
 }
 
 FColor FFbxDataConverter::ConvertColor(FbxDouble3 Color)

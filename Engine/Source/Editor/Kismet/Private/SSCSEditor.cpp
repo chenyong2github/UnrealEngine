@@ -480,19 +480,27 @@ bool FSCSEditorTreeNode::MatchesFilterType(const UClass* InFilterType) const
 	return true;
 }
 
-void FSCSEditorTreeNode::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+bool FSCSEditorTreeNode::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
 {
+	bool bHasAnyVisibleChildren = false;
 	if (bRecursive)
 	{
 		for (FSCSEditorTreeNodePtrType Child : GetChildren())
 		{
-			Child->RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
+			bHasAnyVisibleChildren |= Child->RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
 		}
 	}
 
-	bool bIsFilteredOut = InFilterType && !MatchesFilterType(InFilterType);
+	// Don't check a root actor node - it doesn't have a valid variable name. Let it recache based on children and hide itself based on their filter states.
+	if (GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+	{
+		SetCachedFilterState(bHasAnyVisibleChildren, /*bUpdateParent =*/!bRecursive);
+		return bHasAnyVisibleChildren;
+	}
 
-	if (!bIsFilteredOut)
+	bool bIsFilteredOut = InFilterType && !MatchesFilterType(InFilterType);
+	if (!bIsFilteredOut && 
+		GetNodeType() != FSCSEditorTreeNode::SeparatorNode)
 	{
 		FString DisplayStr = GetDisplayString();
 		for (const FString& FilterTerm : InFilterTerms)
@@ -508,6 +516,7 @@ void FSCSEditorTreeNode::RefreshFilteredState(const UClass* InFilterType, const 
 	// otherwise, assume the parent was hit as part of the recursion
 	const bool bUpdateParent = !bRecursive;
 	SetCachedFilterState(!bIsFilteredOut, bUpdateParent);
+	return !bIsFilteredOut;
 }
 
 void FSCSEditorTreeNode::SetCachedFilterState(bool bMatchesFilter, bool bUpdateParent)
@@ -548,6 +557,12 @@ void FSCSEditorTreeNode::RefreshCachedChildFilterState(bool bUpdateParent)
 	FilterFlags &= ~EFilteredState::ChildMatches;
 	for (FSCSEditorTreeNodePtrType Child : Children)
 	{
+		// Separator nodes should not contribute to child matches for the parent nodes
+		if (Child->GetNodeType() == FSCSEditorTreeNode::SeparatorNode)
+		{
+			continue;
+		}
+		
 		if (!Child->IsFlaggedForFiltration())
 		{
 			FilterFlags |= EFilteredState::ChildMatches;
@@ -1649,12 +1664,12 @@ void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildN
 	FSCSEditorTreeNodeActorBase::RemoveChild(InChildNodePtr);
 }
 
-void FSCSEditorTreeNodeRootActor::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
+bool FSCSEditorTreeNodeRootActor::RefreshFilteredState(const UClass* InFilterType, const TArray<FString>& InFilterTerms, bool bRecursive)
 {
 	CachedFilterType = InFilterType;
 	CachedFilterTerms = InFilterTerms;
 
-	FSCSEditorTreeNodeActorBase::RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
+	return FSCSEditorTreeNodeActorBase::RefreshFilteredState(InFilterType, InFilterTerms, bRecursive);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -7233,7 +7248,8 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 			for (int32 ChildIndex = Children.Num() - 1; ChildIndex >= 0; --ChildIndex)
 			{
 				const FSCSEditorTreeNodePtrType& Child = Children[ChildIndex];
-				if (!Child->IsFlaggedForFiltration())
+				// Don't attempt to focus a separator or filtered node
+				if ((Child->GetNodeType() != FSCSEditorTreeNode::SeparatorNode) && !Child->IsFlaggedForFiltration())
 				{
 					SCSEditor->SetNodeExpansionState(TreeNode, /*bIsExpanded =*/true);
 					NodeToFocus = ExpandToFilteredChildren(SCSEditor, Child);
@@ -7249,27 +7265,27 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 	};
 
 	FSCSEditorTreeNodePtrType NewSelection;
-	const bool bIsFilterBlank = GetFilterText().IsEmpty();
-
-	bool bRootItemFilteredBackIn = false;
 	// iterate backwards so we select from the top down
 	for (int32 ComponentIndex = RootNodes.Num() - 1; ComponentIndex >= 0; --ComponentIndex)
 	{
 		FSCSEditorTreeNodePtrType Node = RootNodes[ComponentIndex];
 
-		const bool bWasFilteredOut = Node->IsFlaggedForFiltration();
-		bool bFilteredOut = RefreshFilteredState(Node, true);
-
-		if (!bFilteredOut)
+		bool bIsRootVisible = !RefreshFilteredState(Node, true);
+		SCSTreeWidget->SetItemExpansion(Node, bIsRootVisible);
+		if (bIsRootVisible)
 		{
-			if (!bIsFilterBlank)
+			if (!GetFilterText().IsEmpty())
 			{
 				NewSelection = OnFilterTextChanged_Inner::ExpandToFilteredChildren(this, Node);
 			}
-			bRootItemFilteredBackIn |= bWasFilteredOut;
 		}
 	}
 
+	if (!NewSelection.IsValid() && RootNodes.Num() > 0)
+	{
+		NewSelection = RootNodes[0];
+	}
+	
 	if (NewSelection.IsValid() && !SCSTreeWidget->IsItemSelected(NewSelection))
 	{
 		SelectNode(NewSelection, /*IsCntrlDown =*/false);

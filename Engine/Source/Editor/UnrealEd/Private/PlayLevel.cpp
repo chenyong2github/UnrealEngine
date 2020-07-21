@@ -490,7 +490,8 @@ void UEditorEngine::EndPlayMap()
 	}
 
 	// Restores realtime viewports that have been disabled for PIE.
-	RemoveViewportsRealtimeOverride();
+	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
+	RemoveViewportsRealtimeOverride(SystemDisplayName);
 
 	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
 	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
@@ -1435,7 +1436,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 		.DialogContent(DialogContents)
 		.Buttons( { SCustomDialog::FButton(OKText), SCustomDialog::FButton(CancelText) } );
 
-	int ButtonPressed = CustomDialog->ShowModal();
+	int32 ButtonPressed = CustomDialog->ShowModal();
 	return ButtonPressed == 0;
 }
 
@@ -1914,9 +1915,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 
 			// The editor viewport client wont be visible so temporarily disable it being realtime
 			const bool bShouldBeRealtime = false;
+			const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
 			// Remove any previous override since we already applied a override when entering PIE
-			EditorViewportClient.RemoveRealtimeOverride();
-			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
+			EditorViewportClient.RemoveRealtimeOverride(SystemDisplayName);
+			EditorViewportClient.AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 			if (!SlatePlayInEditorSession.EditorPlayer.IsValid())
 			{
@@ -1960,9 +1962,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 
 			// Make sure the viewport is in real-time mode
 			const bool bShouldBeRealtime = true;
+			const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
 			// Remove any previous override since we already applied a override when entering PIE
-			EditorViewportClient.RemoveRealtimeOverride();
-			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
+			EditorViewportClient.RemoveRealtimeOverride(SystemDisplayName);
+			EditorViewportClient.AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
@@ -2465,7 +2468,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Can't allow realtime viewports whilst in PIE so disable it for ALL viewports here.
 	const bool bShouldBeRealtime = false;
-	SetViewportsRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
+	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
+	SetViewportsRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 	// Allow the global config to override our ability to create multiple PIE worlds.
 	if (!GEditor->bAllowMultiplePIEWorlds)
@@ -2793,6 +2797,21 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		{
 			GameViewport->Viewport->SetPlayInEditorViewport(true);
 		}
+
+		if (InParams.EditorPlaySettings->bUseNonRealtimeAudioDevice)
+		{
+			UE_LOG(LogPlayLevel, Log, TEXT("Creating new non-realtime audio mixer"));
+			FAudioDeviceParams DeviceParams = AudioDeviceManager->GetDefaultParamsForNewWorld();
+			DeviceParams.Scope = EAudioDeviceScope::Unique;
+			DeviceParams.AssociatedWorld = PlayWorld;
+			DeviceParams.bIsNonRealtime = true;
+			FAudioDeviceHandle AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
+			check(AudioDevice.IsValid());
+			if (PlayWorld)
+			{
+				PlayWorld->SetAudioDevice(AudioDevice);
+			}
+		}
 	}
 
 	// By this point it is safe to remove the GameInstance from the root and allow it to garbage collected as per usual
@@ -3001,7 +3020,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	bool bRenderDirectlyToWindow = bVRPreview;
-	bool bEnableStereoRendering = bVRPreview;
+	bool bEnableStereoRendering = bVRPreview && (/* only first PIE instance can be VR */ InViewportIndex == 0);
 
 	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
 	const EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnGameThread());

@@ -5,9 +5,10 @@
 #include "CurveEditor.h"
 #include "SCurveEditorView.h"
 
-void FCurveEditorDragOperation_MoveKeys::OnInitialize(FCurveEditor* InCurveEditor, const TOptional<FCurvePointHandle>& CardinalPoint)
+void FCurveEditorDragOperation_MoveKeys::OnInitialize(FCurveEditor* InCurveEditor, const TOptional<FCurvePointHandle>& InCardinalPoint)
 {
 	CurveEditor = InCurveEditor;
+	CardinalPoint = InCardinalPoint;
 }
 
 void FCurveEditorDragOperation_MoveKeys::OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
@@ -70,13 +71,31 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 
 		FCurveSnapMetrics SnapMetrics = CurveEditor->GetCurveSnapMetrics(KeyData.CurveID);
 
+		if (CardinalPoint.IsSet() && (View->IsTimeSnapEnabled() || View->IsValueSnapEnabled()))
+		{
+			for (int KeyIndex = 0; KeyIndex < KeyData.StartKeyPositions.Num(); ++KeyIndex)
+			{
+				FKeyHandle KeyHandle = KeyData.Handles[KeyIndex];
+				if (CardinalPoint->KeyHandle == KeyHandle)
+				{
+					FKeyPosition StartPosition = KeyData.StartKeyPositions[KeyIndex];
+
+					if (View->IsTimeSnapEnabled())
+					{
+						DeltaInput = SnapMetrics.SnapInputSeconds(StartPosition.InputValue + DeltaInput) - StartPosition.InputValue;
+					}
+					if (View->IsValueSnapEnabled())
+					{
+						DeltaOutput = SnapMetrics.SnapOutput(StartPosition.OutputValue + DeltaOutput) - StartPosition.OutputValue;
+					}
+				}
+			}
+		}
+
 		for (FKeyPosition StartPosition : KeyData.StartKeyPositions)
 		{
 			StartPosition.InputValue  += DeltaInput;
 			StartPosition.OutputValue += DeltaOutput;
-
-			StartPosition.InputValue  = View->IsTimeSnapEnabled() ? SnapMetrics.SnapInputSeconds(StartPosition.InputValue) : StartPosition.InputValue;
-			StartPosition.OutputValue = View->IsValueSnapEnabled() ? SnapMetrics.SnapOutput(StartPosition.OutputValue) : StartPosition.OutputValue;
 
 			NewKeyPositionScratch.Add(StartPosition);
 		}

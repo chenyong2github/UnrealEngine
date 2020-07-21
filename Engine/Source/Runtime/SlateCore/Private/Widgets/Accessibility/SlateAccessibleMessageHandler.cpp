@@ -167,6 +167,21 @@ void FSlateAccessibleMessageHandler::ProcessAccessibleTasks()
 #endif 
 }
 
+TSharedPtr<FSlateAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibilityFocusedWidget() const
+{
+	return AccessibilityFocusedWidget.Pin();
+}
+
+void FSlateAccessibleMessageHandler::SetAccessibilityFocusedWidget(const TSharedRef<FSlateAccessibleWidget>& NewAccessibilityFocusedWidget)
+{
+	AccessibilityFocusedWidget = NewAccessibilityFocusedWidget;
+}
+
+void FSlateAccessibleMessageHandler::ClearAccessibilityFocus()
+{
+	AccessibilityFocusedWidget.Reset();
+}
+
 void FSlateAccessibleMessageHandler::OnWidgetRemoved(SWidget* Widget)
 {
 	if (IsActive())
@@ -189,10 +204,40 @@ void FSlateAccessibleMessageHandler::OnWidgetEventRaised(TSharedRef<SWidget> Wid
 		// todo: not sure what to do for a case like focus changed to not-accessible widget. maybe pass through a nullptr?
 		if (Widget->IsAccessible())
 		{
-			FSlateAccessibleMessageHandler::RaiseEvent(FSlateAccessibleWidgetCache::GetAccessibleWidget(Widget), Event, OldValue, NewValue);
+			TSharedRef<FSlateAccessibleWidget> AccessibleWidget = FSlateAccessibleWidgetCache::GetAccessibleWidget(Widget);
+			// Perform FSlateAccessibleMessageHandler preprocessing here  before platform processing
+			// Most of the time, accessibility focus is the same as Slate focus. We sync them here 
+			// as a focus event is raised from SlateApplication for keyboard/gamepad focusable widgets.
+			// However, we can also raise a focus change event manually on non-Slate focusable widgets e.g STableRow
+			// That's where accessibility focus and Slate focus can diverge 
+			if (Event == EAccessibleEvent::FocusChange)
+			{
+				// If the Widget is gaining focus 
+				if (NewValue.GetValue<bool>())
+				{
+					// For widgets that are non-keyboard focusable but support accessibility, 
+					// we ened to manually raise a focus change event 
+					// to signal the platform that the currently accessibility focused widget is losing focus 
+					// As regular navigation focus in FSlateApplication doesn't apply to these widgets
+					if (!Widget->SupportsKeyboardFocus())
+					{
+						TSharedPtr<IAccessibleWidget> CurrentAccessibilityFocusedWidget = GetAccessibilityFocusedWidget();
+						if (CurrentAccessibilityFocusedWidget.IsValid())
+						{
+							// We manually raise a focus change event here   to allow platforms to unfocus 
+							// from the currently focused widget 
+							FSlateAccessibleMessageHandler::RaiseEvent(CurrentAccessibilityFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
+						}
+					}
+					// Update the widget that currently has accessibility focus 
+					SetAccessibilityFocusedWidget(AccessibleWidget);
+				}
+			}
+			FSlateAccessibleMessageHandler::RaiseEvent(AccessibleWidget, Event, OldValue, NewValue);
 		}
 	}
 }
+
 
 int32 GAccessibleWidgetsProcessedPerTick = 100;
 FAutoConsoleVariableRef AccessibleWidgetsProcessedPerTickRef(
@@ -263,6 +308,20 @@ void FSlateAccessibleMessageHandler::Tick()
 					AccessibleWidget->Children = MoveTemp(AccessibleWidget->ChildrenBuffer);
 				}
 			}
+		}
+	}
+}
+
+void FSlateAccessibleMessageHandler::MakeAccessibleAnnouncement(const FString& AnnouncementString)
+{
+	if(IsActive())
+	{
+		// Making an announcement doesn't have to be tied to any specific widget.
+		// We just pass in the accessible widget for the top levle window for convenience
+		TSharedPtr<SWidget> ActiveTopLevelWindow = FSlateApplicationBase::Get().GetActiveTopLevelWindow();
+		if(ActiveTopLevelWindow.IsValid())
+		{
+			RaiseEvent(FSlateAccessibleWidgetCache::GetAccessibleWidget(ActiveTopLevelWindow.ToSharedRef()), EAccessibleEvent::Notification, FString(), AnnouncementString);
 		}
 	}
 }

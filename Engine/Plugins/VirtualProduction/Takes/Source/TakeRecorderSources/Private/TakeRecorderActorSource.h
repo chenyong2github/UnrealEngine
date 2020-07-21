@@ -49,6 +49,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
 	ETakeRecorderActorRecordType RecordType;
 
+	/** 
+	 * Whether to ensure that the parent hierarchy is also recorded. If recording to possessable and the parent is not recorded, 
+	 * the recorded transforms will be in local space since the child will still be attached to the parent in the level after 
+	 * recording.  If recording to spawnable and the parent is not recorded, the recorded transforms will be in global space 
+	 * since the child will not be attached to the parent in the level.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
+	bool bRecordParentHierarchy;
+
 	/** Whether to perform key-reduction algorithms as part of the recording */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
 	bool bReduceKeys;

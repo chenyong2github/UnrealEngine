@@ -35,6 +35,10 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 {
 	PropertyEditor = InPropertyEditor;
 
+	static const FName NAME_TitleProperty = FName(TEXT("TitleProperty"));
+	// If our property has title support we pass in empty below so it retrieves a live value
+	const bool bHasTitleProperty = InPropertyEditor->GetProperty()->HasMetaData(NAME_TitleProperty);
+
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	ChildSlot
 	[
@@ -49,7 +53,7 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 			.VAlign(VAlign_Center)
 			[
 				SNew( SPropertyEditorTitle, PropertyEditor.ToSharedRef() )
-				.StaticDisplayName( PropertyEditor->GetDisplayName() )
+				.StaticDisplayName(bHasTitleProperty ? FText::GetEmpty() : PropertyEditor->GetDisplayName())
 				.OnDoubleClicked( InArgs._OnDoubleClicked )
                 .ToolTip( IDocumentation::Get()->CreateToolTip( PropertyEditor->GetToolTipText(), NULL, PropertyEditor->GetDocumentationLink(), PropertyEditor->GetDocumentationExcerptName() ) )
 			]

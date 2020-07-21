@@ -23,6 +23,8 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 	OptionsSource = InArgs._OptionsSource;
 	CustomScrollbar = InArgs._CustomScrollbar;
 
+	FilteredOptionsSource.Append(*OptionsSource);
+
 	TSharedRef<SWidget> ComboBoxMenuContent =
 		SNew(SBox)
 		.MaxDesiredHeight(InArgs._MaxListHeight)
@@ -37,13 +39,14 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.HintText(LOCTEXT("Search", "Search"))
 				.OnTextChanged(this, &SSearchableComboBox::OnSearchTextChanged)
+				.OnTextCommitted(this, &SSearchableComboBox::OnSearchTextCommitted)
 				.Visibility(InArgs._SearchVisibility)
 			]
 
 			+ SVerticalBox::Slot()
 			[
 				SAssignNew(this->ComboListView, SComboListType)
-				.ListItemsSource(OptionsSource)
+				.ListItemsSource(&FilteredOptionsSource)
 				.OnGenerateRow(this, &SSearchableComboBox::GenerateMenuItemRow)
 				.OnSelectionChanged(this, &SSearchableComboBox::OnSelectionChanged_Internal)
 				.SelectionMode(ESelectionMode::Single)
@@ -79,7 +82,7 @@ void SSearchableComboBox::Construct(const FArguments& InArgs)
 		.OnMenuOpenChanged(this, &SSearchableComboBox::OnMenuOpenChanged)
 		.IsFocusable(true)
 		);
-	SetMenuContentWidgetToFocus(ComboListView);
+	SetMenuContentWidgetToFocus(SearchField);
 
 	// Need to establish the selected item at point of construction so its available for querying
 	// NB: If you need a selection to fire use SetItemSelection rather than setting an IntiallySelectedItem
@@ -100,11 +103,11 @@ void SSearchableComboBox::SetSelectedItem(TSharedPtr<FString> InSelectedItem)
 {
 	if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(InSelectedItem))
 	{
-		ComboListView->SetSelection(InSelectedItem);
+		OnSelectionChanged_Internal(InSelectedItem, ESelectInfo::OnNavigation);
 	}
 	else
 	{
-		ComboListView->ClearSelection();
+		OnSelectionChanged_Internal(SelectedItem, ESelectInfo::OnNavigation);
 	}
 }
 
@@ -125,18 +128,8 @@ TSharedRef<ITableRow> SSearchableComboBox::GenerateMenuItemRow(TSharedPtr<FStrin
 {
 	if (OnGenerateWidget.IsBound())
 	{
-		FString SearchToken = SearchField->GetText().ToString().ToLower();
-		EVisibility WidgetVisibility = EVisibility::Visible;
-		if (!SearchToken.IsEmpty())
-		{
-			if (InItem->ToLower().Find(SearchToken) < 0)
-			{
-				WidgetVisibility = EVisibility::Collapsed;
-			}
-		}
 		return SNew(SComboRow<TSharedPtr<FString>>, OwnerTable)
 			.Style(ItemStyle)
-			.Visibility(WidgetVisibility)
 			[
 				OnGenerateWidget.Execute(InItem)
 			];
@@ -158,8 +151,7 @@ void SSearchableComboBox::OnMenuOpenChanged(bool bOpen)
 		if (TListTypeTraits<TSharedPtr<FString>>::IsPtrValid(SelectedItem))
 		{
 			// Ensure the ListView selection is set back to the last committed selection
-			ComboListView->SetSelection(SelectedItem, ESelectInfo::OnNavigation);
-			ComboListView->RequestScrollIntoView(SelectedItem, 0);
+			OnSelectionChanged_Internal(SelectedItem, ESelectInfo::OnNavigation);
 		}
 
 		// Set focus back to ComboBox for users focusing the ListView that just closed
@@ -177,46 +169,52 @@ void SSearchableComboBox::OnMenuOpenChanged(bool bOpen)
 
 void SSearchableComboBox::OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo)
 {
-	// Ensure that the proposed selection is different
+	// Ensure that the proposed selection is different from selected
+	if (ProposedSelection != SelectedItem)
+	{
+		SelectedItem = ProposedSelection;
+		OnSelectionChanged.ExecuteIfBound(ProposedSelection, SelectInfo);
+	}
+
+	// close combo as long as the selection wasn't from navigation
 	if (SelectInfo != ESelectInfo::OnNavigation)
 	{
-		// Ensure that the proposed selection is different from selected
-		if (ProposedSelection != SelectedItem)
-		{
-			SelectedItem = ProposedSelection;
-			OnSelectionChanged.ExecuteIfBound(ProposedSelection, SelectInfo);
-		}
-		// close combo even if user reselected item
 		this->SetIsOpen(false);
+	}
+	else
+	{
+		ComboListView->RequestScrollIntoView(SelectedItem, 0);
 	}
 }
 
 void SSearchableComboBox::OnSearchTextChanged(const FText& ChangedText)
 {
-	FString SearchToken = ChangedText.ToString().ToLower();
-	for (int32 i = 0; i < OptionsSource->Num(); i++)
+	FilteredOptionsSource.Reset();
+
+	if (ChangedText.IsEmpty())
 	{
-		TSharedPtr<ITableRow> Row = ComboListView->WidgetFromItem((*OptionsSource)[i]);
-		if (Row)
+		FilteredOptionsSource.Append(*OptionsSource);
+	}
+	else
+	{
+		for (TSharedPtr<FString> Option : *OptionsSource)
 		{
-			if (SearchToken.IsEmpty())
+			if (Option->Find(ChangedText.ToString(), ESearchCase::Type::IgnoreCase) >= 0)
 			{
-				Row->AsWidget()->SetVisibility(EVisibility::Visible);
-			}
-			else if ((*OptionsSource)[i]->ToLower().Find(SearchToken) >= 0)
-			{
-				Row->AsWidget()->SetVisibility(EVisibility::Visible);
-			}
-			else
-			{
-				Row->AsWidget()->SetVisibility(EVisibility::Collapsed);
+				FilteredOptionsSource.Add(Option);
 			}
 		}
 	}
 
-	ComboListView->RequestListRefresh();
+	RefreshOptions();
+}
 
-	SelectedItem = TSharedPtr< FString >();
+void SSearchableComboBox::OnSearchTextCommitted(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if ((InCommitType == ETextCommit::Type::OnEnter) && FilteredOptionsSource.Num() > 0)
+	{
+		OnSelectionChanged_Internal(FilteredOptionsSource[0], ESelectInfo::Type::OnKeyPress);
+	}
 }
 
 FReply SSearchableComboBox::OnButtonClicked()
