@@ -454,7 +454,7 @@ MinimumAreaBox2<InputType, ComputeType>::SmallestBox(int i0, int i1,
     Box box;
     box.U[0] = vertices[i1] - vertices[i0];
     box.U[1] = -Perp(box.U[0]);
-    box.index = { i1, i1, i1, i1 };
+	box.index = { { i1, i1, i1, i1 } };
     box.sqrLenU0 = Dot(box.U[0], box.U[0]);
 
     Vector2<ComputeType> const& origin = vertices[i1];
