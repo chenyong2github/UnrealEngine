@@ -172,11 +172,81 @@ private:
 	TArray<FShapeDirtyData> ShapesData;
 };
 
+class FChaosMarshallingManager;
+
+struct FSimCallbackData
+{
+	void Init(const FReal InTime)
+	{
+		StartTime = InTime;
+	}
+
+	union FData
+	{
+		void* VoidPtr;
+		FReal Real;
+		int32 Int;
+	};
+	FData Data;	//Set by user to point at external data. Data must remain valid until Deletion callback
+
+	FReal GetStartTime() const { return StartTime; }
+private:
+	FReal StartTime;
+};
+
+struct FSimCallbackHandle;
+
+struct FSimCallbackHandlePT
+{
+	FSimCallbackHandlePT(FSimCallbackHandle* InHandle)
+	: Handle(InHandle)
+	, Idx(INDEX_NONE)
+	{
+	}
+
+	FSimCallbackHandle* Handle;
+	TArray<FSimCallbackData*> IntervalData;
+	int32 Idx;
+};
+
+struct FSimCallbackHandle
+{
+	template <typename Lambda>
+	FSimCallbackHandle(const Lambda& InFunc)
+	: Func(InFunc)
+	, PTHandle(nullptr)
+	, LatestCallbackData(nullptr)
+	{
+	}
+
+	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> Func;
+	TFunction<void(const TArray<FSimCallbackData*>& IntervalData)> FreeExternal;
+	FSimCallbackHandlePT* PTHandle;	//Should only be used by solver
+
+private:
+	friend FChaosMarshallingManager;
+	FSimCallbackData* LatestCallbackData;
+
+	//some functions return by reference, make sure user doesn't accidentally make a copy
+	FSimCallbackHandle(const FSimCallbackHandle& Other) = delete;
+};
+
+struct FSimCallbackDataPair
+{
+	FSimCallbackHandle* Callback;
+	FSimCallbackData* Data;
+};
+
 struct FPushPhysicsData
 {
 	FDirtyPropertiesManager DirtyPropertiesManager;
 	FDirtySet DirtyProxiesDataBuffer;
 	FReal StartTime;
+	TArray<FSimCallbackHandle*> SimCallbacksToAdd;	//callback registered at this specific time
+	TArray<FSimCallbackHandle*> SimCallbacksToRemove;	//callback removed at this specific time
+	TArray<FSimCallbackDataPair> SimCallbackDataPairs;	//the set of callback data pairs pushed at this specific time
+
+	void Reset();
 };
 
 /** Manages data that gets marshaled from GT to PT using a timestamp
@@ -192,6 +262,30 @@ public:
 		return ProducerData;
 	}
 
+	FSimCallbackData& GetProducerCallbackData_External(FSimCallbackHandle& Handle)
+	{
+		if(Handle.LatestCallbackData == nullptr)
+		{
+			Handle.LatestCallbackData = CreateCallbackData_External();
+			GetProducerData_External()->SimCallbackDataPairs.Add( FSimCallbackDataPair{&Handle,Handle.LatestCallbackData});
+		}
+		
+		return *Handle.LatestCallbackData;
+	}
+
+	template <typename Lambda>
+	FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
+	{
+		FSimCallbackHandle* Handle = new FSimCallbackHandle(Func);
+		GetProducerData_External()->SimCallbacksToAdd.Add(Handle);
+		return *Handle;
+	}
+
+	void UnregisterSimCallback(FSimCallbackHandle& Handle)
+	{
+		GetProducerData_External()->SimCallbacksToRemove.Add(&Handle);
+	}
+
 	/** Step forward using the external delta time. Should only be called by external thread */
 	void Step_External(FReal ExternalDT);
 
@@ -200,6 +294,9 @@ public:
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
+
+	/** Frees the callback push data back into the pool. Internal thread should call this when callback will no longer be used with this specific data*/
+	void FreeCallbackData_Internal(FSimCallbackHandlePT* Callback);
 	
 private:
 	FReal ExternalTime;	//the global time external thread is currently at
@@ -208,7 +305,23 @@ private:
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs
 	TArray<TUniquePtr<FPushPhysicsData>> BackingBuffer;	//all push data is cleaned up by this
-	
+	TQueue<FSimCallbackData*,EQueueMode::Spsc> CallbackDataPool;	//pool to grab more callback data to avoid expensive reallocs
+	TArray<TUniquePtr<FSimCallbackData>> CallbackDataBacking;	//callback data actually backed by this
+
 	void PrepareExternalQueue();
+
+	FSimCallbackData* CreateCallbackData_External()
+	{
+		FSimCallbackData* NewData;
+		if(!CallbackDataPool.Dequeue(NewData))
+		{
+			CallbackDataBacking.Add(MakeUnique<FSimCallbackData>());
+			NewData = CallbackDataBacking.Last().Get();
+		}
+		
+		NewData->Init(ExternalTime);
+
+		return NewData;
+	}
 };
 }; // namespace Chaos
