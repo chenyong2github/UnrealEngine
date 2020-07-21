@@ -97,6 +97,7 @@
 	 *	Read in some predefined data from a leaderboard
 	 */
 	void ReadLeaderboards();
+	void ReadLeaderboardsFriends();
 	void ReadLeaderboardsRank(int32 Rank, int32 Range);
 	void ReadLeaderboardsUser(const FUniqueNetId& InUserId, int32 Range);
 	void ReadLeaderboardsUser(int32 Range);

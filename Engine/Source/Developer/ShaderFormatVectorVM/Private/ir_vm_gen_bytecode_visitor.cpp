@@ -673,7 +673,7 @@ struct op_base
 						CompilationOutput.MaxTempRegistersUsed = FMath::Max(temp_registers.Num(), CompilationOutput.MaxTempRegistersUsed);
 						temp_registers.Add(component->last_read);
 #if VM_VERBOSE_LOGGING
-						UE_LOG(LogVVMBackend, Log, TEXT("OP:%d | Comp:%p allocated Reg: %d | Last Read: %d |"), op_idx, component, j, component->last_read);
+						UE_LOG(LogVVMBackend, Log, TEXT("OP:%d | Comp:%p allocated Reg: %d | Last Read: %d |"), op_idx, component, temp_registers.Num() - 1, component->last_read);
 #endif
 					}
  

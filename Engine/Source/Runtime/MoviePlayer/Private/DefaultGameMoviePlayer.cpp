@@ -842,11 +842,11 @@ void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
 		return;
 	}
 
-	FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen();
+	const float Scale = FSlateApplication::Get().GetApplicationScale() * MainWindow->GetDPIScaleFactor();
+	FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen() / Scale;
 
 	FSlateApplication::Get().Tick(ESlateTickType::Time);
 
-	const float Scale = 1.0f;
 	FGeometry WindowGeometry = FGeometry::MakeRoot(DrawSize, FSlateLayoutTransform(Scale));
 
 	VirtualRenderWindow->SlatePrepass(WindowGeometry.Scale);

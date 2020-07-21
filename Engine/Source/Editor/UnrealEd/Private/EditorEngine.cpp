@@ -2865,6 +2865,13 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 	// Update the actor before leaving.
 	InComponent->MarkPackageDirty();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		InComponent->PostEditComponentMove(false);
+	}
+
 	// Fire callbacks
 	FEditorSupportDelegates::RefreshPropertyWindows.Broadcast();
 	FEditorSupportDelegates::UpdateUI.Broadcast();

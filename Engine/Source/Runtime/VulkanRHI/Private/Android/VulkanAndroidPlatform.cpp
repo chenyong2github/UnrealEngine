@@ -151,7 +151,7 @@ void FVulkanAndroidPlatform::GetInstanceExtensions(TArray<const ANSICHAR*>& OutE
 	OutExtensions.Add(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
 }
 
-static int32 GVulkanQcomRenderPassTransform = 1;
+static int32 GVulkanQcomRenderPassTransform = 0;
 static FAutoConsoleVariableRef CVarVulkanQcomRenderPassTransform(
 	TEXT("r.Vulkan.UseQcomRenderPassTransform"),
 	GVulkanQcomRenderPassTransform,

@@ -149,7 +149,9 @@ struct ENGINE_API FRichCurveKey
 
 	/** Conversion constructor */
 	FRichCurveKey(const FInterpCurvePoint<float>& InPoint);
+	FRichCurveKey(const FInterpCurvePoint<FVector2D>& InPoint, int32 ComponentIndex);
 	FRichCurveKey(const FInterpCurvePoint<FVector>& InPoint, int32 ComponentIndex);
+	FRichCurveKey(const FInterpCurvePoint<FTwoVectors>& InPoint, int32 ComponentIndex);
 
 	/** ICPPStructOps interface */
 	bool Serialize(FArchive& Ar);

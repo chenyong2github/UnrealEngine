@@ -373,3 +373,29 @@ FGuid UNiagaraScriptSource::GetChangeID()
 { 
 	return NodeGraph->GetChangeID(); 
 }
+
+void UNiagaraScriptSource::CollectDataInterfaces(TArray<const UNiagaraDataInterfaceBase*>& DataInterfaces) const
+{
+	if (NodeGraph)
+	{
+		TArray<UNiagaraNodeOutput*> OutputNodes;
+		NodeGraph->FindOutputNodes(OutputNodes);
+
+		for (UNiagaraNodeOutput* OutputNode : OutputNodes)
+		{
+			TArray<UNiagaraNode*> TraversalNodes;
+			NodeGraph->BuildTraversal(TraversalNodes, OutputNode, true);
+
+			for (const UNiagaraNode* TraversalNode : TraversalNodes)
+			{
+				if (const UNiagaraNodeInput* NodeInput = Cast<const UNiagaraNodeInput>(TraversalNode))
+				{
+					if (NodeInput->Input.IsDataInterface())
+					{
+						DataInterfaces.Add(NodeInput->GetDataInterface());
+					}
+				}
+			}
+		}
+	}
+}

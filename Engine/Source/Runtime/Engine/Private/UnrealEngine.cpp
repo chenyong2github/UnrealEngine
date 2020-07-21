@@ -65,6 +65,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GameFramework/WorldSettings.h"
 #include "Components/AudioComponent.h"
 #include "Particles/ParticleSystem.h"
+#include "Performance/LatencyMarkerModule.h"
+#include "Performance/MaxTickRateHandlerModule.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture.h"
@@ -2004,6 +2006,46 @@ double UEngine::CorrectNegativeTimeDelta(double DeltaRealTime)
 	return 0.01;
 }
 
+void UEngine::SetGameLatencyMarkerStart(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetGameLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetGameLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetGameLatencyMarkerEnd(FrameNumber);
+	}
+}
+
+void UEngine::SetRenderLatencyMarkerStart(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetRenderLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderLatencyMarkerEnd(FrameNumber);
+	}
+}
+
 void UEngine::UpdateTimeAndHandleMaxTickRate()
 {
 	PumpABTest();
@@ -2099,36 +2141,51 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			SCOPE_CYCLE_COUNTER(STAT_GameTickWaitTime);
 			SCOPE_CYCLE_COUNTER(STAT_GameIdleTime);
 
-			if (IsRunningDedicatedServer()) // We aren't so concerned about wall time with a server, lots of CPU is wasted spinning. I suspect there is more to do with sleeping and time on dedicated servers.
-			{
-				FPlatformProcess::SleepNoStats(WaitTime);
-			}
-			else
-			{
-				// Sleep if we're waiting more than 5 ms. We set the scheduler granularity to 1 ms
-				// at startup on PC. We reserve 2 ms of slack time which we will wait for by giving
-				// up our timeslice.
-				if( WaitTime > 5 / 1000.f )
-				{
-					// For improved handling of drag and drop, continue to pump messages while throttled down
-					if (GIsEditor && ShouldThrottleCPUUsage())
-					{
-						do
-						{
-							FPlatformProcess::SleepNoStats(0.005f);
-							FPlatformApplicationMisc::PumpMessages(true);
-						} while (ShouldThrottleCPUUsage() && FPlatformTime::Seconds() < (WaitEndTime - 0.005f));
-					}
-					else
-					{
-						FPlatformProcess::SleepNoStats( WaitTime - 0.002f );
-					}
-				}
+			bool bMaxTickRateHandled = false;
+			TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
 
-				// Give up timeslice for remainder of wait time.
-				while( FPlatformTime::Seconds() < WaitEndTime )
+			for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
+			{
+				if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
 				{
-					FPlatformProcess::SleepNoStats( 0 );
+					bMaxTickRateHandled = true;
+					break;
+				}
+			}
+
+			if (!bMaxTickRateHandled)
+			{
+				if (IsRunningDedicatedServer()) // We aren't so concerned about wall time with a server, lots of CPU is wasted spinning. I suspect there is more to do with sleeping and time on dedicated servers.
+				{
+					FPlatformProcess::SleepNoStats(WaitTime);
+				}
+				else
+				{
+					// Sleep if we're waiting more than 5 ms. We set the scheduler granularity to 1 ms
+					// at startup on PC. We reserve 2 ms of slack time which we will wait for by giving
+					// up our timeslice.
+					if (WaitTime > 5 / 1000.f)
+					{
+						// For improved handling of drag and drop, continue to pump messages while throttled down
+						if (GIsEditor && ShouldThrottleCPUUsage())
+						{
+							do
+							{
+								FPlatformProcess::SleepNoStats(0.005f);
+								FPlatformApplicationMisc::PumpMessages(true);
+							} while (ShouldThrottleCPUUsage() && FPlatformTime::Seconds() < (WaitEndTime - 0.005f));
+						}
+						else
+						{
+							FPlatformProcess::SleepNoStats(WaitTime - 0.002f);
+						}
+					}
+
+					// Give up timeslice for remainder of wait time.
+					while (FPlatformTime::Seconds() < WaitEndTime)
+					{
+						FPlatformProcess::SleepNoStats(0);
+					}
 				}
 			}
 			CurrentRealTime = FPlatformTime::Seconds();

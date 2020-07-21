@@ -8499,7 +8499,11 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 	{
 		for (auto PossessableGuid : PossessableGuids)
 		{
-			SelectedParentFolders[0]->AddChildObjectBinding(PossessableGuid);
+			FMovieScenePossessable* Possessable = MovieScene->FindPossessable(PossessableGuid);
+			if (Possessable && !Possessable->GetParent().IsValid())
+			{
+				SelectedParentFolders[0]->AddChildObjectBinding(PossessableGuid);
+			}
 		}
 	}
 
@@ -8605,7 +8609,7 @@ bool FSequencer::PasteTracks(const FString& TextToImport, TArray<FNotificationIn
 
 	TArray<TSharedPtr<FSequencerObjectBindingNode>> ObjectNodes;
 
-	if (bClearSelection)
+	if (!bClearSelection)
 	{
 		for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
 		{

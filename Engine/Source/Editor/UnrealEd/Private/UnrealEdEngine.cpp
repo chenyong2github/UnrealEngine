@@ -1410,14 +1410,14 @@ bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
 	return bHasWritePermission;
 }
 
-void UUnrealEdEngine::OnContentPathMounted(const FString&, const FString& ContentPath)
+void UUnrealEdEngine::OnContentPathMounted(const FString& AssetPath, const FString& /*FileSystemPath*/)
 {
-	VerifyMountPointWritePermission(*ContentPath);
+	VerifyMountPointWritePermission(*AssetPath);
 }
 
-void UUnrealEdEngine::OnContentPathDismounted(const FString&, const FString& ContentPath)
+void UUnrealEdEngine::OnContentPathDismounted(const FString& AssetPath, const FString& /*FileSystemPath*/)
 {
-	MountPointCheckedForWritePermission.Remove(*ContentPath);
+	MountPointCheckedForWritePermission.Remove(*AssetPath);
 }
 void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)
 {

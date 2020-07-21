@@ -152,27 +152,6 @@ public:
 	}
 };
 
-namespace ENiagaraRibbonVFLayout
-{
-	enum Type
-	{
-		Position,
-		Velocity,
-		Color,
-		Width,
-		Twist,
-		Facing,
-		NormalizedAge,
-		MaterialRandom,
-		MaterialParam0,
-		MaterialParam1,
-		MaterialParam2,
-		MaterialParam3,
-		Num,
-	};
-};
-
-
 FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, FacingMode(ENiagaraRibbonFacingMode::Screen)
@@ -190,8 +169,6 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	, bCustomUseScreenSpace(true)
 {
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProps);
-	const FNiagaraDataSet& Data = Emitter->GetData();
-
 	FacingMode = Properties->FacingMode;
 	UV0TilingDistance = Properties->UV0TilingDistance;
 	UV0Scale = Properties->UV0Scale;
@@ -209,27 +186,8 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	CustomTessellationMinAngle = Properties->TessellationAngle > 0.f && Properties->TessellationAngle < 1.f ? 1.f : Properties->TessellationAngle;
 	CustomTessellationMinAngle *= PI / 180.f;
 	bCustomUseScreenSpace = Properties->bScreenSpaceTessellation;
-
-	TotalVFHalfComponents = 0;
-	TotalVFFloatComponents = 0;
-	VFVariables.SetNum(ENiagaraRibbonVFLayout::Num);
-	// required attributes
-	SetVertexFactoryVariable(Data, Properties->PositionBinding.DataSetVariable, ENiagaraRibbonVFLayout::Position);
-	SetVertexFactoryVariable(Data, Properties->VelocityBinding.DataSetVariable, ENiagaraRibbonVFLayout::Velocity);
-	SetVertexFactoryVariable(Data, Properties->ColorBinding.DataSetVariable, ENiagaraRibbonVFLayout::Color);
-
-	// optional attributes
-	SetVertexFactoryVariable(Data, Properties->RibbonWidthBinding.DataSetVariable, ENiagaraRibbonVFLayout::Width);
-	SetVertexFactoryVariable(Data, Properties->RibbonTwistBinding.DataSetVariable, ENiagaraRibbonVFLayout::Twist);
-	SetVertexFactoryVariable(Data, Properties->RibbonFacingBinding.DataSetVariable, ENiagaraRibbonVFLayout::Facing);
-	SetVertexFactoryVariable(Data, Properties->NormalizedAgeBinding.DataSetVariable, ENiagaraRibbonVFLayout::NormalizedAge);
-	SetVertexFactoryVariable(Data, Properties->MaterialRandomBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialRandom);
-
-	MaterialParamValidMask = 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterialBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam0) ? 1 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial1Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial2Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
-	MaterialParamValidMask |= SetVertexFactoryVariable(Data, Properties->DynamicMaterial3Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
+	MaterialParamValidMask = Properties->MaterialParamValidMask;
+	RendererLayout = &Properties->RendererLayout;
 }
 
 FNiagaraRendererRibbons::~FNiagaraRendererRibbons()
@@ -473,32 +431,27 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSet& Data = Emitter->GetData();
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProperties);
 
-	bool bSortKeyIsAge = false;
-	FNiagaraDataSetReaderFloat<float> SortKeyReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonLinkOrderBinding.DataSetVariable.GetName());
-	if ( !SortKeyReader.IsValid() )
-	{
-		bSortKeyIsAge = true;
-		SortKeyReader = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->NormalizedAgeBinding.DataSetVariable.GetName());
-	}
-
-	const auto PosData = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->PositionBinding.DataSetVariable.GetName());
-	const auto SizeData = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonWidthBinding.DataSetVariable.GetName());
-	const auto TwistData = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->RibbonTwistBinding.DataSetVariable.GetName());
-	const auto FacingData = FNiagaraDataSetAccessor<FVector>::CreateReader(Data, Properties->RibbonFacingBinding.DataSetVariable.GetName());
-
-	const auto MaterialParam0Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterialBinding.DataSetVariable.GetName());
-	const auto MaterialParam1Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial1Binding.DataSetVariable.GetName());
-	const auto MaterialParam2Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial2Binding.DataSetVariable.GetName());
-	const auto MaterialParam3Data = FNiagaraDataSetAccessor<FVector4>::CreateReader(Data, Properties->DynamicMaterial3Binding.DataSetVariable.GetName());
-
-	FNiagaraDataSetReaderInt32<int32> RibbonIdData;
-	FNiagaraDataSetReaderStruct<FNiagaraID> RibbonFullIDData;
-
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
-	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !PosData.IsValid() || !SortKeyReader.IsValid())
+	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !Properties->PositionDataSetAccessor.IsValid() || !Properties->SortKeyDataSetAccessor.IsValid())
 	{
 		return nullptr;
 	}
+
+	const bool bSortKeyIsAge = Properties->bSortKeyDataSetAccessorIsAge;
+	const auto SortKeyReader = Properties->SortKeyDataSetAccessor.GetReader(Data);
+
+	const auto PosData = Properties->PositionDataSetAccessor.GetReader(Data);
+	const auto SizeData = Properties->SizeDataSetAccessor.GetReader(Data);
+	const auto TwistData = Properties->TwistDataSetAccessor.GetReader(Data);
+	const auto FacingData = Properties->FacingDataSetAccessor.GetReader(Data);
+
+	const auto MaterialParam0Data = Properties->MaterialParam0DataSetAccessor.GetReader(Data);
+	const auto MaterialParam1Data = Properties->MaterialParam1DataSetAccessor.GetReader(Data);
+	const auto MaterialParam2Data = Properties->MaterialParam2DataSetAccessor.GetReader(Data);
+	const auto MaterialParam3Data = Properties->MaterialParam3DataSetAccessor.GetReader(Data);
+
+	const auto RibbonIdData = Properties->RibbonIdDataSetAccessor.GetReader(Data);
+	const auto RibbonFullIDData = Properties->RibbonFullIDDataSetAccessor.GetReader(Data);
 
 	FNiagaraDynamicDataRibbon* DynamicData = new FNiagaraDynamicDataRibbon(Emitter);
 
@@ -517,15 +470,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	float AverageSegmentAngle = 0;
 	float AverageTwistAngle = 0;
 	float AverageWidth = 0;
-
-	if (Properties->RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
-	{
-		RibbonFullIDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(Data, Properties->RibbonIdBinding.DataSetVariable.GetName());
-	}
-	else
-	{
-		RibbonIdData = FNiagaraDataSetAccessor<int32>::CreateReader(Data, Properties->RibbonIdBinding.DataSetVariable.GetName());
-	}
 
 	bool bFullIDs = RibbonFullIDData.IsValid();
 	bool bSimpleIDs = !bFullIDs && RibbonIdData.IsValid();
@@ -929,15 +873,12 @@ FNiagaraRendererRibbons::FCPUSimParticleDataAllocation FNiagaraRendererRibbons::
 
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation{ DynamicReadBuffer };
 
-	bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
-	VFVariables[ENiagaraRibbonVFLayout::Facing].bUpload = bShouldDoFacing;
-
 	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbonsCPUSimMemCopy);
 		if (GbEnableMinimalGPUBuffers)
 		{
-			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, SourceParticleData);
+			CPUSimParticleDataAllocation.ParticleData = TransferDataToGPU(DynamicReadBuffer, RendererLayout, SourceParticleData);
 		}
 		else
 		{
@@ -1050,6 +991,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.InterpCount = SegmentTessellation;
 	PerViewUniformParameters.OneOverInterpCount = 1.f / (float)SegmentTessellation;
 
+	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
 	PerViewUniformParameters.PositionDataOffset = VFVariables[ENiagaraRibbonVFLayout::Position].GetGPUOffset();
 	PerViewUniformParameters.VelocityDataOffset = VFVariables[ENiagaraRibbonVFLayout::Velocity].GetGPUOffset();
 	PerViewUniformParameters.ColorDataOffset = VFVariables[ENiagaraRibbonVFLayout::Color].GetGPUOffset();

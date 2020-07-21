@@ -18,8 +18,10 @@
 class FScene;
 class FViewInfo;
 class FLightSceneInfo;
+class FVisibleLightInfo;
 class USkyAtmosphereComponent;
 class FSkyAtmosphereSceneProxy;
+class FProjectedShadowInfo;
 
 class FSkyAtmosphereInternalCommonParameters;
 class FVolumeShadowingShaderParametersGlobal0;
@@ -63,14 +65,14 @@ struct FSkyAtmosphereViewSharedUniformShaderParameters
 };
 
 // Structure with data necessary to specify a sky render.
-struct SkyAtmosphereRenderContext
+struct FSkyAtmosphereRenderContext
 {
 	///////////////////////////////////
 	// Per scene parameters
 
 	bool bUseDepthBoundTestIfPossible;
 	bool bForceRayMarching;
-	bool bDisableDepthRead; // Do not apply scene depth texture. As such, only far Z will be considered
+	bool bDepthReadDisabled;// Do not apply scene depth texture. As such, only far Z will be considered
 	bool bDisableBlending;	// Do not do any blending. The sky will clear the target when rendering a sky reflection capture for instance.
 	bool bFastSky;
 	bool bFastAerialPerspective;
@@ -103,12 +105,16 @@ struct SkyAtmosphereRenderContext
 	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer;
 
 	bool bShouldSampleCloudShadow;
-	FRDGTextureRef VolumetricCloudShadowMap;
+	FRDGTextureRef VolumetricCloudShadowMap[2];
 
 	bool bShouldSampleCloudSkyAO;
 	FRDGTextureRef VolumetricCloudSkyAO;
 
-	SkyAtmosphereRenderContext();
+	bool bAPOnCloudMode;
+	FRDGTextureRef VolumetricCloudDepthTexture;
+	FRDGTextureRef InputCloudLuminanceTransmittanceTexture;
+
+	FSkyAtmosphereRenderContext();
 
 private:
 };
@@ -151,13 +157,30 @@ private:
 
 
 bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
-bool ShouldApplyAtmosphereLightPerPixelTransmittance(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 
 void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Scene);
 void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene* Scene, FViewInfo& View);
 
-extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
+extern void SetupSkyAtmosphereViewSharedUniformShaderParameters(const class FViewInfo& View, const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters);
 
 // Prepare the sun light data as a function of the atmosphere state. 
 void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight);
 
+
+float GetValidAerialPerspectiveStartDepthInCm(const FViewInfo& View, const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy);
+
+struct SkyAtmosphereLightShadowData
+{
+	const FLightSceneInfo* LightVolumetricShadowSceneinfo0 = nullptr;
+	const FLightSceneInfo* LightVolumetricShadowSceneinfo1 = nullptr;
+	const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;
+	const FProjectedShadowInfo* ProjectedShadowInfo1 = nullptr;
+};
+bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, SkyAtmosphereLightShadowData& LightShadowData);
+void GetSkyAtmosphereLightsUniformBuffers(
+	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>& OutLightShadowShaderParams0UniformBuffer,
+	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1>& OutLightShadowShaderParams1UniformBuffer,
+	const SkyAtmosphereLightShadowData& LightShadowData,
+	const FViewInfo& ViewInfo,
+	const bool bShouldSampleOpaqueShadow,
+	const EUniformBufferUsage UniformBufferUsage);

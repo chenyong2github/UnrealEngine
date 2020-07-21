@@ -37,13 +37,13 @@ namespace BodyUtils
 	 * Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. 
 	 * Note: this includes a call to ModifyMassProperties, so the BodyInstance modifiers will be included in the calculation.
 	 */
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform);
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const FTransform& MassModifierTransform);
+	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass = false);
+	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass = false);
 
 #elif PHYSICS_INTERFACE_PHYSX
 	
 	/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform);
+	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform, const bool bUnused = false);
 
 #endif
 

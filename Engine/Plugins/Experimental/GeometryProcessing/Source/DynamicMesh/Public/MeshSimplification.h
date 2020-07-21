@@ -35,12 +35,31 @@ public:
 	typedef typename FQuadricErrorType::ScalarType RealType;
 	typedef TQuadricError<RealType>                FSeamQuadricType;
 
+	
+	enum class ESimplificationCollapseModes
+	{
+		MinimalQuadricPositionError = 0,
+		MinimalExistingVertexError = 1,
+		AverageVertexPosition = 2,
+	};
+
 	/**
-	 * If true, we try to find position for collapsed vertices that minimizes quadric error.
-	 * If false we just use midpoints, which is actually significantly slower, because it results
-	 * in may more points that would cause a triangle flip, which are then rejected.
+	 * Controls the method used when selecting the position the results from an edge collapse. Note some
+	 * of the simpler methods (such as average) may be significantly slower as they result in many more
+	 * points that are rejected because the would cause a triangle flip.
+	 *
+	 * MinimalQuadricPositionError  Try to find position for collapsed vertices that minimizes quadric error.
+	 *                              If false we just use midpoints, which is actually significantly slower, because it results
+	 *                              in many more points that would cause a triangle flip, which are then rejected.
+	 *
+	 * MinimalExistingVertexError   Use one of the existing vertex position with smallest error for the collapse point.
+	 *
+	 * AverageVertexPosition        Use the midpoint of the two vertex positions.
 	 */
-	bool bMinimizeQuadricPositionError = true;
+	ESimplificationCollapseModes CollapseMode = ESimplificationCollapseModes::MinimalQuadricPositionError;
+
+
+
 
 	/** if true, we try to keep boundary vertices on boundary. You probably want this. */
 	bool bPreserveBoundaryShape = true;

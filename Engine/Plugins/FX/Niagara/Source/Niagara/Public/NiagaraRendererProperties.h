@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "RHIDefinitions.h"
@@ -13,13 +14,6 @@
 #include "NiagaraPlatformSet.h"
 #include "NiagaraRendererProperties.generated.h"
 
-/**
-* Emitter properties base class
-* Each EmitterRenderer derives from this with its own class, and returns it in GetProperties; a copy
-* of those specific properties is stored on UNiagaraEmitter (on the System) for serialization 
-* and handed back to the System renderer on load.
-*/
-
 class FNiagaraRenderer;
 class UMaterial;
 class UMaterialInterface;
@@ -29,6 +23,65 @@ class FAssetThumbnailPool;
 struct FNiagaraDataSetCompiledData;
 struct FSlateBrush;
 
+extern int32 GbEnableMinimalGPUBuffers;
+
+/** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
+struct FNiagaraRendererVariableInfo
+{
+	FNiagaraRendererVariableInfo() {}
+	FNiagaraRendererVariableInfo(int32 InDataOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool bInUpload, bool bInHalfType)
+		: DatasetOffset(InDataOffset)
+		, GPUBufferOffset(InGPUBufferOffset)
+		, NumComponents(InNumComponents)
+		, bUpload(bInUpload)
+		, bHalfType(bInHalfType)
+	{
+	}
+
+	FORCEINLINE int32 GetGPUOffset() const
+	{
+		int32 Offset = GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset;
+		if (bHalfType)
+		{
+			Offset |= 1 << 31;
+		}
+		return Offset;
+	}
+
+	int32 DatasetOffset = INDEX_NONE;
+	int32 GPUBufferOffset = INDEX_NONE;
+	int32 NumComponents = 0;
+	bool bUpload = false;
+	bool bHalfType = false;
+};
+
+/** Used for building renderer layouts for vertex factories */
+struct FNiagaraRendererLayout
+{
+	void Initialize(int32 NumVariables);
+	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset);
+	void Finalize();
+
+	TConstArrayView<FNiagaraRendererVariableInfo> GetVFVariables_RenderThread() const { check(IsInRenderingThread()); return MakeArrayView(VFVariables_RT); }
+	int32 GetTotalFloatComponents_RenderThread() const { check(IsInRenderingThread()); return TotalFloatComponents_RT; }
+	int32 GetTotalHalfComponents_RenderThread() const { check(IsInRenderingThread()); return TotalHalfComponents_RT; }
+
+private:
+	TArray<FNiagaraRendererVariableInfo> VFVariables_GT;
+	int32 TotalFloatComponents_GT;
+	int32 TotalHalfComponents_GT;
+
+	TArray<FNiagaraRendererVariableInfo> VFVariables_RT;
+	int32 TotalFloatComponents_RT;
+	int32 TotalHalfComponents_RT;
+};
+
+/**
+* Emitter properties base class
+* Each EmitterRenderer derives from this with its own class, and returns it in GetProperties; a copy
+* of those specific properties is stored on UNiagaraEmitter (on the System) for serialization
+* and handed back to the System renderer on load.
+*/
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
 {
@@ -88,6 +141,8 @@ public:
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
 	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
 
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) {}
+	
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraPlatformSet Platforms;
@@ -109,5 +164,4 @@ protected:
 
 	// Copy of variables in the attribute binding, updated when GetBoundAttributes() is called.
 	TArray<FNiagaraVariable> CurrentBoundAttributes;
-
 };

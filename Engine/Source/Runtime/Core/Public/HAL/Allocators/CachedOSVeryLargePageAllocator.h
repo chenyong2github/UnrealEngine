@@ -19,10 +19,13 @@
 //#define CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES (CACHEDOSVERYLARGEPAGEALLOCATOR_BYTE_LIMIT/(1024*64))
 #define CACHEDOSVERYLARGEPAGEALLOCATOR_MAX_CACHED_OS_FREES (128)
 
+#ifndef UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB
+#define UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB 4096	//default to 4MB
+#endif
 class FCachedOSVeryLargePageAllocator
 {
 	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * (1024 + 512));
-	static const uint64 SizeOfLargePage = (1024 * 1024 * 4);
+	static const uint64 SizeOfLargePage = (UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB * 1024);
 	static const uint64 SizeOfSubPage = (1024 * 64);
 	static const uint64 NumberOfLargePages = (AddressSpaceToReserve / SizeOfLargePage);
 	static const uint64 NumberOfSubPagesPerLargePage = (SizeOfLargePage / SizeOfSubPage);

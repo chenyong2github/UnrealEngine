@@ -750,7 +750,7 @@ TSharedPtr<SWidget> SAssetPicker::GetItemContextMenu(TArrayView<const FContentBr
 			}
 		}
 
-		if (OnGetFolderContextMenu.IsBound())
+		if (OnGetAssetContextMenu.IsBound())
 		{
 			return OnGetAssetContextMenu.Execute(SelectedAssets);
 		}

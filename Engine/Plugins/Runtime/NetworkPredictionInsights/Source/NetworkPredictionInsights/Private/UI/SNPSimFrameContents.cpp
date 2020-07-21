@@ -162,12 +162,16 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 	SimInfoText += FString::Format(TEXT(
 		"{0}\n"
 		"Sim Group: {1}\n"
-		"NetGUID: {2}\n"
-		"NetRole: {3}"),
+		"GameInstanceId: {2}\n"
+		"SimID: {3}\n"
+		"TraceID: {4}\n"
+		"NetRole: {5}"),
 	{
 		*InContent.SimView->ConstData.DebugName,
 		*GroupNameStr,
-		InContent.SimView->ConstData.ID.NetGUID,
+		InContent.SimView->ConstData.GameInstanceId,
+		InContent.SimView->ConstData.ID.SimID,
+		InContent.SimView->TraceID,
 		*NetRoleStr
 	});
 
@@ -299,10 +303,13 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 
 		const FSimulationData::FUserState* OutSyncState = InContent.SimView->UserData.Get(ENP_UserState::Sync, SimTick.OutputFrame, InContent.SimTick->EngineFrame, (uint8)ENP_UserStateSource::NetRecv);
 		const FSimulationData::FUserState* OutAuxState = InContent.SimView->UserData.Get(ENP_UserState::Aux, SimTick.OutputFrame, InContent.SimTick->EngineFrame, (uint8)ENP_UserStateSource::NetRecv);
-				
+
+		const FSimulationData::FUserState* InPhysicsState = InContent.SimView->UserData.Get(ENP_UserState::Physics, InputFrame, InContent.SimTick->EngineFrame, (uint8)ENP_UserStateSource::NetRecv);
 
 		AddUserStateVSlots( { FUserStateWidgetInfo{ InputCmd, TEXT("Input Cmd"), FLinearColor::White } } );
 		AddUserStateVSlots( { FUserStateWidgetInfo{ InSyncState, TEXT("In Sync"), FLinearColor::White }, FUserStateWidgetInfo{ InAuxState, TEXT("In Aux"), FLinearColor::White } });
+
+		AddUserStateVSlots( { FUserStateWidgetInfo{ InPhysicsState, TEXT("Physics"), FLinearColor::White } } );
 
 		if (InAuxState != OutAuxState)
 		{

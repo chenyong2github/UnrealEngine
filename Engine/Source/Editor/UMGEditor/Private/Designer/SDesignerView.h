@@ -289,7 +289,7 @@ private:
 	
 	void ClearDropPreviews();
 
-	void DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent);
+	void DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent, UWidgetTree* RootWidgetTree);
 
 	void SwapSafeZoneTypes();
 

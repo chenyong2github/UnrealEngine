@@ -111,34 +111,77 @@ bool FMeshRefinerBase::CanCollapseEdge(int eid, int a, int b, int c, int d, int 
 	{
 		return true;
 	}
+
+	// are the vertices themselves constrained in a way that prevents this collapse? 
+	// nb: this modifies collapse_to if we have to keep a particular vert.
 	bool bVtx = CanCollapseVertex(eid, a, b, collapse_to);
 	if (bVtx == false)
 	{
 		return false;
 	}
 
-	// when we lose a vtx in a collapse, we also lose two edges [iCollapse,c] and [iCollapse,d].
-	// If either of those edges is constrained, we would lose that constraint.
-	// This would be bad.
-	int iCollapse = (collapse_to == a) ? b : a;
-	if (c != IndexConstants::InvalidID) 
+	// determine if edge constraints require keeping either vert.
+	bool bMustRetainA = false;
+	bool bMustRetainB = false;
+
+	// if edge ac is constrained, we must keep it and thus vertex a, likewise for edge bc and vertex b.
+	if (c != IndexConstants::InvalidID)
 	{
-		int ec = Mesh->FindEdgeFromTri(iCollapse, c, tc);
-		if (Constraints->GetEdgeConstraint(ec).IsUnconstrained() == false)
-		{
-			return false;
-		}
-	}
-	if (d != IndexConstants::InvalidID)
-	{
-		int ed = Mesh->FindEdgeFromTri(iCollapse, d, td);
-		if (Constraints->GetEdgeConstraint(ed).IsUnconstrained() == false)
-		{
-			return false;
-		}
+		int32 eac = Mesh->FindEdgeFromTri(a, c, tc);
+		int32 ebc = Mesh->FindEdgeFromTri(b, c, tc);
+
+		bMustRetainA = bMustRetainA || (Constraints->GetEdgeConstraint(eac).IsUnconstrained() == false);
+		bMustRetainB = bMustRetainB || (Constraints->GetEdgeConstraint(ebc).IsUnconstrained() == false);
+		
 	}
 
-	return true;
+	// if edge ad is constrained, we must keep it and thus vertex a, likewise for edge bd and vertex b.
+	if (d != IndexConstants::InvalidID)
+	{
+		int32 ead = Mesh->FindEdgeFromTri(a, d, td);
+		int32 ebd = Mesh->FindEdgeFromTri(b, d, td);
+
+		bMustRetainA = bMustRetainA || (Constraints->GetEdgeConstraint(ead).IsUnconstrained() == false);
+		bMustRetainB = bMustRetainB || (Constraints->GetEdgeConstraint(ebd).IsUnconstrained() == false);
+	}
+
+	bool bCanCollapse = true;
+
+	// adjacent edge constraints want us to keep both verts.. no can do.
+	if (bMustRetainA && bMustRetainB)
+	{
+			bCanCollapse = false;
+	}
+	else
+	{
+		
+		if (collapse_to == -1)
+		{
+			// the vertex constraints didn't require either vertex.  
+			// if the adjacent edge constraints require one, record it 
+			if (bMustRetainA && !bMustRetainB)
+			{
+				collapse_to = a;
+			}
+			else if (bMustRetainB && !bMustRetainA)
+			{
+				collapse_to = b;
+			}
+		}
+		else if (collapse_to == a && bMustRetainB)
+		{
+			// vertex and adjacent edge constraints conflict
+			bCanCollapse = false;
+		}
+		else if (collapse_to == b && bMustRetainA)
+		{
+			// vertex and adjacent edge constraints conflict
+			bCanCollapse = false;
+		}
+
+	}
+
+	return bCanCollapse;
 }
 
 
@@ -161,9 +204,17 @@ bool FMeshRefinerBase::CanCollapseVertex(int eid, int a, int b, int& collapse_to
 	{
 		return true;
 	}
-	FVertexConstraint ca, cb;
-	Constraints->GetVertexConstraint(a, ca);
-	Constraints->GetVertexConstraint(b, cb);
+
+	FVertexConstraint ca = Constraints->GetVertexConstraint(a);
+	FVertexConstraint cb = Constraints->GetVertexConstraint(b);
+	
+	bool bIsFixedA = (ca.bCanMove == false);
+	bool bIsFixedB = (cb.bCanMove == false);
+
+	if (bIsFixedA && bIsFixedB)
+	{
+		return false;
+	}
 
 	bool CanDeleteA = (ca.bCannotDelete == false);
 	bool CanDeleteB = (cb.bCannotDelete == false);

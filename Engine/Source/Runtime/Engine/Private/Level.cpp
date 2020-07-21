@@ -428,7 +428,7 @@ void ULevel::Serialize( FArchive& Ar )
 
 #if WITH_EDITOR
 			// Otherwise, don't filter out external actors if duplicating the world to get the actors properly duplicated.
-			if (bUseExternalActors && !(Ar.GetPortFlags() & PPF_Duplicate))
+			if (IsUsingExternalActors() && !(Ar.GetPortFlags() & PPF_Duplicate))
 			{
 				if (Actor->IsPackageExternal())
 				{
@@ -665,7 +665,7 @@ void ULevel::PostLoad()
 
 #if WITH_EDITOR
 	// if we use external actors, load dynamic actors here
-	if (bUseExternalActors && !bWasDuplicated)
+	if (IsUsingExternalActors() && !bWasDuplicated)
 	{
 		UPackage* LevelPackage = GetPackage();
 		bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);
@@ -1520,9 +1520,16 @@ void ULevel::PreEditUndo()
 {
 	// if we are using external actors do not call into the parent `PreEditUndo` which in the end just calls Modify and dirties the level, which we want to avoid
 	// Unfortunately we cannot determine here if the properties modified through the undo are actually related to external actors...
-	if (!bUseExternalActors)
+	if (!IsUsingExternalActors())
 	{
 		Super::PreEditUndo();
+		// Since package don't record their package flag in transaction, sync the level package dynamic import flag
+		GetPackage()->ClearPackageFlags(PKG_DynamicImports);
+	}
+	else
+	{
+		// Since package don't record their package flag in transaction, sync the level package dynamic import flag
+		GetPackage()->SetPackageFlags(PKG_DynamicImports);
 	}
 
 	// Detach existing model components.  These are left in the array, so they are saved for undoing the undo.
@@ -2035,11 +2042,8 @@ UMapBuildDataRegistry* ULevel::GetOrCreateMapBuildData()
 			// Release rendering data depending on MapBuildData, before we destroy MapBuildData
 			MapBuildData->InvalidateStaticLighting(GetWorld(), true, nullptr);
 
-			// Allow the legacy registry to be GC'ed, but not if the registry is itself an asset, because assets are always standalone
-			if (!MapBuildData->IsAsset())
-			{
-				MapBuildData->ClearFlags(RF_Standalone);
-			}
+			// Allow the legacy registry to be GC'ed
+			MapBuildData->ClearFlags(RF_Standalone);
 		}
 
 		UPackage* BuiltDataPackage = CreateMapBuildDataPackage();
@@ -2079,6 +2083,25 @@ bool ULevel::HasAnyActorsOfType(UClass *SearchType)
 }
 
 #if WITH_EDITOR
+
+bool ULevel::IsUsingExternalActors() const
+{
+	return bUseExternalActors;
+}
+
+void ULevel::SetUseExternalActors(bool bEnable)
+{
+	bUseExternalActors = bEnable;
+	UPackage* LevelPackage = GetPackage();
+	if (bEnable)
+	{
+		LevelPackage->SetPackageFlags(PKG_DynamicImports);
+	}
+	else
+	{
+		LevelPackage->ClearPackageFlags(PKG_DynamicImports);
+	}
+}
 
 bool ULevel::CanConvertActorToExternalPackaging(AActor* Actor)
 {

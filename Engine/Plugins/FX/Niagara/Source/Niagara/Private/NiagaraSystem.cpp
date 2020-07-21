@@ -66,6 +66,11 @@ static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+, bBakeOutRapidIterationOnCook(true)
+, bTrimAttributes(false)
+, bTrimAttributesOnCook(true)
+#endif
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
@@ -308,6 +313,35 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 			NiagaraEmitterCompiledDataStruct->SerializeTaggedProperties(Ar, (uint8*)&ConstCastSharedRef<FNiagaraEmitterCompiledData>(EmitterCompiledData[EmitterIndex]).Get(), NiagaraEmitterCompiledDataStruct, nullptr);
 		}
 	}
+
+#if WITH_EDITOR
+	if (GIsCookerLoadingPackage && Ar.IsLoading())
+	{
+		// start temp fix
+		// we will disable the default behavior of baking out the rapid iteration parameters on cook if one of the emitters
+		// is using the old experimental sim stages as FHlslNiagaraTranslator::RegisterFunctionCall hardcodes the use of the
+		// symbolic constants that are being stripped out
+		bool UsingOldSimStages = false;
+
+		for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+		{
+			if (const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+			{
+				if (Emitter->bDeprecatedShaderStagesEnabled)
+				{
+					UsingOldSimStages = true;
+					break;
+				}
+			}
+		}
+
+		bBakeOutRapidIterationOnCook = bBakeOutRapidIterationOnCook && !UsingOldSimStages;
+		// end temp fix
+
+		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
+		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -593,12 +627,49 @@ void UNiagaraSystem::PostLoad()
 
 	ComputeEmittersExecutionOrder();
 
+	ComputeRenderersDrawOrder();
+
 	CacheFromCompiledData();
 
 	//TODO: Move to serialized properties?
 	UpdateDITickFlags();
 	UpdateHasGPUEmitters();
+
+	PostLoadPrimePools();
 }
+
+void UNiagaraSystem::PostLoadPrimePools()
+{
+	if (PoolPrimeSize > 0 && MaxPoolSize > 0)
+	{
+		if (IsInGameThread())
+		{
+			FNiagaraWorldManager::PrimePoolForAllWorlds(this);
+		}
+		else
+		{
+			//If we're post loading off the game thread the add a game thread task to prime the pools.
+			class FPrimePoolsTask
+			{
+				UNiagaraSystem* Target;
+			public:
+				FPrimePoolsTask(UNiagaraSystem* InTarget) : Target(InTarget) {}
+
+				FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPrimePoolsTask, STATGROUP_TaskGraphTasks); }
+				ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
+				static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::FireAndForget; }
+
+				void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				{
+					Target->PostLoadPrimePools();
+				}
+			};
+
+			TGraphTask<FPrimePoolsTask>::CreateTask(nullptr).ConstructAndDispatchWhenReady(this);
+		}
+	}
+}
+
 
 #if WITH_EDITORONLY_DATA
 
@@ -939,6 +1010,40 @@ void UNiagaraSystem::ComputeEmittersExecutionOrder()
 	{
 		return EmitterHandles[EmitterIdx].GetInstance() == nullptr;
 	}));
+}
+
+void UNiagaraSystem::ComputeRenderersDrawOrder()
+{
+	struct FSortInfo
+	{
+		FSortInfo(int32 InSortHint, int32 InRendererIdx) : SortHint(InSortHint), RendererIdx(InRendererIdx) {}
+		int32 SortHint;
+		int32 RendererIdx;
+	};
+	TArray<FSortInfo, TInlineAllocator<8>> RendererSortInfo;
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+	{
+		if (UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+		{
+			Emitter->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* Properties)
+				{
+					RendererSortInfo.Emplace(Properties->SortOrderHint, RendererSortInfo.Num());
+				}
+			);
+		}
+	}
+
+	// We sort by the sort hint in order to guarantee that we submit according to the preferred sort order..
+	RendererSortInfo.Sort([](const FSortInfo& A, const FSortInfo& B) { return A.SortHint < B.SortHint; });
+
+	RendererDrawOrder.Reset(RendererSortInfo.Num());
+
+	for (const FSortInfo& SortInfo : RendererSortInfo)
+	{
+		RendererDrawOrder.Add(SortInfo.RendererIdx);
+	}
 }
 
 void UNiagaraSystem::CacheFromCompiledData()
@@ -1468,6 +1573,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		UpdatePostCompileDIInfo();
 
 		ComputeEmittersExecutionOrder();
+
+		ComputeRenderersDrawOrder();
 
 		CacheFromCompiledData();
 		

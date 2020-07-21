@@ -15,6 +15,7 @@ class FNiagaraEmitterInstance;
 class FNiagaraEmitterViewModel;
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
+class UNiagaraMessageData;
 enum class ENiagaraSystemViewModelEditMode;
 
 /** The view model for the FNiagaraEmitterEditorWidget. */
@@ -119,6 +120,12 @@ public:
 	void Cleanup();
 	NIAGARAEDITOR_API void GetRendererEntries(TArray<UNiagaraStackEntry*>& InRenderingEntries);
 	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetOwningSystemViewModel() const;
+
+	/** Add a serialized message to the Emitter this viewmodel is managing. Returns a key to the new message. */
+	NIAGARAEDITOR_API FGuid AddMessage(UNiagaraMessageData* NewMessage, const FGuid& InNewGuid = FGuid()) const;
+
+	/** Remove a serialized message from the Emitter this viewmodel is managing. */
+	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) const;
 
 private:
 	/** The system view model which owns this emitter handle view model. */

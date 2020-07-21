@@ -957,7 +957,7 @@ protected:
 	TArray<FNavPathWeakPtr> ActivePaths;
 
 	/** Synchronization object for paths registration from main thread and async pathfinding thread */
-	FCriticalSection ActivePathsLock;
+	mutable FCriticalSection ActivePathsLock;
 
 	/**
 	 *	Contains paths that requested observing its goal's location. These paths will be 

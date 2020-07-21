@@ -26,6 +26,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Engine",
                     "RenderCore",
+					"PhysicsCore",
+					"Chaos",
+					"ChaosSolvers"
 				}
 				);
 

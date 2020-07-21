@@ -265,11 +265,11 @@ FString UMoviePipelineBlueprintLibrary::GetMapPackageName(UMoviePipelineExecutor
 	return InJob->Map.GetLongPackageName();
 }
 
-static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, const FMovieSceneSequenceTransform& InOuterToInnerTransform, UMoviePipelineExecutorJob* InJob, UMovieSceneCinematicShotSection* InSection, bool bForceDisable, TArray<UMoviePipelineExecutorShot*>& OutShots)
+static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const TRange<FFrameNumber>& InIntersectionRange, const FMovieSceneSequenceTransform& InOuterToInnerTransform, UMoviePipelineExecutorJob* InJob, UMovieSceneCinematicShotSection* InSection, const bool bForceDisable, TArray<UMoviePipelineExecutorShot*>& OutShots)
 {
 	check(InMovieScene && InJob);
 	bool bAddedShot = false;
-
+	
 	// We're going to search for Camera Cut tracks within this shot. If none are found, we'll use the whole range of the shot.
 	const UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InMovieScene->GetCameraCutTrack());
 	if (CameraCutTrack)
@@ -288,11 +288,11 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 		for (UMovieSceneSection* Section : SortedSections)
 		{
 			UMovieSceneCameraCutSection* CameraCutSection = CastChecked<UMovieSceneCameraCutSection>(Section);
-			
+			bool bLocalForceDisable = bForceDisable;
 			if (Section->GetRange().IsEmpty())
 			{
 				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Found zero-length section in CameraCutTrack: %s Skipping..."), *CameraCutSection->GetPathName());
-				bForceDisable = true;
+				bLocalForceDisable = true;
 			}
 
 			// The inner shot track may extend past the outmost Playback Range. We want to respect the outmost playback range, which is passed in in global space 
@@ -300,14 +300,19 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 			TRange<FFrameNumber> PlaybackBoundsInLocal = InIntersectionRange * InOuterToInnerTransform.LinearTransform;
 			if (!Section->GetRange().Overlaps(PlaybackBoundsInLocal))
 			{
-				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
-				bForceDisable = true;
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipping camera cut section due to no overlap with playback range. CameraCutTrack: %s"), *CameraCutSection->GetPathName());
+				bLocalForceDisable = true;
 			}
 
 			// Search the job to see if we have this already in the mask and disabled.
 			UMoviePipelineExecutorShot* ExistingShot = nullptr;
 			for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
 			{
+				if (Shot == nullptr)
+				{
+					UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Null ShotInfo in job, ignoring..."));
+					continue;
+				}
 				if (Shot->InnerPathKey == FSoftObjectPath(CameraCutSection) && Shot->OuterPathKey == FSoftObjectPath(InSection))
 				{
 					ExistingShot = Shot;
@@ -317,8 +322,8 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 
 			if (ExistingShot && !ExistingShot->bEnabled)
 			{
-				UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Skipped adding Camera Cut %s to Shot List due to a shot render mask."), *CameraCutSection->GetPathName());
-				bForceDisable = true;
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Skipped adding Camera Cut %s to Shot List due to a shot render mask."), *CameraCutSection->GetPathName());
+				bLocalForceDisable = true;
 			}
 
 			if (!ExistingShot)
@@ -359,7 +364,7 @@ static void CreateExecutorShotsFromMovieScene(UMovieScene* InMovieScene, const T
 
 			// We need to generate a UMoviePipelineExecutorShot for each thing in a sequence regardless if the user wanted
 			// to use it so that we can appropriately disable everything else that is masked off. 
-			if (bForceDisable)
+			if (bLocalForceDisable)
 			{
 				ExistingShot->bEnabled = false;
 			}

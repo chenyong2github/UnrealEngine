@@ -1689,6 +1689,8 @@ namespace HLODOutliner
 	{
 		ResetCachedData();
 		FullRefresh();
+
+		SelectedLODActors.RemoveAll([InLevel](const AActor* Actor) { return Actor->GetLevel() == InLevel; });
 	}
 
 	void SHLODOutliner::OnLevelActorsAdded(AActor* InActor)

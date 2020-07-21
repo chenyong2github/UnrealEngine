@@ -396,6 +396,7 @@ public:
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	bool							bCookAgainstFixedBase = false;
+	bool							bDLCNoCookAllAssets = true;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -5245,10 +5246,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		// get the dlc and make sure we cook that directory 
 		FString DLCPath = FPaths::Combine(*GetBaseDirectoryForDLC(), TEXT("Content"));
 
-		TArray<FString> Files;
-		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
-		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
-
 		FString MountPoint = ExternalMountPointName;
 		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
 		if (Plugin.IsValid())
@@ -5256,17 +5253,24 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			MountPoint = Plugin->GetMountedAssetPath();
 		}
 
-		for (int32 Index = 0; Index < Files.Num(); Index++)
+		if (!CookByTheBookOptions->bDLCNoCookAllAssets)
 		{
-			FString StdFile = Files[Index];
-			FPaths::MakeStandardFilename(StdFile);
-			AddFileToCook(FilesInPath, StdFile);
+			TArray<FString> Files;
+			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
+			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
 
-			// this asset may not be in our currently mounted content directories, so try to mount a new one now
-			FString LongPackageName;
-			if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+			for (int32 Index = 0; Index < Files.Num(); Index++)
 			{
-				FPackageName::RegisterMountPoint(MountPoint, DLCPath);
+				FString StdFile = Files[Index];
+				FPaths::MakeStandardFilename(StdFile);
+				AddFileToCook(FilesInPath, StdFile);
+
+				// this asset may not be in our currently mounted content directories, so try to mount a new one now
+				FString LongPackageName;
+				if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+				{
+					FPackageName::RegisterMountPoint(MountPoint, DLCPath);
+				}
 			}
 		}
 	}
@@ -5995,6 +5999,10 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	CookByTheBookOptions->bRunning = false;
 	CookByTheBookOptions->bFullLoadAndSave = false;
 
+	if (!IsCookingInEditor())
+	{
+		FCoreUObjectDelegates::PackageCreatedForLoad.RemoveAll(this);
+	}
 	PlatformManager->ClearSessionPlatforms();
 
 	PrintFinishStats();
@@ -6504,6 +6512,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
+	CookByTheBookOptions->bDLCNoCookAllAssets = !!(CookOptions & ECookByTheBookOptions::DLCNoCookAllAssets);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
@@ -6513,13 +6522,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	GenerateAssetRegistry();
-	if (!bHasRunCookByTheBookBefore)
+	if (!IsCookingInEditor())
 	{
-		bHasRunCookByTheBookBefore = true;
-		if (!IsCookingInEditor())
-		{
-			FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
-		}
+		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
 	// SelectSessionPlatforms does not check for uniqueness and non-null, and we rely on those properties for performance, so ensure it here before calling SelectSessionPlatforms

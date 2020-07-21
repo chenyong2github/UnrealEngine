@@ -257,6 +257,16 @@ namespace UnrealBuildTool
 			return string.Empty;
 		}
 
+		static public void AppendPlatformToolsetProperty(StringBuilder VCProjectFileContent, VCProjectFileFormat ProjectFileFormat)
+		{
+			VCProjectFileContent.AppendLine("    <PlatformToolset>{0}</PlatformToolset>", GetProjectFilePlatformToolsetVersionString(ProjectFileFormat));
+
+			if(ProjectFileFormat == VCProjectFileFormat.VisualStudio2019)
+			{
+				VCProjectFileContent.AppendLine("    <PlatformToolset Condition=\"'$(VisualStudioVersion)' == '15.0'\">v141</PlatformToolset>");
+			}
+		}
+
 		/// <summary>
 		/// Configures project generator based on command-line options
 		/// </summary>

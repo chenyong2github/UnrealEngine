@@ -10,7 +10,7 @@
 namespace Chaos
 {
 
-	struct RealWorldConsts
+	struct CHAOSVEHICLESCORE_API RealWorldConsts
 	{
 		FORCEINLINE static float AirDensity()
 		{
@@ -32,10 +32,44 @@ namespace Chaos
 			return 0.4f; // friction coefficient
 		}
 
-
 	};
 
-	 class CHAOSVEHICLESCORE_API FVehicleUtility
+	class CHAOSVEHICLESCORE_API FNormalisedGraph
+	{
+	public:
+		void Empty()
+		{
+			Graph.Empty();
+		}
+
+		void AddNormalized(float Value)
+		{
+			Graph.Add(Value);
+		}
+
+		float GetValue(float InX, float MaxX = 1.0f, float MaxY = 1.0f) const
+		{
+			float Step = MaxX / (Graph.Num() - 1);
+			int StartIndex = InX / Step;
+			float NormalisedRamp = ((float)InX - (float)StartIndex * Step) / Step;
+
+			float NormYValue = 0.0f;
+			if (StartIndex >= Graph.Num() - 1)
+			{
+				NormYValue = Graph[Graph.Num() - 1];
+			}
+			else
+			{
+				NormYValue = Graph[StartIndex] * (1.f - NormalisedRamp) + Graph[StartIndex + 1] * NormalisedRamp;
+			}
+
+			return NormYValue * MaxY;
+		}
+	private:
+		TArray<float> Graph;
+	};
+
+	class CHAOSVEHICLESCORE_API FVehicleUtility
 	{
 	public:
 
@@ -45,10 +79,26 @@ namespace Chaos
 			InOutValue = FMath::Clamp(InOutValue, 0.f, 1.f);
 		}
 
-		FORCEINLINE static float CalculateInertia(float Mass, float Radius)
+		/** Calculate Yaw angle in Radians from a Normalized Forward facing vector */
+		static float YawFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
 		{
-			return (0.5f * Mass * Radius * Radius);
+			return FMath::Atan2(NormalizedForwardsVector.Y, NormalizedForwardsVector.X);
 		}
+
+		/** Calculate Pitch angle in Radians from a Normalized Forward facing vector */
+		static float PitchFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
+		{
+			return FMath::Atan2(NormalizedForwardsVector.Z, FMath::Sqrt(NormalizedForwardsVector.X * NormalizedForwardsVector.X + NormalizedForwardsVector.Y * NormalizedForwardsVector.Y));
+		}
+
+		/** Calculate Roll angle in Radians from a Normalized Right facing vector */
+		static float RollFromRightVectorRadians(const FVector& NormalizedRightVector)
+		{
+			return FMath::Atan2(NormalizedRightVector.Z, FMath::Sqrt(NormalizedRightVector.X * NormalizedRightVector.X + NormalizedRightVector.Y * NormalizedRightVector.Y));
+		}
+
+		/** Calculate turn radius from three points. Note: this function is quite inaccurate for large radii. Return 0 if there is no answer, i.e. points lie on a line */
+		static float TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC);
 	};
 
 	/** revolutions per minute to radians per second */
@@ -188,7 +238,7 @@ namespace Chaos
 		float TimeResultSeconds;
 	};
 
-	 class CHAOSVEHICLESCORE_API FPerformanceMeasure
+	class CHAOSVEHICLESCORE_API FPerformanceMeasure
 	{
 	public:
 		enum class EMeasure : uint8

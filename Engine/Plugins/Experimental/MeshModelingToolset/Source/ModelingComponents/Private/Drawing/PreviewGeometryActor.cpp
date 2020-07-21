@@ -96,14 +96,52 @@ bool UPreviewGeometry::RemoveLineSet(const FString& LineSetIdentifier, bool bDes
 }
 
 
+
+void UPreviewGeometry::RemoveAllLineSets(bool bDestroy)
+{
+	for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+	{
+		if (bDestroy)
+		{
+			Entry.Value->UnregisterComponent();
+			Entry.Value->DestroyComponent();
+		}
+	}
+	LineSets.Reset();
+}
+
+
+
 bool UPreviewGeometry::SetLineSetVisibility(const FString& LineSetIdentifier, bool bVisible)
 {
 	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
 	if (Found != nullptr)
 	{
 		(*Found)->SetVisibility(bVisible);
+		return true;
 	}
 	return false;
+}
+
+
+bool UPreviewGeometry::SetLineSetMaterial(const FString& LineSetIdentifier, UMaterialInterface* NewMaterial)
+{
+	ULineSetComponent** Found = LineSets.Find(LineSetIdentifier);
+	if (Found != nullptr)
+	{
+		(*Found)->SetLineMaterial(NewMaterial);
+		return true;
+	}
+	return false;
+}
+
+
+void UPreviewGeometry::SetAllLineSetsMaterial(UMaterialInterface* Material)
+{
+	for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+	{
+		Entry.Value->SetLineMaterial(Material);
+	}
 }
 
 
@@ -126,3 +164,4 @@ void UPreviewGeometry::CreateOrUpdateLineSet(const FString& LineSetIdentifier, i
 	LineSet->Clear();
 	LineSet->AddLines(NumIndices, LineGenFunc, LinesPerIndexHint);
 }
+

@@ -344,6 +344,7 @@ void FLevelEditorSequencerIntegration::OnPostSaveWorld(uint32 SaveFlags, class U
 		{
 			if (Options.bRequiresLevelEvents)
 			{
+				In.InvalidateCachedData();
 				In.ForceEvaluate();
 			}
 		}

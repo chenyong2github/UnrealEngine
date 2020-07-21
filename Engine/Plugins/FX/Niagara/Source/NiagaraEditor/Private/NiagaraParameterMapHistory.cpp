@@ -181,7 +181,7 @@ int32 FNiagaraParameterMapHistory::FindVariableByName(const FName& VariableName,
 }
 
 
-int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type)
+int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type) const
 {
 	int32 FoundIdx = Variables.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
 	{
@@ -1495,6 +1495,13 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 	{
 		FNiagaraInt32 EnumValue;
 		EnumValue.Value = (uint8)Emitter->SimTarget;
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}

@@ -468,7 +468,10 @@ struct FD3D12FastAllocatorPage
 	void Reset()
 	{
 		NextFastAllocOffset = 0;
+		FrameFence = 0;
 	}
+
+	void UpdateFence();
 
 	const uint32 PageSize;
 	TRefCountPtr<FD3D12Resource> FastAllocBuffer;

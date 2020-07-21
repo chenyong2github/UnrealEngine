@@ -64,6 +64,8 @@ public:
 	void Deactivate(bool bImmediate = false);
 	void Complete();
 
+	void OnPooledReuse();
+
 	void SetPaused(bool bInPaused);
 	FORCEINLINE bool IsPaused()const { return bPaused; }
 

@@ -481,24 +481,22 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 		bResetPending = true;
 		TotalSpawnedParticles = 0;
 
-		ParticleDataSet->ResetBuffers();
-
-		if (EventInstanceData.IsValid())
-		{
-			for (FNiagaraDataSet* SpawnScriptEventDataSet : EventInstanceData->SpawnScriptEventDataSets)
-			{
-				SpawnScriptEventDataSet->ResetBuffers();
-			}
-			for (FNiagaraDataSet* UpdateScriptEventDataSet : EventInstanceData->UpdateScriptEventDataSets)
-			{
-				UpdateScriptEventDataSet->ResetBuffers();
-			}
-		}
-
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
 			GPUExecContext->Reset(Batcher);
 		}
+	}
+}
+
+void FNiagaraEmitterInstance::OnPooledReuse()
+{
+	// Ensure we kill any existing particles and mark our buffers for reset
+	bResetPending = true;
+	TotalSpawnedParticles = 0;
+
+	if (CachedEmitter != nullptr && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
+	{
+		GPUExecContext->Reset(Batcher);
 	}
 }
 

@@ -12,12 +12,12 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraBoundsCalculator.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
-class UNiagaraRendererProperties;
 class UNiagaraSimulationStageBase;
 class UNiagaraEditorDataBase;
 
@@ -288,6 +288,11 @@ public:
 
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterUpdateScriptProps;
+
+	/** A whitelist of Particle attributes (e.g. "Particle.Position" or "Particle.Age") that will not be removed from the DataSet  even if they aren't read by the VM.
+	    Used in conjunction with UNiagaraSystem::bTrimAttributes */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	TArray<FString> AttributesToPreserve;
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -471,7 +476,18 @@ public:
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
-	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
+
+	template<typename TAction>
+	void ForEachEnabledRenderer(TAction Func) const
+	{
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
+		{
+			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+			{
+				Func(Renderer);
+			}
+		}
+	}
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -525,6 +541,7 @@ public:
 	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
 	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 #endif
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
@@ -635,6 +652,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the Emitter asset. */
+	UPROPERTY()
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 #endif
 };

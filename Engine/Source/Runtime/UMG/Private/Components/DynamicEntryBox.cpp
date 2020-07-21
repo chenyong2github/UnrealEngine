@@ -59,7 +59,7 @@ void UDynamicEntryBox::SynchronizeProperties()
 			while (StartingNumber < NumDesignerPreviewEntries)
 			{
 				UUserWidget* PreviewEntry = CreateEntryInternal(EntryWidgetClass);
-				if (IsDesignTime() && OnPreviewEntryCreatedFunc)
+				if (PreviewEntry && IsDesignTime() && OnPreviewEntryCreatedFunc)
 				{
 					OnPreviewEntryCreatedFunc(PreviewEntry);
 				}

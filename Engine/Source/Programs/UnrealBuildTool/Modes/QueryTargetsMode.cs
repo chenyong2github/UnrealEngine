@@ -49,13 +49,17 @@ namespace UnrealBuildTool
 
 			// Create the rules assembly
 			RulesAssembly Assembly;
-			if(ProjectFile == null)
+			if (ProjectFile != null)
+			{
+				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
+			}
+			else if(DirectoryReference.Exists(UnrealBuildTool.EnterpriseDirectory))
 			{
 				Assembly = RulesCompiler.CreateEnterpriseRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 			}
 			else
 			{
-				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
+				Assembly = RulesCompiler.CreateEngineRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile);
 			}
 
 			// Write information about these targets
@@ -102,6 +106,13 @@ namespace UnrealBuildTool
 				Writer.WriteArrayStart("Targets");
 				foreach (string TargetName in TargetNames)
 				{
+					// skip target rules that are platform extension or platform group specializations
+					string[] TargetPathSplit = TargetName.Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
+					if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+					{
+						continue;
+					}
+
 					// Construct the rules object
 					TargetRules TargetRules;
 					try

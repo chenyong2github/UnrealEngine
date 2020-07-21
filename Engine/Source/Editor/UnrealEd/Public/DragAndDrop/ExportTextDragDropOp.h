@@ -12,55 +12,6 @@
 #include "Exporters/Exporter.h"
 #include "UnrealExporter.h"
 
-class FSelectedActorExportObjectInnerContext;
-
-class FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
-{
-public:
-	FSelectedActorExportObjectInnerContext()
-		//call the empty version of the base class
-		: FExportObjectInnerContext(false)
-	{
-		// For each object . . .
-		for ( TObjectIterator<UObject> It ; It ; ++It )
-		{
-			UObject* InnerObj = *It;
-			UObject* OuterObj = InnerObj->GetOuter();
-
-			//assume this is not part of a selected actor
-			bool bIsChildOfSelectedActor = false;
-
-			UObject* TestParent = OuterObj;
-			while (TestParent)
-			{
-				AActor* TestParentAsActor = Cast<AActor>(TestParent);
-				if ( TestParentAsActor && TestParentAsActor->IsSelected())
-				{
-					bIsChildOfSelectedActor = true;
-					break;
-				}
-				TestParent = TestParent->GetOuter();
-			}
-
-			if (bIsChildOfSelectedActor)
-			{
-				InnerList* Inners = ObjectToInnerMap.Find( OuterObj );
-				if ( Inners )
-				{
-					// Add object to existing inner list.
-					Inners->Add( InnerObj );
-				}
-				else
-				{
-					// Create a new inner list for the outer object.
-					InnerList& InnersForOuterObject = ObjectToInnerMap.Add( OuterObj, InnerList() );
-					InnersForOuterObject.Add( InnerObj );
-				}
-			}
-		}
-	}
-};
-
 class FExportTextDragDropOp : public FDragDropOperation
 {
 public:

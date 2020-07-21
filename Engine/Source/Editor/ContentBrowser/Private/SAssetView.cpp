@@ -1771,6 +1771,7 @@ void SAssetView::RefreshSourceItems()
 				if (NewItem)
 				{
 					NewItem->AppendItemData(InItemData);
+					NewItem->CacheCustomColumns(CustomColumns, true, true, false /*bUpdateExisting*/);
 				}
 				else
 				{
@@ -2944,7 +2945,7 @@ void SAssetView::OnPreviewAssets()
 void SAssetView::ClearSelection(bool bForceSilent)
 {
 	const bool bTempBulkSelectingValue = bForceSilent ? true : bBulkSelecting;
-	TGuardValue<bool>(bBulkSelecting, bTempBulkSelectingValue);
+	TGuardValue<bool> Guard(bBulkSelecting, bTempBulkSelectingValue);
 	switch ( GetCurrentViewType() )
 	{
 		case EAssetViewType::List: ListView->ClearSelection(); break;

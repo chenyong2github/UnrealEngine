@@ -270,11 +270,12 @@ namespace EpicGame
 			}
 		}		
 	}
-	
+
 	/// <summary>
-	/// Test that just boots the client and server and does nothing
+	/// Generic TestNode class for Epic Games internal projects.
 	/// </summary>
-	public abstract class EpicGameTestNode : UnrealTestNode<EpicGameTestConfig>
+	public abstract class EpicGameTestNode<TConfigClass> : UnrealTestNode<TConfigClass>
+		where TConfigClass : EpicGameTestConfig, new()
 	{
 		public EpicGameTestNode(UnrealTestContext InContext) : base(InContext)
 		{

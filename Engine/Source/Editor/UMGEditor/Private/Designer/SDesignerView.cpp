@@ -2680,17 +2680,22 @@ FReply SDesignerView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEve
 	return FReply::Unhandled();
 }
 
-void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent)
+void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent, UWidgetTree* RootWidgetTree)
 {
 	OutWidgets.Empty();
 	UWidgetBlueprint* Blueprint = GetBlueprint();
+
+	if (RootWidgetTree == nullptr)
+	{
+		return;
+	}
 
 	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
 	TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 
 	if (TemplateDragDropOp.IsValid())
 	{
-		UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+		UWidget* Widget = TemplateDragDropOp->Template->Create(RootWidgetTree);
 
 		if (Widget)
 		{
@@ -2714,7 +2719,7 @@ void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets
 				FString BlueprintPath = Blueprint->GetPathName();
 				if (BlueprintPath != AssetData.ObjectPath.ToString())
 				{
-					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(Blueprint->WidgetTree);
+					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(RootWidgetTree);
 
 					// Check to make sure that this widget can be added to the current blueprint
 					if ( Cast<UUserWidget>(Widget) != nullptr && !Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)) )
@@ -2725,7 +2730,7 @@ void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets
 			}
 			else if (FWidgetTemplateImageClass::Supports(AssetClass))
 			{
-				Widget = FWidgetTemplateImageClass(AssetData).Create(Blueprint->WidgetTree);
+				Widget = FWidgetTemplateImageClass(AssetData).Create(RootWidgetTree);
 			}
 
 			if (Widget)
@@ -2773,19 +2778,26 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 
 	ClearDropPreviews();
 
+	UWidgetBlueprint* BP = GetBlueprint();
+
 	UWidget* Target = nullptr;
+	UWidgetTree* TargetTree = nullptr;
 
 	FWidgetHitResult HitResult;
 	if ( FindWidgetUnderCursor(MyGeometry, DragDropEvent, UPanelWidget::StaticClass(), HitResult) )
 	{
 		Target = bIsPreview ? HitResult.Widget.GetPreview() : HitResult.Widget.GetTemplate();
+		TargetTree = (bIsPreview && Target) ? Cast<UWidgetTree>(Target->GetOuter()) : BP->WidgetTree;
+	}
+	else if (BP->WidgetTree->RootWidget == nullptr || !bIsPreview)
+	{
+		TargetTree = BP->WidgetTree;
 	}
 
 	FGeometry WidgetUnderCursorGeometry = HitResult.WidgetArranged.Geometry;
-	UWidgetBlueprint* BP = GetBlueprint();
 	
 	TArray<UWidget*> DragDropPreviewWidgets;
-	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent);
+	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent, TargetTree);
 
 	if ( DragDropPreviewWidgets.Num() > 0 )
 	{

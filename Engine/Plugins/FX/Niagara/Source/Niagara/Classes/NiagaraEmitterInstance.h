@@ -52,6 +52,8 @@ public:
 
 	void ResetSimulation(bool bKillExisting = true);
 
+	void OnPooledReuse();
+
 	void DirtyDataInterfaces();
 
 	/** Replaces the binding for a single parameter collection instance. If for example the component begins to override the global instance. */

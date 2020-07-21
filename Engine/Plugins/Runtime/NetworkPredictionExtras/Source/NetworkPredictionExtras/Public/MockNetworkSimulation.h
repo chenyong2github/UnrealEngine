@@ -14,13 +14,15 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
 
-#include "NetworkedSimulationModel.h"
+#include "NetworkPredictionReplicationProxy.h"
+#include "NetworkPredictionCues.h"
+#include "NetworkPredictionStateTypes.h"
+#include "NetworkPredictionSimulation.h"
+#include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionComponent.h"
+#include "Misc/StringBuilder.h"
 
 #include "MockNetworkSimulation.generated.h"
-
-class IMockNetworkSimulationDriver;
-class IMockDriver;
 
 // -------------------------------------------------------------------------------------------------------------------------------
 //	Mock Network Simulation
@@ -37,9 +39,9 @@ class IMockDriver;
 //		You can just add a UMockNetworkSimulationComponent to any ROLE_AutonomousProxy actor yourself (Default Subobject, through blueprints, manually, etc)
 //		The console command "mns.Spawn" can be used to dynamically spawn the component on every pawn. Must be run on the server or in single process PIE.
 //
-//	Once spawned, there are some useful console commands that can be used. These bind to number keys by default (toggleable via mns.BindAutomatically).
+//	Once spawned, there are some useful console commands that can be used. These bind to number keys by default (toggle-able via mns.BindAutomatically).
 //		[Five] "mns.DoLocalInput 1"			can be used to submit random local input into the accumulator. This is how you advance the simulation.
-//		[Six]  "mns.RequestMispredict 1"	can be used to force a mispredict (random value added to accumulator server side). Useful for tracing through the correction/resimulate code path.
+//		[Six]  "mns.RequestMispredict 1"	can be used to force a mis predict (random value added to accumulator server side). Useful for tracing through the correction/resimulate code path.
 //		[Nine] "nms.Debug.LocallyControlledPawn"	toggle debug hud for the locally controlled player.
 //		[Zero] "nms.Debug.ToggleContinous"			Toggles continuous vs snapshotted display of the debug hud
 //
@@ -63,17 +65,10 @@ struct FMockInputCmd
 	{
 		P.Ar << InputValue;
 	}
-
-	void Log(FStandardLoggingParameters& P) const
+	
+	void ToString(FAnsiStringBuilderBase& Out) const
 	{
-		if (P.Context == EStandardLoggingContext::Full)
-		{
-			P.Ar->Logf(TEXT("InputValue: %4f"), InputValue);
-		}
-		else
-		{
-			P.Ar->Logf(TEXT("%2f"), InputValue);
-		}
+		Out.Appendf("InputValue: %.4f\n", InputValue);
 	}
 };
 
@@ -87,26 +82,19 @@ struct FMockSyncState
 	}
 
 	// Compare this state with AuthorityState. return true if a reconcile (correction) should happen
-	bool ShouldReconcile(const FMockSyncState& AuthorityState)
+	bool ShouldReconcile(const FMockSyncState& AuthorityState) const
 	{
 		return FMath::Abs<float>(Total - AuthorityState.Total) > SMALL_NUMBER;
 	}
 
-	void Log(FStandardLoggingParameters& P) const
+	void ToString(FAnsiStringBuilderBase& Out) const
 	{
-		if (P.Context == EStandardLoggingContext::Full)
-		{
-			P.Ar->Logf(TEXT("Total: %4f"), Total);
-		}
-		else
-		{
-			P.Ar->Logf(TEXT("%2f"), Total);
-		}
+		Out.Appendf("Total: %.4f\n", Total);
 	}
 
-	static void Interpolate(const FMockSyncState& From, const FMockSyncState& To, const float PCT, FMockSyncState& OutDest)
+	void Interpolate(const FMockSyncState* From, const FMockSyncState* To, float PCT)
 	{
-		OutDest.Total = From.Total + ((To.Total - From.Total) * PCT);
+		Total = FMath::Lerp(From->Total, To->Total, PCT);
 	}
 };
 
@@ -120,16 +108,19 @@ struct FMockAuxState
 		P.Ar << Multiplier;
 	}
 
-	void Log(FStandardLoggingParameters& Params) const
+	bool ShouldReconcile(const FMockAuxState& Authority) const
 	{
-		if (Params.Context == EStandardLoggingContext::HeaderOnly)
-		{
-			Params.Ar->Logf(TEXT(" %d "), Params.Frame);
-		}
-		else if (Params.Context == EStandardLoggingContext::Full)
-		{
-			Params.Ar->Logf(TEXT("Multiplier: %f"), Multiplier);
-		}
+		return Multiplier != Authority.Multiplier;
+	}
+
+	void ToString(FAnsiStringBuilderBase& Out) const
+	{
+		Out.Appendf("Multiplier: %.4f\n", Multiplier);
+	}
+
+	void Interpolate(const FMockAuxState* From, const FMockAuxState* To, float PCT)
+	{
+		Multiplier = FMath::Lerp(From->Multiplier, To->Multiplier, PCT);
 	}
 };
 
@@ -162,7 +153,9 @@ struct FMockCueSet
 //	The Simulation
 // -------------------------------------------------------------------------------------------------------------------------------
 
-using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
+using TMockNetworkSimulationBufferTypes = TNetworkPredictionStateTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
+
+struct FNetSimTimeStep;
 
 class FMockNetworkSimulation
 {
@@ -173,38 +166,11 @@ public:
 };
 
 // -------------------------------------------------------------------------------------------------------------------------------
-//	Networked Simulation Model Def
-// -------------------------------------------------------------------------------------------------------------------------------
-
-class FMockNetworkModelDef : public FNetSimModelDefBase
-{
-public:
-
-	using Simulation = FMockNetworkSimulation;
-	using BufferTypes = TMockNetworkSimulationBufferTypes;
-
-	/** Tick group the simulation maps to */
-	static const FName GroupName;
-
-	/** Predicted error testing */
-	static bool ShouldReconcile(const FMockSyncState& AuthoritySync, const FMockAuxState& AuthorityAux, const FMockSyncState& PredictedSync, const FMockAuxState& PredictedAux)
-	{
-		return FMath::Abs<float>(AuthoritySync.Total - PredictedSync.Total) > SMALL_NUMBER;
-	}
-
-	static void Interpolate(const TInterpolatorParameters<FMockSyncState, FMockAuxState>& Params)
-	{
-		Params.Out.Sync.Total = Params.From.Sync.Total + ((Params.To.Sync.Total - Params.From.Sync.Total) * Params.InterpolationPCT);
-		Params.Out.Aux = Params.To.Aux;
-	}
-};
-
-// -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running a MockNetworkSimulation (implements Driver for the mock simulation)
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent, public TNetworkedSimulationModelDriver<TMockNetworkSimulationBufferTypes>
+class NETWORKPREDICTIONEXTRAS_API UMockNetworkSimulationComponent : public UNetworkPredictionComponent
 {
 	GENERATED_BODY()
 
@@ -213,22 +179,25 @@ public:
 	UMockNetworkSimulationComponent();
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	
-	virtual INetworkedSimulationModel* InstantiateNetworkedSimulation() override;
+
+	virtual void InitializeNetworkPredictionProxy() override;
+
+	// Seed initial values based on component's state
+	void InitializeSimulationState(FMockSyncState* Sync, FMockAuxState* Aux);
+
+	// Set latest input
+	void ProduceInput(const int32 DeltaTimeMS, FMockInputCmd* Cmd);
+
+	// Take output of Sim and push to component
+	void FinalizeFrame(const FMockSyncState* Sync, const FMockAuxState* Aux);
 	
 public:
-
-	FString GetDebugName() const override;
-	AActor* GetVLogOwner() const override;
-	void VisualLog(const FMockInputCmd* Input, const FMockSyncState* Sync, const FMockAuxState* Aux, const FVisualLoggingParameters& SystemParameters) const override;
 	
-	void ProduceInput(const FNetworkSimTime SimTime, FMockInputCmd& Cmd);
-	void FinalizeFrame(const FMockSyncState& SyncState, const FMockAuxState& AuxState) override;
-
 	void HandleCue(const FMockCue& MockCue, const FNetSimCueSystemParamemters& SystemParameters);
 
 	// Mock representation of "syncing' to the sync state in the network sim.
 	float MockValue = 1000.f;
 
-	FMockNetworkSimulation* MockNetworkSimulation = nullptr;
+	// Our own simulation object. This could just as easily be shared among all UMockNetworkSimulationComponent
+	TUniquePtr<FMockNetworkSimulation> MockNetworkSimulation;
 };

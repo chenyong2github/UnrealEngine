@@ -3428,6 +3428,12 @@ TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadin
 	return nullptr;
 }
 
+bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	return SceneContext.IsShadingPathValid();
+}
+
 template <typename TRHICmdList>
 TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
 	TRHICmdList& RHICmdList,

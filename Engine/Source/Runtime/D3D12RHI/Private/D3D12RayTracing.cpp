@@ -404,8 +404,8 @@ public:
 		}
 		else
 		{
-			LocalRootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_0;
-			LocalRootSignatureDesc.Desc_1_0.Flags |= D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+		LocalRootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_0;
+		LocalRootSignatureDesc.Desc_1_0.Flags |= D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
 		}
 		
 		DefaultLocalRootSignature.Init(LocalRootSignatureDesc);
@@ -3477,8 +3477,14 @@ static bool SetRayTracingShaderResources(
 					const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 					const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
 
-					FD3D12TextureBase* TextureBase = FD3D12CommandContext::RetrieveTextureBase((FRHITexture*)Resources[ResourceIndex].GetReference(), GPUIndex);
-					FD3D12ShaderResourceView* SRV = TextureBase->GetShaderResourceView();
+					FRHITexture* RHITexture = (FRHITexture*)Resources[ResourceIndex].GetReference();
+
+					checkf(RHITexture != nullptr, TEXT("Missing required texture binding for slot %d in uniform buffer %d (UB layout name: '%s')"),
+						BindIndex, BufferIndex, *(Buffer->GetLayout().GetDebugName()));
+
+					FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveTextureBase(RHITexture, GPUIndex)->GetShaderResourceView();
+					check(SRV != nullptr);
+
 					LocalSRVs[BindIndex] = SRV->GetView();
 					BoundSRVMask |= 1ull << BindIndex;
 
@@ -3506,7 +3512,14 @@ static bool SetRayTracingShaderResources(
 					const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 					const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
 
-					FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>((FRHIShaderResourceView*)(Resources[ResourceIndex].GetReference()), GPUIndex);
+					FRHIShaderResourceView* RHISRV = (FRHIShaderResourceView*)Resources[ResourceIndex].GetReference();
+
+					checkf(RHISRV != nullptr, TEXT("Missing required shader resource view binding for slot %d in uniform buffer %d (UB layout name: '%s')"),
+						BindIndex, BufferIndex, *(Buffer->GetLayout().GetDebugName()));
+
+					FD3D12ShaderResourceView* SRV = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(RHISRV, GPUIndex);
+					check(SRV != nullptr);
+
 					LocalSRVs[BindIndex] = SRV->GetView();
 					BoundSRVMask |= 1ull << BindIndex;
 
@@ -3534,7 +3547,14 @@ static bool SetRayTracingShaderResources(
 					const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 					const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
 
-					FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>((FRHIUnorderedAccessView*)(Resources[ResourceIndex].GetReference()), GPUIndex);
+					FRHIUnorderedAccessView* RHIUAV = (FRHIUnorderedAccessView*)Resources[ResourceIndex].GetReference();
+
+					checkf(RHIUAV != nullptr, TEXT("Missing required unordered access view binding for slot %d in uniform buffer %d (UB layout name: '%s')"),
+						BindIndex, BufferIndex, *(Buffer->GetLayout().GetDebugName()));
+
+					FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(RHIUAV, GPUIndex);
+					check(UAV != nullptr);
+
 					LocalUAVs[BindIndex] = UAV->GetView();
 					BoundUAVMask |= 1ull << BindIndex;
 
@@ -3562,7 +3582,14 @@ static bool SetRayTracingShaderResources(
 					const uint16 ResourceIndex = FRHIResourceTableEntry::GetResourceIndex(ResourceInfo);
 					const uint8 BindIndex = FRHIResourceTableEntry::GetBindIndex(ResourceInfo);
 
-					FD3D12SamplerState* Sampler = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>((FRHISamplerState*)(Resources[ResourceIndex].GetReference()), GPUIndex);
+					FRHISamplerState* RHISampler = (FRHISamplerState*)Resources[ResourceIndex].GetReference();
+
+					checkf(RHISampler != nullptr, TEXT("Missing required sampler binding for slot %d in uniform buffer %d (UB layout name: '%s')"),
+						BindIndex, BufferIndex, *(Buffer->GetLayout().GetDebugName()));
+
+					FD3D12SamplerState* Sampler = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(RHISampler, GPUIndex);
+					check(Sampler != nullptr);
+
 					LocalSamplers[BindIndex] = Sampler->Descriptor;
 					BoundSamplerMask |= 1ull << BindIndex;
 

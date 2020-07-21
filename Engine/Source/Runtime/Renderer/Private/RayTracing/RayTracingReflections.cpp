@@ -30,7 +30,8 @@ static FAutoConsoleVariableRef CVarReflectionsMethod(
 	GRayTracingReflections,
 	TEXT("-1: Value driven by postprocess volume (default) \n")
 	TEXT("0: use traditional rasterized SSR\n")
-	TEXT("1: use ray traced reflections\n")
+	TEXT("1: use ray traced reflections\n"),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarReflectionScreenPercentage(
@@ -43,35 +44,40 @@ static int32 GRayTracingReflectionsSamplesPerPixel = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsSamplesPerPixel(
 	TEXT("r.RayTracing.Reflections.SamplesPerPixel"),
 	GRayTracingReflectionsSamplesPerPixel,
-	TEXT("Sets the samples-per-pixel for reflections (default = -1 (driven by postprocesing volume))")
+	TEXT("Sets the samples-per-pixel for reflections (default = -1 (driven by postprocesing volume))"),
+	ECVF_RenderThreadSafe
 );
 
 static float GRayTracingReflectionsMaxRoughness = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsMaxRoughness(
 	TEXT("r.RayTracing.Reflections.MaxRoughness"),
 	GRayTracingReflectionsMaxRoughness,
-	TEXT("Sets the maximum roughness until which ray tracing reflections will be visible (default = -1 (max roughness driven by postprocessing volume))")
+	TEXT("Sets the maximum roughness until which ray tracing reflections will be visible (default = -1 (max roughness driven by postprocessing volume))"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsMaxBounces = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsMaxBounces(
 	TEXT("r.RayTracing.Reflections.MaxBounces"),
 	GRayTracingReflectionsMaxBounces,
-	TEXT("Sets the maximum number of ray tracing reflection bounces (default = -1 (max bounces driven by postprocessing volume))")
+	TEXT("Sets the maximum number of ray tracing reflection bounces (default = -1 (max bounces driven by postprocessing volume))"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsEmissiveAndIndirectLighting = 1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsEmissiveAndIndirectLighting(
 	TEXT("r.RayTracing.Reflections.EmissiveAndIndirectLighting"),
 	GRayTracingReflectionsEmissiveAndIndirectLighting,
-	TEXT("Enables ray tracing reflections emissive and indirect lighting (default = 1)")
+	TEXT("Enables ray tracing reflections emissive and indirect lighting (default = 1)"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsDirectLighting = 1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsDirectLighting(
 	TEXT("r.RayTracing.Reflections.DirectLighting"),
 	GRayTracingReflectionsDirectLighting,
-	TEXT("Enables ray tracing reflections direct lighting (default = 1)")
+	TEXT("Enables ray tracing reflections direct lighting (default = 1)"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsShadows = -1;
@@ -82,7 +88,8 @@ static FAutoConsoleVariableRef CVarRayTracingReflectionsShadows(
 	TEXT(" -1: Shadows driven by postprocessing volume (default)")
 	TEXT(" 0: Shadows disabled ")
 	TEXT(" 1: Hard shadows")
-	TEXT(" 2: Soft area shadows")
+	TEXT(" 2: Soft area shadows"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsTranslucency = -1;
@@ -92,35 +99,40 @@ static FAutoConsoleVariableRef CVarRayTracingReflectionsTranslucency(
 	TEXT("Translucent objects visible in ray tracing reflections)")
 	TEXT(" -1: Driven by postprocessing volume (default)")
 	TEXT(" 0: Translucent objects not visible")
-	TEXT(" 1: Translucent objects visible")
+	TEXT(" 1: Translucent objects visible"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsCaptures = 0;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsCaptures(
 	TEXT("r.RayTracing.Reflections.ReflectionCaptures"),
 	GRayTracingReflectionsCaptures,
-	TEXT("Enables ray tracing reflections to use reflection captures as the last bounce reflection. Particularly usefull for metals in reflection. (default = 0)")
+	TEXT("Enables ray tracing reflections to use reflection captures as the last bounce reflection. Particularly usefull for metals in reflection. (default = 0)"),
+	ECVF_RenderThreadSafe
 );
 
 static float GRayTracingReflectionsMinRayDistance = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsMinRayDistance(
 	TEXT("r.RayTracing.Reflections.MinRayDistance"),
 	GRayTracingReflectionsMinRayDistance,
-	TEXT("Sets the minimum ray distance for ray traced reflection rays. Actual reflection ray length is computed as Lerp(MaxRayDistance, MinRayDistance, Roughness), i.e. reflection rays become shorter when traced from rougher surfaces. (default = -1 (infinite rays))")
+	TEXT("Sets the minimum ray distance for ray traced reflection rays. Actual reflection ray length is computed as Lerp(MaxRayDistance, MinRayDistance, Roughness), i.e. reflection rays become shorter when traced from rougher surfaces. (default = -1 (infinite rays))"),
+	ECVF_RenderThreadSafe
 );
 
 static float GRayTracingReflectionsMaxRayDistance = -1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsMaxRayDistance(
 	TEXT("r.RayTracing.Reflections.MaxRayDistance"),
 	GRayTracingReflectionsMaxRayDistance,
-	TEXT("Sets the maximum ray distance for ray traced reflection rays. When ray shortening is used, skybox will not be sampled in RT reflection pass and will be composited later, together with local reflection captures. Negative values turn off this optimization. (default = -1 (infinite rays))")
+	TEXT("Sets the maximum ray distance for ray traced reflection rays. When ray shortening is used, skybox will not be sampled in RT reflection pass and will be composited later, together with local reflection captures. Negative values turn off this optimization. (default = -1 (infinite rays))"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingReflectionsHeightFog = 1;
 static FAutoConsoleVariableRef CVarRayTracingReflectionsHeightFog(
 	TEXT("r.RayTracing.Reflections.HeightFog"),
 	GRayTracingReflectionsHeightFog,
-	TEXT("Enables height fog in ray traced reflections (default = 1)")
+	TEXT("Enables height fog in ray traced reflections (default = 1)"),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingReflectionsSortMaterials(

@@ -40,6 +40,12 @@ class FPerSolverFieldSystem;
 
 extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
 
+namespace ChaosTest
+{
+	template <typename TSolver>
+	void AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
+}
+
 /**
 *
 */
@@ -229,6 +235,11 @@ namespace Chaos
 		bool HasActiveParticles() const { return !!GetNumPhysicsProxies(); }
 		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
+
+		//Make friend with unit test code so we can verify some behavior
+		template <typename TSolver>
+		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
+
 		/**/
 		void Reset();
 
@@ -394,7 +405,7 @@ namespace Chaos
 
 		/**/
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
-		virtual void PushPhysicsState() override;
+		virtual void PushPhysicsState(const FReal DeltaTime) override;
 
 		//
 		// Solver Data
@@ -451,8 +462,6 @@ namespace Chaos
 		THandleArray<FChaosPhysicsMaterialMask> QueryMaterialMasks;
 		THandleArray<FChaosPhysicsMaterial> SimMaterials;
 		THandleArray<FChaosPhysicsMaterialMask> SimMaterialMasks;
-
-		TUniquePtr<IBufferResource<FDirtyPropertiesManager>> DirtyPropertiesManager;
 	public:
 
 		template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>

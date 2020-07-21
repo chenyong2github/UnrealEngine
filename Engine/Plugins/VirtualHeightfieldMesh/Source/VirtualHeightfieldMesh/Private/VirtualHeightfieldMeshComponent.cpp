@@ -2,6 +2,7 @@
 
 #include "VirtualHeightfieldMeshComponent.h"
 
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "Engine/World.h"
 #include "VirtualHeightfieldMeshSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
@@ -17,12 +18,24 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 	Mobility = EComponentMobility::Static;
 }
 
+URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = Cast<URuntimeVirtualTextureComponent>(VirtualTexture.GetComponent(GetOwner()));
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
+}
+
+UTexture2D* UVirtualHeightfieldMeshComponent::GetMinMaxTexture() const
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = Cast<URuntimeVirtualTextureComponent>(VirtualTexture.GetComponent(GetOwner()));
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetMinMaxTexture() : nullptr;
+}
+
 bool UVirtualHeightfieldMeshComponent::IsVisible() const
 {
 	return
 		Super::IsVisible() &&
-		RuntimeVirtualTexture != nullptr &&
-		RuntimeVirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight &&
+		GetVirtualTexture() != nullptr &&
+		GetVirtualTexture()->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight &&
 		UseVirtualTexturing(GetScene() ? GetScene()->GetFeatureLevel() : ERHIFeatureLevel::SM5);
 }
 
@@ -50,9 +63,9 @@ void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEv
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	static FName MinMaxTextureName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, MinMaxTexture);
+	static FName VirtualTextureName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, VirtualTexture);
 	static FName NumOcclusionLodsName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, NumOcclusionLods);
-	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetFName() == MinMaxTextureName || PropertyChangedEvent.Property->GetFName() == NumOcclusionLodsName))
+	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetFName() == VirtualTextureName || PropertyChangedEvent.Property->GetFName() == NumOcclusionLodsName))
 	{
 		BuildOcclusionData();
 	}
@@ -63,6 +76,7 @@ void UVirtualHeightfieldMeshComponent::BuildOcclusionData()
 	NumBuiltOcclusionLods = 0;
 	BuiltOcclusionData.Reset();
 	
+	UTexture2D* MinMaxTexture = GetMinMaxTexture();
 	if (MinMaxTexture != nullptr && NumOcclusionLods > 0)
 	{
 		if (MinMaxTexture->Source.IsValid() && MinMaxTexture->Source.GetFormat() == TSF_BGRA8)

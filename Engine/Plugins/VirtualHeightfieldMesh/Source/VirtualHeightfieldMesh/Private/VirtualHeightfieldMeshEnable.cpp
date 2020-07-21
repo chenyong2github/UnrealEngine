@@ -34,9 +34,9 @@ namespace VirtualHeightfieldMesh
 			{
 				It->SetRenderInMainPass(bEnable);
 
-				if (It->RuntimeVirtualTexture != nullptr)
+				if (It->GetVirtualTexture() != nullptr)
 				{
-					RuntimeVirtualTextures.AddUnique(It->RuntimeVirtualTexture);
+					RuntimeVirtualTextures.AddUnique(It->GetVirtualTexture());
 				}
 			}
 

@@ -6,6 +6,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 static float GNiagaraSystemPoolKillUnusedTime = 180.0f;
 static FAutoConsoleVariableRef NiagaraSystemPoolKillUnusedTime(
@@ -33,6 +34,13 @@ static FAutoConsoleVariableRef NiagaraSystemPoolingCleanTime(
 	TEXT("FX.NiagaraComponentPool.CleanTime"),
 	GNiagaraSystemPoolingCleanTime,
 	TEXT("How often should the pool be cleaned (in seconds).")
+);
+
+static int32 GNiagaraKeepPooledComponentsRegistered = 1;
+static FAutoConsoleVariableRef NiagaraKeepPooledComponentsRegistered(
+	TEXT("FX.NiagaraComponentPool.KeepComponentsRegistered"),
+	GNiagaraKeepPooledComponentsRegistered,
+	TEXT("If non-zero, components returend to the pool are kept registered with the world but set invisible. This will reduce the cost of pushing/popping components int.")
 );
 
 void DumpPooledWorldNiagaraNiagaraSystemInfo(UWorld* World)
@@ -93,13 +101,13 @@ void FNCPool::Cleanup()
 	InUseComponents_Manual.Empty();
 }
 
-UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod)
+UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew)
 {
 	check(GbEnableNiagaraSystemPooling);
 	check(PoolingMethod != ENCPoolMethod::None);
 
 	FNCPoolElement RetElem;
-	while (FreeElements.Num())//Loop until we pop a valid free element or we're empty.
+	while (FreeElements.Num() && !bForceNew)//Loop until we pop a valid free element or we're empty.
 	{
 		RetElem = FreeElements.Pop(false);
 		if (RetElem.Component == nullptr || RetElem.Component->IsPendingKill())
@@ -111,16 +119,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 		else
 		{
 			check(RetElem.Component->GetAsset() == Template);
-			check(!RetElem.Component->IsPendingKill());
-			RetElem.Component->SetUserParametersToDefaultValues();
-
-			if (RetElem.Component->GetWorld() != World)
-			{
-				// Rename the NC to move it into the current PersistentLevel - it may have been spawned in one
-				// level but is now needed in another level.
-				// Use the REN_ForceNoResetLoaders flag to prevent the rename from potentially calling FlushAsyncLoading.
-				RetElem.Component->Rename(nullptr, World, REN_ForceNoResetLoaders);
-			}
+			RetElem.Component->OnPooledReuse(World);
 			break;
 		}
 	}
@@ -188,8 +187,17 @@ void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSecon
 		Component->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform); // When detaching, maintain world position for optimization purposes
 		Component->SetRelativeScale3D(FVector(1.f)); // Reset scale to avoid future uses of this NC having incorrect scale
 		Component->SetAbsolute(); // Clear out Absolute settings to defaults
-		Component->UnregisterComponent();
 		Component->SetCastShadow(false);
+
+		if(GNiagaraKeepPooledComponentsRegistered)
+		{	
+			//Keep components registered to avoid register/unregister cost.
+			Component->SetVisibility(false);		
+		}
+		else
+		{
+			Component->UnregisterComponent();
+		}
 
 		//TODO: reset the delegates here once they are working
 		
@@ -229,10 +237,13 @@ bool FNCPool::RemoveComponent(UNiagaraComponent* Component)
 	return false;
 }
 
+extern int32 GNigaraAllowPrimedPools;
 void FNCPool::KillUnusedComponents(float KillTime, UNiagaraSystem* Template)
 {
 	int32 i = 0;
-	while (i < FreeElements.Num())
+	check(Template);
+	int32 PrimedSize = GNigaraAllowPrimedPools != 0 ? Template->PoolPrimeSize : 0;
+	while (i < FreeElements.Num() && FreeElements.Num() > PrimedSize)//Don't free below the primed size
 	{
 		if (FreeElements[i].LastUsedTime < KillTime)
 		{
@@ -313,6 +324,80 @@ void UNiagaraComponentPool::Cleanup()
 	}
 
 	WorldParticleSystemPools.Empty();
+}
+
+void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
+{
+	check(IsInGameThread());
+	check(World);
+
+	if (!Template)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Attempted UNiagaraComponentPool::PrimePool() with a NULL Template!"));
+		return;
+	}
+
+	if (World->bIsTearingDown)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to prime particle pool as we are tearing the world down."));
+		return;
+	}
+
+	if (World->Scene == nullptr)
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a scene."));
+		return;
+	}	
+	
+	FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem();
+	if (FXSystemInterface)
+	{
+		if (FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name) == nullptr)
+		{
+			UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a NiagaraEmitterInstanceBatcher."));
+			return;
+		}
+	}
+	else
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have an FFXSystem."));
+		return;
+	}
+
+	if (!World->IsGameWorld())
+	{
+		return;
+	}
+
+	FNiagaraCrashReporterScope CRScope(Template);
+
+	uint32 Count = FMath::Min(Template->PoolPrimeSize, Template->MaxPoolSize);
+
+	if(Count > 0)
+	{
+		FNCPool& Pool = WorldParticleSystemPools.FindOrAdd(Template);
+
+		uint32 ExistingComponents = Pool.NumComponents();
+		if (ExistingComponents < Count)
+		{
+			TArray<UNiagaraComponent*> NewComps;
+			NewComps.SetNum(Count - ExistingComponents);
+			for (auto& Comp : NewComps)
+			{
+				Comp = Pool.Acquire(World, Template, ENCPoolMethod::ManualRelease, true);//Force the pool to create a new system.
+				Comp->InitializeSystem();
+	
+				if(GNiagaraKeepPooledComponentsRegistered)
+				{
+					Comp->RegisterComponentWithWorld(World);
+				}
+			}
+			for (auto& Comp : NewComps)
+			{
+				Comp->ReleaseToPool();
+			}
+		}
+	}
 }
 
 UNiagaraComponent* UNiagaraComponentPool::CreateWorldParticleSystem(UNiagaraSystem* Template, UWorld* World, ENCPoolMethod PoolingMethod)

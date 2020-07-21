@@ -52,6 +52,7 @@
 #include "EditorViewportCommands.h"
 #include "IPlacementModeModule.h"
 #include "Classes/EditorStyleSettings.h"
+#include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -895,6 +896,16 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 				WorldSettingsView.ToSharedRef()
 			];
 	}
+	else if( TabIdentifier == LevelEditorTabIds::LevelEditorEnvironmentLightingViewer)
+	{
+		FEnvironmentLightingViewerModule& EnvironmentLightingViewerModule = FModuleManager::Get().LoadModuleChecked<FEnvironmentLightingViewerModule>( "EnvironmentLightingViewer" );
+		return SNew(SDockTab)
+			.Icon(FEditorStyle::GetBrush("EditorViewport.ReflectionOverrideMode"))
+			.Label(NSLOCTEXT("LevelEditor", "EnvironmentLightingViewerTitle", "Env. Light Mixer"))
+			[
+				EnvironmentLightingViewerModule.CreateEnvironmentLightingViewer()
+			];
+	}
 	
 	return SNew(SDockTab);
 }
@@ -1275,6 +1286,15 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				.SetIcon( WorldPropertiesIcon );
 		}
 
+		{
+			const FSlateIcon EnvironmentLightingViewerIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.ReflectionOverrideMode");
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorEnvironmentLightingViewer, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorEnvironmentLightingViewer, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "EnvironmentLightingViewer", "Env. Light Mixer"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorEnvironmentLightingViewerTooltipText", "Open the Environmment Lighting tab to edit all the entities important for world lighting."))
+				.SetGroup(MenuStructure.GetLevelEditorCategory())
+				.SetIcon(EnvironmentLightingViewerIcon);
+		}
+
 		FTabSpawnerEntry& BuildAndSubmitEntry = LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorBuildAndSubmit, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorBuildAndSubmit, FString()));
 		BuildAndSubmitEntry.SetAutoGenerateMenuEntry(false);
 
@@ -1379,7 +1399,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				)
 			)
 		);
-	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
+	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
+	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr);
 
 	FLayoutExtender LayoutExtender;
 
@@ -1387,7 +1408,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	Layout->ProcessExtensions(LayoutExtender);
 
 	const bool bEmbedTitleAreaContent = false;
-	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
 	TSharedPtr<SWidget> ContentAreaWidget = LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 	// ContentAreaWidget will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
 	if (!ContentAreaWidget.IsValid())

@@ -179,7 +179,7 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	SetCurrentMode(PhysicsAssetEditorModes::PhysicsAssetEditorMode);
 
 	// Force disable simulation as InitArticulated can be called during viewport creation
-	SharedData->ForceDisableSimulation();
+	SharedData->EnableSimulation(false);
 
 	GetAssetEditorModeManager()->SetDefaultMode(FPhysicsAssetEditorEditMode::ModeName);
 	GetAssetEditorModeManager()->ActivateMode(FPersonaEditModes::SkeletonSelection);
@@ -3233,7 +3233,7 @@ void FPhysicsAssetEditor::RecreatePhysicsState()
 	SharedData->EditorSkelComp->RecreateClothingActors();
 
 	// Reset simulation state of body instances so we dont actually simulate outside of 'simulation mode'
-	SharedData->ForceDisableSimulation();
+	SharedData->EnableSimulation(false);
 }
 
 TSharedRef<SWidget> FPhysicsAssetEditor::MakeConstraintScaleWidget()

@@ -14,33 +14,33 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	GENERATED_UCLASS_BODY()
 
 	/** Parameter 'g' input to the phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Parameter 'g' input to the phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. Defaults to ConstPhaseG from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Parameter 'g' input to the phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. Defaults to ConstPhaseG from properties panel if not specified. Evaluated per sample if EvaluatePhaseOncePerSample is true."))
 	FExpressionInput PhaseG;
 	
 	/** Parameter 'g' input to the second phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Parameter 'g' input to the second phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. Defaults to ConstPhaseG2 from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Parameter 'g' input to the second phase function  describing how much forward(g<0) or backward (g>0) light scatter around. Valid range is [-1,1]. Defaults to ConstPhaseG2 from properties panel if not specified. Evaluated per sample if EvaluatePhaseOncePerSample is true."))
 	FExpressionInput PhaseG2;
 	
 	/** Lerp factor when blending the two phase functions parameterized by G and G2. Valid range is [0,1]. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Lerp factor when blending the two phase functions parameterized by G and G2. Valid range is [0,1] Defaults to ConstPhaseBlend from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Lerp factor when blending the two phase functions parameterized by G and G2. Valid range is [0,1] Defaults to ConstPhaseBlend from properties panel if not specified. Evaluated per sample if EvaluatePhaseOncePerSample is true."))
 	FExpressionInput PhaseBlend;
 	
 
 	/** Multi-scattering approximation: represents how much contribution each successive octave will add. Valid range is [0,1], from low to high contribution. Defaults to ConstMultiScatteringContribution from properties panel if not specified. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much contribution each successive octave will add. Evaluated per pixel. Valid range is [0,1], from low to high contribution. Defaults to ConstMultiScatteringContribution from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much contribution each successive octave will add. Evaluated per pixel. Valid range is [0,1], from low to high contribution. Defaults to ConstMultiScatteringContribution from properties panel if not specified. Evaluated per pixel (globally)."))
 	FExpressionInput MultiScatteringContribution;
 	
 	/** Multi-scattering approximation: represents how much occlusion will be reduced for each successive octave. Valid range is [0,1], from low to high occlusion. Defaults to ConstMultiScatteringOcclusion from properties panel if not specified. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much occlusion will be reduced for each successive octave. Evaluated per pixel. Valid range is [0,1], from low to high occlusion. Defaults to ConstMultiScatteringOcclusion from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much occlusion will be reduced for each successive octave. Evaluated per pixel. Valid range is [0,1], from low to high occlusion. Defaults to ConstMultiScatteringOcclusion from properties panel if not specified. Evaluated per pixel (globally)."))
 	FExpressionInput MultiScatteringOcclusion;
 	
 	/** Multi-scattering approximation: represents how much the phase will become isotropic for each successive octave. Valid range is [0,1], from anisotropic to isotropic phase. Defaults to ConstMultiScatteringEccentricity from properties panel if not specified. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much the phase will become isotropic for each successive octave. Evaluated per pixel. Valid range is [0,1], from anisotropic to isotropic phase. Defaults to ConstMultiScatteringEccentricity from properties panel if not specified."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "Multi-scattering approximation: represents how much the phase will become isotropic for each successive octave. Evaluated per pixel. Valid range is [0,1], from anisotropic to isotropic phase. Defaults to ConstMultiScatteringEccentricity from properties panel if not specified. Evaluated per pixel (globally)."))
 	FExpressionInput MultiScatteringEccentricity;
 
 
 	/** Specify here a density conservative around the medium shape. Used to accelerate the ray marching by skipping expensive material evaluation. Density will be multiplied with extinction. A simple top down 2D density texture would be enough to help here. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "A conservative density specifying where participating media material will show up. Used to accelerate the ray marching by skipping the remaining expenssive albedo and extinction evaluation. It is then available to use on the VolumetricAdvancedMaterialInput node. A simple top down 2D density texture would be enough to help here."))
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "A conservative density specifying where participating media material will show up. Used to accelerate the ray marching by skipping the remaining expenssive albedo and extinction evaluation. It is then available to use on the VolumetricAdvancedMaterialInput node. A simple top down 2D density texture would be enough to help here. Evaluated per sample."))
 	FExpressionInput ConservativeDensity;
 
 
@@ -56,9 +56,9 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	UPROPERTY(EditAnywhere, Category = "Phase", meta = (OverridingInputProperty = "PhaseBlend", UIMin = 0.0f, UIMax = 1.0f, ClampMin = -0.999f, ClampMax = 0.999f))
 	float ConstPhaseBlend;
 
-	/** Set this to true to force the phase function to not be evaluated per sample, but instead only once per pixel. */
+	/** Set this to true to force the phase function to be evaluated per sample, instead once per pixel (globally). Per sample evaluation is slower. */
 	UPROPERTY(EditAnywhere, Category = "Phase")
-	bool EvaluatePhaseOncePerPixel;
+	bool PerSamplePhaseEvaluation;
 
 	/** How many octave to use for the multiple-scattering approximation. This makes the shader more expensive so try to only a single octave. 0 means single scattering only. */
 	UPROPERTY(EditAnywhere, Category = "Multi-Scattering", meta = (UIMin = 0, UIMax = 2, ClampMin = 0, ClampMax = 2))
@@ -80,6 +80,10 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	UPROPERTY(EditAnywhere, Category = "Options")
 	bool bGroundContribution;
 
+	/** Set this for the material to only be considered grey scale, only using the R chanel of the input parameters internally. The lighting will still be colored. This is an optimisation.*/
+	UPROPERTY(EditAnywhere, Category = "Options")
+	bool bGrayScaleMaterial;
+
 public:
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface
@@ -87,7 +91,7 @@ public:
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	//~ End UMaterialExpression Interface
 
-	bool GetEvaluatePhaseOncePerPixel() const;
+	bool GetEvaluatePhaseOncePerSample() const;
 	uint32 GetMultiScatteringApproximationOctaveCount() const;
 
 #endif

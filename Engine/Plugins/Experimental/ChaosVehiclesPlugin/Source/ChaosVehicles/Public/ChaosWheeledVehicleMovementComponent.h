@@ -23,7 +23,7 @@ struct FWheeledVehicleDebugParams
 
 	bool DisableSuspensionForces = false;
 	bool DisableFrictionForces = false;
-	bool DisableRollbarForces = true;
+	bool DisableRollbarForces = false;
 	bool ApplyWheelForcetoSurface = true;
 
 	float ThrottleOverride = 0.f;
@@ -49,7 +49,6 @@ enum EDebugPages : uint8
 	MaxDebugPages	// keep as last value
 };
 
-// #todo: none of these are implemented yet - probably closest to Open configuration right now
 UENUM()
 enum class EVehicleDifferential : uint8
 {
@@ -58,7 +57,6 @@ enum class EVehicleDifferential : uint8
 	RearWheelDrive,
 };
 
-// #todo: implement this or something like it
 USTRUCT()
 struct FVehicleDifferentialConfig
 {
@@ -166,8 +164,10 @@ private:
 		float NumSamples = 20;
 		for (float X = 0; X <= this->MaxRPM; X+= (this->MaxRPM / NumSamples))
 		{ 
-			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / this->MaxTorque;
-			PEngineConfig.TorqueCurve.Add(Y);
+			float MinVal = 0.f, MaxVal = 0.f;
+			this->TorqueCurve.GetRichCurveConst()->GetValueRange(MinVal, MaxVal);
+			float Y = this->TorqueCurve.GetRichCurveConst()->Eval(X) / MaxVal;
+			PEngineConfig.TorqueCurve.AddNormalized(Y);
 		}
 		PEngineConfig.MaxTorque = this->MaxTorque;
 		PEngineConfig.MaxRPM = this->MaxRPM;
@@ -185,6 +185,8 @@ USTRUCT()
 struct FVehicleTransmissionConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	friend class UChaosVehicleWheel;
 
 	/** Whether to use automatic transmission */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta=(DisplayName = "Automatic Transmission"))
@@ -283,14 +285,36 @@ private:
 
 };
 
+/** Single angle : both wheels steer by the same amount
+ *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio
+ *  Ackermann	 : Ackermann steering principle is applied */
+UENUM()
+enum class ESteeringType : uint8
+{
+	SingleAngle,
+	AngleRatio,
+	Ackermann,
+};
+
 USTRUCT()
 struct FVehicleSteeringConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Maximum steering versus forward speed (km/h) */
-	//UPROPERTY(EditAnywhere, Category = SteeringSetup)
-	//FRuntimeFloatCurve SteeringCurve;
+	/** Single angle : both wheels steer by the same amount
+	 *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio 
+	 *  Ackermann	 : Ackermann steering principle is applied */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	ESteeringType SteeringType;
+
+	/** Only applies when AngleRatio is selected */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	float AngleRatio; 
+
+	/** Maximum steering versus forward speed (MPH) */
+	UPROPERTY(EditAnywhere, Category = SteeringSetup)
+	FRuntimeFloatCurve SteeringCurve;
+
 
 	const Chaos::FSimpleSteeringConfig& GetPhysicsSteeringConfig(FVector2D WheelTrackDimensions)
 	{
@@ -300,17 +324,38 @@ struct FVehicleSteeringConfig
 
 	void InitDefaults()
 	{
-		// #todo: need to implement a Max steering Angle vs vehicle speed curve.
-		//SteeringCurve
+		SteeringType = ESteeringType::AngleRatio;
+		AngleRatio = 0.7f;
+
+		// Init steering speed curve
+		FRichCurve* SteeringCurveData = SteeringCurve.GetRichCurve();
+		SteeringCurveData->AddKey(0.f, 1.f);
+		SteeringCurveData->AddKey(20.f, 0.8f);
+		SteeringCurveData->AddKey(60.f, 0.4f);
+		SteeringCurveData->AddKey(120.f, 0.3f);
 	}
 
 private:
 
 	void FillSteeringSetup(FVector2D WheelTrackDimensions)
 	{
+
+		PSteeringConfig.SteeringType = (ESteerType)this->SteeringType;
+		PSteeringConfig.AngleRatio = AngleRatio;
+
+		float MinValue = 0.f, MaxValue = 1.f;
+		this->SteeringCurve.GetRichCurveConst()->GetValueRange(MinValue, MaxValue);
+		float MaxX = this->SteeringCurve.GetRichCurveConst()->GetLastKey().Time;
+		PSteeringConfig.SpeedVsSteeringCurve.Empty();
+		float NumSamples = 20;
+		for (float X = 0; X <= MaxX; X += (MaxX / NumSamples))
+		{
+			float Y = this->SteeringCurve.GetRichCurveConst()->Eval(X) / MaxValue;
+			PSteeringConfig.SpeedVsSteeringCurve.AddNormalized(Y);
+		}
+
 		PSteeringConfig.TrackWidth = WheelTrackDimensions.Y;
 		PSteeringConfig.WheelBase = WheelTrackDimensions.X;
-		PSteeringConfig.TrackEndRadius = 40.f;
 	}
 
 	Chaos::FSimpleSteeringConfig PSteeringConfig;
@@ -326,6 +371,10 @@ struct CHAOSVEHICLES_API FChaosWheelSetup
 	// The wheel class to use
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TSubclassOf<UChaosVehicleWheel> WheelClass;
+
+	// Bone name on mesh to create wheel at
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	FName SteeringBoneName;
 
 	// Bone name on mesh to create wheel at
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
@@ -362,20 +411,29 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	bool bSuspensionEnabled;
+
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	bool bWheelFrictionEnabled;
+
 	/** Wheels to create */
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
 
-	/** Engine */
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	bool bMechanicalSimEnabled;
+
+	/** Engine */
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleEngineConfig EngineSetup;
 
 	/** Differential */
-	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleDifferentialConfig DifferentialSetup;
 
 	/** Transmission data */
-	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
+	UPROPERTY(EditAnywhere, Category = MechanicalSetup, meta = (EditCondition = "bMechanicalSimEnabled"))
 	FVehicleTransmissionConfig TransmissionSetup;
 
 	/** Transmission data */
@@ -393,18 +451,6 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Get current engine's max rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	float GetEngineMaxRotationSpeed() const;
-
-	/** Get current gear */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	int32 GetCurrentGear() const;
-
-	/** Get target gear */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	int32 GetTargetGear() const;
-
-	/** Are gears being changed automatically? */
-	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
-	bool GetUseAutoGears() const;
 
 	float GetMaxSpringForce() const; //??
 
@@ -438,22 +484,26 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	static void PrevDebugPage();
 
 	/** Enable or completely bypass the ProcessMechanicalSimulation call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableMechanicalSim(bool InState)
 	{
-		MechanicalSimEnabled = InState;
+		bMechanicalSimEnabled = InState;
 	}
 
 	/** Enable or completely bypass the ApplySuspensionForces call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableSuspension(bool InState)
 	{
-		SuspensionEnabled = InState;
+		bSuspensionEnabled = InState;
 	}
 
 	/** Enable or completely bypass the ApplyWheelFrictionForces call */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	void EnableWheelFriction(bool InState)
 	{
-		WheelFrictionEnabled = InState;
+		bWheelFrictionEnabled = InState;
 	}
+
 protected:
 
 	//////////////////////////////////////////////////////////////////////////
@@ -476,6 +526,9 @@ protected:
 
 	/** Setup calculated suspension parameters */
 	void SetupSuspension();
+
+	/** Maps UChaosVehicleWheel Axle to a wheel index */
+	void RecalculateAxles();
 
 	/** Get the local position of the wheel at rest */
 	virtual FVector GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup);
@@ -534,11 +587,9 @@ protected:
 	uint32 NumDrivenWheels; /** The number of wheels that have engine enabled checked */
 	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
+	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
 
 	FPerformanceMeasure PerformanceMeasure;
-	bool MechanicalSimEnabled;
-	bool SuspensionEnabled;
-	bool WheelFrictionEnabled;
 };
 
 #if VEHICLE_DEBUGGING_ENABLED

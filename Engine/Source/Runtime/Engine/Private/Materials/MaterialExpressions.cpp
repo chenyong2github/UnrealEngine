@@ -2675,7 +2675,6 @@ UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParam
 
 	MenuCategories.Empty();
 	MenuCategories.Add( ConstructorStatics.NAME_Obsolete);
-	SortPriority = 0;
 	ApplyChannelNames();
 #endif
 }
@@ -7313,7 +7312,6 @@ UMaterialExpressionParameter::UMaterialExpressionParameter(const FObjectInitiali
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
-	SortPriority = 0;
 
 	bCollapsed = false;
 #endif
@@ -17712,14 +17710,15 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstPhaseG = 0.0f;
 	ConstPhaseG2 = 0.0f;
 	ConstPhaseBlend = 0.0f;
-	EvaluatePhaseOncePerPixel = true;
+	PerSamplePhaseEvaluation = false;
+	bGrayScaleMaterial = false;
 
 	MultiScatteringApproximationOctaveCount = 0;
 	ConstMultiScatteringContribution = 0.5f;
 	ConstMultiScatteringOcclusion = 0.5f;
 	ConstMultiScatteringEccentricity = 0.5f;
 
-	bGroundContribution = true;
+	bGroundContribution = false;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);
@@ -17774,9 +17773,9 @@ void UMaterialExpressionVolumetricAdvancedMaterialOutput::GetCaption(TArray<FStr
 	OutCaptions.Add(FString(TEXT("Volumetric Advanced Output")));
 }
 
-bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GetEvaluatePhaseOncePerPixel() const
+bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GetEvaluatePhaseOncePerSample() const
 {
-	return EvaluatePhaseOncePerPixel || (!PhaseG.IsConnected() && !PhaseG2.IsConnected() && !PhaseBlend.IsConnected());
+	return PerSamplePhaseEvaluation && (PhaseG.IsConnected() || PhaseG2.IsConnected() || PhaseBlend.IsConnected());
 }
 
 uint32 UMaterialExpressionVolumetricAdvancedMaterialOutput::GetMultiScatteringApproximationOctaveCount() const

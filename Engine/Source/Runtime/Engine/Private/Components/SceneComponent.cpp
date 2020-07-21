@@ -35,6 +35,10 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorViewportSettings.h"	// For legacy post edit move behavior
+#endif // WITH_EDITOR
+
 #define LOCTEXT_NAMESPACE "SceneComponent"
 
 namespace SceneComponentStatics
@@ -3331,6 +3335,17 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 		// Snapshot the transaction buffer for this component if we've not finished moving yet
 		// This allows listeners to be notified of intermediate changes of state
 		SnapshotTransactionBuffer(this);
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		// Call on all attached children
+		for (USceneComponent* ChildComponent : GetAttachChildren())
+		{
+			ChildComponent->PostEditComponentMove(bFinished);
+		}
 	}
 }
 

@@ -373,6 +373,13 @@ public:
 
 	bool HasActiveContextMenu() const;
 
+	/**
+	 * Fill OutTextLine with the text line where the current cursor location is at
+	 *
+	 * @param OutTextLine   FString of the line
+	 */
+	void GetCurrentTextLine(FString& OutTextLine) const;
+
 private:
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
 	void InsertTextAtCursorImpl(const FString& InString);

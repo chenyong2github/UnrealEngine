@@ -108,7 +108,8 @@ class FVirtualHeightfieldMeshRendererExtension : public IPersistentViewUniformBu
 {
 public:
 	FVirtualHeightfieldMeshRendererExtension()
-		: DiscardId(0)
+		: bInFrame(false)
+		, DiscardId(0)
 	{}
 
 	virtual ~FVirtualHeightfieldMeshRendererExtension()
@@ -129,18 +130,21 @@ protected:
 	//~ End IPersistentViewUniformBufferExtension Interface
 
 private:
-	/* Buffers to fill. Resources can persist between frames to reduce allocation cost, but contents don't persist. */
+	/** Flag for frame validation. */
+	bool bInFrame;
+
+	/** Buffers to fill. Resources can persist between frames to reduce allocation cost, but contents don't persist. */
 	TArray<VirtualHeightfieldMesh::FDrawInstanceBuffers> Buffers;
-	/* Per buffer frame time stamp of last usage. */
+	/** Per buffer frame time stamp of last usage. */
 	TArray<uint32> DiscardIds;
-	/* Current frame time stamp. */
+	/** Current frame time stamp. */
 	uint32 DiscardId;
 
-	/* Arrary of uniqe scene proxies to render this frame. */
+	/** Arrary of uniqe scene proxies to render this frame. */
 	TArray<FVirtualHeightfieldMeshSceneProxy const*> SceneProxies;
-	/* Arrary of unique main views to render this frame. */
+	/** Arrary of unique main views to render this frame. */
 	TArray<FSceneView const*> MainViews;
-	/* Arrary of unique culling views to render this frame. */
+	/** Arrary of unique culling views to render this frame. */
 	TArray<FSceneView const*> CullViews;
 
 	/** Key for each buffer we need to generate. */
@@ -152,7 +156,7 @@ private:
 		int32 BufferIndex;
 	};
 
-	/* Keys specifying what to render. */
+	/** Keys specifying what to render. */
 	TArray<FWorkDesc> WorkDescs;
 
 	/** Sort predicate for FWorkDesc. When rendering we want to batch work by proxy, then by main view. */
@@ -185,6 +189,13 @@ void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 
 VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExtension::AddWork(FVirtualHeightfieldMeshSceneProxy const* InProxy, FSceneView const* InMainView, FSceneView const* InCullView)
 {
+	// If we hit this then BegineFrame()/EndFrame() logic needs fixing in the Scene Renderer.
+	if (!ensure(!bInFrame))
+	{
+		EndFrame();
+	}
+
+	// Create workload
 	FWorkDesc WorkDesc;
 	WorkDesc.ProxyIndex = SceneProxies.AddUnique(InProxy);
 	WorkDesc.MainViewIndex = MainViews.AddUnique(InMainView);
@@ -230,6 +241,13 @@ VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExt
 
 void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 {
+	// If we hit this then BegineFrame()/EndFrame() logic needs fixing in the Scene Renderer.
+	if (!ensure(!bInFrame))
+	{
+		EndFrame();
+	}
+	bInFrame = true;
+
 	if (WorkDescs.Num() > 0)
 	{
 		SubmitWork(GetImmediateCommandList_ForRenderCommand());
@@ -238,6 +256,9 @@ void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 
 void FVirtualHeightfieldMeshRendererExtension::EndFrame()
 {
+	check(bInFrame);
+	bInFrame = false;
+
 	SceneProxies.Reset();
 	MainViews.Reset();
 	CullViews.Reset();
@@ -267,21 +288,21 @@ const static FName NAME_VirtualHeightfieldMesh(TEXT("VirtualHeightfieldMesh"));
 
 FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHeightfieldMeshComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_VirtualHeightfieldMesh)
-	, RuntimeVirtualTexture(InComponent->RuntimeVirtualTexture)
-	, MinMaxTexture(InComponent->MinMaxTexture)
+	, RuntimeVirtualTexture(InComponent->GetVirtualTexture())
+	, MinMaxTexture(InComponent->GetMinMaxTexture())
 	, AllocatedVirtualTexture(nullptr)
 	, bCallbackRegistered(false)
 	, NumQuadsPerTileSide(0)
 	, VertexFactory(nullptr)
-	, LODScale(InComponent->LODDistanceScale)
+	, LODScale(InComponent->GetLODDistanceScale())
 	, OcclusionData(InComponent->GetOcclusionData())
 	, NumOcclusionLods(InComponent->GetNumOcclusionLods())
 	, OcclusionGridSize(0, 0)
 {
 	GVirtualHeightfieldMeshViewUniformBufferExtension.RegisterExtension();
 
-	const bool bValidMaterial = InComponent->Material != nullptr && InComponent->Material->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
-	Material = bValidMaterial ? InComponent->Material->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+	const bool bValidMaterial = InComponent->GetMaterial(0) != nullptr && InComponent->GetMaterial(0)->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
+	Material = bValidMaterial ? InComponent->GetMaterial(0)->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 
 	UVToWorld = GetLocalToWorld();
 	WorldToUV = UVToWorld.Inverse();

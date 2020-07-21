@@ -147,20 +147,19 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 	//
 	// See FOnePassPointShadowProjectionShaderParameters from ShadowRendering.h
 	//
+	FRHITexture* ShadowDepthTextureValue = ShadowInfo
+		? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
+		: GBlackTextureDepthCube->TextureRHI.GetReference();
+	if (!ShadowDepthTextureValue)
+	{
+		ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI.GetReference();
+	}
+	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture = ShadowDepthTextureValue;
+	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;
+	ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI();
+
 	if (bDynamicallyShadowed)
 	{
-		FRHITexture* ShadowDepthTextureValue = ShadowInfo
-			? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
-			: GBlackTextureDepthCube->TextureRHI.GetReference();
-		if (!ShadowDepthTextureValue)
-		{
-			ShadowDepthTextureValue = GBlackTextureDepthCube->TextureRHI.GetReference();
-		}
-
-		ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture = ShadowDepthTextureValue;
-		ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTexture2 = ShadowDepthTextureValue;
-		ShaderParams.OnePassPointShadowProjection.ShadowDepthCubeTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 0, 0, SCF_Less>::GetRHI();
-
 		if (ShadowInfo)
 		{
 			memcpy(ShaderParams.OnePassPointShadowProjection.ShadowViewProjectionMatrices.GetData(), ShadowInfo->OnePassShadowViewProjectionMatrices.GetData(), ShadowInfo->OnePassShadowViewProjectionMatrices.Num() * sizeof(FMatrix));

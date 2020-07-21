@@ -75,7 +75,11 @@ public:
 	/** Sets the thickness of a line */
 	void SetLineThickness(const int32 ID, const float NewThickness);
 
-	/** Sets the thickness of all existing line */
+
+	/** Sets the color of all existing lines */
+	void SetAllLinesColor(const FColor& NewColor);
+
+	/** Sets the thickness of all existing lines */
 	void SetAllLinesThickness(const float NewThickness);
 
 	/** Rescales each line assuming that vertex 0 is the origin */

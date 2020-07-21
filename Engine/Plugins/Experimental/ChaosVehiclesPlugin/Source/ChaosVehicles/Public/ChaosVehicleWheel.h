@@ -12,15 +12,29 @@
 #include "UObject/ScriptMacros.h"
 #include "EngineDefines.h"
 #include "SimpleVehicle.h"
+#include "VehicleUtility.h"
 #include "Engine/EngineTypes.h"
 
 #include "ChaosVehicleWheel.generated.h"
-
 
 class UPhysicalMaterial;
 class FChaosVehicleManager;
 class UChaosWheeledVehicleMovementComponent;
 
+using namespace Chaos;
+
+	UENUM()
+	enum class ESweepShape : uint8
+	{
+		/** Use ray to determine suspension length to ground - fastest */
+		Raycast		UMETA(DisplayName = "Raycast"),
+
+		/** Use sphere to determine suspension length to ground */
+		Spherecast	UMETA(DisplayName = "Spherecast"),
+
+		/** Use wheel collision shape to determine suspension length to ground - Slowest */
+		Shapecast	UMETA(DisplayName = "Shapecast")
+	};
 
 	UENUM()
 	enum class ESweepType : uint8
@@ -54,15 +68,15 @@ class UChaosWheeledVehicleMovementComponent;
 		class UStaticMesh* CollisionMesh;
 
 		/** If set, shape won't be created, but mapped from chassis mesh */
-		UPROPERTY(EditDefaultsOnly, Category = Shape, meta = (DisplayName = "UsePhysAssetShape"))
-		bool bDontCreateShape;
+		//UPROPERTY(EditDefaultsOnly, Category = Shape, meta = (DisplayName = "UsePhysAssetShape"))
+		//bool bDontCreateShape;
 
 		/**
 		 *	If true, ShapeRadius and ShapeWidth will be used to automatically scale collision taken from CollisionMesh to match wheel size.
 		 *	If false, size of CollisionMesh won't be changed. Use if you want to scale wheels manually.
 		 */
-		UPROPERTY(EditAnywhere, Category = Shape)
-		bool bAutoAdjustCollisionSize;
+		//UPROPERTY(EditAnywhere, Category = Shape)
+		//bool bAutoAdjustCollisionSize;
 
 		/** If left undefined then the bAffectedByEngine value is used, if defined then bAffectedByEngine is ignored and the differential setup on the vehicle defines which wheels get power from the engine */
 		UPROPERTY(EditAnywhere, Category = Wheel)
@@ -84,20 +98,24 @@ class UChaosWheeledVehicleMovementComponent;
 		float WheelWidth;
 
 		/** Mass of this wheel */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
-		float WheelMass;
+		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		//float WheelMass;
 
 		/** Cheat Longitudinal Friction Force Multiplier */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CheatLongitudinalFrictionForce;
 
 		/** Cheat Lateral Friction Force Multiplier */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CheatLateralFrictionForce;
 
 		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
-		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
+		UPROPERTY(EditAnywhere, Category = Wheel)
 		float CheatSkidFactor;
+
+		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
+		UPROPERTY(EditAnywhere, Category = Wheel)
+		float SideSlipModifier;
 
 		///** Damping rate for this wheel (Kgm^2/s) */
 		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
@@ -147,6 +165,10 @@ class UChaosWheeledVehicleMovementComponent;
 		//UPROPERTY(EditAnywhere, Category = Tire)
 		//float LongStiffValue;
 
+		/** Local body direction in which where suspension forces are applied (typically along -Z-axis) */
+		UPROPERTY(EditAnywhere, Category = Suspension)
+		FVector SuspensionAxis;
+
 		/** Vertical offset from where suspension forces are applied (along Z-axis) */
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		FVector SuspensionForceOffset;
@@ -166,17 +188,27 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SuspensionDampingRatio;
 
+		/**
+		 *	When 0 no weight load is transferred, 1 is Normal weight shift. Lower value cures lift off oversteer.
+		 */
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+		float WheelLoadRatio;
+
 		/** Spring Force (N/m) */
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SpringRate;
 
-		/** Spring Preload Constant */
+		/** Spring Preload (N/m) */
 		UPROPERTY(EditAnywhere, Category = Suspension)
 		float SpringPreload;
 
 		/** Smooth suspension [0-off, 10-max] - Warning might cause momentary visual inter-penetration of the wheel against objects/terrain */
 		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "10"))
 		int SuspensionSmoothing;
+
+		/** Anti-roll effect */
+		UPROPERTY(EditAnywhere, Category = Suspension, meta = (UIMin = "0", UIMax = "1"))
+		float RollbarScaling;
 
 		// Now calculating damping from Suspension Damping Ratio - normalized value is slightly more meaningful
 		///** Dampen rate of change of spring compression */
@@ -186,6 +218,10 @@ class UChaosWheeledVehicleMovementComponent;
 		///** Dampen rate of change of spring extension */
 		//UPROPERTY(EditAnywhere, Category = Suspension)
 		//float ReboundDamping;
+
+		/** Whether wheel suspension considers simple, complex, or both */
+		UPROPERTY(EditAnywhere, Category = Suspension)
+		ESweepShape SweepShape;
 
 		/** Whether wheel suspension considers simple, complex, or both */
 		UPROPERTY(EditAnywhere, Category = Suspension)
@@ -310,7 +346,7 @@ class UChaosWheeledVehicleMovementComponent;
 		{
 			// Perform any unit conversions here; between editable property and simulation system
 			PWheelConfig.Offset = this->Offset;
-			PWheelConfig.WheelMass = this->WheelMass;
+			//PWheelConfig.WheelMass = this->WheelMass;
 			PWheelConfig.WheelRadius = this->WheelRadius;
 			PWheelConfig.WheelWidth = this->WheelWidth;
 			PWheelConfig.MaxSteeringAngle = this->MaxSteerAngle;
@@ -326,26 +362,21 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.CheatLongitudinalFrictionMultiplier = this->CheatLongitudinalFrictionForce;
 			PWheelConfig.CheatLateralFrictionMultiplier = this->CheatLateralFrictionForce;
 			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
+			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 		}
 
 		void FillSuspensionSetup()
 		{
-			// Perform any unit conversions here; between editable property and simulation system
-			//PSuspensionConfig.MinLength = 0.f;
-			//PSuspensionConfig.MaxLength = this->SuspensionMaxDrop + this->SuspensionMaxRaise;
-
-			PSuspensionConfig.SuspensionMaxRaise = FMath::Abs(this->SuspensionMaxRaise);
-			PSuspensionConfig.SuspensionMaxDrop = this->SuspensionMaxDrop;
-
-			PSuspensionConfig.SuspensionForceOffset = this->SuspensionForceOffset;
+			PSuspensionConfig.SuspensionAxis = this->SuspensionAxis;
 
 			PSuspensionConfig.SuspensionForceOffset = this->SuspensionForceOffset;
 			PSuspensionConfig.SuspensionMaxRaise = this->SuspensionMaxRaise;
 			PSuspensionConfig.SuspensionMaxDrop = this->SuspensionMaxDrop;
-			PSuspensionConfig.SpringRate = this->SpringRate;
-			PSuspensionConfig.SpringPreload = this->SpringPreload;
+			PSuspensionConfig.SpringRate = MToCm(this->SpringRate);
+			PSuspensionConfig.SpringPreload = MToCm(this->SpringPreload);
 
 			PSuspensionConfig.DampingRatio = this->SuspensionDampingRatio;
+			PSuspensionConfig.WheelLoadRatio = this->WheelLoadRatio;
 
 			PSuspensionConfig.SuspensionSmoothing = this->SuspensionSmoothing;
 

@@ -563,6 +563,10 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 
 	// Re-enable transactional after recording
 	InSequence->GetMovieScene()->SetFlags(RF_Transactional);
+	for (UMovieSceneSection* Section : InSequence->GetMovieScene()->GetAllSections())
+	{
+		Section->MarkAsChanged();
+	}
 
 	// Ensure each sub-section is as long as it should be. If we're recording into subsections and a user is doing a partial
 	// re-record of the data within the sub section we can end up with the case where the new section is shorter than the original

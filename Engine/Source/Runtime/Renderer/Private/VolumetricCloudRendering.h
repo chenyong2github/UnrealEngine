@@ -25,7 +25,6 @@ struct FEngineShowFlags;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonShaderParameters, )
 	SHADER_PARAMETER(FLinearColor, GroundAlbedo)
-	SHADER_PARAMETER(FLinearColor, AtmosphericLightsContributionFactor)
 	SHADER_PARAMETER(FVector, CloudLayerCenterKm)
 	SHADER_PARAMETER(float, PlanetRadiusKm)
 	SHADER_PARAMETER(float, BottomRadiusKm)
@@ -36,16 +35,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVolumetricCloudCommonShaderParameters, )
 	SHADER_PARAMETER(float, InvDistanceToSampleCountMax)
 	SHADER_PARAMETER(int32, ShadowSampleCountMax)
 	SHADER_PARAMETER(float, ShadowTracingMaxDistance)
-	SHADER_PARAMETER(int32, EnableAerialPerspectiveSampling)
-	SHADER_PARAMETER(int32, EnableDistantSkyLightSampling)
-	SHADER_PARAMETER(int32, EnableAtmosphericLightsSampling)
-	SHADER_PARAMETER(float,		CloudShadowmapFarDepthKm)
-	SHADER_PARAMETER(float,		CloudShadowmapStrength)
-	SHADER_PARAMETER(float,		CloudShadowmapSampleClount)
-	SHADER_PARAMETER(FVector4,	CloudShadowmapSizeInvSize)
-	SHADER_PARAMETER(FMatrix,	CloudShadowmapWorldToLightClipMatrix)
-	SHADER_PARAMETER(FMatrix,	CloudShadowmapWorldToLightClipMatrixInv)
-	SHADER_PARAMETER(FVector,	CloudShadowmapLight0Dir)
+	SHADER_PARAMETER(float, SkyLightCloudBottomVisibility)
+	SHADER_PARAMETER_ARRAY(FLinearColor, AtmosphericLightCloudScatteredLuminanceScale, [2])
+	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapFarDepthKm, [2])
+	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapStrength, [2])
+	SHADER_PARAMETER_ARRAY(float,	CloudShadowmapSampleClount, [2])
+	SHADER_PARAMETER_ARRAY(FVector4,CloudShadowmapSizeInvSize, [2])
+	SHADER_PARAMETER_ARRAY(FMatrix,	CloudShadowmapWorldToLightClipMatrix, [2])
+	SHADER_PARAMETER_ARRAY(FMatrix,	CloudShadowmapWorldToLightClipMatrixInv, [2])
+	SHADER_PARAMETER_ARRAY(FVector,	CloudShadowmapLight0Dir, [2])
 	SHADER_PARAMETER(float,		CloudSkyAOFarDepthKm)
 	SHADER_PARAMETER(float,		CloudSkyAOStrength)
 	SHADER_PARAMETER(float,		CloudSkyAOSampleClount)
@@ -90,7 +88,7 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 
 
 // Structure with data necessary to specify a cloud render.
-struct CloudRenderContext
+struct FCloudRenderContext
 {
 	///////////////////////////////////
 	// Per scene parameters
@@ -108,18 +106,33 @@ struct CloudRenderContext
 	FRenderTargetBindingSlots RenderTargets;
 
 	bool bShouldViewRenderVolumetricRenderTarget;
-	bool bIsReflectionRendering;
+	bool bSkipAerialPerspective;
+	bool bIsReflectionRendering;				// Reflection capture and real time sky capture
+	bool bIsSkyRealTimeReflectionRendering;		// Real time sky capture only
 	bool bSkipAtmosphericLightShadowmap;
+	bool bSecondAtmosphereLightEnabled;
 
 	FUintVector4 SubSetCoordToFullResolutionScaleBias;
 	uint32 NoiseFrameIndexModPattern;
 
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
-	FRDGTextureRef VolumetricCloudShadowTexture;
+	FRDGTextureRef VolumetricCloudShadowTexture[2];
 
-	CloudRenderContext();
+	FCloudRenderContext();
 
 private:
 };
+
+
+
+struct FCloudShadowAOData
+{
+	bool bShouldSampleCloudShadow;
+	bool bShouldSampleCloudSkyAO;
+	FRDGTextureRef VolumetricCloudShadowMap[2];
+	FRDGTextureRef VolumetricCloudSkyAO;
+};
+
+void GetCloudShadowAOData(FVolumetricCloudRenderSceneInfo* CloudInfo, FViewInfo& View, FRDGBuilder& GraphBuilder, FCloudShadowAOData& OutData);
 
 

@@ -11,7 +11,7 @@
 #include "Particles/VectorField/ParticleModuleVectorFieldBase.h"
 #include "ParticleModuleVectorFieldRotationRate.generated.h"
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "VF Rotation Rate"))
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "VF Rotation Rate"), MinimalAPI)
 class UParticleModuleVectorFieldRotationRate : public UParticleModuleVectorFieldBase
 {
 	GENERATED_UCLASS_BODY()

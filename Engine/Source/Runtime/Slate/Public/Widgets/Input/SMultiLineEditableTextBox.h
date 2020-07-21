@@ -257,6 +257,13 @@ public:
 		return EditableText->GetPlainText();
 	}
 
+	/**
+	 * Return the text line where the current cursor location is at.
+	 *
+	 * @param  OutTextLine	Text string
+	 */	
+	void GetCurrentTextLine(FString& OutTextLine) const;
+
 	/** See attribute Style */
 	void SetStyle(const FEditableTextBoxStyle* InStyle);
 

@@ -31,6 +31,16 @@ public class DatasmithWireTranslator : ModuleRules
             }
         );
 
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+ 					"MessageLog",
+				}
+			);
+		}
+
 		if (System.Type.GetType("OpenModel") != null)
 		{
 			PrivateDependencyModuleNames.Add("OpenModel");
