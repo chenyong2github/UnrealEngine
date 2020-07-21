@@ -4510,12 +4510,20 @@ static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, 
 	RHICmdList.BeginFrame();
 	FCoreDelegates::OnBeginFrameRT.Broadcast();
 
-	GEngine->SetRenderLatencyMarkerStart(CurrentFrameCounter);
+	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetRenderLatencyMarkerStart(CurrentFrameCounter);
+	});
 }
 
 
 static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, uint64 CurrentFrameCounter)
 {
+	RHICmdList.EnqueueLambda([CurrentFrameCounter](FRHICommandListImmediate& InRHICmdList)
+	{
+		GEngine->SetRenderLatencyMarkerEnd(CurrentFrameCounter);
+	});
+
 	FCoreDelegates::OnEndFrameRT.Broadcast();
 	RHICmdList.EndFrame();
 
@@ -4527,8 +4535,6 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList, ui
 #endif
 #endif // !UE_BUILD_SHIPPING 
 	TRACE_END_FRAME(TraceFrameType_Rendering);
-
-	GEngine->SetRenderLatencyMarkerEnd(CurrentFrameCounter);
 }
 
 #if BUILD_EMBEDDED_APP
