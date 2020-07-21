@@ -1041,6 +1041,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					if (VertexShader.IsValid() && PixelShader.IsValid())
 					{
+// temp removal to be verified by RHI team shortly.
+#if 0
 						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
 							RHICmdList,
 							ActiveSceneView.GetFeatureLevel(),
@@ -1048,6 +1050,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							UniformBuffer_SingleDraw);
 						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+#endif
 
 #if WITH_SLATE_VISUALIZERS
 						if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
