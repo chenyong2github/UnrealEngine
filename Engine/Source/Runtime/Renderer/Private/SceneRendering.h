@@ -1874,6 +1874,11 @@ protected:
 
 private:
 	void ComputeFamilySize();
+
+#if !UE_BUILD_SHIPPING
+	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
+	void DumpPrimitives(const FViewCommands& ViewCommands);
+#endif
 };
 
 /**
