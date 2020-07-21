@@ -10,11 +10,15 @@
 #include "LiveLink/LiveStreamAnimationLiveLinkSource.h"
 #include "LiveLink/Test/SkelMeshToLiveLinkSource.h"
 
+#include "Animation/Skeleton.h"
+
 #include "Roles/LiveLinkAnimationRole.h"
 #include "ILiveLinkClient.h"
 #include "Serialization/MemoryReader.h"
 #include "Features/IModularFeatures.h"
 #include "CoreGlobals.h"
+
+#include "Algo/Sort.h"
 
 namespace LiveStreamAnimation
 {
@@ -28,6 +32,190 @@ namespace LiveStreamAnimation
 		}
 
 		return &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+	}
+
+	bool FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::ReceivedFrameData(const FLiveLinkAnimationFrameData& AnimationData, FLiveLinkAnimationFrameData& OutAnimationData) const
+	{
+		if (BoneTranslations.Num() > 0)
+		{
+			TArray<FTransform> TranslatedTransforms;
+			TranslatedTransforms.SetNumUninitialized(BoneTranslations.Num());
+
+			for (int32 TranslationIndex : BoneTranslations)
+			{
+				TranslatedTransforms.Add(AnimationData.Transforms[TranslationIndex]);
+			}
+		}
+		else
+		{
+			OutAnimationData = AnimationData;
+		}
+
+		return true;
+	}
+
+	bool FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::ReceivedStaticData(const FLiveLinkSkeletonStaticData& SkeletonData)
+	{
+		struct FBoneRemapInfo
+		{
+			int32 SkeletonIndex;
+			int32 UseBoneIndex;
+		};
+
+		if (TranslationProfile.IsSet())
+		{
+			// The below code exists to ensure that we can efficiently map Live Link frames onto UE
+			// skeletons, while stripping out unncessary bones.
+
+			const FLiveStreamAnimationLiveLinkTranslationProfile& UseProfile = TranslationProfile.GetValue();
+			if (UseProfile.bStripLiveLinkSkeletonToBonesToUse && UseProfile.BonesToUse.Num() > 0)
+			{
+				if (const USkeleton* LocalSkeleton = UseProfile.Skeleton.Get())
+				{
+					const FReferenceSkeleton& ReferenceSkeleton = LocalSkeleton->GetReferenceSkeleton();
+
+					TArray<FBoneRemapInfo> BoneRemapArray;
+					BoneRemapArray.Reserve(SkeletonData.BoneNames.Num());
+
+					TArray<int32> BoneParents;
+					BoneParents.Reserve(UseProfile.BonesToUse.Num());
+
+					TArray<int32> RemovedBonesAtIndex;
+					RemovedBonesAtIndex.SetNumUninitialized(SkeletonData.BoneNames.Num());
+
+					TBitArray<> UseBones(false, SkeletonData.BoneNames.Num());
+
+					int32 ShiftCounter = 0;
+					int32 BoneCounter = 0;
+
+					// Maybe converting BoneNames to a Set would be faster, but the count is always going to be
+					// low so it's probably fine.
+					// Also, this is only going to happen when we receive skeleton data, which will almost always
+					// only happen once per subject when we initially connect.
+
+					for (int32 i = 0; i < SkeletonData.BoneNames.Num(); ++i)
+					{
+						const int32 BoneNameIndex = UseProfile.BonesToUse.Find(SkeletonData.BoneNames[i]);
+						if (INDEX_NONE != BoneNameIndex)
+						{
+							UseBones[i] = true;
+							BoneRemapArray.Add({ BoneNameIndex, BoneCounter });
+							++BoneCounter;
+						}
+						else
+						{
+							++ShiftCounter;
+						}
+
+						RemovedBonesAtIndex[i] = ShiftCounter;
+					}
+
+					for (TConstSetBitIterator<> ConstIt(UseBones); ConstIt; ++ConstIt)
+					{
+						int32 ParentIndex = ConstIt.GetIndex();
+						while (true)
+						{
+							ParentIndex = SkeletonData.BoneParents[ParentIndex];
+
+							if (ParentIndex == INDEX_NONE)
+							{
+								break;
+							}
+
+							// We found a bone that was enabled that is also an ancestor.
+							// Go ahead and fix up its index.
+							if (UseBones[ParentIndex])
+							{
+								ParentIndex -= RemovedBonesAtIndex[ParentIndex];
+								break;
+							}
+						}
+
+						BoneParents.Add(ParentIndex);
+					}
+
+					Algo::SortBy(BoneRemapArray, &FBoneRemapInfo::SkeletonIndex);
+
+					BoneTranslations.Reset(BoneRemapArray.Num());
+					LastKnownSkeleton.BoneNames.Reset(BoneRemapArray.Num());
+					LastKnownSkeleton.BoneParents.Reset(BoneRemapArray.Num());
+
+					const TArray<FMeshBoneInfo>& RefBoneInfo = ReferenceSkeleton.GetRawRefBoneInfo();
+					for (const FBoneRemapInfo& RemapInfo : BoneRemapArray)
+					{
+						LastKnownSkeleton.BoneNames.Add(RefBoneInfo[RemapInfo.SkeletonIndex].Name);
+						if (INDEX_NONE == BoneParents[RemapInfo.UseBoneIndex])
+						{
+							LastKnownSkeleton.BoneParents.Add(INDEX_NONE);
+						}
+						else
+						{
+							const int32 OldParentIndex = BoneParents[RemapInfo.UseBoneIndex];
+							LastKnownSkeleton.BoneParents.Add(BoneRemapArray.IndexOfByPredicate([OldParentIndex](const FBoneRemapInfo& ToCheck)
+								{
+									return ToCheck.UseBoneIndex == OldParentIndex;
+								}));
+						}
+
+						BoneTranslations.Add(RemapInfo.UseBoneIndex);
+					}
+				}
+
+				return true;
+			}
+		}
+
+		LastKnownSkeleton = SkeletonData;
+		return true;
+	}
+
+	FString FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::ToString() const
+	{
+		return FString::Printf(TEXT("LiveLinkSubject = %s, SubjectHandle = %s"),
+			*LiveLinkSubject.ToString(), *SubjectHandle.ToString());
+	}
+
+	FLiveLinkStreamingHelper::FLiveLinkTrackedSubject FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::CreateFromReceivedPacket(
+		FLiveLinkSubjectName InLiveLinkSubject,
+		FLiveStreamAnimationHandle InSubjectHandle,
+		const FLiveLinkSkeletonStaticData& InSkeleton)
+	{
+		FLiveLinkTrackedSubject NewSubject;
+		NewSubject.LiveLinkSubject = InLiveLinkSubject;
+		NewSubject.SubjectHandle = InSubjectHandle;
+		NewSubject.LastKnownSkeleton = InSkeleton;
+
+		return NewSubject;
+	}
+
+	FLiveLinkStreamingHelper::FLiveLinkTrackedSubject FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::CreateFromTrackingRequest(
+		FLiveLinkSubjectName InLiveLinkSubject,
+		FLiveStreamAnimationHandle InSubjectHandle,
+		FLiveStreamAnimationLiveLinkSourceOptions InOptions,
+		FLiveStreamAnimationHandle InTranslationHandle,
+		FDelegateHandle InStaticDataReceivedHandle,
+		FDelegateHandle InFrameDataReceivedHandle)
+	{
+		FLiveLinkTrackedSubject NewSubject;
+		NewSubject.LiveLinkSubject = InLiveLinkSubject;
+		NewSubject.SubjectHandle = InSubjectHandle;
+		NewSubject.Options = InOptions;
+		NewSubject.TranslationHandle = InTranslationHandle;
+		NewSubject.StaticDataReceivedHandle = InStaticDataReceivedHandle;
+		NewSubject.FrameDataReceivedHandle = InFrameDataReceivedHandle;
+
+		if (InTranslationHandle.IsValid())
+		{
+			if (const ULiveStreamAnimationLiveLinkFrameTranslator* Translator = ULiveStreamAnimationSettings::GetFrameTranslator())
+			{
+				if (const FLiveStreamAnimationLiveLinkTranslationProfile* FoundTranslationProfile = Translator->GetTranslationProfile(InTranslationHandle))
+				{
+					NewSubject.TranslationProfile = *FoundTranslationProfile;
+				}
+			}
+		}
+
+		return NewSubject;
 	}
 
 	FLiveLinkStreamingHelper::FLiveLinkStreamingHelper(ULiveStreamAnimationSubsystem& InSubsystem)
@@ -92,22 +280,17 @@ namespace LiveStreamAnimation
 			case ELiveLinkPacketType::AddOrUpdateSubject:
 				{
 					const FLiveLinkAddOrUpdateSubjectPacket& CastedPacket = static_cast<const FLiveLinkAddOrUpdateSubjectPacket&>(*LiveLinkPacket);
-					if (FLiveLinkTrackedSubject * FoundSubject = TrackedSubjects.Find(SubjectHandle))
+					if (FLiveLinkTrackedSubject* FoundSubject = TrackedSubjects.Find(SubjectHandle))
 					{
 						FoundSubject->LastKnownSkeleton = CastedPacket.GetStaticData();
 					}
 					else
 					{
-						FLiveLinkTrackedSubject NewSubject{
-							SubjectHandle.GetName(),						// For processors and proxies, we don't care about the originating Live Link name.
-																			// Instead we use the associated handle name.
+						FLiveLinkTrackedSubject NewSubject = FLiveLinkTrackedSubject::CreateFromReceivedPacket(
+							SubjectHandle.GetName(),			// For processors and proxies, we don't care about the originating Live Link name.
+																// Instead we use the associated handle name.
 							SubjectHandle,
-							FLiveStreamAnimationLiveLinkSourceOptions(),	// It's OK to use the default options here, because
-																			// we won't actually be tracking anim, just forwarding them.
-
-							FLiveStreamAnimationHandle(),
-							CastedPacket.GetStaticData()
-						};
+							CastedPacket.GetStaticData());
 
 						TrackedSubjects.Add(SubjectHandle, NewSubject);
 					}
@@ -224,15 +407,13 @@ namespace LiveStreamAnimation
 				SubjectRole,
 				&StaticData);
 
-			FLiveLinkTrackedSubject TrackedSubject{
+			FLiveLinkTrackedSubject TrackedSubject = FLiveLinkTrackedSubject::CreateFromTrackingRequest(
 				LiveLinkSubjectName,
 				SubjectHandle,
 				Options,
 				TranslationHandle,
-				FLiveLinkSkeletonStaticData(),
 				StaticDataReceivedHandle,
-				FrameDataReceivedHandle,
-			};
+				FrameDataReceivedHandle);
 
 			if (bWasRegistered)
 			{
@@ -253,7 +434,7 @@ namespace LiveStreamAnimation
 				{
 					if (const FLiveLinkSkeletonStaticData* SkeletonDataPtr = StaticData.Cast<FLiveLinkSkeletonStaticData>())
 					{
-						TrackedSubject.LastKnownSkeleton = *SkeletonDataPtr;
+						TrackedSubject.ReceivedStaticData(*SkeletonDataPtr);
 					}
 
 					if (SendPacketToServer(CreateAddOrUpdateSubjectPacket(TrackedSubject)))
@@ -287,18 +468,19 @@ namespace LiveStreamAnimation
 
 	void FLiveLinkStreamingHelper::StopTrackingSubject(const FLiveStreamAnimationHandle SubjectHandle)
 	{
-		FLiveLinkTrackedSubject TrackedSubject;
-		if (TrackedSubjects.RemoveAndCopyValue(SubjectHandle, TrackedSubject))
+		if (const FLiveLinkTrackedSubject* TrackedSubject = TrackedSubjects.Find(SubjectHandle))
 		{
 			if (ILiveLinkClient* LiveLinkClient = GetLiveLinkClient())
 			{
-				LiveLinkClient->UnregisterSubjectFramesHandle(TrackedSubject.LiveLinkSubject, TrackedSubject.StaticDataReceivedHandle, TrackedSubject.FrameDataReceivedHandle);
-				if (!SendPacketToServer(CreateRemoveSubjectPacket(TrackedSubject)))
+				LiveLinkClient->UnregisterSubjectFramesHandle(TrackedSubject->LiveLinkSubject, TrackedSubject->StaticDataReceivedHandle, TrackedSubject->FrameDataReceivedHandle);
+				if (!SendPacketToServer(CreateRemoveSubjectPacket(*TrackedSubject)))
 				{
 					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StopTrackingSubject: Failed to send remove packet to server. Subject = (%s)"),
-						*TrackedSubject.ToString());
+						*TrackedSubject->ToString());
 				}
 			}
+
+			TrackedSubjects.Remove(SubjectHandle);
 		}
 		else
 		{
@@ -354,8 +536,15 @@ namespace LiveStreamAnimation
 			bool bSentPacket = false;
 			if (const FLiveLinkSkeletonStaticData* StaticData = InStaticData.Cast<const FLiveLinkSkeletonStaticData>())
 			{
-				TrackedSubject->LastKnownSkeleton = *StaticData;
-				bSentPacket = SendPacketToServer(CreateAddOrUpdateSubjectPacket(*TrackedSubject));
+				if (TrackedSubject->ReceivedStaticData(*StaticData))
+				{
+					bSentPacket = SendPacketToServer(CreateAddOrUpdateSubjectPacket(*TrackedSubject));
+				}
+				else
+				{
+					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::ReceivedStaticData: Tracked Subject could not update Static Data.  Subject = (%s)"),
+						*TrackedSubject->ToString());
+				}
 			}
 
 			if (!bSentPacket)
@@ -380,9 +569,13 @@ namespace LiveStreamAnimation
 		if (const FLiveLinkTrackedSubject* TrackedSubject = TrackedSubjects.Find(SubjectHandle))
 		{
 			bool bSentPacket = false;
-			if (const FLiveLinkAnimationFrameData * AnimationData = InFrameData.Cast<FLiveLinkAnimationFrameData>())
+			if (const FLiveLinkAnimationFrameData* AnimationData = InFrameData.Cast<FLiveLinkAnimationFrameData>())
 			{
-				bSentPacket = SendPacketToServer(CreateAnimationFramePacket(*TrackedSubject, FLiveLinkAnimationFrameData(*AnimationData)));
+				FLiveLinkAnimationFrameData UpdatedFrameData;
+				if (TrackedSubject->ReceivedFrameData(*AnimationData, UpdatedFrameData))
+				{
+					bSentPacket = SendPacketToServer(CreateAnimationFramePacket(*TrackedSubject, MoveTemp(UpdatedFrameData)));
+				}
 			}
 
 			if (!bSentPacket)

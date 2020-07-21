@@ -8,6 +8,7 @@
 #include "Roles/LiveLinkAnimationTypes.h"
 #include "LiveStreamAnimationHandle.h"
 #include "LiveLink/LiveStreamAnimationLiveLinkSourceOptions.h"
+#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
 
 class ULiveLinkRole;
 class ULiveStreamAnimationSubsystem;
@@ -28,6 +29,9 @@ namespace LiveStreamAnimation
 			/** Streaming handle that we'll use to refer to this subject over the network. */
 			FLiveStreamAnimationHandle SubjectHandle;
 
+			//~ TODO: This could be rolled up into the translation settings.
+			//~			That would also allow us to not need to send these all the time.
+
 			/** Options used for animation frame updates. */
 			FLiveStreamAnimationLiveLinkSourceOptions Options;
 
@@ -40,11 +44,33 @@ namespace LiveStreamAnimation
 			FDelegateHandle StaticDataReceivedHandle;
 			FDelegateHandle FrameDataReceivedHandle;
 
-			FString ToString() const
+			bool ReceivedFrameData(const FLiveLinkAnimationFrameData& AnimationData, FLiveLinkAnimationFrameData& OutAnimationData) const;
+			bool ReceivedStaticData(const FLiveLinkSkeletonStaticData& SkeletonData);
+
+			FString ToString() const;
+
+			static FLiveLinkTrackedSubject CreateFromReceivedPacket(
+				FLiveLinkSubjectName InLiveLinkSubject,
+				FLiveStreamAnimationHandle InSubjectHandle,
+				const FLiveLinkSkeletonStaticData& InSkeleton);
+
+			static FLiveLinkTrackedSubject CreateFromTrackingRequest(
+				FLiveLinkSubjectName InLiveLinkSubject,
+				FLiveStreamAnimationHandle InSubjectHandle,
+				FLiveStreamAnimationLiveLinkSourceOptions InOptions,
+				FLiveStreamAnimationHandle InTranslationHandle,
+				FDelegateHandle InStaticDataReceivedHandle,
+				FDelegateHandle InFrameDataReceivedHandle
+				);
+
+		private:
+
+			FLiveLinkTrackedSubject()
 			{
-				return FString::Printf(TEXT("LiveLinkSubject = %s, SubjectHandle = %s"),
-					*LiveLinkSubject.ToString(), *SubjectHandle.ToString());
 			}
+
+			TOptional<FLiveStreamAnimationLiveLinkTranslationProfile> TranslationProfile;
+			TArray<int32> BoneTranslations;
 		};
 
 	public:
