@@ -558,7 +558,7 @@ public:
 
 					const float CachedSliderExponent = SliderExponent.Get();
 					// The amount currently filled in the spinbox, needs to be calculated to do deltas correctly.
-					float FractionFilled = Fraction(CachedExternalValue, GetMinSliderValue(), GetMaxSliderValue());
+					float FractionFilled = Fraction(PreDragValue, GetMinSliderValue(), GetMaxSliderValue());
 						
 					if (CachedSliderExponent != 1)
 					{
@@ -576,7 +576,8 @@ public:
 					FractionFilled *= SliderWidthInSlateUnits;
 
 					// Now add the delta to the fraction filled, this causes the spin.
-					FractionFilled += MouseEvent.GetCursorDelta().X;
+					float MouseDelta = MouseEvent.GetScreenSpacePosition().IntPoint().X - CachedMousePosition.X;
+					FractionFilled += MouseDelta;
 						
 					// Clamp the fraction to be within the bounds of the geometry.
 					FractionFilled = FMath::Clamp(FractionFilled, 0.0f, SliderWidthInSlateUnits);
@@ -600,7 +601,10 @@ public:
 						
 					}
 
-					NumericType NewValue = FMath::LerpStable<double>(GetMinSliderValue(), GetMaxSliderValue(), Percent);
+					double ValueToRound = FMath::LerpStable<double>(GetMinSliderValue(), GetMaxSliderValue(), Percent);
+					NumericType NewValue = TIsIntegral<NumericType>::Value
+						? (NumericType)FMath::FloorToDouble(ValueToRound + 0.5)
+						: (NumericType)ValueToRound;
 					CommitValue(NewValue, CommittedViaSpin, ETextCommit::OnEnter);
 				}
 				else
@@ -874,18 +878,13 @@ protected:
 	 */
 	void CommitValue( NumericType NewValue, ECommitMethod CommitMethod, ETextCommit::Type OriginalCommitInfo )
 	{
+		NumericType ValueToCommit = NewValue;
 		if( CommitMethod == CommittedViaSpin || CommitMethod == CommittedViaArrowKey )
 		{
-			NewValue = FMath::Clamp<NumericType>( NewValue, GetMinSliderValue(), GetMaxSliderValue() );
+			ValueToCommit = FMath::Clamp<NumericType>(ValueToCommit, GetMinSliderValue(), GetMaxSliderValue());
 		}
 
-		NewValue = FMath::Clamp<NumericType>( NewValue, GetMinValue(), GetMaxValue() );
-
-		if ( !ValueAttribute.IsBound() )
-		{
-			ValueAttribute.Set( NewValue );
-		}
-
+		ValueToCommit = FMath::Clamp<NumericType>(ValueToCommit, GetMinValue(), GetMaxValue());
 
 		// If not in spin mode, there is no need to jump to the value from the external source, continue to use the committed value.
 		if(CommitMethod == CommittedViaSpin)
@@ -894,7 +893,7 @@ protected:
 			const NumericType CurrentValue = ValueAttribute.Get();
 			if(CurrentValue != CachedExternalValue)
 			{
-				NewValue = CurrentValue;
+				ValueToCommit = CurrentValue;
 			}
 		}
 		else
@@ -910,31 +909,28 @@ protected:
 			NumericType CurrentDelta = Delta.Get();
 			if( CurrentDelta != 0 )
 			{
-				NewValue = FMath::GridSnap<NumericType>(NewValue, CurrentDelta); // snap numeric point value to nearest Delta
+				ValueToCommit = FMath::GridSnap((double)ValueToCommit, (double)CurrentDelta); // snap numeric point value to nearest Delta
 			}
 		}		
 
 		// Update the max slider value based on the current value if we're in dynamic mode
-		if (SupportDynamicSliderMaxValue.Get() && ValueAttribute.Get() > GetMaxSliderValue())
+		if (SupportDynamicSliderMaxValue.Get() && ValueToCommit > GetMaxSliderValue())
 		{
-			ApplySliderMaxValueChanged(ValueAttribute.Get() - GetMaxSliderValue(), true);
+			ApplySliderMaxValueChanged(ValueToCommit - GetMaxSliderValue(), true);
 		}
-		else if (SupportDynamicSliderMinValue.Get() && ValueAttribute.Get() < GetMinSliderValue())
+		else if (SupportDynamicSliderMinValue.Get() && ValueToCommit < GetMinSliderValue())
 		{
-			ApplySliderMinValueChanged(ValueAttribute.Get() - GetMinSliderValue(), true);
+			ApplySliderMinValueChanged(ValueToCommit - GetMinSliderValue(), true);
 		}
 
 		if( CommitMethod == CommittedViaTypeIn || CommitMethod == CommittedViaArrowKey )
 		{
-			OnValueCommitted.ExecuteIfBound( NewValue, OriginalCommitInfo );
+			OnValueCommitted.ExecuteIfBound(ValueToCommit, OriginalCommitInfo);
 		}
 
-		OnValueChanged.ExecuteIfBound( NewValue );
+		OnValueChanged.ExecuteIfBound(ValueToCommit);
 
-		if (!ValueAttribute.IsBound())
-		{
-			ValueAttribute.Set(NewValue);
-		}
+		ValueAttribute.Set(ValueToCommit);
 
 		// Update the cache of the external value to what the user believes the value is now.
 		CachedExternalValue = ValueAttribute.Get();
