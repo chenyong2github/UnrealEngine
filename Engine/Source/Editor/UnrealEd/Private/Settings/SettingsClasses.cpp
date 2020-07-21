@@ -798,6 +798,8 @@ ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitial
 	bLevelStreamingVolumePrevis = false;
 	BillboardScale = 1.0f;
 	TransformWidgetSizeAdjustment = 0.0f;
+	SelectedSplinePointsSizeAdjustment = 0.0f;
+	SplineHitToleranceAdjustment = 0.0f;
 	MeasuringToolUnits = MeasureUnits_Centimeters;
 	bAllowArcballRotate = false;
 	bAllowScreenRotate = false;

@@ -11,6 +11,10 @@
 #include "SceneManagement.h"
 #include "UnrealEngine.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorViewportSettings.h"
+#endif
+
 #define SPLINE_FAST_BOUNDS_CALCULATION 0
 
 const FInterpCurvePointVector USplineComponent::DummyPointPosition(0.0f, FVector::ZeroVector, FVector::ForwardVector, FVector::ForwardVector, CIM_Constant);
@@ -1591,12 +1595,19 @@ void USplineComponent::Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View
 
 				// Then draw a line for each substep.
 				const int32 NumSteps = 20;
+#if WITH_EDITOR
+				const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineHitToleranceAdjustment;
+#endif
 
 				for (int32 StepIdx = 1; StepIdx <= NumSteps; StepIdx++)
 				{
 					const float Key = (KeyIdx - 1) + (StepIdx / static_cast<float>(NumSteps));
 					const FVector NewPos = LocalToWorld.TransformPosition(SplineInfo.Eval(Key, FVector(0)));
+#if WITH_EDITOR
+					PDI->DrawLine(OldPos, NewPos, LineColor, DepthPriorityGroup, SegmentLineThickness);
+#else
 					PDI->DrawLine(OldPos, NewPos, LineColor, DepthPriorityGroup);
+#endif
 					OldPos = NewPos;
 				}
 			}

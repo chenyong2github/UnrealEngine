@@ -500,6 +500,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = LookAndFeel)
 	TEnumAsByte<EMeasuringToolUnits> MeasuringToolUnits;
 
+	/** The size adjustment to apply to selected spline points (in screen space units). */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "-5.00", ClampMax = "20.00"))
+	float SelectedSplinePointsSizeAdjustment;
+
+	/** The size adjustment to apply to spline hit tolerance (in screen space units). */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00", ClampMax = "100.00"))
+	float SplineHitToleranceAdjustment;
+
 private:
 
 	// Per-instance viewport settings.
