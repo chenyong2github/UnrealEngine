@@ -1706,6 +1706,7 @@ static bool CreateGLProgramFromUncompressedBinary(GLuint& ProgramOUT, const TArr
 
 struct FCompressedProgramBinaryHeader
 {
+	static const uint32 NotCompressed = 0xFFFFFFFF;
 	uint32 UncompressedSize;
 };
 
@@ -1715,12 +1716,22 @@ static bool UncompressCompressedBinaryProgram(const TArray<uint8>& CompressedPro
 	{
 		FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)CompressedProgramBinary.GetData();
 
-		UncompressedProgramBinaryOUT.AddUninitialized(Header->UncompressedSize);
-
-		if (Header->UncompressedSize > 0
-			&& FCompression::UncompressMemory(NAME_Zlib, UncompressedProgramBinaryOUT.GetData(), UncompressedProgramBinaryOUT.Num(), CompressedProgramBinary.GetData() + sizeof(FCompressedProgramBinaryHeader), CompressedProgramBinary.Num() - sizeof(FCompressedProgramBinaryHeader)))
+		if (Header->UncompressedSize == FCompressedProgramBinaryHeader::NotCompressed)
 		{
+			const uint32 ProgramSize = CompressedProgramBinary.Num() - sizeof(FCompressedProgramBinaryHeader);
+			UncompressedProgramBinaryOUT.SetNumUninitialized(ProgramSize);
+			FMemory::Memcpy(UncompressedProgramBinaryOUT.GetData(), CompressedProgramBinary.GetData() + sizeof(FCompressedProgramBinaryHeader), ProgramSize);
 			return true;
+		}
+		else
+		{
+			UncompressedProgramBinaryOUT.AddUninitialized(Header->UncompressedSize);
+
+			if (Header->UncompressedSize > 0
+				&& FCompression::UncompressMemory(NAME_Zlib, UncompressedProgramBinaryOUT.GetData(), UncompressedProgramBinaryOUT.Num(), CompressedProgramBinary.GetData() + sizeof(FCompressedProgramBinaryHeader), CompressedProgramBinary.Num() - sizeof(FCompressedProgramBinaryHeader)))
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -1772,11 +1783,23 @@ static bool GetCompressedProgramBinaryFromGLProgram(GLuint Program, TArray<uint8
 		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedProgramBinary.Num());
 		uint32 CompressedHeaderSize = sizeof(FCompressedProgramBinaryHeader);
 		ProgramBinaryOUT.AddUninitialized(CompressedSize + CompressedHeaderSize);
-		FCompression::CompressMemory(NAME_Zlib, ProgramBinaryOUT.GetData() + CompressedHeaderSize, CompressedSize, UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
-		ProgramBinaryOUT.SetNum(CompressedSize + CompressedHeaderSize);
-		ProgramBinaryOUT.Shrink();
-		FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
-		Header->UncompressedSize = UncompressedProgramBinary.Num();
+		bool bSuccess = FCompression::CompressMemory(NAME_Zlib, ProgramBinaryOUT.GetData() + CompressedHeaderSize, CompressedSize, UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
+		if(bSuccess)
+		{
+			ProgramBinaryOUT.SetNum(CompressedSize + CompressedHeaderSize);
+			ProgramBinaryOUT.Shrink();
+			FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
+			Header->UncompressedSize = UncompressedProgramBinary.Num();
+		}
+		else
+		{
+			// failed, store the uncompressed version.
+			UE_LOG(LogRHI, Log, TEXT("Storing binary program uncompressed (%d, %d, %d)"), UncompressedProgramBinary.Num(), ProgramBinaryOUT.Num(), CompressedSize);
+			ProgramBinaryOUT.SetNumUninitialized(UncompressedProgramBinary.Num() + CompressedHeaderSize);
+			FCompressedProgramBinaryHeader* Header = (FCompressedProgramBinaryHeader*)ProgramBinaryOUT.GetData();
+			Header->UncompressedSize = FCompressedProgramBinaryHeader::NotCompressed;
+			FMemory::Memcpy(ProgramBinaryOUT.GetData() + sizeof(FCompressedProgramBinaryHeader), UncompressedProgramBinary.GetData(), UncompressedProgramBinary.Num());
+		}
 		return true;
 	}
 	return false;
@@ -4205,7 +4228,7 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 }
 
 
-static const uint32 GBinaryProgramFileVersion = 3;
+static const uint32 GBinaryProgramFileVersion = 4;
 
 TAutoConsoleVariable<int32> FOpenGLProgramBinaryCache::CVarPBCEnable(
 	TEXT("r.ProgramBinaryCache.Enable"),
