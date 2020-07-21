@@ -50,11 +50,9 @@ bool FMeshConvexHull::Compute()
 			}
 		}
 
+		Swap(Triangle.B, Triangle.C);		// GTEngine mesh is other-handed
 		ConvexHull.AppendTriangle(Triangle);
 	});
-
-
-
 
 	if (bPostSimplify)
 	{
@@ -62,6 +60,7 @@ bool FMeshConvexHull::Compute()
 		if (ConvexHull.TriangleCount() > MaxTargetFaceCount)
 		{
 			FVolPresMeshSimplification Simplifier(&ConvexHull);
+			Simplifier.CollapseMode = FVolPresMeshSimplification::ESimplificationCollapseModes::MinimalExistingVertexError;
 			Simplifier.SimplifyToTriangleCount(MaxTargetFaceCount);
 			bSimplified = true;
 		}
