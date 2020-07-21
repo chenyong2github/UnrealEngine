@@ -2439,15 +2439,18 @@ private:
 			auto It = PendingCDOs.CreateIterator();
 			UClass* Class = It.Key();
 			TArray<FEventLoadNode2*> Nodes = MoveTemp(It.Value());
+			It.RemoveCurrent();
 
+			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Creating CDO for %s. %d entries remaining."), *Class->GetFullName(), PendingCDOs.Num());
 			UObject* CDO = Class->GetDefaultObject();
-			checkf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+
+			ensureMsgf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Created CDO for %s."), *Class->GetFullName());
+
 			for (FEventLoadNode2* Node : Nodes)
 			{
 				Node->ReleaseBarrier();
 			}
-
-			It.RemoveCurrent();
 			return true;
 		}
 		return false;
