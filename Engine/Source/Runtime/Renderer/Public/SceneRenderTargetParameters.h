@@ -108,6 +108,8 @@ extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBuf
 	ESceneTextureSetupMode SetupMode,
 	EUniformBufferUsage Usage);
 
+extern RENDERER_API bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList);
+
 template <typename TRHICmdList>
 RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
 	TRHICmdList& RHICmdList,
