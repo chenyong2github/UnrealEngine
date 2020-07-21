@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RHI.h"
-#include "MetalRHI.h"
 #include "MetalRHIPrivate.h"
-#include "MetalResources.h"
 #include "MetalFrameAllocator.h"
 
 static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)

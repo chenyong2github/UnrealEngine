@@ -12,8 +12,6 @@
 #include "PixelFormat.h"
 
 // Dependencies
-#include "MetalRHI.h"
-#include "RHI.h"
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
@@ -43,6 +41,9 @@ const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 2;
 #else
 const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 32;
 #endif
+
+#include "MetalRHI.h"
+#include "RHI.h"
 
 #define BUFFER_CACHE_MODE mtlpp::ResourceOptions::CpuCacheModeDefaultCache
 
@@ -189,6 +190,14 @@ FMetalSurface* GetMetalSurfaceFromRHITexture(FRHITexture* Texture);
 FORCEINLINE void CheckMetalThread()
 {
     check((IsInRenderingThread() && (!IsRunningRHIInSeparateThread() || !FRHICommandListExecutor::IsRHIThreadActive())) || IsInRHIThread());
+}
+
+FORCEINLINE bool MetalIsSafeToUseRHIThreadResources()
+{
+	// we can use RHI thread resources if we are on the RHIThread or on RenderingThread when there's no RHI thread, or the RHI thread is stalled or inactive
+	return (GIsMetalInitialized && !GIsRHIInitialized) ||
+			IsInRHIThread() ||
+			(IsInRenderingThread() && (!IsRunningRHIInSeparateThread() || !FRHICommandListExecutor::IsRHIThreadActive() || FRHICommandListImmediate::IsStalled() || FRHICommandListExecutor::IsRHIThreadCompletelyFlushed()));
 }
 
 FORCEINLINE mtlpp::IndexType GetMetalIndexType(EMetalIndexType IndexType)

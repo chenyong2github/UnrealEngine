@@ -13,6 +13,7 @@
 #include "MetalBuffer.h"
 #include "MetalQuery.h"
 #include "MetalCaptureManager.h"
+#include "MetalFrameAllocator.h"
 #if PLATFORM_IOS
 #include "IOS/IOSView.h"
 #endif
@@ -23,7 +24,7 @@
 
 class FMetalRHICommandContext;
 class FMetalPipelineStateCacheManager;
-class FMetalFrameAllocator;
+class FMetalRHIBuffer;
 
 class FMetalContext
 {
@@ -222,6 +223,11 @@ public:
 	
 	/** Get the index of the bound Metal device in the global list of rendering devices. */
 	uint32 GetDeviceIndex(void) const;
+	
+	FMetalFrameAllocator* GetTransferAllocator()
+	{
+		return TransferBufferAllocator;
+	}
     
     FMetalFrameAllocator* GetUniformAllocator()
     {
@@ -232,6 +238,9 @@ public:
     {
         return FrameNumberRHIThread;
     }
+	
+	void NewLock(FMetalRHIBuffer* Buffer, FMetalFrameAllocator::AllocationEntry& Allocation);
+	FMetalFrameAllocator::AllocationEntry FetchAndRemoveLock(FMetalRHIBuffer* Buffer);
 	
 #if METAL_DEBUG_OPTIONS
     void AddActiveBuffer(FMetalBuffer const& Buffer);
@@ -275,6 +284,9 @@ private:
 	
 //	TSet<FMetalUniformBuffer*> UniformBuffers;
     FMetalFrameAllocator* UniformBufferAllocator;
+	FMetalFrameAllocator* TransferBufferAllocator;
+	
+	TMap<FMetalRHIBuffer*, FMetalFrameAllocator::AllocationEntry> OutstandingLocks;
 	
 #if METAL_DEBUG_OPTIONS
 	/** The list of fences for the current frame */

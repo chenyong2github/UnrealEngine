@@ -4,10 +4,8 @@
 	MetalConstantBuffer.cpp: Metal Constant buffer implementation.
 =============================================================================*/
 
-#include "MetalRHI.h"
-#include "MetalResources.h"
-#include "MetalFrameAllocator.h"
 #include "MetalRHIPrivate.h"
+#include "MetalFrameAllocator.h"
 
 #pragma mark Suballocated Uniform Buffer Implementation
 
