@@ -321,7 +321,7 @@ struct FBehaviorTreeInstance
 	FBTInstanceDeactivation DeactivationNotify;
 
 	AIMODULE_API FBehaviorTreeInstance();
-	AIMODULE_API BehaviorTreeInstance(const FBehaviorTreeInstance& Other);
+	AIMODULE_API FBehaviorTreeInstance(const FBehaviorTreeInstance& Other);
 	AIMODULE_API FBehaviorTreeInstance(int32 MemorySize);
 	AIMODULE_API ~FBehaviorTreeInstance();
 
