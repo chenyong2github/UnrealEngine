@@ -1043,7 +1043,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					{
 						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
 							RHICmdList,
-							ActiveSceneView.GetFeatureLevel(),
+							FeatureLevel,
 							ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SSAO | ESceneTextureSetupMode::CustomDepth,
 							UniformBuffer_SingleDraw);
 						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
