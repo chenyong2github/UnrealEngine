@@ -378,13 +378,13 @@ struct FNetworkPredictionDriverBase
 	// -----------------------------------------------------------------------------------------------------------------------------------
 	
 	template<typename InDriverType=DriverType>
-	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, InDriverType* Driver, int32 SimFrame, int32 SimTimeMS)
+	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, InDriverType* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame)
 	{
 		npCheckSlow(Driver);
-		CueDispatcher-> template DispatchCueRecord<InDriverType>(*Driver, SimFrame, SimTimeMS);
+		CueDispatcher-> template DispatchCueRecord<InDriverType>(*Driver, SimFrame, SimTimeMS, ConfirmedFrame);
 	}
 
-	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS)
+	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame)
 	{
 	}
 

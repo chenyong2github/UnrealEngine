@@ -94,13 +94,13 @@ public:
 		Tick_Internal<true>(Step, ServiceStep);
 	}
 
-	void BeginRollback(int32 Frame, int32 StartTimeMS)
+	void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame)
 	{
 		for (auto It : InstancesToTick)
 		{
 			TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(It.Value.InstanceIdx);
 			UE_NP_TRACE_SIM(Instance.TraceID);
-			Instance.CueDispatcher->NotifyRollback(Frame);
+			Instance.CueDispatcher->NotifyRollback(ServerFrame);
 		}
 	}
 
@@ -147,7 +147,7 @@ private:
 				return ESimulationTickContext::Resimulate;
 				break;
 			case ENetRole::ROLE_SimulatedProxy:
-				return ESimulationTickContext::ResimExtrapolate;
+				return ESimulationTickContext::Resimulate;
 				break;
 			}
 		}

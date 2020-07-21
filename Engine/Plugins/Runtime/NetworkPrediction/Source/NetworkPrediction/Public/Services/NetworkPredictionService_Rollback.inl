@@ -14,7 +14,7 @@ public:
 
 	virtual ~IFixedRollbackService() = default;
 	virtual int32 QueryRollback(const FFixedTickState* TickState) = 0;
-	virtual void BeginRollback(const FFixedTickState* TickState, int32 Frame, int32 StartTimeMS) = 0;
+	virtual void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame) = 0;
 	virtual void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset) = 0;
 };
 
@@ -146,9 +146,9 @@ public:
 		return RollbackFrame;
 	}
 
-	void BeginRollback(const FFixedTickState* TickState, int32 Frame, int32 StartTimeMS)
+	void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame)
 	{
-		InternalTickService.BeginRollback(Frame, StartTimeMS);
+		InternalTickService.BeginRollback(LocalFrame, StartTimeMS, ServerFrame);
 	}
 	
 	void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset)

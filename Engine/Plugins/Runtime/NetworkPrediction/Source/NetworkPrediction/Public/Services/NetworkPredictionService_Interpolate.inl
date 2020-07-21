@@ -247,7 +247,7 @@ public:
 				// Update SimulationView with the frame we are interpolating to
 				InstanceData.Info.View->UpdateView(ToFrame, ToFrameData.InputCmd, ToFrameData.SyncState, ToFrameData.AuxState);
 
-				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolatedTimeMS);
+				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolatedTimeMS, FromFrame); // FromFrame is the ConfirmedFrame
 			}
 		}
 	}
@@ -498,7 +498,7 @@ public:
 
 				InstanceData.Info.View->UpdateView(ToFrame, nullptr, ToFromData.SyncState, ToFromData.AuxState);
 
-				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolationTimeMS);	
+				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolationTimeMS, FromFrame); // FromFrame is the ConfirmedFrame
 				
 				if (NetworkPredictionCVars::DrawInterpolation())
 				{
@@ -540,7 +540,7 @@ public:
 
 				InstanceData.Info.View->UpdateView(FromFrame, nullptr, FrameData.SyncState, FrameData.AuxState);
 
-				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, ActualTimeMS);
+				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, ActualTimeMS, FromFrame); // FromFrame is the "confirmed frame" for interpolation
 
 				if (NetworkPredictionCVars::DrawInterpolation())
 				{

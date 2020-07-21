@@ -2,7 +2,7 @@
 
 #include "NetworkPredictionCues.h"
 
-DEFINE_LOG_CATEGORY(LogNetSimCues);
+DEFINE_LOG_CATEGORY(LogNetworkPredictionCues);
 
 FGlobalCueTypeTable FGlobalCueTypeTable::Singleton;
 

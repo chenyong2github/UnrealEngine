@@ -377,6 +377,7 @@ public:
 
 		// AP recv drives fixed tick interpolation
 		TickState->Interpolation.LatestRecvFrame = ServerFrame;
+		TickState->ConfirmedFrame = ServerFrame - TickState->Offset;
 
 		ClientRecvState.ServerFrame = ServerFrame;
 		UE_NP_TRACE_NET_RECV(ServerFrame, ServerFrame * TickState->FixedStepMS);
@@ -427,12 +428,14 @@ public:
 	// ------------------------------------------------------------------------------------------------------------
 	// AP Client receives from the server
 	// ------------------------------------------------------------------------------------------------------------
-	static void NetRecv(const FNetSerializeParams& P, TClientRecvData<ModelDef>& ClientRecvState, TModelDataStore<ModelDef>* DataStore, const FVariableTickState* TickState)
+	static void NetRecv(const FNetSerializeParams& P, TClientRecvData<ModelDef>& ClientRecvState, TModelDataStore<ModelDef>* DataStore, FVariableTickState* TickState)
 	{
 		FArchive& Ar = P.Ar;
 		const int32 LastConsumedInputFrame = FNetworkPredictionSerialization::ReadCompressedFrame(Ar, TickState->PendingFrame); // 1. Last Consumed (Client) Input Frame
 		ClientRecvState.ServerFrame = LastConsumedInputFrame + 1;
 		npEnsure(ClientRecvState.ServerFrame >= 0);
+
+		TickState->ConfirmedFrame = ClientRecvState.ServerFrame;
 
 		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, ClientRecvState.SimTimeMS); // 2. TotalSimTime
 
