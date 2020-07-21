@@ -714,14 +714,17 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(System->GetSystemSpawnScript()->GetSource());
 			bool bNeedsCompilation = ScriptSourceNeedsCompiling(Source, InCompilingScripts);
 			BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver, bNeedsCompilation);
-			BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, EmptyResolver);
-			BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, EmptyResolver);
 			BasePtr->FinishPrecompile(Source, EncounterableVars, ENiagaraScriptUsage::SystemSpawnScript, EmptyResolver, nullptr);
 		}
 
 		// Add the User and System variables that we did encounter to the list that emitters might also encounter.
 		BasePtr->GatherPreCompiledVariables(TEXT("User"), EncounterableVars);
 		BasePtr->GatherPreCompiledVariables(TEXT("System"), EncounterableVars);
+
+		// now that the scripts have been precompiled we can prepare the rapid iteration parameters, which we need to do before we
+		// actually generate the hlsl in the case of baking out the parameters
+		TArray<UNiagaraScript*> Scripts;
+		TMap<UNiagaraScript*, const UNiagaraEmitter*> ScriptToEmitterMap;
 
 		// Now we can finish off the emitters.
 		for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
@@ -737,7 +740,8 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 				{
 					if (EmitterScripts[ScriptIdx])
 					{
-						BasePtr->EmitterData[i]->AddRapidIterationParameters(EmitterScripts[ScriptIdx]->RapidIterationParameters, ConstantResolver);
+						Scripts.AddUnique(EmitterScripts[ScriptIdx]);
+						ScriptToEmitterMap.Add(EmitterScripts[ScriptIdx], Handle.GetInstance());
 					}
 				}
 				BasePtr->EmitterData[i]->FinishPrecompile(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), EncounterableVars, ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver, &Handle.GetInstance()->GetSimulationStages());
@@ -750,6 +754,88 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 						const int32 OrigCount = BasePtr->EmitterData[i]->RequiredRendererVariables.Num();
 
 						BasePtr->EmitterData[i]->RequiredRendererVariables.AddUnique(BoundAttribute);
+					}
+				}
+			}
+		}
+
+		{
+			TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
+
+			// Prepare rapid iteration parameters for execution.
+			for (auto ScriptEmitterPair = ScriptToEmitterMap.CreateIterator(); ScriptEmitterPair; ++ScriptEmitterPair)
+			{
+				UNiagaraScript* CompiledScript = ScriptEmitterPair->Key;
+				const UNiagaraEmitter* Emitter = ScriptEmitterPair->Value;
+
+				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterSpawnScript))
+				{
+					UNiagaraScript* SystemSpawnScript = System->GetSystemSpawnScript();
+					Scripts.AddUnique(SystemSpawnScript);
+					ScriptDependencyMap.Add(CompiledScript, SystemSpawnScript);
+					ScriptToEmitterMap.Add(SystemSpawnScript, nullptr);
+				}
+
+				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterUpdateScript))
+				{
+					UNiagaraScript* SystemUpdateScript = System->GetSystemUpdateScript();
+					Scripts.AddUnique(SystemUpdateScript);
+					ScriptDependencyMap.Add(CompiledScript, SystemUpdateScript);
+					ScriptToEmitterMap.Add(SystemUpdateScript, nullptr);
+				}
+
+				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript))
+				{
+					if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					{
+						UNiagaraScript* ComputeScript = const_cast<UNiagaraScript*>(Emitter->GetGPUComputeScript());
+
+						Scripts.AddUnique(ComputeScript);
+						ScriptDependencyMap.Add(CompiledScript, ComputeScript);
+						ScriptToEmitterMap.Add(ComputeScript, Emitter);
+					}
+				}
+
+				if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript))
+				{
+					if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+					{
+						UNiagaraScript* ComputeScript = const_cast<UNiagaraScript*>(Emitter->GetGPUComputeScript());
+
+						Scripts.AddUnique(ComputeScript);
+						ScriptDependencyMap.Add(CompiledScript, ComputeScript);
+						ScriptToEmitterMap.Add(ComputeScript, Emitter);
+					}
+					else if (Emitter && Emitter->bInterpolatedSpawning)
+					{
+						Scripts.AddUnique(Emitter->SpawnScriptProps.Script);
+						ScriptDependencyMap.Add(CompiledScript, Emitter->SpawnScriptProps.Script);
+						ScriptToEmitterMap.Add(Emitter->SpawnScriptProps.Script, Emitter);
+					}
+				}
+			}
+
+			FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
+
+			BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, EmptyResolver);
+			BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, EmptyResolver);
+
+			// Now we can finish off the emitters.
+			for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
+			{
+				const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
+				FCompileConstantResolver ConstantResolver(Handle.GetInstance());
+				if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
+				{
+					TArray<UNiagaraScript*> EmitterScripts;
+					Handle.GetInstance()->GetScripts(EmitterScripts, false);
+
+					for (int32 ScriptIdx = 0; ScriptIdx < EmitterScripts.Num(); ScriptIdx++)
+					{
+						if (EmitterScripts[ScriptIdx])
+						{
+							BasePtr->EmitterData[i]->AddRapidIterationParameters(EmitterScripts[ScriptIdx]->RapidIterationParameters, ConstantResolver);
+						}
 					}
 				}
 			}

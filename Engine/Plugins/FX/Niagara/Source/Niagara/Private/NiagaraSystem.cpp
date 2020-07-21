@@ -1482,61 +1482,6 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		InitEmitterCompiledData();
 		InitSystemCompiledData();
 
-		// Prepare rapid iteration parameters for execution.
-		TArray<UNiagaraScript*> Scripts;
-		TMap<UNiagaraScript*, UNiagaraScript*> ScriptDependencyMap;
-		TMap<UNiagaraScript*, const UNiagaraEmitter*> ScriptToEmitterMap;
-		for (FEmitterCompiledScriptPair& EmitterCompiledScriptPair : ActiveCompilations[ActiveCompileIdx].EmitterCompiledScriptPairs)
-		{
-			UNiagaraEmitter* Emitter = EmitterCompiledScriptPair.Emitter;
-			UNiagaraScript* CompiledScript = EmitterCompiledScriptPair.CompiledScript;
-
-			Scripts.AddUnique(CompiledScript);
-			ScriptToEmitterMap.Add(CompiledScript, Emitter);
-
-			if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterSpawnScript))
-			{
-				Scripts.AddUnique(SystemSpawnScript);
-				ScriptDependencyMap.Add(CompiledScript, SystemSpawnScript);
-				ScriptToEmitterMap.Add(SystemSpawnScript, nullptr);
-			}
-
-			if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::EmitterUpdateScript))
-			{
-				Scripts.AddUnique(SystemUpdateScript);
-				ScriptDependencyMap.Add(CompiledScript, SystemUpdateScript);
-				ScriptToEmitterMap.Add(SystemUpdateScript, nullptr);
-			}
-
-			if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleSpawnScript))
-			{
-				if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-				{
-					Scripts.AddUnique(Emitter->GetGPUComputeScript());
-					ScriptDependencyMap.Add(CompiledScript, Emitter->GetGPUComputeScript());
-					ScriptToEmitterMap.Add(Emitter->GetGPUComputeScript(), Emitter);
-				}
-			}
-
-			if (UNiagaraScript::IsEquivalentUsage(CompiledScript->GetUsage(), ENiagaraScriptUsage::ParticleUpdateScript))
-			{
-				if (Emitter && Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
-				{
-					Scripts.AddUnique(Emitter->GetGPUComputeScript());
-					ScriptDependencyMap.Add(CompiledScript, Emitter->GetGPUComputeScript());
-					ScriptToEmitterMap.Add(Emitter->GetGPUComputeScript(), Emitter);
-				}
-				else if (Emitter && Emitter->bInterpolatedSpawning)
-				{
-					Scripts.AddUnique(Emitter->SpawnScriptProps.Script);
-					ScriptDependencyMap.Add(CompiledScript, Emitter->SpawnScriptProps.Script);
-					ScriptToEmitterMap.Add(Emitter->SpawnScriptProps.Script, Emitter);
-				}
-			}
-		}
-
-		FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
-
 		// HACK: This is a temporary hack to fix an issue where data interfaces used by modules and dynamic inputs in the
 		// particle update script aren't being shared by the interpolated spawn script when accessed directly.  This works
 		// properly if the data interface is assigned to a named particle parameter and then linked to an input.
