@@ -122,7 +122,7 @@ void UBTDecorator::ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDe
 		// value changes anyway since their nodes execution will be blocked by this condition 
 		// during tree search
 		const UBTCompositeNode* BranchRoot = GetParentNode()->Children[GetChildIndex()].ChildComposite;
-		OwnerComp.UnregisterAuxNodesInBranch(BranchRoot);
+		OwnerComp.RequestUnregisterAuxNodesInBranch(BranchRoot);
 	}
 	else if (bIsExecutingBranch && bPass && (bAlwaysRequestWhenPassing || bAbortPending))
 	{

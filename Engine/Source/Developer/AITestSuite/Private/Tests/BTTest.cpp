@@ -252,6 +252,175 @@ struct FAITest_BTCompositeDecorator : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTCompositeDecorator, "System.AI.Behavior Trees.Composite decorator")
 
+struct FAITest_BTCompositeChildrenDecoratorsNotUnregistered : public FAITest_SimpleBT
+{
+	/**
+	 *                           +-------+
+	 *                           |root   |
+	 *                           +---+---+
+	 *                               |
+	 *                      +--------+--------+
+	 *                      |Sequence      (0)|
+	 *                      +--------+--------+
+	 *                               |
+	 *          +--------------------+--------------------+
+	 *          |                                         |
+	 * +--------+--------+                       +--------+--------+
+	 * |Set Int=1     (1)|                       |Selector      (2)|
+	 * +-----------------+                       +--------+--------+
+	 *                                                    |
+	 *                                +-------------------+--------------------+--------------------+
+	 *                                |                                        |                    |
+	 *                       +--------+--------+                      +--------+--------+  +--------+--------+
+	 *                       |Selector      (3)|                      |BBDec: Int==2(10)|  |Set Int=2    (12)|
+	 *                       +--------+--------+                      +-----------------+  +-----------------+
+	 *                                |                               |Task 3       (11)|
+	 *           +-----------------------------------------+          +-----------------+
+	 *           |                    |                    |
+	 *  +--------+--------+  +--------+--------+  +--------+--------+
+	 *  |BBDec:Int==11 (4)|  |BBDec:Int==12 (6)|  |BBDec: Int==1 (8)|
+	 *  +-----------------+  +-----------------+  +-----------------+
+	 *  |Task1         (5)|  |Task2         (7)|  |   Set Int=0  (9)|
+	 *  +-----------------+  +-----------------+  +-----------------+
+	 *
+	 */
+	FAITest_BTCompositeChildrenDecoratorsNotUnregistered()
+	{
+		UBTCompositeNode& CompNode0 = FBTBuilder::AddSequence(*BTAsset);
+		{
+			FBTBuilder::AddTaskValueChange(CompNode0, 1, EBTNodeResult::Succeeded, TEXT("Int"));
+
+			UBTCompositeNode& CompNode = FBTBuilder::AddSelector(CompNode0);
+			{
+				UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+				{
+					FBTBuilder::AddTask(CompNode2, 0, EBTNodeResult::Succeeded);
+					{
+						FBTBuilder::WithDecoratorBlackboard(CompNode2, EArithmeticKeyOperation::Equal, 11, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+							TEXT("Int"), 110 /*LogIndexBecomeRelevant*/, 119 /*LogIndexCeaseRelevant*/);
+					}
+
+					FBTBuilder::AddTask(CompNode2, 1, EBTNodeResult::Succeeded);
+					{
+						FBTBuilder::WithDecoratorBlackboard(CompNode2, EArithmeticKeyOperation::Equal, 12, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+							TEXT("Int"), 120 /*LogIndexBecomeRelevant*/, 129 /*LogIndexCeaseRelevant*/);
+					}
+
+					FBTBuilder::AddTaskValueChange(CompNode2, 0, EBTNodeResult::Succeeded, TEXT("Int"));
+					{
+						FBTBuilder::WithDecoratorBlackboard(CompNode2, EArithmeticKeyOperation::Equal, 1, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+							TEXT("Int"), 130 /*LogIndexBecomeRelevant*/, 139 /*LogIndexCeaseRelevant*/);
+					}
+				}
+
+				FBTBuilder::AddTask(CompNode, 3, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EArithmeticKeyOperation::Equal, 2, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+						TEXT("Int"), 200 /*LogIndexBecomeRelevant*/, 299 /*LogIndexCeaseRelevant*/);
+				}
+
+				FBTBuilder::AddTaskValueChange(CompNode, 2, EBTNodeResult::Succeeded, TEXT("Int"));
+			}
+		}
+
+		ExpectedResult.Add(110);
+		ExpectedResult.Add(120);
+		ExpectedResult.Add(130);
+		ExpectedResult.Add(200);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(119);
+		ExpectedResult.Add(129);
+		ExpectedResult.Add(139);
+		ExpectedResult.Add(299);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCompositeChildrenDecoratorsNotUnregistered, "System.AI.Behavior Trees.Composite children decorators not unregistered")
+
+struct FAITest_BTCompositeFailedDecoratorUnregistersChildren : public FAITest_SimpleBT
+{
+	/**
+	 *                           +-------+
+	 *                           |root   |
+	 *                           +---+---+
+	 *                               |
+	 *                      +--------+--------+
+	 *                      |Sequence      (0)|
+	 *                      +--------+--------+
+	 *                               |
+	 *          +--------------------+--------------------+
+	 *          |                                         |
+	 * +--------+--------+                       +--------+--------+
+	 * |Set Int=1     (1)|                       |Selector      (2)|
+	 * +-----------------+                       +--------+--------+
+	 *                                                    |
+	 *                                +-------------------+--------------------+--------------------+
+	 *                                |                                        |                    |
+	 *                       +--------+--------+                      +--------+--------+  +--------+--------+
+	 *                       |BBDec: Int==1 (3)|                      |BBDec: Int==2(10)|  |Set Int=2    (12)|
+	 *                       +-----------------+                      +-----------------+  +-----------------+
+	 *                       |Selector      (4)|                      |Task 3       (11)|
+	 *                       +--------+--------+                      +-----------------+
+	 *                                |
+	 *           +-----------------------------------------+
+	 *           |                    |                    |
+	 *  +--------+--------+  +--------+--------+  +--------+--------+
+	 *  |BBDec:Int==11 (5)|  |BBDec:Int==12 (7)|  |   Set Int=0  (9)|
+	 *  +-----------------+  +-----------------+  +-----------------+
+	 *  |Task1         (6)|  |Task2         (8)|
+	 *  +-----------------+  +-----------------+
+	 *
+	 *
+	 */
+	FAITest_BTCompositeFailedDecoratorUnregistersChildren()
+	{
+		UBTCompositeNode& CompNode0 = FBTBuilder::AddSequence(*BTAsset);
+		{
+			FBTBuilder::AddTaskValueChange(CompNode0, 1, EBTNodeResult::Succeeded, TEXT("Int"));
+			
+			UBTCompositeNode& CompNode = FBTBuilder::AddSelector(CompNode0);
+			{
+				UBTCompositeNode& CompNode2 = FBTBuilder::AddSelector(CompNode);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EArithmeticKeyOperation::Equal, 1, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+						TEXT("Int"), 100 /*LogIndexBecomeRelevant*/, 199 /*LogIndexCeaseRelevant*/);
+
+					FBTBuilder::AddTask(CompNode2, 0, EBTNodeResult::Succeeded);
+					{
+						FBTBuilder::WithDecoratorBlackboard(CompNode2, EArithmeticKeyOperation::Equal, 11, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+							TEXT("Int"), 110 /*LogIndexBecomeRelevant*/, 119 /*LogIndexCeaseRelevant*/);
+					}
+
+					FBTBuilder::AddTask(CompNode2, 1, EBTNodeResult::Succeeded);
+					{
+						FBTBuilder::WithDecoratorBlackboard(CompNode2, EArithmeticKeyOperation::Equal, 12, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange,
+							TEXT("Int"), 120 /*LogIndexBecomeRelevant*/, 129 /*LogIndexCeaseRelevant*/);
+					}
+
+					FBTBuilder::AddTaskValueChange(CompNode2, 0, EBTNodeResult::Succeeded, TEXT("Int"));
+				}
+								
+				FBTBuilder::AddTask(CompNode, 3, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(CompNode, EArithmeticKeyOperation::Equal, 2, EBTFlowAbortMode::Both, EBTBlackboardRestart::ResultChange, TEXT("Int"), 200 /*LogIndexBecomeRelevant*/, 299 /*LogIndexCeaseRelevant*/);
+				}
+
+				FBTBuilder::AddTaskValueChange(CompNode, 2, EBTNodeResult::Succeeded, TEXT("Int"));
+			}
+		}
+
+		ExpectedResult.Add(100);
+		ExpectedResult.Add(110);
+		ExpectedResult.Add(120);
+		ExpectedResult.Add(119);
+		ExpectedResult.Add(129);
+		ExpectedResult.Add(200);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(199);
+		ExpectedResult.Add(299);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCompositeFailedDecoratorUnregistersChildren, "System.AI.Behavior Trees.Composite failed decorator unregisters child nodes")
+
 struct FAITest_BTAbortSelfFail : public FAITest_SimpleBT
 {
 	FAITest_BTAbortSelfFail()
