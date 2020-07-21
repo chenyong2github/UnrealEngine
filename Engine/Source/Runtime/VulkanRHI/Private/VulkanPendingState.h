@@ -29,6 +29,13 @@ public:
 
 	~FVulkanPendingComputeState();
 
+	void Reset()
+	{
+		UAVListForAutoFlush.SetNum(0,false);
+		CurrentPipeline = nullptr;
+		CurrentState = nullptr;
+	}
+
 	void SetComputePipeline(FVulkanComputePipeline* InComputePipeline)
 	{
 		if (InComputePipeline != CurrentPipeline)
