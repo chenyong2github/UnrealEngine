@@ -79,6 +79,9 @@ protected:
 	/** Resets any contained data */
 	void Reset();
 
+	/** FCoreDelegates::OnPreExit shutdown callback */
+	void ShutdownOnPreExit();
+
 	/** Callback registered with SourceFilterCollection */
 	void OnSourceFiltersUpdated();
 
