@@ -164,6 +164,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 		{
 			ObjectNameArea->AddSlot()
 				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
 				.AutoWidth()
 				[
 					SNew( SButton )
