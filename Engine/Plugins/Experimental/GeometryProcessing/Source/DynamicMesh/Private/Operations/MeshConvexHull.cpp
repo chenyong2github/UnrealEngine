@@ -10,20 +10,10 @@
 
 bool FMeshConvexHull::Compute()
 {
-	TArray<int32> ToLinear, FromLinear;
-	ToLinear.SetNum(Mesh->MaxVertexID());
-	FromLinear.SetNum(Mesh->VertexCount());
-	int32 LinearIndex = 0;
-	for (int32 vid : Mesh->VertexIndicesItr())
-	{
-		FromLinear[LinearIndex] = vid;
-		ToLinear[vid] = LinearIndex++;
-	}
-
 	FConvexHull3d HullCompute;
-	bool bOK = HullCompute.Solve(FromLinear.Num(),
-		[&](int32 Index) { return Mesh->GetVertex(FromLinear[Index]); },
-		bUseExactComputation);
+	bool bOK = HullCompute.Solve(Mesh->MaxVertexID(),
+		[this](int32 Index) { return Mesh->GetVertex(Index); },
+		[this](int32 Index) { return Mesh->IsVertex(Index); });
 	if (!bOK)
 	{
 		return false;
@@ -39,7 +29,7 @@ bool FMeshConvexHull::Compute()
 			int32 Index = Triangle[j];
 			if (HullVertMap.Contains(Index) == false)
 			{
-				FVector3d OrigPos = Mesh->GetVertex(FromLinear[Index]);
+				FVector3d OrigPos = Mesh->GetVertex(Index);
 				int32 NewVID = ConvexHull.AppendVertex(OrigPos);
 				HullVertMap.Add(Index, NewVID);
 				Triangle[j] = NewVID;
@@ -50,7 +40,6 @@ bool FMeshConvexHull::Compute()
 			}
 		}
 
-		Swap(Triangle.B, Triangle.C);		// GTEngine mesh is other-handed
 		ConvexHull.AppendTriangle(Triangle);
 	});
 
