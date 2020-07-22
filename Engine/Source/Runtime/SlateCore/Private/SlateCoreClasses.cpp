@@ -42,6 +42,16 @@ static FAutoConsoleVariableRef CVarSlateNewUpdateMethod(
 bool GSlateIsOnFastUpdatePath = false;
 bool GSlateIsInInvalidationSlowPath = false;
 
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+bool GSlateCheckUObjectRenderResources = false;
+static FAutoConsoleVariableRef CVarSlateCheckUObjectRenderResources(
+	TEXT("Slate.CheckUObjectRenderResources"),
+	GSlateCheckUObjectRenderResources,
+	TEXT("")
+);
+bool GSlateCheckUObjectRenderResourcesShouldLogFatal = false;
+#endif
+
 #if WITH_SLATE_DEBUGGING
 
 bool GSlateInvalidationDebugging = false;
