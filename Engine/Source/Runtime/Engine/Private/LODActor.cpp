@@ -754,7 +754,7 @@ void ALODActor::CheckForErrors()
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
-		FMessageLog("MapCheck").Error()
+		FMessageLog("MapCheck").Warning()
 			->AddToken(FUObjectToken::Create(this))
 			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorMissingMesh", "{ActorName} : Static mesh is missing for the built LODActor.  Did you remove the asset? Please delete it and build LOD again. "), Arguments)))
 			->AddToken(FMapErrorToken::Create(FMapErrors::LODActorMissingStaticMesh));
