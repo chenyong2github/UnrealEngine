@@ -1448,9 +1448,9 @@ bool UNiagaraDataInterfaceStaticMesh::PerInstanceTick(void* PerInstanceData, FNi
 }
 
 #if WITH_EDITOR	
-TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
+void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+	TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
-	TArray<FNiagaraDataInterfaceError> Errors;
 	if (Source == nullptr && DefaultMesh != nullptr && !DefaultMesh->bAllowCPUAccess)
 	{
 		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(DefaultMesh->GetName())),
@@ -1462,14 +1462,14 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 			return true;
 		}));
 
-		Errors.Add(CPUAccessNotAllowedError);
+		OutErrors.Add(CPUAccessNotAllowedError);
 	}
 
-	bool bHasNoMeshAssignedError = (Source == nullptr && DefaultMesh == nullptr);
+	bool bHasNoMeshAssignedWarning = (Source == nullptr && DefaultMesh == nullptr);
 #if WITH_EDITORONLY_DATA
-	if (bHasNoMeshAssignedError && PreviewMesh != nullptr)
+	if (bHasNoMeshAssignedWarning && PreviewMesh != nullptr)
 	{
-		bHasNoMeshAssignedError = false;
+		bHasNoMeshAssignedWarning = false;
 
 		if (!PreviewMesh->bAllowCPUAccess)
 		{
@@ -1482,21 +1482,19 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 				return true;
 			}));
 
-			Errors.Add(CPUAccessNotAllowedError);
+			OutErrors.Add(CPUAccessNotAllowedError);
 		}
 	}
 #endif
 
-	if (bHasNoMeshAssignedError)
+	if (bHasNoMeshAssignedWarning)
 	{
-		FNiagaraDataInterfaceError NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface must be assigned a skeletal mesh to operate."),
-			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned error"),
+		FNiagaraDataInterfaceFeedback NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface should be assigned a static mesh to operate correctly."),
+			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned warning"),
 			FNiagaraDataInterfaceFix());
 
-		Errors.Add(NoMeshAssignedError);
+		OutWarnings.Add(NoMeshAssignedError);
 	}
-
-	return Errors;
 }
 #endif
 
