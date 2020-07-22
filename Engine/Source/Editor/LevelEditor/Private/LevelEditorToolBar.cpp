@@ -1905,6 +1905,7 @@ static void MakeMaterialQualityLevelMenu( UToolMenu* InMenu )
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MaterialQualityLevel_Low);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MaterialQualityLevel_Medium);
 		Section.AddMenuEntry(FLevelEditorCommands::Get().MaterialQualityLevel_High);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().MaterialQualityLevel_Epic);
 	}
 }
 
@@ -2068,7 +2069,7 @@ void FLevelEditorToolBar::RegisterQuickSettingsMenu()
 		Section.AddSubMenu(
 			"MaterialQualityLevel",
 			LOCTEXT( "MaterialQualityLevelSubMenu", "Material Quality Level" ),
-			LOCTEXT( "MaterialQualityLevelSubMenu_ToolTip", "Sets the value of the CVar \"r.MaterialQualityLevel\" (low=0, high=1, medium=2). This affects materials via the QualitySwitch material expression." ),
+			LOCTEXT( "MaterialQualityLevelSubMenu_ToolTip", "Sets the value of the CVar \"r.MaterialQualityLevel\" (low=0, high=1, medium=2, Epic=3). This affects materials via the QualitySwitch material expression." ),
 			FNewToolMenuDelegate::CreateStatic( &MakeMaterialQualityLevelMenu ) );
 
 		Section.AddSubMenu(

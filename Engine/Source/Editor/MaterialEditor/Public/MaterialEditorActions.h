@@ -170,6 +170,7 @@ public:
 	TSharedPtr< FUICommandInfo > PromoteToParameter;
 
 	TSharedPtr< FUICommandInfo > QualityLevel_All;
+	TSharedPtr< FUICommandInfo > QualityLevel_Epic;
 	TSharedPtr< FUICommandInfo > QualityLevel_High;
 	TSharedPtr< FUICommandInfo > QualityLevel_Medium;
 	TSharedPtr< FUICommandInfo > QualityLevel_Low;

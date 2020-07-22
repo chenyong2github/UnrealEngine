@@ -506,18 +506,23 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		}
 		else if (UMaterialExpressionQualitySwitch* QualitySwitchNode = Cast<UMaterialExpressionQualitySwitch>(Expression))
 		{
+			const FExpressionInput DefaultInput = QualitySwitchNode->Default.GetTracedInput();
+
 			for (int32 InputIndex = 0; InputIndex < EMaterialQualityLevel::Num; InputIndex++)
 			{
 				if (QualitySwitchNode->Inputs[InputIndex].IsConnected())
 				{
-					QualityLevelsUsed[InputIndex] = true;
+					// We can ignore quality levels that are defined the same way as 'Default'
+					// This avoids compiling a separate explicit quality level resource, that will end up exactly the same as the default resource
+					const FExpressionInput Input = QualitySwitchNode->Inputs[InputIndex].GetTracedInput();
+					if (Input.Expression != DefaultInput.Expression ||
+						Input.OutputIndex != DefaultInput.OutputIndex)
+					{
+						QualityLevelsUsed[InputIndex] = true;
+					}
 				}
 			}
 
-			if (QualitySwitchNode->Default.IsConnected())
-			{
-				QualityLevelsUsed[EMaterialQualityLevel::High] = true;
-			}
 		}
 		else if (Expression->IsA(UMaterialExpressionRuntimeVirtualTextureOutput::StaticClass()))
 		{
