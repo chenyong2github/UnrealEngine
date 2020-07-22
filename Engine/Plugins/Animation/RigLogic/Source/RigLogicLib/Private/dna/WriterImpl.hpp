@@ -60,7 +60,7 @@ void WriterImpl<TWriterBase>::setMetaData(const char* key, const char* value) {
             return (std::strlen(key) == k.size() && std::strncmp(k.data(), key, k.size()) == 0);
         });
     if (it == dna.descriptor.metadata.end()) {
-        dna.descriptor.metadata.push_back({String<char>{key, memRes}, String<char>{value, memRes}});
+        dna.descriptor.metadata.emplace_back(String<char>{key, memRes}, String<char>{value, memRes});
     } else {
         std::get<1>(*it) = value;
     }

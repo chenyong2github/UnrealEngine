@@ -7,7 +7,7 @@ namespace rl4 {
 
 namespace bpcm {
 
-using ScalarJointCalculationStrategy = Block4JointCalculationStrategy<simd::scalar::F128, float>;
+using ScalarJointCalculationStrategy = Block4JointCalculationStrategy<trimd::scalar::F128, float>;
 
 }  // namespace bpcm
 

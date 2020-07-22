@@ -1,24 +1,21 @@
 #pragma once
 
 #ifdef _MSC_VER
-    #pragma warning(disable:4668)
-    #pragma warning(disable:4996)
     #pragma warning(push)
-    #pragma warning(disable : 4365 4987)
+    #pragma warning(disable : 4365 4987 4668 4996)
 #endif
 #ifdef __clang__
     #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wglobal-constructors"
-	#pragma clang diagnostic ignored "-Wundef"
+    #pragma clang diagnostic ignored "-Wundef"
 #endif
 #include <gtest/gtest.h>
 #ifdef __clang__
     #pragma clang diagnostic pop
+    // This cannot be applied to the scope of the header inclusion only, as the TEST macros will trigger it
+    #pragma clang diagnostic ignored "-Wglobal-constructors"
 #endif
 #ifdef _MSC_VER
     #pragma warning(pop)
-    #pragma warning(default:4668)
-    #pragma warning(default:4996)
 #endif
 
 #ifndef INSTANTIATE_TEST_SUITE_P

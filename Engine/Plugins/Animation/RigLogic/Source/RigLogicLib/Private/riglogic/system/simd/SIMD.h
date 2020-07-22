@@ -1,9 +1,15 @@
 #pragma once
 
+#ifdef RL_USE_HALF_FLOATS
+    #define TRIMD_ENABLE_F16C
+#endif  // RL_USE_HALF_FLOATS
+
 #ifdef RL_BUILD_WITH_AVX
-    #include "riglogic/system/simd/AVX.h"
-#endif
+    #define TRIMD_ENABLE_AVX
+#endif  // RL_BUILD_WITH_AVX
+
 #ifdef RL_BUILD_WITH_SSE
-    #include "riglogic/system/simd/SSE.h"
-#endif
-#include "riglogic/system/simd/Scalar.h"
+    #define TRIMD_ENABLE_SSE
+#endif  // RL_BUILD_WITH_SSE
+
+#include <trimd/TRiMD.h>

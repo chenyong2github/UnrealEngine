@@ -15,7 +15,7 @@ class AVXJointCalculationStrategyTest : public ::testing::TestWithParam<Strategy
     protected:
         void SetUp() {
             strategy = pma::UniqueInstance<rl4::bpcm::AVXJointCalculationStrategy<StorageValueType>,
-                                            rl4::bpcm::JointCalculationStrategy<StorageValueType> >::with(&memRes).create();
+                                           rl4::bpcm::JointCalculationStrategy<StorageValueType> >::with(&memRes).create();
         }
 
         template<typename TArray>

@@ -8,7 +8,7 @@ namespace rl4 {
 namespace bpcm {
 
 template<typename T>
-using SSEJointCalculationStrategy = Block4JointCalculationStrategy<simd::sse::F128, T>;
+using SSEJointCalculationStrategy = Block4JointCalculationStrategy<trimd::sse::F128, T>;
 
 }  // namespace bpcm
 

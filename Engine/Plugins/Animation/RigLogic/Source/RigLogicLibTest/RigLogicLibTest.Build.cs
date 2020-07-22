@@ -9,7 +9,6 @@ public class RigLogicLibTest : ModuleRules
 {
     public RigLogicLibTest(ReadOnlyTargetRules Target) : base(Target)
     {
-        PrivateDefinitions.Add("RIGLOGIC_MODULE_DISCARD");
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
             Target.Platform == UnrealTargetPlatform.Win64 ||
             Target.Platform == UnrealTargetPlatform.Linux ||
@@ -19,6 +18,8 @@ public class RigLogicLibTest : ModuleRules
         }
 
         string RigLogicLibPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../RigLogicLib"));
+
+        PrivateDefinitions.Add("RIGLOGIC_MODULE_DISCARD");
         ConditionalAddModuleDirectory(new DirectoryReference(RigLogicLibPath));
 
         PublicDependencyModuleNames.AddRange(

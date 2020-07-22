@@ -27,7 +27,7 @@ void strcopy(char* destination, const char* source, std::size_t size) {
 
 }  // namespace
 
-thread_local static StatusCodeStorage currentStatus{OK.code, "Ok"};
+thread_local static StatusCodeStorage currentStatus{0, "Ok"};
 
 void StatusStorage::set(StatusCode status) {
     // The Release build will eliminate this call, as it's really just a sanity check

@@ -8,7 +8,7 @@ namespace rl4 {
 namespace bpcm {
 
 template<typename T>
-using AVXJointCalculationStrategy = Block8JointCalculationStrategy<simd::avx::F256, T>;
+using AVXJointCalculationStrategy = Block8JointCalculationStrategy<trimd::avx::F256, T>;
 
 }  // namespace bpcm
 

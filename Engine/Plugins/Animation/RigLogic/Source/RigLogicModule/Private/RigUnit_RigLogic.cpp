@@ -295,11 +295,6 @@ void FRigUnit_RigLogic_Data::UpdateAnimMapCurves(FRigCurveContainer* CurveContai
 	}	
 }
 
-FString FRigUnit_RigLogic::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("RigUnit"));
-}
-
 IBehaviorReader* FRigUnit_RigLogic_Data::FetchBehaviorReaderFromOwner() 
 {
 	if (SkelMeshComponent.IsValid())

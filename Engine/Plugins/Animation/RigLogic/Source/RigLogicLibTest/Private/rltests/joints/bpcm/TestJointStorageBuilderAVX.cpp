@@ -24,7 +24,7 @@ class AVXJointStorageBuilderTest : public ::testing::Test {
             auto jointsImpl = static_cast<rl4::bpcm::Evaluator<TValue>*>(joints.get());
 
             auto strategy = pma::UniqueInstance<rl4::bpcm::AVXJointCalculationStrategy<TValue>,
-                                                 rl4::bpcm::JointCalculationStrategy<TValue> >::with(&memRes).create();
+                                                rl4::bpcm::JointCalculationStrategy<TValue> >::with(&memRes).create();
             auto expected = block8::OptimizedStorage<TValue>::create(std::move(strategy), &memRes);
 
             rl4::bpcm::Evaluator<TValue>::Accessor::assertRawDataEqual(*jointsImpl, expected);

@@ -1,7 +1,8 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
+using System;
 using System.IO;
+using UnrealBuildTool;
 
 public class RigLogicLib : ModuleRules
 {
@@ -29,7 +30,7 @@ public class RigLogicLib : ModuleRules
 
         Type = ModuleType.CPlusPlus;
 
-        PrivateDefinitions.Add("RL_BUILD_SHARED=1");  // used instead of #define so cpp files can do conditional compilation
+        PrivateDefinitions.Add("RL_BUILD_SHARED=1");
 
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||

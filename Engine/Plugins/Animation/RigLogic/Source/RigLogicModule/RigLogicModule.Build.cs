@@ -1,6 +1,8 @@
- // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
+using UnrealBuildTool;
 
 namespace UnrealBuildTool.Rules
 {
@@ -13,8 +15,7 @@ namespace UnrealBuildTool.Rules
 
         public RigLogicModule(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicDefinitions.Add("RL_SHARED=1"); //used instead of #define so cpp files can do conditional compilation
-
+            PublicDefinitions.Add("RL_SHARED=1");
 
             PublicDependencyModuleNames.AddRange(
                 new string[]
@@ -22,13 +23,13 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "CoreUObject",
                     "Engine",
-					"RigVM",
+                    "RigVM",
                     "ControlRig",
                     "RigLogicLib",
                     "MessageLog",
                     "RigVM",
-					"Projects"
-                } 
+                    "Projects"
+                }
                 );
 
             if (Target.Type == TargetType.Editor)
@@ -39,11 +40,11 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-					"AnimationCore",
+                    "AnimationCore",
                     "ControlRig",
-					"RenderCore",
-					"RHI"
-				}
+                    "RenderCore",
+                    "RHI"
+                }
              );
         }
     }

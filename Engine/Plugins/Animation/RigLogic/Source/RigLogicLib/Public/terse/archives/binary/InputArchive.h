@@ -64,7 +64,7 @@ struct ValueFactory {
         const ParentAllocator& alloc) {
         using K = typename T::first_type;
         using V = typename T::second_type;
-        return {ValueFactory<K>::create(alloc), ValueFactory<V>::create(alloc)};
+        return T{ValueFactory<K>::create(alloc), ValueFactory<V>::create(alloc)};
     }
 
     template<class ParentAllocator, bool IsPrimitive = IsPrimitive>
@@ -72,7 +72,7 @@ struct ValueFactory {
         const ParentAllocator& alloc) {
         using K = typename std::tuple_element<0, T>::type;
         using V = typename std::tuple_element<0, T>::type;
-        return {ValueFactory<K>::create(alloc), ValueFactory<V>::create(alloc)};
+        return T{ValueFactory<K>::create(alloc), ValueFactory<V>::create(alloc)};
     }
 
 };

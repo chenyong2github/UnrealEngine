@@ -15,7 +15,6 @@
 #include "Animation/SmartName.h"
 #include "Engine/SkeletalMesh.h"
 
-
 #include "riglogic/RigLogic.h"
 
 DEFINE_LOG_CATEGORY(LogDNAToSkelMeshMap);
