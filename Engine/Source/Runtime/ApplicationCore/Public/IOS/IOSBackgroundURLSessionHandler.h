@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "CoreMinimal.h"
 
+#include "BackgroundHttpFileHashHelper.h"
+
 //Call backs called by the bellow FBackgroundURLSessionHandler so higher-level systems can respond to task updates.
 class APPLICATIONCORE_API FIOSBackgroundDownloadCoreDelegates
 {
@@ -37,16 +39,6 @@ public:
 	//Gets a pointer to the current background session
 	static NSURLSession* GetBackgroundSession();
 
-	//Gets a path stored in an FString of the working directory any completed temp files will be downloaded
-	static const FString& GetBackgroundSessionWorkingDirectoryPath();
-
-	/**
-	* Function that takes in a URL and figures out the location we should use as the temp storage URL
-	*
-	* @return FString to use as the TempFilePath
-	*/
-	static const FString GetTemporaryFilePathFromURL(const FString& URL);
-
 	static void CreateBackgroundSessionWorkingDirectory();
 	
 	//Function to mark if you would like for the NSURLSession to wait to call the completion handler when
@@ -55,11 +47,17 @@ public:
 	static void AddDelayedBackgroundURLSessionComplete();
 	
 	//Function to handle calls to OnDelayedBackgroundURLSessionCompleteHandler
+	//The intention is to call this for every call to AddDelayedBackgroundURLSessionComplete.
+	//NOTE: Once calling this your task should be completely finished with work and ready to be backgrounded!
 	static void OnDelayedBackgroundURLSessionCompleteHandlerCalled();
+	
+	static BackgroundHttpFileHashHelperRef GetFileHashHelper();
 	
 private:
 	static NSURLSession* BackgroundSession;
 	static FString CachedIdentifierName;
+	
+	static BackgroundHttpFileHashHelperRef FileHashHelper;
 	
 	//Used to track calls to AddDelayedBackgroundURLSessionComplete vs calls to the completion handler.
 	static volatile int32 DelayedBackgroundURLSessionCompleteCount;
