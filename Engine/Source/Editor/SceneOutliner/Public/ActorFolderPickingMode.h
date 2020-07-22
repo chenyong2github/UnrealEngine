@@ -1,0 +1,29 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "ActorMode.h"
+
+namespace SceneOutliner
+{
+
+	class FActorFolderPickingMode : public FActorMode
+	{
+	public:
+		FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+		virtual ~FActorFolderPickingMode() {}
+
+		/* Begin ISceneOutlinerMode Implementation */
+		virtual void OnFilterTextCommited(FItemSelection& Selection, ETextCommit::Type CommitType) override;
+		virtual void OnItemSelectionChanged(FTreeItemPtr Item, ESelectInfo::Type SelectionType, const FItemSelection& Selection) override;
+		virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
+		virtual bool ShowViewButton() const override { return true; }
+		virtual bool ShouldShowFolders() const { return true; }
+	protected:
+		virtual TUniquePtr<ISceneOutlinerHierarchy> CreateHierarchy() override;
+		/* End ISceneOutlinerMode Implementation */
+
+		/** Delegate to call when an item is picked */
+		FOnSceneOutlinerItemPicked OnItemPicked;
+	};
+}

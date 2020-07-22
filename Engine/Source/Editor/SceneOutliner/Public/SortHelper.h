@@ -15,8 +15,8 @@ namespace SceneOutliner
 	 *
 	 * Or:
 	 * 		FSortHelper<FString, FString>()
-	 *			.Primary(FGetPrimaryStringVisitor())
-	 *			.Secondary(FGetSecondaryStringVisitor())
+	 *			.Primary(FGetPrimaryString())
+	 *			.Secondary(FGetSecondaryString())
 	 *			.SortItems(Array);
 	 */
 	template<typename PrimaryKeyType, typename SecondaryKeyType = int32>
@@ -27,7 +27,6 @@ namespace SceneOutliner
 
 		FSortHelper()
 			: PrimarySortMode(EColumnSortMode::None), SecondarySortMode(EColumnSortMode::None)
-			, PrimaryVisitor(nullptr), SecondaryVisitor(nullptr)
 		{}
 
 		/** Sort primarily by the specified function and mode. Beware the function is a reference, so must be valid for the lifetime of this instance. */
@@ -37,26 +36,12 @@ namespace SceneOutliner
 			PrimaryFunction = MoveTemp(Function);
 			return *this;
 		}
-		/** Sort primarily using the specified 'getter' visitor and mode */
-		FSortHelper& Primary(const TTreeItemGetter<PrimaryKeyType>& Visitor, EColumnSortMode::Type SortMode)
-		{
-			PrimarySortMode = SortMode;
-			PrimaryVisitor = &Visitor;
-			return *this;
-		}
 
 		/** Sort secondarily by the specified function and mode. Beware the function is a reference, so must be valid for the lifetime of this instance. */
 		FSortHelper& Secondary(FSecondaryFunction&& Function, EColumnSortMode::Type SortMode)
 		{
 			SecondarySortMode = SortMode;
 			SecondaryFunction = MoveTemp(Function);
-			return *this;
-		}
-		/** Sort secondarily using the specified 'getter' visitor and mode */
-		FSortHelper& Secondary(const TTreeItemGetter<SecondaryKeyType>& Visitor, EColumnSortMode::Type SortMode)
-		{
-			PrimarySortMode = SortMode;
-			SecondaryVisitor = &Visitor;
 			return *this;
 		}
 
@@ -69,29 +54,12 @@ namespace SceneOutliner
 			{
 				const auto& Element = Array[Index];
 
-				PrimaryKeyType PrimaryKey;
-				if (PrimaryVisitor)
-				{
-					Element->Visit(*PrimaryVisitor);
-					PrimaryKey = MoveTemp(PrimaryVisitor->Data);
-				}
-				else if (PrimaryFunction)
-				{
-					PrimaryKey = PrimaryFunction.GetValue()(*Element);
-				}
+				PrimaryKeyType PrimaryKey = PrimaryFunction(*Element);
 
 				SecondaryKeyType SecondaryKey;
 				if (SecondarySortMode != EColumnSortMode::None)
 				{
-					if (SecondaryVisitor)
-					{
-						Element->Visit(*SecondaryVisitor);
-						SecondaryKey = MoveTemp(SecondaryVisitor->Data);
-					}
-					else if (SecondaryFunction)
-					{
-						SecondaryKey = SecondaryFunction.GetValue()(*Element);
-					}
+					SecondaryKey = SecondaryFunction(*Element);
 				}
 
 				SortData.Emplace(Index, MoveTemp(PrimaryKey), MoveTemp(SecondaryKey));
@@ -126,11 +94,8 @@ namespace SceneOutliner
 		EColumnSortMode::Type 	PrimarySortMode;
 		EColumnSortMode::Type 	SecondarySortMode;
 
-		TOptional<FPrimaryFunction>		PrimaryFunction;
-		TOptional<FSecondaryFunction>	SecondaryFunction;
-
-		const TTreeItemGetter<PrimaryKeyType>*		PrimaryVisitor;
-		const TTreeItemGetter<SecondaryKeyType>*	SecondaryVisitor;
+		FPrimaryFunction	PrimaryFunction;
+		FSecondaryFunction	SecondaryFunction;
 
 		/** Aggregated data from the sort methods. We extract the sort data from all elements first, then sort based on the extracted data. */
 		struct FSortPayload

@@ -52,6 +52,7 @@ public class MovieSceneTools : ModuleRules
                 "ContentBrowser",
 				"Slate",
 				"SlateCore",
+				"SceneOutliner",
                 "EditorStyle",
 				"PropertyEditor",
                 "MaterialEditor",
@@ -83,8 +84,7 @@ public class MovieSceneTools : ModuleRules
 			new string[] {
                 "AssetRegistry",
 				"AssetTools",
-				"SceneOutliner",
-                "MainFrame",
+			    "MainFrame",
 			}
 		);
 

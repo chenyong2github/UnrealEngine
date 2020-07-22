@@ -694,7 +694,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	{
 		SceneOutliner::FInitializationOptions InitOptions;
 		InitOptions.bShowTransient = true;
-		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
 		{
 			UToolMenus* ToolMenus = UToolMenus::Get();
 			static const FName MenuName = "LevelEditor.LevelEditorSceneOutliner.ContextMenu";
@@ -730,9 +729,8 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 		FText Label = NSLOCTEXT( "LevelEditor", "SceneOutlinerTabTitle", "World Outliner" );
 
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-		TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateSceneOutliner(
-			InitOptions,
-			FOnActorPicked() /* Not used for outliner when in browsing mode */);
+		TSharedRef<ISceneOutliner> SceneOutlinerRef = SceneOutlinerModule.CreateActorBrowser(
+			InitOptions);
 		SceneOutlinerPtr = SceneOutlinerRef;
 
 		return SNew( SDockTab )

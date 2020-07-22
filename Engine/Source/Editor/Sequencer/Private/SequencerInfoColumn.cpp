@@ -15,40 +15,44 @@
 #include "EditorClassUtils.h"
 #include "SortHelper.h"
 
+#include "ActorTreeItem.h"
+
 #define LOCTEXT_NAMESPACE "SequencerInfoColumn"
 
 namespace Sequencer
 {
 
-struct FGetInfo : SceneOutliner::TTreeItemGetter<FString>
+/** Functor which retrieves actor string information for sorting */
+struct FGetActorInfo
 {
-	FGetInfo(const FSequencerInfoColumn& InColumn)
+	FGetActorInfo(const FSequencerInfoColumn& InColumn)
 		: WeakColumn(StaticCastSharedRef<const FSequencerInfoColumn>(InColumn.AsShared()))
 	{}
 
-	virtual FString Get(const SceneOutliner::FActorTreeItem& ActorItem) const override
+	FString operator()(const SceneOutliner::ITreeItem& Item) const
 	{
 		if (!WeakColumn.IsValid())
 		{
 			return FString();
 		}
-
-		AActor* Actor = ActorItem.Actor.Get();
-		if (!Actor)
+		if (const SceneOutliner::FActorTreeItem* ActorItem = Item.CastTo<SceneOutliner::FActorTreeItem>())
 		{
-			return FString();
+			AActor* Actor = ActorItem->Actor.Get();
+			if (Actor)
+			{
+				const FSequencerInfoColumn& Column = *WeakColumn.Pin();
+
+				return Column.GetTextForActor(Actor);
+			}
 		}
-
-		const FSequencerInfoColumn& Column = *WeakColumn.Pin();
-
-		return Column.GetTextForActor(Actor);
+		
+		return FString();
 	}
 
 
 	/** Weak reference to the sequencer info column */
 	TWeakPtr< const FSequencerInfoColumn > WeakColumn;
 };
-
 
 FSequencerInfoColumn::FSequencerInfoColumn(ISceneOutliner& InSceneOutliner, FSequencer& InSequencer, const FLevelEditorSequencerBindingData& InBindingData)
 	: WeakSceneOutliner(StaticCastSharedRef<ISceneOutliner>(InSceneOutliner.AsShared())) 
@@ -120,7 +124,7 @@ void FSequencerInfoColumn::SortItems(TArray<SceneOutliner::FTreeItemPtr>& OutIte
 	if (WeakBindingData.IsValid())
 	{
 		SceneOutliner::FSortHelper<FString>()
-			.Primary(FGetInfo(*this), SortMode)
+			.Primary(FGetActorInfo(*this), SortMode)
 			.Sort(OutItems);
 	}
 }
@@ -138,7 +142,7 @@ FString FSequencerInfoColumn::GetTextForActor(AActor* InActor) const
 FText FSequencerInfoColumn::GetTextForItem( TWeakPtr<SceneOutliner::ITreeItem> TreeItem ) const
 {
 	auto Item = TreeItem.Pin();
-	return Item.IsValid() && WeakBindingData.IsValid() ? FText::FromString(Item->Get(FGetInfo(*this))) : FText::GetEmpty();
+	return Item.IsValid() && WeakBindingData.IsValid() ? FText::FromString(FGetActorInfo(*this)(*Item)) : FText::GetEmpty();
 }
 
 }

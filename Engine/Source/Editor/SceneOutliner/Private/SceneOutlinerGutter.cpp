@@ -10,7 +10,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Views/STreeView.h"
 #include "ISceneOutliner.h"
-
+#include "ISceneOutlinerMode.h"
 #include "SortHelper.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerGutter"
@@ -18,7 +18,21 @@
 namespace SceneOutliner
 {
 
-bool FGetVisibilityVisitor::RecurseChildren(const ITreeItem& Item) const
+void OnSetItemVisibility(ITreeItem& Item, const bool bNewVisibility)
+{
+	// Apply the same visibility to the children
+	Item.OnVisibilityChanged(bNewVisibility);
+	for (auto& ChildPtr : Item.GetChildren())
+	{
+		auto Child = ChildPtr.Pin();
+		if (Child.IsValid())
+		{
+			OnSetItemVisibility(*Child, bNewVisibility);
+		}
+	}
+}
+
+bool FGetVisibilityCache::RecurseChildren(const ITreeItem& Item) const
 {
 	if (const bool* Info = VisibilityInfo.Find(&Item))
 	{
@@ -30,7 +44,7 @@ bool FGetVisibilityVisitor::RecurseChildren(const ITreeItem& Item) const
 		for (const auto& ChildPtr : Item.GetChildren())
 		{
 			auto Child = ChildPtr.Pin();
-			if (Child.IsValid() && Child->Get(*this))
+			if (Child.IsValid() && GetVisibility(*Child))
 			{
 				bIsVisible = true;
 				break;
@@ -42,90 +56,28 @@ bool FGetVisibilityVisitor::RecurseChildren(const ITreeItem& Item) const
 	}
 }
 
-bool FGetVisibilityVisitor::Get(const FActorTreeItem& ActorItem) const
+bool FGetVisibilityCache::GetVisibility(const ITreeItem& Item) const
 {
-	if (const bool* Info = VisibilityInfo.Find(&ActorItem))
+	if (Item.HasVisibilityInfo())
 	{
-		return *Info;
+		if (const bool* Info = VisibilityInfo.Find(&Item))
+		{
+			return *Info;
+		}
+		else
+		{
+			const bool bIsVisible = Item.GetVisibility();
+			VisibilityInfo.Add(&Item, bIsVisible);
+			return bIsVisible;
+		}
 	}
 	else
 	{
-		const AActor* Actor = ActorItem.Actor.Get();
-
-		const bool bIsVisible = Actor && !Actor->IsTemporarilyHiddenInEditor(true);
-		VisibilityInfo.Add(&ActorItem, bIsVisible);
-
-		return bIsVisible;
+		return RecurseChildren(Item);
 	}
+
+	return false;
 }
-
-bool FGetVisibilityVisitor::Get(const FWorldTreeItem& WorldItem) const
-{
-	return RecurseChildren(WorldItem);
-}
-
-bool FGetVisibilityVisitor::Get(const FFolderTreeItem& FolderItem) const
-{
-	return RecurseChildren(FolderItem);
-}
-
-struct FSetVisibilityVisitor : IMutableTreeItemVisitor
-{
-	/** Whether this item should be visible or not */
-	const bool bSetVisibility;
-
-	FSetVisibilityVisitor(bool bInSetVisibility) : bSetVisibility(bInSetVisibility) {}
-
-	virtual void Visit(FActorTreeItem& ActorItem) const override
-	{
-		AActor* Actor = ActorItem.Actor.Get();
-		if (Actor)
-		{
-			// Save the actor to the transaction buffer to support undo/redo, but do
-			// not call Modify, as we do not want to dirty the actor's package and
-			// we're only editing temporary, transient values
-			SaveToTransactionBuffer(Actor, false);
-			Actor->SetIsTemporarilyHiddenInEditor( !bSetVisibility );
-
-			// Apply the same visibility to the actors children
-			for (auto& ChildPtr : ActorItem.GetChildren())
-			{
-				auto Child = ChildPtr.Pin();
-				if (Child.IsValid())
-				{
-					FSetVisibilityVisitor Visibility( bSetVisibility );
-					Child->Visit( Visibility );
-				}
-			}
-		}
-	}
-
-	virtual void Visit(FWorldTreeItem& WorldItem) const override
-	{
-		for (auto& ChildPtr : WorldItem.GetChildren())
-		{
-			auto Child = ChildPtr.Pin();
-			if (Child.IsValid())
-			{
-				FSetVisibilityVisitor Visibility(bSetVisibility);
-				Child->Visit(Visibility);
-			}
-		}
-	}
-
-	virtual void Visit(FFolderTreeItem& FolderItem) const override
-	{
-		for (auto& ChildPtr : FolderItem.GetChildren())
-		{
-			auto Child = ChildPtr.Pin();
-			if (Child.IsValid())
-			{
-				FSetVisibilityVisitor Visibility(bSetVisibility);
-				Child->Visit(Visibility);
-			}
-		}
-	}
-};
 
 class FVisibilityDragDropOp : public FDragDropOperation, public TSharedFromThis<FVisibilityDragDropOp>
 {
@@ -133,7 +85,7 @@ public:
 	
 	DRAG_DROP_OPERATOR_TYPE(FVisibilityDragDropOp, FDragDropOperation)
 
-	/** Flag which defines whether to hide destination actors or not */
+	/** Flag which defines whether to hide destination items or not */
 	bool bHidden;
 
 	/** Undo transaction stolen from the gutter which is kept alive for the duration of the drag */
@@ -158,7 +110,7 @@ public:
 	}
 };
 
-/** Widget responsible for managing the visibility for a single actor */
+/** Widget responsible for managing the visibility for a single item */
 class SVisibilityWidget : public SImage
 {
 public:
@@ -209,7 +161,7 @@ private:
 		}
 	}
 
-	/** If a visibility drag drop operation has entered this widget, set its actor to the new visibility state */
+	/** If a visibility drag drop operation has entered this widget, set its item to the new visibility state */
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
 	{
 		auto VisibilityOp = DragDropEvent.GetOperationAs<FVisibilityDragDropOp>();
@@ -231,7 +183,7 @@ private:
 		}
 
 		// Open an undo transaction
-		UndoTransaction.Reset(new FScopedTransaction(LOCTEXT("SetActorVisibility", "Set Actor Visibility")));
+		UndoTransaction.Reset(new FScopedTransaction(LOCTEXT("SetOutlinerItemVisibility", "Set Item Visibility")));
 
 		const auto& Tree = Outliner->GetTree();
 
@@ -240,13 +192,11 @@ private:
 		// We operate on all the selected items if the specified item is selected
 		if (Tree.IsItemSelected(TreeItem.ToSharedRef()))
 		{
-			const FSetVisibilityVisitor Visitor(bVisible);
-
 			for (auto& SelectedItem : Tree.GetSelectedItems())
 			{
 				if (IsVisible(SelectedItem, Column) != bVisible)
 				{
-					SelectedItem->Visit(Visitor);
+					OnSetItemVisibility(*SelectedItem, bVisible);
 				}		
 			}
 
@@ -340,7 +290,7 @@ private:
 		return IsVisible(WeakTreeItem.Pin(), WeakColumn.Pin());
 	}
 
-	/** Set the actor this widget is responsible for to be hidden or shown */
+	/** Set the item this widget is responsible for to be hidden or shown */
 	void SetIsVisible(const bool bVisible)
 	{
 		TSharedPtr<ITreeItem> TreeItem = WeakTreeItem.Pin();
@@ -348,8 +298,7 @@ private:
 
 		if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
 		{
-			FSetVisibilityVisitor Visitor(bVisible);
-			TreeItem->Visit(Visitor);
+			OnSetItemVisibility(*TreeItem, bVisible);
 			
 			Outliner->Refresh();
 
@@ -372,7 +321,7 @@ private:
 	/** Scoped undo transaction */
 	TUniquePtr<FScopedTransaction> UndoTransaction;
 
-	/** Visbility brushes for the various states */
+	/** Visibility brushes for the various states */
 	const FSlateBrush* VisibleHoveredBrush;
 	const FSlateBrush* VisibleNotHoveredBrush;
 	const FSlateBrush* NotVisibleHoveredBrush;
@@ -424,9 +373,9 @@ void FSceneOutlinerGutter::SortItems(TArray<FTreeItemPtr>& RootItems, const ECol
 {
 	FSortHelper<int32, bool>()
 		/** Sort by type first */
-		.Primary([](const ITreeItem& Item){ return Item.GetTypeSortPriority(); }, SortMode)
+		.Primary([this](const ITreeItem& Item){ return WeakOutliner.Pin()->GetMode()->GetTypeSortPriority(Item); }, SortMode)
 		/** Then by visibility */
-		.Secondary(FGetVisibilityVisitor(), SortMode)
+		.Secondary([](const ITreeItem& Item) {return FGetVisibilityCache().GetVisibility(Item); },					SortMode)
 		.Sort(RootItems);
 }
 

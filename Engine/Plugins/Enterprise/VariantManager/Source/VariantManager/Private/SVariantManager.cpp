@@ -60,6 +60,7 @@
 #include "ObjectTools.h"
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerPublicTypes.h"
+#include "ActorTreeItem.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SButton.h"
@@ -2650,13 +2651,12 @@ FReply SVariantManager::OnSummonAddActorMenu()
 	};
 
 	FInitializationOptions InitOptions;
-	InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
 	InitOptions.bShowHeaderRow = true;
 	InitOptions.bShowSearchBox = true;
 	InitOptions.bShowCreateNewFolder = false;
 	InitOptions.bFocusSearchBoxWhenOpened = true;
 	InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
-	InitOptions.Filters->AddFilterPredicate( FActorFilterPredicate::CreateLambda( IsActorValidForAssignment ) );
+	InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValidForAssignment ));
 
 	// Create mini scene outliner menu
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
@@ -2665,7 +2665,7 @@ FReply SVariantManager::OnSummonAddActorMenu()
 		.MaxDesiredHeight(400.0f)
 		.WidthOverride(300.0f)
 		[
-			SceneOutlinerModule.CreateSceneOutliner(
+			SceneOutlinerModule.CreateActorPicker(
 				InitOptions,
 				FOnActorPicked::CreateLambda([SelectedVariants, VarMan, this](AActor* Actor)
 				{

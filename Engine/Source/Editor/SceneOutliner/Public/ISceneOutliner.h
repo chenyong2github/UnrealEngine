@@ -44,7 +44,7 @@ public:
 	virtual void CacheIconForClass(FName InClassName, const FSlateBrush* InSlateBrush) = 0;
 
 	/** Should the scene outliner accept a request to rename a item of the tree */
-	virtual bool CanExecuteRenameRequest(const SceneOutliner::FTreeItemPtr& ItemPtr) const = 0;
+	virtual bool CanExecuteRenameRequest(const SceneOutliner::ITreeItem& ItemPtr) const = 0;
 
 	/** 
 	 * Add a filter to the scene outliner 
@@ -90,6 +90,8 @@ public:
 	/** Return the sorting mode for the specified ColumnId */
 	virtual EColumnSortMode::Type GetColumnSortMode( const FName ColumnId ) const = 0;
 
+	virtual uint32 GetTypeSortPriority(const SceneOutliner::ITreeItem& Item) const = 0;
+
 	/** Request that the tree be sorted at a convenient time */
 	virtual void RequestSort() = 0;
 
@@ -110,4 +112,15 @@ public:
 
 	/** Returns true if edit paste can be executed */
 	virtual bool Paste_CanExecute() = 0;
+
+	/** Can the scene outliner rows generated on drag event */
+	virtual bool CanSupportDragAndDrop() const = 0;
+
+	/** Set the item selection of the outliner based on a selector function. Any items which return true will be added */
+	virtual void SetSelection(const TFunctionRef<bool(SceneOutliner::ITreeItem&)> Selector) = 0;
+
+	/** Get the active SceneOutlinerMode */
+	const SceneOutliner::ISceneOutlinerMode* GetMode() const { return Mode; }
+protected:
+	SceneOutliner::ISceneOutlinerMode* Mode;
 };

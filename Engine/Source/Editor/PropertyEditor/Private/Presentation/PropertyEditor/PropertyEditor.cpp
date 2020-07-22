@@ -20,6 +20,7 @@
 #include "EditConditionParser.h"
 #include "EditConditionContext.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ActorTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -556,7 +557,7 @@ void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<SceneOutline
 		}
 	};
 
-	OutFilters->AddFilterPredicate( SceneOutliner::FActorFilterPredicate::CreateStatic( &Local::IsFilteredActor, AsShared() ) );
+	OutFilters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateStatic( &Local::IsFilteredActor, AsShared() ) );
 }
 
 bool FPropertyEditor::IsPropertyEditingEnabled() const

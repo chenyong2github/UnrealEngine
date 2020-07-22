@@ -19,6 +19,7 @@
 #include "ActorEditorUtils.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
+#include "ActorTreeItem.h"
 #include "TrackEditorThumbnail/TrackEditorThumbnailPool.h"
 #include "MovieSceneObjectBindingIDPicker.h"
 #include "MovieSceneToolHelpers.h"
@@ -435,7 +436,6 @@ TSharedRef<SWidget> FCameraCutTrackEditor::HandleAddCameraCutComboButtonGetMenuC
 
 			SceneOutliner::FInitializationOptions InitOptions;
 			{
-				InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
 				InitOptions.bShowHeaderRow = false;
 				InitOptions.bFocusSearchBoxWhenOpened = true;
 				InitOptions.bShowTransient = true;
@@ -444,7 +444,7 @@ TSharedRef<SWidget> FCameraCutTrackEditor::HandleAddCameraCutComboButtonGetMenuC
 				InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 
 				// Only display Actors that we can attach too
-				InitOptions.Filters->AddFilterPredicate( SceneOutliner::FActorFilterPredicate::CreateRaw(this, &FCameraCutTrackEditor::IsCameraPickable) );
+				InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateRaw(this, &FCameraCutTrackEditor::IsCameraPickable));
 			}		
 
 			// Actor selector to allow the user to choose a parent actor
@@ -460,7 +460,7 @@ TSharedRef<SWidget> FCameraCutTrackEditor::HandleAddCameraCutComboButtonGetMenuC
 					.MaxDesiredHeight(400.0f)
 					.WidthOverride(300.0f)
 					[
-						SceneOutlinerModule.CreateSceneOutliner(
+						SceneOutlinerModule.CreateActorPicker(
 							InitOptions,
 							FOnActorPicked::CreateSP(this, &FCameraCutTrackEditor::HandleAddCameraCutComboButtonMenuEntryExecute )
 							)

@@ -34,6 +34,7 @@ public class Sequencer : ModuleRules
 				"Engine", 
 				"Slate", 
 				"SlateCore",
+				"SceneOutliner",
                 "EditorStyle",
 				"UnrealEd", 
 				"MovieScene", 
@@ -85,7 +86,6 @@ public class Sequencer : ModuleRules
 			new string[] {
 				"PropertyEditor",
 				"LevelEditor",
-				"SceneOutliner",
 				"WorkspaceMenuStructure",
 				"SequenceRecorder",
 				"SequenceRecorderSections",

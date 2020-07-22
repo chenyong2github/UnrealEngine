@@ -9,7 +9,13 @@
 
 class ICustomSceneOutliner;
 class ISceneOutlinerColumn;
-class FOutlinerFilter;
+
+/** Delegate used with the Scene Outliner in 'actor picking' mode.  You'll bind a delegate when the
+	outliner widget is created, which will be fired off when an actor is selected in the list */
+DECLARE_DELEGATE_OneParam(FOnActorPicked, AActor*);
+/** Delegate used with the Scene Outliner in 'component picking' mode.  You'll bind a delegate when the
+	outliner widget is created, which will be fired off when an actor is selected in the list */
+DECLARE_DELEGATE_OneParam(FOnComponentPicked, UActorComponent*);
 
 /**
  * Implements the Scene Outliner module.
@@ -23,37 +29,41 @@ public:
 	 * Creates a scene outliner widget
 	 *
 	 * @param	InitOptions						Programmer-driven configuration for this widget instance
-	 * @param	MakeContentMenuWidgetDelegate	Optional delegate to execute to build a context menu when right clicking on actors
-	 * @param	OnActorPickedDelegate			Optional callback when an actor is selected in 'actor picking' mode
+	 * @param	OutlinerModeFactory				Factory delegate used to create the outliner mode
 	 *
 	 * @return	New scene outliner widget
 	 */
-	virtual TSharedRef< ISceneOutliner > CreateSceneOutliner(
-		const SceneOutliner::FInitializationOptions& InitOptions,
-		const FOnActorPicked& OnActorPickedDelegate ) const;
+	virtual TSharedRef<ISceneOutliner> CreateSceneOutliner(
+		const SceneOutliner::FInitializationOptions& InitOptions) const;
 
 	/**
 	 * Creates a scene outliner widget
 	 *
 	 * @param	InitOptions						Programmer-driven configuration for this widget instance
-	 * @param	MakeContentMenuWidgetDelegate	Optional delegate to execute to build a context menu when right clicking on actors
-	 * @param	OnItemPickedDelegate			Optional callback when an item is selected in 'picking' mode
+	 * @param	OnActorPickedDelegate			Optional callback when an actor is selected in 'actor picking' mode
 	 *
 	 * @return	New scene outliner widget
 	 */
-	virtual TSharedRef< ISceneOutliner > CreateSceneOutliner(
-		const SceneOutliner::FInitializationOptions& InitOptions,
-		const FOnSceneOutlinerItemPicked& OnItemPickedDelegate ) const;
 
-	/**
-	 * Creates a custom scene outliner widget
-	 *
-	 * @param	InitOptions						Programmer-driven configuration for this widget instance. Know that the mode will always be converted to custom.
-	 *
-	 * @return	New custom scene outliner widget
-	 */
-	virtual TSharedRef< ICustomSceneOutliner > CreateCustomSceneOutliner(
-		SceneOutliner::FInitializationOptions& InitOptions ) const;
+
+	/* Some common scene outliners */
+
+	/** Creates an actor picker widget. Calls the OnActorPickedDelegate when an item is selected. */
+	virtual TSharedRef<ISceneOutliner> CreateActorPicker(
+		const SceneOutliner::FInitializationOptions& InInitOptions,
+		const FOnActorPicked& OnActorPickedDelegate,
+		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
+
+	/** Creates a component picker widget. Calls the OnComponentPickedDelegate when an item is selected. */
+	virtual TSharedRef<ISceneOutliner> CreateComponentPicker(
+		const SceneOutliner::FInitializationOptions& InInitOptions,
+		const FOnComponentPicked& OnComponentPickedDelegate,
+		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
+
+	/** Creates an actor browser widget (also known as a World Outliner). */
+	virtual TSharedRef<ISceneOutliner> CreateActorBrowser(
+		const SceneOutliner::FInitializationOptions& InInitOptions,
+		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
 
 public:
 	/** Register a new type of column available to all scene outliners */
@@ -73,7 +83,7 @@ public:
 
 	/** Register a new type of default column available to all scene outliners */
 	template< typename T >
-	void RegisterDefaultColumnType(SceneOutliner::FDefaultColumnInfo InDefaultColumnInfo)
+	void RegisterDefaultColumnType(SceneOutliner::FColumnInfo InColumnInfo)
 	{
 		auto ID = T::GetID();
 		if ( !ColumnMap.Contains( ID ) )
@@ -83,7 +93,7 @@ public:
 			};
 
 			ColumnMap.Add( ID, FCreateSceneOutlinerColumn::CreateStatic( CreateColumn ) );
-			DefaultColumnMap.Add( ID, InDefaultColumnInfo );
+			DefaultColumnMap.Add( ID, InColumnInfo);
 		}
 	}
 
@@ -107,11 +117,7 @@ public:
 	}
 
 	/** Map of column type name -> default column info */
-	TMap< FName, SceneOutliner::FDefaultColumnInfo> DefaultColumnMap;
-
-
-	/** Additional outliner filters */
-	TMap< FName, SceneOutliner::FOutlinerFilterInfo > OutlinerFilterInfoMap;
+	TMap< FName, SceneOutliner::FColumnInfo> DefaultColumnMap;
 
 private:
 

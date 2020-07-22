@@ -139,6 +139,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "SequencerCustomizationManager.h"
 #include "SSequencerGroupManager.h"
+#include "ActorTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -7066,8 +7067,6 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 	// Set up a menu entry to assign an actor to the object binding node
 	FInitializationOptions InitOptions;
 	{
-		InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
-
 		// We hide the header row to keep the UI compact.
 		InitOptions.bShowHeaderRow = false;
 		InitOptions.bShowSearchBox = true;
@@ -7077,7 +7076,7 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 
 		// Only display actors that are not possessed already
-		InitOptions.Filters->AddFilterPredicate( FActorFilterPredicate::CreateLambda( IsActorValidForAssignment ) );
+		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValidForAssignment ) );
 	}
 
 	// actor selector to allow the user to choose an actor
@@ -7087,7 +7086,7 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 		.MaxDesiredHeight(400.0f)
 		.WidthOverride(300.0f)
 		[
-			SceneOutlinerModule.CreateSceneOutliner(
+			SceneOutlinerModule.CreateActorPicker(
 				InitOptions,
 				FOnActorPicked::CreateLambda([=](AActor* Actor){
 					// Create a new binding for this actor

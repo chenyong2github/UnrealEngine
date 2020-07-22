@@ -13,7 +13,6 @@ template<typename ItemType> class STableRow;
 
 namespace SceneOutliner
 {
-
 /** A column for the SceneOutliner that displays the item label */
 class FItemLabelColumn : public ISceneOutlinerColumn
 {
@@ -46,28 +45,6 @@ public:
 private:
 	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
 
-private:
-
-	TSharedRef<SWidget> GenerateWidget( FActorTreeItem& TreeItem, const STableRow<FTreeItemPtr>& InRow );
-	TSharedRef<SWidget> GenerateWidget( FWorldTreeItem& TreeItem, const STableRow<FTreeItemPtr>& InRow );
-	TSharedRef<SWidget> GenerateWidget( FFolderTreeItem& TreeItem, const STableRow<FTreeItemPtr>& InRow );
-	TSharedRef<SWidget> GenerateWidget( FComponentTreeItem& TreeItem, const STableRow<FTreeItemPtr>& InRow);
-	TSharedRef<SWidget> GenerateWidget( FSubComponentTreeItem& TreeItem, const STableRow<FTreeItemPtr>& InRow);
-
-	struct FColumnWidgetGenerator : FColumnGenerator
-	{
-		FItemLabelColumn& Column;
-		const STableRow<FTreeItemPtr>& Row;
-
-		FColumnWidgetGenerator(FItemLabelColumn& InColumn, const STableRow<FTreeItemPtr>& InRow) : Column(InColumn), Row(InRow) {}
-
-		virtual TSharedRef<SWidget> GenerateWidget(FFolderTreeItem& Item) const override { return Column.GenerateWidget(Item, Row); }
-		virtual TSharedRef<SWidget> GenerateWidget(FWorldTreeItem& Item) const override { return Column.GenerateWidget(Item, Row); }
-		virtual TSharedRef<SWidget> GenerateWidget(FActorTreeItem& Item) const override { return Column.GenerateWidget(Item, Row); }
-		virtual TSharedRef<SWidget> GenerateWidget(FComponentTreeItem& Item) const override { return Column.GenerateWidget(Item, Row); }
-		virtual TSharedRef<SWidget> GenerateWidget(FSubComponentTreeItem& Item) const override { return Column.GenerateWidget(Item, Row); }
-	};
-	friend FColumnWidgetGenerator;
 };
 
 }	// namespace SceneOutliner

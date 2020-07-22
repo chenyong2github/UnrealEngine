@@ -4,45 +4,170 @@
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
+#include "Widgets/SToolTip.h"
 #include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SSceneOutliner.h"
-
+#include "Styling/SlateIconFinder.h"
 #include "ToolMenus.h"
 #include "LevelEditor.h"
 #include "EditorActorFolders.h"
+#include "ISceneOutliner.h"
+#include "ISceneOutlinerMode.h"
+#include "IDocumentation.h"
+#include "FolderTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_WorldTreeItem"
 
 namespace SceneOutliner
 {
+FText GetWorldDescription(UWorld* World)
+{
+	FText Description;
+	if (World)
+	{
+		FText PostFix;
+		const FWorldContext* WorldContext = nullptr;
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			if (Context.World() == World)
+			{
+				WorldContext = &Context;
+				break;
+			}
+		}
+
+		if (World->WorldType == EWorldType::PIE)
+		{
+			switch (World->GetNetMode())
+			{
+			case NM_Client:
+				if (WorldContext)
+				{
+					PostFix = FText::Format(LOCTEXT("ClientPostfixFormat", "(Client {0})"), FText::AsNumber(WorldContext->PIEInstance - 1));
+				}
+				else
+				{
+					PostFix = LOCTEXT("ClientPostfix", "(Client)");
+				}
+				break;
+			case NM_DedicatedServer:
+			case NM_ListenServer:
+				PostFix = LOCTEXT("ServerPostfix", "(Server)");
+				break;
+			case NM_Standalone:
+				PostFix = LOCTEXT("PlayInEditorPostfix", "(Play In Editor)");
+				break;
+			}
+		}
+		else if (World->WorldType == EWorldType::Editor)
+		{
+			PostFix = LOCTEXT("EditorPostfix", "(Editor)");
+		}
+
+		Description = FText::Format(LOCTEXT("WorldFormat", "{0} {1}"), FText::FromString(World->GetFName().GetPlainNameString()), PostFix);
+	}
+
+	return Description;
+}
+
+
+const FTreeItemType FWorldTreeItem::Type(&ITreeItem::Type);
+
+struct SWorldTreeLabel : FCommonLabelData, public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SWorldTreeLabel) {}
+	SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs, FWorldTreeItem& WorldItem, ISceneOutliner& SceneOutliner, const STableRow<FTreeItemPtr>& InRow)
+	{
+		TreeItemPtr = StaticCastSharedRef<FWorldTreeItem>(WorldItem.AsShared());
+		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
+
+		ChildSlot
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FDefaultTreeItemMetrics::IconPadding())
+			[
+				SNew(SBox)
+				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
+			.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+			[
+				SNew(SImage)
+				.Image(FSlateIconFinder::FindIconBrushForClass(UWorld::StaticClass()))
+			.ToolTipText(LOCTEXT("WorldIcon_Tooltip", "World"))
+			]
+			]
+
+		+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			.Padding(0.0f, 2.0f)
+			[
+				SNew(STextBlock)
+				.Text(this, &SWorldTreeLabel::GetDisplayText)
+			.HighlightText(SceneOutliner.GetFilterHighlightText())
+			.ColorAndOpacity(this, &SWorldTreeLabel::GetForegroundColor)
+			.ToolTip(IDocumentation::Get()->CreateToolTip(
+				TAttribute<FText>(this, &SWorldTreeLabel::GetTooltipText),
+				nullptr,
+				TEXT("Shared/LevelEditor/SceneOutliner"),
+				TEXT("WorldSettingsLabel")))
+			]
+			];
+	}
+
+private:
+	TWeakPtr<FWorldTreeItem> TreeItemPtr;
+
+	FText GetDisplayText() const
+	{
+		auto Item = TreeItemPtr.Pin();
+		return Item.IsValid() ? FText::FromString(Item->GetDisplayString()) : FText();
+	}
+
+	FText GetTooltipText() const
+	{
+		auto Item = TreeItemPtr.Pin();
+		FText PersistentLevelDisplayName = Item.IsValid() ? FText::FromString(Item->GetWorldName()) : FText();
+		if (Item->CanInteract())
+		{
+			return FText::Format(LOCTEXT("WorldLabel_Tooltip", "The world settings for {0}, double-click to edit"), PersistentLevelDisplayName);
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("WorldLabel_TooltipNonInteractive", "The world {0}"), PersistentLevelDisplayName);
+		}
+	}
+
+	FSlateColor GetForegroundColor() const
+	{
+		if (auto BaseColor = FCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
+		{
+			return BaseColor.GetValue();
+		}
+
+		return FSlateColor::UseForeground();
+	}
+};
 
 FWorldTreeItem::FWorldTreeItem(UWorld* InWorld)
-	: World(InWorld)
+	: ITreeItem(Type)
+	, World(InWorld)
 	, ID(InWorld)
 {
-
 }
 
-FTreeItemPtr FWorldTreeItem::FindParent(const FTreeItemMap& ExistingItems) const
+FWorldTreeItem::FWorldTreeItem(TWeakObjectPtr<UWorld> InWorld)
+	: ITreeItem(Type)
+	, World(InWorld)
+	, ID(InWorld.Get())
 {
-	return nullptr;
-}
-
-FTreeItemPtr FWorldTreeItem::CreateParent() const
-{
-	return nullptr;
-}
-
-void FWorldTreeItem::Visit(const ITreeItemVisitor& Visitor) const
-{
-	Visitor.Visit(*this);
-}
-
-void FWorldTreeItem::Visit(const IMutableTreeItemVisitor& Visitor)
-{
-	Visitor.Visit(*this);
 }
 
 FTreeItemID FWorldTreeItem::GetID() const
@@ -68,11 +193,6 @@ FString FWorldTreeItem::GetWorldName() const
 	return FString();
 }
 
-int32 FWorldTreeItem::GetTypeSortPriority() const
-{
-	return ETreeItemSortOrder::World;
-}
-
 bool FWorldTreeItem::CanInteract() const
 {
 	if (UWorld* WorldPtr = World.Get())
@@ -89,37 +209,13 @@ void FWorldTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 	const FSlateIcon WorldSettingsIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.WorldProperties.Tab");
 	const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon");
 	FToolMenuSection& Section = Menu->AddSection("Section");
-	Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(this, &FWorldTreeItem::CreateFolder, TWeakPtr<SSceneOutliner>(SharedOutliner))));
+	Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
 	Section.AddMenuEntry("OpenWorldSettings", LOCTEXT("OpenWorldSettings", "World Settings"), FText(), WorldSettingsIcon, FExecuteAction::CreateSP(this, &FWorldTreeItem::OpenWorldSettings));
 }
 
-void FWorldTreeItem::CreateFolder(TWeakPtr<SSceneOutliner> WeakOutliner)
+TSharedRef<SWidget> FWorldTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FTreeItemPtr>& InRow)
 {
-	auto Outliner = WeakOutliner.Pin();
-
-	if (Outliner.IsValid() && SharedData->RepresentingWorld)
-	{
-		const FScopedTransaction Transaction(LOCTEXT("UndoAction_CreateFolder", "Create Folder"));
-
-		const FName NewFolderName = FActorFolders::Get().GetDefaultFolderName(*SharedData->RepresentingWorld, "");
-		FActorFolders::Get().CreateFolder(*SharedData->RepresentingWorld, NewFolderName);
-
-		// At this point the new folder will be in our newly added list, so select it and open a rename when it gets refreshed
-		Outliner->OnItemAdded(NewFolderName, ENewItemAction::Select | ENewItemAction::Rename);
-	}
-}
-
-FDragValidationInfo FWorldTreeItem::ValidateDrop(FDragDropPayload& DraggedObjects, UWorld& InWorld) const
-{
-	// Dropping on the world means 'moving to the root' in folder terms
-	FFolderDropTarget Target(NAME_None);
-	return Target.ValidateDrop(DraggedObjects, InWorld);
-}
-
-void FWorldTreeItem::OnDrop(FDragDropPayload& DraggedObjects, UWorld& InWorld, const FDragValidationInfo& ValidationInfo, TSharedRef<SWidget> DroppedOnWidget)
-{
-	FFolderDropTarget Target(NAME_None);
-	return Target.OnDrop(DraggedObjects, InWorld, ValidationInfo, DroppedOnWidget);
+	return SNew(SWorldTreeLabel, *this, Outliner, InRow);
 }
 
 void FWorldTreeItem::OpenWorldSettings() const

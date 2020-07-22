@@ -3,7 +3,6 @@
 #pragma once
 
 #include "UnrealEdMisc.h"
-#include "SubComponentTreeItem.h"
 
 namespace SceneOutliner
 {
@@ -21,10 +20,6 @@ namespace SceneOutliner
 
 		/**	Broadcasts whenever the current selection changes */
 		FSimpleMulticastDelegate SelectionChanged;
-
-		/** Broadcasts whenever a SubComponentTreeItem selection changes */
-		DECLARE_MULTICAST_DELEGATE_OneParam(FOnSubComponentSelectionChanged, TArray<FSubComponentTreeItem*>&);
-		FOnSubComponentSelectionChanged OnSubComponentSelectionChanged;
 
 		/** Broadcasts whenever a Component Selection Changes */
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnComponentSelectionChanged, class UActorComponent*);

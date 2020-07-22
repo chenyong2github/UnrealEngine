@@ -32,6 +32,7 @@
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ActorTreeItem.h"
 
 #include "TakeRecorderMicrophoneAudioSource.h"
 #include "TakeRecorderWorldSource.h"
@@ -206,8 +207,8 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 		else if (OperationPtr->IsOfType<FSceneOutlinerDragDropOp>())
 		{
 			FSceneOutlinerDragDropOp* OutlinerOp = static_cast<FSceneOutlinerDragDropOp*>(OperationPtr);
-			FolderDrag = OutlinerOp->FolderOp.Get();
-			ActorDrag  = OutlinerOp->ActorOp.Get();
+			FolderDrag = OutlinerOp->GetSubOp<FFolderDragDropOp>().Get();
+			ActorDrag  = OutlinerOp->GetSubOp<FActorDragDropOp>().Get();
 
 		}
 		else if (OperationPtr->IsOfType<FActorDragDropOp>())
@@ -398,8 +399,6 @@ public:
 			// Set up a menu entry to add any arbitrary actor to the sequencer
 			FInitializationOptions InitOptions;
 			{
-				InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
-
 				// We hide the header row to keep the UI compact.
 				InitOptions.bShowHeaderRow = false;
 				InitOptions.bShowSearchBox = true;
@@ -410,7 +409,7 @@ public:
 				InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 
 				// Only display actors that are not possessed already
-				InitOptions.Filters->AddFilterPredicate(FActorFilterPredicate::CreateLambda(OutlinerFilterPredicate));
+				InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda(OutlinerFilterPredicate));
 			}
 
 			// actor selector to allow the user to choose an actor
@@ -420,7 +419,7 @@ public:
 				.MaxDesiredHeight(400.0f)
 				.WidthOverride(300.0f)
 				[
-					SceneOutlinerModule.CreateSceneOutliner(
+					SceneOutlinerModule.CreateActorPicker(
 						InitOptions,
 						FOnActorPicked::CreateLambda([Sources](AActor* Actor){
 							// Create a new binding for this actor

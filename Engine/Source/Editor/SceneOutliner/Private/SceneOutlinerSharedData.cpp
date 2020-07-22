@@ -9,16 +9,14 @@
 namespace SceneOutliner
 {
 
-void FSharedDataBase::UseDefaultColumns()
+void FSharedOutlinerData::UseDefaultColumns()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 
+	// Create an instance of every default column type
 	for (auto& DefaultColumn : SceneOutlinerModule.DefaultColumnMap)
 	{
-		if (!DefaultColumn.Value.ValidMode.IsSet() || Mode == DefaultColumn.Value.ValidMode.GetValue())
-		{
-			ColumnMap.Add(DefaultColumn.Key, DefaultColumn.Value.ColumnInfo);
-		}
+		ColumnMap.Add(DefaultColumn.Key, DefaultColumn.Value);
 	}
 }
 

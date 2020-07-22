@@ -24,6 +24,7 @@
 #include "MovieSceneObjectBindingIDPicker.h"
 #include "MovieSceneToolHelpers.h"
 #include "SComponentChooser.h"
+#include "ActorTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "FActorPickerTrackEditor"
 
@@ -65,8 +66,7 @@ void FActorPickerTrackEditor::ShowActorSubMenu(FMenuBuilder& MenuBuilder, TArray
 		using namespace SceneOutliner;
 
 		SceneOutliner::FInitializationOptions InitOptions;
-		{
-			InitOptions.Mode = ESceneOutlinerMode::ActorPicker;			
+		{	
 			InitOptions.bShowHeaderRow = false;
 			InitOptions.bFocusSearchBoxWhenOpened = true;
 			InitOptions.bShowTransient = true;
@@ -75,7 +75,7 @@ void FActorPickerTrackEditor::ShowActorSubMenu(FMenuBuilder& MenuBuilder, TArray
 			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 
 			// Only display Actors that we can attach too
-			InitOptions.Filters->AddFilterPredicate( SceneOutliner::FActorFilterPredicate::CreateSP(this, &FActorPickerTrackEditor::IsActorPickable, ObjectBindings[0], Section) );
+			InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateSP(this, &FActorPickerTrackEditor::IsActorPickable, ObjectBindings[0], Section));
 		}		
 
 		// Actor selector to allow the user to choose a parent actor
@@ -91,7 +91,7 @@ void FActorPickerTrackEditor::ShowActorSubMenu(FMenuBuilder& MenuBuilder, TArray
 				.MaxDesiredHeight(400.0f)
 				.WidthOverride(300.0f)
 				[
-					SceneOutlinerModule.CreateSceneOutliner(
+					SceneOutlinerModule.CreateActorPicker(
 						InitOptions,
 						FOnActorPicked::CreateSP(this, &FActorPickerTrackEditor::ActorPicked, ObjectBindings, Section )
 						)

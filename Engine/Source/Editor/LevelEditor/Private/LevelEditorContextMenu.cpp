@@ -38,6 +38,7 @@
 #include "LevelEditorActions.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
+#include "ActorTreeItem.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Styling/SlateIconFinder.h"
 #include "EditorViewportCommands.h"
@@ -1055,13 +1056,12 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 	};
 
 	SceneOutliner::FInitializationOptions InitOptions;
-	{
-		InitOptions.Mode = ESceneOutlinerMode::ActorPicker;			
+	{	
 		InitOptions.bShowHeaderRow = false;
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
 		// Only display Actors that we can attach too
-		InitOptions.Filters->AddFilterPredicate( SceneOutliner::FActorFilterPredicate::CreateStatic( &FLevelEditorActionCallbacks::IsAttachableActor) );
+		InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateStatic(&FLevelEditorActionCallbacks::IsAttachableActor));
 	}		
 
 	FToolMenuSection& Section = Menu->AddSection("Actor");
@@ -1085,7 +1085,7 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 			[
 				SNew(SOnlyExpandsBox)
 				[
-					SceneOutlinerModule.CreateSceneOutliner(
+					SceneOutlinerModule.CreateActorPicker(
 						InitOptions,
 						FOnActorPicked::CreateStatic( &FLevelEditorActionCallbacks::AttachToActor )
 						)

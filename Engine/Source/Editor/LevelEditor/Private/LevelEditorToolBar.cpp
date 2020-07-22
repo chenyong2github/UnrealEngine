@@ -31,6 +31,7 @@
 #include "Kismet2/DebuggerCommands.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
+#include "ActorTreeItem.h"
 #include "SScalabilitySettings.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -1999,8 +2000,6 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 		// We can't build a list of Matinees and LevelSequenceActors while the current World is a PIE world.
 		FInitializationOptions InitOptions;
 		{
-			InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
-
 			// We hide the header row to keep the UI compact.
 			// @todo: Might be useful to have this sometimes, actually.  Ideally the user could summon it.
 			InitOptions.bShowHeaderRow = false;
@@ -2014,7 +2013,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			auto ActorFilter = [&](const AActor* Actor) {
 				return (bAllowMatineeActors && Actor->IsA(AMatineeActor::StaticClass())) || Actor->IsA(ALevelSequenceActor::StaticClass());
 			};
-			InitOptions.Filters->AddFilterPredicate(FActorFilterPredicate::CreateLambda(ActorFilter));
+			InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda(ActorFilter));
 		}
 
 		// actor selector to allow the user to choose an actor
@@ -2025,7 +2024,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			.AutoHeight()
 			.MaxHeight(400.0f)
 			[
-				SceneOutlinerModule.CreateSceneOutliner(
+				SceneOutlinerModule.CreateActorPicker(
 					InitOptions,
 					FOnActorPicked::CreateStatic(&FLevelEditorToolBar::OnCinematicsActorPicked))
 			];

@@ -8,49 +8,53 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "EditorStyleSet.h"
-#include "ISceneOutliner.h"
-
-
 #include "EditorClassUtils.h"
 #include "SortHelper.h"
+#include "ISceneOutliner.h"
+#include "ActorTreeItem.h"
+#include "ComponentTreeItem.h"
+#include "FolderTreeItem.h"
+#include "WorldTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerActorInfoColumn"
 
 namespace SceneOutliner
 {
 
-struct FGetInfo : TTreeItemGetter<FString>
+struct FGetInfo
 {
 	ECustomColumnMode::Type CurrentMode;
 
 	FGetInfo(ECustomColumnMode::Type InCurrentMode) : CurrentMode(InCurrentMode) {}
 
-	virtual FString Get(const FActorTreeItem& ActorItem) const override
+	FString operator()(const ITreeItem& Item) const
 	{
-		AActor* Actor = ActorItem.Actor.Get();
-		if (!Actor)
+		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
-			return FString();
-		}
+			AActor* Actor = ActorItem->Actor.Get();
+			if (!Actor)
+			{
+				return FString();
+			}
 
-		switch(CurrentMode)
-		{
-		case ECustomColumnMode::Class:
-			return Actor->GetClass()->GetName();
+			switch (CurrentMode)
+			{
+			case ECustomColumnMode::Class:
+				return Actor->GetClass()->GetName();
 
-		case ECustomColumnMode::Level:
-			return FPackageName::GetShortName(Actor->GetOutermost()->GetName());
+			case ECustomColumnMode::Level:
+				return FPackageName::GetShortName(Actor->GetOutermost()->GetName());
 
-		case ECustomColumnMode::Socket:
-			return Actor->GetAttachParentSocketName().ToString();
+			case ECustomColumnMode::Socket:
+				return Actor->GetAttachParentSocketName().ToString();
 
-		case ECustomColumnMode::InternalName:
-			return Actor->GetFName().ToString();
+			case ECustomColumnMode::InternalName:
+				return Actor->GetFName().ToString();
 
-		case ECustomColumnMode::UncachedLights:
-			return FString::Printf(TEXT("%7d"), Actor->GetNumUncachedStaticLightingInteractions());
+			case ECustomColumnMode::UncachedLights:
+				return FString::Printf(TEXT("%7d"), Actor->GetNumUncachedStaticLightingInteractions());
 
-		case ECustomColumnMode::Layer:
+			case ECustomColumnMode::Layer:
 			{
 				FString Result;
 				for (const auto& Layer : Actor->Layers)
@@ -86,69 +90,55 @@ struct FGetInfo : TTreeItemGetter<FString>
 				return Result;
 			}
 
-		default:
-			return FString();
+			default:
+				return FString();
+			}
 		}
-	}
-
-	virtual FString Get(const FFolderTreeItem&) const override
-	{
-		switch(CurrentMode)
+		else if (Item.IsA<FFolderTreeItem>())
 		{
-		case ECustomColumnMode::Class:
-			return LOCTEXT("FolderTypeName", "Folder").ToString();
+			switch (CurrentMode)
+			{
+			case ECustomColumnMode::Class:
+				return LOCTEXT("FolderTypeName", "Folder").ToString();
 
-		default:
-			return FString();
+			default:
+				return FString();
+			}
 		}
-	}
-
-	virtual FString Get(const FWorldTreeItem&) const override
-	{
-		switch(CurrentMode)
+		else if (Item.IsA<FWorldTreeItem>())
 		{
-		case ECustomColumnMode::Class:
-			return LOCTEXT("WorldTypeName", "World").ToString();
+			switch (CurrentMode)
+			{
+			case ECustomColumnMode::Class:
+				return LOCTEXT("WorldTypeName", "World").ToString();
 
-		default:
-			return FString();
+			default:
+				return FString();
+			}
 		}
-	}
-
-	virtual FString Get(const FComponentTreeItem& ComponentItem) const override
-	{
-		UActorComponent* Component = ComponentItem.Component.Get();
-		if (!Component)
+		else if (const FComponentTreeItem* ComponentItem = Item.CastTo<FComponentTreeItem>())
 		{
-			return FString();
+			UActorComponent* Component = ComponentItem->Component.Get();
+			if (!Component)
+			{
+				return FString();
+			}
+
+			switch (CurrentMode)
+			{
+			case ECustomColumnMode::Class:
+				return LOCTEXT("ComponentTypeName", "Component").ToString();
+
+			case ECustomColumnMode::InternalName:
+				return Component->GetFName().ToString();
+
+			default:
+				return FString();
+			}
 		}
 
-		switch (CurrentMode)
-		{
-		case ECustomColumnMode::Class:
-			return LOCTEXT("ComponentTypeName", "Component").ToString();
-
-		case ECustomColumnMode::InternalName:
-			return Component->GetFName().ToString();
-
-		default:
-			return FString();
-		}
+		return FString();
 	}
-
-	virtual FString Get(const FSubComponentTreeItem& Item) const override
-	{
-		switch (CurrentMode)
-		{
-		case ECustomColumnMode::Class:
-		case ECustomColumnMode::InternalName:
-			return Item.GetTypeName();
-
-		default:
-			return FString();
-		}
-	}
-
 };
 
 
@@ -260,49 +250,44 @@ const TSharedRef< SWidget > FActorInfoColumn::ConstructRowWidget( FTreeItemRef T
 
 TSharedPtr<SWidget> FActorInfoColumn::ConstructClassHyperlink( ITreeItem& TreeItem )
 {
-	struct FConstructHyperlink : TTreeItemGetter<TSharedPtr<SWidget>>
+	if (const FActorTreeItem* ActorItem = TreeItem.CastTo<FActorTreeItem>())
 	{
-		TSharedPtr<SWidget> Get(const FActorTreeItem& ActorItem) const override
+		if (AActor* Actor = ActorItem->Actor.Get())
 		{
-			if (AActor* Actor = ActorItem.Actor.Get())
+			if (UClass* ActorClass = Actor->GetClass())
 			{
-				if (UClass* ActorClass = Actor->GetClass())
+				// Always show blueprints
+				const bool bIsBlueprintClass = UBlueprint::GetBlueprintFromClass(ActorClass) != nullptr;
+
+				// Also show game or game plugin native classes (but not engine classes as that makes the scene outliner pretty noisy)
+				bool bIsGameClass = false;
+				if (!bIsBlueprintClass)
 				{
-					// Always show blueprints
-					const bool bIsBlueprintClass = UBlueprint::GetBlueprintFromClass(ActorClass) != nullptr;
+					UPackage* Package = ActorClass->GetOutermost();
+					const FString ModuleName = FPackageName::GetShortName(Package->GetFName());
 
-					// Also show game or game plugin native classes (but not engine classes as that makes the scene outliner pretty noisy)
-					bool bIsGameClass = false;
-					if (!bIsBlueprintClass)
+					FModuleStatus PackageModuleStatus;
+					if (FModuleManager::Get().QueryModule(*ModuleName, /*out*/ PackageModuleStatus))
 					{
-						UPackage* Package = ActorClass->GetOutermost();
-						const FString ModuleName = FPackageName::GetShortName(Package->GetFName());
-
-						FModuleStatus PackageModuleStatus;
-						if (FModuleManager::Get().QueryModule(*ModuleName, /*out*/ PackageModuleStatus))
-						{
-							bIsGameClass = PackageModuleStatus.bIsGameModule;
-						}
-					}
-
-					if (bIsBlueprintClass || bIsGameClass)
-					{
-						return FEditorClassUtils::GetSourceLink(ActorClass, Actor);
+						bIsGameClass = PackageModuleStatus.bIsGameModule;
 					}
 				}
+
+				if (bIsBlueprintClass || bIsGameClass)
+				{
+					return FEditorClassUtils::GetSourceLink(ActorClass, Actor);
+				}
 			}
-
-			return nullptr;
 		}
-	};
+	}
 
-	return TreeItem.Get(FConstructHyperlink());
+	return nullptr;
 }
 
 void FActorInfoColumn::PopulateSearchStrings( const ITreeItem& Item, TArray< FString >& OutSearchStrings ) const
 {
 	{
-		FString String = Item.Get(FGetInfo(CurrentMode));
+		FString String = FGetInfo(CurrentMode)(Item);
 		if (String.Len())
 		{
 			OutSearchStrings.Add(String);
@@ -312,7 +297,7 @@ void FActorInfoColumn::PopulateSearchStrings( const ITreeItem& Item, TArray< FSt
 	// We always add the class
 	if (CurrentMode != ECustomColumnMode::Class)
 	{
-		FString String = Item.Get(FGetInfo(ECustomColumnMode::Class));
+		FString String = FGetInfo(ECustomColumnMode::Class)(Item);
 		if (String.Len())
 		{
 			OutSearchStrings.Add(String);
@@ -356,7 +341,7 @@ EVisibility FActorInfoColumn::GetColumnDataVisibility( bool bIsClassHyperlink ) 
 FText FActorInfoColumn::GetTextForItem( TWeakPtr<ITreeItem> TreeItem ) const
 {
 	auto Item = TreeItem.Pin();
-	return Item.IsValid() ? FText::FromString(Item->Get(FGetInfo(CurrentMode))) : FText::GetEmpty();
+	return Item.IsValid() ? FText::FromString(FGetInfo(CurrentMode)(*Item)) : FText::GetEmpty();
 }
 
 FText FActorInfoColumn::GetSelectedMode() const

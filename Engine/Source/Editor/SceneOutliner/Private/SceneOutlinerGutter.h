@@ -7,6 +7,7 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ISceneOutlinerColumn.h"
+#include "ITreeItem.h"
 
 class ISceneOutliner;
 template<typename ItemType> class STableRow;
@@ -14,31 +15,11 @@ template<typename ItemType> class STableRow;
 namespace SceneOutliner
 {
 
-/** A 'getter' visitor that gets, and caches the visibility of a tree item */
-struct FGetVisibilityVisitor : TTreeItemGetter<bool>
-{
-	/** Map of tree item to visibility */
-	mutable TMap<const ITreeItem*, bool> VisibilityInfo;
-
-	/** Get an item's visibility based on its children */
-	bool RecurseChildren(const ITreeItem& Item) const;
-
-	/** Get an actor's visibility */
-	virtual bool Get(const FActorTreeItem& ActorItem) const override;
-
-	/** Get a World's visibility */
-	virtual bool Get(const FWorldTreeItem& WorldItem) const override;
-
-	/** Get a folder's visibility */
-	virtual bool Get(const FFolderTreeItem& FolderItem) const override;
-};
-
 /**
- * A gutter for the SceneOutliner which is capable of displaying a variety of Actor details
+ * A gutter for the SceneOutliner which handles setting and visualizing item visibility
  */
 class FSceneOutlinerGutter : public ISceneOutlinerColumn
 {
-
 public:
 
 	/**	Constructor */
@@ -66,7 +47,7 @@ public:
 	/** Check whether the specified item is visible */
 	FORCEINLINE bool IsItemVisible(const ITreeItem& Item)
 	{
-		return Item.Get(VisibilityCache);
+		return VisibilityCache.GetVisibility(Item);
 	}
 
 private:
@@ -74,8 +55,8 @@ private:
 	/** Weak pointer back to the scene outliner - required for setting visibility on current selection. */
 	TWeakPtr<ISceneOutliner> WeakOutliner;
 
-	/** Visitor used to get (and cache) visibilty for items. Cahced per-frame to avoid expensive recursion. */
-	FGetVisibilityVisitor VisibilityCache;
+	/** Get and cache visibility for items. Cached per-frame to avoid expensive recursion. */
+	FGetVisibilityCache VisibilityCache;
 };
 
 }	// namespace SceneOutliner

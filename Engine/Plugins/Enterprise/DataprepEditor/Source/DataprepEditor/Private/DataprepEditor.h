@@ -123,6 +123,9 @@ public:
 	/** Return the number of steps the preview system is currently previewing */
 	int32 GetCountOfPreviewedSteps() const;
 
+	/** Handles change to selection in SceneOutliner */
+	void OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -194,9 +197,6 @@ private:
 	/** Remove all temporary data remaining from previous runs of the Dataprep editor */
 	void CleanUpTemporaryDirectories();
 
-	/** Handles change to selection in SceneOutliner */
-	void OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
-
 	bool OnCanExecuteNextStep(UDataprepActionAsset* ActionAsset);
 
 	/** Handles change to the content passed to an action */
@@ -233,7 +233,7 @@ private:
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
 	TSharedPtr<SDataprepGraphEditor> GraphEditor;
 
-	TSharedPtr<class ICustomSceneOutliner> SceneOutliner;
+	TSharedPtr<class ISceneOutliner> SceneOutliner;
 
 	/** Command list for the pipeline editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;

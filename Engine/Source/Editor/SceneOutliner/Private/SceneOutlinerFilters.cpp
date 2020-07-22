@@ -51,6 +51,8 @@ void FOutlinerFilterInfo::ToggleFilterActive()
 	bActive = !bActive;
 
 	ApplyFilter(bActive);
+
+	OnToggleEvent.Broadcast(bActive);
 }
 
 bool FOutlinerFilterInfo::IsFilterActive() const

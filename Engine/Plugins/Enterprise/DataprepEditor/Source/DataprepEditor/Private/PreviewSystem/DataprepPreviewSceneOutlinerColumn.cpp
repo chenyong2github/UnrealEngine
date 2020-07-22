@@ -8,9 +8,6 @@
 #include "ActorTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ISceneOutliner.h"
-#include "SceneOutlinerVisitorTypes.h"
-#include "SceneOutlinerVisitorTypes.h"
-#include "SubComponentTreeItem.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/SNullWidget.h"
@@ -20,14 +17,19 @@
 
 namespace DataprepPreviewOutlinerColumnUtils
 {
-	struct FObjectGetter : public SceneOutliner::TTreeItemGetter<TWeakObjectPtr<UObject>>
+	
+	UObject* GetObjectPtr(const SceneOutliner::ITreeItem& Item)
 	{
-		virtual TWeakObjectPtr<UObject> Get(const SceneOutliner::FActorTreeItem& ActorItem) const override { return ActorItem.Actor; };
-		virtual TWeakObjectPtr<UObject> Get(const SceneOutliner::FWorldTreeItem& WorldItem) const override { return nullptr; }
-		virtual TWeakObjectPtr<UObject> Get(const SceneOutliner::FFolderTreeItem& FolderItem) const override { return nullptr; }
-		virtual TWeakObjectPtr<UObject> Get(const SceneOutliner::FComponentTreeItem& ComponentItem) const override { return ComponentItem.Component; }
-		virtual TWeakObjectPtr<UObject> Get(const SceneOutliner::FSubComponentTreeItem& SubComponentItem) const override { return SubComponentItem.ParentComponent; }
-	};
+		if (const SceneOutliner::FActorTreeItem* ActorItem = Item.CastTo<SceneOutliner::FActorTreeItem>())
+		{
+			return ActorItem->Actor.Get();
+		}
+		else if (const SceneOutliner::FComponentTreeItem* ComponentItem = Item.CastTo<SceneOutliner::FComponentTreeItem>())
+		{
+			return ComponentItem->Component.Get();
+		}
+		return nullptr;
+	}
 }
 
 const FName FDataprepPreviewOutlinerColumn::ColumnID = FName( TEXT("DataprepPreview") );
@@ -56,10 +58,7 @@ SHeaderRow::FColumn::FArguments FDataprepPreviewOutlinerColumn::ConstructHeaderR
 
 const TSharedRef<SWidget> FDataprepPreviewOutlinerColumn::ConstructRowWidget(SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& Row)
 {
-	DataprepPreviewOutlinerColumnUtils::FObjectGetter Visitor; 
-	TreeItem->Visit( Visitor );
-
-	if ( UObject* Object = Visitor.Result().Get() )
+	if ( UObject* Object = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*TreeItem))
 	{
 		if ( TSharedPtr<ISceneOutliner> SceneOutliner = WeakSceneOutliner.Pin() )
 		{ 
@@ -73,9 +72,7 @@ const TSharedRef<SWidget> FDataprepPreviewOutlinerColumn::ConstructRowWidget(Sce
 
 void FDataprepPreviewOutlinerColumn::PopulateSearchStrings(const SceneOutliner::ITreeItem& Item, TArray< FString >& OutSearchStrings) const
 {
-	DataprepPreviewOutlinerColumnUtils::FObjectGetter Visitor;
-	Item.Visit(Visitor);
-	if (UObject* Object = Visitor.Result().Get())
+	if (UObject* Object = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(Item))
 	{
 		if ( TSharedPtr<FDataprepPreviewProcessingResult> PreviewResult = CachedPreviewData->GetPreviewDataForObject( Object ) )
 		{
@@ -88,11 +85,8 @@ void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPt
 {
 	OutItems.Sort([this, SortMode](const SceneOutliner::FTreeItemPtr& First, const SceneOutliner::FTreeItemPtr& Second)
 	{
-			DataprepPreviewOutlinerColumnUtils::FObjectGetter Visitor;
-			First->Visit( Visitor );
-			UObject* FirstObject = Visitor.Result().Get();
-			Second->Visit( Visitor );
-			UObject* SecondObject = Visitor.Result().Get();
+			UObject* FirstObject = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*First);
+			UObject* SecondObject = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*Second);
 			if ( FirstObject && SecondObject )
 			{
 
@@ -133,8 +127,9 @@ void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPt
 			}
 
 		// If all else fail filter by name (always Ascending)
-		int32 SortPriorityFirst = First->GetTypeSortPriority();
-		int32 SortPrioritySecond = Second->GetTypeSortPriority();
+		auto Outliner = WeakSceneOutliner.Pin();
+		int32 SortPriorityFirst = Outliner->GetTypeSortPriority(*First);
+		int32 SortPrioritySecond = Outliner->GetTypeSortPriority(*Second);
 		if ( SortPriorityFirst != SortPrioritySecond )
 		{
 			return SortPriorityFirst < SortPrioritySecond;

@@ -9,7 +9,6 @@ public class LevelSequenceEditor : ModuleRules
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {
 				"AssetTools",
-				"SceneOutliner",
 				"PlacementMode",
 			}
         );
@@ -35,6 +34,7 @@ public class LevelSequenceEditor : ModuleRules
 				"Sequencer",
                 "Slate",
                 "SlateCore",
+				"SceneOutliner",
                 "UnrealEd",
                 "VREditor",
 				"TimeManagement"

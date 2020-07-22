@@ -22,6 +22,7 @@
 #include "ContentBrowserModule.h"
 #include "Misc/Timecode.h"
 #include "Styling/ToolBarStyle.h"
+#include "ActorTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerPlayRateCombo"
 
@@ -395,7 +396,6 @@ void SSequencerPlayRateCombo::PopulateCustomClockSourceMenu(FMenuBuilder& MenuBu
 
 		// Set up a menu entry to assign an actor to the object binding node
 		FInitializationOptions InitOptions;
-		InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
 
 		// We hide the header row to keep the UI compact.
 		InitOptions.bShowHeaderRow = false;
@@ -406,7 +406,7 @@ void SSequencerPlayRateCombo::PopulateCustomClockSourceMenu(FMenuBuilder& MenuBu
 		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
 
 		// Only display actors that are not possessed already
-		InitOptions.Filters->AddFilterPredicate( FActorFilterPredicate::CreateLambda( IsActorValid ) );
+		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValid ) );
 
 		// actor selector to allow the user to choose an actor
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
@@ -415,7 +415,7 @@ void SSequencerPlayRateCombo::PopulateCustomClockSourceMenu(FMenuBuilder& MenuBu
 			.MaxDesiredHeight(400.0f)
 			.WidthOverride(300.0f)
 			[
-				SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateLambda([this](AActor* In){ this->SetCustomClockSource(In); }))
+				SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateLambda([this](AActor* In){ this->SetCustomClockSource(In); }))
 			],
 			FText(),
 			true /*bNoIndent*/

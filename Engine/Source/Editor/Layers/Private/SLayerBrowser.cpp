@@ -126,13 +126,26 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	using namespace SceneOutliner;
 	FInitializationOptions InitOptions;
 	{
-		InitOptions.Mode = ESceneOutlinerMode::ActorBrowsing;
-
 		// We hide the header row to keep the UI compact.
 		InitOptions.bShowHeaderRow = false;
 		InitOptions.bShowParentTree = false;
 		InitOptions.bShowCreateNewFolder = false;
-		InitOptions.CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateSP(this, &SLayerBrowser::RemoveActorsFromSelectedLayer);
+
+		auto CustomDelete = [this](TArray<TWeakPtr<ITreeItem>> Items)
+		{
+			TArray<TWeakObjectPtr<AActor>> Actors;
+			Actors.Reserve(Items.Num());
+			for (const TWeakPtr<ITreeItem>& Item : Items)
+			{
+				if (FActorTreeItem* ActorItem = Item.Pin()->CastTo<FActorTreeItem>())
+				{
+					Actors.Add(ActorItem->Actor);
+				}
+			}
+			RemoveActorsFromSelectedLayer(Actors);
+		};
+
+		InitOptions.CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateLambda(CustomDelete);
 
 		// Outliner Gutter
 		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Gutter(), FColumnInfo(EColumnVisibility::Visible, 0) );
@@ -150,7 +163,7 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 		.Content()
 		[
-			SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked())
+			SceneOutlinerModule.CreateActorBrowser(InitOptions)
 		];
 
 

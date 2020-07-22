@@ -22,13 +22,12 @@ namespace SceneOutliner
 
 		void FlashHighlightOnItem( FTreeItemPtr FlashHighlightOnItem );
 
+		const TWeakPtr<SSceneOutliner>& GetOutlinerPtr() { return SceneOutlinerWeak; }
 	protected:
 
 		virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 
 		virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
-
-		//virtual FReply OnDragDetected( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
 		virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 

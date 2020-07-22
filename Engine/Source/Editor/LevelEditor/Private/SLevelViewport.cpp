@@ -2544,38 +2544,24 @@ TSharedRef< ISceneOutlinerColumn > SLevelViewport::CreateActorLockSceneOutlinerC
 
 		virtual const TSharedRef< SWidget > ConstructRowWidget( SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& InRow ) override
 		{
-			struct FConstructWidget : SceneOutliner::FColumnGenerator
+			if (SceneOutliner::FActorTreeItem* ActorItem = TreeItem->CastTo<SceneOutliner::FActorTreeItem>())
 			{
-				const SLevelViewport* Viewport;
-				FConstructWidget(const SLevelViewport* InViewport) : Viewport(InViewport) {}
-
-				virtual TSharedRef<SWidget> GenerateWidget(SceneOutliner::FActorTreeItem& ActorItem) const override
+				AActor* Actor = ActorItem->Actor.Get();
+				if (!Actor)
 				{
-					AActor* Actor = ActorItem.Actor.Get();
-					if (!Actor)
-					{
-						return SNullWidget::NullWidget;
-					}
-
-					const bool bLocked = Viewport->IsActorLocked(Actor);
-
-					return SNew(SBox)
-						.WidthOverride(SLevelViewport::GetActorLockSceneOutlinerColumnWidth())
-						.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush(bLocked ? "PropertyWindow.Locked" : "PropertyWindow.Unlocked"))
-							.ColorAndOpacity(bLocked ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
-						];	
+					return SNullWidget::NullWidget;
 				}
-			};
 
-			FConstructWidget Visitor(Viewport);
-			TreeItem->Visit(Visitor);
+				const bool bLocked = Viewport->IsActorLocked(Actor);
 
-			if (Visitor.Widget.IsValid())
-			{
-				return Visitor.Widget.ToSharedRef();	
+				return SNew(SBox)
+					.WidthOverride(SLevelViewport::GetActorLockSceneOutlinerColumnWidth())
+					.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush(bLocked ? "PropertyWindow.Locked" : "PropertyWindow.Unlocked"))
+					.ColorAndOpacity(bLocked ? FLinearColor::White : FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
+					];
 			}
 			else
 			{

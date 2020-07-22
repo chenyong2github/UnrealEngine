@@ -12,28 +12,13 @@
 class FExtender;
 struct FToolMenuContext;
 
-enum class ESceneOutlinerMode : uint8
-{
-	/** Allows all actors to be browsed and selected; syncs selection with the editor; drag and drop attachment, stc. */
-	ActorBrowsing,
-
-	/** Sets the outliner to operate as an actor 'picker'. */
-	ActorPicker,
-
-	/** Sets the outliner to operate as a component 'picker'. */
-	ComponentPicker,
-
-	/** 
-	 * Set the outliner to be a custom displayer of the scene hierarchy
-	 * This mode allow a user to manually change the default behavior of the scene outliner
-	 */
-	Custom,
-};
-
 DECLARE_DELEGATE_TwoParams(FSceneOutlinerModifyContextMenu, FName& /* MenuName */, FToolMenuContext& /* MenuContext */);
 
 namespace SceneOutliner
 {
+	/** A delegate used as a factory to defer mode creation in the outliner */
+	DECLARE_DELEGATE_RetVal_OneParam(ISceneOutlinerMode*, FCreateOutlinerMode, SSceneOutliner*);
+
 	/** Container for built in column types. Function-static so they are available without linking */
 	struct FBuiltInColumnTypes
 	{
@@ -88,29 +73,11 @@ namespace SceneOutliner
 		FCreateSceneOutlinerColumn	Factory;
 	};
 
-	/** Default column information for the scene outliner */
-	struct FDefaultColumnInfo
+	/** Settings for the scene outliner which can be quieried publicly */
+	struct FSharedOutlinerData
 	{
-		FDefaultColumnInfo(const FColumnInfo& InColumnInfo, TOptional<ESceneOutlinerMode> InValidMode = TOptional<ESceneOutlinerMode>())
-			: ColumnInfo(InColumnInfo), ValidMode(InValidMode)
-		{}
-
-		FColumnInfo ColumnInfo;
-
-		// The valid mode for this column. If not set, this column will be valid for all.
-		TOptional<ESceneOutlinerMode> ValidMode;
-	};
-
-	struct FSharedDataBase
-	{
-		/** Mode to operate in */
-		ESceneOutlinerMode Mode;
-
 		/**	Invoked whenever the user attempts to delete an actor from within a Scene Outliner in the actor browsing mode */
 		FCustomSceneOutlinerDeleteDelegate CustomDelete;
-
-		/** Override default context menu handling */
-		FOnContextMenuOpening ContextMenuOverride;
 
 		/** Modify context menu before display */
 		FSceneOutlinerModifyContextMenu ModifyContextMenu;
@@ -130,9 +97,8 @@ namespace SceneOutliner
 	public:
 
 		/** Constructor */
-		FSharedDataBase()
-			: Mode( ESceneOutlinerMode::ActorPicker )
-			, bShowParentTree( true )
+		FSharedOutlinerData()
+			: bShowParentTree( true )
 			, bOnlyShowFolders( false )
 			, bShowTransient( false )
 		{}
@@ -146,7 +112,7 @@ namespace SceneOutliner
 	 * is used to modify the outliner's behavior in various ways, such as filtering in or out specific classes
 	 * of actors.
 	 */
-	struct FInitializationOptions : FSharedDataBase
+	struct FInitializationOptions : FSharedOutlinerData
 	{
 		/** True if we should draw the header row above the tree view */
 		bool bShowHeaderRow : 1;
@@ -161,20 +127,9 @@ namespace SceneOutliner
 		bool bShowCreateNewFolder : 1;
 
 		/** Optional collection of filters to use when filtering in the Scene Outliner */
-		TSharedPtr<FOutlinerFilters> Filters;
+		TSharedPtr<FOutlinerFilters> Filters;		
 
-		/**
-		 * (Old comment) : Broadcasts whenever the Scene Outliners selection changes
-		 *
-		 * This variable will be depecrated as this give the false intuition that it will broadcast when the created scene outliner selection has changed.
-		 * In truth this is only broadcasted by the scene outliners when they are in the actor browsing mode.
-		 * Also it's by any scene outliner, not necessary the one instanced by this initialization options.
-		 */
-		UE_DEPRECATED(4.24, "Use FSceneOutlinerDelegates::Get().SelectionChanged instead.")
-		FSimpleMulticastDelegate::FDelegate OnSelectionChanged;
-		
-		/** If not null, it will force the Scene Outliner to only display this world and it will remove the chose world from the UI */
-		UWorld* SpecifiedWorldToDisplay;
+		FCreateOutlinerMode ModeFactory;
 
 	public:
 
@@ -185,26 +140,7 @@ namespace SceneOutliner
 			, bFocusSearchBoxWhenOpened( false )
 			, bShowCreateNewFolder( true )
 			, Filters( new FOutlinerFilters )
-			, SpecifiedWorldToDisplay( nullptr )
-		{}
-	};
-
-	/** Outliner data that is shared between a scene outliner and its items */
-	struct FSharedOutlinerData : FSharedDataBase, TSharedFromThis<FSharedOutlinerData>
-	{
-		/** Whether the scene outliner is currently displaying PlayWorld actors */
-		bool bRepresentingPlayWorld;
-
-		/** The world that we are representing */
-		UWorld* RepresentingWorld;
-
-		/** The world the user has chosen to display */
-		TWeakObjectPtr<UWorld> UserChosenWorld;
-
-		FSharedOutlinerData()
-			: bRepresentingPlayWorld(false)
-			, RepresentingWorld(nullptr)
-			, UserChosenWorld(nullptr)
+			, ModeFactory()
 		{}
 	};
 
@@ -213,6 +149,18 @@ namespace SceneOutliner
 	{
 		static int32	IconSize() { return 18; };
 		static FMargin	IconPadding() { return FMargin(0.f, 0.f, 6.f, 0.f); };
+	};
+
+	/** A struct which gets, and caches the visibility of a tree item */
+	struct SCENEOUTLINER_API FGetVisibilityCache
+	{
+		/** Map of tree item to visibility */
+		mutable TMap<const ITreeItem*, bool> VisibilityInfo;
+
+		/** Get an item's visibility based on its children */
+		bool RecurseChildren(const ITreeItem& Item) const;
+
+		bool GetVisibility(const ITreeItem& Item) const;
 	};
 
 }	// namespace SceneOutliner

@@ -6,9 +6,10 @@
 #include "ISceneOutlinerColumn.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SSceneOutliner.h"
+
+#include "FolderTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "SSceneOutliner"
 
@@ -25,10 +26,6 @@ namespace SceneOutliner
 			{
 				auto* OutlinerOp = static_cast<FSceneOutlinerDragDropOp*>(Operation);
 				OutlinerOp->SetTooltip(ValidationInfo.ValidationText, Icon);
-			}
-			else if (Operation->IsOfType<FActorDragDropGraphEdOp>())
-			{
-				static_cast<FActorDragDropGraphEdOp*>(Operation)->SetToolTip(ValidationInfo.TooltipType, ValidationInfo.ValidationText);
 			}
 			else if (Operation->IsOfType<FDecoratedDragDropOp>())
 			{
@@ -59,7 +56,8 @@ namespace SceneOutliner
 		auto TablePtr = Table.Pin();
 		if (TablePtr.IsValid() && MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ))
 		{
-			auto Operation = SceneOutliner::CreateDragDropOperation(TablePtr->GetSelectedItems());
+			auto Operation = TablePtr->GetOutlinerPtr().Pin()->CreateDragDropOperation(TablePtr->GetSelectedItems());
+
 			if (Operation.IsValid())
 			{
 				return FReply::Handled().BeginDragDrop(Operation.ToSharedRef());
@@ -69,33 +67,27 @@ namespace SceneOutliner
 		return FReply::Unhandled();
 	}
 
-	FReply HandleDrop(TSharedPtr<ISceneOutliner> SceneOutlinerPtr, const FDragDropEvent& DragDropEvent, IDropTarget& DropTarget, FDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
+	FReply HandleDrop(TSharedPtr<SSceneOutliner> SceneOutlinerPtr, const FDragDropEvent& DragDropEvent, ITreeItem& DropTarget, FDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
 	{
 		if (!SceneOutlinerPtr.IsValid())
 		{
 			return FReply::Unhandled();
 		}
 
-		const FSharedOutlinerData& SharedData = SceneOutlinerPtr->GetSharedData();
-		if (SharedData.Mode != ESceneOutlinerMode::ActorBrowsing)
-		{
-			return FReply::Unhandled();
-		}
-
-		// Don't handle this if we're not showing a hierarchy, not in browsing mode, or the drop operation is not applicable
-		if (!SharedData.bShowParentTree || !SharedData.RepresentingWorld)
+		// Don't handle this if the scene outliner is not in a mode which supports drag and drop
+		if (!SceneOutlinerPtr->CanSupportDragAndDrop())
 		{
 			return FReply::Unhandled();
 		}
 
 		FDragDropPayload DraggedObjects;
 		// Validate now to make sure we don't doing anything we shouldn't
-		if (!DraggedObjects.ParseDrag(*DragDropEvent.GetOperation()))
+		if (!SceneOutlinerPtr->ParseDragDrop(DraggedObjects, *DragDropEvent.GetOperation()))
 		{
 			return FReply::Unhandled();
 		}
 
-		ValidationInfo = DropTarget.ValidateDrop(DraggedObjects, *SharedData.RepresentingWorld);
+		ValidationInfo = SceneOutlinerPtr->ValidateDrop(StaticCast<ITreeItem&>(DropTarget), DraggedObjects);
 
 		if (!ValidationInfo.IsValid())
 		{
@@ -105,13 +97,13 @@ namespace SceneOutliner
 
 		if (bApplyDrop)
 		{
-			DropTarget.OnDrop(DraggedObjects, *SharedData.RepresentingWorld, ValidationInfo, SceneOutlinerPtr.ToSharedRef());
+			SceneOutlinerPtr->OnDropPayload(DropTarget, DraggedObjects, ValidationInfo);
 		}
 
 		return FReply::Handled();
 	}
 
-	FReply HandleDropFromWeak(TWeakPtr<ISceneOutliner> SceneOutlinerWeak, const FDragDropEvent& DragDropEvent, IDropTarget& DropTarget, FDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
+	FReply HandleDropFromWeak(TWeakPtr<SSceneOutliner> SceneOutlinerWeak, const FDragDropEvent& DragDropEvent, ITreeItem& DropTarget, FDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
 	{
 		return HandleDrop(SceneOutlinerWeak.Pin(), DragDropEvent, DropTarget, ValidationInfo, bApplyDrop);
 	}
@@ -135,7 +127,7 @@ namespace SceneOutliner
 	{
 		FDragValidationInfo ValidationInfo = FDragValidationInfo::Invalid();
 
-		FFolderDropTarget DropTarget(NAME_None);
+		FFolderTreeItem DropTarget(NAME_None);
 
 		auto Reply = HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo);
 		UpdateOperationDecorator(DragDropEvent, ValidationInfo);
@@ -154,7 +146,7 @@ namespace SceneOutliner
 	FReply SOutlinerTreeView::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 	{
 		FDragValidationInfo ValidationInfo = FDragValidationInfo::Invalid();
-		FFolderDropTarget DropTarget(NAME_None);
+		FFolderTreeItem DropTarget(NAME_None);
 
 		return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo, true);
 	}
@@ -165,11 +157,6 @@ namespace SceneOutliner
 		auto SceneOutlinerPtr = SceneOutlinerWeak.Pin();
 		if (ItemPtr.IsValid() && SceneOutlinerPtr.IsValid())
 		{
-			if (SceneOutlinerPtr->GetOnDropOnItem())
-			{
-				return SceneOutlinerPtr->GetOnDropOnItem()(DragDropEvent, *ItemPtr.Get());
-			}
-
 			FDragValidationInfo ValidationInfo = FDragValidationInfo::Invalid();
 			return HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, true);
 		}
@@ -183,17 +170,10 @@ namespace SceneOutliner
 		auto SceneOutlinerPtr = SceneOutlinerWeak.Pin();
 		if (ItemPtr.IsValid() && SceneOutlinerPtr.IsValid())
 		{
-			if (SceneOutlinerPtr->GetOnDragEnterItem())
-			{
-				SceneOutlinerPtr->GetOnDragEnterItem()(DragDropEvent, *ItemPtr.Get());
-			}
-			else
-			{
-				FDragValidationInfo ValidationInfo = FDragValidationInfo::Invalid();
+			FDragValidationInfo ValidationInfo = FDragValidationInfo::Invalid();
 
-				HandleDrop(StaticCastSharedPtr<ISceneOutliner>(SceneOutlinerPtr), DragDropEvent, *ItemPtr, ValidationInfo, false);
-				UpdateOperationDecorator(DragDropEvent, ValidationInfo);
-			}
+			HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, false);
+			UpdateOperationDecorator(DragDropEvent, ValidationInfo);
 		}
 	}
 
@@ -201,14 +181,8 @@ namespace SceneOutliner
 	{
 		auto ItemPtr = Item.Pin();
 		auto SceneOutlinerPtr = SceneOutlinerWeak.Pin();
-		if (ItemPtr.IsValid() && SceneOutlinerPtr.IsValid() && SceneOutlinerPtr->GetOnDragLeaveItem())
-		{
-			SceneOutlinerPtr->GetOnDragLeaveItem()(DragDropEvent, *ItemPtr.Get());
-		}
-		else
-		{
-			ResetOperationDecorator(DragDropEvent);
-		}
+
+		ResetOperationDecorator(DragDropEvent);
 	}
 
 	FReply SSceneOutlinerTreeRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -216,18 +190,11 @@ namespace SceneOutliner
 		auto SceneOutlinerPtr = SceneOutlinerWeak.Pin();
 		if (SSceneOutliner* SceneOutliner = SceneOutlinerPtr.Get())
 		{
-			if (SceneOutliner->GetSharedData().Mode == ESceneOutlinerMode::Custom)
+			if (const auto* ItemPtr = Item.Pin().Get())
 			{
-				if (const auto* ItemPtr = Item.Pin().Get())
-				{
-					if (SceneOutliner->GetOnDragOverItem())
-					{
-						return SceneOutliner->GetOnDragOverItem()(DragDropEvent, *ItemPtr);
-					}
-				}
-
-				return FReply::Unhandled();
+				return SceneOutliner->OnDragOverItem(DragDropEvent, *ItemPtr);
 			}
+			return FReply::Unhandled();
 		}
 
 		return FReply::Handled();
@@ -322,29 +289,8 @@ namespace SceneOutliner
 		auto Args = FSuperRowType::FArguments()
 			.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("SceneOutliner.TableViewRow"));
 
-		// We only support standard drag and drop when in actor browsing mode
-		if (SceneOutliner->GetSharedData().Mode == ESceneOutlinerMode::ActorBrowsing)
-		{
-			Args.OnDragDetected_Static(SceneOutliner::OnDragDetected, TWeakPtr<SOutlinerTreeView>(OutlinerTreeView));
-		}
-		// If we are in custom mode allow support of custom on detect drag
-		else if (SceneOutliner->GetSharedData().Mode == ESceneOutlinerMode::Custom)
-		{
-			Args.OnDragDetected_Lambda([SceneOutlinerWeak = SceneOutlinerWeak, ItemPtr = Item]( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-				{
-					if (const ITreeItem* ItemRawPtr = ItemPtr.Pin().Get())
-					{
-						if (const SSceneOutliner* SceneOutliner = SceneOutlinerWeak.Pin().Get())
-						{
-							if (SceneOutliner->GetOnItemDragDetected())
-							{
-								return SceneOutliner->GetOnItemDragDetected()(*ItemRawPtr);
-							}
-						}
-					}
-					return FReply::Unhandled();
-				});
-		}
+
+		Args.OnDragDetected_Static(SceneOutliner::OnDragDetected, TWeakPtr<SOutlinerTreeView>(OutlinerTreeView));
 
 		SMultiColumnTableRow<FTreeItemPtr>::Construct(Args, OutlinerTreeView);
 	}

@@ -19,7 +19,8 @@
 #include "UserInterface/PropertyEditor/PropertyEditorAssetConstants.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SceneOutlinerPublicTypes.h"
-#include "ITreeItem.h"
+#include "ActorTreeItem.h"
+#include "ComponentTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -80,11 +81,45 @@ void SPropertyMenuComponentPicker::Construct(const FArguments& InArgs)
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
 		SceneOutliner::FInitializationOptions InitOptions;
-		InitOptions.Mode = ESceneOutlinerMode::ComponentPicker;
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
-		TSharedRef<SceneOutliner::FOutlinerPredicateFilter> Filter = MakeShareable(new SceneOutliner::FOutlinerPredicateFilter(ActorFilter, SceneOutliner::EDefaultFilterBehaviour::Fail));
-		Filter->ComponentPred = ComponentFilter;
+		struct FPickerFilter : public SceneOutliner::FOutlinerFilter
+		{
+			FPickerFilter(const FOnShouldFilterActor& InActorFilter, const FOnShouldFilterComponent& InComponentFilter)
+				: FOutlinerFilter(SceneOutliner::EDefaultFilterBehaviour::Fail)
+				, ActorFilter(InActorFilter)
+				, ComponentFilter(InComponentFilter)
+			{}
+
+			virtual bool PassesFilter(const SceneOutliner::ITreeItem& InItem) const override
+			{
+				if (const SceneOutliner::FActorTreeItem* ActorItem = InItem.CastTo<SceneOutliner::FActorTreeItem>())
+				{
+					return ActorItem->IsValid() && ActorFilter.Execute(ActorItem->Actor.Get());
+				}
+				else if (const SceneOutliner::FComponentTreeItem* ComponentItem = InItem.CastTo<SceneOutliner::FComponentTreeItem>())
+				{
+					return ComponentItem->IsValid() && ComponentFilter.Execute(ComponentItem->Component.Get());
+				}
+
+				return DefaultBehaviour == SceneOutliner::EDefaultFilterBehaviour::Pass;
+			}
+
+			virtual bool GetInteractiveState(const SceneOutliner::ITreeItem& InItem) const override
+			{
+				// All components which pass the filter are interactive
+				if (const SceneOutliner::FComponentTreeItem* ComponentItem = InItem.CastTo<SceneOutliner::FComponentTreeItem>())
+				{
+					return true;
+				}
+				return DefaultBehaviour == SceneOutliner::EDefaultFilterBehaviour::Pass;
+			}
+
+			FOnShouldFilterActor ActorFilter;
+			FOnShouldFilterComponent ComponentFilter;
+		};
+
+		TSharedRef<SceneOutliner::FOutlinerFilter> Filter = MakeShared<FPickerFilter>(ActorFilter, ComponentFilter);
 		InitOptions.Filters->Add(Filter);
 
 		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
@@ -97,7 +132,7 @@ void SPropertyMenuComponentPicker::Construct(const FArguments& InArgs)
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 				[
-					SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnSceneOutlinerItemPicked::CreateSP(this, &SPropertyMenuComponentPicker::OnItemSelected))
+					SceneOutlinerModule.CreateComponentPicker(InitOptions, FOnComponentPicked::CreateSP(this, &SPropertyMenuComponentPicker::OnItemSelected))
 				]
 			];
 
@@ -198,17 +233,9 @@ void SPropertyMenuComponentPicker::OnClear()
 	OnClose.ExecuteIfBound();
 }
 
-void SPropertyMenuComponentPicker::OnItemSelected(TSharedRef<SceneOutliner::ITreeItem> InItem)
+void SPropertyMenuComponentPicker::OnItemSelected(UActorComponent* Component)
 {
-	InItem->Visit(
-		SceneOutliner::FFunctionalVisitor()
-		.Component([&](const SceneOutliner::FComponentTreeItem& ComponentItem)
-		{
-			if (UActorComponent* Component = ComponentItem.Component.Get())
-			{
-				SetValue(Component);
-			}
-		}));
+	SetValue(Component);
 	OnClose.ExecuteIfBound();
 }
 

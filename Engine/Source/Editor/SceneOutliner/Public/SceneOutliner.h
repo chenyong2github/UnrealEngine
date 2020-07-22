@@ -14,7 +14,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 
 #include "SceneOutlinerModule.h"
 
-#include "SceneOutlinerVisitorTypes.h"
 #include "ITreeItem.h"
 
 #include "ActorTreeItem.h"

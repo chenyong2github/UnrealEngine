@@ -9,28 +9,178 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SceneOutlinerStandaloneTypes.h"
-
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "ISceneOutliner.h"
+#include "ISceneOutlinerMode.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ComponentTreeItem"
 
+
 namespace SceneOutliner
 {
-
-FDragValidationInfo FComponentDropTarget::ValidateDrop(FDragDropPayload& DraggedObjects, UWorld& World) const
+	
+struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 {
-	// we don't allow drag and drop for now
-	FText AttachErrorMsg;
-	bool bCanAttach = false;
-	return FDragValidationInfo(FActorDragDropGraphEdOp::ToolTip_IncompatibleGeneric, AttachErrorMsg);
-}
+	SLATE_BEGIN_ARGS(SComponentTreeLabel) {}
+	SLATE_END_ARGS()
 
-void FComponentDropTarget::OnDrop(FDragDropPayload& DraggedObjects, UWorld& World, const FDragValidationInfo& ValidationInfo, TSharedRef<SWidget> DroppedOnWidget)
-{
+	void Construct(const FArguments& InArgs, FComponentTreeItem& ComponentItem, ISceneOutliner& SceneOutliner, const STableRow<FTreeItemPtr>& InRow)
+	{
+		TreeItemPtr = StaticCastSharedRef<FComponentTreeItem>(ComponentItem.AsShared());
+		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
 
-}
+		ComponentPtr = ComponentItem.Component;
+		
+		HighlightText = SceneOutliner.GetFilterHighlightText();
+
+		TSharedPtr<SInlineEditableTextBlock> InlineTextBlock;
+
+		auto MainContent = SNew(SHorizontalBox)
+
+			// Main actor label
+			+ SHorizontalBox::Slot()
+			[
+				SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
+				.Text(this, &SComponentTreeLabel::GetDisplayText)
+				.ToolTipText(this, &SComponentTreeLabel::GetTooltipText)
+				//.HighlightText(HighlightText)
+				.ColorAndOpacity(this, &SComponentTreeLabel::GetForegroundColor)
+				//.OnTextCommitted(this, &SComponentTreeLabel::OnLabelCommitted)
+				//.OnVerifyTextChanged(this, &SComponentTreeLabel::OnVerifyItemLabelChanged)
+				.IsReadOnly_Lambda([Item = ComponentItem.AsShared(), this]()
+				{
+					return !CanExecuteRenameRequest(Item.Get());
+				})
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+			];
+
+		if (WeakSceneOutliner.Pin()->GetMode()->IsInteractive())
+		{
+			ComponentItem.RenameRequestEvent.BindSP(InlineTextBlock.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+		}
+
+		ChildSlot
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FDefaultTreeItemMetrics::IconPadding())
+				[
+					SNew(SBox)
+					.WidthOverride(FDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+					[
+						SNew(SImage)
+						.Image(this, &SComponentTreeLabel::GetIcon)
+						.ToolTipText(this, &SComponentTreeLabel::GetIconTooltip)
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(0.0f, 2.0f)
+				[
+					MainContent
+				]
+			];
+
+	}
+
+private:
+	TWeakPtr<FComponentTreeItem> TreeItemPtr;
+	TWeakObjectPtr<UActorComponent> ComponentPtr;
+	TAttribute<FText> HighlightText;
+
+
+	FText GetDisplayText() const
+	{
+		auto Item = TreeItemPtr.Pin();
+		return Item.IsValid() ? FText::FromString(Item->GetDisplayString()) : FText();
+	}
+
+	FText GetTypeText() const
+	{
+		if (const UActorComponent* Component = ComponentPtr.Get())
+		{
+			return FText::FromName(Component->GetClass()->GetFName());
+		}
+
+		return FText();
+	}
+
+	EVisibility GetTypeTextVisibility() const
+	{
+		return HighlightText.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+
+	FText GetTooltipText() const
+	{
+		if (const UActorComponent* Component = ComponentPtr.Get())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ID_Name"), LOCTEXT("CustomColumnMode_InternalName", "ID Name"));
+			Args.Add(TEXT("Name"), FText::FromString(Component->GetName()));
+			return FText::Format(LOCTEXT("ComponentNameTooltip", "{ID_Name}: {Name}"), Args);
+		}
+
+		return FText();
+	}
+
+	const FSlateBrush* GetIcon() const
+	{
+		if (const UActorComponent* Component = ComponentPtr.Get())
+		{
+			if (WeakSceneOutliner.IsValid())
+			{
+				const FSlateBrush* CachedBrush = WeakSceneOutliner.Pin()->GetCachedIconForClass(Component->GetClass()->GetFName());
+				if (CachedBrush != nullptr)
+				{
+					return CachedBrush;
+				}
+				else
+				{
+					const FSlateBrush* FoundSlateBrush = FSlateIconFinder::FindIconBrushForClass(Component->GetClass());
+					WeakSceneOutliner.Pin()->CacheIconForClass(Component->GetClass()->GetFName(), const_cast<FSlateBrush*>(FoundSlateBrush));
+					return FoundSlateBrush;
+				}
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	FText GetIconTooltip() const
+	{
+		FText ToolTipText;
+		return ToolTipText;
+	}
+
+	FSlateColor GetForegroundColor() const
+	{
+		if (auto BaseColor = FCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
+		{
+			return BaseColor.GetValue();
+		}
+
+		return FSlateColor::UseForeground();
+	}
+};
+
+
+const FTreeItemType FComponentTreeItem::Type(&ITreeItem::Type);
 
 FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
-	: Component(InComponent)
+	: ITreeItem(Type)
+	, Component(InComponent)
 	, ID(InComponent)
 {
 	AActor* OwningActor = InComponent->GetOwner();
@@ -43,81 +193,6 @@ FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
 	{
 		CachedDisplayString = VariableName.ToString();
 	}
-}
-
-FTreeItemPtr FComponentTreeItem::FindParent(const FTreeItemMap& ExistingItems) const
-{
-	UActorComponent* ComponentPtr = Component.Get();
-	if (!ComponentPtr)
-	{
-		return nullptr;
-	}
-	
-	// Parent actor should have already been added to the tree
-	AActor* ParentActor = ComponentPtr->GetOwner();
-	if (ParentActor)
-	{
-		return ExistingItems.FindRef(ParentActor);
-	}
-	else
-	{
-		const bool bShouldShowFolders = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing || SharedData->bOnlyShowFolders;
-
-		const FName ComponentFolder = *ComponentPtr->GetDetailedInfo();
-		if (bShouldShowFolders && !ComponentFolder.IsNone())
-		{
-			return ExistingItems.FindRef(ComponentFolder);
-		}
-	}
-
-	if (UWorld* World = ComponentPtr->GetWorld())
-	{
-		return ExistingItems.FindRef(World);
-	}
-
-	return nullptr;
-}
-
-FTreeItemPtr FComponentTreeItem::CreateParent() const
-{
-	UActorComponent* ComponentPtr = Component.Get();
-	if (!ComponentPtr)
-	{
-		return nullptr;
-	}
-
-	AActor* ParentActor = ComponentPtr->GetOwner();
-	if (ParentActor)
-	{
-		return MakeShareable(new FActorTreeItem(ParentActor));
-	}
-	else if (!ParentActor)
-	{
-		const bool bShouldShowFolders = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing || SharedData->bOnlyShowFolders;
-
-		const FName ComponentFolder = *ComponentPtr->GetDetailedInfo();
-		if (bShouldShowFolders && !ComponentFolder.IsNone())
-		{
-			return MakeShareable(new FFolderTreeItem(ComponentFolder));
-		}
-
-		if (UWorld* World = ComponentPtr->GetWorld())
-		{
-			return MakeShareable(new FWorldTreeItem(World));
-		}
-	}
-
-	return nullptr;
-}
-
-void FComponentTreeItem::Visit(const ITreeItemVisitor& Visitor) const
-{
-	Visitor.Visit(*this);
-}
-
-void FComponentTreeItem::Visit(const IMutableTreeItemVisitor& Visitor)
-{
-	Visitor.Visit(*this);
 }
 
 FTreeItemID FComponentTreeItem::GetID() const
@@ -142,11 +217,6 @@ FString FComponentTreeItem::GetDisplayString() const
 	return LOCTEXT("ComponentLabelForMissingComponent", "(Deleted Component)").ToString();
 }
 
-int32 FComponentTreeItem::GetTypeSortPriority() const
-{
-	return ETreeItemSortOrder::Actor;
-}
-
 bool FComponentTreeItem::CanInteract() const
 {
 	UActorComponent* ComponentPtr = Component.Get();
@@ -167,24 +237,10 @@ bool FComponentTreeItem::CanInteract() const
 	return true;
 }
 
-void FComponentTreeItem::PopulateDragDropPayload(FDragDropPayload& Payload) const
+TSharedRef<SWidget> FComponentTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FTreeItemPtr>& InRow)
 {
-	// no drag and drop
+	return SNew(SComponentTreeLabel, *this, Outliner, InRow);
 }
-
-FDragValidationInfo FComponentTreeItem::ValidateDrop(FDragDropPayload& DraggedObjects, UWorld& World) const
-{
-	FComponentDropTarget Target(Component.Get());
-	return Target.ValidateDrop(DraggedObjects, World);
-}
-
-void FComponentTreeItem::OnDrop(FDragDropPayload& DraggedObjects, UWorld& World, const FDragValidationInfo& ValidationInfo, TSharedRef<SWidget> DroppedOnWidget)
-{
-	FComponentDropTarget Target(Component.Get());
-	return Target.OnDrop(DraggedObjects, World, ValidationInfo, DroppedOnWidget);
-}
-
-
 } // namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

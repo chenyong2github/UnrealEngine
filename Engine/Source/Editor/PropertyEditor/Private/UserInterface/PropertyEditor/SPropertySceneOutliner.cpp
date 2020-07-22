@@ -56,7 +56,6 @@ TSharedRef<SWidget> SPropertySceneOutliner::OnGenerateSceneOutliner()
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
 	SceneOutliner::FInitializationOptions InitOptions;
-	InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
 	OnGetActorFilters.ExecuteIfBound( InitOptions.Filters );
 
 	TSharedRef<SWidget> MenuContent = 
@@ -67,7 +66,7 @@ TSharedRef<SWidget> SPropertySceneOutliner::OnGenerateSceneOutliner()
 			SNew( SBorder )
 			.BorderImage( FEditorStyle::GetBrush("Menu.Background") )
 			[
-				SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateSP(this, &SPropertySceneOutliner::OnActorSelectedFromOutliner))
+				SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateSP(this, &SPropertySceneOutliner::OnActorSelectedFromOutliner))
 			]
 		];
 

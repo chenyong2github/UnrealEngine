@@ -17,6 +17,7 @@
 #include "UserInterface/PropertyEditor/PropertyEditorAssetConstants.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SceneOutlinerPublicTypes.h"
+#include "ActorTreeItem.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -83,19 +84,18 @@ void SPropertyMenuActorPicker::Construct( const FArguments& InArgs )
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
 		SceneOutliner::FInitializationOptions InitOptions;
-		InitOptions.Mode = ESceneOutlinerMode::ActorPicker;
-		InitOptions.Filters->AddFilterPredicate(ActorFilter);
+		InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(ActorFilter);
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0) );
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10) );
+		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10));
 		
 		MenuContent =
 			SNew(SBox)
 			.WidthOverride(PropertyEditorAssetConstants::SceneOutlinerWindowSize.X)
 			.HeightOverride(PropertyEditorAssetConstants::SceneOutlinerWindowSize.Y)
 			[
-				SceneOutlinerModule.CreateSceneOutliner(InitOptions, FOnActorPicked::CreateSP(this, &SPropertyMenuActorPicker::OnActorSelected))
+				SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateSP(this, &SPropertyMenuActorPicker::OnActorSelected))
 			];
 
 		MenuBuilder.AddWidget(MenuContent.ToSharedRef(), FText::GetEmpty(), true);
