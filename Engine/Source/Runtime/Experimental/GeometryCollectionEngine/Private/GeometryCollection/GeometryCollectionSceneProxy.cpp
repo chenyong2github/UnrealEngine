@@ -1056,7 +1056,8 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	bHasMaterialErrors = false;
 
 	// Check if the assigned material can be rendered in Nanite. If not, default.
-	const bool IsRenderable = Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
+	// TODO: Handle cases like geometry collections adding a "selected geometry" material with translucency.
+	const bool IsRenderable = true;// Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
 
 	if (!IsRenderable)
 	{

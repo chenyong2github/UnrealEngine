@@ -31,8 +31,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionLogging, NoLogging, All);
 
-static const TCHAR* GeometryCollectionSelectedMaterial = TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial");
-
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
 {
@@ -231,13 +229,13 @@ void UGeometryCollection::InitializeMaterials()
 
 	TManagedArray<int32>& MaterialID = GeometryCollection->MaterialID;
 
-	// Reassign materialid for each face given the new consolidated array of materials
-	for (int i = 0; i < MaterialID.Num(); ++i)
+	// Reassign material ID for each face given the new consolidated array of materials
+	for (int32 Material = 0; Material < MaterialID.Num(); ++Material)
 	{
-		if (MaterialID[i] < Materials.Num())
+		if (MaterialID[Material] < Materials.Num())
 		{
-			UMaterialInterface* OldMaterialPtr = Materials[MaterialID[i]];
-			MaterialID[i] = *MaterialPtrToArrayIndex.Find(OldMaterialPtr);
+			UMaterialInterface* OldMaterialPtr = Materials[MaterialID[Material]];
+			MaterialID[Material] = *MaterialPtrToArrayIndex.Find(OldMaterialPtr);
 		}
 	}
 
@@ -245,7 +243,7 @@ void UGeometryCollection::InitializeMaterials()
 	Materials = FinalMaterials;
 
 	// Last Material is the selection one
-	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GeometryCollectionSelectedMaterial, nullptr, LOAD_None, nullptr);
+	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 	BoneSelectedMaterialIndex = Materials.Add(BoneSelectedMaterial);
 	
 	GeometryCollection->ReindexMaterials();
@@ -417,6 +415,11 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		CreateSimulationDataImp(/*bCopyFromDDC=*/ true);	//make sure loaded content is built
 	}
 #endif
+}
+
+const TCHAR* UGeometryCollection::GetSelectedMaterialPath() const
+{
+	return TEXT("/Engine/EditorMaterials/GeometryCollection/SelectedGeometryMaterial.SelectedGeometryMaterial");
 }
 
 #if WITH_EDITOR

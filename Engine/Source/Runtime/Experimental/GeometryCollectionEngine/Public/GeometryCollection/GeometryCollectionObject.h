@@ -260,6 +260,9 @@ public:
 
 	FORCEINLINE const int32 GetBoneSelectedMaterialIndex() const { return BoneSelectedMaterialIndex; }
 
+	/** Returns the asset path for the automatically populated selected material. */
+	const TCHAR* GetSelectedMaterialPath() const;
+
 #if WITH_EDITORONLY_DATA
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = GeometryCollection)
