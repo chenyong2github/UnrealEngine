@@ -1105,13 +1105,13 @@ void FMeshDrawCommand::SubmitDraw(
 
 	if (GShowMaterialDrawEvents)
 	{
-		const FMaterial* Material = MeshDrawCommand.DebugData.Material;
+		const FString& MaterialName = MeshDrawCommand.DebugData.MaterialName;
 		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
 
 		FString DrawEventName = FString::Printf(
 				TEXT("%s %s"),
 				// Note: this is the parent's material name, not the material instance
-				*Material->GetFriendlyName(),
+			*MaterialName,
 			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
 
 		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
@@ -1211,12 +1211,12 @@ void FMeshDrawCommand::SubmitDraw(
 void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {
 	DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = PrimitiveSceneProxy;
-	DebugData.Material = Material;
 	DebugData.MaterialRenderProxy = MaterialRenderProxy;
 	DebugData.VertexShader = UntypedShaders.VertexShader;
 	DebugData.PixelShader = UntypedShaders.PixelShader;
 	DebugData.VertexFactory = VertexFactory;
 	DebugData.ResourceName =  PrimitiveSceneProxy ? PrimitiveSceneProxy->GetResourceName() : FName();
+	DebugData.MaterialName = Material->GetFriendlyName();
 }
 #endif
 
