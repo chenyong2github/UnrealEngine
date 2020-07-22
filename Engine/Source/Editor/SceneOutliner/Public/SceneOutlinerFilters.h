@@ -197,7 +197,7 @@ namespace SceneOutliner
 
 		/** Add a filter predicate to this filter collection */
 		template <typename T>
-		void AddFilterPredicate(typename T::FFilterPredicate InFilterPred, EDefaultFilterBehaviour InDefaultBehaviour = EDefaultFilterBehaviour::Pass, typename T::FInteractivePredicate InInteractivePred = T::FInteractivePredicate())
+		void AddFilterPredicate(typename T::FFilterPredicate InFilterPred, EDefaultFilterBehaviour InDefaultBehaviour = EDefaultFilterBehaviour::Pass, typename T::FInteractivePredicate InInteractivePred = typename T::FInteractivePredicate())
 		{
 			Add(MakeShareable(new TOutlinerPredicateFilter<T>(InFilterPred, InDefaultBehaviour, InInteractivePred)));
 		}

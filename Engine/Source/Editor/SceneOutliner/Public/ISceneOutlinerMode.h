@@ -31,7 +31,8 @@ namespace SceneOutliner
 		template <typename TreeItemType, typename TreeItemData>
 		FTreeItemPtr CreateItemFor(const TreeItemData& Data, bool bForce = false)
 		{
-			return SceneOutliner->CreateItemFor<TreeItemType>(Data, bForce);
+			return SceneOutliner->CreateItemFor<TreeItemType>(Data, 
+				[this](const ITreeItem& Item) { OnItemPassesFilters(Item); }, bForce);
 		}
 
 		/** Fill the view button menu with content */

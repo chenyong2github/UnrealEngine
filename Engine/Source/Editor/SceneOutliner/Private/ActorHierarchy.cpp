@@ -157,22 +157,21 @@ namespace SceneOutliner
 		{
 			if (ActorTreeItem->Actor.IsValid())
 			{
-				const FTreeItemPtr* ParentItem;
 				if (const AActor* ParentActor = ActorTreeItem->Actor->GetAttachParentActor())
 				{
-					if (ParentItem = Items.Find(ParentActor))
+					if (const FTreeItemPtr* ParentItem = Items.Find(ParentActor))
 					{
 						return *ParentItem;
 					}
 				}
 				else if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
 				{
-					if (ParentItem = Items.Find(ActorTreeItem->Actor->GetFolderPath()))
+					if (const FTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetFolderPath()))
 					{
 						return *ParentItem;
 					}
 				}
-				else if (ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
+				else if (const FTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
 				{
 					return *ParentItem;
 				}

@@ -448,14 +448,13 @@ namespace SceneOutliner
 	public:
 		// Test the filters using stack-allocated data to prevent unnecessary heap allocations
 		template <typename TreeItemType, typename TreeItemData>
-		FTreeItemPtr CreateItemFor(const TreeItemData& Data, bool bForce = false)
+		FTreeItemPtr CreateItemFor(const TreeItemData& Data, TFunctionRef<void(const TreeItemType&)> OnItemPassesFilters, bool bForce = false)
 		{
 			const TreeItemType Temporary(Data);
 			bool bPassesFilters = Filters->PassesAllFilters(Temporary);
 			if (bPassesFilters)
 			{
-				check(this->Mode);
-				this->Mode->OnItemPassesFilters(Temporary);
+				OnItemPassesFilters(Temporary);
 			}
 
 			bPassesFilters &= SearchBoxFilter->PassesFilter(Temporary);
