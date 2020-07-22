@@ -349,7 +349,7 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 		Section.AddMenuEntry(
 			NAME_None,
 			LOCTEXT("StraightenAllConnections", "Straighten All Pin Connections"),
-			LOCTEXT("StraightenAllConnections", "Straightens all connected pins"),
+			LOCTEXT("StraightenAllConnectionsTooltip", "Straightens all connected pins"),
 			FSlateIcon(NAME_None, NAME_None, NAME_None),
 			StraightenConnectionsAction
 		);
