@@ -27,7 +27,6 @@
 #include "SceneOutlinerStandaloneTypes.h"
 
 #include "ISceneOutlinerHierarchy.h"
-#include "ISceneOutlinerMode.h"
 #include "SceneOutlinerDragDrop.h"
 
 class FMenuBuilder;
@@ -455,8 +454,8 @@ namespace SceneOutliner
 			bool bPassesFilters = Filters->PassesAllFilters(Temporary);
 			if (bPassesFilters)
 			{
-				check(Mode);
-				Mode->OnItemPassesFilters(Temporary);
+				check(this->Mode);
+				this->Mode->OnItemPassesFilters(Temporary);
 			}
 
 			bPassesFilters &= SearchBoxFilter->PassesFilter(Temporary);

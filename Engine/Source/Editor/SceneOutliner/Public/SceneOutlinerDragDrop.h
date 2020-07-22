@@ -7,6 +7,7 @@
 #include "Layout/Visibility.h"
 #include "Input/DragAndDrop.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
+#include "ITreeItem.h"
 
 namespace SceneOutliner
 {
