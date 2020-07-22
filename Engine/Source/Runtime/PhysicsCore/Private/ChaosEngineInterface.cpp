@@ -191,6 +191,7 @@ void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle& InHandle,UPhy
 	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
 	{
 		Material->Friction = InMaterial->Friction;
+		Material->StaticFriction = InMaterial->StaticFriction;
 		Material->FrictionCombineMode = UToCCombineMode(InMaterial->FrictionCombineMode);
 		Material->Restitution = InMaterial->Restitution;
 		Material->RestitutionCombineMode = UToCCombineMode(InMaterial->RestitutionCombineMode);
