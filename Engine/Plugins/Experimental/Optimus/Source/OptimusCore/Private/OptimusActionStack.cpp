@@ -14,47 +14,64 @@ UOptimusActionStack::UOptimusActionStack()
 }
 
 
-bool UOptimusActionStack::RunAction(FOptimusAction* InAction)
+bool UOptimusActionStack::RunAction(TSharedPtr<FOptimusAction> InAction)
 {
-	IOptimusNodeGraphCollectionOwner *Root = GetGraphCollectionRoot();
-	if (!Root)
-	{
-		delete InAction;
-		return false;
-	}
-
-	bool bTransacted = BeginScopeFunc && EndScopeFunc;
-
-	TSharedPtr<FOptimusAction> Action(InAction);
-
-	if (!Action->Do(Root))
+	if (!ensureMsgf(!bIsRunningAction, TEXT("RunAction is not re-entrant")))
 	{
 		return false;
 	}
 
-	// Prune the undo stack if there are entries beyond the current action. For non-transacted
-	// setups, this will always clear the stack.
-	Actions.SetNum(CurrentActionIndex);
+	// A security blanket to ensure we don't end up recursively running actions from an action.
+	TGuardValue<bool> RunningActionScope(bIsRunningAction, true);
 
-	Actions.Add(Action);
-
-	if (bTransacted)
+	if (ActionScopes.Num() == 0)
 	{
-		CurrentActionIndex++;
+		IOptimusNodeGraphCollectionOwner* Root = GetGraphCollectionRoot();
+		if (!Root)
+		{
+			return false;
+		}
 
-		// Create a transaction scope on this object for modifying the transaction action index.
-		// This will cause it to be out of sync with the current action index when PostTransacted
-		// is called and we can use it to replay the stack in the direction of the transaction index.
-		int32 TransactionId = BeginScopeFunc(this, InAction->GetTitle());
+		bool bTransacted = BeginScopeFunc && EndScopeFunc;
 
-		TransactedActionIndex++;
+		if (!InAction->Do(Root))
+		{
+			return false;
+		}
 
-		EndScopeFunc(TransactionId);
+		// Prune the undo stack if there are entries beyond the current action. For non-transacted
+		// setups, this will always clear the stack.
+		Actions.SetNum(CurrentActionIndex);
+
+		Actions.Add(InAction);
+
+		if (bTransacted)
+		{
+			CurrentActionIndex++;
+
+			// Create a transaction scope on this object for modifying the transaction action index.
+			// This will cause it to be out of sync with the current action index when PostTransacted
+			// is called and we can use it to replay the stack in the direction of the transaction index.
+			int32 TransactionId = BeginScopeFunc(this, InAction->GetTitle());
+
+			TransactedActionIndex++;
+
+			EndScopeFunc(TransactionId);
+		}
+	}
+	else
+	{
+		ActionScopes.Last()->AddSubAction(InAction);
 	}
 
 	return true;
 }
 
+
+bool UOptimusActionStack::RunAction(FOptimusAction* InAction)
+{
+	return RunAction(TSharedPtr<FOptimusAction>(InAction));
+}
 
 
 bool UOptimusActionStack::Redo()
@@ -111,6 +128,28 @@ void UOptimusActionStack::PostTransacted(const FTransactionObjectEvent& Transact
 
 
 
+void UOptimusActionStack::OpenActionScope(const FString& InTitle)
+{
+	ActionScopes.Add(MakeShared<FOptimusCompoundAction>(InTitle));
+}
+
+
+bool UOptimusActionStack::CloseActionScope()
+{
+	if (ensure(ActionScopes.Num() > 0))
+	{
+		TSharedPtr<FOptimusCompoundAction> Action = ActionScopes.Pop();
+
+		if (Action->HasSubActions())
+		{
+			return RunAction(Action);
+		}
+	}
+
+	return false;
+}
+
+
 IOptimusNodeGraphCollectionOwner* UOptimusActionStack::GetGraphCollectionRoot() const
 {
 	return Cast<IOptimusNodeGraphCollectionOwner>(GetOuter());
@@ -124,4 +163,20 @@ void UOptimusActionStack::SetTransactionScopeFunctions(
 {
 	BeginScopeFunc = InBeginScopeFunc;
 	EndScopeFunc = InEndScopeFunc;
+}
+
+
+FOptimusActionScope::FOptimusActionScope(
+	UOptimusActionStack& InActionStack, 
+	const FString& InTitle 
+	) :
+	ActionStack(InActionStack)
+{
+	ActionStack.OpenActionScope(InTitle);
+}
+
+
+FOptimusActionScope::~FOptimusActionScope()
+{
+	ActionStack.CloseActionScope();
 }

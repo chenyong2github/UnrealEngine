@@ -2,6 +2,9 @@
 
 #include "OptimusNode.h"
 
+#include "Actions/OptimusNodeActions.h"
+#include "OptimusActionStack.h"
+#include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
@@ -76,7 +79,13 @@ bool UOptimusNode::SetDisplayName(FText InDisplayName)
 
 bool UOptimusNode::SetGraphPosition(const FVector2D& InPosition)
 {
-	if (InPosition.ContainsNaN())
+	return GetActionStack()->RunAction<FOptimusNodeAction_MoveNode>(this, InPosition);
+}
+
+
+bool UOptimusNode::SetGraphPositionDirect(const FVector2D& InPosition)
+{
+	if (InPosition.ContainsNaN() || InPosition.Equals(GraphPosition))
 	{
 		return false;
 	}
@@ -91,7 +100,7 @@ bool UOptimusNode::SetGraphPosition(const FVector2D& InPosition)
 
 FString UOptimusNode::GetNodePath() const
 {
-	UOptimusNodeGraph* Graph = Cast<UOptimusNodeGraph>(GetOuter());
+	UOptimusNodeGraph* Graph = GetOwningGraph();
 	FString GraphPath(TEXT("<Unknown>"));
 	if (Graph)
 	{
@@ -243,3 +252,18 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	return Pin;
 }
 
+UOptimusActionStack* UOptimusNode::GetActionStack() const
+{
+	UOptimusNodeGraph *Graph = GetOwningGraph();
+	if (Graph == nullptr)
+	{
+		return nullptr;
+	}
+	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Graph->GetOuter());
+	if (!Deformer)
+	{
+		return nullptr;
+	}
+
+	return Deformer->GetActionStack();
+}

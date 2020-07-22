@@ -11,6 +11,7 @@
 #include "OptimusNode.generated.h"
 
 enum class EOptimusNodePinDirection : uint8;
+class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
 
@@ -51,14 +52,17 @@ public:
 
 	/// @brief Returns the node class category.
 	/// @return The node class category.
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	virtual FName GetNodeCategory() const PURE_VIRTUAL(, return NAME_None;);
 
 	/// @brief Returns the node class name. This name is immutable for the given node class.
 	/// @return The node class name.
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	FName GetNodeName() const;
 
 	/// @brief Returns the display name to use on the graphical node in the 
 	/// @return 
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	FText GetDisplayName() const;
 
 	/// @brief Set the display name for this node.
@@ -68,12 +72,18 @@ public:
 
 	/// @brief Returns the position in the graph UI that the node should be placed.
 	/// @return The coordinates of the node's position.
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool SetGraphPosition(const FVector2D& InPosition);
+
+	/// @brief Returns the position in the graph UI that the node should be placed.
+	/// @return The coordinates of the node's position.
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	FVector2D GetGraphPosition() const { return GraphPosition; }
 
 	/// @brief Set a new position of the node in the graph UI.
 	/// @param InPosition The coordinates of the new position.
 	/// @return true if the position setting was successful (i.e. the coordinates are valid).
-	bool SetGraphPosition(const FVector2D &InPosition);
+	bool SetGraphPositionDirect(const FVector2D &InPosition);
 
 	/// @brief Returns the absolute path of the node. This can be passed to the root
 	/// IOptimusNodeGraphCollectionOwner object to resolve to a node object.
@@ -117,6 +127,9 @@ private:
 		UOptimusNodePin* InParentPin,
 		EOptimusNodePinDirection InDirection
 	);
+
+	// Return the action stack for this node.
+	UOptimusActionStack* GetActionStack() const;
 
 	UPROPERTY()
 	FText DisplayName;

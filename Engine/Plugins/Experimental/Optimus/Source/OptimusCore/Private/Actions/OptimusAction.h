@@ -55,7 +55,9 @@ struct FOptimusCompoundAction :
 {
 	GENERATED_BODY()
 
-	FOptimusCompoundAction() = default;
+	FOptimusCompoundAction(const FString& InTitle = {}) :
+		FOptimusAction(InTitle)
+	{}
 
 	// Copy nothing.
 	FOptimusCompoundAction(const FOptimusCompoundAction &) {}
@@ -73,13 +75,24 @@ struct FOptimusCompoundAction :
 	typename TEnableIf<TPointerIsConvertibleFromTo<T, FOptimusAction>::Value, void>::Type 
 	AddSubAction(ArgTypes&& ...Args)
 	{
-		SubActions.Add(TUniquePtr<FOptimusAction>(new T(Forward<ArgTypes>(Args)...)));
+		SubActions.Add(MakeShared<T>(Forward<ArgTypes>(Args)...));
+	}
+
+	bool HasSubActions() const
+	{
+		return SubActions.Num() != 0;
 	}
 
 protected:
+	friend class UOptimusActionStack;
+	void AddSubAction(TSharedPtr<FOptimusAction> InAction)
+	{
+		SubActions.Add(InAction);
+	}
+
 	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
 	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
 
 private:
-	TArray<TUniquePtr<FOptimusAction>> SubActions;
+	TArray<TSharedPtr<FOptimusAction>> SubActions;
 };

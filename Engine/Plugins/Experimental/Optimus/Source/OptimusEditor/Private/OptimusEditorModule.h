@@ -4,6 +4,9 @@
 
 #include "IOptimusEditorModule.h"
 
+
+class FOptimusEditorGraphNodeFactory;
+class FOptimusEditorGraphPinFactory;
 class IAssetTypeActions;
 
 class FOptimusEditorModule : public IOptimusEditorModule
@@ -23,4 +26,7 @@ public:
 
 private:
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
+
+	TSharedPtr<FOptimusEditorGraphNodeFactory> GraphNodeFactory;
+	TSharedPtr<FOptimusEditorGraphPinFactory> GraphPinFactory;
 };

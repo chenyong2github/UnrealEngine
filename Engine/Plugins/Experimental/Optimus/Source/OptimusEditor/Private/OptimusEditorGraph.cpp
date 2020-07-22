@@ -11,10 +11,11 @@
 
 #include "EdGraph/EdGraphPin.h"
 #include "EditorStyleSet.h"
+#include "GraphEditAction.h"
 
 UOptimusEditorGraph::UOptimusEditorGraph()
 {
-
+	AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateUObject(this, &UOptimusEditorGraph::HandleThisGraphModified));
 }
 
 
@@ -59,6 +60,44 @@ const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon() const
 {
 	// FIXME: Need icon types.
 	return FEditorStyle::GetBrush(TEXT("GraphEditor.Animation_24x"));
+}
+
+
+void UOptimusEditorGraph::HandleThisGraphModified(const FEdGraphEditAction& InEditAction)
+{
+	switch (InEditAction.Action)
+	{
+		case GRAPHACTION_SelectNode:
+		{
+			SelectedNodes.Reset();
+			for (const UEdGraphNode* Node : InEditAction.Nodes)
+			{
+				UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(
+					const_cast<UEdGraphNode*>(Node));
+				if (GraphNode != nullptr)
+				{
+					SelectedNodes.Add(GraphNode);
+				}
+			}
+			break;
+		}
+		case GRAPHACTION_RemoveNode:
+		{
+			for (const UEdGraphNode* Node : InEditAction.Nodes)
+			{
+				UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(
+					const_cast<UEdGraphNode*>(Node));
+				if (GraphNode != nullptr)
+				{
+					SelectedNodes.Remove(GraphNode);
+				}
+			}
+			break;
+		}
+
+		default:
+			break;
+	}
 }
 
 
@@ -132,8 +171,17 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 
 		case EOptimusNodeGraphNotifyType::NodePositionChanged:
 		{
-			ensure(false);
+			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
+			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
+
+			if (ensure(GraphNode))
+			{
+				GraphNode->NodePosX = FMath::RoundToInt(ModelNode->GetGraphPosition().X);
+				GraphNode->NodePosY = FMath::RoundToInt(ModelNode->GetGraphPosition().Y);
+			}
 		}
+		break;
+
 	}
 }
 

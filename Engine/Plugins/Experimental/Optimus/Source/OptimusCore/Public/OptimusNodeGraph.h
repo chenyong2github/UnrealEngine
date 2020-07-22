@@ -80,6 +80,8 @@ public:
 	);
 
 
+
+
 #endif
 
 	// Direct edit functions. Used by the actions.
@@ -109,6 +111,8 @@ public:
 
 	const TArray< UOptimusNode*>& GetAllNodes() const { return Nodes; }
 	const TArray< UOptimusNodeLink*>& GetAllLinks() const { return Links; }
+
+	UOptimusActionStack* GetActionStack() const;
 	
 protected:
 	friend class UOptimusDeformer;
@@ -129,8 +133,6 @@ private:
 	void RemoveLinkByIndex(int32 LinkIndex);
 	TArray<int32> GetAllLinkIndexesToNode(UOptimusNode* InNode);
 	TArray<int32> GetAllLinkIndexesToPin(UOptimusNodePin* InNodePin);
-
-	UOptimusActionStack* GetActionStack() const;
 
 	UPROPERTY()
 	TArray<UOptimusNode*> Nodes;

@@ -196,12 +196,14 @@ bool FOptimusEditor::CanDeleteSelectedNodes() const
 void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+	TSet<UOptimusEditorGraphNode *> SelectedNodes;
 
 	for (UObject* Object : NewSelection)
 	{
 		if (UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(Object))
 		{
 			SelectedObjects.Add(GraphNode->ModelNode);
+			SelectedNodes.Add(GraphNode);
 		}
 		else
 		{
@@ -209,12 +211,14 @@ void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 		}
 	}
 
+	// Make sure the graph knows too.
+	DeformerGraph->SetSelectedNodes(SelectedNodes);
+
 	if (SelectedObjects.Num() == 0)
 	{
 		// If nothing was selected, default to the deformer object.
 		SelectedObjects.Add(DeformerObject);
 	}
-
 
 	NodeDetailsWidget->SetObjects(SelectedObjects, /*bForceRefresh=*/true);
 

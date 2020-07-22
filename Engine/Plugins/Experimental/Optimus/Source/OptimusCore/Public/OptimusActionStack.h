@@ -13,6 +13,7 @@
 
 class IOptimusNodeGraphCollectionOwner;
 struct FOptimusAction;
+struct FOptimusCompoundAction;
 
 // Base action class
 UCLASS()
@@ -32,13 +33,8 @@ public:
 	typename TEnableIf<TPointerIsConvertibleFromTo<T, FOptimusAction>::Value, bool>::Type 
 	RunAction(ArgsType&& ...Args)
 	{
-		return RunAction(new T(Forward<ArgsType>(Args)...));
+		return RunAction(MakeShared<T>(Forward<ArgsType>(Args)...));
 	}
-
-	// UObject override
-	
-	// The meat and potatoes of the undo/redo mechanism. 
-	void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
 	IOptimusNodeGraphCollectionOwner *GetGraphCollectionRoot() const;
 
@@ -49,14 +45,47 @@ public:
 
 	bool Redo();
 	bool Undo();
+
+	// UObject overrides
+	void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+
+protected:
+	friend class FOptimusActionScope;
+
+	// Open a new action scope. All subsequent calls to RunAction will add actions to the scope
+	// but they won't be run until the last action scope is closed.
+	void OpenActionScope(const FString& InTitle);
+
+	// Close the current action scope. Once all action scopes are closed, the collected actions
+	// are finally run in the order they got added.
+	bool CloseActionScope();
+
+
 private:
+	bool RunAction(TSharedPtr<FOptimusAction> InAction);
+
 	UPROPERTY()
 	int32 TransactedActionIndex = 0;
 
 	int32 CurrentActionIndex = 0;
 
+	bool bIsRunningAction = false;
+
 	TArray<TSharedPtr<FOptimusAction>> Actions;
+
+	TArray<TSharedPtr<FOptimusCompoundAction>> ActionScopes;
 
 	TFunction<int(UObject* TransactObject, const FString& Title)> BeginScopeFunc;
 	TFunction<void(int InTransactionId)> EndScopeFunc;
+};
+
+class OPTIMUSCORE_API FOptimusActionScope
+{
+public:
+	FOptimusActionScope(UOptimusActionStack& InActionStack, const FString& InTitle);
+
+	~FOptimusActionScope();
+
+private:
+	UOptimusActionStack& ActionStack;
 };

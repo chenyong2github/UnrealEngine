@@ -51,7 +51,9 @@ FOptimusNodeAction_MoveNode::FOptimusNodeAction_MoveNode(
 	const FVector2D& InPosition
 )
 {
-
+	NodePath = InNode->GetNodePath();
+	NewPosition = InPosition;
+	OldPosition = InNode->GetGraphPosition();
 }
 
 bool FOptimusNodeAction_MoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
@@ -62,9 +64,7 @@ bool FOptimusNodeAction_MoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 		return false;
 	}
 
-	Node->SetGraphPosition(NewPosition);
-
-	return true;
+	return Node->SetGraphPositionDirect(NewPosition);
 }
 
 bool FOptimusNodeAction_MoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
@@ -75,5 +75,5 @@ bool FOptimusNodeAction_MoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
 		return false;
 	}
 
-	return Node->SetGraphPosition(OldPosition);
+	return Node->SetGraphPositionDirect(OldPosition);
 }
