@@ -203,6 +203,12 @@ void FClothPainter::ExitPaintMode()
 	{
 		SkeletalMeshComponent->UnregisterExtendedViewportTextDelegate(HoveredTextCallbackHandle);
 	}
+
+	// Remove reference to asset so it can be GC if necessary
+	if (PaintSettings)
+	{
+		PaintSettings->ClothingAssets.Reset();
+	}
 }
 
 void FClothPainter::RecalculateAutoViewRange()
