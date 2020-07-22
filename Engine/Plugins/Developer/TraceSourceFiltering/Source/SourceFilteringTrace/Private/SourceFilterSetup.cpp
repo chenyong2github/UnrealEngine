@@ -3,6 +3,7 @@
 #include "SourceFilterSetup.h"
 
 #include "Algo/Accumulate.h"
+#include "Misc/CoreDelegates.h"
 
 #include "SourceFilterSet.h"
 #include "SourceFilter.h"
