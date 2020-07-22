@@ -146,7 +146,7 @@ void FRecastQueryFilter::SetIsVirtual(bool bIsVirtual)
 void FRecastQueryFilter::Reset()
 {
 	// resetting just the cost data, we don't want to override the vf table like we did before (UE-95704)
-	new(this->data)dtQueryFilterData();
+	new(&data)dtQueryFilterData();
 	SetExcludedArea(RECAST_NULL_AREA);
 }
 
