@@ -20,12 +20,13 @@ namespace Turnkey.Commands
 
 		protected override void Execute(string[] CommandOptions)
 		{
-			UserSetting[] Settings = TurnkeySettings.AllUserSettings;
+			UserSetting[] UserSettings = TurnkeySettings.AllUserSettings;
+			UserSetting[] StudioSettings = TurnkeySettings.AllStudioSettings;
 
 			if (TurnkeyUtils.ParseParam("ListVars", CommandOptions))
 			{
 				TurnkeyUtils.Log("All Settings:");
-				foreach (UserSetting Setting in Settings)
+				foreach (UserSetting Setting in UserSettings.Union(StudioSettings))
 				{
 					TurnkeyUtils.Log("  {0} = '{1}'", Setting.VariableName, TurnkeyUtils.GetVariableValue(Setting.VariableName));
 					TurnkeyUtils.Log("    [{0}]", Setting.Description);
@@ -46,10 +47,10 @@ namespace Turnkey.Commands
 					return;
 				}
 
-				// make sure it's a valud variable
-				if (!Array.Exists(Settings, x => x.VariableName == Variable))
+				// make sure it's a valid variable
+				if (!Array.Exists(UserSettings, x => x.VariableName == Variable))
 				{
-					TurnkeyUtils.Log("Error: {0} is not a valid variable (variables are case sensitive)", Variable);
+					TurnkeyUtils.Log("Error: {0} is not a valid variable (variables are case sensitive, and Studio settings cannot be set)", Variable);
 					return;
 				}
 
@@ -65,7 +66,7 @@ namespace Turnkey.Commands
 			List<string> Options = new List<string>();
 
 
-			foreach (UserSetting Setting in Settings)
+			foreach (UserSetting Setting in UserSettings)
 			{
 				Options.Add(string.Format("{0} - Currently '{1}'\n    [{2}]", Setting.VariableName, TurnkeyUtils.GetVariableValue(Setting.VariableName), Setting.Description));
 			}
@@ -73,11 +74,11 @@ namespace Turnkey.Commands
 			int Choice = TurnkeyUtils.ReadInputInt("Choose a variable to set:", Options, true);
 			if (Choice > 0)
 			{
-				string NewValue = TurnkeyUtils.ReadInput(string.Format("Enter value for {0} [Currently '{1}']", Settings[Choice - 1].VariableName, TurnkeyUtils.GetVariableValue(Settings[Choice - 1].VariableName)));
+				string NewValue = TurnkeyUtils.ReadInput(string.Format("Enter value for {0} [Currently '{1}']", UserSettings[Choice - 1].VariableName, TurnkeyUtils.GetVariableValue(UserSettings[Choice - 1].VariableName)));
 				if (NewValue != "")
 				{
-					TurnkeyUtils.Log("Setting Settings[{0}].{1} = {2}", Choice - 1, Settings[Choice - 1].VariableName, NewValue);
-					TurnkeySettings.SetUserSetting(Settings[Choice - 1].VariableName, NewValue);
+					TurnkeyUtils.Log("Setting Settings[{0}].{1} = {2}", Choice - 1, UserSettings[Choice - 1].VariableName, NewValue);
+					TurnkeySettings.SetUserSetting(UserSettings[Choice - 1].VariableName, NewValue);
 					TurnkeySettings.Save();
 				}
 			}

@@ -34,15 +34,22 @@ namespace Turnkey
 	{
 		public static string UserSettingManifestLocation = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Unreal Engine", "UnrealTurnkey", "UserSettingsManifest.xml");
 
-		public static UserSetting[] AllUserSettings = 
+		public static UserSetting[] AllUserSettings =
 		{
 			new UserSetting("User_QuickSwitchSdkLocation", null, "Location for downloaded Sdks to be stored (currently just for Google Drive, perforce will sync per clientspec)"),
 			new UserSetting("User_LastPerforceClient", null, "Perforce depot clientspec to look at first for finding matching clientspecs. Will be set automatically when one is found, but this can be used to force a particular client"),
 			new UserSetting("User_AppleDevCenterUsername", null, "Sets the username to use when logging in to DevCenter for iOS/tvOS/macOS. (Supercedes the DevCenterUsername .ini setting)"),
 			new UserSetting("User_AppleDevCenterTeamID", null, "Sets the teamid to use when logging in to DevCenter for iOS/tvOS/macOS. (Supercedes the IOSTeamID .ini setting)"),
+			new UserSetting("User_IOSProvisioningProfile", null, "Sets the provisioning profile to use when setting up iOS signing. (Supercedes the MobileProvision .ini setting)"),
 		};
 
-		// basically same as Turnkey variables, but this only contains ones that were loaded so we can write them back out `
+		public static UserSetting[] AllStudioSettings =
+		{
+			new UserSetting("Studio_AppleSigningCertPassword", null, "A shared password that is used across Apple Signing Certificates"),
+			new UserSetting("Studio_AutoSDKSupported", null, "if true, your studio has set up AutoSDK, and Turnkey will offer to set up your local machine if needed."),
+		};
+
+		// basically same as Turnkey variables, but this only contains ones that were loaded so we can write them back out
 		static Dictionary<string, string> SetUserSettings = new Dictionary<string, string>();
 
 
