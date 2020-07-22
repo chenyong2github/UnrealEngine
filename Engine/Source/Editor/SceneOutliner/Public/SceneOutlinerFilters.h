@@ -6,6 +6,7 @@
 #include "Misc/IFilter.h"
 #include "Misc/FilterCollection.h"
 #include "SceneOutlinerFwd.h"
+#include "ITreeItem.h"
 
 class FMenuBuilder;
 

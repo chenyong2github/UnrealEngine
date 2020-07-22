@@ -27,6 +27,7 @@
 #include "SceneOutlinerStandaloneTypes.h"
 
 #include "ISceneOutlinerHierarchy.h"
+#include "ISceneOutlinerMode.h"
 #include "SceneOutlinerDragDrop.h"
 
 class FMenuBuilder;
