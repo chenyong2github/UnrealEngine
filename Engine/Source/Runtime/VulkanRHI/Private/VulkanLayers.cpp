@@ -754,10 +754,6 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 		UE_LOG(LogVulkanRHI, Warning, TEXT("Tried to enable GPU crash debugging but no extension found! Will use local tracepoints."));
 	}
 
-#if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
-	HasGoogleDisplayTiming = HasExtension(DeviceExtensions, VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
-#endif
-
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
 	HasYcbcrSampler = HasExtension(DeviceExtensions, VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) && HasExtension(DeviceExtensions, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
 #endif
