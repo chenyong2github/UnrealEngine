@@ -93,8 +93,8 @@ public class Engine : ModuleRules
 				"PhysicsCore",
                 "SignalProcessing",
                 "AudioExtensions",
-				"DeveloperSettings"
-            }
+				"DeveloperSettings",
+			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(

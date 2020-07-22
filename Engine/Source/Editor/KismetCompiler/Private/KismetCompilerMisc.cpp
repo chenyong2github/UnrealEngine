@@ -1843,6 +1843,11 @@ FString FNetNameMapping::MakeBaseName(const UEdGraphNode* Net)
 	return FString::Printf(TEXT("%s"), *Net->GetDescriptiveCompiledName());
 }
 
+FString FNetNameMapping::MakeBaseName(const UObject* Net)
+{
+	return FString::Printf(TEXT("%s"), *Net->GetFName().GetPlainNameString());
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FKismetFunctionContext
 

@@ -1205,6 +1205,14 @@ void FAnimInstanceProxy::UpdateAnimation()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	FMemMark Mark(FMemStack::Get());
+
+	// Give class subsystems a crack
+	IAnimClassInterface::ForEachAnimInstanceSubsystemData(CastChecked<UAnimInstance>(GetAnimInstanceObject()), [this](UAnimBlueprintClassSubsystem* InSubsystem, FAnimInstanceSubsystemData& InSubsystemData)
+	{
+		InSubsystem->OnParallelUpdateAnimation(*this, InSubsystemData, CurrentDeltaSeconds);
+	});
+
 #if WITH_EDITORONLY_DATA
 	UpdatedNodesThisFrame.Reset();
 #endif

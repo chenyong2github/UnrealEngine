@@ -2,7 +2,7 @@
 
 #include "AnimGraphNode_Root.h"
 #include "GraphEditorSettings.h"
-
+#include "AnimBlueprintCompiler.h"
 
 /////////////////////////////////////////////////////
 // FPoseLinkMappingRecord
@@ -83,6 +83,13 @@ void UAnimGraphNode_Root::GetMenuActions(FBlueprintActionDatabaseRegistrar& Acti
 FString UAnimGraphNode_Root::GetDocumentationLink() const
 {
 	return TEXT("Shared/GraphNodes/AnimationStateMachine");
+}
+
+void UAnimGraphNode_Root::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+{
+	UAnimGraphNode_Root* TrueNode = InCompilerContext.MessageLog.FindSourceObjectTypeChecked<UAnimGraphNode_Root>(this);
+
+	Node.Name = TrueNode->GetGraph()->GetFName();
 }
 
 #undef LOCTEXT_NAMESPACE

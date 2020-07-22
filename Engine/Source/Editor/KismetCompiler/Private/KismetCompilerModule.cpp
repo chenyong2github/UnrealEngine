@@ -19,8 +19,6 @@
 #include "KismetCompilerMisc.h"
 #include "KismetCompiler.h"
 
-#include "AnimBlueprintCompiler.h"
-
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"

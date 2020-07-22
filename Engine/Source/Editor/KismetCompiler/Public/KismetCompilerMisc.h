@@ -204,10 +204,12 @@ public:
 	// The resulting name is stable across multiple calls if given the same pointer.
 	FString MakeValidName(const UEdGraphNode* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
 	FString MakeValidName(const UEdGraphPin* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
+	FString MakeValidName(const UObject* Net, const FString& Context = TEXT("")) { return MakeValidNameImpl(Net, Context); }
 
 private:
 	KISMETCOMPILER_API static FString MakeBaseName(const UEdGraphNode* Net);
 	KISMETCOMPILER_API static FString MakeBaseName(const UEdGraphPin* Net);
+	KISMETCOMPILER_API static FString MakeBaseName(const UObject* Net);
 
 	template< typename NetType >
 	FString MakeValidNameImpl(NetType Net, const FString& Context)

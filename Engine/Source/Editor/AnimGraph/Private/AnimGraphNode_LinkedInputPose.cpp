@@ -23,12 +23,79 @@
 #include "Containers/Ticker.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "KismetCompiler.h"
+#include "K2Node_VariableGet.h"
+#include "AnimBlueprintCompiler.h"
 
 #define LOCTEXT_NAMESPACE "LinkedInputPose"
 
 UAnimGraphNode_LinkedInputPose::UAnimGraphNode_LinkedInputPose()
 	: InputPoseIndex(INDEX_NONE)
 {
+}
+
+void UAnimGraphNode_LinkedInputPose::CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext)
+{
+	IterateFunctionParameters([this, &InCompilerContext](const FName& InName, FEdGraphPinType InPinType)
+	{
+		if(!UAnimationGraphSchema::IsPosePin(InPinType))
+		{
+			// create properties for 'local' linked input pose pins
+			FProperty* NewLinkedInputPoseProperty = static_cast<FAnimBlueprintCompilerContext*>(&InCompilerContext)->CreateVariable(InName, InPinType);
+			if(NewLinkedInputPoseProperty)
+			{
+				NewLinkedInputPoseProperty->SetPropertyFlags(CPF_BlueprintReadOnly);
+			}
+		}
+	});
+}
+
+void UAnimGraphNode_LinkedInputPose::ExpandNode(class FKismetCompilerContext& InCompilerContext, UEdGraph* InSourceGraph)
+{
+	IterateFunctionParameters([this, &InCompilerContext](const FName& InName, FEdGraphPinType InPinType)
+	{
+		if(!UAnimationGraphSchema::IsPosePin(InPinType))
+		{
+			// Find the property we created in CreateClassVariablesFromBlueprint()
+			FProperty* LinkedInputPoseProperty = FindFProperty<FProperty>(InCompilerContext.NewClass, InName);
+			check(LinkedInputPoseProperty);
+			
+			if(InCompilerContext.bIsFullCompile)
+			{
+				UEdGraphPin* Pin = FindPin(InName, EGPD_Output);
+				if(Pin)
+				{
+					// Create new node for property access
+					UK2Node_VariableGet* VariableGetNode = InCompilerContext.SpawnIntermediateNode<UK2Node_VariableGet>(this, GetGraph());
+					VariableGetNode->SetFromProperty(LinkedInputPoseProperty, true, LinkedInputPoseProperty->GetOwnerClass());
+					VariableGetNode->AllocateDefaultPins();
+
+					// Add pin to generated variable association, used for pin watching
+					UEdGraphPin* TrueSourcePin = InCompilerContext.MessageLog.FindSourcePin(Pin);
+					if (TrueSourcePin)
+					{
+						InCompilerContext.NewClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourcePin, LinkedInputPoseProperty);
+					}
+
+					// link up to new node - note that this is not a FindPinChecked because if an interface changes without the
+					// implementing class being loaded, then its graphs will not be conformed until AFTER the skeleton class
+					// has been compiled, so the variable cannot be created. This also doesnt matter, as there wont be anything connected
+					// to the pin yet anyways.
+					UEdGraphPin* VariablePin = VariableGetNode->FindPin(LinkedInputPoseProperty->GetFName());
+					if(VariablePin)
+					{
+						TArray<UEdGraphPin*> Links = Pin->LinkedTo;
+						Pin->BreakAllPinLinks();
+
+						for(UEdGraphPin* LinkPin : Links)
+						{
+							VariablePin->MakeLinkTo(LinkPin);
+						}
+					}
+				}
+			}
+		}
+	});
 }
 
 void UAnimGraphNode_LinkedInputPose::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
