@@ -19,8 +19,6 @@ void FGeometrySet3::Reset(bool bPoints, bool bCurves)
 	}
 }
 
-
-
 void FGeometrySet3::AddPoint(int PointID, const FVector3d& Point)
 {
 	check(PointIDToIndex.Contains(PointID) == false);
@@ -40,6 +38,41 @@ void FGeometrySet3::AddCurve(int CurveID, const FPolyline3d& Polyline)
 	CurveIDToIndex.Add(CurveID, NewIndex);
 }
 
+void FGeometrySet3::RemovePoint(int PointID)
+{
+	const int* IndexPointer = PointIDToIndex.Find(PointID);
+	check(IndexPointer != nullptr);
+	int32 Index = *IndexPointer;
+	Points.RemoveAt(Index);
+	PointIDToIndex.Remove(PointID);
+
+	// Since we store things in a simple array, the indices have shifted
+	for (TPair<int,int>& Entry : PointIDToIndex)
+	{
+		if (Entry.Value > Index)
+		{
+			--Entry.Value;
+		}
+	}
+}
+
+void FGeometrySet3::RemoveCurve(int CurveID)
+{
+	const int* IndexPointer = CurveIDToIndex.Find(CurveID);
+	check(IndexPointer != nullptr);
+	int32 Index = *IndexPointer;
+	Curves.RemoveAt(Index);
+	CurveIDToIndex.Remove(CurveID);
+
+	// Since we store things in a simple array, the indices have shifted
+	for (TPair<int, int>& Entry : CurveIDToIndex)
+	{
+		if (Entry.Value > Index)
+		{
+			--Entry.Value;
+		}
+	}
+}
 
 void FGeometrySet3::UpdatePoint(int PointID, const FVector3d& Point)
 {

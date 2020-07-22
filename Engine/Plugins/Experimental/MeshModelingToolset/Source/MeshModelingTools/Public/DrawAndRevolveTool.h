@@ -17,6 +17,7 @@
 
 class UCollectSurfacePathMechanic;
 class UConstructionPlaneMechanic;
+class UCurveControlPointsMechanic;
 class FCurveSweepOp;
 
 UCLASS()
@@ -80,6 +81,9 @@ public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 	virtual void SetAssetAPI(IToolsContextAssetAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
+	void OnBackspacePress();
+
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
@@ -122,6 +126,9 @@ protected:
 
 	UPROPERTY()
 	UCollectSurfacePathMechanic* DrawProfileCurveMechanic = nullptr;
+
+	UPROPERTY()
+	UCurveControlPointsMechanic* ControlPointsMechanic = nullptr;
 
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;

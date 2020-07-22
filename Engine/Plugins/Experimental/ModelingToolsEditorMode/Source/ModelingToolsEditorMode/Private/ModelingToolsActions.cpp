@@ -13,6 +13,7 @@
 #include "TransformMeshesTool.h"
 #include "PlaneCutTool.h"
 #include "EditMeshPolygonsTool.h"
+#include "DrawAndRevolveTool.h"
 
 #define LOCTEXT_NAMESPACE "ModelingToolsCommands"
 
@@ -85,6 +86,7 @@ void FModelingToolActionCommands::RegisterAllToolActions()
 	FMeshSelectionToolActionCommands::Register();
 	FMeshPlaneCutToolActionCommands::Register();
 	FEditMeshPolygonsToolActionCommands::Register();
+	FDrawAndRevolveToolActionCommands::Register();
 }
 
 void FModelingToolActionCommands::UnregisterAllToolActions()
@@ -97,6 +99,7 @@ void FModelingToolActionCommands::UnregisterAllToolActions()
 	FMeshSelectionToolActionCommands::Unregister();
 	FMeshPlaneCutToolActionCommands::Unregister();
 	FEditMeshPolygonsToolActionCommands::Unregister();
+	FDrawAndRevolveToolActionCommands::Unregister();
 }
 
 
@@ -134,6 +137,10 @@ void FModelingToolActionCommands::UpdateToolCommandBinding(UInteractiveTool* Too
 	{
 		UPDATE_BINDING(FEditMeshPolygonsToolActionCommands);
 	}
+	else if (Cast<UDrawAndRevolveTool>(Tool) != nullptr)
+	{
+		UPDATE_BINDING(FDrawAndRevolveToolActionCommands);
+	}
 	else
 	{
 		UPDATE_BINDING(FModelingToolActionCommands);
@@ -162,6 +169,7 @@ DEFINE_TOOL_ACTION_COMMANDS(FDrawPolygonToolActionCommands, "ModelingToolsDrawPo
 DEFINE_TOOL_ACTION_COMMANDS(FMeshSelectionToolActionCommands, "ModelingToolsMeshSelectionTool", "Modeling Tools - Mesh Selection Tool", UMeshSelectionTool);
 DEFINE_TOOL_ACTION_COMMANDS(FMeshPlaneCutToolActionCommands, "ModelingToolsMeshPlaneCutTool", "Modeling Tools - Mesh Plane Cut Tool", UPlaneCutTool);
 DEFINE_TOOL_ACTION_COMMANDS(FEditMeshPolygonsToolActionCommands, "ModelingToolsEditMeshPolygonsTool", "Modeling Tools - Edit Mesh Polygons Tool", UEditMeshPolygonsTool);
+DEFINE_TOOL_ACTION_COMMANDS(FDrawAndRevolveToolActionCommands, "ModelingToolsDrawAndRevolveTool", "Modeling Tools - Draw-and-Revolve Tool", UDrawAndRevolveTool);
 
 
 
