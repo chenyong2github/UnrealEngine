@@ -64,7 +64,10 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
@@ -96,7 +99,10 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 {	
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
