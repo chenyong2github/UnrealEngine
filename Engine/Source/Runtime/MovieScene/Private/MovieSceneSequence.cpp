@@ -22,6 +22,12 @@ UMovieSceneSequence::UMovieSceneSequence(const FObjectInitializer& Init)
 	bPlayableDirectly = true;
 	SequenceFlags = EMovieSceneSequenceFlags::None;
 	CompiledData = nullptr;
+
+	// Ensure that the precompiled data is set up when constructing the CDO. This guarantees that we do not try and create it for the first time when collecting garbage
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UMovieSceneCompiledDataManager::GetPrecompiledData();
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -74,7 +80,10 @@ void UMovieSceneSequence::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
+	if (!GExitPurge && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
+	}
 }
 
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)
