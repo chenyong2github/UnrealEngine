@@ -5232,6 +5232,99 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
+	public int[] AndroidThunkJava_GetSupportedNativeDisplayRefreshRates()
+	{
+		if(ANDROID_BUILD_VERSION >= 24)
+		{
+			WindowManager windowManager =  getWindowManager();
+			Display display = windowManager.getDefaultDisplay();
+			Display.Mode currentmode = display.getMode();
+			Display.Mode[] modes = display.getSupportedModes();
+			ArrayList<Integer> refreshlist = new ArrayList<Integer>();
+
+			for (int i = 0; i < modes.length; i++)
+			{
+				if (modes[i].getPhysicalHeight() == currentmode.getPhysicalHeight() &&
+					modes[i].getPhysicalWidth() == currentmode.getPhysicalWidth())
+				{
+					refreshlist.add((int)modes[i].getRefreshRate());
+				}
+			}
+			if (refreshlist.size() == 0)
+			{
+				refreshlist.add(60);
+			}
+			int[] result = new int[refreshlist.size()];
+			for (int i=0; i < result.length; i++)
+			{
+				result[i] = refreshlist.get(i).intValue();
+			}
+			return result;
+		}
+		else
+		{
+			int[] result = new int[1];
+			result[0] = 60;
+			return result;
+		}
+	}
+
+	public boolean AndroidThunkJava_SetNativeDisplayRefreshRate(int RefreshRate)
+	{
+		if(ANDROID_BUILD_VERSION >= 24)
+		{
+			WindowManager windowManager =  getWindowManager();
+			Display display = windowManager.getDefaultDisplay();
+			Display.Mode currentmode = display.getMode();
+			int currentmodeid = currentmode.getModeId();
+			Display.Mode[] modes = display.getSupportedModes();
+
+			for (int i = 0; i < modes.length; i++)
+			{
+				if (modes[i].getPhysicalHeight() == currentmode.getPhysicalHeight() &&
+					modes[i].getPhysicalWidth() == currentmode.getPhysicalWidth() &&
+					(int)modes[i].getRefreshRate() == RefreshRate)
+				{
+					final int modeid = modes[i].getModeId();
+					if(currentmodeid != modeid)
+					{
+						_activity.runOnUiThread(new Runnable()
+						{
+							public void run()
+							{
+								Window w = getWindow();
+								WindowManager.LayoutParams l = w.getAttributes();
+								l.preferredDisplayModeId = modeid;
+								w.setAttributes(l);
+							}
+						});
+						Log.debug("Found mode " + modeid + " for native refresh rate "+RefreshRate);
+					}
+					return true;
+				}
+			}
+
+			return false;
+		}
+		else
+		{
+			return (RefreshRate == 60);
+		}
+	}
+
+	public int AndroidThunkJava_GetNativeDisplayRefreshRate()
+	{
+		if(ANDROID_BUILD_VERSION >= 24)
+		{
+			WindowManager windowManager =  getWindowManager();
+			Display display = windowManager.getDefaultDisplay();
+			Display.Mode currentmode = display.getMode();
+			return (int)currentmode.getRefreshRate();
+		}
+
+		return 60;
+	}
+
 	@SuppressWarnings("deprecation")
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 	public static boolean isAirplaneModeOn(Context context)

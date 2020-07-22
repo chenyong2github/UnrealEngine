@@ -280,6 +280,12 @@ public:
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
 	
+	static TArray<int32> GetSupportedNativeDisplayRefreshRates();
+
+	static bool SetNativeDisplayRefreshRate(int32 RefreshRate);
+
+	static int32 GetNativeDisplayRefreshRate();
+
 	/**
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */
