@@ -280,7 +280,7 @@ public class GooglePlayStoreHelper implements StoreHelper
 						
 						if(ObfuscatedAccountId != null)
 						{
-							flowParams = flowParams.setAccountId(ObfuscatedAccountId);
+							flowParams = flowParams.setObfuscatedAccountId(ObfuscatedAccountId);
 						}
 	
 						if (gameActivity.IsInVRMode())
