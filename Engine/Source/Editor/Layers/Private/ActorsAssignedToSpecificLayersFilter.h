@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "SceneOutlinerFilters.h"
 #include "ActorTreeItem.h"
+#include "GameFramework/Actor.h"
 
 class FActorsAssignedToSpecificLayersFilter : public SceneOutliner::TOutlinerFilter<SceneOutliner::FActorTreeItem>, public TSharedFromThis< FActorsAssignedToSpecificLayersFilter >
 {
