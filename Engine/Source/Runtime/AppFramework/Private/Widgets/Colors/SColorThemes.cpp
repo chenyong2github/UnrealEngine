@@ -919,10 +919,12 @@ void SColorThemesViewer::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
-		+SVerticalBox::Slot().AutoHeight()
+		+SVerticalBox::Slot()
+			.AutoHeight()
+			.MaxHeight(455.0f) // Roughly matches the size of the color picker at max height
 		[
 			SNew(SBox)
-			.WidthOverride(320)
+			.WidthOverride(360)
 			[
 				SAssignNew(ColorThemeList, SListView< TSharedPtr<FColorTheme> >)
 					.ItemHeight(32)
@@ -930,11 +932,14 @@ void SColorThemesViewer::Construct(const FArguments& InArgs)
 					.OnGenerateRow(this, &SColorThemesViewer::OnGenerateColorThemeBars)
 			]
 		]
-		+SVerticalBox::Slot().AutoHeight() .Padding(0,15,0,0)
+		+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0,15,0,0)
 		[
 			SAssignNew(Menu, SBorder)
 		]
-		+ SVerticalBox::Slot().AutoHeight()
+		+ SVerticalBox::Slot()
+			.AutoHeight()
 		[
 			SAssignNew(ErrorText, SErrorText)
 				.Visibility(this, &SColorThemesViewer::OnGetErrorTextVisibility)
