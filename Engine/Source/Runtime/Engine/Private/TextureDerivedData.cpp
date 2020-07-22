@@ -1100,6 +1100,14 @@ FTexturePlatformData::~FTexturePlatformData()
 
 bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
 {
+#if WITH_EDITOR
+	// Can't touch the Mips until async work is finished
+	if (!IsAsyncWorkComplete())
+	{
+		return false;
+	}
+#endif
+
 	for (int32 MipIndex = 0; MipIndex < Mips.Num(); ++MipIndex)
 	{
 		const FTexture2DMipMap& Mip = Mips[MipIndex];
