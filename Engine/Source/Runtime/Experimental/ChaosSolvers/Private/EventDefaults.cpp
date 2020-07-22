@@ -100,14 +100,8 @@ namespace Chaos
 										!Body0->W().ContainsNaN() &&
 										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										TPBDRigidParticleHandle<float, 3>* Rigid0 = Particle0->CastToRigidParticle();
-										TPBDRigidParticleHandle<float, 3>* Rigid1 = Particle1->CastToRigidParticle();
-										if ((Rigid0 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid0->V(), Rigid0->PreV(), MinDeltaVelocityForHitEvents)) ||
-											(Rigid1 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid1->V(), Rigid1->PreV(), MinDeltaVelocityForHitEvents)))
-										{
-											ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-											NumValidCollisions++;
-										}
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
 									}
 								}
 							}
@@ -146,14 +140,8 @@ namespace Chaos
 										!Body0->W().ContainsNaN() &&
 										(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 									{
-										TPBDRigidParticleHandle<float, 3>* Rigid0 = Particle0->CastToRigidParticle();
-										TPBDRigidParticleHandle<float, 3>* Rigid1 = Particle1->CastToRigidParticle();
-										if ((Rigid0 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid0->V(), Rigid0->PreV(), MinDeltaVelocityForHitEvents)) ||
-											(Rigid1 != nullptr && !TVector<float, 3>::IsNearlyEqual(Rigid1->V(), Rigid1->PreV(), MinDeltaVelocityForHitEvents)))
-										{
-											ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-											NumValidCollisions++;
-										}
+										ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+										NumValidCollisions++;
 									}
 								}
 							}
@@ -185,6 +173,15 @@ namespace Chaos
 								Solver->GetProxies(Particle0->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
 								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+
+							if (TPBDRigidParticleHandle<float, 3> * Rigid0 = Particle0->CastToRigidParticle())
+							{
+								Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
+							}
+							if (TPBDRigidParticleHandle<float, 3> * Rigid1 = Particle1->CastToRigidParticle())
+							{
+								Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
+							}
 
 							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 							// do we still need these now we have pointers to particles returned?
@@ -261,6 +258,15 @@ namespace Chaos
 								Solver->GetProxies(Particle0->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ?
 								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
+
+							if (TPBDRigidParticleHandle<float, 3> * Rigid0 = Particle0->CastToRigidParticle())
+							{
+								Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
+							}
+							if (TPBDRigidParticleHandle<float, 3> * Rigid1 = Particle1->CastToRigidParticle())
+							{
+								Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
+							}
 
 							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 							// do we still need these now we have pointers to particles returned?

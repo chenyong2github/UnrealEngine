@@ -1419,9 +1419,13 @@ struct ENGINE_API FCollisionImpactData
 	UPROPERTY()
 	FVector TotalFrictionImpulse;
 
+	UPROPERTY()
+	bool bIsVelocityDeltaUnderThreshold;
+
 	FCollisionImpactData()
 	: TotalNormalImpulse(ForceInit)
 	, TotalFrictionImpulse(ForceInit)
+    , bIsVelocityDeltaUnderThreshold(true)
 	{}
 
 	/** Iterate over ContactInfos array and swap order of information */
