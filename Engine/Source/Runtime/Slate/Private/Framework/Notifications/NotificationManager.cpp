@@ -68,6 +68,18 @@ FSlateNotificationManager& FSlateNotificationManager::Get()
 	return Instance;
 }
 
+FSlateNotificationManager::FSlateNotificationManager()
+{
+	FCoreDelegates::OnPreExit.AddRaw(this, &FSlateNotificationManager::ShutdownOnPreExit);
+}
+
+void FSlateNotificationManager::ShutdownOnPreExit()
+{
+	FCoreDelegates::OnPreExit.RemoveAll(this);
+
+	RegionalLists.Empty();
+}
+
 void FSlateNotificationManager::SetRootWindow( const TSharedRef<SWindow> InRootWindow )
 {
 	RootWindowPtr = InRootWindow;
