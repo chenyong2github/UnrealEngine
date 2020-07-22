@@ -15,7 +15,10 @@ namespace UnrealBuildTool.Rules
 
         public RigLogicModule(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicDefinitions.Add("RL_SHARED=1");
+            if (Target.LinkType != TargetLinkType.Monolithic)
+            {
+                PublicDefinitions.Add("RL_SHARED=1");
+            }
 
             PublicDependencyModuleNames.AddRange(
                 new string[]

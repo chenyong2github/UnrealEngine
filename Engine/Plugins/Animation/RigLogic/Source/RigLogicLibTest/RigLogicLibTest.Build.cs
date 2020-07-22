@@ -19,8 +19,16 @@ public class RigLogicLibTest : ModuleRules
 
         string RigLogicLibPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../RigLogicLib"));
 
-        PrivateDefinitions.Add("RIGLOGIC_MODULE_DISCARD");
-        ConditionalAddModuleDirectory(new DirectoryReference(RigLogicLibPath));
+        if (Target.LinkType == TargetLinkType.Monolithic)
+        {
+            PublicDependencyModuleNames.Add("RigLogicLib");
+            PrivateIncludePaths.Add(Path.Combine(RigLogicLibPath, "Private"));
+        }
+        else
+        {
+            PrivateDefinitions.Add("RIGLOGIC_MODULE_DISCARD");
+            ConditionalAddModuleDirectory(new DirectoryReference(RigLogicLibPath));
+        }
 
         PublicDependencyModuleNames.AddRange(
             new string[]

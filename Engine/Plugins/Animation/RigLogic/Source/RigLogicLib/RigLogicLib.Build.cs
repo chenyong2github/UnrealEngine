@@ -30,7 +30,10 @@ public class RigLogicLib : ModuleRules
 
         Type = ModuleType.CPlusPlus;
 
-        PrivateDefinitions.Add("RL_BUILD_SHARED=1");
+        if (Target.LinkType != TargetLinkType.Monolithic)
+        {
+            PrivateDefinitions.Add("RL_BUILD_SHARED=1");
+        }
 
         if (Target.Platform == UnrealTargetPlatform.Win32 ||
                 Target.Platform == UnrealTargetPlatform.Win64 ||

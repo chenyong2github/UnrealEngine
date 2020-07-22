@@ -11,14 +11,12 @@ namespace UnrealBuildTool.Rules
             get { return ModuleDirectory; }
         }
 
-        private string ThirdPartyPath
-        {
-            get { return Path.GetFullPath(Path.Combine(ModulePath, "../Source/ThirdParty/")); }
-        }
-
         public RigLogicEditor(ReadOnlyTargetRules Target) : base(Target)
         {
-            PublicDefinitions.Add("RL_SHARED=1");
+            if (Target.LinkType != TargetLinkType.Monolithic)
+            {
+                PublicDefinitions.Add("RL_SHARED=1");
+            }
 
             PublicDependencyModuleNames.AddRange(
                 new string[]
