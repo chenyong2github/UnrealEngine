@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MetasoundNode.h"
+
+// Forward Declarations
+class FText;
+
 
 namespace Metasound
 {
@@ -15,10 +18,8 @@ namespace Metasound
 	class METASOUNDGRAPHCORE_API FGraph : public IGraph
 	{
 		public:
-			static const FName ClassName;
-
 			FGraph(const FString& InInstanceName);
-			virtual ~FGraph();
+			virtual ~FGraph() = default;
 
 			/** Return the name of this specific instance of the node class. */
 			virtual const FString& GetInstanceName() const override;
@@ -27,12 +28,12 @@ namespace Metasound
 			virtual const FName& GetClassName() const override;
 
 			/** Return a longer text description describing how this node is used. */
-			virtual const FString& GetDescription() const override;
+			virtual const FText& GetDescription() const override;
 
 			/** Return the original author of this node class. */
-			virtual const FString& GetAuthorName() const override;
+			virtual const FText& GetAuthorName() const override;
 
-			virtual const FString& GetPromptIfMissing() const override;
+			virtual const FText& GetPromptIfMissing() const override;
 
 			/** Return a collection of input parameter descriptions for this graph. */
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const override;

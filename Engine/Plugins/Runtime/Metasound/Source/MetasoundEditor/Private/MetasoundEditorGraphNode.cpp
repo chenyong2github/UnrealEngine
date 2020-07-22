@@ -2,17 +2,20 @@
 
 #include "MetasoundEditorGraphNode.h"
 
+#include "EdGraph/EdGraphPin.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Font.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "Metasound.h"
 #include "MetasoundEditorGraph.h"
+#include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorCommands.h"
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundEditorGraphNode"
+#define LOCTEXT_NAMESPACE "MetasoundEditor"
 
 
 UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& ObjectInitializer)
@@ -55,43 +58,6 @@ void UMetasoundEditorGraphNode::CreateInputPin()
 	}
 }
 
-void UMetasoundEditorGraphNode::AddInputPin()
-{
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "MetasoundEditorAddInput", "Add Metasound Input") );
-	Modify();
-	CreateInputPin();
-
-// 	UMetasound* Metasound = CastChecked<UMetasoundEditorGraph>(GetGraph())->Metasound;
-	// TODO: Add metasound input pin
-
-	// Refresh the current graph, so the pins can be updated
-	GetGraph()->NotifyGraphChanged();
-}
-
-void UMetasoundEditorGraphNode::RemoveInputPin(UEdGraphPin* InGraphPin)
-{
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "SoundCueEditorDeleteInput", "Delete Metasound Input") );
-	Modify();
-
-	TArray<UEdGraphPin*> InputPins;
-	GetInputPins(InputPins);
-
-	for (int32 InputIndex = 0; InputIndex < InputPins.Num(); InputIndex++)
-	{
-		if (InGraphPin == InputPins[InputIndex])
-		{
-			InGraphPin->MarkPendingKill();
-			Pins.Remove(InGraphPin);
-
-			// Remove pin from UMetasound
-			break;
-		}
-	}
-
-	// Refresh the current graph, so the pins can be updated
-	GetGraph()->NotifyGraphChanged();
-}
-
 int32 UMetasoundEditorGraphNode::EstimateNodeWidth() const
 {
 	const int32 EstimatedCharWidth = 6;
@@ -107,16 +73,100 @@ int32 UMetasoundEditorGraphNode::EstimateNodeWidth() const
 	return Result;
 }
 
-bool UMetasoundEditorGraphNode::CanAddInputPin() const
+Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
 {
-	// Get from UMetasound
-	return false;
+	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
+	UMetasound& Metasound = EdGraph->GetMetasoundChecked();
+	return Metasound.GetRootGraphHandle().GetNodeWithId(NodeID);
+}
+
+void UMetasoundEditorGraphNode::IteratePins(TUniqueFunction<void(UEdGraphPin* /* Pin */, int32 /* Index */)> InFunc, EEdGraphPinDirection InPinDirection)
+{
+	for (int32 PinIndex = 0; PinIndex < Pins.Num(); PinIndex++)
+	{
+		if (InPinDirection == EGPD_MAX || Pins[PinIndex]->Direction == InPinDirection)
+		{
+			InFunc(Pins[PinIndex], PinIndex);
+		}
+	}
+}
+
+void UMetasoundEditorGraphNode::AllocateDefaultPins()
+{
+	ensureAlways(Pins.Num() == 0);
+
+	using namespace Metasound;
+
+	Frontend::FNodeHandle NodeHandle = Frontend::FNodeHandle::InvalidHandle();
+	Editor::FGraphBuilder::RebuildNodePins(*this, NodeHandle, false /* bInRecordTransaction */);
+}
+
+void UMetasoundEditorGraphNode::ReconstructNode()
+{
+	using namespace Metasound;
+
+	Frontend::FNodeHandle NodeHandle = Frontend::FNodeHandle::InvalidHandle();
+	Editor::FGraphBuilder::RebuildNodePins(*this, NodeHandle);
+}
+
+void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
+{
+	if (FromPin)
+	{
+		const UMetasoundEditorGraphSchema* Schema = CastChecked<UMetasoundEditorGraphSchema>(GetSchema());
+
+		TSet<UEdGraphNode*> NodeList;
+
+		// auto-connect from dragged pin to first compatible pin on the new node
+		for (int32 i = 0; i < Pins.Num(); i++)
+		{
+			UEdGraphPin* Pin = Pins[i];
+			check(Pin);
+			FPinConnectionResponse Response = Schema->CanCreateConnection(FromPin, Pin);
+			if (ECanCreateConnectionResponse::CONNECT_RESPONSE_MAKE == Response.Response)
+			{
+				if (Schema->TryCreateConnection(FromPin, Pin))
+				{
+					NodeList.Add(FromPin->GetOwningNode());
+					NodeList.Add(this);
+				}
+				break;
+			}
+			else if (ECanCreateConnectionResponse::CONNECT_RESPONSE_BREAK_OTHERS_A == Response.Response)
+			{
+				// TODO: Implement default connections in GraphBuilder
+				break;
+			}
+		}
+
+		// Send all nodes that received a new pin connection a notification
+		for (auto It = NodeList.CreateConstIterator(); It; ++It)
+		{
+			UEdGraphNode* Node = (*It);
+			Node->NodeConnectionListChanged();
+		}
+	}
+}
+
+bool UMetasoundEditorGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const
+{
+	return Schema->IsA(UMetasoundEditorGraphSchema::StaticClass());
+}
+
+FString UMetasoundEditorGraphNode::GetDocumentationLink() const
+{
+	return TEXT("Shared/GraphNodes/Metasound");
+}
+
+void UMetasoundEditorGraphNode::SetNodeID(uint32 InNodeID)
+{
+	NodeID = InNodeID;
 }
 
 FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	// Get from UMetasound
-	return FText::GetEmpty();
+	const Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
+	return FText::FromString(NodeHandle.GetNodeClassName());
 }
 
 void UMetasoundEditorGraphNode::PrepareForCopying()
@@ -141,20 +191,17 @@ void UMetasoundEditorGraphNode::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
-void UMetasoundEditorGraphNode::CreateInputPins()
-{
-	// Get from UMetasound... archetype?
-}
-
 void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
+	using namespace Metasound::Editor;
+
 	if (Context->Pin)
 	{
 		// If on an input that can be deleted, show option
 		if (Context->Pin->Direction == EGPD_Input /*&& SoundNode->ChildNodes.Num() > SoundNode->GetMinChildNodes()*/)
 		{
 			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphDeleteInput");
-			Section.AddMenuEntry(FMetasoundEditorCommands::Get().DeleteInput);
+			Section.AddMenuEntry(FEditorCommands::Get().DeleteInput);
 		}
 	}
 	else if (Context->Node)
@@ -188,14 +235,6 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 			Section.AddMenuEntry(FGenericCommands::Get().Cut);
 			Section.AddMenuEntry(FGenericCommands::Get().Copy);
 			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
-		}
-
-		{
-			FToolMenuSection& Section = Menu->AddSection("MetasoundEditorGraphNodeAddPlaySync");
-			if (CanAddInputPin())
-			{
-				Section.AddMenuEntry(FMetasoundEditorCommands::Get().AddInput);
-			}
 		}
 	}
 }

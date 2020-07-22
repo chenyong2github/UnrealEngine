@@ -1,101 +1,103 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNodeInterface.h"
+
+#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
+
 
 namespace Metasound
 {
 	template<typename DataType>
 	class TInputNode : public INode
 	{
-			static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an input node with it.");
+		static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an input node with it.");
 
-			class FInputOperator : public IOperator
-			{
-				public:
-					using FDataWriteReference = TDataWriteReference<DataType>;
+		class FInputOperator : public IOperator
+		{
+			public:
+				using FDataWriteReference = TDataWriteReference<DataType>;
 
-					FInputOperator(const FString& InDataReferenceName, FDataWriteReference InDataReference)
-					{
-						Inputs.AddDataWriteReference<DataType>(InDataReferenceName, InDataReference);
-						Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
-					}
+				FInputOperator(const FString& InDataReferenceName, FDataWriteReference InDataReference)
+				{
+					Inputs.AddDataWriteReference<DataType>(InDataReferenceName, InDataReference);
+					Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
+				}
 
-					virtual ~FInputOperator() {}
+				virtual ~FInputOperator() {}
 
-					virtual const FDataReferenceCollection& GetInputs() const override
-					{
-						return Inputs;
-					}
+				virtual const FDataReferenceCollection& GetInputs() const override
+				{
+					return Inputs;
+				}
 
-					virtual const FDataReferenceCollection& GetOutputs() const override
-					{
-						return Outputs;
-					}
+				virtual const FDataReferenceCollection& GetOutputs() const override
+				{
+					return Outputs;
+				}
 
-					virtual FExecuteFunction GetExecuteFunction() override
-					{
-						return nullptr;
-					}
+				virtual FExecuteFunction GetExecuteFunction() override
+				{
+					return nullptr;
+				}
 
-				private:
-					FDataReferenceCollection Outputs;
-					FDataReferenceCollection Inputs;
-			};
+			private:
+				FDataReferenceCollection Outputs;
+				FDataReferenceCollection Inputs;
+		};
 
-			// TODO: Would be nice if we didn't utilize the copy constructor by default here. But it's a nice catch-all
-			// for our use case.  Could store constructor parameters of the paramtype, but run the risk of holding rvalues
-			// or pointers to objects which are no longer valid. 
+		// TODO: Would be nice if we didn't utilize the copy constructor by default here. But it's a nice catch-all
+		// for our use case.  Could store constructor parameters of the paramtype, but run the risk of holding rvalues
+		// or pointers to objects which are no longer valid. 
 
-			// TODO: instead of this copy factory, register a DataType factory lambda that uses a FDataTypeLiteralParam
-			class FCopyOperatorFactory : public IOperatorFactory
-			{
-				static_assert(TIsConstructible<DataType, const DataType&>::Value, "Data Type must be copy constructible!");
+		// TODO: instead of this copy factory, register a DataType factory lambda that uses a FDataTypeLiteralParam
+		class FCopyOperatorFactory : public IOperatorFactory
+		{
+			static_assert(TIsConstructible<DataType, const DataType&>::Value, "Data Type must be copy constructible!");
 				
-				public:
-					using FDataWriteReference = TDataWriteReference<DataType>;
-					using FInputNodeType = TInputNode<DataType>;
+			public:
+				using FDataWriteReference = TDataWriteReference<DataType>;
+				using FInputNodeType = TInputNode<DataType>;
 
-					template< typename... ArgTypes >
-					FCopyOperatorFactory(ArgTypes&&... Args)
-					:	Data(Forward<ArgTypes>(Args)...)
-					{
-					}
+				template< typename... ArgTypes >
+				FCopyOperatorFactory(ArgTypes&&... Args)
+				:	Data(Forward<ArgTypes>(Args)...)
+				{
+				}
 
-					/*
-					template<typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
-					FCopyOperatorFactory()
-					:	Data()
-					{
-					}
-					*/
+				/*
+				template<typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
+				FCopyOperatorFactory()
+				:	Data()
+				{
+				}
+				*/
 
-					FCopyOperatorFactory(FDataTypeLiteralParam InitParam, const FOperatorSettings& InSettings)
-						: Data(InitParam.ParseTo<DataType>(InSettings))
-					{
-					}
+				FCopyOperatorFactory(FDataTypeLiteralParam InitParam, const FOperatorSettings& InSettings)
+					: Data(InitParam.ParseTo<DataType>(InSettings))
+				{
+				}
 
-					virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
-					{
-						// Use copy constructor to create a new parameter reference.
-						FDataWriteReference DataRef = FDataWriteReference::CreateNew(Data);
-						// TODO: Write special version of this for audio types since they will need to be constructed based upon the operator settings. 
-						// TODO: Need to ponder how inputs are initialized, but template specialization might do the trick. 
+				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
+				{
+					// Use copy constructor to create a new parameter reference.
+					FDataWriteReference DataRef = FDataWriteReference::CreateNew(Data);
+					// TODO: Write special version of this for audio types since they will need to be constructed based upon the operator settings. 
+					// TODO: Need to ponder how inputs are initialized, but template specialization might do the trick. 
 
-						const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InNode);
+					const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InNode);
 
-						return MakeUnique<FInputOperator>(InputNode.GetVertexName(), DataRef);
-					}
+					return MakeUnique<FInputOperator>(InputNode.GetVertexName(), DataRef);
+				}
 
-				private:
-					DataType Data;
-			};
+			private:
+				DataType Data;
+		};
 
 		public:
-			
 			// Constructors that need to get working on linux:
 			/*
 			template<typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type>
@@ -136,7 +138,6 @@ namespace Metasound
 				Inputs.Add(InputVertexKey, InputVertex);
 
 			}
-			
 
 			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FDataTypeLiteralParam InParam, const FOperatorSettings& InSettings)
 				: NodeDescription(InNodeDescription)
@@ -163,26 +164,24 @@ namespace Metasound
 			{
 				// TODO: although this is ok with MSVC's lax template instantiation, every other compiler will complain about TDataReferenceTypeInfo.
 				//static const FName ClassName = FName(FString(TEXT("Input_")) + FString(TDataReferenceTypeInfo<DataType>::TypeName));
-				static const FName ClassName = FName(TEXT("InputNode"));
+				static const FName ClassName("InputNode");
 				return ClassName;
 			}
 
-			virtual const FString& GetDescription() const override
+			virtual const FText& GetDescription() const override
 			{
-				static FString Description = TEXT("An Input into the current Metasound graph.");
+				static const FText Description = LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph.");
 				return Description;
 			}
 
-			virtual const FString& GetAuthorName() const override
+			virtual const FText& GetAuthorName() const override
 			{
-				static FString Author = TEXT("Epic Games");
-				return Author;
+				return PluginAuthor;
 			}
 
-			virtual const FString& GetPromptIfMissing() const override
+			virtual const FText& GetPromptIfMissing() const override
 			{
-				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
-				return Prompt;
+				return PluginNodeMissingPrompt;
 			}
 
 			const FString& GetVertexName() const
@@ -205,7 +204,6 @@ namespace Metasound
 				return Factory;
 			}
 
-
 		private:
 			FString NodeDescription;
 			FString VertexName;
@@ -215,4 +213,5 @@ namespace Metasound
 			FInputDataVertexCollection Inputs;
 			FOutputDataVertexCollection Outputs;
 	};
-}
+} // namespace Metasound
+#undef LOCTEXT_NAMESPACE //MetasoundOutputNode

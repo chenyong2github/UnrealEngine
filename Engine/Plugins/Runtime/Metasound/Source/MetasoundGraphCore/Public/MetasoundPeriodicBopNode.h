@@ -14,11 +14,10 @@ namespace Metasound
 {
 	class METASOUNDGRAPHCORE_API FPeriodicBopNode : public FNode
 	{
-
-			class FOperatorFactory : public IOperatorFactory
-			{
-				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override;
-			};
+		class FOperatorFactory : public IOperatorFactory
+		{
+			virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override;
+		};
 
 		public:
 			static const FName ClassName;
@@ -34,24 +33,21 @@ namespace Metasound
 
 			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
 
-			virtual const FString& GetDescription() const override
+			virtual const FText& GetDescription() const override
 			{
-				static FString StaticDescription = TEXT("This node emits a bop periodically, based on the duration given.");
+				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_PeriodicBopNodeDescription", "Emits a bop periodically based on the period duration given.");
 				return StaticDescription;
 			}
 
-			virtual const FString& GetAuthorName() const override
+			virtual const FText& GetAuthorName() const override
 			{
-				static FString Author = TEXT("Epic Games");
-				return Author;
+				return PluginAuthor;
 			}
 
-			virtual const FString& GetPromptIfMissing() const override
+			virtual const FText& GetPromptIfMissing() const override
 			{
-				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
-				return Prompt;
+				return PluginNodeMissingPrompt;
 			}
-
 
 		private:
 			float DefaultPeriod;

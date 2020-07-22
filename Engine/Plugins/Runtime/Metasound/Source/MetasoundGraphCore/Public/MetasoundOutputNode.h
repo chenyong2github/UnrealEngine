@@ -1,79 +1,77 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundOutputNode"
+#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
+
 
 namespace Metasound
 {
 	template<typename DataType>
 	class TOutputNode : public INode
 	{
-			static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an output node with it.");
+		static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an output node with it.");
 			
-			class FOutputOperator : public IOperator
-			{
-				public:
-					using FDataReadReference = TDataReadReference<DataType>;
+		class FOutputOperator : public IOperator
+		{
+			public:
+				using FDataReadReference = TDataReadReference<DataType>;
 
-					FOutputOperator(const FString& InDataReferenceName, FDataReadReference InDataReference)
+				FOutputOperator(const FString& InDataReferenceName, FDataReadReference InDataReference)
+				{
+					Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
+				}
+
+				virtual ~FOutputOperator() {}
+
+				virtual const FDataReferenceCollection& GetInputs() const override
+				{
+					return Inputs;
+				}
+
+				virtual const FDataReferenceCollection& GetOutputs() const override
+				{
+					return Outputs;
+				}
+
+				virtual FExecuteFunction GetExecuteFunction() override
+				{
+					return nullptr;
+				}
+
+			private:
+				FDataReferenceCollection Inputs;
+				FDataReferenceCollection Outputs;
+		};
+
+		class FOutputOperatorFactory : public IOperatorFactory
+		{
+			public:
+				FOutputOperatorFactory(const FString& InDataReferenceName)
+				:	DataReferenceName(InDataReferenceName)
+				{
+				}
+
+				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
+				{
+					if (!InInputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName))
 					{
-						Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
+						// TODO: Add build error.
+						return TUniquePtr<IOperator>(nullptr);
 					}
 
-					virtual ~FOutputOperator() {}
+					return MakeUnique<FOutputOperator>(DataReferenceName, InInputDataReferences.GetDataReadReference<DataType>(DataReferenceName));
+				}
 
-					virtual const FDataReferenceCollection& GetInputs() const override
-					{
-						return Inputs;
-					}
-
-					virtual const FDataReferenceCollection& GetOutputs() const override
-					{
-						return Outputs;
-					}
-
-					virtual FExecuteFunction GetExecuteFunction() override
-					{
-						return nullptr;
-					}
-
-				private:
-					FDataReferenceCollection Inputs;
-					FDataReferenceCollection Outputs;
-			};
-
-			class FOutputOperatorFactory : public IOperatorFactory
-			{
-				public:
-					FOutputOperatorFactory(const FString& InDataReferenceName)
-					:	DataReferenceName(InDataReferenceName)
-					{
-					}
-
-					virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
-					{
-						if (!InInputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName))
-						{
-							// TODO: Add build error.
-							return TUniquePtr<IOperator>(nullptr);
-						}
-
-						return MakeUnique<FOutputOperator>(DataReferenceName, InInputDataReferences.GetDataReadReference<DataType>(DataReferenceName));
-					}
-
-				private:
-					FString DataReferenceName;
-			};
+			private:
+				FString DataReferenceName;
+		};
 
 		public:
-
-
 			TOutputNode(const FString& InNodeDescription, const FString& InVertexName)
 			:	NodeDescription(InNodeDescription)
 			,	VertexName(InVertexName)
@@ -95,8 +93,7 @@ namespace Metasound
 				// TODO: Any special formatting for these node type names?
 				// TODO: although this is ok with MSVC's lax template instantiation, every other compiler will complain about TDataReferenceTypeInfo.
 				//static const FName ClassName = FName(FString(TEXT("Input_")) + FString(TDataReferenceTypeInfo<DataType>::TypeName));
-				static const FName ClassName = FName(TEXT("OutputNode"));
-
+				static const FName ClassName("OutputNode");
 				return ClassName;
 			}
 
@@ -105,22 +102,20 @@ namespace Metasound
 				return NodeDescription;
 			}
 
-			virtual const FString& GetDescription() const override
+			virtual const FText& GetDescription() const override
 			{
-				static FString Description = TEXT("This node can be used as an output for a given type.");
+				static const FText Description = LOCTEXT("Metasound_InputNodeDescription", "Output from the parent Metasound graph.");
 				return Description;
 			}
 
-			virtual const FString& GetAuthorName() const override
+			virtual const FText& GetAuthorName() const override
 			{
-				static FString Author = TEXT("Epic Games");
-				return Author;
+				return PluginAuthor;
 			}
 
-			virtual const FString& GetPromptIfMissing() const override
+			virtual const FText& GetPromptIfMissing() const override
 			{
-				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
-				return Prompt;
+				return PluginNodeMissingPrompt;
 			}
 
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const override
@@ -149,5 +144,4 @@ namespace Metasound
 			FOutputDataVertexCollection Outputs;
 	};
 }
-
-#undef LOCTEXT_NAMESPACE //MetasoundOutputNode
+#undef LOCTEXT_NAMESPACE // MetasoundOutputNode

@@ -3,15 +3,121 @@
 #pragma once
 
 #include "AssetData.h"
+#include "ConnectionDrawingPolicy.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "EdGraphUtilities.h"
+#include "MetasoundFrontend.h"
 #include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorGraphSchema.generated.h"
 
+
+// Forward Declarations
 class UEdGraph;
-class UMetasound;
 class UEdGraphNode;
+class UMetasound;
+class UMetasoundEditorGraphNode;
+
+
+namespace Metasound
+{
+	namespace Editor
+	{
+		struct FGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
+		{
+		public:
+			virtual ~FGraphConnectionDrawingPolicyFactory() = default;
+
+			// FGraphPanelPinConnectionFactory
+			virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(
+				const UEdGraphSchema* Schema,
+				int32 InBackLayerID,
+				int32 InFrontLayerID,
+				float ZoomFactor,
+				const FSlateRect& InClippingRect,
+				FSlateWindowElementList& InDrawElements,
+				UEdGraph* InGraphObj) const override;
+			// ~FGraphPanelPinConnectionFactory
+		};
+
+		// This class draws the connections for an UEdGraph using a SoundCue schema
+		class FGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
+		{
+		protected:
+			// Times for one execution pair within the current graph
+			struct FTimePair
+			{
+				double PredExecTime;
+				double ThisExecTime;
+
+				FTimePair()
+					: PredExecTime(0.0)
+					, ThisExecTime(0.0)
+				{
+				}
+			};
+
+			// Map of pairings
+			using FExecPairingMap = TMap<UEdGraphNode*, FTimePair>;
+
+			// Map of nodes that preceded before a given node in the execution sequence (one entry for each pairing)
+			TMap<UEdGraphNode*, FExecPairingMap> PredecessorNodes;
+
+			UEdGraph* GraphObj = nullptr;
+
+			float ActiveWireThickness;
+			float InactiveWireThickness;
+
+		public:
+			FGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
+
+			// FConnectionDrawingPolicy interface
+			virtual void DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params) override;
+			// End of FConnectionDrawingPolicy interface
+		};
+	} // namespace Editor
+} // namespace Metasound
+
+/** Action to add an input to the graph */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	FName NodeTypeName;
+
+	FMetasoundGraphSchemaAction_NewInput()
+		: FEdGraphSchemaAction()
+	{}
+
+	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+/** Action to add an output to the graph */
+USTRUCT()
+struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	FName NodeTypeName;
+
+	FMetasoundGraphSchemaAction_NewOutput()
+		: FEdGraphSchemaAction()
+	{}
+
+	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping);
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
 
 /** Action to add a node to the graph */
 USTRUCT()
@@ -19,18 +125,15 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraph
 {
 	GENERATED_USTRUCT_BODY();
 
-	/** Class of node we want to create */
-	UPROPERTY()
-	UClass* MetasoundNodeClass;
+	/** ClassInfo of node to create */
+	Metasound::Frontend::FNodeClassInfo NodeClassInfo;
 
 	FMetasoundGraphSchemaAction_NewNode() 
 		: FEdGraphSchemaAction()
-		, MetasoundNodeClass(nullptr)
 	{}
 
 	FMetasoundGraphSchemaAction_NewNode(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
 		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
-		, MetasoundNodeClass(nullptr)
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
@@ -39,7 +142,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FEdGraph
 
 private:
 	/** Connects new node to output of selected nodes */
-	void ConnectToSelectedNodes(UMetasound* NewNodeclass, UEdGraph* ParentGraph) const;
+	void ConnectToSelectedNodes(UMetasoundEditorGraphNode* NewGraphNode, UEdGraph* ParentGraph) const;
 };
 
 /** Action to add nodes to the graph based on selected objects*/

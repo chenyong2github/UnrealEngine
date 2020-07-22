@@ -5,10 +5,20 @@
 #include "AssetTypeActions_Base.h"
 #include "Brushes/SlateImageBrush.h"
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphUtilities.h"
 #include "EditorStyleSet.h"
+#include "IDetailCustomization.h"
+#include "Metasound.h"
 #include "MetasoundAssetTypeActions.h"
+#include "MetasoundDetailCustomization.h"
+#include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorGraphSchema.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleMacros.h"
@@ -19,73 +29,167 @@
 DEFINE_LOG_CATEGORY(LogMetasoundEditor);
 
 
-namespace MetasoundEditorUtils
+namespace Metasound
 {
-	static const FName AssetToolName = TEXT("AssetTools");
-
-	template <typename T>
-	void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
+	namespace Editor
 	{
-		TSharedPtr<T> AssetAction = MakeShared<T>();
-		TSharedPtr<FAssetTypeActions_Base> AssetActionBase = StaticCastSharedPtr<FAssetTypeActions_Base>(AssetAction);
-		AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
-		AssetArray.Add(AssetActionBase);
-	}
-} // namespace MetasoundEditorUtils
+		static const FName AssetToolName = TEXT("AssetTools");
 
-class FMetasoundSlateStyle : public FSlateStyleSet
-{
-public:
-	FMetasoundSlateStyle()
-		: FSlateStyleSet("MetasoundStyle")
-	{
-		SetParentStyleName(FEditorStyle::GetStyleSetName());
-
-		SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
-		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
-
-		static const FVector2D Icon20x20(20.0f, 20.0f);
-		static const FVector2D Icon40x40(40.0f, 40.0f);
-
-		// Metasound Editor
+		template <typename T>
+		void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
 		{
-			Set("MetasoundEditor.Play", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon40x40));
-			Set("MetasoundEditor.Play.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon20x20));
-			Set("MetasoundEditor.Stop", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon40x40));
-			Set("MetasoundEditor.Stop.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon20x20));
+			TSharedPtr<T> AssetAction = MakeShared<T>();
+			TSharedPtr<FAssetTypeActions_Base> AssetActionBase = StaticCastSharedPtr<FAssetTypeActions_Base>(AssetAction);
+			AssetTools.RegisterAssetTypeActions(AssetAction.ToSharedRef());
+			AssetArray.Add(AssetActionBase);
 		}
 
-		FSlateStyleRegistry::RegisterSlateStyle(*this);
-	}
-};
-
-class FMetasoundEditorModule : public IMetasoundEditorModule
-{
-	virtual void StartupModule() override
-	{
-		// Register Metasound asset type actions
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(MetasoundEditorUtils::AssetToolName).Get();
-		MetasoundEditorUtils::AddAssetAction<FAssetTypeActions_Metasound>(AssetTools, AssetActions);
-
-		StyleSet = MakeShared<FMetasoundSlateStyle>();
-	}
-
-	virtual void ShutdownModule() override
-	{
-		if (FModuleManager::Get().IsModuleLoaded(MetasoundEditorUtils::AssetToolName))
+		class FSlateStyle : public FSlateStyleSet
 		{
-			IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>(MetasoundEditorUtils::AssetToolName).Get();
-			for (TSharedPtr<FAssetTypeActions_Base>& AssetAction : AssetActions)
+		public:
+			FSlateStyle()
+				: FSlateStyleSet("MetasoundStyle")
 			{
-				AssetTools.UnregisterAssetTypeActions(AssetAction.ToSharedRef());
+				SetParentStyleName(FEditorStyle::GetStyleSetName());
+
+				SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
+				SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+
+				static const FVector2D Icon20x20(20.0f, 20.0f);
+				static const FVector2D Icon40x40(40.0f, 40.0f);
+
+				// Metasound Editor
+				{
+					Set("MetasoundEditor.Play", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Play.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_PlayCue_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Stop", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon40x40));
+					Set("MetasoundEditor.Stop.Small", new FSlateImageBrush(RootToContentDir(TEXT("Icons/icon_SCueEd_Stop_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Compile", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon40x40));
+					Set("MetasoundEditor.Compile.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/compile_40px.png")), Icon20x20));
+					Set("MetasoundEditor.CompileError", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/CompileStatus_Fail.png")), Icon40x40));
+					Set("MetasoundEditor.CompileError.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Old/Kismet2/CompileStatus_Broken_Small.png")), Icon20x20));
+				}
+
+				FSlateStyleRegistry::RegisterSlateStyle(*this);
 			}
-		}
-		AssetActions.Reset();
-	}
+		};
 
-	TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
-	TSharedPtr<FSlateStyleSet> StyleSet;
-};
+		class FModule : public IMetasoundEditorModule
+		{
+			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const override
+			{
+				return DataTypeInfo.FindChecked(InDataTypeName);
+			}
 
+			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const override
+			{
+				for (const TPair<FName, FEditorDataType>& Pair : DataTypeInfo)
+				{
+					InDataTypeFunction(Pair.Value);
+				}
+			}
 
-IMPLEMENT_MODULE(FMetasoundEditorModule, MetasoundEditor);
+			virtual void RegisterDataType(FName InPinCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
+			{
+				DataTypeInfo.Add(InRegistryInfo.DataTypeName, FEditorDataType(InPinCategoryName, InRegistryInfo));
+			}
+
+			void RegisterCoreDataTypes()
+			{
+				TArray<FName> DataTypeNames = Frontend::GetAllAvailableDataTypes();
+				for (FName DataTypeName : DataTypeNames)
+				{
+					FDataTypeRegistryInfo RegistryInfo;
+					Frontend::GetTraitsForDataType(DataTypeName, RegistryInfo);
+
+					FName PinType = NAME_None;
+					switch (RegistryInfo.PreferredLiteralType)
+					{
+						case ELiteralArgType::Boolean:
+						{
+							PinType = FGraphBuilder::PinPrimitiveBoolean;
+						}
+						break;
+
+						case ELiteralArgType::Float:
+						{
+							PinType = FGraphBuilder::PinPrimitiveFloat;
+						}
+						break;
+
+						case ELiteralArgType::Integer:
+						{
+							PinType = FGraphBuilder::PinPrimitiveInteger;
+						}
+						break;
+
+						case ELiteralArgType::String:
+						{
+							PinType = FGraphBuilder::PinPrimitiveString;
+						}
+						break;
+
+						// Register atypical primitives
+						default:
+						case ELiteralArgType::None:
+						case ELiteralArgType::Invalid:
+						{
+							static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 5, "Possible missing binding of pin category to primitive type");
+						}
+						break;
+					}
+
+					DataTypeInfo.Add(DataTypeName, FEditorDataType(PinType, RegistryInfo));
+				}
+			}
+
+			virtual void StartupModule() override
+			{
+				// Register Metasound asset type actions
+				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
+				AddAssetAction<FAssetTypeActions_Metasound>(AssetTools, AssetActions);
+
+				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasound::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(); }));
+
+				StyleSet = MakeShared<FSlateStyle>();
+
+				RegisterCoreDataTypes();
+
+				GraphConnectionFactory = MakeShared<FGraphConnectionDrawingPolicyFactory>();
+				FEdGraphUtilities::RegisterVisualPinConnectionFactory(GraphConnectionFactory);
+
+			}
+
+			virtual void ShutdownModule() override
+			{
+				if (FModuleManager::Get().IsModuleLoaded(AssetToolName))
+				{
+					IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>(AssetToolName).Get();
+					for (TSharedPtr<FAssetTypeActions_Base>& AssetAction : AssetActions)
+					{
+						AssetTools.UnregisterAssetTypeActions(AssetAction.ToSharedRef());
+					}
+				}
+
+				if (GraphConnectionFactory.IsValid())
+				{
+					FEdGraphUtilities::UnregisterVisualPinConnectionFactory(GraphConnectionFactory);
+				}
+
+				AssetActions.Reset();
+				DataTypeInfo.Reset();
+			}
+
+			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
+			TMap<FName, FEditorDataType> DataTypeInfo;
+
+			TSharedPtr<FGraphPanelPinConnectionFactory> GraphConnectionFactory;
+			TSharedPtr<FSlateStyleSet> StyleSet;
+		};
+	} // namespace Editor
+} // namespace Metasound
+
+IMPLEMENT_MODULE(Metasound::Editor::FModule, MetasoundEditor);

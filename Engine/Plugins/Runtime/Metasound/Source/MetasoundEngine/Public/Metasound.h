@@ -14,6 +14,24 @@
 #include "Metasound.generated.h"
 
 
+USTRUCT()
+struct METASOUNDENGINE_API FEdMetasoundInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	UEdGraphNode* InputNode = nullptr;
+};
+
+USTRUCT()
+struct METASOUNDENGINE_API FEdMetasoundOutput
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	UEdGraphNode* OutputNode = nullptr;
+};
+
 /**
  * This asset type is used for Metasound assets that can only be used as nodes in other Metasound graphs.
  * Because of this, they can have any inputs or outputs they need.
@@ -24,12 +42,18 @@ class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBas
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Hidden)
 	FMetasoundDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UEdGraph* Graph;
+
+	UPROPERTY()
+	TArray<FEdMetasoundInput> Inputs;
+
+	UPROPERTY()
+	TArray<FEdMetasoundOutput> Outputs;
 #endif // WITH_EDITORONLY_DATA
 
 public:

@@ -1,24 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundGraph.h"
+
+#include "Internationalization/Text.h"
+
 
 namespace Metasound
 {
-	const FName FGraph::ClassName = FName(TEXT("Graph"));
-
 	FGraph::FGraph(const FString& InDescription)
 		: Description(InDescription)
 	{
 	}
 
-	FGraph::~FGraph()
+	const FText& FGraph::GetDescription() const
 	{
-	}
-
-	const FString& FGraph::GetDescription() const
-	{
-		static FString ClassDescription(TEXT("Unused"));
-		return ClassDescription;
+		return FText::GetEmpty();
 	}
 
 	const FString& FGraph::GetInstanceName() const
@@ -28,20 +23,18 @@ namespace Metasound
 
 	const FName& FGraph::GetClassName() const
 	{
+		static const FName ClassName("Graph");
 		return ClassName;
 	}
 
-
-	const FString& FGraph::GetAuthorName() const
+	const FText& FGraph::GetAuthorName() const
 	{
-		static FString Author(TEXT("Unused"));
-		return Author;
+		return PluginAuthor;
 	}
 
-	const FString& FGraph::GetPromptIfMissing() const
+	const FText& FGraph::GetPromptIfMissing() const
 	{
-		static FString Prompt(TEXT("Unused"));
-		return Prompt;
+		return PluginNodeMissingPrompt;
 	}
 
 	const FInputDataVertexCollection& FGraph::GetInputDataVertices() const

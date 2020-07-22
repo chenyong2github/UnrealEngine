@@ -7,21 +7,26 @@ namespace UnrealBuildTool.Rules
 {
 	public class MetasoundFrontend : ModuleRules
 	{
-        public MetasoundFrontend(ReadOnlyTargetRules Target) : base(Target)
+		public MetasoundFrontend(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
-				new string[] {
-                    "Core",
-					"SignalProcessing"
-                }
-            );
+			OptimizeCode = CodeOptimization.Never;
 
-			PrivateDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange
+			(
+				new string[]
+				{
+					"Core",
+					"Serialization",
+					"SignalProcessing"
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange
+			(
 				new string[]
 				{
 					"MetasoundGraphCore",
-					"CoreUObject",
-					"Serialization"
+					"CoreUObject"
 				}
 			);
 

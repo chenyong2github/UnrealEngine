@@ -8,35 +8,38 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-namespace MetasoundEditorUtils
+namespace Metasound
 {
-	static const TArray<FText> AssetTypeActionSubMenu
+	namespace Editor
 	{
-		LOCTEXT("AssetMetasoundSubMenu", "Metasound")
-	};
-} // namespace MetasoundEditorUtils
-
-UClass* FAssetTypeActions_Metasound::GetSupportedClass() const
-{
-	return UMetasound::StaticClass();
-}
-
-const TArray<FText>& FAssetTypeActions_Metasound::GetSubMenus() const
-{
-	return MetasoundEditorUtils::AssetTypeActionSubMenu;
-}
-
-void FAssetTypeActions_Metasound::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
-{
-	const EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
-
-	for (UObject* Object : InObjects)
-	{
-		if (UMetasound* Metasound = Cast<UMetasound>(Object))
+		static const TArray<FText> AssetTypeActionSubMenu
 		{
-			TSharedRef<FMetasoundEditor> NewEditor = MakeShared<FMetasoundEditor>();
-			NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
+			LOCTEXT("AssetMetasoundSubMenu", "Metasound")
+		};
+
+		UClass* FAssetTypeActions_Metasound::GetSupportedClass() const
+		{
+			return UMetasound::StaticClass();
 		}
-	}
-}
+
+		const TArray<FText>& FAssetTypeActions_Metasound::GetSubMenus() const
+		{
+			return AssetTypeActionSubMenu;
+		}
+
+		void FAssetTypeActions_Metasound::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
+		{
+			const EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+
+			for (UObject* Object : InObjects)
+			{
+				if (UMetasound* Metasound = Cast<UMetasound>(Object))
+				{
+					TSharedRef<FEditor> NewEditor = MakeShared<FEditor>();
+					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
+				}
+			}
+		}
+	} // namespace Editor
+} // namespace Metasound
 #undef LOCTEXT_NAMESPACE

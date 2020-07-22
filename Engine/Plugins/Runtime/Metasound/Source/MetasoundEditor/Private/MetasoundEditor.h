@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,6 +9,7 @@
 #include "IMetasoundEditor.h"
 #include "Misc/NotifyHook.h"
 #include "SMetasoundPalette.h"
+#include "Textures/SlateIcon.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/GCObject.h"
 
@@ -27,192 +27,174 @@ class UMetasound;
 
 struct FPropertyChangedEvent;
 
-
-class FMetasoundEditor : public IMetasoundEditor, public FGCObject, public FNotifyHook, public FEditorUndoClient
+namespace Metasound
 {
-public:
-	FMetasoundEditor();
-
-	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-
-	/** Destructor */
-	virtual ~FMetasoundEditor();
-
-	/** Edits the specified Metasound object */
-	void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost >& InitToolkitHost, UObject* ObjectToEdit);
-
-	/** IMetasoundEditor interface */
-	virtual UMetasound* GetMetasound() const override;
-	virtual void SetSelection(TArray<UObject*> SelectedObjects) override;
-	virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
-	virtual int32 GetNumberOfSelectedNodes() const override;
-	virtual TSet<UObject*> GetSelectedNodes() const override;
-
-	/** IToolkit interface */
-	virtual FName GetToolkitFName() const override;
-	virtual FText GetBaseToolkitName() const override;
-	virtual FString GetWorldCentricTabPrefix() const override;
-	virtual FLinearColor GetWorldCentricTabColorScale() const override;
-
-	virtual FString GetDocumentationLink() const override
+	namespace Editor
 	{
-		return FString(TEXT("Engine/Audio/Metasounds/Editor"));
-	}
+		class FEditor : public IMetasoundEditor, public FGCObject, public FNotifyHook, public FEditorUndoClient
+		{
+		public:
+			virtual ~FEditor();
 
-	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+			virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+			virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 
-	//~ Begin FEditorUndoClient Interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-	// End of FEditorUndoClient
+			/** Edits the specified Metasound object */
+			void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
-	/** Whether pasting the currently selected nodes is permissible */
-	bool CanPasteNodes() const;
+			/** IMetasoundEditor interface */
+			virtual UMetasound* GetMetasound() const override;
+			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
+			virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
 
-	/** Paste the contents of the clipboard at the provided location */
-	void PasteNodesAtLocation(const FVector2D& Location);
+			/** IToolkit interface */
+			virtual FName GetToolkitFName() const override;
+			virtual FText GetBaseToolkitName() const override;
+			virtual FString GetWorldCentricTabPrefix() const override;
+			virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
-private:
-	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
+			virtual FString GetDocumentationLink() const override
+			{
+				return FString(TEXT("Engine/Audio/Metasounds/Editor"));
+			}
 
-protected:
-	/** Called when the selection changes in the GraphEditor */
-	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
+			/** FGCObject interface */
+			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	/**
-	 * Called when a node's title is committed for a rename
-	 *
-	 * @param	NewText				New title text
-	 * @param	CommitInfo			How text was committed
-	 * @param	NodeBeingChanged	The node being changed
-	 */
-	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
+			//~ Begin FEditorUndoClient Interface
+			virtual void PostUndo(bool bSuccess) override;
+			virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+			// End of FEditorUndoClient
 
-	/** Select every node in the graph */
-	void SelectAllNodes();
-	/** Whether we can select every node */
-	bool CanSelectAllNodes() const;
+			/** Whether pasting the currently selected nodes is permissible */
+			bool CanPasteNodes() const;
 
-	/** Delete the currently selected nodes */
-	void DeleteSelectedNodes();
+			/** Paste the contents of the clipboard at the provided location */
+			void PasteNodesAtLocation(const FVector2D& Location);
 
-	/** Whether we are able to delete the currently selected nodes */
-	bool CanDeleteNodes() const;
+			int32 GetNumNodesSelected() const
+			{
+				return MetasoundGraphEditor->GetSelectedNodes().Num();
+			}
 
-	/** Delete only the currently selected nodes that can be duplicated */
-	void DeleteSelectedDuplicatableNodes();
+		protected:
+			/** Called when the selection changes in the GraphEditor */
+			void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
-	/** Cut the currently selected nodes */
-	void CutSelectedNodes();
+			/**
+			 * Called when a node's title is committed for a rename
+			 *
+			 * @param	NewText				New title text
+			 * @param	CommitInfo			How text was committed
+			 * @param	NodeBeingChanged	The node being changed
+			 */
+			void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
-	/** Whether we are able to cut the currently selected nodes */
-	bool CanCutNodes() const;
+			/** Delete the currently selected nodes */
+			void DeleteSelectedNodes();
 
-	/** Copy the currently selected nodes */
-	void CopySelectedNodes();
+			/** Delete only the currently selected nodes that can be duplicated */
+			void DeleteSelectedDuplicatableNodes();
 
-	/** Whether copying the currently selected nodes is permissible */
-	bool CanCopyNodes() const;
+			/** Cut the currently selected nodes */
+			void CutSelectedNodes();
 
-	/** Paste the contents of the clipboard */
-	void PasteNodes();
+			/** Whether we are able to cut the currently selected nodes */
+			bool CanCutNodes() const;
 
-	/** Duplicate the currently selected nodes */
-	void DuplicateNodes();
+			/** Copy the currently selected nodes */
+			void CopySelectedNodes();
 
-	/** Whether we are able to duplicate the currently selected nodes */
-	bool CanDuplicateNodes() const;
+			/** Whether copying the currently selected nodes is permissible */
+			bool CanCopyNodes() const;
 
-	/** Called to undo the last action */
-	void UndoGraphAction();
+			/** Paste the contents of the clipboard */
+			void PasteNodes();
 
-	/** Called to redo the last undone action */
-	void RedoGraphAction();
+			/** Duplicate the currently selected nodes */
+			void DuplicateNodes();
 
-	void OnAlignTop();
-	void OnAlignMiddle();
-	void OnAlignBottom();
-	void OnAlignLeft();
-	void OnAlignCenter();
-	void OnAlignRight();
+			/** Whether we are able to duplicate the currently selected nodes */
+			bool CanDuplicateNodes() const;
 
-	void OnStraightenConnections();
+			/** Called to undo the last action */
+			void UndoGraphAction();
 
-	void OnDistributeNodesH();
-	void OnDistributeNodesV();
+			/** Called to redo the last undone action */
+			void RedoGraphAction();
 
-private:
-	/** FNotifyHook interface */
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
+		private:
+			/** FNotifyHook interface */
+			virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
-	/** Creates all internal widgets for the tabs to point at */
-	void CreateInternalWidgets();
+			/** Creates all internal widgets for the tabs to point at */
+			void CreateInternalWidgets();
 
-	/** Builds the toolbar widget for the Metasound editor */
-	void ExtendToolbar();
+			/** Builds the toolbar widget for the Metasound editor */
+			void ExtendToolbar();
 
-	/** Binds new graph commands to delegates */
-	void BindGraphCommands();
+			/** Binds new graph commands to delegates */
+			void BindGraphCommands();
 
-	/** Toolbar command methods */
-	void Play();
-	void PlayNode();
-	
+			FSlateIcon GetCompileStatusImage() const;
 
-	/** Whether we can play the current selection of nodes */
-	bool CanPlayNode() const;
-	void Stop();
+			/** Toolbar command methods */
+			void Compile();
+			void Play();
+			void PlayNode();
+			void Stop();
 
-	/** Either play the Metasound or stop currently playing sound */
-	void TogglePlayback();
-	
-	/** Plays a single specified node */
-	void PlaySingleNode(UEdGraphNode* Node);
+			/** Whether we can play the current selection of nodes */
+			bool CanPlayNode() const;
 
-	/** Sync the content browser to the current selection of nodes */
-	void SyncInBrowser();
+			/** Either play the Metasound or stop currently playing sound */
+			void TogglePlayback();
 
-	/** Add an input to the currently selected node */
-	void AddInput();
-	/** Whether we can add an input to the currently selected node */
-	bool CanAddInput() const;
+			/** Plays a single specified node */
+			void PlaySingleNode(UEdGraphNode* Node);
 
-	/** Delete an input from the currently selected node */
-	void DeleteInput();
-	/** Whether we can delete an input from the currently selected node */
-	bool CanDeleteInput() const;
+			/** Sync the content browser to the current selection of nodes */
+			void SyncInBrowser();
 
-	/* Create comment node on graph */
-	void OnCreateComment();
+			/** Add an input to the currently selected node */
+			void AddInput();
+			/** Whether we can add an input to the currently selected node */
+			bool CanAddInput() const;
 
-	/** Create new graph editor widget */
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
+			/** Delete an input from the currently selected node */
+			void DeleteInput();
 
-private:
-	/** The Metasound asset being inspected */
-	UMetasound* Metasound;
+			/** Whether we can delete an input from the currently selected node */
+			bool CanDeleteInput() const;
 
-	/** List of open tool panels; used to ensure only one exists at any one time */
-	TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
+			/* Create comment node on graph */
+			void OnCreateComment();
 
-	/** New Graph Editor */
-	TSharedPtr<SGraphEditor> MetasoundGraphEditor;
+			/** Create new graph editor widget */
+			TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 
-	/** Properties tab */
-	TSharedPtr<IDetailsView> MetasoundProperties;
+		private:
 
-	/** Palette of Sound Node types */
-	TSharedPtr<SMetasoundPalette> Palette;
+			/** List of open tool panels; used to ensure only one exists at any one time */
+			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
-	/** Command list for this editor */
-	TSharedPtr<FUICommandList> GraphEditorCommands;
+			/** New Graph Editor */
+			TSharedPtr<SGraphEditor> MetasoundGraphEditor;
 
-	/**	The tab ids for all the tabs used */
-	static const FName GraphCanvasTabId;
-	static const FName PropertiesTabId;
-	static const FName PaletteTabId;
-};
+			/** Properties tab */
+			TSharedPtr<IDetailsView> MetasoundProperties;
+
+			/** Palette of Sound Node types */
+			TSharedPtr<SMetasoundPalette> Palette;
+
+			/** Command list for this editor */
+			TSharedPtr<FUICommandList> GraphEditorCommands;
+
+			/** The Metasound asset being edited */
+			UMetasound* Metasound = nullptr;
+
+			/** Whether or not metasound being edited is valid */
+			bool bPassedValidation = true;
+		};
+	} // namespace Editor
+} // namespace Metasound

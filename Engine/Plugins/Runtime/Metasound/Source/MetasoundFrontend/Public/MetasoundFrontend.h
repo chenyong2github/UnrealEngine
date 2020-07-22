@@ -35,10 +35,13 @@ namespace Metasound
 	 */
 	namespace Frontend
 	{
+		// Forward Declarations
+		class FInputHandle;
+
 		// Struct with the basics of a node class' information,
 		// used to look up that node from our node browser functions,
 		// and also used in FGraphHandle::AddNewNode.
-		struct FNodeClassInfo
+		struct METASOUNDFRONTEND_API FNodeClassInfo
 		{
 			// The descriptive name of this node class.
 			FString NodeName;
@@ -51,32 +54,31 @@ namespace Metasound
 		};
 
 		// Get all available nodes of any type.
-		TArray<FNodeClassInfo> GetAllAvailableNodeClasses();
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllAvailableNodeClasses();
 
 		// Get all possible nodes whose name begins with a specific namespace.
-		TArray<FNodeClassInfo> GetAllNodeClassesInNamespace(const FString& InNamespace);
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodeClassesInNamespace(const FString& InNamespace);
 
 		// Similar to GetAllNodeClassesInNamespace, except searches all nodes for a match with a substring.
-		TArray<FNodeClassInfo> GetAllNodesWhoseNameContains(const FString& InSubstring);
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWhoseNameContains(const FString& InSubstring);
 
 		// Searches for any node types that can output a specific type.
-		TArray<FNodeClassInfo> GetAllNodesWithAnOutputOfType(const FName& InType);
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWithAnOutputOfType(const FName& InType);
 
-		TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType);
+		METASOUNDFRONTEND_API TArray<FNodeClassInfo> GetAllNodesWithAnInputOfType(const FName& InType);
 
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
-		FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo);
-
+		METASOUNDFRONTEND_API FMetasoundClassMetadata GenerateMetadataForNode(const FNodeClassInfo& InInfo);
 
 		// Generates a new FMetasoundClassDescription for a given node class. Only used by classes that manipulate Metasound Description data directly.
-		FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo);
+		METASOUNDFRONTEND_API FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo);
 
 		// Returns a list of all available data types.
-		TArray<FName> GetAllAvailableDataTypes();
+		METASOUNDFRONTEND_API TArray<FName> GetAllAvailableDataTypes();
 
 		// outputs the traits for a given data type.
 		// returns false if InDataType couldn't be found.
-		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
+		METASOUNDFRONTEND_API bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
 		// This will open a json document at the given absolute path and convert it into a 
 		// metasound document struct. 
@@ -85,7 +87,7 @@ namespace Metasound
 
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
-		struct FConnectability
+		struct METASOUNDFRONTEND_API FConnectability
 		{
 			enum class EConnectable
 			{
@@ -102,9 +104,7 @@ namespace Metasound
 			TArray<FNodeClassInfo> PossibleConverterNodeClasses;
 		};
 
-		class FInputHandle;
-
-		struct FHandleInitParams
+		struct METASOUNDFRONTEND_API FHandleInitParams
 		{
 			TWeakPtr<FDescriptionAccessPoint> InAccessPoint;
 
@@ -247,6 +247,8 @@ namespace Metasound
 			FInputHandle GetInputWithName(const FString& InName);
 			FOutputHandle GetOutputWithName(const FString& InName);
 
+			FNodeClassInfo GetClassInfo() const;
+
 			EMetasoundClassType GetNodeType() const;
 			const FString& GetNodeClassName() const;
 
@@ -259,6 +261,8 @@ namespace Metasound
 			static uint32 GetNodeID(const FDescPath& InNodePath);
 
 		private:
+
+			static TDescriptionPtr<FMetasoundClassDescription> GetNodeClassDescriptionForNodeHandle(const FHandleInitParams& InitParams, EMetasoundClassType InNodeClassType);
 
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;
 			TDescriptionPtr<FMetasoundClassDescription> NodeClass;
@@ -297,13 +301,16 @@ namespace Metasound
 			TArray<FNodeHandle> GetOutputNodes();
 			TArray<FNodeHandle> GetInputNodes();
 
+			bool ContainsOutputNodeWithName(const FString& InName) const;
+			bool ContainsInputNodeWithName(const FString& InName) const;
+
 			FNodeHandle GetOutputNodeWithName(const FString& InName);
 			FNodeHandle GetInputNodeWithName(const FString& InName);
 
 			FNodeHandle AddNewInput(const FMetasoundInputDescription& InDescription);
 			bool RemoveInput(const FString& InputName);
 
-			FNodeHandle AddNewOutput(const FMetasoundOutputDescription& OutDescription);
+			FNodeHandle AddNewOutput(const FMetasoundOutputDescription& InDescription);
 			bool RemoveOutput(const FString& OutputName);
 
 			// This can be used to determine what kind of property editor we should use for the data type of a given input.

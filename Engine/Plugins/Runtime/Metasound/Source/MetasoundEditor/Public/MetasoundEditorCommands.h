@@ -6,36 +6,45 @@
 #include "Framework/Commands/Commands.h"
 #include "EditorStyleSet.h"
 
-class FMetasoundEditorCommands : public TCommands<FMetasoundEditorCommands>
+namespace Metasound
 {
-public:
-	/** Constructor */
-	FMetasoundEditorCommands() 
-		: TCommands<FMetasoundEditorCommands>("MetasoundEditor", NSLOCTEXT("Contexts", "MetasoundEditor", "Metasound Graph Editor"), NAME_None, "MetasoundStyle")
+	namespace Editor
 	{
-	}
-	
-	/** Plays the Metasound */
-	TSharedPtr<FUICommandInfo> Play;
-	
-	/** Stops the currently playing Metasound */
-	TSharedPtr<FUICommandInfo> Stop;
+		class FEditorCommands : public TCommands<FEditorCommands>
+		{
+		public:
+			/** Constructor */
+			FEditorCommands()
+				: TCommands<FEditorCommands>("MetasoundEditor", NSLOCTEXT("Contexts", "MetasoundEditor", "Metasound Graph Editor"), NAME_None, "MetasoundStyle")
+			{
+			}
 
-	/** Plays stops the currently playing Metasound */
-	TSharedPtr<FUICommandInfo> TogglePlayback;
+			/** Plays the Metasound */
+			TSharedPtr<FUICommandInfo> Play;
 
-	/** Selects the SoundWave in the content browser */
-	TSharedPtr<FUICommandInfo> BrowserSync;
+			/** Stops the currently playing Metasound */
+			TSharedPtr<FUICommandInfo> Stop;
 
-	/** Breaks the node input/output link */
-	TSharedPtr<FUICommandInfo> BreakLink;
+			/** Compiles the Metasound */
+			TSharedPtr<FUICommandInfo> Compile;
 
-	/** Adds an input to the node */
-	TSharedPtr<FUICommandInfo> AddInput;
+			/** Plays stops the currently playing Metasound */
+			TSharedPtr<FUICommandInfo> TogglePlayback;
 
-	/** Removes an input from the node */
-	TSharedPtr<FUICommandInfo> DeleteInput;
+			/** Selects the Metasound in the content browser. If referencing Metasound nodes are selected, selects referenced assets instead. */
+			TSharedPtr<FUICommandInfo> BrowserSync;
 
-	/** Initialize commands */
-	virtual void RegisterCommands() override;
-};
+			/** Breaks the node input/output link */
+			TSharedPtr<FUICommandInfo> BreakLink;
+
+			/** Adds an input to the node */
+			TSharedPtr<FUICommandInfo> AddInput;
+
+			/** Removes an input from the node */
+			TSharedPtr<FUICommandInfo> DeleteInput;
+
+			/** Initialize commands */
+			virtual void RegisterCommands() override;
+		};
+	} // namespace Editor
+} // namespace Metasound

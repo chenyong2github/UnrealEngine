@@ -630,6 +630,7 @@ namespace Metasound
 
 			TWeakPtr<FDescriptionAccessPoint> AccessPoint;
 			FDescPath PathFromRoot;
+			bool bAccessFailure = false;
 
 		public:
 			TDescriptionPtr() = delete;
@@ -638,13 +639,21 @@ namespace Metasound
 				: AccessPoint(InAccessPoint)
 				, PathFromRoot(InPathFromRoot)
 			{
+				// Test accessor
+				bAccessFailure = Get() == nullptr;
 			}
+
+			TDescriptionPtr(TDescriptionPtr&& InDescriptionPtr) = default;
+			TDescriptionPtr(const TDescriptionPtr& InDescriptionPtr) = default;
+
+			TDescriptionPtr& operator =(TDescriptionPtr&& InDescriptionPtr) = default;
+			TDescriptionPtr& operator =(const TDescriptionPtr & InDescriptionPtr) = default;
 
 			// @returns false if the description this accessor was referencing has been destroyed,
 			// or if this was created with bad arguments.
 			bool IsValid() const
 			{
-				return AccessPoint.IsValid() && PathFromRoot.IsValid();
+				return AccessPoint.IsValid() && PathFromRoot.IsValid() && !bAccessFailure;
 			}
 
 			FDescPath GetPath() const

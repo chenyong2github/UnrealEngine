@@ -468,7 +468,7 @@ namespace Metasound
 				CurrentStep = GoToNext(CurrentPath, CurrentStep);
 			}
 
-			if (ensureAlwaysMsgf(CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
+			if (ensureAlwaysMsgf(CurrentStep.Type == Path::EDescType::Class && CurrentPath.Num() == 0, TEXT("Couldn't resolve part of the path.")))
 			{
 				return CurrentStep.DescriptionStructPtr.Get<FMetasoundClassDescription*>();
 			}

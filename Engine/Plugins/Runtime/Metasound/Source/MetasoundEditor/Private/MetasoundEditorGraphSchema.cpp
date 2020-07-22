@@ -9,62 +9,217 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "GraphEditorSettings.h"
 #include "Layout/SlateRect.h"
 #include "Metasound.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
-#include "MetasoundEditorGraphNode_Root.h"
-#include "MetasoundEditorUtilities.h"
+#include "MetasoundEditorModule.h"
+#include "MetasoundFrontend.h"
 #include "ScopedTransaction.h"
+#include "Toolkits/ToolkitManager.h"
 #include "ToolMenus.h"
+#include "UObject/NoExportTypes.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "Toolkits/ToolkitManager.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundSchema"
+#define LOCTEXT_NAMESPACE "MetasoundEditor"
 
-namespace MetasoundEditorUtils
+
+namespace Metasound
 {
-	TSharedPtr<FMetasoundEditor> GetMetasoundEditor(const UMetasound* Metasound)
+	namespace Editor
 	{
-		if (Metasound)
+		TSharedPtr<FEditor> GetEditorForGraph(const UMetasound& Metasound)
 		{
-			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(Metasound));
-			return StaticCastSharedPtr<FMetasoundEditor, IToolkit>(FoundAssetEditor);
+			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
+			return StaticCastSharedPtr<FEditor, IToolkit>(FoundAssetEditor);
 		}
 
-		return nullptr;
-	}
+		TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph)
+		{
+			const UMetasoundEditorGraph* MetasoundGraph = CastChecked<const UMetasoundEditorGraph>(&EdGraph);
+			return GetEditorForGraph(MetasoundGraph->GetMetasoundChecked());
+		}
 
-	TSharedPtr<FMetasoundEditor> GetMetasoundEditor(const UEdGraph& EdGraph)
-	{
-		const UMetasoundEditorGraph* MetasoundGraph = CastChecked<const UMetasoundEditorGraph>(&EdGraph);
-		return GetMetasoundEditor(MetasoundGraph->Metasound);
-	}
-} // namespace MetasoundEditorUtils
+		FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType)
+		{
+			const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+			check(Settings);
 
-UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveBoolean)
+			{
+				return Settings->BooleanPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveFloat)
+			{
+				return Settings->FloatPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveInteger)
+			{
+				return Settings->IntPinTypeColor;
+			}
+
+			if (PinType.PinCategory == FGraphBuilder::PinPrimitiveString)
+			{
+				return Settings->StringPinTypeColor;
+			}
+
+			return Settings->StructPinTypeColor;
+		}
+
+		FConnectionDrawingPolicy* FGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(
+			const UEdGraphSchema* InSchema,
+			int32 InBackLayerID,
+			int32 InFrontLayerID,
+			float InZoomFactor,
+			const FSlateRect& InClippingRect,
+			FSlateWindowElementList& InDrawElements,
+			UEdGraph* InGraphObj) const
+		{
+			if (InSchema->IsA(UMetasoundEditorGraphSchema::StaticClass()))
+			{
+				return new FGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
+			}
+			return nullptr;
+		}
+
+		FGraphConnectionDrawingPolicy::FGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
+			: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements)
+			, GraphObj(InGraphObj)
+		{
+			ActiveWireThickness = Settings->TraceAttackWireThickness;
+			InactiveWireThickness = Settings->TraceReleaseWireThickness;
+		}
+
+		void FGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, FConnectionParams& OutParams)
+		{
+			using namespace Frontend;
+
+			if (!OutputPin || !InputPin || !GraphObj)
+			{
+				return;
+			}
+
+			OutParams.AssociatedPin1 = InputPin;
+			OutParams.AssociatedPin2 = OutputPin;
+
+			// Get the schema and grab the default color from it
+			const UEdGraphSchema* Schema = GraphObj->GetSchema();
+			FNodeHandle InputNodeHandle = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode())->GetNodeHandle();
+			FNodeHandle OutputNodeHandle = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode())->GetNodeHandle();
+
+			OutParams.WireColor = GetPinCategoryColor(OutputPin->PinType);
+			bool bExecuted = false;
+
+			// Run through the predecessors, and on
+			if (FExecPairingMap* PredecessorMap = PredecessorNodes.Find(OutputPin->GetOwningNode()))
+			{
+				if (FTimePair* Times = PredecessorMap->Find(InputPin->GetOwningNode()))
+				{
+					bExecuted = true;
+
+					OutParams.WireThickness = ActiveWireThickness;
+					OutParams.bDrawBubbles = true;
+				}
+			}
+
+			if (!bExecuted)
+			{
+				OutParams.WireThickness = InactiveWireThickness;
+			}
+		}
+	} // namespace Editor
+} // namespace Metasound
+
+UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
 {
-	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(ParentGraph);
-	UMetasound* Metasound = MetasoundGraph->Metasound;
-	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewSoundNode", "Metasound Editor: New Metasound Node"));
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewNode", "Add New Metasound Node"));
+
 	ParentGraph->Modify();
 
+	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	ParentMetasound.Modify();
 
-	Metasound->Modify();
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, Location, NodeClassInfo);
 
-	UMetasoundEditorGraphNode_Root* GraphNode = nullptr;
-// TODO: Implement
-// 	UMetasoundEditorGraphNode_Root* GraphNode = MetasoundGraph->CreateBlankNode<MetasoundNodeClass>();
-
-	Metasound->PostEditChange();
-	Metasound->MarkPackageDirty();
-
-	return GraphNode;
+	return NewGraphNode;
 }
 
-void FMetasoundGraphSchemaAction_NewNode::ConnectToSelectedNodes(UMetasound* NewNode, UEdGraph* ParentGraph) const
+FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	, NodeTypeName(InTypeName)
+{
+}
+
+UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewInput", "Add New Metasound Input"));
+
+	ParentGraph->Modify();
+
+	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	ParentMetasound.Modify();
+
+	FString NameBase = FString::Printf(TEXT("%s"), *NodeTypeName.ToString());
+
+	FGraphHandle GraphHandle = ParentMetasound.GetRootGraphHandle();
+	FString NewNodeName = NameBase;
+
+	int32 i = 0;
+	while (GraphHandle.ContainsOutputNodeWithName(NewNodeName))
+	{
+		NewNodeName = NameBase + FString::Printf(TEXT("_%u"), ++i);
+	}
+
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
+	return NewGraphNode;
+}
+
+FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+	, NodeTypeName(InTypeName)
+{
+}
+
+UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewOutput", "Add New Metasound Output"));
+
+	ParentGraph->Modify();
+
+	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	ParentMetasound.Modify();
+
+	FString NameBase = FString::Printf(TEXT("%s"), *NodeTypeName.ToString());
+
+	FGraphHandle GraphHandle = ParentMetasound.GetRootGraphHandle();
+	FString NewNodeName = NameBase;
+
+	int32 i = 0;
+	while (GraphHandle.ContainsOutputNodeWithName(NewNodeName))
+	{
+		NewNodeName = NameBase + FString::Printf(TEXT("_%u"), ++i);
+	}
+
+	UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
+	return NewGraphNode;
+}
+
+void FMetasoundGraphSchemaAction_NewNode::ConnectToSelectedNodes(UMetasoundEditorGraphNode* NewGraphNode, UEdGraph* ParentGraph) const
 {
 	// TODO: Implement
 }
@@ -77,11 +232,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewFromSelected::PerformAction(UEdGrap
 
 UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
+	using namespace Metasound::Editor;
+
 	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
 
 	FSlateRect Bounds;
 	FVector2D SpawnLocation = Location;
-	TSharedPtr<FMetasoundEditor> MetasoundEditor = MetasoundEditorUtils::GetMetasoundEditor(*ParentGraph);
+	TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*ParentGraph);
 
 	if (MetasoundEditor.IsValid() && MetasoundEditor->GetBoundsForSelectedNodes(Bounds, 50.0f))
 	{
@@ -95,7 +252,9 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewComment::PerformAction(UEdGraph* Pa
 
 UEdGraphNode* FMetasoundGraphSchemaAction_Paste::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
-	TSharedPtr<FMetasoundEditor> MetasoundEditor = MetasoundEditorUtils::GetMetasoundEditor(*ParentGraph);
+	using namespace Metasound::Editor;
+
+	TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*ParentGraph);
 	if (MetasoundEditor.IsValid())
 	{
 		MetasoundEditor->PasteNodesAtLocation(Location);
@@ -112,29 +271,28 @@ UMetasoundEditorGraphSchema::UMetasoundEditorGraphSchema(const FObjectInitialize
 bool UMetasoundEditorGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const
 {
 	// TODO: Implement loop check
-
-	// Simple connection to root node
 	return false;
 }
 
 void UMetasoundEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
-	GetAllMetasoundActions(ActionMenuBuilder, /* bShowSelectedActions*/ false);
+	GetAllMetasoundActions(ActionMenuBuilder, false /* bShowSelectedActions */);
 	GetCommentAction(ActionMenuBuilder);
 }
 
 void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
-	GetAllMetasoundActions(ContextMenuBuilder, /* bShowSelectedActions*/ true);
+	using namespace Metasound::Editor;
 
+	GetAllMetasoundActions(ContextMenuBuilder, true /* bShowSelectedActions */);
 	GetCommentAction(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
 
 	if (!ContextMenuBuilder.FromPin)
 	{
-		TSharedPtr<FMetasoundEditor> MetasoundEditor = MetasoundEditorUtils::GetMetasoundEditor(*ContextMenuBuilder.CurrentGraph);
+		TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
 		if (MetasoundEditor.IsValid() && MetasoundEditor->CanPasteNodes())
 		{
-			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction(new FMetasoundGraphSchemaAction_Paste(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0));
+			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction = MakeShared<FMetasoundGraphSchemaAction_Paste>(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0);
 			ContextMenuBuilder.AddAction(NewAction);
 		}
 	}
@@ -198,6 +356,26 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionLoop", "Connection would cause loop"));
 	}
 
+	if (InputPin->PinType.PinCategory != InputPin->PinType.PinCategory)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncorrect", "Connection pin types do not match"));
+	}
+
+	UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
+	Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
+	Metasound::Frontend::FInputHandle InputHandle = InputNodeHandle.GetInputWithName(InputPin->GetName());
+
+	UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
+	Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
+	Metasound::Frontend::FOutputHandle OutputHandle = OutputNodeHandle.GetOutputWithName(OutputPin->GetName());
+
+	// TODO: Implement YesWithConverterNode to provide conversion options
+	Metasound::Frontend::FConnectability Connectability = InputHandle.CanConnectTo(OutputHandle);
+	if (Connectability.Connectable != Metasound::Frontend::FConnectability::EConnectable::Yes)
+	{
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncompatible", "Connection pin types cannot be connected"));
+	}
+
 	// Break existing connections on inputs only - multiple output connections are acceptable
 	if (InputPin->LinkedTo.Num() > 0)
 	{
@@ -218,12 +396,7 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 
 bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
-	bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
-	if (bModified)
-	{
-		// TODO: Compile Metasound???
-	}
-
+	const bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
 	return bModified;
 }
 
@@ -235,7 +408,8 @@ bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) co
 
 FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
-	return FLinearColor::White;
+	return Metasound::Editor::GetPinCategoryColor(PinType);
+
 }
 
 void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
@@ -268,34 +442,87 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 
 void UMetasoundEditorGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraphNode* Node) const
 {
-	if (!Node->IsA<UMetasoundEditorGraphNode>())
-	{
-		return;
-	}
-
-	UMetasoundEditorGraphNode* GraphNode = CastChecked<UMetasoundEditorGraphNode>(Node);
-	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(Node->GetGraph());
-
-	// TODO: Implement adding reference node
-// 	UMetasound* Metasound = MetasoundGraph->Metasound;
-
-	MetasoundGraph->NotifyGraphChanged();
+	// TODO: Implement for metasound references
 }
 
 void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bShowSelectedActions) const
 {
-	// TODO: Add actions for each type of metasound node
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FText InputMenuName = LOCTEXT("MetasoundAddInputMenu", "Add Input");
+	const FText OutputMenuName = LOCTEXT("MetasoundAddOutputMenu", "Add Output");
+
+	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+	EditorModule.IterateDataTypes([InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
+	{
+		const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
+		const FText DataTypeTextName = FText::FromName(DataTypeName);
+		const FText MenuJoinFormat = LOCTEXT("MetasoundFormatNodeSubCategory", "{0}|{1}");
+
+		FString SubMenu = DataTypeName.ToString();
+		int32 Index = 0;
+		SubMenu.FindLastChar(':', Index);
+
+		const FText DisplayName = FText::FromString(SubMenu.RightChop(Index + 1));
+
+		SubMenu.RemoveAt(Index, SubMenu.Len() - Index);
+		SubMenu.ReplaceCharInline(':', '|');
+
+		TSharedPtr<FMetasoundGraphSchemaAction_NewInput> AddInputNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewInput>
+		(
+			FText::Format(MenuJoinFormat, InputMenuName, FText::FromString(SubMenu)),
+			DisplayName,
+			DataTypeName,
+			FText::Format(LOCTEXT("MetasoundTooltipAddInputFormat", "Adds an input of type {0} to the Metasound"), DataTypeTextName),
+			0
+		);
+		InMenuBuilder->AddAction(AddInputNodeAction);
+
+		TSharedPtr<FMetasoundGraphSchemaAction_NewOutput> AddOutputNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewOutput>
+		(
+			FText::Format(MenuJoinFormat, OutputMenuName, FText::FromString(SubMenu)),
+			DisplayName,
+			DataTypeName,
+			FText::Format(LOCTEXT("MetasoundTooltipAddOutputFormat", "Adds an output of type {0} to the Metasound"), DataTypeTextName),
+			0
+		);
+		InMenuBuilder->AddAction(AddOutputNodeAction);
+	});
+
+	const FText NodeMenuName = LOCTEXT("MetasoundNodesMenu", "Add Node");
+	const TArray<FNodeClassInfo> ClassInfos = GetAllAvailableNodeClasses();
+	for (const FNodeClassInfo& ClassInfo : ClassInfos)
+	{
+		const FMetasoundClassDescription ClassDescription = GenerateClassDescriptionForNode(ClassInfo);
+		const FMetasoundClassMetadata Metadata = ClassDescription.Metadata;
+		const FText Tooltip = Metadata.AuthorName.IsEmpty()
+			? Metadata.MetasoundDescription
+			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.MetasoundDescription, Metadata.AuthorName);
+
+		TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
+		(
+			NodeMenuName,
+			FText::FromString(ClassInfo.NodeName),
+			Tooltip,
+			0
+		);
+
+		NewNodeAction->NodeClassInfo = ClassInfo;
+		ActionMenuBuilder.AddAction(NewNodeAction);
+	}
 }
 
 void UMetasoundEditorGraphSchema::GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph) const
 {
+	using namespace Metasound::Editor;
+
 	if (!ActionMenuBuilder.FromPin && CurrentGraph)
 	{
-		TSharedPtr<FMetasoundEditor> MetasoundEditor = MetasoundEditorUtils::GetMetasoundEditor(*CurrentGraph);
-
+		TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*CurrentGraph);
 		if (MetasoundEditor.IsValid())
 		{
-			const int32 NumSelected = MetasoundEditor->GetNumberOfSelectedNodes();
+			const int32 NumSelected = MetasoundEditor->GetNumNodesSelected();
 			const FText MenuDescription = NumSelected > 0 ? LOCTEXT("CreateCommentAction", "Create Comment from Selection") : LOCTEXT("AddCommentAction", "Add Comment...");
 			const FText ToolTip = LOCTEXT("CreateCommentToolTip", "Creates a comment.");
 
@@ -307,14 +534,12 @@ void UMetasoundEditorGraphSchema::GetCommentAction(FGraphActionMenuBuilder& Acti
 
 int32 UMetasoundEditorGraphSchema::GetNodeSelectionCount(const UEdGraph* Graph) const
 {
-	if (const UMetasound* Metasound = CastChecked<UMetasoundEditorGraph>(Graph)->Metasound)
+	using namespace Metasound::Editor;
+
+	TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*Graph);
+	if (MetasoundEditor.IsValid())
 	{
-		TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<UObject>(Metasound));
-		if (FoundAssetEditor.IsValid())
-		{
-			const FMetasoundEditor* AssetEditor = static_cast<FMetasoundEditor*>(FoundAssetEditor.Get());
-			return AssetEditor->GetNumberOfSelectedNodes();
-		}
+		return MetasoundEditor->GetNumNodesSelected();
 	}
 
 	return 0;
@@ -325,5 +550,4 @@ TSharedPtr<FEdGraphSchemaAction> UMetasoundEditorGraphSchema::GetCreateCommentAc
 	TSharedPtr<FMetasoundGraphSchemaAction_NewComment> Comment = MakeShared<FMetasoundGraphSchemaAction_NewComment>();
 	return StaticCastSharedPtr<FEdGraphSchemaAction, FMetasoundGraphSchemaAction_NewComment>(Comment);
 }
-
 #undef LOCTEXT_NAMESPACE

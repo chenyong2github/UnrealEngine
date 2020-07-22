@@ -626,10 +626,23 @@ namespace Metasound
 			return InHandle.ConnectWithConverterNode(*this, InNodeClassName);
 		}
 
+		TDescriptionPtr<FMetasoundClassDescription> FNodeHandle::GetNodeClassDescriptionForNodeHandle(const FHandleInitParams& InitParams, EMetasoundClassType InNodeClassType)
+		{
+			if (InNodeClassType != EMetasoundClassType::Input && InNodeClassType != EMetasoundClassType::Output)
+			{
+				return TDescriptionPtr<FMetasoundClassDescription>(InitParams.InAccessPoint, Path::GetDependencyPath(InitParams.InClassName));
+			}
+			else
+			{
+				// input nodes and output nodes don't have class descriptions.
+				return TDescriptionPtr<FMetasoundClassDescription>(nullptr, FDescPath());
+			}
+		}
+
 		FNodeHandle::FNodeHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, EMetasoundClassType InNodeClassType)
 			: ITransactable(MetasoundUndoRollLimitCvar, InParams.InOwningAsset)
 			, NodePtr(InParams.InAccessPoint, InParams.InPath)
-			, NodeClass(InParams.InAccessPoint, Path::GetDependencyPath(InParams.InClassName))
+			, NodeClass(GetNodeClassDescriptionForNodeHandle(InParams, InNodeClassType))
 			, NodeClassType(InNodeClassType)
 		{
 			if (InParams.InAccessPoint.IsValid())
@@ -810,7 +823,33 @@ namespace Metasound
 				return DefaultClassName;
 			}
 
+			if (NodeClassType == EMetasoundClassType::Input)
+			{
+				static const FString InputClassName = TEXT("Input");
+				return InputClassName;
+			}
+			else if (NodeClassType == EMetasoundClassType::Output)
+			{
+				static const FString OutputClassName = TEXT("Output");
+				return OutputClassName;
+			}
+
 			return NodeClass->Metadata.NodeName;
+		}
+
+		FNodeClassInfo FNodeHandle::GetClassInfo() const
+		{
+			FNodeClassInfo ClassInfo;
+
+			if (IsValid())
+			{
+				ClassInfo.NodeName = NodeClass->Metadata.NodeName;
+				ClassInfo.NodeType = NodeClass->Metadata.NodeType;
+				ClassInfo.LookupKey.NodeHash = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassHash;
+				ClassInfo.LookupKey.NodeName = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassName;
+			}
+
+			return ClassInfo;
 		}
 
 		void FNodeHandle::GetContainedGraph(FGraphHandle& OutGraph)
@@ -1099,6 +1138,44 @@ namespace Metasound
 			return OutArray;
 		}
 
+		bool FGraphHandle::ContainsOutputNodeWithName(const FString& InName) const
+		{
+			if (!IsValid())
+			{
+				return false;
+			}
+
+			const TArray<FMetasoundNodeDescription>& NodeDescriptions = GraphPtr->Nodes;
+			for (const FMetasoundNodeDescription& NodeDescription : NodeDescriptions)
+			{
+				if (NodeDescription.ObjectTypeOfNode == EMetasoundClassType::Output && NodeDescription.Name == InName)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::ContainsInputNodeWithName(const FString& InName) const
+		{
+			if (!IsValid())
+			{
+				return false;
+			}
+
+			const TArray<FMetasoundNodeDescription>& NodeDescriptions = GraphPtr->Nodes;
+			for (const FMetasoundNodeDescription& NodeDescription : NodeDescriptions)
+			{
+				if (NodeDescription.ObjectTypeOfNode == EMetasoundClassType::Input && NodeDescription.Name == InName)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		FNodeHandle FGraphHandle::GetOutputNodeWithName(const FString& InName)
 		{
 			if (!IsValid())
@@ -1162,7 +1239,6 @@ namespace Metasound
 				return FNodeHandle::InvalidHandle();
 			}
 
-			
 			TArray<FMetasoundInputDescription>& Inputs = GraphsClassDeclaration->Inputs;
 
 			// Sanity check that this input has a unique name.
@@ -1237,7 +1313,7 @@ namespace Metasound
 			return true;
 		}
 
-		FNodeHandle FGraphHandle::AddNewOutput(const FMetasoundOutputDescription& OutDescription)
+		FNodeHandle FGraphHandle::AddNewOutput(const FMetasoundOutputDescription& InDescription)
 		{
 			if (!IsValid())
 			{
@@ -1259,18 +1335,18 @@ namespace Metasound
 			// Sanity check that this input has a unique name.
 			for (const FMetasoundOutputDescription& Output : Outputs)
 			{
-				if (!ensureAlwaysMsgf(Output.Name != OutDescription.Name, TEXT("Tried to add a new output with a name that already exists!")))
+				if (!ensureAlwaysMsgf(Output.Name != InDescription.Name, TEXT("Tried to add a new output with a name that already exists!")))
 				{
 					return FNodeHandle::InvalidHandle();
 				}
 			}
 
 			// Add the output to this node's class description.
-			Outputs.Add(OutDescription);
+			Outputs.Add(InDescription);
 
 			// Add a node for this output to the graph description.
 			FMetasoundNodeDescription NewNodeDescription;
-			NewNodeDescription.Name = OutDescription.Name;
+			NewNodeDescription.Name = InDescription.Name;
 			NewNodeDescription.UniqueID = NewUniqueId;
 			NewNodeDescription.ObjectTypeOfNode = EMetasoundClassType::Output;
 

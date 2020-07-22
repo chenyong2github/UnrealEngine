@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReference.h"
 
 namespace Metasound
 {
+	static const FText PluginAuthor = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultAuthor", "Epic Games, Inc.");
+	static const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingPrompt", "Make sure that the Metasound plugin is loaded.");
+
 	/** FDataVertex
 	 *
 	 *  This describes a data vertex on a Node.
@@ -148,16 +152,16 @@ namespace Metasound
 			virtual const FName& GetClassName() const = 0;
 
 			/** Return a longer text description describing how this node is used. */
-			virtual const FString& GetDescription() const = 0;
+			virtual const FText& GetDescription() const = 0;
 
 			/** Return the original author of this node class. */
-			virtual const FString& GetAuthorName() const = 0;
+			virtual const FText& GetAuthorName() const = 0;
 
 			/** 
 			 *  Return an optional prompt on how users can get the plugin this node is in,
 			 *  if they have found a metasound that uses this node but don't have this plugin downloaded or enabled.
 			 */
-			virtual const FString& GetPromptIfMissing() const = 0;
+			virtual const FText& GetPromptIfMissing() const = 0;
 
 			/** Return a collection of input parameter descriptions for this node. */
 			virtual const FInputDataVertexCollection& GetInputDataVertices() const = 0;

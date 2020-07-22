@@ -33,26 +33,23 @@ namespace Metasound
 
 			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
 
-			virtual const FString& GetDescription() const override
+			virtual const FText& GetDescription() const override
 			{
-				static FString StaticDescription = TEXT("This node emits an audio signal of a sinusoid.");
+				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
 				return StaticDescription;
 			}
 
-			virtual const FString& GetAuthorName() const override
+			virtual const FText& GetAuthorName() const override
 			{
-				static FString Author = TEXT("Epic Games");
-				return Author;
+				return PluginAuthor;
 			}
 
-			virtual const FString& GetPromptIfMissing() const override
+			virtual const FText& GetPromptIfMissing() const override
 			{
-				static FString Prompt = TEXT("Make sure that the Metasound plugin is loaded.");
-				return Prompt;
+				return PluginNodeMissingPrompt;
 			}
 
 		private:
-
 			float DefaultFrequency;
 			FOperatorFactory Factory;
 	};

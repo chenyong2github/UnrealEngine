@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "MetasoundGraph.h"
 #include "MetasoundFrontendDataLayout.generated.h"
+
 
 UENUM()
 enum class EMetasoundClassType : uint8
@@ -43,23 +44,21 @@ struct FMetasoundClassMetadata
 	FString NodeName;
 
 	// This will always be set to EMetasoundObjectType::Metasound.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = General)
 	EMetasoundClassType NodeType;
 
-	// Optional longform description of what this Metasound does.
-	// Can be displayed in a tooltip.
-	UPROPERTY()
-	FString MetasoundDescription;
+	// Optional longform description of what this Metasound does. Can be displayed in a tooltip.
+	UPROPERTY(EditAnywhere, Category = General, meta = (DisplayName = "Description"))
+	FText MetasoundDescription;
 
-	// If another Metasound depends on this metasoundand doesn't package it, 
-	// this prompt will show if we can't find this Metasound. 
-	// It should describe how to get this metasound.
+	// Prompt that will will show if Metasound is missing as a dependency listed in another Metasound.
+	// Can optionally provide hints as to how to obtain this Metasound (ex. documentation URL, Plugin name).
 	UPROPERTY()
-	FString PromptIfMissing;
+	FText PromptIfMissing;
 
 	// Original author of this Metasound Object.
-	UPROPERTY()
-	FString AuthorName;
+	UPROPERTY(EditAnywhere, Category = General, meta = (DisplayName = "Author"))
+	FText AuthorName;
 };
 
 
@@ -222,7 +221,7 @@ struct FMetasoundClassDescription
 	UPROPERTY()
 	uint32 UniqueID;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Hidden)
 	FMetasoundClassMetadata Metadata;
 
 	UPROPERTY()
@@ -281,7 +280,7 @@ struct FMetasoundDocument
 
 	// The highest level Metasound Class in this document.
 	// Typically of type MetasoundGraph, contains graph of the node classes listed in Dependencies.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Hidden)
 	FMetasoundClassDescription RootClass;
 
 	// this is the list of every dependency required by the RootClass, as well as nested dependencies.
