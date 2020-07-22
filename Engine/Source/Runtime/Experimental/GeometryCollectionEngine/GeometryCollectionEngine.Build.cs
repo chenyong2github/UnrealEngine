@@ -42,7 +42,7 @@ namespace UnrealBuildTool.Rules
 
 			if(Target.bBuildEditor)
             {
-                PrivateDependencyModuleNames.Add("UnrealEd");
+                PublicDependencyModuleNames.Add("UnrealEd");
             }
 
 			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");

@@ -193,10 +193,19 @@ public:
 		return NewClustered;
 	}
 	
-	void ClearPutToSleepThisFrame()
+	void ClearTransientDirty()
 	{
-		PutToSleepToIndex.Reset();
-		PutToSleepThisFrameArray.Reset();
+		TransientDirtyToIndex.Reset();
+		TransientDirtyArray.Reset();
+	}
+
+	void MarkTransientDirtyParticle(TGeometryParticleHandle<T, d>* Particle)
+	{
+		TPBDRigidParticleHandle<T, d>* Rigid =  Particle->CastToRigidParticle();
+		if(Rigid)
+		{
+			InsertToMapAndArray(Rigid, TransientDirtyToIndex, TransientDirtyArray);
+		}
 	}
 
 	void DestroyParticle(TGeometryParticleHandle<T, d>* Particle)
@@ -207,18 +216,15 @@ public:
 		if(PBDRigid)
 		{
 			RemoveFromMapAndArray(PBDRigid, ActiveParticlesToIndex, ActiveParticlesArray);
-			RemoveFromMapAndArray(PBDRigid, PutToSleepToIndex, PutToSleepThisFrameArray);
-		}
+			RemoveFromMapAndArray(PBDRigid, TransientDirtyToIndex, TransientDirtyArray);
 
-
-		if (PBDRigid)
-		{
 			// Check for sleep events referencing this particle
 			// TODO think about this case more
 			GetDynamicParticles().GetSleepDataLock().WriteLock();
-			auto& SleepData = GetDynamicParticles().GetSleepData();
+			TArray<TSleepData<T, d>>& SleepData = GetDynamicParticles().GetSleepData();
 
-			SleepData.RemoveAllSwap([Particle](TSleepData<T, d>& Entry) {
+			SleepData.RemoveAllSwap([Particle](TSleepData<T, d>& Entry) 
+			{
 				return Entry.Particle == Particle;
 			});
 
@@ -420,7 +426,7 @@ public:
 					PBDRigid->SetSleeping(true);
 					PBDRigid->SetObjectState(EObjectStateType::Sleeping);
 
-					InsertToMapAndArray(PBDRigid,PutToSleepToIndex,PutToSleepThisFrameArray);
+					InsertToMapAndArray(PBDRigid,TransientDirtyToIndex,TransientDirtyArray);
 
 					if (auto PBDRigidClustered = Particle->CastToClustered())
 					{
@@ -863,14 +869,14 @@ private:
 			ActiveParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<TPBDRigidParticles<T,d>>> TmpArray =
+			TArray<TSOAView<TPBDRigidParticles<T, d>>> TmpArray =
 			{
 				{&ActiveParticlesArray},
 				//	{&NonDisabledClusteredArray},  Cluster particles appear in the ActiveParticlesArray
-			{&StaticGeometryCollectionArray},
-			{&KinematicGeometryCollectionArray},
-			{&DynamicGeometryCollectionArray},
-			{&PutToSleepThisFrameArray}
+				{&StaticGeometryCollectionArray},
+				{&KinematicGeometryCollectionArray},
+				{&DynamicGeometryCollectionArray},
+				{&TransientDirtyArray}
 			};
 			DirtyParticlesView = MakeParticleView(MoveTemp(TmpArray));
 		}
@@ -944,8 +950,8 @@ private:
 	TArray<TPBDRigidParticleHandle<T, d>*> ActiveParticlesArray;
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, int32> ActiveClusteredToIndex;
 	TArray<TPBDRigidClusteredParticleHandle<T, d>*> ActiveClusteredArray;
-	TArray<TPBDRigidParticleHandle<T,d>*> PutToSleepThisFrameArray;
-	TMap<TPBDRigidParticleHandle<T,d>*,int32> PutToSleepToIndex;
+	TArray<TPBDRigidParticleHandle<T,d>*> TransientDirtyArray;
+	TMap<TPBDRigidParticleHandle<T,d>*,int32> TransientDirtyToIndex;
 
 	//Utility structures for maintaining a NonDisabled particle view
 	TMap<TPBDRigidClusteredParticleHandle<T, d>*, int32> NonDisabledClusteredToIndex;
