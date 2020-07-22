@@ -1245,7 +1245,6 @@ void UMovieScene::RemoveBinding(const FGuid& Guid)
 	}
 }
 
-
 void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, const FString& Name)
 {
 	for (auto& Binding : ObjectBindings)
@@ -1254,6 +1253,13 @@ void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, con
 		{
 			Binding.SetObjectGuid(NewGuid);
 			Binding.SetName(Name);
+
+			// Changing a binding guid invalidates any tracks contained within the binding
+			// Make sure they are written into the transaction buffer by calling modify
+			for (UMovieSceneTrack* Track : Binding.GetTracks())
+			{
+				Track->Modify();
+			}
 			break;
 		}
 	}
