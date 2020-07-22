@@ -147,8 +147,10 @@ public:
 	static inline RealType SignNonZero(const RealType Value);
 	static inline RealType Max(const RealType A, const RealType B);
 	static inline RealType Max3(const RealType A, const RealType B, const RealType C);
+	static inline int32 Max3Index(const RealType A, const RealType B, const RealType C);
 	static inline RealType Min(const RealType A, const RealType B);
 	static inline RealType Min3(const RealType A, const RealType B, const RealType C);
+	static inline int32 Min3Index(const RealType A, const RealType B, const RealType C);
 	/** compute min and max of a,b,c with max 3 comparisons (sometimes 2) */
 	static inline void MinMax(RealType A, RealType B, RealType C, RealType& MinOut, RealType& MaxOut);
 	static inline RealType Sqrt(const RealType Value);
@@ -230,6 +232,19 @@ RealType TMathUtil<RealType>::Max3(const RealType A, const RealType B, const Rea
 }
 
 template<typename RealType>
+int32 TMathUtil<RealType>::Max3Index(const RealType A, const RealType B, const RealType C)
+{
+	if (A >= B) 
+	{
+		return (A >= C) ? 0 : 2;
+	}
+	else
+	{
+		return (B >= C) ? 1 : 2;
+	}
+}
+
+template<typename RealType>
 RealType TMathUtil<RealType>::Min(const RealType A, const RealType B)
 {
 	return (A <= B) ? A : B;
@@ -239,6 +254,19 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Min3(const RealType A, const RealType B, const RealType C)
 {
 	return Min(Min(A, B), C);
+}
+
+template<typename RealType>
+int32 TMathUtil<RealType>::Min3Index(const RealType A, const RealType B, const RealType C)
+{
+	if (A <= B) 
+	{
+		return (A <= C) ? 0 : 2;
+	}
+	else 
+	{
+		return (B <= C) ? 1 : 2;
+	}
 }
 
 // compute min and max of a,b,c with max 3 comparisons (sometimes 2)
