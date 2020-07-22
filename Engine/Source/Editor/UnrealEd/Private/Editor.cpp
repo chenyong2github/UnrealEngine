@@ -244,7 +244,7 @@ void FReimportManager::UpdateReimportPath(UObject* Obj, const FString& Filename,
 }
 
 
-bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, bool bShowNotification, FString PreferredReimportFile, FReimportHandler* SpecifiedReimportHandler, int32 SourceFileIndex, bool bForceNewFile /*= false*/)
+bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, bool bShowNotification, FString PreferredReimportFile, FReimportHandler* SpecifiedReimportHandler, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
 {
 	// Warn that were about to reimport, so prep for it
 	PreReimport.Broadcast( Obj );
@@ -369,7 +369,10 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 			if ( bValidSourceFilename )
 			{
 				// Do the reimport
+				const bool bOriginalAutomated = CanReimportHandler->IsAutomatedReimport();
+				CanReimportHandler->SetAutomatedReimport(bAutomated);
 				EReimportResult::Type Result = CanReimportHandler->Reimport( Obj, SourceFileIndex );
+				CanReimportHandler->SetAutomatedReimport(bOriginalAutomated);
 				if( Result == EReimportResult::Succeeded )
 				{
 					Obj->PostEditChange();
@@ -452,7 +455,7 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 	return bSuccess;
 }
 
-void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImportObjects, bool bShowNotification, int32 SourceFileIndex, bool bForceNewFile /*= false*/)
+void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImportObjects, bool bShowNotification, int32 SourceFileIndex, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
 {
 	//Copy the array to prevent iteration assert if a reimport factory change the selection
 	TArray<UObject*> CopyOfSelectedAssets;
@@ -574,7 +577,7 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 		//If user ignore those asset just not add them to CopyOfSelectedAssets
 	}
 
-	FReimportManager::Instance()->ReimportMultiple(CopyOfSelectedAssets, /*bAskForNewFileIfMissing=*/false, bShowNotification, TEXT(""), nullptr, SourceFileIndex);
+	FReimportManager::Instance()->ReimportMultiple(CopyOfSelectedAssets, /*bAskForNewFileIfMissing=*/false, bShowNotification, TEXT(""), nullptr, SourceFileIndex, bForceNewFile, bAutomated);
 }
 
 void FReimportManager::AddReferencedObjects( FReferenceCollector& Collector )
@@ -599,7 +602,7 @@ void FReimportManager::SortHandlersIfNeeded()
 	}
 }
 
-bool FReimportManager::ReimportMultiple(TArrayView<UObject*> Objects, bool bAskForNewFileIfMissing /*= false*/, bool bShowNotification /*= true*/, FString PreferredReimportFile /*= TEXT("")*/, FReimportHandler* SpecifiedReimportHandler /*= nullptr */, int32 SourceFileIndex /*= INDEX_NONE*/)
+bool FReimportManager::ReimportMultiple(TArrayView<UObject*> Objects, bool bAskForNewFileIfMissing /*= false*/, bool bShowNotification /*= true*/, FString PreferredReimportFile /*= TEXT("")*/, FReimportHandler* SpecifiedReimportHandler /*= nullptr */, int32 SourceFileIndex /*= INDEX_NONE*/, bool bForceNewFile /*= false*/, bool bAutomated /*= false*/)
 {
 	bool bBulkSuccess = true;
 
@@ -613,7 +616,7 @@ bool FReimportManager::ReimportMultiple(TArrayView<UObject*> Objects, bool bAskF
 			FScopedSlowTask SingleObjectTask(1.0f, SingleTaskTest);
 			SingleObjectTask.EnterProgressFrame(1.0f);
 
-			bBulkSuccess = bBulkSuccess && Reimport(CurrentObject, bAskForNewFileIfMissing, bShowNotification, PreferredReimportFile, SpecifiedReimportHandler, SourceFileIndex);
+			bBulkSuccess = bBulkSuccess && Reimport(CurrentObject, bAskForNewFileIfMissing, bShowNotification, PreferredReimportFile, SpecifiedReimportHandler, SourceFileIndex, bForceNewFile, bAutomated);
 		}
 
 		BulkReimportTask.EnterProgressFrame(1.0f);
