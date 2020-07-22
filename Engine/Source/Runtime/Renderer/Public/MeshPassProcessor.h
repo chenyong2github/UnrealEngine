@@ -621,12 +621,12 @@ struct FMeshDrawCommandDebugData
 {
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
-	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
 	TShaderRef<FMeshMaterialShader> VertexShader;
 	TShaderRef<FMeshMaterialShader> PixelShader;
 	const FVertexFactory* VertexFactory;
 	FName ResourceName;
+	FString MaterialName;
 #endif
 };
 
