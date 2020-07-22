@@ -985,20 +985,15 @@ void FChaosEngineInterface::SetCollisionEnabled(const FPhysicsConstraintHandle& 
 	}
 }
 
-void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearTolerance,float InAngularToleranceDegrees)
+void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearAlpha,float InAngularAlpha)
 {
 	if(InConstraintRef.IsValid())
 	{
 		if(Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
 			Constraint->SetProjectionEnabled(bInProjectionEnabled);
-
-			// @todo(chaos) : Solver Settings 
-			// ... Constraint tolerances are solver specific, so it needs to use the interface 
-			// ... against the solver not the constraint handle. 
-			//
-			//Constraint->SetSolverPositionTolerance(InLinearTolerance);
-			//Constraint->SetSolverAngularTolerance(InAngularToleranceDegrees);
+			Constraint->SetProjectionLinearAlpha(InLinearAlpha);
+			Constraint->SetProjectionAngularAlpha(InAngularAlpha);
 		}
 	}
 }
