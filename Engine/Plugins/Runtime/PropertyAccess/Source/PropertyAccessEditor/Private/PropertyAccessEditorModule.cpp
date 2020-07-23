@@ -7,6 +7,7 @@
 #include "EdGraphUtilities.h"
 #include "PropertyAccessEditor.h"
 #include "Modules/ModuleInterface.h"
+#include "Features/IModularFeatures.h"
 
 class FPropertyAccessEditorModule : public IPropertyAccessEditor, public IModuleInterface
 {

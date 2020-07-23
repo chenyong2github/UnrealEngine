@@ -20,6 +20,7 @@
 #include "Modules/ModuleManager.h"
 #include "IPropertyAccessEditor.h"
 #include "IPropertyAccessCompiler.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_PropertyAccess"
 
