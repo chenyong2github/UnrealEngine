@@ -245,7 +245,7 @@ void FMetalRHICommandContext::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 
 	}
 }
 
-void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState)
+void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState)
 {
 	@autoreleasepool {
 		FMetalGraphicsPipelineState* PipelineState = ResourceCast(GraphicsState);
@@ -258,12 +258,15 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineSt
 		RHISetStencilRef(0);
 		RHISetBlendFactor(FLinearColor(1.0f, 1.0f, 1.0f));
 
-		ApplyGlobalUniformBuffers(PipelineState->VertexShader.GetReference());
+		if (bApplyAdditionalState)
+		{
+			ApplyGlobalUniformBuffers(PipelineState->VertexShader.GetReference());
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		ApplyGlobalUniformBuffers(PipelineState->HullShader.GetReference());
-		ApplyGlobalUniformBuffers(PipelineState->DomainShader.GetReference());
+			ApplyGlobalUniformBuffers(PipelineState->HullShader.GetReference());
+			ApplyGlobalUniformBuffers(PipelineState->DomainShader.GetReference());
 #endif
-		ApplyGlobalUniformBuffers(PipelineState->PixelShader.GetReference());
+			ApplyGlobalUniformBuffers(PipelineState->PixelShader.GetReference());
+		}
 	}
 }
 
