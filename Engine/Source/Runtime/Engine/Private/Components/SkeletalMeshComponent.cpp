@@ -197,6 +197,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ClothTickFunction.bCanEverTick = true;
 
 	bWaitForParallelClothTask = false;
+	bNotifySyncComponentToRBPhysics = false;
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	ClothMaxDistanceScale = 1.0f;
@@ -214,7 +215,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 	bBindClothToMasterComponent = false;
 	bClothingSimulationSuspended = false;
-
+	
 #endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	MassMode_DEPRECATED = EClothMassMode::Density;
