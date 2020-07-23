@@ -666,7 +666,7 @@ public:
 
 		for (const auto& It : FullPipelines)
 		{
-			const FRayTracingPipelineStateInitializer& CandidateInitializer = It.Key;
+			const FRayTracingPipelineStateSignature& CandidateInitializer = It.Key;
 			FRayTracingPipelineState* CandidatePipeline = It.Value;
 
 			if (!CandidatePipeline->RHIPipeline.IsValid()
@@ -688,6 +688,22 @@ public:
 		if (BestPipeline)
 		{
 			OutPipeline = BestPipeline;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool FindBySignature(const FRayTracingPipelineStateSignature& Signature, FRayTracingPipelineState*& OutCachedState) const
+	{
+		FScopeLock ScopeLock(&CriticalSection);
+
+		FRayTracingPipelineState* const* FoundState = FullPipelines.Find(Signature);
+		if (FoundState)
+		{
+			OutCachedState = *FoundState;
 			return true;
 		}
 		else
@@ -757,7 +773,7 @@ public:
 
 		struct FEntry
 		{
-			FRayTracingPipelineStateInitializer Key;
+			FRayTracingPipelineStateSignature Key;
 			uint64 LastFrameHit;
 			uint64 HitsAcrossFrames;
 			FRayTracingPipelineState* Pipeline;
@@ -816,7 +832,7 @@ public:
 private:
 
 	mutable FCriticalSection CriticalSection;
-	using FPipelineMap = TMap<FRayTracingPipelineStateInitializer, FRayTracingPipelineState*>;
+	using FPipelineMap = TMap<FRayTracingPipelineStateSignature, FRayTracingPipelineState*>;
 	FPipelineMap FullPipelines;
 	FPipelineMap PartialPipelines;
 	uint64 LastTrimFrame = 0;
@@ -1277,7 +1293,7 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 
 	if (Result)
 	{
-		RegisterRayTracingPipelineUse(Result);
+		Result->AddHit();
 	}
 
 	return Result;
@@ -1287,11 +1303,18 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 #endif // RHI_RAYTRACING
 }
 
-void PipelineStateCache::RegisterRayTracingPipelineUse(FRayTracingPipelineState* Pipeline)
+FRayTracingPipelineState* PipelineStateCache::GetRayTracingPipelineState(const FRayTracingPipelineStateSignature& Signature)
 {
 #if RHI_RAYTRACING
-	check(IsInRenderingThread() || IsInParallelRenderingThread());
-	Pipeline->AddHit();
+	FRayTracingPipelineState* Result = nullptr;
+	bool bWasFound = GRayTracingPipelineCache.FindBySignature(Signature, Result);
+	if (bWasFound)
+	{
+		Result->AddHit();
+	}
+	return Result;
+#else // RHI_RAYTRACING
+	return nullptr;
 #endif // RHI_RAYTRACING
 }
 

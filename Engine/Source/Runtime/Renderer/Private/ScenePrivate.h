@@ -982,8 +982,7 @@ public:
 
 	// Last valid RTPSO is saved, so it could be used as fallback in future frames if background PSO compilation is enabled.
 	// This RTPSO can be used only if the only difference from previous PSO is the material hit shaders.
-	FRayTracingPipelineState* LastRayTracingMaterialPipeline = nullptr;
-	FRayTracingPipelineStateInitializer LastRayTracingMaterialPipelineInitializer;
+	FRayTracingPipelineStateSignature LastRayTracingMaterialPipelineSignature;
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
