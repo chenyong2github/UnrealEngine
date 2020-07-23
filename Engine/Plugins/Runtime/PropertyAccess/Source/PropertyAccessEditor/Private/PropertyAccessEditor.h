@@ -8,6 +8,8 @@
 #include "IPropertyAccessEditor.h"
 #include "IPropertyAccessCompiler.h"
 
+struct FEdGraphPinType;
+
 namespace PropertyAccess
 {
 	/** Resolve a property path to a structure, returning the leaf property and array index if any. @return true if resolution succeeded */

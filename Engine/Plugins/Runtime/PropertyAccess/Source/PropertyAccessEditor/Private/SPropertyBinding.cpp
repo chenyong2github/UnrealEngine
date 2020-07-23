@@ -24,6 +24,7 @@
 #include "Binding/PropertyBinding.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Algo/Transform.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "PropertyBinding"
 
