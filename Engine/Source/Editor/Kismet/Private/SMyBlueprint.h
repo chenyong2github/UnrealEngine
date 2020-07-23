@@ -45,6 +45,7 @@ public:
 	TSharedPtr<FUICommandInfo> DeleteEntry;
 	TSharedPtr<FUICommandInfo> PasteVariable;
 	TSharedPtr<FUICommandInfo> PasteLocalVariable;
+	TSharedPtr<FUICommandInfo> PasteFunction;
 	TSharedPtr<FUICommandInfo> GotoNativeVarDefinition;
 	TSharedPtr<FUICommandInfo> MoveToParent;
 	// Add New Item
@@ -253,6 +254,8 @@ private:
 	void OnPasteLocalVariable();
 	bool CanPasteVariable() const;
 	bool CanPasteLocalVariable() const;
+	void OnPasteFunction();
+	bool CanPasteFunction() const;
 
 	/** Callback when the filter is changed, forces the action tree(s) to filter */
 	void OnFilterTextChanged( const FText& InFilterText );

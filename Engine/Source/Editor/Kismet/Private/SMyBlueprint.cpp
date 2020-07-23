@@ -58,7 +58,15 @@
 #include "ReplaceNodeReferencesHelper.h"
 #include "Animation/AnimClassInterface.h"
 
+#include "BPFunctionClipboardData.h"
+
 #define LOCTEXT_NAMESPACE "MyBlueprint"
+
+//////////////////////////////////////////////////////////////////////////
+
+// Magic values to differentiate Variables and Functions on the clipboard
+static const TCHAR* VAR_PREFIX = TEXT("BPVar");
+static const TCHAR* FUNC_PREFIX = TEXT("BPFunc");
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -72,6 +80,7 @@ void FMyBlueprintCommands::RegisterCommands()
 	UI_COMMAND( DeleteEntry, "Delete", "Deletes this function or variable from this blueprint.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
 	UI_COMMAND( PasteVariable, "Paste Variable", "Pastes the variable to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( PasteLocalVariable, "Paste Local Variable", "Pastes the variable to this scope.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND( PasteFunction, "Paste Function", "Pastes the function to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( GotoNativeVarDefinition, "Goto Code Definition", "Goto the native code definition of this variable", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( MoveToParent, "Move to Parent Class", "Moves the variable to its parent class", EUserInterfaceActionType::Button, FInputChord() );
 }
@@ -341,6 +350,11 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteLocalVariable),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteLocalVariable));
+
+		CommandList->MapAction(FMyBlueprintCommands::Get().PasteFunction,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteFunction),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteFunction));
 	}
 	else
 	{
@@ -2258,6 +2272,7 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		if (CurrentBlueprint->SupportsFunctions())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewFunction);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().PasteFunction);
 
 			// If we cannot handle Function Graphs, we cannot handle function overrides
 			if (OverridableFunctionActions.Num() > 0 && BlueprintEditorPtr.Pin()->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
@@ -3164,7 +3179,6 @@ void SMyBlueprint::OnCopy()
 			// make a copy of the Variable description so we can set the default value
 			FBPVariableDescription Description = SourceBlueprint->NewVariables[VarIndex];
 
-
 			//Grab property of blueprint's current CDO
 			UClass* GeneratedClass = SourceBlueprint->GeneratedClass;
 			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
@@ -3181,6 +3195,7 @@ void SMyBlueprint::OnCopy()
 			}
 
 			FBPVariableDescription::StaticStruct()->ExportText(OutputString, &Description, nullptr, nullptr, 0, nullptr, false);
+			OutputString = VAR_PREFIX + OutputString;
 		}
 	}
 	else if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
@@ -3190,6 +3205,16 @@ void SMyBlueprint::OnCopy()
 		if (Description)
 		{
 			FBPVariableDescription::StaticStruct()->ExportText(OutputString, Description, nullptr, nullptr, 0, nullptr, false);
+			OutputString = VAR_PREFIX + OutputString;
+		}
+	}
+	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function)
+		{
+			FBPFunctionClipboardData FuncData(GraphAction->EdGraph);
+			FBPFunctionClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, nullptr, nullptr, 0, nullptr, false);
+			OutputString = FUNC_PREFIX + OutputString;
 		}
 	}
 
@@ -3208,6 +3233,10 @@ bool SMyBlueprint::CanCopy() const
 	if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
 	{
 		return FBlueprintEditorUtils::FindLocalVariable(Blueprint, LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName()) != nullptr;
+	}
+	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		return GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function;
 	}
 
 	return false;
@@ -3235,22 +3264,30 @@ void SMyBlueprint::OnPasteGeneric()
 	{
 		OnPasteLocalVariable();
 	}
-	
-	// TODO: Add support for functions/graphs
+	else if (CanPasteFunction())
+	{
+		OnPasteFunction();
+	}
 }
 
 bool SMyBlueprint::CanPasteGeneric()
 {
-	return CanPasteVariable() || CanPasteLocalVariable();
+	return CanPasteVariable() || CanPasteLocalVariable() || CanPasteFunction();
 }
 
 void SMyBlueprint::OnPasteVariable()
 {
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
+	{
+		return;
+	}
+
 	FBPVariableDescription Description;
 	FStringOutputDevice Errors;
-	FBPVariableDescription::StaticStruct()->ImportText(ClipboardText.GetCharArray().GetData(), &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+	FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
 	if (Errors.IsEmpty())
 	{
 		FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
@@ -3258,7 +3295,7 @@ void SMyBlueprint::OnPasteVariable()
 		{
 			FScopedTransaction Transaction(FText::Format(LOCTEXT("PasteVariable", "Paste Variable: {0}"), FText::FromName(NewVar.VarName)));
 			Blueprint->Modify();
-		
+
 			Blueprint->NewVariables.Add(NewVar);
 
 			// Potentially adjust variable names for any child blueprints
@@ -3285,9 +3322,15 @@ void SMyBlueprint::OnPasteLocalVariable()
 			{
 				FString ClipboardText;
 				FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+				if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
+				{
+					return;
+				}
+
 				FBPVariableDescription Description;
 				FStringOutputDevice Errors;
-				FBPVariableDescription::StaticStruct()->ImportText(ClipboardText.GetCharArray().GetData(), &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+				const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+				FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
 				if (Errors.IsEmpty())
 				{
 					FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
@@ -3312,48 +3355,108 @@ void SMyBlueprint::OnPasteLocalVariable()
 
 bool SMyBlueprint::CanPasteVariable() const
 {
-	if (!Blueprint->SupportsGlobalVariables())
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewVariable))
 	{
 		return false;
 	}
 
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-	if (ClipboardText.IsEmpty())
+	if (ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive))
 	{
-		return false;
+		FBPVariableDescription Description;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+		FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+
+		return Errors.IsEmpty();
 	}
 
-	FBPVariableDescription Description;
-	FStringOutputDevice Errors;
-	FBPVariableDescription::StaticStruct()->ImportText(ClipboardText.GetCharArray().GetData(), &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
-
-	return Errors.IsEmpty();
+	return false;
 }
 
 bool SMyBlueprint::CanPasteLocalVariable() const
 {
 	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
-	if (PinnedEditor.IsValid())
-	{
-		if (!PinnedEditor->CanAddNewLocalVariable())
-		{
-			return false;
-		}
-	}
-
-	FString ClipboardText;
-	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-	if (ClipboardText.IsEmpty())
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewLocalVariable))
 	{
 		return false;
 	}
 
-	FBPVariableDescription Description;
-	FStringOutputDevice Errors;
-	FBPVariableDescription::StaticStruct()->ImportText(ClipboardText.GetCharArray().GetData(), &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPVariableDescription Description;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+		FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
 
-	return Errors.IsEmpty();
+		return Errors.IsEmpty();
+	}
+	
+	return false;
+}
+
+void SMyBlueprint::OnPasteFunction()
+{
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ensure(ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive)))
+	{
+		return;
+	}
+
+	FBPFunctionClipboardData FuncData;
+	FStringOutputDevice Errors;
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
+	FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+	if (Errors.IsEmpty() && FuncData.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("PasteFunction", "Paste Function"));
+
+		TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+		if (PinnedEditor.IsValid())
+		{
+			Blueprint->Modify();
+			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, PinnedEditor->GetDefaultSchema());
+
+			if (Graph)
+			{
+				PinnedEditor->OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
+				SelectItemByName(Graph->GetFName());
+				OnRequestRenameOnActionNode();
+			}
+			else
+			{
+				Transaction.Cancel();
+			}
+		}
+	}
+}
+
+bool SMyBlueprint::CanPasteFunction() const
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
+	{
+		return false;
+	}
+
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPFunctionClipboardData FuncData;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
+		FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+
+		return Errors.IsEmpty();
+	}
+
+	return false;
 }
 
 void SMyBlueprint::OnResetItemFilter()

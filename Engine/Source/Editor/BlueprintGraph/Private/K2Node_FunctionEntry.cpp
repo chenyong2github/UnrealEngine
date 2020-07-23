@@ -723,6 +723,21 @@ void UK2Node_FunctionEntry::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResul
 	}
 }
 
+bool UK2Node_FunctionEntry::IsCompatibleWithGraph(const UEdGraph* InGraph) const
+{
+	if (CanCreateUnderSpecifiedSchema(InGraph->GetSchema()))
+	{
+		if (InGraph->GetSchema()->GetGraphType(InGraph) == GT_Function)
+		{
+			TArray<UK2Node_FunctionEntry*> Nodes;
+			InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(Nodes);
+			return Nodes.Num() == 0;
+		}
+	}
+
+	return false;
+}
+
 int32 UK2Node_FunctionEntry::GetFunctionFlags() const
 {
 	int32 ReturnFlags = 0;
