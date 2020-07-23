@@ -35,6 +35,7 @@ public class AssetTools : ModuleRules
 				"RHI",
 				"MaterialEditor",
 				"ToolMenus",
+				"InterchangeCore",
             }
 		);
 

@@ -109,6 +109,7 @@ public class UnrealEd : ModuleRules
                 "InteractiveToolsFramework",
 				"ToolMenusEditor",
 				"StatusBar",
+				"InterchangeCore",
 			}
 		);
 

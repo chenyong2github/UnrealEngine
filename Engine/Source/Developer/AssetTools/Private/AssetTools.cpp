@@ -134,9 +134,11 @@
 #include "AssetVtConversion.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/BlacklistNames.h"
+#include "InterchangeManager.h"
 
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Settings/EditorExperimentalSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AssetTools"
@@ -1650,7 +1652,14 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	TMap< FString, TArray<UFactory*> > ExtensionToFactoriesMap;
 
 	FScopedSlowTask SlowTask(Files.Num(), LOCTEXT("ImportSlowTask", "Importing"));
-	if (Files.Num() > 1)
+
+	bool bUseInterchangeFramework = false;
+	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+#if WITH_EDITOR
+	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
+#endif
+
+	if (!bUseInterchangeFramework && Files.Num() > 1)
 	{	
 		//Always allow user to cancel the import task if they are importing multiple files.
 		//If we're importing a single file, then the factory policy will dictate if the import if cancelable.
@@ -1790,6 +1799,41 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 
 	TArray<UFactory*> UsedFactories;
 	bool bImportWasCancelled = false;
+	bool bOnlyInterchangeImport = bUseInterchangeFramework;
+	if(bUseInterchangeFramework)
+	{
+		for (int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num(); ++FileIdx)
+		{
+			// Filename and DestinationPath will need to get santized before we create an asset out of them as they
+			// can be created out of sources that contain spaces and other invalid characters. Filename cannot be sanitized
+			// until other checks are done that rely on looking at the actual source file so sanitation is delayed.
+			const FString& Filename = FilesAndDestinations[FileIdx].Key;
+			const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
+			{
+				Interchange::FScopedSourceData ScopedSourceData(Filename);
+				if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+				{
+					bOnlyInterchangeImport = false;
+					break;
+				}
+			}
+		}
+
+		if (!bOnlyInterchangeImport)
+		{
+			if (Files.Num() > 1)
+			{	
+				//Always allow user to cancel the import task if they are importing multiple files.
+				//If we're importing a single file, then the factory policy will dictate if the import if cancelable.
+				SlowTask.MakeDialog(true);
+			}
+		}
+		else
+		{
+			//Complete the slow task
+			SlowTask.CompletedWork = FilesAndDestinations.Num();
+		}
+	}
 	// Now iterate over the input files and use the same factory object for each file with the same extension
 	for(int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num() && !bImportWasCancelled; ++FileIdx)
 	{
@@ -1798,6 +1842,38 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		// until other checks are done that rely on looking at the actual source file so sanitation is delayed.
 		const FString& Filename = FilesAndDestinations[FileIdx].Key;
 		const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
+		if (bUseInterchangeFramework)
+		{
+			Interchange::FScopedSourceData ScopedSourceData(Filename);
+			if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+			{
+				auto PostImportedLambda = [bSyncToBrowser](UObject* ImportedObject)
+				{
+					if (ImportedObject && (bSyncToBrowser != false))
+					{
+						TArray<UObject*> ObjectArray;
+						ObjectArray.Add(ImportedObject);
+						UAssetToolsImpl::Get().SyncBrowserToAssets(ObjectArray);
+					}
+				};
+				FDelegateHandle PostImportHandle = InterchangeManager.OnAssetPostImport.AddLambda(PostImportedLambda);
+			
+				FImportAssetParameters ImportAssetParameters;
+				ImportAssetParameters.bIsAutomated = bAutomatedImport;
+				ImportAssetParameters.ReimportAsset = nullptr;
+
+				InterchangeManager.ImportAsset(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters);
+				InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
+				//Import done, iterate the next file and destination
+				
+				//If we do not import only interchange file, update the progress for each interchange task
+				if (!bOnlyInterchangeImport)
+				{
+					SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Import_ImportingFile", "Importing \"{0}\"..."), FText::FromString(FPaths::GetBaseFilename(Filename))));
+				}
+				continue;
+			}
+		}
 		FString FileExtension = FPaths::GetExtension(Filename);
 		const TArray<UFactory*>* FactoriesPtr = ExtensionToFactoriesMap.Find(FileExtension);
 		UFactory* Factory = nullptr;

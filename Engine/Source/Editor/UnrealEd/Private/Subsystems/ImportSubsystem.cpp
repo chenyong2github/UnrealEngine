@@ -8,6 +8,8 @@
 #include "FileHelpers.h"
 #include "EditorReimportHandler.h"
 #include "Misc/BlacklistNames.h"
+#include "InterchangeManager.h"
+#include "InterchangeFactoryBase.h"
 
 class FImportFilesByPath : public IImportSubsystemTask
 {
@@ -110,12 +112,17 @@ UImportSubsystem::UImportSubsystem()
 
 void UImportSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-
+	//Hook on Interchange manager to know when to broadcast import/reimport
+	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+	InterchangeManager.OnAssetPostImport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostImport);
+	InterchangeManager.OnAssetPostReimport.AddUObject(this, &UImportSubsystem::InterchangeBroadcastAssetPostReimport);
 }
 
 void UImportSubsystem::Deinitialize()
 {
-
+	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+	InterchangeManager.OnAssetPostImport.RemoveAll(this);
+	InterchangeManager.OnAssetPostReimport.RemoveAll(this);
 }
 
 void UImportSubsystem::ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath)
@@ -175,3 +182,14 @@ void UImportSubsystem::BroadcastAssetPostLODImport(UObject* InObject, int32 inLO
 	OnAssetPostLODImport_BP.Broadcast(InObject, inLODIndex);
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+void UImportSubsystem::InterchangeBroadcastAssetPostImport(UObject* InCreatedObject)
+{
+	UFactory* NullFactory = nullptr;
+	BroadcastAssetPostImport(NullFactory, InCreatedObject);
+}
+
+void UImportSubsystem::InterchangeBroadcastAssetPostReimport(UObject* InCreatedObject)
+{
+	BroadcastAssetReimport(InCreatedObject);
+}

@@ -69,6 +69,9 @@ public:
 
 private:
 
+	void InterchangeBroadcastAssetPostImport(UObject* InCreatedObject);
+	void InterchangeBroadcastAssetPostReimport(UObject* InCreatedObject);
+
 	/* Run deferred logic waiting to be run next tick */
 	void HandleNextTick();
 

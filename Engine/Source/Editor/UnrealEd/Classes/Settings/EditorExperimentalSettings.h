@@ -23,6 +23,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async texture compilation to improve PIE and map load time performance when texture compilation is required"))
 	bool bEnableAsyncTextureCompilation;
 
+	/** Enable interchange framework, the interchange framework is a new import system which can import asynchronously and in parallel. */
+	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable interchange framework import"))
+	bool bEnableInterchangeFramework;
+
 	/** Allows the editor to run on HDR monitors on Windows 10 */
 	UPROPERTY(EditAnywhere, config, Category = HDR, meta = (ConfigRestartRequired = true, DisplayName = "Enable Editor Support for HDR Monitors"))
 	bool bHDREditor;

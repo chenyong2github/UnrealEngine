@@ -68,6 +68,12 @@
 #include "AutoReimport/AutoReimportUtilities.h"
 #include "AssetToolsModule.h"
 
+#include "InterchangeManager.h"
+
+#if WITH_EDITOR
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Settings/EditorExperimentalSettings.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "UnrealEd.Editor"
 
@@ -249,6 +255,12 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 	// Warn that were about to reimport, so prep for it
 	PreReimport.Broadcast( Obj );
 
+	bool bUseInterchangeFramework = false;
+	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+#if WITH_EDITOR
+	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
+#endif
+
 	bool bSuccess = false;
 	if ( Obj )
 	{
@@ -368,6 +380,42 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 
 			if ( bValidSourceFilename )
 			{
+				if (bUseInterchangeFramework)
+				{
+					Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
+					if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+					{
+						auto PostImportedLambda = [](UObject* ImportedObject)
+						{
+							if (ImportedObject)
+							{
+								TArray<UObject*> ObjectArray;
+								ObjectArray.Add(ImportedObject);
+								//UAssetToolsImpl::Get().SyncBrowserToAssets(ObjectArray);
+								GEditor->BroadcastObjectReimported(ImportedObject);
+								if (FEngineAnalytics::IsAvailable())
+								{
+									TArray<FAnalyticsEventAttribute> Attributes;
+									Attributes.Add(FAnalyticsEventAttribute(TEXT("ObjectType"), ImportedObject->GetClass()->GetName()));
+									FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.AssetReimported"), Attributes);
+								}
+								//PostReimport.Broadcast(ImportedObject, true);
+								GEditor->RedrawAllViewports();
+							}
+						};
+						FDelegateHandle PostImportHandle = InterchangeManager.OnAssetPostImport.AddLambda(PostImportedLambda);
+
+						FImportAssetParameters ImportAssetParameters;
+						ImportAssetParameters.bIsAutomated = GIsAutomationTesting || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
+						ImportAssetParameters.ReimportAsset = Obj;
+						InterchangeManager.ImportAsset(FString(), ScopedSourceData.GetSourceData(), ImportAssetParameters);
+						InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
+						return true;
+					}
+				}
+
+
+
 				// Do the reimport
 				EReimportResult::Type Result = CanReimportHandler->Reimport( Obj, SourceFileIndex );
 				if( Result == EReimportResult::Succeeded )
