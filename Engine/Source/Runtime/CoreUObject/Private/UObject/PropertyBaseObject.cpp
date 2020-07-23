@@ -476,8 +476,10 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 		}
 	}
 
-	// if we found an object, and we have a parent, make sure we are in the same package if the found object is private, unless it's a cross level property
-	if (Result && !Result->HasAnyFlags(RF_Public) && OwnerObject && Result->GetOutermostObject() != OwnerObject->GetOutermostObject())
+	// if we found an object, and we have a parent, make sure we are in the same package or share an outer if the found object is private, unless it's a cross level property
+	if (Result && !Result->HasAnyFlags(RF_Public) && OwnerObject 
+		&& Result->GetOutermostObject() != OwnerObject->GetOutermostObject()
+		&& Result->GetPackage() != OwnerObject->GetPackage())
 	{
 		const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Property);
 		if ( !ObjectProperty || !ObjectProperty->AllowCrossLevel())
