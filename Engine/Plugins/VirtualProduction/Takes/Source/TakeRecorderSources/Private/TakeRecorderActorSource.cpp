@@ -1554,6 +1554,7 @@ FTrackRecorderSettings UTakeRecorderActorSource::GetTrackRecorderSettings() cons
 	TrackRecorderSettings.bReduceKeys = bReduceKeys;
 	TrackRecorderSettings.bRemoveRedundantTracks = Parameters.User.bRemoveRedundantTracks;
 	TrackRecorderSettings.bSaveRecordedAssets = Parameters.User.bSaveRecordedAssets || GEditor == nullptr;
+	TrackRecorderSettings.ReduceKeysTolerance = Parameters.User.ReduceKeysTolerance;
 
 	TrackRecorderSettings.DefaultTracks = Parameters.Project.DefaultTracks;
 
