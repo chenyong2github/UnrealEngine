@@ -5,8 +5,34 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundGraphOperator.h"
 
+#include "MetasoundBuildError.h"
+
 namespace Metasound
 {
+	namespace OperatorBuilderPrivate
+	{
+		using FBuildErrorPointer = TUniquePtr<IOperatorBuildError>;
+
+		template<typename ErrorType, typename... ArgTypes>
+		void AddBuildError(TArray<FBuildErrorPointer>& OutErrors, ArgTypes&&... Args)
+		{
+			OutErrors.Add(MakeUnique<ErrorType>(Forward<ArgTypes>(Args)...));
+		}
+
+		void GetEdgesBetweenNodes(const TArray<INode*>& InNodes, const TArray<FDataEdge>& InEdges, TArray<FDataEdge>& OutEdges)
+		{
+			OutEdges = InEdges.FilterByPredicate(
+				[&](const FDataEdge& InEdge) 
+				{
+					bool bEdgeInNodes = InNodes.Contains(InEdge.To.Node);
+					bEdgeInNodes &= InNodes.Contains(InEdge.From.Node);
+
+					return bEdgeInNodes;
+				}
+			);
+		}
+	}
+
 	FOperatorBuilder::FOperatorBuilder(const FOperatorSettings& InSettings)
 	:	OperatorSettings(InSettings)
 	{
@@ -28,17 +54,14 @@ namespace Metasound
 		bSuccess = GroupInputEdges(InGraph.GetDataEdges(), NodeInputEdges, OutErrors);
 		if (!bSuccess)
 		{
-			// TODO: add error to error stack.
 			return TUniquePtr<IOperator>(nullptr);
 		}
 
 		// TODO: Validate edges.
 
-		// TODO: need to include inputs/outputs vertices here. 
 		bSuccess = TopologicalSort(InGraph.GetDataEdges(), SortedNodes, OutErrors);
 		if (!bSuccess)
 		{
-			// TODO: add error to error stack.
 			return TUniquePtr<IOperator>(nullptr);
 		}
 
@@ -50,7 +73,6 @@ namespace Metasound
 		bSuccess = CreateOperators(SortedNodes, NodeInputEdges, Operators, NodeData, OutErrors);
 		if (!bSuccess)
 		{
-			// TODO: add error to error stack.
 			return TUniquePtr<IOperator>(nullptr);
 		}
 
@@ -71,9 +93,10 @@ namespace Metasound
 
 	bool FOperatorBuilder::TopologicalSort(const TArray<FDataEdge>& InEdges, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const
 	{
+		using namespace OperatorBuilderPrivate;
 		using FNodePair = TPair<INode*, INode*>;
 		using FNodeMultiMap = TMultiMap<INode*, INode*>;
-		// TODO: Implement depth first topological sort to imporove cache coherency.
+		// TODO: Implement depth first topological sort to improve cache coherency.
 		
 		TArray<INode*> UniqueNodes;
 		FNodeMultiMap Dependencies;
@@ -82,12 +105,17 @@ namespace Metasound
 		{
 			if (nullptr == Edge.To.Node)
 			{
-				// TODO: add build error for unconnected edge.
+				// Edges are required to be connected to a destination node.
+				AddBuildError<FDanglingEdgeError>(OutErrors, Edge);
+
 				continue;
 			}
+
 			if (nullptr == Edge.From.Node)
 			{
-				// TODO: add build error for unconnected edge.
+				// Edges are required to be connected to a source node.
+				AddBuildError<FDanglingEdgeError>(OutErrors, Edge);
+
 				continue;
 			}
 
@@ -106,7 +134,14 @@ namespace Metasound
 
 			if (0 == IndependentNodes.Num())
 			{
-				// TODO: add build error. likely a cycle in the graph.
+				// add build error. likely a cycle in the graph.
+				
+				// Get edges in the cylce
+				TArray<FDataEdge> CycleEdges;
+				GetEdgesBetweenNodes(UniqueNodes, InEdges, CycleEdges);
+
+				AddBuildError<FGraphCycleError>(OutErrors, UniqueNodes, CycleEdges);
+
 				return false;
 			}
 
@@ -137,6 +172,8 @@ namespace Metasound
 
 	bool FOperatorBuilder::GatherInputDataReferences(const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection, TArray<FBuildErrorPtr>& OutErrors) const
 	{
+		using namespace OperatorBuilderPrivate;
+
 		// Find all input edges associated with this node. 
 		TArray<const FDataEdge*> Edges;
 		InEdgeMap.MultiFind(InNode, Edges);
@@ -146,9 +183,10 @@ namespace Metasound
 		{
 			if (!InDataReferenceMap.Contains(Edge->From.Node))
 			{
-				// TODO: Add to build error.
-				// TODO: This is likely due to a failed topological sort and is more of an internal error
+				// This is likely due to a failed topological sort and is more of an internal error
 				// than a user error.
+				AddBuildError<FInternalError>(OutErrors, TEXT(__FILE__), __LINE__);
+
 				return false;
 			}
 
@@ -157,18 +195,21 @@ namespace Metasound
 
 			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName))
 			{
-				// TODO: This is likely a node programming error where the edges reported by the INode interface
+				// This is likely a node programming error where the edges reported by the INode interface
 				// did not match the readable parameter refs created by the operators outputs. Or, the edge description is invalid.
-				// TODO: add build error to stack
+
 				// TODO: consider checking that outputs of node operators match output descriptions of nodes. 
 				// TODO: consider checking the edges are supported by nodes existing parameter descriptions.
+				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, Edge->From);
+
 				return false;
 			}
 
 			if (Edge->From.Vertex.DataReferenceTypeName != Edge->To.Vertex.DataReferenceTypeName)
 			{
-				// TODO: add build error.
 				// TODO: may want to have this check higher up in the stack. 
+				AddBuildError<FInvalidConnectionDataTypeError>(OutErrors, *Edge);
+
 				return false;
 			}
 
@@ -178,7 +219,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				// TODO: add build error.
+				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, Edge->From);
 				return false;
 			}
 		}
@@ -195,9 +236,6 @@ namespace Metasound
 			// Gather the input parameters for this IOperator from the output parameters of already created IOperators. 
 			if (!GatherInputDataReferences(Node, InNodeInputEdges, OutDataReferences, InputCollection, OutErrors))
 			{
-				// TODO Is this a separate error, or the stack of the same error. Perhaps this shouldn't add an error
-				// because it's already sending the error downstream. 
-				// TODO: add to build error
 				return false;
 			}
 
@@ -207,9 +245,6 @@ namespace Metasound
 
 			if (!Operator.IsValid())
 			{
-				// TODO: add vailed operator creation erorr. 
-				// TODO Is this a separate error, or the stack of the same error. Perhaps this shouldn't add an error
-				// because it's already sending the error downstream. 
 				return false;
 			}
 
@@ -225,17 +260,18 @@ namespace Metasound
 
 	bool FOperatorBuilder::GatherGraphDataReferences(const IGraph& InGraph, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs, TArray<FBuildErrorPtr>& OutErrors) const
 	{
+		using namespace OperatorBuilderPrivate;
 		using FDestinationElement = FInputDataDestinationCollection::ElementType;
 		using FSourceElement = FOutputDataSourceCollection::ElementType;
-		// Gather inputs
 
+		// Gather inputs
 		for (const FDestinationElement& Element : InGraph.GetInputDataDestinations())
 		{
 			const FInputDataDestination& InputDestination = Element.Value;
 
 			if (!InNodeDataReferences.Contains(InputDestination.Node))
 			{
-				// TODO: build error.  input node does not exist.
+				AddBuildError<FMissingInputDataReferenceError>(OutErrors, InputDestination);
 				return false;
 			}
 
@@ -243,7 +279,7 @@ namespace Metasound
 
 			if (!Collection.ContainsDataWriteReference(InputDestination.Vertex.VertexName, InputDestination.Vertex.DataReferenceTypeName))
 			{
-				// TODO: build error.  parameter ref does not exist
+				AddBuildError<FMissingInputDataReferenceError>(OutErrors, InputDestination);
 				return false;
 			}
 
@@ -251,8 +287,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				// TODO: add build error
-				// Shouldn't be hitting this error because of earlier "ContainsWritable..." call.
+				AddBuildError<FMissingInputDataReferenceError>(OutErrors, InputDestination);
 				return false;
 			}
 		}
@@ -264,7 +299,7 @@ namespace Metasound
 
 			if (!InNodeDataReferences.Contains(OutputSource.Node))
 			{
-				// TODO: build error.  input node does not exist.
+				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, OutputSource);
 				return false;
 			}
 
@@ -272,7 +307,7 @@ namespace Metasound
 
 			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.VertexName, OutputSource.Vertex.DataReferenceTypeName))
 			{
-				// TODO: build error.  parameter ref does not exist
+				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, OutputSource);
 				return false;
 			}
 
@@ -280,8 +315,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				// TODO: add build error
-				// Shouldn't be hitting this error because of earlier "ContainsWritable..." call.
+				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, OutputSource);
 				return false;
 			}
 		}
@@ -298,7 +332,6 @@ namespace Metasound
 
 		if (!bSuccess)
 		{
-			// TODO: add build error.
 			return TUniquePtr<IOperator>(nullptr);
 		}
 

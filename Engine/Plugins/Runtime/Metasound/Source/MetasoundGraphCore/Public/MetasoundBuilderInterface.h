@@ -15,32 +15,21 @@ namespace Metasound
 	class IOperatorBuildError
 	{
 		public:
-			virtual ~IOperatorBuildError() {}
+			virtual ~IOperatorBuildError() = default;
 
-			/** Returns the INode associated with the error. */
-			virtual const INode* GetNode() const = 0;
-
-			/** Returns teh FDataEdge associated with the error. */
-			virtual const FDataEdge& GetEdge() const = 0;
-
-			/** Returns the FInputDataVertex associated with the error. */
-			virtual const FInputDataVertex& GetInputDataVertex() const = 0;
-
-			/** Returns the FOutputDataVertex associated with the error. */
-			virtual const FOutputDataVertex& GetOutputDataVertex() const = 0;
-
-			/** Returns the parameter type name associated with the error. */
-			virtual const FString& GetDataReferenceTypeName() const = 0;
-
-			/** Returns the parameter name associated with the error. */
-			virtual const FString& GetDataReferenceName() const = 0;
-
-			/** Returns teh type of error. */
-			virtual const FString& GetErrorType() const = 0; // TODO: FName?
+			/** Returns the type of error. */
+			virtual const FName& GetErrorType() const = 0;
 
 			/** Returns a human readable error description. */
 			virtual const FText& GetErrorDescription() const = 0;
+
+			/** Returns an array of Nodes associated with the error. */
+			virtual const TArray<const INode*>& GetNodes() const = 0;
+
+			/** Returns an array of edges associated with the error. */
+			virtual const TArray<FDataEdge>& GetEdges() const = 0;
 	};
+
 
 	/** IOperatorFactory
 	 *
@@ -51,7 +40,7 @@ namespace Metasound
 	class IOperatorFactory
 	{
 		public:
-			virtual ~IOperatorFactory() {}
+			virtual ~IOperatorFactory() = default;
 
 			/** Create a new IOperator.
 			 *
@@ -76,7 +65,7 @@ namespace Metasound
 			/** A TUniquePtr of an IOperatorBuildError */
 			using FBuildErrorPtr = TUniquePtr<IOperatorBuildError>;
 
-			virtual ~IOperatorBuilder() {}
+			virtual ~IOperatorBuilder() = default;
 
 			/** Build a graph operator from a graph. 
 			 *

@@ -136,6 +136,26 @@ namespace Metasound
 		}
 	};
 
+	typedef FInputDataVertexCollection::ElementType FInputDataVertexElement;
+	typedef FOutputDataVertexCollection::ElementType FOutputDataVertexElement;
+
+	template<typename DataType>
+	FORCEINLINE FInputDataVertexElement MakeInputDataVertexElement(const FString& InName, const FText& InDescription)
+	{
+		FInputDataVertex Vertex = MakeInputDataVertex<DataType>(InName, InDescription);
+		return FInputDataVertexElement(MakeDataVertexKey(Vertex), Vertex);
+	}
+
+	template<typename DataType>
+	FORCEINLINE FOutputDataVertexElement MakeOutputDataVertexElement(const FString& InName, const FText& InDescription)
+	{
+		FOutputDataVertex Vertex = MakeOutputDataVertex<DataType>(InName, InDescription);
+		return FOutputDataVertexElement(MakeDataVertexKey(Vertex), Vertex);
+	}
+
+
+	//typedef uint32 FNodeId;
+
 	/** INodeBase
 	 * 
 	 * Interface for all nodes that can describe their name, type, inputs and outputs.
@@ -144,6 +164,9 @@ namespace Metasound
 	{
 		public:
 			virtual ~INodeBase() {}
+
+			// TODO: talk to ethan about nodeids. Maybe this should be handled by frontend. 
+			//FNodeId GetNodeId() const = 0;
 
 			/** Return the name of this specific instance of the node class. */
 			virtual const FString& GetInstanceName() const = 0;

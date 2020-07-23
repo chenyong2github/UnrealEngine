@@ -1,0 +1,145 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MetasoundBuildError.h"
+
+#include "CoreMinimal.h"
+
+#include "MetasoundBuilderInterface.h"
+#include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
+
+#define LOCTEXT_NAMESPACE "MetasoundBuildError"
+
+namespace Metasound
+{
+	FBuildErrorBase::FBuildErrorBase(const FName& InErrorType, const FText& InErrorDescription)
+	:	ErrorType(InErrorType)
+	,	ErrorDescription(InErrorDescription)
+	{
+	}
+
+	/** Returns the type of error. */
+	const FName& FBuildErrorBase::GetErrorType() const
+	{
+		return ErrorType;
+	}
+
+	/** Returns a human readable error description. */
+	const FText& FBuildErrorBase::GetErrorDescription() const
+	{
+		return ErrorDescription;
+	}
+
+	/** Returns an array of Nodes associated with the error. */
+	const TArray<const INode*>& FBuildErrorBase::GetNodes() const 
+	{
+		return Nodes;
+	}
+
+	/** Returns an array of edges associated with the error. */
+	const TArray<FDataEdge>& FBuildErrorBase::GetEdges() const
+	{
+		return Edges;
+	}
+
+	void FBuildErrorBase::AddEdge(const FDataEdge& InEdge)
+	{
+		Edges.Add(InEdge);
+	}
+
+	void FBuildErrorBase::AddEdges(TArrayView<const FDataEdge> InEdges)
+	{
+		Edges.Append(InEdges.GetData(), InEdges.Num());
+	}
+
+	void FBuildErrorBase::AddNode(const INode& InNode)
+	{
+		Nodes.Add(&InNode);
+	}
+
+	void FBuildErrorBase::AddNodes(TArrayView<INode const * const> InNodes)
+	{
+		Nodes.Append(InNodes.GetData(), InNodes.Num());
+	}
+
+	const FName FDanglingEdgeError::ErrorType = FName(TEXT("MetasoundDanglingEdge"));
+
+	FDanglingEdgeError::FDanglingEdgeError(const FDataEdge& InEdge)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("DanglingEdgeError", "Edge is not connected"))
+	{
+		AddEdge(InEdge);
+	}
+
+	const FName FGraphCycleError::ErrorType = FName(TEXT("MetasoundGraphCycleError"));
+
+	FGraphCycleError::FGraphCycleError(const TArray<INode*>& InNodes, const TArray<FDataEdge>& InEdges)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("GraphCycleError", "Graph contains cycles."))
+	{
+		AddNodes(InNodes);
+		AddEdges(InEdges);
+	}
+
+	const FName FInternalError::ErrorType = FName(TEXT("MetasoundInternalError"));
+
+	FInternalError::FInternalError(const FString& InFileName, int32 InLineNumber)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("InternalError", "Internal error."))
+	,	FileName(InFileName)
+	,	LineNumber(InLineNumber)
+	{
+	}
+
+	const FString& FInternalError::GetFileName() const
+	{
+		return FileName;
+	}
+
+	int32 FInternalError::GetLineNumber() const
+	{
+		return LineNumber;
+	}
+
+	const FName FMissingInputDataReferenceError::ErrorType = FName(TEXT("MetasoundMissingInputDataReferenceError"));
+	
+	FMissingInputDataReferenceError::FMissingInputDataReferenceError(const FInputDataDestination& InInputDataDestination)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingInputDataReferenceError", "Missing input data reference."))
+	,	InputDataDestination(InInputDataDestination)
+	{
+		if (nullptr != InInputDataDestination.Node)
+		{
+			AddNode(*InInputDataDestination.Node);
+		}
+	}
+
+	const FInputDataDestination& FMissingInputDataReferenceError::GetInputDataDestination() const
+	{
+		return InputDataDestination;
+	}
+
+
+	const FName FMissingOutputDataReferenceError::ErrorType = FName(TEXT("MetasoundMissingOutputDataReferenceError"));
+	
+	FMissingOutputDataReferenceError::FMissingOutputDataReferenceError(const FOutputDataSource& InOutputDataSource)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingOutputDataReferenceError", "Missing output data reference."))
+	,	OutputDataSource(InOutputDataSource)
+	{
+		if (nullptr != InOutputDataSource.Node)
+		{
+			AddNode(*InOutputDataSource.Node);
+		}
+	}
+
+	const FOutputDataSource& FMissingOutputDataReferenceError::GetOutputDataSource() const
+	{
+		return OutputDataSource;
+	}
+
+	const FName FInvalidConnectionDataTypeError::ErrorType = FName(TEXT("MetasoundInvalidConnectionDataTypeError"));
+
+	FInvalidConnectionDataTypeError::FInvalidConnectionDataTypeError(const FDataEdge& InEdge)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("InvalidConnectionDataTypeError", "Source and destination data types do not match."))
+	{
+		AddEdge(InEdge);
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
