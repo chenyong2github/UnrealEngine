@@ -59,29 +59,24 @@ namespace TextureCompilingManagerImpl
 		return StaticEnum<TextureGroup>()->GetMetaData(TEXT("DisplayName"), Texture->LODGroup);
 	}
 
-	static TMultiMap<UTexture*, UMaterial*> GetTexturesAffectingMaterials()
+	static TMultiMap<UTexture*, UMaterialInterface*> GetTexturesAffectingMaterials()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GetTexturesAffectingMaterials);
 
-		// Update any material that uses this texture and must force a recompile of cache resource
-		TMultiMap<UTexture*, UMaterial*> TexturesRequiringMaterialUpdate;
-		for (TObjectIterator<UMaterial> It; It; ++It)
+		// Update any material that uses this texture
+		TMultiMap<UTexture*, UMaterialInterface*> TexturesRequiringMaterialUpdate;
+
+		TArray<UTexture*> UsedTextures;
+		for (TObjectIterator<UMaterialInterface> It; It; ++It)
 		{
-			UMaterial* Material = *It;
-			for (const UMaterialExpression* MaterialExpression : Material->Expressions)
+			UsedTextures.Reset();
+
+			UMaterialInterface* MaterialInterface = *It;
+			MaterialInterface->GetUsedTextures(UsedTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
+
+			for (UTexture* Texture : UsedTextures)
 			{
-				if (MaterialExpression == nullptr)
-				{
-					continue;
-				}
-	
-				TArray<UTexture*> ForceRecompileTextures;
-				MaterialExpression->GetTexturesForceMaterialRecompile(ForceRecompileTextures);
-	
-				for (UTexture* Texture : ForceRecompileTextures)
-				{
-					TexturesRequiringMaterialUpdate.Emplace(Texture, Material);
-				}
+				TexturesRequiringMaterialUpdate.Emplace(Texture, MaterialInterface);
 			}
 		}
 
@@ -366,6 +361,8 @@ void FTextureCompilingManager::AddTextures(const TArray<UTexture*>& InTextures)
 
 void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InTextures)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishCompilation);
+
 	using namespace TextureCompilingManagerImpl;
 	check(IsInGameThread());
 
@@ -387,7 +384,7 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 	if (PendingTextures.Num())
 	{
 		FScopedSlowTask SlowTask((float)PendingTextures.Num(), LOCTEXT("FinishTextureCompilation", "Waiting on texture compilation"), true);
-		SlowTask.MakeDialog(true);
+		SlowTask.MakeDialogDelayed(1.0f);
 
 		struct FTextureTask : public IQueuedWork
 		{
@@ -516,9 +513,9 @@ void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ProcessTexturesRequiringMaterialUpdate);
 
-			TMultiMap<UTexture*, UMaterial*> TexturesAffectingMaterials = GetTexturesAffectingMaterials();
+			TMultiMap<UTexture*, UMaterialInterface*> TexturesAffectingMaterials = GetTexturesAffectingMaterials();
 
-			TArray<UMaterial*> MaterialsToUpdate;
+			TArray<UMaterialInterface*> MaterialsToUpdate;
 			for (UTexture* Texture : ProcessedTextures)
 			{
 				TexturesAffectingMaterials.MultiFind(Texture, MaterialsToUpdate);
@@ -527,11 +524,11 @@ void FTextureCompilingManager::ProcessTextures(int32 MaximumPriority)
 			if (MaterialsToUpdate.Num())
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMaterials);
-				FMaterialUpdateContext UpdateContext;
+				FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::SyncWithRenderingThread);
 
-				for (UMaterial* MaterialToUpdate : MaterialsToUpdate)
+				for (UMaterialInterface* MaterialToUpdate : MaterialsToUpdate)
 				{
-					UpdateContext.AddMaterial(MaterialToUpdate);
+					UpdateContext.AddMaterialInterface(MaterialToUpdate);
 				}
 			}
 		}

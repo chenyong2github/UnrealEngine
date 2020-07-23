@@ -4534,6 +4534,7 @@ void FRendererModule::UpdateStaticDrawLists()
 void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialResourcesToUpdate)
 {
 	TArray<UMaterialInterface*> UsedMaterials;
+	TSet<UMaterialInterface*> UsedMaterialsDependencies;
 	TMap<FScene*, TArray<FPrimitiveSceneInfo*>> UsedPrimitives;
 	for (TObjectIterator<UPrimitiveComponent> PrimitiveIt; PrimitiveIt; ++PrimitiveIt)
 	{
@@ -4541,41 +4542,39 @@ void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialReso
 
 		if (PrimitiveComponent->IsRenderStateCreated() && PrimitiveComponent->SceneProxy)
 		{
+			UsedMaterialsDependencies.Reset();
 			UsedMaterials.Reset();
-			bool bPrimitiveIsDependentOnMaterial = false;
 
 			// Note: relying on GetUsedMaterials to be accurate, or else we won't propagate to the right primitives and the renderer will crash later
 			// FPrimitiveSceneProxy::VerifyUsedMaterial is used to make sure that all materials used for rendering are reported in GetUsedMaterials
 			PrimitiveComponent->GetUsedMaterials(UsedMaterials);
 
-			if (UsedMaterials.Num() > 0)
+			for (UMaterialInterface* UsedMaterial : UsedMaterials)
 			{
-				for (TArray<const FMaterial*>::TConstIterator MaterialIt(MaterialResourcesToUpdate); MaterialIt; ++MaterialIt)
+				if (UsedMaterial)
 				{
-					UMaterialInterface* UpdatedMaterialInterface = (*MaterialIt)->GetMaterialInterface();
+					UsedMaterial->GetDependencies(UsedMaterialsDependencies);
+				}
+			}
+
+			if (UsedMaterialsDependencies.Num() > 0)
+			{
+				for (const FMaterial* MaterialResourceToUpdate : MaterialResourcesToUpdate)
+				{
+					UMaterialInterface* UpdatedMaterialInterface = MaterialResourceToUpdate->GetMaterialInterface();
 
 					if (UpdatedMaterialInterface)
 					{
-						for (int32 MaterialIndex = 0; MaterialIndex < UsedMaterials.Num(); MaterialIndex++)
+						if (UsedMaterialsDependencies.Contains(UpdatedMaterialInterface))
 						{
-							UMaterialInterface* TestMaterial = UsedMaterials[MaterialIndex];
-
-							if (TestMaterial && (TestMaterial == UpdatedMaterialInterface || TestMaterial->IsDependent(UpdatedMaterialInterface)))
-							{
-								bPrimitiveIsDependentOnMaterial = true;
-								break;
-							}
+							FPrimitiveSceneProxy* SceneProxy = PrimitiveComponent->SceneProxy;
+							FPrimitiveSceneInfo* SceneInfo = SceneProxy->GetPrimitiveSceneInfo();
+							FScene* Scene = SceneInfo->Scene;
+							TArray<FPrimitiveSceneInfo*>& SceneInfos = UsedPrimitives.FindOrAdd(Scene);
+							SceneInfos.Add(SceneInfo);
+							break;
 						}
 					}
-				}
-
-				if (bPrimitiveIsDependentOnMaterial)
-				{
-					FPrimitiveSceneProxy* SceneProxy = PrimitiveComponent->SceneProxy;
-					FPrimitiveSceneInfo* SceneInfo = SceneProxy->GetPrimitiveSceneInfo();
-					FScene* Scene = SceneInfo->Scene;
-					TArray<FPrimitiveSceneInfo*>& SceneInfos = UsedPrimitives.FindOrAdd(Scene);
-					SceneInfos.Add(SceneInfo);
 				}
 			}
 		}

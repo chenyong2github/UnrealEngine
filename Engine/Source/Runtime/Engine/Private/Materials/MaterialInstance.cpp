@@ -1629,6 +1629,22 @@ bool UMaterialInstance::CheckMaterialUsage_Concurrent(const EMaterialUsage Usage
 	}
 }
 
+void UMaterialInstance::GetDependencies(TSet<UMaterialInterface*>& Dependencies)
+{
+	if (GetReentrantFlag())
+	{
+		return;
+	}
+
+	Dependencies.Add(this);
+	
+	if (Parent)
+	{
+		FMICReentranceGuard	Guard(this);
+		Parent->GetDependencies(Dependencies);
+	}
+}
+
 bool UMaterialInstance::IsDependent(UMaterialInterface* TestDependency)
 {
 	if(TestDependency == this)

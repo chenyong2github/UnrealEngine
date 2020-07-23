@@ -334,6 +334,12 @@ public:
 	virtual bool IsDependent(UMaterialInterface* TestDependency) { return TestDependency == this; }
 
 	/**
+	* Get this material dependencies.
+	* @param	Dependencies - List of materials this interface depends on.
+	*/
+	virtual void GetDependencies(TSet<UMaterialInterface*>& Dependencies) PURE_VIRTUAL(UMaterialInterface::GetDependencies, return;);
+
+	/**
 	* Return a pointer to the FMaterialRenderProxy used for rendering.
 	* @param	Selected	specify true to return an alternate material used for rendering this material when part of a selection
 	*						@note: only valid in the editor!

@@ -2825,6 +2825,11 @@ bool UMaterial::GetRefractionSettings(float& OutBiasValue) const
 	return true;
 }
 
+void UMaterial::GetDependencies(TSet<UMaterialInterface*>& Dependencies) 
+{
+	Dependencies.Add(this);
+}
+
 FMaterialRenderProxy* UMaterial::GetRenderProxy() const
 {
 	return DefaultMaterialInstance;
