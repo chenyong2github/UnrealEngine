@@ -9,6 +9,8 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNode.h"
 
+#include "Editor.h"
+
 
 void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 {
