@@ -749,6 +749,38 @@ void FLevelModel::SelectActors(bool bSelect, bool bNotify, bool bSelectEvenIfHid
 	}
 }
 
+void FLevelModel::ConvertLevelToExternalActors(bool bUseExternal)
+{
+	ULevel* Level = GetLevelObject();
+	if (Level == nullptr || IsLocked())
+	{
+		return;
+	}
+	Level->Modify();
+	Level->SetUseExternalActors(bUseExternal);
+	Level->ConvertAllActorsToPackaging(Level->IsUsingExternalActors());
+}
+
+bool FLevelModel::CanConvertLevelToExternalActors(bool bToExternal)
+{
+	ULevel* Level = GetLevelObject();
+	if (Level == nullptr || IsLocked())
+	{
+		return false;
+	}
+
+	UPackage* LevelPackage = Level->GetOutermost();
+	if (Level->IsUsingExternalActors() == bToExternal
+		|| LevelPackage == GetTransientPackage()
+		|| LevelPackage->HasAnyFlags(RF_Transient)
+		|| Level->HasAnyFlags(RF_Transient)
+		|| !FPackageName::IsValidLongPackageName(LevelPackage->GetName()))
+	{
+		return false;
+	}
+	return true;
+}
+
 void FLevelModel::UpdateLevelActorsCount()
 {
 	LevelActorsCount = 0;
