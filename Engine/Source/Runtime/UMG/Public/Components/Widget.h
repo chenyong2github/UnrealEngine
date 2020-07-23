@@ -343,7 +343,7 @@ public:
 	ESlateAccessibleBehavior AccessibleSummaryBehavior;
 
 	/** When AccessibleBehavior is set to Custom, this is the text that will be used to describe the widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Accessibility", meta=(MultiLine=true))
+	UPROPERTY(EditAnywhere, Category="Accessibility", meta=(MultiLine=true))
 	FText AccessibleText;
 
 	/** An optional delegate that may be assigned in place of AccessibleText for creating a TAttribute */
@@ -351,7 +351,7 @@ public:
 	USlateAccessibleWidgetData::FGetText AccessibleTextDelegate;
 
 	/** When AccessibleSummaryBehavior is set to Custom, this is the text that will be used to describe the widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Accessibility", meta=(MultiLine=true), AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category="Accessibility", meta=(MultiLine=true), AdvancedDisplay)
 	FText AccessibleSummaryText;
 
 	/** An optional delegate that may be assigned in place of AccessibleSummaryText for creating a TAttribute */
@@ -798,6 +798,22 @@ public:
 		return Cast<T>(GetOwningLocalPlayer());
 	}
 
+	/**
+	 * Gets the accessible text from the underlying Slate accessible widget
+	 * @return The accessible text of the underlying Slate accessible widget. Returns an empty text if
+	  * accessibility is dsabled or the underlying accessible widget is invalid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	FText GetAccessibleText() const;
+
+	/**
+	 * Gets the accessible summary text from the underlying Slate accessible widget.
+	 * @return The accessible summary text of the underlying Slate accessible widget. Returns an empty text if
+	  * accessibility is dsabled or the underlying accessible widget is invalid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	FText GetAccessibleSummaryText() const;
+	
 	/**
 	 * Applies all properties to the native widget if possible.  This is called after a widget is constructed.
 	 * It can also be called by the editor to update modified state, so ensure all initialization to a widgets

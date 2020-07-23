@@ -65,6 +65,7 @@
 #include "EngineUtils.h"
 #include "EngineAnalytics.h"
 #include "CookerSettings.h"
+#include "Logging/MessageLog.h"
 #include "Misc/MessageDialog.h"
 #include "Logging/MessageLog.h"
 
@@ -1409,16 +1410,15 @@ bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
 	return bHasWritePermission;
 }
 
-void UUnrealEdEngine::OnContentPathMounted(const FString&, const FString& ContentPath)
+void UUnrealEdEngine::OnContentPathMounted(const FString& AssetPath, const FString& /*FileSystemPath*/)
 {
-	VerifyMountPointWritePermission(*ContentPath);
+	VerifyMountPointWritePermission(*AssetPath);
 }
 
-void UUnrealEdEngine::OnContentPathDismounted(const FString&, const FString& ContentPath)
+void UUnrealEdEngine::OnContentPathDismounted(const FString& AssetPath, const FString& /*FileSystemPath*/)
 {
-	MountPointCheckedForWritePermission.Remove(*ContentPath);
+	MountPointCheckedForWritePermission.Remove(*AssetPath);
 }
-
 void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)
 {
 	// if we are closing the Matinee editor

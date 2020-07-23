@@ -13,6 +13,7 @@
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
+#include "NiagaraSettings.h"
 
 static float GNiagaraComponentRenderComponentCountWarning = 50;
 static FAutoConsoleVariableRef CVarNiagaraComponentRenderComponentCountWarning(
@@ -193,7 +194,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 		{
 			TemplateComponent->DestroyComponent();
 		}
-		if (ComponentType)
+		if (ComponentType && UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
 		{
 			CreateTemplateComponent();
 
@@ -219,16 +220,17 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 
 void UNiagaraComponentRendererProperties::GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
-	TSharedRef<SWidget> LightWidget = SNew(SImage)
-		.Image(FSlateIconFinder::FindIconBrushForClass(GetClass()));
-	OutWidgets.Add(LightWidget);
+	TSharedRef<SWidget> Widget = SNew(SImage).Image(GetStackIcon());
+	OutWidgets.Add(Widget);
 }
 
 void UNiagaraComponentRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
 {
-	TSharedRef<SWidget> LightTooltip = SNew(STextBlock)
-		.Text(LOCTEXT("ComponentRendererTooltip", "Component Renderer"));
-	OutWidgets.Add(LightTooltip);
+	TSharedRef<SWidget> Tooltip = SNew(STextBlock)
+		.Text(FText::Format(LOCTEXT("ComponentRendererTooltip", "Component Renderer ({0})"), TemplateComponent ? 
+			TemplateComponent->GetClass()->GetDisplayNameText() :
+			FText::FromString("No type selected")));
+	OutWidgets.Add(Tooltip);
 }
 
 void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
@@ -237,8 +239,26 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 
 	OutInfo.Add(FText::FromString(TEXT("The component renderer is still a very experimental feature that offers great flexibility, \nbut is *not* optimized for performance or safety. \nWith great power comes great responsibility.")));
 
+	if (ComponentType && !UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
+	{
+		OutErrors.Add(FText::Format(LOCTEXT("NiagaraClassWithinComponentError", "The selected component type is not valid because it can only be attached to an object of type {0}."), FText::FromString(ComponentType->ClassWithin->GetName())));
+	}
+
 	if (InEmitter && TemplateComponent)
 	{
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		if (Settings)
+		{
+			for (const TPair<FString, FText>& Pair : Settings->ComponentRendererWarningsPerClass)
+			{
+				FString ClassName = TemplateComponent->GetClass()->GetName();
+				if (ClassName == Pair.Key)
+				{
+					OutWarnings.Add(Pair.Value);
+				}
+			}
+		}
+
 		bool IsWorldSpace = !InEmitter->bLocalSpace;
 		if (TemplateComponent->IsUsingAbsoluteLocation() != IsWorldSpace)
 		{
@@ -258,6 +278,16 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 	{
 		OutWarnings.Add(FText::FromString(TEXT("Creating and updating many components each tick will have a serious impact on performance.")));
 	}
+}
+
+const FSlateBrush* UNiagaraComponentRendererProperties::GetStackIcon() const
+{
+	return FSlateIconFinder::FindIconBrushForClass(TemplateComponent ? TemplateComponent->GetClass() : GetClass());
+}
+
+FText UNiagaraComponentRendererProperties::GetWidgetDisplayName() const
+{
+	return TemplateComponent ? FText::Format(FText::FromString("{0} Renderer"), TemplateComponent->GetClass()->GetDisplayNameText()) : Super::GetWidgetDisplayName();
 }
 
 const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAttributes()

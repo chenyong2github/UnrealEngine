@@ -20,26 +20,34 @@ void FDatasmithMasterMaterial::FromMaterial( UMaterial* InMaterial )
 #if WITH_EDITOR
 	if ( InMaterial )
 	{
-		for ( UMaterialExpression* Expression : InMaterial->Expressions )
-		{
-			FString ExpressionName = Expression->GetName();
+		TArray< FGuid > ParameterIds;
 
-			if ( Expression->IsA< UMaterialExpressionVectorParameter >() )
-			{
-				VectorParams.Add( Expression->GetParameterName().ToString() );
-			}
-			else if ( Expression->IsA< UMaterialExpressionScalarParameter >() )
-			{
-				ScalarParams.Add( Expression->GetParameterName().ToString() );
-			}
-			else if ( Expression->IsA< UMaterialExpressionTextureSampleParameter >() )
-			{
-				TextureParams.Add( Expression->GetParameterName().ToString() );
-			}
-			else if ( Expression->IsA< UMaterialExpressionStaticBoolParameter >() )
-			{
-				BoolParams.Add( Expression->GetParameterName().ToString() );
-			}
+		TArray< FMaterialParameterInfo > VectorParameterInfo;
+		InMaterial->GetAllVectorParameterInfo(VectorParameterInfo, ParameterIds);
+		for ( const FMaterialParameterInfo& Info : VectorParameterInfo )
+		{
+			VectorParams.Add( Info.Name.ToString() );
+		}
+
+		TArray< FMaterialParameterInfo > ScalarParameterInfo;
+		InMaterial->GetAllScalarParameterInfo(ScalarParameterInfo, ParameterIds);
+		for (const FMaterialParameterInfo& Info : ScalarParameterInfo)
+		{
+			ScalarParams.Add(Info.Name.ToString());
+		}
+
+		TArray< FMaterialParameterInfo > TextureParameterInfo;
+		InMaterial->GetAllTextureParameterInfo(TextureParameterInfo, ParameterIds);
+		for (const FMaterialParameterInfo& Info : TextureParameterInfo)
+		{
+			TextureParams.Add(Info.Name.ToString());
+		}
+
+		TArray< FMaterialParameterInfo > BoolParameterInfo;
+		InMaterial->GetAllStaticSwitchParameterInfo(BoolParameterInfo, ParameterIds);
+		for (const FMaterialParameterInfo& Info : BoolParameterInfo)
+		{
+			BoolParams.Add(Info.Name.ToString());
 		}
 	}
 #endif

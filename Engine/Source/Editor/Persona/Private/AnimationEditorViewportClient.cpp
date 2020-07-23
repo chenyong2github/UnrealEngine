@@ -114,7 +114,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	if(GEditor->PlayWorld)
 	{
 		const bool bShouldBeRealtime = false;
-		SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
+		AddRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
 	}
 
 	// @todo double define - fix it

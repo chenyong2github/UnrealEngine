@@ -33,7 +33,7 @@ public:
 	}
 };
 
-void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor)
+void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor, UClass* DefaultFilterClass)
 {
 	WeakCurveEditor = InCurveEditor;
 
@@ -43,6 +43,7 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 	// Options.Mode = EClassViewerMode::ClassBrowsing;
 	Options.bAllowViewOptions = false;
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
+	Options.InitiallySelectedClass = DefaultFilterClass;
 
 	TSharedPtr<FCurveFilterClassFilter> ClassFilter = MakeShared<FCurveFilterClassFilter>();
 	Options.ClassFilter = ClassFilter;
@@ -193,10 +194,9 @@ void SCurveEditorFilterPanel::OpenDialog(TSharedPtr<SWindow> RootWindow, TShared
 
 	TSharedPtr<SCurveEditorFilterPanel> FilterPanel;
 	ExistingWindow->SetContent(
-		SAssignNew(FilterPanel, SCurveEditorFilterPanel, InHostCurveEditor)
+		SAssignNew(FilterPanel, SCurveEditorFilterPanel, InHostCurveEditor, DefaultFilterClass)
 	);
 
-	FilterPanel->SetFilterClass(DefaultFilterClass);
 	ExistingFilterWindow = ExistingWindow;
 }
 

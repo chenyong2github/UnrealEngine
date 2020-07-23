@@ -1453,20 +1453,25 @@ bool FLiveLinkClient::RegisterForSubjectFrames(FLiveLinkSubjectName InSubjectNam
 {
 	if (const FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindEnabledSubject(InSubjectName))
 	{
-		if (SubjectItem->GetSubject()->GetStaticData().IsValid())
+		//Register both delegates
+		FSubjectFramesAddedHandles& Handles = SubjectFrameAddedHandles.FindOrAdd(InSubjectName);
+		OutStaticDataAddedHandle = Handles.OnStaticDataAdded.Add(InOnStaticDataAdded);
+		OutFrameDataAddedHandle = Handles.OnFrameDataAdded.Add(InOnFrameDataAdded);
+
+		//Give back the current static data and role associated to the subject
+		OutSubjectRole = SubjectItem->GetSubject()->GetRole();
+
+		//Copy the current static data
+		if (OutStaticData)
 		{
-			//Register both delegates
-			FSubjectFramesAddedHandles& Handles = SubjectFrameAddedHandles.FindOrAdd(InSubjectName);
-			OutStaticDataAddedHandle = Handles.OnStaticDataAdded.Add(InOnStaticDataAdded);
-			OutFrameDataAddedHandle = Handles.OnFrameDataAdded.Add(InOnFrameDataAdded);
-
-			//Give back the current static data and role associated to the subject
-			OutSubjectRole = SubjectItem->GetSubject()->GetRole();
-
-			//Copy the current static data
-			if (OutStaticData)
+			const FLiveLinkStaticDataStruct& CurrentStaticData = SubjectItem->GetSubject()->GetStaticData();
+			if (CurrentStaticData.IsValid())
 			{
-				OutStaticData->InitializeWith(SubjectItem->GetSubject()->GetStaticData());
+				OutStaticData->InitializeWith(CurrentStaticData);
+			}
+			else
+			{
+				OutStaticData->Reset();
 			}
 		}
 

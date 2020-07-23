@@ -640,7 +640,7 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in fl
 // Get the point position
 void DIHairStrands_GetPointPosition(in FDIHairStrandsContext DIContext, in int PointIndex, out float3 OutPointPosition)
 {
-	OutPointPosition = mul(float4( f16tof32(DIContext.DeformedPositionBuffer.Load(PointIndex).xyz)+DIContext.DeformedPositionOffset, 1.0), DIContext.WorldTransform).xyz;
+	OutPointPosition = mul(float4( f16tof32(DIContext.DeformedPositionBuffer[PointIndex].xyz)+DIContext.DeformedPositionOffset, 1.0), DIContext.WorldTransform).xyz;
 }
 
 /* -----------------------------------------------------------------

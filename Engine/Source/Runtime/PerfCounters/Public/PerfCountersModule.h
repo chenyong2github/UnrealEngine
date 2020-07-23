@@ -234,6 +234,9 @@ public:
 		return FModuleManager::Get().IsModuleLoaded("PerfCounters");
 	}
 
+	/** Returns the HTTP port to bind for the stats request. Returns -1 if none were specified */
+	static PERFCOUNTERS_API int32 GetHTTPStatsPort();
+
 	/**
 	 * @return the currently initialized / in use perf counters 
 	 */

@@ -191,6 +191,9 @@ static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinTy
 					}
 				}
 
+				InputClass = InputClass->GetAuthoritativeClass();
+				OutputClass = OutputClass->GetAuthoritativeClass();
+
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
 

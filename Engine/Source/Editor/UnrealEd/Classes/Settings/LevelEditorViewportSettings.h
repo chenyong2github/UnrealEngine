@@ -242,6 +242,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category=Controls, meta=(DisplayName = "Orthographic Zoom to Cursor Position"))
 	uint32 bCenterZoomAroundCursor:1;
 
+	/** The closest possible distance allowed when viewing through an orthographic camera */
+	UPROPERTY(EditAnywhere, config, Category = Controls, meta=(UIMin = "1.0", ClampMin = "1.0"))
+	float MinimumOrthographicZoom;
+
 	/** Allow translate/rotate widget */
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=( DisplayName = "Enable Combined Translate/Rotate Widget" ))
 	uint32 bAllowTranslateRotateZWidget:1;
@@ -421,6 +425,11 @@ public:
 	/** Controls which array of rotation grid values we are using */
 	UPROPERTY(config)
 	TEnumAsByte<ERotationGridMode> CurrentRotGridMode;
+
+	/** Toggles legacy behavior for updating components and actors during drag operations. This could be useful if you're seeing a degradation in performance due to too many PostEditMove calls */
+	UE_DEPRECATED(4.26, "This property is meant to be a temporary toggle for a rollback if too many post edit move calls degrade performance during drag operations.")
+	UPROPERTY(EditAnywhere, config, Category=Controls, AdvancedDisplay, meta = (DisplayName = "Use Legacy Behavior for actor and component updates while dragging"))
+	bool bUseLegacyPostEditBehavior = false;
 
 public:
 

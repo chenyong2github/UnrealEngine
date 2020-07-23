@@ -59,6 +59,12 @@ public:
 
 	virtual void PostLoad() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+
+	/** Returns true if proxy doesn't contain any mesh entry. */
+	bool IsEmpty() const;
+
+	/** Destroy all assets & delete this HLOD proxy package. */
+	void DeletePackage();
 #endif
 
 	/**
@@ -75,6 +81,14 @@ public:
 #endif
 
 private:
+#if WITH_EDITOR
+	// Remove all assets associated with the given proxy mesh
+	void RemoveAssets(const FHLODProxyMesh& ProxyMesh);
+
+	// Clear object flags to ensure it can be properly GC'd and removed from its package.
+	void DestroyObject(UObject* Obj);
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Keep hold of the level in the editor to allow for package cleaning etc. */
 	UPROPERTY(VisibleAnywhere, Category = "Proxy Mesh")

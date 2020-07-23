@@ -42,6 +42,13 @@ struct FInstallBundlePauseInfo
 	EInstallBundlePauseFlags PauseFlags = EInstallBundlePauseFlags::None;
 };
 
+struct FInstallBundleReleaseRequestResultInfo
+{
+	FName BundleName;
+	EInstallBundleReleaseResult Result = EInstallBundleReleaseResult::OK; 
+	bool bContentWasRemoved = false;
+};
+
 enum class EInstallBundleManagerInitErrorHandlerResult
 {
 	NotHandled, // Defer to the next handler
@@ -53,6 +60,7 @@ DECLARE_DELEGATE_RetVal_OneParam(EInstallBundleManagerInitErrorHandlerResult, FI
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleCompleteMultiDelegate, FInstallBundleRequestResultInfo);
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallBundlePauseInfo);
+DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleReleasedMultiDelegate, FInstallBundleReleaseRequestResultInfo);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundleManagerOnPatchCheckComplete, EInstallBundleManagerPatchCheckResult);
 
@@ -66,6 +74,8 @@ public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleUpdatedDelegate;  // Called when content is up to do date
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate; // Called when content is ready to use
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
+	static FInstallBundleReleasedMultiDelegate ReleasedDelegate; // Called when content has been released
+	static FInstallBundleReleasedMultiDelegate RemovedDelegate; // Called when content has been physically removed
 	static FInstallBundleManagerOnPatchCheckComplete PatchCheckCompleteDelegate;
 
 	static IInstallBundleManager* GetPlatformInstallBundleManager();
@@ -81,7 +91,6 @@ public:
 
 	virtual EInstallBundleManagerInitState GetInitState() const = 0;
 
-	// TODO: comments here about when we return null vs set flags
 	TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestUpdateContent(FName BundleName, EInstallBundleRequestFlags Flags);
 	virtual TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestUpdateContent(TArrayView<const FName> BundleNames, EInstallBundleRequestFlags Flags) = 0;
 
@@ -97,7 +106,8 @@ public:
 	virtual TValueOrError<FInstallBundleCombinedInstallState, EInstallBundleResult> GetInstallStateSynchronous(TArrayView<const FName> BundleNames, bool bAddDependencies) const = 0;
 	virtual void CancelAllGetInstallStateRequestsForTag(FName RequestTag) = 0;    
 
-	// void RequestReleaseContent(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>())
+	TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestReleaseContent(FName ReleaseName, EInstallBundleReleaseRequestFlags Flags, TArrayView<const FName> KeepNames = TArrayView<const FName>());
+	virtual TValueOrError<FInstallBundleRequestInfo, EInstallBundleResult> RequestReleaseContent(TArrayView<const FName> ReleaseNames, EInstallBundleReleaseRequestFlags Flags, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
 
 	void RequestRemoveContentOnNextInit(FName RemoveName, TArrayView<const FName> KeepNames = TArrayView<const FName>());
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) = 0;
@@ -134,5 +144,7 @@ public:
 
 	virtual void StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false, const FInstallBundleCombinedContentState* State = nullptr) {}
 	virtual void StopSessionPersistentStatTracking(const FString& SessionName) {}
+
+	virtual EOverallInstallationProcessStep GetCurrentInstallProcessStep() { return EOverallInstallationProcessStep::Downloading; };
 };
 

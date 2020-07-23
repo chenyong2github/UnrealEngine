@@ -1204,7 +1204,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 
 	if(FirstBaseMesh)
 	{
-		//Don't restore materials when reimporting scene
+	//Don't restore materials when reimporting scene
 		RestoreExistingMeshData(ExistMeshDataPtr, FirstBaseMesh, INDEX_NONE, false, ImportOptions->bResetToFbxOnMaterialConflict);
 		RestoreData.CleanupDuplicateMesh();
 	}
@@ -1683,11 +1683,12 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		if (Node->GetMesh())
 		{
 			Node->GetMesh()->ComputeBBox();
-			FbxDouble3 BoxExtend;
-			BoxExtend[0] = Node->GetMesh()->BBoxMax.Get()[0] - Node->GetMesh()->BBoxMin.Get()[0];
-			BoxExtend[1] = Node->GetMesh()->BBoxMax.Get()[1] - Node->GetMesh()->BBoxMin.Get()[1];
-			BoxExtend[2] = Node->GetMesh()->BBoxMax.Get()[2] - Node->GetMesh()->BBoxMin.Get()[2];
-			double SqrSize = (BoxExtend[0] * BoxExtend[0]) + (BoxExtend[1] * BoxExtend[1]) + (BoxExtend[2] * BoxExtend[2]);
+			
+			FbxVector4 GlobalScale = Node->EvaluateGlobalTransform(0).GetS();
+			FbxVector4 BBoxMax = FbxVector4(Node->GetMesh()->BBoxMax.Get()) * GlobalScale;
+			FbxVector4 BBoxMin = FbxVector4(Node->GetMesh()->BBoxMin.Get()) * GlobalScale;
+			FbxVector4 BoxExtend = BBoxMax - BBoxMin;
+			double SqrSize = BoxExtend.SquareLength();
 			//If the bounding box of the mesh part is smaller then the position threshold, the part is consider degenerated and will be skip.
 			if (SqrSize > SqrBoundingBoxThreshold)
 			{
@@ -2765,8 +2766,8 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 			{
 				bAtLeastOneCollisionMeshImported = true;
 				FKSphylElem& NewElem = AggGeo.SphylElems.Last();
-				
-				// Now test the late element in the AggGeo list and remove it if its a duplicate
+
+			// Now test the late element in the AggGeo list and remove it if its a duplicate
 				for (int32 ElementIndex = 0; ElementIndex < AggGeo.SphylElems.Num() - 1; ++ElementIndex)
 				{
 					FKSphylElem& CurrentElem = AggGeo.SphylElems[ElementIndex];
@@ -2803,7 +2804,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 	// refresh collision change back to staticmesh components
 	RefreshCollisionChange(*StaticMesh);
-
+		
 	return bAtLeastOneCollisionMeshImported;
 }
 #undef LOCTEXT_NAMESPACE

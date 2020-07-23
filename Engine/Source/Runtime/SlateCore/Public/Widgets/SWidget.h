@@ -1269,8 +1269,14 @@ public:
 	template<typename MetaDataType>
 	void AddMetadata(const TSharedRef<MetaDataType>& AddMe)
 	{
-		MetaData.Add(AddMe);
+		AddMetadataInternal(AddMe);
 	}
+
+private:
+
+	void AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe);
+
+public:
 
 	/** See OnMouseButtonDown event */
 	void SetOnMouseButtonDown(FPointerEventHandler EventHandler);

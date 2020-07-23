@@ -16,17 +16,22 @@ class FObjectBaseAddress
 {
 public:
 	FObjectBaseAddress()
-		:	Object( nullptr )
-		,	BaseAddress( nullptr )
+		:	ObjectOrStruct(nullptr)
+		,	BaseAddress(nullptr)
 		,	bIsStruct(false)
 	{}
-	FObjectBaseAddress(UObject* InObject, uint8* InBaseAddress, bool InIsStruct)
-		:	Object( InObject )
-		,	BaseAddress( InBaseAddress )
+	FObjectBaseAddress(uint8* InObjectOrStruct, uint8* InBaseAddress, bool InIsStruct)
+		:	ObjectOrStruct(InObjectOrStruct)
+		,	BaseAddress(InBaseAddress)
 		,	bIsStruct(InIsStruct)
 	{}
 
-	UObject*	Object;
+	FORCEINLINE UObject* GetUObject() const
+	{
+		return bIsStruct ? nullptr : (UObject*) ObjectOrStruct;
+	}
+
+	uint8*		ObjectOrStruct;
 	uint8*		BaseAddress;
 	bool		bIsStruct;
 };

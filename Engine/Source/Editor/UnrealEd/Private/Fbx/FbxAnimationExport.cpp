@@ -152,10 +152,11 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		auto ExportLambda = [&](float AnimTime, FbxTime ExportTime, bool bLastKey) {
 			FTransform BoneAtom;
 			AnimSeq->GetBoneTransform(BoneAtom, BoneTrackIndex, AnimTime, true);
-
-			FbxVector4 Translation = Converter.ConvertToFbxPos(BoneAtom.GetTranslation());
-			FbxVector4 Rotation = Converter.ConvertToFbxRot(BoneAtom.GetRotation().Euler());
-			FbxVector4 Scale = Converter.ConvertToFbxScale(BoneAtom.GetScale3D());
+			FbxAMatrix FbxMatrix = Converter.ConvertMatrix(BoneAtom.ToMatrixWithScale());
+			
+			FbxVector4 Translation = FbxMatrix.GetT();
+			FbxVector4 Rotation = FbxMatrix.GetR();
+			FbxVector4 Scale = FbxMatrix.GetS();
 			FbxVector4 Vectors[3] = { Translation, Rotation, Scale };
 
 			// Loop over each curve and channel to set correct values

@@ -150,11 +150,11 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		const int32 CheckerboardSizeY = FMath::Max<int32>(1, CheckerboardTexture->GetSizeY());
 		if (Settings.Background == TextureEditorBackground_CheckeredFill)
 		{
-			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, Viewport->GetSizeXY().X / CheckerboardSizeX, Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, (float)Viewport->GetSizeXY().X / CheckerboardSizeX, (float)Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
 		}
 		else if (Settings.Background == TextureEditorBackground_Checkered)
 		{
-			Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, Width / CheckerboardSizeX, Height / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
+			Canvas->DrawTile( XPos, YPos, Width, Height, 0.0f, 0.0f, (float)Width / CheckerboardSizeX, (float)Height / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->Resource);
 		}
 	}
 
@@ -195,7 +195,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
  			auto ZeroOrAbsolute = [](int32 value) -> int32 { return value >= 0 ? 0 : FMath::Abs(value); };
 			auto GetCorrectDimension = [](int value, int32 viewportSize, int32 TextureSize) -> int32 { return value <= viewportSize ? TextureSize : viewportSize; };
 
-			const float Zoom = 1.0f / TextureEditorPtr.Pin()->GetZoom();
+			const float Zoom = 1.0f / TextureEditorPtr.Pin()->GetCustomZoomLevel();
 			const int32 VisibleXPos = FMath::FloorToInt(Zoom * -FMath::Min(0, XPos));
 			const int32 VisibleYPos = FMath::FloorToInt(Zoom * -FMath::Min(0, YPos));
 			
@@ -243,21 +243,24 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 
 bool FTextureEditorViewportClient::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool Gamepad)
 {
-	if (Key == EKeys::MouseScrollUp)
+	if (Event == IE_Pressed)
 	{
-		TextureEditorPtr.Pin()->ZoomIn();
+		if (Key == EKeys::MouseScrollUp)
+		{
+			TextureEditorPtr.Pin()->ZoomIn();
 
-		return true;
-	}
-	else if (Key == EKeys::MouseScrollDown)
-	{
-		TextureEditorPtr.Pin()->ZoomOut();
+			return true;
+		}
+		else if (Key == EKeys::MouseScrollDown)
+		{
+			TextureEditorPtr.Pin()->ZoomOut();
 
-		return true;
-	}
-	else if (Key == EKeys::RightMouseButton)
-	{
-		TextureEditorPtr.Pin()->SetVolumeOrientation(FRotator(90, 0, -90));
+			return true;
+		}
+		else if (Key == EKeys::RightMouseButton)
+		{
+			TextureEditorPtr.Pin()->SetVolumeOrientation(FRotator(90, 0, -90));
+		}
 	}
 	return false;
 }
@@ -291,8 +294,8 @@ bool FTextureEditorViewportClient::InputGesture(FViewport* Viewport, EGestureEve
 
 	if (GestureType == EGestureEvent::Scroll && !LeftMouseButtonDown && !RightMouseButtonDown)
 	{
-		double CurrentZoom = TextureEditorPtr.Pin()->GetZoom();
-		TextureEditorPtr.Pin()->SetZoom(CurrentZoom + GestureDelta.Y * 0.01);
+		double CurrentZoom = TextureEditorPtr.Pin()->GetCustomZoomLevel();
+		TextureEditorPtr.Pin()->SetCustomZoomLevel(CurrentZoom + GestureDelta.Y * 0.01);
 		return true;
 	}
 

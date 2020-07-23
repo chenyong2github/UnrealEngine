@@ -47,7 +47,7 @@
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
-
+	
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
 	TEXT("au.SetAudioChannelCount"),
@@ -2731,7 +2731,7 @@ static void UpdateClassAdjustorOverrideEntry(FSoundClassAdjuster& ClassAdjustor,
 
 float FAudioDevice::GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const
 {
-	const float NormFrequency = InterpolateAdjuster(InFrequency / MAX_FILTER_FREQUENCY, InterpValue);
+	const float NormFrequency = InterpolateAdjuster(Audio::GetLinearFrequencyClamped(InFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY)), InterpValue);
 	return Audio::GetLogFrequencyClamped(NormFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
 }
 
@@ -6288,11 +6288,19 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 {
 	check(IsInAudioThread());
 
-	// First check to see if the device manager has "bPlayAllPIEAudio" enabled
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager && DeviceManager->IsPlayAllDeviceAudio())
+	if(DeviceManager)
 	{
-		return false;
+		// Check to see if the device manager has "bPlayAllPIEAudio" enabled
+		const bool bIsPlayAllDeviceAudio = DeviceManager->IsPlayAllDeviceAudio();
+
+		// Check if always playing NonRealtime devices, and this is a NonRealtime device
+		const bool bIsAlwaysPlayNonRealtime = DeviceManager->IsAlwaysPlayNonRealtimeDeviceAudio() && IsNonRealtime();
+
+		if (bIsPlayAllDeviceAudio || bIsAlwaysPlayNonRealtime)
+		{
+			return false;
+		}
 	}
 
 	return bIsDeviceMuted;

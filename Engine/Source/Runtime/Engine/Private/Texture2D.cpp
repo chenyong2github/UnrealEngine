@@ -605,9 +605,13 @@ void UTexture2D::UpdateResource()
 	const bool bLoadOnlyFirstMip = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetMipLoadOptions(this) == ETextureMipLoadOptions::OnlyFirstMip;
 	if (bLoadOnlyFirstMip && PlatformData && PlatformData->Mips.Num() > 0 && FPlatformProperties::RequiresCookedData())
 	{
-		const int32 FirstMip = FMath::Clamp(0, GetCachedLODBias(), PlatformData->Mips.Num() - 1);
-		// Remove any mips after the first mip.
-		PlatformData->Mips.RemoveAt(FirstMip + 1, PlatformData->Mips.Num() - FirstMip - 1);
+		const int32 FirstMip = FMath::Min(FMath::Max(0, GetCachedLODBias()), GetMipTailBaseIndex());
+		if (FirstMip < GetMipTailBaseIndex())
+		{
+			// Remove any mips after the first mip.
+			PlatformData->Mips.RemoveAt(FirstMip + 1, PlatformData->Mips.Num() - FirstMip - 1);
+			PlatformData->OptData.NumMipsInTail = 0;
+		}
 		// Remove any mips before the first mip.
 		PlatformData->Mips.RemoveAt(0, FirstMip);
 		// Update the texture size for the memory usage metrics.
@@ -777,7 +781,7 @@ int32 UTexture2D::CalcTextureMemorySize( int32 MipCount ) const
 		static TConsoleVariableData<int32>* CVarReducedMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextureReducedMemory"));
 		check(CVarReducedMode);
 
-		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
+		uint32 TexCreateFlags = (SRGB ? TexCreate_SRGB : 0) | (bNoTiling ? TexCreate_NoTiling : 0) | (bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | TexCreate_Streamable;
 		const bool bCanBeVirtual = CanCreateAsVirtualTexture(TexCreateFlags);
 
 		const int32 SizeX = GetSizeX();
@@ -930,12 +934,8 @@ int32 UTexture2D::GetNumNonStreamingMips() const
 	}
 	else
 	{
-		int32 MipCount = GetNumMips();
-		NumNonStreamingMips = FMath::Max(0, MipCount - GetMipTailBaseIndex());
-
 		// Take in to account the min resident limit.
-		NumNonStreamingMips = FMath::Max(NumNonStreamingMips, GetMinTextureResidentMipCount());
-		NumNonStreamingMips = FMath::Min(NumNonStreamingMips, MipCount);
+		NumNonStreamingMips = FMath::Min(GetNumMips(), GetMinTextureResidentMipCount());
 	}
 
 	return NumNonStreamingMips;
@@ -1418,8 +1418,7 @@ void FTexture2DResource::InitRHI()
 	uint32 SizeY = OwnerMips[CurrentFirstMip].SizeY;
 
 	// Create the RHI texture.
-	uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed | TexCreate_Streamable;
-	ensure(Owner->GetMipTailBaseIndex() != -1); //TexCreate_NoMipTail is deprecated
+	uint32 TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : 0) | (Owner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | TexCreate_Streamable;
 	// disable tiled format if needed
 	if( Owner->bNoTiling )
 	{
@@ -1832,7 +1831,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			}
 		}
 
-		uint32 TexCreateFlags = (TextureOwner->SRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
+		uint32 TexCreateFlags = (TextureOwner->SRGB ? TexCreate_SRGB : 0) | (TextureOwner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
 		if (TextureOwner->bNoTiling)
 		{
 			TexCreateFlags |= TexCreate_NoTiling;
@@ -2165,7 +2164,8 @@ FString FTexture2DResource::GetFriendlyName() const
 void FTexture2DArrayResource::InitRHI()
 {
 	// Create the RHI texture.
-	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
+	const bool bNotOfflineProcessed = Owner ? Owner->bNotOfflineProcessed : false;
+	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | (bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed);
 	FRHIResourceCreateInfo CreateInfo;
 	TRefCountPtr<FRHITexture2DArray> TextureArray = RHICreateTexture2DArray(SizeX, SizeY, NumSlices, Format, NumMips, 1, TexCreateFlags, CreateInfo);
 	TextureRHI = TextureArray;

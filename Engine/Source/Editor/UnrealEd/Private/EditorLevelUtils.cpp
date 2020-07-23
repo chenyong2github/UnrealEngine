@@ -352,6 +352,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	ULevel* NewLevel = nullptr;
 
 	ULevelStreaming* NewStreamingLevel = AddLevelToWorld_Internal(InWorld, LevelPackageName, LevelStreamingClass, LevelTransform);
+
+	// Broadcast the levels have changed (new style)
+	InWorld->BroadcastLevelsChanged();
+	FEditorDelegates::RefreshLevelBrowser.Broadcast();
+
 	if (NewStreamingLevel)
 	{
 		NewLevel = NewStreamingLevel->GetLoadedLevel();
@@ -372,10 +377,6 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	{
 		GLevelEditorModeTools().ActivateDefaultMode();
 	}
-
-	// Broadcast the levels have changed (new style)
-	InWorld->BroadcastLevelsChanged();
-	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
 	if (GUnrealEd)
@@ -794,6 +795,10 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	IStreamingManager::Get().RemoveLevel(InLevel);
 	UWorld* World = InLevel->OwningWorld;
 	World->RemoveLevel(InLevel);
+	if (InLevel->bIsLightingScenario)
+	{
+		World->PropagateLightingScenarioChange();
+	}
 	InLevel->ClearLevelComponents();
 
 	// remove all group actors from the world in the level we are removing
@@ -1225,10 +1230,8 @@ void UEditorLevelUtils::SetLevelsVisibility(const TArray<ULevel*>& Levels, const
 	}
 }
 
-void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, bool bIncludeInWorld, bool bOnlyEditorVisible)
+void UEditorLevelUtils::ForEachWorlds(UWorld* InWorld, TFunctionRef<bool(UWorld*)> Operation, bool bIncludeInWorld, bool bOnlyEditorVisible)
 {
-	OutWorlds.Empty();
-
 	if (!InWorld)
 	{
 		return;
@@ -1236,7 +1239,10 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 
 	if (bIncludeInWorld)
 	{
-		OutWorlds.AddUnique(InWorld);
+		if (!Operation(InWorld))
+		{
+			return;
+		}
 	}
 
 	// Iterate over the world's level array to find referenced levels ("worlds"). We don't 
@@ -1257,7 +1263,10 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 					UWorld* World = Cast<UWorld>(Level->GetOuter());
 					if (World)
 					{
-						OutWorlds.AddUnique(World);
+						if (!Operation(World))
+						{
+							return;
+						}
 					}
 				}
 			}
@@ -1273,10 +1282,19 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 			UWorld* World = Cast<UWorld>(Level->GetOuter());
 			if (World)
 			{
-				OutWorlds.AddUnique(World);
+				if (!Operation(World))
+				{
+					return;
+				}
 			}
 		}
 	}
+}
+
+void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, bool bIncludeInWorld, bool bOnlyEditorVisible)
+{
+	OutWorlds.Empty();
+	ForEachWorlds(InWorld, [&OutWorlds](UWorld* World) { OutWorlds.AddUnique(World); return true; }, bIncludeInWorld, bOnlyEditorVisible);
 }
 
 #undef LOCTEXT_NAMESPACE

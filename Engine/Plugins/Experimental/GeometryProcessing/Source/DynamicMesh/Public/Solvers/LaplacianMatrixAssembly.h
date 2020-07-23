@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
+#include "Util/IndexUtil.h"
 #include "Solvers/MatrixInterfaces.h"
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/MeshLaplacian.h"
@@ -162,6 +163,36 @@ namespace UE
 			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
 			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
 			const bool bClampWeights);
+
+
+
+		enum class ECotangentWeightMode
+		{
+			/** Standard cotangent weights */
+			Default = 0,
+			/** magnitude of matrix entries clamped to [-1e5,1e5], scaled by area weight   */
+			ClampedMagnitude = 1
+		};
+
+
+		enum class ECotangentAreaMode
+		{
+			/** uniform-weighted cotangents */
+			NoArea = 0,
+			/** weight each vertex/row by 1/voronoi_area */
+			VoronoiArea = 1
+		};
+
+		/**
+		 * Construct sparse Cotangent Laplacian matrix.
+		 * This variant combines the N interior and M boundary vertices into a single (N+M) matrix and does not do any special treatment of boundaries,
+		 * they just get standard Cotan weights
+		 */
+		template<typename RealType>
+		void ConstructFullCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianMatrix,
+			ECotangentWeightMode WeightMode = ECotangentWeightMode::ClampedMagnitude,
+			ECotangentAreaMode AreaMode = ECotangentAreaMode::NoArea );
 
 	}
 }
@@ -400,7 +431,7 @@ void UE::MeshDeformation::ConstructMeanValueWeightLaplacian(const FDynamicMesh3&
 			const int32 Tri0Idx = ToTriIdx[Edge.Tri[0]];
 			const auto& Tri0Data = TriangleDataArray[Tri0Idx];
 			double TanHalfAngleSum = Tri0Data.GetTanHalfAngle(IVertId);
-			double EdgeLength = FMathd::Max(1.e-5, Tri0Data.GetEdgeLenght(EdgeId)); // Clamp the length
+			double EdgeLength = FMathd::Max(1.e-5, Tri0Data.GetEdgeLength(EdgeId)); // Clamp the length
 
 			// The second triangle will be invalid if this is an edge!
 			TanHalfAngleSum += (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? TriangleDataArray[ToTriIdx[Edge.Tri[1]]].GetTanHalfAngle(IVertId) : 0.;
@@ -625,3 +656,84 @@ void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& Dynam
 }
 
 
+
+
+
+
+
+template<typename RealType>
+void UE::MeshDeformation::ConstructFullCotangentLaplacian(const FDynamicMesh3& Mesh, const FVertexLinearization& VertexMap,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianMatrix, 
+	ECotangentWeightMode WeightMode,
+	ECotangentAreaMode AreaMode)
+{
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	// pre-allocate space when possible
+	int32 NumMatrixEntries = ComputeNumMatrixElements(Mesh, ToMeshV);
+	LaplacianMatrix.ReserveEntriesFunc(NumMatrixEntries);
+
+	// Map the triangles.
+	FTriangleLinearization TriangleMap(Mesh);
+	const TArray<int32>& ToMeshTri = TriangleMap.ToId();
+	const TArray<int32>& ToTriIdx = TriangleMap.ToIndex();
+	const int32 NumTris = TriangleMap.NumTris();
+
+	// Create an array that holds all the geometric information we need for each triangle.
+	TArray<CotanTriangleData> CotangentTriangleDataArray;
+	ConstructTriangleDataArray<CotanTriangleData>(Mesh, TriangleMap, CotangentTriangleDataArray);
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+
+		double WeightArea = 1.0;
+		if (AreaMode == ECotangentAreaMode::VoronoiArea)
+		{
+			WeightArea = 0.0;
+			Mesh.EnumerateVertexTriangles(IVertId, [&](int32 TriId) {
+				const int32 TriIdx = ToTriIdx[TriId];
+				const CotanTriangleData& TriData = CotangentTriangleDataArray[TriIdx];
+				const FIndex3i TriVertIds = Mesh.GetTriangle(TriId);
+				int32 TriVertIndex = IndexUtil::FindTriIndex(IVertId, TriVertIds);
+				WeightArea += TriData.VoronoiArea[TriVertIndex];
+			});
+		}
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		for (int32 EdgeId : Mesh.VtxEdgesItr(IVertId))
+		{
+			const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeId);
+
+			// the other vert in the edge - identifies the matrix column
+			const int32 JVertId = (Edge.Vert[0] == IVertId) ? Edge.Vert[1] : Edge.Vert[0];  // J - the column
+
+			// Get the cotangents for this edge.
+			const int32 Tri0Idx = ToTriIdx[Edge.Tri[0]];
+			const CotanTriangleData& Tri0Data = CotangentTriangleDataArray[Tri0Idx];
+			const double CotanAlpha = Tri0Data.GetOpposingCotangent(EdgeId);
+
+			// The second triangle will be invalid if this is an edge!
+			const double CotanBeta = (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge.Tri[1]]].GetOpposingCotangent(EdgeId) : 0.0;
+
+			// do not need to multiply by 0.5 here...
+			//double WeightIJ = 0.5 * (CotanAlpha + CotanBeta);
+			double WeightIJ = (CotanAlpha + CotanBeta);
+
+			if (WeightMode == ECotangentWeightMode::ClampedMagnitude)
+			{
+				WeightIJ = FMathd::Clamp(WeightIJ, -1.e5 * WeightArea, 1.e5 * WeightArea);
+			}
+
+			WeightII += WeightIJ;
+
+			const int32 j = ToIndex[JVertId];
+			LaplacianMatrix.AddEntryFunc(i, j, (RealType)(WeightIJ / WeightArea));
+		}
+		LaplacianMatrix.AddEntryFunc(i, i, (RealType)(-WeightII / WeightArea));
+	}
+}

@@ -47,9 +47,17 @@ public:
 
 	bool bIsIterative() const override { return false; }
 
+	void Solve(const RealVectorType& BVector, RealVectorType& SolVector) const override
+	{
+		if (ensure(bSetup))
+		{
+			SolVector = MatrixSolver.solve(BVector);
+		}
+	}
+
 	void Solve(const VectorType& BVector, VectorType& SolVector) const override
 	{
-		if (bSetup)
+		if (ensure(bSetup))
 		{
 			SolVector = MatrixSolver.solve(BVector);
 		}
@@ -58,7 +66,7 @@ public:
 	void Solve(const FSOAPositions& BVectors, FSOAPositions& SolVectors) const override
 	{
 		const bool bForceSingleThreaded = false;
-		if (bSetup)
+		if (ensure(bSetup))
 		{
 			ParallelFor(3, [&](int Dir)
 			{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
@@ -160,6 +168,14 @@ public:
 
 	bool bIsIterative() const override { return true; }
 
+	void Solve(const RealVectorType& BVector, RealVectorType& SolVector) const override
+	{
+		if (bSetup)
+		{
+			SolVector = MatrixSolver.solve(BVector);
+		}
+	}
+
 	void Solve(const VectorType& BVector, VectorType& SolVector) const override
 	{
 		if (bSetup)
@@ -167,6 +183,7 @@ public:
 			SolVector = MatrixSolver.solve(BVector);
 		}
 	}
+
 	void Solve(const FSOAPositions& BVectors, FSOAPositions& SolVectors) const override
 	{
 		const bool bForceSingleThreaded = false;
@@ -174,6 +191,15 @@ public:
 		{
 			ParallelFor(3, [&](int Dir)
 			{ SolVectors.Array(Dir) = MatrixSolver.solve(BVectors.Array(Dir)); }, bForceSingleThreaded);
+		}
+	}
+
+	void SolveWithGuess(const RealVectorType& GuessVector, const RealVectorType& BVector, RealVectorType& SolVector)  const override
+	{
+
+		if (bSetup)
+		{
+			SolVector = MatrixSolver.solveWithGuess(BVector, GuessVector);
 		}
 	}
 

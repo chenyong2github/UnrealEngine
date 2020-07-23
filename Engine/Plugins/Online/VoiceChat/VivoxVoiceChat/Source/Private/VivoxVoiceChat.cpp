@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "VoiceChatErrors.h"
 #include "VivoxVoiceChatErrors.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "Vxc.h"
 #include "VxcErrors.h"
@@ -443,6 +444,7 @@ void FVivoxVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& Playe
 
 	OnVoiceChatLoginCompleteDelegate = Delegate;
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Login(LoginSession.AccountName, TCHAR_TO_ANSI(*Credentials));
 	if (Status.IsError())
 	{
@@ -485,6 +487,7 @@ void FVivoxVoiceChatUser::Logout(const FOnVoiceChatLogoutCompleteDelegate& Deleg
 	OnVoiceChatLogoutCompleteDelegate = Delegate;
 
 	VivoxClientApi::AccountName AccountName = VivoxVoiceChat.CreateAccountName(LoginSession.PlayerName);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Logout(AccountName);
 	if (Status.IsError())
 	{
@@ -520,6 +523,7 @@ void FVivoxVoiceChatUser::BlockPlayers(const TArray<FString>& PlayerNames)
 		UsersToBlock.Add(VivoxVoiceChat.CreateUserUri(PlayerName));
 	}
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.BlockUsers(LoginSession.AccountName, UsersToBlock.GetData(), UsersToBlock.Num());
 	if (Status.IsError())
 	{
@@ -542,6 +546,7 @@ void FVivoxVoiceChatUser::UnblockPlayers(const TArray<FString>& PlayerNames)
 		UsersToUnblock.Add(VivoxVoiceChat.CreateUserUri(PlayerName));
 	}
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.UnblockUsers(LoginSession.AccountName, UsersToUnblock.GetData(), UsersToUnblock.Num());
 	if (Status.IsError())
 	{
@@ -615,6 +620,7 @@ void FVivoxVoiceChatUser::JoinChannel(const FString& ChannelName, const FString&
 	ChannelSession.ChannelUri = VivoxVoiceChat.CreateChannelUri(ChannelName, ChannelType, Channel3dProperties);
 	ChannelSession.JoinDelegate = Delegate;
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.JoinChannel(LoginSession.AccountName, ChannelSession.ChannelUri, TCHAR_TO_ANSI(*ChannelCredentials));
 	if (Status.IsError())
 	{
@@ -663,6 +669,7 @@ void FVivoxVoiceChatUser::LeaveChannel(const FString& ChannelName, const FOnVoic
 
 	ChannelSession.LeaveDelegate = Delegate;
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.LeaveChannel(LoginSession.AccountName, ChannelSession.ChannelUri);
 	if (Status.IsError())
 	{
@@ -684,6 +691,7 @@ void FVivoxVoiceChatUser::Set3DPosition(const FString& ChannelName, const FVecto
 	FVector RotatedForwardDirection(ListenerForwardDirection.Y, ListenerForwardDirection.Z, -ListenerForwardDirection.X);
 	FVector RotatedUpDirection(ListenerUpDirection.Y, ListenerUpDirection.Z, -ListenerUpDirection.X);
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.Set3DPosition(LoginSession.AccountName, ChannelSession.ChannelUri, ToVivoxVector(SpeakerPosition), ToVivoxVector(ListenerPosition), ToVivoxVector(ListenerForwardDirection), ToVivoxVector(ListenerUpDirection));
 	if (Status.IsError())
 	{
@@ -736,6 +744,7 @@ void FVivoxVoiceChatUser::SetPlayerMuted(const FString& PlayerName, bool bMuted)
 			if (FParticipant* ChannelParticipant = ChannelSession.Participants.Find(PlayerName))
 			{
 				const bool bShouldMute = Participant.bMuted || Participant.Volume < SMALL_NUMBER;
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetParticipantMutedForMe(LoginSession.AccountName, ChannelParticipant->UserUri, ChannelSession.ChannelUri, bShouldMute);
 				if (Status.IsError())
 				{
@@ -766,6 +775,7 @@ void FVivoxVoiceChatUser::SetPlayerVolume(const FString& PlayerName, float Volum
 			if (FParticipant* ChannelParticipant = ChannelSession.Participants.Find(PlayerName))
 			{
 				const bool bShouldMute = Participant.bMuted || Participant.Volume < SMALL_NUMBER;
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetParticipantMutedForMe(LoginSession.AccountName, ChannelParticipant->UserUri, ChannelSession.ChannelUri, bShouldMute);
 				if (Status.IsError())
 				{
@@ -793,6 +803,7 @@ void FVivoxVoiceChatUser::TransmitToNoChannels()
 {
 	VIVOXVOICECHATUSER_LOG(Log, TEXT("TransmitToNoChannels"));
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetTransmissionToNone(LoginSession.AccountName);
 	if (Status.IsError())
 	{
@@ -804,6 +815,7 @@ void FVivoxVoiceChatUser::TransmitToAllChannels()
 {
 	VIVOXVOICECHATUSER_LOG(Log, TEXT("TransmitToAllChannels"));
 
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 	VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetTransmissionToAll(LoginSession.AccountName);
 	if (Status.IsError())
 	{
@@ -818,6 +830,7 @@ void FVivoxVoiceChatUser::TransmitToSpecificChannel(const FString& Channel)
 	FChannelSession& ChannelSession = GetChannelSession(Channel);
 	if (ChannelSession.State == FChannelSession::EState::Connected)
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetTransmissionToSpecificChannel(LoginSession.AccountName, ChannelSession.ChannelUri);
 		if (Status.IsError())
 		{
@@ -858,6 +871,7 @@ FDelegateHandle FVivoxVoiceChatUser::StartRecording(const FOnVoiceChatRecordSamp
 {
 	if (!VivoxClientConnection.AudioInputDeviceTestIsRecording())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientApi::VCSStatus Status = VivoxClientConnection.StartAudioInputDeviceTestRecord();
 		if (Status.IsError())
 		{
@@ -879,6 +893,7 @@ void FVivoxVoiceChatUser::StopRecording(FDelegateHandle Handle)
 
 	if (!OnVoiceChatRecordSamplesAvailableDelegate.IsBound())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientConnection.StopAudioInputDeviceTestRecord();
 	}
 }
@@ -1505,6 +1520,7 @@ void FVivoxVoiceChatUser::onParticipantAdded(const VivoxClientApi::AccountName& 
 	if (Participant.bMuted != ChannelParticipant.bMuted)
 	{
 		const bool bShouldMute = Participant.bMuted || Participant.Volume < SMALL_NUMBER;
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetParticipantMutedForMe(LoginSession.AccountName, ChannelParticipant.UserUri, ChannelSession.ChannelUri, bShouldMute);
 		if (Status.IsError())
 		{
@@ -1517,6 +1533,7 @@ void FVivoxVoiceChatUser::onParticipantAdded(const VivoxClientApi::AccountName& 
 	if (Participant.IntVolume != ChannelParticipant.IntVolume)
 	{
 		const bool bShouldMute = Participant.bMuted || Participant.Volume < SMALL_NUMBER;
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientApi::VCSStatus Status = VivoxClientConnection.SetParticipantMutedForMe(LoginSession.AccountName, ChannelParticipant.UserUri, ChannelSession.ChannelUri, bShouldMute);
 		if (Status.IsError())
 		{
@@ -1882,6 +1899,7 @@ bool FVivoxVoiceChat::Initialize()
 					}
 				}
 
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.Initialize(this, VivoxLogLevel, true, true, &ConfigHints, sizeof(ConfigHints));
 				if (Status.IsError())
 				{
@@ -1907,6 +1925,7 @@ bool FVivoxVoiceChat::Uninitialize()
 {
 	if (IsInitialized())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientConnection.Uninitialize();
 		ConnectionState = EConnectionState::Disconnected;
 		DispatchAll(&FVivoxVoiceChatUser::onDisconnected, VivoxClientApi::Uri(TCHAR_TO_ANSI(*VivoxServerUrl)), VivoxClientApi::VCSStatus(VX_E_NOT_INITIALIZED));
@@ -2177,6 +2196,7 @@ void FVivoxVoiceChatUser::ApplyAudioInputOptions()
 {
 	if (LoginSession.AccountName.IsValid())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientConnection.SetMasterAudioInputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioInputOptions.Volume));
 
 		const bool bVolumeMuted = AudioInputOptions.Volume < SMALL_NUMBER;
@@ -2188,6 +2208,7 @@ void FVivoxVoiceChatUser::ApplyAudioInputDevicePolicy()
 {
 	if (LoginSession.AccountName.IsValid())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		if (AudioInputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
 		{
 			VivoxClientConnection.SetApplicationChosenAudioInputDevice(LoginSession.AccountName, AudioInputOptions.DevicePolicy.GetSpecificAudioDevice());
@@ -2203,6 +2224,7 @@ void FVivoxVoiceChatUser::ApplyAudioOutputOptions()
 {
 	if (LoginSession.AccountName.IsValid())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientConnection.SetMasterAudioOutputDeviceVolume(LoginSession.AccountName, FMath::Lerp(VIVOX_MIN_VOL, VIVOX_MAX_VOL, AudioOutputOptions.Volume));
 
 		const bool bVolumeMuted = AudioOutputOptions.Volume < SMALL_NUMBER;
@@ -2214,6 +2236,7 @@ void FVivoxVoiceChatUser::ApplyAudioOutputDevicePolicy()
 {
 	if (LoginSession.AccountName.IsValid())
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		if (AudioOutputOptions.DevicePolicy.GetAudioDevicePolicy() == VivoxClientApi::AudioDevicePolicy::vx_audio_device_policy_specific_device)
 		{
 			VivoxClientConnection.SetApplicationChosenAudioOutputDevice(LoginSession.AccountName, AudioOutputOptions.DevicePolicy.GetSpecificAudioDevice());
@@ -2236,6 +2259,13 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	if (FParse::Command(&Cmd, TEXT("VIVOX")))
 	{
 		const TCHAR* SubCmd = Cmd;
+
+		int RequestedUserIndex = -1;
+		if (FParse::Value(Cmd, TEXT("INDEX="), RequestedUserIndex))
+		{
+			FParse::Token(Cmd, false); // skip over INDEX=#
+		}
+
 		if (FParse::Command(&Cmd, TEXT("LIST")))
 		{
 			for (int UserIndex = 0; UserIndex < VoiceChatUsers.Num(); ++UserIndex)
@@ -2302,32 +2332,27 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 			(void)CreateUser();
 			return true;
 		}
-		else
+		else if (RequestedUserIndex >= 0)
 		{
-			int Index = 0;
-			if (FParse::Value(Cmd, TEXT("INDEX="), Index))
+			if (RequestedUserIndex < VoiceChatUsers.Num())
 			{
-				FParse::Token(Cmd, false); // skip over INDEX=#
-				if (Index < VoiceChatUsers.Num())
+				if (FVivoxVoiceChatUser* User = VoiceChatUsers[RequestedUserIndex])
 				{
-					if (FVivoxVoiceChatUser* User = VoiceChatUsers[Index])
+					if (FParse::Command(&Cmd, TEXT("DESTROYUSER")))
 					{
-						if (FParse::Command(&Cmd, TEXT("DESTROYUSER")))
-						{
-							delete User;
-							return true;
-						}
-						else
-						{
-							return User->Exec(InWorld, Cmd, Ar);
-						}
+						delete User;
+						return true;
+					}
+					else
+					{
+						return User->Exec(InWorld, Cmd, Ar);
 					}
 				}
 			}
-			else if (SingleUserVoiceChatUser.IsValid())
-			{
-				return SingleUserVoiceChatUser->Exec(InWorld, SubCmd, Ar);
-			}
+		}
+		else if (SingleUserVoiceChatUser.IsValid())
+		{
+			return SingleUserVoiceChatUser->Exec(InWorld, SubCmd, Ar);
 		}
 #endif // !UE_BUILD_SHIPPING
 	}
@@ -2535,6 +2560,7 @@ void FVivoxVoiceChat::Connect(const FOnVoiceChatConnectCompleteDelegate& Delegat
 			else
 			{
 				VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
+				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 				VivoxClientApi::VCSStatus Status = VivoxClientConnection.Connect(BackendUri);
 
 				if (Status.IsError())
@@ -2565,6 +2591,7 @@ void FVivoxVoiceChat::Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& D
 		OnVoiceChatDisconnectCompleteDelegates.Add(Delegate);
 
 		VivoxClientApi::Uri BackendUri(TCHAR_TO_ANSI(*VivoxServerUrl));
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		VivoxClientConnection.Disconnect(BackendUri);
 
 		ConnectionState = EConnectionState::Disconnecting;
@@ -2825,6 +2852,7 @@ void FVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
 {
 	AsyncTask(ENamedThreads::GameThread, [Func, Arg0]()
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VivoxVoiceChat)
 		if (Func)
 		{
 			(*Func)(Arg0);

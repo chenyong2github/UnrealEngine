@@ -3,6 +3,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "GameDelegates.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
@@ -18,6 +19,25 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 {
 	Mobility = EComponentMobility::Stationary;
 }
+
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureComponent::OnRegister()
+{
+	Super::OnRegister();
+	// PIE duplicate will take ownership of the URuntimeVirtualTexture, so we add a delegate to be called when PIE finishes allowing us to retake ownership.
+	PieEndDelegateHandle = FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &URuntimeVirtualTextureComponent::MarkRenderStateDirty);
+}
+
+void URuntimeVirtualTextureComponent::OnUnregister()
+{
+	FGameDelegates::Get().GetEndPlayMapDelegate().Remove(PieEndDelegateHandle);
+	PieEndDelegateHandle.Reset();
+
+	Super::OnUnregister();
+}
+
+#endif
 
 bool URuntimeVirtualTextureComponent::IsVisible() const
 {
@@ -52,6 +72,11 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 	GetScene()->RemoveRuntimeVirtualTexture(this);
 
 	Super::DestroyRenderState_Concurrent();
+}
+
+void URuntimeVirtualTextureComponent::Invalidate(FBoxSphereBounds const& InWorldBounds)
+{
+	GetScene()->InvalidateRuntimeVirtualTexture(this, InWorldBounds);
 }
 
 FBoxSphereBounds URuntimeVirtualTextureComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -180,6 +205,8 @@ void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, ui
 	// We need an existing MinMaxTexture object to update.
 	if (VirtualTexture != nullptr && MinMaxTexture != nullptr)
 	{
+		MinMaxTexture->Modify();
+
 		FTextureFormatSettings Settings;
 		Settings.CompressionSettings = TC_EditorIcon;
 		Settings.CompressionNone = true;
@@ -201,11 +228,18 @@ void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, ui
 
 bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty) const
 {
-	// Disable MinMaxTexture setting if not relevant.
 	bool bCanEdit = Super::CanEditChange(InProperty);
 	if (InProperty->GetFName() == TEXT("MinMaxTexture"))
 	{
 		bCanEdit &= IsMinMaxTextureEnabled();
+	}
+	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
+	{
+		bCanEdit &= NumStreamingMips() > 0 && GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
+	}
+	else if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
+	{
+		bCanEdit &= GetStreamingTexture() != nullptr && NumStreamingMips() > 0;
 	}
 	return bCanEdit;
 }

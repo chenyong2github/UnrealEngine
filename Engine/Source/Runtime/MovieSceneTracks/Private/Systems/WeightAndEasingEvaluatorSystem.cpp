@@ -45,7 +45,8 @@ struct FEvaluateEasings
 			const FEasingComponentData* CurEasing = EasingData.Resolve(InAllocation);
 			for (int32 Idx = 0; Idx < Num; ++Idx)
 			{
-				*(CurResult++) *= (CurEasing++)->Section->EvaluateEasing(*(CurTime++));
+				const float EasingWeight = (CurEasing++)->Section->EvaluateEasing(*(CurTime++));
+				*(CurResult++) *= FMath::Max(EasingWeight, 0.f);
 			}
 		}
 
@@ -59,7 +60,8 @@ struct FEvaluateEasings
 			const float* CurWeight = WeightData.Resolve(InAllocation);
 			for (int32 Idx = 0; Idx < Num; ++Idx)
 			{
-				*(CurResult++) *= *(CurWeight++);
+				const float CustomWeight = *(CurWeight++);
+				*(CurResult++) *= FMath::Max(CustomWeight, 0.f);
 			}
 		}
 	}

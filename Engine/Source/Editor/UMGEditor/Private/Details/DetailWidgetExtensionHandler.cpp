@@ -26,6 +26,12 @@ bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* InObjectC
 			return false;
 		}
 
+		TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
+		if (BPEd == nullptr || Objects[0] == BPEd->GetPreview())
+		{
+			return false;
+		}
+
 		FProperty* Property = InPropertyHandle.GetProperty();
 		FString DelegateName = Property->GetName() + "Delegate";
 

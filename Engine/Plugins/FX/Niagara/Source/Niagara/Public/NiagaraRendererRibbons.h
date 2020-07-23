@@ -7,6 +7,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 
 #include "NiagaraRibbonVertexFactory.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraRibbonRendererProperties.h"
 
 class FNiagaraDataSet;
 
@@ -93,6 +94,7 @@ private:
 	bool bCustomUseScreenSpace;
 
 	uint32 MaterialParamValidMask;
+	const FNiagaraRendererLayout* RendererLayout;
 
 	// Average curvature of the segments.
 	mutable float TessellationAngle = 0;

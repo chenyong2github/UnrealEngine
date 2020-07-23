@@ -98,11 +98,10 @@ float ComputeVolumeShadowing(
 		}
 	}		
 
-#if DYNAMICALLY_SHADOWED
+#if DYNAMICALLY_SHADOWED && FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	bool bUseCubemapShadowing = bPointLight;
 	float DynamicShadowFactor = 1;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	if (bUseCubemapShadowing)
 	{
 		const float DepthBias = 0.03f * 512 * VSSPREFIX(InvShadowmapResolution);
@@ -114,7 +113,6 @@ float ComputeVolumeShadowing(
 			WorldPositionForLighting, VSSLIGHTPOSITION, VSSLIGHTINVRADIUS, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
 	}
 	else
-#endif	// FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	{
 		// Transform the world position into shadowmap space
 		float4 HomogeneousShadowPosition = mul(float4(WorldPositionForLighting, 1), VSSPREFIX(WorldToShadowMatrix));

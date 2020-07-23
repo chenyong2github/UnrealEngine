@@ -18,7 +18,12 @@
       "Type": "Runtime",
       "LoadingPhase": "Default",
 	  "BlacklistTargets": [ "Server" ]
-    }
+    },
+	{
+	  "Name":  "Text3DEditor",
+	  "Type":  "Editor",
+	  "LoadingPhase": "Default"
+	}
   ],
   "Plugins": [
     {

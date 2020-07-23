@@ -25,6 +25,7 @@
 #include "ChaosStats.h"
 #include "Containers/Queue.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Algo/Sort.h"
 
 #if INTEL_ISPC
 #include "PBDCollisionConstraints.ispc.generated.h"
@@ -667,24 +668,17 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::SortConstraints()
 	{
-		Constraints.SortConstraints();
-
-		if (bHandlesEnabled)
+		Algo::Sort(Handles, [](const FPBDCollisionConstraintHandle* A, const FPBDCollisionConstraintHandle* B)
 		{
-			// After sorting, need to fix up handle indexes
-			for (int32 Idx = 0; Idx < Constraints.SinglePointConstraints.Num(); ++Idx)
+			if(A->GetType() == B->GetType())
 			{
-				Constraints.SinglePointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePoint);
+				return A->GetContact() < B->GetContact();
 			}
-			for (int32 Idx = 0; Idx < Constraints.SinglePointSweptConstraints.Num(); ++Idx)
+			else
 			{
-				Constraints.SinglePointSweptConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::SinglePointSwept);
+				return A->GetType() < B->GetType();
 			}
-			for (int32 Idx = 0; Idx < Constraints.MultiPointConstraints.Num(); ++Idx)
-			{
-				Constraints.MultiPointConstraints[Idx].GetConstraintHandle()->SetConstraintIndex(Idx, FCollisionConstraintBase::FType::MultiPoint);
-			}
-		}
+		});
 	}
 
 	bool FPBDCollisionConstraints::Apply(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>& InConstraintHandles, const int32 Iterations, const int32 NumIterations)

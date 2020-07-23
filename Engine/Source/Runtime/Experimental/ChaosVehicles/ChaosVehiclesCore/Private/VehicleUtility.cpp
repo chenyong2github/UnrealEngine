@@ -141,6 +141,31 @@ namespace Chaos
 		PerformanceMeasure.Add(SixtyToZeroMPH);
 	}
 
+	float FVehicleUtility::TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC)
+	{
+		float Radius = 0.f;
+
+		FVector VecA = (PtB - PtA);
+		FVector VecB = (PtC - PtB);
+		FVector VecC = (PtA - PtC);
+
+		float CosAlpha = VecB.CosineAngle2D(VecC);
+		float Alpha = FMath::Acos(CosAlpha);
+
+		float A = VecA.Size();
+		float B = VecB.Size();
+		float C = VecC.Size();
+
+		float K = 0.5f * B * C * FMath::Sin(Alpha);
+
+		if (K > SMALL_NUMBER)
+		{
+			Radius = (A * B * C) / (4.0f * K);
+		}
+
+		return Radius;
+	}
+
 } // namespace Chaos
 
 #if VEHICLE_DEBUGGING_ENABLED

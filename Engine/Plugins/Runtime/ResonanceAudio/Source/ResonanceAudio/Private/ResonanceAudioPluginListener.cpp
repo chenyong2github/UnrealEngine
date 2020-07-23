@@ -107,7 +107,7 @@ namespace ResonanceAudio
 			AAudioVolume* CurrentVolume = InWorld->GetAudioSettings(ListenerTransform.GetLocation(), nullptr, nullptr);
 			if (CurrentVolume != nullptr)
 			{
-				UResonanceAudioReverbPluginPreset* Preset = static_cast<UResonanceAudioReverbPluginPreset*>(CurrentVolume->GetReverbSettings().ReverbPluginEffect);
+				UResonanceAudioReverbPluginPreset* Preset = Cast<UResonanceAudioReverbPluginPreset>(CurrentVolume->GetReverbSettings().ReverbPluginEffect);
 				if (Preset != nullptr && Preset->UseAudioVolumeTransform())
 				{
 					// Obtain Resonance Audio room transform from the Unreal Audio Volume transform.

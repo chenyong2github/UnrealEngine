@@ -284,36 +284,65 @@ FVector3d TMeshSimplification<QuadricErrorType>::OptimalPoint(int eid, const FQu
 
 	// [TODO] if we have constraints, we should apply them here, for same reason as bdry above...
 
-	if (bMinimizeQuadricPositionError == false)
+	switch (CollapseMode)
 	{
-		return GetProjectedPoint((Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5);
-	}
-	else
-	{
-		FVector3d result = FVector3d::Zero();
-		if (q.OptimalPoint(result))
+		case ESimplificationCollapseModes::AverageVertexPosition:
 		{
-			return GetProjectedPoint(result);
+			return GetProjectedPoint((Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5);
 		}
+		break;
 
-		// degenerate matrix, evaluate quadric at edge end and midpoints
-		// (could do line search here...)
-		FVector3d va = Mesh->GetVertex(ea);
-		FVector3d vb = Mesh->GetVertex(eb);
-		FVector3d c = GetProjectedPoint((va + vb) * 0.5);
-		double fa = q.Evaluate(va);
-		double fb = q.Evaluate(vb);
-		double fc = q.Evaluate(c);
-		double m = FMath::Min3(fa, fb, fc);
-		if (m == fa)
+		case ESimplificationCollapseModes::MinimalExistingVertexError:
 		{
-			return va;
+			FVector3d va = Mesh->GetVertex(ea);
+			FVector3d vb = Mesh->GetVertex(eb);
+			double fa = q.Evaluate(va);
+			double fb = q.Evaluate(vb);
+			if (fa < fb)
+			{
+				return va;
+			}
+			else
+			{
+				return vb;
+			}
+		
 		}
-		else if (m == fb)
+		break;
+
+		case ESimplificationCollapseModes::MinimalQuadricPositionError:
 		{
-			return vb;
+			FVector3d result = FVector3d::Zero();
+			if (q.OptimalPoint(result))
+			{
+				return GetProjectedPoint(result);
+			}
+
+			// degenerate matrix, evaluate quadric at edge end and midpoints
+			// (could do line search here...)
+			FVector3d va = Mesh->GetVertex(ea);
+			FVector3d vb = Mesh->GetVertex(eb);
+			FVector3d c = GetProjectedPoint((va + vb) * 0.5);
+			double fa = q.Evaluate(va);
+			double fb = q.Evaluate(vb);
+			double fc = q.Evaluate(c);
+			double m = FMath::Min3(fa, fb, fc);
+			if (m == fa)
+			{
+				return va;
+			}
+			else if (m == fb)
+			{
+				return vb;
+			}
+			return c;
 		}
-		return c;
+		break;
+	default:
+
+		// should never happen
+		checkSlow(0);
+		return FVector3d::Zero();
 	}
 }
 
@@ -1123,7 +1152,7 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 
 	ProfileBeginCollapse();
 
-	// check if we should collapse, and also find which vertex we should collapse to,
+	// check if we should collapse, and also find which vertex we should retain
 	// in cases where we have constraints/etc
 	int collapse_to = -1;
 	bool bCanCollapse = CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
@@ -1168,29 +1197,30 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	ESimplificationResult retVal = ESimplificationResult::Failed_OpNotSuccessful;
 
 	int iKeep = b, iCollapse = a;
+	bool bCanMove = true;
+	
+	if (collapse_to != -1)
+	{
+		iKeep = collapse_to;
+		iCollapse = (iKeep == a) ? b : a;
 
-	// if either vtx is fixed, collapse to that position.
-	//@todo: update CanCollapseEdge to allow for the case where the retained edges have constraints.
-	//       In that case we should only collapse to the position of a Movable==false fixed vertex.
-	//       Also will need to rebuild any adjacent constraints after the collapse.  
+		// if constraints require a fixed position
+		if (Constraints)
+		{
+			bCanMove = Constraints->GetVertexConstraint(collapse_to).bCanMove;
+		}
+	}
 	double collapse_t = 0;
-	if (collapse_to == b)
-	{
-		vNewPos = vB;
-		collapse_t = 0;
-	}
-	else if (collapse_to == a)
-	{
-		iKeep = a; iCollapse = b;
-		vNewPos = vA;
-		collapse_t = 0;
-	}
-	else
+	if (bCanMove)
 	{
 		vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
 		double div = vA.Distance(vB);
 		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (vNewPos.Distance(Mesh->GetVertex(iKeep))) / div;
 		collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
+	}
+	else
+	{
+		vNewPos = (collapse_to == a) ? vA : vB;
 	}
 
 	// check if this collapse will create a normal flip. Also checks

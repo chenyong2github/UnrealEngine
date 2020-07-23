@@ -671,7 +671,7 @@ UObject* UDataprepActionAsset::OnCreateAsset(UClass* AssetClass, const TCHAR* As
 	{
 		UObject* Outer = GetAssetOuterByClass( AssetClass );
 
-		NewAsset = NewObject<UObject>( Outer, AssetClass, NAME_None, RF_Transient );
+		NewAsset = NewObject<UObject>( Outer, AssetClass, NAME_None, RF_Public );
 		check( NewAsset );
 
 		AddAssetToContext( NewAsset, AssetName );

@@ -517,10 +517,10 @@ void FSkeletalMeshMerge::GenerateLODModel( int32 LODIdx )
 			int32 SourceLODIdx = FMath::Min(LODIdx, MergeSectionInfo.SkelMesh->GetResourceForRendering()->LODRenderData.Num()-1);
 
 			// Take the max UV density for each UVChannel between all sections that are being merged.
+			const int32 NewSectionMatId = MergeSectionInfo.Section->MaterialIndex;
+			if(MergeSectionInfo.SkelMesh->Materials.IsValidIndex(NewSectionMatId))
 			{
-				const int32 NewSectionMatId = MergeSectionInfo.Section->MaterialIndex;
 				const FMeshUVChannelInfo& NewSectionUVData = MergeSectionInfo.SkelMesh->Materials[NewSectionMatId].UVChannelData;
-
 				for (int32 i = 0; i < MAX_TEXCOORDS; i++)
 				{
 					const float NewSectionUVDensity = NewSectionUVData.LocalUVDensities[i];

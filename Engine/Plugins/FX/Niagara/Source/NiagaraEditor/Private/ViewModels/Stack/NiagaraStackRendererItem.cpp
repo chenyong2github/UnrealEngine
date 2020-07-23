@@ -139,7 +139,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if (RendererProperties != nullptr)
 	{
-		return RendererProperties->GetClass()->GetDisplayNameText();
+		return RendererProperties->GetWidgetDisplayName();
 	}
 	else
 	{
@@ -325,7 +325,7 @@ const FSlateBrush* UNiagaraStackRendererItem::GetIconBrush() const
 {
 	if (IsFinalized() == false && RendererProperties.IsValid())
 	{
-		return FSlateIconFinder::FindIconBrushForClass(RendererProperties->GetClass());
+		return RendererProperties->GetStackIcon();
 	}
 	else
 	{

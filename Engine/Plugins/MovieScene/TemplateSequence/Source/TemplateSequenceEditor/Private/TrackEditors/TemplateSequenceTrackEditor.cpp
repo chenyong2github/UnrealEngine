@@ -365,6 +365,7 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 				{
 					UMovieSceneSection* NewSection = Cast<UTemplateSequenceTrack>(Track)->AddNewTemplateSequenceSection(KeyTime, TemplateSequence);
 					KeyPropertyResult.bTrackModified = true;
+					KeyPropertyResult.SectionsCreated.Add(NewSection);
 					NewSections.Add(NewSection);
 				}
 			}

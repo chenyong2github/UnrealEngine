@@ -124,6 +124,7 @@ public:
 
 	void ArrangeChildrenForContextMenuSummon(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 	TSharedPtr<SWidget> SummonContextMenu(const FVector2D& WhereToSummon, const FVector2D& WhereToAddNode, UEdGraphNode* ForNode, UEdGraphPin* ForPin, const TArray<UEdGraphPin*>& DragFromPins);
+	void SummonCreateNodeMenuFromUICommand(uint32 NumNodesAdded);
 
 	void OnBeginMakingConnection(UEdGraphPin* InOriginatingPin);
 	void OnBeginMakingConnection(FGraphPinHandle PinHandle);
@@ -315,6 +316,12 @@ private:
 
 	/** Returns true if all assets in the ReferencedAssets array are allowed to be referenced by this graph according to the AssetReferenceFilter. OutFailureReason if supplied if it is not.  */
 	bool PassesAssetReferenceFilter(const TArray<FAssetData>& ReferencedAssets, FText* OutFailureReason = nullptr) const;
+
+	/** Returns the top most graph node under the mouse pointer. Returns nullptr if no node found */
+	TSharedPtr<SGraphNode> GetGraphNodeUnderMouse(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
+	/** Returns a pin that is under the mouse, given a specified node. Returns nullptr if no valid node is given or no pin found */
+	UEdGraphPin* GetPinUnderMouse(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSharedPtr<SGraphNode> GraphNode) const;
 
 	/** Handle to timer callback that allows the UI to refresh it's arrangement each tick, allows animations to occur within the UI */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandleInvalidatePerTick;

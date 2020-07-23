@@ -1397,7 +1397,7 @@ namespace Audio
 			VectorStoreAligned(Result, &DestinationBuffer[OutputIndex + 4]);
 
 			Result = VectorMultiply(Input31, GainVector31);
-			Result = VectorMultiplyAdd(Input32, GainVector31, Result);
+			Result = VectorMultiplyAdd(Input32, GainVector32, Result);
 			VectorStoreAligned(Result, &DestinationBuffer[OutputIndex + 8]);
 		}
 	}

@@ -39,6 +39,7 @@ class TDynamicParticles : public TParticles<T, d>
 
 	const T InvM(const int32 Index) const { return MInvM[Index]; }
 	T& InvM(const int32 Index) { return MInvM[Index]; }
+	const TArrayCollectionArray<T>& GetInvM() const { return MInvM; }
 
   private:
 	TArrayCollectionArray<TVector<T, d>> MV, MF;

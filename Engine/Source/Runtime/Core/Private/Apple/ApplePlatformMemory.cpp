@@ -336,7 +336,9 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 FPlatformMemoryStats FApplePlatformMemory::GetStats()
 {
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
-	
+#if PLATFORM_IOS
+	const uint64 MaxVirtualMemory = 1ull << 34; // set to 16GB for now since IOS can see a maximum of 8GB
+#endif
 	static FPlatformMemoryStats MemoryStats;
 	
 	// Gather platform memory stats.
@@ -379,7 +381,11 @@ FPlatformMemoryStats FApplePlatformMemory::GetStats()
 		MemoryStats.PeakUsedPhysical = MemoryStats.UsedPhysical;
 	}
 	MemoryStats.UsedVirtual = TaskInfo.virtual_size;
+#if PLATFORM_IOS
+	if(MemoryStats.UsedVirtual > MemoryStats.PeakUsedVirtual || MemoryStats.PeakUsedVirtual > MaxVirtualMemory)
+#else
 	if(MemoryStats.UsedVirtual > MemoryStats.PeakUsedVirtual)
+#endif
 	{
 		MemoryStats.PeakUsedVirtual = MemoryStats.UsedVirtual;
 	}

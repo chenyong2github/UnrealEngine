@@ -139,34 +139,11 @@ TSharedRef<SWidget> SAnimOutliner::GenerateWidgetForColumn(const TSharedRef<FAni
 
 void SAnimOutliner::HandleGetChildren(TSharedRef<FAnimTimelineTrack> Item, TArray<TSharedRef<FAnimTimelineTrack>>& OutChildren)
 {
-	class FAnimOutlinerContext : public ITextFilterExpressionContext
-	{
-	public:
-		explicit FAnimOutlinerContext(const FText& InFilterText)
-			: FilterText(InFilterText)
-		{
-		}
-
-		virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-		{
-			return TextFilterUtils::TestBasicStringExpression(FilterText.ToString(), InValue, InTextComparisonMode);
-		}
-
-		virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-		{
-			return false;
-		}
-
-	private:
-		FText FilterText;
-	};
-
-
 	if(!FilterText.Get().IsEmpty())
 	{
 		for(const TSharedRef<FAnimTimelineTrack>& Child : Item->GetChildren())
 		{
-			if(!Child->SupportsFiltering() || TextFilter->TestTextFilter(FAnimOutlinerContext(Child->GetLabel())))
+			if(!Child->SupportsFiltering() || TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(Child->GetLabel().ToString())))
 			{
 				OutChildren.Add(Child);
 			}

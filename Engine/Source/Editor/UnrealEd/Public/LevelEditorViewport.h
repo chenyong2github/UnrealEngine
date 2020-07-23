@@ -577,6 +577,27 @@ protected:
 
 	/** FEditorViewportClient Interface*/
 
+	/**
+	 * Collects the set of components and actors on which to apply move operations during or after drag operations.
+	 */
+	void GetSelectedActorsAndComponentsForMove(TArray<AActor*>& OutActorsToMove, TArray<USceneComponent*>& OutComponentsToMove) const;
+
+	/**
+	 * Determines if it is valid to move an actor in this viewport.
+	 *
+	 * @param InActor - the actor that the viewport may be interested in moving.
+	 * @returns true if it is valid for this viewport to update the given actor's transform.
+	 */
+	bool CanMoveActorInViewport(const AActor* InActor) const;
+
+	/** Performs the legacy behavior for calling post edit move and updating transforms from ApplyDeltaToActors function. */
+	UE_DEPRECATED(4.26, "This functions is meant to be used for ease of rollback if too many post edit move calls degrade performance during drag operations. See ULevelEditorSettings::bUseLegacyPostEditBehavior to toggle legacy behavior.")
+	bool LegacyApplyDeltasForSelectedComponentsAndActors(const FVector& InDrag, const FRotator& InRot, const FVector& ModifiedScale);
+
+	/** Performs the legacy behavior for applying transforms and calling post edit move and property changed events from TrackingStopped function. */
+	UE_DEPRECATED(4.26, "This functions is meant to be used for ease of rollback if too many post edit move calls degrade performance during drag operations. See ULevelEditorSettings::bUseLegacyPostEditBehavior to toggle legacy behavior.")
+	bool LegacyTrackingStoppedForSelectedComponentsAndActors(FPropertyChangedEvent& PropertyChangedEvent);
+
 public:
 
 	virtual void UpdateLinkedOrthoViewports(bool bInvalidate = false) override;

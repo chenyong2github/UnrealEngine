@@ -19,6 +19,13 @@
 #include "Types/SlateConstants.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Framework/Layout/Overscroll.h"
+#if WITH_ACCESSIBILITY
+#include "Application/SlateApplicationBase.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleWidgetCache.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 /**
  * A ListView widget observes an array of data items and creates visual representations of these items.
@@ -258,7 +265,12 @@ public:
 		, UserRequestingScrollIntoView( 0 )
 		, ItemToNotifyWhenInView( NullableItemType(nullptr) ) 
 		, IsFocusable(true)
-	{ }
+	{ 
+#if WITH_ACCESSIBILITY
+		AccessibleBehavior = EAccessibleBehavior::Auto;
+		bCanChildrenBeAccessible = true;
+#endif
+	}
 
 public:
 
@@ -510,6 +522,95 @@ public:
 		return STableViewBase::OnMouseButtonUp(MyGeometry, MouseEvent);
 	}
 
+#if WITH_ACCESSIBILITY
+	protected:
+	friend class FSlateAccessibleListView;
+	/**
+	* An accessible implementation for SListView to be exposed to platform accessibility APIs.
+	* For subclasses of SListView, inherit from this class and override and functions to 
+	* give desired behavior. 
+	*/
+	class FSlateAccessibleListView
+		: public FSlateAccessibleWidget
+		, public IAccessibleTable
+	{
+	public:
+		FSlateAccessibleListView(TWeakPtr<SWidget> InWidget, EAccessibleWidgetType InWidgetType)
+			: FSlateAccessibleWidget(InWidget, InWidgetType)
+		{
+
+		}
+
+		// IAccessibleWidget
+		virtual IAccessibleTable* AsTable() 
+		{ 
+			return this; 
+		}
+		// ~
+
+		// IAccessibleTable
+		virtual TArray<TSharedPtr<IAccessibleWidget>> GetSelectedItems() const 
+		{ 
+			TArray<TSharedPtr<IAccessibleWidget>> SelectedItemsArray;
+			if (Widget.IsValid())
+			{
+				TSharedPtr<SListView<ItemType>> ListView = StaticCastSharedPtr<SListView<ItemType>>(Widget.Pin());
+				SelectedItemsArray.Empty(ListView ->SelectedItems.Num());
+				for (typename TItemSet::TConstIterator SelectedItemIt(ListView ->SelectedItems); SelectedItemIt; ++SelectedItemIt)
+				{
+					const ItemType& CurrentItem = *SelectedItemIt;
+					// This is only valid if the item is visible
+					TSharedPtr < ITableRow> TableRow = ListView->WidgetGenerator.GetWidgetForItem(CurrentItem);
+					if (TableRow.IsValid())
+					{
+						TSharedPtr<SWidget> TableRowWidget = TableRow->AsWidget();
+						TSharedPtr<IAccessibleWidget> AccessibleTableRow = FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(TableRowWidget);
+						// it's possible for the accessible widget to still be in the process of generating 
+						// in the slate accessibility tree 
+						if (AccessibleTableRow.IsValid())
+						{
+							SelectedItemsArray.Add(AccessibleTableRow);
+						}
+					}
+				}
+			}
+			return SelectedItemsArray;
+		}
+
+		virtual bool CanSupportMultiSelection() const 
+		{ 
+			if (Widget.IsValid())
+			{
+				TSharedPtr<SListView<ItemType>> ListView = StaticCastSharedPtr<SListView<ItemType>>(Widget.Pin());
+				return ListView->SelectionMode.Get() == ESelectionMode::Multi;
+			}
+			return false; 
+		}
+
+		virtual bool IsSelectionRequired() const 
+		{ 
+			return false; 
+		}
+		// ~
+	};
+	public:
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
+	{
+		// @TODOAccessibility: Add support for the different types of tables e.g tree and tile 
+		// We hardcode to list for now 
+		EAccessibleWidgetType WidgetType = EAccessibleWidgetType::List;
+		return MakeShareable<FSlateAccessibleWidget>(new SListView<ItemType>::FSlateAccessibleListView(SharedThis(this), WidgetType));
+	}
+
+	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType) const
+	{
+		// current behaviour will red out the  templated type of the listwhich is verbose and unhelpful 
+		// This will read out list twice, but it's the best we can do for now if no label is found 
+		// @TODOAccessibility: Give a better name 
+		static FString Name(TEXT("List"));
+		return FText::FromString(Name);
+	}
+#endif
 private:
 
 	friend class FWidgetGenerator;
@@ -752,6 +853,22 @@ public:
 		}
 
 		this->InertialScrollManager.ClearScrollVelocity();
+#if WITH_ACCESSIBILITY
+		// On certain platforms, we need to pass accessibility focus to a widget for screen readers to announce 
+		// accessibility information. STableRows cannot accept keyboard focus, 
+		// so we have to manually raise a focus change event for the selected table row 
+		if (bShouldBeSelected)
+		{
+			TSharedPtr<ITableRow> TableRow = WidgetFromItem(TheItem);
+			if (TableRow.IsValid())
+			{
+				TSharedRef<SWidget> TableRowWidget = TableRow->AsWidget();
+				// We don't need to worry about raising a focus change event for the 
+				// widget with accessibility focus  as FSlateAccessibleMessageHandler will take care of signalling a focus lost event 
+				FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(TableRowWidget, EAccessibleEvent::FocusChange, false, true);
+			}
+		}
+#endif
 	}
 
 	virtual void Private_ClearSelection() override

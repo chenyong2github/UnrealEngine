@@ -168,6 +168,11 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 
 }
 
+void SMultiLineEditableTextBox::GetCurrentTextLine(FString& OutTextLine) const
+{
+	EditableText->GetCurrentTextLine(OutTextLine);
+}
+
 void SMultiLineEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 {
 	if (InStyle)
@@ -387,6 +392,19 @@ FReply SMultiLineEditableTextBox::OnFocusReceived( const FGeometry& MyGeometry, 
 	}
 
 	return Reply;
+}
+
+FReply SMultiLineEditableTextBox::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	FKey Key = InKeyEvent.GetKey();
+
+	if (Key == EKeys::Escape && EditableText->HasKeyboardFocus())
+	{
+		// Clear focus
+		return FReply::Handled().SetUserFocus(SharedThis(this), EFocusCause::Cleared);
+	}
+
+	return FReply::Unhandled();
 }
 
 bool SMultiLineEditableTextBox::AnyTextSelected() const

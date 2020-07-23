@@ -22,11 +22,12 @@ class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, pub
 	FPBDAxialSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1)
 	    : TPBDAxialSpringConstraintsBase<FReal, 3>(InParticles, MoveTemp(Constraints), Stiffness)
 	{
-		MConstraintsPerColor = FGraphColoring::ComputeGraphColoring(MConstraints, InParticles);
+		InitColor(InParticles);
 	}
 	virtual ~FPBDAxialSpringConstraints() {}
 
   private:
+	void InitColor(const TDynamicParticles<FReal, 3>& InParticles);
 	void ApplyImp(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 i) const;
   public:
 	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const override; //-V762
@@ -35,3 +36,12 @@ class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, pub
 };
 
 }
+
+// Support ISPC enable/disable in non-shipping builds
+#if !INTEL_ISPC
+const bool bChaos_AxialSpring_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_AxialSpring_ISPC_Enabled = true;
+#else
+extern bool bChaos_AxialSpring_ISPC_Enabled;
+#endif

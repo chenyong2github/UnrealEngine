@@ -361,16 +361,12 @@ namespace SizeMapInternals
 		string to represent that size, such as "256.0 MB", or "unknown size" */
 	static FString MakeBestSizeString(const SIZE_T SizeInBytes, const bool bHasKnownSize)
 	{
-		FString BestSizeString;
+		FText SizeText;
 
-		const FNumericUnit<double> BestUnit = FUnitConversion::QuantizeUnitsToBestFit((double)SizeInBytes, EUnit::Bytes);
-
-		if (BestUnit.Units == EUnit::Bytes)
+		if (SizeInBytes < 1000)
 		{
 			// We ended up with bytes, so show a decimal number
-			BestSizeString = FString::Printf(TEXT("%s %s"),
-				*FText::AsNumber(static_cast<uint64>(SizeInBytes)).ToString(),
-				*LOCTEXT("Bytes", "bytes").ToString());
+			SizeText = FText::AsMemory(SizeInBytes, EMemoryUnitStandard::SI);
 		}
 		else
 		{
@@ -379,25 +375,23 @@ namespace SizeMapInternals
 			NumberFormattingOptions.MaximumFractionalDigits = 1;	// @todo sizemap: We could make the number of digits customizable in the UI
 			NumberFormattingOptions.MinimumFractionalDigits = 0;
 			NumberFormattingOptions.MinimumIntegralDigits = 1;
-			BestSizeString = FString::Printf(TEXT("%s %s"),
-				*FText::AsNumber(BestUnit.Value, &NumberFormattingOptions).ToString(),
-				FUnitConversion::GetUnitDisplayString(BestUnit.Units));
+
+			SizeText = FText::AsMemory(SizeInBytes, &NumberFormattingOptions, nullptr, EMemoryUnitStandard::SI);
 		}
 
 		if (!bHasKnownSize)
 		{
 			if (SizeInBytes == 0)
 			{
-				BestSizeString = LOCTEXT("UnknownSize", "unknown size").ToString();
+				SizeText = LOCTEXT("UnknownSize", "unknown size");
 			}
 			else
 			{
-				BestSizeString = FString::Printf(TEXT("%s %s"),
-					*LOCTEXT("UnknownSizeButAtLeastThisBig", "at least").ToString(),
-					*BestSizeString);
+				SizeText = FText::Format(LOCTEXT("UnknownSizeButAtLeastThisBigFmt", "at least {0}"), SizeText);
 			}
 		}
-		return BestSizeString;
+
+		return SizeText.ToString();
 	}
 }
 
@@ -849,9 +843,9 @@ void SSizeMap::RefreshMap()
 		}
 
 		// Set the overview text
-		OverviewText = FText::Format(LOCTEXT("RootNode_Format", "Size map for {0}  ({1} total assets))"),
+		OverviewText = FText::Format(LOCTEXT("RootNode_Format", "Size map for {0}  ({1} total {1}|plural(one=asset,other=assets)))"),
 			FText::AsCultureInvariant(OnlyAssetName),
-			FText::AsNumber(TotalAssetCount));
+			TotalAssetCount);
 	}
 	else
 	{
@@ -887,9 +881,9 @@ void SSizeMap::RefreshMap()
 			*SizeMapInternals::MakeBestSizeString(TotalSize, !bAnyUnknownSizes));
 		RootTreeMapNode->LogicalName = LogicalName;
 
-		OverviewText = FText::Format(LOCTEXT("RootNode_FormatForAssets", "Size map for {0} assets  ({1} total assets))"),
-			FText::AsNumber(RootAssetIdentifiers.Num()),
-			FText::AsNumber(TotalAssetCount));
+		OverviewText = FText::Format(LOCTEXT("RootNode_FormatForAssets", "Size map for {0} {0}|plural(one=asset,other=assets)  ({1} total {1}|plural(one=asset,other=assets)))"),
+			RootAssetIdentifiers.Num(),
+			TotalAssetCount);
 	}
 
 	// OK, now refresh the actual tree map widget so our new tree will be displayed.

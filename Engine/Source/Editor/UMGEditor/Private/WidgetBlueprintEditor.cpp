@@ -550,7 +550,14 @@ bool FWidgetBlueprintEditor::CanDuplicateSelectedWidgets()
 void FWidgetBlueprintEditor::DuplicateSelectedWidgets()
 {
 	TSet<FWidgetReference> Widgets = GetSelectedWidgets();
-	FWidgetBlueprintEditorUtils::DuplicateWidgets(SharedThis(this), GetWidgetBlueprintObj(), Widgets);
+	TArray<UWidget*> DuplicatedWidgets = FWidgetBlueprintEditorUtils::DuplicateWidgets(SharedThis(this), GetWidgetBlueprintObj(), Widgets);
+
+	TSet<FWidgetReference> DuplicatedWidgetRefs;
+	for (UWidget* Widget : DuplicatedWidgets)
+	{
+		DuplicatedWidgetRefs.Add(GetReferenceFromPreview(Widget));
+	}
+	SelectWidgets(DuplicatedWidgetRefs, false);
 }
 
 void FWidgetBlueprintEditor::Tick(float DeltaTime)
@@ -983,10 +990,16 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 			if (LatestWidgetTree->RootWidget == nullptr)
 			{
 				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
-				if (BGClass)
+				// If we find a class that owns the widget tree, just make sure it's not our current class, that would imply we've removed all the widgets
+				// from this current tree, and if we use this classes compiled tree it's going to be the outdated old version.
+				if (BGClass && BGClass != PreviewBlueprint->GeneratedClass)
 				{
 					LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
 				}
+			}
+			else
+			{
+				LatestWidgetTree->SetFlags(RF_ArchetypeObject);
 			}
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update

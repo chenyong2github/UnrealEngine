@@ -31,10 +31,20 @@ public:
 
 	float LayerBottomAltitudeKm;
 	float LayerHeightKm;
+
+	float TracingStartMaxDistance;
+	float TracingMaxDistance;
+
 	float PlanetRadiusKm;
 	FColor GroundAlbedo;
-	FLinearColor AtmosphericLightsContributionFactor;
-
+	bool bUsePerSampleAtmosphericLightTransmittance;
+	float SkyLightCloudBottomOcclusion;
+	
+	float ViewSampleCountScale;
+	float ReflectionSampleCountScale;
+	float ShadowViewSampleCountScale;
+	float ShadowReflectionSampleCountScale;
+	float ShadowTracingDistance;
 private:
 
 	UMaterialInterface* CloudVolumeMaterial = nullptr;

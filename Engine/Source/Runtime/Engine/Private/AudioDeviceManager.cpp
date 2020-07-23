@@ -67,6 +67,14 @@ FAutoConsoleVariableRef CVarFlushAudioRenderCommandsOnSuspend(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 GCVarNeverMuteNonRealtimeAudioDevices = 0;
+FAutoConsoleVariableRef CVarNeverMuteNonRealtimeAudioDevices(
+	TEXT("au.NeverMuteNonRealtimeAudioDevices"),
+	GCVarNeverMuteNonRealtimeAudioDevices,
+	TEXT("When set to 1, nonrealtime audio devices will be exempt from normal audio device muting (for example, when a window goes out of focus.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
 static FAutoConsoleCommand GReportAudioDevicesCommand(
 	TEXT("au.ReportAudioDevices"),
 	TEXT("This will log any active audio devices (instances of the audio engine) alive right now."),
@@ -663,30 +671,39 @@ void FAudioDeviceManager::IncrementDevice(Audio::FDeviceId DeviceID)
 
 void FAudioDeviceManager::DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld)
 {
-	FScopeLock ScopeLock(&DeviceMapCriticalSection);
+	FAudioDevice* DeviceToTearDown = nullptr;
 
-	// If there is an FAudioDeviceHandle out in the world
-	check(Devices.Contains(DeviceID));
-
-	FAudioDeviceContainer& Container = Devices[DeviceID];
-	check(Container.NumberOfHandlesToThisDevice > 0);
-	Container.NumberOfHandlesToThisDevice--;
-
-	// If there is no longer anyone using this device, shut it down.
-	if (!Container.NumberOfHandlesToThisDevice)
 	{
-		// If this is the active device and being destroyed, set the main device as the active device.
-		if (DeviceID == ActiveAudioDeviceID)
+		FScopeLock ScopeLock(&DeviceMapCriticalSection);
+
+		// If there is an FAudioDeviceHandle out in the world
+		check(Devices.Contains(DeviceID));
+
+		FAudioDeviceContainer& Container = Devices[DeviceID];
+		check(Container.NumberOfHandlesToThisDevice > 0);
+		Container.NumberOfHandlesToThisDevice--;
+
+		// If there is no longer anyone using this device, shut it down.
+		if (!Container.NumberOfHandlesToThisDevice)
 		{
-			SetActiveDevice(MainAudioDeviceHandle.GetDeviceID());
+			// If this is the active device and being destroyed, set the main device as the active device.
+			if (DeviceID == ActiveAudioDeviceID)
+			{
+				SetActiveDevice(MainAudioDeviceHandle.GetDeviceID());
+			}
+
+			FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
+			Swap(DeviceToTearDown, Container.Device);
+			UnregisterWorld(InWorld, DeviceID);
+			Devices.Remove(DeviceID);
 		}
+	}
 
-		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Broadcast(DeviceID);
-
-		UnregisterWorld(InWorld, DeviceID);
-
-		UE_LOG(LogAudio, Display, TEXT("Destroying Audio Device %d: All handles released."), DeviceID);
-		Devices.Remove(DeviceID);
+	if (DeviceToTearDown)
+	{
+		DeviceToTearDown->FadeOut();
+		DeviceToTearDown->Teardown();
+		delete DeviceToTearDown;
 	}
 }
 
@@ -1248,6 +1265,11 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 	}
 
 	bPlayAllDeviceAudio = !bPlayAllDeviceAudio;
+}
+
+bool FAudioDeviceManager::IsAlwaysPlayNonRealtimeDeviceAudio() const
+{
+	return GCVarNeverMuteNonRealtimeAudioDevices != 0;
 }
 
 bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const

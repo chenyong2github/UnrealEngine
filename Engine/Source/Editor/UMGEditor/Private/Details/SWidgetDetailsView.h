@@ -58,6 +58,8 @@ private:
 
 	FText GetNameText() const;
 
+	bool IsSingleObjectSelected() const;
+
 	bool HandleVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage);
 
 	void HandleNameTextChanged(const FText& Text);

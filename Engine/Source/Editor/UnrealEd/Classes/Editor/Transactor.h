@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "Serialization/ArchiveUObject.h"

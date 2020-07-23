@@ -301,7 +301,7 @@ void SProjectLauncherSettings::CreateCommands()
 
 TSharedRef<SWidget> SProjectLauncherSettings::MakeToolbar(const TSharedRef<FUICommandList>& InCommandList)
 {
-	FToolBarBuilder ToolBarBuilder(InCommandList, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), EOrientation::Orient_Horizontal);
+	FToolBarBuilder ToolBarBuilder(InCommandList, FMultiBoxCustomization::None);
 
 	ToolBarBuilder.BeginSection("Tasks");
 	{

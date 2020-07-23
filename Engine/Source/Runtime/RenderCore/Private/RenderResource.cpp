@@ -9,7 +9,7 @@
 #include "Misc/App.h"
 #include "RenderingThread.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
-
+#include "CoreGlobals.h"
 
 /** Whether to enable mip-level fading or not: +1.0f if enabled, -1.0f if disabled. */
 float GEnableMipLevelFading = 1.0f;
@@ -833,3 +833,20 @@ FRHISamplerState* FTexture::GetOrCreateSamplerState(const FSamplerStateInitializ
 	GTextureSamplerStateCache.Samplers.Add(Initializer, NewState);
 	return NewState;
 }
+
+bool IsRayTracingEnabled()
+{
+	checkf(GIsRHIInitialized, TEXT("IsRayTracingEnabled() may only be called once RHI is initialized."));
+
+#if DO_CHECK && WITH_EDITOR
+	{
+		FString Commandline = FCommandLine::Get();
+		bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
+		checkf(!bIsCookCommandlet, TEXT("This function must not be called while cooking."));
+	}
+#endif // DO_CHECK && WITH_EDITOR
+
+	extern RENDERCORE_API bool GUseRayTracing;
+	return GUseRayTracing;
+}
+

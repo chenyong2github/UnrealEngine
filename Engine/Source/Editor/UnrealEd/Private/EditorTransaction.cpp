@@ -1281,7 +1281,15 @@ void UTransBuffer::Cancel( int32 StartIndex /*=0*/ )
 	// if we don't have any active actions, we shouldn't have an active transaction at all
 	if ( ActiveCount > 0 )
 	{
-		if ( StartIndex == 0 )
+		// Canceling partial transaction isn't supported properly at this time, just cancel the transaction entirely
+		if (StartIndex != 0)
+		{
+			FString TransactionTitle = GUndo ? GUndo->GetContext().Title.ToString() : FString(TEXT("Unknown"));
+			UE_LOG(LogEditorTransaction, Warning, TEXT("Canceling transaction partially is unsupported. Canceling %s entirely."), *TransactionTitle);
+			StartIndex = 0;
+		}
+
+		// StartIndex needs to be 0 when cancelling
 		{
 			if (GUndo)
 			{
@@ -1309,17 +1317,6 @@ void UTransBuffer::Cancel( int32 StartIndex /*=0*/ )
 			UndoCount = PreviousUndoCount;
 			PreviousUndoCount = INDEX_NONE;
 			UndoBufferChangedDelegate.Broadcast();
-		}
-		else
-		{
-			int32 RecordsToKeep = 0;
-			for (int32 ActiveIndex = 0; ActiveIndex <= StartIndex; ++ActiveIndex)
-			{
-				RecordsToKeep += ActiveRecordCounts[ActiveIndex];
-			}
-
-			FTransaction& Transaction = UndoBuffer.Last().Get();
-			Transaction.RemoveRecords(Transaction.GetRecordCount() - RecordsToKeep);
 		}
 
 		// reset the active count

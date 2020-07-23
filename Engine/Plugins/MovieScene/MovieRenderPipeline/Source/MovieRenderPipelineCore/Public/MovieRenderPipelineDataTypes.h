@@ -742,8 +742,6 @@ public:
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineSampleReady, TArray<FFloat16Color>&, FMoviePipelineRenderPassMetrics);
-
 namespace MoviePipeline
 {
 	struct FMoviePipelineRenderPassInitSettings
@@ -752,7 +750,6 @@ namespace MoviePipeline
 		FMoviePipelineRenderPassInitSettings()
 			: BackbufferResolution(0, 0)
 			, TileCount(0, 0)
-			, bAccumulateAlpha(false)
 		{
 		}
 
@@ -762,64 +759,12 @@ namespace MoviePipeline
 
 		/** How many tiles (in each direction) are we rendering with. */
 		FIntPoint TileCount;
-
-		/** If true, the alpha channel will be accumulated. This adds about 30% cost over the base to accumulation. */
-		bool bAccumulateAlpha;
 	};
 
-	struct MOVIERENDERPIPELINECORE_API FMoviePipelineEnginePass
-	{
-		FMoviePipelineEnginePass(const FMoviePipelinePassIdentifier& InPassIdentifier)
-			: PassIdentifier(InPassIdentifier)
-		{
-		}
-
-		virtual ~FMoviePipelineEnginePass()
-		{}
-
-		virtual void Setup(TWeakObjectPtr<UMoviePipeline> InOwningPipeline, const FMoviePipelineRenderPassInitSettings& InInitSettings)
-		{
-			OwningPipeline = InOwningPipeline;
-			InitSettings = InInitSettings;
-		}
-
-		virtual void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
-		{
-		}
-
-		virtual void Teardown()
-		{
-		}
-
-		const FMoviePipelineRenderPassInitSettings& GetInitSettings() const { return InitSettings; }
-
-	protected:
-		UMoviePipeline* GetPipeline() const;
-
-	public:
-		/** A unique name for this engine pass. This is how an individual output pass specifies what data source it wants. */
-		FMoviePipelinePassIdentifier PassIdentifier;
-
-	protected:
-		FMoviePipelineRenderPassInitSettings InitSettings;
-
-	private:
-		TWeakObjectPtr<UMoviePipeline> OwningPipeline;
-	};
-
-	struct FSampleRenderThreadParams
-	{
-		FMoviePipelineRenderPassMetrics SampleState;
-		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
-		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
-		FMoviePipelinePassIdentifier PassIdentifier;
-		bool bAccumulateAlpha;
-	};
 }
 
 struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<FImagePixelDataPayload, ESPMode::ThreadSafe>
 {
-	FMoviePipelineFrameOutputState OutputState;
 	FMoviePipelineRenderPassMetrics SampleState;
 
 	FMoviePipelinePassIdentifier PassIdentifier;
@@ -921,5 +866,13 @@ namespace MoviePipeline
 
 		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
 		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
+	};
+
+	struct FSampleAccumulationArgs
+	{
+	public:
+		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
+		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
+		bool bAccumulateAlpha;
 	};
 }

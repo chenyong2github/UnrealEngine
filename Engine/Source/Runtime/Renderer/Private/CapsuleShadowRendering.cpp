@@ -1524,6 +1524,9 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(FRHIC
 			TRefCountPtr<IPooledRenderTarget> NewBentNormal;
 			AllocateOrReuseAORenderTarget(RHICmdList, NewBentNormal, TEXT("CapsuleBentNormal"), PF_FloatRGBA);
 
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				const FViewInfo& View = Views[ViewIndex];
@@ -1533,6 +1536,9 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(FRHIC
 					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 					SCOPED_DRAW_EVENT(RHICmdList, IndirectCapsuleShadows);
 					SCOPED_GPU_STAT(RHICmdList, CapsuleShadows);
+
+					FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+					SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 		
 					int32 NumCapsuleShapes = 0;
 					int32 NumMeshesWithCapsules = 0;

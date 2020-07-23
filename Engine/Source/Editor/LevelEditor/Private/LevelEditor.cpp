@@ -74,6 +74,7 @@ const FName LevelEditorTabIds::WorldBrowserHierarchy(TEXT("WorldBrowserHierarchy
 const FName LevelEditorTabIds::WorldBrowserDetails(TEXT("WorldBrowserDetails"));
 const FName LevelEditorTabIds::LevelEditorHierarchicalLODOutliner(TEXT("LevelEditorHierarchicalLODOutliner"));
 const FName LevelEditorTabIds::OutputLog(TEXT("OutputLog"));
+const FName LevelEditorTabIds::LevelEditorEnvironmentLightingViewer(TEXT("LevelEditorEnvironmentLightingViewer"));
 
 FLevelEditorModule::FLevelEditorModule()
 	: ToggleImmersiveConsoleCommand(

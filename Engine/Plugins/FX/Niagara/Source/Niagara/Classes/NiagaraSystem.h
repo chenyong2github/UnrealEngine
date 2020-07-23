@@ -259,6 +259,8 @@ public:
 
 private:
 	bool IsReadyToRunInternal() const;
+
+	void PostLoadPrimePools();
 public:
 	bool IsReadyToRun() const { return FPlatformProperties::RequiresCookedData() ? bIsReadyToRunCached : IsReadyToRunInternal(); }
 
@@ -353,13 +355,25 @@ public:
 	static void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
 
 	/** Experimental feature that allows us to bake out rapid iteration parameters during the normal compile process. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bBakeOutRapidIteration : 1;
+
+	/** If true bBakeOutRapidIteration will be made to be true during cooks  */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	uint32 bBakeOutRapidIterationOnCook : 1;
 
 	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
 	In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bCompressAttributes : 1;
+
+	/** If true Particle attributes will be removed from the DataSet if they are unnecessary (are never read by ParameterMap) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	uint32 bTrimAttributes : 1;
+
+	/** If true bTrimAttributes will be made to be true during cooks */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	uint32 bTrimAttributesOnCook : 1;
 
 #endif
 
@@ -375,10 +389,15 @@ public:
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
 	void ComputeEmittersExecutionOrder();
 
+	/** Computes the order in which renderers will render */
+	void ComputeRenderersDrawOrder();
+
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
 
 	FORCEINLINE TConstArrayView<int32> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
+
+	FORCEINLINE TConstArrayView<int32> GetRendererDrawOrder() const { return MakeArrayView(RendererDrawOrder); }
 
 	FORCEINLINE UNiagaraParameterCollectionInstance* GetParameterCollectionOverride(UNiagaraParameterCollection* Collection)
 	{
@@ -437,6 +456,7 @@ public:
 	const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
 	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
 	void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 	const FGuid& GetAssetGuid() const {return AssetGuid;};
 #endif
 
@@ -565,6 +585,9 @@ protected:
 	/** Array of emitter indices sorted by execution priority. The emitters will be ticked in this order. */
 	TArray<int32> EmitterExecutionOrder;
 
+	/** Precomputed emitter renderer draw order, since emitters & renderers are not dynamic we can do this. */
+	TArray<int32> RendererDrawOrder;
+
 	uint32 bIsValidCached : 1;
 	uint32 bIsReadyToRunCached : 1;
 
@@ -593,6 +616,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	/** Messages associated with the System asset. */
+	UPROPERTY()
 	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
 
 	FGuid AssetGuid;

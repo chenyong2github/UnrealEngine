@@ -163,11 +163,46 @@ void UNiagaraMeshRendererProperties::InitBindings()
 	}
 }
 
+void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	// Initialize layout
+	RendererLayoutWithCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraMeshVFLayout::Velocity);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraMeshVFLayout::Color);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, ScaleBinding.DataSetVariable, ENiagaraMeshVFLayout::Scale);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, MeshOrientationBinding.DataSetVariable, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraMeshVFLayout::MaterialRandom);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, CustomSortingBinding.DataSetVariable, ENiagaraMeshVFLayout::CustomSorting);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
+	RendererLayoutWithCustomSorting.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
+	MaterialParamValidMask  = RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithCustomSorting.Finalize();
 
+	RendererLayoutWithoutCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraMeshVFLayout::Velocity);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraMeshVFLayout::Color);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, ScaleBinding.DataSetVariable, ENiagaraMeshVFLayout::Scale);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, MeshOrientationBinding.DataSetVariable, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraMeshVFLayout::MaterialRandom);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
+	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
+	MaterialParamValidMask =  RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithoutCustomSorting.Finalize();
+}
 
 void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	if (ParticleMesh)
+	if (ParticleMesh && ParticleMesh->RenderData)
 	{
 		const FStaticMeshLODResources& LODModel = ParticleMesh->RenderData->LODResources[0];
 		if (bOverrideMaterials)
@@ -221,12 +256,12 @@ uint32 UNiagaraMeshRendererProperties::GetNumIndicesPerInstance() const
 {
 	// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
 	//return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].Sections[0].NumTriangles * 3 : 0;
-	return ParticleMesh ? ParticleMesh->RenderData->LODResources[0].IndexBuffer.GetNumIndices() : 0;
+	return ParticleMesh && ParticleMesh->RenderData ? ParticleMesh->RenderData->LODResources[0].IndexBuffer.GetNumIndices() : 0;
 }
 
 void UNiagaraMeshRendererProperties::GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& IndexInfoPerSection) const
 {
-	check(ParticleMesh && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex));
+	check(ParticleMesh && ParticleMesh->RenderData && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex));
 
 	if (ParticleMesh && ParticleMesh->RenderData->LODResources.IsValidIndex(LODIndex))
 	{
@@ -249,6 +284,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 #if WITH_EDITOR
 	if (GIsEditor && (ParticleMesh != nullptr))
 	{
+		ParticleMesh->ConditionalPostLoad();
 		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
 	}
 #endif
@@ -396,7 +432,7 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()
 {
-	if ( ParticleMesh != nullptr )
+	if (ParticleMesh && ParticleMesh->RenderData)
 	{
 		const FStaticMeshLODResources& LODModel = ParticleMesh->RenderData->LODResources[0];
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)

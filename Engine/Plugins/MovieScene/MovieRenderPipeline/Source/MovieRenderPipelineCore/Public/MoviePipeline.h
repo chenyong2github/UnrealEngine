@@ -5,6 +5,7 @@
 #include "Engine/EngineCustomTimeStep.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieSceneTimeController.h"
+#include "Async/Future.h"
 #include "MoviePipeline.generated.h"
 
 // Forward Declares
@@ -124,8 +125,10 @@ public:
 
 	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
+	void AddOutputFuture(TFuture<bool>&& OutputFuture);
+
 	void ProcessOutstandingFinishedFrames();
-	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData);
+	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
 public:
 	template<typename SettingType>
@@ -374,8 +377,6 @@ private:
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
 
 public:
-	/** A list of engine passes which need to be run each frame to generate required content for all the movie render passes. */
-	TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>> ActiveRenderPasses;
 
 	/** This gathers all of the produced data for an output frame (which may come in async many frames later) before passing them onto the Output Containers. */
 	TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputBuilder;
@@ -388,6 +389,7 @@ private:
 	UPROPERTY(Transient)
 	UMoviePipelineExecutorJob* CurrentJob;
 
+	TArray<TFuture<bool>> OutputFutures;
 	FMovieSceneChanges SequenceChanges;
 };
 

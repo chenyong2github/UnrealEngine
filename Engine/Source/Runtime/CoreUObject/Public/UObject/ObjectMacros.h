@@ -129,7 +129,7 @@ enum EPackageFlags
 //	PKG_Unused						= 0x02000000,	
 //	PKG_Unused						= 0x04000000,
 //	PKG_Unused						= 0x08000000,	
-//	PKG_Unused						= 0x10000000,	
+	PKG_DynamicImports				= 0x10000000,	///< This package should resolve dynamic imports from its export at runtime.
 	PKG_RuntimeGenerated			= 0x20000000,	///< This package contains elements that are runtime generated, and may not follow standard loading order rules
 	PKG_ReloadingForCooker			= 0x40000000,   ///< This package is reloading in the cooker, try to avoid getting data we will never need. We won't save this package.
 	PKG_FilterEditorOnly			= 0x80000000,	///< Package has editor-only data filtered out
@@ -1200,6 +1200,9 @@ namespace UM
 
 		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show engine content
 		ForceShowEngineContent,
+
+		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show plugin content
+		ForceShowPluginContent,
 
 		/// [PropertyMetadata] Used for FColor and FLinearColor properties. Indicates that the Alpha property should be hidden when displaying the property widget in the details.
 		HideAlphaChannel,

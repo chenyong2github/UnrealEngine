@@ -14,7 +14,6 @@
 #include "Mac/MacMallocZone.h"
 #include "Apple/ApplePlatformSymbolication.h"
 #include "Mac/MacPlatformCrashContext.h"
-#include "PLCrashReporter.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformOutputDevices.h"
@@ -30,7 +29,7 @@
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "BuildSettings.h"
-
+#include "PLCrashReporter.h"
 #include "Apple/PreAppleSystemHeaders.h"
 #include <dlfcn.h>
 #include <IOKit/IOKitLib.h>
@@ -1368,6 +1367,9 @@ bool FMacPlatformMisc::HasSeparateChannelForDebugOutput()
 
 FString FMacPlatformMisc::GetCPUVendor()
 {
+#if PLATFORM_MAC_ARM64
+    return TEXT("Apple");
+#else
 	union
 	{
 		char Buffer[12+1];
@@ -1389,10 +1391,14 @@ FString FMacPlatformMisc::GetCPUVendor()
 	VendorResult.Buffer[12] = 0;
 
 	return ANSI_TO_TCHAR(VendorResult.Buffer);
+#endif
 }
 
 FString FMacPlatformMisc::GetCPUBrand()
 {
+#if PLATFORM_MAC_ARM64
+    return TEXT("Apple Silicon");
+#else
 	static FString Result = FGenericPlatformMisc::GetCPUBrand();
 	static bool bHaveResult = false;
 
@@ -1423,14 +1429,20 @@ FString FMacPlatformMisc::GetCPUBrand()
 	}
 
 	return FString(Result);
+#endif
 }
 
 uint32 FMacPlatformMisc::GetCPUInfo()
 {
+#if PLATFORM_MAC_ARM64
+    // not implenented, this is an optional function
+    return FGenericPlatformMisc::GetCPUInfo();
+#else
 	uint32 Args[4];
 	asm( "cpuid" : "=a" (Args[0]), "=b" (Args[1]), "=c" (Args[2]), "=d" (Args[3]) : "a" (1));
 
 	return Args[0];
+#endif
 }
 
 FText FMacPlatformMisc::GetFileManagerName()
@@ -1691,10 +1703,18 @@ void FMacPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
 		// Configure the crash handler malloc zone to reserve some VM space for itself
 		GCrashMalloc = new FMacMallocCrashHandler( 128 * 1024 * 1024 );
 		
+	#if defined(USE_UNTESTED_PL_CRASHREPORTER)
+		// #agrant todo - Needs examined
+		PLCrashReporterConfig* Config = [[[PLCrashReporterConfig alloc] initWithSignalHandlerType: PLCrashReporterSignalHandlerTypeBSD
+																		symbolicationStrategy: PLCrashReporterSymbolicationStrategyNone
+																		] autorelease];
+	#else
 		PLCrashReporterConfig* Config = [[[PLCrashReporterConfig alloc] initWithSignalHandlerType: PLCrashReporterSignalHandlerTypeBSD
 																		symbolicationStrategy: PLCrashReporterSymbolicationStrategyNone
 																		crashReportFolder:FMacApplicationInfo::TemporaryCrashReportFolder().GetNSString()
 																		crashReportName:FMacApplicationInfo::TemporaryCrashReportName().GetNSString()] autorelease];
+	#endif
+
 		FMacApplicationInfo::CrashReporter = [[PLCrashReporter alloc] initWithConfiguration: Config];
 		
 		PLCrashReporterCallbacks CrashReportCallback = {

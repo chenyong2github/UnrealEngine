@@ -391,6 +391,20 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSc
 	return FSequencerBindingProxy();
 }
 
+FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), BindingId, &FMovieSceneBinding::GetObjectGuid);
+		if (Binding)
+		{
+			return FSequencerBindingProxy(Binding->GetObjectGuid(), Sequence);
+		}
+	}
+	return FSequencerBindingProxy();
+}
+
 TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetBindings(UMovieSceneSequence* Sequence)
 {
 	TArray<FSequencerBindingProxy> AllBindings;

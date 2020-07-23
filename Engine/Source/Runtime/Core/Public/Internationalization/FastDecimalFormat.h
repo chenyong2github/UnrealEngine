@@ -5,6 +5,11 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
+#include "Math/NumericLimits.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsFloatingPoint.h"
+#include "Templates/IsIntegral.h"
+#include "Templates/IsSigned.h"
 
 /** Rules used to format or parse a decimal number */
 struct FDecimalNumberFormattingRules
@@ -61,8 +66,47 @@ namespace Internal
 CORE_API void IntegralToString(const bool bIsNegative, const uint64 InVal, const FDecimalNumberFormattingRules& InFormattingRules, FNumberFormattingOptions InFormattingOptions, FString& OutString);
 CORE_API void FractionalToString(const double InVal, const FDecimalNumberFormattingRules& InFormattingRules, FNumberFormattingOptions InFormattingOptions, FString& OutString);
 
-CORE_API bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, bool& OutIsNegative, uint64& OutVal, int32* OutParsedLen);
-CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, double& OutVal, int32* OutParsedLen);
+struct FDecimalNumberIntegralLimits
+{
+	FDecimalNumberIntegralLimits(int64 InLowest, uint64 InMax, bool bInIsSigned)
+		: NumericLimitLowest(InLowest), NumericLimitMax(InMax), bIsNumericSigned(bInIsSigned)
+	{ }
+
+	int64 NumericLimitLowest;
+	uint64 NumericLimitMax;
+	bool bIsNumericSigned;
+
+	template<
+		typename IntegralType,
+		typename TEnableIf<TIsIntegral<IntegralType>::Value>::Type * = nullptr
+	>
+	static FDecimalNumberIntegralLimits FromNumericLimits()
+	{
+		return FDecimalNumberIntegralLimits(TNumericLimits<IntegralType>::Lowest(), TNumericLimits<IntegralType>::Max(), TIsSigned<IntegralType>::Value);
+	}
+};
+
+struct FDecimalNumberFractionalLimits
+{
+	FDecimalNumberFractionalLimits(double InLowest, double InMax)
+		: NumericLimitLowest(InLowest), NumericLimitMax(InMax)
+	{ }
+
+	double NumericLimitLowest;
+	double NumericLimitMax;
+
+	template<
+		typename FloatingType,
+		typename TEnableIf<TIsFloatingPoint<FloatingType>::Value>::Type * = nullptr
+	>
+	static FDecimalNumberFractionalLimits FromNumericLimits()
+	{
+		return FDecimalNumberFractionalLimits(TNumericLimits<FloatingType>::Lowest(), TNumericLimits<FloatingType>::Max());
+	}
+};
+
+CORE_API bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberIntegralLimits& Limits, bool& OutIsNegative, uint64& OutVal, int32* OutParsedLen);
+CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberFractionalLimits& Limits, double& OutVal, int32* OutParsedLen);
 
 } // namespace Internal
 
@@ -108,7 +152,7 @@ CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const
 	{																																																										\
 		bool bIsNegative = false;																																																			\
 		uint64 Val = 0;																																																						\
-		const bool bResult = Internal::StringToIntegral(InStr, InStrLen, InFormattingRules, InParsingOptions, bIsNegative, Val, OutParsedLen);																								\
+		const bool bResult = Internal::StringToIntegral(InStr, InStrLen, InFormattingRules, InParsingOptions, Internal::FDecimalNumberIntegralLimits::FromNumericLimits<NUMBER_TYPE>(), bIsNegative, Val, OutParsedLen);								\
 		OutVal = static_cast<NUMBER_TYPE>(Val);																																																\
 		OutVal *= (bIsNegative ? -1 : 1);																																																	\
 		return bResult;																																																						\
@@ -122,7 +166,7 @@ CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const
 	FORCEINLINE bool StringToNumber(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, NUMBER_TYPE& OutVal, int32* OutParsedLen = nullptr)	\
 	{																																																										\
 		double Val = 0.0;																																																					\
-		const bool bResult = Internal::StringToFractional(InStr, InStrLen, InFormattingRules, InParsingOptions, Val, OutParsedLen);																											\
+		const bool bResult = Internal::StringToFractional(InStr, InStrLen, InFormattingRules, InParsingOptions, Internal::FDecimalNumberFractionalLimits::FromNumericLimits<NUMBER_TYPE>(), Val, OutParsedLen);																											\
 		OutVal = static_cast<NUMBER_TYPE>(Val);																																																\
 		return bResult;																																																						\
 	}																																																										\

@@ -25,7 +25,8 @@ static FAutoConsoleVariableRef CVarRayTracingAmbientOcclusion(
 	GRayTracingAmbientOcclusion,
 	TEXT("-1: Value driven by postprocess volume (default) \n")
 	TEXT(" 0: ray tracing ambient occlusion off \n")
-	TEXT(" 1: ray tracing ambient occlusion enabled")
+	TEXT(" 1: ray tracing ambient occlusion enabled"),
+	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarUseAODenoiser(

@@ -1034,7 +1034,7 @@ public:
 
 	FTemporalLODState TemporalLODState;
 
-	FVolumetricRenderTargetViewStateData VolumetricRenderTarget;
+	FVolumetricRenderTargetViewStateData VolumetricCloudRenderTarget;
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
@@ -2368,6 +2368,8 @@ public:
 	/** Updates view uniform buffer and invalidates the internally cached view instance. */
 	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
 
+	void InvalidateCachedView();
+
 	const FViewInfo& GetInstancedView(const FViewInfo& View)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
@@ -2742,11 +2744,13 @@ public:
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
 	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
+	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) override;
 	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const override;
 	virtual void UpdateLightTransform(ULightComponent* Light) override;
 	virtual void UpdateLightColorAndBrightness(ULightComponent* Light) override;
 	virtual void AddExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
 	virtual void RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogComponent) override;
+	virtual bool HasAnyExponentialHeightFog() const override;
 	virtual void AddAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFog(UAtmosphericFogComponent* FogComponent) override;
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override;

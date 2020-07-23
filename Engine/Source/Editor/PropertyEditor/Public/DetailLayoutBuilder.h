@@ -34,6 +34,8 @@ class IDetailLayoutBuilder
 {
 	
 public:
+	using FOnCategorySortOrderFunction = TFunction<void(const TMap<FName, IDetailCategoryBuilder*>& /* AllCategoryMap */)>;
+
 	virtual ~IDetailLayoutBuilder(){}
 
 	/**
@@ -101,6 +103,14 @@ public:
 	 * @param	OutCategoryNames	 The array of category names
 	 */
 	virtual void GetCategoryNames(TArray<FName>& OutCategoryNames) const = 0;
+
+	/**
+	 * Adds sort algorythm which overrides standard algorythm with that provided by the caller.
+	 * Function called on each category after all categories have been added, and provides caller
+	 * with ability to override sort order.
+	 * @param 	SortFunction Function called on final pass of detail panel build, which provides map of all categories to set final sort order on.
+	 */
+	virtual void SortCategories(const FOnCategorySortOrderFunction& SortFunction) = 0;
 
 	/** 
 	 * Adds the property to its given category automatically. Useful in detail customizations which want to preserve categories.

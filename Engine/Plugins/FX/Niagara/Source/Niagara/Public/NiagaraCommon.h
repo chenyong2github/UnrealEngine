@@ -671,6 +671,22 @@ enum class ENiagaraScriptUsage : uint8
 	SystemUpdateScript,
 };
 
+/** Defines different usages for a niagara script. */
+UENUM()
+enum class ENiagaraCompileUsageStaticSwitch : uint8
+{
+	/** The script is called during the spawn phase. */
+	Spawn,
+	/** The script is called during the update phase. */
+	Update,
+	/** The script is called in an event context. */
+	Event,
+	/** The script is called as part of a simulation stage. */
+	SimulationStage,
+	/** The default value if the compiler cannot map the compilation context. */
+	Default,
+};
+
 UENUM()
 enum class ENiagaraScriptGroup : uint8
 {

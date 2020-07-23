@@ -495,6 +495,32 @@ public:
 		return TMathUtil<T>::Clamp(Alpha, (T)0, (T)1);
 	}
 
+	/**
+	 * @return axis-aligned bounding box of line segment
+	 */
+	TAxisAlignedBox3<T> GetBounds() const
+	{
+		TAxisAlignedBox3<T> Result;
+		
+		for (int32 j = 0; j < 3; ++j)
+		{
+			T LowValue = Center[j] - Extent * Direction[j];
+			T HighValue = Center[j] + Extent * Direction[j];
+			Result.Min[j] = TMathUtil<T>::Min(LowValue, HighValue);
+			Result.Max[j] = TMathUtil<T>::Max(LowValue, HighValue);
+		}
+		return Result;
+	}
+
+	/**
+	 * @return axis-aligned bounding box of line segment thickened to given SegmentRadius
+	 */
+	TAxisAlignedBox3<T> GetBounds(T SegmentRadius) const
+	{
+		TAxisAlignedBox3<T> Result = GetBounds();
+		Result.Expand(SegmentRadius);
+		return Result;
+	}
 
 protected:
 

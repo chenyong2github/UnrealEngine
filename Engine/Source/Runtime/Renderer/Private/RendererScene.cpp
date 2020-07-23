@@ -1058,6 +1058,11 @@ void FPersistentUniformBuffers::UpdateViewUniformBufferImmediate(const FViewUnif
 	CachedView = nullptr;
 }
 
+void FPersistentUniformBuffers::InvalidateCachedView()
+{
+	CachedView = nullptr;
+}
+
 class FAsyncCreateLightPrimitiveInteractionsTask : public FNonAbandonableTask
 {
 	TSet<FPrimitiveSceneInfo*> PendingPrimitives;
@@ -2577,6 +2582,19 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	return 0;
 }
 
+void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds)
+{
+	if (Component->SceneProxy != nullptr)
+	{
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+		ENQUEUE_RENDER_COMMAND(RuntimeVirtualTextureComponent_SetDirty)(
+			[SceneProxy, WorldBounds](FRHICommandList& RHICmdList)
+		{
+			SceneProxy->Dirty(WorldBounds);
+		});
+	}
+}
+
 void FScene::FlushDirtyRuntimeVirtualTextures()
 {
 	checkSlow(IsInRenderingThread());
@@ -2883,6 +2901,11 @@ void FScene::RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogCompo
 				}
 			}
 		});
+}
+
+bool FScene::HasAnyExponentialHeightFog() const
+{
+	return this->ExponentialFogs.Num() > 0;
 }
 
 void FScene::AddWindSource(UWindDirectionalSourceComponent* WindComponent)
@@ -4357,6 +4380,7 @@ public:
 
 	virtual void AddExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) override {}
 	virtual void RemoveExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) override {}
+	virtual bool HasAnyExponentialHeightFog() const override { return false; }
 	virtual void AddAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}

@@ -1484,6 +1484,11 @@ FUIAction UToolMenus::ConvertUIAction(const FToolUIAction& Actions, const FToolM
 	return UIAction;
 }
 
+bool UToolMenus::CanSafelyRouteCall()
+{
+	return !(GIntraFrameDebuggingGameThread || FUObjectThreadContext::Get().IsRoutingPostLoad);
+}
+
 FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
@@ -1500,7 +1505,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.CanExecuteAction.BindLambda([DelegateToCall = Actions.CanExecuteAction, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return false;
 		});
 	}
 
@@ -1508,7 +1518,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.GetActionCheckState.BindLambda([DelegateToCall = Actions.GetActionCheckState, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return ECheckBoxState::Unchecked;
 		});
 	}
 
@@ -1516,7 +1531,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.IsActionVisibleDelegate.BindLambda([DelegateToCall = Actions.IsActionVisibleDelegate, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return true;
 		});
 	}
 
@@ -1529,6 +1549,7 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 
 	if (ScriptObject)
 	{
+		TWeakObjectPtr<UToolMenuEntryScript> WeakScriptObject(ScriptObject);
 		UClass* ScriptClass = ScriptObject->GetClass();
 
 		static const FName ExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, Execute);
@@ -1540,19 +1561,31 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 		static const FName CanExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, CanExecute);
 		if (ScriptClass->IsFunctionImplementedInScript(CanExecuteName))
 		{
-			UIAction.CanExecuteAction.BindUFunction(ScriptObject, CanExecuteName, Context);
+			UIAction.CanExecuteAction.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->CanExecute(Context) : false;
+			});
 		}
 
 		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetCheckState);
 		if (ScriptClass->IsFunctionImplementedInScript(GetCheckStateName))
 		{
-			UIAction.GetActionCheckState.BindUFunction(ScriptObject, GetCheckStateName, Context);
+			UIAction.GetActionCheckState.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->GetCheckState(Context) : ECheckBoxState::Unchecked;
+			});
 		}
 
 		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, IsVisible);
 		if (ScriptClass->IsFunctionImplementedInScript(IsVisibleName))
 		{
-			UIAction.IsActionVisibleDelegate.BindUFunction(ScriptObject, IsVisibleName, Context);
+			UIAction.IsActionVisibleDelegate.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->IsVisible(Context) : true;
+			});
 		}
 	}
 
@@ -1787,7 +1820,7 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 	if (GeneratedMenu->IsEditing())
 	{
 		// Convert toolbar into menu during editing
-		if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar)
+		if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar || GeneratedMenu->MenuType == EMultiBoxType::UniformToolBar)
 		{
 			for (FToolMenuSection& Section : GeneratedMenu->Sections)
 			{
@@ -1846,10 +1879,9 @@ TSharedRef<SWidget> UToolMenus::GenerateWidget(UToolMenu* GeneratedMenu)
 		GeneratedMenuWidget.Widget = Result;
 		return Result;
 	}
-	else if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar)
+	else if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar || GeneratedMenu->MenuType == EMultiBoxType::UniformToolBar)
 	{
-		const EOrientation ToolBarOrientation = (GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar) ? Orient_Vertical : Orient_Horizontal;
-		FToolBarBuilder ToolbarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->MenuName, GeneratedMenu->Context.GetAllExtenders(), ToolBarOrientation, GeneratedMenu->bToolBarForceSmallIcons);
+		FToolBarBuilder ToolbarBuilder(GeneratedMenu->MenuType, GeneratedMenu->Context.CommandList, GeneratedMenu->MenuName, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bToolBarForceSmallIcons);
 		ToolbarBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		ToolbarBuilder.SetIsFocusable(GeneratedMenu->bToolBarIsFocusable);
 
@@ -2035,10 +2067,9 @@ bool UToolMenus::RefreshMenuWidget(const FName InName, FGeneratedToolMenuWidget&
 		PopulateMenuBarBuilder(MenuBarBuilder, GeneratedMenu);
 		MultiBoxWidget->SetMultiBox(MenuBarBuilder.GetMultiBox());
 	}
-	else if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar)
+	else if (GeneratedMenu->MenuType == EMultiBoxType::ToolBar || GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar || GeneratedMenu->MenuType == EMultiBoxType::UniformToolBar)
 	{
-		const EOrientation ToolBarOrientation = (GeneratedMenu->MenuType == EMultiBoxType::VerticalToolBar) ? Orient_Vertical : Orient_Horizontal;
-		FToolBarBuilder ToolbarBuilder(GeneratedMenu->Context.CommandList, GeneratedMenu->MenuName, GeneratedMenu->Context.GetAllExtenders(), ToolBarOrientation, GeneratedMenu->bToolBarForceSmallIcons);
+		FToolBarBuilder ToolbarBuilder(GeneratedMenu->MenuType, GeneratedMenu->Context.CommandList, GeneratedMenu->MenuName, GeneratedMenu->Context.GetAllExtenders(), GeneratedMenu->bToolBarForceSmallIcons);
 		ToolbarBuilder.SetExtendersEnabled(GeneratedMenu->bExtendersEnabled);
 		ToolbarBuilder.SetIsFocusable(GeneratedMenu->bToolBarIsFocusable);
 

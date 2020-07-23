@@ -12,7 +12,6 @@
 #include "BehaviorTree/Composites/BTComposite_Selector.h"
 #include "BehaviorTree/Composites/BTComposite_Sequence.h"
 #include "BehaviorTree/Composites/BTComposite_SimpleParallel.h"
-#include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
 #include "BehaviorTree/Decorators/BTDecorator_Loop.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehavior.h"
 
@@ -20,6 +19,7 @@
 #include "BehaviorTree/TestBTTask_SetFlag.h"
 #include "BehaviorTree/TestBTTask_SetValue.h"
 #include "BehaviorTree/TestBTTask_LatentWithFlags.h"
+#include "BehaviorTree/TestBTDecorator_Blackboard.h"
 #include "BehaviorTree/TestBTDecorator_DelayedAbort.h"
 #include "BehaviorTree/TestBTService_Log.h"
 
@@ -209,9 +209,14 @@ struct FBTBuilder
 		return *DecoratorOb;
 	}
 
-	static void WithDecoratorBlackboard(UBTCompositeNode& ParentNode, EBasicKeyOperation::Type Condition, EBTFlowAbortMode::Type Observer, FName BoolKeyName = TEXT("Bool1"))
+	static void WithDecoratorBlackboard(UBTCompositeNode& ParentNode, EBasicKeyOperation::Type Condition,
+		EBTFlowAbortMode::Type Observer, FName BoolKeyName = TEXT("Bool1"), 
+		int32 LogIndexBecomeRelevant = -1, int32 LogIndexCeaseRelevant = -1, int32 LogIndexCalculate = -1)
 	{
-		UBTDecorator_Blackboard& BBDecorator = WithDecorator<UBTDecorator_Blackboard>(ParentNode);
+		UTestBTDecorator_Blackboard& BBDecorator = WithDecorator<UTestBTDecorator_Blackboard>(ParentNode);
+		BBDecorator.LogIndexBecomeRelevant= LogIndexBecomeRelevant;
+		BBDecorator.LogIndexCeaseRelevant= LogIndexCeaseRelevant;
+		BBDecorator.LogIndexCalculate = LogIndexCalculate;
 
 		FByteProperty* ConditionProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
 		uint8* ConditionPropData = ConditionProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);
@@ -226,9 +231,14 @@ struct FBTBuilder
 		KeyPropData->SelectedKeyName = BoolKeyName;
 	}
 
-	static void WithDecoratorBlackboard(UBTCompositeNode& ParentNode, EArithmeticKeyOperation::Type Condition, int32 Value, EBTFlowAbortMode::Type Observer, EBTBlackboardRestart::Type NotifyMode, FName IntKeyName = TEXT("Int"))
+	static void WithDecoratorBlackboard(UBTCompositeNode& ParentNode, EArithmeticKeyOperation::Type Condition, int32 Value,
+		EBTFlowAbortMode::Type Observer, EBTBlackboardRestart::Type NotifyMode, FName IntKeyName = TEXT("Int"),
+		int32 LogIndexBecomeRelevant = -1, int32 LogIndexCeaseRelevant = -1, int32 LogIndexCalculate = -1)
 	{
-		UBTDecorator_Blackboard& BBDecorator = WithDecorator<UBTDecorator_Blackboard>(ParentNode);
+		UTestBTDecorator_Blackboard& BBDecorator = WithDecorator<UTestBTDecorator_Blackboard>(ParentNode);
+		BBDecorator.LogIndexBecomeRelevant = LogIndexBecomeRelevant;
+		BBDecorator.LogIndexCeaseRelevant = LogIndexCeaseRelevant;
+		BBDecorator.LogIndexCalculate = LogIndexCalculate;
 
 		FByteProperty* ConditionProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("OperationType"));
 		uint8* ConditionPropData = ConditionProp->ContainerPtrToValuePtr<uint8>(&BBDecorator);

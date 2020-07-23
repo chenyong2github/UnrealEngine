@@ -1,30 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--OnlineSubsystemGooglePlay plugin additions-->
 <root xmlns:android="http://schemas.android.com/apk/res/android">	
-	<!-- optional additions to the GameActivity imports in GameActivity.java -->
 	<init>
 	  <log text="Subsystem Google Play SDK Android init"/>
+	  
+	  <setBoolFromProperty result="bUseGooglePlayBillingApiV2" ini="Engine" section="OnlineSubsystemGooglePlay.Store" property="bUseGooglePlayBillingApiV2" default="true"/>
 	</init>
 	
 	<prebuildCopies>
-		<log text="Copying Google Play java files"/>
-		<copyDir src="$S(PluginDir)/Java"
-			dst = "$S(BuildDir)/src" />
+		<if condition="bUseGooglePlayBillingApiV2">
+			<true>
+				<log text="Copying Google Play BillingApiV2 java files"/>
+				<copyDir src="$S(PluginDir)/Java/BillingApiV2"
+						 dst = "$S(BuildDir)/src" />
+			</true>
+			<false>
+				<log text="Copying Google Play AIDL java files"/>
+				<copyDir src="$S(PluginDir)/Java/AIDL"
+						 dst = "$S(BuildDir)/src" />
+			</false>
+		</if>
 	</prebuildCopies>
-
+	
 	<!-- gradle dependencies additions -->
 	<buildGradleAdditions>
-		<insert>
-			dependencies {
-			implementation 'com.android.billingclient:billing:2.0.3'
-			}
-		</insert>
+		<if condition="bUseGooglePlayBillingApiV2">
+			<true>
+				<insert>
+					dependencies {
+					implementation 'com.android.billingclient:billing:3.0.0'
+					}
+				</insert>
+			</true>
+		</if>
 	</buildGradleAdditions>
+
+	<gameActivityAndroidThunkJavaIapBeginPurchase>
+		<insert>
+public boolean AndroidThunkJava_IapBeginPurchase(String ProductId, String AccountId)
+{
+	Log.debug("[JAVA] - AndroidThunkJava_IapBeginPurchase");
+	boolean bTriggeredPurchase = false;
+	if( IapStoreHelper != null )
+	{
+		// sha-256 the accountId and get the hex string representation
+		String ObfuscatedAccountId = null;
+		if (AccountId != null)
+		{
+			try
+			{
+				MessageDigest md = MessageDigest.getInstance("SHA-256");
+				byte[] sha256hash = md.digest(AccountId.getBytes("UTF-8"));
+				StringBuilder builder = new StringBuilder(sha256hash.length * 2);
+				for (byte b : sha256hash)
+				{
+					builder.append(String.format("%02x", b));
+				}
+				ObfuscatedAccountId = builder.toString();
+			}
+			catch (NoSuchAlgorithmException ae)
+			{
+			}
+			catch (UnsupportedEncodingException ee)
+			{
+			}
+		}
+		bTriggeredPurchase = IapStoreHelper.BeginPurchase(ProductId, ObfuscatedAccountId);
+	}
+	else
+	{
+		Log.debug("[JAVA] - Store Helper is invalid");
+	}
+	return bTriggeredPurchase;
+}
+		</insert>
+	</gameActivityAndroidThunkJavaIapBeginPurchase>
+	
+	<gameActivityOnActivityResultIapStoreHelperHandler>
+		<if condition="bUseGooglePlayBillingApiV2">
+			<false>
+				<insert>
+		else if( IapStoreHelper != null )
+		{
+			if(!IapStoreHelper.onActivityResult(requestCode, resultCode, data))
+			{
+				super.onActivityResult(requestCode, resultCode, data);
+			}
+			else
+			{
+				Log.debug("[JAVA] - Store Helper handled onActivityResult");
+			}
+		}
+				</insert>
+			</false>
+		</if>
+	</gameActivityOnActivityResultIapStoreHelperHandler>
 
 	<!-- optional additions to GameActivity imports in GameActivity.java -->
 	<gameActivityImportAdditions>
 		<insert>
 import com.epicgames.ue4.GooglePlayStoreHelper;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 		</insert>
 	</gameActivityImportAdditions>
 

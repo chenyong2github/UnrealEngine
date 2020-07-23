@@ -546,10 +546,6 @@ void SStaticMeshEditorViewport::BindCommands()
 		FIsActionChecked::CreateSP(this, &SStaticMeshEditorViewport::IsInViewModePhysicalMaterialMasksChecked));
 
 	CommandList->MapAction(
-		Commands.ResetCamera,
-		FExecuteAction::CreateSP( EditorViewportClientRef, &FStaticMeshEditorViewportClient::ResetCamera ) );
-
-	CommandList->MapAction(
 		Commands.SetDrawUVs,
 		FExecuteAction::CreateSP( EditorViewportClientRef, &FStaticMeshEditorViewportClient::ToggleDrawUVOverlay ),
 		FCanExecuteAction(),

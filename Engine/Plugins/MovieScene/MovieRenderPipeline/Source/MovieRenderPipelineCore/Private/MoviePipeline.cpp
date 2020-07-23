@@ -315,6 +315,7 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		if (ModifiedSegment.CameraSection.IsValid())
 		{
 			ModifiedSegment.CameraSection->SetIsActive(ModifiedSegment.bCameraSectionIsActive);
+			ModifiedSegment.CameraSection->MarkAsChanged();
 		}
 	}
 }
@@ -784,20 +785,44 @@ void UMoviePipeline::BuildShotListFromSequence()
 
 		// Cache information about all segments, as we disable all segments when rendering, not just active ones.
 		FMovieSceneChanges::FSegmentChange& ModifiedSegment = SequenceChanges.Segments.AddDefaulted_GetRef();
-		ModifiedSegment.MovieScene = InnerMovieScene;
 		if (InnerMovieScene)
 		{
-			ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
-			ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
-
-			if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
+			// Look to see if we have already stored data about this inner movie scene. If we have, we simply use that data.
+			// If we were to build the data from scratch each time, then the first time a inner movie scene is used it will be
+			// cached correctly, but subsequent uses would cache incorrectly as the 1st instance would modify playback bounds.
+			FMovieSceneChanges::FSegmentChange* ExistingSegment = nullptr;
+			for (int32 Index = 0; Index < SequenceChanges.Segments.Num(); Index++)
 			{
-				ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
+				if (InnerMovieScene == SequenceChanges.Segments[Index].MovieScene)
+				{
+					ExistingSegment = &SequenceChanges.Segments[Index];
+				}
 			}
 
-			// Unlock the playback range and readonly flags so we can modify the scene.
-			InnerMovieScene->SetReadOnly(false);
+			if (ExistingSegment)
+			{
+				ModifiedSegment.MovieScenePlaybackRange = ExistingSegment->MovieScenePlaybackRange;
+				ModifiedSegment.bMovieSceneReadOnly = ExistingSegment->bMovieSceneReadOnly;
+				ModifiedSegment.bMovieScenePackageDirty = ExistingSegment->bMovieScenePackageDirty;
+			}
+			else
+			{
+				ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
+				ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
+
+				if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
+				{
+					ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
+				}
+
+				// Unlock the playback range and readonly flags so we can modify the scene.
+				InnerMovieScene->SetReadOnly(false);
+			}
 		}
+
+		// Don't set this until after we've searched the existing Segments for a matching movie scene, otherwise
+		// we match immediately and then we copy default values from our first segment.
+		ModifiedSegment.MovieScene = InnerMovieScene;
 
 		ModifiedSegment.CameraSection = Cast<UMovieSceneCameraCutSection>(Shot->InnerPathKey.TryLoad());
 		if (ModifiedSegment.CameraSection.IsValid())
@@ -930,6 +955,7 @@ void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
 		if (CameraCutSection)
 		{
 			CameraCutSection->SetIsActive(false);
+			CameraCutSection->MarkAsChanged();
 		}
 	}
 
@@ -948,6 +974,7 @@ void UMoviePipeline::SetSoloShot(const UMoviePipelineExecutorShot* InShot)
 	{
 		UE_LOG(LogMovieRenderPipeline, Verbose, TEXT("Disabled all camera cut tracks and re-enabling %s for solo."), *CameraCutSection->GetName());
 		CameraCutSection->SetIsActive(true);
+		CameraCutSection->MarkAsChanged();
 	}
 	else
 	{
@@ -981,8 +1008,16 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 		InShot->ShotInfo.NumEngineWarmUpFramesRemaining = FMath::Max(InShot->ShotInfo.NumEngineWarmUpFramesRemaining - InNumHandleFrames, 0);
 	}
 
-	FFrameNumber LeftDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
-	FFrameNumber RightDeltaTicks = FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+	FFrameNumber LeftDeltaTicks = 0;
+	FFrameNumber RightDeltaTicks = 0;
+
+	UMoviePipelineAntiAliasingSetting* AntiAliasingSettings = FindOrAddSetting<UMoviePipelineAntiAliasingSetting>(InShot);
+	const bool bHasMultipleTemporalSamples = AntiAliasingSettings->TemporalSampleCount > 1;
+	if (bHasMultipleTemporalSamples)
+	{
+		LeftDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+		RightDeltaTicks += FrameMetrics.TicksPerOutputFrame.FloorToFrame();
+	}
 
 	// Account for handle frame expansion
 	LeftDeltaTicks += HandleFrameTicks;
@@ -1063,7 +1098,7 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 
 		if (SectionToValidate->GetRange().HasLowerBound() && WarningRange.Contains(SectionToValidate->GetRange().GetLowerBoundValue()))
 		{
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("A section (%s) starts on or before the camera cut begins but after temporal and handle samples begin. Evaluation in this area may fail unexpectedly."), *SectionToValidate->GetPathName());
 		}
 	}
 
@@ -1072,18 +1107,12 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const FMovie
 
 	TRange<FFrameTime> OriginalRangeOuter;
 	const FFrameNumber LowerInMasterTicks = (SectionRange.GetLowerBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
-	OriginalRangeOuter.SetLowerBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
-		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
-	));
+	FFrameTime OriginalRangeOuterLower = FFrameRate::TransformTime(FFrameTime(LowerInMasterTicks, 0.0f),
+		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate());
 
-	const FFrameNumber UpperInMasterTicks = (SectionRange.GetUpperBoundValue() * InShot->ShotInfo.InnerToOuterTransform).FloorToFrame();
-	OriginalRangeOuter.SetUpperBound(TRangeBound<FFrameTime>(FFrameRate::TransformTime(FFrameTime(UpperInMasterTicks, 0.0f),
-		TargetSequence->GetMovieScene()->GetTickResolution(), TargetSequence->GetMovieScene()->GetDisplayRate())
-	));
-
-	if ((OriginalRangeOuter.GetLowerBoundValue().GetSubFrame() != 0.0f) || (OriginalRangeOuter.GetUpperBoundValue().GetSubFrame() != 0.0f))
+	if (OriginalRangeOuterLower.GetSubFrame() != 0.0f)
 	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a range that started on a sub-frame. Range time has been rounded down on %s in %s"), *InShot->InnerName, *InShot->OuterName)
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a camera cut that started on a sub-frame (%s%s starts on %f). Output frame numbers may not match original Sequencer frame numbers"), *InShot->InnerName, InShot->OuterName.IsEmpty() ? TEXT("") : *FString(" in " + InShot->OuterName), OriginalRangeOuterLower.AsDecimal());
 	}
 }
 

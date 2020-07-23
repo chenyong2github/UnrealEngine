@@ -62,8 +62,6 @@ public:
 	 */
 	void OnSocketSelectionChanged( UStaticMeshSocket* SelectedSocket );
 
-	void ResetCamera();
-
 	/**
 	 *	Draws the UV overlay for the current LOD.
 	 *

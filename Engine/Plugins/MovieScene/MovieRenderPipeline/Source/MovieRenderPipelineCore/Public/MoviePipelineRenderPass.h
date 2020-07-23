@@ -12,9 +12,9 @@ class MOVIERENDERPIPELINECORE_API UMoviePipelineRenderPass : public UMoviePipeli
 {
 	GENERATED_BODY()
 public:
-	void Setup(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+	void Setup(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 	{
-		SetupImpl(InEnginePasses, InPassInitSettings);
+		SetupImpl(InPassInitSettings);
 	}
 
 	void Teardown()
@@ -28,13 +28,7 @@ public:
 		GatherOutputPassesImpl(ExpectedRenderPasses);
 	}
 
-	/** The required engine passes this pass needs to operate. */
-	void GetRequiredEnginePasses(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses)
-	{
-		GetRequiredEnginePassesImpl(RequiredEnginePasses);
-	}
-
-	/** This will called for each requested sample. This should only be used if you're not trying to share engine passes with other things. */
+	/** This will called for each requested sample. */
 	void RenderSample_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState)
 	{
 		RenderSample_GameThreadImpl(InSampleState);
@@ -47,13 +41,8 @@ protected:
 	virtual FText GetCategoryText() const override { return NSLOCTEXT("MovieRenderPipeline", "RenderingCategoryName_Text", "Rendering"); }
 #endif
 protected:
-	virtual void GetRequiredEnginePassesImpl(TSet<FMoviePipelinePassIdentifier>& RequiredEnginePasses) {}
-
-	virtual void SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) {}
-
+	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) {}
 	virtual void TeardownImpl() {}
-
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) {}
-
 	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) {}
 };

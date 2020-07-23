@@ -96,16 +96,20 @@ struct FCombineBlendsWithInitialValues
 		const float TotalWeight = AbsoluteResult.Weight + RelativeResult.Weight;
 		if (TotalWeight != 0)
 		{
-			if (AbsoluteResult.Weight < 1.f && RelativeResult.Weight == 0.f)
-			{
-				const float Value = InitialValue * (1.f-AbsoluteResult.Weight) + (AbsoluteResult.Total) / TotalWeight + AdditiveResult.Total;
-				OutFinalBlendResult = Value;
-			}
-			else
-			{
-				const float Value = (AbsoluteResult.Total + RelativeResult.Total) / TotalWeight + AdditiveResult.Total;
-				OutFinalBlendResult = Value;
-			}
+			// If the absolute value has some partial weighting (for ease-in/out for instance), we ramp it from/to the initial value. This means
+			// that the "initial value" adds a contribution to the entire blending process, so we add its weight to the total that we
+			// normalize absolutes and relatives with.
+			//
+			// Note that "partial weighting" means strictly between 0 and 100%. At 100% and above, we don't need to do this thing with the initial
+			// value. At 0%, we have no absolute value (only a relative value) and we therefore don't want to include the initial value either.
+			const bool bInitialValueContributes = (0.f < AbsoluteResult.Weight && AbsoluteResult.Weight < 1.f);
+			const float AbsoluteBlendedValue = bInitialValueContributes ?
+				(InitialValue * (1.f - AbsoluteResult.Weight) + AbsoluteResult.Total) :
+				AbsoluteResult.Total;
+			const float FinalTotalWeight = bInitialValueContributes ? (TotalWeight + (1.f - AbsoluteResult.Weight)) : TotalWeight;
+
+			const float Value = (AbsoluteBlendedValue + RelativeResult.Total) / FinalTotalWeight + AdditiveResult.Total;
+			OutFinalBlendResult = Value;
 		}
 		else if (AdditiveResult.Weight != 0)
 		{
@@ -253,7 +257,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 
 		if (!TaskData.Impl)
 		{
-			TaskData.Impl = MakeUnique<FBlendedValuesTaskData>();
+			TaskData.Impl = MakeUnique<FBlendedValuesTaskData>(Channel.ResultComponent);
 		}
 
 		checkf(TaskData.Impl->bTasksComplete, TEXT("Attempting to issue blend tasks while some are still pending - this is a threading policy violation"));
@@ -428,7 +432,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 			.ReadErased(PropertyDefinition.InitialValueType)
 			.Write(ResultComponent)
 			.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
-			.Dispatch_PerEntity<FCombineBlendsWithInitialValues>(&Linker->EntityManager, Prereqs, nullptr, TaskData->GetData(), Composites[CompositeIndex].CompositeOffset);
+			.Dispatch_PerEntity<FCombineBlendsWithInitialValues>(&Linker->EntityManager, Prereqs, &Subsequents, TaskData->GetData(), Composites[CompositeIndex].CompositeOffset);
 		}
 	}
 

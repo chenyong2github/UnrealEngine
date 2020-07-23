@@ -2,7 +2,8 @@
 #pragma once
 
 #include "GameFramework/Pawn.h"
-#include "Movement/FlyingMovement.h"
+#include "FlyingMovementComponent.h"
+#include "FlyingMovementSimulation.h"
 #include "MockAbilitySimulation.h"
 #include "NetworkPredictionExtrasFlyingPawn.generated.h"
 
@@ -78,10 +79,7 @@ public:
 
 protected:
 
-	const FFlyingMovementAuxState* GetAuxStateRead() const;
-	FFlyingMovementAuxState* GetAuxStateWrite(const TCHAR* TraceStr=nullptr);
-
-	void ProduceInput(const FNetworkSimTime SimTime, FFlyingMovementInputCmd& Cmd);
+	void ProduceInput(const int32 DeltaMS, FFlyingMovementInputCmd& Cmd);
 
 	UPROPERTY(Category=Movement, VisibleAnywhere)
 	UFlyingMovementComponent* FlyingMovementComponent;
@@ -114,6 +112,7 @@ enum class ENetworkPredictionExtrasMockAbilityInputPreset: uint8
 	Blink
 };
 
+
 // Example subclass of ANetworkPredictionExtrasFlyingPawn that uses the MockAbility simulation
 UCLASS()
 class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn_MockAbility : public ANetworkPredictionExtrasFlyingPawn
@@ -143,7 +142,7 @@ public:
 	
 protected:
 	using ANetworkPredictionExtrasFlyingPawn::ProduceInput;
-	void ProduceInput(const FNetworkSimTime SimTime, FMockAbilityInputCmd& Cmd);
+	void ProduceInput(const int32 SimTimeMS, FMockAbilityInputCmd& Cmd);
 
 	void Action_Sprint_Pressed();
 	void Action_Sprint_Released();
@@ -152,7 +151,16 @@ protected:
 	void Action_Blink_Pressed();
 	void Action_Blink_Released();
 
+	void Action_Primary_Pressed();
+	void Action_Primary_Released();
+
+	void Action_Secondary_Pressed();
+	void Action_Secondary_Released();
+
 	bool bSprintPressed = false;
 	bool bDashPressed = false;
 	bool bBlinkPressed = false;
+	bool bPrimaryPressed = false;
+	bool bSecondaryPressed = false;
 };
+

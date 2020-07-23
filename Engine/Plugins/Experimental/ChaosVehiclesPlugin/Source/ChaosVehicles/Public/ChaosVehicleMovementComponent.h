@@ -17,8 +17,8 @@
 
 #include "ChaosVehicleMovementComponent.generated.h"
 
-#define WANT_RVO 0
 using namespace Chaos;
+class CHAOSVEHICLES_API UChaosVehicleMovementComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVehicle, Log, All);
 
@@ -28,12 +28,15 @@ struct FVehicleDebugParams
 {
 	bool ShowCOM = false;
 	bool ShowModelOrigin = false;
+	bool ShowAllForces = false;
 	bool ShowAerofoilForces = false;
-	bool ShowAerofoilSurface = true;
-	bool DisableAirControl = false;
-	bool DisableGroundControl = false;
+	bool ShowAerofoilSurface = false;
+	bool DisableTorqueControl = false;
+	bool DisableStabilizeControl = false;
 	bool DisableAerodynamics = false;
 	bool BatchQueries = true;
+	float ForceDebugScaling = 0.0006f;
+	float PersistDebugLinesTime = 0.01f;
 };
 
 // #todo: contact modification
@@ -96,17 +99,23 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 };
 
 USTRUCT()
-struct FVehicleAirControlConfig
+struct FVehicleTorqueControlConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Air Control Enabled */
+	/** Torque Control Enabled */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	bool Enabled;
 
 	/** Yaw Torque Scaling */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float YawTorqueScaling;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawFromSteering;
+	
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float YawFromRollTorqueScaling;
 
 	/** Pitch Torque Scaling */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -116,6 +125,9 @@ struct FVehicleAirControlConfig
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RollTorqueScaling;
 
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollFromSteering;
+
 	/** Rotation damping */
 	UPROPERTY(EditAnywhere, Category = Setup)
 	float RotationDamping;
@@ -123,13 +135,106 @@ struct FVehicleAirControlConfig
 	void InitDefaults()
 	{
 		Enabled = false;
-		YawTorqueScaling = 5.0f;
-		PitchTorqueScaling = 5.0f;
-		RollTorqueScaling = 5.0f;
+		YawTorqueScaling = 0.0f;
+		YawFromSteering = 0.0f;
+		YawFromRollTorqueScaling = 0.0f;
+		PitchTorqueScaling = 0.0f;
+		RollTorqueScaling = 0.0f;
+		RollFromSteering = 0.0f;
 		RotationDamping = 0.02f;
 	}
 };
 
+USTRUCT()
+struct FVehicleTargetRotationControlConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Rotation Control Enabled */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool Enabled;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool bRollVsSpeedEnabled;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollControlScaling;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RollMaxAngle;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PitchControlScaling;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PitchMaxAngle;
+
+	/** Rotation stiffness */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RotationStiffness;
+
+	/** Rotation damping */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float RotationDamping;
+
+	/** Rotation mac accel */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float MaxAccel;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float AutoCentreRollStrength;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float AutoCentrePitchStrength;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float AutoCentreYawStrength;
+
+
+	void InitDefaults()
+	{
+		Enabled = false;
+
+		bRollVsSpeedEnabled = false;
+
+		RollControlScaling = 0.f;
+		RollMaxAngle = 0.f;
+		PitchControlScaling = 0.f;
+		PitchMaxAngle = 0.f;
+
+		RotationStiffness = 0.f;
+		RotationDamping = 0.2;
+		MaxAccel = 0.f;
+
+		AutoCentreRollStrength = 0.f;
+		AutoCentrePitchStrength = 0.f;
+		AutoCentreYawStrength = 0.f;
+	}
+};
+
+USTRUCT()
+struct FVehicleStabilizeControlConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Torque Control Enabled */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	bool Enabled;
+
+	/** Yaw Torque Scaling */
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float AltitudeHoldZ;
+
+	UPROPERTY(EditAnywhere, Category = Setup)
+	float PositionHoldXY;
+
+	void InitDefaults()
+	{
+		Enabled = false;
+		AltitudeHoldZ = 4.0f;
+		PositionHoldXY = 8.0f;
+	}
+};
 
 /** Commonly used state - evaluated once used wherever required */
 struct FVehicleState
@@ -137,13 +242,18 @@ struct FVehicleState
 	FVehicleState()
 		: VehicleWorldTransform(FTransform::Identity)
 		, VehicleWorldVelocity(FVector::ZeroVector)
+		, VehicleLocalVelocity(FVector::ZeroVector)
 		, VehicleWorldAngularVelocity(FVector::ZeroVector)
+		, VehicleWorldCOM(FVector::ZeroVector)
+		, WorldVelocityNormal(FVector::ZeroVector)
 		, VehicleUpAxis(FVector(0.f,0.f,1.f))
 		, VehicleForwardAxis(FVector(1.f,0.f,0.f))
 		, VehicleRightAxis(FVector(0.f,1.f,0.f))
+		, LocalAcceleration(FVector::ZeroVector)
+		, LocalGForce(FVector::ZeroVector)
+		, LastFrameVehicleLocalVelocity(FVector::ZeroVector)
 		, ForwardSpeed(0.f)
 		, ForwardsAcceleration(0.f)
-		, PrevForwardSpeed(0.f)
 		, bVehicleInAir(false)
 		, bSleeping(false)
 	{
@@ -151,19 +261,24 @@ struct FVehicleState
 	}
 
 	/** Cache some useful data */
-	void CaptureState(FBodyInstance* TargetInstance, float DeltaTime);
+	void CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
 
 	FTransform VehicleWorldTransform;
 	FVector VehicleWorldVelocity;
+	FVector VehicleLocalVelocity;
 	FVector VehicleWorldAngularVelocity;
+	FVector VehicleWorldCOM;
+	FVector WorldVelocityNormal;
 
 	FVector VehicleUpAxis;
 	FVector VehicleForwardAxis;
 	FVector VehicleRightAxis;
+	FVector LocalAcceleration;
+	FVector LocalGForce;
+	FVector LastFrameVehicleLocalVelocity;
 
 	float ForwardSpeed;
 	float ForwardsAcceleration;
-	float PrevForwardSpeed;
 
 	bool bVehicleInAir;
 	bool bSleeping;
@@ -202,13 +317,23 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 
 
 UENUM()
-enum class FVehicleAerofoilType : uint8
+enum class EVehicleAerofoilType : uint8
 {
 	Fixed = 0,
 	Wing,
 	Rudder,
 	Elevator
 };
+
+
+UENUM()
+enum class EVehicleThrustType : uint8
+{
+	Fixed = 0,
+	HelicopterRotor,	// affected by pitch/roll inputs
+	Rudder				// affected by steering/yaw input
+};
+
 
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleAerofoilConfig
@@ -217,7 +342,7 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 
 	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
-	FVehicleAerofoilType AerofoilType;
+	EVehicleAerofoilType AerofoilType;
 
 	// Bone name on mesh where aerofoil is centered
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
@@ -254,15 +379,15 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
 	float DragMultiplier;
 
-	const Chaos::FAerofoilConfig& GetPhysicsAerofoilConfig()
+	const Chaos::FAerofoilConfig& GetPhysicsAerofoilConfig(const UChaosVehicleMovementComponent& MovementComponent)
 	{
-		FillAerofoilSetup();
+		FillAerofoilSetup(MovementComponent);
 		return PAerofoilConfig;
 	}
 
 	void InitDefaults()
 	{
-		AerofoilType = FVehicleAerofoilType::Fixed;
+		AerofoilType = EVehicleAerofoilType::Fixed;
 		BoneName = NAME_None;
 		Offset = FVector::ZeroVector;
 		UpAxis = FVector(0.f, 0.f, -1.f);
@@ -276,20 +401,7 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 
 private:
 
-	void FillAerofoilSetup()
-	{
-		// #todo: read position and axis from skeleton
-		//PAerofoilConfig.BoneName = this->BoneName;
-		PAerofoilConfig.Offset = this->Offset;
-		PAerofoilConfig.UpAxis = this->UpAxis;
-		PAerofoilConfig.Area = this->Area;
-		PAerofoilConfig.Camber = this->Camber;
-		PAerofoilConfig.MaxControlAngle = this->MaxControlAngle;
-		PAerofoilConfig.StallAngle = this->StallAngle;
-		PAerofoilConfig.Type = (Chaos::FAerofoilType)(this->AerofoilType);
-		PAerofoilConfig.LiftMultiplier = this->LiftMultiplier;
-		PAerofoilConfig.DragMultiplier = this->DragMultiplier;
-	}
+	void FillAerofoilSetup(const UChaosVehicleMovementComponent& MovementComponent);
 
 	Chaos::FAerofoilConfig PAerofoilConfig;
 };
@@ -299,65 +411,59 @@ struct FVehicleThrustConfig
 {
 	GENERATED_USTRUCT_BODY()
 
+	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	EVehicleThrustType ThrustType;
+
 	/** Bone name on mesh where thrust is located */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FName BoneName;
 
 	/** Additional offset to give the location, or use in preference to the bone */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FVector Offset;
 
 	/** Up Axis of thrust. */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	FVector ThrustAxis;
 
-	/** How the thrust is applied as the speed increases */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	FRuntimeFloatCurve ThrustCurve;
+	///** How the thrust is applied as the speed increases */
+	//UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	//FRuntimeFloatCurve ThrustCurve;
 
-	/** Maximum speed after which the thrust will cut off */
-	UPROPERTY(EditAnywhere, Category = Setup)
-	float MaxSpeed;
+	///** Maximum speed after which the thrust will cut off */
+	//UPROPERTY(EditAnywhere, Category = ThrustSetup)
+	//float MaxSpeed;
 
 	/** Maximum thrust force */
-	UPROPERTY(EditAnywhere, Category = Setup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	float MaxThrustForce;
 
 	/** The angle in degrees through which the control surface moves - leave at 0 if it is a fixed surface */
-	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
+	UPROPERTY(EditAnywhere, Category = ThrustSetup)
 	float MaxControlAngle;
 
 	// #todo:ControlAxes - X, Y, Z, or X & Y, etc
-	const Chaos::FSimpleThrustConfig& GetPhysicsThrusterConfig()
+	const Chaos::FSimpleThrustConfig& GetPhysicsThrusterConfig(const UChaosVehicleMovementComponent& MovementComponent)
 	{
-		FillThrusterSetup();
+		FillThrusterSetup(MovementComponent);
 		return PThrusterConfig;
 	}
 
 	void InitDefaults()
 	{
+		ThrustType = EVehicleThrustType::Fixed;
 		BoneName = NAME_None;
 		Offset = FVector::ZeroVector;
-		ThrustAxis = FVector::ZeroVector;
-		ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
-		ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
-		MaxSpeed = 50;
-		MaxThrustForce = 100.0f;
+		ThrustAxis = FVector(1,0,0);
+		//ThrustCurve.GetRichCurve()->AddKey(0.f, 1.f);
+		//ThrustCurve.GetRichCurve()->AddKey(1.f, 1.f);
+		MaxThrustForce = 1000.0f;
+		MaxControlAngle = 0.f;
 	}
 
 private:
-	void FillThrusterSetup()
-	{
-		// #todo: read position and axis from skeleton
-		//PThrusterConfig.BoneName = this->BoneName;
-		PThrusterConfig.Offset = this->Offset;
-		PThrusterConfig.Axis = this->ThrustAxis;
-		//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
-		PThrusterConfig.MaxSpeed = this->MaxSpeed;
-		PThrusterConfig.MaxThrustForce = this->MaxThrustForce;
-		PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
-
-	}
+	void FillThrusterSetup(const UChaosVehicleMovementComponent &MovementComponent);
 
 	Chaos::FSimpleThrustConfig PThrusterConfig;
 
@@ -369,9 +475,6 @@ private:
  */
 UCLASS(Abstract, hidecategories=(PlanarMovement, "Components|Movement|Planar", Activation, "Components|Activation"))
 class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementComponent
-#if WANT_RVO
-	, public IRVOAvoidanceInterface
-#endif
 {
 	GENERATED_UCLASS_BODY()
 
@@ -380,12 +483,6 @@ class CHAOSVEHICLES_API UChaosVehicleMovementComponent : public UPawnMovementCom
 	/** If true, the brake and reverse controls will behave in a more arcade fashion where holding reverse also functions as brake. For a more realistic approach turn this off*/
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
 	uint8 bReverseAsBrake : 1;
-
-#if WANT_RVO
-	///** If set, component will use RVO avoidance */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
-	//uint8 bUseRVOAvoidance : 1;
-#endif
 
 public:
 	/** Mass to set the vehicle chassis to. It's much easier to tweak vehicle settings when
@@ -430,9 +527,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = ThrusterSetup)
 	TArray<FVehicleThrustConfig> Thrusters;
 
-	/** Arcade style in air control of your vehicle, permits some leveling before landing */
+	/** Arcade style direct control of vehicle rotation via torque force */
 	UPROPERTY(EditAnywhere, Category = ArcadeControl)
-	FVehicleAirControlConfig AirControl;
+	FVehicleTorqueControlConfig TorqueControl;
+	
+	/** Arcade style direct control of vehicle rotation via torque force */
+	UPROPERTY(EditAnywhere, Category = ArcadeControl)
+	FVehicleTargetRotationControlConfig TargetRotationControl;
+
+	/** Arcade style control of vehicle */
+	UPROPERTY(EditAnywhere, Category = ArcadeControl)
+	FVehicleStabilizeControlConfig StabilizeControl;
 
 	// Used to recreate the physics if the blueprint changes.
 	uint32 VehicleSetupTag;
@@ -553,6 +658,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetUseAutomaticGears(bool bUseAuto);
 
+	/** Get current gear */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	int32 GetCurrentGear() const;
+
+	/** Get target gear */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	int32 GetTargetGear() const;
+
+	/** Are gears being changed automatically? */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	bool GetUseAutoGears() const;
+
 	/** How fast the vehicle is moving forward */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	float GetForwardSpeed() const;
@@ -561,78 +678,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	float GetForwardSpeedMPH() const;
 
-#if WANT_RVO
-	// RVO Avoidance
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	void EnableSelfRighting(bool InState)
+	{
+		TargetRotationControl.Enabled = InState;
+		TorqueControl.Enabled = InState;
+		StabilizeControl.Enabled = InState;
+	}
 
-	///** Vehicle Radius to use for RVO avoidance (usually half of vehicle width) */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
-	//float RVOAvoidanceRadius;
-	//
-	///** Vehicle Height to use for RVO avoidance (usually vehicle height) */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
-	//float RVOAvoidanceHeight;
-	//
-	///** Area Radius to consider for RVO avoidance */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite)
-	//float AvoidanceConsiderationRadius;
 
-	///** Value by which to alter steering per frame based on calculated avoidance */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	//float RVOSteeringStep;
-
-	///** Value by which to alter throttle per frame based on calculated avoidance */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
-	//float RVOThrottleStep;
-	//
-	///** calculate RVO avoidance and apply it to current velocity */
-	//virtual void CalculateAvoidanceVelocity(float DeltaTime);
-
-	///** No default value, for now it's assumed to be valid if GetAvoidanceManager() returns non-NULL. */
-	//UPROPERTY(Category = "Avoidance", VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay)
-	//int32 AvoidanceUID;
-
-	///** Moving actor's group mask */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
-	//FNavAvoidanceMask AvoidanceGroup;
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement", meta = (DeprecatedFunction, DeprecationMessage = "Please use SetAvoidanceGroupMask function instead."))
-	//void SetAvoidanceGroup(int32 GroupFlags);
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement")
-	//void SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask);
-
-	///** Will avoid other agents if they are in one of specified groups */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
-	//FNavAvoidanceMask GroupsToAvoid;
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement", meta = (DeprecatedFunction, DeprecationMessage = "Please use SetGroupsToAvoidMask function instead."))
-	//void SetGroupsToAvoid(int32 GroupFlags);
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement")
-	//void SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask);
-
-	///** Will NOT avoid other agents if they are in one of specified groups, higher priority than GroupsToAvoid */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
-	//FNavAvoidanceMask GroupsToIgnore;
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement", meta = (DeprecatedFunction, DeprecationMessage = "Please use SetGroupsToIgnoreMask function instead."))
-	//void SetGroupsToIgnore(int32 GroupFlags);
-
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement")
-	//void SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask);
-
-	///** De facto default value 0.5 (due to that being the default in the avoidance registration function), indicates RVO behavior. */
-	//UPROPERTY(Category = "Avoidance", EditAnywhere, BlueprintReadOnly)
-	//float AvoidanceWeight;
-	//
-	/////** Temporarily holds launch velocity when pawn is to be launched so it happens at end of movement. */
-	////UPROPERTY()
-	////FVector PendingLaunchVelocity;
-	//
-	///** Change avoidance state and register with RVO manager if necessary */
-	//UFUNCTION(BlueprintCallable, Category = "Pawn|Components|WheeledVehicleMovement")
-	//void SetAvoidanceEnabled(bool bEnable);
-#endif // WANT_RVO
+	/** location local coordinates of named bone in skeletion, apply additional offset or just use offset if no bone located */
+	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset) const;
 
 	TUniquePtr<Chaos::FSimpleWheeledVehicle>& PhysicsVehicle()
 	{
@@ -640,10 +696,10 @@ public:
 		return PVehicle;
 	}
 
-	const FSolverSafeContactData& GetSolverSafeContactData() const
-	{
-		return SolverSafeContactData;
-	}
+	//const FSolverSafeContactData& GetSolverSafeContactData() const
+	//{
+	//	return SolverSafeContactData;
+	//}
 protected:
 
 	// replicated state of vehicle 
@@ -808,8 +864,8 @@ protected:
 	/** Apply Thruster forces to vehicle body */
 	virtual void ApplyThrustForces(float DeltaTime);
 
-	/** Apply in air control torque to vehicle body */
-	virtual void ApplyAirControl(float DeltaTime);
+	/** Apply direct control over vehicle body rotation */
+	virtual void ApplyTorqueControl(float DeltaTime);
 
 	/** Apply on ground control torque to vehicle body */
 	//virtual void ApplyGroundControl(float DeltaTime);
@@ -822,43 +878,20 @@ protected:
 	void ServerUpdateState(float InSteeringInput, float InThrottleInput, float InBrakeInput
 			, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput);
 
-#if WANT_RVO
 
-	/** Update RVO Avoidance for simulation */
-	void UpdateAvoidance(float DeltaTime);
-		
-	/** called in Tick to update data in RVO avoidance manager */
-	void UpdateDefaultAvoidance();
-	
-	/** lock avoidance velocity */
-	void SetAvoidanceVelocityLock(class UAvoidanceManager* Avoidance, float Duration);
-	
-	/** Calculated avoidance velocity used to adjust steering and throttle */
-	FVector AvoidanceVelocity;
-	
-	/** forced avoidance velocity, used when AvoidanceLockTimer is > 0 */
-	FVector AvoidanceLockVelocity;
-	
-	/** remaining time of avoidance velocity lock */
-	float AvoidanceLockTimer;
-#endif
-	
 	// Setup
 
 	/** Get our controller */
 	AController* GetController() const;
 
 	/** Get the mesh this vehicle is tied to */
-	class UMeshComponent* GetMesh();
+	class UMeshComponent* GetMesh() const;
 
 	/** Get Mesh cast as USkeletalMeshComponent, may return null if cast fails */
 	USkeletalMeshComponent* GetSkeletalMesh();
 
 	/** Get Mesh cast as UStaticMeshComponent, may return null if cast fails */
 	UStaticMeshComponent* GetStaticMesh();
-
-	/** location local coordinates of named bone in skeletion, apply additional offset or just use offset if no bone located */
-	FVector LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset);
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();
@@ -905,31 +938,26 @@ protected:
 	/** Handle for delegate registered on mesh component */
 	FDelegateHandle MeshOnPhysicsStateChangeHandle;
 
-#if WANT_RVO
-	/** BEGIN IRVOAvoidanceInterface */
-	virtual void SetRVOAvoidanceUID(int32 UID) override;
-	virtual int32 GetRVOAvoidanceUID() override;
-	virtual void SetRVOAvoidanceWeight(float Weight) override;
-	virtual float GetRVOAvoidanceWeight() override;
-	virtual FVector GetRVOAvoidanceOrigin() override;
-	virtual float GetRVOAvoidanceRadius() override;
-	virtual float GetRVOAvoidanceHeight() override;
-	virtual float GetRVOAvoidanceConsiderationRadius() override;
-	virtual FVector GetVelocityForRVOConsideration() override;
-	virtual void SetAvoidanceGroupMask(int32 GroupFlags) override;
-	virtual int32 GetAvoidanceGroupMask() override;
-	virtual void SetGroupsToAvoidMask(int32 GroupFlags) override;
-	virtual int32 GetGroupsToAvoidMask() override;
-	virtual void SetGroupsToIgnoreMask(int32 GroupFlags) override;
-	virtual int32 GetGroupsToIgnoreMask() override;
-	/** END IRVOAvoidanceInterface */
-#endif
+protected:
+	/** Add a force to this vehicle */
+	void AddForce(const FVector& Force, bool bAllowSubstepping = true, bool bAccelChange = false);
+	/** Add a force at a particular position (world space when bIsLocalForce = false, body space otherwise) */
+	void AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping = true, bool bIsLocalForce = false);
+	/** Add an impulse to this vehicle */
+	void AddImpulse(const FVector& Impulse, bool bVelChange);
+	/** Add an impulse to this vehicle and a particular world position */
+	void AddImpulseAtPosition(const FVector& Impulse, const FVector& Position);
+	/** Add a torque to this vehicle */
+	void AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping = true, bool bAccelChange = false);
 
 private:
 	UPROPERTY(transient, Replicated)
 	AController* OverrideController;
-	FSolverSafeContactData SolverSafeContactData;
 
+	// #todo: contact modification
+	//FSolverSafeContactData SolverSafeContactData;
+
+	// #todo: generic/common setup into seperate class, no individual params in main class?
 	const Chaos::FSimpleAerodynamicsConfig& GetAerodynamicsConfig()
 	{
 		FillAerodynamicsSetup();
@@ -944,6 +972,5 @@ private:
 		PAerodynamicsSetup.AreaMetresSquared = Cm2ToM2(this->DragArea);
 	}
 	Chaos::FSimpleAerodynamicsConfig PAerodynamicsSetup;
-
 
 };

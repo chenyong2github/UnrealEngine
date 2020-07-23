@@ -21,7 +21,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor);
+	void Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor, UClass* DefaultFilterClass);
 	void SetFilterClass(UClass* InClass);
 
 public:

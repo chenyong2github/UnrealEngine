@@ -18,17 +18,46 @@ FUICommandInfoDecl FBindingContext::NewCommand( const FName InCommandName, const
 	return FUICommandInfoDecl( this->AsShared(), InCommandName, InCommandLabel, InCommandDesc );
 }
 
+void FBindingContext::AddBundle(const FName Name, const FText& Desc)
+{
+	if (Bundles.Contains(Name))
+	{
+		UE_LOG(LogSlate, Warning, TEXT("Ignoring attempt to add bundle %s because it already exists in context %s"), *Name.ToString(), *ContextName.ToString());
+	}
+	else if (Name == NAME_None)
+	{
+		UE_LOG(LogSlate, Warning, TEXT("Ignoring attempt to add bundle to context %s because no name was given"), *ContextName.ToString());
+	}
+	else
+	{
+		Bundles.Add(Name, Desc);
+	}
+}
+
+const FText& FBindingContext::GetBundleLabel(const FName Name)
+{
+	const FText* Found = Bundles.Find(Name);
+	if (Found)
+	{
+		return *Found;
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
 
 
 
 
-FUICommandInfoDecl::FUICommandInfoDecl( const TSharedRef<FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc )
+FUICommandInfoDecl::FUICommandInfoDecl( const TSharedRef<FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc, const FName InBundle)
 	: Context( InContext )
 {
 	Info = MakeShareable( new FUICommandInfo( InContext->GetContextName() ) );
 	Info->CommandName = InCommandName;
 	Info->Label = InLabel;
 	Info->Description = InDesc;
+	Info->Bundle = InBundle;
 }
 
 FUICommandInfoDecl& FUICommandInfoDecl::DefaultChord( const FInputChord& InDefaultChord, const EMultipleKeyBindingIndex InChordIndex)
@@ -75,7 +104,7 @@ const FText FUICommandInfo::GetInputText() const
 }
 
 
-void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord)
+void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord, const FName InBundle)
 {
 	ensureMsgf( !InCommandLabel.IsEmpty(), TEXT("Command labels cannot be empty") );
 
@@ -87,6 +116,7 @@ void FUICommandInfo::MakeCommandInfo( const TSharedRef<class FBindingContext>& I
 	OutCommand->UserInterfaceType = InUserInterfaceType;
 	OutCommand->DefaultChords[static_cast<uint8>(EMultipleKeyBindingIndex::Primary)] = InDefaultChord;
 	OutCommand->DefaultChords[static_cast<uint8>(EMultipleKeyBindingIndex::Secondary)] = InAlternateDefaultChord;
+	OutCommand->Bundle = InBundle;
 	FInputBindingManager::Get().CreateInputCommand( InContext, OutCommand.ToSharedRef() );
 }
 

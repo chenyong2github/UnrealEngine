@@ -528,7 +528,7 @@ void FPhysicsAssetEditorEditMode::DrawHUD(FEditorViewportClient* ViewportClient,
 		}
 		else if (ViewportClient->GetWidgetMode() == FWidget::WM_Rotate)
 		{
-			TextItem.Text = LOCTEXT("DoubleRotate", "Hold ALT to rotate both reference frames");
+			TextItem.Text = LOCTEXT("SingleRotate", "Hold ALT to rotate single reference frame");
 		}
 	}
 

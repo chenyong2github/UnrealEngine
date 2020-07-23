@@ -105,32 +105,10 @@ UWidgetBlueprintGeneratedClass* UUserWidget::GetWidgetTreeOwningClass() const
 	return WidgetClass;
 }
 
-bool UUserWidget::CanInitialize() const
-{
-#if (WITH_EDITOR || UE_BUILD_DEBUG)
-	if ( HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) )
-	{
-		return false;
-	}
-
-	// If this object is outered to an archetype or CDO, don't initialize the user widget.  That leads to a complex
-	// and confusing serialization that when re-initialized later causes problems when copies of the template are made.
-	for ( const UObjectBaseUtility* It = this; It; It = It->GetOuter() )
-	{
-		if ( It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) )
-		{
-			return false;
-		}
-	}
-#endif
-
-	return true;
-}
-
 bool UUserWidget::Initialize()
 {
 	// If it's not initialized initialize it, as long as it's not the CDO, we never initialize the CDO.
-	if ( !bInitialized && ensure(CanInitialize()) )
+	if (!bInitialized && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		bInitialized = true;
 
@@ -218,7 +196,7 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 
 	if ( ensure(InWidgetTree) )
 	{
-		if (InWidgetTree->HasAnyFlags(RF_ArchetypeObject))
+		if (ensure(InWidgetTree->HasAnyFlags(RF_ArchetypeObject)))
 		{
 			FObjectInstancingGraph ObjectInstancingGraph;
 			WidgetTree = NewObject<UWidgetTree>(this, InWidgetTree->GetClass(), TEXT("WidgetTree"), RF_Transactional, InWidgetTree, false, &ObjectInstancingGraph);
@@ -239,6 +217,8 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 		}
 		else
 		{
+			// This shouldn't happen any more, but keeping it around for a bit as a fallback.  Everything should just follow the path above.
+
 			FObjectDuplicationParameters Parameters(InWidgetTree, this);
 
 			// Set to be transient and strip public flags
@@ -733,6 +713,7 @@ UWidget* UUserWidget::GetWidgetHandle(TSharedRef<SWidget> InWidget)
 TSharedRef<SWidget> UUserWidget::RebuildWidget()
 {
 	check(!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject));
+	check(WidgetTree);
 
 	// In the event this widget is replaced in memory by the blueprint compiler update
 	// the widget won't be properly initialized, so we ensure it's initialized and initialize
@@ -1878,10 +1859,11 @@ UUserWidget* UUserWidget::CreateWidgetInstance(UWidget& OwningWidget, TSubclassO
 
 UUserWidget* UUserWidget::CreateWidgetInstance(UWidgetTree& OwningWidgetTree, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName)
 {
+	// If the widget tree we're owned by is outered to a UUserWidget great, initialize it like any old widget.
 	if (UUserWidget* OwningUserWidget = Cast<UUserWidget>(OwningWidgetTree.GetOuter()))
 	{
 		return CreateWidgetInstance(*OwningUserWidget, UserWidgetClass, WidgetName);
-		}
+	}
 
 	return CreateInstanceInternal(&OwningWidgetTree, UserWidgetClass, WidgetName, nullptr, nullptr);
 }

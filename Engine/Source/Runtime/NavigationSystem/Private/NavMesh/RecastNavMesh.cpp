@@ -1831,36 +1831,44 @@ void ARecastNavMesh::InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles)
 	{
 		return;
 	}
-	
-	FNavPathWeakPtr* WeakPathPtr = (ActivePaths.GetData() + PathsCount - 1);
-	for (int32 PathIndex = PathsCount - 1; PathIndex >= 0; --PathIndex, --WeakPathPtr)
-	{
-		FNavPathSharedPtr SharedPath = WeakPathPtr->Pin();
-		if (WeakPathPtr->IsValid() == false)
-		{
-			ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
-		}
-		else 
-		{
-			// iterate through all tile refs in FreshTilesCopy and 
-			const FNavMeshPath* Path = (const FNavMeshPath*)(SharedPath.Get());
-			if (Path->IsReady() == false ||
-				Path->GetIgnoreInvalidation() == true)
-			{
-				// path not filled yet or doesn't care about invalidation
-				continue;
-			}
 
-			const int32 PathLenght = Path->PathCorridor.Num();
-			const NavNodeRef* PathPoly = Path->PathCorridor.GetData();
-			for (int32 NodeIndex = 0; NodeIndex < PathLenght; ++NodeIndex, ++PathPoly)
+	// Paths can be registered from async pathfinding thread.
+	// Theoretically paths are invalidated synchronously by the navigation system 
+	// before starting async queries task but protecting ActivePaths will make
+	// the system safer in case of future timing changes.
+	{
+		FScopeLock PathLock(&ActivePathsLock);
+
+		FNavPathWeakPtr* WeakPathPtr = (ActivePaths.GetData() + PathsCount - 1);
+		for (int32 PathIndex = PathsCount - 1; PathIndex >= 0; --PathIndex, --WeakPathPtr)
+		{
+			FNavPathSharedPtr SharedPath = WeakPathPtr->Pin();
+			if (WeakPathPtr->IsValid() == false)
 			{
-				const uint32 NodeTileIdx = RecastNavMeshImpl->GetTileIndexFromPolyRef(*PathPoly);
-				if (ChangedTiles.Contains(NodeTileIdx))
+				ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
+			}
+			else
+			{
+				// iterate through all tile refs in FreshTilesCopy and 
+				const FNavMeshPath* Path = (const FNavMeshPath*)(SharedPath.Get());
+				if (Path->IsReady() == false ||
+					Path->GetIgnoreInvalidation() == true)
 				{
-					SharedPath->Invalidate();
-					ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
-					break;
+					// path not filled yet or doesn't care about invalidation
+					continue;
+				}
+
+				const int32 PathLenght = Path->PathCorridor.Num();
+				const NavNodeRef* PathPoly = Path->PathCorridor.GetData();
+				for (int32 NodeIndex = 0; NodeIndex < PathLenght; ++NodeIndex, ++PathPoly)
+				{
+					const uint32 NodeTileIdx = RecastNavMeshImpl->GetTileIndexFromPolyRef(*PathPoly);
+					if (ChangedTiles.Contains(NodeTileIdx))
+					{
+						SharedPath->Invalidate();
+						ActivePaths.RemoveAtSwap(PathIndex, 1, /*bAllowShrinking=*/false);
+						break;
+					}
 				}
 			}
 		}

@@ -539,7 +539,7 @@ void UGameplayAbility::CancelAbility(const FGameplayAbilitySpecHandle Handle, co
 		}
 
 		// Replicate the the server/client if needed
-		if (bReplicateCancelAbility)
+		if (bReplicateCancelAbility && ActorInfo)
 		{
 			ActorInfo->AbilitySystemComponent->ReplicateEndOrCancelAbility(Handle, ActivationInfo, this, true);
 		}

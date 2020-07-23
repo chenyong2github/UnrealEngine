@@ -612,14 +612,11 @@ public:
 		{
 			if (Material != nullptr)
 			{
-				for (UMaterialExpression* Expression : Material->Expressions)
+				TArray<UMaterialExpressionDynamicParameter*> Expressions;
+				Material->GetAllExpressionsInMaterialAndFunctionsOfType(Expressions);
+				for (UMaterialExpressionDynamicParameter* DynParamExpFound : Expressions)
 				{
-					UMaterialExpressionDynamicParameter* DynParamExpFound = Cast<UMaterialExpressionDynamicParameter>(Expression);
-
-					if (DynParamExpFound != nullptr)
-					{
-						OutDynamicParameterExpressions.Add(DynParamExpFound);
-					}
+					OutDynamicParameterExpressions.Add(DynParamExpFound);
 				}
 			}
 		}
@@ -1945,7 +1942,7 @@ UNiagaraNodeParameterMapSet& UNiagaraStackFunctionInput::GetOrCreateOverrideNode
 	UNiagaraNodeParameterMapSet* OverrideNode = GetOverrideNode();
 	if (OverrideNode == nullptr)
 	{
-		TGuardValue<bool>(bUpdatingGraphDirectly, true);
+		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
 		OverrideNode = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionOverrideNode(*OwningFunctionCallNode);
 		OverrideNodeCache = OverrideNode;
 	}
@@ -1966,7 +1963,7 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 	UEdGraphPin* OverridePin = GetOverridePin();
 	if (OverridePin == nullptr)
 	{
-		TGuardValue<bool>(bUpdatingGraphDirectly, true);
+		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
 		OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode, AliasedInputParameterHandle, InputType);
 		OverridePinCache = OverridePin;
 	}

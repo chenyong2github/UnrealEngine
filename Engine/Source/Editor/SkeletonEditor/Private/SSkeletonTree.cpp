@@ -2122,7 +2122,7 @@ ESkeletonTreeFilterResult SSkeletonTree::HandleFilterSkeletonTreeItem(const FSke
 
 		if (InArgs.TextFilter.IsValid())
 		{
-			if (InArgs.TextFilter->TestTextFilter(FSkeletonTreeFilterContext(InItem->GetRowItemName())))
+			if (InArgs.TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(InItem->GetRowItemName().ToString())))
 			{
 				Result = ESkeletonTreeFilterResult::ShownHighlighted;
 			}

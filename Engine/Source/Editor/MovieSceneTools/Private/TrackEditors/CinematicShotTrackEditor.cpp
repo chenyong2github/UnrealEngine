@@ -300,8 +300,12 @@ FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UM
 		return FReply::Unhandled();
 	}
 	
+	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
+
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 	
+	FMovieSceneTrackEditor::BeginKeying();
+
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
 	{
@@ -314,6 +318,8 @@ FReply FCinematicShotTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UM
 			bAnyDropped = true;
 		}
 	}
+
+	FMovieSceneTrackEditor::EndKeying();
 
 	return bAnyDropped ? FReply::Handled() : FReply::Unhandled();
 }
@@ -693,6 +699,7 @@ FKeyPropertyResult FCinematicShotTrackEditor::AddKeyInternal(FFrameNumber KeyTim
 
 		UMovieSceneSubSection* NewSection = CinematicShotTrack->AddSequenceOnRow(InMovieSceneSequence, KeyTime, OuterDuration, RowIndex);
 		KeyPropertyResult.bTrackModified = true;
+		KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 		GetSequencer()->EmptySelection();
 		GetSequencer()->SelectSection(NewSection);
@@ -854,6 +861,7 @@ FKeyPropertyResult FCinematicShotTrackEditor::HandleSequenceAdded(FFrameNumber K
 
 	UMovieSceneSubSection* NewSection = CinematicShotTrack->AddSequenceOnRow(Sequence, KeyTime, OuterDuration, RowIndex);
 	KeyPropertyResult.bTrackModified = true;
+	KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 	GetSequencer()->EmptySelection();
 	GetSequencer()->SelectSection(NewSection);

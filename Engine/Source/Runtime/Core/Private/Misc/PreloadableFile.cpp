@@ -91,6 +91,10 @@ FPreloadableFile::FPreloadableFile(const TCHAR* InFileName)
 FPreloadableFile::~FPreloadableFile()
 {
 	Close();
+	// It is possible we set a flag indicating that an async event is done, but we haven't yet called Trigger in the task thread; Trigger is always the last memory-accessing instruction on the task thread
+	// This happens for example at the end of FPreloadableFile::InitializeInternal
+	// Wait for the trigger call to be made before deleting PendingAsyncComplete.
+	PendingAsyncComplete->Wait();
 	FPlatformProcess::ReturnSynchEventToPool(PendingAsyncComplete);
 }
 

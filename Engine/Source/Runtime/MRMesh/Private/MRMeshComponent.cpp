@@ -506,8 +506,6 @@ UMRMeshComponent::UMRMeshComponent(const FObjectInitializer& ObjectInitializer)
 	, bEnableOcclusion(false)
 	, bUseWireframeForNoMaterial(false)
 {
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> WireframeMaterialRef(TEXT("/Engine/EngineDebugMaterials/WireframeMaterial"));
-	WireframeMaterial = WireframeMaterialRef.Object;
 }
 
 void UMRMeshComponent::BeginPlay()
@@ -895,6 +893,15 @@ void UMRMeshComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface*
 	if (Material != InMaterial)
 	{
 		Material = InMaterial;
+		MarkRenderDynamicDataDirty();
+	}
+}
+
+void UMRMeshComponent::SetWireframeMaterial(class UMaterialInterface* InMaterial)
+{
+	if (WireframeMaterial != InMaterial)
+	{
+		WireframeMaterial = InMaterial;
 		MarkRenderDynamicDataDirty();
 	}
 }

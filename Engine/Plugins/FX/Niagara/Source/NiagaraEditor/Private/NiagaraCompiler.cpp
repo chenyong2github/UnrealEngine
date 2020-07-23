@@ -745,7 +745,12 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 				for (UNiagaraRendererProperties* RendererProperty : Handle.GetInstance()->GetRenderers())
 				{
-					BasePtr->EmitterData[i]->RequiredRendererVariables.Append(RendererProperty->GetBoundAttributes());
+					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
+					{
+						const int32 OrigCount = BasePtr->EmitterData[i]->RequiredRendererVariables.Num();
+
+						BasePtr->EmitterData[i]->RequiredRendererVariables.AddUnique(BoundAttribute);
+					}
 				}
 			}
 		}

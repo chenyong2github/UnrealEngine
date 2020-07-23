@@ -399,6 +399,12 @@ public:
 		PreAnimatedState.DiscardEntityTokens();
 	}
 
+
+	/**
+	 * Invalidate any cached state contained within this player causing all entities to be forcibly re-linked and evaluated
+	 */
+	MOVIESCENE_API void InvalidateCachedData();
+
 	MOVIESCENE_API static IMovieScenePlayer* Get(uint16 InUniqueIndex);
 
 	uint16 GetUniqueIndex() const

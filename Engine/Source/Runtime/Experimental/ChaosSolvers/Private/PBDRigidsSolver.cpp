@@ -576,7 +576,8 @@ namespace Chaos
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
 
-		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
+		//todo: do we need this?
+		//MarshallingManager.Reset();
 
 		if(RewindCaptureNumFrames >= 0)
 		{
@@ -621,12 +622,13 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsState()
+	void TPBDRigidsSolver<Traits>::PushPhysicsState(const FReal DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
-		FDirtySet* DirtyProxiesData = DirtyProxiesDataBuffer.AccessProducerBuffer();
+		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
+		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
+		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
-		FDirtyPropertiesManager* Manager = DirtyPropertiesManager->AccessProducerBuffer();
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
@@ -678,11 +680,12 @@ namespace Chaos
 			}
 		});
 
-		DirtyPropertiesManager->FlipProducer();
-		DirtyProxiesDataBuffer.FlipProducer();
 		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
+		MarshallingManager.Step_External(DeltaTime);
+		TArray<FPushPhysicsData*> PushedData = MarshallingManager.StepInternalTime_External(DeltaTime);
+		ensure(PushedData.Num() == 1 && PushedData[0] == PushData);	//internal and external dt matches so should be the exact data we just wrote to
 
-		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, this]()
+		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, PushData, this]()
 		{
 			FRewindData* RewindData = GetRewindData();
 			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
@@ -786,7 +789,7 @@ namespace Chaos
 				}
 			});
 
-			DirtyProxiesData->Reset();
+			MarshallingManager.FreeData_Internal(PushData);
 		});
 	}
 

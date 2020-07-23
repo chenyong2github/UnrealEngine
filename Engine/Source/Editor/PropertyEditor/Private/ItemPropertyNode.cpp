@@ -6,6 +6,7 @@
 #include "Classes/EditorStyleSettings.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorHelpers.h"
+#include "PropertyPathHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ItemPropertyNode"
 
@@ -524,8 +525,57 @@ FText FItemPropertyNode::GetDisplayName() const
 
 			if (CastField<FSetProperty>(ParentProperty) == nullptr &&  CastField<FMapProperty>(ParentProperty) == nullptr)
 			{
+				if (PropertyPtr != nullptr)
+				{
+					// Check if this property has Title Property Meta
+					static const FName NAME_TitleProperty = FName(TEXT("TitleProperty"));
+					FName TitlePropertyName = *PropertyPtr->GetMetaData(NAME_TitleProperty);
+					if (TitlePropertyName != NAME_None)
+					{
+						FItemPropertyNode* NonConstThis = const_cast<FItemPropertyNode*>(this);
+
+						FReadAddressListData ReadAddress;
+						GetReadAddressUncached(*NonConstThis, ReadAddress);
+
+						const UStruct* PropertyStruct = nullptr;
+
+						if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(PropertyPtr))
+						{
+							// We do this so we get the classes *exact* value and not just the base from PropertyClass
+							uint8* FoundAddress = ReadAddress.GetAddress(0);
+							UObject* ObjectValue = FoundAddress != nullptr ? ObjectProperty->GetObjectPropertyValue(FoundAddress) : nullptr;
+
+							if (ObjectValue != nullptr)
+							{
+								PropertyStruct = ObjectValue->GetClass();
+							}
+						}
+
+						// Find the property and get the right property handle
+						if (PropertyStruct != nullptr)
+						{
+							FProperty* TitleProperty = PropertyStruct->FindPropertyByName(TitlePropertyName);
+							if (TitleProperty != nullptr)
+							{
+								const TSharedPtr<IPropertyHandle> ThisAsHandle = PropertyEditorHelpers::GetPropertyHandle(NonConstThis->AsShared(), nullptr, nullptr);
+								const TSharedPtr<IPropertyHandle> ChildPropertyHandle = ThisAsHandle->GetChildHandle(TitlePropertyName, true);
+
+								// Can be null in the case that it doesn't have a UI handle yet (like in the case of newly created instanced properties)
+								if (ChildPropertyHandle.IsValid())
+								{
+									ChildPropertyHandle->GetValueAsDisplayText(FinalDisplayName);
+								}
+							}
+						}
+					}
+
+					if (FinalDisplayName.IsEmpty())
+					{
+						FinalDisplayName = FText::AsNumber(GetArrayIndex());
+					}
+				}
 				// This item is a member of an array, its display name is its index 
-				if (PropertyPtr == NULL || ArraySizeEnum == NULL)
+				else if (PropertyPtr == NULL || ArraySizeEnum == NULL)
 				{
 					FinalDisplayName = FText::AsNumber(GetArrayIndex());
 				}

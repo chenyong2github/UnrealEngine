@@ -73,7 +73,7 @@ namespace UnrealBuildTool
 		/// <returns>string    The custom configuration section for the project file; Empty string if it doesn't require one</returns>
 		public override void GetVisualStudioPlatformToolsetString(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, VCProjectFileFormat InProjectFileFormat, StringBuilder ProjectFileBuilder)
 		{
-			ProjectFileBuilder.AppendLine("    <PlatformToolset>" + VCProjectFileGenerator.GetProjectFilePlatformToolsetVersionString(InProjectFileFormat) + "</PlatformToolset>");
+			VCProjectFileGenerator.AppendPlatformToolsetProperty(ProjectFileBuilder, InProjectFileFormat);
 		}
 
 		/// <summary>

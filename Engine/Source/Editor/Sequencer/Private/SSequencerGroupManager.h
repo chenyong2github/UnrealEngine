@@ -43,6 +43,7 @@ private:
 	void HandleTreeSelectionChanged(TSharedPtr<FSequencerNodeGroupTreeNode> InSelectedNode, ESelectInfo::Type SelectionType);
 	void RequestDeleteNodeGroup(FSequencerNodeGroupNode* NodeGroupNode);
 	void RemoveSelectedItemsFromNodeGroup();
+	void CreateNodeGroup();
 	
 	void GetSelectedItemsNodePaths(TSet<FString>& OutSelectedNodePaths) const;
 

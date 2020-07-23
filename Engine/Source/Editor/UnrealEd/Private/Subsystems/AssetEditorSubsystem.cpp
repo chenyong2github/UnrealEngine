@@ -659,6 +659,9 @@ TArray<FEditorModeInfo> UAssetEditorSubsystem::GetEditorModeInfoOrderedByPriorit
 	return ModeInfoArray;
 }
 
+
+
+
 void UAssetEditorSubsystem::RegisterUAssetEditor(UAssetEditor* NewAssetEditor)
 {
 	OwnedAssetEditors.Add(NewAssetEditor);

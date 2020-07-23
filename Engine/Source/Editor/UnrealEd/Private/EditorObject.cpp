@@ -116,7 +116,7 @@ void UEditorEngine::RenameObject(UObject* Object,UObject* NewOuter,const TCHAR* 
 
 static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, AActor*>& ActorRemapper, uint8* DestData)
 {
-	if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
 		// If there's a concrete index, use that, otherwise iterate all array members (for the case that this property is inside a struct, or there is exactly one element)
 		const int32 Num = (Index == INDEX_NONE) ? ObjectProperty->ArrayDim : 1;

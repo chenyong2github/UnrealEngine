@@ -593,6 +593,11 @@ void UNiagaraDataInterfaceParticleRead::PostEditChangeProperty(struct FPropertyC
 }
 #endif
 
+bool UNiagaraDataInterfaceParticleRead::HasInternalAttributeReads(const UNiagaraEmitter* OwnerEmitter, const UNiagaraEmitter* Provider) const
+{
+	return Provider && Provider->GetUniqueEmitterName() == EmitterName;
+}
+
 bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
 	FNDIParticleRead_InstanceData* PIData = new (PerInstanceData) FNDIParticleRead_InstanceData;

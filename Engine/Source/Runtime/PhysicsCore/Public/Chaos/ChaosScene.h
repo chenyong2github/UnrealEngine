@@ -14,6 +14,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Async/TaskGraphInterfaces.h"
 
 // Currently compilation issue with Incredibuild when including headers required by event template functions
 #define XGE_FIXED 0
@@ -52,6 +53,7 @@ namespace Chaos
 	template <typename T>
 	class TArrayCollectionArray;
 
+	class FPBDRigidDirtyParticlesBufferAccessor;
 }
 
 /**
@@ -95,6 +97,8 @@ public:
 	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
 
+	void WaitPhysScenes();
+
 	/**
 	 * Copies the acceleration structure out of the solver, does no thread safety checking so ensure calls
 	 * to this are made at appropriate sync points if required
@@ -110,6 +114,15 @@ public:
 #if WITH_EDITOR
 	void AddPieModifiedObject(UObject* InObj);
 #endif
+
+	void StartFrame();
+	void SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds,float InMaxPhysicsDeltaTime,float InMaxSubstepDeltaTime,int32 InMaxSubsteps,bool bSubstepping);
+	void EndFrame();
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick,FChaosScene*);
+	FOnPhysScenePostTick OnPhysScenePostTick;
+
+	FGraphEventRef GetCompletionEvent();
 
 protected:
 
@@ -132,4 +145,27 @@ protected:
 	// Allow other code to obtain read-locks when needed
 	friend struct FScopedSceneReadLock;
 	friend struct FScopedSceneLock_Chaos;
+
+	//Engine interface BEGIN
+	virtual float OnStartFrame(float InDeltaTime){ return InDeltaTime; }
+	virtual void OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor){}
+	//Engine interface END
+
+	float MDeltaTime;
+
+	UObject* Owner;
+
+private:
+	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent);
+
+	void SetGravity(const Chaos::TVector<float,3>& Acceleration)
+	{
+		// #todo : Implement
+	}
+
+	template <typename TSolver>
+	void SyncBodies(TSolver* Solver);
+
+	// Taskgraph control
+	FGraphEventRef CompletionEvent;
 };

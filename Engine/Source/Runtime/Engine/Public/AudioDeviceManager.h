@@ -362,6 +362,9 @@ public:
 	/** Gets whether or not all devices should play their audio. */
 	bool IsPlayAllDeviceAudio() const { return bPlayAllDeviceAudio; }
 
+	/** Gets whether or not non-realtime devices should play their audio. */
+	bool IsAlwaysPlayNonRealtimeDeviceAudio() const;
+
 	/** Is debug visualization of 3d sounds enabled */
 	bool IsVisualizeDebug3dEnabled() const;
 

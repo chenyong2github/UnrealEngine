@@ -1738,7 +1738,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 	if (SkelMeshImportDataPtr->Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME)
 	{
-		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ErrorMeshTooSmall", "Cannot import this mesh, the bounding box of this mesh is smaller then the supported threshold[{0}]."), FText::FromString(FString::Printf(TEXT("%f"), THRESH_POINTS_ARE_SAME)))), FFbxErrors::SkeletalMesh_FillImportDataFailed);
+		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ErrorMeshTooSmall", "Cannot import this mesh, the bounding box of this mesh is smaller than the supported threshold[{0}]."), FText::FromString(FString::Printf(TEXT("%f"), THRESH_POINTS_ARE_SAME)))), FFbxErrors::SkeletalMesh_FillImportDataFailed);
 		EARLY_RETURN_ON_CANCEL(true, FailureCleanup);
 	}
 
@@ -4041,6 +4041,64 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 
 	if (!bApplyBaseSkinning)
 	{
+		//Fix up the new LOD import data to use the same bone hierarchy order has the base LOD
+		if (!InSkeletalMesh->IsLODImportedDataEmpty(0))
+		{
+			FSkeletalMeshImportData SkeletalMeshImportData;
+			InSkeletalMesh->LoadLODImportedData(0, SkeletalMeshImportData);
+			int32 ImportBoneCount = SkeletalMeshImportData.RefBonesBinary.Num();
+			TArray<SkeletalMeshImportData::FBone> MergedRefBonesBinary;
+			TArray<int32> RemapBoneIndex;
+			RemapBoneIndex.AddZeroed(ImportBoneCount);
+
+			//AddZeroed the base ref skeleton array, we don't care if the LOD do not use all entries
+			MergedRefBonesBinary.AddZeroed(BaseSkeletalMesh->RefSkeleton.GetNum());
+
+			//Build the remap and the replacement array
+			for (int32 ImportBoneIndex = 0; ImportBoneIndex < ImportBoneCount; ++ImportBoneIndex)
+			{
+				const SkeletalMeshImportData::FBone& ImportBone = SkeletalMeshImportData.RefBonesBinary[ImportBoneIndex];
+				FName LODBoneName(ImportBone.Name);
+
+				int32 BaseBoneIndex = BaseSkeletalMesh->RefSkeleton.FindBoneIndex(LODBoneName);
+				if (BaseBoneIndex == INDEX_NONE)
+				{
+					//Added Bones, we store them at the end of the LOD ref skeleton
+					RemapBoneIndex[ImportBoneIndex] = MergedRefBonesBinary.Add(ImportBone);
+
+				}
+				else
+				{
+					RemapBoneIndex[ImportBoneIndex] = BaseBoneIndex;
+					MergedRefBonesBinary[BaseBoneIndex] = ImportBone;
+				}
+			}
+			//Remap the parent
+			for (int32 ImportBoneIndex = 0; ImportBoneIndex < ImportBoneCount; ++ImportBoneIndex)
+			{
+				SkeletalMeshImportData::FBone& ImportBone = MergedRefBonesBinary[ImportBoneIndex];
+				int32 OriginalParentindex = ImportBone.ParentIndex;
+				if (OriginalParentindex != INDEX_NONE && RemapBoneIndex.IsValidIndex(OriginalParentindex))
+				{
+					ImportBone.ParentIndex = RemapBoneIndex[OriginalParentindex];
+				}
+			}
+
+			//Copy the merged bone array
+			SkeletalMeshImportData.RefBonesBinary = MergedRefBonesBinary;
+
+			//Remap the influences
+			const int32 InfluenceCount = SkeletalMeshImportData.Influences.Num();
+			for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+			{
+				SkeletalMeshImportData::FRawBoneInfluence& Influence = SkeletalMeshImportData.Influences[InfluenceIndex];
+				Influence.BoneIndex = RemapBoneIndex[Influence.BoneIndex];
+			}
+
+			//Save the fixed ImportData
+			InSkeletalMesh->SaveLODImportedData(0, SkeletalMeshImportData);
+		}
+
 		// Fix up the ActiveBoneIndices array.
 		for (int32 i = 0; i < NewLODModel.ActiveBoneIndices.Num(); i++)
 		{

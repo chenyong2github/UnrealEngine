@@ -12,7 +12,7 @@
 #include "PackageHelperFunctions.h"
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
-
+#include "Settings/EditorLoadingSavingSettings.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEditorBlueprintLibrary"
 
@@ -100,9 +100,21 @@ UMoviePipelineQueue* UMoviePipelineEditorBlueprintLibrary::SaveQueueToManifestFi
 	// Save the package to disk.
 	FString ManifestFileName = TEXT("MovieRenderPipeline/QueueManifest") + FPackageName::GetTextAssetPackageExtension();
 	OutManifestFilePath = FPaths::ProjectSavedDir() / ManifestFileName;
-	if (!SavePackageHelper(NewPackage, *OutManifestFilePath))
+
+	// Fully load the package before trying to save.
+	LoadPackage(NewPackage, *NewPackageName, LOAD_None);
+
 	{
-		return nullptr;
+		UEditorLoadingSavingSettings* SaveSettings = GetMutableDefault<UEditorLoadingSavingSettings>();
+		uint32 bSCCAutoAddNewFiles = SaveSettings->bSCCAutoAddNewFiles;
+		SaveSettings->bSCCAutoAddNewFiles = 0;
+		bool bSuccess = SavePackageHelper(NewPackage, *OutManifestFilePath);
+		SaveSettings->bSCCAutoAddNewFiles = bSCCAutoAddNewFiles;
+		
+		if(!bSuccess)
+		{
+			return nullptr;
+		}
 	}
 
 	NewPackage->SetFlags(RF_Transient);

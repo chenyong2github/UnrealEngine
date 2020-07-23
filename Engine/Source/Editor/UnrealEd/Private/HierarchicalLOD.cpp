@@ -105,6 +105,7 @@ void FHierarchicalLODBuilder::PreviewBuild()
 			if (LevelIter->bIsVisible)
 			{
 				BuildClusters(LevelIter);
+				DeleteEmptyHLODPackages(LevelIter);
 			}
 			else
 			{
@@ -803,7 +804,6 @@ void FHierarchicalLODBuilder::ClearHLODs()
 		}
 	}
 
-
 	// Fire map check warnings for hidden levels 
 	if (bVisibleLevelsWarning)
 	{
@@ -892,34 +892,47 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 				for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
 				{
-					UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
-					UPackage* AssetsOuter = Proxy->GetOutermost();
-					checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+					TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
 
-					if (AssetsOuter)
+					if (LODLevel.Num() > 0)
 					{
-						int32 LODActorIndex = 0;
-						TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
-						for (ALODActor* Actor : LODLevel)
+						UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
+
+						UPackage* AssetsOuter = Proxy->GetOutermost();
+						checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+						if (AssetsOuter)
 						{
-							SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
-
-							bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
-
-							// Report an error if the build failed
-							if (!bBuildSuccessful)
+							int32 LODActorIndex = 0;
+							for (ALODActor* Actor : LODLevel)
 							{
-								FMessageLog("HLODResults").Error()
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
-									->AddToken(FUObjectToken::Create(Actor))
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
-							}
-							else
-							{
-								AssetsOuter->Modify();
-							}
+								SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
 
-							++LODActorIndex;
+								bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
+
+								// Report an error if the build failed
+								if (!bBuildSuccessful)
+								{
+									FMessageLog("HLODResults").Error()
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
+										->AddToken(FUObjectToken::Create(Actor))
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
+								}
+								else
+								{
+									AssetsOuter->Modify();
+								}
+
+								++LODActorIndex;
+							}
+						}
+					}
+					else
+					{
+						// No HLODs were generated for this HLOD level, ensure the proxy is cleaned and that the associated package is deleted
+						UHLODProxy* Proxy = Utilities->RetrieveLevelHLODProxy(LevelIter, LODIndex);
+						if (Proxy)
+						{
+							Proxy->Clean();
 						}
 					}
 				}
@@ -934,6 +947,30 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 		MapCheck.Warning()
 			->AddToken(FUObjectToken::Create(World->GetWorldSettings()))
 			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NoBuildHLODHiddenLevels", "Certain levels are marked as hidden, Hierarchical LODs will not be built for hidden levels.")));
+	}
+}
+
+void FHierarchicalLODBuilder::DeleteEmptyHLODPackages(ULevel* InLevel)
+{
+	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
+
+	// Look for HLODProxy packages associated with this level
+	int32 NumLODLevels = InLevel->GetWorldSettings()->GetHierarchicalLODSetup().Num();
+	for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+	{
+		// Obtain HLOD package for the current HLOD level
+		UHLODProxy* HLODProxy = Utilities->RetrieveLevelHLODProxy(InLevel, LODIndex);
+		if (HLODProxy)
+		{
+			HLODProxy->Clean();
+
+			// If this proxy is empty, we can delete the package
+			if (HLODProxy->IsEmpty())
+			{
+				HLODProxy->DeletePackage();
+			}
+		}
 	}
 }
 
@@ -968,11 +1005,9 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			if (HLODProxy)
 			{
 				// Ensure the HLOD descs are up to date.
-				if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
-				{
-					HLODProxy->UpdateHLODDescs(InLevel);
-				}
+				HLODProxy->Clean();
 
+				// Add the HLODProxy package to the list of packages to save
 				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
 			}
 			// If we couldn't find the HLOD package, the level may have been renamed, 

@@ -1013,7 +1013,7 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 #if WITH_EDITOR
 			if (bExternalActor)
 			{
-				SetPackageExternal(false, MyLevel->bUseExternalActors);
+				SetPackageExternal(false, MyLevel->IsUsingExternalActors());
 			}
 #endif
 		}
@@ -1031,7 +1031,7 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 #if WITH_EDITOR
 			if (bExternalActor)
 			{
-				SetPackageExternal(true, MyLevel->bUseExternalActors);
+				SetPackageExternal(true, MyLevel->IsUsingExternalActors());
 			}
 #endif
 			MyLevel->Actors.Add(this);

@@ -81,6 +81,8 @@ public:
 	virtual bool HasPostSimulateTick() const override { return true; }
 	//UNiagaraDataInterface Interface
 
+	virtual bool HasInternalAttributeReads(const UNiagaraEmitter* OwnerEmitter, const UNiagaraEmitter* Provider) const override { return OwnerEmitter == Provider; };
+
 	virtual void StoreData(FVectorVMContext& Context);
 
 protected:

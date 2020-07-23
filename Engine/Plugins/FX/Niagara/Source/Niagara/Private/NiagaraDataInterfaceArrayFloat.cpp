@@ -12,6 +12,7 @@ struct FNDIArrayImplHelper<float> : public FNDIArrayImplHelperBase<float>
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloatBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetFloatDef(); }
+	static const float GetDefaultValue() { return 0.0f; }
 };
 
 template<>
@@ -22,6 +23,7 @@ struct FNDIArrayImplHelper<FVector2D> : public FNDIArrayImplHelperBase<FVector2D
 	static constexpr EPixelFormat PixelFormat = PF_G32R32F;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat2Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec2Def(); }
+	static const FVector2D GetDefaultValue() { return FVector2D::ZeroVector; }
 };
 
 template<>
@@ -32,6 +34,7 @@ struct FNDIArrayImplHelper<FVector> : public FNDIArrayImplHelperBase<FVector>
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloatBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec3Def(); }
+	static const FVector GetDefaultValue() { return FVector::ZeroVector; }
 
 	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName)
 	{
@@ -53,6 +56,7 @@ struct FNDIArrayImplHelper<FVector4> : public FNDIArrayImplHelperBase<FVector4>
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec4Def(); }
+	static const FVector4 GetDefaultValue() { return FVector4(ForceInitToZero); }
 };
 
 template<>
@@ -63,6 +67,7 @@ struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinea
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetColorDef(); }
+	static const FLinearColor GetDefaultValue() { return FLinearColor::White; }
 };
 
 template<>
@@ -73,6 +78,7 @@ struct FNDIArrayImplHelper<FQuat> : public FNDIArrayImplHelperBase<FQuat>
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
 	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetQuatDef(); }
+	static const FQuat GetDefaultValue() { return FQuat::Identity; }
 };
 
 UNiagaraDataInterfaceArrayFloat::UNiagaraDataInterfaceArrayFloat(FObjectInitializer const& ObjectInitializer)

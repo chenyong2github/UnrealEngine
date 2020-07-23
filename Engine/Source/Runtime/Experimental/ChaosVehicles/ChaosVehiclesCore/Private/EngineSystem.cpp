@@ -37,21 +37,7 @@ namespace Chaos
 			RPM = FMath::Clamp(RPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
 		}
 
-		float Step = Setup().MaxRPM / (Setup().TorqueCurve.Num() - 1);
-		int StartIndex = RPM / Step;
-		float NormalisedRamp = ((float)RPM - (float)StartIndex * Step) / Step;
-
-		float NormYValue = 0.0f;
-		if (StartIndex >= Setup().TorqueCurve.Num() - 1)
-		{
-			NormYValue = Setup().TorqueCurve[Setup().TorqueCurve.Num() - 1];
-		}
-		else
-		{
-			NormYValue = Setup().TorqueCurve[StartIndex] * (1.f - NormalisedRamp) + Setup().TorqueCurve[StartIndex + 1] * NormalisedRamp;
-		}
-
-		return NormYValue * Setup().MaxTorque;
+		return Setup().TorqueCurve.GetValue(RPM, Setup().MaxRPM, Setup().MaxTorque);
 	}
 
 	void FSimpleEngineSim::Simulate(float DeltaTime)

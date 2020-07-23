@@ -37,6 +37,7 @@ class SWindow;
 class USequencerSettings;
 class FSequencerTrackFilter;
 class SSequencerGroupManager;
+class SSequencerTreeFilterStatusBar;
 struct FPaintPlaybackRangeArgs;
 struct FSequencerCustomizationInfo;
 struct FSequencerSelectionCurveFilter;
@@ -332,6 +333,9 @@ public:
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
 
+	/** Sets the play time for the sequence. Will extend the working range if out of bounds. */
+	void SetPlayTime(double Frame);
+
 	/** Set's the specified filter to be on or off*/
 	void SetFilterOn(const FText& InName, bool bOn);
 
@@ -450,7 +454,7 @@ private:
 	void FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder);
 	void FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder);
 
-	void OnResetNodeGroupFilters();
+	void OnEnableAllNodeGroupFilters(bool bEnableAll);
 	void OnNodeGroupFilterClicked(UMovieSceneNodeGroup* NodeGroup);
 
 	/**
@@ -600,6 +604,9 @@ private:
 	/** Main Sequencer Area*/
 	TSharedPtr<SVerticalBox> MainSequencerArea;
 
+	/** Filter Status Bar */
+	TSharedPtr<SSequencerTreeFilterStatusBar> SequencerTreeFilterStatusBar;
+	
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
 

@@ -160,6 +160,7 @@ void FCurveStructCustomization::CustomizeChildren( TSharedRef<IPropertyHandle> I
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
+						.AutoWidth()
 						[
 							Child->CreatePropertyValueWidget()
 						]

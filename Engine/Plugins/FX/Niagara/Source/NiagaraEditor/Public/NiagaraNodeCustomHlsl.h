@@ -30,7 +30,7 @@ public:
 	FText GetHlslText() const;
 	void OnCustomHlslTextCommitted(const FText& InText, ETextCommit::Type InType);
 
-	bool GetTokens(TArray<FString>& OutTokens) const;
+	bool GetTokens(TArray<FString>& OutTokens, bool IncludeComments = true) const;
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
@@ -38,6 +38,8 @@ public:
 	static uint32 ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation);
 	static FNiagaraVariable StripVariableToBaseType(const FNiagaraVariable& InVar);
 	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType);
+
+	virtual bool ReferencesVariable(const FNiagaraVariableBase& InVar) const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
