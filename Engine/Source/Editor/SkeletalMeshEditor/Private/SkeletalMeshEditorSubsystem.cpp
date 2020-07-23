@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshEditorSubsystem.h"
-#include "EditorUtilitySubsystem.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
 #include "Editor.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
@@ -10,6 +10,7 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "LODUtilities.h"
 #include "ScopedTransaction.h"
+#include "EditorScriptingHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshEditorSubsystem"
 
@@ -25,9 +26,7 @@ bool USkeletalMeshEditorSubsystem::RegenerateLOD(USkeletalMesh* SkeletalMesh, in
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -46,9 +45,7 @@ int32 USkeletalMeshEditorSubsystem::GetNumVerts(USkeletalMesh* SkeletalMesh, int
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return 0;
 	}

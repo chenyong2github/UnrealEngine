@@ -1,0 +1,439 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "LevelEditorSubsystem.h"
+#include "LevelEditor.h"
+#include "IAssetViewport.h"
+#include "SLevelViewport.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
+#include "FileHelpers.h"
+#include "Engine/MapBuildDataRegistry.h"
+#include "EditorScriptingHelpers.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
+
+void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+
+		LevelViewportClient.SetActorLock(ActorToPilot);
+		if (LevelViewportClient.IsPerspective() && LevelViewportClient.GetActiveActorLock().IsValid())
+		{
+			LevelViewportClient.MoveCameraToLockedActor();
+		}
+	}
+}
+
+void ULevelEditorSubsystem::EjectPilotLevelActor()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+
+		if (AActor* LockedActor = LevelViewportClient.GetActiveActorLock().Get())
+		{
+			//// Check to see if the locked actor was previously overriding the camera settings
+			//if (CanGetCameraInformationFromActor(LockedActor))
+			//{
+			//	// Reset the settings
+			//	LevelViewportClient.ViewFOV = LevelViewportClient.FOVAngle;
+			//}
+
+			LevelViewportClient.SetActorLock(nullptr);
+
+			// remove roll and pitch from camera when unbinding from actors
+			GEditor->RemovePerspectiveViewRotation(true, true, false);
+		}
+	}
+}
+
+void ULevelEditorSubsystem::EditorPlaySimulate()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FRequestPlaySessionParams SessionParams;
+		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
+		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
+
+		GUnrealEd->RequestPlaySession(SessionParams);
+	}
+}
+
+void ULevelEditorSubsystem::EditorInvalidateViewports()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+		LevelViewportClient.Invalidate();
+	}
+}
+
+void ULevelEditorSubsystem::EditorSetGameView(bool bGameView)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
+	if (ActiveLevelViewport.IsValid())
+	{
+		if (ActiveLevelViewport->IsInGameView() != bGameView)
+		{
+			ActiveLevelViewport->ToggleGameView();
+		}
+	}
+}
+
+/**
+ *
+ * Editor Scripting | Level
+ *
+ **/
+
+bool ULevelEditorSubsystem::NewLevel(const FString& AssetPath)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
+	if (ObjectPath.IsEmpty())
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevel. Failed to create the level. %s"), *FailureReason);
+		return false;
+	}
+
+	if (!EditorScriptingHelpers::IsAValidPathForCreateNewAsset(ObjectPath, FailureReason))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevel. Failed to validate the destination. %s"), *FailureReason);
+		return false;
+	}
+
+	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevel. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
+		return false;
+	}
+
+	UWorld* World = GEditor->NewMap();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevel. Failed to create the new level."));
+		return false;
+	}
+
+	FString DestinationLongPackagePath = FPackageName::ObjectPathToPackageName(ObjectPath);
+	if (!UEditorLoadingAndSavingUtils::SaveMap(World, DestinationLongPackagePath))
+	{
+		UE_LOG(LevelEditorSubsystem, Warning, TEXT("NewLevel. Failed to save the new level."));
+		return false;
+	}
+
+	return true;
+}
+
+bool ULevelEditorSubsystem::NewLevelFromTemplate(const FString& AssetPath, const FString& TemplateAssetPath)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
+	if (ObjectPath.IsEmpty())
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to create the level. %s"), *FailureReason);
+		return false;
+	}
+
+	if (!EditorScriptingHelpers::IsAValidPathForCreateNewAsset(ObjectPath, FailureReason))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to validate the destination. %s"), *FailureReason);
+		return false;
+	}
+
+	// DuplicateAsset does it, but failed with a Modal
+	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
+		return false;
+	}
+
+	FString TemplateObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(TemplateAssetPath, FailureReason);
+	if (TemplateObjectPath.IsEmpty())
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to create the level. %s"), *FailureReason);
+		return false;
+	}
+
+	const bool bLoadAsTemplate = true;
+	// Load the template map file - passes LoadAsTemplate==true making the
+	// level load into an untitled package that won't save over the template
+	if (!FEditorFileUtils::LoadMap(*TemplateObjectPath, bLoadAsTemplate))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to create the new level from template."));
+		return false;
+	}
+
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to find the new created world."));
+		return false;
+	}
+
+	FString DestinationLongPackagePath = FPackageName::ObjectPathToPackageName(ObjectPath);
+	if (!UEditorLoadingAndSavingUtils::SaveMap(World, DestinationLongPackagePath))
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("NewLevelFromTemplate. Failed to save the new level."));
+		return false;
+	}
+
+	return true;
+}
+
+bool ULevelEditorSubsystem::LoadLevel(const FString& AssetPath)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	FString ObjectPath = EditorScriptingHelpers::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
+	if (ObjectPath.IsEmpty())
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("LoadLevel. Failed to load level: %s"), *FailureReason);
+		return false;
+	}
+
+	return UEditorLoadingAndSavingUtils::LoadMap(ObjectPath) != nullptr;
+}
+
+bool ULevelEditorSubsystem::SaveCurrentLevel()
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("SaveCurrentLevel. Can't save the current level because there is no world."));
+		return false;
+	}
+
+	ULevel* Level = World->GetCurrentLevel();
+	if (!Level)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("SaveCurrentLevel. Can't save the level because there is no current level."));
+		return false;
+	}
+
+	FString Filename = FEditorFileUtils::GetFilename(Level->OwningWorld);
+	if (Filename.Len() == 0)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("SaveCurrentLevel. Can't save the level because it doesn't have a filename. Use EditorLoadingAndSavingUtils."));
+		return false;
+	}
+
+	TArray<UPackage*> MapPackages;
+	MapPackages.Add(Level->GetOutermost());
+
+	if (Level->MapBuildData)
+	{
+		MapPackages.AddUnique(Level->MapBuildData->GetOutermost());
+	}
+
+	// Checkout without a prompt
+	TArray<UPackage*>* PackagesCheckedOut = nullptr;
+	const bool bErrorIfAlreadyCheckedOut = false;
+	FEditorFileUtils::CheckoutPackages(MapPackages, PackagesCheckedOut, bErrorIfAlreadyCheckedOut);
+
+	return FEditorFileUtils::SaveLevel(Level);
+}
+
+bool ULevelEditorSubsystem::SaveAllDirtyLevels()
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("SaveAllDirtyLevels. Can't save the current level because there is no world."));
+		return false;
+	}
+
+	TArray<UPackage*> DirtyMapPackages;
+	TArray<ULevel*> DirtyLevels;
+	for (ULevel* Level : World->GetLevels())
+	{
+		if (Level)
+		{
+			UPackage* OutermostPackage = Level->GetOutermost();
+			if (OutermostPackage->IsDirty())
+			{
+				FString Filename = FEditorFileUtils::GetFilename(Level->OwningWorld);
+				if (Filename.Len() == 0)
+				{
+					UE_LOG(LevelEditorSubsystem, Warning, TEXT("SaveAllDirtyLevels. Can't save the level '%s' because it doesn't have a filename. Use EditorLoadingAndSavingUtils."), *OutermostPackage->GetName());
+					continue;
+				}
+
+				DirtyLevels.Add(Level);
+				DirtyMapPackages.Add(OutermostPackage);
+
+				if (Level->MapBuildData)
+				{
+					UPackage* BuiltDataPackage = Level->MapBuildData->GetOutermost();
+					if (BuiltDataPackage->IsDirty() && BuiltDataPackage != OutermostPackage)
+					{
+						DirtyMapPackages.Add(BuiltDataPackage);
+					}
+				}
+			}
+		}
+	}
+
+	bool bAllSaved = true;
+	if (DirtyMapPackages.Num() > 0)
+	{
+		// Checkout without a prompt
+		TArray<UPackage*>* PackagesCheckedOut = nullptr;
+		const bool bErrorIfAlreadyCheckedOut = false;
+		FEditorFileUtils::CheckoutPackages(DirtyMapPackages, PackagesCheckedOut, bErrorIfAlreadyCheckedOut);
+
+		for (ULevel* Level : DirtyLevels)
+		{
+			bool bSaved = FEditorFileUtils::SaveLevel(Level);
+			if (!bSaved)
+			{
+				UE_LOG(LevelEditorSubsystem, Warning, TEXT("SaveAllDirtyLevels. Can't save the level '%s'."), *World->GetOutermost()->GetName());
+				bAllSaved = false;
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LevelEditorSubsystem, Log, TEXT("SaveAllDirtyLevels. There is no dirty level."));
+	}
+
+	return bAllSaved;
+}
+
+bool ULevelEditorSubsystem::SetCurrentLevelByName(FName LevelName)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	if (LevelName == NAME_None)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("SetCurrentLevel. LevelName is invalid."));
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Warning, TEXT("SetCurrentLevel. Can't set the current level because there is no world."));
+		return false;
+	}
+
+	bool bLevelFound = false;
+	const TArray<ULevel*>& AllLevels = World->GetLevels();
+	if (AllLevels.Num() > 0)
+	{
+		FString LevelNameStr = LevelName.ToString();
+		for (ULevel* Level : AllLevels)
+		{
+			if (FPackageName::GetShortName(Level->GetOutermost()) == LevelNameStr)
+			{
+				// SetCurrentLevel return true only if the level is changed and it's not the same as the current.
+				//For UEditorLevelLibrary, always return true.
+				World->SetCurrentLevel(Level);
+				bLevelFound = true;
+				break;
+			}
+		}
+	}
+
+	return bLevelFound;
+}

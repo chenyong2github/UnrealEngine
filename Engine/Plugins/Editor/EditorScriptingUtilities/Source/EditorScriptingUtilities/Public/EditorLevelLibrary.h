@@ -10,11 +10,11 @@
 #include "EditorLevelLibrary.generated.h"
 
 USTRUCT(BlueprintType)
-struct FEditorScriptingJoinStaticMeshActorsOptions
+struct FEditorScriptingJoinStaticMeshActorsOptions_Deprecated
 {
 	GENERATED_BODY()
 
-	FEditorScriptingJoinStaticMeshActorsOptions()
+	FEditorScriptingJoinStaticMeshActorsOptions_Deprecated()
 		: bDestroySourceActors(true)
 		, bRenameComponentsFromSource(true)
 	{ }
@@ -33,11 +33,11 @@ struct FEditorScriptingJoinStaticMeshActorsOptions
 };
 
 USTRUCT(BlueprintType)
-struct FEditorScriptingMergeStaticMeshActorsOptions : public FEditorScriptingJoinStaticMeshActorsOptions
+struct FEditorScriptingMergeStaticMeshActorsOptions_Deprecated : public FEditorScriptingJoinStaticMeshActorsOptions_Deprecated
 {
 	GENERATED_BODY()
 
-	FEditorScriptingMergeStaticMeshActorsOptions()
+	FEditorScriptingMergeStaticMeshActorsOptions_Deprecated()
 		: bSpawnMergedActor(true)
 	{ }
 
@@ -54,11 +54,11 @@ struct FEditorScriptingMergeStaticMeshActorsOptions : public FEditorScriptingJoi
 };
 
 USTRUCT(BlueprintType)
-struct FEditorScriptingCreateProxyMeshActorOptions : public FEditorScriptingJoinStaticMeshActorsOptions
+struct FEditorScriptingCreateProxyMeshActorOptions_Deprecated : public FEditorScriptingJoinStaticMeshActorsOptions_Deprecated
 {
 	GENERATED_BODY()
 
-	FEditorScriptingCreateProxyMeshActorOptions()
+	FEditorScriptingCreateProxyMeshActorOptions_Deprecated()
 		: bSpawnMergedActor(true)
 	{ }
 
@@ -88,14 +88,16 @@ public:
 	 * Find all loaded Actors in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @return	List of found Actors
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static TArray<class AActor*> GetAllLevelActors();
 
 	/**
 	 * Find all loaded ActorComponent own by an actor in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @return	List of found ActorComponent
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static TArray<class UActorComponent*> GetAllLevelActorsComponents();
 
 	/**
@@ -103,28 +105,34 @@ public:
 	 * @param	ActorClass	Actor Class to find.
 	 * @return	List of found Actors
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static TArray<class AActor*> GetSelectedLevelActors();
 
 	/**
 	 * Clear the current world editor selection and select the provided actors. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @param	ActorsToSelect	Actor that should be selected in the world editor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static void SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static void PilotLevelActor(AActor* ActorToPilot);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static void EjectPilotLevelActor();
 
 #if WITH_EDITOR
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static void EditorPlaySimulate();
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static void EditorInvalidateViewports();
 
 #endif
@@ -136,7 +144,8 @@ public:
 	 * @param	CameraRotation	(out) Current rotation of the level editing viewport camera, or zero if none found
 	 * @return	Whether or not we were able to get a camera for a level editing viewport
 	 */
-	UFUNCTION(BlueprintPure, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem")
+	UFUNCTION(BlueprintPure, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem"))
 	static bool GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation);
 
 	/**
@@ -145,19 +154,23 @@ public:
 	* @param	CameraLocation	Location the camera will be moved to.
 	* @param	CameraRotation	Rotation the camera will be set to.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem"))
 	static void SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation);
 
 	// Remove all actors from the selection set
-	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static void ClearActorSelectionSet();
 
 	// Selects nothing in the editor (another way to clear the selection)
-	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static void SelectNothing();
 
 	// Set the selection state for the selected actor
-	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static void SetActorSelectionState(AActor* Actor, bool bShouldBeSelected);
 
 	/**
@@ -165,10 +178,12 @@ public:
 	* @param	PathToActor	The path to the actor (e.g. PersistentLevel.PlayerStart)
 	* @return	A reference to the actor, or none if it wasn't found
 	*/
-	UFUNCTION(BlueprintPure, Category = "Development|Editor")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintPure, Category = "Development|Editor", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static AActor* GetActorReference(FString PathToActor);
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static void EditorSetGameView(bool bGameView);
 
 	/**
@@ -178,7 +193,8 @@ public:
 	 * @param	Location		Location of the new actor.
 	 * @return	The created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
 
 	/**
@@ -188,25 +204,29 @@ public:
 	 * @param	Location		Location of the new actor.
 	 * @return	The created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass"))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass", DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
 
 	/**
 	 * Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
 	 * @param	ToDestroyActor	Actor to destroy.
-	 * @return	True if the operation succeeds.
+	 * @return	True if the operation succeePlugin is deprecated - Use ds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static bool DestroyActor(class AActor* ActorToDestroy);
 
 	/**
 	 * Find the World in the world editor. It can then be used as WorldContext by other libraries like GameplayStatics.
 	 * @return	The World used by the world editor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem"))
 	static UWorld* GetEditorWorld();
 
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem"))
 	static UWorld* GetGameWorld();
 
 public:
@@ -216,7 +236,8 @@ public:
 	 *		ie. /Game/MyFolder/MyAsset
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool NewLevel(const FString& AssetPath);
 
 	/**
@@ -227,7 +248,8 @@ public:
 	 *		ie. /Game/MyFolder/MyAsset
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool NewLevelFromTemplate(const FString& AssetPath, const FString& TemplateAssetPath);
 
 	/**
@@ -236,21 +258,24 @@ public:
 	 *		ie. /Game/MyFolder/MyAsset
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool LoadLevel(const FString& AssetPath);
 
 	/**
 	 * Saves the specified Level. Must already be saved at lease once to have a valid path.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool SaveCurrentLevel();
 
 	/**
 	 * Saves all Level currently loaded by the World Editor.
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool SaveAllDirtyLevels();
 
 	/**
@@ -259,7 +284,8 @@ public:
 	 * @param	LevelName	The name of the Level the actor belongs to (same name as in the ContentBrowser).
 	 * @return	True if the operation succeeds.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Level Editor Subsystem"))
 	static bool SetCurrentLevelByName(FName LevelName);
 
 public:
@@ -269,7 +295,8 @@ public:
 	 * @param	MaterialToBeReplaced	Material we want to replace.
 	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void ReplaceMeshComponentsMaterials(const TArray<class UMeshComponent*>& MeshComponents, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
 
 	/**
@@ -278,7 +305,8 @@ public:
 	 * @param	MaterialToBeReplaced	Material we want to replace.
 	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void ReplaceMeshComponentsMaterialsOnActors(const TArray<class AActor*>& Actors, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
 
 	/**
@@ -288,7 +316,8 @@ public:
 	 * @param	MeshToBeReplaced		Mesh we want to replace.
 	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void ReplaceMeshComponentsMeshes(const TArray<class UStaticMeshComponent*>& MeshComponents, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
 
 	/**
@@ -297,7 +326,8 @@ public:
 	 * @param	MeshToBeReplaced		Mesh we want to replace.
 	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static void ReplaceMeshComponentsMeshesOnActors(const TArray<class AActor*>& Actors, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
 
 	/**
@@ -306,7 +336,8 @@ public:
 	 * @param	ActorClass				Class/Blueprint of the new actor that will be spawn.
 	 * @param	StaticMeshPackagePath	If the list contains Brushes and it is requested to change them to StaticMesh, StaticMeshPackagePath is the package path to where the StaticMesh will be created. ie. /Game/MyFolder/
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeterminesOutputType = "ActorClass"))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeterminesOutputType = "ActorClass", DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
 	static TArray<class AActor*> ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath);
 
 public:
@@ -318,8 +349,9 @@ public:
 	 * @param	JoinOptions				Options on how to join the actors.
 	 * @return The new created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
-	static class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FEditorScriptingJoinStaticMeshActorsOptions& JoinOptions);
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated& JoinOptions);
 
 	/**
 	 * Merge the meshes into a unique mesh with the provided StaticMeshActors. There are multiple options on how to merge the meshes and their materials.
@@ -330,8 +362,9 @@ public:
 	 * @param	OutMergedActor			The new created actor, if requested.
 	 * @return	if the operation is successful.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
-	static bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions_Deprecated& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 
 	/**
 	 * Build a proxy mesh actor that can replace a set of mesh actors.
@@ -340,7 +373,8 @@ public:
 	 * @param   OutMergedActor generated actor if requested
 	 * @return  Success of the proxy creation
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
-	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions_Deprecated& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 };
 

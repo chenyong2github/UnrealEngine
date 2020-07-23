@@ -42,7 +42,7 @@ public:
 	 * @return Number of vertices. Returns 0 if invalid mesh or LOD index.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
-	static int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
+	int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 	/** Rename a socket within a skeleton
 	 * @param SkeletalMesh	The mesh inside which we are renaming a socket

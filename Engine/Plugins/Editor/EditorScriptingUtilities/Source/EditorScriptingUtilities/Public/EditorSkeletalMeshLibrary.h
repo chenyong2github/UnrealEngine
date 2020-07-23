@@ -29,8 +29,8 @@ public:
 	 * @param bGenerateBaseLOD If this is true and there is some reduction data, the base LOD will be reduce according to the settings
 	 * @return	true if succeed. If mesh reduction is not available this will return false.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem"))
 	static bool RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount = 0, bool bRegenerateEvenIfImported = false, bool bGenerateBaseLOD = false);
 
 	/** Get number of mesh vertices for an LOD of a Skeletal Mesh
@@ -39,8 +39,8 @@ public:
 	 * @param LODIndex			Index of the mesh LOD.
 	 * @return Number of vertices. Returns 0 if invalid mesh or LOD index.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintPure, Category = "Editor Scripting | SkeletalMesh")
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem")
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | SkeletalMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem"))
 	static int32 GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
 	/** Rename a socket within a skeleton
@@ -49,8 +49,8 @@ public:
 	 * @param NewName		The new name of the socket
 	 * @return true if the renaming succeeded.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Utilities")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod, DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Skeletal Mesh Editor Subsystem"))
 	static bool RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName);
 
 };

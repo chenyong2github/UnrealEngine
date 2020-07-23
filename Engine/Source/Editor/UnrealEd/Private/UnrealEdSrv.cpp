@@ -104,7 +104,7 @@
 #include "ActorGroupingUtils.h"
 #include "EdMode.h"
 #include "Subsystems/BrushEditingSubsystem.h"
-#include "EditorActorUtilities.h"
+#include "Subsystems/EditorActorSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdSrv, Log, All);
 
@@ -2431,17 +2431,33 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 			}
 			else if( FParse::Command(&Str, TEXT("CHILDREN")) ) // ACTOR SELECT ALL CHILDREN
 			{
-				UEditorActorUtilities::SelectAllChildren(false);
+				UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+				if (EditorActorSubsystem)
+				{
+					EditorActorSubsystem->SelectAllChildren(false);
+				}
+				
 				return true;
 			}
 			else if( FParse::Command(&Str, TEXT("DESCENDANTS")) ) // ACTOR SELECT ALL DESCENDANTS
 			{
-				UEditorActorUtilities::SelectAllChildren(true);
+				UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+				if (EditorActorSubsystem)
+				{
+					EditorActorSubsystem->SelectAllChildren(true);
+				}
 				return true;
 			}
 			else
 			{
-				UEditorActorUtilities::SelectAll(InWorld);
+				UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+				if (EditorActorSubsystem)
+				{
+					EditorActorSubsystem->SelectAll(InWorld);
+				}
 				return true;
 			}
 		}
@@ -2451,7 +2467,12 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		}
 		else if( FParse::Command(&Str,TEXT("INVERT") ) ) // ACTOR SELECT INVERT
 		{
-			UEditorActorUtilities::InvertSelection(InWorld);
+			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+			if (EditorActorSubsystem)
+			{
+				EditorActorSubsystem->InvertSelection(InWorld);
+			}
 			return true;
 		}
 		else if( FParse::Command(&Str,TEXT("OFCLASS")) ) // ACTOR SELECT OFCLASS CLASS=<class>
@@ -2551,7 +2572,12 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
 		{
-			UEditorActorUtilities::DeleteSelectedActors(InWorld);
+			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+			if (EditorActorSubsystem)
+			{
+				EditorActorSubsystem->DeleteSelectedActors(InWorld);
+			}
 		}
 		return true;
 	}
@@ -2727,7 +2753,12 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 		// if not specially handled by the current editing mode,
 		if (!bHandled)
 		{
-			UEditorActorUtilities::DuplicateSelectedActors( InWorld );
+			UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+			if (EditorActorSubsystem)
+			{
+				EditorActorSubsystem->DuplicateSelectedActors(InWorld);
+			}
 		}
 		// DuplicateSelectedActors also calls RedrawLevelEditingViewports
 		else

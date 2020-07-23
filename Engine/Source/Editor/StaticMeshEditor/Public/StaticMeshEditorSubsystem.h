@@ -42,13 +42,13 @@ public:
 	 * No action will be performed if ReductionOptions.ReductionSettings is empty
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-	static int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges);
+	int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges);
 
 	/**
 	 * Same as SetLodsWithNotification but changes are applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 SetLods(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions)
+	int32 SetLods(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions)
 	{
 		return SetLodsWithNotification(StaticMesh, ReductionOptions, true);
 	}
@@ -65,7 +65,7 @@ public:
 	 *			A negative value indicates that the LOD was not set. See log for explanation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots);
+	int32 SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots);
 
 	/**
 	 * Get number of LODs present on a static mesh.
@@ -74,7 +74,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 GetLodCount(UStaticMesh* StaticMesh);
+	int32 GetLodCount(UStaticMesh* StaticMesh);
 
 	/**
 	 * Remove LODs on a static mesh except LOD 0.
@@ -82,7 +82,7 @@ public:
 	 * @return A boolean indicating if the removal was successful, true, or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool RemoveLods(UStaticMesh* StaticMesh);
+	bool RemoveLods(UStaticMesh* StaticMesh);
 
 	/**
 	 * Get an array of LOD screen sizes for evaluation.
@@ -90,7 +90,7 @@ public:
 	 * @return array of LOD screen sizes.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static TArray<float> GetLodScreenSizes(UStaticMesh* StaticMesh);
+	TArray<float> GetLodScreenSizes(UStaticMesh* StaticMesh);
 
 public:
 	/**
@@ -103,13 +103,13 @@ public:
 	 * A negative value indicates the addition failed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges);
+	int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges);
 
 	/**
 	 * Same as AddSimpleCollisionsWithNotification but changes are automatically applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType)
+	int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType)
 	{
 		return AddSimpleCollisionsWithNotification(StaticMesh, ShapeType, true);
 	}
@@ -121,7 +121,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 GetSimpleCollisionCount(UStaticMesh* StaticMesh);
+	int32 GetSimpleCollisionCount(UStaticMesh* StaticMesh);
 
 	/**
 	 * Get the Collision Trace behavior of a static mesh
@@ -129,7 +129,7 @@ public:
 	 * @return the Collision Trace behavior.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static TEnumAsByte<ECollisionTraceFlag> GetCollisionComplexity(UStaticMesh* StaticMesh);
+	TEnumAsByte<ECollisionTraceFlag> GetCollisionComplexity(UStaticMesh* StaticMesh);
 
 	/**
 	 * Get number of convex collisions present on a static mesh.
@@ -138,7 +138,7 @@ public:
 	 * An negative value indicates that the command could not be executed. See log for explanation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 GetConvexCollisionCount(UStaticMesh* StaticMesh);
+	int32 GetConvexCollisionCount(UStaticMesh* StaticMesh);
 
 	/**
 	 * Add a convex collision to a static mesh.
@@ -152,7 +152,7 @@ public:
 	 * @return A boolean indicating if the addition was successful or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
+	bool SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
 
 	/**
 	 * Compute convex collisions for a set of static meshes.
@@ -166,13 +166,13 @@ public:
 	 * @return A boolean indicating if the addition was successful or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
+	bool BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
 
 	/**
 	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
+	bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
 	{
 		return SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, true);
 	}
@@ -181,7 +181,7 @@ public:
 	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool BulkSetConvexDecompositionCollisions(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
+	bool BulkSetConvexDecompositionCollisions(const TArray<UStaticMesh*>& StaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
 	{
 		return BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, true);
 	}
@@ -194,13 +194,13 @@ public:
 	 * @return A boolean indicating if the removal was successful or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges);
+	bool RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges);
 
 	/**
 	 * Same as RemoveCollisionsWithNotification but changes are applied.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool RemoveCollisions(UStaticMesh* StaticMesh)
+	bool RemoveCollisions(UStaticMesh* StaticMesh)
 	{
 		return RemoveCollisionsWithNotification(StaticMesh, true);
 	}
@@ -213,7 +213,7 @@ public:
 	 * @param	SectionIndex		Index of the StaticMesh Section.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static void EnableSectionCollision(UStaticMesh* StaticMesh, bool bCollisionEnabled, int32 LODIndex, int32 SectionIndex);
+	void EnableSectionCollision(UStaticMesh* StaticMesh, bool bCollisionEnabled, int32 LODIndex, int32 SectionIndex);
 
 	/**
 	 * Checks if a specific LOD mesh section has collision.
@@ -223,7 +223,7 @@ public:
 	 * @return True is the collision is enabled for the specified LOD of the StaticMesh section.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static bool IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex);
+	bool IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex);
 
 public:
 
@@ -235,31 +235,31 @@ public:
 	 * @param	SectionIndex		Index of the StaticMesh Section.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static void EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex);
+	void EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex);
 
 	/** Check whether a static mesh has vertex colors */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static bool HasVertexColors(UStaticMesh* StaticMesh);
+	bool HasVertexColors(UStaticMesh* StaticMesh);
 
 	/** Check whether a static mesh component has vertex colors */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static bool HasInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent);
+	bool HasInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent);
 
 	/** Set Generate Lightmap UVs for StaticMesh */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities", meta = (ScriptName = "SetGenerateLightmapUv"))
-		static bool SetGenerateLightmapUVs(UStaticMesh* StaticMesh, bool bGenerateLightmapUVs);
+	bool SetGenerateLightmapUVs(UStaticMesh* StaticMesh, bool bGenerateLightmapUVs);
 
 	/** Get number of StaticMesh verts for an LOD */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
+	int32 GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/** Get number of StaticMesh verts for an LOD */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
-		static int32 GetNumberMaterials(UStaticMesh* StaticMesh);
+	int32 GetNumberMaterials(UStaticMesh* StaticMesh);
 
 	/** Sets StaticMeshFlag bAllowCPUAccess  */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static void SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess);
+	void SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess);
 
 public:
 
@@ -270,7 +270,7 @@ public:
 	 * @return the number of UV channels.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static int32 GetNumUVChannels(UStaticMesh* StaticMesh, int32 LODIndex);
+	int32 GetNumUVChannels(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/**
 	 * Adds an empty UV channel at the end of the existing channels on the given LOD of a StaticMesh.
@@ -279,7 +279,7 @@ public:
 	 * @return true if a UV channel was added.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool AddUVChannel(UStaticMesh* StaticMesh, int32 LODIndex);
+	bool AddUVChannel(UStaticMesh* StaticMesh, int32 LODIndex);
 
 	/**
 	 * Inserts an empty UV channel at the specified channel index on the given LOD of a StaticMesh.
@@ -289,7 +289,7 @@ public:
 	 * @return true if a UV channel was added.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool InsertUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
+	bool InsertUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
 
 	/**
 	 * Removes the UV channel at the specified channel index on the given LOD of a StaticMesh.
@@ -299,7 +299,7 @@ public:
 	 * @return true if the UV channel was removed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool RemoveUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
+	bool RemoveUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex);
 
 	/**
 	 * Generates planar UV mapping in the specified UV channel on the given LOD of a StaticMesh.
@@ -312,7 +312,7 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool GeneratePlanarUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
+	bool GeneratePlanarUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
 
 	/**
 	 * Generates cylindrical UV mapping in the specified UV channel on the given LOD of a StaticMesh.
@@ -325,7 +325,7 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool GenerateCylindricalUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
+	bool GenerateCylindricalUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling);
 
 	/**
 	 * Generates box UV mapping in the specified UV channel on the given LOD of a StaticMesh.
@@ -338,8 +338,76 @@ public:
 	 * @return true if the UV mapping was generated.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
-		static bool GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size);
+	bool GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size);
 
-private:
+	/**
+	 * Find the references of the material MaterialToReplaced on all the MeshComponents provided and replace it by NewMaterial.
+	 * @param	MeshComponents			List of MeshComponent to search from.
+	 * @param	MaterialToBeReplaced	Material we want to replace.
+	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	void ReplaceMeshComponentsMaterials(const TArray<class UMeshComponent*>& MeshComponents, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
+
+	/**
+	 * Find the references of the material MaterialToReplaced on all the MeshComponents of all the Actors provided and replace it by NewMaterial.
+	 * @param	Actors					List of Actors to search from.
+	 * @param	MaterialToBeReplaced	Material we want to replace.
+	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	void ReplaceMeshComponentsMaterialsOnActors(const TArray<class AActor*>& Actors, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
+
+	/**
+	 * Find the references of the mesh MeshToBeReplaced on all the MeshComponents provided and replace it by NewMesh.
+	 * The editor should not be in play in editor mode.
+	 * @param	MeshComponents			List of MeshComponent to search from.
+	 * @param	MeshToBeReplaced		Mesh we want to replace.
+	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	void ReplaceMeshComponentsMeshes(const TArray<class UStaticMeshComponent*>& MeshComponents, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
+
+	/**
+	 * Find the references of the mesh MeshToBeReplaced on all the MeshComponents of all the Actors provided and replace it by NewMesh.
+	 * @param	Actors					List of Actors to search from.
+	 * @param	MeshToBeReplaced		Mesh we want to replace.
+	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	void ReplaceMeshComponentsMeshesOnActors(const TArray<class AActor*>& Actors, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
+
+		/**
+	 * Create a new Actor in the level that contains a duplicate of all the Actors Static Meshes Component.
+	 * The ActorsToJoin need to be in the same Level.
+	 * This will have a low impact on performance but may help the edition by grouping the meshes under a single Actor.
+	 * @param	ActorsToJoin			List of Actors to join.
+	 * @param	JoinOptions				Options on how to join the actors.
+	 * @return The new created actor.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FJoinStaticMeshActorsOptions& JoinOptions);
+
+	/**
+	 * Merge the meshes into a unique mesh with the provided StaticMeshActors. There are multiple options on how to merge the meshes and their materials.
+	 * The ActorsToMerge need to be in the same Level.
+	 * This may have a high impact on performance depending of the MeshMergingSettings options.
+	 * @param	ActorsToMerge			List of Actors to merge.
+	 * @param	MergeOptions			Options on how to merge the actors.
+	 * @param	OutMergedActor			The new created actor, if requested.
+	 * @return	if the operation is successful.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FMergeStaticMeshActorsOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
+
+	/**
+	 * Build a proxy mesh actor that can replace a set of mesh actors.
+	 * @param   ActorsToMerge  List of actors to build a proxy for.
+	 * @param   MergeOptions
+	 * @param   OutMergedActor generated actor if requested
+	 * @return  Success of the proxy creation
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
+	bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 
 };

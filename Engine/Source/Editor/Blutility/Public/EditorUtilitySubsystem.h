@@ -64,11 +64,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	UEditorUtilityWidget* FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint);
 
-	/*
-	 * Check if the editor is in a valid state to run a command.
-	 */
-	bool CheckIfInEditorAndPIE();
-
 private:
 	
 	UPROPERTY()

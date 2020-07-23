@@ -32,1444 +32,341 @@
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
+#include "StaticMeshEditorSubsystem.h"
+#include "Subsystems/EditorActorSubsystem.h"
+#include "LevelEditorSubsystem.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorLevelLibrary"
 
-/**
- *
- * Editor Scripting | Utilities
- *
- **/
 namespace InternalEditorLevelLibrary
 {
-	template<class T>
-	bool IsEditorLevelActor(T* Actor)
+	FJoinStaticMeshActorsOptions ConvertJoinStaticMeshActorsOptions(const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated &Options)
 	{
-		bool bResult = false;
-		if (Actor && !Actor->IsPendingKill())
-		{
-			UWorld* World = Actor->GetWorld();
-			if (World && World->WorldType == EWorldType::Editor)
-			{
-				bResult = true;
-			}
-		}
-		return bResult;
+		FJoinStaticMeshActorsOptions JoinOptions;
+
+		JoinOptions.bDestroySourceActors = Options.bDestroySourceActors;
+		JoinOptions.NewActorLabel = Options.NewActorLabel;
+		JoinOptions.bRenameComponentsFromSource = Options.bRenameComponentsFromSource;
+
+		return JoinOptions;
 	}
 
-	UWorld* GetEditorWorld()
+	FMergeStaticMeshActorsOptions ConvertMergeStaticMeshActorsOptions(const FEditorScriptingMergeStaticMeshActorsOptions_Deprecated& Options)
 	{
-		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
+		FMergeStaticMeshActorsOptions MergeOptions;
+
+		MergeOptions.bDestroySourceActors = Options.bDestroySourceActors;
+		MergeOptions.NewActorLabel = Options.NewActorLabel;
+		MergeOptions.bRenameComponentsFromSource = Options.bRenameComponentsFromSource;
+
+		MergeOptions.bSpawnMergedActor = Options.bSpawnMergedActor;
+		MergeOptions.BasePackageName = Options.BasePackageName;
+		MergeOptions.MeshMergingSettings = Options.MeshMergingSettings;
+
+		return MergeOptions;
 	}
 
-	UWorld* GetGameWorld()
+	FCreateProxyMeshActorOptions ConvertCreateProxyStaticMeshActorsOptions(const FEditorScriptingCreateProxyMeshActorOptions_Deprecated& Options)
 	{
-		if (GEditor)
-		{
-			if (FWorldContext* WorldContext = GEditor->GetPIEWorldContext())
-			{
-				return WorldContext->World();
-			}
+		FCreateProxyMeshActorOptions CreateProxyOptions;
 
-			return nullptr;
-		}
+		CreateProxyOptions.bDestroySourceActors = Options.bDestroySourceActors;
+		CreateProxyOptions.NewActorLabel = Options.NewActorLabel;
+		CreateProxyOptions.bRenameComponentsFromSource = Options.bRenameComponentsFromSource;
 
-		return GWorld;
-	}
+		CreateProxyOptions.bSpawnMergedActor = Options.bSpawnMergedActor;
+		CreateProxyOptions.BasePackageName = Options.BasePackageName;
+		CreateProxyOptions.MeshProxySettings = Options.MeshProxySettings;
 
-	template<class T>
-	TArray<T*> GetAllLoadedObjects()
-	{
-		TArray<T*> Result;
-
-		if(!EditorScriptingUtils::CheckIfInEditorAndPIE())
-		{
-			return Result;
-		}
-
-		const EObjectFlags ExcludeFlags = RF_ClassDefaultObject;
-		for (TObjectIterator<T> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
-		{
-			T* Obj = *It;
-			if (InternalEditorLevelLibrary::IsEditorLevelActor(Obj))
-			{
-				Result.Add(Obj);
-			}
-		}
-
-		return Result;
+		return CreateProxyOptions;
 	}
 }
 
 TArray<AActor*> UEditorLevelLibrary::GetAllLevelActors()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
-	TArray<AActor*> Result;
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	if (EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		//Default iterator only iterates over active levels.
-		const EActorIteratorFlags Flags = EActorIteratorFlags::SkipPendingKill;
-		for (TActorIterator<AActor> It(GetEditorWorld(), AActor::StaticClass(), Flags); It; ++It)
-		{
-			AActor* Actor = *It;
-			if (Actor->IsEditable() &&
-				Actor->IsListedInSceneOutliner() &&					// Only add actors that are allowed to be selected and drawn in editor
-				!Actor->IsTemplate() &&								// Should never happen, but we never want CDOs
-				!Actor->HasAnyFlags(RF_Transient) &&				// Don't add transient actors in non-play worlds
-				!FActorEditorUtils::IsABuilderBrush(Actor) &&		// Don't add the builder brush
-				!Actor->IsA(AWorldSettings::StaticClass()))			// Don't add the WorldSettings actor, even though it is technically editable
-			{
-				Result.Add(*It);
-			}
-		}
-	}
-
-	return Result;
+	return EditorActorSubsystem ? EditorActorSubsystem->GetAllLevelActors() : TArray<AActor*>();
 }
 
 TArray<UActorComponent*> UEditorLevelLibrary::GetAllLevelActorsComponents()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return TArray<UActorComponent*>();
-	}
-
-	return InternalEditorLevelLibrary::GetAllLoadedObjects<UActorComponent>();
+	return EditorActorSubsystem ? EditorActorSubsystem->GetAllLevelActorsComponents() : TArray<UActorComponent*>();
 }
 
 TArray<AActor*> UEditorLevelLibrary::GetSelectedLevelActors()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	TArray<AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return Result;
-	}
-
-	for (FSelectionIterator Iter(*GEditor->GetSelectedActors()); Iter; ++Iter)
-	{
-		AActor* Actor = Cast<AActor>(*Iter);
-		if (InternalEditorLevelLibrary::IsEditorLevelActor(Actor))
-		{
-			Result.Add(Actor);
-		}
-	}
-
-	return Result;
+	return EditorActorSubsystem ? EditorActorSubsystem->GetSelectedLevelActors() : TArray<AActor*>();
 }
 
 void UEditorLevelLibrary::SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	TArray<AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (EditorActorSubsystem)
 	{
-		return;
-	}
-
-	if (GEdSelectionLock)
-	{
-		UE_LOG(LogEditorScripting, Warning, TEXT("SetSelectedLevelActors. The editor selection is currently locked."));
-		return;
-	}
-
-	GEditor->GetSelectedActors()->Modify();
-	if (ActorsToSelect.Num() > 0)
-	{
-		GEditor->SelectNone(false, true, false);
-		for (AActor* Actor : ActorsToSelect)
-		{
-			if (InternalEditorLevelLibrary::IsEditorLevelActor(Actor))
-			{
-				if (!GEditor->CanSelectActor(Actor, true))
-				{
-					UE_LOG(LogEditorScripting, Warning, TEXT("SetSelectedLevelActors. Can't select actor '%s'."), *Actor->GetName());
-					continue;
-				}
-				GEditor->SelectActor(Actor, true, false);
-			}
-		}
-		GEditor->NoteSelectionChange();
-	}
-	else
-	{
-		GEditor->SelectNone(true, true, false);
+		return EditorActorSubsystem->SetSelectedLevelActors(ActorsToSelect);
 	}
 }
 
 void UEditorLevelLibrary::PilotLevelActor(AActor* ActorToPilot)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
-	if (ActiveLevelViewport.IsValid())
+	if (LevelEditorSubsystem)
 	{
-		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
-
-		LevelViewportClient.SetActorLock(ActorToPilot);
-		if (LevelViewportClient.IsPerspective() && LevelViewportClient.GetActiveActorLock().IsValid())
-		{
-			LevelViewportClient.MoveCameraToLockedActor();
-		}
+		return LevelEditorSubsystem->PilotLevelActor(ActorToPilot);
 	}
 }
 
 void UEditorLevelLibrary::EjectPilotLevelActor()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
-	if (ActiveLevelViewport.IsValid())
+	if (LevelEditorSubsystem)
 	{
-		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
-
-		if (AActor* LockedActor = LevelViewportClient.GetActiveActorLock().Get())
-		{
-			//// Check to see if the locked actor was previously overriding the camera settings
-			//if (CanGetCameraInformationFromActor(LockedActor))
-			//{
-			//	// Reset the settings
-			//	LevelViewportClient.ViewFOV = LevelViewportClient.FOVAngle;
-			//}
-
-			LevelViewportClient.SetActorLock(nullptr);
-
-			// remove roll and pitch from camera when unbinding from actors
-			GEditor->RemovePerspectiveViewRotation(true, true, false);
-		}
+		return LevelEditorSubsystem->EjectPilotLevelActor();
 	}
 }
 
 
 bool UEditorLevelLibrary::GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation)
 {
-	bool RetVal = false;
-	CameraLocation = FVector::ZeroVector;
-	CameraRotation = FRotator::ZeroRotator;
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
-	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-	{
-		if (LevelVC && LevelVC->IsPerspective())
-		{
-			CameraLocation = LevelVC->GetViewLocation();
-			CameraRotation = LevelVC->GetViewRotation();
-			RetVal = true;
-
-			break;
-		}
-	}
-
-	return RetVal;
+	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetLevelViewportCameraInfo(CameraLocation, CameraRotation) : false;
 }
 
 
 void UEditorLevelLibrary::SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation)
 {
-	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-	{
-		if (LevelVC && LevelVC->IsPerspective())
-		{
-			LevelVC->SetViewLocation(CameraLocation);
-			LevelVC->SetViewRotation(CameraRotation);
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
-			break;
-		}
+	if (UnrealEditorSubsystem)
+	{
+		return UnrealEditorSubsystem->SetLevelViewportCameraInfo(CameraLocation, CameraRotation);
 	}
 }
 
 void UEditorLevelLibrary::ClearActorSelectionSet()
 {
-	GEditor->GetSelectedActors()->Modify();
-	GEditor->GetSelectedActors()->DeselectAll();
-	GEditor->NoteSelectionChange();
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+	if (EditorActorSubsystem)
+	{
+		return EditorActorSubsystem->ClearActorSelectionSet();
+	}
 }
 
 void UEditorLevelLibrary::SelectNothing()
 {
-	GEditor->GetSelectedActors()->Modify();
-	GEditor->SelectNone(true, true, false);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+	if (EditorActorSubsystem)
+	{
+		return EditorActorSubsystem->SelectNothing();
+	}
 }
 
 void UEditorLevelLibrary::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
-	GEditor->GetSelectedActors()->Modify();
-	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+	if (EditorActorSubsystem)
+	{
+		return EditorActorSubsystem->SetActorSelectionState(Actor, bShouldBeSelected);
+	}
 }
 
 AActor* UEditorLevelLibrary::GetActorReference(FString PathToActor)
 {
-	return Cast<AActor>(StaticFindObject(AActor::StaticClass(), GEditor->GetEditorWorldContext().World(), *PathToActor, false));
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
+
+	return EditorActorSubsystem ? EditorActorSubsystem->GetActorReference(PathToActor) : nullptr;
 }
 
 void UEditorLevelLibrary::EditorSetGameView(bool bGameView)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
-	if (ActiveLevelViewport.IsValid())
+	if (LevelEditorSubsystem)
 	{
-		if (ActiveLevelViewport->IsInGameView() != bGameView)
-		{
-			ActiveLevelViewport->ToggleGameView();
-		}
+		return LevelEditorSubsystem->EditorSetGameView(bGameView);
 	}
 }
 
 void UEditorLevelLibrary::EditorPlaySimulate()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
-	if (ActiveLevelViewport.IsValid())
+	if (LevelEditorSubsystem)
 	{
-		FRequestPlaySessionParams SessionParams;
-		SessionParams.WorldType = EPlaySessionWorldType::SimulateInEditor;
-		SessionParams.DestinationSlateViewport = ActiveLevelViewport;
-
-		GUnrealEd->RequestPlaySession(SessionParams);
+		return LevelEditorSubsystem->EditorPlaySimulate();
 	}
 }
 
 void UEditorLevelLibrary::EditorInvalidateViewports()
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
-	if (ActiveLevelViewport.IsValid())
+	if (LevelEditorSubsystem)
 	{
-		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
-		LevelViewportClient.Invalidate();
-	}
-}
-
-namespace InternalEditorLevelLibrary
-{
-	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation)
-	{
-		if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-		{
-			return nullptr;
-		}
-
-		if (!ObjToUse)
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("%s. ObjToUse is not valid."), MessageName);
-			return nullptr;
-		}
-
-		UWorld* World = InternalEditorLevelLibrary::GetEditorWorld();
-		if (!World)
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("%s. Can't spawn the actor because there is no world."), MessageName);
-			return nullptr;
-		}
-
-		ULevel* DesiredLevel = World->GetCurrentLevel();
-		if (!DesiredLevel)
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("%s. Can't spawn the actor because there is no Level."), MessageName);
-			return nullptr;
-		}
-
-		GEditor->ClickLocation = Location;
-		GEditor->ClickPlane = FPlane(Location, FVector::UpVector);
-
-		const EObjectFlags NewObjectFlags = RF_Transactional;
-		UActorFactory* FactoryToUse = nullptr;
-		bool bSelectActors = true;
-		TArray<AActor*> Actors = FLevelEditorViewportClient::TryPlacingActorFromObject(DesiredLevel, ObjToUse, bSelectActors, NewObjectFlags, FactoryToUse);
-
-		if (Actors.Num() == 0 || Actors[0] == nullptr)
-		{
-			UE_LOG(LogEditorScripting, Warning, TEXT("%s. No actor was spawned."), MessageName);
-			return nullptr;
-		}
-
-		for (AActor* Actor : Actors)
-		{
-			if (Actor)
-			{
-				Actor->SetActorLocationAndRotation(Location, Rotation, false, nullptr, ETeleportType::TeleportPhysics);
-			}
-		}
-
-		return Actors[0];
+		return LevelEditorSubsystem->EditorInvalidateViewports();
 	}
 }
 
 AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return nullptr;
-	}
-
-	if (!ObjToUse)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SpawnActorFromObject. ObjToUse is not valid."));
-		return nullptr;
-	}
-
-	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromObject"), ObjToUse, Location, Rotation);
+	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromObject(ObjToUse, Location, Rotation) : nullptr;
 }
 
 AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return nullptr;
-	}
-
-	if (!ActorClass.Get())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SpawnActorFromClass. ActorClass is not valid."));
-		return nullptr;
-	}
-
-	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation);
+	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromClass(ActorClass, Location, Rotation) : nullptr;
 }
 
 bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	if (!ToDestroyActor)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("DestroyActor. ToDestroyActor is invalid."));
-		return false;
-	}
-
-	if (!InternalEditorLevelLibrary::IsEditorLevelActor(ToDestroyActor))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("DestroyActor. The Actor is not part of the world editor."));
-		return false;
-	}
-
-	UWorld* World = InternalEditorLevelLibrary::GetEditorWorld();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("DestroyActor. Can't destroy the actor because there is no world."));
-		return false;
-	}
-
-	//To avoid dangling gizmo after actor has been destroyed
-	if (ToDestroyActor->IsSelected())
-	{
-		GEditor->SelectNone(true, true, false);
-	}
-
-	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-	Layers->DisassociateActorFromLayers(ToDestroyActor);
-	return World->EditorDestroyActor(ToDestroyActor, true);
+	return EditorActorSubsystem ? EditorActorSubsystem->DestroyActor(ToDestroyActor) : false;
 }
 
 UWorld* UEditorLevelLibrary::GetEditorWorld()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return nullptr;
-	}
+	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetEditorWorld() : nullptr;
 
-	return InternalEditorLevelLibrary::GetEditorWorld();
 }
 
 UWorld* UEditorLevelLibrary::GetGameWorld()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
-	return InternalEditorLevelLibrary::GetGameWorld();
+	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetEditorWorld() : nullptr;
 }
-
-
-/**
- *
- * Editor Scripting | Level
- *
- **/
 
 bool UEditorLevelLibrary::NewLevel(const FString& AssetPath)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	FString FailureReason;
-	FString ObjectPath = EditorScriptingUtils::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
-	if (ObjectPath.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevel. Failed to create the level. %s"), *FailureReason);
-		return false;
-	}
-
-	if (!EditorScriptingUtils::IsAValidPathForCreateNewAsset(ObjectPath, FailureReason))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevel. Failed to validate the destination. %s"), *FailureReason);
-		return false;
-	}
-
-	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevel. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
-		return false;
-	}
-
-	UWorld* World = GEditor->NewMap();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevel. Failed to create the new level."));
-		return false;
-	}
-
-	FString DestinationLongPackagePath = FPackageName::ObjectPathToPackageName(ObjectPath);
-	if (!UEditorLoadingAndSavingUtils::SaveMap(World, DestinationLongPackagePath))
-	{
-		UE_LOG(LogEditorScripting, Warning, TEXT("NewLevel. Failed to save the new level."));
-		return false;
-	}
-
-	return true;
+	return LevelEditorSubsystem ? LevelEditorSubsystem->NewLevel(AssetPath) : false;
 }
 
 bool UEditorLevelLibrary::NewLevelFromTemplate(const FString& AssetPath, const FString& TemplateAssetPath)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	FString FailureReason;
-	FString ObjectPath = EditorScriptingUtils::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
-	if (ObjectPath.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to create the level. %s"), *FailureReason);
-		return false;
-	}
-
-	if (!EditorScriptingUtils::IsAValidPathForCreateNewAsset(ObjectPath, FailureReason))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to validate the destination. %s"), *FailureReason);
-		return false;
-	}
-
-	// DuplicateAsset does it, but failed with a Modal
-	if (FPackageName::DoesPackageExist(ObjectPath, nullptr, nullptr))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to validate the destination '%s'. There's alreay an asset at the destination."), *ObjectPath);
-		return false;
-	}
-
-	FString TemplateObjectPath = EditorScriptingUtils::ConvertAnyPathToObjectPath(TemplateAssetPath, FailureReason);
-	if (TemplateObjectPath.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to create the level. %s"), *FailureReason);
-		return false;
-	}
-
-	const bool bLoadAsTemplate = true;
-	// Load the template map file - passes LoadAsTemplate==true making the
-	// level load into an untitled package that won't save over the template
-	if (!FEditorFileUtils::LoadMap(*TemplateObjectPath, bLoadAsTemplate))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to create the new level from template."));
-		return false;
-	}
-
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to find the new created world."));
-		return false;
-	}
-
-	FString DestinationLongPackagePath = FPackageName::ObjectPathToPackageName(ObjectPath);
-	if (!UEditorLoadingAndSavingUtils::SaveMap(World, DestinationLongPackagePath))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("NewLevelFromTemplate. Failed to save the new level."));
-		return false;
-	}
-
-	return true;
+	return LevelEditorSubsystem ? LevelEditorSubsystem->NewLevelFromTemplate(AssetPath, TemplateAssetPath) : false;
 }
 
 bool UEditorLevelLibrary::LoadLevel(const FString& AssetPath)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
+	return LevelEditorSubsystem ? LevelEditorSubsystem->LoadLevel(AssetPath) : false;
 
-	FString FailureReason;
-	FString ObjectPath = EditorScriptingUtils::ConvertAnyPathToObjectPath(AssetPath, FailureReason);
-	if (ObjectPath.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("LoadLevel. Failed to load level: %s"), *FailureReason);
-		return false;
-	}
-
-	return UEditorLoadingAndSavingUtils::LoadMap(ObjectPath) != nullptr;
 }
 
 bool UEditorLevelLibrary::SaveCurrentLevel()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	UWorld* World = InternalEditorLevelLibrary::GetEditorWorld();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SaveCurrentLevel. Can't save the current level because there is no world."));
-		return false;
-	}
-
-	ULevel* Level = World->GetCurrentLevel();
-	if (!Level)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SaveCurrentLevel. Can't save the level because there is no current level."));
-		return false;
-	}
-
-	FString Filename = FEditorFileUtils::GetFilename(Level->OwningWorld);
-	if (Filename.Len() == 0)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SaveCurrentLevel. Can't save the level because it doesn't have a filename. Use EditorLoadingAndSavingUtils."));
-		return false;
-	}
-
-	TArray<UPackage*> MapPackages;
-	MapPackages.Add(Level->GetOutermost());
-
-	if (Level->MapBuildData)
-	{
-		MapPackages.AddUnique(Level->MapBuildData->GetOutermost());
-	}
-
-	// Checkout without a prompt
-	TArray<UPackage*>* PackagesCheckedOut = nullptr;
-	const bool bErrorIfAlreadyCheckedOut = false;
-	FEditorFileUtils::CheckoutPackages(MapPackages, PackagesCheckedOut, bErrorIfAlreadyCheckedOut);
-
-	return FEditorFileUtils::SaveLevel(Level);
+	return LevelEditorSubsystem ? LevelEditorSubsystem->SaveCurrentLevel() : false;
 }
 
 bool UEditorLevelLibrary::SaveAllDirtyLevels()
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	UWorld* World = InternalEditorLevelLibrary::GetEditorWorld();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SaveAllDirtyLevels. Can't save the current level because there is no world."));
-		return false;
-	}
-
-	TArray<UPackage*> DirtyMapPackages;
-	TArray<ULevel*> DirtyLevels;
-	for (ULevel* Level : World->GetLevels())
-	{
-		if (Level)
-		{
-			UPackage* OutermostPackage = Level->GetOutermost();
-			if (OutermostPackage->IsDirty())
-			{
-				FString Filename = FEditorFileUtils::GetFilename(Level->OwningWorld);
-				if (Filename.Len() == 0)
-				{
-					UE_LOG(LogEditorScripting, Warning, TEXT("SaveAllDirtyLevels. Can't save the level '%s' because it doesn't have a filename. Use EditorLoadingAndSavingUtils."), *OutermostPackage->GetName());
-					continue;
-				}
-
-				DirtyLevels.Add(Level);
-				DirtyMapPackages.Add(OutermostPackage);
-
-				if (Level->MapBuildData)
-				{
-					UPackage* BuiltDataPackage = Level->MapBuildData->GetOutermost();
-					if (BuiltDataPackage->IsDirty() && BuiltDataPackage != OutermostPackage)
-					{
-						DirtyMapPackages.Add(BuiltDataPackage);
-					}
-				}
-			}
-		}
-	}
-
-	bool bAllSaved = true;
-	if (DirtyMapPackages.Num() > 0)
-	{
-		// Checkout without a prompt
-		TArray<UPackage*>* PackagesCheckedOut = nullptr;
-		const bool bErrorIfAlreadyCheckedOut = false;
-		FEditorFileUtils::CheckoutPackages(DirtyMapPackages, PackagesCheckedOut, bErrorIfAlreadyCheckedOut);
-
-		for (ULevel* Level : DirtyLevels)
-		{
-			bool bSaved = FEditorFileUtils::SaveLevel(Level);
-			if (!bSaved)
-			{
-				UE_LOG(LogEditorScripting, Warning, TEXT("SaveAllDirtyLevels. Can't save the level '%s'."), *World->GetOutermost()->GetName());
-				bAllSaved = false;
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogEditorScripting, Log, TEXT("SaveAllDirtyLevels. There is no dirty level."));
-	}
-
-	return bAllSaved;
+	return LevelEditorSubsystem ? LevelEditorSubsystem->SaveAllDirtyLevels() : false;
 }
 
 bool UEditorLevelLibrary::SetCurrentLevelByName(FName LevelName)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	if (LevelName == NAME_None)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("SetCurrentLevel. LevelName is invalid."));
-		return false;
-	}
-
-	UWorld* World = InternalEditorLevelLibrary::GetEditorWorld();
-	if (!World)
-	{
-		UE_LOG(LogEditorScripting, Warning, TEXT("SetCurrentLevel. Can't set the current level because there is no world."));
-		return false;
-	}
-
-	bool bLevelFound = false;
-	const TArray<ULevel*>& AllLevels = World->GetLevels();
-	if (AllLevels.Num() > 0)
-	{
-		FString LevelNameStr = LevelName.ToString();
-		for (ULevel* Level : AllLevels)
-		{
-			if (FPackageName::GetShortName(Level->GetOutermost()) == LevelNameStr)
-			{
-				// SetCurrentLevel return true only if the level is changed and it's not the same as the current.
-				//For UEditorLevelLibrary, always return true.
-				World->SetCurrentLevel(Level);
-				bLevelFound = true;
-				break;
-			}
-		}
-	}
-
-	return bLevelFound;
-}
-
-/**
- *
- * Editor Scripting | Dataprep
- *
- **/
-namespace InternalEditorLevelLibrary
-{
-	template<typename ArrayType>
-	int32 ReplaceMaterials(ArrayType& Array, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
-	{
-		//Would use FObjectEditorUtils::SetPropertyValue, but Material are a special case. They need a lock and we need to use the SetMaterial function
-		FProperty* MaterialProperty = FindFieldChecked<FProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
-		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
-		int32 NumberOfChanges = 0;
-
-		for (UMeshComponent* Component : Array)
-		{
-			const bool bIsClassDefaultObject = Component->HasAnyFlags(RF_ClassDefaultObject);
-			if (!bIsClassDefaultObject)
-			{
-				const int32 NumberOfMaterial = Component->GetNumMaterials();
-				for (int32 Index = 0; Index < NumberOfMaterial; ++Index)
-				{
-					if (Component->GetMaterial(Index) == MaterialToBeReplaced)
-					{
-						FEditPropertyChain PropertyChain;
-						PropertyChain.AddHead(MaterialProperty);
-						static_cast<UObject*>(Component)->PreEditChange(PropertyChain);
-
-						// Set the material
-						Component->SetMaterial(Index, NewMaterial);
-						++NumberOfChanges;
-
-						ObjectsThatChanged.Add(Component);
-					}
-				}
-			}
-		}
-
-		// Route post edit change after all components have had their values changed.  This is to avoid
-		// construction scripts from re-running in the middle of setting values and wiping out components we need to modify
-		for (UObject* ObjectData : ObjectsThatChanged)
-		{
-			FPropertyChangedEvent PropertyEvent(MaterialProperty);
-			ObjectData->PostEditChangeProperty(PropertyEvent);
-		}
-
-		return NumberOfChanges;
-	}
+	return LevelEditorSubsystem ? LevelEditorSubsystem->SetCurrentLevelByName(LevelName) : false;
 }
 
 void UEditorLevelLibrary::ReplaceMeshComponentsMaterials(const TArray<UMeshComponent*>& MeshComponents, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (StaticMeshEditorSubsystem)
 	{
-		return;
+		StaticMeshEditorSubsystem->ReplaceMeshComponentsMaterials(MeshComponents, MaterialToBeReplaced, NewMaterial);
 	}
-
-	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMaterials", "Replace components materials"));
-
-	int32 ChangeCounter = InternalEditorLevelLibrary::ReplaceMaterials(MeshComponents, MaterialToBeReplaced, NewMaterial);
-
-	if (ChangeCounter > 0)
-	{
-		// Redraw viewports to reflect the material changes
-		GEditor->RedrawLevelEditingViewports();
-	}
-
-	UE_LOG(LogEditorScripting, Log, TEXT("ReplaceMeshComponentsMaterials. %d material(s) changed occurred."), ChangeCounter);
 }
 
 void UEditorLevelLibrary::ReplaceMeshComponentsMaterialsOnActors(const TArray<AActor*>& Actors, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (StaticMeshEditorSubsystem)
 	{
-		return;
-	}
-
-	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceComponentUsedMaterial", "Replace components materials"));
-
-	int32 ChangeCounter = 0;
-	TInlineComponentArray<UMeshComponent*> ComponentArray;
-
-	for (AActor* Actor : Actors)
-	{
-		if (Actor && !Actor->IsPendingKill())
-		{
-			Actor->GetComponents(ComponentArray);
-			ChangeCounter += InternalEditorLevelLibrary::ReplaceMaterials(ComponentArray, MaterialToBeReplaced, NewMaterial);
-		}
-	}
-
-	if (ChangeCounter > 0)
-	{
-		// Redraw viewports to reflect the material changes
-		GEditor->RedrawLevelEditingViewports();
-	}
-
-	UE_LOG(LogEditorScripting, Log, TEXT("ReplaceMeshComponentsMaterialsOnActors. %d material(s) changed occurred."), ChangeCounter);
-}
-
-namespace InternalEditorLevelLibrary
-{
-	template<typename ArrayType>
-	int32 ReplaceMeshes(const ArrayType& Array, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
-	{
-		//Would use FObjectEditorUtils::SetPropertyValue, but meshes are a special case. They need a lock and we need to use the SetMesh function
-		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
-		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
-		int32 NumberOfChanges = 0;
-
-		for (UStaticMeshComponent* Component : Array)
-		{
-			const bool bIsClassDefaultObject = Component->HasAnyFlags(RF_ClassDefaultObject);
-			if (!bIsClassDefaultObject)
-			{
-				if (Component->GetStaticMesh() == MeshToBeReplaced)
-				{
-					FEditPropertyChain PropertyChain;
-					PropertyChain.AddHead(StaticMeshProperty);
-					static_cast<UObject*>(Component)->PreEditChange(PropertyChain);
-
-					// Set the mesh
-					Component->SetStaticMesh(NewMesh);
-					++NumberOfChanges;
-
-					ObjectsThatChanged.Add(Component);
-				}
-			}
-		}
-
-		// Route post edit change after all components have had their values changed.  This is to avoid
-		// construction scripts from re-running in the middle of setting values and wiping out components we need to modify
-		for (UObject* ObjectData : ObjectsThatChanged)
-		{
-			FPropertyChangedEvent PropertyEvent(StaticMeshProperty);
-			ObjectData->PostEditChangeProperty(PropertyEvent);
-		}
-
-		return NumberOfChanges;
+		StaticMeshEditorSubsystem->ReplaceMeshComponentsMaterialsOnActors(Actors, MaterialToBeReplaced, NewMaterial);
 	}
 }
 
 void UEditorLevelLibrary::ReplaceMeshComponentsMeshes(const TArray<UStaticMeshComponent*>& MeshComponents, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (StaticMeshEditorSubsystem)
 	{
-		return;
+		StaticMeshEditorSubsystem->ReplaceMeshComponentsMeshes(MeshComponents, MeshToBeReplaced, NewMesh);
 	}
-
-	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMeshes", "Replace components meshes"));
-
-	int32 ChangeCounter = InternalEditorLevelLibrary::ReplaceMeshes(MeshComponents, MeshToBeReplaced, NewMesh);
-
-	if (ChangeCounter > 0)
-	{
-		// Redraw viewports to reflect the material changes
-		GEditor->RedrawLevelEditingViewports();
-	}
-
-	UE_LOG(LogEditorScripting, Log, TEXT("ReplaceMeshComponentsMeshes. %d mesh(es) changed occurred."), ChangeCounter);
 }
 
 void UEditorLevelLibrary::ReplaceMeshComponentsMeshesOnActors(const TArray<AActor*>& Actors, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
+	if (StaticMeshEditorSubsystem)
 	{
-		return;
+		StaticMeshEditorSubsystem->ReplaceMeshComponentsMeshesOnActors(Actors, MeshToBeReplaced, NewMesh);
 	}
-
-	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMeshes", "Replace components meshes"));
-
-	int32 ChangeCounter = 0;
-	TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-
-	for (AActor* Actor : Actors)
-	{
-		if (Actor && !Actor->IsPendingKill())
-		{
-			Actor->GetComponents(ComponentArray);
-			ChangeCounter += InternalEditorLevelLibrary::ReplaceMeshes(ComponentArray, MeshToBeReplaced, NewMesh);
-		}
-	}
-
-	if (ChangeCounter > 0)
-	{
-		// Redraw viewports to reflect the material changes
-		GEditor->RedrawLevelEditingViewports();
-	}
-
-	UE_LOG(LogEditorScripting, Log, TEXT("ReplaceMeshComponentsMeshesOnActors. %d mesh(es) changed occurred."), ChangeCounter);
 }
 
 TArray<class AActor*> UEditorLevelLibrary::ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	TArray<class AActor*> Result;
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return Result;
-	}
+	return EditorActorSubsystem ? EditorActorSubsystem->ConvertActors(Actors, ActorClass, StaticMeshPackagePath) : TArray<class AActor*>();
 
-	if (ActorClass.Get() == nullptr)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("ConvertActorWith. The ActorClass is not valid."));
-		return Result;
-	}
-
-	FString PackagePath = StaticMeshPackagePath;
-	if (!PackagePath.IsEmpty())
-	{
-		FString FailureReason;
-		PackagePath = EditorScriptingUtils::ConvertAnyPathToLongPackagePath(PackagePath, FailureReason);
-		if (PackagePath.IsEmpty())
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("ConvertActorWith. %s"), *FailureReason);
-			return Result;
-		}
-	}
-
-	TArray<class AActor*> ActorToConvert;
-	ActorToConvert.Reserve(Actors.Num());
-	for (AActor* Actor : Actors)
-	{
-		if (Actor == nullptr || Actor->IsPendingKill())
-		{
-			continue;
-		}
-
-		UWorld* ActorWorld = Actor->GetWorld();
-		if (ActorWorld == nullptr)
-		{
-			UE_LOG(LogEditorScripting, Warning, TEXT("ConvertActorWith. %s is not in a world. The actor will be skipped."), *Actor->GetActorLabel());
-			continue;
-		}
-		if (ActorWorld->WorldType != EWorldType::Editor)
-		{
-			UE_LOG(LogEditorScripting, Warning, TEXT("ConvertActorWith. %s is not in an editor world. The actor will be skipped."), *Actor->GetActorLabel());
-			continue;
-		}
-
-		ULevel* CurrentLevel = Actor->GetLevel();
-		if (CurrentLevel == nullptr)
-		{
-			UE_LOG(LogEditorScripting, Warning, TEXT("ConvertActorWith. %s must be in a valid level. The actor will be skipped."), *Actor->GetActorLabel());
-			continue;
-		}
-
-		if (Cast<ABrush>(Actor) && PackagePath.Len() == 0)
-		{
-			UE_LOG(LogEditorScripting, Warning, TEXT("ConvertActorWith. %s is a Brush and not package path was provided. The actor will be skipped."), *Actor->GetActorLabel());
-			continue;
-		}
-
-		ActorToConvert.Add(Actor);
-	}
-
-	if (ActorToConvert.Num() != 0)
-	{
-		const bool bUseSpecialCases = false; // Don't use special cases, they are a bit too exhaustive and create dialog
-		GEditor->DoConvertActors(ActorToConvert, ActorClass.Get(), TSet<FString>(), bUseSpecialCases, StaticMeshPackagePath);
-		Result.Reserve(GEditor->GetSelectedActorCount());
-		for(auto Itt = GEditor->GetSelectedActorIterator(); Itt; ++Itt)
-		{
-			Result.Add(CastChecked<AActor>(*Itt));
-		}
-	}
-
-	UE_LOG(LogEditorScripting, Log, TEXT("ConvertActorWith. %d convertions occurred."), Result.Num());
-	return Result;
 }
 
-namespace InternalEditorLevelLibrary
+AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated& JoinOptions)
 {
-	template<class TPrimitiveComponent>
-	bool FindValidActorAndComponents(TArray<AStaticMeshActor*> ActorsToTest, TArray<AStaticMeshActor*>& OutValidActor, TArray<TPrimitiveComponent*>& OutPrimitiveComponent, FVector& OutAverageLocation, FString& OutFailureReason)
-	{
-		for (int32 Index = ActorsToTest.Num() - 1; Index >= 0; --Index)
-		{
-			if (ActorsToTest[Index] == nullptr || ActorsToTest[Index]->IsPendingKill())
-			{
-				ActorsToTest.RemoveAtSwap(Index);
-			}
-		}
-
-		if (ActorsToTest.Num() == 0)
-		{
-			return false;
-		}
-
-		// All actors need to come from the same World
-		UWorld* CurrentWorld = ActorsToTest[0]->GetWorld();
-		if (CurrentWorld == nullptr)
-		{
-			OutFailureReason = TEXT("The actors were not in a valid world.");
-			return false;
-		}
-		if (CurrentWorld->WorldType != EWorldType::Editor && CurrentWorld->WorldType != EWorldType::EditorPreview)
-		{
-			OutFailureReason = TEXT("The actors were not in an editor world.");
-			return false;
-		}
-
-		ULevel* CurrentLevel = ActorsToTest[0]->GetLevel();
-		if (CurrentLevel == nullptr)
-		{
-			OutFailureReason = TEXT("The actors were not in a valid level.");
-			return false;
-		}
-
-		FVector PivotLocation = FVector::ZeroVector;
-
-		OutPrimitiveComponent.Reset(ActorsToTest.Num());
-		OutValidActor.Reset(ActorsToTest.Num());
-		{
-			bool bShowedDifferentLevelMessage = false;
-			for (AStaticMeshActor* MeshActor : ActorsToTest)
-			{
-				if (MeshActor->GetWorld() != CurrentWorld)
-				{
-					OutFailureReason = TEXT("Some actors were not from the same world.");
-					return false;
-				}
-
-				if (!bShowedDifferentLevelMessage && MeshActor->GetLevel() != CurrentLevel)
-				{
-					UE_LOG(LogEditorScripting, Log, TEXT("Not all actors are from the same level. The Actor will be created in the first level found."));
-					bShowedDifferentLevelMessage = true;
-				}
-
-				PivotLocation += MeshActor->GetActorLocation();
-
-				TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-				MeshActor->GetComponents<UStaticMeshComponent>(ComponentArray);
-
-				bool bActorIsValid = false;
-				for (UStaticMeshComponent* MeshCmp : ComponentArray)
-				{
-					if (MeshCmp->GetStaticMesh() && MeshCmp->GetStaticMesh()->RenderData.IsValid())
-					{
-						bActorIsValid = true;
-						OutPrimitiveComponent.Add(MeshCmp);
-					}
-				}
-
-				//Actor needs at least one StaticMeshComponent to be considered valid
-				if (bActorIsValid)
-				{
-					OutValidActor.Add(MeshActor);
-				}
-			}
-		}
-
-		OutAverageLocation = PivotLocation / OutValidActor.Num();
-
-		return true;
-	}
-
-	FName GenerateValidOwnerBasedComponentNameForNewOwner(UStaticMeshComponent* OriginalComponent, AActor* NewOwner)
-	{
-		check(OriginalComponent);
-		check(OriginalComponent->GetOwner());
-		check(NewOwner);
-
-		//Find first valid name on new owner by incrementing internal index
-		FName NewName = OriginalComponent->GetOwner()->GetFName();
-		const int32 InitialNumber = NewName.GetNumber();
-		while (FindObjectFast<UObject>(NewOwner, NewName) != nullptr)
-		{
-			uint32 NextNumber = NewName.GetNumber();
-			if (NextNumber >= 0xfffffe)
-			{
-				NewName = NAME_None;
-				break;
-			}
-			++NextNumber;
-			NewName.SetNumber(NextNumber);
-		}
-
-		return NewName;
-	}
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+	
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->JoinStaticMeshActors(ActorsToMerge, InternalEditorLevelLibrary::ConvertJoinStaticMeshActorsOptions(JoinOptions)) : nullptr;
 }
 
-AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingJoinStaticMeshActorsOptions& JoinOptions)
+bool UEditorLevelLibrary::MergeStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions_Deprecated& MergeOptions, AStaticMeshActor*& OutMergedActor)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return nullptr;
-	}
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->MergeStaticMeshActors(ActorsToMerge, InternalEditorLevelLibrary::ConvertMergeStaticMeshActorsOptions(MergeOptions), OutMergedActor) : false;
 
-	TArray<AStaticMeshActor*> AllActors;
-	TArray<UStaticMeshComponent*> AllComponents;
-	FVector PivotLocation;
-	FString FailureReason;
-	if (!InternalEditorLevelLibrary::FindValidActorAndComponents(ActorsToMerge, AllActors, AllComponents, PivotLocation, FailureReason))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("JoinStaticMeshActors failed. %s"), *FailureReason);
-		return nullptr;
-	}
-
-	if (AllActors.Num() < 2)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("JoinStaticMeshActors failed. A merge operation requires at least 2 valid Actors."));
-		return nullptr;
-	}
-
-	// Create the new Actor
-	FActorSpawnParameters Params;
-	Params.OverrideLevel = AllActors[0]->GetLevel();
-	AActor* NewActor = AllActors[0]->GetWorld()->SpawnActor<AActor>(PivotLocation, FRotator::ZeroRotator, Params);
-	if (!NewActor)
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("JoinStaticMeshActors failed. Internal error while creating the join actor."));
-		return nullptr;
-	}
-
-	if (!JoinOptions.NewActorLabel.IsEmpty())
-	{
-		NewActor->SetActorLabel(JoinOptions.NewActorLabel);
-	}
-
-	// Duplicate and attach all components to the new actors
-	USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor, TEXT("Root"));
-	NewActor->SetRootComponent(NewRootComponent);
-	NewRootComponent->SetMobility(EComponentMobility::Static);
-	for (UStaticMeshComponent* ActorCmp : AllComponents)
-	{
-		FName NewName = NAME_None;
-		if (JoinOptions.bRenameComponentsFromSource)
-		{
-			NewName = InternalEditorLevelLibrary::GenerateValidOwnerBasedComponentNameForNewOwner(ActorCmp, NewActor);
-		}
-
-		UStaticMeshComponent* NewComponent = DuplicateObject<UStaticMeshComponent>(ActorCmp, NewActor, NewName);
-		NewActor->AddInstanceComponent(NewComponent);
-		FTransform CmpTransform = ActorCmp->GetComponentToWorld();
-		NewComponent->SetComponentToWorld(CmpTransform);
-		NewComponent->AttachToComponent(NewRootComponent, FAttachmentTransformRules::KeepWorldTransform);
-		NewComponent->RegisterComponent();
-	}
-
-	if (JoinOptions.bDestroySourceActors)
-	{
-		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-		UWorld* World = AllActors[0]->GetWorld();
-		for (AActor* Actor : AllActors)
-		{
-			Layers->DisassociateActorFromLayers(Actor);
-			World->EditorDestroyActor(Actor, true);
-		}
-	}
-
-	//Select newly created actor
-	GEditor->SelectNone(false, true, false);
-	GEditor->SelectActor(NewActor, true, false);
-	GEditor->NoteSelectionChange();
-
-	UE_LOG(LogEditorScripting, Log, TEXT("JoinStaticMeshActors joined %d actors toghether in actor '%s'."), AllComponents.Num(), *NewActor->GetActorLabel());
-	return NewActor;
 }
 
-bool UEditorLevelLibrary::MergeStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions& MergeOptions, AStaticMeshActor*& OutMergedActor)
+bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions_Deprecated& MergeOptions, class AStaticMeshActor*& OutMergedActor)
 {
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
-	OutMergedActor = nullptr;
-
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	FString FailureReason;
-	FString PackageName = EditorScriptingUtils::ConvertAnyPathToLongPackagePath(MergeOptions.BasePackageName, FailureReason);
-	if (PackageName.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("MergeStaticMeshActors. Failed to convert the BasePackageName. %s"), *FailureReason);
-		return false;
-	}
-
-	TArray<AStaticMeshActor*> AllActors;
-	TArray<UPrimitiveComponent*> AllComponents;
-	FVector PivotLocation;
-	if (!InternalEditorLevelLibrary::FindValidActorAndComponents(ActorsToMerge, AllActors, AllComponents, PivotLocation, FailureReason))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("MergeStaticMeshActors failed. %s"), *FailureReason);
-		return false;
-	}
-
-	//
-	// See MeshMergingTool.cpp
-	//
-	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-
-
-	FVector MergedActorLocation;
-	TArray<UObject*> CreatedAssets;
-	const float ScreenAreaSize = TNumericLimits<float>::Max();
-	MeshUtilities.MergeComponentsToStaticMesh(AllComponents, AllActors[0]->GetWorld(), MergeOptions.MeshMergingSettings, nullptr, nullptr, PackageName, CreatedAssets, MergedActorLocation, ScreenAreaSize, true);
-
-	UStaticMesh* MergedMesh = nullptr;
-	if (!CreatedAssets.FindItemByClass(&MergedMesh))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("MergeStaticMeshActors failed. No mesh was created."));
-		return false;
-	}
-
-	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	for (UObject* Obj : CreatedAssets)
-	{
-		AssetRegistry.AssetCreated(Obj);
-	}
-
-	//Also notify the content browser that the new assets exists
-	if (!IsRunningCommandlet())
-	{
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedAssets, true);
-	}
-
-	// Place new mesh in the world
-	if (MergeOptions.bSpawnMergedActor)
-	{
-		FActorSpawnParameters Params;
-		Params.OverrideLevel = AllActors[0]->GetLevel();
-		OutMergedActor = AllActors[0]->GetWorld()->SpawnActor<AStaticMeshActor>(MergedActorLocation, FRotator::ZeroRotator, Params);
-		if (!OutMergedActor)
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged actor."));
-			return false;
-		}
-
-		OutMergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
-		OutMergedActor->SetActorLabel(MergeOptions.NewActorLabel);
-		AllActors[0]->GetWorld()->UpdateCullDistanceVolumes(OutMergedActor, OutMergedActor->GetStaticMeshComponent());
-	}
-
-	// Remove source actors
-	if (MergeOptions.bDestroySourceActors)
-	{
-		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-		UWorld* World = AllActors[0]->GetWorld();
-		for (AActor* Actor : AllActors)
-		{
-			Layers->DisassociateActorFromLayers(Actor);
-			World->EditorDestroyActor(Actor, true);
-		}
-	}
-
-	//Select newly created actor
-	GEditor->SelectNone(false, true, false);
-	GEditor->SelectActor(OutMergedActor, true, false);
-	GEditor->NoteSelectionChange();
-
-	return true;
-}
-
-bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor)
-{
-	// See FMeshProxyTool::RunMerge (Engine\Source\Editor\MergeActors\Private\MeshProxyTool\MeshProxyTool.cpp)
-	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
-
-	OutMergedActor = nullptr;
-
-	if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
-	{
-		return false;
-	}
-
-	FString FailureReason;
-	FString PackageName = EditorScriptingUtils::ConvertAnyPathToLongPackagePath(MergeOptions.BasePackageName, FailureReason);
-	if (PackageName.IsEmpty())
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("CreateProxyMeshActor. Failed to convert the BasePackageName. %s"), *FailureReason);
-		return false;
-	}
-
-	// Cleanup actors
-	TArray<AStaticMeshActor*> StaticMeshActors;
-	TArray<UPrimitiveComponent*> AllComponents_UNUSED;
-	FVector PivotLocation;
-	if (!InternalEditorLevelLibrary::FindValidActorAndComponents(ActorsToMerge, StaticMeshActors, AllComponents_UNUSED, PivotLocation, FailureReason))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("CreateProxyMeshActor failed. %s"), *FailureReason);
-		return false;
-	}
-	TArray<AActor*> AllActors(StaticMeshActors);
-
-	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-
-	FCreateProxyDelegate ProxyDelegate;
-	TArray<UObject*> CreatedAssets;
-	ProxyDelegate.BindLambda([&CreatedAssets](const FGuid Guid, TArray<UObject*>& InAssetsToSync) {CreatedAssets.Append(InAssetsToSync); });
-
-	MeshUtilities.CreateProxyMesh(
-		AllActors,                      // List of Actors to merge
-		MergeOptions.MeshProxySettings, // Merge settings
-		nullptr,                        // Base Material used for final proxy material. Note: nullptr for default impl: /Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial
-		nullptr,                        // Package for generated assets. Note: if nullptr, BasePackageName is used
-		PackageName,                    // Will be used for naming generated assets, in case InOuter is not specified ProxyBasePackageName will be used as long package name for creating new packages
-		FGuid::NewGuid(),               // Identify a job, First argument of the ProxyDelegate
-		ProxyDelegate                   // Called back on asset creation
-	);
-
-	UStaticMesh* MergedMesh = nullptr;
-	if (!CreatedAssets.FindItemByClass(&MergedMesh))
-	{
-		UE_LOG(LogEditorScripting, Error, TEXT("CreateProxyMeshActor failed. No mesh created."));
-		return false;
-	}
-
-	// Update the asset registry that a new static mesh and material has been created
-	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	for (UObject* Asset : CreatedAssets)
-	{
-		AssetRegistry.AssetCreated(Asset);
-		GEditor->BroadcastObjectReimported(Asset);
-	}
-
-	// Also notify the content browser that the new assets exists
-	if (!IsRunningCommandlet())
-	{
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedAssets, true);
-	}
-
-	// Place new mesh in the world
-	UWorld* ActorWorld = AllActors[0]->GetWorld();
-	ULevel* ActorLevel = AllActors[0]->GetLevel();
-	if (MergeOptions.bSpawnMergedActor)
-	{
-		FActorSpawnParameters Params;
-		Params.OverrideLevel = ActorLevel;
-		OutMergedActor = ActorWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
-		if (!OutMergedActor)
-		{
-			UE_LOG(LogEditorScripting, Error, TEXT("CreateProxyMeshActor failed. Internal error while creating the merged actor."));
-			return false;
-		}
-
-		OutMergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
-		OutMergedActor->SetActorLabel(MergeOptions.NewActorLabel);
-		ActorWorld->UpdateCullDistanceVolumes(OutMergedActor, OutMergedActor->GetStaticMeshComponent());
-	}
-
-	// Remove source actors
-	if (MergeOptions.bDestroySourceActors)
-	{
-		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-		for (AActor* Actor : AllActors)
-		{
-			Layers->DisassociateActorFromLayers(Actor);
-			ActorWorld->EditorDestroyActor(Actor, true);
-		}
-	}
-
-	//Select newly created actor
-	if (OutMergedActor)
-	{
-		GEditor->SelectNone(false, true, false);
-		GEditor->SelectActor(OutMergedActor, true, false); // don't notify but manually call NoteSelectionChange ?
-		GEditor->NoteSelectionChange();
-	}
-
-	return true;
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->CreateProxyMeshActor(ActorsToMerge, InternalEditorLevelLibrary::ConvertCreateProxyStaticMeshActorsOptions(MergeOptions), OutMergedActor) : false;
 }
 
 #undef LOCTEXT_NAMESPACE

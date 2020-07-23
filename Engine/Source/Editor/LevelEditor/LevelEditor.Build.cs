@@ -69,7 +69,8 @@ public class LevelEditor : ModuleRules
 				"CommonMenuExtensions",
 				"ToolMenus",
 				"StatusBar",
-				"AppFramework"
+				"AppFramework",
+				"EditorSubsystem"
 			}
 		);
 

@@ -36,7 +36,9 @@
 #include "UnrealEd/Private/GeomFitUtils.h"
 #include "UnrealEd/Private/ConvexDecompTool.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "EditorUtilitySubsystem.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
+#include "Layers/LayersSubsystem.h"
+#include "EditorScriptingHelpers.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorSubsystem"
 
@@ -145,6 +147,196 @@ namespace InternalEditorMeshLibrary
 
 		return true;
 	}
+
+	template<typename ArrayType>
+	int32 ReplaceMeshes(const ArrayType& Array, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
+	{
+		//Would use FObjectEditorUtils::SetPropertyValue, but meshes are a special case. They need a lock and we need to use the SetMesh function
+		FProperty* StaticMeshProperty = FindFieldChecked<FProperty>(UStaticMeshComponent::StaticClass(), "StaticMesh");
+		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
+		int32 NumberOfChanges = 0;
+
+		for (UStaticMeshComponent* Component : Array)
+		{
+			const bool bIsClassDefaultObject = Component->HasAnyFlags(RF_ClassDefaultObject);
+			if (!bIsClassDefaultObject)
+			{
+				if (Component->GetStaticMesh() == MeshToBeReplaced)
+				{
+					FEditPropertyChain PropertyChain;
+					PropertyChain.AddHead(StaticMeshProperty);
+					static_cast<UObject*>(Component)->PreEditChange(PropertyChain);
+
+					// Set the mesh
+					Component->SetStaticMesh(NewMesh);
+					++NumberOfChanges;
+
+					ObjectsThatChanged.Add(Component);
+				}
+			}
+		}
+
+		// Route post edit change after all components have had their values changed.  This is to avoid
+		// construction scripts from re-running in the middle of setting values and wiping out components we need to modify
+		for (UObject* ObjectData : ObjectsThatChanged)
+		{
+			FPropertyChangedEvent PropertyEvent(StaticMeshProperty);
+			ObjectData->PostEditChangeProperty(PropertyEvent);
+		}
+
+		return NumberOfChanges;
+	}
+
+	template<typename ArrayType>
+	int32 ReplaceMaterials(ArrayType& Array, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
+	{
+		//Would use FObjectEditorUtils::SetPropertyValue, but Material are a special case. They need a lock and we need to use the SetMaterial function
+		FProperty* MaterialProperty = FindFieldChecked<FProperty>(UMeshComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials));
+		TArray<UObject*, TInlineAllocator<16>> ObjectsThatChanged;
+		int32 NumberOfChanges = 0;
+
+		for (UMeshComponent* Component : Array)
+		{
+			const bool bIsClassDefaultObject = Component->HasAnyFlags(RF_ClassDefaultObject);
+			if (!bIsClassDefaultObject)
+			{
+				const int32 NumberOfMaterial = Component->GetNumMaterials();
+				for (int32 Index = 0; Index < NumberOfMaterial; ++Index)
+				{
+					if (Component->GetMaterial(Index) == MaterialToBeReplaced)
+					{
+						FEditPropertyChain PropertyChain;
+						PropertyChain.AddHead(MaterialProperty);
+						static_cast<UObject*>(Component)->PreEditChange(PropertyChain);
+
+						// Set the material
+						Component->SetMaterial(Index, NewMaterial);
+						++NumberOfChanges;
+
+						ObjectsThatChanged.Add(Component);
+					}
+				}
+			}
+		}
+
+		// Route post edit change after all components have had their values changed.  This is to avoid
+		// construction scripts from re-running in the middle of setting values and wiping out components we need to modify
+		for (UObject* ObjectData : ObjectsThatChanged)
+		{
+			FPropertyChangedEvent PropertyEvent(MaterialProperty);
+			ObjectData->PostEditChangeProperty(PropertyEvent);
+		}
+
+		return NumberOfChanges;
+	}
+
+	template<class TPrimitiveComponent>
+	bool FindValidActorAndComponents(TArray<AStaticMeshActor*> ActorsToTest, TArray<AStaticMeshActor*>& OutValidActor, TArray<TPrimitiveComponent*>& OutPrimitiveComponent, FVector& OutAverageLocation, FString& OutFailureReason)
+	{
+		for (int32 Index = ActorsToTest.Num() - 1; Index >= 0; --Index)
+		{
+			if (ActorsToTest[Index] == nullptr || ActorsToTest[Index]->IsPendingKill())
+			{
+				ActorsToTest.RemoveAtSwap(Index);
+			}
+		}
+
+		if (ActorsToTest.Num() == 0)
+		{
+			return false;
+		}
+
+		// All actors need to come from the same World
+		UWorld* CurrentWorld = ActorsToTest[0]->GetWorld();
+		if (CurrentWorld == nullptr)
+		{
+			OutFailureReason = TEXT("The actors were not in a valid world.");
+			return false;
+		}
+		if (CurrentWorld->WorldType != EWorldType::Editor && CurrentWorld->WorldType != EWorldType::EditorPreview)
+		{
+			OutFailureReason = TEXT("The actors were not in an editor world.");
+			return false;
+		}
+
+		ULevel* CurrentLevel = ActorsToTest[0]->GetLevel();
+		if (CurrentLevel == nullptr)
+		{
+			OutFailureReason = TEXT("The actors were not in a valid level.");
+			return false;
+		}
+
+		FVector PivotLocation = FVector::ZeroVector;
+
+		OutPrimitiveComponent.Reset(ActorsToTest.Num());
+		OutValidActor.Reset(ActorsToTest.Num());
+		{
+			bool bShowedDifferentLevelMessage = false;
+			for (AStaticMeshActor* MeshActor : ActorsToTest)
+			{
+				if (MeshActor->GetWorld() != CurrentWorld)
+				{
+					OutFailureReason = TEXT("Some actors were not from the same world.");
+					return false;
+				}
+
+				if (!bShowedDifferentLevelMessage && MeshActor->GetLevel() != CurrentLevel)
+				{
+					UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("Not all actors are from the same level. The Actor will be created in the first level found."));
+					bShowedDifferentLevelMessage = true;
+				}
+
+				PivotLocation += MeshActor->GetActorLocation();
+
+				TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
+				MeshActor->GetComponents<UStaticMeshComponent>(ComponentArray);
+
+				bool bActorIsValid = false;
+				for (UStaticMeshComponent* MeshCmp : ComponentArray)
+				{
+					if (MeshCmp->GetStaticMesh() && MeshCmp->GetStaticMesh()->RenderData.IsValid())
+					{
+						bActorIsValid = true;
+						OutPrimitiveComponent.Add(MeshCmp);
+					}
+				}
+
+				//Actor needs at least one StaticMeshComponent to be considered valid
+				if (bActorIsValid)
+				{
+					OutValidActor.Add(MeshActor);
+				}
+			}
+		}
+
+		OutAverageLocation = PivotLocation / OutValidActor.Num();
+
+		return true;
+	}
+
+	FName GenerateValidOwnerBasedComponentNameForNewOwner(UStaticMeshComponent* OriginalComponent, AActor* NewOwner)
+	{
+		check(OriginalComponent);
+		check(OriginalComponent->GetOwner());
+		check(NewOwner);
+
+		//Find first valid name on new owner by incrementing internal index
+		FName NewName = OriginalComponent->GetOwner()->GetFName();
+		const int32 InitialNumber = NewName.GetNumber();
+		while (FindObjectFast<UObject>(NewOwner, NewName) != nullptr)
+		{
+			uint32 NextNumber = NewName.GetNumber();
+			if (NextNumber >= 0xfffffe)
+			{
+				NewName = NAME_None;
+				break;
+			}
+			++NextNumber;
+			NewName.SetNumber(NextNumber);
+		}
+
+		return NewName;
+	}
 }
 
 UStaticMeshEditorSubsystem::UStaticMeshEditorSubsystem()
@@ -157,9 +349,7 @@ int32 UStaticMeshEditorSubsystem::SetLodsWithNotification(UStaticMesh* StaticMes
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return -1;
 	}
@@ -246,9 +436,7 @@ int32 UStaticMeshEditorSubsystem::SetLodFromStaticMesh(UStaticMesh* DestinationS
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return -1;
 	}
@@ -451,9 +639,7 @@ int32 UStaticMeshEditorSubsystem::GetLodCount(UStaticMesh* StaticMesh)
 		return -1;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return -1;
 	}
@@ -472,9 +658,7 @@ bool UStaticMeshEditorSubsystem::RemoveLods(UStaticMesh* StaticMesh)
 		return false;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -518,9 +702,7 @@ TArray<float> UStaticMeshEditorSubsystem::GetLodScreenSizes(UStaticMesh* StaticM
 
 	TArray<float> ScreenSizes;
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return ScreenSizes;
 	}
@@ -558,9 +740,7 @@ int32 UStaticMeshEditorSubsystem::AddSimpleCollisionsWithNotification(UStaticMes
 		return INDEX_NONE;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return INDEX_NONE;
 	}
@@ -650,9 +830,7 @@ int32 UStaticMeshEditorSubsystem::GetSimpleCollisionCount(UStaticMesh* StaticMes
 		return -1;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return -1;
 	}
@@ -680,9 +858,7 @@ TEnumAsByte<ECollisionTraceFlag> UStaticMeshEditorSubsystem::GetCollisionComplex
 		return ECollisionTraceFlag::CTF_UseDefault;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return ECollisionTraceFlag::CTF_UseDefault;
 	}
@@ -705,9 +881,7 @@ int32 UStaticMeshEditorSubsystem::GetConvexCollisionCount(UStaticMesh* StaticMes
 		return -1;
 	}
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return -1;
 	}
@@ -727,9 +901,7 @@ bool UStaticMeshEditorSubsystem::BulkSetConvexDecompositionCollisionsWithNotific
 
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -850,9 +1022,7 @@ bool UStaticMeshEditorSubsystem::RemoveCollisionsWithNotification(UStaticMesh* S
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -908,9 +1078,7 @@ void UStaticMeshEditorSubsystem::EnableSectionCollision(UStaticMesh* StaticMesh,
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return;
 	}
@@ -948,9 +1116,7 @@ bool UStaticMeshEditorSubsystem::IsSectionCollisionEnabled(UStaticMesh* StaticMe
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -981,9 +1147,7 @@ void UStaticMeshEditorSubsystem::EnableSectionCastShadow(UStaticMesh* StaticMesh
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return;
 	}
@@ -1021,9 +1185,7 @@ bool UStaticMeshEditorSubsystem::HasVertexColors(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1060,9 +1222,7 @@ bool UStaticMeshEditorSubsystem::HasInstanceVertexColors(UStaticMeshComponent* S
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1088,9 +1248,7 @@ bool UStaticMeshEditorSubsystem::SetGenerateLightmapUVs(UStaticMesh* StaticMesh,
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1138,9 +1296,7 @@ int32 UStaticMeshEditorSubsystem::GetNumberVerts(UStaticMesh* StaticMesh, int32 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return 0;
 	}
@@ -1158,9 +1314,7 @@ int32 UStaticMeshEditorSubsystem::GetNumberMaterials(UStaticMesh* StaticMesh)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return 0;
 	}
@@ -1178,9 +1332,7 @@ void UStaticMeshEditorSubsystem::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return;
 	}
@@ -1200,9 +1352,7 @@ int32 UStaticMeshEditorSubsystem::GetNumUVChannels(UStaticMesh* StaticMesh, int3
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return 0;
 	}
@@ -1226,9 +1376,7 @@ bool UStaticMeshEditorSubsystem::AddUVChannel(UStaticMesh* StaticMesh, int32 LOD
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1258,9 +1406,7 @@ bool UStaticMeshEditorSubsystem::InsertUVChannel(UStaticMesh* StaticMesh, int32 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1297,9 +1443,7 @@ bool UStaticMeshEditorSubsystem::RemoveUVChannel(UStaticMesh* StaticMesh, int32 
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1336,9 +1480,7 @@ bool UStaticMeshEditorSubsystem::GeneratePlanarUVChannel(UStaticMesh* StaticMesh
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1362,9 +1504,7 @@ bool UStaticMeshEditorSubsystem::GenerateCylindricalUVChannel(UStaticMesh* Stati
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1388,9 +1528,7 @@ bool UStaticMeshEditorSubsystem::GenerateBoxUVChannel(UStaticMesh* StaticMesh, i
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
-	UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-
-	if (!EditorUtilitySubsystem || !EditorUtilitySubsystem->CheckIfInEditorAndPIE())
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
@@ -1408,6 +1546,415 @@ bool UStaticMeshEditorSubsystem::GenerateBoxUVChannel(UStaticMesh* StaticMesh, i
 	FStaticMeshOperations::GenerateBoxUV(*MeshDescription, UVParameters, TexCoords);
 
 	return StaticMesh->SetUVChannel(LODIndex, UVChannelIndex, TexCoords);
+}
+
+void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMaterials(const TArray<UMeshComponent*>& MeshComponents, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMaterials", "Replace components materials"));
+
+	int32 ChangeCounter = InternalEditorMeshLibrary::ReplaceMaterials(MeshComponents, MaterialToBeReplaced, NewMaterial);
+
+	if (ChangeCounter > 0)
+	{
+		// Redraw viewports to reflect the material changes
+		GEditor->RedrawLevelEditingViewports();
+	}
+
+	UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("ReplaceMeshComponentsMaterials. %d material(s) changed occurred."), ChangeCounter);
+}
+
+void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMaterialsOnActors(const TArray<AActor*>& Actors, UMaterialInterface* MaterialToBeReplaced, UMaterialInterface* NewMaterial)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceComponentUsedMaterial", "Replace components materials"));
+
+	int32 ChangeCounter = 0;
+	TInlineComponentArray<UMeshComponent*> ComponentArray;
+
+	for (AActor* Actor : Actors)
+	{
+		if (Actor && !Actor->IsPendingKill())
+		{
+			Actor->GetComponents(ComponentArray);
+			ChangeCounter += InternalEditorMeshLibrary::ReplaceMaterials(ComponentArray, MaterialToBeReplaced, NewMaterial);
+		}
+	}
+
+	if (ChangeCounter > 0)
+	{
+		// Redraw viewports to reflect the material changes
+		GEditor->RedrawLevelEditingViewports();
+	}
+
+	UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("ReplaceMeshComponentsMaterialsOnActors. %d material(s) changed occurred."), ChangeCounter);
+}
+
+
+void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMeshes(const TArray<UStaticMeshComponent*>& MeshComponents, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMeshes", "Replace components meshes"));
+
+	int32 ChangeCounter = InternalEditorMeshLibrary::ReplaceMeshes(MeshComponents, MeshToBeReplaced, NewMesh);
+
+	if (ChangeCounter > 0)
+	{
+		// Redraw viewports to reflect the material changes
+		GEditor->RedrawLevelEditingViewports();
+	}
+
+	UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("ReplaceMeshComponentsMeshes. %d mesh(es) changed occurred."), ChangeCounter);
+}
+
+void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMeshesOnActors(const TArray<AActor*>& Actors, UStaticMesh* MeshToBeReplaced, UStaticMesh* NewMesh)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return;
+	}
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("ReplaceMeshComponentsMeshes", "Replace components meshes"));
+
+	int32 ChangeCounter = 0;
+	TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
+
+	for (AActor* Actor : Actors)
+	{
+		if (Actor && !Actor->IsPendingKill())
+		{
+			Actor->GetComponents(ComponentArray);
+			ChangeCounter += InternalEditorMeshLibrary::ReplaceMeshes(ComponentArray, MeshToBeReplaced, NewMesh);
+		}
+	}
+
+	if (ChangeCounter > 0)
+	{
+		// Redraw viewports to reflect the material changes
+		GEditor->RedrawLevelEditingViewports();
+	}
+
+	UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("ReplaceMeshComponentsMeshesOnActors. %d mesh(es) changed occurred."), ChangeCounter);
+}
+
+AActor* UStaticMeshEditorSubsystem::JoinStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FJoinStaticMeshActorsOptions& JoinOptions)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return nullptr;
+	}
+
+	TArray<AStaticMeshActor*> AllActors;
+	TArray<UStaticMeshComponent*> AllComponents;
+	FVector PivotLocation;
+	FString FailureReason;
+	if (!InternalEditorMeshLibrary::FindValidActorAndComponents(ActorsToMerge, AllActors, AllComponents, PivotLocation, FailureReason))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("JoinStaticMeshActors failed. %s"), *FailureReason);
+		return nullptr;
+	}
+
+	if (AllActors.Num() < 2)
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("JoinStaticMeshActors failed. A merge operation requires at least 2 valid Actors."));
+		return nullptr;
+	}
+
+	// Create the new Actor
+	FActorSpawnParameters Params;
+	Params.OverrideLevel = AllActors[0]->GetLevel();
+	AActor* NewActor = AllActors[0]->GetWorld()->SpawnActor<AActor>(PivotLocation, FRotator::ZeroRotator, Params);
+	if (!NewActor)
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("JoinStaticMeshActors failed. Internal error while creating the join actor."));
+		return nullptr;
+	}
+
+	if (!JoinOptions.NewActorLabel.IsEmpty())
+	{
+		NewActor->SetActorLabel(JoinOptions.NewActorLabel);
+	}
+
+	// Duplicate and attach all components to the new actors
+	USceneComponent* NewRootComponent = NewObject<USceneComponent>(NewActor, TEXT("Root"));
+	NewActor->SetRootComponent(NewRootComponent);
+	NewRootComponent->SetMobility(EComponentMobility::Static);
+	for (UStaticMeshComponent* ActorCmp : AllComponents)
+	{
+		FName NewName = NAME_None;
+		if (JoinOptions.bRenameComponentsFromSource)
+		{
+			NewName = InternalEditorMeshLibrary::GenerateValidOwnerBasedComponentNameForNewOwner(ActorCmp, NewActor);
+		}
+
+		UStaticMeshComponent* NewComponent = DuplicateObject<UStaticMeshComponent>(ActorCmp, NewActor, NewName);
+		NewActor->AddInstanceComponent(NewComponent);
+		FTransform CmpTransform = ActorCmp->GetComponentToWorld();
+		NewComponent->SetComponentToWorld(CmpTransform);
+		NewComponent->AttachToComponent(NewRootComponent, FAttachmentTransformRules::KeepWorldTransform);
+		NewComponent->RegisterComponent();
+	}
+
+	if (JoinOptions.bDestroySourceActors)
+	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		UWorld* World = AllActors[0]->GetWorld();
+		for (AActor* Actor : AllActors)
+		{
+			Layers->DisassociateActorFromLayers(Actor);
+			World->EditorDestroyActor(Actor, true);
+		}
+	}
+
+	//Select newly created actor
+	GEditor->SelectNone(false, true, false);
+	GEditor->SelectActor(NewActor, true, false);
+	GEditor->NoteSelectionChange();
+
+	UE_LOG(LogStaticMeshEditorSubsystem, Log, TEXT("JoinStaticMeshActors joined %d actors toghether in actor '%s'."), AllComponents.Num(), *NewActor->GetActorLabel());
+	return NewActor;
+}
+
+bool UStaticMeshEditorSubsystem::MergeStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FMergeStaticMeshActorsOptions& MergeOptions, AStaticMeshActor*& OutMergedActor)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	OutMergedActor = nullptr;
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	FString PackageName = EditorScriptingHelpers::ConvertAnyPathToLongPackagePath(MergeOptions.BasePackageName, FailureReason);
+	if (PackageName.IsEmpty())
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("MergeStaticMeshActors. Failed to convert the BasePackageName. %s"), *FailureReason);
+		return false;
+	}
+
+	TArray<AStaticMeshActor*> AllActors;
+	TArray<UPrimitiveComponent*> AllComponents;
+	FVector PivotLocation;
+	if (!InternalEditorMeshLibrary::FindValidActorAndComponents(ActorsToMerge, AllActors, AllComponents, PivotLocation, FailureReason))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("MergeStaticMeshActors failed. %s"), *FailureReason);
+		return false;
+	}
+
+	//
+	// See MeshMergingTool.cpp
+	//
+	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+
+
+	FVector MergedActorLocation;
+	TArray<UObject*> CreatedAssets;
+	const float ScreenAreaSize = TNumericLimits<float>::Max();
+	MeshUtilities.MergeComponentsToStaticMesh(AllComponents, AllActors[0]->GetWorld(), MergeOptions.MeshMergingSettings, nullptr, nullptr, PackageName, CreatedAssets, MergedActorLocation, ScreenAreaSize, true);
+
+	UStaticMesh* MergedMesh = nullptr;
+	if (!CreatedAssets.FindItemByClass(&MergedMesh))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("MergeStaticMeshActors failed. No mesh was created."));
+		return false;
+	}
+
+	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	for (UObject* Obj : CreatedAssets)
+	{
+		AssetRegistry.AssetCreated(Obj);
+	}
+
+	//Also notify the content browser that the new assets exists
+	if (!IsRunningCommandlet())
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedAssets, true);
+	}
+
+	// Place new mesh in the world
+	if (MergeOptions.bSpawnMergedActor)
+	{
+		FActorSpawnParameters Params;
+		Params.OverrideLevel = AllActors[0]->GetLevel();
+		OutMergedActor = AllActors[0]->GetWorld()->SpawnActor<AStaticMeshActor>(MergedActorLocation, FRotator::ZeroRotator, Params);
+		if (!OutMergedActor)
+		{
+			UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("MergeStaticMeshActors failed. Internal error while creating the merged actor."));
+			return false;
+		}
+
+		OutMergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
+		OutMergedActor->SetActorLabel(MergeOptions.NewActorLabel);
+		AllActors[0]->GetWorld()->UpdateCullDistanceVolumes(OutMergedActor, OutMergedActor->GetStaticMeshComponent());
+	}
+
+	// Remove source actors
+	if (MergeOptions.bDestroySourceActors)
+	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		UWorld* World = AllActors[0]->GetWorld();
+		for (AActor* Actor : AllActors)
+		{
+			Layers->DisassociateActorFromLayers(Actor);
+			World->EditorDestroyActor(Actor, true);
+		}
+	}
+
+	//Select newly created actor
+	GEditor->SelectNone(false, true, false);
+	GEditor->SelectActor(OutMergedActor, true, false);
+	GEditor->NoteSelectionChange();
+
+	return true;
+}
+
+bool UStaticMeshEditorSubsystem::CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor)
+{
+	// See FMeshProxyTool::RunMerge (Engine\Source\Editor\MergeActors\Private\MeshProxyTool\MeshProxyTool.cpp)
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	OutMergedActor = nullptr;
+
+	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
+	{
+		return false;
+	}
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	FString PackageName = EditorScriptingHelpers::ConvertAnyPathToLongPackagePath(MergeOptions.BasePackageName, FailureReason);
+	if (PackageName.IsEmpty())
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("CreateProxyMeshActor. Failed to convert the BasePackageName. %s"), *FailureReason);
+		return false;
+	}
+
+	// Cleanup actors
+	TArray<AStaticMeshActor*> StaticMeshActors;
+	TArray<UPrimitiveComponent*> AllComponents_UNUSED;
+	FVector PivotLocation;
+	if (!InternalEditorMeshLibrary::FindValidActorAndComponents(ActorsToMerge, StaticMeshActors, AllComponents_UNUSED, PivotLocation, FailureReason))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("CreateProxyMeshActor failed. %s"), *FailureReason);
+		return false;
+	}
+	TArray<AActor*> AllActors(StaticMeshActors);
+
+	const IMeshMergeUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+
+	FCreateProxyDelegate ProxyDelegate;
+	TArray<UObject*> CreatedAssets;
+	ProxyDelegate.BindLambda([&CreatedAssets](const FGuid Guid, TArray<UObject*>& InAssetsToSync) {CreatedAssets.Append(InAssetsToSync); });
+
+	MeshUtilities.CreateProxyMesh(
+		AllActors,                      // List of Actors to merge
+		MergeOptions.MeshProxySettings, // Merge settings
+		nullptr,                        // Base Material used for final proxy material. Note: nullptr for default impl: /Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial
+		nullptr,                        // Package for generated assets. Note: if nullptr, BasePackageName is used
+		PackageName,                    // Will be used for naming generated assets, in case InOuter is not specified ProxyBasePackageName will be used as long package name for creating new packages
+		FGuid::NewGuid(),               // Identify a job, First argument of the ProxyDelegate
+		ProxyDelegate                   // Called back on asset creation
+	);
+
+	UStaticMesh* MergedMesh = nullptr;
+	if (!CreatedAssets.FindItemByClass(&MergedMesh))
+	{
+		UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("CreateProxyMeshActor failed. No mesh created."));
+		return false;
+	}
+
+	// Update the asset registry that a new static mesh and material has been created
+	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	for (UObject* Asset : CreatedAssets)
+	{
+		AssetRegistry.AssetCreated(Asset);
+		GEditor->BroadcastObjectReimported(Asset);
+	}
+
+	// Also notify the content browser that the new assets exists
+	if (!IsRunningCommandlet())
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedAssets, true);
+	}
+
+	// Place new mesh in the world
+	UWorld* ActorWorld = AllActors[0]->GetWorld();
+	ULevel* ActorLevel = AllActors[0]->GetLevel();
+	if (MergeOptions.bSpawnMergedActor)
+	{
+		FActorSpawnParameters Params;
+		Params.OverrideLevel = ActorLevel;
+		OutMergedActor = ActorWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
+		if (!OutMergedActor)
+		{
+			UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("CreateProxyMeshActor failed. Internal error while creating the merged actor."));
+			return false;
+		}
+
+		OutMergedActor->GetStaticMeshComponent()->SetStaticMesh(MergedMesh);
+		OutMergedActor->SetActorLabel(MergeOptions.NewActorLabel);
+		ActorWorld->UpdateCullDistanceVolumes(OutMergedActor, OutMergedActor->GetStaticMeshComponent());
+	}
+
+	// Remove source actors
+	if (MergeOptions.bDestroySourceActors)
+	{
+		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		for (AActor* Actor : AllActors)
+		{
+			Layers->DisassociateActorFromLayers(Actor);
+			ActorWorld->EditorDestroyActor(Actor, true);
+		}
+	}
+
+	//Select newly created actor
+	if (OutMergedActor)
+	{
+		GEditor->SelectNone(false, true, false);
+		GEditor->SelectActor(OutMergedActor, true, false); // don't notify but manually call NoteSelectionChange ?
+		GEditor->NoteSelectionChange();
+	}
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

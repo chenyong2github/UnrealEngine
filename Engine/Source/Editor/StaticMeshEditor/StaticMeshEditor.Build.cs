@@ -41,7 +41,6 @@ public class StaticMeshEditor : ModuleRules
                 "DesktopPlatform",
                 "DesktopWidgets",
 				"EditorSubsystem",
-				"Blutility",
 				"MeshDescription",
 				"StaticMeshDescription"
 			}
