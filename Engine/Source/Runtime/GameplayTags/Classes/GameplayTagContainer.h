@@ -580,6 +580,9 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	/** Returns abbreviated human readable Tag list without parens or property names. If bQuoted is true it will quote each tag */
 	FString ToStringSimple(bool bQuoted = false) const;
 
+	/** Returns abbreviated human readable Tag list without parens or property names, but will limit each string to specified len.  This is to get around output restrictions*/
+	TArray<FString> ToStringsMaxLen(int32 MaxLen) const;
+
 	/** Returns human readable description of what match is being looked for on the readable tag list. */
 	FText ToMatchingText(EGameplayContainerMatchType MatchType, bool bInvertCondition) const;
 
