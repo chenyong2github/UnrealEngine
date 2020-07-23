@@ -288,8 +288,7 @@ namespace Metasound
 
 		FSlateIcon FEditor::GetImportStatusImage() const
 		{
-			// TODO: Get/register import image
-			const FName IconName = "MetasoundEditor.Export";
+			const FName IconName = "MetasoundEditor.Import";
 			return FSlateIcon("MetasoundStyle", IconName);
 		}
 
