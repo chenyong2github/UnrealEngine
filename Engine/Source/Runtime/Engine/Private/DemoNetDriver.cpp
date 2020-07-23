@@ -4639,6 +4639,11 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 		if (HasLevelStreamingFixes())
 		{
+			if (!ensureMsgf(RollbackActor.Level, TEXT("RespawnNecessaryNetStartupActors: Rollback actor level is nullptr: %s"), *RollbackActor.Name.ToString()))
+			{
+				continue;
+			}
+
 			const FString LevelPackageName = GetLevelPackageName(*RollbackActor.Level);
 
 			// skip rollback actors in streamed out levels (pending gc)
