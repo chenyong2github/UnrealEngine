@@ -49,7 +49,7 @@ struct TExtremePoints3
 		}
 
 		FVector3<RealType> Min = GetPointFunc(FirstPtIdx), Max = GetPointFunc(FirstPtIdx);
-		FIndex3i IndexMin(0, 0, 0), IndexMax(0, 0, 0);
+		FIndex3i IndexMin(FirstPtIdx, FirstPtIdx, FirstPtIdx), IndexMax(FirstPtIdx, FirstPtIdx, FirstPtIdx);
 		for (int Idx = FirstPtIdx + 1; Idx < NumPoints; Idx++)
 		{
 			if (!FilterFunc(Idx))
@@ -102,7 +102,7 @@ struct TExtremePoints3
 		{
 			TLine3<RealType> Basis0Line(Origin, Basis[0]);
 			RealType MaxDistSq = 0;
-			for (int Idx = 0; Idx < NumPoints; Idx++)
+			for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
 			{
 				if (!FilterFunc(Idx))
 				{
@@ -135,7 +135,7 @@ struct TExtremePoints3
 		{
 			TPlane3<RealType> Plane(Basis[2], Origin);
 			RealType MaxDist = 0, MaxSign = 0;
-			for (int Idx = 0; Idx < NumPoints; Idx++)
+			for (int Idx = FirstPtIdx; Idx < NumPoints; Idx++)
 			{
 				if (!FilterFunc(Idx))
 				{
