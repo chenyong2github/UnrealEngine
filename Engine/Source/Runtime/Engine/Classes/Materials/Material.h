@@ -1629,6 +1629,8 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
+	/* Returns any UMaterialExpressionFunctionOutput expressions */
+	ENGINE_API void GetAllFunctionOutputExpressions(TArray<class UMaterialExpressionFunctionOutput*>& OutFunctionOutputs) const;
 	/* Returns any UMaterialExpressionCustomOutput expressions */
 	ENGINE_API void GetAllCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const;
 	ENGINE_API void GetAllExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const;
