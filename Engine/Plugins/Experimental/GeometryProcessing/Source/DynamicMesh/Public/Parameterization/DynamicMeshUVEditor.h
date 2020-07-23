@@ -44,6 +44,17 @@ public:
 	void CreateUVLayer(int32 UVLayerIndex);
 
 	/**
+	 * Create new UV island for each Triangle, by planar projection onto plane of Triangle. No transforms/etc are applied.
+	 */
+	void SetPerTriangleUVs(const TArray<int32>& Triangles, double ScaleFactor = 1.0, FUVEditResult* Result = nullptr);
+
+	/**
+	 * Create new UV island for given Triangles, and set UVs by planar projection to ProjectionFrame. No transforms/etc are applied.
+	 */
+	void SetPerTriangleUVs(double ScaleFactor = 1.0, FUVEditResult* Result = nullptr);
+
+
+	/**
 	 * Create new UV island for given Triangles, and set UVs by planar projection to ProjectionFrame. No transforms/etc are applied.
 	 */
 	void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, FUVEditResult* Result = nullptr);
