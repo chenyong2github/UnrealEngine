@@ -1256,8 +1256,10 @@ struct FRHICommandSetComputePipelineState final : public FRHICommand<FRHICommand
 FRHICOMMAND_MACRO(FRHICommandSetGraphicsPipelineState)
 {
 	FGraphicsPipelineState* GraphicsPipelineState;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineState(FGraphicsPipelineState* InGraphicsPipelineState)
+	bool bApplyAdditionalState;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineState(FGraphicsPipelineState* InGraphicsPipelineState, bool bInApplyAdditionalState)
 		: GraphicsPipelineState(InGraphicsPipelineState)
+		, bApplyAdditionalState(bInApplyAdditionalState)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3124,7 +3126,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBindClearMRTValues)(bClearColor, bClearDepth, bClearStencil);
 	}	
 
-	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput)
+	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput, bool bApplyAdditionalState)
 	{
 		//check(IsOutsideRenderPass());
 		BoundShaderInput = ShaderInput;
@@ -3132,10 +3134,10 @@ public:
 		{
 			extern RHI_API FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState);
 			FRHIGraphicsPipelineState* RHIGraphicsPipelineState = ExecuteSetGraphicsPipelineState(GraphicsPipelineState);
-			GetContext().RHISetGraphicsPipelineState(RHIGraphicsPipelineState);
+			GetContext().RHISetGraphicsPipelineState(RHIGraphicsPipelineState, bApplyAdditionalState);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState);
+		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState, bApplyAdditionalState);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
