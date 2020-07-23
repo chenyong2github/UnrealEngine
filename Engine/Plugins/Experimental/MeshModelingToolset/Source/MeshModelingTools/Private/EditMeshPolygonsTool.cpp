@@ -124,11 +124,11 @@ void UEditMeshPolygonsTool::Setup()
 
 
 	// add properties
-	TransformProps = NewObject<UPolyEditTransformProperties>(this);
-	AddToolPropertySource(TransformProps);
-	TransformProps->WatchProperty(TransformProps->LocalFrameMode,
+	CommonProps = NewObject<UPolyEditCommonProperties>(this);
+	AddToolPropertySource(CommonProps);
+	CommonProps->WatchProperty(CommonProps->LocalFrameMode,
 								  [this](ELocalFrameMode) { UpdateMultiTransformerFrame(); });
-	TransformProps->WatchProperty(TransformProps->bLockRotation,
+	CommonProps->WatchProperty(CommonProps->bLockRotation,
 								  [this](bool)
 								  {
 									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
@@ -166,7 +166,7 @@ void UEditMeshPolygonsTool::Setup()
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
 	MultiTransformer->SetSnapToWorldGridSourceFunc([this]() {
-		return TransformProps->bSnapToWorldGrid
+		return CommonProps->bSnapToWorldGrid
 			&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World;
 	});
 	MultiTransformer->SetGizmoVisibility(false);
@@ -279,7 +279,7 @@ void UEditMeshPolygonsTool::RegisterActions(FInteractiveToolActionSet& ActionSet
 		LOCTEXT("ToggleLockRotationUIName", "Lock Rotation"),
 		LOCTEXT("ToggleLockRotationTooltip", "Toggle Frame Rotation Lock on and off"),
 		EModifierKey::None, EKeys::Q,
-		[this]() { TransformProps->bLockRotation = !TransformProps->bLockRotation; });
+		[this]() { CommonProps->bLockRotation = !CommonProps->bLockRotation; });
 }
 
 
@@ -401,7 +401,7 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 	FFrame3d SetFrame = LastTransformerFrame;
 	if (UseFrame == nullptr)
 	{
-		if (TransformProps->LocalFrameMode == ELocalFrameMode::FromGeometry)
+		if (CommonProps->LocalFrameMode == ELocalFrameMode::FromGeometry)
 		{
 			SetFrame = LastGeometryFrame;
 		}
@@ -415,7 +415,7 @@ void UEditMeshPolygonsTool::UpdateMultiTransformerFrame(const FFrame3d* UseFrame
 		SetFrame = *UseFrame;
 	}
 
-	if (TransformProps->bLockRotation)
+	if (CommonProps->bLockRotation)
 	{
 		SetFrame.Rotation = LockedTransfomerFrame.Rotation;
 	}
@@ -774,6 +774,7 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 		[this]() { return &GetSpatial(); },
 		[this]() { return GetShiftToggle(); }
 		);
+	SelectionMechanic->SetShouldSelectEdgeLoopsFunc([this]() { return CommonProps->bSelectEdgeLoops; });
 
 	LinearDeformer.Initialize(Mesh, Topology.Get());
 }
@@ -784,7 +785,7 @@ void UEditMeshPolygonsTool::PrecomputeTopology()
 void UEditMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
-	DynamicMeshComponent->bExplicitShowWireframe = TransformProps->bShowWireframe;
+	DynamicMeshComponent->bExplicitShowWireframe = CommonProps->bShowWireframe;
 
 	SelectionMechanic->Render(RenderAPI);
 
@@ -929,7 +930,7 @@ void UEditMeshPolygonsTool::BeginExtrude(bool bIsNormalOffset)
 	};
 	ExtrudeHeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
-		return TransformProps->bSnapToWorldGrid && ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
+		return CommonProps->bSnapToWorldGrid && ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
 	};
 	ExtrudeHeightMechanic->CurrentHeight = 1.0f;  // initialize to something non-zero...prob should be based on polygon bounds maybe?
 
@@ -1032,7 +1033,7 @@ void UEditMeshPolygonsTool::BeginInset(bool bOutset)
 	CurveDistMechanic->Setup(this);
 	CurveDistMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{
-		return TransformProps->bSnapToWorldGrid && ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
+		return CommonProps->bSnapToWorldGrid && ToolSceneQueriesUtil::FindWorldGridSnapPoint(this, WorldPos, SnapPos);
 	};
 	CurveDistMechanic->CurrentDistance = 1.0f;  // initialize to something non-zero...prob should be based on polygon bounds maybe?
 

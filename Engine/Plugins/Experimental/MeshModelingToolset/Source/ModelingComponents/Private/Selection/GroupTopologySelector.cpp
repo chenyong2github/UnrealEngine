@@ -6,9 +6,10 @@
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
 
-// Local utility function forward declaration
+// Local utility function forward declarations
 bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial);
-
+void AddNewEdgeLoopEdgesFromCorner(const FGroupTopology& Topology, int32 EdgeID, int32 CornerID, TSet<int32>& EdgeSet);
+bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, int32 CornerID, int32& NextEdgeIDOut);
 
 FGroupTopologySelector::FGroupTopologySelector()
 {
@@ -522,6 +523,114 @@ bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& 
 	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
 	{
 		return true;
+	}
+	return false;
+}
+
+
+bool FGroupTopologySelector::ExpandSelectionByEdgeLoops(FGroupTopologySelection& Selection)
+{
+	TSet<int32> EdgeSet(Selection.SelectedEdgeIDs);
+	int32 OriginalNumEdges = Selection.SelectedEdgeIDs.Num();
+	for (int32 Eid : Selection.SelectedEdgeIDs)
+	{
+		const FGroupTopology::FGroupEdge& Edge = Topology->Edges[Eid];
+		if (Edge.EndpointCorners[0] == IndexConstants::InvalidID)
+		{
+			continue; // This FGroupEdge is a loop unto itself (and already in our selection, since we're looking at it).
+		}
+
+		// Go forward and backward adding edges
+		AddNewEdgeLoopEdgesFromCorner(*Topology, Eid, Edge.EndpointCorners[0], EdgeSet);
+		AddNewEdgeLoopEdgesFromCorner(*Topology, Eid, Edge.EndpointCorners[1], EdgeSet);
+	}
+
+	if (EdgeSet.Num() > OriginalNumEdges)
+	{
+		for (int32 EdgeID : EdgeSet)
+		{
+			Selection.SelectedEdgeIDs.AddUnique(EdgeID);
+		}
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void AddNewEdgeLoopEdgesFromCorner(const FGroupTopology& Topology, int32 EdgeID, int32 CornerID, TSet<int32>& EdgeSet)
+{
+	const FGroupTopology::FCorner& CurrentCorner = Topology.Corners[CornerID];
+
+	int32 LastCornerID = CornerID;
+	int32 LastEdgeID = EdgeID;
+	while (true)
+	{
+		int32 NextEid;
+		if (!GetNextEdgeLoopEdge(Topology, LastEdgeID, LastCornerID, NextEid))
+		{
+			break; // Probably not a valence 4 corner
+		}
+		if (EdgeSet.Contains(NextEid))
+		{
+			break; // Either we finished the loop, or we'll continue it from another selection
+		}
+
+		EdgeSet.Add(NextEid);
+
+		LastEdgeID = NextEid;
+		const FGroupTopology::FGroupEdge& LastEdge = Topology.Edges[LastEdgeID];
+		LastCornerID = LastEdge.EndpointCorners[0] == LastCornerID ? LastEdge.EndpointCorners[1] : LastEdge.EndpointCorners[0];
+
+		check(LastCornerID != IndexConstants::InvalidID);
+	}
+}
+
+bool GetNextEdgeLoopEdge(const FGroupTopology& Topology, int32 IncomingEdgeID, int32 CornerID, int32& NextEdgeIDOut)
+{
+	// It's worth noting that the approach here breaks down in pathological cases where the same group is present
+	// multiple times around a corner (i.e. the group is not contiguous, and separate islands share a corner).
+	// It's not practical to worry about those cases.
+
+	NextEdgeIDOut = IndexConstants::InvalidID;
+	const FGroupTopology::FCorner& CurrentCorner = Topology.Corners[CornerID];
+
+	if (CurrentCorner.NeighbourGroupIDs.Num() != 4)
+	{
+		return false; // Not a valence 4 corner
+	}
+
+	const FGroupTopology::FGroupEdge& IncomingEdge = Topology.Edges[IncomingEdgeID];
+
+	// We want to find the edge that shares this corner but does not border either of the neighboring groups of
+	// the incoming edge.
+
+	for (int32 Gid : CurrentCorner.NeighbourGroupIDs)
+	{
+		if (Gid == IncomingEdge.Groups[0] || Gid == IncomingEdge.Groups[1])
+		{
+			continue; // This is one of the neighboring groups of the incoming edge
+		}
+
+		// Iterate through all edges of group
+		const FGroupTopology::FGroup* Group = Topology.FindGroupByID(Gid);
+		for (const FGroupTopology::FGroupBoundary& Boundary : Group->Boundaries)
+		{
+			for (int32 Eid : Boundary.GroupEdges)
+			{
+				const FGroupTopology::FGroupEdge& CandidateEdge = Topology.Edges[Eid];
+
+				// Edge must share corner but not neighboring groups
+				if ((CandidateEdge.EndpointCorners[0] == CornerID || CandidateEdge.EndpointCorners[1] == CornerID)
+					&& CandidateEdge.Groups[0] != IncomingEdge.Groups[0] && CandidateEdge.Groups[0] != IncomingEdge.Groups[1]
+					&& CandidateEdge.Groups[1] != IncomingEdge.Groups[0] && CandidateEdge.Groups[1] != IncomingEdge.Groups[1])
+				{
+					NextEdgeIDOut = Eid;
+					return true;
+				}
+			}
+		}
 	}
 	return false;
 }
