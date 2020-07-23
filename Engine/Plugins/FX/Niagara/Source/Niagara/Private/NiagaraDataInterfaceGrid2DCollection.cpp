@@ -210,6 +210,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 // for sharing an instance data object with the super class
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetWorldBBoxSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetCellSize);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells);
 void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
@@ -226,6 +227,13 @@ void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExter
 		// it would be nice to refactor this so it can be part of the super class
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetCellSize)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == NumCellsFunctionName) 
+	{ 
+		// #todo(dmp): this will override the base class definition for GetCellSize because the data interface instance data computes cell size
+		// it would be nice to refactor this so it can be part of the super class
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == GetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == SetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
@@ -753,6 +761,19 @@ void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMContext& Contex
 	{	
 		*OutCellSizeX.GetDestAndAdvance() = InstData->CellSize.X;
 		*OutCellSizeY.GetDestAndAdvance() = InstData->CellSize.Y;
+	}
+}
+
+void UNiagaraDataInterfaceGrid2DCollection::GetNumCells(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
+	VectorVM::FExternalFuncRegisterHandler<int> OutNumCellsX(Context);
+	VectorVM::FExternalFuncRegisterHandler<int> OutNumCellsY(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		*OutNumCellsX.GetDestAndAdvance() = InstData->NumCells.X;
+		*OutNumCellsY.GetDestAndAdvance() = InstData->NumCells.Y;
 	}
 }
 
