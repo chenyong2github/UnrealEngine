@@ -4897,7 +4897,7 @@ void FEngineLoop::Tick()
 
 		const UGameViewportClient* const GameViewport = GEngine->GameViewport;
 		const UWorld* const GameViewportWorld = GameViewport ? GameViewport->GetWorld() : nullptr;
-		UDemoNetDriver* const CurrentDemoNetDriver = GameViewportWorld ? GameViewportWorld->DemoNetDriver : nullptr;
+		UDemoNetDriver* const CurrentDemoNetDriver = GameViewportWorld ? GameViewportWorld->GetDemoNetDriver() : nullptr;
 
 		// Optionally validate that Slate has not modified any replicated properties for client replay recording.
 		FDemoSavedPropertyState PreSlateObjectStates;

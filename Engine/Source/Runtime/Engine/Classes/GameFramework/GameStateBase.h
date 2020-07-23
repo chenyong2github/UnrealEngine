@@ -167,6 +167,7 @@ private:
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
 
 	friend class UDemoNetDriver;
+	friend class FReplayHelper;
 };
 
 

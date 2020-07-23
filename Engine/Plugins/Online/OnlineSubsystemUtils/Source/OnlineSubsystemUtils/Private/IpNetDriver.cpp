@@ -1393,7 +1393,7 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 {
 	UNetConnection* ReturnVal = nullptr;
 	TSharedPtr<StatelessConnectHandlerComponent> StatelessConnect;
-	const TSharedPtr<FInternetAddr>& Address = PacketRef.Address;
+	const TSharedPtr<const FInternetAddr>& Address = PacketRef.Address;
 	FString IncomingAddress = Address->ToString(true);
 	bool bPassedChallenge = false;
 	bool bRestartedHandshake = false;
@@ -1721,20 +1721,22 @@ void UIpNetDriver::TestSuddenPortChange(uint32 NumConnections)
 			// Reset the connection's port to pretend that we used to be sending traffic on an old connection. This is
 			// done because once the test is complete, we need to be back onto the port we started with. This
 			// fakes what happens in live with clients randomly sending traffic on a new port.
-			UIpConnection* const TestConnection = (UIpConnection*)ClientConnections[i];
-			TSharedRef<FInternetAddr> RemoteAddrRef = TestConnection->RemoteAddr.ToSharedRef();
+			if (UIpConnection* const TestConnection = Cast<UIpConnection>(ClientConnections[i]))
+			{
+				TSharedRef<FInternetAddr> RemoteAddrRef = TestConnection->RemoteAddr.ToSharedRef();
 
-			MappedClientConnections.Remove(RemoteAddrRef);
+				MappedClientConnections.Remove(RemoteAddrRef);
 
-			TestConnection->RemoteAddr->SetPort(i + 9876);
+				TestConnection->RemoteAddr->SetPort(i + 9876);
 
-			MappedClientConnections.Add(RemoteAddrRef, TestConnection);
+				MappedClientConnections.Add(RemoteAddrRef, TestConnection);
 
-			// We need to set AllowPlayerPortUnreach to true because the net driver will try sending traffic
-			// to the IP/Port we just set which is invalid. On Windows, this causes an error to be returned in
-			// RecvFrom (WSAECONNRESET). When AllowPlayerPortUnreach is true, these errors are ignored.
-			AllowPlayerPortUnreach = true;
-			UE_LOG(LogNet, Log, TEXT("TestSuddenPortChange - Changed this connection: %s."), *TestConnection->Describe());
+				// We need to set AllowPlayerPortUnreach to true because the net driver will try sending traffic
+				// to the IP/Port we just set which is invalid. On Windows, this causes an error to be returned in
+				// RecvFrom (WSAECONNRESET). When AllowPlayerPortUnreach is true, these errors are ignored.
+				AllowPlayerPortUnreach = true;
+				UE_LOG(LogNet, Log, TEXT("TestSuddenPortChange - Changed this connection: %s."), *TestConnection->Describe());
+			}
 		}
 	}
 }
@@ -1756,7 +1758,7 @@ bool UIpNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 
 UIpConnection* UIpNetDriver::GetServerConnection() 
 {
-	return (UIpConnection*)ServerConnection;
+	return Cast<UIpConnection>(ServerConnection);
 }
 
 UIpNetDriver::FReceiveThreadRunnable::FReceiveThreadRunnable(UIpNetDriver* InOwningNetDriver)

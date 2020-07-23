@@ -1166,19 +1166,21 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 
 	IRepChangedPropertyTracker* const ActorChangedPropertyTracker = NetDriver->FindOrCreateRepChangedPropertyTracker(this).Get();
 
-	// PreReplication is only called on the server, except when we're recording a Client Replay.
-	// In that case we call PreReplication on the locally controlled Character as well.
 	const ENetRole LocalRole = GetLocalRole();
-	if ((LocalRole == ROLE_Authority) || ((LocalRole == ROLE_AutonomousProxy) && GetWorld()->IsRecordingClientReplay()))
+	
+	// client replay + autonomous proxy check removed, we already swap the role when recording
+	if (LocalRole == ROLE_Authority) 
 	{
 		PreReplication(*ActorChangedPropertyTracker);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// If we're recording a replay, call this for everyone (includes SimulatedProxies).
 	if (ActorChangedPropertyTracker->IsReplay())
 	{
 		PreReplicationForReplay(*ActorChangedPropertyTracker);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Call PreReplication on all owned components that are replicated
 	for (UActorComponent* Component : ReplicatedComponents)
@@ -2067,10 +2069,12 @@ void AActor::ForceNetUpdate()
 	}
 	
 	// Even if not authority, still need to ForceNetUpdate on the demo net driver
-	UWorld* MyWorld = GetWorld();
-	if (MyWorld && MyWorld->DemoNetDriver)
+	if (UWorld* MyWorld = GetWorld())
 	{
-		MyWorld->DemoNetDriver->ForceNetUpdate(this);
+		if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
+		{
+			DemoNetDriver->ForceNetUpdate(this);
+		}
 	}
 }
 
@@ -2116,9 +2120,12 @@ void AActor::SetNetDormancy(ENetDormancy NewDormancy)
 
 			NetDriver->FlushActorDormancy(this);
 
-			if (MyWorld->DemoNetDriver && MyWorld->DemoNetDriver != NetDriver)
+			if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
 			{
-				MyWorld->DemoNetDriver->FlushActorDormancy(this);
+				if (DemoNetDriver != NetDriver)
+				{
+					DemoNetDriver->FlushActorDormancy(this);
+				}
 			}
 		}
 	}
@@ -2159,9 +2166,12 @@ void AActor::FlushNetDormancy()
 		{
 			NetDriver->FlushActorDormancy(this);
 
-			if (MyWorld->DemoNetDriver && MyWorld->DemoNetDriver != NetDriver)
+			if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
 			{
-				MyWorld->DemoNetDriver->FlushActorDormancy(this, bWasDormInitial);
+				if (DemoNetDriver != NetDriver)
+				{
+					DemoNetDriver->FlushActorDormancy(this, bWasDormInitial);
+				}
 			}
 		}
 	}
@@ -2187,9 +2197,12 @@ void AActor::ForcePropertyCompare()
 	{
 		NetDriver->ForcePropertyCompare( this );
 
-		if ( MyWorld->DemoNetDriver && MyWorld->DemoNetDriver != NetDriver )
+		if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
 		{
-			MyWorld->DemoNetDriver->ForcePropertyCompare( this );
+			if (DemoNetDriver != NetDriver)
+			{
+				DemoNetDriver->ForcePropertyCompare(this);
+			}
 		}
 	}
 }
@@ -4103,9 +4116,9 @@ ENetMode AActor::InternalGetNetMode() const
 		return NetDriver->GetNetMode();
 	}
 
-	if (World != nullptr && World->DemoNetDriver != nullptr)
+	if (UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr)
 	{
-		return World->DemoNetDriver->GetNetMode();
+		return DemoNetDriver->GetNetMode();
 	}
 
 	return NM_Standalone;
@@ -5047,6 +5060,7 @@ float AActor::GetGameTimeSinceCreation() const
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void AActor::SetNetUpdateTime( float NewUpdateTime )
 {
 	if ( FNetworkObjectInfo* NetActor = FindNetworkObjectInfo() )
@@ -5055,6 +5069,7 @@ void AActor::SetNetUpdateTime( float NewUpdateTime )
 		NetActor->NextUpdateTime = FMath::Min( NetActor->NextUpdateTime, (double)NewUpdateTime );
 	}			
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FNetworkObjectInfo* AActor::FindOrAddNetworkObjectInfo()
 {
@@ -5093,9 +5108,9 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 			NetDriver->NotifyActorRenamed(this, OldName);
 		}
 
-		if (World->DemoNetDriver)
+		if (UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver())
 		{
-			World->DemoNetDriver->NotifyActorRenamed(this, OldName);
+			DemoNetDriver->NotifyActorRenamed(this, OldName);
 		}
 	}
 }

@@ -795,7 +795,7 @@ void UPackageMapClient::InternalWriteObject( FArchive & Ar, FNetworkGUID NetGUID
 			}
 		}
 
-		GEngine->NetworkRemapPath(Connection->Driver, ObjectPathName, false);
+		GEngine->NetworkRemapPath(Connection, ObjectPathName, false);
 
 		// Serialize Name of object
 		Ar << ObjectPathName;
@@ -975,7 +975,7 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 		}
 
 		// Remap name for PIE
-		GEngine->NetworkRemapPath( Connection->Driver, PathName, true );
+		GEngine->NetworkRemapPath( Connection, PathName, true );
 
 		if (NetGUID.IsDefault())
 		{
@@ -1439,7 +1439,7 @@ void UPackageMapClient::SerializeNetFieldExportGroupMap( FArchive& Ar, bool bCle
 			// Read in the export group
 			Ar << *NetFieldExportGroup.Get();
 
-			GEngine->NetworkRemapPath(Connection->Driver, NetFieldExportGroup->PathName, true);
+			GEngine->NetworkRemapPath(Connection, NetFieldExportGroup->PathName, true);
 
 			// Assign index to path name
 			GuidCache->NetFieldExportGroupPathToIndex.Add( NetFieldExportGroup->PathName, NetFieldExportGroup->PathNameIndex );
@@ -1612,7 +1612,7 @@ void UPackageMapClient::ReceiveNetFieldExportsCompat(FInBunch &InBunch)
 				break;
 			}
 
-			GEngine->NetworkRemapPath(Connection->Driver, PathName, true);
+			GEngine->NetworkRemapPath(Connection, PathName, true);
 
 			NetFieldExportGroup = GuidCache->NetFieldExportGroupMap.FindRef(PathName).Get();
 			if (!NetFieldExportGroup)
@@ -1691,7 +1691,7 @@ void UPackageMapClient::ReceiveNetFieldExports(FArchive& Archive)
 			Archive << PathName;
 			Archive.SerializeIntPacked(NumExports);
 
-			GEngine->NetworkRemapPath(Connection->Driver, PathName, true);
+			GEngine->NetworkRemapPath(Connection, PathName, true);
 
 			NetFieldExportGroup = GuidCache->NetFieldExportGroupMap.FindRef(PathName).Get();
 			if (!NetFieldExportGroup)

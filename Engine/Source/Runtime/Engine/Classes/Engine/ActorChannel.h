@@ -20,6 +20,7 @@ enum class ESetChannelActorFlags : uint32
 {
 	None					= 0,
 	SkipReplicatorCreation	= (1 << 0),
+	SkipMarkActive			= (1 << 1),
 };
 
 ENUM_CLASS_FLAGS(ESetChannelActorFlags);
@@ -55,11 +56,11 @@ ENUM_CLASS_FLAGS(ESetChannelActorFlags);
  * +----------------------+---------------------------------------------------------------------------+
  */
 UCLASS(transient, customConstructor)
-class ENGINE_API UActorChannel
-	: public UChannel
+class ENGINE_API UActorChannel : public UChannel
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
+public:
 	friend class FObjectReplicator;
 
 	// Variables.
@@ -144,8 +145,6 @@ public:
 	virtual void ReceivedNak( int32 NakPacketId ) override;
 	virtual int64 Close(EChannelCloseReason Reason) override;
 	virtual FString Describe() override;
-
-public:
 
 	/** UActorChannel interface and accessors. */
 	AActor* GetActor() {return Actor;}

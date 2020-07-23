@@ -342,6 +342,9 @@ FWorldDelegates::FWorldEvent FWorldDelegates::OnWorldBeginTearDown;
 #if WITH_EDITOR
 FWorldDelegates::FRefreshLevelScriptActionsEvent FWorldDelegates::RefreshLevelScriptActions;
 #endif // WITH_EDITOR
+FWorldDelegates::FOnSeamlessTravelStart FWorldDelegates::OnSeamlessTravelStart;
+FWorldDelegates::FOnSeamlessTravelTransition FWorldDelegates::OnSeamlessTravelTransition;
+FWorldDelegates::FOnCopyWorldData FWorldDelegates::OnCopyWorldData;
 
 UWorld::FOnWorldInitializedActors FWorldDelegates::OnWorldInitializedActors;
 
@@ -496,7 +499,9 @@ void UWorld::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		Collector.AddReferencedObjects(This->Levels, This);
 		Collector.AddReferencedObject( This->CurrentLevel, This );
 		Collector.AddReferencedObject( This->NetDriver, This );
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Collector.AddReferencedObject( This->DemoNetDriver, This );
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Collector.AddReferencedObject( This->LineBatcher, This );
 		Collector.AddReferencedObject( This->PersistentLineBatcher, This );
 		Collector.AddReferencedObject( This->ForegroundLineBatcher, This );
@@ -3794,6 +3799,7 @@ void UWorld::HandleTimelineScrubbed()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
 {
 	FString TimeString;
@@ -3801,7 +3807,7 @@ bool UWorld::HandleDemoScrubCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	{
 		Ar.Log(TEXT("You must specify a time"));
 	}
-	else if (DemoNetDriver != nullptr && DemoNetDriver->ReplayStreamer.IsValid() && DemoNetDriver->ServerConnection != nullptr && DemoNetDriver->ServerConnection->OwningActor != nullptr)
+	else if (DemoNetDriver != nullptr && DemoNetDriver->GetReplayStreamer().IsValid() && DemoNetDriver->ServerConnection != nullptr && DemoNetDriver->ServerConnection->OwningActor != nullptr)
 	{
 		APlayerController* PlayerController = Cast<APlayerController>(DemoNetDriver->ServerConnection->OwningActor);
 		if (PlayerController != nullptr)
@@ -3838,6 +3844,7 @@ bool UWorld::HandleDemoPauseCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	}
 	return true;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UWorld::HandleDemoSpeedCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
 {
@@ -3988,7 +3995,7 @@ bool UWorld::HandleDemoPlayCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 		// Prevent multiple playback in the editor.
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
-			if (Context.World()->DemoNetDriver != nullptr && Context.World()->DemoNetDriver->IsPlaying())
+			if (Context.World()->IsPlayingReplay())
 			{
 				ErrorString = TEXT("A demo is already in progress, cannot play more than one demo at a time in PIE.");
 				break;
@@ -4043,22 +4050,23 @@ bool UWorld::HandleDemoStopCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	return true;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UWorld::DestroyDemoNetDriver()
 {
-	if ( DemoNetDriver != NULL )
+	if ( DemoNetDriver != nullptr )
 	{
 		const FName DemoNetDriverName = DemoNetDriver->NetDriverName;
 
 		check( GEngine->FindNamedNetDriver( this, DemoNetDriverName ) == DemoNetDriver );
 
 		DemoNetDriver->StopDemo();
-		DemoNetDriver->SetWorld( NULL );
+		DemoNetDriver->SetWorld(nullptr);
 
 		GEngine->DestroyNamedNetDriver( this, DemoNetDriverName );
 
-		check( GEngine->FindNamedNetDriver( this, DemoNetDriverName ) == NULL );
+		check( GEngine->FindNamedNetDriver( this, DemoNetDriverName ) == nullptr);
 
-		DemoNetDriver = NULL;
+		DemoNetDriver = nullptr;
 	}
 }
 
@@ -4077,6 +4085,7 @@ void UWorld::ClearDemoNetDriver()
 
 	DemoNetDriver = nullptr;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UWorld::SetGameMode(const FURL& InURL)
 {
@@ -5586,24 +5595,34 @@ bool UWorld::IsServer() const
 		return NetDriver->IsServer();
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if ( DemoNetDriver != NULL )
 	{
 		return DemoNetDriver->IsServer();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return true;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UWorld::IsPlayingReplay() const
 {
 	return (DemoNetDriver && DemoNetDriver->IsPlaying());
 }
 
+bool UWorld::IsRecordingReplay() const
+{
+	// Using IsServer() because it also calls IsRecording() internally
+	return (DemoNetDriver && DemoNetDriver->IsServer());
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 void UWorld::PrepareMapChange(const TArray<FName>& LevelNames)
 {
-		// Kick off async loading request for those maps.
+	// Kick off async loading request for those maps.
 	if( !GEngine->PrepareMapChange(this, LevelNames) )
-		{
+	{
 		UE_LOG(LogWorld, Warning,TEXT("Preparing map change via %s was not successful: %s"), *GetFullName(), *GEngine->GetMapChangeFailureDescription(this) );
 	}
 }
@@ -5903,10 +5922,7 @@ bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InU
 			// CancelTravel will null out CurrentWorld, so we need to assign it after that.
 			CurrentWorld = InCurrentWorld;
 
-			if (CurrentWorld->DemoNetDriver && CurrentWorld->DemoNetDriver->IsRecording())
-			{
-				CurrentWorld->DemoNetDriver->OnSeamlessTravelStartDuringRecording(InURL.Map);
-			}
+			FWorldDelegates::OnSeamlessTravelStart.Broadcast(CurrentWorld, InURL.Map);
 
 			checkSlow(LoadedPackage == NULL);
 			checkSlow(LoadedWorld == NULL);
@@ -6107,34 +6123,12 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 
 void FSeamlessTravelHandler::CopyWorldData()
 {
+	FWorldDelegates::OnCopyWorldData.Broadcast(CurrentWorld, LoadedWorld);
+
 	FLevelCollection* const CurrentCollection = CurrentWorld->FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
 	FLevelCollection* const CurrentStaticCollection = CurrentWorld->FindCollectionByType(ELevelCollectionType::StaticLevels);
 	FLevelCollection* const LoadedCollection = LoadedWorld->FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
 	FLevelCollection* const LoadedStaticCollection = LoadedWorld->FindCollectionByType(ELevelCollectionType::StaticLevels);
-
-	// If we are doing seamless travel for replay playback, then make sure to transfer the replay driver over to the new world
-	if ( CurrentWorld->DemoNetDriver && ( CurrentWorld->DemoNetDriver->IsPlaying() || CurrentWorld->DemoNetDriver->bRecordMapChanges) )
-	{
-		UDemoNetDriver* OldDriver = CurrentWorld->DemoNetDriver;
-		CurrentWorld->DemoNetDriver = nullptr;
-		OldDriver->SetWorld( LoadedWorld );
-		LoadedWorld->DemoNetDriver = OldDriver;
-
-		if (CurrentCollection && LoadedCollection)
-		{
-			LoadedCollection->SetDemoNetDriver(OldDriver);
-			CurrentCollection->SetDemoNetDriver(nullptr);
-		}
-	}
-	else
-	{
-		CurrentWorld->DestroyDemoNetDriver();
-
-		if (CurrentCollection)
-		{
-			CurrentCollection->SetNetDriver(nullptr);
-		}
-	}
 
 	UNetDriver* const NetDriver = CurrentWorld->GetNetDriver();
 	LoadedWorld->SetNetDriver(NetDriver);
@@ -6150,9 +6144,9 @@ void FSeamlessTravelHandler::CopyWorldData()
 		CurrentStaticCollection->SetNetDriver(nullptr);
 	}
 
-	if (NetDriver != NULL)
+	if (NetDriver != nullptr)
 	{
-		CurrentWorld->SetNetDriver(NULL);
+		CurrentWorld->SetNetDriver(nullptr);
 		NetDriver->SetWorld(LoadedWorld);
 	}
 	LoadedWorld->WorldType = CurrentWorld->WorldType;
@@ -6163,7 +6157,7 @@ void FSeamlessTravelHandler::CopyWorldData()
 	LoadedWorld->RealTimeSeconds = CurrentWorld->RealTimeSeconds;
 	LoadedWorld->AudioTimeSeconds = CurrentWorld->AudioTimeSeconds;
 
-	if (NetDriver != NULL)
+	if (NetDriver != nullptr)
 	{
 		LoadedWorld->NextSwitchCountdown = NetDriver->ServerTravelPause;
 	}
@@ -6236,11 +6230,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			
 			CurrentWorld->BeginTearingDown();
 
-			// If it's not still playing, destroy the demo net driver before we start renaming actors.
-			if ( CurrentWorld->DemoNetDriver && !CurrentWorld->DemoNetDriver->IsPlaying() && !CurrentWorld->DemoNetDriver->bRecordMapChanges)
-			{
-				CurrentWorld->DestroyDemoNetDriver();
-			}
+			FWorldDelegates::OnSeamlessTravelTransition.Broadcast(CurrentWorld);
 
 			// mark actors we want to keep
 			FUObjectAnnotationSparseBool KeepAnnotation;
@@ -7078,10 +7068,12 @@ ENetMode UWorld::InternalGetNetMode() const
 		return bIsClientOnly ? NM_Client : NetDriver->GetNetMode();
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if ( DemoNetDriver )
 	{
 		return DemoNetDriver->GetNetMode();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 	if (WorldType == EWorldType::PIE)
@@ -7095,6 +7087,7 @@ ENetMode UWorld::InternalGetNetMode() const
 	return AttemptDeriveFromURL();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UWorld::IsRecordingClientReplay() const
 {
 	if (GetNetDriver() != nullptr && !GetNetDriver()->IsServer())
@@ -7112,6 +7105,7 @@ bool UWorld::IsPlayingClientReplay() const
 {
 	return (DemoNetDriver != nullptr && DemoNetDriver->IsPlayingClientReplay());
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 ENetMode UWorld::AttemptDeriveFromURL() const
 {
@@ -7359,7 +7353,9 @@ void UWorld::SetActiveLevelCollection(int32 LevelCollectionIndex)
 #endif
 	GameState = ActiveLevelCollection->GetGameState();
 	NetDriver = ActiveLevelCollection->GetNetDriver();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	DemoNetDriver = ActiveLevelCollection->GetDemoNetDriver();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// TODO: START TEMP FIX FOR UE-42508
 	if (NetDriver && NetDriver->NetDriverName != NAME_None)
@@ -7372,6 +7368,7 @@ void UWorld::SetActiveLevelCollection(int32 LevelCollectionIndex)
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (DemoNetDriver && DemoNetDriver->NetDriverName != NAME_None)
 	{
 		UDemoNetDriver* TempDemoNetDriver = Cast<UDemoNetDriver>(GEngine->FindNamedNetDriver(this, DemoNetDriver->NetDriverName));
@@ -7381,6 +7378,7 @@ void UWorld::SetActiveLevelCollection(int32 LevelCollectionIndex)
 			DemoNetDriver = TempDemoNetDriver;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// TODO: END TEMP FIX FOR UE-42508
 }
 
