@@ -13,6 +13,7 @@
 
 // Forward Declarations
 class UEdGraphPin;
+class UMetasound;
 class USoundNode;
 
 
@@ -48,10 +49,15 @@ public:
 
 	// UObject interface
 	virtual void PostLoad() override;
+
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	// End of UObject interface
 
+	UMetasound& GetMetasoundChecked();
+	const UMetasound& GetMetasoundChecked() const;
+
+	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 	void SetNodeID(uint32 InNodeID);
 

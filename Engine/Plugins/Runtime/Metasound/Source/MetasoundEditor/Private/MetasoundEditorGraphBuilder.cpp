@@ -93,7 +93,26 @@ namespace Metasound
 			Frontend::FGraphHandle GraphHandle = Graph->GetMetasoundChecked().GetRootGraphHandle();
 			if (GraphHandle.IsValid() && NodeHandle.IsValid())
 			{
-				GraphHandle.RemoveNode(NodeHandle, true /* bEvenIfInputOrOutputNode */);
+				switch (NodeHandle.GetNodeType())
+				{
+					case EMetasoundClassType::Input:
+					{
+						GraphHandle.RemoveInput(NodeHandle.GetNodeName());
+					}
+					break;
+
+					case EMetasoundClassType::Output:
+					{
+						GraphHandle.RemoveOutput(NodeHandle.GetNodeName());
+					}
+					break;
+
+					case EMetasoundClassType::External:
+					{
+						GraphHandle.RemoveNode(NodeHandle);
+					}
+					break;
+				}
 			}
 
 			InNode.PostEditChange();

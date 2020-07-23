@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Metasound.h"
 
-#include "Backends/JsonStructSerializerBackend.h"
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
 #include "StructSerializer.h"
+#include "UObject/UnrealType.h"
+
 
 UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, FMetasoundAssetBase()
+	, FMetasoundAssetBase(RootMetasoundDocument)
 {
 }
 
@@ -33,6 +34,32 @@ const UEdGraph& UMetasound::GetGraphChecked() const
 {
 	check(Graph);
 	return *Graph;
+}
+
+const FText& UMetasound::GetInputToolTip(FString InputName) const
+{
+	for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
+	{
+		if (Desc.Name == InputName)
+		{
+			return Desc.ToolTip;
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+const FText& UMetasound::GetOutputToolTip(FString OutputName) const
+{
+	for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
+	{
+		if (Desc.Name == OutputName)
+		{
+			return Desc.ToolTip;
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 void UMetasound::SetGraph(UEdGraph* InGraph)

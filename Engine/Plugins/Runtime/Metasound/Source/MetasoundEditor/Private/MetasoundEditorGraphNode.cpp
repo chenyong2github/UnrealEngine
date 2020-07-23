@@ -35,13 +35,13 @@ void UMetasoundEditorGraphNode::PostLoad()
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			if (Pin->Direction == EGPD_Input)
 			{
-				Pin->PinName = CreateUniquePinName(TEXT("Input"));
+				Pin->PinName = CreateUniquePinName("Input");
 			}
 			else
 			{
-				Pin->PinName = CreateUniquePinName(TEXT("Output"));
+				Pin->PinName = CreateUniquePinName("Output");
 			}
-			Pin->PinFriendlyName = FText::FromString(TEXT(" "));
+			Pin->PinFriendlyName = FText::GetEmpty();
 		}
 	}
 }
@@ -60,24 +60,38 @@ void UMetasoundEditorGraphNode::CreateInputPin()
 
 int32 UMetasoundEditorGraphNode::EstimateNodeWidth() const
 {
-	const int32 EstimatedCharWidth = 6;
-	FString NodeTitle = GetNodeTitle(ENodeTitleType::FullTitle).ToString();
-	UFont* Font = GetDefault<UEditorEngine>()->EditorFont;
-	int32 Result = NodeTitle.Len()*EstimatedCharWidth;
-
-	if (Font)
+	const FString NodeTitle = GetNodeTitle(ENodeTitleType::FullTitle).ToString();
+	if (const UFont* Font = GetDefault<UEditorEngine>()->EditorFont)
 	{
-		Result = Font->GetStringSize(*NodeTitle);
+		return Font->GetStringSize(*NodeTitle);
 	}
+	else
+	{
+		static const int32 EstimatedCharWidth = 6;
+		return NodeTitle.Len() * EstimatedCharWidth;
+	}
+}
 
-	return Result;
+UMetasound& UMetasoundEditorGraphNode::GetMetasoundChecked()
+{
+	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
+	return EdGraph->GetMetasoundChecked();
+}
+
+const UMetasound& UMetasoundEditorGraphNode::GetMetasoundChecked() const
+{
+	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
+	return EdGraph->GetMetasoundChecked();
+}
+
+Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle() const
+{
+	return GetMetasoundChecked().GetRootGraphHandle();
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
 {
-	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
-	UMetasound& Metasound = EdGraph->GetMetasoundChecked();
-	return Metasound.GetRootGraphHandle().GetNodeWithId(NodeID);
+	return GetRootGraphHandle().GetNodeWithId(NodeID);
 }
 
 void UMetasoundEditorGraphNode::IteratePins(TUniqueFunction<void(UEdGraphPin* /* Pin */, int32 /* Index */)> InFunc, EEdGraphPinDirection InPinDirection)
@@ -165,8 +179,31 @@ void UMetasoundEditorGraphNode::SetNodeID(uint32 InNodeID)
 
 FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	const Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
-	return FText::FromString(NodeHandle.GetNodeClassName());
+	using namespace Metasound::Frontend;
+
+	FNodeHandle NodeHandle = GetNodeHandle();
+	switch (NodeHandle.GetNodeType())
+	{
+		case EMetasoundClassType::Input:
+		{
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Get Input {0}"), FText::FromString(NodeHandle.GetNodeName()));
+		}
+		break;
+
+		case EMetasoundClassType::Output:
+		{
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Set Output {0}"), FText::FromString(NodeHandle.GetNodeName()));
+		}
+		break;
+
+		default:
+		case EMetasoundClassType::External:
+		case EMetasoundClassType::MetasoundGraph:
+		{
+			return FText::FromString(NodeHandle.GetNodeClassName());
+		}
+		break;
+	}
 }
 
 void UMetasoundEditorGraphNode::PrepareForCopying()
@@ -241,11 +278,32 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 
 FText UMetasoundEditorGraphNode::GetTooltipText() const
 {
-	FText Tooltip = FText::GetEmpty();
+	using namespace Metasound::Frontend;
 
-	// TODO: Retrieve from UMetasound
+	// TODO: Add author to ToolTip
+	FNodeHandle NodeHandle = GetNodeHandle();
+	switch (NodeHandle.GetNodeType())
+	{
+		case EMetasoundClassType::Input:
+		{
+			return GetMetasoundChecked().GetInputToolTip(NodeHandle.GetNodeName());
+		}
+		break;
 
-	return Tooltip;
+		case EMetasoundClassType::Output:
+		{
+			return GetMetasoundChecked().GetOutputToolTip(NodeHandle.GetNodeName());
+		}
+		break;
+
+		default:
+		case EMetasoundClassType::External:
+		case EMetasoundClassType::MetasoundGraph:
+		{
+			return GenerateClassDescriptionForNode(NodeHandle.GetClassInfo()).Metadata.MetasoundDescription;
+		}
+		break;
+	}
 }
 
 FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const

@@ -83,7 +83,7 @@ namespace Metasound
 		// This will open a json document at the given absolute path and convert it into a 
 		// metasound document struct. 
 		// @returns false if the file couldn't be found or parsed into a document.
-		bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
+		METASOUNDFRONTEND_API bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
 
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
@@ -260,6 +260,8 @@ namespace Metasound
 			uint32 GetNodeID() const;
 			static uint32 GetNodeID(const FDescPath& InNodePath);
 
+			const FString& GetNodeName() const;
+
 		private:
 
 			static TDescriptionPtr<FMetasoundClassDescription> GetNodeClassDescriptionForNodeHandle(const FHandleInitParams& InitParams, EMetasoundClassType InNodeClassType);
@@ -297,7 +299,7 @@ namespace Metasound
 			bool IsValid() const;
 
 			TArray<FNodeHandle> GetAllNodes();
-			FNodeHandle GetNodeWithId(uint32 InNodeId);
+			FNodeHandle GetNodeWithId(uint32 InNodeId) const;
 			TArray<FNodeHandle> GetOutputNodes();
 			TArray<FNodeHandle> GetInputNodes();
 
@@ -332,7 +334,7 @@ namespace Metasound
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.
-			bool RemoveNode(const FNodeHandle& InNode, bool bEvenIfInputOrOutputNode = false);
+			bool RemoveNode(const FNodeHandle& InNode);
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			FMetasoundClassMetadata GetGraphMetadata();
@@ -373,6 +375,12 @@ namespace Metasound
 
 			// the outermost document for all dependencies for the document this graph lives in.
 			TDescriptionPtr<FMetasoundDocument> OwningDocument;
+
+			// Remove the node corresponding to this node handle.
+			// On success, invalidates the received node handle.
+			// Can remove inputs and outputs, but does not remove
+			// from the input/output arrays.
+			bool RemoveNodeInternal(const FNodeHandle& InNode);
 
 			// Scans all existing node ids to guarantee a new unique ID.
 			uint32 FindNewUniqueNodeId();

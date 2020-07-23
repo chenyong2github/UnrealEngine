@@ -92,15 +92,15 @@ struct FMetasoundInputDescription
 	GENERATED_BODY()
 
 	// The descriptive name of this input.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FString Name;
 
 	// The type of this input. This type matches with a type declared via the DECLARE_METASOUND_DATA_REFERENCE_TYPES macro.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// Optional description text about this input.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FText ToolTip;
 
 	// The optional literal value, if we have one.
@@ -114,15 +114,15 @@ struct FMetasoundOutputDescription
 	GENERATED_BODY()
 
 	// The descriptive name of this output.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FString Name;
 
 	// The type of this output. This type matches with a type declared via the DECLARE_METASOUND_DATA_REFERENCE_TYPES macro.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// Optional description text about this output.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FText ToolTip;
 };
 
@@ -224,10 +224,10 @@ struct FMetasoundClassDescription
 	UPROPERTY(EditAnywhere, Category = Hidden)
 	FMetasoundClassMetadata Metadata;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Hidden)
 	TArray<FMetasoundInputDescription> Inputs;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Hidden)
 	TArray<FMetasoundOutputDescription> Outputs;
 
 	// If this object is itself of the Metasound type, here we list the unique IDs of other objects it depends on to be built.

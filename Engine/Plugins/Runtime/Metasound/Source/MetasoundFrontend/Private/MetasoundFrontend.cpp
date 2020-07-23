@@ -812,6 +812,11 @@ namespace Metasound
 				return EMetasoundClassType::Invalid;
 			}
 
+			if (NodeClassType == EMetasoundClassType::Input || NodeClassType == EMetasoundClassType::Output)
+			{
+				return NodeClassType;
+			}
+
 			return NodeClass->Metadata.NodeType;
 		}
 
@@ -878,6 +883,18 @@ namespace Metasound
 			}
 
 			return NodePtr->UniqueID;
+		}
+
+
+		const FString& FNodeHandle::GetNodeName() const
+		{
+			if (!IsValid())
+			{
+				static const FString DefaultName = "InvalidNodeHandle";
+				return DefaultName;
+			}
+
+			return NodePtr->Name;
 		}
 
 		uint32 FNodeHandle::GetNodeID(const FDescPath& InNodePath)
@@ -1070,7 +1087,7 @@ namespace Metasound
 			return OutArray;
 		}
 
-		FNodeHandle FGraphHandle::GetNodeWithId(uint32 InNodeId)
+		FNodeHandle FGraphHandle::GetNodeWithId(uint32 InNodeId) const
 		{
 			if (!IsValid())
 			{
@@ -1304,7 +1321,7 @@ namespace Metasound
 			}
 
 			// Finally, remove the node, and remove the input.
-			if (!ensureAlwaysMsgf(RemoveNode(InputNode, true), TEXT("Call to RemoveNode failed.")))
+			if (!ensureAlwaysMsgf(RemoveNodeInternal(InputNode), TEXT("Call to RemoveNodeInternal failed.")))
 			{
 				return false;
 			}
@@ -1386,18 +1403,18 @@ namespace Metasound
 			// find the corresponding node handle to delete.
 			FNodeHandle OutputNode = GetOutputNodeWithName(OutputName);
 
-			// If we found the input declared in the class description but couldn't find it in the graph,
-			// something has gone terribly wrong. Remove the input from the description, but still ensure.
-			if (!ensureAlwaysMsgf(OutputNode.IsValid(), TEXT(R"(Couldn't find an input node with name %s, even though we found the input listed as a dependency.
+			// If we found the output declared in the class description but couldn't find it in the graph,
+			// something has gone terribly wrong. Remove the output from the description, but still ensure.
+			if (!ensureAlwaysMsgf(OutputNode.IsValid(), TEXT(R"(Couldn't find an output node with name %s, even though we found the output listed as a dependency.
 				This indicates the underlying FMetasoundClassDescription is corrupted.
-				Removing the Input in the class dependency to resolve...)"), *OutputName))
+				Removing the Output in the class dependency to resolve...)"), *OutputName))
 			{
 				Outputs.RemoveAt(IndexOfOutputToRemove);
 				return true;
 			}
 
-			// Finally, remove the node, and remove the input.
-			if (!ensureAlwaysMsgf(RemoveNode(OutputNode, true), TEXT("Call to RemoveNode failed.")))
+			// Finally, remove the node, and remove the output.
+			if (!ensureAlwaysMsgf(RemoveNodeInternal(OutputNode), TEXT("Call to RemoveNodeInternal failed.")))
 			{
 				return false;
 			}
@@ -1576,7 +1593,18 @@ namespace Metasound
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
 
-		bool FGraphHandle::RemoveNode(const FNodeHandle& InNode, bool bEvenIfInputOrOutputNode /*= false*/)
+		bool FGraphHandle::RemoveNode(const FNodeHandle& InNode)
+		{
+			if (!ensureAlwaysMsgf(InNode.GetNodeType() != EMetasoundClassType::Input && InNode.GetNodeType() != EMetasoundClassType::Output,
+				TEXT("Inputs and outputs must be removed explicitly using 'RemoveInput' or 'RemoveOutput').")))
+			{
+				return false;
+			}
+
+			return RemoveNodeInternal(InNode);
+		}
+
+		bool FGraphHandle::RemoveNodeInternal(const FNodeHandle& InNode)
 		{
 			if (!IsValid())
 			{
@@ -1620,10 +1648,16 @@ namespace Metasound
 				return false;
 			}
 
+			if (InNode.GetNodeType() == EMetasoundClassType::Input || InNode.GetNodeType() == EMetasoundClassType::Output)
+			{
+				Nodes.RemoveAt(IndexOfNodeToRemove);
+				return true;
+			}
+
 			// This should never hit based on the logic above.
-			if (!ensureAlwaysMsgf(NodesOfClass > 0, TEXT("Found node with matching ID (%u) but mismatched class (%s). Likely means that the underlying class description was corrupted."), 
-				*InNode.GetNodeClassName(),
-				InNode.GetNodeType()))
+			if (!ensureAlwaysMsgf(NodesOfClass > 0, TEXT("Found node with matching ID (%u) but mismatched class (%s). Likely means that the underlying class description was corrupted."),
+				InNode.GetNodeID(),
+				*InNode.GetNodeClassName()))
 			{
 				return false;
 			}
@@ -1637,7 +1671,7 @@ namespace Metasound
 
 				uint32 UniqueIDForThisDependency = INDEX_NONE;
 				TArray<FMetasoundClassDescription>& DependencyClasses = OwningDocument->Dependencies;
-				
+
 				// scan the owning document's depenency classes for a dependency with this name.
 				int32 IndexOfDependencyInDocument = -1;
 				for (int32 Index = 0; Index < DependencyClasses.Num(); Index++)
@@ -1650,7 +1684,7 @@ namespace Metasound
 					}
 				}
 
-				if (!ensureAlwaysMsgf(IndexOfDependencyToRemove >= 0, 
+				if (!ensureAlwaysMsgf(IndexOfDependencyToRemove >= 0,
 					TEXT("Couldn't find node class %s in the list of dependencies for this document, but found it in the nodes list. This likely means that the underlying class description is corrupted.)"), *NodeClassName))
 				{
 					return false;
@@ -1668,7 +1702,7 @@ namespace Metasound
 				}
 
 				if (ensureAlwaysMsgf(IndexOfDependencyToRemove > 0, TEXT(R"(Couldn't find node class %s in the list of dependencies for this graph, but found it in the nodes list.
-					This likely means that the underlying class description is corrupted.)"), *NodeClassName))
+				This likely means that the underlying class description is corrupted.)"), *NodeClassName))
 				{
 					DependencyIDs.RemoveAt(IndexOfDependencyToRemove);
 				}

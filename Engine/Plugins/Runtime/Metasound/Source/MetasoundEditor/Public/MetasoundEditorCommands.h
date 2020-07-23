@@ -25,8 +25,11 @@ namespace Metasound
 			/** Stops the currently playing Metasound */
 			TSharedPtr<FUICommandInfo> Stop;
 
-			/** Compiles the Metasound */
-			TSharedPtr<FUICommandInfo> Compile;
+			/** Imports the Metasound from Json */
+			TSharedPtr<FUICommandInfo> Import;
+
+			/** Exports the Metasound */
+			TSharedPtr<FUICommandInfo> Export;
 
 			/** Plays stops the currently playing Metasound */
 			TSharedPtr<FUICommandInfo> TogglePlayback;

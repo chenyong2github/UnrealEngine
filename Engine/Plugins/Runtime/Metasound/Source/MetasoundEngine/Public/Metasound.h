@@ -13,24 +13,10 @@
 
 #include "Metasound.generated.h"
 
+// Forward Declarations
+class FEditPropertyChain;
+struct FPropertyChangedEvent;
 
-USTRUCT()
-struct METASOUNDENGINE_API FEdMetasoundInput
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	UEdGraphNode* InputNode = nullptr;
-};
-
-USTRUCT()
-struct METASOUNDENGINE_API FEdMetasoundOutput
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	UEdGraphNode* OutputNode = nullptr;
-};
 
 /**
  * This asset type is used for Metasound assets that can only be used as nodes in other Metasound graphs.
@@ -48,12 +34,6 @@ protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	UEdGraph* Graph;
-
-	UPROPERTY()
-	TArray<FEdMetasoundInput> Inputs;
-
-	UPROPERTY()
-	TArray<FEdMetasoundOutput> Outputs;
 #endif // WITH_EDITORONLY_DATA
 
 public:
@@ -73,6 +53,10 @@ public:
 	// Metasound UObject for editor serialization purposes.
 	// @param Editor graph associated with UMetasound.
 	void SetGraph(UEdGraph* InGraph);
+
+	const FText& GetInputToolTip(FString InputName) const;
+	const FText& GetOutputToolTip(FString OutputName) const;
+
 #endif // WITH_EDITORONLY_DATA
 
 	FMetasoundDocument& GetDocument() override
@@ -80,9 +64,16 @@ public:
 		return RootMetasoundDocument;
 	}
 
-	UObject* GetOwningAsset() override
+	const FMetasoundDocument& GetDocument() const override
 	{
-		return this;
+		return RootMetasoundDocument;
+	}
+
+	UObject* GetOwningAsset() const override
+	{
+		// Hack to allow handles to manipulate while providing
+		// ability to inspect via a handle from the const version of GetRootGraphHandle()
+		return const_cast<UObject*>(CastChecked<const UObject>(this));
 	}
 
 	// Updates the Metasound's metadata (name, author, etc).

@@ -136,10 +136,13 @@ namespace Metasound
 			/** Binds new graph commands to delegates */
 			void BindGraphCommands();
 
-			FSlateIcon GetCompileStatusImage() const;
+			FSlateIcon GetImportStatusImage() const;
+
+			FSlateIcon GetExportStatusImage() const;
 
 			/** Toolbar command methods */
-			void Compile();
+			void Import();
+			void Export();
 			void Play();
 			void PlayNode();
 			void Stop();

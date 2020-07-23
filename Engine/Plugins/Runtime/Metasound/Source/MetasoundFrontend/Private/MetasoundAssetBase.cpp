@@ -8,6 +8,17 @@
 #include "StructSerializer.h"
 
 
+const FString FMetasoundAssetBase::FileExtension(TEXT(".metasound"));
+
+FMetasoundAssetBase::FMetasoundAssetBase()
+{
+}
+
+FMetasoundAssetBase::FMetasoundAssetBase(FMetasoundDocument& InDocument)
+	: AccessPoint(MakeShared<Metasound::Frontend::FDescriptionAccessPoint>(InDocument))
+{
+}
+
 void FMetasoundAssetBase::SetMetadata(FMetasoundClassMetadata& InMetadata)
 {
 	InMetadata.NodeType = EMetasoundClassType::MetasoundGraph;
@@ -19,17 +30,12 @@ FMetasoundClassMetadata FMetasoundAssetBase::GetMetadata()
 	return GetDocument().RootClass.Metadata;
 }
 
-TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint> FMetasoundAssetBase::GetGraphAccessPoint()
+TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint> FMetasoundAssetBase::GetGraphAccessPoint() const
 {
-	if (!AccessPoint.IsValid())
-	{
-		AccessPoint = MakeShared<Metasound::Frontend::FDescriptionAccessPoint>(GetDocument());
-	}
-
 	return TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint>(AccessPoint);
 }
 
-Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
+Metasound::Frontend::FGraphHandle FMetasoundAssetBase::GetRootGraphHandle() const
 {
 	using FDescPath = Metasound::Frontend::FDescPath;
 	using FGraphHandle = Metasound::Frontend::FGraphHandle;
@@ -69,7 +75,12 @@ TArray<Metasound::Frontend::FGraphHandle> FMetasoundAssetBase::GetAllSubgraphHan
 	return OutArray;
 }
 
-bool FMetasoundAssetBase::ExportToJSON(const FString& InAbsolutePath)
+bool FMetasoundAssetBase::ImportFromJSON(const FString& InAbsolutePath)
+{
+	return Metasound::Frontend::ImportJSONToMetasound(InAbsolutePath, GetDocument());
+}
+
+bool FMetasoundAssetBase::ExportToJSON(const FString& InAbsolutePath) const
 {
 	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InAbsolutePath)))
 	{

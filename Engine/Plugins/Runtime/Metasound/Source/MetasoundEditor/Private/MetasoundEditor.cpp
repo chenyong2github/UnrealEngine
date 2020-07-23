@@ -15,7 +15,6 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "IDetailsView.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "MetasoundAssetSerializer.h"
 #include "MetasoundEditorCommands.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -251,16 +250,26 @@ namespace Metasound
 				GetToolkitCommands(),
 				FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 				{
-					ToolbarBuilder.BeginSection("Compile");
+					ToolbarBuilder.BeginSection("Utilities");
 					{
 						ToolbarBuilder.AddToolBarButton
 						(
-							FEditorCommands::Get().Compile,
+							FEditorCommands::Get().Import,
 							NAME_None,
 							TAttribute<FText>(),
 							TAttribute<FText>(),
-							TAttribute<FSlateIcon>::Create([this]() { return GetCompileStatusImage(); }),
-							"CompileMetasound"
+							TAttribute<FSlateIcon>::Create([this]() { return GetImportStatusImage(); }),
+							"ImportMetasound"
+						);
+
+						ToolbarBuilder.AddToolBarButton
+						(
+							FEditorCommands::Get().Export,
+							NAME_None,
+							TAttribute<FText>(),
+							TAttribute<FText>(),
+							TAttribute<FSlateIcon>::Create([this]() { return GetExportStatusImage(); }),
+							"ExportMetasound"
 						);
 					}
 					ToolbarBuilder.EndSection();
@@ -277,12 +286,19 @@ namespace Metasound
 			AddToolbarExtender(ToolbarExtender);
 		}
 
-		FSlateIcon FEditor::GetCompileStatusImage() const
+		FSlateIcon FEditor::GetImportStatusImage() const
 		{
-			FName IconName = "MetasoundEditor.Compile";
+			// TODO: Get/register import image
+			const FName IconName = "MetasoundEditor.Export";
+			return FSlateIcon("MetasoundStyle", IconName);
+		}
+
+		FSlateIcon FEditor::GetExportStatusImage() const
+		{
+			FName IconName = "MetasoundEditor.Export";
 			if (!bPassedValidation)
 			{
-				IconName = "MetasoundEditor.CompileError";
+				IconName = "MetasoundEditor.ExportError";
 			}
 
 			return FSlateIcon("MetasoundStyle", IconName);
@@ -301,8 +317,12 @@ namespace Metasound
 				FExecuteAction::CreateSP(this, &FEditor::Stop));
 
 			ToolkitCommands->MapAction(
-				Commands.Compile,
-				FExecuteAction::CreateSP(this, &FEditor::Compile));
+				Commands.Import,
+				FExecuteAction::CreateSP(this, &FEditor::Import));
+
+			ToolkitCommands->MapAction(
+				Commands.Export,
+				FExecuteAction::CreateSP(this, &FEditor::Export));
 
 			ToolkitCommands->MapAction(
 				Commands.TogglePlayback,
@@ -317,12 +337,23 @@ namespace Metasound
 				FExecuteAction::CreateSP(this, &FEditor::RedoGraphAction));
 		}
 
-		void FEditor::Compile()
+		void FEditor::Import()
 		{
 			if (Metasound)
 			{
-				const UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(Metasound->GetGraph());
-				bPassedValidation = Metasound::Engine::AssetSerializer::MetasoundToJSON(*Metasound);
+				// TODO: Prompt OFD and provide path from user
+				const FString Path = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
+				Metasound->ImportFromJSON(Path);
+			}
+		}
+
+		void FEditor::Export()
+		{
+			if (Metasound)
+			{
+				// TODO: Prompt OFD and provide path from user
+				const FString Path = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
+				Metasound->ExportToJSON(Path);
 			}
 		}
 
@@ -737,8 +768,6 @@ namespace Metasound
 				// Give new node a different Guid from the old one
 				Node->CreateNewGuid();
 			}
-
-			// TODO: Compile metasound here???
 
 			// Update UI
 			MetasoundGraphEditor->NotifyGraphChanged();
