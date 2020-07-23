@@ -162,6 +162,7 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	: OwningRHI(nullptr)
 	, bDepthBoundsTestSupported(false)
+	, bHeapNotZeroedSupported(false)
 	, bDebugDevice(false)
 	, GPUCrashDebuggingMode(ED3D12GPUCrashDebugginMode::Disabled)
 	, bDeviceRemoved(false)
@@ -393,6 +394,16 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		GEnableResidencyManagement = false;
 	}
 #endif // ENABLE_RESIDENCY_MANAGEMENT
+
+#if PLATFORM_WINDOWS
+	{
+		D3D12_FEATURE_DATA_D3D12_OPTIONS7 Features = {};
+		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &Features, sizeof(Features))))
+		{
+			bHeapNotZeroedSupported = true;
+		}
+	}
+#endif
 
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled

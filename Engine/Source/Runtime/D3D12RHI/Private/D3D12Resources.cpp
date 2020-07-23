@@ -357,7 +357,12 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	LLM_PLATFORM_SCOPE(ELLMTag::GraphicsPlatform);
 
 	TRefCountPtr<ID3D12Resource> pResource;
+#if PLATFORM_WINDOWS
+	D3D12_HEAP_FLAGS HeapFlags = bHeapNotZeroedSupported? D3D12_HEAP_FLAG_CREATE_NOT_ZEROED : D3D12_HEAP_FLAG_NONE;
+#else
+	check(!bHeapNotZeroedSupported);
 	D3D12_HEAP_FLAGS HeapFlags = D3D12_HEAP_FLAG_NONE;
+#endif
 	if (InDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS)
 	{
 		HeapFlags |= D3D12_HEAP_FLAG_SHARED;
