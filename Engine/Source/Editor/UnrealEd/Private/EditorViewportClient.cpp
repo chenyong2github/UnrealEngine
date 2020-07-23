@@ -3823,7 +3823,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		}
 
 		// Setup custom upscaler and screen percentage.
-		if (GCustomEditorStaticScreenPercentage)
+		if (GCustomEditorStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit)
 		{
 			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, PreviewResolutionFraction, bPreviewCustomTemporalUpscaler);
 		}
