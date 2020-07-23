@@ -887,6 +887,9 @@ private:
 	/** Stores the feature level used to preview the material graph */
 	ERHIFeatureLevel::Type NodeFeatureLevel;
 
+	/** True if we want to preview static switches, disabling inactive nodes in the graph */
+	bool bPreviewStaticSwitches;
+
 	/** True if the quality level or feature level to preview has been changed */
 	bool bPreviewFeaturesChanged;
 
