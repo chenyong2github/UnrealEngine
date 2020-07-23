@@ -186,13 +186,13 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 	{
 		case EMetasoundClassType::Input:
 		{
-			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Get Input {0}"), FText::FromString(NodeHandle.GetNodeName()));
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Input {0}"), FText::FromString(NodeHandle.GetNodeName()));
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Set Output {0}"), FText::FromString(NodeHandle.GetNodeName()));
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Output {0}"), FText::FromString(NodeHandle.GetNodeName()));
 		}
 		break;
 
