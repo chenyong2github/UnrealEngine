@@ -2,6 +2,7 @@
 #include "MetasoundEditorGraphBuilder.h"
 
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Metasound.h"
 #include "MetasoundEditorGraph.h"

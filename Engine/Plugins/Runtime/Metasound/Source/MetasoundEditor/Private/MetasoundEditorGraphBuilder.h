@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 
 // Forward Declarations
+class UEdGraphNode;
 class UMetasound;
 class UMetasoundEditorGraphNode;
 
