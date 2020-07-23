@@ -321,6 +321,18 @@ bool SScreenComparisonRow::CanUseSourceControl() const
 	return ISourceControlModule::Get().IsEnabled();
 }
 
+FText SScreenComparisonRow::GetAddNewButtonTooltip() const
+{
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		return LOCTEXT("AddNewToolTip", "Add new ground truth image to source control.");
+	}
+	else
+	{
+		return LOCTEXT("AddNewToolTip_Disabled", "Cannot add new ground truth image. Please connect to source control.");
+	}
+}
+
 bool SScreenComparisonRow::IsComparingAgainstPlatformFallback() const
 {
 	const FImageComparisonResult& Comparison = Model->Report.GetComparisonResult();
@@ -378,6 +390,7 @@ TSharedRef<SWidget> SScreenComparisonRow::BuildAddedView()
 				SNew(SButton)
 				.IsEnabled(this, &SScreenComparisonRow::CanUseSourceControl)
 				.Text(LOCTEXT("AddNew", "Add New!"))
+				.ToolTipText(this, &SScreenComparisonRow::GetAddNewButtonTooltip)
 				.OnClicked(this, &SScreenComparisonRow::AddNew)
 			]
 
