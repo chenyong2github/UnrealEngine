@@ -1850,7 +1850,6 @@ public:
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	bool							bCookAgainstFixedBase = false;
-	bool							bDLCNoCookAllAssets = true;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -6328,38 +6327,18 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			AddFileToCook( FilesInPath,CurrEntry);
 		}
 	}
-
-	const FString ExternalMountPointName(TEXT("/Game/"));
 	if (IsCookingDLC())
 	{
-		// get the dlc and make sure we cook that directory 
-		FString DLCPath = FPaths::Combine(*GetBaseDirectoryForDLC(), TEXT("Content"));
+		TArray<FName> PackagesToNeverCook;
+		UAssetManager::Get().ModifyDLCCook(CookByTheBookOptions->DlcName, FilesInPath, PackagesToNeverCook);
 
-		FString MountPoint = ExternalMountPointName;
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
-		if (Plugin.IsValid())
+		for (FName NeverCookPackage : PackagesToNeverCook)
 		{
-			MountPoint = Plugin->GetMountedAssetPath();
-		}
+			const FName StandardPackageFilename = PackageNameCache->GetCachedStandardPackageFileFName(NeverCookPackage);
 
-		if (!CookByTheBookOptions->bDLCNoCookAllAssets)
-		{
-			TArray<FString> Files;
-			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
-			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
-
-			for (int32 Index = 0; Index < Files.Num(); Index++)
+			if (StandardPackageFilename != NAME_None)
 			{
-				FString StdFile = Files[Index];
-				FPaths::MakeStandardFilename(StdFile);
-				AddFileToCook(FilesInPath, StdFile);
-
-				// this asset may not be in our currently mounted content directories, so try to mount a new one now
-				FString LongPackageName;
-				if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
-				{
-					FPackageName::RegisterMountPoint(MountPoint, DLCPath);
-				}
+				PackageTracker->NeverCookPackageList.Add(StandardPackageFilename);
 			}
 		}
 	}
@@ -6367,6 +6346,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 	if (!(FilesToCookFlags & ECookByTheBookOptions::DisableUnsolicitedPackages))
 	{
+		const FString ExternalMountPointName(TEXT("/Game/"));
 		for (const FString& CurrEntry : CookDirectories)
 		{
 			TArray<FString> Files;
@@ -7560,7 +7540,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
-	CookByTheBookOptions->bDLCNoCookAllAssets = !!(CookOptions & ECookByTheBookOptions::DLCNoCookAllAssets);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
 	GenerateAssetRegistry();
