@@ -265,7 +265,9 @@ void UKismetSystemLibrary::PrintString(UObject* WorldContextObject, const FStrin
 			switch(World->GetNetMode())
 			{
 				case NM_Client:
-					Prefix = FString::Printf(TEXT("Client %d: "), GPlayInEditorID - 1);
+					// GPlayInEditorID 0 is always the server, so 1 will be first client.
+					// You want to keep this logic in sync with GeneratePIEViewportWindowTitle and UpdatePlayInEditorWorldDebugString
+					Prefix = FString::Printf(TEXT("Client %d: "), GPlayInEditorID);
 					break;
 				case NM_DedicatedServer:
 				case NM_ListenServer:

@@ -431,7 +431,8 @@ ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldCon
 				break;
 
 			case NM_Client:
-				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				// 0 is always the server, use PIEInstance so it matches the in-editor UI
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance)).ToString();
 				break;
 
 			default:
@@ -10838,7 +10839,13 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 	: ViewportClient( InViewportClient )
 	, OldWorld( nullptr )
 {
-	ConditionalSwitchWorld( ViewportClient, nullptr );
+	UWorld* InWorld = nullptr;
+	if (InViewportClient)
+	{
+		InWorld = InViewportClient->GetWorld();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
 }
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
@@ -10857,24 +10864,29 @@ void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* I
 {
 	if( GIsEditor )
 	{
-		if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
+		if ( InWorld && InWorld->WorldType == EWorldType::PIE && !GIsPlayInEditorWorld )
+		{
+			// We don't want to restore using Viewport client so clear it
+			ViewportClient = nullptr;
+
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+
+			// First check if we are being told to switch to a PIE world, if so always switch regardless of viewport
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
+		}
+		else if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
 		{
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
-			// Delegate must be valid
+
+			// If this is the main game viewport delegate will handle finding new world
 			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
 		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
-		}
-		else if ( InWorld && !GIsPlayInEditorWorld )
-		{
-			OldWorld = GWorld;
-			const bool bSwitchToPIEWorld = true;
-			// No viewport so set the world directly
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }

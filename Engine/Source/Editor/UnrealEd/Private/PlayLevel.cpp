@@ -2014,31 +2014,29 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 	FEditorDelegates::OnSwitchBeginPIEAndSIE.Broadcast( bIsSimulatingInEditor );
 }
 
-int32 UEditorEngine::OnSwitchWorldForSlatePieWindow( int32 WorldID )
+int32 UEditorEngine::OnSwitchWorldForSlatePieWindow(int32 WorldID, int32 WorldPIEInstance)
 {
 	static const int32 EditorWorldID = 0;
 	static const int32 PieWorldID = 1;
 
+	// PlayWorld cannot be depended on as it only points to the first instance
 	int32 RestoreID = -1;
-	if( WorldID == -1 && GWorld != PlayWorld && PlayWorld != NULL)
+	if (WorldID == -1 && !GIsPlayInEditorWorld)
 	{
 		// When we have an invalid world id we always switch to the pie world in the PIE window
-		const bool bSwitchToPIE = true; 
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 		// The editor world was active restore it later
 		RestoreID = EditorWorldID;
 	}
-	else if( WorldID == PieWorldID && GWorld != PlayWorld)
+	else if(WorldID == PieWorldID && !GIsPlayInEditorWorld)
 	{
-		const bool bSwitchToPIE = true;
 		// Want to restore the PIE world and the current world is not already the pie world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 	}
-	else if( WorldID == EditorWorldID && GWorld != EditorWorld)
+	else if(WorldID == EditorWorldID && GWorld != EditorWorld)
 	{
-		const bool bSwitchToPIE = false;
 		// Want to restore the editor world and the current world is not already the editor world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(-1);
 	}
 	else
 	{
@@ -2057,6 +2055,22 @@ void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* Overri
 	else
 	{
 		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
+	}
+}
+
+void UEditorEngine::OnSwitchWorldsForPIEInstance(int32 WorldPIEInstance)
+{
+	if (WorldPIEInstance < 0)
+	{
+		RestoreEditorWorld(EditorWorld);
+	}
+	else
+	{
+		FWorldContext* PIEContext = GetPIEWorldContext(WorldPIEInstance);
+		if (PIEContext && PIEContext->World())
+		{
+			SetPlayInEditorWorld(PIEContext->World());
+		}
 	}
 }
 
@@ -2938,7 +2952,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 
 	if (InNetMode == PIE_Client)
 	{
-		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex + 1)));
+		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex)));
 	}
 	else if (InNetMode == PIE_ListenServer)
 	{
@@ -3035,7 +3049,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// If they haven't provided a Slate Window (common), we will create one.
 	if (!bHasCustomWindow)
 	{
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams,InViewportIndex, InWorldContext.PIEFixedTickSeconds);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))
@@ -3050,7 +3064,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	// Setup a delegate for switching to the play world on slate input events, drawing and ticking
-	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow);
+	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow, InWorldContext.PIEInstance);
 	PieWindow->SetOnWorldSwitchHack(OnWorldSwitch);
 
 	if (!bHasCustomWindow)
