@@ -64,6 +64,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
 TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
+TAutoConsoleVariable<int32> CVarClothPhysicsTickWaitForParallelClothTask(TEXT("p.ClothPhysics.WaitForParallelClothTask"), 1, TEXT(""));
 TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT("p.EnableKinematicDeferralPrePhysicsCondition"), 1, TEXT("If is 1, and deferral would've been disallowed due to EUpdateTransformFlags, allow if in PrePhysics tick. If 0, condition is unchanged."));
 
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
@@ -1989,14 +1990,21 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 		return;
 	}
 
-	OutPositions.Empty();
-	OutPositions.AddUninitialized(LODData.GetNumVertices());
-	
 	if (Component->SkeletalMesh->MeshClothingAssets.Num() > 0 &&
 		!Component->bDisableClothSimulation &&
 		Component->ClothBlendWeight > 0.0f // if cloth blend weight is 0.0, only showing skinned vertices regardless of simulation positions
 		)
 	{
+		// Fail if cloth data not available
+		const TMap<int32, FClothSimulData>& ClothData = Component->GetCurrentClothingData_GameThread();
+		if (ClothData.Num() == 0)
+		{
+			return;
+		}
+
+		OutPositions.Empty();
+		OutPositions.AddUninitialized(LODData.GetNumVertices());
+
 		//update positions
 		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 		{
@@ -2020,7 +2028,7 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 				int32 AssetIndex = Component->SkeletalMesh->GetClothingAssetIndex(ClothAssetGuid);
 				if (AssetIndex != INDEX_NONE)
 				{
-					const FClothSimulData* ActorData = Component->CurrentSimulationData_GameThread.Find(AssetIndex);
+					const FClothSimulData* ActorData = ClothData.Find(AssetIndex);
 
 					if (ActorData)
 					{
@@ -2064,6 +2072,9 @@ void USkeletalMeshComponent::ComputeSkinnedPositions(USkeletalMeshComponent* Com
 	}
 	else
 	{
+		OutPositions.Empty();
+		OutPositions.AddUninitialized(LODData.GetNumVertices());
+
 		for (int32 SectionIdx = 0; SectionIdx < LODData.RenderSections.Num(); ++SectionIdx)
 		{
 			const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionIdx];
@@ -3185,6 +3196,44 @@ public:
 	}
 };
 
+bool USkeletalMeshComponent::ShouldWaitForParallelClothTask() const
+{
+	return bWaitForParallelClothTask || (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() != 0);
+}
+
+const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_GameThread() const
+{
+	// We require the cloth tick to wait for the simulation results if we want to use them for some reason other than rendering.
+	if (!ShouldWaitForParallelClothTask())
+	{
+		// Log a one-time warning
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("Use of USkeletalMeshComponent::GetCurrentClothingData_GameThread requires that property bWaitForParallelClothTask be set to true"));
+
+		// Make it work for next frame
+		const_cast<USkeletalMeshComponent*>(this)->bWaitForParallelClothTask = true;
+
+		// Return an empty dataset
+		static const TMap<int32, FClothSimulData> SEmptySimulationData;
+		return SEmptySimulationData;
+	}
+
+	return CurrentSimulationData;
+}
+
+const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingData_AnyThread() const
+{
+	// If we did not wait for cloth data in the tick task, we must wait here
+	// Only required if forced waiting is not enabled. Note, we are deliberately not checking bWaitForParallelClothTask here since that
+	// could have been changed this frame in GetCurrentClothingData_GameThread(). This is ok though, see HandleExistingParallelClothSimulation which
+	// if fine to call if the task has already completed.
+	if (CVarClothPhysicsTickWaitForParallelClothTask.GetValueOnAnyThread() == 0)
+	{
+		const_cast<USkeletalMeshComponent*>(this)->HandleExistingParallelClothSimulation();
+	}
+
+	return CurrentSimulationData;
+}
+
 void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickFunction& ThisTickFunction)
 {
 	// If disabled or no simulation
@@ -3224,12 +3273,15 @@ void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickF
 	if(ClothingSimulation)
 	{
 		ParallelClothTask = TGraphTask<FParallelClothTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this, DeltaTime);
-			
-		FGraphEventArray Prerequisites;
-		Prerequisites.Add(ParallelClothTask);
-		FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
-		ThisTickFunction.GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
-		ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
+		
+		if (ShouldWaitForParallelClothTask())
+		{
+			FGraphEventArray Prerequisites;
+			Prerequisites.Add(ParallelClothTask);
+			FGraphEventRef ClothCompletionEvent = TGraphTask<FParallelClothCompletionTask>::CreateTask(&Prerequisites, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
+			ThisTickFunction.GetCompletionHandle()->SetGatherThreadForDontCompleteUntil(ENamedThreads::GameThread);
+			ThisTickFunction.GetCompletionHandle()->DontCompleteUntil(ClothCompletionEvent);
+		}
 	}
 }
 
@@ -3250,7 +3302,7 @@ bool USkeletalMeshComponent::GetClothSimulatedPosition_GameThread(const FGuid& A
 
 	if(AssetIndex != INDEX_NONE)
 	{
-		const FClothSimulData* ActorData = CurrentSimulationData_GameThread.Find(AssetIndex);
+		const FClothSimulData* ActorData = GetCurrentClothingData_GameThread().Find(AssetIndex);
 
 		if(ActorData && ActorData->Positions.IsValidIndex(VertexIndex))
 		{
