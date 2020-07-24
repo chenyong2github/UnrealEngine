@@ -42,6 +42,7 @@ namespace LiveStreamAnimation
 
 	bool FLiveStreamAnimationLiveLinkSource::RequestSourceShutdown()
 	{
+		UE_LOG(LogLiveStreamAnimation, Log, TEXT("FLiveStreamAnimationLiveLinkSource::RequestSourceShutdown"));
 		Reset();
 		return true;
 	}
@@ -63,6 +64,11 @@ namespace LiveStreamAnimation
 		static FText DisconnectedText = NSLOCTEXT("LiveStreamAnimation", "LiveLinkSourceState_Disconnected", "Disconnected");
 
 		return bIsConnectedToMesh ? ConnectedText : DisconnectedText;
+	}
+
+	void FLiveStreamAnimationLiveLinkSource::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(FrameTranslator);
 	}
 
 	void FLiveStreamAnimationLiveLinkSource::Reset()
@@ -123,10 +129,10 @@ namespace LiveStreamAnimation
 		Presets.Role = ULiveStreamAnimationLiveLinkRole::StaticClass();
 		Presets.bEnabled = true;
 
-		if (ULiveStreamAnimationLiveLinkFrameTranslator* LocalFrameTranslator = FrameTranslator.Get())
+		if (FrameTranslator)
 		{
 			Presets.Settings = NewObject<ULiveLinkSubjectSettings>();
-			Presets.Settings->Translators.Add(LocalFrameTranslator);
+			Presets.Settings->Translators.Add(FrameTranslator);
 		}
 
 		if (!LiveLinkClient->CreateSubject(Presets))
