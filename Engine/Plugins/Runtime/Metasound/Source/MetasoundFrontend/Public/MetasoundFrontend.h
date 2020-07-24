@@ -12,7 +12,6 @@
 // Forward Declarations
 class FMetasoundAssetBase;
 
-
 namespace Metasound
 {	
 	/**
@@ -73,6 +72,13 @@ namespace Metasound
 		// Generates a new FMetasoundClassDescription for a given node class. Only used by classes that manipulate Metasound Description data directly.
 		METASOUNDFRONTEND_API FMetasoundClassDescription GenerateClassDescriptionForNode(const FNodeClassInfo& InInfo);
 
+		template<typename DataType>
+		FName GetDataTypeName()
+		{
+			static FName DataTypeName = FName(TDataReferenceTypeInfo<DataType>::TypeName);
+			return DataTypeName;
+		}
+
 		// Returns a list of all available data types.
 		METASOUNDFRONTEND_API TArray<FName> GetAllAvailableDataTypes();
 
@@ -84,6 +90,48 @@ namespace Metasound
 		// metasound document struct. 
 		// @returns false if the file couldn't be found or parsed into a document.
 		METASOUNDFRONTEND_API bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
+
+		struct METASOUNDFRONTEND_API FMetasoundArchetypeRegistryParams_Internal
+		{
+			FMetasoundArchetype ArchetypeDescription;
+
+			// The UClass associated with this specific archetype.
+			UClass* ArchetypeUClass;
+
+			// template-generated lambdas used to safely sidecast to FMetasoundBase*.
+			TUniqueFunction<FMetasoundAssetBase* (UObject*)> SafeCast;
+			TUniqueFunction<const FMetasoundAssetBase* (const UObject*)> SafeConstCast;
+
+			// This function should construct a new UObject of the given archetype's type
+			// given a metasound document with a matching archetype.
+			// The first argument is the document to use.
+			// The second argument is the path relative to the content directory to save the soundwave to.
+			TUniqueFunction<UObject* (const FMetasoundDocument&, const FString&)> ObjectGetter;
+		};
+
+		// ಠ╭╮ಠ         ಠ╭╮ಠ           ಠ╭╮ಠ
+		// Please don't use this function.
+		// See RegisterArchetype<Class> instead, in MetasoundArchetypeRegistration.h
+		METASOUNDFRONTEND_API bool RegisterArchetype_Internal(FMetasoundArchetypeRegistryParams_Internal&& InParams);
+
+		METASOUNDFRONTEND_API TArray<FName> GetAllRegisteredArchetypes();
+
+		// Returns a new UObject, whose class corresponds to the archetype in the document.
+		// @param InDocument a fully generated metasound document, typically retrieved from ImportJSONToMetasound().
+		// @param InPath, path in content directory to save the generated UAsset to (ex. "/game/MyDir/MyMetasoundAsset".
+		//                if InPath is invalid, we won't save to an asset.
+		// @returns nullptr if we couldn't find the archetype.
+		METASOUNDFRONTEND_API UObject* GetObjectForDocument(const FMetasoundDocument& InDocument, const FString& InPath);
+
+		// This returns true if the object is listed as one of our metasound archetypes.
+		// If it is, the object can be safely static cast to FMetasoundAssetBase*.
+		METASOUNDFRONTEND_API bool IsObjectAMetasoundArchetype(const UObject* InObject);
+
+		// These functions are used to safely sidecast between a UObject of a given metasound archetype
+		// and FMetasoundAssetBase*.
+		// @returns nullptr if the object wasn't a registered archetype.
+		METASOUNDFRONTEND_API FMetasoundAssetBase* GetObjectAsAssetBase(UObject* InObject);
+		METASOUNDFRONTEND_API const FMetasoundAssetBase* GetObjectAsAssetBase(const UObject* InObject);
 
 		// Struct that indicates whether an input and an output can be connected,
 		// and whether an intermediate node is necessary to connect the two.
@@ -325,6 +373,8 @@ namespace Metasound
 			bool SetInputToLiteral(const FString& InInputName, int32 InValue);
 			bool SetInputToLiteral(const FString& InInputName, float InValue);
 			bool SetInputToLiteral(const FString& InInputName, const FString& InValue);
+			bool SetInputToLiteral(const FString& InInputName, UObject* InValue);
+			bool SetInputToLiteral(const FString& InInputName, TArray<UObject*> InValue);
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.
@@ -364,6 +414,9 @@ namespace Metasound
 			// @returns nullptr on failure.
 			// @todo: make an API for doing this async.
 			TUniquePtr<IOperator> BuildOperator(const FOperatorSettings& InSettings, TArray<IOperatorBuilder::FBuildErrorPtr>& OutBuildErrors) const;
+
+			// This function will ensure that the document's root class has the inputs and outputs required by the archetype.
+			void FixDocumentToMatchArchetype();
 
 		private:
 

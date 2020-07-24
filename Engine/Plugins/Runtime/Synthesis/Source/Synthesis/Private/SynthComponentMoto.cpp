@@ -57,7 +57,7 @@ void USynthComponentMoto::GetRPMRange(float& OutMinRPM, float& OutMaxRPM)
 	}
 }
 
-ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
+ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	if (!FMotoSynthEngine::IsMotoSynthEngineEnabled())
 	{
@@ -71,7 +71,7 @@ ISoundGeneratorPtr USynthComponentMoto::CreateSoundGenerator(int32 InSampleRate,
  
  		if (FMotoSynthEngine* MS = static_cast<FMotoSynthEngine*>(MotoSynthEngine.Get()))
  		{
- 			MS->Init(InSampleRate);
+ 			MS->Init(InParams.SampleRate);
  
  			FMotoSynthData AccelerationSourceData;
 			MotoSynthPreset->Settings.AccelerationSource->GetData(AccelerationSourceData);

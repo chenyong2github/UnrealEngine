@@ -151,10 +151,23 @@ void USynthComponentMetasoundExample::SetGraphOperator(FOperatorUniquePtr InGrap
 	if (InGraphOperator.IsValid())
 	{
 		FDataReferenceCollection Outputs = InGraphOperator->GetOutputs();
-		FMultichannelAudioFormatReadRef Audio = Outputs.GetDataReadReferenceOrConstruct<FMultichannelAudioFormat>(InOutputAudioName, NumChannels, 256);
-		NumChannels = Audio->GetNumChannels();
+		FAudioBufferReadRef Audio = Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(InOutputAudioName, 256);
+		FBopReadRef OnFinished = FBopReadRef::CreateNew(); // unused in this example
+		
+		// Multichannel version:
+		//NumChannels = Audio->GetNumChannels();
 
-		Generator = MakeShared<Metasound::FMetasoundGenerator, ESPMode::ThreadSafe>(MoveTemp(InGraphOperator), Audio);
+		// Single channel version:
+		NumChannels = 1;
+
+		FMetasoundGeneratorInitParams InitParams =
+		{
+			MoveTemp(InGraphOperator),
+			Audio,
+			OnFinished
+		};
+
+		Generator = MakeShared<Metasound::FMetasoundGenerator, ESPMode::ThreadSafe>(MoveTemp(InitParams));
 	}
 	else
 	{
@@ -173,9 +186,24 @@ bool USynthComponentMetasoundExample::PushGraphOperator(FOperatorUniquePtr InGra
 	}
 
 	FDataReferenceCollection Outputs = InGraphOperator->GetOutputs();
-	FMultichannelAudioFormatReadRef Audio = Outputs.GetDataReadReferenceOrConstruct<FMultichannelAudioFormat>(InOutputAudioName, NumChannels, 256);
+	FAudioBufferReadRef AudioReadRef = Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(InOutputAudioName, 256);
+	
+	// On Finished isn't used in this example.
+	FBopReadRef OnFinishedRef = FBopReadRef::CreateNew();
 
-	if (Generator->UpdateGraphOperator(MoveTemp(InGraphOperator), Audio))
+	FMetasoundGeneratorInitParams GeneratorInitParams =
+	{
+		MoveTemp(InGraphOperator),
+		AudioReadRef,
+		OnFinishedRef
+	};
+
+	
+	GeneratorInitParams.GraphOutputAudioRef = Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(InOutputAudioName, 256);
+	GeneratorInitParams.GraphOperator = MoveTemp(InGraphOperator);
+
+
+	if (Generator->UpdateGraphOperator(MoveTemp(GeneratorInitParams)))
 	{
 		return true;
 	}
@@ -183,7 +211,7 @@ bool USynthComponentMetasoundExample::PushGraphOperator(FOperatorUniquePtr InGra
 	return false;
 }
 
-ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
+ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	using namespace Metasound;
 
@@ -191,7 +219,7 @@ ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(int32 I
 
 	TUniquePtr<FSynthComponentMetasoundExampleGraph> ExampleGraph = CreateSynthComponentMetasoundExampleGraph();
 
-	FOperatorSettings Settings(InSampleRate, 256);
+	FOperatorSettings Settings(InParams.SampleRate, InParams.NumFramesPerCallback);
 	FOperatorBuilder Builder(Settings);
 
 	TArray<IOperatorBuilder::FBuildErrorPtr> Errors;
@@ -201,7 +229,4 @@ ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(int32 I
 
 	return Generator;
 }
-
-
-
 

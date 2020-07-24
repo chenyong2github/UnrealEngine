@@ -79,7 +79,7 @@ void USynthComponentToneGenerator::SetVolume(float InVolume)
 	}
 }
 
-ISoundGeneratorPtr USynthComponentToneGenerator::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
+ISoundGeneratorPtr USynthComponentToneGenerator::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
-	return ToneGenerator = ISoundGeneratorPtr(new FToneGenerator(InSampleRate, InNumChannels, Frequency, Volume));
+	return ToneGenerator = ISoundGeneratorPtr(new FToneGenerator(InParams.SampleRate, InParams.NumChannels, Frequency, Volume));
 }

@@ -2,8 +2,7 @@
 
 #include "MetasoundFrontend.h"
 
-#include "Backends/JsonStructSerializerBackend.h"
-#include "Backends/JsonStructDeserializerBackend.h"
+#include "MetasoundJsonBackend.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
 #include "HAL/FileManager.h"
@@ -12,7 +11,6 @@
 
 #include "MetasoundAudioFormats.h"
 #include "MetasoundOperatorBuilder.h"
-
 
 static int32 MetasoundUndoRollLimitCvar = 128;
 FAutoConsoleVariableRef CVarMetasoundUndoRollLimit(
@@ -220,7 +218,7 @@ namespace Metasound
 		{
 			if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*InPath)))
 			{
-				FJsonStructDeserializerBackend Backend(*FileReader);
+				TJsonStructDeserializerBackend<DefaultCharType> Backend(*FileReader);
 				bool DeserializeResult = FStructDeserializer::Deserialize(OutMetasoundDocument, Backend);
 
 				FileReader->Close();
@@ -228,6 +226,171 @@ namespace Metasound
 			}
 
 			return false;
+		}
+
+		// Struct used for any pertinent archetype data.
+		struct FArchetypeRegistryElement
+		{
+			FMetasoundArchetype Archetype;
+			UClass* ArchetypeUClass;
+
+			// Constructor used to generate an instance of the UObject version of this archetype from scratch.
+			TUniqueFunction<UObject* (const FMetasoundDocument&, const FString&)> ObjectConstructor;
+
+			// template-generated lambdas used to safely sidecast to FMetasoundBase*.
+			TUniqueFunction<FMetasoundAssetBase* (UObject*)> SafeCast;
+			TUniqueFunction<const FMetasoundAssetBase* (const UObject*)> SafeConstCast;
+		};
+
+		static TMap<FName, FArchetypeRegistryElement> ArchetypeRegistry;
+
+		bool RegisterArchetype_Internal(FMetasoundArchetypeRegistryParams_Internal&& InParams)
+		{
+			FName ArchetypeName = InParams.ArchetypeDescription.ArchetypeName;
+
+			if (!ArchetypeRegistry.Contains(ArchetypeName))
+			{
+				FArchetypeRegistryElement RegistryElement = 
+				{ 
+					InParams.ArchetypeDescription,
+					InParams.ArchetypeUClass,
+					MoveTemp(InParams.ObjectGetter),
+					MoveTemp(InParams.SafeCast),
+					MoveTemp(InParams.SafeConstCast)
+				};
+
+				ArchetypeRegistry.Add(ArchetypeName, MoveTemp(RegistryElement));
+
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		TArray<FName> GetAllRegisteredArchetypes()
+		{
+			TArray<FName> OutArchetypes;
+			for (auto& RegistryTuple : ArchetypeRegistry)
+			{
+				OutArchetypes.Add(RegistryTuple.Key);
+			}
+
+			return OutArchetypes;
+		}
+
+		UObject* GetObjectForDocument(const FMetasoundDocument& InDocument, const FString& InPath)
+		{
+			FName ArchetypeName = InDocument.Archetype.ArchetypeName;
+			if (ArchetypeRegistry.Contains(ArchetypeName))
+			{
+				return ArchetypeRegistry[ArchetypeName].ObjectConstructor(InDocument, InPath);
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+
+		bool IsObjectAMetasoundArchetype(const UObject* InObject)
+		{
+			UClass* ObjectClass = InObject->GetClass();
+
+			for (auto& RegistryTuple : ArchetypeRegistry)
+			{
+				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		FMetasoundAssetBase* GetObjectAsAssetBase(UObject* InObject)
+		{
+			UClass* ObjectClass = InObject->GetClass();
+
+			for (auto& RegistryTuple : ArchetypeRegistry)
+			{
+				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
+				{
+					return RegistryTuple.Value.SafeCast(InObject);
+				}
+			}
+
+			return nullptr;
+		}
+
+		const FMetasoundAssetBase* GetObjectAsAssetBase(const UObject* InObject)
+		{
+			UClass* ObjectClass = InObject->GetClass();
+
+			for (auto& RegistryTuple : ArchetypeRegistry)
+			{
+				if (ObjectClass == RegistryTuple.Value.ArchetypeUClass)
+				{
+					return RegistryTuple.Value.SafeConstCast(InObject);
+				}
+			}
+
+			return nullptr;
+		}
+
+		void FGraphHandle::FixDocumentToMatchArchetype()
+		{
+			// TODO: Also check if this is the root class.
+			if (!IsValid())
+			{
+				return;
+			}
+
+			FMetasoundDocument& DocumentToFixUp = *OwningDocument;
+
+			// Add any missing inputs from the Required Inputs list:
+			const TArray<FMetasoundInputDescription>& RequiredInputs = DocumentToFixUp.Archetype.RequiredInputs;
+			TArray<FMetasoundInputDescription>& CurrentInputs = DocumentToFixUp.RootClass.Inputs;
+			for (const FMetasoundInputDescription& RequiredInput : RequiredInputs)
+			{
+				bool bFoundRequiredInput = false;
+				for (const FMetasoundInputDescription& Input : CurrentInputs)
+				{
+					if (Input.TypeName == RequiredInput.TypeName && Input.Name == RequiredInput.Name)
+					{
+						bFoundRequiredInput = true;
+						break;
+					}
+				}
+
+				if (!bFoundRequiredInput)
+				{
+					//CurrentInputs.Add(RequiredInput);
+					AddNewInput(RequiredInput);
+				}
+			}
+
+			// Add any missing outputs from the Required Outputs list:
+			const TArray<FMetasoundOutputDescription>& RequiredOutputs = DocumentToFixUp.Archetype.RequiredOutputs;
+			TArray<FMetasoundOutputDescription>& CurrentOutputs = DocumentToFixUp.RootClass.Outputs;
+			for (const FMetasoundOutputDescription& RequiredOutput : RequiredOutputs)
+			{
+				bool bFoundRequiredOutput = false;
+				for (const FMetasoundOutputDescription& Output : CurrentOutputs)
+				{
+					if (Output.TypeName == RequiredOutput.TypeName && Output.Name == RequiredOutput.Name)
+					{
+						bFoundRequiredOutput = true;
+						break;
+					}
+				}
+
+				if (!bFoundRequiredOutput)
+				{
+					//CurrentOutputs.Add(RequiredOutput);
+					AddNewOutput(RequiredOutput);
+				}
+			}
 		}
 
 		FInputHandle::FInputHandle(FHandleInitParams::EPrivateToken PrivateToken, const FHandleInitParams& InParams, const FString& InputName)
@@ -848,10 +1011,28 @@ namespace Metasound
 
 			if (IsValid())
 			{
-				ClassInfo.NodeName = NodeClass->Metadata.NodeName;
-				ClassInfo.NodeType = NodeClass->Metadata.NodeType;
-				ClassInfo.LookupKey.NodeHash = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassHash;
-				ClassInfo.LookupKey.NodeName = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassName;
+
+				if (NodeClassType == EMetasoundClassType::Input)
+				{
+					ClassInfo.NodeName = TEXT("Input");
+					ClassInfo.NodeType = NodeClassType;
+					ClassInfo.LookupKey.NodeHash = 0;
+					ClassInfo.LookupKey.NodeName = FName();
+				}
+				else if (NodeClassType == EMetasoundClassType::Output)
+				{
+					ClassInfo.NodeName = TEXT("Output");
+					ClassInfo.NodeType = NodeClassType;
+					ClassInfo.LookupKey.NodeHash = 0;
+					ClassInfo.LookupKey.NodeName = FName();
+				}
+				else
+				{
+					ClassInfo.NodeName = NodeClass->Metadata.NodeName;
+					ClassInfo.NodeType = NodeClass->Metadata.NodeType;
+					ClassInfo.LookupKey.NodeHash = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassHash;
+					ClassInfo.LookupKey.NodeName = NodeClass->ExternalNodeClassLookupInfo.ExternalNodeClassName;
+				}
 			}
 
 			return ClassInfo;
@@ -1269,6 +1450,7 @@ namespace Metasound
 
 			// Add the input to this node's class description.
 			Inputs.Add(InDescription);
+			ClearLiteralForInput(InDescription.Name);
 
 			FMetasoundNodeDescription NewNodeDescription;
 			NewNodeDescription.Name = InDescription.Name;
@@ -1279,6 +1461,7 @@ namespace Metasound
 
 			FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NewNodeDescription.UniqueID];
 			FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NewNodeDescription.Name, OwningAsset };
+
 			// todo: add special enum for input and output nodes
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
@@ -1754,10 +1937,13 @@ namespace Metasound
 				return false;
 			}
 
+			
 			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InAbsolutePath)))
 			{
-				FJsonStructSerializerBackend Backend(*FileWriter, EStructSerializerBackendFlags::Default);
+				
+				TJsonStructSerializerBackend<DefaultCharType> Backend(*FileWriter, EStructSerializerBackendFlags::Default);
 				FStructSerializer::Serialize<FMetasoundClassDescription>(GraphsClassDeclaration.GetChecked(), Backend);
+		
 				FileWriter->Close();
 
 				return true;

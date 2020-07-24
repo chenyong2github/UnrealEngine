@@ -8,10 +8,18 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundDataReferenceTypes.h"
 #include "Sound/SoundGenerator.h"
 
 namespace Metasound
 {
+	struct FMetasoundGeneratorInitParams
+	{
+		TUniquePtr<Metasound::IOperator> GraphOperator;
+		FAudioBufferReadRef GraphOutputAudioRef;
+		FBopReadRef BopOnFinishRef;
+	};
+
 	/** FMetasoundGenerator generates audio from a given metasound IOperator
 	 * which produces a multichannel audio output.
 	 */
@@ -19,14 +27,14 @@ namespace Metasound
 	{
 	public:
 		using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
-		using FMultichannelAudioFormatReadRef = Metasound::FMultichannelAudioFormatReadRef;
+		using FAudioBufferReadRef = Metasound::FAudioBufferReadRef;
 
 		/** Create the generator with a graph operator and an output audio reference.
 		 *
 		 * @param InGraphOperator - Unique pointer to the IOperator which executes the entire graph.
 		 * @param InGraphOutputAudioRef - Read reference to the audio buffer filled by the InGraphOperator.
 		 */
-		FMetasoundGenerator(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef);
+		FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams);
 
 		virtual ~FMetasoundGenerator();
 
@@ -86,19 +94,21 @@ namespace Metasound
 		 *
 		 * @return Returns true if the graph operator was successfully swapped. False otherwise.
 		 */
-		bool UpdateGraphOperator(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef);
+		bool UpdateGraphOperator(FMetasoundGeneratorInitParams&& InParams);
 
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
 
 		//~ Begin FSoundGenerator
 		virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override;
+		int32 GetDesiredNumSamplesToRenderPerCallback() const override;
+		bool IsFinished() const override;
 		//~ End FSoundGenerator
 
 	private:
 
 		// Internal set graph after checking compatibility.
-		void SetGraph(FOperatorUniquePtr InGraphOperator, const FMultichannelAudioFormatReadRef& InGraphOutputAudioRef);
+		void SetGraph(FMetasoundGeneratorInitParams&& InParams);
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
 		// Returns the number of samples used.
@@ -113,15 +123,14 @@ namespace Metasound
 		int32 NumFramesPerExecute;
 		int32 NumSamplesPerExecute;
 
-		FMultichannelAudioFormatReadRef GraphOutputAudioRef;
+		FAudioBufferReadRef GraphOutputAudioRef;
+
+		// This will be bopped when this metasound is finished playing.
+		FBopReadRef OnFinishedBopRef;
 
 		Audio::AlignedFloatBuffer InterleavedAudioBuffer;
 
 		Audio::AlignedFloatBuffer OverflowBuffer;
 	};
 }
-
-
-
-
 

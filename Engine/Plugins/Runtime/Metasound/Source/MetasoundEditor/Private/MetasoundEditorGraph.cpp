@@ -4,12 +4,12 @@
 #include "EdGraph/EdGraphNode.h"
 
 
-UMetasound* UMetasoundEditorGraph::GetMetasound() const
+UObject* UMetasoundEditorGraph::GetMetasound() const
 {
 	return ParentMetasound;
 }
 
-UMetasound& UMetasoundEditorGraph::GetMetasoundChecked() const
+UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 {
 	check(ParentMetasound);
 	return *ParentMetasound;

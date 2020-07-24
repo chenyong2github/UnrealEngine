@@ -8,6 +8,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "Metasound.h"
+#include "MetasoundFrontend.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
@@ -72,13 +73,13 @@ int32 UMetasoundEditorGraphNode::EstimateNodeWidth() const
 	}
 }
 
-UMetasound& UMetasoundEditorGraphNode::GetMetasoundChecked()
+UObject& UMetasoundEditorGraphNode::GetMetasoundChecked()
 {
 	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
 	return EdGraph->GetMetasoundChecked();
 }
 
-const UMetasound& UMetasoundEditorGraphNode::GetMetasoundChecked() const
+const UObject& UMetasoundEditorGraphNode::GetMetasoundChecked() const
 {
 	UMetasoundEditorGraph* EdGraph = CastChecked<UMetasoundEditorGraph>(GetGraph());
 	return EdGraph->GetMetasoundChecked();
@@ -86,7 +87,10 @@ const UMetasound& UMetasoundEditorGraphNode::GetMetasoundChecked() const
 
 Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle() const
 {
-	return GetMetasoundChecked().GetRootGraphHandle();
+	const FMetasoundAssetBase* MetasoundAsset = Metasound::Frontend::GetObjectAsAssetBase(&GetMetasoundChecked());
+	check(MetasoundAsset);
+
+	return MetasoundAsset->GetRootGraphHandle();
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
@@ -282,17 +286,21 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 
 	// TODO: Add author to ToolTip
 	FNodeHandle NodeHandle = GetNodeHandle();
+
+	const FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&GetMetasoundChecked());
+	check(MetasoundAsset);
+
 	switch (NodeHandle.GetNodeType())
 	{
 		case EMetasoundClassType::Input:
 		{
-			return GetMetasoundChecked().GetInputToolTip(NodeHandle.GetNodeName());
+			return MetasoundAsset->GetInputToolTip(NodeHandle.GetNodeName());
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			return GetMetasoundChecked().GetOutputToolTip(NodeHandle.GetNodeName());
+			return MetasoundAsset->GetOutputToolTip(NodeHandle.GetNodeName());
 		}
 		break;
 

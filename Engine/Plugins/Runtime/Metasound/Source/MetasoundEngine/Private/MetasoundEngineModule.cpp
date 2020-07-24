@@ -2,6 +2,7 @@
 #include "MetasoundEngineModule.h"
 
 #include "Metasound.h"
+#include "MetasoundSource.h"
 #include "Modules/ModuleManager.h"
 
 
@@ -11,6 +12,9 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
+		Metasound::Frontend::RegisterArchetype<UMetasoundSource>();
+		Metasound::Frontend::RegisterArchetype<UMetasound>();
+
 		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));
 	}
 };

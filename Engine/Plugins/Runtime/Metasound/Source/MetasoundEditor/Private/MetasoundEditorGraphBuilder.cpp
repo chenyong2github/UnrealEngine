@@ -26,13 +26,16 @@ namespace Metasound
 		const FName FGraphBuilder::PinPrimitiveInteger = "Int";
 		const FName FGraphBuilder::PinPrimitiveString = "String";
 
-		UEdGraphNode* FGraphBuilder::AddNode(UMetasound& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode)
+		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("AddMetasoundGraphNode", "Add Metasound Node"));
 
 			const FString EdNodeName = InNodeHandle.GetNodeClassName() + TEXT("_") + FString::FromInt(InNodeHandle.GetNodeID());
 
-			UEdGraph& Graph = InMetasound.GetGraphChecked();
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			UEdGraph& Graph = MetasoundAsset->GetGraphChecked();
 			FGraphNodeCreator<UMetasoundEditorGraphNode> NodeCreator(Graph);
 			UMetasoundEditorGraphNode* NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
 			NodeCreator.Finalize();
@@ -50,31 +53,40 @@ namespace Metasound
 			return NewGraphNode;
 		}
 
-		UEdGraphNode* FGraphBuilder::AddNode(UMetasound& InMetasound, const FVector2D& Location, const Frontend::FNodeClassInfo& InClassInfo, bool bInSelectNewNode)
+		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, const Frontend::FNodeClassInfo& InClassInfo, bool bInSelectNewNode)
 		{
-			Frontend::FNodeHandle NodeHandle = InMetasound.GetRootGraphHandle().AddNewNode(InClassInfo);
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewNode(InClassInfo);
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
-		UEdGraphNode* FGraphBuilder::AddInput(UMetasound& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
+		UEdGraphNode* FGraphBuilder::AddInput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
 		{
 			FMetasoundInputDescription Description;
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.ToolTip = InToolTip;
 
-			Frontend::FNodeHandle NodeHandle = InMetasound.GetRootGraphHandle().AddNewInput(Description);
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewInput(Description);
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
-		UEdGraphNode* FGraphBuilder::AddOutput(UMetasound& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
+		UEdGraphNode* FGraphBuilder::AddOutput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
 		{
 			FMetasoundOutputDescription Description;
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.ToolTip = InToolTip;
 
-			Frontend::FNodeHandle NodeHandle = InMetasound.GetRootGraphHandle().AddNewOutput(Description);
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewOutput(Description);
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
@@ -90,7 +102,11 @@ namespace Metasound
 			}
 
 			const Frontend::FNodeHandle& NodeHandle = InNode.GetNodeHandle();
-			Frontend::FGraphHandle GraphHandle = Graph->GetMetasoundChecked().GetRootGraphHandle();
+
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Graph->GetMetasound());
+			check(MetasoundAsset);
+
+			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 			if (GraphHandle.IsValid() && NodeHandle.IsValid())
 			{
 				switch (NodeHandle.GetNodeType())
@@ -119,12 +135,15 @@ namespace Metasound
 			InNode.MarkPackageDirty();
 		}
 
-		void FGraphBuilder::RebuildGraph(UMetasound& InMetasound)
+		void FGraphBuilder::RebuildGraph(UObject& InMetasound)
 		{
 			using namespace Frontend;
 
-			FGraphHandle GraphHandle = InMetasound.GetRootGraphHandle();
-			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(InMetasound.GetGraph());
+			FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
 
 			Graph->Nodes.Reset();
 

@@ -12,7 +12,7 @@
 
 class IMetasoundEditor : public FAssetEditorToolkit
 {
-	virtual UMetasound* GetMetasound() const = 0;
+	virtual UObject* GetMetasoundObject() const = 0;
 	virtual void SetSelection(const TArray<UObject*>& SelectedObjects) = 0;
 	virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) = 0;
 };

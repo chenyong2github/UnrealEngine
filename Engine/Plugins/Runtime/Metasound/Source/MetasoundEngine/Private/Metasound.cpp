@@ -6,6 +6,7 @@
 #include "StructSerializer.h"
 #include "UObject/UnrealType.h"
 
+#include "MetasoundArchetypeRegistration.h"
 
 UMetasound::UMetasound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -36,32 +37,6 @@ const UEdGraph& UMetasound::GetGraphChecked() const
 	return *Graph;
 }
 
-const FText& UMetasound::GetInputToolTip(FString InputName) const
-{
-	for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
-	{
-		if (Desc.Name == InputName)
-		{
-			return Desc.ToolTip;
-		}
-	}
-
-	return FText::GetEmpty();
-}
-
-const FText& UMetasound::GetOutputToolTip(FString OutputName) const
-{
-	for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
-	{
-		if (Desc.Name == OutputName)
-		{
-			return Desc.ToolTip;
-		}
-	}
-
-	return FText::GetEmpty();
-}
-
 void UMetasound::SetGraph(UEdGraph* InGraph)
 {
 	Graph = InGraph;
@@ -76,9 +51,17 @@ void UMetasound::SetMetadata(FMetasoundClassMetadata& InMetadata)
 	MarkPackageDirty();
 }
 
-// delete this asset's current metasound document,
-// and replace it with InClassDescription.
-void UMetasound::SetMetasoundDocument(const FMetasoundDocument& InDocument)
+void UMetasound::PostLoad()
 {
-	RootMetasoundDocument = InDocument;
+	ConformDocumentToArchetype();
+}
+
+FMetasoundArchetype UMetasound::GetArchetype() const
+{
+	FMetasoundArchetype Archetype;
+	static FName MetasoundArchetypeName = TEXT("Generic Metasound");
+
+	Archetype.ArchetypeName = MetasoundArchetypeName;
+
+	return Archetype;
 }

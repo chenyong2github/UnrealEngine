@@ -6,16 +6,14 @@
 #include "MetasoundFrontendDataLayout.h"
 #include "MetasoundAssetBase.h"
 
+#include "Sound/SoundWaveProcedural.h"
+
 
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
 #endif // WITH_EDITORONLY_DATA
 
-#include "Metasound.generated.h"
-
-// Forward Declarations
-class FEditPropertyChain;
-struct FPropertyChangedEvent;
+#include "MetasoundSource.generated.h"
 
 
 /**
@@ -23,7 +21,7 @@ struct FPropertyChangedEvent;
  * Because of this, they can have any inputs or outputs they need.
  */
 UCLASS(hidecategories = object, BlueprintType)
-class METASOUNDENGINE_API UMetasound : public UObject, public FMetasoundAssetBase
+class METASOUNDENGINE_API UMetasoundSource : public USoundWaveProcedural, public FMetasoundAssetBase
 {
 	GENERATED_BODY()
 
@@ -37,23 +35,42 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	UMetasound(const FObjectInitializer& ObjectInitializer);
+	UMetasoundSource(const FObjectInitializer& ObjectInitializer);
 
 #if WITH_EDITORONLY_DATA
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @return Editor graph associated with UMetasound.
-	virtual UEdGraph* GetGraph() override;
-	virtual const UEdGraph* GetGraph() const override;
-	virtual UEdGraph& GetGraphChecked() override;
-	virtual const UEdGraph& GetGraphChecked() const override;
+	// @return Editor graph associated with UMetasoundSource.
+	virtual UEdGraph* GetGraph() override
+	{
+		return Graph;
+	}
+
+	virtual const UEdGraph* GetGraph() const override
+	{
+		return Graph;
+	}
+
+	virtual UEdGraph& GetGraphChecked() override
+	{
+		check(Graph);
+		return *Graph;
+	}
+
+	virtual const UEdGraph& GetGraphChecked() const override
+	{
+		check(Graph);
+		return *Graph;
+	}
 
 	// Sets the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
-	// @param Editor graph associated with UMetasound.
-	virtual void SetGraph(UEdGraph* InGraph) override;
-
+	// @param Editor graph associated with UMetasoundSource.
+	virtual void SetGraph(UEdGraph* InGraph) override
+	{
+		Graph = InGraph;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	FMetasoundDocument& GetDocument() override
@@ -77,9 +94,18 @@ public:
 	// @param InMetadata Metadata containing corrections to the class metadata.
 	void SetMetadata(FMetasoundClassMetadata& InMetadata) override;
 
-	// Get the most up to date archetype for metasound.
-	virtual FMetasoundArchetype GetArchetype() const override;
-
+	bool IsPlayable() const override;
+	bool SupportsSubtitles() const override;
+	float GetDuration() override;
+	ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	void PostLoad() override;
 
+	// Get the most up to date archetype for metasound sources.
+	virtual FMetasoundArchetype GetArchetype() const override;
+
+private:
+
+	static const FString& GetOnPlayInputName();
+	static const FString& GetAudioOutputName();
+	static const FString& GetIsFinishedOutputName();
 };

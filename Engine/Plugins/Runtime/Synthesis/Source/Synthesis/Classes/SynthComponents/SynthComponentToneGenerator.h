@@ -54,7 +54,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Tone Generator")
 	void SetVolume(float InVolume);
 
-	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
 public:
 

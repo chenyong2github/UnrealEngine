@@ -8,6 +8,7 @@
 #include "MetasoundGraph.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+class UEdGraph;
 
 class METASOUNDFRONTEND_API FMetasoundAssetBase
 {
@@ -19,11 +20,33 @@ public:
 
 	virtual ~FMetasoundAssetBase() = default;
 
+#if WITH_EDITORONLY_DATA
+
+	// Returns the graph associated with this Metasound. Graph is required to be referenced on
+	// Metasound UObject for editor serialization purposes.
+	// @return Editor graph associated with this metasound uobject.
+	virtual UEdGraph* GetGraph() = 0;
+	virtual const UEdGraph* GetGraph() const = 0;
+	virtual UEdGraph& GetGraphChecked() = 0;
+	virtual const UEdGraph& GetGraphChecked() const = 0;
+
+	// Sets the graph associated with this Metasound. Graph is required to be referenced on
+	// Metasound UObject for editor serialization purposes.
+	// @param Editor graph associated with this metasound object.
+	virtual void SetGraph(UEdGraph* InGraph) = 0;
+#endif // WITH_EDITORONLY_DATA
+
 	// Sets/overwrites the root class metadata
 	virtual void SetMetadata(FMetasoundClassMetadata& InMetadata);
 
+	// Returns  a description of the required inputs and outputs for this metasound UClass.
+	virtual FMetasoundArchetype GetArchetype() const = 0;
+
 	// Returns the root class metadata
 	FMetasoundClassMetadata GetMetadata();
+
+	const FText& GetInputToolTip(FString InputName) const;
+	const FText& GetOutputToolTip(FString OutputName) const;
 
 	// Imports the asset from a JSON file at provided path
 	bool ImportFromJSON(const FString& InAbsolutePath);
@@ -36,6 +59,13 @@ public:
 
 	// Returns all handles for subgraphs referenced
 	TArray<Metasound::Frontend::FGraphHandle> GetAllSubgraphHandles();
+
+	// Overwrites the entire document and fixes it up based on any 
+	// inputs or outputs in the archetype that are missing from the graph.
+	void SetDocument(const FMetasoundDocument& InDocument);
+
+	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
+	void ConformDocumentToArchetype();
 
 protected:
 	// Returns private token allowing implementing asset class to use graph/node handle system

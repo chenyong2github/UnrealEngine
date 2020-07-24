@@ -3,8 +3,9 @@
 
 #include "Kismet/KismetSystemLibrary.h"
 #include "Metasound.h"
+#include "MetasoundSource.h"
 #include "MetasoundEditorGraphNode.h"
-
+#include "MetasoundEditorGraphBuilder.h"
 
 UMetasoundFactory::UMetasoundFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,13 +19,37 @@ UMetasoundFactory::UMetasoundFactory(const FObjectInitializer& ObjectInitializer
 
 UObject* UMetasoundFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
 {
-	UMetasound* Metasound = NewObject<UMetasound>(InParent, Name, Flags);
-
+	UMetasound* NewMetasound = NewObject<UMetasound>(InParent, Name, Flags);
 	FMetasoundClassMetadata Metadata;
-	Metadata.NodeName = Metasound->GetName();
+	Metadata.NodeName = NewMetasound->GetName();
 	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
 	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
-	Metasound->SetMetadata(Metadata);
+	NewMetasound->SetMetadata(Metadata);
 
-	return Metasound;
+	NewMetasound->ConformDocumentToArchetype();
+
+	return NewMetasound;
+}
+
+UMetasoundSourceFactory::UMetasoundSourceFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = UMetasoundSource::StaticClass();
+
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* UMetasoundSourceFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName Name, EObjectFlags Flags, UObject* InContext, FFeedbackContext* InFeedbackContext)
+{
+	UMetasoundSource* MetasoundSource = NewObject<UMetasoundSource>(InParent, Name, Flags);
+	FMetasoundClassMetadata Metadata;
+	Metadata.NodeName = MetasoundSource->GetName();
+	Metadata.NodeType = EMetasoundClassType::MetasoundGraph;
+	Metadata.AuthorName = FText::FromString(UKismetSystemLibrary::GetPlatformUserName());
+	MetasoundSource->SetMetadata(Metadata);
+	MetasoundSource->ConformDocumentToArchetype();
+
+	return MetasoundSource;
 }

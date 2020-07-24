@@ -24,7 +24,7 @@ REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralArg
 
 namespace Metasound
 {
-	REGISTER_METASOUND_DATATYPE(FBop, "Primitive:Bop")
+	REGISTER_METASOUND_DATATYPE(FBop, "Primitive:Bop", ::Metasound::ELiteralArgType::Boolean)
 	REGISTER_METASOUND_DATATYPE(FFloatTime, "Primitive:Time")
 	REGISTER_METASOUND_DATATYPE(FDoubleTime, "Primitive:Time:HighResolution")
 	REGISTER_METASOUND_DATATYPE(FSampleTime, "Primitive:Time:SampleResolution")

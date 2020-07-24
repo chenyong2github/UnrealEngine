@@ -11,6 +11,7 @@
 #include "EditorStyleSet.h"
 #include "IDetailCustomization.h"
 #include "Metasound.h"
+#include "MetasoundSource.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundDetailCustomization.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -150,10 +151,16 @@ namespace Metasound
 				// Register Metasound asset type actions
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
 				AddAssetAction<FAssetTypeActions_Metasound>(AssetTools, AssetActions);
+				AddAssetAction<FAssetTypeActions_MetasoundSource>(AssetTools, AssetActions);
 
 				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+				
 				PropertyModule.RegisterCustomClassLayout(
 					UMetasound::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(); }));
+
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasoundSource::StaticClass()->GetFName(),
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(); }));
 
 				StyleSet = MakeShared<FSlateStyle>();
@@ -162,7 +169,6 @@ namespace Metasound
 
 				GraphConnectionFactory = MakeShared<FGraphConnectionDrawingPolicyFactory>();
 				FEdGraphUtilities::RegisterVisualPinConnectionFactory(GraphConnectionFactory);
-
 			}
 
 			virtual void ShutdownModule() override

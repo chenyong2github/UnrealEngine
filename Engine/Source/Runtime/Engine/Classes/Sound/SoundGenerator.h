@@ -6,6 +6,21 @@
 #include "Containers/Queue.h"
 #include "Templates/Function.h"
 
+
+// Parameters used for constructing a new ISoundGenerator.
+struct FSoundGeneratorInitParams
+{
+	float SampleRate;
+	int32 NumChannels;
+	int32 NumFramesPerCallback;
+
+	FSoundGeneratorInitParams()
+		: SampleRate(0.0f)
+		, NumChannels(0)
+		, NumFramesPerCallback(0)
+	{}
+};
+
 class ENGINE_API ISoundGenerator
 {
 public:
@@ -23,6 +38,9 @@ public:
 
 	// Optional. Called on audio generator thread right when the generator ends generating.
 	virtual void OnEndGenerate() {}
+
+	// Optional. Can be overridden to end the sound when generating is finished.
+	virtual bool IsFinished() const { return false; }
 
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
 	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);

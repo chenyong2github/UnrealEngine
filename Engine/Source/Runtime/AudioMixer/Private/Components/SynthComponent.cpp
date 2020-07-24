@@ -104,11 +104,11 @@ void USynthSound::OnEndGenerate()
 	}
 }
 
-ISoundGeneratorPtr USynthSound::CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels)
+ISoundGeneratorPtr USynthSound::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
 {
 	if (OwningSynthComponent)
 	{
-		return OwningSynthComponent->CreateSoundGeneratorInternal(SampleRate, NumChannels);
+		return OwningSynthComponent->CreateSoundGeneratorInternal(InParams);
 	}
 	return nullptr;
 }
@@ -550,7 +550,7 @@ void USynthComponent::SynthCommand(TFunction<void()> Command)
 	}
 }
 
-ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(int32 InSampleRate, int32 InNumChannels)
+ISoundGeneratorPtr USynthComponent::CreateSoundGeneratorInternal(const FSoundGeneratorInitParams& InParams)
 {	
-	return SoundGenerator = CreateSoundGenerator(InSampleRate, InNumChannels);
+	return SoundGenerator = CreateSoundGenerator(InParams);
 }

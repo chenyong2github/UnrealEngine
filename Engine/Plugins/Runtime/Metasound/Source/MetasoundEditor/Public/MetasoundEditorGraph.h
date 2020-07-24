@@ -19,12 +19,12 @@ class UMetasoundEditorGraph : public UEdGraph
 	GENERATED_BODY()
 
 public:
-	UMetasound* GetMetasound() const;
-	UMetasound& GetMetasoundChecked() const;
+	UObject* GetMetasound() const;
+	UObject& GetMetasoundChecked() const;
 
 private:
 	UPROPERTY()
-	UMetasound* ParentMetasound;
+	UObject* ParentMetasound;
 
 	friend class Metasound::Editor::FEditor;
 };

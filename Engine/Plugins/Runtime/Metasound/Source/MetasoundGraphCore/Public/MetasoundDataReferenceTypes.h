@@ -11,6 +11,26 @@ namespace Metasound
 	class FBop
 	{
 		public:
+			// Constructor that, if called with true, bops the beginning of the callback.
+			FBop(bool bShouldBop)
+			{
+				if (bShouldBop)
+				{
+					BopFrame(0);
+				}
+			}
+
+			// Constructor that bops a specific audio frame within the callback.
+			FBop(uint32 InFrameToBop)
+			{
+				BopFrame(InFrameToBop);
+			}
+
+			// The default Bop Constructor 
+			FBop()
+				: FBop(false)
+			{}
+
 			void BopFrame(uint32 InFrameToBop)
 			{
 				// TODO: need to maintain a sorted array. 
@@ -46,9 +66,14 @@ namespace Metasound
 				return Frames[Index];
 			}
 
+			bool IsBopped() const
+			{
+				return Frames.Num() > 0;
+			}
+
 			operator bool() const 
 			{
-				return Frames.Num() >= 0;
+				return IsBopped();
 			}
 
 			void Reset()

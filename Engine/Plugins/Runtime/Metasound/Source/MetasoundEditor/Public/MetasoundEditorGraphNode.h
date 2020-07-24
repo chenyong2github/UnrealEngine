@@ -54,8 +54,8 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	// End of UObject interface
 
-	UMetasound& GetMetasoundChecked();
-	const UMetasound& GetMetasoundChecked() const;
+	UObject& GetMetasoundChecked();
+	const UObject& GetMetasoundChecked() const;
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;

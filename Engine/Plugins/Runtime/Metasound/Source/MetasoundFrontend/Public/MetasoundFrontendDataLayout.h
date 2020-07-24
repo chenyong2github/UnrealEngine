@@ -69,20 +69,22 @@ struct FMetasoundLiteralDescription
 {
 	GENERATED_BODY()
 
+	// HACK: Once we make a property inspector for these we should hide them.
+
 	// The actual type of this literal.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	EMetasoundLiteralType LiteralType;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	bool AsBool;
 
-	UPROPERTY();
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	int32 AsInteger;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	float AsFloat;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FString AsString;
 };
 
@@ -104,7 +106,8 @@ struct FMetasoundInputDescription
 	FText ToolTip;
 
 	// The optional literal value, if we have one.
-	UPROPERTY()
+	// NOTE: in the future we'll have a specific details customization for this.
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FMetasoundLiteralDescription LiteralValue;
 };
 

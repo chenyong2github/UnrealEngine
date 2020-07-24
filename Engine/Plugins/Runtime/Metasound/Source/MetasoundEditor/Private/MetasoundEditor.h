@@ -43,7 +43,7 @@ namespace Metasound
 			void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
 			/** IMetasoundEditor interface */
-			virtual UMetasound* GetMetasound() const override;
+			virtual UObject* GetMetasoundObject() const override;
 			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
 			virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
 
@@ -194,7 +194,7 @@ namespace Metasound
 			TSharedPtr<FUICommandList> GraphEditorCommands;
 
 			/** The Metasound asset being edited */
-			UMetasound* Metasound = nullptr;
+			UObject* Metasound = nullptr;
 
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;

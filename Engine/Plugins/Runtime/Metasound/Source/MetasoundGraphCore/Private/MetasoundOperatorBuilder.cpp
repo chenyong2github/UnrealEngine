@@ -272,7 +272,8 @@ namespace Metasound
 			if (!InNodeDataReferences.Contains(InputDestination.Node))
 			{
 				AddBuildError<FMissingInputDataReferenceError>(OutErrors, InputDestination);
-				return false;
+				// This indicates an input node wasn't connected in some way to the output, and was culled earlier.
+				continue;
 			}
 
 			FDataReferenceCollection& Collection = InNodeDataReferences[InputDestination.Node].Inputs;
@@ -300,7 +301,7 @@ namespace Metasound
 			if (!InNodeDataReferences.Contains(OutputSource.Node))
 			{
 				AddBuildError<FMissingOutputDataReferenceError>(OutErrors, OutputSource);
-				return false;
+				continue;
 			}
 
 			FDataReferenceCollection& Collection = InNodeDataReferences[OutputSource.Node].Outputs;

@@ -93,18 +93,22 @@ namespace Metasound
 
 		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 		{
-
-			Metasound = CastChecked<UMetasound>(ObjectToEdit);
+			checkf(Frontend::IsObjectAMetasoundArchetype(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
+			
+			Metasound = ObjectToEdit;
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(ObjectToEdit);
+			check(MetasoundAsset);
 
 			// Support undo/redo
-			Metasound->SetFlags(RF_Transactional);
+			ObjectToEdit->SetFlags(RF_Transactional);
 
-			if (!Metasound->GetGraph())
+			if (!MetasoundAsset->GetGraph())
 			{
 				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(Metasound);
 				Graph->ParentMetasound = Metasound;
 				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-				Metasound->SetGraph(Graph);
+				MetasoundAsset->SetGraph(Graph);
+				FGraphBuilder::RebuildGraph(*Metasound);
 			}
 
 			GEditor->RegisterForUndo(this);
@@ -163,7 +167,7 @@ namespace Metasound
 			RegenerateMenusAndToolbars();
 		}
 
-		UMetasound* FEditor::GetMetasound() const
+		UObject* FEditor::GetMetasoundObject() const
 		{
 			return Metasound;
 		}
@@ -338,44 +342,70 @@ namespace Metasound
 
 		void FEditor::Import()
 		{
-			if (Metasound)
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			if (MetasoundAsset)
 			{
 				// TODO: Prompt OFD and provide path from user
-				const FString Path = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
-				Metasound->ImportFromJSON(Path);
+				const FString InputPath = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
+				
+				// TODO: use the same directory as the currently open metasound
+				const FString OutputPath = FString("/Game/ImportedMetasound/GeneratedMetasound");
+
+				FMetasoundDocument MetasoundDoc;
+
+				if (Frontend::ImportJSONToMetasound(InputPath, MetasoundDoc))
+				{
+					Frontend::GetObjectForDocument(MetasoundDoc, OutputPath);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("Couldn't import Metasound at path: %s"), *InputPath);
+				}
 			}
 		}
 
 		void FEditor::Export()
 		{
-			if (Metasound)
+			FMetasoundAssetBase* InMetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			check(InMetasoundAsset);
+
+			if (!InMetasoundAsset)
 			{
-				// TODO: Prompt OFD and provide path from user
-				const FString Path = FPaths::ProjectIntermediateDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
-				Metasound->ExportToJSON(Path);
+				return;
 			}
+
+			static const FString MetasoundExtension(TEXT(".metasound"));
+
+			// TODO: We could just make this an object.
+			const FString Path = FPaths::ProjectSavedDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
+			InMetasoundAsset->ExportToJSON(Path);
 		}
 
 		void FEditor::Play()
 		{
 			// 	TODO: Implement play
-			// 	check(GEditor);
-			// 	GEditor->PlayPreviewSound(Metasound);
-			// 
-			// 	MetasoundGraphEditor->RegisterActiveTimer(0.0f, 
-			// 		FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)
-			// 		{
-			// 			UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
-			// 			if (PreviewComp && PreviewComp->IsPlaying())
-			// 			{
-			// 				return EActiveTimerReturnType::Continue;
-			// 			}
-			// 			else
-			// 			{
-			// 				return EActiveTimerReturnType::Stop;
-			// 			}
-			// 		})
-			// 	);
+			check(GEditor);
+
+			// TODO: toggle the Play button if Metasound is a USoundBase
+			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
+			{
+				GEditor->PlayPreviewSound(MetasoundToPlay);
+
+				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
+					FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)
+						{
+							UAudioComponent* PreviewComp = GEditor->GetPreviewAudioComponent();
+							if (PreviewComp && PreviewComp->IsPlaying())
+							{
+								return EActiveTimerReturnType::Continue;
+							}
+							else
+							{
+								return EActiveTimerReturnType::Stop;
+							}
+						})
+				);
+			}
 		}
 
 		void FEditor::PlayNode()
@@ -543,11 +573,14 @@ namespace Metasound
 			InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FEditor::OnNodeTitleCommitted);
 			InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::PlaySingleNode);
 
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+
 			return SNew(SGraphEditor)
 				.AdditionalCommands(GraphEditorCommands)
 				.IsEditable(true)
 				.Appearance(AppearanceInfo)
-				.GraphToEdit(Metasound->GetGraph())
+				.GraphToEdit(MetasoundAsset->GetGraph())
 				.GraphEvents(InEvents)
 				.AutoExpandActionMenu(true)
 				.ShowGraphStateOverlay(false);
@@ -563,7 +596,7 @@ namespace Metasound
 				{
 					if (Cast<UMetasoundEditorGraphNode>(*SetIt))
 					{
-						Selection.Add(GetMetasound());
+						Selection.Add(GetMetasoundObject());
 					}
 					else
 					{
@@ -573,7 +606,7 @@ namespace Metasound
 			}
 			else
 			{
-				Selection.Add(GetMetasound());
+				Selection.Add(GetMetasoundObject());
 			}
 
 			SetSelection(Selection);
@@ -601,11 +634,16 @@ namespace Metasound
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
 
-			FGraphHandle GraphHandle = Graph->ParentMetasound->GetRootGraphHandle();
-			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			UObject* ParentMetasoundObject = Graph->ParentMetasound;
+
+			if (FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(ParentMetasoundObject))
 			{
-				UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(*NodeIt);
-				FGraphBuilder::DeleteNode(*Node, false /* bInRecordTransaction */);
+				FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+				{
+					UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(*NodeIt);
+					FGraphBuilder::DeleteNode(*Node, false /* bInRecordTransaction */);
+				}
 			}
 		}
 
@@ -708,7 +746,14 @@ namespace Metasound
 
 		void FEditor::PasteNodesAtLocation(const FVector2D& Location)
 		{
-			UEdGraph* Graph = Metasound->GetGraph();
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+
+			if (!ensureAlways(MetasoundAsset))
+			{
+				return;
+			}
+
+			UEdGraph* Graph = MetasoundAsset->GetGraph();
 			if (!Graph)
 			{
 				return;

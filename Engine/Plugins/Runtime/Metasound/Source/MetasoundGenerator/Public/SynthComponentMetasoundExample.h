@@ -24,7 +24,7 @@ class METASOUNDGENERATOR_API USynthComponentMetasoundExample : public USynthComp
 
 public:
 	using FOperatorUniquePtr = TUniquePtr<Metasound::IOperator>;
-	using FMultichannelAudioFormatReadRef = Metasound::FMultichannelAudioFormatReadRef;
+	using FAudioBufferReadRef = Metasound::FAudioBufferReadRef;
 
     USynthComponentMetasoundExample(const FObjectInitializer& ObjInitializer);
 
@@ -48,20 +48,20 @@ public:
 	 * the next time CreateSoundGenerator(...) is called.
 	 *
 	 * @param InGraphOperator - Operator which executes entire MetasoundGraph.
-	 * @param InOutputAudioName - Name of the FMultichannelAudioReadRef data ref in the graph output.
+	 * @param InOutputAudioName - Name of the FAudioBufferReadRef data ref in the graph output.
 	 */
 	void SetGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName);
 
 	/** Attempt to push a new graph operator to the existing metasound generator.
 	 *
 	 * @param InGraphOperator - Operator which executes entire MetasoundGraph.
-	 * @param InOutputAudioName - Name of the FMultichannelAudioReadRef data ref in the graph output.
+	 * @param InOutputAudioName - Name of the FAudioBufferReadRef data ref in the graph output.
 	 *
 	 * @return True on success, false on failure.
 	 */
 	bool PushGraphOperator(FOperatorUniquePtr InGraphOperator, const FString& InOutputAudioName);
 
-    virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
+    virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent & PropertyChangedEvent) override;

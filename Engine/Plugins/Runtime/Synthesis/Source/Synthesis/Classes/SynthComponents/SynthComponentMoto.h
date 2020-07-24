@@ -38,7 +38,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MotoSynth")
 	bool IsEnabled() const;
 
-	virtual ISoundGeneratorPtr CreateSoundGenerator(int32 InSampleRate, int32 InNumChannels) override;
+	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
 private:
 	FVector2D RPMRange;

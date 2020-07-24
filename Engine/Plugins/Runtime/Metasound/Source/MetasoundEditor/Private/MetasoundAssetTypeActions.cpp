@@ -3,6 +3,7 @@
 #include "MetasoundAssetTypeActions.h"
 
 #include "Metasound.h"
+#include "MetasoundSource.h"
 #include "MetasoundEditor.h"
 
 
@@ -40,6 +41,32 @@ namespace Metasound
 				}
 			}
 		}
+
+		UClass* FAssetTypeActions_MetasoundSource::GetSupportedClass() const
+		{
+			return UMetasoundSource::StaticClass();
+		}
+
+		void FAssetTypeActions_MetasoundSource::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> ToolkitHost)
+		{
+			const EToolkitMode::Type Mode = ToolkitHost.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+
+			for (UObject* Object : InObjects)
+			{
+				if (UMetasoundSource* Metasound = Cast<UMetasoundSource>(Object))
+				{
+					TSharedRef<FEditor> NewEditor = MakeShared<FEditor>();
+					NewEditor->InitMetasoundEditor(Mode, ToolkitHost, Metasound);
+				}
+			}
+		}
+
+		const TArray<FText>& FAssetTypeActions_MetasoundSource::GetSubMenus() const
+		{
+			return AssetTypeActionSubMenu;
+		}
 	} // namespace Editor
 } // namespace Metasound
+
 #undef LOCTEXT_NAMESPACE
+

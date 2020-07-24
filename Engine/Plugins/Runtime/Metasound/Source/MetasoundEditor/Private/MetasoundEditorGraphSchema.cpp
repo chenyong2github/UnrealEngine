@@ -57,7 +57,7 @@ namespace Metasound
 			return Categories;
 		}
 
-		TSharedPtr<FEditor> GetEditorForGraph(const UMetasound& Metasound)
+		TSharedPtr<FEditor> GetEditorForGraph(const UObject& Metasound)
 		{
 			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
 			return StaticCastSharedPtr<FEditor, IToolkit>(FoundAssetEditor);
@@ -170,7 +170,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 
 	ParentGraph->Modify();
 
-	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
 	UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, Location, NodeClassInfo);
@@ -193,12 +193,15 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 
 	ParentGraph->Modify();
 
-	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
 	FString NameBase = GetDataTypeDisplayName(NodeTypeName);
 
-	FGraphHandle GraphHandle = ParentMetasound.GetRootGraphHandle();
+	FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&ParentMetasound);
+	check(MetasoundAsset);
+
+	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 	int32 i = 1;
 	FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
@@ -226,12 +229,15 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 
 	ParentGraph->Modify();
 
-	UMetasound& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
+	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
 	FString NameBase = GetDataTypeDisplayName(NodeTypeName);
 
-	FGraphHandle GraphHandle = ParentMetasound.GetRootGraphHandle();
+	FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&ParentMetasound);
+	check(MetasoundAsset);
+
+	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
 	int32 i = 1;
 	FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);

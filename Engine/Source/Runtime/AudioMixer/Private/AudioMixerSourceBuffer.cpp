@@ -101,7 +101,11 @@ namespace Audio
 		// Retrieve a sound generator if this is a procedural sound wave
 		if (bProcedural)
 		{
-			SoundGenerator = InWave.CreateSoundGenerator(InSampleRate, NumChannels);
+			FSoundGeneratorInitParams InitParams;
+			InitParams.SampleRate = InSampleRate;
+			InitParams.NumChannels = NumChannels;
+			InitParams.NumFramesPerCallback = MONO_PCM_BUFFER_SAMPLES;
+			SoundGenerator = InWave.CreateSoundGenerator(InitParams);
 		}
 
 		const uint32 TotalSamples = MONO_PCM_BUFFER_SAMPLES * NumChannels;
@@ -335,10 +339,13 @@ namespace Audio
 			{
 				FProceduralAudioTaskData NewTaskData;
 
+				bool bIsFinished = false;
+
 				// Pass the generator instance to the async task
 				if (SoundGenerator.IsValid())
 				{
 					NewTaskData.SoundGenerator = SoundGenerator;
+					bIsFinished = SoundGenerator->IsFinished();
 				}
 				else
 				{
@@ -353,8 +360,7 @@ namespace Audio
 				check(!AsyncRealtimeAudioTask);
 				AsyncRealtimeAudioTask = CreateAudioTask(NewTaskData);
 
-				// Procedural sound waves never loop
-				return false;
+				return bIsFinished;
 			}
 
 			return true;

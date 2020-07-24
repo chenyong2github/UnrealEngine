@@ -2,7 +2,7 @@
 
 #include "MetasoundAssetBase.h"
 
-#include "Backends/JsonStructSerializerBackend.h"
+#include "MetasoundJsonBackend.h"
 #include "HAL/FileManager.h"
 #include "IStructSerializerBackend.h"
 #include "StructSerializer.h"
@@ -25,9 +25,55 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundClassMetadata& InMetadata)
 	GetDocument().RootClass.Metadata = InMetadata;
 }
 
+void FMetasoundAssetBase::SetDocument(const FMetasoundDocument& InDocument)
+{
+	FMetasoundDocument& Document = GetDocument();
+	Document = InDocument;
+
+	Document.Archetype = GetArchetype();
+	GetRootGraphHandle().FixDocumentToMatchArchetype();
+}
+
+void FMetasoundAssetBase::ConformDocumentToArchetype()
+{
+	FMetasoundDocument& Document = GetDocument();
+	Document.Archetype = GetArchetype();
+	GetRootGraphHandle().FixDocumentToMatchArchetype();
+}
+
 FMetasoundClassMetadata FMetasoundAssetBase::GetMetadata()
 {
 	return GetDocument().RootClass.Metadata;
+}
+
+const FText& FMetasoundAssetBase::GetInputToolTip(FString InputName) const
+{
+	const FMetasoundDocument& RootMetasoundDocument = GetDocument();
+
+	for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
+	{
+		if (Desc.Name == InputName)
+		{
+			return Desc.ToolTip;
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+const FText& FMetasoundAssetBase::GetOutputToolTip(FString OutputName) const
+{
+	const FMetasoundDocument& RootMetasoundDocument = GetDocument();
+
+	for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
+	{
+		if (Desc.Name == OutputName)
+		{
+			return Desc.ToolTip;
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint> FMetasoundAssetBase::GetGraphAccessPoint() const
@@ -84,7 +130,7 @@ bool FMetasoundAssetBase::ExportToJSON(const FString& InAbsolutePath) const
 {
 	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InAbsolutePath)))
 	{
-		FJsonStructSerializerBackend Backend(*FileWriter, EStructSerializerBackendFlags::Default);
+		Metasound::TJsonStructSerializerBackend<Metasound::DefaultCharType> Backend(*FileWriter, EStructSerializerBackendFlags::Default);
 		FStructSerializer::Serialize<FMetasoundDocument>(GetDocument(), Backend);
 		FileWriter->Close();
 
