@@ -271,12 +271,14 @@ struct FDataSetThreadLocalTempData
 struct FVectorVMContext : TThreadSingleton<FVectorVMContext>
 {
 private:
-	/** Pointer to the next element in the byte code. */
-	uint8 const* RESTRICT Code;
 
 	friend struct FVectorVMCodeOptimizerContext;
 
 public:
+
+	/** Pointer to the next element in the byte code. */
+	uint8 const* RESTRICT Code;
+
 	/** Pointer to the constant table. */
 	const uint8* const* RESTRICT ConstantTable;
 	const int32* ConstantTableSizes;
@@ -296,6 +298,9 @@ public:
 	int32 NumInstancesVectorFloats;
 	/** Start instance of current chunk. */
 	int32 StartInstance;
+	
+	/** HACK: An additional instance offset to allow external functions direct access to specific instances in the buffers. */
+	int32 ExternalFunctionInstanceOffset;
 
 	/** Array of meta data on data sets. TODO: This struct should be removed and all features it contains be handled by more general vm ops and the compiler's knowledge of offsets etc. */
 	TArrayView<FDataSetMeta> DataSetMetaTable;
@@ -352,6 +357,8 @@ public:
 		NumInstances = InNumInstances;
 		NumInstancesVectorFloats = (NumInstances + VECTOR_WIDTH_FLOATS - 1) / VECTOR_WIDTH_FLOATS;
 		StartInstance = InStartInstance;
+		
+		ExternalFunctionInstanceOffset = 0;
 
 		ValidInstanceCount = 0;
 		ValidInstanceIndexStart = INDEX_NONE;
@@ -528,6 +535,9 @@ namespace VectorVM
 			const int32 Offset = GetOffset();
 			InputPtr = IsConstant() ? Context.GetConstant<T>(Offset) : reinterpret_cast<T*>(Context.GetTempRegister(Offset));
 			AdvanceOffset = IsConstant() ? 0 : 1;
+
+			//Hack: Offset into the buffer by the instance offset.
+			InputPtr += Context.ExternalFunctionInstanceOffset * AdvanceOffset;
 		}
 
 		FORCEINLINE bool IsConstant()const { return !IsRegister(); }
@@ -568,6 +578,9 @@ namespace VectorVM
 			{
 				checkSlow(RegisterIndex < Context.NumTempRegisters);
 				Register = (T*)Context.GetTempRegister(RegisterIndex);
+
+				//Hack: Offset into the buffer by the instance offset.
+				Register += Context.ExternalFunctionInstanceOffset * AdvanceOffset;
 			}
 			else
 			{

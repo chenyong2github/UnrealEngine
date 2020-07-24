@@ -931,25 +931,27 @@ bool FNiagaraSystemInstance::IsReadyToRun() const
 
 bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const UNiagaraComponent& Component)
 {
-	if (System.HasSystemScriptDIsWithPerInstanceData())
+	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
-		return true;
-	}
-
-	const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
-	if (UserDINamesReadInSystemScripts.Num() > 0)
-	{
-		TArray<FNiagaraVariable> OverrideParameterVariables;
-		Component.GetOverrideParameters().GetParameters(OverrideParameterVariables);
-		for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
+		if (System.HasSystemScriptDIsWithPerInstanceData())
 		{
-			if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
+			return true;
+		}
+
+		const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
+		if (UserDINamesReadInSystemScripts.Num() > 0)
+		{
+			TArray<FNiagaraVariable> OverrideParameterVariables;
+			Component.GetOverrideParameters().GetParameters(OverrideParameterVariables);
+			for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
 			{
-				return true;
+				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
+				{
+					return true;
+				}
 			}
 		}
 	}
-
 	return false;
 }
 
@@ -1129,12 +1131,12 @@ void FNiagaraSystemInstance::BindParameters()
 		Component->GetOverrideParameters().Bind(&InstanceParameters); 
 	}
 
-	if (SystemSimulation->GetIsSolo())
+	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
 		// If this simulation is solo than we can bind the instance parameters to the system simulation contexts so that
 		// the system and emitter scripts use the per-instance data interfaces.
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
+		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
+		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
 	}
 
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
@@ -1159,8 +1161,8 @@ void FNiagaraSystemInstance::UnbindParameters(bool bFromComplete)
 		{
 			if (Component)
 			{
-				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
-				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
+				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
+				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
 			}
 		}
 	}
@@ -1277,6 +1279,9 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	//-TODO: Validate that any queued ticks have been executed
 	DestroyDataInterfaceInstanceData();
 
+	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
+	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
+
 	GPUDataInterfaceInstanceDataSize = 0;
 
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
@@ -1316,13 +1321,18 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 	CalcInstDataSize(InstanceParameters.GetDataInterfaces());//This probably should be a proper exec context. 
 
-	if (SystemSimulation->GetIsSolo())
+	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext().GetDataInterfaces());
-		SystemSimulation->GetSpawnExecutionContext().DirtyDataInterfaces();
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces());
+		SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
 
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext().GetDataInterfaces());
-		SystemSimulation->GetUpdateExecutionContext().DirtyDataInterfaces();
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces());
+		SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
+	}
+	else
+	{
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->GetDataInterfaces());
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->GetDataInterfaces());
 	}
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
@@ -1397,6 +1407,25 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 		//Some error initializing the data interfaces so disable until we're explicitly reinitialized.
 		UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %u | %s"), Component, *Component->GetAsset()->GetName());
 		Complete();
+		return;
+	}
+	
+	//We have valid DI instance data so now generate the table of function calls.	
+	//When using the new exec contexts, each system instance builds it's own tables of DI function bindings for DI calls that require it.
+	//i.e. User DIs or those with per instance data that are called from system scripts.
+	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts() == false)
+	{
+		bool bSuccess = true;
+		bSuccess &= SystemSimulation->GetSpawnExecutionContext()->GeneratePerInstanceDIFunctionTable(this, PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn]);
+		bSuccess &= SystemSimulation->GetUpdateExecutionContext()->GeneratePerInstanceDIFunctionTable(this, PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update]);
+
+		if (!bSuccess)
+		{
+			//Some error initializing the per instance function tables.
+			UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %u | %s"), Component, *Component->GetAsset()->GetName());
+			Complete();
+			return;
+		}
 	}
 }
 
