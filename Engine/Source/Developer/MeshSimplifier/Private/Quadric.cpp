@@ -4,7 +4,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC( LogQuadric, Log, All );
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( precise, on, push )
 #endif
 

@@ -9,7 +9,7 @@
 // [ Hoppe 2000, "Efficient minimization of new quadric metric for simplifying meshes with appearance attributes" ]
 
 // doubles needed for precision
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( precise, on, push )
 #endif
 
