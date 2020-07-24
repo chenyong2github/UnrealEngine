@@ -604,6 +604,58 @@ namespace Metasound
 			return true;
 		}
 
+		bool FInputHandle::Disconnect()
+		{
+			if (!IsValid())
+			{
+				return false;
+			}
+
+			TArray<FMetasoundNodeConnectionDescription>& Connections = NodePtr->InputConnections;
+			for (int32 i = 0; i < Connections.Num(); ++i)
+			{
+				if (Connections[i].InputName == GetInputName())
+				{
+					Connections.RemoveAtSwap(i);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool FInputHandle::Disconnect(FOutputHandle& InHandle)
+		{
+			if (!IsValid() || !InHandle.IsValid())
+			{
+				return false;
+			}
+
+			if (!ensureAlwaysMsgf(InHandle.GetOutputType() == GetInputType(), TEXT("Tried to disconnect incompatible types!")))
+			{
+				return false;
+			}
+
+
+			FMetasoundNodeConnectionDescription* Connection = GetConnectionDescription();
+			if (!ensure(Connection))
+			{
+				return false;
+			}
+
+			const uint32 OutputNodeID = InHandle.GetOwningNodeID();
+			for (int32 i = 0; i < NodePtr->InputConnections.Num(); ++i)
+			{
+				if (NodePtr->InputConnections[i].NodeID == OutputNodeID)
+				{
+					NodePtr->InputConnections.RemoveAtSwap(i);
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		bool FInputHandle::ConnectWithConverterNode(FOutputHandle& InHandle, FString& InNodeClassName)
 		{
 			// (UEAU-473)
@@ -787,6 +839,16 @@ namespace Metasound
 		bool FOutputHandle::ConnectWithConverterNode(FInputHandle& InHandle, FString& InNodeClassName)
 		{
 			return InHandle.ConnectWithConverterNode(*this, InNodeClassName);
+		}
+
+		bool FOutputHandle::Disconnect(FInputHandle& InHandle)
+		{
+			if (!IsValid() || !InHandle.IsValid())
+			{
+				return false;
+			}
+
+			return InHandle.Disconnect(*this);
 		}
 
 		TDescriptionPtr<FMetasoundClassDescription> FNodeHandle::GetNodeClassDescriptionForNodeHandle(const FHandleInitParams& InitParams, EMetasoundClassType InNodeClassType)

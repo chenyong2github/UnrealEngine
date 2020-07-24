@@ -211,6 +211,7 @@ namespace Metasound
 			FConnectability CanConnectTo(const FInputHandle& InHandle) const;
 			bool Connect(FInputHandle& InHandle);
 			bool ConnectWithConverterNode(FInputHandle& InHandle, FString& InNodeClassName);
+			bool Disconnect(FInputHandle& InHandle);
 
 		private:
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;
@@ -250,6 +251,8 @@ namespace Metasound
 			FConnectability CanConnectTo(const FOutputHandle& InHandle) const;
 			bool Connect(FOutputHandle& InHandle);
 			bool ConnectWithConverterNode(FOutputHandle& InHandle, FString& InNodeClassName);
+			bool Disconnect(FOutputHandle& InHandle);
+			bool Disconnect();
 
 		private:
 			TDescriptionPtr<FMetasoundNodeDescription> NodePtr;

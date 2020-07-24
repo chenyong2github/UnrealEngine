@@ -27,15 +27,13 @@ void FMetasoundDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	GeneralCategoryBuilder.AddProperty(AuthorHandle);
 	GeneralCategoryBuilder.AddProperty(DescHandle);
 
-	IDetailCategoryBuilder& ParametersCategoryBuilder = DetailLayout.EditCategory("Parameters");
-
-	IDetailGroup& InputDetailGroup = ParametersCategoryBuilder.AddGroup("Inputs", LOCTEXT("MetasoundDetailsGroupInputs", "Inputs"), false /* bForAdvanced */, true /* bStartExpanded */);
+	IDetailCategoryBuilder& InputsCategoryBuilder = DetailLayout.EditCategory("Inputs");
 	TSharedPtr<IPropertyHandle> InputsHandle = DetailLayout.GetProperty("RootMetasoundDocument.RootClass.Inputs");
-	InputDetailGroup.AddPropertyRow(InputsHandle.ToSharedRef());
+	InputsCategoryBuilder.AddProperty(InputsHandle);
 
-	IDetailGroup& OutputDetailGroup = ParametersCategoryBuilder.AddGroup("Inputs", LOCTEXT("MetasoundDetailsGroupOutputs", "Outputs"), false /* bForAdvanced */, true /* bStartExpanded */);
+	IDetailCategoryBuilder& OutputsCategoryBuilder = DetailLayout.EditCategory("Outputs");
 	TSharedPtr<IPropertyHandle> OutputsHandle = DetailLayout.GetProperty("RootMetasoundDocument.RootClass.Outputs");
-	OutputDetailGroup.AddPropertyRow(OutputsHandle.ToSharedRef());
+	OutputsCategoryBuilder.AddProperty(OutputsHandle);
 
 	// Hack to hide parent structs for nested metadata properties
 	DetailLayout.HideCategory("Hidden");

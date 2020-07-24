@@ -427,14 +427,38 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 
 bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
+	UEdGraphPin* InputPin = nullptr;
+	UEdGraphPin* OutputPin = nullptr;
+	if (!CategorizePinsByDirection(PinA, PinB, InputPin, OutputPin))
+	{
+		return false;
+	}
+
 	const bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
+	if (bModified)
+	{
+		UMetasoundEditorGraphNode* InputGraphNode = CastChecked<UMetasoundEditorGraphNode>(InputPin->GetOwningNode());
+		Metasound::Frontend::FNodeHandle InputNodeHandle = InputGraphNode->GetNodeHandle();
+		Metasound::Frontend::FInputHandle InputHandle = InputNodeHandle.GetInputWithName(InputPin->GetName());
+
+		UMetasoundEditorGraphNode* OutputGraphNode = CastChecked<UMetasoundEditorGraphNode>(OutputPin->GetOwningNode());
+		Metasound::Frontend::FNodeHandle OutputNodeHandle = OutputGraphNode->GetNodeHandle();
+		Metasound::Frontend::FOutputHandle OutputHandle = OutputNodeHandle.GetOutputWithName(OutputPin->GetName());
+
+		// TODO: Implement YesWithConverterNode with selected conversion option
+		if (!ensure(InputHandle.Connect(OutputHandle)))
+		{
+			InputPin->BreakLinkTo(PinB);
+			return false;
+		}
+	}
 	return bModified;
 }
 
 bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 {
 	// TODO: Determine if should be hidden from doc data
-	return true;
+	return false;
 }
 
 FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
@@ -445,18 +469,58 @@ FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType&
 
 void UMetasoundEditorGraphSchema::BreakNodeLinks(UEdGraphNode& TargetNode) const
 {
+	using namespace Metasound::Frontend;
+
+	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakPinLinks", "Break Pin Links"));
+
 	Super::BreakNodeLinks(TargetNode);
 
-	// TODO: Update MS document
+	FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetNodeHandle();
+	const uint32 NodeID = NodeHandle.GetNodeID();
+
+	FGraphHandle GraphHandle = CastChecked<UMetasoundEditorGraphNode>(&TargetNode)->GetRootGraphHandle();
+	TArray<FNodeHandle> AllNodes = GraphHandle.GetAllNodes();
+	for (Metasound::Frontend::FNodeHandle& IterNode : AllNodes)
+	{
+		if (NodeID != IterNode.GetNodeID())
+		{
+			TArray<FInputHandle> Inputs = IterNode.GetAllInputs();
+			for (FInputHandle& Input : Inputs)
+			{
+				FOutputHandle Output = Input.GetCurrentlyConnectedOutput();
+				if (Output.GetOwningNodeID() == NodeID)
+				{
+					Input.Disconnect(Output);
+				}
+			}
+		}
+	}
 }
 
 void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const
 {
+	using namespace Metasound::Frontend;
+
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_BreakPinLinks", "Break Pin Links"));
 
-	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
+	if (TargetPin.Direction == EGPD_Input)
+	{
+		FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(TargetPin.GetOwningNode())->GetNodeHandle();
+		FInputHandle InputHandle = NodeHandle.GetInputWithName(TargetPin.GetName());
+		InputHandle.Disconnect();
+	}
+	else
+	{
+		check(TargetPin.Direction == EGPD_Output);
+		for (UEdGraphPin* Pin : TargetPin.LinkedTo)
+		{
+			FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode())->GetNodeHandle();
+			FInputHandle InputHandle = NodeHandle.GetInputWithName(Pin->GetName());
+			InputHandle.Disconnect();
+		}
+	}
 
-	// TODO: Update MS document
+	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
 }
 
 void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& bOutOkIcon) const
