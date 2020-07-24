@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Interfaces/IAnalyticsProvider.h"
 #include "ReplaySubsystem.generated.h"
 
 class UReplayNetConnection;

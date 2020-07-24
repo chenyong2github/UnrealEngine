@@ -15,6 +15,7 @@
 #include "Net/RepLayout.h"
 #include "Net/UnrealNetwork.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "UnrealEngine.h"
 
 extern TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes;
 extern TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints;
