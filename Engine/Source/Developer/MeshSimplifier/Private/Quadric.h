@@ -580,6 +580,6 @@ inline void FQuadricAttrOptimizer::AddQuadric( const FQuadricAttr& RESTRICT q, u
 	}
 }
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( pop )
 #endif

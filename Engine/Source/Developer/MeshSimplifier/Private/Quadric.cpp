@@ -1059,6 +1059,6 @@ bool FQuadricAttrOptimizer::OptimizeLinear( const FVector& Position0, const FVec
 	return true;
 }
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( pop )
 #endif
