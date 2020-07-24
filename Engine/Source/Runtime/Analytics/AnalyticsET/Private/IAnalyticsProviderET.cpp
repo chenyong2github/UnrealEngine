@@ -41,6 +41,7 @@ namespace AnalyticsProviderETCvars
  * with a special flag to indicate its purpose. This allows the set of cached events to be used like
  * a set of commands to be executed on flush, and allows us to inject the default attributes
  * efficiently into many events without copying the array at all.
+ * If Config.APIServerET is empty, this will act as a NULL provider by forcing ShouldRecordEvent() to return false all the time.
  */
 class FAnalyticsProviderET :
 	public IAnalyticsProviderET,
@@ -86,6 +87,12 @@ public:
 private:
 	void FlushEventsOnce();
 	void FlushEventLegacy(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
+	bool IsActingAsNullProvider() const
+	{
+		// if we don't have a primary APIKey then we are essentially acting as a NULL provider and will suppress all events.
+		// Don't bother checking the retry domains because the primary domain being empty is enough to tell us we have nowhere to send as a primary destination.
+		return Config.APIServerET.IsEmpty();
+	}
 
 	/** Create a request utilizing HttpRetry domains */
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest();
@@ -148,9 +155,9 @@ FAnalyticsProviderET::FAnalyticsProviderET(const FAnalyticsET::Config& ConfigVal
 	// avoid preallocating space if we are using the legacy protocol.
 	, EventCache(ConfigValues.MaximumPayloadSize, ConfigValues.UseLegacyProtocol ? 0 : ConfigValues.PreallocatedPayloadSize)
 {
-	if (Config.APIKeyET.IsEmpty() || Config.APIServerET.IsEmpty())
+	if (Config.APIKeyET.IsEmpty())
 	{
-		UE_LOG(LogAnalytics, Fatal, TEXT("AnalyticsET: APIKey (%s) and APIServer (%s) cannot be empty!"), *Config.APIKeyET, *Config.APIServerET);
+		UE_LOG(LogAnalytics, Fatal, TEXT("AnalyticsET: APIKey (%s) cannot be empty!"), *Config.APIKeyET);
 	}
 
 	// Set the number of retries to the number of retry URLs that have been passed in.
@@ -193,7 +200,11 @@ FAnalyticsProviderET::FAnalyticsProviderET(const FAnalyticsET::Config& ConfigVal
 		? FString(FApp::GetBuildVersion())
 		: ConfigAppVersion.Replace(TEXT("%VERSION%"), FApp::GetBuildVersion(), ESearchCase::CaseSensitive);
 
-	UE_LOG(LogAnalytics, Log, TEXT("[%s] APIServer = %s. AppVersion = %s"), *Config.APIKeyET, *Config.APIServerET, *Config.AppVersionET);
+	UE_LOG(LogAnalytics, Display, TEXT("[%s] APIServer = %s. AppVersion = %s"), *Config.APIKeyET, *Config.APIServerET, *Config.AppVersionET);
+	if (Config.APIServerET.IsEmpty())
+	{
+		UE_LOG(LogAnalytics, Warning, TEXT("AnalyticsET: APIServerET is empty for APIKey (%s), creating as a NULL provider!"), *Config.APIKeyET);
+	}
 
 	// only need these if we are using the data router protocol.
 	if (!Config.UseLegacyProtocol)
@@ -458,7 +469,7 @@ bool FAnalyticsProviderET::SetSessionID(const FString& InSessionID)
 
 bool FAnalyticsProviderET::ShouldRecordEvent(const FString& EventName) const
 {
-	return !ShouldRecordEventFunc || ShouldRecordEventFunc(*this, EventName);
+	return !IsActingAsNullProvider() && (!ShouldRecordEventFunc || ShouldRecordEventFunc(*this, EventName));
 }
 
 void FAnalyticsProviderET::RecordEvent(FString&& EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
@@ -486,6 +497,10 @@ void FAnalyticsProviderET::RecordEvent(FString&& EventName, const TArray<FAnalyt
 		{
 			FlushEventLegacy(EventName, Attributes);
 		}
+	}
+	else
+	{
+		UE_LOG(LogAnalytics, Verbose, TEXT("Ignoring event named '%s' due to ShouldRecordEvent check"), *EventName);
 	}
 }
 
@@ -535,8 +550,17 @@ void FAnalyticsProviderET::EventRequestComplete(FHttpRequestPtr HttpRequest, FHt
 
 void FAnalyticsProviderET::SetURLEndpoint(const FString& UrlEndpoint, const TArray<FString>& AltDomains)
 {
+	// See if anything is actually changing before going through the work to flush and reset the URLs.
+	if (Config.APIServerET == UrlEndpoint && Config.AltAPIServersET == AltDomains)
+	{
+		return;
+	}
+
+	// flush existing events before changing URL domains.
 	FlushEvents();
+
 	Config.APIServerET = UrlEndpoint;
+	Config.AltAPIServersET = AltDomains;
 
 	// Set the number of retries to the number of retry URLs that have been passed in.
 	uint32 RetryLimitCount = AltDomains.Num();
@@ -559,6 +583,11 @@ void FAnalyticsProviderET::SetURLEndpoint(const FString& UrlEndpoint, const TArr
 	else
 	{
 		RetryServers.Reset();
+	}
+
+	if (Config.APIServerET.IsEmpty())
+	{
+		UE_LOG(LogAnalytics, Warning, TEXT("AnalyticsET: APIServerET is empty for APIKey (%s), converting to a NULL provider!"), *Config.APIKeyET);
 	}
 }
 
