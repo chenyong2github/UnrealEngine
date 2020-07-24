@@ -15,6 +15,9 @@ class FSceneViewport;
 class UGameViewportClient;
 class UNetDriver;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+// disabled for: virtual bool NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading = true) override;
+
 /**
  * Engine that manages core systems that enable a game.
  */
@@ -127,9 +130,7 @@ public:
 	virtual float GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmoothing = true ) const override;
 	virtual void ProcessToggleFreezeCommand( UWorld* InWorld ) override;
 	virtual void ProcessToggleFreezeStreamingCommand( UWorld* InWorld ) override;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual bool NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading = true) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading = true) override;
 	virtual bool ShouldDoAsyncEndOfFrameTasks() const override;
 
@@ -182,3 +183,5 @@ private:
 	/** Last time the logs have been flushed. */
 	double LastTimeLogsFlushed;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
