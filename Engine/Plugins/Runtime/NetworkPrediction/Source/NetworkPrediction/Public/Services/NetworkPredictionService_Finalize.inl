@@ -7,7 +7,7 @@ class IFinalizeService
 public:
 
 	virtual ~IFinalizeService() = default;
-	virtual void FinalizeFrame(float DeltaTimeSeconds, const int32 SimFrame, const int32 SimTimeMS, const int32 ConfirmedFrame) = 0;
+	virtual void FinalizeFrame(float DeltaTimeSeconds, const int32 SimFrame, const int32 SimTimeMS, const int32 FixedStepMS) = 0;
 };
 
 template<typename InModelDef>
@@ -37,7 +37,7 @@ public:
 		FinalizeBitArray[InstanceIdx] = false;
 	}
 
-	void FinalizeFrame(float DeltaTimeSeconds, const int32 ServerSimFrame, const int32 SimTimeMS, const int32 ConfirmedFrame) final override
+	void FinalizeFrame(float DeltaTimeSeconds, const int32 ServerSimFrame, const int32 SimTimeMS, const int32 FixedStepMS) final override
 	{
 		for (TConstSetBitIterator<> BitIt(FinalizeBitArray); BitIt; ++BitIt)
 		{
@@ -53,7 +53,7 @@ public:
 
 			// Dispatch Cues: it may be better to take two passes here. Do all FinalizeFrame calls then all Dispatch Cues
 			// (Dispatch Cues can go deep into user code, may be more cache efficient to take two passes).
-			FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, ServerSimFrame, SimTimeMS, ConfirmedFrame);
+			FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, ServerSimFrame, SimTimeMS, FixedStepMS);
 		}
 	}
 
@@ -117,7 +117,7 @@ public:
 
 			// Dispatch Cues: it may be better to take two passes here. Do all FinalizeFrame calls then all Dispatch Cues
 			// (Dispatch Cues can go deep into user code, may be more cache efficient to take two passes).
-			FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, ServerRecvData.PendingFrame, ServerRecvData.TotalSimTimeMS, INDEX_NONE);
+			FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, ServerRecvData.PendingFrame, ServerRecvData.TotalSimTimeMS, 0);
 		}
 	}
 
