@@ -506,7 +506,7 @@ public:
 	CORE_API ~FTaskTagScope();
 
 	static ETaskTag GetCurrentTag();
-	static bool HasCurrentTag(ETaskTag InTag);
+	static bool IsCurrentTag(ETaskTag InTag);
 };
 
 /**
