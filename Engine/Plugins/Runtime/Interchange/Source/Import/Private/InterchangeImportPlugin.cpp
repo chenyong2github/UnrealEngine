@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
 #include "IInterchangeImportPlugin.h"
 #include "InterchangeManager.h"
+#include "Modules/ModuleManager.h"
 #include "Texture/InterchangeTextureFactory.h"
 #include "Texture/InterchangePNGTranslator.h"
 #include "Texture/InterchangeJPGTranslator.h"

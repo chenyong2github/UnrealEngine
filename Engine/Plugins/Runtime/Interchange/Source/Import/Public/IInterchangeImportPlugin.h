@@ -3,10 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LogInterchangeImportPlugin.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogInterchangeImportPlugin, Log, All);
 
 /**
  * The public interface to this module

@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Texture/InterchangePNGTranslator.h"
 
-#include "Nodes/BaseNodeContainer.h"
-#include "TextureNode.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "LogInterchangeImportPlugin.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
+#include "Nodes/BaseNodeContainer.h"
+#include "TextureNode.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -254,7 +260,7 @@ const TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetPayload
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode PNG. [%s]"), *Filename);
 		return TOptional<Interchange::FImportImage>();
 	}
-	if (!Interchange::IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
+	if (!Interchange::FImportImageHelper::IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PNG, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
 		return TOptional<Interchange::FImportImage>();

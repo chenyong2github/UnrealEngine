@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Types/AttributeStorage.h"
-#include "../InterchangeLogPrivate.h"
+#include "InterchangeLogPrivate.h"
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
 
 //Interchange namespace
 namespace Interchange

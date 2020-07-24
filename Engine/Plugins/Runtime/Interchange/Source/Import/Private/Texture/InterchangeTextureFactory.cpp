@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Texture/InterchangeTextureFactory.h"
 
+#include "LogInterchangeImportPlugin.h"
 #include "Nodes/BaseNode.h"
 #include "TextureNode.h"
 #include "TextureCompiler.h"
+#include "Texture/InterchangeTextureTranslator.h"
 #include "TextureNode.h"
+
 
 #if WITH_EDITORONLY_DATA
 

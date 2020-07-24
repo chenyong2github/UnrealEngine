@@ -25,16 +25,19 @@ namespace Interchange
 		void* GetMipData(int32 InMipIndex);
 	};
 
-	/**
-	 * Tests if the given height and width specify a supported texture resolution to import; Can optionally check if the height/width are powers of two
-	 *
-	 * @param Width - The width of an imported texture whose validity should be checked
-	 * @param Height - The height of an imported texture whose validity should be checked
-	 * @param bAllowNonPowerOfTwo - Whether or not non-power-of-two textures are allowed
-	 *
-	 * @return bool true if the given height/width represent a supported texture resolution, false if not
-	 */
-	static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo);
+	struct FImportImageHelper
+	{
+		/**
+		 * Tests if the given height and width specify a supported texture resolution to import; Can optionally check if the height/width are powers of two
+		 *
+		 * @param Width - The width of an imported texture whose validity should be checked
+		 * @param Height - The height of an imported texture whose validity should be checked
+		 * @param bAllowNonPowerOfTwo - Whether or not non-power-of-two textures are allowed
+		 *
+		 * @return bool true if the given height/width represent a supported texture resolution, false if not
+		 */
+		static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo);
+	};
 }
 
 

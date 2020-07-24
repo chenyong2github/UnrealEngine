@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"

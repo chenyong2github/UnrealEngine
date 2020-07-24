@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "InterchangeManager.h"
 
 #include "AssetDataTagMap.h"
 #include "AssetRegistryModule.h"
 #include "CoreMinimal.h"
-#include "Nodes/BaseNodeContainer.h"
+#include "Engine/Blueprint.h"
 #include "InterchangeFactoryBase.h"
+#include "InterchangeLogPrivate.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
@@ -17,13 +16,16 @@
 #include "Misc/AsyncTaskNotification.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Nodes/BaseNodeContainer.h"
 #include "PackageUtils/PackageUtils.h"
 #include "Tasks/InterchangeTaskParsing.h"
 #include "Tasks/InterchangeTaskPipeline.h"
 #include "Tasks/InterchangeTaskTranslator.h"
+#include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectIterator.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 namespace InternalInterchangePrivate

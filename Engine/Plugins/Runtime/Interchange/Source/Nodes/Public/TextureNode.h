@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Nodes/BaseNode.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 
 //Interchange namespace
 namespace Interchange

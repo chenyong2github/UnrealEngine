@@ -9,7 +9,7 @@
 #include "Math/RandomStream.h"
 #include "Misc/FrameRate.h"
 #include "Misc/NetworkGuid.h"
-
+#include "Misc/ScopeLock.h"
 
 
 //Interchange namespace
@@ -34,18 +34,18 @@ namespace Interchange
 
 		explicit FAttributeKey(const FString& Other)
 		{
-			Key = Other.IsEmpty() ? NAME_None : FName(Other);
+			Key = Other.IsEmpty() ? NAME_None : FName(*Other);
 		}
 
 		explicit FAttributeKey(const FText& Other)
 		{
-			Key = Other.IsEmpty() ? NAME_None : FName(Other.ToString());
+			Key = Other.IsEmpty() ? NAME_None : FName(*(Other.ToString()));
 		}
 
 		explicit FAttributeKey(const TCHAR* Other)
 		{
 			const FString Helper(Other);
-			Key = Helper.IsEmpty() ? NAME_None : FName(Helper);
+			Key = Helper.IsEmpty() ? NAME_None : FName(Other);
 		}
 
 		FORCEINLINE const TCHAR* operator*() const
@@ -67,20 +67,20 @@ namespace Interchange
 
 		FORCEINLINE FAttributeKey& operator=(const FString& Other)
 		{
-			Key = Other.IsEmpty() ? NAME_None : FName(Other);
+			Key = Other.IsEmpty() ? NAME_None : FName(*Other);
 			return *this;
 		}
 
 		FORCEINLINE FAttributeKey& operator=(const FText& Other)
 		{
-			Key = Other.IsEmpty() ? NAME_None : FName(Other.ToString());
+			Key = Other.IsEmpty() ? NAME_None : FName(*(Other.ToString()));
 			return *this;
 		}
 
 		FORCEINLINE FAttributeKey& operator=(const TCHAR* Other)
 		{
 			const FString Helper(Other);
-			Key = Helper.IsEmpty() ? NAME_None : FName(Helper);
+			Key = Helper.IsEmpty() ? NAME_None : FName(Other);
 			return *this;
 		}
 		
@@ -120,7 +120,7 @@ namespace Interchange
 			Ar << KeyString;
 			if(Ar.IsLoading())
 			{
-				AttributeKey.Key = FName(KeyString);
+				AttributeKey.Key = FName(*KeyString);
 			}
 			return Ar;
 		}

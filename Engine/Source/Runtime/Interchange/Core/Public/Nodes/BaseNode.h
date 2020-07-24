@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Types/AttributeStorage.h"
-
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 
 /**
  * Internal Helper to get set custom property for class that derive from FBaseNode. This is use by the macro IMPLEMENT_UOD_ATTRIBUTE.
