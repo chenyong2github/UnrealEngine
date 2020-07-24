@@ -146,6 +146,11 @@ void MainCS(
 	// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
 	uint2 OutputPixelPostion = BufferUVToBufferPixelCoord(SceneBufferUV);
 		
+	#if DEBUG_OUTPUT
+		//DebugOutput[OutputPixelPostion] = float4(MultiplexedSamples.Array[0].SampleCount, 0, 0, 0);
+		DebugOutput[OutputPixelPostion] = float4(MultiplexedFrequencies.Array[0].WorldBluringRadius, 0, 0, 0);
+	#endif
+
 	BRANCH
 	if (all(OutputPixelPostion < ViewportMax))
 	{
