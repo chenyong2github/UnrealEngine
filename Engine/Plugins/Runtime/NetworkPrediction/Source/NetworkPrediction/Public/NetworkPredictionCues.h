@@ -4,6 +4,7 @@
 #include "Engine/EngineTypes.h"
 #include "NetworkPredictionCueTraits.h"
 #include "NetworkPredictionCheck.h"
+#include "NetworkPredictionDriver.h"
 
 /*=============================================================================
 Networked Simulation Cues
