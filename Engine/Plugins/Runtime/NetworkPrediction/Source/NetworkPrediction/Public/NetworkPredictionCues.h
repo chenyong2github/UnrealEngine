@@ -4,7 +4,7 @@
 #include "Engine/EngineTypes.h"
 #include "NetworkPredictionCueTraits.h"
 #include "NetworkPredictionCheck.h"
-#include "NetworkPredictionDriver.h"
+//#include "NetworkPredictionDriver.h"
 
 /*=============================================================================
 Networked Simulation Cues
@@ -747,10 +747,10 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 		FString Str;
 		if (Driver)
 		{
-			TStringBuilder<128> Builder;
-			FNetworkPredictionDriver<ModelDef>::GetDebugString(Driver, Builder);
+			//TStringBuilder<128> Builder;
+			//FNetworkPredictionDriver<ModelDef>::GetDebugString(Driver, Builder);
 
-			Str = FString(Builder.ToString());
+			//Str = FString(Builder.ToString());
 		}
 
 		return Str;
