@@ -968,7 +968,13 @@ bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
 void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState)
 {
 	//Cull all but the N most significance FX.
-	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
+	bool bCull = false;
+	
+	if(GEnableNiagaraInstanceCountCulling)
+	{
+		bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
+	}
+
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByInstanceCount = bCull;
@@ -1052,12 +1058,19 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 
 		return 1.0f - (LODDistance / ScalabilitySettings.MaxDistance);
 	}
+	else
+	{
+		//We still need a sensible significance value for sorted instance count culling.
+		//100 here purely to make 1m LODDistance = 1.0 significance.
+		return 100.0f / LODDistance;
+	}
+
 	return 1.0f;
 }
 
 float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location)
 {
-	if (ScalabilitySettings.bCullByDistance && bCachedPlayerViewLocationsValid)
+	if (bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		for (FVector ViewLocation : CachedPlayerViewLocations)
@@ -1066,13 +1079,23 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 		}
 
 		float ClosestDist = FMath::Sqrt(ClosestDistSq);
-		if (ClosestDist >= ScalabilitySettings.MaxDistance)
+		if (ScalabilitySettings.bCullByDistance)
 		{
-			return 0.0f;
-		}
+			if (ClosestDist >= ScalabilitySettings.MaxDistance)
+			{
+				return 0.0f;
+			}
 
-		return ClosestDist / ScalabilitySettings.MaxDistance;
+			return ClosestDist / ScalabilitySettings.MaxDistance;
+		}
+		else
+		{
+			//We still need a sensible significance value for sorted instance count culling.
+			//100 here purely to make 1m ClosestDist = 1.0 significance.
+			return 100.0f / ClosestDist;
+		}
 	}
+
 	return 1.0f;
 }
 
