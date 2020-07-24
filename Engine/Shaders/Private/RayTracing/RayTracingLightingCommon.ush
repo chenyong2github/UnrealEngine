@@ -262,8 +262,10 @@ float3 SampleAreaLightDirection(
 
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
+		float TraceDistance = 0.0;
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
+			TraceDistance,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,

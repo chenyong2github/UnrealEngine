@@ -100,6 +100,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntRect, LightScissor)
 		SHADER_PARAMETER(FIntPoint, PixelOffset)
 		SHADER_PARAMETER(uint32, bUseHairVoxel)
+		SHADER_PARAMETER(float, TraceDistance)
 
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -217,6 +218,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		PassParameters->NormalBias = GetRaytracingMaxNormalBias();
 		PassParameters->LightingChannelMask = LightSceneProxy->GetLightingChannelMask();
 		LightSceneProxy->GetLightShaderParameters(PassParameters->Light);
+		PassParameters->TraceDistance = LightSceneProxy->GetTraceDistance();
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = SceneTextures;
