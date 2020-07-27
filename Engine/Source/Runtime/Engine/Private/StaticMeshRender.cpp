@@ -1159,6 +1159,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 							&& !IsTranslucentBlendMode(Material->GetBlendMode())
 							&& !Material->MaterialModifiesMeshPosition_RenderThread()
 							&& Material->GetMaterialDomain() == MD_Surface
+							&& !Material->IsSky()
 							&& !Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 
 						bAllSectionsCastShadow &= Section.bCastShadow;
