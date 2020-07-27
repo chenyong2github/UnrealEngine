@@ -41,8 +41,9 @@ UEdGraph* FBPFunctionClipboardData::CreateAndPopulateGraph(UBlueprint* InBluepri
 	{
 		FName GraphName = FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, FuncName.ToString());
 		UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, GraphName, UEdGraph::StaticClass(), InSchema);
-		
-		if (Graph)
+		const UEdGraphSchema_K2* K2Schema = CastChecked<UEdGraphSchema_K2>(Graph->GetSchema());
+
+		if (Graph && K2Schema)
 		{
 			InBlueprint->FunctionGraphs.Add(Graph);
 			PopulateGraph(Graph);
@@ -53,7 +54,19 @@ UEdGraph* FBPFunctionClipboardData::CreateAndPopulateGraph(UBlueprint* InBluepri
 			{
 				// Discard category
 				Entry[0]->MetaData.Category = FText::FromString(TEXT("Default"));
+
+				// Add necessary function flags
+				int32 AdditionalFunctionFlags = (FUNC_BlueprintEvent | FUNC_BlueprintCallable);
+				if ((Entry[0]->GetExtraFlags() & FUNC_AccessSpecifiers) == FUNC_None)
+				{
+					AdditionalFunctionFlags |= FUNC_Public;
+				}
+				Entry[0]->AddExtraFlags(AdditionalFunctionFlags);
+
 				Entry[0]->FunctionReference.SetExternalMember(Graph->GetFName(), nullptr);
+
+				// Mark graph as editable in case this came from a UserConstructionScript
+				K2Schema->MarkFunctionEntryAsEditable(Graph, true);
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
