@@ -58,7 +58,7 @@ bool ViewHierarchicalZBufferMinDepth(float4 ScreenUVMinMax, const float MaxZDept
 	float4 Rect = saturate(ScreenUVMinMax);
 	float4 RectPixels = Rect * RenderVolumetricCloudParameters.HZBSize.xyxy;
 
-	float2 RectSize = (RectPixels.zw - RectPixels.xy) * 0.5;	// 0.5 for 4x4
+	float2 RectSize = (RectPixels.zw - RectPixels.xy);
 	float Level = max(ceil(log2(max(RectSize.x, RectSize.y))), RenderVolumetricCloudParameters.HZBUvFactor.z);
 
 	// Check if we can drop one level lower
@@ -484,7 +484,9 @@ bool TraceClouds(
 			float CloudLayerFrontZDepth = (CloudLayerFrontClipPosition / CloudLayerFrontClipPosition.w).z;
 		
 			const float DistanceInFrontOfLayerCullingTracing = 50000.0f; // 500 meters
-			float4 ScreenUVMinMax = saturate((SvPosition.xyxy + float4(-1.0f, -1.0f, 1.0f, 1.0f)) * RenderVolumetricCloudParameters.OutputSizeInvSize.zwzw);
+			const float2 BufferToTextureUVRatio = View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
+			const float TestedTileSize = 2.0f;
+			float4 ScreenUVMinMax = saturate((SvPosition.xyxy + TestedTileSize*float4(-1.0f, -1.0f, 1.0f, 1.0f)) * RenderVolumetricCloudParameters.OutputSizeInvSize.zwzw * BufferToTextureUVRatio.xyxy);
 			if (
 				RenderVolumetricCloudParameters.HasValidHZB &&
 				(
@@ -494,6 +496,9 @@ bool TraceClouds(
 					// This is a bit arbitrary and assumes we are at the top of the planet but it helps a lot with quality.
 					((CloudLayerFrontPosition.z - DepthBufferPosition.z) < DistanceInFrontOfLayerCullingTracing && CloudLayerFrontPosition.z > DepthBufferPosition.z)
 				)
+
+				// In this case we always want to early exit
+				|| !RenderVolumetricCloudParameters.HasValidHZB
 			)
 			{
 				// The sky is not visible when using conservative furthest depth so we do not trace cloud.
@@ -503,6 +508,9 @@ bool TraceClouds(
 		
 				return false; 
 			}
+
+			// We still need to do that in case after the conservative test in order to not see the tile when rendering at high quality and full resolution for instance.
+			TMax = RenderVolumetricCloudParameters.ClampRayTToDepthBufferPostHZB ? min(TMax, TDepthBuffer) : TMax;
 		}
 		else
 		{
