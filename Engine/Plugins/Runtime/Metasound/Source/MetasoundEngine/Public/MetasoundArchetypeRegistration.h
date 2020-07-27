@@ -7,6 +7,7 @@
 
 #if WITH_EDITOR
 #include "AssetRegistryModule.h"
+#include "Async/Async.h"
 #include "Async/TaskGraphInterfaces.h"
 #endif // WITH_EDITOR
 
