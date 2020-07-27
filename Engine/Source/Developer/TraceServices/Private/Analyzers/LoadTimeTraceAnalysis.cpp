@@ -357,8 +357,10 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		FAsyncPackageState* ImportedAsyncPackage = ActiveAsyncPackagesMap.FindRef(ImportedAsyncPackagePtr);
 		if (AsyncPackage && ImportedAsyncPackage)
 		{
-			check(AsyncPackage->Request);
-			PackageRequestAssociation(Context, ImportedAsyncPackage, AsyncPackage->Request);
+			if (ensure(AsyncPackage->Request))
+			{
+				PackageRequestAssociation(Context, ImportedAsyncPackage, AsyncPackage->Request);
+			}
 		}
 		break;
 	}
