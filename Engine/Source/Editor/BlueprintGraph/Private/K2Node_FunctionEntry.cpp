@@ -738,6 +738,21 @@ bool UK2Node_FunctionEntry::IsCompatibleWithGraph(const UEdGraph* InGraph) const
 	return false;
 }
 
+void UK2Node_FunctionEntry::PostPasteNode()
+{
+	// ensure there are UserDefinedPins for all pins except the 'then' pin
+	for (int32 PinIdx = 1; PinIdx < Pins.Num(); ++PinIdx)
+	{
+		UEdGraphPin* Pin = Pins[PinIdx];
+		if (Pin && !UserDefinedPinExists(Pin->GetFName()))
+		{
+			UserDefinedPins.Add(MakeShared<FUserPinInfo>(*Pin));
+		}
+	}
+
+	ReconstructNode();
+}
+
 int32 UK2Node_FunctionEntry::GetFunctionFlags() const
 {
 	int32 ReturnFlags = 0;
