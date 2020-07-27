@@ -3732,26 +3732,28 @@ void FSequencer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraC
 			continue;
 		}
 
-		if ((CameraObject != nullptr) || LevelVC->IsLockedToActor(UnlockIfCameraActor))
+		if (CameraObject == nullptr && UnlockIfCameraActor != nullptr && !LevelVC->IsLockedToActor(UnlockIfCameraActor))
 		{
-			if (bShouldCachePreAnimatedViewportInfo)
-			{
-				PreAnimatedViewportLocation = LevelVC->GetViewLocation();
-				PreAnimatedViewportRotation = LevelVC->GetViewRotation();
-				PreAnimatedViewportFOV = LevelVC->ViewFOV;
-				bHasPreAnimatedInfo = true;
-
-				// We end-up only caching the first cinematic viewport's info, which means that
-				// if we are previewing the sequence on 2 different viewports, the second viewport
-				// will blend back to the same camera position as the first viewport, even if they
-				// started at different positions (which is very likely). It's a small downside to
-				// pay for a much simpler piece of code, and for a use-case that is frankly 
-				// probably very uncommon.
-				bShouldCachePreAnimatedViewportInfo = false;
-			}
-
-			UpdatePreviewLevelViewportClientFromCameraCut(*LevelVC, CameraObject, CameraCutParams);
+			continue;
 		}
+
+		if (bShouldCachePreAnimatedViewportInfo)
+		{
+			PreAnimatedViewportLocation = LevelVC->GetViewLocation();
+			PreAnimatedViewportRotation = LevelVC->GetViewRotation();
+			PreAnimatedViewportFOV = LevelVC->ViewFOV;
+			bHasPreAnimatedInfo = true;
+
+			// We end-up only caching the first cinematic viewport's info, which means that
+			// if we are previewing the sequence on 2 different viewports, the second viewport
+			// will blend back to the same camera position as the first viewport, even if they
+			// started at different positions (which is very likely). It's a small downside to
+			// pay for a much simpler piece of code, and for a use-case that is frankly 
+			// probably very uncommon.
+			bShouldCachePreAnimatedViewportInfo = false;
+		}
+
+		UpdatePreviewLevelViewportClientFromCameraCut(*LevelVC, CameraObject, CameraCutParams);
 	}
 
 	// Clear pre-animated info when we exit any sequencer camera.
