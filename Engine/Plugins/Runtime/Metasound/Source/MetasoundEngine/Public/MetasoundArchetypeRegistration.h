@@ -2,12 +2,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundFrontend.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundFrontend.h"
 
 #if WITH_EDITOR
 #include "AssetRegistryModule.h"
-#endif
+#include "Async/TaskGraphInterfaces.h"
+#endif // WITH_EDITOR
 
 namespace Metasound
 {
@@ -66,7 +67,8 @@ namespace Metasound
 					NewMetasoundObject->SetDocument(InDocument);
 
 #if WITH_EDITOR
-					AsyncTask(ENamedThreads::GameThread, [NewMetasoundObject]() {
+					AsyncTask(ENamedThreads::GameThread, [NewMetasoundObject]()
+					{
 						FAssetRegistryModule::AssetCreated(NewMetasoundObject);
 						NewMetasoundObject->MarkPackageDirty();
 						// todo: how do you get the package for a uobject and save it? I forget

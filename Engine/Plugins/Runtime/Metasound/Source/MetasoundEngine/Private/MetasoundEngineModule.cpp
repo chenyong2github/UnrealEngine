@@ -2,6 +2,7 @@
 #include "MetasoundEngineModule.h"
 
 #include "Metasound.h"
+#include "MetasoundArchetypeRegistration.h"
 #include "MetasoundSource.h"
 #include "Modules/ModuleManager.h"
 
