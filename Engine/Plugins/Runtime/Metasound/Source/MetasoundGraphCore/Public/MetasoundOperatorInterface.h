@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
+#include "MetasoundOperatorSettings.h"
 
 namespace Metasound
 {
@@ -50,25 +52,6 @@ namespace Metasound
 		 * executed.
 		 */
 		virtual FExecuteFunction GetExecuteFunction() = 0;
-	};
-
-	/** FOperatorSettings
-	 *
-	 * Audio settings for operators.
-	 */
-	struct FOperatorSettings
-	{
-		/** The number of samples per a second of audio. */
-		float SampleRate = 0.f;
-
-		/** The number of audio frames produced during a single call to IOperators execution function. */
-		int32 FramesPerExecute = 0;
-
-		FOperatorSettings(float InSampleRate, uint32 InFramesPerExecute)
-			: SampleRate(InSampleRate)
-			, FramesPerExecute(InFramesPerExecute)
-		{
-		}
 	};
 }
 

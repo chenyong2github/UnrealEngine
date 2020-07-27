@@ -53,7 +53,7 @@ namespace Metasound
 	}
 
 	FUnformattedAudio::FUnformattedAudio(int32 InInitialNumChannels, const FOperatorSettings& InSettings)
-		: FUnformattedAudio(InSettings.FramesPerExecute, InInitialNumChannels, 8)
+		: FUnformattedAudio(InSettings.GetNumFramesPerBlock(), InInitialNumChannels, 8)
 	{
 	}
 
@@ -95,7 +95,7 @@ namespace Metasound
 	}
 
 	FMultichannelAudioFormat::FMultichannelAudioFormat(int32 InNumChannels, const FOperatorSettings& InSettings)
-		: FMultichannelAudioFormat(InSettings.FramesPerExecute, InNumChannels)
+		: FMultichannelAudioFormat(InSettings.GetNumFramesPerBlock(), InNumChannels)
 	{}
 
 

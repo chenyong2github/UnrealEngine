@@ -42,7 +42,7 @@ namespace Metasound
 			 */
 			FAudioBuffer(const FOperatorSettings& InSettings)
 			{
-				Buffer.AddUninitialized(InSettings.FramesPerExecute);
+				Buffer.AddUninitialized(InSettings.GetNumFramesPerBlock());
 
 #if METASOUNDGRAPHCORE_CHECKAUDIONUM
 				// InitialNum should not change during the life of an FAudioBuffer

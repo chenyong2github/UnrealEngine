@@ -30,13 +30,13 @@ namespace Metasound
 			,	Bop(InBop)
 			,	StopEnvelopePos(-1)
 			,	ADSRDataReferences(InADSRData)
-			,	EnvelopeBuffer(FAudioBufferWriteRef::CreateNew(InSettings.FramesPerExecute))
+			,	EnvelopeBuffer(FAudioBufferWriteRef::CreateNew(InSettings.GetNumFramesPerBlock()))
 			{
-				check(EnvelopeBuffer->Num() == InSettings.FramesPerExecute);
+				check(EnvelopeBuffer->Num() == InSettings.GetNumFramesPerBlock());
 
 				OutputDataReferences.AddDataReadReference(TEXT("Envelope"), FAudioBufferReadRef(EnvelopeBuffer));
 
-				Envelope.Init(OperatorSettings.SampleRate);
+				Envelope.Init(OperatorSettings.GetSampleRate());
 			}
 
 			virtual const FDataReferenceCollection& GetInputs() const override
@@ -66,20 +66,20 @@ namespace Metasound
 
 				int32 BopIndex = 0;
 				int32 StartPos = 0;
-				int32 NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.FramesPerExecute + 1;
-				int32 EndPos = FMath::Min(OperatorSettings.FramesPerExecute, NextBop);
+				int32 NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.GetNumFramesPerBlock() + 1;
+				int32 EndPos = FMath::Min(OperatorSettings.GetNumFramesPerBlock(), NextBop);
 				
 				if (StopEnvelopePos > 0)
 				{
-					StopEnvelopePos -= OperatorSettings.FramesPerExecute;
+					StopEnvelopePos -= OperatorSettings.GetNumFramesPerBlock();
 					EndPos = FMath::Min(StopEnvelopePos, EndPos);
 				}
 
 				float* EnvelopeData = EnvelopeBuffer->GetData();
 
-				// TODO: FramesPerExecute need to be on 4 sample boundaries to allow for SIMD.
-				// TODO: just make FramesPerExecute an int32 instead of a uint32
-				while (StartPos < (int32)OperatorSettings.FramesPerExecute)
+				// TODO: GetNumFramesPerBlock() need to be on 4 sample boundaries to allow for SIMD.
+				// TODO: just make GetNumFramesPerBlock() an int32 instead of a uint32
+				while (StartPos < (int32)OperatorSettings.GetNumFramesPerBlock())
 				{
 					int32 i = StartPos;
 					for (; i < EndPos; i++)
@@ -94,19 +94,19 @@ namespace Metasound
 						// Stop sustain, start release.
 						Envelope.Stop();
 						StopEnvelopePos = -1;
-						EndPos = FMath::Min((int32)OperatorSettings.FramesPerExecute, NextBop);
+						EndPos = FMath::Min((int32)OperatorSettings.GetNumFramesPerBlock(), NextBop);
 					}
 
 					if (EndPos == NextBop)
 					{
 						// Trigger next envelope. 
 						Envelope.Start();
-						StopEnvelopePos = EndPos + FMath::RoundToInt(OperatorSettings.SampleRate * 0.001f * ADSMilliseconds);
+						StopEnvelopePos = EndPos + FMath::RoundToInt(OperatorSettings.GetSampleRate() * 0.001f * ADSMilliseconds);
 
 						BopIndex++;
 
-						NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.FramesPerExecute + 1;
-						EndPos = FMath::Min(StopEnvelopePos, FMath::Min((int32)OperatorSettings.FramesPerExecute, NextBop));
+						NextBop = BopIndex < Bop->Num() ? (*Bop)[BopIndex] : OperatorSettings.GetNumFramesPerBlock() + 1;
+						EndPos = FMath::Min(StopEnvelopePos, FMath::Min((int32)OperatorSettings.GetNumFramesPerBlock(), NextBop));
 					}
 				}
 			}

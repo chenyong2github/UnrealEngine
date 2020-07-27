@@ -303,7 +303,7 @@ namespace Metasound
 			 * @param InSettings the operator settings to use.
 			 */
 			TTime(float InSeconds, const FOperatorSettings& InSettings)
-				: TTime(InSeconds, ETimeResolution::Seconds, InSettings.SampleRate)
+				: TTime(InSeconds, ETimeResolution::Seconds, InSettings.GetSampleRate())
 			{}
 
 			/** Construct a sample count based TTime using a number of samples

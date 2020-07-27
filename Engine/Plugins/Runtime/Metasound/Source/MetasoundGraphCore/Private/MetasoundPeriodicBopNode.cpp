@@ -27,7 +27,7 @@ namespace Metasound
 			:	OperatorSettings(InSettings)
 			,	Bop(FBopWriteRef::CreateNew())
 			,	Period(InPeriod)
-			,	ExecuteDurationInSamples(InSettings.FramesPerExecute)
+			,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
 			,	SampleCountdown(0.f)
 			{
 				OutputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
@@ -46,9 +46,9 @@ namespace Metasound
 			void Execute()
 			{
 				// Advance internal counter to get rid of old bops.
-				Bop->Advance(OperatorSettings.FramesPerExecute);
+				Bop->Advance(OperatorSettings.GetNumFramesPerBlock());
 
-				float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.SampleRate;
+				float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.GetSampleRate();
 
 				PeriodInSamples = FMath::Max(PeriodInSamples, MinimumPeriodSamples);
 

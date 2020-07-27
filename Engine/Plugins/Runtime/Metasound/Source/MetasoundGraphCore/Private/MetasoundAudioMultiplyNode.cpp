@@ -20,9 +20,9 @@ namespace Metasound
 			,	InputBuffer2(InBuffer2)
 			,	OutputBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 			{
-				check(OutputBuffer->Num() == InSettings.FramesPerExecute);
-				check(InputBuffer1->Num() == InSettings.FramesPerExecute);
-				check(InputBuffer2->Num() == InSettings.FramesPerExecute);
+				check(OutputBuffer->Num() == InSettings.GetNumFramesPerBlock());
+				check(InputBuffer1->Num() == InSettings.GetNumFramesPerBlock());
+				check(InputBuffer2->Num() == InSettings.GetNumFramesPerBlock());
 
 				OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(OutputBuffer));
 			}
@@ -43,7 +43,7 @@ namespace Metasound
 
 				// TODO: add buffer vector op to multipy two buffers (not in place). 
 				// TODO: what to do about RESTRICT? This could be something for the builder to keep in mind.
-				FMemory::Memcpy(OutputBuffer->GetData(), InputBuffer1->GetData(), sizeof(float) * OperatorSettings.FramesPerExecute);
+				FMemory::Memcpy(OutputBuffer->GetData(), InputBuffer1->GetData(), sizeof(float) * OperatorSettings.GetNumFramesPerBlock());
 				MultiplyBuffersInPlace(*InputBuffer2, *OutputBuffer);
 			}
 
@@ -66,11 +66,11 @@ namespace Metasound
 		FAudioBufferReadRef InputBuffer1 = FAudioBufferReadRef::CreateNew();
 		FAudioBufferReadRef InputBuffer2 = FAudioBufferReadRef::CreateNew();
 
-		FAudioBuffer Ones(InOperatorSettings.FramesPerExecute);
+		FAudioBuffer Ones(InOperatorSettings.GetNumFramesPerBlock());
 
 		// initialize default array to all ones. 
 		float* Data = Ones.GetData();
-		for (int32 i = 0; i < InOperatorSettings.FramesPerExecute; i++)
+		for (int32 i = 0; i < InOperatorSettings.GetNumFramesPerBlock(); i++)
 		{
 			Data[i] = 1.f;
 		}

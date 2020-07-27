@@ -20,7 +20,7 @@ namespace Metasound
 			,	Frequency(InFrequency)
 			,	AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 			{
-				check(AudioBuffer->Num() == InSettings.FramesPerExecute);
+				check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
 
 				OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 			}
@@ -37,10 +37,10 @@ namespace Metasound
 
 			void Execute()
 			{
-				const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.SampleRate);
+				const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.GetSampleRate());
 				float* Data = AudioBuffer->GetData();
 
-				for (int32 i = 0; i < OperatorSettings.FramesPerExecute; i++)
+				for (int32 i = 0; i < OperatorSettings.GetNumFramesPerBlock(); i++)
 				{
 					Data[i] = FMath::Sin(Phase);
 					Phase += PhaseDelta;
