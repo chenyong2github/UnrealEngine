@@ -1264,15 +1264,20 @@ void UTexture2D::UpdateTextureRegions(int32 MipIndex, uint32 NumRegions, const F
 					int32 CurrentFirstMip = RegionData->Texture2DResource->GetCurrentFirstMip();
 					if (RegionData->MipIndex >= CurrentFirstMip)
 					{
+						// Some RHIs don't support source offsets. Offset source data pointer now and clear source offsets
+						FUpdateTextureRegion2D RegionCopy = RegionData->Regions[RegionIndex];
+						const uint8* RegionSourceData = RegionData->SrcData
+							+ RegionCopy.SrcY * RegionData->SrcPitch
+							+ RegionCopy.SrcX * RegionData->SrcBpp;
+						RegionCopy.SrcX = 0;
+						RegionCopy.SrcY = 0;
+
 						RHIUpdateTexture2D(
 							RegionData->Texture2DResource->GetTexture2DRHI(),
 							RegionData->MipIndex - CurrentFirstMip,
-							RegionData->Regions[RegionIndex],
+							RegionCopy,
 							RegionData->SrcPitch,
-							RegionData->SrcData
-							+ RegionData->Regions[RegionIndex].SrcY * RegionData->SrcPitch
-							+ RegionData->Regions[RegionIndex].SrcX * RegionData->SrcBpp
-							);
+							RegionSourceData);
 					}
 				}
 
