@@ -219,7 +219,7 @@ void UK2Node_Event::FixupEventReference()
 
 			UClass* ParentType = EventReference.GetMemberParentClass();
 
-			if ( BlueprintType && (!ParentType || (BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType))) )
+			if (BlueprintType && (!ParentType || !(BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType))))
 			{
 				FName EventName = EventReference.GetMemberName();
 
@@ -311,7 +311,7 @@ void UK2Node_Event::AllocateDefaultPins()
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Delegate, DelegateOutputName);
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
 	
-	// If the function signiture is currently invalid then try and fix the event reference
+	// If the function signature is currently invalid then try and fix the event reference
 	// in case the function has moved to some other valid location from the last compile
 	UFunction* Function = FindEventSignatureFunction();
 	
