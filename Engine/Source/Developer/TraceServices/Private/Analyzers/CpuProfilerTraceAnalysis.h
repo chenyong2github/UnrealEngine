@@ -67,7 +67,5 @@ private:
 	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
-	uint32 CpuChannelId = 0;
-	bool bCpuChannelState = true;
 	double BytesPerScope = 0.0;
 };
