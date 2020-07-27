@@ -613,6 +613,9 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
  
 		GeneratedData.TilePayload.AddDefaulted(TileList.Num());
 
+		const EParallelForFlags ThreadingFlag = bAllowAsync ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
+		const EParallelForFlags PriorityFlag = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
+
 		ParallelFor(TileList.Num(), [&](int32 TileIndex)
 		{
 			const FVTSourceTileEntry& Tile = TileList[TileIndex];
@@ -677,7 +680,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 			{
 				GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 			}
-		}, !bAllowAsync); // ParallelFor
+		}, ThreadingFlag | PriorityFlag); // ParallelFor
 
 		if (BuildSettingsLayer0.bVirtualTextureEnableCompressZlib)
 		{

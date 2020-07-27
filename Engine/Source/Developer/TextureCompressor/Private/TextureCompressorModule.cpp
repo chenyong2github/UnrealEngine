@@ -1676,8 +1676,9 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 			}
 		};
 
-		EParallelForFlags PriorityFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
-		ParallelFor(NumJobs, AdjustImageColorsFunc, bForceSingleThread ? EParallelForFlags::ForceSingleThread : PriorityFlags);
+		const EParallelForFlags PriorityFlag = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
+		const EParallelForFlags SingleThreadedFlag = bForceSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None;
+		ParallelFor(NumJobs, AdjustImageColorsFunc, SingleThreadedFlag | PriorityFlag);
 	}
 }
 
