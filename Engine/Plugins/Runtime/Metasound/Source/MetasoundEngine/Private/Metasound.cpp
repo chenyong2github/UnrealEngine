@@ -54,6 +54,7 @@ void UMetasound::SetMetadata(FMetasoundClassMetadata& InMetadata)
 void UMetasound::PostLoad()
 {
 	ConformDocumentToArchetype();
+	Super::PostLoad();
 }
 
 FMetasoundArchetype UMetasound::GetArchetype() const
