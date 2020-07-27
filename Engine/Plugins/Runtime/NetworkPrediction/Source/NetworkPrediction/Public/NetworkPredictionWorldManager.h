@@ -340,6 +340,19 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 		}
 	}
 
+	// Net Cues: set which replicated cues we should accept based on if we are FP or interpolated
+	if (Role != ROLE_Authority)
+	{
+		if (EnumHasAnyFlags(ServiceMask, ENetworkPredictionService::FixedInterpolate | ENetworkPredictionService::IndependentInterpolate))
+		{
+			InstanceData.CueDispatcher->SetReceiveReplicationTarget(ENetSimCueReplicationTarget::Interpolators);
+		}
+		else
+		{
+			InstanceData.CueDispatcher->SetReceiveReplicationTarget( Role == ROLE_AutonomousProxy ? ENetSimCueReplicationTarget::AutoProxy : ENetSimCueReplicationTarget::SimulatedProxy);
+		}
+	}
+
 	// Register with selected services
 	Services.RegisterInstance<ModelDef>(ID, InstanceData, ServiceMask);
 	
