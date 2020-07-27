@@ -115,6 +115,17 @@ float ShadowRayCast(
 		SampleTime += Step;
 	}
 
+	// Test if sampled pixel is shadow casting or not
+	if (FirstHitTime > 0.0)
+	{
+		float3 SampleUVz = RayStartUVz + RayStepUVz * FirstHitTime;
+		FGBufferData SampleGBuffer = GetGBufferData(SampleUVz.xy);
+		if (!CastDynamicShadow(SampleGBuffer))
+		{
+			FirstHitTime = -1.0f;
+		}
+	}
+
 	float Shadow = FirstHitTime > 0.0 ? 1.0 : 0.0;
 
 	// Off screen masking

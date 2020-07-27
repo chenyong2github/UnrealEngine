@@ -374,7 +374,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				SingleCaptureIndex, 
 				bOutputVelocity || AlwaysHasVelocity(),
-				GetCustomPrimitiveData());
+				GetCustomPrimitiveData(),
+				bCastDynamicShadow);
 
 		if (UniformBuffer.GetReference())
 		{
