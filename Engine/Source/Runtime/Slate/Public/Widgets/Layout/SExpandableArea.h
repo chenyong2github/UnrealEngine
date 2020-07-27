@@ -30,7 +30,7 @@ public:
 		: _Style( &FCoreStyle::Get().GetWidgetStyle<FExpandableAreaStyle>("ExpandableArea") )
 		, _BorderBackgroundColor( FLinearColor::White )
 		, _BorderImage( FCoreStyle::Get().GetBrush("ExpandableArea.Border") )
-		, _BodyBorderBackgroundColor()
+		, _BodyBorderBackgroundColor(FLinearColor::White)
 		, _BodyBorderImage()
 		, _AreaTitle( )
 		, _InitiallyCollapsed( false )
@@ -41,6 +41,7 @@ public:
 		, _Padding( 1.0f )
 		, _AreaTitleFont( FCoreStyle::Get().GetFontStyle("ExpandableArea.TitleFont") )
 		, _HeaderCursor( )
+		, _AllowAnimatedTransition(true)
 		{}
 		
 		/** Style used to draw this area */
@@ -77,6 +78,8 @@ public:
 		SLATE_ATTRIBUTE( FSlateFontInfo, AreaTitleFont )
 		/** Override for Cursor, so you can specify a different cursor for the header */
 		SLATE_ATTRIBUTE( TOptional<EMouseCursor::Type>, HeaderCursor )
+		/** Whether or not the animated effect is used when opening or closing the area */
+		SLATE_ARGUMENT(bool, AllowAnimatedTransition)
 			
 	SLATE_END_ARGS()
 
@@ -167,4 +170,7 @@ protected:
 
 	/** Image to use when the area is expanded */
 	const FSlateBrush* ExpandedImage;
+
+	/** If true expanding and collapsing the area will animate, otherwise it will expand/collapse instantly */
+	bool bAllowAnimatedTransition;
 };

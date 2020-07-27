@@ -118,17 +118,16 @@ void SSearchBox::Construct( const FArguments& InArgs )
 
 	// Add a search glass image so that the user knows this text box is for searching
 	Box->InsertSlot(SlotIndex++)
-	.AutoWidth()
-	.Padding(InArgs._Style->ImagePadding)
-	.HAlign(HAlign_Center)
-	.VAlign(VAlign_Center)
-	[
-		SNew(SImage)
-		.Visibility(this, &SSearchBox::GetSearchGlassVisibility)
-		.Image( &InArgs._Style->GlassImage )
-		.ColorAndOpacity( FSlateColor::UseForeground() )
-	];
-
+		.AutoWidth()
+		.Padding(InArgs._Style->ImagePadding)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Visibility(this, &SSearchBox::GetSearchGlassVisibility)
+			.Image(&InArgs._Style->GlassImage)
+			.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+		];
 	// Add an X to clear the search whenever there is some text typed into it
 	Box->InsertSlot(SlotIndex++)
 	.AutoWidth()
@@ -138,12 +137,11 @@ void SSearchBox::Construct( const FArguments& InArgs )
 	[
 		SNew(SButton)
 		.Visibility(this, &SSearchBox::GetXVisibility)
-		.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ContentPadding(0)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
-		.OnClicked( this, &SSearchBox::OnClearSearch )
-		.ForegroundColor( FSlateColor::UseForeground() )
+		.OnClicked(this, &SSearchBox::OnClearSearch)
 		// Allow the button to steal focus so that the search text will be automatically committed. Afterwards focus will be returned to the text box.
 		// If the user is keyboard-centric, they'll "ctrl+a, delete" to clear the search
 		.IsFocusable(true)

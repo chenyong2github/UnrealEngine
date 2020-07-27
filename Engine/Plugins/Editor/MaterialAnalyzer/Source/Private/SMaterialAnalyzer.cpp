@@ -419,7 +419,7 @@ TSharedRef< ITableRow > SMaterialAnalyzer::OnGenerateSuggestionRow(TSharedPtr<FP
 							.Padding(2.0f)
 							[
 								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("ContentBrowser.AddCollectionButtonIcon"))
+								.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
 								.ColorAndOpacity(FSlateColor::UseForeground())
 							]
 							+SHorizontalBox::Slot()

@@ -96,25 +96,25 @@ public:
 		{}
 
 		/** Data for the asset this item represents */
-		SLATE_ARGUMENT( TSharedPtr<FAssetViewItem>, AssetItem )
+	SLATE_ARGUMENT(TSharedPtr<FAssetViewItem>, AssetItem)
 
 		/** Delegate for when an asset name has entered a rename state */
-		SLATE_EVENT( FOnRenameBegin, OnRenameBegin )
+		SLATE_EVENT(FOnRenameBegin, OnRenameBegin)
 
 		/** Delegate for when an asset name has been entered for an item that is in a rename state */
-		SLATE_EVENT( FOnRenameCommit, OnRenameCommit )
+		SLATE_EVENT(FOnRenameCommit, OnRenameCommit)
 
 		/** Delegate for when an asset name has been entered for an item to verify the name before commit */
-		SLATE_EVENT( FOnVerifyRenameCommit, OnVerifyRenameCommit )
+		SLATE_EVENT(FOnVerifyRenameCommit, OnVerifyRenameCommit)
 
 		/** Called when any asset item is destroyed. Used in thumbnail management */
-		SLATE_EVENT( FOnItemDestroyed, OnItemDestroyed )
+		SLATE_EVENT(FOnItemDestroyed, OnItemDestroyed)
 
 		/** If false, the tooltip will not be displayed */
-		SLATE_ATTRIBUTE( bool, ShouldAllowToolTip )
+		SLATE_ATTRIBUTE(bool, ShouldAllowToolTip)
 
 		/** If true, display the thumbnail edit mode UI */
-		SLATE_ATTRIBUTE( bool, ThumbnailEditMode )
+		SLATE_ATTRIBUTE(bool, ThumbnailEditMode)
 
 		/** The string in the title to highlight (used when searching by string) */
 		SLATE_ATTRIBUTE(FText, HighlightText)
@@ -123,13 +123,16 @@ public:
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
 
 		/** Delegate to call (if bound) to get a custom tooltip for this view item */
-		SLATE_EVENT( FOnGetCustomAssetToolTip, OnGetCustomAssetToolTip )
+		SLATE_EVENT(FOnGetCustomAssetToolTip, OnGetCustomAssetToolTip)
 
 		/** Delegate for when an item is about to show a tool tip */
-		SLATE_EVENT( FOnVisualizeAssetToolTip, OnVisualizeAssetToolTip)
+		SLATE_EVENT(FOnVisualizeAssetToolTip, OnVisualizeAssetToolTip)
 
 		/** Delegate for when an item's tooltip is about to close */
-		SLATE_EVENT( FOnAssetToolTipClosing, OnAssetToolTipClosing )
+		SLATE_EVENT(FOnAssetToolTipClosing, OnAssetToolTipClosing)
+
+		/** Delegate for getting the selection state of this item */ 
+		SLATE_ARGUMENT(FIsSelected, IsSelected)
 
 	SLATE_END_ARGS()
 
@@ -153,7 +156,7 @@ public:
 	virtual FSlateColor GetAssetColor() const;
 
 	/** Get the border image to display */
-	const FSlateBrush* GetBorderImage() const;
+	virtual const FSlateBrush* GetBorderImage() const;
 
 	/** Get the name text to be displayed for this item */
 	FText GetNameText() const;
@@ -283,8 +286,10 @@ protected:
 
 	/** Called if bound when a tooltip is closing */
 	FOnAssetToolTipClosing OnAssetToolTipClosing;
+	
+	/** Delegate for getting the selection state of this item */ 
+	FIsSelected IsSelected;
 
-	/** The geometry last frame. Used when telling popup messages where to appear. */
 	FGeometry LastGeometry;
 
 	/** If false, the tooltip will not be displayed */
@@ -378,7 +383,10 @@ public:
 		SLATE_ARGUMENT( bool, AllowThumbnailHintLabel )
 
 		/** Whether the item is selected in the view */
-		SLATE_ARGUMENT( FIsSelected, IsSelected )
+		SLATE_ARGUMENT(FIsSelected, IsSelected)
+
+		/** Whether the item is selected in the view without anything else being selected*/
+		SLATE_ARGUMENT(FIsSelected, IsSelectedExclusively)
 
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
@@ -489,7 +497,10 @@ public:
 		SLATE_ATTRIBUTE( bool, ThumbnailEditMode )
 
 		/** Whether the item is selected in the view */
-		SLATE_ARGUMENT( FIsSelected, IsSelected )
+		SLATE_ARGUMENT(FIsSelected, IsSelected)
+
+		/** Whether the item is selected in the view without anything else being selected*/
+		SLATE_ARGUMENT(FIsSelected, IsSelectedExclusively)
 
 		/** Delegate to call (if bound) to check if it is valid to get a custom tooltip for this view item */
 		SLATE_EVENT(FOnIsAssetValidForCustomToolTip, OnIsAssetValidForCustomToolTip)
@@ -517,9 +528,11 @@ public:
 	/** Whether the widget should allow primitive tools to be displayed */
 	bool CanDisplayPrimitiveTools() const { return true; }
 
+	/** Get the border image to display */
+	virtual const FSlateBrush* GetBorderImage() const;
 protected:
 	/** SAssetViewItem interface */
-	virtual float GetNameTextWrapWidth() const override { return LastGeometry.GetLocalSize().X - 2.f; }
+	virtual float GetNameTextWrapWidth() const override { return LastGeometry.GetLocalSize().X - 15.f; }
 
 	/** Get the expected width of an extra state icon. */
 	float GetExtraStateIconWidth() const;
@@ -532,6 +545,9 @@ protected:
 
 	/** Returns the size of the thumbnail widget */
 	FOptionalSize GetThumbnailBoxSize() const;
+
+	/** Gets the visibility of the asset class label in thumbnails */
+	EVisibility GetAssetClassLabelVisibility() const;
 
 	/** Returns the font to use for the thumbnail label */
 	FSlateFontInfo GetThumbnailFont() const;
@@ -627,7 +643,7 @@ public:
 
 		SMultiColumnTableRow< TSharedPtr<FAssetViewItem> >::Construct( 
 			FSuperRowType::FArguments()
-				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+				.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 				.OnDragDetected(InArgs._OnDragDetected), 
 			InOwnerTableView);
 		Content = this->AssetColumnItem;

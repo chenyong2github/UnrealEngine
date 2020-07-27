@@ -41,6 +41,7 @@ struct FAssetThumbnailConfig
 		, HighlightedText( FText::GetEmpty() )
 		, HintColorAndOpacity( FLinearColor( 0.0f, 0.0f, 0.0f, 0.0f ) )
 		, AssetTypeColorOverride()
+		, Padding(0)
 	{
 	}
 
@@ -53,6 +54,7 @@ struct FAssetThumbnailConfig
 	TAttribute< FText > HighlightedText;
 	TAttribute< FLinearColor > HintColorAndOpacity;
 	TOptional< FLinearColor > AssetTypeColorOverride;
+	FMargin Padding;
 };
 
 

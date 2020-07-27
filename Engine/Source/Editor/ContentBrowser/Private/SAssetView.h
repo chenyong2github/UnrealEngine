@@ -34,12 +34,26 @@ class SAssetTileView;
 class SComboButton;
 class UFactory;
 struct FPropertyChangedEvent;
+class SContentBrowser;
 
 /** Fires whenever the asset view is asked to start to create a temporary item */
 DECLARE_DELEGATE_OneParam(FOnAssetViewNewItemRequested, const FContentBrowserItem& /*NewItem*/);
 
 /** Fires whenever one of the "Search" options changes, useful for modifying search criteria to match */
 DECLARE_DELEGATE(FOnSearchOptionChanged);
+
+enum class EThumbnailSize : uint8
+{
+	Tiny = 0,
+	Small,
+	Medium,
+	Large,
+	Huge,
+
+	// Not a size
+	MAX
+};
+
 
 /**
  * A widget to display a list of filtered assets
@@ -53,8 +67,8 @@ public:
 		, _ThumbnailLabel( EThumbnailLabel::ClassName )
 		, _AllowThumbnailHintLabel(true)
 		, _InitialViewType(EAssetViewType::Tile)
-		, _ThumbnailScale(0.1f)
 		, _ShowBottomToolbar(true)
+		, _ShowViewOptions(true)
 		, _AllowThumbnailEditMode(false)
 		, _CanShowClasses(true)
 		, _CanShowFolders(false)
@@ -136,12 +150,11 @@ public:
 
 		/** The initial view type */
 		SLATE_ARGUMENT( EAssetViewType::Type, InitialViewType )
-
-		/** The thumbnail scale. [0-1] where 0.5 is no scale */
-		SLATE_ATTRIBUTE( float, ThumbnailScale )
-
 		/** Should the toolbar indicating number of selected assets, mode switch buttons, etc... be shown? */
 		SLATE_ARGUMENT( bool, ShowBottomToolbar )
+
+		/** Should view options be shown. Note: If ShowBottomToolbar is false, then view options are not shown regardless of this setting */
+		SLATE_ARGUMENT( bool, ShowViewOptions)
 
 		/** True if the asset view may edit thumbnails */
 		SLATE_ARGUMENT( bool, AllowThumbnailEditMode )
@@ -209,6 +222,8 @@ public:
 		/** Custom columns that can be use specific */
 		SLATE_EVENT( FOnSearchOptionChanged, OnSearchOptionsChanged)
 
+		/** The content browser that owns this view if any */
+		SLATE_ARGUMENT(TSharedPtr<SContentBrowser>, OwningContentBrowser)
 	SLATE_END_ARGS()
 
 	~SAssetView();
@@ -332,6 +347,12 @@ public:
 	/** @return true when we are including collection names in search criteria */
 	bool IsIncludingCollectionNames() const;
 
+	/** Handler for when the view combo button is clicked */
+	TSharedRef<SWidget> GetViewButtonContent();
+
+	/** Gets the text for the asset count label */
+	FText GetAssetCountText() const;
+
 private:
 
 	/** Sets the pending selection to the current selection (used when changing views or refreshing the view). */
@@ -405,12 +426,6 @@ private:
 
 	/** Returns the thumbnails hint color and opacity */
 	FLinearColor GetThumbnailHintColorAndOpacity() const;
-
-	/** Returns the foreground color for the view button */
-	FSlateColor GetViewButtonForegroundColor() const;
-
-	/** Handler for when the view combo button is clicked */
-	TSharedRef<SWidget> GetViewButtonContent();
 
 	/** Register menu for when the view combo button is clicked */
 	static void RegisterGetViewButtonMenu();
@@ -621,9 +636,6 @@ private:
 	/** The "Done Editing" button was pressed in the thumbnail edit mode strip */
 	FReply EndThumbnailEditModeClicked();
 
-	/** Gets the text for the asset count label */
-	FText GetAssetCountText() const;
-
 	/** Gets the visibility of the Thumbnail Edit Mode label */
 	EVisibility GetEditModeLabelVisibility() const;
 
@@ -639,14 +651,17 @@ private:
 	/** Toggles thumbnail editing mode */
 	void ToggleThumbnailEditMode();
 
-	/** Gets the current value for the scale slider (0 to 1) */
+	/** Called when  thumbnail size is changed */
+	void OnThumbnailSizeChanged(EThumbnailSize NewThumbnailSize);
+
+	/** Is the current thumbnail size menu option checked */
+	bool IsThumbnailSizeChecked(EThumbnailSize InThumbnailSize) const;
+
+	/** Are thumbnails allowed to be scaled by the user */
+	bool IsThumbnailScalingAllowed() const;
+
+	/** Gets the current thumbnail scale */
 	float GetThumbnailScale() const;
-
-	/** Sets the current scale value (0 to 1) */
-	void SetThumbnailScale( float NewValue );
-
-	/** Is thumbnail scale slider locked? */
-	bool IsThumbnailScalingLocked() const;
 
 	/** Gets the scaled item height for the list view */
 	float GetListViewItemHeight() const;
@@ -779,10 +794,10 @@ private:
 	TSharedPtr<class SAssetListView> ListView;
 	TSharedPtr<class SAssetTileView> TileView;
 	TSharedPtr<class SAssetColumnView> ColumnView;
-	TSharedPtr<SBorder> ViewContainer;
+	TSharedPtr<SBox> ViewContainer;
 
-	/** The button that displays view options */
-	TSharedPtr<SComboButton> ViewOptionsComboButton;
+	/** The content browser that created this asset view if any */
+	TWeakPtr<SContentBrowser> OwningContentBrowser;
 
 	/** The current base source filter for the view */
 	FSourcesData SourcesData;
@@ -884,12 +899,15 @@ private:
 	int32 TileViewThumbnailPadding;
 	int32 TileViewNameHeight;
 
-	/** The current value for the thumbnail scale from the thumbnail slider */
-	TAttribute< float > ThumbnailScaleSliderValue;
-
 	/** The max and min thumbnail scales as a fraction of the rendered size */
 	float MinThumbnailScale;
 	float MaxThumbnailScale;
+
+	/** Scalar applied to thumbnail sizes so that users thumbnails are scaled based on users display area size*/
+	float ThumbnailScaleRangeScalar;
+
+	/** Current thumbnail size */
+	EThumbnailSize ThumbnailSize;
 
 	/** Flag indicating if we will be filling the empty space in the tile view. */
 	bool bFillEmptySpaceInTileView;

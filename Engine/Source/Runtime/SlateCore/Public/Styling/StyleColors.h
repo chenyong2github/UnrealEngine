@@ -143,6 +143,7 @@ private:
  */
 struct SLATECORE_API FStyleColors
 {
+	static const FSlateColor Transparent;
 	static const FSlateColor Black;
 	static const FSlateColor Title;
 	static const FSlateColor Foldout;

@@ -161,8 +161,6 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 	if (InArgs._OnNameCommitted.IsBound())
 	{
 		NameWidget = SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.AssetTagNameFont", StyleSpecifier))
-			.ShadowOffset(FVector2D(1.0f, 1.0f))
 			.Text(InArgs._DisplayName)
 			.HighlightText(InArgs._HighlightText)
 			.OnBeginTextEdit(InArgs._OnBeginNameEdit)
@@ -174,8 +172,6 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 	else
 	{
 		NameWidget = SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.AssetTagNameFont", StyleSpecifier))
-			.ShadowOffset(FVector2D(1.0f, 1.0f))
 			.Text(InArgs._DisplayName)
 			.HighlightText(InArgs._HighlightText);
 	}
@@ -184,32 +180,23 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SBorder)
-		.Padding(0.0f)
-		.BorderBackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f, 0.2f))
-		.BorderImage(FEditorStyle::GetBrush("ContentBrowser.AssetTagBackground"))
+		SAssignNew(HBox, SHorizontalBox)
 		.ToolTip(AssetTagToolTip)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
 		[
-			SAssignNew(HBox, SHorizontalBox)
+			SAssignNew(CheckBox, SCheckBox)
+			.IsEnabled(IsCheckBoxEnabled)
+			.IsChecked(InArgs._IsChecked)
+			.OnCheckStateChanged(InArgs._OnCheckStateChanged)
+			.ToolTipText(this, &SAssetTagItem::GetCheckBoxTooltipText)
+		]
 
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SAssignNew(CheckBox, SCheckBox)
-				.Style(FEditorStyle::Get(), "ContentBrowser.AssetTagButton", StyleSpecifier)
-				.IsEnabled(IsCheckBoxEnabled)
-				.IsChecked(InArgs._IsChecked)
-				.OnCheckStateChanged(InArgs._OnCheckStateChanged)
-				.ForegroundColor(this, &SAssetTagItem::GetCheckBoxForegroundColor)
-				.ToolTipText(this, &SAssetTagItem::GetCheckBoxTooltipText)
-			]
-
-			+SHorizontalBox::Slot()
-			.Padding(FEditorStyle::GetMargin("ContentBrowser.AssetTagNamePadding", StyleSpecifier))
-			.VAlign(VAlign_Center)
-			[
-				NameWidget.ToSharedRef()
-			]
+		+SHorizontalBox::Slot()
+		.Padding(FEditorStyle::GetMargin("ContentBrowser.AssetTagNamePadding", StyleSpecifier))
+		.VAlign(VAlign_Center)
+		[
+			NameWidget.ToSharedRef()
 		]
 	];
 
@@ -221,7 +208,8 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 			[
 				SNew(SImage)
 				.Visibility(this, &SAssetTagItem::GetWarningIconVisibility)
-				.Image(FEditorStyle::GetBrush("Icons.Warning"))
+				.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
+				.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.AccentYellow"))
 				.ToolTipText(WarningText)
 			];
 	}
@@ -243,9 +231,6 @@ void SAssetTagItem::Construct(const FArguments& InArgs)
 					.MinDesiredWidth(30.0f)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("ContentBrowser.AssetTagCountFont", StyleSpecifier))
-						.ColorAndOpacity(FLinearColor::White)
-						.ShadowOffset(FVector2D(1.0f, 1.0f))
 						.Text(InArgs._CountText)
 						.Justification(ETextJustify::Center)
 					]

@@ -318,13 +318,16 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("TrashCan", new IMAGE_BRUSH("Icons/TrashCan", FVector2D(64, 64)));
 		Style->Set("TrashCan_Small", new IMAGE_BRUSH("Icons/TrashCan_Small", FVector2D(18, 18)));
-		Style->Set("Icons.Cross", new IMAGE_BRUSH("Icons/Cross_12x", Icon12x12));
+
 		Style->Set("Icons.Denied", new IMAGE_BRUSH("Icons/denied_16x", Icon16x16));
-		Style->Set("Icons.Error", new IMAGE_BRUSH("Icons/icon_error_16x", Icon16x16));
+	
 		Style->Set("Icons.Help", new IMAGE_BRUSH("Icons/icon_help_16x", Icon16x16));
 		Style->Set("Icons.Info", new IMAGE_BRUSH("Icons/icon_info_16x", Icon16x16));
-		Style->Set("Icons.Warning", new IMAGE_BRUSH("Icons/icon_warning_16x", Icon16x16));
+	
 		Style->Set("Icons.Download", new IMAGE_BRUSH("Icons/icon_Downloads_16x", Icon16x16));
+
+		Style->Set("Icons.Error", new IMAGE_BRUSH_SVG("Starship/Common/alert-circle", Icon16x16));
+		Style->Set("Icons.Warning", new IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16));
 
 		Style->Set("Icons.box-perspective", new IMAGE_BRUSH_SVG("Starship/Common/box-perspective", Icon16x16));
 		Style->Set("Icons.cylinder", new IMAGE_BRUSH_SVG("Starship/Common/cylinder", Icon16x16));
@@ -333,7 +336,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("Icons.Settings", new IMAGE_BRUSH_SVG("Starship/Common/settings", Icon16x16));
 		Style->Set("Icons.Blueprints", new IMAGE_BRUSH_SVG("Starship/Common/blueprint", Icon16x16));
+		Style->Set("Icons.Cross", new IMAGE_BRUSH_SVG("Starship/Common/plus", Icon16x16));
 		Style->Set("Icons.Plus", new IMAGE_BRUSH_SVG("Starship/Common/plus", Icon16x16));
+		Style->Set("Icons.PlusCircle", new IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
 
 		Style->Set("Icons.Save", new IMAGE_BRUSH_SVG("Starship/Common/save", Icon16x16));
 
@@ -350,6 +355,20 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.CircleArrowDown", new IMAGE_BRUSH_SVG("Starship/Common/circle-arrow-down", Icon16x16));
 
 		Style->Set("Icons.Check", new IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16));
+
+		Style->Set("Icons.FolderOpen", new IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon16x16));
+		Style->Set("Icons.FolderClosed", new IMAGE_BRUSH_SVG("Starship/Common/folder-closed", Icon16x16));
+
+		Style->Set("Icons.ChevronLeft", new IMAGE_BRUSH_SVG("Starship/Common/chevron-left", Icon16x16));
+		Style->Set("Icons.ChevronRight", new IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16));
+
+		Style->Set("Icons.ChevronUp", new IMAGE_BRUSH_SVG("Starship/Common/chevron-up", Icon16x16));
+		Style->Set("Icons.ChevronDown", new IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
+
+		Style->Set("Icons.Search", new IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16));
+
+		Style->Set("Icons.FilledCircle", new IMAGE_BRUSH_SVG("Starship/Common/filled-circle", Icon16x16));
+
 	}
 
 	// Tool panels
@@ -457,8 +476,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// SExpandableArea defaults...
 	{
 		Style->Set("ExpandableArea", FExpandableAreaStyle()
-			.SetCollapsedImage(IMAGE_BRUSH("Common/TreeArrow_Collapsed", Icon10x10, DefaultForeground))
-			.SetExpandedImage(IMAGE_BRUSH("Common/TreeArrow_Expanded", Icon10x10, DefaultForeground))
+			.SetCollapsedImage(IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16, DefaultForeground))
+			.SetExpandedImage(IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16, DefaultForeground))
 		);
 		Style->Set("ExpandableArea.TitleFont", StyleFonts.SmallBold);
 		Style->Set("ExpandableArea.Border", new FSlateRoundedBoxBrush(FStyleColors::Background, 4) );
@@ -982,9 +1001,9 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 			.SetTextBoxStyle(NormalEditableTextBoxStyle)
 			.SetUpArrowImage(IMAGE_BRUSH_SVG("Starship/Common/arrow-north", Icon8x8, FStyleColors::Foreground))
 			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/arrow-south", Icon8x8, FStyleColors::Foreground))
-			.SetGlassImage(IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16, FStyleColors::Foreground))
-			.SetClearImage(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16, FStyleColors::Foreground))
-			.SetImagePadding(FMargin(3.f, 2.f, -2.f, 2.0))
+			.SetGlassImage(IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16))
+			.SetClearImage(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16))
+			.SetImagePadding(FMargin(3.f, 0.f, -2.f, 0.0))
 			.SetLeftAlignButtons(true)
 		);
 	}

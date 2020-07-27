@@ -89,7 +89,6 @@ public:
 					.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 					[
 						SAssignNew( BreadcrumbTrail, SBreadcrumbTrail< int32 > )
-						.DelimiterImage(FEditorStyle::GetBrush("ContentBrowser.PathDelimiter"))
 						.PersistentBreadcrumbs( true )
 						.OnCrumbClicked( this, &SPropertyTable::OnCrumbClicked )
 						.GetCrumbMenuContent( this, &SPropertyTable::GetCrumbMenuContent )

@@ -155,7 +155,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							.ToolTipText(LOCTEXT("PreviousPlaylistItemButtonToolTip", "Jump to the previous item in the playlist"))
 							[
 								SNew(SImage)
-									.Image(FEditorStyle::GetBrush("ContentBrowser.HistoryBack"))
+									.Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
 							]
 					]
 
@@ -177,7 +177,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							.ToolTipText(LOCTEXT("NextPlaylistItemButtonToolTip", "Jump to the next item in the playlist"))
 							[
 								SNew(SImage)
-									.Image(FEditorStyle::GetBrush("ContentBrowser.HistoryForward"))
+								.Image(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
 							]
 					]
 			]

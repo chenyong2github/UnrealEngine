@@ -50,8 +50,6 @@ void SFilterWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.ColorAndOpacity(this, &SFilterWidget::GetFilterNameColorAndOpacity)
-					.Font(FLogVisualizerStyle::Get().GetFontStyle("ContentBrowser.FilterNameFont"))
-					.ShadowOffset(FVector2D(1.f, 1.f))
 					.Text(this, &SFilterWidget::GetCaptionString)
 				]
 			]

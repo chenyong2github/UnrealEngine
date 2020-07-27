@@ -24,7 +24,7 @@ void FSourcesSearch::SetHintText(const TAttribute<FText>& InHintText)
 	SearchBox->SetHintText(InHintText);
 }
 
-TSharedRef<SWidget> FSourcesSearch::GetWidget() const
+TSharedRef<SSearchBox> FSourcesSearch::GetWidget() const
 {
 	return SearchBox.ToSharedRef();
 }

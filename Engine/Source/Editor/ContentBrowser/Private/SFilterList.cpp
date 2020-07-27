@@ -28,6 +28,7 @@
 #include "FrontendFilters.h"
 #include "ContentBrowserFrontEndFilterExtension.h"
 #include "Misc/BlacklistNames.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -183,8 +184,7 @@ public:
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderBackgroundColor( FLinearColor(0.2f, 0.2f, 0.2f, 0.2f) )
-			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
 			[
 				SAssignNew( ToggleButtonPtr, SFilterCheckBox )
 				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
@@ -193,13 +193,24 @@ public:
 				.IsChecked(this, &SFilter::IsChecked)
 				.OnCheckStateChanged(this, &SFilter::FilterToggled)
 				.OnGetMenuContent(this, &SFilter::GetRightClickMenuContent)
-				.ForegroundColor(this, &SFilter::GetFilterForegroundColor)
 				[
-					SNew(STextBlock)
-					.ColorAndOpacity(this, &SFilter::GetFilterNameColorAndOpacity)
-					.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
-					.ShadowOffset(FVector2D(1.f, 1.f))
-					.Text(this, &SFilter::GetFilterName)
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(2.0f)
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("ContentBrowser.FilterImage"))
+						.ColorAndOpacity(this, &SFilter::GetFilterImageColorAndOpacity)
+					]
+					+SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(this, &SFilter::GetFilterName)
+					]
 				]
 			]
 		];
@@ -407,9 +418,9 @@ private:
 	}
 
 	/** Handler to determine the color of the checkbox when it is checked */
-	FSlateColor GetFilterForegroundColor() const
+	FSlateColor GetFilterImageColorAndOpacity() const
 	{
-		return IsChecked() == ECheckBoxState::Checked ? FilterColor : FLinearColor::White;
+		return IsChecked() == ECheckBoxState::Checked ? FilterColor : FLinearColor::Black;
 	}
 
 	/** Handler to determine the padding of the checkbox text when it is pressed */
@@ -418,12 +429,6 @@ private:
 		return ToggleButtonPtr->IsPressed() ? FMargin(3,2,4,0) : FMargin(3,1,4,1);
 	}
 
-	/** Handler to determine the color of the checkbox text when it is hovered */
-	FSlateColor GetFilterNameColorAndOpacity() const
-	{
-		const float DimFactor = 0.75f;
-		return IsHovered() ? FLinearColor(DimFactor, DimFactor, DimFactor, 1.0f) : FLinearColor::White;
-	}
 
 	/** Returns the display name for this filter */
 	FText GetFilterName() const

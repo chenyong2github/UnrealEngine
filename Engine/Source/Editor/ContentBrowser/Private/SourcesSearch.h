@@ -31,7 +31,7 @@ public:
 	void SetHintText(const TAttribute<FText>& InHintText);
 
 	/** Get the underlying search widget */
-	TSharedRef<SWidget> GetWidget() const;
+	TSharedRef<SSearchBox> GetWidget() const;
 
 private:
 	/** Handler for when search term changes */

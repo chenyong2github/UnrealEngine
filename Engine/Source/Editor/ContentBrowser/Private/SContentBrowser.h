@@ -15,6 +15,7 @@
 #include "CollectionManagerTypes.h"
 #include "IContentBrowserSingleton.h"
 #include "Editor/ContentBrowser/Private/HistoryManager.h"
+#include "Textures/SlateIcon.h"
 
 class FAssetContextMenu;
 class FFrontendFilter_Text;
@@ -285,6 +286,12 @@ private:
 	/** Handle creating a context menu for the "Add New" button */
 	TSharedRef<SWidget> MakeAddNewContextMenu(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain);
 
+	/* Whether or not the import button is enabled. */
+	bool IsImportButtonEnabled() const;
+
+	/** Called when the import button on the toolbar is clicked */
+	FReply OnImportClicked();
+
 	/** Handle populating a context menu for the "Add New" button */
 	void PopulateAddNewContextMenu(class UToolMenu* Menu);
 
@@ -318,8 +325,11 @@ private:
 	/** Handler for clicking the lock button */
 	FReply ToggleLockClicked();
 
-	/** Gets the brush used on the lock button */
-	const FSlateBrush* GetToggleLockImage() const;
+	/** Gets the menu text */
+	FText GetLockMenuText() const;
+
+	/** Gets icon for the lock button */
+	const FSlateBrush* GetLockIcon() const;
 
 	/** Gets the visibility state of the asset tree */
 	EVisibility GetSourcesViewVisibility() const;
@@ -344,9 +354,6 @@ private:
 
 	/** Handler for clicking the source switch button */
 	FReply OnSourcesSwitcherClicked();
-
-	/** Gets the source search hint text */
-	FText GetSourcesSearchHintText() const;
 
 	/** Called to handle the Content Browser settings changing */
 	void OnContentBrowserSettingsChanged(FName PropertyName);
@@ -486,12 +493,32 @@ private:
 	/** Get the visibility of the docked collections view */
 	EVisibility GetDockedCollectionsVisibility() const;
 
+	/** Get the visibility of the lock button */
+	EVisibility GetLockButtonVisibility() const;
+
+	/** Whether or not the collections view is docked or exists in its own panel in the same area as the sources view */
+	bool IsCollectionViewDocked() const;
+
 	/** Toggles the favorite status of an array of folders*/
 	void ToggleFolderFavorite(const TArray<FString>& FolderPaths);
 
 	/** Called when Asset View Options "Search" options change */
 	void HandleAssetViewSearchOptionsChanged();
 
+	/** Creates various widgets for the content browser main view */
+	TSharedRef<SWidget> CreateLockButton(const FContentBrowserConfig* Config);
+	TSharedRef<SWidget> CreateAssetView(const FContentBrowserConfig* Config);
+	TSharedRef<SWidget> CreateFavoritesView(const FContentBrowserConfig* Config);
+	TSharedRef<SWidget> CreatePathView(const FContentBrowserConfig* Config);
+	TSharedRef<SWidget> CreateDockedCollectionsView(const FContentBrowserConfig* Config);
+
+	/** Adds menu options to the view menu */
+	void ExtendViewOptionsMenu(const FContentBrowserConfig* Config);
+
+	/** Gets the size rule for various areas. When areas are a collapsed the splitter slot becomes auto sized, otherwise it is user sized */
+	SSplitter::ESizeRule GetFavoritesAreaSizeRule() const;
+	SSplitter::ESizeRule GetPathAreaSizeRule() const;
+	SSplitter::ESizeRule GetCollectionsAreaSizeRule() const;
 private:
 
 	/** The tab that contains this browser */
@@ -506,8 +533,11 @@ private:
 	/** The context menu manager for the path view */
 	TSharedPtr<class FPathContextMenu> PathContextMenu;
 
-	/** The sources search, shared between the paths and collections views */
+	/** The sources search for paths */
 	TSharedPtr<FSourcesSearch> SourcesSearch;
+
+	/** The sources search for collections*/
+	TSharedPtr<FSourcesSearch> CollectionSearch;
 
 	/** The asset tree widget */
 	TSharedPtr<SPathView> PathViewPtr;
@@ -532,6 +562,15 @@ private:
 
 	/** The path picker */
 	TSharedPtr<SComboButton> PathPickerButton;
+
+	/** Favorites area widget */
+	TSharedPtr<SExpandableArea> FavoritesArea;
+	
+	/** Path area widget */
+	TSharedPtr<SExpandableArea> PathArea;
+
+	/** Collection area widget */
+	TSharedPtr<SExpandableArea> CollectionArea;
 
 	/** Index of the active sources widget */
 	int32 ActiveSourcesWidgetIndex = 0;

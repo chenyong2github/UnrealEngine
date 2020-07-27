@@ -1190,7 +1190,8 @@ bool AssetViewUtils::HasCustomColors( TArray< FLinearColor >* OutColors )
 FLinearColor AssetViewUtils::GetDefaultColor()
 {
 	// The default tint the folder should appear as
-	return FLinearColor::Gray;
+	static const FName FolderColorName("ContentBrowser.DefaultFolderColor");
+	return FAppStyle::Get().GetSlateColor(FolderColorName).GetSpecifiedColor();
 }
 
 static const auto CVarMaxFullPathLength = 

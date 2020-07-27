@@ -89,6 +89,8 @@ public:
 		/** Callback delegate to have first chance handling of the OnKeyDown event */
 		SLATE_EVENT(FOnKeyDown, OnKeyDownHandler)
 
+		/** Optional callback to allow for special functionality to be invoked when the search glass button is clicked */
+		SLATE_EVENT(FOnClicked, OnSearchGlassClicked)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );

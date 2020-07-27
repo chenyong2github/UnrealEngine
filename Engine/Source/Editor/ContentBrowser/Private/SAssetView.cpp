@@ -78,6 +78,26 @@ namespace
 	const double JumpDelaySeconds = 2.0;
 }
 
+
+static FText ThumbnailSizeToDisplayName(EThumbnailSize InSize)
+{
+	switch (InSize)
+	{
+	case EThumbnailSize::Tiny:
+		return LOCTEXT("TinyThumbnailSize", "Tiny");
+	case EThumbnailSize::Small:
+		return LOCTEXT("SmallThumbnailSize", "Small");
+	case EThumbnailSize::Medium:
+		return LOCTEXT("MediumThumbnailSize", "Medium");
+	case EThumbnailSize::Large:
+		return LOCTEXT("LargeThumbnailSize", "Large");
+	case EThumbnailSize::Huge:
+		return LOCTEXT("HugeThumbnailSize", "Huge");
+	default:
+		return FText::GetEmpty();
+	}
+}
+
 SAssetView::~SAssetView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
@@ -102,7 +122,7 @@ SAssetView::~SAssetView()
 	AssetThumbnailPool.Reset();
 }
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
 void SAssetView::Construct( const FArguments& InArgs )
 {
 	bIsWorking = false;
@@ -129,6 +149,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SAssetView::HandleSettingChanged);
 
+	ThumbnailSize = EThumbnailSize::Medium;
+
 	// Get desktop metrics
 	FDisplayMetrics DisplayMetrics;
 	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
@@ -137,7 +159,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
 		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
 
-	const float ThumbnailScaleRangeScalar = ( DisplaySize.Y / 1080 );
+	ThumbnailScaleRangeScalar = ( DisplaySize.Y / 2160 );
 
 	// Create a thumbnail pool for rendering thumbnails	
 	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024, InArgs._AreRealTimeThumbnailsAllowed) );
@@ -146,19 +168,13 @@ void SAssetView::Construct( const FArguments& InArgs )
 	ListViewThumbnailSize = 64;
 	ListViewThumbnailPadding = 4;
 	TileViewThumbnailResolution = 256;
-	TileViewThumbnailSize = 128;
-	TileViewThumbnailPadding = 5;
+	TileViewThumbnailSize = 150;
+	TileViewThumbnailPadding = 9;
 
-	TileViewNameHeight = 36;
-	ThumbnailScaleSliderValue = InArgs._ThumbnailScale; 
-
-	if ( !ThumbnailScaleSliderValue.IsBound() )
-	{
-		ThumbnailScaleSliderValue = FMath::Clamp<float>(ThumbnailScaleSliderValue.Get(), 0.0f, 1.0f);
-	}
+	TileViewNameHeight = 115;
 
 	MinThumbnailScale = 0.2f * ThumbnailScaleRangeScalar;
-	MaxThumbnailScale = 2.0f * ThumbnailScaleRangeScalar;
+	MaxThumbnailScale = 1.9f * ThumbnailScaleRangeScalar;
 
 	bCanShowClasses = InArgs._CanShowClasses;
 
@@ -241,6 +257,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	NumVisibleColumns = 0;
 
+	OwningContentBrowser = InArgs._OwningContentBrowser;
+
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetClassBlacklist = AssetToolsModule.Get().GetAssetClassBlacklist();
 	FolderBlacklist = AssetToolsModule.Get().GetFolderBlacklist();
@@ -251,8 +269,14 @@ void SAssetView::Construct( const FArguments& InArgs )
 	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
 
 	ChildSlot
+	.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 	[
-		VerticalBox
+		SNew(SBorder)
+		.Padding(0)
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
+		[
+			VerticalBox
+		]
 	];
 
 	// Assets area
@@ -285,9 +309,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 			.VAlign(VAlign_Fill)
 			[
 				// Container for the view types
-				SAssignNew(ViewContainer, SBorder)
+				SAssignNew(ViewContainer, SBox)
 				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 			]
 
 			+ SOverlay::Slot()
@@ -336,11 +359,10 @@ void SAssetView::Construct( const FArguments& InArgs )
 	[
 		SNew(SBorder)
 		.Visibility( this, &SAssetView::GetEditModeLabelVisibility )
-		.BorderImage( FEditorStyle::GetBrush("ContentBrowser.EditModeLabelBorder") )
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
 		.Content()
 		[
-			SNew( SHorizontalBox )
-
+			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.Padding(4, 0, 0, 0)
@@ -348,7 +370,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ThumbnailEditModeLabel", "Editing Thumbnails. Drag a thumbnail to rotate it if there is a 3D environment."))
-				.TextStyle( FEditorStyle::Get(), "ContentBrowser.EditModeLabelFont" )
+				.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Primary"))
 			]
 
 			+SHorizontalBox::Slot()
@@ -356,8 +378,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
-				.Text( LOCTEXT("EndThumbnailEditModeButton", "Done Editing") )
-				.OnClicked( this, &SAssetView::EndThumbnailEditModeClicked )
+				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+				.Text(LOCTEXT("EndThumbnailEditModeButton", "Done Editing"))
+				.OnClicked(this, &SAssetView::EndThumbnailEditModeClicked)
 			]
 		]
 	];
@@ -374,7 +397,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			+SHorizontalBox::Slot()
 			.FillWidth(1.f)
 			.VAlign(VAlign_Center)
-			.Padding(8, 0)
+			.Padding(8, 5)
 			[
 				SNew(STextBlock)
 				.Text(this, &SAssetView::GetAssetCountText)
@@ -384,9 +407,9 @@ void SAssetView::Construct( const FArguments& InArgs )
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SAssignNew( ViewOptionsComboButton, SComboButton )
+				SNew(SComboButton)
+				.Visibility(InArgs._ShowViewOptions ? EVisibility::Visible : EVisibility::Collapsed)
 				.ContentPadding(0)
-				.ForegroundColor( this, &SAssetView::GetViewButtonForegroundColor )
 				.ButtonStyle( FEditorStyle::Get(), "ToggleButton" ) // Use the tool bar item style for this button
 				.OnGetMenuContent( this, &SAssetView::GetViewButtonContent )
 				.ButtonContent()
@@ -397,7 +420,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
-						SNew(SImage).Image( FEditorStyle::GetBrush("GenericViewButton") )
+						SNew(SImage)
+						.Image( FEditorStyle::GetBrush("GenericViewButton") )
 					]
  
 					+SHorizontalBox::Slot()
@@ -405,7 +429,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 					.Padding(2, 0, 0, 0)
 					.VAlign(VAlign_Center)
 					[
-						SNew(STextBlock).Text( LOCTEXT("ViewButton", "View Options") )
+						SNew(STextBlock)
+						.Text( LOCTEXT("ViewButton", "View Options") )
 					]
 				]
 			]
@@ -434,8 +459,6 @@ void SAssetView::Construct( const FArguments& InArgs )
 		SortList();
 	}
 }
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TOptional< float > SAssetView::GetIsWorkingProgressBarState() const
 {
@@ -744,7 +767,7 @@ void SAssetView::RequestQuickFrontendListRefresh()
 
 FString SAssetView::GetThumbnailScaleSettingPath(const FString& SettingsString) const
 {
-	return SettingsString + TEXT(".ThumbnailSizeScale");
+	return SettingsString + TEXT(".ThumbnailSize");
 }
 
 FString SAssetView::GetCurrentViewTypeSettingPath(const FString& SettingsString) const
@@ -754,7 +777,7 @@ FString SAssetView::GetCurrentViewTypeSettingPath(const FString& SettingsString)
 
 void SAssetView::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const
 {
-	GConfig->SetFloat(*IniSection, *GetThumbnailScaleSettingPath(SettingsString), ThumbnailScaleSliderValue.Get(), IniFilename);
+	GConfig->SetInt(*IniSection, *GetThumbnailScaleSettingPath(SettingsString), (int32)ThumbnailSize, IniFilename);
 	GConfig->SetInt(*IniSection, *GetCurrentViewTypeSettingPath(SettingsString), CurrentViewType, IniFilename);
 	
 	GConfig->SetArray(*IniSection, *(SettingsString + TEXT(".HiddenColumns")), HiddenColumnNames, IniFilename);
@@ -762,12 +785,12 @@ void SAssetView::SaveSettings(const FString& IniFilename, const FString& IniSect
 
 void SAssetView::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
 {
-	float Scale = 0.f;
-	if ( GConfig->GetFloat(*IniSection, *GetThumbnailScaleSettingPath(SettingsString), Scale, IniFilename) )
+	int32 ThumbnailSizeConfig = (int32)EThumbnailSize::Medium;
+	if ( GConfig->GetInt(*IniSection, *GetThumbnailScaleSettingPath(SettingsString), ThumbnailSizeConfig, IniFilename) )
 	{
 		// Clamp value to normal range and update state
-		Scale = FMath::Clamp<float>(Scale, 0.f, 1.f);
-		SetThumbnailScale(Scale);
+		ThumbnailSizeConfig = FMath::Clamp<int32>(ThumbnailSizeConfig, 0, (int32)EThumbnailSize::MAX-1);
+		OnThumbnailSizeChanged((EThumbnailSize)ThumbnailSizeConfig);
 	}
 
 	int32 ViewType = EAssetViewType::Tile;
@@ -831,6 +854,10 @@ void SAssetView::AdjustActiveSelection(int32 SelectionDelta)
 
 void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
+	// Adjust min and max thumbnail scale based on dpi
+	MinThumbnailScale = (0.2f * ThumbnailScaleRangeScalar)/AllottedGeometry.Scale;
+	MaxThumbnailScale = (1.9f * ThumbnailScaleRangeScalar)/AllottedGeometry.Scale;
+
 	CalculateFillScale( AllottedGeometry );
 
 	CurrentTime = InCurrentTime;
@@ -1028,7 +1055,7 @@ void SAssetView::CalculateFillScale( const FGeometry& AllottedGeometry )
 
 		// Scrollbars are 16, but we add 1 to deal with half pixels.
 		const float ScrollbarWidth = 16 + 1;
-		float TotalWidth = AllottedGeometry.GetLocalSize().X - ( ScrollbarWidth / AllottedGeometry.Scale );
+		float TotalWidth = AllottedGeometry.GetLocalSize().X -(ScrollbarWidth);
 		float Coverage = TotalWidth / ItemWidth;
 		int32 Items = (int)( TotalWidth / ItemWidth );
 
@@ -1500,6 +1527,7 @@ FReply SAssetView::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKe
 
 FReply SAssetView::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
+/*
 	if( MouseEvent.IsControlDown() )
 	{
 		const float DesiredScale = FMath::Clamp<float>(GetThumbnailScale() + ( MouseEvent.GetWheelDelta() * 0.05f ), 0.0f, 1.0f);
@@ -1508,7 +1536,7 @@ FReply SAssetView::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEven
 			SetThumbnailScale( DesiredScale );
 		}		
 		return FReply::Handled();
-	}
+	}*/
 	return FReply::Unhandled();
 }
 
@@ -2172,14 +2200,6 @@ FLinearColor SAssetView::GetThumbnailHintColorAndOpacity() const
 	return ThumbnailHintColorAndOpacity;
 }
 
-FSlateColor SAssetView::GetViewButtonForegroundColor() const
-{
-	static const FName InvertedForegroundName("InvertedForeground");
-	static const FName DefaultForegroundName("DefaultForeground");
-
-	return ViewOptionsComboButton->IsHovered() ? FEditorStyle::GetSlateColor(InvertedForegroundName) : FEditorStyle::GetSlateColor(DefaultForegroundName);
-}
-
 TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 {
 	SAssetView::RegisterGetViewButtonMenu();
@@ -2200,6 +2220,8 @@ TSharedRef<SWidget> SAssetView::GetViewButtonContent()
 
 	UContentBrowserAssetViewContextMenuContext* Context = NewObject<UContentBrowserAssetViewContextMenuContext>();
 	Context->AssetView = SharedThis(this);
+	Context->OwningContentBrowser = OwningContentBrowser;
+
 	FToolMenuContext MenuContext(nullptr, MenuExtender, Context);
 	return UToolMenus::Get()->GenerateWidget("ContentBrowser.AssetViewOptions", MenuContext);
 }
@@ -2451,16 +2473,33 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetThumbnails", LOCTEXT("ThumbnailsHeading", "Thumbnails"));
-		Section.AddEntry(FToolMenuEntry::InitWidget(
-			"ThumbnailScale",
-			SNew(SSlider)
-				.ToolTipText( LOCTEXT("ThumbnailScaleToolTip", "Adjust the size of thumbnails.") )
-				.Value( this, &SAssetView::GetThumbnailScale )
-				.OnValueChanged( this, &SAssetView::SetThumbnailScale )
-				.Locked( this, &SAssetView::IsThumbnailScalingLocked ),
-			LOCTEXT("ThumbnailScaleLabel", "Scale"),
-			/*bNoIndent=*/true
-			));
+
+		auto CreateThumbnailSizeSubMenu = [this](UToolMenu* SubMenu)
+		{
+			FToolMenuSection& SizeSection = SubMenu->AddSection("ThumbnailSizes");
+			
+			for (int32 EnumValue = (int32)EThumbnailSize::Tiny; EnumValue < (int32)EThumbnailSize::MAX; ++EnumValue)
+			{
+				SizeSection.AddMenuEntry(
+					NAME_None,
+					ThumbnailSizeToDisplayName((EThumbnailSize)EnumValue),
+					FText::GetEmpty(),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SAssetView::OnThumbnailSizeChanged, (EThumbnailSize)EnumValue),
+						FCanExecuteAction::CreateSP(this, &SAssetView::IsThumbnailScalingAllowed),
+						FIsActionChecked::CreateSP(this, &SAssetView::IsThumbnailSizeChecked, (EThumbnailSize)EnumValue)
+					),
+					EUserInterfaceActionType::RadioButton
+				);
+			}
+		};
+		Section.AddEntry(FToolMenuEntry::InitSubMenu(
+			"ThumbnailSize",
+			LOCTEXT("ThumbnailSize", "Thumbnail Size"),
+			LOCTEXT("ThumbnailSizeToolTip", "Adjust the size of thumbnails."),
+			FNewToolMenuDelegate::CreateLambda(CreateThumbnailSizeSubMenu)
+		));
 
 		Section.AddMenuEntry(
 			"ThumbnailEditMode",
@@ -2961,7 +3000,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 	{
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -2994,7 +3033,7 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 		.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3040,7 +3079,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 	{
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style( FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow" )
+			.Style( FEditorStyle::Get(), "ContentBrowser.AssetListView.TileTableRow" )
 			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3054,7 +3093,8 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 			.OnItemDestroyed(this, &SAssetView::AssetItemWidgetDestroyed)
 			.ShouldAllowToolTip(this, &SAssetView::ShouldAllowToolTips)
 			.HighlightText( HighlightedText )
-			.IsSelected( FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively) );
+			.IsSelected(FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelected))
+			.IsSelectedExclusively(FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively));
 
 		TableRowWidget->SetContent(Item);
 
@@ -3073,7 +3113,7 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 
 		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
 		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TileTableRow")
 		.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
 		.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
 
@@ -3093,7 +3133,8 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 			.ThumbnailLabel( ThumbnailLabel )
 			.ThumbnailHintColorAndOpacity( this, &SAssetView::GetThumbnailHintColorAndOpacity )
 			.AllowThumbnailHintLabel( AllowThumbnailHintLabel )
-			.IsSelected( FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively) )
+			.IsSelected(FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelected))
+			.IsSelectedExclusively( FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively) )
 			.OnIsAssetValidForCustomToolTip(OnIsAssetValidForCustomToolTip)
 			.OnGetCustomAssetToolTip(OnGetCustomAssetToolTip)
 			.OnVisualizeAssetToolTip( OnVisualizeAssetToolTip )
@@ -3110,7 +3151,7 @@ TSharedRef<ITableRow> SAssetView::MakeColumnViewWidget(TSharedPtr<FAssetViewItem
 	if ( !ensure(AssetItem.IsValid()) )
 	{
 		return SNew( STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow");
+			.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow");
 	}
 
 	// Update the cached custom data
@@ -3676,20 +3717,49 @@ void SAssetView::ToggleThumbnailEditMode()
 	bThumbnailEditMode = !bThumbnailEditMode;
 }
 
-float SAssetView::GetThumbnailScale() const
-{
-	return ThumbnailScaleSliderValue.Get();
-}
 
-void SAssetView::SetThumbnailScale( float NewValue )
+void SAssetView::OnThumbnailSizeChanged(EThumbnailSize NewThumbnailSize)
 {
-	ThumbnailScaleSliderValue = NewValue;
+	ThumbnailSize = NewThumbnailSize;
 	RefreshList();
 }
 
-bool SAssetView::IsThumbnailScalingLocked() const
+bool SAssetView::IsThumbnailSizeChecked(EThumbnailSize InThumbnailSize) const
 {
-	return GetCurrentViewType() == EAssetViewType::Column;
+	return ThumbnailSize == InThumbnailSize;
+}
+
+float SAssetView::GetThumbnailScale() const
+{
+	float BaseScale;
+	switch (ThumbnailSize)
+	{
+	case EThumbnailSize::Tiny:
+		BaseScale = 0.1f;
+		break;
+	case EThumbnailSize::Small:
+		BaseScale = 0.25f;
+		break;
+	case EThumbnailSize::Medium:
+		BaseScale = 0.5f;
+		break;
+	case EThumbnailSize::Large:
+		BaseScale = 0.75f;
+		break;
+	case EThumbnailSize::Huge:
+		BaseScale = 1.0f;
+		break;
+	default:
+		BaseScale = 0.5f;
+		break;
+	}
+
+	return BaseScale * GetTickSpaceGeometry().Scale;
+}
+
+bool SAssetView::IsThumbnailScalingAllowed() const
+{
+	return GetCurrentViewType() != EAssetViewType::Column;
 }
 
 float SAssetView::GetListViewItemHeight() const
@@ -3699,7 +3769,7 @@ float SAssetView::GetListViewItemHeight() const
 
 float SAssetView::GetTileViewItemHeight() const
 {
-	return TileViewNameHeight + GetTileViewItemBaseHeight() * FillScale;
+	return (TileViewNameHeight * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale())) + GetTileViewItemBaseHeight() * FillScale;
 }
 
 float SAssetView::GetTileViewItemBaseHeight() const

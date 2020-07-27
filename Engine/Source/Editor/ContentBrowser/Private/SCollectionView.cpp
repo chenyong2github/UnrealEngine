@@ -89,6 +89,8 @@ void SCollectionView::Construct( const FArguments& InArgs )
 	bQueueCollectionItemsUpdate = false;
 	bQueueSCCRefresh = true;
 
+	IsDocked = InArgs._IsDocked;
+
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 	CollectionManagerModule.Get().OnCollectionCreated().AddSP( this, &SCollectionView::HandleCollectionCreated );
 	CollectionManagerModule.Get().OnCollectionRenamed().AddSP( this, &SCollectionView::HandleCollectionRenamed );
@@ -122,65 +124,45 @@ void SCollectionView::Construct( const FArguments& InArgs )
 		CollectionListContextMenuOpening = FOnContextMenuOpening::CreateSP( this, &SCollectionView::MakeCollectionTreeContextMenu );
 	}
 
+	SearchPtr = InArgs._ExternalSearch;
+	if (SearchPtr)
+	{
+		SearchPtr->OnSearchChanged().AddSP(this, &SCollectionView::SetCollectionsSearchFilterText);
+	}
+
 	ExternalSearchPtr = InArgs._ExternalSearch;
 	TitleContent = SNew(SHorizontalBox);
-	SetAllowExternalSearch(true);
+
 
 	PreventSelectionChangedDelegateCount = 0;
 
 	TSharedRef< SWidget > HeaderContent = SNew(SHorizontalBox)
+			.Visibility(this, &SCollectionView::GetHeaderVisibility)
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
 				TitleContent.ToSharedRef()
 			]
-
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-				.ToolTipText(this, &SCollectionView::GetSwitchCollectionViewModeToolTipText)
-				.OnClicked(this, &SCollectionView::OnSwitchCollectionViewMode)
-				.ContentPadding(FMargin(2, 2))
-				.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
-				.Visibility(this, &SCollectionView::GetCollectionButtonsVisibility)
-				[
-					SNew(SImage)
-					.Image(this, &SCollectionView::GetSwitchCollectionViewModeIcon)
-				]
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 				.ToolTipText(LOCTEXT("AddCollectionButtonTooltip", "Add a collection."))
 				.OnClicked(this, &SCollectionView::MakeAddCollectionMenu)
 				.ContentPadding( FMargin(2, 2) )
-				.Visibility(this, &SCollectionView::GetCollectionButtonsVisibility)
+				.Visibility(bAllowCollectionButtons ? EVisibility::Visible : EVisibility::Collapsed)
 				[
 					SNew(SImage)
-					.Image( FEditorStyle::GetBrush("ContentBrowser.AddCollectionButtonIcon") )
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
 
 	TSharedRef< SWidget > BodyContent = SNew(SVerticalBox)
-			// Separator
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0, 0, 0, 1)
-			[
-				SNew(SSeparator)
-				.Visibility(InArgs._ShowSeparator ? EVisibility::Visible : EVisibility::Collapsed)
-			]
-
 			// Collections tree
 			+SVerticalBox::Slot()
 			.FillHeight(1.f)
@@ -198,42 +180,6 @@ void SCollectionView::Construct( const FArguments& InArgs )
 				.Visibility(this, &SCollectionView::GetCollectionTreeVisibility)
 			];
 
-	TSharedPtr< SWidget > Content;
-	if ( InArgs._AllowCollapsing )
-	{
-		Content = SAssignNew(CollectionsExpandableAreaPtr, SExpandableArea)
-			.MaxHeight(200)
-			.BorderImage( FEditorStyle::GetBrush("NoBorder") )
-			.HeaderPadding( FMargin(4.0f, 0.0f, 0.0f, 0.0f) )
-			.HeaderContent()
-			[
-				SNew(SBox)
-				.Padding(FMargin(6.0f, 0.0f, 0.0f, 0.0f))
-				[
-					HeaderContent
-				]
-			]
-			.BodyContent()
-			[
-				BodyContent
-			];
-	}
-	else
-	{
-		Content = SNew( SVerticalBox )
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
-		[
-			HeaderContent
-		]
-
-		+SVerticalBox::Slot()
-		[
-			BodyContent
-		];
-	}
-
 	ChildSlot
 	[
 		SNew(SOverlay)
@@ -241,9 +187,18 @@ void SCollectionView::Construct( const FArguments& InArgs )
 		// Main content
 		+SOverlay::Slot()
 		[
-			Content.ToSharedRef()
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(FMargin(12.0f, 0.0f, 0.0f, 0.0f))
+			[
+				HeaderContent
+			]
+			+ SVerticalBox::Slot()
+			[
+				BodyContent
+			]
 		]
-
 		// Drop target overlay
 		+SOverlay::Slot()
 		[
@@ -261,61 +216,6 @@ void SCollectionView::Construct( const FArguments& InArgs )
 	UpdateCollectionItems();
 }
 
-void SCollectionView::SetAllowExternalSearch(const bool InAllowExternalSearch)
-{
-	if (bAllowExternalSearch == InAllowExternalSearch)
-	{
-		return;
-	}
-	bAllowExternalSearch = InAllowExternalSearch;
-
-	if (SearchPtr)
-	{
-		SearchPtr->OnSearchChanged().RemoveAll(this);
-	}
-	TitleContent->ClearChildren();
-
-	SearchPtr = bAllowExternalSearch ? ExternalSearchPtr : nullptr;
-	if (!SearchPtr)
-	{
-		SearchPtr = MakeShared<FSourcesSearch>();
-		SearchPtr->Initialize();
-		SearchPtr->SetHintText(LOCTEXT("CollectionsViewSearchBoxHint", "Search Collections"));
-	}
-	SearchPtr->OnSearchChanged().AddSP(this, &SCollectionView::SetCollectionsSearchFilterText);
-
-	if (SearchPtr == ExternalSearchPtr)
-	{
-		// If using an external search then just show the title and don't hide it when collapsing
-		TitleContent->AddSlot()
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
-			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
-		];
-	}
-	else
-	{
-		// If using an internal search then show the title or search box depending on whether we're collapsed or not
-		TitleContent->AddSlot()
-		[
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("ContentBrowser.SourceTitleFont"))
-			.Text(LOCTEXT("CollectionsListTitle", "Collections"))
-			.Visibility(this, &SCollectionView::GetCollectionsTitleTextVisibility)
-		];
-
-		TitleContent->AddSlot()
-		[
-			SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Visibility(this, &SCollectionView::GetCollectionsSearchBoxVisibility)
-			[
-				SearchPtr->GetWidget()
-			]
-		];
-	}
-}
 
 void SCollectionView::HandleCollectionCreated( const FCollectionNameType& Collection )
 {
@@ -628,11 +528,6 @@ void SCollectionView::SetSelectedCollections(const TArray<FCollectionNameType>& 
 	// Prevent the selection changed delegate since the invoking code requested it
 	FScopedPreventSelectionChangedDelegate DelegatePrevention( SharedThis(this) );
 
-	// Expand the collections area if we are indeed selecting at least one collection
-	if ( bEnsureVisible && CollectionsToSelect.Num() > 0 && CollectionsExpandableAreaPtr.IsValid() )
-	{
-		CollectionsExpandableAreaPtr->SetExpanded(true);
-	}
 
 	// Clear the selection to start, then add the selected items as they are found
 	CollectionTreePtr->ClearSelection();
@@ -744,16 +639,12 @@ void SCollectionView::SaveSettings(const FString& IniFilename, const FString& In
 		GConfig->SetString(*IniSection, *(SettingsString + InSubKey), *CollectionsString, IniFilename);
 	};
 
-	const bool IsCollectionsExpanded = CollectionsExpandableAreaPtr.IsValid() ? CollectionsExpandableAreaPtr->IsExpanded() : true;
-	GConfig->SetBool(*IniSection, *(SettingsString + TEXT(".CollectionsExpanded")), IsCollectionsExpanded, IniFilename);
 	SaveCollectionsArrayToIni(TEXT(".SelectedCollections"), CollectionTreePtr->GetSelectedItems());
 	{
 		TSet<TSharedPtr<FCollectionItem>> ExpandedCollectionItems;
 		CollectionTreePtr->GetExpandedItems(ExpandedCollectionItems);
 		SaveCollectionsArrayToIni(TEXT(".ExpandedCollections"), ExpandedCollectionItems.Array());
 	}
-
-	GConfig->SetInt(*IniSection, *(SettingsString + TEXT(".ViewMode")), (int32)CollectionViewMode, IniFilename);
 }
 
 void SCollectionView::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
@@ -786,13 +677,6 @@ void SCollectionView::LoadSettings(const FString& IniFilename, const FString& In
 		return RetCollectionsArray;
 	};
 
-	// Collection expansion state
-	bool bCollectionsExpanded = false;
-	if (CollectionsExpandableAreaPtr.IsValid() && GConfig->GetBool(*IniSection, *(SettingsString + TEXT(".CollectionsExpanded")), bCollectionsExpanded, IniFilename))
-	{
-		CollectionsExpandableAreaPtr->SetExpanded(bCollectionsExpanded);
-	}
-
 	// Selected Collections
 	TArray<FCollectionNameType> NewSelectedCollections = LoadCollectionsArrayFromIni(TEXT(".SelectedCollections"));
 	if (NewSelectedCollections.Num() > 0)
@@ -811,15 +695,6 @@ void SCollectionView::LoadSettings(const FString& IniFilename, const FString& In
 	if (NewExpandedCollections.Num() > 0)
 	{
 		SetExpandedCollections(NewExpandedCollections);
-	}
-
-	// View Mode
-	{
-		int32 CollectionViewModeInt = 0;
-		GConfig->GetInt(*IniSection, *(SettingsString + TEXT(".ViewMode")), CollectionViewModeInt, IniFilename);
-		CollectionViewMode = (EAssetTagItemViewMode)CollectionViewModeInt;
-
-		CollectionTreePtr->RebuildList();
 	}
 }
 
@@ -972,78 +847,6 @@ FReply SCollectionView::MakeAddCollectionMenu()
 		FPopupTransitionEffect( FPopupTransitionEffect::TopMenu )
 		);
 
-	return FReply::Handled();
-}
-
-EVisibility SCollectionView::GetCollectionsTitleTextVisibility() const
-{
-	// Only show the title text if we have an expansion area, but are collapsed
-	return (CollectionsExpandableAreaPtr.IsValid() && !CollectionsExpandableAreaPtr->IsExpanded()) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SCollectionView::GetCollectionsSearchBoxVisibility() const
-{
-	// Only show the search box if we have an expanded expansion area, or aren't currently using an expansion area
-	return (!CollectionsExpandableAreaPtr.IsValid() || CollectionsExpandableAreaPtr->IsExpanded()) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility SCollectionView::GetCollectionButtonsVisibility() const
-{
-	return (bAllowCollectionButtons && ( !CollectionsExpandableAreaPtr.IsValid() || CollectionsExpandableAreaPtr->IsExpanded() ) ) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-const FSlateBrush* SCollectionView::GetSwitchCollectionViewModeIcon() const
-{
-	switch (CollectionViewMode)
-	{
-	case EAssetTagItemViewMode::Standard:
-		return FEditorStyle::GetBrush("ContentBrowser.Sources.Collections.Compact");
-
-	case EAssetTagItemViewMode::Compact:
-		return FEditorStyle::GetBrush("ContentBrowser.Sources.Collections");
-
-	default:
-		break;
-	}
-	check(false);
-	return nullptr;
-}
-
-FText SCollectionView::GetSwitchCollectionViewModeToolTipText() const
-{
-	switch (CollectionViewMode)
-	{
-	case EAssetTagItemViewMode::Standard:
-		return LOCTEXT("SwitchToCompactView_ToolTip", "Switch to compact view");
-
-	case EAssetTagItemViewMode::Compact:
-		return LOCTEXT("SwitchToStanardView_ToolTip", "Switch to standard view");
-
-	default:
-		break;
-	}
-	check(false);
-	return FText();
-}
-
-FReply SCollectionView::OnSwitchCollectionViewMode()
-{
-	switch (CollectionViewMode)
-	{
-	case EAssetTagItemViewMode::Standard:
-		CollectionViewMode = EAssetTagItemViewMode::Compact;
-		break;
-
-	case EAssetTagItemViewMode::Compact:
-		CollectionViewMode = EAssetTagItemViewMode::Standard;
-		break;
-
-	default:
-		check(false);
-		break;
-	}
-
-	CollectionTreePtr->RebuildList();
 	return FReply::Handled();
 }
 
@@ -1232,6 +1035,11 @@ EVisibility SCollectionView::GetCollectionTreeVisibility() const
 	return AvailableCollections.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+EVisibility SCollectionView::GetHeaderVisibility() const
+{
+	return IsDocked.Get() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible;
+}
+
 const FSlateBrush* SCollectionView::GetCollectionViewDropTargetBorder() const
 {
 	return bDraggedOver ? FEditorStyle::GetBrush("ContentBrowser.CollectionTreeDragDropBorder") : FEditorStyle::GetBrush("NoBorder");
@@ -1271,7 +1079,6 @@ TSharedRef<ITableRow> SCollectionView::GenerateCollectionRow( TSharedPtr<FCollec
 			SAssignNew(CollectionTreeItem, SCollectionTreeItem)
 			.ParentWidget(SharedThis(this))
 			.CollectionItem(CollectionItem)
-			.ViewMode(CollectionViewMode)
 			.OnNameChangeCommit(this, &SCollectionView::CollectionNameChangeCommit)
 			.OnVerifyRenameCommit(this, &SCollectionView::CollectionVerifyRenameCommit)
 			.OnValidateDragDrop(this, &SCollectionView::ValidateDragDropOnCollectionItem)

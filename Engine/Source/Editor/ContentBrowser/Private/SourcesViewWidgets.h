@@ -61,7 +61,6 @@ public:
 	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
 	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
 private:
 	/** Handles verifying name changes */
@@ -111,15 +110,15 @@ private:
 	/** True when this item has children and is expanded */
 	TAttribute<bool> IsItemExpanded;
 
-	/** The geometry last frame. Used when telling popup messages where to appear. */
-	FGeometry LastGeometry;
-
 	/** Brushes for the different folder states */
 	const FSlateBrush* FolderOpenBrush;
 	const FSlateBrush* FolderClosedBrush;
 	const FSlateBrush* FolderOpenCodeBrush;
 	const FSlateBrush* FolderClosedCodeBrush;
 	const FSlateBrush* FolderDeveloperBrush;
+
+	/** Delegate called to get the selection state of an asset path */
+	FIsSelected IsSelected;
 
 	/** True when a drag is over this item with a drag operation that we know how to handle. The operation itself may not be valid to drop. */
 	bool bDraggedOver;
@@ -128,7 +127,7 @@ private:
 	EFolderType FolderType;
 
 	/** Widget to display the name of the asset item and allows for renaming */
-	TSharedPtr< SInlineEditableTextBlock > InlineRenameWidget;
+	TSharedPtr<SInlineEditableTextBlock> InlineRenameWidget;
 
 	/** Handle to the registered EnterEditingMode delegate. */
 	FDelegateHandle EnterEditingModeDelegateHandle;
@@ -150,7 +149,6 @@ public:
 	SLATE_BEGIN_ARGS( SCollectionTreeItem )
 		: _CollectionItem( TSharedPtr<FCollectionItem>() )
 		, _ParentWidget()
-		, _ViewMode(EAssetTagItemViewMode::Standard)
 	{}
 
 		/** Data for the collection this item represents */
@@ -158,9 +156,6 @@ public:
 
 		/** The parent widget */
 		SLATE_ARGUMENT( TSharedPtr<SWidget>, ParentWidget )
-
-		/** Should this collection item use the standard or compact view? */
-		SLATE_ARGUMENT( EAssetTagItemViewMode, ViewMode )
 
 		/** Delegate for when the user begins to rename the item */
 		SLATE_EVENT( FOnBeginNameChange, OnBeginNameChange )

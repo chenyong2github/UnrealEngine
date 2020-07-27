@@ -2,6 +2,7 @@
 
 #include "Styling/StyleColors.h"
 
+const FSlateColor FStyleColors::Transparent = FSlateColor(FLinearColor::Transparent);
 
 const FSlateColor FStyleColors::Black = EStyleColor::Black;
 const FSlateColor FStyleColors::Title = EStyleColor::Title;

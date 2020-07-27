@@ -247,7 +247,6 @@ void SWorldLayerButton::Construct(const FArguments& InArgs)
 						.Padding(3)
 						[
 							SNew(STextBlock)
-								.Font(FEditorStyle::GetFontStyle("ContentBrowser.FilterNameFont"))
 								.ShadowOffset(FVector2D(1.f, 1.f))
 								.Text(FText::FromString(WorldLayer.Name))
 						]

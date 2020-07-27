@@ -1273,21 +1273,18 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		
 	// Asset Thumbnail
 	{
-		Set( "AssetThumbnail.AssetBackground", new IMAGE_BRUSH( "Common/AssetBackground", FVector2D(64.f, 64.f), FLinearColor(1.f, 1.f, 1.f, 1.0f) ) );
+		Set( "AssetThumbnail.AssetBackground", new FSlateColorBrush(FStyleColors::Input));
 		Set( "AssetThumbnail.ClassBackground", new IMAGE_BRUSH( "Common/ClassBackground_64x", FVector2D(64.f, 64.f), FLinearColor(0.75f, 0.75f, 0.75f, 1.0f) ) );
-		Set( "AssetThumbnail.DataOnlyBPAssetBackground", new IMAGE_BRUSH( "Common/DataOnlyBPAssetBackground_64x", FVector2D(64.f, 64.f), FLinearColor(1, 1, 1, 1) ) );
 		Set( "AssetThumbnail.Font", DEFAULT_FONT( "Regular", 10 ) );
 		Set( "AssetThumbnail.FontSmall", DEFAULT_FONT( "Regular", 7 ) );
-		Set( "AssetThumbnail.ColorAndOpacity", FLinearColor(0.75f, 0.75f, 0.75f, 1) );
-		Set( "AssetThumbnail.ShadowOffset", FVector2D(1,1) );
-		Set( "AssetThumbnail.ShadowColorAndOpacity", FLinearColor(0, 0, 0, 0.5) );
+		Set( "AssetThumbnail.ColorAndOpacity", FLinearColor(1.75f, 1.75f, 1.75f, 1) );
 		Set( "AssetThumbnail.HintFont", DEFAULT_FONT( "Regular", 8 ) );
 		Set( "AssetThumbnail.HintFontSmall", DEFAULT_FONT( "Regular", 6 ) );
 		Set( "AssetThumbnail.HintColorAndOpacity", FLinearColor(0.75f, 0.75f, 0.75f, 1) );
 		Set( "AssetThumbnail.HintShadowOffset", FVector2D(1,1) );
 		Set( "AssetThumbnail.HintShadowColorAndOpacity", FLinearColor(0, 0, 0, 0.5) );
 		Set( "AssetThumbnail.HintBackground", new BOX_BRUSH( "Common/TableViewHeader", FMargin(8.0f/32.0f) ) );
-		Set( "AssetThumbnail.Border", new FSlateColorBrush( FColor::White ) );
+	
 	}
 
 	// Open any asset dialog
@@ -5907,27 +5904,27 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 	// Content Browser
 	{
 		// Tab and menu icon
-		Set( "ContentBrowser.TabIcon", new IMAGE_BRUSH_SVG("Starship/LevelEditor/Menus/ContentBrowser", Icon16x16) );
+		Set("ContentBrowser.TabIcon", new IMAGE_BRUSH_SVG("Starship/LevelEditor/Menus/ContentBrowser", Icon16x16));
 
 		// Sources View
-		Set( "ContentBrowser.SourceTitleFont", DEFAULT_FONT( "Regular", 12 ) );
+		Set("ContentBrowser.SourceTitleFont", DEFAULT_FONT( "Regular", 12 ) );
 
-		// @todo vreditor urgent: Increase the size of Content Browser fonts while in VR
-		Set("ContentBrowser.SourceListItemFont", DEFAULT_FONT("Regular", 10));
-		Set("ContentBrowser.SourceTreeItemFont", DEFAULT_FONT("Regular", 10));
+		Set("ContentBrowser.SourceTreeItemFont", FStarshipCoreStyle::GetCoreStyle().GetFontStyle("NormalFont"));
+		Set("ContentBrowser.SourceTreeRootItemFont", FStarshipCoreStyle::GetCoreStyle().GetFontStyle("NormalFont"));
 
-		Set( "ContentBrowser.SourceTreeRootItemFont", DEFAULT_FONT( "Regular", 12 ) );
-		Set( "ContentBrowser.AssetTreeFolderClosed", new IMAGE_BRUSH( "Icons/FolderClosed", FVector2D(18, 16) ) );
-		Set( "ContentBrowser.BreadcrumbPathPickerFolder", new IMAGE_BRUSH( "Icons/FolderClosed", FVector2D(18, 16), FLinearColor::Gray ) );
-		Set( "ContentBrowser.AssetTreeFolderOpen", new IMAGE_BRUSH( "Icons/FolderOpen", FVector2D(18, 16) ) );
+		Set("ContentBrowser.BreadcrumbPathPickerFolder", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-closed", Icon16x16));
+
+		Set("ContentBrowser.AssetTreeFolderClosed", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-closed", Icon16x16));
+		Set("ContentBrowser.AssetTreeFolderOpen", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon16x16));
+
 		Set( "ContentBrowser.AssetTreeFolderDeveloper", new IMAGE_BRUSH( "Icons/FolderDeveloper", FVector2D(18, 16) ) );
 		Set( "ContentBrowser.AssetTreeFolderOpenCode", new IMAGE_BRUSH( "Icons/FolderOpen_Code", FVector2D(18, 16) ) );
 		Set( "ContentBrowser.AssetTreeFolderClosedCode", new IMAGE_BRUSH( "Icons/FolderClosed_Code", FVector2D(18, 16) ) );
-		Set( "ContentBrowser.AddCollectionButtonIcon", new IMAGE_BRUSH( "Icons/PlusSymbol_12x", Icon12x12 ) );
 
-		Set( "ContentBrowser.Splitter", FSplitterStyle()
-			.SetHandleNormalBrush( FSlateColorBrush( FLinearColor(FColor( 32, 32, 32) ) ) )
-			.SetHandleHighlightBrush( FSlateColorBrush( FLinearColor(FColor( 96, 96, 96) ) ) ) 
+		Set("ContentBrowser.DefaultFolderColor", FStyleColors::AccentFolder);
+
+		Set( "ContentBrowser.Splitter", FSplitterStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FSplitterStyle>("Splitter"))
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Input))
 			);
 
 		// Asset list view
@@ -5947,11 +5944,12 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		);
 
 		// Tile view
-		Set( "ContentBrowser.AssetTileViewNameFont", DEFAULT_FONT( "Regular", 9 ) );
+		Set( "ContentBrowser.AssetTileViewNameFont", DEFAULT_FONT("Regular", 9));
 		Set( "ContentBrowser.AssetTileViewNameFontSmall", DEFAULT_FONT( "VeryLight", 8 ) );
 		Set( "ContentBrowser.AssetTileViewNameFontVerySmall", DEFAULT_FONT( "VeryLight", 7 ) );
-		Set( "ContentBrowser.AssetTileViewNameFontDirty", DEFAULT_FONT( "Bold", 10 ) );
-		Set( "ContentBrowser.AssetListView.TableRow", FTableRowStyle()
+		Set( "ContentBrowser.AssetTileViewNameFontDirty", FStyleFonts::Get().SmallBold);
+
+		Set("ContentBrowser.AssetListView.ColumnListTableRow", FTableRowStyle()
 			.SetEvenRowBackgroundBrush( FSlateNoResource() )
 			.SetEvenRowBackgroundHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f) ) )
 			.SetOddRowBackgroundBrush( FSlateNoResource() )
@@ -5963,6 +5961,20 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetInactiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor_Inactive ) )
 			.SetTextColor( DefaultForeground )
 			.SetSelectedTextColor( InvertedForeground )
+			);
+
+		Set("ContentBrowser.AssetListView.TileTableRow", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(FSlateNoResource() )
+			.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(FSlateNoResource())
+			.SetActiveHoveredBrush(FSlateNoResource())
+			.SetInactiveBrush(FSlateNoResource())
+			.SetInactiveHoveredBrush(FSlateNoResource())
+			.SetTextColor(DefaultForeground)
+			.SetSelectedTextColor(DefaultForeground)
 			);
 
 		Set( "ContentBrowser.TileViewTooltip.ToolTipBorder", new FSlateColorBrush( FLinearColor::Black ) );
@@ -5978,17 +5990,23 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		// Filter list
 		/* Set images for various SCheckBox states associated with "ContentBrowser.FilterButton" ... */
 		const FCheckBoxStyle ContentBrowserFilterButtonCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage( IMAGE_BRUSH( "ContentBrowser/FilterUnchecked", FVector2D( 10.0f,20.0f ) ) )
-			.SetUncheckedHoveredImage( IMAGE_BRUSH( "ContentBrowser/FilterUnchecked", FVector2D( 10.0f, 20.0f ), FLinearColor( 0.5f, 0.5f, 0.5f, 1.0f ) ) )
-			.SetUncheckedPressedImage( IMAGE_BRUSH( "ContentBrowser/FilterUnchecked",FVector2D( 10.0f, 20.0f ), FLinearColor( 0.5f, 0.5f, 0.5f, 1.0f ) ) )
-			.SetCheckedImage( IMAGE_BRUSH( "ContentBrowser/FilterChecked",  FVector2D( 10.0f, 20.0f ) ) )
-			.SetCheckedHoveredImage( IMAGE_BRUSH( "ContentBrowser/FilterChecked",  FVector2D( 10.0f, 20.0f ), FLinearColor( 0.5f, 0.5f, 0.5f, 1.0f ) ) )
-			.SetCheckedPressedImage( IMAGE_BRUSH( "ContentBrowser/FilterChecked", FVector2D( 10.0f, 20.0f ), FLinearColor( 0.5f, 0.5f, 0.5f, 1.0f ) ) );
-		/* ... and add the new style */
-		Set( "ContentBrowser.FilterButton", ContentBrowserFilterButtonCheckBoxStyle );
+			.SetUncheckedImage(FSlateNoResource())
+			.SetUncheckedHoveredImage(FSlateNoResource())
+			.SetUncheckedPressedImage(FSlateNoResource())
+			.SetCheckedImage(FSlateNoResource())
+			.SetCheckedHoveredImage(FSlateNoResource())
+			.SetCheckedPressedImage(FSlateNoResource())
+			.SetForegroundColor(FStyleColors::Foreground)
+			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedForegroundColor(FStyleColors::Foreground)
+			.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+			.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+			.SetPressedForegroundColor(FStyleColors::ForegroundHover);
 
-		Set( "ContentBrowser.FilterNameFont", DEFAULT_FONT( "Regular", 10 ) );
-		Set( "ContentBrowser.FilterButtonBorder", new BOX_BRUSH( "Common/RoundedSelection_16x", FMargin(4.0f/16.0f) ) );
+		Set("ContentBrowser.FilterImage", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filled-circle", Icon8x8));
+		Set("ContentBrowser.FilterBackground", new FSlateRoundedBoxBrush(FStyleColors::Header, 2.0f));
+		/* ... and add the new style */
+		Set("ContentBrowser.FilterButton", ContentBrowserFilterButtonCheckBoxStyle );
 
 		// Sources view
 		Set("ContentBrowser.Sources.Paths", new IMAGE_BRUSH("ContentBrowser/Sources_Paths_16x", Icon16x16));
@@ -5996,21 +6014,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set("ContentBrowser.Sources.Collections.Compact", new IMAGE_BRUSH("ContentBrowser/Sources_Collections_Compact_16x", Icon16x16));
 
 		// Asset tags (common)
-		Set("ContentBrowser.AssetTagBackground", new BOX_BRUSH("Common/RoundedSelection_16x", FMargin(4.0f/16.0f)));
-		Set("ContentBrowser.AssetTagTableRow", FTableRowStyle(NormalTableRowStyle)
-			.SetEvenRowBackgroundBrush(FSlateNoResource())
-			.SetEvenRowBackgroundHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-			.SetOddRowBackgroundBrush(FSlateNoResource())
-			.SetOddRowBackgroundHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), FLinearColor(1.0f, 1.0f, 1.0f, 0.1f)))
-			.SetActiveBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor))
-			.SetActiveHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor))
-			.SetInactiveBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor_Inactive))
-			.SetInactiveHoveredBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), SelectionColor_Inactive))
-			.SetActiveHighlightedBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), HighlightColor))
-			.SetInactiveHighlightedBrush(BORDER_BRUSH("Common/RoundedSelection_16x", FMargin(2.0f/16.0f), HighlightColor))
-			.SetTextColor(DefaultForeground)
-			.SetSelectedTextColor(DefaultForeground)
-			);
+		Set("ContentBrowser.AssetTagBackground", new FSlateRoundedBoxBrush(FStyleColors::White, 2.0));
 
 		// Asset tags (standard)
 		Set("ContentBrowser.AssetTagButton", FCheckBoxStyle()
@@ -6025,9 +6029,8 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetCheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat", FVector2D(14.0f, 28.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
 			.SetPadding(0.0f)
 			);
-		Set("ContentBrowser.AssetTagNameFont", DEFAULT_FONT("Bold", 11));
+
 		Set("ContentBrowser.AssetTagNamePadding", FMargin(4.0f));
-		Set("ContentBrowser.AssetTagCountFont", DEFAULT_FONT("Bold", 8));
 		Set("ContentBrowser.AssetTagCountPadding", FMargin(4.0f));
 
 		// Asset tags (compact)
@@ -6043,9 +6046,8 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetCheckedPressedImage(IMAGE_BRUSH("ContentBrowser/AssetTagCheckbox_Flat_Compact", FVector2D(10.0f, 20.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
 			.SetPadding(0.0f)
 			);
-		Set("ContentBrowser.AssetTagNameFont.Compact", DEFAULT_FONT("Regular", 10));
+
 		Set("ContentBrowser.AssetTagNamePadding.Compact", FMargin(2.0f));
-		Set("ContentBrowser.AssetTagCountFont.Compact", DEFAULT_FONT("Light", 8));
 		Set("ContentBrowser.AssetTagCountPadding.Compact", FMargin(2.0f));
 
 		// Thumbnail editing mode
@@ -6055,15 +6057,13 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetShadowOffset( FVector2D::ZeroVector )
 		);
 
-		Set( "ContentBrowser.EditModeLabelBorder", new FSlateColorBrush(SelectorColor.GetSpecifiedColor()) );
+
 		Set( "ContentBrowser.PrimitiveCustom", new IMAGE_BRUSH( "ContentBrowser/ThumbnailCustom", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitiveSphere", new IMAGE_BRUSH( "ContentBrowser/ThumbnailSphere", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitiveCube", new IMAGE_BRUSH( "ContentBrowser/ThumbnailCube", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitivePlane", new IMAGE_BRUSH( "ContentBrowser/ThumbnailPlane", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitiveCylinder", new IMAGE_BRUSH( "ContentBrowser/ThumbnailCylinder", Icon32x32 ) );
 		Set( "ContentBrowser.ResetPrimitiveToDefault", new IMAGE_BRUSH("ContentBrowser/ThumbnailReset", Icon32x32) );
-
-		Set( "ContentBrowser.TopBar.GroupBorder", new FSlateColorBrush(FStyleColors::Background));
 
 		Set( "ContentBrowser.TopBar.Font", FTextBlockStyle( NormalText )
 			.SetFont( DEFAULT_FONT( "Bold", 11 ) )
@@ -6115,36 +6115,37 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set("MediaAsset.AssetActions.Mute.Large", new IMAGE_BRUSH("Icons/icon_SCueEd_Mute_40x", Icon40x40));
 				
 		// Misc
-		Set( "ContentBrowser.ThumbnailShadow", new BOX_BRUSH( "ContentBrowser/ThumbnailShadow" , FMargin( 4.0f / 64.0f ) ) );
+		/** Should be moved, shared */ Set( "ContentBrowser.ThumbnailShadow", new BOX_BRUSH( "ContentBrowser/ThumbnailShadow" , FMargin( 4.0f / 64.0f ) ) );
+
+
+
 		Set( "ContentBrowser.ColumnViewAssetIcon", new IMAGE_BRUSH( "Icons/doc_16x", Icon16x16 ) );
-		Set( "ContentBrowser.ColumnViewFolderIcon", new IMAGE_BRUSH( "Icons/FolderClosed", FVector2D(18, 16) ) );
+
+		Set( "ContentBrowser.ColumnViewFolderIcon", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/folder-closed", Icon16x16 ) );
 		Set( "ContentBrowser.ColumnViewDeveloperFolderIcon", new IMAGE_BRUSH( "Icons/FolderDeveloper", FVector2D(18, 16) ) );
-		Set( "ContentBrowser.ListViewFolderIcon.Base", new IMAGE_BRUSH( "Icons/Folders/Folder_Base_256x", FVector2D(256, 256) ) );
-		Set( "ContentBrowser.ListViewFolderIcon.Mask", new IMAGE_BRUSH( "Icons/Folders/Folder_BaseHi_256x", FVector2D(256, 256) ) );
-		Set( "ContentBrowser.ListViewDeveloperFolderIcon.Base", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_256x", FVector2D(256, 256) ) );
-		Set( "ContentBrowser.ListViewDeveloperFolderIcon.Mask", new IMAGE_BRUSH( "Icons/Folders/FolderDev_BaseHi_256x", FVector2D(256, 256) ) );
-		Set( "ContentBrowser.TileViewFolderIcon.Base", new IMAGE_BRUSH( "Icons/Folders/Folder_Base_512x", FVector2D(512, 512) ) );
-		Set( "ContentBrowser.TileViewFolderIcon.Mask", new IMAGE_BRUSH( "Icons/Folders/Folder_BaseHi_512x", FVector2D(512, 512) ) );
-		Set( "ContentBrowser.TileViewDeveloperFolderIcon.Base", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_512x", FVector2D(512, 512) ) );
-		Set( "ContentBrowser.TileViewDeveloperFolderIcon.Mask", new IMAGE_BRUSH( "Icons/Folders/FolderDev_BaseHi_512x", FVector2D(512, 512) ) );
-		Set( "ContentBrowser.PathText", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT( "Bold", 11 ) )
-			.SetColorAndOpacity( FLinearColor( 1.0f, 1.0f, 1.0f ) )
-			.SetHighlightColor( FLinearColor( 1.0f, 1.0f, 1.0f ) )
-			.SetShadowOffset( FVector2D( 1,1 ) )
-			.SetShadowColorAndOpacity( FLinearColor(0,0,0,0.9f) ) );
+
+		Set( "ContentBrowser.ListViewFolderIcon", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/folder-closed", FVector2D(256, 256) ) );
+		Set( "ContentBrowser.ListViewDeveloperFolderIcon", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_256x", FVector2D(256, 256) ) );
+
+		Set( "ContentBrowser.TileViewFolderIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-closed", FVector2D(512, 512) ) );
+		Set( "ContentBrowser.TileViewDeveloperFolderIcon", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_512x", FVector2D(512, 512) ) );
+
+
+		Set("ContentBrowser.AssetTileItem.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Input, 4.0f));
+		Set("ContentBrowser.AssetTileItem.NameAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
+		Set("ContentBrowser.AssetTileItem.SelectedBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Primary, 2.0f));
+		Set("ContentBrowser.AssetTileItem.SelectedHoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::PrimaryHover, 2.0f));
+		Set("ContentBrowser.AssetTileItem.HoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 2.0f));
+
+		Set("ContentBrowser.AssetTileItem.DropShadow", new BOX_BRUSH("Starship/ContentBrowser/drop-shadow", FMargin(4.0f / 64.0f)));
+
 
 		Set("ReferenceViewer.PathText", FEditableTextBoxStyle(NormalEditableTextBoxStyle)
 			.SetFont(DEFAULT_FONT("Bold", 11)));
 
-		Set( "ContentBrowser.Sources", new IMAGE_BRUSH( "ContentBrowser/sources_16x", Icon16x16 ) );
-		Set( "ContentBrowser.PathDelimiter", new IMAGE_BRUSH( "Common/SmallArrowRight", Icon10x10 ) );
-		Set( "ContentBrowser.LockButton_Locked", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );
-		Set( "ContentBrowser.LockButton_Unlocked", new IMAGE_BRUSH( "Icons/padlock_unlocked_16x", Icon16x16 ) );
 		Set( "ContentBrowser.ShowSourcesView", new IMAGE_BRUSH( "ContentBrowser/sourcestoggle_16x_collapsed", Icon16x16 ) );
 		Set( "ContentBrowser.HideSourcesView", new IMAGE_BRUSH( "ContentBrowser/sourcestoggle_16x_expanded", Icon16x16 ) );
-		Set( "ContentBrowser.HistoryBack", new IMAGE_BRUSH( "Icons/assign_left_16x", Icon16x16) );
-		Set( "ContentBrowser.HistoryForward", new IMAGE_BRUSH("Icons/assign_right_16x", Icon16x16) );
+
 		Set( "ContentBrowser.DirectoryUp", new IMAGE_BRUSH("Icons/icon_folder_up_16x", Icon16x16) );
 		Set( "ContentBrowser.PathPickerButton", new IMAGE_BRUSH("Icons/ellipsis_12x", Icon12x12, FLinearColor::Black) );
 		Set( "ContentBrowser.SCC_CheckedOut", new IMAGE_BRUSH( "ContentBrowser/SCC_CheckedOut", Icon32x32) );
@@ -6166,6 +6167,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.CollectionTreeDragDropBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f ) );
 		Set( "ContentBrowser.PopupMessageIcon", new IMAGE_BRUSH( "Icons/alert", Icon32x32) );
 		Set( "ContentBrowser.NewFolderIcon", new IMAGE_BRUSH("Icons/icon_AddFolder_16x", Icon16x16 ) );
+
 		Set( "ContentBrowser.Local", new IMAGE_BRUSH( "ContentBrowser/Content_Local_12x", Icon12x12 ) );
 		Set( "ContentBrowser.Local.Small", new IMAGE_BRUSH( "ContentBrowser/Content_Local_16x", Icon16x16 ) );
 		Set( "ContentBrowser.Local.Large", new IMAGE_BRUSH( "ContentBrowser/Content_Local_64x", Icon64x64 ) );

@@ -52,20 +52,22 @@ public:
 		, _HintColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f))
 		, _ClassThumbnailBrushOverride(NAME_None)
 		, _AssetTypeColorOverride()
+		, _Padding(0)
 		{}
 
-		SLATE_ARGUMENT( FName, Style )
-		SLATE_ARGUMENT( TSharedPtr<FAssetThumbnail>, AssetThumbnail )
-		SLATE_ARGUMENT( TSharedPtr<FAssetThumbnailPool>, ThumbnailPool )
-		SLATE_ARGUMENT( bool, AllowFadeIn )
-		SLATE_ARGUMENT( bool, ForceGenericThumbnail )
-		SLATE_ARGUMENT( bool, AllowHintText )
-		SLATE_ARGUMENT( bool, AllowAssetSpecificThumbnailOverlay )
-		SLATE_ARGUMENT( EThumbnailLabel::Type, Label )
-		SLATE_ATTRIBUTE( FText, HighlightedText )
-		SLATE_ATTRIBUTE( FLinearColor, HintColorAndOpacity )
-		SLATE_ARGUMENT( FName, ClassThumbnailBrushOverride )
-		SLATE_ARGUMENT( TOptional<FLinearColor>, AssetTypeColorOverride )
+		SLATE_ARGUMENT(FName, Style)
+		SLATE_ARGUMENT(TSharedPtr<FAssetThumbnail>, AssetThumbnail)
+		SLATE_ARGUMENT(TSharedPtr<FAssetThumbnailPool>, ThumbnailPool)
+		SLATE_ARGUMENT(bool, AllowFadeIn)
+		SLATE_ARGUMENT(bool, ForceGenericThumbnail)
+		SLATE_ARGUMENT(bool, AllowHintText)
+		SLATE_ARGUMENT(bool, AllowAssetSpecificThumbnailOverlay)
+		SLATE_ARGUMENT(EThumbnailLabel::Type, Label)
+		SLATE_ATTRIBUTE(FText, HighlightedText)
+		SLATE_ATTRIBUTE(FLinearColor, HintColorAndOpacity)
+		SLATE_ARGUMENT(FName, ClassThumbnailBrushOverride)
+		SLATE_ARGUMENT(TOptional<FLinearColor>, AssetTypeColorOverride)
+		SLATE_ARGUMENT(FMargin, Padding)
 
 	SLATE_END_ARGS()
 
@@ -118,17 +120,16 @@ public:
 
 		// The generic representation of the thumbnail, for use before the rendered version, if it exists
 		OverlayWidget->AddSlot()
+		.Padding(InArgs._Padding)
 		[
 			SAssignNew(AssetBackgroundWidget, SBorder)
 			.BorderImage(GetAssetBackgroundBrush())
-			.BorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f))
-			.Padding(GenericThumbnailBorderPadding)
+			.Padding(GenericThumbnailBorderPadding)		
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
 			.Visibility(this, &SAssetThumbnail::GetGenericThumbnailVisibility)
 			[
 				SNew(SOverlay)
-
 				+SOverlay::Slot()
 				[
 					SAssignNew(GenericLabelTextBlock, STextBlock)
@@ -178,9 +179,11 @@ public:
 			OverlayWidget->AddSlot()
 			[
 				SAssignNew(RenderedThumbnailWidget, SBorder)
-				.Padding(0)
-				.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+				.Padding(InArgs._Padding)
+				.BorderImage(FStyleDefaults::GetNoBrush())
 				.ColorAndOpacity(this, &SAssetThumbnail::GetViewportColorAndOpacity)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				[
 					Viewport.ToSharedRef()
 				]
@@ -192,7 +195,7 @@ public:
 			OverlayWidget->AddSlot()
 			.VAlign(VAlign_Bottom)
 			.HAlign(HAlign_Right)
-			.Padding(TAttribute<FMargin>(this, &SAssetThumbnail::GetClassIconPadding))
+			.Padding(GetClassIconPadding())
 			[
 				SAssignNew(ClassIconWidget, SBorder)
 				.BorderImage(FEditorStyle::GetNoBrush())
@@ -414,8 +417,7 @@ private:
 
 	float GetAssetColorStripHeight() const
 	{
-		// The strip is 2.5% the height of the thumbnail, but at least 3 units tall
-		return FMath::Max(FMath::CeilToFloat(WidthLastFrame*0.025f), 3.0f);
+		return 2.0f;
 	}
 
 	FMargin GetAssetColorStripPadding() const
@@ -812,17 +814,18 @@ TSharedRef<SWidget> FAssetThumbnail::MakeThumbnailWidget( const FAssetThumbnailC
 {
 	return
 		SNew(SAssetThumbnail)
-		.AssetThumbnail( SharedThis(this) )
-		.ThumbnailPool( ThumbnailPool.Pin() )
-		.AllowFadeIn( InConfig.bAllowFadeIn )
-		.ForceGenericThumbnail( InConfig.bForceGenericThumbnail )
-		.Label( InConfig.ThumbnailLabel )
-		.HighlightedText( InConfig.HighlightedText )
-		.HintColorAndOpacity( InConfig.HintColorAndOpacity )
-		.AllowHintText( InConfig.bAllowHintText )
-		.ClassThumbnailBrushOverride( InConfig.ClassThumbnailBrushOverride )
-		.AllowAssetSpecificThumbnailOverlay( InConfig.bAllowAssetSpecificThumbnailOverlay )
-		.AssetTypeColorOverride( InConfig.AssetTypeColorOverride );
+		.AssetThumbnail(SharedThis(this))
+		.ThumbnailPool(ThumbnailPool.Pin())
+		.AllowFadeIn(InConfig.bAllowFadeIn)
+		.ForceGenericThumbnail(InConfig.bForceGenericThumbnail)
+		.Label(InConfig.ThumbnailLabel)
+		.HighlightedText(InConfig.HighlightedText)
+		.HintColorAndOpacity(InConfig.HintColorAndOpacity)
+		.AllowHintText(InConfig.bAllowHintText)
+		.ClassThumbnailBrushOverride(InConfig.ClassThumbnailBrushOverride)
+		.AllowAssetSpecificThumbnailOverlay(InConfig.bAllowAssetSpecificThumbnailOverlay)
+		.AssetTypeColorOverride(InConfig.AssetTypeColorOverride)
+		.Padding(InConfig.Padding);
 }
 
 void FAssetThumbnail::RefreshThumbnail()

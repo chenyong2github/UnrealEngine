@@ -166,9 +166,6 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 			.SetCheckedPressedImage(IMAGE_BRUSH("ContentBrowser/FilterChecked", FVector2D(10.0f, 14.0f), FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
 		/* ... and add the new style */
 		Style.Set("ContentBrowser.FilterButton", ContentBrowserFilterButtonCheckBoxStyle);
-
-		Style.Set("ContentBrowser.FilterNameFont", DEFAULT_FONT("Regular", 9));
-		//Style.Set("ContentBrowser.FilterNameFont", FEditorStyle::Get().GetFontStyle("ContentBrowser.FilterNameFont"));
 	}
 
 	//Sequencer

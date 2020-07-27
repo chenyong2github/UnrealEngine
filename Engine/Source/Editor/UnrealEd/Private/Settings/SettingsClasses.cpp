@@ -50,6 +50,7 @@ UContentBrowserSettings::FSettingChangedEvent UContentBrowserSettings::SettingCh
 UContentBrowserSettings::UContentBrowserSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 	, bShowFullCollectionNameInToolTip(true)
+	, DockCollections(true)
 {
 }
 

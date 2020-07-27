@@ -20,9 +20,6 @@ public:
 	{
 		this->ConstructInternal(InArgs, InOwnerTableView);
 
-		this->Style = &FEditorStyle::GetWidgetStyle<FTableRowStyle>("ContentBrowser.AssetTagTableRow");
-		this->BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("NoBorder"));
-
 		this->ConstructChildren(
 			InOwnerTableView->TableViewMode,
 			ApplySelectionBorderOuterPadding(InArgs._Padding),
@@ -55,7 +52,7 @@ private:
 	{
 		return
 			SNew(SBorder)
-			.Padding(2.0f)
+			.Padding(0)
 			.BorderImage(this, &SAssetTagItemTableRow::GetBorder)
 			[
 				InContent
@@ -165,15 +162,6 @@ private:
 	FLinearColor GetAssetTagDisabledColor() const
 	{
 		return BaseColor.Get().CopyWithNewOpacity(0.04f);
-	}
-
-	FSlateColor GetCheckBoxForegroundColor() const
-	{
-		return CheckBox && CheckBox->IsEnabled()
-			? CheckBox->IsChecked() 
-				? GetAssetTagBrightColor()
-				: GetAssetTagDullColor()
-			: GetAssetTagDisabledColor();
 	}
 
 	FText GetCheckBoxTooltipText() const

@@ -115,7 +115,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SReferenceViewer::BackClicked)
 				.IsEnabled(this, &SReferenceViewer::IsBackEnabled)
 				[
-					SNew(SImage) .Image(FEditorStyle::GetBrush("ContentBrowser.HistoryBack"))
+					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.CircleArrowLeft"))
 				]
 			]
 
@@ -133,7 +133,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SReferenceViewer::ForwardClicked)
 				.IsEnabled(this, &SReferenceViewer::IsForwardEnabled)
 				[
-					SNew(SImage) .Image(FEditorStyle::GetBrush("ContentBrowser.HistoryForward"))
+					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
 				]
 			]
 

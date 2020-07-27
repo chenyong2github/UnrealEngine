@@ -183,10 +183,11 @@ public:
 				.ButtonStyle(ButtonStyle)
 				.Visibility(this, &SBreadcrumbTrail::GetCrumbDelimiterVisibility, NextValidCrumbID)
 				.OnClicked(this, &SBreadcrumbTrail::OnCrumbDelimiterClicked, NextValidCrumbID)
-				.ContentPadding(FMargin(5, 0))
+				.ContentPadding(FMargin(3, 0))
 				[
 					SNew(SImage)
 					.Image(DelimiterImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				];
 		}
 		else
@@ -195,10 +196,11 @@ public:
 				.VAlign(EVerticalAlignment::VAlign_Center)
 				.ButtonStyle(ButtonStyle)
 				.Visibility( this, &SBreadcrumbTrail::GetDelimiterVisibility, NextValidCrumbID )
-				.ContentPadding( FMargin(5, 0) )
+				.ContentPadding( FMargin(3, 0) )
 				[
 					SNew(SImage)
 					.Image(DelimiterImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				];
 		}
 
@@ -400,7 +402,7 @@ private:
 				}
 			}
 
-			static const FName DefaultForegroundName;
+			static const FName DefaultForegroundName("DefaultForeground");
 			return FCoreStyle::Get().GetSlateColor( DefaultForegroundName );
 		}
 		else

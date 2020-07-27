@@ -12,7 +12,6 @@ void SCollectionPicker::Construct( const FArguments& InArgs )
 		SNew(SCollectionView)
 		.AllowCollectionButtons(InArgs._CollectionPickerConfig.AllowCollectionButtons)
 		.OnCollectionSelected(InArgs._CollectionPickerConfig.OnCollectionSelected)
-		.AllowCollapsing( false )
 		.AllowContextMenu( InArgs._CollectionPickerConfig.AllowRightClickMenu )
 	];
 }

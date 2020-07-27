@@ -53,7 +53,7 @@ class CONTENTBROWSER_API UContentBrowserAssetViewContextMenuContext : public UOb
 	GENERATED_BODY()
 
 public:
-
+	TWeakPtr<SContentBrowser> OwningContentBrowser;
 	TWeakPtr<SAssetView> AssetView;
 };
 

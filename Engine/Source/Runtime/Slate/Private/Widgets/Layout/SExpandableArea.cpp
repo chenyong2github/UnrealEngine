@@ -50,6 +50,7 @@ void SExpandableArea::Construct( const FArguments& InArgs )
 	const TAttribute<const FSlateBrush*> TitleBorderImage = !bBodyDiffers ? FStyleDefaults::GetNoBrush() : InArgs._BorderImage;
 	const TAttribute<FSlateColor> TitleBorderBackgroundColor = !bBodyDiffers ? FLinearColor::Transparent : InArgs._BorderBackgroundColor;
 
+	bAllowAnimatedTransition = InArgs._AllowAnimatedTransition;
 	ChildSlot
 	[
 		SNew( SBorder )
@@ -165,18 +166,6 @@ EVisibility SExpandableArea::OnGetContentVisibility() const
 	return Scale > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-/*
-FReply SExpandableArea::OnMouseDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
-{
-	if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
-	{
-		//we need to capture the mouse for MouseUp events
-		return FReply::Handled().CaptureMouse( HeaderBorder.ToSharedRef() ).SetUserFocus( AsShared(), EFocusCause::Mouse );
-	}
-
-	return FReply::Unhandled();
-}*/
-
 
 FReply SExpandableArea::OnHeaderClicked()
 {
@@ -188,7 +177,7 @@ FReply SExpandableArea::OnHeaderClicked()
 
 void SExpandableArea::OnToggleContentVisibility()
 {
-	SetExpanded_Animated( !!bAreaCollapsed );
+	bAllowAnimatedTransition ? SetExpanded_Animated(!!bAreaCollapsed) : SetExpanded(!!bAreaCollapsed);
 }
 
 const FSlateBrush* SExpandableArea::OnGetCollapseImage() const

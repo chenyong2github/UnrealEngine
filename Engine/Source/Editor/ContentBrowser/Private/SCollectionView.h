@@ -37,8 +37,8 @@ public:
 	SLATE_BEGIN_ARGS( SCollectionView )
 		: _AllowCollectionButtons(true)
 		, _AllowRightClickMenu(true)
-		, _AllowCollapsing(true)
 		, _AllowContextMenu(true)
+		, _IsDocked(false)
 		, _AllowCollectionDrag(false)
 		, _AllowQuickAssetManagement(false)
 		, _ShowSeparator(true)
@@ -50,8 +50,8 @@ public:
 		/** If true, collection buttons will be displayed */
 		SLATE_ARGUMENT( bool, AllowCollectionButtons )
 		SLATE_ARGUMENT( bool, AllowRightClickMenu )
-		SLATE_ARGUMENT( bool, AllowCollapsing )
 		SLATE_ARGUMENT( bool, AllowContextMenu )
+		SLATE_ATTRIBUTE( bool, IsDocked)
 
 		/** If true, the user will be able to drag collections from this view */
 		SLATE_ARGUMENT( bool, AllowCollectionDrag )
@@ -69,9 +69,6 @@ public:
 
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
-
-	/** Set whether we're using an external search or not */
-	void SetAllowExternalSearch(const bool InAllowExternalSearch);
 
 	/** Selects the specified collections */
 	void SetSelectedCollections(const TArray<FCollectionNameType>& CollectionsToSelect, const bool bEnsureVisible = true);
@@ -106,6 +103,9 @@ public:
 
 	/** Creates the menu for the save dynamic collection button */
 	void MakeSaveDynamicCollectionMenu(FText InQueryString);
+
+	/** Creates the menu for the add collection button */
+	FReply MakeAddCollectionMenu();
 
 private:
 
@@ -146,27 +146,6 @@ private:
 	/** True if the selection changed delegate is allowed at the moment */
 	bool ShouldAllowSelectionChangedDelegate() const;
 
-	/** Creates the menu for the add collection button */
-	FReply MakeAddCollectionMenu();
-
-	/** Gets the visibility of the collections title text */
-	EVisibility GetCollectionsTitleTextVisibility() const;
-
-	/** Gets the visibility of the collections search box */
-	EVisibility GetCollectionsSearchBoxVisibility() const;
-
-	/** Gets the visibility of the collection buttons */
-	EVisibility GetCollectionButtonsVisibility() const;
-	
-	/** Get the icon used on the collection view mode switcher button */
-	const FSlateBrush* GetSwitchCollectionViewModeIcon() const;
-
-	/** Get the tooltip text used on the collection view mode switcher button */
-	FText GetSwitchCollectionViewModeToolTipText() const;
-
-	/** Handle the collection view mode switcher button being clicked */
-	FReply OnSwitchCollectionViewMode();
-
 	/** Sets up an inline creation process for a new collection of the specified type */
 	void CreateCollectionItem( ECollectionShareType::Type CollectionType, ECollectionStorageMode::Type StorageMode, const FCreateCollectionPayload& InCreationPayload );
 
@@ -178,6 +157,9 @@ private:
 
 	/** Returns the visibility of the collection tree */
 	EVisibility GetCollectionTreeVisibility() const;
+
+	/** Returns the visibility of the collection tree header. Collapsed if the collection tree is docked */
+	EVisibility GetHeaderVisibility() const;
 
 	/** Get the border of the collection tree */
 	const FSlateBrush* GetCollectionViewDropTargetBorder() const;
@@ -274,7 +256,6 @@ private:
 
 	/** Get the active filter text */
 	FText GetCollectionsSearchFilterText() const;
-
 private:
 
 	/** A helper class to manage PreventSelectionChangedDelegateCount by incrementing it when constructed (on the stack) and decrementing when destroyed */
@@ -326,11 +307,11 @@ private:
 	/** The context menu logic and data */
 	TSharedPtr<class FCollectionContextMenu> CollectionContextMenu;
 
-	/** The collections SExpandableArea */
-	TSharedPtr< SExpandableArea > CollectionsExpandableAreaPtr;
-
 	/** Delegate to invoke when selection changes. */
 	FOnCollectionSelected OnCollectionSelected;
+
+	/** Whether or not the collection view is docked under the sources panel */
+	TAttribute<bool> IsDocked;
 
 	/** If true, collection buttons (such as add) are allowed */
 	bool bAllowCollectionButtons;
@@ -346,9 +327,6 @@ private:
 
 	/** True when a drag is over this view with a valid operation for drop */
 	bool bDraggedOver;
-
-	/** The view mode that collections within this view should use */
-	EAssetTagItemViewMode CollectionViewMode = EAssetTagItemViewMode::Standard;
 
 	/** If > 0, the selection changed delegate will not be called. Used to update the tree from an external source or in certain bulk operations. */
 	int32 PreventSelectionChangedDelegateCount;

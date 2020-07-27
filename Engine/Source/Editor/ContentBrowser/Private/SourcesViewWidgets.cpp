@@ -29,6 +29,8 @@ void SAssetTreeItem::Construct( const FArguments& InArgs )
 	IsItemExpanded = InArgs._IsItemExpanded;
 	bDraggedOver = false;
 
+	IsSelected = InArgs._IsSelected;
+
 	FolderOpenBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpen");
 	FolderClosedBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderClosed");
 	FolderOpenCodeBrush = FEditorStyle::GetBrush("ContentBrowser.AssetTreeFolderOpenCode");
@@ -138,11 +140,6 @@ FReply SAssetTreeItem::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent
 	return FReply::Unhandled();
 }
 
-void SAssetTreeItem::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
-{
-	LastGeometry = AllottedGeometry;
-}
-
 bool SAssetTreeItem::VerifyNameChanged(const FText& InName, FText& OutError) const
 {
 	if ( TreeItem.IsValid() )
@@ -167,6 +164,7 @@ void SAssetTreeItem::HandleNameCommitted( const FText& NewText, ETextCommit::Typ
 		{
 			TreeItemPtr->SetNamingFolder(false);
 		
+			const FGeometry LastGeometry = GetTickSpaceGeometry();
 			FVector2D MessageLoc;
 			MessageLoc.X = LastGeometry.AbsolutePosition.X;
 			MessageLoc.Y = LastGeometry.AbsolutePosition.Y + LastGeometry.Size.Y * LastGeometry.Scale;
@@ -207,6 +205,7 @@ FSlateColor SAssetTreeItem::GetFolderColor() const
 {
 	if (TSharedPtr<FTreeItem> TreeItemPin = TreeItem.Pin())
 	{
+		FLinearColor FoundColor;
 		FContentBrowserItemDataAttributeValue ColorAttributeValue = TreeItemPin->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemColor);
 		if (ColorAttributeValue.IsValid())
 		{
@@ -215,17 +214,27 @@ FSlateColor SAssetTreeItem::GetFolderColor() const
 			FLinearColor Color;
 			if (Color.InitFromString(ColorStr))
 			{
-				return Color;
+				FoundColor = Color;
 			}
 		}
 		else
 		{
 			if (TSharedPtr<FLinearColor> Color = ContentBrowserUtils::LoadColor(TreeItemPin->GetItem().GetVirtualPath().ToString()))
 			{
-				return *Color;
+				FoundColor = *Color;
 			}
 		}
+
+		if(FoundColor == ContentBrowserUtils::GetDefaultColor() && IsSelected.IsBound() && IsSelected.Execute())
+		{
+			static const FSlateColor InvertedForeground = FAppStyle::Get().GetSlateColor("Colors.ForegroundInverted");
+
+			return InvertedForeground;
+		}
+
+		return FoundColor;
 	}
+	
 	return ContentBrowserUtils::GetDefaultColor();
 }
 
@@ -276,7 +285,7 @@ void SCollectionTreeItem::Construct( const FArguments& InArgs )
 	ChildSlot
 	[
 		SAssignNew(AssetTagItem, SAssetTagItem)
-		.ViewMode(InArgs._ViewMode)
+		.ViewMode(EAssetTagItemViewMode::Compact)
 		.BaseColor(this, &SCollectionTreeItem::GetCollectionColor)
 		.DisplayName(this, &SCollectionTreeItem::GetNameText)
 		.CountText(this, &SCollectionTreeItem::GetCollectionObjectCountText)
