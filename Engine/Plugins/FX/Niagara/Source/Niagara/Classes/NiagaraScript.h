@@ -170,6 +170,10 @@ public:
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
 
+	/** Should we use shader permutations to reduce the cost of simulation stages or not */
+	UPROPERTY()
+	uint32 bUseShaderPermutations : 1;
+
 	/** Do we require interpolated spawning */
 	UPROPERTY()
 	uint32 bInterpolatedSpawn : 1;
@@ -203,6 +207,7 @@ public:
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
 		, bUsesRapidIterationParams(true)
+		, bUseShaderPermutations(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
 		, BaseScriptID_DEPRECATED(0, 0, 0, 0)
@@ -598,26 +603,6 @@ public:
 	{
 		return ScriptResource.Get();
 	}
-#if WITH_EDITORONLY_DATA
-
-	FComputeShaderRHIRef GetScriptShader() 
-	{
-		if (!ScriptShader && ScriptResource.IsValid())
-		{
-			ScriptShader = ScriptResource->GetShader().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
-		}
-		return ScriptShader; 
-	}
-
-	FComputeShaderRHIRef GetScriptShaderGameThread()
-	{
-		if (!ScriptShader && ScriptResource.IsValid())
-		{
-			ScriptShader = ScriptResource->GetShaderGameThread().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
-		}
-		return ScriptShader;
-	}
-#endif
 
 	NIAGARA_API void GenerateStatIDs();
 

@@ -25,12 +25,51 @@ struct FNiagaraComputeInstanceData;
 
 DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<UNiagaraDataInterfaceBase>, NIAGARACORE_API);
 
-struct FNiagaraDataInterfaceSetArgs
+struct FNiagaraDataInterfaceArgs
 {
-	TShaderRefBase<FNiagaraShader, FNiagaraShaderMapPointerTable> Shader;
-	FNiagaraDataInterfaceProxy* DataInterface;
-	FNiagaraSystemInstanceID SystemInstance;
+	FNiagaraDataInterfaceArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher)
+		: DataInterface(InDataInterface)
+		, SystemInstanceID(InSystemInstanceID)
+		, Batcher(InBatcher)
+	{
+	}
+
+	FNiagaraDataInterfaceProxy*	DataInterface;
+	FNiagaraSystemInstanceID SystemInstanceID;
 	const NiagaraEmitterInstanceBatcher* Batcher;
+};
+
+struct FNiagaraDataInterfaceStageArgs : public FNiagaraDataInterfaceArgs
+{
+	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
+		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InBatcher)
+		, SimulationStageIndex(InSimulationStageIndex)
+		, IsOutputStage(InIsOutputStage)
+		, IsIterationStage(InIsIterationStage)
+	{
+	}
+
+	uint32 SimulationStageIndex;
+	bool IsOutputStage;
+	bool IsIterationStage;
+};
+
+struct FNiagaraDataInterfaceSetArgs : public FNiagaraDataInterfaceArgs
+{
+	typedef TShaderRefBase<FNiagaraShader, FNiagaraShaderMapPointerTable> FShaderReference;
+
+	FNiagaraDataInterfaceSetArgs(
+		FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const NiagaraEmitterInstanceBatcher* InBatcher, const FShaderReference& InShader, const FNiagaraComputeInstanceData* InComputeInstanceData, uint32 InSimulationStageIndex, bool InIsOutputStage, bool InIsIterationStage)
+		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InBatcher)
+		, Shader(InShader)
+		, ComputeInstanceData(InComputeInstanceData)
+		, SimulationStageIndex(InSimulationStageIndex)
+		, IsOutputStage(InIsOutputStage)
+		, IsIterationStage(InIsIterationStage)
+	{
+	}
+
+	FShaderReference Shader;
 	const FNiagaraComputeInstanceData* ComputeInstanceData;
 	uint32 SimulationStageIndex;
 	bool IsOutputStage;

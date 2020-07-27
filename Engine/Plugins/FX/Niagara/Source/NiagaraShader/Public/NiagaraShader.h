@@ -107,7 +107,6 @@ public:
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, OwnerConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, EmitterConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, ExternalConstantBufferParam, 2);
-	LAYOUT_FIELD(FShaderUniformBufferParameter, DataInterfaceUniformBufferParam);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewUniformBufferParam);
 	LAYOUT_FIELD(FShaderParameter, SimStartParam);
 	LAYOUT_FIELD(FShaderParameter, EmitterTickCounterParam);

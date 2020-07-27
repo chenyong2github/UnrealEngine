@@ -54,13 +54,13 @@ public:
 		// #todo(dmp): read this from instance data and correct proxy from the reader's proxy
 		FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy* ReaderDIProxy = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy*>(Context.DataInterface);
 		
-		FGrid2DCollectionReaderInstanceData_RenderThread* ReaderProxyData = ReaderDIProxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid2DCollectionReaderInstanceData_RenderThread* ReaderProxyData = ReaderDIProxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
 		FGrid2DCollectionRWInstanceData_RenderThread* Grid2DProxyData = nullptr;
 
 		if (ReaderProxyData && ReaderProxyData->GPUContext && ReaderProxyData->ProxyToUse)
 		{
-			Grid2DProxyData = ReaderProxyData->ProxyToUse->SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+			Grid2DProxyData = ReaderProxyData->ProxyToUse->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		}
 
 		// no proxy data so fill with dummy values

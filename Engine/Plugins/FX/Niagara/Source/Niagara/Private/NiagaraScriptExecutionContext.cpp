@@ -848,7 +848,6 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 		FNiagaraVMExecutableData& VMData = InGPUComputeScript->GetVMExecutableData();
 		if (VMData.IsValid() && VMData.SimulationStageMetaData.Num() > 0)
 		{
-
 			SimStageInfo = VMData.SimulationStageMetaData;
 
 			int32 FoundMaxUpdateIterations = SimStageInfo[SimStageInfo.Num() - 1].MaxStage;
@@ -951,7 +950,8 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 
 	
 #if DO_CHECK
-	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
+	// DI Parameters are the same between all shader permutations so we can just get the first one
+	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread(0);
 	if (Shader.IsValid())
 	{
 		DIClassNames.Empty(Shader->GetDIParameters().Num());
