@@ -3683,6 +3683,13 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 	{
 		// Clear all active tiles. This will effectively kill all particles.
 		ClearAllocatedTiles();
+
+		FreeInactiveTiles();
+		// Queue an update to the GPU simulation if needed.
+		if (Simulation->bDirty_GameThread)
+		{
+			Simulation->InitResources(AllocatedTiles, EmitterInfo.Resources);
+		}
 	}
 
 	/**
@@ -3696,6 +3703,13 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 	{
 		FParticleEmitterInstance::Rewind();
 		InitLocalVectorField();
+
+		FreeInactiveTiles();
+		// Queue an update to the GPU simulation if needed.
+		if (Simulation->bDirty_GameThread)
+		{
+			Simulation->InitResources(AllocatedTiles, EmitterInfo.Resources);
+		}
 	}
 
 	/**
@@ -3803,9 +3817,9 @@ private:
 	/**
 	 * Computes the minimum number of tiles that should be allocated for this emitter.
 	 */
-	int32 GetMinTileCount() const
+	int32 GetMinTileCount()
 	{
-		if (AllowedLoopCount == 0)
+		if (AllowedLoopCount == 0 && Component->IsActive() && GetCurrentLODLevelChecked()->bEnabled)
 		{
 			const int32 EstMaxTiles = (EmitterInfo.MaxParticleCount + GParticlesPerTile - 1) / GParticlesPerTile;
 			const int32 SlackTiles = FMath::CeilToInt(FXConsoleVariables::ParticleSlackGPU * (float)EstMaxTiles);
