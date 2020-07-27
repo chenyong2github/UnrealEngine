@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
 #include "Texture/InterchangeTextureTranslator.h"
 
 #include "CoreMinimal.h"
