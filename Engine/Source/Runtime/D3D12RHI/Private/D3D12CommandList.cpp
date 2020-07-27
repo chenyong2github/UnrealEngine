@@ -292,4 +292,14 @@ namespace D3D12RHI
 		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue();
 		OutCommandQueue = CommandQueue;
 	}
+
+	void GetCopyCommandQueue(FRHICommandList& RHICmdList, void*& OutCommandQueue)
+	{
+		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
+		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)RHICmdContext;
+		check(BaseCmdContext.IsDefaultContext());
+
+		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
+		OutCommandQueue = CommandQueue;
+	}
 }
