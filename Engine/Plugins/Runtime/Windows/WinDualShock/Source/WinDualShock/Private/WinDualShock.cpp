@@ -22,30 +22,30 @@ public:
 		: MessageHandler(InMessageHandler)
 	{
 		// Configure touch and mouse events
-		bool bDS4TouchEvents = false;
-		bool bDS4TouchAxisButtons = false;
-		bool bDS4MouseEvents = false;
-		bool bDS4MotionEvents = false;
+		bool bDSTouchEvents = false;
+		bool bDSTouchAxisButtons = false;
+		bool bDSMouseEvents = false;
+		bool bDSMotionEvents = false;
 
 		if ( GConfig )
 		{
 			// Configure PS4Controllers to emit touch events from the DS4 touchpad if the application wants them.
-			GConfig->GetBool( TEXT( "PS4Application" ), TEXT( "bDS4TouchEvents" ), bDS4TouchEvents, GEngineIni );
+			GConfig->GetBool( TEXT( "SonyController" ), TEXT( "bDSTouchEvents" ), bDSTouchEvents, GEngineIni );
 
 			// Configure PS4Controllers to emit axis events from the DS4 touchpad if the application wants them.
-			GConfig->GetBool( TEXT("PS4Application"), TEXT("bDS4TouchAxisButtons"), bDS4TouchAxisButtons, GEngineIni );
+			GConfig->GetBool( TEXT("SonyController"), TEXT("bDSTouchAxisButtons"), bDSTouchAxisButtons, GEngineIni );
 
 			// Configure PS4Controllers to emit mouse events from the DS4 touchpad if the application wants them
-			GConfig->GetBool( TEXT( "PS4Application" ), TEXT( "bDS4MouseEvents" ), bDS4MouseEvents, GEngineIni );
+			GConfig->GetBool( TEXT( "SonyController" ), TEXT( "bDSMouseEvents" ), bDSMouseEvents, GEngineIni );
 
 			// Configure PS4Controllers to emit motion events from the DS4 if the application wants them
-			GConfig->GetBool(TEXT("PS4Application"), TEXT("bDS4MotionEvents"), bDS4MotionEvents, GEngineIni);
+			GConfig->GetBool(TEXT("SonyController"), TEXT("bDSMotionEvents"), bDSMotionEvents, GEngineIni);
 		}
 
-		Controllers.SetEmitTouchEvents( bDS4TouchEvents );
-		Controllers.SetEmitTouchAxisEvents( bDS4TouchAxisButtons );
-		Controllers.SetEmitMouseEvents( bDS4MouseEvents );
-		Controllers.SetEmitMotionEvents(bDS4MotionEvents);
+		Controllers.SetEmitTouchEvents( bDSTouchEvents );
+		Controllers.SetEmitTouchAxisEvents( bDSTouchAxisButtons );
+		Controllers.SetEmitMouseEvents( bDSMouseEvents );
+		Controllers.SetEmitMotionEvents(bDSMotionEvents);
 	}
 
 	virtual ~FWinDualShock()
