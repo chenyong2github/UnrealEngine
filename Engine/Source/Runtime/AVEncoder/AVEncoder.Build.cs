@@ -18,6 +18,8 @@ public class AVEncoder : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			PublicDefinitions.Add("AVENCODER_SUPPORTED_MICROSOFT_PLATFORM=1");
+
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
 					"D3D11RHI"
