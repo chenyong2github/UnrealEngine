@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Stack.h"
+#include "UObject/ErrorException.h"
 #include "UnderlyingEnumType.h"
 
 #include "UnrealSourceFile.h"
