@@ -793,6 +793,15 @@ private:
 
 using FIoReadCallback = TFunction<void(TIoStatusOr<FIoBuffer>)>;
 
+enum EIoDispatcherPriority : uint8
+{
+	IoDispatcherPriority_Low,
+	IoDispatcherPriority_Medium,
+	IoDispatcherPriority_High,
+
+	IoDispatcherPriority_Count,
+};
+
 /** I/O batch
 
 	This is a primitive used to group I/O requests for synchronization
@@ -816,7 +825,7 @@ public:
 	/**
 	 * Initiates the loading of the batch as individual requests.
 	 */
-	CORE_API void Issue();
+	CORE_API void Issue(EIoDispatcherPriority Priority);
 
 	/**
 	 * Initiates the loading of the batch to a single contiguous output buffer. The requests will be in the
@@ -831,7 +840,7 @@ public:
 	 *
 	 * @return This methods had the capacity to fail so the return value should be checked.
 	 */
-	UE_NODISCARD CORE_API FIoStatus IssueWithCallback(FIoBatchReadOptions Options, FIoReadCallback&& Callback);
+	UE_NODISCARD CORE_API FIoStatus IssueWithCallback(FIoBatchReadOptions Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
 	
 	CORE_API void Wait();
 	CORE_API void Cancel();
@@ -888,7 +897,7 @@ public:
 	CORE_API void					FreeBatch(FIoBatch& Batch);
 
 
-	CORE_API void					ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, FIoReadCallback&& Callback);
+	CORE_API void					ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback);
 	CORE_API TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
 
 	// Polling methods
@@ -906,6 +915,7 @@ public:
 	static CORE_API bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 	static CORE_API bool IsInitialized();
 	static CORE_API FIoStatus Initialize();
+	static CORE_API void InitializePostSettings();
 	static CORE_API void Shutdown();
 	static CORE_API FIoDispatcher& Get();
 
@@ -1042,4 +1052,6 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////
 

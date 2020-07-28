@@ -33,6 +33,7 @@ public:
 	// Used for contiguous reads
 	FIoBuffer IoBuffer;
 	FIoReadCallback Callback;
+	TAtomic<uint32> UnfinishedRequestsCount{ 0 };
 };
 
 class FIoRequestImpl
@@ -45,7 +46,8 @@ public:
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	FIoBuffer IoBuffer;
-	TAtomic<uint32> UnfinishedReadsCount{ 0 };
 	FIoReadCallback Callback;
+	uint32 UnfinishedReadsCount = 0;
+	EIoDispatcherPriority Priority;
 };
 
