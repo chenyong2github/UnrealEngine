@@ -657,7 +657,7 @@ FTextRenderSceneProxy::FTextRenderSceneProxy( UTextRenderComponent* Component) :
 
 	if(Component->TextMaterial)
 	{
-		UMaterial* BaseMaterial = Component->TextMaterial->GetMaterial();
+		const UMaterial* BaseMaterial = Component->TextMaterial->GetMaterial_Concurrent();
 
 		if(BaseMaterial->MaterialDomain == MD_Surface)
 		{
@@ -671,7 +671,7 @@ FTextRenderSceneProxy::FTextRenderSceneProxy( UTextRenderComponent* Component) :
 	}
 
 	TextMaterial = EffectiveMaterial;
-	MaterialRelevance |= TextMaterial->GetMaterial()->GetRelevance(GetScene().GetFeatureLevel());
+	MaterialRelevance |= TextMaterial->GetMaterial_Concurrent()->GetRelevance(GetScene().GetFeatureLevel());
 
 	if (Font && Font->FontCacheType == EFontCacheType::Offline)
 	{
