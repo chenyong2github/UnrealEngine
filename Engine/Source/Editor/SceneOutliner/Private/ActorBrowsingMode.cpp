@@ -27,8 +27,7 @@
 #include "ActorBrowsingModeSettings.h"
 #include "ScopedTransaction.h"
 
-//#todo_Outliner: remove
-DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorBrowsingMode"
 
@@ -478,7 +477,7 @@ void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeIt
 		const bool bSelectEvenIfHidden = true;	// @todo outliner: Is this actually OK?
 		for (auto* Actor : SelectedActors)
 		{
-			UE_LOG(LogSceneOutliner, Verbose, TEXT("Clicking on Actor (world outliner): %s (%s)"), *Actor->GetClass()->GetName(), *Actor->GetActorLabel());
+			UE_LOG(LogActorBrowser, Verbose, TEXT("Clicking on Actor (world outliner): %s (%s)"), *Actor->GetClass()->GetName(), *Actor->GetActorLabel());
 			GEditor->SelectActor(Actor, bShouldSelect, bNotifyAfterSelect, bSelectEvenIfHidden);
 		}
 
