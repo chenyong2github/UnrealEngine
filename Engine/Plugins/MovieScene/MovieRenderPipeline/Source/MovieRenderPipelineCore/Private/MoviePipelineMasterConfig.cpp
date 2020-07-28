@@ -130,7 +130,7 @@ void UMoviePipelineMasterConfig::GetFormatArguments(FMoviePipelineFormatArgs& In
 
 		FMoviePipelineFrameOutputState BlankOutputState;
 		BlankOutputState.OutputFrameNumber = 0; // It gets initialized to -1 but looks funny in the UI since the actual output would be zero.
-		BlankOutputState.GetFilenameFormatArguments(InOutFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset);
+		BlankOutputState.GetFilenameFormatArguments(InOutFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset, false);
 	}
 
 	// Let each setting provide its own set of key/value pairs.
