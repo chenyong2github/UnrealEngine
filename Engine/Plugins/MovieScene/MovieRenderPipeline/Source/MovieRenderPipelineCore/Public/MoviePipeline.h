@@ -339,6 +339,9 @@ private:
 	/** The time (in UTC) that Initialize was called. Used to track elapsed time. */
 	FDateTime InitializationTime;
 
+	/** The version number for this render. Detected when job starts to increment to the next version so that image sequences don't think it's a new version for every frame. */
+	int32 InitializationVersion;
+
 	FMoviePipelineFrameOutputState CachedOutputState;
 
 	MoviePipeline::FAudioState AudioState;
