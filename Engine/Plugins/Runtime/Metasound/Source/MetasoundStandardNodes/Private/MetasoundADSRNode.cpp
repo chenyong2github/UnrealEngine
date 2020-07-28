@@ -4,6 +4,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundTime.h"
 #include "MetasoundDataReferenceTypes.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "DSP/Envelope.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundADSRNode"

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundNodeRegistrationMacro.h"
 
 namespace Metasound
 {

@@ -32,6 +32,11 @@
 			"LoadingPhase" : "Default"
 		},
 		{
+			"Name" : "MetasoundStandardNodes",
+			"Type" : "Runtime",
+			"LoadingPhase" : "Default"
+		},
+		{
 			"Name" : "MetasoundEngine",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"

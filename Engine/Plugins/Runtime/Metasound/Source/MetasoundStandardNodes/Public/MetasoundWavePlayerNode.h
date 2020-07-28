@@ -10,7 +10,7 @@
 
 namespace Metasound
 {
-	class METASOUNDGRAPHCORE_API FOscNode : public FNode
+	class METASOUNDSTANDARDNODES_API FWavePlayerNode : public FNode
 	{
 			class FOperatorFactory : public IOperatorFactory
 			{
@@ -20,31 +20,29 @@ namespace Metasound
 		public:
 			static const FName ClassName;
 
-			FOscNode(const FString& InName, float InDefaultFrequency);
+			FWavePlayerNode(const FString& InName);
 
 			// constructor used by the Metasound Frontend.
-			FOscNode(const FNodeInitData& InInitData);
+			FWavePlayerNode(const FNodeInitData& InInitData);
 
-			virtual ~FOscNode();
+			virtual ~FWavePlayerNode();
 
-			float GetDefaultFrequency() const;
+			const FName& GetClassName() const override;
 
-			virtual const FName& GetClassName() const override;
+			IOperatorFactory& GetDefaultOperatorFactory() override;
 
-			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
-
-			virtual const FText& GetDescription() const override
+			const FText& GetDescription() const override
 			{
-				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
+				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_WavePlayerNodeDescription", "Plays a supplied Wave");
 				return StaticDescription;
 			}
 
-			virtual const FText& GetAuthorName() const override
+			const FText& GetAuthorName() const override
 			{
 				return PluginAuthor;
 			}
 
-			virtual const FText& GetPromptIfMissing() const override
+			const FText& GetPromptIfMissing() const override
 			{
 				return PluginNodeMissingPrompt;
 			}

@@ -3,6 +3,7 @@
 #include "MetasoundAudioMultiplyNode.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundDataReferenceTypes.h"
+#include "MetasoundNodeRegistrationMacro.h"
 #include "DSP/BufferVectorOperations.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundAudioMultiplyNode"

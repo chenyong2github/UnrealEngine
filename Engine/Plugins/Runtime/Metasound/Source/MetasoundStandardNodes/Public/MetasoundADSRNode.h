@@ -15,7 +15,7 @@ namespace Metasound
 	 *
 	 *  Creates an Attack, Decay Sustain, Release audio processer node. 
 	 */
-	class METASOUNDGRAPHCORE_API FADSRNode : public FNode
+	class METASOUNDSTANDARDNODES_API FADSRNode : public FNode
 	{
 		// The operator factory for this node.
 		class FOperatorFactory : public IOperatorFactory

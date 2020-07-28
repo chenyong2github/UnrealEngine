@@ -24,7 +24,8 @@ namespace UnrealBuildTool.Rules
 				new string[] {
                     "Core",
 					"AudioMixer",
-					"MetasoundGraphCore"
+					"MetasoundGraphCore",
+					"MetasoundStandardNodes"
                 }
             );
 		}

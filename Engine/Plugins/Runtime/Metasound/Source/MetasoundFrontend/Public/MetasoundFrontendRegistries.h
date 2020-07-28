@@ -16,7 +16,7 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		struct METASOUNDGRAPHCORE_API FNodeRegistryKey
+		struct METASOUNDFRONTEND_API FNodeRegistryKey
 		{
 			// The class name for the node.
 			FName NodeName;
@@ -37,7 +37,7 @@ namespace Metasound
 		};
 
 
-		struct METASOUNDGRAPHCORE_API FNodeRegistryElement
+		struct METASOUNDFRONTEND_API FNodeRegistryElement
 		{
 			// This lambda can be used to get an INodeBase for this specific node class.
 			FNodeGetterCallback GetterCallback;
@@ -63,7 +63,7 @@ static uint32 METASOUNDGRAPHCORE_API GetTypeHash(const Metasound::Frontend::FNod
 /**
  * Singleton registry for all types and nodes.
  */
-class METASOUNDGRAPHCORE_API FMetasoundFrontendRegistryContainer
+class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 {
 public:
 	static FMetasoundFrontendRegistryContainer* Get();

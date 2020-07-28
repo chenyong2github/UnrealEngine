@@ -19,7 +19,7 @@ namespace Metasound
 	 * of the FUnformattedAudio. All audio buffers within a FUnformattedAudio object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDGRAPHCORE_API FUnformattedAudio
+	class METASOUNDSTANDARDNODES_API FUnformattedAudio
 	{
 		public:
 			/** FUnformattedAudio Constructor.
@@ -103,7 +103,7 @@ namespace Metasound
 	 * of the FMultichannelAudioFormat. All audio buffers within a FMultichannelAudioFormat object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDGRAPHCORE_API FMultichannelAudioFormat
+	class METASOUNDSTANDARDNODES_API FMultichannelAudioFormat
 	{
 		public:
 			FMultichannelAudioFormat();

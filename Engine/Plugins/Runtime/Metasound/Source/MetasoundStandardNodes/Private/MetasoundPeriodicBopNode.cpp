@@ -10,6 +10,7 @@
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundNodeRegistrationMacro.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundPeriodicBopNode"
 

@@ -11,7 +11,7 @@
 
 namespace Metasound
 {
-	class METASOUNDGRAPHCORE_API FAudioMultiplyNode : public FNode
+	class METASOUNDSTANDARDNODES_API FAudioMultiplyNode : public FNode
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{

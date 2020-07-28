@@ -12,7 +12,7 @@
 
 namespace Metasound
 {
-	class METASOUNDGRAPHCORE_API FPeriodicBopNode : public FNode
+	class METASOUNDSTANDARDNODES_API FPeriodicBopNode : public FNode
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{

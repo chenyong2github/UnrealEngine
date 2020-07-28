@@ -3,6 +3,7 @@
 #include "MetasoundOscNode.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundNodeRegistrationMacro.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundOscNode"
 

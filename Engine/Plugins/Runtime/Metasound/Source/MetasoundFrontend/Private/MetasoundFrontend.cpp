@@ -9,7 +9,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 
-#include "MetasoundAudioFormats.h"
 #include "MetasoundOperatorBuilder.h"
 
 static int32 MetasoundUndoRollLimitCvar = 128;
