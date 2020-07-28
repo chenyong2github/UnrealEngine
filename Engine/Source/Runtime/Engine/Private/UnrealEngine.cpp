@@ -14409,9 +14409,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
-		return
-			(InProperty->HasAnyPropertyFlags(CPF_Transient) && !IsPersistent() && IsSerializingDefaults()) ||
-			(bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
+		return (bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
 	}
 #endif 
 	//~ End FArchive Interface
