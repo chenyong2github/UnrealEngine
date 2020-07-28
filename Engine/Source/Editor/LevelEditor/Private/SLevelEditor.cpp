@@ -692,7 +692,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if( TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner)
 	{
-		SceneOutliner::FInitializationOptions InitOptions;
+		FSceneOutlinerInitializationOptions InitOptions;
 		InitOptions.bShowTransient = true;
 		{
 			UToolMenus* ToolMenus = UToolMenus::Get();

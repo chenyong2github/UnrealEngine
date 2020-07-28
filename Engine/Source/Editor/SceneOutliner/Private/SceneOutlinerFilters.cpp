@@ -3,33 +3,30 @@
 #include "SceneOutlinerFilters.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
-namespace SceneOutliner
-{
-
-void FOutlinerFilterInfo::InitFilter(TSharedPtr<FOutlinerFilters> InFilters)
+void FSceneOutlinerFilterInfo::InitFilter(TSharedPtr<FSceneOutlinerFilters> InFilters)
 {
 	Filters = InFilters;
 
 	ApplyFilter(bActive);
 }
 
-void FOutlinerFilterInfo::AddMenu(FMenuBuilder& InMenuBuilder)
+void FSceneOutlinerFilterInfo::AddMenu(FMenuBuilder& InMenuBuilder)
 {
 	InMenuBuilder.AddMenuEntry(
 		FilterTitle,
 		FilterTooltip,
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateRaw( this, &FOutlinerFilterInfo::ToggleFilterActive ),
+			FExecuteAction::CreateRaw( this, &FSceneOutlinerFilterInfo::ToggleFilterActive ),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateRaw( this, &FOutlinerFilterInfo::IsFilterActive )
+			FIsActionChecked::CreateRaw( this, &FSceneOutlinerFilterInfo::IsFilterActive )
 		),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
 }
 
-void FOutlinerFilterInfo::ApplyFilter(bool bInActive)
+void FSceneOutlinerFilterInfo::ApplyFilter(bool bInActive)
 {
 	if ( !Filter.IsValid() )
 	{
@@ -46,7 +43,7 @@ void FOutlinerFilterInfo::ApplyFilter(bool bInActive)
 	}
 }
 
-void FOutlinerFilterInfo::ToggleFilterActive()
+void FSceneOutlinerFilterInfo::ToggleFilterActive()
 {
 	bActive = !bActive;
 
@@ -55,9 +52,7 @@ void FOutlinerFilterInfo::ToggleFilterActive()
 	OnToggleEvent.Broadcast(bActive);
 }
 
-bool FOutlinerFilterInfo::IsFilterActive() const
+bool FSceneOutlinerFilterInfo::IsFilterActive() const
 {
 	return bActive;
 }
-
-} // namespace SceneOutliner

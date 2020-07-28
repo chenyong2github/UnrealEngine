@@ -1147,8 +1147,8 @@ void FDataprepEditor::RefreshColumnsForPreviewSystem()
 {
 	if ( PreviewSystem->HasObservedObjects() )
 	{
-		SceneOutliner->RemoveColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
-		SceneOutliner::FColumnInfo ColumnInfo( SceneOutliner::EColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda( [Preview = PreviewSystem](ISceneOutliner& InSceneOutliner) -> TSharedRef< ISceneOutlinerColumn >
+		SceneOutliner->RemoveColumn( FSceneOutlinerBuiltInColumnTypes::ActorInfo() );
+		FSceneOutlinerColumnInfo ColumnInfo(ESceneOutlinerColumnVisibility::Visible, 100, FCreateSceneOutlinerColumn::CreateLambda([Preview = PreviewSystem](ISceneOutliner& InSceneOutliner) -> TSharedRef< ISceneOutlinerColumn >
 			{
 				return MakeShared<FDataprepPreviewOutlinerColumn>( InSceneOutliner, Preview );
 			} ) );
@@ -1160,9 +1160,9 @@ void FDataprepEditor::RefreshColumnsForPreviewSystem()
 	{
 		SceneOutliner->RemoveColumn( FDataprepPreviewOutlinerColumn::ColumnID );
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-		SceneOutliner::FColumnInfo* ActorInfoColumPtr = SceneOutlinerModule.DefaultColumnMap.Find( SceneOutliner::FBuiltInColumnTypes::ActorInfo() );
+		FSceneOutlinerColumnInfo* ActorInfoColumPtr = SceneOutlinerModule.DefaultColumnMap.Find( FSceneOutlinerBuiltInColumnTypes::ActorInfo() );
 		check( ActorInfoColumPtr );
-		SceneOutliner->AddColumn( SceneOutliner::FBuiltInColumnTypes::ActorInfo(), *ActorInfoColumPtr );
+		SceneOutliner->AddColumn( FSceneOutlinerBuiltInColumnTypes::ActorInfo(), *ActorInfoColumPtr );
 
 		AssetPreviewView->RemoveColumn( FDataprepPreviewAssetColumn::ColumnID );
 	}

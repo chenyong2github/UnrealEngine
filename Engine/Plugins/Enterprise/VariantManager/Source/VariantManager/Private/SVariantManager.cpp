@@ -2581,8 +2581,6 @@ FReply SVariantManager::OnAddVariantSetClicked()
 
 FReply SVariantManager::OnSummonAddActorMenu()
 {
-	using namespace SceneOutliner;
-
 	TSharedPtr<FVariantManager> VarMan = VariantManagerPtr.Pin();
 	if (!VarMan.IsValid())
 	{
@@ -2650,12 +2648,12 @@ FReply SVariantManager::OnSummonAddActorMenu()
 		return !CommonActorSet.Contains(InActor);
 	};
 
-	FInitializationOptions InitOptions;
+	FSceneOutlinerInitializationOptions InitOptions;
 	InitOptions.bShowHeaderRow = true;
 	InitOptions.bShowSearchBox = true;
 	InitOptions.bShowCreateNewFolder = false;
 	InitOptions.bFocusSearchBoxWhenOpened = true;
-	InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
+	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 	InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValidForAssignment ));
 
 	// Create mini scene outliner menu

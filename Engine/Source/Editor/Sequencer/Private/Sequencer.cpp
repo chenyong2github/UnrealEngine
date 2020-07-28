@@ -5609,11 +5609,9 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	AActor* CameraActor = Cast<AActor>(InCameraObject);
 	AActor* PreviousCameraActor = Cast<AActor>(CameraCutParams.PreviousCameraObject);
 
-	const float BlendFactor = FMath::Clamp(CameraCutParams.PreviewBlendFactor, 0.f, 1.f);
-	const bool bIsBlending = (
-			CameraCutParams.BlendTime > 0.f &&
-			BlendFactor < 1.f - SMALL_NUMBER &&
+	const bool bIsBlending = (CameraCutParams.BlendTime > 0.f &&
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
+	const float BlendFactor = FMath::Clamp(CameraCutParams.PreviewBlendFactor, 0.f, 1.f);
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
 	bApplyViewModifier = bIsBlending;
@@ -7062,10 +7060,8 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 		return !BoundObjects.Contains(InActor);
 	};
 
-	using namespace SceneOutliner;
-
 	// Set up a menu entry to assign an actor to the object binding node
-	FInitializationOptions InitOptions;
+	FSceneOutlinerInitializationOptions InitOptions;
 	{
 		// We hide the header row to keep the UI compact.
 		InitOptions.bShowHeaderRow = false;
@@ -7073,7 +7069,7 @@ void FSequencer::AssignActor(FMenuBuilder& MenuBuilder, FGuid InObjectBinding)
 		InitOptions.bShowCreateNewFolder = false;
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 		// Only want the actor label column
-		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 
 		// Only display actors that are not possessed already
 		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda( IsActorValidForAssignment ) );

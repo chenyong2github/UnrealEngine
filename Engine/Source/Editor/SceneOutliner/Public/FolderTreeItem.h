@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
-#include "ITreeItem.h"
+#include "ISceneOutlinerTreeItem.h"
 
 class UToolMenu;
 
@@ -12,57 +12,57 @@ namespace SceneOutliner
 {
 	struct FFolderPathSelector
 	{
-		bool operator()(TWeakPtr<ITreeItem> Item, FName& DataOut) const;
+		bool operator()(TWeakPtr<ISceneOutlinerTreeItem> Item, FName& DataOut) const;
 	};
+}	// namespace SceneOutliner
 
-	/** A tree item that represents a folder in the world */
-	struct SCENEOUTLINER_API FFolderTreeItem : ITreeItem
+
+/** A tree item that represents a folder in the world */
+struct SCENEOUTLINER_API FFolderTreeItem : ISceneOutlinerTreeItem
+{
+public:
+	/** Static type identifier for this tree item class */
+	static const FSceneOutlinerTreeItemType Type;
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, FName);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FInteractivePredicate, FName);
+
+	bool Filter(FFilterPredicate Pred) const
 	{
-	public:
-		/** Static type identifier for this tree item class */
-		static const FTreeItemType Type;
+		return Pred.Execute(Path);
+	}
 
-		DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, FName);
-		DECLARE_DELEGATE_RetVal_OneParam(bool, FInteractivePredicate, FName);
+	bool GetInteractiveState(FInteractivePredicate Pred) const
+	{
+		return Pred.Execute(Path);
+	}
 
-		bool Filter(FFilterPredicate Pred) const
-		{
-			return Pred.Execute(Path);
-		}
+	/** The path of this folder. / separated. */
+	FName Path;
 
-		bool GetInteractiveState(FInteractivePredicate Pred) const
-		{
-			return Pred.Execute(Path);
-		}
+	/** The leaf name of this folder */
+	FName LeafName;
 
-		/** The path of this folder. / separated. */
-		FName Path;
+	/** Constructor that takes a path to this folder (including leaf-name) */
+	FFolderTreeItem(FName InPath);
+	/** Constructor that takes a path to this folder and a subclass tree item type (used for subclassing FFolderTreeItem) */
+	FFolderTreeItem(FName InPath, FSceneOutlinerTreeItemType Type);
 
-		/** The leaf name of this folder */
-		FName LeafName;
+	/* Begin ISceneOutlinerTreeItem Implementation */
+	virtual bool IsValid() const override { return true; }
+	virtual FSceneOutlinerTreeItemID GetID() const override;
+	virtual FString GetDisplayString() const override;
+	virtual bool CanInteract() const override;
+	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
+	/** Delete this folder, children will be reparented to provided new parent path */
+	virtual void Delete(FName InNewParentPath) {}
+	/* End ISceneOutlinerTreeItem Implementation */
 
-		/** Constructor that takes a path to this folder (including leaf-name) */
-		FFolderTreeItem(FName InPath);
-		/** Constructor that takes a path to this folder and a subclass tree item type (used for subclassing FFolderTreeItem) */
-		FFolderTreeItem(FName InPath, FTreeItemType Type);
-
-		/* Begin ITreeItem Implementation */
-		virtual bool IsValid() const override { return true; }
-		virtual FTreeItemID GetID() const override;
-		virtual FString GetDisplayString() const override;
-		virtual bool CanInteract() const override;
-		virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
-		/** Delete this folder, children will be reparented to provided new parent path */
-		virtual void Delete(FName InNewParentPath) {}
-		/* End ITreeItem Implementation */
-
-		/** Move this folder to a new parent */
-		virtual FName MoveTo(const FName& NewParent) { return FName(); }
-	private:
-		/** Create a new folder as a child of this one */
-		virtual void CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner) {}
-		/** Duplicate folder hierarchy */
-		void DuplicateHierarchy(TWeakPtr<SSceneOutliner> WeakOutliner);
-	};
-
-}		// namespace SceneOutliner
+	/** Move this folder to a new parent */
+	virtual FName MoveTo(const FName& NewParent) { return FName(); }
+private:
+	/** Create a new folder as a child of this one */
+	virtual void CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner) {}
+	/** Duplicate folder hierarchy */
+	void DuplicateHierarchy(TWeakPtr<SSceneOutliner> WeakOutliner);
+};

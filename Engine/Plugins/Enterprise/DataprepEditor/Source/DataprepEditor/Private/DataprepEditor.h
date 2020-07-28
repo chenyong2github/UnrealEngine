@@ -124,7 +124,7 @@ public:
 	int32 GetCountOfPreviewedSteps() const;
 
 	/** Handles change to selection in SceneOutliner */
-	void OnSceneOutlinerSelectionChanged(SceneOutliner::FTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
+	void OnSceneOutlinerSelectionChanged(FSceneOutlinerTreeItemPtr ItemPtr, ESelectInfo::Type SelectionMode);
 
 private:
 	void BindCommands();

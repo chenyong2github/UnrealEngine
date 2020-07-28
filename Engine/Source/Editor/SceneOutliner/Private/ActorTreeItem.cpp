@@ -20,16 +20,14 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
-namespace SceneOutliner
-{
-const FTreeItemType FActorTreeItem::Type(&ITreeItem::Type);
+const FSceneOutlinerTreeItemType FActorTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
-struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
+struct SActorTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SActorTreeLabel) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FActorTreeItem& ActorItem, ISceneOutliner& SceneOutliner, const STableRow<FTreeItemPtr>& InRow)
+	void Construct(const FArguments& InArgs, FActorTreeItem& ActorItem, ISceneOutliner& SceneOutliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 	{
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
 
@@ -53,7 +51,7 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 				.ColorAndOpacity(this, &SActorTreeLabel::GetForegroundColor)
 				.OnTextCommitted(this, &SActorTreeLabel::OnLabelCommitted)
 				.OnVerifyTextChanged(this, &SActorTreeLabel::OnVerifyItemLabelChanged)
-				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 				.IsReadOnly_Lambda([Item = ActorItem.AsShared(), this]()
 				{
 					return !CanExecuteRenameRequest(Item.Get());
@@ -83,11 +81,11 @@ struct SActorTreeLabel : FCommonLabelData, public SCompoundWidget
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(FDefaultTreeItemMetrics::IconPadding())
+				.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
 				[
 					SNew(SBox)
-					.WidthOverride(FDefaultTreeItemMetrics::IconSize())
-					.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
 					[
 						SNew(SImage)
 						.Image(this, &SActorTreeLabel::GetIcon)
@@ -236,8 +234,7 @@ private:
 	FSlateColor GetForegroundColor() const
 	{
 		auto TreeItem = TreeItemPtr.Pin();
-
-		if (auto BaseColor = FCommonLabelData::GetForegroundColor(*TreeItem))
+		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItem))
 		{
 			return BaseColor.GetValue();
 		}
@@ -249,14 +246,14 @@ private:
 			return FLinearColor(0.2f, 0.2f, 0.25f);
 		}
 
-		UWorld* OwningWorld = TreeItem->Actor->GetWorld();
+		UWorld* OwningWorld = Actor->GetWorld();
 		if (!OwningWorld)
 		{
-			// Invalid world!
+			// Deleted world!
 			return FLinearColor(0.2f, 0.2f, 0.25f);
 		}
 
-		const bool bRepresentingPIEWorld = OwningWorld->IsPlayInEditor();
+		const bool bRepresentingPIEWorld = TreeItem->Actor->GetWorld()->IsPlayInEditor();
 		if (bRepresentingPIEWorld && !TreeItem->bExistsInCurrentWorldAndPIE)
 		{
 			// Highlight actors that are exclusive to PlayWorld
@@ -268,7 +265,7 @@ private:
 		const bool bSelectEvenIfHidden = true;		// @todo outliner: Is this actually OK?
 		if (!GEditor->CanSelectActor(Actor, bInSelected, bSelectEvenIfHidden))
 		{
-			return FCommonLabelData::DarkColor;
+			return FSceneOutlinerCommonLabelData::DarkColor;
 		}
 
 		return FSlateColor::UseForeground();
@@ -297,14 +294,14 @@ private:
 };
 
 FActorTreeItem::FActorTreeItem(AActor* InActor)
-	: ITreeItem(Type)
+	: ISceneOutlinerTreeItem(Type)
 	, Actor(InActor)
 	, ID(InActor)
 {
 	bExistsInCurrentWorldAndPIE = GEditor->ObjectsThatExistInEditorWorld.Get(InActor);
 }
 
-FTreeItemID FActorTreeItem::GetID() const
+FSceneOutlinerTreeItemID FActorTreeItem::GetID() const
 {
 	return ID;
 }
@@ -333,7 +330,7 @@ bool FActorTreeItem::CanInteract() const
 	return true;
 }
 
-TSharedRef<SWidget> FActorTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FTreeItemPtr>& InRow)
+TSharedRef<SWidget> FActorTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SActorTreeLabel, *this, Outliner, InRow);
 }
@@ -351,7 +348,5 @@ bool FActorTreeItem::GetVisibility() const
 {
 	return Actor.IsValid() && !Actor->IsTemporarilyHiddenInEditor(true);
 }
-
-}	// namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

@@ -1055,13 +1055,13 @@ void FLevelEditorContextMenuImpl::FillActorMenu(UToolMenu* Menu)
 		}
 	};
 
-	SceneOutliner::FInitializationOptions InitOptions;
+	FSceneOutlinerInitializationOptions InitOptions;
 	{	
 		InitOptions.bShowHeaderRow = false;
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
 		// Only display Actors that we can attach too
-		InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateStatic(&FLevelEditorActionCallbacks::IsAttachableActor));
+		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateStatic(&FLevelEditorActionCallbacks::IsAttachableActor));
 	}		
 
 	FToolMenuSection& Section = Menu->AddSection("Actor");

@@ -38,9 +38,9 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerLayerContentsColumn::ConstructHead
 		];
 }
 
-const TSharedRef<SWidget> FSceneOutlinerLayerContentsColumn::ConstructRowWidget(SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& Row)
+const TSharedRef<SWidget> FSceneOutlinerLayerContentsColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
-	if (SceneOutliner::FActorTreeItem* ActorItem = TreeItem->CastTo<SceneOutliner::FActorTreeItem>())
+	if (FActorTreeItem* ActorItem = TreeItem->CastTo<FActorTreeItem>())
 	{
 		return SNew(SButton)
 			.HAlign(HAlign_Center)

@@ -163,7 +163,7 @@ void UFractureToolComponent::SetSelectedBones(UEditableMesh* EditableMesh, int32
 					EditBoneColor.SetSelectedBones(RevisedSelected);
 					EditBoneColor.SetHighlightedBones(Highlighted);
 
-					SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(GeometryCollectionComponent);
+					FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(GeometryCollectionComponent);
 				}
 			}
 

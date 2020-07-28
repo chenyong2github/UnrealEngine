@@ -15,16 +15,12 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ComponentTreeItem"
 
-
-namespace SceneOutliner
-{
-	
-struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
+struct SComponentTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SComponentTreeLabel) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FComponentTreeItem& ComponentItem, ISceneOutliner& SceneOutliner, const STableRow<FTreeItemPtr>& InRow)
+	void Construct(const FArguments& InArgs, FComponentTreeItem& ComponentItem, ISceneOutliner& SceneOutliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 	{
 		TreeItemPtr = StaticCastSharedRef<FComponentTreeItem>(ComponentItem.AsShared());
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
@@ -51,7 +47,7 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				{
 					return !CanExecuteRenameRequest(Item.Get());
 				})
-				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FTreeItemPtr>::IsSelectedExclusively))
+				.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 			];
 
 		if (WeakSceneOutliner.Pin()->GetMode()->IsInteractive())
@@ -66,11 +62,11 @@ struct SComponentTreeLabel : FCommonLabelData, public SCompoundWidget
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(FDefaultTreeItemMetrics::IconPadding())
+				.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
 				[
 					SNew(SBox)
-					.WidthOverride(FDefaultTreeItemMetrics::IconSize())
-					.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
 					[
 						SNew(SImage)
 						.Image(this, &SComponentTreeLabel::GetIcon)
@@ -166,7 +162,7 @@ private:
 
 	FSlateColor GetForegroundColor() const
 	{
-		if (auto BaseColor = FCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
+		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
 		{
 			return BaseColor.GetValue();
 		}
@@ -175,11 +171,10 @@ private:
 	}
 };
 
-
-const FTreeItemType FComponentTreeItem::Type(&ITreeItem::Type);
+const FSceneOutlinerTreeItemType FComponentTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
 FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
-	: ITreeItem(Type)
+	: ISceneOutlinerTreeItem(Type)
 	, Component(InComponent)
 	, ID(InComponent)
 {
@@ -195,7 +190,7 @@ FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
 	}
 }
 
-FTreeItemID FComponentTreeItem::GetID() const
+FSceneOutlinerTreeItemID FComponentTreeItem::GetID() const
 {
 	return ID;
 }
@@ -237,10 +232,9 @@ bool FComponentTreeItem::CanInteract() const
 	return true;
 }
 
-TSharedRef<SWidget> FComponentTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FTreeItemPtr>& InRow)
+TSharedRef<SWidget> FComponentTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SComponentTreeLabel, *this, Outliner, InRow);
 }
-} // namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

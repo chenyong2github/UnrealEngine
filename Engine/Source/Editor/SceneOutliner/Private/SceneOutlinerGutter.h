@@ -7,13 +7,10 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ISceneOutlinerColumn.h"
-#include "ITreeItem.h"
+#include "ISceneOutlinerTreeItem.h"
 
 class ISceneOutliner;
 template<typename ItemType> class STableRow;
-
-namespace SceneOutliner
-{
 
 /**
  * A gutter for the SceneOutliner which handles setting and visualizing item visibility
@@ -27,7 +24,7 @@ public:
 
 	virtual ~FSceneOutlinerGutter() {}
 
-	static FName GetID() { return FBuiltInColumnTypes::Gutter(); }
+	static FName GetID() { return FSceneOutlinerBuiltInColumnTypes::Gutter(); }
 	
 	// -----------------------------------------
 	// ISceneOutlinerColumn Implementation
@@ -35,17 +32,17 @@ public:
 
 	virtual SHeaderRow::FColumn::FArguments ConstructHeaderRowColumn() override;
 
-	virtual const TSharedRef< SWidget > ConstructRowWidget( FTreeItemRef TreeItem, const STableRow<FTreeItemPtr>& Row ) override;
+	virtual const TSharedRef< SWidget > ConstructRowWidget( FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row ) override;
 	
 	virtual void Tick(double InCurrentTime, float InDeltaTime) override;
 
 	virtual bool SupportsSorting() const override { return true; }
 
-	virtual void SortItems(TArray<FTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const override;
+	virtual void SortItems(TArray<FSceneOutlinerTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const override;
 	// -----------------------------------------
 
 	/** Check whether the specified item is visible */
-	FORCEINLINE bool IsItemVisible(const ITreeItem& Item)
+	FORCEINLINE bool IsItemVisible(const ISceneOutlinerTreeItem& Item)
 	{
 		return VisibilityCache.GetVisibility(Item);
 	}
@@ -56,7 +53,5 @@ private:
 	TWeakPtr<ISceneOutliner> WeakOutliner;
 
 	/** Get and cache visibility for items. Cached per-frame to avoid expensive recursion. */
-	FGetVisibilityCache VisibilityCache;
+	FSceneOutlinerVisibilityCache VisibilityCache;
 };
-
-}	// namespace SceneOutliner

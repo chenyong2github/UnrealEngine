@@ -63,19 +63,17 @@ void FActorPickerTrackEditor::ShowActorSubMenu(FMenuBuilder& MenuBuilder, TArray
 	auto CreateNewBinding = 
 		[this, ObjectBindings, Section](FMenuBuilder& SubMenuBuilder)
 	{
-		using namespace SceneOutliner;
-
-		SceneOutliner::FInitializationOptions InitOptions;
+		FSceneOutlinerInitializationOptions InitOptions;
 		{	
 			InitOptions.bShowHeaderRow = false;
 			InitOptions.bFocusSearchBoxWhenOpened = true;
 			InitOptions.bShowTransient = true;
 			InitOptions.bShowCreateNewFolder = false;
 			// Only want the actor label column
-			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 
 			// Only display Actors that we can attach too
-			InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateSP(this, &FActorPickerTrackEditor::IsActorPickable, ObjectBindings[0], Section));
+			InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateSP(this, &FActorPickerTrackEditor::IsActorPickable, ObjectBindings[0], Section));
 		}		
 
 		// Actor selector to allow the user to choose a parent actor

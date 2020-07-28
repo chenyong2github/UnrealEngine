@@ -22,65 +22,65 @@
 
 namespace SceneOutliner
 {
-FText GetWorldDescription(UWorld* World)
-{
-	FText Description;
-	if (World)
+	FText GetWorldDescription(UWorld* World)
 	{
-		FText PostFix;
-		const FWorldContext* WorldContext = nullptr;
-		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		FText Description;
+		if (World)
 		{
-			if (Context.World() == World)
+			FText PostFix;
+			const FWorldContext* WorldContext = nullptr;
+			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
-				WorldContext = &Context;
-				break;
+				if (Context.World() == World)
+				{
+					WorldContext = &Context;
+					break;
+				}
 			}
+
+			if (World->WorldType == EWorldType::PIE)
+			{
+				switch (World->GetNetMode())
+				{
+				case NM_Client:
+					if (WorldContext)
+					{
+						PostFix = FText::Format(LOCTEXT("ClientPostfixFormat", "(Client {0})"), FText::AsNumber(WorldContext->PIEInstance - 1));
+					}
+					else
+					{
+						PostFix = LOCTEXT("ClientPostfix", "(Client)");
+					}
+					break;
+				case NM_DedicatedServer:
+				case NM_ListenServer:
+					PostFix = LOCTEXT("ServerPostfix", "(Server)");
+					break;
+				case NM_Standalone:
+					PostFix = LOCTEXT("PlayInEditorPostfix", "(Play In Editor)");
+					break;
+				}
+			}
+			else if (World->WorldType == EWorldType::Editor)
+			{
+				PostFix = LOCTEXT("EditorPostfix", "(Editor)");
+			}
+
+			Description = FText::Format(LOCTEXT("WorldFormat", "{0} {1}"), FText::FromString(World->GetFName().GetPlainNameString()), PostFix);
 		}
 
-		if (World->WorldType == EWorldType::PIE)
-		{
-			switch (World->GetNetMode())
-			{
-			case NM_Client:
-				if (WorldContext)
-				{
-					PostFix = FText::Format(LOCTEXT("ClientPostfixFormat", "(Client {0})"), FText::AsNumber(WorldContext->PIEInstance - 1));
-				}
-				else
-				{
-					PostFix = LOCTEXT("ClientPostfix", "(Client)");
-				}
-				break;
-			case NM_DedicatedServer:
-			case NM_ListenServer:
-				PostFix = LOCTEXT("ServerPostfix", "(Server)");
-				break;
-			case NM_Standalone:
-				PostFix = LOCTEXT("PlayInEditorPostfix", "(Play In Editor)");
-				break;
-			}
-		}
-		else if (World->WorldType == EWorldType::Editor)
-		{
-			PostFix = LOCTEXT("EditorPostfix", "(Editor)");
-		}
-
-		Description = FText::Format(LOCTEXT("WorldFormat", "{0} {1}"), FText::FromString(World->GetFName().GetPlainNameString()), PostFix);
+		return Description;
 	}
-
-	return Description;
 }
 
+const FSceneOutlinerTreeItemType FWorldTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
-const FTreeItemType FWorldTreeItem::Type(&ITreeItem::Type);
-
-struct SWorldTreeLabel : FCommonLabelData, public SCompoundWidget
+struct SWorldTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SWorldTreeLabel) {}
 	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, FWorldTreeItem& WorldItem, ISceneOutliner& SceneOutliner, const STableRow<FTreeItemPtr>& InRow)
+		void Construct(const FArguments& InArgs, FWorldTreeItem& WorldItem, ISceneOutliner& SceneOutliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 	{
 		TreeItemPtr = StaticCastSharedRef<FWorldTreeItem>(WorldItem.AsShared());
 		WeakSceneOutliner = StaticCastSharedRef<ISceneOutliner>(SceneOutliner.AsShared());
@@ -92,11 +92,11 @@ struct SWorldTreeLabel : FCommonLabelData, public SCompoundWidget
 				+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
-			.Padding(FDefaultTreeItemMetrics::IconPadding())
+			.Padding(FSceneOutlinerDefaultTreeItemMetrics::IconPadding())
 			[
 				SNew(SBox)
-				.WidthOverride(FDefaultTreeItemMetrics::IconSize())
-			.HeightOverride(FDefaultTreeItemMetrics::IconSize())
+				.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+			.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
 			[
 				SNew(SImage)
 				.Image(FSlateIconFinder::FindIconBrushForClass(UWorld::StaticClass()))
@@ -147,7 +147,7 @@ private:
 
 	FSlateColor GetForegroundColor() const
 	{
-		if (auto BaseColor = FCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
+		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
 		{
 			return BaseColor.GetValue();
 		}
@@ -157,20 +157,20 @@ private:
 };
 
 FWorldTreeItem::FWorldTreeItem(UWorld* InWorld)
-	: ITreeItem(Type)
+	: ISceneOutlinerTreeItem(Type)
 	, World(InWorld)
 	, ID(InWorld)
 {
 }
 
 FWorldTreeItem::FWorldTreeItem(TWeakObjectPtr<UWorld> InWorld)
-	: ITreeItem(Type)
+	: ISceneOutlinerTreeItem(Type)
 	, World(InWorld)
 	, ID(InWorld.Get())
 {
 }
 
-FTreeItemID FWorldTreeItem::GetID() const
+FSceneOutlinerTreeItemID FWorldTreeItem::GetID() const
 {
 	return ID;
 }
@@ -213,7 +213,7 @@ void FWorldTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 	Section.AddMenuEntry("OpenWorldSettings", LOCTEXT("OpenWorldSettings", "World Settings"), FText(), WorldSettingsIcon, FExecuteAction::CreateSP(this, &FWorldTreeItem::OpenWorldSettings));
 }
 
-TSharedRef<SWidget> FWorldTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FTreeItemPtr>& InRow)
+TSharedRef<SWidget> FWorldTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)
 {
 	return SNew(SWorldTreeLabel, *this, Outliner, InRow);
 }
@@ -223,7 +223,5 @@ void FWorldTreeItem::OpenWorldSettings() const
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FName("WorldSettingsTab"));	
 }
-
-}		// namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

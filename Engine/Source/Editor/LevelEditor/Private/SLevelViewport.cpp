@@ -2542,9 +2542,9 @@ TSharedRef< ISceneOutlinerColumn > SLevelViewport::CreateActorLockSceneOutlinerC
 				];
 		}
 
-		virtual const TSharedRef< SWidget > ConstructRowWidget( SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& InRow ) override
+		virtual const TSharedRef< SWidget > ConstructRowWidget( FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& InRow ) override
 		{
-			if (SceneOutliner::FActorTreeItem* ActorItem = TreeItem->CastTo<SceneOutliner::FActorTreeItem>())
+			if (FActorTreeItem* ActorItem = TreeItem->CastTo<FActorTreeItem>())
 			{
 				AActor* Actor = ActorItem->Actor.Get();
 				if (!Actor)

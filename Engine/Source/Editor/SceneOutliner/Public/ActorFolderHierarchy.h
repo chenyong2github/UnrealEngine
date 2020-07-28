@@ -5,27 +5,24 @@
 #include "CoreMinimal.h"
 #include "ISceneOutlinerHierarchy.h"
 
-namespace SceneOutliner
+class FActorFolderHierarchy : public ISceneOutlinerHierarchy
 {
-	class FActorFolderHierarchy : public ISceneOutlinerHierarchy
-	{
-	public:
-		FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World);
-		virtual ~FActorFolderHierarchy() {}
+public:
+	FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World);
+	virtual ~FActorFolderHierarchy() {}
 
 
-		/* Begin ISceneOutlinerHierarchy Implementation */
-		virtual void FindChildren(const ITreeItem& Item, const TMap<FTreeItemID, FTreeItemPtr>& Items, TArray<FTreeItemPtr>& OutChildItems) const override;
-		virtual FTreeItemPtr FindParent(const ITreeItem& Item, const TMap<FTreeItemID, FTreeItemPtr>& Items) const override;
-		virtual void CreateItems(TArray<FTreeItemPtr>& OutItems) const override;
-		virtual void CreateChildren(const FTreeItemPtr& Item, TArray<FTreeItemPtr>& OutChildren) const override;
-		virtual FTreeItemPtr CreateParentItem(const FTreeItemPtr& Item) const override;
-		/* End ISceneOutlinerHierarchy Implementation */
-	private:
-		/** Adds all the direct and indirect children of a world to OutItems */
-		void CreateWorldChildren(UWorld* World, TArray<FTreeItemPtr>& OutItems) const;
-	private:
-		/** The world which this hierarchy is representing */
-		TWeakObjectPtr<UWorld> RepresentingWorld;
-	};
-}
+	/* Begin ISceneOutlinerHierarchy Implementation */
+	virtual void FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildItems) const override;
+	virtual FSceneOutlinerTreeItemPtr FindParent(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items) const override;
+	virtual void CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const override;
+	virtual void CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const override;
+	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
+	/* End ISceneOutlinerHierarchy Implementation */
+private:
+	/** Adds all the direct and indirect children of a world to OutItems */
+	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
+private:
+	/** The world which this hierarchy is representing */
+	TWeakObjectPtr<UWorld> RepresentingWorld;
+};

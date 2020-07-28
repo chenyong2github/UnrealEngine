@@ -21,32 +21,32 @@
 
 void FSceneOutlinerModule::StartupModule()
 {
-	RegisterDefaultColumnType< SceneOutliner::FItemLabelColumn >(SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10));
+	RegisterDefaultColumnType< FSceneOutlinerItemLabelColumn >(FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 
 	// Register builtin column types which are not active by default
-	RegisterColumnType<SceneOutliner::FSceneOutlinerGutter>();
-	RegisterColumnType<SceneOutliner::FActorInfoColumn>();
+	RegisterColumnType<FSceneOutlinerGutter>();
+	RegisterColumnType<FActorInfoColumn>();
 }
 
 
 void FSceneOutlinerModule::ShutdownModule()
 {
-	UnRegisterColumnType<SceneOutliner::FSceneOutlinerGutter>();
-	UnRegisterColumnType<SceneOutliner::FItemLabelColumn>();
-	UnRegisterColumnType<SceneOutliner::FActorInfoColumn>();
+	UnRegisterColumnType<FSceneOutlinerGutter>();
+	UnRegisterColumnType<FSceneOutlinerItemLabelColumn>();
+	UnRegisterColumnType<FActorInfoColumn>();
 }
 
-TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const SceneOutliner::FInitializationOptions& InitOptions) const
+TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const FSceneOutlinerInitializationOptions& InitOptions) const
 {
-	return SNew(SceneOutliner::SSceneOutliner, InitOptions)
+	return SNew(SSceneOutliner, InitOptions)
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 }
 
-TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const SceneOutliner::FInitializationOptions& InInitOptions, const FOnActorPicked& OnActorPickedDelegate, TWeakObjectPtr<UWorld> SpecifiedWorld) const
+TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const FSceneOutlinerInitializationOptions& InInitOptions, const FOnActorPicked& OnActorPickedDelegate, TWeakObjectPtr<UWorld> SpecifiedWorld) const
 {
-	auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnActorPickedDelegate](TSharedRef<SceneOutliner::ITreeItem> Item)
+	auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnActorPickedDelegate](TSharedRef<ISceneOutlinerTreeItem> Item)
 		{
-			if (SceneOutliner::FActorTreeItem* ActorItem = Item->CastTo<SceneOutliner::FActorTreeItem>())
+			if (FActorTreeItem* ActorItem = Item->CastTo<FActorTreeItem>())
 			{
 				if (ActorItem->IsValid())
 				{
@@ -56,28 +56,28 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const SceneOu
 			}
 		});
 
-	SceneOutliner::FCreateOutlinerMode ModeFactory = SceneOutliner::FCreateOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SceneOutliner::SSceneOutliner* Outliner)
+	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SSceneOutliner* Outliner)
 		{
-			return new SceneOutliner::FActorPickingMode(Outliner, true, OnItemPicked, SpecifiedWorld);
+			return new FActorPickingMode(Outliner, true, OnItemPicked, SpecifiedWorld);
 		});
 
 	
 
-	SceneOutliner::FInitializationOptions InitOptions(InInitOptions);
+	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);
 	InitOptions.ModeFactory = ModeFactory;
 	if (InitOptions.ColumnMap.Num() == 0)
 	{
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 	}
 	return CreateSceneOutliner(InitOptions);
 }
 
-TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const SceneOutliner::FInitializationOptions& InInitOptions, const FOnComponentPicked& OnComponentPickedDelegate, TWeakObjectPtr<UWorld> SpecifiedWorld) const
+TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const FSceneOutlinerInitializationOptions& InInitOptions, const FOnComponentPicked& OnComponentPickedDelegate, TWeakObjectPtr<UWorld> SpecifiedWorld) const
 {
-	auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnComponentPickedDelegate](TSharedRef<SceneOutliner::ITreeItem> Item)
+	auto OnItemPicked = FOnSceneOutlinerItemPicked::CreateLambda([OnComponentPickedDelegate](TSharedRef<ISceneOutlinerTreeItem> Item)
 		{
-			if (SceneOutliner::FComponentTreeItem* ComponentItem = Item->CastTo<SceneOutliner::FComponentTreeItem>())
+			if (FComponentTreeItem* ComponentItem = Item->CastTo<FComponentTreeItem>())
 			{
 				if (ComponentItem->IsValid())
 				{
@@ -86,35 +86,35 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const Sce
 			}
 		});
 
-	SceneOutliner::FCreateOutlinerMode ModeFactory = SceneOutliner::FCreateOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SceneOutliner::SSceneOutliner* Outliner)
+	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SSceneOutliner* Outliner)
 		{
-			return new SceneOutliner::FActorPickingMode(Outliner, false, OnItemPicked, SpecifiedWorld);
+			return new FActorPickingMode(Outliner, false, OnItemPicked, SpecifiedWorld);
 		});
 
-	SceneOutliner::FInitializationOptions InitOptions(InInitOptions);
+	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);
 	InitOptions.ModeFactory = ModeFactory;
 	if (InitOptions.ColumnMap.Num() == 0)
 	{
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 	}
 	return CreateSceneOutliner(InitOptions);
 }
 
-TSharedRef< ISceneOutliner > FSceneOutlinerModule::CreateActorBrowser(const SceneOutliner::FInitializationOptions& InInitOptions, TWeakObjectPtr<UWorld> SpecifiedWorld) const
+TSharedRef< ISceneOutliner > FSceneOutlinerModule::CreateActorBrowser(const FSceneOutlinerInitializationOptions& InInitOptions, TWeakObjectPtr<UWorld> SpecifiedWorld) const
 {
-	SceneOutliner::FCreateOutlinerMode ModeFactory = SceneOutliner::FCreateOutlinerMode::CreateLambda([&SpecifiedWorld](SceneOutliner::SSceneOutliner* Outliner)
+	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&SpecifiedWorld](SSceneOutliner* Outliner)
 		{
-			return new SceneOutliner::FActorBrowsingMode(Outliner, SpecifiedWorld);
+			return new FActorBrowsingMode(Outliner, SpecifiedWorld);
 		});
 
-	SceneOutliner::FInitializationOptions InitOptions(InInitOptions);
+	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);
 	InitOptions.ModeFactory = ModeFactory;
 	if (InitOptions.ColumnMap.Num() == 0)
 	{
 		InitOptions.UseDefaultColumns();
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Gutter(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 20));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Gutter(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 20));
 	}
 	return CreateSceneOutliner(InitOptions);
 }

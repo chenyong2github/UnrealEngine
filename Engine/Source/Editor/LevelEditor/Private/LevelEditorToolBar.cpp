@@ -1995,10 +1995,8 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			return;
 		}
 
-		using namespace SceneOutliner;
-
 		// We can't build a list of Matinees and LevelSequenceActors while the current World is a PIE world.
-		FInitializationOptions InitOptions;
+		FSceneOutlinerInitializationOptions InitOptions;
 		{
 			// We hide the header row to keep the UI compact.
 			// @todo: Might be useful to have this sometimes, actually.  Ideally the user could summon it.
@@ -2006,8 +2004,8 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			InitOptions.bShowSearchBox = false;
 			InitOptions.bShowCreateNewFolder = false;
 
-			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
-			InitOptions.ColumnMap.Add(FBuiltInColumnTypes::ActorInfo(), FColumnInfo(EColumnVisibility::Visible, 10));
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 
 			// Only display Matinee and MovieScene actors
 			auto ActorFilter = [&](const AActor* Actor) {

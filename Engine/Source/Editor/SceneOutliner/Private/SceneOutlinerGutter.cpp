@@ -17,22 +17,22 @@
 
 namespace SceneOutliner
 {
-
-void OnSetItemVisibility(ITreeItem& Item, const bool bNewVisibility)
-{
-	// Apply the same visibility to the children
-	Item.OnVisibilityChanged(bNewVisibility);
-	for (auto& ChildPtr : Item.GetChildren())
+	void OnSetItemVisibility(ISceneOutlinerTreeItem& Item, const bool bNewVisibility)
 	{
-		auto Child = ChildPtr.Pin();
-		if (Child.IsValid())
+		// Apply the same visibility to the children
+		Item.OnVisibilityChanged(bNewVisibility);
+		for (auto& ChildPtr : Item.GetChildren())
 		{
-			OnSetItemVisibility(*Child, bNewVisibility);
+			auto Child = ChildPtr.Pin();
+			if (Child.IsValid())
+			{
+				OnSetItemVisibility(*Child, bNewVisibility);
+			}
 		}
 	}
 }
 
-bool FGetVisibilityCache::RecurseChildren(const ITreeItem& Item) const
+bool FSceneOutlinerVisibilityCache::RecurseChildren(const ISceneOutlinerTreeItem& Item) const
 {
 	if (const bool* Info = VisibilityInfo.Find(&Item))
 	{
@@ -56,7 +56,7 @@ bool FGetVisibilityCache::RecurseChildren(const ITreeItem& Item) const
 	}
 }
 
-bool FGetVisibilityCache::GetVisibility(const ITreeItem& Item) const
+bool FSceneOutlinerVisibilityCache::GetVisibility(const ISceneOutlinerTreeItem& Item) const
 {
 	if (Item.HasVisibilityInfo())
 	{
@@ -118,7 +118,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Construct this widget */
-	void Construct(const FArguments& InArgs, TWeakPtr<FSceneOutlinerGutter> InWeakColumn, TWeakPtr<ISceneOutliner> InWeakOutliner, TWeakPtr<ITreeItem> InWeakTreeItem, const STableRow<FTreeItemPtr>* InRow)
+	void Construct(const FArguments& InArgs, TWeakPtr<FSceneOutlinerGutter> InWeakColumn, TWeakPtr<ISceneOutliner> InWeakOutliner, TWeakPtr<ISceneOutlinerTreeItem> InWeakTreeItem, const STableRow<FSceneOutlinerTreeItemPtr>* InRow)
 	{
 		WeakTreeItem = InWeakTreeItem;
 		WeakOutliner = InWeakOutliner;
@@ -196,7 +196,7 @@ private:
 			{
 				if (IsVisible(SelectedItem, Column) != bVisible)
 				{
-					OnSetItemVisibility(*SelectedItem, bVisible);
+					SceneOutliner::OnSetItemVisibility(*SelectedItem, bVisible);
 				}		
 			}
 
@@ -279,7 +279,7 @@ private:
 	}
 
 	/** Check if the specified item is visible */
-	static bool IsVisible(const FTreeItemPtr& Item, const TSharedPtr<FSceneOutlinerGutter>& Column)
+	static bool IsVisible(const FSceneOutlinerTreeItemPtr& Item, const TSharedPtr<FSceneOutlinerGutter>& Column)
 	{
 		return Column.IsValid() && Item.IsValid() ? Column->IsItemVisible(*Item) : false;
 	}
@@ -293,12 +293,12 @@ private:
 	/** Set the item this widget is responsible for to be hidden or shown */
 	void SetIsVisible(const bool bVisible)
 	{
-		TSharedPtr<ITreeItem> TreeItem = WeakTreeItem.Pin();
+		TSharedPtr<ISceneOutlinerTreeItem> TreeItem = WeakTreeItem.Pin();
 		TSharedPtr<ISceneOutliner> Outliner = WeakOutliner.Pin();
 
 		if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
 		{
-			OnSetItemVisibility(*TreeItem, bVisible);
+			SceneOutliner::OnSetItemVisibility(*TreeItem, bVisible);
 			
 			Outliner->Refresh();
 
@@ -307,7 +307,7 @@ private:
 	}
 
 	/** The tree item we relate to */
-	TWeakPtr<ITreeItem> WeakTreeItem;
+	TWeakPtr<ISceneOutlinerTreeItem> WeakTreeItem;
 	
 	/** Reference back to the outliner so we can set visibility of a whole selection */
 	TWeakPtr<ISceneOutliner> WeakOutliner;
@@ -316,7 +316,7 @@ private:
 	TWeakPtr<FSceneOutlinerGutter> WeakColumn;
 
 	/** Weak pointer back to the row */
-	const STableRow<FTreeItemPtr>* Row;
+	const STableRow<FSceneOutlinerTreeItemPtr>* Row;
 
 	/** Scoped undo transaction */
 	TUniquePtr<FScopedTransaction> UndoTransaction;
@@ -358,7 +358,7 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerGutter::ConstructHeaderRowColumn()
 		];
 }
 
-const TSharedRef<SWidget> FSceneOutlinerGutter::ConstructRowWidget(FTreeItemRef TreeItem, const STableRow<FTreeItemPtr>& Row)
+const TSharedRef<SWidget> FSceneOutlinerGutter::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
 	return SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -369,17 +369,15 @@ const TSharedRef<SWidget> FSceneOutlinerGutter::ConstructRowWidget(FTreeItemRef 
 		];
 }
 
-void FSceneOutlinerGutter::SortItems(TArray<FTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const
+void FSceneOutlinerGutter::SortItems(TArray<FSceneOutlinerTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const
 {
-	FSortHelper<int32, bool>()
+	FSceneOutlinerSortHelper<int32, bool>()
 		/** Sort by type first */
-		.Primary([this](const ITreeItem& Item){ return WeakOutliner.Pin()->GetMode()->GetTypeSortPriority(Item); }, SortMode)
+		.Primary([this](const ISceneOutlinerTreeItem& Item){ return WeakOutliner.Pin()->GetMode()->GetTypeSortPriority(Item); }, SortMode)
 		/** Then by visibility */
-		.Secondary([](const ITreeItem& Item) {return FGetVisibilityCache().GetVisibility(Item); },					SortMode)
+		.Secondary([](const ISceneOutlinerTreeItem& Item) {return FSceneOutlinerVisibilityCache().GetVisibility(Item); },					SortMode)
 		.Sort(RootItems);
 }
-
-}		// namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE
 

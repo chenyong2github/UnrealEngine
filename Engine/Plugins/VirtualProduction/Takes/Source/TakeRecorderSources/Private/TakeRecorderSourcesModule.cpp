@@ -175,8 +175,6 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 
 	virtual bool CanHandleOperation(TSharedPtr<FDragDropOperation> InOperation, UTakeRecorderSources* Sources) override
 	{
-		using namespace SceneOutliner;
-
 		if (InOperation)
 		{
 			if (InOperation->IsOfType<FActorDragDropOp>())
@@ -194,8 +192,6 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 
 	TArray<AActor*> GetValidDropActors(TSharedPtr<FDragDropOperation> InOperation, UTakeRecorderSources* Sources)
 	{
-		using namespace SceneOutliner;
-
 		FActorDragDropOp*  ActorDrag = nullptr;
 		FFolderDragDropOp* FolderDrag = nullptr;
 
@@ -394,10 +390,8 @@ public:
 
 		MenuBuilder.BeginSection("ChooseActorSection", LOCTEXT("ChooseActor", "Choose Actor:"));
 		{
-			using namespace SceneOutliner;
-
 			// Set up a menu entry to add any arbitrary actor to the sequencer
-			FInitializationOptions InitOptions;
+			FSceneOutlinerInitializationOptions InitOptions;
 			{
 				// We hide the header row to keep the UI compact.
 				InitOptions.bShowHeaderRow = false;
@@ -406,7 +400,7 @@ public:
 				InitOptions.bFocusSearchBoxWhenOpened = true;
 
 				// Only want the actor label column
-				InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 0));
+				InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 
 				// Only display actors that are not possessed already
 				InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda(OutlinerFilterPredicate));

@@ -8,8 +8,6 @@
 
 namespace DataprepEditorSceneOutlinerUtils
 {
-	using namespace SceneOutliner;
-
 	/**
 	* Use this struct to match the scene outliers selection to a dataprep editor selection
 	*/
@@ -20,7 +18,7 @@ namespace DataprepEditorSceneOutlinerUtils
 		{
 		};
 
-		bool operator()(const ITreeItem& Item) const
+		bool operator()(const ISceneOutlinerTreeItem& Item) const
 		{
 			if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 			{
@@ -44,18 +42,18 @@ namespace DataprepEditorSceneOutlinerUtils
 	};
 }
 
-class FDataprepEditorOutlinerMode : public SceneOutliner::FActorMode
+class FDataprepEditorOutlinerMode : public FActorMode
 {
 public:
-	FDataprepEditorOutlinerMode(SceneOutliner::SSceneOutliner* InSceneOutliner, TWeakPtr<FDataprepEditor> InDataprepEditor, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr)
-		: SceneOutliner::FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
+	FDataprepEditorOutlinerMode(SSceneOutliner* InSceneOutliner, TWeakPtr<FDataprepEditor> InDataprepEditor, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr)
+		: FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
 		, DataprepEditorPtr(InDataprepEditor)
 	{}
 
-	virtual bool CanRenameItem(const SceneOutliner::ITreeItem& Item) const override { return false; }
+	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override { return false; }
 	virtual ESelectionMode::Type GetSelectionMode() const override { return ESelectionMode::Multi; }
 
-	virtual void OnItemSelectionChanged(SceneOutliner::FTreeItemPtr Item, ESelectInfo::Type SelectionType, const SceneOutliner::FItemSelection& Selection) override
+	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Item, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override
 	{
 		auto DataprepEditor = DataprepEditorPtr.Pin();
 		if (DataprepEditor)

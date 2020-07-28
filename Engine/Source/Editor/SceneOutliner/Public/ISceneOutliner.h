@@ -10,7 +10,7 @@
 
 // Forward declaration
 template<typename ItemType> class STreeView;
-namespace SceneOutliner { struct FColumnInfo; }
+struct FSceneOutlinerColumnInfo;
 
 /**
  * The public interface for the Scene Outliner widget
@@ -29,10 +29,10 @@ public:
 	virtual TAttribute<FText> GetFilterHighlightText() const = 0;
 
 	/** @return Returns the common data for this outliner */
-	virtual const SceneOutliner::FSharedOutlinerData& GetSharedData() const = 0;
+	virtual const FSharedSceneOutlinerData& GetSharedData() const = 0;
 
 	/** Get a const reference to the actual tree hierarchy */
-	virtual const STreeView<SceneOutliner::FTreeItemPtr>& GetTree() const = 0;
+	virtual const STreeView<FSceneOutlinerTreeItemPtr>& GetTree() const = 0;
 
 	/** Set the keyboard focus to the outliner */
 	virtual void SetKeyboardFocus() = 0;
@@ -44,28 +44,28 @@ public:
 	virtual void CacheIconForClass(FName InClassName, const FSlateBrush* InSlateBrush) = 0;
 
 	/** Should the scene outliner accept a request to rename a item of the tree */
-	virtual bool CanExecuteRenameRequest(const SceneOutliner::ITreeItem& ItemPtr) const = 0;
+	virtual bool CanExecuteRenameRequest(const ISceneOutlinerTreeItem& ItemPtr) const = 0;
 
 	/** 
 	 * Add a filter to the scene outliner 
 	 * @param Filter The filter to apply to the scene outliner
 	 * @return The index of the filter.
 	 */
-	virtual int32 AddFilter(const TSharedRef<SceneOutliner::FOutlinerFilter>& Filter) = 0;
+	virtual int32 AddFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) = 0;
 
 	/** 
 	 * Remove a filter from the scene outliner
 	 * @param Filter The Filter to remove
 	 * @return True if the filter was removed.
 	 */
-	virtual bool RemoveFilter(const TSharedRef<SceneOutliner::FOutlinerFilter>& Filter) = 0;
+	virtual bool RemoveFilter(const TSharedRef<FSceneOutlinerFilter>& Filter) = 0;
 
 	/** 
 	 * Retrieve the filter at the specified index
 	 * @param Index The index of the filter to retrive
 	 * @return A valid poiter to a filter if the index was valid
 	 */
-	virtual TSharedPtr<SceneOutliner::FOutlinerFilter> GetFilterAtIndex(int32 Index) = 0;
+	virtual TSharedPtr<FSceneOutlinerFilter> GetFilterAtIndex(int32 Index) = 0;
 
 	/** Get number of filters applied to the scene outliner */
 	virtual int32 GetFilterCount() const = 0;
@@ -76,7 +76,7 @@ public:
 	 * @param ColumnId The id of the column to add
 	 * @param ColumInfo The struct that contains the information on how to present and retrieve the column
 	 */
-	virtual void AddColumn(FName ColumnId, const SceneOutliner::FColumnInfo& ColumnInfo) = 0;
+	virtual void AddColumn(FName ColumnId, const FSceneOutlinerColumnInfo& ColumnInfo) = 0;
 
 	/**
 	 * Remove a column of the scene outliner
@@ -90,7 +90,7 @@ public:
 	/** Return the sorting mode for the specified ColumnId */
 	virtual EColumnSortMode::Type GetColumnSortMode( const FName ColumnId ) const = 0;
 
-	virtual uint32 GetTypeSortPriority(const SceneOutliner::ITreeItem& Item) const = 0;
+	virtual uint32 GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const = 0;
 
 	/** Request that the tree be sorted at a convenient time */
 	virtual void RequestSort() = 0;
@@ -117,10 +117,10 @@ public:
 	virtual bool CanSupportDragAndDrop() const = 0;
 
 	/** Set the item selection of the outliner based on a selector function. Any items which return true will be added */
-	virtual void SetSelection(const TFunctionRef<bool(SceneOutliner::ITreeItem&)> Selector) = 0;
+	virtual void SetSelection(const TFunctionRef<bool(ISceneOutlinerTreeItem&)> Selector) = 0;
 
 	/** Get the active SceneOutlinerMode */
-	const SceneOutliner::ISceneOutlinerMode* GetMode() const { return Mode; }
+	const ISceneOutlinerMode* GetMode() const { return Mode; }
 protected:
-	SceneOutliner::ISceneOutlinerMode* Mode;
+	ISceneOutlinerMode* Mode;
 };

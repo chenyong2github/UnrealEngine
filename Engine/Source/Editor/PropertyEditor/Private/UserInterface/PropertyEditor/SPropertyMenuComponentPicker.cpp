@@ -80,49 +80,49 @@ void SPropertyMenuComponentPicker::Construct(const FArguments& InArgs)
 
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
-		SceneOutliner::FInitializationOptions InitOptions;
+		FSceneOutlinerInitializationOptions InitOptions;
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
-		struct FPickerFilter : public SceneOutliner::FOutlinerFilter
+		struct FPickerFilter : public FSceneOutlinerFilter
 		{
 			FPickerFilter(const FOnShouldFilterActor& InActorFilter, const FOnShouldFilterComponent& InComponentFilter)
-				: FOutlinerFilter(SceneOutliner::EDefaultFilterBehaviour::Fail)
+				: FSceneOutlinerFilter(FSceneOutlinerFilter::EDefaultBehaviour::Fail)
 				, ActorFilter(InActorFilter)
 				, ComponentFilter(InComponentFilter)
 			{}
 
-			virtual bool PassesFilter(const SceneOutliner::ITreeItem& InItem) const override
+			virtual bool PassesFilter(const ISceneOutlinerTreeItem& InItem) const override
 			{
-				if (const SceneOutliner::FActorTreeItem* ActorItem = InItem.CastTo<SceneOutliner::FActorTreeItem>())
+				if (const FActorTreeItem* ActorItem = InItem.CastTo<FActorTreeItem>())
 				{
 					return ActorItem->IsValid() && ActorFilter.Execute(ActorItem->Actor.Get());
 				}
-				else if (const SceneOutliner::FComponentTreeItem* ComponentItem = InItem.CastTo<SceneOutliner::FComponentTreeItem>())
+				else if (const FComponentTreeItem* ComponentItem = InItem.CastTo<FComponentTreeItem>())
 				{
 					return ComponentItem->IsValid() && ComponentFilter.Execute(ComponentItem->Component.Get());
 				}
 
-				return DefaultBehaviour == SceneOutliner::EDefaultFilterBehaviour::Pass;
+				return DefaultBehaviour == FSceneOutlinerFilter::EDefaultBehaviour::Pass;
 			}
 
-			virtual bool GetInteractiveState(const SceneOutliner::ITreeItem& InItem) const override
+			virtual bool GetInteractiveState(const ISceneOutlinerTreeItem& InItem) const override
 			{
 				// All components which pass the filter are interactive
-				if (const SceneOutliner::FComponentTreeItem* ComponentItem = InItem.CastTo<SceneOutliner::FComponentTreeItem>())
+				if (const FComponentTreeItem* ComponentItem = InItem.CastTo<FComponentTreeItem>())
 				{
 					return true;
 				}
-				return DefaultBehaviour == SceneOutliner::EDefaultFilterBehaviour::Pass;
+				return DefaultBehaviour == FSceneOutlinerFilter::EDefaultBehaviour::Pass;
 			}
 
 			FOnShouldFilterActor ActorFilter;
 			FOnShouldFilterComponent ComponentFilter;
 		};
 
-		TSharedRef<SceneOutliner::FOutlinerFilter> Filter = MakeShared<FPickerFilter>(ActorFilter, ComponentFilter);
+		TSharedRef<FSceneOutlinerFilter> Filter = MakeShared<FPickerFilter>(ActorFilter, ComponentFilter);
 		InitOptions.Filters->Add(Filter);
 
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
 
 		MenuContent =
 			SNew(SBox)

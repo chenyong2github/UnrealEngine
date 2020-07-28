@@ -3,57 +3,57 @@
 #include "SceneOutlinerStandaloneTypes.h"
 
 #include "EditorActorFolders.h"
-#include "ITreeItem.h"
+#include "ISceneOutlinerTreeItem.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerMode.h"
 
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerStandaloneTypes"
 
+uint32 FSceneOutlinerTreeItemType::NextUniqueID = 0;
+const FSceneOutlinerTreeItemType ISceneOutlinerTreeItem::Type;
+
+const FLinearColor FSceneOutlinerCommonLabelData::DarkColor(0.3f, 0.3f, 0.3f);
+
+TOptional<FLinearColor> FSceneOutlinerCommonLabelData::GetForegroundColor(const ISceneOutlinerTreeItem& TreeItem) const
+{
+	if (!TreeItem.IsValid())
+	{
+		return DarkColor;
+	}
+
+	// Darken items that aren't suitable targets for an active drag and drop action
+	if (FSlateApplication::Get().IsDragDropping())
+	{
+		TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
+
+		FSceneOutlinerDragDropPayload DraggedObjects;
+		const auto Outliner = WeakSceneOutliner.Pin();
+		if (Outliner->GetMode()->ParseDragDrop(DraggedObjects, *DragDropOp) && !Outliner->GetMode()->ValidateDrop(TreeItem, DraggedObjects).IsValid())
+		{
+			return DarkColor;
+		}
+	}
+
+	if (!TreeItem.CanInteract())
+	{
+		return DarkColor;
+	}
+
+	return TOptional<FLinearColor>();
+}
+
+bool FSceneOutlinerCommonLabelData::CanExecuteRenameRequest(const ISceneOutlinerTreeItem& Item) const
+{
+	if (const ISceneOutliner* SceneOutliner = WeakSceneOutliner.Pin().Get())
+	{
+		return SceneOutliner->CanExecuteRenameRequest(Item);
+	}
+	return false;
+}
+
 namespace SceneOutliner
 {
-	uint32 FTreeItemType::NextUniqueID = 0;
-	const FTreeItemType ITreeItem::Type;
-
-	const FLinearColor FCommonLabelData::DarkColor(0.3f, 0.3f, 0.3f);
-
-	TOptional<FLinearColor> FCommonLabelData::GetForegroundColor(const ITreeItem& TreeItem) const
-	{
-		if (!TreeItem.IsValid())
-		{
-			return DarkColor;
-		}
-
-		// Darken items that aren't suitable targets for an active drag and drop action
-		if (FSlateApplication::Get().IsDragDropping())
-		{
-			TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
-
-			FDragDropPayload DraggedObjects;
-			const auto Outliner = WeakSceneOutliner.Pin();
-			if (Outliner->GetMode()->ParseDragDrop(DraggedObjects, *DragDropOp) && !Outliner->GetMode()->ValidateDrop(TreeItem, DraggedObjects).IsValid())
-			{
-				return DarkColor;
-			}
-		}
-
-		if (!TreeItem.CanInteract())
-		{
-			return DarkColor;
-		}
-
-		return TOptional<FLinearColor>();
-	}
-
-	bool FCommonLabelData::CanExecuteRenameRequest(const ITreeItem& Item) const
-	{
-		if (const ISceneOutliner* SceneOutliner = WeakSceneOutliner.Pin().Get())
-		{
-			return SceneOutliner->CanExecuteRenameRequest(Item);
-		}
-		return false;
-	}
-
 	/** Parse a new path (including leaf-name) into this tree item. Does not do any notification */
 	FName GetFolderLeafName(FName InPath)
 	{

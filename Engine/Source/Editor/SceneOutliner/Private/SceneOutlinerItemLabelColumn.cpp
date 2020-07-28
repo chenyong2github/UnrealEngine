@@ -19,43 +19,39 @@
 #include "SortHelper.h"
 #include "Widgets/SToolTip.h"
 
-
 #define LOCTEXT_NAMESPACE "SceneOutlinerItemLabelColumn"
 
-namespace SceneOutliner
-{
-FName FItemLabelColumn::GetColumnID()
+FName FSceneOutlinerItemLabelColumn::GetColumnID()
 {
 	return GetID();
 }
 
-SHeaderRow::FColumn::FArguments FItemLabelColumn::ConstructHeaderRowColumn()
+SHeaderRow::FColumn::FArguments FSceneOutlinerItemLabelColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
 		.DefaultLabel(LOCTEXT("ItemLabel_HeaderText", "Label"))
 		.FillWidth( 5.0f );
 }
-const TSharedRef<SWidget> FItemLabelColumn::ConstructRowWidget(FTreeItemRef TreeItem, const STableRow<FTreeItemPtr>& Row)
+const TSharedRef<SWidget> FSceneOutlinerItemLabelColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
 	ISceneOutliner* Outliner = WeakSceneOutliner.Pin().Get();
 	check(Outliner);
 	return TreeItem->GenerateLabelWidget(*Outliner, Row);
 }
 
-void FItemLabelColumn::PopulateSearchStrings( const ITreeItem& Item, TArray< FString >& OutSearchStrings ) const
+void FSceneOutlinerItemLabelColumn::PopulateSearchStrings( const ISceneOutlinerTreeItem& Item, TArray< FString >& OutSearchStrings ) const
 {
 	OutSearchStrings.Add(Item.GetDisplayString());
 }
 
-void FItemLabelColumn::SortItems(TArray<FTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
+void FSceneOutlinerItemLabelColumn::SortItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
 {
-	typedef FSortHelper<int32, FNumericStringWrapper> FSort;
+	typedef FSceneOutlinerSortHelper<int32, SceneOutliner::FNumericStringWrapper> FSort;
 
 	FSort()
-		.Primary([this](const ITreeItem& Item){ return WeakSceneOutliner.Pin()->GetTypeSortPriority(Item); },SortMode)
-		.Secondary([](const ITreeItem& Item){ return FNumericStringWrapper(Item.GetDisplayString()); }, 			SortMode)
+		.Primary([this](const ISceneOutlinerTreeItem& Item){ return WeakSceneOutliner.Pin()->GetTypeSortPriority(Item); },			SortMode)
+		.Secondary([](const ISceneOutlinerTreeItem& Item){ return SceneOutliner::FNumericStringWrapper(Item.GetDisplayString()); }, SortMode)
 		.Sort(OutItems);
 }
-}	// namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

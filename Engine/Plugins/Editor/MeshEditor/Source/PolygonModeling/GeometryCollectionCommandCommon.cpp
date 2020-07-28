@@ -217,7 +217,7 @@ void FGeometryCollectionCommandCommon::UpdateExplodedView(class IMeshEditorModeE
 	// Update the exploded view in the UI based on the current exploded view slider position
 	FFractureToolDelegates::Get().OnUpdateExplodedView.Broadcast(static_cast<uint8>(ResetType), static_cast<uint8>(MeshEditorMode.GetFractureSettings()->CommonSettings->ViewMode));
 
-	SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentsUpdated.Broadcast();
+	FSceneOutlinerDelegates::Get().OnComponentsUpdated.Broadcast();
 }
 
 UGeometryCollectionComponent* FGeometryCollectionCommandCommon::GetGeometryCollectionComponent(UEditableMesh* SourceMesh)

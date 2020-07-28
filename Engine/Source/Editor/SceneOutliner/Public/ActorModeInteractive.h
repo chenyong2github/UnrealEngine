@@ -4,23 +4,20 @@
 
 #include "ActorMode.h"
 
-namespace SceneOutliner
+class FActorModeInteractive : public FActorMode
 {
-	class FActorModeInteractive : public FActorMode
-	{
-	public:
-		FActorModeInteractive(SSceneOutliner* InSceneOutliner, bool bHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
-		virtual ~FActorModeInteractive();
+public:
+	FActorModeInteractive(SSceneOutliner* InSceneOutliner, bool bHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+	virtual ~FActorModeInteractive();
 
-		virtual bool IsInteractive() const override { return true; }
-	private:
-		/* Events */
+	virtual bool IsInteractive() const override { return true; }
+private:
+	/* Events */
 
-		void OnMapChange(uint32 MapFlags);
-		void OnNewCurrentLevel();
+	void OnMapChange(uint32 MapFlags);
+	void OnNewCurrentLevel();
 
-		void OnLevelSelectionChanged(UObject* Obj);
-		void OnActorLabelChanged(AActor* ChangedActor);
-		void OnLevelActorRequestsRename(const AActor* Actor);
-	};
-}
+	void OnLevelSelectionChanged(UObject* Obj);
+	void OnActorLabelChanged(AActor* ChangedActor);
+	void OnLevelActorRequestsRename(const AActor* Actor);
+};

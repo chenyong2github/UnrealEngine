@@ -6,53 +6,50 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActoFolderPickingMode"
 
-namespace SceneOutliner
+FActorFolderPickingMode::FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
+	: FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
+	, OnItemPicked(InOnItemPicked)
 {
-	FActorFolderPickingMode::FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
-		: FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
-		, OnItemPicked(InOnItemPicked)
-	{
-		Rebuild();
-	}
+	Rebuild();
+}
 
-	TUniquePtr<ISceneOutlinerHierarchy> FActorFolderPickingMode::CreateHierarchy()
-	{
-		return MakeUnique<FActorFolderHierarchy>(this, RepresentingWorld);
-	}
+TUniquePtr<ISceneOutlinerHierarchy> FActorFolderPickingMode::CreateHierarchy()
+{
+	return MakeUnique<FActorFolderHierarchy>(this, RepresentingWorld);
+}
 
-	void FActorFolderPickingMode::OnItemSelectionChanged(FTreeItemPtr Item, ESelectInfo::Type SelectionType, const FItemSelection& Selection)
+void FActorFolderPickingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Item, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)
+{
+	// fire off the notification to whoever is listening.
+	// This may often cause the widget itself to be enqueued for destruction
+	auto SelectedItems = SceneOutliner->GetSelectedItems();
+	if (SelectedItems.Num() > 0)
 	{
-		// fire off the notification to whoever is listening.
-		// This may often cause the widget itself to be enqueued for destruction
-		auto SelectedItems = SceneOutliner->GetSelectedItems();
-		if (SelectedItems.Num() > 0)
+		auto FirstItem = SelectedItems[0];
+		if (FirstItem->CanInteract())
 		{
-			auto FirstItem = SelectedItems[0];
-			if (FirstItem->CanInteract())
-			{
-				OnItemPicked.ExecuteIfBound(FirstItem.ToSharedRef());
-			}
+			OnItemPicked.ExecuteIfBound(FirstItem.ToSharedRef());
 		}
 	}
+}
 
-	void FActorFolderPickingMode::OnFilterTextCommited(FItemSelection& Selection, ETextCommit::Type CommitType)
+void FActorFolderPickingMode::OnFilterTextCommited(FSceneOutlinerItemSelection& Selection, ETextCommit::Type CommitType)
+{
+	// In folder picking mode, we check to see if we have a selected folder, and if so, fire
+	// off the notification to whoever is listening.  This may often cause the widget itself
+	// to be enqueued for destruction
+	TArray<FActorFolderTreeItem*> Folders;
+	Selection.Get(Folders);
+	if (Folders.Num() == 1 && Folders[0])
 	{
-		// In folder picking mode, we check to see if we have a selected folder, and if so, fire
-		// off the notification to whoever is listening.  This may often cause the widget itself
-		// to be enqueued for destruction
-		TArray<FActorFolderTreeItem*> Folders;
-		Selection.Get(Folders);
-		if (Folders.Num() == 1 && Folders[0])
-		{
-			// Signal that a folder was selected. We assume it is valid as it wouldn't not have been added to the selection if not
-			SceneOutliner->SetItemSelection(Folders[0]->AsShared(), true, ESelectInfo::OnKeyPress);
-		}
+		// Signal that a folder was selected. We assume it is valid as it wouldn't not have been added to the selection if not
+		SceneOutliner->SetItemSelection(Folders[0]->AsShared(), true, ESelectInfo::OnKeyPress);
 	}
+}
 
-	void FActorFolderPickingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
-	{
-		FActorMode::BuildWorldPickerMenu(MenuBuilder);
-	}
+void FActorFolderPickingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
+{
+	FActorMode::BuildWorldPickerMenu(MenuBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE

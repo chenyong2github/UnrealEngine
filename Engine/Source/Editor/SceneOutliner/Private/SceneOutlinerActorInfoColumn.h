@@ -16,41 +16,41 @@ class ISceneOutliner;
 
 namespace SceneOutliner
 {
-
-/** Types of actor data we can display in a 'custom' tree column */
-namespace ECustomColumnMode
-{
-	enum Type
+	/** Types of actor data we can display in a 'custom' tree column */
+	namespace ECustomColumnMode
 	{
-		/** Empty column -- doesn't display anything */
-		None = 0,
+		enum Type
+		{
+			/** Empty column -- doesn't display anything */
+			None = 0,
 
-		/** Class */
-		Class,
+			/** Class */
+			Class,
 
-		/** Mobility */
-		Mobility,
+			/** Mobility */
+			Mobility,
 
-		/** Level */
-		Level,
+			/** Level */
+			Level,
 
-		/** Layer */
-		Layer,
+			/** Layer */
+			Layer,
 
-		/** The socket the actor is attached to. */
-		Socket,
+			/** The socket the actor is attached to. */
+			Socket,
 
-		/** Actor's internal name (FName) */
-		InternalName,
+			/** Actor's internal name (FName) */
+			InternalName,
 
-		/** Actor's number of uncached lights */
-		UncachedLights,
+			/** Actor's number of uncached lights */
+			UncachedLights,
 
-		// ---
+			// ---
 
-		/** Number of options */
-		Count
-	};
+			/** Number of options */
+			Count
+		};
+	}
 }
 
 /**
@@ -64,11 +64,11 @@ public:
 	/**
 	 *	Constructor
 	 */
-	FActorInfoColumn( ISceneOutliner& Outliner, ECustomColumnMode::Type InDefaultCustomColumnMode = ECustomColumnMode::Class );
+	FActorInfoColumn( ISceneOutliner& Outliner, SceneOutliner::ECustomColumnMode::Type InDefaultCustomColumnMode = SceneOutliner::ECustomColumnMode::Class );
 
 	virtual ~FActorInfoColumn() {}
 
-	static FName GetID() { return FBuiltInColumnTypes::ActorInfo(); }
+	static FName GetID() { return FSceneOutlinerBuiltInColumnTypes::ActorInfo(); }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Begin ISceneOutlinerColumn Implementation
@@ -77,32 +77,32 @@ public:
 
 	virtual SHeaderRow::FColumn::FArguments ConstructHeaderRowColumn() override;
 
-	virtual const TSharedRef< SWidget > ConstructRowWidget( FTreeItemRef TreeItem, const STableRow<FTreeItemPtr>& Row ) override;
+	virtual const TSharedRef< SWidget > ConstructRowWidget( FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row ) override;
 
-	virtual void PopulateSearchStrings( const ITreeItem& Item, TArray< FString >& OutSearchStrings ) const override;
+	virtual void PopulateSearchStrings( const ISceneOutlinerTreeItem& Item, TArray< FString >& OutSearchStrings ) const override;
 
 	virtual bool SupportsSorting() const override;
 
-	virtual void SortItems(TArray<FTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const override;
+	virtual void SortItems(TArray<FSceneOutlinerTreeItemPtr>& RootItems, const EColumnSortMode::Type SortMode) const override;
 	
 	// End ISceneOutlinerColumn Implementation
 	//////////////////////////////////////////////////////////////////////////
 
-	FText GetTextForItem( const TWeakPtr<ITreeItem> TreeItem ) const;
+	FText GetTextForItem( const TWeakPtr<ISceneOutlinerTreeItem> TreeItem ) const;
 
 private:
 
-	TSharedPtr<SWidget> ConstructClassHyperlink( ITreeItem& TreeItem );
+	TSharedPtr<SWidget> ConstructClassHyperlink( ISceneOutlinerTreeItem& TreeItem );
 
-	void OnModeChanged( TSharedPtr< ECustomColumnMode::Type > NewSelection, ESelectInfo::Type SelectInfo );
+	void OnModeChanged( TSharedPtr< SceneOutliner::ECustomColumnMode::Type > NewSelection, ESelectInfo::Type SelectInfo );
 
 	EVisibility GetColumnDataVisibility( bool bIsClassHyperlink ) const;
 
-	FText MakeComboText( const ECustomColumnMode::Type& Mode ) const;
+	FText MakeComboText( const SceneOutliner::ECustomColumnMode::Type& Mode ) const;
 
-	FText MakeComboToolTipText( const ECustomColumnMode::Type& Mode );
+	FText MakeComboToolTipText( const SceneOutliner::ECustomColumnMode::Type& Mode );
 
-	TSharedRef< ITableRow > MakeComboButtonItemWidget( TSharedPtr< ECustomColumnMode::Type > Mode, const TSharedRef<STableViewBase> & );
+	TSharedRef< ITableRow > MakeComboButtonItemWidget( TSharedPtr< SceneOutliner::ECustomColumnMode::Type > Mode, const TSharedRef<STableViewBase> & );
 
 	FText GetSelectedMode() const;
 
@@ -112,16 +112,13 @@ private:
 	 * Current custom column mode.  This is used for displaying a bit of extra data about the actors, as well as
 	 * allowing the user to search by additional criteria 
 	 */
-	mutable ECustomColumnMode::Type CurrentMode;
+	mutable SceneOutliner::ECustomColumnMode::Type CurrentMode;
 
 	/** A list of available custom column modes for Slate */
-	static TArray< TSharedPtr< ECustomColumnMode::Type > > ModeOptions;
+	static TArray< TSharedPtr< SceneOutliner::ECustomColumnMode::Type > > ModeOptions;
 
 	/** Weak reference to the outliner widget that owns our list */
 	TWeakPtr< ISceneOutliner > SceneOutlinerWeak;
 };
-
-
-}	// namespace SceneOutliner
 
 ENUM_RANGE_BY_COUNT(SceneOutliner::ECustomColumnMode::Type, SceneOutliner::ECustomColumnMode::Count)

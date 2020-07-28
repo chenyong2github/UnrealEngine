@@ -16,39 +16,39 @@
 
 namespace SceneOutliner
 {
-const FTreeItemType FFolderTreeItem::Type(&ITreeItem::Type);
-
-bool FFolderPathSelector::operator()(TWeakPtr<ITreeItem> Item, FName& DataOut) const
-{
-	if (FFolderTreeItem* FolderItem = Item.Pin()->CastTo<FFolderTreeItem>())
+	bool FFolderPathSelector::operator()(TWeakPtr<ISceneOutlinerTreeItem> Item, FName& DataOut) const
 	{
-		if (FolderItem->IsValid())
+		if (FFolderTreeItem* FolderItem = Item.Pin()->CastTo<FFolderTreeItem>())
 		{
-			DataOut = FolderItem->Path;
-			return true;
+			if (FolderItem->IsValid())
+			{
+				DataOut = FolderItem->Path;
+				return true;
+			}
 		}
+		return false;
 	}
-	return false;
 }
 
+const FSceneOutlinerTreeItemType FFolderTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
 FFolderTreeItem::FFolderTreeItem(FName InPath)
-	: ITreeItem(Type)
+	: ISceneOutlinerTreeItem(Type)
 	, Path(InPath)
-	, LeafName(GetFolderLeafName(InPath))
+	, LeafName(SceneOutliner::GetFolderLeafName(InPath))
 {
 }
 
-FFolderTreeItem::FFolderTreeItem(FName InPath, FTreeItemType InType)
-	: ITreeItem(InType)
+FFolderTreeItem::FFolderTreeItem(FName InPath, FSceneOutlinerTreeItemType InType)
+	: ISceneOutlinerTreeItem(InType)
 	, Path(InPath)
-	, LeafName(GetFolderLeafName(InPath))
+	, LeafName(SceneOutliner::GetFolderLeafName(InPath))
 {
 }
 
-FTreeItemID FFolderTreeItem::GetID() const
+FSceneOutlinerTreeItemID FFolderTreeItem::GetID() const
 {
-	return FTreeItemID(Path);
+	return FSceneOutlinerTreeItemID(Path);
 }
 
 FString FFolderTreeItem::GetDisplayString() const
@@ -82,7 +82,5 @@ void FFolderTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outli
 	Section.AddMenuEntry("CreateSubFolder", LOCTEXT("CreateSubFolder", "Create Sub Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(this, &FFolderTreeItem::CreateSubFolder, TWeakPtr<SSceneOutliner>(SharedOutliner))));
 	Section.AddMenuEntry("DuplicateFolderHierarchy", LOCTEXT("DuplicateFolderHierarchy", "Duplicate Hierarchy"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::DuplicateFoldersHierarchy)));
 }
-
-}	// namespace SceneOutliner
 
 #undef LOCTEXT_NAMESPACE

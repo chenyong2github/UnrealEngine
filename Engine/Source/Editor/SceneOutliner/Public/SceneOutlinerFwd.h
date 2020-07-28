@@ -8,45 +8,39 @@
 class ISceneOutliner;
 class ISceneOutlinerColumn;
 
-namespace SceneOutliner
-{
-	struct FTreeItemID;
+struct FSceneOutlinerTreeItemID;
 
-	struct FInitializationOptions;
-	struct FSharedOutlinerData;
-	
-	struct ITreeItem;
-	struct FActorTreeItem;
-	struct FWorldTreeItem;
-	struct FFolderTreeItem;
-	struct FComponentTreeItem;
-	
-	typedef TSharedPtr<ITreeItem> FTreeItemPtr;
-	typedef TSharedRef<ITreeItem> FTreeItemRef;
+struct FSceneOutlinerInitializationOptions;
+struct FSharedSceneOutlinerData;
 
-	typedef TMap<FTreeItemID, FTreeItemPtr> FTreeItemMap;
+struct ISceneOutlinerTreeItem;
+struct FActorTreeItem;
+struct FWorldTreeItem;
+struct FFolderTreeItem;
+struct FComponentTreeItem;
 
-	class ISceneOutlinerHierarchy;
-	class ISceneOutlinerMode;
+typedef TSharedPtr<ISceneOutlinerTreeItem> FSceneOutlinerTreeItemPtr;
+typedef TSharedRef<ISceneOutlinerTreeItem> FSceneOutlinerTreeItemRef;
 
-	class SSceneOutliner;
+typedef TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr> FSceneOutlinerTreeItemMap;
 
-	class FOutlinerFilter;
-	struct FOutlinerFilters;
+class ISceneOutlinerHierarchy;
+class ISceneOutlinerMode;
 
-	struct FDragDropPayload;
-	struct FDragValidationInfo;
+class SSceneOutliner;
 
-	/** Typedef to define an array of folder names, used during dragging */
-	typedef TArray<FName> FFolderPaths;
-}
+class FSceneOutlinerFilter;
+struct FSceneOutlinerFilters;
 
-DECLARE_DELEGATE_OneParam( FOnSceneOutlinerItemPicked, TSharedRef<SceneOutliner::ITreeItem> );
+struct FSceneOutlinerDragDropPayload;
+struct FSceneOutlinerDragValidationInfo;
 
-DECLARE_DELEGATE_OneParam( FCustomSceneOutlinerDeleteDelegate, const TArray<TWeakPtr<SceneOutliner::ITreeItem>>&  )
+DECLARE_DELEGATE_OneParam( FOnSceneOutlinerItemPicked, TSharedRef<ISceneOutlinerTreeItem> );
+
+DECLARE_DELEGATE_OneParam( FCustomSceneOutlinerDeleteDelegate, const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&  )
 
 /** A delegate used to factory a new column type */
-DECLARE_DELEGATE_RetVal_OneParam( TSharedRef< ISceneOutlinerColumn >, FCreateSceneOutlinerColumn, ISceneOutliner& );
+DECLARE_DELEGATE_RetVal_OneParam( TSharedRef<ISceneOutlinerColumn>, FCreateSceneOutlinerColumn, ISceneOutliner& );
 
 /** A delegate used to factory a new filter type */
-DECLARE_DELEGATE_RetVal( TSharedRef< SceneOutliner::FOutlinerFilter >, FCreateSceneOutlinerFilter );
+DECLARE_DELEGATE_RetVal( TSharedRef<FSceneOutlinerFilter>, FCreateSceneOutlinerFilter );

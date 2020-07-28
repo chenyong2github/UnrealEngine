@@ -7,10 +7,7 @@
 
 #include "SceneOutlinerMenuContext.generated.h"
 
-namespace SceneOutliner
-{
-	class SSceneOutliner;
-}
+class SSceneOutliner;
 
 UCLASS()
 class USceneOutlinerMenuContext : public UObject
@@ -27,7 +24,7 @@ public:
 		NumWorldsSelected = 0;
 	}
 
-	TWeakPtr<SceneOutliner::SSceneOutliner> SceneOutliner;
+	TWeakPtr<SSceneOutliner> SceneOutliner;
 
 	bool bShowParentTree;
 	int32 NumSelectedItems;

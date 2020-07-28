@@ -11,7 +11,7 @@ class UActorComponent;
 
 namespace SceneOutliner
 {
-	struct ITreeItem;
+	struct ISceneOutlinerTreeItem;
 }
 
 class SPropertyMenuComponentPicker : public SCompoundWidget

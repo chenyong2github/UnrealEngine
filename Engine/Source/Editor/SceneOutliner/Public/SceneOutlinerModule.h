@@ -34,35 +34,25 @@ public:
 	 * @return	New scene outliner widget
 	 */
 	virtual TSharedRef<ISceneOutliner> CreateSceneOutliner(
-		const SceneOutliner::FInitializationOptions& InitOptions) const;
-
-	/**
-	 * Creates a scene outliner widget
-	 *
-	 * @param	InitOptions						Programmer-driven configuration for this widget instance
-	 * @param	OnActorPickedDelegate			Optional callback when an actor is selected in 'actor picking' mode
-	 *
-	 * @return	New scene outliner widget
-	 */
-
+		const FSceneOutlinerInitializationOptions& InitOptions) const;
 
 	/* Some common scene outliners */
 
 	/** Creates an actor picker widget. Calls the OnActorPickedDelegate when an item is selected. */
 	virtual TSharedRef<ISceneOutliner> CreateActorPicker(
-		const SceneOutliner::FInitializationOptions& InInitOptions,
+		const FSceneOutlinerInitializationOptions& InInitOptions,
 		const FOnActorPicked& OnActorPickedDelegate,
 		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
 
 	/** Creates a component picker widget. Calls the OnComponentPickedDelegate when an item is selected. */
 	virtual TSharedRef<ISceneOutliner> CreateComponentPicker(
-		const SceneOutliner::FInitializationOptions& InInitOptions,
+		const FSceneOutlinerInitializationOptions& InInitOptions,
 		const FOnComponentPicked& OnComponentPickedDelegate,
 		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
 
 	/** Creates an actor browser widget (also known as a World Outliner). */
 	virtual TSharedRef<ISceneOutliner> CreateActorBrowser(
-		const SceneOutliner::FInitializationOptions& InInitOptions,
+		const FSceneOutlinerInitializationOptions& InInitOptions,
 		TWeakObjectPtr<UWorld> SpecifiedWorld = nullptr) const;
 
 public:
@@ -83,7 +73,7 @@ public:
 
 	/** Register a new type of default column available to all scene outliners */
 	template< typename T >
-	void RegisterDefaultColumnType(SceneOutliner::FColumnInfo InColumnInfo)
+	void RegisterDefaultColumnType(FSceneOutlinerColumnInfo InColumnInfo)
 	{
 		auto ID = T::GetID();
 		if ( !ColumnMap.Contains( ID ) )
@@ -117,7 +107,7 @@ public:
 	}
 
 	/** Map of column type name -> default column info */
-	TMap< FName, SceneOutliner::FColumnInfo> DefaultColumnMap;
+	TMap< FName, FSceneOutlinerColumnInfo> DefaultColumnMap;
 
 private:
 

@@ -4,24 +4,21 @@
 
 #include "ActorMode.h"
 
-namespace SceneOutliner
+class FActorPickingMode : public FActorMode
 {
-	class FActorPickingMode : public FActorMode
-	{
-	public:
-		FActorPickingMode(SSceneOutliner* InSceneOutliner, bool bInHideComponents, FOnSceneOutlinerItemPicked OnItemPickedDelegate, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+public:
+	FActorPickingMode(SSceneOutliner* InSceneOutliner, bool bInHideComponents, FOnSceneOutlinerItemPicked OnItemPickedDelegate, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
 
-		virtual ~FActorPickingMode() {};
-	public:
-		virtual void OnItemSelectionChanged(FTreeItemPtr Item, ESelectInfo::Type SelectionType, const FItemSelection& Selection) override;
+	virtual ~FActorPickingMode() {};
+public:
+	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Item, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override;
 
-		/** Allow the user to commit their selection by pressing enter if it is valid */
-		virtual void OnFilterTextCommited(FItemSelection& Selection, ETextCommit::Type CommitType) override;
+	/** Allow the user to commit their selection by pressing enter if it is valid */
+	virtual void OnFilterTextCommited(FSceneOutlinerItemSelection& Selection, ETextCommit::Type CommitType) override;
 
-		virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
-	public:
-		virtual bool ShowViewButton() const override { return true; }
-	private:
-		FOnSceneOutlinerItemPicked OnItemPicked;
-	};
-}
+	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
+public:
+	virtual bool ShowViewButton() const override { return true; }
+private:
+	FOnSceneOutlinerItemPicked OnItemPicked;
+};

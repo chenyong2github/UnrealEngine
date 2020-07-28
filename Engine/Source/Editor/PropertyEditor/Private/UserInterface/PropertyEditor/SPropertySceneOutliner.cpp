@@ -55,7 +55,7 @@ TSharedRef<SWidget> SPropertySceneOutliner::OnGenerateSceneOutliner()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
-	SceneOutliner::FInitializationOptions InitOptions;
+	FSceneOutlinerInitializationOptions InitOptions;
 	OnGetActorFilters.ExecuteIfBound( InitOptions.Filters );
 
 	TSharedRef<SWidget> MenuContent = 

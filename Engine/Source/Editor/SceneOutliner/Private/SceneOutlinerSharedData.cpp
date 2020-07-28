@@ -6,10 +6,7 @@
 
 #include "SceneOutlinerModule.h"
 
-namespace SceneOutliner
-{
-
-void FSharedOutlinerData::UseDefaultColumns()
+void FSharedSceneOutlinerData::UseDefaultColumns()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 
@@ -19,5 +16,3 @@ void FSharedOutlinerData::UseDefaultColumns()
 		ColumnMap.Add(DefaultColumn.Key, DefaultColumn.Value);
 	}
 }
-
-}	// namespace SceneOutliner 

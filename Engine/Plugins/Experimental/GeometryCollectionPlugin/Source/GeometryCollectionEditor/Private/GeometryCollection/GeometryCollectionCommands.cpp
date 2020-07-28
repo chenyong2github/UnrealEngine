@@ -657,7 +657,7 @@ void FGeometryCollectionCommands::SelectLessThenVolume(const TArray<FString>& Ar
 					EditBoneColor.SetSelectedBones(SelectedBones);
 					EditBoneColor.SetHighlightedBones(SelectedBones);
 
- 					SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(Actor->GetGeometryCollectionComponent());
+ 					FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(Actor->GetGeometryCollectionComponent());
 				}
 			}
 		}

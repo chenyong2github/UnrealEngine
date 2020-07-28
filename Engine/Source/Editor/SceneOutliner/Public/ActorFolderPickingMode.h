@@ -4,26 +4,22 @@
 
 #include "ActorMode.h"
 
-namespace SceneOutliner
+class FActorFolderPickingMode : public FActorMode
 {
+public:
+	FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+	virtual ~FActorFolderPickingMode() {}
 
-	class FActorFolderPickingMode : public FActorMode
-	{
-	public:
-		FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
-		virtual ~FActorFolderPickingMode() {}
+	/* Begin ISceneOutlinerMode Implementation */
+	virtual void OnFilterTextCommited(FSceneOutlinerItemSelection& Selection, ETextCommit::Type CommitType) override;
+	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Item, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override;
+	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
+	virtual bool ShowViewButton() const override { return true; }
+	virtual bool ShouldShowFolders() const { return true; }
+protected:
+	virtual TUniquePtr<ISceneOutlinerHierarchy> CreateHierarchy() override;
+	/* End ISceneOutlinerMode Implementation */
 
-		/* Begin ISceneOutlinerMode Implementation */
-		virtual void OnFilterTextCommited(FItemSelection& Selection, ETextCommit::Type CommitType) override;
-		virtual void OnItemSelectionChanged(FTreeItemPtr Item, ESelectInfo::Type SelectionType, const FItemSelection& Selection) override;
-		virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
-		virtual bool ShowViewButton() const override { return true; }
-		virtual bool ShouldShowFolders() const { return true; }
-	protected:
-		virtual TUniquePtr<ISceneOutlinerHierarchy> CreateHierarchy() override;
-		/* End ISceneOutlinerMode Implementation */
-
-		/** Delegate to call when an item is picked */
-		FOnSceneOutlinerItemPicked OnItemPicked;
-	};
-}
+	/** Delegate to call when an item is picked */
+	FOnSceneOutlinerItemPicked OnItemPicked;
+};

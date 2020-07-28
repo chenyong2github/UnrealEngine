@@ -539,7 +539,7 @@ void FPropertyEditor::OnActorSelected( AActor* InActor )
 	OnAssetSelected(InActor);
 }
 
-void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<SceneOutliner::FOutlinerFilters>& OutFilters )
+void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<FSceneOutlinerFilters>& OutFilters )
 {
 	struct Local
 	{
@@ -557,7 +557,7 @@ void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<SceneOutline
 		}
 	};
 
-	OutFilters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(SceneOutliner::FActorTreeItem::FFilterPredicate::CreateStatic( &Local::IsFilteredActor, AsShared() ) );
+	OutFilters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateStatic( &Local::IsFilteredActor, AsShared() ) );
 }
 
 bool FPropertyEditor::IsPropertyEditingEnabled() const

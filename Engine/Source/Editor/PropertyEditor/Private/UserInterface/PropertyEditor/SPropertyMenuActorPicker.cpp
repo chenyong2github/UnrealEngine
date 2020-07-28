@@ -83,12 +83,12 @@ void SPropertyMenuActorPicker::Construct( const FArguments& InArgs )
 
 		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>(TEXT("SceneOutliner"));
 
-		SceneOutliner::FInitializationOptions InitOptions;
-		InitOptions.Filters->AddFilterPredicate<SceneOutliner::FActorTreeItem>(ActorFilter);
+		FSceneOutlinerInitializationOptions InitOptions;
+		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(ActorFilter);
 		InitOptions.bFocusSearchBoxWhenOpened = true;
 
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::Label(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 0));
-		InitOptions.ColumnMap.Add(SceneOutliner::FBuiltInColumnTypes::ActorInfo(), SceneOutliner::FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 10));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10));
 		
 		MenuContent =
 			SNew(SBox)

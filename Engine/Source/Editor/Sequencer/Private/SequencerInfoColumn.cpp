@@ -29,13 +29,13 @@ struct FGetActorInfo
 		: WeakColumn(StaticCastSharedRef<const FSequencerInfoColumn>(InColumn.AsShared()))
 	{}
 
-	FString operator()(const SceneOutliner::ITreeItem& Item) const
+	FString operator()(const ISceneOutlinerTreeItem& Item) const
 	{
 		if (!WeakColumn.IsValid())
 		{
 			return FString();
 		}
-		if (const SceneOutliner::FActorTreeItem* ActorItem = Item.CastTo<SceneOutliner::FActorTreeItem>())
+		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
 			AActor* Actor = ActorItem->Actor.Get();
 			if (Actor)
@@ -90,7 +90,7 @@ SHeaderRow::FColumn::FArguments FSequencerInfoColumn::ConstructHeaderRowColumn()
 		.FillWidth( 5.0f );
 }
 
-const TSharedRef< SWidget > FSequencerInfoColumn::ConstructRowWidget( SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& Row )
+const TSharedRef< SWidget > FSequencerInfoColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
 	auto SceneOutliner = WeakSceneOutliner.Pin();
 	check(SceneOutliner.IsValid());
@@ -98,7 +98,7 @@ const TSharedRef< SWidget > FSequencerInfoColumn::ConstructRowWidget( SceneOutli
 	TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
 	TSharedRef<STextBlock> MainText = SNew( STextBlock )
-		.Text( this, &FSequencerInfoColumn::GetTextForItem, TWeakPtr<SceneOutliner::ITreeItem>(TreeItem) )
+		.Text( this, &FSequencerInfoColumn::GetTextForItem, TWeakPtr<ISceneOutlinerTreeItem>(TreeItem) )
 		.HighlightText( SceneOutliner->GetFilterHighlightText() )
 		.ColorAndOpacity( FSlateColor::UseSubduedForeground() );
 
@@ -113,17 +113,17 @@ const TSharedRef< SWidget > FSequencerInfoColumn::ConstructRowWidget( SceneOutli
 }
 
 
-void FSequencerInfoColumn::PopulateSearchStrings( const SceneOutliner::ITreeItem& Item, TArray< FString >& OutSearchStrings ) const
+void FSequencerInfoColumn::PopulateSearchStrings( const ISceneOutlinerTreeItem& Item, TArray< FString >& OutSearchStrings ) const
 {
 	OutSearchStrings.Add(Item.GetDisplayString());
 }
 
 
-void FSequencerInfoColumn::SortItems(TArray<SceneOutliner::FTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
+void FSequencerInfoColumn::SortItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
 {
 	if (WeakBindingData.IsValid())
 	{
-		SceneOutliner::FSortHelper<FString>()
+		FSceneOutlinerSortHelper<FString>()
 			.Primary(FGetActorInfo(*this), SortMode)
 			.Sort(OutItems);
 	}
@@ -139,7 +139,7 @@ FString FSequencerInfoColumn::GetTextForActor(AActor* InActor) const
 	return FString();
 }
 
-FText FSequencerInfoColumn::GetTextForItem( TWeakPtr<SceneOutliner::ITreeItem> TreeItem ) const
+FText FSequencerInfoColumn::GetTextForItem( TWeakPtr<ISceneOutlinerTreeItem> TreeItem ) const
 {
 	auto Item = TreeItem.Pin();
 	return Item.IsValid() && WeakBindingData.IsValid() ? FText::FromString(FGetActorInfo(*this)(*Item)) : FText::GetEmpty();

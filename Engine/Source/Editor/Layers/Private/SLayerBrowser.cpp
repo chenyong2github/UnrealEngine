@@ -123,19 +123,18 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 	//	Layer Contents Section
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
 	
-	using namespace SceneOutliner;
-	FInitializationOptions InitOptions;
+	FSceneOutlinerInitializationOptions InitOptions;
 	{
 		// We hide the header row to keep the UI compact.
 		InitOptions.bShowHeaderRow = false;
 		InitOptions.bShowParentTree = false;
 		InitOptions.bShowCreateNewFolder = false;
 
-		auto CustomDelete = [this](TArray<TWeakPtr<ITreeItem>> Items)
+		auto CustomDelete = [this](TArray<TWeakPtr<ISceneOutlinerTreeItem>> Items)
 		{
 			TArray<TWeakObjectPtr<AActor>> Actors;
 			Actors.Reserve(Items.Num());
-			for (const TWeakPtr<ITreeItem>& Item : Items)
+			for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : Items)
 			{
 				if (FActorTreeItem* ActorItem = Item.Pin()->CastTo<FActorTreeItem>())
 				{
@@ -148,11 +147,11 @@ void SLayerBrowser::Construct(const FArguments& InArgs)
 		InitOptions.CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateLambda(CustomDelete);
 
 		// Outliner Gutter
-		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Gutter(), FColumnInfo(EColumnVisibility::Visible, 0) );
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Gutter(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0) );
 		// Actor Label
-		InitOptions.ColumnMap.Add(FBuiltInColumnTypes::Label(), FColumnInfo(EColumnVisibility::Visible, 10) );
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 10) );
 		// Layer Contents
-		InitOptions.ColumnMap.Add(FSceneOutlinerLayerContentsColumn::GetID(), FColumnInfo(SceneOutliner::EColumnVisibility::Visible, 20,
+		InitOptions.ColumnMap.Add(FSceneOutlinerLayerContentsColumn::GetID(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 20,
 			FCreateSceneOutlinerColumn::CreateSP( this, &SLayerBrowser::CreateCustomLayerColumn )) );
 
 		InitOptions.Filters->Add(SelectedLayersFilter);

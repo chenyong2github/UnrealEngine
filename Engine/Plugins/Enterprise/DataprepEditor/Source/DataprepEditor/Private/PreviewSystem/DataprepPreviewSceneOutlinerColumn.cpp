@@ -20,13 +20,13 @@
 namespace DataprepPreviewOutlinerColumnUtils
 {
 	
-	UObject* GetObjectPtr(const SceneOutliner::ITreeItem& Item)
+	UObject* GetObjectPtr(const ISceneOutlinerTreeItem& Item)
 	{
-		if (const SceneOutliner::FActorTreeItem* ActorItem = Item.CastTo<SceneOutliner::FActorTreeItem>())
+		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
 			return ActorItem->Actor.Get();
 		}
-		else if (const SceneOutliner::FComponentTreeItem* ComponentItem = Item.CastTo<SceneOutliner::FComponentTreeItem>())
+		else if (const FComponentTreeItem* ComponentItem = Item.CastTo<FComponentTreeItem>())
 		{
 			return ComponentItem->Component.Get();
 		}
@@ -58,7 +58,7 @@ SHeaderRow::FColumn::FArguments FDataprepPreviewOutlinerColumn::ConstructHeaderR
 		.FillWidth( 5.0f );
 }
 
-const TSharedRef<SWidget> FDataprepPreviewOutlinerColumn::ConstructRowWidget(SceneOutliner::FTreeItemRef TreeItem, const STableRow<SceneOutliner::FTreeItemPtr>& Row)
+const TSharedRef<SWidget> FDataprepPreviewOutlinerColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
 	if ( UObject* Object = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*TreeItem))
 	{
@@ -72,7 +72,7 @@ const TSharedRef<SWidget> FDataprepPreviewOutlinerColumn::ConstructRowWidget(Sce
 	return SNullWidget::NullWidget;
 }
 
-void FDataprepPreviewOutlinerColumn::PopulateSearchStrings(const SceneOutliner::ITreeItem& Item, TArray< FString >& OutSearchStrings) const
+void FDataprepPreviewOutlinerColumn::PopulateSearchStrings(const ISceneOutlinerTreeItem& Item, TArray< FString >& OutSearchStrings) const
 {
 	if (UObject* Object = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(Item))
 	{
@@ -83,9 +83,9 @@ void FDataprepPreviewOutlinerColumn::PopulateSearchStrings(const SceneOutliner::
 	}
 }
 
-void FDataprepPreviewOutlinerColumn::SortItems(TArray<SceneOutliner::FTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
+void FDataprepPreviewOutlinerColumn::SortItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
 {
-	OutItems.Sort([this, SortMode](const SceneOutliner::FTreeItemPtr& First, const SceneOutliner::FTreeItemPtr& Second)
+	OutItems.Sort([this, SortMode](const FSceneOutlinerTreeItemPtr& First, const FSceneOutlinerTreeItemPtr& Second)
 	{
 			UObject* FirstObject = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*First);
 			UObject* SecondObject = DataprepPreviewOutlinerColumnUtils::GetObjectPtr(*Second);

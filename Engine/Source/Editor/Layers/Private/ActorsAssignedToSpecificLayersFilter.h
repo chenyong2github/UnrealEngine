@@ -6,13 +6,13 @@
 #include "ActorTreeItem.h"
 #include "GameFramework/Actor.h"
 
-class FActorsAssignedToSpecificLayersFilter : public SceneOutliner::TOutlinerFilter<SceneOutliner::FActorTreeItem>, public TSharedFromThis< FActorsAssignedToSpecificLayersFilter >
+class FActorsAssignedToSpecificLayersFilter : public TSceneOutlinerFilter<FActorTreeItem>, public TSharedFromThis< FActorsAssignedToSpecificLayersFilter >
 {
 public:
 
 	/** By default, any types not handled by this filter will fail */
 	FActorsAssignedToSpecificLayersFilter()
-		: TOutlinerFilter<SceneOutliner::FActorTreeItem>(SceneOutliner::EDefaultFilterBehaviour::Fail)
+		: TSceneOutlinerFilter<FActorTreeItem>(FSceneOutlinerFilter::EDefaultBehaviour::Fail)
 	{}
 
 	/** 
@@ -21,7 +21,7 @@ public:
 	 *	@param	InItem	The Item to check 
 	 *	@return			Whether the specified Item passed the filter
 	 */
-	virtual bool PassesFilterImpl(const SceneOutliner::FActorTreeItem& InItem) const
+	virtual bool PassesFilterImpl(const FActorTreeItem& InItem) const
 	{
 		const AActor* InActor = InItem.Actor.Get();
 		if( LayerNames.Num() == 0 )
