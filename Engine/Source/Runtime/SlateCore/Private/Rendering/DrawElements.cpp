@@ -230,7 +230,7 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 			Radius = PaintGeometry.GetLocalSize().Y/2.0;
 		}
 		RBoxPayload->SetRadius(Radius);
-		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width * PaintGeometry.DrawScale);
+		RBoxPayload->SetOutline(InBrush->OutlineSettings.Color.GetSpecifiedColor(), InBrush->OutlineSettings.Width);
 		BoxPayload = RBoxPayload;
 	}
 	else 
