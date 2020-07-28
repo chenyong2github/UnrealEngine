@@ -275,7 +275,7 @@ private:
 	FLinearColor GetShadowColorAndOpacity() const;
 
 	/** Gets the current highlight color */
-	FLinearColor GetHighlightColor() const;
+	FSlateColor GetHighlightColor() const;
 
 	/** Gets the current highlight shape */
 	const FSlateBrush* GetHighlightShape() const;

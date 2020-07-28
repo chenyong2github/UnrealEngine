@@ -242,7 +242,7 @@ int32 FTextSearchHighlighter::OnPaint(const FPaintArgs& Args, const FTextLayout:
 	const FVector2D Location(Line.Offset.X + OffsetX, Line.Offset.Y);
 
 	// If we've not been set to an explicit color, calculate a suitable one from the linked color
-	FLinearColor SelectionBackgroundColorAndOpacity = DefaultStyle.HighlightColor * InWidgetStyle.GetColorAndOpacityTint();
+	FLinearColor SelectionBackgroundColorAndOpacity = DefaultStyle.HighlightColor.GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint();
 	SelectionBackgroundColorAndOpacity.A *= 0.2f;
 
 	// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry

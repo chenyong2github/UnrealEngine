@@ -893,7 +893,8 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		.SetColorAndOpacity(FSlateColor::UseForeground())
 		.SetShadowOffset(FVector2D::ZeroVector)
 		.SetSelectedBackgroundColor(FStyleColors::Highlight)
-		.SetHighlightShape(FSlateColorBrush(FStyleColors::White));
+		.SetHighlightColor(FStyleColors::Black)
+		.SetHighlightShape(FSlateColorBrush(FStyleColors::AccentGreen));
 
 	Style->Set("NormalFont", StyleFonts.Normal);
 	Style->Set("SmallFont", StyleFonts.Small);

@@ -322,8 +322,8 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 
 	/** The color of highlighted text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)
-	FLinearColor HighlightColor;
-	FTextBlockStyle& SetHighlightColor(const FLinearColor& InHighlightColor) { HighlightColor = InHighlightColor; return *this; }
+	FSlateColor HighlightColor;
+	FTextBlockStyle& SetHighlightColor(const FSlateColor& InHighlightColor) { HighlightColor = InHighlightColor; return *this; }
 
 	/** The shape of highlighted text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)

@@ -21,13 +21,13 @@ int32 FSlateTextHighlightRunRenderer::OnPaint( const FPaintArgs& Args, const FTe
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,
 		++LayerId,
-		AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, FVector2D( Block->GetSize().X, Line.Size.Y )), FSlateLayoutTransform(TransformPoint(InverseScale, Location))), 
+		AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, FVector2D(Block->GetSize().X, Line.Size.Y)), FSlateLayoutTransform(TransformPoint(InverseScale, Location))),
 		&DefaultStyle.HighlightShape,
 		bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
-		InWidgetStyle.GetColorAndOpacityTint() * DefaultStyle.HighlightColor
+		InWidgetStyle.GetColorAndOpacityTint() * DefaultStyle.HighlightShape.TintColor.GetColor(InWidgetStyle)
 		);
 
-	FLinearColor InvertedHighlightColor = FLinearColor::White - DefaultStyle.HighlightColor;
+	FLinearColor InvertedHighlightColor = DefaultStyle.HighlightColor.GetColor(InWidgetStyle);
 	InvertedHighlightColor.A = InWidgetStyle.GetForegroundColor().A;
 
 	FWidgetStyle WidgetStyle( InWidgetStyle );

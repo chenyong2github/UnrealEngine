@@ -95,7 +95,7 @@ FLinearColor STextBlock::GetShadowColorAndOpacity() const
 	return ShadowColorAndOpacity.IsSet() ? ShadowColorAndOpacity.Get() : TextStyle.ShadowColorAndOpacity;
 }
 
-FLinearColor STextBlock::GetHighlightColor() const
+FSlateColor STextBlock::GetHighlightColor() const
 {
 	return HighlightColor.IsSet() ? HighlightColor.Get() : TextStyle.HighlightColor;
 }
