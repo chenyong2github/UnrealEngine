@@ -3,6 +3,8 @@
 #include "NvVideoEncoder.h"
 #include "Microsoft/AVEncoderMicrosoftCommon.h"
 
+#if AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
+
 THIRD_PARTY_INCLUDES_START
 	#include "ThirdParty/NvEncoder/nvEncodeAPI.h"
 THIRD_PARTY_INCLUDES_END
@@ -1286,3 +1288,4 @@ TUniquePtr<FVideoEncoder> FNvVideoEncoderFactory::CreateEncoder(const FString& C
 } // namespace AVEncoder
 
 
+#endif //AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
