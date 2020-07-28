@@ -292,8 +292,6 @@ namespace Chaos
 		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
-		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
-
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
 		if (InParticleType == EParticleType::Rigid)
@@ -301,42 +299,18 @@ namespace Chaos
 			auto Proxy = new FRigidParticlePhysicsProxy(GTParticle->CastToRigidParticle(), nullptr);
 			RigidParticlePhysicsProxies.Add((FRigidParticlePhysicsProxy*)Proxy);
 			ProxyBase = Proxy;
-			
-			//todo: remove this and have just one handle
-			if(bIsSingleThreaded)
-			{
-				FUniqueIdx UniqueIdx = GTParticle->UniqueIdx();
-				auto* Handle = Particles.CreateDynamicParticles(1,&UniqueIdx)[0];
-				Proxy->SetHandle(Handle);
-			}
 		}
 		else if (InParticleType == EParticleType::Kinematic)
 		{
 			auto Proxy = new FKinematicGeometryParticlePhysicsProxy(GTParticle->CastToKinematicParticle(), nullptr);
 			KinematicGeometryParticlePhysicsProxies.Add((FKinematicGeometryParticlePhysicsProxy*)Proxy);
 			ProxyBase = Proxy;
-			
-			//todo: remove this and have just one handle
-			if(bIsSingleThreaded)
-			{
-				FUniqueIdx UniqueIdx = GTParticle->UniqueIdx();
-				auto* Handle = Particles.CreateKinematicParticles(1,&UniqueIdx)[0];
-				Proxy->SetHandle(Handle);
-			}
 		}
 		else // Assume it's a static (geometry) if it's not dynamic or kinematic
 		{
 			auto Proxy = new FGeometryParticlePhysicsProxy(GTParticle, nullptr);
 			GeometryParticlePhysicsProxies.Add((FGeometryParticlePhysicsProxy*)Proxy);
 			ProxyBase = Proxy;
-			
-			//todo: remove this and have just one handle
-			if(bIsSingleThreaded)
-			{
-				FUniqueIdx UniqueIdx = GTParticle->UniqueIdx();
-				auto* Handle = Particles.CreateStaticParticles(1,&UniqueIdx)[0];
-				Proxy->SetHandle(Handle);
-			}
 		}
 
 		ProxyBase->SetSolver(this);
@@ -489,8 +463,12 @@ namespace Chaos
 	template <typename Traits>
 	bool TPBDRigidsSolver<Traits>::UnregisterObject(TGeometryCollectionPhysicsProxy<Traits>* InProxy)
 	{
-		InProxy->OnRemoveFromSolver(this);
-		InProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
+		EnqueueCommandImmediate([InProxy,this]()
+		{
+			InProxy->OnRemoveFromSolver(this);
+			InProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
+		});
+		
 		return GeometryCollectionPhysicsProxies.Remove(InProxy) != 0;
 	}
 
@@ -683,7 +661,6 @@ namespace Chaos
 			}
 		});
 
-		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 		MarshallingManager.Step_External(DeltaTime);
 	}
 
@@ -695,20 +672,15 @@ namespace Chaos
 		FDirtySet* DirtyProxiesData = &PushData.DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData.DirtyPropertiesManager;
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 
-		auto ProcessProxyPT = [bIsSingleThreaded,Manager,ShapeDirtyData,RewindData,this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+		auto ProcessProxyPT = [Manager,ShapeDirtyData,RewindData,this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
 			{
-				//single threaded version already created particle, but didn't initialize it
-				if(!bIsSingleThreaded)
-				{
-					const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
-					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
-					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
-				}
+				const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
+				const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
+				Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
 
 				auto Handle = Proxy->GetHandle();
 				Handle->GTGeometryParticle() = Proxy->GetParticle();
@@ -823,7 +795,7 @@ namespace Chaos
 					if(ensure(RemovedCallback->PTHandle != nullptr)) //if not null we are unregistering something that was never registered (or double delete) 
 					{
 						//callback was removed right away so skip it entirely
-						if(Idx == 0)
+						if(Idx == 0 && !RemovedCallback->bRunOnceMore)
 						{
 							SimCallbacks.RemoveAtSwap(RemovedCallback->PTHandle->Idx);
 							RemovedCallback->PTHandle->Idx = INDEX_NONE;

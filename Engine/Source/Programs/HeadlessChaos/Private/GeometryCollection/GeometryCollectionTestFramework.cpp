@@ -277,11 +277,11 @@ namespace GeometryCollectionTest
 		{
 			if (TGeometryCollectionWrapper<Traits>* GCW = Object->As<TGeometryCollectionWrapper<Traits>>())
 			{
-				delete GCW->PhysObject;
+				Solver->UnregisterObject(GCW->PhysObject);
 			}
 			else if (RigidBodyWrapper* BCW = Object->As<RigidBodyWrapper>())
 			{
-				delete BCW->Particle;
+				Solver->UnregisterObject(BCW->Particle);
 			}
 			delete Object;
 		}

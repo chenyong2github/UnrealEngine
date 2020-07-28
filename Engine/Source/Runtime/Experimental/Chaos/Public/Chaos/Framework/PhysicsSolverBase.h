@@ -37,7 +37,7 @@ namespace Chaos
 		static ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-		static void AdvanceSolver(FPhysicsSolverBase& Solver,TArray<TFunction<void()>>&& Queue, TArray<FPushPhysicsData*>&& PushData, FReal Dt);
+		void AdvanceSolver();
 
 	private:
 
@@ -112,6 +112,19 @@ namespace Chaos
 		}
 
 		template <typename Lambda>
+		FSimCallbackHandle& RegisterSimCallbackNoData(const Lambda& Func)
+		{
+			return MarshallingManager.RegisterSimCallback([&Func](const TArray<FSimCallbackData*>&){ Func();});
+		}
+
+		template <typename Lambda>
+		void RegisterSimOneShotCallback(const Lambda& Func)
+		{
+			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([&Func](const TArray<FSimCallbackData*>&){ Func();});
+			MarshallingManager.UnregisterSimCallback(Callback,true);
+		}
+
+		template <typename Lambda>
 		FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
 		{
 			return MarshallingManager.RegisterSimCallback(Func);
@@ -132,16 +145,8 @@ namespace Chaos
 		void EnqueueCommandImmediate(const Lambda& Func)
 		{
 			//TODO: remove this check. Need to rename with _External
-			//The important part is that we don't enqueue from sim code
 			check(IsInGameThread());
-			if(ThreadingMode == EThreadingModeTemp::SingleThread)
-			{
-				Func();
-			}
-			else
-			{
-				CommandQueue.Add(Func);
-			}
+			CommandQueue.Add(Func);
 		}
 
 		//Ensures that any running tasks finish.
@@ -202,8 +207,8 @@ namespace Chaos
 			if(ThreadingMode == EThreadingModeTemp::SingleThread)
 			{
 				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-				ensure(CommandQueue.Num() == 0);	//commands execute right away. Once we add fixed dt this will change
-				FPhysicsSolverAdvanceTask::AdvanceSolver(*this, MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+				FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData),InDt);
+				ImmediateTask.AdvanceSolver();
 			}
 			else
 			{
@@ -247,6 +252,11 @@ namespace Chaos
 				if(PTHandle->Idx != INDEX_NONE)
 				{
 					SimCallbacks.RemoveAtSwap(PTHandle->Idx);
+					if(PTHandle->Idx < SimCallbacks.Num())
+					{
+						//update swapped location
+						SimCallbacks[PTHandle->Idx]->Idx = PTHandle->Idx;
+					}
 				}
 				delete PTHandle;
 				delete CallbackToDelete;

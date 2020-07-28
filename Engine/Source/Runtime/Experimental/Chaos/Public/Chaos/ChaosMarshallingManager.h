@@ -216,6 +216,7 @@ struct FSimCallbackHandle
 	: Func(InFunc)
 	, PTHandle(nullptr)
 	, LatestCallbackData(nullptr)
+	, bRunOnceMore(false)
 	{
 	}
 
@@ -229,6 +230,9 @@ private:
 
 	//some functions return by reference, make sure user doesn't accidentally make a copy
 	FSimCallbackHandle(const FSimCallbackHandle& Other) = delete;
+
+public:
+	bool bRunOnceMore;	//Should only be used by solver
 };
 
 struct FSimCallbackDataPair
@@ -281,8 +285,9 @@ public:
 		return *Handle;
 	}
 
-	void UnregisterSimCallback(FSimCallbackHandle& Handle)
+	void UnregisterSimCallback(FSimCallbackHandle& Handle, bool bEndOfInterval = false)
 	{
+		Handle.bRunOnceMore = bEndOfInterval;
 		GetProducerData_External()->SimCallbacksToRemove.Add(&Handle);
 	}
 
