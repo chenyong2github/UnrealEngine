@@ -4730,32 +4730,35 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 		FString DevelopmentAssetRegistryPath = FPaths::Combine(Arguments.BasedOnReleaseVersionPath, TEXT("Metadata/DevelopmentAssetRegistry.bin"));
 
-		FArrayReader SerializedAssetData;
-		if (!FFileHelper::LoadFileToArray(SerializedAssetData, *DevelopmentAssetRegistryPath))
+		do
 		{
-			UE_LOG(LogIoStore, Error, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
-			return 1;
-		}
+			FArrayReader SerializedAssetData;
+			if (!FFileHelper::LoadFileToArray(SerializedAssetData, *DevelopmentAssetRegistryPath))
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
+				break;
+			}
 
-		FAssetRegistrySerializationOptions Options;
-		if (!Arguments.ReleaseAssetRegistry.Serialize(SerializedAssetData, Options))
-		{
-			UE_LOG(LogIoStore, Error, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
-			return 1;
-		}
+			FAssetRegistrySerializationOptions Options;
+			if (!Arguments.ReleaseAssetRegistry.Serialize(SerializedAssetData, Options))
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
+				break;
+			}
 
-		UE_LOG(LogIoStore, Display, TEXT("Loaded asset registry '%s'."), *DevelopmentAssetRegistryPath);
+			UE_LOG(LogIoStore, Display, TEXT("Loaded asset registry '%s'."), *DevelopmentAssetRegistryPath);
 
-		TArray<FName> PackageNames;
-		Arguments.ReleaseAssetRegistry.GetPackageNames(PackageNames);
-		Arguments.ReleasedPackages.PackageNames.Reserve(PackageNames.Num());
-		Arguments.ReleasedPackages.PackageIdToName.Reserve(PackageNames.Num());
+			TArray<FName> PackageNames;
+			Arguments.ReleaseAssetRegistry.GetPackageNames(PackageNames);
+			Arguments.ReleasedPackages.PackageNames.Reserve(PackageNames.Num());
+			Arguments.ReleasedPackages.PackageIdToName.Reserve(PackageNames.Num());
 
-		for (FName PackageName : PackageNames)
-		{
-			Arguments.ReleasedPackages.PackageNames.Add(PackageName);
-			Arguments.ReleasedPackages.PackageIdToName.Add(FPackageId::FromName(PackageName), PackageName);
-		}
+			for (FName PackageName : PackageNames)
+			{
+				Arguments.ReleasedPackages.PackageNames.Add(PackageName);
+				Arguments.ReleasedPackages.PackageIdToName.Add(FPackageId::FromName(PackageName), PackageName);
+			}
+		} while (false);
 	}
 
 	if (FParse::Value(FCommandLine::Get(), TEXT("DLCFile="), Arguments.DLCPluginPath))
