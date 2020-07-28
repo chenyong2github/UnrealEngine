@@ -80,13 +80,13 @@ FAutoConsoleVariableRef CVarSkylightIntensityMultiplier(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-int32 GSkylightRealTimeCaptureAllowed = 1;
-FAutoConsoleVariableRef CVarSkylightRealTimeCaptureAllowed(
-	TEXT("r.SkylightRealTimeCaptureAllowed"),
-	GSkylightRealTimeCaptureAllowed,
+int32 GSkylightRealTimeReflectionCapture = 1;
+FAutoConsoleVariableRef CVarSkylightRealTimeReflectionCapture(
+	TEXT("r.SkyLight.RealTimeReflectionCapture"),
+	GSkylightRealTimeReflectionCapture,
 	TEXT("Make sure the sky light real time capture is not run on platform where it is considered out of budget. Cannot be changed at runtime."),
 	ECVF_Scalability
-);
+	);
 
 constexpr EPixelFormat SKYLIGHT_CUBEMAP_FORMAT = PF_FloatRGBA;
 
@@ -980,7 +980,7 @@ bool USkyLightComponent::IsOcclusionSupported() const
 
 bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 {
-	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeCaptureAllowed>0;
+	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeReflectionCapture >0;
 }
 
 void USkyLightComponent::OnVisibilityChanged()
