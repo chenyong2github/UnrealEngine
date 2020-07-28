@@ -74,7 +74,7 @@ NIAGARASHADER_API uint32 FNiagaraShaderScript::GetUseSimStagesDefine() const
 
 NIAGARASHADER_API void FNiagaraShaderScript::NotifyCompilationFinished()
 {
-	UpdateCachedData();
+	UpdateCachedData_PostCompile();
 
 	OnCompilationCompleteDelegate.Broadcast();
 }
@@ -149,30 +149,9 @@ bool FNiagaraShaderScript::IsSame(const FNiagaraShaderMapId& InId) const
 		InId.CompilerVersionID == CompilerVersionId;
 }
 
-int32 FNiagaraShaderScript::GetNumPermutations() const
-{
-	// Always 1 as we always have a particle stage that is not called out separately currently
-	int32 NumStages = 1;
-	if (bUseShaderPermutations && BaseVMScript)
-	{
-		NumStages += BaseVMScript->GetVMExecutableData().SimulationStageMetaData.Num();
-	}
-	return NumStages;
-}
-
 int32 FNiagaraShaderScript::PermutationIdToShaderStageIndex(int32 PermutationId) const
 {
-	if (!bUseShaderPermutations)
-	{
-		return 0;
-	}
-
-	if ((PermutationId > 0) && (BaseVMScript->GetVMExecutableData().SimulationStageMetaData.Num()))
-	{
-		const int32 StageIndex = PermutationId - 1;
-		return BaseVMScript->GetVMExecutableData().SimulationStageMetaData[StageIndex].MinStage;
-	}
-	return PermutationId;
+	return bUseShaderPermutations ? ShaderStageToPermutation[PermutationId].Key : 0;
 }
 
 bool FNiagaraShaderScript::IsShaderMapComplete() const
@@ -299,7 +278,7 @@ void FNiagaraShaderScript::ReleaseShaderMap()
 				Script->SetRenderingThreadShaderMap(nullptr);
 			});
 
-		UpdateCachedData();
+		UpdateCachedData_All();
 	}
 }
 
@@ -307,6 +286,8 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 {
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
+	Ar << NumPermutations;
+	Ar << ShaderStageToPermutation;
 
 	if (Ar.IsLoading())
 	{
@@ -360,7 +341,8 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 				if (FApp::CanEverRender() && bLoaded)
 				{
 					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
-					UpdateCachedData(true);
+
+					UpdateCachedData_PostCompile(true);
 				}
 				else
 				{
@@ -393,6 +375,8 @@ void FNiagaraShaderScript::SetScript(UNiagaraScript* InScript, ERHIFeatureLevel:
 	{
 		bUseShaderPermutations = false;
 	}
+
+	UpdateCachedData_All();
 }
 
 #if WITH_EDITOR
@@ -431,10 +415,41 @@ void FNiagaraShaderScript::SetRenderThreadCachedData(const FNiagaraShaderMapCach
 	CachedData_RenderThread = CachedData;
 }
 
-void FNiagaraShaderScript::UpdateCachedData(bool bCalledFromSerialize)
+void FNiagaraShaderScript::UpdateCachedData_All()
 {
-	// We must either be in the game thread or called during serialize to ensure thread safety
-	check(IsInGameThread() || bCalledFromSerialize);
+	UpdateCachedData_PreCompile();
+	UpdateCachedData_PostCompile();
+}
+
+void FNiagaraShaderScript::UpdateCachedData_PreCompile()
+{
+	if (BaseVMScript)
+	{
+		NumPermutations = 1;
+		ShaderStageToPermutation.Empty();
+
+		if (bUseShaderPermutations)
+		{
+			// We add the number of simulation stages as Stage 0 is always the particle stage currently
+			NumPermutations += BaseVMScript->GetVMExecutableData().SimulationStageMetaData.Num();
+
+			ShaderStageToPermutation.Emplace(0, 1);
+			for (const FSimulationStageMetaData& StageMeta : BaseVMScript->GetVMExecutableData().SimulationStageMetaData)
+			{
+				ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
+			}
+		}
+	}
+	else
+	{
+		NumPermutations = 0;
+		ShaderStageToPermutation.Empty();
+	}
+}
+
+void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerialize)
+{
+	check(IsInGameThread());
 
 	FNiagaraShaderMapCachedData CachedData;
 	CachedData.NumPermutations = GetNumPermutations();
@@ -446,49 +461,36 @@ void FNiagaraShaderScript::UpdateCachedData(bool bCalledFromSerialize)
 	CachedData.bExternalConstantBufferUsed = 0;
 	CachedData.bViewUniformBufferUsed = 0;
 
-	const bool bShaderMapReady =
-		GameThreadShaderMap && GameThreadShaderMap.IsValid() && GameThreadShaderMap->IsCompilationFinalized() &&
-		(OutstandingCompileShaderMapIds.Num() == 0);
-
-	if (bShaderMapReady)
+	if (GameThreadShaderMap != nullptr)
 	{
 		for (int32 iPermutation = 0; iPermutation < CachedData.NumPermutations; ++iPermutation)
 		{
-			FNiagaraShaderRef Shader = GetShaderGameThread(iPermutation);
+			TNiagaraShaderRef<FShader> Shader = GameThreadShaderMap->GetShader(&FNiagaraShader::StaticType, iPermutation);
 			if (!Shader.IsValid())
 			{
 				CachedData.bIsComplete = 0;
 				break;
 			}
+			FNiagaraShader* NiagaraShader = static_cast<FNiagaraShader*>(Shader.GetShader());
 
-			for (int i=0; i < 2; ++i)
+			for (int i = 0; i < 2; ++i)
 			{
 				const uint32 BitToSet = 1 << i;
-				CachedData.bGlobalConstantBufferUsed |= Shader->GlobalConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bSystemConstantBufferUsed |= Shader->SystemConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bOwnerConstantBufferUsed |= Shader->OwnerConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bEmitterConstantBufferUsed |= Shader->EmitterConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bExternalConstantBufferUsed |= Shader->ExternalConstantBufferParam[i].IsBound() ? BitToSet : 0;
+				CachedData.bGlobalConstantBufferUsed |= NiagaraShader->GlobalConstantBufferParam[i].IsBound() ? BitToSet : 0;
+				CachedData.bSystemConstantBufferUsed |= NiagaraShader->SystemConstantBufferParam[i].IsBound() ? BitToSet : 0;
+				CachedData.bOwnerConstantBufferUsed |= NiagaraShader->OwnerConstantBufferParam[i].IsBound() ? BitToSet : 0;
+				CachedData.bEmitterConstantBufferUsed |= NiagaraShader->EmitterConstantBufferParam[i].IsBound() ? BitToSet : 0;
+				CachedData.bExternalConstantBufferUsed |= NiagaraShader->ExternalConstantBufferParam[i].IsBound() ? BitToSet : 0;
 			}
-			CachedData.bViewUniformBufferUsed |= Shader->ViewUniformBufferParam.IsBound() ? 1 : 0;
-		}
-
-		CachedData.ShaderStageToPermutation.Reserve(CachedData.NumPermutations);
-
-		// First stage is always the particle stage at slot 0
-		if (bUseShaderPermutations)
-		{
-			CachedData.ShaderStageToPermutation.Emplace(0, 1);
-
-			if (BaseVMScript != nullptr)
-			{
-				for (const FSimulationStageMetaData& StageMeta : BaseVMScript->GetVMExecutableData().SimulationStageMetaData)
-				{
-					CachedData.ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
-				}
-			}
+			CachedData.bViewUniformBufferUsed |= NiagaraShader->ViewUniformBufferParam.IsBound() ? 1 : 0;
 		}
 	}
+	else
+	{
+		CachedData.bIsComplete = 0;
+	}
+
+	CachedData.ShaderStageToPermutation = ShaderStageToPermutation;
 
 	if (bCalledFromSerialize)
 	{
@@ -556,6 +558,8 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 	bAssumeShaderMapIsComplete = FPlatformProperties::RequiresCookedData();
 #endif
 
+	UpdateCachedData_PreCompile();
+
 	if (GameThreadShaderMap && GameThreadShaderMap->TryToAddToExistingCompilationTask(this))
 	{
 		//FNiagaraShaderMap::ShaderMapsBeingCompiled.Find(GameThreadShaderMap);
@@ -596,7 +600,7 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 		bSucceeded = true;
 	}
 
-	UpdateCachedData();
+	UpdateCachedData_PostCompile();
 
 	FNiagaraShaderScript* Script = this;
 	FNiagaraShaderMap* LoadedShaderMap = GameThreadShaderMap;
