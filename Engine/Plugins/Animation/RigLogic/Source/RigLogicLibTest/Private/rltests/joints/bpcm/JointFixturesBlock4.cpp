@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/joints/bpcm/JointFixturesBlock4.h"
 
 #include "riglogic/TypeDefs.h"

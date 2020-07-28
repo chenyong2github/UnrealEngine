@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "status/Defs.h"
@@ -7,9 +9,10 @@
     #pragma warning(push)
     #pragma warning(disable : 4365 4987)
 #endif
+#include <stdio.h>
+
 #include <algorithm>
 #include <array>
-#include <cstdio>
 #ifdef _MSC_VER
     #pragma warning(pop)
 #endif
@@ -33,9 +36,9 @@ class SCAPI StatusProvider {
                 #pragma GCC diagnostic ignored "-Wformat-security"
             #endif
             // The returned number of bytes to be written does not include the null terminator
-            const auto neededSize = std::snprintf(nullptr, 0ul, status.message, args ...) + 1;
+            const auto neededSize = snprintf(nullptr, 0ul, status.message, args ...) + 1;
             const auto size = std::min(buffer.size(), static_cast<std::size_t>(neededSize));
-            std::snprintf(buffer.data(), size, status.message, args ...);
+            snprintf(buffer.data(), size, status.message, args ...);
             #if !defined(__clang__) && defined(__GNUC__)
                 #pragma GCC diagnostic pop
             #endif

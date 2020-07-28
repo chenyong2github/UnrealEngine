@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/dna/DNAFixtures.h"
 
 #include <dna/Reader.h>

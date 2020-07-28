@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "status/Registry.h"
 
 #include "status/PredefinedCodes.h"

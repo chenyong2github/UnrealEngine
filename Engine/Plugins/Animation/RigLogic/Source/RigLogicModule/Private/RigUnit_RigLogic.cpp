@@ -7,7 +7,8 @@
 #include "RigInstance.h"
 #include "RigLogic.h"
 #include "SkelMeshDNAUtils.h"
-#include "Runtime/Core/Public/Math/TransformNonVectorized.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Math/TransformNonVectorized.h"
 #include "Units/RigUnitContext.h"
 
 DEFINE_LOG_CATEGORY(LogRigLogicUnit);

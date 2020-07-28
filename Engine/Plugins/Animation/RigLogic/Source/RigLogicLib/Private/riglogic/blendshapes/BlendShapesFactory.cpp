@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/blendshapes/BlendShapesFactory.h"
 
 #include "riglogic/utils/Extd.h"

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/bpcm/StorageSize.h"
 
 #include "riglogic/joints/bpcm/Extent.h"

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "pma/resources/AlignedMemoryResource.h"
 
 #include <cassert>

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/stream/StreamReaderImpl.h"
 
 #include "dna/TypeDefs.h"

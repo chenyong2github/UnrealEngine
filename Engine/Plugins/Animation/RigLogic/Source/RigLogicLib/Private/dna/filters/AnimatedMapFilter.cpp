@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/filters/AnimatedMapFilter.h"
 
 #include "dna/DNA.h"

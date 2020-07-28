@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/LODMapping.h"
 
 #include "dna/LODConstraint.h"

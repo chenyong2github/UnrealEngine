@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/controls/Controls.h"
 
 #include "riglogic/conditionaltable/ConditionalTable.h"

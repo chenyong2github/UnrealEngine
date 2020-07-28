@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifdef RL_BUILD_WITH_AVX
 
 #include "rltests/Defs.h"

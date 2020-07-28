@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #if defined(RL_USE_HALF_FLOATS) && defined(RL_BUILD_WITH_AVX)
 
 #include "riglogic/joints/bpcm/builders/AVXHalfFloat.h"

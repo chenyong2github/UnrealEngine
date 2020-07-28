@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/version/VersionInfo.h"
 
 #include "riglogic/version/Version.h"

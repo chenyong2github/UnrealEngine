@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/JointsEvaluator.h"
 
 namespace rl4 {

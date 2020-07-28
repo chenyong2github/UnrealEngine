@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/conditionaltable/ConditionalTableFixtures.h"
 
 #include "riglogic/TypeDefs.h"

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "status/Status.h"
 
 #include "status/Storage.h"

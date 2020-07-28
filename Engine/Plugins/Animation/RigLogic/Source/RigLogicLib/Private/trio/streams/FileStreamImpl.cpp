@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "trio/streams/FileStreamImpl.h"
 
 #include "trio/utils/ScopedEnumEx.h"

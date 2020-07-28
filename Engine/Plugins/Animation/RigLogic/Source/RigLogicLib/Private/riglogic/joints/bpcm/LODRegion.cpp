@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/bpcm/LODRegion.h"
 
 #include "riglogic/utils/Extd.h"

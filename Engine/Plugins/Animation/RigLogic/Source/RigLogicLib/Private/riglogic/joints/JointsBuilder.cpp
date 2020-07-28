@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/JointsBuilder.h"
 
 #include "riglogic/joints/bpcm/builders/Scalar.h"

@@ -30,7 +30,8 @@ void FRigLogicMemoryStream::write(const char* WriteFromBuffer, size_t Size)
 {
 	FString writeStr;
 	int32 BufferSize = BitStreamBuffer->Num();
-	if (PositionInBuffer + Size > BufferSize)
+	ensure(BufferSize >= 0);
+	if (PositionInBuffer + Size > static_cast<size_t>(BufferSize))
 	{
 		int32 difference = PositionInBuffer + Size - BufferSize;
 		BitStreamBuffer->AddUninitialized(difference);
@@ -42,14 +43,4 @@ void FRigLogicMemoryStream::write(const char* WriteFromBuffer, size_t Size)
 size_t FRigLogicMemoryStream::size()
 {
 	return BitStreamBuffer->Num();
-}
-
-bool FRigLogicMemoryStream::hasError()
-{
-	return false;
-}
-
-TArray<uint8>* FRigLogicMemoryStream::GetBitStreamBuffer()
-{
-	return BitStreamBuffer;
 }

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #if defined(TRIMD_ENABLE_AVX) || defined(TRIMD_ENABLE_SSE)

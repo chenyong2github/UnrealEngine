@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/psdmatrix/PSDMatrix.h"
 
 #include "riglogic/TypeDefs.h"

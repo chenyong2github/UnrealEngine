@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/Defs.h"
 #include "rltests/dna/DNAFixtures.h"
 #include "rltests/dna/FakeStream.h"

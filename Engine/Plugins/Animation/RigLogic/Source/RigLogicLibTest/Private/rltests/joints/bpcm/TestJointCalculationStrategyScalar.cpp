@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/Defs.h"
 #include "rltests/joints/bpcm/Helpers.h"
 #include "rltests/joints/bpcm/JointFixturesBlock4.h"

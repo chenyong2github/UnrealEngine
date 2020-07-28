@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/Writer.h"
 
 #include "dna/Reader.h"

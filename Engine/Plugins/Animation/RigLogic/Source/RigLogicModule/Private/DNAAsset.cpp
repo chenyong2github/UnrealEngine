@@ -60,7 +60,7 @@ bool UDNAAsset::Init(const FString DNAFilename)
 	}
 	
 	// Load run-time data (behavior) from whole-DNA buffer into BehaviorStreamReader
-	TSharedPtr<IDNAReader> DNAReaderBehavior = ReadDNALayerFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
+	TSharedPtr<IDNAReader> DNAReaderBehavior = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Behavior, 0u); //0u = MaxLOD
 
 	if (!DNAReaderBehavior.IsValid())
 	{
@@ -73,7 +73,7 @@ bool UDNAAsset::Init(const FString DNAFilename)
 #if WITH_EDITORONLY_DATA
 	//We use geometry part of the data in MHC only (for updating the SkeletalMesh with
 	//result of GeneSplicer), so we can drop geometry part when cooking for runtime
-	TSharedPtr<IDNAReader> DNAReaderGeometry = ReadDNALayerFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
+	TSharedPtr<IDNAReader> DNAReaderGeometry = ReadDNAFromBuffer(&TempFileBuffer, EDNADataLayer::Geometry, 0u); //0u = MaxLOD
 	GeometryStreamReader = DNAReaderGeometry;
 	WriteToBuffer(DNAReaderGeometry.Get(), &DesignTimeData, AVG_GEOMETRY_SIZE);
 	//Note: in future, we will want to load geometry data in-game too 
@@ -94,14 +94,14 @@ void UDNAAsset::PostLoad()
 		return;
 	}
 
-	BehaviorStreamReader = ReadDNALayerFromBuffer(&BehaviorData, EDNADataLayer::Behavior, 0u); //0u = max LOD
+	BehaviorStreamReader = ReadDNAFromBuffer(&BehaviorData, EDNADataLayer::Behavior, 0u); //0u = max LOD
 
 #if WITH_EDITORONLY_DATA
 	if (DesignTimeData.Num() == 0)
 	{
 		return;
 	}
-	GeometryStreamReader = ReadDNALayerFromBuffer(&DesignTimeData, EDNADataLayer::Geometry, 0u); //0u = max LOD
+	GeometryStreamReader = ReadDNAFromBuffer(&DesignTimeData, EDNADataLayer::Geometry, 0u); //0u = max LOD
 #endif // #if WITH_EDITORONLY_DATA
 }
 
@@ -120,7 +120,7 @@ TSharedPtr<IDNAReader> UDNAAsset::CopyDNALayer(const IDNAReader* Source, EDNADat
 
 	MemoryStream.seek(0ul);
 
-	return ReadDNALayerFromBuffer(&MemoryBuffer, DNADataLayer);
+	return ReadDNAFromBuffer(&MemoryBuffer, DNADataLayer);
 }
 
 void UDNAAsset::SetBehaviorReader(const TSharedPtr<IDNAReader> SourceDNAReader)

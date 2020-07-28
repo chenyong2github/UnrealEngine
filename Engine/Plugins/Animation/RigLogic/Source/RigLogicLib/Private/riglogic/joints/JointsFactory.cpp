@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/JointsFactory.h"
 
 #include "riglogic/joints/JointsBuilder.h"

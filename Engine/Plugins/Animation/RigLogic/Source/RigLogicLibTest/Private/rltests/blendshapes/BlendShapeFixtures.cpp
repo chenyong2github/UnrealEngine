@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "rltests/blendshapes/BlendShapeFixtures.h"
 
 #include "riglogic/TypeDefs.h"

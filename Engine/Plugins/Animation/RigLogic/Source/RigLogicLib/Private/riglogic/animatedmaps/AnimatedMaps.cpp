@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/animatedmaps/AnimatedMaps.h"
 
 #include "riglogic/TypeDefs.h"

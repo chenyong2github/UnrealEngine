@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "riglogic/types/Aliases.h"
@@ -5,6 +7,11 @@
 #include <dna/Reader.h>
 
 #include <cstdint>
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable:4100) // unreferenced formal parameter
+#endif
 
 namespace dna {
 
@@ -437,3 +444,7 @@ class FakeReader : public Reader {
 };
 
 }  // namespace dna
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif

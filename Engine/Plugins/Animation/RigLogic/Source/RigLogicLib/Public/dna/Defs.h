@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #if defined(_WIN32) || defined(__CYGWIN__)

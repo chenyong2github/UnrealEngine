@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/filters/BlendShapeFilter.h"
 
 #include "dna/DNA.h"

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "riglogic/joints/bpcm/JointsBuilderCommon.h"
 
 #include "riglogic/joints/bpcm/JointsEvaluator.h"

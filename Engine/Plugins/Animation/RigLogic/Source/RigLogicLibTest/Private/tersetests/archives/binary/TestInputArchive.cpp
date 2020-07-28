@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "tersetests/Defs.h"
 #include "tersetests/archives/binary/Common.h"
 #include "tersetests/archives/binary/FakeStream.h"

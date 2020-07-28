@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "dna/LODConstraint.h"
 
 #include "dna/utils/Extd.h"
