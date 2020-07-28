@@ -189,36 +189,29 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 	// This is important so we add parameters in the proper order (parameter values are latched the first time a given parameter name is encountered)
 	FMaterialCachedExpressionContext LocalContext(Context);
 	LocalContext.bUpdateFunctionExpressions = false; // we update functions explicitly
+	
+	FMaterialCachedExpressionData* Self = this;
+	auto ProcessFunction = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* InFunction) -> bool
 	{
-		FMaterialCachedExpressionData* Self = this;
-		auto DependentFunctionLamba = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* DepFunction) -> bool
+		const TArray<UMaterialExpression*>* FunctionExpressions = InFunction->GetFunctionExpressions();
+		if (FunctionExpressions)
 		{
-			const TArray<UMaterialExpression*>* FunctionExpressions = DepFunction->GetFunctionExpressions();
-			if (FunctionExpressions)
+			if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
 			{
-				if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-				{
-					bResult = false;
-				}
+				bResult = false;
 			}
-			return true;
-		};
-		Function->IterateDependentFunctions(MoveTemp(DependentFunctionLamba));
-	}
-
-	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
-	if (FunctionExpressions)
-	{
-		if (!UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-		{
-			bResult = false;
 		}
-	}
 
-	FMaterialFunctionInfo NewFunctionInfo;
-	NewFunctionInfo.Function = Function;
-	NewFunctionInfo.StateId = Function->StateId;
-	FunctionInfos.Add(NewFunctionInfo);
+		FMaterialFunctionInfo NewFunctionInfo;
+		NewFunctionInfo.Function = InFunction;
+		NewFunctionInfo.StateId = InFunction->StateId;
+		Self->FunctionInfos.Add(NewFunctionInfo);
+
+		return true;
+	};
+	Function->IterateDependentFunctions(ProcessFunction);
+
+	ProcessFunction(Function);
 
 	return bResult;
 }
