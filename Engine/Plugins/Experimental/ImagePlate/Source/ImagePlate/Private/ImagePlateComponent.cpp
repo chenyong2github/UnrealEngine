@@ -82,7 +82,7 @@ namespace
 			Material = InComponent->GetPlate().DynamicMaterial ? InComponent->GetPlate().DynamicMaterial : InComponent->GetPlate().Material;
 			if (Material)
 			{
-				MaterialRelevance |= Material->GetRelevance(GetScene().GetFeatureLevel());
+				MaterialRelevance |= Material->GetRelevance_Concurrent(GetScene().GetFeatureLevel());
 			}
 
 			FColor NewPropertyColor;
