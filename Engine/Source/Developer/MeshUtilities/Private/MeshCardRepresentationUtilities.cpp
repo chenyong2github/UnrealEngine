@@ -522,6 +522,8 @@ bool FMeshUtilities::GenerateCardRepresentationData(
 	FCardRepresentationData& OutData)
 {
 #if USE_EMBREE
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshUtilities::GenerateCardRepresentationData);
+
 	RTCDevice EmbreeDevice = rtcNewDevice(nullptr);
 
 	RTCError ReturnErrorNewDevice = rtcDeviceGetError(EmbreeDevice);

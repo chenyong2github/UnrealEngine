@@ -195,6 +195,7 @@ public:
 
 	int32 GetNumOutstandingTasks() const
 	{
+		FScopeLock Lock(&CriticalSection);
 		return ReferencedTasks.Num();
 	}
 
@@ -216,6 +217,8 @@ private:
 	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> CompletedTasks;
 
 	class IMeshUtilities* MeshUtilities;
+
+	mutable FCriticalSection CriticalSection;
 
 	friend class FBuildCardRepresentationThreadRunnable;
 };
