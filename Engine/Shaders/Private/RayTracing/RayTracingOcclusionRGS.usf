@@ -372,7 +372,6 @@ FOcclusionResult ComputeOcclusion(
 		}
 		else if (bApplyNormalCulling && dot(WorldNormal, Ray.Direction) <= 0.0)
 		{
-			Out.ClosestRayDistance = 0.001;
 			continue;
 		}
 
