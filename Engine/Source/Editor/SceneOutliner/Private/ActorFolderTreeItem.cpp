@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ActorFolderTreeItem.h"
 #include "ActorTreeItem.h"
 #include "SSceneOutliner.h"

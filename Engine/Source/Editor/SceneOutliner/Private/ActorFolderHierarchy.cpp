@@ -1,5 +1,6 @@
-#include "ActorFolderHierarchy.h"
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "ActorFolderHierarchy.h"
 #include "ISceneOutlinerMode.h"
 #include "WorldTreeItem.h"
 #include "ActorFolderTreeItem.h"
