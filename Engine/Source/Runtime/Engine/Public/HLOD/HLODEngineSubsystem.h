@@ -19,6 +19,24 @@ public:
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
+	/**
+	 * Cleanup invalid LOD actors in the given world
+	 * @return true if any cleanup was performed
+	 */
+	bool CleanupHLODs(UWorld* InWorld);
+
+	/**
+	 * Cleanup invalid LOD actors in the given level
+	 * @return true if any cleanup was performed
+	 */
+	bool CleanupHLODs(ULevel* InLevel);
+	
+	/**
+	 * By default, invalid LODActors are cleared when loading maps
+	 * Use this method to change that behavior
+	 */
+	void DisableHLODCleanupOnLoad(bool bInDisableHLODCleanup);
+
 	// Should be called when the "Save LOD Actors to HLOD Packages" option is toggled.
 	void OnSaveLODActorsToHLODPackagesChanged();
 
@@ -34,10 +52,14 @@ private:
 	void UnregisterRecreateLODActorsDelegates();
 	void RegisterRecreateLODActorsDelegates();
 
+	bool CleanupHLOD(class ALODActor* InLODActor);
+
 private:
 	FDelegateHandle OnPostWorldInitializationDelegateHandle;
 	FDelegateHandle OnLevelAddedToWorldDelegateHandle;
 	FDelegateHandle OnPreSaveWorlDelegateHandle;
+
+	bool bDisableHLODCleanupOnLoad;
 
 #endif // WITH_EDITOR
 };
