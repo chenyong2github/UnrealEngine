@@ -240,7 +240,7 @@ bool UOptimusDeformer::AddGraph(
 		// Do we already have a setup graph?
 		if (bHaveSetupGraph)
 		{
-			return nullptr;
+			return false;
 		}
 		InInsertBefore = 0;
 		break;
@@ -262,7 +262,7 @@ bool UOptimusDeformer::AddGraph(
 
 	Graphs.Insert(InGraph, InInsertBefore);
 
-	// Notify(EOptimusNodeGraphNotifyType::GraphAdded, Graph);
+	Notify(EOptimusNodeGraphNotifyType::GraphAdded, InGraph);
 
 	return true;
 }
@@ -287,7 +287,7 @@ bool UOptimusDeformer::RemoveGraph(
 
 	Graphs.RemoveAt(GraphIndex);
 
-	// Notify(EOptimusNodeGraphNotifyType::GraphRemoved, InGraph);
+	Notify(EOptimusNodeGraphNotifyType::GraphRemoved, InGraph);
 
 	if (bDeleteGraph)
 	{
@@ -338,7 +338,7 @@ bool UOptimusDeformer::MoveGraph(
 	Graphs.RemoveAt(GraphOldIndex);
 	Graphs.Insert(InGraph, InInsertBefore);
 
-	// Notify(EOptimusNodeGraphNotifyType::GraphIndexChanged, InGraph);
+	Notify(EOptimusNodeGraphNotifyType::GraphIndexChanged, InGraph);
 
 	return true;
 }
