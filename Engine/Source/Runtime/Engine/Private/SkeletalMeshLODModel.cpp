@@ -352,7 +352,11 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 
 	if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH_LOD)
 	{
-		Ar << S.bEnableClothLOD_DEPRECATED;
+		if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::RemoveEnableClothLOD)
+		{
+			uint8 DummyEnableClothLOD;
+			Ar << DummyEnableClothLOD;
+		}
 	}
 
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
