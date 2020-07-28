@@ -1034,7 +1034,7 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		{
 			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 			UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-			FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+			FNiagaraStackGraphUtilities::RenameReferencingParameters(&System, Emitter, *FunctionCallNode, OldName, NewName);
 			FunctionCallNode->RefreshFromExternalChanges();
 			FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 			RefreshChildren();
