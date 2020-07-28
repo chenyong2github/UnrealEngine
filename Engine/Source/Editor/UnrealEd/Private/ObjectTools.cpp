@@ -94,6 +94,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/ReferencerFinder.h"
 #include "Containers/Set.h"
+#include "UObject/StrongObjectPtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -1370,6 +1371,15 @@ namespace ObjectTools
 					}
 				}
 
+				// Prevent newly created redirectors from being GC'ed before we can rename them
+				TArray<TStrongObjectPtr<UObjectRedirector>> Redirectors;
+				Redirectors.Reserve(RedirectorToObjectNameMap.Num());
+				for (TMap<UObjectRedirector*, FName>::TIterator RedirectIt(RedirectorToObjectNameMap); RedirectIt; ++RedirectIt)
+				{
+					UObjectRedirector* Redirector = RedirectIt.Key();
+					Redirectors.Add(TStrongObjectPtr<UObjectRedirector>(Redirector));
+				}
+
 				TArray<UPackage*> PotentialPackagesToDelete;
 				for ( int32 ObjIdx = 0; ObjIdx < ConsolidatedObjects.Num(); ++ObjIdx )
 				{
@@ -1396,6 +1406,9 @@ namespace ObjectTools
 						CriticalFailureObjects.AddUnique(Redirector);
 					}
 				}
+
+				Redirectors.Empty();
+
 			}
 
 			// Empty the provided array so it's not full of pointers to deleted objects
