@@ -4421,7 +4421,11 @@ namespace ThumbnailTools
 				SlowTask.MakeDialog();
 
 				// Block until the shader maps that we will save have finished being compiled
-				InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->FinishCompilation();
+				FMaterialResource* CurrentResource = InMaterial->GetMaterialResource(GMaxRHIFeatureLevel);
+				if (CurrentResource)
+				{
+					CurrentResource->FinishCompilation();
+				}
 			}
 
 			// Generate the thumbnail
