@@ -17,8 +17,7 @@
 	"SupportedTargetPlatforms": [
 		"Win32",
 		"Win64",
-		"Linux",
-		"Mac"
+		"Linux"
 	],
 	"Modules": [
 		{
@@ -28,8 +27,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Linux",
-				"Mac"
+				"Linux"
 			]
 		},
 		{
@@ -39,8 +37,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Linux",
-				"Mac"
+				"Linux"
 			]
 		},
 		{
@@ -50,8 +47,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Linux",
-				"Mac"
+				"Linux"
 			]
 		},
 		{
@@ -61,8 +57,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Linux",
-				"Mac"
+				"Linux"
 			]
 		}
 	],
