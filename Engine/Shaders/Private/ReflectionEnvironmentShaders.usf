@@ -538,7 +538,7 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 #if 1
 
 	// For a 128x128 cubemap, sampling mip level 2 with only 8x8 samples matches closely the super sampled version.
-	const float3 SampleDirection = UniformSampleSphere(float2(ThreadId.xy) / float2(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y)).xyz;
+	const float3 SampleDirection = UniformSampleSphere((float2(ThreadId.xy)+0.5f) / float2(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y)).xyz;
 	IrradianceSHShared[LinearIndex] = SampleSHRGB(SampleDirection, UniformSampleSolidAngle, MipIndex);
 
 #else
