@@ -9,6 +9,7 @@
 #include "MetasoundDataReferenceTypes.h"
 #include "MetasoundTime.h"
 #include "MetasoundFrequency.h"
+#include "MetasoundWave.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundGraphCore);
 
@@ -29,6 +30,7 @@ namespace Metasound
 	REGISTER_METASOUND_DATATYPE(FDoubleTime, "Primitive:Time:HighResolution")
 	REGISTER_METASOUND_DATATYPE(FSampleTime, "Primitive:Time:SampleResolution")
 	REGISTER_METASOUND_DATATYPE(FFrequency, "Primitive:Frequency")
+	REGISTER_METASOUND_DATATYPE(FWave, "Primitive:Wave")
 }
 
 namespace Metasound 

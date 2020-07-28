@@ -9,12 +9,18 @@ namespace UnrealBuildTool.Rules
 	{
         public MetasoundGraphCore(ReadOnlyTargetRules Target) : base(Target)
 		{
-			//OptimizeCode = CodeOptimization.Never;
+            //OptimizeCode = CodeOptimization.Never;
+
+            PrivateDependencyModuleNames.AddRange(
+				new string[] {
+                    "AudioExtensions"
+                }
+			);
 
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
-					"SignalProcessing"
+					"SignalProcessing",
                 }
             );
 		}
