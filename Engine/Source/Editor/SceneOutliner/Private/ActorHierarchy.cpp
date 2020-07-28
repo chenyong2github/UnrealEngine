@@ -155,22 +155,21 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 	{
 		if (ActorTreeItem->Actor.IsValid())
 		{
-			const FSceneOutlinerTreeItemPtr* ParentItem;
 			if (const AActor* ParentActor = ActorTreeItem->Actor->GetAttachParentActor())
 			{
-				if (ParentItem = Items.Find(ParentActor))
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
 				{
 					return *ParentItem;
 				}
 			}
 			else if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
 			{
-				if (ParentItem = Items.Find(ActorTreeItem->Actor->GetFolderPath()))
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetFolderPath()))
 				{
 					return *ParentItem;
 				}
 			}
-			else if (ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
+			else if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
 			{
 				return *ParentItem;
 			}
