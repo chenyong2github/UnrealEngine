@@ -724,13 +724,24 @@ void UBehaviorTreeComponent::RequestExecution(const UBTDecorator* RequestedBy)
 		return;
 	}
 
+#if ENABLE_VISUAL_LOG || DO_ENSURE
 	const FBehaviorTreeInstance& ActiveInstance = InstanceStack.Last();
 	if (ActiveInstance.ActiveNodeType == EBTActiveNode::ActiveTask)
 	{
 		EBTNodeRelativePriority RelativePriority = CalculateRelativePriority(RequestedBy, ActiveInstance.ActiveNode);
-		UE_CVLOG(RelativePriority < EBTNodeRelativePriority::Same, GetOwner(), LogBehaviorTree, Error, TEXT("%s decorator requesting restart has lower priority than Current Task"), ANSI_TO_TCHAR(__FUNCTION__));
-		ensure(RelativePriority >= EBTNodeRelativePriority::Same);
+
+		if (RelativePriority < EBTNodeRelativePriority::Same)
+		{
+			const FString ErrorMsg(FString::Printf(TEXT("%s: decorator %s requesting restart has lower priority than Current Task %s"),
+				ANSI_TO_TCHAR(__FUNCTION__),
+				*UBehaviorTreeTypes::DescribeNodeHelper(RequestedBy),
+				*UBehaviorTreeTypes::DescribeNodeHelper(ActiveInstance.ActiveNode)));
+
+			UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("%s"), *ErrorMsg);
+			ensureMsgf(false, TEXT("%s"), *ErrorMsg);
+		}
 	}
+#endif // ENABLE_VISUAL_LOG || DO_ENSURE
 
 	if (AbortMode == EBTFlowAbortMode::Both)
 	{
