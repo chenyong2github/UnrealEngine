@@ -2,6 +2,7 @@
 
 #include "OptimusDeformer.h"
 
+#include "Actions/OptimusNodeGraphActions.h"
 #include "OptimusActionStack.h"
 #include "OptimusNodeGraph.h"
 
@@ -12,10 +13,14 @@
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
+static const FName SetupGraphName("Setup");
+static const FName UpdateGraphName("Update");
+
+
 
 UOptimusDeformer::UOptimusDeformer()
 {
-	UOptimusNodeGraph *UpdateGraph = CreateDefaultSubobject<UOptimusNodeGraph>(TEXT("UpdateGraph"));
+	UOptimusNodeGraph *UpdateGraph = CreateDefaultSubobject<UOptimusNodeGraph>(UpdateGraphName);
 	UpdateGraph->SetGraphType(EOptimusNodeGraphType::Update);
 	Graphs.Add(UpdateGraph);
 
@@ -25,28 +30,45 @@ UOptimusDeformer::UOptimusDeformer()
 
 UOptimusNodeGraph* UOptimusDeformer::AddSetupGraph()
 {
-	// Do we already have a setup graph?
-	for (UOptimusNodeGraph* Graph : Graphs)
+	FOptimusNodeGraphAction_AddGraph* AddGraphAction = 
+		new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::Setup, SetupGraphName, 0);
+
+	if (GetActionStack()->RunAction(AddGraphAction))
 	{
-		if (Graph->GetGraphType() == EOptimusNodeGraphType::Setup)
-		{
-			return nullptr;
-		}
+		return AddGraphAction->GetGraph(this);
 	}
-
-	UOptimusNodeGraph* SetupGraph = CreateDefaultSubobject<UOptimusNodeGraph>(TEXT("SetupGraph"));
-	SetupGraph->SetGraphType(EOptimusNodeGraphType::Setup);
-	Graphs.Add(SetupGraph);
-
-	// FIXME: Notify!
-
-	return SetupGraph;
+	else
+	{
+		return nullptr;
+	}
 }
 
 
-UOptimusNodeGraph* UOptimusDeformer::AddTriggerGraph()
+UOptimusNodeGraph* UOptimusDeformer::AddTriggerGraph(const FString &InName)
 {
-	return nullptr;
+	FName Name(InName);
+
+	if (Name == SetupGraphName || Name == UpdateGraphName)
+	{
+		return nullptr;
+	}
+
+	FOptimusNodeGraphAction_AddGraph* AddGraphAction =
+	    new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::ExternalTrigger, Name, INDEX_NONE);
+
+	if (GetActionStack()->RunAction(AddGraphAction))
+	{
+		return AddGraphAction->GetGraph(this);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+bool UOptimusDeformer::RemoveGraph(UOptimusNodeGraph* InGraph)
+{
+    return GetActionStack()->RunAction<FOptimusNodeGraphAction_RemoveGraph>(InGraph);
 }
 
 
@@ -107,6 +129,12 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 }
 
 
+void UOptimusDeformer::Notify(EOptimusNodeGraphNotifyType InNotifyType, UOptimusNodeGraph* InGraph)
+{
+    ModifiedEventDelegate.Broadcast(InNotifyType, InGraph, nullptr);
+}
+
+
 UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(const FString& InGraphPath)
 {
 	FString PathRemainder;
@@ -140,5 +168,180 @@ UOptimusNodePin* UOptimusDeformer::ResolvePinPath(const FString& InPinPath)
 
 
 
-#undef LOCTEXT_NAMESPACE
+UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
+	EOptimusNodeGraphType InType, 
+	FName InName, 
+	TOptional<int32> InInsertBefore
+	)
+{
+	if (InType == EOptimusNodeGraphType::Update)
+	{
+		return nullptr;
+	}
+	else if (InType == EOptimusNodeGraphType::Setup)
+	{
+		// Do we already have a setup graph?
+		if (Graphs.Num() > 1 && Graphs[0]->GetGraphType() == EOptimusNodeGraphType::Setup)
+		{
+			return nullptr;
+		}
 
+		// The name of the setup graph is fixed.
+		InName = SetupGraphName;
+	}
+
+	UOptimusNodeGraph* Graph = CreateDefaultSubobject<UOptimusNodeGraph>(InName);
+	Graph->SetGraphType(InType);
+
+	if (InInsertBefore.IsSet())
+	{
+		if (AddGraph(Graph, InInsertBefore.GetValue()))
+		{
+			return Graph;
+		}
+		else
+		{
+			Graph->Rename(nullptr, GetTransientPackage());
+			Graph->MarkPendingKill();
+
+			return nullptr;
+		}
+	}
+	else
+	{
+		return Graph;
+	}
+}
+
+
+bool UOptimusDeformer::AddGraph(
+	UOptimusNodeGraph* InGraph,
+	int32 InInsertBefore
+	)
+{
+	if (InGraph == nullptr)
+	{
+		return false;
+	}
+
+	const bool bHaveSetupGraph = (Graphs.Num() > 1 && Graphs[0]->GetGraphType() == EOptimusNodeGraphType::Setup);
+
+	// If INDEX_NONE, insert at the end.
+	if (InInsertBefore == INDEX_NONE)
+	{
+		InInsertBefore = Graphs.Num();
+	}
+		
+
+	switch (InGraph->GetGraphType())
+	{
+	case EOptimusNodeGraphType::Update:
+	case EOptimusNodeGraphType::Setup:
+		// Do we already have a setup graph?
+		if (bHaveSetupGraph)
+		{
+			return nullptr;
+		}
+		InInsertBefore = 0;
+		break;
+		
+	case EOptimusNodeGraphType::ExternalTrigger:
+		// Trigger graphs are always sandwiched between setup and update.
+		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, Graphs.Num() - 1);
+		break;
+	}
+
+	if (InGraph->GetOuter() != this)
+	{
+		IOptimusNodeGraphCollectionOwner* GraphOwner = Cast<IOptimusNodeGraphCollectionOwner>(InGraph->GetOuter());
+		if (GraphOwner)
+		{
+			GraphOwner->RemoveGraph(InGraph, /* bDeleteGraph = */ false);
+		}
+	}
+
+	Graphs.Insert(InGraph, InInsertBefore);
+
+	// Notify(EOptimusNodeGraphNotifyType::GraphAdded, Graph);
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RemoveGraph(
+	UOptimusNodeGraph* InGraph,
+	bool bDeleteGraph
+	)
+{
+	// Not ours?
+	int32 GraphIndex = Graphs.IndexOfByKey(InGraph);
+	if (GraphIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (InGraph->GetGraphType() == EOptimusNodeGraphType::Update)
+	{
+		return false;
+	}
+
+	Graphs.RemoveAt(GraphIndex);
+
+	// Notify(EOptimusNodeGraphNotifyType::GraphRemoved, InGraph);
+
+	if (bDeleteGraph)
+	{
+		// Un-parent this graph to a temporary storage and mark it for kill.
+		InGraph->Rename(nullptr, GetTransientPackage());
+		InGraph->MarkPendingKill();
+	}
+
+	return true;
+}
+
+
+
+bool UOptimusDeformer::MoveGraph(
+	UOptimusNodeGraph* InGraph, 
+	int32 InInsertBefore
+	)
+{
+	int32 GraphOldIndex = Graphs.IndexOfByKey(InGraph);
+	if (GraphOldIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (InGraph->GetGraphType() != EOptimusNodeGraphType::ExternalTrigger)
+	{
+		return false;
+	}
+
+	// Less than num graphs, because the index is based on the node being moved not being
+	// in the list.
+	// [S T1 T2 U] -> Move T2 to slot 1 in list [S T1 U]
+	if (InInsertBefore == INDEX_NONE)
+	{
+		InInsertBefore = Graphs.Num() - 1;
+	}
+	else
+	{
+		const bool bHaveSetupGraph = (Graphs.Num() > 1 && Graphs[0]->GetGraphType() == EOptimusNodeGraphType::Setup);
+		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, Graphs.Num() - 1);
+	}
+
+	if (GraphOldIndex == InInsertBefore)
+	{
+		return true;
+	}
+
+	Graphs.RemoveAt(GraphOldIndex);
+	Graphs.Insert(InGraph, InInsertBefore);
+
+	// Notify(EOptimusNodeGraphNotifyType::GraphIndexChanged, InGraph);
+
+	return true;
+}
+
+
+#undef LOCTEXT_NAMESPACE

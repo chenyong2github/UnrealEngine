@@ -16,7 +16,7 @@ class UOptimusNodeLink;
 class UOptimusNodePin;
 
 UENUM()
-enum class EOptimusNodeGraphType : uint8
+enum class EOptimusNodeGraphType
 {
 	Setup,
 	Update,
@@ -35,6 +35,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	EOptimusNodeGraphType GetGraphType() const { return GraphType; }
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	int32 GetGraphIndex() const;
+
 
 	/// @brief Returns the modify event object that can listened to in case there are changes
 	/// to the graph that need to be reacted to.

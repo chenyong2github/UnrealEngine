@@ -14,6 +14,136 @@
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/UObjectGlobals.h"
 
+
+// ---- Add graph
+
+FOptimusNodeGraphAction_AddGraph::FOptimusNodeGraphAction_AddGraph(
+	IOptimusNodeGraphCollectionOwner* InGraphOwner, 
+	EOptimusNodeGraphType InGraphType, 
+	FName InGraphName, 
+	int32 InGraphIndex
+	)
+{
+	if (ensure(InGraphOwner))
+	{
+		GraphType = InGraphType;
+		GraphName = InGraphName;
+		GraphIndex = InGraphIndex;
+
+		SetTitlef(TEXT("Add graph"));
+	}
+}
+
+
+
+UOptimusNodeGraph* FOptimusNodeGraphAction_AddGraph::GetGraph(IOptimusNodeGraphCollectionOwner* InRoot) const
+{
+	return InRoot->ResolveGraphPath(GraphPath);
+}
+
+
+bool FOptimusNodeGraphAction_AddGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->CreateGraph(GraphType, GraphName, GraphIndex);
+	if (Graph)
+	{
+		if (GraphName == NAME_None)
+		{
+			GraphName = Graph->GetFName();
+		}
+
+		GraphPath = Graph->GetGraphPath();
+		return true;
+	}
+	else
+	{
+		GraphPath.Reset();
+		return false;
+	}
+}
+
+
+bool FOptimusNodeGraphAction_AddGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (Graph == nullptr)
+	{
+		return false;
+	}
+
+	return InRoot->RemoveGraph(Graph);
+}
+
+
+// ---- Remove graph
+
+FOptimusNodeGraphAction_RemoveGraph::FOptimusNodeGraphAction_RemoveGraph(UOptimusNodeGraph* InGraph)
+{
+	if (ensure(InGraph))
+	{
+		GraphPath = InGraph->GetGraphPath();
+		GraphType = InGraph->GetGraphType();
+		GraphName = InGraph->GetFName();
+		GraphIndex = InGraph->GetGraphIndex();
+
+		SetTitlef(TEXT("Remove graph"));
+	}
+}
+
+
+bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	{
+		FMemoryWriter GraphArchive(GraphData);
+		// This fella does the heavy lifting of serializing object references.
+		// FMemoryWriter and fam do not handle UObject* serialization on their own.
+		FObjectAndNameAsStringProxyArchive GraphProxyArchive(
+		    GraphArchive, /* bInLoadIfFindFails=*/false);
+		Graph->SerializeScriptProperties(GraphProxyArchive);
+	}
+
+	return InRoot->RemoveGraph(Graph);
+}
+
+
+bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	// Create a graph, but don't add it to the list of used graphs. Otherwise interested parties
+	// will be notified with a partially constructed graph.
+	UOptimusNodeGraph* Graph = InRoot->CreateGraph(GraphType, GraphName, TOptional<int32>());
+	if (Graph == nullptr)
+	{
+		return false;
+	}
+
+	// Unserialize all the stored properties (and sub-objects) back onto the new graph.
+	{
+		FMemoryReader GraphArchive(GraphData);
+		FObjectAndNameAsStringProxyArchive GraphProxyArchive(
+		    GraphArchive, /* bInLoadIfFindFails=*/true);
+		Graph->SerializeScriptProperties(GraphProxyArchive);
+	}
+	
+	// Now add the graph such that interested parties get notified.
+	if (InRoot->AddGraph(Graph, GraphIndex))
+	{
+		return true;
+	}
+	else
+	{
+		Graph->Rename(nullptr, GetTransientPackage());
+		Graph->MarkPendingKill();
+		return false;
+	}
+}
+
+
 FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
 	UOptimusNodeGraph* InGraph, 
 	const UClass* InNodeClass,
@@ -31,6 +161,8 @@ FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
 	}
 }
 
+
+// ---- Add node
 
 UOptimusNode* FOptimusNodeGraphAction_AddNode::GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const
 {
@@ -83,6 +215,8 @@ bool FOptimusNodeGraphAction_AddNode::Undo(IOptimusNodeGraphCollectionOwner* InR
 	return Graph->RemoveNodeDirect(Node);
 }
 
+
+// ---- Remove node
 
 FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(UOptimusNode* InNode)
 {
@@ -154,6 +288,8 @@ bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* 
 }
 
 
+// ---- Add/remoe link base
+
 FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	UOptimusNodePin* InNodeOutputPin, 
 	UOptimusNodePin* InNodeInputPin
@@ -209,6 +345,8 @@ bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(IOptimusNodeGraphCollecti
 }
 
 
+// ---- Add link
+
 FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 	UOptimusNodePin* InNodeOutputPin, 
 	UOptimusNodePin* InNodeInputPin
@@ -219,6 +357,8 @@ FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 	SetTitlef(TEXT("Add Link"));
 }
 
+
+// ---- Remove link
 
 FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 	UOptimusNodeLink* InLink

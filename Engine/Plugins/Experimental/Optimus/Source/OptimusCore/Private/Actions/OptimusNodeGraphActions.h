@@ -8,10 +8,83 @@
 
 #include "OptimusNodeGraphActions.generated.h"
 
+enum class EOptimusNodeGraphType;
+class IOptimusNodeGraphCollectionOwner;
 class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
+
+
+USTRUCT()
+struct FOptimusNodeGraphAction_AddGraph :
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeGraphAction_AddGraph() = default;
+
+	FOptimusNodeGraphAction_AddGraph(
+	    IOptimusNodeGraphCollectionOwner* InGraphOwner,
+		EOptimusNodeGraphType InGraphType,
+		FName InGraphName,
+		int32 InGraphIndex
+		);
+
+	UOptimusNodeGraph* GetGraph(IOptimusNodeGraphCollectionOwner* InRoot) const;
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The type of graph to create
+	EOptimusNodeGraphType GraphType;
+
+	// The name of the graph being created.
+	FName GraphName;
+
+	// The index of this new graph in the graph stack.
+	int32 GraphIndex;
+
+	// The path of the freshly created graph after the first call to Do.
+	FString GraphPath;
+};
+
+
+USTRUCT()
+struct FOptimusNodeGraphAction_RemoveGraph : 
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeGraphAction_RemoveGraph() = default;
+
+	FOptimusNodeGraphAction_RemoveGraph(
+	    UOptimusNodeGraph* InGraph);
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph to remove.
+	FString GraphPath;
+
+	// The type of graph to reconstruct back to.
+	EOptimusNodeGraphType GraphType;
+
+	// The name to reconstruct the node as.
+	FName GraphName;
+	
+	// The absolute evaluation order the graph was in.
+	int32 GraphIndex;
+
+	// The stored graph data.
+	TArray<uint8> GraphData;
+};
 
 
 USTRUCT()

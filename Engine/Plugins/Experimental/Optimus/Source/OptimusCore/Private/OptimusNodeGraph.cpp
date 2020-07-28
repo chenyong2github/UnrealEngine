@@ -21,6 +21,17 @@ FString UOptimusNodeGraph::GetGraphPath() const
 }
 
 
+int32 UOptimusNodeGraph::GetGraphIndex() const
+{
+	ensure(GetOuter()->IsA<UOptimusDeformer>());
+	
+	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetOuter());
+	const TArray<UOptimusNodeGraph*> &Graphs = Deformer->GetGraphs();
+
+	return Graphs.IndexOfByKey(this);
+}
+
+
 FOptimusNodeGraphEvent& UOptimusNodeGraph::OnModify()
 {
 	return ModifiedEvent;
@@ -206,6 +217,20 @@ bool UOptimusNodeGraph::AddNodeDirect(UOptimusNode* InNode)
 	if (InNode == nullptr)
 	{
 		return false;
+	}
+
+	// Re-parent this node if it's not owned directly by us.
+	if (InNode->GetOuter() != this)
+	{
+		UOptimusNodeGraph* OtherGraph = Cast<UOptimusNodeGraph>(InNode->GetOuter());
+
+		// We can't re-parent this node if it still has links.
+		if (OtherGraph && OtherGraph->GetAllLinkIndexesToNode(InNode).Num() != 0)
+		{
+			return false;
+		}
+
+		InNode->Rename(nullptr, this);
 	}
 
 	Nodes.Add(InNode);
