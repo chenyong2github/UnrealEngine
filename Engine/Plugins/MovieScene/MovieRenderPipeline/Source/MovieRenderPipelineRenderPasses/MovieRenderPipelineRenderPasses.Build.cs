@@ -13,6 +13,9 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"Engine",
 				"ImageWriteQueue",
                 "SignalProcessing", // Needed for wave writer.
+				"UEOpenExr", // Needed for multilayer EXRs
+				"UEOpenExrRTTI", // Needed for EXR metadata
+				"ImageWrapper",
 			}
 		);
 
@@ -21,7 +24,10 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"MovieRenderPipelineCore",
 				"RenderCore",
                 "RHI",
-            }
+			}
         );
+
+		// Required for UEOpenExr
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
 	}
 }
