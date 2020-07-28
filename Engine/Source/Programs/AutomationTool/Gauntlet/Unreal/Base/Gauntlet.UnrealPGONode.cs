@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 
 namespace Gauntlet
 {
@@ -143,32 +144,39 @@ namespace Gauntlet
 			{
 				ScreenshotTime = DateTime.Now;
 
-				try
+				if (!File.Exists(Path.Combine(ScreenshotDirectory, ImageFilename)))
 				{
-					TimeSpan ImageTimestamp = DateTime.UtcNow - ScreenshotStartTime;
-					string ImageOutputPath = Path.Combine(ScreenshotDirectory, ImageTimestamp.ToString().Replace(':', '-') + ".jpg");
-					ImageUtils.ResaveImageAsJpgWithScaleAndQuality(Path.Combine(ScreenshotDirectory, ImageFilename), ImageOutputPath, ScreenshotScale, ScreenshotQuality);
+					Log.Warning("PGOPlatform.TakeScreenshot returned true, but output image {0} does not exist! skipping", ImageFilename);
+				}
+				else
+				{
+					try
+					{
+						TimeSpan ImageTimestamp = DateTime.UtcNow - ScreenshotStartTime;
+						string ImageOutputPath = Path.Combine(ScreenshotDirectory, ImageTimestamp.ToString().Replace(':', '-') + ".jpg");
+						ImageUtils.ResaveImageAsJpgWithScaleAndQuality(Path.Combine(ScreenshotDirectory, ImageFilename), ImageOutputPath, ScreenshotScale, ScreenshotQuality);
 
-					// Delete the temporary image file
-					try { File.Delete(Path.Combine(ScreenshotDirectory, ImageFilename)); }
+						// Delete the temporary image file
+						try { File.Delete(Path.Combine(ScreenshotDirectory, ImageFilename)); }
+						catch (Exception e)
+						{
+							Log.Warning("Got Exception Deleting temp iamge: {0}", e.ToString());
+						}
+					}
 					catch (Exception e)
 					{
-						Log.Warning("Got Exception Deleting temp iamge: {0}", e.ToString());
+						Log.Warning("Got Exception Renaming PGO image {0}: {1}", ImageFilename, e.ToString());
+						Process proc = Process.GetCurrentProcess();
+						Log.Info("Memory Usage: Private: {0}", proc.PrivateMemorySize64);
+						Log.Info("Memory Usage: Virtual: {0}", proc.VirtualMemorySize64);
+						Log.Info("Memory Usage: Peak Virtual: {0}", proc.PeakVirtualMemorySize64);
+						Log.Info("Memory Usage: Paged: {0}", proc.PagedMemorySize64);
+						Log.Info("Memory Usage: System Paged: {0}", proc.PagedSystemMemorySize64);
+						Log.Info("Memory Usage: System NonPaged: {0}", proc.NonpagedSystemMemorySize64);
+						Log.Info("Memory Usage: Working Set: {0}", proc.WorkingSet64);
+						Log.Info("Memory Usage: Peak Working Set: {0}", proc.PeakWorkingSet64);
+						proc.Dispose();
 					}
-				}
-				catch(Exception e)
-				{
-					Log.Warning("Got Exception Renaming PGO image {0}: {1}", ImageFilename, e.ToString());
-					Process proc = Process.GetCurrentProcess();
-					Log.Info("Memory Usage: Private: {0}", proc.PrivateMemorySize64);
-					Log.Info("Memory Usage: Virtual: {0}", proc.VirtualMemorySize64);
-					Log.Info("Memory Usage: Peak Virtual: {0}", proc.PeakVirtualMemorySize64);
-					Log.Info("Memory Usage: Paged: {0}", proc.PagedMemorySize64);
-					Log.Info("Memory Usage: System Paged: {0}", proc.PagedSystemMemorySize64);
-					Log.Info("Memory Usage: System NonPaged: {0}", proc.NonpagedSystemMemorySize64);
-					Log.Info("Memory Usage: Working Set: {0}", proc.WorkingSet64);
-					Log.Info("Memory Usage: Peak Working Set: {0}", proc.PeakWorkingSet64);
-					proc.Dispose();
 				}
 			}
 
