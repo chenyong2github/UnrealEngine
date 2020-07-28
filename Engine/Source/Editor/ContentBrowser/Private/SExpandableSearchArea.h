@@ -23,12 +23,19 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<SSearchBox> SearchBox);
 
+	/** @return true if the search area is expanded and the search box exposed */
+	bool IsExpanded() const { return bIsExpanded; }
+
+	/** Sets whether or not the search area is expanded to expose the search box */
+	void SetExpanded(bool bInExpanded);
 private:
 
 	FReply OnExpandSearchClicked();
 	EVisibility GetSearchBoxVisibility() const;
+	EVisibility GetSearchGlassVisibility() const;
 	const FSlateBrush* GetExpandSearchImage() const;
 private:
 	const FSearchBoxStyle* SearchStyle;
 	bool bIsExpanded;
+	TWeakPtr<SSearchBox> SearchBoxPtr;
 };

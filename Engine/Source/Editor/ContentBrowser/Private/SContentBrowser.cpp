@@ -272,6 +272,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 						.ToolTipText( LOCTEXT( "ImportTooltip", "Import assets from files to the currently selected folder" ) )
 						.ContentPadding(2)
 						.OnClicked(this, &SContentBrowser::OnImportClicked)
+						.IsEnabled(this, &SContentBrowser::IsAddNewEnabled)
 						[
 							SNew( SHorizontalBox )
 							+ SHorizontalBox::Slot()
@@ -886,7 +887,7 @@ TSharedRef<SWidget> SContentBrowser::CreatePathView(const FContentBrowserConfig*
 			.HAlign(HAlign_Right)
 			.Padding(5.0f, 0.0f)
 			[
-				SNew(SExpandableSearchArea, SourcesSearch->GetWidget())
+				SAssignNew(PathSearchArea, SExpandableSearchArea, SourcesSearch->GetWidget())
 			]
 		]
 		.BodyContent()
@@ -947,7 +948,7 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 			.HAlign(HAlign_Right)
 			.Padding(5.0f, 0.0f)
 			[
-				SNew(SExpandableSearchArea, CollectionSearch->GetWidget())
+				SAssignNew(CollectionSearchArea, SExpandableSearchArea, CollectionSearch->GetWidget())
 			]
 		]
 		.BodyContent()
@@ -1254,6 +1255,9 @@ void SContentBrowser::SaveSettings() const
 	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathAreaExpanded")), PathArea->IsExpanded(), GEditorPerProjectIni);
 	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionAreaExpanded")), CollectionArea->IsExpanded(), GEditorPerProjectIni);
 
+	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathSearchAreaExpanded")), PathSearchArea->IsExpanded(), GEditorPerProjectIni);
+	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionSearchAreaExpanded")), CollectionSearchArea->IsExpanded(), GEditorPerProjectIni);
+
 	for(int32 SlotIndex = 0; SlotIndex < PathAssetSplitterPtr->GetChildren()->Num(); SlotIndex++)
 	{
 		float SplitterSize = PathAssetSplitterPtr->SlotAt(SlotIndex).SizeValue.Get();
@@ -1399,6 +1403,14 @@ void SContentBrowser::LoadSettings(const FName& InInstanceName)
 	bool bCollectionAreaExpanded = false;
 	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionAreaExpanded")), bCollectionAreaExpanded, GEditorPerProjectIni);
 	CollectionArea->SetExpanded(bCollectionAreaExpanded);
+
+	bool bPathSearchAreaExpanded = false;
+	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathSearchAreaExpanded")), bPathSearchAreaExpanded, GEditorPerProjectIni);
+	PathSearchArea->SetExpanded(bPathSearchAreaExpanded);
+
+	bool bCollectionSearchAreaExpanded = false;
+	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionSearchAreaExpanded")), bCollectionSearchAreaExpanded, GEditorPerProjectIni);
+	CollectionSearchArea->SetExpanded(bCollectionSearchAreaExpanded);
 
 	for(int32 SlotIndex = 0; SlotIndex < PathAssetSplitterPtr->GetChildren()->Num(); SlotIndex++)
 	{

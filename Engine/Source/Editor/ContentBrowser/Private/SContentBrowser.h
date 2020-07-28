@@ -30,6 +30,7 @@ class SFilterList;
 class SPathView;
 class SSplitter;
 class UFactory;
+class SExpandableSearchArea;
 
 struct FToolMenuContext;
 
@@ -565,12 +566,18 @@ private:
 
 	/** Favorites area widget */
 	TSharedPtr<SExpandableArea> FavoritesArea;
-	
+
 	/** Path area widget */
 	TSharedPtr<SExpandableArea> PathArea;
 
+	/** Search area for paths */
+	TSharedPtr<SExpandableSearchArea> PathSearchArea;
+
 	/** Collection area widget */
 	TSharedPtr<SExpandableArea> CollectionArea;
+
+	/** Search area for collections */
+	TSharedPtr<SExpandableSearchArea> CollectionSearchArea;
 
 	/** Index of the active sources widget */
 	int32 ActiveSourcesWidgetIndex = 0;

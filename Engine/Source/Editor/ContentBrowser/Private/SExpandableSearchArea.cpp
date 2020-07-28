@@ -13,24 +13,14 @@ void SExpandableSearchArea::Construct(const FArguments& InArgs, TSharedRef<SSear
 
 	SearchStyle = InArgs._Style;
 
+	SearchBoxPtr = SearchBox;
+
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Center)
 		.AutoWidth()
-		[
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-			.ContentPadding(FMargin(0.0f, 2.0f))
-			.OnClicked(this, &SExpandableSearchArea::OnExpandSearchClicked)
-			[
-				SNew(SImage)
-				.Image(&SearchStyle->GlassImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-		]
-		+ SHorizontalBox::Slot()
 		[
 			SNew(SBox)
 			.Visibility(this, &SExpandableSearchArea::GetSearchBoxVisibility)
@@ -40,12 +30,51 @@ void SExpandableSearchArea::Construct(const FArguments& InArgs, TSharedRef<SSear
 				SearchBox
 			]
 		]
+		+ SHorizontalBox::Slot()
+		[
+			SNew(SButton)
+			.ToolTipText(NSLOCTEXT("ExpandableSearchArea", "ExpandCollapseSearchButton", "Expands or collapses the search text box"))
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ContentPadding(FMargin(0.0f, 2.0f))
+			.OnClicked(this, &SExpandableSearchArea::OnExpandSearchClicked)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(this, &SExpandableSearchArea::GetExpandSearchImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(&SearchStyle->GlassImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Visibility(this, &SExpandableSearchArea::GetSearchGlassVisibility)
+				]
+			]
+		]
 	];
+}
+
+void SExpandableSearchArea::SetExpanded(bool bInExpanded)
+{
+	bIsExpanded = bInExpanded;
 }
 
 FReply SExpandableSearchArea::OnExpandSearchClicked()
 {
-	bIsExpanded = !bIsExpanded;
+	if(TSharedPtr<SSearchBox> SearchBox = SearchBoxPtr.Pin())
+	{
+		bIsExpanded = !bIsExpanded;
+
+		return FReply::Handled().SetUserFocus(SearchBox.ToSharedRef(), EFocusCause::SetDirectly);
+	}
+
 	return FReply::Handled();
 }
 
@@ -54,7 +83,16 @@ EVisibility SExpandableSearchArea::GetSearchBoxVisibility() const
 	return bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+EVisibility SExpandableSearchArea::GetSearchGlassVisibility() const
+{
+	return bIsExpanded ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+
 const FSlateBrush* SExpandableSearchArea::GetExpandSearchImage() const
 {
-	return &SearchStyle->GlassImage;
+	static const FName RightIcon("Icons.ChevronRight");
+	static const FName LeftIcon("Icons.ChevronLeft");
+
+	return bIsExpanded ? FAppStyle::Get().GetBrush(RightIcon) : FAppStyle::Get().GetBrush(LeftIcon);
 }
