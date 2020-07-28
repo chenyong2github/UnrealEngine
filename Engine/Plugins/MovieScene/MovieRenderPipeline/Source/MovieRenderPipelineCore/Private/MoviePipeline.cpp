@@ -1286,73 +1286,77 @@ static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
 	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
 }
 
-FString UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides) const
+void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs) const
 {
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
 	// Gather all the variables
-	FMoviePipelineFormatArgs FilenameFormatArgs;
-	FilenameFormatArgs.InJob = CurrentJob;
+	OutFinalFormatArgs = FMoviePipelineFormatArgs();
+	OutFinalFormatArgs.InJob = CurrentJob;
+	OutFinalFormatArgs.FileMetadata = InOutputState.FileMetadata;
 
 	// From Settings
-	GetPipelineMasterConfig()->GetFilenameFormatArguments(FilenameFormatArgs);
+	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
 	// From Output State
-	InOutputState.GetFilenameFormatArguments(FilenameFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset);
+	InOutputState.GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset);
 
 	// And from ourself
 	{
-		FilenameFormatArgs.Arguments.Add(TEXT("date"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
-		FilenameFormatArgs.Arguments.Add(TEXT("time"), InitializationTime.ToString(TEXT("%H.%M.%S")));
+		OutFinalFormatArgs.FilenameArguments.Add(TEXT("date"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
+		OutFinalFormatArgs.FilenameArguments.Add(TEXT("time"), InitializationTime.ToString(TEXT("%H.%M.%S")));
+
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobDate"), InitializationTime.ToString(TEXT("%Y.%m.%d")));
+		OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InitializationTime.ToString(TEXT("%H.%M.%S")));
 
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).
-		FilenameFormatArgs.Arguments.Add(TEXT("file_dup"), FString());
+		OutFinalFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString());
 	}
 
 	// Overwrite the variables with overrides if needed. This allows different requesters to share the same variables (ie: filename extension, render pass name)
 	for (const TPair<FString, FStringFormatArg>& KVP : InFormatOverrides)
 	{
-		FilenameFormatArgs.Arguments.Add(KVP);
+		OutFinalFormatArgs.FilenameArguments.Add(KVP);
 	}
 
 	// No extension should be provided at this point, because we need to tack the extension onto the end after appending numbers (in the event of no overwrites)
-	FString BaseFilename = FString::Format(*InFormatString, FilenameFormatArgs.Arguments);
+	FString BaseFilename = FString::Format(*InFormatString, OutFinalFormatArgs.FilenameArguments);
 	FPaths::NormalizeFilename(BaseFilename);
 
 	// If we end with a "." character, remove it. The extension will put it back on. We can end up with this sometimes after resolving file format strings, ie:
 	// {sequence_name}.{frame_number} becomes {sequence_name}. for videos (which can't use frame_numbers).
 	BaseFilename.RemoveFromEnd(TEXT("."));
 
-	FString Extension = FString::Format(TEXT(".{ext}"), FilenameFormatArgs.Arguments);
+	FString Extension = FString::Format(TEXT(".{ext}"), OutFinalFormatArgs.FilenameArguments);
 
 
 	FString ThisTry = BaseFilename + Extension;
 
 	if (CanWriteToFile(*ThisTry, OutputSettings->bOverrideExistingOutput))
 	{
-		return ThisTry;
+		OutFinalPath = ThisTry;
+		return;
 	}
 
 	int32 DuplicateIndex = 2;
 	while(true)
 	{
-		FilenameFormatArgs.Arguments.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
+		OutFinalFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
 
 		// Re-resolve the format string now that we've reassigned frame_dup to a number.
-		ThisTry = FString::Format(*InFormatString, FilenameFormatArgs.Arguments) + Extension;
+		ThisTry = FString::Format(*InFormatString, OutFinalFormatArgs.FilenameArguments) + Extension;
 
 		// If the file doesn't exist, we can use that, else, increment the index and try again
 		if (CanWriteToFile(*ThisTry, OutputSettings->bOverrideExistingOutput))
 		{
-			return ThisTry;
+			OutFinalPath = ThisTry;
+			return;
 		}
 
 		++DuplicateIndex;
 	}
-
-	return ThisTry;
 }
 
 void UMoviePipeline::SetProgressWidgetVisible(bool bVisible)

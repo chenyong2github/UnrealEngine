@@ -61,12 +61,15 @@ protected:
 
 	}
 
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{
-		Super::GetFilenameFormatArguments(InOutFormatArgs);
+		Super::GetFormatArguments(InOutFormatArgs);
 
-		InOutFormatArgs.Arguments.Add(TEXT("ts_count"), TemporalSampleCount);
-		InOutFormatArgs.Arguments.Add(TEXT("ss_count"), SpatialSampleCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("ts_count"), TemporalSampleCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("ss_count"), SpatialSampleCount);
+
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/temporalSampleCount"), TemporalSampleCount);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/spatialSampleCount"), SpatialSampleCount);
 	}
 
 public:
