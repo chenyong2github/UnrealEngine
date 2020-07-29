@@ -85,6 +85,11 @@ void UAnimBlueprintCompilerSubsystem::PruneIsolatedAnimationNodes(const TArray<U
 	CompilerContext->PruneIsolatedAnimationNodes(RootSet, GraphNodes);
 }
 
+void UAnimBlueprintCompilerSubsystem::ExpansionStep(UEdGraph* Graph, bool bAllowUbergraphExpansions)
+{
+	CompilerContext->ExpansionStep(Graph, bAllowUbergraphExpansions);
+}
+
 void UAnimBlueprintCompilerSubsystem::ProcessAnimationNodes(TArray<UAnimGraphNode_Base*>& AnimNodeList)
 {
 	CompilerContext->ProcessAnimationNodes(AnimNodeList);

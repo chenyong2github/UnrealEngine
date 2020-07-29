@@ -70,6 +70,9 @@ public:
 	// Allow nodes to create variables by exposing this
 	using FKismetCompilerContext::CreateVariable;
 
+	// Expose expansion functionality
+	using FKismetCompilerContext::ExpansionStep;
+
 protected:
 	// Implementation of FKismetCompilerContext interface
 	virtual void CreateClassVariablesFromBlueprint() override;
