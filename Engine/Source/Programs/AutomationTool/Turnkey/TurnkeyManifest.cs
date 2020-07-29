@@ -32,7 +32,7 @@ namespace Turnkey
 			// load any settings set in the xml
 			if (SavedSettings != null)
 			{
-				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, TurnkeyUtils.ExpandVariables(x.Value)); );
+				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, TurnkeyUtils.ExpandVariables(x.Value)));
 			}
 
 			if (BuildSources != null)
