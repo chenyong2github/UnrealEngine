@@ -43,7 +43,7 @@ bool GSlateIsOnFastUpdatePath = false;
 bool GSlateIsInInvalidationSlowPath = false;
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
-bool GSlateCheckUObjectRenderResources = false;
+bool GSlateCheckUObjectRenderResources = true;
 static FAutoConsoleVariableRef CVarSlateCheckUObjectRenderResources(
 	TEXT("Slate.CheckUObjectRenderResources"),
 	GSlateCheckUObjectRenderResources,
