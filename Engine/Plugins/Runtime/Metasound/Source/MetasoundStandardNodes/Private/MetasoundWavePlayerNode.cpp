@@ -4,6 +4,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundWave.h"
+#include "MetasoundNodeRegistrationMacro.h"
 
 #include "IAudioCodecRegistry.h"
 #include "IAudioCodec.h"
