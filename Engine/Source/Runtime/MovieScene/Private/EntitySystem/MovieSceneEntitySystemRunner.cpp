@@ -279,7 +279,7 @@ void FMovieSceneEntitySystemRunner::GameThread_SpawnPhase()
 
 	FGraphEventArray AllTasks;
 
-	Linker->LinkRelevantSystems();
+	Linker->AutoLinkRelevantSystems();
 
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Step 1: Run the spawn phase if there were any changes to the current entity instantiations

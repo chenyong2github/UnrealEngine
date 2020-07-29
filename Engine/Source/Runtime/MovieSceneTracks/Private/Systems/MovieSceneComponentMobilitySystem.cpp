@@ -85,6 +85,8 @@ UMovieSceneComponentMobilitySystem::UMovieSceneComponentMobilitySystem(const FOb
 {
 	using namespace UE::MovieScene;
 
+	SystemExclusionContext |= EEntitySystemContext::Interrogation;
+
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TrackComponents   = FMovieSceneTracksComponentTypes::Get();
 

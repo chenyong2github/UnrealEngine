@@ -720,7 +720,7 @@ bool FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 
 		if (bStructureCanChange)
 		{
-			Linker->LinkRelevantSystems();
+			Linker->AutoLinkRelevantSystems();
 		}
 
 		// If we linked any new systems, we may have to move our current offset

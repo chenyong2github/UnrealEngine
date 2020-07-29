@@ -18,6 +18,7 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	SystemExclusionContext = EEntitySystemContext::Interrogation;
 	RelevantComponent = BuiltInComponents->PropertyBinding;
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
