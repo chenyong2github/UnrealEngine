@@ -5146,21 +5146,9 @@ FGuid FSequencer::AddSpawnable(UObject& Object, UActorFactory* ActorFactory)
 	}
 
 	FNewSpawnable& NewSpawnable = Result.GetValue();
-
-	auto DuplName = [&](FMovieSceneSpawnable& InSpawnable)
-	{
-		return InSpawnable.GetName() == NewSpawnable.Name;
-	};
-
-	int32 Index = 2;
-	FString UniqueString;
-	while (OwnerMovieScene->FindSpawnable(DuplName))
-	{
-		NewSpawnable.Name.RemoveFromEnd(UniqueString);
-		UniqueString = FString::Printf(TEXT(" (%d)"), Index++);
-		NewSpawnable.Name += UniqueString;
-	}
-
+	
+	NewSpawnable.Name = MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, NewSpawnable.Name);
+	
 	FGuid NewGuid = OwnerMovieScene->AddSpawnable(NewSpawnable.Name, *NewSpawnable.ObjectTemplate);
 
 	ForceEvaluate();
@@ -5588,7 +5576,10 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 
 				if (bAddSpawnable)
 				{
+					FString NewCameraName = MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, FName::NameToDisplayString(ACineCameraActor::StaticClass()->GetFName().ToString(), false));
+										
 					FMovieSceneSpawnable* Spawnable = ConvertToSpawnableInternal(NewCameraGuid)[0];
+					Spawnable->SetName(NewCameraName);
 
 					for (TWeakObjectPtr<> WeakObject : FindBoundObjects(Spawnable->GetGuid(), ActiveTemplateIDs.Top()))
 					{
@@ -5598,6 +5589,8 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 							break;
 						}
 					}
+
+					NewCamera->SetActorLabel(NewCameraName, false);
 
 					NewCameraGuid = Spawnable->GetGuid();
 
@@ -11095,8 +11088,11 @@ void FSequencer::CreateCamera()
 
 	if (bCreateAsSpawnable)
 	{
+		FString NewName = MovieSceneHelpers::MakeUniqueSpawnableName(FocusedMovieScene, FName::NameToDisplayString(ACineCameraActor::StaticClass()->GetFName().ToString(), false));
+
 		CameraGuid = MakeNewSpawnable(*NewCamera);
-		Spawnable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindSpawnable(CameraGuid);
+		Spawnable = FocusedMovieScene->FindSpawnable(CameraGuid);
+		Spawnable->SetName(NewName);			
 
 		if (ensure(Spawnable))
 		{
@@ -11117,6 +11113,8 @@ void FSequencer::CreateCamera()
 			}
 		}
 		ensure(NewCamera);
+
+		NewCamera->SetActorLabel(NewName, false);
 	}
 	else
 	{
