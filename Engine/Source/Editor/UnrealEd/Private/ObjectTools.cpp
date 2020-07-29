@@ -4258,6 +4258,11 @@ namespace ThumbnailTools
 	/** Renders a thumbnail for the specified object */
 	void RenderThumbnail( UObject* InObject, const uint32 InImageWidth, const uint32 InImageHeight, EThumbnailTextureFlushMode::Type InFlushMode, FTextureRenderTargetResource* InTextureRenderTargetResource, FObjectThumbnail* OutThumbnail )
 	{
+		if (!FApp::CanEverRender())
+		{
+			return;
+		}
+
 		// Renderer must be initialized before generating thumbnails
 		check( GIsRHIInitialized );
 
