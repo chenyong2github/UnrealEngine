@@ -349,8 +349,9 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 		const FColor ReadOnlyColor = FColor(255, 0, 255, 255);
 		const FColor NormalColor = bIsSplineEditable ? FColor(SplineComp->EditorUnselectedSplineSegmentColor.ToFColor(true)) : ReadOnlyColor;
 		const FColor SelectedColor = bIsSplineEditable ? FColor(SplineComp->EditorSelectedSplineSegmentColor.ToFColor(true)) : ReadOnlyColor;
+		const FColor TangentColor = bIsSplineEditable ? FColor(SplineComp->EditorTangentColor.ToFColor(true)) : ReadOnlyColor;
 		const float GrabHandleSize = 10.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointSizeAdjustment : 0.0f);
-		const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointSizeAdjustment : 0.0f);
+		const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplineTangentHandleSizeAdjustment : 0.0f);
 
 		// Draw the tangent handles before anything else so they will not overdraw the rest of the spline
 		if (SplineComp == EditedSplineComp)
@@ -381,20 +382,20 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 
 						PDI->SetHitProxy(NULL);
 
-						PDI->DrawLine(Location, Location + LeaveTangent, SelectedColor, SDPG_Foreground);
-						PDI->DrawLine(Location, Location - ArriveTangent, SelectedColor, SDPG_Foreground);
+						PDI->DrawLine(Location, Location + LeaveTangent, TangentColor, SDPG_Foreground);
+						PDI->DrawLine(Location, Location - ArriveTangent, TangentColor, SDPG_Foreground);
 
 						if (bIsSplineEditable)
 						{
 							PDI->SetHitProxy(new HSplineTangentHandleProxy(Component, SelectedKey, false));
 						}
-						PDI->DrawPoint(Location + LeaveTangent, SelectedColor, TangentHandleSize, SDPG_Foreground);
+						PDI->DrawPoint(Location + LeaveTangent, TangentColor, TangentHandleSize, SDPG_Foreground);
 
 						if (bIsSplineEditable)
 						{
 							PDI->SetHitProxy(new HSplineTangentHandleProxy(Component, SelectedKey, true));
 						}
-						PDI->DrawPoint(Location - ArriveTangent, SelectedColor, TangentHandleSize, SDPG_Foreground);
+						PDI->DrawPoint(Location - ArriveTangent, TangentColor, TangentHandleSize, SDPG_Foreground);
 
 						PDI->SetHitProxy(NULL);
 					}

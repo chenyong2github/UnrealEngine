@@ -42,6 +42,7 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, EditorUnselectedSplineSegmentColor(FLinearColor(1.0f, 1.0f, 1.0f))
 	, EditorSelectedSplineSegmentColor(FLinearColor(0.828f, 0.364f, 0.003f))
+	, EditorTangentColor(FLinearColor(1.0f, 1.0f, 1.0f))
 	, bAllowDiscontinuousSpline(false)
 	, bShouldVisualizeScale(false)
 	, ScaleVisualizationWidth(30.0f)
@@ -531,6 +532,13 @@ void USplineComponent::SetSelectedSplineSegmentColor(const FLinearColor& Color)
 {
 #if WITH_EDITORONLY_DATA
 	EditorSelectedSplineSegmentColor = Color;
+#endif
+}
+
+void USplineComponent::SetTangentColor(const FLinearColor& Color)
+{
+#if WITH_EDITORONLY_DATA
+	EditorTangentColor = Color;
 #endif
 }
 
