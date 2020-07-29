@@ -33,6 +33,23 @@ namespace UE
 namespace MovieScene
 {
 
+// @todo: this is a very rough initial guess at the break even point for when threaded evaluation becomes beneficial, and will vary highly between platforms and hardware.
+// We may wish to make this more flexible in future (such as only threading hot paths such as float channel evaluation) by enabling threading per-task, but more data is required to make such decisions
+int32 GThreadedEvaluationAllocationThreshold = 32;
+FAutoConsoleVariableRef CVarThreadedEvaluationAllocationThreshold(
+	TEXT("Sequencer.ThreadedEvaluation.AllocationThreshold"),
+	GThreadedEvaluationAllocationThreshold,
+	TEXT("(Default: 32) Defines the entity allocation fragmentation threshold above which threaded evaluation will be used.\n"),
+	ECVF_Default
+);
+int32 GThreadedEvaluationEntityThreshold = 256;
+FAutoConsoleVariableRef CVarThreadedEvaluationEntityThreshold(
+	TEXT("Sequencer.ThreadedEvaluation.EntityThreshold"),
+	GThreadedEvaluationEntityThreshold,
+	TEXT("(Default: 256) Defines the number of entities that need to exist to justify threaded evaluation.\n"),
+	ECVF_Default
+);
+
 FEntityManager* GEntityManagerForDebuggingVisualizers = nullptr;
 
 static bool IsValidUint16(int32 Test)
@@ -518,6 +535,15 @@ bool FEntityManager::IsHandleValid(FEntityHandle InEntityHandle) const
 
 	const uint32* Generation = EntityGenerationMap.Find(InEntityHandle.ID);
 	return Generation && *Generation == InEntityHandle.HandleGeneration;
+}
+
+EEntityThreadingModel FEntityManager::GetThreadingModel() const
+{
+	const bool bShouldThread = 
+		EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
+		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold;
+
+	return bShouldThread ? EEntityThreadingModel::TaskGraph : EEntityThreadingModel::NoThreading;
 }
 
 const FComponentMask& FEntityManager::GetAccumulatedMask() const

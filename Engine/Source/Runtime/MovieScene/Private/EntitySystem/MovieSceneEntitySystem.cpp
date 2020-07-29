@@ -319,7 +319,7 @@ void UMovieSceneEntitySystem::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-bool UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 #if STATS
 	FScopeCycleCounter Scope(StatID);
@@ -330,14 +330,13 @@ bool UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSy
 	// We may have erroneously linked a system we should have done, but we must not run it in this case
 	if (EnumHasAnyFlags(SystemExclusionContext, Linker->GetSystemContext()))
 	{
-		return false;
+		return;
 	}
 
 	Linker->EntityManager.IncrementSystemSerial();
 
 	UE_LOG(LogMovieScene, Verbose, TEXT("Running moviescene system for phase %d: %s"), (int32)Phase, *GetName());
 	OnRun(InPrerequisites, Subsequents);
-	return true;
 }
 
 void UMovieSceneEntitySystem::Link(UMovieSceneEntitySystemLinker* InLinker)

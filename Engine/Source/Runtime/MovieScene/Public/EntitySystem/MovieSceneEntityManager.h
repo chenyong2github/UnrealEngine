@@ -43,7 +43,20 @@ enum class EEntityRecursion : uint8
 	/** Perform the action on this entity and all its children recursively */
 	Full      = This | Children,
 };
-ENUM_CLASS_FLAGS(EEntityRecursion)
+ENUM_CLASS_FLAGS(EEntityRecursion);
+
+
+/**
+ * Enumeration that defines a threading model for this entity manager
+ */
+enum class EEntityThreadingModel : uint8
+{
+	/** Specified when the data contained within an entity manager does not satisfy the requirements to justify using threaded evaluation */
+	NoThreading,
+
+	/** Specified when the data contained within an entity manager is large or complex enough to justify threaded evaluation  */
+	TaskGraph,
+};
 
 
 /**
@@ -181,6 +194,11 @@ public:
 	 */
 	bool IsHandleValid(FEntityHandle EntityID) const;
 
+
+	/**
+	 * Compute and retrieve this entity manager's threading model
+	 */
+	EEntityThreadingModel GetThreadingModel() const;
 
 public:
 
