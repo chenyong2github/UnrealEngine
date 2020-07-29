@@ -203,7 +203,7 @@ struct FPackedTriCluster
 
 	uint32		NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;		// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
 	uint32		BitsPerAttrib;
-	uint32		Pad1;
+	uint32		GroupIndex;	// Debug only
 	uint32		Pad2;
 	
 	FSphere		LODBounds;

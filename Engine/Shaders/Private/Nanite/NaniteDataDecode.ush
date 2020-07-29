@@ -93,23 +93,24 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 // https://docs.google.com/document/d/1PeRxK_w49jgACYTiQUlCJYSzbT_BKZbhly_7i80j-BU/edit?usp=sharing
 #define VISUALIZE_TRIANGLES							1
 #define VISUALIZE_CLUSTERS							2
-#define VISUALIZE_PAGES								3
-#define VISUALIZE_PRIMITIVES						4
-#define VISUALIZE_HW_VS_SW							5
-#define VISUALIZE_OVERDRAW							6
-#define VISUALIZE_HIERARCHY_OFFSET					7
-#define VISUALIZE_SCN_HTILE_MINZ					8
-#define VISUALIZE_SCN_HTILE_MAXZ					9
-#define VISUALIZE_SCN_HTILE_DELTAZ					10
-#define VISUALIZE_SCN_HTILE_ZMASK					11
-#define VISUALIZE_MAT_HTILE_MINZ					12
-#define VISUALIZE_MAT_HTILE_MAXZ					13
-#define VISUALIZE_MAT_HTILE_DELTAZ					14
-#define VISUALIZE_MAT_HTILE_ZMASK					15
-#define VISUALIZE_MATERIAL_FAST_VS_SLOW				16
-#define VISUALIZE_MATERIAL_INDEX					17
-#define VISUALIZE_MATERIAL_ID						18
-#define VISUALIZE_HIT_PROXY_ID						19
+#define VISUALIZE_GROUPS							3
+#define VISUALIZE_PAGES								4
+#define VISUALIZE_PRIMITIVES						5
+#define VISUALIZE_HW_VS_SW							6
+#define VISUALIZE_OVERDRAW							7
+#define VISUALIZE_HIERARCHY_OFFSET					8
+#define VISUALIZE_SCN_HTILE_MINZ					9
+#define VISUALIZE_SCN_HTILE_MAXZ					10
+#define VISUALIZE_SCN_HTILE_DELTAZ					11
+#define VISUALIZE_SCN_HTILE_ZMASK					12
+#define VISUALIZE_MAT_HTILE_MINZ					13
+#define VISUALIZE_MAT_HTILE_MAXZ					14
+#define VISUALIZE_MAT_HTILE_DELTAZ					15
+#define VISUALIZE_MAT_HTILE_ZMASK					16
+#define VISUALIZE_MATERIAL_FAST_VS_SLOW				17
+#define VISUALIZE_MATERIAL_INDEX					18
+#define VISUALIZE_MATERIAL_ID						19
+#define VISUALIZE_HIT_PROXY_ID						20
 
 struct FStats
 {
@@ -176,6 +177,7 @@ struct FTriCluster
 	uint	NumTris;
 	uint	BitsPerIndex;
 	uint	BitsPerAttrib;
+	uint	GroupIndex;
 	uint	QuantizedPosShift;
 	
 	float	EdgeLength;
@@ -728,6 +730,7 @@ FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
 	Cluster.BitsPerIndex		= BitFieldExtractU32(Tmp, 4, 9+8);
 	Cluster.QuantizedPosShift	= BitFieldExtractU32(Tmp, 6, 9+8+4);
 	Cluster.BitsPerAttrib		= ClusterData[3].y;
+	Cluster.GroupIndex			= ClusterData[3].z;
 
 	Cluster.LODBounds			= asfloat( ClusterData[4] );
 	

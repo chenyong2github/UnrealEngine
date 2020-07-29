@@ -571,7 +571,7 @@ static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::
 	check(InCluster.QuantizedPosShift < 64);
 	OutCluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = InCluster.NumVerts | (InCluster.NumTris << (9)) | (InCluster.BitsPerIndex << (9 + 8)) | (InCluster.QuantizedPosShift << (9 + 8 + 4));
 	OutCluster.BitsPerAttrib		= InCluster.BitsPerAttrib;
-	OutCluster.Pad1					= 0;
+	OutCluster.GroupIndex			= InCluster.ClusterGroupIndex;
 	OutCluster.Pad2					= 0;
 	// 4
 	OutCluster.LODBounds			= InCluster.LODBounds;

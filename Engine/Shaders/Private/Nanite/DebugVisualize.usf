@@ -128,6 +128,10 @@ float4 VisualizeData(
 	{
 		Result = IntToColor(VisibleCluster.ClusterIndex);
 	}
+	else if (VisualizeMode == VISUALIZE_GROUPS )
+	{
+		Result = IntToColor(Cluster.GroupIndex);
+	}
 	else if( VisualizeMode == VISUALIZE_PAGES )
 	{
 		Result = IntToColor(VisibleCluster.PageIndex);
