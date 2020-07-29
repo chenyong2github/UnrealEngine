@@ -3062,6 +3062,7 @@ void SMyBlueprint::OnDuplicateAction()
 	if(DuplicateActionName != NAME_None)
 	{
 		SelectItemByName(DuplicateActionName);
+		Refresh();
 		OnRequestRenameOnActionNode();
 	}
 }
@@ -3426,6 +3427,7 @@ void SMyBlueprint::OnPasteFunction()
 			{
 				PinnedEditor->OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
 				SelectItemByName(Graph->GetFName());
+				Refresh();
 				OnRequestRenameOnActionNode();
 			}
 			else
