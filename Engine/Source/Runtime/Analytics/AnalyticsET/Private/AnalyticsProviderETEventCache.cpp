@@ -44,6 +44,9 @@ namespace EventCacheStatic
 				TEXT("FStringStringAttribute"), FString(TEXT("FStringValue"))
 			));
 
+			double kINF = MAX_dbl * MAX_dbl;
+			double kNAN = kINF * 0.0;
+
 			cache.AddToCache(FString(TEXT("NumericalAttributes")), MakeAnalyticsEventAttributeArray(
 				TEXT("IntAttr"), MIN_int32,
 				TEXT("LongAttr"), MIN_int64,
@@ -55,8 +58,10 @@ namespace EventCacheStatic
 				TEXT("FloatAttr2"), 0.0f,
 				TEXT("DoubleAttr2"), 0.0,
 				TEXT("BoolTrueAttr"), true,
-				TEXT("BoolFalseAttr"), false
-			));
+				TEXT("BoolFalseAttr"), false,
+				TEXT("INFAttr"), kINF,
+				TEXT("NANAttr"), kNAN
+				));
 			cache.AddToCache(FString(TEXT("JsonAttributes")), MakeAnalyticsEventAttributeArray
 			(
 				TEXT("NullAttr"), FJsonNull(),
@@ -66,7 +71,7 @@ namespace EventCacheStatic
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FString Payload = cache.FlushCache();
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"},{\"EventName\":\"NumericalAttributes\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false},{\"EventName\":\"JsonAttributes\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}");
+			FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"},{\"EventName\":\"NumericalAttributes\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false,\"INFAttr\":null,\"NANAttr\":null},{\"EventName\":\"JsonAttributes\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}");
 			if (Payload != ExpectedResult)
 			{
 				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Failed. Expect:%s"), *ExpectedResult);
