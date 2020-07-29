@@ -458,6 +458,13 @@ struct FTargetMatch
 {
 	float BarycentricWeight[3]; //The weight we use to interpolate the TARGET data
 	uint32 Indices[3]; //BASE Index of the triangle vertice
+	
+	//Default constructor
+	FTargetMatch()
+	{
+		BarycentricWeight[0] = BarycentricWeight[1] = BarycentricWeight[2] = 0.0f;
+		Indices[0] = Indices[1] = Indices[2] = INDEX_NONE;
+	}
 };
 
 void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArray<TArray<uint32>>& PerSectionBaseTriangleIndices,
@@ -934,7 +941,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	}
 	//Every target vertices match a Base LOD triangle, we also want the barycentric weight of the triangle match. All this done using the UVs
 	TArray<FTargetMatch> TargetMatchData;
-	TargetMatchData.AddUninitialized(TargetVertices.Num());
+	TargetMatchData.AddDefaulted(TargetVertices.Num());
 	//Match all target vertices to a Base triangle Using UVs.
 	ProjectTargetOnBase(BaseVertices, BaseTriangleIndices, TargetMatchData, TargetLODModel.Sections, TargetSectionMatchBaseIndex, *SkeletalMesh->GetName());
 	//Helper to retrieve the FMorphTargetDelta from the BaseIndex
