@@ -385,6 +385,7 @@ public:
 	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos) override;
 	virtual void ForceRefreshExpressionPreviews() override;
 	virtual void AddToSelection(UMaterialExpression* Expression) override;
+	virtual void JumpToExpression(UMaterialExpression* Expression) override;
 	virtual void DeleteSelectedNodes() override;
 	virtual FText GetOriginalObjectName() const override;
 	virtual void UpdateMaterialAfterGraphChange() override;

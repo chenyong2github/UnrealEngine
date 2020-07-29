@@ -51,6 +51,11 @@ public:
 	virtual void AddToSelection(UMaterialExpression* Expression) {};
 
 	/**
+	 * Jumps to the node for this expression, if possible
+	 */
+	virtual void JumpToExpression(UMaterialExpression* Expression) {};
+
+	/**
 	 * Disconnects and removes the selected material graph nodes.
 	 */
 	virtual void DeleteSelectedNodes() {};
