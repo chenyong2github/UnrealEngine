@@ -1938,6 +1938,11 @@ FString FWindowsPlatformProcess::FProcEnumInfo::GetFullPath() const
 	return GetApplicationName(GetPID());
 }
 
+void FWindowsPlatformProcess::SetupGameThread()
+{
+	SetThreadName(TEXT("GameThread"));
+}
+
 namespace WindowsPlatformProcessImpl
 {
 	static void SetThreadName(LPCSTR ThreadName)
