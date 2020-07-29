@@ -18,14 +18,16 @@ namespace Turnkey.Commands
 			string TypeString = TurnkeyUtils.ParseParamValue("Type", null, CommandOptions);
 			string PlatformString = TurnkeyUtils.ParseParamValue("Platform", null, CommandOptions);
 
-			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
+
+			UnrealTargetPlatform? OptionalPlatform = null;
+			FileSource.SourceType? OptionalType = null;
 
 			if (TypeString != null)
 			{
-				SdkInfo.SdkType Type;
+				FileSource.SourceType Type;
 				if (Enum.TryParse(TypeString, out Type))
 				{
-					Sdks = Sdks.FindAll(x => x.Type == Type);
+					OptionalType = Type;
 				}
 			}
 
@@ -34,14 +36,16 @@ namespace Turnkey.Commands
 				UnrealTargetPlatform Platform;
 				if (UnrealTargetPlatform.TryParse(PlatformString, out Platform))
 				{
-					Sdks = Sdks.FindAll(x => x.SupportsPlatform(Platform));
+					OptionalPlatform = Platform;
 				}
 			}
 
+			List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(OptionalPlatform, OptionalType);
 
-			foreach (SdkInfo Sdk in Sdks)
+			foreach (FileSource Sdk in Sdks)
 			{
-				TurnkeyUtils.Log(Sdk.ToString(2));
+//				TurnkeyUtils.Log(Sdk.ToString(2));
+				TurnkeyUtils.Log(Sdk.ToString());
 			}
 		}
 	}

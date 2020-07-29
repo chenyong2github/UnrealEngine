@@ -101,26 +101,27 @@ namespace Turnkey.Commands
 			foreach (var Pair in PlatformsAndDevices)
 			{
 				UnrealTargetPlatform Platform = Pair.Key;
+				UEBuildPlatformSDK PlatformSDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 
 				// get the platform object
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 
-				SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
+				SdkUtils.LocalAvailability LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, bUpdateIfNeeded);
 
-				if ((LocalState & SdkInfo.LocalAvailability.Platform_ValidHostPrerequisites) == 0)
+				if ((LocalState & SdkUtils.LocalAvailability.Platform_ValidHostPrerequisites) == 0)
 				{
 					TurnkeyUtils.Report("{0}: Invalid: [Host Prerequisites are not valid]", Platform);
 				}
-				else if ((LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
+				else if ((LocalState & (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists)) == 0)
 				{
 					string MinAllowedVersion, MaxAllowedVersion;
-					UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
+					PlatformSDK.GetValidVersionRange(out MinAllowedVersion, out MaxAllowedVersion);
 					TurnkeyUtils.Report("{0}: Invalid: [No AutoSdk or Installed Sdk in range {1}-{2} - {3}]", Platform, MinAllowedVersion, MaxAllowedVersion, LocalState.ToString());
 					TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
 				}
 				else
 				{
-					TurnkeyUtils.Report("{0}: Valid: [{1}]", Platform, (LocalState & (SdkInfo.LocalAvailability.AutoSdk_ValidVersionExists | SdkInfo.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
+					TurnkeyUtils.Report("{0}: Valid: [{1}]", Platform, (LocalState & (SdkUtils.LocalAvailability.AutoSdk_ValidVersionExists | SdkUtils.LocalAvailability.InstalledSdk_ValidVersionExists)).ToString());
 					//					TurnkeyUtils.Log("{0}: Valid [Installed: '{1}', Required: '{2}']", Platform, PlatformObject.GetInstalledSdk(), PlatformObject.GetAllowedSdks());
 				}
 
@@ -138,15 +139,15 @@ namespace Turnkey.Commands
 // 							}
 // 						}
 
-					SdkInfo BestSdk = null;
+					FileSource BestSdk = null;
 					// find the best Sdk, prioritizing as request
 					if (bPreferFullSdk)
 					{
-						BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Full, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.AutoSdk }, bSelectBest: bUnattended);
+						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Full, FileSource.SourceType.BuildOnly, FileSource.SourceType.AutoSdk }, bSelectBest: bUnattended);
 					}
 					else
 					{
-						BestSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.AutoSdk, SdkInfo.SdkType.BuildOnly, SdkInfo.SdkType.Full }, bSelectBest: bUnattended);
+						BestSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.AutoSdk, FileSource.SourceType.BuildOnly, FileSource.SourceType.Full }, bSelectBest: bUnattended);
 					}
 
 					if (BestSdk == null)
@@ -158,10 +159,16 @@ namespace Turnkey.Commands
 
 					TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
 
-					bool bWasSdkInstalled = BestSdk.Install(Platform, null, true);
+					if (BestSdk.DownloadOrInstall(Platform) == false)
+					{
+						TurnkeyUtils.Log("Install failed!");
+						continue;
+					}
+// 					AutomationPlatform.InstallSDK(TurnkeyUtils.CommandUtilHelper, Retriever, BestSdk);
+
 
 					// update LocalState
-					LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform, false);
+					LocalState = SdkUtils.GetLocalAvailability(AutomationPlatform, false);
 
 					// @todo turnkey: validate!
 				}
@@ -213,7 +220,7 @@ namespace Turnkey.Commands
 
 							if (bUpdateIfNeeded)
 							{
-								SdkInfo MatchingInstallableSdk = SdkInfo.FindMatchingSdk(AutomationPlatform, new SdkInfo.SdkType[] { SdkInfo.SdkType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
+								FileSource MatchingInstallableSdk = FileSource.FindMatchingSdk(AutomationPlatform, new FileSource.SourceType[] { FileSource.SourceType.Flash }, bSelectBest: bUnattended, DeviceType: Device.Type);
 
 								if (MatchingInstallableSdk == null)
 								{
@@ -222,7 +229,7 @@ namespace Turnkey.Commands
 								}
 								else
 								{
-									MatchingInstallableSdk.Install(Platform, Device, bUnattended);
+									MatchingInstallableSdk.DownloadOrInstall(Platform, Device, bUnattended);
 									TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
 								}
 							}

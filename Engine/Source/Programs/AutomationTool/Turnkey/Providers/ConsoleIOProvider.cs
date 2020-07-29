@@ -52,13 +52,13 @@ namespace Turnkey
 			int Index = 0;
 			if (bIsCancellable)
 			{
-				FullPromptBuilder.AppendLine(" {0}{1}{2} Cancel", DefaultValue == Index ? "[" : " ", Index++, DefaultValue == Index ? "]" : ")");
+				FullPromptBuilder.AppendLine(" {0}{1}{2} Cancel", DefaultValue == Index ? "[" : " ", Index, DefaultValue == Index++ ? "]" : ")");
 			}
 
 			// now add the options given
 			foreach (string Option in Options)
 			{
-				FullPromptBuilder.AppendLine(" {0}{1}{2} {3}", DefaultValue == Index ? "[" : " ", Index++, DefaultValue == 0 ? "]" : ")", Option);
+				FullPromptBuilder.AppendLine(" {0}{1}{2} {3}", DefaultValue == Index ? "[" : " ", Index, DefaultValue == Index++ ? "]" : ")", Option);
 			}
 
 			string FullPrompt = FullPromptBuilder.ToString();

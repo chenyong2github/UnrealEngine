@@ -17,7 +17,9 @@ namespace Turnkey
 	{
 		static private string StandardManifestName = "TurnkeyManifest.xml";
 
-		public SdkInfo[] SdkInfos = null;
+		[XmlElement("FileSource")]
+		public FileSource[] FileSources = null;
+
 		public BuildSource[] BuildSources = null;
 
 		[XmlArrayItem(ElementName = "Manifest")]
@@ -30,7 +32,7 @@ namespace Turnkey
 			// load any settings set in the xml
 			if (SavedSettings != null)
 			{
-				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, x.Value));
+				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, TurnkeyUtils.ExpandVariables(x.Value)); );
 			}
 
 			if (BuildSources != null)
@@ -38,83 +40,86 @@ namespace Turnkey
 				Array.ForEach(BuildSources, x => x.PostDeserialize());
 			}
 
-			if (SdkInfos != null)
+			if (FileSources != null)
 			{
-				Array.ForEach(SdkInfos, x => x.PostDeserialize());
+				Array.ForEach(FileSources, x => x.PostDeserialize());
 
-				SdkInfo[] ExpandedSdks = Array.FindAll(SdkInfos, x => x.Expansion != null && x.Expansion.Length > 0);
+				// look for list expansion and fixup file sources (filexpansion will come later, on demand, to improve speed)
+				List<FileSource> ExpandedSources = new List<FileSource>();
+				List<FileSource> NonExpandedSources = new List<FileSource>();
 
-				if (ExpandedSdks.Length > 0)
+				foreach (FileSource Source in FileSources)
 				{
-					// we will only have one active Expansion
-					List<SdkInfo> NewSdks = SdkInfos.Where(x => !ExpandedSdks.Contains(x)).ToList();
-
-					// now expand
-					foreach (SdkInfo Sdk in ExpandedSdks)
+					List<FileSource> Expansions = Source.ConditionalExpandLists();
+					if (Expansions != null)
 					{
-						// we only allow one expansion active
-						if (Sdk.Expansion.Length > 1)
-						{
-							throw new AutomationTool.AutomationException("SdkInfo {0} had multiple expansions active on this platform. THat is not allowed", Sdk.DisplayName);
-						}
-
-						// now enumerate and get the values
-						List<List<string>> Expansions = new List<List<string>>();
-						string[] ExpandedInstallerResults = CopyProvider.ExecuteEnumerate(Sdk.Expansion[0].Copy, Expansions);
-
-						// expansion may not work
-						if (ExpandedInstallerResults == null)
-						{
-							continue;
-						}
-
-						if (Expansions.Count != ExpandedInstallerResults.Length)
-						{
-							throw new AutomationException(string.Format("Bad expansions output from CopyProvider ({0} returned {1} count, expected {2}, from {3}",
-								Sdk.Expansion[0].Copy, Expansions.Count, ExpandedInstallerResults.Length, string.Join(", ", ExpandedInstallerResults)));
-						}
-
-						// @todo turnkey: this will be uysed in Builds also, make it a function with a lambda
-						// make a new SdkInfo for each expansion
-						int MaxIndex = 0;
-						for (int ResultIndex=0; ResultIndex < ExpandedInstallerResults.Length; ResultIndex++)
-						{
-							// set temp variables potentially used somewhere in the Sdks
-							TurnkeyUtils.SetVariable("Expansion", ExpandedInstallerResults[ResultIndex]);
-							for (int ExpansionIndex = 0; ExpansionIndex < Expansions[ResultIndex].Count; ExpansionIndex++)
-							{
-								TurnkeyUtils.SetVariable(ExpansionIndex.ToString(), Expansions[ResultIndex][ExpansionIndex]);
-							}
-
-							// remember how many we beed to unset
-							MaxIndex = Math.Max(MaxIndex, Expansions[ResultIndex].Count);
-
-							// make a new Sdk for each result in the expansion
-							NewSdks.Add(Sdk.CloneForExpansion());
-						}
-
-						// clear temp variables
-						TurnkeyUtils.ClearVariable("Expansion");
-						for (int Index = 0; Index <= MaxIndex; Index++)
-						{
-							TurnkeyUtils.ClearVariable(Index.ToString());
-						}
+						ExpandedSources.AddRange(Expansions);
 					}
-
-					SdkInfos = NewSdks.ToArray();
+					else
+					{
+						// add to new list, instead of removing from FileSources since we are iterating
+						NonExpandedSources.Add(Source);
+					}
 				}
+
+				// now combine them and replace FileSources
+				NonExpandedSources.AddRange(ExpandedSources);
+				FileSources = NonExpandedSources.ToArray();
 			}
 		}
 
-		static List<SdkInfo> DiscoveredSdks = null;
+		static List<FileSource> DiscoveredFileSources = null;
 		static List<BuildSource> DiscoveredBuildSources = null;
+		public static List<UnrealTargetPlatform> GetPlatformsWithSdks()
+		{
+			DiscoverManifests();
 
-		public static List<SdkInfo> GetDiscoveredSdks()
+			// this can handle FileSources with pending Expansions, so get the unique set of Platforms represented by pre or post expansion sources
+			// skip over Misc type, since this wants just Sdk types
+			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
+			DiscoveredFileSources.FindAll(x => x.Type != FileSource.SourceType.Misc).ForEach(x => Platforms.AddRange(x.GetPlatforms()));
+
+			return Platforms.Distinct().ToList();
+		}
+
+
+		public static List<FileSource> GetAllDiscoveredFileSources()
+		{
+			return FilterDiscoveredFileSources(null, null);
+		}
+		
+		public static List<FileSource> FilterDiscoveredFileSources(UnrealTargetPlatform? Platform, FileSource.SourceType? Type)
 		{
 			// hunt down manifests if needed
 			DiscoverManifests();
 
-			return DiscoveredSdks;
+			List<FileSource> Matching;
+			if (Platform == null && Type == null)
+			{
+				Matching = DiscoveredFileSources;
+			}
+			else
+			{
+				// if the platform is from expansion (possible with AutoSDKs in particular), then we need to expand it in case this platform will be matched
+				Matching = DiscoveredFileSources.FindAll(x => (Platform == null || (x.PlatformString?.StartsWith("$(")).GetValueOrDefault() || x.SupportsPlatform(Platform.Value)) && (Type == null || x.Type == Type.Value));
+			}
+
+			// get the set that needs to expand
+			List<FileSource> WorkingSet = Matching.FindAll(x => x.NeedsFileExpansion());
+
+			// remove them, then we add expansions below
+			DiscoveredFileSources = DiscoveredFileSources.FindAll(x => !WorkingSet.Contains(x));
+
+			foreach (FileSource Source in WorkingSet)
+			{
+				DiscoveredFileSources.AddRange(Source.ExpandCopySource());
+			}
+
+			if (Platform == null && Type == null)
+			{
+				return DiscoveredFileSources;
+			}
+			return DiscoveredFileSources.FindAll(x => (Platform == null || x.SupportsPlatform(Platform.Value)) && (Type == null || x.Type == Type.Value));
 		}
 
 		public static List<BuildSource> GetDiscoveredBuildSources()
@@ -125,17 +130,12 @@ namespace Turnkey
 			return DiscoveredBuildSources;
 		}
 
-		public static void AddCreatedSdk(SdkInfo Sdk)
-		{
-			DiscoveredSdks.Add(Sdk);
-		}
-
 		public static void DiscoverManifests()
 		{
 			// this is the indicator that we haven't run yet
-			if (DiscoveredSdks == null)
+			if (DiscoveredFileSources == null)
 			{
-				DiscoveredSdks = new List<SdkInfo>();
+				DiscoveredFileSources = new List<FileSource>();
 				DiscoveredBuildSources = new List<BuildSource>();
 
 				// known location to branch from, this will include a few other locations
@@ -143,9 +143,9 @@ namespace Turnkey
 
 				LoadManifestsFromProvider(RootOperation).ForEach(x =>
 				{
-					if (x.SdkInfos != null)
+					if (x.FileSources != null)
 					{
-						DiscoveredSdks.AddRange(x.SdkInfos);
+						DiscoveredFileSources.AddRange(x.FileSources);
 					}
 					if (x.BuildSources != null)
 					{

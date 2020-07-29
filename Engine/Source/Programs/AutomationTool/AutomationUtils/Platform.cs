@@ -14,7 +14,10 @@ namespace AutomationTool
 	public interface FileRetriever
 	{
 		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null);
+		//		string RetrieveSdk(string Platform, string Version, string Type, string SubType = null, Dictionary<string, string> ExtraVariables = null);
+		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
+		bool RunExternalCommand(string Command, string Params);
 	}
 
 	//public interface InputOutput
@@ -173,14 +176,49 @@ namespace AutomationTool
 		{
 			return "";
 		}
-		public virtual bool IsCustomVersionNeeded(string CustomVersionId, string CustomVersionParams)
+
+		public virtual bool InstallSDK(BuildCommand BuildCommand, FileRetriever Retriever, object HintObject, DeviceInfo Device = null)
 		{
-			return true;
+			string DownloadedSDK = Retriever.RetrieveFileSource(HintObject);
+
+			if (string.IsNullOrEmpty(DownloadedSDK))
+			{
+				return false;
+			}
+
+			string Command, Params;
+			
+			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, Retriever, Device))
+			{
+				return Retriever.RunExternalCommand(Command, Params);
+			}
+			else if (Device == null && GetSDKInstallCommand(out Command, out Params, Retriever))
+			{
+				return Retriever.RunExternalCommand(Command, Params);
+			}
+
+			return false;
 		}
-		public virtual bool CustomVersionUpdate(string CustomVersionId, string UpdateParams, FileRetriever Retriever)
+
+		public virtual bool GetSDKInstallCommand(out string Command, out string Params, FileRetriever Retriever)
 		{
-			return true;
+			Command = null;
+			Params = null;
+			return false;
 		}
+
+		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, FileRetriever Retriever, DeviceInfo Device = null)
+		{
+			Command = null;
+			Params = null;
+			return false;
+		}
+
+		public virtual string GetSDKCreationHelp()
+		{
+			return null;
+		}
+
 
 		public virtual bool UpdateHostPrerequisites(BuildCommand Command, FileRetriever Retriever, bool bVerifyOnly)
 		{

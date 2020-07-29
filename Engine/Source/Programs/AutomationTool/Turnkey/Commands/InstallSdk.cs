@@ -6,7 +6,7 @@ using System.Text;
 using UnrealBuildTool;
 using AutomationTool;
 using Tools.DotNETCommon;
-
+using System.Linq;
 
 namespace Turnkey.Commands
 {
@@ -37,7 +37,7 @@ namespace Turnkey.Commands
 			bool bNeededOnly = bBestAvailable || TurnkeyUtils.ParseParam("NeededOnly", CommandOptions);
 
 
-			SdkInfo.SdkType DesiredType = SdkInfo.SdkType.Misc;
+			FileSource.SourceType DesiredType = FileSource.SourceType.Misc;
 			if (SdkTypeString != null)
 			{
 				if (!Enum.TryParse(SdkTypeString, out DesiredType))
@@ -48,20 +48,7 @@ namespace Turnkey.Commands
 			}
 
 			// we need all sdks we can find
-			List<SdkInfo> AllSdks = TurnkeyManifest.GetDiscoveredSdks();
-
-			List<UnrealTargetPlatform> PlatformsWithSdks = new List<UnrealTargetPlatform>();
-			// get all platforms we have Sdks for
-			foreach (SdkInfo Sdk in AllSdks)
-			{
-				foreach (UnrealTargetPlatform SdkPlat in Sdk.GetPlatforms())
-				{
-					if (!PlatformsWithSdks.Contains(SdkPlat))
-					{
-						PlatformsWithSdks.Add(SdkPlat);
-					}
-				}
-			}
+			List<UnrealTargetPlatform> PlatformsWithSdks = TurnkeyManifest.GetPlatformsWithSdks();
 
 			// get the platforms to install either from user or from commandline
 			List<UnrealTargetPlatform> PlatformsLeftToInstall = TurnkeyUtils.GetPlatformsFromCommandLineOrUser(CommandOptions, PlatformsWithSdks);
@@ -70,7 +57,7 @@ namespace Turnkey.Commands
 				return;
 			}
 
-			List<SdkInfo> SdksAlreadyInstalled = new List<SdkInfo>();
+			List<FileSource> SdksAlreadyInstalled = new List<FileSource>();
 
 			// keep going while we have Sdks left to install
 			while (PlatformsLeftToInstall.Count > 0)
@@ -85,129 +72,83 @@ namespace Turnkey.Commands
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 
-				// 				if (bAllowAutoSdk)
-				// 				{
-				// 					// first, attempt AutoSdk
-				// 					SdkInfo.LocalAvailability LocalState = SdkInfo.GetLocalAvailability(AutomationPlatform);
-				// 					bool bWasAutoSdkSetup;
-				// 					
-				// 					SdkInfo.ConditionalSetupAutoSdk(Platform, ref LocalState, out bWasAutoSdkSetup, bUnattended: false);
-				// 
-				// 					// if we got an AutoSdk for this platform, then we don't need to continue
-				// 					if (bWasAutoSdkSetup)
-				// 					{
-				// 						continue;
-				// 					}
-				// 				}
-
+				// filter on type
+				FileSource.SourceType? OptionalType = SdkTypeString != null ? (FileSource.SourceType?)DesiredType : null;
 
 				// filter the Sdks if a platform was given
-				List<SdkInfo> Sdks = AllSdks.FindAll(x => x.SupportsPlatform(Platform));
+				List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, OptionalType);
 
 				// strip out flash Sdks where there are no devices
 				int SdkCount = Sdks.Count;
-				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.Flash || (AutomationPlatform.GetDevices() != null && AutomationPlatform.GetDevices().Length > 0));
+				Sdks = Sdks.FindAll(x => x.Type != FileSource.SourceType.Flash || (AutomationPlatform.GetDevices() != null && AutomationPlatform.GetDevices().Length > 0));
 				bool bStrippedDevices = Sdks.Count != SdkCount;
 
-// 				// we don't need to do AutoSdks, we already attempted one above if we wanted to
-// 				Sdks = Sdks.FindAll(x => x.Type != SdkInfo.SdkType.AutoSdk);
+				// skip Misc FileSources, as we dont know how they are sued
+				Sdks = Sdks.FindAll(x => x.Type != FileSource.SourceType.Misc);
 
-
-				// strip out Sdks where there is no Sdk installed yet
 				if (bUpdateOnly)
 				{
+					// strip out Sdks where there is no Sdk installed yet
 					Sdks = Sdks.FindAll(x => !string.IsNullOrEmpty(SDK.GetInstalledVersion()));
 				}
 
-				// strip out Sdks not in the allowed range of the platform
-				if (bValidOnly)
-				{
-					Sdks = Sdks.FindAll(x => x.IsValid(Platform, DeviceName));
-				}
+// 				// strip out Sdks not in the allowed range of the platform
+// 				if (bValidOnly)
+// 				{
+// 					Sdks = Sdks.FindAll(x => x.IsValid(Platform, DeviceName));
+// 				}
+// 
+// 				// strip out Sdks for platforms that are not needed to be updated
+// 				if (bNeededOnly)
+// 				{
+// 					Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
+// 				}
 
-				// strip out Sdks for platforms that are not needed to be updated
-				if (bNeededOnly)
-				{
-					Sdks = Sdks.FindAll(x => x.IsNeeded(Platform, DeviceName));
-				}
-
-				// filter on type
-				if (SdkTypeString != null && Sdks.Count > 0)
-				{
-					List<SdkInfo> TypedSdks = Sdks.FindAll(x => x.Type == DesiredType);
-					if (TypedSdks.Count == 0)
-					{
-						TurnkeyUtils.Log("No valid Sdks found of type {0}, using Full", DesiredType);
-						TypedSdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Full);
-					}
-					Sdks = TypedSdks;
-				}
 
 				if (bBestAvailable && Sdks.Count > 0)
 				{
 					// loop through Sdks that are left, and install the best one available
-					Dictionary<SdkInfo.SdkType, SdkInfo> BestByType = new Dictionary<SdkInfo.SdkType, SdkInfo>();
+					Dictionary<FileSource.SourceType, FileSource> BestByType = new Dictionary<FileSource.SourceType, FileSource>();
 
-					foreach (SdkInfo Sdk in Sdks)
+					foreach (FileSource Sdk in Sdks)
 					{
-						// always install custom Sdks since there are no versions to check, if it's valid, let it decide what to do
-						if (Sdk.CustomSdkId == null)
+						if (!BestByType.ContainsKey(Sdk.Type))
 						{
-							if (!BestByType.ContainsKey(Sdk.Type))
+							BestByType[Sdk.Type] = Sdk;
+						}
+						else
+						{
+							// bigger version is better
+							UInt64 VersionA, VersionB;
+							if (SDK.TryConvertVersionToInt(Sdk.Version, out VersionA) && SDK.TryConvertVersionToInt(BestByType[Sdk.Type].Version, out VersionB) && VersionA > VersionB)
 							{
 								BestByType[Sdk.Type] = Sdk;
-							}
-							else
-							{
-								if (string.Compare(Sdk.Version, BestByType[Sdk.Type].Version, true) > 0)
-								{
-									BestByType[Sdk.Type] = Sdk;
-								}
 							}
 						}
 					}
 
-					// first, keep only custom Sdks
-					Sdks = Sdks.FindAll(x => x.CustomSdkId != null);
-
-// 					// if the user chose a type, then pick that one
-// 					if (SdkTypeString != null)
-// 					{
-// 						if ((DesiredType == SdkInfo.SdkType.BuildOnly || DesiredType == SdkInfo.SdkType.RunOnly) &&
-// 							!BestByType.ContainsKey(DesiredType))
-// 						{
-// 							TurnkeyUtils.Log("No valid Sdks found of type {0}, trying for a Full",  DesiredType);
-// 							DesiredType = SdkInfo.SdkType.Flash;
-// 						}
-// 
-// 						if (!BestByType.ContainsKey(DesiredType))
-// 						{
-// 							TurnkeyUtils.Log("No valid Sdks found of type {0}, giving up.", DesiredType);
-// 							return;
-// 						}
-// 
-// 						SdkInfo Sdk = BestByType[DesiredType];
-// 					}
-// 					// otherwise, add all matches to the list
-// 					else
-					{
-						Sdks.AddRange(BestByType.Values);
-					}
-				}
+					// get the best for all types
+					Sdks.Clear();
+					Sdks.AddRange(BestByType.Values);
+ 				}
 				// if we are not doing best available Sdks, then let used choose one
 				else
 				{
 					if (Sdks.Count == 0)
 					{
 						TurnkeyUtils.Log("No Sdks found for platform {0}. Skipping", Platform);
+						if (bStrippedDevices)
+						{
+							TurnkeyUtils.Log("NOTE: Some Flash Sdks were removed because no devices were found");
+						}
 						continue;
 					}
 
 					List<string> Options = new List<string>();
-					foreach (SdkInfo Sdk in Sdks)
+					foreach (FileSource Sdk in Sdks)
 					{
 						string Current = SDK.GetInstalledVersion();
-						if (Sdk.Type == SdkInfo.SdkType.Flash)
+						if (Sdk.Type == FileSource.SourceType.Flash)
 						{
 							// look for default device, or matching device [put this in a function!]
 							DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
@@ -229,12 +170,11 @@ namespace Turnkey.Commands
 					}
 
 					// only install the chosen one
-					SdkInfo ChosenSdk = Sdks[Choice - 1];
-					Sdks = new List<SdkInfo>() { ChosenSdk };
+					FileSource ChosenSdk = Sdks[Choice - 1];
+					Sdks = new List<FileSource>() { ChosenSdk };
 				}
 
-
-				foreach (SdkInfo Sdk in Sdks)
+				foreach (FileSource Sdk in Sdks)
 				{
 					// because some Sdks can target muiltiple Sdks, if this one was already installed, don't need to reinstall it for other platforms
 					if (SdksAlreadyInstalled.Contains(Sdk))
@@ -245,7 +185,7 @@ namespace Turnkey.Commands
 
 					DeviceInfo InstallDevice = null;
 					// set variables
-					if (Sdk.Type == SdkInfo.SdkType.Flash)
+					if (Sdk.Type == FileSource.SourceType.Flash)
 					{
 						string InstallDeviceName = DeviceName;
 						if (InstallDeviceName == null)
@@ -279,7 +219,7 @@ namespace Turnkey.Commands
 						}
 					}
 
-					Sdk.Install(Platform, InstallDevice);
+					Sdk.DownloadOrInstall(Platform);
 				}
 			}
 		}

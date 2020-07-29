@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.IO;
 using AutomationTool;
 using Ionic.Zip;
+using UnrealBuildTool;
+using System.Windows.Forms;
 
 namespace Turnkey
 {
@@ -100,6 +102,8 @@ namespace Turnkey
 		/// <returns>Output path, which could then be used as $(OutputPath) in later operations</returns>
 		public static string ExecuteCopy(string CopyOperation, CopyExecuteSpecialMode SpecialMode = CopyExecuteSpecialMode.None, string SpecialModeHint = null)
 		{
+			TurnkeyUtils.ClearVariable("CopyOutputPath");
+
 			CopyProvider Provider;
 			string ProviderParam;
 
@@ -189,6 +193,8 @@ namespace Turnkey
 				}
 			}
 
+			TurnkeyUtils.SetVariable("CopyOutputPath", OutputPath);
+
 			return OutputPath;
 		}
 
@@ -209,49 +215,73 @@ namespace Turnkey
 
 	class CopyProviderRetriever : AutomationTool.FileRetriever
 	{
-		public string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null)
+		public string RetrieveFileSource(object HintObject)
 		{
-			// @todo turnkey: unset these
-			if (ExtraVariables != null)
-			{
-				foreach (var Pair in ExtraVariables)
-				{
-					TurnkeyUtils.SetVariable(Pair.Key, Pair.Value);
-				}
-			}
+			FileSource Sdk = (FileSource)HintObject;
 
-			List<SdkInfo> Sdks = TurnkeyManifest.GetDiscoveredSdks();
-
-			string Tag = RequiredTags[0];
-			Sdks = Sdks.FindAll(x => x.Type == SdkInfo.SdkType.Misc);
-
-			Sdks = Sdks.FindAll(x =>
-			{
-				if (Tag.StartsWith("regex:"))
-				{
-					return TurnkeyUtils.IsValueValid(x.CustomSdkId, Tag, null);
-				}
-				// this will handle the case of x.CustomSdkId starting with regex: or just doing a case insensitive string comparison of tag and CustomSdkId
-				// range: is not supported, at least yet - we would have to check Tag with range: above, and also support range without a Platform (or pass in a platform somehow?)
-				return TurnkeyUtils.IsValueValid(Tag, x.CustomSdkId, null);
-			});
-
-			if (Sdks == null || Sdks.Count == 0)
-			{
-				return null;
-			}
-
-			SdkInfo Sdk = Sdks.First();
-
-			foreach (CopyAndRun Copy in Sdk.CustomSdkInputFiles)
+			// run the first copy for the host platform`
+			foreach (CopySource Copy in Sdk.Sources)
 			{
 				if (Copy.ShouldExecute())
 				{
-					return CopyProvider.ExecuteCopy(Copy.Copy);
+					return CopyProvider.ExecuteCopy(Copy.GetOperation());
 				}
 			}
 
 			return null;
+		}
+
+		public bool RunExternalCommand(string Command, string Params)
+		{
+			return CopyAndRun.RunExternalCommand(Command, Params);
+		}
+
+		public string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null)
+		{
+			return null;
+// 			// @todo turnkey - delete, or replace with a more "retrieve by Platform and Name/Version something" function
+// 
+// 			// @todo turnkey: unset these
+// 			if (ExtraVariables != null)
+// 			{
+// 				foreach (var Pair in ExtraVariables)
+// 				{
+// 					TurnkeyUtils.SetVariable(Pair.Key, Pair.Value);
+// 				}
+// 			}
+// 
+// 			List<SdkInfo> Sdks = TurnkeyManifest.GetAllDiscoveredSdks();
+// 
+// 			string Tag = RequiredTags[0];
+// 			Sdks = Sdks.FindAll(x => x.Type == FileSource.SourceType.Misc);
+// 
+// 			Sdks = Sdks.FindAll(x =>
+// 			{
+// 				if (Tag.StartsWith("regex:"))
+// 				{
+// 					return TurnkeyUtils.IsValueValid(x.CustomSdkId, Tag, null);
+// 				}
+// 				// this will handle the case of x.CustomSdkId starting with regex: or just doing a case insensitive string comparison of tag and CustomSdkId
+// 				// range: is not supported, at least yet - we would have to check Tag with range: above, and also support range without a Platform (or pass in a platform somehow?)
+// 				return TurnkeyUtils.IsValueValid(Tag, x.CustomSdkId, null);
+// 			});
+// 
+// 			if (Sdks == null || Sdks.Count == 0)
+// 			{
+// 				return null;
+// 			}
+// 
+// 			SdkInfo Sdk = Sdks.First();
+// 
+// 			foreach (CopyAndRun Copy in Sdk.CustomSdkInputFiles)
+// 			{
+// 				if (Copy.ShouldExecute())
+// 				{
+// 					return CopyProvider.ExecuteCopy(Copy.Copy);
+// 				}
+// 			}
+// 
+// 			return null;
 		}
 
 		public string GetVariable(string VariableName)

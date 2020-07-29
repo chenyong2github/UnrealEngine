@@ -210,8 +210,21 @@ namespace Tools.DotNETCommon
 				return false;
 			}
 
+			// convert it to an integer
+			UInt64 IntVersion;
+			if (!TryConvertVersionToInt(Version, out IntVersion))
+			{
+				return false;
+			}
+
+			UInt64 DesiredVersion;
+			if (!TryConvertVersionToInt(GetDesiredVersion(), out DesiredVersion))
+			{
+				return false;
+			}
+
 			// short circuit range check if the Version is the desired version already
-			if (string.Compare(Version, GetDesiredVersion(), true) == 0)
+			if (IntVersion == DesiredVersion)
 			{
 				return true;
 			}
@@ -222,14 +235,6 @@ namespace Tools.DotNETCommon
 				{
 					return false;
 				}
-
-			}
-
-			// convert it to an integer
-			UInt64 IntVersion;
-			if (!TryConvertVersionToInt(Version, out IntVersion))
-			{
-				return false;
 			}
 
 			// get numeric range

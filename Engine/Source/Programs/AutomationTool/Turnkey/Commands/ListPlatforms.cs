@@ -48,7 +48,7 @@ namespace Turnkey.Commands
 				TurnkeyUtils.Log("  Valid Auto SDK Installed? {0}", bIsAutoSdkValid);
 
 				// look for available sdks
-				List<SdkInfo> MatchingFullSdks = TurnkeyManifest.GetDiscoveredSdks()?.FindAll(x => x.Type == SdkInfo.SdkType.Full && x.IsValid(TargetPlatform));
+				List<FileSource> MatchingFullSdks = TurnkeyManifest.FilterDiscoveredFileSources(TargetPlatform, FileSource.SourceType.Full);
 				if (MatchingFullSdks == null || MatchingFullSdks.Count == 0)
 				{
 					TurnkeyUtils.Log("    NO MATCHING FULL SDK FOUND!");
@@ -57,7 +57,7 @@ namespace Turnkey.Commands
 				{
 					TurnkeyUtils.Log("    Possible Full Sdks that could be installed:");
 
-					foreach (SdkInfo Sdk in MatchingFullSdks)
+					foreach (FileSource Sdk in MatchingFullSdks)
 					{
 						TurnkeyUtils.Log(Sdk.ToString(4));
 					}
@@ -86,7 +86,7 @@ namespace Turnkey.Commands
 						if (!bIsSoftwareValid)
 						{
 							// look for available flash
-							List<SdkInfo> MatchingFlashSdks = TurnkeyManifest.GetDiscoveredSdks()?.FindAll(x => x.Type == SdkInfo.SdkType.Flash && x.IsValid(TargetPlatform, Device.Name));
+							List<FileSource> MatchingFlashSdks = TurnkeyManifest.FilterDiscoveredFileSources(TargetPlatform, FileSource.SourceType.Flash).FindAll(x => x.IsVersionValid(TargetPlatform, Device));
 							if (MatchingFlashSdks == null || MatchingFlashSdks.Count == 0)
 							{
 								TurnkeyUtils.Log("      NO MATCHING FLASH SDK FOUND!");
@@ -95,7 +95,7 @@ namespace Turnkey.Commands
 							{
 								TurnkeyUtils.Log("      Possible Flash Sdks that could be installed:");
 
-								foreach (SdkInfo Sdk in MatchingFlashSdks)
+								foreach (FileSource Sdk in MatchingFlashSdks)
 								{
 									TurnkeyUtils.Log(Sdk.ToString(6));
 								}

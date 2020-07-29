@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.IO;
 using DriveHelper;
+using System.Text.RegularExpressions;
 
 namespace Turnkey
 {
@@ -66,7 +67,7 @@ namespace Turnkey
 
 
 			string TagExtras = "";
-			// allow the special mode to modify the tag 
+			// allow the` special mode to modify the tag 
 			if (SpecialMode == CopyExecuteSpecialMode.UsePermanentStorage)
 			{
 				TagExtras = "perm:" + SpecialModeHint;
@@ -444,27 +445,19 @@ namespace Turnkey
 			{
 				string Wildcard = (NextSlash == -1) ? PathString.Substring(PrevSlash + 1) : PathString.Substring(PrevSlash + 1, (NextSlash - PrevSlash) - 1);
 
-				if (Wildcard.LastIndexOf('*') != 0)
-				{
-					throw new AutomationTool.AutomationException("CURRENTLY unable to handle wildcards that are not '*' or '*foo' type format (foo can be anything like '.txt')");
-				}
+				// convert to a wildcard with capturing to get what the matches are
+				Regex Regex = new Regex(string.Format("^{0}$", Wildcard.Replace("*", "(.+?)")));
 
 				// get files that could match the wildcard
 				string Query = string.Format("'{0}' in parents", FolderBeforeWildcard.Id);
-				string Match = "";
-				if (Wildcard.Length > 1)
-				{
-					Match = Wildcard.Substring(1);
-					// we can only do contains, not endswith, but it will reduce the results
-//					Query += string.Format(" and name contains '{0}'", Match);
-				}
 
 				List<Google.Apis.Drive.v3.Data.File> Results = ServiceHelper.SearchFiles(Query);
 
 				foreach (Google.Apis.Drive.v3.Data.File Result in Results)
 				{
 					// make sure we fit the filter
-					if (!Result.Name.EndsWith(Match))
+					Match Match = Regex.Match(Result.Name);
+					if (!Match.Success)
 					{
 						continue;
 					}
@@ -473,10 +466,9 @@ namespace Turnkey
 					if (ExpansionSet != null)
 					{
 						NewExpansionSet = new List<string>(ExpansionSet);
-						if (Match != "")
+						for (int GroupIndex = 1; GroupIndex < Match.Groups.Count; GroupIndex++)
 						{
-							// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
-							NewExpansionSet.Add(Result.Name.Replace(Match, ""));
+							NewExpansionSet.Add(Match.Groups[GroupIndex].Value);
 						}
 					}
 

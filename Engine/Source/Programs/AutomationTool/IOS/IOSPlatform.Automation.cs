@@ -174,55 +174,47 @@ public class IOSPlatform : Platform
 		return @"regex:^13\.5.*";
 	}
 
-	public override bool IsCustomVersionNeeded(string CustomVersionId, string CustomVersionParams)
+	public override bool GetSDKInstallCommand(out string Command, out string Params, FileRetriever Retriever)
 	{
-		return true;
-	}
-	public override bool CustomVersionUpdate(string CustomVersionId, string UpdateParams, FileRetriever Retriever)
-	{
-		if (HostPlatform.Current.HostEditorPlatform != UnrealTargetPlatform.Mac)
-		{
-			return base.CustomVersionUpdate(CustomVersionId, UpdateParams, Retriever);
-		}
-
-		if (CustomVersionId == "QueryIOSDeviceType")
-		{
-			Console.WriteLine("Getting DeviceType device with " + UpdateParams);
-
-			// cfgtool needs ECID, not UDID, so find it
-			string Configurator = Path.Combine(GetConfiguratorLocation().Replace(" ", "\\ "), "Contents/MacOS/cfgutil");
-
-			string Device = CommandUtils.ParseParamValue(UpdateParams.Split(' '), "-device=");
-			Console.WriteLine("DeviceId: {0}", Device);
-
-			string Params = string.Format(" -c '{0} list | grep {1}'", Configurator, Device);
-			string Output = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", Params);
-
-			Match Result = Regex.Match(Output, @"Type: (\S*).*ECID: (\S*)");
-			if (!Result.Success)
-			{
-				Console.WriteLine("Unable to find the given deviceid: {0}", Device);
-			}
-
-			// set variables for Installers following this
-			Environment.SetEnvironmentVariable("DeviceModel", Result.Groups[1].Value, EnvironmentVariableTarget.Process);
-			Environment.SetEnvironmentVariable("ECID", Result.Groups[2].Value, EnvironmentVariableTarget.Process);
-			Environment.SetEnvironmentVariable("FlashApplication", Configurator, EnvironmentVariableTarget.Process);
-
-			//// get the flash for this guy
-			//Dictionary<string, string> Variables = new Dictionary<string, string>();
-			//Variables["DeviceType"] = Result.Groups[1].Value;
-			//string ECID = Result.Groups[2].Value;
-
-			//string FlashLocation = Retriever.RetrieveByTags(new string[] { "IOS_IPSW_Location" }, null, Variables);
-
-			//Params = string.Format("-c {0} --ecid {1} update -i {2}", Configurator, ECID, FlashLocation);
-
-			//Console.WriteLine("Update cmdline: {0}", Params);
-		}
+		// put current Xcode in the trash, and unzip a new one. Xcode in the dock will have to be fixed up tho!
+		Command = "osascript";
+		Params = 
+			" -e \"try\"" +
+			" -e   \"tell application \\\"Finder\\\" to delete POSIX file \\\"/Applications/Xcode.app\\\"\"" +
+			" -e \"end try\"" +
+			" -e \"do shell script \\\"cd /Applications; xip --expand $(CopyOutputPath);\\\"\"" +
+			" -e \"try\"" +
+			" -e   \"do shell script \\\"xcode-select -s /Applications/Xcode.app; xcode-select --install\\\" with administrator privileges\"" +
+			" -e \"end try\"";
 
 		return true;
 	}
+
+	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, FileRetriever Retriever, DeviceInfo Device)
+	{
+		// cfgtool needs ECID, not UDID, so find it
+		string Configurator = Path.Combine(GetConfiguratorLocation().Replace(" ", "\\ "), "Contents/MacOS/cfgutil");
+
+		string CfgUtilParams = string.Format("-c '{0} list | grep {1}'", Configurator, Device.Id);
+		string CfgUtilOutput = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("sh", CfgUtilParams);
+
+		Match Result = Regex.Match(CfgUtilOutput, @"Type: (\S*).*ECID: (\S*)");
+		if (!Result.Success)
+		{
+			Console.WriteLine("Unable to find the given deviceid: {0} in cfgutil output", Device);
+			Command = Params = null;
+			return false;
+		}
+
+		Command = "sh";
+		Params = string.Format("-c '{0} --ecid {1} update --ipsw $(CopyOutputPath)'", Configurator, Result.Groups[2]);
+
+		return true;
+	}
+
+
+
+
 
 	private class VerifyIOSSettings
 	{
