@@ -257,6 +257,8 @@ protected:
 
 	TSharedPtr< SInlineEditableTextBlock > InlineRenameWidget;
 
+	TSharedPtr<STextBlock> ClassTextWidget;
+
 	/** The data for this item */
 	TSharedPtr<FAssetViewItem> AssetItem;
 
@@ -433,9 +435,6 @@ private:
 
 	/** The height allowed for this item */
 	TAttribute<float> ItemHeight;
-
-	/** The text block containing the class name */
-	TSharedPtr<STextBlock> ClassText;
 };
 
 /** An item in the asset tile view */
