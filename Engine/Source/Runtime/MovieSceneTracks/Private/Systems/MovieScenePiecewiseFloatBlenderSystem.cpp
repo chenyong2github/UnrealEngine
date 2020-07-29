@@ -78,11 +78,11 @@ struct FCombineBlendsWithInitialValues
 		check(InInitialValueProjectionOffset >= 0);
 	}
 
-	void ForEachEntity(uint16 BlendID, void* ErasedInitialValue, float& OutFinalBlendResult)
+	void ForEachEntity(uint16 BlendID, const void* ErasedInitialValue, float& OutFinalBlendResult)
 	{
 		checkSlow(InitialValueProjectionOffset != INDEX_NONE);
 
-		const float InitialValue = *reinterpret_cast<float*>(reinterpret_cast<uint8*>(ErasedInitialValue) + InitialValueProjectionOffset);
+		const float InitialValue = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(ErasedInitialValue) + InitialValueProjectionOffset);
 
 		FBlendResult AbsoluteResult = TaskData->GetAbsoluteResult(BlendID);
 		FBlendResult RelativeResult = TaskData->GetRelativeResult(BlendID);
