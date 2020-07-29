@@ -489,10 +489,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 										SetupBasePassState(BasePassDepthStencilAccess_NoDepthWrite, false, DrawRenderState);
 
 										FSkyPassMeshProcessor PassMeshProcessor(Scene, nullptr, DrawRenderState, DynamicMeshPassContext);
-										for (int32 MeshBatchIndex = 0; MeshBatchIndex < MainView.SkyMesheBatches.Num(); ++MeshBatchIndex)
+										for (int32 MeshBatchIndex = 0; MeshBatchIndex < MainView.SkyMeshBatches.Num(); ++MeshBatchIndex)
 										{
-											const FMeshBatch* MeshBatch = MainView.SkyMesheBatches[MeshBatchIndex].Mesh;
-											const FPrimitiveSceneProxy* PrimitiveSceneProxy = MainView.SkyMesheBatches[MeshBatchIndex].Proxy;
+											const FMeshBatch* MeshBatch = MainView.SkyMeshBatches[MeshBatchIndex].Mesh;
+											const FPrimitiveSceneProxy* PrimitiveSceneProxy = MainView.SkyMeshBatches[MeshBatchIndex].Proxy;
 											const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
 											const uint64 DefaultBatchElementMask = ~0ull;

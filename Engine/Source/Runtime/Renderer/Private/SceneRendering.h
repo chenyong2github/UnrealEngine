@@ -978,7 +978,7 @@ public:
 	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> VolumetricMeshBatches;
 
 	/** Mesh batches with a sky material. */
-	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> SkyMesheBatches;
+	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> SkyMeshBatches;
 
 	/** A map from light ID to a boolean visibility value. */
 	TArray<FVisibleLightViewInfo,SceneRenderingAllocator> VisibleLightInfos;
