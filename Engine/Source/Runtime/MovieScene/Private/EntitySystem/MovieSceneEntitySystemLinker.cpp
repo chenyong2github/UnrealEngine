@@ -60,6 +60,15 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 	}
 }
 
+void UMovieSceneEntitySystemLinker::Reset()
+{
+	Events.AbandonLinker.Broadcast(this);
+	SystemGraph.Shutdown();
+	EntitySystemsByGlobalGraphID.Reset();
+
+	EntityManager.Destroy();
+}
+
 UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name)
 {
 	if (!PreferredOuter)

@@ -152,3 +152,39 @@ void UMovieSceneComponentTransformSystem::OnRun(FSystemTaskPrerequisites& InPrer
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
+void UMovieSceneComponentTransformSystem::Interrogate(TArray<FTransform>& OutTransforms) const
+{
+	using namespace UE::MovieScene;
+
+	auto PopulateTransforms = [&OutTransforms](FInterrogationChannel InterrogationChannel,
+		float LocationX, float LocationY, float LocationZ,
+		float RotationX, float RotationY, float RotationZ,
+		float ScaleX, float ScaleY, float ScaleZ)
+	{
+		const uint32 Index = InterrogationChannel.AsIndex();
+
+		OutTransforms[Index] = FTransform(
+			FRotator(RotationZ, RotationY, RotationX),
+			FVector(LocationX, LocationY, LocationZ),
+			FVector(ScaleX, ScaleY, ScaleZ)
+		);
+	};
+
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FEntityTaskBuilder()
+	.Read(Components->Interrogation.OutputChannel)
+	.Read(Components->FloatResult[0])
+	.Read(Components->FloatResult[1])
+	.Read(Components->FloatResult[2])
+	.Read(Components->FloatResult[3])
+	.Read(Components->FloatResult[4])
+	.Read(Components->FloatResult[5])
+	.Read(Components->FloatResult[6])
+	.Read(Components->FloatResult[7])
+	.Read(Components->FloatResult[8])
+	.FilterAny({ TracksComponents->ComponentTransform.PropertyTag })
+	.Iterate_PerEntity(&Linker->EntityManager, PopulateTransforms);
+}
