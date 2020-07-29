@@ -61,6 +61,23 @@ public:
 	}
 
 
+	/**
+	 * @return minimum squared distance from Point to Sphere surface for points outside sphere, 0 for points inside
+	 */
+	inline T DistanceSquared(const FVector3<T>& Point) const
+	{
+		const T PosDistance = TMathUtil<T>::Max(SignedDistance(Point), (T)0);
+		return PosDistance * PosDistance;
+	}
+
+	/**
+	 * @return signed distance from Point to Sphere surface. Points inside sphere return negative distance.
+	 */
+	inline T SignedDistance(const FVector3<T>& Point) const
+	{
+		return Center.Distance(Point) - Radius;
+	}
+
 
 	//
 	// Sphere utility functions

@@ -82,6 +82,23 @@ public:
 	}
 
 
+	/**
+	 * @return minimum squared distance from Point to Capsule surface for points outside capsule, 0 for points inside
+	 */
+	inline T DistanceSquared(const FVector3<T>& Point) const
+	{
+		const T PosDistance = TMathUtil<T>::Max(SignedDistance(Point), (T)0);
+		return PosDistance * PosDistance;
+	}
+
+	/**
+	 * @return signed distance from Point to Capsule surface. Points inside capsule return negative distance.
+	 */
+	inline T SignedDistance(const FVector3<T>& Point) const
+	{
+		T SqrDist = Segment.DistanceSquared(Point);
+		return TMathUtil<T>::Sqrt(SqrDist) - Radius;
+	}
 
 	//
 	// Sphere utility functions
