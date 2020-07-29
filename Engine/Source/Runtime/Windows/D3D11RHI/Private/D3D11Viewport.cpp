@@ -268,9 +268,26 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		if (bNeedSwapChain)
 		{
 			// Resize the swap chain.
-			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+
+			UINT SwapChainFlags = D3D11GetSwapChainFlags();
+
+			// Ensure AllowTearing consistency or ResizeBuffers will fail with E_INVALIDARG
+			{
+				DXGI_SWAP_CHAIN_DESC Desc;
+
+				if (!FAILED(SwapChain->GetDesc(&Desc)))
+				{
+					if ((SwapChainFlags ^ Desc.Flags) & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING)
+					{
+						SwapChainFlags ^= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+					}
+				}
+			}
+
+			const DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
+
 			// Resize all existing buffers, don't change count
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 
 			if (bInIsFullscreen)
 			{
@@ -279,7 +296,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 				if (FAILED(SwapChain->ResizeTarget(&BufferDesc)))
 				{
 					ResetSwapChainInternal(true);
-					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, D3D11GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
 				}
 			}
 		}
