@@ -626,6 +626,8 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	MaxPlayerTicks = 0;
 	MinPlayerTicks = INT_MAX;
 	TotalPlayerTicks = 0;
+	MaxVehicleTicks = 0;
+	TotalVehicleTicks = 0;
 	MaxDrawnPrimitives = 0;
 	MinDrawnPrimitives = INT_MAX;
 	TotalDrawnPrimitives = 0;
@@ -702,6 +704,8 @@ void FPerformanceTrackingChart::AccumulateWith(const FPerformanceTrackingChart& 
 	MaxPlayerTicks = FMath::Max(MaxPlayerTicks, Chart.MaxPlayerTicks);
 	MinPlayerTicks = FMath::Min(MinPlayerTicks, Chart.MinPlayerTicks);
 	TotalPlayerTicks += Chart.TotalPlayerTicks;
+	MaxVehicleTicks = FMath::Max(MaxVehicleTicks, Chart.MaxVehicleTicks);
+	TotalVehicleTicks += Chart.TotalVehicleTicks;
 	MaxDrawnPrimitives = FMath::Max(MaxDrawnPrimitives, Chart.MaxDrawnPrimitives);
 	MinDrawnPrimitives = FMath::Min(MinDrawnPrimitives, Chart.MinDrawnPrimitives);
 	TotalDrawnPrimitives += Chart.TotalDrawnPrimitives;
