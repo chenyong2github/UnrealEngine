@@ -980,7 +980,11 @@ bool USkyLightComponent::IsOcclusionSupported() const
 
 bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 {
-	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeReflectionCapture >0;
+	FSceneInterface* LocalScene = GetScene();
+	// We currently disable realtime capture on mobile, OGL requires an additional texture to read SkyIrradianceEnvironmentMap which can break materials already at the texture limit.
+	// See FORT-301037, FORT-302324	
+	const bool bIsMobile = LocalScene && LocalScene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1;
+	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
 }
 
 void USkyLightComponent::OnVisibilityChanged()
