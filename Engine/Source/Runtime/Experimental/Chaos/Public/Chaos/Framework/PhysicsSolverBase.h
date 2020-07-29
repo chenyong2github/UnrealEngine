@@ -201,6 +201,7 @@ namespace Chaos
 			//make sure any GT state is pushed into necessary buffer
 			PushPhysicsState(InDt);
 
+			SetExternalTimeConsumed_External(MarshallingManager.GetExternalTimeConsumed_External());
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InDt);
 
 			//todo: handle dt etc..
@@ -306,6 +307,7 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 		virtual void PushPhysicsState(const FReal Dt) = 0;
 		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
+		virtual void SetExternalTimeConsumed_External(const FReal Time) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;

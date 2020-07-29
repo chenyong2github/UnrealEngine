@@ -175,6 +175,7 @@ namespace Chaos
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, bExternalReady(false)
 		, bIsSingleThreaded(InIsSingleThreaded)
+		, LatestExternalTimeConsumed(0)
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
 		, SpatialCollectionFactory(new FDefaultCollectionFactory())
@@ -439,6 +440,7 @@ namespace Chaos
 		{
 			ApplyParticlePendingData(PendingData, *InternalAcceleration, false);
 		}
+		InternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
 		InternalAccelerationQueue.Reset();
 	}
 
@@ -464,17 +466,64 @@ namespace Chaos
 
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
 		InternalAccelerationQueue.Reset();
-		ExternalAccelerationQueue.Reset();
+
+		AsyncInternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
+		AsyncExternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
+	}
+
+	//TODO: make static and _External suffix
+	template <typename Traits>
+	void TPBDRigidsEvolutionBase<Traits>::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration, FPendingSpatialDataQueue& ExternalQueue)
+	{
+		//update structure with any pending operations. Note that we must keep those operations around in case next structure still hasn't consumed them (async mode)
+		const FReal SyncTime = Acceleration.GetSyncTime();
+		for (int32 Idx = ExternalQueue.PendingData.Num() - 1; Idx >=0; --Idx)
+		{
+			const FPendingSpatialData& SpatialData = ExternalQueue.PendingData[Idx];
+			if(SpatialData.SyncTime > SyncTime)
+			{
+				//operation still pending so update structure
+				if(SpatialData.bDelete)
+				{
+					Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);
+				}
+				else
+				{
+					TGeometryParticle<FReal,3>* UpdateParticle = SpatialData.AccelerationHandle.GetExternalGeometryParticle_ExternalThread();
+					TAABB<FReal,3> WorldBounds;
+					const bool bHasBounds = UpdateParticle->Geometry() && UpdateParticle->Geometry()->HasBoundingBox();
+					if(bHasBounds)
+					{
+						TRigidTransform<FReal,3> WorldTM(UpdateParticle->X(),UpdateParticle->R());
+						WorldBounds = UpdateParticle->Geometry()->BoundingBox().TransformedAABB(WorldTM);
+					}
+					Acceleration.UpdateElementIn(UpdateParticle,WorldBounds,bHasBounds,SpatialData.SpatialIdx);
+				}
+			}
+			else
+			{
+				//operation was already considered by sim, so remove it
+				//going in reverse order so PendingData will stay valid
+				ExternalQueue.Remove(SpatialData.UniqueIdx());
+			}
+		}
 	}
 
 	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration)
+	void TPBDRigidsEvolutionBase<Traits>::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete,FReal SyncTime)
 	{
-		for (const FPendingSpatialData& PendingData : ExternalAccelerationQueue.PendingData)
-		{
-			ApplyParticlePendingData(PendingData, Acceleration, false);
-		}
-		ExternalAccelerationQueue.Reset();
+		ensure(SyncTime >= LatestExternalTimeConsumed);	//pending operations must be for future
+		//mark it as pending for async structure being built
+		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
+		FPendingSpatialData& SpatialData = PendingSpatialOperations_External.FindOrAdd(Particle->UniqueIdx());
+
+		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
+		ensure(SpatialData.SyncTime < LatestExternalTimeConsumed || !SpatialData.bDelete);
+
+		SpatialData.bDelete = bDelete;
+		SpatialData.SpatialIdx = Particle->SpatialIdx();
+		SpatialData.AccelerationHandle = AccelerationHandle;
+		SpatialData.SyncTime = SyncTime;
 	}
 
 	template <typename Traits>
@@ -507,7 +556,6 @@ namespace Chaos
 			ScratchExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			AsyncExternalAcceleration = TUniquePtr<FAccelerationStructure>(SpatialCollectionFactory->CreateEmptyCollection());
 			FlushInternalAccelerationQueue();
-			FlushExternalAccelerationQueue(*ScratchExternalAcceleration);
 			bExternalReady = true;
 		}
 
@@ -550,7 +598,8 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& StructToUpdate)
+	void TPBDRigidsEvolutionBase<Traits>::UpdateExternalAccelerationStructure_External(
+		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& StructToUpdate)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
@@ -568,7 +617,7 @@ namespace Chaos
 
 		if (ensure(StructToUpdate))
 		{
-			FlushExternalAccelerationQueue(*StructToUpdate);
+			FlushExternalAccelerationQueue(*StructToUpdate, PendingSpatialOperations_External);
 		}
 	}
 
@@ -589,7 +638,6 @@ namespace Chaos
 		ParticleToCacheInnerIdx.Reset();
 		AsyncAccelerationQueue.Reset();
 		InternalAccelerationQueue.Reset();
-		ExternalAccelerationQueue.Reset();
 
 		AccelerationStructureTaskComplete = nullptr;
 		const auto& NonDisabled = Particles.GetNonDisabledView();

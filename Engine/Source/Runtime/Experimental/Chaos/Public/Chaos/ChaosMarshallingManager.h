@@ -302,6 +302,9 @@ public:
 
 	/** Frees the callback push data back into the pool. Internal thread should call this when callback will no longer be used with this specific data*/
 	void FreeCallbackData_Internal(FSimCallbackHandlePT* Callback);
+
+	/** Returns the amount of external time consumed. Note the simulation may be pending, but any data associated with the interval up to this point has been passed */
+	FReal GetExternalTimeConsumed_External() const { return SimTime; }
 	
 private:
 	FReal ExternalTime;	//the global time external thread is currently at

@@ -319,6 +319,8 @@ namespace Chaos
 		GTParticle->SetProxy(ProxyBase);
 
 		AddDirtyProxy(ProxyBase);
+
+		MEvolution->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false,MTime);	//todo: MTime should use external time for async mode
 	}
 
 	template <typename Traits>
@@ -332,6 +334,8 @@ namespace Chaos
 
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
+
+		MEvolution->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true,MTime);	//todo: MTime should use external time for async mode
 
 		// remove the proxy from the invalidation list
 		RemoveDirtyProxy(GTParticle->GetProxy());
@@ -594,6 +598,12 @@ namespace Chaos
 			AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
 			EventPreBuffer.Broadcast(DeltaTime);
 		}
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::SetExternalTimeConsumed_External(const FReal Time)
+	{
+		MEvolution->LatestExternalTimeConsumed = Time;
 	}
 
 	template <typename Traits>

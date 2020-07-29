@@ -263,12 +263,11 @@ void FChaosSolversModule::DestroySolver(Chaos::FPhysicsSolverBase* InSolver)
 
 	if(AllSolvers.Remove(InSolver) > 0)
 	{
-		//NOTE: this second remove is useless since it's on a copy of the array
-		//TODO: we should remove this mapping concept and let each solver actor tick its solver directly
-		//For now just leaving things as is even though there are potential bugs
-		// Also remove from the owner list
-		//TArray<Chaos::FPhysicsSolverBase*> OwnerList = GetSolversMutable(InSolver->GetOwner());
-		//ensureMsgf(OwnerList.Remove(InSolver), TEXT("Removed a solver from the global list but not an owner list."));
+		//should this be a find ref check?
+		if(TArray<Chaos::FPhysicsSolverBase*>* OwnerList = SolverMap.Find(InSolver->GetOwner()))
+		{
+			ensureMsgf(OwnerList->Remove(InSolver), TEXT("Removed a solver from the global list but not an owner list."));
+		}
 	}
 	else if(InSolver)
 	{
