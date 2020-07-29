@@ -183,9 +183,9 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
-			[
+ 			.Padding(0)
+			.BorderImage(this, &SFilter::GetFilterBorderBackground)
+ 			[
 				SAssignNew( ToggleButtonPtr, SFilterCheckBox )
 				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
 				.ToolTipText(FilterToolTip)
@@ -210,6 +210,7 @@ public:
 					[
 						SNew(STextBlock)
 						.Text(this, &SFilter::GetFilterName)
+						//.ColorAndOpacity(this, &SFilter::GetFilterTextColorAndOpacity);
 					]
 				]
 			]
@@ -420,7 +421,15 @@ private:
 	/** Handler to determine the color of the checkbox when it is checked */
 	FSlateColor GetFilterImageColorAndOpacity() const
 	{
-		return IsChecked() == ECheckBoxState::Checked ? FilterColor : FLinearColor::Black;
+		return bEnabled ? FilterColor : FilterColor.Desaturate(.4f);
+	}
+
+	const FSlateBrush* GetFilterBorderBackground() const
+	{
+		static const FName Unchecked("ContentBrowser.FilterBackgroundUnchecked");
+		static const FName Checked("ContentBrowser.FilterBackgroundChecked");
+
+		return FAppStyle::Get().GetBrush(bEnabled ? Checked : Unchecked);
 	}
 
 	/** Handler to determine the padding of the checkbox text when it is pressed */

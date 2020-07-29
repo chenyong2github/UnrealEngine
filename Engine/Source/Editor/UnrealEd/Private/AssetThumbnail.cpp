@@ -368,7 +368,7 @@ private:
 			AssetColor = AssetTypeActions.Pin()->GetTypeColor();
 		}
 
-		AssetBackgroundWidget->SetBorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f));
+		//AssetBackgroundWidget->SetBorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f));
 		AssetColorStripWidget->SetBorderBackgroundColor(AssetColor);
 
 		UpdateThumbnailVisibilities();
@@ -398,11 +398,6 @@ private:
 	{
 
 		return FEditorStyle::GetBrush(ClassBackgroundBrushName);
-	}
-
-	FSlateColor GetViewportBorderColorAndOpacity() const
-	{
-		return FLinearColor(AssetColor.R, AssetColor.G, AssetColor.B, ViewportFadeCurve.GetLerp());
 	}
 
 	FLinearColor GetViewportColorAndOpacity() const

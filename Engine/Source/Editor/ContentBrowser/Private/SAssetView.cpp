@@ -171,7 +171,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	TileViewThumbnailSize = 150;
 	TileViewThumbnailPadding = 9;
 
-	TileViewNameHeight = 115;
+	TileViewNameHeight = 100;
 
 	MinThumbnailScale = 0.2f * ThumbnailScaleRangeScalar;
 	MaxThumbnailScale = 1.9f * ThumbnailScaleRangeScalar;
@@ -310,7 +310,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			[
 				// Container for the view types
 				SAssignNew(ViewContainer, SBox)
-				.Padding(0)
+				.Padding(FMargin(5.0f,0,0,0))
 			]
 
 			+ SOverlay::Slot()

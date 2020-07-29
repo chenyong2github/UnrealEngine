@@ -115,9 +115,14 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 		// Folder base
 		ItemContentsOverlay->AddSlot()
 		[
-			SNew(SImage)
-			.Image(FolderBaseImage)
-			.ColorAndOpacity(InTileOrListItem, &T::GetAssetColor)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FolderItem.DropShadow"))
+			.Padding(FMargin(0,0,4.0f,4.0f))
+			[
+				SNew(SImage)
+				.Image(FolderBaseImage)
+				.ColorAndOpacity(InTileOrListItem, &T::GetAssetColor)
+			]
 		];
 
 		if (bCollectionFolder)
@@ -1632,7 +1637,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		// Drop shadow border
 		SNew(SBorder)
 		.Padding(FMargin(0.0f, 0.0f, 5.0f, 5.0f))
-		.BorderImage(FAppStyle::Get().GetBrush(ItemShadowBorderName))
+		.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush(ItemShadowBorderName))
 		[
 			SNew(SOverlay)
 			.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
@@ -1640,7 +1645,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.ThumbnailAreaBackground"))
+				.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.ThumbnailAreaBackground"))
 				[
 					SNew(SVerticalBox)
 					// Thumbnail
@@ -1663,24 +1668,13 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 					[
 						SNew(SBorder)
 						.Padding(FMargin(2.0f, 3.0f))
-						.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.NameAreaBackground"))
+						.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.NameAreaBackground"))
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
+							.Padding(2.0f)
 							.HAlign(HAlign_Left)
 							.VAlign(VAlign_Top)
-							.Padding(2.0f)
-							.AutoHeight()
-							[
-								SNew(STextBlock)
-								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
-								.TextStyle(FAppStyle::Get(), "ButtonText")
-								.TransformPolicy(ETextTransformPolicy::ToUpper)
-								.Text(this, &SAssetTileItem::GetAssetClassText)
-							]
-							+ SVerticalBox::Slot()
-							.Padding(2.0f)
-							.VAlign(VAlign_Center)
 							[
 								SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
 								.Font(this, &SAssetTileItem::GetThumbnailFont)
@@ -1693,9 +1687,22 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 								.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
 								.Justification(ETextJustify::Left)
 								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
-
-
 							]
+							+ SVerticalBox::Slot()
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Bottom)
+							.Padding(2.0f)
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
+								.TextStyle(FAppStyle::Get(), "SmallText")
+								//.Font(FAppStyle::Get().GetFontStyle("ContentBrowser.AssetTileViewNameFontSmall"))
+								.TransformPolicy(ETextTransformPolicy::ToUpper)
+								.Text(this, &SAssetTileItem::GetAssetClassText)
+								.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+							]
+							
 						]
 					]
 				]
@@ -1783,11 +1790,14 @@ FOptionalSize SAssetTileItem::GetThumbnailBoxSize() const
 
 EVisibility SAssetTileItem::GetAssetClassLabelVisibility() const
 {
-	FOptionalSize ThumbSize = GetThumbnailBoxSize();
-	if (ThumbSize.IsSet())
+	if(!IsFolder())
 	{
-		float Size = ThumbSize.Get() *GetTickSpaceGeometry().Scale;
-		return Size < 100 ? EVisibility::Collapsed : EVisibility::Visible;
+		FOptionalSize ThumbSize = GetThumbnailBoxSize();
+		if (ThumbSize.IsSet())
+		{
+			float Size = ThumbSize.Get() * GetTickSpaceGeometry().Scale;
+			return Size < 100 ? EVisibility::Collapsed : EVisibility::Visible;
+		}
 	}
 	return EVisibility::Collapsed;
 }
