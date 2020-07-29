@@ -295,21 +295,17 @@ FPlayWorldCommands::FPlayWorldCommands()
 		FString RunningPlatformName = GetTargetPlatformManagerRef().GetRunningTargetPlatform()->PlatformName();
 		FString PlayPlatformName;
 
-		if (RunningPlatformName == TEXT("Windows"))
+		if (RunningPlatformName == TEXT("WindowsEditor"))
 		{
-			PlayPlatformName = TEXT("WindowsNoEditor");
+			PlayPlatformName = TEXT("Windows");
 		}
-		else if (RunningPlatformName == TEXT("Mac"))
+		else if (RunningPlatformName == TEXT("MacEditor"))
 		{
-			PlayPlatformName = TEXT("MacNoEditor");
+			PlayPlatformName = TEXT("Mac");
 		}
-		else if (RunningPlatformName == TEXT("Linux"))
+		else if (RunningPlatformName == TEXT("LinuxEditor"))
 		{
-			PlayPlatformName = TEXT("LinuxNoEditor");
-		}
-		else if (RunningPlatformName == TEXT("LinuxAArch64"))
-		{
-			PlayPlatformName = TEXT("LinuxAArch64NoEditor");
+			PlayPlatformName = TEXT("Linux");
 		}
 
 		if (!PlayPlatformName.IsEmpty())
@@ -1010,7 +1006,7 @@ static void MakeAllDevicesSubMenu(FMenuBuilder& InMenuBuilder, const PlatformInf
 		// for an aggregate (All_<platform>_devices_on_<host>) proxy, allow only the "Android_<texture_compression>" variants
 		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(Variant);
 		if (DeviceProxy->IsAggregated() && PlatformInfo != NULL &&
-			(Variant == PlatformInfo->VanillaInfo->PlatformInfoName || PlatformInfo->PlatformType != EBuildTargetType::Game))
+			(Variant == PlatformInfo->VanillaInfo->Name || PlatformInfo->PlatformType != EBuildTargetType::Game))
 		{
 			continue;
 		}
@@ -1125,7 +1121,7 @@ static void TurnkeyInstallSdk(FString PlatformName, bool bPreferFull, bool bForc
 
 			// update the Sdk status
 //			FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
-			GetTargetPlatformManager()->UpdateAfterSDKInstall(PlatformName);
+			GetTargetPlatformManager()->UpdateAfterSDKInstall(*PlatformName);
 			RenderUtilsInit();
 
 
@@ -1136,7 +1132,7 @@ static void TurnkeyInstallSdk(FString PlatformName, bool bPreferFull, bool bForc
 	);
 }
 
-static TAttribute<FText> MakeSdkStatusAttribute(const PlatformInfo::FTargetPlatformInfo* PlatformInfo, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
+static TAttribute<FText> MakeSdkStatusAttribute(FName IniPlatformName, TSharedPtr< ITargetDeviceProxy> DeviceProxy)
 {
 // 	FFormatNamedArguments LabelArguments;
 // 	LabelArguments.Add(TEXT("DeviceName"), FText::FromString(DeviceProxy->GetName()));
@@ -1158,57 +1154,59 @@ static TAttribute<FText> MakeSdkStatusAttribute(const PlatformInfo::FTargetPlatf
 // 	TAttribute<FText> = Make
 
 
-	FText DisplayString = DeviceProxy ? FText::FromString(DeviceProxy->GetName()) : PlatformInfo->DisplayName;
+	FString DisplayString = DeviceProxy ? DeviceProxy->GetName() : IniPlatformName.ToString();
 	FString DeviceId = DeviceProxy ? DeviceProxy->GetTargetDeviceId(NAME_None) : FString();
 
-	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([IniPlatformName=PlatformInfo->IniPlatformName, DisplayString, DeviceId]()
+	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateLambda([IniPlatformName, DisplayString, DeviceId]()
 	{
 		// get the status, or Unknown if it's not there
 		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
 		DDPIPlatformSdkStatus Status = DeviceId.Len() ? Info.GetStatusForDeviceId(DeviceId) : Info.GetSdkStatus();
 
 		// @todo turnkey: Have premade FText's by SdkStatus for speed
-		FText Desc = FText::FromString(
+		const TCHAR* Desc =
 			Status == DDPIPlatformSdkStatus::Querying ? TEXT("Querying...") :
 			Status == DDPIPlatformSdkStatus::Valid ? TEXT("Valid Sdk") :
 			Status == DDPIPlatformSdkStatus::OutOfDate ? TEXT("Outdated Sdk") :
 			Status == DDPIPlatformSdkStatus::NoSdk ? TEXT("No Sdk") :
 			Status == DDPIPlatformSdkStatus::FlashValid ? TEXT("Valid Flash") :
 			Status == DDPIPlatformSdkStatus::FlashOutOfDate ? TEXT("Outdated Flash") :
-			TEXT("???"));
-
-		return FText::Format(FText::FromString(TEXT("{0} ({1})")), DisplayString, Desc);
+			TEXT("???");
+		const TCHAR* CompiledStatus = FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(IniPlatformName, FDataDrivenPlatformInfoRegistry::EPlatformNameType::Ini) ? TEXT("") : TEXT(" (No Compiled Support)");
+		return FText::FromString(FString::Printf(TEXT("%s (%s)%s"), *DisplayString, Desc, CompiledStatus));
 	}));
 }
 
 
-static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, const PlatformInfo::FTargetPlatformInfo* PlatformInfo, ITargetDeviceServicesModule* TargetDeviceServicesModule)
+static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatformName, ITargetDeviceServicesModule* TargetDeviceServicesModule)
 {
 	MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_AllDevices", "All Devices"));
 
 	TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
-	TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(PlatformInfo->IniPlatformName, DeviceProxies);
+	TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(IniPlatformName, DeviceProxies);
 
-	FString PlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
+	const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(IniPlatformName);
+
+	FString UBTPlatformName = Info.UBTPlatformString;
 	for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
 	{
 		FString DeviceName = Proxy->GetName();
 		MenuBuilder.AddSubMenu(
-			MakeSdkStatusAttribute(PlatformInfo, DeviceProxies[0]),
+			MakeSdkStatusAttribute(IniPlatformName, Proxy),
 			FText(),
-			FNewMenuDelegate::CreateLambda([PlatformName, DeviceName](FMenuBuilder& SubMenuBuilder) {
+			FNewMenuDelegate::CreateLambda([UBTPlatformName, DeviceName](FMenuBuilder& SubMenuBuilder) {
 				SubMenuBuilder.AddMenuEntry(
 					LOCTEXT("Turnkey_RepairDevice", "Repair Device as Needed"),
 					LOCTEXT("TurnkeyTooltip_RepairDevice", "Perform any fixup that may be needed on this device. If up to date already, nothing will be done."),
 					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, false, false, *DeviceName)
+					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, *DeviceName)
 				);
 
 				SubMenuBuilder.AddMenuEntry(
 					LOCTEXT("Turnkey_ForceRepairDevice", "Force Repair Device"),
 					LOCTEXT("TurnkeyTooltip_ForceRepairDevice", "Force repairing anything on the device needed (update firmware, etc). Will perform all steps possible, even if not needed."),
 					FSlateIcon(),
-					FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, true, false, *DeviceName)
+					FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, *DeviceName)
 				);
 			})
 		);
@@ -1218,7 +1216,6 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, const PlatformInf
 
 	MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_Sdks", "Sdk Managment"));
 
-	const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformInfo->IniPlatformName);
 	const TCHAR* NoDevice = nullptr;
 	if (Info.GetSdkStatus() == DDPIPlatformSdkStatus::OutOfDate)
 	{
@@ -1226,14 +1223,14 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, const PlatformInf
 			LOCTEXT("Turnkey_InstallSdkMinimal", "Update Sdk (Prefer Minimal)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, false, false, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, NoDevice)
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Turnkey_InstallSdkFull", "Update Sdk (Prefer Full)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to update an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, true, false, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, NoDevice)
 		);
 	}
 	else if (Info.GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
@@ -1242,14 +1239,14 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, const PlatformInf
 			LOCTEXT("Turnkey_InstallSdkMinimal", "Force Reinstall Sdk (Prefer Minimal)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, false, true, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, true, NoDevice)
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Turnkey_InstallSdkFull", "Force Reinstall (Prefer Full)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to force re-install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, true, true, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, true, NoDevice)
 		);
 	}
 	else
@@ -1258,19 +1255,19 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, const PlatformInf
 			LOCTEXT("Turnkey_InstallSdkMinimal", "Install Sdk (Prefer Minimal)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a minimal Sdk (useful for building/running only)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, false, false, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, false, false, NoDevice)
 		);
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("Turnkey_InstallSdkFull", "Install Sdk (Prefer Full)"),
 			LOCTEXT("TurnkeyTooltip_InstallSdkMinimal", "Attempt to install an Sdk, as hosted by your studio. Will attempt to install a full Sdk (useful profiling or other use cases)"),
 			FSlateIcon(),
-			FExecuteAction::CreateStatic(TurnkeyInstallSdk, PlatformName, true, false, NoDevice)
+			FExecuteAction::CreateStatic(TurnkeyInstallSdk, UBTPlatformName, true, false, NoDevice)
 		);
 	}
 }
 
-static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceProxy, const PlatformInfo::FTargetPlatformInfo* EditorPlatformInfo, FName PlatformName, FUIAction& OutAction, FText& OutTooltip)
+static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceProxy, FName PlatformName, FUIAction& OutAction, FText& OutTooltip)
 {
 	// 	// create an All_<platform>_devices_on_<host> submenu
 	// 	if (DeviceProxy->IsAggregated())
@@ -1297,7 +1294,7 @@ static void GenerateDeviceProxyMenuParams(TSharedPtr<ITargetDeviceProxy> DeviceP
 	// ... generate tooltip text
 	FFormatNamedArguments TooltipArguments;
 	TooltipArguments.Add(TEXT("DeviceID"), FText::FromString(DeviceProxy->GetName()));
-	TooltipArguments.Add(TEXT("DisplayName"), EditorPlatformInfo->DisplayName);
+	TooltipArguments.Add(TEXT("DisplayName"), FText::FromName(PlatformName));
 	OutTooltip = FText::Format(LOCTEXT("LaunchDeviceToolTipText_ThisDevice", "Launch the game on this {DisplayName} device ({DeviceID})"), TooltipArguments);
 	if (!DeviceProxy->IsAuthorized())
 	{
@@ -1333,12 +1330,8 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 				continue;
 			}
 
-			FName PlatformName(*Pair.Key);
+			FName PlatformName = Pair.Key;
 			const FDataDrivenPlatformInfo& Info = Pair.Value;
-
-			// find a matching editor-facing FPlatformInfo object
-			const PlatformInfo::FTargetPlatformInfo* EditorPlatformInfo = PlatformInfo::FindVanillaPlatformInfo(PlatformName);
-			check(EditorPlatformInfo != nullptr);
 
 			// look for devices for all platforms, even if the platform isn't installed - Turnkey can install Sdk after selecting LaunchOn
 			TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
@@ -1353,14 +1346,14 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 				// always use the first one, after sorting
 				FUIAction Action;
 				FText Tooltip;
-				GenerateDeviceProxyMenuParams(DeviceProxies[0], EditorPlatformInfo, PlatformName, Action, Tooltip);
+				GenerateDeviceProxyMenuParams(DeviceProxies[0], PlatformName, Action, Tooltip);
 
 				if (DeviceProxies.Num() == 1)
 				{
 					MenuBuilder.AddMenuEntry(
-						MakeSdkStatusAttribute(EditorPlatformInfo, DeviceProxies[0]),
+						MakeSdkStatusAttribute(PlatformName, DeviceProxies[0]),
 						Tooltip,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)),
+						FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
 						Action,
 						NAME_None,
 						EUserInterfaceActionType::Button
@@ -1369,9 +1362,9 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 				else
 				{
 					MenuBuilder.AddSubMenu(
-						MakeSdkStatusAttribute(EditorPlatformInfo, DeviceProxies[0]),
+						MakeSdkStatusAttribute(PlatformName, DeviceProxies[0]),
 						Tooltip,
-						FNewMenuDelegate::CreateLambda([TargetDeviceServicesModule, EditorPlatformInfo, PlatformName](FMenuBuilder& SubMenuBuilder) {
+						FNewMenuDelegate::CreateLambda([TargetDeviceServicesModule, PlatformName, IconStyle=Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)](FMenuBuilder& SubMenuBuilder) {
 							// re-get the proxies, just in case they changed
 							TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
 							TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(PlatformName, DeviceProxies);
@@ -1380,11 +1373,11 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 							{
 								FUIAction SubAction;
 								FText SubTooltip;
-								GenerateDeviceProxyMenuParams(Proxy, EditorPlatformInfo, PlatformName, SubAction, SubTooltip);
+								GenerateDeviceProxyMenuParams(Proxy, PlatformName, SubAction, SubTooltip);
 								SubMenuBuilder.AddMenuEntry(
-									MakeSdkStatusAttribute(EditorPlatformInfo, Proxy),
+									MakeSdkStatusAttribute(PlatformName, Proxy),
 									SubTooltip,
-									FSlateIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)),
+									FSlateIcon(FEditorStyle::GetStyleSetName(), IconStyle),
 									SubAction,
 									NAME_None,
 									EUserInterfaceActionType::Button
@@ -1395,7 +1388,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 						NAME_None,
 						EUserInterfaceActionType::Check,
 						false,
-						FSlateIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)),
+						FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
 						true
 					);
 				}
@@ -1404,7 +1397,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 				for (const TSharedPtr<ITargetDeviceProxy> Proxy : DeviceProxies)
 				{
 					FString DeviceId = Proxy->GetTargetDeviceId(NAME_None);
-					if (EditorPlatformInfo->DataDrivenPlatformInfo->GetStatusForDeviceId(DeviceId) == DDPIPlatformSdkStatus::Unknown)
+					if (Pair.Value.GetStatusForDeviceId(DeviceId) == DDPIPlatformSdkStatus::Unknown)
 					{
 						DeviceIdsToQuery.Add(DeviceId);
 					}
@@ -1435,17 +1428,16 @@ TSharedRef< SWidget > FPlayWorldCommands::GenerateTurnkeyMenuContent(TSharedRef<
 			continue;
 		}
 
-		FName PlatformName(*Pair.Key);
+		FName PlatformName = Pair.Key;
 		const FDataDrivenPlatformInfo& Info = Pair.Value;
-		const PlatformInfo::FTargetPlatformInfo* EditorPlatformInfo = PlatformInfo::FindVanillaPlatformInfo(PlatformName);
 
 		FString DeviceNameToCheckForStatus;
 		MenuBuilder.AddSubMenu(
-			MakeSdkStatusAttribute(EditorPlatformInfo, nullptr),
+			MakeSdkStatusAttribute(PlatformName, nullptr),
 			FText::FromString(PlatformName.ToString()),
-			FNewMenuDelegate::CreateStatic(&MakeTurnkeyPlatformMenu, EditorPlatformInfo, TargetDeviceServicesModule),
+			FNewMenuDelegate::CreateStatic(&MakeTurnkeyPlatformMenu, PlatformName, TargetDeviceServicesModule),
 			false, 
-			FSlateIcon(FEditorStyle::GetStyleSetName(), EditorPlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), Pair.Value.GetIconStyleName(EPlatformIconSize::Normal)),
 			true
 		);
 	}
@@ -1586,15 +1578,15 @@ void PopulateLaunchMenu(UToolMenu* Menu)
 				// for each platform...
 				TArray<TSharedPtr<ITargetDeviceProxy>> DeviceProxies;
 				// the list of proxies include the "Al_Android" entry
-				TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(VanillaPlatform->PlatformInfoName, DeviceProxies);
+				TargetDeviceServicesModule->GetDeviceProxyManager()->GetAllProxies(VanillaPlatform->Name, DeviceProxies);
 
 				// if this platform had no devices, but we want to show an extra option if not installed right
 				if (DeviceProxies.Num() == 0)
 				{
-					if (PlatformsWithNoDevices.Find(VanillaPlatform->PlatformInfoName) == INDEX_NONE)
+					if (PlatformsWithNoDevices.Find(VanillaPlatform->Name) == INDEX_NONE)
 					{
 						// add an entry with a no devices found
-						PlatformsWithNoDevices.Add(VanillaPlatform->PlatformInfoName);
+						PlatformsWithNoDevices.Add(VanillaPlatform->Name);
 					}
 				}
 				else
@@ -1657,7 +1649,7 @@ void PopulateLaunchMenu(UToolMenu* Menu)
 						}
 
 						FProjectStatus ProjectStatus;
-						if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(VanillaPlatform->PlatformInfoName))
+						if (IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(VanillaPlatform->Name))
 						{
 							FText TooltipLine2 = FText::Format(LOCTEXT("LaunchDevicePlatformWarning", "{DisplayName} is not listed as a target platform for this project, so may not run as expected."), TooltipArguments);
 							Tooltip = FText::Format(FText::FromString(TEXT("{0}\n\n{1}")), Tooltip, TooltipLine2);
@@ -1677,7 +1669,7 @@ void PopulateLaunchMenu(UToolMenu* Menu)
 			else
 			{
 				// if the platform wasn't installed, we'll add a menu item later (we never care about code in this case, since we don't compile)
-				if (PlatformsToMaybeInstallLinksFor.Find(VanillaPlatform->PlatformInfoName.ToString()) != INDEX_NONE)
+				if (PlatformsToMaybeInstallLinksFor.Find(VanillaPlatform->Name.ToString()) != INDEX_NONE)
 				{
 					PlatformsToAddInstallLinksFor.Add(VanillaPlatform);
 				}
@@ -2646,10 +2638,10 @@ bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceI
 	if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid)
 	{
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->TargetPlatformName.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
 		TArray<FAnalyticsEventAttribute> ParamArray;
 		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
-		FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Failed"), PlatformInfo->TargetPlatformName.ToString(), bHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
+		FEditorAnalytics::ReportEvent(TEXT("Editor.LaunchOn.Failed"), PlatformInfo->Name.ToString(), bHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
 		return false;
 	}
 
@@ -2765,7 +2757,7 @@ bool FInternalPlayWorldCommandCallbacks::IsReadyToLaunchOnDevice(FString DeviceI
 	else
 	{
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->TargetPlatformName.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
 		return false;
 	}
 

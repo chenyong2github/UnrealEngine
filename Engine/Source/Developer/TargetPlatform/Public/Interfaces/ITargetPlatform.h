@@ -550,22 +550,6 @@ public:
 	virtual bool SupportsVariants() const = 0;
 
 	/**
-	 * Gets the variant display name of this platform.
-	 * eg. For Android: "ASTC", "ETC2", ...
-	 *
-	 * @return FText display name for this platform variant.
-	 */
-	virtual FText GetVariantDisplayName() const = 0;
-
-	/**
-	 * Gets the variant title of this platform family
-	 * eg. For Android: "Texture Format"
-	 *
-	 * @return FText title for what variants mean to this family of platforms.
-	 */
-	virtual FText GetVariantTitle() const = 0;
-
-	/**
 	 * Gets the variant priority of this platform
 	 *
 	 * @return float priority for this platform variant.

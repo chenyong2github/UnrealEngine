@@ -190,8 +190,8 @@ static bool HasLicense()
 	return false;
 }
 
-FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient )
-	: bIsClient(bInIsClient)
+FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* FlavorName, const TCHAR* OverrideIniPlatformName)
+	: TNonDesktopTargetPlatformBase(bInIsClient, FlavorName, OverrideIniPlatformName)
 	, DeviceDetection(nullptr)
 
 {
@@ -308,11 +308,6 @@ ITargetDevicePtr FAndroidTargetPlatform::GetDevice( const FTargetDeviceId& Devic
 	}
 
 	return nullptr;
-}
-
-bool FAndroidTargetPlatform::IsRunningPlatform( ) const
-{
-	return false; // This platform never runs the target platform framework
 }
 
 
@@ -658,10 +653,6 @@ bool FAndroidTargetPlatform::SupportsVariants() const
 	return true;
 }
 
-FText FAndroidTargetPlatform::GetVariantTitle() const
-{
-	return LOCTEXT("AndroidVariantTitle", "Texture Format");
-}
 
 /* FAndroidTargetPlatform implementation
  *****************************************************************************/

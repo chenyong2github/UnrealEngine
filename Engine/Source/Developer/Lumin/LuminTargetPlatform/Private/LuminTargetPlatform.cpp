@@ -23,12 +23,10 @@
  *****************************************************************************/
 
 FLuminTargetPlatform::FLuminTargetPlatform(bool bIsClient)
-	: FAndroidTargetPlatform(bIsClient)
+	// override the IniPlatformName up on the FTargetPlatformInfo
+	: FAndroidTargetPlatform(bIsClient, nullptr, TEXT("Lumin"))
 {
 #if WITH_ENGINE
-	// by using the FAndroidPlatformProperties, the PlatformInfo up in TTargetPlatformBase/FTargetPlatformBase would be Android
-	this->PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*PlatformName()));
-
 	RefreshSettings();
 #endif
 }

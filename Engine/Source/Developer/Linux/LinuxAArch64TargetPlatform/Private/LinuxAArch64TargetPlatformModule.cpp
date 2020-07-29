@@ -23,21 +23,12 @@ public:
 
 	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		// Server TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, true> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, true> >());
-		}
 		// Game TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, true> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, true> >());
-		}
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, true> >());
+		// Server TP
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, true> >());
 		// Client TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, true> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, true> >());
-		}
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, true> >());
 	}
 };
 

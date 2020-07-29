@@ -802,9 +802,9 @@ static TSharedPtr<FProjectItem> CreateProjectItem(const FString& ProjectFilename
 			TArray<FName> TargetPlatforms;
 			for (const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetVanillaPlatformInfoArray())
 			{
-				if (PlatformInfo->PlatformType == EBuildTargetType::Game && ProjectStatus.IsTargetPlatformSupported(PlatformInfo->PlatformInfoName))
+				if (ProjectStatus.IsTargetPlatformSupported(PlatformInfo->Name))
 				{
-					TargetPlatforms.Add(PlatformInfo->PlatformInfoName);
+					TargetPlatforms.Add(PlatformInfo->Name);
 				}
 			}
 			TargetPlatforms.Sort(FNameLexicalLess());

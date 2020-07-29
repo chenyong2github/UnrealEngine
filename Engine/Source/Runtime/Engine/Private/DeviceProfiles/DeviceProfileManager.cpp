@@ -531,9 +531,9 @@ void UDeviceProfileManager::LoadProfiles()
 	if( !HasAnyFlags( RF_ClassDefaultObject ) )
 	{
 		TMap<FString, FString> DeviceProfileToPlatformConfigMap;
-		TArray<FString> ConfidentialPlatforms = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
+		TArray<FName> ConfidentialPlatforms = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
 		
-		checkf(ConfidentialPlatforms.Contains(FString(FPlatformProperties::IniPlatformName())) == false,
+		checkf(ConfidentialPlatforms.Contains(FPlatformProperties::IniPlatformName()) == false,
 			TEXT("UDeviceProfileManager::LoadProfiles is called from a confidential platform (%s). Confidential platforms are not expected to be editor/non-cooked builds."), 
 			ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
 
@@ -541,7 +541,7 @@ void UDeviceProfileManager::LoadProfiles()
 		for (int32 PlatformIndex = 0; PlatformIndex <= ConfidentialPlatforms.Num(); PlatformIndex++)
 		{
 			// which platform's set of ini files should we load from?
-			FString ConfigLoadPlatform = PlatformIndex == 0 ? FString(FPlatformProperties::IniPlatformName()) : ConfidentialPlatforms[PlatformIndex - 1];
+			FString ConfigLoadPlatform = PlatformIndex == 0 ? FString(FPlatformProperties::IniPlatformName()) : ConfidentialPlatforms[PlatformIndex - 1].ToString();
 
 			// load the DP.ini files (from current platform and then by the extra confidential platforms)
 			FConfigFile PlatformConfigFile;
@@ -594,7 +594,7 @@ void UDeviceProfileManager::LoadProfiles()
 				ITargetPlatform* Platform = TargetPlatforms[PlatformIndex];
 
 				// Set TextureLODSettings
-				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(*Platform->GetTargetPlatformInfo().VanillaInfo->PlatformInfoName.ToString(), false);
+				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(*Platform->PlatformName(), false);
 				Platform->RegisterTextureLODSettings(TextureLODSettingsObj);
 			}
 		}

@@ -547,14 +547,14 @@
 		</Node>
 	</Agent>
 
-	<Property Name="DDCPlatformsWin64" Value="Windows"/>
-	<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+WindowsNoEditor" If="'$(WithWin64)' == true"/>
+	<Property Name="DDCPlatformsWin64" Value="WindowsEditor"/>
+	<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Windows" If="'$(WithWin64)' == true"/>
 	<Do If="'$(HostPlatformDDCOnly)' == false">
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Android_ATC" If="'$(WithAndroid)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+IOS" If="'$(WithIOS)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+TVOS" If="'$(WithTVOS)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxNoEditor" If="'$(WithLinux)' == true"/>
-		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxAArch64NoEditor" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Linux" If="'$(WithLinux)' == true"/>
+		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+LinuxAArch64" If="'$(WithLinuxAArch64)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+Lumin" If="'$(WithLumin)' == true"/>
 		<Property Name="DDCPlatformsWin64" Value="$(DDCPlatformsWin64)+HoloLens" If="'$(WithHoloLens)' == true"/>
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
@@ -629,8 +629,8 @@
 		</Node>
 	</Agent>
 
-	<Property Name="DDCPlatformsMac" Value="Mac"/>
-	<Property Name="DDCPlatformsMac" Value="$(DDCPlatformsMac)+MacNoEditor" If="'$(WithMac)' == true"/>
+	<Property Name="DDCPlatformsMac" Value="MacEditor"/>
+	<Property Name="DDCPlatformsMac" Value="$(DDCPlatformsMac)+Mac" If="'$(WithMac)' == true"/>
 	<Do If="'$(HostPlatformDDCOnly)' == false">
 		<Property Name="DDCPlatformsMac" Value="$(DDCPlatformsMac)+Android_ATC" If="'$(WithAndroid)' == true"/>
 		<Property Name="DDCPlatformsMac" Value="$(DDCPlatformsMac)+IOS" If="'$(WithIOS)' == true"/>
@@ -666,10 +666,10 @@
 		</Node>
 	</Agent>
 
-	<Property Name="DDCPlatformsLinux" Value="Linux"/>
-	<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxNoEditor" If="'$(WithLinux)' == true"/>
+	<Property Name="DDCPlatformsLinux" Value="LinuxEditor"/>
+	<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+Linux" If="'$(WithLinux)' == true"/>
 	<Do If="'$(HostPlatformDDCOnly)' == false">
-		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxAArch64NoEditor" If="'$(WithLinuxAArch64)' == true"/>
+		<Property Name="DDCPlatformsLinux" Value="$(DDCPlatformsLinux)+LinuxAArch64" If="'$(WithLinuxAArch64)' == true"/>
 	</Do>
 
 	<Agent Name="DDC Group Linux" Type="Linux;Win64">

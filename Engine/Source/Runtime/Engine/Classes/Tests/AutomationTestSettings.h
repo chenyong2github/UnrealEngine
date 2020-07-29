@@ -327,7 +327,7 @@ struct FLaunchOnTestSettings
 	FFilePath LaunchOnTestmap;
 
 	/** Device to be used **/
-	UPROPERTY(config, EditAnywhere, Category = Automation, meta = (ToolTip = "This is the device to be used for launch on. Example: WindowsNoEditor, Android, IOS, Linux"))
+	UPROPERTY(config, EditAnywhere, Category = Automation, meta = (ToolTip = "This is the device to be used for launch on. Example: WindowsClient, Android, IOS, Linux"))
 	FString DeviceID;
 };
 

@@ -77,7 +77,7 @@ TSharedRef<SWidget> FPlatformMediaSourceCustomization::MakePlatformMediaSourcesV
 	{
 		if (PlatformInfo->PlatformType == EBuildTargetType::Game)
 		{
-			if (PlatformInfo->PlatformInfoName == TEXT("TVOS"))
+			if (PlatformInfo->Name == TEXT("TVOS"))
 			{
 				continue; // tvOS is just iOS for now
 			}

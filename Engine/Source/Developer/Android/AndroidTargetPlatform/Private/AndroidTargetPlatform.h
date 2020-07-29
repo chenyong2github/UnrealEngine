@@ -83,14 +83,14 @@ enum class EAndroidTextureFormatCategory
 /**
  * FAndroidTargetPlatform, abstraction for cooking Android platforms
  */
-class ANDROIDTARGETPLATFORM_API FAndroidTargetPlatform : public TTargetPlatformBase<FAndroidPlatformProperties>
+class ANDROIDTARGETPLATFORM_API FAndroidTargetPlatform : public TNonDesktopTargetPlatformBase<FAndroidPlatformProperties>
 {
 public:
 
 	/**
 	 * Default constructor.
 	 */
-	FAndroidTargetPlatform(bool bInIsClient);
+	FAndroidTargetPlatform(bool bIsClient, const TCHAR* FlavorName, const TCHAR* OverrideIniPlatformName=nullptr);
 
 	/**
 	 * Destructor
@@ -104,31 +104,9 @@ public:
 	 *
 	 * @param Variant name.
 	 */
-	virtual FString GetAndroidVariantName() const
+	FString GetAndroidVariantName() const
 	{
-		return FString();	
-	}
-
-
-	virtual FString IniPlatformName() const override
-	{
-		return "Android";
-	}
-
-	virtual FString PlatformName() const override
-	{
-		FString PlatformName = TEXT("Android");
-		FString Variant = GetAndroidVariantName();
-		if (Variant.Len() > 0)
-		{
-			PlatformName += FString(TEXT("_")) + Variant;
-		}
-		if (bIsClient)
-		{
-			PlatformName += TEXT("Client");
-		}
-
-		return PlatformName;
+		return PlatformInfo->PlatformFlavor.ToString();
 	}
 
 public:
@@ -152,18 +130,6 @@ public:
 	virtual ITargetDevicePtr GetDefaultDevice( ) const override;
 
 	virtual ITargetDevicePtr GetDevice( const FTargetDeviceId& DeviceId ) override;
-
-	virtual bool IsRunningPlatform( ) const override;
-
-	virtual bool IsServerOnly( ) const override
-	{
-		return false;
-	}
-
-	virtual bool IsClientOnly() const override
-	{
-		return bIsClient;
-	}
 
 	virtual bool IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const override;
 
@@ -214,8 +180,6 @@ public:
 #endif //WITH_ENGINE
 
 	virtual bool SupportsVariants() const override;
-
-	virtual FText GetVariantTitle() const override;
 
 	virtual void GetBuildProjectSettingKeys(FString& OutSection, TArray<FString>& InBoolKeys, TArray<FString>& InIntKeys, TArray<FString>& InStringKeys) const override
 	{
@@ -275,9 +239,6 @@ protected:
 
 	virtual FAndroidTargetDeviceRef CreateNewDevice(const FAndroidDeviceInfo &DeviceInfo);
 
-	// true if this is a client TP
-	bool bIsClient;
-
 	// Holds a map of valid devices.
 	TMap<FString, FAndroidTargetDevicePtr> Devices;
 
@@ -308,19 +269,8 @@ protected:
 class FAndroid_DXTTargetPlatform : public FAndroidTargetPlatform
 {
 public:
-	FAndroid_DXTTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient)
+	FAndroid_DXTTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("DXT"))
 	{
-		this->PlatformInfo = PlatformInfo::FindPlatformInfo("Android_DXT");
-	}
-
-	virtual FString GetAndroidVariantName() const override
-	{
-		return TEXT("DXT");
-	}
-
-	virtual FText DisplayName() const override
-	{
-		return LOCTEXT("Android_DXT", "Android (DXT)");
 	}
 
 	virtual bool SupportsTextureFormat(FName Format) const override
@@ -344,11 +294,6 @@ public:
 		return (ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc")));
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("Android_DXT_ShortName", "DXT");
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		float Priority;
@@ -361,19 +306,8 @@ public:
 class FAndroid_ASTCTargetPlatform : public FAndroidTargetPlatform
 {
 public:
-	FAndroid_ASTCTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient) 
+	FAndroid_ASTCTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("ASTC")) 
 	{
-		this->PlatformInfo = PlatformInfo::FindPlatformInfo("Android_ASTC");
-	}
-
-	virtual FString GetAndroidVariantName() const override
-	{
-		return TEXT("ASTC");
-	}
-
-	virtual FText DisplayName() const override
-	{
-		return LOCTEXT("Android_ASTC", "Android (ASTC)");
 	}
 
 	virtual bool SupportsTextureFormat(FName Format) const override
@@ -470,11 +404,6 @@ public:
 		return ExtensionsString.Contains(TEXT("GL_KHR_texture_compression_astc_ldr"));
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("Android_ASTC_ShortName", "ASTC");
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		float Priority;
@@ -488,19 +417,8 @@ class FAndroid_ETC2TargetPlatform : public FAndroidTargetPlatform
 {
 public:
 
-	FAndroid_ETC2TargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient)
+	FAndroid_ETC2TargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("ETC2"))
 	{
-		this->PlatformInfo = PlatformInfo::FindPlatformInfo("Android_ETC2");
-	}
-
-	virtual FText DisplayName() const override
-	{
-		return LOCTEXT("Android_ETC2", "Android (ETC2)");
-	}
-
-	virtual FString GetAndroidVariantName() const override
-	{
-		return TEXT("ETC2");
 	}
 
 	virtual bool SupportsTextureFormat(FName Format) const override
@@ -525,11 +443,6 @@ public:
 		return GLESVersion >= 0x30000;
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("Android_ETC2_ShortName", "ETC2");
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		float Priority;
@@ -544,9 +457,8 @@ class FAndroid_MultiTargetPlatform : public FAndroidTargetPlatform
 	FString FormatTargetString;
 
 public:
-	FAndroid_MultiTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient)
+	FAndroid_MultiTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("Multi"))
 	{
-		this->PlatformInfo = PlatformInfo::FindPlatformInfo("Android_Multi");
 	}
 
 	// set up all of the multiple formats together into this one
@@ -594,12 +506,8 @@ public:
 			}
 		}
 
+		// @todo do we need this with DisplayName below?
 		PlatformInfo::UpdatePlatformDisplayName(TEXT("Android_Multi"), DisplayName());
-	}
-
-	virtual FString GetAndroidVariantName() const override
-	{
-		return TEXT("Multi");
 	}
 
 	virtual FText DisplayName() const override
@@ -636,11 +544,6 @@ public:
 		}
 	}
 #endif	
-
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("Android_Multi_ShortName", "Multi");
-	}
 
 	virtual float GetVariantPriority() const override
 	{

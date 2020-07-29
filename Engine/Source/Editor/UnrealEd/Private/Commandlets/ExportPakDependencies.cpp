@@ -119,7 +119,7 @@ TMap<FName,FPackage*> FPackage::NameToPackageMap;
 bool ExportDependencies(const TCHAR * PakFilename, const TCHAR* GameName, const TCHAR* OutputFilenameBase, bool bSigned)
 {
 	// Example command line used for this tool
-	// C:\Development\BB\WEX\Saved\StagedBuilds\WindowsNoEditor\WorldExplorers\Content\Paks\WorldExplorers-WindowsNoEditor.pak WorldExplorers WEX -exportdependencies=c:\dvtemp\output -debug -NoAssetRegistryCache -ForceDependsGathering
+	// C:\Development\BB\WEX\Saved\StagedBuilds\WindowsClient\WorldExplorers\Content\Paks\WorldExplorers-WindowsNoEditor.pak WorldExplorers WEX -exportdependencies=c:\dvtemp\output -debug -NoAssetRegistryCache -ForceDependsGathering
 	
 	FPakFile PakFile(&FPlatformFileManager::Get().GetPlatformFile(), PakFilename, bSigned);
 

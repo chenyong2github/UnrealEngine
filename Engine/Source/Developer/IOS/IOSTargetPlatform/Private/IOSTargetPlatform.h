@@ -25,7 +25,7 @@
 /**
  * FIOSTargetPlatform, abstraction for cooking iOS platforms
  */
-class FIOSTargetPlatform : public TTargetPlatformBase<FIOSPlatformProperties>
+class FIOSTargetPlatform : public TNonDesktopTargetPlatformBase<FIOSPlatformProperties>
 {
 public:
 
@@ -41,39 +41,6 @@ public:
 
 public:
 
-	//~ Begin TTargetPlatformBase Interface
-
-	virtual bool IsServerOnly( ) const override
-	{
-		return false;
-	}
-
-	virtual bool IsClientOnly() const override
-	{
-		return bIsClientOnly;
-	}
-
-	//~ End TTargetPlatformBase Interface
-
-public:
-
-	//~ Begin ITargetPlatform Interface
-	
-	// this is used for cooking to a separate directory, NOT for runtime. Runtime TVOS is still "IOS"
-	virtual FString PlatformName() const override
-	{
-		if (bIsTVOS)
-		{
-			return bIsClientOnly ? "TVOSClient" : "TVOS";
-		}
-		return bIsClientOnly ? "IOSClient" : "IOS";
-	}
-
-    virtual FString IniPlatformName() const override
-    {
-        return "IOS";
-    }
-    
 	virtual void EnableDeviceCheck(bool OnOff) override;
 
 	virtual void GetAllDevices( TArray<ITargetDevicePtr>& OutDevices ) const override;
@@ -86,16 +53,7 @@ public:
 	virtual ITargetDevicePtr GetDefaultDevice( ) const override;
 
 	virtual ITargetDevicePtr GetDevice( const FTargetDeviceId& DeviceId ) override;
-
-	virtual bool IsRunningPlatform( ) const override
-	{
-		#if PLATFORM_IOS && WITH_EDITOR
-			return true;
-		#else
-			return false;
-		#endif
-	}
-
+		
 	virtual bool SupportsFeature( ETargetPlatformFeatures Feature ) const override;
 
 	virtual bool CanSupportXGEShaderCompile() const override;
@@ -153,17 +111,7 @@ public:
 
 	//~ Begin ITargetPlatform Interface
 
-protected:
-
-	/**
-	 * Sends a ping message over the network to find devices running the launch daemon.
-	 */
-	void PingNetworkDevices( );
-
 private:
-
-	// Handles when the ticker fires.
-	bool HandleTicker( float DeltaTime );
 
 	// Handles received pong messages from the LauncherDaemon.
 	void HandlePongMessage( const FIOSLaunchDaemonPong& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context );
@@ -176,17 +124,8 @@ private:
 	// true if this is targeting TVOS vs IOS
 	bool bIsTVOS;
 
-	// true if this is a client-only TP
-	bool bIsClientOnly;
-
 	// Contains all discovered IOSTargetDevices over the network.
 	TMap<FTargetDeviceId, FIOSTargetDevicePtr> Devices;
-
-	// Holds a delegate to be invoked when the widget ticks.
-	FTickerDelegate TickDelegate;
-
-	// Handle to the registered TickDelegate.
-	FDelegateHandle TickDelegateHandle;
 
 	// Holds the message endpoint used for communicating with the LaunchDaemon.
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;

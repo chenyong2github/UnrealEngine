@@ -57,7 +57,7 @@ struct FWindowsPlatformProperties
 		
 		if (HAS_EDITOR_DATA)
 		{
-			return "Windows";
+			return "WindowsEditor";
 		}
 		
 		if (IS_CLIENT_ONLY)
@@ -65,7 +65,7 @@ struct FWindowsPlatformProperties
 			return "WindowsClient";
 		}
 
-		return "WindowsNoEditor";
+		return "Windows";
 	}
 
 	static FORCEINLINE bool RequiresCookedData()

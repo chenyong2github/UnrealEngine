@@ -156,7 +156,7 @@ public abstract class BaseWinPlatform : Platform
 
 	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
-		const string NoEditorCookPlatform = "WindowsNoEditor";
+		const string NoEditorCookPlatform = "Windows";
 		const string ServerCookPlatform = "WindowsServer";
 		const string ClientCookPlatform = "WindowsClient";
 
@@ -176,7 +176,7 @@ public abstract class BaseWinPlatform : Platform
 
 	public override string GetEditorCookPlatform()
 	{
-		return "Windows";
+		return "WindowsEditor";
 	}
 	
 	public override string GetPlatformPakCommandLine(ProjectParams Params, DeploymentContext SC)

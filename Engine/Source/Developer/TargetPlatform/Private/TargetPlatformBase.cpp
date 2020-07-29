@@ -184,7 +184,7 @@ bool FTargetPlatformBase::RequiresTempTarget(bool bProjectHasCode, EBuildConfigu
 	// check to see if any projectmutator modular features are available
 	for (IProjectBuildMutatorFeature* Feature : IModularFeatures::Get().GetModularFeatureImplementations<IProjectBuildMutatorFeature>(PROJECT_BUILD_MUTATOR_FEATURE))
 	{
-		if (Feature->RequiresProjectBuild(PlatformInfo->PlatformInfoName, OutReason))
+		if (Feature->RequiresProjectBuild(PlatformInfo->Name, OutReason))
 		{
 			return true;
 		}

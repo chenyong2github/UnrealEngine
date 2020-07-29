@@ -1648,48 +1648,13 @@ public:
 				return false;
 			}
 
-			// switch server and no editor platforms to the proper type
-			if (PlatformInfo->TargetPlatformName == FName("LinuxServer"))
-			{
-				ServerPlatforms.Add(TEXT("Linux"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsServer"))
-			{
-				ServerPlatforms.Add(TEXT("Win64"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("MacServer"))
-			{
-				ServerPlatforms.Add(TEXT("Mac"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxNoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxClient"))
-			{
-				ClientPlatforms.Add(TEXT("Linux"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64NoEditor") || PlatformInfo->TargetPlatformName == FName("LinuxAArch64Client"))
-			{
-				ClientPlatforms.Add(TEXT("LinuxAArch64"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("LinuxAArch64Server"))
-			{
-				ServerPlatforms.Add(TEXT("LinuxAArch64"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") || PlatformInfo->TargetPlatformName == FName("Windows"))
-			{
-				ClientPlatforms.Add(TEXT("Win64"));
-			}
-			else if (PlatformInfo->TargetPlatformName == FName("MacNoEditor"))
-			{
-				ClientPlatforms.Add(TEXT("Mac"));
-			}
-			else
-			{
-				ClientPlatforms.Add(PlatformInfo->TargetPlatformName.ToString());
-			}
+			// add the UBT platform name to the appropriate list
+			TArray<FString>& Platforms = PlatformInfo->PlatformType == EBuildTargetType::Server ? ServerPlatforms : ClientPlatforms;
+			Platforms.Add(PlatformInfo->DataDrivenPlatformInfo->UBTPlatformName.ToString());
 
 			// Append any extra UAT flags specified for this platform flavor
 			if (!PlatformInfo->UATCommandLine.IsEmpty())
 			{
-				OptionalParams += TEXT(" ");
 				OptionalParams += PlatformInfo->UATCommandLine;
 			}
 

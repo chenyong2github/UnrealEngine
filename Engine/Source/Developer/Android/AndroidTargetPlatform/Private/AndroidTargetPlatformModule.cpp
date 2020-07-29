@@ -27,7 +27,8 @@ public:
 			for (int32 Type = 0; Type < 2; Type++)
 			{
 				bool bIsClient = Type == 1;
-				SinglePlatforms.Add(new FAndroidTargetPlatform(bIsClient));
+				// flavorless must come first
+				SinglePlatforms.Add(new FAndroidTargetPlatform(bIsClient, nullptr));
 				SinglePlatforms.Add(new FAndroid_ASTCTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_DXTTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_ETC2TargetPlatform(bIsClient));

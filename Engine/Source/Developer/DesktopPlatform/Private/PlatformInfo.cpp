@@ -17,179 +17,102 @@ namespace PlatformInfo
 	TArray<FName> AllPlatformGroupNames;
 	TArray<FName> AllVanillaPlatformNames;
 
-namespace
-{
-
-TArray<FTargetPlatformInfo*> AllPlatformInfoArray;
-TArray<FTargetPlatformInfo*> VanillaPlatformInfoArray;
-
-
-// we don't need any of this without the editor, although we would ideally not even compile this outside of the editor
-// @todo platplug: Figure out why this is compiled on target devices
-
-void BuildPlatformInfo(FName InPlatformInfoName, FName InTargetPlatformName, const FText& InDisplayName, const EBuildTargetType InPlatformType, 
-	const EPlatformFlags::Flags InPlatformFlags, FName InIniPlatformName, FName InUBTPlatformName)
-{
-	// some verification before we create the object
-	FName VanillaName = NAME_None;
-	FName FlavorName = NAME_None;
-	FTargetPlatformInfo* VanillaInfo = nullptr;
-	// See if this contains a flavor
-	if (InPlatformFlags & EPlatformFlags::CookFlavor)
+	namespace
 	{
-		FString InPlatformInfoNameString = InPlatformInfoName.ToString();
-		int32 UnderscoreLoc;
-		if (InPlatformInfoNameString.FindChar(TEXT('_'), UnderscoreLoc))
+
+		TArray<FTargetPlatformInfo*> AllPlatformInfoArray;
+		TArray<FTargetPlatformInfo*> VanillaPlatformInfoArray;
+
+	}
+
+FTargetPlatformInfo::FTargetPlatformInfo(const FString& InIniPlatformName, EBuildTargetType InType, const FString& InCookFlavor)
+{
+	IniPlatformName = *InIniPlatformName;
+	PlatformType = InType;
+
+	// calculate the name of the TargetPlatform
+	FString TPName = InIniPlatformName;
+
+	// by default we are vanilla, so point to ourself
+	VanillaInfo = this;
+	if (InCookFlavor != TEXT("") || PlatformType != EBuildTargetType::Game)
+	{
+		// if we are non-Game or cook flavor, then we need to find the most base version (will have same name as IniPlatform)
+		FTargetPlatformInfo** FoundInfo = AllPlatformInfoArray.FindByPredicate([this](const FTargetPlatformInfo* Item) -> bool
+ 		{
+ 			return Item->Name == IniPlatformName;
+ 		});
+
+		checkf(FoundInfo != nullptr, TEXT("Creating a TargetPlatform (%s, %s, %s) that needed a 'vanilla' TP already created, but it wasn't found. Create Game TPs first, and all cook flavors last"), *InIniPlatformName, LexToString(InType), &InCookFlavor);
+
+		VanillaInfo = *FoundInfo;
+	}
+
+	FString DisplayString = InIniPlatformName;
+
+	// handle cook flavors
+	PlatformFlags = EPlatformFlags::None;
+	if (InCookFlavor != TEXT(""))
+	{
+		// mark us as a cookflavor
+		PlatformFlags = EPlatformFlags::CookFlavor;
+		PlatformFlavor = *InCookFlavor;
+
+		// append flavor with _
+		TPName += FString::Printf(TEXT("_%s"), *InCookFlavor);
+		
+		// put the flavor in parens
+		DisplayString += FString::Printf(TEXT(" (%s)"), *InCookFlavor);
+
+		// append UAT commandline with cook flavor
+		UATCommandLine += FString::Printf(TEXT(" -cookflavor=%s"), *InCookFlavor);
+
+		VanillaInfo->Flavors.Add(this);
+	}
+
+	// now append the build type (game type has no type suffix, all others do)
+	if (PlatformType != EBuildTargetType::Game)
+	{
+		TPName += LexToString(PlatformType);
+
+		// put the type in parens
+		DisplayString += FString::Printf(TEXT(" (%s)"), LexToString(PlatformType));
+
+		// client builds need to be plopped on the commandline, servers are handled differently? 
+		// @todo: not sure if needed to be handled specially, honestly
+		if (PlatformType == EBuildTargetType::Client)
 		{
-			// removing VanillaPlatformName from the TP info means we need to verify, as it assumed the vanilla platform name is 
-			// if this assumption breaks, then we can store a private copy of this name to find the vanilla platform later
-			VanillaName = *InPlatformInfoNameString.Mid(0, UnderscoreLoc);
-			FlavorName = *InPlatformInfoNameString.Mid(UnderscoreLoc + 1);
-
-			FTargetPlatformInfo** FoundInfo = AllPlatformInfoArray.FindByPredicate([VanillaName](const FTargetPlatformInfo* Item) -> bool
-			{
-				return Item->PlatformInfoName == VanillaName;
-			});
-
-			VanillaInfo = FoundInfo ? *FoundInfo : nullptr;
-		}
-
-		// make sure it was good
-		if (VanillaInfo == nullptr)
-		{
-			UE_LOG(LogDesktopPlatform, Error, TEXT("TargetPlatformInfo %s is a flavor, but wasn't in the form Parent_Flavor (Parent needs to be specified before flavor in the .ini file)"), *InPlatformInfoName.ToString());
-			return;
-		}
-	}
-
-	// create the platform info
-	FTargetPlatformInfo* PlatformInfo = new FTargetPlatformInfo();
-	AllPlatformInfoArray.Add(PlatformInfo);
-
-	PlatformInfo->PlatformInfoName = InPlatformInfoName;
-	PlatformInfo->TargetPlatformName = InTargetPlatformName;
-	PlatformInfo->DisplayName = InDisplayName;
-	PlatformInfo->PlatformType = InPlatformType;
-	PlatformInfo->PlatformFlags = InPlatformFlags;
-	PlatformInfo->IniPlatformName = InIniPlatformName;
-	PlatformInfo->PlatformFlavor = FlavorName;
-
-	// add this object to either a parent, or the list of vanilla platforms
-	if (VanillaInfo != nullptr)
-	{
-		PlatformInfo->VanillaInfo = VanillaInfo;
-		VanillaInfo->Flavors.Add(PlatformInfo);
-	}
-	else
-	{
-		// if we are vanilla, then point to ourself (this way we can always just use VanillaInfo without checking for null)
-		PlatformInfo->VanillaInfo = PlatformInfo;
-
-		VanillaPlatformInfoArray.Add(PlatformInfo);
-		PlatformInfo::AllVanillaPlatformNames.AddUnique(InPlatformInfoName);
-	}
-
-	// build up used platform group names
-	PlatformInfo->DataDrivenPlatformInfo = &FDataDrivenPlatformInfoRegistry::GetPlatformInfo(InIniPlatformName.ToString());
-	if (PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName != NAME_None)
-	{
-		PlatformInfo::AllPlatformGroupNames.AddUnique(PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName);
-	}
-}
-
-// Gets a string from a section, or empty string if it didn't exist
-FString GetSectionString(const FConfigSection& Section, FName Key)
-{
-	// look for a value prefixed with host:
-	FName HostKey = *FString::Printf(TEXT("%s:%s"), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()), *Key.ToString());
-	const FConfigValue* HostValue = Section.Find(HostKey);
-	return HostValue ? HostValue->GetValue() : Section.FindRef(Key).GetValue();
-}
-
-// Gets a bool from a section, or false if it didn't exist
-bool GetSectionBool(const FConfigSection& Section, FName Key)
-{
-	return FCString::ToBool(*GetSectionString(Section, Key));
-}
-
-EPlatformFlags::Flags ConvertPlatformFlags(const FString& String)
-{
-	if (String == TEXT("") || String == TEXT("None")) { return EPlatformFlags::None; }
-	if (String == TEXT("CookFlavor")) { return EPlatformFlags::CookFlavor; }
-	if (String == TEXT("BuildFlavor")) { return EPlatformFlags::BuildFlavor; }
-
-	UE_LOG(LogInit, Fatal, TEXT("Unknown platform flag %s in PlatformInfo"), *String);
-	return EPlatformFlags::None;
-}
-
-namespace EPlatformSection
-{
-	const FName TargetPlatformName = FName(TEXT("TargetPlatformName"));
-	const FName DisplayName = FName(TEXT("DisplayName"));
-	const FName PlatformType = FName(TEXT("PlatformType"));
-	const FName PlatformFlags = FName(TEXT("PlatformFlags"));
-	const FName UATCommandLine = FName(TEXT("UATCommandLine"));
-	const FName UBTPlatformName = FName(TEXT("UBTPlatformName"));
-}
-
-void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Section, FName IniPlatformName)
-{
-	FName TargetPlatformName = *GetSectionString(Section, EPlatformSection::TargetPlatformName);
-	FString DisplayName = GetSectionString(Section, EPlatformSection::DisplayName);
-	FString PlatformType = GetSectionString(Section, EPlatformSection::PlatformType);
-	FString PlatformFlags = GetSectionString(Section, EPlatformSection::PlatformFlags);
-	FString UATCommandLine = GetSectionString(Section, EPlatformSection::UATCommandLine);
-	FString UBTTargetValue = GetSectionString(Section, EPlatformSection::UBTPlatformName);
-	// in almost all cases the UBT platform name matches the IniPlatformName, so it's optional
-	FName UBTPlatformName = UBTTargetValue.Len() == 0 ? IniPlatformName : FName(*UBTTargetValue);
-
-	EBuildTargetType TargetType;
-	if (!LexTryParseString(TargetType, *PlatformType))
-	{
-		TargetType = EBuildTargetType::Unknown;
-	}
-
-	BuildPlatformInfo(Name, TargetPlatformName, FText::FromString(DisplayName), TargetType, ConvertPlatformFlags(PlatformFlags), IniPlatformName, UBTPlatformName);
-}
-
-void LoadDataDrivenPlatforms()
-{
-	// look for the standard DataDriven ini files
-	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
-	for (int32 Index = 0; Index < NumDDInfoFiles; Index++)
-	{
-		FConfigFile IniFile;
-		FString PlatformName;
-
-		FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
-
-		FName PlatformFName = *PlatformName;
-
-		// now walk over the file, looking for ShaderPlatformInfo sections
-		for (auto Section : IniFile)
-		{
-			if (Section.Key.StartsWith(TEXT("PlatformInfo ")))
-			{
-				const FString& SectionName = Section.Key;
-				ParseDataDrivenPlatformInfo(*SectionName.Mid(13), Section.Value, PlatformFName);
-			}
+			UATCommandLine += TEXT(" -client");
 		}
 	}
+
+	// now we can store the final values
+	Name = *TPName;
+	DisplayName = FText::FromString(DisplayString);
+ 	DataDrivenPlatformInfo = &FDataDrivenPlatformInfoRegistry::GetPlatformInfo(InIniPlatformName);
+
+	// update various arrays
+	if (DataDrivenPlatformInfo->PlatformGroupName != NAME_None)
+	{
+		AllPlatformGroupNames.AddUnique(DataDrivenPlatformInfo->PlatformGroupName);
+	}
+
+	AllPlatformInfoArray.Add(this);
+	if (VanillaInfo == this)
+	{
+		VanillaPlatformInfoArray.Add(this);
+		AllVanillaPlatformNames.AddUnique(Name);
+	}
 }
 
-FDelayedAutoRegisterHelper GPlatformInfoInit(EDelayedRegisterRunPhase::FileSystemReady, []()
-{
-	LoadDataDrivenPlatforms();
-});
-
-
-} // anonymous namespace
 
 const FTargetPlatformInfo* FindPlatformInfo(const FName& InPlatformName)
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	for(const FTargetPlatformInfo* PlatformInfo : AllPlatformInfoArray)
 	{
-		if(PlatformInfo->PlatformInfoName == InPlatformName)
+		if(PlatformInfo->Name == InPlatformName)
 		{
 			return PlatformInfo;
 		}
@@ -202,15 +125,19 @@ const FTargetPlatformInfo* FindPlatformInfo(const FName& InPlatformName)
 
 const FTargetPlatformInfo* FindVanillaPlatformInfo(const FName& InPlatformName)
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	const FTargetPlatformInfo* const FoundInfo = FindPlatformInfo(InPlatformName);
 	return FoundInfo ? FoundInfo->VanillaInfo : nullptr;
 }
 
 void UpdatePlatformDisplayName(FString InPlatformName, FText InDisplayName)
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	for (FTargetPlatformInfo* PlatformInfo : AllPlatformInfoArray)
 	{
-		if (PlatformInfo->TargetPlatformName == FName(*InPlatformName))
+		if (PlatformInfo->Name == FName(*InPlatformName))
 		{
 			PlatformInfo->DisplayName = InDisplayName;
 		}
@@ -219,21 +146,29 @@ void UpdatePlatformDisplayName(FString InPlatformName, FText InDisplayName)
 
 const TArray<FTargetPlatformInfo*>& GetPlatformInfoArray()
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	return AllPlatformInfoArray;
 }
 
 const TArray<FTargetPlatformInfo*>& GetVanillaPlatformInfoArray()
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	return VanillaPlatformInfoArray;
 }
 
 const TArray<FName>& GetAllPlatformGroupNames()
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	return PlatformInfo::AllPlatformGroupNames;
 }
 
 const TArray<FName>& GetAllVanillaPlatformNames()
 {
+	checkf(AllPlatformInfoArray.Num() > 0, TEXT("Querying for TargetPlatformInfo objects before they are ready!"));
+
 	return PlatformInfo::AllVanillaPlatformNames;
 }
 

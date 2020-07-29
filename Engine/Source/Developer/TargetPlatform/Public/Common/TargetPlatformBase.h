@@ -118,16 +118,6 @@ public:
 		return false;
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		return FText();
-	}
-
-	virtual FText GetVariantTitle() const override
-	{
-		return FText();
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		return IsClientOnly() ? 0.0f : 0.2f;
@@ -217,15 +207,34 @@ public:
 	 */
 	static bool IsUsable()
 	{
-		return PlatformInfo::FindPlatformInfo(TPlatformProperties::PlatformName()) != nullptr;
+		return true;
 	}
-	
-	/** Default constructor. */
-	TTargetPlatformBase()
-		: FTargetPlatformBase( PlatformInfo::FindPlatformInfo(TPlatformProperties::PlatformName()) )
+
+
+
+	/**
+	 * Constructor that already has a TPI (notably coming from TNonDesktopTargetPlatform)
+	 */
+	TTargetPlatformBase(PlatformInfo::FTargetPlatformInfo* PremadePlatformInfo)
+		: FTargetPlatformBase(PremadePlatformInfo)
 	{
 		// HasEditorOnlyData and RequiresCookedData are mutually exclusive.
 		check(TPlatformProperties::HasEditorOnlyData() != TPlatformProperties::RequiresCookedData());
+	}
+
+	/**
+	 * Constructor that makes a TPI based solely on TPlatformProperties
+	 */
+	TTargetPlatformBase()
+		: TTargetPlatformBase( new PlatformInfo::FTargetPlatformInfo(
+			TPlatformProperties::IniPlatformName(),
+			TPlatformProperties::HasEditorOnlyData() ? EBuildTargetType::Editor :
+				TPlatformProperties::IsServerOnly() ? EBuildTargetType::Server : 
+				TPlatformProperties::IsClientOnly() ? EBuildTargetType::Client : 
+				EBuildTargetType::Game,
+			TEXT(""))
+		)
+	{
 	}
 
 public:
@@ -254,6 +263,9 @@ public:
 
 	virtual FString PlatformName() const override
 	{
+		// we assume these match for DesktopPlatforms (NonDesktop doesn't return "FooClient", but Desktop does, for legacy reasons)
+		checkSlow(this->PlatformInfo->Name == TPlatformProperties::PlatformName());
+		
 		return FString(TPlatformProperties::PlatformName());
 	}
 
@@ -382,3 +394,66 @@ public:
 	}
 #endif // WITH_ENGINE
 };
+
+
+template<typename TPlatformProperties>
+class TNonDesktopTargetPlatformBase 
+	: public TTargetPlatformBase<TPlatformProperties>
+{
+public:
+	/**
+	 * A simplified version for TPs that never will have Editor or ServerOnly versions, potentially multiple CookFlavors, as well as IN VERY RARE CASES, 
+	 * a different runtime IniPlatformName than what is passed in here (an example being TVOS and IOS, where passing in TVOS properties is very complicated)
+	 * Note that if we delayed the Info creation, we could just use this->IniPlatformName() and override that in, say TVOS, but we can't call a virtual here,
+	 * so we pass it up into the ctor
+	 */
+	TNonDesktopTargetPlatformBase(bool bInIsClientOnly, const TCHAR* CookFlavor=nullptr, const TCHAR* OverrideIniPlatformName=nullptr)
+		: TTargetPlatformBase(new PlatformInfo::FTargetPlatformInfo(
+			OverrideIniPlatformName ? FString(OverrideIniPlatformName) : FString(TPlatformProperties::IniPlatformName()),
+			bInIsClientOnly ? EBuildTargetType::Client : EBuildTargetType::Game,
+			CookFlavor))
+		, bIsClientOnly(bInIsClientOnly)
+	{
+
+	}
+
+	virtual FString PlatformName() const override
+	{
+		// instead of TPlatformProperties (which won't have Client for non-desktop platforms), use the Info's name, which is programmatically made
+		return this->PlatformInfo->Name.ToString();
+	}
+
+	virtual FString IniPlatformName() const override
+	{
+		// we use the Info's IniPlatformName as it may have been overridden in the constructor IN RARE CASES
+		return this->PlatformInfo->IniPlatformName.ToString();
+	}
+
+	virtual bool HasEditorOnlyData() const override
+	{
+		return false;
+	}
+
+	virtual bool IsServerOnly() const override
+	{
+		return false;
+	}
+
+	virtual bool IsClientOnly() const override
+	{
+		return bIsClientOnly;
+	}
+
+	virtual bool IsRunningPlatform() const override
+	{
+		// IsRunningPlatform is only for editor platforms
+
+		return false;
+	}
+
+protected:
+	// true if this target platform is client-only, ie strips out server stuff
+	bool bIsClientOnly;
+};
+
+

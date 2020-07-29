@@ -1334,12 +1334,13 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 		GameNamePadded += TEXT(" ");
 	}
 
-	// We use "WindowsNoEditor" below as it's the longest platform name, so will also prove that any shorter platform names will validate correctly
+	// We use "LinuxAArch64Server" below as it's probably the longest platform name, so will also prove that any shorter platform names will validate correctly
+	const TCHAR* LongPlatformName = TEXT("LinuxAArch64Server");
 	const FString AbsoluteRootPath = FPaths::ConvertRelativePathToFull(FPaths::RootDir());
 	const FString AbsoluteGamePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
 	const FString AbsoluteEnginePath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
-	const FString AbsoluteEngineCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / TEXT("WindowsNoEditor") / TEXT("Engine");
-	const FString AbsoluteGameCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / TEXT("WindowsNoEditor") / GameName;
+	const FString AbsoluteEngineCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / LongPlatformName / TEXT("Engine");
+	const FString AbsoluteGameCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / LongPlatformName / GameName;
 
 	EPluginLoadedFrom PluginLoadedFrom;
 	const bool bIsPluginAsset = IsPluginFolder(PackageName, &PluginLoadedFrom);
@@ -1417,7 +1418,7 @@ bool AssetViewUtils::IsValidPackageForCooking(const FString& PackageName, FText&
 		// The BuildFarm uses a verbose path to encode extra information to provide more information when things fail, however this makes the path limitation a problem.
 		//	- We assume a base path of D:/BuildFarm/buildmachine_++depot+UE4-Releases+4.10/
 		//	- We assume the game name is 20 characters (the maximum allowed) to make sure that content can be ported between projects
-		//	- We calculate the cooked game path relative to the game root (eg, Showcases/Infiltrator/Saved/Cooked/WindowsNoEditor/Infiltrator)
+		//	- We calculate the cooked game path relative to the game root (eg, Showcases/Infiltrator/Saved/Cooked/Windows/Infiltrator)
 		//	- We calculate the asset path relative to (and including) the Content directory (eg, Content/Environment/Infil1/Infil1_Underground/Infrastructure/Model/SM_Infil1_Tunnel_Ceiling_Pipes_1xEntryCurveOuter_Double.uasset)
 		if (FEngineBuildSettings::IsInternalBuild())
 		{

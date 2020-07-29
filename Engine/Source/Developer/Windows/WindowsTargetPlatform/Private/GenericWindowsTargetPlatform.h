@@ -443,31 +443,6 @@ public:
 		return true;
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		if (IS_DEDICATED_SERVER)
-		{
-			return LOCTEXT("WindowsServerVariantTitle", "Dedicated Server");
-		}
-
-		if (HAS_EDITOR_DATA)
-		{
-			return LOCTEXT("WindowsClientEditorDataVariantTitle", "Client with Editor Data");
-		}
-
-		if (IS_CLIENT_ONLY)
-		{
-			return LOCTEXT("WindowsClientOnlyVariantTitle", "Client only");
-		}
-
-		return LOCTEXT("WindowsClientVariantTitle", "Client");
-	}
-
-	virtual FText GetVariantTitle() const override
-	{
-		return LOCTEXT("WindowsVariantTitle", "Build Type");
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		return TProperties::GetVariantPriority();

@@ -44,8 +44,9 @@ public:
 
 	/**
 	 * Check to see if the given platform name is supported as a target by the current project
+	 * @todo platformcleanup: Make this use IniPlatformName, not TargetPlatformName!! And other related functions in here
 	 *
-	 * @param	InPlatformName				Name of the platform to target (eg, WindowsNoEditor)
+	 * @param	InPlatformName				Name of the platform to target (eg, WindowsClient)
 	 * @param	bAllowSupportedIfEmptyList	Consider an empty list to mean that all platforms are supported targets?
 	 */
 	bool IsTargetPlatformSupported(const FName& InPlatformName, const bool bAllowSupportedIfEmptyList = true) const
@@ -159,7 +160,7 @@ public:
 	 * Update the list of supported target platforms for the target project based upon the parameters provided
 	 * 
 	 * @param	FilePath			The filepath where the project is stored.
-	 * @param	InPlatformName		Name of the platform to target (eg, WindowsNoEditor)
+	 * @param	InPlatformName		Name of the platform to target (eg, WindowsClient)
 	 * @param	bIsSupported		true if the platform should be supported by this project, false if it should not
 	 */
 	virtual void UpdateSupportedTargetPlatformsForProject(const FString& FilePath, const FName& InPlatformName, const bool bIsSupported) = 0;
@@ -167,7 +168,7 @@ public:
 	/**
 	 * Update the list of supported target platforms for the current project based upon the parameters provided
 	 * 
-	 * @param	InPlatformName		Name of the platform to target (eg, WindowsNoEditor)
+	 * @param	InPlatformName		Name of the platform to target (eg, WindowsClient)
 	 * @param	bIsSupported		true if the platform should be supported by this project, false if it should not
 	 */
 	virtual void UpdateSupportedTargetPlatformsForCurrentProject(const FName& InPlatformName, const bool bIsSupported) = 0;

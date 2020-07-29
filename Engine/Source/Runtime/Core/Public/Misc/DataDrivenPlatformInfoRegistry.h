@@ -97,6 +97,9 @@ struct FPlatformIconPaths
 // Information about a platform loaded from disk
 struct FDataDrivenPlatformInfo
 {
+	// copy of the platform name, same as the Key into GetAllPlatformInfos()
+	FName IniPlatformName;
+
 	// cached list of ini parents
 	TArray<FString> IniParentChain;
 
@@ -229,7 +232,7 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	/**
 	* Get the global set of data driven platform information
 	*/
-	static const TMap<FString, FDataDrivenPlatformInfo>& GetAllPlatformInfos();
+	static const TMap<FName, FDataDrivenPlatformInfo>& GetAllPlatformInfos();
 
 	/**
 	 * Gets a set of platform names based on GetAllPlatformInfos, their AdditionalRestrictedFolders, and possibly filtered based on what editor has support compiled for
@@ -245,11 +248,15 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	static const FDataDrivenPlatformInfo& GetPlatformInfo(FName PlatformName);
 	static const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
 
+	// get just names or just infos, 
+	static const TArray<FName> GetSortedPlatformNames();
+	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos();
+
 	/**
 	 * Gets a list of all known confidential platforms (note these are just the platforms you have access to, so, for example PS4 won't be
 	 * returned if you are not a PS4 licensee)
 	 */
-	static const TArray<FString>& GetConfidentialPlatforms();
+	static const TArray<FName>& GetConfidentialPlatforms();
 
 	/**
 	 * Returns the number of discovered ini files that can be loaded with LoadDataDrivenIniFile
@@ -273,10 +280,10 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		UBT,
 		// for instance Windows
 		Ini,
-		// for instance WindowsNoEditor
+		// for instance WindowsClient
 		TargetPlatform,
 	};
-	static bool HasCompiledSupportForPlatform(const FString& PlatformName, EPlatformNameType PlatformNameType);
+	static bool HasCompiledSupportForPlatform(FName PlatformName, EPlatformNameType PlatformNameType);
 
 	/**
 	 * Runs UAT to update Sdk status (can be called after user chooses an option that had a bad Sdk status)
@@ -291,15 +298,11 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	/**
 	 * Wipes out cached device status for all devices in a platform (or all platforms if PlatformName is empty)
 	 */
-	static void ClearDeviceStatus(const FString& PlatformName);
+	static void ClearDeviceStatus(FName PlatformName);
 
 private:
 	static FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
 
 #endif
-
-
-private:
-	static TMap<FString, FDataDrivenPlatformInfo> DataDrivenPlatforms;
 };
 

@@ -125,7 +125,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 		const FName PlatformName = TargetPaths.GetTargetPlatformName();
 		for (const PlatformInfo::FTargetPlatformInfo* PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			if (PlatformInfo->TargetPlatformName == PlatformName)
+			if (PlatformInfo->Name == PlatformName)
 			{
 				// We use the 'UBTPlatformName' because this white-list expects the 
 				// string to correspond to UBT's UnrealTargetPlatform enum (and by proxy, FPlatformMisc::GetUBTPlatform)

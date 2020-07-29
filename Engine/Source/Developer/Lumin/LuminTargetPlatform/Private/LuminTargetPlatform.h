@@ -47,17 +47,6 @@ public:
 
 public:
 
-	// Begin ITargetPlatform interface
-
-	virtual FString PlatformName() const override
-	{
-		return IsClientOnly() ? TEXT("LuminClient") : TEXT("Lumin");
-	}
-
-	virtual FString IniPlatformName() const override
-	{
-		return TEXT("Lumin");
-	}
 
 	virtual bool IsSdkInstalled(bool bProjectHasCode, FString& OutDocumentationPath) const override;
 

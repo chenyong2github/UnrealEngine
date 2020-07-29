@@ -11,7 +11,12 @@
 #include "Misc/MonitoredProcess.h"
 
 
-TMap<FString, FDataDrivenPlatformInfo> FDataDrivenPlatformInfoRegistry::DataDrivenPlatforms;
+namespace 
+{
+	TMap<FName, FDataDrivenPlatformInfo> DataDrivenPlatforms;
+	TArray<FName> SortedPlatformNames;
+	TArray<const FDataDrivenPlatformInfo*> SortedPlatformInfos;
+}
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 // NO AUTO-KICK-OFF - let the editor request it as needed
@@ -183,7 +188,7 @@ static void DDPIGetStringArray(const FConfigFile& IniFile, const TCHAR* Key, TAr
 	IniFile.GetArray(TEXT("DataDrivenPlatformInfo"), Key, OutArray);
 }
 
-static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info, const FString& PlatformName)
+static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info, FName PlatformName)
 {
 	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
 	DDPIGetBool(IniFile, TEXT("bIsFakePlatform"), Info.bIsFakePlatform);
@@ -215,9 +220,10 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 		Info.IconPaths.XLargePath = Info.IconPaths.XLargePath;
 	}
 
-	Info.IconPaths.NormalStyleName = *FString::Printf(TEXT("Launcher.Platform_%s"), *PlatformName);
-	Info.IconPaths.LargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.Large"), *PlatformName);
-	Info.IconPaths.XLargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.XLarge"), *PlatformName);
+	FString PlatformString = PlatformName.ToString();
+	Info.IconPaths.NormalStyleName = *FString::Printf(TEXT("Launcher.Platform_%s"), *PlatformString);
+	Info.IconPaths.LargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.Large"), *PlatformString);
+	Info.IconPaths.XLargeStyleName = *FString::Printf(TEXT("Launcher.Platform_%s.XLarge"), *PlatformString);
 
 	Info.bCanUseCrashReporter = true; // not specified means true, not false
 	DDPIGetBool(IniFile, TEXT("bCanUseCrashReporter"), Info.bCanUseCrashReporter);
@@ -229,7 +235,7 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	// if unspecified, use the ini platform name (only Win64 breaks this)
 	if (Info.UBTPlatformName == NAME_None)
 	{
-		Info.UBTPlatformName = *PlatformName;
+		Info.UBTPlatformName = PlatformName;
 	}
 	Info.UBTPlatformString = Info.UBTPlatformName.ToString();
 		
@@ -245,7 +251,7 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 /**
 * Get the global set of data driven platform information
 */
-const TMap<FString, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos()
+const TMap<FName, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos()
 {
 	static bool bHasSearchedForPlatforms = false;
 
@@ -261,9 +267,10 @@ const TMap<FString, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::G
 		{
 			// load the .ini file
 			FConfigFile IniFile;
-			FString PlatformName;
-			FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
+			FString PlatformString;
+			FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformString);
 
+			FName PlatformName(*PlatformString);
 			// platform info is registered by the platform name
 			if (IniFile.Contains(TEXT("DataDrivenPlatformInfo")))
 			{
@@ -274,7 +281,7 @@ const TMap<FString, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::G
 				// get the parent to build list later
 				FString IniParent;
 				IniFile.GetString(TEXT("DataDrivenPlatformInfo"), TEXT("IniParent"), IniParent);
-				IniParents.Add(PlatformName, IniParent);
+				IniParents.Add(PlatformString, IniParent);
 			}
 		}
 
@@ -282,16 +289,47 @@ const TMap<FString, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::G
 		for (auto& It : DataDrivenPlatforms)
 		{
 			// walk up the chain and build up the ini chain of parents
-			for (FString CurrentPlatform = IniParents.FindRef(It.Key); CurrentPlatform != TEXT(""); CurrentPlatform = IniParents.FindRef(CurrentPlatform))
+			for (FString CurrentPlatform = IniParents.FindRef(It.Key.ToString()); CurrentPlatform != TEXT(""); CurrentPlatform = IniParents.FindRef(CurrentPlatform))
 			{
 				// insert at 0 to reverse the order
 				It.Value.IniParentChain.Insert(CurrentPlatform, 0);
 			}
 		}
+
+		DataDrivenPlatforms.GetKeys(SortedPlatformNames);
+		// now sort them into arrays of keys and values
+		Algo::Sort(SortedPlatformNames, [](FName One, FName Two) -> bool
+		{
+			return One.Compare(Two) < 0;
+		});
+
+		// now build list of values from the sort
+		SortedPlatformInfos.Empty(SortedPlatformNames.Num());
+		for (int Index = 0; Index < SortedPlatformInfos.Num(); Index++)
+		{
+			SortedPlatformInfos[Index] = &DataDrivenPlatforms[SortedPlatformNames[Index]];
+		}
 	}
 
 	return DataDrivenPlatforms;
 }
+
+const TArray<FName> FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames()
+{
+	// make sure we've read in the inis
+	GetAllPlatformInfos();
+
+	return SortedPlatformNames;
+}
+
+const TArray<const FDataDrivenPlatformInfo*>& FDataDrivenPlatformInfoRegistry::GetSortedPlatformInfos()
+{
+	// make sure we've read in the inis
+	GetAllPlatformInfos();
+
+	return SortedPlatformInfos;
+}
+
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
@@ -349,6 +387,9 @@ static FString ConvertToDDPIDeviceId(const FString& DeviceId)
 
 void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 {
+	// make sure we've read in the inis
+	GetAllPlatformInfos();
+
 	// don't run UAT from commandlets (like the cooker) that are often launched from UAT and this will go poorly
 	if (IsRunningCommandlet())
 	{
@@ -366,7 +407,7 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 
 	FString Command, BaseCommandline, ReportFilename;
 	PrepForTurnkeyReport(Command, BaseCommandline, ReportFilename);
-	FString Commandline = BaseCommandline + FString(TEXT(" -platform=")) + FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FString, FDataDrivenPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key); });
+	FString Commandline = BaseCommandline + FString(TEXT(" -platform=")) + FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FName, FDataDrivenPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key.ToString()); });
 
 	// reset status to unknown
 	for (auto& It : DataDrivenPlatforms)
@@ -412,7 +453,7 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 
 						// have to convert back to WIndows from Win64
 						FString PlatformName = ConvertToDDPIPlatform(Tokens[0]);
-						DataDrivenPlatforms[PlatformName].SdkStatus = Status;
+						DataDrivenPlatforms[*PlatformName].SdkStatus = Status;
 
 						UE_LOG(LogTemp, Log, TEXT("Turnkey Platform: %s - %d - %s"), *PlatformName, (int)Status, *Tokens[2]);
 					}
@@ -466,7 +507,7 @@ FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::DeviceIdToInfo(FString
 	}
 
 	// have to convert back to Windows from Win64
-	return FDataDrivenPlatformInfoRegistry::DataDrivenPlatforms[ConvertToDDPIPlatform(PlatformAndDevice[0])];
+	return DataDrivenPlatforms[*ConvertToDDPIPlatform(PlatformAndDevice[0])];
 
 }
 
@@ -541,9 +582,9 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 	TurnkeyProcess->Launch();
 }
 
-void FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(const FString& PlatformName)
+void FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(FName PlatformName)
 {
-	if (PlatformName.Len() == 0)
+	if (PlatformName != NAME_None)
 	{
 		for (auto It : DataDrivenPlatforms)
 		{
@@ -583,7 +624,7 @@ const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetValidPlatformDirector
 		bHasSearchedForPlatforms = true;
 
 		// look for possible platforms
-		const TMap<FString, FDataDrivenPlatformInfo>& Infos = GetAllPlatformInfos();
+		const TMap<FName, FDataDrivenPlatformInfo>& Infos = GetAllPlatformInfos();
 		for (auto Pair : Infos)
 		{
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
@@ -595,7 +636,7 @@ const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetValidPlatformDirector
 #endif
 
 			// add ourself as valid
-			ValidPlatformDirectories.AddUnique(Pair.Key);
+			ValidPlatformDirectories.AddUnique(Pair.Key.ToString());
 
 			// now add additional directories
 			for (FString& AdditionalDir : Pair.Value.AdditionalRestrictedFolders)
@@ -609,17 +650,16 @@ const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetValidPlatformDirector
 }
 
 
-const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(const FString& PlatformName)
+const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FName PlatformName)
 {
 	const FDataDrivenPlatformInfo* Info = GetAllPlatformInfos().Find(PlatformName);
 	static FDataDrivenPlatformInfo Empty;
 	return Info ? *Info : Empty;
 }
 
-const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(FName PlatformName)
+const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(const FString& PlatformName)
 {
-	// @todo maybe make the key be FName instead of FString and flip these?
-	return GetPlatformInfo(PlatformName.ToString());
+	return GetPlatformInfo(FName(*PlatformName));
 }
 
 const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(const char* PlatformName)
@@ -628,10 +668,10 @@ const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(
 }
 
 
-const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms()
+const TArray<FName>& FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms()
 {
 	static bool bHasSearchedForPlatforms = false;
-	static TArray<FString> FoundPlatforms;
+	static TArray<FName> FoundPlatforms;
 
 	// look on disk for special files
 	if (bHasSearchedForPlatforms == false)
@@ -653,7 +693,7 @@ const TArray<FString>& FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms
 
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
-bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(const FString& PlatformName, EPlatformNameType PlatformNameType)
+bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(FName PlatformName, EPlatformNameType PlatformNameType)
 {
 	if (PlatformNameType == EPlatformNameType::Ini)
 	{
@@ -663,13 +703,11 @@ bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(const FStrin
 	}
 	else if (PlatformNameType == EPlatformNameType::UBT)
 	{
-		FName PlatformFName(*PlatformName);
-
 		// find all the DataDrivenPlatformInfo objects and find a matching the UBT name
 		for (auto& Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
 			// if this platform matches the UBT platform name, check it's Ini name
-			if (Pair.Value.UBTPlatformName == PlatformFName)
+			if (Pair.Value.UBTPlatformName == PlatformName)
 			{
 				return HasCompiledSupportForPlatform(Pair.Key, EPlatformNameType::Ini);
 			}
@@ -681,13 +719,11 @@ bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(const FStrin
 	{
 		// was this TP compiled, or a shaderformat (useful for SCW if it ever calls this)
 		return 
-			FModuleManager::Get().ModuleExists(*FString::Printf(TEXT("%sTargetPlatform"), *PlatformName)) || 
-			FModuleManager::Get().ModuleExists(*FString::Printf(TEXT("%sShaderFormat"), *PlatformName));
+			FModuleManager::Get().ModuleExists(*FString::Printf(TEXT("%sTargetPlatform"), *PlatformName.ToString())) || 
+			FModuleManager::Get().ModuleExists(*FString::Printf(TEXT("%sShaderFormat"), *PlatformName.ToString()));
 	}
 
 	return false;
 }
-
-static void ClearDeviceStatus(const FString& PlatformName);
 
 #endif

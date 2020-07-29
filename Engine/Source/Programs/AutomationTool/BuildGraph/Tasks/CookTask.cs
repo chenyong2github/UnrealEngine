@@ -24,7 +24,7 @@ namespace BuildGraph.Tasks
 		public string Project;
 
 		/// <summary>
-		/// The cook platform to target (for example, WindowsNoEditor).
+		/// The cook platform to target (for example, Windows).
 		/// </summary>
 		[TaskParameter]
 		public string Platform;

@@ -389,7 +389,7 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 
 	FString OptionalParams;
 
-	if (!FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").ShowUnsupportedTargetWarning(PlatformInfo->VanillaInfo->PlatformInfoName))
+	if (!FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").ShowUnsupportedTargetWarning(PlatformInfo->VanillaInfo->Name))
 	{
 		return;
 	}
@@ -398,7 +398,7 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 	if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid)
 	{
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->TargetPlatformName.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
 		return;
 	}
 
@@ -411,7 +411,7 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 	else
 	{
 		OptionalParams += TEXT(" -targetplatform=");
-		OptionalParams += *PlatformInfo->TargetPlatformName.ToString();
+		OptionalParams += *PlatformInfo->Name.ToString();
 	}
 
 	OptionalParams += GetCookingOptionalParams();
@@ -499,10 +499,10 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	if (PlatformInfo->DataDrivenPlatformInfo->GetSdkStatus() != DDPIPlatformSdkStatus::Valid || (bProjectHasCode && PlatformInfo->DataDrivenPlatformInfo->bUsesHostCompiler && !FSourceCodeNavigation::IsCompilerAvailable()))
 	{
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->TargetPlatformName.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
+		MainFrameModule.BroadcastMainFrameSDKNotInstalled(PlatformInfo->Name.ToString(), PlatformInfo->DataDrivenPlatformInfo->SDKTutorial);
 		TArray<FAnalyticsEventAttribute> ParamArray;
 		ParamArray.Add(FAnalyticsEventAttribute(TEXT("Time"), 0.0));
-		FEditorAnalytics::ReportEvent(TEXT("Editor.Package.Failed"), PlatformInfo->TargetPlatformName.ToString(), bProjectHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
+		FEditorAnalytics::ReportEvent(TEXT("Editor.Package.Failed"), PlatformInfo->Name.ToString(), bProjectHasCode, EAnalyticsErrorCodes::SDKNotFound, ParamArray);
 		return;
 	}
 
@@ -510,7 +510,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[PackagingSettings->BuildConfiguration];
 	bool bAssetNativizationEnabled = (PackagingSettings->BlueprintNativizationMethod != EProjectPackagingBlueprintNativizationMethod::Disabled);
 
-	const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->TargetPlatformName.ToString());
+	const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatformInfo->Name.ToString());
 	{
 		if (Platform)
 		{
@@ -521,7 +521,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 			int32 Result = Platform->CheckRequirements(bProjectHasCode, ConfigurationInfo.Configuration, bAssetNativizationEnabled, NotInstalledTutorialLink, DocumentationLink, CustomizedLogMessage);
 
 			// report to analytics
-			FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.Package.Failed"), PlatformInfo->TargetPlatformName.ToString(), bProjectHasCode, Result);
+			FEditorAnalytics::ReportBuildRequirementsFailure(TEXT("Editor.Package.Failed"), PlatformInfo->Name.ToString(), bProjectHasCode, Result);
 
 			// report to main frame
 			bool UnrecoverableError = false;
@@ -614,7 +614,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		}
 	}
 
-	if (!FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").ShowUnsupportedTargetWarning(PlatformInfo->VanillaInfo->PlatformInfoName))
+	if (!FModuleManager::LoadModuleChecked<IProjectTargetPlatformEditorModule>("ProjectTargetPlatformEditor").ShowUnsupportedTargetWarning(PlatformInfo->VanillaInfo->Name))
 	{
 		return;
 	}
@@ -705,18 +705,6 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -manifests");
 	}
 
-	bool bTargetPlatformCanUseCrashReporter = PlatformInfo->DataDrivenPlatformInfo->bCanUseCrashReporter;
-	if (bTargetPlatformCanUseCrashReporter && PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") && PlatformInfo->PlatformFlavor == TEXT("Win32"))
-	{
-		FString MinumumSupportedWindowsOS;
-		GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("MinimumOSVersion"), MinumumSupportedWindowsOS, GEngineIni);
-		if (MinumumSupportedWindowsOS == TEXT("MSOS_XP"))
-		{
-			OptionalParams += TEXT(" -SpecifiedArchitecture=_xp");
-			bTargetPlatformCanUseCrashReporter = false;
-		}
-	}
-
 	// Append any extra UAT flags specified for this platform flavor
 	if (!PlatformInfo->UATCommandLine.IsEmpty())
 	{
@@ -726,7 +714,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	else
 	{
 		OptionalParams += TEXT(" -targetplatform=");
-		OptionalParams += *PlatformInfo->TargetPlatformName.ToString();
+		OptionalParams += *PlatformInfo->Name.ToString();
 	}
 
 	// Get the target to build
@@ -802,7 +790,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	}
 
 	// Whether to include the crash reporter.
-	if (PackagingSettings->IncludeCrashReporter && bTargetPlatformCanUseCrashReporter)
+	if (PackagingSettings->IncludeCrashReporter && PlatformInfo->DataDrivenPlatformInfo->bCanUseCrashReporter)
 	{
 		OptionalParams += TEXT( " -CrashReporter" );
 	}

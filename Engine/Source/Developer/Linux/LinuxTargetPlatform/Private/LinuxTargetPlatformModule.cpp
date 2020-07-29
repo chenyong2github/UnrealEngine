@@ -27,26 +27,14 @@ class FLinuxTargetPlatformModule
 public:
 	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
-		// Editor TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >());
-		}
-		// Server TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >());
-		}
 		// NoEditor TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >());
-		}
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, false, false> >());
+		// Editor TP
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<true, false, false, false> >());
+		// Server TP
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, true, false, false> >());
 		// Client TP
-		if (TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >::IsUsable())
-		{
-			TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >());
-		}
+		TargetPlatforms.Add(new TLinuxTargetPlatform<FLinuxPlatformProperties<false, false, true, false> >());
 	}
 
 public:

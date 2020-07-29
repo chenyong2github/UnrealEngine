@@ -157,12 +157,12 @@ public class DeploymentContext //: ProjectParams
 	public string PlatformDir;
 
 	/// <summary>
-	/// Directory to put all of the files in: d:\stagedir\WindowsNoEditor
+	/// Directory to put all of the files in: d:\stagedir\Windows
 	/// </summary>
 	public DirectoryReference StageDirectory;
 
 	/// <summary>
-	/// Directory to put all of the debug files in: d:\stagedir\WindowsNoEditor
+	/// Directory to put all of the debug files in: d:\stagedir\Windows
 	/// </summary>
 	public DirectoryReference DebugStageDirectory;
 
@@ -276,7 +276,7 @@ public class DeploymentContext //: ProjectParams
 	public List<string> BlacklistLocalizationTargets = new List<string>();
 
 	/// <summary>
-	///  Directory to archive all of the files in: d:\archivedir\WindowsNoEditor
+	///  Directory to archive all of the files in: d:\archivedir\Windows
 	/// </summary>
 	public DirectoryReference ArchiveDirectory;
 

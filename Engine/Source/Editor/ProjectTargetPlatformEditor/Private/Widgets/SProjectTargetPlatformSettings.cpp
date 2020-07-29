@@ -42,7 +42,7 @@ void SProjectTargetPlatformSettings::Construct(const FArguments& InArgs)
 		PlatformsListBox->AddSlot()
 		.AutoHeight()
 		[
-			MakePlatformRow(AvailablePlatform->DisplayName, AvailablePlatform->PlatformInfoName, FEditorStyle::GetBrush(AvailablePlatform->GetIconStyleName(EPlatformIconSize::Normal)))
+			MakePlatformRow(AvailablePlatform->DisplayName, AvailablePlatform->Name, FEditorStyle::GetBrush(AvailablePlatform->GetIconStyleName(EPlatformIconSize::Normal)))
 		];
 	}
 
@@ -189,7 +189,7 @@ void SProjectTargetPlatformSettings::HandlePlatformCheckBoxStateChanged(ECheckBo
 			// We've deselected "All Platforms", so manually select every available platform
 			for(const PlatformInfo::FTargetPlatformInfo* AvailablePlatform : AvailablePlatforms)
 			{
-				FGameProjectGenerationModule::Get().UpdateSupportedTargetPlatforms(AvailablePlatform->TargetPlatformName, true);
+				FGameProjectGenerationModule::Get().UpdateSupportedTargetPlatforms(AvailablePlatform->Name, true);
 			}
 		}
 	}

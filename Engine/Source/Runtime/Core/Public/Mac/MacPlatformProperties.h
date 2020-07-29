@@ -58,7 +58,7 @@ struct FMacPlatformProperties
 		
 		if (HAS_EDITOR_DATA)
 		{
-			return "Mac";
+			return "MacEditor";
 		}
 
 		if (IS_CLIENT_ONLY)
@@ -66,7 +66,7 @@ struct FMacPlatformProperties
 			return "MacClient";
 		}
 
-		return "MacNoEditor";
+		return "Mac";
 	}
 
 	static FORCEINLINE bool RequiresCookedData( )

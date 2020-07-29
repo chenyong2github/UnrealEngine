@@ -27,14 +27,14 @@
  * FHoloLensTargetPlatform, abstraction for cooking HoloLens platforms
  */
 class HOLOLENSTARGETPLATFORM_API FHoloLensTargetPlatform
-	: public TTargetPlatformBase<FHoloLensPlatformProperties>
+	: public TNonDesktopTargetPlatformBase<FHoloLensPlatformProperties>
 {
 public:
 
 	/**
 	 * Default constructor.
 	 */
-	FHoloLensTargetPlatform();
+	FHoloLensTargetPlatform(bool bIsClient);
 
 	/**
 	 * Destructor.
@@ -58,8 +58,6 @@ public:
 	//virtual ECompressionFlags GetBaseCompressionMethod() const override { return ECompressionFlags::COMPRESS_ZLIB; }
 
 	virtual bool GenerateStreamingInstallManifest(const TMultiMap<FString, int32>& ChunkMap, const TSet<int32>& ChunkIDsInUse) const override { return true; }
-
-	virtual bool IsRunningPlatform() const override { return false; }
 
 	virtual bool SupportsFeature(ETargetPlatformFeatures Feature) const override;
 
@@ -114,19 +112,9 @@ public:
 		return true;
 	}
 
-	virtual FText GetVariantTitle() const override
-	{
-		return LOCTEXT("HoloLensVariantTitle", "Build Type");
-	}
-
 	virtual FString PlatformName() const override
 	{
 		return TEXT("HoloLens");
-	}
-
-	virtual FText GetVariantDisplayName() const override
-	{
-		return LOCTEXT("HoloLensVariantDisplayName", "HoloLens");
 	}
 
 	virtual float GetVariantPriority() const override

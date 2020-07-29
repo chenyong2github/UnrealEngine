@@ -353,33 +353,6 @@ return TSuper::SupportsFeature(Feature);
 	}
 
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		if (IS_DEDICATED_SERVER)
-		{
-			return LOCTEXT("MacServerVariantTitle", "Dedicated Server");
-		}
-
-		if (HAS_EDITOR_DATA)
-		{
-			return LOCTEXT("MacClientEditorDataVariantTitle", "Client with Editor Data");
-		}
-
-		if (IS_CLIENT_ONLY)
-		{
-			return LOCTEXT("MacClientOnlyVariantTitle", "Client only");
-		}
-
-		return LOCTEXT("MacClientVariantTitle", "Client");
-	}
-
-
-	virtual FText GetVariantTitle() const override
-	{
-		return LOCTEXT("MacVariantTitle", "Build Type");
-	}
-
-
 	virtual float GetVariantPriority() const override
 	{
 		return TProperties::GetVariantPriority();

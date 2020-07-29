@@ -31,7 +31,11 @@ const TArray<FString>& FLocTextPlatformSplitUtils::GetPlatformsToSplit(const ELo
 		{
 			static const TArray<FString> ConfidentialPlatformNames = []()
 			{
-				TArray<FString> TmpArray = FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms();
+				TArray<FString> TmpArray;
+				for (FName Name : FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms())
+				{
+					TmpArray.Add(Name.ToString());
+				}
 				TmpArray.Sort();
 				return TmpArray;
 			}();
@@ -45,8 +49,10 @@ const TArray<FString>& FLocTextPlatformSplitUtils::GetPlatformsToSplit(const ELo
 			{
 				// the Keys of the FDataDrivenPlatformInfoRegistry platforms are the known ini platform names
 				TArray<FString> TmpArray;
-				FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos().GetKeys(TmpArray);
-				TmpArray.Sort();
+				for (FName Name : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames())
+				{
+					TmpArray.Add(Name.ToString());
+				}
 				return TmpArray;
 			}();
 			return AllPlatformNames;

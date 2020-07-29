@@ -64,7 +64,7 @@ struct FLinuxPlatformProperties
 
 		if (HAS_EDITOR_DATA)
 		{
-			return "Linux";
+			return "LinuxEditor";
 		}
 
 		if (IS_CLIENT_ONLY)
@@ -72,7 +72,7 @@ struct FLinuxPlatformProperties
 			return IS_AARCH64 ? "LinuxAArch64Client" : "LinuxClient";
 		}
 
-		return IS_AARCH64 ? "LinuxAArch64" : "LinuxNoEditor";
+		return IS_AARCH64 ? "LinuxAArch64" : "Linux";
 	}
 
 	static FORCEINLINE bool RequiresCookedData( )

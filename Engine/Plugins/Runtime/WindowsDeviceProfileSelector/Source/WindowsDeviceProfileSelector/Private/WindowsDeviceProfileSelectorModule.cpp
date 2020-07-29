@@ -21,7 +21,7 @@ void FWindowsDeviceProfileSelectorModule::ShutdownModule()
 
 const FString FWindowsDeviceProfileSelectorModule::GetRuntimeDeviceProfileName()
 {
-	// Windows, WindowsNoEditor, WindowsClient, or WindowsServer
+	// Windows, WindowsEditor, WindowsClient, or WindowsServer
 	FString ProfileName = FPlatformProperties::PlatformName();
 
 	if (FApp::CanEverRender())

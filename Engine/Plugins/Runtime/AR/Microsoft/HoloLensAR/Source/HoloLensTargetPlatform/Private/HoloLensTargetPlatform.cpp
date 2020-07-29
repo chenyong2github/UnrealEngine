@@ -16,10 +16,9 @@
 
 DEFINE_LOG_CATEGORY(LogHoloLensTargetPlatform);
 
-FHoloLensTargetPlatform::FHoloLensTargetPlatform()
+FHoloLensTargetPlatform::FHoloLensTargetPlatform(bool bIsClientOnly)
+	: TNonDesktopTargetPlatformBase(bIsClientOnly)
 {
-	PlatformInfo = ::PlatformInfo::FindPlatformInfo(FName("HoloLens"));
-
 #if WITH_ENGINE
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
 	TextureLODSettings = nullptr; // These are registered by the device profile system.

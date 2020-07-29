@@ -790,9 +790,9 @@ static const FName RemovePlatformPrefixFromName(FName const& InName)
 {
 	FString NameString = InName.ToString();
 
-	for (const auto& PlatformInfo : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames())
 	{
-		FString PlatformTextureFormatPrefix = PlatformInfo.Key;
+		FString PlatformTextureFormatPrefix = PlatformName.ToString();
 		PlatformTextureFormatPrefix += TEXT('_');
 		if (NameString.StartsWith(PlatformTextureFormatPrefix, ESearchCase::IgnoreCase))
 		{

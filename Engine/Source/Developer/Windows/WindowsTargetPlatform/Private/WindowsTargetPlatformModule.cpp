@@ -36,26 +36,14 @@ public:
 
 	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
+		// Game TP
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, false>());
 		// Editor TP
-		if (TGenericWindowsTargetPlatform<true, false, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<true, false, false>());
-		}
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<true, false, false>());
 		// Server TP
-		if (TGenericWindowsTargetPlatform<false, true, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, true, false>());
-		}
-		// NoEditor TP
-		if (TGenericWindowsTargetPlatform<false, false, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, false>());
-		}
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, true, false>());
 		// Client TP
-		if (TGenericWindowsTargetPlatform<false, false, true>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, true>());
-		}
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, true>());
 	}
 
 public:

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -147,7 +147,7 @@ public abstract class BaseLinuxPlatform : Platform
 
 	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
-		const string NoEditorCookPlatform = "NoEditor";
+		const string NoEditorCookPlatform = "";
 		const string ServerCookPlatform = "Server";
 		const string ClientCookPlatform = "Client";
 		string PlatformStr = (TargetPlatformType == UnrealTargetPlatform.LinuxAArch64) ? "LinuxAArch64" : "Linux";
@@ -168,10 +168,10 @@ public abstract class BaseLinuxPlatform : Platform
 	{
 		if (TargetPlatformType == UnrealTargetPlatform.LinuxAArch64)
 		{
-			return "LinuxAArch64";
+			return "LinuxAArch64Editor";
 		}
 
-		return "Linux";
+		return "LinuxEditor";
 	}
 
 	/// <summary>

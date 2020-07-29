@@ -25,7 +25,8 @@ public:
 		if (FHoloLensTargetPlatform::IsUsable())
 		{
 			//@todo HoloLens: Check for SDK?
-			TargetPlatforms.Add(new FHoloLensTargetPlatform());
+			TargetPlatforms.Add(new FHoloLensTargetPlatform(false));
+			TargetPlatforms.Add(new FHoloLensTargetPlatform(true));
 		}
 	}
 };

@@ -225,7 +225,7 @@ public:
 	 * Update the list of supported target platforms based upon the parameters provided
 	 * This will take care of checking out and saving the updated .uproject file automatically
 	 *
-	 * @param	InPlatformName		Name of the platform to target (eg, WindowsNoEditor)
+	 * @param	InPlatformName		Name of the platform to target (eg, WindowsClient)
 	 * @param	bIsSupported		true if the platform should be supported by this project, false if it should not
 	 */
 	static void UpdateSupportedTargetPlatforms(const FName& InPlatformName, const bool bIsSupported);

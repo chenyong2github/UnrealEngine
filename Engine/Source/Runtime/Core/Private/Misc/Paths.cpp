@@ -651,9 +651,9 @@ const TArray<FString>& FPaths::GetRestrictedFolderNames()
 		StaticData.RestrictedFolderNames.Add(TEXT("EpicInternal"));
 
 		// Add confidential platforms
-		for (const FString& PlatformStr : FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms())
+		for (FName PlatformStr : FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms())
 		{
-			StaticData.RestrictedFolderNames.Add(PlatformStr);
+			StaticData.RestrictedFolderNames.Add(PlatformStr.ToString());
 		}
 
 		StaticData.bRestrictedFolderNamesInitialized = true;

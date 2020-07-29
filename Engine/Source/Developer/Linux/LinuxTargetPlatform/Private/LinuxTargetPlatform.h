@@ -358,31 +358,6 @@ public:
 		return true;
 	}
 
-	virtual FText GetVariantDisplayName() const override
-	{
-		if (TProperties::IsServerOnly())
-		{
-			return LOCTEXT("LinuxServerVariantTitle", "Dedicated Server");
-		}
-
-		if (TProperties::HasEditorOnlyData())
-		{
-			return LOCTEXT("LinuxClientEditorDataVariantTitle", "Client with Editor Data");
-		}
-
-		if (TProperties::IsClientOnly())
-		{
-			return LOCTEXT("LinuxClientOnlyVariantTitle", "Client only");
-		}
-
-		return LOCTEXT("LinuxClientVariantTitle", "Client");
-	}
-
-	virtual FText GetVariantTitle() const override
-	{
-		return LOCTEXT("LinuxVariantTitle", "Build Type");
-	}
-
 	virtual float GetVariantPriority() const override
 	{
 		return TProperties::GetVariantPriority();

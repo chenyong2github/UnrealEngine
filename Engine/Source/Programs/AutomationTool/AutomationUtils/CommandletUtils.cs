@@ -53,7 +53,7 @@ namespace AutomationTool
         /// <param name="CulturesToCook">List of culture names whose localized assets should be cooked, can be null (implying defaults should be used).</param>
 		/// <param name="TargetPlatform">Target platform.</param>
 		/// <param name="Parameters">List of additional parameters.</param>
-		public static void CookCommandlet(FileReference ProjectName, string UE4Exe = "UE4Editor-Cmd.exe", string[] Maps = null, string[] Dirs = null, string InternationalizationPreset = "", string[] CulturesToCook = null, string TargetPlatform = "WindowsNoEditor", string Parameters = "-Unversioned")
+		public static void CookCommandlet(FileReference ProjectName, string UE4Exe = "UE4Editor-Cmd.exe", string[] Maps = null, string[] Dirs = null, string InternationalizationPreset = "", string[] CulturesToCook = null, string TargetPlatform = "Windows", string Parameters = "-Unversioned")
 		{
             string CommandletArguments = "";
 
@@ -97,7 +97,7 @@ namespace AutomationTool
         /// <param name="Maps">List of maps to cook, can be null in which case -MapIniSection=AllMaps is used.</param>
         /// <param name="TargetPlatform">Target platform.</param>
         /// <param name="Parameters">List of additional parameters.</param>
-        public static void DDCCommandlet(FileReference ProjectName, string UE4Exe = "UE4Editor-Cmd.exe", string[] Maps = null, string TargetPlatform = "WindowsNoEditor", string Parameters = "")
+        public static void DDCCommandlet(FileReference ProjectName, string UE4Exe = "UE4Editor-Cmd.exe", string[] Maps = null, string TargetPlatform = "Windows", string Parameters = "")
         {
             string MapsToCook = "";
             if (!IsNullOrEmpty(Maps))

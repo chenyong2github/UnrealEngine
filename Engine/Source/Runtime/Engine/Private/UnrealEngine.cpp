@@ -15624,7 +15624,7 @@ static FAutoConsoleCommand SetupThreadAffinityCmd(
 
 static void PakFileTest(const TArray<FString>& Args)
 {
-	FString PakFilename = TEXT("D:\\work\\Dev-Core\\Samples\\Games\\ShooterGame\\Saved\\StagedBuilds\\WindowsNoEditor\\ShooterGame\\Content\\Paks\\test.pak");
+	FString PakFilename = TEXT("D:\\work\\Dev-Core\\Samples\\Games\\ShooterGame\\Saved\\StagedBuilds\\Windows\\ShooterGame\\Content\\Paks\\test.pak");
 	if (Args.Num() < 1)
 	{
 		UE_LOG(LogConsoleResponse, Error, TEXT("Usage: PakFileTest path-to-pak-file"));

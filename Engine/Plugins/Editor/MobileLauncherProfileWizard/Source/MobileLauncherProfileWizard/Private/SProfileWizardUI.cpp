@@ -742,7 +742,7 @@ void SProfileWizardUI::CacheCookFlavorsList()
 	const PlatformInfo::FTargetPlatformInfo* Info = FindPlatformInfo(TargetPlatformName);
 	for (const FTargetPlatformInfo* PlatformFlaworInfo : Info->Flavors)
 	{
-		DLCFlavorList.Add(MakeShareable(new FString(PlatformFlaworInfo->PlatformInfoName.ToString())));
+		DLCFlavorList.Add(MakeShareable(new FString(PlatformFlaworInfo->Name.ToString())));
 	}
 
 	// In case no flavors, add vanilla name as cooking target

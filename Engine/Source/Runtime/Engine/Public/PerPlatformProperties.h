@@ -30,7 +30,7 @@ struct ENGINE_API TPerPlatformProperty
 	typedef _ValueType ValueType;
 
 #if WITH_EDITOR
-	/** Get the value for the given platform (using standard "ini" name, so Windows, not Win64 or WindowsNoEditor), which can be used to lookup the group */
+	/** Get the value for the given platform (using standard "ini" name, so Windows, not Win64 or WindowsClient), which can be used to lookup the group */
 	_ValueType GetValueForPlatform(FName PlatformName) const
 	{
 		const _StructType* This = StaticCast<const _StructType*>(this);

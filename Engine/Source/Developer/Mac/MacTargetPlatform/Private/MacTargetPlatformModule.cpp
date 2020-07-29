@@ -24,26 +24,14 @@ public:
 
 	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
+		// Game TP
+		TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, false>());
 		// Editor TP
-		if (TGenericMacTargetPlatform<true, false, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericMacTargetPlatform<true, false, false>());
-		}
+		TargetPlatforms.Add(new TGenericMacTargetPlatform<true, false, false>());
 		// Server TP
-		if (TGenericMacTargetPlatform<false, true, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, true, false>());
-		}
-		// NoEditor TP
-		if (TGenericMacTargetPlatform<false, false, false>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, false>());
-		}
+		TargetPlatforms.Add(new TGenericMacTargetPlatform<false, true, false>());
 		// Client TP
-		if (TGenericMacTargetPlatform<false, false, true>::IsUsable())
-		{
-			TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, true>());
-		}
+		TargetPlatforms.Add(new TGenericMacTargetPlatform<false, false, true>());
 	}
 
 

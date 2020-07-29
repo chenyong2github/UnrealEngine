@@ -931,7 +931,7 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 	}
 
 	const FString AbsoluteGamePath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-	const FString AbsoluteGameCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / TEXT("WindowsNoEditor") / GameName;
+	const FString AbsoluteGameCookPath = AbsoluteGamePath / TEXT("Saved") / TEXT("Cooked") / TEXT("Windows") / GameName;
 
 	FString AssetPathWithinCookDir = AbsolutePathToAsset;
 	FPaths::RemoveDuplicateSlashes(AssetPathWithinCookDir);

@@ -18,7 +18,7 @@ public class MacPlatform : Platform
 
 	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
-		const string NoEditorCookPlatform = "MacNoEditor";
+		const string NoEditorCookPlatform = "Mac";
 		const string ServerCookPlatform = "MacServer";
 		const string ClientCookPlatform = "MacClient";
 
@@ -38,7 +38,7 @@ public class MacPlatform : Platform
 
 	public override string GetEditorCookPlatform()
 	{
-		return "Mac";
+		return "MacEditor";
 	}
 
 	private void StageAppBundle(DeploymentContext SC, DirectoryReference InPath, StagedDirectoryReference NewName)

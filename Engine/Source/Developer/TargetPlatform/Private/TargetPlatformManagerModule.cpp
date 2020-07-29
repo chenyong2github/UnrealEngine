@@ -197,6 +197,23 @@ public:
 		return nullptr;
 	}
 
+	virtual ITargetPlatform* FindTargetPlatform(FName Name) override
+	{
+		GetTargetPlatforms(); // Populates PlatformsByName
+
+		if (ITargetPlatform** Platform = PlatformsByName.Find(Name))
+		{
+			return *Platform;
+		}
+
+		return nullptr;
+	}
+
+	virtual ITargetPlatform* FindTargetPlatform(const TCHAR* Name) override
+	{
+		return FindTargetPlatform(FName(Name));
+	}
+
 	virtual ITargetPlatform* FindTargetPlatformWithSupport(FName SupportType, FName RequiredSupportedValue)
 	{
 		const TArray<ITargetPlatform*>& TargetPlatforms = GetTargetPlatforms();
@@ -640,7 +657,7 @@ protected:
 		return false;
 	}
 
-	bool InitializeSinglePlatform(const FString& PlatformName, const FDataDrivenPlatformInfo& Info)
+	bool InitializeSinglePlatform(FName PlatformName, const FDataDrivenPlatformInfo& Info)
 	{
 		// disabled?
 		if (Info.bEnabledForUse == false)
@@ -650,7 +667,7 @@ protected:
 
 		// there are two ways targetplatform modules are setup: a single DLL per TargetPlatform, or a DLL for the platform
 		// that returns multiple TargetPlatforms. we try single first, then full platform
-		FName PlatformModuleName = *(PlatformName + TEXT("TargetPlatform"));
+		FName PlatformModuleName = *(PlatformName.ToString() + TEXT("TargetPlatform"));
 
 		ITargetPlatformModule* Module = nullptr;
 
@@ -691,7 +708,7 @@ protected:
 						goto RETRY_SETUPANDVALIDATE;
 					}
 				}
-				UE_LOG(LogTargetPlatformManager, Display, TEXT("Failed to SetupAndValidateAutoSDK for platform '%s'"), *PlatformName);
+				UE_LOG(LogTargetPlatformManager, Display, TEXT("Failed to SetupAndValidateAutoSDK for platform '%s'"), *PlatformName.ToString());
 			}
 		}
 
@@ -720,12 +737,10 @@ protected:
 
 		// find a set of valid target platform names (the platform DataDrivenPlatformInfo.ini file was found indicates support for the platform 
 		// exists on disk, so the TP is expected to work)
-		const TArray<PlatformInfo::FTargetPlatformInfo*>& PlatformInfos = PlatformInfo::GetPlatformInfoArray();
-
-		FScopedSlowTask SlowTask(PlatformInfos.Num());
+		FScopedSlowTask SlowTask(FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos().Num());
 		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
-			const FString& PlatformName = Pair.Key;
+			FName PlatformName = Pair.Key;
 			const FDataDrivenPlatformInfo& Info = Pair.Value;
 
 			SlowTask.EnterProgressFrame(1);
@@ -1017,9 +1032,9 @@ protected:
 				FString PlatformName = PlatArray[Index+1];
 				if (PlatformName == TEXT("Win32") || PlatformName == TEXT("Win64"))
 				{
-					PlatformName = TEXT("Windows");
+					PlatformName = TEXT("WindowsEditor");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("WindowsNoEditor");
+					PlatformName = TEXT("Windows");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 					PlatformName = TEXT("WindowsClient");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
@@ -1029,7 +1044,7 @@ protected:
 				else if (PlatformName == TEXT("Mac"))
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("MacNoEditor");
+					PlatformName = TEXT("Mac");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 					PlatformName = TEXT("MacClient");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
@@ -1039,7 +1054,7 @@ protected:
 				else if (PlatformName == TEXT("Linux"))
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("LinuxNoEditor");
+					PlatformName = TEXT("Linux");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 					PlatformName = TEXT("LinuxClient");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
@@ -1049,7 +1064,7 @@ protected:
 				else if (PlatformName == TEXT("LinuxAArch64"))
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
-					PlatformName = TEXT("LinuxAArch64NoEditor");
+					PlatformName = TEXT("LinuxAArch64");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
 					PlatformName = TEXT("LinuxAArch64Client");
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
@@ -1076,7 +1091,7 @@ protected:
 		return true;
 	}
 
-	bool UpdateAfterSDKInstall(const FString& PlatformName)
+	bool UpdateAfterSDKInstall(FName PlatformName)
 	{
 		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
 

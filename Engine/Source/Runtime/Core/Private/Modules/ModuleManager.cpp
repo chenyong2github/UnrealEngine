@@ -1166,7 +1166,10 @@ void FModuleManager::AddExtraBinarySearchPaths()
 	{
 		// Ensure that dependency dlls can be found in restricted sub directories
 		TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
-		RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
+		for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms())
+		{
+			RestrictedFolderNames.Add(PlatformName.ToString());
+		}
 
 		FString ModuleDir = FPlatformProcess::GetModulesDirectory();
 		for (const FString& RestrictedFolderName : RestrictedFolderNames)

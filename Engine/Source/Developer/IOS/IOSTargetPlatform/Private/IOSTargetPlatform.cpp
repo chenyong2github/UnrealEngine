@@ -25,24 +25,17 @@
 /* FIOSTargetPlatform structors
  *****************************************************************************/
 
-FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bInIsClientOnly)
-	: bIsTVOS(bInIsTVOS)
-	, bIsClientOnly(bInIsClientOnly)
+FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bIsClientOnly)
+	// override the ini name up in the base classes, which will go into the FTargetPlatformInfo
+	: TNonDesktopTargetPlatformBase(bIsClientOnly, nullptr, bInIsTVOS ? TEXT("TVOS") : nullptr)
+	, bIsTVOS(bInIsTVOS)
 {
-    if (bIsTVOS)
-    {
-        this->PlatformInfo = PlatformInfo::FindPlatformInfo("TVOS");
-    }
 #if WITH_ENGINE
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
 	TextureLODSettings = nullptr; // TextureLODSettings are registered by the device profile.
 	StaticMeshLODSettings.Initialize(EngineSettings);
 #endif // #if WITH_ENGINE
 
-	// Initialize Ticker for device discovery
-	TickDelegate = FTickerDelegate::CreateRaw(this, &FIOSTargetPlatform::HandleTicker);
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate, 10.0f);
-	
 	// initialize the connected device detector
 	DeviceHelper.OnDeviceConnected().AddRaw(this, &FIOSTargetPlatform::HandleDeviceConnected);
 	DeviceHelper.OnDeviceDisconnected().AddRaw(this, &FIOSTargetPlatform::HandleDeviceDisconnected);
@@ -52,7 +45,6 @@ FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bInIsClientOnly)
 
 FIOSTargetPlatform::~FIOSTargetPlatform()
 {
-	FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
 }
 
 
@@ -324,41 +316,6 @@ int32 FIOSTargetPlatform::CheckRequirements(bool bProjectHasCode, EBuildConfigur
 }
 
 
-/* FIOSTargetPlatform implementation
- *****************************************************************************/
-
-void FIOSTargetPlatform::PingNetworkDevices()
-{
-    //Only put this here in case we put in auto-detection of missing stats
-    QUICK_SCOPE_CYCLE_COUNTER(STAT_FIOSTargetPlatform_PingNetworkDevices);
-
-	// disabled for now because we find IOS devices from the USB, this is a relic from ULD, but it may be needed in the future
-/*	if (!MessageEndpoint.IsValid())
-	{
-		MessageEndpoint = FMessageEndpoint::Builder("FIOSTargetPlatform")
-			.Handling<FIOSLaunchDaemonPong>(this, &FIOSTargetPlatform::HandlePongMessage);
-	}
-
-	if (MessageEndpoint.IsValid())
-	{
-		MessageEndpoint->Publish(new FIOSLaunchDaemonPing(), EMessageScope::Network);
-	}
-
-	// remove disconnected & timed out devices
-	FDateTime Now = FDateTime::UtcNow();
-
-	for (auto DeviceIt = Devices.CreateIterator(); DeviceIt; ++DeviceIt)
-	{
-		FIOSTargetDevicePtr Device = DeviceIt->Value;
-
-		if (Now > Device->LastPinged + FTimespan::FromSeconds(60.0))
-		{
-			DeviceIt.RemoveCurrent();
-			DeviceLostEvent.Broadcast(Device.ToSharedRef());
-		}
-	}*/
-}
-
 
 /* FIOSTargetPlatform callbacks
  *****************************************************************************/
@@ -435,13 +392,6 @@ void FIOSTargetPlatform::HandleDeviceDisconnected(const FIOSLaunchDaemonPong& Me
 		OnDeviceLost().Broadcast(Device.ToSharedRef());
 		Devices.Remove(DeviceId);
 	}
-}
-
-bool FIOSTargetPlatform::HandleTicker(float DeltaTime)
-{
-	PingNetworkDevices();
-
-	return true;
 }
 
 

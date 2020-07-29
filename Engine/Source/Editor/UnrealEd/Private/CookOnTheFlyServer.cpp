@@ -6743,7 +6743,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				// For example release version could be cooked as Android_ASTC flavor, but DLC can be made as Android_ETC2
 				for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavorInfo : TargetPlatform->GetTargetPlatformInfo().Flavors)
 				{
-					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
+					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->Name.ToString()) / GetAssetRegistryFilename();
 					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
 					if (bSucceeded)
 					{

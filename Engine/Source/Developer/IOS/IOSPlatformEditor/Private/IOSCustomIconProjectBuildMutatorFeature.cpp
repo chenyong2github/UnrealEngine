@@ -52,7 +52,7 @@ bool FIOSCustomIconProjectBuildMutatorFeature ::RequiresProjectBuild(const FName
 
 	if (PlatInfo->DataDrivenPlatformInfo->GetSdkStatus() == DDPIPlatformSdkStatus::Valid)
 	{
-		const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatInfo->TargetPlatformName.ToString());
+		const ITargetPlatform* const Platform = GetTargetPlatformManager()->FindTargetPlatform(PlatInfo->Name.ToString());
 		if (Platform)
 		{
 			if (InPlatformInfoName.ToString() == TEXT("IOS"))

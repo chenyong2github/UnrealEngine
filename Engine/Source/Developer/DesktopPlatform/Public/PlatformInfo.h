@@ -43,11 +43,10 @@ namespace PlatformInfo
 	/** Information about a given platform */
 	struct FTargetPlatformInfo
 	{
-		/** Name used to identify this platform, eg "Android_ETC2" */
-		FName PlatformInfoName;
+		DESKTOPPLATFORM_API FTargetPlatformInfo(const FString& InIniPlatformName, EBuildTargetType InType, const FString& InCookFlavor);
 
-		/** Name used to find the corresponding ITargetPlatform for this platform (also used by UAT) */
-		FName TargetPlatformName;
+		/** Name of the Info object as well as the ITargetPlatform that this Info describes */
+		FName Name;
 
 		/** Platform flavor, eg "ETC2" for "Android_ETC2" */
 		FName PlatformFlavor;

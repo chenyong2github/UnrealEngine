@@ -90,7 +90,7 @@ void FTargetDeviceService::AddTargetDevice(TSharedPtr<ITargetDevice, ESPMode::Th
 		const PlatformInfo::FTargetPlatformInfo& Info = InDevice->GetTargetPlatform().GetTargetPlatformInfo();
 		const PlatformInfo::FTargetPlatformInfo* VanillaInfo = Info.VanillaInfo;
 
-		DevicePlatformName = Info.PlatformInfoName;
+		DevicePlatformName = Info.Name;
 		DevicePlatformDisplayName = VanillaInfo->DisplayName.ToString();
 		
 		// Sigh the hacks... Should be able to remove if platform info gets cleaned up.... Windows doesn't have a reasonable vanilla platform.
@@ -518,7 +518,7 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 
 		// Check if we should also create an aggregate (All_<platform>_devices_on_<host>) proxy
 		Message->Aggregated = DefaultDevice->IsPlatformAggregated();
-		Message->AllDevicesName = DefaultDevice->GetAllDevicesName().IsEmpty() ? VanillaInfo->PlatformInfoName.ToString() : DefaultDevice->GetAllDevicesName();
+		Message->AllDevicesName = DefaultDevice->GetAllDevicesName().IsEmpty() ? VanillaInfo->Name.ToString() : DefaultDevice->GetAllDevicesName();
 		Message->AllDevicesDefaultVariant = DefaultDevice->GetAllDevicesDefaultVariant().IsNone() ? Message->DefaultVariant : DefaultDevice->GetAllDevicesDefaultVariant();
 
 		// Add the data for all the flavors
@@ -535,8 +535,8 @@ void FTargetDeviceService::HandlePingMessage(const FTargetDeviceServicePing& InM
 			Variant.DeviceID = TargetDevice->GetId().ToString();
 			Variant.VariantName = TargetDeviceIt.Key();
 			Variant.TargetPlatformName = TargetDevice->GetTargetPlatform().PlatformName();
-			Variant.TargetPlatformId = Info.TargetPlatformName;
-			Variant.VanillaPlatformId = Info.VanillaInfo->PlatformInfoName;
+			Variant.TargetPlatformId = Info.Name;
+			Variant.VanillaPlatformId = Info.VanillaInfo->Name;
 			Variant.PlatformDisplayName = Info.DisplayName.ToString();
 		}
 

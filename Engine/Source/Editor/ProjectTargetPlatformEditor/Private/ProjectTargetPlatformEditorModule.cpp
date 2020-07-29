@@ -113,7 +113,7 @@ public:
 					.HeightOverride(MenuIconSize)
 					[
 						SNew(SImage)
-						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&Local::IsUnsupportedPlatformWarningVisible, PlatformInfo.VanillaInfo->PlatformInfoName)))
+						.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&Local::IsUnsupportedPlatformWarningVisible, PlatformInfo.VanillaInfo->Name)))
 						.Image(FEditorStyle::GetBrush("Launcher.Platform.Warning"))
 					]
 				]
@@ -136,7 +136,7 @@ public:
 
 		// Don't show the warning during automation testing; the dlg is modal and blocks
 		FProjectStatus ProjectStatus;
-		if(!GIsAutomationTesting && IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo->VanillaInfo->PlatformInfoName))
+		if(!GIsAutomationTesting && IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && !ProjectStatus.IsTargetPlatformSupported(PlatformInfo->VanillaInfo->Name))
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("DisplayName"), PlatformInfo->DisplayName);
