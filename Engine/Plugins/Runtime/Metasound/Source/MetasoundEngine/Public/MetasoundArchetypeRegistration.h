@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
+#include "Misc/PackageName.h"
 
 #if WITH_EDITOR
 #include "AssetRegistryModule.h"
