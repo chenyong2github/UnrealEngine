@@ -236,6 +236,47 @@ namespace Turnkey
 			return CopyAndRun.RunExternalCommand(Command, Params);
 		}
 
+		public string RetrieveFileSource(string Name, string InType, string InPlatform, string SubType)
+		{
+			UnrealTargetPlatform? Platform = null;
+			FileSource.SourceType? Type = null;
+
+			if (InPlatform != null)
+			{
+				// let this throw exception on failure, as it's a setup error
+				Platform = UnrealTargetPlatform.Parse(InPlatform);
+			}
+
+			if (InType != null)
+			{
+				// let this throw exception on failure, as it's a setup error
+				Type = (FileSource.SourceType)Enum.Parse(typeof(FileSource.SourceType), InType);
+			}
+
+			List<FileSource> Sources = TurnkeyManifest.FilterDiscoveredFileSources(Platform, Type);
+
+			Sources = Sources.FindAll(x =>
+			{
+				if (Name.StartsWith("regex:"))
+				{
+					return TurnkeyUtils.IsValueValid(x.Name, Name, null);
+				}
+				// this will handle the case of x.Name starting with regex: or just doing a case insensitive string comparison of tag and CustomSdkId
+				// range: is not supported, at least yet - we would have to check Tag with range: above, and also support range without a Platform (or pass in a platform somehow?)
+				return TurnkeyUtils.IsValueValid(Name, x.Name, null);
+			});
+
+			if (Sources.Count == 0)
+			{
+				return null;
+			}
+
+			// @todo turnkey: If > 1 in Sources, warn user
+
+			// execute the first found one
+			return CopyProvider.ExecuteCopy(Sources[0].GetCopySourceOperation());
+		}
+
 		public string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null)
 		{
 			return null;

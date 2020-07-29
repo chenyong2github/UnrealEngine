@@ -157,7 +157,7 @@ namespace Turnkey.Commands
 						continue;
 					}
 
-					TurnkeyUtils.Log("Will install {0}", BestSdk.DisplayName);
+					TurnkeyUtils.Log("Will install {0}", BestSdk.Name);
 
 					if (BestSdk.DownloadOrInstall(Platform) == false)
 					{

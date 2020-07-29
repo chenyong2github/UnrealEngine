@@ -13,8 +13,7 @@ namespace AutomationTool
 {
 	public interface FileRetriever
 	{
-		string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null);
-		//		string RetrieveSdk(string Platform, string Version, string Type, string SubType = null, Dictionary<string, string> ExtraVariables = null);
+		string RetrieveFileSource(string Name, string InType = "Misc", string InPlatform = null, string SubType = null);
 		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
 		bool RunExternalCommand(string Command, string Params);

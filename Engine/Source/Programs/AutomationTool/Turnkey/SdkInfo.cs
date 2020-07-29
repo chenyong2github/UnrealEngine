@@ -188,7 +188,7 @@ namespace Turnkey
 				}
 
 				// and now activate it in case we need it this run
-				TurnkeyUtils.Log("Re-activating AutoSDK '{0}'...", Source.DisplayName);
+				TurnkeyUtils.Log("Re-activating AutoSDK '{0}'...", Source.Name);
 
 				UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString()).ReactivateAutoSDK();
 

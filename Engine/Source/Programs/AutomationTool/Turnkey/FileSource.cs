@@ -103,7 +103,7 @@ namespace Turnkey
 		public CopySource[] Sources = null;
 
 		public string Version = null;
-		public string DisplayName = null;
+		public string Name = null;
 		public SourceType Type = SourceType.Full;
 		public string AllowedFlashDeviceTypes = null;
 
@@ -114,7 +114,7 @@ namespace Turnkey
 			FileSource Clone = new FileSource();
 			Clone.PlatformString = PlatformString;
 			Clone.Version = Version;
-			Clone.DisplayName = DisplayName;
+			Clone.Name = Name;
 			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
 			Clone.Type = Type;
 
@@ -292,7 +292,7 @@ namespace Turnkey
 
 				// if unable to pick one automatically, ask the user
 				int BestIndex = Sdks.IndexOf(Best);
-				int Choice = TurnkeyUtils.ReadInputInt("Multiple Sdks found that could be installed. Please select one:", Sdks.Select(x => x.DisplayName + (x == Best ? " [Best Choice]" : "")).ToList(), true, BestIndex >= 0 ? BestIndex + 1 : -1);
+				int Choice = TurnkeyUtils.ReadInputInt("Multiple Sdks found that could be installed. Please select one:", Sdks.Select(x => x.Name + (x == Best ? " [Best Choice]" : "")).ToList(), true, BestIndex >= 0 ? BestIndex + 1 : -1);
 
 				// we take canceling to mean to try the next type
 				if (Choice == 0)
@@ -722,7 +722,7 @@ namespace Turnkey
 				{
 					if (ExpandingSource != null)
 					{
-						throw new AutomationTool.AutomationException("FileSource {0} had multiple expansions active on this platform. This is not allowed", DisplayName);
+						throw new AutomationTool.AutomationException("FileSource {0} had multiple expansions active on this platform. This is not allowed", Name);
 					}
 					ExpandingSource = Source;
 				}
@@ -826,11 +826,11 @@ namespace Turnkey
 			// validate
 			if (Version == null && Type == SourceType.Misc)
 			{
-				throw new AutomationTool.AutomationException("FileSource {0} needs to either be a Misc type, or have a version specified", DisplayName);
+				throw new AutomationTool.AutomationException("FileSource {0} needs to either be a Misc type, or have a version specified", Name);
 			}
 			if (Sources == null)
 			{
-				throw new AutomationTool.AutomationException("FileSource {0} has no acutal Source operations specified! This is a setup error.", DisplayName);
+				throw new AutomationTool.AutomationException("FileSource {0} has no acutal Source operations specified! This is a setup error.", Name);
 			}
 
 			PlatformString = TurnkeyUtils.ExpandVariables(PlatformString, true);
@@ -864,11 +864,11 @@ namespace Turnkey
 
 
 			Version = TurnkeyUtils.ExpandVariables(Version, true);
-			DisplayName = TurnkeyUtils.ExpandVariables(DisplayName, true);
+			Name = TurnkeyUtils.ExpandVariables(Name, true);
 
-			if (string.IsNullOrEmpty(DisplayName))
+			if (string.IsNullOrEmpty(Name))
 			{
-				DisplayName = string.Format("{0} {1}", PlatformString, Version);
+				Name = string.Format("{0} {1}", PlatformString, Version);
 			}
 
 			AllowedFlashDeviceTypes = TurnkeyUtils.ExpandVariables(AllowedFlashDeviceTypes, true);
@@ -889,7 +889,7 @@ namespace Turnkey
 		public string ToString(int BaseIndent)
 		{
 			StringBuilder Builder = new StringBuilder();
-			Builder.AppendLine("{1}Name: {0}", DisplayName, Indent(BaseIndent));
+			Builder.AppendLine("{1}Name: {0}", Name, Indent(BaseIndent));
 			Builder.AppendLine("{1}Version: {0}", Version == null ? "<Any>" : Version, Indent(BaseIndent + 2));
 			Builder.AppendLine("{1}Platform: {0}", Platforms == null ? "" : string.Join(",", Platforms), Indent(BaseIndent + 2));
 			Builder.AppendLine("{1}Type: {0}", Type, Indent(BaseIndent + 2));

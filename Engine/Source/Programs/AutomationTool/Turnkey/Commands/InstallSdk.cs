@@ -154,7 +154,7 @@ namespace Turnkey.Commands
 							DeviceInfo Device = GetDevice(AutomationPlatform, DeviceName);
 							Current = Device == null ? "N/A" : Device.SoftwareVersion;
 						}
-						Options.Add(string.Format("[{0}] {1} [Current: {2}]", string.Join(",", Sdk.GetPlatforms()), Sdk.DisplayName, Current));
+						Options.Add(string.Format("[{0}] {1} [Current: {2}]", string.Join(",", Sdk.GetPlatforms()), Sdk.Name, Current));
 					}
 
 					string Prompt = "Select an Sdk to install";

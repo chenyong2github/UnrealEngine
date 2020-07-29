@@ -364,11 +364,11 @@ public class IOSPlatform : Platform
 
 		if (!string.IsNullOrEmpty(Settings.BundleId))
 		{
-			CertLoc = Retriever.RetrieveByTags(new string[] { "DevCert: " + Settings.BundleId }, null);
+			CertLoc = Retriever.RetrieveFileSource("DevCert: " + Settings.BundleId);
 		}
 		if (CertLoc == null)
 		{
-			CertLoc = Retriever.RetrieveByTags(new string[] { "DevCert" }, null);
+			CertLoc = Retriever.RetrieveFileSource("DevCert");
 		}
 
 		if (CertLoc != null)
