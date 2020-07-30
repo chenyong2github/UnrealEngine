@@ -112,6 +112,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	SetCustomVersions(PackageFileSummaryVersions);
 	Loader->SetCustomVersions(PackageFileSummaryVersions);
 
+	SetFilterEditorOnly(Loader->IsFilterEditorOnly());
+
 	PackageFileSize = Loader->TotalSize();
 
 	SetPackageErrorCode(EOpenPackageResult::Success);
