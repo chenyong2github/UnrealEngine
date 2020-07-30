@@ -75,6 +75,17 @@ public:
 		return false;
 	}
 
+	/**
+	 * Returns true if the array is empty and contains no elements. 
+	 *
+	 * @returns True if the array is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return NumElements == 0;
+	}
+
 	/** The number of elements in the array. */
 	FORCEINLINE_DEBUGGABLE int32 Num() const { return NumElements; }
 

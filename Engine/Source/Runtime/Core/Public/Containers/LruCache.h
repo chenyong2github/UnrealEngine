@@ -426,6 +426,17 @@ public:
 	}
 
 	/**
+	 * Returns true if the cache is empty and contains no elements. 
+	 *
+	 * @returns True if the cache is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return LookupSet.IsEmpty();
+	}
+
+	/**
 	 * Get the number of entries in the cache.
 	 *
 	 * @return Number of entries.

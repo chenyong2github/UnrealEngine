@@ -23,6 +23,7 @@ public:
 	void		Free();
 	void		Resize( uint32 NewHeapSize, uint32 NewIndexSize );
 
+	bool		IsEmpty() const			{ return HeapNum == 0; }
 	uint32		Num() const				{ return HeapNum; }
 	uint32		GetHeapSize() const		{ return HeapSize; }
 	uint32		GetIndexSize() const	{ return IndexSize; }

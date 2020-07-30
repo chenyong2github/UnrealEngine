@@ -85,6 +85,11 @@ public:
 		}
 	}
 
+	bool IsEmpty() const
+	{
+		return Num() == 0;
+	}
+
 	int32 Num() const
 	{
 		FData* LocalData = Data;

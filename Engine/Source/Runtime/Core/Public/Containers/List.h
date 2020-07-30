@@ -741,6 +741,17 @@ public:
 	}
 
 	/**
+	 * Returns true if the list is empty and contains no elements. 
+	 *
+	 * @returns True if the list is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return ListSize == 0;
+	}
+
+	/**
 	 * Returns the number of items in the list.
 	 *
 	 * @return Item count.

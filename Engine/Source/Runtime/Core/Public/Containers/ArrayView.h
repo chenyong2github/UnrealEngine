@@ -204,6 +204,17 @@ public:
 	}
 
 	/**
+	 * Returns true if the array view is empty and contains no elements. 
+	 *
+	 * @returns True if the array view is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return ArrayNum == 0;
+	}
+
+	/**
 	 * Returns number of elements in array.
 	 *
 	 * @returns Number of elements in array.

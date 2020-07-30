@@ -687,6 +687,17 @@ public:
 	}
 
 	/**
+	 * Returns true if the array is empty and contains no elements. 
+	 *
+	 * @returns True if the array is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return ArrayNum == 0;
+	}
+
+	/**
 	 * Returns number of elements in array.
 	 *
 	 * @returns Number of elements in array.

@@ -541,6 +541,17 @@ public:
 		Ar.CountBytes(HashSize * sizeof(int32),HashSize * sizeof(FSetElementId));
 	}
 
+	/**
+	 * Returns true if the sets is empty and contains no elements. 
+	 *
+	 * @returns True if the set is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return Elements.IsEmpty();
+	}
+
 	/** @return the number of elements. */
 	FORCEINLINE int32 Num() const
 	{
@@ -1702,6 +1713,11 @@ public:
 	bool IsValidIndex(int32 Index) const
 	{
 		return Elements.IsValidIndex(Index);
+	}
+
+	bool IsEmpty() const
+	{
+		return Elements.IsEmpty();
 	}
 
 	int32 Num() const

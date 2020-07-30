@@ -846,6 +846,17 @@ public:
 		return InIndex >= 0 && InIndex < NumBits;
 	}
 
+	/**
+	 * Returns true if the bit array is empty and contains no elements. 
+	 *
+	 * @returns True if the bit array is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const 
+	{ 
+		return NumBits == 0; 
+	}
+
 	FORCEINLINE int32 Num() const { return NumBits; }
 	FORCEINLINE FBitReference operator[](int32 Index)
 	{

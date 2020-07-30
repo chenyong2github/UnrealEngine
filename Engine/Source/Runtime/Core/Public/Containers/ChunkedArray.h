@@ -128,6 +128,18 @@ public:
 		const int32 ChunkElementIndex = ElementIndex % NumElementsPerChunk;
 		return Chunks[ChunkIndex].Elements[ChunkElementIndex];
 	}
+
+	/**
+	 * Returns true if the chunked array is empty and contains no elements. 
+	 *
+	 * @returns True if the chunked array is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return NumElements == 0;
+	}
+
 	int32 Num() const 
 	{ 
 		return NumElements; 

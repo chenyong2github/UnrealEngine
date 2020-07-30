@@ -266,6 +266,17 @@ public:
 		Pairs.Reserve(Number);
 	}
 
+	/**
+	 * Returns true if the map is empty and contains no elements. 
+	 *
+	 * @returns True if the map is empty.
+	 * @see Num
+	 */
+	bool IsEmpty() const
+	{
+		return Pairs.IsEmpty();
+	}
+
 	/** @return The number of elements in the map. */
 	FORCEINLINE int32 Num() const
 	{
@@ -1598,6 +1609,11 @@ public:
 	bool IsValidIndex(int32 Index) const
 	{
 		return Pairs.IsValidIndex(Index);
+	}
+
+	bool IsEmpty() const
+	{
+		return Pairs.IsEmpty();
 	}
 
 	int32 Num() const

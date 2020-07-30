@@ -32,6 +32,10 @@ public:
 	{
 		return i>=0 && i<ArrayNum;
 	}
+	bool IsEmpty() const
+	{
+		return ArrayNum == 0;
+	}
 	FORCEINLINE int32 Num() const
 	{
 		checkSlow(ArrayNum>=0);

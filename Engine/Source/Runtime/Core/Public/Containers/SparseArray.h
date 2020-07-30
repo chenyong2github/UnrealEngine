@@ -785,6 +785,7 @@ public:
 	}
 	bool IsAllocated(int32 Index) const { return AllocationFlags[Index]; }
 	int32 GetMaxIndex() const { return Data.Num(); }
+	bool IsEmpty() const { return Data.Num() == NumFreeIndices; }
 	int32 Num() const { return Data.Num() - NumFreeIndices; }
 
 	/**
@@ -1253,6 +1254,11 @@ public:
 	bool IsValidIndex(int32 Index) const
 	{
 		return AllocationFlags.IsValidIndex(Index) && AllocationFlags[Index];
+	}
+
+	bool IsEmpty() const
+	{
+		return Data.Num() == NumFreeIndices;
 	}
 
 	int32 Num() const
