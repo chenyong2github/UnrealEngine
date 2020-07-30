@@ -5,7 +5,7 @@
 #include "AVEncoder.h"
 #include "AVEncoderCommon.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 //
 // Windows only include
@@ -213,6 +213,6 @@ private:
 } // namespace AVEncoder
 
 
-#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#endif // AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 

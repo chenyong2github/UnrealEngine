@@ -1050,7 +1050,6 @@ private:
 	TArray<FSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
 	TArray<UObject*> GCKeepObjects;
-	TArray<FWeakObjectPtr> SavingPackageCachedObjectsInOuter;
 	UE::Cook::FPackageData* SavingPackageData = nullptr;
 
 	// temporary -- should eliminate the need for this. Only required right now because FullLoadAndSave 
