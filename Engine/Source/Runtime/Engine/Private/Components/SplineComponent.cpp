@@ -1596,7 +1596,7 @@ void USplineComponent::Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View
 				// Then draw a line for each substep.
 				const int32 NumSteps = 20;
 #if WITH_EDITOR
-				const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineHitToleranceAdjustment;
+				const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineLineThicknessAdjustment;
 #endif
 
 				for (int32 StepIdx = 1; StepIdx <= NumSteps; StepIdx++)
