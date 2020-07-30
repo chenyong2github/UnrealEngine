@@ -3037,13 +3037,6 @@ bool FBlueprintEditorUtils::IsDataOnlyBlueprint(const UBlueprint* Blueprint)
 		return false;
 	}
 
-	// Note that the current implementation of IsChildOf will not crash when called on a nullptr, but
-	// I'm explicitly null checking because it seems unwise to rely on this behavior:
-	if (Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UActorComponent::StaticClass()))
-	{
-		return false;
-	}
-
 	// No new variables defined
 	if (Blueprint->NewVariables.Num() > 0)
 	{
