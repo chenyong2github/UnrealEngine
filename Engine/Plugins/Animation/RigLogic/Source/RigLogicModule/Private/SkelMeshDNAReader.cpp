@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkelMeshDNAReader.h"
 
@@ -9,11 +9,11 @@
 #include "EditorFramework/AssetImportData.h"
 #endif
 #include "Engine/AssetUserData.h"
-#include "Runtime/Core/Public/Serialization/BufferArchive.h"
-#include "Runtime/Core/Public/Serialization/MemoryReader.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
-#include "Runtime/Core/Public/Misc/FileHelper.h"
-#include "Runtime/CoreUObject/Public/UObject/UObjectGlobals.h"
+#include "Serialization/BufferArchive.h"
+#include "Serialization/MemoryReader.h"
+#include "Misc/Paths.h"
+#include "Misc/FileHelper.h"
+#include "UObject/UObjectGlobals.h"
 
 DEFINE_LOG_CATEGORY(LogSkelMeshDNAReader);
 

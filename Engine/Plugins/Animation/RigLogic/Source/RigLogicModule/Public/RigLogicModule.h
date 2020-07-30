@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -7,9 +7,9 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRigLogic, Log, All);
 
-struct RIGLOGICMODULE_API FRigLogicModule: IModuleInterface
+class RIGLOGICMODULE_API FRigLogicModule: public IModuleInterface
 {
 public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	void StartupModule() override;
+	void ShutdownModule() override;
 };

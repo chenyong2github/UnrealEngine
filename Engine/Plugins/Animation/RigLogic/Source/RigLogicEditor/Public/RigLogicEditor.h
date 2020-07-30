@@ -1,17 +1,15 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-struct RIGLOGICEDITOR_API FRigLogicEditor : IModuleInterface 
+class RIGLOGICEDITOR_API FRigLogicEditor : public IModuleInterface 
 {
 public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-	FRigLogicEditor();
+	void StartupModule() override;
+	void ShutdownModule() override;
 
 private:
 	TArray<TSharedRef<class IAssetTypeActions>> AssetTypeActions;

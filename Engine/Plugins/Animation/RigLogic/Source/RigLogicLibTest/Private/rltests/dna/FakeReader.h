@@ -9,8 +9,8 @@
 #include <cstdint>
 
 #if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(push)
-#pragma warning(disable:4100) // unreferenced formal parameter
+    #pragma warning(push)
+    #pragma warning(disable : 4100)
 #endif
 
 namespace dna {
@@ -446,5 +446,5 @@ class FakeReader : public Reader {
 }  // namespace dna
 
 #if defined(_MSC_VER) && !defined(__clang__)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif

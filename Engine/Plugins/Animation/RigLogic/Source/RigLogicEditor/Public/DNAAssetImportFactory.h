@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once 
 
@@ -6,7 +6,7 @@
 #include "Factories/ImportSettings.h"
 #include "EditorReimportHandler.h"
 #include "DNAAsset.h"
-#include "Runtime/Engine/Classes/Engine/SkeletalMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "DNAAssetImportFactory.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDNAImportFactory, Log, All);

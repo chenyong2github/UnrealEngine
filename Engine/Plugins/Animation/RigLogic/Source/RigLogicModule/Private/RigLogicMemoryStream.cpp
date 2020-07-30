@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "RigLogicMemoryStream.h"
 
 FRigLogicMemoryStream::FRigLogicMemoryStream(TArray<uint8>* Buffer)

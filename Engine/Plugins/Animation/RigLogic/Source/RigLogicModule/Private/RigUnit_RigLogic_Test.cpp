@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #if WITH_DEV_AUTOMATION_TESTS
 	#include "RigUnit_RigLogic_Test.h"
 #endif
@@ -5,12 +7,11 @@
 #include "RigUnit_RigLogic.h"
 #include "Units/RigUnitContext.h"
 #include "ControlRig.h"
-#include "riglogic/RigLogic.h"
-#include "Runtime/Core/Public/Math/TransformNonVectorized.h"
+#include "Math/TransformNonVectorized.h"
 #include "SkelMeshDNAUtils.h"
+#include "DNAUtils.h"
 
 #include "riglogic/RigLogic.h"
-#include "DNAUtils.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Units/RigUnitTest.h"

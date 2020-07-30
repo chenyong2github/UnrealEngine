@@ -1,4 +1,4 @@
-// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,8 +6,8 @@
 #include "RigLogic.h"
 
 #include "ControlRig.h"
-#include "../Public/DNAAsset.h"
-#include "Runtime/Engine/Classes/Materials/Material.h"
+#include "DNAAsset.h"
+#include "Materials/Material.h"
 #include "Units/RigUnit.h"
 
 #include "RigUnit_RigLogic.generated.h"
