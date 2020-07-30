@@ -701,7 +701,7 @@ namespace GeometryCollectionTest
 		Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 		Params.Simulating = true;
 		Params.EnableClustering = true;
-		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
+		Params.DamageThreshold = { 30.0, 30.0, 30.0, FLT_MAX };
 		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
@@ -1777,10 +1777,10 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 		
-		EXPECT_EQ(SovlerParticleHandles.Size(), 6);
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
+			EXPECT_EQ(SovlerParticleHandles.Size(), 6);
 			EXPECT_EQ(ClusterMap.Num(),2);
 			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[2],{Collection1Handles[1],Collection1Handles[0]}));
 			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection2Handles[2],{Collection2Handles[1],Collection2Handles[0]}));
