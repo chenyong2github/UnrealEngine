@@ -3,8 +3,10 @@
 #include "SReplaceNodeReferences.h"
 #include "UObject/UObjectHash.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Engine/MemberReference.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_Variable.h"
@@ -13,6 +15,8 @@
 #include "ObjectEditorUtils.h"
 #include "EditorCategoryUtils.h"
 #include "ScopedTransaction.h"
+#include "ReplaceNodeReferencesHelper.h"
+#include "Algo/RemoveIf.h"
 
 #define LOCTEXT_NAMESPACE "SNodeVariableReferences"
 
@@ -62,7 +66,7 @@ public:
 			.VAlign(VAlign_Center)
 			.Padding(2.0f, 0.0f)
 			[
-				SNew(SImage)
+				SNew(SLayeredImage, GetSecondaryIcon(), GetSecondaryIconColor())
 				.Image(GetIcon())
 				.ColorAndOpacity(GetIconColor())
 			]
@@ -96,6 +100,17 @@ public:
 		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		return K2Schema->GetPinTypeColor(PinType);
 	}
+
+	virtual const struct FSlateBrush* GetSecondaryIcon() const override
+	{
+		return FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
+	}
+
+	virtual FSlateColor GetSecondaryIconColor() const override
+	{
+		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		return K2Schema->GetSecondaryPinTypeColor(PinType);
+	}
 	// End of FTargetReplaceReferences interface
 
 public:
@@ -110,6 +125,7 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 {
 	BlueprintEditor = InBlueprintEditor;
 	Refresh();
+	bShowReplacementsWhenFinished = true;
 
 	ChildSlot
 		[
@@ -128,51 +144,16 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 				]
 
 				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Visibility(this, &SReplaceNodeReferences::GetPickSourceReferenceVisibility)
-					.Text(LOCTEXT("PickSourceVariable", "Pick a source variable from the My Blueprints list!"))
-				]
-
-				+SHorizontalBox::Slot()
 				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f, 0.0f)
-				[
-					SNew(SImage)
-					.Visibility(this, &SReplaceNodeReferences::GetSourceReferenceVisibility)
-					.Image(this, &SReplaceNodeReferences::GetSourceReferenceIcon)
-					.ColorAndOpacity(this, &SReplaceNodeReferences::GetSourceReferenceIconColor)
-				]
-
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-						.Visibility(this, &SReplaceNodeReferences::GetSourceReferenceVisibility)
-						.Text(this, &SReplaceNodeReferences::GetSourceDisplayText)
-				]
-			]
-
-			+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ReplaceWith", "Replace with:"))
-				]
-
-			+SVerticalBox::Slot()
-				.AutoHeight()
 				.HAlign(HAlign_Left)
 				[
 					SNew(SBox)
 					.MinDesiredWidth(150.0f)
 					[
-						SAssignNew( TargetReferencesComboBox, SComboButton )
-						.OnGetMenuContent(this, &SReplaceNodeReferences::GetMenuContent)
-						.ContentPadding(0)
-						.ToolTipText(this, &SReplaceNodeReferences::GetTargetDisplayText)
+						SAssignNew( SourceReferencesComboBox, SComboButton )
+						.OnGetMenuContent(this, &SReplaceNodeReferences::GetSourceMenuContent)
+						.ContentPadding(0.0f)
+						.ToolTipText(this, &SReplaceNodeReferences::GetSourceDisplayText)
 						.HasDownArrow(true)
 						.ButtonContent()
 						[
@@ -182,17 +163,74 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 							.VAlign(VAlign_Center)
 							.Padding(2.0f, 0.0f)
 							[
-								SNew(SImage)
-								.Image(this, &SReplaceNodeReferences::GetTargetIcon)
-								.ColorAndOpacity(this, &SReplaceNodeReferences::GetTargetIconColor)
+								SNew(
+									SLayeredImage,
+									TAttribute<const FSlateBrush*>(this, &SReplaceNodeReferences::GetSecondarySourceReferenceIcon),
+									TAttribute<FSlateColor>(this, &SReplaceNodeReferences::GetSecondarySourceReferenceIconColor)
+								)
+								.Image(this, &SReplaceNodeReferences::GetSourceReferenceIcon)
+								.ColorAndOpacity(this, &SReplaceNodeReferences::GetSourceReferenceIconColor)
 							]
 
 							+SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Text(this, &SReplaceNodeReferences::GetSourceDisplayText)
+							]
+						]
+					]
+				]
+			]
+
+			+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(3.0f, 5.0f)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ReplaceWith", "Replace with:"))
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					[
+						SNew(SBox)
+						.MinDesiredWidth(150.0f)
+						[
+							SAssignNew( TargetReferencesComboBox, SComboButton )
+							.OnGetMenuContent(this, &SReplaceNodeReferences::GetTargetMenuContent)
+							.ContentPadding(0.0f)
+							.ToolTipText(this, &SReplaceNodeReferences::GetTargetDisplayText)
+							.HasDownArrow(true)
+							.ButtonContent()
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(2.0f, 0.0f)
+								[
+									SNew(
+										SLayeredImage,
+										TAttribute<const FSlateBrush*>(this, &SReplaceNodeReferences::GetSecondaryTargetIcon),
+										TAttribute<FSlateColor>(this, &SReplaceNodeReferences::GetSecondaryTargetIconColor)
+									)
+									.Image(this, &SReplaceNodeReferences::GetTargetIcon)
+									.ColorAndOpacity(this, &SReplaceNodeReferences::GetTargetIconColor)
+								]
+
+								+SHorizontalBox::Slot()
 								.VAlign(VAlign_Center)
 								[
 									SNew(STextBlock)
 									.Text(this, &SReplaceNodeReferences::GetTargetDisplayText)
 								]
+							]
 						]
 					]
 				]
@@ -205,8 +243,30 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 							SAssignNew(FindInBlueprints, SFindInBlueprints, InBlueprintEditor)
 								.bIsSearchWindow(false)
 								.bHideSearchBar(true)
+								.bHideFindGlobalButton(true)
 						]
 
+				]
+
+			+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(3.0f, 5.0f)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SCheckBox)
+						.IsChecked(this, &SReplaceNodeReferences::GetLocalCheckBoxState)
+						.OnCheckStateChanged(this, &SReplaceNodeReferences::OnLocalCheckBoxChanged)
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(this, &SReplaceNodeReferences::GetLocalCheckBoxLabelText)
+					]
 				]
 
 			+SVerticalBox::Slot()
@@ -219,8 +279,10 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.Text(FText::FromString(TEXT("Find All")))
+						.Text(this, &SReplaceNodeReferences::GetFindAllButtonText)
+						.ToolTipText(this, &SReplaceNodeReferences::GetFindAndReplaceToolTipText, false)
 						.OnClicked(this, &SReplaceNodeReferences::OnFindAll)
+						.IsEnabled(this, &SReplaceNodeReferences::CanBeginSearch, false)
 					]
 
 					+SHorizontalBox::Slot()
@@ -229,10 +291,44 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.Text(FText::FromString(TEXT("Find and Replace All")))
+						.Text(this, &SReplaceNodeReferences::GetFindAndReplaceAllButtonText)
+						.ToolTipText(this, &SReplaceNodeReferences::GetFindAndReplaceToolTipText, true)
 						.OnClicked(this, &SReplaceNodeReferences::OnFindAndReplaceAll)
+						.IsEnabled(this, &SReplaceNodeReferences::CanBeginSearch, true)
 					]
 					
+					+SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.HAlign(HAlign_Left)
+					.AutoWidth()
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SCheckBox)
+							.IsChecked(this, &SReplaceNodeReferences::GetShowReplacementsCheckBoxState)
+							.OnCheckStateChanged(this, &SReplaceNodeReferences::OnShowReplacementsCheckBoxChanged)
+						]
+
+						+SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(this, &SReplaceNodeReferences::GetShowReplacementsCheckBoxLabelText)
+						]
+					]
+
+					+SHorizontalBox::Slot()
+					.Padding(2.0f)
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.FillWidth(1.0f)
+					[
+						SNew(STextBlock)
+						.Text(this, &SReplaceNodeReferences::GetStatusText)
+					]
 				]
 		];
 }
@@ -240,23 +336,31 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 void SReplaceNodeReferences::Refresh()
 {
 	SetSourceVariable(nullptr);
-
-	BlueprintVariableList.Empty();
+	PossibleTargetVariableList.Empty();
+	PossibleSourceVariableList.Empty();
 	TargetClass = BlueprintEditor.Pin()->GetBlueprintObj()->SkeletonGeneratedClass;
-	GatherAllAvailableBlueprintVariables(TargetClass);
+	GatherAllAvailableBlueprintVariables(TargetClass, true);
+	GatherAllAvailableBlueprintVariables(TargetClass, false);
 }
 
 void SReplaceNodeReferences::SetSourceVariable(FProperty* InProperty)
 {
 	if (InProperty)
 	{
+		FEdGraphPinType OldSourcePinType = SourcePinType;
 		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		K2Schema->ConvertPropertyToPinType(InProperty, SourcePinType);
 
 		SourceProperty = InProperty;
 
-		BlueprintVariableList.Empty();
-		GatherAllAvailableBlueprintVariables(TargetClass);
+		// If the type has changed, reset the target
+		if (SourcePinType != OldSourcePinType)
+		{
+			SelectedTargetReferenceItem.Reset();
+		}
+
+		PossibleTargetVariableList.Empty();
+		GatherAllAvailableBlueprintVariables(TargetClass, true);
 
 		if (AvailableTargetReferencesTreeView.IsValid())
 		{
@@ -267,6 +371,12 @@ void SReplaceNodeReferences::SetSourceVariable(FProperty* InProperty)
 	{
 		SourceProperty = nullptr;
 	}
+
+	// Reset the FindInBlueprints results
+	if (FindInBlueprints.IsValid())
+	{
+		FindInBlueprints->ClearResults();
+	}
 }
 
 SReplaceNodeReferences::~SReplaceNodeReferences()
@@ -274,27 +384,41 @@ SReplaceNodeReferences::~SReplaceNodeReferences()
 
 }
 
-TSharedRef<SWidget>	SReplaceNodeReferences::GetMenuContent()
+TSharedRef<SWidget>	SReplaceNodeReferences::GetTargetMenuContent()
 {
 	return SAssignNew(AvailableTargetReferencesTreeView, SReplaceReferencesTreeViewType)
 		.ItemHeight(24)
-		.TreeItemsSource( &BlueprintVariableList )
-		.OnSelectionChanged(this, &SReplaceNodeReferences::OnSelectionChanged)
+		.TreeItemsSource( &PossibleTargetVariableList )
+		.OnSelectionChanged(this, &SReplaceNodeReferences::OnTargetSelectionChanged)
 		.OnGenerateRow( this, &SReplaceNodeReferences::OnGenerateRow )
 		.OnGetChildren( this, &SReplaceNodeReferences::OnGetChildren );
 }
 
-void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTargetClass)
+TSharedRef<SWidget> SReplaceNodeReferences::GetSourceMenuContent()
+{
+	return SAssignNew(AvailableSourceReferencesTreeView, SReplaceReferencesTreeViewType)
+		.ItemHeight(24)
+		.TreeItemsSource(&PossibleSourceVariableList)
+		.OnSelectionChanged(this, &SReplaceNodeReferences::OnSourceSelectionChanged)
+		.OnGenerateRow(this, &SReplaceNodeReferences::OnGenerateRow)
+		.OnGetChildren(this, &SReplaceNodeReferences::OnGetChildren);
+}
+
+void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTargetClass, bool bForTarget)
 {
 	if (InTargetClass == nullptr)
 	{
 		return;
 	}
-	GatherAllAvailableBlueprintVariables(InTargetClass->GetSuperClass());
+
+	if (bForTarget)
+	{
+		GatherAllAvailableBlueprintVariables(InTargetClass->GetSuperClass(), bForTarget);
+	}
 
 	TMap<FString, TSharedPtr< FTargetCategoryReplaceReferences > > CategoryMap;
 
-	UObject* PathObject = InTargetClass->ClassGeneratedBy? InTargetClass->ClassGeneratedBy : InTargetClass;
+	UObject* PathObject = InTargetClass->ClassGeneratedBy ? InTargetClass->ClassGeneratedBy : InTargetClass;
 	TSharedPtr< FTargetCategoryReplaceReferences > BlueprintCategory = MakeShareable(new FTargetCategoryReplaceReferences(FText::FromString(PathObject->GetPathName())));
 	for (TFieldIterator<FProperty> PropertyIt(InTargetClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
@@ -364,7 +488,7 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 			FEdGraphPinType Type;
 			K2Schema->ConvertPropertyToPinType(Property, VariableItem->PinType);
 
-			if (VariableItem->PinType == SourcePinType)
+			if (!bForTarget || VariableItem->PinType == SourcePinType)
 			{
 				CategoryReference->Children.Add(VariableItem);
 
@@ -377,9 +501,11 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 		}
 	}
 
+	TArray<FTreeViewItem>& CurrentList = bForTarget ? PossibleTargetVariableList : PossibleSourceVariableList;
+
 	if (BlueprintCategory->Children.Num())
 	{
-		BlueprintVariableList.Add(BlueprintCategory);
+		CurrentList.Add(BlueprintCategory);
 		// Sort markers
 		struct FCompareCategoryTitles
 		{
@@ -398,6 +524,21 @@ void SReplaceNodeReferences::GatherAllAvailableBlueprintVariables(UClass* InTarg
 		};
 		BlueprintCategory->Children.Sort(FCompareCategoryTitles());
 	}
+	
+	// Conditionally add "No variables found"
+	if (TargetClass == InTargetClass && CurrentList.Num() == 0)
+	{
+		if (bForTarget)
+		{
+			TSharedPtr< FTargetCategoryReplaceReferences > NoneFound = MakeShared<FTargetCategoryReplaceReferences>(LOCTEXT("NoReplacements", "No viable replacements found!"));
+			CurrentList.Add(NoneFound);
+		}
+		else
+		{
+			TSharedPtr< FTargetCategoryReplaceReferences > NoneFound = MakeShared<FTargetCategoryReplaceReferences>(LOCTEXT("NoSources", "No replaceable variables found!"));
+			CurrentList.Add(NoneFound);
+		}
+	}
 }
 
 TSharedRef<ITableRow> SReplaceNodeReferences::OnGenerateRow(FTreeViewItem InItem, const TSharedRef<STableViewBase>& OwnerTable)
@@ -415,7 +556,17 @@ void SReplaceNodeReferences::OnGetChildren( FTreeViewItem InItem, TArray< FTreeV
 
 FReply SReplaceNodeReferences::OnFindAll()
 {
-	OnSubmitSearchQuery(false);
+	if (bFindWithinBlueprint)
+	{
+		OnSubmitSearchQuery(false);
+	}
+	else
+	{
+		FFindInBlueprintCachingOptions CachingOptions;
+		CachingOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+		CachingOptions.OnFinished = FSimpleDelegate::CreateSP(this, &SReplaceNodeReferences::OnSubmitSearchQuery, false);
+		FindInBlueprints->CacheAllBlueprints(CachingOptions);
+	}
 	return FReply::Handled();
 }
 
@@ -423,82 +574,95 @@ FReply SReplaceNodeReferences::OnFindAndReplaceAll()
 {
 	if (SelectedTargetReferenceItem.IsValid())
 	{
-		FFindInBlueprintCachingOptions CachingOptions;
-		CachingOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-		CachingOptions.OnFinished = FSimpleDelegate::CreateSP(this, &SReplaceNodeReferences::OnSubmitSearchQuery, true);
-		FindInBlueprints->CacheAllBlueprints(CachingOptions);
+		if (bFindWithinBlueprint)
+		{
+			OnSubmitSearchQuery(true);
+		}
+		else
+		{
+			FFindInBlueprintCachingOptions CachingOptions;
+			CachingOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+			CachingOptions.OnFinished = FSimpleDelegate::CreateSP(this, &SReplaceNodeReferences::OnSubmitSearchQuery, true);
+			FindInBlueprints->CacheAllBlueprints(CachingOptions);
+		}
 	}
 	return FReply::Handled();
 }
 
 void SReplaceNodeReferences::OnSubmitSearchQuery(bool bFindAndReplace)
 {
-	FString SearchTerm;
-
-	FMemberReference SourceVariableReference;
-	SourceVariableReference.SetFromField<FProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
-	SearchTerm = SourceVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass());
-
-	FOnSearchComplete OnSearchComplete;
-	if (bFindAndReplace)
+	if (HasValidSource())
 	{
-		OnSearchComplete = FOnSearchComplete::CreateSP(this, &SReplaceNodeReferences::FindAllReplacementsComplete);
-	}
+		FString SearchTerm;
 
-	FStreamSearchOptions SearchOptions;
-	SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
-	SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-	FindInBlueprints->MakeSearchQuery(SearchTerm, false, SearchOptions, OnSearchComplete);
+		FMemberReference SourceVariableReference;
+		SourceVariableReference.SetFromField<FProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
+		SearchTerm = SourceVariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass());
+
+		FOnSearchComplete OnSearchComplete;
+		if (bFindAndReplace)
+		{
+			OnSearchComplete = FOnSearchComplete::CreateSP(this, &SReplaceNodeReferences::FindAllReplacementsComplete);
+		}
+
+		FStreamSearchOptions SearchOptions;
+		SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+		SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+		FindInBlueprints->MakeSearchQuery(SearchTerm, bFindWithinBlueprint, SearchOptions, OnSearchComplete);
+	}
 }
 
 void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDataSharedPtr>& InRawDataList)
 {
+	if (InRawDataList.Num() == 0)
+	{
+		return;
+	}
+
+	if (!bFindWithinBlueprint)
+	{
+		SReplaceReferencesConfirmation::EDialogResponse Response = SReplaceReferencesConfirmation::CreateModal(&InRawDataList);
+
+		if (Response == SReplaceReferencesConfirmation::EDialogResponse::Cancel)
+		{
+			return;
+		}
+	}
+
 	if (SelectedTargetReferenceItem.IsValid())
 	{
 		FMemberReference VariableReference;
 		if (SelectedTargetReferenceItem->GetMemberReference(VariableReference))
 		{
-			FText TransactionTitle = FText::Format(LOCTEXT("FindReplaceAllTransaction", "{0} replaced with {1}"), FText::FromString(SourceProperty->GetName()), FText::FromName(VariableReference.GetMemberName()));
-			const FScopedTransaction Transaction( TransactionTitle );
-			BlueprintEditor.Pin()->GetBlueprintObj()->Modify();
-
-			TArray< UBlueprint* > BlueprintsModified;
-			for (FImaginaryFiBDataSharedPtr ImaginaryData : InRawDataList)
+			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
+			if (PinnedEditor.IsValid())
 			{
-				BlueprintsModified.AddUnique(ImaginaryData->GetBlueprint());
-				UObject* Node = ImaginaryData->GetObject(ImaginaryData->GetBlueprint());
-				UK2Node_Variable* VariableNode = Cast<UK2Node_Variable>(Node);
-				if (ensure(VariableNode))
+				UBlueprint* Blueprint = PinnedEditor->GetBlueprintObj();
+				if (Blueprint)
 				{
-					VariableNode->Modify();
-					if (VariableNode->VariableReference.IsLocalScope() || VariableNode->VariableReference.IsSelfContext())
+					const FScopedTransaction Transaction(GetTransactionTitle(VariableReference));
+					Blueprint->Modify();
+
+					FReplaceNodeReferencesHelper::ReplaceReferences(VariableReference, Blueprint, InRawDataList);
+
+					if (SourceProperty && bShowReplacementsWhenFinished)
 					{
-						VariableNode->VariableReference = VariableReference;
+						TSharedPtr<SFindInBlueprints> GlobalResults = FFindInBlueprintSearchManager::Get().GetGlobalFindResults();
+						if (GlobalResults)
+						{
+							FStreamSearchOptions SearchOptions;
+							SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
+							SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
+							GlobalResults->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), bFindWithinBlueprint, SearchOptions);
+						}
 					}
-					else
-					{
-						UBlueprint* Blueprint = BlueprintEditor.Pin()->GetBlueprintObj();
-						VariableNode->VariableReference.SetFromField<FProperty>(VariableReference.ResolveMember<FProperty>(Blueprint), Blueprint->GeneratedClass);
-					}
-					VariableNode->ReconstructNode();
 				}
 			}
-
-			for (UBlueprint* Blueprint : BlueprintsModified)
-			{
-				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
-				FFindInBlueprintSearchManager::Get().AddOrUpdateBlueprintSearchMetadata(Blueprint);
-			}
-
-			FStreamSearchOptions SearchOptions;
-			SearchOptions.ImaginaryDataFilter = ESearchQueryFilter::NodesFilter;
-			SearchOptions.MinimiumVersionRequirement = EFiBVersion::FIB_VER_VARIABLE_REFERENCE;
-			FindInBlueprints->MakeSearchQuery(VariableReference.GetReferenceSearchString(SourceProperty->GetOwnerClass()), false, SearchOptions);
 		}
 	}
 }
 
-void SReplaceNodeReferences::OnSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo)
+void SReplaceNodeReferences::OnTargetSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo)
 {
 	// When the user is navigating, do not act upon the selection change
 	if(SelectInfo == ESelectInfo::OnNavigation || (Selection.IsValid() && Selection->IsCategory()))
@@ -510,24 +674,217 @@ void SReplaceNodeReferences::OnSelectionChanged(FTreeViewItem Selection, ESelect
 	TargetReferencesComboBox->SetIsOpen(false);
 }
 
+void SReplaceNodeReferences::OnSourceSelectionChanged(FTreeViewItem Selection, ESelectInfo::Type SelectInfo)
+{
+	// When the user is navigating, do not act upon the selection change
+	if (SelectInfo == ESelectInfo::OnNavigation || (Selection.IsValid() && Selection->IsCategory()))
+	{
+		return;
+	}
+
+	FMemberReference NewSource;
+	if (Selection->GetMemberReference(NewSource))
+	{
+		SetSourceVariable(NewSource.ResolveMember<FProperty>(TargetClass));
+	}
+
+	SourceReferencesComboBox->SetIsOpen(false);
+}
+
 FText SReplaceNodeReferences::GetSourceDisplayText() const
 {
-	if (SourceProperty == nullptr)
+	if (!HasValidSource())
 	{
-		return FText::FromString(TEXT("Hello World!"));
+		return LOCTEXT("UnselectedSourceReference", "Please select a source reference!");
 	}
 	return FText::FromString(SourceProperty->GetName());
 }
 
 const FSlateBrush* SReplaceNodeReferences::GetSourceReferenceIcon() const
 {
-	return FBlueprintEditorUtils::GetIconFromPin(SourcePinType);
+	if (HasValidSource())
+	{
+		return FBlueprintEditorUtils::GetIconFromPin(SourcePinType);
+	}
+
+	return nullptr;
 }
 
 FSlateColor SReplaceNodeReferences::GetSourceReferenceIconColor() const
 {
 	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	return K2Schema->GetPinTypeColor(SourcePinType);
+}
+
+const FSlateBrush* SReplaceNodeReferences::GetSecondarySourceReferenceIcon() const
+{
+	if (HasValidSource())
+	{
+		return FBlueprintEditorUtils::GetSecondaryIconFromPin(SourcePinType);
+	}
+
+	return nullptr;
+}
+
+FSlateColor SReplaceNodeReferences::GetSecondarySourceReferenceIconColor() const
+{
+	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	return K2Schema->GetSecondaryPinTypeColor(SourcePinType);
+}
+
+bool SReplaceNodeReferences::HasValidSource() const
+{
+	return (SourceProperty != nullptr);
+}
+
+FText SReplaceNodeReferences::GetFindAllButtonText() const
+{
+	if (bFindWithinBlueprint)
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BP"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::FromString(TEXT("<UNKNOWN>")));
+		return FText::Format(LOCTEXT("FindLocal", "Find References in {BP}"), Args);
+	}
+	else
+	{
+		return LOCTEXT("FindAll", "Find All References");
+	}
+}
+
+FText SReplaceNodeReferences::GetFindAndReplaceAllButtonText() const
+{
+	if (bFindWithinBlueprint)
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BP"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::FromString(TEXT("<UNKNOWN>")));
+		return FText::Format(LOCTEXT("ReplaceLocal", "Find and Replace References in {BP}"), Args);
+	}
+	else
+	{
+		return LOCTEXT("ReplaceAll", "Find and Replace All References");
+	}
+}
+
+FText SReplaceNodeReferences::GetFindAndReplaceToolTipText(bool bFindAndReplace) const
+{
+	if (CanBeginSearch(bFindAndReplace))
+	{
+		return FText::GetEmpty();
+	}
+	else
+	{
+		if (!HasValidSource())
+		{
+			return LOCTEXT("PickSourceVariable", "Pick a source variable from the menu!");
+		}
+		else if (bFindAndReplace && !SelectedTargetReferenceItem.IsValid())
+		{
+			return LOCTEXT("PickTarget", "Pick a target variable to replace with from the menu!");
+		}
+		else
+		{
+			return LOCTEXT("SearchInProgress", "A search is already in progress!");
+		}
+	}
+}
+
+bool SReplaceNodeReferences::CanBeginSearch(bool bFindAndReplace) const
+{
+	bool bCanSearch = HasValidSource() && !IsSearchInProgress();
+
+	if (bFindAndReplace)
+	{
+		bCanSearch = bCanSearch && SelectedTargetReferenceItem.IsValid();
+	}
+
+	return bCanSearch;
+}
+
+void SReplaceNodeReferences::OnLocalCheckBoxChanged(ECheckBoxState Checked)
+{
+	bFindWithinBlueprint = (Checked == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SReplaceNodeReferences::GetLocalCheckBoxState() const
+{
+	if (FindInBlueprints.IsValid())
+	{
+		return bFindWithinBlueprint ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	return ECheckBoxState::Unchecked;
+}
+
+FText SReplaceNodeReferences::GetShowReplacementsCheckBoxLabelText() const
+{
+	return LOCTEXT("ShowReplacements", "Show Replacements when complete?");
+}
+
+void SReplaceNodeReferences::OnShowReplacementsCheckBoxChanged(ECheckBoxState Checked)
+{
+	bShowReplacementsWhenFinished = (Checked == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SReplaceNodeReferences::GetShowReplacementsCheckBoxState() const
+{
+	return bShowReplacementsWhenFinished ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+FText SReplaceNodeReferences::GetLocalCheckBoxLabelText() const
+{
+	if (BlueprintEditor.IsValid())
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BlueprintClass"), BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::GetEmpty());
+		return FText::Format(LOCTEXT("OnlyLocal", "Only show and replace results from {BlueprintClass} class?"), Args);
+	}
+
+	return FText::GetEmpty();
+}
+
+FText SReplaceNodeReferences::GetStatusText() const
+{
+	if (IsSearchInProgress())
+	{
+		if (FFindInBlueprintSearchManager::Get().IsCacheInProgress())
+		{
+			return LOCTEXT("Caching", "Caching...");
+		}
+		else
+		{
+			return LOCTEXT("Searching", "Searching...");
+		}
+	}
+
+	return FText::GetEmpty();
+}
+
+bool SReplaceNodeReferences::IsSearchInProgress() const
+{
+	return FindInBlueprints.IsValid() && 
+		   (FindInBlueprints->IsSearchInProgress() || FFindInBlueprintSearchManager::Get().IsCacheInProgress());
+}
+
+FText SReplaceNodeReferences::GetTransactionTitle(const FMemberReference& TargetReference) const
+{
+	FText BlueprintName;
+
+	if (bFindWithinBlueprint && BlueprintEditor.IsValid())
+	{
+		const UBlueprint* BlueprintObj = BlueprintEditor.Pin()->GetBlueprintObj();
+
+		BlueprintName = BlueprintObj ? FText::FromString(BlueprintObj->GetName()) : FText::GetEmpty();
+	}
+
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Source"), FText::FromString(SourceProperty->GetName()));
+	Args.Add(TEXT("Target"), FText::FromName(TargetReference.GetMemberName()));
+	Args.Add(TEXT("Scope"), bFindWithinBlueprint ? BlueprintName : LOCTEXT("AllBlueprints", "All Blueprints"));
+	return FText::Format(LOCTEXT("FindReplaceAllTransaction", "{Source} replaced with {Target} in {Scope}"), Args);
 }
 
 FText SReplaceNodeReferences::GetTargetDisplayText() const
@@ -561,6 +918,204 @@ FSlateColor SReplaceNodeReferences::GetTargetIconColor() const
 		ReturnColor = SelectedTargetReferenceItem->GetIconColor();
 	}
 	return ReturnColor;
+}
+
+const FSlateBrush* SReplaceNodeReferences::GetSecondaryTargetIcon() const
+{
+	const FSlateBrush* ReturnBrush = nullptr;
+
+	if (SelectedTargetReferenceItem.IsValid())
+	{
+		ReturnBrush = SelectedTargetReferenceItem->GetSecondaryIcon();
+	}
+	return ReturnBrush;
+}
+
+FSlateColor SReplaceNodeReferences::GetSecondaryTargetIconColor() const
+{
+	FSlateColor ReturnColor = FLinearColor::White;
+
+	if (SelectedTargetReferenceItem.IsValid())
+	{
+		ReturnColor = SelectedTargetReferenceItem->GetSecondaryIconColor();
+	}
+	return ReturnColor;
+}
+
+////////////////////////////////////////////////
+// Replace References Confirmation
+
+TSharedRef<SWidget> FReplaceConfirmationListItem::CreateWidget()
+{
+	return SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SCheckBox)
+			.IsChecked_Raw(this, &FReplaceConfirmationListItem::IsChecked)
+			.OnCheckStateChanged_Raw(this, &FReplaceConfirmationListItem::OnCheckStateChanged)
+		]
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(5.0f, 3.0f)
+		[
+			SNew(STextBlock)
+			.Text(Blueprint ? FText::FromString(Blueprint->GetPathName()) : FText::FromString(TEXT("<UNKNOWN>")))
+		];
+}
+
+void FReplaceConfirmationListItem::OnCheckStateChanged(ECheckBoxState State)
+{
+	bReplace = State == ECheckBoxState::Checked;
+}
+
+ECheckBoxState FReplaceConfirmationListItem::IsChecked() const
+{
+	return bReplace ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SReplaceReferencesConfirmation::Construct(const FArguments& InArgs)
+{
+	RawFindData = InArgs._FindResults;
+	Response = EDialogResponse::Cancel;
+
+	if (RawFindData)
+	{
+		for (FImaginaryFiBDataSharedPtr Data : *RawFindData)
+		{
+			const UBlueprint* DataBlueprint = Data->GetBlueprint();
+
+			const FListViewItem* FoundItem = AffectedBlueprints.FindByPredicate([DataBlueprint](FListViewItem Item)
+				{
+					return Item->GetBlueprint() == DataBlueprint;
+				});
+
+			if (!FoundItem)
+			{
+				AffectedBlueprints.Add(MakeShared<FReplaceConfirmationListItem>(Data->GetBlueprint()));
+			}
+		}
+	}
+
+	ChildSlot
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ReplaceIn", "Replace references in the following Blueprints:"))
+			]
+
+			+SVerticalBox::Slot()
+			.Padding(5.0f, 5.0f)
+			[
+				SNew(SBox)
+				.MinDesiredHeight(100.0f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+					[
+						SNew(SListView<FListViewItem>)
+						.ItemHeight(24.0f)
+						.ListItemsSource(&AffectedBlueprints)
+						.SelectionMode(ESelectionMode::None)
+						.OnGenerateRow(this, &SReplaceReferencesConfirmation::OnGenerateRow)
+					]
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.HAlign(HAlign_Right)
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(5.0f, 3.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("Confirm", "Confirm"))
+						.OnClicked(this, &SReplaceReferencesConfirmation::CloseWindow, EDialogResponse::Confirm)
+					]
+				
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(5.0f, 3.0f)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("Cancel", "Cancel"))
+						.OnClicked(this, &SReplaceReferencesConfirmation::CloseWindow, EDialogResponse::Cancel)
+					]
+				]
+			]
+		];
+}
+
+SReplaceReferencesConfirmation::EDialogResponse SReplaceReferencesConfirmation::CreateModal(TArray<FImaginaryFiBDataSharedPtr>* InFindResults)
+{
+	TSharedPtr<SWindow> Window;
+	TSharedPtr<SReplaceReferencesConfirmation> Widget;
+
+	Window = SNew(SWindow)
+		.Title(LOCTEXT("ConfirmReplace", "Confirm Replacements"))
+		.SizingRule(ESizingRule::UserSized)
+		.MinWidth(400.f)
+		.MinHeight(300.f)
+		.SupportsMaximize(true)
+		.SupportsMinimize(false)
+		[
+			SNew(SBorder)
+			.Padding(4.f)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SAssignNew(Widget, SReplaceReferencesConfirmation)
+				.FindResults(InFindResults)
+			]
+		];
+
+	Widget->MyWindow = Window;
+
+	GEditor->EditorAddModalWindow(Window.ToSharedRef());
+
+	return Widget->Response;
+}
+
+TSharedRef<ITableRow> SReplaceReferencesConfirmation::OnGenerateRow(FListViewItem Item, const TSharedRef<STableViewBase>& OwnerTable) const
+{
+	return SNew(STableRow<FListViewItem>, OwnerTable)
+		[
+			Item->CreateWidget()
+		];
+}
+
+FReply SReplaceReferencesConfirmation::CloseWindow(EDialogResponse InResponse)
+{
+	if (InResponse == EDialogResponse::Confirm && RawFindData)
+	{
+		// Filter the Results if necessary
+		for (FListViewItem Item : AffectedBlueprints)
+		{
+			if (!Item->ShouldReplace())
+			{
+				const UBlueprint* BP = Item->GetBlueprint();
+				RawFindData->SetNum(Algo::RemoveIf(*RawFindData, [BP](FImaginaryFiBDataSharedPtr Data) { return Data->GetBlueprint() == BP; }));
+			}
+		}
+	}
+
+	Response = InResponse;
+	MyWindow->RequestDestroyWindow();
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

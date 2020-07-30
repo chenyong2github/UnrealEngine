@@ -71,6 +71,11 @@ void UK2Node_CallParentFunction::SetFromFunction(const UFunction* Function)
 	}
 }
 
+void UK2Node_CallParentFunction::FixupSelfMemberContext()
+{
+	// Do nothing. We want the context to continue to be our parent class.
+}
+
 void UK2Node_CallParentFunction::PostPlacedNewNode()
 {
 	// We don't want to check if our function exists in the current scope

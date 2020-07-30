@@ -7238,11 +7238,11 @@ FWorldContext& UEditorEngine::GetEditorWorldContext(bool bEnsureIsGWorld)
 	return CreateNewWorldContext(EWorldType::Editor);
 }
 
-FWorldContext* UEditorEngine::GetPIEWorldContext()
+FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 {
-	for(auto& WorldContext : WorldList)
+	for (FWorldContext& WorldContext : WorldList)
 	{
-		if(WorldContext.WorldType == EWorldType::PIE)
+		if (WorldContext.WorldType == EWorldType::PIE && WorldContext.PIEInstance == WorldPIEInstance)
 		{
 			return &WorldContext;
 		}

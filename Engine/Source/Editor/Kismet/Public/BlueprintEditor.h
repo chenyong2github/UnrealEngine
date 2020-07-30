@@ -642,6 +642,9 @@ public:
 	/** Removes the bookmark node with the given ID. */
 	void RemoveBookmark(const FGuid& BookmarkNodeId, bool bRefreshUI = true);
 
+	/** Gets the default schema for this editor */
+	TSubclassOf<UEdGraphSchema> GetDefaultSchema() const { return GetDefaultSchemaClass(); }
+
 protected:
 	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
 	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) {}
@@ -924,6 +927,10 @@ protected:
 
 	/** Paste on graph at specific location */
 	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
+
+	/** Paste Variable Definition or Nodes */
+	virtual void PasteGeneric();
+	virtual bool CanPasteGeneric() const;
 
 	virtual void PasteNodes();
 	virtual bool CanPasteNodes() const override;

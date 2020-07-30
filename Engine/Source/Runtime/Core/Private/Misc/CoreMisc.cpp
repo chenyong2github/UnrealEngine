@@ -374,28 +374,6 @@ FScopedScriptExceptionHandler::~FScopedScriptExceptionHandler()
 	FScriptExceptionHandler::Get().PopExceptionHandler();
 }
 
-/*----------------------------------------------------------------------------
-FBlueprintExceptionTracker
-----------------------------------------------------------------------------*/
-#if DO_BLUEPRINT_GUARD
-void FBlueprintExceptionTracker::ResetRunaway()
-{
-	Runaway = 0;
-	Recurse = 0;
-	bRanaway = false;
-}
-
-FBlueprintExceptionTracker& FBlueprintExceptionTracker::Get()
-{
-	return TThreadSingleton<FBlueprintExceptionTracker>::Get();
-}
-
-const FBlueprintExceptionTracker* FBlueprintExceptionTracker::TryGet()
-{
-	return TThreadSingleton<FBlueprintExceptionTracker>::TryGet();
-}
-#endif // DO_BLUEPRINT_GUARD
-
 bool GIsRetrievingVTablePtr = false;
 
 void EnsureRetrievingVTablePtrDuringCtor(const TCHAR* CtorSignature)

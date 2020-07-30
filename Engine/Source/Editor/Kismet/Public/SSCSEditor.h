@@ -1305,7 +1305,7 @@ protected:
 	void OnApplyChangesToBlueprint() const;
 
 	/** Resets instance changes to the blueprint default */
-	void OnResetToBlueprintDefaults() const;
+	void OnResetToBlueprintDefaults();
 
 	/** Converts the current actor instance to a blueprint */
 	void PromoteToBlueprint() const;
