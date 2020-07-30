@@ -1,0 +1,18 @@
+
+
+2020/07/17 (agrant)
+
+* Added support for building as mac arm64
+* Needed some warnings turned off for x64 with modern clang
+* Had to update CMakeLists.txt in PxShared, PhysX_3.4, and Apec_1.4 to support using CMAKE_OSX_ARCHITECTURES argument to detect arm64 vs x86_64
+    * Using arguments for iOS libs
+    * Does not build with SIMD disabled! (PX_SIMD_DISABLED)
+    * Enabled Neon
+
+PhysX3/PhysX_3.4/Source/compiler/cmake/mac/CMakeLists.txt
+PhysX3/PxShared/src/compiler/cmake/mac/CMakeLists.txt
+
+* Had to fix headers in Apex/Cloth that assumed different Neon includes / functions 
+
+PhysX3/NvCloth/src/NvSimd/neon/NvNeonSimdTypes.h
+PhysX3/NvCloth/src/neon/SwCollisionHelpers.h

@@ -12,8 +12,19 @@ IF (NOT ${TARGET_BUILD_PLATFORM} IN_LIST PLATFORM_LIST)
 	MESSAGE(FATAL_ERROR "Invalid platform:" ${TARGET_BUILD_PLATFORM})
 ENDIF()
 
-# TODO: Get real flags
-SET(CMAKE_CXX_FLAGS "-fdiagnostics-show-option -Wall -Wextra -Werror -fno-rtti -fno-exceptions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wno-unknown-pragmas -Wno-dynamic-class-memaccess -Wno-reorder -Wno-logical-not-parentheses -Wno-unused-parameter -Wno-unused-variable -Wno-unused-const-variable -Werror -Wno-unused-function -Wno-unknown-pragmas -Wno-overloaded-virtual  -Wno-non-virtual-dtor -Wno-invalid-noreturn -Wno-return-type-c-linkage -Wno-reserved-id-macro -Wno-c++98-compat-pedantic -Wno-unused-local-typedef -Wno-old-style-cast -Wno-newline-eof -Wno-unused-private-field -Wno-undefined-reinterpret-cast -Wno-invalid-offsetof -Wno-local-type-template-args -Wno-zero-as-null-pointer-constant -Wno-shadow-field -Wno-unused-template -Wno-c++2a-compat -Wno-unknown-warning-option -gdwarf-2")
+if(${CMAKE_OSX_ARCHITECTURES} STREQUAL "arm64")
+	MESSAGE(STATUS "[Epic] Building APEX for MacOS arm64")
+	# Copied from iOS
+	SET(CMAKE_CXX_FLAGS "-fdiagnostics-show-option -Wall -Wextra -Werror -fno-rtti -fno-exceptions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wno-unknown-pragmas -Wno-dynamic-class-memaccess -Wno-reorder -Wno-logical-not-parentheses -Wno-unused-parameter -Wno-unused-variable -Wno-unused-const-variable -Werror -Wno-unused-function -Wno-unknown-pragmas -Wno-overloaded-virtual  -Wno-non-virtual-dtor -Wno-invalid-noreturn -Wno-return-type-c-linkage -Wno-reserved-id-macro -Wno-c++98-compat-pedantic -Wno-unused-local-typedef -Wno-old-style-cast -Wno-newline-eof -Wno-unused-private-field -Wno-undefined-reinterpret-cast -Wno-invalid-offsetof -Wno-local-type-template-args -Wno-zero-as-null-pointer-constant -Wno-shadow-field -Wno-unused-template -Wno-c++2a-compat -Wno-unknown-warning-option -gdwarf-2")
+	SET(CMAKE_CXX_FLAGS " -arch arm64 ${CMAKE_CXX_FLAGS}")
+else(${CMAKE_OSX_ARCHITECTURES} STREQUAL "x86_64")
+	MESSAGE(STATUS "[Epic] Building APEX for MacOS x86_64")
+	# TODO: Get real flags
+	SET(CMAKE_CXX_FLAGS "-fdiagnostics-show-option -Wall -Wextra -Werror -fno-rtti -fno-exceptions -fno-strict-aliasing -ffunction-sections -fdata-sections -Wno-unknown-pragmas -Wno-dynamic-class-memaccess -Wno-reorder -Wno-logical-not-parentheses -Wno-unused-parameter -Wno-unused-variable -Wno-unused-const-variable -Werror -Wno-unused-function -Wno-unknown-pragmas -Wno-overloaded-virtual  -Wno-non-virtual-dtor -Wno-invalid-noreturn -Wno-return-type-c-linkage -Wno-reserved-id-macro -Wno-c++98-compat-pedantic -Wno-unused-local-typedef -Wno-old-style-cast -Wno-newline-eof -Wno-unused-private-field -Wno-undefined-reinterpret-cast -Wno-invalid-offsetof -Wno-local-type-template-args -Wno-zero-as-null-pointer-constant -Wno-shadow-field -Wno-unused-template -Wno-c++2a-compat -Wno-unknown-warning-option -gdwarf-2")
+	SET(CMAKE_CXX_FLAGS "-arch x86_64 ${CMAKE_CXX_FLAGS}")
+else()
+	MESSAGE( FATAL_ERROR "Unrecognized architecture ${CMAKE_OSX_ARCHITECTURES}" )
+endif()
 
 SET(CMAKE_SHARED_LINKER_FLAGS "")
 
