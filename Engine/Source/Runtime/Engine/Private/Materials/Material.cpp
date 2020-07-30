@@ -5745,7 +5745,8 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		return InProperty == MP_EmissiveColor
 			|| InProperty == MP_SubsurfaceColor
-			|| InProperty == MP_BaseColor;
+			|| InProperty == MP_BaseColor
+			|| InProperty == MP_AmbientOcclusion;
 	}
 	else if (Domain == MD_UI)
 	{
