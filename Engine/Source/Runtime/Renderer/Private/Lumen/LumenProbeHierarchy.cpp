@@ -1742,7 +1742,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 
 			if (ProbeHierachyParameters.HierarchyDepth == 1)
 			{
-				AddClearStructuredBufferUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ProbeParentList, PF_R32_UINT), 0);
+				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ProbeParentList), 0);
 			}
 		}
 	}

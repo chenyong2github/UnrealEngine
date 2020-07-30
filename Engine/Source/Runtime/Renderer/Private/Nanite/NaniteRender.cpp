@@ -3709,11 +3709,11 @@ void DrawBasePass(
 	const bool       bCullMaterials       = GNaniteMaterialCulling!=0 && UseComputeDepthExport(); // #yuriy_todo: implement material culling for non-compute path
 	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, bCullMaterials ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
 	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
-	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials, PF_R32_UINT);
+	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
 
 	// Visible material buffer is currently only filled by compute depth export pass.
 	// If that's not used, then initialize all materials to visible.
-	AddClearStructuredBufferUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
+	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
 
 	if (UseComputeDepthExport())
 	{
@@ -4204,8 +4204,8 @@ void DrawLumenMeshCapturePass(
 	// Visible material mask buffer (currently not used by Lumen, but still must be bound)
 	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, 1);
 	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
-	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials, PF_R32_UINT);
-	AddClearStructuredBufferUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
+	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
+	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
 
 	// Mark stencil for all pixels that pass depth test
 	{
