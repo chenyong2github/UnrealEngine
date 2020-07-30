@@ -1659,7 +1659,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
 	if (LoadedPackage->GetFName() != PackageData.GetPackageName())
 	{
-		// This case should never happen since we are checking for the existing of the file in PumpExternalRequests
+		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
 		UE_LOG(LogCook, Warning, TEXT("Unexpected change in PackageName when loading a requested package. \"%s\" changed to \"%s\"."),
 			*PackageData.GetPackageName().ToString(), *LoadedPackage->GetName());
 
@@ -1678,7 +1678,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 
 	if (NewPackageFileName != PackageFileName)
 	{
-		// This case should never happen since we are checking for the existing of the file in PumpExternalRequests
+		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
 		UE_LOG(LogCook, Warning, TEXT("Unexpected change in FileName when loading a requested package. \"%s\" changed to \"%s\"."),
 			*PackageFileName.ToString(), *NewPackageFileName.ToString());
 
@@ -1843,16 +1843,24 @@ bool UCookOnTheFlyServer::BeginPackageCacheForCookedPlatformData(UE::Cook::FPack
 
 	const TArray<const ITargetPlatform*>& TargetPlatforms = PackageData.GetRequestedPlatforms();
 	int NumPlatforms = TargetPlatforms.Num();
-	TArray<UObject*>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
 	int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
-	UObject* const* const CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
+	FWeakObjectPtr* CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
 
 	int NumIndexes = CachedObjectsInOuter.Num() * NumPlatforms;
 	while (CookedPlatformDataNextIndex < NumIndexes)
 	{
 		int ObjectIndex = CookedPlatformDataNextIndex / NumPlatforms;
 		int PlatformIndex = CookedPlatformDataNextIndex - ObjectIndex * NumPlatforms;
-		UObject* Obj = CachedObjectsInOuterData[ObjectIndex];
+		UObject* Obj = CachedObjectsInOuterData[ObjectIndex].Get();
+		if (!Obj)
+		{
+			// Objects can be marked as pending kill even without a garbage collect, and our weakptr.get will return null for them, so we have to always check the WeakPtr before using it
+			// Treat objects that have been marked as pending kill or deleted as no-longer-required for BeginCacheForCookedPlatformData and ClearAllCachedCookedPlatformData
+			CachedObjectsInOuterData[ObjectIndex] = nullptr; // If the weakptr is merely pendingkill, set it to null explicitly so we don't think that we've called BeginCacheForCookedPlatformData on it if it gets unmarked pendingkill later
+			++CookedPlatformDataNextIndex;
+			continue;
+		}
 		const ITargetPlatform* TargetPlatform = TargetPlatforms[PlatformIndex];
 
 		if (Obj->IsA(UMaterialInterface::StaticClass()))
@@ -1947,8 +1955,9 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
-			for (UObject* Object : PackageData.GetCachedObjectsInOuter())
+			for (FWeakObjectPtr& WeakPtr: PackageData.GetCachedObjectsInOuter())
 			{
+				UObject* Object = WeakPtr.Get();
 				if (Object)
 				{
 					Object->ClearAllCachedCookedPlatformData();
@@ -1974,15 +1983,17 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 			TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
 			for (FPendingCookedPlatformData& PendingCookedPlatformData : PackageDatas->GetPendingCookedPlatformDatas())
 			{
-				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete() && PendingCookedPlatformData.Object != nullptr)
+				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
 				{
+					UObject* Object = PendingCookedPlatformData.Object.Get();
+					check(Object); // Otherwise PollIsComplete would have returned true
 					check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
-					PendingObjects.FindOrAdd(PendingCookedPlatformData.Object).Add(&PendingCookedPlatformData);
+					PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
 				}
 			}
 
 			// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
-			TArray<UObject*> CachedObjects = PackageData.GetCachedObjectsInOuter();
+			TArray<FWeakObjectPtr>& CachedObjects = PackageData.GetCachedObjectsInOuter();
 			int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
 			check(NumIndexes <= NumPlatforms * CachedObjects.Num());
 			// GetCookedPlatformDataNextIndex is a value in an inline iteration over the two-dimensional array of Objects x Platforms, in Object-major order.
@@ -1990,7 +2001,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 			int32 NumObjects = (NumIndexes + NumPlatforms - 1) / NumPlatforms;
 			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
 			{
-				UObject* Object = CachedObjects[ObjectIndex];
+				UObject* Object = CachedObjects[ObjectIndex].Get();
 				if (!Object)
 				{
 					continue;
@@ -2384,8 +2395,9 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 				// For each object for which data is cached we can call FinishedCookedPlatformDataCache
 				// we can only safely call this when we are finished caching the object completely.
 				// this doesn't ever happen for cook in editor or cook on the fly mode
-				for (UObject* Obj : PackageData.GetCachedObjectsInOuter())
+				for (FWeakObjectPtr& WeakPtr: PackageData.GetCachedObjectsInOuter())
 				{
+					UObject* Obj = WeakPtr.Get();
 					if (Obj)
 					{
 						Obj->WillNeverCacheCookedPlatformDataAgain();
@@ -2987,19 +2999,10 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		check(PackageData->GetState() == EPackageState::Save || !PackageData->HasReferencedObjects());
 	}
 #endif
-
-	// If there is a GarbageCollect while we are saving a package, convert all of the CachedObjectPointers on the SavingPackage to weak pointers,
-	// so we can get notified if they are destroyed without declaring them as references.  We do not want to declare them as references, in case there is 
-	// the expectation by some licensee code that removing references to an object will cause it to not be saved
 	if (SavingPackageData)
 	{
-		check(SavingPackageCachedObjectsInOuter.Num() == 0);
-		SavingPackageCachedObjectsInOuter.Reserve(SavingPackageCachedObjectsInOuter.Num());
-		for (UObject* Object : SavingPackageData->GetCachedObjectsInOuter())
-		{
-			SavingPackageCachedObjectsInOuter.Add(FWeakObjectPtr(Object));
-		}
-		SavingPackageData->GetCachedObjectsInOuter().Reset();
+		check(SavingPackageData->GetPackage());
+		GCKeepObjects.Add(SavingPackageData->GetPackage());
 	}
 
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
@@ -3074,26 +3077,7 @@ void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collec
 {
 	using namespace UE::Cook;
 
-	// Serialize all object pointers we are holding.
-	// We have to serialize these object pointers by reference rather than by copy, so they can be nulled out if the GarbageCollector wants to delete them despite our reference.
-	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
-	{
-		PackageData->AddReferencedObjects(Collector);
-	}
-	if (SavingPackageData)
-	{
-		SavingPackageData->AddReferencedObjects(Collector);
-	}
-
-	for (UE::Cook::FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
-	{
-		if (PendingData.Object)
-		{
-			Collector.AddReferencedObject(PendingData.Object);
-		}
-	}
-
-	// GCKeepObjects are the objects that we want to keep loaded but we don't hold references to
+	// GCKeepObjects are the objects that we want to keep loaded but we only have a WeakPtr to
 	Collector.AddReferencedObjects(GCKeepObjects);
 }
 
@@ -3116,22 +3100,11 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 		PackageDatas->GetRequestQueue().AddRequest(PackageData, /* bForceUrgent */ true);
 	}
 
-	if (SavingPackageData)
-	{
-		// If garbage collection deleted the package WHILE WE WERE SAVING IT, we have problems
-		check(SavingPackageData->GetPackage() != nullptr);
-
-		// All other object references on the SavingPackageData were converted to weak pointers during the garbage collect; read them back into raw pointers now.
-		TArray<UObject*>& CachedObjectsInOuter = SavingPackageData->GetCachedObjectsInOuter();
-		for (FWeakObjectPtr& WeakPtr : SavingPackageCachedObjectsInOuter)
-		{
-			// Note we may be adding a null here, which is okay.  We need to maintain the index each object had before the garbage collect.
-			// All code between the call to SavePackage and the exit from the save state checks these pointers for null before using them.
-			UObject* Object = WeakPtr.Get();
-			CachedObjectsInOuter.Add(Object);
-		}
-		SavingPackageCachedObjectsInOuter.Empty();
-	}
+	// If there was a GarbageCollect while we are saving a package, some of the WeakObjectPtr in SavingPackageData->CachedObjectPointers may have been deleted and set to null
+	// We need to handle nulls in that array at any point after calling SavePackage. We do not want to declare them as references and prevent their GC, in case there is 
+	// the expectation by some licensee code that removing references to an object will cause it to not be saved
+	// However, if garbage collection deleted the package WHILE WE WERE SAVING IT, then we have problems.
+	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
 
 	GCKeepObjects.Empty();
 }
@@ -4245,7 +4218,6 @@ void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, 
 
 	FString ConfigName = bFoundPlatformName ? FString::Printf(TEXT("%s.%s"),*PlatformName, *Config->Name.ToString()) : Config->Name.ToString();
 	const FName& ConfigFName = FName(*ConfigName);
-	
 	for ( auto& ConfigSection : *Config )
 	{
 		TSet<FName> ProcessedValues; 
