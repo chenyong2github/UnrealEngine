@@ -66,12 +66,12 @@ public:
 	SLATECORE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	SLATECORE_API virtual FString GetReferencerName() const override;
 
-	SLATECORE_API void InvalidateRoot();
+	SLATECORE_API void InvalidateRoot(const SWidget* Investigator = nullptr);
 
 	/** Call to notify that the ordering of children somewhere in the hierarchy below this root has changed and the fast path is no longer valid */
-	SLATECORE_API void InvalidateChildOrder();
+	SLATECORE_API void InvalidateChildOrder(const SWidget* Investigator = nullptr);
 
-	SLATECORE_API void InvalidateScreenPosition();
+	SLATECORE_API void InvalidateScreenPosition(const SWidget* Investigator = nullptr);
 
 	bool NeedsSlowPath() const { return bNeedsSlowPath; }
 
