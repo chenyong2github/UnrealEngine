@@ -208,7 +208,7 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	MaterialParameters.CloudSampleNormAltitudeInLayer = saturate(MaterialParameters.CloudSampleAltitudeInLayer * CloudLayerParams.ToNormAltitude);
 
 	const float DefaultConservativeDensity = 1.0f;
-	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity;								// This should not be used when evaluating density. But it still is initialised.
+	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity;								// Defaults to "medium is potentially present" in case it is not fed by the user.
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
 #endif
@@ -661,7 +661,7 @@ bool TraceClouds(
 		UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition, ResolvedView, CloudLayerParams);
 
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-		if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
 			t += StepT;
 			continue; // Conservative density is 0 so skip and go to the next sample
@@ -756,7 +756,7 @@ bool TraceClouds(
 					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT), ResolvedView, CloudLayerParams);
 					PreviousNormT = CurrentNormT;
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-					if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
 						continue; // Conservative density is 0 so skip and go to the next sample
 					}
@@ -773,7 +773,7 @@ bool TraceClouds(
 				{
 					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (ShadowT * InvShadowStepCount), ResolvedView, CloudLayerParams);
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-					if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
 						continue; // Conservative density is 0 so skip and go to the next sample
 					}
@@ -847,7 +847,7 @@ bool TraceClouds(
 		#endif
 
 			#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-				if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+				if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 				{
 					continue; // Conservative density is 0 so skip and go to the next sample
 				}
@@ -901,7 +901,7 @@ bool TraceClouds(
 				PreviousNormT = CurrentNormT;
 
 			#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-				if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+				if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 				{
 					continue; // Conservative density is 0 so skip and go to the next sample
 				}
@@ -1341,7 +1341,7 @@ void MainPS(
 			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + Light0Direction * SampleT, ResolvedView, CloudLayerParams);
 
 		#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-			if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 			{
 				continue; // Conservative density is 0 so skip and go to the next sample
 			}

@@ -6638,7 +6638,7 @@ int32 FHLSLMaterialTranslator::GetCloudSampleNormAltitudeInLayer()
 
 int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
 {
-	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)

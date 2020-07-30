@@ -17571,7 +17571,7 @@ int32 UMaterialExpressionVolumetricAdvancedMaterialOutput::Compile(class FMateri
 	}
 	else if (OutputIndex == 6)
 	{
-		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant(1.0f);
+		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant3(1.0f, 1.0f, 1.0f);
 	}
 
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
