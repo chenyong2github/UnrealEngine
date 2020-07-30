@@ -53,6 +53,7 @@ namespace Chaos
 		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			// Update as a point constraint (base class).
+			Constraint.bShouldTreatAsSinglePoint = true;
 			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance);
 		}
 
@@ -755,7 +756,7 @@ namespace Chaos
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
 
-			if (IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
+			if (Constraint.bShouldTreatAsSinglePoint || IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
 			{
 				// If not on first iteration, or at TOI = 1 (normal constraint) we don't want to split timestep at TOI.
 				ApplyImpl(Constraint, IterationParameters, ParticleParameters);
