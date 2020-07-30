@@ -2895,6 +2895,12 @@ APlayerState* APlayerController::GetNextViewablePlayer(int32 dir)
 	// This will allow us to attempt to find another player to view or, if all else fails, makes sure we have a playerstate set for next time.
 	int32 NextIndex = (NextPlayerState ? GameState->PlayerArray.Find(NextPlayerState) : GameState->PlayerArray.Find(PlayerState));
 
+	//Check that NextIndex is a valid index, as Find() may return INDEX_NONE
+	if (!GameState->PlayerArray.IsValidIndex(NextIndex))
+	{
+		return nullptr;
+	}
+
 	// Cycle through the player states until we find a valid one.
 	for (int32 i = 0; i < GameState->PlayerArray.Num(); ++i)
 	{
