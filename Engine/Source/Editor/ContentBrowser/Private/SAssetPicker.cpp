@@ -101,12 +101,13 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 
 	FrontendFilters = MakeShareable(new FAssetFilterCollectionType());
 
+	TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
+
 	// Search box
 	if (!InArgs._AssetPickerConfig.bAutohideSearchBar)
 	{
 		HighlightText = TAttribute< FText >( this, &SAssetPicker::GetHighlightedText );
 
-		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
 		if (InArgs._AssetPickerConfig.bAddFilterUI)
 		{
@@ -147,12 +148,13 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.AutoWidth()
 		[
 			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.Style(FEditorStyle::Get(), "ToggleButtonCheckBox")
 			.ToolTipText(this, &SAssetPicker::GetShowOtherDevelopersToolTip)
 			.OnCheckStateChanged(this, &SAssetPicker::HandleShowOtherDevelopersCheckStateChanged)
 			.IsChecked(this, &SAssetPicker::GetShowOtherDevelopersCheckState)
 			[
 				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image(FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon"))
 			]
 		];
@@ -303,6 +305,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.CanShowFolders( InArgs._AssetPickerConfig.bCanShowFolders )
 		.ShowPathInColumnView( InArgs._AssetPickerConfig.bShowPathInColumnView)
 		.ShowTypeInColumnView( InArgs._AssetPickerConfig.bShowTypeInColumnView)
+		.ShowViewOptions(false)  // We control this in the asset picker
 		.SortByPathInColumnView( InArgs._AssetPickerConfig.bSortByPathInColumnView)
 		.FilterRecursivelyWithBackendFilter( false )
 		.CanShowRealTimeThumbnails( InArgs._AssetPickerConfig.bCanShowRealTimeThumbnails )
@@ -317,6 +320,24 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.CustomColumns(InArgs._AssetPickerConfig.CustomColumns)
 		.OnSearchOptionsChanged(this, &SAssetPicker::HandleSearchSettingsChanged)
 	];
+
+
+	HorizontalBox->AddSlot()
+	.AutoWidth()
+	[
+		SNew(SComboButton)
+		.ContentPadding(0)
+		.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+		.OnGetMenuContent(AssetViewPtr.ToSharedRef(), &SAssetView::GetViewButtonContent)
+		.HasDownArrow(false)
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+		]	
+	];
+
 
 	LoadSettings();
 

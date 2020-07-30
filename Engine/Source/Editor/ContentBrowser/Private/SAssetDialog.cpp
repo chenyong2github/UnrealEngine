@@ -12,6 +12,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Styling/AppStyle.h"
 #include "EditorStyleSet.h"
 #include "AssetRegistryModule.h"
 #include "ContentBrowserSingleton.h"
@@ -190,7 +191,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		+ SVerticalBox::Slot()
 		.FillHeight(1)
 		.VAlign(VAlign_Center)
-		.Padding(0, 2, 0, 2)
+		.Padding(0, 4, 0, 4)
 		[
 			SNew(STextBlock).Text(LOCTEXT("PathBoxLabel", "Path:"))
 		];
@@ -199,7 +200,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		+ SVerticalBox::Slot()
 		.FillHeight(1)
 		.VAlign(VAlign_Center)
-		.Padding(0, 2, 0, 2)
+		.Padding(0, 4, 0, 4)
 		[
 			SAssignNew(PathText, STextBlock)
 			.Text(this, &SAssetDialog::GetPathNameText)
@@ -210,7 +211,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		LabelsBox->AddSlot()
 			.FillHeight(1)
 			.VAlign(VAlign_Center)
-			.Padding(0, 2, 0, 2)
+			.Padding(0, 4, 0, 4)
 			[
 				SNew(STextBlock).Text(LOCTEXT("NameBoxLabel", "Name:"))
 			];
@@ -234,35 +235,36 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		.AutoWidth()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Bottom)
-		.Padding(bIncludeNameBox ? 80 : 4, 20, 4, 3)
+		.Padding(0.f, 0.f, 4.f, 0.f)
 		[
 			LabelsBox
 		]
 		+ SHorizontalBox::Slot()
 		.FillWidth(1)
 		.VAlign(VAlign_Bottom)
-		.Padding(4, 3)
+		.Padding(4.f, 0.f) 
 		[
 			ContentBox
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Bottom)
-		.Padding(4, 3)
+		.Padding(4.f, 0.f) 
 		[
 			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(ConfirmButtonText)
-			.ContentPadding(FMargin(8, 2, 8, 2))
 			.IsEnabled(this, &SAssetDialog::IsConfirmButtonEnabled)
 			.OnClicked(this, &SAssetDialog::OnConfirmClicked)
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Bottom)
-		.Padding(4, 3)
+		.Padding(4.f, 0.f, 0.0f, 0.0f) 
 		[
 			SNew(SButton)
-			.ContentPadding(FMargin(8, 2, 8, 2))
+			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("AssetDialogCancelButton", "Cancel"))
 			.OnClicked(this, &SAssetDialog::OnCancelClicked)
 		];
@@ -270,7 +272,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 	MainVerticalBox->AddSlot()
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
-		.Padding(0)
+		.Padding(16.f, 4.f, 16.f, 16.f)
 		[
 			ButtonsAndNameBox
 		];

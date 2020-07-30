@@ -272,6 +272,8 @@ void SPackagesDialog::AddButton(TSharedPtr<FPackageButton> Button)
 	.Padding( 2 )
 	[
 		SNew(SButton) 
+			.ButtonStyle(&FAppStyle::Get(), Button->GetType() == DRT_Save ? "PrimaryButton" : "Button")
+			.TextStyle(&FAppStyle::Get(), "DialogButtonText")
 			.Text(Button->GetName())
 			.ContentPadding(FMargin(10, 3))
 			.ToolTipText(Button->GetToolTip())
