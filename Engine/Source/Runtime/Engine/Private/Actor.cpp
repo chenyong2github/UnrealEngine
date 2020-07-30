@@ -1167,16 +1167,18 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 	IRepChangedPropertyTracker* const ActorChangedPropertyTracker = NetDriver->FindOrCreateRepChangedPropertyTracker(this).Get();
 
 	const ENetRole LocalRole = GetLocalRole();
+	const UWorld* World = GetWorld();
 	
-	// client replay + autonomous proxy check removed, we already swap the role when recording
-	if (LocalRole == ROLE_Authority) 
+	// PreReplication is only called on the server, except when we're recording a Client Replay.
+	// In that case we call PreReplication on the locally controlled Character as well.
+	if ((LocalRole == ROLE_Authority) || ((LocalRole == ROLE_AutonomousProxy) && World && World->IsRecordingClientReplay()))
 	{
 		PreReplication(*ActorChangedPropertyTracker);
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// If we're recording a replay, call this for everyone (includes SimulatedProxies).
-	if (ActorChangedPropertyTracker->IsReplay())
+	if (ActorChangedPropertyTracker->IsReplay() || NetDriver->HasReplayConnection())
 	{
 		PreReplicationForReplay(*ActorChangedPropertyTracker);
 	}

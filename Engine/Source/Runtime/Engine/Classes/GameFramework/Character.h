@@ -936,4 +936,10 @@ public:
 	 * Only called on Server, and for autonomous proxies if recording a Client Replay.
 	 */
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
+
+	/**
+	 * Called on the actor right before replication occurs.
+	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
+	 */
+	virtual void PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 };
