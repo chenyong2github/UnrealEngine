@@ -437,3 +437,23 @@ bool ULevelEditorSubsystem::SetCurrentLevelByName(FName LevelName)
 
 	return bLevelFound;
 }
+
+ULevel* ULevelEditorSubsystem::GetCurrentLevel()
+{
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+
+	if (!UnrealEditorSubsystem)
+	{
+		return nullptr;
+	}
+
+	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
+
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("GetCurrentLevel. Can't Get the current level because there is no world."));
+		return nullptr;
+	}
+
+	return World->GetCurrentLevel();
+}

@@ -84,4 +84,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	bool SetCurrentLevelByName(FName LevelName);
+
+	/**
+	* Get the current level used by the world editor.
+	* @return	The current level
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	ULevel* GetCurrentLevel();
 };
