@@ -53,7 +53,7 @@ static FAutoConsoleVariableRef CVarNiagaraUsePostActorMark(
 static int GNiagaraSpawnPerTickGroup = 1;
 static FAutoConsoleVariableRef CVarNiagaraSpawnPerTickGroup(
 	TEXT("fx.Niagara.WorldManager.SpawnPerTickGroup"),
-	GNiagaraUsePostActorMark,
+	GNiagaraSpawnPerTickGroup,
 	TEXT("Will attempt to spawn new systems earlier (default enabled)."),
 	ECVF_Default
 );
