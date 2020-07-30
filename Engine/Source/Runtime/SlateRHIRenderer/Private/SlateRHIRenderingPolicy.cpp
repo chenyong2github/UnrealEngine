@@ -872,6 +872,13 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 							TextureRHI = TextureObjectResource->AccessRHIResource();
 
+							// warn about null RHI textures, this can upset some RHIs
+							if(TextureRHI == nullptr)
+							{
+								ensureMsgf(TextureRHI, TEXT("null TextureRHI encountered, texture name: %s"), *TextureObj->GetName());
+								TextureRHI = GWhiteTexture->TextureRHI;
+							}
+
 							Filter = GetSamplerFilter(TextureObj);
 						}
 					}
