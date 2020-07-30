@@ -431,7 +431,7 @@ namespace Audio
 			const FDecodedFormatInfo& InFormat) const override
 		{
 			return Reqs;
-		}
+		}	
 
 		template<typename From, typename To>
 		static constexpr float GetConvertScalar()
@@ -442,11 +442,11 @@ namespace Audio
 			}
 			else if( TIsSame<From,int16>::Value && TIsSame<To,float>::Value)
 			{
-				return 1.f / static_cast<float>(FMath::Abs(TNumericLimits<int16>::Min()));
+				return 1.f / (static_cast<float>(TNumericLimits<int16>::Max()) + 1.f);
 			}
 			else if( TIsSame<From,float>::Value && TIsSame<To,int16>::Value)
 			{
-				return static_cast<float>(FMath::Abs(TNumericLimits<int16>::Min()));
+				return static_cast<float>(TNumericLimits<int16>::Max()) + 1.f;
 			}
 		}
 

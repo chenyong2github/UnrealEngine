@@ -5,14 +5,35 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 
+// Forward declares
+namespace Audio
+{	
+	struct IDecoderInput;
+}
+
 namespace Metasound
 {
+	// Forward declare ReadRef
+	class FWave;
+	typedef TDataReadReference<FWave> FWaveReadRef;
+		
 	class FWave
 	{
 		TArray<uint8> CompressedBytes;
+		friend class FWaveDecoderInput;
 	public:
-		const TArray<uint8>& GetCompressedData() const { return CompressedBytes; }
-	};
+		FWave() = default;
 
+		// For testing only.
+		FWave(const TArray<uint8>& InBytes) 
+			: CompressedBytes(InBytes) 
+		{}
+
+		using FDecoderInputPtr = TSharedPtr<Audio::IDecoderInput,ESPMode::ThreadSafe>;
+
+		// Factory function to create a Decoder input
+		static FDecoderInputPtr CreateDecoderInput(
+			const FWaveReadRef& InWaveRef);
+	};
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWave, 0x0ddba11, FWaveTypeInfo, FWaveReadRef, FWaveWriteRef)
 }
