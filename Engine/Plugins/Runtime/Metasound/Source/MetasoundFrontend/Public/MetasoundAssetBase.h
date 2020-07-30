@@ -45,9 +45,6 @@ public:
 	// Returns the root class metadata
 	FMetasoundClassMetadata GetMetadata();
 
-	const FText& GetInputToolTip(FString InputName) const;
-	const FText& GetOutputToolTip(FString OutputName) const;
-
 	// Imports the asset from a JSON file at provided path
 	bool ImportFromJSON(const FString& InAbsolutePath);
 

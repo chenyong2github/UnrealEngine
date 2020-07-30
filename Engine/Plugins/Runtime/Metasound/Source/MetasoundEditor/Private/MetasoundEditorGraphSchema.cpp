@@ -24,6 +24,7 @@
 #include "UObject/NoExportTypes.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "../../MetasoundFrontend/Public/MetasoundAssetBase.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -404,7 +405,13 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 	Metasound::Frontend::FConnectability Connectability = InputHandle.CanConnectTo(OutputHandle);
 	if (Connectability.Connectable != Metasound::Frontend::FConnectability::EConnectable::Yes)
 	{
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("ConnectionTypeIncompatible", "Connection pin types cannot be connected"));
+		const FName InputType = InputHandle.GetInputType();
+		const FName OutputType = OutputHandle.GetOutputType();
+		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::Format(
+			LOCTEXT("ConnectionTypeIncompatibleFormat", "Output pin of type '{0}' cannot be connected to input pin of type '{1}'"),
+			FText::FromName(OutputType),
+			FText::FromName(InputType)
+		));
 	}
 
 	// Break existing connections on inputs only - multiple output connections are acceptable
@@ -459,6 +466,41 @@ bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) co
 {
 	// TODO: Determine if should be hidden from doc data
 	return false;
+}
+
+FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) const
+{
+	using namespace Metasound::Frontend;
+
+	check(Pin);
+
+	UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(Pin->GetOwningNode());
+	FNodeHandle NodeHandle = Node->GetNodeHandle();
+	const EMetasoundClassType ClassType = NodeHandle.GetClassInfo().NodeType;
+
+	switch (ClassType)
+	{
+		case EMetasoundClassType::Input:
+		{
+			FGraphHandle GraphHandle = Node->GetRootGraphHandle();
+			return GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName());
+		}
+
+		case EMetasoundClassType::Output:
+		{
+			FGraphHandle GraphHandle = Node->GetRootGraphHandle();
+			return GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName());
+		}
+
+		case EMetasoundClassType::External:
+		case EMetasoundClassType::MetasoundGraph:
+		case EMetasoundClassType::Invalid:
+		default:
+		{
+			static_assert(static_cast<int32>(EMetasoundClassType::Invalid) == 4, "Possible missing EMetasoundClassType case coverage");
+			return Super::GetPinDisplayName(Pin);
+		}
+	}
 }
 
 FLinearColor UMetasoundEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const

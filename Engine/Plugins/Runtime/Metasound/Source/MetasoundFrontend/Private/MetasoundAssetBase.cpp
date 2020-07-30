@@ -46,36 +46,6 @@ FMetasoundClassMetadata FMetasoundAssetBase::GetMetadata()
 	return GetDocument().RootClass.Metadata;
 }
 
-const FText& FMetasoundAssetBase::GetInputToolTip(FString InputName) const
-{
-	const FMetasoundDocument& RootMetasoundDocument = GetDocument();
-
-	for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
-	{
-		if (Desc.Name == InputName)
-		{
-			return Desc.ToolTip;
-		}
-	}
-
-	return FText::GetEmpty();
-}
-
-const FText& FMetasoundAssetBase::GetOutputToolTip(FString OutputName) const
-{
-	const FMetasoundDocument& RootMetasoundDocument = GetDocument();
-
-	for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
-	{
-		if (Desc.Name == OutputName)
-		{
-			return Desc.ToolTip;
-		}
-	}
-
-	return FText::GetEmpty();
-}
-
 TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint> FMetasoundAssetBase::GetGraphAccessPoint() const
 {
 	return TWeakPtr<Metasound::Frontend::FDescriptionAccessPoint>(AccessPoint);

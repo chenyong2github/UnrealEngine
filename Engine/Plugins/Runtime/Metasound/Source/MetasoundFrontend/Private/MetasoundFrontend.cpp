@@ -1127,7 +1127,6 @@ namespace Metasound
 			return NodePtr->UniqueID;
 		}
 
-
 		const FString& FNodeHandle::GetNodeName() const
 		{
 			if (!IsValid())
@@ -2379,6 +2378,92 @@ namespace Metasound
 			// Step 5: Invoke Operator Builder
 			FOperatorBuilder Builder(InSettings);
 			return Builder.BuildGraphOperator(GraphToBuild, OutBuildErrors);
+		}
+
+		const FText& FGraphHandle::GetInputDisplayName(FString InputName) const
+		{
+			const FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+
+			for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
+			{
+				if (Desc.Name == InputName)
+				{
+					return Desc.DisplayName;
+				}
+			}
+
+			return FText::GetEmpty();
+		}
+
+		const FText& FGraphHandle::GetInputToolTip(FString InputName) const
+		{
+			const FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+
+			for (const FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
+			{
+				if (Desc.Name == InputName)
+				{
+					return Desc.ToolTip;
+				}
+			}
+
+			return FText::GetEmpty();
+		}
+
+		const FText& FGraphHandle::GetOutputDisplayName(FString OutputName) const
+		{
+			const FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+
+			for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
+			{
+				if (Desc.Name == OutputName)
+				{
+					return Desc.DisplayName;
+				}
+			}
+
+			return FText::GetEmpty();
+		}
+
+		const FText& FGraphHandle::GetOutputToolTip(FString OutputName) const
+		{
+			const FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+
+			for (const FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
+			{
+				if (Desc.Name == OutputName)
+				{
+					return Desc.ToolTip;
+				}
+			}
+
+			return FText::GetEmpty();
+		}
+
+		void FGraphHandle::SetInputDisplayName(FString InName, const FText& InDisplayName)
+		{
+			FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+			for (FMetasoundInputDescription& Desc : RootMetasoundDocument.RootClass.Inputs)
+			{
+				if (Desc.Name == InName)
+				{
+					Desc.DisplayName = InDisplayName;
+					break;
+				}
+			}
+		}
+
+		void FGraphHandle::SetOutputDisplayName(FString InName, const FText& InDisplayName)
+		{
+			FMetasoundDocument& RootMetasoundDocument = *OwningDocument;
+			for (FMetasoundOutputDescription& Desc : RootMetasoundDocument.RootClass.Outputs)
+			{
+				if (Desc.Name == InName)
+				{
+					Desc.DisplayName = InDisplayName;
+					break;
+				}
+			}
 		}
 
 		FGraphHandle GetGraphHandleForClass(const FMetasoundClassDescription& InClass)

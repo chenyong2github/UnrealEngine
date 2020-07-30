@@ -5,13 +5,14 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Metasound.h"
+#include "MetasoundAssetBase.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
+#include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "Templates/Tuple.h"
-#include "MetasoundEditorModule.h"
-#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
@@ -72,7 +73,59 @@ namespace Metasound
 			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
-			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewInput(Description);
+			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+			Frontend::FNodeHandle NodeHandle = GraphHandle.AddNewInput(Description);
+			if (!NodeHandle.IsValid())
+			{
+				return nullptr;
+			}
+
+			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
+			FEditorDataType DataType = EditorModule.FindDataType(InTypeName);
+
+			Metasound::FDataTypeLiteralParam LiteralParam = Frontend::GetDefaultParamForDataType(InTypeName);
+			if (!ensureAlways(LiteralParam.IsValid()))
+			{
+				return nullptr;
+			}
+
+			switch (LiteralParam.ConstructorArgType)
+			{
+				case ELiteralArgType::Boolean:
+				{
+					GraphHandle.SetInputToLiteral(InName, false);
+				}
+				break;
+
+				case ELiteralArgType::Float:
+				{
+					GraphHandle.SetInputToLiteral(InName, 0.0f);
+				}
+				break;
+
+				case ELiteralArgType::Integer:
+				{
+					GraphHandle.SetInputToLiteral(InName, 0);
+				}
+				break;
+
+				case ELiteralArgType::String:
+				{
+					GraphHandle.SetInputToLiteral(InName, FString(TEXT("")));
+				}
+				break;
+
+				case ELiteralArgType::Invalid:
+				case ELiteralArgType::None:
+				default:
+				{
+					static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 5, "Possible missing ELiteralArgType case coverage");
+				}
+				break;
+			}
+
+			GraphHandle.SetInputDisplayName(InName, FText::FromString(InName));
+
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
@@ -86,7 +139,11 @@ namespace Metasound
 			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
-			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewOutput(Description);
+			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+			Frontend::FNodeHandle NodeHandle = GraphHandle.AddNewOutput(Description);
+			
+			GraphHandle.SetOutputDisplayName(InName, FText::FromString(InName));
+
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
@@ -147,8 +204,10 @@ namespace Metasound
 
 			Graph->Nodes.Reset();
 
-			// TODO: Space graph nodes in a readable way
-			FVector2D Location = FVector2D::ZeroVector;
+			// TODO: Space graph nodes in a procedural and readable way
+			FVector2D InputNodeLocation = FVector2D::ZeroVector;
+			FVector2D OpNodeLocation = FVector2D(250.0f, 0.0f);
+			FVector2D OutputNodeLocation = FVector2D(500.0f, 0.0f);
 
 			struct FNodePair
 			{
@@ -161,6 +220,22 @@ namespace Metasound
 			for (FNodeHandle& NodeHandle : NodeHandles)
 			{
 				const FNodeClassInfo ClassInfo = NodeHandle.GetClassInfo();
+				FVector2D Location;
+				if (ClassInfo.NodeType == EMetasoundClassType::Input)
+				{
+					Location = InputNodeLocation;
+					InputNodeLocation.Y += 100.0f;
+				}
+				else if (ClassInfo.NodeType == EMetasoundClassType::Output)
+				{
+					Location = OutputNodeLocation;
+					OutputNodeLocation.Y += 100.0f;
+				}
+				else
+				{
+					Location = OpNodeLocation;
+					OpNodeLocation.Y += 100.0f;
+				}
 				UEdGraphNode* NewNode = AddNode(InMetasound, Location, NodeHandle, false /* bInSelectNewNode */);
 				NewIdNodeMap.Add(NodeHandle.GetNodeID(), FNodePair { NodeHandle, NewNode });
 			}
@@ -213,12 +288,28 @@ namespace Metasound
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 
+			const FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InGraphNode.GetMetasoundChecked());
+			check(MetasoundAsset);
+
+			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+
 			TArray<Frontend::FInputHandle> InputHandles = InNodeHandle.GetAllInputs();
 			for (int32 i = 0; i < InputHandles.Num(); ++i)
 			{
 				const Frontend::FInputHandle& InputHandle = InputHandles[i];
+
+				FText DisplayName;
+				if (InGraphNode.GetNodeHandle().GetNodeType() == EMetasoundClassType::Input)
+				{
+					DisplayName = GraphHandle.GetInputDisplayName(InputHandle.GetInputName());
+				}
+				else
+				{
+					DisplayName = FText::FromString(*InputHandle.GetInputName());
+				}
+
 				FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-				UEdGraphPin* NewPin = InGraphNode.CreatePin(EGPD_Input, PinType, *InputHandle.GetInputName(), i);
+				UEdGraphPin* NewPin = InGraphNode.CreatePin(EGPD_Input, PinType, *DisplayName.ToString(), i);
 				if (ensureAlways(NewPin))
 				{
 					NewPin->PinToolTip = InputHandle.GetInputTooltip().ToString();
@@ -233,7 +324,18 @@ namespace Metasound
 			{
 				const Frontend::FOutputHandle& OutputHandle = OutputHandles[i];
 				FEdGraphPinType PinType("MetasoundNode", NAME_None, nullptr, EPinContainerType::None, false, FEdGraphTerminalType());
-				UEdGraphPin* NewPin = InGraphNode.CreatePin(EGPD_Output, PinType, *OutputHandle.GetOutputName(), i);
+
+				FText DisplayName;
+				if (InGraphNode.GetNodeHandle().GetNodeType() == EMetasoundClassType::Output)
+				{
+					DisplayName = GraphHandle.GetInputDisplayName(OutputHandle.GetOutputName());
+				}
+				else
+				{
+					DisplayName = FText::FromString(*OutputHandle.GetOutputName());
+				}
+
+				UEdGraphPin* NewPin = InGraphNode.CreatePin(EGPD_Output, PinType, *DisplayName.ToString(), i);
 				if (ensureAlways(NewPin))
 				{
 					NewPin->PinToolTip = OutputHandle.GetOutputTooltip().ToString();

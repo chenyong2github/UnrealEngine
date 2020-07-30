@@ -17,40 +17,40 @@ namespace Metasound
 		void InitializeFrontend();
 
 		/** Use this to get a reference to the static registry of all nodes implemented in C++. */
-		TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
+		METASOUNDFRONTEND_API TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
 
 		// Convenience functions to create an INode corresponding to a specific input or output for a metasound graph.
 		// @returns nullptr if the type given wasn't found.
-		TUniquePtr<INode> ConstructInputNode(const FName& InInputType, const FInputNodeConstructorParams& InParams);
-		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructInputNode(const FName& InInputType, const FInputNodeConstructorParams& InParams);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams);
 
 		// Convenience functions to create an INodeB corresponding to a specific externally declared node type.
 		// InNodeType and InNodeHash can be retrieved from the FNodeClassInfo generated from the node registry queries in the metasound frontend (GetAllAvailableNodeClasses, GetAllNodeClassesInNamespace, etc.)
 		// @returns nullptr if the type given wasn't found.
-		TUniquePtr<INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const FNodeInitData& InInitData);
+		METASOUNDFRONTEND_API TUniquePtr<INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const FNodeInitData& InInitData);
 
 		// Utility functions for setting serialized literals.
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, bool InValue);
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue);
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue);
-		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue);
-		void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription);
+		METASOUNDFRONTEND_API void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, bool InValue);
+		METASOUNDFRONTEND_API void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue);
+		METASOUNDFRONTEND_API void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue);
+		METASOUNDFRONTEND_API void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue);
+		METASOUNDFRONTEND_API void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription);
 
 		// Utility functions for building a ::Metasound::FDataInitParam corresponding to a literal.
 
 		// Return the literal description parsed into a init param. 
 		// @Returns an invalid init param if the data type couldn't be found, or if the literal type was incompatible with the data type.
-		FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription);
+		METASOUNDFRONTEND_API FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription);
 
-		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundLiteralType InLiteralType);
-		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralArgType InLiteralType);
+		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundLiteralType InLiteralType);
+		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralArgType InLiteralType);
 		
 		// Returns a literal param without any type checking.
-		FDataTypeLiteralParam GetLiteralParam(const FMetasoundLiteralDescription& InDescription);
+		METASOUNDFRONTEND_API FDataTypeLiteralParam GetLiteralParam(const FMetasoundLiteralDescription& InDescription);
 
 		// Returns the defaulted version of a literal param for the given data type.
 		// @Returns an invalid init param if the data type couldn't be found.
-		FDataTypeLiteralParam GetDefaultParamForDataType(FName InDataType);
+		METASOUNDFRONTEND_API FDataTypeLiteralParam GetDefaultParamForDataType(FName InDataType);
 
 		// Utility base class for classes that want to support naive multi-level undo/redo.
 		class METASOUNDFRONTEND_API ITransactable : public TSharedFromThis<ITransactable>

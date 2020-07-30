@@ -379,6 +379,24 @@ namespace Metasound
 			bool SetInputToLiteral(const FString& InInputName, UObject* InValue);
 			bool SetInputToLiteral(const FString& InInputName, TArray<UObject*> InValue);
 
+			// Returns the display name for the input with the given name
+			const FText& GetInputDisplayName(FString InputName) const;
+
+			// Returns the display name for the output with the given name
+			const FText& GetOutputDisplayName(FString OutputName) const;
+
+			// Returns the tool tip for the input with the given name
+			const FText& GetInputToolTip(FString InputName) const;
+
+			// Returns the tool tip for the output with the given name
+			const FText& GetOutputToolTip(FString OutputName) const;
+
+			// Set the display name for the input with the given name
+			void SetInputDisplayName(FString InName, const FText& InDisplayName);
+
+			// Set the display name for the output with the given name
+			void SetOutputDisplayName(FString InName, const FText& InDisplayName);
+
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.
 			bool ClearLiteralForInput(const FString& InInputName);

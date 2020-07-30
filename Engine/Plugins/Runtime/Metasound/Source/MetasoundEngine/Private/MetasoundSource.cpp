@@ -124,21 +124,24 @@ FMetasoundArchetype UMetasoundSource::GetArchetype() const
 
 	FMetasoundInputDescription OnPlayBop;
 	OnPlayBop.Name = GetOnPlayInputName();
+	OnPlayBop.DisplayName = FText::FromString(OnPlayBop.Name);
 	OnPlayBop.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
-	OnPlayBop.ToolTip = LOCTEXT("OnPlayBopToolTip", "This input is bopped when this source is first played.");
+	OnPlayBop.ToolTip = LOCTEXT("OnPlayBopToolTip", "Bop executed when this source is first played.");
 
 	Archetype.RequiredInputs.Add(OnPlayBop);
 
 	FMetasoundOutputDescription GeneratedAudio;
 	GeneratedAudio.Name = GetAudioOutputName();
+	GeneratedAudio.DisplayName = FText::FromString(GeneratedAudio.Name);
 	GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FAudioBuffer>();
-	GeneratedAudio.ToolTip = LOCTEXT("GeneratedAudioToolTip", "This should be the resulting output audio from this source.");
+	GeneratedAudio.ToolTip = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
 	Archetype.RequiredOutputs.Add(GeneratedAudio);
 
 	FMetasoundOutputDescription OnFinished;
 	OnFinished.Name = GetIsFinishedOutputName();
+	OnFinished.DisplayName = FText::FromString(OnFinished.Name);
 	OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FBop>();
-	OnFinished.ToolTip = LOCTEXT("OnFinishedToolTip", "This output can be bopped to stop the sound.");
+	OnFinished.ToolTip = LOCTEXT("OnFinishedToolTip", "Bop executed to initiate stopping the source.");
 	Archetype.RequiredOutputs.Add(OnFinished);
 
 	return Archetype;

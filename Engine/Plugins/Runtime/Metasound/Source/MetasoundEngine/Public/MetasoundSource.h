@@ -11,6 +11,7 @@
 
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
+#include "Misc/AssertionMacros.h"
 #endif // WITH_EDITORONLY_DATA
 
 #include "MetasoundSource.generated.h"
@@ -37,6 +38,12 @@ public:
 	UMetasoundSource(const FObjectInitializer& ObjectInitializer);
 
 #if WITH_EDITORONLY_DATA
+	// Returns document name (for editor purposes, and avoids making document public for edit
+	// while allowing editor to reference directly)
+	static FName GetDocumentPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(UMetasoundSource, RootMetasoundDocument);
+	}
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.

@@ -14,6 +14,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundDetailCustomization.h"
+#include "MetasoundLiteralDescriptionDetailCustomization.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "Modules/ModuleInterface.h"
@@ -157,11 +158,15 @@ namespace Metasound
 				
 				PropertyModule.RegisterCustomClassLayout(
 					UMetasound::StaticClass()->GetFName(),
-					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(); }));
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetasound::GetDocumentPropertyName()); }));
 
 				PropertyModule.RegisterCustomClassLayout(
 					UMetasoundSource::StaticClass()->GetFName(),
-					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(); }));
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetasoundSource::GetDocumentPropertyName()); }));
+
+				PropertyModule.RegisterCustomPropertyTypeLayout(
+					"MetasoundLiteralDescription",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundLiteralDescriptionDetailCustomization>(); }));
 
 				StyleSet = MakeShared<FSlateStyle>();
 

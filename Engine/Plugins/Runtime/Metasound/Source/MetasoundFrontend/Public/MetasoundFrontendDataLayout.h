@@ -44,7 +44,7 @@ struct FMetasoundClassMetadata
 	FString NodeName;
 
 	// This will always be set to EMetasoundObjectType::Metasound.
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General, meta = (DisplayName = "Type"))
 	EMetasoundClassType NodeType;
 
 	// Optional longform description of what this Metasound does. Can be displayed in a tooltip.
@@ -62,8 +62,8 @@ struct FMetasoundClassMetadata
 };
 
 
-// This ustruct represents the serialized version of our variant literal type.
-// Currently, we only support bools, integers, floats, and strings as literals.
+// Represents the serialized version of variant literal types. Currently, only
+// support bools, integers, floats, and strings are supported as literals.
 USTRUCT()
 struct FMetasoundLiteralDescription
 {
@@ -72,19 +72,19 @@ struct FMetasoundLiteralDescription
 	// HACK: Once we make a property inspector for these we should hide them.
 
 	// The actual type of this literal.
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Customized)
 	EMetasoundLiteralType LiteralType;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Customized)
 	bool AsBool;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Customized)
 	int32 AsInteger;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Customized)
 	float AsFloat;
 
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Customized)
 	FString AsString;
 };
 
@@ -93,12 +93,16 @@ struct FMetasoundInputDescription
 {
 	GENERATED_BODY()
 
-	// The descriptive name of this input.
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	// The name of this input.
+	UPROPERTY()
 	FString Name;
 
+	// The name of this input displayed to users.
+	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
+	FText DisplayName;
+
 	// The type of this input. This type matches with a type declared via the DECLARE_METASOUND_DATA_REFERENCE_TYPES macro.
-	UPROPERTY(VisibleAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// Optional description text about this input.
@@ -117,11 +121,15 @@ struct FMetasoundOutputDescription
 	GENERATED_BODY()
 
 	// The descriptive name of this output.
-	UPROPERTY(EditAnywhere, Category = Parameters)
+	UPROPERTY()
 	FString Name;
 
+	// The name of this input displayed to users.
+	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
+	FText DisplayName;
+
 	// The type of this output. This type matches with a type declared via the DECLARE_METASOUND_DATA_REFERENCE_TYPES macro.
-	UPROPERTY(VisibleAnywhere, Category = Parameters)
+	UPROPERTY(EditAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// Optional description text about this output.

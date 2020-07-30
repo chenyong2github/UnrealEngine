@@ -190,13 +190,15 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 	{
 		case EMetasoundClassType::Input:
 		{
-			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Input {0}"), FText::FromString(NodeHandle.GetNodeName()));
+			FGraphHandle GraphHandle = GetRootGraphHandle();
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Input {0}"), GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName()));
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Output {0}"), FText::FromString(NodeHandle.GetNodeName()));
+			FGraphHandle GraphHandle = GetRootGraphHandle();
+			return FText::Format(LOCTEXT("MetasoundGraphNode_TitleFormat", "Output {0}"), GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName()));
 		}
 		break;
 
@@ -284,23 +286,20 @@ FText UMetasoundEditorGraphNode::GetTooltipText() const
 {
 	using namespace Metasound::Frontend;
 
-	// TODO: Add author to ToolTip
 	FNodeHandle NodeHandle = GetNodeHandle();
-
-	const FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&GetMetasoundChecked());
-	check(MetasoundAsset);
-
 	switch (NodeHandle.GetNodeType())
 	{
 		case EMetasoundClassType::Input:
 		{
-			return MetasoundAsset->GetInputToolTip(NodeHandle.GetNodeName());
+			FGraphHandle GraphHandle = GetRootGraphHandle();
+			return GraphHandle.GetInputToolTip(NodeHandle.GetNodeName());
 		}
 		break;
 
 		case EMetasoundClassType::Output:
 		{
-			return MetasoundAsset->GetOutputToolTip(NodeHandle.GetNodeName());
+			FGraphHandle GraphHandle = GetRootGraphHandle();
+			return GraphHandle.GetOutputToolTip(NodeHandle.GetNodeName());
 		}
 		break;
 
