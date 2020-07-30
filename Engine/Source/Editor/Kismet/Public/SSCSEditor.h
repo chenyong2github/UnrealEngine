@@ -30,6 +30,7 @@ class FSCSEditorTreeNode;
 class SSCSEditor;
 class UPrimitiveComponent;
 struct EventData;
+class ISCSEditorUICustomization;
 
 // SCS editor tree node pointer types
 using FSCSEditorTreeNodePtrType = TSharedPtr<class FSCSEditorTreeNode>;
@@ -991,6 +992,8 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	~SSCSEditor();
+
 	/** SWidget interface */
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent );
 
@@ -1166,6 +1169,9 @@ public:
 	 */
 	void GetSelectedItemsForContextMenu(TArray<FComponentEventConstructionData>& OutSelectedItems) const;
 
+	/** @return Array of the editable objects selected in the tree */
+	TArray<UObject*> GetSelectedEditableObjects() const;
+
 	/** Provides access to the Blueprint context that's being edited */
 	class UBlueprint* GetBlueprint() const;
 
@@ -1183,6 +1189,9 @@ public:
 
 	/** Called at the end of each frame. */
 	void OnPostTick(float);
+
+	/** Sets UI customizations of this SCSEditor. */
+	void SetUICustomization(TSharedPtr<ISCSEditorUICustomization> InUICustomization);
 
 protected:
 	FSCSEditorTreeNodePtrType FindOrCreateParentForExistingComponent(UActorComponent* InActorComponent, FSCSEditorActorNodePtrType ActorRootNode);
@@ -1292,6 +1301,12 @@ protected:
 	/** @return The visibility of the Add Component combo button */
 	EVisibility GetComponentClassComboButtonVisibility() const;
 
+	/** @return The visibility of the components tree */
+	EVisibility GetComponentsTreeVisibility() const;
+
+	/** @return The visibility of the components filter box */
+	EVisibility GetComponentsFilterBoxVisibility() const;
+
 	/** @return the tooltip describing how many properties will be applied to the blueprint */
 	FText OnGetApplyChangesToBlueprintTooltip() const;
 
@@ -1345,6 +1360,9 @@ protected:
 	/** Helper method to construct the subtree for the given actor (root) node. */
 	void BuildSubTreeForActorNode(FSCSEditorActorNodePtrType InActorNode);
 
+	/** @return Type of component to filter the tree view with or nullptr if there's no filter. */
+	TSubclassOf<UActorComponent> GetComponentTypeFilterToApply() const;
+
 public:
 	/** Tree widget */
 	TSharedPtr<SSCSTreeType> SCSTreeWidget;
@@ -1387,6 +1405,7 @@ public:
 
 	/** Returns the Actor context for which we are viewing/editing the SCS.  Can return null.  Should not be cached as it may change from frame to frame. */
 	class AActor* GetActorContext() const;
+
 private:
 	/** Indicates which editor mode we're in. */
 	EComponentEditorMode::Type EditorMode;
@@ -1411,4 +1430,10 @@ private:
 
 	/** The filter box that handles filtering for the tree. */
 	TSharedPtr< SSearchBox > FilterBox;
+
+	/** SCSEditor UI customizations */
+	TSharedPtr<ISCSEditorUICustomization> UICustomization;
+
+	/** SCSEditor UI extension */
+	TSharedPtr<class SExtensionPanel> ExtensionPanel;
 };

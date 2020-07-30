@@ -30,14 +30,23 @@ public:
 	/** Returns the default visualization mode for child actors in a component tree view */
 	static EChildActorComponentTreeViewVisualizationMode GetProjectDefaultTreeViewVisualizationMode();
 
-	/** Returns the component-specific visualization mode for the given child actor component */
-	static EChildActorComponentTreeViewVisualizationMode GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent);
+	/** 
+	 * Returns the component-specific visualization mode for the given child actor component
+	 * @param DefaultVisOverride If different than UseDefault, overrides the default ChildActorComponentTreeViewVisualizationMode from the project settings.
+	 */
+	static EChildActorComponentTreeViewVisualizationMode GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride = EChildActorComponentTreeViewVisualizationMode::UseDefault);
 
-	/** Whether to expand the given child actor component in a component tree view */
-	static bool ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent);
+	/** 
+	 * Whether to expand the given child actor component in a component tree view 
+	 * @param DefaultVisOverride If different than UseDefault, overrides the default ChildActorComponentTreeViewVisualizationMode from the project settings and forces child actor tree view expansion to be enabled.
+	 */
+	static bool ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride = EChildActorComponentTreeViewVisualizationMode::UseDefault);
 
-	/** Whether the Child Actor should be shown in a component tree view for the given component */
-	static bool ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent);
+	/** 
+	 * Whether the Child Actor should be shown in a component tree view for the given component
+	 * @param DefaultVisOverride If different than UseDefault, overrides the default ChildActorComponentTreeViewVisualizationMode from the project settings and forces child actor tree view expansion to be enabled.
+	 */
+	static bool ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride = EChildActorComponentTreeViewVisualizationMode::UseDefault);
 
 	/** Populates the given menu with options for the given Child Actor component */
 	static void FillComponentContextMenuOptions(UToolMenu* Menu, UChildActorComponent* ChildActorComponent);

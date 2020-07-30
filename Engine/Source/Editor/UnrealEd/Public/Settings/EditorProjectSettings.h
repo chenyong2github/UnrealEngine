@@ -183,12 +183,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Experimental)
 	uint8 bEnableChildActorExpansionInTreeView : 1;
 
-	/**
-	 * If enabled, the "Add Component" button will not be accessible in the Components panel, and new components cannot be added to the Blueprint.
-	 */
-	UPROPERTY(config)
-	uint8 bDisallowAddingNewComponents : 1;
-
 	/** 
 	 * List of compiler messages that have been suppressed outside of full, interactive editor sessions for 
 	 * the current project - useful for silencing warnings that were added to the engine after 
@@ -214,12 +208,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Experimental, meta=(EditCondition="bEnableChildActorExpansionInTreeView"))
 	EChildActorComponentTreeViewVisualizationMode DefaultChildActorTreeViewMode;
-
-	/**
-	 * If not null, component nodes displayed in the tree view will always be filtered by this type, even if other component types exist in the hierarchy.
-	 */
-	UPROPERTY(config)
-	TSubclassOf<UActorComponent> DefaultComponentsTreeViewTypeFilter;
 
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
