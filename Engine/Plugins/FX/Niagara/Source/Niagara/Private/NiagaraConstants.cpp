@@ -114,6 +114,7 @@ void FNiagaraConstants::Init()
 		SwitchParameters.Add(SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE);
 		SwitchParameters.Add(SYS_PARAM_EMITTER_SIMULATION_TARGET);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
+		SwitchParameters.Add(SYS_PARAM_SCRIPT_CONTEXT);
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)
