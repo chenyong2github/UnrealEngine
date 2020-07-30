@@ -297,11 +297,13 @@ struct FDred_1_1
 {
 	FDred_1_1(ID3D12Device* Device)
 	{
-		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
-		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+		if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()))))
 		{
-			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+			if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+			{
+				BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			}
 		}
 	}
 	TRefCountPtr<ID3D12DeviceRemovedExtendedData> Data;
@@ -312,11 +314,13 @@ struct FDred_1_2
 {
 	FDred_1_2(ID3D12Device* Device)
 	{
-		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
-		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput)))
+		if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()))))
 		{
-			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
+			if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput)))
+			{
+				BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			}
 		}
 	}
 	TRefCountPtr<ID3D12DeviceRemovedExtendedData1> Data;
