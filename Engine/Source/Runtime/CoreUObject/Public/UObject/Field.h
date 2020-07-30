@@ -625,9 +625,15 @@ public:
 	 */
 	FString GetAuthoredName() const;
 
+	/** Returns an inner field by name if the field has any */
 	virtual FField* GetInnerFieldByName(const FName& InName)
 	{
 		return nullptr;
+	}
+
+	/** Fills the provided array with all inner fields this field owns (recursively) */
+	virtual void GetInnerFields(TArray<FField*>& OutFields)
+	{
 	}
 
 #if WITH_EDITORONLY_DATA
