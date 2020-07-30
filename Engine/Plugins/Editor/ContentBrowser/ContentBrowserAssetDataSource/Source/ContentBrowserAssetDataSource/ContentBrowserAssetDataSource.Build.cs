@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"AssetTools",
 					"CollectionManager",
+					"ContentBrowser",
 					"Engine",
 					"UnrealEd",
 					"EditorStyle",

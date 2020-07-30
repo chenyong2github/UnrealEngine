@@ -551,6 +551,8 @@ protected:
 	/** Returns the font to use for the thumbnail label */
 	FSlateFontInfo GetThumbnailFont() const;
 
+	const FSlateBrush* GetFolderBackgroundImage() const;
+	const FSlateBrush* GetFolderBackgroundShadowImage() const;
 private:
 	/** The handle to the thumbnail that this item is rendering */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;

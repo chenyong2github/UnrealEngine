@@ -78,11 +78,14 @@ public:
 };
 
 UCLASS()
-class CONTENTBROWSER_API UContentBrowserAddNewContextMenuContext : public UObject
+class CONTENTBROWSER_API UContentBrowserToolbarMenuContext : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	FName GetCurrentPath() const;
+public:
 
 	TWeakPtr<SContentBrowser> ContentBrowser;
 };
+

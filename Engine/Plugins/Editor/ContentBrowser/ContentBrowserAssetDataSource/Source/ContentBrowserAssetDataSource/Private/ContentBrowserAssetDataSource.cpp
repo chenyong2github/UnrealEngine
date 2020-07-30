@@ -24,6 +24,9 @@
 #include "NewAssetContextMenu.h"
 #include "AssetFolderContextMenu.h"
 #include "AssetFileContextMenu.h"
+#include "ContentBrowserMenuContexts.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
@@ -99,6 +102,19 @@ void UContentBrowserAssetDataSource::Initialize(const FName InMountRoot, const b
 				}
 			}));
 		}
+
+
+		if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.ToolBar"))
+		{
+			Menu->AddDynamicSection(*FString::Printf(TEXT("DynamicSection_DataSource_%s"), *GetName()), FNewToolMenuDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UContentBrowserAssetDataSource>(this)](UToolMenu* InMenu)
+			{
+				if (UContentBrowserAssetDataSource* This = WeakThis.Get())
+				{
+					This->PopulateContentBrowserToolBar(InMenu);
+				}
+			}));
+		}
+
 
 		if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.FolderContextMenu"))
 		{
@@ -1616,6 +1632,55 @@ void UContentBrowserAssetDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 		);
 }
 
+void UContentBrowserAssetDataSource::PopulateContentBrowserToolBar(UToolMenu* InMenu)
+{
+	const UContentBrowserToolbarMenuContext* ContextObject = InMenu->FindContext<UContentBrowserToolbarMenuContext>();
+	checkf(ContextObject, TEXT("Required context UContentBrowserToolbarMenuContext was missing!"));
+
+	TSharedRef<SWidget> ImportButton = 
+		SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.ToolTipText(LOCTEXT("ImportTooltip", "Import assets from files to the currently selected folder"))
+		.ContentPadding(2)
+		.OnClicked_UObject(this, &UContentBrowserAssetDataSource::OnImportClicked, ContextObject)
+		.IsEnabled_UObject(this, &UContentBrowserAssetDataSource::IsImportEnabled, ContextObject)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Import"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(3, 0, 0, 0))
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.TextStyle(FAppStyle::Get(), "NormalText")
+				.Text(LOCTEXT("Import", "Import"))
+			]
+		];
+
+	FToolMenuSection& Section = InMenu->FindOrAddSection("New");
+
+	Section.AddSeparator(NAME_None);
+
+	Section.AddEntry(
+		FToolMenuEntry::InitWidget(
+			"Import",
+			ImportButton,
+			FText::GetEmpty(),
+			true,
+			false
+		));
+	
+}
+
 void UContentBrowserAssetDataSource::PopulateAssetFolderContextMenu(UToolMenu* InMenu)
 {
 	return ContentBrowserAssetData::PopulateAssetFolderContextMenu(this, InMenu, *AssetFolderContextMenu);
@@ -1762,6 +1827,23 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 bool UContentBrowserAssetDataSource::OnValidateItemName(const FContentBrowserItemData& InItem, const FString& InProposedName, FText* OutErrorMsg)
 {
 	return CanRenameItem(InItem, &InProposedName, OutErrorMsg);
+}
+
+FReply UContentBrowserAssetDataSource::OnImportClicked(const UContentBrowserToolbarMenuContext* ContextObject)
+{
+	// Extract the internal asset paths that belong to this data source from the full list of selected paths given in the context
+	FName InternalPath;
+	if (TryConvertVirtualPathToInternal(ContextObject->GetCurrentPath(), InternalPath) && IsKnownContentPath(InternalPath))
+	{
+		OnImportAsset(InternalPath);
+	}
+
+	return FReply::Handled();
+}
+
+bool UContentBrowserAssetDataSource::IsImportEnabled(const UContentBrowserToolbarMenuContext* ContextObject) const
+{
+	return ContextObject->GetCurrentPath() != NAME_None;
 }
 
 FContentBrowserItemData UContentBrowserAssetDataSource::OnFinalizeCreateFolder(const FContentBrowserItemData& InItemData, const FString& InProposedName, FText* OutErrorMsg)

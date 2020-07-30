@@ -19,8 +19,6 @@ void SExpandableSearchArea::Construct(const FArguments& InArgs, TSharedRef<SSear
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Center)
-		.AutoWidth()
 		[
 			SNew(SBox)
 			.Visibility(this, &SExpandableSearchArea::GetSearchBoxVisibility)
@@ -31,6 +29,7 @@ void SExpandableSearchArea::Construct(const FArguments& InArgs, TSharedRef<SSear
 			]
 		]
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
 			SNew(SButton)
 			.ToolTipText(NSLOCTEXT("ExpandableSearchArea", "ExpandCollapseSearchButton", "Expands or collapses the search text box"))
@@ -92,7 +91,6 @@ EVisibility SExpandableSearchArea::GetSearchGlassVisibility() const
 const FSlateBrush* SExpandableSearchArea::GetExpandSearchImage() const
 {
 	static const FName RightIcon("Icons.ChevronRight");
-	static const FName LeftIcon("Icons.ChevronLeft");
 
-	return bIsExpanded ? FAppStyle::Get().GetBrush(RightIcon) : FAppStyle::Get().GetBrush(LeftIcon);
+	return bIsExpanded ? FAppStyle::Get().GetBrush(RightIcon) : FStyleDefaults::GetNoBrush();
 }

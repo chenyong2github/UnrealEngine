@@ -31,6 +31,7 @@ class SPathView;
 class SSplitter;
 class UFactory;
 class SExpandableSearchArea;
+class UContentBrowserToolbarMenuContext;
 
 struct FToolMenuContext;
 
@@ -282,16 +283,10 @@ private:
 	TSharedRef<SWidget> GetPathPickerContent();
 
 	/** Register the context objects needed for the "Add New" menu */
-	void AppendNewMenuContextObjects(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, const TArray<FName>& InSelectedPaths, FToolMenuContext& InOutMenuContext);
+	void AppendNewMenuContextObjects(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, const TArray<FName>& InSelectedPaths, FToolMenuContext& InOutMenuContext, UContentBrowserToolbarMenuContext* CommonContext);
 
 	/** Handle creating a context menu for the "Add New" button */
-	TSharedRef<SWidget> MakeAddNewContextMenu(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain);
-
-	/* Whether or not the import button is enabled. */
-	bool IsImportButtonEnabled() const;
-
-	/** Called when the import button on the toolbar is clicked */
-	FReply OnImportClicked();
+	TSharedRef<SWidget> MakeAddNewContextMenu(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, UContentBrowserToolbarMenuContext* CommonContext);
 
 	/** Handle populating a context menu for the "Add New" button */
 	void PopulateAddNewContextMenu(class UToolMenu* Menu);
@@ -507,6 +502,7 @@ private:
 	void HandleAssetViewSearchOptionsChanged();
 
 	/** Creates various widgets for the content browser main view */
+	TSharedRef<SWidget> CreateToolBar(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateLockButton(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateAssetView(const FContentBrowserConfig* Config);
 	TSharedRef<SWidget> CreateFavoritesView(const FContentBrowserConfig* Config);
@@ -515,6 +511,9 @@ private:
 
 	/** Adds menu options to the view menu */
 	void ExtendViewOptionsMenu(const FContentBrowserConfig* Config);
+
+	/** Creates the content browser toolbar menu */
+	void RegisterContentBrowserToolBar();
 
 	/** Gets the size rule for various areas. When areas are a collapsed the splitter slot becomes auto sized, otherwise it is user sized */
 	SSplitter::ESizeRule GetFavoritesAreaSizeRule() const;

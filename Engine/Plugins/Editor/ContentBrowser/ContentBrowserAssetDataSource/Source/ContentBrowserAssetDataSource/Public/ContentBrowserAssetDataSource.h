@@ -9,6 +9,7 @@
 #include "Misc/BlacklistNames.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "ContentBrowserAssetDataPayload.h"
+#include "Input/Reply.h"
 #include "ContentBrowserAssetDataSource.generated.h"
 
 class IAssetTools;
@@ -19,6 +20,7 @@ class UToolMenu;
 class FAssetFolderContextMenu;
 class FAssetFileContextMenu;
 struct FCollectionNameType;
+class UContentBrowserToolbarMenuContext;
 
 USTRUCT()
 struct CONTENTBROWSERASSETDATASOURCE_API FContentBrowserCompiledAssetDataFilter
@@ -201,6 +203,8 @@ private:
 
 	void PopulateAddNewContextMenu(UToolMenu* InMenu);
 
+	void PopulateContentBrowserToolBar(UToolMenu* InMenu);
+
 	void PopulateAssetFolderContextMenu(UToolMenu* InMenu);
 
 	void PopulateAssetFileContextMenu(UToolMenu* InMenu);
@@ -216,6 +220,10 @@ private:
 	void OnBeginCreateAsset(const FName InDefaultAssetName, const FName InPackagePath, UClass* InAssetClass, UFactory* InFactory, UContentBrowserDataMenuContext_AddNewMenu::FOnBeginItemCreation InOnBeginItemCreation);
 
 	bool OnValidateItemName(const FContentBrowserItemData& InItem, const FString& InProposedName, FText* OutErrorMsg);
+
+	FReply OnImportClicked(const UContentBrowserToolbarMenuContext* ContextObject);
+
+	bool IsImportEnabled(const UContentBrowserToolbarMenuContext* ContextObject) const;
 
 	FContentBrowserItemData OnFinalizeCreateFolder(const FContentBrowserItemData& InItemData, const FString& InProposedName, FText* OutErrorMsg);
 

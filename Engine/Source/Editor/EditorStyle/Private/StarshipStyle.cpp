@@ -6051,14 +6051,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set("ContentBrowser.AssetTagNamePadding.Compact", FMargin(2.0f));
 		Set("ContentBrowser.AssetTagCountPadding.Compact", FMargin(2.0f));
 
-		// Thumbnail editing mode
-		Set( "ContentBrowser.EditModeLabelFont", FTextBlockStyle(NormalText)
-			.SetFont( DEFAULT_FONT( "Regular", 10 ) )
-			.SetColorAndOpacity( FLinearColor::Black )
-			.SetShadowOffset( FVector2D::ZeroVector )
-		);
-
-
+			
 		Set( "ContentBrowser.PrimitiveCustom", new IMAGE_BRUSH( "ContentBrowser/ThumbnailCustom", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitiveSphere", new IMAGE_BRUSH( "ContentBrowser/ThumbnailSphere", Icon32x32 ) );
 		Set( "ContentBrowser.PrimitiveCube", new IMAGE_BRUSH( "ContentBrowser/ThumbnailCube", Icon32x32 ) );
@@ -6072,6 +6065,10 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetHighlightColor( FLinearColor( 1.0f, 1.0f, 1.0f ) )
 			.SetShadowOffset( FVector2D( 1, 1 ) )
 			.SetShadowColorAndOpacity( FLinearColor( 0, 0, 0, 0.9f ) ) );
+
+		Set("ContentBrowser.ClassFont", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Regular", 7)));
+
 
 		// New Asset
 		Set( "ContentBrowser.NewAsset", new IMAGE_BRUSH( "Icons/icon_file_new_40x", Icon25x25 ) );
@@ -6128,13 +6125,14 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.ListViewFolderIcon", new IMAGE_BRUSH_SVG( "Starship/ContentBrowser/folder", FVector2D(64, 64) ) );
 		Set( "ContentBrowser.ListViewDeveloperFolderIcon", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_256x", FVector2D(256, 256) ) );
 
+		Set("ContentBrowser.AssetTileItem.FolderAreaHoveredBackground", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
 		Set("ContentBrowser.AssetTileItem.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Input, 4.0f));
 		Set("ContentBrowser.AssetTileItem.NameAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
-		Set("ContentBrowser.AssetTileItem.SelectedBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Primary, 2.0f));
-		Set("ContentBrowser.AssetTileItem.SelectedHoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::PrimaryHover, 2.0f));
-		Set("ContentBrowser.AssetTileItem.HoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 2.0f));
+		Set("ContentBrowser.AssetTileItem.SelectedBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Primary, 1.0f));
+		Set("ContentBrowser.AssetTileItem.SelectedHoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::PrimaryHover, 1.0f));
+		Set("ContentBrowser.AssetTileItem.HoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 1.0f));
 		Set("ContentBrowser.AssetTileItem.DropShadow", new BOX_BRUSH("Starship/ContentBrowser/drop-shadow", FMargin(4.0f / 64.0f)));
-		Set("ContentBrowser.FolderItem.DropShadow", new BOX_BRUSH("Starship/ContentBrowser/folder-drop-shadow", FMargin(2.0f/64.0f)));
+		Set("ContentBrowser.FolderItem.DropShadow", new IMAGE_BRUSH("Starship/ContentBrowser/folder-drop-shadow", FVector2D(256, 256)));
 
 
 
@@ -6182,6 +6180,14 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 
 		Set( "ContentBrowser.SaveAllCurrentFolder", new IMAGE_BRUSH("Icons/icon_file_saveall_16px", Icon16x16) );
 		Set( "ContentBrowser.ResaveAllCurrentFolder", new IMAGE_BRUSH("Icons/icon_file_saveall_16px", Icon16x16) );
+
+
+		FToolBarStyle ContentBrowserToolBarStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+		ContentBrowserToolBarStyle.SetSeparatorBrush(FSlateNoResource());
+		ContentBrowserToolBarStyle.SetSeparatorPadding(FMargin(4.0f, 0.0f));
+	
+		Set("ContentBrowser.ToolBar", ContentBrowserToolBarStyle);
 	}
 #endif // #if WITH_EDITOR
 }

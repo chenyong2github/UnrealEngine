@@ -114,10 +114,11 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 
 		// Folder base
 		ItemContentsOverlay->AddSlot()
+		.Padding(FMargin(5))
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FolderItem.DropShadow"))
-			.Padding(FMargin(0,0,4.0f,4.0f))
+			.Padding(FMargin(0,0,2.0f,2.0f))
 			[
 				SNew(SImage)
 				.Image(FolderBaseImage)
@@ -434,7 +435,11 @@ void SAssetViewItem::Tick( const FGeometry& AllottedGeometry, const double InCur
 	{
 		const float WrapWidth = GetNameTextWrapWidth();
 		InlineRenameWidget->SetWrapTextAt(WrapWidth);
-		ClassTextWidget->SetWrapTextAt(WrapWidth);
+
+		if (ClassTextWidget.IsValid())
+		{
+			ClassTextWidget->SetWrapTextAt(WrapWidth);
+		}
 	}
 
 	UpdateDirtyState();
@@ -1645,7 +1650,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		// Drop shadow border
 		SNew(SBorder)
 		.Padding(FMargin(0.0f, 0.0f, 5.0f, 5.0f))
-		.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush(ItemShadowBorderName))
+		.BorderImage(IsFolder() ? TAttribute<const FSlateBrush*>(this, &SAssetTileItem::GetFolderBackgroundShadowImage) : FAppStyle::Get().GetBrush(ItemShadowBorderName))
 		[
 			SNew(SOverlay)
 			.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
@@ -1653,7 +1658,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 			[
 				SNew(SBorder)
 				.Padding(0)
-				.BorderImage(IsFolder() ? FStyleDefaults::GetNoBrush() : FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.ThumbnailAreaBackground"))
+				.BorderImage(IsFolder() ? TAttribute<const FSlateBrush*>(this, &SAssetTileItem::GetFolderBackgroundImage) : FAppStyle::Get().GetBrush("ContentBrowser.AssetTileItem.ThumbnailAreaBackground"))
 				[
 					SNew(SVerticalBox)
 					// Thumbnail
@@ -1692,7 +1697,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 								.HighlightText(InArgs._HighlightText)
 								.IsSelected(InArgs._IsSelectedExclusively)
 								.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
-								.Justification(ETextJustify::Left)
+								.Justification(IsFolder() ? ETextJustify::Center : ETextJustify::Left)
 								.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
 							]
 							+ SVerticalBox::Slot()
@@ -1701,8 +1706,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							[
 								SAssignNew(ClassTextWidget, STextBlock)
 								.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
-								.TextStyle(FAppStyle::Get(), "SmallText")
-								//.Font(FAppStyle::Get().GetFontStyle("SmallFontBold"))
+								.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
 								.TransformPolicy(ETextTransformPolicy::ToUpper)
 								.Text(this, &SAssetTileItem::GetAssetClassText)
 								.ColorAndOpacity(FSlateColor::UseSubduedForeground())
@@ -1751,7 +1755,6 @@ const FSlateBrush* SAssetTileItem::GetBorderImage() const
 {
 	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
 	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
-
 	if (bIsSelected && bIsHoveredOrDraggedOver)
 	{
 		static const FName SelectedHover("ContentBrowser.AssetTileItem.SelectedHoverBorder");
@@ -1762,15 +1765,13 @@ const FSlateBrush* SAssetTileItem::GetBorderImage() const
 		static const FName Selected("ContentBrowser.AssetTileItem.SelectedBorder");
 		return FAppStyle::Get().GetBrush(Selected);
 	}
-	else if (bIsHoveredOrDraggedOver)
+	else if (bIsHoveredOrDraggedOver && !IsFolder())
 	{
 		static const FName Hovered("ContentBrowser.AssetTileItem.HoverBorder");
 		return FAppStyle::Get().GetBrush(Hovered);
 	}
-	else
-	{
-		return FStyleDefaults::GetNoBrush();
-	}
+
+	return FStyleDefaults::GetNoBrush();
 }
 
 float SAssetTileItem::GetExtraStateIconWidth() const
@@ -1831,6 +1832,34 @@ FSlateFontInfo SAssetTileItem::GetThumbnailFont() const
 }
 
 
+
+const FSlateBrush* SAssetTileItem::GetFolderBackgroundImage() const
+{
+	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		static const FName HoveredBackground("ContentBrowser.AssetTileItem.FolderAreaHoveredBackground");
+		return FAppStyle::Get().GetBrush(HoveredBackground);
+	}
+
+	return FStyleDefaults::GetNoBrush();
+}
+
+const FSlateBrush* SAssetTileItem::GetFolderBackgroundShadowImage() const
+{
+	const bool bIsSelected = IsSelected.IsBound() ? IsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		static const FName DropShadowName("ContentBrowser.AssetTileItem.DropShadow");
+		return FAppStyle::Get().GetBrush(DropShadowName);
+	}
+
+	return FStyleDefaults::GetNoBrush();
+}
 
 ///////////////////////////////
 // SAssetColumnItem
