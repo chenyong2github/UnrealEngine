@@ -306,4 +306,39 @@ namespace ChaosTest {
 			EXPECT_EQ(HitBuffer.GetNumHits(),0);
 		}
 	}
+
+	GTEST_TEST(EngineInterface, SimRoundTrip)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params,Particle);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+		TPBDRigidParticle<FReal,3>* Simulated = static_cast<TPBDRigidParticle<FReal,3>*>(Particle);
+
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+		Simulated->SetObjectState(EObjectStateType::Dynamic);
+		Simulated->SetF(FVec3(0,0,10) * Simulated->M());
+
+		FVec3 Grav(0,0,0);
+		Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+		Scene.StartFrame();
+		Scene.EndFrame();
+
+		//integration happened and we get results back
+		EXPECT_EQ(Simulated->X(),FVec3(0,0,10));
+		EXPECT_EQ(Simulated->V(),FVec3(0,0,10));
+
+	}
 }
