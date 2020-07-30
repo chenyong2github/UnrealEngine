@@ -146,7 +146,7 @@ static float GRayTracingGlobalIlluminationFinalGatherDistance = 10.0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationFinalGatherDistance(
 	TEXT("r.RayTracing.GlobalIllumination.FinalGather.Distance"),
 	GRayTracingGlobalIlluminationFinalGatherDistance,
-	TEXT("Maximum world-space distance for valid, reprojected final gather points (default = 10)")
+	TEXT("Maximum screen-space distance for valid, reprojected final gather points (default = 10)")
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSortMaterials(
