@@ -46,21 +46,6 @@ namespace ETextJustify
 	};
 }
 
-/**
- * The different methods that can be used if a word is too long to be broken by the default line-break iterator.
- */
-UENUM(BlueprintType)
-enum class ETextTransformPolicy : uint8
-{
-	/** No transform, just use the given text as-is */
-	None = 0,
-
-	/** Convert the text to lowercase for display */
-	ToLower,
-
-	/** Convert the text to uppercase for display */
-	ToUpper,
-};
 
 /** 
  * The different methods that can be used if a word is too long to be broken by the default line-break iterator.

@@ -51,7 +51,7 @@ namespace CoreStyleConstants
 	// Common Margins
 	const FMargin DefaultMargins(8.f, 4.f);
 	// Buttons already have a built in (4., 2.) padding - adding to that a little
-	const FMargin ButtonMargins(8.f, 2.f);
+	const FMargin ButtonMargins(20.f, 2.f, 20.f, 3.f);
 
 	const float InputFocusRadius = 4.f;
 	const float InputFocusThickness = 1.0f;
@@ -1081,11 +1081,13 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 
 		const FTextBlockStyle& NormalText = Style->GetWidgetStyle<FTextBlockStyle>("NormalText");
 
-		Style->Set("ButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().SmallBold));
+		Style->Set("ButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold));
 
 		Style->Set("PrimaryButton", PrimaryButton);
 		Style->Set("Button", Button);
 		Style->Set("SimpleButton", SimpleButton);
+
+		Style->Set("DialogButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold).SetTransformPolicy(ETextTransformPolicy::ToUpper));
 	}
 }
 

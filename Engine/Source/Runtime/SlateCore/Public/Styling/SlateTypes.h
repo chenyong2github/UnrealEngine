@@ -265,6 +265,22 @@ struct TStructOpsTypeTraits<FCheckBoxStyle> : public TStructOpsTypeTraitsBase2<F
 #endif
 
 /**
+ * The different methods that can be used if a word is too long to be broken by the default line-break iterator.
+ */
+UENUM(BlueprintType)
+enum class ETextTransformPolicy : uint8
+{
+	/** No transform, just use the given text as-is */
+	None = 0,
+
+	/** Convert the text to lowercase for display */
+	ToLower,
+
+	/** Convert the text to uppercase for display */
+	ToUpper,
+};
+
+/**
  * Represents the appearance of an STextBlock
  */
 USTRUCT(BlueprintType)
@@ -339,6 +355,11 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)
 	FSlateBrush UnderlineBrush;
 	FTextBlockStyle& SetUnderlineBrush( const FSlateBrush& InUnderlineBrush ){ UnderlineBrush = InUnderlineBrush; return *this; }
+
+	/** The Text Transform Policy (defaults to None) */ 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)
+	ETextTransformPolicy TransformPolicy;
+	FTextBlockStyle& SetTransformPolicy( const ETextTransformPolicy& InTransformPolicy ){ TransformPolicy = InTransformPolicy; return *this; }
 
 	/**
 	 * Unlinks all colors in this style.

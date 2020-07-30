@@ -42,7 +42,11 @@ void STextBlock::Construct( const FArguments& InArgs )
 	WrapTextAt = InArgs._WrapTextAt;
 	AutoWrapText = InArgs._AutoWrapText;
 	WrappingPolicy = InArgs._WrappingPolicy;
-	TransformPolicy = InArgs._TransformPolicy;
+
+	if (InArgs._TransformPolicy.IsSet()) 
+	{
+		TransformPolicy = InArgs._TransformPolicy;
+	}
 	Margin = InArgs._Margin;
 	LineHeightPercentage = InArgs._LineHeightPercentage;
 	Justification = InArgs._Justification;
@@ -276,7 +280,7 @@ FVector2D STextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 	{
 		// ComputeDesiredSize will also update the text layout cache if required
 		const FVector2D TextSize = TextLayoutCache->ComputeDesiredSize(
-			FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, TransformPolicy, Margin, LineHeightPercentage, Justification),
+			FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, GetTransformPolicy(), Margin, LineHeightPercentage, Justification),
 			LayoutScaleMultiplier, GetComputedTextStyle()
 		);
 
@@ -401,6 +405,15 @@ void STextBlock::SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTr
 		TransformPolicy = InTransformPolicy;
 		InvalidateText(EInvalidateWidget::LayoutAndVolatility);
 	}
+}
+
+ETextTransformPolicy STextBlock::GetTransformPolicy() const
+{
+	if (TransformPolicy.IsSet())
+	{
+		return TransformPolicy.Get();
+	}
+	return TextStyle.TransformPolicy;
 }
 
 void STextBlock::SetShadowOffset(const TAttribute<FVector2D>& InShadowOffset)

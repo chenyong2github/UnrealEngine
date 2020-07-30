@@ -55,7 +55,7 @@ public:
 		, _WrapTextAt(0.0f)
 		, _AutoWrapText(false)
 		, _WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
-		, _TransformPolicy(ETextTransformPolicy::None)
+		, _TransformPolicy()
 		, _Margin()
 		, _LineHeightPercentage(1.0f)
 		, _Justification(ETextJustify::Left)
@@ -222,6 +222,7 @@ public:
 
 	/** Set TransformPolicy attribute */
 	void SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy);
+	ETextTransformPolicy GetTransformPolicy() const;
 
 	/** See ShadowOffset attribute */
 	void SetShadowOffset(const TAttribute<FVector2D>& InShadowOffset);

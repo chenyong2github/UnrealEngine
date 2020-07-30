@@ -464,7 +464,7 @@ public:
             [
                 SNew(SVerticalBox)
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "Starship Common", "Common"), "Content/Slate/Starship/Common")]
-                
+
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "SceneOutliner", "SceneOutliner"), "Content/Editor/Slate/Starship/SceneOutliner")]
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "LevelEditor", "LevelEditor"), "Content/Editor/Slate/Starship/LevelEditor/Menus")]
                 +SVerticalBox::Slot().AutoHeight()[ GenerateIconLibrarySVG(NSLOCTEXT("StarshipGallery", "MainToolbar", "MainToolbar"), "Content/Editor/Slate/Starship/MainToolbar")]
@@ -639,7 +639,7 @@ public:
         };
 
 
-        auto LeftRightLabel = [](const FName& InIconName = FName(), const FText& InLabel = FText::GetEmpty()) -> TSharedRef<SWidget>
+        auto LeftRightLabel = [](const FName& InIconName = FName(), const FText& InLabel = FText::GetEmpty(), const FName& InTextStyle = TEXT("ButtonText")) -> TSharedRef<SWidget>
         {
         	TSharedPtr<SHorizontalBox> HBox = SNew(SHorizontalBox);
             float Space = InIconName.IsNone() ? 0.0f : 8.f;
@@ -664,7 +664,7 @@ public:
 	            .AutoWidth()
 	            [
 	                SNew(STextBlock)
-	                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >( "ButtonText" ))
+	                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >( InTextStyle ))
 	                .Justification(ETextJustify::Center)
 	                .Text(InLabel)
 	            ];
@@ -731,24 +731,27 @@ public:
 
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >("ButtonText"))
                 [
-                    LeftRightLabel(NAME_None, LOCTEXT("PrimaryButtonExampleLabel", "PRIMARY BUTTON"))
+                    LeftRightLabel(NAME_None, LOCTEXT("PrimaryButtonExampleLabel", "Primary Button"))
                 ]
             ]
 
             +SHorizontalBox::Slot()
             .AutoWidth()
             .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
             [
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
                 [
-                    LeftRightLabel("Icons.box-perspective", LOCTEXT("PrimaryButtonExampleLabel", "PRIMARY BUTTON"))
+                    LeftRightLabel("Icons.box-perspective", LOCTEXT("PrimaryButtonExampleLabel", "Primary Button"))
                 ]
             ]
 
             +SHorizontalBox::Slot()
             .AutoWidth()
+            .VAlign(VAlign_Center)
             .Padding(8.f, 0.0f)
             [
                 SNew(SButton)
@@ -773,7 +776,7 @@ public:
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
                 [
-                    LeftRightLabel(NAME_None, LOCTEXT("ButtonExampleLabel", "NORMAL BUTTON"))
+                    LeftRightLabel(NAME_None, LOCTEXT("ButtonExampleLabel", "Normal Button"))
                 ]
             ]
 
@@ -784,7 +787,7 @@ public:
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
                 [
-                    LeftRightLabel("Icons.box-perspective", LOCTEXT("ButtonExampleLabel", "NORMAL BUTTON"))
+                    LeftRightLabel("Icons.box-perspective", LOCTEXT("ButtonExampleLabel", "Normal Button"))
                 ]
             ]
 
@@ -817,7 +820,7 @@ public:
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
                 [
-                    LeftRightLabel(NAME_None, LOCTEXT("TextButtonExampleLabel", "SIMPLE BUTTON"))
+                    LeftRightLabel(NAME_None, LOCTEXT("TextButtonExampleLabel", "Simple Button"))
                 ]
             ]
 
@@ -828,7 +831,7 @@ public:
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
                 [
-                    LeftRightLabel("Icons.box-perspective", LOCTEXT("TextButtonExampleLabel", "SIMPLE BUTTON")) 
+                    LeftRightLabel("Icons.box-perspective", LOCTEXT("TextButtonExampleLabel", "Simple Button")) 
                 ]
             ]
 
@@ -838,6 +841,92 @@ public:
             [
                 SNew(SButton)
                 .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "SimpleButton" ) )
+                [
+                    LeftRightLabel("Icons.box-perspective")
+                ]
+            ]
+
+        ];
+
+        // SButton Dialog Primary Rounded
+        NextSlot(WidgetGrid, LOCTEXT("SButtonDialogPrimaryExampleLabelRounded", "Dialog Primary Button"))
+        [
+            SNew(SHorizontalBox)
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >("DialogButtonText"))
+                [
+                    LeftRightLabel(NAME_None, LOCTEXT("DialogPrimaryButtonExampleLabel", "Dialog Primary"), "DialogButtonText")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                [
+                    LeftRightLabel("Icons.box-perspective", LOCTEXT("DialogPrimaryButtonExampleLabel", "Dialog Primary"), "DialogButtonText")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                .VAlign(VAlign_Center)
+                [
+                    LeftRightLabel("Icons.box-perspective")
+                ]
+            ]
+        ];
+
+        // SButton Dialog 
+        NextSlot(WidgetGrid, LOCTEXT("SButtonLabelRounded", "Button"))
+        [
+
+            SNew(SHorizontalBox)
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            .VAlign(VAlign_Center)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                [
+                    LeftRightLabel(NAME_None, LOCTEXT("DialogButtonExampleLabel", "Dialog Button"), "DialogButtonText")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                [
+                    LeftRightLabel("Icons.box-perspective", LOCTEXT("DialogButtonExampleLabel", "Dialog Button"), "DialogButtonText")
+                ]
+            ]
+
+            +SHorizontalBox::Slot()
+            .AutoWidth()
+            .Padding(8.f, 0.0f)
+            [
+                SNew(SButton)
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
+                .VAlign(VAlign_Center)
                 [
                     LeftRightLabel("Icons.box-perspective")
                 ]

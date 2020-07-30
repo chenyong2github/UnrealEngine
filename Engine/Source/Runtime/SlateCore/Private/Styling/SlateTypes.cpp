@@ -84,6 +84,7 @@ FTextBlockStyle::FTextBlockStyle()
 	, ShadowColorAndOpacity(FLinearColor::Black)
 	, SelectedBackgroundColor(FSlateColor::UseForeground())
 	, HighlightColor(FLinearColor::Black)
+	, TransformPolicy(ETextTransformPolicy::None)
 {
 }
 

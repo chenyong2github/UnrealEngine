@@ -35,7 +35,7 @@ public:
 	SLATE_BEGIN_ARGS( SButton )
 		: _Content()
 		, _ButtonStyle( &FCoreStyle::Get().GetWidgetStyle< FButtonStyle >( "Button" ) )
-		, _TextStyle( &FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("NormalText") )
+		, _TextStyle( &FCoreStyle::Get().GetWidgetStyle< FTextBlockStyle >("ButtonText") )
 		, _HAlign( HAlign_Fill )
 		, _VAlign( VAlign_Fill )
 		, _ContentPadding(FMargin(4.0, 2.0))
@@ -46,7 +46,7 @@ public:
 		, _DesiredSizeScale( FVector2D(1,1) )
 		, _ContentScale( FVector2D(1,1) )
 		, _ButtonColorAndOpacity(FLinearColor::White)
-		, _ForegroundColor( FCoreStyle::Get().GetSlateColor( "InvertedForeground" ) )
+		, _ForegroundColor(FSlateColor::UseStyle())
 		, _IsFocusable( true )
 		{
 		}
@@ -123,6 +123,12 @@ public:
 
 	/** @return An image that represents this button's border*/
 	virtual const FSlateBrush* GetBorder() const;
+
+	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
+	virtual FSlateColor GetForegroundColor() const;
+
+	/** @return the Foreground color that this widget sets when this widget or any of its ancestors are disabled; unset options if the widget does not set a foreground color */
+	virtual FSlateColor GetDisabledForegroundColor() const;
 
 	/**
 	 * Returns true if this button is currently pressed
