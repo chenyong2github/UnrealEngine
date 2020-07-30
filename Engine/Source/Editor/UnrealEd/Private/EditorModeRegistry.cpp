@@ -64,6 +64,7 @@ FEditorModeInfo::FEditorModeInfo(
 {
 	if (!InIconBrush.IsSet())
 	{
+		FModuleManager::Get().LoadModule("EditorStyle"); // Need to ensure the EditorStyle module is loaded before we access static functions from one of its headers
 		IconBrush = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
 	}
 }
