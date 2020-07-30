@@ -72,7 +72,7 @@ namespace Metasound
 
 	const FName FGraphCycleError::ErrorType = FName(TEXT("MetasoundGraphCycleError"));
 
-	FGraphCycleError::FGraphCycleError(const TArray<INode*>& InNodes, const TArray<FDataEdge>& InEdges)
+	FGraphCycleError::FGraphCycleError(TArrayView<INode const* const> InNodes, const TArray<FDataEdge>& InEdges)
 	:	FBuildErrorBase(ErrorType, LOCTEXT("GraphCycleError", "Graph contains cycles."))
 	{
 		AddNodes(InNodes);

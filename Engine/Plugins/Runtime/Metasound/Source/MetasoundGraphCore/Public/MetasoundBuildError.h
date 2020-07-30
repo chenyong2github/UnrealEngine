@@ -79,7 +79,7 @@ namespace Metasound
 		public:
 			static const FName ErrorType;
 
-			FGraphCycleError(const TArray<INode*>& InNodes, const TArray<FDataEdge>& InEdges);
+			FGraphCycleError(TArrayView<INode const* const> InNodes, const TArray<FDataEdge>& InEdges);
 
 			virtual ~FGraphCycleError() = default;
 

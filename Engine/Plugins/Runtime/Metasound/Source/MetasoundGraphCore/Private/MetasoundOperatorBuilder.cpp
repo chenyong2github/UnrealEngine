@@ -4,6 +4,7 @@
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundGraphOperator.h"
+#include "MetasoundTarjan.h"
 
 #include "MetasoundBuildError.h"
 
@@ -59,7 +60,7 @@ namespace Metasound
 
 		// TODO: Validate edges.
 
-		bSuccess = TopologicalSort(InGraph.GetDataEdges(), SortedNodes, OutErrors);
+		bSuccess = TopologicalSort(InGraph, SortedNodes, OutErrors);
 		if (!bSuccess)
 		{
 			return TUniquePtr<IOperator>(nullptr);
@@ -91,7 +92,7 @@ namespace Metasound
 		return true;
 	}
 
-	bool FOperatorBuilder::TopologicalSort(const TArray<FDataEdge>& InEdges, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const
+	bool FOperatorBuilder::TopologicalSort(const IGraph& InGraph, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const
 	{
 		using namespace OperatorBuilderPrivate;
 		using FNodePair = TPair<INode*, INode*>;
@@ -101,7 +102,7 @@ namespace Metasound
 		TArray<INode*> UniqueNodes;
 		FNodeMultiMap Dependencies;
 
-		for (const FDataEdge& Edge : InEdges)
+		for (const FDataEdge& Edge : InGraph.GetDataEdges())
 		{
 			if (nullptr == Edge.To.Node)
 			{
@@ -134,13 +135,24 @@ namespace Metasound
 
 			if (0 == IndependentNodes.Num())
 			{
-				// add build error. likely a cycle in the graph.
+				// likely a cycle in the graph.
 				
-				// Get edges in the cylce
-				TArray<FDataEdge> CycleEdges;
-				GetEdgesBetweenNodes(UniqueNodes, InEdges, CycleEdges);
+				bool bExcludeSingleVertex = true;
 
-				AddBuildError<FGraphCycleError>(OutErrors, UniqueNodes, CycleEdges);
+				// Try to find cycles
+				TArray<FMetasoundStronglyConnectedComponent> Cycles;
+
+				if(FTarjan::FindStronglyConnectedComponents(InGraph, Cycles, bExcludeSingleVertex))
+				{
+					for (const FMetasoundStronglyConnectedComponent& Cycle : Cycles)
+					{
+						AddBuildError<FGraphCycleError>(OutErrors, Cycle.Nodes, Cycle.Edges);
+					}
+				}
+				else
+				{
+					AddBuildError<FInternalError>(OutErrors, TEXT(__FILE__), __LINE__);
+				}
 
 				return false;
 			}
@@ -212,8 +224,6 @@ namespace Metasound
 
 				return false;
 			}
-
-
 
 			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.VertexName, FromDataReferenceCollection, Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName);
 

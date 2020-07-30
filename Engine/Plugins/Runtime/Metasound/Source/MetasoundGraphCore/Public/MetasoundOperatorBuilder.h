@@ -41,7 +41,7 @@ namespace Metasound
 
 			bool GroupInputEdges(const TArray<FDataEdge>& InEdges, FNodeEdgeMultiMap& OutNodeInputs, TArray<FBuildErrorPtr>& OutErrors) const;
 
-			bool TopologicalSort(const TArray<FDataEdge>& InEdges, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+			bool TopologicalSort(const IGraph& InGraph, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
 
 			bool GatherInputDataReferences(const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection, TArray<FBuildErrorPtr>& OutErrors) const;
 
