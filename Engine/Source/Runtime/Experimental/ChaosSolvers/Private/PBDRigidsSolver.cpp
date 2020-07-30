@@ -794,7 +794,7 @@ namespace Chaos
 					if(ensure(NewCallback->PTHandle == nullptr)) //if not null we have double registration
 					{
 						FSimCallbackHandlePT* PTCallback = new FSimCallbackHandlePT(NewCallback);	//todo: use better memory management
-						PTCallback->Idx = SimCallbacks.Add(PTCallback);
+						SimCallbacks.Add(PTCallback);
 						NewCallback->PTHandle = PTCallback;
 					}
 				}
@@ -804,14 +804,16 @@ namespace Chaos
 					FSimCallbackHandle* RemovedCallback = PushData->SimCallbacksToRemove[Idx];
 					if(ensure(RemovedCallback->PTHandle != nullptr)) //if not null we are unregistering something that was never registered (or double delete) 
 					{
-						//callback was removed right away so skip it entirely
-						if(Idx == 0 && !RemovedCallback->bRunOnceMore)
+						if(Idx == 0)
 						{
-							SimCallbacks.RemoveAtSwap(RemovedCallback->PTHandle->Idx);
-							RemovedCallback->PTHandle->Idx = INDEX_NONE;
+							//callback was removed right away so skip it entirely (unless it was tagged as running at least once no matter what)
+							RemovedCallback->PTHandle->bPendingDelete = !RemovedCallback->bRunOnceMore;
 						}
-						
-						SimCallbacksPendingDelete.Add(RemovedCallback);
+						else
+						{
+							//want to delete, but came later in interval so need to run at least once
+							RemovedCallback->bRunOnceMore = true;
+						}
 					}
 				}
 

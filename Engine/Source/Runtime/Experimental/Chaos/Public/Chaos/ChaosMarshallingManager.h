@@ -200,13 +200,13 @@ struct FSimCallbackHandlePT
 {
 	FSimCallbackHandlePT(FSimCallbackHandle* InHandle)
 	: Handle(InHandle)
-	, Idx(INDEX_NONE)
+	, bPendingDelete(false)
 	{
 	}
 
 	FSimCallbackHandle* Handle;
 	TArray<FSimCallbackData*> IntervalData;
-	int32 Idx;
+	bool bPendingDelete;
 };
 
 struct FSimCallbackHandle
