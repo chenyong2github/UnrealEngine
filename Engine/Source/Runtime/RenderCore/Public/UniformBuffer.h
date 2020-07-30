@@ -83,7 +83,7 @@ public:
 	// Accessors.
 	FRHIUniformBuffer* GetUniformBufferRHI() const
 	{ 
-		checkSlow(IsInRenderingThread() || IsInParallelRenderingThread());
+		checkSlow(IsInParallelRenderingThread() || IsInRenderingThread());
 		checkf(UniformBufferRHI.GetReference(), TEXT("Attempted to access UniformBufferRHI on a TUniformBuffer that was never filled in with anything")); 
 		check(UniformBufferRHI.GetReference()); // you are trying to use a UB that was never filled with anything
 		return UniformBufferRHI; 

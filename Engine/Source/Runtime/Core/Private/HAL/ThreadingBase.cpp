@@ -198,6 +198,7 @@ CORE_API bool IsInParallelRenderingThread()
 	{
 		newValue = FTaskTagScope::IsCurrentTag(ETaskTag::EParallelRenderingThread)
 			|| FTaskTagScope::IsCurrentTag(ETaskTag::ERenderingThread)
+			|| FTaskTagScope::IsCurrentTag(ETaskTag::EParallelRhiThread) //TODO lots of RHI functions rely on our broken IsInParallelRenderingThread;
 			|| FTaskTagScope::IsCurrentTag(ETaskTag::ERhiThread); //TODO lots of RHI functions rely on our broken IsInParallelRenderingThread;
 	}
 
