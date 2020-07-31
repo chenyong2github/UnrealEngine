@@ -2540,7 +2540,7 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		if (MaterialNode)
 		{
 			MaterialNode->bIsPreviewExpression = (PreviewExpression == MaterialNode->MaterialExpression);
-			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
+			MaterialNode->bIsErrorExpression = (ErrorMaterialResource != nullptr) && (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
 
 			if (MaterialNode->bIsErrorExpression && !MaterialNode->bHasCompilerMessage)
 			{
