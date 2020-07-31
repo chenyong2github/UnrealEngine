@@ -11092,13 +11092,13 @@ void FSequencer::CreateCamera()
 
 		CameraGuid = MakeNewSpawnable(*NewCamera);
 		Spawnable = FocusedMovieScene->FindSpawnable(CameraGuid);
-		Spawnable->SetName(NewName);			
 
 		if (ensure(Spawnable))
 		{
 			// Override spawn ownership during this process to ensure it never gets destroyed
 			SavedOwnership = Spawnable->GetSpawnOwnership();
 			Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
+			Spawnable->SetName(NewName);			
 		}
 
 		// Destroy the old actor
