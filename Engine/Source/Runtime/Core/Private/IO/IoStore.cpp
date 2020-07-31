@@ -961,6 +961,11 @@ public:
 			{
 				CompressedBuffer.SetNumUninitialized(RawSize);
 			}
+			uint32 UncompressedSize = CompressionBlock.GetUncompressedSize();
+			if (uint32(UncompressedBuffer.Num()) < UncompressedSize)
+			{
+				UncompressedBuffer.SetNumUninitialized(UncompressedSize);
+			}
 			ContainerFileHandle->Seek(CompressionBlock.GetOffset());
 			ContainerFileHandle->Read(CompressedBuffer.GetData(), RawSize);
 			if (EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Encrypted))
@@ -974,7 +979,7 @@ public:
 			else
 			{
 				FName CompressionMethod = TocResource.CompressionMethods[CompressionBlock.GetCompressionMethodIndex()];
-				bool bUncompressed = FCompression::UncompressMemory(CompressionMethod, UncompressedBuffer.GetData(), CompressionBlock.GetUncompressedSize(), CompressedBuffer.GetData(), CompressionBlock.GetCompressedSize());
+				bool bUncompressed = FCompression::UncompressMemory(CompressionMethod, UncompressedBuffer.GetData(), UncompressedSize, CompressedBuffer.GetData(), CompressionBlock.GetCompressedSize());
 				if (!bUncompressed)
 				{
 					return FIoStatus(EIoErrorCode::CorruptToc, TEXT("Failed uncompressing block"));
