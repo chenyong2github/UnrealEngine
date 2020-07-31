@@ -64,44 +64,6 @@ bool UE::Geometry::IsInside(const TCapsule3<RealType>& OuterCapsule, const TOrie
 
 
 
-
-
-template<typename RealType>
-bool IntersectsHalfSpace(const FVector3<RealType>& NormalIntoSpace, const FVector3<RealType>& PlanePoint, const TOrientedBox3<RealType>& Box)
-{
-	RealType PlaneConstant = NormalIntoSpace.Dot(PlanePoint);
-	RealType Center = NormalIntoSpace.Dot(Box.Frame.Origin) - PlaneConstant;
-	FVector3<RealType> X, Y, Z;
-	Box.Frame.GetAxes(X, Y, Z);
-	RealType Radius =
-		TMathUtil<RealType>::Abs(Box.Extents.X * NormalIntoSpace.Dot(X)) +
-		TMathUtil<RealType>::Abs(Box.Extents.Y * NormalIntoSpace.Dot(Y)) +
-		TMathUtil<RealType>::Abs(Box.Extents.Z * NormalIntoSpace.Dot(Z));
-	return (Center + Radius >= 0);
-}
-
-
-template<typename RealType>
-bool IntersectsHalfSpace(const FVector3<RealType>& NormalIntoSpace, const FVector3<RealType>& PlanePoint, const TSphere3<RealType>& Sphere)
-{
-	RealType PlaneConstant = NormalIntoSpace.Dot(PlanePoint);
-	RealType ProjectedCenter = NormalIntoSpace.Dot(Sphere.Center) - PlaneConstant;
-	return (ProjectedCenter + Sphere.Radius >= 0);
-}
-
-
-
-template<typename RealType>
-bool IntersectsHalfSpace(const FVector3<RealType>& NormalIntoSpace, const FVector3<RealType>& PlanePoint, const TCapsule3<RealType>& Capsule)
-{
-	RealType PlaneConstant = NormalIntoSpace.Dot(PlanePoint);
-	RealType ProjectedP0 = NormalIntoSpace.Dot(Capsule.Segment.StartPoint()) - PlaneConstant;
-	RealType ProjectedP1 = NormalIntoSpace.Dot(Capsule.Segment.EndPoint()) - PlaneConstant;
-	return ( TMathUtil<RealType>::Max(ProjectedP0, ProjectedP1) + Capsule.Radius >= 0);
-}
-
-
-
 template<typename RealType>
 bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TOrientedBox3<RealType>& InnerBox)
 {
@@ -111,11 +73,11 @@ bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TOrie
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{
-		if (IntersectsHalfSpace<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k], InnerBox))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k]), InnerBox))
 		{
 			return false;
 		}
-		if (IntersectsHalfSpace<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k], InnerBox))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k]), InnerBox))
 		{
 			return false;
 		}
@@ -133,11 +95,11 @@ bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TSphe
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{
-		if (IntersectsHalfSpace<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k], InnerSphere))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k]), InnerSphere))
 		{
 			return false;
 		}
-		if (IntersectsHalfSpace<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k], InnerSphere))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k]), InnerSphere))
 		{
 			return false;
 		}
@@ -156,11 +118,11 @@ bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TCaps
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{
-		if (IntersectsHalfSpace<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k], InnerCapsule))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(Axes[k], Frame.Origin + Extents[k]*Axes[k]), InnerCapsule))
 		{
 			return false;
 		}
-		if (IntersectsHalfSpace<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k], InnerCapsule))
+		if (UE::Geometry::TestIntersection<RealType>(THalfspace3<RealType>(-Axes[k], Frame.Origin - Extents[k]*Axes[k]), InnerCapsule))
 		{
 			return false;
 		}

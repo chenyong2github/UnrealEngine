@@ -419,6 +419,14 @@ struct FVector3
 	{
 		return FVector3<T>(TNumericLimits<T>::Max(), TNumericLimits<T>::Max(), TNumericLimits<T>::Max());
 	}
+	
+	/** @return unit vector along axis X=0, Y=1, Z=2 */
+	constexpr static FVector3<T> MakeUnit(int32 Axis)
+	{
+		FVector3<T> UnitVec((T)0, (T)0, (T)0);
+		UnitVec[FMath::Clamp(Axis, 0, 2)] = (T)1;
+		return UnitVec;
+	}
 
 	FVector3<T>& operator=(const FVector3<T>& V2)
 	{
@@ -621,9 +629,21 @@ struct FVector3
 		return TMathUtil<T>::Max3(X,Y,Z);
 	}
 
+	/** @return 0/1/2 index of maximum element */
+	constexpr int32 MaxElementIndex() const
+	{
+		return TMathUtil<T>::Max3Index(X, Y, Z);
+	}
+
 	constexpr T MinElement() const
 	{
 		return TMathUtil<T>::Min3(X,Y,Z);
+	}
+
+	/** @return 0/1/2 index of minimum element */
+	constexpr int32 MinElementIndex() const
+	{
+		return TMathUtil<T>::Max3Index(X, Y, Z);
 	}
 
 	constexpr friend FVector3 Min( const FVector3& V0, const FVector3& V1 )
@@ -645,9 +665,21 @@ struct FVector3
 		return TMathUtil<T>::Max3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
 
+	/** @return 0/1/2 index of maximum absolute-value element */
+	constexpr T MaxAbsElementIndex() const
+	{
+		return TMathUtil<T>::Max3Index(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
+	}
+
 	constexpr T MinAbsElement() const
 	{
 		return TMathUtil<T>::Min3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
+	}
+
+	/** @return 0/1/2 index of minimum absolute-value element */
+	constexpr T MinAbsElementIndex() const
+	{
+		return TMathUtil<T>::Min3Index(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
 	}
 
 	constexpr FVector2<T> XY() const
