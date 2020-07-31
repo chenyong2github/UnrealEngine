@@ -1582,7 +1582,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 		const FAssetPackageData* PackageData = State.GetAssetPackageData(AssetData.PackageName);
 
 		// Add only assets that have actually been cooked and belong to any chunk and that have a file size
-		if (AssetData.ChunkIDs.Num() > 0 && PackageData->DiskSize > 0)
+		if (PackageData != nullptr && AssetData.ChunkIDs.Num() > 0 && PackageData->DiskSize > 0)
 		{
 			for (int32 PakchunkIndex : AssetData.ChunkIDs)
 			{
