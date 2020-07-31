@@ -1233,7 +1233,15 @@ void FMaterialEditor::RegisterToolBar()
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"HideUnrelatedNodesOptions",
 				FUIAction(),
-				FOnGetContent::CreateSP(this, &FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
+						MaterialEditor->MakeHideUnrelatedNodesOptionsMenu(InSubMenu);
+					}
+				}),
 				LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
 				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
 				TAttribute<FSlateIcon>(),
@@ -1248,7 +1256,15 @@ void FMaterialEditor::RegisterToolBar()
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"NodePreview",
 				FUIAction(),
-				FOnGetContent::CreateSP(this, &FMaterialEditor::GeneratePreviewMenuContent),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
+						MaterialEditor->GeneratePreviewMenuContent(InSubMenu);
+					}
+				}),
 				LOCTEXT("NodePreview_Label", "Preview Nodes"),
 				LOCTEXT("NodePreviewToolTip", "Preview the nodes for a given feature level and/or material quality."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
@@ -1399,32 +1415,24 @@ void FMaterialEditor::GenerateInheritanceMenu(UToolMenu* Menu)
 	}
 }
 
-TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
+void FMaterialEditor::GeneratePreviewMenuContent(UToolMenu* Menu)
 {
-	bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
+	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
-	MenuBuilder.BeginSection("MaterialEditorQualityPreview", LOCTEXT("MaterialQualityHeading", "Quality Level"));
+	FToolMenuSection& QualityLevelSection = Menu->AddSection("MaterialEditorQualityPreview", LOCTEXT("MaterialQualityHeading", "Quality Level"));
 	{
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_High);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Medium);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Low);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
-	{
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM4);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_All);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_High);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Medium);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Low);
 	}
 
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
-
+	FToolMenuSection& FeatureLevelSection = Menu->AddSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
+	{
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
+	}
 }
 
 UMaterialInterface* FMaterialEditor::GetMaterialInterface() const
@@ -2877,23 +2885,9 @@ void FMaterialEditor::HideUnrelatedNodes()
 	GraphEditor->FocusCommentNodes(CommentNodes, RelatedNodes);
 }
 
-TSharedRef<SWidget> FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu()
+void FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu(UToolMenu* Menu)
 {
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, GetToolkitCommands() );
-
-	TSharedRef<SWidget> OptionsHeading = SNew(SBox)
-		.Padding(2.0f)
-		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-					.Text(LOCTEXT("HideUnrelatedOptions", "Hide Unrelated Options"))
-					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
-			]
-		];
+	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
 	TSharedRef<SWidget> LockNodeStateCheckBox = SNew(SBox)
 		[
@@ -2935,13 +2929,9 @@ TSharedRef<SWidget> FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu()
 				]
 		];
 
-	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
-
-	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
-
-	MenuBuilder.AddMenuEntry(FUIAction(), FocusWholeChainCheckBox);
-
-	return MenuBuilder.MakeWidget();
+	FToolMenuSection& OptionsSection = Menu->AddSection("OptionsSection", LOCTEXT("HideUnrelatedOptions", "Hide Unrelated Options"));
+	OptionsSection.AddEntry(FToolMenuEntry::InitWidget("LockNodeStateCheckBox", LockNodeStateCheckBox, FText(), true /* bNoIndent */));
+	OptionsSection.AddEntry(FToolMenuEntry::InitWidget("FocusWholeChainCheckBox", FocusWholeChainCheckBox, FText(), true /* bNoIndent */));
 }
 
 void FMaterialEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)

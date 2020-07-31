@@ -558,9 +558,7 @@ private:
 	/** Creates the toolbar buttons. Bound by ExtendToolbar*/
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-	TSharedRef<SWidget> GenerateInheritanceMenu();
-
-	TSharedRef< SWidget > GeneratePreviewMenuContent();
+	void GeneratePreviewMenuContent(class UToolMenu* Menu);
 
 	/** Allows editor to veto the setting of a preview asset */
 	virtual bool ApproveSetPreviewAsset(UObject* InAsset) override;
@@ -634,7 +632,7 @@ private:
 	void HideUnrelatedNodes();
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
-	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();
+	void MakeHideUnrelatedNodesOptionsMenu(class UToolMenu* Menu);
 	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
 	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
 	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
