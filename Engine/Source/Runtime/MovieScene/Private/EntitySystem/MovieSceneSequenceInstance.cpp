@@ -83,7 +83,7 @@ void FSequenceInstance::InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker*
 	{
 		if (!LegacyEvaluator)
 		{
-			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.WeakSequence.Get(), CompiledDataManager);
+			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), CompiledDataManager);
 		}
 	}
 	else if (LegacyEvaluator)
@@ -102,7 +102,7 @@ void FSequenceInstance::InvalidateCachedData(UMovieSceneEntitySystemLinker* Link
 
 	UMovieSceneCompiledDataManager* CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
 
-	UMovieSceneSequence* Sequence = CompiledDataManager->GetEntry(CompiledDataID).WeakSequence.Get();
+	UMovieSceneSequence* Sequence = CompiledDataManager->GetEntry(CompiledDataID).GetSequence();
 	Player->State.AssignSequence(SequenceID, *Sequence, *Player);
 
 	if (SequenceID == MovieSceneSequenceID::Root)
