@@ -44,7 +44,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FGrid2DBuffer* CurrentData = nullptr;
 	FGrid2DBuffer* DestinationData = nullptr;
 
-	FRHITexture* RenderTargetToCopyTo;
+	FTextureRHIRef RenderTargetToCopyTo;
 
 	void BeginSimulate();
 	void EndSimulate();
