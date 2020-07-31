@@ -156,7 +156,7 @@ void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, F
 
 	FString WrappedOwnedTagsStr;
 	// If need to wrap string, use the wrapped string, else use the DataPack one, avoid string copying.
-	FString& OwnedTagsRef = WrapStringAccordingToViewport(DataPack.OwnedTags, WrappedOwnedTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnedTagsStr : DataPack.OwnedTags;
+	const FString& OwnedTagsRef = WrapStringAccordingToViewport(DataPack.OwnedTags, WrappedOwnedTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnedTagsStr : DataPack.OwnedTags;
 
 	CanvasContext.Printf(TEXT("Owned Tags: \n{yellow}%s"), *OwnedTagsRef);
 
@@ -168,9 +168,9 @@ void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, F
 		OwnerTags.Reset();
 		AbilityComp->GetOwnedGameplayTags(OwnerTags);
 
-		auto OwnerTagsStr = OwnerTags.ToStringsMaxLen(1024);
+		TArray<FString> OwnerTagsStr = OwnerTags.ToStringsMaxLen(1024);
 		FString WrappedOwnerTagsStr;
-		FString& OwnerTagsStrRef = WrapStringAccordingToViewport(*OwnerTagsStr.GetData(), WrappedOwnerTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnerTagsStr : *OwnerTagsStr.GetData();
+		const FString& OwnerTagsStrRef = WrapStringAccordingToViewport(*OwnerTagsStr.GetData(), WrappedOwnerTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnerTagsStr : *OwnerTagsStr.GetData();
 
 		CanvasContext.Printf(TEXT("Local Tags: \n{cyan}%s"), *OwnerTagsStrRef);
 	}
