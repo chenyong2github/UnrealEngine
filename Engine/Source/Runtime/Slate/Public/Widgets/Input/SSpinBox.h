@@ -930,7 +930,10 @@ protected:
 
 		OnValueChanged.ExecuteIfBound(ValueToCommit);
 
-		ValueAttribute.Set(ValueToCommit);
+		if (!ValueAttribute.IsBound())
+		{
+			ValueAttribute.Set(ValueToCommit);
+		}
 
 		// Update the cache of the external value to what the user believes the value is now.
 		CachedExternalValue = ValueAttribute.Get();
