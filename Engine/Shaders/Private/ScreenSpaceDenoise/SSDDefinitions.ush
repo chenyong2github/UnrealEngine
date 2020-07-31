@@ -56,7 +56,7 @@
 
 // World bluring radius for a miss.
 #define WORLD_RADIUS_INVALID -1
-#define WORLD_RADIUS_MISS (INFINITE_FLOAT)
+#define WORLD_RADIUS_MISS (100000)
 
 // World bluring radius for a miss.
 #define CONFUSION_FACTOR_INVALID -1
