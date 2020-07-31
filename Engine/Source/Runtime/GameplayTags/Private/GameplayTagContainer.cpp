@@ -970,6 +970,39 @@ FString FGameplayTagContainer::ToStringSimple(bool bQuoted) const
 	return RetString;
 }
 
+TArray<FString> FGameplayTagContainer::ToStringsMaxLen(int32 MaxLen) const
+{
+	// caveat, if MaxLen < than a tag string, full string will be put in array (as a single line in the array)
+	// since this is used for debug output.  If need to clamp, it can be added.  Also, strings will end in ", " to 
+	// avoid extra complication.
+	TArray<FString> RetStrings;
+	FString CurLine;
+	CurLine.Reserve(MaxLen);
+	for (int32 i = 0; i < GameplayTags.Num(); ++i)
+	{
+		FString TagString = GameplayTags[i].ToString();
+		if (i < GameplayTags.Num() - 1)
+		{
+			TagString += TEXT(",");
+		}
+		// Add 1 for space
+		if (CurLine.Len() + TagString.Len() + 1 >= MaxLen)
+		{
+			RetStrings.Add(CurLine);
+			CurLine = TagString;
+		} 
+		else
+		{
+			CurLine += TagString + TEXT(" ");
+		}
+	}
+	if (CurLine.Len() > 0)
+	{
+		RetStrings.Add(CurLine);
+	}
+	return RetStrings;
+}
+
 bool FGameplayTagContainer::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	// 1st bit to indicate empty tag container or not (empty tag containers are frequently replicated). Early out if empty.
