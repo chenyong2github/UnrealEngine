@@ -405,15 +405,15 @@ public:
 	 */
 	bool RemoveSpawnable(const FGuid& Guid);
 
+#endif //WITH_EDITOR
+
 	/**
-	 * Attempt to find a spawnable using some custom prodeicate
+	 * Attempt to find a spawnable using some custom predicate
 	 *
 	 * @param InPredicate A predicate to test each spawnable against
 	 * @return Spawnable object that was found (or nullptr if not found).
 	 */
 	FMovieSceneSpawnable* FindSpawnable( const TFunctionRef<bool(FMovieSceneSpawnable&)>& InPredicate );
-
-#endif //WITH_EDITOR
 
 	/**
 	 * Tries to locate a spawnable in this MovieScene for the specified spawnable GUID.
