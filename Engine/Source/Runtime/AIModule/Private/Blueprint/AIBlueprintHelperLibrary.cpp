@@ -345,6 +345,27 @@ UNavigationPath* UAIBlueprintHelperLibrary::GetCurrentPath(AController* Controll
 }
 
 
+int32 UAIBlueprintHelperLibrary::GetCurrentPathIndex(AController* Controller)
+{
+	UPathFollowingComponent* PFComp = nullptr;
+	if (Controller)
+	{
+		AAIController* AIController = Cast<AAIController>(Controller);
+		if (AIController)
+		{
+			PFComp = AIController->GetPathFollowingComponent();
+		}
+		else
+		{
+			// No AI Controller means its a player controller, most probably moving using SimpleMove
+			PFComp = Controller->FindComponentByClass<UPathFollowingComponent>();
+		}
+
+	}
+
+	return PFComp ? static_cast<int32>(PFComp->GetCurrentPathIndex()) : INDEX_NONE;
+}
+
 namespace
 {
 	UPathFollowingComponent* InitNavigationControl(AController& Controller)

@@ -74,6 +74,10 @@ class AIMODULE_API UAIBlueprintHelperLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "AI", meta = (UnsafeDuringActorConstruction = "true"))
 	static UNavigationPath* GetCurrentPath(AController* Controller);
 
+	/** Return the path index the given controller is currently at. Returns INDEX_NONE if no path. */
+	UFUNCTION(BlueprintPure, Category = "AI", meta = (UnsafeDuringActorConstruction = "true"))
+	static int32 GetCurrentPathIndex(AController* Controller);
+
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
 	static void SimpleMoveToActor(AController* Controller, const AActor* Goal);
 
