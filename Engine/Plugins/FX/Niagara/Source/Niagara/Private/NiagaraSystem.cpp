@@ -62,6 +62,14 @@ static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 	ECVF_Default
 );
 
+static float GNiagaraScalabiltiyMinumumMaxDistance = 1.0f;
+static FAutoConsoleVariableRef CVarNiagaraScalabiltiyMinumumMaxDistance(
+	TEXT("fx.Niagara.Scalability.MinMaxDistance"),
+	GNiagaraScalabiltiyMinumumMaxDistance,
+	TEXT("Minimum value for Niagara's Max distance value. Primariy to prevent divide by zero issues and ensure a sensible distance value for sorted significance culling."),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
@@ -2140,6 +2148,8 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 			break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 		}
 	}
+
+	CurrentScalabilitySettings.MaxDistance = FMath::Max(GNiagaraScalabiltiyMinumumMaxDistance, CurrentScalabilitySettings.MaxDistance);
 }
 
 void UNiagaraSystem::OnQualityLevelChanged()
