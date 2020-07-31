@@ -4,11 +4,11 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "TextureResource.h"
-#include "Engine/Texture2D.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "Engine/VolumeTexture.h"
+#include "Engine/TextureRenderTargetVolume.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceGrid3DCollection"
 
@@ -137,11 +137,12 @@ IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGrid3DCollection, FNiagaraDa
 UNiagaraDataInterfaceGrid3DCollection::UNiagaraDataInterfaceGrid3DCollection(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, NumAttributes(1)
-
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyGrid3DCollectionProxy());	
-}
 
+	FNiagaraTypeDefinition Def(UObject::StaticClass());
+	RenderTargetUserParameter.Parameter.SetType(Def);
+}
 
 void UNiagaraDataInterfaceGrid3DCollection::PostInitProperties()
 {
@@ -245,7 +246,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::Equals(const UNiagaraDataInterface* 
 	}
 	const UNiagaraDataInterfaceGrid3DCollection* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid3DCollection>(Other);
 
-	return OtherTyped != nullptr && OtherTyped->NumAttributes == NumAttributes;		
+	return OtherTyped != nullptr &&
+		OtherTyped->NumAttributes == NumAttributes &&
+		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter;
 }
 
 void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -352,6 +355,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::CopyToInternal(UNiagaraDataInterface
 
 	UNiagaraDataInterfaceGrid3DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3DCollection>(Destination);
 	OtherTyped->NumAttributes = NumAttributes;
+	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 
 	return true;
 }
@@ -463,10 +467,33 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	check(InstanceData->NumTiles.Y > 0);
 	check(InstanceData->NumTiles.Z > 0);
 
+	FTextureResource* RT_Resource = nullptr;
+
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	{
+		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
+		{
+			// resize RT to match what we need for the output
+			TargetTexture->OverrideFormat = PF_R32_FLOAT;
+			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
+			TargetTexture->InitAutoFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y, InstanceData->NumCells.Z * InstanceData->NumTiles.Z);
+			TargetTexture->UpdateResourceImmediate(true);
+
+			if (TargetTexture->Resource)
+			{
+				RT_Resource = TargetTexture->Resource;
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+		}
+	}
+
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Resource, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FGrid3DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
@@ -480,6 +507,15 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
 
 		RT_Proxy->SetElementCount(TargetData->NumCells.X * TargetData->NumCells.Y * TargetData->NumCells.Z);
+
+		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+		{
+			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+		}
+		else
+		{
+			TargetData->RenderTargetToCopyTo = nullptr;
+		}
 	});
 
 	return true;
@@ -504,6 +540,63 @@ void UNiagaraDataInterfaceGrid3DCollection::DestroyPerInstanceData(void* PerInst
 	);
 }
 
+
+bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
+{
+	FGrid3DCollectionRWInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());
+
+	FTextureResource* RT_Resource = nullptr;
+
+	bool NeedsReset = false;
+	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
+	{
+		if (UTextureRenderTargetVolume* TargetTexture = Cast<UTextureRenderTargetVolume>(UserParamObject))
+		{
+			int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
+			int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
+			int32 RTSizeZ = InstanceData->NumCells.Z * InstanceData->NumTiles.Z;
+
+			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY || TargetTexture->SizeZ != RTSizeZ)
+			{
+				// resize RT to match what we need for the output
+				TargetTexture->OverrideFormat = PF_R32_FLOAT;
+				TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
+				TargetTexture->InitAutoFormat(RTSizeX, RTSizeY, RTSizeZ);
+				TargetTexture->UpdateResourceImmediate(true);
+
+				if (TargetTexture->Resource)
+				{
+					NeedsReset = true;
+				}
+			}
+
+			RT_Resource = TargetTexture->Resource;
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+		}
+	}
+
+	FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
+	ENQUEUE_RENDER_COMMAND(FUpdateData)(
+		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+	{
+		FGrid3DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
+
+		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
+		{
+			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
+		}
+		else
+		{
+			TargetData->RenderTargetToCopyTo = nullptr;
+		}
+
+	});
+
+	return NeedsReset;
+}
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
 bool UNiagaraDataInterfaceGrid3DCollection::FillVolumeTexture(const UNiagaraComponent *Component, UVolumeTexture*Dest, int AttributeIndex)
@@ -797,6 +890,22 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(FRHICommandList&
 	{
 		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
 		ProxyData->EndSimulate();
+	}
+}
+
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+{
+	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+
+	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->CurrentData->GridBuffer.Buffer);
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProxyData->RenderTargetToCopyTo);
+
+		FRHICopyTextureInfo CopyInfo;
+		RHICmdList.CopyTexture(ProxyData->CurrentData->GridBuffer.Buffer, ProxyData->RenderTargetToCopyTo, CopyInfo);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProxyData->RenderTargetToCopyTo);
 	}
 }
 
