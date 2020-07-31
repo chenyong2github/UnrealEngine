@@ -136,6 +136,12 @@ void SetupRaytracingLightDataPacked(
 		LightDataElement.RectLightBarnLength = LightParameters.RectLightBarnLength;
 		LightDataElement.Pad = 0;
 
+		// Stuff directional light's shadow angle factor into a RectLight parameter
+		if (Light.LightType == LightType_Directional)
+		{
+			LightDataElement.RectLightBarnCosAngle = Light.LightSceneInfo->Proxy->GetShadowSourceAngleFactor();
+		}
+
 		LightDataArray.Add(LightDataElement);
 
 		const bool bRequireTexture = Light.LightType == ELightComponentType::LightType_Rect && LightParameters.SourceTexture;
