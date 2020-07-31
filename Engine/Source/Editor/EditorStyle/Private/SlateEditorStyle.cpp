@@ -5974,6 +5974,11 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 		Set( "BlueprintEditor.AddNewAnimationLayer.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon20x20) );
 		Set( "BlueprintEditor.AddNewAnimationLayer", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon40x40) );
 
+		Set( "MyBlueprint.PasteVariable", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteLocalVariable", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteFunction", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteMacro", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+
 		Set( "Kismet.Status.Unknown.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Unknown_Small", Icon16x16 ) );
 		Set( "Kismet.Status.Error.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Broken_Small", Icon16x16 ) );
 		Set( "Kismet.Status.Good.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Good_Small", Icon16x16 ) );
