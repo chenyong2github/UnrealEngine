@@ -823,8 +823,17 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
-			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
+			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			// In the case of two objects which are at the same level in shock propagation which end
+			// up in contact with each other, treat each object as not temporarily static. This can
+			// happen, for example, at the center of an arch, or between objects which are sliding into
+			// each other on a static surface.
+			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			{
+				IsTemporarilyStatic0 = false;
+				IsTemporarilyStatic1 = false;
+			}
 
 			if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
 			{
@@ -912,8 +921,17 @@ namespace Chaos
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
-			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
-			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
+			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			// In the case of two objects which are at the same level in shock propagation which end
+			// up in contact with each other, treat each object as not temporarily static. This can
+			// happen, for example, at the center of an arch, or between objects which are sliding into
+			// each other on a static surface.
+			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			{
+				IsTemporarilyStatic0 = false;
+				IsTemporarilyStatic1 = false;
+			}
 
 			if (Contact.Phi >= ParticleParameters.ShapePadding)
 			{
