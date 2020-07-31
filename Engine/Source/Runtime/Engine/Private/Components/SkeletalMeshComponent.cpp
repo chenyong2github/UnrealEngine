@@ -196,6 +196,8 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ClothTickFunction.EndTickGroup = TG_PostPhysics;
 	ClothTickFunction.bCanEverTick = true;
 
+	bWaitForParallelClothTask = false;
+
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	ClothMaxDistanceScale = 1.0f;
 	bResetAfterTeleport = true;
@@ -1273,7 +1275,7 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	// relative to a root bone we need to extract simulation positions as this bone could be animated.
 	if(bClothingSimulationSuspended && ClothingSimulation && ClothingSimulation->ShouldSimulate())
 	{
-		ClothingSimulation->GetSimulationData(CurrentSimulationData_GameThread, this, Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()));
+		ClothingSimulation->GetSimulationData(CurrentSimulationData, this, Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()));
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -1955,11 +1957,18 @@ void USkeletalMeshComponent::UpdateClothSimulationContext(float InDeltaTime)
 
 void USkeletalMeshComponent::HandleExistingParallelClothSimulation()
 {
+	if (bBindClothToMasterComponent)
+	{
+		if (USkeletalMeshComponent* MasterComp = Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()))
+		{
+			MasterComp->HandleExistingParallelClothSimulation();
+		}
+	}
+
 	if(IsValidRef(ParallelClothTask))
 	{
 		// There's a simulation in flight
-		check(IsInGameThread());
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(ParallelClothTask, ENamedThreads::GameThread);
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(ParallelClothTask, ENamedThreads::AnyThread);
 		CompleteParallelClothSimulation();
 	}
 }
@@ -1976,12 +1985,12 @@ void USkeletalMeshComponent::WritebackClothingSimulationData()
 			// Check if our bone map is actually valid, if not there is no clothing data to build
 			if(MasterBoneMap.Num() == 0)
 			{
-				CurrentSimulationData_GameThread.Reset();
+				CurrentSimulationData.Reset();
 				return;
 			}
 		}
 
-		ClothingSimulation->GetSimulationData(CurrentSimulationData_GameThread, this, OverrideComponent);
+		ClothingSimulation->GetSimulationData(CurrentSimulationData, this, OverrideComponent);
 	}
 }
 
