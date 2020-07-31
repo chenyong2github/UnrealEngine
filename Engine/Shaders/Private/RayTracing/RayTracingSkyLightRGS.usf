@@ -13,6 +13,8 @@
 #include "RayTracingSkyLightEvaluation.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 
+uint UpscaleFactor;
+
 RaytracingAccelerationStructure TLAS;
 
 RWTexture2D<float4> RWOcclusionMaskUAV;
@@ -20,8 +22,8 @@ RWTexture2D<float2> RWRayDistanceUAV;
 
 RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
-	uint LinearIndex = CalcLinearIndex(PixelCoord);
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin.xy;
+	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
@@ -69,6 +71,7 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	float HitDistance;
 
 	SkyLightEvaluate(
+		DispatchThreadId,
 		PixelCoord,
 		SamplesPerPixel,
 		WorldPosition,
@@ -93,6 +96,6 @@ RAY_TRACING_ENTRY_RAYGEN(SkyLightRGS)
 	DiffuseExitantRadiance.rgb *= View.PreExposure;
 #endif
 
-	RWOcclusionMaskUAV[PixelCoord] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
-	RWRayDistanceUAV[PixelCoord] = float2(HitDistance, SamplesPerPixel);
+	RWOcclusionMaskUAV[DispatchThreadId] = float4(ClampToHalfFloatRange(DiffuseExitantRadiance.rgb), AmbientOcclusion);
+	RWRayDistanceUAV[DispatchThreadId] = float2(HitDistance, SamplesPerPixel);
 }
