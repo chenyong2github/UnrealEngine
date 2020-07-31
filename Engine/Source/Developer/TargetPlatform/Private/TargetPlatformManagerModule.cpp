@@ -28,13 +28,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
-
-// autosdks only function properly on windows right now.
-#if !IS_MONOLITHIC && (PLATFORM_WINDOWS)
-	#define AUTOSDKS_ENABLED 1
-#else
-	#define AUTOSDKS_ENABLED 0
-#endif
+#define (AUTOSDKS_ENABLED WITH_UNREAL_DEVELOPER_TOOLS || !IS_MONOLITHIC) && PLATFORM_WINDOWS
 
 static const size_t MaxPlatformCount = 64;		// In the unlikely event that someone bumps this please note that there's
 												// an implicit assumption that there won't be more than 64 unique target
@@ -105,10 +99,7 @@ public:
 			// before we get a change to setup for a given platform.  Use the platforminfo list to avoid any kind of interdependency.
 			for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 			{
-				if (PlatformInfo.AutoSDKPath.Len() > 0)
-				{
-					SetupAndValidateAutoSDK(PlatformInfo.AutoSDKPath);
-				}
+				SetupAndValidateAutoSDK(PlatformInfo.AutoSDKPath);
 			}
 		}
 #endif
@@ -630,16 +621,9 @@ protected:
 	 */
 	bool IsAutoSDKsEnabled()
 	{
-		static const FString SDKRootEnvFar(TEXT("UE_SDKS_ROOT"));
-
-		FString SDKPath = FPlatformMisc::GetEnvironmentVariable(*SDKRootEnvFar);
-
 		// AutoSDKs only enabled if UE_SDKS_ROOT is set.
-		if (SDKPath.Len() != 0)
-		{
-			return true;
-		}
-		return false;
+		static const TCHAR* SDKRootEnvVar = TEXT("UE_SDKS_ROOT");
+		return !FPlatformMisc::GetEnvironmentVariable(SDKRootEnvVar).IsEmpty();
 	}
 
 	/** Discovers the available target platforms. */
