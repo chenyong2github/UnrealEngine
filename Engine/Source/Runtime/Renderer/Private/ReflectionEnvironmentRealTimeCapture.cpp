@@ -15,7 +15,7 @@
 #include "VolumetricCloudRendering.h"
 #include "VolumetricCloudProxy.h"
 #include "FogRendering.h"
-
+#include "GPUScene.h"
 
 extern float GReflectionCaptureNearPlane;
 
@@ -239,7 +239,16 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// Note: cube view is not meant to be sent to lambdas because we only create a single one. You should only send the ViewUniformBuffer around.
 	FViewInfo& CubeView = *MainView.CreateSnapshot();
 	CubeView.FOV = 90.0f;
-	// We cannot override exposure because sky input texture are using exposure
+	// Note: We cannot override exposure because sky input texture are using exposure
+
+	// DYNAMIC PRIMITIVES - We empty the CubeView dynamic primitive list to make sure UploadDynamicPrimitiveShaderDataForViewInternal is going through the cheap fast path only updating unfirm buffer.
+	// This means we cannot render procedurally animated meshes into the real-time sky capture as of today.
+	CubeView.DynamicPrimitiveShaderData.Empty();
+
+	// Other view data clean up
+	CubeView.StereoPass = eSSP_FULL;
+	CubeView.DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+	CubeView.MaterialTextureMipBias = 0;
 
 	FViewMatrices::FMinimalInitializer SceneCubeViewInitOptions;
 	SceneCubeViewInitOptions.ConstrainedViewRect = FIntRect(FIntPoint(0, 0), FIntPoint(CubeWidth, CubeWidth));
@@ -422,9 +431,16 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				{
 					CubeView.CachedViewUniformShaderParameters->CameraAerialPerspectiveVolume = RealTimeReflectionCaptureCamera360APLutTexture->GetRenderTargetItem().ShaderResourceTexture;
 				}
-				// Else we do nothing as we assum the MainView one will not be used
+				// Else we do nothing as we assume the MainView one will not be used
 
 				TUniformBufferRef<FViewUniformShaderParameters> CubeViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*CubeView.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+				CubeView.ViewUniformBuffer = CubeViewUniformBuffer;
+				if (CubeView.bSceneHasSkyMaterial)
+				{
+					// DYNAMIC PRIMITIVES - This will hit the fast path not updating the GPU scene, but only setting the GPUSCene resources on the view uniform buffer.
+					UploadDynamicPrimitiveShaderDataForView(RHICmdList, *this, CubeView);
+				}
+
 				SkyRC.ViewUniformBuffer = CubeViewUniformBuffer;
 				SkyRC.ViewMatrices = &CubeViewMatrices;
 
