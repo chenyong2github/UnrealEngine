@@ -34,6 +34,9 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFunctionLibrary : public UBlueprintF
 	/** Sets Niagara Array Int32 Data. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Niagara Set Int32 Array"))
 	static void SetNiagaraArrayInt32(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<int32>& ArrayData);
+	/** Sets Niagara Array Bool Data. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Niagara Set Bool Array"))
+	static void SetNiagaraArrayBool(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<bool>& ArrayData);
 
 	/** Gets a copy of Niagara Float Data. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Niagara Get Float Array"))
@@ -56,4 +59,7 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFunctionLibrary : public UBlueprintF
 	/** Gets a copy of Niagara Int32 Data. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Niagara Get Int32 Array"))
 	static TArray<int32> GetNiagaraArrayInt32(UNiagaraComponent* NiagaraSystem, FName OverrideName);
+	/** Gets a copy of Niagara Bool Data. */
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Niagara Get Bool Array"))
+	static TArray<bool> GetNiagaraArrayBool(UNiagaraComponent* NiagaraSystem, FName OverrideName);
 };

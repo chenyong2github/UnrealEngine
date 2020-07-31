@@ -75,6 +75,16 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayInt32(UNiagaraCom
 	}
 }
 
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayBool(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<bool>& ArrayData)
+{
+	if (UNiagaraDataInterfaceArrayBool* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayBool>(NiagaraSystem, OverrideName))
+	{
+		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
+		ArrayDI->BoolData = ArrayData;
+		ArrayDI->UpdateGPU();
+	}
+}
+
 TArray<float> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayFloat(UNiagaraComponent* NiagaraSystem, FName OverrideName)
 {
 	if (UNiagaraDataInterfaceArrayFloat* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayFloat>(NiagaraSystem, OverrideName))
@@ -143,5 +153,15 @@ TArray<int32> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayInt32(UN
 		return ArrayDI->IntData;
 	}
 	return TArray<int32>();
+}
+
+TArray<bool> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayBool(UNiagaraComponent* NiagaraSystem, FName OverrideName)
+{
+	if (UNiagaraDataInterfaceArrayBool* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<UNiagaraDataInterfaceArrayBool>(NiagaraSystem, OverrideName))
+	{
+		FRWScopeLock ReadLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
+		return ArrayDI->BoolData;
+	}
+	return TArray<bool>();
 }
 
