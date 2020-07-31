@@ -265,7 +265,7 @@ void FAnimBlueprintCompilerContext::ProcessClassSubsystems()
 	// Sort subsystems by class name
 	NewAnimBlueprintClass->Subsystems.Sort([](UAnimBlueprintClassSubsystem& InSubsystemA, UAnimBlueprintClassSubsystem& InSubsystemB)
 	{
-		return InSubsystemA.GetClass()->GetName() < InSubsystemA.GetClass()->GetName();
+		return InSubsystemA.GetClass()->GetName() < InSubsystemB.GetClass()->GetName();
 	});
 
 	// Rebuild subsystem maps
