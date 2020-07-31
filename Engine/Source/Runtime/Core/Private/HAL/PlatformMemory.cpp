@@ -6,36 +6,35 @@
 
 namespace
 {
-	float CalculateDifference(float Current, float Previous)
+	float CalculateDifference(uint64 Current, uint64 Previous)
 	{
-		return Current - Previous;
+		return static_cast<float>(Current) - static_cast<float>(Previous);
 	}
 
-    float BytesToMB(float Bytes)
-    {
-        return Bytes / (1024.0f * 1024.0f);
-    }
-}
+	float BytesToMB(float Bytes)
+	{
+		return Bytes / (1024.0f * 1024.0f);
+	}
 
 FScopedMemoryStats::FScopedMemoryStats(const TCHAR* Name)
-    : Text(Name)
-    , StartStats(FPlatformMemory::GetStats())
+	: Text(Name)
+	, StartStats(FPlatformMemory::GetStats())
 {
 }
 
 FScopedMemoryStats::~FScopedMemoryStats()
 {
-    const FPlatformMemoryStats EndStats = FPlatformMemory::GetStats();
-    UE_LOG(LogMemory, Log, TEXT("ScopedMemoryStat[%s] UsedPhysical %.02fMB (%+.02fMB), PeakPhysical: %.02fMB (%+.02fMB), UsedVirtual: %.02fMB (%+.02fMB) PeakVirtual: %.02fMB (%+.02fMB)"),
-        Text,
-        BytesToMB(EndStats.UsedPhysical),
-        BytesToMB(CalculateDifference(EndStats.UsedPhysical,     StartStats.UsedPhysical)),
-        BytesToMB(EndStats.PeakUsedPhysical),
-        BytesToMB(CalculateDifference(EndStats.PeakUsedPhysical, StartStats.PeakUsedPhysical)),
-        BytesToMB(EndStats.UsedVirtual),
-        BytesToMB(CalculateDifference(EndStats.UsedVirtual,      StartStats.UsedVirtual)),
-        BytesToMB(EndStats.PeakUsedVirtual),
-        BytesToMB(CalculateDifference(EndStats.PeakUsedVirtual,  StartStats.PeakUsedVirtual))
-    );
+	const FPlatformMemoryStats EndStats = FPlatformMemory::GetStats();
+	UE_LOG(LogMemory, Log, TEXT("ScopedMemoryStat[%s] UsedPhysical %.02fMB (%+.02fMB), PeakPhysical: %.02fMB (%+.02fMB), UsedVirtual: %.02fMB (%+.02fMB) PeakVirtual: %.02fMB (%+.02fMB)"),
+		Text,
+		BytesToMB(static_cast<float>(EndStats.UsedPhysical)),
+		BytesToMB(CalculateDifference(EndStats.UsedPhysical,     StartStats.UsedPhysical)),
+		BytesToMB(static_cast<float>(EndStats.PeakUsedPhysical)),
+		BytesToMB(CalculateDifference(EndStats.PeakUsedPhysical, StartStats.PeakUsedPhysical)),
+		BytesToMB(static_cast<float>(EndStats.UsedVirtual)),
+		BytesToMB(CalculateDifference(EndStats.UsedVirtual,      StartStats.UsedVirtual)),
+		BytesToMB(static_cast<float>(EndStats.PeakUsedVirtual)),
+		BytesToMB(CalculateDifference(EndStats.PeakUsedVirtual,  StartStats.PeakUsedVirtual))
+	);
 }
 #endif
