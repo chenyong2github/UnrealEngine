@@ -119,6 +119,7 @@
 
 #define SYS_PARAM_INSTANCE_ALIVE                         INiagaraModule::GetVar_DataInstance_Alive()
 #define SYS_PARAM_SCRIPT_USAGE                           INiagaraModule::GetVar_ScriptUsage()
+#define SYS_PARAM_SCRIPT_CONTEXT                         INiagaraModule::GetVar_ScriptContext()
 #define TRANSLATOR_PARAM_BEGIN_DEFAULTS                  INiagaraModule::GetVar_BeginDefaults()
 
 struct NIAGARA_API FNiagaraConstants

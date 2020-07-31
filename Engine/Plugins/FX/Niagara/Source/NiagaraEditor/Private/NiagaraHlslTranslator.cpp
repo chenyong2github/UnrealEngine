@@ -4457,6 +4457,25 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		OutVar.SetValue(EnumValue);
 		return true;
 	}
+	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
+	{
+		ENiagaraScriptUsage Usage = TranslationStages[ActiveStageIdx].ScriptUsage;
+		FNiagaraInt32 EnumValue;
+		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::System;
+		}
+		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Emitter;
+		}
+		else
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Particle;
+		}
+		OutVar.SetValue(EnumValue);
+		return true;
+	}
 	return false;
 }
 
