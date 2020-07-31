@@ -87,6 +87,8 @@ public:
 		//actors
 		UI_COMMAND( AddsActors, "Select Actors", "Adds the Actors in the selected Levels from the viewport's existing selection", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( RemovesActors, "Deselect Actors", "Removes the Actors in the selected Levels from the viewport's existing selection", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND (ConvertLevelToExternalActors, "Convert Level to External Actors", "Enable selected levels to use external actors and convert their actors to external packaging", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( ConvertLevelToInternalActors, "Convert Level to Internal Actors", "Disable selected levels to use external actors and convert their actors to internal packaging", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( MoveActorsToSelected, "Move Selected Actors to Level", "Moves the selected actors to this level", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( MoveFoliageToSelected, "Move Selected Foliage to Level", "Moves the selected foliage instances to this level. Keeps cross-level references to original bases", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( SelectStreamingVolumes, "Select Streaming Volumes", "Selects the streaming volumes associated with the selected levels", EUserInterfaceActionType::Button, FInputChord() );
@@ -248,6 +250,12 @@ public:
 	/** Deselects the actors in the selected Levels */
 	TSharedPtr< FUICommandInfo > RemovesActors;
 	
+	/** Activate `Use External Actors` on the level and convert actors to external packaging. */
+	TSharedPtr< FUICommandInfo > ConvertLevelToExternalActors;
+
+	/** Disable `Use External Actors` on the level and convert actors to internal packaging. */
+	TSharedPtr< FUICommandInfo > ConvertLevelToInternalActors;
+
 	/** Moves the selected actors to the selected level */
 	TSharedPtr< FUICommandInfo > MoveActorsToSelected;
 
@@ -256,7 +264,6 @@ public:
 	
 	/** Selects the streaming volumes associated with the selected levels */
 	TSharedPtr< FUICommandInfo > SelectStreamingVolumes;
-	
 	
 	/** Makes selected Levels visible */
 	TSharedPtr< FUICommandInfo > World_ShowSelectedLevels;
