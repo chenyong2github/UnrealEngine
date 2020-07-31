@@ -28,7 +28,6 @@
 
 IMPLEMENT_SHADER_TYPE(, FNiagaraShader, TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
-
 int32 GCreateNiagaraShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("niagara.CreateShadersOnLoad"),
@@ -138,72 +137,6 @@ void FNiagaraShaderMapPointerTable::LoadFromArchive(FArchive& Ar, void* FrozenCo
 	}
 }
 
-#if 0
-void FNiagaraShaderMapId::Serialize(FArchive& Ar)
-{
-	// Handle niagara custom version and the compiler version id.
-	int32 NiagaraVer;
-	if (Ar.IsLoading())
-	{
-		FGuid FirstGuid;
-		Ar << FirstGuid;
-		if (FirstGuid == FNiagaraCustomVersion::GUID)
-		{
-			// If the first guid matches the niagara custom version identifier, than this was serialized with versioning so read the current version and then read the compiler version which was next.
-			Ar << NiagaraVer;
-			Ar << CompilerVersionID;
-		}
-		else
-		{
-			// If the first guid was not the niagara custom version identifier it was saved before versioning so the first guid was the compiler version.
-			NiagaraVer = FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts - 1;
-			CompilerVersionID = FirstGuid;
-		}
-	}
-	else // Saving
-	{
-		// When saving, the custom version is the latest version so serialize the niagara custom version identifier, the current version, and the compiler version.
-		NiagaraVer = FNiagaraCustomVersion::LatestVersion;
-		FGuid NiagaraCustomVersionGuid = FNiagaraCustomVersion::GUID;
-		Ar << NiagaraCustomVersionGuid;
-		Ar << NiagaraVer;
-		Ar << CompilerVersionID;
-	}
-
-	Ar << BaseScriptID_DEPRECATED;
-	Ar << (int32&)FeatureLevel;
-
-	if (Ar.IsLoading() && NiagaraVer < FNiagaraCustomVersion::RemoveGraphUsageCompileIds)
-	{
-		// These values are no longer used, but need to be loaded from old files to keep the archive valid.
-		TArray<FGuid> ReferencedDependencyIds;
-		Ar << ReferencedDependencyIds;
-	}
-
-	if (NiagaraVer >= FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts)
-	{
-		Ar << BaseCompileHash;
-		Ar << ReferencedCompileHashes;
-	}
-
-	if (NiagaraVer >= FNiagaraCustomVersion::AddAdditionalDefinesProperty)
-	{
-		Ar << AdditionalDefines;
-	}
-	
-	if (NiagaraVer >= FNiagaraCustomVersion::AddRIAndDetailLevel)
-	{
-		if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
-		{
-			int32 Dummy;
-			Ar << Dummy;
-		}
-		Ar << bUsesRapidIterationParams;
-	}
-	
-	//ParameterSet.Serialize(Ar);		// NIAGARATODO: at some point we'll need stuff for static switches here
-}
-#endif
 
 /** Hashes the script-specific part of this shader map Id. */
 void FNiagaraShaderMapId::GetScriptHash(FSHAHash& OutHash) const
@@ -244,6 +177,7 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 		|| FeatureLevel != ReferenceSet.FeatureLevel
 		|| CompilerVersionID != ReferenceSet.CompilerVersionID 
 		|| bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams
+		|| bUseShaderPermutations != ReferenceSet.bUseShaderPermutations
 		|| LayoutParams != ReferenceSet.LayoutParams)
 	{
 		return false;
@@ -347,6 +281,15 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 		KeyString += TEXT("NORI_");
 	}
 	
+	if (bUseShaderPermutations)
+	{
+		KeyString += TEXT("USEPERM_");
+	}
+	else
+	{
+		KeyString += TEXT("NOPERM_");
+	}
+
 	// Add additional defines
 	for (int32 DefinesIndex = 0; DefinesIndex < AdditionalDefines.Num(); DefinesIndex++)
 	{
@@ -391,6 +334,7 @@ TMap<const FShaderCompileJob*, TArray<FNiagaraDataInterfaceGPUParamInfo> > FNiag
  */
 TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::BeginCompileShader(
 	uint32 ShaderMapId,
+	int32 PermutationId,
 	const FNiagaraShaderScript* Script,
 	FShaderCompilerEnvironment* CompilationEnvironment,
 	EShaderPlatform Platform,
@@ -399,7 +343,7 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::Beg
 	TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo
 	)
 {
-	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, nullptr, this, /* PermutationId = */ 0);
+	FShaderCompileJob* NewJob = new FShaderCompileJob(ShaderMapId, nullptr, this, PermutationId);
 
 	//NewJob->DIParamInfo = InDIParamInfo;	// from hlsl translation and need to be passed to the FNiagaraShader on completion
 
@@ -412,8 +356,19 @@ TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> FNiagaraShaderType::Beg
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_MAX_GPU_SPAWN_INFOS"), NIAGARA_MAX_GPU_SPAWN_INFOS);
 	NewJob->Input.Environment.SetDefine(TEXT("DISKELMESH_BONE_INFLUENCES"), 0);
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
+	NewJob->Input.Environment.SetDefine(TEXT("SHADER_STAGE_PERMUTATION"), PermutationId);
 
-	
+	if (Script->GetUseShaderPermutations())
+	{
+		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 1);
+		NewJob->Input.Environment.SetDefine(TEXT("DefaultSimulationStageIndex"), 0);
+		NewJob->Input.Environment.SetDefine(TEXT("SimulationStageIndex"), Script->PermutationIdToShaderStageIndex(PermutationId));
+	}
+	else
+	{
+		NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_SHADER_PERMUTATIONS"), 0);
+	}
+
 	NewJob->Input.Environment.SetDefine(TEXT("USE_SIMULATION_STAGES"), Script->GetUseSimStagesDefine());
 
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
@@ -520,15 +475,13 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 {
 	check(CurrentJob.bSucceeded);
 
-	const int32 PermutationId = 0;
-	//CurrentJob.Id
 	TArray<FNiagaraDataInterfaceGPUParamInfo> DIParamInfo;
 	if (!ExtraParamInfo.RemoveAndCopyValue(&CurrentJob, DIParamInfo))
 	{
 		check(false);
 	}
 
-	FShader* Shader = ConstructCompiled(FNiagaraShaderType::CompiledShaderInitializerType(this, PermutationId, CurrentJob.Output, ShaderMapHash, InDebugDescription, DIParamInfo));
+	FShader* Shader = ConstructCompiled(FNiagaraShaderType::CompiledShaderInitializerType(this, CurrentJob.PermutationId, CurrentJob.Output, ShaderMapHash, InDebugDescription, DIParamInfo));
 	//CurrentJob.Output.ParameterMap.VerifyBindingsAreComplete(GetName(), CurrentJob.Output.Target, nullptr); // b/c we don't bind data interfaces yet...
 
 	return Shader;
@@ -751,22 +704,25 @@ void FNiagaraShaderMap::Compile(
 					// Compile this niagara shader .
 					TArray<FString> ShaderErrors;
   
-					// Only compile the shader if we don't already have it
-					if (!NewContent->HasShader(ShaderType, /* PermutationId = */ 0))
+					for (int32 PermutationId = 0; PermutationId < Script->GetNumPermutations(); ++PermutationId)
 					{
-						TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job = ShaderType->BeginCompileShader(
-							CompilingId,
-							Script,
-							CompilationEnvironment,
-							InPlatform,
-							NewJobs,
-							FShaderTarget(ShaderType->GetFrequency(), InPlatform),
-							Script->GetDataInterfaceParamInfo()
+						// Only compile the shader if we don't already have it
+						if (!NewContent->HasShader(ShaderType, PermutationId))
+						{
+							TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe> Job = ShaderType->BeginCompileShader(
+								CompilingId,
+								PermutationId, 
+								Script,
+								CompilationEnvironment,
+								InPlatform,
+								NewJobs,
+								FShaderTarget(ShaderType->GetFrequency(), InPlatform),
+								Script->GetDataInterfaceParamInfo()
 							);
-						check(!SharedShaderJobs.Find(ShaderType));
-						SharedShaderJobs.Add(ShaderType, Job);
+							SharedShaderJobs.Add(ShaderType, Job);
+						}
+						NumShaders++;
 					}
-					NumShaders++;
 				}
 				else if (ShaderType)
 				{
@@ -826,8 +782,8 @@ FShader* FNiagaraShaderMap::ProcessCompilationResultsForSingleJob(TSharedRef<FSh
 
 	// UE-67395 - we had a case where we polluted the DDC with a shader containing no bytecode.
 	check(Shader && Shader->GetCodeSize() > 0);
-	check(!GetContent()->HasShader(NiagaraShaderType, /* PermutationId = */ 0));
-	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), 0, Shader);
+	check(!GetContent()->HasShader(NiagaraShaderType, CurrentJob->PermutationId));
+	return GetMutableContent()->FindOrAddShader(NiagaraShaderType->GetHashedName(), CurrentJob->PermutationId, Shader);
 }
 
 bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShaderCommonCompileJob, ESPMode::ThreadSafe>>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
@@ -891,13 +847,19 @@ bool FNiagaraShaderMap::TryToAddToExistingCompilationTask(FNiagaraShaderScript* 
 bool FNiagaraShaderMap::IsNiagaraShaderComplete(const FNiagaraShaderScript* Script, const FNiagaraShaderType* ShaderType, bool bSilent)
 {
 	// If we should cache this script, it's incomplete if the shader is missing
-	if (ShouldCacheNiagaraShader(ShaderType, GetShaderPlatform(), Script) &&	!GetContent()->HasShader((FShaderType*)ShaderType, /* PermutationId = */ 0))
+	if (ShouldCacheNiagaraShader(ShaderType, GetShaderPlatform(), Script))
 	{
-		if (!bSilent)
+		for (int32 PermutationId = 0; PermutationId < Script->GetNumPermutations(); ++PermutationId)
 		{
-			UE_LOG(LogShaders, Warning, TEXT("Incomplete shader %s, missing FNiagaraShader %s."), *Script->GetFriendlyName(), ShaderType->GetName());
+			if (!GetContent()->HasShader((FShaderType*)ShaderType, PermutationId))
+			{
+				if (!bSilent)
+				{
+					UE_LOG(LogShaders, Warning, TEXT("Incomplete shader %s, missing FNiagaraShader %s."), *Script->GetFriendlyName(), ShaderType->GetName());
+				}
+				return false;
+			}
 		}
-		return false;
 	}
 
 	return true;
@@ -1049,11 +1011,12 @@ void FNiagaraShaderMap::FlushShadersByShaderType(const FShaderType* ShaderType)
 {
 	if (ShaderType->GetNiagaraShaderType())
 	{
-		GetMutableContent()->RemoveShaderTypePermutaion(ShaderType->GetNiagaraShaderType(), /* PermutationId = */ 0);	
+		for (int32 PermutationId = 0; PermutationId < ShaderType->GetPermutationCount(); ++PermutationId)
+		{
+			GetMutableContent()->RemoveShaderTypePermutaion(ShaderType->GetNiagaraShaderType(), PermutationId);
+		}
 	}
 }
-
-
 
 bool FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
@@ -1228,13 +1191,7 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 		FNiagaraDataInterfaceParamRef& ParamRef = DataInterfaceParameters.AddDefaulted_GetRef();
 		ParamRef.Bind(DIParamInfo, ParameterMap);
 	}
-
-	ensure(HalfOutputBufferParam.IsBound() || FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
-	ensure(InstanceCountsParam.IsBound());
-	ensure(UpdateStartInstanceParam.IsBound());
-	ensure(NumSpawnedInstancesParam.IsBound());
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 FNiagaraDataInterfaceParamRef::FNiagaraDataInterfaceParamRef()

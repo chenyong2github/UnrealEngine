@@ -55,7 +55,7 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyGrid3DCollectionProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(Context.DataInterface);
 		
-		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(ProxyData);
 
 		int NumCellsTmp[3];
@@ -89,7 +89,7 @@ public:
 			{
 				InputGridBuffer = FNiagaraRenderer::GetDummyTextureReadBuffer2D();
 			}
-			SetSRVParameter(RHICmdList, Context.Shader.GetComputeShader(), GridParam, InputGridBuffer);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, GridParam, InputGridBuffer);
 		}
 
 		if ( OutputGridParam.IsUAVBound() )
@@ -112,7 +112,8 @@ public:
 	{
 		if (OutputGridParam.IsBound())
 		{
-			OutputGridParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
+			FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+			OutputGridParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
 		}
 	}
 
@@ -854,12 +855,12 @@ void FGrid3DCollectionRWInstanceData_RenderThread::EndSimulate()
 	DestinationData = nullptr;
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
 	if (Context.IsOutputStage)
 	{
-		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
 		ProxyData->BeginSimulate();
 
@@ -883,19 +884,19 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	
 	if (Context.IsOutputStage)
 	{
-		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		ProxyData->EndSimulate();
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
 	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
 	{
@@ -909,9 +910,9 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(FRHICommandLi
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {	
-	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+	FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 	if (!ProxyData)
 	{
 		return;

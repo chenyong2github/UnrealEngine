@@ -496,10 +496,10 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	FNDIVelocityGridData* ProxyData =
-		FNDIVelocityGridProxy::SystemInstancesToProxyData.Find(Context.SystemInstance);
+		FNDIVelocityGridProxy::SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 	if (ProxyData != nullptr)
 	{

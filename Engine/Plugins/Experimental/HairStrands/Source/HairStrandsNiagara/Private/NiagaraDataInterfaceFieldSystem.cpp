@@ -494,7 +494,7 @@ public:
 		FNDIFieldSystemProxy* InterfaceProxy =
 			static_cast<FNDIFieldSystemProxy*>(Context.DataInterface);
 		FNDIFieldSystemData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		if (ProxyData != nullptr && ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->IsInitialized())
 		{
@@ -557,18 +557,6 @@ void FNDIFieldSystemProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher*
 {
 	check(IsInRenderingThread());
 	SystemInstancesToProxyData.Remove(SystemInstance);
-}
-
-void FNDIFieldSystemProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIFieldSystemProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIFieldSystemProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
 }
 
 //------------------------------------------------------------------------------------------------------------
