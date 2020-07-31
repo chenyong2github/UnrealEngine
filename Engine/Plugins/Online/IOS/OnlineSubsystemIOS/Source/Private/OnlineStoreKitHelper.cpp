@@ -240,7 +240,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	if (ensure(OnlineSub))
 	{
 		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid())
+		if (ensure(StoreInterface.IsValid()))
 		{
 			if (StoreInterface->CachedPurchaseRestoreObject.IsValid())
 			{
