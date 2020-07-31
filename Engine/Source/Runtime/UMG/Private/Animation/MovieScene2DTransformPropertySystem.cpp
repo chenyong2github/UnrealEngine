@@ -12,6 +12,8 @@
 UMovieScene2DTransformPropertySystem::UMovieScene2DTransformPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
+
 	BindToProperty(UE::MovieScene::FMovieSceneUMGComponentTypes::Get()->WidgetTransform);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
