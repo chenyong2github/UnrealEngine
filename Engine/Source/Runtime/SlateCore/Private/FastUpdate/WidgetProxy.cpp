@@ -18,7 +18,7 @@ FWidgetProxy::FWidgetProxy(SWidget& InWidget)
 	, NumChildren(0)
 	, LeafMostChildIndex(INDEX_NONE)
 	, UpdateFlags(EWidgetUpdateFlags::None)
-	, CurrentInvalidateReason(EInvalidateWidget::None)
+	, CurrentInvalidateReason(EInvalidateWidgetReason::None)
 	// Potentially unsafe to update visibility from the widget due to attribute bindings.  This is updated later when the widgets are sorted in ProcessInvalidation
 	, Visibility(EVisibility::Collapsed) 
 	, bUpdatedSinceLastInvalidate(false)
@@ -32,7 +32,7 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 {
 	// If Outgoing layer id remains index none, there was no change
 	int32 OutgoingLayerId = INDEX_NONE;
-	if (EnumHasAnyFlags(UpdateFlags,  EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
+	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
 	{
 		ensure(!bInvisibleDueToParentOrSelfVisibility);
 		OutgoingLayerId = Repaint(PaintArgs, MyIndex, OutDrawElements);
@@ -70,13 +70,12 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		if (ParentProxy.Widget)
 		{
 			ParentProxy.Widget->InvalidatePrepass();
-			ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
-			//UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
+			ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
 			UpdateList.Push(ParentProxy);
 		}
 		bWidgetNeedsRepaint = true;
 	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::RenderTransform | EInvalidateWidget::Layout | EInvalidateWidget::Visibility | EInvalidateWidget::ChildOrder))
+	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::RenderTransform | EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::Visibility | EInvalidateWidgetReason::ChildOrder))
 	{
 		SCOPE_CYCLE_SWIDGET(Widget);
 		// When layout changes compute a new desired size for this widget
@@ -103,7 +102,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		}
 
 		// If the desired size changed, invalidate the parent if it is visible
-		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Visibility|EInvalidateWidget::RenderTransform))
+		if (NewDesiredSize != CurrentDesiredSize || EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Visibility|EInvalidateWidgetReason::RenderTransform))
 		{
 			if (ParentIndex != INDEX_NONE)
 			{
@@ -115,7 +114,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 				}
 				else if (ParentProxy.Visibility.IsVisible())
 				{
-					ParentProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+					ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
 					UpdateList.Push(ParentProxy);
 				}
 			}
@@ -131,7 +130,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 
 		bWidgetNeedsRepaint = true;
 	}
-	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidget::Paint) && !Widget->IsVolatileIndirectly())
+	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Paint) && !Widget->IsVolatileIndirectly())
 	{
 		SCOPE_CYCLE_SWIDGET(Widget);
 		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
@@ -139,26 +138,26 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		bWidgetNeedsRepaint = true;
 	}
 
-	CurrentInvalidateReason = EInvalidateWidget::None;
+	CurrentInvalidateReason = EInvalidateWidgetReason::None;
 
 	return bWidgetNeedsRepaint;
 }
 
-void FWidgetProxy::MarkProxyUpdatedThisFrame(FWidgetProxy& Proxy, FWidgetUpdateList& UpdateList)
+void FWidgetProxy::MarkProxyUpdatedThisFrame(FWidgetUpdateList& UpdateList)
 {
-	Proxy.bUpdatedSinceLastInvalidate = true;
+	bUpdatedSinceLastInvalidate = true;
 
-	if(EnumHasAnyFlags(Proxy.UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
+	if(EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
 	{
-		if (!Proxy.bInUpdateList && !Proxy.bInvisibleDueToParentOrSelfVisibility)
+		if (!bInUpdateList && !bInvisibleDueToParentOrSelfVisibility)
 		{
 			// If there are any updates still needed add them to the next update list
-			UpdateList.Push(Proxy);
+			UpdateList.Push(*this);
 		}
 	}
 	else
 	{
-		Proxy.bInUpdateList = false;
+		bInUpdateList = false;
 	}
 }
 
@@ -243,15 +242,15 @@ const FWidgetProxy& FWidgetProxyHandle::GetProxy() const
 void FWidgetProxyHandle::MarkWidgetUpdatedThisFrame()
 {
 	check(IsValid());
-	FWidgetProxy::MarkProxyUpdatedThisFrame(GetInvalidationRoot()->FastWidgetPathList[MyIndex], GetInvalidationRoot()->WidgetsNeedingUpdate);
+	GetInvalidationRoot()->FastWidgetPathList[MyIndex].MarkProxyUpdatedThisFrame(GetInvalidationRoot()->WidgetsNeedingUpdate);
 }
 
-void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
+void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason)
 {
 	check(IsValid());
 	FWidgetProxy& Proxy = GetInvalidationRoot()->FastWidgetPathList[MyIndex];
 
-	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidget::ChildOrder))
+	if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::ChildOrder))
 	{
 		/*
 				CSV_EVENT_GLOBAL(TEXT("Slow Path Needed"));
@@ -262,7 +261,7 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidget InvalidateReason)
 		GetInvalidationRoot()->InvalidateChildOrder();
 	}
 
-	if (Proxy.CurrentInvalidateReason == EInvalidateWidget::None)
+	if (Proxy.CurrentInvalidateReason == EInvalidateWidgetReason::None)
 	{
 		GetInvalidationRoot()->WidgetsNeedingUpdate.Push(Proxy);
 	}

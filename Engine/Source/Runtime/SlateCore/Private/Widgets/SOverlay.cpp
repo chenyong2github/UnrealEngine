@@ -151,7 +151,7 @@ SOverlay::FOverlaySlot& SOverlay::AddSlot( int32 ZOrder )
 		this->Children.Insert( &NewSlot, CurSlotIndex );
 	}
 
-	Invalidate(EInvalidateWidget::Layout);
+	Invalidate(EInvalidateWidgetReason::Layout);
 
 	NewSlot.ZOrder = ZOrder;
 	return NewSlot;
@@ -166,7 +166,7 @@ void SOverlay::RemoveSlot( int32 ZOrder )
 			if ( Children[ChildIndex].ZOrder == ZOrder )
 			{
 				Children.RemoveAt( ChildIndex );
-				Invalidate(EInvalidateWidget::Layout);
+				Invalidate(EInvalidateWidgetReason::Layout);
 				return;
 			}
 		}
@@ -176,7 +176,7 @@ void SOverlay::RemoveSlot( int32 ZOrder )
 	else if (Children.Num() > 0)
 	{
 		Children.RemoveAt( Children.Num() - 1 );
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 	else
 	{
@@ -187,7 +187,7 @@ void SOverlay::RemoveSlot( int32 ZOrder )
 void SOverlay::ClearChildren()
 {
 	Children.Empty();
-	Invalidate(EInvalidateWidget::Layout);
+	Invalidate(EInvalidateWidgetReason::Layout);
 }
 
 int32 SOverlay::GetNumWidgets() const
@@ -204,7 +204,7 @@ bool SOverlay::RemoveSlot( TSharedRef< SWidget > Widget )
 		if( CurSlot.GetWidget() == Widget )
 		{
 			Children.RemoveAt( CurSlotIndex );
-			Invalidate(EInvalidateWidget::Layout);
+			Invalidate(EInvalidateWidgetReason::Layout);
 			return true;
 		}
 	}

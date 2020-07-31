@@ -620,7 +620,7 @@ void UWidget::InvalidateLayoutAndVolatility()
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if ( SafeWidget.IsValid() )
 	{
-		SafeWidget->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		SafeWidget->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 	}
 }
 
