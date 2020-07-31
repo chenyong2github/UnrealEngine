@@ -112,37 +112,17 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 
 const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration() const
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if(GetSolver() && GetSolver()->GetEvolution())
-		{
-			return GetSolver()->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
 	return SolverAccelerationStructure.Get();
 }
 
 Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration()
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if(SceneSolver->GetEvolution())
-		{
-			return SceneSolver->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
 	return SolverAccelerationStructure.Get();
 }
 
 void FChaosScene::CopySolverAccelerationStructure()
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() != Chaos::EThreadingModeTemp::SingleThread)
+	if(SceneSolver)
 	{
 		ExternalDataLock.WriteLock();
 		SceneSolver->FlushCommands_External();	//make sure any pending commands are flushed so that scene query structure is up to date
@@ -452,83 +432,62 @@ void FChaosScene::EndFrame()
 	int32 DirtyElements = DirtyElementCount(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
 	CSV_CUSTOM_STAT(ChaosPhysics,AABBTreeDirtyElementCount,DirtyElements,ECsvCustomStatOp::Set);
 
-	switch(GetSolver()->GetThreadingMode())	//todo: this should be per solver, only syncing one
-	{
-	case EThreadingModeTemp::SingleThread:
-	{
-		SyncBodies(SceneSolver);
-		SceneSolver->SyncEvents_GameThread();
+	check(CompletionEvent->IsComplete());
+	//check(PhysicsTickTask->IsComplete());
+	CompletionEvent = nullptr;
 
-		OnPhysScenePostTick.Broadcast(this);
+	// Make a list of solvers to process. This is a list of all solvers registered to our world
+	// And our internal base scene solver.
+	TArray<FPhysicsSolverBase*> SolverList;
+	ChaosModule->GetSolversMutable(Owner,SolverList);
+
+	{
+		// Make sure our solver is in the list
+		SolverList.AddUnique(GetSolver());
 	}
-	break;
-	case EThreadingModeTemp::TaskGraph:
+
+	// Flip the buffers over to the game thread and sync
 	{
-		check(CompletionEvent->IsComplete());
-		//check(PhysicsTickTask->IsComplete());
-		CompletionEvent = nullptr;
+		SCOPE_CYCLE_COUNTER(STAT_FlipResults);
 
-		// Make a list of solvers to process. This is a list of all solvers registered to our world
-		// And our internal base scene solver.
-		TArray<FPhysicsSolverBase*> SolverList;
-		ChaosModule->GetSolversMutable(Owner,SolverList);
+		//update external SQ structure
+		//for now just copy the whole thing, stomping any changes that came from GT
+		CopySolverAccelerationStructure();
 
+		TArray<FPhysicsSolverBase*> ActiveSolvers;
+		ActiveSolvers.Reserve(SolverList.Num());
+
+		// #BG calculate active solver list once as we dispatch our first task
+		for(FPhysicsSolverBase* Solver : SolverList)
 		{
-			// Make sure our solver is in the list
-			SolverList.AddUnique(GetSolver());
+			Solver->CastHelper([&ActiveSolvers](auto& Concrete)
+			{
+				if(Concrete.HasActiveParticles())
+				{
+					ActiveSolvers.Add(&Concrete);
+				}
+			});
+
 		}
 
-		// Flip the buffers over to the game thread and sync
+		const int32 NumActiveSolvers = ActiveSolvers.Num();
+
+		for(FPhysicsSolverBase* Solver : ActiveSolvers)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
-
-			//update external SQ structure
-			//for now just copy the whole thing, stomping any changes that came from GT
-			CopySolverAccelerationStructure();
-
-			TArray<FPhysicsSolverBase*> ActiveSolvers;
-			ActiveSolvers.Reserve(SolverList.Num());
-
-			// #BG calculate active solver list once as we dispatch our first task
-			for(FPhysicsSolverBase* Solver : SolverList)
+			Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
 			{
-				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
+				SyncBodies(&Concrete);
+				Concrete.SyncEvents_GameThread();
+
 				{
-					if(Concrete.HasActiveParticles())
-					{
-						ActiveSolvers.Add(&Concrete);
-					}
-				});
-
-			}
-
-			const int32 NumActiveSolvers = ActiveSolvers.Num();
-
-			for(FPhysicsSolverBase* Solver : ActiveSolvers)
-			{
-				Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
-				{
-					SyncBodies(&Concrete);
-					Concrete.SyncEvents_GameThread();
-
-					{
-						SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
-						Concrete.SyncQueryMaterials();
-					}
-				});
-			}
+					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
+					Concrete.SyncQueryMaterials();
+				}
+			});
 		}
-
-		OnPhysScenePostTick.Broadcast(this);
 	}
-	break;
 
-	// No action for dedicated thread, the module will sync independently from the scene in
-	// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
-	case EThreadingModeTemp::DedicatedThread:
-	default:
-	break;
-	}
+	OnPhysScenePostTick.Broadcast(this);
 #endif
 }
 
