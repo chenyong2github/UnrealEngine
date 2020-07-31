@@ -456,7 +456,8 @@ UGameInstance* AActor::GetGameInstance() const
 
 bool AActor::IsNetStartupActor() const
 {
-	return bNetStartup;
+	// Check bNetStartup and also check if this is a Net Startup Actor that has not been initialized and has not had a chance to flag bNetStartup yet
+	return bNetStartup || (!bActorInitialized && !bActorSeamlessTraveled && bNetLoadOnClient && GetLevel() && !GetLevel()->bAlreadyInitializedNetworkActors);
 }
 
 FVector AActor::GetVelocity() const
