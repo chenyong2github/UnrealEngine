@@ -40,6 +40,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "RectLightSceneProxy.h"
 #include "Math/Halton.h"
+#include "ProfilingDebugging/DiagnosticTable.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -248,6 +249,14 @@ static TAutoConsoleVariable<float> CVarFreezeTemporalHistories(
 	TEXT("r.Test.FreezeTemporalHistories"), 0,
 	TEXT("Freezes all temporal histories as well as the temporal sequence."),
 	ECVF_RenderThreadSafe);
+
+static bool bDumpPrimitivesNextFrame = false;
+
+static FAutoConsoleCommand CVarDumpPrimitives(
+	TEXT("DumpPrimitives"),
+	TEXT("Writes out all scene primitive names to a CSV file in the Logs directory"),
+	FConsoleCommandDelegate::CreateStatic([] { bDumpPrimitivesNextFrame = true; }),
+	ECVF_Default);
 
 #endif
 
@@ -3599,6 +3608,53 @@ void UpdateReflectionSceneData(FScene* Scene)
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
+{
+	if (!bDumpPrimitivesNextFrame)
+	{
+		return;
+	}
+
+	bDumpPrimitivesNextFrame = false;
+
+	TArray<FString> Names;
+	Names.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
+	
+	for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
+	{
+		int32 PrimitiveId = Mesh.DrawPrimitiveId;
+		if (PrimitiveId < Scene->Primitives.Num())
+		{
+			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
+			FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
+
+			Names.Add(MoveTemp(FullName));
+		}
+	}
+
+	for (const FStaticMeshBatch* StaticMeshBatch : ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass])
+	{
+		const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
+		FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
+
+		Names.Add(MoveTemp(FullName));
+	}
+
+	Names.Sort();
+
+	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")));
+	DrawViewer.AddColumn(TEXT("Name"));
+	DrawViewer.CycleRow();
+
+	for (const FString& FullName : Names)
+	{
+		DrawViewer.AddColumn(*FullName);
+		DrawViewer.CycleRow();
+	}
+}
+#endif
+
 void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, FViewVisibleCommandsPerView& ViewCommandsPerView, 
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer)
 {
@@ -3958,6 +4014,11 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		}
 
 		FViewCommands& ViewCommands = ViewCommandsPerView[ViewIndex];
+
+#if !UE_BUILD_SHIPPING
+		DumpPrimitives(ViewCommands);
+#endif
+
 		SetupMeshPass(View, BasePassDepthStencilAccess, ViewCommands);
 	}
 
