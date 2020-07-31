@@ -200,33 +200,43 @@ FBehaviorTreeInstance::~FBehaviorTreeInstance()
 
 void FBehaviorTreeInstance::AddToActiveAuxNodes(UBTAuxiliaryNode* AuxNode)
 {
+#if DO_ENSURE
 	ensureAlwaysMsgf(bIteratingNodes == false, TEXT("Adding aux node while iterating through them is not allowed."));
+#endif // DO_ENSURE
 	MEM_STAT_UPDATE_WRAPPER(ActiveAuxNodes.Add(AuxNode));
 }
 
 void FBehaviorTreeInstance::RemoveFromActiveAuxNodes(UBTAuxiliaryNode* AuxNode)
 {
+#if DO_ENSURE
 	ensureAlwaysMsgf(bIteratingNodes == false, TEXT("Removing aux node while iterating through them is not allowed."));
+#endif // DO_ENSURE
 	MEM_STAT_UPDATE_WRAPPER(ActiveAuxNodes.RemoveSingleSwap(AuxNode));
 }
 
 void FBehaviorTreeInstance::ResetActiveAuxNodes()
 {
+#if DO_ENSURE
 	ensureAlwaysMsgf(bIteratingNodes == false, TEXT("Resetting aux node list while iterating through them is not allowed."));
+#endif // DO_ENSURE
 	MEM_STAT_UPDATE_WRAPPER(ActiveAuxNodes.Reset());
 }
 
 void FBehaviorTreeInstance::AddToParallelTasks(FBehaviorTreeParallelTask&& ParallelTask)
 {
+#if DO_ENSURE
 	ensureMsgf(ParallelTaskIndex == INDEX_NONE, TEXT("Adding to the the list of parallel tasks from ExecuteOnEachParallelTask is not allowed."));
+#endif // DO_ENSURE
 	MEM_STAT_UPDATE_WRAPPER(ParallelTasks.Add(ParallelTask));
 }
 
 void FBehaviorTreeInstance::RemoveParallelTaskAt(int32 TaskIndex)
 {
 	check(ParallelTasks.IsValidIndex(TaskIndex));
+#if DO_ENSURE
 	ensureMsgf(ParallelTaskIndex == INDEX_NONE || ParallelTaskIndex == TaskIndex, 
 		TEXT("Removing from the list of parallel tasks from ExecuteOnEachParallelTask is only supported for the current task. Otherwise the iteration is broken."));
+#endif // DO_ENSURE
 
 	MEM_STAT_UPDATE_WRAPPER(ParallelTasks.RemoveAt(TaskIndex, /*Count=*/1, /*bAllowShrinking=*/false));
 }
