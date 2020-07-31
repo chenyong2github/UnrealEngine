@@ -423,6 +423,9 @@ public:
 	/** Gets package names to add to the cook, and packages to never cook even if in startup set memory or referenced */
 	virtual void ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
+	/** Gets package names to add to a DLC cook*/
+	virtual void ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
+
 	/** Returns whether or not a specific UPackage should be cooked for the provied TargetPlatform */
 	virtual bool ShouldCookForPlatform(const UPackage* Package, const ITargetPlatform* TargetPlatform);
 

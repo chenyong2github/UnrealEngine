@@ -8,6 +8,7 @@
 #include "Containers/StringView.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Interfaces/IPluginManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/FileHelper.h"
@@ -3334,6 +3335,37 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 				// If this package cannot be cooked, add to exclusion list
 				PackagesToNeverCook.AddUnique(PackageName);
 			}
+		}
+	}
+}
+
+void UAssetManager::ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
+{
+	UE_LOG(LogAssetManager, Warning, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
+	FString DLCPath;
+	FString ExternalMountPointName;
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(DLCName))
+	{
+		DLCPath = Plugin->GetContentDir();
+		ExternalMountPointName = Plugin->GetMountedAssetPath();
+	}
+	else
+	{
+		DLCPath = FPaths::ProjectPluginsDir() / DLCName / TEXT("Content");
+		ExternalMountPointName = FString::Printf(TEXT("/%s/"), *DLCName);
+	}
+
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
+	IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
+	for (const FString& CurrentFile : Files)
+	{
+		const FString StdFile = FPaths::CreateStandardFilename(CurrentFile);
+		PackagesToCook.AddUnique(FName(StdFile));
+		FString LongPackageName;
+		if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+		{
+			FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
 		}
 	}
 }
