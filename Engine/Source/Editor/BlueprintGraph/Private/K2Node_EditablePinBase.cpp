@@ -434,3 +434,11 @@ bool UK2Node_EditablePinBase::CreateUserDefinedPinsForFunctionEntryExit(const UF
 
 	return bAllPinsGood;
 }
+
+FUserPinInfo::FUserPinInfo(const UEdGraphPin& InPin)
+	: PinName(InPin.GetFName())
+	, PinType(InPin.PinType)
+	, DesiredPinDirection(InPin.Direction)
+	, PinDefaultValue(InPin.DefaultValue)
+{
+}

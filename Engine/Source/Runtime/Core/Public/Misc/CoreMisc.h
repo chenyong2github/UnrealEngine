@@ -257,6 +257,10 @@ struct CORE_API FScopedScriptExceptionHandler
 	~FScopedScriptExceptionHandler();
 };
 
+/** 
+ * This define enables the blueprint runaway and exception stack trace checks
+ * If this is true, it will create a FBlueprintContextTracker (previously FBlueprintExceptionTracker) which is defined in Script.h
+ */
 #ifndef DO_BLUEPRINT_GUARD
 	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		#define DO_BLUEPRINT_GUARD 1
@@ -265,6 +269,7 @@ struct CORE_API FScopedScriptExceptionHandler
 	#endif
 #endif
 
+/** This define enables ScriptAudit exec commands */
 #ifndef SCRIPT_AUDIT_ROUTINES
 	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		#define SCRIPT_AUDIT_ROUTINES 1
@@ -272,43 +277,3 @@ struct CORE_API FScopedScriptExceptionHandler
 		#define SCRIPT_AUDIT_ROUTINES 0
 	#endif
 #endif
-
-#if DO_BLUEPRINT_GUARD
-struct FFrame;
-
-/** 
- * Helper struct for dealing with Blueprint exceptions 
- */
-struct CORE_API FBlueprintExceptionTracker : TThreadSingleton<FBlueprintExceptionTracker>
-{
-	FBlueprintExceptionTracker()
-		: Runaway(0)
-		, Recurse(0)
-		, bRanaway(false)
-		, ScriptEntryTag(0)
-	{}
-
-	void ResetRunaway();
-
-	/* @return Reference to the FBlueprintExceptionTracker for the current thread, creating the FBlueprintExceptionTracker if none exists */
-	static FBlueprintExceptionTracker& Get();
-
-	/* @return Pointer to the FBlueprintExceptionTracker for the current thread, if any */
-	static const FBlueprintExceptionTracker* TryGet();
-public:
-	// map of currently displayed warnings in exception handler
-	TMap<FName, int32> DisplayedWarningsMap;
-
-	// runaway tracking
-	int32 Runaway;
-	int32 Recurse;
-	bool bRanaway;
-
-	// Script entry point tracking
-	int32 ScriptEntryTag;
-
-	// Stack pointers from the VM to be unrolled when we assert
-	TArray<const FFrame*> ScriptStack;
-};
-
-#endif // DO_BLUEPRINT_GUARD

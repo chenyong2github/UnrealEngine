@@ -117,7 +117,7 @@ public:
 	virtual ~FFrame()
 	{
 #if DO_BLUEPRINT_GUARD
-		FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
+		FBlueprintContextTracker& BlueprintExceptionTracker = FBlueprintContextTracker::Get();
 		if (BlueprintExceptionTracker.ScriptStack.Num())
 		{
 			BlueprintExceptionTracker.ScriptStack.Pop(false);
@@ -217,7 +217,7 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 	, bArrayContextFailed(false)
 {
 #if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker::Get().ScriptStack.Push(this);
+	FBlueprintContextTracker::Get().ScriptStack.Push(this);
 #endif
 }
 

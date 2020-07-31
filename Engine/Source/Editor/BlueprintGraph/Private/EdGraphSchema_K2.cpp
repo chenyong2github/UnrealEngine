@@ -1182,7 +1182,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UEnum* InEnum)
 	return InEnum && (InEnum->GetBoolMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType) || InEnum->IsA<UUserDefinedEnum>());
 }
 
-bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
+bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass, bool bAssumeBlueprintType)
 {
 	if (InClass)
 	{
@@ -1228,7 +1228,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
 		}
 	}
 	
-	return false;
+	return bAssumeBlueprintType;
 }
 
 bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UScriptStruct* InStruct, const bool bForInternalUse)

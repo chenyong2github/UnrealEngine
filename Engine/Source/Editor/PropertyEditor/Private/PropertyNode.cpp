@@ -1134,14 +1134,12 @@ public:
 
 	void InnerInitialize()
 	{
-	{
-			PropertyValueRoot.OwnerObject = NULL;
-			PropertyDefaultValueRoot.OwnerObject = NULL;
-			PropertyValueAddress = NULL;
-			PropertyValueBaseAddress = NULL;
-			PropertyDefaultBaseAddress = NULL;
-			PropertyDefaultAddress = NULL;
-		}
+		PropertyValueRoot.OwnerObject = NULL;
+		PropertyDefaultValueRoot.OwnerObject = NULL;
+		PropertyValueAddress = NULL;
+		PropertyValueBaseAddress = NULL;
+		PropertyDefaultBaseAddress = NULL;
+		PropertyDefaultAddress = NULL;
 
 		PropertyValueRoot.OwnerObject = OwnerObject.Get();
 		check(PropertyNode);
@@ -1149,7 +1147,7 @@ public:
 		check(Property);
 		check(PropertyValueRoot.OwnerObject);
 
-		FPropertyNode* ParentNode		= PropertyNode->GetParentNode();
+		FPropertyNode* ParentNode = PropertyNode->GetParentNode();
 
 		// if the object specified is a class object, transfer to the CDO instead
 		if ( Cast<UClass>(PropertyValueRoot.OwnerObject) != NULL )
@@ -1790,11 +1788,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 			uint32 PortFlags = 0;
 			if (InProperty->ContainsInstancedObjectProperty())
 			{
-				// Use PPF_DeepCompareInstances for component objects
-				if (CastField<FObjectPropertyBase>(InProperty))
-				{
-					PortFlags |= PPF_DeepCompareInstances;
-				}
+				PortFlags |= PPF_DeepCompareInstances;
 			}
 
 			if ( ValueTracker.GetPropertyValueAddress() == NULL || ValueTracker.GetPropertyDefaultAddress() == NULL )
@@ -1894,11 +1888,7 @@ FString FPropertyNode::GetDefaultValueAsStringForObject( FPropertyItemValueDataT
 			
 				if (InProperty->ContainsInstancedObjectProperty())
 				{
-					// Use PPF_DeepCompareInstances for component objects
-					if (CastField<FObjectPropertyBase>(InProperty))
-					{
-						PortFlags |= PPF_DeepCompareInstances;
-					}
+					PortFlags |= PPF_DeepCompareInstances;
 				}
 
 				if ( ValueTracker.GetPropertyDefaultAddress() == NULL )

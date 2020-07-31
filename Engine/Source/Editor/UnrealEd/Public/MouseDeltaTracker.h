@@ -16,7 +16,7 @@ struct FInputEventState;
 /**
  * Keeps track of mouse movement deltas in the viewports.
  */
-class FMouseDeltaTracker
+class UNREALED_API FMouseDeltaTracker
 {
 public:
 
@@ -26,28 +26,28 @@ public:
 	/**
 	 * Begin tracking at the specified location for the specified viewport.
 	 */
-	void UNREALED_API StartTracking(FEditorViewportClient* InViewportClient, const int32 InX, const int32 InY, const FInputEventState& InInputState, bool bNudge = false, bool bResetDragToolState = true);
+	void StartTracking(FEditorViewportClient* InViewportClient, const int32 InX, const int32 InY, const FInputEventState& InInputState, bool bNudge = false, bool bResetDragToolState = true);
 
 	/**
 	 * Called when a mouse button has been released.  If there are no other
 	 * mouse buttons being held down, the internal information is reset.
 	 */
-	bool UNREALED_API EndTracking(FEditorViewportClient* InViewportClient);
+	bool EndTracking(FEditorViewportClient* InViewportClient);
 
 	/**
 	 * Adds delta movement into the tracker.
 	 */
-	void UNREALED_API AddDelta(FEditorViewportClient* InViewportClient, FKey InKey, const int32 InDelta, bool InNudge);
+	void AddDelta(FEditorViewportClient* InViewportClient, FKey InKey, const int32 InDelta, bool InNudge);
 
 	/**
 	* Returns the current delta.
 	*/
-	const FVector UNREALED_API GetDelta() const;
+	const FVector GetDelta() const;
 
 	/**
 	 * Returns the current snapped delta.
 	 */
-	const FVector UNREALED_API GetDeltaSnapped() const;
+	const FVector GetDeltaSnapped() const;
 
 	/**
 	* Returns the absolute delta since dragging started.
@@ -87,7 +87,7 @@ public:
 	/**
 	 * Converts the delta movement to drag/rotation/scale based on the viewport type or widget axis.
 	 */
-	void UNREALED_API ConvertMovementDeltaToDragRot(FSceneView* InView, FEditorViewportClient* InViewportClient, FVector& InDragDelta, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale) const;
+	void ConvertMovementDeltaToDragRot(FSceneView* InView, FEditorViewportClient* InViewportClient, FVector& InDragDelta, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale) const;
 	/**
 	 * Absolute Translation conversion from mouse position on the screen to widget axis movement/rotation.
 	 */
@@ -96,7 +96,7 @@ public:
 	/**
 	 * Subtracts the specified value from End and EndSnapped.
 	 */
-	void UNREALED_API ReduceBy(const FVector& In);
+	void ReduceBy(const FVector& In);
 
 	/**
 	 * @return		true if a drag tool is being used by the tracker, false otherwise.

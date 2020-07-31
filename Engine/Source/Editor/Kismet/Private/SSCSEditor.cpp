@@ -7142,7 +7142,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 	}
 }
 
-void SSCSEditor::OnResetToBlueprintDefaults() const
+void SSCSEditor::OnResetToBlueprintDefaults()
 {
 	int32 NumChangedProperties = 0;
 
@@ -7157,7 +7157,7 @@ void SSCSEditor::OnResetToBlueprintDefaults() const
 			AActor* BlueprintCDO = Actor->GetClass()->GetDefaultObject<AActor>();
 			if (BlueprintCDO != NULL)
 			{
-				const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties | EditorUtilities::ECopyOptions::CallPostEditChangeProperty);
+				const EditorUtilities::ECopyOptions::Type CopyOptions = (EditorUtilities::ECopyOptions::Type)(EditorUtilities::ECopyOptions::OnlyCopyEditOrInterpProperties);
 				NumChangedProperties = EditorUtilities::CopyActorProperties(BlueprintCDO, Actor, CopyOptions);
 			}
 			NumChangedProperties += Actor->GetInstanceComponents().Num();
@@ -7194,6 +7194,8 @@ void SSCSEditor::OnResetToBlueprintDefaults() const
 			NotificationInfo.Text = LOCTEXT("ResetToBlueprintDefaults_Failed", "No properties were reset");
 			CompletionState = SNotificationItem::CS_Fail;
 		}
+
+		UpdateTree();
 
 		// Add the notification to the queue
 		const TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
