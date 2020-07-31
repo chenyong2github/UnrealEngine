@@ -495,6 +495,14 @@ namespace Chaos
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
 			MGeometry[Index] = InGeometry;
+			if (InGeometry)
+			{
+				MHasBounds[Index] = InGeometry->HasBoundingBox();
+				MLocalBounds[Index] = InGeometry->BoundingBox();
+				// world space inflated bounds needs to take v into account - this is done in integrate for dynamics anyway, so
+				// this computation is mainly for statics
+				MWorldSpaceInflatedBounds[Index] = MLocalBounds[Index].TransformedAABB(TRigidTransform<FReal, 3>(X(Index), R(Index)));
+			}
 			UpdateShapesArray(Index);
 			MapImplicitShapes(Index);
 		}
