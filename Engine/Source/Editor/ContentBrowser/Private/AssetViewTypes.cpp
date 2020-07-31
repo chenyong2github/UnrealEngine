@@ -129,7 +129,7 @@ bool FAssetViewItem::GetTagValue(const FName Tag, FString& OutString, UObject::F
 		return true;
 	}
 
-	FContentBrowserItemDataAttributeValue TagValue = Item.GetItemAttribute(Tag);
+	FContentBrowserItemDataAttributeValue TagValue = Item.GetItemAttribute(Tag, true);
 	if (TagValue.IsValid())
 	{
 		OutString = TagValue.GetValue<FString>();
