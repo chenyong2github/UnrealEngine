@@ -35,6 +35,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category="LiveLink")
 	bool ApplyToClient() const;
 
+	/**
+	 * Add the sources and subjects from this preset, but leave any existing sources and subjects connected.
+	 *
+	 * @param bRecreatePresets	When true, if subjects and sources from this preset already exist, we will recreate them.
+	 *
+	 * @return True is all sources and subjects from this preset could be created and added.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "LiveLink")
+	bool AddToClient(const bool bRecreatePresets = true) const;
+
 	/** Reset this preset and build the list of sources and subjects from the client. */
 	UFUNCTION(BlueprintCallable, Category="LiveLink")
 	void BuildFromClient();
