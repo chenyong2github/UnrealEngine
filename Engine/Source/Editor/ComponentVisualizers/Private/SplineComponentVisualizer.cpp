@@ -349,8 +349,8 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 		const FColor ReadOnlyColor = FColor(255, 0, 255, 255);
 		const FColor NormalColor = bIsSplineEditable ? FColor(SplineComp->EditorUnselectedSplineSegmentColor.ToFColor(true)) : ReadOnlyColor;
 		const FColor SelectedColor = bIsSplineEditable ? FColor(SplineComp->EditorSelectedSplineSegmentColor.ToFColor(true)) : ReadOnlyColor;
-		const float GrabHandleSize = 10.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointsSizeAdjustment : 0.0f);
-		const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointsSizeAdjustment : 0.0f);
+		const float GrabHandleSize = 10.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointSizeAdjustment : 0.0f);
+		const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointSizeAdjustment : 0.0f);
 
 		// Draw the tangent handles before anything else so they will not overdraw the rest of the spline
 		if (SplineComp == EditedSplineComp)
@@ -479,7 +479,7 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 
 					// Then draw a line for each substep.
 					const int32 NumSteps = 20;
-					const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineHitToleranceAdjustment;
+					const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineLineThicknessAdjustment;
 
 					for (int32 StepIdx = 1; StepIdx <= NumSteps; StepIdx++)
 					{
