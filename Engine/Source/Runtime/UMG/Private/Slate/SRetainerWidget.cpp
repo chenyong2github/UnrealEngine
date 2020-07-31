@@ -500,7 +500,13 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		Context.IncomingLayerId = LayerId;
 		Context.CullingRect = MyCullingRect;
 
-		MutableThis->PaintRetainedContent(Context, AllottedGeometry);
+		bool bRepainted = MutableThis->PaintRetainedContent(Context, AllottedGeometry);
+#if WITH_SLATE_DEBUGGING
+		if (!bRepainted)
+		{
+			MutableThis->SetLastPaintType(ESlateInvalidationPaintType::None);
+		}
+#endif
 
 		UTextureRenderTarget2D* RenderTarget = RenderingResources->RenderTarget;
 
