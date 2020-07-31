@@ -1041,16 +1041,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 					ParentNameToUse = EdGraphSchemaContextMenuName;
 				}
 
-				UToolMenu* NodeMenu = ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
-
-				NodeMenu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-				{
-					UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
-					if (Context && Context->Node)
-					{
-						Context->Node->GetNodeContextMenuActions(InMenu, Context);
-					}
-				}));
+				ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
 			}
 
 			if (CheckParentName == NAME_None)
@@ -1061,29 +1052,45 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 	}
 
 	// Now that all the possible sections have been registered, we can add the dynamic section for the custom schema node actions to override
-	UToolMenu* Menu = ToolMenus->FindMenu(EdGraphSchemaContextMenuName);
+	{
+		UToolMenu* Menu = ToolMenus->FindMenu(EdGraphSchemaContextMenuName);
 
-	Menu->AddDynamicSection("EdGraphSchemaPinActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-		{
-			UGraphNodeContextMenuContext* NodeContext = InMenu->FindContext<UGraphNodeContextMenuContext>();
-			if (NodeContext && NodeContext->Pin)
+		Menu->AddDynamicSection("EdGraphSchemaPinActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
 			{
-				GetPinContextMenuActionsForSchema(InMenu);
+				UGraphNodeContextMenuContext* NodeContext = InMenu->FindContext<UGraphNodeContextMenuContext>();
+				if (NodeContext && NodeContext->Pin)
+				{
+					GetPinContextMenuActionsForSchema(InMenu);
+				}
+			}));
+
+		Menu->AddDynamicSection("GetContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
+		{
+			if (UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>())
+			{
+				if (const UEdGraphSchema* GraphSchema = ContextObject->Graph->GetSchema())
+				{
+					GraphSchema->GetContextMenuActions(InMenu, ContextObject);
+				}
 			}
 		}));
 
-	Menu->AddDynamicSection("GetContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-	{
-		if (UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>())
-		{
-			if (const UEdGraphSchema* GraphSchema = ContextObject->Graph->GetSchema())
-			{
-				GraphSchema->GetContextMenuActions(InMenu, ContextObject);
-			}
-		}
-	}));
+		Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
+	}
 
-	Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
+	if (Context->Node)
+	{
+		UToolMenu* Menu = ToolMenus->FindMenu(GetNodeContextMenuName(Context->Node->GetClass()));
+		 
+		Menu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
+		{
+			UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
+			if (Context && Context->Node)
+			{
+				Context->Node->GetNodeContextMenuActions(InMenu, Context);
+			}
+		}));
+	}
 }
 
 UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const
