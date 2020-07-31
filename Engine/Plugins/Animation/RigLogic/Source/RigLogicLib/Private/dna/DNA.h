@@ -711,6 +711,7 @@ struct DNA {
         archive(signature, version);
         if (signature.matches() && version.matches()) {
             archive(sections, descriptor, definition, behavior, geometry, eof);
+            assert(eof.matches());
         }
     }
 

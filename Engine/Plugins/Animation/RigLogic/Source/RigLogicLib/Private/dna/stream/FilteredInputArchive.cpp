@@ -207,26 +207,40 @@ void FilteredInputArchive::process(RawAnimatedMaps& dest) {
 }
 
 void FilteredInputArchive::process(RawGeometry& dest) {
-    if (contains(layerBitmask, DataLayerBitmask::GeometryRest)) {
-        process(dest.marker);
-        if (!lodConstraint.hasImpactOn(unconstrainedLODCount)) {
-            process(dest.meshes);
-            return;
-        }
-        // Perform filtered load only if a different maxLOD is set
+    process(dest.marker);
+
+    if (!contains(layerBitmask, DataLayerBitmask::GeometryRest)) {
+        // As mesh sizes are variable, iterate over each of them, reading only the mesh
+        // offsets and jumping over the actual data of the meshes.
+        // This will correctly position the underlying stream (end of geometry layer),
+        // while still not reading the data.
         const auto meshCount = processSize();
-        dest.meshes.reserve(meshCount);
+        decltype(RawMesh::offset) meshOffset{};
+        decltype(RawMesh::marker) meshMarker{meshOffset};
         for (std::uint16_t i = {}; i < meshCount; ++i) {
-            RawMesh mesh{memRes};
-            // Check if the mesh indices filtered for the current maxLOD permit loading this mesh
-            if (MeshFilter::passes(i)) {
-                process(mesh);
-                dest.meshes.push_back(std::move(mesh));
-            } else {
-                // Jump over the whole section of data related to this mesh
-                process(mesh.offset);
-                process(mesh.marker);
-            }
+            process(meshOffset);
+            process(meshMarker);
+        }
+        return;
+    }
+
+    if (!lodConstraint.hasImpactOn(unconstrainedLODCount)) {
+        process(dest.meshes);
+        return;
+    }
+    // Perform filtered load only if a different maxLOD is set
+    const auto meshCount = processSize();
+    dest.meshes.reserve(meshCount);
+    for (std::uint16_t i = {}; i < meshCount; ++i) {
+        RawMesh mesh{memRes};
+        // Check if the mesh indices filtered for the current maxLOD permit loading this mesh
+        if (MeshFilter::passes(i)) {
+            process(mesh);
+            dest.meshes.push_back(std::move(mesh));
+        } else {
+            // Jump over the whole section of data related to this mesh
+            process(mesh.offset);
+            process(mesh.marker);
         }
     }
 }
