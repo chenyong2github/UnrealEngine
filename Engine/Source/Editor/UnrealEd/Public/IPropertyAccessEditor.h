@@ -8,6 +8,7 @@
 class UBlueprint;
 class IPropertyHandle;
 class UEdGraph;
+class FExtender;
 
 /** An element in a binding chain */
 struct FBindingChainElement
