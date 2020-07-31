@@ -121,7 +121,7 @@ public:
 
 	void Link(UMovieSceneEntitySystemLinker* InLinker);
 
-	bool Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+	void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 	bool IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const;
 
