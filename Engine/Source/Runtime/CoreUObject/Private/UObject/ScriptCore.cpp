@@ -1861,7 +1861,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 #if DO_BLUEPRINT_GUARD
 	FBlueprintContextTracker& BlueprintContextTracker = FBlueprintContextTracker::Get();
-	const int32 ProcessEventDepth = BlueprintExceptionTracker.GetScriptEntryTag();
+	const int32 ProcessEventDepth = BlueprintContextTracker.GetScriptEntryTag();
 	BlueprintContextTracker.EnterScriptContext(this, Function);
 #elif PER_FUNCTION_SCRIPT_STATS || LIGHTWEIGHT_PROCESS_EVENT_COUNTER
 	const int32 ProcessEventDepth = ProcessEventCounter;
