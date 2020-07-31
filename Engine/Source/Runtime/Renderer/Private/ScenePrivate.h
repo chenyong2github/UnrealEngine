@@ -1420,6 +1420,15 @@ public:
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	virtual const FViewMatrices* GetFrozenViewMatrices() const override
+	{
+		if (bIsFrozen && bIsFrozenViewMatricesCached)
+		{
+			return &CachedViewMatrices;
+		}
+		return nullptr;
+	}
+
 	virtual void ActivateFrozenViewMatrices(FSceneView& SceneView) override
 	{
 		auto* ViewState = static_cast<FSceneViewState*>(SceneView.State);
