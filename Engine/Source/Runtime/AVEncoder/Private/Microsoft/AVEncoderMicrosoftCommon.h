@@ -42,7 +42,6 @@
 #include "XboxCommonPreApi.h"
 		#include <d3d11_x.h>
 		#include <d3d12_x.h>
-		#include <d3dcompiler_x.h>
 		#include <d3dx12_x.h>
 		#include <mftransform.h>
 		#include <mfapi.h>
