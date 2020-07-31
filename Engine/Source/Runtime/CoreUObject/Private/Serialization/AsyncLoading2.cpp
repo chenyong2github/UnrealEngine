@@ -781,7 +781,7 @@ public:
 
 	FIoDispatcher& IoDispatcher;
 	FNameMap& GlobalNameMap;
-	TMap<FIoContainerId, FLoadedContainer> LoadedContainers;
+	TMap<FIoContainerId, TUniquePtr<FLoadedContainer>> LoadedContainers;
 
 	FString CurrentCulture;
 
@@ -880,7 +880,12 @@ public:
 				continue;
 			}
 
-			FLoadedContainer& LoadedContainer = LoadedContainers.FindOrAdd(ContainerId);
+			TUniquePtr<FLoadedContainer>& LoadedContainerPtr = LoadedContainers.FindOrAdd(ContainerId);
+			if (!LoadedContainerPtr)
+			{
+				LoadedContainerPtr.Reset(new FLoadedContainer);
+			}
+			FLoadedContainer& LoadedContainer = *LoadedContainerPtr;
 			if (LoadedContainer.bValid && LoadedContainer.Order >= Container.Environment.GetOrder())
 			{
 				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '0x%llX', already loaded with higher order"), ContainerId.Value());
