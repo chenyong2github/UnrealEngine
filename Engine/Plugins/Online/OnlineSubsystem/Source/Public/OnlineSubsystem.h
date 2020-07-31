@@ -122,14 +122,12 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOnlineEnvironmentChanged, EOnlineEnviron
 typedef FOnOnlineEnvironmentChanged::FDelegate FOnOnlineEnvironmentChangedDelegate;
 
 /**
-* Delegate fired when the "Play Together" event is sent from the PS4 system
+* Delegate fired when the "Play Together" event is sent from the PS4 system (Deprecated)
 *
 * @param UserIndex - User index of the player the event is for
 * @param UserIdList - list of other users in the PS4 party to send invites to
 */
-UE_DEPRECATED(4.26, "PlayTogether will no longer be supported and should be removed.")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayTogetherEventReceived, int32, TArray<TSharedPtr<const FUniqueNetId>>);
-UE_DEPRECATED(4.26, "PlayTogether will no longer be supported and should be removed.")
 typedef FOnPlayTogetherEventReceived::FDelegate FOnPlayTogetherEventReceivedDelegate;
 
 /**
@@ -595,10 +593,13 @@ public:
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnOnlineEnvironmentChanged, EOnlineEnvironment::Type /*LastEnvironment*/, EOnlineEnvironment::Type /*Environment*/);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(4.26, "PlayTogether will no longer be supported and should be removed." )
-	FDelegateHandle AddOnPlayTogetherEventReceivedDelegate_Handle(const FOnPlayTogetherEventReceivedDelegate& Delegate) { return FDelegateHandle(); }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	/**
+	* Delegate fired when the "Play Together" event is sent from the PS4 system (Deprecated)
+	*
+	* @param UserIndex - User index of the player the event is for
+	* @param UserIdList - list of other users in the PS4 party to send invites to
+	*/
+ 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPlayTogetherEventReceived, int32, TArray<TSharedPtr<const FUniqueNetId>>);
 
 	/**
 	 * @return The name of the online service this platform uses
