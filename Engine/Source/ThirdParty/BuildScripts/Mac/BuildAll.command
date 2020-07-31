@@ -12,12 +12,17 @@ rm -f ${SUCCESS_FILE} > /dev/null 2>&1
 rm -f ${FAIL_FILE} > /dev/null 2>&1
 
 multiple_cmd() { 
-    #echo Found $1
-    bash -c $1
+    logfile=$(echo $1 | tr / _)
+    logfile=$(echo $logfile | tr . _)
+    logfile="$logfile.txt"
+    echo "Building $1 (logfile: $logfile)"
+    bash -c "$1 > $logfile 2>&1"
     retVal=$?
     if [ $retVal -ne 0 ]; then
-        echo "$1 Failed to build" >> /tmp/buildall.fail
+        echo "$1 Failed to build"
+        echo "$1 Failed to build" > /tmp/buildall.fail
     else
+        echo "$1 was rebuilt"
         echo "$1 was rebuilt" >> /tmp/buildall.success
     fi    
 }; 
