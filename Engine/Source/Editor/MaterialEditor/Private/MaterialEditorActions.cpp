@@ -57,6 +57,7 @@ void FMaterialEditorCommands::RegisterCommands()
 	UI_COMMAND( PromoteToParameter, "Promote to Parameter", "Promote selected Pin to parameter of pin type", EUserInterfaceActionType::Button, FInputChord());	
 
 	UI_COMMAND(QualityLevel_All, "All", "Sets node preview to show all quality levels.)", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(QualityLevel_Epic, "Epic", "Sets node preview to Epic quality.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(QualityLevel_High, "High", "Sets node preview to high quality.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(QualityLevel_Medium, "Medium", "Sets node preview to medium quality.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(QualityLevel_Low, "Low", "Sets node preview to low quality.", EUserInterfaceActionType::RadioButton, FInputChord());

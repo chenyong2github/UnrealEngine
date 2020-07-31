@@ -580,6 +580,7 @@ public:
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Low;
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Medium;
 	TSharedPtr< FUICommandInfo > MaterialQualityLevel_High;
+	TSharedPtr< FUICommandInfo > MaterialQualityLevel_Epic;
 
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 

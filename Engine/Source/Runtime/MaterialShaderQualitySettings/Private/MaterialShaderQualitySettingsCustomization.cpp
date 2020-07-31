@@ -82,6 +82,10 @@ public:
 			{
 				MaterialQualityLevel = EMaterialQualityLevel::High;
 			}
+			else if (ColumnName == TEXT("Epic"))
+			{
+				MaterialQualityLevel = EMaterialQualityLevel::Epic;
+			}
 
 			if (MaterialQualityLevel < EMaterialQualityLevel::Num)
 			{
@@ -230,6 +234,16 @@ void FMaterialShaderQualitySettingsCustomization::CustomizeDetails(IDetailLayout
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("MaterialQualityList_High", "High"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+			//
+			+ SHeaderRow::Column("Epic")
+				.HAlignCell(HAlign_Left)
+				.FillWidth(1)
+				.HeaderContentPadding(FMargin(0, 3))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("MaterialQualityList_Epic", "Epic"))
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			)
