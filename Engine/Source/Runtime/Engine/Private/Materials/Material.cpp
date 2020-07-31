@@ -4379,6 +4379,7 @@ void UMaterial::RebuildShadingModelField()
 	UsedShadingModels = GetShadingModelFieldString(ShadingModels, FShadingModelToStringDelegate::CreateLambda(ShadingModelToStringLambda), " | ");
 #endif
 }
+#endif // WITH_EDITOR
 
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {
@@ -4420,8 +4421,10 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 		DestTex->Modify();
 		DestTex->Texture = SourceTex->Texture;
-		DestTex->Group = SourceTex->Group;
+		DestTex->Group = SourceTex->Group; // Group isn't editor only for textures
+#if WITH_EDITOR
 		DestTex->SortPriority = SourceTex->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionVectorParameter::StaticClass()))
 	{
@@ -4430,8 +4433,10 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 		DestVec->Modify();
 		DestVec->DefaultValue = SourceVec->DefaultValue;
+#if WITH_EDITOR
 		DestVec->Group = SourceVec->Group;
 		DestVec->SortPriority = SourceVec->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionStaticBoolParameter::StaticClass()))
 	{
@@ -4440,8 +4445,10 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 		DestVec->Modify();
 		DestVec->DefaultValue = SourceVec->DefaultValue;
+#if WITH_EDITOR
 		DestVec->Group = SourceVec->Group;
 		DestVec->SortPriority = SourceVec->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionStaticComponentMaskParameter::StaticClass()))
 	{
@@ -4453,8 +4460,10 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		DestVec->DefaultG = SourceVec->DefaultG;
 		DestVec->DefaultB = SourceVec->DefaultB;
 		DestVec->DefaultA = SourceVec->DefaultA;
+#if WITH_EDITOR
 		DestVec->Group = SourceVec->Group;
 		DestVec->SortPriority = SourceVec->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionScalarParameter::StaticClass()))
 	{
@@ -4463,8 +4472,10 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 
 		DestVec->Modify();
 		DestVec->DefaultValue = SourceVec->DefaultValue;
+#if WITH_EDITOR
 		DestVec->Group = SourceVec->Group;
 		DestVec->SortPriority = SourceVec->SortPriority;
+#endif
 	}
 	else if(Source->IsA(UMaterialExpressionFontSampleParameter::StaticClass()))
 	{
@@ -4474,23 +4485,27 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		DestFont->Modify();
 		DestFont->Font = SourceFont->Font;
 		DestFont->FontTexturePage = SourceFont->FontTexturePage;
-		DestFont->Group = SourceFont->Group;
+		DestFont->Group = SourceFont->Group; // Group isn't editor only for fonts
+#if WITH_EDITOR
 		DestFont->SortPriority = SourceFont->SortPriority;
+#endif
 	}
 	else
 	{
 		bRet = false;
 	}
 
+
+#if WITH_EDITOR
 	if (bRet)
 	{
 		Destination->Desc = Source->Desc;
 		Destination->GraphNode->OnUpdateCommentText(Destination->Desc);
 	}
+#endif // WITH_EDITOR
 
 	return bRet;
 }
-#endif // WITH_EDITOR
 
 void UMaterial::BeginDestroy()
 {
