@@ -15,14 +15,12 @@ struct FQueuedThreadPoolWrapper::FScheduledWork : public IQueuedWork
 	void DoThreadedWork() override
 	{
 		InnerWork->DoThreadedWork();
-		InnerWork = nullptr;
 		ParentPool->Schedule(this);
 	}
 
-	virtual void Abandon() override
+	void Abandon() override
 	{
 		InnerWork->Abandon();
-		InnerWork = nullptr;
 		ParentPool->Schedule(this);
 	}
 
@@ -62,13 +60,26 @@ void FQueuedThreadPoolWrapper::Destroy()
 		}
 
 		QueuedWork.Reset();
+
+		// Try to retract anything already in flight
+		TArray<FScheduledWork*> ScheduledWorkToRetract;
+		ScheduledWork.GenerateValueArray(ScheduledWorkToRetract);
+
+		for (FScheduledWork* Work : ScheduledWorkToRetract)
+		{
+			if (WrappedQueuedThreadPool->RetractQueuedWork(Work))
+			{
+				Work->InnerWork->Abandon();
+				ReleaseWorkNoLock(Work);
+			}
+		}
 	}
 
-	// We can't delete our WorkPool elements
-	// if they're still referenced by a threadpool.
-	// No choice to wait until they're all finished.
 	if (CurrentConcurrency)
 	{
+		// We can't delete our WorkPool elements
+		// if they're still referenced by a threadpool.
+		// Retraction didn't work, so no choice to wait until they're all finished.
 		TRACE_CPUPROFILER_EVENT_SCOPE(FQueuedThreadPoolWrapper::DestroyWait);
 		while (CurrentConcurrency)
 		{
@@ -78,10 +89,10 @@ void FQueuedThreadPoolWrapper::Destroy()
 
 	{
 		FRWScopeLock ScopeLock(Lock, SLT_Write);
-		for (FScheduledWork* ScheduledWork : WorkPool)
+		for (FScheduledWork* Work : WorkPool)
 		{
-			check(ScheduledWork->InnerWork == nullptr);
-			delete ScheduledWork;
+			check(Work->InnerWork == nullptr);
+			delete Work;
 		}
 		WorkPool.Empty();
 	}
@@ -123,13 +134,39 @@ void FQueuedThreadPoolWrapper::AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedW
 
 bool FQueuedThreadPoolWrapper::RetractQueuedWork(IQueuedWork* InQueuedWork)
 {
-	FRWScopeLock ScopeLock(Lock, SLT_Write);
-	return QueuedWork.Retract(InQueuedWork);
+	FScheduledWork* Retracted = nullptr;
+	{
+		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		if (QueuedWork.Retract(InQueuedWork))
+		{
+			return true;
+		}
+		
+		Retracted = ScheduledWork.FindRef(InQueuedWork);
+		if (Retracted && !WrappedQueuedThreadPool->RetractQueuedWork(Retracted))
+		{
+			Retracted = nullptr;
+		}
+	}
+
+	if (Retracted)
+	{
+		Schedule(Retracted);
+	}
+	return Retracted != nullptr;
 }
 
 int32 FQueuedThreadPoolWrapper::GetNumThreads() const
 {
 	return MaxConcurrency;
+}
+
+void FQueuedThreadPoolWrapper::ReleaseWorkNoLock(FScheduledWork* Work)
+{
+	CurrentConcurrency--;
+	ScheduledWork.Remove(Work->InnerWork);
+	Work->InnerWork = nullptr;
+	WorkPool.Push(Work);
 }
 
 void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
@@ -141,9 +178,7 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 	// end up never being called again.
 	if (Work != nullptr)
 	{
-		CurrentConcurrency--;
-		WorkPool.Push(Work);
-		Work = nullptr;
+		ReleaseWorkNoLock(Work);
 	}
 
 	while (CurrentConcurrency < MaxConcurrency.Load(EMemoryOrder::Relaxed) && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
@@ -164,8 +199,8 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 			}
 
 			Work->InnerWork = InnerWork;
+			ScheduledWork.Add(InnerWork, Work);
 			WrappedQueuedThreadPool->AddQueuedWork(Work, PriorityMapper(WorkPriority));
-			Work = nullptr;
 
 			if (MaxTaskToSchedule > 0)
 			{

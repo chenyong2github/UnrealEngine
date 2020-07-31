@@ -782,6 +782,15 @@ void FThreadPoolPriorityQueue::Reset()
 	NumQueuedWork = 0;
 }
 
+void FThreadPoolPriorityQueue::Sort(EQueuedWorkPriority InPriorityBucket, TFunctionRef<bool(const IQueuedWork* A, const IQueuedWork* B)> Predicate)
+{
+	int32 QueueIndex = static_cast<int32>(InPriorityBucket);
+	if (QueueIndex < PriorityQueuedWork.Num())
+	{
+		Algo::Sort(PriorityQueuedWork[QueueIndex], Predicate);
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	FQueuedThread
 -----------------------------------------------------------------------------*/
@@ -1062,7 +1071,7 @@ public:
 			{
 				// No thread available, queue the work to be done
 				// as soon as one does become available
-				QueuedWork.Enqueue(InQueuedWork);
+				QueuedWork.Enqueue(InQueuedWork, InQueuedWorkPriority);
 				return;
 			}
 

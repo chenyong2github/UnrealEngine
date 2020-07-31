@@ -9,7 +9,7 @@
 
 /** ThreadPool wrapper implementation allowing to schedule
   * up to MaxConcurrency tasks at a time making sub-partitioning
-  * another thread-pool a breeze and allowing more fine-grained control 
+  * another thread-pool a breeze and allowing more fine-grained control
   * over scheduling by effectively giving another set of priorities.
   */
 class CORE_API FQueuedThreadPoolWrapper : public FQueuedThreadPool
@@ -20,7 +20,7 @@ public:
 	 * InMaxConcurrency           Maximum number of concurrent tasks allowed, -1 will limit concurrency to number of threads available in the underlying thread pool.
 	 * InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the underlying thread pool.
 	 */
-	FQueuedThreadPoolWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency = -1, TFunction<EQueuedWorkPriority (EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; });
+	FQueuedThreadPoolWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency = -1, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; });
 	~FQueuedThreadPoolWrapper();
 
 	/**
@@ -42,20 +42,59 @@ public:
 	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override;
 	int32 GetNumThreads() const override;
 
+protected:
+	FRWLock Lock;
+	FThreadPoolPriorityQueue QueuedWork;
+
 private:
 	struct FScheduledWork;
 
 	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override;
 	void Destroy() override;
 	void Schedule(FScheduledWork* Work = nullptr);
-
-	FRWLock Lock;
+	void ReleaseWorkNoLock(FScheduledWork* Work);
+	
 	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
-	FThreadPoolPriorityQueue QueuedWork;
+
 	FQueuedThreadPool* WrappedQueuedThreadPool;
 	TArray<FScheduledWork*> WorkPool;
+	TMap<IQueuedWork*, FScheduledWork*> ScheduledWork;
 	TAtomic<int32> MaxConcurrency;
 	int32 MaxTaskToSchedule;
 	TAtomic<int32> CurrentConcurrency;
 	EQueuedWorkPriority WrappedQueuePriority;
+};
+
+/** ThreadPool wrapper implementation allowing to schedule
+  * up to MaxConcurrency tasks at a time making sub-partitioning
+  * another thread-pool a breeze and allowing more fine-grained control
+  * over scheduling by giving full control of task reordering.
+  */
+class CORE_API FQueuedThreadPoolDynamicWrapper : public FQueuedThreadPoolWrapper
+{
+public:
+	/**
+	 * InWrappedQueuedThreadPool  Underlying thread pool to schedule task to.
+	 * InMaxConcurrency           Maximum number of concurrent tasks allowed, -1 will limit concurrency to number of threads available in the underlying thread pool.
+	 * InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the underlying thread pool.
+	 */
+	FQueuedThreadPoolDynamicWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency = -1, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; })
+		: FQueuedThreadPoolWrapper(InWrappedQueuedThreadPool, InMaxConcurrency, InPriorityMapper)
+	{
+	}
+
+	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override
+	{
+		// Override priority to make sure all elements are in the same buckets and can then be sorted all together.
+		FQueuedThreadPoolWrapper::AddQueuedWork(InQueuedWork, EQueuedWorkPriority::Normal);
+	}
+
+	/**
+	 * Apply sort predicate to reorder the queued tasks
+	 */
+	void Sort(TFunctionRef<bool(const IQueuedWork* Lhs, const IQueuedWork* Rhs)> Predicate)
+	{
+		FRWScopeLock ScopeLock(Lock, SLT_Write);
+		QueuedWork.Sort(EQueuedWorkPriority::Normal, Predicate);
+	}
 };

@@ -49,6 +49,11 @@ public:
 	 * Get the total number of queued items.
 	 */
 	int32 Num() const { return NumQueuedWork; }
+
+	/**
+	 * Sort Priority Bucket given Predicate
+	 */
+	void Sort(EQueuedWorkPriority InPriorityBucket, TFunctionRef<bool (const IQueuedWork* A, const IQueuedWork* B)> Predicate);
 private:
 	/** The first queue to extract a work item from to avoid scanning all priorities when unqueuing. */
 	int32 FirstNonEmptyQueueIndex = 0;
