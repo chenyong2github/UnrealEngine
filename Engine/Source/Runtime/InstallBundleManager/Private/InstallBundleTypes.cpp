@@ -98,6 +98,7 @@ const TCHAR* LexToString(EInstallBundleReleaseResult Result)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("OK"),
+		TEXT("ManifestArchiveError"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleReleaseResult::Count) == UE_ARRAY_COUNT(Strings), "");

@@ -140,6 +140,7 @@ ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 enum class EInstallBundleReleaseResult
 {
 	OK,
+	ManifestArchiveError,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleReleaseResult Result);
@@ -282,8 +283,7 @@ struct FInstallBundleSourceUpdateContentResultInfo
 struct FInstallBundleSourceRemoveContentResultInfo
 {
 	FName BundleName;
-
-	bool bContentWasRemoved = false;
+	EInstallBundleReleaseResult Result = EInstallBundleReleaseResult::OK;
 };
 
 struct FInstallBundleSourceProgress
