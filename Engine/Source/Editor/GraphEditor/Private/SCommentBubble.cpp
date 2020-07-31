@@ -112,7 +112,16 @@ void SCommentBubble::Tick( const FGeometry& AllottedGeometry, const double InCur
 		// Toggle the comment on/off, provided it the parent isn't a comment node
 		if( !bInvertLODCulling )
 		{
-			OnCommentBubbleToggle( CachedComment.IsEmpty() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked );
+			// If the comment visibility isn't correct, toggle it.
+			if (CachedComment.IsEmpty() == GraphNode->bCommentBubbleVisible)
+			{
+				OnCommentBubbleToggle(CachedComment.IsEmpty() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked);
+			}
+			else
+			{
+				// we just need to refresh the widget's visibility, not the graph node
+				UpdateBubble();
+			}
 		}
 	}
 }

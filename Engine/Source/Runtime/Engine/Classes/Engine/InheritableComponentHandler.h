@@ -129,7 +129,7 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 
-	void PreloadAllTempates();
+	void PreloadAllTemplates();
 	void PreloadAll();
 
 	FComponentKey FindKey(const FName VariableName) const;

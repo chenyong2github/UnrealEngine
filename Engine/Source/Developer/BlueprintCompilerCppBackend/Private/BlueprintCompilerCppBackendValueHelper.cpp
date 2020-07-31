@@ -893,7 +893,17 @@ protected:
 			// we've emitted the code above to initialize the remainder of the BodyInstance struct value. It's ok to emit this call last for any non-custom collision profile overrides as well.
 			if (bResetCollisionProfileAtRuntime)
 			{
-				Context.AddLine(FString::Printf(TEXT("%s->SetCollisionProfileName(FName(TEXT(\"%s\")));"), *VariableName, *ComponentCollisionProfileName.ToString().ReplaceCharWithEscapedChar()));
+				if (ComponentCollisionProfileName != ComponentArchetypeCollisionProfileName)
+				{
+					Context.AddLine(FString::Printf(TEXT("%s->SetCollisionProfileName(FName(TEXT(\"%s\")));"), *VariableName, *ComponentCollisionProfileName.ToString().ReplaceCharWithEscapedChar()));
+				}
+				else
+				{
+					// In this case, the archetype and the instance are both using a custom profile, so SetCollisionProfileName() would return
+					// without doing anything since the profile name already matches the current setting. To get around that, we emit a direct
+					// call to LoadProfileData() instead to initialize transient values from the custom profile data emitted to the ctor above.
+					Context.AddLine(FString::Printf(TEXT("%s.LoadProfileData(false);"), *PathToMember));
+				}
 			}
 		}
 		else

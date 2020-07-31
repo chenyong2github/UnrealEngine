@@ -704,18 +704,13 @@ const TCHAR* ImportObjectProperties( FImportObjectParams& InParams )
 		InParams.SubobjectOuter->PreEditChange(NULL);
 	}
 
-	FObjectInstancingGraph* CurrentInstanceGraph = InParams.InInstanceGraph;
-	if ( InParams.SubobjectRoot != NULL && InParams.SubobjectRoot != UObject::StaticClass()->GetDefaultObject() )
-	{
-		if ( CurrentInstanceGraph == NULL )
-		{
-			CurrentInstanceGraph = new FObjectInstancingGraph;
-		}
-		CurrentInstanceGraph->SetDestinationRoot(InParams.SubobjectRoot);
-	}
+	FObjectInstancingGraph TempGraph;
+	FObjectInstancingGraph& InstanceGraph = InParams.InInstanceGraph ? *InParams.InInstanceGraph : TempGraph;
 
- 	FObjectInstancingGraph TempGraph; 
-	FObjectInstancingGraph& InstanceGraph = CurrentInstanceGraph ? *CurrentInstanceGraph : TempGraph;
+	if ( InParams.SubobjectRoot && InParams.SubobjectRoot != UObject::StaticClass()->GetDefaultObject() )
+	{
+		InstanceGraph.SetDestinationRoot(InParams.SubobjectRoot);
+	}
 
 	// Parse the object properties.
 	const TCHAR* NewSourceText =
@@ -762,13 +757,6 @@ const TCHAR* ImportObjectProperties( FImportObjectParams& InParams )
 			ContextSupplier = NULL;
 			InParams.Warn->SetContext(NULL);
 		}
-	}
-
-	// if we created the instance graph, delete it now
-	if ( CurrentInstanceGraph != NULL && InParams.InInstanceGraph == NULL )
-	{
-		delete CurrentInstanceGraph;
-		CurrentInstanceGraph = NULL;
 	}
 
 	return NewSourceText;

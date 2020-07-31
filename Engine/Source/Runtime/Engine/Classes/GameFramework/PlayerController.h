@@ -48,7 +48,7 @@ DECLARE_DELEGATE_RetVal(bool, FCanUnpause);
 /** delegate used to override default viewport audio listener position calculated from camera */
 DECLARE_DELEGATE_ThreeParams(FGetAudioListenerPos, FVector& /*Location*/, FVector& /*ProjFront*/, FVector& /*ProjRight*/);
 
-DECLARE_LOG_CATEGORY_EXTERN(LogPlayerController, Log, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogPlayerController, Log, All);
 DECLARE_STATS_GROUP(TEXT("PlayerController"), STATGROUP_PlayerController, STATCAT_Advanced);
 
 UENUM()

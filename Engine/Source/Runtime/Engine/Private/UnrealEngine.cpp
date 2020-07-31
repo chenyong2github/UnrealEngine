@@ -131,6 +131,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
+#include "Engine/ViewportStatsSubsystem.h"
 
 #include "Chaos/TriangleMeshImplicitObject.h"
 
@@ -430,7 +431,8 @@ ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldCon
 				break;
 
 			case NM_Client:
-				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				// 0 is always the server, use PIEInstance so it matches the in-editor UI
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance)).ToString();
 				break;
 
 			default:
@@ -10335,7 +10337,7 @@ float UEngine::DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCa
 /**
 *	Renders stats
 *
-*  @param World			The World to render stats about
+*   @param World			The World to render stats about
 *	@param Viewport			The viewport to render to
 *	@param Canvas			Canvas object to use for rendering
 *	@param CanvasObject		Optional canvas object for visualizing properties
@@ -10544,6 +10546,14 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 
 		RenderStats( Viewport, Canvas, StatsXOffset, Y, FMath::FloorToInt(PixelSizeX / Canvas->GetDPIScale()));
 #endif
+	}
+
+	// Use the new Viewport stats subsystem to draw any additional items that the user may want to
+	{
+		if (UViewportStatsSubsystem* ViewportSubsystem = World->GetSubsystem<UViewportStatsSubsystem>())
+		{
+			ViewportSubsystem->Draw(Viewport, Canvas, CanvasObject, MessageY);
+		}
 	}
 
 	// draw debug properties
@@ -10829,7 +10839,13 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 	: ViewportClient( InViewportClient )
 	, OldWorld( nullptr )
 {
-	ConditionalSwitchWorld( ViewportClient, nullptr );
+	UWorld* InWorld = nullptr;
+	if (InViewportClient)
+	{
+		InWorld = InViewportClient->GetWorld();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
 }
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
@@ -10848,24 +10864,29 @@ void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* I
 {
 	if( GIsEditor )
 	{
-		if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
+		if ( InWorld && InWorld->WorldType == EWorldType::PIE && !GIsPlayInEditorWorld )
+		{
+			// We don't want to restore using Viewport client so clear it
+			ViewportClient = nullptr;
+
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+
+			// First check if we are being told to switch to a PIE world, if so always switch regardless of viewport
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
+		}
+		else if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
 		{
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
-			// Delegate must be valid
+
+			// If this is the main game viewport delegate will handle finding new world
 			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
 		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
-		}
-		else if ( InWorld && !GIsPlayInEditorWorld )
-		{
-			OldWorld = GWorld;
-			const bool bSwitchToPIEWorld = true;
-			// No viewport so set the world directly
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }
@@ -13688,6 +13709,62 @@ const FWorldContext& UEngine::GetWorldContextFromPIEInstanceChecked(const int32 
 	return HandleInvalidWorldContext();
 }
 
+UWorld* UEngine::GetCurrentPlayWorld(UWorld* PossiblePlayWorld) const
+{
+	UWorld* BestWorld = nullptr;
+	for (const FWorldContext& WorldContext : WorldList)
+	{
+		if (PossiblePlayWorld && WorldContext.World() == PossiblePlayWorld)
+		{
+			// This is a game world and matches passed in world, return it
+			if (WorldContext.WorldType == EWorldType::Game)
+			{
+				return WorldContext.World();
+			}
+
+#if WITH_EDITOR
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				// This is a PIE world, and PIE instance is either not set or matches this world
+				if (GPlayInEditorID == -1 || GPlayInEditorID == WorldContext.PIEInstance)
+				{
+					return WorldContext.World();
+				}
+				else
+				{
+					// If you see this warning, game code is traversing PIE world boundaries in an unsafe way. That should be fixed or GPlayInEditorID needs to be set properly
+					UE_LOG(LogEngine, Warning, TEXT("GetCurrentPlayWorld failed with ambiguous PIE world! GPlayInEditorID %d does not match %s"), GPlayInEditorID, *PossiblePlayWorld->GetPathName());
+				}
+			}
+#endif
+
+			// We found the possible play world but it is is definitely not the current world, so return null due to ambiguity
+			return nullptr;
+		}
+
+		if (BestWorld)
+		{
+			// We want to use the first found world unless it's the specified world to check
+			continue;
+		}
+
+		// If it's a game world, try and set BestWorld. If World() is null, this won't do anything
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			BestWorld = WorldContext.World();
+		}
+#if WITH_EDITOR
+		// This is a PIE world, PIE instance is set, and it matches this world
+		else if (WorldContext.WorldType == EWorldType::PIE && GPlayInEditorID != -1 && GPlayInEditorID == WorldContext.PIEInstance)
+		{
+			BestWorld = WorldContext.World();
+		}
+#endif
+	}
+
+	return BestWorld;
+}
+
 UPendingNetGame* UEngine::PendingNetGameFromWorld( UWorld* InWorld )
 {
 	return GetWorldContextFromWorldChecked(InWorld).PendingNetGame;
@@ -14332,9 +14409,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
-		return
-			(InProperty->HasAnyPropertyFlags(CPF_Transient) && !IsPersistent() && IsSerializingDefaults()) ||
-			(bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
+		return (bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
 	}
 #endif 
 	//~ End FArchive Interface
@@ -14598,63 +14673,77 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	}
 }
 
-// This is a really bad hack for UBlueprintFunctionLibrary::GetFunctionCallspace. See additional comments there.
-bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+int32 UEngine::GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack)
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	check(Function);
+
+	const bool bIsAuthoritativeFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly);
+	const bool bIsCosmeticFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintCosmetic);
+
+	// If this is an authority/cosmetic function, we need to try and find the global context to see if it's a dedicated server/client
+	if (bIsAuthoritativeFunc || bIsCosmeticFunc)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
+		UWorld* CurrentWorld = nullptr;
+#if !WITH_EDITOR
+		// In cooked builds there is only one active game world, so this will find it
+		CurrentWorld = GetCurrentPlayWorld();
+#else
+		// In the editor there can be multiple possible PIE worlds at once due to client/server testing and globals not being set, so we need to look for a world to use as context
+		UWorld* PossibleWorld = nullptr;
+
+		// First look at function target, this will fail if it's a static function
+		if (FunctionTarget)
 		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
+			PossibleWorld = FunctionTarget->GetWorld();
 		}
 
-		if (useIt && (Context.World() != nullptr))
+		// Next check BP stack
+		if (!PossibleWorld && Stack && Stack->Object)
 		{
-			return (Context.World()->GetNetMode() ==  NM_Client);
+			PossibleWorld = Stack->Object->GetWorld();
+		}
+
+		CurrentWorld = GetCurrentPlayWorld(PossibleWorld);
+#endif
+
+		// If we found a game world context, check it for networking mode
+		if (CurrentWorld)
+		{
+			ENetMode WorldNetMode = CurrentWorld->GetNetMode();
+			if (WorldNetMode == NM_DedicatedServer && bIsCosmeticFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
+			if (WorldNetMode == NM_Client && bIsAuthoritativeFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
 		}
 	}
+
+	// If we can't find a net mode always call locally
+	return FunctionCallspace::Local;
+}
+
+bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+{
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
+	{
+		return (CurrentWorld->GetNetMode() == NM_Client);
+	}
+
 	return false;
 }
 
-
 bool UEngine::ShouldAbsorbCosmeticOnlyEvent()
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
-		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
-		}
-
-		if (useIt && (Context.World() != nullptr))
-		{
-			return (Context.World()->GetNetMode() == NM_DedicatedServer);
-		}
+		return (CurrentWorld->GetNetMode() == NM_DedicatedServer);
 	}
+
 	return false;
 }
 

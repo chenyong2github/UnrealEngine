@@ -428,7 +428,7 @@ FComponentKey UInheritableComponentHandler::FindKey(UActorComponent* ComponentTe
 
 #endif
 
-void UInheritableComponentHandler::PreloadAllTempates()
+void UInheritableComponentHandler::PreloadAllTemplates()
 {
 	for (const FComponentOverrideRecord& Record : Records)
 	{
@@ -437,6 +437,17 @@ void UInheritableComponentHandler::PreloadAllTempates()
 			if (FLinkerLoad* Linker = Record.ComponentTemplate->GetLinker())
 			{
 				Linker->Preload(Record.ComponentTemplate);
+
+				ForEachObjectWithOuter(Record.ComponentTemplate, [](UObject* SubObj)
+				{
+					if (SubObj->HasAllFlags(RF_NeedLoad))
+					{
+						if (FLinkerLoad* SubObjLinker = SubObj->GetLinker())
+						{
+							SubObjLinker->Preload(SubObj);
+						}
+					}
+				});
 			}
 		}
 	}
@@ -451,7 +462,7 @@ void UInheritableComponentHandler::PreloadAll()
 			Linker->Preload(this);
 		}
 	}
-	PreloadAllTempates();
+	PreloadAllTemplates();
 }
 
 FComponentKey UInheritableComponentHandler::FindKey(const FName VariableName) const

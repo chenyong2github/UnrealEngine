@@ -265,7 +265,9 @@ void UKismetSystemLibrary::PrintString(UObject* WorldContextObject, const FStrin
 			switch(World->GetNetMode())
 			{
 				case NM_Client:
-					Prefix = FString::Printf(TEXT("Client %d: "), GPlayInEditorID - 1);
+					// GPlayInEditorID 0 is always the server, so 1 will be first client.
+					// You want to keep this logic in sync with GeneratePIEViewportWindowTitle and UpdatePlayInEditorWorldDebugString
+					Prefix = FString::Printf(TEXT("Client %d: "), GPlayInEditorID);
 					break;
 				case NM_DedicatedServer:
 				case NM_ListenServer:
@@ -463,7 +465,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimer(UObject* Object, FString Function
 	}
 
 	InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
-	if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
+	if (Time <= 0.f || (Time + InitialStartDelay) < 0.f)
 	{
 		FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative or zero time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 	}
@@ -482,7 +484,7 @@ FTimerHandle UKismetSystemLibrary::K2_SetTimerDelegate(FTimerDynamicDelegate Del
 		if(World)
 		{
 			InitialStartDelay += FMath::RandRange(-InitialStartDelayVariance, InitialStartDelayVariance);
-			if (Time <= 0.f || ((Time + InitialStartDelay) - InitialStartDelayVariance) < 0.f)
+			if (Time <= 0.f || (Time + InitialStartDelay) < 0.f)
 			{
 				FFrame::KismetExecutionMessage(TEXT("SetTimer passed a negative or zero time.  The associated timer may fail to fire!  If using InitialStartDelayVariance, be sure it is smaller than (Time + InitialStartDelay)."), ELogVerbosity::Warning);
 			}

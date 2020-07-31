@@ -58,6 +58,13 @@ struct TStructOpsTypeTraits<FActorComponentDuplicatedObjectData> : public TStruc
 	};
 };
 
+/** Dummy class to use as an outer as we can instantiate a UObject since it is abstract class. */
+UCLASS()
+class UActorComponentInstanceDataTransientOuter : public UObject
+{
+	GENERATED_BODY()
+};
+
 /** Base class for component instance cached data of a particular type. */
 USTRUCT()
 struct ENGINE_API FActorComponentInstanceData
@@ -87,6 +94,9 @@ public:
 
 	const UObject* GetComponentTemplate() const { return SourceComponentTemplate; }
 
+	/** Get (or create) the unique transient outer for the duplicated objects created for this component */
+	UObject* GetUniqueTransientPackage();
+
 protected:
 	friend class FComponentPropertyWriter;
 	friend class FComponentPropertyReader;
@@ -106,6 +116,13 @@ protected:
 
 	UPROPERTY()
 	TArray<uint8> SavedProperties;
+
+	/** 
+	 * A unique outer created in the transient package to act as outer for this component's duplicated objects 
+	 * to avoid name conflicts of objects that already exist in the transient package
+	 */
+	UPROPERTY()
+	FActorComponentDuplicatedObjectData UniqueTransientPackage;
 
 	// Duplicated objects created when saving component instance properties
 	UPROPERTY()

@@ -140,15 +140,13 @@ INavigationQueryFilterInterface* FRecastQueryFilter::CreateCopy() const
 
 void FRecastQueryFilter::SetIsVirtual(bool bIsVirtual)
 {
-	dtQueryFilter* Filter = static_cast<dtQueryFilter*>(this);
-	Filter = new(Filter)dtQueryFilter(bIsVirtual);
-	SetExcludedArea(RECAST_NULL_AREA);
+	isVirtual = bIsVirtual;
 }
 
 void FRecastQueryFilter::Reset()
 {
-	dtQueryFilter* Filter = static_cast<dtQueryFilter*>(this);
-	Filter = new(Filter) dtQueryFilter(isVirtual);
+	// resetting just the cost data, we don't want to override the vf table like we did before (UE-95704)
+	new(&data)dtQueryFilterData();
 	SetExcludedArea(RECAST_NULL_AREA);
 }
 

@@ -11301,10 +11301,7 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 	
 	MaxSpeed = Character->GetCharacterMovement()->GetMaxSpeed();
 
-	// CheckJumpInput will increment JumpCurrentCount.
-	// Therefore, for replicated moves we want it to set it at 1 less to properly
-	// handle the change.
-	JumpCurrentCount = Character->JumpCurrentCount > 0 ? Character->JumpCurrentCount - 1 : 0;
+	JumpCurrentCount = Character->JumpCurrentCountPreJump;
 	bWantsToCrouch = Character->GetCharacterMovement()->bWantsToCrouch;
 	bForceMaxAccel = Character->GetCharacterMovement()->bForceMaxAccel;
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
@@ -11802,9 +11799,9 @@ void FSavedMove_Character::CombineWith(const FSavedMove_Character* OldMove, ACha
 	DeltaTime += OldMove->DeltaTime;
 
 	// Roll back jump force counters. SetInitialPosition() below will copy them to the saved move.
-	// Changes in certain counters like JumpCurrentCount don't allow move combining, so no need to roll those back (they are the same).
 	InCharacter->JumpForceTimeRemaining = OldMove->JumpForceTimeRemaining;
 	InCharacter->JumpKeyHoldTime = OldMove->JumpKeyHoldTime;
+	InCharacter->JumpCurrentCountPreJump = OldMove->JumpCurrentCount;
 }
 
 void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
@@ -11868,6 +11865,8 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 	Character->JumpForceTimeRemaining = JumpForceTimeRemaining;
 	Character->JumpMaxCount = JumpMaxCount;
 	Character->JumpCurrentCount = JumpCurrentCount;
+	Character->JumpCurrentCountPreJump = JumpCurrentCount;
+
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
 }
 
