@@ -714,7 +714,7 @@ public:
 		FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		if (ProxyData != nullptr && ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->IsInitialized()
-			&& ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->AssetArrays)
+			&& ProxyData->FieldSystemBuffer->AssetArrays)
 		{
 			FNDIFieldSystemBuffer* AssetBuffer = ProxyData->FieldSystemBuffer;
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldNodesParamsBuffer, AssetBuffer->FieldNodesParamsBuffer.SRV);
@@ -965,7 +965,7 @@ bool UNiagaraDataInterfaceFieldSystem::Equals(const UNiagaraDataInterface* Other
 	return  (OtherTyped->FieldSystems == FieldSystems) && (OtherTyped->SourceActor == SourceActor) &&
 		(OtherTyped->SourceComponents == SourceComponents) && (OtherTyped->DefaultSource == DefaultSource)
 		&& (OtherTyped->BlueprintSource == BlueprintSource && (OtherTyped->FieldDimensions == FieldDimensions)
-			&& (OtherTyped->FieldDimensions == FieldDimensions) && (OtherTyped->MinBounds == MinBounds) && (OtherTyped->MaxBounds == MaxBounds));
+	    && (OtherTyped->MinBounds == MinBounds) && (OtherTyped->MaxBounds == MaxBounds));
 }
 
 void UNiagaraDataInterfaceFieldSystem::PostInitProperties()
