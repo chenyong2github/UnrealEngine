@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Details/DetailWidgetExtensionHandler.h"
-#include "Details/SPropertyBinding.h"
 #include "UMGEditorProjectSettings.h"
 #include "WidgetBlueprintEditor.h"
 #include "Engine/Blueprint.h"
 #include "Binding/WidgetBinding.h"
 #include "WidgetBlueprint.h"
+#include "Customizations/UMGDetailCustomizations.h"
 
 FDetailWidgetExtensionHandler::FDetailWidgetExtensionHandler(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 	: BlueprintEditor( InBlueprintEditor )
@@ -74,6 +74,5 @@ TSharedRef<SWidget> FDetailWidgetExtensionHandler::GenerateExtensionWidget(const
 		}
 	}
 
-	return SNew(SPropertyBinding, BlueprintEditor.Pin().ToSharedRef(), DelegateProperty, InPropertyHandle.ToSharedRef())
-		.GeneratePureBindings(true);
+	return FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, DelegateProperty, InPropertyHandle.ToSharedRef(), true);
 }

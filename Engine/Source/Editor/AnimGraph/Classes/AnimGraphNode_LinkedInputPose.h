@@ -7,6 +7,8 @@
 #include "AnimGraphNode_Base.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Engine/MemberReference.h"
+#include "IClassVariableCreator.h"
+
 #include "AnimGraphNode_LinkedInputPose.generated.h"
 
 class SEditableTextBox;
@@ -39,7 +41,7 @@ struct FAnimBlueprintFunctionPinInfo
 };
 
 UCLASS()
-class ANIMGRAPH_API UAnimGraphNode_LinkedInputPose : public UAnimGraphNode_Base
+class ANIMGRAPH_API UAnimGraphNode_LinkedInputPose : public UAnimGraphNode_Base, public IClassVariableCreator
 {
 	GENERATED_BODY()
 
@@ -63,6 +65,9 @@ public:
 	/** UObject interface */
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
+	/** IClassVariableCreator interface */
+	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) override;
+
 	/** UEdGraphNode interface */
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetTooltipText() const override;
@@ -75,6 +80,7 @@ public:
 
 	/** UK2Node interface */
 	virtual bool HasExternalDependencies(TArray<UStruct*>* OptionalOutput) const override;
+	virtual void ExpandNode(class FKismetCompilerContext& InCompilerContext, UEdGraph* InSourceGraph) override;
 
 	/** UAnimGraphNode_Base interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;

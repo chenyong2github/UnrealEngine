@@ -845,7 +845,7 @@ void FPersonaModule::CustomizeBlueprintEditorDetails(const TSharedRef<class IDet
 	InDetailsView->RegisterInstancedCustomPropertyLayout(UAnimGraphNode_Slot::StaticClass(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FAnimGraphNodeSlotDetails::MakeInstance, InOnInvokeTab));
 
-	InDetailsView->SetExtensionHandler(MakeShared<FAnimGraphNodeShowAsPinExtension>());
+	InDetailsView->SetExtensionHandler(MakeShared<FAnimGraphNodeBindingExtension>());
 }
 
 IPersonaEditorModeManager* FPersonaModule::CreatePersonaEditorModeManager()

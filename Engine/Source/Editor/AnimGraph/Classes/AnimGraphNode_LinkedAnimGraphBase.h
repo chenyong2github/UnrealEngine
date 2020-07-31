@@ -6,6 +6,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "AnimGraphNode_CustomProperty.h"
+#include "IClassVariableCreator.h"
+#include "Animation/AnimInstanceSubsystemData.h"
 
 #include "AnimGraphNode_LinkedAnimGraphBase.generated.h"
 
@@ -21,7 +23,6 @@ class UAnimGraphNode_LinkedAnimGraphBase : public UAnimGraphNode_CustomProperty
 	GENERATED_BODY()
 
 public:
-
 	//~ Begin UEdGraphNode Interface.
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FText GetTooltipText() const override;
@@ -43,6 +44,11 @@ public:
 	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const PURE_VIRTUAL(UAnimGraphNode_LinkedAnimGraphBase::GetLinkedAnimGraphNode, return nullptr;);
 
 protected:
+	friend class UAnimBlueprintCompilerSubsystem_LinkedAnimGraph;
+
+	// Called pre-compilation to allocate pose links
+	void AllocatePoseLinks();
+
 	// Finds out whether there is a loop in the graph formed by linked instances from this node
 	bool HasInstanceLoop();
 	

@@ -598,31 +598,34 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 		UAnimGraphNode_TransitionResult* ResultNode = TransGraph->GetResultNode();
 		check(ResultNode);
 
-		UEdGraphPin* BoolResultPin = ResultNode->Pins[0];
-		if ((BoolResultPin->LinkedTo.Num() == 0) && (BoolResultPin->DefaultValue.ToBool() == false))
+		if(ResultNode->Pins.Num() > 0)
 		{
-			// check for native transition rule before warning
-			bool bHasNative = false;
-			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(this);
-			if(Blueprint && Blueprint->ParentClass)
+			UEdGraphPin* BoolResultPin = ResultNode->Pins[0];
+			if (BoolResultPin && (BoolResultPin->LinkedTo.Num() == 0) && (BoolResultPin->DefaultValue.ToBool() == false))
 			{
-				UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(Blueprint->ParentClass->GetDefaultObject());
-				if(AnimInstance)
+				// check for native transition rule before warning
+				bool bHasNative = false;
+				UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(this);
+				if(Blueprint && Blueprint->ParentClass)
 				{
-					UEdGraph* ParentGraph = GetGraph();
-					UAnimStateNodeBase* PrevState = GetPreviousState();
-					UAnimStateNodeBase* NextState = GetNextState();
-					if(PrevState != nullptr && NextState != nullptr && ParentGraph != nullptr)
+					UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(Blueprint->ParentClass->GetDefaultObject());
+					if(AnimInstance)
 					{
-						FName FunctionName;
-						bHasNative = AnimInstance->HasNativeTransitionBinding(ParentGraph->GetFName(), FName(*PrevState->GetStateName()), FName(*NextState->GetStateName()), FunctionName);
+						UEdGraph* ParentGraph = GetGraph();
+						UAnimStateNodeBase* PrevState = GetPreviousState();
+						UAnimStateNodeBase* NextState = GetNextState();
+						if(PrevState != nullptr && NextState != nullptr && ParentGraph != nullptr)
+						{
+							FName FunctionName;
+							bHasNative = AnimInstance->HasNativeTransitionBinding(ParentGraph->GetFName(), FName(*PrevState->GetStateName()), FName(*NextState->GetStateName()), FunctionName);
+						}
 					}
 				}
-			}
 
-			if (!bHasNative && !bAutomaticRuleBasedOnSequencePlayerInState)
-			{
-				MessageLog.Warning(TEXT("@@ will never be taken, please connect something to @@"), this, BoolResultPin);
+				if (!bHasNative && !bAutomaticRuleBasedOnSequencePlayerInState)
+				{
+					MessageLog.Warning(TEXT("@@ will never be taken, please connect something to @@"), this, BoolResultPin);
+				}
 			}
 		}
 	}
