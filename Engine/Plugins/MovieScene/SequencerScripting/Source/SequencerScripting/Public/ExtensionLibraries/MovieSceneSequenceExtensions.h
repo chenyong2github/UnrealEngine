@@ -46,7 +46,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying which types of track to return
 	 * @return An array containing any tracks that match the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindMasterTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -56,7 +56,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying the exact types of track to return
 	 * @return An array containing any tracks that are exactly the same as the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindMasterTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -66,7 +66,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type to create
 	 * @return The newly created track, if successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static UMovieSceneTrack* AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
