@@ -145,8 +145,10 @@ public:
 	* @param	InOutputState		The output state for frame information.
 	* @param	InFormatOverrides	A series of Key/Value pairs to override particular format keys. Useful for things that
 	*								change based on the caller such as filename extensions.
+	* @return OutFinalPath			The final filepath based on a combination of the format string, the format overrides, and the current output state.
+	* @return OutFinalFormatArgs	The format arguments that were actually used to fill the format string (including file metadata)
 	*/
-	FString ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides) const;
+	void ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs) const;
 
 protected:
 	/**

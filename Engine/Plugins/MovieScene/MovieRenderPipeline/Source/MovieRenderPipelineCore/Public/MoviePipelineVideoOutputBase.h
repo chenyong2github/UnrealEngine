@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineOutputBase.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "ImagePixelData.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -14,6 +15,7 @@ namespace MovieRenderPipeline
 	struct IVideoCodecWriter
 	{
 		FString FileName;
+		FMoviePipelineFormatArgs FormatArgs;
 	};
 }
 

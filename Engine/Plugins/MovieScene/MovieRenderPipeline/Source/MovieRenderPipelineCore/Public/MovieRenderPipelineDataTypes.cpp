@@ -185,10 +185,18 @@ void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFo
 	FString FrameNumberRel = GetPaddingFormatString(InZeroPadCount, OutputFrameNumber + InFrameNumberOffset); // Relative to 0
 	FString FrameNumberShotRel = GetPaddingFormatString(InZeroPadCount, ShotOutputFrameNumber + InFrameNumberOffset); // Relative to 0 within the shot.
 
-	InOutFormatArgs.Arguments.Add(TEXT("frame_number"), FrameNumber);
-	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
-	InOutFormatArgs.Arguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
-	InOutFormatArgs.Arguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
-	InOutFormatArgs.Arguments.Add(TEXT("camera_name"), CameraName.Len() > 0 ? CameraName : TEXT("NoCamera"));
-	InOutFormatArgs.Arguments.Add(TEXT("shot_name"), ShotName.Len() > 0 ? ShotName : TEXT("NoShot"));
+	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number"), FrameNumber);
+	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
+	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number_rel"), FrameNumberRel);
+	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot_rel"), FrameNumberShotRel);
+	InOutFormatArgs.FilenameArguments.Add(TEXT("camera_name"), CameraName.Len() > 0 ? CameraName : TEXT("NoCamera"));
+	InOutFormatArgs.FilenameArguments.Add(TEXT("shot_name"), ShotName.Len() > 0 ? ShotName : TEXT("NoShot"));
+
+
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumber"), FrameNumber);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumber"), FrameNumberShot);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/sequenceFrameNumberRelative"), FrameNumberRel);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/shotFrameNumberRelative"), FrameNumberShotRel);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/cameraName"), CameraName.Len() > 0 ? CameraName : TEXT("NoCamera"));
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/shotName"), ShotName.Len() > 0 ? ShotName : TEXT("NoShot"));
 }

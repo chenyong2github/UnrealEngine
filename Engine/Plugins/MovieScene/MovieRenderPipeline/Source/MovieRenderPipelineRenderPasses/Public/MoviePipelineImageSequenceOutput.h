@@ -23,7 +23,7 @@ protected:
 	virtual bool HasFinishedProcessingImpl() override;
 	// ~UMovieRenderPipelineOutputContainer interface
 
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
 protected:
 	/** The format of the image to write out */
 	EImageFormat OutputFormat;
