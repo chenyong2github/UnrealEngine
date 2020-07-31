@@ -1020,6 +1020,7 @@ public:
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
+	static UEnum* GetScriptContextEnum() { return ScriptContextEnum; }
 	static UEnum* GetParameterPanelCategoryEnum() { return ParameterPanelCategoryEnum; }
 
 	static UEnum* GetParameterScopeEnum() { return ParameterScopeEnum; }
@@ -1087,6 +1088,7 @@ private:
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
+	static UEnum* ScriptContextEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
