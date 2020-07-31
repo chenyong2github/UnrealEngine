@@ -62,13 +62,26 @@ public:
 
 bool FMockAbilitySyncState::ShouldReconcile(const FMockAbilitySyncState& AuthorityState) const
 {
-	// FIXME
+	if (Stamina != AuthorityState.Stamina)
+	{
+		return true;
+	}
+
 	return FFlyingMovementSyncState::ShouldReconcile(AuthorityState);
 }
 
 bool FMockAbilityAuxState::ShouldReconcile(const FMockAbilityAuxState& AuthorityState) const
 {
-	// FIXME
+	if (MaxStamina != AuthorityState.MaxStamina
+		|| StaminaRegenRate != AuthorityState.StaminaRegenRate
+		|| DashTimeLeft != AuthorityState.DashTimeLeft
+		|| BlinkWarmupLeft != AuthorityState.BlinkWarmupLeft
+		|| PrimaryCooldown != AuthorityState.PrimaryCooldown
+		|| bIsSprinting != AuthorityState.bIsSprinting)
+	{
+		return true;
+	}
+	
 	return FFlyingMovementAuxState::ShouldReconcile(AuthorityState);
 }
 
@@ -151,7 +164,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	};
 
 	const bool bBlinkActivate = (Input.Cmd->bBlinkPressed && Input.Sync->Stamina > BlinkCost && bAllowNewActivations);
-	if (bBlinkActivate)
+	if(bBlinkActivate)
 	{
 		LocalAux.BlinkWarmupLeft = BlinkWarmupMS;
 		
@@ -543,9 +556,9 @@ float UMockFlyingAbilityComponent::GetMaxStamina() const
 
 void UMockFlyingAbilityComponent::HandleCue(const FMockAbilityBlinkActivateCue& BlinkCue, const FNetSimCueSystemParamemters& SystemParameters)
 {
-	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : TEXT("Client");
-	UE_LOG(LogNetworkPrediction, Display, TEXT("[%s] BlinkActivatedCue!"), *RoleStr);
-
+	FString RoleStr = GetOwnerRole() == ROLE_Authority ? TEXT("Server") : GetOwnerRole() == ROLE_SimulatedProxy ? TEXT("SP Client") : TEXT("AP Client");
+	UE_LOG(LogNetworkPrediction, Display, TEXT("[%s] BlinkActivatedCue! TimeMS: %d"), *RoleStr, SystemParameters.TimeSinceInvocation);
+	
 	this->OnBlinkActivateEvent.Broadcast(BlinkCue.Destination, BlinkCue.RandomType, (float)SystemParameters.TimeSinceInvocation / 1000.f);
 	
 	if (SystemParameters.Callbacks)

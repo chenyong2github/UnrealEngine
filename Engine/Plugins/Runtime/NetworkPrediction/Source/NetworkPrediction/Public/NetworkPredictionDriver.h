@@ -159,15 +159,30 @@ struct FNetworkPredictionDriverBase
 
 	static void GetDebugString(AActor* Actor, FStringBuilderBase& Builder)
 	{
-		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *Actor->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Actor->GetLocalRole()));
+		Builder.Appendf(TEXT("%s %s"), ModelDef::GetName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Actor->GetLocalRole()));
 	}
 	
 	static void GetDebugString(UActorComponent* ActorComp, FStringBuilderBase& Builder)
 	{
-		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *ActorComp->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), ActorComp->GetOwnerRole()));
+		Builder.Appendf(TEXT("%s %s"), ModelDef::GetName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), ActorComp->GetOwnerRole()));
 	}
 
 	static void GetDebugString(void* NoDriver, FStringBuilderBase& Builder)
+	{
+		Builder.Append(ModelDef::GetName());
+	}
+
+	static void GetDebugStringFull(AActor* Actor, FStringBuilderBase& Builder)
+	{
+		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *Actor->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Actor->GetLocalRole()));
+	}
+
+	static void GetDebugStringFull(UActorComponent* ActorComp, FStringBuilderBase& Builder)
+	{
+		Builder.Appendf(TEXT("%s. Driver: %s. Role: %s."), ModelDef::GetName(), *ActorComp->GetPathName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), ActorComp->GetOwnerRole()));
+	}
+
+	static void GetDebugStringFull(void* NoDriver, FStringBuilderBase& Builder)
 	{
 		Builder.Append(ModelDef::GetName());
 	}
@@ -378,13 +393,13 @@ struct FNetworkPredictionDriverBase
 	// -----------------------------------------------------------------------------------------------------------------------------------
 	
 	template<typename InDriverType=DriverType>
-	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, InDriverType* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame)
+	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, InDriverType* Driver, int32 SimFrame, int32 SimTimeMS, const int32 FixedStepMS)
 	{
 		npCheckSlow(Driver);
-		CueDispatcher-> template DispatchCueRecord<InDriverType>(*Driver, SimFrame, SimTimeMS, ConfirmedFrame);
+		CueDispatcher-> template DispatchCueRecord<InDriverType>(*Driver, SimFrame, SimTimeMS, FixedStepMS);
 	}
 
-	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame)
+	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame, const int32 FixedStepMS)
 	{
 	}
 
