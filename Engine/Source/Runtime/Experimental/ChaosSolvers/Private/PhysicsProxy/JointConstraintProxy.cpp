@@ -131,7 +131,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				JointSettingsBuffer.LinearMotionTypes[0] = Constraint->GetLinearMotionTypesX();
 				JointSettingsBuffer.LinearMotionTypes[1] = Constraint->GetLinearMotionTypesY();
 				JointSettingsBuffer.LinearMotionTypes[2] = Constraint->GetLinearMotionTypesZ();
-				JointSettingsBuffer.LinearLimit = Constraint->GetLinearLimit();
 				JointSettingsBuffer.LinearDriveStiffness = Constraint->GetLinearDriveStiffness();
 				JointSettingsBuffer.LinearDriveDamping = Constraint->GetLinearDriveDamping();
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::LinearDrive);
@@ -152,7 +151,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				JointSettingsBuffer.AngularMotionTypes[0] = Constraint->GetAngularMotionTypesX();
 				JointSettingsBuffer.AngularMotionTypes[1] = Constraint->GetAngularMotionTypesY();
 				JointSettingsBuffer.AngularMotionTypes[2] = Constraint->GetAngularMotionTypesZ();
-				JointSettingsBuffer.AngularLimits = Constraint->GetAngularLimits();
 				JointSettingsBuffer.AngularDriveStiffness = Constraint->GetAngularDriveStiffness();
 				JointSettingsBuffer.AngularDriveDamping = Constraint->GetAngularDriveDamping();
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::AngularDrive);
@@ -164,6 +162,30 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::Stiffness);
 			}
 
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::Limits))
+			{
+				JointSettingsBuffer.bSoftLinearLimitsEnabled = Constraint->GetSoftLinearLimitsEnabled();
+				JointSettingsBuffer.bSoftTwistLimitsEnabled = Constraint->GetSoftTwistLimitsEnabled();
+				JointSettingsBuffer.bSoftSwingLimitsEnabled = Constraint->GetSoftSwingLimitsEnabled();
+				JointSettingsBuffer.LinearSoftForceMode = Constraint->GetLinearSoftForceMode();
+				JointSettingsBuffer.AngularSoftForceMode = Constraint->GetAngularSoftForceMode();
+				JointSettingsBuffer.SoftLinearStiffness = Constraint->GetSoftLinearStiffness();
+				JointSettingsBuffer.SoftLinearDamping = Constraint->GetSoftLinearDamping();
+				JointSettingsBuffer.SoftTwistStiffness = Constraint->GetSoftTwistStiffness();
+				JointSettingsBuffer.SoftTwistDamping = Constraint->GetSoftTwistDamping();
+				JointSettingsBuffer.SoftSwingStiffness = Constraint->GetSoftSwingStiffness();
+				JointSettingsBuffer.SoftSwingDamping = Constraint->GetSoftSwingDamping();
+				JointSettingsBuffer.LinearLimit = Constraint->GetLinearLimit();
+				JointSettingsBuffer.AngularLimits = Constraint->GetAngularLimits();
+				JointSettingsBuffer.LinearContactDistance = Constraint->GetLinearContactDistance();
+				JointSettingsBuffer.TwistContactDistance = Constraint->GetTwistContactDistance();
+				JointSettingsBuffer.SwingContactDistance = Constraint->GetSwingContactDistance();
+				JointSettingsBuffer.LinearRestitution = Constraint->GetLinearRestitution();
+				JointSettingsBuffer.TwistRestitution = Constraint->GetTwistRestitution();
+				JointSettingsBuffer.SwingRestitution = Constraint->GetSwingRestitution();
+
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::Limits);
+			}
 
 			Constraint->ClearDirtyFlags();
 		}
@@ -269,7 +291,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 				ConstraintSettings.LinearMotionTypes[0] = JointSettingsBuffer.LinearMotionTypes[0];
 				ConstraintSettings.LinearMotionTypes[1] = JointSettingsBuffer.LinearMotionTypes[1];
 				ConstraintSettings.LinearMotionTypes[2] = JointSettingsBuffer.LinearMotionTypes[2];
-				ConstraintSettings.LinearLimit = JointSettingsBuffer.LinearLimit;
 				ConstraintSettings.LinearDriveStiffness = JointSettingsBuffer.LinearDriveStiffness;
 				ConstraintSettings.LinearDriveDamping = JointSettingsBuffer.LinearDriveDamping;
 			}
@@ -288,7 +309,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 				ConstraintSettings.AngularMotionTypes[0] = JointSettingsBuffer.AngularMotionTypes[0];
 				ConstraintSettings.AngularMotionTypes[1] = JointSettingsBuffer.AngularMotionTypes[1];
 				ConstraintSettings.AngularMotionTypes[2] = JointSettingsBuffer.AngularMotionTypes[2];
-				ConstraintSettings.AngularLimits = JointSettingsBuffer.AngularLimits;
 				ConstraintSettings.AngularDriveStiffness = JointSettingsBuffer.AngularDriveStiffness;
 				ConstraintSettings.AngularDriveDamping = JointSettingsBuffer.AngularDriveDamping;
 			}
@@ -298,6 +318,28 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 				ConstraintSettings.Stiffness = JointSettingsBuffer.Stiffness;
 			}
 
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::Limits))
+			{
+				ConstraintSettings.bSoftLinearLimitsEnabled = JointSettingsBuffer.bSoftLinearLimitsEnabled;
+				ConstraintSettings.bSoftTwistLimitsEnabled = JointSettingsBuffer.bSoftTwistLimitsEnabled;
+				ConstraintSettings.bSoftSwingLimitsEnabled = JointSettingsBuffer.bSoftSwingLimitsEnabled;
+				ConstraintSettings.LinearSoftForceMode = JointSettingsBuffer.LinearSoftForceMode;
+				ConstraintSettings.AngularSoftForceMode = JointSettingsBuffer.AngularSoftForceMode;
+				ConstraintSettings.SoftLinearStiffness = JointSettingsBuffer.SoftLinearStiffness;
+				ConstraintSettings.SoftLinearDamping = JointSettingsBuffer.SoftLinearDamping;
+				ConstraintSettings.SoftTwistStiffness = JointSettingsBuffer.SoftTwistStiffness;
+				ConstraintSettings.SoftTwistDamping = JointSettingsBuffer.SoftTwistDamping;
+				ConstraintSettings.SoftSwingStiffness = JointSettingsBuffer.SoftSwingStiffness;
+				ConstraintSettings.SoftSwingDamping = JointSettingsBuffer.SoftSwingDamping;
+				ConstraintSettings.LinearLimit = JointSettingsBuffer.LinearLimit;
+				ConstraintSettings.AngularLimits = JointSettingsBuffer.AngularLimits;
+				ConstraintSettings.LinearContactDistance = JointSettingsBuffer.LinearContactDistance;
+				ConstraintSettings.TwistContactDistance = JointSettingsBuffer.TwistContactDistance;
+				ConstraintSettings.SwingContactDistance = JointSettingsBuffer.SwingContactDistance;
+				ConstraintSettings.LinearRestitution = JointSettingsBuffer.LinearRestitution;
+				ConstraintSettings.TwistRestitution = JointSettingsBuffer.TwistRestitution;
+				ConstraintSettings.SwingRestitution = JointSettingsBuffer.SwingRestitution;
+			}
 
 			DirtyFlagsBuffer.Clear();
 		}
