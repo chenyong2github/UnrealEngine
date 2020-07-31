@@ -23,14 +23,6 @@ struct FMovieSceneEvaluationFieldEntityPtr
 {
 	GENERATED_BODY()
 
-	friend bool operator<(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
-	{
-		if (GetTypeHash(A.EntityOwner) < GetTypeHash(B.EntityOwner))
-		{
-			return true;
-		}
-		return A.EntityID < B.EntityID;
-	}
 	friend bool operator==(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
 	{
 		return A.EntityOwner == B.EntityOwner && A.EntityID == B.EntityID;

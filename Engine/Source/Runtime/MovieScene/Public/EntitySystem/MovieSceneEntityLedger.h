@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Set.h"
-#include "Containers/SortedMap.h"
+#include "Containers/Map.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
@@ -124,7 +124,7 @@ private:
 	TArray<FMovieSceneEntityID> OneShotEntities;
 
 	/** Map of source field entity id -> imported linker entities */
-	TSortedMap<FMovieSceneEvaluationFieldEntityPtr, FMovieSceneEntityID> ImportedEntities;
+	TMap<FMovieSceneEvaluationFieldEntityPtr, FMovieSceneEntityID> ImportedEntities;
 
 	/** Whether we have been invalidated, and need to re-instantiate everything */
 	bool bInvalidated;
