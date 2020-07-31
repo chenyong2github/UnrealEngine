@@ -17,6 +17,8 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, bUseCustomPlaybackRange(false)
 	, CustomStartFrame(0)
 	, CustomEndFrame(0)
+	, VersionNumber(1)
+	, bAutoVersion(true)
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
 	, bDisableToneCurve(false)
@@ -75,4 +77,15 @@ void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& I
 		InOutFormatArgs.FilenameArguments.Add(TEXT("output_width"), OutputResolution.X);
 		InOutFormatArgs.FilenameArguments.Add(TEXT("output_height"), OutputResolution.Y);
 	}
+
+	if (bAutoVersion)
+	{
+		InOutFormatArgs.FilenameArguments.Add(TEXT("version"), TEXT("v00x"));
+	}
+	else
+	{
+		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, VersionNumber);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("version"), VersionText);
+	}
+
 }
