@@ -49,6 +49,7 @@ private:
 	TSharedRef<SWidget> BuildAddedView();
 	TSharedRef<SWidget> BuildComparisonPreview();
 
+	FText GetAddNewButtonTooltip() const;
 	bool CanAddNew() const;
 	FReply AddNew();
 
