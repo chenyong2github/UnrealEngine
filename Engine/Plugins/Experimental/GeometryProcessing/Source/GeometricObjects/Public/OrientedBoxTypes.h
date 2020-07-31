@@ -105,15 +105,6 @@ struct TOrientedBox3
 			(TMathUtil<RealType>::Abs(InFramePoint.Z) <= Extents.Z);
 	}
 
-	/** Expand the box to contain the given Point */
-	void Contain(const FVector3<RealType>& Point)
-	{
-		FVector3<RealType> InFramePoint = Frame.ToFramePoint(Point);
-		Extents.X = TMathUtil<RealType>::Max(Extents.X, TMathUtil<RealType>::Abs(InFramePoint.X));
-		Extents.Y = TMathUtil<RealType>::Max(Extents.Y, TMathUtil<RealType>::Abs(InFramePoint.Y));
-		Extents.Z = TMathUtil<RealType>::Max(Extents.Z, TMathUtil<RealType>::Abs(InFramePoint.Z));
-	}
-
 
 	// corners [ (-x,-y), (x,-y), (x,y), (-x,y) ], -z, then +z
 	//
