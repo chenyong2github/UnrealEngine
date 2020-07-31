@@ -30,27 +30,16 @@ FMetalStructuredBuffer::~FMetalStructuredBuffer()
 FStructuredBufferRHIRef FMetalDynamicRHI::RHICreateStructuredBuffer(uint32 Stride,uint32 Size,uint32 InUsage,FRHIResourceCreateInfo& CreateInfo)
 {
 	@autoreleasepool {
-	FMetalStructuredBuffer* Buffer = new FMetalStructuredBuffer(Stride, Size, CreateInfo.ResourceArray, InUsage);
-	if (!CreateInfo.ResourceArray && Buffer->Mode == mtlpp::StorageMode::Private)
-	{
-		if (Buffer->CPUBuffer)
-		{
-			SafeReleaseMetalBuffer(Buffer->CPUBuffer);
-			Buffer->CPUBuffer = nil;
-		}
-
-		if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			GetMetalDeviceContext().FillBuffer(Buffer->Buffer, ns::Range(0, Buffer->Buffer.GetLength()), 0);
-		}
-	}
-#if PLATFORM_MAC
-	else if (GMetalBufferZeroFill && !CreateInfo.ResourceArray && Buffer->Mode == mtlpp::StorageMode::Managed)
-	{
-		MTLPP_VALIDATE(mtlpp::Buffer, Buffer->Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, Buffer->Buffer.GetLength())));
-	}
-#endif
-	return Buffer;
+		FMetalStructuredBuffer* Buffer = new FMetalStructuredBuffer(Stride, Size, CreateInfo.ResourceArray, InUsage);
+//		if (!CreateInfo.ResourceArray && Buffer->Mode == mtlpp::StorageMode::Private)
+//		{
+//			if (Buffer->TransferBuffer)
+//			{
+//				SafeReleaseMetalBuffer(Buffer->TransferBuffer);
+//				Buffer->TransferBuffer = nil;
+//			}
+//		}
+		return Buffer;
 	}
 }
 

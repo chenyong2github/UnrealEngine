@@ -127,6 +127,28 @@ static FAutoConsoleVariableRef CVarMetalTargetUniformAllocationLimit(
      TEXT("Target Allocation limit for the uniform buffer pool."));
 
 #if PLATFORM_MAC
+static int32 GMetalTargetTransferAllocatorLimit = 1024*1024*50;
+#else
+static int32 GMetalTargetTransferAllocatorLimit = 1024*1024*2;
+#endif
+static FAutoConsoleVariableRef CVarMetalTargetTransferAllocationLimit(
+	TEXT("rhi.Metal.TargetTransferAllocationLimit"),
+	GMetalTargetTransferAllocatorLimit,
+	TEXT("Target Allocation limit for the upload staging buffer pool."));
+
+#if PLATFORM_MAC
+static int32 GMetalDefaultTransferAllocation = 1024*1024*10;
+#else
+static int32 GMetalDefaultTransferAllocation = 1024*1024*1;
+#endif
+static FAutoConsoleVariableRef CVarMetalDefaultTransferAllocation(
+	TEXT("rhi.Metal.DefaultTransferAllocation"),
+	GMetalDefaultTransferAllocation,
+	TEXT("Default size of a single entry in the upload pool."));
+
+
+
+#if PLATFORM_MAC
 static ns::AutoReleased<ns::Object<id <NSObject>>> GMetalDeviceObserver;
 static mtlpp::Device GetMTLDevice(uint32& DeviceIndex)
 {
@@ -410,6 +432,11 @@ FMetalDeviceContext::FMetalDeviceContext(mtlpp::Device MetalDevice, uint32 InDev
     UniformBufferAllocator->SetDefaultAllocationSizeInBytes(GMetalDefaultUniformBufferAllocation);
     UniformBufferAllocator->SetStatIds(GET_STATID(STAT_MetalUniformAllocatedMemory), GET_STATID(STAT_MetalUniformMemoryInFlight), GET_STATID(STAT_MetalUniformBytesPerFrame));
 	
+	TransferBufferAllocator = new FMetalFrameAllocator(MetalDevice.GetPtr());
+	TransferBufferAllocator->SetTargetAllocationLimitInBytes(GMetalTargetTransferAllocatorLimit);
+	TransferBufferAllocator->SetDefaultAllocationSizeInBytes(GMetalDefaultTransferAllocation);
+	// We won't set StatIds here so it goes to the default frame allocator stats
+	
 	PSOManager = new FMetalPipelineStateCacheManager();
 	
 	METAL_GPUPROFILE(FMetalProfiler::CreateProfiler(this));
@@ -530,6 +557,8 @@ void FMetalDeviceContext::DrainHeap()
 
 void FMetalDeviceContext::EndFrame()
 {
+	check(MetalIsSafeToUseRHIThreadResources());
+	
 	// A 'frame' in this context is from the beginning of encoding on the CPU
 	// to the end of all rendering operations on the GPU. So the semaphore is
 	// signalled when the last command buffer finishes GPU execution.
@@ -910,6 +939,18 @@ uint32 FMetalDeviceContext::GetDeviceIndex(void) const
 	return DeviceIndex;
 }
 
+void FMetalDeviceContext::NewLock(FMetalRHIBuffer* Buffer, FMetalFrameAllocator::AllocationEntry& Allocation)
+{
+	check(!OutstandingLocks.Contains(Buffer));
+	OutstandingLocks.Add(Buffer, Allocation);
+}
+
+FMetalFrameAllocator::AllocationEntry FMetalDeviceContext::FetchAndRemoveLock(FMetalRHIBuffer* Buffer)
+{
+	FMetalFrameAllocator::AllocationEntry Backing = OutstandingLocks.FindAndRemoveChecked(Buffer);
+	return Backing;
+}
+
 #if METAL_DEBUG_OPTIONS
 void FMetalDeviceContext::AddActiveBuffer(FMetalBuffer const& Buffer)
 {
@@ -1145,17 +1186,18 @@ void FMetalContext::TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 
 			FMetalSurface* Surface = UAV->SourceView->TextureView;
 			if (StructuredBuffer)
 			{
-				check(StructuredBuffer->Buffer);
-				RenderPass.TransitionResources(StructuredBuffer->Buffer);
+				const FMetalBuffer& TheBacking = StructuredBuffer->GetCurrentBuffer();
+				check(TheBacking);
+				RenderPass.TransitionResources(TheBacking);
 			}
-			else if (VertexBuffer && VertexBuffer->Buffer)
+			else if (VertexBuffer && VertexBuffer->GetCurrentBuffer())
 			{
-				RenderPass.TransitionResources(VertexBuffer->Buffer);
+				RenderPass.TransitionResources(VertexBuffer->GetCurrentBuffer());
 			}
 			else if (IndexBuffer)
 			{
-				check(IndexBuffer->Buffer);
-				RenderPass.TransitionResources(IndexBuffer->Buffer);
+				check(IndexBuffer->GetCurrentBuffer());
+				RenderPass.TransitionResources(IndexBuffer->GetCurrentBuffer());
 			}
 			else if (Surface)
 			{

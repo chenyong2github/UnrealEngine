@@ -2873,8 +2873,9 @@ void FMetalRHICommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DstBufferRHI
 		FMetalVertexBuffer* SrcVertexBuffer = ResourceCast(SrcBufferRHI);
 
 		check(DstVertexBuffer && SrcVertexBuffer);
+		check(!DstVertexBuffer->Data && !SrcVertexBuffer->Data);
 		check(DstOffset + NumBytes <= DstBufferRHI->GetSize() && SrcOffset + NumBytes <= SrcBufferRHI->GetSize());
 
-		GetInternalContext().CopyFromBufferToBuffer(SrcVertexBuffer->Buffer, SrcOffset, DstVertexBuffer->Buffer, DstOffset, NumBytes);
+		GetInternalContext().CopyFromBufferToBuffer(SrcVertexBuffer->GetCurrentBuffer(), SrcOffset, DstVertexBuffer->GetCurrentBuffer(), DstOffset, NumBytes);
 	}
 }
