@@ -286,6 +286,9 @@ static void DoRenderHitProxies(FRHICommandListImmediate& RHICmdList, const FScen
 
 	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	
+	FUniformBufferStaticBindings GlobalUniformBuffers(SceneRenderer->Scene->UniformBuffers.HitProxyPassUniformBuffer);
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
