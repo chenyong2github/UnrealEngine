@@ -173,7 +173,7 @@ static FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameN
 	return FString::Printf(TEXT("%0*d"), InZeroPadCount, InFrameNumber);
 }
 
-void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset) const
+void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset, const bool bForceRelFrameNumbers) const
 {
 	// Zero-pad our frame numbers when we format the strings. Some programs struggle when ingesting frames that 
 	// go 1,2,3,...,10,11. To work around this issue we allow the user to specify how many zeros they want to
@@ -184,6 +184,13 @@ void FMoviePipelineFrameOutputState::GetFilenameFormatArguments(FMoviePipelineFo
 	FString FrameNumberShot = GetPaddingFormatString(InZeroPadCount, CurrentShotSourceFrameNumber + InFrameNumberOffset); // Shot Frame #
 	FString FrameNumberRel = GetPaddingFormatString(InZeroPadCount, OutputFrameNumber + InFrameNumberOffset); // Relative to 0
 	FString FrameNumberShotRel = GetPaddingFormatString(InZeroPadCount, ShotOutputFrameNumber + InFrameNumberOffset); // Relative to 0 within the shot.
+
+	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
+	if (bForceRelFrameNumbers)
+	{
+		FrameNumber = FrameNumberRel;
+		FrameNumberShot = FrameNumberShotRel;
+	}
 
 	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number"), FrameNumber);
 	InOutFormatArgs.FilenameArguments.Add(TEXT("frame_number_shot"), FrameNumberShot);
