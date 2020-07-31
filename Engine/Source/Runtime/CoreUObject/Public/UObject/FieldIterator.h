@@ -122,7 +122,7 @@ protected:
 		{
 			for (++CurrentFieldIndex; CurrentFieldIndex < CurrentFields.Num(); ++CurrentFieldIndex)
 			{
-				if (CurrentFields[CurrentFieldIndex]->IsA<T>())
+				if (CurrentFields[CurrentFieldIndex]->template IsA<T>())
 				{
 					break;
 				}
