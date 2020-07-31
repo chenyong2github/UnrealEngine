@@ -22,7 +22,6 @@ class FCompilerResultsLog;
 class INameValidatorInterface;
 class UActorComponent;
 class UBlueprintGeneratedClass;
-class USimpleConstructionScript;
 class UK2Node_Event;
 class UK2Node_Variable;
 class ULevelScriptBlueprint;
@@ -181,14 +180,9 @@ public:
 	static void PreloadMembers(UObject* InObject);
 
 	/**
-	 * Preloads the construction script, and all templates therein, for the given Blueprint object
+	 * Preloads the construction script, and all templates therein
 	 */
 	static void PreloadConstructionScript(UBlueprint* Blueprint);
-
-	/**
-	 * Preloads the given construction script, and all templates therein
-	 */
-	static void PreloadConstructionScript(USimpleConstructionScript* SimpleConstructionScript);
 
 	/** 
 	 * Helper function to patch the new CDO into the linker where the old one existed 

@@ -697,36 +697,31 @@ void FBlueprintEditorUtils::PreloadConstructionScript(UBlueprint* Blueprint)
 {
 	if ( Blueprint )
 	{
-		PreloadConstructionScript(Blueprint->SimpleConstructionScript);
-	}
-}
-
-void FBlueprintEditorUtils::PreloadConstructionScript(USimpleConstructionScript* SimpleConstructionScript)
-{
-	FLinkerLoad* TargetLinker = SimpleConstructionScript ? SimpleConstructionScript->GetLinker() : nullptr;
-	if (TargetLinker)
-	{
-		TargetLinker->Preload(SimpleConstructionScript);
-
-		if (USCS_Node* DefaultSceneRootNode = SimpleConstructionScript->GetDefaultSceneRootNode())
+		FLinkerLoad* TargetLinker = Blueprint->SimpleConstructionScript ? Blueprint->SimpleConstructionScript->GetLinker() : nullptr;
+		if (TargetLinker)
 		{
-			DefaultSceneRootNode->PreloadChain();
-		}
+			TargetLinker->Preload(Blueprint->SimpleConstructionScript);
 
-		const TArray<USCS_Node*>& RootNodes = SimpleConstructionScript->GetRootNodes();
-		for (int32 NodeIndex = 0; NodeIndex < RootNodes.Num(); ++NodeIndex)
-		{
-			RootNodes[NodeIndex]->PreloadChain();
-		}
-	}
-
-	if (SimpleConstructionScript)
-	{
-		for (USCS_Node* SCSNode : SimpleConstructionScript->GetAllNodes())
-		{
-			if (SCSNode)
+			if (USCS_Node* DefaultSceneRootNode = Blueprint->SimpleConstructionScript->GetDefaultSceneRootNode())
 			{
-				SCSNode->ValidateGuid();
+				DefaultSceneRootNode->PreloadChain();
+			}
+
+			const TArray<USCS_Node*>& RootNodes = Blueprint->SimpleConstructionScript->GetRootNodes();
+			for (int32 NodeIndex = 0; NodeIndex < RootNodes.Num(); ++NodeIndex)
+			{
+				RootNodes[NodeIndex]->PreloadChain();
+			}
+		}
+
+		if (Blueprint->SimpleConstructionScript)
+		{
+			for (USCS_Node* SCSNode : Blueprint->SimpleConstructionScript->GetAllNodes())
+			{
+				if (SCSNode)
+				{
+					SCSNode->ValidateGuid();
+				}
 			}
 		}
 	}
