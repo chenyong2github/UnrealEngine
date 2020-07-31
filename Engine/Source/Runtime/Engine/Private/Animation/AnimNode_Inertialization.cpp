@@ -575,19 +575,19 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 			continue;
 		}
 
-		const FCurveElement& CurrElement = Curves.Elements[CurrIdx];
-		const FCurveElement& Prev1Element = Prev1.Curves.Elements[Prev1Idx];
+		const float CurrWeight = Curves.CurveWeights[CurrIdx];
+		const float Prev1Weight = Prev1.Curves.CurveWeights[Prev1Idx];
 		FInertializationCurveDiff& CurveDiff = CurveDiffs[CurveUID];
 
-		// Note we intentionally ignore FCurveElement::bValid. We want to ease in/out when only one
+		// Note we intentionally ignore FBlendedCurve::ValidCurveWeights. We want to ease in/out when only one
 		// curve is valid, and we'll compute a zero delta and derivative when both are invalid.
-		CurveDiff.Delta = Prev1Element.Value - CurrElement.Value;
+		CurveDiff.Delta = Prev1Weight - CurrWeight;
 
 		const int32 Prev2Idx = Prev2.Curves.GetArrayIndexByUID(CurveUID);
 		if (Prev2Idx != INDEX_NONE && Prev1.DeltaTime > KINDA_SMALL_NUMBER)
 		{
-			const FCurveElement& Prev2Element = Prev2.Curves.Elements[Prev2Idx];
-			CurveDiff.Derivative = (Prev1Element.Value - Prev2Element.Value) / Prev1.DeltaTime;
+			const float Prev2Weight = Prev2.Curves.CurveWeights[Prev2Idx];
+			CurveDiff.Derivative = (Prev1Weight - Prev2Weight) / Prev1.DeltaTime;
 		}
 	}
 }
@@ -640,13 +640,12 @@ void FInertializationPoseDiff::ApplyTo(FCompactPose& Pose, FBlendedCurve& Curves
 				continue;
 			}
 
-			FCurveElement& CurrElement = Curves.Elements[CurrIdx];
 			const FInertializationCurveDiff& CurveDiff = CurveDiffs[CurveUID];
 			const float C = CalcInertialFloat(CurveDiff.Delta, CurveDiff.Derivative, InertializationElapsedTime, InertializationDuration);
 			if (C != 0.0f)
 			{
-				CurrElement.Value += C;
-				CurrElement.bValid = true;
+				Curves.CurveWeights[CurrIdx] += C;
+				Curves.ValidCurveWeights[CurrIdx] = true;
 			}
 		}
 	}

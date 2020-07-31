@@ -45,7 +45,7 @@ class TBitArray;
 template<typename Allocator = FDefaultBitArrayAllocator>
 class TConstSetBitIterator;
 
-template<typename Allocator = FDefaultBitArrayAllocator,typename OtherAllocator = FDefaultBitArrayAllocator>
+template<typename Allocator = FDefaultBitArrayAllocator,typename OtherAllocator = FDefaultBitArrayAllocator, bool Both=true>
 class TConstDualSetBitIterator;
 
 template <typename AllocatorType, typename InDerivedType = void>
@@ -211,7 +211,7 @@ public:
 	template<typename>
 	friend class TConstSetBitIterator;
 
-	template<typename,typename>
+	template<typename,typename,bool>
 	friend class TConstDualSetBitIterator;
 
 	TBitArray()
@@ -247,7 +247,15 @@ public:
 	:	NumBits(0)
 	,	MaxBits(0)
 	{
-		*this = Copy;
+		Assign<Allocator>(Copy);
+	}
+
+	template<typename OtherAllocator>
+	FORCEINLINE TBitArray(const TBitArray<OtherAllocator> & Copy)
+		: NumBits(0)
+		, MaxBits(0)
+	{
+		Assign<OtherAllocator>(Copy);
 	}
 
 	/**
@@ -269,17 +277,20 @@ public:
 	FORCEINLINE TBitArray& operator=(const TBitArray& Copy)
 	{
 		// check for self assignment since we don't use swap() mechanic
-		if( this == &Copy )
+		if (this != &Copy)
 		{
-			return *this;
+			Assign<Allocator>(Copy);
 		}
+		return *this;
+	}
 
-		Empty(Copy.Num());
-		NumBits = Copy.NumBits;
-		if (NumBits)
-		{
-			FMemory::Memcpy(GetData(),Copy.GetData(), GetNumWords() * sizeof(uint32));
-		}
+
+	template<typename OtherAllocator>
+	FORCEINLINE TBitArray& operator=(const TBitArray< OtherAllocator >& Copy)
+	{
+		// No need for a self-assignment check. If we were the same, we'd be using
+		// the default assignment operator.
+		Assign<OtherAllocator>(Copy);
 		return *this;
 	}
 
@@ -370,6 +381,18 @@ private:
 	{
 		ToArray = FromArray;
 	}
+
+	template<typename OtherAllocator>
+	void Assign(const TBitArray<OtherAllocator>& Other)
+	{
+		Empty(Other.Num());
+		NumBits = Other.Num();
+		if (NumBits)
+		{
+			FMemory::Memcpy(GetData(), Other.GetData(), GetNumWords() * sizeof(uint32));
+		}
+	}
+
 
 public:
 
@@ -1640,8 +1663,9 @@ private:
 };
 
 
-/** An iterator which only iterates over the bits which are set in both of two bit-arrays. */
-template<typename Allocator,typename OtherAllocator>
+/** An iterator which only iterates over the bits which are set in both of two bit-arrays, 
+    if the Both template argument is true, or either if the argument is false. */
+template<typename Allocator,typename OtherAllocator, bool Both>
 class TConstDualSetBitIterator : public FRelativeBitReference
 {
 public:
@@ -1713,15 +1737,33 @@ private:
 		const uint32* ArrayDataB = IfAThenAElseB(ArrayB.GetData(),&EmptyArrayData);
 
 		// Advance to the next non-zero uint32.
-		uint32 RemainingBitMask = ArrayDataA[this->DWORDIndex] & ArrayDataB[this->DWORDIndex] & UnvisitedBitMask;
+		uint32 RemainingBitMask;
+		
+		if (Both)
+		{
+			RemainingBitMask = ArrayDataA[this->DWORDIndex] & ArrayDataB[this->DWORDIndex] & UnvisitedBitMask;
+		}
+		else
+		{
+			RemainingBitMask = (ArrayDataA[this->DWORDIndex] | ArrayDataB[this->DWORDIndex]) & UnvisitedBitMask;
+		}
+
 		while(!RemainingBitMask)
 		{
 			this->DWORDIndex++;
 			BaseBitIndex += NumBitsPerDWORD;
 			const int32 LastDWORDIndex = (ArrayA.Num() - 1) / NumBitsPerDWORD;
-			if(this->DWORDIndex <= LastDWORDIndex)
+			if (this->DWORDIndex <= LastDWORDIndex)
 			{
-				RemainingBitMask = ArrayDataA[this->DWORDIndex] & ArrayDataB[this->DWORDIndex];
+				if (Both)
+				{
+					RemainingBitMask = ArrayDataA[this->DWORDIndex] & ArrayDataB[this->DWORDIndex];
+				}
+				else
+				{
+					RemainingBitMask = ArrayDataA[this->DWORDIndex] | ArrayDataB[this->DWORDIndex];
+				}
+
 				UnvisitedBitMask = ~0;
 			}
 			else
@@ -1747,6 +1789,15 @@ private:
 	}
 };
 
+// A specialization of TConstDualSetBitIterator for iterating over two TBitArray containers and 
+// stop only when bits in the same location in each are both set.
+template<typename Allocator, typename OtherAllocator>
+using TConstDualBothSetBitIterator = TConstDualSetBitIterator<Allocator, OtherAllocator, true>;
+
+// A specialization of TConstDualSetBitIterator for iterating over two TBitArray containers and 
+// stop only when either, or both, of the bits in the same location in each are set.
+template<typename Allocator, typename OtherAllocator>
+using TConstDualEitherSetBitIterator = TConstDualSetBitIterator<Allocator, OtherAllocator, false>;
 
 // Untyped bit array type for accessing TBitArray data, like FScriptArray for TArray.
 // Must have the same memory representation as a TBitArray.
