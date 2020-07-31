@@ -45,6 +45,15 @@ public:
 	static FText GetDisplayName(const FSequencerBindingProxy& InBinding);
 
 	/**
+	 * Set this binding's name
+	 *
+	 * @param InBinding     The binding to set the name of
+	 * @param InDisplayName The new name to set
+	 */
+	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	static void SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InDisplayName);
+
+	/**
 	 * Get this binding's object non-display name
 	 *
 	 * @param InBinding     The binding to get the name of
@@ -52,6 +61,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
 	static FString GetName(const FSequencerBindingProxy& InBinding);
+
+	/**
+	 * Set this binding's object non-display name
+	 *
+	 * @param InBinding     The binding to get the name of
+	 * @param InName The new name to set
+	 */
+	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	static void SetName(const FSequencerBindingProxy& InBinding, const FString& InName);
 
 	/**
 	 * Get all the tracks stored within this binding
@@ -153,4 +171,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = Sequence, meta = (ScriptMethod))
 	static void SetParent(const FSequencerBindingProxy& InBinding, const FSequencerBindingProxy& InParentBinding);
+
+	/**
+     * Move all the contents (tracks, child bindings) of the specified binding ID onto another
+	 *
+	 * @param SourceBindingId The identifier of the binding ID to move all tracks and children from
+	 * @param DestinationBindingId The identifier of the binding ID to move the contents to	 
+	 */
+	UFUNCTION(BlueprintCallable, Category = Sequence, meta = (ScriptMethod))
+	static void MoveBindingContents(const FSequencerBindingProxy& SourceBindingId, const FSequencerBindingProxy& DestinationBindingId);
 };

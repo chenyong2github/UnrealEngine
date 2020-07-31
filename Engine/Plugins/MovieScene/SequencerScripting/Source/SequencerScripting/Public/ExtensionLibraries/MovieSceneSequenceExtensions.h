@@ -70,6 +70,16 @@ public:
 	static UMovieSceneTrack* AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
+	 * Removes a master track
+	 *
+	 * @param Sequence        The sequence to use
+	 * @param MasterTrack     The master track to remove
+	 * @return Whether the master track was successfully removed
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	static bool RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* MasterTrack);
+
+	/**
 	 * Gets this sequence's display rate
 	 *
 	 * @param Sequence        The sequence to use
