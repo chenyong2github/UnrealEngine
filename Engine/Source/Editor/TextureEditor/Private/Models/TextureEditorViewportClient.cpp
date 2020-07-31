@@ -11,6 +11,7 @@
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "Engine/TextureRenderTargetVolume.h"
 #include "UnrealEdGlobals.h"
 #include "CubemapUnwrapUtils.h"
 #include "Slate/SceneViewport.h"
@@ -81,6 +82,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTarget2D* TextureRT2D = Cast<UTextureRenderTarget2D>(Texture);
 	UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
+	UTextureRenderTargetVolume* RTTextureVolume = Cast<UTextureRenderTargetVolume>(Texture);
 
 	// Fully stream in the texture before drawing it.
 	if (Texture2D)
@@ -115,6 +117,16 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				MipLevel, 
 				(float)TextureEditorPtr.Pin()->GetVolumeOpacity(),
 				true, 
+				TextureEditorPtr.Pin()->GetVolumeOrientation());
+		}
+		else if (RTTextureVolume)
+		{
+			BatchedElementParameters = new FBatchedElementVolumeTexturePreviewParameters(
+				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices,
+				FMath::Max<int32>(RTTextureVolume->SizeZ >> RTTextureVolume->GetCachedLODBias(), 1),
+				MipLevel,
+				(float)TextureEditorPtr.Pin()->GetVolumeOpacity(),
+				true,
 				TextureEditorPtr.Pin()->GetVolumeOrientation());
 		}
 		else if (Texture2D)
