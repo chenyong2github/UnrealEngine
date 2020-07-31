@@ -71,6 +71,7 @@ void UMeshVertexPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFro
 
 void UMeshVertexPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
+	UBrushBaseProperties::RestoreProperties(RestoreToTool);
 	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
 	this->PaintColor = PropertyCache->PaintColor;
 	this->EraseColor = PropertyCache->EraseColor;

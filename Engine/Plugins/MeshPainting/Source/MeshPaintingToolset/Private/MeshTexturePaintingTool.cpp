@@ -88,6 +88,7 @@ void UMeshTexturePaintingToolProperties::SaveProperties(UInteractiveTool* SaveFr
 
 void UMeshTexturePaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
 {
+	UBrushBaseProperties::RestoreProperties(RestoreToTool);
 	UMeshTexturePaintingToolProperties* PropertyCache = GetPropertyCache<UMeshTexturePaintingToolProperties>();
 	this->PaintColor = PropertyCache->PaintColor;
 	this->EraseColor = PropertyCache->EraseColor;
