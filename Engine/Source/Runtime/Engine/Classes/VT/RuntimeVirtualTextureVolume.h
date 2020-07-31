@@ -12,7 +12,7 @@ class ARuntimeVirtualTextureVolume : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-private:
+public:
 	/** Component that owns the runtime virtual texture. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (AllowPrivateAccess = "true"))
 	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
