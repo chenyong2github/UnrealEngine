@@ -194,6 +194,11 @@ namespace ChaosTest {
 		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(-Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 		Particle->CollisionParticles()->X(CollisionIndex++) = TVector<T, 3>(+Scale[0] / 2.f, +Scale[1] / 2.f, +Scale[2] / 2.f);
 
+		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
+		Particle->SetLocalBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0] / 2.f), TVector<T, 3>(Scale[0] / 2.f)));
+		Particle->SetWorldSpaceInflatedBounds(TAABB<T, 3>(TVector<T, 3>(-Scale[0] / 2.f), TVector<T, 3>(Scale[0] / 2.f)));
+		Particle->SetHasBounds(true);
+
 		if (OutElements != nullptr)
 		{
 			/*
@@ -591,6 +596,11 @@ namespace ChaosTest {
 		InParticles.W() = TVector<T, 3>(0.f, 0.f, 0.f);
 		InParticles.P() = InParticles.X();
 		InParticles.Q() = InParticles.R();
+
+		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
+		InParticles.SetLocalBounds(TAABB<T, 3>(Cube.X(0), Cube.X(7)));
+		InParticles.SetWorldSpaceInflatedBounds(TAABB<T, 3>(Cube.X(0), Cube.X(7)));
+		InParticles.SetHasBounds(true);
 
 		InParticles.M() = 1.f;
 		InParticles.InvM() = 1.f;
