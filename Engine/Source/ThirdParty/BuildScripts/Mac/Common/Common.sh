@@ -3,7 +3,7 @@
 
 # common functions used by individual build scripts for thirdparty libraries
 
-OSX_VERSION="10.13"
+export MACOSX_DEPLOYMENT_TARGET="10.13"
 BUILD_UNIVERSAL=true
 
 function abspath() {
@@ -45,9 +45,11 @@ function checkoutFiles() {
     do
         echo checking out ${file}
         p4 edit $file
-        if [ ! -w $file ]; then
-            echo File $file was not checked out
-            success=false
+        if [ -f $file ]; then
+            if [ ! -w $file ]; then
+                echo File $file was not checked out
+                success=false
+            fi
         fi
     done
 

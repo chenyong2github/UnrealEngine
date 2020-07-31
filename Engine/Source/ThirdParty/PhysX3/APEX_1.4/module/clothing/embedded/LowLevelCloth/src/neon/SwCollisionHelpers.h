@@ -13,10 +13,11 @@
 
 #pragma once
 
-#if PX_P64_FAMILY
+#if PX_P64_FAMILY && !defined(__clang__)
 #include <arm64_neon.h>
 #else
 #include <arm_neon.h>
+#define NO_ARM64_NEON
 #endif
 
 namespace nvidia
@@ -53,7 +54,7 @@ Simd4i horizontalOr(Simd4i mask)
 
 Gather<Simd4i>::Gather(const Simd4i& index)
 {
-#if defined( __arm64__)// || defined(_M_ARM64)
+#if defined( __arm64__) && !defined(NO_ARM64_NEON)// || defined(_M_ARM64)
 	using namespace simdi;
 	PX_ALIGN(16, uint8x8x2_t) byteIndex = reinterpret_cast<const uint8x8x2_t&>(sPack);
 	uint8x16_t lohiIndex = reinterpret_cast<const uint8x16_t&>(index);
@@ -74,7 +75,7 @@ Gather<Simd4i>::Gather(const Simd4i& index)
 
 Simd4i Gather<Simd4i>::operator()(const Simd4i* ptr) const
 {
-#if defined( __arm64__)// || defined(_M_ARM64)
+#if defined( __arm64__) && !defined(NO_ARM64_NEON)// || defined(_M_ARM64)
 	PX_ALIGN(16, uint8x8x2_t) result = reinterpret_cast<const uint8x8x2_t&>(mPermute);
 	const uint8x16x2_t* table = reinterpret_cast<const uint8x16x2_t*>(ptr);
 	result.val[0] = vtbl2q_u8(*table, result.val[0]);
