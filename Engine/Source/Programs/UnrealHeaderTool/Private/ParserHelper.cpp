@@ -83,9 +83,9 @@ FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 	return Result;
 }
 
-void FClassMetaData::AddInheritanceParent(const FString& InParent, FUnrealSourceFile* UnrealSourceFile)
+void FClassMetaData::AddInheritanceParent(FString&& InParent, FUnrealSourceFile* UnrealSourceFile)
 {
-	MultipleInheritanceParents.Add(new FMultipleInheritanceBaseClass(InParent));
+	MultipleInheritanceParents.Add(new FMultipleInheritanceBaseClass(MoveTemp(InParent)));
 }
 
 void FClassMetaData::AddInheritanceParent(UClass* ImplementedInterfaceClass, FUnrealSourceFile* UnrealSourceFile)

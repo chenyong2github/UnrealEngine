@@ -6143,40 +6143,60 @@ FClass* FHeaderParser::ParseClassNameDeclaration(FClasses& AllClasses, FString& 
 		{
 			RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("Interface inheritance must be public"));
 
+			FString InterfaceName;
+
 			FToken Token;
-			if (!GetIdentifier(Token, true))
-				FError::Throwf(TEXT("Failed to get interface class identifier"));
-
-			FString InterfaceName = Token.Identifier;
-
-			// Handle templated native classes
-			if (MatchSymbol(TEXT('<')))
+			for (;;)
 			{
-				InterfaceName += TEXT('<');
-
-				int32 NestedScopes = 1;
-				while (NestedScopes)
+				if (!GetIdentifier(Token, true))
 				{
-					if (!GetToken(Token))
-						FError::Throwf(TEXT("Unexpected end of file"));
-
-					if (Token.TokenType == TOKEN_Symbol)
-					{
-						if (Token.Matches(TEXT('<')))
-						{
-							++NestedScopes;
-						}
-						else if (Token.Matches(TEXT('>')))
-						{
-							--NestedScopes;
-						}
-					}
-
-					InterfaceName += Token.Identifier;
+					FError::Throwf(TEXT("Failed to get interface class identifier"));
 				}
+
+				InterfaceName += Token.Identifier;
+
+				// Handle templated native classes
+				if (MatchSymbol(TEXT('<')))
+				{
+					InterfaceName += TEXT('<');
+
+					int32 NestedScopes = 1;
+					while (NestedScopes)
+					{
+						if (!GetToken(Token))
+						{
+							FError::Throwf(TEXT("Unexpected end of file"));
+						}
+
+						if (Token.TokenType == TOKEN_Symbol)
+						{
+							if (Token.Matches(TEXT('<')))
+							{
+								++NestedScopes;
+							}
+							else if (Token.Matches(TEXT('>')))
+							{
+								--NestedScopes;
+							}
+						}
+
+						InterfaceName += Token.Identifier;
+					}
+				}
+
+				// Handle scoped native classes
+				if (MatchSymbol(TEXT("::")))
+				{
+					InterfaceName += TEXT("::");
+
+					// Keep reading nested identifiers
+					continue;
+				}
+
+				break;
 			}
 
-			HandleOneInheritedClass(AllClasses, FoundClass, *InterfaceName);
+			HandleOneInheritedClass(AllClasses, FoundClass, MoveTemp(InterfaceName));
 		}
 	}
 	else if (FoundClass->GetSuperClass())
@@ -6187,7 +6207,7 @@ FClass* FHeaderParser::ParseClassNameDeclaration(FClasses& AllClasses, FString& 
 	return FoundClass;
 }
 
-void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString InterfaceName)
+void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString&& InterfaceName)
 {
 	FUnrealSourceFile* CurrentSrcFile = GetCurrentSourceFile();
 	// Check for UInterface derived interface inheritance
@@ -6215,7 +6235,7 @@ void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class,
 		// Non-UObject inheritance
 		FClassMetaData* ClassData = GScriptHelper.FindClassData(Class);
 		check(ClassData);
-		ClassData->AddInheritanceParent(InterfaceName, CurrentSrcFile);
+		ClassData->AddInheritanceParent(MoveTemp(InterfaceName), CurrentSrcFile);
 	}
 }
 
