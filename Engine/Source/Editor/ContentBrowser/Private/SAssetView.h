@@ -757,9 +757,15 @@ private:
 
 	FContentBrowserDataFilter CreateBackendDataFilter() const;
 
+	/** Handles updating the view when content items are changed */
 	void HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems);
 
+	/** Notification for when the content browser has completed it's initial search */
+	void HandleItemDataDiscoveryComplete();
+
 private:
+	friend class FAssetViewFrontendFilterHelper;
+
 	/** The available items from querying the backend data sources */
 	TMap<FContentBrowserItemKey, TSharedPtr<FAssetViewItem>> AvailableBackendItems;
 

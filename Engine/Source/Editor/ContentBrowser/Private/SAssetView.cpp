@@ -78,6 +78,61 @@ namespace
 	const double JumpDelaySeconds = 2.0;
 }
 
+class FAssetViewFrontendFilterHelper
+{
+public:
+	explicit FAssetViewFrontendFilterHelper(SAssetView* InAssetView)
+		: AssetView(InAssetView)
+		, ContentBrowserData(IContentBrowserDataModule::Get().GetSubsystem())
+		, bDisplayEmptyFolders(AssetView->IsShowingEmptyFolders())
+	{
+	}
+
+	bool DoesItemPassQueryFilter(const TSharedPtr<FAssetViewItem>& InItemToFilter)
+	{
+		// Folders aren't subject to additional filtering
+		if (InItemToFilter->IsFolder())
+		{
+			return true;
+		}
+
+		// If we have OnShouldFilterAsset then it is assumed that we really only want to see true assets and 
+		// nothing else so only include things that have asset data and also pass the query filter
+		FAssetData ItemAssetData;
+		if (InItemToFilter->GetItem().Legacy_TryGetAssetData(ItemAssetData))
+		{
+			if (!AssetView->OnShouldFilterAsset.Execute(ItemAssetData))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool DoesItemPassFrontendFilter(const TSharedPtr<FAssetViewItem>& InItemToFilter)
+	{
+		// Folders are only subject to "empty" filtering
+		if (InItemToFilter->IsFolder())
+		{
+			return bDisplayEmptyFolders || ContentBrowserData->IsFolderVisibleIfHidingEmpty(InItemToFilter->GetItem().GetVirtualPath());
+		}
+
+		// Run the item through the filters
+		if (!AssetView->IsFrontendFilterActive() || AssetView->PassesCurrentFrontendFilter(InItemToFilter->GetItem()))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+private:
+	SAssetView* AssetView = nullptr;
+	UContentBrowserDataSubsystem* ContentBrowserData = nullptr;
+	const bool bDisplayEmptyFolders = true;
+};
+
 SAssetView::~SAssetView()
 {
 	if (IContentBrowserDataModule* ContentBrowserDataModule = IContentBrowserDataModule::GetPtr())
@@ -86,6 +141,7 @@ SAssetView::~SAssetView()
 		{
 			ContentBrowserData->OnItemDataUpdated().RemoveAll(this);
 			ContentBrowserData->OnItemDataRefreshed().RemoveAll(this);
+			ContentBrowserData->OnItemDataDiscoveryComplete().RemoveAll(this);
 		}
 	}
 
@@ -119,6 +175,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 	ContentBrowserData->OnItemDataUpdated().AddSP(this, &SAssetView::HandleItemDataUpdated);
 	ContentBrowserData->OnItemDataRefreshed().AddSP(this, &SAssetView::RequestSlowFullListRefresh);
+	ContentBrowserData->OnItemDataDiscoveryComplete().AddSP(this, &SAssetView::HandleItemDataDiscoveryComplete);
 
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 	CollectionManagerModule.Get().OnAssetsAdded().AddSP( this, &SAssetView::OnAssetsAddedToCollection );
@@ -873,6 +930,7 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 		bForceViewUpdate = false;
 
 		const double TickStartTime = FPlatformTime::Seconds();
+		const bool bWasWorking = bIsWorking;
 
 		// Mark the first amortize time
 		if (AmortizeStartTime == 0)
@@ -917,7 +975,7 @@ void SAssetView::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 				SetMajorityAssetType(HighestType);
 			}
 
-			if (bPendingSortFilteredItems)
+			if (bPendingSortFilteredItems && (bWasWorking || (InCurrentTime > LastSortTime + SortDelaySeconds)))
 			{
 				// Don't sync to selection if we are just going to do it below
 				SortList(!PendingSyncItems.Num());
@@ -1096,47 +1154,7 @@ void SAssetView::ProcessItemsPendingFilter(const double TickStartTime)
 {
 	const double ProcessItemsPendingFilterStartTime = FPlatformTime::Seconds();
 
-	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-
-	auto DoesItemPassQueryFilter = [this](const TSharedPtr<FAssetViewItem>& InItemToFilter)
-	{
-		// Folders aren't subject to additional filtering
-		if (InItemToFilter->IsFolder())
-		{
-			return true;
-		}
-
-		// If we have OnShouldFilterAsset then it is assumed that we really only want to see true assets and 
-		// nothing else so only include things that have asset data and also pass the query filter
-		FAssetData ItemAssetData;
-		if (InItemToFilter->GetItem().Legacy_TryGetAssetData(ItemAssetData))
-		{
-			if (!OnShouldFilterAsset.Execute(ItemAssetData))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	};
-
-	const bool bDisplayEmpty = IsShowingEmptyFolders();
-	auto DoesItemPassFrontendFilter = [this, bDisplayEmpty, ContentBrowserData](const TSharedPtr<FAssetViewItem>& InItemToFilter)
-	{
-		// Folders are only subject to "empty" filtering
-		if (InItemToFilter->IsFolder())
-		{
-			return bDisplayEmpty || ContentBrowserData->IsFolderVisibleIfHidingEmpty(InItemToFilter->GetItem().GetVirtualPath());
-		}
-
-		// Run the item through the filters
-		if (!IsFrontendFilterActive() || PassesCurrentFrontendFilter(InItemToFilter->GetItem()))
-		{
-			return true;
-		}
-
-		return false;
-	};
+	FAssetViewFrontendFilterHelper FrontendFilterHelper(this);
 
 	auto UpdateFilteredAssetItemTypeCounts = [this](const TSharedPtr<FAssetViewItem>& InItem)
 	{
@@ -1156,12 +1174,12 @@ void SAssetView::ProcessItemsPendingFilter(const double TickStartTime)
 	bool bRefreshList = false;
 	bool bHasTimeRemaining = true;
 
-	auto FilterItem = [this, bRunQueryFilter, &bRefreshList, &DoesItemPassQueryFilter, &DoesItemPassFrontendFilter, &UpdateFilteredAssetItemTypeCounts](const TSharedPtr<FAssetViewItem>& ItemToFilter)
+	auto FilterItem = [this, bRunQueryFilter, &bRefreshList, &FrontendFilterHelper, &UpdateFilteredAssetItemTypeCounts](const TSharedPtr<FAssetViewItem>& ItemToFilter)
 	{
 		// Run the query filter if required
 		if (bRunQueryFilter)
 		{
-			const bool bPassedBackendFilter = DoesItemPassQueryFilter(ItemToFilter);
+			const bool bPassedBackendFilter = FrontendFilterHelper.DoesItemPassQueryFilter(ItemToFilter);
 			if (!bPassedBackendFilter)
 			{
 				AvailableBackendItems.Remove(FContentBrowserItemKey(ItemToFilter->GetItem()));
@@ -1171,7 +1189,7 @@ void SAssetView::ProcessItemsPendingFilter(const double TickStartTime)
 
 		// Run the frontend filter
 		{
-			const bool bPassedFrontendFilter = DoesItemPassFrontendFilter(ItemToFilter);
+			const bool bPassedFrontendFilter = FrontendFilterHelper.DoesItemPassFrontendFilter(ItemToFilter);
 			if (bPassedFrontendFilter)
 			{
 				checkAssetList(!FilteredAssetItems.Contains(ItemToFilter));
@@ -4099,8 +4117,9 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 	}
 
 	bool bRefreshView = false;
+	TSet<TSharedPtr<FAssetViewItem>> ItemsPendingInplaceFrontendFilter;
 
-	auto AddItem = [this](const FContentBrowserItemKey& InItemDataKey, const FContentBrowserItemData& InItemData)
+	auto AddItem = [this, &ItemsPendingInplaceFrontendFilter](const FContentBrowserItemKey& InItemDataKey, const FContentBrowserItemData& InItemData)
 	{
 		TSharedPtr<FAssetViewItem>& ItemToUpdate = AvailableBackendItems.FindOrAdd(InItemDataKey);
 		if (ItemToUpdate)
@@ -4111,11 +4130,9 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 			// Update the custom column data
 			ItemToUpdate->CacheCustomColumns(CustomColumns, true, true, true);
 
-			// Remove this item from the list view data until it has been filtered again
-			FilteredAssetItems.RemoveSingle(ItemToUpdate);
-
-			// This item was modified, so put it in this prioritized set of items to be filtered
-			ItemsPendingPriorityFilter.Add(ItemToUpdate);
+			// This item was modified, so put it in the list of items to be in-place re-tested against the active frontend filter (this can avoid a costly re-sort of the view)
+			// If the item can't be queried in-place (because the item isn't in the view) then it will be added to ItemsPendingPriorityFilter instead
+			ItemsPendingInplaceFrontendFilter.Add(ItemToUpdate);
 		}
 		else
 		{
@@ -4126,7 +4143,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		}
 	};
 
-	auto RemoveItem = [this, &bRefreshView](const FContentBrowserItemKey& InItemDataKey, const FContentBrowserItemData& InItemData)
+	auto RemoveItem = [this, &bRefreshView, &ItemsPendingInplaceFrontendFilter](const FContentBrowserItemKey& InItemDataKey, const FContentBrowserItemData& InItemData)
 	{
 		const uint32 ItemDataKeyHash = GetTypeHash(InItemDataKey);
 
@@ -4150,6 +4167,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 			FilteredAssetItems.RemoveSingle(ItemToRemove);
 			ItemsPendingPriorityFilter.RemoveByHash(ItemToRemoveHash, ItemToRemove);
 			ItemsPendingFrontendFilter.RemoveByHash(ItemToRemoveHash, ItemToRemove);
+			ItemsPendingInplaceFrontendFilter.RemoveByHash(ItemToRemoveHash, ItemToRemove);
 
 			// Need to refresh manually after removing items, as adding relies on the pending filter lists to trigger this
 			bRefreshView = true;
@@ -4169,6 +4187,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		return false;
 	};
 
+	// Process the main set of updates
 	for (const FContentBrowserItemDataUpdate& ItemDataUpdate : InUpdatedItems)
 	{
 		const FContentBrowserItemData& ItemData = ItemDataUpdate.GetItemData();
@@ -4215,12 +4234,74 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 		}
 	}
 
+	// Now patch in the in-place frontend filter requests (if possible)
+	if (ItemsPendingInplaceFrontendFilter.Num() > 0)
+	{
+		FAssetViewFrontendFilterHelper FrontendFilterHelper(this);
+		const bool bRunQueryFilter = OnShouldFilterAsset.IsBound();
+
+		for (auto It = FilteredAssetItems.CreateIterator(); It && ItemsPendingInplaceFrontendFilter.Num() > 0; ++It)
+		{
+			const TSharedPtr<FAssetViewItem> ItemToFilter = *It;
+
+			if (ItemsPendingInplaceFrontendFilter.Remove(ItemToFilter) > 0)
+			{
+				bool bRemoveItem = false;
+
+				// Run the query filter if required
+				if (bRunQueryFilter)
+				{
+					const bool bPassedBackendFilter = FrontendFilterHelper.DoesItemPassQueryFilter(ItemToFilter);
+					if (!bPassedBackendFilter)
+					{
+						bRemoveItem = true;
+						AvailableBackendItems.Remove(FContentBrowserItemKey(ItemToFilter->GetItem()));
+					}
+				}
+
+				// Run the frontend filter
+				if (!bRemoveItem)
+				{
+					const bool bPassedFrontendFilter = FrontendFilterHelper.DoesItemPassFrontendFilter(ItemToFilter);
+					if (!bPassedFrontendFilter)
+					{
+						bRemoveItem = true;
+					}
+				}
+
+				// Remove this item?
+				if (bRemoveItem)
+				{
+					bRefreshView = true;
+					It.RemoveCurrent();
+				}
+			}
+		}
+
+		// Do we still have items that could not be in-place filtered?
+		// If so, add them to ItemsPendingPriorityFilter so they are processed into the view ASAP
+		if (ItemsPendingInplaceFrontendFilter.Num() > 0)
+		{
+			ItemsPendingPriorityFilter.Append(MoveTemp(ItemsPendingInplaceFrontendFilter));
+			ItemsPendingInplaceFrontendFilter.Reset();
+		}
+	}
+
 	if (bRefreshView)
 	{
 		RefreshList();
 	}
 
 	UE_LOG(LogContentBrowser, VeryVerbose, TEXT("AssetView - HandleItemDataUpdated completed in %0.4f seconds for %d items (%d available items)"), FPlatformTime::Seconds() - HandleItemDataUpdatedStartTime, InUpdatedItems.Num(), AvailableBackendItems.Num());
+}
+
+void SAssetView::HandleItemDataDiscoveryComplete()
+{
+	if (bPendingSortFilteredItems)
+	{
+		// If we have a sort pending, then force this to happen next frame now that discovery has finished
+		LastSortTime = 0;
+	}
 }
 
 #undef checkAssetList
