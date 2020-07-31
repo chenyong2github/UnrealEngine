@@ -5217,7 +5217,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 		for (FName NeverCookPackage : PackagesToNeverCook)
 		{
-			const FName StandardPackageFilename = PackageNameCache->GetCachedStandardPackageFileFName(NeverCookPackage);
+			const FName StandardPackageFilename = GetPackageNameCache()->GetCachedStandardPackageFileFName(NeverCookPackage);
 
 			if (StandardPackageFilename != NAME_None)
 			{
