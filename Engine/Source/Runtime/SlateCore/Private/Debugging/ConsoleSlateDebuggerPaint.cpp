@@ -42,26 +42,14 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 		TEXT("SlateDebugger.Paint.LogOnce")
 		, TEXT("Log the widgets that has been painted during the last update once")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleLogOnce))
-	, DisplayWidgetsNameListRefCVar(
-		TEXT("SlateDebugger.Paint.DisplayWidgetNameList")
-		, bDisplayWidgetsNameList
-		, TEXT("Option to display the name of the widgets that are painted."))
+	, DisplayWidgetsNameListCommand(
+		TEXT("SlateDebugger.Paint.ToggleWidgetNameList"),
+		TEXT("Option to display the name of the widgets that have been painted."),
+		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleToggleWidgetNameList))
 	, MaxNumberOfWidgetInListtRefCVar(
 		TEXT("SlateDebugger.Paint.MaxNumberOfWidgetDisplayedInList")
 		, MaxNumberOfWidgetInList
 		, TEXT("The max number of widget that will be displayed when DisplayWidgetNameList is active."))
-	, DrawBoxRefCVar(
-		TEXT("SlateDebugger.Paint.DrawBox")
-		, bDrawBox
-		, TEXT("Option to draw a box at the location of the painted widget."))
-	, DrawQuadRefCVar(
-		TEXT("SlateDebugger.Paint.DrawQuad")
-		, bDrawQuad
-		, TEXT("Option to draw a quad (debug rectangle) at the location of the painted widget."))
-	, CacheDurationRefCVar(
-		TEXT("SlateDebugger.Paint.DrawDuration")
-		, CacheDuration
-		, TEXT("For how long the debug info will be draw/displayed on screen."))
 	, LogWarningIfWidgetIsPaintedMoreThanOnceRefCVar(
 		TEXT("SlateDebugger.Paint.LogWarningIfWidgetIsPaintedMoreThanOnce")
 		, bLogWarningIfWidgetIsPaintedMoreThanOnce
@@ -144,6 +132,12 @@ void FConsoleSlateDebuggerPaint::HandleLogOnce()
 	bLogWidgetNameOnce = true;
 }
 
+void FConsoleSlateDebuggerPaint::HandleToggleWidgetNameList()
+{
+	bDisplayWidgetsNameList = !bDisplayWidgetsNameList;
+	SaveConfig();
+}
+
 void FConsoleSlateDebuggerPaint::HandleEndFrame()
 {
 	double LastTime = FSlateApplicationBase::Get().GetCurrentTime() - CacheDuration;
@@ -194,17 +188,31 @@ void FConsoleSlateDebuggerPaint::HandleEndWidgetPaint(const SWidget* Widget, con
 
 void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, FSlateWindowElementList& InOutDrawElements, int32& InOutLayerId)
 {
-	int32 PreviousLayerId = InOutLayerId;
 	++InOutLayerId;
 
 	TSWindowId PaintWindow = reinterpret_cast<TSWindowId>(InOutDrawElements.GetPaintWindow());
+
 	int32 NumberOfWidget = 0;
-	TArray<const FString*, TInlineAllocator<100>> NamesToDisplay;
+	const float TextElementY = 36.f;
 	const FSlateBrush* BoxBrush = bDrawBox ? FCoreStyle::Get().GetBrush("WhiteBrush") : nullptr;
 	const FSlateBrush* QuadBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
+	FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("SmallFont");
+	FontInfo.OutlineSettings.OutlineSize = 1;
 
 	CacheDuration = FMath::Max(CacheDuration, 0.01f);
 	const double SlateApplicationCurrentTime = FSlateApplicationBase::Get().GetCurrentTime();
+
+	auto MakeText = [&](const FString& Text, const FVector2D& Location, const FLinearColor& Color)
+	{
+		FSlateDrawElement::MakeText(
+			InOutDrawElements
+			, InOutLayerId
+			, InAllottedGeometry.ToPaintGeometry(Location, FVector2D(1.f, 1.f))
+			, Text
+			, FontInfo
+			, ESlateDrawEffect::None
+			, Color);
+	};
 
 	for (const auto& Itt : PaintedWidgets)
 	{
@@ -212,13 +220,14 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 		{
 			const double LerpValue = FMath::Clamp((SlateApplicationCurrentTime - Itt.Value.LastPaint) / CacheDuration, 0.0, 1.0);
 			const FGeometry Geometry = FGeometry::MakeRoot(Itt.Value.PaintSize, FSlateLayoutTransform(1.f, Itt.Value.PaintLocation));
+			const FPaintGeometry PaintGeometry = Geometry.ToPaintGeometry();
 
 			if (BoxBrush)
 			{
 				FSlateDrawElement::MakeBox(
 					InOutDrawElements,
 					InOutLayerId,
-					Geometry.ToPaintGeometry(),
+					PaintGeometry,
 					BoxBrush,
 					ESlateDrawEffect::None,
 					DrawBoxColor.CopyWithNewOpacity(FMath::InterpExpoOut(1.0f, 0.0f, LerpValue)));
@@ -229,13 +238,13 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 				FSlateDrawElement::MakeDebugQuad(
 					InOutDrawElements,
 					InOutLayerId,
-					Geometry.ToPaintGeometry(),
+					PaintGeometry,
 					DrawQuadColor);
 
 				FSlateDrawElement::MakeBox(
 					InOutDrawElements,
 					InOutLayerId,
-					Geometry.ToPaintGeometry(),
+					PaintGeometry,
 					QuadBrush,
 					ESlateDrawEffect::None,
 					DrawQuadColor.CopyWithNewOpacity(FMath::InterpExpoOut(1.0f, 0.0f, LerpValue)));
@@ -246,43 +255,27 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 				UE_LOG(LogSlateDebugger, Log, TEXT("%s"), *(Itt.Value.WidgetName));
 			}
 
-			++NumberOfWidget;
-			if (NumberOfWidget <= MaxNumberOfWidgetInList)
+			if (bDisplayWidgetsNameList)
 			{
-				NamesToDisplay.Emplace(&(Itt.Value.WidgetName));
+				if (NumberOfWidget < MaxNumberOfWidgetInList)
+				{
+					MakeText(Itt.Value.WidgetName, FVector2D(0, (12 * NumberOfWidget) + TextElementY), DrawWidgetNameColor);
+				}
 			}
+			++NumberOfWidget;
 		}
 	}
 	bLogWidgetNameOnce = false;
 
 	{
 		FString NumberOfWidgetDrawn = FString::Printf(TEXT("Number of Widget Painted: %d"), NumberOfWidget);
-		FSlateDrawElement::MakeText(
-			InOutDrawElements
-			, InOutLayerId
-			, InAllottedGeometry.ToPaintGeometry()
-			, MoveTemp(NumberOfWidgetDrawn)
-			, FCoreStyle::GetDefaultFontStyle("Bold", 12)
-			, ESlateDrawEffect::None
-			, DrawWidgetNameColor);
+		MakeText(NumberOfWidgetDrawn, FVector2D(10, 10), DrawWidgetNameColor);
 	}
 
-	if (bDisplayWidgetsNameList)
+	if (bDisplayWidgetsNameList && NumberOfWidget > MaxNumberOfWidgetInList)
 	{
-		FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Mono", 8);
-		int32 Index = 0;
-		for (const FString* Name : NamesToDisplay)
-		{
-			FSlateDrawElement::MakeText(
-				InOutDrawElements
-				, InOutLayerId
-				, InAllottedGeometry.ToPaintGeometry(FVector2D(0, (12 * Index) + 36), FVector2D(1.f, 1.f))
-				, *Name
-				, FontInfo
-				, ESlateDrawEffect::None
-				, DrawWidgetNameColor);
-			++Index;
-		}
+		FString WidgetDisplayName = FString::Printf(TEXT("   %d more invalidations"), NumberOfWidget - MaxNumberOfWidgetInList);
+		MakeText(WidgetDisplayName, FVector2D(0.f, (12.f * NumberOfWidget) + TextElementY), FLinearColor::White);
 	}
 }
 
