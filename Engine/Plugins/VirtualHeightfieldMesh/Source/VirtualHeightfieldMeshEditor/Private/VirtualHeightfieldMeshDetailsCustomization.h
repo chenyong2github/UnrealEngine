@@ -16,6 +16,9 @@ public:
 protected:
 	FVirtualHeightfieldMeshComponentDetailsCustomization();
 
+	/** Callback for Set Bounds button */
+	FReply SetBounds();
+
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	//~ End IDetailCustomization Interface.

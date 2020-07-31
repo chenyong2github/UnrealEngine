@@ -46,34 +46,32 @@ QuadItem UnpackQuadItem(uint PackedItem)
 	return Item;
 }
 
-/** Description for items that are kept by the quad tree traversal stage. Packs as uint2 so store in Buffer declared as uint2. */
+/** Description for items that are output by the quad tree collect stage. Packs as uint2 so store in Buffer declared as uint2. */
 struct QuadRenderItem
 {
-	uint Address;
+	uint2 Pos;
 	uint Level;
 	uint PhysicalAddress;
-	float FractionalLod;
 	bool bCull;
 };
 
 uint2 Pack(QuadRenderItem Item)
 {
 	uint2 PackedItem = 0;
-	PackedItem.x |= Item.Address;
+	PackedItem.x |= Item.Pos.x;
+	PackedItem.x |= Item.Pos.y << 12;
 	PackedItem.x |= Item.Level << 24;
 	PackedItem.y |= Item.PhysicalAddress & 0x000FFFFF;
-	PackedItem.y |= (uint)floor(Item.FractionalLod * 255.f) << 20;
-	PackedItem.y |= Item.bCull ? 1 << 28 : 0;
+	PackedItem.y |= Item.bCull ? 1 << 20 : 0;
 	return PackedItem;
 }
 
-QuadRenderItem InitQuadRenderItem(uint Address, uint Level, uint PhysicalAddress, float FractionalLod, bool bCull)
+QuadRenderItem InitQuadRenderItem(uint2 Pos, uint Level, uint PhysicalAddress, bool bCull)
 {
 	QuadRenderItem Item;
-	Item.Address = Address;
+	Item.Pos = Pos;
 	Item.Level = Level;
 	Item.PhysicalAddress = PhysicalAddress;
-	Item.FractionalLod = FractionalLod;
 	Item.bCull = bCull;
 	return Item;
 }
@@ -81,11 +79,11 @@ QuadRenderItem InitQuadRenderItem(uint Address, uint Level, uint PhysicalAddress
 QuadRenderItem UnpackQuadRenderItem(uint2 PackedItem)
 {
 	QuadRenderItem Item;
-	Item.Address = PackedItem.x & 0x00FFFFFF;
+	Item.Pos.x = PackedItem.x & 0x00000FFF;
+	Item.Pos.y = (PackedItem.x & 0x00FFF000) >> 12;
 	Item.Level = PackedItem.x >> 24;
 	Item.PhysicalAddress = PackedItem.y & 0x000FFFFF;
-	Item.FractionalLod = (float)((PackedItem.y & 0x0FF00000) >> 20) / 255.f;
-	Item.bCull = ((PackedItem.y & 0x10000000) >> 28) == 1;
+	Item.bCull = ((PackedItem.y & 0x00100000) >> 20) == 1;
 	return Item;
 }
 
@@ -93,22 +91,22 @@ QuadRenderItem UnpackQuadRenderItem(uint2 PackedItem)
 struct QuadNeighborItem
 {
 	uint PhysicalAddress;
-	float Lod;
+	bool bLerp;
 };
 
 uint Pack(QuadNeighborItem Item)
 {
 	uint PackedItem = 0;
 	PackedItem |= Item.PhysicalAddress & 0x000FFFFF;
-	PackedItem |= (uint)floor(Item.Lod * 255.f) << 20;
+	PackedItem |= Item.bLerp ? 1 << 20 : 0;
 	return PackedItem;
 }
 
-QuadNeighborItem InitQuadNeighborItem(uint PhysicalAddress, float Lod)
+QuadNeighborItem InitQuadNeighborItem(uint PhysicalAddress, bool bLerp)
 {
 	QuadNeighborItem Item;
 	Item.PhysicalAddress = PhysicalAddress;
-	Item.Lod = Lod;
+	Item.bLerp = bLerp;
 	return Item;
 }
 
@@ -116,16 +114,25 @@ QuadNeighborItem UnpackQuadNeighborItem(uint PackedItem)
 {
 	QuadNeighborItem Item;
 	Item.PhysicalAddress = PackedItem & 0x000FFFFF;
-	Item.Lod = (float)(PackedItem >> 20) / 255.f;
+	Item.bLerp = ((PackedItem & 0x00100000) >> 20) == 1;
 	return Item;
 }
 
 /** Final render instance description used by the DrawInstancedIndirect(). */
 struct QuadRenderInstance
 {
-	uint Address;
-	uint Level;
-	uint Pad[2];
-	float4 PackedInfo;
-	float4 NeigborPackedInfo[4];
+	// Total of 64 bytes is nice for cache alignment. Take care when modifying.
+	uint PosLevelPacked;
+	float3 UVTransform;
+	float3 NeigborUVTransform[4];
 };
+
+uint2 UnpackPos(QuadRenderInstance Item)
+{
+	return uint2(Item.PosLevelPacked & 0x00000FFF, (Item.PosLevelPacked & 0x00FFF000) >> 12);
+}
+
+uint UnpackLevel(QuadRenderInstance Item)
+{
+	return Item.PosLevelPacked >> 24;
+}

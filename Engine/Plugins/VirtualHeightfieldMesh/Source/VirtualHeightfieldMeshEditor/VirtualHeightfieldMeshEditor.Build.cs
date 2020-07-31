@@ -13,6 +13,7 @@ public class VirtualHeightfieldMeshEditor : ModuleRules
 			"Engine",
 			"Slate",
 			"SlateCore",
+			"UnrealEd",
 			"VirtualHeightfieldMesh",
 		});
 	}

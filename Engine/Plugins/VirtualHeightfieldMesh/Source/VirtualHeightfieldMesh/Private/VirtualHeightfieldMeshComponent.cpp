@@ -6,6 +6,7 @@
 #include "Engine/World.h"
 #include "VirtualHeightfieldMeshSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
+#include "VT/RuntimeVirtualTextureVolume.h"
 
 UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -18,15 +19,26 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 	Mobility = EComponentMobility::Static;
 }
 
+ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextureVolume() const
+{
+	return VirtualTexture.Get();
+}
+
+FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
+{
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
+}
+
 URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = Cast<URuntimeVirtualTextureComponent>(VirtualTexture.GetComponent(GetOwner()));
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
 }
 
 UTexture2D* UVirtualHeightfieldMeshComponent::GetMinMaxTexture() const
 {
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = Cast<URuntimeVirtualTextureComponent>(VirtualTexture.GetComponent(GetOwner()));
+	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetMinMaxTexture() : nullptr;
 }
 
