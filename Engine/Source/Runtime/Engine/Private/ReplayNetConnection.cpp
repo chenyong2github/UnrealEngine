@@ -292,3 +292,8 @@ void UReplayNetConnection::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> I
 {
 	ReplayHelper.SetAnalyticsProvider(InProvider);
 }
+
+void UReplayNetConnection::SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame)
+{
+	ReplayHelper.CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame;
+}

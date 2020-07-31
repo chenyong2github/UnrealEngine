@@ -489,7 +489,11 @@ public:
 	void SetActorPrioritizationEnabled(const bool bInPrioritizeActors) { bPrioritizeActors = bInPrioritizeActors; }
 
 	/** Sets CheckpointSaveMaxMSPerFrame. */
-	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame) { CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame; }
+	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame)
+	{ 
+		CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame; 
+		ReplayHelper.CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame;
+	}
 
 	/** Called by a task thread if the engine is doing async end of frame tasks in parallel with Slate. */
 	void TickFlushAsyncEndOfFrame(float DeltaSeconds);
