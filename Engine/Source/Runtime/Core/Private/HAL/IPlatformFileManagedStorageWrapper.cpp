@@ -34,7 +34,7 @@ static FAutoConsoleCommand CreateDummyFileInPersistentStorageCommand(
 	const FString& DummyFilePath = Args[0];
 	if (!FPaths::IsUnderDirectory(DummyFilePath, TEXT("/download0")))
 	{
-		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s.  File path is not under /download0"));
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s.  File path is not under /download0"), *DummyFilePath);
 		return;
 	}
 
@@ -47,7 +47,7 @@ static FAutoConsoleCommand CreateDummyFileInPersistentStorageCommand(
 	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DummyFilePath, 0));
 	if (!Ar)
 	{
-		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s."));
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s."), *DummyFilePath);
 		return;
 	}
 
@@ -59,6 +59,9 @@ static FAutoConsoleCommand CreateDummyFileInPersistentStorageCommand(
 		RemainingBytesToWrite -= SizeToWrite;
 	}
 
-	Ar->Close();
+	if(!Ar->Close())
+	{
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("There was an error writing to file %s."), *DummyFilePath);
+	}
 }),
 ECVF_Default);
