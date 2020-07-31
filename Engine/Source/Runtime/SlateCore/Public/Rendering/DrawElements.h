@@ -71,7 +71,7 @@ public:
 	 * @param InLayer				The layer to draw the element on
 	 * @param PaintGeometry         DrawSpace position and dimensions; see FPaintGeometry
 	 */
-	SLATECORE_API static void MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry);
+	SLATECORE_API static void MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FLinearColor& InTint = FLinearColor::White );
 
 	/**
 	 * Creates a box element based on the following diagram.  Allows for this element to be resized while maintain the border of the image
