@@ -456,6 +456,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bDidAutoAttach(false)
 	, bAllowScalability(true)
 	, bIsCulledByScalability(false)
+	, bDuringUpdateContextReset(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
 {
@@ -1153,7 +1154,8 @@ void UNiagaraComponent::OnSystemComplete()
 
 	//Don't really complete if we're being culled by scalability.
 	//We want to stop ticking but not be reclaimed by the pools etc.
-	if (bIsCulledByScalability == false)
+	//We also want to skip this work if we're destroying during and update context reset.
+	if (bIsCulledByScalability == false && bDuringUpdateContextReset == false)
 	{		
 		//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: { %p -  %p - %s"), this, SystemInstance.Get(), *Asset->GetName());
 		OnSystemFinished.Broadcast(this);

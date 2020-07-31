@@ -207,6 +207,8 @@ public:
 		return nullptr;
 	}
 
+	FORCEINLINE const FNiagaraPerInstanceDIFuncInfo& GetPerInstanceDIFunction(ENiagaraSystemSimulationScript ScriptType, int32 FuncIndex)const { return PerInstanceDIFunctions[(int32)ScriptType][FuncIndex]; }
+
 	bool UsesEmitter(const UNiagaraEmitter* Emitter)const;
 	bool UsesScript(const UNiagaraScript* Script)const;
 	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
@@ -372,6 +374,11 @@ private:
 
 	/** Map of data interfaces to their instance data. */
 	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> DataInterfaceInstanceDataOffsets;
+
+	/** 
+	A set of function bindings for DI calls that must be made per system instance.
+	*/
+	TArray<FNiagaraPerInstanceDIFuncInfo> PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Num];
 
 	/** Per system instance parameters. These can be fed by the component and are placed into a dataset for execution for the system scripts. */
 	FNiagaraParameterStore InstanceParameters;

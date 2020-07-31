@@ -119,6 +119,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		if (Comp)
 		{
 			Comp->ReinitializeSystem();
+			Comp->EndUpdateContextReset();
 		}
 	}
 	ComponentsToReInit.Empty();
@@ -128,6 +129,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		if (Comp)
 		{
 			Comp->ResetSystem();
+			Comp->EndUpdateContextReset();
 		}
 	}
 	ComponentsToReset.Empty();
@@ -140,7 +142,15 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 
-		bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+		Comp->BeginUpdateContextReset();
+
+		bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+		if (bReInit)
+		{
+			//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+			SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+		}
 
 		if (bDestroyOnAdd)
 		{
@@ -150,6 +160,10 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		if (bIsActive || bOnlyActive == false)
 		{
 			AddInternal(Comp, bReInit);
+		}
+		else
+		{
+			Comp->EndUpdateContextReset();
 		}
 	}
 }
@@ -162,7 +176,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		check(Comp);
 		if (Comp->GetAsset() == System)
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -172,6 +194,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -187,7 +213,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -197,6 +231,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -211,7 +249,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		UNiagaraSystem* System = Comp->GetAsset();
 		if (System && System->UsesScript(Script))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -221,6 +267,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -251,7 +301,14 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -261,6 +318,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -272,7 +333,6 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 	if (bReInit)
 	{
 		ComponentsToReInit.AddUnique(Comp);
-		SystemSimsToDestroy.AddUnique(Comp->GetAsset());
 	}
 	else
 	{
@@ -396,6 +456,11 @@ UNiagaraDataInterface* FNiagaraScriptDataInterfaceCompileInfo::GetDefaultDataInt
 	// Note that this can be called on non-game threads. We ensure that the data interface CDO object is already in existence at application init time, so we don't allow this to be auto-created.
 	UNiagaraDataInterface* Obj = CastChecked<UNiagaraDataInterface>(const_cast<UClass*>(Type.GetClass())->GetDefaultObject(false));
 	return Obj;
+}
+
+bool FNiagaraScriptDataInterfaceCompileInfo::NeedsPerInstanceBinding()const
+{
+	return Name.ToString().StartsWith(TEXT("User.")) || GetDefaultDataInterface()->PerInstanceDataSize() > 0;
 }
 
 void FNiagaraUtilities::DumpHLSLText(const FString& SourceCode, const FString& DebugName)

@@ -462,6 +462,8 @@ public:
 
 	/** Note that this is the CDO for this type of data interface, as we often cannot guarantee that the same instance of the data interface we compiled with is the one the user ultimately executes.  Only call this on the game thread.*/
 	UNiagaraDataInterface* GetDefaultDataInterface() const;
+
+	bool NeedsPerInstanceBinding() const;
 };
 
 USTRUCT()
