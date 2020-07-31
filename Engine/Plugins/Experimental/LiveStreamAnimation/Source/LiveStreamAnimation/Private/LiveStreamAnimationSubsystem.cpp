@@ -12,8 +12,19 @@
 #include "ForwardingChannel.h"
 #include "ForwardingGroup.h"
 #include "ForwardingChannelsUtils.h"
+#include "HAL/IConsoleManager.h"
 
 #include "ForwardingChannelsSubsystem.h"
+
+namespace LiveStreamAnimationPrivate
+{
+	bool bAllowTrackersToReceivePackets = true;
+	static FAutoConsoleVariableRef CVarSetNetDormancyEnabled(
+		TEXT("LiveStreamAnimation.AllowTrackersToReceivePackets"),
+		bAllowTrackersToReceivePackets,
+		TEXT("When True, any Live Stream Animation Subsystem that is set as a Tracker will receive and process packets."),
+		ECVF_Default);
+}
 
 ULiveStreamAnimationSubsystem::ULiveStreamAnimationSubsystem()
 {
@@ -202,7 +213,7 @@ void ULiveStreamAnimationSubsystem::ReceivedPacket(const TSharedRef<const LiveSt
 
 	// We should only receive packets from the server if we're acting as a Proxy
 	// or Processor.
-	if (ELiveStreamAnimationRole::Tracker != Role)
+	if (ELiveStreamAnimationRole::Tracker != Role || LiveStreamAnimationPrivate::bAllowTrackersToReceivePackets)
 	{
 		switch (Packet->GetPacketType())
 		{
