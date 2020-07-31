@@ -15,10 +15,10 @@ class LIVELINK_API ULiveLinkPreset : public UObject
 	GENERATED_BODY()
 
 private:
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSourcePresets")
 	TArray<FLiveLinkSourcePreset> Sources;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	TArray<FLiveLinkSubjectPreset> Subjects;
 
 public:

@@ -19,14 +19,14 @@ struct FLiveLinkSourcePreset
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category="LiveLinkSourcePresets")
 	FGuid Guid;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSourcePresets")
 	ULiveLinkSourceSettings* Settings = nullptr;
 
 	/** The SourceType when the source was saved to a Preset. */
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSourcePresets")
 	FText SourceType;
 };
 
@@ -36,18 +36,18 @@ struct FLiveLinkSubjectPreset
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	FLiveLinkSubjectKey Key;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	TSubclassOf<ULiveLinkRole> Role;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	ULiveLinkSubjectSettings* Settings = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	ULiveLinkVirtualSubject* VirtualSubject = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "LiveLinkSubjectPresets")
 	bool bEnabled = false;
 };
