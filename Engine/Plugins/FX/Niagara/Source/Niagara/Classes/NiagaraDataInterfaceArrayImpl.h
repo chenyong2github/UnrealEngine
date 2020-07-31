@@ -15,7 +15,6 @@ struct FNDIArrayImplHelperBase
 	//static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	//static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	//static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
-	//static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	//static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
 	//static const TArrayType GetDefaultValue();
 
@@ -256,6 +255,20 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 					FMemory::Memcpy(GPUMemory, RT_Array.GetData(), BufferSize);
 					RHICmdList.UnlockVertexBuffer(RT_Proxy->Buffer.Buffer);
 				}
+				else
+				{
+					const int32 BufferStride = T::GPUGetTypeStride();
+					const int32 BufferSize = RT_Array.GetTypeSize();
+					const int32 BufferNumElements = 1;
+					check((sizeof(TArrayType) % BufferStride) == 0);
+
+					const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
+
+					RT_Proxy->Buffer.Initialize(BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static, TEXT("NiagaraArrayFloat"));
+					void* GPUMemory = RHICmdList.LockVertexBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
+					FMemory::Memcpy(GPUMemory, &DefaultValue, BufferSize);
+					RHICmdList.UnlockVertexBuffer(RT_Proxy->Buffer.Buffer);
+				}
 			}
 		);
 	}
@@ -300,14 +313,8 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyArrayImpl* DataInterface = static_cast<FNiagaraDataInterfaceProxyArrayImpl*>(Context.DataInterface);
-		if (DataInterface->Buffer.NumBytes > 0)
-		{
-			static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base)->SetBuffer(RHICmdList, ComputeShaderRHI, DataInterface->Buffer.SRV, DataInterface->NumElements);
-		}
-		else
-		{
-			static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base)->SetBuffer(RHICmdList, ComputeShaderRHI, FNDIArrayImplHelper<TArrayType>::GetDummyBuffer(), 0);
-		}
+		check(DataInterface->Buffer.NumBytes > 0);
+		static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base)->SetBuffer(RHICmdList, ComputeShaderRHI, DataInterface->Buffer.SRV, DataInterface->NumElements);
 	}
 
 	void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
