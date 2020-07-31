@@ -13,14 +13,14 @@ namespace Chaos
 	{
 		Position                    = 0,
 		CollisionEnabled            = static_cast<uint64_t>(1) << 1,
-		ProjectionEnabled           = static_cast<uint64_t>(1) << 2,
+		Projection                  = static_cast<uint64_t>(1) << 2,
 		ParentInvMassScale          = static_cast<uint64_t>(1) << 3,
 		LinearBreakForce            = static_cast<uint64_t>(1) << 4,
 		AngularBreakTorque          = static_cast<uint64_t>(1) << 5,
 		UserData                    = static_cast<uint64_t>(1) << 6,
-		LinearDrive = static_cast<uint64_t>(1) << 7,
-		AngularDrive = static_cast<uint64_t>(1) << 8,
-		Stiffness = static_cast<uint64_t>(1) << 9,
+		LinearDrive                 = static_cast<uint64_t>(1) << 7,
+		AngularDrive                = static_cast<uint64_t>(1) << 8,
+		Stiffness                   = static_cast<uint64_t>(1) << 9,
 
 		DummyFlag
 	};
@@ -67,9 +67,17 @@ namespace Chaos
 		//void SetCollisionEnabled(bool InValue);
 		//bool GetCollisionEnabled() const;
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, ProjectionEnabled, EJointConstraintFlags::ProjectionEnabled, JointSettings.bProjectionEnabled);
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, ProjectionEnabled, EJointConstraintFlags::Projection, JointSettings.bProjectionEnabled);
 		//void SetProjectionEnabled(bool bInProjectionEnabled);
 		//bool GetProjectionEnabled() const;
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionLinearAlpha, EJointConstraintFlags::Projection, JointSettings.LinearProjection);
+		//void SetProjectionLinearAlpha(float InProjectionLinearAlpha);
+		//float GetProjectionLinearAlpha() const;
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionAngularAlpha, EJointConstraintFlags::Projection, JointSettings.AngularProjection);
+		//void SetProjectionAngularAlpha(float InProjectionAngularAlpha);
+		//float GetProjectionAngularAlpha() const;
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ParentInvMassScale, EJointConstraintFlags::ParentInvMassScale, JointSettings.ParentInvMassScale);
 		//void SetParentInvMassScale(FReal InParentInvMassScale);
