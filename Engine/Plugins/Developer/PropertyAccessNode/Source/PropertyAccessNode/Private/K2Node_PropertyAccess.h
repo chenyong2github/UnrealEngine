@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "K2Node.h"
 #include "IClassVariableCreator.h"
+#include "EdGraph/EdGraphPin.h"
 
 #include "K2Node_PropertyAccess.generated.h"
 
