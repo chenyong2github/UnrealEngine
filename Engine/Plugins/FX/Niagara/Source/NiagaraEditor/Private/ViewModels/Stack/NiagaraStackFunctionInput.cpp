@@ -130,7 +130,7 @@ void UNiagaraStackFunctionInput::Initialize(
 	UNiagaraSystem& ParentSystem = GetSystemViewModel()->GetSystem();
 	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 
-	FNiagaraStackGraphUtilities::FindAffectedScripts(ParentSystem, ParentEmitter, *OwningModuleNode.Get(), AffectedScripts);
+	FNiagaraStackGraphUtilities::FindAffectedScripts(&ParentSystem, ParentEmitter, *OwningModuleNode.Get(), AffectedScripts);
 
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
 	for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
@@ -1681,7 +1681,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		const FString NewName = InputValues.DynamicNode->GetFunctionName();
 		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(&System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
 
 		InputValues.DynamicNode->RefreshFromExternalChanges();
 

@@ -2395,7 +2395,7 @@ void FNiagaraStackGraphUtilities::RebuildEmitterNodes(UNiagaraSystem& System)
 	RelayoutGraph(*SystemGraph);
 }
 
-void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem& System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& ModuleNode, TArray<TWeakObjectPtr<UNiagaraScript>>& OutAffectedScripts)
+void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem* System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& ModuleNode, TArray<TWeakObjectPtr<UNiagaraScript>>& OutAffectedScripts)
 {
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(ModuleNode);
 
@@ -2407,8 +2407,8 @@ void FNiagaraStackGraphUtilities::FindAffectedScripts(UNiagaraSystem& System, UN
 			Emitter->GetScripts(Scripts, false);
 		}
 
-		OutAffectedScripts.Add(System.GetSystemSpawnScript());
-		OutAffectedScripts.Add(System.GetSystemUpdateScript());
+		OutAffectedScripts.Add(System->GetSystemSpawnScript());
+		OutAffectedScripts.Add(System->GetSystemUpdateScript());
 
 		for (UNiagaraScript* Script : Scripts)
 		{
@@ -2496,7 +2496,7 @@ void FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariab
 	}
 }
 
-void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem& System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldModuleName, const FString& NewModuleName)
+void FNiagaraStackGraphUtilities::RenameReferencingParameters(UNiagaraSystem* System, UNiagaraEmitter* Emitter, UNiagaraNodeFunctionCall& FunctionCallNode, const FString& OldModuleName, const FString& NewModuleName)
 {
 	TMap<FName, FName> OldNameToNewNameMap;
 	FNiagaraStackGraphUtilities::GatherRenamedStackFunctionInputAndOutputVariableNames(Emitter, FunctionCallNode, OldModuleName, NewModuleName, OldNameToNewNameMap);
