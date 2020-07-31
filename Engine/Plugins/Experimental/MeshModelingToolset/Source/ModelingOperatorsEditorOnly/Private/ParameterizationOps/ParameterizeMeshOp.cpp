@@ -160,8 +160,19 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 		return false;
 	}
 
+	// IProxyLODParameterization module calls into UVAtlas, which (appears to) assume mesh orientation that is opposite
+	// if what we use in UE. As a result the UV islands come back mirrored. So we send a reverse-orientation mesh instead,
+	// and then fix up the UVs when we set them below. 
+	const bool bFixOrientation = true;
+	FDynamicMesh3 FlippedMesh(EMeshComponents::FaceGroups);
+	FlippedMesh.Copy(Mesh, false, false, false, false);
+	if (bFixOrientation)
+	{
+		FlippedMesh.ReverseOrientation(false);
+	}
+
 	// Convert to a dense form.
-	FLinearMesh LinearMesh(Mesh, bUsePolygroups);
+	FLinearMesh LinearMesh(FlippedMesh, bUsePolygroups);
 
 	// Data to be populated by the UV generation tool
 	TArray<FVector2D> UVVertexBuffer;
@@ -205,7 +216,7 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 
 		for (int32 i = 0; i < NumUVs; ++i)
 		{
-			const FVector2D UV = UVVertexBuffer[i];
+			FVector2D UV = UVVertexBuffer[i];
 
 			// The associated VertID in the dynamic mesh
 			const int32 VertOffset = VertexRemapArray[i];
@@ -235,11 +246,19 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 			}
 
 			// NB: this could be slow.. 
-			int32 TriID = Mesh.FindTriangle(TriVertIDs[0], TriVertIDs[1], TriVertIDs[2]);
+			int32 TriID = FlippedMesh.FindTriangle(TriVertIDs[0], TriVertIDs[1], TriVertIDs[2]);
 
 			checkSlow(TriID != FDynamicMesh3::InvalidID);
 
-			FIndex3i ElTri(UVOffsetToElID[ UVTri[0]], UVOffsetToElID[UVTri[1]], UVOffsetToElID[UVTri[2]]);
+			FIndex3i ElTri;
+			if (bFixOrientation)
+			{
+				ElTri = FIndex3i(UVOffsetToElID[UVTri[1]], UVOffsetToElID[UVTri[0]], UVOffsetToElID[UVTri[2]]);
+			}
+			else
+			{
+				ElTri = FIndex3i(UVOffsetToElID[ UVTri[0]], UVOffsetToElID[UVTri[1]], UVOffsetToElID[UVTri[2]]);
+			}
 
 			// add the triangle to the overlay
 			UVOverlay->SetTriangle(TriID, ElTri);
