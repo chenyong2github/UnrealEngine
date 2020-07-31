@@ -49,6 +49,18 @@ public:
 	{
 	}
 
+	/**
+	 * Construct polygon with given indices into a vertex array
+	 */
+	TPolygon2(TArrayView<const FVector2<T>> VertexArray, TArrayView<const int32> VertexIndices) : Timestamp(0)
+	{
+		Vertices.SetNum(VertexIndices.Num());
+		for (int32 Idx = 0; Idx < VertexIndices.Num(); Idx++)
+		{
+			Vertices[Idx] = VertexArray[VertexIndices[Idx]];
+		}
+	}
+
 	/** @return the Timestamp for the polygon, which is updated every time the polygon is modified */
 	int GetTimestamp() const 
 	{
