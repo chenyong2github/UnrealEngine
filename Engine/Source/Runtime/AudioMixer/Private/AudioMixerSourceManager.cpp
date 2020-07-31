@@ -1374,7 +1374,7 @@ namespace Audio
 					FMixerSubmixPtr SubmixPtr = SubmixSend.Submix.Pin();
 					if (SubmixPtr.IsValid())
 					{
-						if (SubmixSend.SubmixSendStage)
+						if (SubmixSend.SubmixSendStage == EMixerSourceSubmixSendStage::PreDistanceAttenuation)
 						{
 							SourceInfo.bHasPreDistanceAttenuationSend = true;
 						}
@@ -1404,6 +1404,54 @@ namespace Audio
 				}
 
 				InSubmixPtr->AddOrSetSourceVoice(MixerSources[SourceId], InSubmixSend.SendLevel, InSubmixSend.SubmixSendStage);
+			}
+		});
+	}
+
+	void FMixerSourceManager::ClearSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& InSubmixSend)
+	{
+		AUDIO_MIXER_CHECK(SourceId < NumTotalSources);
+		AUDIO_MIXER_CHECK(GameThreadInfo.bIsBusy[SourceId]);
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		AudioMixerThreadCommand([this, SourceId, InSubmixSend]()
+		{
+			FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+			FMixerSubmixPtr InSubmixPtr = InSubmixSend.Submix.Pin();
+			if (InSubmixPtr.IsValid())
+			{
+				for (int32 i = SourceInfo.SubmixSends.Num() - 1; i >= 0; --i)
+				{
+					if (SourceInfo.SubmixSends[i].Submix == InSubmixSend.Submix)
+					{
+						SourceInfo.SubmixSends.RemoveAtSwap(i, 1, false);
+					}
+				}
+
+				// Update the has predist attenuation send state
+				SourceInfo.bHasPreDistanceAttenuationSend = false;
+				for (FMixerSourceSubmixSend& SubmixSend : SourceInfo.SubmixSends)
+				{
+					FMixerSubmixPtr SubmixPtr = SubmixSend.Submix.Pin();
+					if (SubmixPtr.IsValid())
+					{
+						if (SubmixSend.SubmixSendStage == EMixerSourceSubmixSendStage::PreDistanceAttenuation)
+						{
+							SourceInfo.bHasPreDistanceAttenuationSend = true;
+							break;
+						}
+					}
+				}
+
+				// If we don't have a pre-distance attenuation send, lets zero out the buffer so the output buffer stops doing math with it.
+				if (!SourceInfo.bHasPreDistanceAttenuationSend)
+				{
+					SourceSubmixOutputBuffers[SourceId].SetPreAttenuationSourceBuffer(nullptr);
+				}
+
+				// Now remove the source voice from the submix send list
+				InSubmixPtr->RemoveSourceVoice(MixerSources[SourceId]);
 			}
 		});
 	}
