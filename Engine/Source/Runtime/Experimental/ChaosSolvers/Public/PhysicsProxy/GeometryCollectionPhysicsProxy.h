@@ -171,6 +171,26 @@ public:
 
 	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
 
+	const TArray<FClusterHandle*> GetParticles() const
+	{
+		return SolverParticleHandles;
+	}
+
+	const FSimulationParameters& GetSimParameters() const
+	{
+		return Parameters;
+	}
+
+	FSimulationParameters& GetSimParameters()
+	{
+		return Parameters;
+	}
+
+	FGeometryDynamicCollection& GetPhysicsCollection()
+	{
+		return PhysicsThreadCollection;
+	}
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.

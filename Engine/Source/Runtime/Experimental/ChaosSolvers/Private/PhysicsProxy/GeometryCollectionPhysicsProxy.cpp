@@ -1431,7 +1431,8 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 	const TManagedArray<int32>& Parent = PhysicsThreadCollection.Parent;
 	const TManagedArray<TSet<int32>>& Children = PhysicsThreadCollection.Children;
 
-	{ SCOPE_CYCLE_COUNTER(STAT_CalcParticleToWorld);
+	{ 
+		SCOPE_CYCLE_COUNTER(STAT_CalcParticleToWorld);
 
 		// initialize Target Results
 		TargetResults.Transforms.Init(PhysicsThreadCollection.Transform);
@@ -1444,6 +1445,7 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 			Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = SolverParticleHandles[TransformGroupIndex];
 			if (!Handle)
 			{
+				PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
 				continue;
 			}
 
@@ -1515,48 +1517,47 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 				TPBDRigidParticleHandle<float, 3>* ClusterParentId = Handle->ClusterIds().Id;
 				SolverClusterID[TransformGroupIndex] = ClusterParentId;
 			}
-			else // Handle->Disabled()
+			else    // Handle->Disabled()
 			{
 				// The rigid body parent cluster has changed within the solver, and its
 				// parent body is not tracked within the geometry collection. So we need to
 				// pull the rigid bodies out of the transform hierarchy, and just drive
-				// the positions directly from the solvers cluster particle. 
-				if (TPBDRigidParticleHandle<float, 3>* ClusterParentBase = Handle->ClusterIds().Id)
+				// the positions directly from the solvers cluster particle.
+				if(TPBDRigidParticleHandle<float, 3>* ClusterParentBase = Handle->ClusterIds().Id)
 				{
-					if(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParent = ClusterParentBase->CastToClustered() )
+					if(Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ClusterParent = ClusterParentBase->CastToClustered())
 					{
-
 						// syncronize parents if it has changed.
-						if (SolverClusterID[TransformGroupIndex] != ClusterParent)
-				{
-					// Force all driven rigid bodies out of the transform hierarchy
-							if (Parent[TransformGroupIndex] != INDEX_NONE)
-					{
+						if(SolverClusterID[TransformGroupIndex] != ClusterParent)
+						{
+							// Force all driven rigid bodies out of the transform hierarchy
+							if(Parent[TransformGroupIndex] != INDEX_NONE)
+							{
 								// If the parent of this NON DISABLED body is set to anything other than INDEX_NONE,
 								// then it was just unparented, likely either by rigid clustering or by fields.  We
 								// need to force all such enabled rigid bodies out of the transform hierarchy.
 								TargetResults.Parent[TransformGroupIndex] = INDEX_NONE;
-								
-								//GeometryCollectionAlgo::UnparentTransform(&PhysicsThreadCollection, ChildIndex);
+
+								// GeometryCollectionAlgo::UnparentTransform(&PhysicsThreadCollection, ChildIndex);
 								PhysicsThreadCollection.Children[PhysicsThreadCollection.Parent[TransformGroupIndex]].Remove(TransformGroupIndex);
 								PhysicsThreadCollection.Parent[TransformGroupIndex] = INDEX_NONE;
 
 								// Indicate that this object needs to be updated and the proxy is active.
 								TargetResults.DisabledStates[TransformGroupIndex] = false;
-								IsObjectDynamic = true;
-					}
+								IsObjectDynamic                                   = true;
+							}
 							SolverClusterID[TransformGroupIndex] = Handle->ClusterIds().Id;
-				}
+						}
 
-						if (ClusterParent->InternalCluster() )
-	{
+						if(ClusterParent->InternalCluster())
+						{
 							Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ProxyElementHandle = SolverParticleHandles[TransformGroupIndex];
 
 							FTransform& ParticleToWorld = TargetResults.ParticleToWorldTransforms[TransformGroupIndex];
-							ParticleToWorld = ProxyElementHandle->ChildToParent() * FTransform(ClusterParent->R(), ClusterParent->X()); // aka ClusterChildToWorld
+							ParticleToWorld             = ProxyElementHandle->ChildToParent() * FTransform(ClusterParent->R(), ClusterParent->X());    // aka ClusterChildToWorld
 
 							// GeomToActor = ActorToWorld.Inv() * ClusterChildToWorld * MassToLocal.Inv();
-							const FTransform MassToLocal = PhysicsThreadCollection.MassToLocal[TransformGroupIndex];
+							const FTransform MassToLocal                  = PhysicsThreadCollection.MassToLocal[TransformGroupIndex];
 							TargetResults.Transforms[TransformGroupIndex] = MassToLocal.GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
 							TargetResults.Transforms[TransformGroupIndex].NormalizeRotation();
 
@@ -1564,29 +1565,26 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 
 							// Indicate that this object needs to be updated and the proxy is active.
 							TargetResults.DisabledStates[TransformGroupIndex] = false;
-							IsObjectDynamic = true;
+							IsObjectDynamic                                   = true;
 
 							ProxyElementHandle->X() = ParticleToWorld.GetTranslation();
 							ProxyElementHandle->R() = ParticleToWorld.GetRotation();
 							GetSolver<FSolver>()->GetEvolution()->DirtyParticle(*ProxyElementHandle);
 						}
-		}
-	}
-			}// end if
+					}
+				}
+			}    // end if
 
 			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
-		} // end for
-	} // STAT_CalcParticleToWorld scope
-
-
+		}    // end for
+	}        // STAT_CalcParticleToWorld scope
 
 	// If object is dynamic, compute global matrices	
 	if (IsObjectDynamic || TargetResults.GlobalTransforms.Num() == 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CalcGlobalGCMatrices);
 		check(TargetResults.Transforms.Num() == TargetResults.Parent.Num());
-		GeometryCollectionAlgo::GlobalMatrices(
-			TargetResults.Transforms, TargetResults.Parent, TargetResults.GlobalTransforms);
+		GeometryCollectionAlgo::GlobalMatrices(TargetResults.Transforms, TargetResults.Parent, TargetResults.GlobalTransforms);
 
 		// Compute world bounds.  This is a loose bounds based on the circumscribed box 
 		// of a bounding sphere for the geometry.		
@@ -1594,8 +1592,7 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 		FBox BoundingBox(ForceInit);
 		for (int i = 0; i < ValidGeometryBoundingBoxes.Num(); ++i)
 		{
-			BoundingBox += ValidGeometryBoundingBoxes[i].TransformBy(
-				TargetResults.GlobalTransforms[ValidGeometryTransformIndices[i]] * ActorToWorld);
+			BoundingBox += ValidGeometryBoundingBoxes[i].TransformBy(TargetResults.GlobalTransforms[ValidGeometryTransformIndices[i]] * ActorToWorld);
 		}
 		TargetResults.WorldBounds = FBoxSphereBounds(BoundingBox);
 	}

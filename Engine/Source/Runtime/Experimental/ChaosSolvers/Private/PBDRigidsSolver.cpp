@@ -612,7 +612,9 @@ namespace Chaos
 		if (bEnabled)
 		{
 			MLastDt = DeltaTime;
+			EventPreSolve.Broadcast(DeltaTime);
 			AdvanceOneTimeStepTask<Traits>(this, DeltaTime).DoWork();
+			EventPreBuffer.Broadcast(DeltaTime);
 		}
 	}
 
@@ -889,6 +891,12 @@ namespace Chaos
 		for (auto* GCProxy : ActiveGC)
 		{
 			GCProxy->BufferPhysicsResults();
+		}
+
+		if(bEnabled)
+		{
+			// Now that results have been buffered we have completed a solve step so we can broadcast that event
+			EventPostSolve.Broadcast(MLastDt);
 		}
 	}
 
