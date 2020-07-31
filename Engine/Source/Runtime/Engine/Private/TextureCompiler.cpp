@@ -168,6 +168,35 @@ EQueuedWorkPriority FTextureCompilingManager::GetBasePriority(UTexture* InTextur
 	return TextureCompilingManagerImpl::GetBasePriority(InTexture);
 }
 
+void FTextureCompilingManager::Shutdown()
+{
+	bHasShutdown = true;
+	if (GetNumRemainingTextures())
+	{
+		TArray<UTexture*> PendingTextures;
+		PendingTextures.Reserve(GetNumRemainingTextures());
+
+		for (TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+		{
+			for (TWeakObjectPtr<UTexture>& WeakTexture : Bucket)
+			{
+				if (WeakTexture.IsValid())
+				{
+					UTexture* Texture = WeakTexture.Get();
+					
+					if (!Texture->TryCancelCachePlatformData())
+					{
+						PendingTextures.Add(Texture);
+					}
+				}
+			}
+		}
+
+		// Wait on textures already in progress we couldn't cancel
+		FinishCompilation(PendingTextures);
+	}
+}
+
 FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 {
 	static FQueuedThreadPoolWrapper* GTextureThreadPool = nullptr;
@@ -175,10 +204,13 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 	{
 		TextureCompilingManagerImpl::EnsureInitializedCVars();
 
-		// Wrapping GLargeThreadPool to give TextureThreadPool it's own set of priorities and allow Pausable functionality
-		// All texture priorities will resolve to a Low priority once being scheduled in the LargeThreadPool.
+		// Wrapping GThreadPool to give TextureThreadPool it's own set of priorities and allow Pausable functionality
+		// We're using GThreadPool instead of GLargeThreadPool because asset compilation is hard on total memory and memory bandwidth and can run slower when going wider than actual cores.
+		// All texture priorities will resolve to either Low or Lowest priority once being scheduled in the ThreadPool.
+		// Any asset supporting being built async should be scheduled lower than Normal on the LargeThreadPool to let non-async stuff go first
+		const auto TexturePriorityMapper = [](EQueuedWorkPriority TexturePriority) { return FMath::Max(TexturePriority, EQueuedWorkPriority::Low); };
 		const int32 MaxConcurrency = CVarAsyncTextureCompilationMaxConcurrency.GetValueOnAnyThread();
-		GTextureThreadPool = new FQueuedThreadPoolWrapper(GLargeThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Low; });
+		GTextureThreadPool = new FQueuedThreadPoolWrapper(GThreadPool, MaxConcurrency, TexturePriorityMapper);
 
 		CVarAsyncTextureCompilation->SetOnChangedCallback(
 			FConsoleVariableDelegate::CreateLambda(
@@ -228,6 +260,11 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 
 bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 {
+	if (bHasShutdown)
+	{
+		return false;
+	}
+
 	TextureCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncTextureCompilation.GetValueOnAnyThread() != 0;
@@ -408,7 +445,7 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 		for (UTexture* Texture : PendingTextures)
 		{
 			PendingTasks[PendingTaskIndex].Texture.Reset(Texture);
-			GLargeThreadPool->AddQueuedWork(&PendingTasks[PendingTaskIndex], EQueuedWorkPriority::High);
+			GThreadPool->AddQueuedWork(&PendingTasks[PendingTaskIndex], EQueuedWorkPriority::High);
 			PendingTaskIndex++;
 		}
 
@@ -425,6 +462,12 @@ void FTextureCompilingManager::FinishCompilation(const TArray<UTexture*>& InText
 			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
 			while (!PendingTask.Event->Wait(16))
 			{
+				// If the task pool is saturated, we want to be able to contribute so we can make some progress quickly...
+				if (GThreadPool->RetractQueuedWork(&PendingTask))
+				{
+					PendingTask.DoThreadedWork();
+				}
+
 				UpdateProgress(0.0f, TextureIndex, InTextures.Num(), TextureName);
 			}
 			UpdateProgress(1.f, TextureIndex++, InTextures.Num(), TextureName);

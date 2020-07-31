@@ -89,6 +89,7 @@
 	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "Misc/QueuedThreadPoolWrapper.h"
+	#include "TextureCompiler.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -4146,6 +4147,10 @@ void FEngineLoop::Exit()
 			CancelAsyncLoading();
 		}
 	}
+
+#if WITH_EDITOR
+	FTextureCompilingManager::Get().Shutdown();
+#endif
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())

@@ -1160,6 +1160,8 @@ public:
 protected:
 
 #if WITH_EDITOR
+	// The Texture compiler might use TryCancelCachePlatformData on shutdown
+	friend class FTextureCompilingManager;
 
 	/** Try to cancel any async tasks on PlatformData. 
 	 *  Returns true if there is no more async tasks pending, false otherwise.
@@ -1169,7 +1171,7 @@ protected:
 	/** Notify any loaded material instances that the texture has changed. */
 	ENGINE_API void NotifyMaterials();
 
-#endif //WITH_EDOTIR
+#endif //WITH_EDITOR
 };
 
 /** 

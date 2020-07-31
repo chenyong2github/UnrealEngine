@@ -53,6 +53,11 @@ public:
 	 */
 	ENGINE_API FQueuedThreadPool* GetThreadPool() const;
 
+	/**
+	 * Cancel any pending work and blocks until it is safe to shut down.
+	 */
+	ENGINE_API void Shutdown();
+
 protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickableWhenPaused() const override { return true; }
@@ -60,6 +65,7 @@ protected:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FTextureCompilingManager, STATGROUP_Tickables); }
 
 private:
+	bool bHasShutdown = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 
 	void ProcessTextures(int32 MaximumPriority = -1);
