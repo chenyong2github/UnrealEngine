@@ -2663,17 +2663,17 @@ static void ConstrainClusterGeodesic( FTriCluster& Cluster, FMeshlet& Meshlet )
 }
 
 
-static __forceinline uint32 SetCorner( uint32 Triangle, uint32 LocalCorner )
+static FORCEINLINE uint32 SetCorner( uint32 Triangle, uint32 LocalCorner )
 {
 	return ( Triangle << 2 ) | LocalCorner;
 }
 
-static __forceinline uint32 CornerToTriangle( uint32 Corner )
+static FORCEINLINE uint32 CornerToTriangle( uint32 Corner )
 {
 	return Corner >> 2;
 }
 
-static __forceinline uint32 NextCorner( uint32 Corner )
+static FORCEINLINE uint32 NextCorner( uint32 Corner )
 {
 	if( ( Corner & 3 ) == 2 )
 		Corner &= ~3;
@@ -2682,7 +2682,7 @@ static __forceinline uint32 NextCorner( uint32 Corner )
 	return Corner;
 }
 
-static __forceinline uint32 PrevCorner( uint32 Corner )
+static FORCEINLINE uint32 PrevCorner( uint32 Corner )
 {
 	if( ( Corner & 3 ) == 0 )
 		Corner |= 2;
@@ -2691,7 +2691,7 @@ static __forceinline uint32 PrevCorner( uint32 Corner )
 	return Corner;
 }
 
-static __forceinline uint32 CornerToIndex( uint32 Corner )
+static FORCEINLINE uint32 CornerToIndex( uint32 Corner )
 {
 	return ( Corner >> 2 ) * 3 + ( Corner & 3 );
 }
