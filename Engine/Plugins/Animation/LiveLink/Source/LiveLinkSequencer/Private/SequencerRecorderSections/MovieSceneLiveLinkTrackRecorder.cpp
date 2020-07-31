@@ -192,8 +192,12 @@ void UMovieSceneLiveLinkTrackRecorder::FinalizeTrackImpl()
 {
 	if (MovieSceneSection.IsValid())
 	{
+		FTakeRecorderParameters Parameters;
+		Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+
 		FKeyDataOptimizationParams Params;
 		Params.bAutoSetInterpolation = true;
+		Params.Tolerance = Parameters.User.ReduceKeysTolerance;
 		MovieSceneSection->FinalizeSection(bReduceKeys, Params);
 
 		TOptional<TRange<FFrameNumber> > DefaultSectionLength = MovieSceneSection->GetAutoSizeRange();
