@@ -14,6 +14,7 @@
 #include "Rendering/MotionVectorSimulation.h"
 #include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "UObject/StrongObjectPtr.h"
+#include "SkeletalMeshRestoreState.h"
 
 
 bool ShouldUsePreviewPlayback(IMovieScenePlayer& Player, UObject& RuntimeObject)
@@ -103,14 +104,10 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 		{
 			FToken(USkeletalMeshComponent* InComponent)
 			{
-				// Cache this object's current update flag and animation mode
-				VisibilityBasedAnimTickOption = InComponent->VisibilityBasedAnimTickOption;
 				AnimationMode = InComponent->GetAnimationMode();
 				CachedAnimInstance.Reset(InComponent->AnimScriptInstance);
 
-#if WITH_EDITOR
-				bUpdateAnimationInEditor = InComponent->GetUpdateAnimationInEditor();
-#endif
+				SkeletalMeshRestoreState.SaveState(InComponent);
 			}
 
 			virtual void RestoreState(UObject& ObjectToRestore, IMovieScenePlayer& Player)
@@ -125,9 +122,6 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				}
 
 				FAnimCustomInstanceHelper::UnbindFromSkeletalMeshComponent<UAnimSequencerInstance>(Component);
-
-				// Reset the mesh component update flag and animation mode to what they were before we animated the object
-				Component->VisibilityBasedAnimTickOption = VisibilityBasedAnimTickOption;
 				if (Component->GetAnimationMode() != AnimationMode)
 				{
 					// this SetAnimationMode reinitializes even if the mode is same
@@ -158,9 +152,9 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				Component->MarkRenderTransformDirty();
 				Component->MarkRenderDynamicDataDirty();
 				
-#if WITH_EDITOR
-				Component->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
-#endif
+				// Reset the mesh component update flag and animation mode to what they were before we animated the object
+				SkeletalMeshRestoreState.RestoreState(Component);
+
 				// if not game world, don't clean this up
 				if (Component->GetWorld() != nullptr && Component->GetWorld()->IsGameWorld() == false)
 				{
@@ -168,13 +162,11 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				}
 			}
 
-			EVisibilityBasedAnimTickOption VisibilityBasedAnimTickOption;
 			EAnimationMode::Type AnimationMode;
 			TStrongObjectPtr<UAnimInstance> CachedAnimInstance;
 
-#if WITH_EDITOR
-			bool bUpdateAnimationInEditor;
-#endif
+			FSkeletalMeshRestoreState SkeletalMeshRestoreState;
+
 		};
 
 		return FToken(CastChecked<USkeletalMeshComponent>(&Object));
