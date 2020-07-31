@@ -15,11 +15,6 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureFeedbackBuffer.h"
 
-//#include "ShaderPrintParameters.h"
-//#include "GpuDebugRendering.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
-
 DECLARE_STATS_GROUP(TEXT("Virtual Heightfield Mesh"), STATGROUP_VirtualHeightfieldMesh, STATCAT_Advanced);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVirtualHeightfieldMesh, Warning, All);
@@ -607,8 +602,6 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FCollectQuadsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MinMaxTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, MinMaxTextureSampler)
 			SHADER_PARAMETER_TEXTURE(Texture2D<float>, OcclusionTexture)
@@ -702,7 +695,6 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FResolveNeighborLodsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 			SHADER_PARAMETER(FVector, PageTableSize)
 			SHADER_PARAMETER_TEXTURE(Texture2D, PageTableTexture)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, QuadBuffer)
@@ -747,7 +739,6 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FCullInstances, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MinMaxTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, MinMaxTextureSampler)
 			SHADER_PARAMETER_TEXTURE(Texture2D, PageTableTexture)
@@ -1029,8 +1020,6 @@ namespace VirtualHeightfieldMesh
 		TShaderMapRef<FCollectQuadsCS> ComputeShader(InGlobalShaderMap);
 
 		FCollectQuadsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCollectQuadsCS::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
-		//ShaderDrawDebug::SetParameters(GraphBuilder, *InViewDesc.ViewDebug, PassParameters->ShaderDrawParameters);
 		PassParameters->MinMaxTexture = InDesc.MinMaxTexture;
 		PassParameters->MinMaxTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->OcclusionTexture = InViewDesc.OcclusionTexture;
@@ -1104,7 +1093,6 @@ namespace VirtualHeightfieldMesh
 		TShaderMapRef<FResolveNeighborLodsCS> ComputeShader(InGlobalShaderMap);
 
 		FResolveNeighborLodsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResolveNeighborLodsCS::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
 		PassParameters->PageTableSize = InDesc.PageTableSize;
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
 		PassParameters->QuadBuffer = InVolatileResources.QuadBufferSRV;
@@ -1144,7 +1132,6 @@ namespace VirtualHeightfieldMesh
 	void AddPass_CullInstances(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FOutputResources& InOutputResources, FChildViewDesc const& InViewDesc)
 	{
 		FCullInstances::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullInstances::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
 		PassParameters->MinMaxTexture = InDesc.MinMaxTexture;
 		PassParameters->MinMaxTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
@@ -1346,5 +1333,3 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 		}
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
