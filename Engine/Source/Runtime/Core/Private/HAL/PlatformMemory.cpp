@@ -15,6 +15,7 @@ namespace
 	{
 		return Bytes / (1024.0f * 1024.0f);
 	}
+}
 
 FScopedMemoryStats::FScopedMemoryStats(const TCHAR* Name)
 	: Text(Name)
