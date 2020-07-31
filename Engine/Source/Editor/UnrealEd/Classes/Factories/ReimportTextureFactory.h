@@ -31,6 +31,10 @@ class UReimportTextureFactory : public UTextureFactory, public FReimportHandler
 	virtual int32 GetPriority() const override;
 	//~ End FReimportHandler Interface
 
+	//~ Begin UFactory Interface
+	virtual bool IsAutomatedImport() const override;
+	//~ End UFactory Interface
+
 private:
 	//~ Begin UTextureFactory Interface
 	virtual UTexture2D* CreateTexture2D( UObject* InParent, FName Name, EObjectFlags Flags ) override;
