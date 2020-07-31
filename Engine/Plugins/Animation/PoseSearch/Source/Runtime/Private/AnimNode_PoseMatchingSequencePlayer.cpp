@@ -18,7 +18,7 @@ const UPoseSearchIndex* GetPoseSearchDataIndex(const UAnimSequenceBase& Sequence
 
 	for (UAnimMetaData* MetaDataInstance : MetaData)
 	{
-		if (MetaDataInstance->GetClass() == UPoseSearchIndex::StaticClass())
+		if (MetaDataInstance && (MetaDataInstance->GetClass() == UPoseSearchIndex::StaticClass()))
 		{
 			PoseSearchIndex = Cast<UPoseSearchIndex>(MetaDataInstance);
 			break;
