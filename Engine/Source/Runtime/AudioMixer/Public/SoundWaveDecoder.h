@@ -262,7 +262,7 @@ namespace Audio
 		int32 AudioThreadId;
 		FAudioDevice* AudioDevice;
 		int32 SampleRate;
-		FCriticalSection DecodingSourcesCritSec;
+		mutable FCriticalSection DecodingSourcesCritSec;
 		TMap<int32, FDecodingSoundSourcePtr> InitializingDecodingSources;
 		TMap<int32, FDecodingSoundSourcePtr> DecodingSources;
 		TMap<int32, FSourceDecodeInit> PrecachingSources;
