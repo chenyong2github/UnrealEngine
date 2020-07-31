@@ -741,7 +741,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 			if (SavedCue.bResimulates && SavedCue.Frame >= InRollbackFrame)
 			{
 				SavedCue.bPendingResimulateRollback = true;
-				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Marking %s bPendingResimulateRollback."), *GetDebugName(), *SavedCue.GetDebugName());
+				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Marking %s bPendingResimulateRollback. (RollbackFrame: %d/%d)"), *GetDebugName(), *SavedCue.GetDebugName(), RollbackFrame, InRollbackFrame);
 			}
 		}
 	}

@@ -84,7 +84,7 @@ public:
 
 		if (bHasPhysics)
 		{
-			FNetworkPredictionDriver<ModelDef>::BeginInterpolatedPhysics(InstanceData.Info.Driver, InstanceData.Info.Physics);
+			FNetworkPredictionDriver<ModelDef>::BeginInterpolatedPhysics(InstanceData.Info.Driver);
 		}
 	}
 
@@ -98,7 +98,7 @@ public:
 
 		if (bHasPhysics)
 		{
-			FNetworkPredictionDriver<ModelDef>::EndInterpolatedPhysics(InstanceData.Info.Driver, InstanceData.Info.Physics);
+			FNetworkPredictionDriver<ModelDef>::EndInterpolatedPhysics(InstanceData.Info.Driver);
 		}
 
 		
@@ -236,7 +236,7 @@ public:
 					TConditionalState<PhysicsState> PhysicsState;
 
 					FNetworkPredictionDriver<ModelDef>::InterpolatePhysics(Instance.PhysicsBuffer[FromFrame], Instance.PhysicsBuffer[ToFrame], PCT, PhysicsState);
-					FNetworkPredictionDriver<ModelDef>::FinalizeInterpolatedPhysics(InstanceData.Info.Driver, InstanceData.Info.Physics, PhysicsState);
+					FNetworkPredictionDriver<ModelDef>::FinalizeInterpolatedPhysics(InstanceData.Info.Driver, PhysicsState);
 				}
 
 				// Update SimulationView with the frame we are interpolating to
