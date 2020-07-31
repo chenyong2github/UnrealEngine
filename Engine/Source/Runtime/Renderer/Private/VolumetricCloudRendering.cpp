@@ -410,6 +410,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER(uint32, SampleCountDebugMode)
 	SHADER_PARAMETER(uint32, IsReflectionRendering)
 	SHADER_PARAMETER(uint32, HasValidHZB)
+	SHADER_PARAMETER(uint32, ClampRayTToDepthBufferPostHZB)
 	SHADER_PARAMETER(uint32, TraceShadowmap)
 	SHADER_PARAMETER(FVector, HZBUvFactor)
 	SHADER_PARAMETER(FVector4, HZBSize)
@@ -449,7 +450,8 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRenderVolumetricCloudGlo
 	VolumetricCloudParams.VolumetricRenderTargetMode = ViewInfo.ViewState ? ViewInfo.ViewState->VolumetricCloudRenderTarget.GetMode() : 0;
 	VolumetricCloudParams.SampleCountDebugMode = FMath::Clamp(CVarVolumetricCloudDebugSampleCountMode.GetValueOnAnyThread(), 0, 5);
 
-	VolumetricCloudParams.HasValidHZB = false;
+	VolumetricCloudParams.HasValidHZB = 0;
+	VolumetricCloudParams.ClampRayTToDepthBufferPostHZB = 0;
 	VolumetricCloudParams.HZBTexture = BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 	VolumetricCloudParams.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -1418,6 +1420,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 				VolumetricCloudParams.IntersectWithOpaque = 0;				// No depth buffer is available
 				VolumetricCloudParams.HasValidHZB = 0;						// No valid HZB is available
 			}
+
+			VolumetricCloudParams.ClampRayTToDepthBufferPostHZB = bShouldViewRenderVolumetricRenderTarget ? 0 : 1;
 
 			TUniformBufferRef<FRenderVolumetricCloudGlobalParameters> VolumetricCloudRenderViewParamsUB = TUniformBufferRef<FRenderVolumetricCloudGlobalParameters>::CreateUniformBufferImmediate(VolumetricCloudParams, UniformBuffer_SingleFrame);
 
