@@ -172,7 +172,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 	typename TEnableIf<T::bSupportsGPU>::Type GetParameterDefinitionHLSL_Internal(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) const
 	{
 		OutHLSL.Appendf(TEXT("Buffer<%s> %s;\n"), FNDIArrayImplHelper<TArrayType>::HLSLBufferTypeName, *FNiagaraDataInterfaceArrayImplHelper::GetBufferName(ParamInfo.DataInterfaceHLSLSymbol));
-		OutHLSL.Appendf(TEXT("int %s[2];\n"), *FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(ParamInfo.DataInterfaceHLSLSymbol));
+		OutHLSL.Appendf(TEXT("int2 %s;\n"), *FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(ParamInfo.DataInterfaceHLSLSymbol));
 	}
 
 	template<typename T = FNDIArrayImplHelper<TArrayType>>
