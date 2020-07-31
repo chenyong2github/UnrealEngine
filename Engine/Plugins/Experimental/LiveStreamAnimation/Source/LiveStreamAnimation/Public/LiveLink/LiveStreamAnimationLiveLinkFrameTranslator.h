@@ -52,6 +52,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Live Stream Animation|Live Link|Translation")
 	TArray<FName> BonesToUse;
 
+	/**
+	 * When this is true, before we stream any Live Link Data, we will strip it down to just the
+	 * bones specified in BonesToUse.
+	 *
+	 * This is mainly useful when there are large Live Link Rigs that only need to replicate a
+	 * subset of their bones for proper Animation Streaming.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Live Stream Animation|Live Link|Translation")
+	bool bStripLiveLinkSkeletonToBonesToUse = false;
+
 	const TMap<FName, FTransform>& GetBoneTransformsByName() const
 	{
 		return BoneTransformsByName;
@@ -109,6 +119,11 @@ public:
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 #endif
+
+	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandle TranslationProfileHandle) const
+	{
+		return GetTranslationProfile(FLiveStreamAnimationHandleWrapper(TranslationProfileHandle));
+	}
 
 	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileHandleName) const
 	{
