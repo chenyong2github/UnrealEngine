@@ -158,6 +158,9 @@ private:
 	virtual void PostRedo(bool bSuccess) override;
 	// End of FEditorUndoClient
 	
+	/** Called when an asset has just been imported */
+	void OnAssetReimport(UObject* Object);
+
 	/** Builds the menu for the PhysicsAsset editor */
 	void ExtendMenu();
 
@@ -357,6 +360,9 @@ private:
 
 	/** Command list for viewport operations */
 	TSharedPtr<FUICommandList_Pinnable> ViewportCommandList;
+
+	/** To unregister reimport handler */
+	FDelegateHandle OnAssetReimportDelegateHandle;
 
 	void FixPhysicsState();
 	void ImpToggleSimulation();
