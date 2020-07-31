@@ -1587,6 +1587,11 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 	// Mount the plugin content directory
 	if (Plugin->CanContainContent() && ensure(RegisterMountPointDelegate.IsBound()))
 	{
+		if (NewPluginMountedEvent.IsBound())
+		{
+			NewPluginMountedEvent.Broadcast(*Plugin);
+		}
+
 		FString ContentDir = Plugin->GetContentDir();
 		RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
 
