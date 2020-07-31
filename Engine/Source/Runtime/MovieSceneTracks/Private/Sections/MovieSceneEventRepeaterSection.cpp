@@ -26,7 +26,19 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 	const FSequenceInstance& ThisInstance   = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle);
 	FMovieSceneContext       Context        = ThisInstance.GetContext();
 
-	if (!GetRange().Contains(Context.GetTime().FrameNumber))
+	if (Context.IsSilent())
+	{
+		return;
+	}
+	else if (Context.GetDirection() == EPlayDirection::Forwards && !EventTrack->bFireEventsWhenForwards)
+	{
+		return;
+	}
+	else if (Context.GetDirection() == EPlayDirection::Backwards && !EventTrack->bFireEventsWhenBackwards)
+	{
+		return;
+	}
+	else if (!GetRange().Contains(Context.GetTime().FrameNumber))
 	{
 		return;
 	}
