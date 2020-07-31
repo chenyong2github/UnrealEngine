@@ -16,15 +16,7 @@
 // In other words, all interpolated simulations are "in sync": they have the same amount of buffered frames/time. 
 //
 //
-// TODO:
-//	The interpolated result frame is not stored anywhere, so accessing latest state via the FNetworkPredictionProxy
-//	will never show this data. 
-//
-//	We probably need to distinguish between the "Frame Final" state and the "Simulation State" in FNetworkPredictionProxy.
-//	Also probably need better write protection. E.g, interpolated simulations simply cannot be predictively written to on
-//	clients.
-//
-//	Other notes:
+//	Notes:
 //		-We never allow extrapolation. If we under run an interpolation buffer we just use latest state ("cap at 100%")
 //		-This could be allowed/opt in option on the ModelDef.
 
@@ -44,6 +36,9 @@ namespace NetworkPredictionCVars
 //	The main concerns here are keeping valid data in the Frame buffer.
 //	As we NetRecv, make sure we have a continuous line of valid frames between to ToFrame and received frame.
 //	When interpolating, make sure we haven't been starved on replication.
+//
+//	Note: Interpolation ignores the TickState->Offset that forward predicted services use. Instead, we copy
+//	into the local frame buffers @ the server frame numbers. 
 // ------------------------------------------------------------------------------
 class IFixedInterpolateService
 {
@@ -156,7 +151,7 @@ public:
 				const int32 GapFromFrame = bLastWrittenFrameValid ? InterpolationData.LastWrittenFrame : LocalFrame;
 				const int32 GapToFrame = LocalFrame;
 
-				npEnsureSlow(StartFrame - EndFrame <= Frames.Buffer.Capacity());
+				npEnsureMsgfSlow(StartFrame - EndFrame <= Frames.Buffer.Capacity(), TEXT("Gap longer than expected. StartFrame: %d. EndFrame: %d (%d)"), StartFrame, EndFrame, StartFrame - EndFrame);
 
 				for (int32 Frame = StartFrame; Frame < EndFrame; ++Frame)
 				{

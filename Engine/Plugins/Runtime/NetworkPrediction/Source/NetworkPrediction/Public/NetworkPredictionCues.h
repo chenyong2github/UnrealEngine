@@ -44,6 +44,9 @@ NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPredictionCues, Disp
 
 using FNetSimCueTypeId = NETSIMCUE_TYPEID_TYPE;
 
+template<typename ModelDef>
+struct FNetworkPredictionDriver;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 //	Wrapper: wraps the actual user NetSimCue. We want to avoid virtualizing functions on the actual user types.
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -489,107 +492,113 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 
 	// Serializes all saved cues
 	//	bSerializeFrameNumber - whether to serialize Frame# or Time to this target. Frame is more accurate but some cases require time based replication.
-	void NetSerializeSavedCues(FArchive& Ar, ENetSimCueReplicationTarget ReplicationMask, bool bSerializeFrameNumber, int32 InLastRecvFrame, int32 InLastRecvTime)
+	void NetSendSavedCues(FArchive& Ar, ENetSimCueReplicationTarget ReplicationMask, bool bSerializeFrameNumber)
 	{
-		if (Ar.IsSaving())
+		npCheckSlow(Ar.IsSaving());
+		
+		// FIXME: requires two passes to count how many elements are valid for this replication mask.
+		// We could count this as saved cues are added or possibly modify the bitstream after writing the elements (tricky and would require casting to FNetBitWriter which feels real bad)
+		FNetSimCueTypeId NumCues = 0;
+		for (FSavedCue& SavedCue : SavedCues)
 		{
-			// FIXME: requires two passes to count how many elements are valid for this replication mask.
-			// We could count this as saved cues are added or possibly modify the bitstream after writing the elements (tricky and would require casting to FNetBitWriter which feels real bad)
-			FNetSimCueTypeId NumCues = 0;
-			for (FSavedCue& SavedCue : SavedCues)
+			if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
 			{
-				if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
-				{
-					NumCues++;
-				}
-			}
-
-			Ar << NumCues;
-
-			for (FSavedCue& SavedCue : SavedCues)
-			{
-				if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
-				{
-					SavedCue.NetSerialize(Ar, bSerializeFrameNumber);
-				}
+				NumCues++;
 			}
 		}
-		else
+
+		Ar << NumCues;
+
+		for (FSavedCue& SavedCue : SavedCues)
 		{
-			FNetSimCueTypeId NumCues;
-			Ar << NumCues;
-
-			// This is quite inefficient right now. 
-			//	-We are replicating cues in the last X seconds/frames (ReplicationWindow) redundantly
-			//	-Client has to deserialize them (+ heap allocation) and check for uniqueness (have they already processed)
-			//	-If already processed (quite common), they are thrown out.
-			//	-Would be better if we maybe serialized "net hash" and could skip ahead in the bunch if already processed
-
-			int32 StartingNum = SavedCues.Num();
-
-			for (int32 CueIdx=0; CueIdx < NumCues; ++CueIdx)
+			if (EnumHasAnyFlags(SavedCue.ReplicationTarget, ReplicationMask))
 			{
-				FSavedCue SerializedCue(true);
-				SerializedCue.NetSerialize(Ar, bSerializeFrameNumber);
+				SavedCue.NetSerialize(Ar, bSerializeFrameNumber);
+			}
+		}
+		
+	}
 
-				// Decide if we should accept the cue:
-				// ReplicationTarget: Cues can be set to only replicate to interpolators
-				if (EnumHasAnyFlags(SerializedCue.ReplicationTarget, ReplicationMask) == false)
-				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s that is not intended for us. CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.ReplicationTarget, ReplicationMask);
-					continue;
-				}
+	void NetRecvSavedCues(FArchive& Ar, const bool bSerializeFrameNumber, const int32 InLastRecvFrame, const int32 InLastRecvTime)
+	{
+		npCheckSlow(Ar.IsLoading());
+		
+		FNetSimCueTypeId NumCues;
+		Ar << NumCues;
 
-				// Due to redundant sending, we may get frames older than what we've already processed. Early out rather than searching for them in saved cues.
-				// This also ensures that if we get a very stale cue that we have pruned locally, we won't incorrectly invoke it again.
-				if (SerializedCue.Frame != INDEX_NONE && SerializedCue.Frame <= LastRecvFrame)
+		// This is quite inefficient right now. 
+		//	-We are replicating cues in the last X seconds/frames (ReplicationWindow) redundantly
+		//	-Client has to deserialize them (+ heap allocation) and check for uniqueness (have they already processed)
+		//	-If already processed (quite common), they are thrown out.
+		//	-Would be better if we maybe serialized "net hash" and could skip ahead in the bunch if already processed
+
+		int32 StartingNum = SavedCues.Num();
+
+		for (int32 CueIdx=0; CueIdx < NumCues; ++CueIdx)
+		{
+			FSavedCue SerializedCue(true);
+			SerializedCue.NetSerialize(Ar, bSerializeFrameNumber);
+
+			// Decide if we should accept the cue:
+			// ReplicationTarget: Cues can be set to only replicate to interpolators
+			if (EnumHasAnyFlags(SerializedCue.ReplicationTarget, RecvReplicationMask) == false)
+			{
+				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s that is not intended for us. CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.ReplicationTarget, RecvReplicationMask);
+				continue;
+			}
+
+			// Due to redundant sending, we may get frames older than what we've already processed. Early out rather than searching for them in saved cues.
+			// This also ensures that if we get a very stale cue that we have pruned locally, we won't incorrectly invoke it again.
+			if (SerializedCue.Frame != INDEX_NONE)
+			{
+				if (SerializedCue.Frame <= LastRecvFrame)
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed frame (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, ReplicationMask);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed frame (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, RecvReplicationMask);
 					continue;
 				}
-				else if (SerializedCue.Time <= LastRecvMS)
-				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed TimeMS (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, ReplicationMask);
-					continue;
-				}
+			}
+			else if (SerializedCue.Time <= LastRecvMS)
+			{
+				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed TimeMS (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, RecvReplicationMask);
+				continue;
+			}
 				
-				// Uniqueness: have we already received/predicted it?
-				// Note: we are basically ignoring invocation time when matching right now. This could potentially be a trait of the cue if needed.
-				// This could create issues if a cue is invoked several times in quick succession, but that can be worked around with arbitrary counter parameters on the cue itself (to force NetUniqueness)
-				bool bUniqueCue = true;
-				for (int32 ExistingIdx=0; ExistingIdx < StartingNum; ++ExistingIdx)
+			// Uniqueness: have we already received/predicted it?
+			// Note: we are basically ignoring invocation time when matching right now. This could potentially be a trait of the cue if needed.
+			// This could create issues if a cue is invoked several times in quick succession, but that can be worked around with arbitrary counter parameters on the cue itself (to force NetUniqueness)
+			bool bUniqueCue = true;
+			for (int32 ExistingIdx=0; ExistingIdx < StartingNum; ++ExistingIdx)
+			{
+				FSavedCue& ExistingCue = SavedCues[ExistingIdx];
+				if (SerializedCue.NetIdentical(ExistingCue))
 				{
-					FSavedCue& ExistingCue = SavedCues[ExistingIdx];
-					if (SerializedCue.NetIdentical(ExistingCue))
-					{
-						// These cues are not unique ("close enough") so we are skipping receiving this one
-						UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because we've already processed it. (Matched %s)"), *GetDebugName(), *SerializedCue.GetDebugName(), *ExistingCue.GetDebugName());
-						bUniqueCue = false;
-						ExistingCue.bNetConfirmed = true;
-						break;
-					}
-				}
-
-				if (bUniqueCue)
-				{
-					auto& SavedCue = SavedCues.Emplace_GetRef(MoveTemp(SerializedCue));
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Received !NetIdentical Cue: %s. (Num replicated cue sent this bunch: %d. LastRecvFrame: %d. Our Mask: %d)."), *GetDebugName(), *SerializedCue.GetDebugName(), NumCues, LastRecvFrame, ReplicationMask);
+					// These cues are not unique ("close enough") so we are skipping receiving this one
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because we've already processed it. (Matched %s)"), *GetDebugName(), *SerializedCue.GetDebugName(), *ExistingCue.GetDebugName());
+					bUniqueCue = false;
+					ExistingCue.bNetConfirmed = true;
+					break;
 				}
 			}
 
-			LastRecvFrame = InLastRecvFrame;
-			LastRecvMS = InLastRecvTime;
+			if (bUniqueCue)
+			{
+				auto& SavedCue = SavedCues.Emplace_GetRef(MoveTemp(SerializedCue));
+				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Received !NetIdentical Cue: %s. (Num replicated cue sent this bunch: %d. LastRecvFrame: %d. Our Mask: %d)."), *GetDebugName(), *SerializedCue.GetDebugName(), NumCues, LastRecvFrame, RecvReplicationMask);
+			}
 		}
+
+		LastRecvFrame = InLastRecvFrame;
+		LastRecvMS = InLastRecvTime;
 	}
 
 	// Dispatches and prunes saved/transient cues
 	template<typename T>
 	void DispatchCueRecord(T& Handler, const int32 SimFrame, const int32 CurrentSimTime, const int32 FixedTimeStepMS)
 	{
-		auto CalcPrune = [](int32 Head, int32 Confirm, int32 Window) { return Confirm > 0 ? Confirm : Head - Window; };
+		auto CalcPrune = [](int32 Head, int32 Confirm, int32 Window) { return Confirm > 0 ? FMath::Min(Confirm, Head - Window) : Head - Window; };
 
 		const int32 SavedCuePruneTimeMS = CalcPrune(CurrentSimTime, LastRecvMS, TCueDispatcherTraits<ModelDef>::ReplicationWindowMS());
-		const int32 SavedCuePruneFrame = CalcPrune(SimFrame, LastRecvMS, TCueDispatcherTraits<ModelDef>::ReplicationWindowFrames());
+		const int32 SavedCuePruneFrame = CalcPrune(SimFrame, LastRecvFrame, TCueDispatcherTraits<ModelDef>::ReplicationWindowFrames());
 		
 		// Prune cues prior to this idx
 		int32 SavedCuePruneIdx = INDEX_NONE;
@@ -674,13 +683,13 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 
 				if (bDispatchedCue)
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s Dispatching NetSimCue {Frame: %d, Time: %d}"), *GetDebugName(), *SavedCue.GetDebugName(), SavedCue.Frame, SavedCue.Time);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s Dispatching NetSimCue %s {Frame: %d, Time: %d}"), *GetDebugName(), *SavedCue.GetDebugName(), SavedCue.Frame, SavedCue.Time);
 					SavedCue.bDispatched = true;
 					TCueDispatchTable<T>::Get().Dispatch(SavedCue, Handler, TimeSinceInvocationMS);
 				}
 				else
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("Withholding Cue %s. %d/%d > %d/%d"), *SavedCue.GetDebugName(), SavedCue.Frame, SavedCue.Time, SimFrame, CurrentSimTime);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s Withholding Cue %s. %d/%d > %d/%d"), *GetDebugName(), *SavedCue.GetDebugName(), SavedCue.Frame, SavedCue.Time, SimFrame, CurrentSimTime);
 				}
 			}
 		}
@@ -703,7 +712,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 			for (int32 i=0; i <= SavedCuePruneIdx; ++i)
 			{
 				UE_CLOG(!SavedCues[i].bDispatched, LogNetworkPredictionCues, Warning, TEXT("Non-Dispatched Cue is about to be pruned! %s. SavedCuePruneTimeMS: %d. SavedCuePruneFrame: %d"), *SavedCues[i].GetDebugName(), SavedCuePruneTimeMS, SavedCuePruneFrame);
-				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Pruning Cue %s. Invoke Time: %d. Current Time: %d."), *GetDebugName(), *SavedCues[i].GetDebugName(), SavedCues[i].Time, CurrentSimTime);
+				UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Pruning Cue %s. Prune: (%d/%d). Invoked: (%d/%d). Current Time: %d."), *GetDebugName(), *SavedCues[i].GetDebugName(), SavedCuePruneFrame, SavedCuePruneTimeMS,  SavedCues[i].Frame, SavedCues[i].Time, CurrentSimTime);
 			}
 #endif
 
@@ -741,22 +750,30 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 	void PushContext(const FContext& InContext) { Context = InContext; }
 	void PopContext() { Context = FContext(); }
 
+	// Set which cues we should accept locally (if they get sent to us)
+	void SetReceiveReplicationTarget(ENetSimCueReplicationTarget InReplicationMask)
+	{
+		RecvReplicationMask = InReplicationMask;
+	}
+
 	DriverType* Driver = nullptr;
 	FString GetDebugName() const final override
 	{
 		FString Str;
 		if (Driver)
 		{
-			//TStringBuilder<128> Builder;
-			//FNetworkPredictionDriver<ModelDef>::GetDebugString(Driver, Builder);
+			TStringBuilder<128> Builder;
+			FNetworkPredictionDriver<ModelDef>::GetDebugString(Driver, Builder);
 
-			//Str = FString(Builder.ToString());
+			Str = FString(Builder.ToString());
 		}
 
 		return Str;
 	}
 
 private:
+
+	ENetSimCueReplicationTarget RecvReplicationMask;
 	
 	int32 LastRecvFrame = INDEX_NONE;
 	int32 LastRecvMS = 0;
