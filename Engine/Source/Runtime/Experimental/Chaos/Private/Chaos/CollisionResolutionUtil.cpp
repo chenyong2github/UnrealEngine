@@ -71,7 +71,7 @@ namespace Chaos
 			{
 				return FVec3(0);
 			}
-			check(Numerator > 0);
+			ensure(Numerator > 0);
 			FReal Denominator = ImpulseRatioDenom0 + ImpulseRatioDenom1;
 			return Numerator < Denominator ? (Impulse * Numerator / Denominator) : Impulse;
 		}
