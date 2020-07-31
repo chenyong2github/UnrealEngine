@@ -24,12 +24,15 @@ extern NIAGARA_API const FName SimulationToUnitFunctionName;
 extern NIAGARA_API const FName UnitToSimulationFunctionName;
 extern NIAGARA_API const FName UnitToIndexFunctionName;
 extern NIAGARA_API const FName IndexToUnitFunctionName;
+
 extern NIAGARA_API const FName IndexToUnitStaggeredXFunctionName;
 extern NIAGARA_API const FName IndexToUnitStaggeredYFunctionName;
 
 extern NIAGARA_API const FName IndexToLinearFunctionName;
 extern NIAGARA_API const FName LinearToIndexFunctionName;
 
+extern NIAGARA_API const FName ExecutionIndexToGridIndexFunctionName;
+extern NIAGARA_API const FName ExecutionIndexToUnitFunctionName;
 UENUM()
 enum class ESetResolutionMethod
 {
