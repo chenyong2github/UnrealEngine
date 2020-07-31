@@ -626,6 +626,7 @@ public:
 	 * Called on the actor right before replication occurs.
 	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
 	 */
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	virtual void PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker);
 
 	/**
@@ -2817,6 +2818,7 @@ public:
 	virtual void ForceNetRelevant();
 
 	/** Updates NetUpdateTime to the new value for future net relevancy checks */
+	UE_DEPRECATED(4.26, "No longer used.")
 	void SetNetUpdateTime(float NewUpdateTime);
 
 	/**
@@ -2825,17 +2827,23 @@ public:
 	 *
 	 *	@return The FNetworkObejctInfo associated with this Actor, or nullptr if one couldn't be created.
 	 */
-	 FNetworkObjectInfo* FindOrAddNetworkObjectInfo();
+	UE_DEPRECATED(4.26, "Please use FindOrAddNetworkObjectInfo on the net driver instead.")
+	FNetworkObjectInfo* FindOrAddNetworkObjectInfo();
 
 	/**
 	 *	Find the FNetworkObjectInfo struct associated with this actor (for the main NetDriver).
 	 *
 	 *	@return The FNetworkObejctInfo associated with this Actor, or nullptr if none was found.
 	 */
+	UE_DEPRECATED(4.26, "Please use FindNetworkObjectInfo on the net driver instead.")
 	FNetworkObjectInfo* FindNetworkObjectInfo();
+	
+	UE_DEPRECATED(4.26, "Please use FindNetworkObjectInfo on the net driver instead..")
 	const FNetworkObjectInfo* FindNetworkObjectInfo() const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return const_cast<AActor*>(this)->FindNetworkObjectInfo();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/** Force actor to be updated to clients/demo net drivers */

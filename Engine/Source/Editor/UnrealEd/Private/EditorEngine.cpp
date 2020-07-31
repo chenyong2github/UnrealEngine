@@ -84,6 +84,7 @@
 #include "BSPOps.h"
 #include "EditorCommandLineUtils.h"
 #include "Engine/NetDriver.h"
+#include "Engine/NetConnection.h"
 #include "Net/NetworkProfiler.h"
 #include "Interfaces/IPluginManager.h"
 #include "UObject/PackageReload.h"
@@ -7096,6 +7097,18 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 	return false;
 }
 
+bool UEditorEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading)
+{
+	if (Connection == nullptr)
+	{
+		return false;
+	}
+
+	// Pretty sure there's no case where you can't have a world by this point.
+	FWorldContext& Context = GetWorldContextFromWorldChecked(Connection->GetWorld());
+	return NetworkRemapPath_local(Context, Str, bReading, Connection->IsReplay());
+}
+
 bool UEditorEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading)
 {
 	if (Driver == nullptr)
@@ -7104,15 +7117,15 @@ bool UEditorEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bRea
 	}
 
 	// Pretty sure there's no case where you can't have a world by this point.
-	bool bIsAReplay = (Driver->GetWorld()) ? (Driver->GetWorld()->DemoNetDriver != NULL) : false;
+	const bool bIsReplay = Driver->GetWorld() ? (Driver->GetWorld()->GetDemoNetDriver() != nullptr) : false;
 	FWorldContext& Context = GetWorldContextFromWorldChecked(Driver->GetWorld());
-	return NetworkRemapPath_local(Context, Str, bReading, bIsAReplay);
+	return NetworkRemapPath_local(Context, Str, bReading, bIsReplay);
 }
 
 bool UEditorEngine::NetworkRemapPath( UPendingNetGame *PendingNetGame, FString& Str, bool bReading)
 {
 	FWorldContext& Context = GetWorldContextFromPendingNetGameChecked(PendingNetGame);
-	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->DemoNetDriver != NULL);
+	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->GetDemoNetDriver() != nullptr);
 }
 
 void UEditorEngine::VerifyLoadMapWorldCleanup()

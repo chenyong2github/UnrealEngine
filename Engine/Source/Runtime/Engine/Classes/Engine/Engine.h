@@ -2847,8 +2847,10 @@ public:
 	void DestroyNamedNetDriver(UWorld *InWorld, FName NetDriverName);
 	void DestroyNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName);
 
-	virtual bool NetworkRemapPath( UNetDriver* Driver, FString &Str, bool bReading=true) { return false; }
-	virtual bool NetworkRemapPath( UPendingNetGame *PendingNetGame, FString &Str, bool bReading=true) { return false; }
+	UE_DEPRECATED(4.26, "Please use NetworkRemapPath that takes a connection instead.")
+	virtual bool NetworkRemapPath(UNetDriver* Driver, FString &Str, bool bReading=true) { return false; }
+	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading=true) { return false; }
+	virtual bool NetworkRemapPath(UPendingNetGame *PendingNetGame, FString &Str, bool bReading=true) { return false; }
 
 	virtual bool HandleOpenCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld * InWorld );
 

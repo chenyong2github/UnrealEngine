@@ -113,13 +113,13 @@ private:
 	void PlayNextReplay();
 
 	/** Called if an error occurs *after* the replay was requested to start (successfully), but before the replay actually starts. */
-	static void OnDemoFailedToStart(class UDemoNetDriver* DemoNetDriver, EDemoPlayFailure::Type FailureType, TSharedRef<ThisClass> This);
+	void OnDemoFailedToStart(UWorld* InWorld, EDemoPlayFailure::Type FailureType);
 
 	/** Called when the DemoNetDriver hits a Hard Stop, like an error or a user requesting a stop. */
-	static void OnDemoStopped(TSharedRef<FReplayPlaylistTracker> Tracker);
+	void OnDemoStopped(UWorld* InWorld);
 
 	/** Called when a replay has reached its end. */
-	static void OnDemoPlaybackFinished(TSharedRef<FReplayPlaylistTracker> Tracker);
+	void OnDemoPlaybackFinished(UWorld* InWorld);
 
 	bool bIsStartingReplay;
 	int32 CurrentReplay;

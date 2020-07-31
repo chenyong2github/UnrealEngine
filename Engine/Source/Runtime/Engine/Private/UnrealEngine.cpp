@@ -12941,7 +12941,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				GIsPlayInEditorWorld = true;
 			}
 			// Otherwise we are probably loading new map while in PIE, so we need to rename world package and all streaming levels
-			else if (WorldContext.PIEInstance != -1 && ((Pending == nullptr) || (Pending->DemoNetDriver != nullptr)))
+			else if (WorldContext.PIEInstance != -1 && ((Pending == nullptr) || (Pending->GetDemoNetDriver() != nullptr)))
 			{
 				NewWorld->RenameToPIEWorld(WorldContext.PIEInstance);
 			}
@@ -13276,7 +13276,7 @@ void UEngine::MovePendingLevel(FWorldContext &Context)
 	Context.World()->SetNetDriver(Context.PendingNetGame->NetDriver);
 
 	UNetDriver* NetDriver = Context.PendingNetGame->NetDriver;
-	if( NetDriver )
+	if (NetDriver)
 	{
 		// The pending net driver is renamed to the current "game net driver"
 		NetDriver->SetNetDriverName(NAME_GameNetDriver);
@@ -13290,17 +13290,17 @@ void UEngine::MovePendingLevel(FWorldContext &Context)
 	}
 
 	// Attach the DemoNetDriver to the world if there is one
-	if ( Context.PendingNetGame->DemoNetDriver != NULL )
+	if (UDemoNetDriver* DemoNetDriver = Context.PendingNetGame->GetDemoNetDriver())
 	{
-		Context.PendingNetGame->DemoNetDriver->SetWorld( Context.World() );
-		Context.World()->DemoNetDriver = Context.PendingNetGame->DemoNetDriver;
+		DemoNetDriver->SetWorld(Context.World());
+		Context.World()->SetDemoNetDriver(DemoNetDriver);
 
 		FLevelCollection& MainLevels = Context.World()->FindOrAddCollectionByType(ELevelCollectionType::DynamicSourceLevels);
-		MainLevels.SetDemoNetDriver(Context.PendingNetGame->DemoNetDriver);
+		MainLevels.SetDemoNetDriver(DemoNetDriver);
 	}
 
 	// Reset the Navigation System
-	Context.World()->SetNavigationSystem(NULL);
+	Context.World()->SetNavigationSystem(nullptr);
 }
 
 void UEngine::LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoadType, const FString& Tag)
