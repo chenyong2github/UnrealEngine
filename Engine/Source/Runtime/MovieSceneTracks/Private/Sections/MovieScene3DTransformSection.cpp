@@ -637,10 +637,19 @@ bool UMovieScene3DTransformSection::ShowCurveForChannel(const void *ChannelPtr) 
 void UMovieScene3DTransformSection::SetBlendType(EMovieSceneBlendType InBlendType)
 {
 	Super::SetBlendType(InBlendType);
-	if (GetSupportedBlendTypes().Contains(InBlendType) && InBlendType == EMovieSceneBlendType::Absolute)
+	if (GetSupportedBlendTypes().Contains(InBlendType))
 	{
-		Scale[0].SetDefault(1.f);
-		Scale[1].SetDefault(1.f);
-		Scale[2].SetDefault(1.f);
+		if (InBlendType == EMovieSceneBlendType::Absolute)
+		{
+			Scale[0].SetDefault(1.f);
+			Scale[1].SetDefault(1.f);
+			Scale[2].SetDefault(1.f);
+		}
+		else if (InBlendType == EMovieSceneBlendType::Additive || InBlendType == EMovieSceneBlendType::Relative)
+		{
+			Scale[0].SetDefault(0.f);
+			Scale[1].SetDefault(0.f);
+			Scale[2].SetDefault(0.f);
+		}
 	}
 }
