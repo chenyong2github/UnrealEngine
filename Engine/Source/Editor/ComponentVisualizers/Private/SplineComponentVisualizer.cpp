@@ -1683,6 +1683,10 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 	check(SelectedKeys.Num() == 1);
 	check(SelectedKeys.Contains(LastKeyIndexSelected));
 
+	// When dragging from end point, maximum angle is 60 degrees from attached segment
+	// to determine whether to split existing segment or create a new point
+	static const float Angle60 = 1.0472;
+
 	// Insert duplicates into the list, highest index first, so that the lower indices remain the same
 	FInterpCurveVector& SplinePosition = SplineComp->GetSplinePointsPosition();
 
@@ -1705,7 +1709,7 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 		}
 		else
 		{
-			PrevAngle = HALF_PI;
+			PrevAngle = Angle60;
 		}
 	}
 
@@ -1723,16 +1727,16 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 		}
 		else
 		{
-			NextAngle = HALF_PI;
+			NextAngle = Angle60;
 		}
 	}
 
 	// Set key index to which the drag will be applied after duplication
 	int32 SegmentIndex = CurrentIndex;
 
-	// Note dragging off first or last key in non-closed loop spline always adds a new segment
 	if ((bHasPrevKey && bHasNextKey && PrevAngle < NextAngle) ||
-		(!bHasPrevKey && bHasNextKey))
+		(bHasPrevKey && !bHasNextKey && PrevAngle < Angle60) ||
+		(!bHasPrevKey && bHasNextKey && NextAngle >= Angle60))
 	{
 		SegmentIndex--;
 	}
