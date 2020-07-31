@@ -37,7 +37,9 @@ struct FMobilityCacheHandler
 	}
 
 	static void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
-	{}
+	{
+		CastChecked<USceneComponent>(Object)->SetMobility(EComponentMobility::Movable);
+	}
 
 	void DestroyOutput(UObject* Object, EComponentMobility::Type* Output, FEntityOutputAggregate Aggregate)
 	{
