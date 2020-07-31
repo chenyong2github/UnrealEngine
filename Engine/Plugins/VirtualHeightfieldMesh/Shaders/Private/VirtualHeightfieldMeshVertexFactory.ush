@@ -193,10 +193,11 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates;
 
-	QuadRenderItem Item = InstanceBuffer[Input.InstanceId + 1].Quad;
-	uint Address = Item.Address;
-	uint Level = Item.Level;
-	float3 LocalToPhysicalUV = Item.LocalToPhysicalUV;
+	const QuadRenderInstance Item = InstanceBuffer[Input.InstanceId];
+	const uint Address = Item.Address;
+	const uint Level = Item.Level;
+	
+	float4 LocalPackedInfo = Item.PackedInfo;
 
 	uint2 VertexCoord = uint2(Input.VertexId % GRID_SIZE, Input.VertexId / GRID_SIZE);
 	float2 LocalUV = (float2)VertexCoord / (float)(GRID_SIZE - 1);;
@@ -209,14 +210,14 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		(LocalUV.x < LocalUV.y ? 0.5 - LocalUV.x : 0.5 - LocalUV.y);
 	NeighborWeight *= 2;
 
-	QuadNeighborItem Neighbor = InstanceBuffer[Input.InstanceId + 1].Neighbor[NeighborIndex];
+	float4 NeigborPackedInfo = Item.NeigborPackedInfo[NeighborIndex];
 
 	// Continuous Lod morph
-	float LodAtMaxMorph = max(ceil(Neighbor.Lod), (float)Level + 1);
+	float LodAtMaxMorph = max(ceil(NeigborPackedInfo.w), (float)Level + 1);
 	float LodAtMinMorph = (float)Level;
 
-	float LocalMorphLod = (float)Level + Item.Lod;
-	float NeighborMorphLod = Neighbor.Lod;
+	float LocalMorphLod = (float)Level + LocalPackedInfo.w;
+	float NeighborMorphLod = NeigborPackedInfo.w;
 	
 	float LocalMorph = (LocalMorphLod - LodAtMinMorph) / (LodAtMaxMorph - LodAtMinMorph);
 	float NeighborMorph = (NeighborMorphLod - LodAtMinMorph) / (LodAtMaxMorph - LodAtMinMorph);
@@ -234,8 +235,8 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 NormalizedPos = (XY / PageTableSize);
 
 	// Physical Texture space
-	float2 LocalPhysicalUV = LocalToPhysicalUV.xy + LocalUV * LocalToPhysicalUV.z;
-	float2 NeighborPhysicalUV = Neighbor.LocalToPhysicalUV.xy + LocalUV * Neighbor.LocalToPhysicalUV.z;
+	float2 LocalPhysicalUV = LocalPackedInfo.xy + LocalUV * LocalPackedInfo.z;
+	float2 NeighborPhysicalUV = NeigborPackedInfo.xy + LocalUV * NeigborPackedInfo.z;
 	
 	// Height
 	float LocalHeight = HeightTexture.SampleLevel(HeightSampler, LocalPhysicalUV, 0);
