@@ -29,7 +29,7 @@
 
 #pragma once
 
-#if PX_P64_FAMILY
+#if PX_P64_FAMILY && !defined(__clang__)
 #include <arm64_neon.h>
 #else
 #include <arm_neon.h>
