@@ -627,6 +627,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FEngineHitchDetectedDelegate, EFrameHitchTy
 
 
 DECLARE_MULTICAST_DELEGATE(FPreRenderDelegate);
+DECLARE_MULTICAST_DELEGATE(FPostRenderDelegate);
 
 /**
  * Abstract base class of all Engine classes, responsible for management of systems critical to editor or game systems.
@@ -1599,6 +1600,9 @@ public:
 	/** Delegate called just prior to rendering. */
 	FPreRenderDelegate PreRenderDelegate;
 	FPreRenderDelegate& GetPreRenderDelegate() { return PreRenderDelegate; }
+	/** Delegate called just after to rendering. */
+	FPostRenderDelegate PostRenderDelegate;
+	FPostRenderDelegate& GetPostRenderDelegate() { return PostRenderDelegate; }
 
 	/** 
 	 * Error message event relating to server travel failures 
