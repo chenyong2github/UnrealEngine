@@ -327,6 +327,11 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 				{
 					VERIFYD3D11RESULT_EX(Result, Direct3DDevice);
 				}
+				else if (QueryType == RQT_AbsoluteTime)
+				{
+					UE_LOG(LogD3D11RHI, Log, TEXT("GPU has hung or crashed, checking status."));
+					GPUProfilingData.CheckGpuHeartbeat(true);
+				}
 				return false;
 			}
 		} while ( Result == S_FALSE );
