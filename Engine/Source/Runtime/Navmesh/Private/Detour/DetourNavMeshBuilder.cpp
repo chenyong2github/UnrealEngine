@@ -183,7 +183,7 @@ static int createBVTree(const unsigned short* verts, const int /*nverts*/,
 		it.bmin[1] = it.bmax[1] = verts[p[0]*3+1];
 		it.bmin[2] = it.bmax[2] = verts[p[0]*3+2];
 		
-		int vertCount = 0;
+		int vertCount = nvp;
 		for (int j = 1; j < nvp; ++j)
 		{
 			if (p[j] == MESH_NULL_IDX)
