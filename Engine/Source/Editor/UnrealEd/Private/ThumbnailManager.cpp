@@ -190,7 +190,14 @@ void UThumbnailManager::RegisterCustomRenderer(UClass* Class, TSubclassOf<UThumb
 	FThumbnailRenderingInfo& Info = *(new (RenderableThumbnailTypes) FThumbnailRenderingInfo());
 	Info.ClassNeedingThumbnailName = NewClassPathName;
 	Info.ClassNeedingThumbnail = Class;
-	Info.Renderer = NewObject<UThumbnailRenderer>(GetTransientPackage(), RendererClass);
+	if (FApp::CanEverRender())
+	{
+		Info.Renderer = NewObject<UThumbnailRenderer>(GetTransientPackage(), RendererClass);
+	}
+	else
+	{
+		Info.Renderer = nullptr;
+	}
 	Info.RendererClassName = RendererClass->GetPathName();
 
 	bMapNeedsUpdate = true;
