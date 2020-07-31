@@ -3002,6 +3002,11 @@ void USkeletalMeshComponent::EndPhysicsTickComponent(FSkeletalMeshComponentEndPh
 
 	if (IsRegistered() && IsSimulatingPhysics() && RigidBodyIsAwake())
 	{
+		if (bNotifySyncComponentToRBPhysics)
+		{
+			OnSyncComponentToRBPhysics();
+		}
+
 		SyncComponentToRBPhysics();
 	}
 
