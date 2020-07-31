@@ -136,9 +136,9 @@ FWebSocket* UWebSocketConnection::GetWebSocket()
 	return WebSocket;
 }
 
-void UWebSocketConnection::Tick()
+void UWebSocketConnection::Tick(float DeltaSeconds)
 {
-	UNetConnection::Tick();
+	UNetConnection::Tick(DeltaSeconds);
 	WebSocket->Tick();
 }
 
