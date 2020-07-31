@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithSketchUpBaseTarget : TargetRules
 {
 	public DatasmithSketchUpBaseTarget(TargetInfo Target)
