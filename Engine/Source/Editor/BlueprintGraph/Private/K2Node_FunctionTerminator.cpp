@@ -105,6 +105,17 @@ bool UK2Node_FunctionTerminator::HasExternalDependencies(TArray<class UStruct*>*
 	return bSuperResult || bResult;
 }
 
+void UK2Node_FunctionTerminator::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	UEdGraph* Graph = GetGraph();
+	if (ensure(Graph))
+	{
+		FunctionReference.SetExternalMember(Graph->GetFName(), nullptr);
+	}
+}
+
 void UK2Node_FunctionTerminator::PromoteFromInterfaceOverride(bool bIsPrimaryTerminator)
 {
 	// Remove the signature class, that is not relevant.

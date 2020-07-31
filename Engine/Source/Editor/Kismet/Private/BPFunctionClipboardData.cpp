@@ -63,13 +63,6 @@ UEdGraph* FBPFunctionClipboardData::CreateAndPopulateGraph(UBlueprint* InBluepri
 				Entry[0]->AddExtraFlags(AdditionalFunctionFlags);
 
 				Entry[0]->FunctionReference.SetExternalMember(Graph->GetFName(), nullptr);
-
-				const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(Graph->GetSchema());
-				if (K2Schema)
-				{
-					// Mark graph as editable in case this came from a UserConstructionScript
-					K2Schema->MarkFunctionEntryAsEditable(Graph, true);
-				}
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);

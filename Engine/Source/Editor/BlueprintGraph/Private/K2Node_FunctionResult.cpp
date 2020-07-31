@@ -269,6 +269,8 @@ void UK2Node_FunctionResult::PostPasteNode()
 	SyncWithEntryNode();
 	// reflect any user added outputs (tracked by pre-existing result nodes)
 	SyncWithPrimaryResultNode();
+	// reflect editability of node in pins
+	MakePinsEditable();
 }
 
 bool UK2Node_FunctionResult::CanUserDeleteNode() const
@@ -402,6 +404,23 @@ void UK2Node_FunctionResult::SyncWithPrimaryResultNode()
 		}
 
 		ReconstructNode();
+	}
+}
+
+void UK2Node_FunctionResult::MakePinsEditable()
+{
+	// only do this step if this node is editable
+	if (IsEditable())
+	{
+		// for each pin, excluding the 'exec' pin
+		for (int PinIdx = 1; PinIdx < Pins.Num(); ++PinIdx)
+		{
+			UEdGraphPin* Pin = Pins[PinIdx];
+			if (!UserDefinedPinExists(Pin->GetFName()))
+			{
+				UserDefinedPins.Add(MakeShared<FUserPinInfo>(*Pin));
+			}
+		}
 	}
 }
 
