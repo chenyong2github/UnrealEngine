@@ -1443,8 +1443,6 @@ void UMaterialInstance::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures
 void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTexture* OverrideTexture, ERHIFeatureLevel::Type InFeatureLevel)
 {
 #if WITH_EDITOR
-	bool bShouldRecacheMaterialExpressions = false;
-	
 	FMaterialResource* SourceMaterialResource = nullptr;
 	if (bHasStaticPermutationResource)
 	{
@@ -1456,30 +1454,34 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		UMaterial* Material = GetMaterial();
 		SourceMaterialResource = Material->GetMaterialResource(InFeatureLevel);
 	}
-		
-	for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
-	{
-		const TArrayView<const FMaterialTextureParameterInfo> Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
-		// Iterate over each of the material's texture expressions.
-		for (int32 i = 0; i < Parameters.Num(); ++i)
-		{
-			const FMaterialTextureParameterInfo& Parameter = Parameters[i];
 
-			// Evaluate the expression in terms of this material instance.
-			UTexture* Texture = NULL;
-			Parameter.GetGameThreadTextureValue(this, *SourceMaterialResource, Texture);
-			if (Texture != NULL && Texture == InTextureToOverride)
+	if (SourceMaterialResource)
+	{
+		bool bShouldRecacheMaterialExpressions = false;
+		for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
+		{
+			const TArrayView<const FMaterialTextureParameterInfo> Parameters = SourceMaterialResource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+			// Iterate over each of the material's texture expressions.
+			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
-				// Override this texture!
-				SourceMaterialResource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, i, OverrideTexture);
-				bShouldRecacheMaterialExpressions = true;
+				const FMaterialTextureParameterInfo& Parameter = Parameters[i];
+
+				// Evaluate the expression in terms of this material instance.
+				UTexture* Texture = NULL;
+				Parameter.GetGameThreadTextureValue(this, *SourceMaterialResource, Texture);
+				if (Texture != NULL && Texture == InTextureToOverride)
+				{
+					// Override this texture!
+					SourceMaterialResource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, i, OverrideTexture);
+					bShouldRecacheMaterialExpressions = true;
+				}
 			}
 		}
-	}
 
-	if (bShouldRecacheMaterialExpressions)
-	{
-		RecacheUniformExpressions(false);
+		if (bShouldRecacheMaterialExpressions)
+		{
+			RecacheUniformExpressions(false);
+		}
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1491,15 +1493,18 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
-
-		for (int32 i = 0; i < Parameters.Num(); ++i)
+		if (SourceMaterialResource)
 		{
-			const FMaterialVectorParameterInfo& Parameter = Parameters[i];
-			if (Parameter.ParameterInfo == ParameterInfo)
+			const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
+
+			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
-				SourceMaterialResource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
-				bShouldRecacheMaterialExpressions = true;
+				const FMaterialVectorParameterInfo& Parameter = Parameters[i];
+				if (Parameter.ParameterInfo == ParameterInfo)
+				{
+					SourceMaterialResource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
+					bShouldRecacheMaterialExpressions = true;
+				}
 			}
 		}
 	}
@@ -1518,15 +1523,18 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FHashedMaterialPara
 	if (bHasStaticPermutationResource)
 	{
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
-
-		for (int32 i = 0; i < Parameters.Num(); ++i)
+		if (SourceMaterialResource)
 		{
-			const FMaterialScalarParameterInfo& Parameter = Parameters[i];
-			if (Parameter.ParameterInfo == ParameterInfo)
+			const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
+
+			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
-				SourceMaterialResource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
-				bShouldRecacheMaterialExpressions = true;
+				const FMaterialScalarParameterInfo& Parameter = Parameters[i];
+				if (Parameter.ParameterInfo == ParameterInfo)
+				{
+					SourceMaterialResource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
+					bShouldRecacheMaterialExpressions = true;
+				}
 			}
 		}
 	}

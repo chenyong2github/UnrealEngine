@@ -1172,23 +1172,26 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 	for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < NumFeatureLevelsToUpdate; ++FeatureLevelIndex)
 	{
 		FMaterialResource* Resource = GetMaterialResource(FeatureLevelsToUpdate[FeatureLevelIndex]);
-		// Iterate over both the 2D textures and cube texture expressions.
-		for(int32 TypeIndex = 0;TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
+		if (Resource)
 		{
-			const TArrayView<const FMaterialTextureParameterInfo> Parameters = Resource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
-			// Iterate over each of the material's texture expressions.
-			for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ++ParameterIndex)
+			// Iterate over both the 2D textures and cube texture expressions.
+			for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 			{
-				const FMaterialTextureParameterInfo& Parameter = Parameters[ParameterIndex];
-
-				// Evaluate the expression in terms of this material instance.
-				UTexture* Texture = NULL;
-				Parameter.GetGameThreadTextureValue(this,*Resource,Texture);
-				if( Texture != NULL && Texture == InTextureToOverride )
+				const TArrayView<const FMaterialTextureParameterInfo> Parameters = Resource->GetUniformTextureExpressions((EMaterialTextureParameterType)TypeIndex);
+				// Iterate over each of the material's texture expressions.
+				for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ++ParameterIndex)
 				{
-					// Override this texture!
-					Resource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, ParameterIndex, OverrideTexture);
-					bShouldRecacheMaterialExpressions = true;
+					const FMaterialTextureParameterInfo& Parameter = Parameters[ParameterIndex];
+
+					// Evaluate the expression in terms of this material instance.
+					UTexture* Texture = NULL;
+					Parameter.GetGameThreadTextureValue(this, *Resource, Texture);
+					if (Texture != NULL && Texture == InTextureToOverride)
+					{
+						// Override this texture!
+						Resource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, ParameterIndex, OverrideTexture);
+						bShouldRecacheMaterialExpressions = true;
+					}
 				}
 			}
 		}
@@ -1204,25 +1207,26 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
 {
 #if WITH_EDITOR
-	bool bShouldRecacheMaterialExpressions = false;
-
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
-	const TArrayView<const FMaterialVectorParameterInfo> Parameters = Resource->GetUniformVectorParameterExpressions();
-
-	// Iterate over each of the material's vector expressions.
-	for (int32 i = 0; i < Parameters.Num(); ++i)
+	if (Resource)
 	{
-		const FMaterialVectorParameterInfo& Parameter = Parameters[i];
-		if (Parameter.ParameterInfo == ParameterInfo)
+		const TArrayView<const FMaterialVectorParameterInfo> Parameters = Resource->GetUniformVectorParameterExpressions();
+		bool bShouldRecacheMaterialExpressions = false;
+		// Iterate over each of the material's vector expressions.
+		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
-			Resource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
-			bShouldRecacheMaterialExpressions = true;
+			const FMaterialVectorParameterInfo& Parameter = Parameters[i];
+			if (Parameter.ParameterInfo == ParameterInfo)
+			{
+				Resource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
+				bShouldRecacheMaterialExpressions = true;
+			}
 		}
-	}
 
-	if (bShouldRecacheMaterialExpressions)
-	{
-		RecacheUniformExpressions(false);
+		if (bShouldRecacheMaterialExpressions)
+		{
+			RecacheUniformExpressions(false);
+		}
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1230,25 +1234,26 @@ void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInf
 void UMaterial::OverrideScalarParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
 {
 #if WITH_EDITOR
-	bool bShouldRecacheMaterialExpressions = false;
-
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
-	const TArrayView<const FMaterialScalarParameterInfo> Parameters = Resource->GetUniformScalarParameterExpressions();
-
-	// Iterate over each of the material's vector expressions.
-	for (int32 i = 0; i < Parameters.Num(); ++i)
+	if (Resource)
 	{
-		const FMaterialScalarParameterInfo& Parameter = Parameters[i];
-		if (Parameter.ParameterInfo == ParameterInfo)
+		const TArrayView<const FMaterialScalarParameterInfo> Parameters = Resource->GetUniformScalarParameterExpressions();
+		bool bShouldRecacheMaterialExpressions = false;
+		// Iterate over each of the material's vector expressions.
+		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
-			Resource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
-			bShouldRecacheMaterialExpressions = true;
+			const FMaterialScalarParameterInfo& Parameter = Parameters[i];
+			if (Parameter.ParameterInfo == ParameterInfo)
+			{
+				Resource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
+				bShouldRecacheMaterialExpressions = true;
+			}
 		}
-	}
 
-	if (bShouldRecacheMaterialExpressions)
-	{
-		RecacheUniformExpressions(false);
+		if (bShouldRecacheMaterialExpressions)
+		{
+			RecacheUniformExpressions(false);
+		}
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1312,12 +1317,8 @@ bool UMaterial::IsUsageFlagDirty(EMaterialUsage Usage)
 
 bool UMaterial::IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	FMaterialResource* Res = GetMaterialResource(InFeatureLevel);
-
-	// should never be the case
-	check(Res);
-
-	return Res->GetGameThreadShaderMap() == NULL;
+	const FMaterialResource* Res = GetMaterialResource(InFeatureLevel);
+	return Res == nullptr || Res->GetGameThreadShaderMap() == nullptr;
 }
 
 #if WITH_EDITOR
