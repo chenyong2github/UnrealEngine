@@ -93,6 +93,11 @@ public:
 		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
 	);
 
+	void SetShouldSelectEdgeLoopsFunc(TFunction<bool(void)> Func)
+	{
+		ShouldSelectEdgeLoopsFunc = Func;
+	}
+
 	/**
 	 * Notify internal data structures that the associated MeshComponent has been modified.
 	 * @param bTopologyModified if true, the underlying mesh topology has been changed. This clears the current selection.
@@ -196,6 +201,7 @@ protected:
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 
 	TFunction<bool(void)> GetAddToSelectionModifierStateFunc;
+	TFunction<bool(void)> ShouldSelectEdgeLoopsFunc = []() {return false; };
 
 	FTransform3d TargetTransform;
 
