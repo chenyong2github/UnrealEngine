@@ -23,9 +23,15 @@
 #endif
 
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteDataDecode.ush
+#define MAX_CLUSTER_TRIANGLES					128
+#define MAX_CLUSTER_VERTICES					256
+#define MAX_NANITE_UVS							2
 
-#define CLUSTER_PAGE_SIZE_BITS					18														// must match define in NaniteDataDecode.ush
-#define CLUSTER_PAGE_SIZE						( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteDataDecode.ush
+#define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
+
+#define CLUSTER_PAGE_GPU_SIZE_BITS				18														// must match define in NaniteDataDecode.ush
+#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
+#define CLUSTER_PAGE_DISK_SIZE					( CLUSTER_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteDataDecode.ush
@@ -48,7 +54,15 @@
 #define MAX_GROUP_PARTS_MASK					((1 << MAX_GROUP_PARTS_BITS) - 1)
 #define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS_BITS)
 
-#define MAX_CLUSTER_TRIANGLES					128
+#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
+
+#define NUM_PACKED_CLUSTER_FLOAT4S				12														// must match define in NaniteDataDecode.ush
+
+#define POSITION_QUANTIZATION_BITS				10
+#define POSITION_QUANTIZATION_MASK 				((1u << POSITION_QUANTIZATION_BITS) - 1u)
+#define NORMAL_QUANTIZATION_BITS				 9
+
+#define MAX_TRANSCODE_GROUPS_PER_PAGE			32														// must match define in NaniteDataDecode.ush
 
 // TODO: Only needed while there are multiple graphs instead of one big one (or a more intelligent resource reuse).
 #define NANITE_USE_SCRATCH_BUFFERS				1
@@ -72,13 +86,7 @@ class UHierarchicalInstancedStaticMeshComponent;
 
 namespace Nanite
 {
-/*
-struct FPackedBound
-{
-	uint32 XY;
-	uint32 ZW;
-};
-*/
+
 struct FTreeNode
 {
 	int32	Parent;
@@ -89,8 +97,8 @@ struct FUVRange
 {
 	FVector2D	Min;
 	FVector2D	Scale;
-	uint32		GapStart[2];
-	uint32		GapLength[2];
+	int32		GapStart[2];
+	int32		GapLength[2];
 };
 
 struct FMaterialRange
@@ -110,6 +118,13 @@ struct FUIntVector
 	}
 };
 
+struct FStripDesc
+{
+	uint32 Bitmasks[4][3];
+	uint32 NumPrevRefVerticesBeforeDwords;
+	uint32 NumPrevNewVerticesBeforeDwords;
+};
+
 struct FTriCluster
 {
 	FUIntVector		QuantizedPosStart;
@@ -119,16 +134,6 @@ struct FTriCluster
 	uint32			NumVerts;
 	uint32			NumTris;
 	uint32			QuantizedPosShift;
-	uint32			BitsPerIndex;
-	uint32			BitsPerAttrib;
-	
-	uint32			IndexSize;
-	uint32			PositionSize;
-	uint32			AttributeSize;
-
-	uint32			IndexOffset;
-	uint32			PositionOffset;	
-	uint32			AttributeOffset;
 
 	FVector			ConeAxis;
 	float			ConeCosAngle;
@@ -147,9 +152,11 @@ struct FTriCluster
 	uint32			GroupPartIndex;
 	uint32			GeneratingGroupIndex;
 
-	TArray< FUVRange, TInlineAllocator<4> >		UVRanges;
 	TArray<FMaterialRange, TInlineAllocator<4>> MaterialRanges;
 	TArray<FUIntVector>	QuantizedPositions;
+
+	FStripDesc		StripDesc;
+	TArray<uint8>	StripIndexData;
 };
 
 struct FClusterGroup
@@ -203,11 +210,10 @@ struct FPackedTriCluster
 
 	uint32		NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;		// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
 	uint32		BitsPerAttrib;
+	uint32		UV_Prec;	// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
 	uint32		GroupIndex;	// Debug only
-	uint32		Pad2;
 	
 	FSphere		LODBounds;
-
 	FVector4	BoxBounds[2];
 	//FSphere		SphereBounds;
 	//uint32	BoundsXY;
@@ -216,9 +222,14 @@ struct FPackedTriCluster
 	uint32		LODErrorAndEdgeLength;
 	uint32		PackedMaterialInfo;
 	uint32		Flags;
-	uint32		Pad;
+	uint32		Pad0;
 
 	FUVRange	UVRanges[2];
+
+	uint32		GetNumVerts() const				{ return NumVerts_NumTris_BitsPerIndex_QuantizedPosShift & 0x1FFu; }
+	uint32		GetNumTris() const				{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> 9) & 0xFFu; }
+	uint32		GetBitsPerIndex() const			{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9+8)) & 0xFu; }
+	uint32		GetQuantizedPosShift() const	{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9+8+4)) & 0x3Fu; }
 };
 
 struct FPageStreamingState
@@ -288,10 +299,30 @@ public:
 	uint32 PageDependencyStartAndNum;
 };
 
-class FFixupChunk
+struct FPageDiskHeader
+{
+	uint32 GpuSize;
+	uint32 NumClusters;
+	uint32 NumMaterialDwords;
+	uint32 NumTexCoords;
+	uint32 StripBitmaskOffset;
+	uint32 VertexRefBitmaskOffset;
+};
+
+struct FClusterDiskHeader
+{
+	uint32 IndexDataOffset;
+	uint32 VertexRefDataOffset;
+	uint32 PositionDataOffset;
+	uint32 AttributeDataOffset;
+	uint32 NumPrevRefVerticesBeforeDwords;
+	uint32 NumPrevNewVerticesBeforeDwords;
+};
+
+class FFixupChunk	//TODO: rename to something else
 {
 public:
-	struct
+	struct FHeader
 	{
 		uint16 NumClusters = 0;
 		uint16 NumHierachyFixups = 0;

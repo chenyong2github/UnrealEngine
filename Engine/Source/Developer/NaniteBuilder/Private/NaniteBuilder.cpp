@@ -18,8 +18,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("5D4E1147-76DB-48D0-9953-27E15D01B945")
-
+#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8CCB-1FDD-80DF-71B66692BD9A")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -100,6 +99,11 @@ FORCEINLINE uint32 GetTypeHash(const FUIntVector& V)
 FORCEINLINE uint32 GetTypeHash( const FIntVector4& Vector )
 {
 	return CityHash32( (const char*)&Vector, sizeof( FIntVector4 ) );
+}
+
+FORCEINLINE uint32 GetTypeHash(const VertType& V)
+{
+	return CityHash32((const char*)&V, sizeof(VertType));
 }
 
 /*
@@ -246,13 +250,15 @@ struct FClusterGroupPart					// Whole group or a part of a group that has been s
 
 struct FPage
 {
-	uint32					PartsStartIndex = 0;
-	uint32					PartsNum = 0;
-	uint32					EncodedSize = 0;
-	uint32					NumClusters = 0;
-	TArray<uint8>			IndexData;
-	TArray<uint8>			PositionData;
-	TArray<uint8>			AttributeData;
+	uint32	PartsStartIndex = 0;
+	uint32	PartsNum = 0;
+	uint32	NumClusters = 0;
+
+	uint32	GpuSize = 0;
+	uint32	MiscGpuSize = 0;
+	uint32	IndexGpuSize = 0;
+	uint32	PositionGpuSize = 0;
+	uint32	AttributeGpuSize = 0;
 };
 
 FORCEINLINE bool IsRootPage(uint32 PageIndex)	// Keep in sync with ClusterCulling.usf
@@ -549,30 +555,54 @@ static uint32 PackMaterialInfo(const Nanite::FTriCluster& InCluster, TArray<uint
 	return PackedMaterialInfo;
 }
 
-static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::FTriCluster& InCluster)
+struct FGeometryEncodingUVInfo
+{
+	FUVRange	UVRange;
+	FVector2D	UVDelta;
+	FVector2D	UVRcpDelta;
+	uint32		NU, NV;
+};
+
+struct FEncodingInfo
+{
+	uint32 GpuSize;
+	uint32 BitsPerIndex;
+	uint32 BitsPerAttrib;
+	uint32 UVPrec;
+
+	uint32 MiscGpuSize;
+	uint32 IndexGpuSize;
+	uint32 PositionGpuSize;
+	uint32 AttributeGpuSize;
+
+	FGeometryEncodingUVInfo UVInfos[MAX_NANITE_UVS];
+};
+
+static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::FTriCluster& InCluster, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords)
 {
 	// 0
 	OutCluster.QuantizedPosStart	= InCluster.QuantizedPosStart;
-	OutCluster.PositionOffset		= InCluster.PositionOffset;
+	OutCluster.PositionOffset		= 0;
 
 	// 1
 	OutCluster.MeshBoundsMin		= InCluster.MeshBoundsMin;
-	OutCluster.IndexOffset			= InCluster.IndexOffset;
+	OutCluster.IndexOffset			= 0;
 
 	// 2
 	OutCluster.MeshBoundsDelta		= InCluster.MeshBoundsDelta;
-	OutCluster.AttributeOffset		= InCluster.AttributeOffset;
+	OutCluster.AttributeOffset		= 0;
 
 	// 3
 	check(InCluster.NumVerts < 512);
 	check(InCluster.NumTris < 256);
-	check(InCluster.BitsPerIndex < 16);
-	check(InCluster.BitsPerAttrib < 128);
-	check(InCluster.QuantizedPosShift < 64);
-	OutCluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = InCluster.NumVerts | (InCluster.NumTris << (9)) | (InCluster.BitsPerIndex << (9 + 8)) | (InCluster.QuantizedPosShift << (9 + 8 + 4));
-	OutCluster.BitsPerAttrib		= InCluster.BitsPerAttrib;
+	check(EncodingInfo.BitsPerIndex < 16);
+	check(EncodingInfo.BitsPerAttrib < 128);
+	check(InCluster.QuantizedPosShift < 32);
+	OutCluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = InCluster.NumVerts | (InCluster.NumTris << (9)) | (EncodingInfo.BitsPerIndex << (9 + 8)) | (InCluster.QuantizedPosShift << (9 + 8 + 4));
+	OutCluster.BitsPerAttrib		= EncodingInfo.BitsPerAttrib;
+	OutCluster.UV_Prec				= EncodingInfo.UVPrec;
 	OutCluster.GroupIndex			= InCluster.ClusterGroupIndex;
-	OutCluster.Pad2					= 0;
+
 	// 4
 	OutCluster.LODBounds			= InCluster.LODBounds;
 
@@ -588,17 +618,11 @@ static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::
 	OutCluster.LODErrorAndEdgeLength	= FFloat16(InCluster.LODError).Encoded | (FFloat16(InCluster.EdgeLength).Encoded << 16);
 	OutCluster.PackedMaterialInfo		= 0;	// Filled out by WritePages
 	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
-	OutCluster.Pad						= 0;
+	OutCluster.Pad0						= 0;
 	
-	for( int32 i = 0; i < InCluster.UVRanges.Num(); i++ )
+	for( uint32 i = 0; i < NumTexCoords; i++ )
 	{
-		OutCluster.UVRanges[i].Min			= InCluster.UVRanges[i].Min;
-		OutCluster.UVRanges[i].Scale		= InCluster.UVRanges[i].Scale;
-
-		OutCluster.UVRanges[i].GapStart[0]	= InCluster.UVRanges[i].GapStart[0];
-		OutCluster.UVRanges[i].GapStart[1]	= InCluster.UVRanges[i].GapStart[1];
-		OutCluster.UVRanges[i].GapLength[0]	= InCluster.UVRanges[i].GapLength[0];
-		OutCluster.UVRanges[i].GapLength[1]	= InCluster.UVRanges[i].GapLength[1];
+		OutCluster.UVRanges[i] = EncodingInfo.UVInfos[i].UVRange;
 	}
 }
 
@@ -665,18 +689,6 @@ struct FCompareMaterialTriangleIndex
 		return (A.MaterialIndex < B.MaterialIndex);
 	}
 };
-
-static const uint32 POSITION_QUANTIZATION_BITS = 10;
-static const uint32 NORMAL_QUANTIZATION_BITS = 12;
-static const uint32 TANGENT_QUANTIZATION_BITS = 10;
-static const uint32 TEXCOORD_QUANTIZATION_BITS = 10;
-static const uint32 POSITION_QUANTIZATION_MAX_VALUE = (1u << POSITION_QUANTIZATION_BITS) - 1u;
-static const uint32 TEXCOORD_QUANTIZATION_MAX_VALUE = (1u << TEXCOORD_QUANTIZATION_BITS) - 1u;
-
-static_assert(POSITION_QUANTIZATION_BITS * 3 <= 32, "Doesn't fit in uint32");
-static_assert(TANGENT_QUANTIZATION_BITS * 3 + 1 <= 32, "Doesn't fit in uint32");
-static_assert(NORMAL_QUANTIZATION_BITS == 12, "Packing code assumes NORMAL_QUANTIZATION_BITS == 12");
-static_assert(TEXCOORD_QUANTIZATION_BITS == 10, "Packing code assumes TEXCOORD_QUANTIZATION_BITS == 10");
 
 static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters, TArray< FMeshlet >& Meshlets, const FBounds& MeshBounds)
 {
@@ -775,9 +787,9 @@ static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters,
 			{
 				FUIntVector UIntMin = QuantizeUInt( UIntClusterMin, ClusterShift );
 				FUIntVector UIntMax = QuantizeUInt( UIntClusterMax, ClusterShift );
-				if( UIntMax.X - UIntMin.X <= POSITION_QUANTIZATION_MAX_VALUE ||
-					UIntMax.Y - UIntMin.Y <= POSITION_QUANTIZATION_MAX_VALUE ||
-					UIntMax.Z - UIntMin.Z <= POSITION_QUANTIZATION_MAX_VALUE )
+				if( UIntMax.X - UIntMin.X <= POSITION_QUANTIZATION_MASK ||
+					UIntMax.Y - UIntMin.Y <= POSITION_QUANTIZATION_MASK ||
+					UIntMax.Z - UIntMin.Z <= POSITION_QUANTIZATION_MASK)
 				{
 					break;
 				}
@@ -836,7 +848,7 @@ static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters,
 				}
 
 				uint32 Delta = FMath::Max3(UIntClusterMax.X - UIntClusterMin.X, UIntClusterMax.Y - UIntClusterMin.Y, UIntClusterMax.Z - UIntClusterMin.Z);
-				if (Delta <= POSITION_QUANTIZATION_MAX_VALUE)
+				if (Delta <= POSITION_QUANTIZATION_MASK)
 					break;	// If it doesn't fit try again at next quantization level
 				ClusterShift++;
 				QuantizationShiftsChanged = true;
@@ -882,14 +894,13 @@ static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters,
 				QuantizedPosition.X -= QuantizedPosStart.X;
 				QuantizedPosition.Y -= QuantizedPosStart.Y;
 				QuantizedPosition.Z -= QuantizedPosStart.Z;
-				check(QuantizedPosition.X <= POSITION_QUANTIZATION_MAX_VALUE && QuantizedPosition.Y <= POSITION_QUANTIZATION_MAX_VALUE && QuantizedPosition.Z <= POSITION_QUANTIZATION_MAX_VALUE);
+				check(QuantizedPosition.X <= POSITION_QUANTIZATION_MASK && QuantizedPosition.Y <= POSITION_QUANTIZATION_MASK && QuantizedPosition.Z <= POSITION_QUANTIZATION_MASK);
 				Cluster.QuantizedPositions[VertexIndex] = QuantizedPosition;
 			}
 		} );
 }
 
-static void EncodeGeometryData(	Nanite::FTriCluster& Cluster, const Nanite::FMeshlet& Meshlet, uint32 NumTexCoords,
-								TArray<uint8>& IndexData, TArray<uint8>& PositionData, TArray<uint8>& AttributeData)
+static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FTriCluster& Cluster, const Nanite::FMeshlet& Meshlet, uint32 NumTexCoords)
 {
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
@@ -897,41 +908,19 @@ static void EncodeGeometryData(	Nanite::FTriCluster& Cluster, const Nanite::FMes
 	const FUIntVector QuantizedPosStart = Cluster.QuantizedPosStart;
 	const uint32 ClusterShift = Cluster.QuantizedPosShift;
 
-	check(NumClusterTris <= 128);
-	
-	if (NumTexCoords > 2) NumTexCoords = 2;	//TODO: hack
-	
-	FBitWriter BitWriter_Index(IndexData);
-	FBitWriter BitWriter_Position(PositionData);
-	FBitWriter BitWriter_Attribute(AttributeData);
-
-
 	// Write triangles indices. Indices are stored in a dense packed bitstream using ceil(log2(NumClusterVerices)) bits per index. The shaders implement unaligned bitstream reads to support this.
-
 	const uint32 BitsPerIndex = NumClusterVerts > 1 ? (FGenericPlatformMath::FloorLog2(NumClusterVerts - 1) + 1) : 0;
 	
-	// Write triangle indices
-	for (uint32 TriIndex = 0; TriIndex < NumClusterTris; ++TriIndex)
-	{
-		uint32 Index0 = Meshlet.Indexes[TriIndex * 3 + 0];
-		uint32 Index1 = Meshlet.Indexes[TriIndex * 3 + 1];
-		uint32 Index2 = Meshlet.Indexes[TriIndex * 3 + 2];
-		uint32 PackedIndices = (Index2 << (BitsPerIndex * 2)) | (Index1 << BitsPerIndex) | Index0;
-		BitWriter_Index.PutBits(PackedIndices, BitsPerIndex * 3);
-	}
-	BitWriter_Index.Flush(sizeof(uint32));
-
-	Cluster.BitsPerIndex = BitsPerIndex;
+	FMemory::Memset(Info, 0);
+	Info.BitsPerIndex = BitsPerIndex;
+	Info.BitsPerAttrib = 2 * NORMAL_QUANTIZATION_BITS;
 
 	check(NumClusterVerts > 0);
-
-	// Generate quantized texture coordinates
-	TArray<uint32> PackedUVs;
-	PackedUVs.SetNumUninitialized( NumClusterVerts * NumTexCoords );
-	Cluster.UVRanges.SetNumUninitialized( NumTexCoords );
+	bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
 
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
+		FGeometryEncodingUVInfo& UVInfo = Info.UVInfos[UVIndex];
 		// Block compress texture coordinates
 		// Texture coordinates are stored relative to the clusters min/max UV coordinates.
 		// UV seams result in very large sparse bounding rectangles. To mitigate this the largest gap in U and V of the bounding rectangle are excluded from the coding space.
@@ -971,93 +960,235 @@ static void EncodeGeometryData(	Nanite::FTriCluster& Cluster, const Nanite::FMes
 
 		const FVector2D UVMin = FVector2D(UValues[0], VValues[0]);
 		const FVector2D UVMax = FVector2D(UValues[NumClusterVerts - 1], VValues[NumClusterVerts - 1]);
-		const FVector2D UVDelta = FVector2D::Max(UVMax - UVMin, FVector2D(1e-7f, 1e-7f));
-		const FVector2D UVRcpDelta = FVector2D(1.0f, 1.0f) / UVDelta;
+		const FVector2D UVDelta = UVMax - UVMin;
 
+		const FVector2D UVRcpDelta = FVector2D(	UVDelta.X > SMALL_NUMBER ? 1.0f / UVDelta.X : 0.0f,
+												UVDelta.Y > SMALL_NUMBER ? 1.0f / UVDelta.Y : 0.0f);
+
+		const FVector2D NonGapLength = FVector2D::Max(UVDelta - (LargestGapEnd - LargestGapStart), FVector2D(0.0f, 0.0f));
 		const FVector2D NormalizedGapStart = (LargestGapStart - UVMin) * UVRcpDelta;
 		const FVector2D NormalizedGapEnd = (LargestGapEnd - UVMin) * UVRcpDelta;
 
-		const FVector2D NormalizedNonGap = FVector2D(1.0f, 1.0f) - (NormalizedGapEnd - NormalizedGapStart);
+		const FVector2D NormalizedNonGapLength = NonGapLength * UVRcpDelta;
 
-		const uint32 NU = (uint32)FMath::Clamp((TEXCOORD_QUANTIZATION_MAX_VALUE - 2) / NormalizedNonGap.X, (float)TEXCOORD_QUANTIZATION_MAX_VALUE, (float)0xFFFF);
-		const uint32 NV = (uint32)FMath::Clamp((TEXCOORD_QUANTIZATION_MAX_VALUE - 2) / NormalizedNonGap.Y, (float)TEXCOORD_QUANTIZATION_MAX_VALUE, (float)0xFFFF);
+		float TexCoordUnitPrecisionU = (1 << 14);	// 1.0f / 16384.0f			//TODO: figure out how to handle LOD
+		float TexCoordUnitPrecisionV = (1 << 14);
+		if (!bIsLeaf)
+		{
+			TexCoordUnitPrecisionU = 1 << 12;
+			TexCoordUnitPrecisionV = 1 << 12;
+		}
+		
+		const int32 TEXCOORD_QUANTIZATION_BITS = 10;
+		const int32 TexCoordBitsU = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.X * TexCoordUnitPrecisionU)), TEXCOORD_QUANTIZATION_BITS);
+		const int32 TexCoordBitsV = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.Y * TexCoordUnitPrecisionV)), TEXCOORD_QUANTIZATION_BITS);
 
-		int32 GapStartU = TEXCOORD_QUANTIZATION_MAX_VALUE + 1;
-		int32 GapStartV = TEXCOORD_QUANTIZATION_MAX_VALUE + 1;
+		Info.UVPrec |= ((TexCoordBitsV << 4) | TexCoordBitsU) << (UVIndex * 8);
+
+		const int32 TexCoordMaxValueU = (1 << TexCoordBitsU) - 1;
+		const int32 TexCoordMaxValueV = (1 << TexCoordBitsV) - 1;
+
+		const int32 NU = (int32)FMath::Clamp(NormalizedNonGapLength.X > SMALL_NUMBER ? (TexCoordMaxValueU - 2) / NormalizedNonGapLength.X : 0.0f, (float)TexCoordMaxValueU, (float)0xFFFF);
+		const int32 NV = (int32)FMath::Clamp(NormalizedNonGapLength.Y > SMALL_NUMBER ? (TexCoordMaxValueV - 2) / NormalizedNonGapLength.Y : 0.0f, (float)TexCoordMaxValueV, (float)0xFFFF);
+
+		int32 GapStartU = TexCoordMaxValueU + 1;
+		int32 GapStartV = TexCoordMaxValueV + 1;
 		int32 GapLengthU = 0;
 		int32 GapLengthV = 0;
-		if (NU > TEXCOORD_QUANTIZATION_MAX_VALUE)
+		if (NU > TexCoordMaxValueU)
 		{
 			GapStartU = int32(NormalizedGapStart.X * NU + 0.5f) + 1;
 			const int32 GapEndU = int32(NormalizedGapEnd.X * NU + 0.5f);
 			GapLengthU = FMath::Max(GapEndU - GapStartU, 0);
 		}
-		if (NV > TEXCOORD_QUANTIZATION_MAX_VALUE)
+		if (NV > TexCoordMaxValueV)
 		{
 			GapStartV = int32(NormalizedGapStart.Y * NV + 0.5f) + 1;
 			const int32 GapEndV = int32(NormalizedGapEnd.Y * NV + 0.5f);
 			GapLengthV = FMath::Max(GapEndV - GapStartV, 0);
 		}
 
-		for (uint32 i = 0; i < NumClusterVerts; i++)
+		UVInfo.UVRange.Min = UVMin;
+		UVInfo.UVRange.Scale = FVector2D(NU > 0 ? UVDelta.X / NU : 0.0f, NV > 0 ? UVDelta.Y / NV : 0.0f);
+		UVInfo.UVRange.GapStart[0] = GapStartU;
+		UVInfo.UVRange.GapStart[1] = GapStartV;
+		UVInfo.UVRange.GapLength[0] = GapLengthU;
+		UVInfo.UVRange.GapLength[1] = GapLengthV;
+		
+		UVInfo.UVDelta = UVDelta;
+		UVInfo.UVRcpDelta = UVRcpDelta;
+		UVInfo.NU = NU;
+		UVInfo.NV = NV;
+
+		Info.BitsPerAttrib += TexCoordBitsU + TexCoordBitsV;
+	}
+
+	uint32 MaterialTableDwords = CalcMaterialTableSize(Cluster);
+	uint32 MiscSize = sizeof(FPackedTriCluster) + MaterialTableDwords * sizeof(uint32);
+	Info.MiscGpuSize = MiscSize;
+	Info.GpuSize += MiscSize;
+	
+	// Index Data
+	Info.IndexGpuSize = (NumClusterTris * 3 * BitsPerIndex + 7) / 8;
+	Info.GpuSize += Info.IndexGpuSize;
+	
+	// Position Data
+	Info.PositionGpuSize = (NumClusterVerts * 3 * POSITION_QUANTIZATION_BITS + 7) / 8;
+	Info.GpuSize += Info.PositionGpuSize;
+
+	// Attribute Data
+	Info.AttributeGpuSize = (NumClusterVerts * Info.BitsPerAttrib + 7) / 8;
+	Info.GpuSize += Info.AttributeGpuSize;
+}
+
+static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const TArray<Nanite::FTriCluster>& Clusters, const TArray<Nanite::FMeshlet>& Meshlets, uint32 NumTexCoords)
+{
+	uint32 NumClusters = Clusters.Num();
+	EncodingInfos.SetNumUninitialized(NumClusters);
+
+	for (uint32 i = 0; i < NumClusters; i++)
+	{
+		CalculateEncodingInfo(EncodingInfos[i], Clusters[i], Meshlets[i], NumTexCoords);
+	}
+}
+
+static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FTriCluster& Cluster, const Nanite::FMeshlet& Meshlet, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords,
+								TArray<uint32>& StripBitmask, TArray<uint8>& IndexData,
+								TArray<uint32>& VertexRefBitmask, TArray<uint32>& VertexRefData, TArray<uint8>& PositionData, TArray<uint8>& AttributeData,
+								TMap<VertType, uint32>& UniqueVertices, uint32& NumCodedVertices)
+{
+	const uint32 NumClusterVerts = Cluster.NumVerts;
+	const uint32 NumClusterTris = Cluster.NumTris;
+
+	const FUIntVector QuantizedPosStart = Cluster.QuantizedPosStart;
+	const uint32 ClusterShift = Cluster.QuantizedPosShift;
+
+	NumCodedVertices = 0;
+	TArray<uint32> UniqueToVertexIndex;
+	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
+	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+	{
+		const VertType& Vertex = Meshlet.Verts[VertexIndex];
+		uint32* VertexPtr = UniqueVertices.Find(Vertex);
+
+		if (VertexPtr)
+		{
+			int32 ClusterIndexDelta = LocalClusterIndex - (*VertexPtr >> 8);
+			check(ClusterIndexDelta >= 0);
+			int32 Code = (ClusterIndexDelta << 8) | (*VertexPtr & 0xFF);
+			VertexRefData.Add(Code);
+
+			uint32 BitIndex = LocalClusterIndex * MAX_CLUSTER_VERTICES + VertexIndex;
+			VertexRefBitmask[BitIndex >> 5] |= 1u << (BitIndex & 31);
+		}
+		else
+		{
+			uint32 Val = (LocalClusterIndex << 8) | NumCodedVertices;
+			UniqueVertices.Add(Vertex, Val);
+			UniqueToVertexIndex.Add(VertexIndex);
+			NumCodedVertices++;
+		}
+	}
+
+	
+	FBitWriter BitWriter_Position(PositionData);
+	FBitWriter BitWriter_Attribute(AttributeData);
+
+	const uint32 BitsPerIndex = EncodingInfo.BitsPerIndex;
+	
+	// Write triangle indices
+#if USE_STRIP_INDICES
+	for (uint32 i = 0; i < MAX_CLUSTER_TRIANGLES / 32; i++)
+	{
+		StripBitmask.Add(Cluster.StripDesc.Bitmasks[i][0]);
+		StripBitmask.Add(Cluster.StripDesc.Bitmasks[i][1]);
+		StripBitmask.Add(Cluster.StripDesc.Bitmasks[i][2]);
+	}
+	IndexData.Append(Cluster.StripIndexData);
+#else
+	for (uint32 i = 0; i < NumClusterTris * 3; i++)
+	{
+		uint32 Index = Meshlet.Indexes[i];
+		IndexData.Add(Meshlet.Indexes[i]);
+	}
+#endif
+
+	check(NumClusterVerts > 0);
+
+	bool bIsLeaf = (Cluster.GeneratingGroupIndex == INVALID_GROUP_INDEX);
+
+	// Generate quantized texture coordinates
+	TArray<uint32> PackedUVs;
+	PackedUVs.SetNumUninitialized( NumClusterVerts * NumTexCoords );
+	
+	uint32 TexCoordBits[MAX_NANITE_UVS] = {};
+	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+	{
+		const int32 TexCoordBitsU = (EncodingInfo.UVPrec >> (UVIndex * 8 + 0)) & 15;
+		const int32 TexCoordBitsV = (EncodingInfo.UVPrec >> (UVIndex * 8 + 4)) & 15;
+		const int32 TexCoordMaxValueU = (1 << TexCoordBitsU) - 1;
+		const int32 TexCoordMaxValueV = (1 << TexCoordBitsV) - 1;
+
+		const FGeometryEncodingUVInfo& UVInfo = EncodingInfo.UVInfos[UVIndex];
+		const FVector2D UVMin = UVInfo.UVRange.Min;
+		const FVector2D UVDelta = UVInfo.UVDelta;
+		const FVector2D UVRcpDelta = UVInfo.UVRcpDelta;
+		const int32 NU = UVInfo.NU;
+		const int32 NV = UVInfo.NV;
+		const int32 GapStartU = UVInfo.UVRange.GapStart[0];
+		const int32 GapStartV = UVInfo.UVRange.GapStart[1];
+		const int32 GapLengthU = UVInfo.UVRange.GapLength[0];
+		const int32 GapLengthV = UVInfo.UVRange.GapLength[1];
+
+		for(uint32 i : UniqueToVertexIndex)
 		{
 			const FVector2D& UV = Meshlet.Verts[ i ].UVs[ UVIndex ];
 			const FVector2D NormalizedUV = ((UV - UVMin) * UVRcpDelta).ClampAxes(0.0f, 1.0f);
 
 			int32 U = int32(NormalizedUV.X * NU + 0.5f);
 			int32 V = int32(NormalizedUV.Y * NV + 0.5f);
-			if (U >= GapStartU) U -= GapLengthU; 
-			if (V >= GapStartV) V -= GapLengthV;
-			check(U >= 0 && U <= TEXCOORD_QUANTIZATION_MAX_VALUE);
-			check(V >= 0 && V <= TEXCOORD_QUANTIZATION_MAX_VALUE);
-			PackedUVs[ NumClusterVerts * UVIndex + i ] = (V << TEXCOORD_QUANTIZATION_BITS) | U;
+			if (U >= GapStartU)
+			{
+				check(U >= GapStartU + GapLengthU);
+				U -= GapLengthU;
+			}
+			if (V >= GapStartV)
+			{
+				check(V >= GapStartV + GapLengthV);
+				V -= GapLengthV;
+			}
+			check(U >= 0 && U <= TexCoordMaxValueU);
+			check(V >= 0 && V <= TexCoordMaxValueV);
+			PackedUVs[ NumClusterVerts * UVIndex + i ] = (V << TexCoordBitsU) | U;
 		}
-
-		Cluster.UVRanges[ UVIndex ].Min = UVMin;
-		Cluster.UVRanges[ UVIndex ].Scale = FVector2D(UVDelta.X / NU, UVDelta.Y / NV);
-		Cluster.UVRanges[ UVIndex ].GapStart[0] = GapStartU;
-		Cluster.UVRanges[ UVIndex ].GapStart[1] = GapStartV;
-		Cluster.UVRanges[ UVIndex ].GapLength[0] = GapLengthU;
-		Cluster.UVRanges[ UVIndex ].GapLength[1] = GapLengthV;
+		TexCoordBits[UVIndex] = TexCoordBitsU + TexCoordBitsV;
 	}
 
 	// Quantize and write positions
-	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
 		const FUIntVector& QuantizedPosition = Cluster.QuantizedPositions[VertexIndex];
 		uint32 PackedPosition = (QuantizedPosition.Z << (POSITION_QUANTIZATION_BITS * 2)) | (QuantizedPosition.Y << (POSITION_QUANTIZATION_BITS)) | (QuantizedPosition.X << 0);
-		//BitWriter.PutBits(PackedPosition, 3 * POSITION_QUANTIZATION_BITS);
+
 		BitWriter_Position.PutBits(PackedPosition, 32);
 	}
 	BitWriter_Position.Flush(sizeof(uint32));
 
 	// Quantize and write remaining shading attributes
-	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
+	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
 		// Normal
 		uint32 PackedNormal = PackNormal(Meshlet.Verts[VertexIndex].Normal, NORMAL_QUANTIZATION_BITS);
-
 		BitWriter_Attribute.PutBits(PackedNormal, 2 * NORMAL_QUANTIZATION_BITS);
-
+		
 		// UVs
 		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
 		{
 			uint32 PackedUV = PackedUVs[ NumClusterVerts * TexCoordIndex + VertexIndex ];
-			BitWriter_Attribute.PutBits(PackedUV, 2 * TEXCOORD_QUANTIZATION_BITS);
+			BitWriter_Attribute.PutBits(PackedUV, TexCoordBits[TexCoordIndex]);
 		}
+		BitWriter_Attribute.Flush(sizeof(uint32));
 	}
-	BitWriter_Attribute.Flush(sizeof(uint32));
-
-	// Set offsets to where they are relative to the start of GeometryData
-	Cluster.IndexSize = IndexData.Num();
-	Cluster.PositionSize = PositionData.Num();
-	Cluster.AttributeSize = AttributeData.Num();
-
-	Cluster.IndexOffset = 0;
-	Cluster.PositionOffset = 0;
-	Cluster.AttributeOffset = 0;
-	
-	Cluster.BitsPerAttrib = 2 * NORMAL_QUANTIZATION_BITS + NumTexCoords * 2 * TEXCOORD_QUANTIZATION_BITS;
 }
 
 // Generate a permutation of cluster groups that is sorted first by mip level and then by Morton order x, y and z.
@@ -1111,6 +1242,21 @@ static TArray<uint32> CalculateClusterGroupPermutation( const TArray< FClusterGr
 	return Permutation;
 }
 
+static void SortGroupClusters(TArray<FClusterGroup>& ClusterGroups, const TArray<FTriCluster>& Clusters)
+{
+	for (FClusterGroup& Group : ClusterGroups)
+	{
+		FVector SortDirection = FVector(1.0f, 1.0f, 1.0f);
+		Group.Children.Sort([&Clusters, SortDirection](uint32 ClusterIndexA, uint32 ClusterIndexB) {
+			const FTriCluster& ClusterA = Clusters[ClusterIndexA];
+			const FTriCluster& ClusterB = Clusters[ClusterIndexB];
+			float DotA = FVector::DotProduct(ClusterA.SphereBounds.Center, SortDirection);
+			float DotB = FVector::DotProduct(ClusterB.SphereBounds.Center, SortDirection);
+			return DotA < DotB;
+		});
+	}
+}
+
 /*
 	Build streaming pages
 	Page layout:
@@ -1120,12 +1266,11 @@ static TArray<uint32> CalculateClusterGroupPermutation( const TArray< FClusterGr
 		GeometryData
 */
 
-static void EncodeClustersAndAssignToPages(
+static void AssignClustersToPages(
 	Nanite::FResources& Resources,
 	TArray< FClusterGroup >& ClusterGroups,
 	TArray< Nanite::FTriCluster >& Clusters,
-	const TArray< Nanite::FMeshlet >& Meshlets,
-	uint32 NumTexCoords,
+	const TArray< FEncodingInfo >& EncodingInfos,
 	TArray<FPage>& Pages,
 	TArray<FClusterGroupPart>& Parts
 	)
@@ -1136,6 +1281,7 @@ static void EncodeClustersAndAssignToPages(
 	const uint32 NumClusterGroups = ClusterGroups.Num();
 	Pages.AddDefaulted();
 
+	SortGroupClusters(ClusterGroups, Clusters);
 	TArray<uint32> ClusterGroupPermutation = CalculateClusterGroupPermutation(ClusterGroups);
 
 	for (uint32 i = 0; i < NumClusterGroups; i++)
@@ -1149,26 +1295,15 @@ static void EncodeClustersAndAssignToPages(
 		{
 			// Pick best next cluster		// TODO
 			FTriCluster& Cluster = Clusters[ClusterIndex];
-			const FMeshlet& Meshlet = Meshlets[ClusterIndex];
+			const FEncodingInfo& EncodingInfo = EncodingInfos[ClusterIndex];
 
-			// Encode and add to page
-			uint32 MaterialTableDwords = CalcMaterialTableSize(Cluster);
-
-			TArray<uint8> IndexData;
-			TArray<uint8> PositionData;
-			TArray<uint8> AttributeData;
-			EncodeGeometryData(Cluster, Meshlet, NumTexCoords, IndexData, PositionData, AttributeData);
-
-			uint32 EncodedSize = sizeof(FPackedTriCluster) + MaterialTableDwords * sizeof(uint32) + IndexData.Num() + PositionData.Num() + AttributeData.Num();
-			
+			// Add to page
 			FPage* Page = &Pages.Top();
-			if (Page->EncodedSize + EncodedSize > CLUSTER_PAGE_SIZE || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
+			if (Page->GpuSize + EncodingInfo.GpuSize > CLUSTER_PAGE_GPU_SIZE || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
 			{
 				// Page is full. Need to start a new one
 				Pages.AddDefaulted();
 				Page = &Pages.Top();
-
-				// TODO: Re-encode cluster here when we have context-aware encoding
 			}
 			
 			// Start a new part?
@@ -1204,15 +1339,12 @@ static void EncodeClustersAndAssignToPages(
 				GroupStartPage = PageIndex;
 			}
 			
-			Page->EncodedSize += EncodedSize;
+			Page->GpuSize			+= EncodingInfo.GpuSize;
+			Page->MiscGpuSize		+= EncodingInfo.MiscGpuSize;
+			Page->IndexGpuSize		+= EncodingInfo.IndexGpuSize;
+			Page->PositionGpuSize	+= EncodingInfo.PositionGpuSize;
+			Page->AttributeGpuSize	+= EncodingInfo.AttributeGpuSize;
 			Page->NumClusters++;
-			
-			Cluster.IndexOffset = Page->IndexData.Num();
-			Cluster.PositionOffset = Page->PositionData.Num();
-			Cluster.AttributeOffset = Page->AttributeData.Num();
-			Page->IndexData.Append(IndexData);
-			Page->PositionData.Append(PositionData);
-			Page->AttributeData.Append(AttributeData);
 		}
 
 		Group.PageIndexStart = GroupStartPage;
@@ -1236,19 +1368,16 @@ static void EncodeClustersAndAssignToPages(
 		}
 		Part.Bounds = FSphere(BoundSpheres.GetData(), BoundSpheres.Num());
 	}
-
-	uint32 TotalEncodedSize = 0;
-	for (FPage& Page: Pages)
-	{
-		TotalEncodedSize += Page.EncodedSize;
-	}
 }
 
 static void WritePages(	Nanite::FResources& Resources,
 						TArray<FPage>& Pages,
 						const TArray<FClusterGroup>& Groups,
 						const TArray<FClusterGroupPart>& Parts,
-						const TArray<Nanite::FTriCluster>& Clusters)
+						const TArray<Nanite::FTriCluster>& Clusters,
+						const TArray<Nanite::FMeshlet>& Meshlets,
+						const TArray<FEncodingInfo>& EncodingInfos,
+						uint32 NumTexCoords)
 {
 	check(Resources.PageStreamingStates.Num() == 0);
 
@@ -1258,6 +1387,7 @@ static void WritePages(	Nanite::FResources& Resources,
 	const uint32 NumClusters = Clusters.Num();
 	Resources.PageStreamingStates.SetNum(NumPages);
 
+	uint32 TotalGPUSize = 0;
 	TArray<FFixupChunk> FixupChunks;
 	FixupChunks.SetNum(NumPages);
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
@@ -1274,6 +1404,7 @@ static void WritePages(	Nanite::FResources& Resources,
 		}
 
 		FixupChunk.Header.NumHierachyFixups = NumHierarchyFixups;	// NumHierarchyFixups must be set before writing cluster fixups
+		TotalGPUSize += Page.GpuSize;
 	}
 
 	// Add external fixups to pages
@@ -1308,11 +1439,27 @@ static void WritePages(	Nanite::FResources& Resources,
 		}
 	}
 
-	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	struct FTaskOutput
+	{
+		TArray<uint32>				CombinedStripBitmaskData;
+		TArray<uint32>				CombinedVertexRefBitmaskData;
+		TArray<uint32>				CombinedVertexRefData;
+		TArray<uint8>				CombinedIndexData;
+		TArray<uint8>				CombinedPositionData;
+		TArray<uint8>				CombinedAttributeData;
+		TArray<uint32>				MaterialRangeData;
+		TArray<uint16>				CodedVerticesPerCluster;
+		TArray<FPackedTriCluster>	PackedClusters;
+	};
+
+	TArray<FTaskOutput> TaskOutputs;
+	TaskOutputs.AddDefaulted(NumPages);
+
+	// Process pages
+	ParallelFor(NumPages, [&Pages, &Groups, &Parts, &Clusters, &Meshlets, &EncodingInfos, &FixupChunks, &TaskOutputs, NumTexCoords](int32 PageIndex)
 	{
 		const FPage& Page = Pages[PageIndex];
-
-		// Fill fixup header
+		FTaskOutput& TaskOutput = TaskOutputs[PageIndex];
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
 
 		// Add hierarchy fixups
@@ -1346,71 +1493,50 @@ static void WritePages(	Nanite::FResources& Resources,
 			check(NumHierarchyFixups == FixupChunk.Header.NumHierachyFixups);
 		}
 
-		// Generate page dependencies
-		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
-		{
-			PageStreamingState.DependenciesStart = Resources.PageDependencies.Num();
-			for (uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++)
-			{
-				uint32 FixupPageIndex = FixupChunk.GetClusterFixup(i).GetPageIndex();
-				check(FixupPageIndex < NumPages);
-				if (IsRootPage(FixupPageIndex) || FixupPageIndex == PageIndex)	// Never emit dependencies to ourselves or a root page.
-					continue;
-
-				// Only add if not already in the set.
-				// O(n^2), but number of dependencies should be tiny in practice.
-				bool bFound = false;
-				for (uint32 j = PageStreamingState.DependenciesStart; j < (uint32)Resources.PageDependencies.Num(); j++)
-				{
-					if (Resources.PageDependencies[j] == FixupPageIndex)
-					{
-						bFound = true;
-						break;
-					}
-				}
-
-				if (bFound)
-					continue;
-
-				Resources.PageDependencies.Add(FixupPageIndex);
-			}
-			PageStreamingState.DependenciesNum = Resources.PageDependencies.Num() - PageStreamingState.DependenciesStart;
-		}
-
-		TArray<uint8>& BulkData = IsRootPage(PageIndex) ? Resources.RootClusterPage : StreamableBulkData;
-
-		PageStreamingState.BulkOffset = BulkData.Num();
-
-		uint32 FixupChunkSize = FixupChunk.GetSize();
-		BulkData.Append((uint8*)&FixupChunk, FixupChunkSize);
-		check(FixupChunk.Header.NumHierachyFixups < MAX_CLUSTERS_PER_PAGE);
-		check(FixupChunk.Header.NumClusterFixups < MAX_CLUSTERS_PER_PAGE);
-
-		for (uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++)
-		{
-			FClusterFixup& Fixup = FixupChunk.GetClusterFixup(i);
-			check(Fixup.GetPageDependencyNum() > 0);
-		}
-
-		uint32 GPUDataStartOffset = BulkData.Num();
-
 		// Pack clusters and generate material range data
-		TArray< FPackedTriCluster > PackedClusters;
-		PackedClusters.SetNumUninitialized(Page.NumClusters);
+		TaskOutput.PackedClusters.SetNumUninitialized(Page.NumClusters);
+		TaskOutput.CodedVerticesPerCluster.SetNumUninitialized(Page.NumClusters);
 		
 		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedTriCluster) / sizeof(uint32);
-		TArray< uint32 > MaterialRangeData;
+		
+		uint32 IndexGpuOffset = Page.MiscGpuSize;
+		uint32 PositionGpuOffset = IndexGpuOffset + Page.IndexGpuSize;
+		uint32 AttributeGpuOffset = PositionGpuOffset + Page.PositionGpuSize;
+		TMap<VertType, uint32> UniqueVertices;
+
 		for (uint32 i = 0; i < Page.PartsNum; i++)
 		{
 			const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + i];
 			for (uint32 j = 0; j < (uint32)Part.Clusters.Num(); j++)
 			{
 				const uint32 ClusterIndex = Part.Clusters[j];
-				FPackedTriCluster& PackedCluster = PackedClusters[Part.PageClusterOffset + j];
-				PackTriCluster(PackedCluster, Clusters[ClusterIndex]);
-				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Clusters[ClusterIndex], MaterialRangeData, NumPackedClusterDwords);
+				const FTriCluster& Cluster = Clusters[ClusterIndex];
+				const FMeshlet& Meshlet = Meshlets[ClusterIndex];
+				const FEncodingInfo& EncodingInfo = EncodingInfos[ClusterIndex];
+
+				const uint32 LocalClusterIndex = Part.PageClusterOffset + j;
+				FPackedTriCluster& PackedCluster = TaskOutput.PackedClusters[LocalClusterIndex];
+				PackTriCluster(PackedCluster, Cluster, EncodingInfos[ClusterIndex], NumTexCoords);
+
+				PackedCluster.PackedMaterialInfo = PackMaterialInfo(Cluster, TaskOutput.MaterialRangeData, NumPackedClusterDwords);
+				PackedCluster.IndexOffset = IndexGpuOffset;
+				PackedCluster.PositionOffset = PositionGpuOffset;
+				PackedCluster.AttributeOffset = AttributeGpuOffset;
+
+				IndexGpuOffset += EncodingInfo.IndexGpuSize;
+				PositionGpuOffset += EncodingInfo.PositionGpuSize;
+				AttributeGpuOffset += EncodingInfo.AttributeGpuSize;
+
+				uint32 NumCodedVertices = 0;
+				EncodeGeometryData(LocalClusterIndex, Cluster, Meshlet, EncodingInfo, NumTexCoords, 
+					TaskOutput.CombinedStripBitmaskData, TaskOutput.CombinedIndexData,
+					TaskOutput.CombinedVertexRefBitmaskData, TaskOutput.CombinedVertexRefData, TaskOutput.CombinedPositionData, TaskOutput.CombinedAttributeData, UniqueVertices, NumCodedVertices);
+				TaskOutput.CodedVerticesPerCluster[LocalClusterIndex] = NumCodedVertices;
 			}
 		}
+
+		// Dword align index data
+		TaskOutput.CombinedIndexData.SetNumZeroed((TaskOutput.CombinedIndexData.Num() + 3) & -4);
 
 		// Perform page-internal fix up directly on PackedClusters
 		for (uint32 LocalPartIndex = 0; LocalPartIndex < Page.PartsNum; LocalPartIndex++)
@@ -1430,57 +1556,213 @@ static void WritePages(	Nanite::FResources& Resources,
 					if (GeneratingGroup.PageIndexStart == PageIndex && GeneratingGroup.PageIndexNum == 1)
 					{
 						// Dependencies already met by current page. Fixup directly.
-						PackedClusters[Part.PageClusterOffset + ClusterPositionInPart].Flags &= ~NANITE_CLUSTER_FLAG_LEAF;	// Mark parent as no longer leaf
+						TaskOutput.PackedClusters[Part.PageClusterOffset + ClusterPositionInPart].Flags &= ~NANITE_CLUSTER_FLAG_LEAF;	// Mark parent as no longer leaf
 					}
 				}
 			}
 		}
+	});
 
-		// Adjust IndexOffset/PositionOffset/AttribOffset
+	
+	// Generate page dependencies
+	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	{
+		const FFixupChunk& FixupChunk = FixupChunks[PageIndex];
+		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
+		PageStreamingState.DependenciesStart = Resources.PageDependencies.Num();
+
+		for (uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++)
 		{
-			uint32 IndexOffset = PackedClusters.Num() * PackedClusters.GetTypeSize() + MaterialRangeData.Num() * MaterialRangeData.GetTypeSize();
-			uint32 PositionOffset = IndexOffset + Page.IndexData.Num();
-			uint32 AttributeOffset = PositionOffset + Page.PositionData.Num();
-			for (FPackedTriCluster& PackedCluster : PackedClusters)
+			uint32 FixupPageIndex = FixupChunk.GetClusterFixup(i).GetPageIndex();
+			check(FixupPageIndex < NumPages);
+			if (IsRootPage(FixupPageIndex) || FixupPageIndex == PageIndex)	// Never emit dependencies to ourselves or a root page.
+				continue;
+
+			// Only add if not already in the set.
+			// O(n^2), but number of dependencies should be tiny in practice.
+			bool bFound = false;
+			for (uint32 j = PageStreamingState.DependenciesStart; j < (uint32)Resources.PageDependencies.Num(); j++)
 			{
-				PackedCluster.IndexOffset += IndexOffset;
-				PackedCluster.PositionOffset += PositionOffset;
-				PackedCluster.AttributeOffset += AttributeOffset;
+				if (Resources.PageDependencies[j] == FixupPageIndex)
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (bFound)
+				continue;
+
+			Resources.PageDependencies.Add(FixupPageIndex);
+		}
+		PageStreamingState.DependenciesNum = Resources.PageDependencies.Num() - PageStreamingState.DependenciesStart;
+	}
+
+	// Write pages
+	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
+	{
+		const FPage& Page = Pages[PageIndex];
+		const FTaskOutput& TaskOutput = TaskOutputs[PageIndex];
+		
+		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
+		TArray<uint8>& BulkData = IsRootPage(PageIndex) ? Resources.RootClusterPage : StreamableBulkData;
+
+		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
+		PageStreamingState.BulkOffset = BulkData.Num();
+
+		// Write fixup chunk
+		uint32 FixupChunkSize = FixupChunk.GetSize();
+		check(FixupChunk.Header.NumHierachyFixups < MAX_CLUSTERS_PER_PAGE);
+		check(FixupChunk.Header.NumClusterFixups < MAX_CLUSTERS_PER_PAGE);
+		check(TaskOutput.MaterialRangeData.Num() < 65536);
+		BulkData.Append((uint8*)&FixupChunk, FixupChunkSize);
+
+		// Begin Disk data
+		uint32 DiskDataStartOffset = BulkData.Num();
+
+		// Write page header
+		FPageDiskHeader PageDiskHeader = {};
+		PageDiskHeader.NumClusters = Page.NumClusters;
+		PageDiskHeader.GpuSize = Page.GpuSize;
+		PageDiskHeader.NumMaterialDwords = TaskOutput.MaterialRangeData.Num();
+		PageDiskHeader.NumTexCoords = NumTexCoords;
+		PageDiskHeader.StripBitmaskOffset = 0;
+		PageDiskHeader.VertexRefBitmaskOffset = 0;
+
+		TArray<FClusterDiskHeader> ClusterDiskHeaders;
+		ClusterDiskHeaders.SetNumZeroed(Page.NumClusters);
+
+		// Write cluster headers
+		uint32 StripBitmaskStartOffset = 0;
+		uint32 VertexRefBitmaskStartOffset = 0;
+		uint32 VertexRefsStartOffset = 0;
+		uint32 PositionDataStartOffset = 0;
+		uint32 IndexDataStartOffset = sizeof(PageDiskHeader) + ClusterDiskHeaders.Num() * ClusterDiskHeaders.GetTypeSize() + sizeof(FPackedTriCluster) * Page.NumClusters + PageDiskHeader.NumMaterialDwords * sizeof(uint32);
+		{
+			
+#if USE_STRIP_INDICES
+			uint32 DataOffset = IndexDataStartOffset;
+
+			for (uint32 i = 0; i < Page.PartsNum; i++)
+			{
+				const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + i];
+				for (uint32 j = 0; j < (uint32)Part.Clusters.Num(); j++)
+				{
+					const uint32 LocalClusterIndex = Part.PageClusterOffset + j;
+					const uint32 ClusterIndex = Part.Clusters[j];
+					const FTriCluster& Cluster = Clusters[ClusterIndex];
+
+					ClusterDiskHeaders[LocalClusterIndex].IndexDataOffset = DataOffset;
+					ClusterDiskHeaders[LocalClusterIndex].NumPrevNewVerticesBeforeDwords = Cluster.StripDesc.NumPrevNewVerticesBeforeDwords;
+					ClusterDiskHeaders[LocalClusterIndex].NumPrevRefVerticesBeforeDwords = Cluster.StripDesc.NumPrevRefVerticesBeforeDwords;
+					DataOffset += Cluster.StripIndexData.Num();
+				}
+			}
+
+			uint32 NumIndexDataDwords = (TaskOutput.CombinedIndexData.Num() * TaskOutput.CombinedIndexData.GetTypeSize()) / sizeof(uint32);
+			DataOffset = IndexDataStartOffset + NumIndexDataDwords * sizeof(uint32);
+
+			StripBitmaskStartOffset = DataOffset;
+			PageDiskHeader.StripBitmaskOffset = DataOffset;
+			DataOffset += Page.NumClusters * ((MAX_CLUSTER_TRIANGLES / 32) * 12);
+#else
+			uint32 DataOffset = IndexDataStartOffset;
+			for (uint32 i = 0; i < Page.NumClusters; i++)
+			{
+				ClusterDiskHeaders[i].IndexDataOffset = DataOffset;
+				DataOffset += TaskOutput.PackedClusters[i].GetNumTris() * 3;
+			}
+
+			uint32 NumIndexDataDwords = (TaskOutput.CombinedIndexData.Num() * TaskOutput.CombinedIndexData.GetTypeSize()) / sizeof(uint32);
+			DataOffset = IndexDataStartOffset + NumIndexDataDwords * sizeof(uint32);
+#endif
+
+			VertexRefBitmaskStartOffset = DataOffset;
+			PageDiskHeader.VertexRefBitmaskOffset = DataOffset;
+			DataOffset += Page.NumClusters * (MAX_CLUSTER_VERTICES / 8);
+			
+			VertexRefsStartOffset = DataOffset;
+
+			for (uint32 i = 0; i < Page.NumClusters; i++)
+			{
+				ClusterDiskHeaders[i].VertexRefDataOffset = DataOffset;
+				uint32 NumVertexRefs = TaskOutput.PackedClusters[i].GetNumVerts() - TaskOutput.CodedVerticesPerCluster[i];
+				DataOffset += NumVertexRefs * sizeof(uint32);
+			}
+
+			PositionDataStartOffset = DataOffset;			
+			for (uint32 i = 0; i < Page.NumClusters; i++)
+			{
+				ClusterDiskHeaders[i].PositionDataOffset = DataOffset;
+				DataOffset += TaskOutput.CodedVerticesPerCluster[i] * sizeof(uint32);
+			}
+
+			for (uint32 i = 0; i < Page.NumClusters; i++)
+			{
+				const uint32 BytesPerAttrib = (TaskOutput.PackedClusters[i].BitsPerAttrib + 31) / 32 * 4;
+
+				ClusterDiskHeaders[i].AttributeDataOffset = DataOffset;
+				DataOffset += TaskOutput.CodedVerticesPerCluster[i] * BytesPerAttrib;
 			}
 		}
-		
+
+		// Write headers
+		BulkData.Append((const uint8*)&PageDiskHeader, sizeof(PageDiskHeader));
+		BulkData.Append((const uint8*)ClusterDiskHeaders.GetData(), ClusterDiskHeaders.Num() * ClusterDiskHeaders.GetTypeSize());
+
 		// Write clusters in SOA layout
-		uint32 PageStartOffset = BulkData.Num();
 		const uint32 NumClusterFloat4Propeties = sizeof(FPackedTriCluster) / 16;
 		for (uint32 float4Index = 0; float4Index < NumClusterFloat4Propeties; float4Index++)
 		{
-			for (const FPackedTriCluster& PackedCluster : PackedClusters)
+			for (const FPackedTriCluster& PackedCluster : TaskOutput.PackedClusters)
 			{
 				BulkData.Append((uint8*)&PackedCluster + float4Index * 16, 16);
 			}
 		}
-	
+
 		// Write Material Range Data
-		BulkData.Append((uint8*)MaterialRangeData.GetData(), MaterialRangeData.Num() * MaterialRangeData.GetTypeSize());
+		BulkData.Append((uint8*)TaskOutput.MaterialRangeData.GetData(), TaskOutput.MaterialRangeData.Num() * TaskOutput.MaterialRangeData.GetTypeSize());
 
 		// Write Indices
-		BulkData.Append((uint8*)Page.IndexData.GetData(), Page.IndexData.Num());
+		uint32 ActualIndexDataOffset = BulkData.Num() - DiskDataStartOffset;
+		check(ActualIndexDataOffset == IndexDataStartOffset);
+		BulkData.Append((uint8*)TaskOutput.CombinedIndexData.GetData(), TaskOutput.CombinedIndexData.Num() * TaskOutput.CombinedIndexData.GetTypeSize());
+
+#if USE_STRIP_INDICES
+		// Write Strip Bitmask
+		uint32 ActualStripBitmaskOffset = BulkData.Num() - DiskDataStartOffset;
+		check(ActualStripBitmaskOffset == StripBitmaskStartOffset);
+		BulkData.Append((uint8*)TaskOutput.CombinedStripBitmaskData.GetData(), TaskOutput.CombinedStripBitmaskData.Num() * TaskOutput.CombinedStripBitmaskData.GetTypeSize());
+#endif
+
+		// Write Vertex Reference Bitmask
+		uint32 ActualVertexRefBitmaskOffset = BulkData.Num() - DiskDataStartOffset;
+		check(ActualVertexRefBitmaskOffset == VertexRefBitmaskStartOffset);
+		BulkData.Append((uint8*)TaskOutput.CombinedVertexRefBitmaskData.GetData(), TaskOutput.CombinedVertexRefBitmaskData.Num() * TaskOutput.CombinedVertexRefBitmaskData.GetTypeSize());
+
+		// Write Vertex References
+		uint32 ActualVertexRefOffset = BulkData.Num() - DiskDataStartOffset;
+		check(ActualVertexRefOffset == VertexRefsStartOffset);
+		BulkData.Append((uint8*)TaskOutput.CombinedVertexRefData.GetData(), TaskOutput.CombinedVertexRefData.Num() * TaskOutput.CombinedVertexRefData.GetTypeSize());
 
 		// Write Positions
-		BulkData.Append((uint8*)Page.PositionData.GetData(), Page.PositionData.Num());
+		uint32 ActualPositionOffset = BulkData.Num() - DiskDataStartOffset;
+		check(ActualPositionOffset == PositionDataStartOffset);
+		BulkData.Append((uint8*)TaskOutput.CombinedPositionData.GetData(), TaskOutput.CombinedPositionData.Num() * TaskOutput.CombinedPositionData.GetTypeSize());
 
 		// Write Attributes
-		BulkData.Append((uint8*)Page.AttributeData.GetData(), Page.AttributeData.Num());
-
-		uint32 GPUDataSize = BulkData.Num() - GPUDataStartOffset;
-		check(GPUDataSize <= CLUSTER_PAGE_SIZE);
+		BulkData.Append((uint8*)TaskOutput.CombinedAttributeData.GetData(), TaskOutput.CombinedAttributeData.Num() * TaskOutput.CombinedAttributeData.GetTypeSize());
 
 		PageStreamingState.BulkSize = BulkData.Num() - PageStreamingState.BulkOffset;
+		uint32 PageDiskSize = BulkData.Num() - DiskDataStartOffset;
+		check(PageDiskSize <= CLUSTER_PAGE_DISK_SIZE);
 	}
-	
-	// FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%d bytes of page data in %d pages. %.3f bytes per page. %.3f utilization.\n"), TotalBytes, NumPages, TotalBytes / double(NumPages), TotalBytes / double(NumPages) * CLUSTER_PAGE_SIZE);
-	uint32 TotalBytes = Resources.RootClusterPage.Num() + StreamableBulkData.Num();
-	UE_LOG(LogStaticMesh, Log, TEXT("%d bytes of page data written in %d pages. %.3f bytes per page. %.3f%% utilization.\n"), TotalBytes, NumPages, TotalBytes / float(NumPages), TotalBytes / (float(NumPages) * CLUSTER_PAGE_SIZE) * 100.0f);
+
+	uint32 TotalDiskSize = Resources.RootClusterPage.Num() + StreamableBulkData.Num();
+	UE_LOG(LogStaticMesh, Log, TEXT("WritePages:"), NumPages);
+	UE_LOG(LogStaticMesh, Log, TEXT("  %d pages written."), NumPages);
+	UE_LOG(LogStaticMesh, Log, TEXT("  GPU size: %d bytes. %.3f bytes per page. %.3f%% utilization."), TotalGPUSize, TotalGPUSize / float(NumPages), TotalGPUSize / (float(NumPages) * CLUSTER_PAGE_GPU_SIZE) * 100.0f);
+	UE_LOG(LogStaticMesh, Log, TEXT("  Uncompressed disk size: %d bytes. %.3f bytes per page."), TotalDiskSize, TotalDiskSize/ float(NumPages));
 
 	// Store PageData
 	Resources.StreamableClusterPages.Lock(LOCK_READ_WRITE);
@@ -2054,29 +2336,46 @@ static void ConstrainClusterFIFO( FTriCluster& Cluster, FMeshlet& Meshlet )
 				TrianglesTouched[ i ] |= VertexToTriangleMasks[ OldIndex0 ][ i ] | VertexToTriangleMasks[ OldIndex1 ][ i ] | VertexToTriangleMasks[ OldIndex2 ][ i ];
 			}
 
-			uint16& NewIndex0 = OldToNewVertex[ OldIndex0 ];
-			uint16& NewIndex1 = OldToNewVertex[ OldIndex1 ];
-			uint16& NewIndex2 = OldToNewVertex[ OldIndex2 ];
+			uint16& NewIndex0 = OldToNewVertex[OldIndex0];
+			uint16& NewIndex1 = OldToNewVertex[OldIndex1];
+			uint16& NewIndex2 = OldToNewVertex[OldIndex2];
 
 			// Generate new indices such that they are all within a trailing window of CONSTRAINED_CLUSTER_CACHE_SIZE of NumNewVertices.
-			// This can require multiple iterations as new/duplicate vertices can push other vertices outside the window.
-			uint32 PrevNumVewVertices;
-			do
+			// This can require multiple iterations as new/duplicate vertices can push other vertices outside the window.			
+			uint32 TestNumNewVertices = NumNewVertices;
+			TestNumNewVertices += (NewIndex0 == 0xFFFF) + (NewIndex1 == 0xFFFF) + (NewIndex2 == 0xFFFF);
+
+			while(true)
 			{
-				PrevNumVewVertices = NumNewVertices;
-				if( NewIndex0 == 0xFFFF || NumNewVertices - NewIndex0 >= CONSTRAINED_CLUSTER_CACHE_SIZE )
+				if (NewIndex0 != 0xFFFF && TestNumNewVertices - NewIndex0 >= CONSTRAINED_CLUSTER_CACHE_SIZE)
 				{
-					NewIndex0 = NumNewVertices++;	NewToOldVertex[ NewIndex0 ] = OldIndex0;
+					NewIndex0 = 0xFFFF;
+					TestNumNewVertices++;
+					continue;
 				}
-				if( NewIndex1 == 0xFFFF || NumNewVertices - NewIndex1 >= CONSTRAINED_CLUSTER_CACHE_SIZE )
+
+				if (NewIndex1 != 0xFFFF && TestNumNewVertices - NewIndex1 >= CONSTRAINED_CLUSTER_CACHE_SIZE)
 				{
-					NewIndex1 = NumNewVertices++;	NewToOldVertex[ NewIndex1 ] = OldIndex1;
+					NewIndex1 = 0xFFFF;
+					TestNumNewVertices++;
+					continue;
 				}
-				if( NewIndex2 == 0xFFFF || NumNewVertices - NewIndex2 >= CONSTRAINED_CLUSTER_CACHE_SIZE )
+
+				if (NewIndex2 != 0xFFFF && TestNumNewVertices - NewIndex2 >= CONSTRAINED_CLUSTER_CACHE_SIZE)
 				{
-					NewIndex2 = NumNewVertices++;	NewToOldVertex[ NewIndex2 ] = OldIndex2;
+					NewIndex2 = 0xFFFF;
+					TestNumNewVertices++;
+					continue;
 				}
-			} while( NumNewVertices > PrevNumVewVertices );
+				break;
+			}
+
+			if (NewIndex0 == 0xFFFF) { NewIndex0 = NumNewVertices++; }
+			if (NewIndex1 == 0xFFFF) { NewIndex1 = NumNewVertices++; }
+			if (NewIndex2 == 0xFFFF) { NewIndex2 = NumNewVertices++; }
+			NewToOldVertex[NewIndex0] = OldIndex0;
+			NewToOldVertex[NewIndex1] = OldIndex1;
+			NewToOldVertex[NewIndex2] = OldIndex2;
 
 			// Output triangle
 			OptimizedIndices[ NumNewTriangles * 3 + 0 ] = NewIndex0;
@@ -2363,6 +2662,735 @@ static void ConstrainClusterGeodesic( FTriCluster& Cluster, FMeshlet& Meshlet )
 	Cluster.NumVerts = NumNewVertices;
 }
 
+
+static __forceinline uint32 SetCorner( uint32 Triangle, uint32 LocalCorner )
+{
+	return ( Triangle << 2 ) | LocalCorner;
+}
+
+static __forceinline uint32 CornerToTriangle( uint32 Corner )
+{
+	return Corner >> 2;
+}
+
+static __forceinline uint32 NextCorner( uint32 Corner )
+{
+	if( ( Corner & 3 ) == 2 )
+		Corner &= ~3;
+	else
+		Corner++;
+	return Corner;
+}
+
+static __forceinline uint32 PrevCorner( uint32 Corner )
+{
+	if( ( Corner & 3 ) == 0 )
+		Corner |= 2;
+	else
+		Corner--;
+	return Corner;
+}
+
+static __forceinline uint32 CornerToIndex( uint32 Corner )
+{
+	return ( Corner >> 2 ) * 3 + ( Corner & 3 );
+}
+
+struct FStripifyWeights
+{
+	int32 Weights[ 2 ][ 2 ][ 2 ][ 2 ][ CONSTRAINED_CLUSTER_CACHE_SIZE ];
+};
+
+static const FStripifyWeights DefaultStripifyWeights = {
+	{
+		{
+			{
+				{
+					// IsStart=0, HasOpposite=0, HasLeft=0, HasRight=0
+					{  142,  124,  131,  184,  138,  149,  148,  127,  154,  148,  152,  133,  133,  132,  170,  141,  109,  148,  138,  117,  126,  112,  144,  126,  116,  139,  122,  141,  122,  133,  134,  137 },
+					// IsStart=0, HasOpposite=0, HasLeft=0, HasRight=1
+					{  128,  144,  134,  122,  130,  133,  129,  122,  128,  107,  127,  126,   89,  135,   88,  130,   94,  134,  103,  118,  128,   96,   90,  139,   89,  139,  113,  100,  119,  131,  113,  121 },
+				},
+				{
+					// IsStart=0, HasOpposite=0, HasLeft=1, HasRight=0
+					{  128,  144,  134,  129,  110,  142,  111,  140,  116,  139,   98,  110,  125,  143,  122,  109,  127,  154,  113,  119,  126,  131,  123,  127,   93,  118,  101,   93,  131,  139,  130,  139 },
+					// IsStart=0, HasOpposite=0, HasLeft=1, HasRight=1
+					{  120,  128,  137,  105,  113,  121,  120,  120,  112,  117,  124,  129,  129,   98,  137,  133,  122,  159,  141,  104,  129,  119,   98,  111,  110,  115,  114,  125,  115,  140,  109,  137 },
+				}
+			},
+			{
+				{
+					// IsStart=0, HasOpposite=1, HasLeft=0, HasRight=0
+					{  128,  137,  154,  169,  140,  162,  156,  157,  164,  144,  171,  145,  148,  146,  124,  138,  144,  158,  140,  137,  141,  145,  140,  148,  110,  160,  128,  129,  144,  155,  125,  123 },
+					// IsStart=0, HasOpposite=1, HasLeft=0, HasRight=1
+					{  124,  115,  136,  131,  145,  143,  159,  144,  158,  165,  128,  191,  135,  173,  147,  137,  128,  163,  164,  151,  162,  178,  161,  143,  168,  166,  122,  160,  170,  175,  132,  109 },
+				},
+				{
+					// IsStart=0, HasOpposite=1, HasLeft=1, HasRight=0
+					{  134,  112,  132,  123,  126,  138,  148,  138,  145,  136,  146,  133,  141,  165,  139,  145,  119,  167,  135,  120,  146,  120,  117,  136,  102,  156,  128,  120,  132,  143,   91,  136 },
+					// IsStart=0, HasOpposite=1, HasLeft=1, HasRight=1
+					{  140,   95,  118,  117,  127,  102,  119,  119,  134,  107,  135,  128,  109,  133,  120,  122,  132,  150,  152,  119,  128,  137,  119,  128,  131,  165,  156,  143,  135,  134,  135,  154 },
+				}
+			}
+		},
+		{
+			{
+				{
+					// IsStart=1, HasOpposite=0, HasLeft=0, HasRight=0
+					{  139,  132,  139,  133,  130,  134,  135,  131,  133,  139,  141,  139,  132,  136,  139,  150,  140,  137,  143,  157,  149,  157,  168,  155,  159,  181,  176,  185,  219,  167,  133,  143 },
+					// IsStart=1, HasOpposite=0, HasLeft=0, HasRight=1
+					{  125,  127,  126,  131,  128,  114,  130,  126,  129,  131,  125,  127,  131,  126,  137,  129,  140,   99,  142,   99,  149,  121,  155,  118,  131,  156,  168,  144,  175,  155,  112,  129 },
+				},
+				{
+					// IsStart=1, HasOpposite=0, HasLeft=1, HasRight=0
+					{  129,  129,  128,  128,  128,  129,  128,  129,  130,  127,  131,  130,  131,  130,  134,  133,  136,  134,  134,  138,  144,  139,  137,  154,  147,  141,  175,  214,  140,  140,  130,  122 },
+					// IsStart=1, HasOpposite=0, HasLeft=1, HasRight=1
+					{  128,  128,  124,  123,  125,  107,  127,  128,  125,  128,  128,  128,  128,  128,  128,  130,  107,  124,  136,  119,  139,  127,  132,  140,  125,  150,  133,  150,  138,  130,  127,  127 },
+				}
+			},
+			{
+				{
+					// IsStart=1, HasOpposite=1, HasLeft=0, HasRight=0
+					{  104,  125,  126,  129,  126,  122,  128,  126,  126,  127,  125,  122,  130,  126,  130,  131,  130,  132,  118,  101,  119,  121,  143,  114,  122,  145,  132,  144,  116,  142,  114,  127 },
+					// IsStart=1, HasOpposite=1, HasLeft=0, HasRight=1
+					{  128,  124,   93,  126,  108,  128,  127,  122,  128,  126,  128,  123,   92,  125,   98,   99,  127,  131,  126,  128,  121,  133,  113,  121,  122,  137,  145,  138,  137,  109,  129,  100 },
+				},
+				{
+					// IsStart=1, HasOpposite=1, HasLeft=1, HasRight=0
+					{  119,  128,  122,  128,  127,  123,  126,  128,  126,  122,  120,  127,  128,  122,  130,  121,  138,  122,  136,  130,  133,  124,  139,  134,  138,  118,  139,  145,  132,  122,  124,   86 },
+					// IsStart=1, HasOpposite=1, HasLeft=1, HasRight=1
+					{  116,  124,  119,  126,  118,  113,  114,  125,  128,  111,  129,  122,  129,  129,  135,  130,  138,  132,  115,  138,  114,  119,  122,  136,  138,  128,  141,  119,  139,  119,  130,  128 },
+				}
+			}
+		}
+	}
+};
+
+static uint32 countbits( uint32 x )
+{
+	return FMath::CountBits( x );
+}
+
+static uint32 firstbithigh( uint32 x )
+{
+	return FMath::FloorLog2( x );
+}
+
+static int32 BitFieldExtractI32( int32 Data, int32 NumBits, int32 StartBit )
+{
+	return ( Data << ( 32 - StartBit - NumBits ) ) >> ( 32 - NumBits );
+}
+
+static uint32 BitFieldExtractU32( uint32 Data, int32 NumBits, int32 StartBit )
+{
+	return ( Data << ( 32 - StartBit - NumBits ) ) >> ( 32 - NumBits );
+}
+
+static uint32 ReadUnalignedDword( const uint8* SrcPtr, int32 BitOffset )	// Note: Only guarantees 25 valid bits
+{
+	if( BitOffset < 0 )
+	{
+		// Workaround for reading slightly out of bounds
+		check( BitOffset > -8 );
+		return *(const uint32*)( SrcPtr ) << ( 8 - ( BitOffset & 7 ) );
+	}
+	else
+	{
+		const uint32* DwordPtr = (const uint32*)( SrcPtr + ( BitOffset >> 3 ) );
+		return *DwordPtr >> ( BitOffset & 7 );
+	}
+}
+
+static void UnpackTriangleIndices( const FStripDesc& StripDesc, const uint8* StripIndexData, uint32 TriIndex, uint32* OutIndices )
+{
+	const uint32 DwordIndex = TriIndex >> 5;
+	const uint32 BitIndex = TriIndex & 31u;
+
+	//Bitmask.x: bIsStart, Bitmask.y: bIsRight, Bitmask.z: bIsNewVertex
+	const uint32 SMask = StripDesc.Bitmasks[ DwordIndex ][ 0 ];
+	const uint32 LMask = StripDesc.Bitmasks[ DwordIndex ][ 1 ];
+	const uint32 WMask = StripDesc.Bitmasks[ DwordIndex ][ 2 ];
+	const uint32 SLMask = SMask & LMask;
+	
+	//const uint HeadRefVertexMask = ( SMask & LMask & WMask ) | ( ~SMask & WMask );
+	const uint32 HeadRefVertexMask = ( SLMask | ~SMask ) & WMask;	// 1 if head of triangle is ref. S case with 3 refs or L/R case with 1 ref.
+
+	const uint32 PrevBitsMask = ( 1u << BitIndex ) - 1u;
+	const uint32 NumPrevRefVerticesBeforeDword = DwordIndex ? BitFieldExtractU32(StripDesc.NumPrevRefVerticesBeforeDwords, 10u, DwordIndex * 10u - 10u) : 0u;
+	const uint32 NumPrevNewVerticesBeforeDword = DwordIndex ? BitFieldExtractU32(StripDesc.NumPrevNewVerticesBeforeDwords, 10u, DwordIndex * 10u - 10u) : 0u;
+
+	int32 CurrentDwordNumPrevRefVertices = ( countbits( SLMask & PrevBitsMask ) << 1 ) + countbits( WMask & PrevBitsMask );
+	int32 CurrentDwordNumPrevNewVertices = ( countbits( SMask & PrevBitsMask ) << 1 ) + BitIndex - CurrentDwordNumPrevRefVertices;
+
+	int32 NumPrevRefVertices	= NumPrevRefVerticesBeforeDword + CurrentDwordNumPrevRefVertices;
+	int32 NumPrevNewVertices	= NumPrevNewVerticesBeforeDword + CurrentDwordNumPrevNewVertices;
+
+	const int32 IsStart	= BitFieldExtractI32( SMask, 1, BitIndex);		// -1: true, 0: false
+	const int32 IsLeft	= BitFieldExtractI32( LMask, 1, BitIndex );		// -1: true, 0: false
+	const int32 IsRef	= BitFieldExtractI32( WMask, 1, BitIndex );		// -1: true, 0: false
+
+	const uint32 BaseVertex = NumPrevNewVertices - 1u;
+
+	uint32 IndexData = ReadUnalignedDword( StripIndexData, ( NumPrevRefVertices + ~IsStart ) * 5 );	// -1 if not Start
+
+	if( IsStart )
+	{
+		const int32 MinusNumRefVertices = ( IsLeft << 1 ) + IsRef;
+		uint32 NextVertex = NumPrevNewVertices;
+
+		if( MinusNumRefVertices <= -1 ) { OutIndices[ 0 ] = BaseVertex - ( IndexData & 31u ); IndexData >>= 5; } else { OutIndices[ 0 ] = NextVertex++; }
+		if( MinusNumRefVertices <= -2 ) { OutIndices[ 1 ] = BaseVertex - ( IndexData & 31u ); IndexData >>= 5; } else { OutIndices[ 1 ] = NextVertex++; }
+		if( MinusNumRefVertices <= -3 ) { OutIndices[ 2 ] = BaseVertex - ( IndexData & 31u );				   } else { OutIndices[ 2 ] = NextVertex++; }
+	}
+	else
+	{
+		// Handle two first vertices
+		const uint32 PrevBitIndex = BitIndex - 1u;
+		const int32 IsPrevStart = BitFieldExtractI32( SMask, 1, PrevBitIndex);
+		const int32 IsPrevHeadRef = BitFieldExtractI32( HeadRefVertexMask, 1, PrevBitIndex );
+		//const int NumPrevNewVerticesInTriangle = IsPrevStart ? ( 3u - ( bfe_u32( /*SLMask*/ LMask, PrevBitIndex, 1 ) << 1 ) - bfe_u32( /*SMask &*/ WMask, PrevBitIndex, 1 ) ) : /*1u - IsPrevRefVertex*/ 0u;
+		const int32 NumPrevNewVerticesInTriangle = IsPrevStart & ( 3u - ( (BitFieldExtractU32( /*SLMask*/ LMask, 1, PrevBitIndex) << 1 ) | BitFieldExtractU32( /*SMask &*/ WMask, 1, PrevBitIndex) ) );
+		
+		//OutIndices[ 1 ] = IsPrevRefVertex ? ( BaseVertex - ( IndexData & 31u ) + NumPrevNewVerticesInTriangle ) : BaseVertex;	// BaseVertex = ( NumPrevNewVertices - 1 );
+		OutIndices[ 1 ] = BaseVertex + ( IsPrevHeadRef & ( NumPrevNewVerticesInTriangle - ( IndexData & 31u ) ) );
+		//OutIndices[ 2 ] = IsRefVertex ? ( BaseVertex - bfe_u32( IndexData, 5, 5 ) ) : NumPrevNewVertices;
+		OutIndices[ 2 ] = NumPrevNewVertices + ( IsRef & ( -1 - BitFieldExtractU32( IndexData, 5, 5 ) ) );
+
+		// We have to search for the third vertex. 
+		// Left triangles search for previous Right/Start. Right triangles search for previous Left/Start.
+		const uint32 SearchMask = SMask | ( LMask ^ IsLeft );				// SMask | ( IsRight ? LMask : RMask );
+		const uint32 FoundBitIndex = firstbithigh( SearchMask & PrevBitsMask );
+		const int32 IsFoundCaseS = BitFieldExtractI32( SMask, 1, FoundBitIndex );		// -1: true, 0: false
+
+		const uint32 FoundPrevBitsMask = ( 1u << FoundBitIndex ) - 1u;
+		int32 FoundCurrentDwordNumPrevRefVertices = ( countbits( SLMask & FoundPrevBitsMask ) << 1 ) + countbits( WMask & FoundPrevBitsMask );
+		int32 FoundCurrentDwordNumPrevNewVertices = ( countbits( SMask & FoundPrevBitsMask ) << 1 ) + FoundBitIndex - FoundCurrentDwordNumPrevRefVertices;
+
+		int32 FoundNumPrevNewVertices = NumPrevNewVerticesBeforeDword + FoundCurrentDwordNumPrevNewVertices;
+		int32 FoundNumPrevRefVertices = NumPrevRefVerticesBeforeDword + FoundCurrentDwordNumPrevRefVertices;
+
+		const uint32 FoundNumRefVertices = (BitFieldExtractU32( LMask, 1, FoundBitIndex ) << 1 ) + BitFieldExtractU32( WMask, 1, FoundBitIndex );
+		const uint32 IsBeforeFoundRefVertex = BitFieldExtractU32( HeadRefVertexMask, 1, FoundBitIndex - 1 );
+
+		// ReadOffset: Where is the vertex relative to triangle we searched for?
+		const int32 ReadOffset = IsFoundCaseS ? IsLeft : 1;
+		const uint32 FoundIndexData = ReadUnalignedDword( StripIndexData, ( FoundNumPrevRefVertices - ReadOffset ) * 5 );
+		const uint32 FoundIndex = ( FoundNumPrevNewVertices - 1u ) - BitFieldExtractU32( FoundIndexData, 5, 0 );
+
+		bool bCondition = IsFoundCaseS ? ( (int32)FoundNumRefVertices >= 1 - IsLeft ) : (IsBeforeFoundRefVertex != 0u);
+		int32 FoundNewVertex = FoundNumPrevNewVertices + ( IsFoundCaseS ? ( IsLeft & ( FoundNumRefVertices == 0 ) ) : -1 );
+		OutIndices[ 0 ] = bCondition ? FoundIndex : FoundNewVertex;
+		
+		// Would it be better to code New verts instead of Ref verts?
+		// HeadRefVertexMask would just be WMask?
+		
+		// TODO: could we do better with non-generalized strips?
+
+		/*
+		if( IsFoundCaseS )
+		{
+			if( IsRight )
+			{
+				OutIndices[ 0 ] = ( FoundNumRefVertices >= 1 ) ? FoundIndex : FoundNumPrevNewVertices;
+				// OutIndices[ 0 ] = ( FoundNumRefVertices >= 1 ) ? ( FoundBaseVertex - Cluster.StripIndices[ FoundNumPrevRefVertices ] ) : FoundNumPrevNewVertices;
+			}
+			else
+			{
+				OutIndices[ 0 ] = ( FoundNumRefVertices >= 2 ) ? FoundIndex : ( FoundNumPrevNewVertices + ( FoundNumRefVertices == 0 ? 1 : 0 ) );
+				// OutIndices[ 0 ] = ( FoundNumRefVertices >= 2 ) ? ( FoundBaseVertex - Cluster.StripIndices[ FoundNumPrevRefVertices + 1 ] ) : ( FoundNumPrevNewVertices + ( FoundNumRefVertices == 0 ? 1 : 0 ) );
+			}
+		}
+		else
+		{
+			OutIndices[ 0 ] = IsBeforeFoundRefVertex ? FoundIndex : ( FoundNumPrevNewVertices - 1 );
+			// OutIndices[ 0 ] = IsBeforeFoundRefVertex ? ( FoundBaseVertex - Cluster.StripIndices[ FoundNumPrevRefVertices - 1 ] ) : ( FoundNumPrevNewVertices - 1 );
+		}
+		*/
+
+		if( IsLeft )
+		{
+			// swap
+			std::swap( OutIndices[ 1 ], OutIndices[ 2 ] );
+		}
+		check(OutIndices[0] != OutIndices[1] && OutIndices[0] != OutIndices[2] && OutIndices[1] != OutIndices[2]);
+	}
+}
+
+// Class to simultaneously constrain and stripify a cluster
+class FStripifier
+{
+	static const uint32 MAX_CLUSTER_TRIANGLES_IN_DWORDS = ( MAX_CLUSTER_TRIANGLES + 31 ) / 32;
+	static const uint32 INVALID_INDEX = 0xFFFFu;
+	static const uint32 INVALID_CORNER = 0xFFFFu;
+	static const uint32 INVALID_NODE = 0xFFFFu;
+
+	uint32 VertexToTriangleMasks[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];
+	uint16 OppositeCorner[ MAX_CLUSTER_TRIANGLES * 3 ];
+	float TrianglePriorities[ MAX_CLUSTER_TRIANGLES ];
+
+	class FContext
+	{
+	public:
+		bool TriangleEnabled( uint32 TriangleIndex ) const
+		{
+			return ( TrianglesEnabled[ TriangleIndex >> 5 ] & ( 1u << ( TriangleIndex & 31u ) ) ) != 0u;
+		}
+
+		uint16 OldToNewVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
+		uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
+
+		uint32 TrianglesEnabled[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];	// Enabled triangles are in the current material range and have not yet been visited.
+		uint32 TrianglesTouched[ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];	// Touched triangles have had at least one of their vertices visited.
+
+		uint32 StripBitmasks[ 4 ][ 3 ];	// [4][Reset, IsLeft, IsRef]
+
+		uint32 NumTriangles;
+		uint32 NumVertices;
+	};
+
+	void BuildTables( const FTriCluster& Cluster, const FMeshlet& Meshlet )
+	{
+		struct FEdgeNode
+		{
+			uint16 Corner;	// (Triangle << 2) | LocalCorner
+			uint16 NextNode;
+		};
+
+		FEdgeNode EdgeNodes[ MAX_CLUSTER_TRIANGLES * 3 ];
+		uint16 EdgeNodeHeads[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES * 3 ];	// Linked list per edge to support more than 2 triangles per edge.
+		FMemory::Memset( EdgeNodeHeads, -1 );
+		FMemory::Memset( VertexToTriangleMasks, 0 );
+
+		uint32 NumTriangles = Cluster.NumTris;
+		uint32 NumVertices = Cluster.NumVerts;
+
+		// Add triangles to edge lists and update valence
+		for( uint32 i = 0; i < NumTriangles; i++ )
+		{
+			uint32 i0 = Meshlet.Indexes[ i * 3 + 0 ];
+			uint32 i1 = Meshlet.Indexes[ i * 3 + 1 ];
+			uint32 i2 = Meshlet.Indexes[ i * 3 + 2 ];
+			check( i0 != i1 && i1 != i2 && i2 != i0 );
+
+			VertexToTriangleMasks[ i0 ][ i >> 5 ] |= 1 << ( i & 31 );
+			VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
+			VertexToTriangleMasks[ i2 ][ i >> 5 ] |= 1 << ( i & 31 );
+
+			FVector ScaledCenter = Meshlet.Verts[ i0 ].Position + Meshlet.Verts[ i1 ].Position + Meshlet.Verts[ i2 ].Position;
+			TrianglePriorities[ i ] = ScaledCenter.X;	//TODO: Find a good direction to sort by instead of just picking x?
+
+			FEdgeNode& Node0 = EdgeNodes[ i * 3 + 0 ];
+			Node0.Corner = SetCorner( i, 0 );
+			Node0.NextNode = EdgeNodeHeads[ i1 ][ i2 ];
+			EdgeNodeHeads[ i1 ][ i2 ] = i * 3 + 0;
+
+			FEdgeNode& Node1 = EdgeNodes[ i * 3 + 1 ];
+			Node1.Corner = SetCorner( i, 1 );
+			Node1.NextNode = EdgeNodeHeads[ i2 ][ i0 ];
+			EdgeNodeHeads[ i2 ][ i0 ] = i * 3 + 1;
+
+			FEdgeNode& Node2 = EdgeNodes[ i * 3 + 2 ];
+			Node2.Corner = SetCorner( i, 2 );
+			Node2.NextNode = EdgeNodeHeads[ i0 ][ i1 ];
+			EdgeNodeHeads[ i0 ][ i1 ] = i * 3 + 2;
+		}
+
+		// Gather adjacency from edge lists	
+		for( uint32 i = 0; i < NumTriangles; i++ )
+		{
+			uint32 i0 = Meshlet.Indexes[ i * 3 + 0 ];
+			uint32 i1 = Meshlet.Indexes[ i * 3 + 1 ];
+			uint32 i2 = Meshlet.Indexes[ i * 3 + 2 ];
+
+			uint16& Node0 = EdgeNodeHeads[ i2 ][ i1 ];
+			uint16& Node1 = EdgeNodeHeads[ i0 ][ i2 ];
+			uint16& Node2 = EdgeNodeHeads[ i1 ][ i0 ];
+			if( Node0 != INVALID_NODE ) { OppositeCorner[ i * 3 + 0 ] = EdgeNodes[ Node0 ].Corner; Node0 = EdgeNodes[ Node0 ].NextNode; }
+			else { OppositeCorner[ i * 3 + 0 ] = INVALID_CORNER; }
+			if( Node1 != INVALID_NODE ) { OppositeCorner[ i * 3 + 1 ] = EdgeNodes[ Node1 ].Corner; Node1 = EdgeNodes[ Node1 ].NextNode; }
+			else { OppositeCorner[ i * 3 + 1 ] = INVALID_CORNER; }
+			if( Node2 != INVALID_NODE ) { OppositeCorner[ i * 3 + 2 ] = EdgeNodes[ Node2 ].Corner; Node2 = EdgeNodes[ Node2 ].NextNode; }
+			else { OppositeCorner[ i * 3 + 2 ] = INVALID_CORNER; }
+		}
+
+		// Generate vertex to triangle masks
+		for( uint32 i = 0; i < NumTriangles; i++ )
+		{
+			uint32 i0 = Meshlet.Indexes[ i * 3 + 0 ];
+			uint32 i1 = Meshlet.Indexes[ i * 3 + 1 ];
+			uint32 i2 = Meshlet.Indexes[ i * 3 + 2 ];
+			check( i0 != i1 && i1 != i2 && i2 != i0 );
+
+			VertexToTriangleMasks[ i0 ][ i >> 5 ] |= 1 << ( i & 31 );
+			VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
+			VertexToTriangleMasks[ i2 ][ i >> 5 ] |= 1 << ( i & 31 );
+		}
+	}
+
+public:
+	void ConstrainAndStripifyCluster( FTriCluster& Cluster, FMeshlet& Meshlet )
+	{
+		const FStripifyWeights& Weights = DefaultStripifyWeights;
+		uint32 NumOldTriangles = Cluster.NumTris;
+		uint32 NumOldVertices = Cluster.NumVerts;
+
+		BuildTables( Cluster, Meshlet );
+
+		uint32 NumStrips = 0;
+
+		FContext Context = {};
+		FMemory::Memset( Context.OldToNewVertex, -1 );
+
+		auto NewScoreVertex = [ &Weights ] ( const FContext& Context, uint32 OldVertex, bool bStart, bool bHasOpposite, bool bHasLeft, bool bHasRight )
+		{
+			uint16 NewIndex = Context.OldToNewVertex[ OldVertex ];
+
+			int32 CacheScore = 0;
+			if( NewIndex != INVALID_INDEX )
+			{
+				uint32 CachePosition = ( Context.NumVertices - 1 ) - NewIndex;
+				if( CachePosition < CONSTRAINED_CLUSTER_CACHE_SIZE )
+					CacheScore = Weights.Weights[ bStart ][ bHasOpposite ][ bHasLeft ][ bHasRight ][ CachePosition ];
+			}
+
+			return CacheScore;
+		};
+
+		auto NewScoreTriangle = [ &Meshlet, &NewScoreVertex ] ( const FContext& Context, uint32 TriangleIndex, bool bStart, bool bHasOpposite, bool bHasLeft, bool bHasRight )
+		{
+			const uint32 OldIndex0 = Meshlet.Indexes[ TriangleIndex * 3 + 0 ];
+			const uint32 OldIndex1 = Meshlet.Indexes[ TriangleIndex * 3 + 1 ];
+			const uint32 OldIndex2 = Meshlet.Indexes[ TriangleIndex * 3 + 2 ];
+
+			return	NewScoreVertex( Context, OldIndex0, bStart, bHasOpposite, bHasLeft, bHasRight ) +
+					NewScoreVertex( Context, OldIndex1, bStart, bHasOpposite, bHasLeft, bHasRight ) +
+					NewScoreVertex( Context, OldIndex2, bStart, bHasOpposite, bHasLeft, bHasRight );
+		};
+
+		auto VisitTriangle = [ this, &Meshlet ] ( FContext& Context, uint32 TriangleCorner, bool bStart, bool bRight)
+		{
+			const uint32 OldIndex0 = Meshlet.Indexes[ CornerToIndex( NextCorner( TriangleCorner ) ) ];
+			const uint32 OldIndex1 = Meshlet.Indexes[ CornerToIndex( PrevCorner( TriangleCorner ) ) ];
+			const uint32 OldIndex2 = Meshlet.Indexes[ CornerToIndex( TriangleCorner ) ];
+
+			// Mark incident triangles
+			for( uint32 i = 0; i < MAX_CLUSTER_TRIANGLES_IN_DWORDS; i++ )
+			{
+				Context.TrianglesTouched[ i ] |= VertexToTriangleMasks[ OldIndex0 ][ i ] | VertexToTriangleMasks[ OldIndex1 ][ i ] | VertexToTriangleMasks[ OldIndex2 ][ i ];
+			}
+
+			uint16& NewIndex0 = Context.OldToNewVertex[ OldIndex0 ];
+			uint16& NewIndex1 = Context.OldToNewVertex[ OldIndex1 ];
+			uint16& NewIndex2 = Context.OldToNewVertex[ OldIndex2 ];
+
+			uint32 OrgIndex0 = NewIndex0;
+			uint32 OrgIndex1 = NewIndex1;
+			uint32 OrgIndex2 = NewIndex2;
+
+			uint32 NextVertexIndex = Context.NumVertices + ( NewIndex0 == INVALID_INDEX ) + ( NewIndex1 == INVALID_INDEX ) + ( NewIndex2 == INVALID_INDEX );
+			while(true)
+			{
+				if( NewIndex0 != INVALID_INDEX && NextVertexIndex - NewIndex0 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex0 = INVALID_INDEX; NextVertexIndex++; continue; }
+				if( NewIndex1 != INVALID_INDEX && NextVertexIndex - NewIndex1 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex1 = INVALID_INDEX; NextVertexIndex++; continue; }
+				if( NewIndex2 != INVALID_INDEX && NextVertexIndex - NewIndex2 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex2 = INVALID_INDEX; NextVertexIndex++; continue; }
+				break;
+			}
+
+			uint32 NewTriangleIndex = Context.NumTriangles;
+			uint32 NumNewVertices = ( NewIndex0 == INVALID_INDEX ) + ( NewIndex1 == INVALID_INDEX ) + ( NewIndex2 == INVALID_INDEX );
+			if( bStart )
+			{
+				check( ( NewIndex2 == INVALID_INDEX ) >= ( NewIndex1 == INVALID_INDEX ) );
+				check( ( NewIndex1 == INVALID_INDEX ) >= ( NewIndex0 == INVALID_INDEX ) );
+
+
+				uint32 NumWrittenIndices = 3u - NumNewVertices;
+				uint32 LowBit = NumWrittenIndices & 1u;
+				uint32 HighBit = (NumWrittenIndices >> 1) & 1u;
+
+				Context.StripBitmasks[ NewTriangleIndex >> 5 ][ 0 ] |= ( 1u << ( NewTriangleIndex & 31u ) );
+				Context.StripBitmasks[ NewTriangleIndex >> 5 ][ 1 ] |= ( HighBit << ( NewTriangleIndex & 31u ) );
+				Context.StripBitmasks[ NewTriangleIndex >> 5 ][ 2 ] |= ( LowBit << ( NewTriangleIndex & 31u ) );
+			}
+			else
+			{
+				check( NewIndex0 != INVALID_INDEX );
+				check( NewIndex1 != INVALID_INDEX );
+				if( !bRight )
+				{
+					Context.StripBitmasks[ NewTriangleIndex >> 5 ][ 1 ] |= ( 1 << ( NewTriangleIndex & 31u ) );
+				}
+
+				if(NewIndex2 != INVALID_INDEX)
+				{
+					Context.StripBitmasks[ NewTriangleIndex >> 5 ][ 2 ] |= ( 1 << ( NewTriangleIndex & 31u ) );
+				}
+			}
+
+			if( NewIndex0 == INVALID_INDEX ) { NewIndex0 = Context.NumVertices++; Context.NewToOldVertex[ NewIndex0 ] = OldIndex0; }
+			if( NewIndex1 == INVALID_INDEX ) { NewIndex1 = Context.NumVertices++; Context.NewToOldVertex[ NewIndex1 ] = OldIndex1; }
+			if( NewIndex2 == INVALID_INDEX ) { NewIndex2 = Context.NumVertices++; Context.NewToOldVertex[ NewIndex2 ] = OldIndex2; }
+
+			// Output triangle
+			Context.NumTriangles++;
+
+			// Disable selected triangle
+			const uint32 OldTriangleIndex = CornerToTriangle( TriangleCorner );
+			Context.TrianglesEnabled[ OldTriangleIndex >> 5 ] &= ~( 1 << ( OldTriangleIndex & 31u ) );
+			return NumNewVertices;
+		};
+
+		Cluster.StripIndexData.Empty();
+		FBitWriter BitWriter( Cluster.StripIndexData );
+		FStripDesc& StripDesc = Cluster.StripDesc;
+		FMemory::Memset(StripDesc, 0);
+		uint32 NumNewVerticesInDword[ 4 ] = {};
+		uint32 NumRefVerticesInDword[ 4 ] = {};
+
+		uint32 RangeStart = 0;
+		for( const FMaterialRange& MaterialRange : Cluster.MaterialRanges )
+		{
+			check( RangeStart == MaterialRange.RangeStart );
+			uint32 RangeLength = MaterialRange.RangeLength;
+
+			// Enable triangles from current range
+			for( uint32 i = 0; i < MAX_CLUSTER_TRIANGLES_IN_DWORDS; i++ )
+			{
+				int32 RangeStartRelativeToDword = (int32)RangeStart - (int32)i * 32;
+				int32 BitStart = FMath::Max( RangeStartRelativeToDword, 0 );
+				int32 BitEnd = FMath::Max( RangeStartRelativeToDword + (int32)RangeLength, 0 );
+				uint32 StartMask = BitStart < 32 ? ( ( 1u << BitStart ) - 1u ) : 0xFFFFFFFFu;
+				uint32 EndMask = BitEnd < 32 ? ( ( 1u << BitEnd ) - 1u ) : 0xFFFFFFFFu;
+				Context.TrianglesEnabled[ i ] |= StartMask ^ EndMask;
+			}
+
+			// While a strip can be started
+			while( true )
+			{
+				// Pick a start location for the strip
+				uint32 StartCorner = INVALID_CORNER;
+				int32 BestScore = -1;
+				float BestPriority = INT_MIN;
+				{
+					for( uint32 TriangleDwordIndex = 0; TriangleDwordIndex < MAX_CLUSTER_TRIANGLES_IN_DWORDS; TriangleDwordIndex++ )
+					{
+						uint32 CandidateMask = Context.TrianglesEnabled[ TriangleDwordIndex ];
+						while( CandidateMask )
+						{
+							uint32 TriangleIndex = ( TriangleDwordIndex << 5 ) + FMath::CountTrailingZeros( CandidateMask );
+							CandidateMask &= CandidateMask - 1u;
+
+							for( uint32 Corner = 0; Corner < 3; Corner++ )
+							{
+								uint32 TriangleCorner = SetCorner( TriangleIndex, Corner );
+
+								{
+									// Is it viable WRT the constraint that new vertices should always be at the end.
+									uint32 OldIndex0 = Meshlet.Indexes[ CornerToIndex( NextCorner( TriangleCorner ) ) ];
+									uint32 OldIndex1 = Meshlet.Indexes[ CornerToIndex( PrevCorner( TriangleCorner ) ) ];
+									uint32 OldIndex2 = Meshlet.Indexes[ CornerToIndex( TriangleCorner ) ];
+
+									uint32 NewIndex0 = Context.OldToNewVertex[ OldIndex0 ];
+									uint32 NewIndex1 = Context.OldToNewVertex[ OldIndex1 ];
+									uint32 NewIndex2 = Context.OldToNewVertex[ OldIndex2 ];
+									uint32 NumVerts = Context.NumVertices + ( NewIndex0 == INVALID_INDEX ) + ( NewIndex1 == INVALID_INDEX ) + ( NewIndex2 == INVALID_INDEX );
+									while(true)
+									{
+										if( NewIndex0 != INVALID_INDEX && NumVerts - NewIndex0 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex0 = INVALID_INDEX; NumVerts++; continue; }
+										if( NewIndex1 != INVALID_INDEX && NumVerts - NewIndex1 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex1 = INVALID_INDEX; NumVerts++; continue; }
+										if( NewIndex2 != INVALID_INDEX && NumVerts - NewIndex2 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) { NewIndex2 = INVALID_INDEX; NumVerts++; continue; }
+										break;
+									} 
+
+									uint32 Mask = ( NewIndex0 == INVALID_INDEX ? 1u : 0u ) | ( NewIndex1 == INVALID_INDEX ? 2u : 0u ) | ( NewIndex2 == INVALID_INDEX ? 4u : 0u );
+
+									if( Mask != 0u && Mask != 4u && Mask != 6u && Mask != 7u )
+									{
+										continue;
+									}	
+								}
+
+
+								uint32 Opposite = OppositeCorner[ CornerToIndex( TriangleCorner ) ];
+								uint32 LeftCorner = OppositeCorner[ CornerToIndex( NextCorner( TriangleCorner ) ) ];
+								uint32 RightCorner = OppositeCorner[ CornerToIndex( PrevCorner( TriangleCorner ) ) ];
+
+								bool bHasOpposite = Opposite != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( Opposite ) );
+								bool bHasLeft = LeftCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( LeftCorner ) );
+								bool bHasRight = RightCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( RightCorner ) );
+
+								int32 Score = NewScoreTriangle( Context, TriangleIndex, true, bHasOpposite, bHasLeft, bHasRight );
+								if( Score > BestScore )
+								{
+									StartCorner = TriangleCorner;
+									BestScore = Score;
+								}
+								else if( Score == BestScore )
+								{
+									float Priority = TrianglePriorities[ TriangleIndex ];
+									if( Priority > BestPriority )
+									{
+										StartCorner = TriangleCorner;
+										BestScore = Score;
+										BestPriority = Priority;
+									}
+								}
+							}
+						}
+					}
+
+					if( StartCorner == INVALID_CORNER )
+						break;
+				}
+
+				uint32 StripLength = 1;
+
+				{
+					uint32 TriangleDword = Context.NumTriangles >> 5;
+					uint32 BaseVertex = Context.NumVertices - 1;
+					uint32 NumNewVertices = VisitTriangle( Context, StartCorner, true, false );
+
+					if( NumNewVertices < 3 )
+					{
+						uint32 Index = Context.OldToNewVertex[ Meshlet.Indexes[ CornerToIndex( NextCorner( StartCorner ) ) ] ];
+						BitWriter.PutBits( BaseVertex - Index, 5 );
+					}
+					if( NumNewVertices < 2 )
+					{
+						uint32 Index = Context.OldToNewVertex[ Meshlet.Indexes[ CornerToIndex( PrevCorner( StartCorner ) ) ] ];
+						BitWriter.PutBits( BaseVertex - Index, 5 );
+					}
+					if( NumNewVertices < 1 )
+					{
+						uint32 Index = Context.OldToNewVertex[ Meshlet.Indexes[ CornerToIndex( StartCorner ) ] ];
+						BitWriter.PutBits( BaseVertex - Index, 5 );
+					}
+					NumNewVerticesInDword[ TriangleDword ] += NumNewVertices;
+					NumRefVerticesInDword[ TriangleDword ] += 3u - NumNewVertices;
+				}
+
+				// Extend strip as long as we can
+				uint32 CurrentCorner = StartCorner;
+				while( true )
+				{
+					if( ( Context.NumTriangles & 31u ) == 0u )
+						break;
+
+					uint32 LeftCorner = OppositeCorner[ CornerToIndex( NextCorner( CurrentCorner ) ) ];
+					uint32 RightCorner = OppositeCorner[ CornerToIndex( PrevCorner( CurrentCorner ) ) ];
+					CurrentCorner = INVALID_CORNER;
+
+					int32 LeftScore = INT_MIN;
+					if( LeftCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( LeftCorner ) ) )
+					{
+						uint32 LeftLeftCorner = OppositeCorner[ CornerToIndex( NextCorner( LeftCorner ) ) ];
+						uint32 LeftRightCorner = OppositeCorner[ CornerToIndex( PrevCorner( LeftCorner ) ) ];
+						bool bLeftLeftCorner = LeftLeftCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( LeftLeftCorner ) );
+						bool bLeftRightCorner = LeftRightCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( LeftRightCorner ) );
+
+						LeftScore = NewScoreTriangle( Context, CornerToTriangle( LeftCorner ), false, true, bLeftLeftCorner, bLeftRightCorner );
+						CurrentCorner = LeftCorner;
+					}
+
+					bool bIsRight = false;
+					if( RightCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( RightCorner ) ) )
+					{
+						uint32 RightLeftCorner = OppositeCorner[ CornerToIndex( NextCorner( RightCorner ) ) ];
+						uint32 RightRightCorner = OppositeCorner[ CornerToIndex( PrevCorner( RightCorner ) ) ];
+						bool bRightLeftCorner = RightLeftCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( RightLeftCorner ) );
+						bool bRightRightCorner = RightRightCorner != INVALID_CORNER && Context.TriangleEnabled( CornerToTriangle( RightRightCorner ) );
+
+						int32 Score = NewScoreTriangle( Context, CornerToTriangle( RightCorner ), false, false, bRightLeftCorner, bRightRightCorner );
+						if( Score > LeftScore )
+						{
+							CurrentCorner = RightCorner;
+							bIsRight = true;
+						}
+					}
+
+					if( CurrentCorner == INVALID_CORNER )
+						break;
+
+					{
+						const uint32 OldIndex0 = Meshlet.Indexes[ CornerToIndex( NextCorner( CurrentCorner ) ) ];
+						const uint32 OldIndex1 = Meshlet.Indexes[ CornerToIndex( PrevCorner( CurrentCorner ) ) ];
+						const uint32 OldIndex2 = Meshlet.Indexes[ CornerToIndex( CurrentCorner ) ];
+
+						const uint32 NewIndex0 = Context.OldToNewVertex[ OldIndex0 ];
+						const uint32 NewIndex1 = Context.OldToNewVertex[ OldIndex1 ];
+						const uint32 NewIndex2 = Context.OldToNewVertex[ OldIndex2 ];
+
+						check( NewIndex0 != INVALID_INDEX );
+						check( NewIndex1 != INVALID_INDEX );
+						const uint32 NextNumVertices = Context.NumVertices + ( ( NewIndex2 == INVALID_INDEX || Context.NumVertices - NewIndex2 >= CONSTRAINED_CLUSTER_CACHE_SIZE ) ? 1u : 0u );
+
+						if( NextNumVertices - NewIndex0 >= CONSTRAINED_CLUSTER_CACHE_SIZE ||
+							NextNumVertices - NewIndex1 >= CONSTRAINED_CLUSTER_CACHE_SIZE )
+							break;
+					}
+
+					{
+						uint32 TriangleDword = Context.NumTriangles >> 5;
+						uint32 BaseVertex = Context.NumVertices - 1;
+						uint32 NumNewVertices = VisitTriangle( Context, CurrentCorner, false, bIsRight );
+						check(NumNewVertices <= 1u);
+						if( NumNewVertices == 0 )
+						{
+							uint32 Index = Context.OldToNewVertex[ Meshlet.Indexes[ CornerToIndex( CurrentCorner ) ] ];
+							BitWriter.PutBits( BaseVertex - Index, 5 );
+						}
+						NumNewVerticesInDword[ TriangleDword ] += NumNewVertices;
+						NumRefVerticesInDword[ TriangleDword ] += 1u - NumNewVertices;
+					}
+
+					StripLength++;
+				}
+			}
+			RangeStart += RangeLength;
+		}
+
+		BitWriter.Flush(sizeof(uint32));
+		
+		// Reorder vertices
+		const uint32 NumNewVertices = Context.NumVertices;
+		TArray<VertType> OldVertices = Meshlet.Verts;
+		Meshlet.Verts.SetNumUninitialized( NumNewVertices );
+		for( uint32 i = 0; i < NumNewVertices; i++ )
+		{
+			Meshlet.Verts[ i ] = OldVertices[ Context.NewToOldVertex[ i ] ];
+		}
+
+		check( Context.NumTriangles == NumOldTriangles );
+
+		Cluster.NumVerts = Context.NumVertices;
+		
+		uint32 NumPrevNewVerticesBeforeDwords1 = NumNewVerticesInDword[ 0 ];
+		uint32 NumPrevNewVerticesBeforeDwords2 = NumNewVerticesInDword[ 1 ] + NumPrevNewVerticesBeforeDwords1;
+		uint32 NumPrevNewVerticesBeforeDwords3 = NumNewVerticesInDword[ 2 ] + NumPrevNewVerticesBeforeDwords2;
+		check(NumPrevNewVerticesBeforeDwords1 < 1024 && NumPrevNewVerticesBeforeDwords2 < 1024 && NumPrevNewVerticesBeforeDwords3 < 1024);
+		StripDesc.NumPrevNewVerticesBeforeDwords = ( NumPrevNewVerticesBeforeDwords3 << 20 ) | ( NumPrevNewVerticesBeforeDwords2 << 10 ) | NumPrevNewVerticesBeforeDwords1;
+
+		uint32 NumPrevRefVerticesBeforeDwords1 = NumRefVerticesInDword[0];
+		uint32 NumPrevRefVerticesBeforeDwords2 = NumRefVerticesInDword[1] + NumPrevRefVerticesBeforeDwords1;
+		uint32 NumPrevRefVerticesBeforeDwords3 = NumRefVerticesInDword[2] + NumPrevRefVerticesBeforeDwords2;
+		check( NumPrevRefVerticesBeforeDwords1 < 1024 && NumPrevRefVerticesBeforeDwords2 < 1024 && NumPrevRefVerticesBeforeDwords3 < 1024);
+		StripDesc.NumPrevRefVerticesBeforeDwords = (NumPrevRefVerticesBeforeDwords3 << 20) | (NumPrevRefVerticesBeforeDwords2 << 10) | NumPrevRefVerticesBeforeDwords1;
+
+		static_assert(sizeof(StripDesc.Bitmasks) == sizeof(Context.StripBitmasks), "");
+		FMemory::Memcpy( StripDesc.Bitmasks, Context.StripBitmasks, sizeof(StripDesc.Bitmasks) );
+
+		TArray<uint8> PaddedStripIndexData;
+		PaddedStripIndexData.Add( 0 );	// TODO: Workaround for empty list and reading from negative offset
+		PaddedStripIndexData.Append( Cluster.StripIndexData );
+
+		// Unpack strip
+		for( uint32 i = 0; i < NumOldTriangles; i++ )
+		{
+			UnpackTriangleIndices( StripDesc, (const uint8*)(PaddedStripIndexData.GetData() + 1), i, &Meshlet.Indexes[ i * 3 ] );
+		}
+	}
+};
+
 static void BuildClusterFromClusterTriangleRange( const FTriCluster& InCluster, const FMeshlet& InMeshlet, FTriCluster& OutCluster, FMeshlet& OutMeshlet, uint32 StartTriangle, uint32 NumTriangles )
 {
 	OutCluster = InCluster;
@@ -2390,7 +3418,12 @@ static void BuildClusterFromClusterTriangleRange( const FTriCluster& InCluster, 
 
 	// Rebuild material range and reconstrain 
 	BuildMaterialRanges( OutCluster, OutMeshlet );
-	ConstrainClusterFIFO( OutCluster, OutMeshlet );
+#if USE_STRIP_INDICES
+	FStripifier Stripifier;
+	Stripifier.ConstrainAndStripifyCluster(OutCluster, OutMeshlet);
+#else
+	ConstrainClusterFIFO(OutCluster, OutMeshlet);
+#endif
 }
 
 #if 0
@@ -2425,7 +3458,99 @@ static void DumpClusterToObj( const char* Filename,  const FTriCluster& Cluster,
 
 	fclose( File );
 }
+
+static void DumpClusterNormals(const char* Filename, const FMeshlet& Meshlet)
+{
+	uint32 NumVertices = Meshlet.Verts.Num();
+	TArray<FIntPoint> Points;
+	Points.SetNumUninitialized(NumVertices);
+	for (uint32 i = 0; i < NumVertices; i++)
+	{
+		OctahedronEncodePreciseSIMD(Meshlet.Verts[i].Normal, Points[i].X, Points[i].Y, NORMAL_QUANTIZATION_BITS);
+	}
+
+
+	FILE* File = nullptr;
+	fopen_s(&File, Filename, "wb");
+	fputs(	"import numpy as np\n"
+			"import matplotlib.pyplot as plt\n\n",
+			File);
+	fputs("x = [", File);
+	for (uint32 i = 0; i < NumVertices; i++)
+	{
+		fprintf(File, "%d", Points[i].X);
+		if (i + 1 != NumVertices)
+			fputs(", ", File);
+	}
+	fputs("]\n", File);
+	fputs("y = [", File);
+	for (uint32 i = 0; i < NumVertices; i++)
+	{
+		fprintf(File, "%d", Points[i].Y);
+		if (i + 1 != NumVertices)
+			fputs(", ", File);
+	}
+	fputs("]\n", File);
+	fputs(	"plt.xlim(0, 511)\n"
+			"plt.ylim(0, 511)\n"
+			"plt.scatter(x, y)\n"
+			"plt.xlabel('x')\n"
+			"plt.ylabel('y')\n"
+			"plt.show()\n",
+			File);
+	fclose(File);
+}
+
+static void DumpClusterNormals(const char* Filename, const TArray<FMeshlet>& Meshlets)
+{
+	for (int32 i = 0; i < Meshlets.Num(); i++)
+	{
+		char Filename[128];
+		static int Index = 0;
+		sprintf(Filename, "D:\\NormalPlots\\plot%d.py", Index++);
+		DumpClusterNormals(Filename, Meshlets[i]);
+	}
+}
 #endif
+
+// Remove degenerate triangles
+static void RemoveDegenerateTriangles(FTriCluster& Cluster, FMeshlet& Meshlet)
+{
+	uint32 NumOldTriangles = Cluster.NumTris;
+	uint32 NumNewTriangles = 0;
+
+	for (uint32 OldTriangleIndex = 0; OldTriangleIndex < NumOldTriangles; OldTriangleIndex++)
+	{
+		uint32 i0 = Meshlet.Indexes[OldTriangleIndex * 3 + 0];
+		uint32 i1 = Meshlet.Indexes[OldTriangleIndex * 3 + 1];
+		uint32 i2 = Meshlet.Indexes[OldTriangleIndex * 3 + 2];
+		uint32 mi = Meshlet.MaterialIndexes[OldTriangleIndex];
+
+		if (i0 != i1 && i0 != i2 && i1 != i2)
+		{
+			Meshlet.Indexes[NumNewTriangles * 3 + 0] = i0;
+			Meshlet.Indexes[NumNewTriangles * 3 + 1] = i1;
+			Meshlet.Indexes[NumNewTriangles * 3 + 2] = i2;
+			Meshlet.MaterialIndexes[NumNewTriangles] = mi;
+
+			NumNewTriangles++;
+		}
+	}
+	Cluster.NumTris = NumNewTriangles;
+	Meshlet.Indexes.SetNum(NumNewTriangles * 3);
+	Meshlet.MaterialIndexes.SetNum(NumNewTriangles);
+}
+
+static void RemoveDegenerateTriangles(TArray<FTriCluster>& Clusters, TArray<FMeshlet>& Meshlets)
+{
+	check(Clusters.Num() == Meshlets.Num());
+
+	const uint32 NumClusters = Clusters.Num();
+	for (uint32 i = 0; i < NumClusters; i++)
+	{
+		RemoveDegenerateTriangles(Clusters[i], Meshlets[i]);
+	}
+}
 
 static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< FTriCluster >& Clusters, TArray< FMeshlet >& Meshlets )
 {
@@ -2441,7 +3566,12 @@ static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< F
 	ParallelFor( Clusters.Num(),
 		[&]( uint32 i )
 		{
-			ConstrainClusterFIFO( Clusters[i], Meshlets[i] );
+#if USE_STRIP_INDICES
+			FStripifier Stripifier;
+			Stripifier.ConstrainAndStripifyCluster(Clusters[i], Meshlets[i]);
+#else
+			ConstrainClusterFIFO(Clusters[i], Meshlets[i]);
+#endif
 		} );
 	
 	uint32 TotalNewTriangles = 0;
@@ -2451,8 +3581,8 @@ static void ConstrainClusters( TArray< FClusterGroup >& ClusterGroups, TArray< F
 	const uint32 NumOldClusters = Clusters.Num();
 	for( uint32 i = 0; i < NumOldClusters; i++ )
 	{
-		TotalNewTriangles += Clusters[ i ].NumTris;
-		TotalNewVertices += Clusters[ i ].NumVerts;
+		TotalOldTriangles += Clusters[ i ].NumTris;
+		TotalOldVertices += Clusters[ i ].NumVerts;
 		
 		// Split clusters with too many verts
 		if( Clusters[ i ].NumVerts > 256 )
@@ -2628,27 +3758,27 @@ static bool BuildNaniteData(
 
 	FBounds	MeshBounds;
 	
-	// Normalize UVWeights using min/max UV range.
-	float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
-	float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
-	for( auto& Vert : Verts )
-	{
+		// Normalize UVWeights using min/max UV range.
+		float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
+		float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
+		for( auto& Vert : Verts )
+		{
 		MeshBounds += Vert.Position;
 
-		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-		{
-			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
-			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
+			for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+			{
+				MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
+				MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
+				MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
+				MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
+			}
 		}
-	}
 
 	float UVWeights[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
-	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-	{
-		UVWeights[ UVIndex ] = 1.0f / ( 32.0f * NumTexCoords * FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] ) );
-	}
+		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+		{
+			UVWeights[ UVIndex ] = 1.0f / ( 32.0f * NumTexCoords * FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] ) );
+		}
 
 	TArray< uint32 > SharedEdges;
 	SharedEdges.AddUninitialized( Indexes.Num() );
@@ -2675,49 +3805,49 @@ static bool BuildNaniteData(
 			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
 		} );
 
-	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
+		const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
 
-	ParallelFor( NumDwords,
-		[&]( int32 DwordIndex )
-		{
-			const int32 NumIndexes = Indexes.Num();
-			const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
-
-			uint32 Mask = 1;
-			uint32 Dword = 0;
-			for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
+		ParallelFor( NumDwords,
+			[&]( int32 DwordIndex )
 			{
-				int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
+				const int32 NumIndexes = Indexes.Num();
+				const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
 
-				uint32 VertIndex0 = Indexes[ EdgeIndex ];
-				uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-				const FVector& Position0 = Verts[ VertIndex0 ].Position;
-				const FVector& Position1 = Verts[ VertIndex1 ].Position;
-				
-				uint32 Hash0 = HashPosition( Position0 );
-				uint32 Hash1 = HashPosition( Position1 );
-				uint32 Hash = Murmur32( { Hash1, Hash0 } );
-	
-				// Find edge with opposite direction that shares these 2 verts.
-				/*
-					  /\
-					 /  \
-					o-<<-o
-					o->>-o
-					 \  /
-					  \/
-				*/
-				uint32 FoundEdge = ~0u;
-				for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
+				uint32 Mask = 1;
+				uint32 Dword = 0;
+				for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
 				{
-					uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
-					uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
-			
-					if( Position0 == Verts[ OtherVertIndex1 ].Position &&
-						Position1 == Verts[ OtherVertIndex0 ].Position )
+					int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
+
+					uint32 VertIndex0 = Indexes[ EdgeIndex ];
+					uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
+	
+					const FVector& Position0 = Verts[ VertIndex0 ].Position;
+					const FVector& Position1 = Verts[ VertIndex1 ].Position;
+				
+					uint32 Hash0 = HashPosition( Position0 );
+					uint32 Hash1 = HashPosition( Position1 );
+					uint32 Hash = Murmur32( { Hash1, Hash0 } );
+	
+					// Find edge with opposite direction that shares these 2 verts.
+					/*
+						  /\
+						 /  \
+						o-<<-o
+						o->>-o
+						 \  /
+						  \/
+					*/
+					uint32 FoundEdge = ~0u;
+					for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
 					{
-						// Found matching edge.
+						uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
+						uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
+			
+						if( Position0 == Verts[ OtherVertIndex1 ].Position &&
+							Position1 == Verts[ OtherVertIndex0 ].Position )
+						{
+							// Found matching edge.
 						// Hash table is not in deterministic order. Find stable match not just first.
 						FoundEdge = FMath::Min( FoundEdge, OtherEdgeIndex );
 					}
@@ -2839,7 +3969,7 @@ static bool BuildNaniteData(
 					// Negative notes it's a leaf
 					Clusters[ Index ].EdgeLength *= -1.0f;
 				}, bSingleThreaded);
-		}
+	}
 
 		uint32 LeavesTime = FPlatformTime::Cycles();
 		UE_LOG( LogStaticMesh, Log, TEXT("Leaves [%.2fs]"), FPlatformTime::ToMilliseconds( LeavesTime - ClusterTime ) / 1000.0f );
@@ -2855,7 +3985,13 @@ static bool BuildNaniteData(
 		UE_LOG(LogStaticMesh, Log, TEXT("Reduce [%.2fs]"), FPlatformTime::ToMilliseconds(ReduceTime - LeavesTime) / 1000.0f);
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT("Nanite::Build::BuildMaterialRanges") );
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::RemoveDegenerateTriangles"));	// TODO: is this still necessary?
+			RemoveDegenerateTriangles(Clusters, Meshlets);
+		}
+
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT( TEXT("Nanite::Build::BuidMaterialRanges") );
 			BuildMaterialRanges( Clusters, Meshlets );
 		}
 
@@ -2872,6 +4008,7 @@ static bool BuildNaniteData(
 		}
 #endif
 #endif
+		if (NumTexCoords > MAX_NANITE_UVS) NumTexCoords = MAX_NANITE_UVS;
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateQuantizedPositions"));	
@@ -2885,10 +4022,16 @@ static bool BuildNaniteData(
 
 		TArray<FPage> Pages;
 		TArray<FClusterGroupPart> GroupParts;
+		TArray<FEncodingInfo> EncodingInfos;
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::EncodeClustersAndAssignToPages"));
-			EncodeClustersAndAssignToPages(Resources, Groups, Clusters, Meshlets, NumTexCoords, Pages, GroupParts);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::CalculateEncodingInfos"));
+			CalculateEncodingInfos(EncodingInfos, Clusters, Meshlets, NumTexCoords);
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::AssignClustersToPages"));
+			AssignClustersToPages(Resources, Groups, Clusters, EncodingInfos, Pages, GroupParts);
 		}
 
 		TArray< Nanite::FHierarchyNode > HierarchyNodes;
@@ -2898,8 +4041,8 @@ static bool BuildNaniteData(
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::BuildPages"));
-			WritePages(Resources, Pages, Groups, GroupParts, Clusters);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build::WritePages"));
+			WritePages(Resources, Pages, Groups, GroupParts, Clusters, Meshlets, EncodingInfos, NumTexCoords);
 		}
 		
 		{

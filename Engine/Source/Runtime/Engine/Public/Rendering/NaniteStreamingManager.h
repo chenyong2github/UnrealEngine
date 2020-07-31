@@ -84,6 +84,7 @@ struct FPendingPage
 };
 
 class FRequestsHashTable;
+class FStreamingPageUploader;
 
 /*
  * Streaming manager for Nanite.
@@ -169,6 +170,7 @@ private:
 	TArray< FPendingPage >					PendingPages;
 
 	FRequestsHashTable*						RequestsHashTable;
+	FStreamingPageUploader*					PageUploader;
 
 	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
 	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 Priority, uint32 MaxSelectedPages );

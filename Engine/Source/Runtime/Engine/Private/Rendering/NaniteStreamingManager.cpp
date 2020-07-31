@@ -11,6 +11,7 @@
 #include "ClearQuad.h"
 #include "RenderGraphUtils.h"
 #include "Logging/LogMacros.h"
+#include "Async/ParallelFor.h"
 
 #define MAX_STREAMING_PAGES_BITS		11u
 #define MAX_STREAMING_PAGES				(1u << MAX_STREAMING_PAGES_BITS)
@@ -26,6 +27,8 @@
 
 #define INVALID_RUNTIME_RESOURCE_ID		0xFFFFFFFFu
 #define INVALID_PAGE_INDEX				0xFFFFFFFFu
+
+#define USE_GPU_TRANSCODE				1
 
 float GNaniteStreamingBandwidthLimit = -1.0f;
 static FAutoConsoleVariableRef CVarNaniteStreamingBandwidthLimit(
@@ -46,6 +49,9 @@ DECLARE_CYCLE_STAT( TEXT("Upload" ),				STAT_NaniteUpload,					STATGROUP_Nanite 
 DECLARE_CYCLE_STAT( TEXT("CheckReadyPages" ),		STAT_NaniteCheckReadyPages,			STATGROUP_Nanite );
 DECLARE_CYCLE_STAT( TEXT("InstallStreamingPages" ),	STAT_NaniteInstallStreamingPages,	STATGROUP_Nanite );
 DECLARE_CYCLE_STAT( TEXT("InstallNewResources" ),	STAT_NaniteInstallNewResources,		STATGROUP_Nanite );
+DECLARE_CYCLE_STAT( TEXT("TranscodePage"),			STAT_NaniteTranscodePage,			STATGROUP_Nanite);
+DECLARE_CYCLE_STAT( TEXT("TranscodePageTask"),		STAT_NaniteTranscodePageTask,		STATGROUP_Nanite);
+
 
 DECLARE_DWORD_COUNTER_STAT(		TEXT("PageInstalls"),				STAT_NanitePageInstalls,					STATGROUP_Nanite );
 DECLARE_DWORD_COUNTER_STAT(		TEXT("StreamingRequests"),			STAT_NaniteStreamingRequests,				STATGROUP_Nanite );
@@ -61,7 +67,28 @@ DEFINE_LOG_CATEGORY(LogNaniteStreaming);
 
 namespace Nanite
 {
+class FTranscodePageToGPU_CS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FTranscodePageToGPU_CS);
+	SHADER_USE_PARAMETER_STRUCT(FTranscodePageToGPU_CS, FGlobalShader);
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_SRV(StructuredBuffer<FPageInstallInfo>, InstallInfoBuffer)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer,					SrcPageBuffer)
+		SHADER_PARAMETER_UAV(RWByteAddressBuffer,				DstPageBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FTranscodePageToGPU_CS, "/Engine/Private/Nanite/Transcode.usf", "TranscodePageToGPU", SF_Compute);
 
 // Lean hash table for deduplicating requests.
 // Linear probing hash table that only supports add and never grows.
@@ -143,6 +170,403 @@ public:
 };
 
 
+FORCEINLINE bool IsRootPage(uint32 PageIndex)	// Keep in sync with ClusterCulling.usf
+{
+	return PageIndex == 0;
+}
+
+FORCEINLINE static const void* GetPackedTriClusterMemberSOA(const void* Src, uint32 ClusterIndex, uint32 NumClusters, uint32 MemberOffset)
+{
+	return (const uint8*)Src + (((NumClusters << 4) * (MemberOffset >> 4)) + (MemberOffset & 15)) + (ClusterIndex << 4);
+}
+
+class FBitReader
+{
+public:
+	FORCEINLINE FBitReader(const uint8* Src):
+		SrcPtr(Src)
+	{
+		BufferBits = *(const uint64*)SrcPtr;
+		NumBufferBits = 64;
+	}
+
+	FORCEINLINE uint32 GetBits(int32 NumBits)
+	{
+		while (NumBufferBits < NumBits)
+		{
+			BufferBits |= (uint64)(*(uint32*)SrcPtr++) << NumBufferBits;
+			NumBufferBits += 32;
+		}
+
+		uint32 Mask = (1u << NumBits) - 1u;
+		uint32 Result = BufferBits & Mask;
+		NumBufferBits -= NumBits;
+		BufferBits >>= NumBits;
+		return Result;
+	}
+private:
+	const uint8* SrcPtr;
+	uint64 		BufferBits;
+	int32 		NumBufferBits;
+};
+
+class FBitWriter
+{
+public:
+	FBitWriter(uint8* Dst, uint32 Size):
+		DstStartPtr(Dst),
+		DstEndPtr(Dst + Size),
+		DstPtr(Dst),
+		PendingBits(0),
+		NumPendingBits(0)
+	{
+	}
+
+	FORCEINLINE void PutBits(uint32 Bits, uint32 NumBits)
+	{
+		checkSlow((uint64)Bits < (1ull << NumBits));
+		PendingBits |= (uint64)Bits << NumPendingBits;
+		NumPendingBits += NumBits;
+
+		if(NumPendingBits >= 32)
+		{
+			uint8* NextDstPtr = DstPtr + sizeof(uint32);
+			checkSlow(NextDstPtr <= DstEndPtr);
+			*(uint32*)DstPtr = PendingBits;
+			DstPtr = NextDstPtr;
+			PendingBits >>= 32;
+			NumPendingBits -= 32;
+		}
+	}
+
+	uint8* Flush(uint32 Alignment = 1)
+	{
+		while(NumPendingBits > 0)
+		{
+			checkSlow(DstPtr < DstEndPtr);
+			*DstPtr++ = (uint8)PendingBits;
+			PendingBits >>= 8;
+			NumPendingBits -= 8;
+		}
+		while ((DstPtr - DstStartPtr) % Alignment != 0)
+			*DstPtr++ = 0;
+		NumPendingBits = 0;
+		PendingBits = 0;
+		return DstPtr;
+	}
+
+private:
+	uint8*	DstStartPtr;
+	uint8*	DstEndPtr;
+	uint8*	DstPtr;
+	uint64 	PendingBits;
+	int32 	NumPendingBits;
+};
+
+static void TranscodePageToGPU(uint8* Dst, const uint8* Src, uint32 DiskSize)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NaniteTranscodePage);
+
+	const uint8* SrcPtr = Src;
+	const FPageDiskHeader& PageDiskHeader = *(const FPageDiskHeader*)SrcPtr;			SrcPtr += sizeof(FPageDiskHeader);
+	const FClusterDiskHeader* ClusterDiskHeaders = (const FClusterDiskHeader*)SrcPtr;	SrcPtr += PageDiskHeader.NumClusters * sizeof(FClusterDiskHeader);
+
+	const uint8* PackedClusterPtr = SrcPtr;
+
+	uint8* DstPtr = Dst;
+
+	const uint32 NumClusters = PageDiskHeader.NumClusters;	
+	uint32 MiscSize = NumClusters * sizeof(FPackedTriCluster) + PageDiskHeader.NumMaterialDwords * sizeof(uint32);
+	
+	// Copy misc
+	FMemory::Memcpy(DstPtr, SrcPtr, MiscSize);
+	DstPtr += MiscSize;
+	SrcPtr += MiscSize;
+	FBitWriter BitWriter(DstPtr, PageDiskHeader.GpuSize - MiscSize);
+
+	// Index Data
+	const uint8* IndexDataPtr = SrcPtr;
+	for (uint32 ClusterIndex = 0; ClusterIndex < NumClusters; ClusterIndex++)
+	{
+		// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
+		const uint32 NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, ClusterIndex, NumClusters, offsetof(FPackedTriCluster, NumVerts_NumTris_BitsPerIndex_QuantizedPosShift));
+		const uint32 IndexOffset = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, ClusterIndex, NumClusters, offsetof(FPackedTriCluster, IndexOffset));
+		const uint32 NumTris = (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> 9) & 0xFF;
+		const uint32 BitsPerIndex = (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> 17) & 15;
+		
+		uint32 NextVertexIndex = 0;
+		for (uint32 i = 0; i < NumTris; i++)
+		{
+#if 0
+			uint32 Index0 = (NextVertexIndex - SrcPtr[0]) & 0xFF;
+			NextVertexIndex += (SrcPtr[0] == 0);
+			uint32 Index1 = (NextVertexIndex - SrcPtr[1]) & 0xFF;
+			NextVertexIndex += (SrcPtr[1] == 0);
+			uint32 Index2 = (NextVertexIndex - SrcPtr[2]) & 0xFF;
+			NextVertexIndex += (SrcPtr[2] == 0);
+			SrcPtr += 3;
+			BitWriter.PutBits(Index0 | (Index1 << BitsPerIndex) | (Index2 << (2 * BitsPerIndex)), BitsPerIndex * 3);
+#else
+			BitWriter.PutBits(SrcPtr[0] | (SrcPtr[1] << BitsPerIndex) | (SrcPtr[2] << (2 * BitsPerIndex)), BitsPerIndex * 3);
+			SrcPtr += 3;
+#endif
+		}
+		BitWriter.Flush();
+	}
+
+	// Position Data
+	for (uint32 DstClusterIndex = 0; DstClusterIndex < NumClusters; DstClusterIndex++)
+	{
+		const uint32 NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, NumVerts_NumTris_BitsPerIndex_QuantizedPosShift));
+		const uint32 NumVerts = NumVerts_NumTris_BitsPerIndex_QuantizedPosShift & 0x1FF;
+		const uint32 PositionOffset = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, PositionOffset));
+		const FUIntVector& Dst_QuantizedPosStart = *(const FUIntVector*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, QuantizedPosStart));
+		const uint32 Dst_QuantizedPosShift = NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9 + 8 + 4);		// TODO: get rid of all these magic numbers
+
+		for (uint32 VertexIndex = 0; VertexIndex < NumVerts; VertexIndex++)
+		{
+			const uint32 VertexRefValue = *(const uint32*)(Src + ClusterDiskHeaders[DstClusterIndex].VertexRefDataOffset + VertexIndex * sizeof(uint32));
+
+			const uint32 Src_ClusterIndex = (VertexRefValue >> 8) - 1;
+			const uint32 Src_CodedVertexIndex = VertexRefValue & 0xFF;
+			const uint32* Src_QuantiazedPosStart_PositionOffset = (const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, QuantizedPosStart));
+			const FUIntVector& Src_QuantizedPosStart = *(const FUIntVector*)Src_QuantiazedPosStart_PositionOffset;
+
+			const uint32 Src_NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, NumVerts_NumTris_BitsPerIndex_QuantizedPosShift));
+			const uint32 Src_QuantizedPosShift = Src_NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9 + 8 + 4);		// TODO: get rid of all these magic numbers
+			const uint32 Src_UnpackedPosData = *(const uint32*)(Src + ClusterDiskHeaders[Src_ClusterIndex].PositionDataOffset + Src_CodedVertexIndex * sizeof(uint32));
+			const uint32 SrcX = Src_UnpackedPosData & POSITION_QUANTIZATION_MASK;
+			const uint32 SrcY = (Src_UnpackedPosData >> POSITION_QUANTIZATION_BITS) & POSITION_QUANTIZATION_MASK;
+			const uint32 SrcZ = (Src_UnpackedPosData >> (2 * POSITION_QUANTIZATION_BITS)) & POSITION_QUANTIZATION_MASK;
+				
+			uint32 DstX = ((SrcX + Src_QuantizedPosStart.X) << Src_QuantizedPosShift);
+			uint32 DstY = ((SrcY + Src_QuantizedPosStart.Y) << Src_QuantizedPosShift);
+			uint32 DstZ = ((SrcZ + Src_QuantizedPosStart.Z) << Src_QuantizedPosShift);
+			uint32 DstMask = (1u << Dst_QuantizedPosShift) - 1u;
+			checkSlow((DstX & DstMask) == 0);
+			checkSlow((DstY & DstMask) == 0);
+			checkSlow((DstZ & DstMask) == 0);
+			DstX = (DstX >> Dst_QuantizedPosShift);
+			DstY = (DstY >> Dst_QuantizedPosShift);
+			DstZ = (DstZ >> Dst_QuantizedPosShift);
+			checkSlow(DstX >= Dst_QuantizedPosStart.X);
+			checkSlow(DstY >= Dst_QuantizedPosStart.Y);
+			checkSlow(DstZ >= Dst_QuantizedPosStart.Z);
+			DstX -= Dst_QuantizedPosStart.X;
+			DstY -= Dst_QuantizedPosStart.Y;
+			DstZ -= Dst_QuantizedPosStart.Z;
+
+			checkSlow(DstX <= POSITION_QUANTIZATION_MASK);
+			checkSlow(DstY <= POSITION_QUANTIZATION_MASK);
+			checkSlow(DstZ <= POSITION_QUANTIZATION_MASK);
+			uint32 PosData = DstX | (DstY << POSITION_QUANTIZATION_BITS) | (DstZ << (2 * POSITION_QUANTIZATION_BITS));
+
+			BitWriter.PutBits(PosData, 3 * POSITION_QUANTIZATION_BITS);
+
+		}
+		BitWriter.Flush();
+	}
+	
+	// Attribute Data
+	for (uint32 DstClusterIndex = 0; DstClusterIndex < NumClusters; DstClusterIndex++)
+	{
+		const uint32 BitsPerAttrib = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, BitsPerAttrib));
+		const uint32 NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, NumVerts_NumTris_BitsPerIndex_QuantizedPosShift));
+		const uint32 UVPrec = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, UV_Prec));
+		const uint32 NumVerts = NumVerts_NumTris_BitsPerIndex_QuantizedPosShift & 0x1FF;
+		const uint32 AttributeOffset = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, AttributeOffset));
+
+		for (uint32 VertexIndex = 0; VertexIndex < NumVerts; VertexIndex++)
+		{
+			const uint32 VertexRefValue = *(const uint32*)(Src + ClusterDiskHeaders[DstClusterIndex].VertexRefDataOffset + VertexIndex * sizeof(uint32));
+
+			const uint32 Src_ClusterIndex = (VertexRefValue >> 8) - 1;
+			const uint32 Src_CodedVertexIndex = VertexRefValue & 0xFF;
+
+			const uint32 Src_BitsPerAttrib = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, BitsPerAttrib));
+			const uint32 Src_UVPrec = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, UV_Prec));
+			const uint32 Src_AttributeOffset = *(const uint32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, AttributeOffset));
+			const uint32 Src_BytesPerAttrib = (Src_BitsPerAttrib + 31) / 32 * 4;
+				
+			FBitReader BitReader(Src + ClusterDiskHeaders[Src_ClusterIndex].AttributeDataOffset + Src_CodedVertexIndex * Src_BytesPerAttrib);
+
+			uint32 NormalXY = BitReader.GetBits(2*NORMAL_QUANTIZATION_BITS);
+			BitWriter.PutBits(NormalXY, 2*NORMAL_QUANTIZATION_BITS);
+			
+			int32 RemainingBits = BitsPerAttrib - 2 * NORMAL_QUANTIZATION_BITS;
+				
+			uint32 Src_Rolling_UVPrec = Src_UVPrec;
+			uint32 Dst_Rolling_UVPrec = UVPrec;
+			for(uint32 TexCoordIndex = 0; TexCoordIndex < PageDiskHeader.NumTexCoords; TexCoordIndex++)
+			{
+				uint32 SrcU_Bits = Src_Rolling_UVPrec & 15;
+				uint32 SrcV_Bits = (Src_Rolling_UVPrec >> 4) & 15;
+				Src_Rolling_UVPrec >>= 8;
+
+				uint32 DstU_Bits = Dst_Rolling_UVPrec & 15;
+				uint32 DstV_Bits = (Dst_Rolling_UVPrec >> 4) & 15;
+				Dst_Rolling_UVPrec >>= 8;
+
+				int32 SrcU = BitReader.GetBits(SrcU_Bits);
+				int32 SrcV = BitReader.GetBits(SrcV_Bits);
+
+				const FVector2D* Dst_Min_Scale = (const FVector2D*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, UVRanges[TexCoordIndex].Min));
+				const int32* Dst_GapStart_GapLength = (const int32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, DstClusterIndex, NumClusters, offsetof(FPackedTriCluster, UVRanges[TexCoordIndex].GapStart));
+
+				const FVector2D* Src_Min_Scale = (const FVector2D*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, UVRanges[TexCoordIndex].Min));
+				const int32* Src_GapStart_GapLength = (const int32*)GetPackedTriClusterMemberSOA(PackedClusterPtr, Src_ClusterIndex, NumClusters, offsetof(FPackedTriCluster, UVRanges[TexCoordIndex].GapStart));
+					
+				int32 U = SrcU + (SrcU >= Src_GapStart_GapLength[0] ? Src_GapStart_GapLength[2] : 0u);
+				int32 V = SrcV + (SrcV >= Src_GapStart_GapLength[1] ? Src_GapStart_GapLength[3] : 0u);
+
+				float fU = U * Src_Min_Scale[1].X + Src_Min_Scale[0].X;
+				float fV = V * Src_Min_Scale[1].Y + Src_Min_Scale[0].Y;
+				
+				int32 DstU = FMath::RoundToInt((fU - Dst_Min_Scale[0].X) / Dst_Min_Scale[1].X);
+				int32 DstV = FMath::RoundToInt((fV - Dst_Min_Scale[0].Y) / Dst_Min_Scale[1].Y);
+					
+				if (DstU < Dst_GapStart_GapLength[0])
+					;
+				else if (DstU >= Dst_GapStart_GapLength[0] + Dst_GapStart_GapLength[2])
+					DstU -= Dst_GapStart_GapLength[2];
+				else
+					DstU = Dst_GapStart_GapLength[0] - 1 + (DstU >= Dst_GapStart_GapLength[0] + (Dst_GapStart_GapLength[2]>>1));
+
+				if (DstV < Dst_GapStart_GapLength[1])
+					;
+				else if (DstV >= Dst_GapStart_GapLength[1] + Dst_GapStart_GapLength[3])
+					DstV -= Dst_GapStart_GapLength[3];
+				else
+					DstV = Dst_GapStart_GapLength[1] - 1 + (DstV >= Dst_GapStart_GapLength[1] + (Dst_GapStart_GapLength[3]>>1));
+				
+				DstU = FMath::Clamp(DstU, 0, (1 << DstU_Bits) - 1);
+				DstV = FMath::Clamp(DstV, 0, (1 << DstV_Bits) - 1);
+
+				BitWriter.PutBits(DstU | (DstV << DstU_Bits), DstU_Bits + DstV_Bits);
+				RemainingBits -= DstU_Bits + DstV_Bits;
+			}
+			checkSlow(RemainingBits == 0);
+		}
+		DstPtr = BitWriter.Flush();	//TODO: don't align here. Use bit offsets instead?
+	}
+
+	//uint32 ActualDiskSize = uint32(SrcPtr - Src);
+	//check(ActualDiskSize == DiskSize);
+	uint32 GpuSize = uint32(DstPtr - Dst);
+	check(GpuSize == PageDiskHeader.GpuSize);
+}
+
+struct FPageInstallInfo
+{
+	uint32 SrcPageOffset;
+	uint32 DstPageOffset;
+};
+
+class FStreamingPageUploader
+{
+public:
+	FStreamingPageUploader()
+	{
+		ResetState();
+	}
+
+	void Init(uint32 NumPages, uint32 NumPageBytes)
+	{
+		ResetState();
+		MaxPages = NumPages;
+		MaxPageBytes = NumPageBytes;
+
+
+		uint32 InstallInfoAllocationSize	= FMath::RoundUpToPowerOfTwo(NumPages * sizeof(FPageInstallInfo));
+		uint32 PageAllocationSize			= FMath::RoundUpToPowerOfTwo(NumPageBytes);
+
+		if (InstallInfoAllocationSize > InstallInfoUploadBuffer.NumBytes)
+		{
+			InstallInfoUploadBuffer.Release();
+			InstallInfoUploadBuffer.NumBytes = InstallInfoAllocationSize;
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("InstallInfoUploadBuffer"));
+			InstallInfoUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(FPageInstallInfo), InstallInfoUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+			InstallInfoUploadBuffer.SRV = RHICreateShaderResourceView(InstallInfoUploadBuffer.Buffer);
+		}
+
+		if (PageAllocationSize > PageUploadBuffer.NumBytes)
+		{
+			PageUploadBuffer.Release();
+			PageUploadBuffer.NumBytes = PageAllocationSize;
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("PageUploadBuffer"));
+			PageUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), PageUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | BUF_ByteAddressBuffer, CreateInfo);
+			PageUploadBuffer.SRV = RHICreateShaderResourceView(PageUploadBuffer.Buffer);
+		}
+		
+		InstallInfoPtr = (FPageInstallInfo*)RHILockStructuredBuffer(InstallInfoUploadBuffer.Buffer, 0, InstallInfoAllocationSize, RLM_WriteOnly);
+		PageDataPtr = (uint8*)RHILockStructuredBuffer(PageUploadBuffer.Buffer, 0, PageAllocationSize, RLM_WriteOnly);
+	}
+
+	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset)
+	{
+		check(NextPageIndex < MaxPages);
+		check(NextPageOffset + PageSize <= MaxPageBytes);
+
+		FPageInstallInfo& Info = InstallInfoPtr[NextPageIndex];
+		Info.SrcPageOffset = NextPageOffset;
+		Info.DstPageOffset = DstPageOffset;
+
+		uint8* ResultPtr = PageDataPtr + NextPageOffset;
+		NextPageOffset += PageSize;
+		NextPageIndex++;
+
+		return ResultPtr;
+	}
+
+	void Release()
+	{
+		InstallInfoUploadBuffer.Release();
+		PageUploadBuffer.Release();
+		ResetState();
+	}
+
+	void ResourceUploadTo(FRHICommandList& RHICmdList, FRWByteAddressBuffer& DstBuffer)
+	{
+		RHIUnlockStructuredBuffer(InstallInfoUploadBuffer.Buffer);
+		RHIUnlockStructuredBuffer(PageUploadBuffer.Buffer);
+
+		if (NextPageIndex > 0)
+		{
+			FTranscodePageToGPU_CS::FParameters Parameters;
+			Parameters.InstallInfoBuffer	= InstallInfoUploadBuffer.SRV;
+			Parameters.SrcPageBuffer		= PageUploadBuffer.SRV;
+			Parameters.DstPageBuffer		= DstBuffer.UAV;
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FTranscodePageToGPU_CS>();
+			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, Parameters, FIntVector(MAX_TRANSCODE_GROUPS_PER_PAGE, NextPageIndex, 1));
+		}
+
+		ResetState();
+	}
+private:
+	FByteAddressBuffer	InstallInfoUploadBuffer;
+	FByteAddressBuffer	PageUploadBuffer;
+	FPageInstallInfo*	InstallInfoPtr;
+	uint8*				PageDataPtr;
+
+	uint32				MaxPages;
+	uint32				MaxPageBytes;
+	uint32				NextPageIndex;
+	uint32				NextPageOffset;
+	
+	void ResetState()
+	{
+		InstallInfoPtr = nullptr;
+		PageDataPtr = nullptr;
+		MaxPages = 0;
+		MaxPageBytes = 0;
+		NextPageIndex = 0;
+		NextPageOffset = 0;
+	}
+};
+
 FStreamingManager::FStreamingManager() :
 	MaxStreamingPages(MAX_STREAMING_PAGES),
 	MaxPendingPages(MAX_PENDING_PAGES),
@@ -194,12 +618,14 @@ FStreamingManager::FStreamingManager() :
 
 	PendingPages.SetNum( MaxPendingPages );
 
-	RequestsHashTable = new FRequestsHashTable();
+	RequestsHashTable	= new FRequestsHashTable();
+	PageUploader		= new FStreamingPageUploader();
 }
 
 FStreamingManager::~FStreamingManager()
 {
 	delete RequestsHashTable;
+	delete PageUploader;
 }
 
 void FStreamingManager::InitRHI()
@@ -281,11 +707,6 @@ void FStreamingManager::Remove( FResources* Resources )
 	}
 }
 
-FORCEINLINE bool IsRootPage( uint32 PageIndex )	// Keep in sync with ClusterCulling.usf
-{
-	return PageIndex == 0;
-}
-
 void FStreamingManager::CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key )
 {
 	LLM_SCOPE(ELLMTag::Nanite);
@@ -295,7 +716,6 @@ void FStreamingManager::CollectDependencyPages( FResources* Resources, TSet< FPa
 	DependencyPages.Add( Key );
 
 	FPageStreamingState& PageStreamingState = Resources->PageStreamingStates[ Key.PageIndex ];
-
 	for( uint32 i = 0; i < PageStreamingState.DependenciesNum; i++ )
 	{
 		uint32 DependencyPageIndex = Resources->PageDependencies[ PageStreamingState.DependenciesStart + i ];
@@ -510,7 +930,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		{
 			uint32 ClusterIndex = Fixup.GetClusterIndex();
 			uint32 FlagsOffset = offsetof( FPackedTriCluster, Flags );
-			uint32 Offset = ( TargetGPUPageIndex << CLUSTER_PAGE_SIZE_BITS ) + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
+			uint32 Offset = ( TargetGPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS ) + ( ( FlagsOffset >> 4 ) * NumTargetPageClusters + ClusterIndex ) * 16 + ( FlagsOffset & 15 );
 			ClusterFixupUploadBuffer.Add( Offset / sizeof( uint32 ), &Flags, 1 );
 		}
 	}
@@ -615,10 +1035,35 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 	if( NumReadyPages == 0 )
 		return false;
 
+	struct FTranscodeTask
+	{
+		FPendingPage* PendingPage = nullptr;
+		uint8* Dst = nullptr;
+#if WITH_EDITOR
+		const uint8* ReadPtr = nullptr;
+#else
+		uint32 ReadOffset = 0;
+#endif
+		uint32 ReadSize = 0;
+		FFixupChunk::FHeader Header;
+	};
+
+#if WITH_EDITOR
+	TMap<FResources*, const uint8*> ResourceToBulkPointer;
+#endif
+
+	TArray<FTranscodeTask> TranscodeTasks;
+	TranscodeTasks.AddDefaulted(NumReadyPages);
+
 	// Install ready pages
 	{
+#if USE_GPU_TRANSCODE
+		PageUploader->Init(MAX_INSTALLS_PER_UPDATE, MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE);	//TODO: proper max size
+#else
+		ClusterPageData.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, CLUSTER_PAGE_GPU_SIZE, false, TEXT("ClusterPageDataUploadBuffer"));
+#endif
 		ClusterFixupUploadBuffer.Init(MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
-		ClusterPageData.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, CLUSTER_PAGE_SIZE, false, TEXT("ClusterPageDataUploadBuffer"));
+
 		ClusterPageHeaders.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
 		Hierarchy.UploadBuffer.Init(2 * MAX_INSTALLS_PER_UPDATE  * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
 
@@ -710,11 +1155,15 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 		for (uint32 i = 0; i < NumReadyPages; i++)
 		{
 			uint32 LastPendingPageIndex = (StartPendingPageIndex + i) % MaxPendingPages;
+			FPendingPage& PendingPage = PendingPages[LastPendingPageIndex];
+
+			FTranscodeTask& TranscodeTask = TranscodeTasks[i];
+			TranscodeTask.PendingPage = &PendingPage;
+
 			uint32* PagePtr = GPUPageToLastPendingPageIndex.Find(PendingPages[LastPendingPageIndex].GPUPageIndex);
 			if (PagePtr == nullptr || *PagePtr != LastPendingPageIndex)
 				continue;
 
-			FPendingPage& PendingPage = PendingPages[LastPendingPageIndex];
 			FStreamingPageInfo& StreamingPageInfo = StreamingPageInfos[PendingPage.GPUPageIndex];
 			
 			FResources** Resources = RuntimeResourceMap.Find( PendingPage.InstallKey.RuntimeResourceID );
@@ -725,18 +1174,29 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 			FStreamingPageInfo* StreamingPage = &StreamingPageInfos[ PendingPage.GPUPageIndex ];
 
 			CommittedStreamingPageMap.Add(PendingPage.InstallKey, StreamingPage);
+
 #if WITH_EDITOR
-			FByteBulkData& BulkData = ( *Resources )->StreamableClusterPages;
-			check( BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0 );
+			// Make sure we only lock each resource BulkData once.
+			const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(*Resources);
+			const uint8* BulkDataPtr;
+			if (!BulkDataPtrPtr)
+			{
+				FByteBulkData& BulkData = (*Resources)->StreamableClusterPages;
+				check(BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0);
+				BulkDataPtr = (const uint8*)BulkData.LockReadOnly();
+				ResourceToBulkPointer.Add(*Resources, BulkDataPtr);
+			}
+			else
+			{
+				BulkDataPtr = *BulkDataPtrPtr;
+			}
+			
+			const uint8* Ptr = BulkDataPtr + PageStreamingState.BulkOffset;
+			uint32 FixupChunkSize = ((FFixupChunk*)Ptr)->GetSize();
 
-			uint8* Ptr = (uint8*)BulkData.LockReadOnly() + PageStreamingState.BulkOffset;
-			uint32 FixupChunkSize = ( (FFixupChunk*)Ptr )->GetSize();
-
-			FFixupChunk* FixupChunk = &StreamingPageFixupChunks[ PendingPage.GPUPageIndex ];
-			FMemory::Memcpy( FixupChunk, Ptr, FixupChunkSize );
-
-			void* Dst = ClusterPageData.UploadBuffer.Add_GetRef( PendingPage.GPUPageIndex );
-			FMemory::Memcpy( Dst, Ptr + FixupChunkSize, PageStreamingState.BulkSize - FixupChunkSize );
+			FFixupChunk* FixupChunk = &StreamingPageFixupChunks[PendingPage.GPUPageIndex];
+			FMemory::Memcpy(FixupChunk, Ptr, FixupChunkSize);
+			TranscodeTask.ReadPtr = Ptr + FixupChunkSize;
 #else
 			// Read header of FixupChunk so the length can be calculated
 			FFixupChunk* FixupChunk = &StreamingPageFixupChunks[ PendingPage.GPUPageIndex ];
@@ -746,10 +1206,17 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 
 			// Read the rest of FixupChunk
 			PendingPage.ReadStream->CopyTo( FixupChunk->Data, sizeof( FFixupChunk::Header ), FixupChunkSize - sizeof( FFixupChunk::Header ) );
+			TranscodeTask.ReadOffset = FixupChunkSize;
+#endif
 
-			// Read GPU data
-			void* Dst = ClusterPageData.UploadBuffer.Add_GetRef( PendingPage.GPUPageIndex );
-			PendingPage.ReadStream->CopyTo( Dst, FixupChunkSize, PageStreamingState.BulkSize - FixupChunkSize );
+			
+			TranscodeTask.PendingPage = &PendingPage;
+			TranscodeTask.ReadSize = PageStreamingState.BulkSize - FixupChunkSize;
+			TranscodeTask.Header = FixupChunk->Header;
+#if USE_GPU_TRANSCODE
+			TranscodeTask.Dst = PageUploader->Add_GetRef(TranscodeTask.ReadSize, PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
+#else
+			TranscodeTask.Dst = (uint8*)ClusterPageData.UploadBuffer.Add_GetRef(PendingPage.GPUPageIndex);
 #endif
 
 			// Update page headers
@@ -761,27 +1228,56 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 			ApplyFixups( *FixupChunk, **Resources, PendingPage.InstallKey.PageIndex, PendingPage.GPUPageIndex );
 
 			INC_DWORD_STAT( STAT_NaniteInstalledPages );
-
-#if WITH_EDITOR
-			BulkData.Unlock();
-#endif
-
 			INC_DWORD_STAT(STAT_NanitePageInstalls);
 		}
 	}
 
-	// Clean up IO handles
-#if !WITH_EDITOR
-	for (uint32 i = 0; i < NumReadyPages; i++)
+	// Transcode pages
+	ParallelFor(NumReadyPages, [&TranscodeTasks](int32 i)
 	{
-		uint32 PendingPageIndex = (StartPendingPageIndex + i) % MaxPendingPages;
-		FPendingPage& PendingPage = PendingPages[PendingPageIndex];
-		PendingPage.ReadStream.SafeRelease();
-		delete PendingPage.Handle;
-		PendingPage.Handle = nullptr;
+		SCOPE_CYCLE_COUNTER(STAT_NaniteTranscodePageTask);
+		const FTranscodeTask& Task = TranscodeTasks[i];
+		
+		// Read GPU data
+#if WITH_EDITOR
+		if (Task.Dst)
+		{
+#if USE_GPU_TRANSCODE
+			FMemory::Memcpy(Task.Dst, Task.ReadPtr, Task.ReadSize);
+#else
+			TranscodePageToGPU(Task.Dst, Task.ReadPtr, Task.ReadSize);
+#endif
+		}
+#else
+		if (Task.Dst)
+		{
+			TArray<uint8> Tmp;
+			Tmp.SetNumUninitialized(Task.ReadSize);
+			Task.PendingPage->ReadStream->CopyTo(Tmp.GetData(), Task.ReadOffset, Task.ReadSize);
+#if USE_GPU_TRANSCODE
+			FMemory::Memcpy(Task.Dst, Tmp.GetData(), Tmp.Num());
+#else
+			TranscodePageToGPU(Task.Dst, Tmp.GetData(), Tmp.Num());
+#endif
+		}
+
+		// Clean up IO handles
+		Task.PendingPage->ReadStream.SafeRelease();
+		delete Task.PendingPage->Handle;
+		Task.PendingPage->Handle = nullptr;
+#endif
+	});
+
+#if WITH_EDITOR
+	// Unlock BulkData
+	for (auto it : ResourceToBulkPointer)
+	{
+		FResources* Resources = it.Key;
+		FByteBulkData& BulkData = Resources->StreamableClusterPages;
+		BulkData.Unlock();
 	}
 #endif
-
+	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NaniteUpload);
 
@@ -789,7 +1285,13 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
 		}
+		
+#if USE_GPU_TRANSCODE
+		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
+#else
 		ClusterPageData.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
+#endif
+
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
 		Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
 
@@ -853,9 +1355,9 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 	uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
 	check( NumAllocatedPages <= MAX_GPU_PAGES );
 	ResizeResourceIfNeeded( RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("FStreamingManagerClusterPageHeaders") );
-	ResizeResourceIfNeeded( RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
+	ResizeResourceIfNeeded( RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
 
-	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
+	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_GPU_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
 																				// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
 
 	RootPageInfos.SetNum( NumAllocatedRootPages );
@@ -864,9 +1366,27 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 
 	// TODO: These uploads can end up being quite large.
 	// We should try to change the high level logic so the proxy is not considered loaded until the root page has been loaded, so we can split this over multiple frames.
-	ClusterPageData.UploadBuffer.Init( NumPendingAdds, CLUSTER_PAGE_SIZE, false, TEXT("FStreamingManagerClusterPageDataUpload") );
+	
 	ClusterPageHeaders.UploadBuffer.Init( NumPendingAdds, sizeof( uint32 ), false, TEXT("FStreamingManagerClusterPageHeadersUpload") );
 	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("FStreamingManagerHierarchyUpload"));
+	
+	// Calculate total requires size
+#if USE_GPU_TRANSCODE
+	uint32 TotalDiskSize = 0;
+	for(uint32 i = 0; i < NumPendingAdds; i++)
+	{
+		FResources* Resources = PendingAdds[i];
+		
+		uint8* Ptr = Resources->RootClusterPage.GetData();
+		FFixupChunk& FixupChunk = *(FFixupChunk*)Ptr;
+		uint32 FixupChunkSize = FixupChunk.GetSize();
+		uint32 DiskSize = Resources->PageStreamingStates[0].BulkSize - FixupChunkSize;
+		TotalDiskSize += DiskSize;
+	}
+	PageUploader->Init(NumPendingAdds, TotalDiskSize);
+#else
+	ClusterPageData.UploadBuffer.Init(NumPendingAdds, CLUSTER_PAGE_GPU_SIZE, false, TEXT("FStreamingManagerClusterPageDataUpload"));
+#endif
 
 	for( FResources* Resources : PendingAdds )
 	{
@@ -876,9 +1396,16 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		uint32 FixupChunkSize = FixupChunk.GetSize();
 		uint32 NumClusters = FixupChunk.Header.NumClusters;
 
-		void* Dst = ClusterPageData.UploadBuffer.Add_GetRef( GPUPageIndex );
-		FMemory::Memcpy( Dst, Ptr + FixupChunkSize, Resources->PageStreamingStates[0].BulkSize - FixupChunkSize );
-		ClusterPageHeaders.UploadBuffer.Add( GPUPageIndex, &NumClusters );
+		uint32 PageDiskSize = Resources->PageStreamingStates[0].BulkSize - FixupChunkSize;
+#if USE_GPU_TRANSCODE
+		uint8* Dst = PageUploader->Add_GetRef(PageDiskSize, GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
+		FMemory::Memcpy(Dst, Ptr + FixupChunkSize, PageDiskSize);
+#else
+		uint8* Dst = ClusterPageData.UploadBuffer.Add_GetRef( GPUPageIndex );
+		TranscodePageToGPU(Dst, Ptr + FixupChunkSize, PageDiskSize);
+#endif
+
+		ClusterPageHeaders.UploadBuffer.Add(GPUPageIndex, &NumClusters);
 
 		// Root node should only have fixups that depend on other pages and cannot be satisfied yet.
 
@@ -915,16 +1442,23 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 		Hierarchy.TotalUpload = 0;
 		Hierarchy.UploadBuffer.ResourceUploadTo( RHICmdList, Hierarchy.DataBuffer, false );
 		ClusterPageHeaders.UploadBuffer.ResourceUploadTo( RHICmdList, ClusterPageHeaders.DataBuffer, false );
-		ClusterPageData.UploadBuffer.ResourceUploadTo( RHICmdList, ClusterPageData.DataBuffer, false );
+#if USE_GPU_TRANSCODE
+		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
+#else
+		ClusterPageData.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
+#endif
 	}
 
 	PendingAdds.Reset();
 	if( NumPendingAdds > 1 )
 	{
+#if USE_GPU_TRANSCODE
+		PageUploader->Release();
+#else
 		ClusterPageData.UploadBuffer.Release();	// Release large buffers. On uploads RHI ends up using the full size of the buffer, NOT just the size of the update, so we need to keep the size down.
+#endif
 	}
 	
-
 	return true;
 }
 

@@ -42,6 +42,8 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 namespace Nanite
 {
 
+static_assert(sizeof(FPackedTriCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedTriCluster)");
+
 FArchive& operator<<( FArchive& Ar, FTreeNode& Node )
 {
 	Ar << Node.Parent;
@@ -57,6 +59,9 @@ FArchive& operator<<( FArchive& Ar, FPackedTriCluster& Cluster )
 	Ar << Cluster.AttributeOffset;
 	Ar << Cluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;
 	Ar << Cluster.BitsPerAttrib;
+	Ar << Cluster.UV_Prec;
+	Ar << Cluster.GroupIndex;
+
 
 	Ar << Cluster.QuantizedPosStart.X;
 	Ar << Cluster.QuantizedPosStart.Y;

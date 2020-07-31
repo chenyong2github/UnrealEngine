@@ -5,13 +5,18 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 
-#define MAX_CLUSTER_TRIANGLES					128
 #define USE_IMPLICIT_TANGENT_SPACE				1														// must match define in NaniteBuilder.cpp
 #define USE_CONSTRAINED_CLUSTERS				1														// must match define in NaniteBuilder.h
-#define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
 
-#define CLUSTER_PAGE_SIZE_BITS					18														// must match define in NaniteResources.h
-#define CLUSTER_PAGE_SIZE						( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteResources.h
+#define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteResources.h
+#define MAX_CLUSTER_TRIANGLES					128
+#define MAX_CLUSTER_VERTICES					256
+#define MAX_NANITE_UVS							2
+
+#define USE_STRIP_INDICES						1														// must match define in NaniteResources.h
+
+#define CLUSTER_PAGE_GPU_SIZE_BITS				18														// must match define in NaniteResources.h
+#define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_SIZE_BITS )							// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
@@ -33,6 +38,8 @@
 #define MAX_GROUP_PARTS_BITS					3														// must match define in NaniteResources.h
 #define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS)									// must match define in NaniteResources.h
 
+#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteResources.h
+
 #define MAX_STATE_BUCKET_ID						((1 << 14) - 1)											// must match FNaniteCommandInfo::MAX_STATE_BUCKET_ID
 
 #define CLUSTER_FLAG_LEAF						0x1
@@ -41,19 +48,22 @@
 #define CULLING_FLAG_USE_HW						0x2
 #define CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE	0x4
 
+#define MAX_TRANSCODE_GROUPS_PER_PAGE			32														// must match define in NaniteResources.h
 
-#define SUBPIXEL_BITS			8
-#define SUBPIXEL_SAMPLES		(1 << SUBPIXEL_BITS)
-#define SUBPIXEL_MASK			(SUBPIXEL_SAMPLES - 1)
-#define SUBPIXEL_DILATE			0	// To correct for mismatch with HW rasterizer
+#define NUM_PACKED_CLUSTER_FLOAT4S				12														// must match define in NaniteResources.h
 
-#define POSITION_QUANTIZATION_BITS	10
-#define NORMAL_QUANTIZATION_BITS	12
-#define TEXCOORD_QUANTIZATION_BITS	10
+#define SUBPIXEL_BITS								8
+#define SUBPIXEL_SAMPLES							(1 << SUBPIXEL_BITS)
+#define SUBPIXEL_MASK								(SUBPIXEL_SAMPLES - 1)
+#define SUBPIXEL_DILATE								0	// To correct for mismatch with HW rasterizer
 
-#define CULLING_PASS_NO_OCCLUSION		0
-#define CULLING_PASS_OCCLUSION_MAIN		1
-#define CULLING_PASS_OCCLUSION_POST		2
+#define POSITION_QUANTIZATION_BITS					10
+#define POSITION_QUANTIZATION_MASK					((1 << POSITION_QUANTIZATION_BITS) - 1)
+#define NORMAL_QUANTIZATION_BITS					9
+
+#define CULLING_PASS_NO_OCCLUSION					0
+#define CULLING_PASS_OCCLUSION_MAIN					1
+#define CULLING_PASS_OCCLUSION_POST					2
 
 #define RENDER_FLAG_CACHE_INSTANCE_DYNAMIC_DATA		0x1
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x2
@@ -176,9 +186,11 @@ struct FTriCluster
 	uint	NumVerts;
 	uint	NumTris;
 	uint	BitsPerIndex;
-	uint	BitsPerAttrib;
-	uint	GroupIndex;
 	uint	QuantizedPosShift;
+
+	uint	BitsPerAttrib;
+	uint	UV_Prec;
+	uint	GroupIndex;
 	
 	float	EdgeLength;
 	float	LODError;
@@ -323,74 +335,107 @@ struct FInstanceDraw
 
 RWByteAddressBuffer					OutInstanceDynamicData;
 
-struct FBitStreamState
+struct FBitStreamReaderState
 {
-	uint4 RawData;
-	uint Data;
-	int DataOffset;
-	int ReadOffset;
-	int CompileTimeNumBits;
-	int CompileTimeMaxRemainingBits;
+	uint4	RawData;
+	uint	BufferData;
+	int		BufferOffset;
+	int		CompileTimeNumBits;
+	int		CompileTimeMaxRemainingBits;
 };
 
-FBitStreamState BitStreamCreate(ByteAddressBuffer Input, uint BaseAddressInBytes, uint BitOffset, uint CompileTimeMaxBits)
+FBitStreamReaderState BitStreamReader_Create(ByteAddressBuffer Input, uint BaseAddressInBytes, uint BitOffset, uint CompileTimeMaxBits)
 {
-	FBitStreamState State;
+	FBitStreamReaderState State;
 
-	uint ByteAddress = BaseAddressInBytes + ((BitOffset >> 5) << 2);
+	uint ByteAddress = BaseAddressInBytes + (BitOffset >> 3);
+	uint AlignedByteAddress = ByteAddress & ~3;
+	BitOffset = ((ByteAddress - AlignedByteAddress) << 3) | (BitOffset & 7);
 
-	State.RawData = (CompileTimeMaxBits > 32 * 2 + 1) ? Input.Load4(ByteAddress) :
-					(CompileTimeMaxBits > 32 * 1 + 1) ? uint4(Input.Load3(ByteAddress), 0) :
-					(CompileTimeMaxBits > 1) ? uint4(Input.Load2(ByteAddress), 0, 0) :
-					(CompileTimeMaxBits > 0) ? uint4(Input.Load(ByteAddress), 0, 0, 0) :
+	State.RawData = (CompileTimeMaxBits > 32 * 2 + 1) ? Input.Load4(AlignedByteAddress) :
+					(CompileTimeMaxBits > 32 * 1 + 1) ? uint4(Input.Load3(AlignedByteAddress), 0) :
+					(CompileTimeMaxBits > 1) ? uint4(Input.Load2(AlignedByteAddress), 0, 0) :
+					(CompileTimeMaxBits > 0) ? uint4(Input.Load(AlignedByteAddress), 0, 0, 0) :
 					0;
 
-	State.Data = 0;
-#if 1
-	State.DataOffset = BitOffset & 31;
-#else
-	State.DataOffset = 0;
-#endif
-	State.ReadOffset = BitOffset & 31;
+	State.BufferData = 0;
+	State.BufferOffset = BitOffset & 31;
 	State.CompileTimeNumBits = 0;
 	State.CompileTimeMaxRemainingBits = CompileTimeMaxBits;
 	return State;
 }
 
-uint BitStreamRead(inout FBitStreamState State, int NumBits, int CompileTimeMaxBits)
+uint BitStreamReader_Read(inout FBitStreamReaderState State, int NumBits, int CompileTimeMaxBits)
 {
 	if (State.CompileTimeNumBits < CompileTimeMaxBits)
 	{
-#if 1
-		State.RawData.x = BitAlignU32(State.RawData.y, State.RawData.x, State.DataOffset);
-		if (State.CompileTimeMaxRemainingBits > 1 * 32)	State.RawData.y = BitAlignU32(State.RawData.z, State.RawData.y, State.DataOffset);
-		if (State.CompileTimeMaxRemainingBits > 2 * 32)	State.RawData.z = BitAlignU32(State.RawData.w, State.RawData.z, State.DataOffset);
-		if (State.CompileTimeMaxRemainingBits > 3 * 32)	State.RawData.w = State.RawData.w >> State.DataOffset;
-		State.Data = State.RawData.x;
-#else
-		if (State.ReadOffset >= 32)
-		{
-			if (State.CompileTimeMaxRemainingBits > 0)			State.RawData.x = State.RawData.y;
-			if (State.CompileTimeMaxRemainingBits > 1)			State.RawData.y = State.RawData.z;
-			if (State.CompileTimeMaxRemainingBits > 1 * 32 + 1) State.RawData.z = State.RawData.w;
-			State.ReadOffset -= 32;
-		}
-		State.Data = BitAlignU32(State.RawData[0].y, State.RawData[0].x, State.ReadOffset);
-#endif
-		State.DataOffset = 0;
+		State.RawData.x = BitAlignU32(State.RawData.y, State.RawData.x, State.BufferOffset);
+		if (State.CompileTimeMaxRemainingBits > 1 * 32)	State.RawData.y = BitAlignU32(State.RawData.z, State.RawData.y, State.BufferOffset);
+		if (State.CompileTimeMaxRemainingBits > 2 * 32)	State.RawData.z = BitAlignU32(State.RawData.w, State.RawData.z, State.BufferOffset);
+		if (State.CompileTimeMaxRemainingBits > 3 * 32)	State.RawData.w = State.RawData.w >> State.BufferOffset;
+		State.BufferData = State.RawData.x;
+		State.BufferOffset = 0;
 		State.CompileTimeNumBits = 32;
 	}
 
-	uint Result = State.Data;
-	BitFieldExtractU32(State.Data, State.DataOffset, NumBits);	
-
-	State.DataOffset += NumBits;
-	State.ReadOffset += NumBits;
+	uint Result = BitFieldExtractU32(State.BufferData, NumBits, State.BufferOffset);
+	State.BufferOffset += NumBits;
 	State.CompileTimeNumBits -= CompileTimeMaxBits;
 	State.CompileTimeMaxRemainingBits -= CompileTimeMaxBits;
 	return Result;
 }
 
+uint2 BitStreamReader_Read2(inout FBitStreamReaderState State, int2 NumBits, int2 CompileTimeMaxBits)
+{
+	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
+	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
+	return uint2(ResultX, ResultY);
+}
+
+struct FBitStreamWriterState
+{
+	RWByteAddressBuffer Output;
+	uint				AlignedByteAddress;
+	uint				BitOffset;
+};
+
+FBitStreamWriterState BitStreamWriter_Create(RWByteAddressBuffer Output, uint BaseAddressInBytes, uint BitOffset)
+{
+	FBitStreamWriterState State;
+	
+	uint ByteAddress = BaseAddressInBytes + (BitOffset >> 3);
+	uint AlignedByteAddress = ByteAddress & ~3;
+	BitOffset = ((ByteAddress - AlignedByteAddress) << 3) | (BitOffset & 7);
+
+	State.Output = Output;
+	State.AlignedByteAddress = AlignedByteAddress;
+	State.BitOffset = BitOffset;
+
+	return State;
+}
+
+// Very naive bit writer that flushes bits immediately.
+void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int NumBits, int CompileTimeMaxBits)
+{
+	if (NumBits <= 0)
+		return;
+
+	int StartBit = State.BitOffset;
+	int EndBit = StartBit + NumBits;
+	uint Mask = BitFieldMaskU32(NumBits, StartBit);
+	State.Output.InterlockedAnd(State.AlignedByteAddress, ~Mask);				// Make sure bits are cleared
+	State.Output.InterlockedOr(State.AlignedByteAddress, Value << StartBit);	// Write them
+	State.BitOffset = EndBit & 31;
+	State.AlignedByteAddress += (EndBit >= 32) ? 4 : 0;
+
+	if (EndBit > 32)
+	{
+		int WrittenBits = NumBits - State.BitOffset;
+		Mask = BitFieldMaskU32(State.BitOffset, 0);
+		State.Output.InterlockedAnd(State.AlignedByteAddress, ~Mask);
+		State.Output.InterlockedOr(State.AlignedByteAddress, Value >> WrittenBits);
+	}
+}
 
 // Utility functions for packing bits into uints.
 // When Position and NumBits can be determined at compile time this should be just as fast as manual bit packing.
@@ -694,26 +739,24 @@ FInstanceSceneData GetInstanceData( uint InstanceId )
 	return GetInstanceData( InstanceId, SOAStrides.x );
 }
 
-FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
+FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
-	uint NumClusters = ClusterPageHeaders.Load( PageIndex * 4 );
-	uint ClusterSOAStride = ( NumClusters << 4 );
+	uint ClusterSOAStride = ( NumPageClusters << 4 );
 
-	uint PageBaseAddress = ( PageIndex << CLUSTER_PAGE_SIZE_BITS );
-	uint ClusterBaseAddress = PageBaseAddress + ( ClusterIndex << 4 );
+	uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
 	
 	uint4 ClusterData[8];
-	ClusterData[0] = ClusterPageData.Load4( ClusterBaseAddress + 0 * ClusterSOAStride );
-	ClusterData[1] = ClusterPageData.Load4( ClusterBaseAddress + 1 * ClusterSOAStride );
-	ClusterData[2] = ClusterPageData.Load4( ClusterBaseAddress + 2 * ClusterSOAStride );
-	ClusterData[3] = ClusterPageData.Load4( ClusterBaseAddress + 3 * ClusterSOAStride );
-	ClusterData[4] = ClusterPageData.Load4( ClusterBaseAddress + 4 * ClusterSOAStride );
-	ClusterData[5] = ClusterPageData.Load4( ClusterBaseAddress + 5 * ClusterSOAStride );
-	ClusterData[6] = ClusterPageData.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
-	ClusterData[7] = uint4( ClusterPageData.Load3( ClusterBaseAddress + 7 * ClusterSOAStride ), 0 );
+	ClusterData[0] = InputBuffer.Load4( ClusterBaseAddress + 0 * ClusterSOAStride );
+	ClusterData[1] = InputBuffer.Load4( ClusterBaseAddress + 1 * ClusterSOAStride );
+	ClusterData[2] = InputBuffer.Load4( ClusterBaseAddress + 2 * ClusterSOAStride );
+	ClusterData[3] = InputBuffer.Load4( ClusterBaseAddress + 3 * ClusterSOAStride );
+	ClusterData[4] = InputBuffer.Load4( ClusterBaseAddress + 4 * ClusterSOAStride );
+	ClusterData[5] = InputBuffer.Load4( ClusterBaseAddress + 5 * ClusterSOAStride );
+	ClusterData[6] = InputBuffer.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
+	ClusterData[7] = uint4(InputBuffer.Load3( ClusterBaseAddress + 7 * ClusterSOAStride ), 0 );
 
 	FTriCluster Cluster;
-	Cluster.PageBaseAddress = PageBaseAddress;
+	Cluster.PageBaseAddress		= 0;
 
 	Cluster.QuantizedPosStart	= ClusterData[0].xyz;
 	Cluster.PositionOffset		= ClusterData[0].w;
@@ -730,7 +773,8 @@ FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
 	Cluster.BitsPerIndex		= BitFieldExtractU32(Tmp, 4, 9+8);
 	Cluster.QuantizedPosShift	= BitFieldExtractU32(Tmp, 6, 9+8+4);
 	Cluster.BitsPerAttrib		= ClusterData[3].y;
-	Cluster.GroupIndex			= ClusterData[3].z;
+	Cluster.UV_Prec				= ClusterData[3].z;
+	Cluster.GroupIndex			= ClusterData[3].w;
 
 	Cluster.LODBounds			= asfloat( ClusterData[4] );
 	
@@ -797,8 +841,8 @@ FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
 	for( uint i = 0; i < 2; i++ )
 	{
 		uint4 RangeData[2];
-		RangeData[0] = ClusterPageData.Load4( ClusterBaseAddress + (8 + 2*i) * ClusterSOAStride );
-		RangeData[1] = ClusterPageData.Load4( ClusterBaseAddress + (9 + 2*i) * ClusterSOAStride );
+		RangeData[0] = InputBuffer.Load4( ClusterBaseAddress + (8 + 2*i) * ClusterSOAStride );
+		RangeData[1] = InputBuffer.Load4( ClusterBaseAddress + (9 + 2*i) * ClusterSOAStride );
 
 		Cluster.UVRanges[i].Min			= asfloat( RangeData[0].xy );
 		Cluster.UVRanges[i].Scale		= asfloat( RangeData[0].zw );
@@ -809,23 +853,28 @@ FTriCluster GetCluster( uint PageIndex, uint ClusterIndex )
 	return Cluster;
 }
 
+FTriCluster GetCluster(uint PageIndex, uint ClusterIndex)
+{
+	uint NumClusters = ClusterPageHeaders.Load(PageIndex * 4);
+	uint PageBaseAddress = (PageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
+	
+	FTriCluster Cluster = GetCluster(ClusterPageData, PageBaseAddress, ClusterIndex, NumClusters);
+	Cluster.PageBaseAddress = PageBaseAddress;
+	return Cluster;
+}
+
 uint3 ReadTriangleIndices(FTriCluster Cluster, uint TriIndex)
 {
+	const uint CompileTimeBitsPerIndex = 8;
 	const uint BitsPerIndex = Cluster.BitsPerIndex;
-	const uint BitPos = TriIndex * (Cluster.BitsPerIndex * 3);
-
-	const uint IndexMask = (1u << BitsPerIndex) - 1u;
-	const uint DwordPos = (BitPos >> 5);
-	const uint DwordBitPos = BitPos & 31;
-	uint2 Data = ClusterPageData.Load2(Cluster.PageBaseAddress + Cluster.IndexOffset + DwordPos * 4);
-
-#if COMPILER_SUPPORTS_ULONG_TYPES
-	uint VertIndices = (uint)((((UlongType)Data.y) << 32 | Data.x) >> DwordBitPos);
-#else
-	uint VertIndices = Data.x >> DwordBitPos;
-	VertIndices |= (Data.y << (31 - DwordBitPos)) << 1;	// Workaround for (x << 32) == x
-#endif
-	return uint3(VertIndices & IndexMask, ((VertIndices >> BitsPerIndex) & IndexMask), (VertIndices >> (BitsPerIndex * 2)) & IndexMask) & 0xFFFFFFu;	// "& 0xFFFFFFu" to help compiler range analysis and avoid 32bit multiplies
+	
+	FBitStreamReaderState BitStreamReader = BitStreamReader_Create(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * (3 * BitsPerIndex), CompileTimeBitsPerIndex);
+	
+	uint3 Indices;
+	Indices.x = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
+	Indices.y = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
+	Indices.z = BitStreamReader_Read(BitStreamReader, BitsPerIndex, CompileTimeBitsPerIndex);
+	return Indices;
 }
 
 void UnpackVisPixel(
@@ -860,12 +909,10 @@ float3 UnpackPosition(uint Packed, FTriCluster Cluster, uint Bits)
 	return (uint3(Packed & Mask, (Packed >> Bits) & Mask, (Packed >> (Bits * 2)) & Mask) + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
 }
 
-float2 UnpackTexCoord(uint Packed, FTriCluster Cluster, uint Bits, uint UVIndex)
+float2 UnpackTexCoord(uint2 Packed, FTriCluster Cluster, uint UVIndex)
 {
 	FUVRange UVRange = Cluster.UVRanges[ UVIndex ];
-	uint Mask = (1u << Bits) - 1u;
-	uint2 T = uint2(Packed & Mask, (Packed >> Bits) & Mask);
-	T += (T >= UVRange.GapStart) ? UVRange.GapLength : 0u;
+	uint2 T = Packed + ((Packed >= UVRange.GapStart) ? UVRange.GapLength : 0u);
 	return float2(T) * UVRange.Scale + UVRange.Min;
 }
 

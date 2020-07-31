@@ -1,0 +1,357 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "NaniteDataDecode.ush"
+
+struct FPageInstallInfo
+{
+	uint SrcPageOffset;
+	uint DstPageOffset;
+};
+
+StructuredBuffer<FPageInstallInfo>	InstallInfoBuffer;
+ByteAddressBuffer					SrcPageBuffer;
+RWByteAddressBuffer					DstPageBuffer;
+
+struct FPageDiskHeader
+{
+	uint GpuSize;
+	uint NumClusters;
+	uint NumMaterialDwords;
+	uint NumTexCoords;
+	uint StripBitmaskOffset;
+	uint VertexRefBitmaskOffset;
+};
+#define SIZEOF_PAGE_DISK_HEADER	(6*4)
+
+FPageDiskHeader GetPageDiskHeader(uint PageBaseOffset)
+{
+	uint4 Data[2];
+	Data[0] = SrcPageBuffer.Load4(PageBaseOffset + 0);
+	Data[1] = uint4(SrcPageBuffer.Load2(PageBaseOffset + 16), 0, 0);
+
+	FPageDiskHeader DiskHeader;
+	DiskHeader.GpuSize					= Data[0].x;
+	DiskHeader.NumClusters				= Data[0].y;
+	DiskHeader.NumMaterialDwords		= Data[0].z;
+	DiskHeader.NumTexCoords				= Data[0].w;
+	DiskHeader.StripBitmaskOffset		= Data[1].x;
+	DiskHeader.VertexRefBitmaskOffset	= Data[1].y;
+	return DiskHeader;
+}
+
+struct FClusterDiskHeader
+{
+	uint IndexDataOffset;
+	uint VertexRefDataOffset;
+	uint PositionDataOffset;
+	uint AttributeDataOffset;
+	uint NumPrevRefVerticesBeforeDwords;
+	uint NumPrevNewVerticesBeforeDwords;
+};
+#define SIZEOF_CLUSTER_DISK_HEADER	(6*4)
+
+FClusterDiskHeader GetClusterDiskHeader(uint PageBaseOffset, uint ClusterIndex)
+{
+	uint ByteOffset = PageBaseOffset + SIZEOF_PAGE_DISK_HEADER + ClusterIndex * SIZEOF_CLUSTER_DISK_HEADER;
+	uint4 Data[2];
+	Data[0]	= SrcPageBuffer.Load4(ByteOffset);
+	Data[1] = uint4(SrcPageBuffer.Load2(ByteOffset + 16), 0, 0);
+	
+	FClusterDiskHeader Header;
+	Header.IndexDataOffset					= Data[0].x;
+	Header.VertexRefDataOffset				= Data[0].y;
+	Header.PositionDataOffset				= Data[0].z;
+	Header.AttributeDataOffset				= Data[0].w;
+	Header.NumPrevRefVerticesBeforeDwords	= Data[1].x;
+	Header.NumPrevNewVerticesBeforeDwords	= Data[1].y;
+	return Header;
+}
+
+uint ReadUnalignedDword(ByteAddressBuffer InputBuffer, uint BaseAddressInBytes, int BitOffset)
+{
+	uint ByteAddress = BaseAddressInBytes + (BitOffset >> 3);
+	uint AlignedByteAddress = ByteAddress & ~3;
+	BitOffset = ((ByteAddress - AlignedByteAddress) << 3) | (BitOffset & 7);
+
+	uint2 Data = InputBuffer.Load2(AlignedByteAddress);
+	return BitAlignU32(Data.y, Data.x, BitOffset);
+}
+
+uint3 UnpackStripIndices(uint SrcPageBaseOffset, FPageDiskHeader PageDiskHeader, FClusterDiskHeader ClusterDiskHeader, uint LocalClusterIndex, uint TriIndex)
+{
+	const uint DwordIndex = TriIndex >> 5;
+	const uint BitIndex = TriIndex & 31u;
+
+	//Bitmask.x: bIsStart, Bitmask.y: bIsLeft, Bitmask.z: bIsNewVertex
+	const uint3 StripBitmasks = SrcPageBuffer.Load3(SrcPageBaseOffset + PageDiskHeader.StripBitmaskOffset + (LocalClusterIndex * (MAX_CLUSTER_TRIANGLES / 32) + DwordIndex) * 12);
+
+	const uint SMask = StripBitmasks.x;
+	const uint LMask = StripBitmasks.y;
+	const uint WMask = StripBitmasks.z;
+	const uint SLMask = SMask & LMask;
+
+	//const uint HeadRefVertexMask = ( SMask & LMask & WMask ) | ( ~SMask & WMask );
+	const uint HeadRefVertexMask = (SLMask | ~SMask) & WMask;	// 1 if head of triangle is ref. S case with 3 refs or L/R case with 1 ref.
+
+	const uint PrevBitsMask = (1u << BitIndex) - 1u;
+	
+	const uint NumPrevRefVerticesBeforeDword = DwordIndex ? BitFieldExtractU32(ClusterDiskHeader.NumPrevRefVerticesBeforeDwords, 10u, DwordIndex * 10u - 10u) : 0u;
+	const uint NumPrevNewVerticesBeforeDword = DwordIndex ? BitFieldExtractU32(ClusterDiskHeader.NumPrevNewVerticesBeforeDwords, 10u, DwordIndex * 10u - 10u) : 0u;
+
+	int CurrentDwordNumPrevRefVertices = (countbits(SLMask & PrevBitsMask) << 1) + countbits(WMask & PrevBitsMask);
+	int CurrentDwordNumPrevNewVertices = (countbits(SMask & PrevBitsMask) << 1) + BitIndex - CurrentDwordNumPrevRefVertices;
+
+	int NumPrevRefVertices = NumPrevRefVerticesBeforeDword + CurrentDwordNumPrevRefVertices;
+	int NumPrevNewVertices = NumPrevNewVerticesBeforeDword + CurrentDwordNumPrevNewVertices;
+
+	const int IsStart = BitFieldExtractI32(SMask, 1, BitIndex);		// -1: true, 0: false
+	const int IsLeft = BitFieldExtractI32(LMask, 1, BitIndex);		// -1: true, 0: false
+	const int IsRef = BitFieldExtractI32(WMask, 1, BitIndex);		// -1: true, 0: false
+
+	const uint BaseVertex = NumPrevNewVertices - 1u;
+
+	uint3 OutIndices;
+	uint ReadBaseAddress = SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset;
+	uint IndexData = ReadUnalignedDword(SrcPageBuffer, ReadBaseAddress, (NumPrevRefVertices + ~IsStart) * 5);	// -1 if not Start
+
+	if (IsStart)
+	{
+		const int MinusNumRefVertices = (IsLeft << 1) + IsRef;
+		uint NextVertex = NumPrevNewVertices;
+
+		if (MinusNumRefVertices <= -1) { OutIndices.x = BaseVertex - (IndexData & 31u); IndexData >>= 5; }
+		else { OutIndices[0] = NextVertex++; }
+		if (MinusNumRefVertices <= -2) { OutIndices.y = BaseVertex - (IndexData & 31u); IndexData >>= 5; }
+		else { OutIndices[1] = NextVertex++; }
+		if (MinusNumRefVertices <= -3) { OutIndices.z = BaseVertex - (IndexData & 31u); }
+		else { OutIndices[2] = NextVertex++; }
+	}
+	else
+	{
+		// Handle two first vertices
+		const uint PrevBitIndex = BitIndex - 1u;
+		const int IsPrevStart = BitFieldExtractI32(SMask, 1, PrevBitIndex);
+		const int IsPrevHeadRef = BitFieldExtractI32(HeadRefVertexMask, 1, PrevBitIndex);
+		//const int NumPrevNewVerticesInTriangle = IsPrevStart ? ( 3u - ( bfe_u32( /*SLMask*/ LMask, PrevBitIndex, 1 ) << 1 ) - bfe_u32( /*SMask &*/ WMask, PrevBitIndex, 1 ) ) : /*1u - IsPrevRefVertex*/ 0u;
+		const int NumPrevNewVerticesInTriangle = IsPrevStart & (3u - ((BitFieldExtractU32( /*SLMask*/ LMask, 1, PrevBitIndex) << 1) | BitFieldExtractU32( /*SMask &*/ WMask, 1, PrevBitIndex)));
+
+		//OutIndices[ 1 ] = IsPrevRefVertex ? ( BaseVertex - ( IndexData & 31u ) + NumPrevNewVerticesInTriangle ) : BaseVertex;	// BaseVertex = ( NumPrevNewVertices - 1 );
+		OutIndices.y = BaseVertex + (IsPrevHeadRef & (NumPrevNewVerticesInTriangle - (IndexData & 31u)));
+		//OutIndices[ 2 ] = IsRefVertex ? ( BaseVertex - bfe_u32( IndexData, 5, 5 ) ) : NumPrevNewVertices;
+		OutIndices.z = NumPrevNewVertices + (IsRef & (-1 - BitFieldExtractU32(IndexData, 5, 5)));
+
+		// We have to search for the third vertex. 
+		// Left triangles search for previous Right/Start. Right triangles search for previous Left/Start.
+		const uint SearchMask = SMask | (LMask ^ IsLeft);				// SMask | ( IsRight ? LMask : RMask );
+		const uint FoundBitIndex = firstbithigh(SearchMask & PrevBitsMask);
+		const int IsFoundCaseS = BitFieldExtractI32(SMask, 1, FoundBitIndex);		// -1: true, 0: false
+
+		const uint FoundPrevBitsMask = (1u << FoundBitIndex) - 1u;
+		int FoundCurrentDwordNumPrevRefVertices = (countbits(SLMask & FoundPrevBitsMask) << 1) + countbits(WMask & FoundPrevBitsMask);
+		int FoundCurrentDwordNumPrevNewVertices = (countbits(SMask & FoundPrevBitsMask) << 1) + FoundBitIndex - FoundCurrentDwordNumPrevRefVertices;
+
+		int FoundNumPrevNewVertices = NumPrevNewVerticesBeforeDword + FoundCurrentDwordNumPrevNewVertices;
+		int FoundNumPrevRefVertices = NumPrevRefVerticesBeforeDword + FoundCurrentDwordNumPrevRefVertices;
+
+		const uint FoundNumRefVertices = (BitFieldExtractU32(LMask, 1, FoundBitIndex) << 1) + BitFieldExtractU32(WMask, 1, FoundBitIndex);
+		const uint IsBeforeFoundRefVertex = BitFieldExtractU32(HeadRefVertexMask, 1, FoundBitIndex - 1);
+
+		// ReadOffset: Where is the vertex relative to triangle we searched for?
+		const int ReadOffset = IsFoundCaseS ? IsLeft : 1;
+		const uint FoundIndexData = ReadUnalignedDword(SrcPageBuffer, ReadBaseAddress, (FoundNumPrevRefVertices - ReadOffset) * 5);
+		const uint FoundIndex = (FoundNumPrevNewVertices - 1u) - BitFieldExtractU32(FoundIndexData, 5, 0);
+
+		bool bCondition = IsFoundCaseS ? ((int)FoundNumRefVertices >= 1 - IsLeft) : IsBeforeFoundRefVertex;
+		int FoundNewVertex = FoundNumPrevNewVertices + (IsFoundCaseS ? (IsLeft & (FoundNumRefVertices == 0)) : -1);
+		OutIndices.x = bCondition ? FoundIndex : FoundNewVertex;
+
+		// Would it be better to code New verts instead of Ref verts?
+		// HeadRefVertexMask would just be WMask?
+
+		if (IsLeft)
+		{
+			OutIndices.yz = OutIndices.zy;
+		}
+	}
+
+	return OutIndices;
+}
+
+[numthreads(256, 1, 1)]	
+void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
+						uint	GroupIndex	: SV_GroupIndex)
+{
+	uint	LocalPageIndex		= GroupID.y;
+
+	FPageInstallInfo InstallInfo	= InstallInfoBuffer[LocalPageIndex];
+	uint	SrcPageBaseOffset		= InstallInfo.SrcPageOffset;
+	uint	DstPageBaseOffset		= InstallInfo.DstPageOffset;
+	
+	FPageDiskHeader PageDiskHeader	= GetPageDiskHeader(SrcPageBaseOffset);
+
+	uint SrcPackedClusterOffset = SrcPageBaseOffset + SIZEOF_PAGE_DISK_HEADER + PageDiskHeader.NumClusters * SIZEOF_CLUSTER_DISK_HEADER;
+	uint DstPackedClusterOffset = DstPageBaseOffset;
+
+	// Copy FPackedTriClusters
+	uint TotalPackedClusterFloat4s = PageDiskHeader.NumClusters * NUM_PACKED_CLUSTER_FLOAT4S;
+	
+	uint PageThread = (GroupID.x << 8) | GroupIndex;
+
+	for(uint i = PageThread; i < TotalPackedClusterFloat4s; i += (MAX_TRANSCODE_GROUPS_PER_PAGE<<8))
+	{
+		uint4 Data = SrcPageBuffer.Load4(SrcPackedClusterOffset + i * 16);
+		DstPageBuffer.Store4(DstPackedClusterOffset + i * 16, Data);
+	}
+
+	// Copy material dwords
+	uint SrcMaterialOffset = SrcPackedClusterOffset + TotalPackedClusterFloat4s * 16;
+	uint DstMaterialOffset = DstPackedClusterOffset + TotalPackedClusterFloat4s * 16;
+	for(uint i = PageThread; i < PageDiskHeader.NumMaterialDwords; i += (MAX_TRANSCODE_GROUPS_PER_PAGE << 8))
+	{
+		uint Data = SrcPageBuffer.Load(SrcMaterialOffset + PageThread * 4);
+		DstPageBuffer.Store(DstMaterialOffset + PageThread * 4, Data);
+	}
+	
+	for(uint LocalClusterIndex = GroupID.x; LocalClusterIndex < PageDiskHeader.NumClusters; LocalClusterIndex += MAX_TRANSCODE_GROUPS_PER_PAGE)
+	{
+		FClusterDiskHeader ClusterDiskHeader = GetClusterDiskHeader(SrcPageBaseOffset, LocalClusterIndex);
+		FTriCluster Cluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, LocalClusterIndex, PageDiskHeader.NumClusters);
+		
+		// Decode indices
+		if (GroupIndex < Cluster.NumTris)
+		{
+			uint TriangleIndex = GroupIndex;
+#if USE_STRIP_INDICES
+			uint3 Indices = UnpackStripIndices(SrcPageBaseOffset, PageDiskHeader, ClusterDiskHeader, LocalClusterIndex, TriangleIndex);
+#else
+			FBitStreamReaderState InputStream = BitStreamReader_Create(SrcPageBuffer, SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset, TriangleIndex * 24, 24);
+			uint Indices24 = BitStreamReader_Read(InputStream, 24, 24);
+			uint3 Indices = uint3(Indices24 & 0xFF, (Indices24 >> 8) & 0xFF, (Indices24 >> 16) & 0xFF);
+#endif
+			uint PackedIndices = Indices.x | (Indices.y << Cluster.BitsPerIndex) | (Indices.z << (2 * Cluster.BitsPerIndex));
+
+			FBitStreamWriterState OutputStream = BitStreamWriter_Create(DstPageBuffer, DstPageBaseOffset + Cluster.IndexOffset, TriangleIndex * (Cluster.BitsPerIndex * 3));
+			BitStreamWriter_Writer(OutputStream, PackedIndices, Cluster.BitsPerIndex * 3, 24);
+		}
+	
+		// Transcode vertices
+		if (GroupIndex < Cluster.NumVerts)
+		{
+			const uint VertexIndex = GroupIndex;
+
+			uint SrcLocalClusterIndex;
+			uint SrcCodedVertexIndex;
+
+			// Calculate source cluster and vertex
+			{
+				uint AlignedBitmaskOffset = SrcPageBaseOffset + PageDiskHeader.VertexRefBitmaskOffset + LocalClusterIndex * (MAX_CLUSTER_VERTICES / 8);
+				uint NumPrevRefVertices = 0;
+				uint BitOffset = VertexIndex;
+				while (BitOffset >= 32)
+				{
+					NumPrevRefVertices += countbits(SrcPageBuffer.Load(AlignedBitmaskOffset));
+					AlignedBitmaskOffset += 4;
+					BitOffset -= 32;
+				}
+				uint LastDword = SrcPageBuffer.Load(AlignedBitmaskOffset);
+				NumPrevRefVertices += countbits(BitFieldExtractU32(LastDword, BitOffset, 0));
+
+				bool bIsRef = (LastDword & (1u << BitOffset)) != 0;
+				if (bIsRef)
+				{
+					// Ref
+					const uint VertexRefValue = SrcPageBuffer.Load(SrcPageBaseOffset + ClusterDiskHeader.VertexRefDataOffset + NumPrevRefVertices * 4);
+					SrcLocalClusterIndex = LocalClusterIndex - (VertexRefValue >> 8);
+					SrcCodedVertexIndex = VertexRefValue & 0xFF;
+				}
+				else
+				{
+					// Coded
+					SrcLocalClusterIndex = LocalClusterIndex;
+					SrcCodedVertexIndex = VertexIndex - NumPrevRefVertices;
+				}
+			}
+
+			
+
+			FClusterDiskHeader SrcClusterDiskHeader = GetClusterDiskHeader(SrcPageBaseOffset, SrcLocalClusterIndex);
+			FTriCluster SrcCluster = GetCluster(SrcPageBuffer, SrcPackedClusterOffset, SrcLocalClusterIndex, PageDiskHeader.NumClusters);
+		
+			// Transcode position
+			{
+				const uint PositionBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
+
+				uint SrcPositionBits = SrcPageBuffer.Load(SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset + SrcCodedVertexIndex * 4);
+				uint3 SrcPosition = uint3(	SrcPositionBits & POSITION_QUANTIZATION_MASK,
+											(SrcPositionBits >> POSITION_QUANTIZATION_BITS) & POSITION_QUANTIZATION_MASK,
+											(SrcPositionBits >> (2 * POSITION_QUANTIZATION_BITS)) & POSITION_QUANTIZATION_MASK);
+				uint3 GlobalPosition = (SrcPosition + SrcCluster.QuantizedPosStart) << SrcCluster.QuantizedPosShift;
+
+				uint3 DstPosition = (GlobalPosition >> Cluster.QuantizedPosShift) - Cluster.QuantizedPosStart;
+				uint DstPositionBits = DstPosition.x | (DstPosition.y << POSITION_QUANTIZATION_BITS) | (DstPosition.z << (2 * POSITION_QUANTIZATION_BITS));
+
+				FBitStreamWriterState OutputStream = BitStreamWriter_Create(DstPageBuffer, DstPageBaseOffset + Cluster.PositionOffset, VertexIndex * PositionBitsPerVertex);
+				BitStreamWriter_Writer(OutputStream, DstPositionBits, PositionBitsPerVertex, PositionBitsPerVertex);
+			}
+
+			// Transcode attributes
+			{
+				const uint SrcBytesPerAttrib = (SrcCluster.BitsPerAttrib + 31) / 32 * 4;
+
+				FBitStreamReaderState InputStream = BitStreamReader_Create(SrcPageBuffer, SrcPageBaseOffset + SrcClusterDiskHeader.AttributeDataOffset + SrcCodedVertexIndex * SrcBytesPerAttrib, 0, 97);
+				FBitStreamWriterState OutputStream = BitStreamWriter_Create(DstPageBuffer, DstPageBaseOffset + Cluster.AttributeOffset, VertexIndex * Cluster.BitsPerAttrib);
+			
+				// Transcode normal
+				uint PackedNormal = BitStreamReader_Read(InputStream, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+				BitStreamWriter_Writer(OutputStream, PackedNormal, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+			
+				// Transcode UVs
+				uint Src_Rolling_UVPrec = SrcCluster.UV_Prec;
+				uint Dst_Rolling_UVPrec = Cluster.UV_Prec;
+
+				UNROLL_N(MAX_NANITE_UVS)	// needed to make FXC happy
+				for (uint TexCoordIndex = 0; TexCoordIndex < PageDiskHeader.NumTexCoords && TexCoordIndex < MAX_NANITE_UVS; TexCoordIndex++)
+				{
+					uint SrcU_NumBits = BitFieldExtractU32(Src_Rolling_UVPrec, 4, 0);
+					uint SrcV_NumBits = BitFieldExtractU32(Src_Rolling_UVPrec, 4, 4);
+					Src_Rolling_UVPrec >>= 8;
+
+					uint DstU_NumBits = BitFieldExtractU32(Dst_Rolling_UVPrec, 4, 0);
+					uint DstV_NumBits = BitFieldExtractU32(Dst_Rolling_UVPrec, 4, 4);
+					Dst_Rolling_UVPrec >>= 8;
+
+					int2 SrcPackedUV = BitStreamReader_Read2(InputStream, int2(SrcU_NumBits, SrcV_NumBits), MAX_TEXCOORD_QUANTIZATION_BITS);
+					float2 SrcUV = UnpackTexCoord(SrcPackedUV, SrcCluster, TexCoordIndex);
+
+					int2 PackedUV = (int2)round((SrcUV - Cluster.UVRanges[TexCoordIndex].Min) / Cluster.UVRanges[TexCoordIndex].Scale);
+					int2 GapStart = Cluster.UVRanges[TexCoordIndex].GapStart;
+					int2 GapLength = Cluster.UVRanges[TexCoordIndex].GapLength;
+					int2 GapEnd = GapStart + GapLength;
+					int2 GapMid = GapStart + (GapLength >> 1);
+
+					if (PackedUV.x < GapStart.x)
+						;
+					else if (PackedUV.x >= GapEnd.x)
+						PackedUV.x -= GapLength.x;
+					else
+						PackedUV.x = GapStart.x - 1 + (PackedUV.x >= GapMid.x);
+
+					if (PackedUV.y < GapStart.y)
+						;
+					else if (PackedUV.y >= GapEnd.y)
+						PackedUV.y -= GapLength.y;
+					else
+						PackedUV.y = GapStart.y - 1 + (PackedUV.y >= GapMid.y);
+
+					PackedUV = clamp(PackedUV, 0, (1 << int2(DstU_NumBits, DstV_NumBits)) - 1);
+					BitStreamWriter_Writer(OutputStream, (PackedUV.y << DstU_NumBits) | PackedUV.x, DstU_NumBits + DstV_NumBits, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+				}
+			}
+		}
+	}
+
+}
+
+

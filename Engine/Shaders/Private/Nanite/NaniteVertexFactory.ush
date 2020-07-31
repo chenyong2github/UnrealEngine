@@ -59,44 +59,39 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		uint PositionDataOffset = Cluster.PageBaseAddress + Cluster.PositionOffset;
 		uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
 
-		const uint PositionCompileTimeBitsPerVertex = 32;// 3 * POSITION_QUANTIZATION_BITS;
-		const uint PositionBitsPerVertex = 32;//3 * POSITION_QUANTIZATION_BITS;
+		const uint PositionCompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
+		const uint PositionBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
 
-		FBitStreamState PositionStream0 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.x * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		FBitStreamState PositionStream1 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.y * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		FBitStreamState PositionStream2 = BitStreamCreate(ClusterPageData, PositionDataOffset, TriIndices.z * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		FBitStreamReaderState PositionStream0 = BitStreamReader_Create(ClusterPageData, PositionDataOffset, TriIndices.x * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		FBitStreamReaderState PositionStream1 = BitStreamReader_Create(ClusterPageData, PositionDataOffset, TriIndices.y * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		FBitStreamReaderState PositionStream2 = BitStreamReader_Create(ClusterPageData, PositionDataOffset, TriIndices.z * PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
 
-		uint PositionData0 = BitStreamRead(PositionStream0, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		uint PositionData1 = BitStreamRead(PositionStream1, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
-		uint PositionData2 = BitStreamRead(PositionStream2, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		uint PositionData0 = BitStreamReader_Read(PositionStream0, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		uint PositionData1 = BitStreamReader_Read(PositionStream1, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
+		uint PositionData2 = BitStreamReader_Read(PositionStream2, PositionBitsPerVertex, PositionCompileTimeBitsPerVertex);
 
 		float3 PointLocal0 = UnpackPosition(PositionData0, Cluster, POSITION_QUANTIZATION_BITS);
 		float3 PointLocal1 = UnpackPosition(PositionData1, Cluster, POSITION_QUANTIZATION_BITS);
 		float3 PointLocal2 = UnpackPosition(PositionData2, Cluster, POSITION_QUANTIZATION_BITS);
 
-		//FIXME Hacked for now to support 2 UVs
-		const uint NUM_VERTEX_ATTRIB_BYTES = 8;		// Will depend on the material
+		const uint MAX_ATTRIB_BITS = 2 * NORMAL_QUANTIZATION_BITS + 4 * MAX_TEXCOORD_QUANTIZATION_BITS;
+		FBitStreamReaderState AttribStream0 = BitStreamReader_Create(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttrib, MAX_ATTRIB_BITS);
+		FBitStreamReaderState AttribStream1 = BitStreamReader_Create(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttrib, MAX_ATTRIB_BITS);
+		FBitStreamReaderState AttribStream2 = BitStreamReader_Create(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttrib, MAX_ATTRIB_BITS);
 
+		uint NormalBits0 = BitStreamReader_Read(AttribStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+		uint NormalBits1 = BitStreamReader_Read(AttribStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+		uint NormalBits2 = BitStreamReader_Read(AttribStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 
-		FBitStreamState AttribStream0 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttrib, 64);
-		FBitStreamState AttribStream1 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttrib, 64);
-		FBitStreamState AttribStream2 = BitStreamCreate(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttrib, 64);
+		uint2 TexCoord0_Prec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, 0), BitFieldExtractU32(Cluster.UV_Prec, 4, 4));
+		
+		uint2 TexCoord0_Bits0_UV = BitStreamReader_Read2(AttribStream0, TexCoord0_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 TexCoord0_Bits1_UV = BitStreamReader_Read2(AttribStream1, TexCoord0_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 TexCoord0_Bits2_UV = BitStreamReader_Read2(AttribStream2, TexCoord0_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
 
-		uint NormalBits0 = BitStreamRead(AttribStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-		uint NormalBits1 = BitStreamRead(AttribStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-		uint NormalBits2 = BitStreamRead(AttribStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-
-		uint TexCoordBits0_A = BitStreamRead(AttribStream0, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-		uint TexCoordBits1_A = BitStreamRead(AttribStream1, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-		uint TexCoordBits2_A = BitStreamRead(AttribStream2, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-
-		uint TexCoordBits0_B = BitStreamRead(AttribStream0, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-		uint TexCoordBits1_B = BitStreamRead(AttribStream1, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-		uint TexCoordBits2_B = BitStreamRead(AttribStream2, 2 * TEXCOORD_QUANTIZATION_BITS, 2 * TEXCOORD_QUANTIZATION_BITS);
-
-		float2 TexCoord0 = UnpackTexCoord( TexCoordBits0_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
-		float2 TexCoord1 = UnpackTexCoord( TexCoordBits1_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
-		float2 TexCoord2 = UnpackTexCoord( TexCoordBits2_A, Cluster, TEXCOORD_QUANTIZATION_BITS, 0 );
+		float2 TexCoord0 = UnpackTexCoord( TexCoord0_Bits0_UV, Cluster, 0 );
+		float2 TexCoord1 = UnpackTexCoord( TexCoord0_Bits1_UV, Cluster, 0 );
+		float2 TexCoord2 = UnpackTexCoord( TexCoord0_Bits2_UV, Cluster, 0 );
 
 		float4 PointClipSubpixel0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToSubpixel);
 		float4 PointClipSubpixel1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToSubpixel);
@@ -231,9 +226,15 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 		if( NUM_TEX_COORD_INTERPOLATORS > 1 )
 		{
-			Result.TexCoords[1]  = UVW.x * UnpackTexCoord( TexCoordBits0_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
-			Result.TexCoords[1] += UVW.y * UnpackTexCoord( TexCoordBits1_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
-			Result.TexCoords[1] += UVW.z * UnpackTexCoord( TexCoordBits2_B, Cluster, TEXCOORD_QUANTIZATION_BITS, 1 );
+			uint2 TexCoord1_Prec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, 8), BitFieldExtractU32(Cluster.UV_Prec, 4, 12));
+
+			uint2 TexCoord1_Bits0_UV = BitStreamReader_Read2(AttribStream0, TexCoord1_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
+			uint2 TexCoord1_Bits1_UV = BitStreamReader_Read2(AttribStream1, TexCoord1_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
+			uint2 TexCoord1_Bits2_UV = BitStreamReader_Read2(AttribStream2, TexCoord1_Prec, MAX_TEXCOORD_QUANTIZATION_BITS);
+
+			Result.TexCoords[1]  = UVW.x * UnpackTexCoord(TexCoord1_Bits0_UV, Cluster, 1);
+			Result.TexCoords[1] += UVW.y * UnpackTexCoord(TexCoord1_Bits1_UV, Cluster, 1);
+			Result.TexCoords[1] += UVW.z * UnpackTexCoord(TexCoord1_Bits2_UV, Cluster, 1);
 		}
 
 		UNROLL

@@ -358,11 +358,11 @@ groupshared float3 GroupVerts[384];
 
 uint GetPackedPosition(uint VertIndex, FTriCluster Cluster)
 {
-	const uint CompileTimeBitsPerVertex = 32;	//3 * POSITION_QUANTIZATION_BITS;
-	const uint BitsPerVertex = 32;				//3 * POSITION_QUANTIZATION_BITS;
+	const uint CompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
+	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
 	
-	FBitStreamState BitStream = BitStreamCreate(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, CompileTimeBitsPerVertex);
-	return BitStreamRead(BitStream, BitsPerVertex, CompileTimeBitsPerVertex);
+	FBitStreamReaderState BitStream = BitStreamReader_Create(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, CompileTimeBitsPerVertex);
+	return BitStreamReader_Read(BitStream, BitsPerVertex, CompileTimeBitsPerVertex);
 }
 
 float3 DecodePackedPosition(uint PackedPos, FTriCluster Cluster)
