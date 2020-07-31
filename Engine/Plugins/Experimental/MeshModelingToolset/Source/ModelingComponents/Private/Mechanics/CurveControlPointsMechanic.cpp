@@ -60,9 +60,9 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
 
 	SegmentsColor = FColor::Red;
-	SegmentsThickness = 2.0f;
+	SegmentsThickness = 4.0f;
 	PointsColor = FColor::Red;
-	PointsSize = 6.0f;
+	PointsSize = 8.0f;
 	HoverColor = FColor::Green;
 	SelectedColor = FColor::Yellow;
 	PreviewColor = HoverColor;

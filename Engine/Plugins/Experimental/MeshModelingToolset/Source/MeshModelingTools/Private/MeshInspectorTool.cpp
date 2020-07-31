@@ -233,18 +233,18 @@ void UMeshInspectorTool::UpdateVisualization()
 	}
 
 	FColor BoundaryEdgeColor(240, 15, 15);
-	float BoundaryEdgeThickness = LineWidthMultiplier * 2.0;
+	float BoundaryEdgeThickness = LineWidthMultiplier * 4.0;
 	FColor UVSeamColor(15, 240, 15);
-	float UVSeamThickness = LineWidthMultiplier * 1.0;
+	float UVSeamThickness = LineWidthMultiplier * 2.0;
 	FColor NormalSeamColor(15, 240, 240);
-	float NormalSeamThickness = LineWidthMultiplier * 1.0;
+	float NormalSeamThickness = LineWidthMultiplier * 2.0;
 	FColor PolygonBorderColor(240, 15, 240);
-	float PolygonBorderThickness = LineWidthMultiplier * 1.0;
+	float PolygonBorderThickness = LineWidthMultiplier * 2.0;
 	FColor NormalColor(15, 15, 240);
-	float NormalThickness = LineWidthMultiplier * 1.0f;
+	float NormalThickness = LineWidthMultiplier * 2.0f;
 	FColor TangentColor(240, 15, 15);
 	FColor BinormalColor(15, 240, 15);
-	float TangentThickness = LineWidthMultiplier * 1.0f;
+	float TangentThickness = LineWidthMultiplier * 2.0f;
 
 	float BoundaryEdgeDepthBias = 2.0f;
 	float UVSeamDepthBias = 3.0f;
