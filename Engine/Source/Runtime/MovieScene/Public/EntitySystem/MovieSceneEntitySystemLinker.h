@@ -93,10 +93,11 @@ public:
 	template<typename SystemType>
 	SystemType* FindSystem() const
 	{
-		return static_cast<SystemType*>(SystemGraph.FindSystemOfType(SystemType::StaticClass()));
+		return CastChecked<SystemType>(FindSystem(SystemType::StaticClass()), ECastCheckedType::NullAllowed);
 	}
 
 	UMovieSceneEntitySystem* LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType);
+	UMovieSceneEntitySystem* FindSystem(TSubclassOf<UMovieSceneEntitySystem> Class) const;
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 

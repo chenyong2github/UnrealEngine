@@ -276,18 +276,10 @@ void UMovieSceneEntitySystemLinker::AddReferencedObjects(UObject* Object, FRefer
 
 UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType)
 {
-	UClass* Class = InClassType.Get();
-	UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
-	check(SystemCDO);
-
-	// If a system implements a hard depdency on another (through direct use of LinkSystem<>), we can't break the client code by returning null, but we can still warn that it should have checked whether it can call LinkSystem first
-	ensureMsgf(!EnumHasAnyFlags(SystemCDO->GetSystemContext(), SystemContext), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
-
-	const uint16 GlobalID = SystemCDO->GetGlobalDependencyGraphID();
-
-	if (EntitySystemsByGlobalGraphID.IsValidIndex(GlobalID))
+	UMovieSceneEntitySystem* Existing = FindSystem(InClassType);
+	if (Existing)
 	{
-		return EntitySystemsByGlobalGraphID[GlobalID];
+		return Existing;
 	}
 
 	UMovieSceneEntitySystem* NewSystem = NewObject<UMovieSceneEntitySystem>(this, InClassType.Get());
@@ -298,6 +290,22 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<U
 	SystemGraph.AddSystem(NewSystem);
 	NewSystem->Link(this);
 	return NewSystem;
+}
+
+UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::FindSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType) const
+{
+	UClass* Class = InClassType.Get();
+	UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
+	if (SystemCDO)
+	{
+		const uint16 GlobalID = SystemCDO->GetGlobalDependencyGraphID();
+		if (EntitySystemsByGlobalGraphID.IsValidIndex(GlobalID))
+		{
+			return EntitySystemsByGlobalGraphID[GlobalID];
+		}
+	}
+
+	return nullptr;
 }
 
 void UMovieSceneEntitySystemLinker::LinkRelevantSystems()

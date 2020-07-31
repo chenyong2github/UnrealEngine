@@ -814,7 +814,7 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 
 	if (EntityID)
 	{
-		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
 			FDecompositionQuery Query;
@@ -878,7 +878,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 	}
 
 	UMovieSceneEntitySystemLinker*        EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
-	UMovieScenePropertyInstantiatorSystem* System = EntityLinker ? EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>() : nullptr;
+	UMovieScenePropertyInstantiatorSystem* System = EntityLinker ? EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>() : nullptr;
 
 	if (System && ValidEntities.Num() != 0)
 	{
