@@ -15,6 +15,7 @@
 #include "UObject/CoreNet.h"
 #include "EngineLogs.h"
 #include "UObject/UnrealType.h"
+#include "Engine/EngineBaseTypes.h"
 
 class AActor;
 

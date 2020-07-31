@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/NetworkGuid.h"
 #include "Misc/NetworkVersion.h"
 #include "Net/Core/Misc/PacketTraits.h"
 #include "IPAddress.h"
+#include "Serialization/BitReader.h"
 #include "ReplayTypes.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDemo, Log, All);
