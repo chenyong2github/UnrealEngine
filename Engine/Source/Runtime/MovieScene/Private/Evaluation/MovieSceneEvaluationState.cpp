@@ -236,6 +236,7 @@ void FMovieSceneObjectCache::Clear(IMovieScenePlayer& Player)
 	ChildBindings.Reset();
 
 	Player.NotifyBindingsChanged();
+	OnBindingInvalidated.Broadcast(FGuid());
 }
 
 

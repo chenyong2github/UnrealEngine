@@ -84,7 +84,8 @@ struct FInstanceRegistry
 
 	bool IsBindingInvalidated(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle) const
 	{
-		return InvalidatedObjectBindings.Contains(MakeTuple(ObjectBindingID, InstanceHandle));
+		// The binding is invalidated if it is contained within the invalid set, or if an empty GUID with the same instance handle exists (implying _all_ bindings are invalidated for that instance handle)
+		return InvalidatedObjectBindings.Contains(MakeTuple(ObjectBindingID, InstanceHandle)) || InvalidatedObjectBindings.Contains(MakeTuple(FGuid(), InstanceHandle));
 	}
 
 	bool HasInvalidatedBindings() const
@@ -109,6 +110,7 @@ private:
 	TSparseArray<FSequenceInstance> Instances;
 	uint16 InstanceSerialNumber;
 
+	/** Set of invalidated object bindings by their instance handle. Empty guids indicate that all bindings for that instance handle are invalid */
 	TSet<TTuple<FGuid, FInstanceHandle>> InvalidatedObjectBindings;
 };
 
