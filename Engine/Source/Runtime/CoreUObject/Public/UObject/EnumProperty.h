@@ -30,6 +30,8 @@ public:
 
 	// Field interface
 	virtual void PostDuplicate(const FField& InField) override;
+	virtual FField* GetInnerFieldByName(const FName& InName) override;
+	virtual void GetInnerFields(TArray<FField*>& OutFields) override;
 
 	// UField interface
 	virtual void AddCppProperty(FProperty* Property) override;
