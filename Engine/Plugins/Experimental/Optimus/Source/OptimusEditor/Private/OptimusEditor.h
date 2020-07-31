@@ -7,13 +7,19 @@
 #include "Framework/Docking/TabManager.h"
 #include "Misc/NotifyHook.h"
 
-struct FGraphAppearanceInfo;
 class FUICommandList;
+class IOptimusNodeGraphCollectionOwner;
+class SGraphEditor;
+class SOptimusEditorGraphExplorer;
+class SOptimusEditorViewport;
+class SOptimusGraphTitleBar;
+class SOptimusNodePalette;
+class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;
-class SGraphEditor;
-class SOptimusEditorViewport;
-class SOptimusNodePalette;
+class UOptimusNodeGraph;
+enum class EOptimusNodeGraphNotifyType;
+struct FGraphAppearanceInfo;
 
 class FOptimusEditor
 	: public IOptimusEditor
@@ -33,8 +39,14 @@ public:
 	/// @return The graph that this editor operates on.
 	UOptimusEditorGraph* GetGraph() const
 	{
-		return DeformerGraph;
+		return EditorGraph;
 	}
+
+	IOptimusNodeGraphCollectionOwner* GetGraphCollectionRoot() const;
+
+	FText GetGraphCollectionRootName() const;
+
+	UOptimusActionStack* GetActionStack() const;
 
 	// IToolkit overrides
 	FName GetToolkitFName() const override;				
@@ -43,6 +55,10 @@ public:
 	FLinearColor GetWorldCentricTabColorScale() const override;
 
 	// --
+	bool SetEditGraph(UOptimusNodeGraph *InNodeGraph);
+
+	DECLARE_EVENT( FOptimusEditor, FOnRefreshEvent );
+	FOnRefreshEvent& OnRefresh() { return RefreshEvent; }
 
 private:
 	// ----------------------------------------------------------------------------------------
@@ -83,6 +99,7 @@ public:
 private:
 	TSharedRef<SDockTab> SpawnTab_Preview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Explorer(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphArea(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PreviewDetails(const FSpawnTabArgs& Args);
@@ -94,10 +111,17 @@ private:
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
 
+	void HandleGraphCollectionChanges(
+		EOptimusNodeGraphNotifyType InNotifyType, 
+		UOptimusNodeGraph *InGraph,
+		UObject *InSubject
+		);
+
 private:
 	// Tab Ids for the Optimus editor
 	static const FName PreviewTabId;
 	static const FName PaletteTabId;
+	static const FName ExplorerTabId;
 	static const FName GraphAreaTabId;
 	static const FName NodeDetailsTabId;
 	static const FName PreviewDetailsTabId;
@@ -107,11 +131,16 @@ private:
 
 	TSharedPtr<SOptimusEditorViewport> EditorViewportWidget;
 	TSharedPtr<SOptimusNodePalette> NodePaletteWidget;
+	TSharedPtr<SOptimusEditorGraphExplorer> GraphExplorerWidget;
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> NodeDetailsWidget;
 	TSharedPtr<IDetailsView> PreviewDetailsWidget;
 
 	UOptimusDeformer* DeformerObject = nullptr;
-	UOptimusEditorGraph *DeformerGraph = nullptr;
+	UOptimusEditorGraph* EditorGraph = nullptr;
+	UOptimusNodeGraph* PreviousEditedNodeGraph = nullptr;
+	UOptimusNodeGraph* UpdateGraph = nullptr;
 	TSharedPtr<FUICommandList> GraphEditorCommands;
+
+	FOnRefreshEvent RefreshEvent;
 };

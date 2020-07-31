@@ -13,8 +13,8 @@
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
-static const FName SetupGraphName("Setup");
-static const FName UpdateGraphName("Update");
+static const FName SetupGraphName("SetupGraph");
+static const FName UpdateGraphName("UpdateGraph");
 
 
 
@@ -189,8 +189,23 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 		// The name of the setup graph is fixed.
 		InName = SetupGraphName;
 	}
+	else if (InType == EOptimusNodeGraphType::ExternalTrigger)
+	{
+		if (InName == SetupGraphName || InName == UpdateGraphName)
+		{
+			return nullptr;
+		}
+	}
 
-	UOptimusNodeGraph* Graph = CreateDefaultSubobject<UOptimusNodeGraph>(InName);
+	// If there's already an object with this name, then attempt to make the name unique.
+	// For soem reason, MakeUniqueObjectName does not already do this check.
+	if (StaticFindObjectFast(UOptimusNodeGraph::StaticClass(), this, InName) != nullptr)
+	{
+		InName = MakeUniqueObjectName(this, UOptimusNodeGraph::StaticClass(), InName);
+	}
+
+	UOptimusNodeGraph* Graph = NewObject<UOptimusNodeGraph>(this, UOptimusNodeGraph::StaticClass(), InName, RF_Transactional);
+
 	Graph->SetGraphType(InType);
 
 	if (InInsertBefore.IsSet())
@@ -250,7 +265,7 @@ bool UOptimusDeformer::AddGraph(
 		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, Graphs.Num() - 1);
 		break;
 	}
-
+	
 	if (InGraph->GetOuter() != this)
 	{
 		IOptimusNodeGraphCollectionOwner* GraphOwner = Cast<IOptimusNodeGraphCollectionOwner>(InGraph->GetOuter());
@@ -258,6 +273,20 @@ bool UOptimusDeformer::AddGraph(
 		{
 			GraphOwner->RemoveGraph(InGraph, /* bDeleteGraph = */ false);
 		}
+
+		// Ensure that the object has a unique name within our namespace.
+		FString NewNameStr;
+		
+		if (StaticFindObjectFast(UOptimusNodeGraph::StaticClass(), this, InGraph->GetFName()) != nullptr)
+		{
+			FName NewName = MakeUniqueObjectName(this, UOptimusNodeGraph::StaticClass(), InGraph->GetFName());
+			if (NewName != InGraph->GetFName())
+			{
+				NewNameStr = NewName.ToString();
+			}
+		}
+
+		InGraph->Rename(!NewNameStr.IsEmpty() ? *NewNameStr : nullptr, this);
 	}
 
 	Graphs.Insert(InGraph, InInsertBefore);

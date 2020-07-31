@@ -2,9 +2,6 @@
 
 #include "OptimusEditor.h"
 
-#include "OptimusDeformer.h"
-#include "OptimusActionStack.h"
-
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorGraphSchema.h"
@@ -12,7 +9,13 @@
 #include "OptimusEditorViewport.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "SOptimusEditorGraphExplorer.h"
 #include "SOptimusNodePalette.h"
+#include "SOptimusGraphTitleBar.h"
+
+#include "OptimusDeformer.h"
+#include "OptimusActionStack.h"
+#include "OptimusNodeGraphNotify.h"
 
 #include "Engine/SkeletalMesh.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -32,6 +35,7 @@ const FName OptimusEditorAppName(TEXT("OptimusEditorApp"));
 
 const FName FOptimusEditor::PreviewTabId(TEXT("OptimusEditor_Preview"));
 const FName FOptimusEditor::PaletteTabId(TEXT("OptimusEditor_Palette"));
+const FName FOptimusEditor::ExplorerTabId(TEXT("OptimusEditor_Explorer"));
 const FName FOptimusEditor::GraphAreaTabId(TEXT("OptimusEditor_GraphArea"));
 const FName FOptimusEditor::NodeDetailsTabId(TEXT("OptimusEditor_NodeDetails"));
 const FName FOptimusEditor::PreviewDetailsTabId(TEXT("OptimusEditor_PreviewDetails"));
@@ -46,7 +50,10 @@ FOptimusEditor::FOptimusEditor()
 
 FOptimusEditor::~FOptimusEditor()
 {
-
+	if (DeformerObject)
+	{
+		DeformerObject->OnModify().RemoveAll(this);
+	}
 }
 
 
@@ -58,11 +65,12 @@ void FOptimusEditor::Construct(
 	DeformerObject = InDeformerObject;
 
 	// Construct a new graph with a default name
-	// FIXME: Don't use FBlueprintEditorUtils, since we don't care about the name.
-	DeformerGraph = CastChecked<UOptimusEditorGraph>(FBlueprintEditorUtils::CreateNewGraph(
-		InDeformerObject, NAME_None,
-		UOptimusEditorGraph::StaticClass(),
-		UOptimusEditorGraphSchema::StaticClass()));
+	// TODO: Use a document manager like blueprints.
+	// FIXME: The deformer asset shouldn't really be the owner.
+	EditorGraph = NewObject<UOptimusEditorGraph>(
+		DeformerObject, UOptimusEditorGraph::StaticClass(), NAME_None, 
+		RF_Transactional|RF_Transient);
+	EditorGraph->Schema = UOptimusEditorGraphSchema::StaticClass();
 
 	BindCommands();
 	RegisterToolbar();
@@ -79,7 +87,17 @@ void FOptimusEditor::Construct(
 	InitAssetEditor(InMode, InToolkitHost, OptimusEditorAppName, Layout,
 		bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, InDeformerObject);
 
-	DeformerGraph->InitFromNodeGraph(DeformerObject->GetGraphs()[0]);
+	// Find the update graph and set that as the startup graph.
+	for (UOptimusNodeGraph* Graph: DeformerObject->GetGraphs())
+	{
+		if (Graph->GetGraphType() == EOptimusNodeGraphType::Update)
+		{
+			PreviousEditedNodeGraph = UpdateGraph = Graph;
+			break;
+		}
+	}
+	SetEditGraph(UpdateGraph);
+
 
 	// Ensure that the action stack creates undoable transactions when actions are run.
 	DeformerObject->GetActionStack()->SetTransactionScopeFunctions(
@@ -105,11 +123,31 @@ void FOptimusEditor::Construct(
 		}
 		);
 
+	// Make sure we get told when the graph collection changes.
+	DeformerObject->OnModify().AddRaw(this, &FOptimusEditor::HandleGraphCollectionChanges);
 
 	if (DeformerObject->Mesh)
 	{
 		EditorViewportWidget->SetPreviewAsset(DeformerObject->Mesh);
 	}
+}
+
+
+IOptimusNodeGraphCollectionOwner* FOptimusEditor::GetGraphCollectionRoot() const
+{
+	return DeformerObject;
+}
+
+
+FText FOptimusEditor::GetGraphCollectionRootName() const
+{
+	return FText::FromName(DeformerObject->GetFName());
+}
+
+
+UOptimusActionStack* FOptimusEditor::GetActionStack() const
+{
+	return DeformerObject->GetActionStack();
 }
 
 
@@ -138,6 +176,29 @@ FLinearColor FOptimusEditor::GetWorldCentricTabColorScale() const
 
 
 
+bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
+{
+	if (ensure(InNodeGraph))
+	{
+		PreviousEditedNodeGraph = EditorGraph->NodeGraph;
+
+		GraphEditorWidget->ClearSelectionSet();
+
+		EditorGraph->Reset();
+		EditorGraph->InitFromNodeGraph(InNodeGraph);
+
+		// FIXME: Store pan/zoom
+
+		RefreshEvent.Broadcast();
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
 void FOptimusEditor::SelectAllNodes()
 {
 	GraphEditorWidget->SelectAllNodes();
@@ -162,7 +223,7 @@ void FOptimusEditor::DeleteSelectedNodes()
 		}
 	}
 
-	if (NodesToDelete.Num() == 0)
+	if (NodesToDelete.IsEmpty())
 	{
 		return;
 	}
@@ -212,9 +273,9 @@ void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 	}
 
 	// Make sure the graph knows too.
-	DeformerGraph->SetSelectedNodes(SelectedNodes);
+	EditorGraph->SetSelectedNodes(SelectedNodes);
 
-	if (SelectedObjects.Num() == 0)
+	if (SelectedObjects.IsEmpty())
 	{
 		// If nothing was selected, default to the deformer object.
 		SelectedObjects.Add(DeformerObject);
@@ -302,12 +363,27 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.Palette"))
-		.Label(LOCTEXT("MaterialPaletteTitle", "Palette"))
+		.Label(LOCTEXT("NodePaletteTitle", "Palette"))
 		[
 			SNew(SBox)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MaterialPalette")))
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("NodePalette")))
 			[
 				NodePaletteWidget.ToSharedRef()
+			]
+		];
+}
+
+
+TSharedRef<SDockTab> FOptimusEditor::SpawnTab_Explorer(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+	    .Icon(FEditorStyle::GetBrush("ClassIcon.BlueprintCore"))
+	    .Label(LOCTEXT("GraphExplorerTitle", "Explorer"))
+		[
+			SNew(SBox)
+	        .AddMetaData<FTagMetaData>(FTagMetaData(TEXT("GraphExplorer")))
+	        [
+				GraphExplorerWidget.ToSharedRef()
 			]
 		];
 }
@@ -381,15 +457,15 @@ TSharedRef<FTabManager::FLayout> FOptimusEditor::CreatePaneLayout() const
 	// |     |                           |       |
 	// +-----+          Graph            |       |
 	// |     |                           |       |
-	// | Pal +---------------------------+       |
+	// | Pex +---------------------------+       |
 	// |     |          Output           |       |
 	// +-----+---------------------------+-------+
 	//
 	// Pre = 3D Preview 
-	// Pal = Node Palette
+	// Pex = Node Palette/explorer
 	// Deets = Details panel
 
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v01")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v02")
 		->AddArea(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
 			->Split(							// - Toolbar
@@ -408,8 +484,9 @@ TSharedRef<FTabManager::FLayout> FOptimusEditor::CreatePaneLayout() const
 					)
 					->Split(					// --- Node palette
 						FTabManager::NewStack()
-						->SetHideTabWell(true)
 						->AddTab(PaletteTabId, ETabState::OpenedTab)
+						->AddTab(ExplorerTabId, ETabState::OpenedTab)
+						->SetForegroundTab(PaletteTabId)
 					)
 				)
 				->Split(						// -- Graph + output
@@ -453,6 +530,11 @@ void FOptimusEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& In
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.Palette"));
 
+	InTabManager->RegisterTabSpawner(ExplorerTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_Explorer))
+	    .SetDisplayName(LOCTEXT("ExplorerTab", "Explorer"))
+	    .SetGroup(WorkspaceMenuCategoryRef)
+	    .SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlueprintCore"));
+
 	InTabManager->RegisterTabSpawner(GraphAreaTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_GraphArea))
 		.SetDisplayName(LOCTEXT("GraphAreaTab", "Graph"))
 		.SetGroup(WorkspaceMenuCategoryRef)
@@ -481,6 +563,7 @@ void FOptimusEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& 
 
 	InTabManager->UnregisterTabSpawner(PreviewTabId);
 	InTabManager->UnregisterTabSpawner(PaletteTabId);
+	InTabManager->UnregisterTabSpawner(ExplorerTabId);
 	InTabManager->UnregisterTabSpawner(GraphAreaTabId);
 	InTabManager->UnregisterTabSpawner(NodeDetailsTabId);
 	InTabManager->UnregisterTabSpawner(PreviewDetailsTabId);
@@ -495,6 +578,9 @@ void FOptimusEditor::CreateWidgets()
 
 	// -- The node palette
 	NodePaletteWidget = SNew(SOptimusNodePalette, SharedThis(this));
+
+	// -- The graph explorer widget
+	GraphExplorerWidget = SNew(SOptimusEditorGraphExplorer, SharedThis(this));
 
 	// -- Graph editor
 	GraphEditorWidget = CreateGraphEditorWidget();
@@ -677,19 +763,18 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 	InEvents.OnSpawnNodeByShortcut = 
 		SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(
 			this, &FOptimusEditor::OnSpawnGraphNodeByShortcut, 
-			static_cast<UEdGraph *>(DeformerGraph));
+			static_cast<UEdGraph *>(EditorGraph));
 
 	// Create the title bar widget
-	//TSharedPtr<SWidget> TitleBarWidget = SNew(SMaterialEditorTitleBar)
-	//	.TitleText(this, &FMaterialEditor::GetOriginalObjectName)
-	//	.MaterialInfoList(&MaterialInfoList);
+	TSharedPtr<SWidget> TitleBarWidget = SNew(SOptimusGraphTitleBar)
+		.OptimusEditor(SharedThis(this));
 
 	return SNew(SGraphEditor)
 		.AdditionalCommands(GraphEditorCommands)
 		.IsEditable(true)
-		// .TitleBar(TitleBarWidget)
+		.TitleBar(TitleBarWidget)
 		.Appearance(this, &FOptimusEditor::GetGraphAppearance)
-		.GraphToEdit(DeformerGraph)
+		.GraphToEdit(EditorGraph)
 		.GraphEvents(InEvents)
 		.ShowGraphStateOverlay(false);
 }
@@ -700,6 +785,46 @@ FGraphAppearanceInfo FOptimusEditor::GetGraphAppearance() const
 	FGraphAppearanceInfo Appearance;
 	Appearance.CornerText = LOCTEXT("AppearanceCornerText_OptimusDeformer", "OPTIMUS DEFORMER");
 	return Appearance;
+}
+
+
+void FOptimusEditor::HandleGraphCollectionChanges(
+	EOptimusNodeGraphNotifyType InNotifyType, 
+	UOptimusNodeGraph* InGraph, 
+	UObject* InSubject
+	)
+{
+	switch (InNotifyType)
+	{
+	case EOptimusNodeGraphNotifyType::GraphAdded:
+		SetEditGraph(InGraph);
+		RefreshEvent.Broadcast();
+		break;
+
+	case EOptimusNodeGraphNotifyType::GraphIndexChanged:
+		RefreshEvent.Broadcast();
+		break;
+
+	case EOptimusNodeGraphNotifyType::GraphRemoved: 
+	{
+		// If the currently editing graph is being removed, then switch to the previous graph
+		// or the update graph if no previous graph.
+		if (EditorGraph->NodeGraph == InGraph)
+		{
+			if (ensure(PreviousEditedNodeGraph))
+			{
+				SetEditGraph(PreviousEditedNodeGraph);
+			}
+			PreviousEditedNodeGraph = UpdateGraph;
+		}
+		else if (PreviousEditedNodeGraph == InGraph)
+		{
+			PreviousEditedNodeGraph = UpdateGraph;
+		}
+		RefreshEvent.Broadcast();
+		break;
+	}
+	}
 }
 
 

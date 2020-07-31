@@ -88,6 +88,34 @@ private:
 
 
 USTRUCT()
+struct FOptimusNodeGraphAction_RenameGraph : public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeGraphAction_RenameGraph() = default;
+
+	FOptimusNodeGraphAction_RenameGraph(
+	    UOptimusNodeGraph* InGraph,
+		FName InNewName);
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph to rename. This value will change after each rename.
+	FString GraphPath;
+
+	// The new name for this graph. This name may be modified to retain namespace unicity.
+	FName NewGraphName;
+
+	// The previous name of the graph
+	FName OldGraphName;
+};
+
+
+USTRUCT()
 struct FOptimusNodeGraphAction_AddNode : 
 	public FOptimusAction
 {

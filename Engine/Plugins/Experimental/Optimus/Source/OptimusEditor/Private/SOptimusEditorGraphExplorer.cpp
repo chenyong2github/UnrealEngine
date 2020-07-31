@@ -1,0 +1,765 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SOptimusEditorGraphExplorer.h"
+
+#include "OptimusEditor.h"
+#include "OptimusEditorGraphSchema.h"
+#include "SOptimusEditorGraphExplorerItem.h"
+
+#include "IOptimusNodeGraphCollectionOwner.h"
+#include "OptimusDeformer.h"
+#include "OptimusNodeGraph.h"
+
+#include "EditorStyleSet.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SGraphActionMenu.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SButton.h"
+#include "DetailLayoutBuilder.h"
+
+
+#define LOCTEXT_NAMESPACE "OptimusGraphExplorer"
+
+
+ SOptimusEditorGraphExplorerCommands::SOptimusEditorGraphExplorerCommands()
+    : TCommands<SOptimusEditorGraphExplorerCommands>(
+          TEXT("OptimusEditorGraphExplorer"), NSLOCTEXT("Contexts", "Explorer", "Explorer"),
+          NAME_None, FEditorStyle::GetStyleSetName())
+{
+}
+
+
+void SOptimusEditorGraphExplorerCommands::RegisterCommands()
+{
+	UI_COMMAND(OpenGraph, "Open Graph", "Opens up this graph in the editor.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(CreateSetupGraph, "Add New Setup Graph", "Create a new setup graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateTriggerGraph, "Add New Trigger Graph", "Create a new external trigger graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(DeleteEntry, "Delete", "Deletes this graph, buffer or variable from this deformer.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+}
+
+
+void SOptimusEditorGraphExplorer::Construct(const FArguments& InArgs, TWeakPtr<FOptimusEditor> InOptimusEditor)
+{
+	OptimusEditor = InOptimusEditor;
+
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		Editor->OnRefresh().AddRaw(this, &SOptimusEditorGraphExplorer::Refresh);
+	}	
+
+	RegisterCommands();
+
+	CreateWidgets();
+}
+
+
+SOptimusEditorGraphExplorer::~SOptimusEditorGraphExplorer()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		Editor->OnRefresh().RemoveAll(this);
+	}
+}
+
+
+void SOptimusEditorGraphExplorer::Refresh()
+{
+	bNeedsRefresh = false;
+
+	GraphActionMenu->RefreshAllActions(/*bPreserveExpansion=*/ true);
+}
+
+
+void SOptimusEditorGraphExplorer::Tick(const FGeometry& InAllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bNeedsRefresh)
+	{
+		Refresh();
+		bNeedsRefresh = false;
+	}
+
+	SCompoundWidget::Tick(InAllottedGeometry, InCurrentTime, InDeltaTime);
+}
+
+
+void SOptimusEditorGraphExplorer::RegisterCommands()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (Editor)
+	{
+		TSharedPtr<FUICommandList> ToolKitCommandList = Editor->GetToolkitCommands();
+
+		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().OpenGraph,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnOpenGraph),
+			FCanExecuteAction(), FGetActionCheckState(), 
+			FIsActionButtonVisible::CreateSP(this, &SOptimusEditorGraphExplorer::CanOpenGraph));
+
+		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph,
+			FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateSetupGraph),
+			FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateSetupGraph)
+			);
+
+		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateTriggerGraph),
+		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateTriggerGraph));
+
+		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().DeleteEntry,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnDeleteEntry),
+		    FCanExecuteAction(), FGetActionCheckState(),
+		    FIsActionButtonVisible::CreateSP(this, &SOptimusEditorGraphExplorer::CanDeleteEntry));
+
+		ToolKitCommandList->MapAction(FGenericCommands::Get().Rename,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnRenameEntry),
+		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanRenameEntry));
+
+	}
+}
+
+
+void SOptimusEditorGraphExplorer::CreateWidgets()
+{
+	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
+		.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+		.ForegroundColor(FLinearColor::White)
+		.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new Graph."))
+		.OnGetMenuContent(this, &SOptimusEditorGraphExplorer::CreateAddNewMenuWidget)
+		.HasDownArrow(true)
+		.ContentPadding(FMargin(1, 0, 2, 0))
+		.IsEnabled(this, &SOptimusEditorGraphExplorer::IsEditingMode)
+		.ButtonContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(0, 1))
+			[
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("Plus"))
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(FMargin(2, 0, 2, 0))
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("AddNew", "Add New"))
+			]
+		];
+
+	FMenuBuilder ViewOptions(true, nullptr);
+
+	ViewOptions.AddMenuEntry(
+	    LOCTEXT("ShowEmptySections", "Show Empty Sections"),
+	    LOCTEXT("ShowEmptySectionsTooltip", "Should we show empty sections? eg. Graphs, Functions...etc."),
+	    FSlateIcon(),
+	    FUIAction(
+	        FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnToggleShowEmptySections),
+	        FCanExecuteAction(),
+	        FIsActionChecked::CreateSP(this, &SOptimusEditorGraphExplorer::IsShowingEmptySections)),
+	    NAME_None,
+	    EUserInterfaceActionType::ToggleButton,
+	    TEXT("OptimusGraphExplorer_ShowEmptySections"));
+
+	SAssignNew(FilterBox, SSearchBox)
+	    .OnTextChanged_Lambda([this](const FText&) { GraphActionMenu->GenerateFilteredItems(true); } );
+
+	// create the main action list piece of this widget
+	SAssignNew(GraphActionMenu, SGraphActionMenu, false)
+	    .OnGetFilterText_Lambda([this]() { return FilterBox->GetText(); })
+	    .OnCreateWidgetForAction(this, &SOptimusEditorGraphExplorer::OnCreateWidgetForAction)
+	    .OnCollectAllActions(this, &SOptimusEditorGraphExplorer::CollectAllActions)
+	    .OnCollectStaticSections(this, &SOptimusEditorGraphExplorer::CollectStaticSections)
+	    .OnActionDragged(this, &SOptimusEditorGraphExplorer::OnActionDragged)
+	    .OnCategoryDragged(this, &SOptimusEditorGraphExplorer::OnCategoryDragged)
+	    .OnActionSelected(this, &SOptimusEditorGraphExplorer::OnGlobalActionSelected)
+	    .OnActionDoubleClicked(this, &SOptimusEditorGraphExplorer::OnActionDoubleClicked)
+	    .OnContextMenuOpening(this, &SOptimusEditorGraphExplorer::OnContextMenuOpening)
+	    .OnCategoryTextCommitted(this, &SOptimusEditorGraphExplorer::OnCategoryNameCommitted)
+	    .OnCanRenameSelectedAction(this, &SOptimusEditorGraphExplorer::CanRequestRenameOnActionNode)
+	    .OnGetSectionTitle(this, &SOptimusEditorGraphExplorer::OnGetSectionTitle)
+	    .OnGetSectionWidget(this, &SOptimusEditorGraphExplorer::OnGetSectionWidget)
+	    .AlphaSortItems(false)
+	    .UseSectionStyling(true);
+
+	// now piece together all the content for this widget
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+	    + SVerticalBox::Slot()
+	    .AutoHeight()
+	    [
+			SNew(SBorder)
+	        .Padding(4.0f)
+	        .BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+	        [
+				SNew(SVerticalBox)
+	            + SVerticalBox::Slot()
+	            .AutoHeight()
+	            [
+					SNew(SHorizontalBox)
+	                + SHorizontalBox::Slot()
+	                .AutoWidth()
+	                .Padding(0, 0, 2, 0)
+	                [
+						AddNewMenu.ToSharedRef()
+					]
+	                + SHorizontalBox::Slot()
+	                .FillWidth(1.0f)
+	                .VAlign(VAlign_Center)
+	                [
+						FilterBox.ToSharedRef()
+					]
+	                + SHorizontalBox::Slot()
+	                .AutoWidth()
+	                .Padding(2, 0, 0, 0)
+	                [
+						SNew(SComboButton)
+	                    .ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+	                    .ForegroundColor(FSlateColor::UseForeground())
+	                    .HasDownArrow(true)
+	                    .ContentPadding(FMargin(1, 0))
+	                    .AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
+	                    .MenuContent()
+	                    [
+							ViewOptions.MakeWidget()
+						]
+	                    .ButtonContent()
+	                    [
+							SNew(SImage)
+	                        .Image(FEditorStyle::GetBrush("GenericViewButton"))
+						]
+					]
+				]
+			]
+		]
+	    + SVerticalBox::Slot()
+	    .FillHeight(1.0f)
+	    [
+			GraphActionMenu.ToSharedRef()
+		]
+	];
+
+	Refresh();
+}
+
+
+TSharedRef<SWidget> SOptimusEditorGraphExplorer::CreateAddNewMenuWidget()
+{
+	FMenuBuilder MenuBuilder(/* bShouldCloseWindowAfterMenuSelection= */true, OptimusEditor.Pin()->GetToolkitCommands());
+
+	BuildAddNewMenu(MenuBuilder);
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("AddNewItem", LOCTEXT("AddOperations", "Add New"));
+
+	MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
+	MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+
+	MenuBuilder.EndSection();
+}
+
+
+TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
+{
+	return SNew(SOptimusEditorGraphEplorerItem, InCreateData, OptimusEditor.Pin());
+}
+
+
+void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (!Editor)
+	{
+		return;
+	}
+
+	IOptimusNodeGraphCollectionOwner* GraphCollection = Editor->GetGraphCollectionRoot();
+
+	for (UOptimusNodeGraph* Graph : GraphCollection->GetGraphs())
+	{
+		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(Graph, /*Gropuing=*/1);
+		OutAllActions.AddAction(GraphAction);
+	}
+}
+
+
+void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSectionIDs)
+{
+	if (IsShowingEmptySections())
+	{
+		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Graphs));
+		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Buffers));
+		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Variables));
+	}
+}
+
+
+FReply SOptimusEditorGraphExplorer::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
+{
+    return FReply::Unhandled();
+}
+
+
+FReply SOptimusEditorGraphExplorer::OnCategoryDragged(const FText& InCategory, const FPointerEvent& MouseEvent)
+{
+	return FReply::Unhandled();
+}
+
+
+void SOptimusEditorGraphExplorer::OnGlobalActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)
+{
+}
+
+
+void SOptimusEditorGraphExplorer::OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions)
+{
+    TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	
+	TSharedPtr<FEdGraphSchemaAction> Action(InActions.Num() > 0 ? InActions[0] : nullptr);
+
+	if (!Editor || !Action.IsValid())
+	{
+		return;
+	}
+
+	if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph *>(Action.Get());
+		UOptimusNodeGraph *NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+		if (NodeGraph)
+		{
+			Editor->SetEditGraph(NodeGraph);
+		}
+	}
+}
+
+
+TSharedPtr<SWidget> SOptimusEditorGraphExplorer::OnContextMenuOpening()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (!Editor.IsValid())
+	{
+		return TSharedPtr<SWidget>();
+	}
+
+	FMenuBuilder MenuBuilder(/*Close after selection*/true, Editor->GetToolkitCommands());
+
+	if (SelectionHasContextMenu())
+	{
+		MenuBuilder.BeginSection("BasicOperations");
+		MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().OpenGraph);
+		MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().DeleteEntry);
+		MenuBuilder.EndSection();
+	}
+	else
+	{
+		BuildAddNewMenu(MenuBuilder);
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+
+void SOptimusEditorGraphExplorer::OnCategoryNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit, TWeakPtr<struct FGraphActionNode> InAction)
+{
+}
+
+
+bool SOptimusEditorGraphExplorer::CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const
+{
+	return false;
+}
+
+
+FText SOptimusEditorGraphExplorer::OnGetSectionTitle(int32 InSectionID)
+{
+	switch (EOptimusSchemaItemGroup(InSectionID))
+	{
+	case EOptimusSchemaItemGroup::InvalidGroup:
+		ensureMsgf(false, TEXT("Invalid group"));
+		break;
+
+	case EOptimusSchemaItemGroup::Graphs:
+		return NSLOCTEXT("GraphActionNode", "Graphs", "Graphs");
+
+	case EOptimusSchemaItemGroup::Buffers:
+		return NSLOCTEXT("GraphActionNode", "Buffers", "Buffers");
+
+	case EOptimusSchemaItemGroup::Variables:
+		return NSLOCTEXT("GraphActionNode", "Variables", "Variables");
+	}
+
+	return FText::GetEmpty();
+}
+
+
+TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID)
+{
+	FText AddNewText;
+
+	switch (EOptimusSchemaItemGroup(InSectionID))
+	{
+	case EOptimusSchemaItemGroup::InvalidGroup:
+		ensureMsgf(false, TEXT("Invalid group"));
+		break;
+
+	case EOptimusSchemaItemGroup::Graphs:
+		AddNewText = LOCTEXT("AddNewGraph", "New Graph");
+		break;
+
+	case EOptimusSchemaItemGroup::Buffers:
+		AddNewText = LOCTEXT("AddNewBuffer", "New Buffer");
+		break;
+
+	case EOptimusSchemaItemGroup::Variables:
+		AddNewText = LOCTEXT("AddNewVariable", "Variable");
+		break;
+	}
+
+	TWeakPtr<SWidget> WeakRowWidget(RowWidget);
+
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	TSharedPtr<FUICommandList> ToolKitCommandList;
+	if (Editor)
+	{
+		ToolKitCommandList = Editor->GetToolkitCommands();
+	}
+
+
+	TArray<TSharedPtr<FUICommandInfo>> SubCommands = GetSectionMenuCommands(InSectionID);
+	if (SubCommands.Num() != 0)
+	{
+		TSharedPtr<SWidget> AddMenuWidget;
+
+		if (ensure(ToolKitCommandList))
+		{
+			FMenuBuilder MenuBuilder(true, ToolKitCommandList);
+
+			for (TSharedPtr<FUICommandInfo> CommandIndo : SubCommands)
+			{
+				MenuBuilder.AddMenuEntry(CommandIndo);
+			}
+
+			AddMenuWidget = MenuBuilder.MakeWidget();
+		}
+
+		return SNew(SComboButton)
+			.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
+			.ButtonStyle(FEditorStyle::Get(), "RoundButton")
+		    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		    .ContentPadding(FMargin(2, 0))
+			.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
+			.HasDownArrow(true)
+		    .HAlign(HAlign_Center)
+		    .VAlign(VAlign_Center)
+			.ButtonContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(0, 1))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Plus"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(FMargin(2, 0, 0, 0))
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(AddNewText)
+					.Visibility(this, &SOptimusEditorGraphExplorer::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
+					.ShadowOffset(FVector2D(1, 1))
+				]
+			];
+	}
+	else
+	{
+		return SNew(SButton)
+		    .ButtonStyle(FEditorStyle::Get(), "RoundButton")
+		    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		    .ContentPadding(FMargin(2, 0))
+		    .OnClicked(this, &SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection, InSectionID)
+		    .IsEnabled(this, &SOptimusEditorGraphExplorer::CanAddNewElementToSection, InSectionID)
+		    .HAlign(HAlign_Center)
+		    .VAlign(VAlign_Center)
+		    [
+				SNew(SHorizontalBox) 
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(0, 1))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Plus"))
+				] 
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(FMargin(2, 0, 0, 0))
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(AddNewText)
+					.Visibility(this, &SOptimusEditorGraphExplorer::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
+					.ShadowOffset(FVector2D(1, 1))
+				]
+			];
+	}
+}
+
+
+EVisibility SOptimusEditorGraphExplorer::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget, int32 InSectionID) const
+{
+	bool ShowText = RowWidget.Pin()->IsHovered();
+	/*
+	if (InSectionID == NodeSectionID::FUNCTION && FunctionSectionButton.IsValid() && FunctionSectionButton->IsOpen())
+	{
+		ShowText = true;
+	}
+	*/
+
+	// If the row is currently hovered, or a menu is being displayed for a button, keep the button expanded.
+	if (ShowText)
+	{
+		return EVisibility::SelfHitTestInvisible;
+	}
+	else
+	{
+		return EVisibility::Collapsed;
+	}
+}
+
+
+// Called when the + button on a section is clicked.
+FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionID)
+{
+	switch (EOptimusSchemaItemGroup(InSectionID))
+	{
+	case EOptimusSchemaItemGroup::Graphs:
+	case EOptimusSchemaItemGroup::Buffers:
+	case EOptimusSchemaItemGroup::Variables:
+		break;
+	}
+
+	return FReply::Unhandled();
+}
+
+
+bool SOptimusEditorGraphExplorer::CanAddNewElementToSection(int32 InSectionID) const
+{
+	return true;
+}
+
+
+TArray<TSharedPtr<FUICommandInfo>> SOptimusEditorGraphExplorer::GetSectionMenuCommands(int32 InSectionID) const
+{
+	TArray<TSharedPtr<FUICommandInfo>> Commands;
+
+	switch (EOptimusSchemaItemGroup(InSectionID))
+	{
+	case EOptimusSchemaItemGroup::Graphs: 
+		Commands.Add(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
+		Commands.Add(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+		break;
+
+	case EOptimusSchemaItemGroup::Buffers:
+	case EOptimusSchemaItemGroup::Variables:
+		break;
+	}
+
+	return Commands;
+}
+
+
+void SOptimusEditorGraphExplorer::OnToggleShowEmptySections()
+{
+	// FIXME: Move to preferences
+	bShowEmptySections = !bShowEmptySections;
+
+	Refresh();
+}
+
+
+bool SOptimusEditorGraphExplorer::IsShowingEmptySections() const
+{
+	return bShowEmptySections;
+}
+
+
+FEdGraphSchemaAction *SOptimusEditorGraphExplorer::SelectionAsType(
+	const FName& InTypeName
+	) const
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+
+	TSharedPtr<FEdGraphSchemaAction> SelectedAction(SelectedActions.Num() > 0 ? SelectedActions[0] : NULL);
+	if (SelectedAction.IsValid() &&
+	    SelectedAction->GetTypeId() == InTypeName)
+	{
+		return SelectedActions[0].Get();
+	}
+
+	return nullptr;
+}
+
+
+void SOptimusEditorGraphExplorer::OnOpenGraph()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (Editor)
+	{
+		FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>();
+		UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+		if (NodeGraph)
+		{
+			Editor->SetEditGraph(NodeGraph);
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanOpenGraph()
+{
+	return SelectionAsType<FOptimusSchemaAction_Graph>() != nullptr;
+}
+
+
+void SOptimusEditorGraphExplorer::OnCreateSetupGraph()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
+		if (Deformer)
+		{
+			Deformer->AddSetupGraph();
+		}
+	}	
+}
+
+
+bool SOptimusEditorGraphExplorer::CanCreateSetupGraph()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		const TArray<UOptimusNodeGraph *> Graphs = Editor->GetGraphCollectionRoot()->GetGraphs();
+		return Graphs[0]->GetGraphType() != EOptimusNodeGraphType::Setup;
+	}
+
+	return false;
+}
+
+
+void SOptimusEditorGraphExplorer::OnCreateTriggerGraph()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
+		if (Deformer)
+		{
+			Deformer->AddTriggerGraph(TEXT("TriggerGraph"));
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanCreateTriggerGraph()
+{
+	return OptimusEditor.IsValid();
+}
+
+
+void SOptimusEditorGraphExplorer::OnDeleteEntry()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (Editor)
+	{
+		if (FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>())
+		{
+			UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
+			UOptimusNodeGraph* NodeGraph = Deformer->ResolveGraphPath(GraphAction->GraphPath);
+
+			if (NodeGraph)
+			{
+				Deformer->RemoveGraph(NodeGraph);
+			}
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanDeleteEntry()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (Editor)
+	{
+		if (FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>())
+		{
+			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+			if (NodeGraph)
+			{
+				// Can't delete the update graph or bad things happen.
+				return NodeGraph->GetGraphType() != EOptimusNodeGraphType::Update;
+			}
+		}
+	}
+	return false;
+}
+
+
+void SOptimusEditorGraphExplorer::OnRenameEntry()
+{
+
+}
+
+
+bool SOptimusEditorGraphExplorer::CanRenameEntry()
+{
+	return false;
+}
+
+
+bool SOptimusEditorGraphExplorer::IsEditingMode() const
+{
+	return true;
+}
+
+
+bool SOptimusEditorGraphExplorer::SelectionHasContextMenu() const
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+	return SelectedActions.Num() > 0;
+}
+
+
+#undef LOCTEXT_NAMESPACE

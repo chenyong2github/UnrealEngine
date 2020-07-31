@@ -10,9 +10,8 @@
 
 #include "OptimusEditorDelegates.h"
 
-class SGraphEditor;
+class FOptimusEditor;
 class SScrollBox;
-class UOptimusEditorGraph;
 class UEdGraph;
 template<typename> class SBreadcrumbTrail;
 
@@ -21,10 +20,8 @@ class SOptimusGraphTitleBar : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SOptimusGraphTitleBar)
 	{}
-
-		SLATE_ARGUMENT(TSharedPtr<SGraphEditor>, GraphEditor)
+		SLATE_ARGUMENT(TWeakPtr<FOptimusEditor>, OptimusEditor)
 		SLATE_EVENT(FOptimusGraphEvent, OnDifferentGraphCrumbClicked)
-		SLATE_ARGUMENT(TSharedPtr<SWidget>, HistoryNavigationWidget)
 	SLATE_END_ARGS()
 
 	~SOptimusGraphTitleBar();
@@ -43,8 +40,11 @@ private:
 
 	void OnBreadcrumbClicked(UEdGraph* const& Graph);
 
+	FText GetDeformerTitle() const;
+	EVisibility IsDeformerTitleVisible() const;
+
 	// The owning graph editor widget.
-	TSharedPtr<SGraphEditor> GraphEditor;
+	TWeakPtr<FOptimusEditor> OptimusEditor;
 
 	// The scroll box that kicks in if the trail exceeds the widget's visible box.
 	TSharedPtr<SScrollBox> BreadcrumbTrailScrollBox;

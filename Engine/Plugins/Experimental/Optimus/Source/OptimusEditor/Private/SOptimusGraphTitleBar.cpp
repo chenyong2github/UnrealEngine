@@ -2,6 +2,7 @@
 
 #include "SOptimusGraphTitleBar.h"
 
+#include "OptimusEditor.h"
 #include "OptimusEditorGraph.h"
 
 #include "EditorStyleSet.h"
@@ -16,14 +17,30 @@
 #define LOCTEXT_NAMESPACE "SOptimusGraphTitleBar"
 
 
+ SOptimusGraphTitleBar::~SOptimusGraphTitleBar()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		Editor->OnRefresh().RemoveAll(this);
+	}	
+}
+
+
 void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 {
-	GraphEditor = InArgs._GraphEditor;
+	OptimusEditor = InArgs._OptimusEditor;
 	OnDifferentGraphCrumbClicked = InArgs._OnDifferentGraphCrumbClicked;
 
 	// Set-up shared breadcrumb defaults (from SGraphTitleBar::Construct)
 	FMargin BreadcrumbTrailPadding = FMargin(4.f, 2.f);
 	const FSlateBrush* BreadcrumbButtonImage = FEditorStyle::GetBrush("BreadcrumbTrail.Delimiter");
+
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		Editor->OnRefresh().AddRaw(this, &SOptimusGraphTitleBar::Refresh);
+	}	
 
 	this->ChildSlot
 	[
@@ -46,12 +63,12 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 				SNew(SSeparator)
 				.Orientation(Orient_Vertical)
 			]
-			*/
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				InArgs._HistoryNavigationWidget.ToSharedRef()
 			]
+			*/
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
@@ -86,7 +103,6 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						[
 							SNew(SHorizontalBox)
-#if 0
 							// show fake 'root' breadcrumb for the title
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
@@ -94,9 +110,9 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 							.Padding(BreadcrumbTrailPadding)
 							[
 								SNew(STextBlock)
-								.Text(this, &SOptimusGraphTitleBar::GetBlueprintTitle)
+								.Text(this, &SOptimusGraphTitleBar::GetDeformerTitle)
 								.TextStyle(FEditorStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
-								.Visibility(this, &SGraphTitleBar::IsGraphBlueprintNameVisible)
+								.Visibility( this, &SOptimusGraphTitleBar::IsDeformerTitleVisible )
 							]
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
@@ -104,9 +120,8 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 							[
 								SNew(SImage)
 								.Image(BreadcrumbButtonImage)
-								.Visibility(this, &SGraphTitleBar::IsGraphBlueprintNameVisible)
+								.Visibility( this, &SOptimusGraphTitleBar::IsDeformerTitleVisible )
 							]
-#endif
 
 							// New style breadcrumb
 							+ SHorizontalBox::Slot()
@@ -146,12 +161,22 @@ void SOptimusGraphTitleBar::Construct(const FArguments& InArgs)
 
 void SOptimusGraphTitleBar::Refresh()
 {
-
+	RebuildBreadcrumbTrail();
 }
 
 
 void SOptimusGraphTitleBar::RebuildBreadcrumbTrail()
 {
+	// This doesn't do much until we have nested graphs.
+	BreadcrumbTrail->ClearCrumbs(false);
+
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusEditorGraph *EditorGraph = Editor->GetGraph();
+		auto CrumbName = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UOptimusEditorGraph*>(&SOptimusGraphTitleBar::GetTitleForOneCrumb, EditorGraph));
+		BreadcrumbTrail->PushCrumb(CrumbName, EditorGraph);
+	}
 
 }
 
@@ -182,6 +207,26 @@ FText SOptimusGraphTitleBar::GetTitleForOneCrumb(const UOptimusEditorGraph* Grap
 void SOptimusGraphTitleBar::OnBreadcrumbClicked(UEdGraph* const& Graph)
 {
 	OnDifferentGraphCrumbClicked.ExecuteIfBound(Cast<UOptimusEditorGraph>(Graph));
+}
+
+
+FText SOptimusGraphTitleBar::GetDeformerTitle() const
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		return Editor->GetGraphCollectionRootName();
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
+
+
+EVisibility SOptimusGraphTitleBar::IsDeformerTitleVisible() const
+{
+	return OptimusEditor.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 

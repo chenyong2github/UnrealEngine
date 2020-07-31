@@ -24,6 +24,8 @@ public:
 
 	void InitFromNodeGraph(UOptimusNodeGraph* InNodeGraph);
 
+	void Reset();
+
 	UOptimusNodeGraph* GetModelGraph() const { return NodeGraph; }
 
 	UOptimusEditorGraphNode* FindGraphNodeFromModelNode(UOptimusNode* Node);

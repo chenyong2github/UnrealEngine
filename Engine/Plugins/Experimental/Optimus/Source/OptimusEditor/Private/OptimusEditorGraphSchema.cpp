@@ -157,6 +157,13 @@ bool UOptimusEditorGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* InGraph, UEdGr
 	return false;
 }
 
+void UOptimusEditorGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, FGraphDisplayInfo& DisplayInfo) const
+{
+	const UOptimusEditorGraph& EditorGraph = static_cast<const UOptimusEditorGraph&>(Graph);
+	DisplayInfo.PlainName = FText::FromString(EditorGraph.GetModelGraph()->GetName());
+	DisplayInfo.DisplayName = DisplayInfo.PlainName;
+}
+
 
 FLinearColor UOptimusEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
 {
@@ -210,4 +217,38 @@ UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
 	}
 
 	return nullptr;
+}
+
+static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
+{
+	if (InGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger)
+	{
+		return FText::FromString(TEXT("Triggered Graphs"));
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
+
+static FText GetGraphTooltip(UOptimusNodeGraph* InGraph)
+{
+	return FText::GetEmpty();
+}
+
+
+FOptimusSchemaAction_Graph::FOptimusSchemaAction_Graph(
+	UOptimusNodeGraph* InGraph,
+	int32 InGrouping) : 
+		FEdGraphSchemaAction(
+			GetGraphSubCategory(InGraph), 
+			FText::FromString(InGraph->GetName()), 
+			GetGraphTooltip(InGraph), 
+			InGrouping, 
+			FText(), 
+			int32(EOptimusSchemaItemGroup::Graphs) 
+		), 
+		GraphType(InGraph->GetGraphType())
+{
+	GraphPath = InGraph->GetGraphPath();
 }

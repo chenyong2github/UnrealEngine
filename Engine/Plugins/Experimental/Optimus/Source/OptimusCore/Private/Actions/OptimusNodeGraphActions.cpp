@@ -9,10 +9,25 @@
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
 
+#include "Serialization/ObjectReader.h"
+#include "Serialization/ObjectWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UObject/UObjectGlobals.h"
+
+
+// FObjectReader::Serialize(TArray<uint8>& InBytes) constructor is protected.
+class FBinaryObjectReader : public FObjectReader
+{
+public:
+	FBinaryObjectReader(UObject* Obj, TArray<uint8>& InBytes)
+		: FObjectReader(InBytes)
+	{
+		this->SetWantBinaryPropertySerialization(true);
+		Obj->Serialize(*this);
+	}
+};
 
 
 // ---- Add graph
@@ -90,7 +105,6 @@ FOptimusNodeGraphAction_RemoveGraph::FOptimusNodeGraphAction_RemoveGraph(UOptimu
 	}
 }
 
-
 bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
@@ -100,12 +114,9 @@ bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* I
 	}
 
 	{
-		FMemoryWriter GraphArchive(GraphData);
-		// This fella does the heavy lifting of serializing object references.
-		// FMemoryWriter and fam do not handle UObject* serialization on their own.
-		FObjectAndNameAsStringProxyArchive GraphProxyArchive(
-		    GraphArchive, /* bInLoadIfFindFails=*/false);
-		Graph->SerializeScriptProperties(GraphProxyArchive);
+		FObjectWriter GraphArchive(GraphData);
+		GraphArchive.SetWantBinaryPropertySerialization(true);
+		Graph->Serialize(GraphArchive);
 	}
 
 	return InRoot->RemoveGraph(Graph);
@@ -124,10 +135,7 @@ bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner*
 
 	// Unserialize all the stored properties (and sub-objects) back onto the new graph.
 	{
-		FMemoryReader GraphArchive(GraphData);
-		FObjectAndNameAsStringProxyArchive GraphProxyArchive(
-		    GraphArchive, /* bInLoadIfFindFails=*/true);
-		Graph->SerializeScriptProperties(GraphProxyArchive);
+		FBinaryObjectReader GraphArchive(Graph, GraphData);
 	}
 	
 	// Now add the graph such that interested parties get notified.
@@ -159,6 +167,47 @@ FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
 		// FIXME: Prettier name.
 		SetTitlef(TEXT("Add Node"));
 	}
+}
+
+
+// ---- Rename graph
+
+FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(UOptimusNodeGraph* InGraph, FName InNewName)
+{
+	if (ensure(InGraph) && InGraph->GetFName() != InNewName)
+	{
+		GraphPath = InGraph->GetGraphPath();
+
+		// Ensure the name is uniqe within our namespace.
+		NewGraphName = MakeUniqueObjectName(InGraph->GetOuter(), UOptimusNodeGraph::StaticClass(), InNewName);
+		OldGraphName = InGraph->GetFName();
+
+		SetTitlef(TEXT("Rename graph"));
+	}
+}
+
+
+bool FOptimusNodeGraphAction_RenameGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	return Graph->Rename(*NewGraphName.ToString(), nullptr);
+}
+
+
+bool FOptimusNodeGraphAction_RenameGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	return Graph->Rename(*OldGraphName.ToString(), nullptr);
 }
 
 
@@ -367,3 +416,4 @@ FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 {
 	SetTitlef(TEXT("Remove Link"));
 }
+

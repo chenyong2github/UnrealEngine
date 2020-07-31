@@ -7,6 +7,7 @@
 #include "OptimusEditorCommands.h"
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
+#include "SOptimusEditorGraphExplorer.h"
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
@@ -25,6 +26,7 @@ void FOptimusEditorModule::StartupModule()
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
 
 	FOptimusEditorCommands::Register();
+	SOptimusEditorGraphExplorerCommands::Register();
 
 	GraphNodeFactory = MakeShared<FOptimusEditorGraphNodeFactory>();
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
@@ -38,6 +40,7 @@ void FOptimusEditorModule::ShutdownModule()
 	FEdGraphUtilities::UnregisterVisualPinFactory(GraphPinFactory);
 	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 
+	SOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");

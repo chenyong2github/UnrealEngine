@@ -6,12 +6,24 @@
 
 #include "OptimusEditorGraphSchema.generated.h"
 
+enum class EOptimusNodeGraphType;
+class UOptimusNodeGraph;
+
 namespace OptimusSchemaPinTypes
 {
 	extern FName Attribute;
 	extern FName Skeleton;
 	extern FName Mesh;
 }
+
+
+enum class EOptimusSchemaItemGroup
+{
+	InvalidGroup = 0,
+	Graphs,
+	Variables,
+	Buffers,
+};
 
 
 UCLASS()
@@ -37,6 +49,8 @@ public:
 	void GetGraphContextActions(FGraphContextMenuBuilder& IoContextMenuBuilder) const override;
 	bool SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* Node) const override;
 
+	void GetGraphDisplayInformation(const UEdGraph& Graph, FGraphDisplayInfo& DisplayInfo) const override;
+
 	FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 
 };
@@ -44,8 +58,8 @@ public:
 
 /// Action to add a new Optimus node to the graph
 USTRUCT()
-struct FOptimusGraphSchemaAction_NewNode
-	: public FEdGraphSchemaAction
+struct FOptimusGraphSchemaAction_NewNode : 
+	public FEdGraphSchemaAction
 {
 	GENERATED_BODY()
 
@@ -56,8 +70,37 @@ struct FOptimusGraphSchemaAction_NewNode
 	UClass* NodeClass = nullptr;
 
 	static FName StaticGetTypeId() { static FName Type("FOptimusDeformerGraphSchemaAction_NewNode"); return Type; }
-	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
+	FName GetTypeId() const override { return StaticGetTypeId(); }
 
 	// FEdGraphSchemaAction overrides
 	UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+};
+
+
+/// Reference to a graph.
+USTRUCT()
+struct FOptimusSchemaAction_Graph : 
+	public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	static FName StaticGetTypeId()
+	{
+		static FName Type("FOptimusSchemaAction_Graph");
+		return Type;
+	}
+	FName GetTypeId() const override { return StaticGetTypeId(); }
+
+	FString GraphPath;
+
+	EOptimusNodeGraphType GraphType;
+
+	FOptimusSchemaAction_Graph() = default;
+
+	FOptimusSchemaAction_Graph(
+	    UOptimusNodeGraph* InGraph,
+	    int32 InGrouping);
+
+	// FEdGraphSchemaAction overrides
+	bool IsParentable() const override { return true; }
 };

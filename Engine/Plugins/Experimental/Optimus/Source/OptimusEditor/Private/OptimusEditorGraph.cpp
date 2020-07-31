@@ -56,6 +56,28 @@ void UOptimusEditorGraph::InitFromNodeGraph(UOptimusNodeGraph* InNodeGraph)
 }
 
 
+void UOptimusEditorGraph::Reset()
+{
+	if (NodeGraph == nullptr)
+	{
+		return;
+	}
+
+	NodeGraph->OnModify().RemoveAll(this);
+
+	SelectedNodes.Reset();
+	NodeGraph = nullptr;
+
+	Modify();
+	TArray<UEdGraphNode*> NodesToRemove(Nodes);
+	for (UEdGraphNode* GraphNode : NodesToRemove)
+	{
+		RemoveNode(GraphNode, true);
+	}
+	NotifyGraphChanged();
+}
+
+
 const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon() const
 {
 	// FIXME: Need icon types.
