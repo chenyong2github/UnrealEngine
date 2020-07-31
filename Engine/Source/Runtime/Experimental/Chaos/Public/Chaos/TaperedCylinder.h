@@ -135,6 +135,8 @@ namespace Chaos
 					return -Distance1;
 				}
 			}
+
+			Normal2 = MPlane2.Normal();
 			const T Distance2 = MHeight - Distance1; // Used to be Distance2 = MPlane2.PhiWithNormal(x, Normal2); but that would trigger the ensure on Distance2 being slightly larger than MHeight in some border cases
 			if (Distance2 < SMALL_NUMBER)
 			{

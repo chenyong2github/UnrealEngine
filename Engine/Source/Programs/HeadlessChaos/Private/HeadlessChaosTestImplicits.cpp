@@ -444,16 +444,16 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(TVector3(-3 / 2., 0., 3 / 2.)), TVector3(-1, 0, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
 
 		// inside phi
-		EXPECT_EQ(Subject.SignedDistance(TVector3(1 / 2., 1 / 2., 1 / 2.)), -TVector3(1 / 2.).Size()) << *Error;
-		EXPECT_EQ(Subject.SignedDistance(TVector3(-1 / 2., -1 / 2., -1 / 2.)), -TVector3(1 / 2.).Size()) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(TVector3(1 / 2., 1 / 2., 1 / 2.)), -TVector3(1 / 2.).Size(), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(TVector3(-1 / 2., -1 / 2., -1 / 2.)), -TVector3(1 / 2.).Size(), KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(0., sqrt(2) / 4., -sqrt(2) / 4.)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(0., -sqrt(2) / 4., sqrt(2) / 4.)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(sqrt(2) / 4., 0., -sqrt(2) / 4.)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(-sqrt(2) / 4., 0., sqrt(2) / 4.)), -1 / 2., KINDA_SMALL_NUMBER) << *Error;
 
 		// outside phi
-		EXPECT_EQ(Subject.SignedDistance(TVector3(3 / 2., 3 / 2., 3 / 2.)), TVector3(1 / 2.).Size()) << *Error;
-		EXPECT_EQ(Subject.SignedDistance(TVector3(-3 / 2., -3 / 2., -3 / 2.)), TVector3(1 / 2.).Size()) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(TVector3(3 / 2., 3 / 2., 3 / 2.)), TVector3(1 / 2.).Size(), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(TVector3(-3 / 2., -3 / 2., -3 / 2.)), TVector3(1 / 2.).Size(), KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(0., 3 * sqrt(2) / 4., -3 * sqrt(2) / 4.)), 1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(0., -3 * sqrt(2) / 4., 3 * sqrt(2) / 4.)), 1 / 2., KINDA_SMALL_NUMBER) << *Error;
 		EXPECT_NEAR(Subject.SignedDistance(TVector3(3 * sqrt(2) / 4., 0., -3 * sqrt(2) / 4.)), 1 / 2., KINDA_SMALL_NUMBER) << *Error;
