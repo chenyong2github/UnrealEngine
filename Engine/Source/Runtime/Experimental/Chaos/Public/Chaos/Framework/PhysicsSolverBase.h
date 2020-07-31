@@ -27,18 +27,19 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& PushData, FReal InDt);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-		static void AdvanceSolver(FPhysicsSolverBase& Solver,TArray<TFunction<void()>>&& Queue,const FReal Dt);
+		static void AdvanceSolver(FPhysicsSolverBase& Solver,TArray<TFunction<void()>>&& Queue, TArray<FPushPhysicsData*>&& PushData, FReal Dt);
 
 	private:
 
 		FPhysicsSolverBase& Solver;
 		TArray<TFunction<void()>> Queue;
+		TArray<FPushPhysicsData*> PushData;
 		FReal Dt;
 	};
 
@@ -104,6 +105,23 @@ namespace Chaos
 		void SetNumDirtyShapes(IPhysicsProxyBase* Proxy, int32 NumShapes)
 		{
 			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.SetNumDirtyShapes(Proxy,NumShapes);
+		}
+
+		template <typename Lambda>
+		FSimCallbackHandle& RegisterSimCallback(const Lambda& Func)
+		{
+			return MarshallingManager.RegisterSimCallback(Func);
+		}
+
+		void UnregisterSimCallback(FSimCallbackHandle& Handle)
+		{
+			MarshallingManager.UnregisterSimCallback(Handle);
+		}
+
+		// Used to marshal data for a callback associated with a specific external time
+		FSimCallbackData& FindOrCreateCallbackProducerData(FSimCallbackHandle& Callback)
+		{
+			return MarshallingManager.GetProducerCallbackData_External(Callback);
 		}
 
 		template <typename Lambda>
@@ -174,12 +192,14 @@ namespace Chaos
 			//make sure any GT state is pushed into necessary buffer
 			PushPhysicsState(InDt);
 
+			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InDt);
+
 			//todo: handle dt etc..
 			if(ThreadingMode == EThreadingModeTemp::SingleThread)
 			{
 				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
 				ensure(CommandQueue.Num() == 0);	//commands execute right away. Once we add fixed dt this will change
-				FPhysicsSolverAdvanceTask::AdvanceSolver(*this, MoveTemp(CommandQueue),InDt);
+				FPhysicsSolverAdvanceTask::AdvanceSolver(*this, MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
 			}
 			else
 			{
@@ -189,7 +209,7 @@ namespace Chaos
 					Prereqs.Add(PendingTasks);
 				}
 
-				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue),InDt);
+				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
 			}
 
 			return PendingTasks;
@@ -206,6 +226,29 @@ namespace Chaos
 			return DebugName;
 		}
 #endif
+
+		void ApplyCallbacks_Internal()
+		{
+			for(FSimCallbackHandlePT* Callback : SimCallbacks)
+			{
+				Callback->Handle->Func(Callback->IntervalData);
+				MarshallingManager.FreeCallbackData_Internal(Callback);	//todo: split out for different sim phases, also wait for resim
+			}
+
+			//todo: need to split up for different phases of sim (always free when entire sim phase is finished)
+			for(FSimCallbackHandle* CallbackToDelete : SimCallbacksPendingDelete)
+			{
+				FSimCallbackHandlePT* PTHandle = CallbackToDelete->PTHandle;
+				MarshallingManager.FreeCallbackData_Internal(PTHandle);
+				if(PTHandle->Idx != INDEX_NONE)
+				{
+					SimCallbacks.RemoveAtSwap(PTHandle->Idx);
+				}
+				delete PTHandle;
+				delete CallbackToDelete;
+			}
+			SimCallbacksPendingDelete.Empty();
+		}
 
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
@@ -248,6 +291,7 @@ namespace Chaos
 
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 		virtual void PushPhysicsState(const FReal Dt) = 0;
+		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;
@@ -259,6 +303,9 @@ namespace Chaos
 	// Commands
 	//
 	TArray<TFunction<void()>> CommandQueue;
+
+	TArray<FSimCallbackHandlePT*> SimCallbacks;
+	TArray<FSimCallbackHandle*> SimCallbacksPendingDelete;
 
 	FGraphEventRef PendingTasks;
 
