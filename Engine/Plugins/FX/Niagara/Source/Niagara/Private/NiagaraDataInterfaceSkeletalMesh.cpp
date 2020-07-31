@@ -2218,7 +2218,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 	}
 
 	bool bHasCPUAccessWarning = false;
-	bool bHasNoMeshAssignedError = false;
+	bool bHasNoMeshAssignedWarning = false;
 	
 	// Collect Errors
 #if WITH_EDITORONLY_DATA
@@ -2302,7 +2302,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 	}
 	else
 	{
-		bHasNoMeshAssignedError = true;
+		bHasNoMeshAssignedWarning = true;
 	}
 
 	// Report Errors/Warnings
@@ -2324,13 +2324,13 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 	}
 #endif
 
-	if (Source == nullptr && bHasNoMeshAssignedError)
+	if (Source == nullptr && bHasNoMeshAssignedWarning)
 	{
-		FNiagaraDataInterfaceError NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface must be assigned a skeletal mesh to operate."),
-			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned error"),
+		FNiagaraDataInterfaceFeedback NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface should be assigned a skeletal mesh to operate correctly."),
+			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned warning"),
 			FNiagaraDataInterfaceFix());
 
-		OutErrors.Add(NoMeshAssignedError);
+		OutWarnings.Add(NoMeshAssignedError);
 	}
 }
 
