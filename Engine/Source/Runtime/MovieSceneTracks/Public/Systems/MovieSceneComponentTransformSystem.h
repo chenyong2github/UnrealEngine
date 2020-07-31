@@ -57,6 +57,8 @@ public:
 
 	UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit);
 
+	MOVIESCENETRACKS_API void Interrogate(TArray<FTransform>& OutTransforms) const;
+
 private:
 
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
