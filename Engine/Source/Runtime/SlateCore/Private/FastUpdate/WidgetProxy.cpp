@@ -143,21 +143,21 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	return bWidgetNeedsRepaint;
 }
 
-void FWidgetProxy::MarkProxyUpdatedThisFrame(FWidgetUpdateList& UpdateList)
+void FWidgetProxy::MarkProxyUpdatedThisFrame(FWidgetProxy& Proxy, FWidgetUpdateList& UpdateList)
 {
-	bUpdatedSinceLastInvalidate = true;
+	Proxy.bUpdatedSinceLastInvalidate = true;
 
-	if(EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
+	if(EnumHasAnyFlags(Proxy.UpdateFlags, EWidgetUpdateFlags::AnyUpdate))
 	{
-		if (!bInUpdateList && !bInvisibleDueToParentOrSelfVisibility)
+		if (!Proxy.bInUpdateList && !Proxy.bInvisibleDueToParentOrSelfVisibility)
 		{
 			// If there are any updates still needed add them to the next update list
-			UpdateList.Push(*this);
+			UpdateList.Push(Proxy);
 		}
 	}
 	else
 	{
-		bInUpdateList = false;
+		Proxy.bInUpdateList = false;
 	}
 }
 
@@ -242,7 +242,7 @@ const FWidgetProxy& FWidgetProxyHandle::GetProxy() const
 void FWidgetProxyHandle::MarkWidgetUpdatedThisFrame()
 {
 	check(IsValid());
-	GetInvalidationRoot()->FastWidgetPathList[MyIndex].MarkProxyUpdatedThisFrame(GetInvalidationRoot()->WidgetsNeedingUpdate);
+	FWidgetProxy::MarkProxyUpdatedThisFrame(GetInvalidationRoot()->FastWidgetPathList[MyIndex], GetInvalidationRoot()->WidgetsNeedingUpdate);
 }
 
 void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason)
