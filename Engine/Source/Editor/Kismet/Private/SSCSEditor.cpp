@@ -2789,6 +2789,32 @@ FReply SSCS_RowWidget::HandleOnAcceptDrop( const FDragDropEvent& DragDropEvent, 
 	return FReply::Handled();
 }
 
+void ConformTransformRelativeToParent(USceneComponent* SceneComponentTemplate, USceneComponent* ParentSceneComponent)
+{
+	// If we find a match, calculate its new position relative to the scene root component instance in its current scene
+	FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
+	FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? ParentSceneComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : ParentSceneComponent->GetComponentToWorld();
+	FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
+
+	// Store new relative location value (if not set to absolute)
+	if (!SceneComponentTemplate->IsUsingAbsoluteLocation())
+	{
+		SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
+	}
+
+	// Store new relative rotation value (if not set to absolute)
+	if (!SceneComponentTemplate->IsUsingAbsoluteRotation())
+	{
+		SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTM.Rotator());
+	}
+
+	// Store new relative scale value (if not set to absolute)
+	if (!SceneComponentTemplate->IsUsingAbsoluteScale())
+	{
+		SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
+	}
+}
+
 void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType>& DroppedNodePtrs)
 {
 	FSCSEditorTreeNodePtrType NodePtr = GetNode();
@@ -2894,28 +2920,7 @@ void SSCS_RowWidget::OnAttachToDropAction(const TArray<FSCSEditorTreeNodePtrType
 				USceneComponent* ParentSceneComponent = Cast<USceneComponent>(NodePtr->FindComponentInstanceInActor(PreviewActor));
 				if(SceneComponentTemplate && ParentSceneComponent && ParentSceneComponent->IsRegistered())
 				{
-					// If we find a match, calculate its new position relative to the scene root component instance in its current scene
-					FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
-					FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? ParentSceneComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : ParentSceneComponent->GetComponentToWorld();
-					FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
-
-					// Store new relative location value (if not set to absolute)
-					if(!SceneComponentTemplate->IsUsingAbsoluteLocation())
-					{
-						SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
-					}
-
-					// Store new relative rotation value (if not set to absolute)
-					if(!SceneComponentTemplate->IsUsingAbsoluteRotation())
-					{
-						SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTM.Rotator());
-					}
-
-					// Store new relative scale value (if not set to absolute)
-					if(!SceneComponentTemplate->IsUsingAbsoluteScale())
-					{
-						SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
-					}
+					ConformTransformRelativeToParent(SceneComponentTemplate, ParentSceneComponent);
 				}
 
 				// Propagate any default value changes out to all instances of the template. If we didn't do this, then instances could incorrectly override the new default value with the old default value when construction scripts are re-run.
@@ -3027,28 +3032,7 @@ void SSCS_RowWidget::OnDetachFromDropAction(const TArray<FSCSEditorTreeNodePtrTy
 			USceneComponent* InstancedSceneRootComponent = Cast<USceneComponent>(SceneRootNodePtr->FindComponentInstanceInActor(PreviewActor));
 			if(SceneComponentTemplate && InstancedSceneRootComponent && InstancedSceneRootComponent->IsRegistered())
 			{
-				// If we find a match, calculate its new position relative to the scene root component instance in the preview scene
-				FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
-				FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? InstancedSceneRootComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : InstancedSceneRootComponent->GetComponentToWorld();
-				FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
-
-				// Store new relative location value (if not set to absolute)
-				if(!SceneComponentTemplate->IsUsingAbsoluteLocation())
-				{
-					SceneComponentTemplate->SetRelativeLocation_Direct(RelativeTM.GetTranslation());
-				}
-
-				// Store new relative rotation value (if not set to absolute)
-				if(!SceneComponentTemplate->IsUsingAbsoluteRotation())
-				{
-					SceneComponentTemplate->SetRelativeRotation_Direct(RelativeTM.Rotator());
-				}
-
-				// Store new relative scale value (if not set to absolute)
-				if(!SceneComponentTemplate->IsUsingAbsoluteScale())
-				{
-					SceneComponentTemplate->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
-				}
+				ConformTransformRelativeToParent(SceneComponentTemplate, InstancedSceneRootComponent);
 			}
 
 			// Propagate any default value changes out to all instances of the template. If we didn't do this, then instances could incorrectly override the new default value with the old default value when construction scripts are re-run.
@@ -5548,12 +5532,9 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		Blueprint->Modify();
 		SaveSCSCurrentState(Blueprint->SimpleConstructionScript);
 
-		// Defer Blueprint class regeneration and tree updates if we need to copy object properties from a source template.
-		const bool bMarkBlueprintModified = !ComponentTemplate && !bSkipMarkBlueprintModified;
-		if(!bMarkBlueprintModified)
-		{
-			bAllowTreeUpdates = false;
-		}
+		// Defer Blueprint class regeneration and tree updates until after we copy any object properties from a source template.
+		const bool bMarkBlueprintModified = false;
+		bAllowTreeUpdates = false;
 		
 		FName NewVariableName;
 		if (ComponentTemplate)
@@ -5574,7 +5555,12 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 		{
 			NewVariableName = *FComponentEditorUtils::GenerateValidVariableNameFromAsset(Asset, nullptr);
 		}
-		NewComponent = AddNewNode(MoveTemp(AddTransaction), Blueprint->SimpleConstructionScript->CreateNode(NewComponentClass, NewVariableName), Asset, bMarkBlueprintModified, bSetFocusToNewItem);
+
+		USCS_Node* NewSCSNode = Blueprint->SimpleConstructionScript->CreateNode(NewComponentClass, NewVariableName);
+		NewComponent = NewSCSNode->ComponentTemplate;
+
+		FAddedNodeDetails NewNodeDetails;
+		AddNewNode(NewNodeDetails, MoveTemp(AddTransaction), NewSCSNode, Asset, bMarkBlueprintModified, bSetFocusToNewItem);
 
 		if (ComponentTemplate)
 		{
@@ -5583,13 +5569,21 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			FObjectWriter Writer(ComponentTemplate, SavedProperties);
 			FObjectReader(NewComponent, SavedProperties);
 			NewComponent->UpdateComponentToWorld();
+		}
 
-			// Wait until here to mark as structurally modified because we don't want any RerunConstructionScript() calls to happen until AFTER we've serialized properties from the source object.
-			if (!bSkipMarkBlueprintModified)
-			{
-				bAllowTreeUpdates = true;
-				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+		if (USceneComponent* AsSceneComp = Cast<USceneComponent>(NewComponent))
+		{
+			if (USceneComponent* ParentSceneComp = CastChecked<USceneComponent>(NewNodeDetails.ParentNodePtr->GetComponentTemplate(), ECastCheckedType::NullAllowed))
+			{ 
+				ConformTransformRelativeToParent(AsSceneComp, ParentSceneComp);
 			}
+		}
+
+		// Wait until here to mark as structurally modified because we don't want any RerunConstructionScript() calls to happen until AFTER we've serialized properties from the source object.
+		if (!bSkipMarkBlueprintModified)
+		{
+			bAllowTreeUpdates = true;
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 		}
 	}
 	else    // EComponentEditorMode::ActorInstance
@@ -5651,7 +5645,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 						NewSceneComponent->Mobility = EComponentMobility::Stationary;
 					}
 
-					NewSceneComponent->AttachToComponent(AttachTo, FAttachmentTransformRules::KeepRelativeTransform);
+					NewSceneComponent->AttachToComponent(AttachTo, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 				}
 			}
 
@@ -5814,7 +5808,14 @@ FSCSEditorTreeNodePtrType SSCSEditor::FindParentForNewNode(USCS_Node* NewNode) c
 	return FindParentForNewComponent(NewNode->ComponentTemplate);
 }
 
-UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem)
+UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> OngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem)
+{
+	FAddedNodeDetails AddedNodeDetails;
+	AddNewNode(AddedNodeDetails, MoveTemp(OngoingCreateTransaction), NewNode, Asset, bMarkBlueprintModified, bSetFocusToNewItem);
+	return NewNode->ComponentTemplate;
+}
+
+void SSCSEditor::AddNewNode(SSCSEditor::FAddedNodeDetails& OutAddedNodeDetails, TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem)
 {
 	check(NewNode != nullptr);
 
@@ -5823,8 +5824,9 @@ UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> InOngoing
 		FComponentAssetBrokerage::AssignAssetToComponent(NewNode->ComponentTemplate, Asset);
 	}
 
-	FSCSEditorTreeNodePtrType NewNodePtr;
-	FSCSEditorTreeNodePtrType ParentNodePtr = FindParentForNewNode(NewNode);
+	FSCSEditorTreeNodePtrType& NewNodePtr = OutAddedNodeDetails.NewNodePtr;
+	FSCSEditorTreeNodePtrType& ParentNodePtr = OutAddedNodeDetails.ParentNodePtr;
+	ParentNodePtr = FindParentForNewNode(NewNode);
 	
 	UBlueprint* Blueprint = GetBlueprint();
 	check(Blueprint != nullptr && Blueprint->SimpleConstructionScript != nullptr);
@@ -5855,8 +5857,6 @@ UActorComponent* SSCSEditor::AddNewNode(TUniquePtr<FScopedTransaction> InOngoing
 	{
 		UpdateTree();
 	}
-
-	return NewNode->ComponentTemplate;
 }
 
 void SSCSEditor::AddNewNodeForInstancedComponent(TUniquePtr<FScopedTransaction> InOngoingCreateTransaction, UActorComponent* NewInstanceComponent, FSCSEditorTreeNodePtrType InParentNodePtr, UObject* Asset, bool bSetFocusToNewItem)
