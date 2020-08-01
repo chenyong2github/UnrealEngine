@@ -129,6 +129,9 @@ extern RENDERCORE_API class FTexture* GBlackTexture;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithUAV;
 
+extern RENDERCORE_API class FTexture* GTransparentBlackTexture;
+extern RENDERCORE_API class FTextureWithSRV* GTransparentBlackTextureWithSRV;
+
 extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
 
 extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
