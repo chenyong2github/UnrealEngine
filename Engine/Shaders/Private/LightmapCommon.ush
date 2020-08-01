@@ -208,7 +208,7 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 		// This is necessary because objects inside a light's influence that were determined to be completely shadowed won't be rendered with STATICLIGHTING_TEXTUREMASK==1
 		return 0;
 
-	#else
+	#elif ALLOW_STATIC_LIGHTING
 
 		float DirectionalLightShadowing = 1.0f;
 
@@ -232,6 +232,10 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 
 		// Directional light is always packed into the first static shadowmap channel, so output the per-primitive directional light shadowing there if requested
 		return half4(DirectionalLightShadowing, 1, 1, 1);
+
+	#else
+
+		return half4(1, 1, 1, 1);
 
 	#endif
 }
