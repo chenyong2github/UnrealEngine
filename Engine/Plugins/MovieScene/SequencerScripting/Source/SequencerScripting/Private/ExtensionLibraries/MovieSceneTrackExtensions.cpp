@@ -14,6 +14,8 @@ UMovieSceneSection* UMovieSceneTrackExtensions::AddSection(UMovieSceneTrack* Tra
 
 	if (NewSection)
 	{
+		Track->Modify();
+
 		Track->AddSection(*NewSection);
 	}
 
@@ -29,6 +31,8 @@ void UMovieSceneTrackExtensions::RemoveSection(UMovieSceneTrack* Track, UMovieSc
 {
 	if (Section)
 	{
+		Track->Modify();
+
 		Track->RemoveSection(*Section);
 	}
 }
