@@ -1688,6 +1688,9 @@ public:
 	/** Unmap all references to this object, so that if later we receive this object again, we can remap the original references */
 	void MoveMappedObjectToUnmapped(const UObject* Object);
 
+	/** Whether or not this driver has an IsReplay() connection, updated in Add/RemoveClientConnection */
+	bool HasReplayConnection() const { return bHasReplayConnection; }
+
 protected:
 
 	bool bMaySendProperties;
@@ -1740,4 +1743,7 @@ private:
 #endif 
 
 	bool bDidHitchLastFrame = false;
+
+	/** cache whether or not we have a replay connection, updated when a connection is added or removed */
+	bool bHasReplayConnection;
 };

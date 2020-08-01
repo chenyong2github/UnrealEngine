@@ -626,7 +626,6 @@ public:
 	 * Called on the actor right before replication occurs.
 	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
 	 */
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	virtual void PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker);
 
 	/**

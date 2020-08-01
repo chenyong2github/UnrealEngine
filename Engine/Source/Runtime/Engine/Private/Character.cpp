@@ -1476,13 +1476,18 @@ void ACharacter::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTra
 	{
 		ReplicatedServerLastTransformUpdateTimeStamp = 0.f;
 	}
+}
 
-	if (const UWorld* World = GetWorld())
+void ACharacter::PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker)
+{
+	Super::PreReplicationForReplay(ChangedPropertyTracker);
+
+	const UWorld* World = GetWorld();
+	if (World)
 	{
 		// On client replays, our view pitch will be set to 0 as by default we do not replicate
 		// pitch for owners, just for simulated. So instead push our rotation into the sampler
-		// Autonomous proxy check removed, we will only have a local controller in that secenario anyway
-		if (World->IsRecordingClientReplay() && Controller != nullptr && GetNetMode() == NM_Client)
+		if (World->IsRecordingClientReplay() && Controller != nullptr && GetLocalRole() == ROLE_AutonomousProxy && GetNetMode() == NM_Client)
 		{
 			SetRemoteViewPitch(Controller->GetControlRotation().Pitch);
 		}
