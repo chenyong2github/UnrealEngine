@@ -246,6 +246,8 @@ public:
 	{
 		PrimitiveSceneDataBufferRHI.SafeRelease();
 		PrimitiveSceneDataBufferSRV.SafeRelease();
+		SkyIrradianceEnvironmentMapRHI.SafeRelease();
+		SkyIrradianceEnvironmentMapSRV.SafeRelease();
 		PrimitiveSceneDataTextureRHI.SafeRelease();
 		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
