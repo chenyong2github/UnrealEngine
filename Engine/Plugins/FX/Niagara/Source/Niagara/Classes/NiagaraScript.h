@@ -668,9 +668,9 @@ public:
 	void RaiseOnGPUCompilationComplete();
 
 
-	NIAGARA_API FNiagaraVMExecutableData& GetVMExecutableData() { return CachedScriptVM; }
-	NIAGARA_API const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetVMExecutableDataCompilationId() const { return CachedScriptVMId; }
+	NIAGARA_API FORCEINLINE FNiagaraVMExecutableData& GetVMExecutableData() { return CachedScriptVM; }
+	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
+	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableDataId& GetVMExecutableDataCompilationId() const { return CachedScriptVMId; }
 
 	TArray<UNiagaraParameterCollection*>& GetCachedParameterCollectionReferences() { return CachedParameterCollectionReferences; }
 	TArray<FNiagaraScriptDataInterfaceInfo>& GetCachedDefaultDataInterfaces() { return CachedDefaultDataInterfaces; }
