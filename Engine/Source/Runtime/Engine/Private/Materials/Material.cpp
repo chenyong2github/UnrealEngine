@@ -865,6 +865,13 @@ FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& Mate
 		CurrentResource->SetMaterial(OwnerMaterial, OwnerMaterialInstance, InFeatureLevel, QualityLevelForResource);
 		MaterialResources.Add(CurrentResource);
 	}
+
+	// make sure the material resource we found has the correct owner
+	checkf(CurrentResource->GetMaterial() == OwnerMaterial, TEXT("expected FMaterialResource with material %s, got %s"),
+		*GetNameSafe(OwnerMaterial), *GetNameSafe(CurrentResource->GetMaterial()));
+	checkf(CurrentResource->GetMaterialInstance() == OwnerMaterialInstance, TEXT("expected FMaterialResource with MI %s, got %s"),
+		*GetNameSafe(OwnerMaterialInstance), *GetNameSafe(CurrentResource->GetMaterialInstance()));
+
 	return CurrentResource;
 }
 
