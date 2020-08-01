@@ -322,7 +322,7 @@ public:
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.SyncState, P);	// 1. Sync
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.AuxState, P);	// 2. Aux
 
-		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData.Info.Physics); // 3. Physics
+		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData.Info.Driver); // 3. Physics
 	}
 };
 
@@ -511,7 +511,7 @@ public:
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.SyncState, P);	// 2. Sync
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.AuxState, P);	// 3. Aux
 
-		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData->Info.Physics); // 4. Physics
+		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData->Info.Driver); // 4. Physics
 	}
 };
 

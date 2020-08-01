@@ -16,6 +16,7 @@
 #include "Containers/StringFwd.h"
 #include "NetworkPredictionTrace.h"
 #include "Components/PrimitiveComponent.h"
+#include "PhysicsEngine/BodyInstance.h"
 
 namespace NetworkPredictionPhysicsCvars
 {
@@ -38,8 +39,11 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	Chaos::FVec3 LinearVelocity;
 	Chaos::FVec3 AngularVelocity;
 
-	static void NetSend(const FNetSerializeParams& P, FPhysicsActorHandle Handle)
+	static void NetSend(const FNetSerializeParams& P, FBodyInstance* BodyInstance)
 	{
+		npCheckSlow(BodyInstance);
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+		
 		if (NetworkPredictionPhysicsCvars::FullPrecision())
 		{
 			P.Ar << const_cast<Chaos::FVec3&>(Handle->X());
@@ -91,8 +95,11 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		npEnsureSlow(!RecvState->ContainsNaN());
 	}
 
-	static bool ShouldReconcile(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FPhysicsActorHandle Handle, FNetworkPredictionPhysicsState* RecvState)
+	static bool ShouldReconcile(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState)
 	{
+		npCheckSlow(BodyInstance);
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+
 		auto CompareVector = [](const FVector& Local, const FVector& Authority, const float Tolerance, const TCHAR* DebugStr)
 		{
 			const FVector Delta = Local - Authority;
@@ -164,8 +171,22 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		npEnsureMsgfSlow(!Out->ContainsNaN(), TEXT("Out interpolation state contains NaN. %f"), PCT);
 	}
 
-	static void PerformRollback(FPhysicsActorHandle Handle, FNetworkPredictionPhysicsState* RecvState)
+	static void PerformRollback(UPrimitiveComponent* PrimitiveComponent, FNetworkPredictionPhysicsState* RecvState)
 	{
+		npCheckSlow(PrimitiveComponent);
+		npCheckSlow(RecvState);
+
+		// We want to update the component and physics state together without dispatching events or getting into circular loops
+		// This seems like the simplest approach (update physics first then manually move the component, skipping physics update)
+		FBodyInstance* BodyInstance = PrimitiveComponent->GetBodyInstance();
+		PerformRollback(BodyInstance, RecvState);
+		MarshalPhysicsToComponent(PrimitiveComponent, BodyInstance);
+	}
+
+	static void PerformRollback(FBodyInstance* BodyInstance, FNetworkPredictionPhysicsState* RecvState)
+	{
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+		
 		npCheckSlow(RecvState);
 
 		npEnsureSlow(RecvState->Rotation.IsNormalized());
@@ -184,7 +205,14 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		}
 	}
 
-	static void PostResimulate(UPrimitiveComponent* Driver, FPhysicsActorHandle ActorHandle)
+	static void MarshalPhysicsToComponent(UPrimitiveComponent* PrimitiveComponent, const FBodyInstance* BodyInstance)
+	{
+		const FTransform UnrealTransform = BodyInstance->GetUnrealWorldTransform();
+		const FVector MoveBy = UnrealTransform.GetLocation() - PrimitiveComponent->GetComponentTransform().GetLocation();
+		PrimitiveComponent->MoveComponent(MoveBy, UnrealTransform.GetRotation(), false, nullptr, MOVECOMP_SkipPhysicsMove);
+	}
+
+	static void PostResimulate(UPrimitiveComponent* Driver)
 	{
 		npCheckSlow(Driver);
 
@@ -197,10 +225,16 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		//npEnsureSlow(ActorHandle->R().IsNormalized());
 	}
 
+	static bool StateIsConsistent(UPrimitiveComponent* PrimitiveComponent, FBodyInstance* BodyInstance)
+	{
+		const FTransform PhysicsTransform = BodyInstance->GetUnrealWorldTransform();
+		return PhysicsTransform.EqualsNoScale(PrimitiveComponent->GetComponentTransform());
+	}
+
 	// Interpolation related functions currently need to go through a UPrimitiveComponent
-	static void FinalizeInterpolatedPhysics(UPrimitiveComponent* Driver, FPhysicsActorHandle Handle, FNetworkPredictionPhysicsState* InterpolatedState);
-	static void BeginInterpolation(UPrimitiveComponent* Driver, FPhysicsActorHandle ActorHandle);
-	static void EndInterpolation(UPrimitiveComponent* Driver, FPhysicsActorHandle ActorHandle);
+	static void FinalizeInterpolatedPhysics(UPrimitiveComponent* Driver, FNetworkPredictionPhysicsState* InterpolatedState);
+	static void BeginInterpolation(UPrimitiveComponent* Driver);
+	static void EndInterpolation(UPrimitiveComponent* Driver);
 
 	// Networked state to string
 	static void ToString(FNetworkPredictionPhysicsState* RecvState, FAnsiStringBuilderBase& Builder)
@@ -209,15 +243,19 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 	}
 
 	// Locally stored state to string
-	static void ToString(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FPhysicsActorHandle Handle, FAnsiStringBuilderBase& Builder)
+	static void ToString(int32 PhysicsFrame, Chaos::FRewindData* RewindData, FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
 	{
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+		
 		const Chaos::FGeometryParticleState LocalState = RewindData->GetPastStateAtFrame(*Handle, PhysicsFrame);
 		ToStringInternal(LocalState.X(), LocalState.R(), LocalState.V(), LocalState.W(), Builder);
 	}
 
 	// Current state to string
-	static void ToString(FPhysicsActorHandle Handle, FAnsiStringBuilderBase& Builder)
+	static void ToString(FBodyInstance* BodyInstance, FAnsiStringBuilderBase& Builder)
 	{
+		FPhysicsActorHandle& Handle = BodyInstance->GetPhysicsActorHandle();
+		
 		Chaos::TKinematicGeometryParticle<float, 3>* Kinematic = Handle->CastToKinematicParticle();
 		if (npEnsure(Kinematic))
 		{
