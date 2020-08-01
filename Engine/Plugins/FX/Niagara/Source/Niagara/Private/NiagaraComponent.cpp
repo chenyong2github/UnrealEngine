@@ -22,6 +22,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneInfo.h"
+#include "NiagaraCrashReporterHandler.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraComponentSettings.h"
@@ -1440,6 +1441,8 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 	if (SystemInstance.IsValid() && SceneProxy)
 	{
+		FNiagaraCrashReporterScope CRScope(SystemInstance.Get());
+
 #if STATS
 		TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
 		FScopeCycleCounter SystemStatCounter(SystemStatID);
