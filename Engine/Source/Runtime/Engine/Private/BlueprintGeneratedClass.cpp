@@ -1013,11 +1013,32 @@ bool UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(const UClass* InClas
 {
 	OutBPGClasses.Empty();
 	bool bNoErrors = true;
+	const UClass* LastCookedSuperClass = nullptr;
 	while(const UBlueprintGeneratedClass* BPGClass = Cast<const UBlueprintGeneratedClass>(InClass))
 	{
 #if WITH_EDITORONLY_DATA
-		const UBlueprint* BP = Cast<const UBlueprint>(BPGClass->ClassGeneratedBy);
-		bNoErrors &= (NULL != BP) && (BP->Status != BS_Error);
+		if(BPGClass->bCooked)
+		{
+			// If a parent class is cooked in the editor context, there is no associated BP asset to verify.
+			LastCookedSuperClass = BPGClass;
+		}
+		else
+		{
+			// If we've already encountered a cooked class in the hierarchy, warn about uncooked classes appearing above it.
+			if (LastCookedSuperClass)
+			{
+				UE_LOG(LogBlueprint, Warning, TEXT("%s: found an uncooked class (%s) as an ancestor of a cooked class (%s) in the hierarchy."),
+					*InClass->GetPathName(),
+					*BPGClass->GetPathName(),
+					*LastCookedSuperClass->GetPathName());
+
+				// We consider this to be an invalid state.
+				bNoErrors = false;
+			}
+
+			const UBlueprint* BP = Cast<const UBlueprint>(BPGClass->ClassGeneratedBy);
+			bNoErrors &= (NULL != BP) && (BP->Status != BS_Error);
+		}
 #endif
 		OutBPGClasses.Add(BPGClass);
 		InClass = BPGClass->GetSuperClass();
@@ -1534,6 +1555,32 @@ bool UBlueprintGeneratedClass::CanBeClusterRoot() const
 	// Clustering level BPs doesn't work yet
 	return GBlueprintClusteringEnabled && !GetOutermost()->ContainsMap();
 }
+
+#if WITH_EDITOR
+UClass* UBlueprintGeneratedClass::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
+{
+	if(HasAnyFlags(RF_BeingRegenerated))
+	{
+		if (ensure(ClassDefaultObject))
+		{
+			UBlueprint::ForceLoadMembers(this);
+			UBlueprint::ForceLoadMembers(ClassDefaultObject);
+		}
+
+		if(SimpleConstructionScript)
+		{
+			FBlueprintEditorUtils::PreloadConstructionScript(SimpleConstructionScript);
+		}
+
+		if (InheritableComponentHandler)
+		{
+			InheritableComponentHandler->PreloadAll();
+		}
+	}
+
+	return this;
+}
+#endif
 
 void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {
