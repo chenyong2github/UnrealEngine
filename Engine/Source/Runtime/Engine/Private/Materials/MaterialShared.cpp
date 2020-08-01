@@ -1385,6 +1385,11 @@ bool FMaterialResource::HasEmissiveColorConnected() const
 	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();
 }
 
+bool FMaterialResource::HasAmbientOcclusionConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasAmbientOcclusionConnected();
+}
+
 bool FMaterialResource::RequiresSynchronousCompilation() const
 {
 	return Material->IsDefaultMaterial();
