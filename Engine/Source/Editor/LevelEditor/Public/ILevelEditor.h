@@ -63,6 +63,9 @@ public:
 	/** Set the filter that should be used to determine the set of objects that should be shown in a details panel when an actor in the level editor is selected */
 	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization) = 0;
 
+	/** Sets the UI customization of the SCSEditor inside the level editor details panel. */
+	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization) = 0;
+
 	/** Spawns a level editor ToolBox widget (aka. "Modes") */
 	virtual TSharedRef<SWidget> CreateToolBox() = 0;
 

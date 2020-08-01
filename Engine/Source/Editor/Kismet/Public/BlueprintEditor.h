@@ -562,6 +562,12 @@ public:
 	/** Update Node Creation mechanisms for analytics */
 	void UpdateNodeCreationStats(const ENodeCreateAction::Type CreateAction);
 
+	/** Sets customizations for the BP editor details panel. */
+	void SetDetailsCustomization(TSharedPtr<class FDetailsViewObjectFilter> DetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> DetailsRootCustomization);
+
+	/** Sets SCS editor UI customization */
+	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> SCSEditorUICustomization);
+
 	/**
 	 * Register a customization for interacting with the SCS editor
 	 * @param	InComponentName			The name of the component to customize behavior for
