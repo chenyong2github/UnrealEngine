@@ -90,8 +90,9 @@ namespace ENavigationBuildLock
 	enum Type
 	{
 		NoUpdateInEditor = 1 << 1,		// editor doesn't allow automatic updates
-		InitialLock = 1 << 2,			// initial lock, release manually after levels are ready for rebuild (e.g. streaming)
-		Custom = 1 << 3,
+		NoUpdateInPIE = 1 << 2,			// PIE doesn't allow automatic updates
+		InitialLock = 1 << 3,			// initial lock, release manually after levels are ready for rebuild (e.g. streaming)
+		Custom = 1 << 4,
 	};
 }
 
