@@ -2,6 +2,9 @@
 
 #pragma once
 #include "Modules/ModuleInterface.h"
+#include "Containers/Map.h"
+#include "Misc/StringFormatArg.h"
+#include "Containers/UnrealString.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "OpenEXR/include/ImfHeader.h"
