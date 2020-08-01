@@ -11,6 +11,7 @@
 #include "Misc/StringBuilder.h"
 #include "GameFramework/Actor.h"
 
+struct FBodyInstance;
 
 namespace Chaos
 {
