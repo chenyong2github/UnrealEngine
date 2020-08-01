@@ -252,8 +252,6 @@ public:
 
 		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(NetworkPredictionChannel))
 		{
-			npCheckSlow((FPhysicsActorHandle)Handle);
-
 			TAnsiStringBuilder<512> Builder;
 			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(PhysicsFrame, RewindData, Driver, Builder);
 			TraceUserState_Internal(ETraceUserState::Physics, Builder);
