@@ -1048,7 +1048,7 @@ FHashedName::FHashedName(const FName& InName)
 {
 	union FNameBuffer
 	{
-		WIDECHAR Wide[NAME_SIZE];
+		TCHAR Wide[NAME_SIZE];
 		ANSICHAR Ansi[NAME_SIZE];
 	};
 
@@ -1061,23 +1061,25 @@ FHashedName::FHashedName(const FName& InName)
 		FNameBuffer UpperNameBuffer;
 		if (Entry->IsWide())
 		{
-			Entry->GetWideName(NameBuffer.Wide);
+			// Name contains non-ansi characters, processing using TCHAR, converted to UTF8
+			Entry->GetName(NameBuffer.Wide);
 			for (int32 i = 0; i < NameLength; ++i)
 			{
-				UpperNameBuffer.Wide[i] = FCharWide::ToUpper(NameBuffer.Wide[i]);
+				UpperNameBuffer.Wide[i] = FChar::ToUpper(NameBuffer.Wide[i]);
 			}
 			UpperNameBuffer.Wide[NameLength] = 0;
-			const FTCHARToUTF8 UpperNameUTF8(WCHAR_TO_TCHAR(UpperNameBuffer.Wide));
+			const FTCHARToUTF8 UpperNameUTF8(UpperNameBuffer.Wide);
 			Hash = CityHash64WithSeed(UpperNameUTF8.Get(), UpperNameUTF8.Length(), InternalNumber);
 #if WITH_EDITORONLY_DATA
 			{
-				const FTCHARToUTF8 NameUTF8(WCHAR_TO_TCHAR(NameBuffer.Wide));
+				const FTCHARToUTF8 NameUTF8(NameBuffer.Wide);
 				DebugString.String = FHashedNameRegistry::Get().RegisterString(InName, (char*)NameUTF8.Get(), NameUTF8.Length(), (char*)UpperNameUTF8.Get(), Hash);
 			}
 #endif
 		}
 		else
 		{
+			// Name is purely ascii, so avoid translating to TCHAR and UTF8, and just process directly as ascii (which is a subset of UTF8)
 			Entry->GetAnsiName(NameBuffer.Ansi);
 			for (int32 i = 0; i < NameLength; ++i)
 			{
