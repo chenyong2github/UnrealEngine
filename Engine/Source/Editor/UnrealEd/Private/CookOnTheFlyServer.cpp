@@ -6773,7 +6773,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			if (OverridePackageList.Num() > 0)
 			{
 				// This is the override list, so we can't give the memory away because we will need it for the other platforms
-				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, PackageList);
+				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, OverridePackageList);
 			}
 			else
 			{
