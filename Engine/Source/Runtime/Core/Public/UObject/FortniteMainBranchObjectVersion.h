@@ -129,6 +129,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Fix duplicate spline mesh components on rivers
 		FixDuplicateRiverSplineMeshCollisionComponents,
 
+		// Indicates level has stable actor guids
+		ContainsStableActorGUIDs,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
