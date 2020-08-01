@@ -701,7 +701,10 @@ namespace Chaos
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
 				{
-					Constraint.SetDisabled(true);
+					if (ParticleParameters.bCanDisableContacts)
+					{
+						Constraint.SetDisabled(true);
+					}
 					return;
 				}
 
@@ -771,7 +774,7 @@ namespace Chaos
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.Collided};
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
@@ -1035,7 +1038,10 @@ namespace Chaos
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
 				{
-					Constraint.SetDisabled(true);
+					if (ParticleParameters.bCanDisableContacts)
+					{
+						Constraint.SetDisabled(true);
+					}
 					return;
 				}
 
