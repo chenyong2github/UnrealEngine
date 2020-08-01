@@ -6699,19 +6699,18 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
-		for ( const ITargetPlatform* TargetPlatform: TargetPlatforms )
+		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist](TArray<FName>& OutPackageList, const FString& InPlatformName)
 		{
 			FString PlatformNameString = TargetPlatform->PlatformName();
 			FName PlatformName(*PlatformNameString);
-			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
+			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
 
-			TArray<FName> PackageList;
 			// if this check fails probably because the asset registry can't be found or read
-			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			if (!bSucceeded)
 			{
-				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString) / GetAssetRegistryFilename();
-				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName) / GetAssetRegistryFilename();
+				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			}
 
 			if (!bSucceeded)
@@ -6719,26 +6718,49 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				using namespace PlatformInfo;
 				// Check all possible flavors 
 				// For example release version could be cooked as Android_ASTC flavor, but DLC can be made as Android_ETC2
-				FVanillaPlatformEntry VanillaPlatfromEntry = BuildPlatformHierarchy(PlatformName, EPlatformFilter::CookFlavor);
-				for (const FPlatformInfo* PlatformFlaworInfo : VanillaPlatfromEntry.PlatformFlavors)
+				FVanillaPlatformEntry VanillaPlatfromEntry = BuildPlatformHierarchy(*InPlatformName, EPlatformFilter::CookFlavor);
+				for (const FPlatformInfo* PlatformFlavorInfo : VanillaPlatfromEntry.PlatformFlavors)
 				{
-					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlaworInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
-					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->PlatformInfoName.ToString()) / GetAssetRegistryFilename();
+					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 					if (bSucceeded)
 					{
 						break;
 					}
 				}
 			}
-			check( bSucceeded );
 
-			if ( bSucceeded )
+			check(bSucceeded);
+		};
+
+		TArray<FName> OverridePackageList;
+		FString DevelopmentAssetRegistryPlatformOverride;
+		if (FParse::Value(FCommandLine::Get(), TEXT("DevelopmentAssetRegistryPlatformOverride="), DevelopmentAssetRegistryPlatformOverride))
+		{
+			// Read the contents of the asset registry for the overriden platform. We'll use this for all requested platforms so we can just keep one copy of it here
+			ReadDevelopmentAssetRegistry(OverridePackageList, *DevelopmentAssetRegistryPlatformOverride);
+			checkf(OverridePackageList.Num() != 0, TEXT("DevelopmentAssetRegistry platform override is empty! An override is expected to exist and contain some valid data"));
+		}
+
+		for ( const ITargetPlatform* TargetPlatform: TargetPlatforms )
+		{
+			TArray<FName> PackageList;
+			FString PlatformNameString = TargetPlatform->PlatformName();
+			FName PlatformName(*PlatformNameString);
+
+			if (OverridePackageList.Num() == 0)
+			{
+				ReadDevelopmentAssetRegistry(PackageList, PlatformNameString);
+			}
+
+			TArray<FName>& ActivePackageList = OverridePackageList.Num() > 0 ? OverridePackageList : PackageList;
+			if (ActivePackageList.Num() > 0)
 			{
 				TArray<const ITargetPlatform*> ResultPlatforms;
 				ResultPlatforms.Add(TargetPlatform);
 				TArray<bool> Succeeded;
 				Succeeded.Add(true);
-				for (const FName& PackageFilename : PackageList)
+				for (const FName& PackageFilename : ActivePackageList)
 				{
 					UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByFileName(PackageFilename);
 					if (PackageData)
@@ -6747,7 +6769,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 					}
 				}
 			}
-			CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, MoveTemp(PackageList));
+
+			if (OverridePackageList.Num() > 0)
+			{
+				// This is the override list, so we can't give the memory away because we will need it for the other platforms
+				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, PackageList);
+			}
+			else
+			{
+				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, MoveTemp(PackageList));
+			}
 		}
 
 		PackageNameCache.SetAssetRegistry(CacheAssetRegistry);
