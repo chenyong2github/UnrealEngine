@@ -119,7 +119,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 		uint2 ViewportSize       = ViewRect.zw - ViewRect.xy;
 		uint2 MaterialGridSize   = uint2(8, 4); // 32 bits, 1 bit per tile
 		float2 MaterialTileSize  = (float2)ViewportSize / (float2)MaterialGridSize;
-		uint2 MaterialGridPos    = (uint2)floor((float2)(PixelPos - ViewRect.xy) / MaterialTileSize);
+		uint2 MaterialGridPos    = (uint2)floor((float2)(PixelPos.xy - ViewRect.xy) / MaterialTileSize);
 		uint MaterialTileIndex   = MaterialGridPos.x + MaterialGridPos.y * MaterialGridSize.x;
 		uint VisibleMaterialMask = 1u << MaterialTileIndex;
 		uint ThisLaneIndex       = WaveGetLaneIndex();

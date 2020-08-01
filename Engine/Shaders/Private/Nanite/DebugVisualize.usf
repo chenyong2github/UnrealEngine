@@ -71,55 +71,58 @@ float4 VisualizeData(
 	if (VisualizeMode == VISUALIZE_TRIANGLES)
 	{
 	
-		// sobel edge detect depth
-		static int Sobelx[] =
+		// Sobel edge detect depth
+		static int SobelX[] =
 		{
-			1,0,-1,
-			2,0,-2,
-			1,0,-1
-		};
-		static int Sobely[] =
-		{
-			1,2,1,
-			0,0,0,
-			-1,-2,-1
-		};
-		static uint2 UVsample[] =
-		{
-			{-1,1},{0,1},{1,1},
-			{-1,0},{0,0},{1,0},
-			{-1,-1},{0,-1},{1,-1}
+			1, 0, -1,
+			2, 0, -2,
+			1, 0, -1
 		};
 
-		float3 depthGradx = (0,0,0);
-		float3 depthGrady = (0,0,0);
+		static int SobelY[] =
+		{
+			 1,  2,  1,
+			 0,  0,  0,
+			-1, -2, -1
+		};
+
+		static uint2 UVSample[] =
+		{
+			{-1,  1},  {0,  1},  {1,  1},
+			{-1,  0},  {0,  0},  {1,  0},
+			{-1, -1},  {0, -1},  {1, -1}
+		};
+
+		float3 DepthGradX = float3(0, 0, 0);
+		float3 DepthGradY = float3(0, 0, 0);
 	
 		uint DepthIntCurrent;
 		uint VisibleClusterIndexCurrent;
 		uint TriIndexCurrent;
 
-		for (int j = 0; j < 9; j++)
+		for (uint Tap = 0; Tap < 9; ++Tap)
 		{ 
-			const UlongType VisPixelCurrent = VisBuffer64[PixelPos.xy+UVsample[j]];
+			const UlongType VisPixelCurrent = VisBuffer64[PixelPos.xy + UVSample[Tap]];
 			UnpackVisPixel(VisPixelCurrent, DepthIntCurrent, VisibleClusterIndexCurrent, TriIndexCurrent);
 	
 			FVisibleCluster VisibleClusterCurrent = GetVisibleCluster(VisibleClusterIndexCurrent);
 
-			float sampleDensityDepth = 20*pow(1/pow(2.718,ConvertFromDeviceZ(asfloat(DepthIntCurrent))*.0005),1);
+			float SampleDensityDepth = 20.0 * pow(1 / pow(2.718, ConvertFromDeviceZ(asfloat(DepthIntCurrent)) * 0.0005), 1.0);
 		
-			depthGradx += Sobelx[j] * sampleDensityDepth;
-			depthGrady += Sobely[j] * sampleDensityDepth;
+			DepthGradX += SobelX[Tap] * SampleDensityDepth;
+			DepthGradY += SobelY[Tap] * SampleDensityDepth;
 		}	
-		// build outline from depth
-		float3 DepthOutline = max(abs(depthGradx),abs(depthGrady));
+
+		// Build outline from depth
+		float3 DepthOutline = max(abs(DepthGradX), abs(DepthGradY));
 		
-		float DensityDepth = 1/pow(2.718,ConvertFromDeviceZ(asfloat(DepthInt))*.0004); // convert depth to density
-		float3 visTri = lerp(1,IntToColor(TriIndex),.75);
-		//float3 visPrimitives = lerp(1,IntToColor(VisibleCluster.InstanceId),.2);
-		//float3 visCluster = lerp(1,IntToColor(VisibleCluster.ClusterIndex),.2);
-		float3 CombineColor =  1.4*(1-DepthOutline)*visTri;
-		CombineColor = lerp(Luminance(CombineColor),CombineColor,1.2); // saturate visualization colors
-		CombineColor = lerp(float3(0,.15,.5)*CombineColor,CombineColor,saturate(DensityDepth+.33)); // depth blue tint
+		float DensityDepth = 1.0 / pow(2.718, ConvertFromDeviceZ(asfloat(DepthInt)) * 0.0004); // Convert depth to density
+		float3 VisTri = lerp(1.0, IntToColor(TriIndex), 0.75);
+		//float3 VisPrimitives = lerp(1.0, IntToColor(VisibleCluster.InstanceId), 0.2);
+		//float3 VisCluster = lerp(1.0, IntToColor(VisibleCluster.ClusterIndex), 0.2);
+		float3 CombineColor =  1.4 * (1.0 - DepthOutline) * VisTri;
+		CombineColor = lerp(Luminance(CombineColor),CombineColor,1.2); // Saturate visualization colors
+		CombineColor = lerp(float3(0.0, 0.15, 0.5) * CombineColor, CombineColor, saturate(DensityDepth + 0.33)); // Depth blue tint
 		Result = saturate(CombineColor);
 		
 		//Result = IntToColor(TriIndex); // previous visualization
@@ -199,7 +202,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		FVisibleCluster VisibleCluster	= GetVisibleCluster(VisibleClusterIndex);
 
 		Result = VisualizeData(
-					PixelPos,
+					PixelPos.xy,
 					DepthInt,
 					VisibleCluster,
 					TriIndex,

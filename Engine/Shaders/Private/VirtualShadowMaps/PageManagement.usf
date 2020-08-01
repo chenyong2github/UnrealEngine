@@ -361,10 +361,10 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 }
 
 [numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
-void GeneratePageFlagsFromPixels(uint2 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex)
+void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint3 GroupIndex : SV_GroupIndex)
 {
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
-	uint2 PixelPos = VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex);
+	uint2 PixelPos = VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex.x);
 
 	if (any(PixelPos >= uint2(View.ViewSizeAndInvSize.xy)))
 	{
@@ -466,11 +466,11 @@ RWStructuredBuffer<uint> OutHPageFlags;
 RWStructuredBuffer<uint4> PageRectBoundsOut;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
-void InitPageRectBounds(uint Index : SV_DispatchThreadID)
+void InitPageRectBounds(uint3 Index : SV_DispatchThreadID)
 {
-	if (Index < VSM_MAX_MIP_LEVELS * NumShadowMaps)
+	if (Index.x < VSM_MAX_MIP_LEVELS * NumShadowMaps)
 	{
-		PageRectBoundsOut[Index] = uint4(VSM_LEVEL0_DIM_PAGES_XY, VSM_LEVEL0_DIM_PAGES_XY, 0, 0);
+		PageRectBoundsOut[Index.x] = uint4(VSM_LEVEL0_DIM_PAGES_XY, VSM_LEVEL0_DIM_PAGES_XY, 0, 0);
 	}
 }
 
@@ -676,22 +676,22 @@ Texture2D< uint > CachedPhysicalPagesTexture;
 RWStructuredBuffer<FPhysicalPageMetaData> PhysicalPageMetaDataOut;
 
 [numthreads( 1, 1, 1 )]
-void InitClearPhysicalPagesArgs()
+void InitClearPhysicalPagesArgs(uint3 DTID : SV_DispatchThreadID)
 {
-	ClearPhysicalPagesArgs[ 0 ] = NumAllocatedPhysicalPages[ 0 ] << LOG2_TILES_PER_PAGE_XY;
+	uint PageCount = NumAllocatedPhysicalPages[ 0 ];
+	ClearPhysicalPagesArgs[ 0 ] = (PageCount << uint(LOG2_TILES_PER_PAGE_XY));
 	ClearPhysicalPagesArgs[ 1 ] = 1;
 	ClearPhysicalPagesArgs[ 2 ] = 1;
 }
 
 [numthreads( 16, 16, 1 )]
-void ClearPhysicalPages( uint2 TileThreadID : SV_GroupThreadID, uint TileIndex : SV_GroupID )
+void ClearPhysicalPages( uint3 TileThreadID : SV_GroupThreadID, uint3 TileIndex : SV_GroupID )
 {
-	const uint PageIndex = TileIndex >> LOG2_TILES_PER_PAGE_XY;
-	const uint LocalTileIndex = TileIndex & TILES_PER_PAGE_XY_MASK;
+	const uint PageIndex = TileIndex.x >> uint(LOG2_TILES_PER_PAGE_XY);
+	const uint LocalTileIndex = TileIndex.x & uint(TILES_PER_PAGE_XY_MASK);
 
-
-	const uint LocalTileX = LocalTileIndex & TILES_PER_PAGE_X_MASK;
-	const uint LocalTileY = LocalTileIndex >> LOG2_TILES_PER_PAGE_X;
+	const uint LocalTileX = LocalTileIndex & uint(TILES_PER_PAGE_X_MASK);
+	const uint LocalTileY = LocalTileIndex >> uint(LOG2_TILES_PER_PAGE_X);
 
 	uint ClearValue[4] = { 0u, 0u, 0u, 0u };
 
@@ -704,8 +704,8 @@ void ClearPhysicalPages( uint2 TileThreadID : SV_GroupThreadID, uint TileIndex :
 	FCachedPageInfo CachedPageInfo = CachedPageInfos[PageIndex];
 	if (CachedPageInfo.PhysPageAddress.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
 	{
-		const uint2 TileOffset = (CachedPageInfo.PhysPageAddress << VSM_LOG2_PAGE_SIZE) + (uint2(LocalTileX, LocalTileY) << LOG2_TILE_SIZE);
-		const uint2 BasePos = TileOffset + (TileThreadID << 1);
+		const uint2 TileOffset = (CachedPageInfo.PhysPageAddress << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (uint2(LocalTileX, LocalTileY) << uint2(LOG2_TILE_SIZE, LOG2_TILE_SIZE));
+		const uint2 BasePos = TileOffset + (TileThreadID.xy << 1u);
 		ClearValue[0] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 0)]) + CachedPageInfo.DepthOffset));
 		ClearValue[1] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(1, 0)]) + CachedPageInfo.DepthOffset));
 		ClearValue[2] = asuint(max(0.0f, asfloat(CachedPhysicalPagesTexture[BasePos + uint2(0, 1)]) + CachedPageInfo.DepthOffset));
@@ -719,19 +719,19 @@ void ClearPhysicalPages( uint2 TileThreadID : SV_GroupThreadID, uint TileIndex :
 
 	const uint PageX = PageIndex & PhysicalPageRowMask;
 	const uint PageY = PageIndex >> PhysicalPageRowShift;
-	const uint2 TileOffset = (uint2(PageX, PageY) << VSM_LOG2_PAGE_SIZE) + (uint2(LocalTileX, LocalTileY) << LOG2_TILE_SIZE);
+	const uint2 TileOffset = (uint2(PageX, PageY) << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (uint2(LocalTileX, LocalTileY) << uint2(LOG2_TILE_SIZE, LOG2_TILE_SIZE));
 
 	// Update physical page meta data
-	if (LocalTileIndex == 0 && all(TileThreadID.xy == 0))
+	if (LocalTileIndex == 0u && all(TileThreadID.xy == 0u))
 	{
 		PhysicalPageMetaDataOut[PageIndex] = MetaData;
 	}
 
-	const uint2 BasePos = TileOffset + ( TileThreadID << 1 );
-	PhysicalPagesTexture[ BasePos + uint2( 0, 0 ) ] = ClearValue[0];
-	PhysicalPagesTexture[ BasePos + uint2( 1, 0 ) ] = ClearValue[1];
-	PhysicalPagesTexture[ BasePos + uint2( 0, 1 ) ] = ClearValue[2];
-	PhysicalPagesTexture[ BasePos + uint2( 1, 1 ) ] = ClearValue[3];
+	const uint2 BasePos = TileOffset + (TileThreadID.xy << uint2(1u, 1u));
+	PhysicalPagesTexture[BasePos + uint2(0u, 0u)] = ClearValue[0];
+	PhysicalPagesTexture[BasePos + uint2(1u, 0u)] = ClearValue[1];
+	PhysicalPagesTexture[BasePos + uint2(0u, 1u)] = ClearValue[2];
+	PhysicalPagesTexture[BasePos + uint2(1u, 1u)] = ClearValue[3];
 }
 
 
@@ -746,15 +746,15 @@ StructuredBuffer<uint> VirtualShadowMapFlags;
  * Run with Dispatch size: {NumVirtualShadowMaps * PageTableSize / VSM_DEFAULT_CS_GROUP_X, 1, 1}
  */
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
-void MarkRenderedPhysicalPages(uint PageTableEntryIndex : SV_DispatchThreadID)
+void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
 {
 	// Because of launch size rounding we might get here.
-	if (PageTableEntryIndex >= NumShadowMaps * PageTableSize)
+	if (PageTableEntryIndex.x >= NumShadowMaps * PageTableSize)
 	{
 		return;
 	}
 
-	uint ShadowMapID = PageTableEntryIndex / PageTableSize;
+	uint ShadowMapID = PageTableEntryIndex.x / PageTableSize;
 
 	// This is estupido, should at least use array of IDs to skip all unused ones...
 	if (VirtualShadowMapFlags[ShadowMapID] == 0)
@@ -762,7 +762,7 @@ void MarkRenderedPhysicalPages(uint PageTableEntryIndex : SV_DispatchThreadID)
 		return;
 	}
 
-	uint2 pPage = PageTable[PageTableEntryIndex];
+	uint2 pPage = PageTable[PageTableEntryIndex.x];
 	if (pPage.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
 	{
 		uint PageIndex = PhysPageAddressToIndex(pPage);
@@ -780,17 +780,16 @@ void MarkRenderedPhysicalPages(uint PageTableEntryIndex : SV_DispatchThreadID)
 /**
  */
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
-void InitPhysicalPageMetaData(uint Index : SV_DispatchThreadID)
+void InitPhysicalPageMetaData(uint3 Index : SV_DispatchThreadID)
 {
-	// Because of launch size rounding we might get here.
-	if (Index >= MaxPhysicalPages)
-	{
-		return;
-	}
 	FPhysicalPageMetaData MetaData;
 	MetaData.State = VSM_PHYSICAL_PAGE_STATE_INVALID;
 	MetaData.Age = 0;
 
-	PhysicalPageMetaDataOut[Index] = MetaData;
+	// Because of launch size rounding we might get here.
+	if (Index.x < MaxPhysicalPages)
+	{
+		PhysicalPageMetaDataOut[Index.x] = MetaData;
+	}
 }
 
