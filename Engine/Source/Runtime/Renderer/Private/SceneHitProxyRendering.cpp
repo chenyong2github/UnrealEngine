@@ -550,6 +550,8 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 		DynamicReadBuffer.Commit();
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
+
+		GEngine->GetPostRenderDelegate().Broadcast();
 	}
 
 	check(RHICmdList.IsOutsideRenderPass());
@@ -624,6 +626,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		}
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT);
+
+		GEngine->GetPostRenderDelegate().Broadcast();
 	}
 	check(RHICmdList.IsOutsideRenderPass());
 #endif
