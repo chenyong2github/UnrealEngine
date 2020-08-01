@@ -37,8 +37,10 @@ struct SYNTHESIS_API FSourceEffectBitCrusherSettings
 		, CrushedBits(8.0f)
 #endif // if WITH_EDITORONLY_DATA
 	{
+#if WITH_EDITORONLY_DATA
 		SampleRateModulation.Value = CrushedSampleRate;
 		BitModulation.Value = CrushedBits;
+#endif // WITH_EDITORONLY_DATA
 	}
 };
 
