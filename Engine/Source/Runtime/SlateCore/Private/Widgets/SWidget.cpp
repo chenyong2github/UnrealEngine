@@ -1143,6 +1143,12 @@ void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 
 		FastPathProxyHandle.MarkWidgetDirty(InvalidateReason);
 	}
+	else
+	{
+#if WITH_SLATE_DEBUGGING
+		FSlateDebugging::BroadcastWidgetInvalidate(this, nullptr, InvalidateReason);
+#endif
+	}
 }
 
 void SWidget::SetCursor( const TAttribute< TOptional<EMouseCursor::Type> >& InCursor )

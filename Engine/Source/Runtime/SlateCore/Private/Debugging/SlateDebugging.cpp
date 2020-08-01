@@ -301,6 +301,28 @@ FText FSlateDebuggingMouseCaptureEventArgs::ToText() const
 	);
 }
 
+FSlateDebuggingInvalidateArgs::FSlateDebuggingInvalidateArgs(
+	const SWidget* InWidgetInvalidated,
+	const SWidget* InWidgetInvalidateInvestigator,
+	EInvalidateWidgetReason InInvalidateReason)
+	: WidgetInvalidated(InWidgetInvalidated)
+	, WidgetInvalidateInvestigator(InWidgetInvalidateInvestigator)
+	, InvalidateWidgetReason(InInvalidateReason)
+	, InvalidateInvalidationRootReason(ESlateDebuggingInvalidateRootReason::None)
+{
+}
+
+FSlateDebuggingInvalidateArgs::FSlateDebuggingInvalidateArgs(
+	const SWidget* InWidgetInvalidated,
+	const SWidget* InWidgetInvalidateInvestigator,
+	ESlateDebuggingInvalidateRootReason InInvalidateReason)
+	: WidgetInvalidated(InWidgetInvalidated)
+	, WidgetInvalidateInvestigator(InWidgetInvalidateInvestigator)
+	, InvalidateWidgetReason(EInvalidateWidgetReason::None)
+	, InvalidateInvalidationRootReason(InInvalidateReason)
+{
+}
+
 FSlateDebuggingCursorQueryEventArgs::FSlateDebuggingCursorQueryEventArgs(const TSharedPtr<const SWidget>& InWidgetOverridingCursor, const FCursorReply& InReply)
 	: WidgetOverridingCursor(InWidgetOverridingCursor)
 	, Reply(InReply)
@@ -359,6 +381,8 @@ FSlateDebugging::FWidgetMouseCaptureEvent FSlateDebugging::MouseCaptureEvent;
 
 FSlateDebugging::FWidgetCursorQuery FSlateDebugging::CursorChangedEvent;
 
+FSlateDebugging::FWidgetInvalidate FSlateDebugging::WidgetInvalidateEvent;
+ 
 FSlateDebugging::FUICommandRun FSlateDebugging::CommandRun;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetMouseCaptureEvent, const FSlateDebuggingMouseCaptureEventArgs& /*EventArgs*/);
@@ -581,6 +605,22 @@ void FSlateDebugging::BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOve
 		LastCursorQuery.CursorWidget = InReply.GetCursorWidget();
 
 		CursorChangedEvent.Broadcast(FSlateDebuggingCursorQueryEventArgs(InWidgetOverridingCursor, InReply));
+	}
+}
+
+void FSlateDebugging::BroadcastWidgetInvalidate(const SWidget* InWidgetInvalidated, const SWidget* InWidgetInvalidateInvestigator, EInvalidateWidgetReason InInvalidateReason)
+{
+	if (WidgetInvalidateEvent.IsBound())
+	{
+		WidgetInvalidateEvent.Broadcast(FSlateDebuggingInvalidateArgs(InWidgetInvalidated, InWidgetInvalidateInvestigator, InInvalidateReason));
+	}
+}
+
+void FSlateDebugging::BroadcastInvalidationRootInvalidate(const SWidget* InWidgetInvalidated, const SWidget* InWidgetInvalidateInvestigator, ESlateDebuggingInvalidateRootReason InInvalidateReason)
+{
+	if (WidgetInvalidateEvent.IsBound())
+	{
+		WidgetInvalidateEvent.Broadcast(FSlateDebuggingInvalidateArgs(InWidgetInvalidated, InWidgetInvalidateInvestigator, InInvalidateReason));
 	}
 }
 
