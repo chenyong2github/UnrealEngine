@@ -706,3 +706,7 @@ float UnpackByte3(uint v) { return float(v >> 24); }
 		#define INFINITE_FLOAT 1.#INF
 	#endif
 #endif
+
+#ifndef RWTextureCube
+#define RWTextureCube RWTexture2DArray
+#endif
