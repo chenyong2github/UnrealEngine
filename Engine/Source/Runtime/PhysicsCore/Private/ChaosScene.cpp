@@ -125,8 +125,7 @@ void FChaosScene::CopySolverAccelerationStructure()
 	if(SceneSolver)
 	{
 		ExternalDataLock.WriteLock();
-		SceneSolver->FlushCommands_External();	//make sure any pending commands are flushed so that scene query structure is up to date
-		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
+		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
 }
@@ -194,6 +193,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
 		}
 
+		GetSolver()->GetEvolution()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false,GetSolver()->GetSolverTime());	//todo: MTime should use external time for async mode UpdateActorInAccelerationStructure(Actor);
 		ExternalDataLock.WriteUnlock();
 	}
 #endif
@@ -229,6 +229,15 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 					Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
 					SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
 				}
+			}
+		}
+
+		for(int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
+		{
+			const FPhysicsActorHandle& Actor = Actors[ActorIndex];
+			if(Actor != nullptr)
+			{
+				GetSolver()->GetEvolution()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false,GetSolver()->GetSolverTime());	//todo: MTime should use external time for async mode UpdateActorInAccelerationStructure(Actor);
 			}
 		}
 
@@ -319,17 +328,40 @@ void FChaosScene::StartFrame()
 		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(UseDeltaTime));
 	}
 
-	// Setup post simulate tasks
+	// For unit testing in single threaded mode we have no task graph, so call complete directly if possible
+	bool bCallDirectly = true;
+	for(const auto& Prereq : CompletionTaskPrerequisites)
 	{
+		if(Prereq && !Prereq->IsComplete())
+		{
+			bCallDirectly = false;
+			break;
+		}
+	}
+
+	if(bCallDirectly)
+	{
+		CompleteSceneSimulationImp();
+	}
+	else
+	{
+		// Setup post simulate tasks
+
 		DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"),STAT_FDelegateGraphTask_CompletePhysicsSimulation,STATGROUP_TaskGraphTasks);
 
 		// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
 		CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this,&FChaosScene::CompleteSceneSimulation),GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation),&CompletionTaskPrerequisites,ENamedThreads::GameThread,ENamedThreads::AnyHiPriThreadHiPriTask);
 	}
+	
 #endif
 }
 
 void FChaosScene::CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
+{
+	CompleteSceneSimulationImp();
+}
+
+void FChaosScene::CompleteSceneSimulationImp()
 {
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -432,7 +464,7 @@ void FChaosScene::EndFrame()
 	int32 DirtyElements = DirtyElementCount(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
 	CSV_CUSTOM_STAT(ChaosPhysics,AABBTreeDirtyElementCount,DirtyElements,ECsvCustomStatOp::Set);
 
-	check(CompletionEvent->IsComplete());
+	check(!CompletionEvent || CompletionEvent->IsComplete());	//CompletionEvent being null means we were able to schedule completion immediately
 	//check(PhysicsTickTask->IsComplete());
 	CompletionEvent = nullptr;
 

@@ -33,6 +33,93 @@ namespace ChaosTest
 namespace Chaos
 {
 
+/** Used for updating intermediate spatial structures when they are finished */
+struct FPendingSpatialData
+{
+	TAccelerationStructureHandle<FReal, 3> AccelerationHandle;
+	FSpatialAccelerationIdx SpatialIdx;
+	FReal SyncTime;	//indicates the time associated with latest change. Only relevant for external queue
+	bool bDelete;
+
+	FPendingSpatialData()
+	: SyncTime(0)
+	, bDelete(false)
+	{}
+
+	void Serialize(FChaosArchive& Ar)
+	{
+		/*Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
+		{
+			Ar << UpdateAccelerationHandle;
+			Ar << DeleteAccelerationHandle;
+		}
+		else
+		{
+			Ar << UpdateAccelerationHandle;
+			DeleteAccelerationHandle = UpdateAccelerationHandle;
+		}
+
+		Ar << bUpdate;
+		Ar << bDelete;
+
+		Ar << UpdatedSpatialIdx;
+		Ar << DeletedSpatialIdx;*/
+		ensure(false);	//Serialization of transient data like this is currently broken. Need to reevaluate
+	}
+
+	FUniqueIdx UniqueIdx() const
+	{
+		return AccelerationHandle.UniqueIdx();
+	}
+};
+
+struct FPendingSpatialDataQueue
+{
+	TArray<FPendingSpatialData> PendingData;
+	TArrayAsMap<FUniqueIdx,int32> ParticleToPendingData;
+
+	void Reset()
+	{
+		PendingData.Reset();
+		ParticleToPendingData.Reset();
+	}
+
+	int32 Num() const
+	{
+		return PendingData.Num();
+	}
+
+	FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx)
+	{
+		if(int32* Existing = ParticleToPendingData.Find(UniqueIdx))
+		{
+			return PendingData[*Existing];
+		} else
+		{
+			const int32 NewIdx = PendingData.AddDefaulted(1);
+			ParticleToPendingData.Add(UniqueIdx,NewIdx);
+			return PendingData[NewIdx];
+		}
+	}
+
+	void Remove(const FUniqueIdx UniqueIdx)
+	{
+		if(int32* Existing = ParticleToPendingData.Find(UniqueIdx))
+		{
+			const int32 SlotIdx = *Existing;
+			if(SlotIdx + 1 < PendingData.Num())
+			{
+				const FUniqueIdx LastElemUniqueIdx = PendingData.Last().UniqueIdx();
+				ParticleToPendingData.FindChecked(LastElemUniqueIdx) = SlotIdx;	//We're going to swap elements so the last element is now in the position of the element we removed
+			}
+
+			PendingData.RemoveAtSwap(SlotIdx);
+			ParticleToPendingData.RemoveChecked(UniqueIdx);
+		}
+	}
+};
+
 extern CHAOS_API int32 FixBadAccelerationStructureRemoval;
 
 class FChaosArchive;
@@ -230,7 +317,9 @@ struct CHAOS_API ISpatialAccelerationCollectionFactory
 template <typename Traits>
 class TPBDRigidsEvolutionBase
 {
-  public:
+public:
+	using FAccelerationStructure = ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>;
+
 	typedef TFunction<void(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal)> FForceRule;
 	typedef TFunction<void(const TArray<TGeometryParticleHandle<FReal, 3>*>&, const FReal)> FUpdateVelocityRule;
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<FReal, 3>>&, const FReal)> FUpdatePositionRule;
@@ -337,6 +426,8 @@ class TPBDRigidsEvolutionBase
 		RemoveConstraints(TSet<TGeometryParticleHandle<FReal, 3>*>({ Particle }));
 	}
 
+	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
+
 	CHAOS_API void DisableParticles(TSet<TGeometryParticleHandle<FReal, 3>*> &ParticlesIn)
 	{
 		for (TGeometryParticleHandle<FReal, 3>* Particle : ParticlesIn)
@@ -389,10 +480,6 @@ class TPBDRigidsEvolutionBase
 		auto& AsyncSpatialData = AsyncAccelerationQueue.FindOrAdd(UniqueIdx);
 		ensure(SpatialData.bDelete == false);
 		AsyncSpatialData = SpatialData;
-
-		auto& ExternalSpatialData = ExternalAccelerationQueue.FindOrAdd(UniqueIdx);
-		ensure(SpatialData.bDelete == false);
-		ExternalSpatialData = SpatialData;
 	}
 
 	CHAOS_API void DestroyParticle(TGeometryParticleHandle<FReal, 3>* Particle)
@@ -412,7 +499,6 @@ class TPBDRigidsEvolutionBase
 		{
 			InternalAccelerationQueue.PendingData.Reserve(InternalAccelerationQueue.Num() + NumNew);
 			AsyncAccelerationQueue.PendingData.Reserve(AsyncAccelerationQueue.Num() + NumNew);
-			ExternalAccelerationQueue.PendingData.Reserve(ExternalAccelerationQueue.Num() + NumNew);
 		}
 	}
 
@@ -631,7 +717,8 @@ class TPBDRigidsEvolutionBase
 	}
 
 	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
-	CHAOS_API void UpdateExternalAccelerationStructure(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& ExternalStructure);
+	CHAOS_API void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& ExternalStructure);
+
 	ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }
 
 	/** Perform a blocking flush of the spatial acceleration structure for situations where we aren't simulating but must have an up to date structure */
@@ -650,6 +737,8 @@ class TPBDRigidsEvolutionBase
 		//NOTE: this should be thread safe since evolution has already been initialized on GT
 		return Particles.GetUniqueIndices().GenerateUniqueIdx();
 	}
+
+	CHAOS_API void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete,FReal SyncTime);
 
 protected:
 	int32 NumConstraints() const
@@ -673,8 +762,6 @@ protected:
 		SpatialData.bDelete = true;
 		SpatialData.SpatialIdx = ParticleHandle.SpatialIdx();
 		SpatialData.AccelerationHandle = TAccelerationStructureHandle<FReal, 3>(ParticleHandle);
-
-		ExternalAccelerationQueue.FindOrAdd(UniqueIdx) = SpatialData;
 
 		//Internal acceleration has all moves pending, so cancel them all now
 		InternalAccelerationQueue.Remove(UniqueIdx);
@@ -741,12 +828,9 @@ protected:
 		}
 	}
 
-	using FAccelerationStructure = ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
-
 	void ComputeIntermediateSpatialAcceleration(bool bBlock = false);
 	void FlushInternalAccelerationQueue();
 	void FlushAsyncAccelerationQueue();
-	void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration);
 	void WaitOnAccelerationStructure();
 
 	TArray<FForceRule> ForceRules;
@@ -772,92 +856,10 @@ protected:
 	bool bExternalReady;
 	bool bIsSingleThreaded;
 
+public:
+	FReal LatestExternalTimeConsumed;	//The latest external time we consumed inputs from. Needed for synchronizing different DTs
 
-	/** Used for updating intermediate spatial structures when they are finished */
-	struct FPendingSpatialData
-	{
-		TAccelerationStructureHandle<FReal, 3> AccelerationHandle;
-		FSpatialAccelerationIdx SpatialIdx;
-		bool bDelete;
-
-		FPendingSpatialData()
-		: bDelete(false)
-		{}
-
-		void Serialize(FChaosArchive& Ar)
-		{
-			/*Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
-			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
-			{
-				Ar << UpdateAccelerationHandle;
-				Ar << DeleteAccelerationHandle;
-			}
-			else
-			{
-				Ar << UpdateAccelerationHandle;
-				DeleteAccelerationHandle = UpdateAccelerationHandle;
-			}
-
-			Ar << bUpdate;
-			Ar << bDelete;
-
-			Ar << UpdatedSpatialIdx;
-			Ar << DeletedSpatialIdx;*/
-			ensure(false);	//Serialization of transient data like this is currently broken. Need to reevaluate
-		}
-
-		FUniqueIdx UniqueIdx() const
-		{
-			return AccelerationHandle.UniqueIdx();
-		}
-	};
-
-	struct FPendingSpatialDataQueue
-	{
-		TArray<FPendingSpatialData> PendingData;
-		TArrayAsMap<FUniqueIdx, int32> ParticleToPendingData;
-
-		void Reset()
-		{
-			PendingData.Reset();
-			ParticleToPendingData.Reset();
-		}
-
-		int32 Num() const
-		{
-			return PendingData.Num();
-		}
-
-		FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx)
-		{
-			if (int32* Existing = ParticleToPendingData.Find(UniqueIdx))
-			{
-				return PendingData[*Existing];
-			}
-			else
-			{
-				const int32 NewIdx = PendingData.AddDefaulted(1);
-				ParticleToPendingData.Add(UniqueIdx, NewIdx);
-				return PendingData[NewIdx];
-			}
-		}
-
-		void Remove(const FUniqueIdx UniqueIdx)
-		{
-			if (int32* Existing = ParticleToPendingData.Find(UniqueIdx))
-			{
-				const int32 SlotIdx = *Existing;
-				if (SlotIdx + 1 < PendingData.Num())
-				{
-					const FUniqueIdx LastElemUniqueIdx = PendingData.Last().UniqueIdx();
-					ParticleToPendingData.FindChecked(LastElemUniqueIdx) = SlotIdx;	//We're going to swap elements so the last element is now in the position of the element we removed
-				}
-
-				PendingData.RemoveAtSwap(SlotIdx);
-				ParticleToPendingData.RemoveChecked(UniqueIdx);
-			}
-		}
-	};
+protected:
 
 	/** Pending operations for the internal acceleration structure */
 	FPendingSpatialDataQueue InternalAccelerationQueue;
@@ -865,8 +867,8 @@ protected:
 	/** Pending operations for the acceleration structures being rebuilt asynchronously */
 	FPendingSpatialDataQueue AsyncAccelerationQueue;
 
-	/** Pending operations for the external acceleration structure*/
-	FPendingSpatialDataQueue ExternalAccelerationQueue;
+	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
+	FPendingSpatialDataQueue PendingSpatialOperations_External;
 
 	/*void SerializePendingMap(FChaosArchive& Ar, TMap<TGeometryParticleHandle<FReal, 3>*, FPendingSpatialData>& Map)
 	{
