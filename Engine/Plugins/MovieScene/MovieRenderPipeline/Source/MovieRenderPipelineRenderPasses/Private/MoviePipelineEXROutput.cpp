@@ -200,7 +200,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 				ImfFile.setFrameBuffer(FrameBuffer);
 				ImfFile.writePixels(Height);
 			}
-			catch (IEX_NAMESPACE::BaseExc Exception)
+			catch (const IEX_NAMESPACE::BaseExc& Exception)
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Caught exception: %s"), Exception.message().c_str());
 			}
