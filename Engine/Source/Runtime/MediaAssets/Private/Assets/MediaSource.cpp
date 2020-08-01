@@ -73,6 +73,12 @@ FText UMediaSource::GetMediaOption(const FName& Key, const FText& DefaultValue) 
 }
 
 
+TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> UMediaSource::GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const
+{
+	return DefaultValue;
+}
+
+
 bool UMediaSource::HasMediaOption(const FName& Key) const
 {
 	return MediaOptionsMap.Contains(Key);
