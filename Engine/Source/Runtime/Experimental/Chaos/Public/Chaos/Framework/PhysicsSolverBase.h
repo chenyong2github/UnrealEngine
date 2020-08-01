@@ -120,7 +120,7 @@ namespace Chaos
 		template <typename Lambda>
 		void RegisterSimOneShotCallback(const Lambda& Func)
 		{
-			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([&Func](const TArray<FSimCallbackData*>&){ Func();});
+			FSimCallbackHandle& Callback = MarshallingManager.RegisterSimCallback([Func](const TArray<FSimCallbackData*>&){ Func();});
 			MarshallingManager.UnregisterSimCallback(Callback,true);
 		}
 
@@ -146,7 +146,7 @@ namespace Chaos
 		{
 			//TODO: remove this check. Need to rename with _External
 			check(IsInGameThread());
-			CommandQueue.Add(Func);
+			RegisterSimOneShotCallback(Func);
 		}
 
 		//Ensures that any running tasks finish.
@@ -230,28 +230,35 @@ namespace Chaos
 		{
 			for(FSimCallbackHandlePT* Callback : SimCallbacks)
 			{
-				Callback->Handle->Func(Callback->IntervalData);
-				MarshallingManager.FreeCallbackData_Internal(Callback);	//todo: split out for different sim phases, also wait for resim
+				if(!Callback->bPendingDelete)
+				{
+					Callback->Handle->Func(Callback->IntervalData);
+					MarshallingManager.FreeCallbackData_Internal(Callback);	//todo: split out for different sim phases, also wait for resim
+
+					if(Callback->Handle->bRunOnceMore)
+					{
+						Callback->bPendingDelete = true;
+					}
+				}
 			}
 
 			//todo: need to split up for different phases of sim (always free when entire sim phase is finished)
-			for(FSimCallbackHandle* CallbackToDelete : SimCallbacksPendingDelete)
+			//typically one shot callbacks are added to end of array, so removing in reverse order should be O(1)
+			//every so often a persistent callback is unregistered, so need to consider all callbacks
+			//might be possible to improve this, but number of callbacks is expected to be small
+			//one shot callbacks expect a FIFO so can't use RemoveAtSwap
+			//might be worth splitting into two different buffers if this is too slow
+			for(int32 Idx = SimCallbacks.Num()-1; Idx >= 0; --Idx)
 			{
-				FSimCallbackHandlePT* PTHandle = CallbackToDelete->PTHandle;
-				MarshallingManager.FreeCallbackData_Internal(PTHandle);
-				if(PTHandle->Idx != INDEX_NONE)
+				FSimCallbackHandlePT* Callback = SimCallbacks[Idx];
+				if(Callback->bPendingDelete)
 				{
-					SimCallbacks.RemoveAtSwap(PTHandle->Idx);
-					if(PTHandle->Idx < SimCallbacks.Num())
-					{
-						//update swapped location
-						SimCallbacks[PTHandle->Idx]->Idx = PTHandle->Idx;
-					}
+					MarshallingManager.FreeCallbackData_Internal(Callback);
+					delete Callback->Handle;
+					delete Callback;
+					SimCallbacks.RemoveAt(Idx);
 				}
-				delete PTHandle;
-				delete CallbackToDelete;
-			}
-			SimCallbacksPendingDelete.Empty();
+			}		
 		}
 
 	protected:
@@ -310,7 +317,6 @@ namespace Chaos
 	TArray<TFunction<void()>> CommandQueue;
 
 	TArray<FSimCallbackHandlePT*> SimCallbacks;
-	TArray<FSimCallbackHandle*> SimCallbacksPendingDelete;
 
 	FGraphEventRef PendingTasks;
 
