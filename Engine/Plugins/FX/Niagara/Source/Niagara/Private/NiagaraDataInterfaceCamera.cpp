@@ -437,7 +437,7 @@ void UNiagaraDataInterfaceCamera::GetFeedback(UNiagaraSystem* Asset, UNiagaraCom
 	{
 		FNiagaraDataInterfaceFeedback CPUAccessNotAllowedWarning(
          LOCTEXT("CPUCameraAccessWarning", "The cpu camera is bound to a player controller and will therefore not work correctly in the Niagara viewport.\nTo correctly preview the effect, use it in the level editor or switch to a GPU emitter."),
-         LOCTEXT("CPUCameraAccessWarningSummary", "Camera properties accessed on CPU emitter!"),
+         LOCTEXT("CPUCameraAccessWarningSummary", "Camera properties cannot be previewed on CPU emitters!"),
          FNiagaraDataInterfaceFix());
 
 		Warnings.Add(CPUAccessNotAllowedWarning);
