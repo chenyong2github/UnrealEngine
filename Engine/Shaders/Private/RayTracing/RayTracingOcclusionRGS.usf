@@ -368,8 +368,9 @@ FOcclusionResult ComputeOcclusion(
 #endif
 
 		BRANCH
-		if (!bIsValidRay)
+		if (!bIsValidRay && (DIM_DENOISER_OUTPUT == 0))
 		{
+			// The denoiser must still trace invalid rays to get the correct closest-hit distance
 			continue;
 		}
 		else if (bApplyNormalCulling && dot(WorldNormal, Ray.Direction) <= 0.0)
