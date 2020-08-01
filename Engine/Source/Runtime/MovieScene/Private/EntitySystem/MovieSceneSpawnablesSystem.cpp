@@ -112,8 +112,16 @@ void UMovieSceneSpawnablesSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 
 		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
-		FMovieSceneSequenceID SequenceID = SequenceInstance.GetSequenceID();
-		IMovieScenePlayer*    Player     = SequenceInstance.GetPlayer();
+		FMovieSceneSequenceID SequenceID  = SequenceInstance.GetSequenceID();
+		IMovieScenePlayer*    Player      = SequenceInstance.GetPlayer();
+
+		const FMovieSceneEvaluationOperand SpawnableOperand(SequenceID, SpawnableBindingID);
+		if (const FMovieSceneEvaluationOperand* OperandOverride = Player->BindingOverrides.Find(SpawnableOperand))
+		{
+			// Don't do anything if this operand was overriden... someone else will take care of it (either another spawn track, or
+			// some possessable).
+			return;
+		}
 
 		// Check if we already have a spawned object in the sapwn register - if we have we use that
 		if (UObject* ExistingSpawnedObject = Player->GetSpawnRegister().FindSpawnedObject(SpawnableBindingID, SequenceID).Get())
