@@ -1879,7 +1879,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 #endif
 
 #if LIGHTWEIGHT_PROCESS_EVENT_COUNTER
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 0);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && ProcessEventCounter == 1);
 #endif
 
 #if DO_BLUEPRINT_GUARD
