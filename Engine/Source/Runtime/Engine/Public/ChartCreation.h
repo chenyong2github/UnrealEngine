@@ -190,6 +190,10 @@ public:
 	int32 MinPlayerTicks;
 	int32 TotalPlayerTicks;
 
+	/** Total number of vehicle ticks */
+	int32 MaxVehicleTicks;
+	int32 TotalVehicleTicks;
+
 	/** Total number of primitives drawn */
 	int32 MaxDrawnPrimitives;
 	int32 MinDrawnPrimitives;
