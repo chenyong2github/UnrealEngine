@@ -40,7 +40,7 @@ void UMovieSceneBindingExtensions::SetDisplayName(const FSequencerBindingProxy& 
 	if (MovieScene && InBinding.BindingID.IsValid())
 	{
 		MovieScene->Modify();
-		return MovieScene->SetObjectDisplayName(InBinding.BindingID, InDisplayName);
+		MovieScene->SetObjectDisplayName(InBinding.BindingID, InDisplayName);
 	}
 }
 
@@ -75,13 +75,13 @@ void UMovieSceneBindingExtensions::SetName(const FSequencerBindingProxy& InBindi
 		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(InBinding.BindingID);
 		if (Spawnable)
 		{
-			return Spawnable->SetName(InName);
+			Spawnable->SetName(InName);
 		}
 
 		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(InBinding.BindingID);
 		if (Possessable)
 		{
-			return Possessable->SetName(InName);
+			Possessable->SetName(InName);
 		}
 	}
 }
