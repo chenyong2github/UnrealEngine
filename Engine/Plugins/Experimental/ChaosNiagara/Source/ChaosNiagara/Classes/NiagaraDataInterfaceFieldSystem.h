@@ -16,10 +16,19 @@ struct FNDIFieldSystemArrays
 {
 	static const uint32 NumFields = FFieldNodeBase::ESerializationType::FieldNode_FReturnResultsTerminal + 1;
 	static const uint32 NumCommands = EFieldPhysicsType::Field_PhysicsType_Max;
-	
-	TStaticArray<int32, NumCommands+1> FieldCommandsNodes;
-	TArray<int32> FieldNodesOffsets;
-	TArray<float> FieldNodesParams;
+
+	TStaticArray<int32, NumCommands + 1>	FieldCommandsNodes;
+	TArray<int32>						FieldNodesOffsets;
+	TArray<float>						FieldNodesParams;
+
+	TArray<float>		ArrayFieldDatas;
+	TArray<FVector>		VectorFieldDatas;
+	TArray<float>		ScalarFieldDatas;
+	TArray<int32>		IntegerFieldDatas;
+
+	FIntVector	FieldDimensions;
+	FVector		MinBounds;
+	FVector		MaxBounds;
 };
 
 /** Render buffers that will be used in hlsl functions */
@@ -29,7 +38,8 @@ struct FNDIFieldSystemBuffer : public FRenderResource
 	bool IsValid() const;
 
 	/** Set the assets that will be used to affect the buffer */
-	void Initialize(const TArray<TWeakObjectPtr<class UFieldSystem>>& FieldSystems, const TArray<TWeakObjectPtr<class UFieldSystemComponent>>& FieldComponents);
+	void Initialize(const TArray<TWeakObjectPtr<class UFieldSystem>>& FieldSystems, const TArray<TWeakObjectPtr<class UFieldSystemComponent>>& FieldComponents,
+		const FIntVector& FieldDimensions, const FVector& MinBounds, const FVector& MaxBounds);
 
 	/** Update the buffers */
 	void Update();
@@ -51,6 +61,15 @@ struct FNDIFieldSystemBuffer : public FRenderResource
 
 	/** Field commands nodes buffer */
 	FRWBuffer FieldCommandsNodesBuffer;
+
+	/** Vector Field Texture */
+	FTextureRWBuffer3D VectorFieldTexture;
+
+	/** Scalar Field Texture */
+	FTextureRWBuffer3D ScalarFieldTexture;
+
+	/** Integer Field Texture */
+	FTextureRWBuffer3D IntegerFieldTexture;
 
 	/** The field systems to be used*/
 	TArray<TWeakObjectPtr<class UFieldSystem>> FieldSystems;
@@ -76,8 +95,8 @@ struct FNDIFieldSystemData
 };
 
 /** Data Interface for the strand base */
-UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Field System"))
-class HAIRSTRANDSNIAGARA_API UNiagaraDataInterfaceFieldSystem : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Chaos", meta = (DisplayName = "Field System"))
+class CHAOSNIAGARA_API UNiagaraDataInterfaceFieldSystem : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -87,15 +106,27 @@ public:
 
 	/** Field system. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	UFieldSystem* DefaultSource;
+		UFieldSystem* DefaultSource;
 
 	/** Blue print. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	UBlueprint* BlueprintSource;
+		UBlueprint* BlueprintSource;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	AActor* SourceActor;
+		AActor* SourceActor;
+
+	/** The source actor from which to sample */
+	UPROPERTY(EditAnywhere, Category = "Field")
+		FIntVector FieldDimensions;
+
+	/** The source actor from which to sample */
+	UPROPERTY(EditAnywhere, Category = "Field")
+		FVector MinBounds;
+
+	/** The source actor from which to sample */
+	UPROPERTY(EditAnywhere, Category = "Field")
+		FVector MaxBounds;
 
 	/** The source component from which to sample */
 	TArray<TWeakObjectPtr<class UFieldSystemComponent>> SourceComponents;
@@ -137,6 +168,12 @@ public:
 	/** Sample the field angular torque */
 	void SampleAngularTorque(FVectorVMContext& Context);
 
+	/** Get the field dimensions */
+	void GetFieldDimensions(FVectorVMContext& Context);
+
+	/** Get the field bounds */
+	void GetFieldBounds(FVectorVMContext& Context);
+
 	/** Name of field commands nodes buffer */
 	static const FString FieldCommandsNodesBufferName;
 
@@ -145,6 +182,33 @@ public:
 
 	/** Name of field nodes params buffer */
 	static const FString FieldNodesOffsetsBufferName;
+
+	/** Name of the vector field texture */
+	static const FString VectorFieldTextureName;
+
+	/** Name of the vector field sampler */
+	static const FString VectorFieldSamplerName;
+
+	/** Name of the scalar field texture*/
+	static const FString ScalarFieldTextureName;
+
+	/** Name of the scalar field sampler */
+	static const FString ScalarFieldSamplerName;
+
+	/** Name of the integer field texture*/
+	static const FString IntegerFieldTextureName;
+
+	/** Name of the integer field sampler */
+	static const FString IntegerFieldSamplerName;
+
+	/** Name of the field dimension property */
+	static const FString FieldDimensionsName;
+
+	/** Name of the min bounds property */
+	static const FString MinBoundsName;
+
+	/** Name of the max bounds property */
+	static const FString MaxBoundsName;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -160,7 +224,7 @@ struct FNDIFieldSystemProxy : public FNiagaraDataInterfaceProxy
 	/** Get the data that will be passed to render*/
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
-	/** Initialize the Proxy data strands buffer */
+	/** Initialize the Proxy data Chaos buffer */
 	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Destroy the proxy data if necessary */

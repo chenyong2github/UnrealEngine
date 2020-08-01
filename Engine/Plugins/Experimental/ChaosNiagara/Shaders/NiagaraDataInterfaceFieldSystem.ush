@@ -11,23 +11,52 @@ NiagaraDataInterfaceFieldSystem.ush
  * -----------------------------------------------------------------
  */
 
+ #define USE_BAKED_FIELD 1
+
 struct FDIFieldSystemContext
 {
 	Buffer<float>		FieldNodesParamsBuffer;
 	Buffer<int>			FieldNodesOffsetsBuffer;
 	Buffer<int>			FieldCommandsNodesBuffer;
+	Texture3D<float4>	VectorFieldTexture;
+	SamplerState		VectorFieldSampler;
+	Texture3D<float>	ScalarFieldTexture;
+	SamplerState		ScalarFieldSampler;
+	Texture3D<int>		IntegerFieldTexture;
+	SamplerState		IntegerFieldSampler;
+	int3				FieldDimensions;
+	float3				MinBounds;
+	float3				MaxBounds;
 }; 
 
 #define DIFieldSystem_DECLARE_CONSTANTS(NAME)\
 Buffer<float>		FieldNodesParamsBuffer_##NAME;\
 Buffer<int>			FieldNodesOffsetsBuffer_##NAME;\
 Buffer<int>			FieldCommandsNodesBuffer_##NAME;\
+Texture3D<float4>	VectorFieldTexture_##NAME;\
+SamplerState		VectorFieldSampler_##NAME;\
+Texture3D<float>	ScalarFieldTexture_##NAME;\
+SamplerState		ScalarFieldSampler_##NAME;\
+Texture3D<int>		IntegerFieldTexture_##NAME;\
+SamplerState		IntegerFieldSampler_##NAME;\
+int3				FieldDimensions_##NAME;\
+float3				MinBounds_##NAME;\
+float3				MaxBounds_##NAME;\
 
 #define DIFieldSystem_MAKE_CONTEXT(NAME)\
 FDIFieldSystemContext DIContext; \
 DIContext.FieldNodesParamsBuffer = FieldNodesParamsBuffer_##NAME;\
 DIContext.FieldNodesOffsetsBuffer = FieldNodesOffsetsBuffer_##NAME;\
 DIContext.FieldCommandsNodesBuffer = FieldCommandsNodesBuffer_##NAME;\
+DIContext.VectorFieldTexture = VectorFieldTexture_##NAME;\
+DIContext.VectorFieldSampler = VectorFieldSampler_##NAME;\
+DIContext.ScalarFieldTexture = ScalarFieldTexture_##NAME;\
+DIContext.ScalarFieldSampler = ScalarFieldSampler_##NAME;\
+DIContext.IntegerFieldTexture = IntegerFieldTexture_##NAME;\
+DIContext.IntegerFieldSampler = IntegerFieldSampler_##NAME;\
+DIContext.FieldDimensions = FieldDimensions_##NAME;\
+DIContext.MinBounds = MinBounds_##NAME;\
+DIContext.MaxBounds = MaxBounds_##NAME;\
 
 /* -----------------------------------------------------------------
  * Field System defines
@@ -35,6 +64,10 @@ DIContext.FieldCommandsNodesBuffer = FieldCommandsNodesBuffer_##NAME;\
  */
 
 #define MAX_DATAS 64
+
+#define NUM_VECTOR_TYPES 4
+#define NUM_SCALAR_TYPES 0
+#define NUM_INTEGER_TYPES 0
 
 #define NONE_TYPE 0
 #define RESULTS_TYPE 1
@@ -94,10 +127,22 @@ DIContext.FieldCommandsNodesBuffer = FieldCommandsNodesBuffer_##NAME;\
 #define CULLING_INSIDE 0
 #define CULLING_OUTSIDE 1
 
-struct ContextType
+/* -----------------------------------------------------------------
+ * Quat utils
+ * -----------------------------------------------------------------
+ */
+
+float3 FieldRotateVectorByQuat(in float3 Vector, in float4 Quat)
 {
-	float NodesDatas[MAX_DATAS];
-};
+	float3 T = 2.0 * cross(Quat.xyz,Vector);
+	return Vector + Quat.w * T + cross(Quat.xyz,T);
+}
+
+float3 FieldUnRotateVectorByQuat(in float3 Vector, in float4 Quat)
+{
+	float3 T = 2.0 * cross(Quat.xyz,Vector);
+	return Vector - Quat.w * T + cross(Quat.xyz,T);
+}
 
 /* -----------------------------------------------------------------
  * Uniform Integer Field
@@ -316,7 +361,7 @@ void DIFieldSystem_EvaluateBoxFalloffScalar(in FDIFieldSystemContext DIContext, 
 										BoxScale.y != 0.0 ? 1.0 / BoxScale.y : 0.0,
 										BoxScale.z != 0.0 ? 1.0 / BoxScale.z : 0.0);
 
-	const float3 LocalPosition = UnrotateVectorByQuat(SamplePosition-BoxTranslation,BoxRotation) * InverseScale;
+	const float3 LocalPosition = FieldUnRotateVectorByQuat(SamplePosition-BoxTranslation,BoxRotation) * InverseScale;
 
 	const float3 DeltaPosition = abs(LocalPosition) - float3(1.0,1.0,1.0);
 	const int ClosestAxis = ((DeltaPosition.x > DeltaPosition.y) && (DeltaPosition.x > DeltaPosition.z)) ? 0 : ( DeltaPosition.y > DeltaPosition.z) ? 1 : 2;
@@ -366,7 +411,7 @@ void DIFieldSystem_EvaluateNoiseScalar(in FDIFieldSystemContext DIContext, in fl
 								     DIContext.FieldNodesParamsBuffer[NodeOffset+NOISE_SCALEZ]);
 
 	const float3 DeltaBound = MaxBound - MinBound;
-	const float3 LocalVector = RotateVectorByQuat((SamplePosition-MinBound) * NoiseScale, NoiseRotation);
+	const float3 LocalVector = FieldRotateVectorByQuat((SamplePosition-MinBound) * NoiseScale, NoiseRotation);
 
 	const float3 LocalCoord = float3( (DeltaBound.x != 0.0) ? LocalVector.x / DeltaBound.x : 0.0,
 									  (DeltaBound.y != 0.0) ? LocalVector.y / DeltaBound.y : 0.0,
@@ -792,31 +837,65 @@ void DIFieldSystem_SampleFieldDatas(in FDIFieldSystemContext DIContext, in float
 }
 
 float3 DIFieldSystem_SampleFieldVector(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
-				in float3 MinBound, in float3 MaxBound, in int CommandType)
+				in int CommandType, in int CommandIndex)
 {
+#if USE_BAKED_FIELD == 0
 	float ContextDatas[MAX_DATAS];
 	int DatasIndex = 0;
 
-	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, MinBound, MaxBound, CommandType, VECTOR_TYPE, ContextDatas, DatasIndex );
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, VECTOR_TYPE, ContextDatas, DatasIndex );
 	return (DatasIndex == 3) ? float3(ContextDatas[0],ContextDatas[1],ContextDatas[2]) : float3(0,0,0);
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_VECTOR_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_VECTOR_TYPES : SamplePoint.z;
+
+	return DIContext.VectorFieldTexture.SampleLevel(DIContext.VectorFieldSampler,SamplePoint,0).xyz;
+#endif
 }
 
 float DIFieldSystem_SampleFieldScalar(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
-				in float3 MinBound, in float3 MaxBound, in int CommandType)
+				in int CommandType, in int CommandIndex)
 {
+#if USE_BAKED_FIELD == 0
 	float ContextDatas[MAX_DATAS];
 	int DatasIndex = 0;
 
-	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, MinBound, MaxBound, CommandType, SCALAR_TYPE, ContextDatas, DatasIndex );
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, SCALAR_TYPE, ContextDatas, DatasIndex );
 	return (DatasIndex == 1) ? ContextDatas[0] : 0;
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_SCALAR_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_SCALAR_TYPES : SamplePoint.z;
+
+	return DIContext.ScalarFieldTexture.Sample(DIContext.ScalarFieldSampler,SamplePoint);
+#endif
 }
 
 int DIFieldSystem_SampleFieldInteger(in FDIFieldSystemContext DIContext, in float3 SamplePosition,
-				in float3 MinBound, in float3 MaxBound, in int CommandType)
+				in int CommandType, in int CommandIndex)
 {
+#if USE_BAKED_FIELD == 0
 	float ContextDatas[MAX_DATAS];
 	int DatasIndex = 0; 
 
-	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, MinBound, MaxBound, CommandType, INTEGER_TYPE, ContextDatas, DatasIndex );
+	DIFieldSystem_SampleFieldDatas(DIContext, SamplePosition, DIContext.MinBounds, DIContext.MaxBounds, CommandType, INTEGER_TYPE, ContextDatas, DatasIndex );
 	return (DatasIndex == 1) ? ContextDatas[0] : 0;
+
+#else
+	float3 SamplePoint = (DIContext.MaxBounds != DIContext.MinBounds) ? (SamplePosition - DIContext.MinBounds) / 
+				(DIContext.MaxBounds-DIContext.MinBounds) : float3(0,0,0);
+	SamplePoint = clamp(SamplePoint,float3(0,0,0), float3(1,1,1));
+
+	SamplePoint.z = (NUM_INTEGER_TYPES != 0) ? 
+		(SamplePoint.z * (1.0 - 1.0 / DIContext.FieldDimensions.z) + CommandIndex) / NUM_INTEGER_TYPES : SamplePoint.z;
+
+	return DIContext.IntegerFieldTexture.Sample(DIContext.IntegerFieldSampler,SamplePoint);
+#endif
 }
