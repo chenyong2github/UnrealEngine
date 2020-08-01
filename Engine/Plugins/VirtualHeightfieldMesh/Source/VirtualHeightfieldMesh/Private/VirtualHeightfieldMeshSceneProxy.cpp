@@ -909,6 +909,14 @@ namespace VirtualHeightfieldMesh
 		return FVector4(-Plane.X, -Plane.Y, -Plane.Z, Plane.W);
 	}
 
+	/** Translate a plane. This is a simpler case than the full TransformPlane(). */
+	FPlane TranslatePlane(FPlane const& Plane, FVector const& Translation)
+	{
+		FPlane OutPlane = Plane / Plane.Size();
+		OutPlane.W -= FVector::DotProduct(FVector(OutPlane),  Translation);
+		return OutPlane;
+	}
+
 	/** Transform a plane using a transform matrix. Precalculate and pass in transpose adjoint to avoid work when transforming multiple planes.  */
 	FPlane TransformPlane(FPlane const& Plane, FMatrix const& Matrix, FMatrix const& TransposeAdjoint)
 	{
@@ -1353,7 +1361,9 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 				for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 				{
 					const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, MainViewData.ViewFrustum.Planes.Num() - 1);
-					MainViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(VirtualHeightfieldMesh::TransformPlane(MainViewData.ViewFrustum.Planes[CopyPlaneIndex], Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint));
+					FPlane Plane = MainViewData.ViewFrustum.Planes[CopyPlaneIndex];
+					Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
+					MainViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
 				}
 
 				FOcclusionResults* OcclusionResults = GOcclusionResults.Find(FOcclusionResultsKey(Proxy, MainView));
@@ -1384,7 +1394,8 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 					// Gather data per child view
 					FSceneView const* CullView = CullViews[WorkDescs[WorkIndex].CullViewIndex];
 					FConvexVolume const* ShadowFrustum = CullView->GetDynamicMeshElementsShadowCullFrustum();
-					FConvexVolume const& Frustum = ShadowFrustum != nullptr && ShadowFrustum->Planes.Num() > 0 ? *ShadowFrustum : MainViewData.bViewFrozen ? MainViewData.ViewFrustum : CullView->ViewFrustum;
+					FConvexVolume const& Frustum = ShadowFrustum != nullptr && ShadowFrustum->Planes.Num() > 0 ? *ShadowFrustum : CullView->ViewFrustum;
+					const FVector PreShadowTranslation = ShadowFrustum != nullptr ? CullView->GetPreShadowTranslation() : FVector::ZeroVector;
 
 					VirtualHeightfieldMesh::FChildViewDesc ChildViewDesc;
 					ChildViewDesc.ViewDebug = MainView;
@@ -1393,7 +1404,10 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 					for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 					{
 						const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, Frustum.Planes.Num() - 1);
-						ChildViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(VirtualHeightfieldMesh::TransformPlane(Frustum.Planes[CopyPlaneIndex], Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint));
+						FPlane Plane = Frustum.Planes[CopyPlaneIndex];
+						Plane = VirtualHeightfieldMesh::TranslatePlane(Plane, PreShadowTranslation);
+						Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
+						ChildViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
 					}
 
 					// Build output graph resources
