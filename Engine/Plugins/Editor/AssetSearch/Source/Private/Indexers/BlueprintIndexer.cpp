@@ -18,8 +18,6 @@
 
 #define LOCTEXT_NAMESPACE "FBlueprintIndexer"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 enum class EBlueprintIndexerVersion
 {
 	Empty,
@@ -182,5 +180,3 @@ void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, cons
 }
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_OPTIMIZATION
