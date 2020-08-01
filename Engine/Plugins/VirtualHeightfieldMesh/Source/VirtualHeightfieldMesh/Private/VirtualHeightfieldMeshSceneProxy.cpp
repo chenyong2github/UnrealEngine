@@ -4,6 +4,7 @@
 
 #include "CommonRenderResources.h"
 #include "EngineModule.h"
+#include "Engine/Engine.h"
 #include "GlobalShader.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
@@ -140,7 +141,7 @@ namespace VirtualHeightfieldMesh
 }
 
 /** Renderer extension to manage the buffer pool and add hooks for GPU culling passes. */
-class FVirtualHeightfieldMeshRendererExtension : public IPersistentViewUniformBufferExtension
+class FVirtualHeightfieldMeshRendererExtension
 {
 public:
 	FVirtualHeightfieldMeshRendererExtension()
@@ -159,13 +160,12 @@ public:
 	/** Submit all the work added by AddWork(). The work fills all of the buffers ready for use by the referencing mesh batches. */
 	void SubmitWork(FRHICommandListImmediate& InRHICmdList);
 
-protected:
-	//~ Begin IPersistentViewUniformBufferExtension Interface
-	virtual void BeginFrame() override;
-	virtual void EndFrame() override;
-	//~ End IPersistentViewUniformBufferExtension Interface
-
 private:
+	/** Called by renderer at start of render frame. */
+	void BeginFrame();
+	/** Called by renderer at end of render frame. */
+	void EndFrame();
+
 	/** Flag for frame validation. */
 	bool bInFrame;
 
@@ -210,15 +210,16 @@ private:
 	};
 };
 
-/** Single global instance of the VirtualHeightfieldMesh extension. */
-FVirtualHeightfieldMeshRendererExtension GVirtualHeightfieldMeshViewUniformBufferExtension;
+/** Single global instance of the VirtualHeightfieldMesh renderer extension. */
+FVirtualHeightfieldMeshRendererExtension GVirtualHeightfieldMeshViewRendererExtension;
 
 void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 {
 	static bool bInit = false;
 	if (!bInit)
 	{
-		GetRendererModule().RegisterPersistentViewUniformBufferExtension(this);
+		GEngine->GetPreRenderDelegate().AddRaw(this, &FVirtualHeightfieldMeshRendererExtension::BeginFrame);
+		GEngine->GetPostRenderDelegate().AddRaw(this, &FVirtualHeightfieldMeshRendererExtension::EndFrame);
 		bInit = true;
 	}
 }
@@ -292,7 +293,7 @@ void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 
 void FVirtualHeightfieldMeshRendererExtension::EndFrame()
 {
-	check(bInFrame);
+	ensure(bInFrame);
 	bInFrame = false;
 
 	SceneProxies.Reset();
@@ -338,7 +339,7 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	, NumOcclusionLods(InComponent->GetNumOcclusionLods())
 	, OcclusionGridSize(0, 0)
 {
-	GVirtualHeightfieldMeshViewUniformBufferExtension.RegisterExtension();
+	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
 
 	const bool bValidMaterial = InComponent->GetMaterial(0) != nullptr && InComponent->GetMaterial(0)->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
 	Material = bValidMaterial ? InComponent->GetMaterial(0)->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
@@ -444,7 +445,7 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
-			VirtualHeightfieldMesh::FDrawInstanceBuffers& Buffers = GVirtualHeightfieldMeshViewUniformBufferExtension.AddWork(this, ViewFamily.Views[0], Views[ViewIndex]);
+			VirtualHeightfieldMesh::FDrawInstanceBuffers& Buffers = GVirtualHeightfieldMeshViewRendererExtension.AddWork(this, ViewFamily.Views[0], Views[ViewIndex]);
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			Mesh.bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
