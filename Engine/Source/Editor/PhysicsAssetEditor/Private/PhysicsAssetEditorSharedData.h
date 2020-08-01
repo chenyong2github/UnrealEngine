@@ -19,8 +19,6 @@ struct FBoneVertInfo;
 class IPersonaPreviewScene;
 class FPhysicsAssetEditorSharedData;
 
-#define DEBUG_CLICK_VIEWPORT 0
-
 /** Scoped object that blocks selection broadcasts until it leaves scope */
 struct FScopedBulkSelection
 {
@@ -317,9 +315,10 @@ public:
 
 	FTransform ResetTM;
 
-#if DEBUG_CLICK_VIEWPORT
+	FIntPoint LastClickPos;
 	FVector LastClickOrigin;
 	FVector LastClickDirection;
-#endif
-	FIntPoint LastClickPos;
+	FVector LastClickHitPos;
+	FVector LastClickHitNormal;
+	bool bLastClickHit;
 };
