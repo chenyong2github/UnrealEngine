@@ -522,6 +522,14 @@ int32 SRetainerWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Allotted
 		Context.CullingRect = MyCullingRect;
 
 		EPaintRetainedContentResult PaintResult = MutableThis->PaintRetainedContentImpl(Context, AllottedGeometry);
+
+#if WITH_SLATE_DEBUGGING
+		if (PaintResult == EPaintRetainedContentResult::NotPainted || PaintResult == EPaintRetainedContentResult::InvalidSize)
+		{
+			MutableThis->SetLastPaintType(ESlateInvalidationPaintType::None);
+		}
+#endif
+
 		if (PaintResult == EPaintRetainedContentResult::InvalidSize)
 		{
 			return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
