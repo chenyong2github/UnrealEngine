@@ -196,7 +196,7 @@ void UPreviewMesh::SetVisible(bool bVisible)
 {
 	if (DynamicMeshComponent != nullptr)
 	{
-		DynamicMeshComponent->SetVisibility(bVisible);
+		DynamicMeshComponent->SetVisibility(bVisible, true);
 	}
 }
 
@@ -229,6 +229,19 @@ void UPreviewMesh::UpdatePreview(const FDynamicMesh3* Mesh)
 	DynamicMeshComponent->SetDrawOnTop(this->bDrawOnTop);
 
 	DynamicMeshComponent->GetMesh()->Copy(*Mesh);
+	DynamicMeshComponent->NotifyMeshUpdated();
+
+	if (bBuildSpatialDataStructure)
+	{
+		MeshAABBTree.SetMesh(DynamicMeshComponent->GetMesh(), true);
+	}
+}
+
+void UPreviewMesh::UpdatePreview(FDynamicMesh3&& Mesh)
+{
+	DynamicMeshComponent->SetDrawOnTop(this->bDrawOnTop);
+
+	*(DynamicMeshComponent->GetMesh()) = MoveTemp(Mesh);
 	DynamicMeshComponent->NotifyMeshUpdated();
 
 	if (bBuildSpatialDataStructure)
