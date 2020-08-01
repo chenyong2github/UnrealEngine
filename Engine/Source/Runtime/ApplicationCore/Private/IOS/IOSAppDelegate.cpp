@@ -20,6 +20,7 @@
 #include "IOS/IOSAsyncTask.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IOS/IOSPlatformCrashContext.h"
+#include "IOS/IOSPaymentTransactionObserver.h"
 #include "Misc/OutputDeviceError.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/FeedbackContext.h"
@@ -1081,6 +1082,8 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 #if WITH_ACCESSIBILITY
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(OnVoiceOverStatusChanged) name:UIAccessibilityVoiceOverStatusDidChangeNotification object:nil];
 #endif
+
+	[[SKPaymentQueue defaultQueue] addTransactionObserver:[FPaymentTransactionObserver sharedInstance]];
     
 	return YES;
 }

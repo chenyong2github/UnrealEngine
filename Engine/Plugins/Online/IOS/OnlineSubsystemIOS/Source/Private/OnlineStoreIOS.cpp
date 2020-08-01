@@ -29,15 +29,6 @@ void FOnlineStoreIOS::InitStoreKit(FStoreKitHelperV2* InStoreKit)
 	FOnProductsRequestResponseDelegate OnProductsRequestResponseDelegate;
 	OnProductsRequestResponseDelegate.BindRaw(this, &FOnlineStoreIOS::OnProductPurchaseRequestResponse);
 	[StoreHelper AddOnProductRequestResponse: OnProductsRequestResponseDelegate];
-
-	// FOnTransactionCompleteIOSDelegate OnTransactionCompleteResponseDelegate = FOnTransactionCompleteIOSDelegate::CreateRaw(this, &FOnlineStoreIOS::OnTransactionCompleteResponse);
-	// [StoreHelper AddOnTransactionComplete: OnTransactionCompleteResponseDelegate];
-	
-	// FOnTransactionRestoredIOSDelegate OnTransactionRestoredDelegate = FOnTransactionRestoredIOSDelegate::CreateRaw(this, &FOnlineStoreIOS::OnTransactionRestored);
-	// [StoreHelper AddOnTransactionRestored: OnTransactionRestoredDelegate];
-	
-	// FOnRestoreTransactionsCompleteIOSDelegate OnRestoreTransactionsCompleteDelegate = FOnRestoreTransactionsCompleteIOSDelegate::CreateRaw(this, &FOnlineStoreIOS::OnRestoreTransactionsComplete);
-	// [StoreHelper AddOnRestoreTransactionsComplete: OnRestoreTransactionsCompleteDelegate];
 }
 
 FOnlineStoreIOS::~FOnlineStoreIOS()
