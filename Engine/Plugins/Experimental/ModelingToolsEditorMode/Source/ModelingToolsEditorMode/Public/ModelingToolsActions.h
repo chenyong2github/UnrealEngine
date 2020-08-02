@@ -82,4 +82,5 @@ DECLARE_TOOL_ACTION_COMMANDS(FDrawPolygonToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FMeshSelectionToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FMeshPlaneCutToolActionCommands);
 DECLARE_TOOL_ACTION_COMMANDS(FEditMeshPolygonsToolActionCommands);
+DECLARE_TOOL_ACTION_COMMANDS(FDrawAndRevolveToolActionCommands);
 

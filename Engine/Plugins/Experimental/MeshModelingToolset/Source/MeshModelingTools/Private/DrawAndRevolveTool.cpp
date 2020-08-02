@@ -11,6 +11,7 @@
 #include "InteractiveToolManager.h" // To use SceneState.ToolManager
 #include "Mechanics/CollectSurfacePathMechanic.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
+#include "Mechanics/CurveControlPointsMechanic.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Selection/ToolSelectionUtil.h"
 #include "ToolSceneQueriesUtil.h"
@@ -22,7 +23,7 @@
 
 bool UDrawAndRevolveToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return (this->AssetAPI != nullptr);;
+	return (this->AssetAPI != nullptr);
 }
 
 UInteractiveTool* UDrawAndRevolveToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -43,24 +44,21 @@ TUniquePtr<FDynamicMeshOperator> URevolveOperatorFactory::MakeNewOperator()
 
 	// Assemble profile curve
 	CurveSweepOp->ProfileCurve.Reserve(RevolveTool->DrawProfileCurveMechanic->HitPath.Num() + 2); // extra space for top/bottom caps
-	for (FFrame3d Frame : RevolveTool->DrawProfileCurveMechanic->HitPath)
-	{
-		CurveSweepOp->ProfileCurve.Add(Frame.Origin);
-	}
+	RevolveTool->ControlPointsMechanic->ExtractPointPositions(CurveSweepOp->ProfileCurve);
 	CurveSweepOp->bProfileCurveIsClosed = RevolveTool->DrawProfileCurveMechanic->LoopWasClosed();
 
 	// If we are capping the top and bottom, we just add a couple extra vertices and mark the curve as being closed
 	if (!CurveSweepOp->bProfileCurveIsClosed && RevolveTool->Settings->bConnectOpenProfileToAxis)
 	{
 		// Project first and last points onto the revolution axis.
-		double DistanceAlongAxis = RevolveTool->RevolutionAxisDirection.Dot(
-			RevolveTool->DrawProfileCurveMechanic->HitPath.Last().Origin - RevolveTool->RevolutionAxisOrigin);
+		FVector3d FirstPoint = CurveSweepOp->ProfileCurve[0];
+		FVector3d LastPoint = CurveSweepOp->ProfileCurve.Last();
+		double DistanceAlongAxis = RevolveTool->RevolutionAxisDirection.Dot(LastPoint - RevolveTool->RevolutionAxisOrigin);
 		FVector3d ProjectedPoint = RevolveTool->RevolutionAxisOrigin + (RevolveTool->RevolutionAxisDirection * DistanceAlongAxis);
 
 		CurveSweepOp->ProfileCurve.Add(ProjectedPoint);
 
-		DistanceAlongAxis = RevolveTool->RevolutionAxisDirection.Dot(
-			RevolveTool->DrawProfileCurveMechanic->HitPath[0].Origin - RevolveTool->RevolutionAxisOrigin);
+		DistanceAlongAxis = RevolveTool->RevolutionAxisDirection.Dot(FirstPoint - RevolveTool->RevolutionAxisOrigin);
 		ProjectedPoint = RevolveTool->RevolutionAxisOrigin + (RevolveTool->RevolutionAxisDirection * DistanceAlongAxis);
 
 		CurveSweepOp->ProfileCurve.Add(ProjectedPoint);
@@ -74,6 +72,26 @@ TUniquePtr<FDynamicMeshOperator> URevolveOperatorFactory::MakeNewOperator()
 }
 
 // Tool itself
+
+void UDrawAndRevolveTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
+{
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 1,
+		TEXT("DeletePoint"),
+		LOCTEXT("DeletePointUIName", "Delete Point"),
+		LOCTEXT("DeletePointTooltip", "Delete currently selected point(s)"),
+		EModifierKey::None, EKeys::BackSpace,
+		[this]() { OnBackspacePress(); });
+}
+
+void UDrawAndRevolveTool::OnBackspacePress()
+{
+	// TODO: Someday we'd like the mechanic to register the action itself and not have to catch and forward
+	// it in the tool.
+	if (ControlPointsMechanic)
+	{
+		ControlPointsMechanic->DeleteSelectedPoints();
+	}
+}
 
 bool UDrawAndRevolveTool::CanAccept() const
 {
@@ -100,6 +118,16 @@ void UDrawAndRevolveTool::Setup()
 
 	DrawProfileCurveMechanic = NewObject<UCollectSurfacePathMechanic>(this);
 	DrawProfileCurveMechanic->Setup(this);
+
+	ControlPointsMechanic = NewObject<UCurveControlPointsMechanic>(this);
+	ControlPointsMechanic->Setup(this);
+	ControlPointsMechanic->SetWorld(TargetWorld);
+	ControlPointsMechanic->OnPointsChanged.AddLambda([this]() {
+		if (Preview)
+		{
+			Preview->InvalidateResult();
+		}
+		});
 
 	UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
 
@@ -135,10 +163,19 @@ void UDrawAndRevolveTool::Setup()
 	};
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
 		Settings->DrawPlaneAndAxis = PlaneMechanic->Plane.ToFTransform();
-		DrawProfileCurveMechanic->InitializePlaneSurface(PlaneMechanic->Plane);
+		if (DrawProfileCurveMechanic)
+		{
+			DrawProfileCurveMechanic->InitializePlaneSurface(PlaneMechanic->Plane);
+		}
+		if (ControlPointsMechanic)
+		{
+			ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
+		}
 		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
 		});
 	PlaneMechanic->SetEnableGridSnaping(Settings->bSnapToWorldGrid);
+
+	ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 }
 
 void UDrawAndRevolveTool::UpdateRevolutionAxis(const FTransform& PlaneTransform)
@@ -154,6 +191,7 @@ void UDrawAndRevolveTool::Shutdown(EToolShutdownType ShutdownType)
 
 	PlaneMechanic->Shutdown();
 	DrawProfileCurveMechanic->Shutdown();
+	ControlPointsMechanic->Shutdown();
 
 	if (Preview)
 	{
@@ -194,6 +232,15 @@ void UDrawAndRevolveTool::OnClicked(const FInputDeviceRay& ClickPos)
 		if (DrawProfileCurveMechanic->IsDone())
 		{
 			bProfileCurveComplete = true;
+
+			// Once the profile curve is complete, we'll switch to another mechanic for editability
+			// TODO: make the initial curve creation happen in the ControlPointsMechanic as well.
+			for (FFrame3d Frame : DrawProfileCurveMechanic->HitPath)
+			{
+				ControlPointsMechanic->AppendPoint(Frame.Origin);
+			}
+			ControlPointsMechanic->SetIsLoop(DrawProfileCurveMechanic->LoopWasClosed());
+
 			StartPreview();
 		}
 	}
@@ -264,6 +311,7 @@ void UDrawAndRevolveTool::OnPropertyModified(UObject* PropertySet, FProperty* Pr
 	{
 		FFrame3d ProfileDrawPlane(Settings->DrawPlaneAndAxis); // Casting to FFrame3d
 		DrawProfileCurveMechanic->InitializePlaneSurface(ProfileDrawPlane);
+		ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
 		PlaneMechanic->SetPlaneWithoutBroadcast(ProfileDrawPlane);
 		UpdateRevolutionAxis(Settings->DrawPlaneAndAxis);
 	}
@@ -321,9 +369,14 @@ void UDrawAndRevolveTool::Render(IToolsContextRenderAPI* RenderAPI)
 			AxisThickness, 0.0f, true);
 	}
 
-	if (DrawProfileCurveMechanic != nullptr)
+	if (DrawProfileCurveMechanic != nullptr && !bProfileCurveComplete)
 	{
 		DrawProfileCurveMechanic->Render(RenderAPI);
+	}
+
+	if (ControlPointsMechanic != nullptr)
+	{
+		ControlPointsMechanic->Render(RenderAPI);
 	}
 }
 
@@ -341,6 +394,12 @@ void UDrawAndRevolveTool::UndoCurrentOperation()
 		{
 			Preview->Cancel();
 			Preview = nullptr;
+		}
+
+		if (ControlPointsMechanic != nullptr)
+		{
+			ControlPointsMechanic->ClearPoints();
+			ControlPointsMechanic->ExpireChanges();
 		}
 	}
 

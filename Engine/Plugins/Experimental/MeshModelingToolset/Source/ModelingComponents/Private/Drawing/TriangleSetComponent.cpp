@@ -273,7 +273,7 @@ void UTriangleSetComponent::RemoveTriangle(const int32 ID)
 
 bool UTriangleSetComponent::IsTriangleValid(const int32 ID) const
 {
-	return Triangles.IsAllocated(ID);
+	return Triangles.IsValidIndex(ID);
 }
 
 FPrimitiveSceneProxy* UTriangleSetComponent::CreateSceneProxy()
