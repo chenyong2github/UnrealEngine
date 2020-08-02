@@ -373,6 +373,11 @@ namespace LiveStreamAnimation
 
 		FLiveLinkSubjectName LiveLinkSubjectName(LiveLinkSubject);
 		ILiveLinkClient* LiveLinkClient = GetLiveLinkClient();
+		if (!LiveLinkClient)
+		{
+			UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Unable to get LiveLinkClient."));
+			return false;
+		}
 
 		if (FLiveLinkTrackedSubject* ExistingSubject = TrackedSubjects.Find(SubjectHandle))
 		{
@@ -391,93 +396,88 @@ namespace LiveStreamAnimation
 			}
 		}
 
-		if (LiveLinkClient)
+		if (!LiveLinkClient->HasSourceBeenAdded(LiveLinkSource))
 		{
-			if (!LiveLinkClient->HasSourceBeenAdded(LiveLinkSource))
+			UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Live Stream Animation Live Link Source was removed from Live Link! Previously tracked subjects may not be valid anymore."));
+			LiveLinkClient->AddSource(LiveLinkSource);
+		}
+
+		FDelegateHandle StaticDataReceivedHandle;
+		FOnLiveLinkSubjectStaticDataAdded::FDelegate OnStaticDataReceived;
+		OnStaticDataReceived.BindRaw(this, &FLiveLinkStreamingHelper::ReceivedStaticData, SubjectHandle);
+
+		FDelegateHandle FrameDataReceivedHandle;
+		FOnLiveLinkSubjectFrameDataAdded::FDelegate OnFrameDataReceived;
+		OnFrameDataReceived.BindRaw(this, &FLiveLinkStreamingHelper::ReceivedFrameData, SubjectHandle);
+
+		TSubclassOf<ULiveLinkRole> SubjectRole;
+		FLiveLinkStaticDataStruct StaticData;
+
+		bool bSuccess = false;
+
+		const bool bWasRegistered = LiveLinkClient->RegisterForSubjectFrames(
+			LiveLinkSubjectName,
+			OnStaticDataReceived,
+			OnFrameDataReceived,
+			StaticDataReceivedHandle,
+			FrameDataReceivedHandle,
+			SubjectRole,
+			&StaticData);
+
+		FLiveLinkTrackedSubject TrackedSubject = FLiveLinkTrackedSubject::CreateFromTrackingRequest(
+			LiveLinkSubjectName,
+			SubjectHandle,
+			Options,
+			TranslationHandle,
+			StaticDataReceivedHandle,
+			FrameDataReceivedHandle);
+
+		if (bWasRegistered)
+		{
+			if (!SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
 			{
-				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Live Stream Animation Live Link Source was removed from Live Link! Previously tracked subjects may not be valid anymore."));
-				LiveLinkClient->AddSource(LiveLinkSource);
+				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject had invalid role, subject won't be sent. Subject = (%s), Role = %s"),
+					*TrackedSubject.ToString(), *GetPathNameSafe(SubjectRole.Get()));
 			}
-
-			FDelegateHandle StaticDataReceivedHandle;
-			FOnLiveLinkSubjectStaticDataAdded::FDelegate OnStaticDataReceived;
-			OnStaticDataReceived.BindRaw(this, &FLiveLinkStreamingHelper::ReceivedStaticData, SubjectHandle);
-
-			FDelegateHandle FrameDataReceivedHandle;
-			FOnLiveLinkSubjectFrameDataAdded::FDelegate OnFrameDataReceived;
-			OnFrameDataReceived.BindRaw(this, &FLiveLinkStreamingHelper::ReceivedFrameData, SubjectHandle);
-
-			TSubclassOf<ULiveLinkRole> SubjectRole;
-			FLiveLinkStaticDataStruct StaticData;
-
-			bool bSuccess = false;
-
-			const bool bWasRegistered = LiveLinkClient->RegisterForSubjectFrames(
-				LiveLinkSubjectName,
-				OnStaticDataReceived,
-				OnFrameDataReceived,
-				StaticDataReceivedHandle,
-				FrameDataReceivedHandle,
-				SubjectRole,
-				&StaticData);
-
-			FLiveLinkTrackedSubject TrackedSubject = FLiveLinkTrackedSubject::CreateFromTrackingRequest(
-				LiveLinkSubjectName,
-				SubjectHandle,
-				Options,
-				TranslationHandle,
-				StaticDataReceivedHandle,
-				FrameDataReceivedHandle);
-
-			if (bWasRegistered)
+			else if (!StaticData.IsValid())
 			{
-				if (!SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
-				{
-					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject had invalid role, subject won't be sent. Subject = (%s), Role = %s"),
-						*TrackedSubject.ToString(), *GetPathNameSafe(SubjectRole.Get()));
-				}
-				else if (!StaticData.IsValid())
-				{
-					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject didn't have static data. Subject will be sent later, when static data is received. Subject = (%s)"),
-						*TrackedSubject.ToString());
+				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject didn't have static data. Subject will be sent later, when static data is received. Subject = (%s)"),
+					*TrackedSubject.ToString());
 
+				bSuccess = true;
+				TrackedSubjects.Add(SubjectHandle, TrackedSubject);
+			}
+			else
+			{
+				if (const FLiveLinkSkeletonStaticData* SkeletonDataPtr = StaticData.Cast<FLiveLinkSkeletonStaticData>())
+				{
+					TrackedSubject.ReceivedStaticData(*SkeletonDataPtr);
+				}
+
+				if (SendPacketToServer(CreateAddOrUpdateSubjectPacket(TrackedSubject)))
+				{
 					bSuccess = true;
 					TrackedSubjects.Add(SubjectHandle, TrackedSubject);
 				}
 				else
 				{
-					if (const FLiveLinkSkeletonStaticData* SkeletonDataPtr = StaticData.Cast<FLiveLinkSkeletonStaticData>())
-					{
-						TrackedSubject.ReceivedStaticData(*SkeletonDataPtr);
-					}
-
-					if (SendPacketToServer(CreateAddOrUpdateSubjectPacket(TrackedSubject)))
-					{
-						bSuccess = true;
-						TrackedSubjects.Add(SubjectHandle, TrackedSubject);
-					}
-					else
-					{
-						UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Failed to send add subject packet. Subject = (%s)"),
-							*TrackedSubject.ToString());
-					}
-				}
-
-				if (!bSuccess)
-				{
-					LiveLinkClient->UnregisterSubjectFramesHandle(TrackedSubject.LiveLinkSubject, TrackedSubject.StaticDataReceivedHandle, TrackedSubject.FrameDataReceivedHandle);
+					UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Failed to send add subject packet. Subject = (%s)"),
+						*TrackedSubject.ToString());
 				}
 			}
-			else
+
+			if (!bSuccess)
 			{
-				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Failed to register subject. Subject = (%s)"),
-					*TrackedSubject.ToString());
+				LiveLinkClient->UnregisterSubjectFramesHandle(TrackedSubject.LiveLinkSubject, TrackedSubject.StaticDataReceivedHandle, TrackedSubject.FrameDataReceivedHandle);
 			}
-
-			return bSuccess;
+		}
+		else
+		{
+			UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Failed to register subject. Subject = (%s)"),
+				*TrackedSubject.ToString());
 		}
 
-		return false;
+		return bSuccess;
 	}
 
 	void FLiveLinkStreamingHelper::StopTrackingSubject(const FLiveStreamAnimationHandle SubjectHandle)
