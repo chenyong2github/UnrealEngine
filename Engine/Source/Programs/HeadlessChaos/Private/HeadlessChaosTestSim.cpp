@@ -136,6 +136,11 @@ namespace ChaosTest {
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
 		PhysicsMaterial->SleepingLinearThreshold = 20;
 		PhysicsMaterial->SleepingAngularThreshold = 20;
+		PhysicsMaterial->SleepCounterThreshold = 1;
+
+		Static->X() = FVec3(10, 10, 10);
+		Dynamic1->X() = FVec3(10, 10, 120);
+		Dynamic2->X() = FVec3(10, 10, 400);
 
 		TUniquePtr<FImplicitObject> StaticBox(new TBox<FReal, 3>(FVec3(-500, -500, -50), FVec3(500, 500, 50)));
 		TUniquePtr<FImplicitObject> DynamicBox(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
@@ -146,9 +151,6 @@ namespace ChaosTest {
 		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
 		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));
 
-		Static->X() = FVec3(10, 10, 10);
-		Dynamic1->X() = FVec3(10, 10, 120);
-		Dynamic2->X() = FVec3(10, 10, 400);
 		Dynamic1->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic1->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 		Dynamic2->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
