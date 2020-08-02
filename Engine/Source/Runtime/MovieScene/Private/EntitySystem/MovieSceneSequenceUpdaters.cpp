@@ -432,6 +432,9 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 				// Update the sub sequence's context
 				FMovieSceneContext SubContext = Context.Transform(SubData->RootToSequenceTransform, SubData->TickResolution);
+				SubContext.ReportOuterSectionRanges(SubData->PreRollRange.Value, SubData->PostRollRange.Value);
+				SubContext.SetHierarchicalBias(SubData->HierarchicalBias);
+
 				SubSequenceInstance.SetContext(SubContext);
 				SubSequenceInstance.SetFinished(false);
 
