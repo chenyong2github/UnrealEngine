@@ -2129,8 +2129,7 @@ void UBehaviorTreeComponent::UnregisterParallelTask(const UBTTaskNode* TaskNode,
 		FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIdx];
 		for (int32 TaskIndex = InstanceInfo.GetParallelTasks().Num() - 1; TaskIndex >= 0; TaskIndex--)
 		{
-			const FBehaviorTreeParallelTask& ParallelInfo = InstanceInfo.GetParallelTasks()[TaskIndex];
-			if (ParallelInfo.TaskNode == TaskNode)
+			if (InstanceInfo.GetParallelTasks()[TaskIndex].TaskNode == TaskNode)
 			{
 				UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("Parallel task: %s removed from active list"),
 					*UBehaviorTreeTypes::DescribeNodeHelper(TaskNode));
