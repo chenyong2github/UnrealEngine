@@ -4214,13 +4214,6 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 
 				if (BuiltDataPackage != WorldPackage)
 				{
-					if (WorldPackage->IsDirty() && !BuiltDataPackage->IsDirty())
-					{
-						// Must become dirty because new prompts to save should not be brought up after each individual map saves
-						// We also cannot bring up a second prompt to save because a recursion guard blocks it
-						BuiltDataPackage->MarkPackageDirty();
-					}
-
 					if (BuiltDataPackage->IsDirty())
 					{
 						// If built data package does not have a name yet add the world package so a user is prompted to have a name chosen
