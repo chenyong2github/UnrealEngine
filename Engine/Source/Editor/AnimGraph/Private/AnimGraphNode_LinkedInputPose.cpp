@@ -40,11 +40,15 @@ void UAnimGraphNode_LinkedInputPose::CreateClassVariablesFromBlueprint(FKismetCo
 	{
 		if(!UAnimationGraphSchema::IsPosePin(InPinType))
 		{
-			// create properties for 'local' linked input pose pins
-			FProperty* NewLinkedInputPoseProperty = static_cast<FAnimBlueprintCompilerContext*>(&InCompilerContext)->CreateVariable(InName, InPinType);
-			if(NewLinkedInputPoseProperty)
+			UEdGraphPin* Pin = FindPin(InName, EGPD_Output);
+			if(Pin && Pin->LinkedTo.Num() > 0)
 			{
-				NewLinkedInputPoseProperty->SetPropertyFlags(CPF_BlueprintReadOnly);
+				// create properties for 'local' linked input pose pins
+				FProperty* NewLinkedInputPoseProperty = static_cast<FAnimBlueprintCompilerContext*>(&InCompilerContext)->CreateVariable(InName, InPinType);
+				if(NewLinkedInputPoseProperty)
+				{
+					NewLinkedInputPoseProperty->SetPropertyFlags(CPF_BlueprintReadOnly);
+				}
 			}
 		}
 	});
@@ -56,40 +60,41 @@ void UAnimGraphNode_LinkedInputPose::ExpandNode(class FKismetCompilerContext& In
 	{
 		if(!UAnimationGraphSchema::IsPosePin(InPinType))
 		{
-			// Find the property we created in CreateClassVariablesFromBlueprint()
-			FProperty* LinkedInputPoseProperty = FindFProperty<FProperty>(InCompilerContext.NewClass, InName);
-			check(LinkedInputPoseProperty);
-			
 			if(InCompilerContext.bIsFullCompile)
 			{
-				UEdGraphPin* Pin = FindPin(InName, EGPD_Output);
-				if(Pin)
+				// Find the property we created in CreateClassVariablesFromBlueprint()
+				FProperty* LinkedInputPoseProperty = FindFProperty<FProperty>(InCompilerContext.NewClass, InName);
+				if(LinkedInputPoseProperty)
 				{
-					// Create new node for property access
-					UK2Node_VariableGet* VariableGetNode = InCompilerContext.SpawnIntermediateNode<UK2Node_VariableGet>(this, GetGraph());
-					VariableGetNode->SetFromProperty(LinkedInputPoseProperty, true, LinkedInputPoseProperty->GetOwnerClass());
-					VariableGetNode->AllocateDefaultPins();
-
-					// Add pin to generated variable association, used for pin watching
-					UEdGraphPin* TrueSourcePin = InCompilerContext.MessageLog.FindSourcePin(Pin);
-					if (TrueSourcePin)
+					UEdGraphPin* Pin = FindPin(InName, EGPD_Output);
+					if(Pin && Pin->LinkedTo.Num() > 0)
 					{
-						InCompilerContext.NewClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourcePin, LinkedInputPoseProperty);
-					}
+						// Create new node for property access
+						UK2Node_VariableGet* VariableGetNode = InCompilerContext.SpawnIntermediateNode<UK2Node_VariableGet>(this, GetGraph());
+						VariableGetNode->SetFromProperty(LinkedInputPoseProperty, true, LinkedInputPoseProperty->GetOwnerClass());
+						VariableGetNode->AllocateDefaultPins();
 
-					// link up to new node - note that this is not a FindPinChecked because if an interface changes without the
-					// implementing class being loaded, then its graphs will not be conformed until AFTER the skeleton class
-					// has been compiled, so the variable cannot be created. This also doesnt matter, as there wont be anything connected
-					// to the pin yet anyways.
-					UEdGraphPin* VariablePin = VariableGetNode->FindPin(LinkedInputPoseProperty->GetFName());
-					if(VariablePin)
-					{
-						TArray<UEdGraphPin*> Links = Pin->LinkedTo;
-						Pin->BreakAllPinLinks();
-
-						for(UEdGraphPin* LinkPin : Links)
+						// Add pin to generated variable association, used for pin watching
+						UEdGraphPin* TrueSourcePin = InCompilerContext.MessageLog.FindSourcePin(Pin);
+						if (TrueSourcePin)
 						{
-							VariablePin->MakeLinkTo(LinkPin);
+							InCompilerContext.NewClass->GetDebugData().RegisterClassPropertyAssociation(TrueSourcePin, LinkedInputPoseProperty);
+						}
+
+						// link up to new node - note that this is not a FindPinChecked because if an interface changes without the
+						// implementing class being loaded, then its graphs will not be conformed until AFTER the skeleton class
+						// has been compiled, so the variable cannot be created. This also doesnt matter, as there wont be anything connected
+						// to the pin yet anyways.
+						UEdGraphPin* VariablePin = VariableGetNode->FindPin(LinkedInputPoseProperty->GetFName());
+						if(VariablePin)
+						{
+							TArray<UEdGraphPin*> Links = Pin->LinkedTo;
+							Pin->BreakAllPinLinks();
+
+							for(UEdGraphPin* LinkPin : Links)
+							{
+								VariablePin->MakeLinkTo(LinkPin);
+							}
 						}
 					}
 				}
