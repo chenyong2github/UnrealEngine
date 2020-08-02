@@ -639,8 +639,9 @@ void UCharacterMovementComponent::OnRegister()
 	if (bIsReplay)
 	{
 		// At least one of these conditions will be true
-		const bool bHasInterpolationData = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
-		const bool bHasRepMovement = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
+		const UDemoNetDriver* DemoNetDriver = MyWorld ? MyWorld->GetDemoNetDriver() : nullptr;
+		const bool bHasInterpolationData = DemoNetDriver && (DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
+		const bool bHasRepMovement = DemoNetDriver && (DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
 
 		if (CharacterMovementCVars::ReplayUseInterpolation == 1)
 		{
@@ -7464,13 +7465,14 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 		else if ( NetworkSmoothingMode == ENetworkSmoothingMode::Replay )
 		{
 			const UWorld* MyWorld = GetWorld();
+			UDemoNetDriver* DemoNetDriver = MyWorld ? MyWorld->GetDemoNetDriver() : nullptr;
 
-			if ( !MyWorld || !MyWorld->DemoNetDriver )
+			if ( !MyWorld || !DemoNetDriver )
 			{
 				return;
 			}
 
-			const float CurrentTime = MyWorld->DemoNetDriver->DemoCurrentTime;
+			const float CurrentTime = DemoNetDriver->GetDemoCurrentTime();
 
 			// Remove old samples
 			while ( ClientData->ReplaySamples.Num() > 0 )
@@ -7483,7 +7485,7 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 				ClientData->ReplaySamples.RemoveAt( 0 );
 			}
 
-			FReplayExternalDataArray* ExternalReplayData = MyWorld->DemoNetDriver->GetExternalDataArrayForObject( CharacterOwner );
+			FReplayExternalDataArray* ExternalReplayData = DemoNetDriver->GetExternalDataArrayForObject( CharacterOwner );
 
 			// Grab any samples available, deserialize them, then clear originals
 			if ( ExternalReplayData && ExternalReplayData->Num() > 0 )

@@ -1022,9 +1022,18 @@ private:
 	class ULevel*								CurrentLevelPendingInvisibility;
 
 public:
-	/** Fake NetDriver for capturing network traffic to record demos */
+	/** NetDriver for capturing network traffic to record demos */
+	UE_DEPRECATED(4.26, "DemoNetDriver will be made private in a future release.  Please use GetDemoNetDriver/SetDemoNetDriver instead.")
 	UPROPERTY()
 	class UDemoNetDriver*						DemoNetDriver;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Gets the demo net driver for this world. */
+	UDemoNetDriver* GetDemoNetDriver() const { return DemoNetDriver; }
+
+	/** Sets the demo net driver for this world. */
+	void SetDemoNetDriver(UDemoNetDriver* const InDemoNetDriver) { DemoNetDriver = InDemoNetDriver; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Particle event manager **/
 	UPROPERTY()
@@ -2976,6 +2985,9 @@ public:
 	/** Returns true if we are currently playing a replay */
 	bool IsPlayingReplay() const;
 
+	/** Returns true if we are currently recording a replay */
+	bool IsRecordingReplay() const;
+
 	// Start listening for connections.
 	bool Listen( FURL& InURL );
 
@@ -3753,6 +3765,16 @@ public:
 	static UWorld::FOnWorldInitializedActors OnWorldInitializedActors;
 
 	static FWorldEvent OnWorldBeginTearDown;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSeamlessTravelStart, UWorld*, const FString&);
+	static FOnSeamlessTravelStart OnSeamlessTravelStart;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSeamlessTravelTransition, UWorld*);
+	static FOnSeamlessTravelTransition OnSeamlessTravelTransition;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCopyWorldData, UWorld*, UWorld*);
+	static FOnCopyWorldData OnCopyWorldData;
+
 private:
 	FWorldDelegates() {}
 };

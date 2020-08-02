@@ -1468,7 +1468,7 @@ public:
 	 * 
 	 * @param InWorld the world to associate with this netdriver
 	 */
-	ENGINE_API void SetWorld(class UWorld* InWorld);
+	ENGINE_API virtual void SetWorld(class UWorld* InWorld);
 
 	/**
 	 * Get the world associated with this net driver
