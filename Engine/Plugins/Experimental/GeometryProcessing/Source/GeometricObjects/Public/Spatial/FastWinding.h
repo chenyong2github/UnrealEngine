@@ -256,7 +256,7 @@ public:
 	 */
 	double FastWindingNumber(const FVector3d& P) const
 	{
-		checkSlow(IsBuilt(P));
+		checkSlow(IsBuilt());
 		double sum = branch_fast_winding_num(Tree->RootIndex, P);
 		return sum;
 	}
