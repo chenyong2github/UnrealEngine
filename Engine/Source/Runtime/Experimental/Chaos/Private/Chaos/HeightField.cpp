@@ -12,6 +12,9 @@
 
 namespace Chaos
 {
+	int32 bOneSidedHeightField = 1;
+	static FAutoConsoleVariableRef CVarOneSidedHeightField(TEXT("p.Chaos.OneSidedHeightField"), bOneSidedHeightField, TEXT("When enabled, extra steps will ensure that FHeightField::GJKContactPointImp never results in internal-facing contact data."));
+
 	class FHeightfieldRaycastVisitor
 	{
 	public:
@@ -1226,14 +1229,36 @@ namespace Chaos
 
 			FReal Penetration;
 			TVec3<FReal> ClosestA, ClosestB, Normal;
-			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (FReal)0))
-			{
-				TVec3<FReal> TestVector = QueryTM.InverseTransformVector(Normal);
 
-				LocalContactLocation = ClosestB;
-				LocalContactNormal = Normal; 
-				LocalContactPhi = -Penetration;
-				return true;
+			if (bOneSidedHeightField)
+			{
+				// HACK:
+				// The regular penetration calculation vs a triangle may result in inward facing normals.
+				// To protect against this, we sweep against the triangle from a distance to ensure an outward
+				// facing normal and MTD.
+				const TAABB<FReal, 3> Bounds = QueryGeom.BoundingBox();
+				const float ApproximateSizeOfObject = Bounds.Extents()[Bounds.LargestAxis()];
+				const float ApproximateDistToObject = FVec3::DistSquared(QueryTM.GetLocation(), A);
+				const float SweepLength = ApproximateSizeOfObject + ApproximateDistToObject;
+				const FVec3 TriNormal = Offset.GetUnsafeNormal();
+				const FRigidTransform3 QueryStartTM(QueryTM.GetLocation() + TriNormal * SweepLength, QueryTM.GetRotation());
+				if (GJKRaycast2(TriangleConvex, QueryGeom, QueryStartTM, -TriNormal, SweepLength, Penetration, ClosestB, Normal, 0.f, true))
+				{
+					LocalContactLocation = ClosestB;
+					LocalContactNormal = TriNormal;
+					LocalContactPhi = Penetration - SweepLength;
+					return true;
+				}
+			}
+			else
+			{
+				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, Normal, (FReal)0))
+				{
+					LocalContactLocation = ClosestB;
+					LocalContactNormal = Normal; 
+					LocalContactPhi = -Penetration;
+					return true;
+				}
 			}
 
 			return false;
