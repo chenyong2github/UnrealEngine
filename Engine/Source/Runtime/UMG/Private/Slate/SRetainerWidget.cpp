@@ -174,7 +174,6 @@ void SRetainerWidget::Construct(const FArguments& InArgs)
 
 	RenderOnPhase = InArgs._RenderOnPhase;
 	RenderOnInvalidation = InArgs._RenderOnInvalidation;
-	bVolatilityAlwaysInvalidatesPrepass = RenderOnInvalidation;
 
 	Phase = InArgs._Phase;
 	PhaseCount = InArgs._PhaseCount;
