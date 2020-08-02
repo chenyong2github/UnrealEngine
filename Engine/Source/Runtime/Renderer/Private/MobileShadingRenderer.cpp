@@ -826,6 +826,8 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
+	GEngine->GetPostRenderDelegate().Broadcast();
+
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneEnd));
 
 	RenderFinish(RHICmdList);
