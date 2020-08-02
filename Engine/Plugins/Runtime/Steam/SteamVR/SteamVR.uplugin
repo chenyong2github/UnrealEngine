@@ -17,8 +17,7 @@
 	"SupportedTargetPlatforms": [
 		"Win32",
 		"Win64",
-		"Linux",
-		"Mac"
+		"Linux"
 	],
 	"Modules": [
 		{
@@ -28,8 +27,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Linux",
-				"Mac"
+				"Linux"
 			]
 		},
 		{
@@ -38,8 +36,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Mac"
+				"Win32"
 			]
 		},
 		{
@@ -48,8 +45,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Mac"
+				"Win32"		
 			]
 		},
 		{
@@ -58,8 +54,7 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Mac"
+				"Win32"
 			]
 		}
 	],
