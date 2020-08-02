@@ -1446,7 +1446,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4(
 				Parameters.Direction, Parameters.SourceLength);
 			ConvolutionMetaData.HitDistanceToWorldBluringRadius[BatchedSignalId] =
-				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()));
+				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()) * LightSceneProxy->GetShadowSourceAngleFactor());
 			ConvolutionMetaData.LightType[BatchedSignalId] = LightSceneProxy->GetLightType();
 		}
 	}

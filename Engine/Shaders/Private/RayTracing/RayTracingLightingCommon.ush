@@ -262,6 +262,8 @@ float3 SampleAreaLightDirection(
 
 	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
+		float ShadowSourceAngleFactor = LightData.RectLightBarnCosAngle;
+		LightParameters.SourceRadius *= ShadowSourceAngleFactor;
 		float TraceDistance = 0.0;
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
