@@ -174,6 +174,7 @@ void SRetainerWidget::Construct(const FArguments& InArgs)
 
 	RenderOnPhase = InArgs._RenderOnPhase;
 	RenderOnInvalidation = InArgs._RenderOnInvalidation;
+	bVolatilityAlwaysInvalidatesPrepass = RenderOnInvalidation;
 
 	Phase = InArgs._Phase;
 	PhaseCount = InArgs._PhaseCount;
@@ -231,7 +232,7 @@ void SRetainerWidget::OnRetainerModeChanged()
 
 	// Invalidate my invalidation root, since all my children were once it's children
 	// it needs to force a generation bump just like me.
-	if (FSlateInvalidationRoot* MyInvalidationRoot = GetProxyHandle().GetInvalidationRoot())
+	if (FSlateInvalidationRoot* MyInvalidationRoot = GetProxyHandle().GetInvalidationRootHandle().GetInvalidationRoot())
 	{
 		MyInvalidationRoot->Advanced_ResetInvalidation(true);
 	}

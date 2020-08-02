@@ -17,7 +17,7 @@ public:
 	/** @returns true if this used to point to a InvalidatationRoot, but doesn't any more and has not been assigned or reset in the mean time. */
 	bool IsStale() const { return InvalidationRoot != nullptr && GetInvalidationRoot() == nullptr; }
 
-	FSlateInvalidationRoot* GetInvalidationRoot() const;
+	SLATECORE_API FSlateInvalidationRoot* GetInvalidationRoot() const;
 	FSlateInvalidationRoot* Advanced_GetInvalidationRootNoCheck() const { return InvalidationRoot; }
 
 private:
