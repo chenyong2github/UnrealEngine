@@ -7,7 +7,7 @@
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
 #include "Engine/LevelStreaming.h"
-#include "MovieSceneLevelVisibilityTemplate.generated.h"
+#include "MovieSceneLevelVisibilitySystem.generated.h"
 
 class UWorld;
 
