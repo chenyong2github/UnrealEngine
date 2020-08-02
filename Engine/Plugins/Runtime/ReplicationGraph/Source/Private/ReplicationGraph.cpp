@@ -741,8 +741,8 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_NotifyActorDormancyChange);
 
-	FGlobalActorReplicationInfo* GlobalInfo = GlobalActorReplicationInfoMap.Find(Actor);
-	if (!GlobalInfo)
+	FGlobalActorReplicationInfo* ActorRepInfo = GlobalActorReplicationInfoMap.Find(Actor);
+	if (!ActorRepInfo)
 	{
 		UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Ignoring change since actor is not registered yet."), *Actor->GetPathName());
 		return;
@@ -756,13 +756,13 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 
 	ENetDormancy CurrentDormancy = Actor->NetDormancy;
 
-	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Old WantsToBeDormant: %d. New WantsToBeDormant: %d"), *Actor->GetPathName(), GlobalInfo->bWantsToBeDormant, CurrentDormancy > DORM_Awake ? 1 : 0);
+	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("UReplicationGraph::NotifyActorDormancyChange %s. Old WantsToBeDormant: %d. New WantsToBeDormant: %d"), *Actor->GetPathName(), ActorRepInfo->bWantsToBeDormant, CurrentDormancy > DORM_Awake ? 1 : 0);
 
 	const bool bOldWantsToBeDormant = OldDormancyState > DORM_Awake;
 	const bool bNewWantsToBeDormant = CurrentDormancy > DORM_Awake;
 
-	GlobalInfo->bWantsToBeDormant = bNewWantsToBeDormant;
-	GlobalInfo->Events.DormancyChange.Broadcast(Actor, *GlobalInfo, CurrentDormancy, OldDormancyState);
+	ActorRepInfo->bWantsToBeDormant = bNewWantsToBeDormant;
+	ActorRepInfo->Events.DormancyChange.Broadcast(Actor, *ActorRepInfo, CurrentDormancy, OldDormancyState);
 
 	// Is the actor coming out of dormancy via changing its dormancy state?
 	if (!bNewWantsToBeDormant && bOldWantsToBeDormant)
@@ -2818,6 +2818,20 @@ bool FStreamingLevelActorListCollection::RemoveActor(const FNewReplicatedActorIn
 	return bRemovedSomething;
 }
 
+bool FStreamingLevelActorListCollection::RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UReplicationGraphNode* Outer)
+{
+	bool bRemovedSomething = false;
+	for (FStreamingLevelActors& StreamingList : StreamingLevelLists)
+	{
+		if (StreamingList.StreamingLevelName == ActorInfo.StreamingLevelName)
+		{
+			bRemovedSomething = StreamingList.ReplicationActorList.RemoveFast(ActorInfo.Actor);
+			break;
+		}
+	}
+	return bRemovedSomething;
+}
+
 void FStreamingLevelActorListCollection::Reset()
 {
 	for (FStreamingLevelActors& StreamingList : StreamingLevelLists)
@@ -2915,6 +2929,19 @@ bool UReplicationGraphNode_ActorList::NotifyRemoveNetworkActor(const FNewReplica
 	}
 
 	return bRemovedSomething;
+}
+
+/** Removes the actor very quickly but breaks the list order */
+bool UReplicationGraphNode_ActorList::RemoveNetworkActorFast(const FNewReplicatedActorInfo& ActorInfo)
+{
+	if (ActorInfo.StreamingLevelName == NAME_None)
+	{
+		return ReplicationActorList.RemoveFast(ActorInfo.Actor);
+	}
+	else
+	{
+		return StreamingLevelCollection.RemoveActorFast(ActorInfo, this);
+	}
 }
 	
 void UReplicationGraphNode_ActorList::NotifyResetAllNetworkActors()
@@ -3903,13 +3930,13 @@ void UReplicationGraphNode_ConnectionDormancyNode::OnClientVisibleLevelNameAdd(F
 bool UReplicationGraphNode_ConnectionDormancyNode::NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool WarnIfNotFound)
 {
 	// Remove from active list by calling super
-	if (Super::NotifyRemoveNetworkActor(ActorInfo, false))
+	if (Super::RemoveNetworkActorFast(ActorInfo))
 	{
 		return true;
 	}
 
 	// Not found in active list. We must check out RemovedActorList
-	return RemovedStreamingLevelActorListCollection.RemoveActor(ActorInfo, WarnIfNotFound, this);
+	return RemovedStreamingLevelActorListCollection.RemoveActorFast(ActorInfo, this);
 }
 
 void UReplicationGraphNode_ConnectionDormancyNode::NotifyResetAllNetworkActors()
@@ -3967,10 +3994,10 @@ void UReplicationGraphNode_DormancyNode::RemoveDormantActor(const FNewReplicated
 {
 	UE_CLOG(CVar_RepGraph_LogActorRemove>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_DormancyNode::RemoveDormantActor %s on %s. (%d connection nodes). ChildNodes: %d"), *GetNameSafe(ActorInfo.Actor), *GetPathName(), ConnectionNodes.Num(), AllChildNodes.Num());
 
-	Super::NotifyRemoveNetworkActor(ActorInfo);
-
+	Super::RemoveNetworkActorFast(ActorInfo);
+	
 	ActorRepInfo.Events.DormancyFlush.RemoveAll(this);
-
+	
 	// Update any connection specific nodes
 	for (auto& MapIt : ConnectionNodes)
 	{
@@ -4099,12 +4126,12 @@ void UReplicationGraphNode_DormancyNode::ConditionalGatherDormantDynamicActors(F
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
 
-void UReplicationGraphNode_GridCell::AddStaticActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo, bool bParentNodeHandlesDormancyChange)
+void UReplicationGraphNode_GridCell::AddStaticActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo, bool bParentNodeHandlesDormancyChange)
 {
-	if (GlobalInfo.bWantsToBeDormant)
+	if (ActorRepInfo.bWantsToBeDormant)
 	{
 		// Pass to dormancy node
-		GetDormancyNode()->AddDormantActor(ActorInfo, GlobalInfo);
+		GetDormancyNode()->AddDormantActor(ActorInfo, ActorRepInfo);
 	}
 	else
 	{	
@@ -4115,7 +4142,7 @@ void UReplicationGraphNode_GridCell::AddStaticActor(const FNewReplicatedActorInf
 	// We need to be told if this actor changes dormancy so we can move him between nodes. Unless our parent is going to do it.
 	if (!bParentNodeHandlesDormancyChange)
 	{
-		GlobalInfo.Events.DormancyChange.AddUObject(this, &UReplicationGraphNode_GridCell::OnStaticActorNetDormancyChange);
+		ActorRepInfo.Events.DormancyChange.AddUObject(this, &UReplicationGraphNode_GridCell::OnStaticActorNetDormancyChange);
 	}
 }
 

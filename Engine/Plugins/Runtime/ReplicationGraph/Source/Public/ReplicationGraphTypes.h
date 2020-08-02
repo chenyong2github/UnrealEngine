@@ -294,6 +294,17 @@ struct REPLICATIONGRAPH_API FActorRepListRefView : public TActorRepListViewBase<
 		return false;
 	}
 
+	bool RemoveFast(const FActorRepListType& ElementToRemove)
+	{
+		int32 idx = IndexOf(ElementToRemove);
+		if (idx >= 0)
+		{
+			RemoveAtSwap(idx);
+			return true;
+		}
+		return false;
+	}
+
 	void RemoveAtSwap(int32 idx)
 	{
 		repCheck(RepList && Num() > idx);
