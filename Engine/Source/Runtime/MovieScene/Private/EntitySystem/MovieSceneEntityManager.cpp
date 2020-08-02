@@ -1679,14 +1679,6 @@ void FEntityManager::InitializeChildAllocation(const FComponentMask& ParentType,
 			ChildInit->Run(InChildEntityRange, ParentAllocation, ParentAllocationOffsets);
 		}
 	}
-
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : InstancedMutualInitializers)
-	{
-		if (MutualInit->IsRelevant(ChildType))
-		{
-			MutualInit->Run(InChildEntityRange);
-		}
-	}
 }
 
 void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
@@ -1709,13 +1701,78 @@ void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
 			MutualInit->Run(Range);
 		}
 	}
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : InstancedMutualInitializers)
+}
+
+void FEntityManager::AddMutualComponents()
+{
+	CheckCanChangeStructure();
+
+	TMap<int32, FComponentMask> AllocationMutations;
+
+	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocations.GetMaxIndex(); ++AllocationIndex)
 	{
-		if (MutualInit->IsRelevant(EntityType))
+		if (!EntityAllocations.IsValidIndex(AllocationIndex))
 		{
-			MutualInit->Run(Range);
+			continue;
+		}
+
+		FComponentMask NewAllocationType = EntityAllocationMasks[AllocationIndex];
+
+		const int32 NumNewComponents = ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(NewAllocationType);
+		if (NumNewComponents != 0)
+		{
+			AllocationMutations.Add(AllocationIndex, NewAllocationType);
 		}
 	}
+
+	if (AllocationMutations.Num() == 0)
+	{
+		return;
+	}
+
+	for (TTuple<int32, FComponentMask>& Pair : AllocationMutations)
+	{
+		int32 AllocationIndex = Pair.Key;
+		FEntityAllocation* SourceAllocation = EntityAllocations[AllocationIndex];
+
+		// When adding a component to an entire allocation we just reallocate within the same allocation entry to avoid having to fix up 
+		// Specific entity entry indices
+		FEntityAllocation* NewAllocation = MigrateAllocation(AllocationIndex, Pair.Value);
+
+		FComponentMask NewComponents = FComponentMask::BitwiseXOR(Pair.Value, EntityAllocationMasks[AllocationIndex], EBitwiseOperatorFlags::MaxSize);
+
+		for (FComponentMaskIterator Component = NewComponents.Iterate(); Component; ++Component)
+		{
+			FComponentTypeID ComponentTypeID = FComponentTypeID::FromBitIndex(Component.GetIndex());
+
+			const FComponentHeader& ComponentHeader = NewAllocation->GetComponentHeaderChecked(ComponentTypeID);
+			if (!ComponentHeader.IsTag())
+			{
+				const FComponentTypeInfo& ComponentTypeInfo = ComponentRegistry->GetComponentTypeChecked(ComponentTypeID);
+
+				void* Components = ComponentHeader.GetValuePtr(0);
+				ComponentTypeInfo.ConstructItems(Components, NewAllocation->Num());
+			}
+		}
+
+		FEntityRange Range = { NewAllocation, 0, NewAllocation->Num() };
+		for (const TInlineValue<FMutualEntityInitializer>& MutualInit : ComponentRegistry->Factories.MutualInitializers)
+		{
+			// Only run mutual initializers for _new_ component types (ie, ones that were actually added)
+			if (NewComponents.Contains(MutualInit->GetComponentA()) && Pair.Value.Contains(MutualInit->GetComponentB()))
+			{
+				MutualInit->Run(Range);
+			}
+		}
+
+		EntityAllocationMasks[Pair.Key] = Pair.Value;
+		EntityAllocations[Pair.Key] = NewAllocation;
+
+		DestroyAllocation(SourceAllocation);
+	}
+
+	CheckInvariants();
+	OnStructureChanged();
 }
 
 FEntityAllocation* FEntityManager::MigrateAllocation(int32 AllocationIndex, const FComponentMask& NewComponentMask)
