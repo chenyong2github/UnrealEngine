@@ -10,6 +10,7 @@
 #include "NetworkPredictionStateView.h"
 #include "Misc/StringBuilder.h"
 #include "GameFramework/Actor.h"
+#include "Components/PrimitiveComponent.h"
 
 struct FBodyInstance;
 
