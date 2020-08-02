@@ -4,6 +4,8 @@
 # common functions used by individual build scripts for thirdparty libraries
 
 export MACOSX_DEPLOYMENT_TARGET="10.13"
+export UE_XC_SYSROOT=`xcrun --sdk macosx --show-sdk-path`
+
 BUILD_UNIVERSAL=true
 
 function abspath() {
