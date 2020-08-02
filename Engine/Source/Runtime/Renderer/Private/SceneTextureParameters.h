@@ -58,4 +58,4 @@ void SetupSceneTextureSamplers(FSceneTextureSamplerParameters* OutSamplers);
 
 /** Returns a render graph texture resource reference onto the eye adaptation or fallback.
  */
-FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+FRDGTextureRef RENDERER_API GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FViewInfo& View);

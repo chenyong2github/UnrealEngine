@@ -63,6 +63,15 @@ TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
 	TEXT("Allows half-resolution color buffer to be produced during TAA. Only possible when motion blur is off and when using compute shaders for post processing."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarUseTemporalAAUpscaler(
+	TEXT("r.TemporalAA.Upscaler"),
+	1,
+	TEXT("Choose the upscaling algorithm.\n")
+	TEXT(" 0: Forces the default temporal upscaler of the renderer;\n")
+	TEXT(" 1: GTemporalUpscaler which may be overridden by a third party plugin (default)."),
+	ECVF_RenderThreadSafe);
+
+
 class FTAAPassConfigDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_PASS_CONFIG", ETAAPassConfig);
 class FTAAFastDim : SHADER_PERMUTATION_BOOL("TAA_FAST");
 class FTAAResponsiveDim : SHADER_PERMUTATION_BOOL("TAA_RESPONSIVE");
@@ -104,8 +113,6 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
 		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 
 		// Inputs
@@ -120,7 +127,9 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryBuffer1)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HistoryBuffer1Sampler)
 
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthBuffer)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthBufferSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityBuffer)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityBufferSampler)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, StencilTexture)
@@ -383,7 +392,6 @@ bool FTAAPassParameters::Validate() const
 
 FTAAOutputs AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FTAAPassParameters& Inputs,
 	const FTemporalAAHistory& InputHistory,
@@ -513,16 +521,18 @@ FTAAOutputs AddTemporalAAPass(
 		PassParameters->CurrentFrameWeight = CVarTemporalAACurrentFrameWeight.GetValueOnRenderThread();
 		PassParameters->bCameraCut = bCameraCut;
 
-		PassParameters->SceneTextures = SceneTextures;
+		PassParameters->SceneDepthBuffer = Inputs.SceneDepthTexture;
+		PassParameters->SceneVelocityBuffer = Inputs.SceneVelocityTexture;
+
 		PassParameters->SceneDepthBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->SceneVelocityBufferSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
-		PassParameters->StencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.SceneDepthBuffer, PF_X24_G8));
+		PassParameters->StencilTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(Inputs.SceneDepthTexture, PF_X24_G8));
 
 		// We need a valid velocity buffer texture. Use black (no velocity) if none exists.
-		if (!PassParameters->SceneTextures.SceneVelocityBuffer)
+		if (!PassParameters->SceneVelocityBuffer)
 		{
-			PassParameters->SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);;
+			PassParameters->SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);;
 		}
 
 		// Input buffer shader parameters
@@ -558,7 +568,7 @@ FTAAOutputs AddTemporalAAPass(
 				PassParameters->HistoryBuffer1 = BlackDummy;
 
 				// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shader.
-				PassParameters->SceneTextures.SceneVelocityBuffer = BlackDummy;
+				PassParameters->SceneVelocityBuffer = BlackDummy;
 			}
 			else
 			{
@@ -679,13 +689,10 @@ FTAAOutputs AddTemporalAAPass(
 	return Outputs;
 }
 
-void AddTemporalAAPass(
+static void AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	const bool bAllowDownsampleSceneColor,
-	const EPixelFormat DownsampleOverrideFormat,
-	FRDGTextureRef InSceneColorTexture,
+	const ITemporalUpscaler::FPassInputs& PassInputs,
 	FRDGTextureRef* OutSceneColorTexture,
 	FIntRect* OutSceneColorViewRect,
 	FRDGTextureRef* OutSceneColorHalfResTexture,
@@ -726,19 +733,21 @@ void AddTemporalAAPass(
 		TAAParameters.OutputViewRect.Max = HistoryViewSize;
 	}
 
-	TAAParameters.DownsampleOverrideFormat = DownsampleOverrideFormat;
+	TAAParameters.DownsampleOverrideFormat = PassInputs.DownsampleOverrideFormat;
 
-	TAAParameters.bDownsample = bAllowDownsampleSceneColor && TAAParameters.bUseFast;
+	TAAParameters.bDownsample = PassInputs.bAllowDownsampleSceneColor && TAAParameters.bUseFast;
 
-	TAAParameters.SceneColorInput = InSceneColorTexture;
+	TAAParameters.SceneDepthTexture = PassInputs.SceneDepthTexture;
+	TAAParameters.SceneVelocityTexture = PassInputs.SceneVelocityTexture;
+	TAAParameters.SceneColorInput = PassInputs.SceneColorTexture;
 
 	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 
 	FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
 
-	const FTAAOutputs TAAOutputs = AddTemporalAAPass(
+
+	const FTAAOutputs TAAOutputs = ::AddTemporalAAPass(
 		GraphBuilder,
-		SceneTextures,
 		View,
 		TAAParameters,
 		InputHistory,
@@ -756,8 +765,8 @@ void AddTemporalAAPass(
 
 		FScreenPassTextureViewport OutputViewport;
 		OutputViewport.Rect = SecondaryViewRect;
-		OutputViewport.Extent.X = FMath::Max(InSceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
-		OutputViewport.Extent.Y = FMath::Max(InSceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
+		OutputViewport.Extent.X = FMath::Max(PassInputs.SceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
+		OutputViewport.Extent.Y = FMath::Max(PassInputs.SceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
 
 		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, View, FScreenPassTexture(SceneColorTexture, InputViewport), OutputViewport);
 	}
@@ -766,96 +775,47 @@ void AddTemporalAAPass(
 	*OutSceneColorViewRect = SecondaryViewRect;
 	*OutSceneColorHalfResTexture = TAAOutputs.DownsampledSceneColor;
 	*OutSceneColorHalfResViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
-}
+} // AddTemporalAAPass()
 
-//////////////////////////////////////////////////////////////////////////
-//! Legacy - Only used by DebugViewModeRendering. Remove after porting.
+const ITemporalUpscaler* GTemporalUpscaler = nullptr;
 
-class FRCPassPostProcessTemporalAA : public TRenderingCompositePassBase<3, 3>
-{
+class FDefaultTemporalUpscaler : public ITemporalUpscaler
+{ 
 public:
-	FRCPassPostProcessTemporalAA(
-		const FPostprocessContext& Context,
-		const FTAAPassParameters& InParameters,
-		const FTemporalAAHistory& InInputHistory,
-		FTemporalAAHistory* OutOutputHistory)
-		: SavedParameters(InParameters)
-		, InputHistory(InInputHistory)
-		, OutputHistory(OutOutputHistory)
-	{
-		check(InParameters.Pass == ETAAPassConfig::Main);
-		check(SavedParameters.Validate());
 
-		bIsComputePass = true;
-		bPreferAsyncCompute = false;
+	virtual const TCHAR* GetDebugName() const
+	{
+		return TEXT("FDefaultTemporalUpscaler");
 	}
 
-	void Process(FRenderingCompositePassContext& Context) override
+	virtual void AddPasses(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FPassInputs& PassInputs,
+		FRDGTextureRef* OutSceneColorTexture,
+		FIntRect* OutSceneColorViewRect,
+		FRDGTextureRef* OutSceneColorHalfResTexture,
+		FIntRect* OutSceneColorHalfResViewRect) const final
 	{
-		WaitForInputPassComputeFences(Context.RHICmdList);
-
-		AsyncEndFence = FComputeFenceRHIRef();
-
-		FRDGBuilder GraphBuilder(Context.RHICmdList);
-
-		FSceneTextureParameters SceneTextures;
-		SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
-
-		FTAAPassParameters Parameters = SavedParameters;
-		Parameters.SceneColorInput = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
-
-#if WITH_MGPU
-		static const FName NameForTemporalEffect("RCPassPostProcessTemporalAA");
-		GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, Context.View.ViewState->UniqueID));
-#endif
-		FTAAOutputs Outputs = AddTemporalAAPass(
+		return AddTemporalAAPass(
 			GraphBuilder,
-			SceneTextures,
-			Context.View,
-			Parameters,
-			InputHistory,
-			/* out */ OutputHistory);
-
-		ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, Outputs.SceneColor);
-
-		GraphBuilder.Execute();
+			View,
+			PassInputs,
+			OutSceneColorTexture,
+			OutSceneColorViewRect,
+			OutSceneColorHalfResTexture,
+			OutSceneColorHalfResViewRect);
 	}
-
-	void Release() override { delete this; }
-
-	FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override
-	{
-		// ExtractRDGTextureForOutput() is doing this work for us already.
-		return FPooledRenderTargetDesc();
-	}
-
-	FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
-
-private:
-	const FTAAPassParameters SavedParameters;
-
-	FComputeFenceRHIRef AsyncEndFence;
-
-	const FTemporalAAHistory& InputHistory;
-	FTemporalAAHistory* OutputHistory;
 };
 
-FRenderingCompositeOutputRef AddTemporalAADebugViewPass(FPostprocessContext& Context)
+// static
+const ITemporalUpscaler* ITemporalUpscaler::GetDefaultTemporalUpscaler()
 {
-	check(Context.View.ViewState);
-
-	FSceneViewState* ViewState = Context.View.ViewState;
-
-	FTAAPassParameters Parameters(Context.View);
-
-	FRCPassPostProcessTemporalAA* TemporalAAPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
-		Context,
-		Parameters,
-		Context.View.PrevViewInfo.TemporalAAHistory,
-		&ViewState->PrevFrameViewInfo.TemporalAAHistory));
-
-	TemporalAAPass->SetInput(ePId_Input0, Context.FinalOutput);
-	return FRenderingCompositeOutputRef(TemporalAAPass);
+	static FDefaultTemporalUpscaler DefaultTemporalUpscaler;
+	return &DefaultTemporalUpscaler;
 }
 
-//////////////////////////////////////////////////////////////////////////
+int ITemporalUpscaler::GetTemporalUpscalerMode()
+{
+	return CVarUseTemporalAAUpscaler.GetValueOnRenderThread();
+}

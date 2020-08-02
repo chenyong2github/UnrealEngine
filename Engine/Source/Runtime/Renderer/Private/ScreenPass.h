@@ -176,7 +176,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, )
 	SHADER_PARAMETER(FVector2D, UVViewportBilinearMax)
 END_SHADER_PARAMETER_STRUCT()
 
-FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
+FScreenPassTextureViewportParameters RENDERER_API GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
 
 /** Contains a transform that maps UV coordinates from one screen pass texture viewport to another.
  *  Assumes normalized UV coordinates [0, 0]x[1, 1] where [0, 0] maps to the source view min
@@ -419,7 +419,7 @@ void AddDrawScreenPass(
  *  (CopyTexture); otherwise, it rasterizes using a pixel shader. Use this method if the two
  *  textures may have different formats.
  */
-void AddDrawTexturePass(
+void RENDERER_API AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef InputTexture,
@@ -439,7 +439,7 @@ inline void AddDrawTexturePass(
 	AddDrawTexturePass(GraphBuilder, View, InputTexture, OutputTexture, ViewportRect.Min, ViewportRect.Min, ViewportRect.Size());
 }
 
-void AddDrawTexturePass(
+void RENDERER_API AddDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FScreenPassTexture Input,
