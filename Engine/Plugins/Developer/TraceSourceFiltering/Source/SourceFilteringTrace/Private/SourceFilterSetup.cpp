@@ -14,6 +14,7 @@
 #include "TraceSourceFilteringSettings.h"
 #include "SourceFilterCollection.h"
 
+#include "Misc/CoreDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(SourceFilterSetup, Display, Display);
 
