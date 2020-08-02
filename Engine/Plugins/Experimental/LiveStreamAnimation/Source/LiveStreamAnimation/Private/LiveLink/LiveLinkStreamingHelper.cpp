@@ -14,6 +14,7 @@
 
 #include "Roles/LiveLinkAnimationRole.h"
 #include "ILiveLinkClient.h"
+#include "LiveLinkTypes.h"
 #include "Serialization/MemoryReader.h"
 #include "Features/IModularFeatures.h"
 #include "CoreGlobals.h"
@@ -61,6 +62,10 @@ namespace LiveStreamAnimation
 			int32 RemappedSkeletonIndex;
 			int32 RealSkeletonIndex;
 		};
+
+		// TODO: This will cause us to crash if the LiveLinkSubject is missing any of the bones we specify in BonesToUse.
+		//			We should add some code that detects that, and pads the transforms with either identity transforms
+		//			**or** some code that attempts to find the bone from the UE Skeleton and grabs its ref pose (if possible).
 
 		if (TranslationProfile.IsSet())
 		{
@@ -366,17 +371,33 @@ namespace LiveStreamAnimation
 			return false;
 		}
 
+		FLiveLinkSubjectName LiveLinkSubjectName(LiveLinkSubject);
+		ILiveLinkClient* LiveLinkClient = GetLiveLinkClient();
+
 		if (FLiveLinkTrackedSubject* ExistingSubject = TrackedSubjects.Find(SubjectHandle))
 		{
 			UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject is already tracked. ExistingSubject = (%s)"),
 				*ExistingSubject->ToString());
 
-			return ExistingSubject->LiveLinkSubject == LiveLinkSubject;
+			const FLiveLinkSubjectName RegisteredSubjectName(SubjectHandle.GetName());
+			if (LiveLinkClient->IsSubjectValid(RegisteredSubjectName))
+			{
+				return ExistingSubject->LiveLinkSubject == LiveLinkSubject;
+			}
+			else
+			{
+				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Subject was tracked, but removed from Live Link. Reregistering. ExistingSubject = (%s)"),
+					*ExistingSubject->ToString());
+			}
 		}
 
-		if (ILiveLinkClient * LiveLinkClient = GetLiveLinkClient())
+		if (LiveLinkClient)
 		{
-			FLiveLinkSubjectName LiveLinkSubjectName(LiveLinkSubject);
+			if (!LiveLinkClient->HasSourceBeenAdded(LiveLinkSource))
+			{
+				UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveLinkStreamingHelper::StartTrackingSubject: Live Stream Animation Live Link Source was removed from Live Link! Previously tracked subjects may not be valid anymore."));
+				LiveLinkClient->AddSource(LiveLinkSource);
+			}
 
 			FDelegateHandle StaticDataReceivedHandle;
 			FOnLiveLinkSubjectStaticDataAdded::FDelegate OnStaticDataReceived;
