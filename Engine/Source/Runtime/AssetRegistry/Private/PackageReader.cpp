@@ -108,6 +108,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	const FCustomVersionContainer& PackageFileSummaryVersions = PackageFileSummary.GetCustomVersionContainer();
 	SetCustomVersions(PackageFileSummaryVersions);
 
+	SetFilterEditorOnly(Loader->IsFilterEditorOnly());
+
 	PackageFileSize = Loader->TotalSize();
 
 	SetPackageErrorCode(EOpenPackageResult::Success);
