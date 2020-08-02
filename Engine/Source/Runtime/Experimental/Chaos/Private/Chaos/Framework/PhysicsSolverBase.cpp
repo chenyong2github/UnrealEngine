@@ -12,6 +12,36 @@ namespace Chaos
 		BufferMode = InBufferMode;
 	}
 
+	FDelegateHandle FPhysicsSolverBase::AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate)
+	{
+		return EventPreSolve.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePreAdvanceCallback(FDelegateHandle InHandle)
+	{
+		return EventPreSolve.Remove(InHandle);
+	}
+
+	FDelegateHandle FPhysicsSolverBase::AddPreBufferCallback(FSolverPreBuffer::FDelegate InDelegate)
+	{
+		return EventPreBuffer.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePreBufferCallback(FDelegateHandle InHandle)
+	{
+		return EventPreBuffer.Remove(InHandle);
+	}
+
+	FDelegateHandle FPhysicsSolverBase::AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate)
+	{
+		return EventPostSolve.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePostAdvanceCallback(FDelegateHandle InHandle)
+	{
+		return EventPostSolve.Remove(InHandle);
+	}
+
 	FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 		TEXT("TaskGraph.TaskPriorities.PhysicsTickTask"),
 		TEXT("Task and thread priotiry for Chaos physics tick"),

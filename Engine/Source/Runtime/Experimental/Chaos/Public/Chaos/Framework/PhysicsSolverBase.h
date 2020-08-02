@@ -14,6 +14,10 @@
 
 class FChaosSolversModule;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPreAdvance, Chaos::FReal);
+DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPreBuffer, Chaos::FReal);
+DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
+
 namespace Chaos
 {
 
@@ -310,7 +314,6 @@ namespace Chaos
 	FGraphEventRef PendingTasks;
 
 	private:
-
 		/** 
 		 * Ptr to the engine object that is counted as the owner of this solver.
 		 * Never used internally beyond how the solver is stored and accessed through the solver module.
@@ -327,5 +330,25 @@ namespace Chaos
 		friend struct TSolverQueryMaterialScope;
 
 		ETraits TraitIdx;
+
+	public:
+		/** Events */
+		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
+		FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
+		bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);
+
+		/** Pre buffer happens after the simulation has been advanced (particle positions etc. will have been updated) but GT results haven't been prepared yet */
+		FDelegateHandle AddPreBufferCallback(FSolverPreAdvance::FDelegate InDelegate);
+		bool            RemovePreBufferCallback(FDelegateHandle InHandle);
+
+		/** Post advance happens after all processing and results generation has been completed */
+		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
+		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
+
+	protected:
+		/** Storage for events, see the Add/Remove pairs above for event timings */
+		FSolverPreAdvance EventPreSolve;
+		FSolverPreBuffer EventPreBuffer;
+		FSolverPostAdvance EventPostSolve;
 	};
 }
