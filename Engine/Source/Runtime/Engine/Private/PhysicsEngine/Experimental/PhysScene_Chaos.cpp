@@ -700,7 +700,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 	Chaos::FCollisionDataArray const& CollisionData = Event.CollisionData.AllCollisionsArray;
-
+	const float MinDeltaVelocityThreshold = UPhysicsSettings::Get()->MinDeltaVelocityForHitEvents;
 	int32 NumCollisions = CollisionData.Num();
 	if (NumCollisions > 0)
 	{
@@ -747,6 +747,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							NewContact.ContactNormal = CollisionDataItem.Normal;
 							NewContact.ContactPosition = CollisionDataItem.Location;
 							NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+							NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold = CollisionDataItem.DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) && CollisionDataItem.DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
 							// NewContact.PhysMaterial[1] UPhysicalMaterial required here
 						}
 					}
