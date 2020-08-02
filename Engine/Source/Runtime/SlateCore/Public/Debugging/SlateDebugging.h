@@ -6,6 +6,7 @@
 #include "Delegates/Delegate.h"
 #include "Input/Reply.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Widgets/InvalidateWidgetReason.h"
 
 #include "SlateDebugging.generated.h"
 
@@ -195,6 +196,33 @@ public:
 	FText ToText() const;
 };
 
+enum class ESlateDebuggingInvalidateRootReason
+{
+	None = 0,
+	ChildOrder = 1 << 0,
+	Root = 1 << 1,
+	ScreenPosition = 1 << 2,
+};
+
+ENUM_CLASS_FLAGS(ESlateDebuggingInvalidateRootReason)
+
+struct SLATECORE_API FSlateDebuggingInvalidateArgs
+{
+	FSlateDebuggingInvalidateArgs(
+		const SWidget* WidgetInvalidated,
+		const SWidget* WidgetInvalidateInvestigator,
+		EInvalidateWidgetReason InvalidateReason);
+
+	FSlateDebuggingInvalidateArgs(
+		const SWidget* WidgetInvalidated,
+		const SWidget* WidgetInvalidateInvestigator,
+		ESlateDebuggingInvalidateRootReason InvalidateReason);
+
+	const SWidget* WidgetInvalidated;
+	const SWidget* WidgetInvalidateInvestigator;
+	EInvalidateWidgetReason InvalidateWidgetReason;
+	ESlateDebuggingInvalidateRootReason InvalidateInvalidationRootReason;
+};
 
 /**
  * 
@@ -317,6 +345,13 @@ public:
 	static FWidgetCursorQuery CursorChangedEvent;
 
 	static void BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOverridingCursor, const FCursorReply& InReply);
+
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetInvalidate, const FSlateDebuggingInvalidateArgs& /*EventArgs*/);
+	static FWidgetInvalidate WidgetInvalidateEvent;
+
+	static void BroadcastWidgetInvalidate(const SWidget* WidgetInvalidated, const SWidget* WidgetInvalidateInvestigator, EInvalidateWidgetReason InvalidateReason);
+	static void BroadcastInvalidationRootInvalidate(const SWidget* WidgetInvalidated, const SWidget* WidgetInvalidateInvestigator, ESlateDebuggingInvalidateRootReason InvalidateReason);
 
 public:
 	/**  */

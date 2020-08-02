@@ -71,6 +71,9 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		{
 			ParentProxy.Widget->InvalidatePrepass();
 			ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
+#if WITH_SLATE_DEBUGGING
+			FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
+#endif
 			UpdateList.Push(ParentProxy);
 		}
 		bWidgetNeedsRepaint = true;
@@ -110,11 +113,14 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 				if (ParentIndex == 0)
 				{
 					// root of the invalidation panel just invalidate the whole thing
-					Root.InvalidateRoot();
+					Root.InvalidateRoot(Widget);
 				}
 				else if (ParentProxy.Visibility.IsVisible())
 				{
 					ParentProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
+#if WITH_SLATE_DEBUGGING
+					FSlateDebugging::BroadcastWidgetInvalidate(ParentProxy.Widget, Widget, EInvalidateWidgetReason::Layout);
+#endif
 					UpdateList.Push(ParentProxy);
 				}
 			}
@@ -123,7 +129,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 				TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
 				if (ParentWidget->Advanced_IsInvalidationRoot())
 				{
-					Root.InvalidateRoot();
+					Root.InvalidateRoot(Widget);
 				}
 			}
 		}
@@ -258,7 +264,7 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 				UE_LOG(LogSlate, Log, TEXT("Slow Widget Path Needed: %s %s"), *Proxy.Widget->ToString(), *Proxy.Widget->GetTag().ToString());
 		#endif*/
 		Proxy.bChildOrderInvalid = true;
-		GetInvalidationRoot()->InvalidateChildOrder();
+		GetInvalidationRoot()->InvalidateChildOrder(Proxy.Widget);
 	}
 
 	if (Proxy.CurrentInvalidateReason == EInvalidateWidgetReason::None)
@@ -272,6 +278,9 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 	}
 #endif
 	Proxy.CurrentInvalidateReason |= InvalidateReason;
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::BroadcastWidgetInvalidate(Proxy.Widget, nullptr, InvalidateReason);
+#endif
 }
 
 void FWidgetProxyHandle::UpdateWidgetFlags(EWidgetUpdateFlags NewFlags)
