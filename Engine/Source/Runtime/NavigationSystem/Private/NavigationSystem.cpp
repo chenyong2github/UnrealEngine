@@ -3567,7 +3567,7 @@ void UNavigationSystemV1::OnPIEStart()
 	if (MyWorld && !MyWorld->IsGameWorld())
 	{
 		bAsyncBuildPaused = true;
-		AddNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor);
+		AddNavigationBuildLock(ENavigationBuildLock::NoUpdateInPIE);
 	}
 }
 
@@ -3579,7 +3579,7 @@ void UNavigationSystemV1::OnPIEEnd()
 	{
 		bAsyncBuildPaused = false;
 		// there's no need to request while navigation rebuilding just because PIE has ended
-		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, ELockRemovalRebuildAction::RebuildIfNotInEditor);
+		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInPIE, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 	}
 }
 
@@ -3748,15 +3748,15 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 	if ((IsNavigationSystemStatic() == false))
 	{
 		AddLevelCollisionToOctree(InLevel);
+	}
 
-		if (!InLevel->IsPersistentLevel())
+	if (!InLevel->IsPersistentLevel())
+	{
+		for (ANavigationData* NavData : NavDataSet)
 		{
-			for (ANavigationData* NavData : NavDataSet)
+			if (NavData)
 			{
-				if (NavData)
-				{
-					NavData->OnStreamingLevelAdded(InLevel, InWorld);
-				}
+				NavData->OnStreamingLevelAdded(InLevel, InWorld);
 			}
 		}
 	}
@@ -3794,9 +3794,12 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 
 void UNavigationSystemV1::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 {
-	if ((IsNavigationSystemStatic() == false) && (InWorld == GetWorld()) && (InLevel != nullptr))
+	if ((InWorld == GetWorld()) && (InLevel != nullptr))
 	{
-		RemoveLevelCollisionFromOctree(InLevel);
+		if (IsNavigationSystemStatic() == false)
+		{
+			RemoveLevelCollisionFromOctree(InLevel);
+		}
 
 		if (InLevel && !InLevel->IsPersistentLevel())
 		{
