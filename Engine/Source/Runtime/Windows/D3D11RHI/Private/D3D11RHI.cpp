@@ -647,7 +647,7 @@ void FD3DGPUProfiler::PopEvent()
 }
 
 extern CORE_API bool GIsGPUCrashed;
-bool FD3DGPUProfiler::CheckGpuHeartbeat() const
+bool FD3DGPUProfiler::CheckGpuHeartbeat(bool bShowActiveStatus) const
 {
 #if NV_AFTERMATH
 #define NVAFTERMATH_ON_ERROR() do { if (D3D11RHI) { D3D11RHI->StopNVAftermath(); GDX11NVAfterMathEnabled = false; } } while (false)
@@ -660,7 +660,7 @@ bool FD3DGPUProfiler::CheckGpuHeartbeat() const
 		D3D11UnstallRHIThread();
 		if (Result == GFSDK_Aftermath_Result_Success)
 		{
-			if (Status != GFSDK_Aftermath_Device_Status_Active)
+			if (Status != GFSDK_Aftermath_Device_Status_Active || bShowActiveStatus)
 			{
 				GIsGPUCrashed = true;
 				const TCHAR* AftermathReason[] = { TEXT("Active"), TEXT("Timeout"), TEXT("OutOfMemory"), TEXT("PageFault"), TEXT("Stopped"), TEXT("Reset"), TEXT("Unknown"), TEXT("DmaFault") };
