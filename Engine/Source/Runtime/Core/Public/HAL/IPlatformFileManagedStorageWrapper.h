@@ -17,6 +17,8 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Templates/UniquePtr.h"
 #include "HAL/FileManager.h"
+#include "Misc/ScopeRWLock.h"
+#include "Async/Async.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPlatformFileManagedStorage, Display, All);
 
@@ -175,6 +177,9 @@ private:
 	}
 };
 
+using FPersistentStorageCategorySharedPtr = TSharedPtr<struct FPersistentStorageCategory, ESPMode::ThreadSafe>;
+using FPersistentStorageCategoryWeakPtr = TWeakPtr<struct FPersistentStorageCategory, ESPMode::ThreadSafe>;
+
 class FPersistentStorageManager
 {
 public:
@@ -213,6 +218,8 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
+		FRWScopeLock WriteLock(CategoryLock, SLT_Write);
+
 		if (FileCategoryMap.Contains(NormalizedPath))
 		{
 			return true;
@@ -220,7 +227,7 @@ public:
 
 		for (auto& Category : Categories)
 		{
-			if (Category.Value.TryAddFileToCategory(NormalizedPath, FileSize))
+			if (Category.Value->TryAddFileToCategory(NormalizedPath, FileSize))
 			{
 				FileCategoryMap.FindOrAdd(NormalizedPath) = Category.Key;
 				return true;
@@ -230,7 +237,7 @@ public:
 		// Add to default category
 		if (DefaultCategoryName.Len() && Categories.Contains(DefaultCategoryName))
 		{
-			if (Categories[DefaultCategoryName].TryAddFileToCategory(NormalizedPath, FileSize, true))
+			if (Categories[DefaultCategoryName]->TryAddFileToCategory(NormalizedPath, FileSize, true))
 			{
 				FileCategoryMap.FindOrAdd(NormalizedPath) = DefaultCategoryName;
 				return true;
@@ -245,11 +252,13 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		FileCategoryMap.Remove(NormalizedPath);
-		FPersistentStorageCategory* CategoryPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryPtr)
+		FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
+		if (CategoryWeakPtr.IsValid())
 		{
-			return CategoryPtr->TryRemoveFileFromCategory(NormalizedPath);
+			FRWScopeLock WriteLock(CategoryLock, SLT_Write);
+
+			FileCategoryMap.Remove(NormalizedPath);
+			return CategoryWeakPtr.Pin()->TryRemoveFileFromCategory(NormalizedPath);
 		}
 
 		return false;
@@ -269,10 +278,10 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		FPersistentStorageCategory* CategoryPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryPtr)
+		FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
+		if (CategoryWeakPtr.IsValid())
 		{
-			return CategoryPtr->UpdateFileSize(NormalizedPath, FileSize, bFailIfExceedsQuotaLimit);
+			return CategoryWeakPtr.Pin()->UpdateFileSize(NormalizedPath, FileSize, bFailIfExceedsQuotaLimit);
 		}
 
 		return true;
@@ -280,10 +289,12 @@ public:
 
 	int64 GetTotalUsedSize() const
 	{
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+
 		int64 TotalUsedSize = 0LL;
 		for (auto& Category : Categories)
 		{
-			TotalUsedSize += Category.Value.GetUsedSize();
+			TotalUsedSize += Category.Value->GetUsedSize();
 		}
 
 		return TotalUsedSize;
@@ -299,10 +310,10 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		const FPersistentStorageCategory* CategoryPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryPtr)
+		const FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
+		if (CategoryWeakPtr.IsValid())
 		{
-			return CategoryPtr->IsCategoryFull();
+			return CategoryWeakPtr.Pin()->IsCategoryFull();
 		}
 
 		return false;
@@ -310,29 +321,42 @@ public:
 
 	void ScanDirectory(const FString& Directory)
 	{
-		// TODO: Add critical section here so that only one scan can run at a time to mitigate impact on IO?
-		UE_LOG(LogPlatformFileManagedStorage, Log, TEXT("Scan directory %s"), *Directory);
-
-		// Check for added files
-		IFileManager::Get().IterateDirectoryStatRecursively(*Directory, [this](const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
+		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Directory, this]()
 		{
-			if (FilenameOrDirectory && !StatData.bIsDirectory && StatData.FileSize != -1)
+			// TODO: Add critical section here so that only one scan can run at a time to mitigate impact on IO?
+			UE_LOG(LogPlatformFileManagedStorage, Log, TEXT("Scan directory %s"), *Directory);
+
+			// Check for added files
+			IFileManager::Get().IterateDirectoryStatRecursively(*Directory, [this](const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
 			{
-				AddFileToManager(FilenameOrDirectory, StatData.FileSize);
+				if (FilenameOrDirectory && !StatData.bIsDirectory && StatData.FileSize != -1)
+				{
+					AddFileToManager(FilenameOrDirectory, StatData.FileSize);
+				}
+
+				return true;
+			});
+
+			// Check for deleted files
+			TArray<FString> FilesToRemove;
+			{
+				FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+
+				for (auto& FilePair : FileCategoryMap)
+				{
+					if (FPaths::IsUnderDirectory(FilePair.Key, Directory) &&
+						!IFileManager::Get().FileExists(*FilePair.Key))
+					{
+						FilesToRemove.Add(FilePair.Key);
+					}
+				}
 			}
 
-			return true;
+			for (const FString& FileToRemove : FilesToRemove)
+			{
+				RemoveFileFromManager(FileToRemove);
+			}
 		});
-
-		// Check for deleted files
-		for (auto& FilePair : FileCategoryMap)
-		{
-			if (FPaths::IsUnderDirectory(FilePair.Key, Directory) &&
-				!IFileManager::Get().FileExists(*FilePair.Key))
-			{
-				RemoveFileFromManager(FilePair.Key);
-			}
-		}
 	}
 
 	void ScanPersistentStorage()
@@ -344,9 +368,11 @@ public:
 	{
 		TMap<FString, FPersistentStorageCategory::CategoryStat> CategoryStats;
 
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+
 		for (const auto& CategoryPair : Categories)
 		{
-			CategoryStats.Add(CategoryPair.Key, FPersistentStorageCategory::CategoryStat(CategoryPair.Key, CategoryPair.Value.GetUsedSize(), CategoryPair.Value.GetCategoryQuota()));
+			CategoryStats.Add(CategoryPair.Key, FPersistentStorageCategory::CategoryStat(CategoryPair.Key, CategoryPair.Value->GetUsedSize(), CategoryPair.Value->GetCategoryQuota()));
 		}
 
 		return CategoryStats;
@@ -359,15 +385,20 @@ private:
 	FString DefaultCategoryName;
 
 	// Map from category name to catogory struct
-	TMap<FString, FPersistentStorageCategory> Categories;
+	TMap<FString, FPersistentStorageCategorySharedPtr> Categories;
 
 	// Map from file name to category name.
 	TMap<FString, FString> FileCategoryMap;
+
+	/** RWLock for accessing Categories and FileCategoryMap. */
+	mutable FRWLock CategoryLock;
 
 	bool ParseConfig()
 	{
 		if (GConfig)
 		{
+			FRWScopeLock WriteLock(CategoryLock, SLT_Write);
+
 			// Clear Categories
 			Categories.Empty();
 
@@ -420,7 +451,7 @@ private:
 					}
 
 					int64 Quota = (QuotaInMB >= 0) ? QuotaInMB * 1024 * 1024 : -1;	// Quota being negative means infinite quota
-					Categories.Add(CategoryName, FPersistentStorageCategory(CategoryName, Quota, Directories));
+					Categories.Add(CategoryName, MakeShared<FPersistentStorageCategory, ESPMode::ThreadSafe>(CategoryName, Quota, Directories));
 				}
 			}
 
@@ -437,18 +468,20 @@ private:
 		return false;
 	}
 
-	FPersistentStorageCategory* FindCategoryForFile(const FString& Filename)
+	FPersistentStorageCategoryWeakPtr FindCategoryForFile(const FString& Filename)
 	{
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+
 		const FString* CategoryNamePtr = FileCategoryMap.Find(Filename);
 		if (CategoryNamePtr != nullptr)
 		{
-			return Categories.Find(*CategoryNamePtr);
+			return FPersistentStorageCategoryWeakPtr(*Categories.Find(*CategoryNamePtr));
 		}
 
 		return nullptr;
 	}
 
-	const FPersistentStorageCategory* FindCategoryForFile(const FString& Filename) const
+	const FPersistentStorageCategoryWeakPtr FindCategoryForFile(const FString& Filename) const
 	{
 		return const_cast<FPersistentStorageManager&>(*this).FindCategoryForFile(Filename);
 	}
