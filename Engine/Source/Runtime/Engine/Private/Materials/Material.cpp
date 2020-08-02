@@ -20,6 +20,7 @@
 #include "UnrealEngine.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
+#include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionQualitySwitch.h"
@@ -4798,6 +4799,18 @@ FExpressionInput* UMaterial::GetExpressionInputForProperty(EMaterialProperty InP
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
+void UMaterial::GetAllFunctionOutputExpressions(TArray<class UMaterialExpressionFunctionOutput*>& OutFunctionOutputs) const
+{
+	for (UMaterialExpression* Expression : Expressions)
+	{
+		UMaterialExpressionFunctionOutput* FunctionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression);
+		if (FunctionOutput)
+		{
+			OutFunctionOutputs.Add(FunctionOutput);
+		}
+	}
+}
+
 void UMaterial::GetAllCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const
 {
 	for (UMaterialExpression* Expression : Expressions)
@@ -4890,6 +4903,15 @@ bool UMaterial::GetAllReferencedExpressions(TArray<UMaterialExpression*>& OutExp
 	    for (UMaterialExpressionCustomOutput* Expression : CustomOutputExpressions)
 	    {
 		    TArray<FExpressionInput*> ProcessedInputs;
+			RecursiveGetExpressionChain(Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath);
+		}
+
+		// If this is a material function, we want to also trace function outputs
+		TArray<class UMaterialExpressionFunctionOutput*> FunctionOutputExpressions;
+		GetAllFunctionOutputExpressions(FunctionOutputExpressions);
+		for (UMaterialExpressionFunctionOutput* Expression : FunctionOutputExpressions)
+		{
+			TArray<FExpressionInput*> ProcessedInputs;
 			RecursiveGetExpressionChain(Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath);
 		}
 	}
