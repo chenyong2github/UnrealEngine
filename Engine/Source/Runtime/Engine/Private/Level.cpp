@@ -321,6 +321,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	FixupOverrideVertexColorsTime = 0;
 	FixupOverrideVertexColorsCount = 0;
 	bUseExternalActors = false;
+	bContainsStableActorGUIDs = true;
 #endif	
 	bActorClusterCreated = false;
 	bStaticComponentsRegisteredInStreamingManager = false;
@@ -388,6 +389,7 @@ void ULevel::Serialize( FArchive& Ar )
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (Ar.IsLoading())
 	{
@@ -405,6 +407,10 @@ void ULevel::Serialize( FArchive& Ar )
 		{
 			Ar << Actors;
 		}
+
+#if WITH_EDITORONLY_DATA
+		bContainsStableActorGUIDs = Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::ContainsStableActorGUIDs;
+#endif
 	}
 	else if (Ar.IsSaving() && Ar.IsPersistent())
 	{
@@ -440,6 +446,10 @@ void ULevel::Serialize( FArchive& Ar )
 		});
 
 		Ar << EmbeddedActors;
+
+#if WITH_EDITORONLY_DATA
+		bContainsStableActorGUIDs = true;
+#endif
 	}
 	else
 	{
@@ -2185,14 +2195,10 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 	return ActorPackages.Array();
 }
 
-FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName)
+FString ULevel::GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName)
 {
-	// We can't use the Package->FileName here because it might be a duplicated a package
-	// We can't use the package short name directly in some cases either  (PIE, instance d load) as it may contain pie prefix or not reflect the real actor location
-	check(InLevelPackage);
-
 	// Strip the temp prefix if found
-	FString LevelPackageName = InLevelPackage->GetName();
+	FString LevelPackageName = InLevelPackageName;
 	if (LevelPackageName.StartsWith(TEXT("/Temp")))
 	{
 		LevelPackageName = LevelPackageName.Mid(5);
@@ -2204,6 +2210,15 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 		return FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
 	}
 	return FString();
+}
+
+FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName)
+{
+	check(InLevelPackage);
+
+	// We can't use the Package->FileName here because it might be a duplicated a package
+	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
+	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
 }
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid)
