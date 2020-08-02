@@ -11,6 +11,8 @@
 UMovieScene3DTransformPropertySystem::UMovieScene3DTransformPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
+
 	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->Transform);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
