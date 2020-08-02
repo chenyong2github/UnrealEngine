@@ -479,10 +479,6 @@ public:
 	/** Recreates FShaders from the passed in memory, handling shader key changes. */
 	void RestoreShadersFromMemory(const TArray<uint8>& ShaderData);
 
-	/** Returns the maximum number of texture samplers used by any shader in this shader map. */
-	uint32 GetMaxTextureSamplers() const;
-
-
 	// Accessors.
 	const FNiagaraShaderMapId& GetShaderMapId() const		{ return GetContent()->ShaderMapId; }
 	EShaderPlatform GetShaderPlatform() const				{ return GetContent()->GetShaderPlatform(); }
@@ -550,10 +546,8 @@ private:
 
 	bool IsNiagaraShaderComplete(const FNiagaraShaderScript* Script, const FNiagaraShaderType* ShaderType, bool bSilent);
 
-	friend NIAGARASHADER_API  void DumpNiagaraStats(EShaderPlatform Platform);
 	friend class FShaderCompilingManager;
 };
-
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNiagaraScriptCompilationComplete);
 
@@ -764,7 +758,7 @@ public:
 	bool IsSame(const FNiagaraShaderMapId& InId) const;
 
 	bool GetUseShaderPermutations() const { return bUseShaderPermutations; }
-	NIAGARASHADER_API int32 GetNumPermutations() const;
+	NIAGARASHADER_API int32 GetNumPermutations() const { return NumPermutations; }
 	NIAGARASHADER_API int32 PermutationIdToShaderStageIndex(int32 PermutationId) const;
 
 	NIAGARASHADER_API bool IsShaderMapComplete() const;
@@ -791,7 +785,9 @@ protected:
 		FeatureLevel = InFeatureLevel;
 	}
 
-	void UpdateCachedData(bool bCalledFromSerialize = false);
+	void UpdateCachedData_All();
+	void UpdateCachedData_PreCompile();
+	void UpdateCachedData_PostCompile(bool bCalledFromSerialize = false);
 
 private:
 	UNiagaraScript* BaseVMScript;
@@ -848,6 +844,9 @@ private:
 
 	uint32 bLoadedCookedShaderMapId : 1;
 	uint32 bLoadedFromCookedMaterial : 1;
+
+	int32 NumPermutations = 0;
+	TArray<TPair<int32, int32>> ShaderStageToPermutation;
 
 	FNiagaraShaderMapCachedData CachedData_RenderThread;
 
