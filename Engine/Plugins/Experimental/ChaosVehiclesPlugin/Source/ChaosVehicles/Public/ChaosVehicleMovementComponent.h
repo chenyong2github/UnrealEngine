@@ -34,23 +34,15 @@ struct FVehicleDebugParams
 	bool DisableTorqueControl = false;
 	bool DisableStabilizeControl = false;
 	bool DisableAerodynamics = false;
+	bool DisableAerofoils = false;
+	bool DisableThrusters = false;
 	bool BatchQueries = true;
 	float ForceDebugScaling = 0.0006f;
-	float PersistDebugLinesTime = 0.01f;
-};
-
-// #todo: contact modification
-struct FSolverSafeContactData
-{
-	/** This is read from off GT and needs to be completely thread safe. Modifying it in Update is safe because physx has not run yet. Constructor is also fine. Keep all data simple and thread safe like floats and ints */
-	float ContactModificationOffset;
-	float VehicleFloorFriction;
-	float VehicleSideScrapeFriction;
+	float SleepCounterThreshold = 15;
 };
 
 struct FBodyInstance;
 
-// #todo: are these too wheeled vehicle specific?
 USTRUCT()
 struct CHAOSVEHICLES_API FVehicleReplicatedState
 {
@@ -84,7 +76,7 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 	UPROPERTY()
 	float HandbrakeInput;
 
-	// state replication: target gear #todo: or current gear?
+	// state replication: gear
 	UPROPERTY()
 	int32 TargetGear;
 
@@ -254,13 +246,16 @@ struct FVehicleState
 		, LastFrameVehicleLocalVelocity(FVector::ZeroVector)
 		, ForwardSpeed(0.f)
 		, ForwardsAcceleration(0.f)
-		, bVehicleInAir(false)
+		, NumWheelsOnGround(0)
+		, bAllWheelsOnGround(false)
+		, bVehicleInAir(true)
 		, bSleeping(false)
+		, SleepCounter(0)
 	{
 
 	}
 
-	/** Cache some useful data */
+	/** Cache some useful data at the start of the frame */
 	void CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime);
 
 	FTransform VehicleWorldTransform;
@@ -280,8 +275,11 @@ struct FVehicleState
 	float ForwardSpeed;
 	float ForwardsAcceleration;
 
+	int NumWheelsOnGround;
+	bool bAllWheelsOnGround;
 	bool bVehicleInAir;
 	bool bSleeping;
+	int SleepCounter;
 };
 
 USTRUCT()
@@ -320,9 +318,9 @@ UENUM()
 enum class EVehicleAerofoilType : uint8
 {
 	Fixed = 0,
-	Wing,
-	Rudder,
-	Elevator
+	Wing,			// affected by Roll input
+	Rudder,			// affected by steering/yaw input
+	Elevator		// affected by Pitch input
 };
 
 
@@ -330,8 +328,10 @@ UENUM()
 enum class EVehicleThrustType : uint8
 {
 	Fixed = 0,
-	HelicopterRotor,	// affected by pitch/roll inputs
-	Rudder				// affected by steering/yaw input
+	Wing,				// affected by Roll input
+	Rudder,				// affected by steering/yaw input
+	Elevator,			// affected by Pitch input
+//	HelicopterRotor,	// affected by pitch/roll inputs
 };
 
 
@@ -490,7 +490,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float Mass;
 
-	//#todo: entering area directly might be better for general shapes that are not boxes
 	/** Chassis width used for drag force computation (cm)*/
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float ChassisWidth;
@@ -518,6 +517,14 @@ public:
 	/** Scales the vehicle's inertia in each direction (forward, right, up) */
 	UPROPERTY(EditAnywhere, Category=VehicleSetup, AdvancedDisplay)
 	FVector InertiaTensorScale;
+
+	/** Option to apply some aggressive sleep logic, larger number is more agressive, 0 disables */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	float SleepThreshold;
+	
+	/** Option to apply some aggressive sleep logic if slopes up Z is less than this value, i.e value = Cos(SlopeAngle) so 0.866 will sleep up to 30 degree slopes */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01", ClampMax = "1.0", UIMax = "1.0"))
+	float SleepSlopeLimit;
 
 	/** Optional aerofoil setup - can be used for car spoilers or aircraft wings/elevator/rudder */
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
@@ -696,10 +703,6 @@ public:
 		return PVehicle;
 	}
 
-	//const FSolverSafeContactData& GetSolverSafeContactData() const
-	//{
-	//	return SolverSafeContactData;
-	//}
 protected:
 
 	// replicated state of vehicle 
@@ -867,11 +870,8 @@ protected:
 	/** Apply direct control over vehicle body rotation */
 	virtual void ApplyTorqueControl(float DeltaTime);
 
-	/** Apply on ground control torque to vehicle body */
-	//virtual void ApplyGroundControl(float DeltaTime);
-
-	// #todo: use this properly
-	void CopyToSolverSafeContactStaticData();
+	/** Option to aggressively sleep the vehicle */
+	virtual void ProcessSleeping();
 
 	/** Pass current state to server */
 	UFUNCTION(reliable, server, WithValidation)
@@ -895,6 +895,9 @@ protected:
 
 	/** Create and setup the Chaos vehicle */
 	virtual void CreateVehicle();
+
+	/** Skeletal mesh needs some special handling in the vehicle case */
+	virtual void FixupSkeletalMesh() {}
 
 	/** Allocate and setup the Chaos vehicle */
 	virtual void SetupVehicle();
@@ -954,10 +957,6 @@ private:
 	UPROPERTY(transient, Replicated)
 	AController* OverrideController;
 
-	// #todo: contact modification
-	//FSolverSafeContactData SolverSafeContactData;
-
-	// #todo: generic/common setup into seperate class, no individual params in main class?
 	const Chaos::FSimpleAerodynamicsConfig& GetAerodynamicsConfig()
 	{
 		FillAerodynamicsSetup();
@@ -966,7 +965,6 @@ private:
 
 	void FillAerodynamicsSetup()
 	{
-		// #todo
 		PAerodynamicsSetup.DragCoefficient = this->DragCoefficient;
 		PAerodynamicsSetup.DownforceCoefficient = this->DownforceCoefficient;
 		PAerodynamicsSetup.AreaMetresSquared = Cm2ToM2(this->DragArea);
