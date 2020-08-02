@@ -74,6 +74,28 @@ struct TEntityTaskTraits : TDefaultEntityTaskTraits<T>
 {
 };
 
+/** Utility that promotes callbacks that return void to always return 'true' when iterating entities*/
+struct FEntityIterationResult
+{
+	template<typename T>
+	friend FORCEINLINE FEntityIterationResult operator,(T, FEntityIterationResult)
+	{
+		return FEntityIterationResult { true };
+	}
+
+	friend FORCEINLINE FEntityIterationResult operator,(bool In, FEntityIterationResult)
+	{
+		return FEntityIterationResult{ In };
+	}
+
+	FORCEINLINE explicit operator bool() const
+	{
+		return Value;
+	}
+
+	bool Value = true;
+};
+
 /**
  * Defines the accessors for each desired component of an entity task
  */
@@ -622,15 +644,18 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 			const uint64 SystemSerial = EntityManager->GetSystemSerial();
 			for (FEntityAllocation* Allocation : EntityManager->Iterate(&Filter))
 			{
+				FEntityIterationResult Result;
+
 				// Lock on the components we want to access
 				Lock(Allocation);
 
 				auto IterState = MakeTuple( Accessors.template Get<Indices>().CreateIterState(Allocation)... );
 
 				const int32 Num = Allocation->Num();
-				for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
+				for (int32 ComponentOffset = 0; ComponentOffset < Num && Result.Value; ++ComponentOffset )
 				{
-					InCallback( *IterState.template Get<Indices>()... );
+					Result = (InCallback( *IterState.template Get<Indices>()... ), Result);
+
 					int Temp[] = { (++IterState.template Get<Indices>(), 0)..., 0 };
 					(void)Temp;
 				}
@@ -659,10 +684,15 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 				// Lock on the components we want to access
 				Lock(Allocation);
 
-				InCallback(Allocation, Accessors.template Get<Indices>()...);
+				FEntityIterationResult Result = (InCallback(Allocation, Accessors.template Get<Indices>()...), FEntityIterationResult{});
 
 				// Unlock from the components we wanted to access
 				Unlock(Allocation, SystemSerial);
+
+				if (!Result)
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -1317,6 +1347,7 @@ struct TEntityTaskCaller<TaskImpl, NumComponents, false>
 		TaskImplInstance.ForEachAllocation(Allocation, Components);
 	}
 };
+
 
 } // namespace MovieScene
 } // namespace UE
