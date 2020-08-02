@@ -193,7 +193,6 @@ public:
 	virtual void PostLoad() override; 
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
