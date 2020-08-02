@@ -4,11 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "UObject/Field.h"
+#include "Misc/Attribute.h"
+#include "Features/IModularFeature.h"
 
 class UBlueprint;
 class IPropertyHandle;
 class UEdGraph;
 class FExtender;
+class SWidget;
 
 /** An element in a binding chain */
 struct FBindingChainElement

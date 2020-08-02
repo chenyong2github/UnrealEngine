@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyAccess.h"
+#include "Misc/MemStack.h"
 
 #define LOCTEXT_NAMESPACE "PropertyAccess"
 
