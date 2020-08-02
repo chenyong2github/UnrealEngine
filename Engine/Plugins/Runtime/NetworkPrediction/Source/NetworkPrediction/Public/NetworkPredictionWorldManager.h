@@ -12,6 +12,7 @@
 #include "NetworkPredictionSerialization.h"
 #include "NetworkPredictionTrace.h"
 #include "NetworkPredictionSettings.h"
+#include "NetworkPredictionCues.h"
 
 #include "NetworkPredictionWorldManager.generated.h"
 
@@ -57,6 +58,7 @@ public:
 		TModelDataStore<ModelDef>* DataStore = Services.GetDataStore<ModelDef>();
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.FindOrAdd(ID);
 		InstanceData.Info = ModelInfo;
+		InstanceData.CueDispatcher->Driver = ModelInfo.Driver; // Awkward: we should convert Cues to a service so this isn't needed.
 	}
 
 	template<typename ModelDef>

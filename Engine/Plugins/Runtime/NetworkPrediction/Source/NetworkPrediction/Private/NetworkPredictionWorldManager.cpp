@@ -460,18 +460,16 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 	// -------------------------------------------------------------------------
 	const int32 FixedTotalSimTimeMS = FixedTickState.GetTotalSimTimeMS();
 	const int32 FixedServerFrame = FixedTickState.PendingFrame + FixedTickState.Offset;
-	const int32 FixedServerConfirmedFrame = FixedTickState.ConfirmedFrame + FixedTickState.Offset;;
 	for (TUniquePtr<IFinalizeService>& Ptr : Services.FixedFinalize.Array)
 	{
-		Ptr->FinalizeFrame(DeltaTimeSeconds, FixedServerFrame, FixedTotalSimTimeMS, FixedServerConfirmedFrame);
+		Ptr->FinalizeFrame(DeltaTimeSeconds, FixedServerFrame, FixedTotalSimTimeMS, FixedTickState.FixedStepMS);
 	}
 
 	const int32 IndependentTotalSimTimeMS = VariableTickState.Frames[VariableTickState.PendingFrame].TotalMS;
 	const int32 IndependentFrame = VariableTickState.PendingFrame;
-	const int32 IndependentConfirmedFrame = VariableTickState.ConfirmedFrame;
 	for (TUniquePtr<IFinalizeService>& Ptr : Services.IndependentLocalFinalize.Array)
 	{
-		Ptr->FinalizeFrame(DeltaTimeSeconds, IndependentFrame, IndependentTotalSimTimeMS, IndependentConfirmedFrame);
+		Ptr->FinalizeFrame(DeltaTimeSeconds, IndependentFrame, IndependentTotalSimTimeMS, 0);
 	}
 	
 	for (TUniquePtr<IRemoteFinalizeService>& Ptr : Services.IndependentRemoteFinalize.Array)
