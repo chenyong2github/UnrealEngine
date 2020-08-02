@@ -134,4 +134,34 @@ namespace ChaosTest
 
 		EXPECT_EQ(Count,10);
 	}
+
+	TYPED_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
+	{
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr,EThreadingMode::SingleThread);
+		Solver->SetEnabled(true);
+
+		int Count = 0;
+		Solver->RegisterSimOneShotCallback([&Count]()
+		{
+			EXPECT_EQ(Count,0);
+			++Count;
+		});
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			Solver->RegisterSimOneShotCallback([Step, &Count]()
+			{
+				EXPECT_EQ(Count,Step+1);	//at step plus first one we registered
+				++Count;
+			});
+
+			Solver->AdvanceAndDispatch_External(1/30.f);
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
+		}
+
+		EXPECT_EQ(Count,11);
+
+	}
 }

@@ -896,8 +896,8 @@ protected:
 	public:
 		FChaosAccelerationStructureTask(ISpatialAccelerationCollectionFactory& InSpatialCollectionFactory
 			, const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& InSpatialAccelerationCache
-			, TUniquePtr<FAccelerationStructure>& InAccelerationStructure
-			, TUniquePtr<FAccelerationStructure>& InAccelerationStructureCopy
+			, TUniquePtr<FAccelerationStructure>& InInternalAccelerationStructure
+			, TUniquePtr<FAccelerationStructure>& InExternalAccelerationStructure
 			, bool InForceFullBuild
 			, bool InIsSingleThreaded);
 		static FORCEINLINE TStatId GetStatId();
@@ -907,10 +907,13 @@ protected:
 
 		ISpatialAccelerationCollectionFactory& SpatialCollectionFactory;
 		const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& SpatialAccelerationCache;
-		TUniquePtr<FAccelerationStructure>& AccelerationStructure;
-		TUniquePtr<FAccelerationStructure>& AccelerationStructureCopy;
+		TUniquePtr<FAccelerationStructure>& InternalStructure;
+		TUniquePtr<FAccelerationStructure>& ExternalStructure;
 		bool IsForceFullBuild;
 		bool bIsSingleThreaded;
+
+	private:
+		void UpdateStructure(FAccelerationStructure* AccelerationStructure);
 	};
 	FGraphEventRef AccelerationStructureTaskComplete;
 
