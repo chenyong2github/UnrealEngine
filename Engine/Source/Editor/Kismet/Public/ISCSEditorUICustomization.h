@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/ChildActorComponent.h"
 
 /** SCSEditor UI customization */
 class ISCSEditorUICustomization
