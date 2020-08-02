@@ -1218,10 +1218,6 @@ FSlateRect SWidget::CalculateCullingAndClippingRules(const FGeometry& AllottedGe
 
 int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-#if WITH_SLATE_DEBUGGING
-	EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
-#endif
-
 	// TODO, Maybe we should just make Paint non-const and keep OnPaint const.
 	TSharedRef<SWidget> MutableThis = ConstCastSharedRef<SWidget>(AsShared());
 
@@ -1453,10 +1449,6 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	}
 
 	MutableThis->UpdateWidgetProxy(NewLayerId, NewCacheHandle);
-
-#if WITH_SLATE_DEBUGGING
-	FSlateDebugging::BroadcastWidgetUpdatedByPaint(this, PreviousUpdateFlag);
-#endif
 
 	return NewLayerId;
 }
