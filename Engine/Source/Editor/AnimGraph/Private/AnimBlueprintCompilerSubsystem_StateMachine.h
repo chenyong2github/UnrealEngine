@@ -14,6 +14,7 @@ class UAnimGraphNode_Base;
 class UAnimStateTransitionNode;
 class UEdGraph;
 class UEdGraphNode;
+struct FAnimNotifyEvent;
 
 UCLASS()
 class UAnimBlueprintCompilerSubsystem_StateMachine : public UAnimBlueprintCompilerSubsystem
