@@ -180,6 +180,23 @@ void UMoviePipeline::RenderFrame()
 		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
 	}
 
+	// Add appropriate metadata here that is shared by all passes.
+	{
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FrameInfo.CurrViewLocation.X);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/y"), FrameInfo.CurrViewLocation.Y);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/z"), FrameInfo.CurrViewLocation.Z);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/pitch"), FrameInfo.CurrViewRotation.Pitch);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/yaw"), FrameInfo.CurrViewRotation.Yaw);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curRot/roll"), FrameInfo.CurrViewRotation.Roll);
+
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/x"), FrameInfo.PrevViewLocation.X);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/y"), FrameInfo.PrevViewLocation.Y);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevPos/z"), FrameInfo.PrevViewLocation.Z);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/pitch"), FrameInfo.PrevViewRotation.Pitch);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/yaw"), FrameInfo.PrevViewRotation.Yaw);
+		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/prevRot/roll"), FrameInfo.PrevViewRotation.Roll);
+	}
+
 	if (CurrentCameraCut.State != EMovieRenderShotState::Rendering)
 	{
 		// We can optimize some of the settings for 'special' frames we may be rendering, ie: we render once for motion vectors, but

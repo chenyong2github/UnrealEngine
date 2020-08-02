@@ -19,7 +19,7 @@ public:
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
 	virtual bool CanBeDisabled() const override { return false; }
 
 	// UObject Interface

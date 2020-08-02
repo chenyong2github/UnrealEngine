@@ -362,6 +362,8 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 	// We need to resolve the filename format string. We combine the folder and file name into one long string first
 	FString FinalFilePath;
+	FMoviePipelineFormatArgs FinalFormatArgs;
+
 	{
 		FString FileNameFormatString = OutputDirectory / OutputSettings->FileNameFormat;
 
@@ -377,12 +379,14 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 		FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
 		FormatOverrides.Add(TEXT("ext"), TEXT("exr"));
 
-		FinalFilePath = GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides);
+		// This resolves the filename format and gathers metadata from the settings at the same time.
+		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs);
 	}
 
 	TUniquePtr<FEXRImageWriteTask> MultiLayerImageTask = MakeUnique<FEXRImageWriteTask>();
 	MultiLayerImageTask->Filename = FinalFilePath;
 	MultiLayerImageTask->Compression = Compression;
+	MultiLayerImageTask->FileMetadata = FinalFormatArgs.FileMetadata; // This is already merged by ResolveFilenameFormatArgs with the FrameOutputState.
 
 	int32 LayerIndex = 0;
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
