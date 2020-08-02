@@ -54,6 +54,11 @@ bool FTargetPlatformBase::UsesRayTracing() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
+bool FTargetPlatformBase::ForcesSimpleSkyDiffuse() const
+{
+	return false;
+}
+
 float FTargetPlatformBase::GetDownSampleMeshDistanceFieldDivider() const
 {
 	return 1.0f;

@@ -1130,6 +1130,9 @@ static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) *
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
+RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GSimpleSkyDiffusePlatformMask) * 8, "GSimpleSkyDiffusePlatformMask must be large enough to support all shader platforms");
+
 // Specifies whether ray tracing *can* be enabled on a particular platform.
 // This takes into account whether RT is globally enabled for the project and specifically enabled on a target platform.
 // Safe to use to make cook-time decisions, such as whether to compile ray tracing shaders.
@@ -1261,6 +1264,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GRayTracingPlaformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->ForcesSimpleSkyDiffuse())
+				{
+					GSimpleSkyDiffusePlatformMask |= Mask;
+				}
+				else
+				{
+					GSimpleSkyDiffusePlatformMask &= ~Mask;
 				}
 			}
 		}

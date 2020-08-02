@@ -570,6 +570,12 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 		&& (!FDataDrivenShaderPlatformInfo::IsValid(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform));
 }
 
+inline bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask;
+	return !!(GSimpleSkyDiffusePlatformMask & (1ull << Platform));
+}
+
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */
 RENDERCORE_API FVertexBufferRHIRef& GetUnitCubeVertexBuffer();
 
