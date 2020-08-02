@@ -196,7 +196,7 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 
 	if ( ensure(InWidgetTree) )
 	{
-		if (ensure(InWidgetTree->HasAnyFlags(RF_ArchetypeObject)))
+		if (!HasAnyFlags(RF_NeedPostLoad) && ensure(InWidgetTree->HasAnyFlags(RF_ArchetypeObject)))
 		{
 			FObjectInstancingGraph ObjectInstancingGraph;
 			WidgetTree = NewObject<UWidgetTree>(this, InWidgetTree->GetClass(), TEXT("WidgetTree"), RF_Transactional, InWidgetTree, false, &ObjectInstancingGraph);
