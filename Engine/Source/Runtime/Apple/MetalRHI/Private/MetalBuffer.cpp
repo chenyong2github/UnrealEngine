@@ -158,6 +158,7 @@ void FMetalBuffer::Release()
 
 void FMetalBuffer::SetOwner(class FMetalRHIBuffer* Owner, bool bIsSwap)
 {
+	check(Owner == nullptr);
 	if (Heap)
 	{
 		Heap->SetOwner(ns::Range(GetOffset(), GetLength()), Owner, bIsSwap);
@@ -221,6 +222,7 @@ FMetalSubBufferHeap::~FMetalSubBufferHeap()
 
 void FMetalSubBufferHeap::SetOwner(ns::Range const& Range, FMetalRHIBuffer* Owner, bool bIsSwap)
 {
+	check(Owner == nullptr);
 	FScopeLock Lock(&PoolMutex);
 	for (uint32 i = 0; i < AllocRanges.Num(); i++)
 	{
@@ -1769,38 +1771,39 @@ void FMetalResourceHeap::Compact(FMetalRenderPass* Pass, bool const bForce)
                         {
                             if (Alloc.Owner)
                             {
-                                for (uint32 AllocIndex = 0; AllocIndex < j && BytesCompacted < BytesToCompact; AllocIndex++)
-                                {
-                                    FMetalSubBufferHeap* Prev = BufferHeaps[u][t][i][AllocIndex];
-                                    if (Prev->MaxAvailableSize() >= Alloc.Range.Length)
-                                    {
-                                        FMetalBuffer NewBuffer = Prev->NewBuffer(Alloc.Range.Length);
-                                        check(NewBuffer && NewBuffer.GetPtr());
-                                        
-                                        FMetalBuffer SourceResource = FMetalBuffer((id<MTLBuffer>)Alloc.Resource);
-										Pass->AsyncCopyFromBufferToBuffer(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
-										
-                                        FMetalBuffer PrevBuffer;
-                                        FMetalBuffer PrevCPUBuffer;
-                                        if (Alloc.Owner->Buffer.GetPtr() == Alloc.Resource && Alloc.Owner->Buffer.GetOffset() == Alloc.Range.Location)
-                                        {
-                                            PrevBuffer = Alloc.Owner->Buffer;
-                                            Alloc.Owner->Buffer = NewBuffer;
-                                        }
-                                        if (Alloc.Owner->CPUBuffer.GetPtr() == Alloc.Resource && Alloc.Owner->CPUBuffer.GetOffset() == Alloc.Range.Location)
-                                        {
-                                            PrevCPUBuffer = Alloc.Owner->CPUBuffer;
-                                            Alloc.Owner->CPUBuffer = NewBuffer;
-                                        }
-                                        if (PrevBuffer)
-                                            SafeReleaseMetalBuffer(PrevBuffer);
-                                        if (PrevCPUBuffer)
-                                            SafeReleaseMetalBuffer(PrevCPUBuffer);
-                                        
-                                        BytesCompacted += Alloc.Range.Length;
-                                        break;
-                                    }
-                                }
+								check(Alloc.Owner == nullptr);
+//                                for (uint32 AllocIndex = 0; AllocIndex < j && BytesCompacted < BytesToCompact; AllocIndex++)
+//                                {
+//                                    FMetalSubBufferHeap* Prev = BufferHeaps[u][t][i][AllocIndex];
+//                                    if (Prev->MaxAvailableSize() >= Alloc.Range.Length)
+//                                    {
+//                                        FMetalBuffer NewBuffer = Prev->NewBuffer(Alloc.Range.Length);
+//                                        check(NewBuffer && NewBuffer.GetPtr());
+//
+//                                        FMetalBuffer SourceResource = FMetalBuffer((id<MTLBuffer>)Alloc.Resource);
+//										Pass->AsyncCopyFromBufferToBuffer(SourceResource, Alloc.Range.Location, NewBuffer, 0, Alloc.Range.Length);
+//
+//                                        FMetalBuffer PrevBuffer;
+//                                        FMetalBuffer PrevCPUBuffer;
+//                                        if (Alloc.Owner->Buffer.GetPtr() == Alloc.Resource && Alloc.Owner->Buffer.GetOffset() == Alloc.Range.Location)
+//                                        {
+//                                            PrevBuffer = Alloc.Owner->Buffer;
+//                                            Alloc.Owner->Buffer = NewBuffer;
+//                                        }
+//                                        if (Alloc.Owner->CPUBuffer.GetPtr() == Alloc.Resource && Alloc.Owner->CPUBuffer.GetOffset() == Alloc.Range.Location)
+//                                        {
+//                                            PrevCPUBuffer = Alloc.Owner->CPUBuffer;
+//                                            Alloc.Owner->CPUBuffer = NewBuffer;
+//                                        }
+//                                        if (PrevBuffer)
+//                                            SafeReleaseMetalBuffer(PrevBuffer);
+//                                        if (PrevCPUBuffer)
+//                                            SafeReleaseMetalBuffer(PrevCPUBuffer);
+//
+//                                        BytesCompacted += Alloc.Range.Length;
+//                                        break;
+//                                    }
+//                                }
                             }
                         }
                     }
