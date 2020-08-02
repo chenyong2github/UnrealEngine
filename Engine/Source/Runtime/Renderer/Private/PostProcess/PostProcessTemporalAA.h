@@ -4,7 +4,6 @@
 
 #include "ScreenPass.h"
 
-class FSceneTextureParameters;
 struct FTemporalAAHistory;
 
 /** List of TAA configurations. */
@@ -83,6 +82,10 @@ struct FTAAPassParameters
 	// Resolution divisor.
 	int32 ResolutionDivisor = 1;
 
+	// Full resolution depth and velocity textures to reproject the history.
+	FRDGTexture* SceneDepthTexture = nullptr;
+	FRDGTexture* SceneVelocityTexture = nullptr;
+
 	// Anti aliased scene color.
 	// Can have alpha channel, or CoC for DOF.
 	FRDGTexture* SceneColorInput = nullptr;
@@ -133,26 +136,49 @@ struct FTAAPassParameters
 };
 
 /** Temporal AA pass which emits a filtered scene color and new history. */
-FTAAOutputs AddTemporalAAPass(
+extern RENDERER_API FTAAOutputs AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FTAAPassParameters& Inputs,
 	const FTemporalAAHistory& InputHistory,
 	FTemporalAAHistory* OutputHistory);
 
-/** Temporal AA helper method which performs filtering on the main pass scene color. Supports upsampled history and,
- *  if requested, will attempt to perform the scene color downsample. Returns the filtered scene color, the downsampled
- *  scene color (or null if it was not performed), and the secondary view rect.
- */
-void AddTemporalAAPass(
-	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
-	const FViewInfo& View,
-	const bool bAllowDownsampleSceneColor,
-	const EPixelFormat DownsampleOverrideFormat,
-	FRDGTextureRef InSceneColorTexture,
-	FRDGTextureRef* OutSceneColorTexture,
-	FIntRect* OutSceneColorViewRect,
-	FRDGTextureRef* OutSceneColorHalfResTexture,
-	FIntRect* OutSceneColorHalfResViewRect);
+/** Interface for the main temporal upscaling algorithm. */
+class RENDERER_API ITemporalUpscaler
+{
+public:
+
+	struct FPassInputs
+	{
+		bool bAllowDownsampleSceneColor;
+		EPixelFormat DownsampleOverrideFormat;
+		FRDGTextureRef SceneColorTexture;
+		FRDGTextureRef SceneDepthTexture;
+		FRDGTextureRef SceneVelocityTexture;
+		FRDGTextureRef EyeAdaptationTexture;
+	};
+
+	virtual ~ITemporalUpscaler() {};
+
+	virtual const TCHAR* GetDebugName() const = 0;
+
+	///** Temporal AA helper method which performs filtering on the main pass scene color. Supports upsampled history and,
+	// *  if requested, will attempt to perform the scene color downsample. Returns the filtered scene color, the downsampled
+	// *  scene color (or null if it was not performed), and the secondary view rect.
+	// */
+
+	virtual void AddPasses(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FPassInputs& PassInputs,
+		FRDGTextureRef* OutSceneColorTexture,
+		FIntRect* OutSceneColorViewRect,
+		FRDGTextureRef* OutSceneColorHalfResTexture,
+		FIntRect* OutSceneColorHalfResViewRect) const = 0;
+
+	static const ITemporalUpscaler* GetDefaultTemporalUpscaler();
+	static int GetTemporalUpscalerMode();
+}; 
+
+extern RENDERER_API const ITemporalUpscaler* GTemporalUpscaler;
+

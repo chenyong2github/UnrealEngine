@@ -444,13 +444,36 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				// TemporalAA is only able to match the low quality mode (box filter).
 				GetDownsampleQuality() == EDownsampleQuality::Low;
 
-			AddTemporalAAPass(
+
+			int32 UpscaleMode = ITemporalUpscaler::GetTemporalUpscalerMode();
+
+			const ITemporalUpscaler* DefaultTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
+			const ITemporalUpscaler* UpscalerToUse = ( UpscaleMode == 0 || !View.Family->GetTemporalUpscalerInterface())? DefaultTemporalUpscaler : View.Family->GetTemporalUpscalerInterface();
+
+			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+			RDG_EVENT_SCOPE_CONDITIONAL(
 				GraphBuilder,
-				SceneTextures,
+				UpscalerToUse != DefaultTemporalUpscaler,
+				"ThirdParty %s %dx%d -> %dx%d",
+				UpscalerToUse->GetDebugName(),
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+
+			UpscalerPassInputs.bAllowDownsampleSceneColor = bAllowSceneDownsample;
+			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
+			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
+			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
+			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
+			UpscalerPassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+
+			UpscalerToUse->AddPasses(
+				GraphBuilder,
 				View,
-				bAllowSceneDownsample,
-				DownsampleOverrideFormat,
-				SceneColor.Texture,
+				UpscalerPassInputs,
 				&SceneColor.Texture,
 				&SecondaryViewRect,
 				&HalfResolutionSceneColor.Texture,
@@ -1039,12 +1062,14 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 		case DVSM_RayTracingDebug:
 		{
 			FTAAPassParameters Parameters(View);
+			Parameters.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+			Parameters.SceneVelocityTexture = SceneTextures.SceneVelocityBuffer;
 			Parameters.SceneColorInput = SceneColor.Texture;
 
 			const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 			FTemporalAAHistory* OutputHistory = &View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
 
-			FTAAOutputs Outputs = AddTemporalAAPass(GraphBuilder, SceneTextures, View, Parameters, InputHistory, OutputHistory);
+			FTAAOutputs Outputs = AddTemporalAAPass(GraphBuilder, View, Parameters, InputHistory, OutputHistory);
 			SceneColor.Texture = Outputs.SceneColor;
 
 			break;
@@ -1956,11 +1981,15 @@ void FPostProcessing::ProcessPlanarReflection(FRHICommandListImmediate& RHICmdLi
 		FTemporalAAHistory* OutputHistory = &ViewState->PrevFrameViewInfo.TemporalAAHistory;
 
 		FTAAPassParameters Parameters(View);
+		Parameters.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+
+		// Planar reflections don't support velocity.
+		Parameters.SceneVelocityTexture = nullptr;
+
 		Parameters.SceneColorInput = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
 
 		FTAAOutputs PassOutputs = AddTemporalAAPass(
 			GraphBuilder,
-			SceneTextures,
 			View,
 			Parameters,
 			InputHistory,
