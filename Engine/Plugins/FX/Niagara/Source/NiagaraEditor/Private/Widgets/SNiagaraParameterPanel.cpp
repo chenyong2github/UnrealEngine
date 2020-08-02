@@ -577,7 +577,6 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 			if (bAllowType)
 			{
 				FNiagaraMenuActionInfo NewMenuActionInfo = FNiagaraMenuActionInfo();
-				NewMenuActionInfo.CategoryText = LOCTEXT("NiagaraCreateNewParameterMenu", "Create New Parameter");
 
 				FText RegisteredTypeNameText = RegisteredType.GetNameText();
 				NewMenuActionInfo.DisplayNameText = RegisteredTypeNameText;
@@ -593,6 +592,10 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 				FNiagaraVariable NewVar = FNiagaraVariable(RegisteredType, NewVariableName);
 				FNiagaraEditorUtilities::ResetVariableToDefaultValue(NewVar);
 				NewMenuActionInfo.NewVariable = NewVar;
+
+				const FText Category = LOCTEXT("NiagaraCreateNewParameterMenu", "Create New Parameter");
+				FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(NewVar);
+				NewMenuActionInfo.CategoryText = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 
 				if (NewVar.IsDataInterface())
 				{
@@ -630,13 +633,15 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 
 			for (TTuple<FNiagaraVariable, UNiagaraScriptVariable*>& GraphParameter : GraphParameters)
 			{
+				FNiagaraVariable Variable = GraphParameter.Key;
 				const FText Category = LOCTEXT("NiagaraAddExistingParameterMenu", "Add Existing Parameter");
+				FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Variable);
+				FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 				const FText DisplayName = FText::FromName(GraphParameter.Key.GetName());
 
 				const FText Tooltip = GraphParameter.Value->Metadata.Description;
-				FNiagaraVariable Variable = GraphParameter.Key;
 				TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
-					Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+					FullCategory, DisplayName, Tooltip, 0, FText::GetEmpty(),
 					FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Variable)));
 				Action->SetParamterVariable(Variable);
 
@@ -699,11 +704,13 @@ void SNiagaraAddParameterMenu2::CollectAllActions(FGraphActionListBuilderBase& O
 				for (const FNiagaraVariable& Var : Vars)
 				{
 					const FText CategoryText = LOCTEXT("NiagaraAddCommParticleParameterMenu", "Common Particle Attributes");
+					FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Var);
+					FText FullCategory = SubCategory.IsEmpty() ? CategoryText : FText::Format(FText::FromString("{0}|{1}"), CategoryText, SubCategory);
 					const FText DisplayName = FText::FromName(Var.GetName());
 					const FText Tooltip = FNiagaraConstants::GetAttributeDescription(Var);
 					
 					TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
-						CategoryText, DisplayName, Tooltip, 0, FText::GetEmpty(),
+						FullCategory, DisplayName, Tooltip, 0, FText::GetEmpty(),
 						FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu2::AddParameterSelected, Var)));
 					Action->SetParamterVariable(Var);
 

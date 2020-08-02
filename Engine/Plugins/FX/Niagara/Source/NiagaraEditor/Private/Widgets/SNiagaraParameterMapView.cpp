@@ -2140,23 +2140,7 @@ void SNiagaraAddParameterMenu::AddParameterGroup(
 			Tooltip = VariableStruct->GetToolTipText(true);
 		}
 
-		FText SubCategory = FText::GetEmpty();
-		if (Variable.GetType().IsDataInterface())
-		{
-			SubCategory = LOCTEXT("NiagaraParameterMenuGroupDI", "Data Interface");
-		} 
-		else if (Variable.GetType().IsEnum())
-		{
-			SubCategory = LOCTEXT("NiagaraParameterMenuGroupEnum", "Enum");
-		} 
-		else if (Variable.GetType().IsUObject())
-		{
-			SubCategory = LOCTEXT("NiagaraParameterMenuGroupObject", "Object");
-		}
-		else if (Variable.GetName().ToString().Contains("event"))
-		{
-			SubCategory = LOCTEXT("NiagaraParameterMenuGroupEvent", "Event");
-		}
+		FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(Variable);
 		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu::AddParameterSelected, Variable, bCustomName, InSection)));

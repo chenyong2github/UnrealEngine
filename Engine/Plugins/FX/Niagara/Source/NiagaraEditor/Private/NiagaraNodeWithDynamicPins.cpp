@@ -290,10 +290,11 @@ void UNiagaraNodeWithDynamicPins::CollectAddPinActions(FGraphActionListBuilderBa
 			FNiagaraVariable Var(RegisteredType, FName(*RegisteredType.GetName()));
 			FNiagaraEditorUtilities::ResetVariableToDefaultValue(Var);
 
+			FText Category = FNiagaraEditorUtilities::GetVariableTypeCategory(Var);
 			const FText DisplayName = RegisteredType.GetNameText();
 			const FText Tooltip = FText::Format(LOCTEXT("AddButtonTypeEntryToolTipFormat", "Add a new {0} pin"), RegisteredType.GetNameText());
 			TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
-				FText::GetEmpty(), DisplayName, Tooltip, 0, FText::GetEmpty(),
+				Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeWithDynamicPins::AddParameter, Var, (const UEdGraphPin*)Pin)));
 
 			OutActions.AddAction(Action);
