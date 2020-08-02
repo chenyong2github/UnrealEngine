@@ -26,20 +26,24 @@ namespace Chaos
 	{
 		FVector Location = Setup().Offset;
 
-		if (Setup().Type == EThrustType::HelicopterRotor)
-		{
-			static float HalfBladeLength = 2.0f;
-			Location += FVector(Pitch, -Roll, 0.f) * HalfBladeLength;
-		}
+		//if (Setup().Type == EThrustType::HelicopterRotor)
+		//{
+		//	Location += FVector(Pitch, -Roll, 0.f) * Setup().MaxControlAngle;
+		//}
 
 		return Location;
 	}
 
 	void FSimpleThrustSim::Simulate(float DeltaTime)
 	{
-		FVector LocalThrustDirection = Setup().Axis;
-		ThrustDirection = LocalThrustDirection;
-		ThrustForce = LocalThrustDirection * (ThrottlePosition * Setup().MaxThrustForce);
+		ThrustDirection = Setup().Axis;
+
+		//if (Setup().Type != EThrustType::HelicopterRotor)
+		//{
+		//	FRotator SteeringRotator(Pitch, Yaw, Roll);
+		//	ThrustDirection = SteeringRotator.RotateVector(ThrustDirection);
+		//}
+		ThrustForce = ThrustDirection * (ThrottlePosition * Setup().MaxThrustForce);
 	}
 
 } // namespace Chaos
