@@ -66,7 +66,7 @@ CFLAGS="-I${ZLIBINC} -W -Wall -O -funroll-loops -arch x86_64"
 LDFLAGS=-"L. -L${ZLIBLIB} -lpng15 -lz -arch x86_64"
 
 if [ "$BUILD_UNIVERSAL" = true ] ; then
-    CFLAGS="${CFLAGS}  -arch arm64"
+    CFLAGS="${CFLAGS}  -arch arm64 -DPNG_ARM_NEON_OPT=0"
     LDFLAGS="${LDFLAGS}  -arch arm64"
 fi
 
