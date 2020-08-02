@@ -1056,6 +1056,7 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 		AudioDevice->GetAudioVolumeSettings(WorldID, ParseParams.Transform.GetTranslation(), AudioVolumeSettings);
 
 		InteriorSettings = AudioVolumeSettings.InteriorSettings;
+		AudioVolumeSubmixSendSettings = AudioVolumeSettings.SubmixSendSettings;
 		AudioVolumeID = AudioVolumeSettings.AudioVolumeID;
 		bGotInteriorSettings = true;
 	}
@@ -1081,6 +1082,20 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 
 		CurrentInteriorLPF = FMath::Lerp(SourceInteriorLPF, MAX_FILTER_FREQUENCY, Listener.InteriorLPFInterp);
 		ParseParams.AmbientZoneFilterFrequency = CurrentInteriorLPF;
+
+		if (AudioVolumeSubmixSendSettings.Num() > 0)
+		{
+			for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
+			{
+				if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::InsideTheVolume)
+				{
+					for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
+					{
+						ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
+					}
+				}
+			}
+		}
 	}
 	else
 	{
@@ -1093,6 +1108,20 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 
 			CurrentInteriorLPF = FMath::Lerp(SourceInteriorLPF, Listener.InteriorSettings.ExteriorLPF, Listener.ExteriorLPFInterp);
 			ParseParams.AmbientZoneFilterFrequency = CurrentInteriorLPF;
+
+			if (AudioVolumeSubmixSendSettings.Num() > 0)
+			{
+				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
+				{
+					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::InsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::OutsideTheVolume)
+					{
+						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
+						{
+							ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
+						}
+					}
+				}
+			}
 		}
 		else
 		{
@@ -1114,6 +1143,20 @@ void FActiveSound::HandleInteriorVolumes(FSoundParseParameters& ParseParams)
 			{
 				CurrentInteriorLPF = ListenerLPFValue;
 				ParseParams.AmbientZoneFilterFrequency = ListenerLPFValue;
+			}
+
+			if (AudioVolumeSubmixSendSettings.Num() > 0)
+			{
+				for (const FAudioVolumeSubmixSendSettings& SendSetting : AudioVolumeSubmixSendSettings)
+				{
+					if (SendSetting.ListenerLocationState == EAudioVolumeLocationState::OutsideTheVolume && SendSetting.SourceLocationState == EAudioVolumeLocationState::InsideTheVolume)
+					{
+						for (const FSoundSubmixSendInfo& SubmixSendInfo : SendSetting.SubmixSends)
+						{
+							ParseParams.SoundSubmixSends.Add(SubmixSendInfo);
+						}
+					}
+				}
 			}
 		}
 	}
