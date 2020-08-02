@@ -49,6 +49,8 @@ public:
 
 	void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
 
+	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
+
 private:
 	void TrackSendForProfiler(const void* Data, int32 NumBytes);
 
