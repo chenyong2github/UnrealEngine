@@ -13,13 +13,13 @@
 FOnlineStoreInterfaceIOS::FOnlineStoreInterfaceIOS() 
 {
 	UE_LOG_ONLINE_STORE(Verbose, TEXT( "FOnlineStoreInterfaceIOS::FOnlineStoreInterfaceIOS" ));
-	StoreHelper = [[FStoreKitHelper alloc] init];
-    
-    [[SKPaymentQueue defaultQueue] addTransactionObserver:StoreHelper];
 
 	bIsPurchasing = false;
 	bIsProductRequestInFlight = false;
 	bIsRestoringPurchases = false;
+
+	StoreHelper = [[FStoreKitHelper alloc] init];
+	[StoreHelper pumpObserverEventQueue];
 }
 
 

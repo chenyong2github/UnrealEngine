@@ -210,15 +210,15 @@ void FOnlineSubsystemIOS::InitStoreKitHelper()
 	// Give each interface a chance to bind to the store kit helper
 	StoreV2Interface->InitStoreKit(StoreHelper);
 	PurchaseInterface->InitStoreKit(StoreHelper);
-	
-	// Bind the observer after the interfaces have bound their delegates
-	[[SKPaymentQueue defaultQueue] addTransactionObserver:StoreHelper];
+
+	// Pump the event queue to handle any events that came in between launch and now.
+	[StoreHelper pumpObserverEventQueue];
 }
 
 void FOnlineSubsystemIOS::CleanupStoreKitHelper()
 {
-	// @todo MetalMRT: This needs to be analyzed with ASAN - but this pointer is garbage on shutdown...
-	// [StoreHelper release];
+	[StoreHelper release];
+	StoreHelper = nil;
 }
 
 void FOnlineSubsystemIOS::InitAppStoreHelper()
