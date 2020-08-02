@@ -39,6 +39,13 @@ static TAutoConsoleVariable<int32> CVarVHMOcclusion(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarVHMCollectPassWavefronts(
+	TEXT("r.VHM.CollectPassWavefronts"),
+	16,
+	TEXT("Number of wavefronts to use for collect pass."),
+	ECVF_RenderThreadSafe
+);
+
 namespace VirtualHeightfieldMesh
 {
 	/** Buffers filled by GPU culling used by the Virtual Heightfield Mesh final draw call. */
@@ -547,8 +554,8 @@ namespace VirtualHeightfieldMesh
 	/* Keep indirect args offsets in sync with VirtualHeightfieldMesh.usf. */
 	static const int32 IndirectArgsByteOffset_RenderLodMap = 0;
 	static const int32 IndirectArgsByteOffset_FetchNeighborLod = 5 * sizeof(uint32);
-	static const int32 IndirectArgsByteOffset_FinalCull = 9 * sizeof(uint32);
-	static const int32 IndirectArgsByteSize = 13 * sizeof(uint32);
+	static const int32 IndirectArgsByteOffset_FinalCull = 5 * sizeof(uint32);
+	static const int32 IndirectArgsByteSize = 9 * sizeof(uint32);
 
 	/** Shader structure used for tracking work queues in persistent wave style shaders. Keep in sync with VirtualHeightfieldMesh.ush. */
 	struct WorkerQueueInfo
@@ -635,25 +642,6 @@ namespace VirtualHeightfieldMesh
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FCollectQuadsCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "CollectQuadsCS", SF_Compute);
-
-	/** Compute shader to build indirect args buffer used by subsequent LOD and culling steps. */
-	class FBuildIndirectArgsForLodAndCullCS : public FGlobalShader
-	{
-	public:
-		DECLARE_GLOBAL_SHADER(FBuildIndirectArgsForLodAndCullCS);
-		SHADER_USE_PARAMETER_STRUCT(FBuildIndirectArgsForLodAndCullCS, FGlobalShader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgsBuffer)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
-		{
-			return RHISupportsComputeShaders(Parameters.Platform);
-		}
-	};
-
-	IMPLEMENT_GLOBAL_SHADER(FBuildIndirectArgsForLodAndCullCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "BuildIndirectArgsForLodAndCullCS", SF_Compute);
 
 	/** Shader that draws to a render target the Lod info for the quads output by the Collect pass. */
 	class FRenderLodMap : public FGlobalShader
@@ -866,6 +854,7 @@ namespace VirtualHeightfieldMesh
 
 		int32 MaxPersistentQueueItems;
 		int32 MaxFeedbackItems;
+		int32 NumCollectPassWavefronts;
 	};
 
 	/** View description used for LOD calculation in the main view. */
@@ -1067,21 +1056,7 @@ namespace VirtualHeightfieldMesh
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("CollectQuads"),
-			ComputeShader, PassParameters, FIntVector(128, 1, 1));
-	}
-
-	/** */
-	void AddPass_BuildIndirectArgsForLodAndCull(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources)
-	{
-		TShaderMapRef<FBuildIndirectArgsForLodAndCullCS> ComputeShader(InGlobalShaderMap);
-
-		FBuildIndirectArgsForLodAndCullCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildIndirectArgsForLodAndCullCS::FParameters>();
-		PassParameters->RWIndirectArgsBuffer = InVolatileResources.IndirectArgsBufferUAV;
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BuildIndirectArgs"),
-			ComputeShader, PassParameters, FIntVector(1, 1, 1));
+			ComputeShader, PassParameters, FIntVector(InDesc.NumCollectPassWavefronts, 1, 1));
 	}
 
 	/**  */
@@ -1216,7 +1191,6 @@ namespace VirtualHeightfieldMesh
 
 		AddPass_InitBuffers(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
 		AddPass_CollectQuads(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InViewDesc);
-		AddPass_BuildIndirectArgsForLodAndCull(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
 		AddPass_RenderLodMap(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
 		AddPass_ResolveNeighborLods(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InViewDesc);
 	}
@@ -1267,6 +1241,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 			ProxyDesc.LodScale = FMath::Max(Proxy->LODScale * CVarVHMLodScale.GetValueOnRenderThread(), 0.01f);
 			ProxyDesc.MaxPersistentQueueItems = VirtualHeightfieldMesh::MaxPersistentQueueItems;
 			ProxyDesc.MaxFeedbackItems = VirtualHeightfieldMesh::MaxFeedbackItems;
+			ProxyDesc.NumCollectPassWavefronts = CVarVHMCollectPassWavefronts.GetValueOnRenderThread();
 
 			while (WorkIndex < NumWorkItems && SceneProxies[WorkDescs[WorkIndex].ProxyIndex] == Proxy)
 			{
