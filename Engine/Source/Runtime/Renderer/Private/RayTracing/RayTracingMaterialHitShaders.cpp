@@ -508,6 +508,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
+	check(View.ViewState);
+
 	FRayTracingPipelineStateInitializer Initializer;
 
 	Initializer.MaxPayloadSizeInBytes = 60; // sizeof(FPackedMaterialClosestHitPayload)
