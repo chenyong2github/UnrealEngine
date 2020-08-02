@@ -438,7 +438,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialAngularVelocity;
 
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Caching", meta=(ShowOnlyInnerProperties))
+	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
 
 	UFUNCTION(BlueprintCallable, Category = "Field")
