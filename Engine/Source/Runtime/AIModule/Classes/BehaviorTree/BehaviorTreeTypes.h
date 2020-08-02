@@ -320,10 +320,10 @@ struct FBehaviorTreeInstance
 	/** delegate sending a notify when tree instance is removed from active stack */
 	FBTInstanceDeactivation DeactivationNotify;
 
-	FBehaviorTreeInstance();
-	FBehaviorTreeInstance(const FBehaviorTreeInstance& Other);
-	FBehaviorTreeInstance(int32 MemorySize);
-	~FBehaviorTreeInstance();
+	AIMODULE_API FBehaviorTreeInstance();
+	AIMODULE_API BehaviorTreeInstance(const FBehaviorTreeInstance& Other);
+	AIMODULE_API FBehaviorTreeInstance(int32 MemorySize);
+	AIMODULE_API ~FBehaviorTreeInstance();
 
 #if STATS
 	void IncMemoryStats() const;
