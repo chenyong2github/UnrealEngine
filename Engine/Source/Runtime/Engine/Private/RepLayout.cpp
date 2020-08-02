@@ -922,21 +922,12 @@ struct FNetPrivatePushIdHelper
 };
 #endif // (WITH_PUSH_MODEL)
 
-FRepChangedPropertyTracker::FRepChangedPropertyTracker() 
-	: ExternalDataNumBits(0)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bIsReplay = false;
-	bIsClientReplayRecording = false;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
-		bIsReplay(InbIsReplay),
-		bIsClientReplayRecording(InbIsClientReplayRecording),
-		ExternalDataNumBits(0)
-	{}
+FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording) :
+	bIsReplay(InbIsReplay),
+	bIsClientReplayRecording(InbIsClientReplayRecording),
+	ExternalDataNumBits(0)
+{}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
@@ -946,7 +937,9 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 	FRepChangedParent& Parent = Parents[RepIndex];
 
 	Parent.OldActive = Parent.Active;
-	Parent.Active = bIsActive;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_PUSH_MODEL
 	if (!Parent.OldActive && Parent.Active)

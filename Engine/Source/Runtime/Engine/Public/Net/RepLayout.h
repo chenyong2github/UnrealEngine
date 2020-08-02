@@ -148,9 +148,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS	// IsReplay()
 class FRepChangedPropertyTracker : public IRepChangedPropertyTracker
 {
 public:
-	FRepChangedPropertyTracker();
-
-	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording);
 
 	virtual ~FRepChangedPropertyTracker();

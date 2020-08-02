@@ -1442,10 +1442,10 @@ bool FReplayHelper::ReplicateActor(AActor* Actor, UNetConnection* Connection, bo
 
 	bool bDidReplicateActor = false;
 
+	Actor->CallPreReplication(Connection->Driver);
+
 	// Handle role swapping if this is a client-recorded replay.
 	FScopedActorRoleSwap RoleSwap(Actor);
-
-	Actor->CallPreReplication(Connection->Driver);
 
 	if ((Actor->GetRemoteRole() != ROLE_None || Actor->GetTearOff()) && (Actor == Connection->PlayerController || Cast<APlayerController>(Actor) == nullptr))
 	{
