@@ -61,7 +61,7 @@ FNCPool::FNCPool()
 
 }
 
-void FNCPool::Cleanup()
+void FNCPool::Cleanup(bool bFreeOnly)
 {
 	for (FNCPoolElement& Elem : FreeElements)
 	{
@@ -75,30 +75,33 @@ void FNCPool::Cleanup()
 			UE_LOG(LogNiagara, Error, TEXT("Free element in the NiagaraComponentPool was null. Someone must be keeping a reference to a NC that has been freed to the pool and then are manually destroying it."));
 		}
 	}
-
-	for (UNiagaraComponent* NC : InUseComponents_Auto)
-	{
-		//It's possible for people to manually destroy these so we have to guard against it. Though we warn about it in UNiagaraComponent::BeginDestroy
-		if (NC)
-		{
-			NC->PoolingMethod = ENCPoolMethod::None; //Reset so we don't trigger warnings about destroying pooled NCs.
-			NC->DestroyComponent();
-		}
-	}
-
-	for (UNiagaraComponent* NC : InUseComponents_Manual)
-	{
-		//It's possible for people to manually destroy these so we have to guard against it. Though we warn about it in UNiagaraComponent::BeginDestroy
-		if (NC)
-		{
-			NC->PoolingMethod = ENCPoolMethod::None; //Reset so we don't trigger warnings about destroying pooled NCs.
-			NC->DestroyComponent();
-		}
-	}
-
 	FreeElements.Empty();
-	InUseComponents_Auto.Empty();
-	InUseComponents_Manual.Empty();
+
+	if (bFreeOnly == false)
+	{
+		for (UNiagaraComponent* NC : InUseComponents_Auto)
+		{
+			//It's possible for people to manually destroy these so we have to guard against it. Though we warn about it in UNiagaraComponent::BeginDestroy
+			if (NC)
+			{
+				NC->PoolingMethod = ENCPoolMethod::None; //Reset so we don't trigger warnings about destroying pooled NCs.
+				NC->DestroyComponent();
+			}
+		}
+
+		for (UNiagaraComponent* NC : InUseComponents_Manual)
+		{
+			//It's possible for people to manually destroy these so we have to guard against it. Though we warn about it in UNiagaraComponent::BeginDestroy
+			if (NC)
+			{
+				NC->PoolingMethod = ENCPoolMethod::None; //Reset so we don't trigger warnings about destroying pooled NCs.
+				NC->DestroyComponent();
+			}
+		}
+
+		InUseComponents_Auto.Empty();
+		InUseComponents_Manual.Empty();
+	}
 }
 
 UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew)
@@ -316,15 +319,24 @@ UNiagaraComponentPool::~UNiagaraComponentPool()
 	Cleanup();
 }
 
-void UNiagaraComponentPool::Cleanup()
+void UNiagaraComponentPool::Cleanup(bool bFreeOnly)
 {
 	for (TPair<UNiagaraSystem*, FNCPool>& Pool : WorldParticleSystemPools)
 	{
 		FNiagaraCrashReporterScope CRScope(Pool.Key);//In practice this may be null by now :(
-		Pool.Value.Cleanup();
+		Pool.Value.Cleanup(bFreeOnly);
 	}
 
 	WorldParticleSystemPools.Empty();
+}
+
+void UNiagaraComponentPool::ClearPool(UNiagaraSystem* System)
+{
+	FNCPool* NCPool = WorldParticleSystemPools.Find(System);
+	if (NCPool)
+	{
+		NCPool->Cleanup(true);
+	}
 }
 
 void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
