@@ -28,6 +28,10 @@ public:
 	/** Deviation Tolerance of the simplified 2D Convex Hull */
 	double DeviationTolerance = 0.1;
 
+	/** Minimum thickness of extrusion. If extrusion length is smaller than this amount, box is expanded symmetrically */
+	double MinThickness = 0.0;
+
+
 	/** Calculated convex hull polygon */
 	FPolygon2d ConvexHull2D;
 
