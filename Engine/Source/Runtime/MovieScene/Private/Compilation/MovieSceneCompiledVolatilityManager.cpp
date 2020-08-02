@@ -92,7 +92,7 @@ void FCompiledDataVolatilityManager::UpdateCachedSignatures(IMovieScenePlayer& P
 	const FMovieSceneCompiledDataEntry RootEntry = CompiledDataManager->GetEntry(RootDataID);
 	CachedCompilationSignatures.Add(MovieSceneSequenceID::Root, RootEntry.CompiledSignature);
 
-	UMovieSceneSequence* RootSequence = RootEntry.WeakSequence.Get();
+	UMovieSceneSequence* RootSequence = RootEntry.GetSequence();
 	if (RootSequence)
 	{
 		Player.State.AssignSequence(MovieSceneSequenceID::Root, *RootSequence, Player);

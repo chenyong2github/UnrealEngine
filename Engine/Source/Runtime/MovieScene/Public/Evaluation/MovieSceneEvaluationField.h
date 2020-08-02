@@ -25,7 +25,7 @@ struct FMovieSceneEvaluationFieldEntityPtr
 
 	friend bool operator<(FMovieSceneEvaluationFieldEntityPtr A, FMovieSceneEvaluationFieldEntityPtr B)
 	{
-		if (A.EntityOwner < B.EntityOwner)
+		if (GetTypeHash(A.EntityOwner) < GetTypeHash(B.EntityOwner))
 		{
 			return true;
 		}
@@ -47,7 +47,7 @@ struct FMovieSceneEvaluationFieldEntityPtr
 	MOVIESCENE_API friend FArchive& operator<<(FArchive& Ar, FMovieSceneEvaluationFieldEntityPtr& Entity);
 
 	UPROPERTY()
-	UObject* EntityOwner = nullptr;
+	TWeakObjectPtr<UObject> EntityOwner;
 
 	UPROPERTY()
 	uint32 EntityID = 0;
@@ -453,5 +453,5 @@ struct FMovieSceneEntityComponentField
 	FMovieSceneEvaluationFieldEntityTree OneShotEntities;
 
 	UPROPERTY()
-	TMap<UObject*, FGuid> EntityOwnerToObjectBinding;
+	TMap<TWeakObjectPtr<UObject>, FGuid> EntityOwnerToObjectBinding;
 };

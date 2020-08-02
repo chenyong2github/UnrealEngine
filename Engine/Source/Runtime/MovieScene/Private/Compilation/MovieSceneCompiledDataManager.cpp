@@ -242,6 +242,11 @@ FMovieSceneCompiledDataEntry::FMovieSceneCompiledDataEntry()
 	, AccumulatedMask(EMovieSceneSequenceCompilerMask::None)
 {}
 
+UMovieSceneSequence* FMovieSceneCompiledDataEntry::GetSequence() const
+{
+	return CastChecked<UMovieSceneSequence>(SequenceKey.ResolveObjectPtr(), ECastCheckedType::NullAllowed);
+}
+
 UMovieSceneCompiledData::UMovieSceneCompiledData()
 {
 	AccumulatedMask = EMovieSceneSequenceCompilerMask::None;
@@ -414,7 +419,7 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetDataID(UMovieSceneS
 	ExistingDataID = FMovieSceneCompiledDataID { Index };
 	FMovieSceneCompiledDataEntry& NewEntry = CompiledDataEntries[Index];
 
-	NewEntry.WeakSequence = Sequence;
+	NewEntry.SequenceKey = Sequence;
 	NewEntry.DataID = ExistingDataID;
 	NewEntry.AccumulatedFlags = Sequence->GetFlags();
 
@@ -458,10 +463,7 @@ void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID D
 
 	const FMovieSceneCompiledDataEntry& Entry = CompiledDataEntries[DataID.Value];
 
-	UMovieSceneSequence* Sequence = Entry.WeakSequence.Get();
-	check(Sequence);
-
-	SequenceToDataIDs.Remove(Sequence);
+	SequenceToDataIDs.Remove(Entry.SequenceKey);
 
 	Hierarchies.Remove(DataID.Value);
 	TrackTemplates.Remove(DataID.Value);
@@ -475,7 +477,7 @@ void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID D
 
 bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry& Entry) const
 {
-	if (Entry.CompiledSignature != Entry.WeakSequence.Get()->GetSignature())
+	if (Entry.CompiledSignature != Entry.GetSequence()->GetSignature())
 	{
 		return true;
 	}
@@ -525,7 +527,7 @@ void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID)
 {
 	check(DataID.IsValid());
 
-	UMovieSceneSequence* Sequence = CompiledDataEntries[DataID.Value].WeakSequence.Get();
+	UMovieSceneSequence* Sequence = CompiledDataEntries[DataID.Value].GetSequence();
 	check(Sequence);
 	Compile(DataID, Sequence);
 }
@@ -900,7 +902,7 @@ void UMovieSceneCompiledDataManager::CompileTrack(FMovieSceneCompiledDataEntry* 
 		return;
 	}
 
-	UMovieSceneSequence* Sequence = OutEntry->WeakSequence.Get();
+	UMovieSceneSequence* Sequence = OutEntry->GetSequence();
 	check(Sequence);
 
 	// -------------------------------------------------------------------------------------------------------------------------------------

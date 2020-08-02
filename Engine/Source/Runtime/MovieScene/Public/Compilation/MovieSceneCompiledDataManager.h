@@ -139,6 +139,8 @@ struct FMovieSceneCompiledDataEntry
 {
 	FMovieSceneCompiledDataEntry();
 
+	UMovieSceneSequence* GetSequence() const;
+
 	/** 16 Bytes */
 	FGuid CompiledSignature;
 
@@ -146,7 +148,7 @@ struct FMovieSceneCompiledDataEntry
 	TArray<FFrameTime> DeterminismFences;
 
 	/** 8 Bytes */
-	TWeakObjectPtr<UMovieSceneSequence> WeakSequence;
+	FObjectKey SequenceKey;
 
 	/** 4 Bytes */
 	FMovieSceneCompiledDataID DataID;
