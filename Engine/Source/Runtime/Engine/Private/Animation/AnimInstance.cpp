@@ -1439,6 +1439,12 @@ void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEv
 				}
 			};
 			
+
+			if (FSimpleMulticastDelegate* ExistingDelegate = ExternalNotifyHandlers.Find(FuncName))
+			{
+				ExistingDelegate->Broadcast();
+			}
+
 			if(bPropagateNotifiesToLinkedInstances)
 			{
 				GetSkelMeshComponent()->ForEachAnimInstance(NotifyAnimInstance);
@@ -2852,6 +2858,23 @@ void UAnimInstance::InitializeGroupedLayers(bool bInDeferSubGraphInitialization)
 	};
 
 	PerformLinkedLayerOverlayOperation(nullptr, SelectResolvedClassIfValid, bInDeferSubGraphInitialization);
+}
+
+void UAnimInstance::AddExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName)
+{
+	if (ExternalHandlerObject)
+	{
+		check (ExternalHandlerObject->FindFunction(NotifyEventName));
+		ExternalNotifyHandlers.FindOrAdd(NotifyEventName).AddUFunction(ExternalHandlerObject, NotifyEventName);
+	}
+}
+
+void UAnimInstance::RemoveExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName)
+{
+	if (FSimpleMulticastDelegate* ExistingDelegate = ExternalNotifyHandlers.Find(NotifyEventName))
+	{
+		ExistingDelegate->RemoveAll(ExternalHandlerObject);
+	}
 }
 
 UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByGroup(FName InGroup) const

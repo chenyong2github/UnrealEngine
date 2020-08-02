@@ -803,6 +803,11 @@ public:
 	/** Sets up initial layer groupings */
 	void InitializeGroupedLayers(bool bInDeferSubGraphInitialization);
 
+	/** Allows other UObjects to bind custom event notifies similarly to the AnimBP */
+	void AddExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName);
+	/** Other UObjects should call this to remove themselves from the callbacks */
+	void RemoveExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName);
+
 private:
 	/** Helper function to perform layer overlay actions (set, clear) */
 	void PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance> InClass, TFunctionRef<UClass*(UClass*, FAnimNode_LinkedAnimLayer*)> InClassSelectorFunction, bool bInDeferSubGraphInitialization = false);
@@ -1243,6 +1248,7 @@ public:
 
 private:
 	TMap<FName, FMontageActiveSlotTracker> SlotWeightTracker;
+	TMap<FName, FSimpleMulticastDelegate> ExternalNotifyHandlers;
 
 public:
 	/** 
