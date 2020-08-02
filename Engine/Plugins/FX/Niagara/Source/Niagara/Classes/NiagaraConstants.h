@@ -116,6 +116,10 @@
 #define SYS_PARAM_PARTICLES_RIBBONTWIST                  INiagaraModule::GetVar_Particles_RibbonTwist()
 #define SYS_PARAM_PARTICLES_RIBBONFACING                 INiagaraModule::GetVar_Particles_RibbonFacing()
 #define SYS_PARAM_PARTICLES_RIBBONLINKORDER              INiagaraModule::GetVar_Particles_RibbonLinkOrder()
+#define SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE             INiagaraModule::GetVar_Particles_RibbonU0Override()
+#define SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE        INiagaraModule::GetVar_Particles_RibbonV0RangeOverride()
+#define SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE             INiagaraModule::GetVar_Particles_RibbonU1Override()
+#define SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE        INiagaraModule::GetVar_Particles_RibbonV1RangeOverride()
 
 #define SYS_PARAM_INSTANCE_ALIVE                         INiagaraModule::GetVar_DataInstance_Alive()
 #define SYS_PARAM_SCRIPT_USAGE                           INiagaraModule::GetVar_ScriptUsage()

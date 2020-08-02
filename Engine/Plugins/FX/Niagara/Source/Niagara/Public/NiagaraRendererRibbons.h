@@ -77,14 +77,8 @@ private:
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 
 	ENiagaraRibbonFacingMode FacingMode;
-	float UV0TilingDistance;
-	FVector2D UV0Scale;
-	FVector2D UV0Offset;
-	ENiagaraRibbonAgeOffsetMode UV0AgeOffsetMode;
-	float UV1TilingDistance;
-	FVector2D UV1Scale;
-	FVector2D UV1Offset;
-	ENiagaraRibbonAgeOffsetMode UV1AgeOffsetMode;
+	FNiagaraRibbonUVSettings UV0Settings;
+	FNiagaraRibbonUVSettings UV1Settings;
 	ENiagaraRibbonDrawDirection DrawDirection;
 	ENiagaraRibbonTessellationMode TessellationMode;
 	float CustomCurveTension;
