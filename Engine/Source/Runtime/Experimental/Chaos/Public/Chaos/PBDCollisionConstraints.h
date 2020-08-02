@@ -215,6 +215,16 @@ public:
 		return MCullDistance;
 	}
 
+	void SetCanDisableContacts(bool bInCanDisableContacts)
+	{
+		bCanDisableContacts = bInCanDisableContacts;
+	}
+
+	bool GetCanDisableContacts() const
+	{
+		return bCanDisableContacts;
+	}
+
 	void SetShapePadding(FReal InShapePadding)
 	{
 		MShapePadding = InShapePadding;
@@ -323,6 +333,12 @@ private:
 	bool bEnableCollisions;
 	bool bEnableRestitution;
 	bool bHandlesEnabled;
+
+	// This is passed to IterationParameters. If true, then an iteration can cull a contact
+	// permanently (ie, for the remaining iterations) if it is ignored due to culldistance.
+	// This improves performance, but can decrease stability if contacts are culled prematurely.
+	bool bCanDisableContacts;
+
 	ECollisionApplyType ApplyType;
 
 	int32 LifespanCounter;

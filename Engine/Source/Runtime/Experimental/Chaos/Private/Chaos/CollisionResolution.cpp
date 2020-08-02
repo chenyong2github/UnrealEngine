@@ -35,7 +35,7 @@ DECLARE_CYCLE_STAT(TEXT("Collisions::GJK"), STAT_Collisions_GJK, STATGROUP_Chaos
 DECLARE_CYCLE_STAT(TEXT("Collisions::ConstructConstraints"), STAT_Collisions_ConstructConstraints, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::FindAllIntersectingClusteredObjects"), STAT_Collisions_FindAllIntersectingClusteredObjects, STATGROUP_ChaosCollision);
 
-float CCDEnableThresholdBoundsScale = 0.12f;
+float CCDEnableThresholdBoundsScale = 0.4f;
 FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
 
 float CCDAllowedDepthBoundsScale = 0.05f;
@@ -43,6 +43,15 @@ FAutoConsoleVariableRef CVarCCDAllowedDepthBoundsScale(TEXT("p.Chaos.CCD.Allowed
 
 int32 ConstraintsDetailedStats = 0;
 FAutoConsoleVariableRef CVarConstraintsDetailedStats(TEXT("p.Chaos.Constraints.DetailedStats"), ConstraintsDetailedStats, TEXT("When set to 1, will enable more detailed stats."));
+
+int32 AlwaysAddSweptConstraints = 0;
+FAutoConsoleVariableRef CVarAlwaysAddSweptConstraints(TEXT("p.Chaos.Constraints.AlwaysAddSweptConstraints"), AlwaysAddSweptConstraints, TEXT("Since GJKContactPointSwept returns infinity for it's contact data when not hitting anything, some contacts are discarded prematurely. This flag will cause contact points considered for sweeps to never be discarded."));
+
+int32 GJKContactPointSweptPhiCap = 1;
+FAutoConsoleVariableRef CVarGJKContactPointSweptPhiCap(TEXT("p.Chaos.Constraints.GJKContactPointSweptPhiCap"), GJKContactPointSweptPhiCap, TEXT("When GJKContactPointSwept does not touch a surface, rather than returning an invalid contact point with Phi = FLOAT_MAX, we clamp Phi to CullDistance - Epsilon so that the contact doesn't get immediately thrown out. This protects us from the case of throwing out contacts that we are sweeping parallel to and will need during swept iterations in resolution."));
+
+float GJKContactPointSweptPhiCapEpsilon = 1.e-4f;
+FAutoConsoleVariableRef CVarGJKContactPointSweptPhiCapEpsilon(TEXT("p.Chaos.Constraints.GJKContactPointSweptPhiCapEpsilon"), GJKContactPointSweptPhiCapEpsilon, TEXT("The epislon value to use when capping Phi in GJKContactPointSwept."));
 
 // If GJKPenetration returns a phi of abs value < this number, we use PhiWithNormal to resample phi and normal.
 // We have observed bad normals coming from GJKPenetration when barely in contact.
@@ -254,6 +263,16 @@ namespace Chaos
 				Contact.Location = BTM.TransformPosition(Location);
 				Contact.Normal = BTM.TransformVectorNoScale(Normal);
 				ComputeSweptContactPhiAndTOIHelper(Contact.Normal, Dir, Length, OutTime, TOI, Contact.Phi);
+			}
+			else if (GJKContactPointSweptPhiCap)
+			{
+				// NOTE: This is a total hack.
+				// A more correct solution might be to figure out a way to allow positive Phi values
+				// to be produced by GJKRaycast2. At the moment when sweeping parallel to a surface
+				// which should be detected by padding by the CullDistance, this contact is discarded
+				// beacuse GJKRaycast2 will not set Phi and it will stay at FLOAT_MAX, thus preventing
+				// the contact from being added.
+				Contact.Phi = CullDistance - (FReal)GJKContactPointSweptPhiCapEpsilon;
 			}
 
 			return Contact;
