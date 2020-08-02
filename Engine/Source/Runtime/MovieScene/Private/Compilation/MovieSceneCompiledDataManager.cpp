@@ -452,6 +452,8 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetSubDataID(FMovieSce
 
 UMovieSceneCompiledDataManager* UMovieSceneCompiledDataManager::GetPrecompiledData()
 {
+	ensureMsgf(!GExitPurge, TEXT("Attempting to access precompiled data manager during shutdown - this is undefined behavior since the manager may have already been destroyed, or could be unconstrictible"));
+
 	static UMovieSceneCompiledDataManager* GPrecompiledDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "PrecompiledDataManager", RF_MarkAsRootSet);
 	return GPrecompiledDataManager;
 }
