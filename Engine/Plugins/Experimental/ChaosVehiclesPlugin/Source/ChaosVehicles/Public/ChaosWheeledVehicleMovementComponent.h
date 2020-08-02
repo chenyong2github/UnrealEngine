@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Physics/PhysicsInterfaceCore.h"
 #include "UObject/ObjectMacros.h"
 #include "ChaosVehicleMovementComponent.h"
 #include "Curves/CurveFloat.h"
@@ -24,7 +25,6 @@ struct FWheeledVehicleDebugParams
 	bool DisableSuspensionForces = false;
 	bool DisableFrictionForces = false;
 	bool DisableRollbarForces = false;
-	bool ApplyWheelForcetoSurface = true;
 
 	float ThrottleOverride = 0.f;
 	float SteeringOverride = 0.f;
@@ -130,9 +130,6 @@ struct FVehicleEngineConfig
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float EngineRevDownRate;
 
-	/** Find the peak torque produced by the TorqueCurve */
-	//float FindPeakTorque() const;
-
 	const Chaos::FSimpleEngineConfig& GetPhysicsEngineConfig()
 	{
 		FillEngineSetup();
@@ -141,8 +138,6 @@ struct FVehicleEngineConfig
 
 	void InitDefaults()
 	{
-		//TorqueCurve.GetRichCurve().AddKey(0.0f, 1.0f);
-		//TorqueCurve.GetRichCurve().AddKey(1.0f, 0.0f);
 		MaxTorque = 300.0f;
 		MaxRPM = 4500.0f;
 		EngineIdleRPM = 1200.0f;
@@ -156,8 +151,6 @@ private:
 
 	void FillEngineSetup()
 	{
-		// #todo: better Chaos torque curve representation
-
 		// The source curve does not need to be normalized, however we are normalizing it when it is passed on,
 		// since it's the MaxRPM and MaxTorque values that determine the range of RPM and Torque
 		PEngineConfig.TorqueCurve.Empty();
@@ -252,9 +245,6 @@ struct FVehicleTransmissionConfig
 		GearChangeTime = 0.4f;
 
 		TransmissionEfficiency = 0.9f;
-
-		// #todo: probably need something like this
-		// NeutralGearUpRatio
 	}
 
 private:
@@ -398,6 +388,7 @@ struct FWheelState
 		Trace.SetNum(NumWheels);
 	}
 
+	/** Commonly used Wheel state - evaluated once used wherever required for that frame */
 	void CaptureState(int WheelIdx, const FVector& WheelOffset, const FBodyInstance* TargetInstance);
 
 	TArray<FVector> WheelWorldLocation;	/** Current Location Of Wheels In World Coordinates */
@@ -451,8 +442,6 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Get current engine's max rotation speed */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosWheeledVehicleMovement")
 	float GetEngineMaxRotationSpeed() const;
-
-	float GetMaxSpringForce() const; //??
 
 	//////////////////////////////////////////////////////////////////////////
 	// Public
@@ -511,6 +500,9 @@ protected:
 
 	/** Re-Compute any runtime constants values that rely on setup data */
 	virtual void ComputeConstants() override;
+
+	/** Skeletal mesh needs some special handling in the vehicle case */
+	virtual void FixupSkeletalMesh();
 
 	/** Allocate and setup the Chaos vehicle */
 	virtual void SetupVehicle() override;
@@ -578,7 +570,7 @@ protected:
 	FVector2D CalculateWheelLayoutDimensions();
 	bool IsWheelSpinning() const;
 
-#if WITH_EDITOR
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	float CalcDialAngle(float CurrentValue, float MaxValue);
 	void DrawDial(UCanvas* Canvas, FVector2D Pos, float Radius, float CurrentValue, float MaxValue);
 #endif

@@ -141,10 +141,10 @@ namespace Chaos
 		float EngineIdleSpeed;
 		float MaxEngineSpeed;
 		bool EngineStarted;		// is the engine turned off or has it been started
-		bool FreeRunning;		// is engine in neutral with no load from the wheels/trasmission
+		bool FreeRunning;		// is engine in neutral with no load from the wheels/transmission
 
-		float Omega;			// engine speed ??
-		float RevRate;			// for debug rather than abny practical purpose
+		float Omega;			// engine speed
+		float RevRate;			// for debug rather than any practical purpose
 
 	};
 
