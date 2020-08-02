@@ -151,6 +151,14 @@ void FLevelCollectionModel::BindCommands()
 		FExecuteAction::CreateSP(this, &FLevelCollectionModel::DeselectActors_Executed),
 		FCanExecuteAction::CreateSP(this, &FLevelCollectionModel::AreAnySelectedLevelsEditable));
 
+	ActionList.MapAction(Commands.ConvertLevelToExternalActors,
+		FExecuteAction::CreateSP(this, &FLevelCollectionModel::ConvertLevelToExternalActors_Executed, true),
+		FCanExecuteAction::CreateSP(this, &FLevelCollectionModel::CanConvertAnyLevelToExternalActors, true));
+
+	ActionList.MapAction(Commands.ConvertLevelToInternalActors,
+		FExecuteAction::CreateSP(this, &FLevelCollectionModel::ConvertLevelToExternalActors_Executed, false),
+		FCanExecuteAction::CreateSP(this, &FLevelCollectionModel::CanConvertAnyLevelToExternalActors, false));
+
 	//visibility
 	ActionList.MapAction( Commands.World_ShowSelectedLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::ShowSelectedLevels_Executed  ),
@@ -1078,6 +1086,18 @@ bool FLevelCollectionModel::AreActorsSelected() const
 	return GEditor->GetSelectedActorCount() > 0;
 }
 
+bool FLevelCollectionModel::CanConvertAnyLevelToExternalActors(bool bExternal) const
+{
+	for (const TSharedPtr<FLevelModel>& LevelModel : SelectedLevelsList)
+	{
+		if (!LevelModel->CanConvertLevelToExternalActors(bExternal))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool FLevelCollectionModel::GetDisplayPathsState() const
 {
 	return bDisplayPaths;
@@ -1818,6 +1838,15 @@ void FLevelCollectionModel::DeselectActors_Executed()
 	for(auto It = SelectedLevelsList.CreateConstIterator(); It; ++It)
 	{
 		(*It)->SelectActors(/*bSelect*/ false, /*bNotify*/ true, /*bSelectEvenIfHidden*/ true);
+	}
+}
+
+void FLevelCollectionModel::ConvertLevelToExternalActors_Executed(bool bExternal)
+{
+	FScopedTransaction Transaction(LOCTEXT("WorldUseExternalActors", "Change World Use External Actors"));
+	for (const TSharedPtr<FLevelModel>& LevelModel : SelectedLevelsList)
+	{
+		LevelModel->ConvertLevelToExternalActors(bExternal);
 	}
 }
 
