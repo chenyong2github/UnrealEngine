@@ -186,7 +186,7 @@ void FSlateDrawElement::ApplyPositionOffset(const FVector2D& InOffset)
 	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
 }
 
-void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry)
+void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FLinearColor& InTint )
 {
 	PaintGeometry.CommitTransformsIfUsingLegacyConstructor();
 
@@ -196,7 +196,9 @@ void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uin
 	}
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
-	ElementList.CreatePayload<FSlateBoxPayload>(Element);
+	FSlateBoxPayload& BoxPayload = ElementList.CreatePayload<FSlateBoxPayload>(Element);
+
+	BoxPayload.SetTint(InTint);
 
 	Element.Init(ElementList, EElementType::ET_DebugQuad, InLayer, PaintGeometry, ESlateDrawEffect::None);
 }
@@ -213,14 +215,12 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 	EElementType ElementType = (InBrush->DrawAs == ESlateBrushDrawType::Border) ? EElementType::ET_Border : EElementType::ET_Box;
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
-
-	const FMargin& Margin = InBrush->GetMargin();
 	FSlateBoxPayload& BoxPayload = ElementList.CreatePayload<FSlateBoxPayload>(Element);
-
-	Element.Init(ElementList, ElementType, InLayer, PaintGeometry, InDrawEffects);
 
 	BoxPayload.SetTint(InTint);
 	BoxPayload.SetBrush(InBrush);
+
+	Element.Init(ElementList, ElementType, InLayer, PaintGeometry, InDrawEffects);
 
 	return Element;
 }
