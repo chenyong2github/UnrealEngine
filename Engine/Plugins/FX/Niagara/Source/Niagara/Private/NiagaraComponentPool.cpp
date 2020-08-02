@@ -153,6 +153,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSeconds)
 {
 	check(Component);
+	check(Component->GetAsset());
 
 #if ENABLE_NC_POOL_DEBUGGING
 	int32 InUseIdx = INDEX_NONE;
@@ -455,16 +456,17 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 {
 	check(IsInGameThread());
 
-	FNiagaraCrashReporterScope CRScope(Component->GetAsset());
+	UNiagaraSystem* Asset = Component->GetAsset();
+	FNiagaraCrashReporterScope CRScope(Asset);
 	
 	//If this component has been already destroyed we don't add it back to the pool. Just warn so users can fix it.
 	if (Component->IsPendingKill())
 	{
-		UE_LOG(LogNiagara, Log, TEXT("Pooled NC has been destroyed! Possibly via a DestroyComponent() call. You should not destroy components set to auto destroy manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool if pooling is enabled. | NC: %p |\t System: %s"), Component, *Component->GetAsset()->GetFullName());
+		UE_LOG(LogNiagara, Log, TEXT("Pooled NC has been destroyed! Possibly via a DestroyComponent() call. You should not destroy components set to auto destroy manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool if pooling is enabled. | NC: %p |\t System: %s"), Component, Asset ? *Asset->GetFullName() : TEXT("(nullptr)"));
 		return;
 	}
 
-	if (GbEnableNiagaraSystemPooling)
+	if (GbEnableNiagaraSystemPooling && Asset != nullptr)
 	{
 		float CurrentTime = Component->GetWorld()->GetTimeSeconds();
 
@@ -474,16 +476,16 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 			LastParticleSytemPoolCleanTime = CurrentTime;
 			for (TPair<UNiagaraSystem*, FNCPool>& Pair : WorldParticleSystemPools)
 			{
-				Pair.Value.KillUnusedComponents(CurrentTime - GNiagaraSystemPoolKillUnusedTime, Component->GetAsset());
+				Pair.Value.KillUnusedComponents(CurrentTime - GNiagaraSystemPoolKillUnusedTime, Asset);
 			}
 		}
 		
-		FNCPool* NCPool = WorldParticleSystemPools.Find(Component->GetAsset());
+		FNCPool* NCPool = WorldParticleSystemPools.Find(Asset);
 		if (!NCPool)
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("WorldNC Pool trying to reclaim a system for which it doesn't have a pool! Likely because SetAsset() has been called on this NC. | World: %p | NC: %p | Sys: %s"), Component->GetWorld(), Component, *Component->GetAsset()->GetFullName());
 			//Just add the new pool and reclaim to that one.
-			NCPool = &WorldParticleSystemPools.Add(Component->GetAsset());
+			NCPool = &WorldParticleSystemPools.Add(Asset);
 		}
 
 		NCPool->Reclaim(Component, CurrentTime);
