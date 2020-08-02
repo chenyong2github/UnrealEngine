@@ -872,11 +872,14 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 							TextureRHI = TextureObjectResource->AccessRHIResource();
 
-							// warn about null RHI textures, this can upset some RHIs
-							if(TextureRHI == nullptr)
+							// This can upset some RHIs, so use transparent black texture until it's valid.
+							// these can be temporarily invalid when recreating them / invalidating their streaming
+							// state.
+							if (TextureRHI == nullptr)
 							{
-								ensureMsgf(TextureRHI, TEXT("null TextureRHI encountered, texture name: %s"), *TextureObj->GetName());
-								TextureRHI = GWhiteTexture->TextureRHI;
+								// We use transparent black here, because it's about to become valid - probably, and flashing white
+								// wouldn't be ideal.
+								TextureRHI = GTransparentBlackTexture->TextureRHI;
 							}
 
 							Filter = GetSamplerFilter(TextureObj);
