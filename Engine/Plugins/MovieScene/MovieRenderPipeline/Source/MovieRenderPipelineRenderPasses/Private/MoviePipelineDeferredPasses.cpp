@@ -40,13 +40,13 @@ namespace MoviePipeline
 	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig);
 }
 
-void UMoviePipelineDeferredPassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
+void UMoviePipelineImagePassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
 {
 	OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	OutViewModeIndex = EViewModeIndex::VMI_Lit;
 }
 
-void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
 	Super::RenderSample_GameThreadImpl(InSampleState);
 	 
@@ -67,7 +67,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		.SetRealtimeUpdate(true));
 
 	ViewFamily.SceneCaptureSource = InOutSampleState.SceneCaptureSource;
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, InOutSampleState.GlobalScreenPercentageFraction, true));
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
 	ViewFamily.bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	ViewFamily.ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
@@ -300,7 +300,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		});
 }
 
-void UMoviePipelineDeferredPassBase::SetupViewForViewModeOverride(FSceneView* View)
+void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
 {
 	if (View->Family->EngineShowFlags.Wireframe)
 	{
@@ -347,6 +347,14 @@ void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngine
 	OutShowFlag.SetBloom(!bDisableBloom);
 }
 
+void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+{
+	Super::SetupImpl(InPassInitSettings);
+
+	// Allocate 
+	ViewState.Allocate();
+}
+
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
@@ -358,19 +366,29 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
-	GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
-
-	// Allocate 
-	ViewState.Allocate();
+	if (GetPipeline()->GetPreviewTexture() == nullptr)
+	{
+		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
+	}
 
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
 	AccumulatorPool = MakeShared<FAccumulatorPool, ESPMode::ThreadSafe>(6);
 }
 
+void UMoviePipelineImagePassBase::TeardownImpl()
+{
+	FSceneViewStateInterface* Ref = ViewState.GetReference();
+	if (Ref)
+	{
+		Ref->ClearMIDPool();
+	}
+	ViewState.Destroy();
+
+	Super::TeardownImpl();
+}
+
 void UMoviePipelineDeferredPassBase::TeardownImpl()
 {
-	Super::TeardownImpl();
-
 	GetPipeline()->SetPreviewTexture(nullptr);
 
 	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
@@ -379,20 +397,16 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
-	
-	FSceneViewStateInterface* Ref = ViewState.GetReference();
-	if (Ref)
-	{
-		Ref->ClearMIDPool();
-	}
-	ViewState.Destroy();
+
+	// Preserve our view state until the rendering thread has been flushed.
+	Super::TeardownImpl();
 }
 
-void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void UMoviePipelineImagePassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	Super::AddReferencedObjects(InThis, Collector);
 
-	UMoviePipelineDeferredPassBase& This = *CastChecked<UMoviePipelineDeferredPassBase>(InThis);
+	UMoviePipelineImagePassBase& This = *CastChecked<UMoviePipelineImagePassBase>(InThis);
 	FSceneViewStateInterface* Ref = This.ViewState.GetReference();
 	if (Ref)
 	{
@@ -400,13 +414,13 @@ void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FRefe
 	}
 }
 
-void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
+void UMoviePipelineImagePassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
 	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 	ExpectedRenderPasses.Add(PassIdentifier);
 }
 
-FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState)
+FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState)
 {
 	APlayerController* LocalPlayerController = GetPipeline()->GetWorld()->GetFirstPlayerController();
 
@@ -608,7 +622,7 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 	return View;
 }
 
-void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView)
+void UMoviePipelineImagePassBase::BlendPostProcessSettings(FSceneView* InView)
 {
 	check(InView);
 
