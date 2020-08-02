@@ -743,6 +743,9 @@ public:
 	virtual bool NeedsLoadForClient() const override;
 	virtual bool NeedsLoadForEditorGame() const override;
 	virtual bool CanBeClusterRoot() const override;
+#if WITH_EDITOR
+	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
+#endif	//WITH_EDITOR
 	// End UObject interface
 	
 	// UClass interface
