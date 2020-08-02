@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/IPlatformFileManagedStorageWrapper.h"
 #include "HAL/IConsoleManager.h"
