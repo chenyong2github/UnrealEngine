@@ -41,7 +41,7 @@ struct TTickUtil
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, OutputFrameData.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, OutputFrameData.AuxState.Get());
 
-		UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Instance.Info.Physics);
+		UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Instance.Info.Driver);
 	}
 
 	template<typename SimulationType = typename ModelDef::Simulation>
