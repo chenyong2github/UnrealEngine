@@ -103,7 +103,20 @@ private:
 	void FixupNotifies();
 
 	// recording curve data 
-	TArray< TArray<FCurveElement> >  RecordedCurves;
+	struct FBlendedCurve
+	{
+		template<typename Allocator>
+		FBlendedCurve(TArray<float, Allocator> CW, TBitArray<Allocator> VCW)
+		{
+			CurveWeights = CW;
+			ValidCurveWeights = VCW;
+		}
+
+		TArray<float> CurveWeights;
+		TBitArray<> ValidCurveWeights;
+	};
+
+	TArray<FBlendedCurve> RecordedCurves;
 	TArray<uint16> const * UIDToArrayIndexLUT;
 };
 
