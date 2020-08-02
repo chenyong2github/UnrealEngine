@@ -107,58 +107,34 @@ namespace MovieScene
 	{
 		static UObject* FindBoundObject(FMovieSceneObjectBindingID BindingID, FMovieSceneSequenceID SequenceID, IMovieScenePlayer& Player)
 		{
-			FMovieSceneSequenceID ResolvedSequenceID = SequenceID;
-			if (BindingID.GetSequenceID().IsValid())
-			{
-				FMovieSceneObjectBindingID RootBindingID = BindingID.ResolveLocalToRoot(BindingID.GetSequenceID(), Player);
+			FMovieSceneObjectBindingID ResolvedID = BindingID.ResolveLocalToRoot(SequenceID, Player);
 
-				FMovieSceneEvaluationOperand Operand(ResolvedSequenceID, BindingID.GetGuid());
-				TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(Operand);
-				if (Objects.Num() > 0)
-				{
-					return Objects[0].Get();
-				}
+			FMovieSceneEvaluationOperand Operand(ResolvedID.GetSequenceID(), BindingID.GetGuid());
+			TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(Operand);
+			if (Objects.Num() > 0)
+			{
+				return Objects[0].Get();
 			}
 			return nullptr;
 		}
 
 		static void AnimatePreRoll(const UE::MovieScene::FPreRollCameraCut& Params, const FMovieSceneContext& Context, const FMovieSceneSequenceID& SequenceID, IMovieScenePlayer& Player)
 		{
-			FVector Location;
-
 			if (Params.bHasCutTransform)
 			{
-				Location = Params.CutTransform.GetLocation();
+				FVector Location = Params.CutTransform.GetLocation();
+				IStreamingManager::Get().AddViewSlaveLocation(Location);
 			}
 			else
 			{
-				FMovieSceneSequenceID ResolvedSequenceID = SequenceID;
-				if (Params.CameraBindingID.GetSequenceID().IsValid())
+				UObject* CameraObject = FindBoundObject(Params.CameraBindingID, SequenceID, Player);
+
+				if (AActor* Actor = Cast<AActor>(CameraObject))
 				{
-					// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-					ResolvedSequenceID = Params.CameraBindingID.ResolveLocalToRoot(ResolvedSequenceID, Player).GetSequenceID();
-				}
-
-				// If the transform is set, otherwise use the bound actor's transform
-				FMovieSceneEvaluationOperand CameraOperand(ResolvedSequenceID, Params.CameraBindingID.GetGuid());
-
-				TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(CameraOperand);
-				if (!Objects.Num())
-				{
-					return;
-				}
-
-				// Only ever deal with one camera
-				UObject* CameraObject = Objects[0].Get();
-
-				AActor* Actor = Cast<AActor>(CameraObject);
-				if (Actor)
-				{
-					Location = Actor->GetActorLocation();
+					FVector Location = Actor->GetActorLocation();
+					IStreamingManager::Get().AddViewSlaveLocation(Location);
 				}
 			}
-
-			IStreamingManager::Get().AddViewSlaveLocation( Location );
 		}
 
 		static bool AnimateBlendedCameraCut(const UE::MovieScene::FBlendedCameraCut& Params, UMovieSceneCameraCutTrackInstance::FCameraCutCache& CameraCutCache, const FMovieSceneContext& Context, IMovieScenePlayer& Player)
