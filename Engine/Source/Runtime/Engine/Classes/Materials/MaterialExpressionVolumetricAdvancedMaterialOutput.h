@@ -39,8 +39,8 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	FExpressionInput MultiScatteringEccentricity;
 
 
-	/** Specify here a density conservative around the medium shape. Used to accelerate the ray marching by skipping expensive material evaluation. Density will be multiplied with extinction. A simple top down 2D density texture would be enough to help here. */
-	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "A conservative density specifying where participating media material will show up. Used to accelerate the ray marching by skipping the remaining expenssive albedo and extinction evaluation. It is then available to use on the VolumetricAdvancedMaterialInput node. A simple top down 2D density texture would be enough to help here. Evaluated per sample."))
+	/** This is a 3-components float vector. The X component must represent the participating medium conservative density. This is used to accelerate the ray marching by early skipping expensive material evaluation. For example, a simple top down 2D density texture would be enough to help by not evaluating the material in empty regions. The Y and Z components can contain parameters that can be recovered during the material evaluation using the VolumetricAdvancedMaterialInput node. Evaluated per sample. */
+	UPROPERTY(meta = (RequiredInput = "false", ToolTip = "This is a 3-components float vector. The X component must represent the participating medium conservative density. This is used to accelerate the ray marching by early skipping expensive material evaluation. For example, a simple top down 2D density texture would be enough to help by not evaluating the material in empty regions. The Y and Z components can contain parameters that can be recovered during the material evaluation using the VolumetricAdvancedMaterialInput node. Evaluated per sample."))
 	FExpressionInput ConservativeDensity;
 
 
