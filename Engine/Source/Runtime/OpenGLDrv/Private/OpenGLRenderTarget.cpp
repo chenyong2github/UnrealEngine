@@ -1139,28 +1139,15 @@ void FOpenGLDynamicRHI::BindPendingFramebuffer( FOpenGLContextState& ContextStat
 
 			if ( FOpenGL::SupportsMultipleRenderTargets() )
 			{
-				//if (ContextState.FirstNonzeroRenderTarget != PendingState.FirstNonzeroRenderTarget)
-				//{
-					FOpenGL::ReadBuffer( PendingState.FirstNonzeroRenderTarget >= 0 ? GL_COLOR_ATTACHMENT0 + PendingState.FirstNonzeroRenderTarget : GL_NONE);
-					//ContextState.FirstNonzeroRenderTarget = PendingState.FirstNonzeroRenderTarget;
-				//}
+				FOpenGL::ReadBuffer( PendingState.FirstNonzeroRenderTarget >= 0 ? GL_COLOR_ATTACHMENT0 + PendingState.FirstNonzeroRenderTarget : GL_NONE);
 				GLenum DrawFramebuffers[MaxSimultaneousRenderTargets];
 				const GLint MaxDrawBuffers = GMaxOpenGLDrawBuffers;
 
-				bool bNeedToDrawBuffers = false;
 				for (int32 RenderTargetIndex = 0; RenderTargetIndex < MaxDrawBuffers; ++RenderTargetIndex)
 				{
 					DrawFramebuffers[RenderTargetIndex] = PendingState.RenderTargets[RenderTargetIndex] ? GL_COLOR_ATTACHMENT0 + RenderTargetIndex : GL_NONE;
-					if (ContextState.DrawFramebuffers[RenderTargetIndex] != DrawFramebuffers[RenderTargetIndex])
-					{
-						bNeedToDrawBuffers = true;
-						ContextState.DrawFramebuffers[RenderTargetIndex] = DrawFramebuffers[RenderTargetIndex];
-					}
 				}
-				if (bNeedToDrawBuffers)
-				{
-					FOpenGL::DrawBuffers(MaxDrawBuffers, DrawFramebuffers);
-				}
+				FOpenGL::DrawBuffers(MaxDrawBuffers, DrawFramebuffers);
 			}
 		}
 		else
