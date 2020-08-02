@@ -330,7 +330,7 @@ bool UInputRouter::ProcessMouseHover(const FInputDeviceState& Input)
 		if (Result.State == EInputCaptureState::Begin)
 		{
 			ActiveLeftHoverCapture = Result.Source;
-			ActiveLeftCaptureOwner = CaptureRequests[i].Owner;
+			ActiveLeftHoverCaptureOwner = CaptureRequests[i].Owner;
 			bAccepted = true;
 			return true;
 		}
