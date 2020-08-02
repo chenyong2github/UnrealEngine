@@ -13,7 +13,7 @@ static FAutoConsoleCommand PersistentStorageCategoryStatsCommand
 {
 	for (auto& CategoryStat : FPersistentStorageManager::Get().GenerateCategoryStats())
 	{
-		UE_LOG(LogPlatformFileManagedStorage, Display, TEXT("%s"), *CategoryStat.Print());
+		UE_LOG(LogPlatformFileManagedStorage, Display, TEXT("%s"), *CategoryStat.Value.Print());
 	}
 })
 );

@@ -142,7 +142,8 @@ public:
 		{
 			return FString::Printf(TEXT("Category %s: %.3f MB/%.3f MB used"), *CategoryName, (float)UsedSize / 1024.f / 1024.f, (float)TotalSize / 1024.f / 1024.f);
 		}
-	private:
+
+	public:
 		FString CategoryName;
 		int64 UsedSize;
 		int64 TotalSize;
@@ -339,13 +340,13 @@ public:
 		ScanDirectory(FPaths::ProjectPersistentDownloadDir());
 	}
 
-	TArray<FPersistentStorageCategory::CategoryStat> GenerateCategoryStats()
+	TMap<FString, FPersistentStorageCategory::CategoryStat> GenerateCategoryStats()
 	{
-		TArray<FPersistentStorageCategory::CategoryStat> CategoryStats;
+		TMap<FString, FPersistentStorageCategory::CategoryStat> CategoryStats;
 
 		for (const auto& CategoryPair : Categories)
 		{
-			new(CategoryStats) FPersistentStorageCategory::CategoryStat(CategoryPair.Key, CategoryPair.Value.GetUsedSize(), CategoryPair.Value.GetCategoryQuota());
+			CategoryStats.Add(CategoryPair.Key, FPersistentStorageCategory::CategoryStat(CategoryPair.Key, CategoryPair.Value.GetUsedSize(), CategoryPair.Value.GetCategoryQuota()));
 		}
 
 		return CategoryStats;
