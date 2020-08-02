@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataAssetIndexer.h"
+#include "GenericObjectIndexer.h"
 #include "Utility/IndexerUtilities.h"
-#include "Engine/DataAsset.h"
 #include "SearchSerializer.h"
 
-enum class EDataAssetIndexerVersion
+enum class EGenericObjectIndexerVersion
 {
 	Empty,
 	Initial,
@@ -15,12 +14,12 @@ enum class EDataAssetIndexerVersion
 	LatestVersion = VersionPlusOne - 1
 };
 
-int32 FDataAssetIndexer::GetVersion() const
+int32 FGenericObjectIndexer::GetVersion() const
 {
-	return (int32)EDataAssetIndexerVersion::LatestVersion;
+	return (int32)EGenericObjectIndexerVersion::LatestVersion;
 }
 
-void FDataAssetIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
+void FGenericObjectIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const
 {
 	Serializer.BeginIndexingObject(InAssetObject, TEXT("$self"));
 
