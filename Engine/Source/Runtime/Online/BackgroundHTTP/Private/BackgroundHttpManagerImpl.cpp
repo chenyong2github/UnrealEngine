@@ -32,7 +32,10 @@ FBackgroundHttpManagerImpl::~FBackgroundHttpManagerImpl()
 }
 
 void FBackgroundHttpManagerImpl::Initialize()
-{	
+{
+	//Make sure we have attempted to load data at initialize
+	GetFileHashHelper()->LoadData();
+	
 	DeleteStaleTempFiles();
 	
 	// Can't read into an atomic int directly
