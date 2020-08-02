@@ -10,7 +10,6 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("int");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("int");
 	static constexpr EPixelFormat PixelFormat = PF_R32_SINT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyIntBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
 	static const int32 GetDefaultValue() { return 0; }
 };
@@ -22,7 +21,6 @@ struct FNDIArrayImplHelper<bool> : public FNDIArrayImplHelperBase<bool>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("bool");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("bool");
 	static constexpr EPixelFormat PixelFormat = PF_R8_UINT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyIntBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetBoolDef(); }
 	static const bool GetDefaultValue() { return false; }
 };
