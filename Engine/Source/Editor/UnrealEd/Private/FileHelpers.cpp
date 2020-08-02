@@ -4214,6 +4214,16 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 
 				if (BuiltDataPackage != WorldPackage)
 				{
+					if (WorldPackage->IsDirty() && !BuiltDataPackage->IsDirty())
+					{
+						// Mark built data package dirty if has not been given name yet
+						// Otherwise SaveDirtyPackages will fail to create built data file on disk due to re-entrance guard in PromptForCheckoutAndSave preventing a second pop-up window
+						if (!FPackageName::IsValidLongPackageName(BuiltDataPackage->GetName(), /*bIncludeReadOnlyRoots= */ false))
+						{
+							BuiltDataPackage->MarkPackageDirty();
+						}
+					}
+
 					if (BuiltDataPackage->IsDirty())
 					{
 						// If built data package does not have a name yet add the world package so a user is prompted to have a name chosen
