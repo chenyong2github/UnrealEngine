@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Debugging/ConsoleSlateDebugger.h"
 #include "Debugging/ConsoleSlateDebuggerInvalidate.h"
+#include "Debugging/ConsoleSlateDebuggerInvalidationRoot.h"
 #include "Debugging/ConsoleSlateDebuggerPaint.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
@@ -28,6 +29,7 @@ public:
 #if WITH_SLATE_DEBUGGING
 		SlateDebuggerEvent = MakeUnique<FConsoleSlateDebugger>();
 		SlateDebuggerInvalidate = MakeUnique<FConsoleSlateDebuggerInvalidate>();
+		SlateDebuggerInvalidationRoot = MakeUnique<FConsoleSlateDebuggerInvalidationRoot>();
 		SlateDebuggerPaint = MakeUnique<FConsoleSlateDebuggerPaint>();
 #endif
 	}
@@ -36,6 +38,7 @@ public:
 private:
 	TUniquePtr<FConsoleSlateDebugger> SlateDebuggerEvent;
 	TUniquePtr<FConsoleSlateDebuggerInvalidate> SlateDebuggerInvalidate;
+	TUniquePtr<FConsoleSlateDebuggerInvalidationRoot> SlateDebuggerInvalidationRoot;
 	TUniquePtr<FConsoleSlateDebuggerPaint> SlateDebuggerPaint;
 #endif
 };
