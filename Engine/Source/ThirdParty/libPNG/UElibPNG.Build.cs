@@ -13,6 +13,7 @@ public class UElibPNG : ModuleRules
 		get
 		{
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
+				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Architecture.StartsWith("aarch64") ||
 				Target.Architecture.StartsWith("i686"))
 			{
