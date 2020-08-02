@@ -5,6 +5,7 @@
 
 #if WITH_SLATE_DEBUGGING
 
+#include "Application/SlateApplicationBase.h"
 #include "CoreGlobals.h"
 #include "Debugging/SlateDebugging.h"
 #include "Layout/WidgetPath.h"
@@ -25,6 +26,7 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, bLogWidgetNameOnce(false)
 	, bLogWarningIfWidgetIsPaintedMoreThanOnce(true)
 	, DrawBoxColor(1.0f, 1.0f, 0.0f, 0.2f)
+	, DrawQuadColor(1.0f, 1.0f, 1.0f, 1.0f)
 	, DrawWidgetNameColor(FColorList::SpicyPink)
 	, MaxNumberOfWidgetInList(20)
 	, CacheDuration(2.0)
@@ -38,7 +40,7 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::StopDebugging))
 	, LogPaintedWidgetOnceCommand(
 		TEXT("SlateDebugger.Paint.LogOnce")
-		, TEXT("Log the widgets that has been painted during the last duration (default 2 secs) once")
+		, TEXT("Log the widgets that has been painted during the last update once")
 		, FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerPaint::HandleLogOnce))
 	, DisplayWidgetsNameListRefCVar(
 		TEXT("SlateDebugger.Paint.DisplayWidgetNameList")
@@ -76,6 +78,10 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	{
 		DrawBoxColor = TmpColor;
 	}
+	if (GConfig->GetColor(TEXT("SlateDebugger.Paint"), TEXT("DrawQuadColor"), TmpColor, *GEditorPerProjectIni))
+	{
+		DrawQuadColor = TmpColor;
+	}
 	if (GConfig->GetColor(TEXT("SlateDebugger.Paint"), TEXT("DrawWidgetNameColor"), TmpColor, *GEditorPerProjectIni))
 	{
 		DrawWidgetNameColor = TmpColor;
@@ -99,6 +105,8 @@ void FConsoleSlateDebuggerPaint::SaveConfig()
 	GConfig->SetBool(TEXT("SlateDebugger.Paint"), TEXT("bLogWarningIfWidgetIsPaintedMoreThanOnce"), bLogWarningIfWidgetIsPaintedMoreThanOnce, *GEditorPerProjectIni);
 	FColor TmpColor = DrawBoxColor.ToFColor(true);
 	GConfig->SetColor(TEXT("SlateDebugger.Paint"), TEXT("DrawBoxColor"), TmpColor, *GEditorPerProjectIni);
+	TmpColor = DrawQuadColor.ToFColor(true);
+	GConfig->SetColor(TEXT("SlateDebugger.Paint"), TEXT("DrawQuadColor"), TmpColor, *GEditorPerProjectIni);
 	TmpColor = DrawWidgetNameColor.ToFColor(true);
 	GConfig->SetColor(TEXT("SlateDebugger.Paint"), TEXT("DrawWidgetNameColor"), TmpColor, *GEditorPerProjectIni);
 	GConfig->SetInt(TEXT("SlateDebugger.Paint"), TEXT("MaxNumberOfWidgetInList"), MaxNumberOfWidgetInList, *GEditorPerProjectIni);
@@ -138,7 +146,7 @@ void FConsoleSlateDebuggerPaint::HandleLogOnce()
 
 void FConsoleSlateDebuggerPaint::HandleEndFrame()
 {
-	double LastTime = FApp::GetCurrentTime() - CacheDuration;
+	double LastTime = FSlateApplicationBase::Get().GetCurrentTime() - CacheDuration;
 	for (TPaintedWidgetMap::TIterator It(PaintedWidgets); It; ++It)
 	{
 		It.Value().PaintCount = 0;
@@ -180,7 +188,7 @@ void FConsoleSlateDebuggerPaint::HandleEndWidgetPaint(const SWidget* Widget, con
 	}
 	FoundItem->PaintLocation = Widget->GetPersistentState().AllottedGeometry.GetAbsolutePosition();
 	FoundItem->PaintSize = Widget->GetPersistentState().AllottedGeometry.GetAbsoluteSize();
-	FoundItem->LastPaint = FApp::GetCurrentTime(); // Should use slate application's time but it's only available in the BeginWidgetPaint.
+	FoundItem->LastPaint = FSlateApplicationBase::Get().GetCurrentTime();
 	++FoundItem->PaintCount;
 }
 
@@ -193,19 +201,44 @@ void FConsoleSlateDebuggerPaint::HandlePaintDebugInfo(const FPaintArgs& InArgs, 
 	int32 NumberOfWidget = 0;
 	TArray<const FString*, TInlineAllocator<100>> NamesToDisplay;
 	const FSlateBrush* BoxBrush = bDrawBox ? FCoreStyle::Get().GetBrush("WhiteBrush") : nullptr;
+	const FSlateBrush* QuadBrush = FCoreStyle::Get().GetBrush(TEXT("FocusRectangle"));
+
+	CacheDuration = FMath::Max(CacheDuration, 0.01f);
+	const double SlateApplicationCurrentTime = FSlateApplicationBase::Get().GetCurrentTime();
 
 	for (const auto& Itt : PaintedWidgets)
 	{
 		if (Itt.Value.Window == PaintWindow)
 		{
-			FGeometry Geometry = FGeometry::MakeRoot(Itt.Value.PaintSize, FSlateLayoutTransform(1.f, Itt.Value.PaintLocation));
+			const double LerpValue = FMath::Clamp((SlateApplicationCurrentTime - Itt.Value.LastPaint) / CacheDuration, 0.0, 1.0);
+			const FGeometry Geometry = FGeometry::MakeRoot(Itt.Value.PaintSize, FSlateLayoutTransform(1.f, Itt.Value.PaintLocation));
+
 			if (BoxBrush)
 			{
-				FSlateDrawElement::MakeBox(InOutDrawElements, InOutLayerId, Geometry.ToPaintGeometry(), BoxBrush, ESlateDrawEffect::None, DrawBoxColor);
+				FSlateDrawElement::MakeBox(
+					InOutDrawElements,
+					InOutLayerId,
+					Geometry.ToPaintGeometry(),
+					BoxBrush,
+					ESlateDrawEffect::None,
+					DrawBoxColor.CopyWithNewOpacity(FMath::InterpExpoOut(1.0f, 0.0f, LerpValue)));
 			}
+
 			if (bDrawQuad)
 			{
-				FSlateDrawElement::MakeDebugQuad(InOutDrawElements, InOutLayerId, Geometry.ToPaintGeometry());
+				FSlateDrawElement::MakeDebugQuad(
+					InOutDrawElements,
+					InOutLayerId,
+					Geometry.ToPaintGeometry(),
+					DrawQuadColor);
+
+				FSlateDrawElement::MakeBox(
+					InOutDrawElements,
+					InOutLayerId,
+					Geometry.ToPaintGeometry(),
+					QuadBrush,
+					ESlateDrawEffect::None,
+					DrawQuadColor.CopyWithNewOpacity(FMath::InterpExpoOut(1.0f, 0.0f, LerpValue)));
 			}
 
 			if (bLogWidgetNameOnce)
