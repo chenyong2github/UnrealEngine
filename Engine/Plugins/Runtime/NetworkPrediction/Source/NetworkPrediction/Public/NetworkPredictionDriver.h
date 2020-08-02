@@ -399,7 +399,7 @@ struct FNetworkPredictionDriverBase
 		CueDispatcher-> template DispatchCueRecord<InDriverType>(*Driver, SimFrame, SimTimeMS, FixedStepMS);
 	}
 
-	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS, int32 ConfirmedFrame, const int32 FixedStepMS)
+	static void DispatchCues(TNetSimCueDispatcher<ModelDef>* CueDispatcher, void* Driver, int32 SimFrame, int32 SimTimeMS, const int32 FixedStepMS)
 	{
 	}
 
