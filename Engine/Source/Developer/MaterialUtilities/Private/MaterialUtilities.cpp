@@ -138,11 +138,11 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 
 			if (Property == MP_BaseColor || Property == MP_EmissiveColor)
 			{
-				Material->SetVectorParameterValueEditorOnly(ParameterInfo, ColorData[0].ReinterpretAsLinear());
+				Material->SetVectorParameterValueEditorOnly(ParameterInfo, FLinearColor::FromSRGBColor(ColorData[0]));
 			}
 			else
 			{
-				Material->SetScalarParameterValueEditorOnly(ParameterInfo, ColorData[0].ReinterpretAsLinear().R);
+				Material->SetScalarParameterValueEditorOnly(ParameterInfo, FLinearColor::FromSRGBColor(ColorData[0]).R);
 			}
 		}
 	}
