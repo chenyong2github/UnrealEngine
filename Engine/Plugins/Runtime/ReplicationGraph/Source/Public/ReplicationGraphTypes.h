@@ -657,6 +657,8 @@ struct FGlobalActorReplicationInfoMap
 			return *Ptr->Get();
 		}
 
+		ensureMsgf(IsActorValidForReplication(Actor), TEXT("This obj %s is pending to kill, storing this data will generate stale data in the map."), *GetPathNameSafe(Actor));
+
 		// We need to add data for this actor
 		FClassReplicationInfo& ClassInfo = GetClassInfo( GetActorRepListTypeClass(Actor) );
 
@@ -674,6 +676,8 @@ struct FGlobalActorReplicationInfoMap
 		{
 			return *Ptr->Get();
 		}
+
+		ensureMsgf(IsActorValidForReplication(Actor), TEXT("This obj %s is pending to kill, storing this data will generate stale data in the map."), *GetPathNameSafe(Actor));
 
 		bWasCreated = true;
 
