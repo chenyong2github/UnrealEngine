@@ -80,6 +80,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&TrackInstance,         TEXT("Track Instance"));
 	ComponentRegistry->NewComponentType(&TrackInstanceInput,    TEXT("Track Instance Input"));
 
+	ComponentRegistry->NewComponentType(&Interrogation.InputChannel,  TEXT("Interrogation Input"));
+	ComponentRegistry->NewComponentType(&Interrogation.OutputChannel, TEXT("Interrogation Output"));
+
 	Tags.RestoreState   = ComponentRegistry->NewTag(TEXT("Is Restore State Entity"));
 	Tags.AbsoluteBlend  = ComponentRegistry->NewTag(TEXT("Is Absolute Blend"));
 	Tags.RelativeBlend  = ComponentRegistry->NewTag(TEXT("Is Relative Blend"));
@@ -147,7 +150,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DuplicateChildComponent(FloatChannel[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], EvalTime);
-			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatResult[Index], FloatChannelFlags[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatChannelFlags[Index]);
 		}
 	}
 

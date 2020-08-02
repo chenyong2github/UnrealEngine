@@ -45,6 +45,14 @@ struct FCachedEntityManagerState
 		LastSystemVersion = 0;
 	}
 
+	/**
+	 * Retrieve the serial number for this cache
+	 */
+	FORCEINLINE uint64 GetSerial() const
+	{
+		return LastSystemVersion;
+	}
+
 private:
 
 	/** The value of FEntityManager::GetSystemSerial when this filter was last cached */

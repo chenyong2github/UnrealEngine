@@ -44,7 +44,7 @@ struct FImportedEntity
 		Builders.Add(Forward<BuilderType>(InBuilder));
 	}
 
-	FMovieSceneEntityID Manufacture(const FEntityImportParams& Params, FEntityManager* EntityManager);
+	MOVIESCENE_API FMovieSceneEntityID Manufacture(const FEntityImportParams& Params, FEntityManager* EntityManager);
 
 private:
 
@@ -53,18 +53,19 @@ private:
 
 struct FEntityImportSequenceParams
 {
-	UE::MovieScene::FInstanceHandle InstanceHandle;
+	FInstanceHandle InstanceHandle;
+	FInterrogationChannel InterrogationChannel;
 
-	EMovieSceneCompletionMode DefaultCompletionMode;
+	EMovieSceneCompletionMode DefaultCompletionMode = EMovieSceneCompletionMode::KeepState;
 
-	int32 HierarchicalBias;
+	int32 HierarchicalBias = 0;
 };
 
 struct FEntityImportParams
 {
 	FGuid ObjectBindingID;
 
-	uint32 EntityID;
+	uint32 EntityID = 0;
 
 	FEntityImportSequenceParams Sequence;
 };
@@ -104,10 +105,12 @@ public:
 
 
 	void ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+	void InterrogateEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
 
 private:
 
 	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) = 0;
+	virtual void InterrogateEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) { ImportEntityImpl(EntityLinker, Params, OutImportedEntity); }
 
 	/** Optional user-implementation function for populating an evaluation entity field */
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* Field) { return false; }
