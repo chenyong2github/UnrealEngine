@@ -2478,12 +2478,14 @@ struct FCsvDemoSettings
 		, EndTime(-1)
 		, FrameCount(0)
 		, bStopAfterProfile(false)
+		, bStopCsvAtReplayEnd(false)
 	{}
 	bool bCaptureCsv;
 	int32 StartTime;
 	int32 EndTime;
 	int32 FrameCount;
 	bool bStopAfterProfile;
+	bool bStopCsvAtReplayEnd;
 };
 
 static FCsvDemoSettings GetCsvDemoSettings()
@@ -2502,6 +2504,7 @@ static FCsvDemoSettings GetCsvDemoSettings()
 		}
 	}
 	Settings.bStopAfterProfile = FParse::Param(FCommandLine::Get(), TEXT("csvDemoStopAfterProfile"));
+	Settings.bStopCsvAtReplayEnd = FParse::Param(FCommandLine::Get(), TEXT("csvDemoStopCsvAtReplayEnd"));
 	return Settings;
 }
 #endif // DEMO_CSV_PROFILING_HELPERS_ENABLED
@@ -2613,6 +2616,10 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 	    {
 			bIsAtEnd = true;
 	    }
+		if (bIsAtEnd && bCsvIsCapturing && CsvDemoSettings.bStopCsvAtReplayEnd)
+		{
+			FCsvProfiler::Get()->EndCapture();
+		}
 		bCsvProfilingEnabledPreviousTick = bCsvIsCapturing;
 #endif
 		if (!ReplayHelper.ReplayStreamer->IsLive() && bIsAtEnd)
