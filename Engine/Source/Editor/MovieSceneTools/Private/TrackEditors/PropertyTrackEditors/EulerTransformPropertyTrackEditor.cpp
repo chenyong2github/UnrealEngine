@@ -119,6 +119,8 @@ void FEulerTransformPropertyTrackEditor::ProcessKeyOperation(UObject* ObjectToKe
 		Query.Entities = ValidEntities;
 		Query.Object   = ObjectToKey;
 
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
+
 		FIntermediate3DTransform CurrentValue;
 		ConvertOperationalProperty(Track->GetCurrentValue<FEulerTransform>(ObjectToKey).Get(FEulerTransform::Identity), CurrentValue);
 		TRecompositionResult<FIntermediate3DTransform> TransformData = System->RecomposeBlendOperational(FMovieSceneTracksComponentTypes::Get()->EulerTransform, Query, CurrentValue);
@@ -229,6 +231,8 @@ FEulerTransform FEulerTransformPropertyTrackEditor::RecomposeTransform(const FEu
 
 	if (EntityLinker && EntityID)
 	{
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
+
 		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
