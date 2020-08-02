@@ -5,6 +5,7 @@
 #include "Debugging/ConsoleSlateDebuggerInvalidate.h"
 #include "Debugging/ConsoleSlateDebuggerInvalidationRoot.h"
 #include "Debugging/ConsoleSlateDebuggerPaint.h"
+#include "Debugging/ConsoleSlateDebuggerUpdate.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "SlateGlobals.h"
@@ -31,6 +32,7 @@ public:
 		SlateDebuggerInvalidate = MakeUnique<FConsoleSlateDebuggerInvalidate>();
 		SlateDebuggerInvalidationRoot = MakeUnique<FConsoleSlateDebuggerInvalidationRoot>();
 		SlateDebuggerPaint = MakeUnique<FConsoleSlateDebuggerPaint>();
+		SlateDebuggerUpdate = MakeUnique<FConsoleSlateDebuggerUpdate>();
 #endif
 	}
 
@@ -40,6 +42,7 @@ private:
 	TUniquePtr<FConsoleSlateDebuggerInvalidate> SlateDebuggerInvalidate;
 	TUniquePtr<FConsoleSlateDebuggerInvalidationRoot> SlateDebuggerInvalidationRoot;
 	TUniquePtr<FConsoleSlateDebuggerPaint> SlateDebuggerPaint;
+	TUniquePtr<FConsoleSlateDebuggerUpdate> SlateDebuggerUpdate;
 #endif
 };
 

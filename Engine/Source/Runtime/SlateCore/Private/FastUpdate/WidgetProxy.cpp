@@ -30,6 +30,10 @@ FWidgetProxy::FWidgetProxy(SWidget& InWidget)
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements)
 {
+#if WITH_SLATE_DEBUGGING
+	ensure(UpdateFlags == Widget->UpdateFlags);
+#endif
+
 	// If Outgoing layer id remains index none, there was no change
 	int32 OutgoingLayerId = INDEX_NONE;
 	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
@@ -39,6 +43,10 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 	}
 	else if(!bInvisibleDueToParentOrSelfVisibility)
 	{
+#if WITH_SLATE_DEBUGGING
+		EWidgetUpdateFlags PreviousUpdateFlag = UpdateFlags;
+#endif
+
 		if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
@@ -54,6 +62,10 @@ int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWin
 
 			Widget->Tick(MyState.DesktopGeometry, PaintArgs.GetCurrentTime(), PaintArgs.GetDeltaTime());
 		}
+
+#if WITH_SLATE_DEBUGGING
+		FSlateDebugging::BroadcastWidgetUpdated(Widget, PreviousUpdateFlag);
+#endif
 	}
 
 	return OutgoingLayerId;
@@ -101,6 +113,8 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		// Note even if volatile we need to recompute desired size. We do not need to invalidate parents though if they are volatile since they will naturally redraw this widget
 		if (!Widget->IsVolatileIndirectly() && Visibility.IsVisible())
 		{
+			// Set the value directly instead of calling AddUpdateFlags as an optimization
+			Widget->UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 			UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 		}
 
@@ -139,6 +153,8 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 	else if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::Paint) && !Widget->IsVolatileIndirectly())
 	{
 		SCOPE_CYCLE_SWIDGET(Widget);
+		// Set the value directly instead of calling AddUpdateFlags as an optimization
+		Widget->UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 		UpdateFlags |= EWidgetUpdateFlags::NeedsRepaint;
 
 		bWidgetNeedsRepaint = true;
