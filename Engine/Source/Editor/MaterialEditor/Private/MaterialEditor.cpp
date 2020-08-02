@@ -4184,7 +4184,7 @@ void FMaterialEditor::AddToSelection(UMaterialExpression* Expression)
 
 void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
 {
-	ensure(Expression);
+	check(Expression);
 	UEdGraphNode* ExpressionNode = nullptr;
 
 	// Note: 'Expression' may be from a serialized material with no graph, we compare to our material with a graph if this occurs
