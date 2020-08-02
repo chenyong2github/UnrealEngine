@@ -9,6 +9,7 @@
 #include "Engine/LODActor.h"
 #include "Engine/HLODProxy.h"
 #include "Editor.h"
+#include "UnrealEngine.h"
 #include "HierarchicalLOD.h"
 #include "Modules/ModuleManager.h"
 #include "IHierarchicalLODUtilities.h"
