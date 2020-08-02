@@ -263,7 +263,8 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			
@@ -279,7 +280,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			
@@ -302,7 +303,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			break;
