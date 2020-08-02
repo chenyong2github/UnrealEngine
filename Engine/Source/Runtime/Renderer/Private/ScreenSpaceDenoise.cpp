@@ -854,6 +854,7 @@ class FSSDInjestCS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, SignalInput)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1505,6 +1506,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
 		PassParameters->SignalInput = SignalHistory;
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserInjest"));
 
 		FSSDInjestCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);

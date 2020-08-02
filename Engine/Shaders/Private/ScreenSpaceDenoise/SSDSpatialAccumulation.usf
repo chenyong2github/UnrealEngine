@@ -1159,7 +1159,7 @@ void MainCS(
 		OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif 
 	
-	#if 0 && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && DIM_STAGE == STAGE_RECONSTRUCTION
+	#if DEBUG_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && DIM_STAGE == STAGE_RECONSTRUCTION
 		DebugOutput[DispatchThreadId] = float4(OutputSamples.Array[0].SampleCount, 0, 0, 0);
 	#endif
 
