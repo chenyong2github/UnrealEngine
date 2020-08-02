@@ -171,7 +171,9 @@ void URecastNavMeshDataChunk::SerializeRecastData(FArchive& Ar, int32 NavMeshVer
 
 TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMeshImpl)
 {
-	const bool bIsGameWorld = GetWorld()->IsGameWorld();
+	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
+	const bool bIsGameWorld = NavMeshImpl.NavMeshOwner->GetWorld()->IsGameWorld();
+
 	// In editor we still need to own the data so a copy will be made.
 	const bool bKeepCopyOfData = !bIsGameWorld;
 	const bool bKeepCopyOfCacheData = !bIsGameWorld;
@@ -185,7 +187,6 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 	Result.Reserve(Tiles.Num());
 
 #if WITH_RECAST	
-	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
 	dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
 
 	if (NavMesh != nullptr)
@@ -259,7 +260,9 @@ TArray<uint32> URecastNavMeshDataChunk::AttachTiles(FPImplRecastNavMesh& NavMesh
 
 TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMeshImpl)
 {
-	const bool bIsGameWorld = GetWorld()->IsGameWorld();
+	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
+	const bool bIsGameWorld = NavMeshImpl.NavMeshOwner->GetWorld()->IsGameWorld();
+
 	// Keep data in game worlds (in editor we have a copy of the data so we don't keep it).
 	const bool bTakeDataOwnership = bIsGameWorld;
 	const bool bTakeCacheDataOwnership = bIsGameWorld;
@@ -273,7 +276,6 @@ TArray<uint32> URecastNavMeshDataChunk::DetachTiles(FPImplRecastNavMesh& NavMesh
 	Result.Reserve(Tiles.Num());
 
 #if WITH_RECAST
-	check(NavMeshImpl.NavMeshOwner && NavMeshImpl.NavMeshOwner->GetWorld());
 	dtNavMesh* NavMesh = NavMeshImpl.DetourNavMesh;
 
 	if (NavMesh != nullptr)
