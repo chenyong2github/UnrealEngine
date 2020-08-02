@@ -962,7 +962,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 	
 #if WITH_EDITOR
-	ApplyOverridesToParameterStore();
+	//TODO: Do this else where. I get needing to ensure params are correct from the component but these are stomping over runtime changes to the params in editor builds.
+	//For now we can bypass the worst of the impact by disallowing in game worlds.
+	if(!World->IsGameWorld())
+	{
+		ApplyOverridesToParameterStore();
+	}
 #endif
 
 	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
