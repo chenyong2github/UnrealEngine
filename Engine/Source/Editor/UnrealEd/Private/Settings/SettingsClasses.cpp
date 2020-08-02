@@ -891,6 +891,7 @@ ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitial
 	BillboardScale = 1.0f;
 	TransformWidgetSizeAdjustment = 0.0f;
 	SelectedSplinePointSizeAdjustment = 0.0f;
+	SelectedSplineTangentHandleSizeAdjustment = 0.0f;
 	SplineLineThicknessAdjustment = 0.0f;
 	MeasuringToolUnits = MeasureUnits_Centimeters;
 	bAllowArcballRotate = false;
