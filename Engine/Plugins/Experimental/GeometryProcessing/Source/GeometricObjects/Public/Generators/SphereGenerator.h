@@ -156,6 +156,10 @@ private:
 		const int32 SouthPoleVtxIdx = NumEquatorialVtx + 1;
 		int32 PolyIdx = NumTheta  * (NumPhi - 3);
 		int32 TriIdx = PolyIdx * 2;
+		if (bPolygroupPerQuad == false)
+		{
+			PolyIdx = 0;
+		}
 
 		// Triangles that connect to north pole
 		for (int32 t = 0; t < NumTheta; ++t)

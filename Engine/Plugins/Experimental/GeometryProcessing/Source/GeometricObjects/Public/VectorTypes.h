@@ -643,7 +643,7 @@ struct FVector3
 	/** @return 0/1/2 index of minimum element */
 	constexpr int32 MinElementIndex() const
 	{
-		return TMathUtil<T>::Max3Index(X, Y, Z);
+		return TMathUtil<T>::Min3Index(X, Y, Z);
 	}
 
 	constexpr friend FVector3 Min( const FVector3& V0, const FVector3& V1 )
