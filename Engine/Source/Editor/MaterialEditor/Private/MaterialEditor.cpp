@@ -1422,6 +1422,7 @@ void FMaterialEditor::GeneratePreviewMenuContent(UToolMenu* Menu)
 	FToolMenuSection& QualityLevelSection = Menu->AddSection("MaterialEditorQualityPreview", LOCTEXT("MaterialQualityHeading", "Quality Level"));
 	{
 		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_All);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Epic);
 		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_High);
 		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Medium);
 		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Low);
@@ -1931,7 +1932,8 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 	for (int32 i = ERHIFeatureLevel::SM5; i >= 0; --i)
 	{
 		ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
-		if( Material->GetMaterialResource(FeatureLevel)->GetCompileErrors().Num() > 0 )
+		FMaterialResource* CurrentResource = Material->GetMaterialResource(FeatureLevel);
+		if(CurrentResource && CurrentResource->GetCompileErrors().Num() > 0 )
 		{
 			FString FeatureLevelName;
 			GetFeatureLevelName(FeatureLevel, FeatureLevelName);
@@ -2209,7 +2211,11 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 				else
 				{
 					// Add a compile error message for functions missing an output
-					CompileErrors = ExpressionPreviewMaterial->GetMaterialResource(FeatureLevel)->GetCompileErrors();
+					FMaterialResource* CurrentResource = ExpressionPreviewMaterial->GetMaterialResource(FeatureLevel);
+					if (CurrentResource)
+					{
+						CompileErrors = CurrentResource->GetCompileErrors();
+					}
 
 					bool bFoundFunctionOutput = false;
 					for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ExpressionIndex++)
@@ -2671,6 +2677,11 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::Num),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsQualityPreviewChecked, EMaterialQualityLevel::Num));
+	ToolkitCommands->MapAction(
+		Commands.QualityLevel_Epic,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::Epic),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsQualityPreviewChecked, EMaterialQualityLevel::Epic));
 	ToolkitCommands->MapAction(
 		Commands.QualityLevel_High,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::High),

@@ -119,6 +119,13 @@ UShaderPlatformQualitySettings::UShaderPlatformQualitySettings(const FObjectInit
 	GetQualityOverrides(EMaterialQualityLevel::High).bEnableOverride = true;
 }
 
+const FMaterialQualityOverrides& UShaderPlatformQualitySettings::GetQualityOverrides(EMaterialQualityLevel::Type QualityLevel) const
+{
+	check(QualityLevel <= EMaterialQualityLevel::Num);
+	static const FMaterialQualityOverrides DefaultQualityOverrides;
+	return (QualityLevel < EMaterialQualityLevel::Num) ? QualityOverrides[(int32)QualityLevel] : DefaultQualityOverrides;
+}
+
 void UShaderPlatformQualitySettings::BuildHash(EMaterialQualityLevel::Type QualityLevel, FSHAHash& OutHash) const
 {
 	FSHA1 Hash;
