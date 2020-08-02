@@ -2,12 +2,18 @@
 
 #include "ChaosNiagara.h"
 #include "Modules/ModuleManager.h"
+#include "Interfaces/IPluginManager.h"
+#include "ShaderCore.h"
+
 
 #define LOCTEXT_NAMESPACE "FChaosNiagaraModule"
 
 void FChaosNiagaraModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("ChaosNiagara"))->GetBaseDir(), TEXT("Shaders"));
+	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Experimental/ChaosNiagara"), PluginShaderDir);
 }
 
 void FChaosNiagaraModule::ShutdownModule()
