@@ -2774,3 +2774,40 @@ bool FAndroidMisc::Expand16BitIndicesTo32BitOnLoad()
 {
 	return  (CVarMaliMidgardIndexingBug.GetValueOnAnyThread() > 0);
 }
+
+TArray<int32> FAndroidMisc::GetSupportedNativeDisplayRefreshRates()
+{
+	TArray<int32> Result;
+#if USE_ANDROID_JNI
+	extern TArray<int32> AndroidThunkCpp_GetSupportedNativeDisplayRefreshRates();
+	Result = AndroidThunkCpp_GetSupportedNativeDisplayRefreshRates();
+#else
+	Result.Add(60);
+#endif
+	return Result;
+}
+
+bool FAndroidMisc::SetNativeDisplayRefreshRate(int32 RefreshRate)
+{
+#if USE_ANDROID_JNI
+	extern bool AndroidThunkCpp_SetNativeDisplayRefreshRate(int32 RefreshRate);
+	return AndroidThunkCpp_SetNativeDisplayRefreshRate(RefreshRate);
+#else
+	return RefreshRate == 60;
+#endif
+}
+
+int32 FAndroidMisc::GetNativeDisplayRefreshRate()
+{
+#if USE_ANDROID_JNI
+	extern int32 AndroidThunkCpp_GetNativeDisplayRefreshRate();
+	return AndroidThunkCpp_GetNativeDisplayRefreshRate();
+#else
+	return 60;
+#endif
+
+}
+
+
+
+
