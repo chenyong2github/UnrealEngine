@@ -2452,7 +2452,7 @@ void FStaticMeshRenderData::BuildAreaWeighedSamplingData()
 
 void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings)
 {
-	if (Owner->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (Owner->GetOutermost()->bIsCookedForEditor)
 	{
 		// Don't cache for cooked packages
 		return;
@@ -3871,7 +3871,7 @@ static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh,
 		BuildStaticMeshDerivedDataKeySuffix(Platform, Mesh, PlatformLODSettings.GetLODGroup(Mesh->LODGroup)));
 	FStaticMeshRenderData* PlatformRenderData = Mesh->RenderData.Get();
 
-	if (Mesh->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (Mesh->GetOutermost()->bIsCookedForEditor)
 	{
 		check(PlatformRenderData);
 		return *PlatformRenderData;
@@ -4773,7 +4773,7 @@ void UStaticMesh::PostLoad()
 		}
 	}
 
-	if (!GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		// Needs to happen before 'CacheDerivedData'
 		if (GetLinkerUE4Version() < VER_UE4_BUILD_SCALE_VECTOR)
