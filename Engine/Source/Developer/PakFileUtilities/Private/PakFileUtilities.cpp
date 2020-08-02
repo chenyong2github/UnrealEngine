@@ -1917,7 +1917,7 @@ void VerifyIndexesMatch(TArray<FPakEntryPair>& EntryList, FPakFile::FDirectoryIn
 			check(false);
 			continue;
 		}
-		const FPakEntryLocation* PathHashLocation = FPakFile::FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed);
+		const FPakEntryLocation* PathHashLocation = FPakFile::FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed, Info.Version);
 		if (!PathHashLocation)
 		{
 			check(false);
@@ -2526,7 +2526,8 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		return Index[NextIndex++];
 	};
 
-	FPakFile::EncodePakEntriesIntoIndex(Index.Num(), ReadNextEntry, Filename, Info, MountPoint, NumEncodedEntries, NumDeletedEntries, &PathHashSeed, &DirectoryIndex, &PathHashIndex, EncodedPakEntries, NonEncodableEntries, &CollisionDetection);
+	FPakFile::EncodePakEntriesIntoIndex(Index.Num(), ReadNextEntry, Filename, Info, MountPoint, NumEncodedEntries, NumDeletedEntries, &PathHashSeed,
+		&DirectoryIndex, &PathHashIndex, EncodedPakEntries, NonEncodableEntries, &CollisionDetection, FPakInfo::PakFile_Version_Latest);
 	VerifyIndexesMatch(Index, DirectoryIndex, PathHashIndex, PathHashSeed, MountPoint, EncodedPakEntries, NonEncodableEntries, NumEncodedEntries, NumDeletedEntries, Info);
 
 	// We write one PrimaryIndex and two SecondaryIndexes to the Pak File

@@ -5368,7 +5368,7 @@ bool FPakFile::LoadLegacyIndex(FArchive* Reader)
 #endif
 	FPathHashIndex* PathHashToWrite = bCreatePathHash ? &PathHashIndex : nullptr;
 	FPakFile::EncodePakEntriesIntoIndex(NumEntries, ReadNextEntry, *PakFilename, Info, MountPoint, NumEncodedEntries, NumDeletedEntries, &PathHashSeed,
-		&DirectoryIndex, PathHashToWrite, EncodedPakEntries, Files, &CollisionDetection);
+		&DirectoryIndex, PathHashToWrite, EncodedPakEntries, Files, &CollisionDetection, Info.Version);
 	check(NumEncodedEntries + Files.Num() + NumDeletedEntries == NumEntries);
 	Files.Shrink();
 	EncodedPakEntries.Shrink();
@@ -5408,22 +5408,50 @@ bool FPakFile::DecryptAndValidateIndex(FArchive* Reader, TArray<uint8>& IndexDat
 	return InExpectedHash == OutActualHash;
 }
 
-uint64 FPakFile::HashPath(const TCHAR* RelativePathFromMount, uint64 Seed)
+/*** This is a copy of FFnv::MemFnv64 from before the bugfix for swapped Offset and Prime. It is used to decode legacy paks that have hashes created from the prebugfix version of the function */
+static uint64 LegacyMemFnv64(const void* InData, int32 Length, uint64 InOffset)
+{
+	// constants from above reference
+	static const uint64 Offset = 0x00000100000001b3;
+	static const uint64 Prime = 0xcbf29ce484222325;
+
+	const uint8* __restrict Data = (uint8*)InData;
+
+	uint64 Fnv = Offset + InOffset; // this is not strictly correct as the offset should be prime and InOffset could be arbitrary
+	for (; Length; --Length)
+	{
+		Fnv ^= *Data++;
+		Fnv *= Prime;
+	}
+
+	return Fnv;
+}
+
+uint64 FPakFile::HashPath(const TCHAR* RelativePathFromMount, uint64 Seed, int32 PakFileVersion)
 {
 	FString LowercaseRelativePath(RelativePathFromMount);
 	LowercaseRelativePath.ToLowerInline();
-	return FFnv::MemFnv64(*LowercaseRelativePath, LowercaseRelativePath.Len() * sizeof(TCHAR), Seed);
+	if (PakFileVersion >= FPakInfo::PakFile_Version_Fnv64BugFix)
+	{
+		return FFnv::MemFnv64(*LowercaseRelativePath, LowercaseRelativePath.Len() * sizeof(TCHAR), Seed);
+	}
+	else
+	{
+		return LegacyMemFnv64(*LowercaseRelativePath, LowercaseRelativePath.Len() * sizeof(TCHAR), Seed);
+	}
 }
 
 void FPakFile::EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntryFunction& InReadNextEntry, const TCHAR* InPakFilename, const FPakInfo& InPakInfo, const FString& MountPoint,
 	int32& OutNumEncodedEntries, int32& OutNumDeletedEntries, uint64* OutPathHashSeed,
 	FDirectoryIndex* OutDirectoryIndex, FPathHashIndex* OutPathHashIndex, TArray<uint8>& OutEncodedPakEntries, TArray<FPakEntry>& OutNonEncodableEntries,
-	TMap<uint64, FString>* InOutCollisionDetection)
+	TMap<uint64, FString>* InOutCollisionDetection, int32 PakFileVersion)
 {
 	uint64 PathHashSeed = 0;
 	if (OutPathHashSeed || OutPathHashIndex)
 	{
-		PathHashSeed = FCrc::StrCrc32(InPakFilename);
+		FString LowercasePakFilename(InPakFilename);
+		LowercasePakFilename.ToLowerInline();
+		PathHashSeed = FCrc::StrCrc32(*LowercasePakFilename);
 		if (OutPathHashSeed)
 		{
 			*OutPathHashSeed = PathHashSeed;
@@ -5464,7 +5492,7 @@ void FPakFile::EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntry
 		}
 
 		// Add the Entry into the requested Indexes
-		AddEntryToIndex(Pair.Filename, EntryLocation, MountPoint, PathHashSeed, OutDirectoryIndex, OutPathHashIndex, InOutCollisionDetection);
+		AddEntryToIndex(Pair.Filename, EntryLocation, MountPoint, PathHashSeed, OutDirectoryIndex, OutPathHashIndex, InOutCollisionDetection, PakFileVersion);
 	}
 }
 
@@ -5767,7 +5795,7 @@ bool FPakFile::ShouldValidatePrunedDirectory() const
 
 
 void FPakFile::AddEntryToIndex(const FString& Filename, const FPakEntryLocation& EntryLocation, const FString& MountPoint, uint64 PathHashSeed,
-	FDirectoryIndex* DirectoryIndex, FPathHashIndex* PathHashIndex, TMap<uint64, FString>* CollisionDetection)
+	FDirectoryIndex* DirectoryIndex, FPathHashIndex* PathHashIndex, TMap<uint64, FString>* CollisionDetection, int32 PakFileVersion)
 {
 	FString RelativePathFromMount;
 	if (FPaths::IsRelative(Filename))
@@ -5813,7 +5841,7 @@ void FPakFile::AddEntryToIndex(const FString& Filename, const FPakEntryLocation&
 	// Add the entry into the PathHash index
 	if (CollisionDetection || PathHashIndex)
 	{
-		uint64 PathHash = FPakFile::HashPath(*RelativePathFromMount, PathHashSeed);
+		uint64 PathHash = FPakFile::HashPath(*RelativePathFromMount, PathHashSeed, PakFileVersion);
 		if (CollisionDetection)
 		{
 			FString* ExistingFilename = CollisionDetection->Find(PathHash);
@@ -6463,14 +6491,14 @@ FArchive* FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 	return PakReader;
 }
 
-const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed)
+const FPakEntryLocation* FPakFile::FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed, int32 PakFileVersion)
 {
 	const TCHAR* RelativePathFromMount = GetRelativeFilePathFromMountPointer(FullPath, MountPoint);
 	if (!RelativePathFromMount)
 	{
 		return nullptr;
 	}
-	uint64 PathHash = HashPath(RelativePathFromMount, PathHashSeed);
+	uint64 PathHash = HashPath(RelativePathFromMount, PathHashSeed, PakFileVersion);
 	return PathHashIndex.Find(PathHash);
 }
 
@@ -6501,7 +6529,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntr
 	if (IsPakValidatePruning() && bHasPathHashIndex && bHasFullDirectoryIndex)
 	{
 		const FPakEntryLocation* PathHashLocation = nullptr;
-		PathHashLocation = FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed);
+		PathHashLocation = FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed, Info.Version);
 
 		const FPakEntryLocation* DirectoryLocation = nullptr;
 		DirectoryLocation = FindLocationFromIndex(FullPath, MountPoint, DirectoryIndex);
@@ -6524,7 +6552,7 @@ FPakFile::EFindResult FPakFile::Find(const FString& FullPath, FPakEntry* OutEntr
 	{
 		if (bHasPathHashIndex)
 		{
-			PakEntryLocation = FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed);
+			PakEntryLocation = FindLocationFromIndex(FullPath, MountPoint, PathHashIndex, PathHashSeed, Info.Version);
 		}
 		else
 		{
@@ -7582,7 +7610,7 @@ void FPakFile::AddSpecialFile(const FPakEntry& Entry, const FString& Filename)
 	}
 
 	FPathHashIndex* PathHashToWrite = bHasPathHashIndex ? &PathHashIndex : nullptr;
-	AddEntryToIndex(Filename, EntryLocation, MountPoint, PathHashSeed, &DirectoryIndex, PathHashToWrite, nullptr /* CollisionDetection */);
+	AddEntryToIndex(Filename, EntryLocation, MountPoint, PathHashSeed, &DirectoryIndex, PathHashToWrite, nullptr /* CollisionDetection */, Info.Version);
 }
 
 void FPakPlatformFile::MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles)
