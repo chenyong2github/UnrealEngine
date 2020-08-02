@@ -16,9 +16,6 @@ public:
 	/** Input Mesh */
 	const FDynamicMesh3* Mesh;
 
-	/** If true, high-precision rational number types are used rather than doubles. This is more accurate but slower. */
-	bool bUseExactComputation = true;
-
 	/** If true, output convex hull is simplified down to MaxTargetFaceCount */
 	bool bPostSimplify = false;
 	/** Target triangle count of the output Convex Hull */

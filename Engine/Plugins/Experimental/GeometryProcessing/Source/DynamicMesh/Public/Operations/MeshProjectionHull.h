@@ -21,9 +21,6 @@ public:
 	/** Input 3D Frame/Plane */
 	FFrame3d ProjectionFrame;
 
-	/** If true, high-precision rational number types are used rather than doubles. This is more accurate but slower. */
-	bool bUseExactComputation = true;
-
 	/** If true, 2D convex hull is simplified using MinEdgeLength and DeviationTolerance */
 	bool bSimplifyPolygon = false;
 	/** Minimum Edge Length of the simplified 2D Convex Hull */
