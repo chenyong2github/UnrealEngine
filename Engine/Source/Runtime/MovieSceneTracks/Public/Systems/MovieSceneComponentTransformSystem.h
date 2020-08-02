@@ -57,7 +57,7 @@ public:
 
 	UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit);
 
-	MOVIESCENETRACKS_API void Interrogate(TArray<FTransform>& OutTransforms) const;
+	MOVIESCENETRACKS_API void Interrogate(TArray<UE::MovieScene::FIntermediate3DTransform>& OutTransforms) const;
 
 private:
 
