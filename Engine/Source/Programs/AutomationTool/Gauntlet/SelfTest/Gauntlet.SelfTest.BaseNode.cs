@@ -19,7 +19,20 @@ namespace Gauntlet.SelfTest
 				return 300;
 			}
 		}
-	
+
+
+		/// <summary>
+		/// What the test result should be treated as if we reach max duration.
+		/// </summary>
+		public virtual EMaxDurationReachedResult MaxDurationReachedResult
+		{
+			get
+			{
+				return EMaxDurationReachedResult.Failure;
+			}
+		}
+
+
 		public TestPriority Priority { get { return TestPriority.Normal; } }
 
 		public string Name
