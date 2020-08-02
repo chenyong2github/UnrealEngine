@@ -1287,7 +1287,14 @@ bool UResavePackagesCommandlet::CheckoutFile(const FString& Filename, bool bAddF
 				}
 				else
 				{
-					UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s could not be added!"), *Filename);
+					if (!bIgnoreAlreadyCheckedOut)
+					{
+						UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s could not be added!"), *Filename);
+					}
+					else
+					{
+						UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s could not be added!"), *Filename);
+					}
 				}
 			}
 		}
