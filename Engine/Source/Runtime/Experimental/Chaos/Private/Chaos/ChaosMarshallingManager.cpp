@@ -26,6 +26,11 @@ void FChaosMarshallingManager::PrepareExternalQueue()
 
 void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 {
+	for(FSimCallbackDataPair& Pair : ProducerData->SimCallbackDataPairs)
+	{
+		Pair.Callback->LatestCallbackData = nullptr;	//mark data as marshalled, any new data must be in a new data packet
+	}
+
 	//stored in reverse order for easy removal later. Might want to use a circular buffer if perf is bad here
 	//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
 	ExternalQueue.Insert(ProducerData,0);
@@ -62,8 +67,34 @@ TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FR
 
 void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
 {
-	PushData->DirtyProxiesDataBuffer.Reset();
+	PushData->Reset();
 	PushDataPool.Enqueue(PushData);
+}
+
+void FChaosMarshallingManager::FreeCallbackData_Internal(FSimCallbackHandlePT* Callback)
+{
+	if(Callback->IntervalData.Num())
+	{
+		if(Callback->Handle->FreeExternal)
+		{
+			Callback->Handle->FreeExternal(Callback->IntervalData);	//any external data should be freed
+		}
+
+		for(FSimCallbackData* Data : Callback->IntervalData)
+		{
+			CallbackDataPool.Enqueue(Data);
+		}
+
+		Callback->IntervalData.Reset();
+	}
+}
+
+void FPushPhysicsData::Reset()
+{
+	DirtyProxiesDataBuffer.Reset();
+	SimCallbacksToAdd.Reset();
+	SimCallbacksToRemove.Reset();
+	SimCallbackDataPairs.Reset();
 }
 
 }

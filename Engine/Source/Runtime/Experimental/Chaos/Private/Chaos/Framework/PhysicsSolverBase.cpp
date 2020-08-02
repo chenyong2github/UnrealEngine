@@ -20,9 +20,10 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt)
 		: Solver(InSolver)
 		, Queue(MoveTemp(InQueue))
+		, PushData(MoveTemp(InPushData))
 		, Dt(InDt)
 	{
 	}
@@ -45,16 +46,18 @@ namespace Chaos
 
 	void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FPhysicsSolverAdvanceTask::AdvanceSolver(Solver,MoveTemp(Queue),Dt);
+		FPhysicsSolverAdvanceTask::AdvanceSolver(Solver,MoveTemp(Queue), MoveTemp(PushData), Dt);
 	}
 
-	void FPhysicsSolverAdvanceTask::AdvanceSolver(FPhysicsSolverBase& Solver, TArray<TFunction<void()>>&& Queue, const FReal Dt)
+	void FPhysicsSolverAdvanceTask::AdvanceSolver(FPhysicsSolverBase& Solver, TArray<TFunction<void()>>&& Queue, TArray<FPushPhysicsData*>&& PushData, const FReal Dt)
 	{
 		using namespace Chaos;
 
 		LLM_SCOPE(ELLMTag::Chaos);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
+		Solver.ProcessPushedData_Internal(PushData);
 
 		// Handle our solver commands
 		{
