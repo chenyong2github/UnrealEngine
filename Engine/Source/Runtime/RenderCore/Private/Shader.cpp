@@ -1738,4 +1738,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			CVarCompileAHS && CVarCompileAHS->GetBool() ? 1 : 0,
 			CVarTextureLod && CVarTextureLod->GetBool() ? 1 : 0);
 	}
+
+	if (ForceSimpleSkyDiffuse(Platform))
+	{
+		KeyString += TEXT("_SSD");
+	}
 }
