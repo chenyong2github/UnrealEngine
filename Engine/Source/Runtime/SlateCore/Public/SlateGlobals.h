@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "Debugging/SlateDebugging.h"
 
+// Enabled cvar GSlateCheckUObjectRenderResources that will check for invalid reference in the slate resources manager
 #define SLATE_CHECK_UOBJECT_RENDER_RESOURCES !UE_BUILD_SHIPPING
 
 #ifndef SLATE_CULL_WIDGETS
@@ -57,6 +58,12 @@ extern SLATECORE_API bool GSlateEnableGlobalInvalidation;
 extern SLATECORE_API bool GSlateIsOnFastUpdatePath;
 
 extern SLATECORE_API bool GSlateIsInInvalidationSlowPath;
+
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES 
+extern SLATECORE_API bool GSlateCheckUObjectRenderResources;
+// When we detect a none valid resource, should we log a fatal error (crash) or log it (ensure).
+extern SLATECORE_API bool GSlateCheckUObjectRenderResourcesShouldLogFatal;
+#endif
 
 #if WITH_SLATE_DEBUGGING
 extern SLATECORE_API bool GSlateInvalidationDebugging;
