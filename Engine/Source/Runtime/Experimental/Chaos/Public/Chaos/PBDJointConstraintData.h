@@ -21,6 +21,7 @@ namespace Chaos
 		LinearDrive                 = static_cast<uint64_t>(1) << 7,
 		AngularDrive                = static_cast<uint64_t>(1) << 8,
 		Stiffness                   = static_cast<uint64_t>(1) << 9,
+		Limits                      = static_cast<uint64_t>(1) << 10,
 
 		DummyFlag
 	};
@@ -143,10 +144,6 @@ namespace Chaos
 		//void SetLinearMotionTypesZ(EJointMotionType InLinearMotionTypesZ);
 		//EJointMotionType GetLinearMotionTypesZ() const
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearLimit, EJointConstraintFlags::LinearDrive, JointSettings.LinearLimit);
-		//void SeLinearLimit(FReal InLinearLimit);
-		//FReal GetLinearLimit() const
-
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearDriveStiffness, EJointConstraintFlags::LinearDrive, JointSettings.LinearDriveStiffness);
 		//void SetLinearDriveStiffness(FReal InLinearDriveStffness);
 		//FReal GetLinearDriveStiffness() const
@@ -156,69 +153,142 @@ namespace Chaos
 		//FReal GetLinearDriveDamping() const
 
 
+
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularSLerpPositionDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularSLerpPositionDriveEnabled);
-		//void SetAngularSLerpPositionDriveEnabled(bool AngularSLerpPositionDriveEnabled);
+		//void SetAngularSLerpPositionDriveEnabled(bool InAngularSLerpPositionDriveEnabled);
 		//bool GetAngularSLerpPositionDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularTwistPositionDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularTwistPositionDriveEnabled);
-		//void SetAngularTwistPositionDriveEnabled(bool AngularTwistPositionDriveEnabled);
+		//void SetAngularTwistPositionDriveEnabled(bool InAngularTwistPositionDriveEnabled);
 		//bool GetAngularTwistPositionDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularSwingPositionDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularSwingPositionDriveEnabled);
-		//void SetAngularSwingPositionDriveEnabled(bool AngularSwingPositionDriveEnabled);
+		//void SetAngularSwingPositionDriveEnabled(bool InAngularSwingPositionDriveEnabled);
 		//bool GetAngularSwingPositionDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FRotation3, AngularDrivePositionTarget, EJointConstraintFlags::AngularDrive, JointSettings.AngularDrivePositionTarget);
-		//void SetAngularDrivePositionTarget(FRotation3 AngularDrivePositionTarget);
+		//void SetAngularDrivePositionTarget(FRotation3 InAngularDrivePositionTarget);
 		//FRotation3 GetAngularDrivePositionTarget() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularSLerpVelocityDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularSLerpVelocityDriveEnabled);
-		//void SetAngularSLerpVelocityDriveEnabled(bool AngularSLerpVelocityDriveEnabled);
+		//void SetAngularSLerpVelocityDriveEnabled(bool InAngularSLerpVelocityDriveEnabled);
 		//bool GetAngularSLerpVelocityDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularTwistVelocityDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularTwistVelocityDriveEnabled);
-		//void SetAngularTwistVelocityDriveEnabled(bool AngularTwistVelocityDriveEnabled);
+		//void SetAngularTwistVelocityDriveEnabled(bool InAngularTwistVelocityDriveEnabled);
 		//bool GetAngularTwistVelocityDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularSwingVelocityDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularSwingVelocityDriveEnabled);
-		//void SetAngularSwingVelocityDriveEnabled(bool AngularSwingVelocityDriveEnabled);
+		//void SetAngularSwingVelocityDriveEnabled(bool InAngularSwingVelocityDriveEnabled);
 		//bool GetAngularSwingVelocityDriveEnabled() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, AngularDriveVelocityTarget, EJointConstraintFlags::AngularDrive, JointSettings.AngularDriveVelocityTarget);
-		//void SetAngularDriveVelocityTarget(FVec3 AngularDriveVelocityTarget);
+		//void SetAngularDriveVelocityTarget(FVec3 InAngularDriveVelocityTarget);
 		//FVec3 GetAngularDriveVelocityTarget() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointForceMode, AngularDriveForceMode, EJointConstraintFlags::AngularDrive, JointSettings.AngularDriveForceMode);
-		//void SetAngularDriveForceMode(EJointForceMode AngularDriveForceMode);
+		//void SetAngularDriveForceMode(EJointForceMode InAngularDriveForceMode);
 		//EJointForceMode GetAngularDriveForceMode() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointMotionType, AngularMotionTypesX, EJointConstraintFlags::AngularDrive, JointSettings.AngularMotionTypes[0]);
-		//void SetAngularMotionTypesX(EJointMotionType AngularMotionTypesX);
+		//void SetAngularMotionTypesX(EJointMotionType InAngularMotionTypesX);
 		//EJointMotionType GetAngularMotionTypesX() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointMotionType, AngularMotionTypesY, EJointConstraintFlags::AngularDrive, JointSettings.AngularMotionTypes[1]);
-		//void SetAngularMotionTypesY(EJointMotionType AngularMotionTypesY);
+		//void SetAngularMotionTypesY(EJointMotionType InAngularMotionTypesY);
 		//EJointMotionType GetAngularMotionTypesY() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointMotionType, AngularMotionTypesZ, EJointConstraintFlags::AngularDrive, JointSettings.AngularMotionTypes[2]);
 		//void SetAngularMotionTypesZ(EJointMotionType AngularMotionTypesZ);
 		//EJointMotionType GetAngularMotionTypesZ() const
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, AngularLimits, EJointConstraintFlags::AngularDrive, JointSettings.AngularLimits);
-		//void SetAngularLimits(FVec3 AngularLimits);
-		//FVec3 GetAngularLimits() const
-
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, AngularDriveStiffness, EJointConstraintFlags::AngularDrive, JointSettings.AngularDriveStiffness);
-		//void SetAngularDriveStiffness(FReal AngularDriveStiffness);
+		//void SetAngularDriveStiffness(FReal InAngularDriveStiffness);
 		//FReal GetAngularDriveStiffness() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, AngularDriveDamping, EJointConstraintFlags::AngularDrive, JointSettings.AngularDriveDamping);
-		//void SetAngularDriveDamping(FReal AngularDriveDamping);
+		//void SetAngularDriveDamping(FReal InAngularDriveDamping);
 		//FReal GetAngularDriveDamping() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, Stiffness, EJointConstraintFlags::Stiffness, JointSettings.Stiffness);
 		//void SetStiffness(FReal Stiffness);
 		//FReal GetStiffness() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, SoftLinearLimitsEnabled, EJointConstraintFlags::Limits, JointSettings.bSoftLinearLimitsEnabled);
+		//void SetSoftLinearLimitsEnabled(bool bInSoftLinearLimitsEnabled);
+		//bool GetSoftLinearLimitsEnabled() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, SoftTwistLimitsEnabled, EJointConstraintFlags::Limits, JointSettings.bSoftTwistLimitsEnabled);
+		//void SetSoftTwistLimitsEnabled(FReal bInSoftTwistLimitsEnabled);
+		//bool GetSoftTwistLimitsEnabled() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, SoftSwingLimitsEnabled, EJointConstraintFlags::Limits, JointSettings.bSoftSwingLimitsEnabled);
+		//void SetSoftSwingLimitsEnabled(FReal bInSoftSwingLimitsEnabled);
+		//bool GetSoftSwingLimitsEnabled() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointForceMode, LinearSoftForceMode, EJointConstraintFlags::Limits, JointSettings.LinearSoftForceMode);
+		//void SetLinearSoftForceMode(FRealIn LinearSoftForceMode);
+		//EJointForceMode GetLinearSoftForceMode() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(EJointForceMode, AngularSoftForceMode, EJointConstraintFlags::Limits, JointSettings.AngularSoftForceMode);
+		//void SetAngularSoftForceMode(FReal InAngularSoftForceMode);
+		//EJointForceMode GetAngularSoftForceMode() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftLinearStiffness, EJointConstraintFlags::Limits, JointSettings.SoftLinearStiffness);
+		//void SetSoftLinearStiffness(FReal InSoftLinearStiffness);
+		//FReal GetSoftLinearStiffness() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftLinearDamping, EJointConstraintFlags::Limits, JointSettings.SoftLinearDamping);
+		//void SetSoftLinearDamping(FReal InSoftLinearDamping);
+		//FReal GetSoftLinearDamping() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftTwistStiffness, EJointConstraintFlags::Limits, JointSettings.SoftTwistStiffness);
+		//void SetSoftTwistStiffness(FReal InSoftTwistStiffness);
+		//FReal GetSoftTwistStiffness() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftTwistDamping, EJointConstraintFlags::Limits, JointSettings.SoftTwistDamping);
+		//void SetSoftTwistDamping(FReal InSoftTwistDamping);
+		//FReal GetSoftTwistDamping() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftSwingStiffness, EJointConstraintFlags::Limits, JointSettings.SoftSwingStiffness);
+		//void SetSoftSwingStiffness(FReal InSoftSwingStiffness);
+		//FReal GetSoftSwingStiffness() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SoftSwingDamping, EJointConstraintFlags::Limits, JointSettings.SoftSwingDamping);
+		//void SetSoftSwingDamping(FReal InSoftSwingDamping);
+		//FReal GetSoftSwingDamping() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearLimit, EJointConstraintFlags::Limits, JointSettings.LinearLimit);
+		//void SetLinearLimit(FReal InLinearLimit);
+		//FReal GetLinearLimit() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, AngularLimits, EJointConstraintFlags::Limits, JointSettings.AngularLimits);
+		//void SetAngularLimits(FVec3 AngularLimits);
+		//FVec3 GetAngularLimits() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearContactDistance, EJointConstraintFlags::Limits, JointSettings.LinearContactDistance);
+		//void SetLinearContactDistance(FReal InLinearContactDistance);
+		//FReal GetLinearContactDistance() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, TwistContactDistance, EJointConstraintFlags::Limits, JointSettings.TwistContactDistance);
+		//void SetAngularTwistContactDistance(FReal InAngularTwistContactDistance);
+		//FReal GetAngularTwistContactDistance() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SwingContactDistance, EJointConstraintFlags::Limits, JointSettings.SwingContactDistance);
+		//void SetAngularSwingContactDistance(FReal InAngularSwingContactDistance);
+		//FReal GetAngularSwingContactDistance() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, LinearRestitution, EJointConstraintFlags::Limits, JointSettings.LinearRestitution);
+		//void SetLinearRestitution(FReal InLinearRestitution);
+		//FReal GetLinearRestitution() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, TwistRestitution, EJointConstraintFlags::Limits, JointSettings.TwistRestitution);
+		//void SetAngularTwistRestitution(FReal InAngularTwistRestitution);
+		//FReal GetAngularTwistRestitution() const
+
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SwingRestitution, EJointConstraintFlags::Limits, JointSettings.SwingRestitution);
+		//void SetAngularSwingRestitution(FReal InAngularSwingRestitution);
+		//FReal GetAngularSwingRestitution() const
 
 
 	protected:
