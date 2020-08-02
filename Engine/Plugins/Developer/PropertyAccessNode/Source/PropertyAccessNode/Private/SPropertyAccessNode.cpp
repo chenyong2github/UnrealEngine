@@ -10,6 +10,7 @@
 #include "K2Node_PropertyAccess.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Features/IModularFeatures.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SPropertyAccessNode"
 
