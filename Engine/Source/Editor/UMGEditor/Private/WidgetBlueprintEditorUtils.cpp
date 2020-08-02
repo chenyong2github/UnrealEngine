@@ -498,7 +498,7 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 			// Modify the widget being removed.
 			WidgetTemplate->Modify();
 
-			bRemoved = Blueprint->WidgetTree->RemoveWidget(WidgetTemplate);
+			bRemoved |= Blueprint->WidgetTree->RemoveWidget(WidgetTemplate);
 
 			// If the widget we're removing doesn't have a parent it may be rooted in a named slot,
 			// so check there as well.
