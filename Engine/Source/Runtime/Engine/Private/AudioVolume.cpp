@@ -83,8 +83,8 @@ FAudioVolumeProxy::FAudioVolumeProxy(const AAudioVolume* AudioVolume)
 	, Priority(AudioVolume->GetPriority())
 	, ReverbSettings(AudioVolume->GetReverbSettings())
 	, InteriorSettings(AudioVolume->GetInteriorSettings())
-	, BodyInstance(AudioVolume->GetBrushComponent()->GetBodyInstance())
 	, SubmixSendSettings(AudioVolume->GetSubmixSendSettings())
+	, BodyInstance(AudioVolume->GetBrushComponent()->GetBodyInstance())
 {
 }
 
