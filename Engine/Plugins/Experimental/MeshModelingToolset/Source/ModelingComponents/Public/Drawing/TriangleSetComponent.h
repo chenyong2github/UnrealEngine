@@ -6,6 +6,7 @@
 
 #include "Components/MeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "IndexTypes.h"
 
 #include "TriangleSetComponent.generated.h"
 
@@ -106,6 +107,19 @@ public:
 
 	/** Queries whether a triangle with the given ID exists in the component. */
 	bool IsTriangleValid(const int32 ID) const;
+
+
+	/**
+	 * Add a triangle with the given vertices, normal, Color, and Material
+	 * @return ID of the triangle created
+	 */
+	int32 AddTriangle(const FVector& A, const FVector& B, const FVector& C, const FVector& Normal, const FColor& Color, UMaterialInterface* Material);
+
+	/**
+	 * Add a Quad (two triangles) with the given vertices, normal, Color, and Material
+	 * @return ID of the two triangles created
+	 */
+	FIndex2i AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material);
 
 private:
 

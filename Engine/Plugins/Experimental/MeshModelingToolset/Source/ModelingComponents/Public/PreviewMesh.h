@@ -78,10 +78,14 @@ public:
 
 
 	/**
+	 * @return internal Actor created by this UPreviewMesh
+	 */
+	AActor* GetActor() const { return TemporaryParentActor; }
+
+	/**
 	 * @return internal Root Component of internal Actor
 	 */
 	UPrimitiveComponent* GetRootComponent() { return DynamicMeshComponent; }
-
 
 	//
 	// visualization parameters
@@ -275,6 +279,11 @@ public:
 	 * Update the internal mesh by copying the given Mesh
 	 */
 	void UpdatePreview(const FDynamicMesh3* Mesh);
+
+	/**
+	 * Update the internal mesh by moving in the given Mesh
+	 */
+	void UpdatePreview(FDynamicMesh3&& Mesh);
 
 	/**
 	 * Initialize the internal mesh based on the given MeshDescription
