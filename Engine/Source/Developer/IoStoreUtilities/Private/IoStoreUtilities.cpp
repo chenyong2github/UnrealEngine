@@ -27,6 +27,7 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/AsyncLoading2.h"
+#include "Serialization/ArrayReader.h"
 #include "UObject/Class.h"
 #include "UObject/NameBatchSerialization.h"
 #include "UObject/PackageFileSummary.h"
@@ -40,6 +41,8 @@
 #include "Async/AsyncFileHandle.h"
 #include "Async/Async.h"
 #include "RSA.h"
+#include "Misc/AssetRegistryInterface.h"
+#include "AssetRegistryState.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -59,6 +62,12 @@ static const FName DefaultCompressionMethod = NAME_Zlib;
 static const uint64 DefaultCompressionBlockSize = 64 << 10;
 static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
 static const uint64 DefaultMemoryMappingAlignment = 16 << 10;
+
+struct FReleasedPackages
+{
+	TSet<FName> PackageNames;
+	TMap<FPackageId, FName> PackageIdToName;
+};
 
 struct FNamedAESKey
 {
@@ -640,7 +649,12 @@ struct FIoStoreArguments
 	FKeyChain KeyChain;
 	FKeyChain PatchKeyChain;
 	FString DLCPluginPath;
+	FString DLCName;
+	FString BasedOnReleaseVersionPath;
+	FAssetRegistryState ReleaseAssetRegistry;
+	FReleasedPackages ReleasedPackages;
 	bool bSign = false;
+	bool bRemapPluginContentToGame = false;
 
 	bool ShouldCreateContainers() const
 	{
@@ -910,6 +924,7 @@ struct FPackage
 	FPackageId GlobalPackageId;
 	FString Region; // for localized packages
 	FPackageId SourceGlobalPackageId; // for localized packages
+	FPackageId RedirectedPackageId;
 	uint32 PackageFlags = 0;
 	uint32 CookedHeaderSize = 0;
 	int32 NameCount = 0;
@@ -1749,7 +1764,14 @@ static int32 FindExport(
 		const FObjectExport* Export = ExportMap + LocalExportIndex;
 		if (Export->OuterIndex.IsNull())
 		{
-			Package->Name.AppendString(FullName);
+			if (Package->RedirectedPackageId.IsValid())
+			{
+				Package->SourcePackageName.AppendString(FullName);
+			}
+			else
+			{
+				Package->Name.AppendString(FullName);
+			}
 			FullName.AppendChar(TEXT('/'));
 			Export->ObjectName.AppendString(FullName);
 			FullName.ToLowerInline();
@@ -1825,6 +1847,7 @@ FContainerTargetSpec* AddContainer(
 }
 
 FPackage* FindOrAddPackage(
+	const FIoStoreArguments& Arguments,
 	const TCHAR* RelativeFileName,
 	TArray<FPackage*>& Packages,
 	FPackageNameMap& PackageNameMap,
@@ -1844,16 +1867,37 @@ FPackage* FindOrAddPackage(
 	if (!Package)
 	{
 		FPackageId PackageId = FPackageId::FromName(PackageFName);
-		FPackage* FindById = PackageIdMap.FindRef(PackageId);
-		if (FindById)
+		if (FPackage* FindById = PackageIdMap.FindRef(PackageId))
 		{
 			UE_LOG(LogIoStore, Fatal, TEXT("Package name hash collision \"%s\" and \"%s"), *FindById->Name.ToString(), *PackageFName.ToString());
 		}
 
+		if (const FName* ReleasedPackageName = Arguments.ReleasedPackages.PackageIdToName.Find(PackageId))
+		{
+			UE_LOG(LogIoStore, Fatal, TEXT("Package name hash collision \"%s\" and \"%s"), *ReleasedPackageName->ToString(), *PackageFName.ToString());
+		}
+
 		Package = new FPackage();
 		Package->Name = PackageFName;
-		Package->SourcePackageName = *RemapLocalizationPathIfNeeded(PackageName, &Package->Region);
 		Package->GlobalPackageId = PackageId;
+
+		if (Arguments.IsDLC() && Arguments.bRemapPluginContentToGame)
+		{
+			const int32 DLCNameLen = Arguments.DLCName.Len() + 1;
+			FString RedirectedPackageNameStr = TEXT("/Game");
+			RedirectedPackageNameStr.AppendChars(*PackageName + DLCNameLen, PackageName.Len() - DLCNameLen);
+			FName RedirectedPackageName = FName(*RedirectedPackageNameStr);
+
+			if (Arguments.ReleasedPackages.PackageNames.Contains(RedirectedPackageName))
+			{
+				Package->SourcePackageName = RedirectedPackageName;
+				Package->RedirectedPackageId = FPackageId::FromName(RedirectedPackageName);
+			}
+		}
+		else
+		{
+			Package->SourcePackageName = *RemapLocalizationPathIfNeeded(PackageName, &Package->Region);
+		}
 	
 		Packages.Add(Package);
 		PackageNameMap.Add(PackageFName, Package);
@@ -2070,9 +2114,12 @@ static void AddPreloadDependencies(
 	IOSTORE_CPU_SCOPE(PreLoadDependencies);
 	UE_LOG(LogIoStore, Display, TEXT("Adding preload dependencies..."));
 
+	TSet<FPackageId> ExternalPackageDependencies;
 	TArray<FPackage*> LocalizedPackages;
 	for (FPackage* Package : Packages)
 	{
+		ExternalPackageDependencies.Reset();
+
 		// Convert PreloadDependencies to arcs
 		for (int32 I = 0; I < Package->ExportCount; ++I)
 		{
@@ -2114,11 +2161,19 @@ static void AddPreloadDependencies(
 						}
 						else
 						{
-							const FObjectImport* Import = PackageAssetData.ObjectImports.GetData() + Package->ImportIndexOffset + Dep.ToImport();
-							const bool bIsPackage = Import->OuterIndex.IsNull();
-							if (bIsPackage)
+							const FObjectImport* ImportMap = PackageAssetData.ObjectImports.GetData() + Package->ImportIndexOffset;
+							const FObjectImport* Import = ImportMap + Dep.ToImport();
+							while (!Import->OuterIndex.IsNull())
 							{
-								AddBaseGamePackageArc(ExportGraph, FPackageId::FromName(Import->ObjectName), *Package, I, PhaseTo);
+								Import = ImportMap + Import->OuterIndex.ToImport();
+							}
+
+							FPackageId PackageId = FPackageId::FromName(Import->ObjectName);
+							bool bIsAlreadyInSet = false;
+							ExternalPackageDependencies.Add(PackageId, &bIsAlreadyInSet);
+							if (!bIsAlreadyInSet)
+							{
+								AddBaseGamePackageArc(ExportGraph, PackageId, *Package, I, PhaseTo);
 							}
 						}
 					}
@@ -2369,6 +2424,7 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 	FNameMapBuilder& NameMapBuilder = *ContainerTarget.NameMapBuilder;
 	FCulturePackageMap& CulturePackageMap = ContainerTarget.Header.CulturePackageMap;
 	TArray<FPackageId>& PackageIds = ContainerTarget.Header.PackageIds;
+	TArray<TTuple<FPackageId, FPackageId>>& PackageRedirects = ContainerTarget.Header.PackageRedirects;
 	
 	int32 StoreTocSize = ContainerTarget.PackageCount * sizeof(FPackageStoreEntry);
 	FLargeMemoryWriter StoreTocArchive(0, true);
@@ -2405,6 +2461,12 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 		if (Package->bIsLocalizedAndConformed)
 		{
 			CulturePackageMap.FindOrAdd(Package->Region).Emplace(Package->SourceGlobalPackageId, Package->GlobalPackageId);
+		}
+
+		// Redirects
+		if (Package->RedirectedPackageId.IsValid())
+		{
+			PackageRedirects.Add(MakeTuple(Package->RedirectedPackageId, Package->GlobalPackageId));
 		}
 
 		// StoreEntries
@@ -3035,6 +3097,7 @@ static void ProcessLocalizedPackages(
 			continue;
 		}
 
+		check(!Package->RedirectedPackageId.IsValid());
 		if (Package->Name == Package->SourcePackageName)
 		{
 			UE_LOG(LogIoStore, Error,
@@ -3279,11 +3342,11 @@ void InitializeContainerTargetsAndPackages(
 				if (bIsMemoryMappedBulkData)
 				{
 					FString TmpFileName = FString(RelativeFileName.Len() - 8, GetData(RelativeFileName)) + TEXT(".ubulk");
-					Package = FindOrAddPackage(*TmpFileName, Packages, PackageNameMap, PackageIdMap);
+					Package = FindOrAddPackage(Arguments, *TmpFileName, Packages, PackageNameMap, PackageIdMap);
 				}
 				else
 				{
-					Package = FindOrAddPackage(*RelativeFileName, Packages, PackageNameMap, PackageIdMap);
+					Package = FindOrAddPackage(Arguments, *RelativeFileName, Packages, PackageNameMap, PackageIdMap);
 				}
 
 				if (Package)
@@ -4661,9 +4724,47 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 	}
 
+	if (FParse::Value(FCommandLine::Get(), TEXT("BasedOnReleaseVersionPath="), Arguments.BasedOnReleaseVersionPath))
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Based on release version path: '%s'"), *Arguments.BasedOnReleaseVersionPath);
+
+		FString DevelopmentAssetRegistryPath = FPaths::Combine(Arguments.BasedOnReleaseVersionPath, TEXT("Metadata/DevelopmentAssetRegistry.bin"));
+
+		FArrayReader SerializedAssetData;
+		if (!FFileHelper::LoadFileToArray(SerializedAssetData, *DevelopmentAssetRegistryPath))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
+			return 1;
+		}
+
+		FAssetRegistrySerializationOptions Options;
+		if (!Arguments.ReleaseAssetRegistry.Serialize(SerializedAssetData, Options))
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to load asset registry '%s'."), *DevelopmentAssetRegistryPath);
+			return 1;
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("Loaded asset registry '%s'."), *DevelopmentAssetRegistryPath);
+
+		TArray<FName> PackageNames;
+		Arguments.ReleaseAssetRegistry.GetPackageNames(PackageNames);
+		Arguments.ReleasedPackages.PackageNames.Reserve(PackageNames.Num());
+		Arguments.ReleasedPackages.PackageIdToName.Reserve(PackageNames.Num());
+
+		for (FName PackageName : PackageNames)
+		{
+			Arguments.ReleasedPackages.PackageNames.Add(PackageName);
+			Arguments.ReleasedPackages.PackageIdToName.Add(FPackageId::FromName(PackageName), PackageName);
+		}
+	}
+
 	if (FParse::Value(FCommandLine::Get(), TEXT("DLCFile="), Arguments.DLCPluginPath))
 	{
+		Arguments.DLCName = FPaths::GetBaseFilename(*Arguments.DLCPluginPath);
+		Arguments.bRemapPluginContentToGame = FParse::Param(FCommandLine::Get(), TEXT("RemapPluginContentToGame"));
+
 		UE_LOG(LogIoStore, Display, TEXT("DLC: '%s'"), *Arguments.DLCPluginPath);
+		UE_LOG(LogIoStore, Display, TEXT("Remapping plugin content to game: '%s'"), Arguments.bRemapPluginContentToGame ? TEXT("True") : TEXT("False"));
 	}
 
 	if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
@@ -4723,7 +4824,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		}
 
 		UE_LOG(LogIoStore, Display, TEXT("Searching for cooked assets in folder '%s'"), *Arguments.CookedDir);
-		FCookedFileStatMap CookedFileStatMap;
 		FCookedFileVisitor CookedFileVistor(Arguments.CookedFileStatMap, nullptr);
 		IFileManager::Get().IterateDirectoryStatRecursively(*Arguments.CookedDir, CookedFileVistor);
 		UE_LOG(LogIoStore, Display, TEXT("Found '%d' files"), Arguments.CookedFileStatMap.Num());
