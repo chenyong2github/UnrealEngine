@@ -575,7 +575,7 @@ void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 
 		<< AnimGraph.StartCycle(InStartCycle)
 		<< AnimGraph.EndCycle(InEndCycle)
 		<< AnimGraph.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
-		<< AnimGraph.NodeCount(BPClass ? BPClass->AnimNodeProperties.Num() : 0)
+		<< AnimGraph.NodeCount(BPClass ? BPClass->GetAnimNodeProperties().Num() : 0)
 		<< AnimGraph.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
 		<< AnimGraph.Phase(InPhase);
 }

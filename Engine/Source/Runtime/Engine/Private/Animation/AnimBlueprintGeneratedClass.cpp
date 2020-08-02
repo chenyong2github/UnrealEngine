@@ -20,6 +20,8 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Animation/AnimInstanceSubsystemData.h"
+#include "Algo/Reverse.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -274,6 +276,9 @@ void UAnimBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
 	Super::Serialize(Ar);
+
+	// Init subsystem maps
+	RebuildSubsystemMaps();
 }
 
 void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
@@ -288,6 +293,7 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	DynamicResetNodeProperties.Empty();
 	StateMachineNodeProperties.Empty();
 	InitializationNodeProperties.Empty();
+	SubsystemProperties.Empty();
 
 #if WITH_EDITORONLY_DATA
 	for (FExposedValueHandler& Handler : EvaluateGraphExposedInputs)
@@ -324,35 +330,15 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 				}
 				AnimNodeProperties.Add(StructProp);
 			}
+			else if(StructProp->Struct->IsChildOf(FAnimInstanceSubsystemData::StaticStruct()))
+			{
+				SubsystemProperties.Add(StructProp);
+			}
 		}
 	}
 
-	// Pull info down from root anim class
-	UAnimBlueprintGeneratedClass* RootClass = this;
-	while(UAnimBlueprintGeneratedClass* NextClass = Cast<UAnimBlueprintGeneratedClass>(RootClass->GetSuperClass()))
-	{
-		RootClass = NextClass;
-	}
-
-	if(RootClass != this)
-	{
-		// State notifies and baked machines and asset player information from the root class
-		check(RootClass);
-		AnimNotifies = RootClass->AnimNotifies;
-		BakedStateMachines = RootClass->BakedStateMachines;
-		GraphAssetPlayerInformation = RootClass->GraphAssetPlayerInformation;
-	}
-
-	if(RootClass != this)
-	{
-		check(RootClass);
-
-		if(OrderedSavedPoseIndicesMap.Num() != RootClass->OrderedSavedPoseIndicesMap.Num() || !OrderedSavedPoseIndicesMap.OrderIndependentCompareEqual(RootClass->OrderedSavedPoseIndicesMap))
-		{
-			// Derived and our parent has a new ordered pose order, copy over.
-			OrderedSavedPoseIndicesMap = RootClass->OrderedSavedPoseIndicesMap;
-		}
-	}
+	// Properties are in reverse order with respect to the subsystems
+	Algo::Reverse(SubsystemProperties);
 }
 
 void UAnimBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)
@@ -386,7 +372,7 @@ void UAnimBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 	UAnimBlueprintGeneratedClass* Iter = this;
 	while(Iter)
 	{
-		FExposedValueHandler::Initialize(Iter->EvaluateGraphExposedInputs, Object);
+		FExposedValueHandler::ClassInitialization(Iter->EvaluateGraphExposedInputs, Object);
 		Iter = Cast<UAnimBlueprintGeneratedClass>(Iter->GetSuperClass());
 	}
 
@@ -615,3 +601,41 @@ const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyI
 }
 
 #endif // WITH_EDITORONLY_DATA
+
+UAnimBlueprintClassSubsystem* UAnimBlueprintGeneratedClass::GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const
+{
+	return GetRootClass()->SubsystemMap.FindRef(InClass);
+}
+
+UAnimBlueprintClassSubsystem* UAnimBlueprintGeneratedClass::FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const
+{
+	return GetRootClass()->SubsystemInterfaceMap.FindRef(InClassInterface);
+}
+
+void UAnimBlueprintGeneratedClass::RebuildSubsystemMaps()
+{
+	SubsystemMap.Reset();
+	SubsystemInterfaceMap.Reset();
+
+	// Init subsystem maps
+	for(UAnimBlueprintClassSubsystem* Subsystem : Subsystems)
+	{
+		SubsystemMap.Add(Subsystem->GetClass(), Subsystem);
+
+		for(const FImplementedInterface& ImplementedInterface : Subsystem->GetClass()->Interfaces)
+		{
+			SubsystemInterfaceMap.Add(ImplementedInterface.Class, Subsystem);
+		}
+	}
+}
+
+const UAnimBlueprintGeneratedClass* UAnimBlueprintGeneratedClass::GetRootClass() const
+{
+	const UAnimBlueprintGeneratedClass* RootClass = this;
+	while(const UAnimBlueprintGeneratedClass* NextClass = Cast<UAnimBlueprintGeneratedClass>(RootClass->GetSuperClass()))
+	{
+		RootClass = NextClass;
+	}
+
+	return RootClass;
+}

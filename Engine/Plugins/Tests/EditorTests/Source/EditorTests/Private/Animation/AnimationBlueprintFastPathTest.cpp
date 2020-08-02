@@ -70,35 +70,9 @@ bool FCheckFastPathLatentCommand::Update()
 								}
 								for (const FExposedValueCopyRecord& CopyRecord : AnimNode->GetEvaluateGraphExposedInputs().CopyRecords)
 								{
-									if (CopyRecord.SourcePropertyName == NAME_None)
+									if (CopyRecord.CopyIndex == INDEX_NONE)
 									{
-										UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid source property name (%s)"), *AnimBlueprint->GetName());
-									}
-									if (bIsStructTest)
-									{
-										if (CopyRecord.SourceSubPropertyName == NAME_None)
-										{
-											UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid source sub struct property name (%s)"), *AnimBlueprint->GetName());
-										}
-									}
-									else
-									{
-										if (CopyRecord.SourceSubPropertyName != NAME_None)
-										{
-											UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint specifies a sub struct when it shouldnt (%s)"), *AnimBlueprint->GetName());
-										}
-									}
-									if (CopyRecord.DestProperty == nullptr)
-									{
-										UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid dest property ptr (%s)"), *AnimBlueprint->GetName());
-									}
-									if (CopyRecord.DestArrayIndex < 0)
-									{
-										UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid dest array index (%s)"), *AnimBlueprint->GetName());
-									}
-									if (CopyRecord.Size <= 0)
-									{
-										UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid size (%s)"), *AnimBlueprint->GetName());
+										UE_LOG(LogAnimBlueprintFastPathTests, Error, TEXT("Anim blueprint has an invalid copy index (%s)"), *AnimBlueprint->GetName());
 									}
 								}
 							}

@@ -37,6 +37,7 @@ public:
 	// UAnimGraphNode_Base interface
 	virtual FString GetNodeCategory() const override;
 	virtual void EarlyValidation(class FCompilerResultsLog& MessageLog) const override;
+	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
 	// End of UAnimGraphNode_Base interface
 
 private:

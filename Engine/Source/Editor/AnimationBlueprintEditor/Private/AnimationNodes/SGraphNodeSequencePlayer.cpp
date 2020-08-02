@@ -130,7 +130,7 @@ bool SGraphNodeSequencePlayer::GetSequencePositionInfo(float& Out_Position, floa
 					{
 						int32 AnimNodeIndex = *NodeIndexPtr;
 						// reverse node index temporarily because of a bug in NodeGuidToIndexMap
-						AnimNodeIndex = Class->AnimNodeProperties.Num() - AnimNodeIndex - 1;
+						AnimNodeIndex = Class->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
 
 						if (FAnimBlueprintDebugData::FSequencePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().SequencePlayerRecordsThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FSequencePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
 						{

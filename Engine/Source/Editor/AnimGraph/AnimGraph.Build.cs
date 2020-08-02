@@ -37,7 +37,8 @@ public class AnimGraph : ModuleRules
                 "ContentBrowser",
 				"KismetWidgets",
 				"ToolMenus",
-            }
+				"KismetCompiler",
+			}
 		);
 
         CircularlyReferencedDependentModules.AddRange(
@@ -55,5 +56,5 @@ public class AnimGraph : ModuleRules
                 "AnimationBlueprintEditor",
             }
         );
-    }
+	}
 }
