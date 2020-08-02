@@ -579,7 +579,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		FNDIHairStrandsProxy* InterfaceProxy =
 			static_cast<FNDIHairStrandsProxy*>(Context.DataInterface);
 		FNDIHairStrandsData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		const bool IsHairValid = ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr && ProxyData->HairStrandsBuffer->IsInitialized();
 		const bool IsRootValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedRootResources != nullptr;//&& ProxyData->HairStrandsBuffer->SourceRootResources->IsInitialized();
@@ -3847,12 +3847,12 @@ void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(voi
 	}
 }
 
-void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	if (Context.SimulationStageIndex == 0)
 	{
 		FNDIHairStrandsData* ProxyData =
-			SystemInstancesToProxyData.Find(Context.SystemInstance);
+			SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		if (ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr)
 		{
@@ -3866,12 +3866,5 @@ void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraD
 		}
 	}
 }
-
-void FNDIHairStrandsProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{}
-
-void FNDIHairStrandsProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{}
-
 
 #undef LOCTEXT_NAMESPACE

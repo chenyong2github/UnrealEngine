@@ -175,28 +175,19 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 	}
 
 	int32 BoundParameterCounts[FNiagaraGPUSystemTick::UBT_NumTypes][2];
-	for (int32 i = 0; i < FNiagaraGPUSystemTick::UBT_NumTypes; ++i)
-	{
-		for (int32 j = 0; j < 2; ++j)
-		{
-			BoundParameterCounts[i][j] = 0;
-		}
-	}
+	FMemory::Memzero(BoundParameterCounts);
 
 	for (uint32 CountIt = 0; CountIt < Tick.Count; ++CountIt)
 	{
 		FNiagaraComputeInstanceData& EmitterData = EmittersData[CountIt];
 
-		const FNiagaraShaderRef& Shader = EmitterData.Context->GPUScript_RT->GetShader();
-		const int32 HasExternalConstants = EmitterData.Context->ExternalCBufferLayout->UBLayout.ConstantBufferSize > 0 ? 1 : 0;
-
 		for (int32 InterpIt = 0; InterpIt < (HasInterpolationParameters ? 2 : 1); ++InterpIt)
 		{
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Global][InterpIt] += Shader->GlobalConstantBufferParam[InterpIt].IsBound() ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_System][InterpIt] += Shader->SystemConstantBufferParam[InterpIt].IsBound() ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Owner][InterpIt] += Shader->OwnerConstantBufferParam[InterpIt].IsBound() ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Emitter][InterpIt] += Shader->EmitterConstantBufferParam[InterpIt].IsBound() ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_External][InterpIt] += Shader->ExternalConstantBufferParam[InterpIt].IsBound() ? 1 : 0;
+			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Global][InterpIt] += EmitterData.Context->GPUScript_RT->IsGlobalConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
+			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_System][InterpIt] += EmitterData.Context->GPUScript_RT->IsSystemConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
+			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Owner][InterpIt] += EmitterData.Context->GPUScript_RT->IsOwnerConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
+			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Emitter][InterpIt] += EmitterData.Context->GPUScript_RT->IsEmitterConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
+			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_External][InterpIt] += EmitterData.Context->GPUScript_RT->IsExternalConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
 		}
 	}
 
@@ -333,7 +324,7 @@ bool NiagaraEmitterInstanceBatcher::UseOverlapCompute()
 	return !IsMobilePlatform(ShaderPlatform) && GNiagaraOverlapCompute;
 }
 
-bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderRef& ComputeShader ) const
+bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderScript* ShaderScript) const
 {
 	bool ValidSpawnStage = true;
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
@@ -341,17 +332,16 @@ bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemT
 	// Reset all rw data interface data
 	if (Tick.bNeedsReset)
 	{
+		// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
+		const FNiagaraShaderRef ComputeShader = ShaderScript->GetShader(0);
+
 		uint32 InterfaceIndex = 0;
 		for (FNiagaraDataInterfaceProxy* Interface : Instance->DataInterfaceProxies)
 		{
 			const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
 			if (DIParam.Parameters.IsValid())
 			{
-				FNiagaraDataInterfaceSetArgs TmpContext;
-				TmpContext.Shader = ComputeShader;
-				TmpContext.DataInterface = Interface;
-				TmpContext.SystemInstance = Tick.SystemInstanceID;
-				TmpContext.Batcher = this;		
+				const FNiagaraDataInterfaceArgs TmpContext(Interface, Tick.SystemInstanceID, this);
 				Interface->ResetData(RHICmdList, TmpContext);
 			}			
 			InterfaceIndex++;
@@ -374,14 +364,7 @@ void NiagaraEmitterInstanceBatcher::PreStageInterface(const FNiagaraGPUSystemTic
 		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
 		if (DIParam.Parameters.IsValid())
 		{
-			FNiagaraDataInterfaceSetArgs TmpContext;
-			TmpContext.Shader = ComputeShader;
-			TmpContext.DataInterface = Interface;
-			TmpContext.SystemInstance = Tick.SystemInstanceID;
-			TmpContext.Batcher = this;
-			TmpContext.SimulationStageIndex = SimulationStageIndex;
-			TmpContext.IsOutputStage = Instance->IsOutputStage(Interface, SimulationStageIndex);
-			TmpContext.IsIterationStage = Instance->IsIterationStage(Interface, SimulationStageIndex);
+			const FNiagaraDataInterfaceStageArgs TmpContext(Interface, Tick.SystemInstanceID, this, SimulationStageIndex, Instance->IsOutputStage(Interface, SimulationStageIndex), Instance->IsIterationStage(Interface, SimulationStageIndex));
 			Interface->PreStage(RHICmdList, TmpContext);
 		}
 		InterfaceIndex++;
@@ -396,33 +379,25 @@ void NiagaraEmitterInstanceBatcher::PostStageInterface(const FNiagaraGPUSystemTi
 		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
 		if (DIParam.Parameters.IsValid())
 		{
-			FNiagaraDataInterfaceSetArgs TmpContext;
-			TmpContext.Shader = ComputeShader;
-			TmpContext.DataInterface = Interface;
-			TmpContext.SystemInstance = Tick.SystemInstanceID;
-			TmpContext.Batcher = this;
-			TmpContext.SimulationStageIndex = SimulationStageIndex;
-			TmpContext.IsOutputStage = Instance->IsOutputStage(Interface, SimulationStageIndex);
-			TmpContext.IsIterationStage = Instance->IsIterationStage(Interface, SimulationStageIndex);
+			const FNiagaraDataInterfaceStageArgs TmpContext(Interface, Tick.SystemInstanceID, this, SimulationStageIndex, Instance->IsOutputStage(Interface, SimulationStageIndex), Instance->IsIterationStage(Interface, SimulationStageIndex));
 			Interface->PostStage(RHICmdList, TmpContext);
 		}
 		InterfaceIndex++;
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader) const
+void NiagaraEmitterInstanceBatcher::PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderScript* ShaderScript) const
 {
+	// Note: All stages will contain the same bindings so if they are valid for one they are valid for all, this could change in the future
+	const FNiagaraShaderRef ComputeShader = ShaderScript->GetShader(0);
+
 	uint32 InterfaceIndex = 0;
 	for (FNiagaraDataInterfaceProxy* Interface : Instance->DataInterfaceProxies)
 	{
 		const FNiagaraDataInterfaceParamRef& DIParam = ComputeShader->GetDIParameters()[InterfaceIndex];
 		if (DIParam.Parameters.IsValid())
 		{
-			FNiagaraDataInterfaceSetArgs TmpContext;
-			TmpContext.Shader = ComputeShader;
-			TmpContext.DataInterface = Interface;
-			TmpContext.SystemInstance = Tick.SystemInstanceID;
-			TmpContext.Batcher = this;			
+			const FNiagaraDataInterfaceArgs TmpContext(Interface, Tick.SystemInstanceID, this);
 			Interface->PostSimulate(RHICmdList, TmpContext);
 		}
 		InterfaceIndex++;
@@ -486,9 +461,9 @@ void NiagaraEmitterInstanceBatcher::TransitionBuffers(FRHICommandList& RHICmdLis
 	RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, WriteBuffers.GetData(), WriteBuffers.Num());
 }
 
-void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraShaderRef& ComputeShader)
+void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraShaderScript* ShaderScript)
 {
-	if (!ResetDataInterfaces(Tick, Instance, RHICmdList, ComputeShader))
+	if (!ResetDataInterfaces(Tick, Instance, RHICmdList, ShaderScript))
 	{
 		return;
 	}
@@ -519,6 +494,9 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 				continue;
 			}
 
+			const int32 PermutationId = ShaderScript->ShaderStageIndexToPermutationId_RenderThread(SimulationStageIndex);
+			const FNiagaraShaderRef ComputeShader = ShaderScript->GetShader(PermutationId);
+
 			PreStageInterface(Tick, Instance, RHICmdList, ComputeShader, SimulationStageIndex);
 
 			TransitionBuffers(RHICmdList, ComputeShader, Instance, SimulationStageIndex, LastSource, bFreeIDTableTransitioned);
@@ -543,10 +521,12 @@ void NiagaraEmitterInstanceBatcher::DispatchMultipleStages(const FNiagaraGPUSyst
 			}
 		}
 
-		PostSimulateInterface(Tick, Instance, RHICmdList, ComputeShader);
+		PostSimulateInterface(Tick, Instance, RHICmdList, ShaderScript);
 	}
 	else
 	{
+		const FNiagaraShaderRef ComputeShader = ShaderScript->GetShader(0);
+
 		// run shader, sim and spawn in a single dispatch
 		check(Instance->SimStageData.Num() > 0);
 		TransitionBuffers(RHICmdList, ComputeShader, Instance, 0, LastSource, bFreeIDTableTransitioned);
@@ -577,8 +557,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 				continue;
 			}
 
-			FNiagaraShaderRef Shader = Context->GPUScript_RT->GetShader();
-			if ( Shader.IsNull() )
+			if ( !Context->GPUScript_RT->IsShaderMapComplete_RenderThread() )
 			{
 				continue;
 			}
@@ -757,7 +736,8 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 			{
 				FNiagaraComputeInstanceData& Instance = Instances[Index];
 				FNiagaraComputeExecutionContext* Context = Instance.Context;
-				if (Context && Context->GPUScript_RT->GetShader().IsValid())
+
+				if (Context && Context->GPUScript_RT->IsShaderMapComplete_RenderThread())
 				{
 					if (Context->DebugInfo.IsValid())
 					{
@@ -777,12 +757,13 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 		{
 			FNiagaraComputeInstanceData& Instance = Instances[Index];
 			FNiagaraComputeExecutionContext* Context = Instance.Context;
-			if (Context && Context->GPUScript_RT->GetShader().IsValid())
+
+			if (Context && Context->GPUScript_RT->IsShaderMapComplete_RenderThread())
 			{
 				FNiagaraComputeExecutionContext::TickCounter++;
 
 				// run shader, sim and spawn in a single dispatch
-				DispatchMultipleStages(*Tick, &Instance, RHICmdList, ViewUniformBuffer, Context->GPUScript_RT->GetShader());
+				DispatchMultipleStages(*Tick, &Instance, RHICmdList, ViewUniformBuffer, Context->GPUScript_RT);
 			}
 		}
 	}
@@ -931,9 +912,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		{
 			FNiagaraComputeInstanceData* Data = Tick.GetInstanceData();
 			FNiagaraComputeExecutionContext* SharedContext = Data->Context;
+
 			// This assumes all emitters fallback to the same FNiagaraShaderScript*.
-			FNiagaraShaderRef ComputeShader = SharedContext->GPUScript_RT->GetShader();
-			if (ComputeShader.IsNull() || !ShouldTickForStage(Tick, TickStage))
+			if (!SharedContext->GPUScript_RT->IsShaderMapComplete_RenderThread() || !ShouldTickForStage(Tick, TickStage))
 			{
 				continue;
 			}
@@ -1445,7 +1426,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 	//
 
 	// @todo-threadsafety This is a bit gross. Need to rethink this api.
-	const FNiagaraSystemInstanceID& SystemInstance = Tick.SystemInstanceID;
+	const FNiagaraSystemInstanceID& SystemInstanceID = Tick.SystemInstanceID;
 	const FNiagaraShaderMapPointerTable& PointerTable = Shader.GetPointerTable();
 
 	uint32 InterfaceIndex = 0;
@@ -1454,15 +1435,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 		const FNiagaraDataInterfaceParamRef& DIParam = Shader->GetDIParameters()[InterfaceIndex];
 		if (DIParam.Parameters.IsValid())
 		{
-			FNiagaraDataInterfaceSetArgs Context;
-			Context.Shader = Shader;
-			Context.DataInterface = Interface;
-			Context.SystemInstance = SystemInstance;
-			Context.Batcher = this;
-			Context.ComputeInstanceData = Instance;
-			Context.SimulationStageIndex = SimulationStageIndex;
-			Context.IsOutputStage = Instance->IsOutputStage(Interface, SimulationStageIndex);
-			Context.IsIterationStage = Instance->IsIterationStage(Interface, SimulationStageIndex);
+			FNiagaraDataInterfaceSetArgs Context(Interface, SystemInstanceID, this, Shader, Instance, SimulationStageIndex, Instance->IsOutputStage(Interface, SimulationStageIndex), Instance->IsIterationStage(Interface, SimulationStageIndex));
 			DIParam.DIType.Get(PointerTable.DITypes)->SetParameters(DIParam.Parameters.Get(), RHICmdList, Context);
 		}
 
@@ -1470,7 +1443,7 @@ void NiagaraEmitterInstanceBatcher::SetDataInterfaceParameters(const TArray<FNia
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::UnsetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*> &DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList &RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick) const
+void NiagaraEmitterInstanceBatcher::UnsetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*> &DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList &RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const
 {
 	// set up data interface buffers, as defined by the DIs during compilation
 	//
@@ -1495,11 +1468,7 @@ void NiagaraEmitterInstanceBatcher::UnsetDataInterfaceParameters(const TArray<FN
 					PerInstanceData = (*OffsetFound) + (uint8*)Tick.DIInstanceData->PerInstanceDataForRT;
 				}
 			}
-			FNiagaraDataInterfaceSetArgs Context;
-			Context.Shader = Shader;
-			Context.DataInterface = Interface;
-			Context.SystemInstance = SystemInstance;
-			Context.Batcher = this;
+			FNiagaraDataInterfaceSetArgs Context(Interface, SystemInstance, this, Shader, Instance, SimulationStageIndex, Instance->IsOutputStage(Interface, SimulationStageIndex), Instance->IsIterationStage(Interface, SimulationStageIndex));
 			DIParam.DIType.Get(PointerTable.DITypes)->UnsetParameters(DIParam.Parameters.Get(), RHICmdList, Context);
 		}
 
@@ -1727,7 +1696,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	// Unset UAV parameters and transition resources (TODO: resource transition should be moved to the renderer)
 	// 
-	UnsetDataInterfaceParameters(DataInterfaceProxies, Shader, RHICmdList, Instance, Tick);
+	UnsetDataInterfaceParameters(DataInterfaceProxies, Shader, RHICmdList, Instance, Tick, SimulationStageIndex);
 	CurrentData.UnsetShaderParams(Shader.GetShader(), RHICmdList);
 	DestinationData.UnsetShaderParams(Shader.GetShader(), RHICmdList);
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);
