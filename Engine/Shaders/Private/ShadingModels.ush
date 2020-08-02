@@ -407,6 +407,8 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		Context.NoH = saturate(dot(N, H));
 		Context.NoV = saturate(dot(N, V));
 		Context.NoL = saturate(dot(N, L));
+		Context.VoL = saturate(dot(V, L));
+		Context.VoH = saturate(dot(V, H));
 
 		bool bNewtonIteration = true;
 		SphereMaxNoH(Context, AreaLight.SphereSinAlpha, bNewtonIteration);
@@ -442,6 +444,7 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 	else
 	{
 		float a2 = Pow4(GBuffer.Roughness);
+		float Energy = EnergyNormalization(a2, Context.VoH, AreaLight);
 		float D2 = 0;
 		float Vis2 = 0;
 
@@ -458,18 +461,18 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 		else
 #endif
 		{
-			D2 = D_GGX(a2, Context.NoH);
-			Vis2 = Vis_SmithJointApprox(a2, BottomContext.NoV, BottomContext.NoL);
+			D2 = D_GGX(a2, BottomContext.NoH);
+			// NoL is chosen to provide better parity with DefaultLit when ClearCoat=0
+			Vis2 = Vis_SmithJointApprox(a2, BottomContext.NoV, NoL);
 		}
 		// When refracting into a non-metallic substrate, the IOR ratio (Eta) between top and bottom interfaces approaches 1.0 and drives Fresnel reflectance to 0
 		float3 F = F_Schlick(GBuffer.SpecularColor, BottomContext.VoH);
 		float3 RefractedF = lerp(0.0, F, GBuffer.Metallic);
 		
 		// Note: reusing D, V, and F from refracted context to save computation for when ClearCoat < 1
-		float Energy = EnergyNormalization(a2, Context.VoH, AreaLight);
-		float3 CommonSpecular = (Energy * Falloff * NoL * D2 * Vis2) * AreaLight.FalloffColor;
-		float3 DefaultSpecular = F;
-		float3 RefractedSpecular = FresnelCoeff * Transmission * RefractedF;
+		float3 CommonSpecular = (Energy * Falloff * D2 * Vis2) * AreaLight.FalloffColor;
+		float3 DefaultSpecular = F * NoL;
+		float3 RefractedSpecular = FresnelCoeff * Transmission * RefractedF * BottomContext.NoL;
 		Lighting.Specular += CommonSpecular * lerp(DefaultSpecular, RefractedSpecular, ClearCoat);
 	}
 
