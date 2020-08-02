@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Righ1ts Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Debugging/ConsoleSlateDebuggerInvalidate.h"
 #include "Debugging/ConsoleSlateDebugger.h"
