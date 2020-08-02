@@ -84,6 +84,7 @@ FAudioVolumeProxy::FAudioVolumeProxy(const AAudioVolume* AudioVolume)
 	, ReverbSettings(AudioVolume->GetReverbSettings())
 	, InteriorSettings(AudioVolume->GetInteriorSettings())
 	, BodyInstance(AudioVolume->GetBrushComponent()->GetBodyInstance())
+	, SubmixSendSettings(AudioVolume->GetSubmixSendSettings())
 {
 }
 
@@ -277,6 +278,15 @@ void AAudioVolume::SetInteriorSettings(const FInteriorSettings& NewInteriorSetti
 		{
 			UpdateProxy();
 		}
+	}
+}
+
+void AAudioVolume::SetSubmixSendSettings(const TArray<FAudioVolumeSubmixSendSettings>& NewSubmixSendSettings)
+{
+	SubmixSendSettings = NewSubmixSendSettings;
+	if (bEnabled)
+	{
+		UpdateProxy();
 	}
 }
 

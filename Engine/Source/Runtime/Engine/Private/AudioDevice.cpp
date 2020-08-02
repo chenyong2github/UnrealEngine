@@ -3295,6 +3295,7 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 				OutSettings.Priority = Proxy.Priority;
 				OutSettings.ReverbSettings = Proxy.ReverbSettings;
 				OutSettings.InteriorSettings = Proxy.InteriorSettings;
+				OutSettings.SubmixSendSettings = Proxy.SubmixSendSettings;
 				return;
 			}
 		}
@@ -3308,6 +3309,7 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 	{
 		OutSettings.ReverbSettings = DefaultAudioVolumeSettings->Key;
 		OutSettings.InteriorSettings = DefaultAudioVolumeSettings->Value;
+		OutSettings.SubmixSendSettings.Reset();
 	}
 }
 
