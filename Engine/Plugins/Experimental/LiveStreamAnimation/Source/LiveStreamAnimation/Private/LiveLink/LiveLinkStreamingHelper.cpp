@@ -36,19 +36,18 @@ namespace LiveStreamAnimation
 
 	bool FLiveLinkStreamingHelper::FLiveLinkTrackedSubject::ReceivedFrameData(const FLiveLinkAnimationFrameData& AnimationData, FLiveLinkAnimationFrameData& OutAnimationData) const
 	{
+		OutAnimationData = AnimationData;
 		if (BoneTranslations.Num() > 0)
 		{
 			TArray<FTransform> TranslatedTransforms;
-			TranslatedTransforms.SetNumUninitialized(BoneTranslations.Num());
+			TranslatedTransforms.Reset(BoneTranslations.Num());
 
 			for (int32 TranslationIndex : BoneTranslations)
 			{
 				TranslatedTransforms.Add(AnimationData.Transforms[TranslationIndex]);
 			}
-		}
-		else
-		{
-			OutAnimationData = AnimationData;
+
+			OutAnimationData.Transforms = MoveTemp(TranslatedTransforms);
 		}
 
 		return true;
@@ -58,107 +57,101 @@ namespace LiveStreamAnimation
 	{
 		struct FBoneRemapInfo
 		{
-			int32 SkeletonIndex;
-			int32 UseBoneIndex;
+			int32 BonesToUseIndex;
+			int32 RemappedSkeletonIndex;
+			int32 RealSkeletonIndex;
 		};
 
 		if (TranslationProfile.IsSet())
 		{
-			// The below code exists to ensure that we can efficiently map Live Link frames onto UE
-			// skeletons, while stripping out unncessary bones.
-
 			const FLiveStreamAnimationLiveLinkTranslationProfile& UseProfile = TranslationProfile.GetValue();
-			if (UseProfile.bStripLiveLinkSkeletonToBonesToUse && UseProfile.BonesToUse.Num() > 0)
+			if (UseProfile.BonesToUse.Num() > 0)
 			{
-				if (const USkeleton* LocalSkeleton = UseProfile.Skeleton.Get())
+				TArray<FBoneRemapInfo> BoneRemapArray;
+				BoneRemapArray.Reserve(SkeletonData.BoneNames.Num());
+
+				TArray<int32> BoneParents;
+				BoneParents.Reserve(UseProfile.BonesToUse.Num());
+
+				TArray<int32> RemovedBonesAtIndex;
+				RemovedBonesAtIndex.SetNumUninitialized(SkeletonData.BoneNames.Num());
+
+				TBitArray<> UseBones(false, SkeletonData.BoneNames.Num());
+
+				// Shift Counter / RemovesBonesAtIndex is just a convenience.
+				// We could just count the number of unset bits between the start of the
+				// UseBones bitfield and the index of the bone we're checking, but that
+				// seems pretty inefficient.
+				int32 ShiftCounter = 0;
+
+				// Maybe converting BoneNames to a Set would be faster, but the count is always going to be
+				// low so it's probably fine.
+				// Also, this is only going to happen when we receive skeleton data, which will almost always
+				// only happen once per subject when we initially connect.
+
+				// First, go ahead and filter out the bones we aren't going to use from the skeleton.
+				// Track the bones in our remap array so we can shuffle them later, and track
+				// offsets so we can adjust parent indices without searching again.
+				for (int32 i = 0; i < SkeletonData.BoneNames.Num(); ++i)
 				{
-					const FReferenceSkeleton& ReferenceSkeleton = LocalSkeleton->GetReferenceSkeleton();
-
-					TArray<FBoneRemapInfo> BoneRemapArray;
-					BoneRemapArray.Reserve(SkeletonData.BoneNames.Num());
-
-					TArray<int32> BoneParents;
-					BoneParents.Reserve(UseProfile.BonesToUse.Num());
-
-					TArray<int32> RemovedBonesAtIndex;
-					RemovedBonesAtIndex.SetNumUninitialized(SkeletonData.BoneNames.Num());
-
-					TBitArray<> UseBones(false, SkeletonData.BoneNames.Num());
-
-					int32 ShiftCounter = 0;
-					int32 BoneCounter = 0;
-
-					// Maybe converting BoneNames to a Set would be faster, but the count is always going to be
-					// low so it's probably fine.
-					// Also, this is only going to happen when we receive skeleton data, which will almost always
-					// only happen once per subject when we initially connect.
-
-					for (int32 i = 0; i < SkeletonData.BoneNames.Num(); ++i)
+					const int32 BoneNameIndex = UseProfile.BonesToUse.Find(SkeletonData.BoneNames[i]);
+					if (INDEX_NONE != BoneNameIndex)
 					{
-						const int32 BoneNameIndex = UseProfile.BonesToUse.Find(SkeletonData.BoneNames[i]);
-						if (INDEX_NONE != BoneNameIndex)
-						{
-							UseBones[i] = true;
-							BoneRemapArray.Add({ BoneNameIndex, BoneCounter });
-							++BoneCounter;
-						}
-						else
-						{
-							++ShiftCounter;
-						}
-
-						RemovedBonesAtIndex[i] = ShiftCounter;
+						UseBones[i] = true;
+						BoneRemapArray.Add({ BoneNameIndex, BoneRemapArray.Num(), i });
+					}
+					else
+					{
+						++ShiftCounter;
 					}
 
-					for (TConstSetBitIterator<> ConstIt(UseBones); ConstIt; ++ConstIt)
+					RemovedBonesAtIndex[i] = ShiftCounter;
+				}
+
+				// Next, fixup our parent indices.
+				// Bones and parents should still be in the same *order* as the incoming skeleton data
+				// at this point, but we will have entries missing. So, in order to find the appropriate
+				// new parent bone, we will search until we find an ancestor that was included, and then
+				// shift its index to compensate for bones that were removed.
+				for (TConstSetBitIterator<> ConstIt(UseBones); ConstIt; ++ConstIt)
+				{
+					int32 ParentIndex = ConstIt.GetIndex();
+					while (true)
 					{
-						int32 ParentIndex = ConstIt.GetIndex();
-						while (true)
+						ParentIndex = SkeletonData.BoneParents[ParentIndex];
+
+						if (ParentIndex == INDEX_NONE)
 						{
-							ParentIndex = SkeletonData.BoneParents[ParentIndex];
-
-							if (ParentIndex == INDEX_NONE)
-							{
-								break;
-							}
-
-							// We found a bone that was enabled that is also an ancestor.
-							// Go ahead and fix up its index.
-							if (UseBones[ParentIndex])
-							{
-								ParentIndex -= RemovedBonesAtIndex[ParentIndex];
-								break;
-							}
+							break;
 						}
 
-						BoneParents.Add(ParentIndex);
+						// We found a bone that was enabled that is also an ancestor.
+						// Go ahead and fix up its index.
+						if (UseBones[ParentIndex])
+						{
+							ParentIndex -= RemovedBonesAtIndex[ParentIndex];
+							break;
+						}
 					}
 
-					Algo::SortBy(BoneRemapArray, &FBoneRemapInfo::SkeletonIndex);
+					BoneParents.Add(ParentIndex);
+				}
 
-					BoneTranslations.Reset(BoneRemapArray.Num());
-					LastKnownSkeleton.BoneNames.Reset(BoneRemapArray.Num());
-					LastKnownSkeleton.BoneParents.Reset(BoneRemapArray.Num());
+				// Finally, we need to shuffle our bones around and create a translation from the
+				// incoming skeleton to the bones we want.
 
-					const TArray<FMeshBoneInfo>& RefBoneInfo = ReferenceSkeleton.GetRawRefBoneInfo();
-					for (const FBoneRemapInfo& RemapInfo : BoneRemapArray)
-					{
-						LastKnownSkeleton.BoneNames.Add(RefBoneInfo[RemapInfo.SkeletonIndex].Name);
-						if (INDEX_NONE == BoneParents[RemapInfo.UseBoneIndex])
-						{
-							LastKnownSkeleton.BoneParents.Add(INDEX_NONE);
-						}
-						else
-						{
-							const int32 OldParentIndex = BoneParents[RemapInfo.UseBoneIndex];
-							LastKnownSkeleton.BoneParents.Add(BoneRemapArray.IndexOfByPredicate([OldParentIndex](const FBoneRemapInfo& ToCheck)
-								{
-									return ToCheck.UseBoneIndex == OldParentIndex;
-								}));
-						}
-
-						BoneTranslations.Add(RemapInfo.UseBoneIndex);
-					}
+				BoneTranslations.SetNumUninitialized(BoneRemapArray.Num());
+				LastKnownSkeleton.BoneNames.SetNumUninitialized(BoneRemapArray.Num());
+				LastKnownSkeleton.BoneParents.SetNumUninitialized(BoneRemapArray.Num());
+				
+				for (const FBoneRemapInfo& RemapInfo : BoneRemapArray)
+				{
+					const int32 BonesToUseIndex = RemapInfo.BonesToUseIndex;
+					BoneTranslations[BonesToUseIndex] = RemapInfo.RealSkeletonIndex;
+					LastKnownSkeleton.BoneNames[BonesToUseIndex] = UseProfile.BonesToUse[BonesToUseIndex];
+				
+					const int32 OldParentIndex = BoneParents[RemapInfo.RemappedSkeletonIndex];
+					LastKnownSkeleton.BoneParents[BonesToUseIndex] = (INDEX_NONE == OldParentIndex) ? INDEX_NONE : BoneRemapArray[OldParentIndex].BonesToUseIndex;
 				}
 
 				return true;

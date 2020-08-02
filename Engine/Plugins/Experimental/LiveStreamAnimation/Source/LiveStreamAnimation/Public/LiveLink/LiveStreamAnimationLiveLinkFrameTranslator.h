@@ -42,25 +42,15 @@ public:
 
 	/**
 	 * When non-empty, this is the full set of bones **from the Live Link Skeleton** for which we will
-	 * be receiving data This is only used as an optimization so we can cache bone indices for faster lookup.
+	 * be receiving data. This is only used as an optimization so we can cache bone indices for faster lookup.
 	 * If this is empty, then we will fall back to using name based Map lookups, which is probably
 	 * fine for most cases.
 	 *
-	 * This should contain the *exact* set of bones that will be needed from the Live Link Skeleton,
-	 * in the exact order in which they will be sent from Live Link.
+	 * The bones in this array don't need to be in the same order as the Live Link or UE Skeletons,
+	 * and any bones not in the array will be ignored from Live Link and not forwarded.
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Live Stream Animation|Live Link|Translation")
 	TArray<FName> BonesToUse;
-
-	/**
-	 * When this is true, before we stream any Live Link Data, we will strip it down to just the
-	 * bones specified in BonesToUse.
-	 *
-	 * This is mainly useful when there are large Live Link Rigs that only need to replicate a
-	 * subset of their bones for proper Animation Streaming.
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Live Stream Animation|Live Link|Translation")
-	bool bStripLiveLinkSkeletonToBonesToUse = false;
 
 	const TMap<FName, FTransform>& GetBoneTransformsByName() const
 	{
