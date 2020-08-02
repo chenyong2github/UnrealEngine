@@ -7,6 +7,7 @@
 #include "UObject/GCObject.h"
 
 struct FSlateDynamicImageBrush;
+struct FCompositeFont;
 struct FStandaloneCompositeFont;
 
 //This is a helper class that we use to hold values we parse from the .ini. Clean way to access things like dynamic image brushes / fonts / etc used in our UI that
