@@ -1299,8 +1299,15 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// From Settings
 	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
+	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
+	bool bForceRelativeFrameNumbers = false;
+	if (InFormatString.Contains(TEXT("{frame")) && InOutputState.TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
+	{
+		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers."));
+		bForceRelativeFrameNumbers = true;
+	}
 	// From Output State
-	InOutputState.GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset);
+	InOutputState.GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset, bForceRelativeFrameNumbers);
 
 	// And from ourself
 	{
