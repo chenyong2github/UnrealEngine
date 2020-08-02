@@ -39,12 +39,29 @@ public:
 	 * @param Filter Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(const TArrayView<const FVector2<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;})
+	bool Solve(TArrayView<const FVector2<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc)
 	{
 		return Solve(Points.Num(), [&Points](int32 Idx)
 			{
 				return Points[Idx];
 			}, FilterFunc);
+	}
+
+	// default FilterFunc version of the above Solve(); workaround for clang bug https://bugs.llvm.org/show_bug.cgi?id=25333
+	/**
+	 * Generate convex hull as long as input is not degenerate
+	 * If input is degenerate, this will return false, and caller can call GetDimension()
+	 * to determine whether the points were collinear, or all the same point
+	 *
+	 * @param Points Array of points to consider
+	 * @return true if hull was generated, false if points span < 2 dimensions
+	 */
+	bool Solve(TArrayView<const FVector2<RealType>> Points)
+	{
+		return Solve(Points.Num(), [&Points](int32 Idx)
+			{
+				return Points[Idx];
+			}, [](int32 Idx) {return true;});
 	}
 
 	/** @return true if convex hull is available */
