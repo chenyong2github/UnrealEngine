@@ -455,16 +455,23 @@ void UUserWidget::TearDownAnimations()
 
 void UUserWidget::Invalidate()
 {
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 }
 
-void UUserWidget::Invalidate(EInvalidateWidget InvalidateReason)
+void UUserWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
-	TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
-	if (CachedWidget.IsValid())
+	if (TSharedPtr<SWidget> CachedWidget = GetCachedWidget())
 	{
 		UpdateCanTick();
 		CachedWidget->Invalidate(InvalidateReason);
+	}
+}
+
+void UUserWidget::InvalidateFullScreenWidget(EInvalidateWidgetReason InvalidateReason)
+{
+	if (TSharedPtr<SWidget> FullScreenWidgetPinned = FullScreenWidget.Pin())
+	{
+		FullScreenWidgetPinned->Invalidate(InvalidateReason);
 	}
 }
 
@@ -1087,38 +1094,55 @@ APlayerCameraManager* UUserWidget::GetOwningPlayerCameraManager() const
 
 void UUserWidget::SetPositionInViewport(FVector2D Position, bool bRemoveDPIScale )
 {
-	if ( bRemoveDPIScale )
+	if (bRemoveDPIScale)
 	{
-		float Scale = UWidgetLayoutLibrary::GetViewportScale(this);
-
-		ViewportOffsets.Left = Position.X / Scale;
-		ViewportOffsets.Top = Position.Y / Scale;
+		const float Scale = UWidgetLayoutLibrary::GetViewportScale(this);
+		Position /= Scale;
 	}
-	else
+
+	FAnchors Zero{ 0.f, 0.f };
+	if (ViewportOffsets.Left != Position.X
+		|| ViewportOffsets.Top != Position.Y
+		|| ViewportAnchors != Zero)
 	{
 		ViewportOffsets.Left = Position.X;
 		ViewportOffsets.Top = Position.Y;
+		ViewportAnchors = Zero;
+		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
 	}
-
-	ViewportAnchors = FAnchors(0, 0);
 }
 
 void UUserWidget::SetDesiredSizeInViewport(FVector2D DesiredSize)
 {
-	ViewportOffsets.Right = DesiredSize.X;
-	ViewportOffsets.Bottom = DesiredSize.Y;
+	FAnchors Zero{0.f, 0.f};
+	if (ViewportOffsets.Right != DesiredSize.X
+		|| ViewportOffsets.Bottom != DesiredSize.Y
+		|| ViewportAnchors != Zero)
+	{
+		ViewportOffsets.Right = DesiredSize.X;
+		ViewportOffsets.Bottom = DesiredSize.Y;
+		ViewportAnchors = Zero;
+		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+	}
 
-	ViewportAnchors = FAnchors(0, 0);
 }
 
 void UUserWidget::SetAnchorsInViewport(FAnchors Anchors)
 {
-	ViewportAnchors = Anchors;
+	if (ViewportAnchors != Anchors)
+	{
+		ViewportAnchors = Anchors;
+		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+	}
 }
 
 void UUserWidget::SetAlignmentInViewport(FVector2D Alignment)
 {
-	ViewportAlignment = Alignment;
+	if (ViewportAlignment != Alignment)
+	{
+		ViewportAlignment = Alignment;
+		InvalidateFullScreenWidget(EInvalidateWidgetReason::Layout);
+	}
 }
 
 FMargin UUserWidget::GetFullScreenOffset() const
@@ -1127,8 +1151,7 @@ FMargin UUserWidget::GetFullScreenOffset() const
 	FVector2D FinalSize = FVector2D(ViewportOffsets.Right, ViewportOffsets.Bottom);
 	if ( FinalSize.IsZero() && !ViewportAnchors.IsStretchedVertical() && !ViewportAnchors.IsStretchedHorizontal() )
 	{
-		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
-		if ( CachedWidget.IsValid() )
+		if (TSharedPtr<SWidget> CachedWidget = GetCachedWidget())
 		{
 			FinalSize = CachedWidget->GetDesiredSize();
 		}
@@ -1576,12 +1599,7 @@ void UUserWidget::SetMinimumDesiredSize(FVector2D InMinimumDesiredSize)
 	if (MinimumDesiredSize != InMinimumDesiredSize)
 	{
 		MinimumDesiredSize = InMinimumDesiredSize;
-
-		TSharedPtr<SWidget> CachedWidget = GetCachedWidget();
-		if (CachedWidget.IsValid())
-		{
-			CachedWidget->Invalidate(EInvalidateWidget::Layout);
-		}
+		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 }
 
@@ -1967,7 +1985,7 @@ void UUserWidget::OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentAct
 			if (SafeGCWidget->GetCanTick() && !bCanTick)
 			{
 				// If the widget can now tick, recache the volatility of the widget.
-				WidgetThatChanged->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+				WidgetThatChanged->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
 			}
 		}
 	}
