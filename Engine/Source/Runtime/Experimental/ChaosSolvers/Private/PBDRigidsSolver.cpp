@@ -76,6 +76,7 @@ namespace Chaos
 			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 
+			MSolver->ApplyCallbacks_Internal();
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
 
 			{
@@ -682,115 +683,166 @@ namespace Chaos
 
 		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 		MarshallingManager.Step_External(DeltaTime);
-		TArray<FPushPhysicsData*> PushedData = MarshallingManager.StepInternalTime_External(DeltaTime);
-		ensure(PushedData.Num() == 1 && PushedData[0] == PushData);	//internal and external dt matches so should be the exact data we just wrote to
+	}
 
-		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, PushData, this]()
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::ProcessSinglePushedData_Internal(FPushPhysicsData& PushData)
+	{
+		FRewindData* RewindData = GetRewindData();
+
+		FDirtySet* DirtyProxiesData = &PushData.DirtyProxiesDataBuffer;
+		FDirtyPropertiesManager* Manager = &PushData.DirtyPropertiesManager;
+		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
+		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
+
+		auto ProcessProxyPT = [bIsSingleThreaded,Manager,ShapeDirtyData,RewindData,this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
 		{
-			FRewindData* RewindData = GetRewindData();
-			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
+			const bool bIsNew = !Proxy->IsInitialized();
+			if(bIsNew)
 			{
-				const bool bIsNew = !Proxy->IsInitialized();
-				if(bIsNew)
+				//single threaded version already created particle, but didn't initialize it
+				if(!bIsSingleThreaded)
 				{
-					//single threaded version already created particle, but didn't initialize it
-					if(!bIsSingleThreaded)
-					{
-						const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
-						const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
-						Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
-					}
-
-					auto Handle = Proxy->GetHandle();
-					Handle->GTGeometryParticle() = Proxy->GetParticle();
+					const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
+					const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
+					Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
 				}
 
-				if(RewindData)
-				{
-					//may want to remove branch by templatizing lambda
-					if(RewindData->IsResim())
-					{
-						RewindData->PushGTDirtyData<true>(*Manager,DataIdx,Dirty);
-					}
-					else
-					{
-						RewindData->PushGTDirtyData<false>(*Manager,DataIdx,Dirty);
-					}
-				}
-
-				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData, *GetEvolution());
-
-				if(bIsNew)
-				{
-					auto Handle = Proxy->GetHandle();
-					AddParticleToProxy(Handle,Proxy);
-					GetEvolution()->CreateParticle(Handle);
-					Proxy->SetInitialized(true);
-				}
-
-				Dirty.Clear(*Manager, DataIdx, ShapeDirtyData);
-			};
+				auto Handle = Proxy->GetHandle();
+				Handle->GTGeometryParticle() = Proxy->GetParticle();
+			}
 
 			if(RewindData)
 			{
-				RewindData->PrepareFrame(DirtyProxiesData->NumDirtyProxies());
+				//may want to remove branch by templatizing lambda
+				if(RewindData->IsResim())
+				{
+					RewindData->PushGTDirtyData<true>(*Manager,DataIdx,Dirty);
+				} else
+				{
+					RewindData->PushGTDirtyData<false>(*Manager,DataIdx,Dirty);
+				}
 			}
 
-			//need to create new particle handles
-			DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
-			{
-				switch(Dirty.Proxy->GetType())
-				{
-				case EPhysicsProxyType::SingleRigidParticleType:
-				{
-					auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
-					ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateDynamicParticles(1,UniqueIdx)[0]; });
-					break;
-				}
-				case EPhysicsProxyType::SingleKinematicParticleType:
-				{
-					auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-					ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateKinematicParticles(1,UniqueIdx)[0]; });
-					break;
-				}
-				case EPhysicsProxyType::SingleGeometryParticleType:
-				{
-					auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
-					ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateStaticParticles(1,UniqueIdx)[0]; });
-					break;
-				}
-				case EPhysicsProxyType::GeometryCollectionType:
-				{
-					// Currently no push needed for geometry collections and they handle the particle creation internally
-					// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
-					Dirty.Proxy->ResetDirtyIdx();
-					break;
-				}
-				case EPhysicsProxyType::JointConstraintType:
-				{
-					auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-					const bool bIsNew = !JointProxy->IsInitialized();
-					if (bIsNew)
-					{
-						JointProxy->InitializeOnPhysicsThread(this);
-						JointProxy->SetInitialized();
-					}
-					JointProxy->PushStateOnPhysicsThread(this);
-					Dirty.Proxy->ResetDirtyIdx();
-					break;
-				}
-				default:
-				{
-					ensure(0 && TEXT("Unknown proxy type in physics solver."));
-					//Can't use, but we can still mark as "clean"
-					Dirty.Proxy->ResetDirtyIdx();
-				}
-				
-				}
-			});
+			Proxy->PushToPhysicsState(*Manager,DataIdx,Dirty,ShapeDirtyData,*GetEvolution());
 
-			MarshallingManager.FreeData_Internal(PushData);
+			if(bIsNew)
+			{
+				auto Handle = Proxy->GetHandle();
+				AddParticleToProxy(Handle,Proxy);
+				GetEvolution()->CreateParticle(Handle);
+				Proxy->SetInitialized(true);
+			}
+
+			Dirty.Clear(*Manager,DataIdx,ShapeDirtyData);
+		};
+
+		if(RewindData)
+		{
+			RewindData->PrepareFrame(DirtyProxiesData->NumDirtyProxies());
+		}
+
+		//need to create new particle handles
+		DirtyProxiesData->ForEachProxy([this,&ProcessProxyPT](int32 DataIdx,FDirtyProxy& Dirty)
+		{
+			switch(Dirty.Proxy->GetType())
+			{
+			case EPhysicsProxyType::SingleRigidParticleType:
+			{
+				auto Proxy = static_cast<FRigidParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateDynamicParticles(1,UniqueIdx)[0]; });
+				break;
+			}
+			case EPhysicsProxyType::SingleKinematicParticleType:
+			{
+				auto Proxy = static_cast<FKinematicGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateKinematicParticles(1,UniqueIdx)[0]; });
+				break;
+			}
+			case EPhysicsProxyType::SingleGeometryParticleType:
+			{
+				auto Proxy = static_cast<FGeometryParticlePhysicsProxy*>(Dirty.Proxy);
+				ProcessProxyPT(Proxy,DataIdx,Dirty,[this](const FUniqueIdx* UniqueIdx){ return Particles.CreateStaticParticles(1,UniqueIdx)[0]; });
+				break;
+			}
+			case EPhysicsProxyType::GeometryCollectionType:
+			{
+				// Currently no push needed for geometry collections and they handle the particle creation internally
+				// #TODO This skips the rewind data push so GC will not be rewindable until resolved.
+				Dirty.Proxy->ResetDirtyIdx();
+				break;
+			}
+			case EPhysicsProxyType::JointConstraintType:
+			{
+				auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+				const bool bIsNew = !JointProxy->IsInitialized();
+				if(bIsNew)
+				{
+					JointProxy->InitializeOnPhysicsThread(this);
+					JointProxy->SetInitialized();
+				}
+				JointProxy->PushStateOnPhysicsThread(this);
+				Dirty.Proxy->ResetDirtyIdx();
+				break;
+			}
+			default:
+			{
+				ensure(0 && TEXT("Unknown proxy type in physics solver."));
+				//Can't use, but we can still mark as "clean"
+				Dirty.Proxy->ResetDirtyIdx();
+			}
+
+			}
 		});
+
+		//MarshallingManager.FreeData_Internal(&PushData);
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray)
+	{
+		for(FPushPhysicsData* PushData : PushDataArray)
+		{
+			//update callbacks
+			{
+				for(FSimCallbackHandle* NewCallback : PushData->SimCallbacksToAdd)
+				{
+					if(ensure(NewCallback->PTHandle == nullptr)) //if not null we have double registration
+					{
+						FSimCallbackHandlePT* PTCallback = new FSimCallbackHandlePT(NewCallback);	//todo: use better memory management
+						PTCallback->Idx = SimCallbacks.Add(PTCallback);
+						NewCallback->PTHandle = PTCallback;
+					}
+				}
+
+				for(int32 Idx = 0; Idx < PushData->SimCallbacksToRemove.Num(); ++Idx)
+				{
+					FSimCallbackHandle* RemovedCallback = PushData->SimCallbacksToRemove[Idx];
+					if(ensure(RemovedCallback->PTHandle != nullptr)) //if not null we are unregistering something that was never registered (or double delete) 
+					{
+						//callback was removed right away so skip it entirely
+						if(Idx == 0)
+						{
+							SimCallbacks.RemoveAtSwap(RemovedCallback->PTHandle->Idx);
+							RemovedCallback->PTHandle->Idx = INDEX_NONE;
+						}
+						
+						SimCallbacksPendingDelete.Add(RemovedCallback);
+					}
+				}
+
+				//save any pending data for this particular interval
+				for(const FSimCallbackDataPair& Pair : PushData->SimCallbackDataPairs)
+				{
+					const FSimCallbackHandle* Handle = Pair.Callback;
+					check(Handle->PTHandle);	//must have been registered already
+					Handle->PTHandle->IntervalData.Add(Pair.Data);
+				}
+			}
+
+			ProcessSinglePushedData_Internal(*PushData);
+			MarshallingManager.FreeData_Internal(PushData);
+		}
 	}
 
 	template <typename Traits>
