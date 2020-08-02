@@ -49,6 +49,8 @@ struct FTrackRecorderSettings
 	bool bReduceKeys;
 	bool bSaveRecordedAssets;
 
+	float ReduceKeysTolerance;
+
 	TArray<FTakeRecorderTrackSettings> DefaultTracks;
 
 	static bool IsDefaultPropertyTrack(UObject* InObjectToRecord, const FString& InPropertyPath, const TArray<FTakeRecorderTrackSettings>& DefaultTracks)
