@@ -115,6 +115,9 @@ public:
 	// Prunes any nodes that aren't reachable via a pose link
 	void PruneIsolatedAnimationNodes(const TArray<UAnimGraphNode_Base*>& RootSet, TArray<UAnimGraphNode_Base*>& GraphNodes);
 
+	// Perform an expansion step for the specified graph
+	void ExpansionStep(UEdGraph* Graph, bool bAllowUbergraphExpansions);
+
 	// Get another subsystem of the specified type
 	template <typename TSubsystemClass>
 	TSubsystemClass* GetSubsystem() const

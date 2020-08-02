@@ -534,7 +534,10 @@ int32 UAnimBlueprintCompilerSubsystem_StateMachine::ExpandGraphAndProcessNodes(U
 	check(TargetRootNode);
 
 	// Run another expansion pass to catch the graph we just added (this is slightly wasteful 
-	ExpandSplitPins(ClonedGraph);
+	ExpansionStep(ClonedGraph, false);
+
+	// Validate graph now we have expanded/pruned
+	ValidateGraphIsWellFormed(ClonedGraph);
 
 	// Move the cloned nodes into the consolidated event graph
 	const bool bIsLoading = GetBlueprint()->bIsRegeneratingOnLoad || IsAsyncLoading();

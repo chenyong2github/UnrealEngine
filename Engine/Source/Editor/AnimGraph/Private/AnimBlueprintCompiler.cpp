@@ -477,10 +477,6 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 		return;
 	}
 
-	// Prune the graph up-front
-	const bool bIncludePotentialRootNodes = false;
-	PruneIsolatedNodes(ConsolidatedEventGraph, bIncludePotentialRootNodes);
-
 	// Build the raw node lists
 	TArray<UAnimGraphNode_Base*> RootAnimNodeList;
 	ConsolidatedEventGraph->GetNodesOfClass<UAnimGraphNode_Base>(RootAnimNodeList);
@@ -851,6 +847,11 @@ void FAnimBlueprintCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 			{
 				// Merge all the animation nodes, contents, etc... into the ubergraph
 				UEdGraph* ClonedGraph = FEdGraphUtilities::CloneGraph(InGraph, NULL, &MessageLog, true);
+
+				// Prune the graph up-front
+				const bool bIncludePotentialRootNodes = false;
+				PruneIsolatedNodes(ClonedGraph, bIncludePotentialRootNodes);
+
 				const bool bIsLoading = Blueprint->bIsRegeneratingOnLoad || IsAsyncLoading();
 				const bool bIsCompiling = Blueprint->bBeingCompiled;
 				ClonedGraph->MoveNodesToAnotherGraph(ConsolidatedEventGraph, bIsLoading, bIsCompiling);
