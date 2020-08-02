@@ -46,13 +46,13 @@ public:
 	/** @return The DemoRecording driver object */
 	FORCEINLINE class UDemoNetDriver* GetDriver()
 	{
-		return Cast<UDemoNetDriver>(Driver);
+		return (UDemoNetDriver*)Driver;
 	}
 
 	/** @return The DemoRecording driver object */
 	FORCEINLINE const class UDemoNetDriver* GetDriver() const
 	{
-		return Cast<UDemoNetDriver>(Driver);
+		return (UDemoNetDriver*)Driver;
 	}
 
 	UE_DEPRECATED(4.26, "Moved to FReplayHelper")
