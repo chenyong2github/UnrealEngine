@@ -17,3 +17,47 @@ static FAutoConsoleCommand PersistentStorageCategoryStatsCommand
 	}
 })
 );
+
+static FAutoConsoleCommand CreateDummyFileInPersistentStorageCommand(
+	TEXT("CreateDummyFileInPersistentStorage"),
+	TEXT("Create a dummy file with specified size in specified persistent storage folder"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+{
+	if (Args.Num() < 2)
+	{
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Not enough parameters to run console command CreateDummyFileInPersistentStorage"));
+		return;
+	}
+
+	// Args[0]: FilePath
+	// Args[1]: Size
+	const FString& DummyFilePath = Args[0];
+	if (!FPaths::IsUnderDirectory(DummyFilePath, TEXT("/download0")))
+	{
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s.  File path is not under /download0"));
+		return;
+	}
+
+	int32 FileSize;;
+	LexFromString(FileSize, *Args[1]);
+	int32 BufferSize = 16 * 1024;
+	TArray<uint8> DummyBuffer;
+	DummyBuffer.SetNum(BufferSize);
+
+	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DummyFilePath, 0));
+	if (!Ar)
+	{
+		return;
+	}
+
+	int32 RemainingBytesToWrite = FileSize;
+	while (RemainingBytesToWrite > 0)
+	{
+		int32 SizeToWrite = FMath::Min(RemainingBytesToWrite, BufferSize);
+		Ar->Serialize(const_cast<uint8*>(DummyBuffer.GetData()), SizeToWrite);
+		RemainingBytesToWrite -= SizeToWrite;
+	}
+
+	Ar->Close();
+}),
+ECVF_Default);
