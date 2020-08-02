@@ -5831,7 +5831,7 @@ EReimportResult::Type UReimportTextureFactory::Reimport( UObject* Obj )
 	UTexture2D* pTex2D = Cast<UTexture2D>(Obj);
 	// Check if this texture has been modified by the paint tool.
 	// If so, prompt the user to see if they'll continue with reimporting, returning if they decline.
-	if( pTex2D && pTex2D->bHasBeenPaintedInEditor && EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo,
+	if( pTex2D && pTex2D->bHasBeenPaintedInEditor && !IsAutomatedImport() && EAppReturnType::Yes != FMessageDialog::Open( EAppMsgType::YesNo,
 		FText::Format(NSLOCTEXT("UnrealEd", "Import_TextureHasBeenPaintedInEditor", "The texture '{0}' has been painted on by the Mesh Paint tool.\nReimporting it will override any changes.\nWould you like to continue?"),
 			FText::FromString(pTex2D->GetName()))) )
 	{
@@ -5914,6 +5914,11 @@ EReimportResult::Type UReimportTextureFactory::Reimport( UObject* Obj )
 int32 UReimportTextureFactory::GetPriority() const
 {
 	return ImportPriority;
+}
+
+bool UReimportTextureFactory::IsAutomatedImport() const
+{
+	return Super::IsAutomatedImport() || IsAutomatedReimport();
 }
 
 
@@ -6012,7 +6017,7 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 		ImportUI = NewObject<UFbxImportUI>(this, NAME_None, RF_Public);
 	}
 	//Prevent any UI for automation, unattended and commandlet
-	const bool IsUnattended = GIsAutomationTesting || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
+	const bool IsUnattended = IsAutomatedImport() || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
 	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !IsUnattended;
 
 	if (ImportData == nullptr)
@@ -6220,6 +6225,10 @@ int32 UReimportFbxStaticMeshFactory::GetPriority() const
 	return ImportPriority;
 }
 
+bool UReimportFbxStaticMeshFactory::IsAutomatedImport() const
+{
+	return Super::IsAutomatedImport() || IsAutomatedReimport();
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -6335,7 +6344,7 @@ EReimportResult::Type UReimportFbxSkeletalMeshFactory::Reimport( UObject* Obj, i
 
 	bool bSuccess = false;
 	//Prevent any UI for automation, unattended and commandlet
-	const bool IsUnattended = GIsAutomationTesting || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
+	const bool IsUnattended = IsAutomatedImport() || FApp::IsUnattended() || IsRunningCommandlet() || GIsRunningUnattendedScript;
 	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !IsUnattended;
 
 	if (ImportData == nullptr)
@@ -6642,6 +6651,11 @@ int32 UReimportFbxSkeletalMeshFactory::GetPriority() const
 	return ImportPriority;
 }
 
+bool UReimportFbxSkeletalMeshFactory::IsAutomatedImport() const
+{
+	return Super::IsAutomatedImport() || IsAutomatedReimport();
+}
+
 /*-----------------------------------------------------------------------------
 UReimportFbxAnimSequenceFactory
 -----------------------------------------------------------------------------*/ 
@@ -6770,7 +6784,7 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 	if (!Skeleton)
 	{
 		// if it does not exist, ask for one
-		Skeleton = ChooseSkeleton();
+		Skeleton = !IsAutomatedImport() ? ChooseSkeleton() : nullptr;
 		if (!Skeleton)
 		{
 			// If skeleton wasn't found or the user canceled out of the dialog, we cannot proceed, but this reimport factory 
@@ -6784,7 +6798,7 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 		AnimSequence->SetSkeleton(Skeleton);
 	}
 	bool bOutImportAll = false;
-	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption) )
+	if ( UEditorEngine::ReimportFbxAnimation(Skeleton, AnimSequence, ImportData, *Filename, bOutImportAll, bShowOption && !IsAutomatedImport()) )
 	{
 		if (bOutImportAll)
 		{
@@ -6822,6 +6836,11 @@ EReimportResult::Type UReimportFbxAnimSequenceFactory::Reimport( UObject* Obj )
 int32 UReimportFbxAnimSequenceFactory::GetPriority() const
 {
 	return ImportPriority;
+}
+
+bool UReimportFbxAnimSequenceFactory::IsAutomatedImport() const
+{
+	return Super::IsAutomatedImport() || IsAutomatedReimport();
 }
 
 
