@@ -2,6 +2,8 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
+#include "D3D12RHIBridge.h"
+#include "RHIValidation.h"
 
 static int64 GCommandListIDCounter = 0;
 static uint64 GenerateCommandListID()
@@ -265,4 +267,29 @@ void FD3D12CommandAllocator::Init(ID3D12Device* InDevice, const D3D12_COMMAND_LI
 	check(CommandAllocator.GetReference() == nullptr);
 	VERIFYD3D12RESULT(InDevice->CreateCommandAllocator(InType, IID_PPV_ARGS(CommandAllocator.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandAllocators);
+}
+
+
+namespace D3D12RHI
+{
+	void GetGfxCommandListAndQueue(FRHICommandList& RHICmdList, void*& OutGfxCmdList, void*& OutCommandQueue)
+	{
+		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
+		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)RHICmdContext;
+		check(BaseCmdContext.IsDefaultContext());
+		FD3D12CommandContext& CmdContext = (FD3D12CommandContext&)BaseCmdContext;
+		FD3D12CommandListHandle& NativeCmdList = CmdContext.CommandListHandle;
+		/*
+				FD3D12DynamicRHI* RHI = GetDynamicRHI<FD3D12DynamicRHI>();
+				FD3D12Device* Device = RHI->GetAdapter(0).GetDevice(0);
+				FD3D12CommandListManager& CommandListManager = Device->GetCommandListManager();
+				FD3D12CommandAllocatorManager& CommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
+				FD3D12CommandAllocator* CurrentCommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
+				FD3D12CommandListHandle hCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator);
+		*/
+		OutGfxCmdList = NativeCmdList.GraphicsCommandList();
+
+		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue();
+		OutCommandQueue = CommandQueue;
+	}
 }
