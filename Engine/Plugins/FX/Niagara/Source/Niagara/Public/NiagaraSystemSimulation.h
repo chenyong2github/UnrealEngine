@@ -249,7 +249,6 @@ public:
 	~FNiagaraSystemSimulation();
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
-	bool Tick(float DeltaSeconds);
 
 	bool IsValid()const { return WeakSystem.Get() != nullptr && bCanExecute && World != nullptr; }
 
