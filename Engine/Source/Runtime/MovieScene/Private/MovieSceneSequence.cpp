@@ -73,6 +73,8 @@ void UMovieSceneSequence::PostLoad()
 void UMovieSceneSequence::BeginDestroy()
 {
 	Super::BeginDestroy();
+
+	UMovieSceneCompiledDataManager::GetPrecompiledData()->Reset(this);
 }
 
 void UMovieSceneSequence::PreSave(const ITargetPlatform* TargetPlatform)

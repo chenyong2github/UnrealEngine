@@ -76,7 +76,8 @@ void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker,
 
 	for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
 	{
-		IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(Entity.EntityOwner);
+		UObject* EntityOwner = Entity.EntityOwner.Get();
+		IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
 		if (!Provider)
 		{
 			continue;
@@ -85,7 +86,7 @@ void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker,
 		Params.EntityID = Entity.EntityID;
 		if (EntityField)
 		{
-			Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(Entity.EntityOwner);
+			Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(EntityOwner);
 		}
 
 		FImportedEntity ImportedEntity;
@@ -93,7 +94,7 @@ void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker,
 
 		if (!ImportedEntity.IsEmpty())
 		{
-			if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(Entity.EntityOwner))
+			if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
 			{
 				Section->BuildDefaultComponents(Linker, Params, &ImportedEntity);
 			}
@@ -131,7 +132,8 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 	// We always add an entry even if no entity was imported by the provider to ensure that we do not repeatedly try and import the same entity every frame
 	FMovieSceneEntityID& RefEntityID = ImportedEntities.FindOrAdd(Entity);
 
-	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(Entity.EntityOwner);
+	UObject* EntityOwner = Entity.EntityOwner.Get();
+	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
 	if (!Provider)
 	{
 		return;
@@ -142,7 +144,7 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 	Params.EntityID = Entity.EntityID;
 	if (EntityField)
 	{
-		Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(Entity.EntityOwner);
+		Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(EntityOwner);
 	}
 
 	FImportedEntity ImportedEntity;
@@ -150,7 +152,7 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 
 	if (!ImportedEntity.IsEmpty())
 	{
-		if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(Entity.EntityOwner))
+		if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
 		{
 			Section->BuildDefaultComponents(Linker, Params, &ImportedEntity);
 		}

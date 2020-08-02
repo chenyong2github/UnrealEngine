@@ -309,7 +309,7 @@ public:
 	 */
 	UMovieSceneTrack* GetSourceTrack() const
 	{
-		return SourceTrack;
+		return SourceTrack.Get();
 	}
 
 	/**
@@ -384,7 +384,7 @@ private:
 
 	/** The movie scene track that created this evaluation track. */
 	UPROPERTY()
-	UMovieSceneTrack* SourceTrack;
+	TWeakObjectPtr<UMovieSceneTrack> SourceTrack;
 
 	/** Domain-specific evaluation templates (normally 1 per section) */
 	UPROPERTY()
