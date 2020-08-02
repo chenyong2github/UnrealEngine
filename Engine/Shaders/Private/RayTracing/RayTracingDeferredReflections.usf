@@ -138,7 +138,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 	}
 
 	float4 ResultColor    = (float4)0;
-	float  ResultDistance = DENOISER_MISS_HIT_DISTANCE;
+	// Unify miss condition with RayTracingReflections.usf
+	//float ResultDistance = DENOISER_MISS_HIT_DISTANCE;
+	//float ResultDistance = DENOISER_INVALID_HIT_DISTANCE;
+	float ResultDistance = 1.0e20;
 
 	if (DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 	{
