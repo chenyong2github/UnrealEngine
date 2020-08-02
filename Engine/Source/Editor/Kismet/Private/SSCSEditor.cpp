@@ -79,6 +79,9 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Dialogs/Dialogs.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
+#include "SCSEditorExtensionContext.h"
+#include "ISCSEditorUICustomization.h"
 
 #include "Logging/MessageLog.h"
 
@@ -1237,10 +1240,11 @@ FText FSCSEditorTreeNodeInstanceAddedComponent::GetDisplayName() const
 void FSCSEditorTreeNodeInstanceAddedComponent::RemoveMeAsChild()
 {
 	USceneComponent* ChildInstance = Cast<USceneComponent>(GetComponentTemplate());
-	check(ChildInstance != nullptr);
-
-	// Handle detachment at the instance level
-	ChildInstance->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	if (ensure(ChildInstance))
+	{
+		// Handle detachment at the instance level
+		ChildInstance->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	}
 }
 
 void FSCSEditorTreeNodeInstanceAddedComponent::OnCompleteRename(const FText& InNewName)
@@ -3911,21 +3915,35 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 
 	TSharedPtr<SHorizontalBox> ButtonBox;
 	TSharedPtr<SVerticalBox>   HeaderBox;
-	TSharedPtr<SWidget> SearchBar =
-		SAssignNew(FilterBox, SSearchBox)
-			.HintText(EditorMode == EComponentEditorMode::ActorInstance ? LOCTEXT("SearchComponentsHint", "Search Components") : LOCTEXT("SearchHint", "Search"))
-			.OnTextChanged(this, &SSCSEditor::OnFilterTextChanged);
+	TSharedPtr<SWidget> SearchBar = SAssignNew(FilterBox, SSearchBox)
+		.HintText(EditorMode == EComponentEditorMode::ActorInstance ? LOCTEXT("SearchComponentsHint", "Search Components") : LOCTEXT("SearchHint", "Search"))
+		.OnTextChanged(this, &SSCSEditor::OnFilterTextChanged)
+		.Visibility(this, &SSCSEditor::GetComponentsFilterBoxVisibility);
 
 	const bool  bInlineSearchBarWithButtons = (EditorMode == EComponentEditorMode::BlueprintSCS);
 
 	HideComponentClassCombo = InArgs._HideComponentClassCombo;
 	ComponentTypeFilter = InArgs._ComponentTypeFilter;
 
+	USCSEditorExtensionContext* ExtensionContext = NewObject<USCSEditorExtensionContext>();
+	ExtensionContext->SCSEditor = SharedThis(this);
+	ExtensionContext->AddToRoot();
+
 	Contents = SNew(SVerticalBox)
 	+ SVerticalBox::Slot()
 	.Padding(0.0f)
 	[
 		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.Padding(0)
+		.AutoHeight()
+		[
+			SAssignNew(ExtensionPanel, SExtensionPanel)
+			.ExtensionPanelID("SCSEditor")
+			.ExtensionContext(ExtensionContext)
+		]
+
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.VAlign(VAlign_Top)
@@ -4058,6 +4076,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 			.Padding(2.0f)
 			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ComponentsPanel")))
+			.Visibility(this, &SSCSEditor::GetComponentsTreeVisibility)
 			[
 				SCSTreeWidget.ToSharedRef()
 			]
@@ -4105,6 +4124,13 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
+SSCSEditor::~SSCSEditor()
+{
+	if (UObject* ExtensionContext = ExtensionPanel->GetExtensionContext())
+	{
+		ExtensionContext->RemoveFromRoot();
+	}
+}
 
 void SSCSEditor::OnLevelComponentRequestRename(const UActorComponent* InComponent)
 {
@@ -4209,6 +4235,25 @@ void SSCSEditor::GetSelectedItemsForContextMenu(TArray<FComponentEventConstructi
 		NewItem.Component = TreeNode->GetComponentTemplate();
 		OutSelectedItems.Add(NewItem);
 	}
+}
+
+TArray<UObject*> SSCSEditor::GetSelectedEditableObjects() const
+{
+	TArray<UObject*> SelectedObjects;
+	if (UBlueprint* BP = GetBlueprint())
+	{
+		TArray<FSCSEditorTreeNodePtrType> SelectedTreeItems = SCSTreeWidget->GetSelectedItems();
+		SelectedObjects.Reserve(SelectedTreeItems.Num());
+		for (const FSCSEditorTreeNodePtrType& TreeNode : SelectedTreeItems)
+		{
+			UObject* Obj = TreeNode->GetEditableObjectForBlueprint<UObject>(BP);
+			if (Obj)
+			{
+				SelectedObjects.Add(Obj);
+			}
+		}
+	}
+	return SelectedObjects;
 }
 
 void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
@@ -4611,7 +4656,7 @@ void SSCSEditor::OnGetChildrenForTree( FSCSEditorTreeNodePtrType InNodePtr, TArr
 		const TArray<FSCSEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
 		OutChildren.Reserve(Children.Num());
 
-		if (ComponentTypeFilter.IsSet() || !GetFilterText().IsEmpty())
+		if (GetComponentTypeFilterToApply() || !GetFilterText().IsEmpty())
 		{
 			for (FSCSEditorTreeNodePtrType Child : Children)
 			{
@@ -6589,8 +6634,10 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromChildActor(FSCSEditorTreeNo
 		return nullptr;
 	}
 
+	const EChildActorComponentTreeViewVisualizationMode DefaultVisOverride = UICustomization.IsValid() ? UICustomization->GetChildActorVisualizationMode() : EChildActorComponentTreeViewVisualizationMode::UseDefault;
+
 	// Skip any expansion logic if the option is disabled
-	if (!FChildActorComponentEditorUtils::IsChildActorTreeViewExpansionEnabled())
+	if (DefaultVisOverride == EChildActorComponentTreeViewVisualizationMode::UseDefault && !FChildActorComponentEditorUtils::IsChildActorTreeViewExpansionEnabled())
 	{
 		return nullptr;
 	}
@@ -6603,14 +6650,14 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromChildActor(FSCSEditorTreeNo
 		check(ChildActorComponent != nullptr);
 
 		// Check to see if we should expand the child actor node within the tree view
-		const bool bExpandChildActorInTreeView = FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(ChildActorComponent);
+		const bool bExpandChildActorInTreeView = FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(ChildActorComponent, DefaultVisOverride);
 		if (bExpandChildActorInTreeView)
 		{
 			// Do the expansion as a normal actor subtree
 			BuildSubTreeForActorNode(ChildActorNodePtr);
 
 			// Check to see if we should include the child actor node within the tree view
-			const bool bShowChildActorNodeInTreeView = FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(ChildActorComponent);
+			const bool bShowChildActorNodeInTreeView = FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(ChildActorComponent, DefaultVisOverride);
 			if (bShowChildActorNodeInTreeView)
 			{
 				// Add the child actor node into the tree view
@@ -6857,35 +6904,37 @@ void SSCSEditor::GetCollapsedNodes(const FSCSEditorTreeNodePtrType& InNodePtr, T
 
 EVisibility SSCSEditor::GetPromoteToBlueprintButtonVisibility() const
 {
-	EVisibility ButtonVisibility = EVisibility::Collapsed;
-	if (EditorMode == EComponentEditorMode::ActorInstance)
-	{
-		if (GetBlueprint() == nullptr)
-		{
-			ButtonVisibility = EVisibility::Visible;
-		}
-	}
-
-	return ButtonVisibility;
+	return (UICustomization.IsValid() && UICustomization->HideBlueprintButtons())
+		|| (EditorMode != EComponentEditorMode::ActorInstance) 
+		|| (GetBlueprint() != nullptr)
+		? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 EVisibility SSCSEditor::GetEditBlueprintButtonVisibility() const
 {
-	EVisibility ButtonVisibility = EVisibility::Collapsed;
-	if (EditorMode == EComponentEditorMode::ActorInstance)
-	{
-		if (GetBlueprint() != nullptr)
-		{
-			ButtonVisibility = EVisibility::Visible;
-		}
-	}
-
-	return ButtonVisibility;
+	return (UICustomization.IsValid() && UICustomization->HideBlueprintButtons())
+		|| (EditorMode != EComponentEditorMode::ActorInstance)
+		|| (GetBlueprint() == nullptr)
+		? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 EVisibility SSCSEditor::GetComponentClassComboButtonVisibility() const
 {
-	return HideComponentClassCombo.Get() ? EVisibility::Collapsed : EVisibility::Visible;
+	return (HideComponentClassCombo.Get() 
+		|| (UICustomization.IsValid() && UICustomization->HideAddComponentButton())) 
+		? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+EVisibility SSCSEditor::GetComponentsTreeVisibility() const
+{
+	return (UICustomization.IsValid() && UICustomization->HideComponentsTree())
+		? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+EVisibility SSCSEditor::GetComponentsFilterBoxVisibility() const
+{
+	return (UICustomization.IsValid() && UICustomization->HideComponentsFilterBox())
+		? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 FText SSCSEditor::OnGetApplyChangesToBlueprintTooltip() const
@@ -7237,7 +7286,7 @@ FText SSCSEditor::GetFilterText() const
 	return FilterBox->GetText();
 }
 
-void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
+void SSCSEditor::OnFilterTextChanged(const FText& /*InFilterText*/)
 {
 	struct OnFilterTextChanged_Inner
 	{
@@ -7298,7 +7347,7 @@ void SSCSEditor::OnFilterTextChanged(const FText& InFilterText)
 
 bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool bRecursive)
 {
-	const UClass* FilterType = ComponentTypeFilter.Get();
+	const UClass* FilterType = GetComponentTypeFilterToApply();
 
 	FString FilterText = FText::TrimPrecedingAndTrailing( GetFilterText() ).ToString();
 	TArray<FString> FilterTerms;
@@ -7306,6 +7355,23 @@ bool SSCSEditor::RefreshFilteredState(FSCSEditorTreeNodePtrType TreeNode, bool b
 
 	TreeNode->RefreshFilteredState(FilterType, FilterTerms, bRecursive);
 	return TreeNode->IsFlaggedForFiltration();
+}
+
+void SSCSEditor::SetUICustomization(TSharedPtr<ISCSEditorUICustomization> InUICustomization)
+{
+	UICustomization = InUICustomization;
+
+	UpdateTree(true /*bRegenerateTreeNodes*/);
+}
+
+TSubclassOf<UActorComponent> SSCSEditor::GetComponentTypeFilterToApply() const
+{
+	TSubclassOf<UActorComponent> ComponentType = UICustomization.IsValid() ? UICustomization->GetComponentTypeFilter() : nullptr;
+	if (!ComponentType)
+	{
+		ComponentType = ComponentTypeFilter.Get();
+	}
+	return ComponentType;
 }
 
 #undef LOCTEXT_NAMESPACE

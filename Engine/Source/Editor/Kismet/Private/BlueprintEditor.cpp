@@ -983,15 +983,17 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<FSCSEditorTreeNodePtrType
 			{
 				if (NodePtr->IsActorNode())
 				{
-					AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj());
-					InspectorObjects.Add(DefaultActor);
-					
-					FString Title; 
-					DefaultActor->GetName(Title);
-					InspectorTitle = FText::FromString(Title);
-					bShowComponents = false;
+					if (AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj()))
+					{
+						InspectorObjects.Add(DefaultActor);
 
-					TryInvokingDetailsTab();
+						FString Title;
+						DefaultActor->GetName(Title);
+						InspectorTitle = FText::FromString(Title);
+						bShowComponents = false;
+
+						TryInvokingDetailsTab();
+					}
 				}
 				else
 				{
@@ -2580,17 +2582,7 @@ void FBlueprintEditor::CreateSCSEditors()
 		.PreviewActor(this, &FBlueprintEditor::GetPreviewActor)
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
-		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
-		.HideComponentClassCombo_Lambda([]()
-		{
-			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
-			return !!Settings->bDisallowAddingNewComponents;
-		})
-		.ComponentTypeFilter_Lambda([]()
-		{
-			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
-			return Settings->DefaultComponentsTreeViewTypeFilter;
-		});
+		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked);
 
 	SCSViewport = SAssignNew(SCSViewport, SSCSEditorViewport)
 		.BlueprintEditor(SharedThis(this));
@@ -7087,6 +7079,27 @@ UEdGraphPin* FBlueprintEditor::GetCurrentlySelectedPin() const
 	}
 
 	return NULL;
+}
+
+void FBlueprintEditor::SetDetailsCustomization(TSharedPtr<FDetailsViewObjectFilter> DetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> DetailsRootCustomization)
+{
+	if (Inspector.IsValid())
+	{
+		if (TSharedPtr<IDetailsView> DetailsView = Inspector->GetPropertyView())
+		{
+			DetailsView->SetObjectFilter(DetailsObjectFilter);
+			DetailsView->SetRootObjectCustomizationInstance(DetailsRootCustomization);
+			DetailsView->ForceRefresh();
+		}
+	}
+}
+
+void FBlueprintEditor::SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> SCSEditorUICustomization)
+{
+	if (SCSEditor.IsValid())
+	{
+		SCSEditor->SetUICustomization(SCSEditorUICustomization);
+	}
 }
 
 void FBlueprintEditor::RegisterSCSEditorCustomization(const FName& InComponentName, TSharedPtr<ISCSEditorCustomization> InCustomization)
