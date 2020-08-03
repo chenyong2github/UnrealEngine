@@ -9,7 +9,7 @@ class USubsystem;
 class FKismetCompilerContext;
 
 UCLASS()
-class UK2Node_GetSubsystem : public UK2Node
+class BLUEPRINTGRAPH_API UK2Node_GetSubsystem : public UK2Node
 {
 	GENERATED_BODY()
 public:
