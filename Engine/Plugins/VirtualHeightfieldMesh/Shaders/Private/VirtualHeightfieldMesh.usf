@@ -173,21 +173,18 @@ void InitBuffersCS()
 
 	RWQueueBuffer[0] = Pack(InitQuadItem(0, (uint)PageTableSize.z));
 
-	// Setup indirect args buffer. 
-	// Fill the final counters in BuildIndirectArgsForLodAndCullCS.
+	// RenderLodMap indirect args
 	RWIndirectArgsBuffer[0] = 6;
 	RWIndirectArgsBuffer[1] = 0; // Increment this counter during CollectQuadsCS.
 	RWIndirectArgsBuffer[2] = 0;
 	RWIndirectArgsBuffer[3] = 0;
 	RWIndirectArgsBuffer[4] = 0;
-	RWIndirectArgsBuffer[5] = 0;
+
+	// ResolveNeighborLods and CullInstances indirect args
+	RWIndirectArgsBuffer[5] = 0; // Increment this counter during CollectQuadsCS.
 	RWIndirectArgsBuffer[6] = 1;
 	RWIndirectArgsBuffer[7] = 1;
 	RWIndirectArgsBuffer[8] = 0;
-	RWIndirectArgsBuffer[9] = 0;
-	RWIndirectArgsBuffer[10] = 1;
-	RWIndirectArgsBuffer[11] = 1;
-	RWIndirectArgsBuffer[12] = 0;
 
 	// Clear virtual texture feedback counter.
 	RWFeedbackBuffer[0] = 0;
@@ -326,6 +323,7 @@ void CollectQuadsCS(
 
 				uint Write;
 				InterlockedAdd(RWIndirectArgsBuffer[1], 1, Write);
+				InterlockedMax(RWIndirectArgsBuffer[5], ((Write + 1) + 63) / 64);
 
 				RWQuadBuffer[Write] = Pack(InitQuadRenderItem(Address, Level, PhysicalAddress, FractionalLod, bCull || bOcclude));
 				
@@ -340,21 +338,6 @@ void CollectQuadsCS(
 			bExit = true;
 		}
 	}
-}
-
-/**
- * Compute shader to set counters in indirect args buffer used by subsequent LOD and culling steps.
- */
-
-[numthreads(1, 1, 1)]
-void BuildIndirectArgsForLodAndCullCS()
-{
-	// RenderLodMap
-	uint QuadCount = RWIndirectArgsBuffer[1];
-	// ResolveNeighborLods
-	RWIndirectArgsBuffer[5] = (QuadCount * 4 + 63) / 64;
-	// CullInstances
-	RWIndirectArgsBuffer[9] = (QuadCount + 63) / 64;
 }
 
 /**
@@ -395,14 +378,14 @@ void RenderLodMapPS(
 }
 
 /**
- *
+ * Read the Lod info for the neighbors of each quad and resolve Lods at borders.
  */
 
-[numthreads(64, 1, 1)]
-void ResolveNeighborLodsCS( uint3 DispatchThreadId : SV_DispatchThreadID )
+[numthreads(64, 4, 1)]
+void ResolveNeighborLodsCS( uint ThreadId : SV_GroupIndex )
 {
-	uint QuadIndex = DispatchThreadId.x >> 2;
-	uint NeighborIndex = DispatchThreadId.x & 3;
+	uint QuadIndex = ThreadId.x >> 2;
+	uint NeighborIndex = ThreadId & 3;
 
 	if (QuadIndex >= IndirectArgsBufferSRV[1])
 		return;
@@ -445,7 +428,7 @@ void ResolveNeighborLodsCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 	uint LodShift = (uint)floor(max(NeighborLodFloor - LocalLodFloor, 0));
 	uint PhysicalAddress = PageTableTexture.Load(int3(AddressXY >> LodShift, Level + LodShift));
 
-	RWQuadNeighborBuffer[DispatchThreadId.x] = Pack(InitQuadNeighborItem(PhysicalAddress, NeighborLod));
+	RWQuadNeighborBuffer[ThreadId] = Pack(InitQuadNeighborItem(PhysicalAddress, NeighborLod));
 }
 
 /**
