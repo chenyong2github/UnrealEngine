@@ -3277,6 +3277,12 @@ void FLevelEditorViewportClient::GetSelectedActorsAndComponentsForMove(TArray<AA
 		}
 	}
 
+	// Skip gathering selected actors if we had a valid component selection
+	if (OutComponentsToMove.Num() || OutActorsToMove.Num())
+	{
+		return;
+	}
+	
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 	{
 		AActor* Actor = CastChecked<AActor>(*It);
