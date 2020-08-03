@@ -623,12 +623,21 @@ namespace Gauntlet
 			bool TestIsRunning = TestInfo.TestNode.GetTestStatus() == TestStatus.InProgress;
 
 			TimeSpan RunningTime = DateTime.Now - TestInfo.PostStartTime;
-			
+
 			if (TestIsRunning && RunningTime.TotalSeconds > TestInfo.TestNode.MaxDuration && !Options.NoTimeout)
 			{
-				TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
-				TestInfo.FinalResult = TestResult.TimedOut;
-				Log.Info("{0}", TestInfo.CancellationReason);
+				if (TestInfo.TestNode.MaxDurationReachedResult == EMaxDurationReachedResult.Failure)
+				{
+					TestInfo.CancellationReason = string.Format("Terminating Test {0} due to maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration);
+					TestInfo.FinalResult = TestResult.TimedOut;
+					Log.Info("{0}", TestInfo.CancellationReason);
+				}
+				else if (TestInfo.TestNode.MaxDurationReachedResult == EMaxDurationReachedResult.Success)
+				{
+					TestInfo.FinalResult = TestResult.Passed;
+					TestIsRunning = false;
+					Log.Info(string.Format("Test {0} successfully reached maximum duration of {1} seconds. ", TestInfo.TestNode, TestInfo.TestNode.MaxDuration));
+				}
 			}
 
 			if (IsCancelled)
