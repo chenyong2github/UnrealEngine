@@ -116,7 +116,11 @@ bool PlaneTestAABB(float4 InPlanes[5], float3 InCenter, float3 InExtent)
 	[unroll]
 	for (uint PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 	{
-		float3 PlaneSigns = InPlanes[PlaneIndex].xyz >= 0.f ? 1.f : -1.f;
+		float3 PlaneSigns;
+		PlaneSigns.x = InPlanes[PlaneIndex].x >= 0.f ? 1.f : -1.f;
+		PlaneSigns.y = InPlanes[PlaneIndex].y >= 0.f ? 1.f : -1.f;
+		PlaneSigns.z = InPlanes[PlaneIndex].z >= 0.f ? 1.f : -1.f;
+
 		bool bInsidePlane = dot(InPlanes[PlaneIndex], float4(InCenter + InExtent * PlaneSigns, 1.0f)) > 0.f;
 		bPlaneTest = bPlaneTest && bInsidePlane;
 	}
@@ -402,7 +406,7 @@ void ResolveNeighborLodsCS(
 	// Get the PhysicalAddress for the local location but sampling at the neighbor Lod.
 	// Note that this will be the same as the local PhysicalAddress if the Lods are the same.
 	uint LocalLod = GetVirtualLevelFromPhysicalAddress(PhysicalAddress);
-	uint LodShift = max(NeighborLod - LocalLod, 0);
+	uint LodShift = max(NeighborLod - LocalLod, 0u);
 	uint NeighborLodPhysicalAddress = PageTableTexture.Load(int3(Pos >> LodShift, Level + LodShift));
 
 	// We will need to blend if we are transitioning to an on-screen lower detail Lod.
