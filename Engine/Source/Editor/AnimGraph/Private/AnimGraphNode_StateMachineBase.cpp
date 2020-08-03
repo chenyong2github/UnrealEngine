@@ -368,16 +368,6 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(FAnimBlueprintC
 		{
 			TransitionNode->ValidateNodeDuringCompilation(CompilerSubsystem->GetMessageLog());
 
-			if(TransitionNode->BoundGraph != nullptr)
-			{
-				CompilerSubsystem->ValidateGraphIsWellFormed(TransitionNode->BoundGraph);
-			}
-
-			if(TransitionNode->CustomTransitionGraph != nullptr)
-			{
-				CompilerSubsystem->ValidateGraphIsWellFormed(TransitionNode->CustomTransitionGraph);
-			}
-
 			const int32 TransitionIndex = Oven.FindOrAddTransition(TransitionNode);
 			FAnimationTransitionBetweenStates& BakedTransition = Oven.GetMachine().Transitions[TransitionIndex];
 
