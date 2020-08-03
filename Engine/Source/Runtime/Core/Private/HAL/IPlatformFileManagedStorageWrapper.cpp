@@ -47,6 +47,7 @@ static FAutoConsoleCommand CreateDummyFileInPersistentStorageCommand(
 	TUniquePtr<FArchive> Ar = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DummyFilePath, 0));
 	if (!Ar)
 	{
+		UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write dummy file %s."));
 		return;
 	}
 
