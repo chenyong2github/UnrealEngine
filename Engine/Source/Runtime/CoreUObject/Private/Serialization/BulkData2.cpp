@@ -1539,11 +1539,6 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	FIoReadOptions Options;
 	Options.SetTargetVa(*DstBuffer);
 
-	auto OnRequestLoaded = [Callback](TIoStatusOr<FIoBuffer> Result)
-	{
-		Callback(Result);
-	};
-
 	GetIoDispatcher()->ReadWithCallback(CreateChunkId(), Options, IoDispatcherPriority_Low, MoveTemp(Callback));
 }
 
