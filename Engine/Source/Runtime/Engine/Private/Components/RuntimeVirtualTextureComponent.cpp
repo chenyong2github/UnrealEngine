@@ -90,6 +90,7 @@ FTransform URuntimeVirtualTextureComponent::GetTexelSnapTransform() const
 	if (bSnapBoundsToLandscape && VirtualTexture != nullptr)
 	{
 		Offset = GetRelativeScale3D() * -0.5f / VirtualTexture->GetSize();
+		Offset.Z = 0.f;
 	}
 	return FTransform(Offset);
 }
