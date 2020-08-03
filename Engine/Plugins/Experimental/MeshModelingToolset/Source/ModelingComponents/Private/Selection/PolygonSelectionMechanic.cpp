@@ -284,6 +284,11 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	FVector3d LocalPosition, LocalNormal;
 	bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
 
+	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+	{
+		TopoSelector.ExpandSelectionByEdgeLoops(HilightSelection);
+	}
+
 	// Currently we draw highlighted edges/vertices differently from highlighted faces. Edges/vertices
 	// get drawn in the Render() call, so it is sufficient to just update HighlightSelection above.
 	// Faces, meanwhile, get placed into a Component that is rendered through the normal rendering system.
@@ -352,14 +357,47 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 	{
 		LocalHitPositionOut = LocalPosition;
 		LocalHitNormalOut = LocalNormal;
+
+		bool bSelectedEdgeLoops = false;
+		if (Selection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+		{
+			bSelectedEdgeLoops = true;
+			TopoSelector.ExpandSelectionByEdgeLoops(Selection);
+		}
 		if (GetAddToSelectionModifierStateFunc())
 		{
-			PersistentSelection.Toggle(Selection);
+			if (bSelectedEdgeLoops)
+			{
+				// We don't want to toggle if we're adding loops to the selection
+				// unless the entire loop was selected to begin with.
+				bool bLoopsAlreadySelected = true;
+				for (int32 Eid : Selection.SelectedEdgeIDs)
+				{
+					if (!PersistentSelection.SelectedEdgeIDs.Contains(Eid))
+					{
+						bLoopsAlreadySelected = false;
+						break;
+					}
+				}
+				if (bLoopsAlreadySelected)
+				{
+					PersistentSelection.Remove(Selection);
+				}
+				else
+				{
+					PersistentSelection.Append(Selection);
+				}
+			}
+			else
+			{
+				PersistentSelection.Toggle(Selection);
+			}
 		}
 		else
 		{
 			PersistentSelection = Selection;
 		}
+
 		bSelectionModified = true;
 	}
 	else

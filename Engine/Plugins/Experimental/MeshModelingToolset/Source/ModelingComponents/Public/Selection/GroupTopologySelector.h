@@ -99,6 +99,17 @@ public:
 		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut = nullptr);
 
 	/**
+	 * Using the edges in the given selection as starting points, add any "edge loops" containing the edges. An 
+	 * edge loop is a sequence of edges that passes through valence-4 corners through the opposite edge, and may
+	 * not actually form a complete loop if they hit a non-valence-4 corner.
+	 *
+	 * @param Selection Selection to expand.
+	 * @param bool true if selection was modified (i.e., were the already selected edges part of any edge loops whose
+	 *  member edges were not yet all selected).
+	 */
+	bool ExpandSelectionByEdgeLoops(FGroupTopologySelection& Selection);
+
+	/**
 	 * Render the given selection with the default settings of the FToolDataVisualizer.
 	 * Selected edges are drawn as lines, and selected corners are drawn as small view-facing circles.
 	 * (Currently seleced faces are not draw)

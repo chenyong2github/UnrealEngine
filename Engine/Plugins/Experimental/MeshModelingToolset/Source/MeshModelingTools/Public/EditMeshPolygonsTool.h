@@ -50,8 +50,11 @@ enum class ELocalFrameMode
 };
 
 
+/** 
+ * These are properties that do not get enabled/disabled based on the action 
+ */
 UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditTransformProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditCommonProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -59,7 +62,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowWireframe = false;
 
-UPROPERTY(EditAnywhere, Category = Gizmo)
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSelectEdgeLoops = false;
+
+	UPROPERTY(EditAnywhere, Category = Gizmo)
 	ELocalFrameMode LocalFrameMode = ELocalFrameMode::FromGeometry;
 
 	UPROPERTY(EditAnywhere, Category = Gizmo)
@@ -67,7 +73,6 @@ UPROPERTY(EditAnywhere, Category = Gizmo)
 
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	bool bSnapToWorldGrid = false;
-
 };
 
 
@@ -412,7 +417,7 @@ protected:
 	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	UPROPERTY()
-	UPolyEditTransformProperties* TransformProps;
+	UPolyEditCommonProperties* CommonProps;
 
 	UPROPERTY()
 	UEditMeshPolygonsToolActions* EditActions;
