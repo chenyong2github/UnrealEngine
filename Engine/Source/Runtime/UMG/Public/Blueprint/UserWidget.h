@@ -1313,7 +1313,7 @@ protected:
 	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
 	void Invalidate();
 
-	void Invalidate(EInvalidateWidget InvalidateReason);
+	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 	
 	/**
 	 * Listens for a particular Player Input Action by name.  This requires that those actions are being executed, and
@@ -1387,6 +1387,8 @@ protected:
 
 private:
 	static void OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentActionChangeType ChangeType);
+
+	void InvalidateFullScreenWidget(EInvalidateWidgetReason InvalidateReason);
 
 	FAnchors ViewportAnchors;
 	FMargin ViewportOffsets;
