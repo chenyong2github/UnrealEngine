@@ -21,6 +21,7 @@ UPhysicalMaterial::UPhysicalMaterial(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 	Friction = 0.7f;
+	StaticFriction = 0.f;
 	Restitution = 0.3f;
 	RaiseMassToPower = 0.75f;
 	Density = 1.0f;
