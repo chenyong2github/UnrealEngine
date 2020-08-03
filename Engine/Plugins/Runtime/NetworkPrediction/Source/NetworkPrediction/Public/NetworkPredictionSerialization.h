@@ -378,12 +378,12 @@ public:
 		ClientRecvState.ServerFrame = ServerFrame;
 		UE_NP_TRACE_NET_RECV(ServerFrame, ServerFrame * TickState->FixedStepMS);
 
-		npEnsureSlow(ClientRecvState.InstanceIdx != 0);
+		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		TCommonReplicator_AP<ModelDef>::NetRecv(P, InstanceData, ClientRecvState); // 3. Common
 
-		InstanceData.CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true, ServerFrame, 0); // 4. NetSimCues
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, true, ServerFrame, 0); // 4. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -414,7 +414,7 @@ public:
 
 		TCommonReplicator_AP<ModelDef>::NetSend(P, *Instance, Frames->Buffer[PendingFrame]); // 3. Common
 
-		Instance->CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true, INDEX_NONE, 0); // 4. NetSimCues
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true); // 4. NetSimCues
 	}
 };
 
@@ -534,11 +534,11 @@ public:
 		
 		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore); // 2, Common
 
-		npEnsureSlow(ClientRecvState.InstanceIdx != 0);
+		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		InstanceData.CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames, ClientRecvState.ServerFrame, 0); // 3. NetSimCues
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, ClientRecvState.ServerFrame, 0); // 3. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -557,7 +557,7 @@ public:
 		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 2. Common
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		Instance->CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames, INDEX_NONE, 0); // 3. NetSimCues
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 3. NetSimCues
 	}
 };
 
@@ -593,7 +593,7 @@ public:
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		InstanceData.CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames, INDEX_NONE, ClientRecvState.SimTimeMS); // 3. NetSimCues
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, INDEX_NONE, ClientRecvState.SimTimeMS); // 3. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -632,7 +632,7 @@ private:
 		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 2. Common
 
 		const bool bSerializeCueFrames = false; // Independent tick cannot use Frame numbers for SP serialization (use time instead)
-		Instance->CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames, INDEX_NONE, 0); // 3. NetSimCues
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 3. NetSimCues
 	}
 };
 
