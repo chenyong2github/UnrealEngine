@@ -86,6 +86,13 @@ public:
 	 */
 	void AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data);
 
+	/**
+	 * Set per frame limit spent recording checkpoint data
+	 *
+	 * @param InCheckpointSaveMaxMSPerFrame Time in milliseconds
+	 */
+	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
+
 private:
 	void StopExistingReplays();
 
