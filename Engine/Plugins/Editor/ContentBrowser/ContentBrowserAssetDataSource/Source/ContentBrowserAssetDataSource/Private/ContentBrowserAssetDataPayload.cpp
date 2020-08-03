@@ -11,7 +11,7 @@ const FString& FContentBrowserAssetFolderItemDataPayload::GetFilename() const
 {
 	if (!bHasCachedFilename)
 	{
-		FPackageName::TryConvertLongPackageNameToFilename(InternalPath.ToString(), CachedFilename);
+		FPackageName::TryConvertLongPackageNameToFilename(InternalPath.ToString() / FString(), CachedFilename);
 		bHasCachedFilename = true;
 	}
 	return CachedFilename;
