@@ -705,17 +705,17 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -manifests");
 	}
 
+	OptionalParams += TEXT(" -targetplatform=");
+	OptionalParams += PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
+
 	// Append any extra UAT flags specified for this platform flavor
 	if (!PlatformInfo->UATCommandLine.IsEmpty())
 	{
 		OptionalParams += TEXT(" ");
 		OptionalParams += PlatformInfo->UATCommandLine;
 	}
-	else
-	{
-		OptionalParams += TEXT(" -targetplatform=");
-		OptionalParams += *PlatformInfo->Name.ToString();
-	}
+
+
 
 	// Get the target to build
 	const FTargetInfo* Target = PackagingSettings->GetBuildTargetInfo();
@@ -819,7 +819,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += FString::Printf(TEXT(" -target=%s -clientconfig=%s"), *Target->Name, LexToString(ConfigurationInfo.Configuration));
 	}
 
-	FString TurnkeyCommandline = FString::Printf(TEXT("Turnkey -command=VerifySdk -platform=%s -UpdateIfNeeded -EditorIO"), *PlatformInfo->IniPlatformName.ToString());
+	FString TurnkeyCommandline = FString::Printf(TEXT("Turnkey -command=VerifySdk -platform=%s -UpdateIfNeeded -EditorIO"), *PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString);
 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
 	FString CommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" %s BuildCookRun %s%s -nop4 -project=\"%s\" -cook -stage -archive -archivedirectory=\"%s\" -package -ue4exe=\"%s\" %s -utf8output"),

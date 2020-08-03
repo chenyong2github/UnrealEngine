@@ -2786,15 +2786,19 @@ void FInternalPlayWorldCommandCallbacks::HandleLaunchOnDeviceActionExecute(FStri
 		FString TargetPlatformName = DeviceId.Left(Index);
 		const PlatformInfo::FTargetPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(FName(*TargetPlatformName));
 		FString IniPlatformName = PlatformInfo->IniPlatformName.ToString();
+		FString UBTPlatformName = PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
 
-		FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s"), *IniPlatformName, *DeviceName);
+		FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s"), *UBTPlatformName, *DeviceName);
 		FText TaskName = LOCTEXT("VerifyingSDK", "Verifying SDK and Device");
 
 		IUATHelperModule::Get().CreateUatTask(CommandLine, FText::FromString(IniPlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
 			[DeviceId, DeviceName](FString, double)
 		{
-			PrepareLaunchOn(DeviceId, DeviceName);
-			LaunchOnDevice(DeviceId, DeviceName, false);
+			AsyncTask(ENamedThreads::GameThread, [DeviceId, DeviceName]()
+			{
+				PrepareLaunchOn(DeviceId, DeviceName);
+				LaunchOnDevice(DeviceId, DeviceName, false);
+			});
 		});
 	}
 	else
