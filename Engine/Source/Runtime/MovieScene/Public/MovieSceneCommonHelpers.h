@@ -129,6 +129,14 @@ public:
 	* @return Returns the weight that needs to be applied to the global difference to correctly key this section.
 	*/
 	static float CalculateWeightForBlending(UMovieSceneSection* SectionToKey, FFrameNumber Time);
+
+	/*
+	 * Return a name unique to the spawnable names in the given movie scene
+	 * @param InMovieScene The movie scene to look for existing spawnables.
+	 * @param InName The requested name to make unique.
+	 * @return The unique name
+	 */
+	static FString MakeUniqueSpawnableName(UMovieScene* InMovieScene, const FString& InName);
 };
 
 /**
