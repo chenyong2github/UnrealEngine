@@ -1881,7 +1881,14 @@ void ClothingSimulation::DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerCo
 
 	for (int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
-		if (!Assets[Index]) { continue; }
+		const UClothingAssetCommon* const Asset = Assets[Index];
+		if (!Asset) { continue; }
+
+		const FClothLODDataCommon& AssetLodData = Asset->LodData[0];
+		const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
+		const FPointWeightMap& MaxDistances = PhysMesh.GetWeightMap(EChaosWeightMapTarget::MaxDistance);
+		if (MaxDistances.Num() == 0) { continue; }
+		const uint32 Offset = IndexToRangeMap[Index][0];
 
 		if (const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[Index])
 		{
@@ -1898,9 +1905,14 @@ void ClothingSimulation::DebugDrawPhysMeshShaded(USkeletalMeshComponent* OwnerCo
 				const FVector& Normal = FVector::CrossProduct(Pos2 - Pos0, Pos1 - Pos0).GetSafeNormal();
 				const FVector Tangent = ((Pos1 + Pos2) * 0.5f - Pos0).GetSafeNormal();
 
-				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos0, Tangent, Normal, FVector2D(0.f, 0.f), FColor::White));
-				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos1, Tangent, Normal, FVector2D(0.f, 1.f), FColor::White));
-				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos2, Tangent, Normal, FVector2D(1.f, 1.f), FColor::White));
+				static const float KinematicDistanceThreshold = 0.1f;  // Must be the same value set in UI, not ideal really
+				const bool bIsKinematic0 = MaxDistances[Element.X - Offset] < KinematicDistanceThreshold;
+				const bool bIsKinematic1 = MaxDistances[Element.Y - Offset] < KinematicDistanceThreshold;
+				const bool bIsKinematic2 = MaxDistances[Element.Z - Offset] < KinematicDistanceThreshold;
+
+				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos0, Tangent, Normal, FVector2D(0.f, 0.f), bIsKinematic0 ? FColor::Purple : FColor::White));
+				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos1, Tangent, Normal, FVector2D(0.f, 1.f), bIsKinematic1 ? FColor::Purple : FColor::White));
+				MeshBuilder.AddVertex(FDynamicMeshVertex(Pos2, Tangent, Normal, FVector2D(1.f, 1.f), bIsKinematic2 ? FColor::Purple : FColor::White));
 				MeshBuilder.AddTriangle(VertexIndex, VertexIndex + 1, VertexIndex + 2);
 			}
 		}
