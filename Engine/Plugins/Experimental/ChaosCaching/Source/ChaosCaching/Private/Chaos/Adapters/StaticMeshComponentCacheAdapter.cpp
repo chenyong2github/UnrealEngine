@@ -37,7 +37,7 @@ namespace Chaos
 	template<typename ProxyType>
 	void RecordToCacheInternal(ProxyType* InProxy, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime)
 	{
-		ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
+		typename ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
 
 		if(Handle)
 		{
@@ -90,7 +90,7 @@ namespace Chaos
 			return;
 		}
 
-		ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
+		typename ProxyType::FParticleHandle* Handle = InProxy->GetHandle();
 		
 		if(Handle && Handle->ObjectState() == EObjectStateType::Kinematic)
 		{

@@ -174,10 +174,10 @@ struct FPendingFrameWrite
 	}
 
 	template<typename T>
-	void PushEvent(FName InName, float Time, const T& InEventStruct)
+	void PushEvent(FName InName, float InTime, const T& InEventStruct)
 	{
 		FCacheEventTrack& Track = FindOrAddEventTrack<T>(InName);
-		Track.PushEvent<T>(Time, InEventStruct);
+		Track.PushEvent<T>(InTime, InEventStruct);
 	}
 };
 
@@ -334,7 +334,7 @@ public:
 
 		FCacheEventTrack* Existing = EventTracks.Find(InName);
 
-		return Existing ? *Existing : EventTracks.Add({InName, FCacheEventTrack(InName, T::StaticStruct())});
+		return Existing ? *Existing : EventTracks.Add(InName, FCacheEventTrack(InName, T::StaticStruct()));
 	}
 
 private:

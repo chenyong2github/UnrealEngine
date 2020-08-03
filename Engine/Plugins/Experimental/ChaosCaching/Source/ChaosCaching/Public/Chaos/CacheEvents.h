@@ -120,7 +120,7 @@ struct FCacheEventTrack
 
 			for(int32 EventIndex = BeginIndex; EventIndex < EndIndex; ++EventIndex)
 			{
-				OutEvents.Add(reinterpret_cast<T*>(EventData[Index]));
+				OutEvents.Add(reinterpret_cast<T*>(EventData[EventIndex]));
 			}
 		}
 
