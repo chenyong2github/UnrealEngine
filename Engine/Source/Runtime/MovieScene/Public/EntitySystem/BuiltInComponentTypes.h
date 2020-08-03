@@ -248,6 +248,12 @@ public:
 
 	struct
 	{
+		TComponentTypeID<FInterrogationChannel> InputChannel;
+		TComponentTypeID<FInterrogationChannel> OutputChannel;
+	} Interrogation;
+
+	struct
+	{
 		FComponentTypeID CreatesEntities;
 	} SymbolicTags;
 

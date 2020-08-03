@@ -113,6 +113,11 @@ public:
 		return SystemContext;
 	}
 
+	/**
+	 * Completely reset this linker back to its default state, abandoning all systems and destroying all entities
+	 */
+	void Reset();
+
 public:
 
 	// Internal API

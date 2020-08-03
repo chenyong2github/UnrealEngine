@@ -308,6 +308,7 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 		FEntityBuilder()
 		.AddConditional(Components->Easing,  FEasingComponentData{ this }, bHasEasing)
 		.AddConditional(Components->HierarchicalBias, Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
+		.AddConditional(Components->Interrogation.InputChannel, Params.Sequence.InterrogationChannel, Params.Sequence.InterrogationChannel.IsValid())
 		.AddTagConditional(Components->Tags.RestoreState, bShouldRestoreState)
 		.AddTagConditional(BlendTag, BlendTag != FComponentTypeID::Invalid())
 	);

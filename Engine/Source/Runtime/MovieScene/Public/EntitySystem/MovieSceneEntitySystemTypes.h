@@ -65,6 +65,67 @@ enum class EComplexFilterMode : uint8
 };
 ENUM_CLASS_FLAGS(EComplexFilterMode);
 
+
+struct FInterrogationChannel
+{
+	static constexpr uint32 INVALID_CHANNEL = ~0u;
+
+	FInterrogationChannel() : Value(INVALID_CHANNEL) {}
+
+	FInterrogationChannel operator++()
+	{
+		check( Value != (INVALID_CHANNEL-1) );
+		return FInterrogationChannel(++Value);
+	}
+
+	explicit operator bool() const
+	{
+		return IsValid();
+	}
+
+	bool IsValid() const
+	{
+		return Value != INVALID_CHANNEL;
+	}
+
+	uint32 AsIndex() const
+	{
+		check(Value != INVALID_CHANNEL);
+		return Value;
+	}
+
+	static FInterrogationChannel First()
+	{
+		return FInterrogationChannel(0);
+	}
+
+	static FInterrogationChannel Last()
+	{
+		return FInterrogationChannel(INVALID_CHANNEL);
+	}
+
+	friend uint32 GetTypeHash(FInterrogationChannel In)
+	{
+		return In.Value;
+	}
+
+	friend bool operator==(FInterrogationChannel A, FInterrogationChannel B)
+	{
+		return A.Value == B.Value;
+	}
+
+	friend bool operator!=(FInterrogationChannel A, FInterrogationChannel B)
+	{
+		return A.Value != B.Value;
+	}
+
+private:
+
+	explicit FInterrogationChannel(uint32 InValue) : Value(InValue) {}
+
+	uint32 Value;
+};
+
 struct MOVIESCENE_API FEntityComponentFilter
 {
 
