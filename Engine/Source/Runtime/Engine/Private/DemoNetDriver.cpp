@@ -4498,7 +4498,7 @@ void UDemoNetDriver::SetSpectatorController(APlayerController* PC)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SpectatorController = PC;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (PC != nullptr)
 	{
 		SpectatorControllers.AddUnique(PC);
