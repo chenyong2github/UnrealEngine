@@ -1850,6 +1850,10 @@ FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type
 {
 	if (bHasStaticPermutationResource)
 	{
+		if (QualityLevel == EMaterialQualityLevel::Num)
+		{
+			QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		}
 		return FindMaterialResource(StaticPermutationMaterialResources, InFeatureLevel, QualityLevel, true);
 	}
 
