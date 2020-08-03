@@ -2,6 +2,7 @@
 
 #include "EnhancedInputActionDelegateBinding.h"
 #include "EnhancedInputComponent.h"
+#include "GameFramework/Actor.h"
 
 UEnhancedInputActionDelegateBinding::UEnhancedInputActionDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

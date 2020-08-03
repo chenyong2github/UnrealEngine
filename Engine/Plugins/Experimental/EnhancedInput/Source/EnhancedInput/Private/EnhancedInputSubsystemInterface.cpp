@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
+#include "InputMappingQuery.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
 #include "UObject/UObjectIterator.h"

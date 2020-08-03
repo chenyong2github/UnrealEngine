@@ -2,6 +2,7 @@
 
 #include "EnhancedInputSubsystems.h"
 
+#include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputModule.h"
 #include "EnhancedPlayerInput.h"
