@@ -623,7 +623,14 @@ namespace Chaos
 						if(!ActiveCluster->Disabled())
 						{
 							// If this is an external cluster (from the rest collection) we release its children and append them to the current group
-							TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+							TSet<TPBDRigidParticleHandle<T, 3>*> Children;
+							
+							{
+								// First disable breaking data generation - this is not a break we're just reclustering under a dynamic parent.
+								TGuardValue<bool> BreakFlagGuard(DoGenerateBreakingData, false);
+								Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+							}
+
 							NewClusterGroups[ClusterGroupID].Append(Children.Array());
 							
 							for(TPBDRigidParticleHandle<T, 3>* Child : Children)
