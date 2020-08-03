@@ -47,8 +47,9 @@ public:
 
 	class FVirtualHeightfieldMeshVertexFactory* VertexFactory;
 
-	float LodRangeScale;
-	float LodRangeBias;
+	float Lod0ScreenSize;
+	float Lod0Distribution;
+	float LodDistribution;
 	
 	int32 NumSubdivisionLODs;
 	int32 NumTailLods;

@@ -21,13 +21,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Rendering)
 	class UMaterialInterface* Material = nullptr;
 
-	/** Factor used to scale the LOD ranges. A smaller value increases the geometry resolution. */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Scale", ClampMin = "0.01", UIMin = "0.01"))
-	float LodRangeScale = 1.f;
+	/** Target sceen size for LOD 0. A larger value uniformly increases the geometry resolution on screen. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", UIMin = "0.1"))
+	float Lod0ScreenSize = 1.f;
 
-	/** Factor used to bias the LOD ranges. A larger value pushes back the distance to the first LOD transition. */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Bias", ClampMin = "0.0", UIMin = "0.0"))
-	float LodRangeBias = 0.f;
+	/** Distribution multiplier applied only for LOD 0. A larger value increases the distance to the first LOD transition. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD 0 Distance Scale", ClampMin = "1.0", UIMin = "1.0"))
+	float Lod0Distribution = 1.f;
+
+	/** Distribution multiplier applied for each LOD level. A larger value increases the distance exponentially between each LOD transition. */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Distribution", ClampMin = "1.0", UIMin = "1.0"))
+	float LodDistribution = 2.f;
 
 	/** The number of levels of geometry subdivision to apply before the LOD 0 from the source virtual texture. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Subdivision LODs", ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "8"))
@@ -61,9 +65,11 @@ public:
 	/** */
 	virtual UMaterialInterface* GetMaterial(int32 Index) const override { return Material; }
 	/** */
-	float GetLodRamgeScale() const { return LodRangeScale; }
+	float GetLod0ScreenSize() const { return Lod0ScreenSize; }
 	/** */
-	float GetLodRamgeBias() const { return LodRangeBias; }
+	float GetLod0Distribution() const { return Lod0Distribution; }
+	/** */
+	float GetLodDistribution() const { return LodDistribution; }
 	/** */
 	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
 	/** */
