@@ -65,26 +65,6 @@ struct FConditionalSimulationPtr<ModelDef, void>
 	FConditionalSimulationPtr(void* v=nullptr) { }
 };
 
-template<typename ModelDef, typename PhysicsState=typename ModelDef::PhysicsState>
-struct FConditionalPhysicsActorHandle
-{
-	enum { Valid = true };
-	FConditionalPhysicsActorHandle(FPhysicsActorHandle InHandle=nullptr) : Handle(InHandle) { }
-	FPhysicsActorHandle operator->() const { return Handle; }
-	operator FPhysicsActorHandle() const { return Handle; }
-
-private:
-	FPhysicsActorHandle Handle = nullptr;
-};
-
-template<typename ModelDef>
-struct FConditionalPhysicsActorHandle<ModelDef, void>
-{
-	enum { Valid = false };
-	FConditionalPhysicsActorHandle(FPhysicsActorHandle=nullptr) { }
-	operator FPhysicsActorHandle() const { return FPhysicsActorHandle(); }
-};
-
 // ----------------------------------------------------------------------
 
 template<typename ModelDef=FNetworkPredictionModelDef>
@@ -97,8 +77,7 @@ struct TNetworkPredictionModelInfo
 	FConditionalSimulationPtr<ModelDef> Simulation;			// Object that ticks this instance
 	DriverType* Driver = nullptr;							// Object that handles input/out
 	struct FNetworkPredictionStateView* View = nullptr;		// Game side view of state to update
-	FConditionalPhysicsActorHandle<ModelDef> Physics;		// Physics handle
 
-	TNetworkPredictionModelInfo(SimulationType* InSimulation=nullptr, DriverType* InDriver=nullptr, FNetworkPredictionStateView* InView=nullptr, FPhysicsActorHandle InPhysics=nullptr)
-		: Simulation(InSimulation), Driver(InDriver), View(InView), Physics(InPhysics) { }
+	TNetworkPredictionModelInfo(SimulationType* InSimulation=nullptr, DriverType* InDriver=nullptr, FNetworkPredictionStateView* InView=nullptr)
+		: Simulation(InSimulation), Driver(InDriver), View(InView) { }
 };

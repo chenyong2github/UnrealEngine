@@ -98,6 +98,7 @@ private:
 	void SetUsingPhysics();
 	void InitPhysicsCapture();
 	void AdvancePhysicsResimFrame(int32& PhysicsFrame);
+	void EnsurePhysicsGTSync(const TCHAR* Context) const;
 
 	FNetworkPredictionSettings Settings;
 

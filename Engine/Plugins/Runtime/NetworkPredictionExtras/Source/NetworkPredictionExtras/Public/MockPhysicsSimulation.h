@@ -102,7 +102,8 @@ public:
 	
 	void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<MockPhysicsStateTypes>& Input, const TNetSimOutput<MockPhysicsStateTypes>& Output);
 	
-	FPhysicsActorHandle PhysicsActorHandle;
+	// Physics Component we are driving
+	UPrimitiveComponent* PrimitiveComponent = nullptr;
 };
 
 struct FMockPhysicsJumpCue
