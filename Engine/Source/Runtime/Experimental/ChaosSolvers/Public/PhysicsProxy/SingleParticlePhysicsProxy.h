@@ -84,12 +84,12 @@ public:
 	/**/
 	const FInitialState& GetInitialState() const;
 
-	FParticleHandle* GetHandle()
+	CHAOSSOLVERS_API FParticleHandle* GetHandle()
 	{
 		return Handle;
 	}
 
-	const FParticleHandle* GetHandle() const
+	CHAOSSOLVERS_API const FParticleHandle* GetHandle() const
 	{
 		return Handle;
 	}
