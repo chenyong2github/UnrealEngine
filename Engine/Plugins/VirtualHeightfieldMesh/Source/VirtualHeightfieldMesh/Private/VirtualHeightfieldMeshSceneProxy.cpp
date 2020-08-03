@@ -656,7 +656,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -690,13 +690,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
-		}
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -717,7 +711,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return true;
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -774,7 +768,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -794,7 +788,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -839,7 +833,7 @@ namespace VirtualHeightfieldMesh
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
