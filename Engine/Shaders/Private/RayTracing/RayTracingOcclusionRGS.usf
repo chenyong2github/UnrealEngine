@@ -318,6 +318,12 @@ FOcclusionResult ComputeOcclusion(
 		bApplyNormalCulling = false;
 	}
 
+	// Disable normal culling for RectLights
+	if (LIGHT_TYPE == LIGHT_TYPE_RECT)
+	{
+		bApplyNormalCulling = false;
+	}
+
 #if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 	LOOP for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
 #else // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
