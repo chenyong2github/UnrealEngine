@@ -173,7 +173,7 @@ public:
 
 		if (TrackRecorderSettings.bReduceKeys)
 		{
-			ReduceKeys(MovieSceneSection.Get());
+			ReduceKeys(MovieSceneSection.Get(), TrackRecorderSettings.ReduceKeysTolerance);
 		}
 
 		if (TrackRecorderSettings.bRemoveRedundantTracks)
@@ -285,7 +285,7 @@ private:
 	void AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<PropertyType>& InKey);
 
 	/** Helper function, specialized by type, used to reduce keys */
-	void ReduceKeys(UMovieSceneSection* InSection);
+	void ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance);
 
 	/** Get the default value of the track - if there's one key, the value of that key. Otherwise, the default value of the track. */
 	PropertyType GetDefaultValue(UMovieSceneSection* InSection);

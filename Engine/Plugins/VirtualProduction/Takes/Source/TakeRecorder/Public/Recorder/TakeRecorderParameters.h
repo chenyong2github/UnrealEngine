@@ -31,6 +31,10 @@ struct FTakeRecorderUserParameters
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="User Settings")
 	bool bRemoveRedundantTracks;
 
+	/** Tolerance to use when reducing keys */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category="User Settings")
+	float ReduceKeysTolerance;
+
 	/** Whether to save recorded level sequences and assets when done recording */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "User Settings")
 	bool bSaveRecordedAssets;
