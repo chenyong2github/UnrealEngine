@@ -1183,7 +1183,15 @@ void MainCS(
 				float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
 
 				// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
-				float4 OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
+				float4 OutColor;
+				if (LightType[MultiplexId] == LIGHT_TYPE_DIRECTIONAL)
+				{
+					OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, 1.0, FadedSSSShadow));
+				}
+				else
+				{
+					OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
+				}
 
 				if (MultiplexId == 0)
 					SignalOutput_UAVs_0[OutputPixelPostion] = OutColor;
