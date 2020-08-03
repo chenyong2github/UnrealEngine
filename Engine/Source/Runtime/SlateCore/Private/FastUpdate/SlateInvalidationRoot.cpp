@@ -129,7 +129,7 @@ FString FSlateInvalidationRoot::GetReferencerName() const
 	return TEXT("FSlateInvalidationRoot");
 }
 
-void FSlateInvalidationRoot::InvalidateChildOrder()
+void FSlateInvalidationRoot::InvalidateChildOrder(const SWidget* Investigator)
 {
 	if(!bNeedsSlowPath && !bChildOrderInvalidated)
 	{
@@ -152,13 +152,19 @@ void FSlateInvalidationRoot::InvalidateChildOrder()
 		{
 			FSlateDebugging::WidgetInvalidated(*this, FastWidgetPathList[0], &FLinearColor::Red);
 		}
+
+		FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ChildOrder);
 #endif
 	}
 }
 
-void FSlateInvalidationRoot::InvalidateScreenPosition()
+void FSlateInvalidationRoot::InvalidateScreenPosition(const SWidget* Investigator)
 {
 	bNeedScreenPositionShift = true;
+
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::ScreenPosition);
+#endif
 }
 
 int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWidgetPathList, const FWidgetProxy& Proxy)
@@ -181,18 +187,18 @@ void FSlateInvalidationRoot::RemoveWidgetFromFastPath(FWidgetProxy& Proxy)
 {
 	if (Proxy.Index == 0)
 	{
-		InvalidateRoot();
+		InvalidateRoot(Proxy.Widget);
 	}
 	else
 	{
-		InvalidateChildOrder();
+		InvalidateChildOrder(Proxy.Widget);
 	}
 
 	Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
 	Proxy.Widget = nullptr;
 }
 
-void FSlateInvalidationRoot::InvalidateRoot()
+void FSlateInvalidationRoot::InvalidateRoot(const SWidget* Investigator)
 {
 	// Update the generation number.  This will effectively invalidate all proxy handles
 	++FastPathGenerationNumber;
@@ -200,6 +206,10 @@ void FSlateInvalidationRoot::InvalidateRoot()
 	InvalidationRootWidget->InvalidatePrepass();
 
 	bNeedsSlowPath = true;
+
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::BroadcastInvalidationRootInvalidate(InvalidationRootWidget, Investigator, ESlateDebuggingInvalidateRootReason::Root);
+#endif
 }
 
 FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSlateInvalidationContext& Context)
@@ -298,7 +308,7 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 
 void FSlateInvalidationRoot::OnWidgetDestroyed(const SWidget* Widget)
 {
-	InvalidateChildOrder();
+	InvalidateChildOrder(Widget);
 
 	// We need the index even if we've invalidated this root.  We need to clear out its proxy regardless
 	const bool bEvenIfInvalid = true;
@@ -702,6 +712,9 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->NeedsPrepass() && WidgetProxy.Widget->Advanced_IsInvalidationRoot())
 				{
 					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+#if WITH_SLATE_DEBUGGING
+					FSlateDebugging::BroadcastWidgetInvalidate(WidgetProxy.Widget, nullptr, EInvalidateWidget::Layout);
+#endif
 				}
 
 #if SLATE_CSV_TRACKER
