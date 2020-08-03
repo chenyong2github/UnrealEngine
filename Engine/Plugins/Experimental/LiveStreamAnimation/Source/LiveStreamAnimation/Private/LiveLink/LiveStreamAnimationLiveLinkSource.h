@@ -7,12 +7,13 @@
 #include "ILiveLinkSource.h"
 #include "LiveLinkTypes.h"
 #include "LiveStreamAnimationHandle.h"
+#include "UObject/GCObject.h"
 
 class ULiveStreamAnimationLiveLinkFrameTranslator;
 
 namespace LiveStreamAnimation
 {
-	class FLiveStreamAnimationLiveLinkSource : public ILiveLinkSource
+	class FLiveStreamAnimationLiveLinkSource : public ILiveLinkSource, public FGCObject
 	{
 	public:
 
@@ -28,6 +29,14 @@ namespace LiveStreamAnimation
 		virtual FText GetSourceMachineName() const override;
 		virtual FText GetSourceStatus() const override;
 		//~ End ILiveLinkSource Interface
+
+		//~ Begin GCObject Interface
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override
+		{
+			return "FLiveStreamAnimationLiveLinkSource";
+		}
+		//~ End GCObject Interface
 
 		bool HandlePacket(class FLiveLinkPacket&& InPacket);
 		void SetFrameTranslator(ULiveStreamAnimationLiveLinkFrameTranslator* NewFrameTranslator);
@@ -45,6 +54,6 @@ namespace LiveStreamAnimation
 		bool bIsConnectedToMesh;
 
 		TMap<FLiveStreamAnimationHandle, FLiveLinkSubjectKey> MappedSubjects;
-		TWeakObjectPtr<ULiveStreamAnimationLiveLinkFrameTranslator> FrameTranslator;
+		ULiveStreamAnimationLiveLinkFrameTranslator* FrameTranslator;
 	};
 }
