@@ -105,5 +105,8 @@ public:
 	/** Scan the provided sequence in the job to see which camera cut sections we would try to render and update the job's shotlist. */
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	static void UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob);
-
+	
+	/** If version number is manually specifies, returns that, otherwise search the Output Directory for the highest version already existing an increments it by one. */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	static int32 ResolveVersionNumber(const UMoviePipeline* InMoviePipeline);
 };
