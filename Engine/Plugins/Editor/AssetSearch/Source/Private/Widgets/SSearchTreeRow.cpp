@@ -13,6 +13,9 @@
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Editor/MaterialEditor/Public/IMaterialEditor.h"
 
+#include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
+
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 
 FName SSearchTreeRow::NAME_ColumnName(TEXT("Name"));
