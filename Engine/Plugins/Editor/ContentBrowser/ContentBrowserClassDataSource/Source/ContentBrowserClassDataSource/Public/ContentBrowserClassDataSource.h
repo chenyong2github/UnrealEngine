@@ -90,6 +90,8 @@ private:
 
 	void PopulateAddNewContextMenu(UToolMenu* InMenu);
 
+	void ConditionalCreateNativeClassHierarchy();
+
 	TSharedPtr<FNativeClassHierarchy> NativeClassHierarchy;
 
 	TSharedPtr<IAssetTypeActions> ClassTypeActions;
