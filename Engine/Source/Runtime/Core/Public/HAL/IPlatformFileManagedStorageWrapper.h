@@ -178,7 +178,6 @@ private:
 };
 
 using FPersistentStorageCategorySharedPtr = TSharedPtr<struct FPersistentStorageCategory, ESPMode::ThreadSafe>;
-using FPersistentStorageCategoryWeakPtr = TWeakPtr<struct FPersistentStorageCategory, ESPMode::ThreadSafe>;
 
 class FPersistentStorageManager
 {
@@ -252,13 +251,13 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryWeakPtr.IsValid())
+		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
+		if (CategorySharedPtr.IsValid())
 		{
 			FRWScopeLock WriteLock(CategoryLock, SLT_Write);
 
 			FileCategoryMap.Remove(NormalizedPath);
-			return CategoryWeakPtr.Pin()->TryRemoveFileFromCategory(NormalizedPath);
+			return CategorySharedPtr->TryRemoveFileFromCategory(NormalizedPath);
 		}
 
 		return false;
@@ -278,10 +277,10 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryWeakPtr.IsValid())
+		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
+		if (CategorySharedPtr.IsValid())
 		{
-			return CategoryWeakPtr.Pin()->UpdateFileSize(NormalizedPath, FileSize, bFailIfExceedsQuotaLimit);
+			return CategorySharedPtr->UpdateFileSize(NormalizedPath, FileSize, bFailIfExceedsQuotaLimit);
 		}
 
 		return true;
@@ -310,10 +309,10 @@ public:
 		FString NormalizedPath(Filename);
 		FPaths::NormalizeFilename(NormalizedPath);
 
-		const FPersistentStorageCategoryWeakPtr CategoryWeakPtr = FindCategoryForFile(NormalizedPath);
-		if (CategoryWeakPtr.IsValid())
+		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
+		if (CategorySharedPtr.IsValid())
 		{
-			return CategoryWeakPtr.Pin()->IsCategoryFull();
+			return CategorySharedPtr->IsCategoryFull();
 		}
 
 		return false;
@@ -468,20 +467,20 @@ private:
 		return false;
 	}
 
-	FPersistentStorageCategoryWeakPtr FindCategoryForFile(const FString& Filename)
+	FPersistentStorageCategorySharedPtr FindCategoryForFile(const FString& Filename)
 	{
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
 
 		const FString* CategoryNamePtr = FileCategoryMap.Find(Filename);
 		if (CategoryNamePtr != nullptr)
 		{
-			return FPersistentStorageCategoryWeakPtr(*Categories.Find(*CategoryNamePtr));
+			return FPersistentStorageCategorySharedPtr(*Categories.Find(*CategoryNamePtr));
 		}
 
 		return nullptr;
 	}
 
-	const FPersistentStorageCategoryWeakPtr FindCategoryForFile(const FString& Filename) const
+	const FPersistentStorageCategorySharedPtr FindCategoryForFile(const FString& Filename) const
 	{
 		return const_cast<FPersistentStorageManager&>(*this).FindCategoryForFile(Filename);
 	}
