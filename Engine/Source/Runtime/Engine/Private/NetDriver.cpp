@@ -5254,6 +5254,11 @@ void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
 			NewConnection->AddDestructionInfo(It.Value().Get());
 		}
 	}
+
+	if (!bHasReplayConnection && NewConnection->IsReplay())
+	{
+		bHasReplayConnection = true;
+	}
 }
 
 void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info)
@@ -5362,6 +5367,17 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 	if (ReplicationDriver)
 	{
 		ReplicationDriver->RemoveClientConnection(ClientConnectionToRemove);
+	}
+
+	bHasReplayConnection = false;
+
+	for (UNetConnection* ClientConn : ClientConnections)
+	{
+		if (ClientConn && ClientConn->IsReplay())
+		{
+			bHasReplayConnection = true;
+			break;
+		}
 	}
 }
 
@@ -5563,12 +5579,10 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 	if ( !GlobalPropertyTrackerPtr ) 
 	{
 		const UWorld* const LocalWorld = GetWorld();
-		const bool bIsReplay = LocalWorld != nullptr && LocalWorld->IsRecordingReplay();
+		const bool bIsReplay = LocalWorld != nullptr && static_cast<void*>(LocalWorld->GetDemoNetDriver()) == static_cast<void*>(this);
 		const bool bIsClientReplayRecording = LocalWorld != nullptr ? LocalWorld->IsRecordingClientReplay() : false;
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FRepChangedPropertyTracker * Tracker = new FRepChangedPropertyTracker(bIsReplay, bIsClientReplayRecording);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GetObjectClassRepLayout( Obj->GetClass() )->InitChangedTracker( Tracker );
 
