@@ -626,18 +626,11 @@ private:
  */
 bool FLinkerLoad::RegenerateBlueprintClass(UClass* LoadClass, UObject* ExportObject)
 {
-	auto GetClassSourceObjectLambda = [](UClass* ForClass) -> UObject*
-	{
-		return ForClass->ClassGeneratedBy ? ForClass->ClassGeneratedBy : ForClass;
-	};
-
-	UObject* ClassSourceObject = GetClassSourceObjectLambda(LoadClass);
-
 	// determine if somewhere further down the callstack, we're already in this
 	// function for this class
-	bool const bAlreadyRegenerating = ClassSourceObject->HasAnyFlags(RF_BeingRegenerated);
+	bool const bAlreadyRegenerating = LoadClass->ClassGeneratedBy->HasAnyFlags(RF_BeingRegenerated);
 	// Flag the class source object, so we know we're already in the process of compiling this class
-	ClassSourceObject->SetFlags(RF_BeingRegenerated);
+	LoadClass->ClassGeneratedBy->SetFlags(RF_BeingRegenerated);
 
 	// Cache off the current CDO, and specify the CDO for the load class 
 	// manually... do this before we Preload() any children members so that if 
@@ -658,7 +651,7 @@ bool FLinkerLoad::RegenerateBlueprintClass(UClass* LoadClass, UObject* ExportObj
 
 	// if this was subsequently regenerated from one of the above preloads, then 
 	// we don't have to finish this off, it was already done
-	bool const bWasSubsequentlyRegenerated = !ClassSourceObject->HasAnyFlags(RF_BeingRegenerated);
+	bool const bWasSubsequentlyRegenerated = !LoadClass->ClassGeneratedBy->HasAnyFlags(RF_BeingRegenerated);
 	// @TODO: find some other condition to block this if we've already  
 	//        regenerated the class (not just if we've regenerated the class 
 	//        from an above Preload(Member))... UBlueprint::RegenerateClass() 
@@ -679,53 +672,52 @@ bool FLinkerLoad::RegenerateBlueprintClass(UClass* LoadClass, UObject* ExportObj
 		{
 			// Just ordering the class hierarchy from root to leafs:
 			UClass* ClassChain = LoadClass->GetSuperClass();
-			while (ClassChain && ClassChain->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+			while (ClassChain && ClassChain->ClassGeneratedBy)
 			{
 				// O(n) insert, but n is tiny because this is a class hierarchy...
 				ClassChainOrdered.Insert(ClassChain, 0);
 				ClassChain = ClassChain->GetSuperClass();
 			}
 		}
-		for (UClass* SuperClass : ClassChainOrdered)
+		for (UClass* Class : ClassChainOrdered)
 		{
-			UObject* SuperClassSourceObject = GetClassSourceObjectLambda(SuperClass);
-			if (SuperClassSourceObject && SuperClassSourceObject->HasAnyFlags(RF_BeingRegenerated))
+			UObject* BlueprintObject = Class->ClassGeneratedBy;
+			if (BlueprintObject && BlueprintObject->HasAnyFlags(RF_BeingRegenerated))
 			{
 				// This code appears to be completely unused:
 
 				// Always load the parent blueprint here in case there is a circular dependency. This will
 				// ensure that the blueprint is fully serialized before attempting to regenerate the class.
-				FPreloadMembersHelper::PreloadObject(SuperClassSourceObject);
+				FPreloadMembersHelper::PreloadObject(BlueprintObject);
 			
-				FPreloadMembersHelper::PreloadMembers(SuperClassSourceObject);
+				FPreloadMembersHelper::PreloadMembers(BlueprintObject);
 				// recurse into this function for this parent class; 
 				// 'ClassDefaultObject' should be the class's original ExportObject
-				RegenerateBlueprintClass(SuperClass, SuperClass->ClassDefaultObject);
+				RegenerateBlueprintClass(Class, Class->ClassDefaultObject);
 			}
 		}
 
 		{
-			ClassSourceObject = GetClassSourceObjectLambda(LoadClass);
-
+			UObject* BlueprintObject = LoadClass->ClassGeneratedBy;
 			// Preload the blueprint to make sure it has all the data the class needs for regeneration
-			FPreloadMembersHelper::PreloadObject(ClassSourceObject);
+			FPreloadMembersHelper::PreloadObject(BlueprintObject);
 
-			UClass* RegeneratedClass = ClassSourceObject->RegenerateClass(LoadClass, CurrentCDO);
+			UClass* RegeneratedClass = BlueprintObject->RegenerateClass(LoadClass, CurrentCDO);
 			if (RegeneratedClass)
 			{
-				ClassSourceObject->ClearFlags(RF_BeingRegenerated);
+				BlueprintObject->ClearFlags(RF_BeingRegenerated);
 				// Fix up the linker so that the RegeneratedClass is used
 				LoadClass->ClearFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects);
 			}
 		}
 	}
 
-	bool const bSuccessfulRegeneration = !ClassSourceObject->HasAnyFlags(RF_BeingRegenerated);
+	bool const bSuccessfulRegeneration = !LoadClass->ClassGeneratedBy->HasAnyFlags(RF_BeingRegenerated);
 	// if this wasn't already flagged as regenerating when we first entered this 
 	// function, the clear it ourselves.
 	if (!bAlreadyRegenerating)
 	{
-		ClassSourceObject->ClearFlags(RF_BeingRegenerated);
+		LoadClass->ClassGeneratedBy->ClearFlags(RF_BeingRegenerated);
 	}
 
 	return bSuccessfulRegeneration;
@@ -1857,11 +1849,9 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 
 		DEFERRED_DEPENDENCY_CHECK(ImportPlaceholders.Num() == 0);
 		DEFERRED_DEPENDENCY_CHECK(LoadClass->GetOutermost() != GetTransientPackage());
-		// if we enable deferred dependency loading for cooked assets, and if we're also
-		// not in the editor context... we want to keep from regenerating in that scenario
-#if !WITH_EDITOR
+		// just in case we choose to enable the deferred dependency loading for 
+		// cooked builds... we want to keep from regenerating in that scenario
 		if (!LoadClass->bCooked)
-#endif
 		{
 			UObject* OldCDO = LoadClass->ClassDefaultObject;
 			if (RegenerateBlueprintClass(LoadClass, CDO))
