@@ -116,6 +116,7 @@ public:
 
 	void GetWorldBBoxSize(FVectorVMContext& Context);
 	void GetCellSize(FVectorVMContext& Context);
+	void GetNumCells(FVectorVMContext& Context);
 
 	static const FString NumTilesName;
 
