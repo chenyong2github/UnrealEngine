@@ -20,7 +20,20 @@ class FMovieSceneEntitySystemRunner;
 class UMovieSceneEntitySystem;
 class UMovieSceneCompiledDataManager;
 
-namespace UE { namespace MovieScene { struct FComponentRegistry; }}
+namespace UE
+{
+namespace MovieScene
+{
+	struct FComponentRegistry;
+	enum class EEntitySystemContext : uint8;
+
+	enum class EAutoLinkRelevantSystems : uint8
+	{
+		Enabled,
+		Disable,
+	};
+}
+}
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FMovieSceneEntitySystemLinkerEvent, UMovieSceneEntitySystemLinker*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerAROEvent, UMovieSceneEntitySystemLinker*, FReferenceCollector&);
@@ -94,6 +107,11 @@ public:
 
 	TSharedRef<bool> CaptureGlobalState();
 
+	UE::MovieScene::EEntitySystemContext GetSystemContext() const
+	{
+		return SystemContext;
+	}
+
 public:
 
 	// Internal API
@@ -104,6 +122,7 @@ public:
 	bool HasLinkedSystem(const uint16 GlobalDependencyGraphID);
 
 	void LinkRelevantSystems();
+	void AutoLinkRelevantSystems();
 
 	void InvalidateObjectBinding(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle);
 	void CleanupInvalidBoundObjects();
@@ -154,6 +173,11 @@ private:
 	uint64 LastSystemLinkVersion;
 
 	TWeakPtr<bool> GlobalStateCaptureToken;
+
+protected:
+
+	UE::MovieScene::EAutoLinkRelevantSystems AutoLinkMode;
+	UE::MovieScene::EEntitySystemContext SystemContext;
 };
 
 /**
