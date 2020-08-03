@@ -124,6 +124,7 @@ public:
 	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) { return 0; };
 
 	virtual bool CanReceiveVideoSamples(uint32 Num) const { return true; }
+	virtual bool CanReceiveAudioSamples(uint32 Num) const { return true; }
 
 	virtual int32 NumAudio() const { return -1; }
 	virtual int32 NumCaption() const { return -1; }

@@ -8,6 +8,7 @@
 #include "IMediaTextureSample.h"
 
 const uint32 MaxNumberOfQueuedVideoSamples = 4;
+const uint32 MaxNumberOfQueuedAudioSamples = 4;
 
 /* Local helpers
 *****************************************************************************/
@@ -144,4 +145,12 @@ uint32 FMediaSamples::PurgeOutdatedVideoSamples(const FMediaTimeStamp & Referenc
 bool FMediaSamples::CanReceiveVideoSamples(uint32 Num) const
 {
 	return (VideoSampleQueue.Num() + Num) <= MaxNumberOfQueuedVideoSamples;
+}
+
+/**
+ * Check if can receive more audio samples
+ */
+bool FMediaSamples::CanReceiveAudioSamples(uint32 Num) const
+{
+	return (AudioSampleQueue.Num() + Num) <= MaxNumberOfQueuedAudioSamples;
 }

@@ -176,7 +176,7 @@ public:
 			{
 				// More then one sample. Find the one that fits the bill, best...
 				// (we look for the one with the largest overlap & newest time)
-				FMediaTimeStamp BestDuration(FTimespan::Zero());
+				FMediaTimeStamp BestDuration(FTimespan::Zero(), -1);
 				int32 BestIndex = FirstPossibleIndex;
 				for (int32 Idx = FirstPossibleIndex; Idx <= LastPossibleIndex; ++Idx)
 				{
