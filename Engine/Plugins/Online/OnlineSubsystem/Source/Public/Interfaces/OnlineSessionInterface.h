@@ -6,6 +6,7 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
+#include "OnlineKeyValuePair.h"
 
 class FOnlineSession;
 class FOnlineSessionSearch;
@@ -70,7 +71,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDestroySessionComplete, FName, bool);
 typedef FOnDestroySessionComplete::FDelegate FOnDestroySessionCompleteDelegate;
 
 /**
- * Delegate fired when the Matchmaking for an online session has completed
+ * Broadcast delegate fired when the Matchmaking for an online session has completed
  *
  * @param SessionName the name of the session the that can now be joined (on success)
  * @param bWasSuccessful true if the async action completed without error, false if there was an error
@@ -79,9 +80,19 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMatchmakingComplete, FName, bool);
 typedef FOnMatchmakingComplete::FDelegate FOnMatchmakingCompleteDelegate;
 
 /**
- * Delegate fired when the Matchmaking request has been canceled
+ * Delegate fired when StartMatchmaking completes
+ * Related to FOnMatchmakingComplete, but this is not a broadcast delegate
  *
  * @param SessionName the name of the session that was passed to StartMatchmaking
+ * @param ErrorDetails extended details of the failure (if failed)
+ * @param Results results of matchmaking (if succeeded)
+ */
+DECLARE_DELEGATE_ThreeParams(FOnStartMatchmakingComplete, FName /*SessionName*/, const struct FOnlineError& /*ErrorDetails*/, const struct FSessionMatchmakingResults& /*Results*/);
+
+/**
+ * Delegate fired when the Matchmaking request has been canceled
+ *
+ * @param SessionName the name of the session that was passed to CancelMatchmaking
  * @param bWasSuccessful true if the async action completed without error, false if there was an error
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCancelMatchmakingComplete, FName, bool);
@@ -269,6 +280,21 @@ inline const TCHAR* LexToString(const ESessionFailure::Type Value)
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionFailure, const FUniqueNetId&, ESessionFailure::Type);
 typedef FOnSessionFailure::FDelegate FOnSessionFailureDelegate;
+
+/** Attributes for a matchmaking user */
+struct FSessionMatchmakingUser
+{
+	/** Id of the user */
+	TSharedRef<const FUniqueNetId> UserId;
+	/** Attributes for the user */
+	FOnlineKeyValuePairs<FString, FVariantData> Attributes;
+};
+
+/** Matchmaking results */
+struct FSessionMatchmakingResults
+{
+	// Stub struct that can be easily added to without requiring delegate signature changes
+};
 
 /**
  * Interface definition for the online services session services 
@@ -467,6 +493,18 @@ public:
 	 * @return true if successful searching for sessions, false otherwise
 	 */
 	virtual bool StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) = 0;
+
+	/**
+	 * Begins cloud based matchmaking for a session
+	 *
+	 * @param LocalPlayers the ids of all local players that will participate in the match
+	 * @param SessionName the name of the session to use, usually will be GAME_SESSION_NAME
+	 * @param NewSessionSettings the desired settings to match against or create with when forming new sessions
+	 * @param SearchSettings the desired settings that the matched session will have
+	 *
+	 * @return true if successful searching for sessions, false otherwise
+	 */
+	virtual bool StartMatchmaking(const TArray<FSessionMatchmakingUser>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings, const FOnStartMatchmakingComplete& CompletionDelegate);
 	
 	/**
 	 * Delegate fired when the cloud matchmaking has completed
