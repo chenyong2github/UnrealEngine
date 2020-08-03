@@ -5001,12 +5001,14 @@ void UDemoNetDriver::QueueNetStartupActorForRollbackViaDeletion(AActor* Actor)
 	}
 
 	FString ActorFullName = Actor->GetFullName();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (RollbackNetStartupActors.Contains(ActorFullName))
 	{
 		return;		// This actor is already queued up
 	}
 
 	FRollbackNetStartupActorInfo& RollbackActor = RollbackNetStartupActors.Add(MoveTemp(ActorFullName));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	RollbackActor.Name		= Actor->GetFName();
 	RollbackActor.Archetype	= Actor->GetArchetype();
@@ -5286,7 +5288,6 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 		);
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActorGUIDs", DeletedNetStartupActorGUIDs.CountBytes(Ar));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RollbackNetStartupActorsValues",
 			// The map for RollbackNetStartupActors may have already been serialized,
@@ -5297,7 +5298,6 @@ void UDemoNetDriver::Serialize(FArchive& Ar)
 			}
 		);
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ExternalDataToObjectMap",
 			ExternalDataToObjectMap.CountBytes(Ar);
 			for (const auto& ExternalDataToObjectPair : ExternalDataToObjectMap)
