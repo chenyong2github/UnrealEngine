@@ -7,56 +7,48 @@
 #include "Templates/Tuple.h"
 #include "HAL/Runnable.h"
 #include "Containers/Map.h"
+#include "IO/IoDispatcher.h"
 
-struct FFileIoStoreRawBlock;
-struct FFileIoStoreResolvedRequest;
-class IAsyncReadRequest;
+struct FFileIoStoreReadRequest;
+class FFileIoStoreBufferAllocator;
+class FFileIoStoreBlockCache;
+class FFileIoStoreRequestQueue;
 
 class FGenericIoDispatcherEventQueue
 {
 public:
 	FGenericIoDispatcherEventQueue();
 	~FGenericIoDispatcherEventQueue();
-	void Notify();
-	void Wait();
-	void WaitForIo()
+	void DispatcherNotify();
+	void DispatcherWait();
+	void DispatcherWaitForIo()
 	{
-		Wait();
+		DispatcherWait();
 	}
+	void ServiceNotify();
+	void ServiceWait();
 
 private:
-	FEvent* Event;
+	FEvent* DispatcherEvent = nullptr;
+	FEvent* ServiceEvent = nullptr;
 };
 
 class FGenericFileIoStoreImpl
 {
 public:
-	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, uint64 InReadBufferSize);
+	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache);
 	~FGenericFileIoStoreImpl();
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
-	void ReadBlockFromFile(FFileIoStoreRawBlock* Block);
-	void FlushReads() {};
-	FFileIoStoreRawBlock* GetCompletedBlocks();
+	bool StartRequests(FFileIoStoreRequestQueue& RequestQueue);
+	FFileIoStoreReadRequest* GetCompletedRequests();
 
 private:
-	struct FCachedBlock
-	{
-		FCachedBlock* LruPrev = nullptr;
-		FCachedBlock* LruNext = nullptr;
-		uint64 Key;
-		uint8* Buffer;
-	};
-
 	FGenericIoDispatcherEventQueue& EventQueue;
-	const uint64 ReadBufferSize;
+	FFileIoStoreBufferAllocator& BufferAllocator;
+	FFileIoStoreBlockCache& BlockCache;
 
-	FCriticalSection CompletedBlocksCritical;
-	FFileIoStoreRawBlock* CompletedBlocksHead = nullptr;
-	FFileIoStoreRawBlock* CompletedBlocksTail = nullptr;
-	uint8* CacheMemory = nullptr;
-	TMap<uint64, FCachedBlock*> CachedBlocks;
-	FCachedBlock CacheLruHead;
-	FCachedBlock CacheLruTail;
-
+	FCriticalSection CompletedRequestsCritical;
+	FFileIoStoreReadRequest* CompletedRequestsHead = nullptr;
+	FFileIoStoreReadRequest* CompletedRequestsTail = nullptr;
 };
 

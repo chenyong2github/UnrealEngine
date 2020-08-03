@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IO/IoDispatcher.h"
 #include "IO/IoDispatcherPrivate.h"
 #include "IO/IoStore.h"
 #include "Containers/Array.h"
@@ -10,6 +11,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/Runnable.h"
 #include "Misc/AES.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 
 class IMappedFileHandle;
 
@@ -32,12 +34,7 @@ struct FFileIoStoreBuffer
 {
 	FFileIoStoreBuffer* Next = nullptr;
 	uint8* Memory = nullptr;
-};
-
-class FFileIoStoreBufferAllocator
-{
-public:
-	FFileIoStoreBuffer* AllocBuffer();
+	EIoDispatcherPriority Priority = IoDispatcherPriority_Count;
 };
 
 struct FFileIoStoreBlockKey
@@ -90,7 +87,7 @@ struct FFileIoStoreCompressedBlock
 	uint32 RawSize;
 	uint32 RawBlocksCount = 0;
 	uint32 UnfinishedRawBlocksCount = 0;
-	struct FFileIoStoreRawBlock* SingleRawBlock;
+	struct FFileIoStoreReadRequest* SingleRawBlock;
 	TArray<FFileIoStoreBlockScatter, TInlineAllocator<16>> ScatterList;
 	FFileIoStoreCompressionContext* CompressionContext = nullptr;
 	uint8* CompressedDataBuffer = nullptr;
@@ -98,23 +95,20 @@ struct FFileIoStoreCompressedBlock
 	const FSHAHash* SignatureHash = nullptr;
 };
 
-struct FFileIoStoreRawBlock
+struct FFileIoStoreReadRequest
 {
-	enum EFlags
-	{
-		None = 0,
-		Cacheable = 1
-	};
-
-	FFileIoStoreRawBlock* Next = nullptr;
-	FFileIoStoreBlockKey Key;
+	FFileIoStoreReadRequest* Next = nullptr;
 	uint64 FileHandle = uint64(-1);
 	uint64 Offset = uint64(-1);
 	uint64 Size = uint64(-1);
+	FFileIoStoreBlockKey Key;
+	FIoRequestImpl* DirectToRequest = nullptr;
 	FFileIoStoreBuffer* Buffer = nullptr;
 	TArray<FFileIoStoreCompressedBlock*, TInlineAllocator<4>> CompressedBlocks;
 	uint32 RefCount = 0;
-	uint8 Flags = None;
+	EIoDispatcherPriority Priority = IoDispatcherPriority_Count;
+	bool bIsRawBlock;
+	bool bIsCacheable;
 };
 
 struct FFileIoStoreResolvedRequest
@@ -144,6 +138,64 @@ private:
 	TMap<FGuid, FAES::FAESKey> EncryptionKeysByGuid;
 	mutable FCriticalSection EncryptionKeysCritical;
 	FKeyRegisteredCallback KeyRegisteredCallback;
+};
+
+class FFileIoStoreBufferAllocator
+{
+public:
+	void Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment);
+	FFileIoStoreBuffer* AllocBuffer();
+	void FreeBuffer(FFileIoStoreBuffer* Buffer);
+
+private:
+	uint8* BufferMemory = nullptr;
+	FCriticalSection BuffersCritical;
+	FFileIoStoreBuffer* FirstFreeBuffer = nullptr;
+};
+
+class FFileIoStoreBlockCache
+{
+public:
+	FFileIoStoreBlockCache();
+	~FFileIoStoreBlockCache();
+
+	void Initialize(uint64 CacheMemorySize, uint64 ReadBufferSize);
+	bool Read(FFileIoStoreReadRequest* Block);
+	void Store(const FFileIoStoreReadRequest* Block);
+
+private:
+	struct FCachedBlock
+	{
+		FCachedBlock* LruPrev = nullptr;
+		FCachedBlock* LruNext = nullptr;
+		uint64 Key = 0;
+		uint8* Buffer = nullptr;
+		bool bLocked = false;
+	};
+
+	FCriticalSection CriticalSection;
+	uint8* CacheMemory = nullptr;
+	TMap<uint64, FCachedBlock*> CachedBlocks;
+	FCachedBlock CacheLruHead;
+	FCachedBlock CacheLruTail;
+	uint64 ReadBufferSize = 0;
+};
+
+class FFileIoStoreRequestQueue
+{
+public:
+	FFileIoStoreReadRequest* Peek();
+	void Pop(FFileIoStoreReadRequest& Request);
+	void Push(FFileIoStoreReadRequest& Request);
+
+private:
+	struct FByPriority
+	{
+		FFileIoStoreReadRequest* Head = nullptr;
+		FFileIoStoreReadRequest* Tail = nullptr;
+	};
+
+	FByPriority ByPriority[IoDispatcherPriority_Count];
 };
 
 class FFileIoStoreReader
@@ -186,20 +238,16 @@ class FFileIoStore
 	: public FRunnable
 {
 public:
-	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent);
+	FFileIoStore(FIoDispatcherEventQueue& InEventQueue, FIoSignatureErrorEvent& InSignatureErrorEvent, bool bInIsMultithreaded);
 	~FFileIoStore();
+	void Initialize();
 	TIoStatusOr<FIoContainerId> Mount(const FIoStoreEnvironment& Environment);
 	EIoStoreResolveResult Resolve(FIoRequestImpl* Request);
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const;
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	bool ReadPendingBlock();
-	void ProcessCompletedBlocks(const bool bIsMultithreaded);
+	FIoRequestImpl* GetCompletedRequests();
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options);
-	void FlushReads()
-	{ 
-		PlatformImpl.FlushReads();
-	}
-
+	
 	static bool IsValidEnvironment(const FIoStoreEnvironment& Environment);
 
 	virtual bool Init() override;
@@ -239,42 +287,51 @@ private:
 		FFileIoStoreCompressedBlock* CompressedBlock;
 	};
 
+	struct FBlockMaps
+	{
+		TMap<FFileIoStoreBlockKey, FFileIoStoreCompressedBlock*> CompressedBlocksMap;
+		TMap<FFileIoStoreBlockKey, FFileIoStoreReadRequest*> RawBlocksMap;
+	};
+
 	void InitCache();
+	void OnNewPendingRequestsAdded();
 	void ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoStoreResolvedRequest& ResolvedRequest);
-	FFileIoStoreBuffer* AllocBuffer();
-	void FreeBuffer(FFileIoStoreBuffer* Buffer);
+	void FreeBuffer(FFileIoStoreBuffer& Buffer);
 	FFileIoStoreCompressionContext* AllocCompressionContext();
 	void FreeCompressionContext(FFileIoStoreCompressionContext* CompressionContext);
 	void ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bool bIsAsync);
 	void AllocMemoryForRequest(FIoRequestImpl* Request);
 	void FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock);
+	void ProcessIncomingRequests();
+	void UpdateAsyncIOMinimumPriority();
 
-	const uint64 ReadBufferSize;
+	uint64 ReadBufferSize = 0;
 	FIoDispatcherEventQueue& EventQueue;
 	FIoSignatureErrorEvent& SignatureErrorEvent;
+	FFileIoStoreBlockCache BlockCache;
+	FFileIoStoreBufferAllocator BufferAllocator;
+	FFileIoStoreRequestQueue RequestQueue;
 	FFileIoStoreImpl PlatformImpl;
-
-	FRunnableThread* Thread;
+	FRunnableThread* Thread = nullptr;
+	bool bIsMultithreaded;
 	TAtomic<bool> bStopRequested{ false };
 	mutable FRWLock IoStoreReadersLock;
 	TArray<FFileIoStoreReader*> UnorderedIoStoreReaders;
 	TArray<FFileIoStoreReader*> OrderedIoStoreReaders;
-	TMap<FFileIoStoreBlockKey, FFileIoStoreCompressedBlock*> CompressedBlocksMap;
-	TMap<FFileIoStoreBlockKey, FFileIoStoreRawBlock*> RawBlocksMap;
-	uint8* BufferMemory = nullptr;
-	FEvent* BufferAvailableEvent;
-	FCriticalSection BuffersCritical;
-	FFileIoStoreBuffer* FirstFreeBuffer = nullptr;
 	FFileIoStoreCompressionContext* FirstFreeCompressionContext = nullptr;
-	FEvent* PendingBlockEvent;
-	FCriticalSection PendingBlocksCritical;
-	FFileIoStoreRawBlock* PendingBlocksHead = nullptr;
-	FFileIoStoreRawBlock* PendingBlocksTail = nullptr;
+	FCriticalSection PendingRequestsCritical;
+	FFileIoStoreReadRequest* PendingRequestsHead = nullptr;
+	FFileIoStoreReadRequest* PendingRequestsTail = nullptr;
+	FBlockMaps BlockMapsByPrority[IoDispatcherPriority_Count];
 	FFileIoStoreCompressedBlock* ReadyForDecompressionHead = nullptr;
 	FFileIoStoreCompressedBlock* ReadyForDecompressionTail = nullptr;
-	FFileIoStoreRawBlock* ScheduledBlocksHead = nullptr;
-	FFileIoStoreRawBlock* ScheduledBlocksTail = nullptr;
 	FCriticalSection DecompressedBlocksCritical;
 	FFileIoStoreCompressedBlock* FirstDecompressedBlock = nullptr;
 	FFileIoStoreEncryptionKeys EncryptionKeys;
+	FIoRequestImpl* CompletedRequestsHead = nullptr;
+	FIoRequestImpl* CompletedRequestsTail = nullptr;
+	EAsyncIOPriorityAndFlags CurrentAsyncIOMinimumPriority = AIOP_MIN;
+
+	uint32 SubmittedRequests = 0;
+	uint32 CompletedRequests = 0;
 };
