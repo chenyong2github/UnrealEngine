@@ -33,7 +33,7 @@ public:
 
 	bool ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWidgetProxy>& FastPathWidgetList, FSlateInvalidationRoot& Root);
 
-	static void MarkProxyUpdatedThisFrame(FWidgetProxy& Proxy, FWidgetUpdateList& UpdateList);
+	void MarkProxyUpdatedThisFrame(FWidgetUpdateList& UpdateList);
 
 private:
 	int32 Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements) const;

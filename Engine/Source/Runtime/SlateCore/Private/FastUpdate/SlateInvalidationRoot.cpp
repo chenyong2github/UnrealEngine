@@ -385,7 +385,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 					const int32 NewLayerId = WidgetProxy.Update(*Context.PaintArgs, MyIndex, *Context.WindowElementList);
 					CachedMaxLayerId = FMath::Max(NewLayerId, CachedMaxLayerId);
 
-					FWidgetProxy::MarkProxyUpdatedThisFrame(WidgetProxy, WidgetsNeedingUpdate);
+					WidgetProxy.MarkProxyUpdatedThisFrame(WidgetsNeedingUpdate);
 
 					if (bNeedsSlowPath)
 					{
