@@ -188,12 +188,22 @@ class FFreeTypeFace
 public:
 	FFreeTypeFace(const FFreeTypeLibrary* InFTLibrary, FFontFaceDataConstRef InMemory, const int32 InFaceIndex, const EFontLayoutMethod InLayoutMethod);
 	FFreeTypeFace(const FFreeTypeLibrary* InFTLibrary, const FString& InFilename, const int32 InFaceIndex, const EFontLayoutMethod InLayoutMethod);
+	FFreeTypeFace(const EFontLayoutMethod InLayoutMethod);
 	~FFreeTypeFace();
 
-	FORCEINLINE bool IsValid() const
+	FORCEINLINE bool IsFaceValid() const
 	{
 #if WITH_FREETYPE
 		return FTFace != nullptr;
+#else
+		return false;
+#endif // WITH_FREETYPE
+	}
+
+	FORCEINLINE bool IsFaceLoading() const
+	{
+#if WITH_FREETYPE
+		return bPendingAsyncLoad;
 #else
 		return false;
 #endif // WITH_FREETYPE
@@ -257,6 +267,10 @@ public:
 		return 0;
 #endif
 	}
+
+	void FailAsyncLoad();
+	void CompleteAsyncLoad(const FFreeTypeLibrary* InFTLibrary, FFontFaceDataConstRef InMemory, const int32 InFaceIndex);
+
 	/**
 	 * Get the available sub-face data from the given font.
 	 * Typically there will only be one face unless this is a TTC/OTC font.
@@ -266,6 +280,7 @@ public:
 	static TArray<FString> GetAvailableSubFaces(const FFreeTypeLibrary* InFTLibrary, const FString& InFilename);
 
 private:
+
 #if WITH_FREETYPE
 	void ParseAttributes();
 #endif // WITH_FREETYPE
@@ -277,6 +292,8 @@ private:
 #if WITH_FREETYPE
 	FT_Face FTFace;
 	FFontFaceDataConstPtr Memory;
+
+	bool bPendingAsyncLoad = false;
 
 	/** Custom FreeType stream handler for reading font data via the Unreal File System */
 	struct FFTStreamHandler

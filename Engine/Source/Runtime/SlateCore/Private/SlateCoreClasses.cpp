@@ -20,10 +20,14 @@ FAutoConsoleVariableRef CVarSlateContrast(
 	TEXT("The amount of contrast to apply to the UI (default 1).")
 );
 
+// When async lazily loading fonts, when we finish we bump the generation version to
+// tell the text layout engine that we need a new pass now that new glyphs will actually
+// be available now to measure and render.
+int32 GSlateLayoutGeneration = 0;
 
 // Enable fast widget paths outside the editor by default.  Only reason we don't enable them everywhere
 // is that the editor is more complex than a game, and there are likely a larger swath of edge cases.
-int32 GSlateFastWidgetPath = 0;
+bool GSlateFastWidgetPath = false;
 
 FAutoConsoleVariableRef CVarSlateFastWidgetPath(
 	TEXT("Slate.EnableFastWidgetPath"),
