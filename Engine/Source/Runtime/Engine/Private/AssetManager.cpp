@@ -3341,7 +3341,7 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 
 void UAssetManager::ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
 {
-	UE_LOG(LogAssetManager, Warning, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
+	UE_LOG(LogAssetManager, Display, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
 	FString DLCPath;
 	FString ExternalMountPointName;
 	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(DLCName))
