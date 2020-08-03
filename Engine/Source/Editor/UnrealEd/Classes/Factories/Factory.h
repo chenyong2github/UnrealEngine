@@ -217,7 +217,7 @@ public:
 	/**
 	 * @return true if this factory is being used for automated import.  Dialogs and user input should be disabled if this method returns true
 	 */
-	bool IsAutomatedImport() const;
+	virtual bool IsAutomatedImport() const;
 public:
 
 	/**
