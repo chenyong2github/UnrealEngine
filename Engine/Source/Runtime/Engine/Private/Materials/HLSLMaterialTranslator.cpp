@@ -884,9 +884,9 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Only unlit materials can output negative emissive color."));
 		}
 
-		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || BlendMode!=BLEND_Opaque))
+		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)))
 		{
-			Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
+			Errorf(TEXT("Sky materials must be opaque or masked, and unlit. They are expected to completely replace the background."));
 		}
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))

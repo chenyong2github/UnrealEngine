@@ -659,6 +659,10 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 
 #include "HeightFogCommon.ush"
 
+#if PERMUTATION_DEPTHTEXTURE
+Texture2D DepthTexture;
+#endif
+
 void RenderRealTimeReflectionHeightFogVS(
 	in uint VertexId : SV_VertexID,
 	out float4 Position : SV_POSITION,
@@ -682,8 +686,13 @@ void RenderRealTimeReflectionHeightFogPS(
 
 	float4 WorldVector = mul(float4((SVPos.xy / 128.0f) * float2(2.0, -2.0) + float2(1.0, -1.0), 0.0, 0), ResolvedView.ScreenToTranslatedWorld);
 
-	const float HeightFogFarDistance = 100000.0f * 10.0f;	// 10 kilometers
-	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(normalize(ScreenVector)* HeightFogFarDistance);
+#if PERMUTATION_DEPTHTEXTURE
+	float DeviceZ = DepthTexture.Load(int3(SVPos.xy, 0));
+	const float HeightFogDistance = ConvertFromDeviceZ(DeviceZ);
+#else
+	const float HeightFogDistance = 100000.0f * 10.0f;	// 10 kilometers
+#endif
+	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(normalize(ScreenVector)* HeightFogDistance);
 
 	const float OutputPreExposure = (ResolvedView.RealTimeReflectionCapture ? ResolvedView.RealTimeReflectionCapturePreExposure : ResolvedView.PreExposure);
 	HeightFogInscatteringAndOpacity.rgb *= OutputPreExposure;

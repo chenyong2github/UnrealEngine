@@ -1888,7 +1888,7 @@ struct FRelevancePacket
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
-	TArray<FVolumetricMeshBatch> SkyMeshBatches;
+	TArray<FSkyMeshBatch> SkyMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -2380,9 +2380,11 @@ struct FRelevancePacket
 						if (ViewRelevance.bUsesSkyMaterial)
 						{
 							SkyMeshBatches.AddUninitialized(1);
-							FVolumetricMeshBatch& BatchAndProxy = SkyMeshBatches.Last();
+							FSkyMeshBatch& BatchAndProxy = SkyMeshBatches.Last();
 							BatchAndProxy.Mesh = &StaticMesh;
 							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+							BatchAndProxy.bVisibleInMainPass = ViewRelevance.bRenderInMainPass;
+							BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
 						}
 
 						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
@@ -2799,9 +2801,11 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	if (ViewRelevance.bUsesSkyMaterial)
 	{
 		View.SkyMeshBatches.AddUninitialized(1);
-		FVolumetricMeshBatch& BatchAndProxy = View.SkyMeshBatches.Last();
+		FSkyMeshBatch& BatchAndProxy = View.SkyMeshBatches.Last();
 		BatchAndProxy.Mesh = MeshBatch.Mesh;
 		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		BatchAndProxy.bVisibleInMainPass = ViewRelevance.bRenderInMainPass;
+		BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
 	}
 
 	if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
