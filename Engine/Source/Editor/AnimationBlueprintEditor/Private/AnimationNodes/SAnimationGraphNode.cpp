@@ -14,6 +14,7 @@
 #include "Animation/AnimInstance.h"
 #include "GraphEditorSettings.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
 
