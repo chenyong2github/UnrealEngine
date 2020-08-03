@@ -13,7 +13,7 @@ float4x4 VirtualHeightfieldToLocal;
 float4x4 VirtualHeightfieldToWorld;
 
 float3 LodViewOrigin;
-float3 LodDistances;
+float4 LodDistances;
 
 #define GRID_SIZE (VirtualHeightfieldMeshVF.NumQuadsPerTileSide+1)
 
@@ -97,17 +97,24 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 		float3 WorldPos = mul(float4(NormalizedPos, Height, 1), VirtualHeightfieldToWorld).xyz;
 		float DistanceSq = dot(LodViewOrigin - WorldPos, LodViewOrigin - WorldPos);
-		float Distance = sqrt(DistanceSq) * LodDistances.z;
+		float Distance = sqrt(DistanceSq) * LodDistances.w;
 		
-		float MorphCalc = Distance / LodDistances.x;// + max(Distance - LodDistances.x, 0) / LodDistances.y;
-		float Morph = MorphCalc < 1 ? MorphCalc : 1 + log2(MorphCalc);
-		Morph = clamp(Morph, (float)Level, MaxLod);
+		// Continous LOD at LOD 0.
+		float LodForDistance0 = saturate(Distance / (LodDistances.x * LodDistances.y));
+		// Continous LOD at LOD 1 and above.
+		float LodForDistanceN = log2(1 + max((Distance / LodDistances.x - LodDistances.y), 0)) / log2(LodDistances.z);
+		// Sum to get total continous LOD at distance from view origin.
+		float LodForDistance = LodForDistance0 + LodForDistanceN;
+		// Clamp between the LOD level for this instance and the max LOD. 
+		// Note that the culling phase should already ensure that LOD >= Level.
+		float LodForDistanceClamped = clamp(LodForDistance, (float)Level, MaxLod);
+		// Number of full levels that we need to morph.
+		float LodMorphFloor = floor(LodForDistanceClamped) - (float)Level;
+		// Final fractional morph has smoothstep to push transition region out to end of the LOD level.
+		float LodMorphFrac = smoothstep(0.7f, 0.98f, frac(LodForDistanceClamped));
 
-		uint MorphFloor = (uint)floor(Morph) - Level;
-		float MorphFrac = frac(Morph);
-		MorphFrac = smoothstep(0.7f, 0.98f, MorphFrac);
-
-		LocalUV = MorphVertex(LocalUV, GRID_SIZE - 1, MorphFloor, MorphFrac);
+		// Apply morph to vertex postion.
+		LocalUV = MorphVertex(LocalUV, GRID_SIZE - 1, (uint)LodMorphFloor, LodMorphFrac);
 
 		XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
 		NormalizedPos = (XY * PageTableSize.zw);
