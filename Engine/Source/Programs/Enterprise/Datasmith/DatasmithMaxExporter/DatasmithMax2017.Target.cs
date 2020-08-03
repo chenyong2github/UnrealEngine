@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithMaxBaseTarget : TargetRules
 {
 	public DatasmithMaxBaseTarget(TargetInfo Target)
