@@ -1038,7 +1038,6 @@ bool FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		if (Result)
 		{
 			Script->RemoveOutstandingCompileId(It.Key()->CompilingId);
-			Script->NotifyCompilationFinished();
 			// Can't call NotifyCompilationFinished() when post-loading. 
 			// This normally happens when compiled in-sync for which the callback is not required.
 			if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
