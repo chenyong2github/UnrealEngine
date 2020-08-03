@@ -2525,32 +2525,118 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* /*OwnerCompo
 
 void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
+	auto PseudoRandomColor = 
+		[](int32 NumIterations) -> FLinearColor
+		{
+			static const uint8 Spread = 157;  // Prime number that gives a good spread of colors without getting too similar as a rand might do.
+			uint8 Seed = Spread;
+			for (int32 i = 0; i < NumIterations; ++i)
+			{
+				Seed += Spread;
+			}
+			return FLinearColor::MakeFromHSV8(Seed, 160, 128);
+		};
+
+	int32 ColorOffset = 0;
+
 	const TPBDParticles<float, 3>& Particles = Evolution->Particles();
 
 	for (int32 Index = 0; Index < Assets.Num(); ++Index)
 	{
-		const UClothingAssetCommon* const Asset = Assets[Index];
-		if (!Asset || !LongRangeConstraints[Index]) { continue; }
+		if (!Assets[Index] || !Meshes[Index] || !LongRangeConstraints[Index]) { continue; }
 
+		// Recompute islands
+		const TMap<int32, TSet<uint32>>& PointToNeighborsMap = Meshes[Index]->GetPointToNeighborsMap();
+
+		static TArray<uint32> KinematicIndices;  // Make static to prevent constant allocations
+		KinematicIndices.Reset();
+		for (const TPair<int32, TSet<uint32>>& PointNeighbors : PointToNeighborsMap)
+		{
+			const int32 PointIndex = PointNeighbors.Key;
+			if (Particles.InvM(PointIndex) == 0.f)
+			{
+				KinematicIndices.Add(PointIndex);
+			}
+		}
+
+		const TArray<TArray<uint32>> IslandElements = TPBDLongRangeConstraints<float, 3>::ComputeIslands(PointToNeighborsMap, KinematicIndices);
+
+		// Draw constraints
 		const TArray<TArray<uint32>>& Constraints = LongRangeConstraints[Index]->GetConstraints();
-		const TArray<float>& Dists = LongRangeConstraints[Index]->GetDists();
 
 		for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
 		{
 			const TArray<uint32>& Path = Constraints[ConstraintIndex];
-			const float RefDist = Dists[ConstraintIndex];
-			const float CurDist = TPBDLongRangeConstraintsBase<float, 3>::ComputeGeodesicDistance(Particles, Path);
-			const float Offset = CurDist - RefDist;
+			const uint32 KinematicIndex = Path[0];
+			const uint32 DynamicIndex = Path[Path.Num() - 1];
 
-			const TVector<float, 3> P0 = Particles.X(Path[0]) + LocalSpaceLocation;  // Kinematic particle
-			const TVector<float, 3> P1 = Particles.X(Path[Path.Num() - 1]) + LocalSpaceLocation;  // Target particle
+			// Find Island
+			int32 ColorIndex = 0;
+			for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+			{
+				if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+				{
+					ColorIndex = ColorOffset + IslandIndex;
+					break;
+				}
+			}
 
-			const TVector<float, 3> Direction = (LocalSpaceLocation + Particles.X(Path[Path.Num() - 2]) - P1).GetSafeNormal();
-			const TVector<float, 3> P2 = P1 + Direction * Offset;
+			const TVector<float, 3> Pos0 = Particles.X(KinematicIndex) + LocalSpaceLocation;
+			const TVector<float, 3> Pos1 = Particles.X(DynamicIndex) + LocalSpaceLocation;
 
-			DrawLine(PDI, P0, P1, FLinearColor(FColor::Purple));
-			DrawLine(PDI, P1, P2, FLinearColor::Black);
+			DrawLine(PDI, Pos0, Pos1, PseudoRandomColor(ColorIndex));
 		}
+
+		// Draw islands
+		const TArray<TVector<int32, 3>>& Elements = Meshes[Index]->GetElements();
+
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			const auto& Element = Elements[ElementIndex];
+
+			const bool bIsKinematic0 = (Particles.InvM(Element.X) == 0.f);
+			const bool bIsKinematic1 = (Particles.InvM(Element.Y) == 0.f);
+			const bool bIsKinematic2 = (Particles.InvM(Element.Z) == 0.f);
+
+			// Lookup for any kinematic point on the triangle element to use for finding the island (it doesn't matter which one, if two kinematic points are on the same triangle they have to be on the same island)
+			const int32 KinematicIndex = bIsKinematic0 ? Element.X : bIsKinematic1 ? Element.Y : bIsKinematic2 ? Element.Z : INDEX_NONE;
+			if (KinematicIndex == INDEX_NONE)
+			{
+				continue;
+			}
+
+			// Find Island Color
+			int32 ColorIndex = 0;
+			for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+			{
+				if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+				{
+					ColorIndex = ColorOffset + IslandIndex;
+					break;
+				}
+			}
+			const FLinearColor Color = PseudoRandomColor(ColorIndex);
+
+			const FVector Pos0 = LocalSpaceLocation + Particles.X(Element.X);
+			const FVector Pos1 = LocalSpaceLocation + Particles.X(Element.Y);
+			const FVector Pos2 = LocalSpaceLocation + Particles.X(Element.Z);
+
+			if (bIsKinematic0 && bIsKinematic1)
+			{
+				DrawLine(PDI, Pos0, Pos1, Color);
+			}
+			if (bIsKinematic1 && bIsKinematic2)
+			{
+				DrawLine(PDI, Pos1, Pos2, Color);
+			}
+			if (bIsKinematic2 && bIsKinematic0)
+			{
+				DrawLine(PDI, Pos2, Pos0, Color);
+			}
+		}
+
+		// Rotate the colors for each cloths
+		ColorOffset += IslandElements.Num();
 	}
 }
 
