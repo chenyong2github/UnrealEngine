@@ -1161,11 +1161,17 @@ FTextLayout::FTextLayout()
 	, WordBreakIterator(FBreakIterator::CreateWordBreakIterator())
 	, TextBiDiDetection(TextBiDi::CreateTextBiDi())
 {
-
 }
 
 void FTextLayout::UpdateIfNeeded()
 {
+	if (CachedLayoutGeneration != GSlateLayoutGeneration)
+	{
+		CachedLayoutGeneration = GSlateLayoutGeneration;
+		DirtyFlags |= ETextLayoutDirtyState::Layout;
+		DirtyAllLineModels(ELineModelDirtyState::All);
+	}
+
 	const bool bHasChangedLayout = !!(DirtyFlags & ETextLayoutDirtyState::Layout);
 	const bool bHasChangedHighlights = !!(DirtyFlags & ETextLayoutDirtyState::Highlights);
 
