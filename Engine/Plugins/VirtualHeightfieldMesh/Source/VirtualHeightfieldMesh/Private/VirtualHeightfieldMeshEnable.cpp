@@ -9,15 +9,15 @@
 
 namespace VirtualHeightfieldMesh
 {
-	/**  */
+	/** CVar to toggle support for virtual heightfield mesh. */
 	static TAutoConsoleVariable<int32> CVarVHMEnable(
 		TEXT("r.VHM.Enable"),
-		1,
+		0,
 		TEXT("Enable virtual heightfield mesh"),
 		ECVF_RenderThreadSafe
 	);
 
-	/**  */
+	/** Sink to apply updates when virtual heightfield mesh settings change. */
 	static void OnUpdate()
 	{
 		const bool bEnable = CVarVHMEnable.GetValueOnGameThread() != 0;
@@ -32,7 +32,7 @@ namespace VirtualHeightfieldMesh
 
 			for (TObjectIterator<UVirtualHeightfieldMeshComponent> It; It; ++It)
 			{
-				It->SetRenderInMainPass(bEnable);
+				It->MarkRenderStateDirty();
 
 				if (It->GetVirtualTexture() != nullptr)
 				{
@@ -46,11 +46,11 @@ namespace VirtualHeightfieldMesh
 				{
 					if (It->GetRuntimeVirtualTextures().Contains(RuntimeVirtualTexture))
 					{
-						It->SetRenderInMainPass(!bEnable);
+						It->MarkRenderStateDirty();
 						break;
 					}
 				}
-		}
+			}
 		}
 	}
 

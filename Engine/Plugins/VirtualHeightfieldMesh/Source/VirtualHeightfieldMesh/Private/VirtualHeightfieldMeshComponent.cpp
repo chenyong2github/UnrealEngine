@@ -53,6 +53,14 @@ bool UVirtualHeightfieldMeshComponent::IsVisible() const
 
 FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
 {
+	//hack[vhm]: No scene representation when disabled for now.
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VHM.Enable"));
+	bool bVHMEnable = CVar != nullptr && CVar->GetValueOnAnyThread() != 0;
+	if (!bVHMEnable)
+	{
+		return nullptr;
+	}
+
 	return new FVirtualHeightfieldMeshSceneProxy(this);
 }
 
