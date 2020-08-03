@@ -40,6 +40,11 @@ float3 SampleAlbedo(in FPixelMaterialInputs PixelMaterialInputs)
 	return saturate(GetMaterialBaseColor(PixelMaterialInputs));
 }
 
+float3 SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
+{
+	return GetMaterialAmbientOcclusion(PixelMaterialInputs);
+}
+
 #endif
 
 #endif
@@ -247,6 +252,9 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #endif
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL
 #define MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL 0
+#endif
+#ifndef MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
+#define MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION 0
 #endif
 
 
@@ -714,10 +722,17 @@ bool TraceClouds(
 		ParticipatingMediaContext PMC = SetupParticipatingMediaContext(Albedo, ExtinctionCoefficients, MsScattFactor, MsExtinFactor, AtmosphereTransmittanceToLight0, AtmosphereTransmittanceToLight1);
 
 
-		// We always apply the sky distant luminance as computed by the SkyAtmosphere component for a given altitude. TODO: this should be spatially varying accoring to height and sun angle.
-		// We also reduce the sky contibution at the bottom of the cloud using a cheap gradient that is super fast to apply and artist controlable.
-		float3 DistantLightLuminance = DistantSkyLightLuminance * saturate(RenderVolumetricCloudParameters.SkyLightCloudBottomVisibility + MaterialParameters.CloudSampleNormAltitudeInLayer);
-
+		// We always apply the sky distant luminance as computed by the SkyAtmosphere component for a given altitude. 
+		// TODO: this should be spatially varying accoring to height and sun angle.
+		float3 DistantLightLuminance = DistantSkyLightLuminance;
+	#if MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
+		// We reduce the sky contibution as specified by the user instead of the default behavior.
+		DistantLightLuminance *= SampleAmbientOcclusion(PixelMaterialInputs);
+	#else
+		// We reduce the sky contibution at the bottom of the cloud using a cheap gradient that is super fast to apply and artist controlable.
+		DistantLightLuminance *= saturate(RenderVolumetricCloudParameters.SkyLightCloudBottomVisibility + MaterialParameters.CloudSampleNormAltitudeInLayer);
+	#endif
+		
 
 		//////////////////////////////
 		// Evaluate some data if there is medium causing scattering, e.g. shadow, ground lighting
