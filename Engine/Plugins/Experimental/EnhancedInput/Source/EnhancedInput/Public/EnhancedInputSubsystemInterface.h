@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputActionValue.h"
+#include "InputMappingQuery.h"
 #include "UObject/Interface.h"
 
 #include "EnhancedInputSubsystemInterface.generated.h"
