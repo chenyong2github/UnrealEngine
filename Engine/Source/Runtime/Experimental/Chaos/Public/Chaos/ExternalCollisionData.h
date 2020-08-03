@@ -23,6 +23,8 @@ namespace Chaos
 			, Normal(TVector<T, d>((T)0.0))
 			, Velocity1(TVector<T, d>((T)0.0))
 			, Velocity2(TVector<T, d>((T)0.0))
+		    , DeltaVelocity1(TVector<T, d>((T)0.0))
+		    , DeltaVelocity2(TVector<T, d>((T)0.0))
 			, AngularVelocity1(TVector<T, d>((T)0.0))
 			, AngularVelocity2(TVector<T, d>((T)0.0))
 			, Mass1((T)0.0)
@@ -34,14 +36,16 @@ namespace Chaos
 		    , LevelsetProxy(nullptr)
 		{}
 
-		TCollisionData(TVector<T, d> InLocation, TVector<T, d> InAccumulatedImpulse, TVector<T, d> InNormal, TVector<T, d> InVelocity1, TVector<T, d> InVelocity2
-			, TVector<T, d> InAngularVelocity1, TVector<T, d> InAngularVelocity2, T InMass1, T InMass2, T InPenetrationDepth, TGeometryParticle<T, d>* InParticle
-			, TGeometryParticle<T, d>* InLevelset, IPhysicsProxyBase* InParticleProxy, IPhysicsProxyBase* InLevelsetProxy)
-			: Location(InLocation)
+		TCollisionData(TVector<T, d> InLocation, TVector<T, d> InAccumulatedImpulse, TVector<T, d> InNormal, TVector<T, d> InVelocity1, TVector<T, d> InVelocity2, TVector<T, d> InDeltaVelocity1, TVector<T, d> InDeltaVelocity2
+		, TVector<T, d> InAngularVelocity1, TVector<T, d> InAngularVelocity2, T InMass1, T InMass2, T InPenetrationDepth, TGeometryParticle<T, d>* InParticle
+		, TGeometryParticle<T, d>* InLevelset, IPhysicsProxyBase* InParticleProxy, IPhysicsProxyBase* InLevelsetProxy)
+		    : Location(InLocation)
 			, AccumulatedImpulse(InAccumulatedImpulse)
 			, Normal(InNormal)
 			, Velocity1(InVelocity1)
 			, Velocity2(InVelocity2)
+			, DeltaVelocity1(InDeltaVelocity1)
+			, DeltaVelocity2(InDeltaVelocity2)
 			, AngularVelocity1(InAngularVelocity1)
 			, AngularVelocity2(InAngularVelocity2)
 			, Mass1(InMass1)
@@ -59,6 +63,7 @@ namespace Chaos
 		TVector<T, d> AccumulatedImpulse;
 		TVector<T, d> Normal;
 		TVector<T, d> Velocity1, Velocity2;
+		TVector<T, d> DeltaVelocity1, DeltaVelocity2;
 		TVector<T, d> AngularVelocity1, AngularVelocity2;
 		T Mass1, Mass2;
 		T PenetrationDepth;
