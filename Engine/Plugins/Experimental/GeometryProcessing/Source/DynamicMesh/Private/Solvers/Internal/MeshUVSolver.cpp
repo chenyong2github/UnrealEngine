@@ -91,8 +91,9 @@ static void ConstructNaturalConformalLaplacianSystem(
 	int32 N = NumVerts;
 	FSparseMatrixD AreaMatrix(2 * N, 2 * N);
 	FMeshBoundaryLoops Loops(&DynamicMesh, true);
-	for (const FEdgeLoop& Loop : Loops.Loops)
+	for (FEdgeLoop& Loop : Loops.Loops)
 	{
+		Algo::Reverse(Loop.Vertices);		// reverse loop to handle UE mesh orientation
 		int32 NumV = Loop.GetVertexCount();
 		for (int32 k = 0; k < NumV; ++k)
 		{
