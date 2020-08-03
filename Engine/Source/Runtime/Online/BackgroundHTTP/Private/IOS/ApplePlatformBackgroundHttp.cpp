@@ -33,13 +33,3 @@ FBackgroundHttpResponsePtr FApplePlatformBackgroundHttp::ConstructBackgroundResp
 {
 	return MakeShared<FApplePlatformBackgroundHttpResponse, ESPMode::ThreadSafe>(ResponseCode, TempFilePath);
 }
-
-const FString FApplePlatformBackgroundHttp::GetTemporaryFilePathFromURL(const FString& URL)
-{
-	return FBackgroundURLSessionHandler::GetTemporaryFilePathFromURL(URL);
-}
-
-const FString& FApplePlatformBackgroundHttp::GetTemporaryRootPath()
-{
-    return FBackgroundURLSessionHandler::GetBackgroundSessionWorkingDirectoryPath();
-}
