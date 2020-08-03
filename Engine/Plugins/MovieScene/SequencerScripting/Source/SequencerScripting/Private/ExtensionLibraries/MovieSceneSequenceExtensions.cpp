@@ -514,6 +514,24 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID, Space);
 }
 
+FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
+{
+	UMovieSceneSequence* Sequence = MasterSequence;
+
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterSequence);
+
+	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
+	if (Hierarchy)
+	{
+		if (UMovieSceneSequence* SubSequence = Hierarchy->FindSubSequence(InObjectBindingID.GetSequenceID()))
+		{
+			Sequence = SubSequence;
+		}
+	}
+
+	return FSequencerBindingProxy(InObjectBindingID.GetGuid(), Sequence);
+}
+
 TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequence(UMovieSceneSequence* Sequence)
 {
 	TArray<UMovieSceneFolder*> Result;
