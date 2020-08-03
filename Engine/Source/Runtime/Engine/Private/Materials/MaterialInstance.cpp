@@ -3614,9 +3614,10 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 				 !NewParent->IsA(UMaterial::StaticClass()) &&
 				 !NewParent->IsA(UMaterialInstanceConstant::StaticClass()))
 		{
-			UE_LOG(LogMaterial, Warning, TEXT("%s is not a valid parent for %s. Only Materials and MaterialInstanceConstants are valid parents for a material instance."),
+			UE_LOG(LogMaterial, Warning, TEXT("%s is not a valid parent for %s. Only Materials and MaterialInstanceConstants are valid parents for a material instance. Outer is %s"),
 				*NewParent->GetFullName(),
-				*GetFullName());
+				*GetFullName(),
+				*GetNameSafe(GetOuter()));
 		}
 		else
 		{
