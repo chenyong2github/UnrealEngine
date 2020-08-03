@@ -44,6 +44,8 @@
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
+
 	// Uses nearest to not leak informations on geometric edges by bilateral. This is OK because just blury greyscale details.
 	// TODO(Denoiser): a bit hacky, need find better solution.
 	// TODO(Denoiser): cause a regression on spot light for some reasons.
