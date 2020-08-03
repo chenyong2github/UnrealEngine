@@ -324,12 +324,12 @@ public:
 		}
 	}
 
-	void Dispatch(FSavedCue& SavedCue, TCueHandler& Handler, const int32& DispatchTime)
+	void Dispatch(FSavedCue& SavedCue, TCueHandler& Handler, const int32& TimeSinceInvocation)
 	{
 		if (FCueTypeInfo* TypeInfo = CueTypeInfoMap.Find(SavedCue.ID))
 		{
 			check(TypeInfo->Dispatch);
-			TypeInfo->Dispatch(SavedCue.CueInstance.Get(), Handler, {DispatchTime - SavedCue.Time, SavedCue.bAllowRollback ? &SavedCue.Callbacks : nullptr });
+			TypeInfo->Dispatch(SavedCue.CueInstance.Get(), Handler, {TimeSinceInvocation, SavedCue.bAllowRollback ? &SavedCue.Callbacks : nullptr });
 		}
 		else
 		{
@@ -372,6 +372,8 @@ template<typename T> struct TCueDispatcherTraits : public FCueDispatcherTraitsBa
 // Non-templated, "networking model independent" base: this is what the pure simulation code gets to invoke cues. 
 struct FNetSimCueDispatcher
 {
+	virtual ~FNetSimCueDispatcher() = default;
+
 	// Invoke - this is how to invoke a cue from simulation code. This will construct the CueType T emplace in the saved cue record.
 	// 
 	// Best way to call:
@@ -414,6 +416,7 @@ struct FNetSimCueDispatcher
 
 				// In resimulate case, we have to see if we already predicted it
 				if (Context.TickContext == ESimulationTickContext::Resimulate)
+				
 				{
 					npEnsure(RollbackFrame >= 0 && RollbackFrame <= Context.Frame);
 					
@@ -441,7 +444,7 @@ struct FNetSimCueDispatcher
 				else
 				{
 					// Not resimulate case is simple: construct the new cue emplace in the appropriate list	
-					auto& SavedCue = GetBuffer(bTransient).Emplace_GetRef(T::ID, Context.Frame, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(Forward<ArgsType>(Args)...));	
+					auto& SavedCue = GetBuffer(bTransient).Emplace_GetRef(T::ID, Context.Frame, Context.CurrentSimTime, bAllowRollback, bNetConfirmed, bSupportsResimulate, new TNetSimCueWrapper<T>(Forward<ArgsType>(Args)...));
 					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Invoking Cue %s. Context: %d. Transient: %d. bAllowRollback: %d. bNetConfirmed: %d. Time: %d"), *GetDebugName(), *SavedCue.GetDebugName(), Context.TickContext, bTransient, bAllowRollback, bNetConfirmed, Context.CurrentSimTime);
 				}				
 			}
@@ -452,7 +455,7 @@ struct FNetSimCueDispatcher
 		}
 	}
 
-	TFunction<FString()> GetDebugName = []() { return TEXT("Unset"); };
+	virtual FString GetDebugName() const = 0;
 
 protected:
 
@@ -478,12 +481,14 @@ protected:
 };
 
 // Templated cue dispatcher that can be specialized per networking model definition. This is what the system actually uses internally, but is not exposed to user code.
-template<typename Model=void>
+template<typename ModelDef=void>
 struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 {
+	using DriverType = typename ModelDef::Driver;
+
 	// Serializes all saved cues
 	//	bSerializeFrameNumber - whether to serialize Frame# or Time to this target. Frame is more accurate but some cases require time based replication.
-	void NetSerializeSavedCues(FArchive& Ar, ENetSimCueReplicationTarget ReplicationMask, bool bSerializeFrameNumber)
+	void NetSerializeSavedCues(FArchive& Ar, ENetSimCueReplicationTarget ReplicationMask, bool bSerializeFrameNumber, int32 InLastRecvFrame, int32 InLastRecvTime)
 	{
 		if (Ar.IsSaving())
 		{
@@ -528,18 +533,24 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 
 				// Decide if we should accept the cue:
 				// ReplicationTarget: Cues can be set to only replicate to interpolators
-				if ( EnumHasAnyFlags(SerializedCue.ReplicationTarget, ReplicationMask) == false )
+				if (EnumHasAnyFlags(SerializedCue.ReplicationTarget, ReplicationMask) == false)
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("Discarding replicated NetSimCue %s that is not intended for us. CueMask: %d. Our Mask: %d"), *SerializedCue.GetDebugName(), SerializedCue.ReplicationTarget, ReplicationMask);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s that is not intended for us. CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.ReplicationTarget, ReplicationMask);
 					continue;
 				}
 
-				if (SerializedCue.Frame != INDEX_NONE && SerializedCue.Frame <= UserConfirmedFrame)
+				// Due to redundant sending, we may get frames older than what we've already processed. Early out rather than searching for them in saved cues.
+				// This also ensures that if we get a very stale cue that we have pruned locally, we won't incorrectly invoke it again.
+				if (SerializedCue.Frame != INDEX_NONE && SerializedCue.Frame <= LastRecvFrame)
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("Discarding replicated NetSimCue %s because it is older (%d) than confirmed frame (%d). CueMask: %d. Our Mask: %d"), *SerializedCue.GetDebugName(), SerializedCue.Frame, UserConfirmedFrame, SerializedCue.ReplicationTarget, ReplicationMask);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed frame (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, ReplicationMask);
 					continue;
 				}
-
+				else if (SerializedCue.Time <= LastRecvMS)
+				{
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because it is older (%d) than confirmed TimeMS (%d). CueMask: %d. Our Mask: %d"), *GetDebugName(), *SerializedCue.GetDebugName(), SerializedCue.Frame, LastRecvFrame, SerializedCue.ReplicationTarget, ReplicationMask);
+					continue;
+				}
 				
 				// Uniqueness: have we already received/predicted it?
 				// Note: we are basically ignoring invocation time when matching right now. This could potentially be a trait of the cue if needed.
@@ -551,7 +562,7 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 					if (SerializedCue.NetIdentical(ExistingCue))
 					{
 						// These cues are not unique ("close enough") so we are skipping receiving this one
-						UE_LOG(LogNetworkPredictionCues, Log, TEXT("Discarding replicated NetSimCue %s because we've already processed it. (Matched %s)"), *SerializedCue.GetDebugName(), *ExistingCue.GetDebugName());
+						UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Discarding replicated NetSimCue %s because we've already processed it. (Matched %s)"), *GetDebugName(), *SerializedCue.GetDebugName(), *ExistingCue.GetDebugName());
 						bUniqueCue = false;
 						ExistingCue.bNetConfirmed = true;
 						break;
@@ -561,51 +572,42 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 				if (bUniqueCue)
 				{
 					auto& SavedCue = SavedCues.Emplace_GetRef(MoveTemp(SerializedCue));
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Received !NetIdentical Cue: %s. (Num replicated cue sent this bunch: %d. UserConfirmedFrame: %d)."), *GetDebugName(), *SerializedCue.GetDebugName(), NumCues, UserConfirmedFrame);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Received !NetIdentical Cue: %s. (Num replicated cue sent this bunch: %d. LastRecvFrame: %d. Our Mask: %d)."), *GetDebugName(), *SerializedCue.GetDebugName(), NumCues, LastRecvFrame, ReplicationMask);
 				}
 			}
+
+			LastRecvFrame = InLastRecvFrame;
+			LastRecvMS = InLastRecvTime;
 		}
 	}
 
 	// Dispatches and prunes saved/transient cues
 	template<typename T>
-	void DispatchCueRecord(T& Handler, const int32 SimFrame, const int32 CurrentSimTime, const int32 InConfirmedFrame)
+	void DispatchCueRecord(T& Handler, const int32 SimFrame, const int32 CurrentSimTime, const int32 FixedTimeStepMS)
 	{
-		auto CalcPruneFrame = [&]()
-		{
-			int32 Frame = SimFrame - TCueDispatcherTraits<Model>::ReplicationWindowFrames();
-			if (InConfirmedFrame != INDEX_NONE)
-			{
-				Frame = FMath::Min(Frame, InConfirmedFrame);
-			}
-			return Frame;
-		};
+		auto CalcPrune = [](int32 Head, int32 Confirm, int32 Window) { return Confirm > 0 ? Confirm : Head - Window; };
 
-		const int32 SavedCuePruneTimeMS = CurrentSimTime - TCueDispatcherTraits<Model>::ReplicationWindowMS();
-		const int32 SavedCuePruneFrame = CalcPruneFrame();
-
-		npEnsureSlow(InConfirmedFrame >= SavedCuePruneFrame || InConfirmedFrame == INDEX_NONE);
+		const int32 SavedCuePruneTimeMS = CalcPrune(CurrentSimTime, LastRecvMS, TCueDispatcherTraits<ModelDef>::ReplicationWindowMS());
+		const int32 SavedCuePruneFrame = CalcPrune(SimFrame, LastRecvMS, TCueDispatcherTraits<ModelDef>::ReplicationWindowFrames());
 		
 		// Prune cues prior to this idx
 		int32 SavedCuePruneIdx = INDEX_NONE;
-
-		UserConfirmedFrame = InConfirmedFrame;
 
 		// ------------------------------------------------------------------------
 		// Rollback events if necessary
 		//	Fixme - this code was written for clarity, it could be sped up considerably by taking advantage of sorting by time, or keeping acceleration lists for this type of pruning
 		// ------------------------------------------------------------------------
 
-		if (UserConfirmedFrame != INDEX_NONE)
+		if (LastRecvFrame != INDEX_NONE)
 		{
 			// Look for cues that should have been matched by now, but were not
 			for (auto It = SavedCues.CreateIterator(); It; ++It)
 			{
 				FSavedCue& SavedCue = *It;
 				npEnsureSlow(SavedCue.Frame != INDEX_NONE);
-				if (!SavedCue.bNetConfirmed && SavedCue.Frame <= UserConfirmedFrame)
+				if (!SavedCue.bNetConfirmed && SavedCue.Frame <= LastRecvFrame)
 				{
-					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Calling OnRollback for SavedCue NetSimCue %s. Cue has not been matched but it <= UserConfirmedFrame %d."), *GetDebugName(), *SavedCue.GetDebugName(), UserConfirmedFrame);
+					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s. Calling OnRollback for SavedCue NetSimCue %s. Cue has not been matched but it <= LastRecvFrame %d."), *GetDebugName(), *SavedCue.GetDebugName(), LastRecvFrame);
 					SavedCue.Callbacks.OnRollback.Broadcast();
 					SavedCues.RemoveAt(It.GetIndex(), 1, false);
 				}
@@ -646,13 +648,34 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 
 			if (!SavedCue.bDispatched)
 			{
-				// Prefer frame comparison if SavedCue has one
-				const bool bDispatchCue = (SavedCue.Frame == INDEX_NONE) ?  (SavedCue.Time <= CurrentSimTime) : (SavedCue.Frame <= SimFrame);
-				if (bDispatchCue)
+				bool bDispatchedCue = false;
+				int32 TimeSinceInvocationMS = 0;
+
+				if (SavedCue.Frame != INDEX_NONE)
+				{
+					// Frame based comparison (prefer if available)					
+					if (SavedCue.Frame <= SimFrame)
+					{
+						const int32 FramesSinceInvoke = SimFrame - SavedCue.Frame;
+						TimeSinceInvocationMS = FramesSinceInvoke * FixedTimeStepMS;
+						bDispatchedCue = true;
+					}
+				}
+				else
+				{
+					// Time based comparison
+					if (SavedCue.Time <= CurrentSimTime)
+					{
+						TimeSinceInvocationMS = CurrentSimTime - SavedCue.Time;
+						bDispatchedCue = true;
+					}
+				}
+
+				if (bDispatchedCue)
 				{
 					UE_LOG(LogNetworkPredictionCues, Log, TEXT("%s Dispatching NetSimCue {Frame: %d, Time: %d}"), *GetDebugName(), *SavedCue.GetDebugName(), SavedCue.Frame, SavedCue.Time);
 					SavedCue.bDispatched = true;
-					TCueDispatchTable<T>::Get().Dispatch(SavedCue, Handler, CurrentSimTime);
+					TCueDispatchTable<T>::Get().Dispatch(SavedCue, Handler, TimeSinceInvocationMS);
 				}
 				else
 				{
@@ -717,9 +740,25 @@ struct TNetSimCueDispatcher : public FNetSimCueDispatcher
 	void PushContext(const FContext& InContext) { Context = InContext; }
 	void PopContext() { Context = FContext(); }
 
+	DriverType* Driver = nullptr;
+	FString GetDebugName() const final override
+	{
+		FString Str;
+		if (Driver)
+		{
+			TStringBuilder<128> Builder;
+			FNetworkPredictionDriver<ModelDef>::GetDebugString(Driver, Builder);
+
+			Str = FString(Builder.ToString());
+		}
+
+		return Str;
+	}
+
 private:
 	
-	mutable int32 UserConfirmedFrame = INDEX_NONE;		// (If set) latest confirmed simulation time. If not set, we assume we are authority and will never rollback.
+	int32 LastRecvFrame = INDEX_NONE;
+	int32 LastRecvMS = 0;
 };
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
