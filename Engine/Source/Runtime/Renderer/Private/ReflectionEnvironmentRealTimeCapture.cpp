@@ -24,12 +24,12 @@ DECLARE_GPU_STAT(CaptureConvolveSkyEnvMap);
 
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureTimeSlicing(
-	TEXT("r.RealTimeReflectionCapture.TimeSlice"), 0,
+	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 0,
 	TEXT("SkyAtmosphere components are rendered when this is not 0, otherwise ignored.\n"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureShadowFromOpaque(
-	TEXT("r.RealTimeReflectionCapture.ShadowFromOpaque"), 0,
+	TEXT("r.SkyLight.RealTimeReflectionCapture.ShadowFromOpaque"), 0,
 	TEXT("Opaque meshes cast shadow from directional lights when enabled.\n"),
 	ECVF_RenderThreadSafe);
 
