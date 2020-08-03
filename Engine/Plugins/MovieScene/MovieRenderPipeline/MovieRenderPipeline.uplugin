@@ -45,6 +45,11 @@
 			"Name": "MovieRenderPipelineEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UEOpenExrRTTI",
+			"Type": "Uncookedonly",
+			"LoadingPhase": "Default"
 		}
 	]
 }
