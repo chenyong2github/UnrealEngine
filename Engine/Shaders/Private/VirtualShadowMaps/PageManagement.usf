@@ -361,10 +361,10 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 }
 
 [numthreads(VSM_DEFAULT_CS_GROUP_XY, VSM_DEFAULT_CS_GROUP_XY, 1)]
-void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint3 GroupIndex : SV_GroupIndex)
+void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex)
 {
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
-	uint2 PixelPos = VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex.x);
+	uint2 PixelPos = VSM_DEFAULT_CS_GROUP_XY * GroupId.xy + MortonDecode(GroupIndex);
 
 	if (any(PixelPos >= uint2(View.ViewSizeAndInvSize.xy)))
 	{

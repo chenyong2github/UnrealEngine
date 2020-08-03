@@ -457,7 +457,8 @@ void CastScreenSpaceRay(
 			for (uint j = 0; j < SSRT_SAMPLE_BATCH_SIZE; j++)
 			{
 				bFoundHit = bFoundHit || bMultipleSampleHit[j];
-				bUncertain |= (bMultipleSampleUncertain[i] && !bFoundHit);
+				bool bLocalMultisampleUncertain = bMultipleSampleUncertain[i];
+				bUncertain = bUncertain || (bLocalMultisampleUncertain && !bFoundHit);
 			}
 		}
 
