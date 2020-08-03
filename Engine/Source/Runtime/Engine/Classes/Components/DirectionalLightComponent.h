@@ -136,6 +136,13 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Light, meta=(UIMin = "0", UIMax = "5"), DisplayName = "Source Soft Angle")
 	float LightSourceSoftAngle;
 
+	/**
+	 * Shadow source angle factor, relative to the light source angle.
+	 * Defaults to 1.0 to coincide with light source angle.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RayTracing, meta = (UIMin = "0", UIMax = "5"), DisplayName = "Shadow Source Angle Factor")
+	float ShadowSourceAngleFactor;
+
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=DistanceFieldShadows, meta=(UIMin = "1000", UIMax = "100000"), DisplayName = "DistanceField Trace Distance")
 	float TraceDistance;
