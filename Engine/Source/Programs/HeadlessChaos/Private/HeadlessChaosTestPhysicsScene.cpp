@@ -105,4 +105,205 @@ namespace ChaosTest {
 		}
 
 	}
+
+	template <typename TSolver>
+	void AdvanceSolverNoPushHelper(TSolver* Solver, float Dt)
+	{
+		Solver->AdvanceSolverBy(Dt);
+	}
+
+	GTEST_TEST(EngineInterface,AccelerationStructureHasSyncTime)
+	{
+		//make sure acceleration structure has appropriate sync time
+
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTime(),0);
+
+		FReal TotalDt = 0;
+		for(int Step = 1; Step < 10; ++Step)
+		{
+			FVec3 Grav(0,0,-1);
+			const FReal Dt = 1.f/Step;
+			Scene.SetUpForFrame(&Grav, Dt,99999,99999,10,false);
+			Scene.StartFrame();
+			Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();	//make sure we get a new tree every step
+			Scene.EndFrame();
+
+			EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTime(),TotalDt);
+			TotalDt += Dt;
+		}
+	}
+
+	GTEST_TEST(EngineInterface,CreateActorPostFlush)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params,Particle);
+		EXPECT_NE(Particle,nullptr);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		//tick solver but don't call EndFrame (want to flush and swap manually)
+		{
+			FVec3 Grav(0,0,-1);
+			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.StartFrame();
+		}
+
+		//make sure acceleration structure is built
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
+
+		//create actor after structure is finished, but before swap happens
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+
+		Scene.CopySolverAccelerationStructure();	//trigger swap manually and see pending changes apply
+		{
+			const auto HitBuffer = InSphereHelper(Scene,FTransform::Identity,3);
+			EXPECT_EQ(HitBuffer.GetNumHits(),1);
+		}
+	}
+
+	GTEST_TEST(EngineInterface,MoveActorPostFlush)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params,Particle);
+		EXPECT_NE(Particle,nullptr);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		//create actor before structure is ticked
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+
+		//tick solver so that particle is created, but don't call EndFrame (want to flush and swap manually)
+		{
+			FVec3 Grav(0,0,-1);
+			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.StartFrame();
+		}
+
+		//make sure acceleration structure is built
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
+
+		//move object to get hit (shows pending move is applied)
+		FChaosEngineInterface::SetGlobalPose_AssumesLocked(Particle,FTransform(FRotation3::FromIdentity(), FVec3(100,0,0)));
+		
+		Scene.CopySolverAccelerationStructure();	//trigger swap manually and see pending changes apply
+		{
+			TRigidTransform<FReal,3> OverlapTM(FVec3(100,0,0),FRotation3::FromIdentity());
+			const auto HitBuffer = InSphereHelper(Scene,OverlapTM,3);
+			EXPECT_EQ(HitBuffer.GetNumHits(),1);
+		}
+	}
+
+	GTEST_TEST(EngineInterface,RemoveActorPostFlush)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params,Particle);
+		EXPECT_NE(Particle,nullptr);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		//create actor before structure is ticked
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+
+		//tick solver so that particle is created, but don't call EndFrame (want to flush and swap manually)
+		{
+			FVec3 Grav(0,0,-1);
+			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.StartFrame();
+		}
+
+		//make sure acceleration structure is built
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
+
+		//delete object to get no hit
+		FChaosEngineInterface::ReleaseActor(Particle, &Scene);
+
+		Scene.CopySolverAccelerationStructure();	//trigger swap manually and see pending changes apply
+		{
+			const auto HitBuffer = InSphereHelper(Scene,FTransform::Identity,3);
+			EXPECT_EQ(HitBuffer.GetNumHits(),0);
+		}
+	}
+
+	GTEST_TEST(EngineInterface,CreateAndRemoveActorPostFlush)
+	{
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		Scene.GetSolver()->SetEnabled(true);
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		TGeometryParticle<FReal,3>* Particle = nullptr;
+
+		//tick solver, but don't call EndFrame (want to flush and swap manually)
+		{
+			FVec3 Grav(0,0,-1);
+			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.StartFrame();
+		}
+
+		//make sure acceleration structure is built
+		Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();
+
+		FChaosEngineInterface::CreateActor(Params,Particle);
+		EXPECT_NE(Particle,nullptr);
+
+		{
+			auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+			Particle->SetGeometry(MoveTemp(Sphere));
+		}
+
+		//create actor after flush
+		TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+		Scene.AddActorsToScene_AssumesLocked(Particles);
+
+		//delete object right away to get no hit
+		FChaosEngineInterface::ReleaseActor(Particle,&Scene);
+
+		Scene.CopySolverAccelerationStructure();	//trigger swap manually and see pending changes apply
+		{
+			const auto HitBuffer = InSphereHelper(Scene,FTransform::Identity,3);
+			EXPECT_EQ(HitBuffer.GetNumHits(),0);
+		}
+	}
 }
