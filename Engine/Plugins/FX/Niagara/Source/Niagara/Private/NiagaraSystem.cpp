@@ -133,21 +133,6 @@ void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
 #endif
 }
 
-bool UNiagaraSystem::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
-{
-	bool bHasAnyEnabledEmitters = false;
-	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
-	{
-		if (EmitterHandle.GetIsEnabled() && EmitterHandle.GetInstance()->Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName()))
-		{
-			bHasAnyEnabledEmitters = true;
-			break;
-		}
-	}
-
-	return bHasAnyEnabledEmitters;
-}
-
 #if WITH_EDITOR
 void UNiagaraSystem::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform)
 {
