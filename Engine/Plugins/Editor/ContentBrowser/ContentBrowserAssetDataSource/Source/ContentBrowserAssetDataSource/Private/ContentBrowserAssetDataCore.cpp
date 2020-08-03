@@ -250,18 +250,15 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 		}
 
 		SlowTask.EnterProgressFrame(75.0f / InAssetPayloads.Num(), FText::Format(LOCTEXT("LoadingAssetName", "Loading {0}..."), FText::FromName(AssetData.AssetName)));
-
-		if (UObject* Asset = AssetData.GetAsset())
+		
+		TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetPayload->GetAssetTypeActions();
+		bool bShouldLoadAsset = AssetTypeActions.IsValid() ? AssetTypeActions->CanLoadAssetForPreviewOrEdit(AssetData) : true;
+		if (bShouldLoadAsset)
 		{
-			if (TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetPayload->GetAssetTypeActions())
+			if (UObject* Asset = AssetData.GetAsset())
 			{
-				// Add this asset to the list associated with the asset type action object
-				TArray<UObject*>& ObjList = TypeActionsToObjects.FindOrAdd(AssetTypeActions.ToSharedRef());
+				TArray<UObject*>& ObjList = AssetTypeActions.IsValid() ? TypeActionsToObjects.FindOrAdd(AssetTypeActions.ToSharedRef()) : ObjectsWithoutTypeActions;
 				ObjList.AddUnique(Asset);
-			}
-			else
-			{
-				ObjectsWithoutTypeActions.AddUnique(Asset);
 			}
 		}
 	}
