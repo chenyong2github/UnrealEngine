@@ -15175,6 +15175,12 @@ int32 UEngine::RenderStatColorList(UWorld* World, FViewport* Viewport, FCanvas* 
 }
 
 // LEVELS
+TAutoConsoleVariable<int32> CVarStatLevelsColumnWidth(
+	TEXT("stats.StatLevelsColumnWidth"),
+	350,
+	TEXT("The width in pixels of a column in stat levels.")
+);
+
 int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 	int32 MaxY = Y;
@@ -15217,7 +15223,7 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 		{
 			MaxY = FMath::Max(MaxY, Y);
 			Y = BaseY;
-			X += 350;
+			X += CVarStatLevelsColumnWidth.GetValueOnGameThread();
 		}
 
 		FColor	Color = GetColorForLevelStatus(LevelStatus.StreamingStatus);
