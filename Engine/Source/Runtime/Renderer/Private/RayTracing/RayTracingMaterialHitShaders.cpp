@@ -475,7 +475,7 @@ void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 	}
 }
 
-static bool IsCompatibleFallbackPipeline(FRayTracingPipelineStateInitializer& B, FRayTracingPipelineStateInitializer& A)
+static bool IsCompatibleFallbackPipelineSignature(FRayTracingPipelineStateSignature& B, FRayTracingPipelineStateSignature& A)
 {
 	// Compare everything except hit group table
 	return A.MaxPayloadSizeInBytes == B.MaxPayloadSizeInBytes
@@ -483,6 +483,19 @@ static bool IsCompatibleFallbackPipeline(FRayTracingPipelineStateInitializer& B,
 		&& A.GetRayGenHash() == B.GetRayGenHash()
 		&& A.GetRayMissHash() == B.GetRayMissHash()
 		&& A.GetCallableHash() == B.GetCallableHash();
+}
+
+static bool PipelineContainsHitShaders(FRayTracingPipelineState* Pipeline, const TArrayView<FRHIRayTracingShader*>& Shaders)
+{
+	for (FRHIRayTracingShader* Shader : Shaders)
+	{
+		int32 Index = FindRayTracingHitGroupIndex(Pipeline, Shader, false);
+		if (Index == INDEX_NONE)
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
@@ -494,8 +507,6 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
-
-	FRayTracingPipelineState* PipelineState = nullptr;
 
 	FRayTracingPipelineStateInitializer Initializer;
 
@@ -525,47 +536,54 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 		FShaderMapResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
 	}
 
-	RayTracingMaterialLibrary.Add(DefaultClosestHitShader);
-
 	FRHIRayTracingShader* OpaqueShadowShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
 	FRHIRayTracingShader* HiddenMaterialShader = View.ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
 
-	RayTracingMaterialLibrary.Add(OpaqueShadowShader);
-	RayTracingMaterialLibrary.Add(HiddenMaterialShader);
+	FRHIRayTracingShader* RequiredHitShaders[] =
+	{
+		DefaultClosestHitShader,
+		OpaqueShadowShader,
+		HiddenMaterialShader
+	};
+
+	for (FRHIRayTracingShader* Shader : RequiredHitShaders)
+	{
+		RayTracingMaterialLibrary.Add(Shader);
+	}
 
 	Initializer.SetHitGroupTable(RayTracingMaterialLibrary);
 
+	FRayTracingPipelineState* FallbackPipelineState = GRayTracingNonBlockingPipelineCreation && View.ViewState
+		? PipelineStateCache::GetRayTracingPipelineState(View.ViewState->LastRayTracingMaterialPipelineSignature)
+		: nullptr;
+
 	ERayTracingPipelineCacheFlags PipelineCacheFlags = ERayTracingPipelineCacheFlags::Default;
 	if (GRayTracingNonBlockingPipelineCreation
-		&& View.ViewState
-		&& View.ViewState->LastRayTracingMaterialPipeline
-		&& IsCompatibleFallbackPipeline(View.ViewState->LastRayTracingMaterialPipelineInitializer, Initializer))
+		&& FallbackPipelineState
+		&& IsCompatibleFallbackPipelineSignature(View.ViewState->LastRayTracingMaterialPipelineSignature, Initializer)
+		&& PipelineContainsHitShaders(FallbackPipelineState, RequiredHitShaders))
 	{
 		PipelineCacheFlags |= ERayTracingPipelineCacheFlags::NonBlocking;
 	}
 
-	PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer, PipelineCacheFlags);
+	FRayTracingPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer, PipelineCacheFlags);
 
 	if (PipelineState)
 	{
 		if (View.ViewState)
 		{
 			// Save the current pipeline to be used as fallback in future frames
-			View.ViewState->LastRayTracingMaterialPipeline = PipelineState;
-			View.ViewState->LastRayTracingMaterialPipelineInitializer = Initializer;
+			View.ViewState->LastRayTracingMaterialPipelineSignature = static_cast<FRayTracingPipelineStateSignature&>(Initializer);
 		}
 	}
 	else
 	{
-		// If pipeline was not found in cache, use the fallback from ViewState
-		check(View.ViewState);
-		check(View.ViewState->LastRayTracingMaterialPipeline);
-		PipelineState = View.ViewState->LastRayTracingMaterialPipeline;
+		// If pipeline was not found in cache, use the fallback from previous frame
+		check(FallbackPipelineState);
+		PipelineState = FallbackPipelineState;
 	}
 
 	check(PipelineState);
-
-	PipelineStateCache::RegisterRayTracingPipelineUse(PipelineState);
 
 	const int32 DefaultClosestHitMaterialIndex = FindRayTracingHitGroupIndex(PipelineState, DefaultClosestHitShader, true);
 	const int32 OpaqueShadowMaterialIndex = FindRayTracingHitGroupIndex(PipelineState, OpaqueShadowShader, true);

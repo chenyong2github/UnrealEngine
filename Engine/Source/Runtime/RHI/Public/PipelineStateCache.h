@@ -57,8 +57,8 @@ namespace PipelineStateCache
 		const FRayTracingPipelineStateInitializer& Initializer,
 		ERayTracingPipelineCacheFlags Flags = ERayTracingPipelineCacheFlags::Default);
 
-	// Notifies the pipeline cache that this RTPSO was used for rendering, preventing it from being evicted.
-	extern RHI_API void RegisterRayTracingPipelineUse(FRayTracingPipelineState* Pipeline);
+	// Retrieves RTPSO object from cache or returns NULL if it's not found.
+	extern RHI_API FRayTracingPipelineState* GetRayTracingPipelineState(const FRayTracingPipelineStateSignature& Signature);
 
 	/* Evicts unused state entries based on r.pso.evictiontime time. Called in RHICommandList::BeginFrame */
 	extern RHI_API void FlushResources();
