@@ -394,18 +394,27 @@ float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionT
 	return Weight;
 }
 
+bool ContainsSpawnableWithName(UMovieScene* MovieScene, const FString& InName)
+{
+	for (int32 SpawnableIndex = 0; SpawnableIndex < MovieScene->GetSpawnableCount(); ++SpawnableIndex)
+	{
+		FMovieSceneSpawnable& Spawnable = MovieScene->GetSpawnable(SpawnableIndex);
+
+		if (Spawnable.GetName() == InName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 FString MovieSceneHelpers::MakeUniqueSpawnableName(UMovieScene* MovieScene, const FString& InName)
 {
 	FString NewName = InName;
 
-	auto DuplName = [&](FMovieSceneSpawnable& InSpawnable)
-	{
-		return InSpawnable.GetName() == NewName;
-	};
-
 	int32 Index = 2;
 	FString UniqueString;
-	while (MovieScene->FindSpawnable(DuplName))
+	while (ContainsSpawnableWithName(MovieScene, NewName))
 	{
 		NewName.RemoveFromEnd(UniqueString);
 		UniqueString = FString::Printf(TEXT(" (%d)"), Index++);
