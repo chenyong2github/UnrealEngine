@@ -24,8 +24,8 @@ DECLARE_GPU_STAT(CaptureConvolveSkyEnvMap);
 
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureTimeSlicing(
-	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 0,
-	TEXT("SkyAtmosphere components are rendered when this is not 0, otherwise ignored.\n"),
+	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 1,
+	TEXT("When enabled, the real-time sky light capture and convolutions will by distributed over several frames to lower the per-frame cost.\n"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureShadowFromOpaque(
