@@ -42,7 +42,7 @@ uint NumPhysicalAddressBits;
 float4 PageTableSize;
 float4 PhysicalPageTransform;
 
-float3 LodDistances;
+float4 LodDistances;
 float3 ViewOrigin;
 float4 FrustumPlanes[5];
 float4x4 UVToWorld;
@@ -268,9 +268,8 @@ void CollectQuadsCS(
 			else if (Level > 0)
 			{
 				// Subdivide if any part of bbox could be inside the LOD range.
-				float DistanceSq = SquaredMinDistanceToAABB(ViewOrigin, UVMin, UVMax, UVToWorldScale) * LodDistances.z * LodDistances.z;
-				//float LodDistance = LodDistances.x + (Level > 1) ? LodDistances.y * (1 << (Level - 2)) : 0;
-				float LodDistance = LodDistances.x * (1 << (Level - 1));
+				float DistanceSq = SquaredMinDistanceToAABB(ViewOrigin, UVMin, UVMax, UVToWorldScale) * LodDistances.w * LodDistances.w;
+				float LodDistance = LodDistances.x * (LodDistances.y - 1 + pow(LodDistances.z, Level - 1));
 				float LodDistanceSq = LodDistance * LodDistance;
 
 				bSubdivide = DistanceSq < LodDistanceSq;
@@ -299,12 +298,6 @@ void CollectQuadsCS(
 				InterlockedMax(RWIndirectArgsBuffer[5], ((Write + 1) + 63) / 64);
 
 				RWQuadBuffer[Write] = Pack(InitQuadRenderItem(Pos, Level, PhysicalAddress, bCull || bOcclude));
-
-				// Add request to the virtual texture feedback buffer.
-				uint FeedbackPos;
-				InterlockedAdd(RWFeedbackBuffer[0], 1, FeedbackPos);
-
-				RWFeedbackBuffer[FeedbackPos + 1] = Pos.x | (Pos.y << 12) | (Level << 24) | PageTableFeedbackId;
 
 				if (!(bCull || bOcclude))
 				{
@@ -415,6 +408,18 @@ void ResolveNeighborLodsCS(
 
 	// Write the results to a flat buffer with neighbor entries per render item.
 	RWQuadNeighborBuffer[ThreadId] = Pack(InitQuadNeighborItem(PhysicalAddressToWrite, bNeighborLerp));
+
+
+	// Add requests to the virtual texture feedback buffer.
+	uint NumFeedbackItems = (NeighborIndex == 0) ? 2 : 1;
+	uint FeedbackPos;
+	InterlockedAdd(RWFeedbackBuffer[0], NumFeedbackItems, FeedbackPos);
+
+	RWFeedbackBuffer[FeedbackPos + 1] = (Pos.x >> LodShift) | ((Pos.y >> LodShift) << 12) | ((Level + LodShift) << 24) | PageTableFeedbackId;
+	if (NeighborIndex == 0)
+	{
+		RWFeedbackBuffer[FeedbackPos + 2] = Pos.x | (Pos.y << 12) | (Level << 24) | PageTableFeedbackId;
+	}
 }
 
 /**
