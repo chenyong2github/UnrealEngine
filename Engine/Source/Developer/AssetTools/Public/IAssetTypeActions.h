@@ -70,7 +70,7 @@ public:
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
 
 	/** Returns true if we should load this asset for previewing or editing. */
-	virtual bool CanLoadAssetForPreviewOrEdit(const FAssetData& InAssetData) = 0;
+	virtual bool CanLoadAssetForPreviewOrEdit(const struct FAssetData& InAssetData) = 0;
 
 	/** Returns true if this class can be used as a filter in the content browser */
 	virtual bool CanFilter() = 0;
