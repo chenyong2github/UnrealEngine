@@ -2488,6 +2488,9 @@ public:
 
 	ENGINE_API virtual bool GetAllowDevelopmentShaderCompile() const override;
 
+	inline const UMaterial* GetMaterial() const { return Material; }
+	inline const UMaterialInstance* GetMaterialInstance() const { return MaterialInstance; }
+
 protected:
 	UMaterial* Material;
 	UMaterialInstance* MaterialInstance;
