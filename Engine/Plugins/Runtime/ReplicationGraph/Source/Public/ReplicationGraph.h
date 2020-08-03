@@ -149,6 +149,7 @@ struct FStreamingLevelActorListCollection
 {
 	void AddActor(const FNewReplicatedActorInfo& ActorInfo);
 	bool RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UReplicationGraphNode* Outer);
+	bool RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UReplicationGraphNode* Outer);
 	void Reset();
 	void Gather(const FConnectionGatherActorListParameters& Params);
 	void DeepCopyFrom(const FStreamingLevelActorListCollection& Source);
@@ -198,6 +199,9 @@ public:
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
 
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
+
+	/** Removes the actor very quickly but breaks the list order */
+	bool RemoveNetworkActorFast(const FNewReplicatedActorInfo& ActorInfo);
 
 	/** Copies the contents of Source into this node. Note this does not copy child nodes, just the ReplicationActorList/StreamingLevelCollection lists on this node. */
 	void DeepCopyActorListsFrom(const UReplicationGraphNode_ActorList* Source);
