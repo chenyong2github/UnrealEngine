@@ -276,7 +276,8 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
-	Particles.ClearPutToSleepThisFrame();
+	Particles.ClearTransientDirty();
+
 #if !UE_BUILD_SHIPPING
 	if (SerializeEvolution)
 	{

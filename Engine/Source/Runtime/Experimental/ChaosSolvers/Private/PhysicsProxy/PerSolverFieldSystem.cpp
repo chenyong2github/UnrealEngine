@@ -145,20 +145,22 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 						// not be dynamic.
 						if(Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle->CastToRigidParticle())
 						{
-							const bool bIsGC = (Handle->GetParticleType() == Chaos::EParticleType::GeometryCollection) || 
-								(Handle->GetParticleType() == Chaos::EParticleType::Clustered && !Handle->CastToClustered()->InternalCluster());
+							auto SetParticleState = [CurrentSolver](Chaos::TPBDRigidParticleHandle<float, 3>* InHandle, EObjectStateType InState)
+							{
+								const bool bIsGC = (InHandle->GetParticleType() == Chaos::EParticleType::GeometryCollection) ||
+									(InHandle->GetParticleType() == Chaos::EParticleType::Clustered && !InHandle->CastToClustered()->InternalCluster());
+
+								if(!bIsGC)
+								{
+									CurrentSolver->GetEvolution()->SetParticleObjectState(InHandle, InState);
+								}
+								else
+								{
+									InHandle->SetObjectStateLowLevel(InState);
+								}
+							};
 
 							const EObjectStateType HandleState = RigidHandle->ObjectState();
-
-							// Non-Geometry Collection rigid bodies are more restricted as to how
-							// they can change state, as they'd have to promote or demote to a 
-							// different particle type, necessitating changing to a different
-							// particle SOA, which would be expensive.  So, we only permit 
-							// downgrading from Dynamic in those cases.
-							if (!bIsGC && HandleState != Chaos::EObjectStateType::Dynamic)
-							{
-								continue;
-							}
 
 							const int32 FieldState = DynamicStateView[Index.Result];
 							if (FieldState == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
@@ -167,12 +169,12 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 									 HandleState == Chaos::EObjectStateType::Kinematic) &&
 									RigidHandle->M() > FLT_EPSILON)
 								{
-									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
+									SetParticleState(RigidHandle, EObjectStateType::Dynamic);
 									StateChanged = true;
 								}
 								else if (HandleState == Chaos::EObjectStateType::Sleeping)
 								{
-									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
+									SetParticleState(RigidHandle, EObjectStateType::Dynamic);
 									StateChanged = true;
 								}
 							}
@@ -180,7 +182,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 							{
 								if (HandleState != Chaos::EObjectStateType::Kinematic)
 								{
-									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Kinematic);
+									SetParticleState(RigidHandle, EObjectStateType::Kinematic);
 									RigidHandle->SetV(Chaos::TVector<float, 3>(0));
 									RigidHandle->SetW(Chaos::TVector<float, 3>(0));
 									StateChanged = true;
@@ -190,7 +192,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 							{
 								if (HandleState != Chaos::EObjectStateType::Static)
 								{
-									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Static);
+									SetParticleState(RigidHandle, EObjectStateType::Static);
 									RigidHandle->SetV(Chaos::TVector<float, 3>(0));
 									RigidHandle->SetW(Chaos::TVector<float, 3>(0));
 									StateChanged = true;
@@ -200,7 +202,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 							{
 								if (HandleState != Chaos::EObjectStateType::Sleeping)
 								{
-									RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Sleeping);
+									SetParticleState(RigidHandle, EObjectStateType::Sleeping);
 									StateChanged = true;
 								}
 							}

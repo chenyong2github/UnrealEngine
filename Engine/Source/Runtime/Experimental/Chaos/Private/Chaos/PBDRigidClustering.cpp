@@ -1102,7 +1102,7 @@ namespace Chaos
 		TMap<TPBDRigidClusteredParticleHandle<T,d>*, TSet<TPBDRigidParticleHandle<T, d>*>> AllActivatedChildren;
 
 		auto NonDisabledClusteredParticles = MEvolution.GetNonDisabledClusteredArray(); //make copy because release cluster modifies active indices. We want to iterate over original active indices
-		for (auto ClusteredParticle : NonDisabledClusteredParticles)
+		for (Chaos::TPBDRigidClusteredParticleHandleImp<float, 3, true>* ClusteredParticle : NonDisabledClusteredParticles)
 		{
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
