@@ -2,16 +2,16 @@
 
 #pragma once
 
-class UClass;
-class UChaosCache;
-class UPrimitiveComponent;
-struct FPlaybackTickRecord;
-
 #include "Chaos/Core.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Features/IModularFeature.h"
 #include "Templates/SubclassOf.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+
+class UClass;
+class UChaosCache;
+class UPrimitiveComponent;
+struct FPlaybackTickRecord;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCacheAdapter, Log, All);
 
