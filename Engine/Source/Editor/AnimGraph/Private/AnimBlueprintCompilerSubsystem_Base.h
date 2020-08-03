@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AnimBlueprintCompilerSubsystem.h"
 #include "IPropertyAccessCompiler.h"
+#include "Animation/AnimNodeBase.h"
 
 #include "AnimBlueprintCompilerSubsystem_Base.generated.h"
 

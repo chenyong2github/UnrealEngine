@@ -13,6 +13,7 @@
 #include "EdGraphUtilities.h"
 #include "AnimationStateMachineSchema.h"
 #include "Algo/Transform.h"
+#include "Animation/AnimTypes.h"
 
 #define LOCTEXT_NAMESPACE "StateMachineSubsystem"
 
