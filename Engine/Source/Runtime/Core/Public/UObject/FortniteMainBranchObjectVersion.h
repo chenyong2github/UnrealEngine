@@ -132,6 +132,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Indicates level has stable actor guids
 		ContainsStableActorGUIDs,
 
+		// Levelset Serialization support for BodySetup.
+		LevelsetSerializationSupportForBodySetup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
