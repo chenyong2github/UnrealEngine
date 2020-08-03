@@ -570,6 +570,9 @@ public:
 	 */
 	UPROPERTY()
 	uint8 										bLocked:1;
+
+	/** Whether the level has been saved after introducing actor GUIDs */
+	uint8										bContainsStableActorGUIDs:1;
 #endif
 	
 	/** The below variables are used temporarily while making a level visible.				*/
@@ -945,6 +948,14 @@ public:
 	 * @return Array of packages associated with this level
 	 */
 	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
+
+	/**
+	 * Get the folder containing the external actors for this level path
+	 * @param InLevelPackageName The package name to get the external actors path of
+	 * @param InPackageShortName Optional short name to use instead of the package short name
+	 * @return the folder
+	 */
+	static ENGINE_API FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
 
 	/**
 	 * Get the folder containing the external actors for this level

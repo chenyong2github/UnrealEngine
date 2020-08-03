@@ -24,6 +24,9 @@ protected:
 
 	bool UseSourceControl() const { return SourceControlProvider != nullptr; }
 	ISourceControlProvider& GetSourceControlProvider() { check(UseSourceControl()); return *SourceControlProvider; }
+	bool AddPackageToSourceControl(UPackage* Package);
+	bool CheckoutPackage(UPackage* Package);
+	bool SavePackage(UPackage* Package);
 
 protected:
 	ISourceControlProvider* SourceControlProvider;
