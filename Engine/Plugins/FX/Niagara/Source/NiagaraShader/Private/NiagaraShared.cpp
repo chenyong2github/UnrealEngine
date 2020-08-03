@@ -449,7 +449,7 @@ void FNiagaraShaderScript::UpdateCachedData_PreCompile()
 
 void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerialize)
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || bCalledFromSerialize);
 
 	FNiagaraShaderMapCachedData CachedData;
 	CachedData.NumPermutations = GetNumPermutations();
