@@ -336,9 +336,12 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 			// Offset the actor's location.
 			Actor->TeleportTo(Actor->GetActorLocation() + ActorLocationOffset, Actor->GetActorRotation(), false, true);
 
-			// Re-label duplicated actors so that labels become unique
-			FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetActorLabel(), &ActorLabels);
-			ActorLabels.Add(Actor->GetActorLabel());
+			if (!GetDefault<ULevelEditorMiscSettings>()->bAvoidRelabelOnPasteSelected)
+			{
+				// Re-label duplicated actors so that labels become unique
+				FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetActorLabel(), &ActorLabels);
+				ActorLabels.Add(Actor->GetActorLabel());
+			}
 
 			LayersSubsystem->InitializeNewActorLayers(Actor);
 

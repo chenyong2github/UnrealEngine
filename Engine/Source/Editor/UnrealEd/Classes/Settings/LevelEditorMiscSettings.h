@@ -48,6 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category = Editing, meta = (ConfigRestartRequired = true))
 	uint32 bEnableLegacyMeshPaintMode : 1;
 
+	/** If enabled, will avoid relabeling actors in UUnrealEdEngine::edactPasteSelected */
+	UPROPERTY(EditAnywhere, config, Category = Editing, meta = (DisplayName = "Avoid Actor Relabel on Paste Selected"))
+	uint32 bAvoidRelabelOnPasteSelected:1;
+
 public:
 	/** If checked audio playing in the editor will continue to play even if the editor is in the background */
 	UPROPERTY(EditAnywhere, config, Category=Sound)
