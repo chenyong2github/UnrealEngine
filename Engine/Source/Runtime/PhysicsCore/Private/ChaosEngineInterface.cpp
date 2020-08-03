@@ -1083,9 +1083,10 @@ void FChaosEngineInterface::SetTwistLimit(const FPhysicsConstraintHandle& InCons
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(chaos) :  Joint Constraints : Limits
-			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
-			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(InUpperLimit - InLowerLimit);
+			Constraint->SetAngularLimits(Limit);
+			Constraint->SetTwistContactDistance(InContactDistance);
 		}
 	}
 }
@@ -1096,9 +1097,11 @@ void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InCons
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(chaos) :  Joint Constraints : Limits
-			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
-			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(InYLimit);
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(InZLimit);
+			Constraint->SetAngularLimits(Limit);
+			Constraint->SetSwingContactDistance(InContactDistance);
 		}
 	}
 }
