@@ -273,7 +273,8 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 
 #if WITH_EDITOR
-	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
+	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+		TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
 #endif
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
