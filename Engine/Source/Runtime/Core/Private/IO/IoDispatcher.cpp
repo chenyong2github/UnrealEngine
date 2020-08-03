@@ -798,7 +798,7 @@ FIoBatch::IssueWithCallback(FIoBatchReadOptions Options, EIoDispatcherPriority P
 void
 FIoBatch::Wait()
 {
-	while (Impl->UnfinishedRequestsCount > 0)
+	while (Impl->UnfinishedRequestsCount.Load() > 0)
 	{
 		FPlatformProcess::Sleep(0);
 	}
