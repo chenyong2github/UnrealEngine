@@ -2662,9 +2662,44 @@ public partial class Project : CommandUtils
 		GlobalContainerOutputRelativeLocation = SC.StageTargetPlatform.Remap(GlobalContainerOutputRelativeLocation);
 		FileReference GlobalContainerOutputLocation = FileReference.Combine(SC.RuntimeRootDir, GlobalContainerOutputRelativeLocation.Name);
 
-		string CommandletParams = Params.HasDLCName
-			? String.Format("-DLCFile={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName))
-			: String.Format("-CreateGlobalContainer={0}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName));
+		string CommandletParams = String.Empty;
+
+		if (Params.HasDLCName)
+		{
+			CommandletParams += String.Format("-DLCFile={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName));
+
+			DirectoryReference DLCRoot = Params.DLCFile.Directory;
+			string DLCName = Params.DLCFile.GetFileNameWithoutExtension();
+
+			//TODO: Find a better way. Create Plugin ConfigType and interate all ini files in plugin?
+			bool bRemapPluginContentToGame = false;
+			FileReference PluginConfigFile = FileReference.Combine(DLCRoot, "Config", String.Format("Default{0}.ini", DLCName));
+			if (FileReference.Exists(PluginConfigFile))
+			{
+				ConfigFile File = new ConfigFile(PluginConfigFile);
+				ConfigFileSection PluginSettings;
+				if (File.TryGetSection("PluginSettings", out PluginSettings))
+				{
+					foreach (ConfigLine Line in PluginSettings.Lines)
+					{
+						if (Line.Key == "RemapPluginContentToGame")
+						{
+							bool.TryParse(Line.Value, out bRemapPluginContentToGame);
+							break;
+						}
+					}
+				}
+			}
+
+			if (bRemapPluginContentToGame)
+			{
+				CommandletParams += " -RemapPluginContentToGame";
+			}
+		}
+		else
+		{
+			CommandletParams += String.Format("-CreateGlobalContainer={0}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName));
+		}
 
 		CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
 		if (GameOpenOrderFileLocation != null)
@@ -2681,6 +2716,11 @@ public partial class Project : CommandUtils
 		}
 
 		CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
+
+		if (Params.HasBasedOnReleaseVersion)
+		{
+			CommandletParams += String.Format(" -BasedOnReleaseVersionPath={0}", Params.GetBasedOnReleaseVersionPath(SC, Params.Client));
+		}
 
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);

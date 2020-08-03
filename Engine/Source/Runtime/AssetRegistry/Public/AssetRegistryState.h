@@ -248,6 +248,16 @@ public:
 	/** Returns non-editable pointer to the asset package data */
 	const FAssetPackageData* GetAssetPackageData(FName PackageName) const;
 
+	/** Returns all package names */
+	void GetPackageNames(TArray<FName>& OutPackageNames) const
+	{
+		OutPackageNames.Reserve(CachedAssetsByPackageName.Num());
+		for (auto It = CachedAssetsByPackageName.CreateConstIterator(); It; ++It)
+		{
+			OutPackageNames.Add(It.Key());
+		}
+	}
+
 	/** Finds an existing package data, or creates a new one to modify */
 	FAssetPackageData* CreateOrGetAssetPackageData(FName PackageName);
 
