@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphUtilities.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 FBPFunctionClipboardData::FBPFunctionClipboardData(const UEdGraph* InFuncGraph)
 {
@@ -39,8 +40,12 @@ UEdGraph* FBPFunctionClipboardData::CreateAndPopulateGraph(UBlueprint* InBluepri
 {
 	if (InBlueprint && IsValid())
 	{
-		FName GraphName = FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, FuncName.ToString());
-		UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, GraphName, UEdGraph::StaticClass(), InSchema);
+		FKismetNameValidator Validator(InBlueprint);
+		if (Validator.IsValid(FuncName) != EValidatorResult::Ok)
+		{
+			FuncName = FBlueprintEditorUtils::FindUniqueKismetName(InBlueprint, FuncName.GetPlainNameString());
+		}
+		UEdGraph* Graph = FBlueprintEditorUtils::CreateNewGraph(InBlueprint, FuncName, UEdGraph::StaticClass(), InSchema);
 
 		if (Graph)
 		{
