@@ -1092,7 +1092,7 @@ void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)
 
 void FNiagaraWorldManager::PrimePoolForAllSystems()
 {
-	if (GNigaraAllowPrimedPools)
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
 	{
 		//Prime the pool for all currently loaded systems.
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
@@ -1107,7 +1107,7 @@ void FNiagaraWorldManager::PrimePoolForAllSystems()
 
 void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
 {
-	if (GNigaraAllowPrimedPools)
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
 	{
 		ComponentPool->PrimePool(System, World);
 	}
@@ -1141,6 +1141,5 @@ FAutoConsoleCommandWithWorld GDumpNiagaraScalabilityData(
 	FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World);
 	WorldMan->DumpScalabilityState();
 }));
-
 
 #endif
