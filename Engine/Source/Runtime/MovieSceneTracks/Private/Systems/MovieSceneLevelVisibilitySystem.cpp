@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Evaluation/MovieSceneLevelVisibilityTemplate.h"
+#include "Systems/MovieSceneLevelVisibilitySystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneMasterInstantiatorSystem.h"
