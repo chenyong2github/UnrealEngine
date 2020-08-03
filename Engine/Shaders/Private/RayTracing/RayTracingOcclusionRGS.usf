@@ -38,6 +38,7 @@ uint SamplesPerPixel;
 float NormalBias;
 int4 LightScissor;
 int2 PixelOffset;
+float TraceDistance;
 
 #if USE_HAIR_LIGHTING
 #include "../HairStrands/HairStrandsRaytracing.ush"
@@ -77,6 +78,7 @@ bool GenerateOcclusionRay(
 	{
 		GenerateDirectionalLightOcclusionRay(
 			LightParameters,
+			TraceDistance,
 			WorldPosition, WorldNormal,
 			RandSample,
 			/* out */ RayOrigin,
@@ -260,6 +262,17 @@ float OcclusionToShadow(FOcclusionResult In, uint LocalSamplesPerPixel)
 	return (LocalSamplesPerPixel > 0) ? In.Visibility / LocalSamplesPerPixel : In.Visibility;
 }
 
+RayDesc Invert(in RayDesc Ray)
+{
+	RayDesc InvertedRay;
+	InvertedRay.TMin = Ray.TMin;
+	InvertedRay.TMax = Ray.TMax;
+	InvertedRay.Origin = Ray.Origin + Ray.Direction * InvertedRay.TMax;
+	InvertedRay.Direction = -Ray.Direction;
+
+	return InvertedRay;
+}
+
 FOcclusionResult ComputeOcclusion(
 	const uint2 PixelCoord,
 	RandomSequence RandSequence,
@@ -379,7 +392,7 @@ FOcclusionResult ComputeOcclusion(
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	#endif
 
-		if (DIM_DENOISER_OUTPUT == 0 || ShadingModelID == SHADINGMODELID_HAIR)
+		if (ShadingModelID == SHADINGMODELID_HAIR)
 		{
 			// Denoiser mode 0 doesn't use depth, so take first hit
 			RayFlags |= RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
@@ -399,18 +412,51 @@ FOcclusionResult ComputeOcclusion(
 		#endif
 
 		Out.RayCount += 1.0;
-		Out.Visibility += MinimalPayload.IsMiss() ? 1.0 : 0.0;
 		if (MinimalPayload.IsHit())
 		{
+			float HitT = MinimalPayload.HitT;
+
 			Out.ClosestRayDistance =
 				(Out.ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ||
-				(MinimalPayload.HitT < Out.ClosestRayDistance) ? MinimalPayload.HitT : Out.ClosestRayDistance;
-			Out.SumRayDistance += MinimalPayload.HitT;
+				(HitT < Out.ClosestRayDistance) ? HitT : Out.ClosestRayDistance;
+			Out.SumRayDistance += HitT;
 			Out.HitCount += 1.0;
+
+			if ((ShadingModelID == SHADINGMODELID_SUBSURFACE))
+			{
+				// Potentially reverse the ray to support sub-surface casts
+				RayDesc InvertedRay = Invert(Ray);
+				FMinimalPayload SubsurfacePayload = TraceVisibilityRay(
+					TLAS,
+					RayFlags,
+					RaytracingMask,
+					InvertedRay);
+
+				if (SubsurfacePayload.IsHit())
+				{
+
+					float3 HitPosition = InvertedRay.Origin + InvertedRay.Direction * SubsurfacePayload.HitT;
+					float Opacity = TransmissionProfileParams.ExtinctionScale;
+					float Density = -.05f * log(1 - min(Opacity, .999f));
+					float ExtinctionCoefficient = Density;
+					float Thickness = length(HitPosition - WorldPosition);
+					float Transmission = saturate(exp(-ExtinctionCoefficient * Thickness));
+
+					if (Transmission == 1.0)
+					{
+						Out.ClosestRayDistance = (Out.ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ? DENOISER_MISS_HIT_DISTANCE : Out.ClosestRayDistance;
+						Out.SumRayDistance -= HitT;
+						Out.HitCount -= 1.0;
+					}
+
+					Out.Visibility += Transmission;
+				}
+			}
 		}
 		else
 		{
 			Out.ClosestRayDistance = (Out.ClosestRayDistance == DENOISER_INVALID_HIT_DISTANCE) ? DENOISER_MISS_HIT_DISTANCE : Out.ClosestRayDistance;
+			Out.Visibility += 1.0;
 		}
 	}
 #if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
@@ -472,6 +518,11 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 #if ENABLE_TRANSMISSION
 			TransmissionProfileParams = GetTransmissionProfileParams(GBufferData);
 #endif
+
+			if (ShadingModelID == SHADINGMODELID_SUBSURFACE)
+			{
+				TransmissionProfileParams.ExtinctionScale = GBufferData.CustomData.a;
+			}
 		}
 
 		// Mask out depth values that are infinitely far away
