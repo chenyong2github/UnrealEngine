@@ -4182,6 +4182,44 @@ void FMaterialEditor::AddToSelection(UMaterialExpression* Expression)
 	GraphEditor->SetNodeSelection(Expression->GraphNode, true);
 }
 
+void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
+{
+	ensure(Expression);
+	UEdGraphNode* ExpressionNode = nullptr;
+
+	// Note: 'Expression' may be from a serialized material with no graph, we compare to our material with a graph if this occurs
+	if (Expression->GraphNode)
+	{
+		ExpressionNode = Expression->GraphNode;
+	}
+	else if (Expression->bIsParameterExpression)
+	{
+		TArray<UMaterialExpression*>* GraphExpressions = Material->EditorParameters.Find(Expression->GetParameterName());
+		if (GraphExpressions && GraphExpressions->Num() == 1)
+		{
+			ExpressionNode = GraphExpressions->Last()->GraphNode;
+		}
+		else
+		{
+			UMaterialExpressionParameter* GraphExpression = Material->FindExpressionByGUID<UMaterialExpressionParameter>(Expression->GetParameterExpressionId());
+			ExpressionNode = GraphExpression ? GraphExpression->GraphNode : nullptr;
+		}
+	}
+	else if (UMaterialExpressionFunctionOutput* ExpressionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression))
+	{
+		TArray<UMaterialExpressionFunctionOutput*> FunctionOutputExpressions;
+		Material->GetAllFunctionOutputExpressions(FunctionOutputExpressions);
+		UMaterialExpressionFunctionOutput** GraphExpression = FunctionOutputExpressions.FindByPredicate(
+			[&](const UMaterialExpressionFunctionOutput* GraphExpressionOutput) 
+			{
+				return GraphExpressionOutput->Id == ExpressionOutput->Id;
+			});
+		ExpressionNode = GraphExpression ? (*GraphExpression)->GraphNode : nullptr;
+	}
+
+	JumpToNode(ExpressionNode);
+}
+
 void FMaterialEditor::SelectAllNodes()
 {
 	GraphEditor->SelectAllNodes();

@@ -5,9 +5,18 @@
 #include "CoreMinimal.h"
 #include "IAssetIndexer.h"
 
-class FDataAssetIndexer : public IAssetIndexer
+class FGenericObjectIndexer : public IAssetIndexer
 {
-	virtual FString GetName() const override { return TEXT("DataAsset"); }
+public:
+	FGenericObjectIndexer(const FString& InName)
+		: Name(InName)
+	{
+	}
+
+	virtual FString GetName() const override { return Name; }
 	virtual int32 GetVersion() const override;
 	virtual void IndexAsset(const UObject* InAssetObject, FSearchSerializer& Serializer) const override;
+
+protected:
+	const FString Name;
 };
