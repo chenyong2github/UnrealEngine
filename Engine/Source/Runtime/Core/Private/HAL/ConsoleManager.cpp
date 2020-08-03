@@ -2293,7 +2293,7 @@ static TAutoConsoleVariable<int32> CVarHighResScreenshotDelay(
 static TAutoConsoleVariable<int32> CVarMaterialQualityLevel(
 	TEXT("r.MaterialQualityLevel"),
 	1,
-	TEXT("0 corresponds to low quality materials, as defined by quality switches in materials, 1 corresponds to high and 2 for medium."),
+	TEXT("0 corresponds to low quality materials, as defined by quality switches in materials, 1 corresponds to high, 2 for medium, and 3 for Epic."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarUseDXT5NormalMaps(

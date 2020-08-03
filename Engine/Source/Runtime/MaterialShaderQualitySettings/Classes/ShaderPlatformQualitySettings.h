@@ -73,7 +73,7 @@ public:
 	EMobileCSMQuality MobileCSMQuality;
 
 	MATERIALSHADERQUALITYSETTINGS_API bool CanOverride(EShaderPlatform ShaderPlatform) const;
-	bool HasAnyOverridesSet() const;
+	MATERIALSHADERQUALITYSETTINGS_API bool HasAnyOverridesSet() const;
 };
 
 
@@ -92,12 +92,7 @@ public:
 		return QualityOverrides[(int32)QualityLevel];
 	}
 
-	const FMaterialQualityOverrides& GetQualityOverrides(EMaterialQualityLevel::Type QualityLevel) const
-	{
-		check(QualityLevel < EMaterialQualityLevel::Num);
-		return QualityOverrides[(int32)QualityLevel];
-	}
-
+	const FMaterialQualityOverrides& GetQualityOverrides(EMaterialQualityLevel::Type QualityLevel) const;
 	void BuildHash(EMaterialQualityLevel::Type QualityLevel, class FSHAHash& OutHash) const;
 	void AppendToHashState(EMaterialQualityLevel::Type QualityLevel, class FSHA1& HashState) const;
 	

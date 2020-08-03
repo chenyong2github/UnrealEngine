@@ -52,6 +52,9 @@ FString FMaterialStatsUtils::MaterialQualityToString(const EMaterialQualityLevel
 		case EMaterialQualityLevel::Low:
 			StrQuality = TEXT("Low Quality");
 		break;
+		case EMaterialQualityLevel::Epic:
+			StrQuality = TEXT("Epic Quality");
+		break;
 	}
 
 	return StrQuality;
@@ -72,6 +75,9 @@ FString FMaterialStatsUtils::MaterialQualityToShortString(const EMaterialQuality
 		case EMaterialQualityLevel::Low:
 			StrQuality = TEXT("Low");
 		break;
+		case EMaterialQualityLevel::Epic:
+			StrQuality = TEXT("Epic");
+		break;
 	}
 
 	return StrQuality;
@@ -90,6 +96,10 @@ EMaterialQualityLevel::Type FMaterialStatsUtils::StringToMaterialQuality(const F
 	else if (StrQuality.Equals(TEXT("Low Quality")))
 	{
 		return EMaterialQualityLevel::Low;
+	}
+	else if (StrQuality.Equals(TEXT("Epic Quality")))
+	{
+		return EMaterialQualityLevel::Epic;
 	}
 
 	return EMaterialQualityLevel::Num;
@@ -328,7 +338,9 @@ FLinearColor FMaterialStatsUtils::QualitySettingColor(const EMaterialQualityLeve
 		case EMaterialQualityLevel::Medium:
 			return YellowColor;
 		break;
-
+		case EMaterialQualityLevel::Epic:
+			return FLinearColor::Red;
+		break;
 		default:
 			return FLinearColor::Black;
 		break;

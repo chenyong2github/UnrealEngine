@@ -39,6 +39,8 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Materials/MaterialStaticParameterValueResolver.h"
+#include "ShaderPlatformQualitySettings.h"
+#include "MaterialShaderQualitySettings.h"
 
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance CopyMatInstParams"), STAT_MaterialInstance_CopyMatInstParams, STATGROUP_Shaders);
 DECLARE_CYCLE_STAT(TEXT("MaterialInstance Serialize"), STAT_MaterialInstance_Serialize, STATGROUP_Shaders);
@@ -114,18 +116,8 @@ const FMaterial& FMaterialInstanceResource::GetMaterialWithFallback(ERHIFeatureL
 	{
 		if (Owner->bHasStaticPermutationResource)
 		{
-			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-
-			FMaterialResource* StaticPermutationResource;
-
-#if STORE_ONLY_ACTIVE_SHADERMAPS
-			StaticPermutationResource = Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel] ?
-				Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel] :
-				Owner->StaticPermutationMaterialResources[EMaterialQualityLevel::High][InFeatureLevel];
-#else
-			StaticPermutationResource = Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel];
-#endif
-
+			const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+			FMaterialResource* StaticPermutationResource = FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
 			if (StaticPermutationResource)
 			{
 				if (StaticPermutationResource->GetRenderingThreadShaderMap())
@@ -167,17 +159,8 @@ FMaterial* FMaterialInstanceResource::GetMaterialNoFallback(ERHIFeatureLevel::Ty
 	{
 		if (Owner->bHasStaticPermutationResource)
 		{
-			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-			FMaterialResource* StaticPermutationResource;
-
-#if STORE_ONLY_ACTIVE_SHADERMAPS
-			StaticPermutationResource = Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel] ?
-				Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel] :
-				Owner->StaticPermutationMaterialResources[EMaterialQualityLevel::High][InFeatureLevel];
-#else
-			StaticPermutationResource = Owner->StaticPermutationMaterialResources[ActiveQualityLevel][InFeatureLevel];
-#endif
-			return StaticPermutationResource;
+			const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+			return FindMaterialResource(Owner->StaticPermutationMaterialResources, InFeatureLevel, ActiveQualityLevel, true);
 		}
 		else
 		{
@@ -1301,7 +1284,7 @@ void UMaterialInstance::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent)
 		}
 		else if (MaterialInstanceToUse)
 		{
-			const FMaterialResource* MaterialResource = MaterialInstanceToUse->StaticPermutationMaterialResources[QualityLevel][FeatureLevel];
+			const FMaterialResource* MaterialResource = FindMaterialResource(MaterialInstanceToUse->StaticPermutationMaterialResources, FeatureLevel, QualityLevel, true);
 			if (MaterialResource)
 			{
 				if (MaterialResource->HasValidGameThreadShaderMap())
@@ -1432,7 +1415,7 @@ void UMaterialInstance::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures
 
 		if (MaterialInstanceToUse && MaterialInstanceToUse->bHasStaticPermutationResource)
 		{
-			const FMaterialResource* CurrentResource = MaterialInstanceToUse->StaticPermutationMaterialResources[QualityLevel][FeatureLevel];
+			const FMaterialResource* CurrentResource = FindMaterialResource(MaterialInstanceToUse->StaticPermutationMaterialResources, FeatureLevel, QualityLevel, true);
 			if (CurrentResource)
 			{
 				GetTextureExpressionValues(CurrentResource, OutTextures, &OutIndices);
@@ -1857,30 +1840,18 @@ void UMaterialInstance::CopyMaterialInstanceParameters(UMaterialInterface* Sourc
 
 FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel)
 {
-	return const_cast<FMaterialResource*>(static_cast<const UMaterialInstance*>(this)->GetMaterialResource(InFeatureLevel, QualityLevel));
-}
-
-const FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel) const
-{
-	if (QualityLevel == EMaterialQualityLevel::Num)
-	{
-		QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-	}
-
 	if (bHasStaticPermutationResource)
 	{
-#if STORE_ONLY_ACTIVE_SHADERMAPS
-		return StaticPermutationMaterialResources[QualityLevel][InFeatureLevel] ?
-			StaticPermutationMaterialResources[QualityLevel][InFeatureLevel] :
-			StaticPermutationMaterialResources[EMaterialQualityLevel::High][InFeatureLevel];
-#else
-		//if there is a static permutation resource, use that
-		return StaticPermutationMaterialResources[QualityLevel][InFeatureLevel];
-#endif
+		return FindMaterialResource(StaticPermutationMaterialResources, InFeatureLevel, QualityLevel, true);
 	}
 
 	//there was no static permutation resource
 	return Parent ? Parent->GetMaterialResource(InFeatureLevel, QualityLevel) : nullptr;
+}
+
+const FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel) const
+{
+	return const_cast<UMaterialInstance*>(this)->GetMaterialResource(InFeatureLevel, QualityLevel);
 }
 
 FMaterialRenderProxy* UMaterialInstance::GetRenderProxy() const
@@ -2618,9 +2589,6 @@ void UMaterialInstance::InitStaticPermutation()
 
 	FMaterialResourceDeferredDeletionArray ResourcesToFree;
 
-	// Allocate material resources if needed even if we are cooking, so that StaticPermutationMaterialResources will always be valid
-	UpdatePermutationAllocations(&ResourcesToFree);
-
 	if ( FApp::CanEverRender() ) 
 	{
 		// Cache shaders for the current platform to be used for rendering
@@ -2731,17 +2699,10 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 
 void UMaterialInstance::GetAllShaderMaps(TArray<FMaterialShaderMap*>& OutShaderMaps)
 {
-	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+	for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 	{
-		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-		{
-			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-			if (CurrentResource)
-			{
-				FMaterialShaderMap* ShaderMap = CurrentResource->GetGameThreadShaderMap();
-				OutShaderMaps.Add(ShaderMap);
-			}
-		}
+		FMaterialShaderMap* ShaderMap = CurrentResource->GetGameThreadShaderMap();
+		OutShaderMaps.Add(ShaderMap);
 	}
 }
 
@@ -2750,132 +2711,56 @@ FMaterialResource* UMaterialInstance::AllocatePermutationResource()
 	return new FMaterialResource();
 }
 
-void UMaterialInstance::UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree)
-{
-	if (bHasStaticPermutationResource)
-	{
-		UMaterial* BaseMaterial = GetMaterial();
-
-#if STORE_ONLY_ACTIVE_SHADERMAPS
-		EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-		const ERHIFeatureLevel::Type ActiveFeatureLevel = GMaxRHIFeatureLevel;
-		if (!HasMaterialResource(BaseMaterial, ActiveFeatureLevel, ActiveQualityLevel))
-		{
-			ActiveQualityLevel = EMaterialQualityLevel::High;
-		}
-		for (int32 Feature = 0; Feature < ERHIFeatureLevel::Num; ++Feature)
-		{
-			for (int32 Quality = 0; Quality < EMaterialQualityLevel::Num; ++Quality)
-			{
-				FMaterialResource*& StaticPermResource = StaticPermutationMaterialResources[Quality][Feature];
-				if (Feature != ActiveFeatureLevel || Quality != ActiveQualityLevel)
-				{
-					if (StaticPermResource)
-					{
-						if (ResourcesToFree)
-						{
-							ResourcesToFree->Add(StaticPermResource);
-						}
-						else
-						{
-							delete StaticPermResource;
-						}
-						StaticPermResource = nullptr;
-					}
-				}
-				else
-				{
-					if (!StaticPermResource)
-					{
-						StaticPermResource = AllocatePermutationResource();
-					}
-					StaticPermResource->SetMaterial(BaseMaterial, ActiveQualityLevel, true, ActiveFeatureLevel, this);
-				}
-			}
-		}
-#else
-		// Initialize only current feature level in a cooked game and all in the editor
-		int32 FeatureLevelMin = 0;
-		int32 FeatureLevelMax = ERHIFeatureLevel::Num;
-		if (FPlatformProperties::RequiresCookedData())
-		{
-			FeatureLevelMin = GMaxRHIFeatureLevel;
-			FeatureLevelMax = GMaxRHIFeatureLevel + 1;
-		}
-		
-		for (int32 FeatureLevelIndex = FeatureLevelMin; FeatureLevelIndex < FeatureLevelMax; FeatureLevelIndex++)
-		{
-			EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevelIndex];
-			TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
-			BaseMaterial->GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform);
-
-			for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
-			{
-				FMaterialResource*& CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-
-				if (!CurrentResource)
-				{
-					CurrentResource = AllocatePermutationResource();
-				}
-
-				const bool bQualityLevelHasDifferentNodes = QualityLevelsUsed[QualityLevelIndex];
-				CurrentResource->SetMaterial(BaseMaterial, (EMaterialQualityLevel::Type)QualityLevelIndex, bQualityLevelHasDifferentNodes, (ERHIFeatureLevel::Type)FeatureLevelIndex, this);
-			}
-		}
-#endif
-	}
-}
-
 void UMaterialInstance::CacheResourceShadersForRendering(FMaterialResourceDeferredDeletionArray& OutResourcesToFree)
 {
 	check(IsInGameThread() || IsAsyncLoading());
 
-	UpdatePermutationAllocations(&OutResourcesToFree);
 	UpdateOverridableBaseProperties();
+
+#if STORE_ONLY_ACTIVE_SHADERMAPS
+	OutResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
+	StaticPermutationMaterialResources.Reset();
+#endif
 
 	if (bHasStaticPermutationResource && FApp::CanEverRender())
 	{
 		check(IsA(UMaterialInstanceConstant::StaticClass()));
+		UMaterial* BaseMaterial = GetMaterial();
 
 		uint32 FeatureLevelsToCompile = GetFeatureLevelsToCompileForRendering();
-		EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-		TArray<FMaterialResource*> ResourcesToCache;
+		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 
+		TArray<FMaterialResource*> ResourcesToCache;
 		while (FeatureLevelsToCompile != 0)
 		{
-			ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
-			EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-			EMaterialQualityLevel::Type LocalActiveQL = ActiveQualityLevel;
+			const ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FBitSet::GetAndClearNextBit(FeatureLevelsToCompile);
+			const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
+
+			// Only cache shaders for the quality level that will actually be used to render
+			// In cooked build, there is no shader compilation but this is still needed to
+			// register the loaded shadermap
+			FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, this, FeatureLevel, ActiveQualityLevel);
+			check(CurrentResource);
 
 #if STORE_ONLY_ACTIVE_SHADERMAPS
-			if (!HasMaterialResource(GetMaterial(), FeatureLevel, ActiveQualityLevel))
+			if (!CurrentResource->GetGameThreadShaderMap())
 			{
-				LocalActiveQL = EMaterialQualityLevel::High;
-			}
-			FMaterialResource* MaterialResource = StaticPermutationMaterialResources[LocalActiveQL][FeatureLevel];
-			if (!MaterialResource->GetGameThreadShaderMap())
-			{
+				// Load the shader map for this resource, if needed
 				FMaterialResource Tmp;
 				FName PackageFileName = GetOutermost()->FileName;
 				UE_CLOG(PackageFileName.IsNone(), LogMaterial, Warning,
 					TEXT("UMaterialInstance::CacheResourceShadersForRendering - Can't reload material resource '%s'. File system based reload is unsupported in this build."),
 					*GetFullName());
-				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, LocalActiveQL))
+				if (!PackageFileName.IsNone() && ReloadMaterialResource(&Tmp, PackageFileName.ToString(), OffsetToFirstResource, FeatureLevel, ActiveQualityLevel))
 				{
-					MaterialResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
+					CurrentResource->SetInlineShaderMap(Tmp.GetGameThreadShaderMap());
 				}
 			}
-#endif
-			// Only cache shaders for the quality level that will actually be used to render
-			// In cooked build, there is no shader compilation but this is still needed to
-			// register the loaded shadermap
+#endif // STORE_ONLY_ACTIVE_SHADERMAPS
+
 			ResourcesToCache.Reset();
-			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[LocalActiveQL][FeatureLevel];
-			if (CurrentResource)
-			{
-				ResourcesToCache.Add(CurrentResource);
-				CacheShadersForResources(ShaderPlatform, ResourcesToCache);
-			}
+			ResourcesToCache.Add(CurrentResource);
+			CacheShadersForResources(ShaderPlatform, ResourcesToCache);
 		}
 	}
 
@@ -2915,15 +2800,10 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 		TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
 		BaseMaterial->GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform);
 
-		TArray<FMaterialResource*> ResourcesToCache;
-		ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+		const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
+		bool bNeedDefaultQuality = false;
 
-		bool bAnyQualityLevelUsed = false;
-		for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
-		{
-			bAnyQualityLevelUsed |= QualityLevelsUsed[QualityLevelIndex];
-		}
-		check(bAnyQualityLevelUsed);
+		ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
 		for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
 		{
@@ -2931,17 +2811,28 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 			if (QualityLevelsUsed[QualityLevelIndex])
 			{
 				FMaterialResource* NewResource = AllocatePermutationResource();
-				NewResource->SetMaterial(BaseMaterial, (EMaterialQualityLevel::Type)QualityLevelIndex, QualityLevelsUsed[QualityLevelIndex], (ERHIFeatureLevel::Type)TargetFeatureLevel, this);
-				ResourcesToCache.Add(NewResource);
+				NewResource->SetMaterial(BaseMaterial, this, (ERHIFeatureLevel::Type)TargetFeatureLevel, (EMaterialQualityLevel::Type)QualityLevelIndex);
+				OutCachedMaterialResources.Add(NewResource);
+			}
+			else
+			{
+				const FMaterialQualityOverrides& QualityOverrides = MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)QualityLevelIndex);
+				if (!QualityOverrides.bDiscardQualityDuringCook)
+				{
+					// don't have an explicit resource for this quality level, but still need to support it, so make sure we include a default quality resource
+					bNeedDefaultQuality = true;
+				}
 			}
 		}
 
-		CacheShadersForResources(ShaderPlatform, ResourcesToCache, TargetPlatform);
-
-		for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
+		if (bNeedDefaultQuality)
 		{
-			OutCachedMaterialResources.Add(ResourcesToCache[ResourceIndex]);
+			FMaterialResource* NewResource = AllocatePermutationResource();
+			NewResource->SetMaterial(BaseMaterial, this, (ERHIFeatureLevel::Type)TargetFeatureLevel);
+			OutCachedMaterialResources.Add(NewResource);
 		}
+
+		CacheShadersForResources(ShaderPlatform, OutCachedMaterialResources, TargetPlatform);
 	}
 }
 
@@ -3624,16 +3515,9 @@ void UMaterialInstance::PostLoad()
 void UMaterialInstance::BeginDestroy()
 {
 #if UE_CHECK_FMATERIAL_LIFETIME
-	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+	for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 	{
-		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-		{
-			FMaterialResource* CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-			if (CurrentResource)
-			{
-				CurrentResource->SetOwnerBeginDestroyed();
-			}
-		}
+		CurrentResource->SetOwnerBeginDestroyed();
 	}
 #endif // UE_CHECK_FMATERIAL_LIFETIME
 
@@ -3671,15 +3555,11 @@ void UMaterialInstance::FinishDestroy()
 		Resource = nullptr;
 	}
 
-	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+	for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 	{
-		for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-		{
-			FMaterialResource*& CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-			delete CurrentResource;
-			CurrentResource = NULL;
-		}
+		delete CurrentResource;
 	}
+	StaticPermutationMaterialResources.Empty();
 #if WITH_EDITOR
 	if (!GExitPurge)
 	{
@@ -3695,16 +3575,9 @@ void UMaterialInstance::AddReferencedObjects(UObject* InThis, FReferenceCollecto
 
 	if (This->bHasStaticPermutationResource)
 	{
-		for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+		for (FMaterialResource* CurrentResource : This->StaticPermutationMaterialResources)
 		{
-			for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-			{
-				FMaterialResource* CurrentResource = This->StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-				if (CurrentResource)
-				{
-					CurrentResource->AddReferencedObjects(Collector);
-				}
-			}
+			CurrentResource->AddReferencedObjects(Collector);
 		}
 	}
 
@@ -4330,16 +4203,9 @@ void UMaterialInstance::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 
 	if (bHasStaticPermutationResource)
 	{
-		for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
+		for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 		{
-			for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-			{
-				FMaterialResource* CurrentResource = StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-				if (CurrentResource)
-				{
-					CurrentResource->GetResourceSizeEx(CumulativeResourceSize);
-				}
-			}
+			CurrentResource->GetResourceSizeEx(CumulativeResourceSize);
 		}
 	}
 
@@ -4730,15 +4596,9 @@ void UMaterialInstance::DumpDebugInfo()
 		}
 		if (bHasStaticPermutationResource)
 		{
-			for (int32 QualityLevel = 0; QualityLevel < EMaterialQualityLevel::Num; QualityLevel++)
+			for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 			{
-				for (int32 FeatureLevel = 0; FeatureLevel < ERHIFeatureLevel::Num; FeatureLevel++)
-				{
-					if (StaticPermutationMaterialResources[QualityLevel][FeatureLevel])
-					{
-						StaticPermutationMaterialResources[QualityLevel][FeatureLevel]->DumpDebugInfo();
-					}
-				}
+				CurrentResource->DumpDebugInfo();
 			}
 		}
 		else
