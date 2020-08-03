@@ -105,6 +105,7 @@ struct FPakInfo
 		PakFile_Version_FNameBasedCompressionMethod = 8,
 		PakFile_Version_FrozenIndex = 9,
 		PakFile_Version_PathHashIndex = 10,
+		PakFile_Version_Fnv64BugFix = 11,
 
 
 		PakFile_Version_Last,
@@ -1352,8 +1353,8 @@ public:
 		}
 	}
 
-	/** Hash the given full-path filename using the hash function used by FPakFiles, with the given FPakFile-specific seed */
-	static uint64 HashPath(const TCHAR* RelativePathFromMount, uint64 Seed);
+	/** Hash the given full-path filename using the hash function used by FPakFiles, with the given FPakFile-specific seed, with version provided for legacy pak files that used different hash function */
+	static uint64 HashPath(const TCHAR* RelativePathFromMount, uint64 Seed, int32 PakFileVersion);
 
 	/** Read a list of (Filename, FPakEntry) pairs from a provided enumeration, attempt to encode each one,
 	  * store each one in the appropriate given encoded and/or unencoded array, and populate the given
@@ -1372,14 +1373,16 @@ public:
 	  * @param OutEncodedPakEntries array of bytes into which the encoded FPakEntries are stored.  Values in OutDirectoryIndex and OutPathHashIndex can be offsets into this array indicated the start point for the encoding of the given FPakEntry
 	  * @param OutNonEncodableEntries A list of all the FPakEntries that could not be encoded.  Values in OutDirectoryIndex and OutPathHashIndex can be indices into this list.
 	  * @param InOutCollisionDetection Optional parameter to detect hash collisions.  If present, each hashed filename will be check()'d for a collision against a different filename in InOutCollisionDetection, and will be added into InOutCollisionDetection
+	  * @param PakFileVersion Version of the pakfile containing the index, to support legacy formats
 	  */
 	typedef TFunction<FPakEntryPair & ()> ReadNextEntryFunction;
 	static void EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntryFunction& InReadNextEntry, const TCHAR* InPakFilename, const FPakInfo& InPakInfo, const FString& MountPoint,
 		int32& OutNumEncodedEntries, int32& OutNumDeletedEntries, uint64* OutPathHashSeed,
-		FDirectoryIndex* OutDirectoryIndex, FPathHashIndex* OutPathHashIndex, TArray<uint8>& OutEncodedPakEntries, TArray<FPakEntry>& OutNonEncodableEntries, TMap<uint64, FString>* InOutCollisionDetection);
+		FDirectoryIndex* OutDirectoryIndex, FPathHashIndex* OutPathHashIndex, TArray<uint8>& OutEncodedPakEntries, TArray<FPakEntry>& OutNonEncodableEntries, TMap<uint64, FString>* InOutCollisionDetection,
+		int32 PakFileVersion);
 
 	/** Lookup the FPakEntryLocation stored in the given PathHashIndex, return nullptr if not found */
-	static const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed);
+	static const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed, int32 PakFileVersion);
 
 	/** Lookup the FPakEntryLocation stored in the given DirectoryIndex, return nullptr if not found */
 	static const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FDirectoryIndex& DirectoryIndex);
@@ -1595,9 +1598,10 @@ private:
 	  * @param DirectoryIndex Optional FDirectoryIndex into which to insert the (Filename, FPakEntryLocation)
 	  * @param PathHashIndex Optional FPathHashIndex into which to insert the (Filename, FPakEntryLocation)
 	  * @param InOutCollisionDetection Optional parameter to detect hash collisions.  If present, the hashed filename will be check()'d for a collision against a different filename in InOutCollisionDetection, and will be added into InOutCollisionDetection
+	  * @param PakFileVersion Version of the pakfile containing the index, to support legacy formats
 	  */
 	static void AddEntryToIndex(const FString& Filename, const FPakEntryLocation& EntryLocation, const FString& MountPoint, uint64 PathHashSeed,
-		FDirectoryIndex* DirectoryIndex, FPathHashIndex* PathHashIndex, TMap<uint64, FString>* CollisionDetection);
+		FDirectoryIndex* DirectoryIndex, FPathHashIndex* PathHashIndex, TMap<uint64, FString>* CollisionDetection, int32 PakFileVersion);
 
 	/* Encodes a pak entry as an array of bytes into the given archive.  Returns true if encoding succeeded.  If encoding did not succeed, caller will need to store the InPakEntry in an unencoded list */
 	static bool EncodePakEntry(FArchive& Ar, const FPakEntry& InPakEntry, const FPakInfo& InInfo);
