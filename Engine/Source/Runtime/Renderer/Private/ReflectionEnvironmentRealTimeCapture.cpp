@@ -323,7 +323,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	FPooledRenderTargetDesc SkyCubeTexDesc = FPooledRenderTargetDesc::CreateCubemapDesc(CubeWidth, 
 		PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_TargetArraySlicesIndependently,
-		TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false, 1, CubeMipCount);
+		TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false, 1, CubeMipCount, false);
 
 	const bool bTimeSlicedRealTimeCapture = CVarRealTimeReflectionCaptureTimeSlicing.GetValueOnRenderThread() > 0;
 
@@ -912,7 +912,12 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			FRHICopyTextureInfo CopyInfo;
 			CopyInfo.NumMips = ProcessedSkyRenderTarget->GetDesc().NumMips;
 			CopyInfo.NumSlices = 6;
-			RHICmdList.CopyTexture(ProcessedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture, ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture, CopyInfo);
+
+			FRHITexture* ConvolvedSkyTexture = ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ConvolvedSkyTexture);
+			RHICmdList.CopyTexture(ProcessedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture, ConvolvedSkyTexture, CopyInfo);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ConvolvedSkyTexture);
 
 			// Update the sky irradiance SH buffer.
 			RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget);

@@ -321,7 +321,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 			}
 
 			// Transition draw indirect to readable for gfx draw indirect.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, DrawIndirectBuffer.UAV);
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DrawIndirectBuffer.UAV);
 		}
 		// Once cleared to 0, the count are reusable.
 		FreeEntries.Append(InstanceCountClearTasks);
