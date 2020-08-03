@@ -52,6 +52,7 @@ public:
 
 	static void GetInstanceExtensions(TArray<const ANSICHAR*>& OutExtensions);
 	static void GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions);
+	static void NotifyFoundDeviceLayersAndExtensions(VkPhysicalDevice PhysicalDevice, const TArray<FString>& Layers, const TArray<FString>& Extensions);
 
 	static void CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface);
 
@@ -119,9 +120,71 @@ public:
 	//#todo-rco: Detect Mali? Does the platform require depth to be written on stencil clear
 	static bool RequiresDepthWriteOnStencilClear() { return true; }
 
+	static bool FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info);
+
+	static VkResult CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
+
+	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
+
 protected:
 	static void* VulkanLib;
 	static bool bAttemptedLoad;
+
+#if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
+	static bool bHasGoogleDisplayTiming;
+	static TUniquePtr<class FGDTimingFramePacer> GDTimingFramePacer;
+#endif
+
+	static TUniquePtr<struct FAndroidVulkanFramePacer> FramePacer;
+	static int32 CachedFramePace;
+	static int32 CachedRefreshRate;
+	static int32 CachedSyncInterval;
 };
+
+#if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
+class FGDTimingFramePacer : FNoncopyable
+{
+public:
+	FGDTimingFramePacer(VkDevice InDevice, VkSwapchainKHR InSwapChain);
+
+	const VkPresentTimesInfoGOOGLE* GetPresentTimesInfo() const
+	{
+		return ((SyncDuration > 0) ? &PresentTimesInfo : nullptr);
+	}
+
+	void ScheduleNextFrame(uint32 InPresentID, int32 FramePace, int32 RefreshRate); // Call right before present
+
+private:
+	void UpdateSyncDuration(int32 FramePace, int32 RefreshRate);
+
+	uint64 PredictLastScheduledFramePresentTime(uint32 CurrentPresentID) const;
+	uint64 CalculateMinPresentTime(uint64 CpuPresentTime) const;
+	uint64 CalculateMaxPresentTime(uint64 CpuPresentTime) const;
+	uint64 CalculateNearestVsTime(uint64 ActualPresentTime, uint64 TargetTime) const;
+	void PollPastFrameInfo();
+
+private:
+	struct FKnownFrameInfo
+	{
+		bool bValid = false;
+		uint32 PresentID = 0;
+		uint64 ActualPresentTime = 0;
+	};
+
+private:
+	VkDevice Device;
+	VkSwapchainKHR SwapChain;
+
+	VkPresentTimesInfoGOOGLE PresentTimesInfo;
+	VkPresentTimeGOOGLE PresentTime;
+	uint64 RefreshDuration = 0;
+	uint64 HalfRefreshDuration = 0;
+
+	FKnownFrameInfo LastKnownFrameInfo;
+	uint64 LastScheduledPresentTime = 0;
+	uint64 SyncDuration = 0;
+	int32 FramePace = 0;
+};
+#endif //VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING
 
 typedef FVulkanAndroidPlatform FVulkanPlatform;

@@ -80,6 +80,16 @@ VkResult FVulkanGenericPlatform::Present(VkQueue Queue, VkPresentInfoKHR& Presen
 	return VulkanRHI::vkQueuePresentKHR(Queue, &PresentInfo);
 }
 
+VkResult FVulkanGenericPlatform::CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain)
+{
+	return VulkanRHI::vkCreateSwapchainKHR(Device, CreateInfo, Allocator, Swapchain);
+}
+
+void FVulkanGenericPlatform::DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator)
+{
+	VulkanRHI::vkDestroySwapchainKHR(Device, Swapchain, Allocator);
+}
+
 void FVulkanGenericPlatform::SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel)
 {
 	if (!GIsEditor &&
