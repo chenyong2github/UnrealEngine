@@ -2750,6 +2750,7 @@ public:
 	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) override;
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) override; 
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) override;
+	virtual void ValidateSkyLightRealTimeCapture(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView) override;
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const override;

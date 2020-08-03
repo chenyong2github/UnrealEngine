@@ -502,6 +502,7 @@ public:
 		return (LightingChannelMask & 0x6) | (~LightingChannelMask & 0x1); 
 	}
 	inline bool IsVisibleInReflectionCaptures() const { return bVisibleInReflectionCaptures; }
+	inline bool IsVisibleInRealTimeSkyCaptures() const { return bVisibleInRealTimeSkyCaptures; }
 	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
 	inline bool ShouldRenderInDepthPass() const { return bRenderInMainPass || bRenderInDepthPass; }
@@ -788,6 +789,9 @@ private:
 
 	/** True if the primitive should be visible in reflection captures. */
 	uint8 bVisibleInReflectionCaptures : 1;
+
+	/** True if the primitive should be visible in real-time sky light reflection captures. */
+	uint8 bVisibleInRealTimeSkyCaptures : 1;
 
 	/** If true, this component will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
 	uint8 bVisibleInRayTracing : 1;
