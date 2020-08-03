@@ -189,24 +189,48 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 
 		for (UNiagaraScript* Script : EmitterScripts)
 		{
-			uint32 NumInstructions = 0;
 			if (Script->GetUsage() == ENiagaraScriptUsage::ParticleGPUComputeScript)
 			{
-				FNiagaraShaderRef Shader = Script->GetRenderThreadScript()->GetShaderGameThread();
-				if (Shader.IsValid())
+				FNiagaraShaderScript* ShaderScript = Script->GetRenderThreadScript();
+				if (ShaderScript != nullptr && ShaderScript->GetBaseVMScript() != nullptr)
 				{
-					NumInstructions = Shader->GetNumInstructions();
+					const FNiagaraVMExecutableData& VMExecData = ShaderScript->GetBaseVMScript()->GetVMExecutableData();
+
+					for (int32 iPermutation=0; iPermutation < ShaderScript->GetNumPermutations(); ++iPermutation)
+					{
+						FNiagaraShaderRef Shader = ShaderScript->GetShaderGameThread(iPermutation);
+						if (Shader.IsValid())
+						{
+							FColor DisplayColor = FColor(196, 196, 196);
+							FString IterationSource = TEXT("Particles");
+							int32 MinStage = 0;
+							int32 MaxStage = 1;
+
+							const int32 ShaderStage = iPermutation - 1;
+							if (VMExecData.SimulationStageMetaData.IsValidIndex(ShaderStage))
+							{
+								if (VMExecData.SimulationStageMetaData[ShaderStage].bWritesParticles == false)
+								{
+									IterationSource = VMExecData.SimulationStageMetaData[ShaderStage].IterationSource.ToString();
+								}
+								MinStage = VMExecData.SimulationStageMetaData[ShaderStage].MinStage;
+								MaxStage = VMExecData.SimulationStageMetaData[ShaderStage].MaxStage;
+							}
+
+							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU Stage(%d - %d) Source(%s) = %u"), MinStage, MaxStage, *IterationSource, Shader->GetNumInstructions()), Font, DisplayColor);
+							CurrentY += FontHeight;
+						}
+					}
 				}
 			}
 			else
 			{
-				NumInstructions = Script->GetVMExecutableData().LastOpCount;
-			}
-
-			if (NumInstructions > 0)
-			{
-				Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("%s = %u"), *Script->GetName(), NumInstructions), Font, FLinearColor::White);
-				CurrentY += FontHeight;
+				const uint32 NumInstructions = Script->GetVMExecutableData().LastOpCount;
+				if (NumInstructions > 0)
+				{
+					Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("%s = %u"), *Script->GetName(), NumInstructions), Font, FLinearColor::White);
+					CurrentY += FontHeight;
+				}
 			}
 		}
 	}

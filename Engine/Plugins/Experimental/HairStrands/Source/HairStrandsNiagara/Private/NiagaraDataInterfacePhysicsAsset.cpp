@@ -485,7 +485,7 @@ public:
 		FNDIPhysicsAssetProxy* InterfaceProxy =
 			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
 		FNDIPhysicsAssetData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		if (ProxyData != nullptr && ProxyData->PhysicsAssetBuffer && ProxyData->PhysicsAssetBuffer->IsInitialized())
 		{
@@ -577,18 +577,6 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 	check(IsInRenderingThread());
 	//check(SystemInstancesToProxyData.Contains(SystemInstance));
 	SystemInstancesToProxyData.Remove(SystemInstance);
-}
-
-void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIPhysicsAssetProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
 }
 
 //------------------------------------------------------------------------------------------------------------

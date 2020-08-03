@@ -4353,7 +4353,7 @@ public:
 		FNiagaraDataInterfaceProxyChaosDestruction* ChaosDestructionInterfaceProxy = static_cast<FNiagaraDataInterfaceProxyChaosDestruction*>(Context.DataInterface);
 		if (ChaosDestructionInterfaceProxy)
 		{
-			FNiagaraDIChaosDestruction_GPUData* InstanceData = ChaosDestructionInterfaceProxy->SystemsToGPUInstanceData.Find(Context.SystemInstance);
+			FNiagaraDIChaosDestruction_GPUData* InstanceData = ChaosDestructionInterfaceProxy->SystemsToGPUInstanceData.Find(Context.SystemInstanceID);
 
 			ensure(InstanceData);
 

@@ -1015,14 +1015,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 
 void UNiagaraEmitter::CacheFromShaderCompiled()
 {
+	bRequiresViewUniformBuffer = false;
 	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
 	{
 		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
 		{
-			FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread();
-			if (NiagaraShaderRef.IsValid())
+			for (int i=0; i < NiagaraShaderScript->GetNumPermutations(); ++i)
 			{
-				bRequiresViewUniformBuffer = NiagaraShaderRef->ViewUniformBufferParam.IsBound();
+				FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread(i);
+				if (NiagaraShaderRef.IsValid() && NiagaraShaderRef->ViewUniformBufferParam.IsBound())
+				{
+					bRequiresViewUniformBuffer = true;
+					break;
+				}
 			}
 		}
 	}

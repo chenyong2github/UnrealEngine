@@ -62,6 +62,6 @@ public:
 struct FNDIPressureGridProxy : public FNDIVelocityGridProxy
 {
 	/** Launch all pre stage functions */
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
 };
 
