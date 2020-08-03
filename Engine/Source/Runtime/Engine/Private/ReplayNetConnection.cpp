@@ -5,6 +5,7 @@
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 
 static const int32 MAX_REPLAY_PACKET = 1024 * 2;
 
