@@ -28,7 +28,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
-#define (AUTOSDKS_ENABLED WITH_UNREAL_DEVELOPER_TOOLS || !IS_MONOLITHIC) && PLATFORM_WINDOWS
+#define AUTOSDKS_ENABLED (WITH_UNREAL_DEVELOPER_TOOLS || !IS_MONOLITHIC) && PLATFORM_WINDOWS
 
 static const size_t MaxPlatformCount = 64;		// In the unlikely event that someone bumps this please note that there's
 												// an implicit assumption that there won't be more than 64 unique target
