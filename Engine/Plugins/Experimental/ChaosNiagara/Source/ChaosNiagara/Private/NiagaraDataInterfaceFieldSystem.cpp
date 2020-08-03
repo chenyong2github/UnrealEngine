@@ -20,12 +20,37 @@ static const FName SampleLinearVelocityName(TEXT("SampleLinearVelocity"));
 static const FName SampleAngularVelocityName(TEXT("SampleAngularVelocity"));
 static const FName SampleLinearForceName(TEXT("SampleLinearForce"));
 static const FName SampleAngularTorqueName(TEXT("SampleAngularTorque"));
+static const FName GetFieldDimensionsName(TEXT("GetFieldDimensions"));
+static const FName GetFieldBoundsName(TEXT("GetFieldBounds"));
+
+//------------------------------------------------------------------------------------------------------------
+
+static const TArray<EFieldPhysicsType> VectorTypes = { EFieldPhysicsType::Field_LinearForce, EFieldPhysicsType::Field_LinearVelocity,
+													   EFieldPhysicsType::Field_AngularVelociy ,EFieldPhysicsType::Field_AngularTorque };
+
+static const TArray<EFieldPhysicsType> ScalarTypes = {};
+
+static const TArray<EFieldPhysicsType> IntegerTypes = {};
+
 
 //------------------------------------------------------------------------------------------------------------
 
 const FString UNiagaraDataInterfaceFieldSystem::FieldCommandsNodesBufferName(TEXT("FieldCommandsNodesBuffer_"));
 const FString UNiagaraDataInterfaceFieldSystem::FieldNodesParamsBufferName(TEXT("FieldNodesParamsBuffer_"));
 const FString UNiagaraDataInterfaceFieldSystem::FieldNodesOffsetsBufferName(TEXT("FieldNodesOffsetsBuffer_"));
+
+const FString UNiagaraDataInterfaceFieldSystem::VectorFieldTextureName(TEXT("VectorFieldTexture_"));
+const FString UNiagaraDataInterfaceFieldSystem::VectorFieldSamplerName(TEXT("VectorFieldSampler_"));
+
+const FString UNiagaraDataInterfaceFieldSystem::ScalarFieldTextureName(TEXT("ScalarFieldTexture_"));
+const FString UNiagaraDataInterfaceFieldSystem::ScalarFieldSamplerName(TEXT("ScalarFieldSampler_"));
+
+const FString UNiagaraDataInterfaceFieldSystem::IntegerFieldTextureName(TEXT("IntegerFieldTexture_"));
+const FString UNiagaraDataInterfaceFieldSystem::IntegerFieldSamplerName(TEXT("IntegerFieldSampler_"));
+
+const FString UNiagaraDataInterfaceFieldSystem::FieldDimensionsName(TEXT("FieldDimensions_"));
+const FString UNiagaraDataInterfaceFieldSystem::MinBoundsName(TEXT("MinBounds_"));
+const FString UNiagaraDataInterfaceFieldSystem::MaxBoundsName(TEXT("MaxBounds_"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -36,11 +61,37 @@ struct FNDIFieldSystemParametersName
 		FieldCommandsNodesBufferName = UNiagaraDataInterfaceFieldSystem::FieldCommandsNodesBufferName + Suffix;
 		FieldNodesParamsBufferName = UNiagaraDataInterfaceFieldSystem::FieldNodesParamsBufferName + Suffix;
 		FieldNodesOffsetsBufferName = UNiagaraDataInterfaceFieldSystem::FieldNodesOffsetsBufferName + Suffix;
+
+		VectorFieldTextureName = UNiagaraDataInterfaceFieldSystem::VectorFieldTextureName + Suffix;
+		VectorFieldSamplerName = UNiagaraDataInterfaceFieldSystem::VectorFieldSamplerName + Suffix;
+
+		ScalarFieldTextureName = UNiagaraDataInterfaceFieldSystem::ScalarFieldTextureName + Suffix;
+		ScalarFieldSamplerName = UNiagaraDataInterfaceFieldSystem::ScalarFieldSamplerName + Suffix;
+
+		IntegerFieldTextureName = UNiagaraDataInterfaceFieldSystem::IntegerFieldTextureName + Suffix;
+		IntegerFieldSamplerName = UNiagaraDataInterfaceFieldSystem::IntegerFieldSamplerName + Suffix;
+
+		FieldDimensionsName = UNiagaraDataInterfaceFieldSystem::FieldDimensionsName + Suffix;
+		MinBoundsName = UNiagaraDataInterfaceFieldSystem::MinBoundsName + Suffix;
+		MaxBoundsName = UNiagaraDataInterfaceFieldSystem::MaxBoundsName + Suffix;
 	}
 
 	FString FieldCommandsNodesBufferName;
 	FString FieldNodesParamsBufferName;
 	FString FieldNodesOffsetsBufferName;
+
+	FString VectorFieldTextureName;
+	FString VectorFieldSamplerName;
+
+	FString ScalarFieldTextureName;
+	FString ScalarFieldSamplerName;
+
+	FString IntegerFieldTextureName;
+	FString IntegerFieldSamplerName;
+
+	FString FieldDimensionsName;
+	FString MinBoundsName;
+	FString MaxBoundsName;
 };
 
 //------------------------------------------------------------------------------------------------------------
@@ -53,7 +104,7 @@ void CreateInternalBuffer(const uint32 ElementCount, const BufferType* InputData
 		const uint32 BufferCount = ElementCount * ElementSize;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 
-		if (InitBuffer)  
+		if (InitBuffer)
 		{
 			OutputBuffer.Initialize(sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 		}
@@ -63,6 +114,25 @@ void CreateInternalBuffer(const uint32 ElementCount, const BufferType* InputData
 		RHIUnlockVertexBuffer(OutputBuffer.Buffer);
 	}
 }
+template<typename BufferType, int ElementSize, EPixelFormat PixelFormat, bool InitBuffer>
+void CreateInternalTexture(const uint32 DimensionX, const uint32 DimensionY, const uint32 DimensionZ, const BufferType* InputData, FTextureRWBuffer3D& OutputBuffer)
+{
+	if (DimensionX * DimensionY * DimensionZ > 0)
+	{
+		const uint32 BlockBytes = sizeof(BufferType) * ElementSize;
+
+		if (InitBuffer)
+		{
+			OutputBuffer.Initialize(BlockBytes, DimensionX, DimensionY, DimensionZ, PixelFormat);
+		}
+		FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DimensionX, DimensionY, DimensionZ);
+
+		const uint8* TextureDatas = (const uint8*)InputData;
+		RHIUpdateTexture3D(OutputBuffer.Buffer, 0, UpdateRegion, DimensionX * BlockBytes,
+			DimensionX * DimensionY * BlockBytes, TextureDatas);
+	}
+}
+
 
 void BuildNodeParams(FFieldNodeBase* FieldNode, FNDIFieldSystemArrays* OutAssetArrays)
 {
@@ -82,7 +152,7 @@ void BuildNodeParams(FFieldNodeBase* FieldNode, FNDIFieldSystemArrays* OutAssetA
 			FRadialIntMask* LocalNode = StaticCast<FRadialIntMask*>(FieldNode);
 			OutAssetArrays->FieldNodesOffsets.Add(OutAssetArrays->FieldNodesParams.Num());
 			OutAssetArrays->FieldNodesParams.Add(FieldNode->Type());
-			OutAssetArrays->FieldNodesParams.Add( FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask);
+			OutAssetArrays->FieldNodesParams.Add(FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask);
 			OutAssetArrays->FieldNodesParams.Add(LocalNode->Radius);
 			OutAssetArrays->FieldNodesParams.Add(LocalNode->Position.X);
 			OutAssetArrays->FieldNodesParams.Add(LocalNode->Position.Y);
@@ -311,13 +381,124 @@ void BuildNodeParams(FFieldNodeBase* FieldNode, FNDIFieldSystemArrays* OutAssetA
 	}
 }
 
+
+template<typename DataType>
+FFieldNode<DataType>* GetFieldNode(const TArray<TWeakObjectPtr<class UFieldSystem>>& FieldSystems, const EFieldPhysicsType FieldType)
+{
+	for (int32 SystemIndex = 0; SystemIndex < FieldSystems.Num(); ++SystemIndex)
+	{
+		TWeakObjectPtr<UFieldSystem> FieldSystem = FieldSystems[SystemIndex];
+		if (FieldSystem.IsValid() && FieldSystem.Get() != nullptr)
+		{
+			TArray< FFieldSystemCommand >& FieldCommands = FieldSystem->Commands;
+			for (int32 CommandIndex = 0; CommandIndex < FieldCommands.Num(); ++CommandIndex)
+			{
+				const EFieldPhysicsType CommandType = GetFieldPhysicsType(FieldCommands[CommandIndex].TargetAttribute);
+				if (CommandType == FieldType && FieldCommands[CommandIndex].RootNode.Get())
+				{
+					return static_cast<FFieldNode<DataType>*>(
+						FieldCommands[CommandIndex].RootNode.Get());
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+void BakeFieldArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, const TArray<TWeakObjectPtr<UFieldSystemComponent>>& FieldComponents,
+	FNDIFieldSystemArrays* OutAssetArrays)
+{
+	const int32 FieldSize = OutAssetArrays->FieldDimensions.X * OutAssetArrays->FieldDimensions.Y * OutAssetArrays->FieldDimensions.Z;
+
+	OutAssetArrays->ArrayFieldDatas.Init(0.0, FieldSize * 4 * VectorTypes.Num());
+	OutAssetArrays->VectorFieldDatas.Init(FVector(0.f), FieldSize * VectorTypes.Num());
+	OutAssetArrays->ScalarFieldDatas.Init(0.0, FieldSize * ScalarTypes.Num());
+	OutAssetArrays->IntegerFieldDatas.Init(0, FieldSize * IntegerTypes.Num());
+
+	TArray<ContextIndex> IndicesArray;
+	ContextIndex::ContiguousIndices(IndicesArray, FieldSize);
+
+	TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+
+	TArray<FVector> SamplesArray;
+	SamplesArray.Init(FVector(0.f), FieldSize);
+
+	const FVector CellSize = (OutAssetArrays->MaxBounds - OutAssetArrays->MinBounds) /
+		FVector(OutAssetArrays->FieldDimensions.X - 1, OutAssetArrays->FieldDimensions.Y - 1, OutAssetArrays->FieldDimensions.Z - 1);
+
+	int32 SampleIndex = 0;
+	//for (int32 GridIndexX = 0; GridIndexX < OutAssetArrays->FieldDimensions.X; ++GridIndexX)
+	for (int32 GridIndexZ = 0; GridIndexZ < OutAssetArrays->FieldDimensions.Z; ++GridIndexZ)
+	{
+		for (int32 GridIndexY = 0; GridIndexY < OutAssetArrays->FieldDimensions.Y; ++GridIndexY)
+		{
+			for (int32 GridIndexX = 0; GridIndexX < OutAssetArrays->FieldDimensions.X; ++GridIndexX)
+				//for (int32 GridIndexZ = 0; GridIndexZ < OutAssetArrays->FieldDimensions.Z; ++GridIndexZ)
+			{
+				SamplesArray[SampleIndex++] = OutAssetArrays->MinBounds + FVector(GridIndexX, GridIndexY, GridIndexZ) * CellSize;
+			}
+		}
+	}
+	TArrayView<FVector> SamplesView(&(SamplesArray.operator[](0)), FieldSize);
+
+	FFieldContext FieldContext{
+		IndexView,
+		SamplesView,
+		FFieldContext::UniquePointerMap()
+	};
+
+	int32 VectorBegin = 0;
+	for (int32 TypeIndex = 0; TypeIndex < VectorTypes.Num(); ++TypeIndex)
+	{
+		TArrayView<FVector> ResultsView(&(OutAssetArrays->VectorFieldDatas[0]) + VectorBegin, FieldSize);
+		FFieldNode<FVector>* CommandRoot = GetFieldNode<FVector>(FieldSystems, VectorTypes[TypeIndex]);
+		if (CommandRoot)
+		{
+			CommandRoot->Evaluate(FieldContext, ResultsView);
+
+			for (int32 ArrayIndex = VectorBegin, VectorEnd = VectorBegin + FieldSize; ArrayIndex < VectorEnd; ++ArrayIndex)
+			{
+				//UE_LOG(LogFieldSystem, Warning, TEXT("Sample Field = %d %d %s"), TypeIndex, ArrayIndex, *OutAssetArrays->VectorFieldDatas[ArrayIndex].ToString());
+				OutAssetArrays->ArrayFieldDatas[4 * ArrayIndex] = OutAssetArrays->VectorFieldDatas[ArrayIndex].X;
+				OutAssetArrays->ArrayFieldDatas[4 * ArrayIndex + 1] = OutAssetArrays->VectorFieldDatas[ArrayIndex].Y;
+				OutAssetArrays->ArrayFieldDatas[4 * ArrayIndex + 2] = OutAssetArrays->VectorFieldDatas[ArrayIndex].Z;
+			}
+		}
+		VectorBegin += FieldSize;
+	}
+	int32 ScalarBegin = 0;
+	for (int32 TypeIndex = 0; TypeIndex < ScalarTypes.Num(); ++TypeIndex)
+	{
+		TArrayView<float> ResultsView(&(OutAssetArrays->ScalarFieldDatas[0]) + ScalarBegin, FieldSize);
+		FFieldNode<float>* CommandRoot = GetFieldNode<float>(FieldSystems, ScalarTypes[TypeIndex]);
+		if (CommandRoot)
+		{
+			CommandRoot->Evaluate(FieldContext, ResultsView);
+		}
+		ScalarBegin += FieldSize;
+	}
+	int32 IntegerBegin = 0;
+	for (int32 TypeIndex = 0; TypeIndex < IntegerTypes.Num(); ++TypeIndex)
+	{
+		TArrayView<int32> ResultsView(&(OutAssetArrays->IntegerFieldDatas[0]) + IntegerBegin, FieldSize);
+		FFieldNode<int32>* CommandRoot = GetFieldNode<int32>(FieldSystems, IntegerTypes[TypeIndex]);
+		if (CommandRoot)
+		{
+			CommandRoot->Evaluate(FieldContext, ResultsView);
+		}
+		IntegerBegin += FieldSize;
+	}
+}
+
 void CreateInternalArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, const TArray<TWeakObjectPtr<UFieldSystemComponent>>& FieldComponents,
 	FNDIFieldSystemArrays* OutAssetArrays)
 {
 	if (OutAssetArrays != nullptr)
 	{
 		OutAssetArrays->FieldNodesOffsets.Empty();
-		for (uint32 FieldIndex = 0; FieldIndex < FNDIFieldSystemArrays::NumCommands+1; ++FieldIndex)
+		OutAssetArrays->FieldNodesParams.Empty();
+
+		for (uint32 FieldIndex = 0; FieldIndex < FNDIFieldSystemArrays::NumCommands + 1; ++FieldIndex)
 		{
 			OutAssetArrays->FieldCommandsNodes[FieldIndex] = 0;
 		}
@@ -330,41 +511,29 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSyste
 				for (int32 CommandIndex = 0; CommandIndex < FieldCommands.Num(); ++CommandIndex)
 				{
 					const EFieldPhysicsType CommandType = GetFieldPhysicsType(FieldCommands[CommandIndex].TargetAttribute);
-					OutAssetArrays->FieldCommandsNodes[CommandType+1] = OutAssetArrays->FieldNodesOffsets.Num();
+					OutAssetArrays->FieldCommandsNodes[CommandType + 1] = OutAssetArrays->FieldNodesOffsets.Num();
 
 					TUniquePtr<FFieldNodeBase>& RootNode = FieldCommands[CommandIndex].RootNode;
 					BuildNodeParams(RootNode.Get(), OutAssetArrays);
 
-					OutAssetArrays->FieldCommandsNodes[CommandType+1] = OutAssetArrays->FieldNodesOffsets.Num() - 
-						OutAssetArrays->FieldCommandsNodes[CommandType+1];
-
-					//UE_LOG(LogFieldSystem, Warning, TEXT("Params offset = %d %d %d %d %d"), CommandIndex, CommandType, 
-					//	OutAssetArrays->FieldCommandsNodes[CommandType+1], OutAssetArrays->FieldNodesOffsets.Num(), OutAssetArrays->FieldNodesParams.Num());
+					OutAssetArrays->FieldCommandsNodes[CommandType + 1] = OutAssetArrays->FieldNodesOffsets.Num() -
+						OutAssetArrays->FieldCommandsNodes[CommandType + 1];
 				}
 			}
 		}
 		for (uint32 FieldIndex = 1; FieldIndex < FNDIFieldSystemArrays::NumCommands + 1; ++FieldIndex)
 		{
-			OutAssetArrays->FieldCommandsNodes[FieldIndex] += OutAssetArrays->FieldCommandsNodes[FieldIndex-1];
+			OutAssetArrays->FieldCommandsNodes[FieldIndex] += OutAssetArrays->FieldCommandsNodes[FieldIndex - 1];
 		}
-		/*for (auto& OffsetsValue : OutAssetArrays->FieldNodesOffsets)
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Offsets Value = %d"), OffsetsValue);
-		}
-		for (auto& ParamsValue : OutAssetArrays->FieldNodesParams)
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Params Value = %f"), ParamsValue);
-		}
-		for (auto& CommandsNodes : OutAssetArrays->FieldCommandsNodes)
-		{
-			UE_LOG(LogFieldSystem, Warning, TEXT("Commands Nodes = %d"), CommandsNodes);
-		}*/
+
+		BakeFieldArrays(FieldSystems, FieldComponents, OutAssetArrays);
 	}
 }
 
 void UpdateInternalArrays(const TArray<TWeakObjectPtr<UFieldSystem>>& FieldSystems, const TArray<TWeakObjectPtr<UFieldSystemComponent>>& FieldComponents,
 	FNDIFieldSystemArrays* OutAssetArrays)
 {
+	CreateInternalArrays(FieldSystems, FieldComponents, OutAssetArrays);
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -376,7 +545,8 @@ bool FNDIFieldSystemBuffer::IsValid() const
 		FieldSystems[0].Get() != nullptr) && (AssetArrays.IsValid() && AssetArrays.Get() != nullptr) && FieldSystems.Num() == FieldSystems.Num();
 }
 
-void FNDIFieldSystemBuffer::Initialize(const TArray<TWeakObjectPtr<UFieldSystem>>& InFieldSystems, const TArray<TWeakObjectPtr<UFieldSystemComponent>>& InFieldComponents)
+void FNDIFieldSystemBuffer::Initialize(const TArray<TWeakObjectPtr<UFieldSystem>>& InFieldSystems, const TArray<TWeakObjectPtr<UFieldSystemComponent>>& InFieldComponents,
+	const FIntVector& FieldDimensions, const FVector& MinBounds, const FVector& MaxBounds)
 {
 	FieldSystems = InFieldSystems;
 	FieldComponents = InFieldComponents;
@@ -385,6 +555,10 @@ void FNDIFieldSystemBuffer::Initialize(const TArray<TWeakObjectPtr<UFieldSystem>
 
 	if (IsValid())
 	{
+		AssetArrays->FieldDimensions = FieldDimensions;
+		AssetArrays->MinBounds = MinBounds;
+		AssetArrays->MaxBounds = MaxBounds;
+
 		CreateInternalArrays(FieldSystems, FieldComponents, AssetArrays.Get());
 	}
 }
@@ -402,6 +576,16 @@ void FNDIFieldSystemBuffer::Update()
 				CreateInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT, false>(ThisBuffer->AssetArrays->FieldNodesParams.Num(), ThisBuffer->AssetArrays->FieldNodesParams.GetData(), ThisBuffer->FieldNodesParamsBuffer);
 				CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, false>(ThisBuffer->AssetArrays->FieldCommandsNodes.Num(), ThisBuffer->AssetArrays->FieldCommandsNodes.GetData(), ThisBuffer->FieldCommandsNodesBuffer);
 				CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, false>(ThisBuffer->AssetArrays->FieldNodesOffsets.Num(), ThisBuffer->AssetArrays->FieldNodesOffsets.GetData(), ThisBuffer->FieldNodesOffsetsBuffer);
+
+				CreateInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F, false>(
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * VectorTypes.Num(),
+					ThisBuffer->AssetArrays->ArrayFieldDatas.GetData(), ThisBuffer->VectorFieldTexture);
+				CreateInternalTexture<float, 1, EPixelFormat::PF_R32_FLOAT, false>(
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * ScalarTypes.Num(),
+					ThisBuffer->AssetArrays->ScalarFieldDatas.GetData(), ThisBuffer->ScalarFieldTexture);
+				CreateInternalTexture<int32, 1, EPixelFormat::PF_R32_SINT, false>(
+					ThisBuffer->AssetArrays->FieldDimensions.X, ThisBuffer->AssetArrays->FieldDimensions.Y, ThisBuffer->AssetArrays->FieldDimensions.Z * IntegerTypes.Num(),
+					ThisBuffer->AssetArrays->IntegerFieldDatas.GetData(), ThisBuffer->IntegerFieldTexture);
 			}
 		);
 	}
@@ -414,6 +598,16 @@ void FNDIFieldSystemBuffer::InitRHI()
 		CreateInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT, true>(AssetArrays->FieldNodesParams.Num(), AssetArrays->FieldNodesParams.GetData(), FieldNodesParamsBuffer);
 		CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, true>(AssetArrays->FieldCommandsNodes.Num(), AssetArrays->FieldCommandsNodes.GetData(), FieldCommandsNodesBuffer);
 		CreateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT, true>(AssetArrays->FieldNodesOffsets.Num(), AssetArrays->FieldNodesOffsets.GetData(), FieldNodesOffsetsBuffer);
+
+		CreateInternalTexture<float, 4, EPixelFormat::PF_A32B32G32R32F, true>(
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * VectorTypes.Num(),
+			AssetArrays->ArrayFieldDatas.GetData(), VectorFieldTexture);
+		CreateInternalTexture<float, 1, EPixelFormat::PF_R32_FLOAT, true>(
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * ScalarTypes.Num(),
+			AssetArrays->ScalarFieldDatas.GetData(), ScalarFieldTexture);
+		CreateInternalTexture<int32, 1, EPixelFormat::PF_R32_SINT, true>(
+			AssetArrays->FieldDimensions.X, AssetArrays->FieldDimensions.Y, AssetArrays->FieldDimensions.Z * IntegerTypes.Num(),
+			AssetArrays->IntegerFieldDatas.GetData(), IntegerFieldTexture);
 	}
 }
 
@@ -422,6 +616,10 @@ void FNDIFieldSystemBuffer::ReleaseRHI()
 	FieldNodesParamsBuffer.Release();
 	FieldCommandsNodesBuffer.Release();
 	FieldNodesOffsetsBuffer.Release();
+
+	VectorFieldTexture.Release();
+	ScalarFieldTexture.Release();
+	IntegerFieldTexture.Release();
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -448,8 +646,12 @@ bool FNDIFieldSystemData::Init(UNiagaraDataInterfaceFieldSystem* Interface, FNia
 	{
 		Interface->ExtractSourceComponent(SystemInstance);
 
+		const FTransform WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld();
+
 		FieldSystemBuffer = new FNDIFieldSystemBuffer();
-		FieldSystemBuffer->Initialize(Interface->FieldSystems, Interface->SourceComponents);
+		FieldSystemBuffer->Initialize(Interface->FieldSystems, Interface->SourceComponents,
+			Interface->FieldDimensions, WorldTransform.GetTranslation() + Interface->MinBounds,
+			WorldTransform.GetTranslation() + Interface->MaxBounds);
 
 		BeginInitResource(FieldSystemBuffer);
 	}
@@ -470,6 +672,19 @@ public:
 		FieldCommandsNodesBuffer.Bind(ParameterMap, *ParamNames.FieldCommandsNodesBufferName);
 		FieldNodesParamsBuffer.Bind(ParameterMap, *ParamNames.FieldNodesParamsBufferName);
 		FieldNodesOffsetsBuffer.Bind(ParameterMap, *ParamNames.FieldNodesOffsetsBufferName);
+
+		VectorFieldTexture.Bind(ParameterMap, *ParamNames.VectorFieldTextureName);
+		VectorFieldSampler.Bind(ParameterMap, *ParamNames.VectorFieldSamplerName);
+
+		ScalarFieldTexture.Bind(ParameterMap, *ParamNames.ScalarFieldTextureName);
+		ScalarFieldSampler.Bind(ParameterMap, *ParamNames.ScalarFieldSamplerName);
+
+		IntegerFieldTexture.Bind(ParameterMap, *ParamNames.IntegerFieldTextureName);
+		IntegerFieldSampler.Bind(ParameterMap, *ParamNames.IntegerFieldSamplerName);
+
+		FieldDimensions.Bind(ParameterMap, *ParamNames.FieldDimensionsName);
+		MinBounds.Bind(ParameterMap, *ParamNames.MinBoundsName);
+		MaxBounds.Bind(ParameterMap, *ParamNames.MaxBoundsName);
 
 		if (!FieldNodesParamsBuffer.IsBound())
 		{
@@ -496,18 +711,47 @@ public:
 		FNDIFieldSystemData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
-		if (ProxyData != nullptr && ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->IsInitialized())
+		FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+		if (ProxyData != nullptr && ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->IsInitialized()
+			&& ProxyData->FieldSystemBuffer && ProxyData->FieldSystemBuffer->AssetArrays)
 		{
 			FNDIFieldSystemBuffer* AssetBuffer = ProxyData->FieldSystemBuffer;
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldNodesParamsBuffer, AssetBuffer->FieldNodesParamsBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldCommandsNodesBuffer, AssetBuffer->FieldCommandsNodesBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldNodesOffsetsBuffer, AssetBuffer->FieldNodesOffsetsBuffer.SRV);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, AssetBuffer->VectorFieldTexture.SRV);
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ScalarFieldTexture, AssetBuffer->ScalarFieldTexture.SRV);
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ScalarFieldSampler, SamplerState);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntegerFieldTexture, AssetBuffer->IntegerFieldTexture.SRV);
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, IntegerFieldSampler, SamplerState);
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldDimensions, AssetBuffer->AssetArrays->FieldDimensions);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, AssetBuffer->AssetArrays->MinBounds);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, AssetBuffer->AssetArrays->MaxBounds);
 		}
 		else
 		{
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldNodesParamsBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldCommandsNodesBuffer, FNiagaraRenderer::GetDummyIntBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, FieldNodesOffsetsBuffer, FNiagaraRenderer::GetDummyIntBuffer());
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, VectorFieldTexture, FNiagaraRenderer::GetDummyTextureReadBuffer2D());
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, VectorFieldSampler, SamplerState);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, ScalarFieldTexture, FNiagaraRenderer::GetDummyTextureReadBuffer2D());
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, ScalarFieldSampler, SamplerState);
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntegerFieldTexture, FNiagaraRenderer::GetDummyTextureReadBuffer2D());
+			SetSamplerParameter(RHICmdList, ComputeShaderRHI, IntegerFieldSampler, SamplerState);
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldDimensions, FIntVector(1, 1, 1));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MinBounds, FVector(0, 0, 0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxBounds, FVector(0, 0, 0));
 		}
 	}
 
@@ -520,6 +764,19 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, FieldNodesParamsBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, FieldCommandsNodesBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, FieldNodesOffsetsBuffer);
+
+	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, VectorFieldSampler);
+
+	LAYOUT_FIELD(FShaderResourceParameter, ScalarFieldTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ScalarFieldSampler);
+
+	LAYOUT_FIELD(FShaderResourceParameter, IntegerFieldTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, IntegerFieldSampler);
+
+	LAYOUT_FIELD(FShaderParameter, FieldDimensions);
+	LAYOUT_FIELD(FShaderParameter, MinBounds);
+	LAYOUT_FIELD(FShaderParameter, MaxBounds);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNDIFieldSystemParametersCS);
@@ -566,6 +823,9 @@ UNiagaraDataInterfaceFieldSystem::UNiagaraDataInterfaceFieldSystem(FObjectInitia
 	, DefaultSource(nullptr)
 	, BlueprintSource(nullptr)
 	, SourceActor(nullptr)
+	, FieldDimensions(10, 10, 10)
+	, MinBounds(-50, -50, -50)
+	, MaxBounds(50, 50, 50)
 	, SourceComponents()
 	, FieldSystems()
 {
@@ -616,11 +876,11 @@ void UNiagaraDataInterfaceFieldSystem::ExtractSourceComponent(FNiagaraSystemInst
 			}
 		}
 	}
-	if (BlueprintSource) 
+	if (BlueprintSource)
 	{
 		AFieldSystemActor* FieldSystemActor = Cast<AFieldSystemActor>(BlueprintSource->GeneratedClass.GetDefaultObject());
 		if (FieldSystemActor != nullptr)
-		{ 
+		{
 			SourceComponent = FieldSystemActor->FieldSystemComponent;
 		}
 	}
@@ -687,6 +947,9 @@ bool UNiagaraDataInterfaceFieldSystem::CopyToInternal(UNiagaraDataInterface* Des
 	OtherTyped->SourceComponents = SourceComponents;
 	OtherTyped->DefaultSource = DefaultSource;
 	OtherTyped->BlueprintSource = BlueprintSource;
+	OtherTyped->FieldDimensions = FieldDimensions;
+	OtherTyped->MinBounds = MinBounds;
+	OtherTyped->MaxBounds = MaxBounds;
 
 	return true;
 }
@@ -699,9 +962,10 @@ bool UNiagaraDataInterfaceFieldSystem::Equals(const UNiagaraDataInterface* Other
 	}
 	const UNiagaraDataInterfaceFieldSystem* OtherTyped = CastChecked<const UNiagaraDataInterfaceFieldSystem>(Other);
 
-	return  (OtherTyped->FieldSystems == FieldSystems) && (OtherTyped->SourceActor == SourceActor) && 
-		(OtherTyped->SourceComponents == SourceComponents) && (OtherTyped->DefaultSource == DefaultSource) 
-		&& ( OtherTyped->BlueprintSource == BlueprintSource);
+	return  (OtherTyped->FieldSystems == FieldSystems) && (OtherTyped->SourceActor == SourceActor) &&
+		(OtherTyped->SourceComponents == SourceComponents) && (OtherTyped->DefaultSource == DefaultSource)
+		&& (OtherTyped->BlueprintSource == BlueprintSource && (OtherTyped->FieldDimensions == FieldDimensions)
+			&& (OtherTyped->FieldDimensions == FieldDimensions) && (OtherTyped->MinBounds == MinBounds) && (OtherTyped->MaxBounds == MaxBounds));
 }
 
 void UNiagaraDataInterfaceFieldSystem::PostInitProperties()
@@ -723,8 +987,6 @@ void UNiagaraDataInterfaceFieldSystem::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Position")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Min Bound")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Max Bound")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Linear Velocity")));
 
 		OutFunctions.Add(Sig);
@@ -736,8 +998,6 @@ void UNiagaraDataInterfaceFieldSystem::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Position")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Min Bound")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Max Bound")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Angular Velocity")));
 
 		OutFunctions.Add(Sig);
@@ -749,8 +1009,6 @@ void UNiagaraDataInterfaceFieldSystem::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Position")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Min Bound")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Max Bound")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Linear Force")));
 
 		OutFunctions.Add(Sig);
@@ -762,9 +1020,28 @@ void UNiagaraDataInterfaceFieldSystem::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Position")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Min Bound")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Max Bound")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Angular Torque")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetFieldDimensionsName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Field Dimensions")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetFieldBoundsName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Field System")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Min Bounds")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Max Bounds")));
 
 		OutFunctions.Add(Sig);
 	}
@@ -774,45 +1051,228 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleLinearVelo
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleAngularVelocity);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleLinearForce);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleAngularTorque);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, GetFieldDimensions);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, GetFieldBounds);
 
 void UNiagaraDataInterfaceFieldSystem::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
 	if (BindingInfo.Name == SampleLinearVelocityName)
 	{
-		check(BindingInfo.GetNumInputs() == 10 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleLinearVelocity)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SampleAngularVelocityName)
 	{
-		check(BindingInfo.GetNumInputs() == 10 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleAngularVelocity)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SampleLinearForceName)
 	{
-		check(BindingInfo.GetNumInputs() == 10 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleLinearForce)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SampleAngularTorqueName)
 	{
-		check(BindingInfo.GetNumInputs() == 10 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleAngularTorque)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetFieldDimensionsName)
+	{
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleLinearForce)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetFieldBoundsName)
+	{
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 6);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceFieldSystem, SampleAngularTorque)::Bind(this, OutFunc);
+	}
+}
+
+void UNiagaraDataInterfaceFieldSystem::GetFieldDimensions(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIFieldSystemData> InstData(Context);
+
+	VectorVM::FExternalFuncRegisterHandler<float> OutDimensionX(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutDimensionY(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutDimensionZ(Context);
+
+	const FIntVector FieldDimension = (InstData && InstData->FieldSystemBuffer && InstData->FieldSystemBuffer->AssetArrays) ?
+		InstData->FieldSystemBuffer->AssetArrays->FieldDimensions : FIntVector(1, 1, 1);
+
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		*OutDimensionX.GetDest() = FieldDimension.X;
+		*OutDimensionY.GetDest() = FieldDimension.Y;
+		*OutDimensionZ.GetDest() = FieldDimension.Z;
+
+		OutDimensionX.Advance();
+		OutDimensionY.Advance();
+		OutDimensionZ.Advance();
+	}
+}
+
+void UNiagaraDataInterfaceFieldSystem::GetFieldBounds(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIFieldSystemData> InstData(Context);
+
+	VectorVM::FExternalFuncRegisterHandler<float> OutMinX(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutMinY(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutMinZ(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutMaxX(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutMaxY(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutMaxZ(Context);
+
+	const FVector MinBound = (InstData && InstData->FieldSystemBuffer && InstData->FieldSystemBuffer->AssetArrays) ?
+		InstData->FieldSystemBuffer->AssetArrays->MinBounds : FVector(0, 0, 0);
+
+	const FVector MaxBound = (InstData && InstData->FieldSystemBuffer && InstData->FieldSystemBuffer->AssetArrays) ?
+		InstData->FieldSystemBuffer->AssetArrays->MinBounds : FVector(0, 0, 0);
+
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		*OutMinX.GetDest() = MinBound.X;
+		*OutMinY.GetDest() = MinBound.Y;
+		*OutMinZ.GetDest() = MinBound.Z;
+		*OutMaxX.GetDest() = MaxBound.X;
+		*OutMaxY.GetDest() = MaxBound.Y;
+		*OutMaxZ.GetDest() = MaxBound.Z;
+
+		OutMinX.Advance();
+		OutMinY.Advance();
+		OutMinZ.Advance();
+		OutMaxX.Advance();
+		OutMaxY.Advance();
+		OutMaxZ.Advance();
+	}
+}
+
+void SampleVectorField(FVectorVMContext& Context, const EFieldPhysicsType VectorType, const int32 VectorIndex)
+{
+	VectorVM::FUserPtrHandler<FNDIFieldSystemData> InstData(Context);
+
+	// Inputs 
+	VectorVM::FExternalFuncInputHandler<float> SamplePositionXParam(Context);
+	VectorVM::FExternalFuncInputHandler<float> SamplePositionYParam(Context);
+	VectorVM::FExternalFuncInputHandler<float> SamplePositionZParam(Context);
+
+	// Outputs...
+	VectorVM::FExternalFuncRegisterHandler<float> OutVectoreFieldXParam(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutVectoreFieldYParam(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutVectoreFieldZParam(Context);
+
+	const bool HasValidArrays = InstData && InstData->FieldSystemBuffer && InstData->FieldSystemBuffer->AssetArrays &&
+		(InstData->FieldSystemBuffer->AssetArrays->VectorFieldDatas.Num() != 0);
+	if (HasValidArrays)
+	{
+		const FVector MinBounds = InstData->FieldSystemBuffer->AssetArrays->MinBounds;
+		const FVector MaxBounds = InstData->FieldSystemBuffer->AssetArrays->MaxBounds;
+
+		const FIntVector FieldDimensions = InstData->FieldSystemBuffer->AssetArrays->FieldDimensions;
+		const int32 TypeSize = FieldDimensions.X * FieldDimensions.Y * FieldDimensions.Z;
+
+		const FVector FieldSize(FieldDimensions.X, FieldDimensions.Y, FieldDimensions.Z * VectorTypes.Num());
+		const FVector BoundSize = MaxBounds - MinBounds;
+		const FVector InverseBounds = (BoundSize.X > 0.0 && BoundSize.Y > 0.0 && BoundSize.Z > 0.0) ?
+			FVector(1, 1, 1) / BoundSize : FVector(0, 0, 0);
+
+		FVector* FieldData = &InstData->FieldSystemBuffer->AssetArrays->VectorFieldDatas[0];
+
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		{
+			FVector SamplePoint = (FVector(SamplePositionXParam.Get(),
+				SamplePositionYParam.Get(),
+				SamplePositionZParam.Get()) - MinBounds) * InverseBounds;
+
+			SamplePoint = FVector(FMath::Clamp(SamplePoint.X, 0.0f, 1.0f),
+				FMath::Clamp(SamplePoint.Y, 0.0f, 1.0f),
+				FMath::Clamp(SamplePoint.Z, 0.0f, 1.0f));
+
+			SamplePoint.Z = (VectorTypes.Num() != 0) ?
+				(SamplePoint.Z * (1.0 - 1.0 / FieldDimensions.Z) + VectorIndex) / VectorTypes.Num() : SamplePoint.Z;
+
+			SamplePoint = SamplePoint * FieldSize;
+
+			FVector IndexMin(FGenericPlatformMath::FloorToFloat(SamplePoint.X),
+				FGenericPlatformMath::FloorToFloat(SamplePoint.Y),
+				FGenericPlatformMath::FloorToFloat(SamplePoint.Z));
+
+			FVector IndexMax = IndexMin + FVector(1, 1, 1);
+			FVector V(0, 0, 0);
+			if (IndexMin.X < FieldSize.X && IndexMin.Y < FieldSize.Y && IndexMin.Z < FieldSize.Z &&
+				IndexMax.X < FieldSize.X && IndexMax.Y < FieldSize.Y && IndexMax.Z < FieldSize.Z)
+			{
+
+				FVector SampleFraction = SamplePoint - IndexMin;
+
+				FVector V000 = FieldData[int32(IndexMin.X + FieldSize.X * IndexMin.Y +
+					FieldSize.X * FieldSize.Y * IndexMin.Z)];
+				FVector V100 = FieldData[int32(IndexMax.X + FieldSize.X * IndexMin.Y +
+					FieldSize.X * FieldSize.Y * IndexMin.Z)];
+				FVector V010 = FieldData[int32(IndexMin.X + FieldSize.X * IndexMax.Y +
+					FieldSize.X * FieldSize.Y * IndexMin.Z)];
+				FVector V110 = FieldData[int32(IndexMax.X + FieldSize.X * IndexMax.Y +
+					FieldSize.X * FieldSize.Y * IndexMin.Z)];
+				FVector V001 = FieldData[int32(IndexMin.X + FieldSize.X * IndexMin.Y +
+					FieldSize.X * FieldSize.Y * IndexMax.Z)];
+				FVector V101 = FieldData[int32(IndexMax.X + FieldSize.X * IndexMin.Y +
+					FieldSize.X * FieldSize.Y * IndexMax.Z)];
+				FVector V011 = FieldData[int32(IndexMin.X + FieldSize.X * IndexMax.Y +
+					FieldSize.X * FieldSize.Y * IndexMax.Z)];
+				FVector V111 = FieldData[int32(IndexMax.X + FieldSize.X * IndexMax.Y +
+					FieldSize.X * FieldSize.Y * IndexMax.Z)];
+
+				// Blend x-axis
+				FVector V00 = FMath::Lerp(V000, V100, SampleFraction.X);
+				FVector V01 = FMath::Lerp(V001, V101, SampleFraction.X);
+				FVector V10 = FMath::Lerp(V010, V110, SampleFraction.X);
+				FVector V11 = FMath::Lerp(V011, V111, SampleFraction.X);
+
+				// Blend y-axis
+				FVector V0 = FMath::Lerp(V00, V10, SampleFraction.Y);
+				FVector V1 = FMath::Lerp(V01, V11, SampleFraction.Y);
+
+				// Blend z-axis
+				V = FMath::Lerp(V0, V1, SampleFraction.Z);
+
+				//UE_LOG(LogFieldSystem, Warning, TEXT("Instance Index = %d | Sample Position = %s | Sample Result = %s | Sample Index = %d"),
+				//	InstanceIdx, *SamplePoint.ToString(), *V000.ToString(), int32(IndexMin.X + FieldSize.X * IndexMin.Y +
+				//		FieldSize.X * FieldSize.Y * IndexMin.Z));
+			}
+
+			// Write final output...
+			*OutVectoreFieldXParam.GetDest() = V.X;
+			*OutVectoreFieldYParam.GetDest() = V.Y;
+			*OutVectoreFieldZParam.GetDest() = V.Z;
+
+			SamplePositionXParam.Advance();
+			SamplePositionXParam.Advance();
+			SamplePositionXParam.Advance();
+
+			OutVectoreFieldXParam.Advance();
+			OutVectoreFieldYParam.Advance();
+			OutVectoreFieldZParam.Advance();
+		}
 	}
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleLinearVelocity(FVectorVMContext& Context)
 {
+	SampleVectorField(Context, EFieldPhysicsType::Field_LinearVelocity, 1);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleAngularVelocity(FVectorVMContext& Context)
 {
+	SampleVectorField(Context, EFieldPhysicsType::Field_AngularVelociy, 2);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleLinearForce(FVectorVMContext& Context)
 {
+	SampleVectorField(Context, EFieldPhysicsType::Field_LinearForce, 0);
 }
 
 void UNiagaraDataInterfaceFieldSystem::SampleAngularTorque(FVectorVMContext& Context)
 {
+	SampleVectorField(Context, EFieldPhysicsType::Field_AngularTorque, 3);
 }
 
 bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -827,10 +1287,10 @@ bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfa
 	if (FunctionInfo.DefinitionName == SampleLinearVelocityName)
 	{
 		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 SamplePosition, in float3 MinBound, in float3 MaxBound, out float3 OutLinearVelocity)
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutLinearVelocity)
 		{
 			{FieldSystemContextName}
-			OutLinearVelocity = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,MinBound,MaxBound,LINEAR_VELOCITY);
+			OutLinearVelocity = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,LINEAR_VELOCITY,1);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -839,10 +1299,10 @@ bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfa
 	else if (FunctionInfo.DefinitionName == SampleLinearForceName)
 	{
 		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 SamplePosition, in float3 MinBound, in float3 MaxBound, out float3 OutLinearForce)
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutLinearForce)
 		{
 			{FieldSystemContextName}
-			OutLinearForce = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,MinBound,MaxBound,LINEAR_FORCE);
+			OutLinearForce = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,LINEAR_FORCE,1);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -851,10 +1311,10 @@ bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfa
 	else if (FunctionInfo.DefinitionName == SampleAngularVelocityName)
 	{
 		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 SamplePosition, in float3 MinBound, in float3 MaxBound, out float3 OutAngularVelocity)
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutAngularVelocity)
 		{
 			{FieldSystemContextName}
-			OutAngularVelocity = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,MinBound,MaxBound,ANGULAR_VELOCITY);
+			OutAngularVelocity = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,ANGULAR_VELOCITY,2);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -863,23 +1323,48 @@ bool UNiagaraDataInterfaceFieldSystem::GetFunctionHLSL(const FNiagaraDataInterfa
 	else if (FunctionInfo.DefinitionName == SampleAngularTorqueName)
 	{
 		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 SamplePosition, in float3 MinBound, in float3 MaxBound, out float3 OutAngularTorque)
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutAngularTorque)
 		{
 			{FieldSystemContextName}
-			OutAngularTorque = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,MinBound,MaxBound,ANGULAR_TORQUE);
+			OutAngularTorque = DIFieldSystem_SampleFieldVector(DIContext,SamplePosition,ANGULAR_TORQUE,3);
 		}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
-	
+	else if (FunctionInfo.DefinitionName == GetFieldDimensionsName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutFieldDimensions)
+		{
+			{FieldSystemContextName}
+			OutFieldDimensions = DIContext.FieldDimensions);
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetFieldBoundsName)
+	{
+		static const TCHAR* FormatSample = TEXT(R"(
+		void {InstanceFunctionName}(in float3 SamplePosition, out float3 OutMinBounds, out float3 OutMaxBounds)
+		{
+			{FieldSystemContextName}
+			OutMinBounds = DIContext.MinBounds;
+			OutMaxBounds = DICOntext.MaxBounds;
+		}
+		)");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		return true;
+	}
+
 	OutHLSL += TEXT("\n");
 	return false;
 }
 
 void UNiagaraDataInterfaceFieldSystem::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/HairStrands/Private/NiagaraDataInterfaceFieldSystem.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceFieldSystem.ush\"\n");
 }
 
 void UNiagaraDataInterfaceFieldSystem::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
