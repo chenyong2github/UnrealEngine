@@ -171,7 +171,7 @@ public:
 	* @param ChannelType	The class type to look for.
 	* @return An array containing any key channels that match the type specified
 	*/
-	UFUNCTION(BlueprintCallable, Category = Section, meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = Section, meta = (ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneScriptingChannel*> FindChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
 
 	/**
