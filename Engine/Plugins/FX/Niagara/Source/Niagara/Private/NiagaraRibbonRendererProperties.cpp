@@ -18,15 +18,29 @@
 
 TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
 
+FNiagaraRibbonUVSettings::FNiagaraRibbonUVSettings()
+	: LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
+	, TrailingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
+	, DistributionMode(ENiagaraRibbonUVDistributionMode::ScaledUsingRibbonSegmentLength)
+	, TilingLength(100.0f)
+	, Offset(FVector2D(0.0f, 0.0f))
+	, Scale(FVector2D(1.0f, 1.0f))
+	, bEnablePerParticleUOverride(false)
+	, bEnablePerParticleVRangeOverride(false)
+{
+}
+
 UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	: Material(nullptr)
 	, FacingMode(ENiagaraRibbonFacingMode::Screen)
-	, UV0TilingDistance(0.0f)
-	, UV0Scale(FVector2D(1.0f, 1.0f))
-	, UV0AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
-	, UV1TilingDistance(0.0f)
-	, UV1Scale(FVector2D(1.0f, 1.0f))
-	, UV1AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
+#if WITH_EDITORONLY_DATA
+	, UV0TilingDistance_DEPRECATED(0.0f)
+	, UV0Scale_DEPRECATED(FVector2D(1.0f, 1.0f))
+	, UV0AgeOffsetMode_DEPRECATED(ENiagaraRibbonAgeOffsetMode::Scale)
+	, UV1TilingDistance_DEPRECATED(0.0f)
+	, UV1Scale_DEPRECATED(FVector2D(1.0f, 1.0f))
+	, UV1AgeOffsetMode_DEPRECATED(ENiagaraRibbonAgeOffsetMode::Scale)
+#endif
 	, CurveTension(0.f)
 	, TessellationMode(ENiagaraRibbonTessellationMode::Automatic)
 	, TessellationFactor(16)
@@ -37,7 +51,7 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 
-	AttributeBindings.Reserve(14);
+	AttributeBindings.Reserve(18);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&VelocityBinding);
@@ -52,6 +66,10 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	AttributeBindings.Add(&DynamicMaterial1Binding);
 	AttributeBindings.Add(&DynamicMaterial2Binding);
 	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&U0OverrideBinding);
+	AttributeBindings.Add(&V0RangeOverrideBinding);
+	AttributeBindings.Add(&U1OverrideBinding);
+	AttributeBindings.Add(&V1RangeOverrideBinding);
 }
 
 FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
@@ -61,6 +79,26 @@ FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFe
 	return NewRenderer;
 }
 
+#if WITH_EDITORONLY_DATA
+void UpgradeUVSettings(FNiagaraRibbonUVSettings& UVSettings, float TilingDistance, const FVector2D& Offset, const FVector2D& Scale)
+{
+	if (TilingDistance == 0)
+	{
+		UVSettings.LeadingEdgeMode = ENiagaraRibbonUVEdgeMode::SmoothTransition;
+		UVSettings.TrailingEdgeMode = ENiagaraRibbonUVEdgeMode::SmoothTransition;
+		UVSettings.DistributionMode = ENiagaraRibbonUVDistributionMode::ScaledUniformly;
+	}
+	else
+	{
+		UVSettings.LeadingEdgeMode = ENiagaraRibbonUVEdgeMode::Locked;
+		UVSettings.TrailingEdgeMode = ENiagaraRibbonUVEdgeMode::Locked;
+		UVSettings.DistributionMode = ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength;
+		UVSettings.TilingLength = TilingDistance;
+	}
+	UVSettings.Offset = Offset;
+	UVSettings.Scale = Scale;
+}
+#endif
 
 void UNiagaraRibbonRendererProperties::PostLoad()
 {
@@ -73,6 +111,14 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 		FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 		MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 	}
+
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::RibbonRendererUVRefactor)
+	{
+		UpgradeUVSettings(UV0Settings, UV0TilingDistance_DEPRECATED, UV0Offset_DEPRECATED, UV0Scale_DEPRECATED);
+		UpgradeUVSettings(UV1Settings, UV1TilingDistance_DEPRECATED, UV1Offset_DEPRECATED, UV1Scale_DEPRECATED);
+	}
+
 #endif
 }
 
@@ -144,6 +190,10 @@ void UNiagaraRibbonRendererProperties::InitBindings()
 		RibbonIdBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONID);
 		RibbonLinkOrderBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
 		MaterialRandomBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
+		U0OverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
+		V0RangeOverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
+		U1OverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
+		V1RangeOverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE);
 	}
 }
 
@@ -167,6 +217,13 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParam1DataSetAccessor.Init(CompiledData, DynamicMaterial1Binding.DataSetVariable.GetName());
 	MaterialParam2DataSetAccessor.Init(CompiledData, DynamicMaterial2Binding.DataSetVariable.GetName());
 	MaterialParam3DataSetAccessor.Init(CompiledData, DynamicMaterial3Binding.DataSetVariable.GetName());
+
+	FNiagaraDataSetAccessor<float> U0OverrideDataSetAccessor;
+	U0OverrideDataSetAccessor.Init(CompiledData, U0OverrideBinding.DataSetVariable.GetName());
+	U0OverrideIsBound = U0OverrideDataSetAccessor.IsValid();
+	FNiagaraDataSetAccessor<float> U1OverrideDataSetAccessor;
+	U1OverrideDataSetAccessor.Init(CompiledData, U1OverrideBinding.DataSetVariable.GetName());
+	U1OverrideIsBound = U1OverrideDataSetAccessor.IsValid();
 
 	if (RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
 	{
@@ -192,6 +249,10 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	}
 	RendererLayout.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraRibbonVFLayout::NormalizedAge);
 	RendererLayout.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialRandom);
+	RendererLayout.SetVariable(CompiledData, U0OverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::U0Override);
+	RendererLayout.SetVariable(CompiledData, V0RangeOverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::V0RangeOverride);
+	RendererLayout.SetVariable(CompiledData, U1OverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::U1Override);
+	RendererLayout.SetVariable(CompiledData, V1RangeOverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::V1RangeOverride);
 	MaterialParamValidMask  = RendererLayout.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam0) ? 1 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
 	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
@@ -227,6 +288,10 @@ const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetOptionalAtt
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONFACING);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
+		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
+		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
+		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
+		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE);
 	}
 
 	return Attrs;

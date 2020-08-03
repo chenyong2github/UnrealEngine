@@ -154,6 +154,8 @@ struct FNiagaraCustomVersion
 
 		ComponentsOnlyHaveUserVariables, // Make sure that UNiagaraComponents only have override maps for User variables.
 
+		RibbonRendererUVRefactor, // Refactor the options for UV settings on the ribbon renderer.
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,

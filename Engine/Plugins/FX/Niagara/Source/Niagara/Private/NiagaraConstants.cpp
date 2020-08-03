@@ -239,6 +239,10 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONTWIST);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONFACING);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
+		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
+		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
+		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
+		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE);
 
 
 		Attributes.Add(SYS_PARAM_INSTANCE_ALIVE);
@@ -275,6 +279,10 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONFACING));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONLINKORDER));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE));
 	}
 
 	if (AttrDefaultsStrMap.Num() == 0)
@@ -422,6 +430,26 @@ void FNiagaraConstants::Init()
 		Var = SYS_PARAM_PARTICLES_RIBBONLINKORDER;
 		Var.SetValue<float>(0.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, Var);
+
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, TEXT("0"));
+		Var = SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE;
+		Var.SetValue<float>(0.0f);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, Var);
+
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, TEXT("0.0, 1.0"));
+		Var = SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE;
+		Var.SetValue<FVector2D>(FVector2D(0.0f, 1.0f));
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, Var);
+
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, TEXT("0"));
+		Var = SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE;
+		Var.SetValue<float>(0.0f);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, Var);
+
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, TEXT("0.0, 1.0"));
+		Var = SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE;
+		Var.SetValue<FVector2D>(FVector2D(0.0f, 1.0f));
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, Var);
 	}
 
 	if (AttrDescStrMap.Num() == 0)
@@ -457,6 +485,10 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position, or the side vector the ribbon's width is extended along, depending on the selected facing mode."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, LOCTEXT("RibbonLinkOrderDesc", "Explicit order for linking particles within a ribbon. Particles of the same ribbon id will be connected into a ribbon in incrementing order of this attribute value."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, LOCTEXT("RibbonU0OverrideDesc", "Overrides the U component of the UV0 texture coordinate of a ribbon particle."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, LOCTEXT("RibbonV0RangeOverrideDesc", "Overrives the V range across the width of a ribbon for the UV0 texture coordinate of a particle."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, LOCTEXT("RibbonU1OverrideDesc", "Overrides the U component of the UV1 texture coordinate of a ribbon particle."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, LOCTEXT("RibbonV1RangeOverrideDesc", "Overrives the V range across the width of a ribbon for the UV1 texture coordinate of a particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_ID, LOCTEXT("IDDesc", "Engine managed particle attribute that is a persistent ID for each particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UNIQUE_ID, LOCTEXT("UniqueIDDesc", "Engine managed particle attribute that is a unique ID for each particle. The ID is incremented for each new particle spawned.")); 
 	}
