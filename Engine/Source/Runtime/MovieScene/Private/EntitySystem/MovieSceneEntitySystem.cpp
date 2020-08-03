@@ -105,7 +105,7 @@ struct FSystemDependencyGraph
 	{
 		if (PrereqType)
 		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->SystemGraph.FindSystemOfType(PrereqType))
+			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(PrereqType))
 			{
 				Linker->SystemGraph.AddPrerequisite(TargetSystem, ThisSystem);
 			}
@@ -115,7 +115,7 @@ struct FSystemDependencyGraph
 	{
 		if (SubsequentType)
 		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->SystemGraph.FindSystemOfType(SubsequentType))
+			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(SubsequentType))
 			{
 				Linker->SystemGraph.AddPrerequisite(ThisSystem, TargetSystem);
 			}

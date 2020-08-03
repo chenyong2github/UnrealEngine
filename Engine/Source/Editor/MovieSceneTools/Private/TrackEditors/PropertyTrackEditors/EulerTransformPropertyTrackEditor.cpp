@@ -111,7 +111,7 @@ void FEulerTransformPropertyTrackEditor::ProcessKeyOperation(UObject* ObjectToKe
 	}
 
 	UMovieSceneEntitySystemLinker*         EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
-	UMovieScenePropertyInstantiatorSystem* System = EntityLinker ? EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>() : nullptr;
+	UMovieScenePropertyInstantiatorSystem* System = EntityLinker ? EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>() : nullptr;
 
 	if (System && ValidEntities.Num() != 0)
 	{
@@ -233,7 +233,7 @@ FEulerTransform FEulerTransformPropertyTrackEditor::RecomposeTransform(const FEu
 	{
 		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
 
-		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
 			FDecompositionQuery Query;
