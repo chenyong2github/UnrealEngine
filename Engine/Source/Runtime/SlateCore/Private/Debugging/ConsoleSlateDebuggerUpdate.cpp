@@ -53,14 +53,14 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 		TEXT("SlateDebugger.Update.ToggleUpdateFromPaint"),
 		TEXT("Option to also display the widgets that do not have an update flag but are updated as a side effect of an other widget."),
 		FConsoleCommandDelegate::CreateRaw(this, &FConsoleSlateDebuggerUpdate::ToogleDisplayUpdateFromPaint))
-	, InvalidationRootFilterRefCVar(
-		TEXT("SlateDebugger.Update.SetInvalidationRootIdFilter"),
-		InvalidationRootIdFilter,
-		TEXT("Option to show only the widgets that are part of an invalidation root."))
 	, SetWidgetUpdateFlagsFilterCommand(
 		TEXT("SlateDebugger.Update.SetWidgetUpdateFlagsFilter"),
 		TEXT("Enable or Disable specific Widget Update Flags filters. Usage: SetWidgetUpdateFlagsFilter [None] [Tick] [ActiveTimer] [Repaint] [VolatilePaint] [Any]"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FConsoleSlateDebuggerUpdate::HandleSetWidgetUpdateFlagsFilter))
+	, InvalidationRootFilterRefCVar(
+		TEXT("SlateDebugger.Update.SetInvalidationRootIdFilter"),
+		InvalidationRootIdFilter,
+		TEXT("Option to show only the widgets that are part of an invalidation root."))
 {
 	GConfig->GetBool(TEXT("SlateDebugger.Update"), TEXT("bDisplayWidgetsNameList"), bDisplayWidgetsNameList, *GEditorPerProjectIni);
 	GConfig->GetBool(TEXT("SlateDebugger.Update"), TEXT("bUseWidgetPathAsName"), bUseWidgetPathAsName, *GEditorPerProjectIni);
