@@ -699,11 +699,13 @@ FWindowSizeLimits SWindow::GetSizeLimits() const
 
 void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
 {
-	bAllowFastUpdate = bInAllowFastUpdate;
-
-	if (bAllowFastUpdate)
+	if (bAllowFastUpdate != bInAllowFastUpdate)
 	{
-		InvalidateChildOrder();
+		bAllowFastUpdate = bInAllowFastUpdate;
+		if (bAllowFastUpdate)
+		{
+			InvalidateChildOrder();
+		}
 	}
 }
 
@@ -1254,7 +1256,7 @@ void SWindow::SetContent( TSharedRef<SWidget> InContent )
 	{
 		this->ContentSlot->operator[]( InContent );
 	}
-	Invalidate(EInvalidateWidget::ChildOrder);
+	Invalidate(EInvalidateWidgetReason::ChildOrder);
 }
 
 TSharedRef<const SWidget> SWindow::GetContent() const
