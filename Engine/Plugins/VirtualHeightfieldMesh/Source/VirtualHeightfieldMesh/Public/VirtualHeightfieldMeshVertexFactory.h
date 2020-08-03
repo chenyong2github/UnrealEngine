@@ -29,7 +29,7 @@ struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 	FMatrix VirtualHeightfieldToLocal;
 	FMatrix VirtualHeightfieldToWorld;
 	FVector LodViewOrigin;
-	FVector LodDistances;
+	FVector4 LodDistances;
 };
 
 /**
