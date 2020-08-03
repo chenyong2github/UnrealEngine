@@ -85,10 +85,12 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::CollisionEnabled);
 			}
 
-			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::ProjectionEnabled))
+			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::Projection))
 			{
 				JointSettingsBuffer.bProjectionEnabled = Constraint->GetProjectionEnabled();
-				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::ProjectionEnabled);
+				JointSettingsBuffer.LinearProjection = Constraint->GetProjectionLinearAlpha();
+				JointSettingsBuffer.AngularProjection = Constraint->GetProjectionAngularAlpha();
+				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::Projection);
 			}
 
 			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
@@ -174,127 +176,131 @@ template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
 {
 	typedef typename Chaos::TPBDRigidsSolver<Trait>::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
-	check(Handle != nullptr);
-	if (DirtyFlagsBuffer.IsDirty())
+	if (Handle)
 	{
-		FConstraintData& ConstraintSettings = Handle->GetSettings();
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
+		if (DirtyFlagsBuffer.IsDirty())
 		{
-			auto Particles = Constraint->GetJointParticles();
-
-			// Three pieces of state to update on the physics thread. 
-			// .. Mask on the particle array
-			// .. Constraint collisions enabled array
-			// .. IgnoreCollisionsManager
-			if (Particles[0]->Handle() && Particles[1]->Handle())
+			FConstraintData& ConstraintSettings = Handle->GetSettings();
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{
-				Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
-				Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Particles[1]->Handle()->CastToRigidParticle();
+				auto Particles = Constraint->GetJointParticles();
 
-				if (ParticleHandle0 && ParticleHandle1)
+				// Three pieces of state to update on the physics thread. 
+				// .. Mask on the particle array
+				// .. Constraint collisions enabled array
+				// .. IgnoreCollisionsManager
+				if (Particles[0]->Handle() && Particles[1]->Handle())
 				{
-					Chaos::FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-					Chaos::FUniqueIdx ID0 = ParticleHandle0->UniqueIdx();
-					Chaos::FUniqueIdx ID1 = ParticleHandle1->UniqueIdx();
+					Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
+					Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Particles[1]->Handle()->CastToRigidParticle();
 
-					
-					if (JointSettingsBuffer.bCollisionEnabled)
+					if (ParticleHandle0 && ParticleHandle1)
 					{
-						IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID0, ID1);
-						if (IgnoreCollisionManager.NumIgnoredCollision(ID0))
-						{
-							ParticleHandle0->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-						}
+						Chaos::FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+						Chaos::FUniqueIdx ID0 = ParticleHandle0->UniqueIdx();
+						Chaos::FUniqueIdx ID1 = ParticleHandle1->UniqueIdx();
 
-						IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID1, ID0);
-						if (IgnoreCollisionManager.NumIgnoredCollision(ID1))
-						{
-							ParticleHandle1->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-						}
-					}
-					else
-					{
-						ParticleHandle0->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-						IgnoreCollisionManager.AddIgnoreCollisionsFor(ID0, ID1);
 
-						ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-						IgnoreCollisionManager.AddIgnoreCollisionsFor(ID1, ID0);
+						if (JointSettingsBuffer.bCollisionEnabled)
+						{
+							IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID0, ID1);
+							if (IgnoreCollisionManager.NumIgnoredCollision(ID0))
+							{
+								ParticleHandle0->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+							}
+
+							IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID1, ID0);
+							if (IgnoreCollisionManager.NumIgnoredCollision(ID1))
+							{
+								ParticleHandle1->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+							}
+						}
+						else
+						{
+							ParticleHandle0->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+							IgnoreCollisionManager.AddIgnoreCollisionsFor(ID0, ID1);
+
+							ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
+							IgnoreCollisionManager.AddIgnoreCollisionsFor(ID1, ID0);
+						}
+						ConstraintSettings.bCollisionEnabled = JointSettingsBuffer.bCollisionEnabled;
 					}
-					ConstraintSettings.bCollisionEnabled = JointSettingsBuffer.bCollisionEnabled;
 				}
 			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::Projection))
+			{
+				ConstraintSettings.bProjectionEnabled = JointSettingsBuffer.bProjectionEnabled;
+				ConstraintSettings.LinearProjection = JointSettingsBuffer.LinearProjection;
+				ConstraintSettings.AngularProjection = JointSettingsBuffer.AngularProjection;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
+			{
+				ConstraintSettings.ParentInvMassScale = JointSettingsBuffer.ParentInvMassScale;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
+			{
+				ConstraintSettings.LinearBreakForce = JointSettingsBuffer.LinearBreakForce;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
+			{
+				ConstraintSettings.AngularBreakTorque = JointSettingsBuffer.AngularBreakTorque;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::UserData))
+			{
+				ConstraintSettings.UserData = JointSettingsBuffer.UserData;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearDrive))
+			{
+				ConstraintSettings.bLinearPositionDriveEnabled[0] = JointSettingsBuffer.bLinearPositionDriveEnabled[0];
+				ConstraintSettings.bLinearPositionDriveEnabled[1] = JointSettingsBuffer.bLinearPositionDriveEnabled[1];
+				ConstraintSettings.bLinearPositionDriveEnabled[2] = JointSettingsBuffer.bLinearPositionDriveEnabled[2];
+				ConstraintSettings.LinearDrivePositionTarget = JointSettingsBuffer.LinearDrivePositionTarget;
+				ConstraintSettings.bLinearVelocityDriveEnabled[0] = JointSettingsBuffer.bLinearVelocityDriveEnabled[0];
+				ConstraintSettings.bLinearVelocityDriveEnabled[1] = JointSettingsBuffer.bLinearVelocityDriveEnabled[1];
+				ConstraintSettings.bLinearVelocityDriveEnabled[2] = JointSettingsBuffer.bLinearVelocityDriveEnabled[2];
+				ConstraintSettings.LinearDriveVelocityTarget = JointSettingsBuffer.LinearDriveVelocityTarget;
+				ConstraintSettings.LinearDriveForceMode = JointSettingsBuffer.LinearDriveForceMode;
+				ConstraintSettings.LinearMotionTypes[0] = JointSettingsBuffer.LinearMotionTypes[0];
+				ConstraintSettings.LinearMotionTypes[1] = JointSettingsBuffer.LinearMotionTypes[1];
+				ConstraintSettings.LinearMotionTypes[2] = JointSettingsBuffer.LinearMotionTypes[2];
+				ConstraintSettings.LinearLimit = JointSettingsBuffer.LinearLimit;
+				ConstraintSettings.LinearDriveStiffness = JointSettingsBuffer.LinearDriveStiffness;
+				ConstraintSettings.LinearDriveDamping = JointSettingsBuffer.LinearDriveDamping;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularDrive))
+			{
+				ConstraintSettings.bAngularSLerpPositionDriveEnabled = JointSettingsBuffer.bAngularSLerpPositionDriveEnabled;
+				ConstraintSettings.bAngularTwistPositionDriveEnabled = JointSettingsBuffer.bAngularTwistPositionDriveEnabled;
+				ConstraintSettings.bAngularSwingPositionDriveEnabled = JointSettingsBuffer.bAngularSwingPositionDriveEnabled;
+				ConstraintSettings.AngularDrivePositionTarget = JointSettingsBuffer.AngularDrivePositionTarget;
+				ConstraintSettings.bAngularSLerpVelocityDriveEnabled = JointSettingsBuffer.bAngularSLerpVelocityDriveEnabled;
+				ConstraintSettings.bAngularTwistVelocityDriveEnabled = JointSettingsBuffer.bAngularTwistVelocityDriveEnabled;
+				ConstraintSettings.bAngularSwingVelocityDriveEnabled = JointSettingsBuffer.bAngularSwingVelocityDriveEnabled;
+				ConstraintSettings.AngularDriveVelocityTarget = JointSettingsBuffer.AngularDriveVelocityTarget;
+				ConstraintSettings.AngularDriveForceMode = JointSettingsBuffer.AngularDriveForceMode;
+				ConstraintSettings.AngularMotionTypes[0] = JointSettingsBuffer.AngularMotionTypes[0];
+				ConstraintSettings.AngularMotionTypes[1] = JointSettingsBuffer.AngularMotionTypes[1];
+				ConstraintSettings.AngularMotionTypes[2] = JointSettingsBuffer.AngularMotionTypes[2];
+				ConstraintSettings.AngularLimits = JointSettingsBuffer.AngularLimits;
+				ConstraintSettings.AngularDriveStiffness = JointSettingsBuffer.AngularDriveStiffness;
+				ConstraintSettings.AngularDriveDamping = JointSettingsBuffer.AngularDriveDamping;
+			}
+
+			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::Stiffness))
+			{
+				ConstraintSettings.Stiffness = JointSettingsBuffer.Stiffness;
+			}
+
+
+			DirtyFlagsBuffer.Clear();
 		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ProjectionEnabled))
-		{
-			ConstraintSettings.bProjectionEnabled = JointSettingsBuffer.bProjectionEnabled;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::ParentInvMassScale))
-		{
-			ConstraintSettings.ParentInvMassScale = JointSettingsBuffer.ParentInvMassScale;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
-		{
-			ConstraintSettings.LinearBreakForce = JointSettingsBuffer.LinearBreakForce;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularBreakTorque))
-		{
-			ConstraintSettings.AngularBreakTorque = JointSettingsBuffer.AngularBreakTorque;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::UserData))
-		{
-			ConstraintSettings.UserData = JointSettingsBuffer.UserData;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearDrive))
-		{
-			ConstraintSettings.bLinearPositionDriveEnabled[0] = JointSettingsBuffer.bLinearPositionDriveEnabled[0];
-			ConstraintSettings.bLinearPositionDriveEnabled[1] = JointSettingsBuffer.bLinearPositionDriveEnabled[1];
-			ConstraintSettings.bLinearPositionDriveEnabled[2] = JointSettingsBuffer.bLinearPositionDriveEnabled[2];
-			ConstraintSettings.LinearDrivePositionTarget = JointSettingsBuffer.LinearDrivePositionTarget;
-			ConstraintSettings.bLinearVelocityDriveEnabled[0] = JointSettingsBuffer.bLinearVelocityDriveEnabled[0];
-			ConstraintSettings.bLinearVelocityDriveEnabled[1] = JointSettingsBuffer.bLinearVelocityDriveEnabled[1];
-			ConstraintSettings.bLinearVelocityDriveEnabled[2] = JointSettingsBuffer.bLinearVelocityDriveEnabled[2];
-			ConstraintSettings.LinearDriveVelocityTarget = JointSettingsBuffer.LinearDriveVelocityTarget;
-			ConstraintSettings.LinearDriveForceMode = JointSettingsBuffer.LinearDriveForceMode;
-			ConstraintSettings.LinearMotionTypes[0] = JointSettingsBuffer.LinearMotionTypes[0];
-			ConstraintSettings.LinearMotionTypes[1] = JointSettingsBuffer.LinearMotionTypes[1];
-			ConstraintSettings.LinearMotionTypes[2] = JointSettingsBuffer.LinearMotionTypes[2];
-			ConstraintSettings.LinearLimit = JointSettingsBuffer.LinearLimit;
-			ConstraintSettings.LinearDriveStiffness = JointSettingsBuffer.LinearDriveStiffness;
-			ConstraintSettings.LinearDriveDamping = JointSettingsBuffer.LinearDriveDamping;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::AngularDrive))
-		{
-			ConstraintSettings.bAngularSLerpPositionDriveEnabled = JointSettingsBuffer.bAngularSLerpPositionDriveEnabled;
-			ConstraintSettings.bAngularTwistPositionDriveEnabled = JointSettingsBuffer.bAngularTwistPositionDriveEnabled;
-			ConstraintSettings.bAngularSwingPositionDriveEnabled = JointSettingsBuffer.bAngularSwingPositionDriveEnabled;
-			ConstraintSettings.AngularDrivePositionTarget = JointSettingsBuffer.AngularDrivePositionTarget;
-			ConstraintSettings.bAngularSLerpVelocityDriveEnabled = JointSettingsBuffer.bAngularSLerpVelocityDriveEnabled;
-			ConstraintSettings.bAngularTwistVelocityDriveEnabled = JointSettingsBuffer.bAngularTwistVelocityDriveEnabled;
-			ConstraintSettings.bAngularSwingVelocityDriveEnabled = JointSettingsBuffer.bAngularSwingVelocityDriveEnabled;
-			ConstraintSettings.AngularDriveVelocityTarget = JointSettingsBuffer.AngularDriveVelocityTarget;
-			ConstraintSettings.AngularDriveForceMode = JointSettingsBuffer.AngularDriveForceMode;
-			ConstraintSettings.AngularMotionTypes[0] = JointSettingsBuffer.AngularMotionTypes[0];
-			ConstraintSettings.AngularMotionTypes[1] = JointSettingsBuffer.AngularMotionTypes[1];
-			ConstraintSettings.AngularMotionTypes[2] = JointSettingsBuffer.AngularMotionTypes[2];
-			ConstraintSettings.AngularLimits = JointSettingsBuffer.AngularLimits;
-			ConstraintSettings.AngularDriveStiffness = JointSettingsBuffer.AngularDriveStiffness;
-			ConstraintSettings.AngularDriveDamping = JointSettingsBuffer.AngularDriveDamping;
-		}
-
-		if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::Stiffness))
-		{
-			ConstraintSettings.Stiffness = JointSettingsBuffer.Stiffness;
-		}
-
-
-		DirtyFlagsBuffer.Clear();
 	}
 }
 
