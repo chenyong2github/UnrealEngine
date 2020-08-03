@@ -832,6 +832,22 @@ void QuantizeBoundShaderState(
 }
 
 #if D3D12_RHI_RAYTRACING
+
+FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc()
+{
+	FD3D12QuantizedBoundShaderState OutQBSS = {};
+	FShaderRegisterCounts& QBSSRegisterCounts = OutQBSS.RegisterCounts[SV_All];
+
+	OutQBSS.RootSignatureType = RS_RayTracingGlobal;
+
+	QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
+	QBSSRegisterCounts.ShaderResourceCount = MAX_SRVS;
+	QBSSRegisterCounts.ConstantBufferCount = MAX_CBS;
+	QBSSRegisterCounts.UnorderedAccessCount = MAX_UAVS;
+
+	return OutQBSS;
+}
+
 void QuantizeBoundShaderState(
 	EShaderFrequency ShaderFrequency,
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
@@ -839,33 +855,28 @@ void QuantizeBoundShaderState(
 	FD3D12QuantizedBoundShaderState &OutQBSS
 )
 {
-	check(RayTracingShader);
-
-	const FShaderCodePackedResourceCounts& Counts = RayTracingShader->ResourceCounts;
-
 	FMemory::Memzero(&OutQBSS, sizeof(OutQBSS));
 	FShaderRegisterCounts& QBSSRegisterCounts = OutQBSS.RegisterCounts[SV_All];
 
 	switch (ShaderFrequency)
 	{
 	case SF_RayGen:
-
+	{
 		// Shared conservative root signature layout is used for all raygen and miss shaders.
 
-		OutQBSS.RootSignatureType = RS_RayTracingGlobal;
-
-		QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
-		QBSSRegisterCounts.ShaderResourceCount = MAX_SRVS;
-		QBSSRegisterCounts.ConstantBufferCount = MAX_CBS;
-		QBSSRegisterCounts.UnorderedAccessCount = MAX_UAVS;
+		OutQBSS = GetRayTracingGlobalRootSignatureDesc();
 
 		break;
+	}
 
 	case SF_RayHitGroup:
 	case SF_RayCallable:
 	case SF_RayMiss:
-
+	{
 		// Local root signature is used for hit group shaders, using the exact number of resources to minimize shader binding table record size.
+
+		check(RayTracingShader);
+		const FShaderCodePackedResourceCounts& Counts = RayTracingShader->ResourceCounts;
 
 		OutQBSS.RootSignatureType = RS_RayTracingLocal;
 
@@ -880,6 +891,7 @@ void QuantizeBoundShaderState(
 		check(QBSSRegisterCounts.UnorderedAccessCount <= MAX_UAVS);
 
 		break;
+	}
 	default:
 		checkNoEntry(); // Unexpected shader target frequency
 	}

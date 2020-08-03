@@ -142,6 +142,7 @@ extern void QuantizeBoundShaderState(
 
 #if D3D12_RHI_RAYTRACING
 class FD3D12RayTracingShader;
+FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc();
 extern void QuantizeBoundShaderState(
 	EShaderFrequency ShaderFrequency,
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
