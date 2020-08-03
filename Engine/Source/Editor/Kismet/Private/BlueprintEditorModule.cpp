@@ -258,33 +258,20 @@ void FBlueprintEditorModule::ShutdownModule()
 	UEdGraphPin::ShutdownVerification();
 }
 
-
 TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UBlueprint* Blueprint, bool bShouldOpenInDefaultsMode)
 {
-	TSharedRef< FBlueprintEditor > NewBlueprintEditor( new FBlueprintEditor() );
-	
-	TArray<UBlueprint*> Blueprints;
-	Blueprints.Add(Blueprint);
-	NewBlueprintEditor->InitBlueprintEditor(Mode, InitToolkitHost, Blueprints, bShouldOpenInDefaultsMode);
-
-	for(auto It(SCSEditorCustomizations.CreateConstIterator()); It; ++It)
-	{
-		NewBlueprintEditor->RegisterSCSEditorCustomization(It->Key, It->Value.Execute(NewBlueprintEditor));
-	}
-	
-	WatchViewer::UpdateWatchListFromBlueprint(Blueprint);
-
-	EBlueprintType const BPType = Blueprint ? (EBlueprintType)Blueprint->BlueprintType : BPTYPE_Normal;
-	BlueprintEditorOpened.Broadcast(BPType);
-
-	return NewBlueprintEditor;
+	TArray<UBlueprint*> BlueprintsToEdit = { Blueprint };
+	return CreateBlueprintEditor(Mode, InitToolkitHost, BlueprintsToEdit, bShouldOpenInDefaultsMode);
 }
 
-TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< UBlueprint* >& BlueprintsToEdit )
+TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, const TArray< UBlueprint* >& BlueprintsToEdit, bool bShouldOpenInDefaultsMode)
 {
 	TSharedRef< FBlueprintEditor > NewBlueprintEditor( new FBlueprintEditor() );
 
-	NewBlueprintEditor->InitBlueprintEditor(Mode, InitToolkitHost, BlueprintsToEdit, true);
+	NewBlueprintEditor->InitBlueprintEditor(Mode, InitToolkitHost, BlueprintsToEdit, bShouldOpenInDefaultsMode);
+
+	NewBlueprintEditor->SetDetailsCustomization(DetailsObjectFilter, DetailsRootCustomization);
+	NewBlueprintEditor->SetSCSEditorUICustomization(SCSEditorUICustomization);
 
 	for(auto It(SCSEditorCustomizations.CreateConstIterator()); It; ++It)
 	{
@@ -302,7 +289,35 @@ TSharedRef<IBlueprintEditor> FBlueprintEditorModule::CreateBlueprintEditor(const
 
 	BlueprintEditorOpened.Broadcast(BPType);
 
+	BlueprintEditors.Add(NewBlueprintEditor);
+
 	return NewBlueprintEditor;
+}
+
+TArray<TSharedRef<IBlueprintEditor>> FBlueprintEditorModule::GetBlueprintEditors() const
+{
+	TArray<TSharedRef<IBlueprintEditor>> ValidBlueprintEditors;
+	ValidBlueprintEditors.Reserve(BlueprintEditors.Num());
+
+	for (TWeakPtr<FBlueprintEditor> BlueprintEditor : BlueprintEditors)
+	{
+		if (TSharedPtr<FBlueprintEditor> BlueprintEditorPinned = BlueprintEditor.Pin())
+		{
+			ValidBlueprintEditors.Add(BlueprintEditorPinned.ToSharedRef());
+		}
+	}
+
+	if (BlueprintEditors.Num() > ValidBlueprintEditors.Num())
+	{
+		TArray<TWeakPtr<FBlueprintEditor>>& BlueprintEditorsNonConst = const_cast<TArray<TWeakPtr<FBlueprintEditor>>&>(BlueprintEditors);
+		BlueprintEditorsNonConst.Reset(ValidBlueprintEditors.Num());
+		for (const TSharedRef<IBlueprintEditor>& ValidBlueprintEditor : ValidBlueprintEditors)
+		{
+			BlueprintEditorsNonConst.Add(StaticCastSharedRef<FBlueprintEditor>(ValidBlueprintEditor));
+		}
+	}
+
+	return ValidBlueprintEditors;
 }
 
 TSharedRef<IUserDefinedEnumEditor> FBlueprintEditorModule::CreateUserDefinedEnumEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UUserDefinedEnum* UDEnum)
@@ -317,6 +332,27 @@ TSharedRef<IUserDefinedStructureEditor> FBlueprintEditorModule::CreateUserDefine
 	TSharedRef<FUserDefinedStructureEditor> UserDefinedStructureEditor(new FUserDefinedStructureEditor());
 	UserDefinedStructureEditor->InitEditor(Mode, InitToolkitHost, UDStruct);
 	return UserDefinedStructureEditor;
+}
+
+void FBlueprintEditorModule::SetDetailsCustomization(TSharedPtr<FDetailsViewObjectFilter> InDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> InDetailsRootCustomization)
+{
+	DetailsObjectFilter = InDetailsObjectFilter;
+	DetailsRootCustomization = InDetailsRootCustomization;
+
+	for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : GetBlueprintEditors())
+	{
+		StaticCastSharedRef<FBlueprintEditor>(BlueprintEditor)->SetDetailsCustomization(DetailsObjectFilter, DetailsRootCustomization);
+	}
+}
+
+void FBlueprintEditorModule::SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InSCSEditorUICustomization)
+{
+	SCSEditorUICustomization = InSCSEditorUICustomization;
+
+	for (const TSharedRef<IBlueprintEditor>& BlueprintEditor : GetBlueprintEditors())
+	{
+		StaticCastSharedRef<FBlueprintEditor>(BlueprintEditor)->SetSCSEditorUICustomization(SCSEditorUICustomization);
+	}
 }
 
 void FBlueprintEditorModule::RegisterSCSEditorCustomization(const FName& InComponentName, FSCSEditorCustomizationBuilder InCustomizationBuilder)
