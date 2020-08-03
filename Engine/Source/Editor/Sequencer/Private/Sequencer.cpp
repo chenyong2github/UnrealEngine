@@ -10451,17 +10451,14 @@ void FSequencer::AddSelectedActors()
 
 void FSequencer::SetKey()
 {
-	using namespace UE::Sequencer;
-
-	FScopedTransaction SetKeyTransaction( NSLOCTEXT("Sequencer", "SetKey_Transaction", "Set Key") );
-
-	const FFrameNumber KeyTime = GetLocalTime().Time.FrameNumber;
-	if (Selection.GetSelectedOutlinerNodes().Num() == 0)
+	if (Selection.GetSelectedOutlinerNodes().Num() > 0)
 	{
-		FAddKeyOperation::FromNode(NodeTree->GetRootNode()).Commit(KeyTime, *this);
-	}
-	else
-	{
+		using namespace UE::Sequencer;
+
+		FScopedTransaction SetKeyTransaction( NSLOCTEXT("Sequencer", "SetKey_Transaction", "Set Key") );
+
+		const FFrameNumber KeyTime = GetLocalTime().Time.FrameNumber;
+
 		FAddKeyOperation::FromNodes(Selection.GetSelectedOutlinerNodes()).Commit(KeyTime, *this);
 	}
 }
