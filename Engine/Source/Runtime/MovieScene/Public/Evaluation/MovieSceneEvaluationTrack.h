@@ -13,11 +13,10 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Evaluation/MovieSceneTrackImplementation.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+#include "MovieSceneTrack.h"
 #include "MovieSceneEvaluationTrack.generated.h"
 
 struct FMovieSceneInterrogationData;
-
-class UMovieSceneTrack;
 
 /** Enumeration to determine how a track should be evaluated */
 UENUM()
