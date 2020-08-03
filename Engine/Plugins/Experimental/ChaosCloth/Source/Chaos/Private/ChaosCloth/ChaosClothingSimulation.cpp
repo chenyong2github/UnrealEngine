@@ -2526,11 +2526,11 @@ void ClothingSimulation::DebugDrawAnimDrive(USkeletalMeshComponent* /*OwnerCompo
 void ClothingSimulation::DebugDrawLongRangeConstraint(USkeletalMeshComponent* /*OwnerComponent*/, FPrimitiveDrawInterface* PDI) const
 {
 	auto PseudoRandomColor = 
-		[](int32 NumIterations) -> FLinearColor
+		[](int32 NumRotations) -> FLinearColor
 		{
 			static const uint8 Spread = 157;  // Prime number that gives a good spread of colors without getting too similar as a rand might do.
 			uint8 Seed = Spread;
-			for (int32 i = 0; i < NumIterations; ++i)
+			for (int32 i = 0; i < NumRotations; ++i)
 			{
 				Seed += Spread;
 			}
