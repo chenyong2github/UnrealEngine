@@ -1716,15 +1716,16 @@ public:
 #if WITH_EDITORONLY_DATA
 	bool HasBaseColorConnected() const { return BaseColor.IsConnected(); }
 	bool HasRoughnessConnected() const { return Roughness.IsConnected(); }
+	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected(); }
 #else	
 	// Add to runtime data only if we need to call these at runtime
 	bool HasBaseColorConnected() const { check(0); return false; }
 	bool HasRoughnessConnected() const { check(0); return false; }
+	bool HasAmbientOcclusionConnected() const { check(0); return false; }
 #endif 	
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
 	bool HasSpecularConnected() const { return Specular.IsConnected(); }
 	bool HasEmissiveColorConnected() const { return EmissiveColor.IsConnected(); }
-	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected(); }
 
 #if WITH_EDITOR
 	static void NotifyCompilationFinished(UMaterialInterface* Material);
