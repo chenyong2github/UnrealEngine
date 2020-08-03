@@ -14,8 +14,10 @@ namespace Chaos
 	enum class EThrustType : uint8
 	{
 		Fixed = 0,
-		HelicopterRotor,
-		Rudder
+		Wing,
+		Rudder,
+		Elevator,
+		HelicopterRotor
 	};
 
 	struct CHAOSVEHICLESCORE_API FSimpleThrustConfig
@@ -50,6 +52,12 @@ namespace Chaos
 		{
 			Roll = FMath::Clamp(InRoll, -1.f, 1.f) * Setup().MaxControlAngle;
 		}
+
+		void SetYaw(float InYaw)
+		{
+			Yaw = FMath::Clamp(InYaw, -1.f, 1.f) * Setup().MaxControlAngle;
+		}
+
 
 		void SetWorldVelocity(const FVector& InVelocity)
 		{
