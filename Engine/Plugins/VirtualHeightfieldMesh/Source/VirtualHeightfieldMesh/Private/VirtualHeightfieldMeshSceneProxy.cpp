@@ -138,7 +138,7 @@ namespace VirtualHeightfieldMesh
 }
 
 /** Renderer extension to manage the buffer pool and add hooks for GPU culling passes. */
-class FVirtualHeightfieldMeshRendererExtension
+class FVirtualHeightfieldMeshRendererExtension : public FRenderResource
 {
 public:
 	FVirtualHeightfieldMeshRendererExtension()
@@ -156,6 +156,11 @@ public:
 	VirtualHeightfieldMesh::FDrawInstanceBuffers& AddWork(FVirtualHeightfieldMeshSceneProxy const* InProxy, FSceneView const* InMainView, FSceneView const* InCullView);
 	/** Submit all the work added by AddWork(). The work fills all of the buffers ready for use by the referencing mesh batches. */
 	void SubmitWork(FRHICommandListImmediate& InRHICmdList);
+
+protected:
+	//~ Begin FRenderResource Interface
+	virtual void ReleaseRHI() override;
+	//~ End FRenderResource Interface
 
 private:
 	/** Called by renderer at start of render frame. */
@@ -208,7 +213,7 @@ private:
 };
 
 /** Single global instance of the VirtualHeightfieldMesh renderer extension. */
-FVirtualHeightfieldMeshRendererExtension GVirtualHeightfieldMeshViewRendererExtension;
+TGlobalResource< FVirtualHeightfieldMeshRendererExtension > GVirtualHeightfieldMeshViewRendererExtension;
 
 void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 {
@@ -219,6 +224,11 @@ void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 		GEngine->GetPostRenderDelegate().AddRaw(this, &FVirtualHeightfieldMeshRendererExtension::EndFrame);
 		bInit = true;
 	}
+}
+
+void FVirtualHeightfieldMeshRendererExtension::ReleaseRHI()
+{
+	Buffers.Empty();
 }
 
 VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExtension::AddWork(FVirtualHeightfieldMeshSceneProxy const* InProxy, FSceneView const* InMainView, FSceneView const* InCullView)
