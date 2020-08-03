@@ -176,6 +176,11 @@ namespace Chaos
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				const FReal Box1Thickness = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+				
+				// By default, cull distance will be the bounds thickness. Even if the object does not have
+				// bounds, this way we will get some non-zero cull distance.
+				FReal Particle1CullDistance = Box1Thickness;
+				
 				{
 					SCOPE_CYCLE_COUNTER(STAT_Collisions_SpatialBroadPhase);
 					// @todo(ccaulfield): the spatial acceleration scheme needs to know the expanded bboxes for all particles, not just the one doing the test
@@ -185,8 +190,14 @@ namespace Chaos
 #if CHAOS_PARTICLEHANDLE_TODO
 						const TAABB<FReal, 3> Box1 = InSpatialAcceleration.GetWorldSpaceBoundingBox(Particle1);
 #else
-						const TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1); // NOTE: this ignores the velocity expansion which is wrong
+						TAABB<FReal, 3> Box1 = ComputeWorldSpaceBoundingBox<FReal>(Particle1);
+						Box1.ThickenSymmetrically(FVec3(Box1Thickness));
 #endif
+
+						// Take the longest edge of the expanded bounding box for the constraint cull distance.
+						// This is a heuristic for how likely an iteration of the solver is likely to move
+						// any point on the object.
+						Particle1CullDistance = Box1.Extents()[Box1.LargestAxis()];
 
 						CHAOS_COLLISION_STAT(StatData.RecordBoundsData(Box1));
 
@@ -295,7 +306,11 @@ namespace Chaos
 					FCollisionConstraintsArray NewConstraints;
 					{
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), FMath::Max(Box1Thickness, Box2Thickness), StatData);
+						
+						// Each particle has a heuristic for cull distance, we take the larger one to decrease the chance
+						// that a constraint will get culled prematurely.
+						const FReal CullDistance = FMath::Max(Particle1CullDistance, Box2Thickness);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance, StatData);
 					}
 
 					{

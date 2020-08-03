@@ -16,6 +16,7 @@ namespace Chaos
 			FReal CullDistance;
 			FReal ShapePadding;
 			FReal RestitutionVelocityThreshold;
+			bool bCanDisableContacts;
 			TArrayCollectionArray<bool>* Collided;
 		};
 
