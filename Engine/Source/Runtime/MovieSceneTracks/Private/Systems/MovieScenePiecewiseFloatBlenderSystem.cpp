@@ -295,8 +295,10 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 				// Dispatch the task
 				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Absolutes.GetValue());
 
-			check(AbsolutesTask);
-			SingleBlendTasks.Add(AbsolutesTask);
+			if (AbsolutesTask)
+			{
+				SingleBlendTasks.Add(AbsolutesTask);
+			}
 		}
 		else
 		{
@@ -334,8 +336,10 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 				// Dispatch the task
 				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Relatives.GetValue());
 
-			check(RelativesTask);
-			SingleBlendTasks.Add(RelativesTask);
+			if (RelativesTask)
+			{
+				SingleBlendTasks.Add(RelativesTask);
+			}
 		}
 		else
 		{
@@ -373,8 +377,10 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 				// Dispatch the task
 				.Dispatch_PerAllocation<FBlendTask>(&Linker->EntityManager, InPrerequisites, nullptr, &TaskData.Impl->Additives.GetValue());
 
-			check(AdditivesTask);
-			SingleBlendTasks.Add(AdditivesTask);
+			if (AdditivesTask)
+			{
+				SingleBlendTasks.Add(AdditivesTask);
+			}
 		}
 		else
 		{
@@ -394,6 +400,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 		}
 		else
 		{
+			TaskData.Impl->bTasksComplete = true;
 			TaskData.Prerequisite = nullptr;
 		}
 	}
