@@ -107,21 +107,6 @@ void FSlate3DRenderer::DrawWindow_GameThread(FSlateDrawBuffer& DrawBuffer)
 	}
 }
 
-struct TKeepAliveCommandString
-{
-	static const TCHAR* TStr() { return TEXT("TKeepAliveCommand"); }
-};
-
-template<typename TKeepAliveType>
-struct TKeepAliveCommand final : public FRHICommand < TKeepAliveCommand<TKeepAliveType>, TKeepAliveCommandString >
-{
-	TKeepAliveType Value;
-	
-	TKeepAliveCommand(TKeepAliveType InValue) : Value(InValue) {}
-
-	void Execute(FRHICommandListBase& CmdList) {}
-};
-
 void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate& InRHICmdList, const FRenderThreadUpdateContext& Context)
 {
 	check(IsInRenderingThread());
@@ -209,7 +194,6 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 	FSlateEndDrawingWindowsCommand::EndDrawingWindows(InRHICmdList, Context.WindowDrawBuffer, *RenderTargetPolicy);
 	InRHICmdList.CopyToResolveTarget(Context.RenderTarget->GetRenderTargetTexture(), RTTextureRHI, FResolveParams());
 
-	ISlate3DRendererPtr Self = SharedThis(this);
-
-	ALLOC_COMMAND_CL(InRHICmdList, TKeepAliveCommand<ISlate3DRendererPtr>)(Self);
+	// Enqueue a command to keep "this" alive.
+	InRHICmdList.EnqueueLambda([Self = SharedThis(this)](FRHICommandListImmediate&){});
 }
