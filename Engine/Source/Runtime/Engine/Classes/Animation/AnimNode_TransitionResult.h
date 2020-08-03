@@ -14,7 +14,7 @@ struct ENGINE_API FAnimNode_TransitionResult : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Result, meta=(AlwaysAsPin))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Result, meta=(PinShownByDefault))
 	bool bCanEnterTransition;
 
 	/** Native delegate to use when checking transition */

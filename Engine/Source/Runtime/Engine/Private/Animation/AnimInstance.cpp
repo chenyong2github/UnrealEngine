@@ -471,6 +471,12 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 		UpdateMontageEvaluationData();
 	}
 
+	// Give class subsystems a crack
+	IAnimClassInterface::ForEachAnimInstanceSubsystemData(this, [this, DeltaSeconds](UAnimBlueprintClassSubsystem* InSubsystem, FAnimInstanceSubsystemData& InSubsystemData)
+	{
+		InSubsystem->OnUpdateAnimation(this, InSubsystemData, DeltaSeconds);
+	});
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
 		CSV_SCOPED_TIMING_STAT(Animation, NativeUpdate);

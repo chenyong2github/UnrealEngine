@@ -4,7 +4,7 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 
-void UAnimClassData::ResolvePropertyPaths()
+void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
 {
 	auto ResolveTransform = [](const TFieldPath<FStructProperty>& InPropertyPath)
 	{ 
@@ -28,4 +28,88 @@ void UAnimClassData::ResolvePropertyPaths()
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputProperties, AnimBlueprintFunctions[FunctionIndex].InputProperties, [](const TFieldPath<FProperty>& InPropertyPath){ return InPropertyPath.Get(); });
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputPoseNodeProperties, AnimBlueprintFunctions[FunctionIndex].InputPoseNodeProperties, ResolveTransform);
 	}
+
+	Algo::Transform(SubsystemProperties, ResolvedSubsystemProperties, ResolveTransform);
+
+	// Init subsystem maps
+	for(UAnimBlueprintClassSubsystem* Subsystem : Subsystems)
+	{
+		SubsystemMap.Add(Subsystem->GetClass(), Subsystem);
+
+		for(const FImplementedInterface& ImplementedInterface : Subsystem->GetClass()->Interfaces)
+		{
+			SubsystemInterfaceMap.Add(ImplementedInterface.Class, Subsystem);
+		}
+
+		Subsystem->PostLoadSubsystem();
+	}
+
+	// Init exposed value handlers
+	FExposedValueHandler::DynamicClassInitialization(EvaluateGraphExposedInputs, InDynamicClass);
 }
+
+UAnimBlueprintClassSubsystem* UAnimClassData::GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const
+{
+	return SubsystemMap.FindRef(InClass);
+}
+
+UAnimBlueprintClassSubsystem* UAnimClassData::FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const
+{
+	return SubsystemInterfaceMap.FindRef(InClassInterface);
+}
+
+#if WITH_EDITOR
+void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
+{
+	check(AnimClass);
+	BakedStateMachines = AnimClass->GetBakedStateMachines();
+	TargetSkeleton = AnimClass->GetTargetSkeleton();
+	AnimNotifies = AnimClass->GetAnimNotifies();
+	AnimBlueprintFunctions = AnimClass->GetAnimBlueprintFunctions();
+	AnimBlueprintFunctionData.Empty(AnimBlueprintFunctions.Num());
+
+	for(const FAnimBlueprintFunction& AnimBlueprintFunction : AnimBlueprintFunctions)
+	{
+		FAnimBlueprintFunctionData& NewAnimBlueprintFunctionData = AnimBlueprintFunctionData.AddDefaulted_GetRef();
+		NewAnimBlueprintFunctionData.OutputPoseNodeProperty = AnimBlueprintFunction.OutputPoseNodeProperty;
+		Algo::Transform(AnimBlueprintFunction.InputProperties, NewAnimBlueprintFunctionData.InputProperties, [](FProperty* InProperty){ return TFieldPath<FProperty>(InProperty); });
+		Algo::Transform(AnimBlueprintFunction.InputPoseNodeProperties, NewAnimBlueprintFunctionData.InputPoseNodeProperties, [](FStructProperty* InProperty){ return TFieldPath<FStructProperty>(InProperty); });
+	}
+
+	OrderedSavedPoseIndicesMap = AnimClass->GetOrderedSavedPoseNodeIndicesMap();
+
+	auto MakePropertyPath = [](FStructProperty* InProperty)
+	{ 
+		return TFieldPath<FStructProperty>(InProperty); 
+	};
+
+	Algo::Transform(AnimClass->GetAnimNodeProperties(), AnimNodeProperties, MakePropertyPath);
+	ResolvedAnimNodeProperties = AnimClass->GetAnimNodeProperties();
+	Algo::Transform(AnimClass->GetLinkedAnimGraphNodeProperties(), LinkedAnimGraphNodeProperties, MakePropertyPath);
+	ResolvedLinkedAnimGraphNodeProperties = AnimClass->GetLinkedAnimGraphNodeProperties();
+	Algo::Transform(AnimClass->GetLinkedAnimLayerNodeProperties(), LinkedAnimLayerNodeProperties, MakePropertyPath);
+	ResolvedLinkedAnimLayerNodeProperties = AnimClass->GetLinkedAnimLayerNodeProperties();
+	Algo::Transform(AnimClass->GetPreUpdateNodeProperties(), PreUpdateNodeProperties, MakePropertyPath);
+	ResolvedPreUpdateNodeProperties = AnimClass->GetPreUpdateNodeProperties();
+	Algo::Transform(AnimClass->GetDynamicResetNodeProperties(), DynamicResetNodeProperties, MakePropertyPath);
+	ResolvedDynamicResetNodeProperties = AnimClass->GetDynamicResetNodeProperties();
+	Algo::Transform(AnimClass->GetStateMachineNodeProperties(), StateMachineNodeProperties, MakePropertyPath);
+	ResolvedStateMachineNodeProperties = AnimClass->GetStateMachineNodeProperties();
+	Algo::Transform(AnimClass->GetInitializationNodeProperties(), InitializationNodeProperties, MakePropertyPath);
+	ResolvedInitializationNodeProperties = AnimClass->GetInitializationNodeProperties();
+
+	SyncGroupNames = AnimClass->GetSyncGroupNames();
+	EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
+	GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
+	GraphBlendOptions = AnimClass->GetGraphBlendOptions();
+
+	Algo::Transform(AnimClass->GetSubsystemProperties(), SubsystemProperties, MakePropertyPath);
+	ResolvedSubsystemProperties = AnimClass->GetSubsystemProperties();
+
+	// Deep-copy (duplicate) subsystems
+	Algo::Transform(AnimClass->GetSubsystems(), Subsystems, [this](UAnimBlueprintClassSubsystem* InSubsystem)
+	{
+		return DuplicateObject(InSubsystem, this);
+	});
+}
+#endif // WITH_EDITOR

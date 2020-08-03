@@ -1301,7 +1301,7 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::FindDebuggingData
 					FStructProperty* NodeStructProperty = CastField<FStructProperty>(FKismetDebugUtilities::FindClassPropertyForNode(Blueprint, Node));
 					if (NodeStructProperty)
 					{
-						for (const FStructPropertyPath& NodeProperty : AnimBlueprintGeneratedClass->AnimNodeProperties)
+						for (const FStructPropertyPath& NodeProperty : AnimBlueprintGeneratedClass->GetAnimNodeProperties())
 						{
 							if (NodeProperty.Get() == NodeStructProperty)
 							{

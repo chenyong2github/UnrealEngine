@@ -25,10 +25,12 @@ class UAnimGraphNode_Root : public UAnimGraphNode_Base
 	virtual bool CanUserDeleteNode() const override { return false; }
 	virtual bool CanDuplicateNode() const override { return false; }
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
+	virtual bool IsNodeRootSet() const override { return true; }
 	//~ End UEdGraphNode Interface.
 
 	//~ Begin UAnimGraphNode_Base Interface
 	virtual bool IsSinkNode() const override;
+	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
 
 	// Get the link to the documentation
 	virtual FString GetDocumentationLink() const override;
