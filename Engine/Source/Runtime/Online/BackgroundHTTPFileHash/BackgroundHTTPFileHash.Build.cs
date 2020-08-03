@@ -13,6 +13,6 @@ public class BackgroundHTTPFileHash : ModuleRules
             }
         );
         
-        PrivatePCHHeaderFile = "Private/BackgroundHTTPFileHashPrivate.h";
+        PrivatePCHHeaderFile = "Private/BackgroundHttpFileHashPrivate.h";
     }
 }
