@@ -279,6 +279,12 @@ void UPointSetComponent::InsertPoint(const int32 ID, const FRenderablePoint& Ove
 }
 
 
+const FRenderablePoint& UPointSetComponent::GetPoint(const int32 ID)
+{
+	return Points[ID];
+}
+
+
 void UPointSetComponent::SetPointColor(const int32 ID, const FColor& NewColor)
 {
 	FRenderablePoint& OverlayPoint = Points[ID];
@@ -295,6 +301,14 @@ void UPointSetComponent::SetPointSize(const int32 ID, const float NewSize)
 }
 
 
+void UPointSetComponent::SetPointPosition(const int32 ID, const FVector& NewPosition)
+{
+	FRenderablePoint& OverlayPoint = Points[ID];
+	OverlayPoint.Position = NewPosition;
+	MarkRenderStateDirty();
+}
+
+
 void UPointSetComponent::RemovePoint(const int32 ID)
 {
 	Points.RemoveAt(ID);
@@ -305,7 +319,7 @@ void UPointSetComponent::RemovePoint(const int32 ID)
 
 bool UPointSetComponent::IsPointValid(const int32 ID) const
 {
-	return ID < Points.GetMaxIndex() && Points.IsAllocated(ID);
+	return Points.IsValidIndex(ID);
 }
 
 
