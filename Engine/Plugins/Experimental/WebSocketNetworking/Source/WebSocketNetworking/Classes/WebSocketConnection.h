@@ -20,7 +20,7 @@ class WEBSOCKETNETWORKING_API UWebSocketConnection : public UNetConnection
 	virtual void LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& Traits) override;
 	FString LowLevelGetRemoteAddress(bool bAppendPort = false) override;
 	FString LowLevelDescribe() override;
-	virtual void Tick();
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void FinishDestroy();
 	virtual void ReceivedRawPacket(void* Data,int32 Count);
 	//~ End NetConnection Interface
