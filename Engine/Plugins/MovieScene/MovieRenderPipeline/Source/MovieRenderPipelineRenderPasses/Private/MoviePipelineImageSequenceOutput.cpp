@@ -139,7 +139,9 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), Extension);
 
-			FinalFilePath = GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides);
+			// We don't support metadata on the generic file writing.
+			FMoviePipelineFormatArgs FinalFormatArgs;
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides, /*Out*/ FinalFilePath, FinalFormatArgs);
 		}
 
 		TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
@@ -204,10 +206,10 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 }
 
 
-void UMoviePipelineImageSequenceOutputBase::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
+void UMoviePipelineImageSequenceOutputBase::GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {
 	// Stub in a dummy extension (so people know it exists)
 	// InOutFormatArgs.Arguments.Add(TEXT("ext"), TEXT("jpg/png/exr")); Hidden since we just always post-pend with an extension.
-	InOutFormatArgs.Arguments.Add(TEXT("render_pass"), TEXT("RenderPassName"));
+	InOutFormatArgs.FilenameArguments.Add(TEXT("render_pass"), TEXT("RenderPassName"));
 }
 

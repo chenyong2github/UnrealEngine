@@ -545,6 +545,7 @@ public:
 		EffectiveTimeCode = FTimecode();
 		CurrentShotSourceFrameNumber = 0;
 		CurrentShotSourceTimeCode = FTimecode();
+		FileMetadata.Reset();
 	}
 
 	void ResetPerShotData()
@@ -585,6 +586,9 @@ public:
 
 	/** The closest time code version of the EffectiveFrameNumber. May be a duplicate in the event of Play Rate tracks. */
 	FTimecode EffectiveTimeCode;
+
+	/** Metadata to attach to the output file (if supported by the output container) */
+	FStringFormatNamedArguments FileMetadata;
 
 
 	int32 CurrentShotSourceFrameNumber;
@@ -629,8 +633,11 @@ struct FMoviePipelineFormatArgs
 	{
 	}
 
-	/** A set of Key/Value pairs for format strings (without {}) and their values. */
-	FStringFormatNamedArguments Arguments;
+	/** A set of Key/Value pairs for output filename format strings (without {}) and their values. */
+	FStringFormatNamedArguments FilenameArguments;
+
+	/** A set of Key/Value pairs for file metadata for file formats that support metadata. */
+	FStringFormatNamedArguments FileMetadata;
 
 	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
 	class UMoviePipelineExecutorJob* InJob;

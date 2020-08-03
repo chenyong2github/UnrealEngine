@@ -52,10 +52,10 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 	UMoviePipelineMasterConfig* MasterConfig = GetTypedOuter<UMoviePipelineMasterConfig>();
 	if (MasterConfig)
 	{
-		MasterConfig->GetFilenameFormatArguments(FormatArgs);
+		MasterConfig->GetFormatArguments(FormatArgs);
 	}
 
-	for (const TPair<FString, FStringFormatArg>& KVP : FormatArgs.Arguments)
+	for (const TPair<FString, FStringFormatArg>& KVP : FormatArgs.FilenameArguments)
 	{
 		FStringFormatOrderedArguments OrderedArgs = { KVP.Key, KVP.Value };
 		FString FormattedArgs = FString::Format(TEXT("{0} => {1}"), OrderedArgs);
@@ -66,13 +66,13 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 	return TextBuilder.ToText();
 }
 
-void UMoviePipelineOutputSetting::GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
+void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {
 	// Resolution Arguments
 	{
 		FString Resolution = FString::Printf(TEXT("%d_%d"), OutputResolution.X, OutputResolution.Y);
-		InOutFormatArgs.Arguments.Add(TEXT("output_resolution"), Resolution);
-		InOutFormatArgs.Arguments.Add(TEXT("output_width"), OutputResolution.X);
-		InOutFormatArgs.Arguments.Add(TEXT("output_height"), OutputResolution.Y);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("output_resolution"), Resolution);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("output_width"), OutputResolution.X);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("output_height"), OutputResolution.Y);
 	}
 }

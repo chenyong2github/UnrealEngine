@@ -53,10 +53,14 @@ public:
 		}
 	}
 
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{
-		InOutFormatArgs.Arguments.Add(TEXT("tile_count"), TileCount);
-		InOutFormatArgs.Arguments.Add(TEXT("overlap_percent"), OverlapRatio);
+		Super::GetFormatArguments(InOutFormatArgs);
+
+		InOutFormatArgs.FilenameArguments.Add(TEXT("tile_count"), TileCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("overlap_percent"), OverlapRatio);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/tileCount"), TileCount);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/overlapPercent"), OverlapRatio);
 	}
 
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override

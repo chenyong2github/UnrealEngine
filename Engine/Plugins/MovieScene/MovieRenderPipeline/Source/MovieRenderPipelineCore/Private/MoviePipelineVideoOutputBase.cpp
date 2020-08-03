@@ -18,6 +18,7 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 		FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 
 		// We need to resolve the filename format string. We combine the folder and file name into one long string first
+		FMoviePipelineFormatArgs FinalFormatArgs;
 		FString FinalFilePath;
 		{
 			FString FileNameFormatString = OutputDirectory / OutputSettings->FileNameFormat;
@@ -37,7 +38,8 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), GetFilenameExtension());
 
-			FinalFilePath = GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides);
+			
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs);
 		}
 
 
@@ -62,6 +64,7 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 			{
 				AllWriters.Add(MoveTemp(NewWriter));
 				OutputWriter = AllWriters.Last().Get();
+				OutputWriter->FormatArgs = FinalFormatArgs;
 
 				Initialize_EncodeThread(OutputWriter);
 			}

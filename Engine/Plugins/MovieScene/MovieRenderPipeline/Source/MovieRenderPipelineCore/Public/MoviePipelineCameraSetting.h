@@ -26,10 +26,16 @@ protected:
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
 	
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{
-		InOutFormatArgs.Arguments.Add(TEXT("shutter_angle"), CameraShutterAngle);
-		InOutFormatArgs.Arguments.Add(TEXT("shutter_timing"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
+		Super::GetFormatArguments(InOutFormatArgs);
+
+		InOutFormatArgs.FilenameArguments.Add(TEXT("shutter_angle"), CameraShutterAngle);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("shutter_timing"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
+
+
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/camera/shutterAngle"), CameraShutterAngle);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/camera/shutterTiming"), StaticEnum<EMoviePipelineShutterTiming>()->GetNameStringByValue((int64)ShutterTiming));
 	}
 public:	
 	/** 
