@@ -173,7 +173,7 @@ public:
 	/**
 	 * Retrieve a fully up-to-date evaluation field for this track.
 	 */
-	const FMovieSceneTrackEvaluationField& GetEvaluationField();
+	MOVIESCENE_API const FMovieSceneTrackEvaluationField& GetEvaluationField();
 
 	/**
 	 * Retrieve a version number for the logic implemented in PopulateEvaluationTree.
