@@ -23,6 +23,8 @@ struct FakeStream : public trio::BoundedIOStream {
     FakeStream() : position{} {
     }
 
+    ~FakeStream();
+
     void open() override {
         position = 0ul;
     }

@@ -8,6 +8,10 @@
 
 #include <cstdint>
 
+#if defined(__clang__) || defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 #if defined(_MSC_VER) && !defined(__clang__)
     #pragma warning(push)
     #pragma warning(disable : 4100)
@@ -17,6 +21,8 @@ namespace dna {
 
 class FakeReader : public Reader {
     public:
+        ~FakeReader();
+
         // DescriptorReader methods start
         StringView getName() const override {
             return {};
@@ -445,6 +451,9 @@ class FakeReader : public Reader {
 
 }  // namespace dna
 
+#if defined(__clang__) || defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#endif
 #if defined(_MSC_VER) && !defined(__clang__)
     #pragma warning(pop)
 #endif

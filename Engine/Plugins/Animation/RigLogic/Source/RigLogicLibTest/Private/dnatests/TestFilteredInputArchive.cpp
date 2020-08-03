@@ -12,6 +12,8 @@
 
 #include <memory>
 
+namespace {
+
 struct LODConstraint {
     std::uint16_t maxLOD;
     std::uint16_t minLOD;
@@ -37,6 +39,8 @@ class FilteredDNAInputArchiveTest : public ::testing::TestWithParam<LODConstrain
         std::unique_ptr<dna::DNA> dnaInstance;
         LODConstraint lodConstraint;
 };
+
+}  // namespace
 
 TEST_P(FilteredDNAInputArchiveTest, FilterJoints) {
     const auto& result = dnaInstance->behavior.joints;
@@ -120,6 +124,8 @@ INSTANTIATE_TEST_SUITE_P(FilteredDNAInputArchiveTest, FilteredDNAInputArchiveTes
                              LODConstraint{0u, 0u}
                              ));
 
+namespace {
+
 class GeometryFilteringTest : public ::testing::Test {
     protected:
         void SetUp() override {
@@ -135,6 +141,8 @@ class GeometryFilteringTest : public ::testing::Test {
         dnatests::FakeStream stream;
         std::unique_ptr<dna::DNA> dnaInstance;
 };
+
+}  // namespace
 
 TEST_F(GeometryFilteringTest, IncludeBlendShapeTargets) {
     dna::FilteredInputArchive archive{&stream, dna::DataLayer::Geometry, 0u, std::numeric_limits<std::uint16_t>::max(), &amr};

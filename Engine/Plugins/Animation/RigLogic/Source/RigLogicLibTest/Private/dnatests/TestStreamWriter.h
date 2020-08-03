@@ -11,6 +11,9 @@
 #include <pma/resources/DefaultMemoryResource.h>
 
 class StreamWriterTest : public ::testing::Test {
+    public:
+        ~StreamWriterTest();
+
     protected:
         void SetUp() override {
             writer = dna::StreamWriter::create(&stream, &memRes);

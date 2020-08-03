@@ -27,28 +27,28 @@ FRigUnit_RigLogic::TestAccessor::TestAccessor(FRigUnit_RigLogic* Unit)
 
 /** ====== Map Input Curves ===== **/
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderEmpty()
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderEmpty()
 {
-	return new TestBehaviorReader();
+	return MakeUnique<TestBehaviorReader>();
 }
 
-FRigCurveContainer* FRigUnit_RigLogic::TestAccessor::CreateCurveContainerEmpty()
+TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerEmpty()
 {
-	return new FRigCurveContainer();
+	return MakeUnique<FRigCurveContainer>();
 }
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneCurve(FString ControlNameStr)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneCurve(FString ControlNameStr)
 {
-	TestBehaviorReader* BehaviorReader = new TestBehaviorReader;
+	TUniquePtr<TestBehaviorReader> BehaviorReader = MakeUnique<TestBehaviorReader>();
 	//StringView ControlName(TCHAR_TO_ANSI(*ControlNameStr), ControlNameStr.Len());
 	BehaviorReader->rawControls.Add(ControlNameStr);
 	BehaviorReader->LODCount = 1;
 	return BehaviorReader;
 }
 
-FRigCurveContainer* FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneCurve(FString CurveNameStr)
+TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneCurve(FString CurveNameStr)
 {
-	FRigCurveContainer* ValidCurveContainer = new  FRigCurveContainer();
+	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
 	ValidCurveContainer->Add(FName(*CurveNameStr));
 	ValidCurveContainer->Initialize();
 	return ValidCurveContainer;
@@ -62,14 +62,14 @@ void FRigUnit_RigLogic::TestAccessor::Exec_MapInputCurve(TestBehaviorReader* Tes
 /** ====== Map Joints ===== **/
 
 
-FRigBoneHierarchy* FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyEmpty()
+TUniquePtr<FRigBoneHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyEmpty()
 {
-	return new FRigBoneHierarchy();
+	return MakeUnique<FRigBoneHierarchy>();
 }
 
-FRigBoneHierarchy* FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones( FString Bone1NameStr, FString Bone2NameStr )
+TUniquePtr<FRigBoneHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr)
 {
-	FRigBoneHierarchy* TestHierarchy = new FRigBoneHierarchy();
+	TUniquePtr<FRigBoneHierarchy> TestHierarchy = MakeUnique<FRigBoneHierarchy>();
 	TestHierarchy->Reset();
 	TestHierarchy->Add(*Bone1NameStr, NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
 	TestHierarchy->Add(*Bone2NameStr, *Bone1NameStr, ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
@@ -77,9 +77,9 @@ FRigBoneHierarchy* FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones(
 	return TestHierarchy;
 }
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderTwoJoints( FString Joint1NameStr, FString Joint2NameStr)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderTwoJoints(FString Joint1NameStr, FString Joint2NameStr)
 {
-	TestBehaviorReader* TestReader = new TestBehaviorReader();
+	TUniquePtr<TestBehaviorReader> TestReader = MakeUnique<TestBehaviorReader>();
 	TestReader->addJoint(Joint1NameStr);
 	TestReader->addJoint(Joint2NameStr);
 	TestReader->LODCount = 1;
@@ -93,17 +93,17 @@ void FRigUnit_RigLogic::TestAccessor::Exec_MapJoints(TestBehaviorReader* TestRea
 
 /** ====== Map Morph Targets ===== **/
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderNoBlendshapes(FString MeshNameStr)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderNoBlendshapes(FString MeshNameStr)
 {
-	TestBehaviorReader* BehaviorReader = new TestBehaviorReader;
+	TUniquePtr<TestBehaviorReader> BehaviorReader = MakeUnique<TestBehaviorReader>();
 	BehaviorReader->addMeshName(*MeshNameStr);
 	BehaviorReader->LODCount = 1; //there is one mesh, so LODs exist
 	return BehaviorReader;
 }
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr)
 {
-	TestBehaviorReader* BehaviorReader = new TestBehaviorReader;
+	TUniquePtr<TestBehaviorReader> BehaviorReader = MakeUnique<TestBehaviorReader>();
 	BehaviorReader->addBlendShapeChannelName(*BlendShapeNameStr);
 	BehaviorReader->addBlendShapeChannelName(*BlendShapeNameStr);
 	BehaviorReader->addMeshName(*MeshNameStr);
@@ -114,9 +114,9 @@ TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneBlen
 	return BehaviorReader;
 }
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str)
 {
-	TestBehaviorReader* BehaviorReader = new TestBehaviorReader;
+	TUniquePtr<TestBehaviorReader> BehaviorReader = MakeUnique<TestBehaviorReader>();
 	BehaviorReader->addBlendShapeChannelName(*BlendShape1Str);
 	BehaviorReader->addBlendShapeChannelName(*BlendShape2Str);
 	BehaviorReader->addMeshName(*MeshNameStr);
@@ -127,17 +127,17 @@ TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderTwoBlen
 	return BehaviorReader;
 }
 
-FRigCurveContainer* FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneMorphTarget(FString MorphTargetStr)
+TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneMorphTarget(FString MorphTargetStr)
 {
-	FRigCurveContainer* ValidCurveContainer = new FRigCurveContainer();
+	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
 	ValidCurveContainer->Add(FName(*MorphTargetStr));
 	ValidCurveContainer->Initialize();
 	return ValidCurveContainer;
 }
 
-FRigCurveContainer* FRigUnit_RigLogic::TestAccessor::CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str)
+TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str)
 {
-	FRigCurveContainer* ValidCurveContainer = new FRigCurveContainer();
+	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
 	ValidCurveContainer->Add(FName(*MorphTarget1Str));
 	ValidCurveContainer->Add(FName(*MorphTarget2Str));
 	ValidCurveContainer->Initialize();
@@ -152,9 +152,9 @@ void FRigUnit_RigLogic::TestAccessor::Exec_MapMorphTargets(TestBehaviorReader* T
 
 /** ====== Map Mask Multipliers ===== **/
 
-TestBehaviorReader* FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr)
+TUniquePtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr)
 {
-	TestBehaviorReader* BehaviorReader = new TestBehaviorReader;
+	TUniquePtr<TestBehaviorReader> BehaviorReader = MakeUnique<TestBehaviorReader>();
 	BehaviorReader->animatedMaps.Add(AnimatedMapNameStr);
 	BehaviorReader->addAnimatedMapIndicesToLOD(0, 0);
 	BehaviorReader->LODCount = 1;
@@ -254,25 +254,24 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapInputCurve ValidReader ValidCurvesNameMismatch ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderValid = Test.CreateBehaviorReaderOneCurve("CTRL_Expressions.Some_Control");
-	FRigCurveContainer* TestCurveContainerNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_Expressions_NOT_ThatControl");
+	TUniquePtr<TestBehaviorReader> TestReaderValid = Test.CreateBehaviorReaderOneCurve("CTRL_Expressions.Some_Control");
+	TUniquePtr<FRigCurveContainer> TestCurveContainerNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_Expressions_NOT_ThatControl");
 	//Test
-	Test.Exec_MapInputCurve(TestReaderValid, TestCurveContainerNameMismatch);
+	Test.Exec_MapInputCurve(TestReaderValid.Get(), TestCurveContainerNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->InputCurveIndices.Num() == 1 &&
 		Test.GetData()->InputCurveIndices[0] == INDEX_NONE,
 		TEXT("MapInputCurve - ValidReader CurveContainerWithNameMismatch")
 	);
-	delete TestCurveContainerNameMismatch;
 
 	//=== MapInputCurve EmptyReader ValidCurve ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderEmpty = Test.CreateBehaviorReaderEmpty();
-	FRigCurveContainer* TestCurveContainerValid = Test.CreateCurveContainerOneCurve("CTRL_Expressions_Some_Control");
+	TUniquePtr<TestBehaviorReader> TestReaderEmpty = Test.CreateBehaviorReaderEmpty();
+	TUniquePtr<FRigCurveContainer> TestCurveContainerValid = Test.CreateCurveContainerOneCurve("CTRL_Expressions_Some_Control");
 	//Test
-	Test.Exec_MapInputCurve(TestReaderEmpty, TestCurveContainerValid);
+	Test.Exec_MapInputCurve(TestReaderEmpty.Get(), TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->InputCurveIndices.Num() == 0,
@@ -282,10 +281,10 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapInputCurve ValidReader EmptyCurveContainer ===
 
 	//Prepare
-	FRigCurveContainer* TestCurveContainerEmpty = Test.CreateCurveContainerEmpty();
+	TUniquePtr<FRigCurveContainer> TestCurveContainerEmpty = Test.CreateCurveContainerEmpty();
 	TestCurveContainerEmpty->Initialize();
 	//Test
-	Test.Exec_MapInputCurve(TestReaderValid, TestCurveContainerEmpty);
+	Test.Exec_MapInputCurve(TestReaderValid.Get(), TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->InputCurveIndices.Num() == 1 &&
@@ -295,25 +294,23 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//=== MapInputCurve InvalidReader ValidCurveContainer ===
 	//Prepare
-	TestBehaviorReader* TestInvalidReader = Test.CreateBehaviorReaderOneCurve("InvalidControlNameNoDot");
+	TUniquePtr<TestBehaviorReader> TestInvalidReader = Test.CreateBehaviorReaderOneCurve("InvalidControlNameNoDot");
 	//Expected error
 	AddExpectedError("RigUnit_R: Missing '.' in ");
 	//Test
-	Test.Exec_MapInputCurve(TestInvalidReader, TestCurveContainerValid);
+	Test.Exec_MapInputCurve(TestInvalidReader.Get(), TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->InputCurveIndices.Num() == 0,
 		TEXT("MapInputCurve - InvalidReader ValidCurveContainer")
 	);
 
-	delete TestInvalidReader;
-
 	//=== MapInputCurve Valid Inputs ===
 
 	//Prepare
 	//  ---
 	//Test
-	Test.Exec_MapInputCurve(TestReaderValid, TestCurveContainerValid);
+	Test.Exec_MapInputCurve(TestReaderValid.Get(), TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->InputCurveIndices.Num() == 1 &&
@@ -321,17 +318,14 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapInputCurve - Valid Inputs")
 	);
 
-	delete TestReaderValid;
-	delete TestCurveContainerValid;
-
 	//===================== JOINTS MAPPING =====================
 
 
 	//=== MapJoints EmptyInputs ===
 	//Prepare
-	FRigBoneHierarchy* TestHierarchyEmpty = Test.CreateBoneHierarchyEmpty();
+	TUniquePtr<FRigBoneHierarchy> TestHierarchyEmpty = Test.CreateBoneHierarchyEmpty();
 	//Test
-	Test.Exec_MapJoints(TestReaderEmpty, TestHierarchyEmpty);
+	Test.Exec_MapJoints(TestReaderEmpty.Get(), TestHierarchyEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->HierarchyBoneIndices.Num() == 0,
@@ -340,9 +334,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//=== MapJoints EmptyReader TwoBones ===
 	//Prepare
-	FRigBoneHierarchy* TestHierarchyTwoBones = Test.CreateBoneHierarchyTwoBones("BoneA", "BoneB");
+	TUniquePtr<FRigBoneHierarchy> TestHierarchyTwoBones = Test.CreateBoneHierarchyTwoBones("BoneA", "BoneB");
 	//Test
-	Test.Exec_MapJoints(TestReaderEmpty, TestHierarchyTwoBones);
+	Test.Exec_MapJoints(TestReaderEmpty.Get(), TestHierarchyTwoBones.Get());
 	AddErrorIfFalse(
 		Test.GetData()->HierarchyBoneIndices.Num() == 0,
 		TEXT("MapJoints - EmptyReader TwoBones")
@@ -350,9 +344,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//=== MapJoints TwoJoints NoBones ===
 	//Prepare
-	TestBehaviorReader* TestReaderTwoJoints = Test.CreateBehaviorReaderTwoJoints("BoneA", "BoneB");
+	TUniquePtr<TestBehaviorReader> TestReaderTwoJoints = Test.CreateBehaviorReaderTwoJoints("BoneA", "BoneB");
 	//Test
-	Test.Exec_MapJoints(TestReaderTwoJoints, TestHierarchyEmpty);
+	Test.Exec_MapJoints(TestReaderTwoJoints.Get(), TestHierarchyEmpty.Get());
 	AddErrorIfFalse(
 		Test.GetData()->HierarchyBoneIndices.Num() == 2,
 		TEXT("MapJoints - TwoJoints NoBones - expected 2 bone indices")
@@ -368,13 +362,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapJoints - TwoJoints NoBones - Expected joint 1 index to be NONE")
 	);
 
-	delete TestHierarchyEmpty;
-
 	//=== MapJoints TwoJoints TwoBones ===
 	//Prepare
 	//  already done
 	//Test
-	Test.Exec_MapJoints(TestReaderTwoJoints, TestHierarchyTwoBones);
+	Test.Exec_MapJoints(TestReaderTwoJoints.Get(), TestHierarchyTwoBones.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->HierarchyBoneIndices.Num() == 2,
@@ -391,19 +383,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapJoints - TwoJoints TwoBones - Expected bone index 1 index to be 1")
 	);
 
-	delete TestHierarchyTwoBones;
-	delete TestReaderTwoJoints;
-
 	//===================== BLENDSHAPES MAPPING =====================
 
 
 	//=== MapMorphTargets ValidReader MorphTargetWithNameMismatch ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderBlendshapeValid = Test.CreateBehaviorReaderOneBlendShape("head", "blendshape");
-	FRigCurveContainer* TestMorphTargetNameMismatch = Test.CreateCurveContainerOneMorphTarget("head_NOT_that_blendshape");
+	TUniquePtr<TestBehaviorReader> TestReaderBlendshapeValid = Test.CreateBehaviorReaderOneBlendShape("head", "blendshape");
+	TUniquePtr<FRigCurveContainer> TestMorphTargetNameMismatch = Test.CreateCurveContainerOneMorphTarget("head_NOT_that_blendshape");
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid, TestMorphTargetNameMismatch);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid.Get(), TestMorphTargetNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
@@ -415,15 +404,13 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets - ValidReader MorphTargetWithNameMismatch")
 	);
 
-	delete TestMorphTargetNameMismatch;
-
 	//=== MapMorphTargets EmptyReader ValidMorphTargetCurve ===
 
 	//Prepare
 	//Empty reader (no meshes, no blendshapes)
-	FRigCurveContainer* TestMorphTargetCurveValid = Test.CreateCurveContainerOneMorphTarget("head__blendshape");
+	TUniquePtr<FRigCurveContainer> TestMorphTargetCurveValid = Test.CreateCurveContainerOneMorphTarget("head__blendshape");
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderEmpty, TestMorphTargetCurveValid);
+	Test.Exec_MapMorphTargets(TestReaderEmpty.Get(), TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->MorphTargetCurveIndices.Num() == 0 &&
@@ -435,9 +422,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapMorphTargets NoBlendShapes ValidMorphTargetCurve ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderNoBlendshapes = Test.CreateBehaviorReaderNoBlendshapes("head"); //has a mesh, but no blend shapes
+	TUniquePtr<TestBehaviorReader> TestReaderNoBlendshapes = Test.CreateBehaviorReaderNoBlendshapes("head"); //has a mesh, but no blend shapes
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderNoBlendshapes, TestMorphTargetCurveValid);
+	Test.Exec_MapMorphTargets(TestReaderNoBlendshapes.Get(), TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0 exists
@@ -446,14 +433,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets - NoBlendShapes ValidMorphTargetCurve")
 	);
 
-	delete TestReaderNoBlendshapes;
-
 	//=== MapMorphTargets ValidReader EmptyCurveContainer ===
 
 	//Prepare
 	//  ---
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid, TestCurveContainerEmpty);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid.Get(), TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
@@ -467,9 +452,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapMorphTargets InvalidReader ValidMorphTargetCurve ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderBlendshapesInvalid = Test.CreateBehaviorReaderOneBlendShape("head", "");
+	TUniquePtr<TestBehaviorReader> TestReaderBlendshapesInvalid = Test.CreateBehaviorReaderOneBlendShape("head", "");
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapesInvalid, TestMorphTargetCurveValid);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapesInvalid.Get(), TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
@@ -480,14 +465,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets - InvalidReader ValidMorphTargetCurve")
 	);
 
-	delete TestReaderBlendshapesInvalid;
-
 	//=== MapMorphTargets ValidReader InvalidMorphTargetCurve ===
 
 	//Prepare
-	FRigCurveContainer* TestMorphTargetCurvesInvalid = Test.CreateCurveContainerOneMorphTarget("");
+	TUniquePtr<FRigCurveContainer> TestMorphTargetCurvesInvalid = Test.CreateCurveContainerOneMorphTarget("");
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid, TestMorphTargetCurvesInvalid);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid.Get(), TestMorphTargetCurvesInvalid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
@@ -498,14 +481,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets - ValidReader InvalidMorphTargetCurve")
 	);
 
-	delete TestMorphTargetCurvesInvalid;
-
 	//=== MapMorphTargets Valid Inputs ===
 
 	//Prepare
 	//  ---
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid, TestMorphTargetCurveValid);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapeValid.Get(), TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
@@ -517,14 +498,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets - ValidReader ValidTestMorphTarget")
 	);
 
-	delete TestReaderBlendshapeValid;
-	delete TestMorphTargetCurveValid;
-
 	//=== MapMorphTargets LOD0(AB) LOD1(A) ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderBlendshapes_LOD0AB_LOD1A = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
-	FRigCurveContainer* TestMorphTargetTwoCurves = Test.CreateCurveContainerTwoMorphTargets("head__blendshapeA", "head__blendshapeB");
+	TUniquePtr<TestBehaviorReader> TestReaderBlendshapes_LOD0AB_LOD1A = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
+	TUniquePtr<FRigCurveContainer> TestMorphTargetTwoCurves = Test.CreateCurveContainerTwoMorphTargets("head__blendshapeA", "head__blendshapeB");
 	//NOTE: indices in the first param here are not blendshape indices, but rather mappings from blendshapes to meshes
 	//in this test, they will correspond to blendshape indices
 
@@ -535,7 +513,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	TestReaderBlendshapes_LOD0AB_LOD1A->LODCount = 2; //needs to be set explicitly if not default (=1)
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0AB_LOD1A, TestMorphTargetTwoCurves);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0AB_LOD1A.Get(), TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 2 &&  //2 LODs
@@ -563,18 +541,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets LOD0(AB) LOD1(A) - resulting morph target indices not correct")
 	);
 
-	delete TestReaderBlendshapes_LOD0AB_LOD1A;
-
 	//=== MapMorphTargets LOD0(AB) LOD1(-) ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderBlendshapes_LOD0AB_LOD1N = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
+	TUniquePtr<TestBehaviorReader> TestReaderBlendshapes_LOD0AB_LOD1N = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
 	TestReaderBlendshapes_LOD0AB_LOD1N->addBlendShapeMappingIndicesToLOD(0, 0); //LOD 0
 	TestReaderBlendshapes_LOD0AB_LOD1N->addBlendShapeMappingIndicesToLOD(1, 0); //LOD 0
 	//LODCount = 1 by default
 
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0AB_LOD1N, TestMorphTargetTwoCurves);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0AB_LOD1N.Get(), TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 1 &&  //1 LOD
@@ -599,17 +575,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets LOD0(AB) LOD1(-) - Resulting morph targets not correct")
 	);
 
-	delete TestReaderBlendshapes_LOD0AB_LOD1N;
-
 	//=== MapMorphTargets LOD0(A) LOD1(B) ===
 	//Prepare
-	TestBehaviorReader* TestReaderBlendshapes_LOD0A_LOD1B = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
+	TUniquePtr<TestBehaviorReader> TestReaderBlendshapes_LOD0A_LOD1B = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
 	TestReaderBlendshapes_LOD0A_LOD1B->addBlendShapeMappingIndicesToLOD(0, 0);
 	TestReaderBlendshapes_LOD0A_LOD1B->addBlendShapeMappingIndicesToLOD(1, 1);
 	TestReaderBlendshapes_LOD0A_LOD1B->LODCount = 2;
 
 	//Test
-	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0A_LOD1B, TestMorphTargetTwoCurves);
+	Test.Exec_MapMorphTargets(TestReaderBlendshapes_LOD0A_LOD1B.Get(), TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->BlendShapeIndices.Num() == 2 &&  //2 LODs
@@ -635,19 +609,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMorphTargets LOD0(A) LOD1(B) - Resulting morph target indices not correct")
 	);
 
-	delete TestMorphTargetTwoCurves;
-	delete TestReaderBlendshapes_LOD0A_LOD1B;
-
 	//=============== MASK MULTIPLIERS MAPPING ====================
 
 
 	//=== MapMaskMultipliers ValidReader ValidAnimatedMapNameMismatch ===
 
 	//Prepare
-	TestBehaviorReader* TestReaderAnimMapsValid = Test.CreateBehaviorReaderOneAnimatedMap("CTRL_AnimMap.Some_Multiplier");
-	FRigCurveContainer* TestCurveContainerForAnimMapsNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_NOT_ThatMultiploer");
+	TUniquePtr<TestBehaviorReader> TestReaderAnimMapsValid = Test.CreateBehaviorReaderOneAnimatedMap("CTRL_AnimMap.Some_Multiplier");
+	TUniquePtr<FRigCurveContainer> TestCurveContainerForAnimMapsNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_NOT_ThatMultiploer");
 	//Test
-	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid, TestCurveContainerForAnimMapsNameMismatch);
+	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid.Get(), TestCurveContainerForAnimMapsNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
@@ -659,14 +630,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMaskMultipliers - ValidReader ValidAnimatedMapNameMismatch")
 	);
 
-	delete TestCurveContainerForAnimMapsNameMismatch;
-
 	//=== MapMaskMultipliers EmptyReader ValidAnimatedMap ===
 
 	//Prepare
-	FRigCurveContainer* TestCurveContainerForAnimMapsValid = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_Some_Multiplier");
+	TUniquePtr<FRigCurveContainer> TestCurveContainerForAnimMapsValid = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_Some_Multiplier");
 	//Test
-	Test.Exec_MapMaskMultipliers(TestReaderEmpty, TestCurveContainerForAnimMapsValid);
+	Test.Exec_MapMaskMultipliers(TestReaderEmpty.Get(), TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 0 &&
@@ -674,12 +643,10 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMaskMultipliers - EmptyReader ValidAnimatedMap")
 	);
 
-	delete TestReaderEmpty;
-
 	//=== MapMaskMultipliers ValidReader EmptyCurveContainer ===
 
 	//Test
-	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid, TestCurveContainerEmpty);
+	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid.Get(), TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
@@ -691,14 +658,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMaskMultipliers - ValidReader EmptyCurveContainer")
 	);
 
-	delete TestCurveContainerEmpty;
-
 	//=== MapMaskMultipliers Valid Inputs ===
 
 	//Prepare
 	//  ---
 	//Test
-	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid, TestCurveContainerForAnimMapsValid);
+	Test.Exec_MapMaskMultipliers(TestReaderAnimMapsValid.Get(), TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
 		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
@@ -710,9 +675,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TEXT("MapMaskMultipliers - Valid Inputs")
 	);
 
-	delete TestReaderAnimMapsValid;
-	delete TestCurveContainerForAnimMapsValid;
-
 	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
 	//BoneHierarchy belongs to HierarchyContainer
 	BoneHierarchy = *TestHierarchyTwoBones;
@@ -721,7 +683,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	BoneHierarchy.ResetTransforms();
 	
 	FRigHierarchyContainer* HierarchyContainerPtr = &HierarchyContainer;
-
 
 	//Prepare
 	//-----

@@ -6,6 +6,8 @@
 
 namespace pmatests {
 
+namespace {
+
 struct Stats {
     int constructed;
     int destructed;
@@ -35,6 +37,8 @@ class ManagableType : public BaseType {
     private:
         Stats* stats;
 };
+
+}  // namespace
 
 }  // namespace pmatests
 

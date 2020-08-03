@@ -4,17 +4,26 @@
 
 #include <trio/Stream.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cassert>
 #include <cstring>
 #include <cstddef>
 #include <vector>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace rltests {
 
-struct FakeStream : public trio::BoundedIOStream {
+struct FakeIOStream : public trio::BoundedIOStream {
 
-    FakeStream() : position{} {
+    FakeIOStream() : position{} {
     }
+
+    ~FakeIOStream();
 
     void open() override {
         position = 0ul;

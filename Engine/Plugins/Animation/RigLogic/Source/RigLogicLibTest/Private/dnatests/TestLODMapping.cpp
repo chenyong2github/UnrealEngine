@@ -8,6 +8,8 @@
 
 #include <pma/resources/DefaultMemoryResource.h>
 
+namespace {
+
 class LODMappingTest : public ::testing::Test {
     protected:
         void SetUp() override {
@@ -31,6 +33,8 @@ class LODMappingTest : public ::testing::Test {
         pma::DefaultMemoryResource memRes;
         dna::LODMapping mapping{&memRes};
 };
+
+}  // namespace
 
 #define ASSERT_LODMAPPING_EQ(result, expected)   \
     for (std::uint16_t lod = 0u; lod < result.getLODCount(); ++lod) {               \

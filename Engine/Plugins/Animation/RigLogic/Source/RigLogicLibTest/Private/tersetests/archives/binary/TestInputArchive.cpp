@@ -93,7 +93,11 @@ struct SectionSkipper {
     terse::ArchiveOffset<std::uint32_t>::Proxy afterValueMarker;
     std::uint32_t afterValue;
 
-    SectionSkipper() : afterValueMarker{afterValueOffset} {
+    SectionSkipper() :
+        afterValueOffset{},
+        ignored{},
+        afterValueMarker{afterValueOffset},
+        afterValue{} {
     }
 
     template<class Archive>

@@ -208,7 +208,7 @@ void USkelMeshDNAUtils::UpdateMorphTargets(USkeletalMesh* SkelMesh, IDNAReader* 
 				for (int32 DeltaIndex = 0; DeltaIndex < NumDeltas; DeltaIndex++)
 				{
 					uint32 DeltaSourceIndex = Deltas[DeltaIndex].SourceIdx;
-					uint32 DNAVertexIndex = DNAToSkelMeshMap->ImportVtxToDNAVtxIndex[LODIndex][DeltaSourceIndex];
+					int32 DNAVertexIndex = DNAToSkelMeshMap->ImportVtxToDNAVtxIndex[LODIndex][DeltaSourceIndex];
 					if (DNAVertexIndex >= 0)
 					{
 						// Retrieve delta index from the mapping.

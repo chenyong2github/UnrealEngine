@@ -7,8 +7,15 @@
 
 #include <pma/MemoryResource.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <array>
 #include <cstddef>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 static const std::size_t LODCount = 4ul;
 static const std::uint16_t LOD0 = 10u;

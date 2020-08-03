@@ -9,10 +9,21 @@
 
 #include <pma/resources/AlignedMemoryResource.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <array>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
+
+namespace {
 
 class AnimatedMapsTest : public ::testing::TestWithParam<std::uint16_t> {
 };
+
+}  // namespace
 
 TEST_P(AnimatedMapsTest, LODLimitsCondTableSize) {
     pma::AlignedMemoryResource amr;

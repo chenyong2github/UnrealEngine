@@ -16,8 +16,15 @@
 #include <terse/archives/binary/OutputArchive.h>
 #include <trio/Stream.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cstddef>
 #include <utility>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace rl4 {
 
@@ -95,12 +102,12 @@ RigLogicImpl::RigLogicImpl(Configuration config_,
                            AnimatedMapsPtr animatedMaps_,
                            MemoryResource* memRes_) :
     memRes{memRes_},
-    config{config_},
-    metrics{metrics_},
     controls{std::move(controls_)},
     joints{std::move(joints_)},
     blendShapes{std::move(blendShapes_)},
-    animatedMaps{std::move(animatedMaps_)} {
+    animatedMaps{std::move(animatedMaps_)},
+    config{config_},
+    metrics{metrics_} {
 }
 
 void RigLogicImpl::dump(BoundedIOStream* destination) const {

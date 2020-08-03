@@ -2,6 +2,8 @@
 
 #include "dnatests/TestStreamWriter.h"
 
+StreamWriterTest::~StreamWriterTest() = default;
+
 TEST_F(StreamWriterTest, SetName) {
     writer->setLODCount(1);
     writer->setName("test");

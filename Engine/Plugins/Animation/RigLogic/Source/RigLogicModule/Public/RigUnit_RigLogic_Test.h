@@ -468,37 +468,36 @@ struct FRigUnit_RigLogic::TestAccessor
 
 	 /** MapInputCurve Tests **/
 
-	TestBehaviorReader* CreateBehaviorReaderEmpty();
-	TestBehaviorReader* CreateBehaviorReaderOneCurve(FString ControlNameStr);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderEmpty();
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneCurve(FString ControlNameStr);
 
-	FRigCurveContainer* CreateCurveContainerEmpty();
-	FRigCurveContainer* CreateCurveContainerOneCurve(FString CurveNameStr);
+	TUniquePtr<FRigCurveContainer> CreateCurveContainerEmpty();
+	TUniquePtr<FRigCurveContainer> CreateCurveContainerOneCurve(FString CurveNameStr);
 
 	void Exec_MapInputCurve(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
 
 	/** MapJoints Tests **/
 
-	TestBehaviorReader* CreateBehaviorReaderTwoJoints(FString Joint1NameStr, FString Joint2NameStr);
-	FRigBoneHierarchy* CreateBoneHierarchyEmpty();
-	FRigBoneHierarchy* CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderTwoJoints(FString Joint1NameStr, FString Joint2NameStr);
+	TUniquePtr<FRigBoneHierarchy> CreateBoneHierarchyEmpty();
+	TUniquePtr<FRigBoneHierarchy> CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr);
 
 	void Exec_MapJoints(TestBehaviorReader* TestReader, FRigBoneHierarchy* MockHierachy);
 
 	/** MapBlendShapes Tests **/
 
-	TestBehaviorReader* CreateBehaviorReaderNoBlendshapes(FString MeshNameStr);
-	TestBehaviorReader* CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr);
-	FRigCurveContainer* CreateCurveContainerOneMorphTarget(FString MorphTargetStr);
-	TestBehaviorReader* CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str);
-	FRigCurveContainer* CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderNoBlendshapes(FString MeshNameStr);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneBlendShape(FString MeshNameStr, FString BlendShapeNameStr);
+	TUniquePtr<FRigCurveContainer> CreateCurveContainerOneMorphTarget(FString MorphTargetStr);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderTwoBlendShapes(FString MeshNameStr, FString BlendShape1Str, FString BlendShape2Str);
+	TUniquePtr<FRigCurveContainer> CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str);
 
 	void Exec_MapMorphTargets(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
 
 	/** MapMaskMultipliers Tests **/
-	TestBehaviorReader* CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr);
+	TUniquePtr<TestBehaviorReader> CreateBehaviorReaderOneAnimatedMap(FString AnimatedMapNameStr);
 
 	void Exec_MapMaskMultipliers(TestBehaviorReader* TestReader, FRigCurveContainer* TestCurveContainer);
-
 
 	static const uint8 MAX_ATTRS_PER_JOINT;
 

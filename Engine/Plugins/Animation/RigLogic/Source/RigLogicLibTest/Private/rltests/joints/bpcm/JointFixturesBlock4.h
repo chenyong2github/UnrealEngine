@@ -12,9 +12,16 @@
 #include "riglogic/joints/bpcm/LODRegion.h"
 #include "riglogic/riglogic/RigLogic.h"
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <cstdint>
 #include <functional>
 #include <memory>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 namespace block4 {
 
@@ -66,6 +73,8 @@ extern const Matrix<float> valuesPerLOD;
 
 class CanonicalReader : public dna::FakeReader {
     public:
+        ~CanonicalReader();
+
         std::uint16_t getLODCount() const override {
             return unoptimized::lodCount;
         }

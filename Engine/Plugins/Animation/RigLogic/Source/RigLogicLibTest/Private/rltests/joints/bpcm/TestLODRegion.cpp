@@ -6,13 +6,7 @@
 
 #include <cstdint>
 
-TEST(LODRegionTest, ConstructFromFixtures) {
-    rl4::bpcm::LODRegion lod{1, 2, 3};
-
-    ASSERT_EQ(lod.size, 1);
-    ASSERT_EQ(lod.sizeAlignedToLastFullBlock, 2);
-    ASSERT_EQ(lod.sizeAlignedToSecondLastFullBlock, 3);
-}
+namespace {
 
 struct LODTestSetup {
     std::uint32_t rowCount;
@@ -25,6 +19,16 @@ struct LODTestSetup {
 
 class LODRegionTest : public ::testing::TestWithParam<LODTestSetup> {
 };
+
+}  // namespace
+
+TEST(LODRegionTest, ConstructFromFixtures) {
+    rl4::bpcm::LODRegion lod{1, 2, 3};
+
+    ASSERT_EQ(lod.size, 1u);
+    ASSERT_EQ(lod.sizeAlignedToLastFullBlock, 2u);
+    ASSERT_EQ(lod.sizeAlignedToSecondLastFullBlock, 3u);
+}
 
 TEST_P(LODRegionTest, ConstructLODRegionFromVaryingParameters) {
     auto params = GetParam();

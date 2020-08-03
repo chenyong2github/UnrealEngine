@@ -13,6 +13,9 @@ struct LODParameters {
 };
 
 class StreamReadWriteIntegrationTest : public ::testing::TestWithParam<LODParameters> {
+    public:
+        ~StreamReadWriteIntegrationTest();
+
     protected:
         void SetUp() override {
             params = GetParam();

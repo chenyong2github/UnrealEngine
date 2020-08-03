@@ -58,12 +58,13 @@ class RigLogicImpl : public RigLogic {
 
     private:
         MemoryResource* memRes;
-        Configuration config;
-        RigMetrics metrics;
         ControlsPtr controls;
         JointsPtr joints;
         BlendShapesPtr blendShapes;
         AnimatedMapsPtr animatedMaps;
+        Configuration config;
+        RigMetrics metrics;
+
 };
 
 }  // namespace rl4

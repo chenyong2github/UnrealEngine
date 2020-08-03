@@ -10,6 +10,12 @@
 
 namespace block4 {
 
+#ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wglobal-constructors"
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
+
 namespace unoptimized {
 
 const std::uint16_t lodCount = 4u;
@@ -857,6 +863,12 @@ const rl4::Matrix<float> valuesPerLOD = {
 };
 
 }  // namespace output
+
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#endif
+
+CanonicalReader::~CanonicalReader() = default;
 
 template<typename TValue>
 struct OptimizedValues;

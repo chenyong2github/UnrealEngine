@@ -13,6 +13,8 @@
 
 #include <pma/resources/AlignedMemoryResource.h>
 
+StreamReadWriteIntegrationTest::~StreamReadWriteIntegrationTest() = default;
+
 namespace dna {
 
 static void verifyDescriptor(DescriptorReader* reader, const LODParameters& params) {

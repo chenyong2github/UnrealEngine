@@ -7,6 +7,8 @@
 
 #include <pma/resources/AlignedMemoryResource.h>
 
+namespace {
+
 struct CalcTestData {
     float fromValues[2];
     float toValues[2];
@@ -15,6 +17,8 @@ struct CalcTestData {
 
 class ConditionalTableTest : public ::testing::TestWithParam<CalcTestData> {
 };
+
+}  // namespace
 
 TEST_P(ConditionalTableTest, CheckCalculationBorderCases) {
     pma::AlignedMemoryResource amr;

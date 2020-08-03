@@ -13,6 +13,8 @@
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/utils/ManagedInstance.h>
 
+namespace {
+
 class ScalarJointStorageBuilderTest : public ::testing::Test {
     protected:
         void buildStorage() {
@@ -37,6 +39,8 @@ class ScalarJointStorageBuilderTest : public ::testing::Test {
         block4::CanonicalReader reader;
 
 };
+
+}  // namespace
 
 TEST_F(ScalarJointStorageBuilderTest, LayoutOptimization) {
     this->buildStorage();

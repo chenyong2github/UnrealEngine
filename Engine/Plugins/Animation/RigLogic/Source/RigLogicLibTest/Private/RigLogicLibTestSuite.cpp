@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_DEV_AUTOMATION_TESTS
+#pragma warning(disable:4121)
 #pragma warning(disable:4668)
 #pragma warning(disable:4996)
+#pragma warning(disable:6330)
 #include "gtest/gtest.h"
+#pragma warning(default:4121)
 #pragma warning(default:4668)
 #pragma warning(default:4996)
+#pragma warning(default:6330)
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"

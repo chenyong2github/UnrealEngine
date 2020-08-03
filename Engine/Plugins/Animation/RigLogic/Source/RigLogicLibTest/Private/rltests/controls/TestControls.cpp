@@ -8,7 +8,14 @@
 
 #include <pma/resources/AlignedMemoryResource.h>
 
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable : 4365 4987)
+#endif
 #include <array>
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 TEST(ControlsTest, GUIToRawMapping) {
     pma::AlignedMemoryResource amr;

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "dnatests/Defs.h"
+
 #include "dna/DNA.h"
 #include "dna/Reader.h"
 

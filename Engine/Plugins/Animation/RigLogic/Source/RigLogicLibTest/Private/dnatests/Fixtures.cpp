@@ -1023,6 +1023,10 @@ std::vector<unsigned char> getBytes() {
 
 namespace decoded {
 
+#ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
 // Descriptor
 const pma::String<char> name = "test";
 const Archetype archetype = Archetype::other;
@@ -2031,6 +2035,9 @@ const pma::Matrix<pma::Matrix<std::uint32_t> > correctiveBlendShapeVertexIndices
         }
     }
 };
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#endif
 
 std::size_t Fixtures::lodConstraintToIndex(std::uint16_t maxLOD, std::uint16_t minLOD) {
     // Relies on having only TWO available LODs (0, 1)

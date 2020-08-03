@@ -6,6 +6,8 @@
 
 namespace pmatests {
 
+namespace {
+
 struct Counters {
     int constructed;
     int destructed;
@@ -44,6 +46,8 @@ struct Base {
 };
 
 struct Derived : public Base {};
+
+}  // namespace
 
 }  // namespace pmatests
 
@@ -133,7 +137,7 @@ TEST(ScopedPtrTest, UseNewDelete) {
 }
 
 TEST(ScopedPtrTest, UseNewDeleteForArrays) {
-    auto sp = pma::makeScoped<int[], pma::New, pma::Delete>(100);
+    auto sp = pma::makeScoped<int[], pma::New, pma::Delete>(100ul);
     ASSERT_EQ(sp[0], 0);
 }
 
@@ -152,11 +156,13 @@ TEST(ScopedPtrTest, CustomDestroyer) {
 TEST(ScopedPtrTest, MoveAssignWithCustomDestroyer) {
     std::size_t timesCalled = 0ul;
     {
-        pma::ScopedPtr<pmatests::Base, std::function<void(pmatests::Base*)> > sp;
-        sp = pma::ScopedPtr<pmatests::Derived, std::function<void(pmatests::Base*)> >{new pmatests::Derived{}, [&timesCalled](pmatests::Base* ptr) {
-                                                                      delete ptr;
-                                                                      ++timesCalled;
-                                                                  }};
+        using PtrType = pma::ScopedPtr<pmatests::Base, std::function<void (pmatests::Base*)> >;
+
+        PtrType sp;
+        sp = PtrType{new pmatests::Derived{}, [&timesCalled](pmatests::Base* ptr) {
+                         delete ptr;
+                         ++timesCalled;
+                     }};
         ASSERT_EQ(timesCalled, 0ul);
     }
     ASSERT_EQ(timesCalled, 1ul);
@@ -165,10 +171,11 @@ TEST(ScopedPtrTest, MoveAssignWithCustomDestroyer) {
 TEST(ScopedPtrTest, MoveConstructWithCustomDestroyer) {
     std::size_t timesCalled = 0ul;
     {
-        pma::ScopedPtr<pmatests::Base, std::function<void(pmatests::Base*)> > sp{new pmatests::Derived{}, [&timesCalled](pmatests::Base* ptr) {
-                                                                 delete ptr;
-                                                                 ++timesCalled;
-                                                             }};
+        pma::ScopedPtr<pmatests::Base, std::function<void(pmatests::Base*)> > sp{new pmatests::Derived{},
+                                                                                 [&timesCalled](pmatests::Base* ptr) {
+                                                                                     delete ptr;
+                                                                                     ++timesCalled;
+                                                                                 }};
         ASSERT_EQ(timesCalled, 0ul);
     }
     ASSERT_EQ(timesCalled, 1ul);
@@ -178,6 +185,6 @@ TEST(ScopedPtrTest, UseDefaultCreateDestroy) {
     auto spPrimitive = pma::makeScoped<int>(42);
     ASSERT_EQ(*spPrimitive, 42);
 
-    auto spArray = pma::makeScoped<int[]>(10);
+    auto spArray = pma::makeScoped<int[]>(10ul);
     ASSERT_EQ(spArray[0], 0);
 }

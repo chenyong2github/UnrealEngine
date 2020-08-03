@@ -13,6 +13,8 @@
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/utils/ManagedInstance.h>
 
+namespace {
+
 class AVXJointCalculationStrategyTest : public ::testing::TestWithParam<StrategyTestParams> {
     protected:
         void SetUp() {
@@ -35,6 +37,8 @@ class AVXJointCalculationStrategyTest : public ::testing::TestWithParam<Strategy
         block8::OptimizedStorage<StorageValueType>::StrategyPtr strategy;
 
 };
+
+}  // namespace
 
 TEST_P(AVXJointCalculationStrategyTest, Block8Padded) {
     const auto params = GetParam();

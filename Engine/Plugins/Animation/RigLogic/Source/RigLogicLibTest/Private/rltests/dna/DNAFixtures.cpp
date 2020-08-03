@@ -7,6 +7,12 @@
 
 namespace rltests {
 
+#ifdef __clang__
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wglobal-constructors"
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif
+
 namespace raw {
 
 const unsigned char header[] = {
@@ -1774,5 +1780,9 @@ const Matrix<Matrix<std::uint32_t> > correctiveBlendShapeVertexIndices = {
 };
 
 }  // namespace decoded
+
+#ifdef __clang__
+    #pragma clang diagnostic pop
+#endif
 
 }  // namespace rltests

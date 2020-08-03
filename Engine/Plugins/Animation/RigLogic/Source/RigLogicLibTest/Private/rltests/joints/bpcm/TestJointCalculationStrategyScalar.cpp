@@ -11,6 +11,8 @@
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/utils/ManagedInstance.h>
 
+namespace {
+
 class ScalarJointCalculationStrategyTest : public ::testing::TestWithParam<StrategyTestParams> {
     protected:
         void SetUp() {
@@ -32,6 +34,8 @@ class ScalarJointCalculationStrategyTest : public ::testing::TestWithParam<Strat
         pma::AlignedMemoryResource memRes;
         block4::OptimizedStorage<float>::StrategyPtr strategy;
 };
+
+}  // namespace
 
 TEST_P(ScalarJointCalculationStrategyTest, Block4Padded) {
     const auto params = GetParam();

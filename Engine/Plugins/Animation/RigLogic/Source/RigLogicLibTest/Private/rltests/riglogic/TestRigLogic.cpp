@@ -2,11 +2,13 @@
 
 #include "rltests/Defs.h"
 #include "rltests/dna/DNAFixtures.h"
-#include "rltests/dna/FakeStream.h"
+#include "rltests/dna/FakeIOStream.h"
 
 #include "riglogic/RigLogic.h"
 
 #include <pma/resources/AlignedMemoryResource.h>
+
+namespace {
 
 class RigLogicTest : public ::testing::Test {
     protected:
@@ -30,11 +32,13 @@ class RigLogicTest : public ::testing::Test {
 
     protected:
         pma::AlignedMemoryResource memRes;
-        rltests::FakeStream stream;
+        rltests::FakeIOStream stream;
         dna::StreamReader* reader;
         rl4::RigLogic* rigLogic;
         rl4::RigInstance* rigInstance;
 };
+
+}  // namespace
 
 TEST_F(RigLogicTest, EvaluateRigInstance) {
     // Try both approaches
@@ -62,7 +66,7 @@ TEST_F(RigLogicTest, AccessJointVariableAttributeIndices) {
 TEST_F(RigLogicTest, DumpStateThenRestore) {
     float guiControls[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
 
-    rltests::FakeStream dumpedState;
+    rltests::FakeIOStream dumpedState;
     rigLogic->dump(&dumpedState);
     dumpedState.seek(0);
     auto cloneRigLogic = rl4::RigLogic::restore(&dumpedState);

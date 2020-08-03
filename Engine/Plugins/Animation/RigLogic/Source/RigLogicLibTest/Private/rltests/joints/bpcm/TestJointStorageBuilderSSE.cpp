@@ -14,6 +14,8 @@
 #include <pma/resources/AlignedMemoryResource.h>
 #include <pma/utils/ManagedInstance.h>
 
+namespace {
+
 template<typename TValue>
 class SSEJointStorageBuilderTest : public ::testing::Test {
     protected:
@@ -40,8 +42,10 @@ class SSEJointStorageBuilderTest : public ::testing::Test {
 
 };
 
+}  // namespace
+
 using StorageValueTypeList = ::testing::Types<StorageValueType>;
-TYPED_TEST_SUITE(SSEJointStorageBuilderTest, StorageValueTypeList);
+TYPED_TEST_SUITE(SSEJointStorageBuilderTest, StorageValueTypeList, );
 
 TYPED_TEST(SSEJointStorageBuilderTest, LayoutOptimization) {
     this->buildStorage();
