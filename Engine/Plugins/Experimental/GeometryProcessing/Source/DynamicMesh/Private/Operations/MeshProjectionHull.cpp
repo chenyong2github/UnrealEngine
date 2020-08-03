@@ -14,6 +14,7 @@ bool FMeshProjectionHull::Compute()
 	FVector3d ProjAxis = ProjectionFrame.Z();
 	FInterval1d ProjInterval = FInterval1d::Empty();
 	TArray<FVector2d> Vertices;
+	Vertices.Reserve(Mesh->VertexCount());
 	for (int32 vid : Mesh->VertexIndicesItr())
 	{
 		FVector3d Position = Mesh->GetVertex(vid);
@@ -25,16 +26,14 @@ bool FMeshProjectionHull::Compute()
 
 	// compute the 2D convex hull
 	FConvexHull2d HullCompute;
-	bool bOK = HullCompute.Solve(Vertices.Num(), 
-		[&](int32 Index) { return Vertices[Index]; },
-		bUseExactComputation);
+	bool bOK = HullCompute.Solve(Vertices);
 	if (!bOK)
 	{
 		return false;
 	}
 
 	// extract hull polygon
-	HullCompute.GetPolygon(ConvexHull2D);
+	ConvexHull2D = FPolygon2d(Vertices, HullCompute.GetPolygonIndices());
 
 	// simplify if requested
 	if (bSimplifyPolygon)
