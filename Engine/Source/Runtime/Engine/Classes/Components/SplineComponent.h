@@ -272,6 +272,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Editor)
 	FLinearColor EditorSelectedSplineSegmentColor;
 
+	/** Color of spline point tangent in the editor */
+	UPROPERTY(EditAnywhere, Category = Editor)
+	FLinearColor EditorTangentColor;
+
 	/** Whether the spline's leave and arrive tangents can be different */
 	UPROPERTY(EditAnywhere, Category = Editor)
 	bool bAllowDiscontinuousSpline;
@@ -380,6 +384,10 @@ public:
 	/** Specify selected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
 	void SetSelectedSplineSegmentColor(const FLinearColor& SegmentColor);
+
+	/** Specify selected spline component segment color in the editor */
+	UFUNCTION(BlueprintCallable, Category = Editor)
+	void SetTangentColor(const FLinearColor& TangentColor);
 
 	/** Specify whether this spline should be rendered when the Editor/Game spline show flag is set */
 	UFUNCTION(BlueprintCallable, Category = Spline)
