@@ -351,7 +351,6 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 		const FColor SelectedColor = bIsSplineEditable ? FColor(SplineComp->EditorSelectedSplineSegmentColor.ToFColor(true)) : ReadOnlyColor;
 		const FColor TangentColor = bIsSplineEditable ? FColor(SplineComp->EditorTangentColor.ToFColor(true)) : ReadOnlyColor;
 		const float GrabHandleSize = 10.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplinePointSizeAdjustment : 0.0f);
-		const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SelectedSplineTangentHandleSizeAdjustment : 0.0f);
 
 		// Draw the tangent handles before anything else so they will not overdraw the rest of the spline
 		if (SplineComp == EditedSplineComp)
@@ -375,10 +374,13 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 
 					if (SplineInfo.Points[SelectedKey].IsCurveKey())
 					{
+						const float TangentHandleSize = 8.0f + (bIsSplineEditable ? GetDefault<ULevelEditorViewportSettings>()->SplineTangentHandleSizeAdjustment : 0.0f);
+						const float TangentScale = GetDefault<ULevelEditorViewportSettings>()->SplineTangentScale;
+
 						const FVector Location = SplineComp->GetLocationAtSplinePoint(SelectedKey, ESplineCoordinateSpace::World);
-						const FVector LeaveTangent = SplineComp->GetLeaveTangentAtSplinePoint(SelectedKey, ESplineCoordinateSpace::World);
+						const FVector LeaveTangent = SplineComp->GetLeaveTangentAtSplinePoint(SelectedKey, ESplineCoordinateSpace::World) * TangentScale;
 						const FVector ArriveTangent = SplineComp->bAllowDiscontinuousSpline ?
-							SplineComp->GetArriveTangentAtSplinePoint(SelectedKey, ESplineCoordinateSpace::World) : LeaveTangent;
+							SplineComp->GetArriveTangentAtSplinePoint(SelectedKey, ESplineCoordinateSpace::World) * TangentScale : LeaveTangent;
 
 						PDI->SetHitProxy(NULL);
 
@@ -711,13 +713,15 @@ bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* 
 			const auto& Point = Position.Points[SelectedTangentHandle];
 
 			check(SelectedTangentHandleType != ESelectedTangentHandle::None);
+			const float TangentScale = GetDefault<ULevelEditorViewportSettings>()->SplineTangentScale;
+
 			if (SelectedTangentHandleType == ESelectedTangentHandle::Leave)
 			{
-				OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal + Point.LeaveTangent);
+				OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal + Point.LeaveTangent * TangentScale);
 			}
 			else if (SelectedTangentHandleType == ESelectedTangentHandle::Arrive)
 			{
-				OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal - Point.ArriveTangent);
+				OutLocation = SplineComp->GetComponentTransform().TransformPosition(Point.OutVal - Point.ArriveTangent * TangentScale);
 			}
 
 			return true;
@@ -852,22 +856,24 @@ bool FSplineComponentVisualizer::TransformSelectedTangent(const FVector& DeltaTr
 		{
 			SplineComp->Modify();
 
+			const float TangentScale = GetDefault<ULevelEditorViewportSettings>()->SplineTangentScale;
+
 			FInterpCurvePoint<FVector>& EditedPoint = SplinePosition.Points[SelectedTangentHandle];
 			if (SplineComp->bAllowDiscontinuousSpline)
 			{
 				if (SelectedTangentHandleType == ESelectedTangentHandle::Leave)
 				{
-					EditedPoint.LeaveTangent += SplineComp->GetComponentTransform().InverseTransformVector(DeltaTranslate);
+					EditedPoint.LeaveTangent += SplineComp->GetComponentTransform().InverseTransformVector(DeltaTranslate) / TangentScale;
 				}
 				else
 				{
-					EditedPoint.ArriveTangent += SplineComp->GetComponentTransform().InverseTransformVector(-DeltaTranslate);
+					EditedPoint.ArriveTangent += SplineComp->GetComponentTransform().InverseTransformVector(-DeltaTranslate) / TangentScale;
 				}
 			}
 			else
 			{
 				const FVector Delta = (SelectedTangentHandleType == ESelectedTangentHandle::Leave) ? DeltaTranslate : -DeltaTranslate;
-				const FVector Tangent = EditedPoint.LeaveTangent + SplineComp->GetComponentTransform().InverseTransformVector(Delta);
+				const FVector Tangent = EditedPoint.LeaveTangent + SplineComp->GetComponentTransform().InverseTransformVector(Delta) / TangentScale;
 
 				EditedPoint.LeaveTangent = Tangent;
 				EditedPoint.ArriveTangent = Tangent;
