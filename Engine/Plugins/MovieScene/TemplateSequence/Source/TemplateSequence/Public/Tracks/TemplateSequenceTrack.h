@@ -7,7 +7,6 @@
 #include "Misc/InlineValue.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Tracks/MovieSceneSubTrack.h"
-#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "TemplateSequenceTrack.generated.h"
 
 class UTemplateSequence;
@@ -17,7 +16,6 @@ struct FMovieSceneEvaluationTrack;
 UCLASS(MinimalAPI)
 class UTemplateSequenceTrack
 	: public UMovieSceneSubTrack
-	, public IMovieSceneTrackTemplateProducer
 {
 public:
 	GENERATED_BODY()
@@ -29,8 +27,6 @@ public:
 	// UMovieSceneTrack interface
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
-	virtual void PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const override;
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDisplayName() const override;
