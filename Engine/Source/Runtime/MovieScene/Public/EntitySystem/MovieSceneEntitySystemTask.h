@@ -955,7 +955,7 @@ struct TFilteredEntityTask
 		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
-			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, Components).Run(Task);
+			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
 			return nullptr;
 		}
 		else
@@ -1025,7 +1025,7 @@ struct TFilteredEntityTask
 		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
 			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
-			TEntityTaskBase<TaskImpl, T...>(EntityManager, Components).Run(Task);
+			TEntityTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
 			return nullptr;
 		}
 		else
