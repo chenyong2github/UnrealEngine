@@ -22,6 +22,7 @@ namespace Chaos
 {
 
 	class FPhysicsSolverBase;
+	struct FPendingSpatialDataQueue;
 
 	/**
 	 * Task responsible for processing the command buffer of a single solver and advancing it by
@@ -180,6 +181,8 @@ namespace Chaos
 			}
 		}
 
+		FChaosMarshallingManager& GetMarshallingManager() { return MarshallingManager; }
+
 		EThreadingModeTemp GetThreadingMode() const
 		{
 			return ThreadingMode;
@@ -193,22 +196,25 @@ namespace Chaos
 			SetExternalTimeConsumed_External(MarshallingManager.GetExternalTimeConsumed_External());
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InDt);
 
-			//todo: handle dt etc..
-			if(ThreadingMode == EThreadingModeTemp::SingleThread)
+			if(PushData.Num())	//only kick off sim if enough dt passed
 			{
-				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-				FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData),InDt);
-				ImmediateTask.AdvanceSolver();
-			}
-			else
-			{
-				FGraphEventArray Prereqs;
-				if(PendingTasks && !PendingTasks->IsComplete())
+				//todo: handle dt etc..
+				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
-					Prereqs.Add(PendingTasks);
+					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData),InDt);
+					ImmediateTask.AdvanceSolver();
 				}
+				else
+				{
+					FGraphEventArray Prereqs;
+					if(PendingTasks && !PendingTasks->IsComplete())
+					{
+						Prereqs.Add(PendingTasks);
+					}
 
-				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+				}
 			}
 
 			return PendingTasks;
@@ -261,6 +267,8 @@ namespace Chaos
 			}		
 		}
 
+		void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete);
+
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
 		EMultiBufferMode BufferMode;
@@ -268,15 +276,10 @@ namespace Chaos
 		EThreadingModeTemp ThreadingMode;
 
 		/** Protected construction so callers still have to go through the module to create new instances */
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn, const EThreadingModeTemp InThreadingMode, UObject* InOwner, ETraits InTraitIdx)
-			: BufferMode(BufferingModeIn)
-			, ThreadingMode(InThreadingMode)
-			, Owner(InOwner)
-			, TraitIdx(InTraitIdx)
-		{}
+		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx);
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
-		virtual ~FPhysicsSolverBase() = default;
+		virtual ~FPhysicsSolverBase();
 
 		static void DestroySolver(FPhysicsSolverBase& InSolver)
 		{
@@ -310,6 +313,9 @@ namespace Chaos
 #endif
 
 	FChaosMarshallingManager MarshallingManager;
+
+	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
+	TUniquePtr<FPendingSpatialDataQueue> PendingSpatialOperations_External;
 
 	//
 	// Commands

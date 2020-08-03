@@ -125,7 +125,7 @@ void FChaosScene::CopySolverAccelerationStructure()
 	if(SceneSolver)
 	{
 		ExternalDataLock.WriteLock();
-		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
+		SceneSolver->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
 }
@@ -193,7 +193,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
 		}
 
-		GetSolver()->GetEvolution()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false,GetSolver()->GetSolverTime());	//todo: MTime should use external time for async mode UpdateActorInAccelerationStructure(Actor);
+		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 		ExternalDataLock.WriteUnlock();
 	}
 #endif
@@ -237,7 +237,7 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 			const FPhysicsActorHandle& Actor = Actors[ActorIndex];
 			if(Actor != nullptr)
 			{
-				GetSolver()->GetEvolution()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false,GetSolver()->GetSolverTime());	//todo: MTime should use external time for async mode UpdateActorInAccelerationStructure(Actor);
+				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 			}
 		}
 

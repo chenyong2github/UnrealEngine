@@ -510,23 +510,6 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete,FReal SyncTime)
-	{
-		ensure(SyncTime >= LatestExternalTimeConsumed);	//pending operations must be for future
-		//mark it as pending for async structure being built
-		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
-		FPendingSpatialData& SpatialData = PendingSpatialOperations_External.FindOrAdd(Particle->UniqueIdx());
-
-		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
-		ensure(SpatialData.SyncTime < LatestExternalTimeConsumed || !SpatialData.bDelete);
-
-		SpatialData.bDelete = bDelete;
-		SpatialData.SpatialIdx = Particle->SpatialIdx();
-		SpatialData.AccelerationHandle = AccelerationHandle;
-		SpatialData.SyncTime = SyncTime;
-	}
-
-	template <typename Traits>
 	void TPBDRigidsEvolutionBase<Traits>::WaitOnAccelerationStructure()
 	{
 		if (AccelerationStructureTaskComplete.GetReference())
@@ -599,7 +582,7 @@ namespace Chaos
 
 	template <typename Traits>
 	void TPBDRigidsEvolutionBase<Traits>::UpdateExternalAccelerationStructure_External(
-		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& StructToUpdate)
+		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& StructToUpdate, FPendingSpatialDataQueue& PendingExternal)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
@@ -617,7 +600,7 @@ namespace Chaos
 
 		if (ensure(StructToUpdate))
 		{
-			FlushExternalAccelerationQueue(*StructToUpdate, PendingSpatialOperations_External);
+			FlushExternalAccelerationQueue(*StructToUpdate, PendingExternal);
 		}
 	}
 
