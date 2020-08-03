@@ -259,7 +259,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 				{
 					const int32 BufferStride = T::GPUGetTypeStride();
 					const int32 BufferSize = RT_Array.GetTypeSize();
-					const int32 BufferNumElements = 1;
+					const int32 BufferNumElements = BufferSize / BufferStride;
 					check((sizeof(TArrayType) % BufferStride) == 0);
 
 					const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
