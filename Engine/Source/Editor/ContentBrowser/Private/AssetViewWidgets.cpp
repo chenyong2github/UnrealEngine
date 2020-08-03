@@ -1479,13 +1479,7 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 				.WidthOverride( this, &SAssetListItem::GetThumbnailBoxSize )
 				.HeightOverride( this, &SAssetListItem::GetThumbnailBoxSize )
 				[
-					// Drop shadow border
-					SNew(SBorder)
-					.Padding(4.f)
-					.BorderImage(FEditorStyle::GetBrush(ItemShadowBorderName))
-					[
-						ItemContents
-					]
+					ItemContents
 				]
 			]
 
