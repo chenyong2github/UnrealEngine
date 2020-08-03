@@ -968,6 +968,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	// Load GUID (or create one for older versions)
 	Ar << BodySetupGuid;
@@ -1062,6 +1063,54 @@ void UBodySetup::Serialize(FArchive& Ar)
 		}
 	}
 #endif
+
+
+	// Levelset Serialization support for BodySetup.
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LevelsetSerializationSupportForBodySetup)
+	{
+		using namespace Chaos;
+		FChaosArchive ChaosAr(Ar);
+
+		int32 NumImplicits = 0;
+		
+		if (Ar.IsLoading())
+		{
+			ChaosImplicitObjects.Reset();
+
+			Ar << NumImplicits;
+
+			for (int i = 0; i < NumImplicits; i++)
+			{
+				if (FImplicitObject* ImplicitObject = FImplicitObject::SerializationFactory(ChaosAr, nullptr))
+				{
+					ImplicitObject->Serialize(Ar);
+					ChaosImplicitObjects.Add(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe >(ImplicitObject));
+				}
+			}
+		}
+		else if (Ar.IsSaving())
+		{
+			for (int i = 0; i < ChaosImplicitObjects.Num(); i++)
+			{
+				if (ChaosImplicitObjects[i])
+				{
+					NumImplicits++;
+				}
+			}
+			Ar << NumImplicits;
+
+			for (int i = 0; i < ChaosImplicitObjects.Num(); i++)
+			{
+				if (ChaosImplicitObjects[i])
+				{
+					FImplicitObject::SerializationFactory(ChaosAr, ChaosImplicitObjects[i].Get());
+					ChaosImplicitObjects[i]->Serialize(Ar);
+				}
+			}
+		}
+	}
+
+
 }
 
 void UBodySetup::PostLoad()
