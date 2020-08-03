@@ -20,7 +20,9 @@ class UPendingNetGame :
 	public UObject,
 	public FNetworkNotify
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
 
 	/** 
 	 * Net driver created for contacting the new server
@@ -33,9 +35,18 @@ class UPendingNetGame :
 	 * Demo Net driver created for loading demos, but we need to go through pending net game
 	 * Transferred to world on successful connection
 	 */
+	UE_DEPRECATED(4.26, "DemoNetDriver will be made private in a future release.  Please use GetDemoNetDriver/SetDemoNetDriver instead.")
 	UPROPERTY()
 	class UDemoNetDriver*	DemoNetDriver;
-	
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/** Gets the demo net driver for this pending world. */
+	UDemoNetDriver* GetDemoNetDriver() const { return DemoNetDriver; }
+
+	/** Sets the demo net driver for this pending world. */
+	void SetDemoNetDriver(UDemoNetDriver* const InDemoNetDriver) { DemoNetDriver = InDemoNetDriver; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/**
 	 * Setup the connection for encryption with a given key
 	 * All future packets are expected to be encrypted

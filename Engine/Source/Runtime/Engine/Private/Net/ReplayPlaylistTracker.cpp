@@ -46,12 +46,14 @@ FReplayPlaylistTracker::FReplayPlaylistTracker(const FReplayPlaylistParams& Para
 
 void FReplayPlaylistTracker::Reset()
 {
-	if (UDemoNetDriver * LocalDemoNetDriver = DemoNetDriver.Get())
+	if (UDemoNetDriver* LocalDemoNetDriver = DemoNetDriver.Get())
 	{
 		DemoNetDriver.Reset();
-		LocalDemoNetDriver->OnDemoFailedToStart.Remove(OnDemoFailedToStartHandle);
-		LocalDemoNetDriver->OnDemoFinishPlaybackDelegate.Remove(OnDemoPlaybackFinishedHandle);
-		LocalDemoNetDriver->OnDemoFinishRecordingDelegate.Remove(OnDemoStoppedHandle);
+
+		FNetworkReplayDelegates::OnReplayStartFailure.Remove(OnDemoFailedToStartHandle);
+		FNetworkReplayDelegates::OnReplayPlaybackComplete.Remove(OnDemoPlaybackFinishedHandle);
+		FNetworkReplayDelegates::OnReplayRecordingComplete.Remove(OnDemoStoppedHandle);
+
 		LocalDemoNetDriver->SetPlayingPlaylist(nullptr);
 	}
 
@@ -87,12 +89,14 @@ bool FReplayPlaylistTracker::Start()
 		{
 			TSharedRef<ThisClass> This = AsShared();
 
-			if (UDemoNetDriver * LocalDemoNetDriver = World->DemoNetDriver)
+			if (UDemoNetDriver * LocalDemoNetDriver = World->GetDemoNetDriver())
 			{
 				DemoNetDriver = LocalDemoNetDriver;
-				OnDemoFailedToStartHandle = LocalDemoNetDriver->OnDemoFailedToStart.AddStatic(&ThisClass::OnDemoFailedToStart, This);
-				OnDemoPlaybackFinishedHandle = LocalDemoNetDriver->OnDemoFinishPlaybackDelegate.AddStatic(&ThisClass::OnDemoPlaybackFinished, This);
-				OnDemoPlaybackFinishedHandle = LocalDemoNetDriver->OnDemoFinishRecordingDelegate.AddStatic(&ThisClass::OnDemoStopped, This);
+
+				OnDemoFailedToStartHandle = FNetworkReplayDelegates::OnReplayStartFailure.AddSP(AsShared(), &ThisClass::OnDemoFailedToStart);
+				OnDemoPlaybackFinishedHandle = FNetworkReplayDelegates::OnReplayPlaybackComplete.AddSP(AsShared() , &ThisClass::OnDemoPlaybackFinished);
+				OnDemoStoppedHandle = FNetworkReplayDelegates::OnReplayRecordingComplete.AddSP(AsShared(), &ThisClass::OnDemoStopped);
+
 				LocalDemoNetDriver->SetPlayingPlaylist(This);
 
 				UE_LOG(LogDemo, Log, TEXT("FReplayPlaylistTracker::Start: Successfully started Replay=%s, CurrentReplayIdx=%d"), *Playlist[CurrentReplay], CurrentReplay);
@@ -118,14 +122,26 @@ bool FReplayPlaylistTracker::Restart()
 	return Start();
 }
 
-void FReplayPlaylistTracker::OnDemoFailedToStart(UDemoNetDriver* DemoNetDriver, EDemoPlayFailure::Type FailureType, TSharedRef<ThisClass> This)
+void FReplayPlaylistTracker::OnDemoFailedToStart(UWorld* InWorld, EDemoPlayFailure::Type FailureType)
 {
-	This->Quit();
+	UWorld* World = WorldOverride.Get();
+	World = World ? World : GameInstance->GetWorld();
+
+	if (World == InWorld)
+	{
+		Quit();
+	}
 }
 
-void FReplayPlaylistTracker::OnDemoStopped(TSharedRef<FReplayPlaylistTracker> Tracker)
+void FReplayPlaylistTracker::OnDemoStopped(UWorld* InWorld)
 {
-	Tracker->Quit();
+	UWorld* World = WorldOverride.Get();
+	World = World ? World : GameInstance->GetWorld();
+
+	if (World == InWorld)
+	{
+		Quit();
+	}
 }
 
 void FReplayPlaylistTracker::Quit()
@@ -133,9 +149,15 @@ void FReplayPlaylistTracker::Quit()
 	Reset();
 }
 
-void FReplayPlaylistTracker::OnDemoPlaybackFinished(TSharedRef<FReplayPlaylistTracker> Tracker)
+void FReplayPlaylistTracker::OnDemoPlaybackFinished(UWorld* InWorld)
 {
-	Tracker->PlayNextReplay();
+	UWorld* World = WorldOverride.Get();
+	World = World ? World : GameInstance->GetWorld();
+
+	if (World == InWorld)
+	{
+		PlayNextReplay();
+	}
 }
 
 void FReplayPlaylistTracker::PlayNextReplay()

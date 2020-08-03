@@ -311,8 +311,17 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	bool IsReplay() const { return bReplay; }
+	void SetReplay(bool bValue)
+	{
+		bReplay = bValue;
+	}
+
+	virtual bool IsReplayReady() const { return false; }
+
 private:
 	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
+	uint32 bReplay : 1;			// Flag to indicate a replay connection, independent of reliability
 
 public:
 	struct FURL			URL;				// URL of the other side.
@@ -852,7 +861,11 @@ public:
 	ENGINE_API virtual void FlushNet(bool bIgnoreSimulation = false);
 
 	/** Poll the connection. If it is timed out, close it. */
-	ENGINE_API virtual void Tick();
+	UE_DEPRECATED(4.26, "Now takes DeltaSeconds")
+	ENGINE_API virtual void Tick() { Tick(0.0f); }
+
+	/** Poll the connection. If it is timed out, close it. */
+	ENGINE_API virtual void Tick(float DeltaSeconds);
 
 	/** Return whether this channel is ready for sending. */
 	ENGINE_API virtual int32 IsNetReady( bool Saturate );
@@ -1072,9 +1085,6 @@ public:
 	UNetDriver* GetDriver() {return Driver;}
 	const UNetDriver* GetDriver() const { return Driver; }
 
-	/** @todo document */
-	class UControlChannel* GetControlChannel();
-
 	/** Create a channel. */
 	ENGINE_API UChannel* CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChannelIndex=INDEX_NONE );
 
@@ -1169,7 +1179,11 @@ public:
 	 * Sets whether or not we should ignore bunches that would attempt to open channels that are already open.
 	 * Should only be used with InternalAck.
 	 */
-	void SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels);
+	UE_DEPRECATED(4.26, "Please call SetAllowExistingChannelIndex instead.")
+	void SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels) { SetAllowExistingChannelIndex(bInIgnoreAlreadyOpenedChannels); }
+
+	/** Sets whether we handle opening channels with an index that already exists, used by replays to fast forward the packet stream */
+	void SetAllowExistingChannelIndex(bool bAllow);
 
 	/**
 	 * Sets whether or not we should ignore bunches for a specific set of NetGUIDs.
@@ -1275,6 +1289,9 @@ public:
 
 	ENGINE_API void SetPendingCloseDueToReplicationFailure();
 
+	/** Called when owning network driver receives NotifyActorDestroyed. */
+	ENGINE_API virtual void NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel = false);
+
 protected:
 
 	bool GetPendingCloseDueToSocketSendFailure() const
@@ -1379,7 +1396,11 @@ private:
 
 	/** Tracks channels that we should ignore when handling special demo data. */
 	TMap<int32, FNetworkGUID> IgnoringChannels;
-	bool bIgnoreAlreadyOpenedChannels;
+
+	/** Track remapped channel index values when replay flag is set */
+	TMap<int32, int32> ChannelIndexMap;
+
+	bool bAllowExistingChannelIndex;
 
 	/** Set of guids we may need to ignore when processing a delta checkpoint */
 	TSet<FNetworkGUID> IgnoredBunchGuids;
@@ -1452,6 +1473,72 @@ private:
 	* Set to true after a packet is flushed (sent) and reset at the end of the connection's Tick. 
 	*/
 	bool bFlushedNetThisFrame = false;
+
+	/** Only set temporarily during the frame, should not need to be tracked for gc */
+	AActor* RepContextActor;
+	ULevel* RepContextLevel;
+
+	friend struct FScopedRepContext;
+
+	bool bAutoFlush;
+
+	int32 GetFreeChannelIndex(const FName& ChName) const;
+
+public:
+	AActor* GetRepContextActor() const { return RepContextActor; }
+	ULevel* GetRepContextLevel() const { return RepContextLevel; }
+
+	bool GetAutoFlush() const { return bAutoFlush; }
+	void SetAutoFlush(bool bValue) { bAutoFlush = bValue; }
+};
+
+struct FScopedRepContext
+{
+public:
+	FScopedRepContext(UNetConnection* InConnection, AActor* InActor)
+		: Connection(InConnection)
+	{
+		if (Connection)
+		{
+			check(!Connection->RepContextActor);
+			check(!Connection->RepContextLevel);
+
+			Connection->RepContextActor = InActor;
+			if (InActor)
+			{
+				Connection->RepContextLevel = InActor->GetLevel();
+			}
+		}
+	}
+
+	FScopedRepContext(UNetConnection* InConnection, ULevel* InLevel)
+		: Connection(InConnection)
+	{
+		if (Connection)
+		{
+			check(!Connection->RepContextActor);
+			check(!Connection->RepContextLevel);
+
+			Connection->RepContextLevel = InLevel;
+		}
+	}
+
+	~FScopedRepContext()
+	{
+		if (Connection)
+		{
+			Connection->RepContextActor = nullptr;
+			Connection->RepContextLevel = nullptr;
+		}
+	}
+
+	FScopedRepContext(FScopedRepContext&&) = delete;
+	FScopedRepContext(const FScopedRepContext&) = delete;
+	FScopedRepContext& operator=(const FScopedRepContext&) = delete;
+	FScopedRepContext& operator=(FScopedRepContext&&) = delete;
+
+private:
+	UNetConnection* Connection;
 };
 
 /** Help structs for temporarily setting network settings */

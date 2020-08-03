@@ -18,7 +18,6 @@
 #include "Engine/GameEngine.h"
 #include "GameFramework/GameModeBase.h"
 #include "Engine/DemoNetDriver.h"
-#include "Engine/NetworkObjectList.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/OnlineSession.h"
 #include "GameFramework/PlayerState.h"
@@ -29,6 +28,7 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/PackageName.h"
 #include "Net/ReplayPlaylistTracker.h"
+#include "ReplaySubsystem.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -736,11 +736,14 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(int32 ControllerId, FString& OutE
 			}
 			else if (CurrentWorld->IsPlayingReplay())
 			{
-				// demo playback; ask the replay driver to spawn a splitscreen client
-				if (!CurrentWorld->DemoNetDriver->SpawnSplitscreenViewer(NewPlayer, CurrentWorld))
+				if (UDemoNetDriver* DemoNetDriver = CurrentWorld->GetDemoNetDriver())
 				{
-					RemoveLocalPlayer(NewPlayer);
-					NewPlayer = nullptr;
+					// demo playback; ask the replay driver to spawn a splitscreen client
+					if (!DemoNetDriver->SpawnSplitscreenViewer(NewPlayer, CurrentWorld))
+					{
+						RemoveLocalPlayer(NewPlayer);
+						NewPlayer = nullptr;
+					}
 				}
 			}
 			else
@@ -803,13 +806,17 @@ bool UGameInstance::RemoveLocalPlayer(ULocalPlayer* ExistingPlayer)
 		ExistingPlayer->PlayerController->CleanupGameViewport();
 
 		UWorld* CurrentWorld = GetWorld();
-		if (CurrentWorld && CurrentWorld->DemoNetDriver && CurrentWorld->IsPlayingReplay())
+		if (CurrentWorld && CurrentWorld->IsPlayingReplay())
 		{
-			if (!CurrentWorld->DemoNetDriver->RemoveSplitscreenViewer(ExistingPlayer->PlayerController))
+			if (UDemoNetDriver* DemoNetDriver = CurrentWorld->GetDemoNetDriver())
 			{
-				UE_LOG(LogPlayerManagement, Warning, TEXT("UGameInstance::RemovePlayer: Did not remove player %s with ControllerId %i as it was unable to be removed from the demo"), 
-					*ExistingPlayer->GetName(), ExistingPlayer->GetControllerId());
+				if (!DemoNetDriver->RemoveSplitscreenViewer(ExistingPlayer->PlayerController))
+				{
+					UE_LOG(LogPlayerManagement, Warning, TEXT("UGameInstance::RemovePlayer: Did not remove player %s with ControllerId %i as it was unable to be removed from the demo"),
+						*ExistingPlayer->GetName(), ExistingPlayer->GetControllerId());
+				}
 			}
+
 			bShouldRemovePlayer = true;
 		}
 
@@ -1035,165 +1042,28 @@ const TArray<class ULocalPlayer*>& UGameInstance::GetLocalPlayers() const
 
 void UGameInstance::StartRecordingReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions, TSharedPtr<IAnalyticsProvider> AnalyticsProvider)
 {
-	LLM_SCOPE(ELLMTag::Networking);
-
-	if ( FParse::Param( FCommandLine::Get(),TEXT( "NOREPLAYS" ) ) )
+	if (UReplaySubsystem* ReplaySubsystem = GetSubsystem<UReplaySubsystem>())
 	{
-		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::StartRecordingReplay: Rejected due to -noreplays option" ) );
-		return;
+		ReplaySubsystem->RecordReplay(Name, FriendlyName, AdditionalOptions, AnalyticsProvider);
 	}
-
-	UWorld* CurrentWorld = GetWorld();
-
-	if ( CurrentWorld == nullptr )
-	{
-		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::StartRecordingReplay: GetWorld() is null" ) );
-		return;
-	}
-
-	if ( CurrentWorld->DemoNetDriver && CurrentWorld->DemoNetDriver->IsPlaying() )
-	{
-		UE_LOG(LogDemo, Warning, TEXT("UGameInstance::StartRecordingReplay: A replay is already playing, cannot begin recording another one."));
-		return;
-	}
-
-	FURL DemoURL;
-	FString DemoName = Name;
-	
-	DemoName.ReplaceInline( TEXT( "%m" ), *CurrentWorld->GetMapName() );
-
-	// replace the current URL's map with a demo extension
-	DemoURL.Map = DemoName;
-	DemoURL.AddOption( *FString::Printf( TEXT( "DemoFriendlyName=%s" ), *FriendlyName ) );
-
-	for ( const FString& Option : AdditionalOptions )
-	{
-		DemoURL.AddOption(*Option);
-	}
-
-	bool bDestroyedDemoNetDriver = false;
-	if (!CurrentWorld->DemoNetDriver || !CurrentWorld->DemoNetDriver->bRecordMapChanges || !CurrentWorld->DemoNetDriver->IsRecordingPaused())
-	{
-		CurrentWorld->DestroyDemoNetDriver();
-		bDestroyedDemoNetDriver = true; 
-
-		if (!GEngine->CreateNamedNetDriver(CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver))
-		{
-			UE_LOG(LogDemo, Warning, TEXT("RecordReplay: failed to create demo net driver!"));
-			return;
-		}
-
-		CurrentWorld->DemoNetDriver = Cast< UDemoNetDriver >(GEngine->FindNamedNetDriver(CurrentWorld, NAME_DemoNetDriver));
-	}
-
-	check(CurrentWorld->DemoNetDriver != nullptr);
-
-	CurrentWorld->DemoNetDriver->SetAnalyticsProvider(AnalyticsProvider);
-	CurrentWorld->DemoNetDriver->SetWorld( CurrentWorld );
-
-	// Set the new demo driver as the current collection's driver
-	FLevelCollection* CurrentLevelCollection = CurrentWorld->FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
-	if (CurrentLevelCollection)
-	{
-		CurrentLevelCollection->SetDemoNetDriver(CurrentWorld->DemoNetDriver);
-	}
-
-	FString Error;
-
-	if (bDestroyedDemoNetDriver)
-	{
-		if (!CurrentWorld->DemoNetDriver->InitListen(CurrentWorld, DemoURL, false, Error))
-		{
-			UE_LOG(LogDemo, Warning, TEXT("Demo recording - InitListen failed: %s"), *Error);
-			CurrentWorld->DemoNetDriver = NULL;
-			return;
-		}
-	}
-	else if (!CurrentWorld->DemoNetDriver->ContinueListen(DemoURL))
-	{
-		UE_LOG(LogDemo, Warning, TEXT("Demo recording - ContinueListen failed"));
-		CurrentWorld->DemoNetDriver = NULL;
-		return;
-	}
-
-	UE_LOG(LogDemo, Log, TEXT( "Num Network Actors: %i" ), CurrentWorld->DemoNetDriver->GetNetworkObjectList().GetActiveObjects().Num() );
 }
 
 void UGameInstance::StopRecordingReplay()
 {
-	UWorld* CurrentWorld = GetWorld();
-
-	if ( CurrentWorld == nullptr )
+	if (UReplaySubsystem* ReplaySubsystem = GetSubsystem<UReplaySubsystem>())
 	{
-		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::StopRecordingReplay: GetWorld() is null" ) );
-		return;
-	}
-
-	bool LoadDefaultMap = false;
-
-	if ( CurrentWorld->DemoNetDriver && CurrentWorld->DemoNetDriver->IsPlaying() )
-	{
-		LoadDefaultMap = true;
-	}
-
-	CurrentWorld->DestroyDemoNetDriver();
-
-	if ( LoadDefaultMap )
-	{
-		GEngine->BrowseToDefaultMap(*GetWorldContext());
+		return ReplaySubsystem->StopReplay();
 	}
 }
 
 bool UGameInstance::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)
 {
-	LLM_SCOPE(ELLMTag::Networking);
-
-	UWorld* CurrentWorld = WorldOverride != nullptr ? WorldOverride : GetWorld();
-
-	if ( CurrentWorld == nullptr )
+	if (UReplaySubsystem* ReplaySubsystem = GetSubsystem<UReplaySubsystem>())
 	{
-		UE_LOG( LogDemo, Warning, TEXT( "UGameInstance::PlayReplay: GetWorld() is null" ) );
-		return false;
+		return ReplaySubsystem->PlayReplay(Name, WorldOverride, AdditionalOptions);
 	}
-
-	CurrentWorld->DestroyDemoNetDriver();
-
-	FURL DemoURL;
-	UE_LOG( LogDemo, Log, TEXT( "PlayReplay: Attempting to play demo %s" ), *Name );
-
-	DemoURL.Map = Name;
 	
-	for ( const FString& Option : AdditionalOptions )
-	{
-		DemoURL.AddOption(*Option);
-	}
-
-	if ( !GEngine->CreateNamedNetDriver( CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver ) )
-	{
-		UE_LOG(LogDemo, Warning, TEXT( "PlayReplay: failed to create demo net driver!" ) );
-		return false;
-	}
-
-	CurrentWorld->DemoNetDriver = Cast< UDemoNetDriver >( GEngine->FindNamedNetDriver( CurrentWorld, NAME_DemoNetDriver ) );
-
-	check( CurrentWorld->DemoNetDriver != NULL );
-
-	CurrentWorld->DemoNetDriver->SetWorld( CurrentWorld );
-
-	FString Error;
-
-	if ( !CurrentWorld->DemoNetDriver->InitConnect( CurrentWorld, DemoURL, Error ) )
-	{
-		UE_LOG(LogDemo, Warning, TEXT( "Demo playback failed: %s" ), *Error );
-		CurrentWorld->DestroyDemoNetDriver();
-		return false;
-	}
-	else
-	{
-		FCoreUObjectDelegates::PostDemoPlay.Broadcast();
-	}
-
-	return true;
+	return false;
 }
 
 class FGameInstanceReplayPlaylistHelper
@@ -1219,11 +1089,9 @@ bool UGameInstance::PlayReplayPlaylist(const FReplayPlaylistParams& PlaylistPara
 
 void UGameInstance::AddUserToReplay(const FString& UserString)
 {
-	UWorld* CurrentWorld = GetWorld();
-
-	if ( CurrentWorld != nullptr && CurrentWorld->DemoNetDriver != nullptr )
+	if (UReplaySubsystem* ReplaySubsystem = GetSubsystem<UReplaySubsystem>())
 	{
-		CurrentWorld->DemoNetDriver->AddUserToReplay( UserString );
+		ReplaySubsystem->AddUserToReplay(UserString);
 	}
 }
 
