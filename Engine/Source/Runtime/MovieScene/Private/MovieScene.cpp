@@ -207,13 +207,12 @@ bool UMovieScene::RemoveSpawnable( const FGuid& Guid )
 	return bAnythingRemoved;
 }
 
+#endif //WITH_EDITOR
+
 FMovieSceneSpawnable* UMovieScene::FindSpawnable( const TFunctionRef<bool(FMovieSceneSpawnable&)>& InPredicate )
 {
 	return Spawnables.FindByPredicate(InPredicate);
 }
-
-#endif //WITH_EDITOR
-
 
 FMovieSceneSpawnable& UMovieScene::GetSpawnable(int32 Index)
 {
