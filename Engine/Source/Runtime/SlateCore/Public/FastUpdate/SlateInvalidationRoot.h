@@ -37,6 +37,13 @@ struct FSlateInvalidationContext
 	bool bAllowFastPathUpdate;
 };
 
+enum class ESlateInvalidationPaintType
+{
+	None,
+	Slow,
+	Fast,
+};
+
 struct FSlateInvalidationResult
 {
 	FSlateInvalidationResult()
@@ -78,11 +85,8 @@ public:
 	void RemoveWidgetFromFastPath(FWidgetProxy& Proxy);
 
 	/** @return the cached draw elements for this window and its widget hierarchy*/
-	FSlateCachedElementData& GetCachedElements()
-	{
-		return *CachedElementData;
-	}
-
+	FSlateCachedElementData& GetCachedElements() { return *CachedElementData; }
+	const SWidget* GetInvalidationRootWidget() const;
 	int32 GetFastPathGenerationNumber() const { return FastPathGenerationNumber; }
 	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
 
@@ -93,6 +97,12 @@ public:
 	SLATECORE_API void Advanced_ResetInvalidation(bool bClearResourcesImmediately);
 
 	SLATECORE_API static void ClearAllWidgetUpdatesPending();
+
+#if WITH_SLATE_DEBUGGING
+	/** @return the last paint type the invalidation root handle used. */
+	ESlateInvalidationPaintType GetLastPaintType() const { return LastPaintType; }
+	void SetLastPaintType(ESlateInvalidationPaintType Value) { LastPaintType = Value; }
+#endif
 
 protected:
 	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) = 0;
@@ -145,6 +155,9 @@ private:
 	bool bNeedsSlowPath;
 	bool bNeedScreenPositionShift;
 
+#if WITH_SLATE_DEBUGGING
+	ESlateInvalidationPaintType LastPaintType;
+#endif
 #if UE_SLATE_DEBUGGING_CLEAR_ALL_FAST_PATH_DATA
 	TArray<const SWidget*> FastWidgetPathToClearedBecauseOfDelay;
 #endif

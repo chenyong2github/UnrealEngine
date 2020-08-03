@@ -2,6 +2,7 @@
 
 #include "FastUpdate/SlateInvalidationRoot.h"
 #include "FastUpdate/SlateInvalidationRootHandle.h"
+#include "FastUpdate/SlateInvalidationRootList.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Application/SlateApplicationBase.h"
 #include "Widgets/SWidget.h"
@@ -34,49 +35,11 @@ FAutoConsoleVariableRef CVarCascadeInvalidationEventAmount(
 	TEXT("The amount of cascaded invalidated parents before we fire a CSV event."));
 #endif //SLATE_CSV_TRACKER
 
-/**
- * List of the invalidation root. Used to create unique id to retrieve them safely.
- */
-class FSlateInvalidationRootList
-{
-public:
-	int32 AddInvalidationRoot(FSlateInvalidationRoot* InvalidationRoot)
-	{
-		++GenerationNumber;
-		check(GenerationNumber != INDEX_NONE);
-		InvalidationRoots.Add(GenerationNumber, InvalidationRoot);
-		return GenerationNumber;
-	}
-
-	void RemoveInvalidationRoot(int32 Id)
-	{
-		InvalidationRoots.Remove(Id);
-	}
-
-	const FSlateInvalidationRoot* GetInvalidationRoot(int32 UniqueId) const
-	{
-		if (UniqueId != INDEX_NONE)
-		{
-			const FSlateInvalidationRoot* const * FoundElement = InvalidationRoots.Find(UniqueId);
-			return FoundElement ? *FoundElement : nullptr;
-		}
-		return nullptr;
-	}
-
-	FSlateInvalidationRoot* GetInvalidationRoot(int32 UniqueId)
-	{
-		return const_cast<FSlateInvalidationRoot*>(const_cast<const FSlateInvalidationRootList*>(this)->GetInvalidationRoot(UniqueId));
-	}
-
-private:
-	TMap<int32, FSlateInvalidationRoot*> InvalidationRoots;
-	int32 GenerationNumber = INDEX_NONE;
-
-} GSlateInvalidationRootListInstance;
 
 /**
  *
  */
+FSlateInvalidationRootList GSlateInvalidationRootListInstance;
 TArray<FSlateInvalidationRoot*> FSlateInvalidationRoot::ClearUpdateList;
 
 FSlateInvalidationRoot::FSlateInvalidationRoot()
@@ -84,12 +47,17 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, InvalidationRootWidget(nullptr)
 	, RootHittestGrid(nullptr)
 	, FastPathGenerationNumber(INDEX_NONE)
+	, CachedMaxLayerId(0)
 	, bChildOrderInvalidated(false)
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 {
 	InvalidationRootHandle = FSlateInvalidationRootHandle(GSlateInvalidationRootListInstance.AddInvalidationRoot(this));
 	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::HandleInvalidateAllWidgets);
+
+#if WITH_SLATE_DEBUGGING
+	SetLastPaintType(ESlateInvalidationPaintType::None);
+#endif
 }
 
 FSlateInvalidationRoot::~FSlateInvalidationRoot()
@@ -158,6 +126,11 @@ void FSlateInvalidationRoot::InvalidateChildOrder(const SWidget* Investigator)
 	}
 }
 
+const SWidget* FSlateInvalidationRoot::GetInvalidationRootWidget() const
+{
+	return InvalidationRootWidget;
+}
+
 void FSlateInvalidationRoot::InvalidateScreenPosition(const SWidget* Investigator)
 {
 	bNeedScreenPositionShift = true;
@@ -219,6 +192,10 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	check(InvalidationRootWidget);
 	check(RootHittestGrid);
 
+#if WITH_SLATE_DEBUGGING
+	SetLastPaintType(ESlateInvalidationPaintType::None);
+#endif
+
 	FSlateInvalidationResult Result;
 
 	if (Context.bAllowFastPathUpdate)
@@ -269,7 +246,9 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 			}
 
 			CachedMaxLayerId = PaintSlowPath(Context);
-
+#if WITH_SLATE_DEBUGGING
+			SetLastPaintType(ESlateInvalidationPaintType::Slow);
+#endif
 		}
 
 		Result.bRepaintedWidgets = true;
@@ -401,10 +380,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 				// Check visibility, it may have been in the update list but a parent who was also in the update list already updated it.
 				if (!WidgetProxy.bInvisibleDueToParentOrSelfVisibility && !WidgetProxy.bUpdatedSinceLastInvalidate && ensure(WidgetProxy.Widget))
 				{
-					if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint))
-					{
-						bWidgetsNeededRepaint = true;
-					}
+					bWidgetsNeededRepaint = bWidgetsNeededRepaint || EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
 
 					const int32 NewLayerId = WidgetProxy.Update(*Context.PaintArgs, MyIndex, *Context.WindowElementList);
 					CachedMaxLayerId = FMath::Max(NewLayerId, CachedMaxLayerId);
@@ -420,11 +396,16 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 		}
 	}
 
-	if (bNeedsSlowPath)
+	bool bExecuteSlowPath = bNeedsSlowPath;
+	if (bExecuteSlowPath)
 	{
 		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
 		CachedMaxLayerId = PaintSlowPath(Context);
 	}
+
+#if WITH_SLATE_DEBUGGING
+	SetLastPaintType(bExecuteSlowPath ? ESlateInvalidationPaintType::Slow : ESlateInvalidationPaintType::Fast);
+#endif
 
 	return bWidgetsNeededRepaint;
 }
@@ -711,9 +692,9 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 			{
 				if (!GSlateEnableGlobalInvalidation && !InvalidationRootWidget->NeedsPrepass() && WidgetProxy.Widget->Advanced_IsInvalidationRoot())
 				{
-					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidget::Layout;
+					WidgetProxy.CurrentInvalidateReason |= EInvalidateWidgetReason::Layout;
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastWidgetInvalidate(WidgetProxy.Widget, nullptr, EInvalidateWidget::Layout);
+					FSlateDebugging::BroadcastWidgetInvalidate(WidgetProxy.Widget, nullptr, EInvalidateWidgetReason::Layout);
 #endif
 				}
 
