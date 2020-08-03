@@ -345,7 +345,14 @@ namespace IncludeTool
 							{
 								if(!SourceFile.HasExtension(".a"))
 								{
-									NewFileToEnvironment.Add(SourceFile, Environment);
+									if(NewFileToEnvironment.ContainsKey(SourceFile))
+									{
+										Console.WriteLine("Source file {0} is compiled with multiple environments", SourceFile);
+									}
+									else
+									{
+										NewFileToEnvironment.Add(SourceFile, Environment);
+									}
 								}
 							}
 						}
