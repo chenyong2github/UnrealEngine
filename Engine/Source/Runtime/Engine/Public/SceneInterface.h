@@ -163,7 +163,8 @@ public:
 	 */
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) {}
 
-	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) {};
+	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) {}
+	virtual void ValidateSkyLightRealTimeCapture(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView) {}
 
 	virtual void AddPlanarReflection(class UPlanarReflectionComponent* Component) {}
 	virtual void RemovePlanarReflection(class UPlanarReflectionComponent* Component) {}

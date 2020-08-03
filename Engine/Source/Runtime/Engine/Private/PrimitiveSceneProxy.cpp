@@ -100,6 +100,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	ViewOwnerDepthPriorityGroup(InComponent->ViewOwnerDepthPriorityGroup)
 ,	bStaticLighting(InComponent->HasStaticLighting())
 ,	bVisibleInReflectionCaptures(InComponent->bVisibleInReflectionCaptures)
+,	bVisibleInRealTimeSkyCaptures(InComponent->bVisibleInRealTimeSkyCaptures)
 ,	bVisibleInRayTracing(InComponent->bVisibleInRayTracing)
 ,	bRenderInDepthPass(InComponent->bRenderInDepthPass)
 ,	bRenderInMainPass(InComponent->bRenderInMainPass)

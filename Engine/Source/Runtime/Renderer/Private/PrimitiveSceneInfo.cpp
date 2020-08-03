@@ -136,9 +136,10 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bIsUsingCustomLODRules(Proxy->IsUsingCustomLODRules()),
 	bIsUsingCustomWholeSceneShadowLODRules(Proxy->IsUsingCustomWholeSceneShadowLODRules()),
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	bShouldRenderInMainPass(InComponent->SceneProxy->ShouldRenderInMainPass()),
+	bVisibleInRealTimeSkyCapture(InComponent->SceneProxy->IsVisibleInRealTimeSkyCaptures()),
 #if RHI_RAYTRACING
 	bDrawInGame(Proxy->IsDrawnInGame()),
-	bShouldRenderInMainPass(InComponent->SceneProxy->ShouldRenderInMainPass()),
 	bIsVisibleInReflectionCaptures(InComponent->SceneProxy->IsVisibleInReflectionCaptures()),
 	bIsRayTracingRelevant(InComponent->SceneProxy->IsRayTracingRelevant()),
 	bIsRayTracingStaticRelevant(InComponent->SceneProxy->IsRayTracingStaticRelevant()),

@@ -337,6 +337,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	bAlwaysCreatePhysicsState = false;
 	bVisibleInReflectionCaptures = true;
+	bVisibleInRealTimeSkyCaptures = true;
 	bVisibleInRayTracing = true;
 	bRenderInMainPass = true;
 	bRenderInDepthPass = true;
