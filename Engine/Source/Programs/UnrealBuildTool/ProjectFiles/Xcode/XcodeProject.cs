@@ -635,7 +635,9 @@ namespace UnrealBuildTool
 
 			Content.Append("\t\t" + TargetGuid + " /* " + TargetName + " */ = {" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\tisa = PBXLegacyTarget;" + ProjectFileGenerator.NewLine);
-			Content.Append("\t\t\tbuildArgumentsString = \"$(ACTION) $(UE_BUILD_TARGET_NAME) $(PLATFORM_NAME) $(UE_BUILD_TARGET_CONFIG)" + (UProjectPath == null ? "" : " \\\"" + UProjectPath.FullName + "\\\"") + (bHasEditorConfiguration ? " -buildscw" : "") + "\";" + ProjectFileGenerator.NewLine);
+			Content.Append("\t\t\tbuildArgumentsString = \"$(ACTION) $(UE_BUILD_TARGET_NAME) $(PLATFORM_NAME) $(UE_BUILD_TARGET_CONFIG)" 
+				+ (UProjectPath == null ? "" : " \\\"" + UProjectPath.FullName + "\\\"") 
+				+ "\";" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\tbuildConfigurationList = "  + TargetBuildConfigGuid + " /* Build configuration list for PBXLegacyTarget \"" + TargetName + "\" */;" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\tbuildPhases = (" + ProjectFileGenerator.NewLine);
 			Content.Append("\t\t\t);" + ProjectFileGenerator.NewLine);
@@ -1544,19 +1546,32 @@ namespace UnrealBuildTool
             return Result.ToString();
 		}
 
+		private FileReference GetUserSchemeManagementFilePath()
+		{
+			return new FileReference(ProjectFilePath.FullName + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist");
+		}
+
+		private DirectoryReference GetProjectSchemeDirectory()
+		{
+			return new DirectoryReference(ProjectFilePath.FullName + "/xcshareddata/xcschemes");
+		}
+
+		private FileReference GetProjectSchemeFilePathForTarget(string TargetName)
+		{
+			return FileReference.Combine(GetProjectSchemeDirectory(), TargetName + ".xcscheme");
+		}
+
 		private void WriteSchemeFile(string TargetName, string TargetGuid, string BuildTargetGuid, string IndexTargetGuid, bool bHasEditorConfiguration, string GameProjectPath)
 		{
-			DirectoryReference SchemesDir = new DirectoryReference(ProjectFilePath.FullName + "/xcshareddata/xcschemes");
-			if (!DirectoryReference.Exists(SchemesDir))
-			{
-				DirectoryReference.CreateDirectory(SchemesDir);
-			}
+		
+			FileReference SchemeFilePath = GetProjectSchemeFilePathForTarget(TargetName);
 
-			string SchemeFilePath = SchemesDir + "/" + TargetName + ".xcscheme";
+			DirectoryReference.CreateDirectory(SchemeFilePath.Directory);
+
 			string OldCommandLineArguments = null;
-			if (File.Exists(SchemeFilePath))
+			if (FileReference.Exists(SchemeFilePath))
 			{
-				string OldContents = File.ReadAllText(SchemeFilePath);
+				string OldContents = File.ReadAllText(SchemeFilePath.FullName);
 				int OldCommandLineArgumentsStart = OldContents.IndexOf("<CommandLineArguments>") + "<CommandLineArguments>".Length;
 				int OldCommandLineArgumentsEnd = OldContents.IndexOf("</CommandLineArguments>");
 				if (OldCommandLineArgumentsStart != -1 && OldCommandLineArgumentsEnd != -1)
@@ -1692,7 +1707,7 @@ namespace UnrealBuildTool
 			Content.Append("   </ArchiveAction>" + ProjectFileGenerator.NewLine);
 			Content.Append("</Scheme>" + ProjectFileGenerator.NewLine);
 
-			File.WriteAllText(SchemeFilePath, Content.ToString(), new UTF8Encoding());
+			File.WriteAllText(SchemeFilePath.FullName, Content.ToString(), new UTF8Encoding());
 
 			Content.Clear();
 
@@ -1729,14 +1744,70 @@ namespace UnrealBuildTool
 			Content.Append("</dict>" + ProjectFileGenerator.NewLine);
 			Content.Append("</plist>" + ProjectFileGenerator.NewLine);
 
-			DirectoryReference ManagementFileDir = new DirectoryReference(ProjectFilePath.FullName + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes");
-			if (!DirectoryReference.Exists(ManagementFileDir))
+			FileReference ManagementFile = GetUserSchemeManagementFilePath();
+			if (!DirectoryReference.Exists(ManagementFile.Directory))
 			{
-				DirectoryReference.CreateDirectory(ManagementFileDir);
+				DirectoryReference.CreateDirectory(ManagementFile.Directory);
 			}
 
-			string ManagementFilePath = ManagementFileDir + "/xcschememanagement.plist";
-			File.WriteAllText(ManagementFilePath, Content.ToString(), new UTF8Encoding());
+			File.WriteAllText(ManagementFile.FullName, Content.ToString(), new UTF8Encoding());
+		}
+
+		public static IEnumerable<UnrealTargetPlatform> GetSupportedPlatforms()
+		{
+			List<UnrealTargetPlatform> SupportedPlatforms = new List<UnrealTargetPlatform>();
+
+			if (XcodeProjectFileGenerator.ProjectFilePlatform.HasFlag(XcodeProjectFileGenerator.XcodeProjectFilePlatform.Mac))
+			{
+				SupportedPlatforms.Add(UnrealTargetPlatform.Mac);
+			}
+
+			if (XcodeProjectFileGenerator.ProjectFilePlatform.HasFlag(XcodeProjectFileGenerator.XcodeProjectFilePlatform.iOS))
+			{
+				SupportedPlatforms.Add(UnrealTargetPlatform.IOS);
+			}
+
+			if (XcodeProjectFileGenerator.ProjectFilePlatform.HasFlag(XcodeProjectFileGenerator.XcodeProjectFilePlatform.tvOS))
+			{
+				SupportedPlatforms.Add(UnrealTargetPlatform.TVOS);
+			}
+
+			return SupportedPlatforms;
+		}
+
+		public static IEnumerable<UnrealTargetConfiguration> GetSupportedConfigurations()
+		{
+			return new UnrealTargetConfiguration[] { 
+				UnrealTargetConfiguration.Debug,
+				UnrealTargetConfiguration.DebugGame,
+				UnrealTargetConfiguration.Development,
+				UnrealTargetConfiguration.Test,
+				UnrealTargetConfiguration.Shipping
+			};
+		}
+
+		public bool ShouldIncludeProjectInWorkspace()
+		{
+			return CanBuildProjectLocally();
+		}
+
+		public bool CanBuildProjectLocally()
+		{
+			foreach (ProjectTarget ProjectTarget in ProjectTargets)
+			{
+				foreach (UnrealTargetPlatform Platform in GetSupportedPlatforms())
+				{
+					foreach (UnrealTargetConfiguration Config in GetSupportedConfigurations())
+					{
+						if (MSBuildProjectFile.IsValidProjectPlatformAndConfiguration(ProjectTarget, Platform, Config, null))
+						{
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
 		}
 
 		/// Implements Project interface
@@ -1861,10 +1932,25 @@ namespace UnrealBuildTool
 				bSuccess = ProjectFileGenerator.WriteFileIfChanged(PBXProjFilePath.FullName, ProjectFileContent.ToString(), new UTF8Encoding());
 			}
 
-			if (bSuccess)
+			bool bNeedScheme = CanBuildProjectLocally();
+
+			if (bNeedScheme)
 			{
-				WriteSchemeFile(TargetName, TargetGuid, BuildTargetGuid, IndexTargetGuid, bHasEditorConfiguration, GameProjectPath != null ? GameProjectPath.FullName : "");
+				if (bSuccess)
+				{
+					WriteSchemeFile(TargetName, TargetGuid, BuildTargetGuid, IndexTargetGuid, bHasEditorConfiguration, GameProjectPath != null ? GameProjectPath.FullName : "");
+				}
 			}
+			else
+			{
+				// clean this up because we don't want it persisting if we narrow our project list
+				DirectoryReference SchemeDir = GetProjectSchemeDirectory();
+
+				if (DirectoryReference.Exists(SchemeDir))
+				{
+					DirectoryReference.Delete(SchemeDir, true);
+				}
+			}				
 
 			return bSuccess;
 		}
