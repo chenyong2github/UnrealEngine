@@ -25,6 +25,11 @@ FSequencerScriptingRange UMovieSceneSectionExtensions::GetRange(UMovieSceneSecti
 	return FSequencerScriptingRange::FromNative(Section->GetRange(), MovieScene->GetTickResolution());
 }
 
+bool UMovieSceneSectionExtensions::HasStartFrame(UMovieSceneSection* Section)
+{
+	return Section->HasStartFrame();
+}
+
 int32 UMovieSceneSectionExtensions::GetStartFrame(UMovieSceneSection* Section)
 {
 	if (!Section->HasStartFrame())
@@ -62,6 +67,12 @@ float UMovieSceneSectionExtensions::GetStartFrameSeconds(UMovieSceneSection* Sec
 
 	return -1.f;
 }
+
+bool UMovieSceneSectionExtensions::HasEndFrame(UMovieSceneSection* Section)
+{
+	return Section->HasEndFrame();
+}
+
 
 int32 UMovieSceneSectionExtensions::GetEndFrame(UMovieSceneSection* Section)
 {
