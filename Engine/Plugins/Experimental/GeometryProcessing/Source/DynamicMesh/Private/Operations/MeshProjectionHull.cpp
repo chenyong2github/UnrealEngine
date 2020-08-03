@@ -34,6 +34,10 @@ bool FMeshProjectionHull::Compute()
 
 	// extract hull polygon
 	ConvexHull2D = FPolygon2d(Vertices, HullCompute.GetPolygonIndices());
+	if (ConvexHull2D.Area() < FMathf::ZeroTolerance)
+	{
+		return false;
+	}
 
 	// simplify if requested
 	if (bSimplifyPolygon)
@@ -46,11 +50,19 @@ bool FMeshProjectionHull::Compute()
 	FFrame3d CenterFrame = ProjectionFrame;
 	CenterFrame.Origin += ProjInterval.Min * ProjAxis;
 
+	// apply min-thickness if necessary
+	double ExtrudeLength = ProjInterval.Length();
+	if (ExtrudeLength < MinThickness)
+	{
+		ExtrudeLength = MinThickness;
+		CenterFrame.Origin -= (ExtrudeLength * 0.5) * ProjAxis;
+	}
+
 	// generate the swept-polygon mesh
 	FGeneralizedCylinderGenerator MeshGen;
 	MeshGen.CrossSection = (bSimplifyPolygon) ? SimplifiedHull2D : ConvexHull2D;
 	MeshGen.Path.Add(CenterFrame.Origin);
-	CenterFrame.Origin += ProjInterval.Length() * ProjAxis;
+	CenterFrame.Origin += ExtrudeLength * ProjAxis;
 	MeshGen.Path.Add(CenterFrame.Origin);
 	MeshGen.bCapped = true;
 	MeshGen.Generate();
