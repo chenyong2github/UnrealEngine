@@ -5217,11 +5217,11 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 		for (FName NeverCookPackage : PackagesToNeverCook)
 		{
-			const FName StandardPackageFilename = GetPackageNameCache().GetCachedStandardPackageFileFName(NeverCookPackage);
+			const FName* StandardPackageFilename = GetPackageNameCache().GetCachedPackageNameFromStandardFileName(NeverCookPackage);
 
-			if (StandardPackageFilename != NAME_None)
+			if (StandardPackageFilename && *StandardPackageFilename != NAME_None)
 			{
-				PackageTracker->NeverCookPackageList.Add(StandardPackageFilename);
+				PackageTracker->NeverCookPackageList.Add(*StandardPackageFilename);
 			}
 		}
 	}
@@ -6701,8 +6701,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist](TArray<FName>& OutPackageList, const FString& InPlatformName)
 		{
-			FString PlatformNameString = TargetPlatform->PlatformName();
-			FName PlatformName(*PlatformNameString);
 			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
 
 			// if this check fails probably because the asset registry can't be found or read
