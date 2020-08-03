@@ -76,10 +76,10 @@ namespace Chaos
 
 	void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FPhysicsSolverAdvanceTask::AdvanceSolver(Solver,MoveTemp(Queue), MoveTemp(PushData), Dt);
+		AdvanceSolver();
 	}
 
-	void FPhysicsSolverAdvanceTask::AdvanceSolver(FPhysicsSolverBase& Solver, TArray<TFunction<void()>>&& Queue, TArray<FPushPhysicsData*>&& PushData, const FReal Dt)
+	void FPhysicsSolverAdvanceTask::AdvanceSolver()
 	{
 		using namespace Chaos;
 
