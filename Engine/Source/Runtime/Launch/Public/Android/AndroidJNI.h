@@ -124,6 +124,11 @@ public:
 	static jmethodID AndroidThunkJava_VirtualInputIgnoreClick;
 	static jmethodID AndroidThunkJava_RestartApplication;
 	
+	// Screen refresh rate
+	static jmethodID AndroidThunkJava_GetNativeDisplayRefreshRate;
+	static jmethodID AndroidThunkJava_SetNativeDisplayRefreshRate;
+	static jmethodID AndroidThunkJava_GetSupportedNativeDisplayRefreshRates;
+
 	// member fields for getting the launch notification
 	static jclass LaunchNotificationClass;
 	static jfieldID LaunchNotificationUsed;
