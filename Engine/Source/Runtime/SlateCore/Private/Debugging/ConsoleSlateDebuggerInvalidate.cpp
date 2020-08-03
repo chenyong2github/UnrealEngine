@@ -431,7 +431,7 @@ FConsoleSlateDebuggerInvalidate::FInvalidationInfo::FInvalidationInfo(const FSla
 	}
 }
 
-void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(const FSlateDebuggingInvalidateArgs& Args, int32 InInvalidationPriority, bool bBuildWidgetName, bool bUseWidgetPathAsName)
+void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(const FSlateDebuggingInvalidateArgs& InArgs, int32 InInvalidationPriority, bool bInBuildWidgetName, bool bInUseWidgetPathAsName)
 {
 	if (WidgetInvalidatorId == InvalidWidgetId)
 	{
@@ -440,28 +440,28 @@ void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidated(cons
 		WidgetInvalidatorName = MoveTemp(WidgetInvalidatedName);
 	}
 
-	check(Args.WidgetInvalidated);
-	WidgetInvalidatedId = reinterpret_cast<TSWidgetId>(Args.WidgetInvalidated);
-	WidgetInvalidated = Args.WidgetInvalidated->DoesSharedInstanceExist() ? Args.WidgetInvalidated->AsShared() : TWeakPtr<const SWidget>();
-	if (bBuildWidgetName)
+	check(InArgs.WidgetInvalidated);
+	WidgetInvalidatedId = reinterpret_cast<TSWidgetId>(InArgs.WidgetInvalidated);
+	WidgetInvalidated = InArgs.WidgetInvalidated->DoesSharedInstanceExist() ? InArgs.WidgetInvalidated->AsShared() : TWeakPtr<const SWidget>();
+	if (bInBuildWidgetName)
 	{
-		WidgetInvalidatedName = bUseWidgetPathAsName ? FReflectionMetaData::GetWidgetPath(Args.WidgetInvalidated) : FReflectionMetaData::GetWidgetDebugInfo(Args.WidgetInvalidated);
+		WidgetInvalidatedName = bInUseWidgetPathAsName ? FReflectionMetaData::GetWidgetPath(InArgs.WidgetInvalidated) : FReflectionMetaData::GetWidgetDebugInfo(InArgs.WidgetInvalidated);
 	}
-	WidgetReason |= Args.InvalidateWidgetReason;
-	InvalidationRootReason |= Args.InvalidateInvalidationRootReason;
+	WidgetReason |= InArgs.InvalidateWidgetReason;
+	InvalidationRootReason |= InArgs.InvalidateInvalidationRootReason;
 	InvalidationPriority = InInvalidationPriority;
 
 }
 
-void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidator(const FSlateDebuggingInvalidateArgs& Args, int32 InInvalidationPriority, bool bBuildWidgetName, bool bUseWidgetPathAsName)
+void FConsoleSlateDebuggerInvalidate::FInvalidationInfo::ReplaceInvalidator(const FSlateDebuggingInvalidateArgs& InArgs, int32 InInvalidationPriority, bool bInBuildWidgetName, bool bInUseWidgetPathAsName)
 {
-	WidgetInvalidatorId = reinterpret_cast<TSWidgetId>(Args.WidgetInvalidateInvestigator);
-	if (bBuildWidgetName)
+	WidgetInvalidatorId = reinterpret_cast<TSWidgetId>(InArgs.WidgetInvalidateInvestigator);
+	if (bInBuildWidgetName)
 	{
-		WidgetInvalidatorName = bUseWidgetPathAsName ? FReflectionMetaData::GetWidgetPath(Args.WidgetInvalidateInvestigator) : FReflectionMetaData::GetWidgetDebugInfo(Args.WidgetInvalidateInvestigator);
+		WidgetInvalidatorName = bInUseWidgetPathAsName ? FReflectionMetaData::GetWidgetPath(InArgs.WidgetInvalidateInvestigator) : FReflectionMetaData::GetWidgetDebugInfo(InArgs.WidgetInvalidateInvestigator);
 	}
-	WidgetReason |= Args.InvalidateWidgetReason;
-	InvalidationRootReason |= Args.InvalidateInvalidationRootReason;
+	WidgetReason |= InArgs.InvalidateWidgetReason;
+	InvalidationRootReason |= InArgs.InvalidateInvalidationRootReason;
 	InvalidationPriority = InInvalidationPriority;
 }
 
