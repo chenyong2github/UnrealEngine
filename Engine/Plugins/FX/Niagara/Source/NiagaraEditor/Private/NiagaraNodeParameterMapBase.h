@@ -41,8 +41,6 @@ public:
 
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);
 
-	bool OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation);
-
 	virtual bool CanRenamePinFromContextMenu(const UEdGraphPin* Pin) const override { return false; }
 
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;
@@ -52,6 +50,10 @@ public:
 	bool GetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin);
 
 	void SetIsPinEditNamespaceModifierPending(const UEdGraphPin* Pin, bool bInIsEditNamespaceModifierPending);
+
+	bool CanHandleDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation);
+
+	bool HandleDropOperation(TSharedPtr<FDragDropOperation> DropOperation);
 
 protected:
 	void GetChangeNamespaceSubMenuForPin(UToolMenu* Menu, UEdGraphPin* InPin);
