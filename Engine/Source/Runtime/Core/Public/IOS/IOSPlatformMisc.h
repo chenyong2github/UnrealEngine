@@ -92,8 +92,6 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static int GetDefaultStackSize();
 	static void HandleLowMemoryWarning();
 	static bool IsPackagedForDistribution();
-	UE_DEPRECATED(4.14, "GetUniqueDeviceId is deprecated. Use GetDeviceId instead.")
-	static FString GetUniqueDeviceId();
 	/**
 	 * Implemented using UIDevice::identifierForVendor,
 	 * so all the caveats that apply to that API call apply here.

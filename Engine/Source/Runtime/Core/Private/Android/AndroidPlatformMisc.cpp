@@ -2552,11 +2552,15 @@ FString FAndroidMisc::GetLoginId()
 #if USE_ANDROID_JNI
 FString FAndroidMisc::GetDeviceId()
 {
+#if GET_DEVICE_ID_UNAVAILABLE
+	return FString();
+#else
 	extern FString AndroidThunkCpp_GetAndroidId();
 	static FString DeviceId = AndroidThunkCpp_GetAndroidId();
 
 	// note: this can be empty or NOT unique depending on the OEM implementation!
 	return DeviceId;
+#endif
 }
 
 FString FAndroidMisc::GetUniqueAdvertisingId()

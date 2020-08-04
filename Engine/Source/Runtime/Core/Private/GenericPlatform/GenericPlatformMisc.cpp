@@ -324,23 +324,23 @@ FString FGenericPlatformMisc::GetMacAddressString()
 FString FGenericPlatformMisc::GetHashedMacAddressString()
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FMD5::HashAnsiString(*FPlatformMisc::GetMacAddressString());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-FString FGenericPlatformMisc::GetUniqueDeviceId()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FPlatformMisc::GetHashedMacAddressString();
+	// ensure empty MAC addresses don't return a hash of zero bytes.
+	FString MacAddr = FPlatformMisc::GetMacAddressString();
+	if (!MacAddr.IsEmpty())
+	{
+		return FMD5::HashAnsiString(*MacAddr);
+	}
+	else
+	{
+		return FString();
+	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FString FGenericPlatformMisc::GetDeviceId()
 {
-	// @todo: When this function is finally removed, the functionality used will need to be moved in here.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return GetUniqueDeviceId();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	// not implemented at the base level. Each platform must decide how to implement this, if possible.
+	return FString();
 }
 
 FString FGenericPlatformMisc::GetUniqueAdvertisingId()
