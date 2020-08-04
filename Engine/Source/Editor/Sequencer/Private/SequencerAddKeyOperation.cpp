@@ -53,6 +53,19 @@ FAddKeyOperation FAddKeyOperation::FromNode(TSharedRef<FSequencerDisplayNode> In
 	return Operation;
 }
 
+FAddKeyOperation FAddKeyOperation::FromKeyAreas(ISequencerTrackEditor* TrackEditor, const TArrayView<TSharedRef<IKeyArea>> InKeyAreas)
+{
+	FAddKeyOperation Operation;
+	if (ensure(TrackEditor))
+	{
+		for (const TSharedRef<IKeyArea> KeyArea : InKeyAreas)
+		{
+			Operation.ProcessKeyArea(TrackEditor, KeyArea);
+		}
+	}
+	return Operation;
+}
+
 void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> FilteredNodes)
 {
 	auto KeyChildTrackArea = [this](FSequencerDisplayNode& InNode)
@@ -121,16 +134,21 @@ bool FAddKeyOperation::ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, cons
 	return bKeyedAnything;
 }
 
-bool FAddKeyOperation::ProcessKeyArea(FSequencerTrackNode* InTrackNode, TSharedPtr<IKeyArea> KeyArea)
+bool FAddKeyOperation::ProcessKeyArea(FSequencerTrackNode* InTrackNode, TSharedPtr<IKeyArea> InKeyArea)
 {
-	TSharedPtr<ISequencerSection> Section       = KeyArea->GetSectionInterface();
+	ISequencerTrackEditor* TrackEditor = &InTrackNode->GetTrackEditor();
+	return ProcessKeyArea(TrackEditor, InKeyArea);
+}
+
+bool FAddKeyOperation::ProcessKeyArea(ISequencerTrackEditor* InTrackEditor, TSharedPtr<IKeyArea> InKeyArea)
+{
+	TSharedPtr<ISequencerSection> Section       = InKeyArea->GetSectionInterface();
 	UMovieSceneSection*           SectionObject = Section       ? Section->GetSectionObject()                      : nullptr;
 	UMovieSceneTrack*             TrackObject   = SectionObject ? SectionObject->GetTypedOuter<UMovieSceneTrack>() : nullptr;
 
 	if (TrackObject)
 	{
-		ISequencerTrackEditor* TrackEditor = &InTrackNode->GetTrackEditor();
-		GetTrackOperation(TrackEditor).Populate(TrackObject, Section, KeyArea);
+		GetTrackOperation(InTrackEditor).Populate(TrackObject, Section, InKeyArea);
 		return true;
 	}
 
