@@ -77,9 +77,19 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	const auto ScatteringReader = Properties->ScatteringDataSetAccessor.GetReader(Data);
 	const auto EnabledReader = Properties->EnabledDataSetAccessor.GetReader(Data);
 
-	const FMatrix& LocalToWorldMatrix = Proxy->GetLocalToWorld();
+	// This used to use Proxy->GetLocalToWorld(), but that's a bad thing to do here, because the proxy gets updated on the render thread,
+	// and this function happens during EndOfFrame updates. So instead, use the most up-to-date transform here (fixes local-space frame-behind issues)
+	FTransform LocalToWorld = FTransform::Identity;
+	if (FNiagaraSystemInstance* SystemInstance = Emitter->GetParentSystemInstance())
+	{
+		if (UNiagaraComponent* Component = SystemInstance->GetComponent())
+		{
+			LocalToWorld = Component->GetComponentToWorld();
+		}
+	}
+
 	const FLinearColor DefaultColor = Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>();
-	const FVector DefaultPos = LocalToWorldMatrix.GetOrigin();
+	const FVector DefaultPos = bLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
 	const float DefaultRadius = Properties->RadiusBinding.DefaultValueIfNonExistent.GetValue<float>();
 	const float DefaultScattering = Properties->VolumetricScatteringBinding.DefaultValueIfNonExistent.GetValue<float>();
 	const FNiagaraBool DefaultEnabled(true);
@@ -100,7 +110,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 			LightData.PerViewEntry.Position = PositionReader.GetSafe(ParticleIndex, DefaultPos);
 			if (bLocalSpace)
 			{
-				LightData.PerViewEntry.Position = LocalToWorldMatrix.TransformPosition(LightData.PerViewEntry.Position);
+				LightData.PerViewEntry.Position = LocalToWorld.TransformPosition(LightData.PerViewEntry.Position);
 			}
 		}
 	}
