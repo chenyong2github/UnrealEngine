@@ -314,7 +314,7 @@ namespace ChaosTest {
 			FChaosScene Scene(nullptr);
 			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 			Scene.GetSolver()->SetEnabled(true);
-			Scene.GetSolver()->GetMarshallingManager().SetTickDelay(Delay);
+			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
 
 			FActorCreationParams Params;
 			Params.Scene = &Scene;
