@@ -207,9 +207,9 @@ public:
             // TSharedRef<SButton> ColorButton;
             // = SNew(SButton)
             return SNew(SBox)
-            .Padding(12)
+            .Padding(8)
             .WidthOverride(120)
-            .HeightOverride(120)
+            .HeightOverride(100)
             [
                     SNew(SOverlay)
 
@@ -261,88 +261,78 @@ public:
             SNew(SVerticalBox)
 
             +SVerticalBox::Slot()
+            .AutoHeight()
+            .Padding(8.f, 24.f, 8.f, 8.f)
             [
-                SNew(SHorizontalBox)
-
-                +SHorizontalBox::Slot()
-                .FillWidth(1.0)
-                [
-                    SNew(SVerticalBox)
-
-                    +SVerticalBox::Slot()
-                    .AutoHeight()
-                    .Padding(8.f, 0.f, 8.f, 12.f)
-                    [
-                        SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "BaseColors", "BASE COLORS"))
-                    ]
-
-                    +SVerticalBox::Slot()
-                    .AutoHeight()
-                    [
-                        SNew(SUniformWrapPanel)
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLACK"),           "Colors.Black")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOLDOUT"),         "Colors.Foldout")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("INPUT"),           "Colors.Input")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BACKGROUND"),      "Colors.Background", false, true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HEADER"),          "Colors.Header")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("DROPDOWN"),        "Colors.Dropdown")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER"),           "Colors.Hover")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER2"),          "Colors.Hover2")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE"),           "Colors.White", true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE25"),         "Colors.White25")]
-
-                    ]
-
-                    +SVerticalBox::Slot()
-                    .AutoHeight()
-                    [
-                        SNew(SUniformWrapPanel)
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY"),         "Colors.Primary", true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nHOVER"),  "Colors.PrimaryHover", true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nPRESS"),  "Colors.PrimaryPress", true)]
-                    ]
-                ]
-
-                +SHorizontalBox::Slot()
-                .FillWidth(1.0)
-                .Padding(48.0, 0.0)
-                [
-                    SNew(SVerticalBox)
-
-                    +SVerticalBox::Slot()
-                    .Padding(8.f, 0.f, 8.f, 12.f)
-                    .AutoHeight()
-                    [
-                        SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "TextIconColors", "FOREGROUND COLORS"))
-
-                    ]
-
-                    +SVerticalBox::Slot()
-                    .AutoHeight()
-                    [
-                        SNew(SUniformWrapPanel)
-
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND"),        "Colors.Foreground")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nHOVER"), "Colors.ForegroundHover", true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nINVERTED"), "Colors.ForegroundInverted")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HIGHLIGHT"),         "Colors.Highlight")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nHEADER"), "Colors.ForegroundHeader", true)]
-                    ]
-
-                    +SVerticalBox::Slot()
-                    .AutoHeight()
-                    [
-                        SNew(SUniformWrapPanel)
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT"),          "Colors.Select", true)]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nHOVER"),   "Colors.SelectHover")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nPARENT"),  "Colors.SelectParent")]
-                        +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nINACTIVE"),"Colors.SelectInactive")]
-                    ]
-                ]
+                SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "BaseColors", "BASE COLORS"))
             ]
 
             +SVerticalBox::Slot()
-            .Padding(48.f)
+            .AutoHeight()
+            [
+                SNew(SUniformWrapPanel)
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BLACK"),           "Colors.Black")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("TITLE"),           "Colors.Title")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WINDOW\nBORDER"),  "Colors.WindowBorder")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOLDOUT"),         "Colors.Foldout")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("INPUT"),           "Colors.Input")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("RECESSED"),        "Colors.Recessed")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("BACKGROUND"),      "Colors.Background", false, true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HEADER"),          "Colors.Header")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("DROPDOWN"),        "Colors.Dropdown")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER"),           "Colors.Hover")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HOVER2"),          "Colors.Hover2")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE"),           "Colors.White", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("WHITE25"),         "Colors.White25")]
+
+                /*
+            ]
+
+            +SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SUniformWrapPanel)
+*/
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY"),         "Colors.Primary", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nHOVER"),  "Colors.PrimaryHover", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("PRIMARY\nPRESS"),  "Colors.PrimaryPress", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SECONDARY"),       "Colors.Secondary", true)]
+            ]
+
+            +SVerticalBox::Slot()
+            .Padding(8.f, 24.f, 8.f, 8.f)
+            .AutoHeight()
+            [
+                SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "TextIconColors", "FOREGROUND COLORS"))
+
+            ]
+
+            +SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SUniformWrapPanel)
+
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND"),        "Colors.Foreground")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nHOVER"), "Colors.ForegroundHover", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nINVERTED"), "Colors.ForegroundInverted")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("HIGHLIGHT"),         "Colors.Highlight")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("FOREGROUND\nHEADER"), "Colors.ForegroundHeader", true)]
+                /*
+            ]
+
+            +SVerticalBox::Slot()
+            .AutoHeight()
+            [
+                SNew(SUniformWrapPanel)
+            */
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT"),          "Colors.Select", true)]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nHOVER"),   "Colors.SelectHover")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nPARENT"),  "Colors.SelectParent")]
+                +SUniformWrapPanel::Slot()[ GenerateColorButton( FText::FromString("SELECT\nINACTIVE"),"Colors.SelectInactive")]
+            ]
+
+            +SVerticalBox::Slot()
+            .Padding(8.f, 24.f, 8.f, 8.f)
             .AutoHeight()
             [
                 SNew(STextBlock).ColorAndOpacity(LabelColor).Text(NSLOCTEXT("StarshipGallery", "AccentColors", "ACCENT COLORS"))

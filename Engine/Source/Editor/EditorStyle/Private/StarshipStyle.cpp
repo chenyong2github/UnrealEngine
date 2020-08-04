@@ -1273,7 +1273,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		
 	// Asset Thumbnail
 	{
-		Set( "AssetThumbnail.AssetBackground", new FSlateColorBrush(FStyleColors::Input));
+		Set( "AssetThumbnail.AssetBackground", new FSlateColorBrush(FStyleColors::Recessed));
 		Set( "AssetThumbnail.ClassBackground", new IMAGE_BRUSH( "Common/ClassBackground_64x", FVector2D(64.f, 64.f), FLinearColor(0.75f, 0.75f, 0.75f, 1.0f) ) );
 		Set( "AssetThumbnail.Font", DEFAULT_FONT( "Regular", 10 ) );
 		Set( "AssetThumbnail.FontSmall", DEFAULT_FONT( "Regular", 7 ) );
@@ -1773,7 +1773,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 		PaletteToolBarStyle.SetLabelStyle( GetParentStyle()->GetWidgetStyle<FTextBlockStyle>("SmallText") );
 		
-		PaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Input));
+		PaletteToolBarStyle.SetBackground(FSlateColorBrush(FStyleColors::Recessed));
 
 		PaletteToolBarStyle.SetLabelPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
 
@@ -1785,12 +1785,12 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 		Set( "PaletteToolBar.Tab",  FCheckBoxStyle()
 			.SetCheckBoxType(            ESlateCheckBoxType::ToggleButton)
-			.SetCheckedImage(            FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
-			.SetCheckedHoveredImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
-			.SetCheckedPressedImage(     FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
-			.SetUncheckedImage(          FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
-			.SetUncheckedHoveredImage(   FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
-			.SetUncheckedPressedImage(   FSlateRoundedBoxBrush(FStyleColors::Dropdown, 2.0))
+			.SetCheckedImage(            FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
+			.SetCheckedHoveredImage(     FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
+			.SetCheckedPressedImage(     FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
+			.SetUncheckedImage(          FSlateRoundedBoxBrush(FStyleColors::Secondary, 2.0))
+			.SetUncheckedHoveredImage(   FSlateRoundedBoxBrush(FStyleColors::Secondary, 2.0))
+			.SetUncheckedPressedImage(   FSlateRoundedBoxBrush(FStyleColors::Secondary, 2.0))
 			.SetForegroundColor(         FStyleColors::Foreground)
 			.SetHoveredForegroundColor(  FStyleColors::ForegroundHover)
 			.SetPressedForegroundColor(  FStyleColors::ForegroundHover)
@@ -1810,9 +1810,9 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 				.SetUncheckedImage(       FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
 				.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
 				.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Background, 2.0))
-				.SetCheckedImage(         FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
-				.SetCheckedHoveredImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
-				.SetCheckedPressedImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 2.0))
+				.SetCheckedImage(         FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
+				.SetCheckedHoveredImage(  FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
+				.SetCheckedPressedImage(  FSlateRoundedBoxBrush(FStyleColors::Recessed, 2.0))
 				.SetForegroundColor(       FStyleColors::Foreground)
 				.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 				.SetPressedForegroundColor(FStyleColors::ForegroundHover)
@@ -3173,7 +3173,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.CategoryTop",               new FSlateColorBrush(FStyleColors::Background));
 		Set( "DetailsView.CollapsedCategory_Hovered", new FSlateColorBrush(FStyleColors::Header));
 		Set( "DetailsView.CategoryTop_Hovered",       new FSlateColorBrush(FStyleColors::Header));
-		Set( "DetailsView.CategoryBottom",            new FSlateColorBrush(FStyleColors::Input));
+		Set( "DetailsView.CategoryBottom",            new FSlateColorBrush(FStyleColors::Recessed));
 
 		Set( "DetailsView.CategoryMiddle",            new FSlateColorBrush(FStyleColors::Background));
 		Set( "DetailsView.CategoryMiddle_Hovered",    new FSlateColorBrush(FStyleColors::Header));
@@ -3186,7 +3186,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 
 		Set( "DetailsView.Splitter", FSplitterStyle()
 			.SetHandleNormalBrush(   FSlateNoResource())                   
-			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Recessed))
 		);
 
 		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Background));
@@ -5926,7 +5926,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set("ContentBrowser.DefaultFolderColor", FStyleColors::AccentFolder);
 
 		Set( "ContentBrowser.Splitter", FSplitterStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FSplitterStyle>("Splitter"))
-			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Input))
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
 			);
 
 		// Asset list view
@@ -6006,8 +6006,8 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetPressedForegroundColor(FStyleColors::ForegroundHover);
 
 		Set("ContentBrowser.FilterImage", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filled-circle", Icon8x8));
-		Set("ContentBrowser.FilterBackgroundUnchecked", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
-		Set("ContentBrowser.FilterBackgroundChecked", new FSlateRoundedBoxBrush(FStyleColors::Input, 4.0f));
+		Set("ContentBrowser.FilterBackgroundUnchecked", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
+		Set("ContentBrowser.FilterBackgroundChecked", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
 		/* ... and add the new style */
 		Set("ContentBrowser.FilterButton", ContentBrowserFilterButtonCheckBoxStyle );
 
@@ -6127,9 +6127,9 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.ListViewFolderIcon", new IMAGE_BRUSH_SVG( "Starship/ContentBrowser/folder", FVector2D(64, 64) ) );
 		Set( "ContentBrowser.ListViewDeveloperFolderIcon", new IMAGE_BRUSH( "Icons/Folders/FolderDev_Base_256x", FVector2D(256, 256) ) );
 
-		Set("ContentBrowser.AssetTileItem.FolderAreaHoveredBackground", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
-		Set("ContentBrowser.AssetTileItem.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Input, 4.0f));
-		Set("ContentBrowser.AssetTileItem.NameAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f));
+		Set("ContentBrowser.AssetTileItem.FolderAreaHoveredBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
+		Set("ContentBrowser.AssetTileItem.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
+		Set("ContentBrowser.AssetTileItem.NameAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
 		Set("ContentBrowser.AssetTileItem.SelectedBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Primary, 1.0f));
 		Set("ContentBrowser.AssetTileItem.SelectedHoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::PrimaryHover, 1.0f));
 		Set("ContentBrowser.AssetTileItem.HoverBorder", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Hover, 1.0f));

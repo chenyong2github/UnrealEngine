@@ -6,8 +6,10 @@ const FSlateColor FStyleColors::Transparent = FSlateColor(FLinearColor::Transpar
 
 const FSlateColor FStyleColors::Black = EStyleColor::Black;
 const FSlateColor FStyleColors::Title = EStyleColor::Title;
+const FSlateColor FStyleColors::WindowBorder = EStyleColor::WindowBorder;
 const FSlateColor FStyleColors::Foldout = EStyleColor::Foldout;
 const FSlateColor FStyleColors::Input = EStyleColor::Input;
+const FSlateColor FStyleColors::Recessed = EStyleColor::Recessed;
 const FSlateColor FStyleColors::Background = EStyleColor::Background;
 const FSlateColor FStyleColors::Header = EStyleColor::Header;
 const FSlateColor FStyleColors::Dropdown = EStyleColor::Dropdown;
@@ -21,6 +23,7 @@ const FSlateColor FStyleColors::Highlight = EStyleColor::Highlight;
 const FSlateColor FStyleColors::Primary = EStyleColor::Primary;
 const FSlateColor FStyleColors::PrimaryHover = EStyleColor::PrimaryHover;
 const FSlateColor FStyleColors::PrimaryPress = EStyleColor::PrimaryPress;
+const FSlateColor FStyleColors::Secondary = EStyleColor::Secondary;
 
 const FSlateColor FStyleColors::Foreground = EStyleColor::Foreground;
 const FSlateColor FStyleColors::ForegroundHover = EStyleColor::ForegroundHover;
@@ -56,8 +59,10 @@ void UStyleColorTable::InitalizeDefaults()
 {
 	SetColor(EStyleColor::Black, COLOR("#000000FF"));
 	SetColor(EStyleColor::Title, COLOR("#151515FF"));
+	SetColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
 	SetColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
-	SetColor(EStyleColor::Input, COLOR("#1A1A1AFF"));
+	SetColor(EStyleColor::Input, COLOR("0F0F0FFF"));
+	SetColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
 	SetColor(EStyleColor::Background, COLOR("#242424FF"));
 	SetColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
 	SetColor(EStyleColor::Dropdown, COLOR("#383838FF"));
@@ -71,6 +76,7 @@ void UStyleColorTable::InitalizeDefaults()
 	SetColor(EStyleColor::Primary, COLOR("#26BBFFFF"));
 	SetColor(EStyleColor::PrimaryHover, COLOR("#6FD2FFFF"));
 	SetColor(EStyleColor::PrimaryPress, COLOR("#1989BCFF"));
+	SetColor(EStyleColor::Secondary, COLOR("#383838FF"));
 
 	SetColor(EStyleColor::Foreground, COLOR("#A6A6A6FF"));
 	SetColor(EStyleColor::ForegroundHover, COLOR("#FFFFFFFF"));

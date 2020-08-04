@@ -15,8 +15,10 @@ enum class EStyleColor : uint8
 {
 	Black,
 	Title,
+	WindowBorder,
 	Foldout,
 	Input,
+	Recessed,
 	Background,
 	Header,
 	Dropdown,
@@ -28,6 +30,7 @@ enum class EStyleColor : uint8
 	Primary,
 	PrimaryHover,
 	PrimaryPress,
+	Secondary, 
 	Foreground,
 	ForegroundHover,
 	ForegroundInverted,
@@ -146,8 +149,10 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor Transparent;
 	static const FSlateColor Black;
 	static const FSlateColor Title;
+	static const FSlateColor WindowBorder;
 	static const FSlateColor Foldout;
 	static const FSlateColor Input;
+	static const FSlateColor Recessed;
 	static const FSlateColor Background;
 	static const FSlateColor Header;
 	static const FSlateColor Dropdown;
@@ -160,7 +165,7 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor Primary;
 	static const FSlateColor PrimaryHover;
 	static const FSlateColor PrimaryPress;
-
+	static const FSlateColor Secondary;
 
 	static const FSlateColor Foreground;
 	static const FSlateColor ForegroundHover;
