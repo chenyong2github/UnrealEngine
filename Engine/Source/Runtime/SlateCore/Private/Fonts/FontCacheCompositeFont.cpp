@@ -9,8 +9,46 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
+#include "Application/SlateApplicationBase.h"
+#include "Async/Async.h"
+#include "HAL/PlatformProcess.h"
+
+static bool GAsyncFontLazyLoad = false;
+FAutoConsoleVariableRef CVarAsyncLazyLoad(
+	TEXT("Slate.Font.AsyncLazyLoad"),
+	GAsyncFontLazyLoad,
+	TEXT("Causes unloaded font faces that are lazily loaded, to be loaded asynchronusly, until then the font won't measure correctly.  Once complete the UI will invalidate."));
 
 DECLARE_CYCLE_STAT(TEXT("Load Font"), STAT_SlateLoadFont, STATGROUP_Slate);
+
+class FAsyncLoadFontFaceData : public FNonAbandonableTask
+{
+public:
+	FAsyncLoadFontFaceData(const FFontData& InFontData)
+		: FontData(InFontData)
+	{
+	}
+
+	const FFontData& GetFontData() { return FontData; }
+	TArray<uint8>& GetFontFaceData() { return FontFaceData; }
+
+	void DoWork()
+	{
+		if (!FFileHelper::LoadFileToArray(FontFaceData, *FontData.GetFontFilename()))
+		{
+			UE_LOG(LogSlate, Warning, TEXT("FAsyncLoadFontFaceData failed to load or process '%s' with face index %d"), *FontData.GetFontFilename(), FontData.GetSubFaceIndex());
+		}
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncLoadFontFaceData, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	FFontData FontData;
+	TArray<uint8> FontFaceData;
+};
 
 FCachedTypefaceData::FCachedTypefaceData()
 	: Typeface(nullptr)
@@ -228,7 +266,14 @@ FCompositeFontCache::FCompositeFontCache(const FFreeTypeLibrary* InFTLibrary)
 FCompositeFontCache::~FCompositeFontCache()
 {
 	FInternationalization::Get().OnCultureChanged().RemoveAll(this);
+
+	for (FAsyncTask<FAsyncLoadFontFaceData>* LoadFontFaceTask : LoadFontFaceTasks)
+	{
+		LoadFontFaceTask->EnsureCompletion();
+		delete LoadFontFaceTask;
+	}
 }
+
 
 const FFontData& FCompositeFontCache::GetDefaultFontData(const FSlateFontInfo& InFontInfo)
 {
@@ -367,15 +412,26 @@ TSharedPtr<FFreeTypeFace> FCompositeFontCache::GetFontFace(const FFontData& InFo
 			{
 			case EFontLoadingPolicy::LazyLoad:
 				{
-					const double FontDataLoadStartTime = FPlatformTime::Seconds();
-
-					TArray<uint8> FontFaceData;
-					if (FFileHelper::LoadFileToArray(FontFaceData, *InFontData.GetFontFilename()))
+					if (GAsyncFontLazyLoad)
 					{
-						const int32 FontDataSizeKB = (FontFaceData.Num() + 1023) / 1024;
-						LoadLogMessage = FString::Printf(TEXT("Took %f seconds to synchronously load lazily loaded font '%s' (%dK)"), float(FPlatformTime::Seconds() - FontDataLoadStartTime), *InFontData.GetFontFilename(), FontDataSizeKB);
+						FAsyncTask<FAsyncLoadFontFaceData>* AsyncFontLoadTaskPtr = new FAsyncTask<FAsyncLoadFontFaceData>(InFontData);
+						LoadFontFaceTasks.Add(AsyncFontLoadTaskPtr);
+						AsyncFontLoadTaskPtr->StartBackgroundTask();
 
-						FaceAndMemory = MakeShared<FFreeTypeFace>(FTLibrary, FFontFaceData::MakeFontFaceData(MoveTemp(FontFaceData)), InFontData.GetSubFaceIndex(), InFontData.GetLayoutMethod());
+						FaceAndMemory = MakeShared<FFreeTypeFace>(InFontData.GetLayoutMethod());
+					}
+					else
+					{
+						const double FontDataLoadStartTime = FPlatformTime::Seconds();
+
+						TArray<uint8> FontFaceData;
+						if (FFileHelper::LoadFileToArray(FontFaceData, *InFontData.GetFontFilename()))
+						{
+							const int32 FontDataSizeKB = (FontFaceData.Num() + 1023) / 1024;
+							LoadLogMessage = FString::Printf(TEXT("Took %f seconds to synchronously load lazily loaded font '%s' (%dK)"), float(FPlatformTime::Seconds() - FontDataLoadStartTime), *InFontData.GetFontFilename(), FontDataSizeKB);
+
+							FaceAndMemory = MakeShared<FFreeTypeFace>(FTLibrary, FFontFaceData::MakeFontFaceData(MoveTemp(FontFaceData)), InFontData.GetSubFaceIndex(), InFontData.GetLayoutMethod());
+						}
 					}
 				}
 				break;
@@ -390,7 +446,7 @@ TSharedPtr<FFreeTypeFace> FCompositeFontCache::GetFontFace(const FFontData& InFo
 		}
 
 		// Got a valid font?
-		if (FaceAndMemory.IsValid() && FaceAndMemory->IsValid())
+		if (FaceAndMemory.IsValid())
 		{
 			FontFaceMap.Add(InFontData, FaceAndMemory);
 
@@ -425,6 +481,54 @@ void FCompositeFontCache::FlushCache()
 {
 	CompositeFontToCachedDataMap.Empty();
 	FontFaceMap.Empty();
+}
+
+void FCompositeFontCache::Update()
+{
+	if (LoadFontFaceTasks.Num() > 0)
+	{
+		bool bRefreshNeeded = false;
+
+		for (int32 LoadTaskIndex = 0; LoadTaskIndex < LoadFontFaceTasks.Num(); LoadTaskIndex++)
+		{
+			FAsyncTask<FAsyncLoadFontFaceData>* LoadFontFaceTask = LoadFontFaceTasks[LoadTaskIndex];
+			if (LoadFontFaceTask->IsDone())
+			{
+				TArray<uint8>& FontFaceData = LoadFontFaceTask->GetTask().GetFontFaceData();
+
+				const FFontData& FontData = LoadFontFaceTask->GetTask().GetFontData();
+				TSharedPtr<FFreeTypeFace> FaceAndMemory = FontFaceMap.FindRef(FontData);
+				if (FaceAndMemory.IsValid())
+				{
+					if (FontFaceData.Num() > 0)
+					{
+						FaceAndMemory->CompleteAsyncLoad(FTLibrary, FFontFaceData::MakeFontFaceData(MoveTemp(FontFaceData)), FontData.GetSubFaceIndex());
+					}
+					else
+					{
+						FaceAndMemory->FailAsyncLoad();
+					}
+
+					bRefreshNeeded = true;
+				}
+
+				delete LoadFontFaceTask;
+				LoadFontFaceTasks.RemoveAt(LoadTaskIndex);
+				LoadTaskIndex--;
+			}
+		}
+
+		if (bRefreshNeeded)
+		{
+			AsyncTask(ENamedThreads::GameThread, []() {
+				if (FSlateApplicationBase::IsInitialized())
+				{
+					FSlateApplicationBase::Get().InvalidateAllWidgets(false);
+					GSlateLayoutGeneration++;
+				}
+			});
+		}
+	}
 }
 
 uint32 FCompositeFontCache::GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const
@@ -491,10 +595,19 @@ bool FCompositeFontCache::DoesFontDataSupportCodepoint(const FFontData& InFontDa
 {
 #if WITH_FREETYPE
 	TSharedPtr<FFreeTypeFace> FaceAndMemory = GetFontFace(InFontData);
-	return FaceAndMemory.IsValid() && FT_Get_Char_Index(FaceAndMemory->GetFace(), InCodepoint) != 0;
-#else  // WITH_FREETYPE
-	return false;
+	if (FaceAndMemory.IsValid())
+	{
+		if (!FaceAndMemory->IsFaceLoading())
+		{
+			return FT_Get_Char_Index(FaceAndMemory->GetFace(), InCodepoint) != 0;
+		}
+
+		// If the face is still loading, assume it has the the font face, until it loads and proves otherwise.
+		return true;
+	}
 #endif // WITH_FREETYPE
+
+	return false;
 }
 
 void FCompositeFontCache::HandleCultureChanged()
