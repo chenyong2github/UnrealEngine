@@ -465,6 +465,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bUseVirtualTexturing = UseVirtualTexturing(ViewFeatureLevel);
 	if (bUseVirtualTexturing)
 	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 		// AllocateResources needs to be called before RHIBeginScene
 		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, ViewFeatureLevel);
 		FVirtualTextureSystem::Get().CallPendingCallbacks();
@@ -504,6 +505,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bUseVirtualTexturing)
 	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 		FVirtualTextureSystem::Get().Update(RHICmdList, ViewFeatureLevel, Scene);
 	}
 
@@ -787,7 +789,9 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	if (bUseVirtualTexturing)
-	{	
+	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+
 		// No pass after this should make VT page requests
 		TArray<FIntRect, TInlineAllocator<4>> ViewRects;
 		ViewRects.AddUninitialized(Views.Num());
