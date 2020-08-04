@@ -43,6 +43,7 @@ class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 struct FExposureBufferData;
 struct FCloudRenderContext;
+struct FSingleLayerWaterPassData;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
@@ -1864,7 +1865,7 @@ protected:
 	/** Initialise volumetric cloud resources.*/
 	void InitVolumetricCloudsForViews(FRHICommandListImmediate& RHICmdList);
 	/** Render volumetric cloud. */
-	void RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList);
+	void RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList, bool bSkipVolumetricRenderTarget, bool bSkipPerPixelTracing);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
 	void RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList);
@@ -1877,6 +1878,8 @@ protected:
 	void ReconstructVolumetricRenderTarget(FRHICommandListImmediate& RHICmdList);
 	/** Compose the volumetric render target over the scene.*/
 	void ComposeVolumetricRenderTargetOverScene(FRHICommandListImmediate& RHICmdList);
+	/** Compose the volumetric render target over the scene from a view under water, in the water render target.*/
+	void ComposeVolumetricRenderTargetOverSceneUnderWater(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& WaterPassData);
 
 	void ResolveSceneColor(FRHICommandList& RHICmdList);
 

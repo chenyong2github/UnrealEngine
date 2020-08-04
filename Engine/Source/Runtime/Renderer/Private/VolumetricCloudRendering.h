@@ -67,7 +67,7 @@ public:
 	explicit FVolumetricCloudRenderSceneInfo(FVolumetricCloudSceneProxy& VolumetricCloudSceneProxy);
 	~FVolumetricCloudRenderSceneInfo();
 
-	FVolumetricCloudSceneProxy& GetVolumetricCloudSceneProxy() { return VolumetricCloudSceneProxy; }
+	FVolumetricCloudSceneProxy& GetVolumetricCloudSceneProxy() const { return VolumetricCloudSceneProxy; }
 
 	FVolumetricCloudCommonShaderParameters& GetVolumetricCloudCommonShaderParameters() { return VolumetricCloudCommonShaderParameters; }
 	const FVolumetricCloudCommonShaderParameters& GetVolumetricCloudCommonShaderParameters() const { return VolumetricCloudCommonShaderParameters; }
