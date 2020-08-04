@@ -561,3 +561,25 @@ struct TD3D12ResourceTraits<FRHITextureCube>
 {
 	typedef FD3D12TextureCube TConcreteType;
 };
+
+struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHICommandD3D12AsyncReallocateTexture2D>
+{
+	FD3D12Texture2D* OldTexture;
+	FD3D12Texture2D* NewTexture;
+	int32 NewMipCount;
+	int32 NewSizeX;
+	int32 NewSizeY;
+	FThreadSafeCounter* RequestStatus;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandD3D12AsyncReallocateTexture2D(FD3D12Texture2D* InOldTexture, FD3D12Texture2D* InNewTexture, int32 InNewMipCount, int32 InNewSizeX, int32 InNewSizeY, FThreadSafeCounter* InRequestStatus)
+		: OldTexture(InOldTexture)
+		, NewTexture(InNewTexture)
+		, NewMipCount(InNewMipCount)
+		, NewSizeX(InNewSizeX)
+		, NewSizeY(InNewSizeY)
+		, RequestStatus(InRequestStatus)
+	{
+	}
+
+	void Execute(FRHICommandListBase& RHICmdList);
+};
