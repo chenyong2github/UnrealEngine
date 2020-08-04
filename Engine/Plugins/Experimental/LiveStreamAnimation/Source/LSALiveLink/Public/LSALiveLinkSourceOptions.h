@@ -3,20 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LiveStreamAnimationLiveLinkSourceOptions.generated.h"
+#include "LSALiveLinkSourceOptions.generated.h"
 
 /**
  * Options used to specify which parts of FLiveLinkAnimationFrameData should
  * be serialized in packets.
  */
 USTRUCT(BlueprintType, Category = "Live Stream Animation|Live Link|Options")
-struct LIVESTREAMANIMATION_API FLiveStreamAnimationLiveLinkSourceOptions
+struct LSALIVELINK_API FLSALiveLinkSourceOptions
 {
 	GENERATED_BODY()
 
 public:
 
-	FLiveStreamAnimationLiveLinkSourceOptions()
+	FLSALiveLinkSourceOptions()
 		: bWithSceneTime(false)
 		, bWithStringMetaData(false)
 		, bWithPropertyValues(false)

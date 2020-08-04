@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserverd.
 
-#include "LiveLink/Test/SkelMeshToLiveLinkSource.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
+#include "LSALiveLinkSkelMeshSource.h"
+#include "LSALiveLinkFrameTranslator.h"
+#include "LSALiveLinkDataHandler.h"
+#include "LSALiveLinkSettings.h"
 #include "LiveStreamAnimationSubsystem.h"
-#include "LiveStreamAnimationSettings.h"
 
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
@@ -24,15 +25,18 @@ void ULiveLinkTestSkelMeshTrackerComponent::StartTrackingSkelMesh(FName InLiveLi
 
 	StopTrackingSkelMesh();
 
-	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+	TSharedPtr<const FLSALiveLinkSkelMeshSource> PinnedSource = Source.Pin();
 	if (!PinnedSource.IsValid())
 	{
 		UWorld* World = GetWorld();
 
 		if (ULiveStreamAnimationSubsystem* Subsystem = UGameInstance::GetSubsystem<ULiveStreamAnimationSubsystem>(World ? World->GetGameInstance() : nullptr))
 		{
-			Source = Subsystem->GetOrCreateSkelMeshToLiveLinkSource();
-			PinnedSource = Source.Pin();
+			if (ULSALiveLinkDataHandler* DataHandler = Subsystem->GetDataHandler<ULSALiveLinkDataHandler>())
+			{
+				PinnedSource = DataHandler->GetOrCreateLiveLinkSkelMeshSource();
+				Source = PinnedSource;
+			}
 		}
 
 		if (!PinnedSource.IsValid())
@@ -149,7 +153,7 @@ void ULiveLinkTestSkelMeshTrackerComponent::StopTrackingSkelMesh()
 		PrimaryComponentTick.RemovePrerequisite(LocalSkelMeshComp, LocalSkelMeshComp->PrimaryComponentTick);
 	}
 
-	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+	TSharedPtr<const FLSALiveLinkSkelMeshSource> PinnedSource = Source.Pin();
 	if (PinnedSource.IsValid())
 	{
 		if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
@@ -169,7 +173,7 @@ void ULiveLinkTestSkelMeshTrackerComponent::TickComponent(float DeltaTime, enum 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (USkeletalMeshComponent* LocalSkelMeshComp = UsingSkelMeshComp.Get())
 	{
-		TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+		TSharedPtr<const FLSALiveLinkSkelMeshSource> PinnedSource = Source.Pin();
 		if (ILiveLinkClient * LiveLinkClient = PinnedSource->GetLiveLinkClient())
 		{
 			FLiveLinkAnimationFrameData Frames;
@@ -217,9 +221,9 @@ class USkeleton* ULiveLinkTestSkelMeshTrackerComponent::GetSkeleton(bool& bInval
 	// If this happens, it's likely because we're in a Blueprint.
 	if (Skeleton == nullptr)
 	{
-		if (const ULiveStreamAnimationLiveLinkFrameTranslator* LocalTranslator = ULiveStreamAnimationSettings::GetFrameTranslator())
+		if (const ULSALiveLinkFrameTranslator* LocalTranslator = ULSALiveLinkSettings::GetFrameTranslator())
 		{
-			if (const FLiveStreamAnimationLiveLinkTranslationProfile* Profile = LocalTranslator->GetTranslationProfile(TranslationProfile))
+			if (const FLSALiveLinkTranslationProfile* Profile = LocalTranslator->GetTranslationProfile(TranslationProfile))
 			{
 				Skeleton = Profile->Skeleton.LoadSynchronous();
 			}
@@ -250,7 +254,7 @@ ILiveLinkClient* ULiveLinkTestSkelMeshTrackerComponent::GetLiveLinkClient() cons
 {
 	using namespace LiveStreamAnimation;
 
-	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+	TSharedPtr<const FLSALiveLinkSkelMeshSource> PinnedSource = Source.Pin();
 	return PinnedSource.IsValid() ? PinnedSource->GetLiveLinkClient() : nullptr;
 }
 
@@ -258,7 +262,7 @@ FLiveLinkSubjectKey ULiveLinkTestSkelMeshTrackerComponent::GetSubjectKey() const
 {
 	using namespace LiveStreamAnimation;
 
-	TSharedPtr<const FSkelMeshToLiveLinkSource> PinnedSource = Source.Pin();
+	TSharedPtr<const FLSALiveLinkSkelMeshSource> PinnedSource = Source.Pin();
 	return FLiveLinkSubjectKey(PinnedSource->GetGuid(), SubjectName);
 }
 

@@ -22,11 +22,6 @@ namespace LiveStreamAnimation
 
 		virtual ~FControlPacket() = 0;
 
-		static constexpr ELiveStreamAnimationPacketType GetAnimationPacketType()
-		{
-			return ELiveStreamAnimationPacketType::Control;
-		}
-
 		EControlPacketType GetPacketType() const
 		{
 			return PacketType;

@@ -21,36 +21,14 @@ public:
 	ULiveStreamAnimationSettings();
 
 	/**
-	 * Get the configured Live Link Frame Translator.
-	 *
-	 * May return null if one hasn't be set.
-	 */
-	static class ULiveStreamAnimationLiveLinkFrameTranslator* GetFrameTranslator();
-
-	/**
-	 * Register to receive notifications whenever the FrameTranslator is changed.
-	 * This should only happen in the Editor when a user changes the settings.
-	 */
-	static FDelegateHandle AddFrameTranslatorChangedCallback(FSimpleMulticastDelegate::FDelegate&& InDelegate);
-	static FDelegateHandle AddFrameTranslatorChangedCallback(const FSimpleMulticastDelegate::FDelegate& InDelegate);
-
-	/**
-	 * Unregister from notifications when the FrameTranslator is changed.
-	 */
-	static void RemoveFrameTranslatorChangedCallback(FDelegateHandle DelegateHandle);
-
-	/**
 	 * Get the configured list of Anim Handle Names.
 	 */
 	static const TArrayView<const FName> GetHandleNames();
 
-
-#if WITH_EDITOR
-	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	//~ End UObject Interface
-#endif
+	/**
+	 * Get the configured list fo Animation Data Handlers.
+	 */
+	static const TArrayView<const FSoftClassPath> GetConfiguredDataHandlers();
 
 	//~ Begin UDeveloperSettingsObject Interface
 	virtual FName GetContainerName() const;
@@ -66,21 +44,15 @@ public:
 private:
 
 	/**
-	 * The Frame Translator that'll be used to apply networked Live Link packets to usable
-	 * animation frames.
-	 *
-	 * See ULiveStreamAnimationLiveLinkFrameTranslator for more information.
-	 */
-	UPROPERTY(Config, Transient, EditAnywhere, Category="LiveStreamAnimation")
-	TSoftObjectPtr<class ULiveStreamAnimationLiveLinkFrameTranslator> FrameTranslator;
-
-	/**
 	 * List of names that we know and can use for network handles.
 	 *
 	 * See ULiveStreamAnimationSubsystem and FLiveStreamAnimationHandle for more information.
 	 */
 	UPROPERTY(Config, Transient, EditAnywhere, Category = "LiveStreamAnimation")
 	TArray<FName> HandleNames;
+
+	UPROPERTY(Config, Transient, EditAnywhere, Category = "LiveStreamAnimation", Meta = (AllowAbstract = "False", AllowedClasses="LiveStreamAnimationDataHandler"))
+	TArray<FSoftClassPath> ConfiguredDataHandlers;
 
 	//! Used to track changes to the FrameTranslator so systems running in the Editor / PIE
 	//! can update their state.

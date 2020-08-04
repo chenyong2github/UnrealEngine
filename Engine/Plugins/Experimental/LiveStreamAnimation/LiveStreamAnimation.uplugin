@@ -23,6 +23,19 @@
 			"BlacklistPlatforms": [
 				"Mac"
 			]
+		},
+		{
+			"Name": "LSALiveLink",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LSALiveLinkEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"BlacklistPlatforms": [
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [

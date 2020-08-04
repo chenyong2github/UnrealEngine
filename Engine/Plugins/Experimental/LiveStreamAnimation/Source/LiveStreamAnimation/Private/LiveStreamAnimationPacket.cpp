@@ -2,32 +2,29 @@
 
 #include "LiveStreamAnimationPacket.h"
 #include "LiveStreamAnimationLog.h"
+#include "LiveStreamAnimationSubsystem.h"
 
 
 namespace LiveStreamAnimation
 {
-	void FLiveStreamAnimationPacket::WriteToStream(FArchive& InWriter, const FLiveStreamAnimationPacket& InPacket)
+	void FLiveStreamAnimationPacket::WriteToStream(class FArchive& InWriter, const FLiveStreamAnimationPacket& InPacket)
 	{
-		uint8 LocalPacketType = static_cast<uint8>(InPacket.PacketType);
+		uint32 PacketId = InPacket.PacketType;
+		InWriter.SerializeIntPacked(PacketId);
+
 		uint32 DataSize = InPacket.PacketData.Num();
-		InWriter << LocalPacketType;
 		InWriter.SerializeIntPacked(DataSize);
+
 		InWriter.Serialize(const_cast<uint8*>(InPacket.PacketData.GetData()), InPacket.PacketData.Num());
 	}
 
 	TSharedPtr<FLiveStreamAnimationPacket> FLiveStreamAnimationPacket::ReadFromStream(class FArchive& InReader)
 	{
-		uint8 LocalPacketType = 0;
-		uint32 DataSize = 0;
-		InReader << LocalPacketType;
+		uint32 PacketType;
+		InReader.SerializeIntPacked(PacketType);
+
+		uint32 DataSize;
 		InReader.SerializeIntPacked(DataSize);
-
-		if (static_cast<uint8>(ELiveStreamAnimationPacketType::INVALID) <= LocalPacketType)
-		{
-			UE_LOG(LogLiveStreamAnimation, Warning, TEXT("FLiveStreamAnimationPacket::ReadFromStream: Invalid packet type %d"), LocalPacketType);
-			return nullptr;
-		}
-
 		const int32 SignedDataSize = static_cast<int32>(DataSize);
 		if (SignedDataSize < 0)
 		{
@@ -49,6 +46,11 @@ namespace LiveStreamAnimation
 			return nullptr;
 		}
 
-		return MakeShareable<FLiveStreamAnimationPacket>(new FLiveStreamAnimationPacket(static_cast<ELiveStreamAnimationPacketType>(LocalPacketType), MoveTemp(Data)));
+		return MakeShareable<FLiveStreamAnimationPacket>(new FLiveStreamAnimationPacket(PacketType, MoveTemp(Data)));
+	}
+
+	TSharedPtr<FLiveStreamAnimationPacket> FLiveStreamAnimationPacket::CreateFromData(const uint32 InPacketType, TArray<uint8>&& InPacketData)
+	{
+		return MakeShareable<FLiveStreamAnimationPacket>(new FLiveStreamAnimationPacket(InPacketType, MoveTemp(InPacketData)));
 	}
 }
