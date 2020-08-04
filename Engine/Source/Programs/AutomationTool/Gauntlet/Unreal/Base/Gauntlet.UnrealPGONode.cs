@@ -7,6 +7,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
+using Gauntlet.Utils;
 
 namespace Gauntlet
 {
@@ -146,7 +147,11 @@ namespace Gauntlet
 
 				if (!File.Exists(Path.Combine(ScreenshotDirectory, ImageFilename)))
 				{
-					Log.Warning("PGOPlatform.TakeScreenshot returned true, but output image {0} does not exist! skipping", ImageFilename);
+					Log.Info("PGOPlatform.TakeScreenshot returned true, but output image {0} does not exist! skipping", ImageFilename);
+				}
+				else if(new FileInfo(Path.Combine(ScreenshotDirectory, ImageFilename)).Length <= 0)
+				{
+					Log.Info("PGOPlatform.TakeScreenshot returned true, but output image {0} is size 0! skipping", ImageFilename);
 				}
 				else
 				{
@@ -165,17 +170,19 @@ namespace Gauntlet
 					}
 					catch (Exception e)
 					{
-						Log.Warning("Got Exception Renaming PGO image {0}: {1}", ImageFilename, e.ToString());
-						Process proc = Process.GetCurrentProcess();
-						Log.Info("Memory Usage: Private: {0}", proc.PrivateMemorySize64);
-						Log.Info("Memory Usage: Virtual: {0}", proc.VirtualMemorySize64);
-						Log.Info("Memory Usage: Peak Virtual: {0}", proc.PeakVirtualMemorySize64);
-						Log.Info("Memory Usage: Paged: {0}", proc.PagedMemorySize64);
-						Log.Info("Memory Usage: System Paged: {0}", proc.PagedSystemMemorySize64);
-						Log.Info("Memory Usage: System NonPaged: {0}", proc.NonpagedSystemMemorySize64);
-						Log.Info("Memory Usage: Working Set: {0}", proc.WorkingSet64);
-						Log.Info("Memory Usage: Peak Working Set: {0}", proc.PeakWorkingSet64);
-						proc.Dispose();
+						Log.Info("Got Exception Renaming PGO image {0}: {1}", ImageFilename, e.ToString());
+
+						TimeSpan ImageTimestamp = DateTime.UtcNow - ScreenshotStartTime;
+						string CopyFileName = Path.Combine(ScreenshotDirectory, ImageTimestamp.ToString().Replace(':', '-') + ".bmp");
+						Log.Info("Copying unconverted image {0} to {1}", ImageFilename, CopyFileName);
+						try
+						{
+							File.Copy(Path.Combine(ScreenshotDirectory, ImageFilename), CopyFileName);
+						}
+						catch (Exception e2)
+						{
+							Log.Warning("Got Exception copying un-converted screenshot image: {0}", e2.ToString());
+						}
 					}
 				}
 			}
