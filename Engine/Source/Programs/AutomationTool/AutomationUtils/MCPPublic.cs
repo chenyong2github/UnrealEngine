@@ -155,6 +155,11 @@ namespace EpicGames.MCP.Automation
 		/// Xbox One with GDK Platform
 		/// </summary>
 		XboxOneGDK,
+
+		/// <summary>
+		/// XSX platform
+		/// </summary>
+		XSX,
 	}
 
 	/// <summary>
@@ -284,7 +289,7 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.PS4;
 			}
-			else if (TargetPlatform == UnrealTargetPlatform.PS5)
+			else if (TargetPlatform.ToString() == "PS5")
 			{
 				return MCPPlatform.PS5;
 			}
@@ -292,9 +297,13 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.XboxOne;
 			}
-			else if (TargetPlatform== UnrealTargetPlatform.XboxOneGDK)
+			else if (TargetPlatform.ToString() == "XboxOneGDK")
 			{
 				return MCPPlatform.XboxOneGDK;
+			}
+			else if (TargetPlatform.ToString() == "XSX")
+			{
+				return MCPPlatform.XSX;
 			}
 			else if (TargetPlatform == UnrealTargetPlatform.Switch)
 			{
@@ -343,6 +352,18 @@ namespace EpicGames.MCP.Automation
 			else if (TargetPlatform == MCPPlatform.Switch)
 			{
 				return UnrealTargetPlatform.Switch;
+			}
+			else if (TargetPlatform == MCPPlatform.XboxOneGDK)
+			{
+				return UnrealTargetPlatform.Parse("XboxOneGDK");
+			}
+			else if (TargetPlatform == MCPPlatform.XSX)
+			{
+				return UnrealTargetPlatform.Parse("XSX");
+			}
+			else if (TargetPlatform == MCPPlatform.PS5)
+			{
+				return UnrealTargetPlatform.Parse("PS5");
 			}
 			throw new AutomationException("Platform {0} is not properly supported by the MCP backend yet", TargetPlatform);
         }
