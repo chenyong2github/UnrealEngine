@@ -3649,6 +3649,9 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 		{
 			UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building NavData:  %s."), *NavData->GetConfig().GetDescription());
 
+#if	WITH_EDITOR
+			NavData->SetIsBuildingOnLoad(bIsLoadTime);
+#endif
 			NavData->RebuildAll();
 		}
 	}
@@ -3698,10 +3701,13 @@ void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavDat
 	OnNavigationGenerationFinishedDelegate.Broadcast(&NavData);
 
 #if WITH_EDITOR
-	if (!GetWorld()->IsGameWorld())
+	if (GetWorld()->IsGameWorld() == false && NavData.IsBuildingOnLoad() == false)
 	{
 		NavData.MarkPackageDirty();
 	}
+
+	// Reset bIsBuildingOnLoad
+	NavData.SetIsBuildingOnLoad(false);
 #endif //WITH_EDITOR
 }
 
