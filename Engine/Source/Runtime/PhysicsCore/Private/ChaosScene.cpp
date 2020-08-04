@@ -430,7 +430,7 @@ void FChaosScene::CompleteSceneSimulationImp()
 			{
 				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
 				{
-					if(Concrete.HasActiveParticles())
+					if(Concrete.Enabled() && Concrete.HasActiveParticles())
 					{
 						ActiveSolvers.Add(&Concrete);
 					}
@@ -438,7 +438,7 @@ void FChaosScene::CompleteSceneSimulationImp()
 			}
 		}
 
-		if(SceneSolver && SceneSolver->HasActiveParticles())
+		if(SceneSolver && SceneSolver->Enabled() && SceneSolver->HasActiveParticles())
 		{
 			ActiveSolvers.AddUnique(SceneSolver);
 		}
