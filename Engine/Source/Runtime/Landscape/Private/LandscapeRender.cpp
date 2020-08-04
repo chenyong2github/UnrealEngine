@@ -1338,7 +1338,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 
 	LastVirtualTextureLOD = MaxLOD;
 	FirstVirtualTextureLOD = FMath::Max(MaxLOD - InComponent->GetLandscapeProxy()->VirtualTextureNumLods, 0);
-	VirtualTextureLodBias = InComponent->GetLandscapeProxy()->VirtualTextureLodBias - 1;
+	VirtualTextureLodBias = InComponent->GetLandscapeProxy()->VirtualTextureLodBias;
 
 #if WITH_EDITOR || !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	LODSettings.DrawCollisionPawnLOD = CollisionResponse.GetResponse(ECC_Pawn) == ECR_Ignore ? -1 : SimpleCollisionMipLevel;
