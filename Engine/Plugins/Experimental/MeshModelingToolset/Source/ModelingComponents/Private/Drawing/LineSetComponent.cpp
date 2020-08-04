@@ -259,6 +259,7 @@ void ULineSetComponent::SetLineStart(const int32 ID, const FVector& NewPostion)
 	FRenderableLine& OverlayLine = Lines[ID];
 	OverlayLine.Start = NewPostion;
 	MarkRenderStateDirty();
+	bBoundsDirty = true;
 }
 
 void ULineSetComponent::SetLineEnd(const int32 ID, const FVector& NewPostion)
@@ -266,6 +267,7 @@ void ULineSetComponent::SetLineEnd(const int32 ID, const FVector& NewPostion)
 	FRenderableLine& OverlayLine = Lines[ID];
 	OverlayLine.End = NewPostion;
 	MarkRenderStateDirty();
+	bBoundsDirty = true;
 }
 
 void ULineSetComponent::SetLineColor(const int32 ID, const FColor& NewColor)
