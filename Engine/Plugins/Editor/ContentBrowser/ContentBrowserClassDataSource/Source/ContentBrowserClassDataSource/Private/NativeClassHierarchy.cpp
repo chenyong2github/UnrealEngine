@@ -13,6 +13,8 @@
 #include "Misc/HotReloadInterface.h"
 #include "SourceCodeNavigation.h"
 #include "Interfaces/IPluginManager.h"
+#include "Interfaces/IProjectManager.h"
+#include "ProjectDescriptor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNativeClassHierarchy, Verbose, All);
 
@@ -588,15 +590,11 @@ TSet<FName> FNativeClassHierarchy::GetGameModules()
 
 	if (FApp::HasProjectName())
 	{
-		FGameProjectGenerationModule& GameProjectModule = FGameProjectGenerationModule::Get();
-
-		// Build up a set of known game modules - used to work out which modules populate Classes_Game
-		if (GameProjectModule.ProjectHasCodeFiles())
+		if (const FProjectDescriptor* const CurrentProject = IProjectManager::Get().GetCurrentProject())
 		{
-			TArray<FModuleContextInfo> GameModulesInfo = GameProjectModule.GetCurrentProjectModules();
-			for (const auto& GameModuleInfo : GameModulesInfo)
+			for (const FModuleDescriptor& Module : CurrentProject->Modules)
 			{
-				GameModules.Add(FName(*GameModuleInfo.ModuleName));
+				GameModules.Add(Module.Name);
 			}
 		}
 	}
