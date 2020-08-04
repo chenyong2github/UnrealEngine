@@ -179,6 +179,30 @@ struct TOverlappingEntityTracker
 		NewOutputs.Empty();
 	}
 
+	const OutputType* FindOutput(FMovieSceneEntityID EntityID) const
+	{
+		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
+		{
+			if (ensure(Outputs.IsValidIndex(*OutputIndex)))
+			{
+				return &Outputs[*OutputIndex].OutputData;
+			}
+		}
+		return nullptr;
+	}
+
+	OutputType* FindOutput(FMovieSceneEntityID EntityID)
+	{
+		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
+		{
+			if (ensure(Outputs.IsValidIndex(*OutputIndex)))
+			{
+				return &Outputs[*OutputIndex].OutputData;
+			}
+		}
+		return nullptr;
+	}
+
 protected:
 
 	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
