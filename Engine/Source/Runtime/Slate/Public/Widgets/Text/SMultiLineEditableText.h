@@ -62,6 +62,7 @@ public:
 		, _OnTextCommitted()
 		, _AllowMultiLine(true)
 		, _SelectAllTextWhenFocused(false)
+		, _SelectWordOnMouseDoubleClick(true)
 		, _ClearTextSelectionOnFocusLoss(true)
 		, _RevertTextOnEscape(false)
 		, _ClearKeyboardFocusOnCommit(true)
@@ -144,6 +145,9 @@ public:
 
 		/** Whether to select all text when the user clicks to give focus on the widget */
 		SLATE_ATTRIBUTE(bool, SelectAllTextWhenFocused)
+
+		/** Whether to select word on mouse double click on the widget */
+		SLATE_ATTRIBUTE(bool, SelectWordOnMouseDoubleClick)
 
 		/** Whether to clear text selection when focus is lost */
 		SLATE_ATTRIBUTE(bool, ClearTextSelectionOnFocusLoss)
@@ -280,6 +284,13 @@ public:
 
 	/** Set the VirtualKeyboardDismissAction attribute */
 	void SetVirtualKeyboardDismissAction(TAttribute< EVirtualKeyboardDismissAction > InVirtualKeyboardDismissAction);
+
+	/**
+	 * Sets whether to select word on the mouse double click
+	 *
+	 * @param  InSelectWordOnMouseDoubleClick		Select word on the mouse double click
+	 */
+	void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
 	
 	/** Sets the ReadOnly attribute */
 	void SetIsReadOnly(const TAttribute< bool >& InIsReadOnly);
@@ -438,6 +449,7 @@ protected:
 	virtual bool ShouldRevertTextOnEscape() const override;
 	virtual bool ShouldClearKeyboardFocusOnCommit() const override;
 	virtual bool ShouldSelectAllTextOnCommit() const override;
+	virtual bool ShouldSelectWordOnMouseDoubleClick() const override;
 	virtual bool CanInsertCarriageReturn() const override;
 	virtual bool CanTypeCharacter(const TCHAR InChar) const override;
 	virtual void EnsureActiveTick() override;
@@ -467,6 +479,9 @@ protected:
 
 	/** Whether to clear text selection when focus is lost */
 	TAttribute<bool> bClearTextSelectionOnFocusLoss;
+
+	/** Whether to select work on mouse double click */
+	TAttribute<bool> bSelectWordOnMouseDoubleClick;
 
 	/** True if any changes should be reverted if we receive an escape key */
 	TAttribute<bool> bRevertTextOnEscape;
