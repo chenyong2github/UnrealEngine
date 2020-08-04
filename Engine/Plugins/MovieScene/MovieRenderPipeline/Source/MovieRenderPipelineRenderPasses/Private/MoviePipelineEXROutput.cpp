@@ -40,7 +40,7 @@ public:
 		int64 DestPost = Pos + SrcN;
 		if (DestPost > Data.Num())
 		{
-			Data.AddUninitialized(FMath::Max(Data.Num() * 2, DestPost) - Data.Num());
+			Data.AddUninitialized(DestPost - Data.Num());
 		}
 
 		for (int64 i = 0; i < SrcN; ++i)
@@ -187,7 +187,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 				}
 				
 				// Reserve enough space in the output file for the whole layer so we don't keep reallocating.
-				OutputFile.Data.AddUninitialized(BytesWritten);
+				OutputFile.Data.Reserve(BytesWritten);
 			}
 
 			// This scope ensures that IMF::Outputfile creates a complete file by closing the file when it goes out of scope.
