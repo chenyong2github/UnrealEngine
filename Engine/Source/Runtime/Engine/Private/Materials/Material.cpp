@@ -3080,7 +3080,6 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
 	bool bNeedDefaultQuality = false;
 
-	TArray<FMaterialResource*> NewResourcesToCache;	// only new resources need to have CacheShaders() called on them, whereas OutCachedMaterialResources may already contain resources for another shader platform
 	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
 	{
 		// Add all quality levels actually used
@@ -3088,7 +3087,7 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 		{
 			FMaterialResource* NewResource = AllocateResource();
 			NewResource->SetMaterial(this, nullptr, (ERHIFeatureLevel::Type)TargetFeatureLevel, (EMaterialQualityLevel::Type)QualityLevelIndex);
-			NewResourcesToCache.Add(NewResource);
+			OutCachedMaterialResources.Add(NewResource);
 		}
 		else
 		{
@@ -3105,12 +3104,10 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	{
 		FMaterialResource* NewResource = AllocateResource();
 		NewResource->SetMaterial(this, nullptr, (ERHIFeatureLevel::Type)TargetFeatureLevel);
-		NewResourcesToCache.Add(NewResource);
+		OutCachedMaterialResources.Add(NewResource);
 	}
 
-	CacheShadersForResources(ShaderPlatform, NewResourcesToCache, TargetPlatform);
-
-	OutCachedMaterialResources.Append(NewResourcesToCache);
+	CacheShadersForResources(ShaderPlatform, OutCachedMaterialResources, TargetPlatform);
 }
 
 void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform)
