@@ -2,10 +2,11 @@
 
 
 #include "Snapping/PointPlanarSnapSolver.h"
+
 #include "VectorUtil.h"
 #include "LineTypes.h"
 #include "Quaternion.h"
-
+#include "ToolDataVisualizer.h"
 
 FPointPlanarSnapSolver::FPointPlanarSnapSolver()
 {
@@ -16,21 +17,22 @@ void FPointPlanarSnapSolver::Reset()
 {
 	FBasePositionSnapSolver3::Reset();
 	PointHistory.Reset();
+	ResetGenerated();
 }
 
-void FPointPlanarSnapSolver::ResetActiveSnap()
+/** Clears any existing generated snap targets. */
+void FPointPlanarSnapSolver::ResetGenerated()
 {
-	FBasePositionSnapSolver3::ResetActiveSnap();
 	GeneratedLines.Reset();
+	IntersectionPoints.Reset();
+	IntersectionSecondLinePointers.Reset();
 	GeneratedTargets.Reset();
 }
-
 
 void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector3d>& Points)
 {
 	PointHistory = Points;
-	GeneratedLines.Reset();
-	GeneratedTargets.Reset();
+	ResetGenerated();
 }
 
 void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector>& Points)
@@ -41,15 +43,31 @@ void FPointPlanarSnapSolver::UpdatePointHistory(const TArray<FVector>& Points)
 	{
 		PointHistory.Add(Points[k]);
 	}
-	GeneratedLines.Reset();
-	GeneratedTargets.Reset();
+	ResetGenerated();
 }
 
+void FPointPlanarSnapSolver::AppendHistoryPoint(const FVector3d& Point)
+{
+	PointHistory.Add(Point);
+	ResetGenerated();
+}
+
+void FPointPlanarSnapSolver::InsertHistoryPoint(const FVector3d& Point, int32 Index)
+{
+	PointHistory.Insert(Point, Index);
+	ResetGenerated();
+}
+
+void FPointPlanarSnapSolver::RemoveHistoryPoint(int32 Index)
+{
+	PointHistory.RemoveAt(Index);
+	ResetGenerated();
+}
 
 
 void FPointPlanarSnapSolver::RegenerateTargetLines(bool bCardinalAxes, bool bLastHistorySegment)
 {
-	GeneratedLines.Reset();
+	ResetGenerated();
 
 	int NumHistoryPts = PointHistory.Num();
 	if (NumHistoryPts == 0)
@@ -81,6 +99,118 @@ void FPointPlanarSnapSolver::RegenerateTargetLines(bool bCardinalAxes, bool bLas
 	}
 }
 
+void FPointPlanarSnapSolver::RegenerateTargetLinesAround(int32 HistoryIndex, bool bWrapAround, bool bGenerateIntersections)
+{
+	ResetGenerated();
+
+	// We allow indices one to each side of our history to allow snapping based on endpoints.
+	if (PointHistory.Num() == 0 || HistoryIndex < -1 || HistoryIndex > PointHistory.Num())
+	{
+		return;
+	}
+
+	// Templates for the objects that we'll be adding
+	FSnapTargetLine AxisLine;
+	AxisLine.TargetID = CardinalAxisTargetID;
+	AxisLine.Priority = CardinalAxisPriority;
+
+	// Add lines based on previous point
+	if (HistoryIndex > 0 || (bWrapAround && HistoryIndex == 0)) // Disallowing -1 here
+	{
+		int32 PreviousIndex = (HistoryIndex + PointHistory.Num() - 1) % PointHistory.Num();
+
+		AxisLine.Line = FLine3d(PointHistory[PreviousIndex], Plane.X());
+		GeneratedLines.Add(AxisLine);
+		AxisLine.Line = FLine3d(PointHistory[PreviousIndex], Plane.Y());
+		GeneratedLines.Add(AxisLine);
+	}
+
+	
+	if (HistoryIndex < PointHistory.Num() - 1 || (bWrapAround && HistoryIndex == PointHistory.Num() - 1)) // Disallowing PointHistory.Num())
+	{
+		int32 NextIndex = (HistoryIndex + 1) % PointHistory.Num();
+
+		AxisLine.Line = FLine3d(PointHistory[NextIndex], Plane.X());
+		GeneratedLines.Add(AxisLine);
+		AxisLine.Line = FLine3d(PointHistory[NextIndex], Plane.Y());
+		GeneratedLines.Add(AxisLine);
+
+	}
+
+	if (bGenerateIntersections)
+	{
+		GenerateLineIntersectionTargets();
+	}
+}
+
+void FPointPlanarSnapSolver::GenerateLineIntersectionTargets()
+{
+	IntersectionPoints.Reset();
+	IntersectionSecondLinePointers.Reset();
+
+	const double IN_PLANE_THRESHOLD = KINDA_SMALL_NUMBER * 10;
+
+	FSnapTargetPoint Intersection;
+	Intersection.TargetID = IntersectionTargetID;
+	
+	// Accumulate all lines in the plane so we can intersect them with each other. Also keep a 1:1
+	// array with pointers to the original 3-d lines so we can link the intersection points to them.
+	TArray<const FSnapTargetLine*> OriginalLinePointers;
+	TArray<FLine2d> LinesInPlane;
+	for (const FSnapTargetLine& Line : GeneratedLines)
+	{
+		FVector3d OriginInPlane = Plane.ToFramePoint(Line.Line.Origin);
+		if (OriginInPlane.Z < IN_PLANE_THRESHOLD)
+		{
+			FVector3d DirectionInPlane = Plane.ToFrameVector(Line.Line.Direction);
+			if (DirectionInPlane.Z < IN_PLANE_THRESHOLD)
+			{
+				LinesInPlane.Add(FLine2d(OriginInPlane.XY(), DirectionInPlane.XY()));
+				OriginalLinePointers.Add(&Line);
+			}
+		}
+	}
+	for (const FSnapTargetLine& Line : TargetLines)
+	{
+		FVector3d OriginInPlane = Plane.ToFramePoint(Line.Line.Origin);
+		if (OriginInPlane.Z < IN_PLANE_THRESHOLD)
+		{
+			FVector3d DirectionInPlane = Plane.ToFrameVector(Line.Line.Direction);
+			if (DirectionInPlane.Z < IN_PLANE_THRESHOLD)
+			{
+				LinesInPlane.Add(FLine2d(OriginInPlane.XY(), DirectionInPlane.XY()));
+				OriginalLinePointers.Add(&Line);
+			}
+		}
+	}
+
+	// Intersect all lines with each other
+	for (int i = 0; i < LinesInPlane.Num(); ++i)
+	{
+		for (int j = i; j < LinesInPlane.Num(); ++j)
+		{
+			FVector2d IntersectionPoint;
+			if (LinesInPlane[i].IntersectionPoint(LinesInPlane[j], IntersectionPoint))
+			{
+				Intersection.Position = Plane.FromFramePoint(FVector3d(IntersectionPoint));
+
+				// Lines in plane are 1:1 with our OriginalLinePointers array, which has more info per line.
+				// Store the more important priority line in the snap target, and the second line in the 
+				// IntersectionSecondLinePointers array.
+
+				bool bImportanceIsSwapped = OriginalLinePointers[i]->Priority > OriginalLinePointers[j]->Priority;
+				const FSnapTargetLine* MoreImportantLine = bImportanceIsSwapped ? OriginalLinePointers[j] : OriginalLinePointers[i];
+				const FSnapTargetLine* SecondLine = bImportanceIsSwapped ? OriginalLinePointers[i] : OriginalLinePointers[j];
+
+				Intersection.Priority = MoreImportantLine->Priority - IntersectionPriorityDelta;
+				Intersection.SnapLine = MoreImportantLine->Line;
+				IntersectionSecondLinePointers.Add(SecondLine);
+
+				IntersectionPoints.Add(Intersection);
+			}
+		}
+	}
+}
 
 void FPointPlanarSnapSolver::GenerateTargets(const FVector3d& PointIn)
 {
@@ -97,6 +227,17 @@ void FPointPlanarSnapSolver::GenerateTargets(const FVector3d& PointIn)
 		Target.Priority = GeneratedLines[j].Priority;
 		Target.bIsSnapLine = true;
 		Target.SnapLine = GeneratedLines[j].Line;
+		GeneratedTargets.Add(Target);
+	}
+
+	for (int j = 0; j < TargetLines.Num(); ++j)
+	{
+		FSnapTargetPoint Target;
+		Target.Position = TargetLines[j].Line.NearestPoint(PointIn);
+		Target.TargetID = TargetLines[j].TargetID;
+		Target.Priority = TargetLines[j].Priority;
+		Target.bIsSnapLine = true;
+		Target.SnapLine = TargetLines[j].Line;
 		GeneratedTargets.Add(Target);
 	}
 
@@ -134,6 +275,7 @@ void FPointPlanarSnapSolver::UpdateSnappedPoint(const FVector3d& PointIn)
 	static constexpr int MIN_PRIORITY = TNumericLimits<int>::Max();
 	int BestPriority = MIN_PRIORITY;
 	const FSnapTargetPoint* BestSnapTarget = nullptr;
+	bActiveSnapIsIntersection = false;
 
 	GenerateTargets(PointIn);
 
@@ -141,7 +283,6 @@ void FPointPlanarSnapSolver::UpdateSnappedPoint(const FVector3d& PointIn)
 	{
 		return PointIn;
 	};
-
 
 	const FSnapTargetPoint* BestPointTarget = FindBestSnapInSet(TargetPoints, MinMetric, BestPriority, GetSnapFromPointFunc);
 	if (BestPointTarget != nullptr)
@@ -155,6 +296,14 @@ void FPointPlanarSnapSolver::UpdateSnappedPoint(const FVector3d& PointIn)
 		BestSnapTarget = BestLineTarget;
 	}
 
+	int32 BestIntersectionIndex = FindIndexOfBestSnapInSet(IntersectionPoints, MinMetric, BestPriority, GetSnapFromPointFunc);
+	if (BestIntersectionIndex >= 0)
+	{
+		BestSnapTarget = &IntersectionPoints[BestIntersectionIndex];
+		bActiveSnapIsIntersection = true;
+		IntersectionSecondLine = IntersectionSecondLinePointers[BestIntersectionIndex]->Line;
+	}
+
 	if (bHaveActiveSnap && bEnableStableSnap && ActiveSnapTarget.bIsSnapLine == false)
 	{
 		if (TestSnapTarget(ActiveSnapTarget, MinMetric*StableSnapImproveThresh, BestPriority, GetSnapFromPointFunc))
@@ -162,7 +311,6 @@ void FPointPlanarSnapSolver::UpdateSnappedPoint(const FVector3d& PointIn)
 			return;
 		}
 	}
-
 
 	if (BestSnapTarget != nullptr)
 	{
@@ -173,4 +321,67 @@ void FPointPlanarSnapSolver::UpdateSnappedPoint(const FVector3d& PointIn)
 		ClearActiveSnapData();
 	}
 
+}
+
+void FPointPlanarSnapSolver::DebugRender(IToolsContextRenderAPI* RenderAPI)
+{
+	FToolDataVisualizer Renderer;
+	Renderer.BeginFrame(RenderAPI);
+	double LineLength = 10000;
+
+	int ActiveSnapID = (bHaveActiveSnap) ? GetActiveSnapTargetID() : -9999;
+
+	for (const FSnapTargetLine& LineTarget : TargetLines)
+	{
+		if (IsIgnored(LineTarget.TargetID))
+		{
+			continue;
+		}
+
+		const FLine3d& Line = LineTarget.Line;
+
+		FLinearColor UseColor = FColor::Cyan;
+		float LineWidth = (LineTarget.TargetID == ActiveSnapID) ? Renderer.LineThickness : Renderer.LineThickness * 0.5;
+		Renderer.DrawLine(Line.PointAt(-LineLength), Line.PointAt(LineLength), UseColor, LineWidth);
+	}
+
+	for (const FSnapTargetLine& LineTarget : GeneratedLines)
+	{
+		if (IsIgnored(LineTarget.TargetID))
+		{
+			continue;
+		}
+
+		const FLine3d& Line = LineTarget.Line;
+
+		FLinearColor UseColor = FColor::Cyan;
+		float LineWidth = (LineTarget.TargetID == ActiveSnapID) ? Renderer.LineThickness : Renderer.LineThickness * 0.5;
+		Renderer.DrawLine(Line.PointAt(-LineLength), Line.PointAt(LineLength), UseColor, LineWidth);
+	}
+
+	for (const FSnapTargetPoint& Point : IntersectionPoints)
+	{
+		if (IsIgnored(Point.TargetID))
+		{
+			continue;
+		}
+
+		FLinearColor UseColor = FColor::Cyan;
+		float LineWidth = (Point.TargetID == ActiveSnapID) ? Renderer.LineThickness : Renderer.LineThickness * 0.5;
+		Renderer.DrawCircle(Point.Position, FVector3d(1, 0, 0), 3, 64,
+			UseColor, LineWidth, Renderer.bDepthTested);
+	}
+
+	for (const FSnapTargetPoint& Point : TargetPoints)
+	{
+		if (IsIgnored(Point.TargetID))
+		{
+			continue;
+		}
+
+		FLinearColor UseColor = FColor::Cyan;
+		float LineWidth = (Point.TargetID == ActiveSnapID) ? Renderer.LineThickness : Renderer.LineThickness * 0.5;
+		Renderer.DrawCircle(Point.Position, FVector3d(1, 0, 0), 3, 64,
+			UseColor, LineWidth, Renderer.bDepthTested);
+	}
 }

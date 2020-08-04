@@ -32,6 +32,14 @@ namespace ToolSceneQueriesUtil
 	 */
 	MODELINGCOMPONENTS_API bool PointSnapQuery(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2, double VisualAngleThreshold = 0);
 
+	/**
+	 * Get a measurement for testing whether two points can snap together, useful for choosing the best snap point among multiple
+	 * options. For perspective mode, the returned metric is the "visual angle" between the points, which is the angle between the points
+	 * to the camera scaled such that the visual angle between the horizontal bounds of the view is 90. For orthographic mode, it is a 
+	 * projected distance onto the view plane scaled such that the distance between the horizontal bounds of the view is 90.
+	 * Thus, the metric is suitable for comparing against a visual angle snap threshold to determine if snapping should happen.
+	 */
+	MODELINGCOMPONENTS_API double PointSnapMetric(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2);
 
 	/**
 	 * @return visual angle between two 3D points, relative to the current camera position
