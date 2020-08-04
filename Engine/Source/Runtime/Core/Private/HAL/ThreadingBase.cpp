@@ -39,24 +39,13 @@ FQueuedThreadPool* GBackgroundPriorityThreadPool = nullptr;
 FQueuedThreadPool* GLargeThreadPool = nullptr;
 #endif
 
-int32 FTaskTagScope::GetStaticThreadId()
-{
-	static int32 ThreadID = FPlatformTLS::GetCurrentThreadId();
-	return ThreadID;
-}
-
-thread_local ETaskTag FTaskTagScope::ActiveTaskTag = ETaskTag::EStaticInit;
+thread_local ETaskTag FTaskTagScope::ActiveTaskTag = ETaskTag::ENone;
 static std::atomic_int ActiveNamedThreads = {};
 
 FTaskTagScope::FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag) : Tag(InTag), TagOnlyIfNone(InTagOnlyIfNone)
 {
 	checkf(Tag != ETaskTag::ENone, TEXT("None cannot be used as a Tag"));
 	checkf(Tag != ETaskTag::EParallelThread, TEXT("Parallel cannot be used on it's own"));
-
-	if (ActiveTaskTag == ETaskTag::EStaticInit)
-	{
-		checkf(Tag == ETaskTag::EGameThread && IsRunningDuringStaticInit(), TEXT("The Gamethread can only be tagged on the inital thread of the application"));
-	}
 
 	if (!EnumHasAllFlags(Tag, ETaskTag::EParallelThread))
 	{
@@ -108,7 +97,7 @@ FTaskTagScope::~FTaskTagScope()
 	}
 
 	//prolong the scope of the GT for static variable destructors
-	if (Tag == ETaskTag::EGameThread && ActiveTaskTag == ETaskTag::EStaticInit)
+	if (Tag == ETaskTag::EGameThread && ActiveTaskTag == ETaskTag::ENone)
 	{
 		ActiveTaskTag = ETaskTag::EGameThread;
 	}
@@ -124,16 +113,11 @@ ETaskTag FTaskTagScope::GetCurrentTag()
 	return ActiveTaskTag;
 }
 
-bool FTaskTagScope::IsRunningDuringStaticInit()
-{
-	return ActiveTaskTag == ETaskTag::EStaticInit && GetStaticThreadId() == FPlatformTLS::GetCurrentThreadId();
-}
-
 CORE_API bool IsInGameThread()
 {
 	if (GIsGameThreadIdInitialized)
 	{
-		bool newValue = FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread) || FTaskTagScope::IsRunningDuringStaticInit();
+		bool newValue = FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 		const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
 		bool oldValue = CurrentThreadId == GGameThreadId;
@@ -193,7 +177,7 @@ CORE_API bool IsInActualRenderingThread()
 CORE_API bool IsInRenderingThread()
 {
 	bool newValue = !GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed)
-		? FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread) || FTaskTagScope::IsRunningDuringStaticInit()
+		? FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread) || FTaskTagScope::IsCurrentTag(ETaskTag::ENone)
 		: FTaskTagScope::IsCurrentTag(ETaskTag::ERenderingThread);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
@@ -710,9 +694,6 @@ void FRunnableThread::SetTls()
 	check( ThreadID == FPlatformTLS::GetCurrentThreadId() );
 	check( FPlatformTLS::IsValidTlsSlot(RunnableTlsSlot) );
 	FPlatformTLS::SetTlsValue( RunnableTlsSlot, this );
-
-	check(FTaskTagScope::ActiveTaskTag == ETaskTag::EStaticInit);
-	FTaskTagScope::ActiveTaskTag = ETaskTag::ENone;
 }
 
 void FRunnableThread::FreeTls()

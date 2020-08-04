@@ -464,7 +464,6 @@ extern CORE_API bool GEnableVREditorHacks;
 enum class ETaskTag : int32
 {
 	ENone						= 0 << 0,
-	EStaticInit					= 1 << 0,
 	EGameThread					= 1 << 1,
 	ESlateThread				= 1 << 2,
 	EAudioThread				= 1 << 3,
@@ -488,29 +487,26 @@ ENUM_CLASS_FLAGS(ETaskTag);
  *
  * @param CtorSignature InTag the Tag to use
  */
-class CORE_API FTaskTagScope
+class FTaskTagScope
 {
-	friend class FRunnableThread;
 	static thread_local ETaskTag ActiveTaskTag;
-	static int32 GetStaticThreadId();
 	ETaskTag ParentTag;
 	ETaskTag Tag;
 	bool TagOnlyIfNone;
 
 protected:
-	FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
+	CORE_API FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
 
 public:
-	FTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(false, InTag)
+	CORE_API FTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(false, InTag)
 	{
 
 	}
 
-	~FTaskTagScope();
+	CORE_API ~FTaskTagScope();
 
 	static ETaskTag GetCurrentTag();
 	static bool IsCurrentTag(ETaskTag InTag);
-	static bool IsRunningDuringStaticInit();
 };
 
 /**
@@ -519,10 +515,10 @@ public:
  *
  * @param CtorSignature InTag the Tag to use
  */
-class CORE_API FOptionalTaskTagScope : public FTaskTagScope
+class FOptionalTaskTagScope : public FTaskTagScope
 {
 public:
-	FOptionalTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(true, InTag)
+	CORE_API FOptionalTaskTagScope(ETaskTag InTag = ETaskTag::ENone) : FTaskTagScope(true, InTag)
 	{
 
 	}
