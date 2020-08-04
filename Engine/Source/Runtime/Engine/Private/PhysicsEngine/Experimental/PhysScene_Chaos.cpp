@@ -58,6 +58,9 @@ TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT(
 
 #endif
 
+int32 GEnableKinematicDeferralStartPhysicsCondition = 1;
+FAutoConsoleVariableRef CVar_EnableKinematicDeferralStartPhysicsCondition(TEXT("p.EnableKinematicDeferralStartPhysicsCondition"), GEnableKinematicDeferralStartPhysicsCondition, TEXT("If is 1, allow kinematics to be deferred in start physics (probably only called from replication tick). If 0, no deferral in startphysics."));
+
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
 
 #if WITH_EDITOR
@@ -1561,12 +1564,23 @@ float FPhysScene_Chaos::OnStartFrame(float InDeltaTime)
 
 	ProcessDeferredCreatePhysicsState();
 
-	// Update any skeletal meshes that need their bone transforms sent to physics sim
-	UpdateKinematicsOnDeferredSkelMeshes();
-
+	// CVar determines if this happens before or after phys replication.
+	if (GEnableKinematicDeferralStartPhysicsCondition == 0)
+	{
+		// Update any skeletal meshes that need their bone transforms sent to physics sim
+		UpdateKinematicsOnDeferredSkelMeshes();
+	}
+	
 	if (PhysicsReplication)
 	{
 		PhysicsReplication->Tick(UseDeltaTime);
+	}
+
+	// CVar determines if this happens before or after phys replication.
+	if (GEnableKinematicDeferralStartPhysicsCondition)
+	{
+		// Update any skeletal meshes that need their bone transforms sent to physics sim
+		UpdateKinematicsOnDeferredSkelMeshes();
 	}
 
 	OnPhysScenePreTick.Broadcast(this,UseDeltaTime);

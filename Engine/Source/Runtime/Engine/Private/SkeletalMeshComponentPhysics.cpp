@@ -1332,10 +1332,18 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 			
 			// If enabled, allow deferral of PropagateFromParent updates in prephysics only.
 			// Probably should rework this entire condition to be more concrete, but do not want to introduce that much risk.
+			UWorld* World = GetWorld();
 			if (CVarEnableKinematicDeferralPrePhysicsCondition.GetValueOnGameThread())
 			{
-				UWorld* World = GetWorld();
 				if (World && (World->TickGroup == ETickingGroup::TG_PrePhysics))
+				{
+					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
+				}
+			}
+
+			if(GEnableKinematicDeferralStartPhysicsCondition)
+			{
+				if (World && (World->TickGroup == ETickingGroup::TG_StartPhysics))
 				{
 					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
 				}
