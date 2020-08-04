@@ -107,6 +107,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeDirectionalOuterSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+
+DECLARE_GPU_DRAWCALL_STAT_EXTERN(Basepass);
+
 extern FTextureRHIRef& GetEyeAdaptation(const FViewInfo& View);
 
 extern void SetupSharedBasePassParameters(

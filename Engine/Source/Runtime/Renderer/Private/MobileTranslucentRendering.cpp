@@ -39,6 +39,7 @@ void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdLi
 	if (ShouldRenderTranslucency(TranslucencyPass))
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, Translucency);
+		SCOPED_GPU_STAT(RHICmdList, Translucency);
 
 		for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
 		{
