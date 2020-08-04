@@ -307,6 +307,9 @@ public:
 	/** Array of custom session settings */
 	FSessionSettings Settings;
 
+	/** Map of custom settings per session member (Not currently used by every OSS) */
+	TUniqueNetIdMap<FSessionSettings> MemberSettings;
+
 public:
 	/** Default constructor, used when serializing a network packet */
 	FOnlineSessionSettings()
