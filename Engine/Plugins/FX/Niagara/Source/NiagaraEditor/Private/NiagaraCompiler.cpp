@@ -1357,6 +1357,11 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
 
+		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())
+		{
+			DumpHLSLText(Results.Data->LastAssemblyTranslation, CompilationJob->CompileResults.DumpDebugInfoPath);
+		}
+
 		Results.Data->InternalParameters.Empty();
 		for (int32 i = 0; i < CompilationOutput.InternalConstantOffsets.Num(); ++i)
 		{
