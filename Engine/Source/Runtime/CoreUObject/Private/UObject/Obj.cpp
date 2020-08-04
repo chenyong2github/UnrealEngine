@@ -2628,6 +2628,11 @@ FString UObject::GetGlobalUserConfigFilename() const
 	return FString::Printf(TEXT("%sUnreal Engine/Engine/Config/User%s.ini"), FPlatformProcess::UserSettingsDir(), *GetClass()->ClassConfigName.ToString());
 }
 
+FString UObject::GetProjectUserConfigFilename() const
+{
+	return FString::Printf(TEXT("%sUser%s.ini"), *FPaths::ProjectConfigDir(), *GetClass()->ClassConfigName.ToString());
+}
+
 // @todo ini: Verify per object config objects
 void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 {
@@ -2665,6 +2670,11 @@ void UObject::UpdateDefaultConfigFile(const FString& SpecificFileLocation)
 void UObject::UpdateGlobalUserConfigFile()
 {
 	UpdateSingleSectionOfConfigFile(GetGlobalUserConfigFilename());
+}
+
+void UObject::UpdateProjectUserConfigFile()
+{
+	UpdateSingleSectionOfConfigFile(GetProjectUserConfigFilename());
 }
 
 void UObject::UpdateSinglePropertyInConfigFile(const FProperty* InProperty, const FString& InConfigIniName)

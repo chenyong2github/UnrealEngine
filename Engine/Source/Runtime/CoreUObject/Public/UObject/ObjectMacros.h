@@ -179,8 +179,8 @@ enum EClassFlags
 	CLASS_Parsed              = 0x00000010u,
 	/** */
 	CLASS_MatchedSerializers  = 0x00000020u,
-	/** Unused */
-	// CLASS_Unused			  = 0x00000040u,
+	/** Indicates that the config settings for this class will be saved to Project/User*.ini (similar to CLASS_GlobalUserConfig) */
+	CLASS_ProjectUserConfig	  = 0x00000040u,
 	/** Class is a native class - native interfaces will have CLASS_Native set, but not RF_MarkAsNative */
 	CLASS_Native			  = 0x00000080u,
 	/** Don't export to C++ header. */
@@ -246,7 +246,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 
 /** Flags to inherit from base class */
 #define CLASS_Inherit ((EClassFlags)(CLASS_Transient | CLASS_DefaultConfig | CLASS_Config | CLASS_PerObjectConfig | CLASS_ConfigDoNotCheckDefaults | CLASS_NotPlaceable \
-						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig))
+						| CLASS_Const | CLASS_HasInstancedReference | CLASS_Deprecated | CLASS_DefaultToInstanced | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
 #define CLASS_RecompilerClear ((EClassFlags)(CLASS_Inherit | CLASS_Abstract | CLASS_NoExport | CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
@@ -262,6 +262,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 	CLASS_Abstract | \
 	CLASS_DefaultConfig | \
 	CLASS_GlobalUserConfig | \
+	CLASS_ProjectUserConfig | \
 	CLASS_Config | \
 	CLASS_Transient | \
 	CLASS_Native | \
