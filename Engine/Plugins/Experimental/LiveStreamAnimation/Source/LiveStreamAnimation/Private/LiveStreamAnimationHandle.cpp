@@ -6,7 +6,7 @@
 
 #include "Serialization/Archive.h"
 
-class FArchive& operator<<(class FArchive& InAr, FLiveStreamAnimationHandle& SubjectHandle)
+LIVESTREAMANIMATION_API class FArchive& operator<<(class FArchive& InAr, FLiveStreamAnimationHandle& SubjectHandle)
 {
 	if (InAr.IsSaving() && !SubjectHandle.IsValid())
 	{

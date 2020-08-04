@@ -8,30 +8,12 @@
 #include "ForwardingChannelsFwd.h"
 #include "ForwardingChannelFactory.h"
 #include "LiveStreamAnimationHandle.h"
+#include "LiveStreamAnimationRole.h"
+#include "LiveStreamAnimationDataHandler.h"
 #include "Containers/ArrayView.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkSourceOptions.h"
 #include "LiveStreamAnimationSubsystem.generated.h"
 
-UENUM(BlueprintType)
-enum class ELiveStreamAnimationRole : uint8
-{
-	Proxy,		//! Subsystem neither creates nor consumes animation data,
-				//! but is acting as a Proxy to pass through.
-
-	Processor,	//! Subsystem is consuming animation packets and evaluating
-				//! them locally. It also acts as a Proxy.
-
-	Tracker		//! Subsystem is evaluating animation locally and generating
-				//! animation packets that can be sent to other connections.
-				//! This node will ignore any received packets.
-};
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLiveStreamAnimationRoleChanged, const ELiveStreamAnimationRole);
-
-namespace LiveStreamAnimation
-{
-	class FSkelMeshToLiveLinkSource;
-}
 
 /**
  * Subsystem used to help with replicating Animation Data (typically performance capture data)
@@ -114,8 +96,15 @@ namespace LiveStreamAnimation
  * between this plugin and other game systems.
  * However, there's no reason why this couldn't be changed later.
  *
+ **************************************************************************************
+ *********************************** Data Handlers ************************************
+ **************************************************************************************
+ *
+ * Data handlers are the primary way for defining how data can be sent and received.
+ *
+ * See ULiveStreamAnimationDataHandler for more information.
  */
-UCLASS(DisplayName = "Live Stream Animation Subsystem", Transient, Config=Engine, Category = "Live Stream Animation")
+UCLASS(MinimalAPI, DisplayName = "Live Stream Animation Subsystem", Transient, Config=Engine, Category = "Live Stream Animation")
 class ULiveStreamAnimationSubsystem : public UGameInstanceSubsystem, public IForwardingChannelFactory
 {
 	GENERATED_BODY()
@@ -143,50 +132,16 @@ public:
 		return Role;
 	}
 
-	/**
-	 * Start tracking a Live Link subject that is active on this machine, serializing its data
-	 * to animation packets, and forward those to others connections.
-	 * Requires Animation Tracking to be enabled.
-	 *
-	 * The Registered Name passed in *must* be available / configured in the AllowedRegisteredNames
-	 * list, and that list is expected to be the same on all instances.
-	 *
-	 * @param LiveLinkSubject		The Live Link Subject that we are pulling animation data from locally.
-	 *
-	 * @param RegisteredName		The registered Live Link Subject name that will be used for clients
-	 *								evaluating animation data remotely.
-	 *								This name must be present in the HandleNames list.
-	 *
-	 * @param Options				Options describing the type of data we will track and send.
-	 *
-	 * @param TranslationProfile	The Translation Profile that we should use for this subject.
-	 *								This name must be present in the HandleNames list, otherwise the translation will not
-	 *								be applied.
-	 *								@see ULiveStreamAnimationLiveLinkFrameTranslator.
-	 *
-	 * @return Whether or not we successfully registered the subject for tracking.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
-	LIVESTREAMANIMATION_API bool StartTrackingLiveLinkSubject(
-		const FName LiveLinkSubject,
-		const FLiveStreamAnimationHandleWrapper RegisteredName,
-		const FLiveStreamAnimationLiveLinkSourceOptions Options,
-		const FLiveStreamAnimationHandleWrapper TranslationProfile);
+	UFUNCTION(BlueprintPure, Category = "Live Stream Animation", Meta=(AllowedClasses="LiveStreamAnimationDataHandler", AllowAbstract="False"))
+	LIVESTREAMANIMATION_API ULiveStreamAnimationDataHandler* GetDataHandler(TSubclassOf<ULiveStreamAnimationDataHandler> Type) const;
 
-	LIVESTREAMANIMATION_API bool StartTrackingLiveLinkSubject(
-		const FName LiveLinkSubject,
-		const FLiveStreamAnimationHandle RegisteredName,
-		const FLiveStreamAnimationLiveLinkSourceOptions Options,
-		const FLiveStreamAnimationHandle TranslationProfile);
+	template<typename T>
+	T* GetDataHandler() const
+	{
+		static_assert(TPointerIsConvertibleFromTo<T, const ULiveStreamAnimationDataHandler>::Value, "'T' template parameter to GetDataHandler must be derived from ULiveStreamAnimationDataHandler");
 
-	/**
-	 * Stop tracking a Live Link subject.
-	 *
-	 * @param RegisteredName		The registered remote name for the Live Link Subject.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation|Live Link")
-	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandleWrapper RegisteredName);
-	LIVESTREAMANIMATION_API void StopTrackingLiveLinkSubject(const FLiveStreamAnimationHandle RegisteredName);
+		return (T*)GetDataHandler(T::StaticClass());
+	}
 
 	static FName GetChannelName();
 
@@ -209,8 +164,6 @@ public:
 		return OnRoleChanged;
 	}
 
-	TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> GetOrCreateSkelMeshToLiveLinkSource();
-
 private:
 
 	UFUNCTION(BlueprintCallable, Category = "Live Stream Animation", DisplayName = "SetAcceptClientPackets", Meta=(AllowPrivateAccess="True"))
@@ -224,6 +177,8 @@ private:
 	UPROPERTY(Config, Transient)
 	bool bEnabled = true;
 
+	ELiveStreamAnimationRole Role;
+
 	template<typename T>
 	T* GetSubsystem()
 	{
@@ -235,7 +190,7 @@ private:
 	bool bShouldAcceptClientPackets = false;
 
 	TSharedPtr<ForwardingChannels::FForwardingGroup> ForwardingGroup;
-	TSharedPtr<LiveStreamAnimation::FLiveLinkStreamingHelper> LiveLinkStreamingHelper;
-	
-	ELiveStreamAnimationRole Role;
+
+	UPROPERTY(Transient)
+	TArray<ULiveStreamAnimationDataHandler*> ConfiguredDataHandlers;
 };

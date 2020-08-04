@@ -8,83 +8,80 @@
 #include "Components/ActorComponent.h"
 #include "BoneContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
-#include "SkelMeshToLiveLinkSource.generated.h"
+#include "LSALiveLinkSkelMeshSource.generated.h"
 
-class ULiveStreamAnimationLiveLinkFrameTranslator;
+class ULSALiveLinkFrameTranslator;
 
-namespace LiveStreamAnimation
+/**
+	* Bare bones Live Link source that will let us publish tracked skeletal mesh data.
+	*/
+class FLSALiveLinkSkelMeshSource : public ILiveLinkSource
 {
-	/**
-	 * Bare bones Live Link source that will let us publish tracked skeletal mesh data.
-	 */
-	class FSkelMeshToLiveLinkSource : public ILiveLinkSource
+public:
+
+	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override
 	{
-	public:
+		LiveLinkClient = InClient;
+		SourceGuid = InSourceGuid;
+	}
 
-		virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override
-		{
-			LiveLinkClient = InClient;
-			SourceGuid = InSourceGuid;
-		}
+	virtual void Update() override
+	{
+	}
 
-		virtual void Update() override
-		{
-		}
+	virtual bool CanBeDisplayedInUI() const override
+	{
+		return false;
+	}
 
-		virtual bool CanBeDisplayedInUI() const override
-		{
-			return false;
-		}
+	virtual bool IsSourceStillValid() const override
+	{
+		return true;
+	}
 
-		virtual bool IsSourceStillValid() const override
-		{
-			return true;
-		}
+	virtual bool RequestSourceShutdown() override
+	{
+		LiveLinkClient = nullptr;
+		SourceGuid = FGuid();
+		return true;
+	}
 
-		virtual bool RequestSourceShutdown() override
-		{
-			LiveLinkClient = nullptr;
-			SourceGuid = FGuid();
-			return true;
-		}
+	virtual FText GetSourceType() const override
+	{
+		return FText();
+	}
 
-		virtual FText GetSourceType() const override
-		{
-			return FText();
-		}
+	virtual FText GetSourceMachineName() const override
+	{
+		return FText();
+	}
 
-		virtual FText GetSourceMachineName() const override
-		{
-			return FText();
-		}
+	virtual FText GetSourceStatus() const override
+	{
+		return FText();
+	}
 
-		virtual FText GetSourceStatus() const override
-		{
-			return FText();
-		}
+	ILiveLinkClient* GetLiveLinkClient() const
+	{
+		return LiveLinkClient;
+	}
 
-		ILiveLinkClient* GetLiveLinkClient() const
-		{
-			return LiveLinkClient;
-		}
+	FGuid GetGuid() const
+	{
+		return SourceGuid;
+	}
 
-		FGuid GetGuid() const
-		{
-			return SourceGuid;
-		}
+private:
 
-	private:
-
-		ILiveLinkClient* LiveLinkClient;
-		FGuid SourceGuid;
-	};
-}
+	ILiveLinkClient* LiveLinkClient;
+	FGuid SourceGuid;
+};
 
 /**
  * Component that can be used to track positions in a Skel Mesh every frame, and publish them as a Live Link subject.
  */
 UCLASS(BlueprintType, Blueprintable, Category="Live Stream Animation|Live Link", Meta=(BlueprintSpawnableComponent))
-class LIVESTREAMANIMATION_API ULiveLinkTestSkelMeshTrackerComponent : public UActorComponent, public IBoneReferenceSkeletonProvider
+class LSALIVELINK_API ULiveLinkTestSkelMeshTrackerComponent : public UActorComponent, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
 
@@ -140,7 +137,7 @@ private:
 
 	// The LiveLink source that we created to track the skeleton.
 	// May become invalid if it is forcibly removed from Live Link.
-	TWeakPtr<const LiveStreamAnimation::FSkelMeshToLiveLinkSource> Source;
+	TWeakPtr<const FLSALiveLinkSkelMeshSource> Source;
 
 	// If BonesToTrack is non-empty and has at least one valid bone, then we will populate this array
 	// with the correct bone indices so we can quickly scape 

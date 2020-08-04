@@ -5,12 +5,14 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
-class FLSAEditorModule : public IModuleInterface
+class IOnlineSubsystemUtils;
+
+class FLSALiveLinkModule : public IModuleInterface
 {
 public:
 
-	FLSAEditorModule() = default;
-	virtual ~FLSAEditorModule() = default;
+	FLSALiveLinkModule() = default;
+	virtual ~FLSALiveLinkModule() = default;
 
 	// IModuleInterface
 	virtual void StartupModule() override;
@@ -25,7 +27,7 @@ protected:
 
 	static FName GetModuleName()
 	{
-		static FName ModuleName = FName(TEXT("LSAEditor"));
+		static FName ModuleName = FName(TEXT("LSALiveLink"));
 		return ModuleName;
 	}
 };
