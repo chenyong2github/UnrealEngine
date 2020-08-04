@@ -656,7 +656,7 @@ void FNiagaraShaderMap::Compile(
 	{
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 		// Since it creates a temporary ref counted pointer.
-		check(GetNumRefs() > 0);
+		check(NumRefs > 0);
   
 		//All access to NiagaraShaderMapsBeingCompiled must be done on the game thread!
 		check(IsInGameThread());
@@ -824,7 +824,7 @@ bool FNiagaraShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShade
 
 bool FNiagaraShaderMap::TryToAddToExistingCompilationTask(FNiagaraShaderScript* Script)
 {
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	//All access to NiagaraShaderMapsBeingCompiled must be done on the game thread!
 	check(IsInGameThread());
 	TArray<FNiagaraShaderScript*>* CorrespondingScripts = FNiagaraShaderMap::NiagaraShaderMapsBeingCompiled.Find(this);
@@ -870,7 +870,7 @@ bool FNiagaraShaderMap::IsComplete(const FNiagaraShaderScript* Script, bool bSil
 	check(!GIsThreadedRendering || !IsInRenderingThread());
 	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 	// Since it creates a temporary ref counted pointer.
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	//All access to NiagaraShaderMapsBeingCompiled must be done on the game thread!
 	check(IsInGameThread());
 	const TArray<FNiagaraShaderScript*>* CorrespondingScripts = FNiagaraShaderMap::NiagaraShaderMapsBeingCompiled.Find(this);
@@ -961,21 +961,32 @@ void FNiagaraShaderMap::Register(EShaderPlatform InShaderPlatform)
 	}
 }
 
+void FNiagaraShaderMap::AddRef()
+{
+	FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
+	check(!bDeletedThroughDeferredCleanup);
+	++NumRefs;
+}
 
-void FNiagaraShaderMap::OnReleased()
+void FNiagaraShaderMap::Release()
 {
 	{
 		FScopeLock ScopeLock(&GIdToNiagaraShaderMapCS);
-		if (bRegistered)
+
+		check(NumRefs > 0);
+		if (--NumRefs == 0)
 		{
-			DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
+			if (bRegistered)
+			{
+				DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
 
-			GIdToNiagaraShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
-			bRegistered = false;
+				GIdToNiagaraShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
+				bRegistered = false;
+			}
+
+			check(!bDeletedThroughDeferredCleanup);
+			bDeletedThroughDeferredCleanup = true;
 		}
-
-		check(!bDeletedThroughDeferredCleanup);
-		bDeletedThroughDeferredCleanup = true;
 	}
 	if (bDeletedThroughDeferredCleanup)
 	{
@@ -985,6 +996,7 @@ void FNiagaraShaderMap::OnReleased()
 
 FNiagaraShaderMap::FNiagaraShaderMap() :
 	CompilingId(1),
+	NumRefs(0),
 	bDeletedThroughDeferredCleanup(false),
 	bRegistered(false),
 	bCompilationFinalized(true),

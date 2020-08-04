@@ -404,8 +404,7 @@ public:
 	FNiagaraShaderMap();
 
 	// Destructor.
-	virtual ~FNiagaraShaderMap();
-	virtual void OnReleased() override;
+	~FNiagaraShaderMap();
 
 	/**
 	* Compiles the shaders for a script and caches them in this shader map.
@@ -453,6 +452,10 @@ public:
 	/** Registers a niagara shader map in the global map so it can be used by Niagara scripts. */
 	void Register(EShaderPlatform InShaderPlatform);
 
+	// Reference counting.
+	NIAGARASHADER_API  void AddRef();
+	NIAGARASHADER_API  void Release();
+
 	/**
 	* Removes all entries in the cache with exceptions based on a shader type
 	* @param ShaderType - The shader type to flush
@@ -495,6 +498,7 @@ public:
 
 	//const FUniformExpressionSet& GetUniformExpressionSet() const { return NiagaraCompilationOutput.UniformExpressionSet; }
 
+	int32 GetNumRefs() const { return NumRefs; }
 	uint32 GetCompilingId()  { return CompilingId; }
 	static TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> > &GetInFlightShaderMaps() 
 	{
@@ -524,6 +528,8 @@ private:
 
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
+
+	mutable int32 NumRefs;
 
 	/** Used to catch errors where the shader map is deleted directly. */
 	bool bDeletedThroughDeferredCleanup;

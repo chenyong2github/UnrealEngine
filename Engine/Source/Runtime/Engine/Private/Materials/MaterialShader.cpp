@@ -1306,7 +1306,7 @@ void FMaterialShaderMap::Compile(
   
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 		// Since it creates a temporary ref counted pointer.
-		check(GetNumRefs() > 0);
+		check(NumRefs > 0);
   
 		// Add this shader map and material resource to ShaderMapsBeingCompiled
 		TArray<FMaterial*>* CorrespondingMaterials = ShaderMapsBeingCompiled.Find(this);
@@ -1782,7 +1782,7 @@ bool FMaterialShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShad
 
 bool FMaterialShaderMap::TryToAddToExistingCompilationTask(FMaterial* Material)
 {
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	TArray<FMaterial*>* CorrespondingMaterials = FMaterialShaderMap::ShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingMaterials)
@@ -1952,7 +1952,7 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 
 	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 	// Since it creates a temporary ref counted pointer.
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	const TArray<FMaterial*>* CorrespondingMaterials = FMaterialShaderMap::ShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingMaterials)
@@ -2261,39 +2261,52 @@ void FMaterialShaderMap::Register(EShaderPlatform InShaderPlatform)
 	}
 }
 
-void FMaterialShaderMap::OnReleased()
+void FMaterialShaderMap::AddRef()
 {
 	//#todo-mw: re-enable to try to find potential corruption of the global shader map ID array
 	//check(IsInGameThread());
+	FScopeLock ScopeLock(&GIdToMaterialShaderMapCS);
+	check(!bDeletedThroughDeferredCleanup);
+	++NumRefs;
+}
+
+void FMaterialShaderMap::Release()
+{
+	//#todo-mw: re-enable to try to find potential corruption of the global shader map ID array
+	//check(IsInGameThread());
+
 	{
 		FScopeLock ScopeLock(&GIdToMaterialShaderMapCS);
 
-		if (bRegistered)
+		check(NumRefs > 0);
+		if (--NumRefs == 0)
 		{
-			bRegistered = false;
-			DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
-
-			FMaterialShaderMap* CachedMap = GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId);
-
-			// Map is marked as registered therefore we do expect it to be in the cache
-			// If this does not happen there's bug in code causing ShaderMapID to be the same for two different objects.
-			check(CachedMap == this);
-
-			if (CachedMap == this)
+			if (bRegistered)
 			{
-				GIdToMaterialShaderMap[GetShaderPlatform()].Remove(ShaderMapId);
+				bRegistered = false;
+				DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
+
+				FMaterialShaderMap *CachedMap = GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId);
+
+				// Map is marked as registered therefore we do expect it to be in the cache
+				// If this does not happen there's bug in code causing ShaderMapID to be the same for two different objects.
+				check(CachedMap == this);
+				
+				if (CachedMap == this)
+				{
+					GIdToMaterialShaderMap[GetShaderPlatform()].Remove(ShaderMapId);
+				}
 			}
-		}
-		else
-		{
-			//sanity check - the map has not been registered and therefore should not appear in the cache
-			check(GetShaderPlatform() >= EShaderPlatform::SP_NumPlatforms || GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId) != this);
-		}
+			else
+			{
+				//sanity check - the map has not been registered and therefore should not appear in the cache
+				check(GetShaderPlatform()>= EShaderPlatform::SP_NumPlatforms || GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId) != this);
+			}
 
-		check(!bDeletedThroughDeferredCleanup);
-		bDeletedThroughDeferredCleanup = true;
+			check(!bDeletedThroughDeferredCleanup);
+			bDeletedThroughDeferredCleanup = true;
+		}
 	}
-
 	if (bDeletedThroughDeferredCleanup)
 	{
 		BeginCleanup(this);
@@ -2303,6 +2316,7 @@ void FMaterialShaderMap::OnReleased()
 FMaterialShaderMap::FMaterialShaderMap() :
 	CompilingTargetPlatform(nullptr),
 	CompilingId(1),
+	NumRefs(0),
 	bDeletedThroughDeferredCleanup(false),
 	bRegistered(false),
 	bCompilationFinalized(true),
