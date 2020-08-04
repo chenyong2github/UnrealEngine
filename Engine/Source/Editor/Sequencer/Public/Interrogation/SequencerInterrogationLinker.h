@@ -3,7 +3,7 @@
 #pragma once
 
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "EntitySystem/MovieSceneEntityLedger.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "UObject/ObjectKey.h"
 #include "IMovieScenePlayer.h"
 
@@ -45,6 +45,18 @@ public:
 
 
 	/**
+	 * Import multiple tracks into this linker. See ImporTrack above.
+	 */
+	void ImportTracks(TArrayView<UMovieSceneTrack* const> Tracks)
+	{
+		for (UMovieSceneTrack* Track : Tracks)
+		{
+			ImportTrack(Track);
+		}
+	}
+
+
+	/**
 	 * Add a new time to interrogate this linker at, in the time-base of the imported tracks
 	 *
 	 * @param Time     The desired time to interrogate at
@@ -64,6 +76,40 @@ public:
 	 */
 	void Reset();
 
+
+	/**
+	 * Find an entity given the entity's owner.
+	 */
+	UE::MovieScene::FMovieSceneEntityID FindEntityFromOwner(UE::MovieScene::FInterrogationChannel InterrogationChannel, UObject* Owner, uint32 EntityID) const;
+
+
+	/**
+	 * Find an entity given the entity's owner.
+	 */
+	UE::MovieScene::FMovieSceneEntityID FindEntityFromOwner(FFrameTime InterrogationTime, UObject* Owner, uint32 EntityID) const;
+
+private:
+	struct FImportedEntityKey
+	{
+		UE::MovieScene::FInterrogationChannel InterrogationChannel;
+		FMovieSceneEvaluationFieldEntityPtr Entity;
+
+		friend bool operator==(FImportedEntityKey A, FImportedEntityKey B)
+		{
+			return A.InterrogationChannel == B.InterrogationChannel && A.Entity == B.Entity;
+		}
+		friend bool operator!=(FImportedEntityKey A, FImportedEntityKey B)
+		{
+			return !(A == B);
+		}
+		friend uint32 GetTypeHash(FImportedEntityKey In)
+		{
+			return HashCombine(In.InterrogationChannel.AsIndex(), GetTypeHash(In.Entity));
+		}
+	};
+
+	void InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityPtr& Entity);
+
 private:
 
 	/** Scratch buffer used for generating entities for interrogation times */
@@ -71,6 +117,9 @@ private:
 
 	/** Entity component field containing all the entity owners relevant at specific times */
 	FMovieSceneEntityComponentField EntityComponentField;
+
+	/** Ledger for all imported and manufactured entities */
+	TMap<FImportedEntityKey, FMovieSceneEntityID> ImportedEntities;
 
 	/** A map from interrogation channel to its time */
 	TMap<UE::MovieScene::FInterrogationChannel, FFrameTime> ChannelToTime;
