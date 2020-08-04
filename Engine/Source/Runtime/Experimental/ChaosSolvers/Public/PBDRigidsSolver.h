@@ -55,6 +55,12 @@ namespace Chaos
 	class FChaosArchive;
 	class FRewindData;
 
+	template <typename T,typename R,int d>
+	class ISpatialAccelerationCollection;
+
+	template <typename T,int d>
+	class TAccelerationStructureHandle;
+
 	enum class ELockType : uint8
 	{
 		Read,
@@ -364,6 +370,8 @@ namespace Chaos
 
 		FPerSolverFieldSystem& GetPerSolverField() { return *PerSolverField; }
 		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
+
+		void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>>& ExternalStructure);
 
 	private:
 

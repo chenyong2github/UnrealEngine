@@ -16,6 +16,7 @@
 #include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/Defines.h"
+#include "Chaos/PendingSpatialData.h"
 
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
@@ -23,102 +24,8 @@ extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
 
-// Declaring so it can be friended for tests.
-namespace ChaosTest
-{
-	template <typename TEvolution>
-	void TestPendingSpatialDataHandlePointerConflict();
-} 
-
 namespace Chaos
 {
-
-/** Used for updating intermediate spatial structures when they are finished */
-struct FPendingSpatialData
-{
-	TAccelerationStructureHandle<FReal, 3> AccelerationHandle;
-	FSpatialAccelerationIdx SpatialIdx;
-	FReal SyncTime;	//indicates the time associated with latest change. Only relevant for external queue
-	bool bDelete;
-
-	FPendingSpatialData()
-	: SyncTime(0)
-	, bDelete(false)
-	{}
-
-	void Serialize(FChaosArchive& Ar)
-	{
-		/*Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
-		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::SerializeHashResult)
-		{
-			Ar << UpdateAccelerationHandle;
-			Ar << DeleteAccelerationHandle;
-		}
-		else
-		{
-			Ar << UpdateAccelerationHandle;
-			DeleteAccelerationHandle = UpdateAccelerationHandle;
-		}
-
-		Ar << bUpdate;
-		Ar << bDelete;
-
-		Ar << UpdatedSpatialIdx;
-		Ar << DeletedSpatialIdx;*/
-		ensure(false);	//Serialization of transient data like this is currently broken. Need to reevaluate
-	}
-
-	FUniqueIdx UniqueIdx() const
-	{
-		return AccelerationHandle.UniqueIdx();
-	}
-};
-
-struct FPendingSpatialDataQueue
-{
-	TArray<FPendingSpatialData> PendingData;
-	TArrayAsMap<FUniqueIdx,int32> ParticleToPendingData;
-
-	void Reset()
-	{
-		PendingData.Reset();
-		ParticleToPendingData.Reset();
-	}
-
-	int32 Num() const
-	{
-		return PendingData.Num();
-	}
-
-	FPendingSpatialData& FindOrAdd(const FUniqueIdx UniqueIdx)
-	{
-		if(int32* Existing = ParticleToPendingData.Find(UniqueIdx))
-		{
-			return PendingData[*Existing];
-		} else
-		{
-			const int32 NewIdx = PendingData.AddDefaulted(1);
-			ParticleToPendingData.Add(UniqueIdx,NewIdx);
-			return PendingData[NewIdx];
-		}
-	}
-
-	void Remove(const FUniqueIdx UniqueIdx)
-	{
-		if(int32* Existing = ParticleToPendingData.Find(UniqueIdx))
-		{
-			const int32 SlotIdx = *Existing;
-			if(SlotIdx + 1 < PendingData.Num())
-			{
-				const FUniqueIdx LastElemUniqueIdx = PendingData.Last().UniqueIdx();
-				ParticleToPendingData.FindChecked(LastElemUniqueIdx) = SlotIdx;	//We're going to swap elements so the last element is now in the position of the element we removed
-			}
-
-			PendingData.RemoveAtSwap(SlotIdx);
-			ParticleToPendingData.RemoveChecked(UniqueIdx);
-		}
-	}
-};
 
 extern CHAOS_API int32 FixBadAccelerationStructureRemoval;
 
@@ -325,9 +232,6 @@ public:
 	typedef TFunction<void(const TParticleView<TPBDRigidParticles<FReal, 3>>&, const FReal)> FUpdatePositionRule;
 	typedef TFunction<void(TPBDRigidParticles<FReal, 3>&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
 	typedef TFunction<void(TParticleView<TPBDRigidParticles<FReal,3>>&)> FCaptureRewindRule;
-
-	template <typename TEvolution>
-	friend void ChaosTest::TestPendingSpatialDataHandlePointerConflict();
 
 	CHAOS_API TPBDRigidsEvolutionBase(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
@@ -716,8 +620,9 @@ public:
 		}
 	}
 
-	/** Make a copy of the acceleration structure to allow for external modification. This is needed for supporting sync operations on SQ structure from game thread */
-	CHAOS_API void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& ExternalStructure);
+	/** Make a copy of the acceleration structure to allow for external modification.
+	    This is needed for supporting sync operations on SQ structure from game thread. You probably want to go through solver which maintains PendingExternal */
+	CHAOS_API void UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>& ExternalStructure, FPendingSpatialDataQueue& PendingExternal);
 
 	ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* GetSpatialAcceleration() { return InternalAcceleration.Get(); }
 
@@ -737,8 +642,6 @@ public:
 		//NOTE: this should be thread safe since evolution has already been initialized on GT
 		return Particles.GetUniqueIndices().GenerateUniqueIdx();
 	}
-
-	CHAOS_API void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete,FReal SyncTime);
 
 protected:
 	int32 NumConstraints() const
@@ -866,9 +769,6 @@ protected:
 
 	/** Pending operations for the acceleration structures being rebuilt asynchronously */
 	FPendingSpatialDataQueue AsyncAccelerationQueue;
-
-	// The spatial operations not yet consumed by the internal sim. Use this to ensure any GT operations are seen immediately
-	FPendingSpatialDataQueue PendingSpatialOperations_External;
 
 	/*void SerializePendingMap(FChaosArchive& Ar, TMap<TGeometryParticleHandle<FReal, 3>*, FPendingSpatialData>& Map)
 	{

@@ -4,6 +4,7 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ChaosStats.h"
+#include "Chaos/PendingSpatialData.h"
 
 namespace Chaos
 {	
@@ -99,6 +100,33 @@ namespace Chaos
 		}
 
 		Solver.AdvanceSolverBy(Dt);
+	}
+
+	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
+		: BufferMode(BufferingModeIn)
+		, ThreadingMode(InThreadingMode)
+		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
+		, Owner(InOwner)
+		, TraitIdx(InTraitIdx)
+	{
+	}
+
+	FPhysicsSolverBase::~FPhysicsSolverBase() = default;
+
+
+	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete)
+	{
+		//mark it as pending for async structure being built
+		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
+		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
+
+		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
+		ensure(SpatialData.SyncTime <= MarshallingManager.GetExternalTimeConsumed_External() || !SpatialData.bDelete);
+
+		SpatialData.bDelete = bDelete;
+		SpatialData.SpatialIdx = Particle->SpatialIdx();
+		SpatialData.AccelerationHandle = AccelerationHandle;
+		SpatialData.SyncTime = MarshallingManager.GetExternalTime_External();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
