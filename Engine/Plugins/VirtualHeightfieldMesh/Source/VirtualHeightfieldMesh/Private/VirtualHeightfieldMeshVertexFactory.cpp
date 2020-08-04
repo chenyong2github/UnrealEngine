@@ -243,6 +243,11 @@ void FVirtualHeightfieldMeshVertexFactory::ReleaseRHI()
 
 bool FVirtualHeightfieldMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
+	//todo[vhm]: Fallback path for mobile.
+	if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+	{
+		return false;
+	}
 	return (Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithVirtualHeightfieldMesh) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
