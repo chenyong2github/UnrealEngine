@@ -72,6 +72,7 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 					.OnTextCommitted(this, &SEditableTextBox::OnEditableTextCommitted)
 					.MinDesiredWidth( InArgs._MinDesiredWidth )
 					.SelectAllTextOnCommit( InArgs._SelectAllTextOnCommit )
+					.SelectWordOnMouseDoubleClick(InArgs._SelectWordOnMouseDoubleClick)
 					.OnKeyCharHandler( InArgs._OnKeyCharHandler )			
 					.OnKeyDownHandler( InArgs._OnKeyDownHandler )
 					.VirtualKeyboardType( InArgs._VirtualKeyboardType )
@@ -395,6 +396,10 @@ void SEditableTextBox::SetSelectAllTextOnCommit(const TAttribute<bool>& InSelect
 	EditableText->SetSelectAllTextOnCommit(InSelectAllTextOnCommit);
 }
 
+void SEditableTextBox::SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick)
+{
+	EditableText->SetSelectWordOnMouseDoubleClick(InSelectWordOnMouseDoubleClick);
+}
 
 void SEditableTextBox::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
