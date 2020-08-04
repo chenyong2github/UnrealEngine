@@ -107,10 +107,7 @@ bool FComponentVisualizerManager::HandleInputKey(FEditorViewportClient* Viewport
 
 	if (EditedVisualizer.IsValid())
 	{
-		if(EditedVisualizer->HandleInputKey(ViewportClient, Viewport, Key, Event))
-		{
-			return true;
-		}
+		return EditedVisualizer->HandleInputKey(ViewportClient, Viewport, Key, Event);
 	}
 
 	return false;
@@ -120,12 +117,9 @@ bool FComponentVisualizerManager::HandleInputDelta(FEditorViewportClient* InView
 {
 	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
 
-	if (EditedVisualizer.IsValid() && EditedVisualizerViewportClient == InViewportClient && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
+	if (EditedVisualizer.IsValid() && InViewportClient && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
 	{
-		if (EditedVisualizer->HandleInputDelta(InViewportClient, InViewport, InDrag, InRot, InScale))
-		{
-			return true;
-		}
+		return EditedVisualizer->HandleInputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
 	}
 
 	return false;
@@ -135,12 +129,9 @@ bool FComponentVisualizerManager::HandleFrustumSelect(const FConvexVolume& InFru
 {
 	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
 
-	if (EditedVisualizer.IsValid() && EditedVisualizerViewportClient == InViewportClient)
+	if (EditedVisualizer.IsValid())
 	{
-		if (EditedVisualizer->HandleFrustumSelect(InFrustum, InViewportClient, InViewport))
-		{
-			return true;
-		}
+		return EditedVisualizer->HandleFrustumSelect(InFrustum, InViewportClient, InViewport);
 	}
 
 	return false;
@@ -150,12 +141,9 @@ bool FComponentVisualizerManager::HandleBoxSelect(const FBox& InBox, FEditorView
 {
 	TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
 
-	if (EditedVisualizer.IsValid() && EditedVisualizerViewportClient == InViewportClient)
+	if (EditedVisualizer.IsValid())
 	{
-		if (EditedVisualizer->HandleBoxSelect(InBox, InViewportClient, InViewport))
-		{
-			return true;
-		}
+		return EditedVisualizer->HandleBoxSelect(InBox, InViewportClient, InViewport);
 	}
 
 	return false;
@@ -167,10 +155,7 @@ bool FComponentVisualizerManager::HasFocusOnSelectionBoundingBox(FBox& OutBoundi
 
 	if (EditedVisualizer.IsValid())
 	{
-		if (EditedVisualizer->HasFocusOnSelectionBoundingBox(OutBoundingBox))
-		{
-			return true;
-		}
+		return EditedVisualizer->HasFocusOnSelectionBoundingBox(OutBoundingBox);
 	}
 
 	return false;
@@ -182,10 +167,7 @@ bool FComponentVisualizerManager::HandleSnapTo(const bool bInAlign, const bool b
 
 	if (EditedVisualizer.IsValid())
 	{
-		if (EditedVisualizer->HandleSnapTo(bInAlign, bInUseLineTrace, bInUseBounds, bInUsePivot, InDestination))
-		{
-			return true;
-		}
+		return EditedVisualizer->HandleSnapTo(bInAlign, bInUseLineTrace, bInUseBounds, bInUsePivot, InDestination);
 	}
 
 	return false;
