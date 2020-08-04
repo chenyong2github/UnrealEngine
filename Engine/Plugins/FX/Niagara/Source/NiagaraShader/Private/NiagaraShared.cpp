@@ -660,7 +660,7 @@ NIAGARASHADER_API  FNiagaraShaderRef FNiagaraShaderScript::GetShader(int32 Permu
 
 NIAGARASHADER_API  FNiagaraShaderRef FNiagaraShaderScript::GetShaderGameThread(int32 PermutationId) const
 {
-	if (GameThreadShaderMap)
+	if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 	{
 		return GameThreadShaderMap->GetShader<FNiagaraShader>(PermutationId);
 	}
