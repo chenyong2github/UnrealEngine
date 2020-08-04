@@ -504,7 +504,7 @@ public:
 	 *
 	 * @return true if successful searching for sessions, false otherwise
 	 */
-	virtual bool StartMatchmaking(const TArray<FSessionMatchmakingUser>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings, const FOnStartMatchmakingComplete& CompletionDelegate);
+	virtual bool ONLINESUBSYSTEM_API StartMatchmaking(const TArray<FSessionMatchmakingUser>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings, const FOnStartMatchmakingComplete& CompletionDelegate);
 	
 	/**
 	 * Delegate fired when the cloud matchmaking has completed
