@@ -316,6 +316,17 @@ void SFindInMaterial::MatchTokens(const TArray<FString> &Tokens)
 			}
 		}
 
+		// If we still don't have any results, fall back to searching the node type.
+		if (!bNodeMatchesSearch)
+		{
+			const FString NodeType = Node->GetNodeTitle(ENodeTitleType::ListView).ToString();
+			*NodeResult = FFindInMaterialResult(NodeType, RootSearchResult, Node);
+			NodeResult->Value = NodeName + " - " + NodeType;
+
+			NodeSearchString = NodeType.Replace(TEXT(" "), TEXT(""));
+			bNodeMatchesSearch = StringMatchesSearchTokens(Tokens, NodeSearchString);
+		}
+
 		for (TArray<UEdGraphPin*>::TIterator PinIt(Node->Pins); PinIt; ++PinIt)
 		{
 			UEdGraphPin* Pin = *PinIt;
