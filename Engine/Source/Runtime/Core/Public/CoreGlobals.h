@@ -464,6 +464,7 @@ extern CORE_API bool GEnableVREditorHacks;
 enum class ETaskTag : int32
 {
 	ENone						= 0 << 0,
+	EStaticInit					= 1 << 0,
 	EGameThread					= 1 << 1,
 	ESlateThread				= 1 << 2,
 	EAudioThread				= 1 << 3,
@@ -489,10 +490,15 @@ ENUM_CLASS_FLAGS(ETaskTag);
  */
 class FTaskTagScope
 {
+	friend class FRunnableThread;
+	friend class FRenderingThread;
 	static thread_local ETaskTag ActiveTaskTag;
+	static int32 GetStaticThreadId();
 	ETaskTag ParentTag;
 	ETaskTag Tag;
 	bool TagOnlyIfNone;
+
+	static void CORE_API SetTagNone();
 
 protected:
 	CORE_API FTaskTagScope(bool InTagOnlyIfNone, ETaskTag InTag);
@@ -505,8 +511,9 @@ public:
 
 	CORE_API ~FTaskTagScope();
 
-	static ETaskTag GetCurrentTag();
-	static bool IsCurrentTag(ETaskTag InTag);
+	static CORE_API ETaskTag GetCurrentTag();
+	static CORE_API bool IsCurrentTag(ETaskTag InTag);
+	static CORE_API bool IsRunningDuringStaticInit();
 };
 
 /**

@@ -450,6 +450,8 @@ public:
 	virtual bool Init(void) override
 	{ 
 		GRenderThreadId = FPlatformTLS::GetCurrentThreadId();
+		FTaskTagScope::SetTagNone();
+		FTaskTagScope Scope(ETaskTag::ERenderingThread);
 
 		// Acquire rendering context ownership on the current thread, unless using an RHI thread, which will be the real owner
 		if (!IsRunningRHIInSeparateThread())
