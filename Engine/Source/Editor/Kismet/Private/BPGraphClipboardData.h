@@ -4,24 +4,30 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
-#include "BPFunctionClipboardData.generated.h"
+#include "BPGraphClipboardData.generated.h"
 
 struct FBPVariableDescription;
 
 /** A helper struct for copying a Blueprint Function to the clipboard */
 USTRUCT()
-struct FBPFunctionClipboardData
+struct FBPGraphClipboardData
 {
 	GENERATED_BODY()
 
 	/** Default constructor */
-	FBPFunctionClipboardData() = default;
+	FBPGraphClipboardData();
 
-	/** Constructs a FBPFunctionClipboardData from a graph */
-	FBPFunctionClipboardData(const UEdGraph* InFuncGraph);
+	/** Constructs a FBPGraphClipboardData from a graph */
+	FBPGraphClipboardData(const UEdGraph* InFuncGraph);
 	
 	/** Checks if the data is valid for configuring a graph */
 	bool IsValid() const;
+
+	/** Returns whether the graph represents a function */
+	bool IsFunction() const;
+
+	/** Returns whether the graph represents a macro */
+	bool IsMacro() const;
 
 	/** Populates the struct based on a graph */
 	void SetFromGraph(const UEdGraph* InFuncGraph);
@@ -40,9 +46,13 @@ private:
 	void PopulateGraph(UEdGraph* InFuncGraph);
 
 private:
-	/** Name of the Function */
+	/** Name of the Graph */
 	UPROPERTY()
-	FName FuncName;
+	FName GraphName;
+
+	/** The type of graph */
+	UPROPERTY()
+	TEnumAsByte<EGraphType> GraphType;
 
 	/** A string containing the exported text for the nodes in this function */
 	UPROPERTY()

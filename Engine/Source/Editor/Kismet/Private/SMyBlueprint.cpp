@@ -58,15 +58,15 @@
 #include "ReplaceNodeReferencesHelper.h"
 #include "Animation/AnimClassInterface.h"
 
-#include "BPFunctionClipboardData.h"
+#include "BPGraphClipboardData.h"
 
 #define LOCTEXT_NAMESPACE "MyBlueprint"
 
 //////////////////////////////////////////////////////////////////////////
 
-// Magic values to differentiate Variables and Functions on the clipboard
+// Magic values to differentiate Variables and Graphs on the clipboard
 static const TCHAR* VAR_PREFIX = TEXT("BPVar");
-static const TCHAR* FUNC_PREFIX = TEXT("BPFunc");
+static const TCHAR* GRAPH_PREFIX = TEXT("BPGraph");
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -81,6 +81,7 @@ void FMyBlueprintCommands::RegisterCommands()
 	UI_COMMAND( PasteVariable, "Paste Variable", "Pastes the variable to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( PasteLocalVariable, "Paste Local Variable", "Pastes the variable to this scope.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( PasteFunction, "Paste Function", "Pastes the function to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND( PasteMacro, "Paste Macro", "Pastes the macro to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( GotoNativeVarDefinition, "Goto Code Definition", "Goto the native code definition of this variable", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( MoveToParent, "Move to Parent Class", "Moves the variable to its parent class", EUserInterfaceActionType::Button, FInputChord() );
 }
@@ -355,6 +356,11 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteFunction),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteFunction));
+
+		CommandList->MapAction(FMyBlueprintCommands::Get().PasteMacro,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteMacro),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteMacro));
 	}
 	else
 	{
@@ -2289,6 +2295,7 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		if (CurrentBlueprint->SupportsMacros())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewMacroDeclaration);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().PasteMacro);
 		}
 		if (CurrentBlueprint->SupportsEventGraphs())
 		{
@@ -3195,7 +3202,7 @@ void SMyBlueprint::OnCopy()
 				}
 			}
 
-			FBPVariableDescription::StaticStruct()->ExportText(OutputString, &Description, nullptr, nullptr, 0, nullptr, false);
+			FBPVariableDescription::StaticStruct()->ExportText(OutputString, &Description, &Description, nullptr, 0, nullptr, false);
 			OutputString = VAR_PREFIX + OutputString;
 		}
 	}
@@ -3205,18 +3212,15 @@ void SMyBlueprint::OnCopy()
 
 		if (Description)
 		{
-			FBPVariableDescription::StaticStruct()->ExportText(OutputString, Description, nullptr, nullptr, 0, nullptr, false);
+			FBPVariableDescription::StaticStruct()->ExportText(OutputString, Description, Description, nullptr, 0, nullptr, false);
 			OutputString = VAR_PREFIX + OutputString;
 		}
 	}
 	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
-		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function)
-		{
-			FBPFunctionClipboardData FuncData(GraphAction->EdGraph);
-			FBPFunctionClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, nullptr, nullptr, 0, nullptr, false);
-			OutputString = FUNC_PREFIX + OutputString;
-		}
+		FBPGraphClipboardData FuncData(GraphAction->EdGraph);
+		FBPGraphClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, &FuncData, nullptr, 0, nullptr, false);
+		OutputString = GRAPH_PREFIX + OutputString;
 	}
 
 	if (!OutputString.IsEmpty())
@@ -3237,7 +3241,11 @@ bool SMyBlueprint::CanCopy() const
 	}
 	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
 	{
-		return GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function;
+		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function ||
+			GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Macro)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -3269,11 +3277,15 @@ void SMyBlueprint::OnPasteGeneric()
 	{
 		OnPasteFunction();
 	}
+	else if (CanPasteMacro())
+	{
+		OnPasteMacro();
+	}
 }
 
 bool SMyBlueprint::CanPasteGeneric()
 {
-	return CanPasteVariable() || CanPasteLocalVariable() || CanPasteFunction();
+	return CanPasteVariable() || CanPasteLocalVariable() || CanPasteFunction() || CanPasteMacro();
 }
 
 void SMyBlueprint::OnPasteVariable()
@@ -3404,15 +3416,15 @@ void SMyBlueprint::OnPasteFunction()
 {
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-	if (!ensure(ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive)))
+	if (!ensure(ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive)))
 	{
 		return;
 	}
 
-	FBPFunctionClipboardData FuncData;
+	FBPGraphClipboardData FuncData;
 	FStringOutputDevice Errors;
-	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
-	FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(GRAPH_PREFIX);
+	FBPGraphClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPGraphClipboardData::StaticStruct()->GetName());
 	if (Errors.IsEmpty() && FuncData.IsValid())
 	{
 		FScopedTransaction Transaction(LOCTEXT("PasteFunction", "Paste Function"));
@@ -3448,14 +3460,74 @@ bool SMyBlueprint::CanPasteFunction() const
 
 	FString ClipboardText;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
-	if (ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive))
+	if (ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive))
 	{
-		FBPFunctionClipboardData FuncData;
+		FBPGraphClipboardData FuncData;
 		FStringOutputDevice Errors;
-		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
-		FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(GRAPH_PREFIX);
+		FBPGraphClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPGraphClipboardData::StaticStruct()->GetName());
 
-		return Errors.IsEmpty();
+		return Errors.IsEmpty() && FuncData.IsFunction();
+	}
+
+	return false;
+}
+
+void SMyBlueprint::OnPasteMacro()
+{
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ensure(ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive)))
+	{
+		return;
+	}
+
+	FBPGraphClipboardData FuncData;
+	FStringOutputDevice Errors;
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(GRAPH_PREFIX);
+	FBPGraphClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPGraphClipboardData::StaticStruct()->GetName());
+	if (Errors.IsEmpty() && FuncData.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("PasteMacro", "Paste Macro"));
+
+		TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+		if (PinnedEditor.IsValid())
+		{
+			Blueprint->Modify();
+			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, PinnedEditor->GetDefaultSchema());
+
+			if (Graph)
+			{
+				PinnedEditor->OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
+				SelectItemByName(Graph->GetFName());
+				OnRequestRenameOnActionNode();
+			}
+			else
+			{
+				Transaction.Cancel();
+			}
+		}
+	}
+}
+
+bool SMyBlueprint::CanPasteMacro() const
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewMacroGraph))
+	{
+		return false;
+	}
+
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(GRAPH_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPGraphClipboardData MacroData;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(GRAPH_PREFIX);
+		FBPGraphClipboardData::StaticStruct()->ImportText(Import, &MacroData, nullptr, 0, &Errors, FBPGraphClipboardData::StaticStruct()->GetName());
+
+		return Errors.IsEmpty() && MacroData.IsMacro();
 	}
 
 	return false;

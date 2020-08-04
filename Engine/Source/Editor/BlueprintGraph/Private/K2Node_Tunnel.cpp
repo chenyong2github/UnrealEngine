@@ -132,9 +132,7 @@ bool UK2Node_Tunnel::CanUserDeleteNode() const
 
 bool UK2Node_Tunnel::CanDuplicateNode() const
 {
-	// Disallow duplication on tunnels, but not more derived classes (they can override if they also want to disallow)
-	const bool bIsExactlyTunnel = (GetClass() == UK2Node_Tunnel::StaticClass());
-	return !bIsExactlyTunnel;
+	return true;
 }
 
 bool UK2Node_Tunnel::IsNodeSafeToIgnore() const
@@ -383,4 +381,27 @@ void UK2Node_Tunnel::ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& Ol
 	}
 	PostFixupAllWildcardPins(bAllWildcardsAreUnlinked);
 }
+
+bool UK2Node_Tunnel::IsCompatibleWithGraph(const UEdGraph* InGraph) const
+{
+	const bool bIsEntryOrExit = bCanHaveInputs != bCanHaveOutputs;
+
+	// If this is an Entry or Exit, make sure an Entry or exit doesn't already exist in this Graph
+	if (bIsEntryOrExit)
+	{
+		TArray<UK2Node_Tunnel*> Tunnels;
+		InGraph->GetNodesOfClass<UK2Node_Tunnel>(Tunnels);
+
+		for (UK2Node_Tunnel* Node : Tunnels)
+		{
+			if (Node->bCanHaveInputs == bCanHaveInputs && Node->bCanHaveOutputs == bCanHaveOutputs)
+			{
+				return false;
+			}
+		}
+	}
+
+	return Super::IsCompatibleWithGraph(InGraph);
+}
+
 #undef LOCTEXT_NAMESPACE
