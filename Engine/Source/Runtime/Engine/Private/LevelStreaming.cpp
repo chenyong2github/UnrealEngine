@@ -1068,7 +1068,9 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
 
 			FLinkerInstancingContext InstancingContext;
+#if WITH_EDITOR
 			InstancingContext.AddResolver(&ULevel::GetLevelDynamicPackageImports);
+#endif
 			LoadPackageAsync(DesiredPackageName.ToString(), nullptr, *PackageNameToLoadFrom, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), PackageFlags, PIEInstanceID, GetPriority(), &InstancingContext);
 
 			// streamingServer: server loads everything?
