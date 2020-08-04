@@ -77,7 +77,25 @@ namespace Audio
 	private:
 		uint32 Value = 0;
 	};
-	
+
+	// TODO: Move this somewhere central.
+	template<typename From, typename To>
+	static constexpr float GetConvertScalar()
+	{
+		if (TIsSame<From, To>::Value)
+		{
+			return 1.0f;
+		}
+		else if (TIsSame<From, int16>::Value && TIsSame<To, float>::Value)
+		{
+			return 1.f / (static_cast<float>(TNumericLimits<int16>::Max()) + 1.f);
+		}
+		else if (TIsSame<From, float>::Value && TIsSame<To, int16>::Value)
+		{
+			return static_cast<float>(TNumericLimits<int16>::Max()) + 1.f;
+		}
+	}
+		
 	enum EBitRepresentation
 	{
 		Int16_Interleaved,
@@ -174,13 +192,28 @@ namespace Audio
 			TArrayView<const float> InFloat32Interleave) = 0;
 
 		virtual int32 PopAudio( 
-			TArrayView<int16>& OutAudio ) = 0;
+			TArrayView<int16> InExternalBuffer,
+			FPushedAudioDetails& OutDetails ) = 0;
 
 		virtual int32 PopAudio(
-			TArrayView<float>& OutAudio ) = 0;
+			TArrayView<float> OutExternalBuffer,
+			FPushedAudioDetails& OutDetails ) = 0;		
 
-		virtual int32 Tell() const = 0;
+		// Convenience convert TArray -> TArrayView
+		int32 PopAudio(
+			TArray<int16>& InExternalBuffer,
+			FPushedAudioDetails& OutDetails)
+		{
+			return PopAudio(MakeArrayView(InExternalBuffer.GetData(), InExternalBuffer.Num()), OutDetails);
+		}
+		int32 PopAudio(
+			TArray<float>& InExternalBuffer,
+			FPushedAudioDetails& OutDetails)
+		{
+			return PopAudio(MakeArrayView(InExternalBuffer.GetData(), InExternalBuffer.Num()), OutDetails);
+		}
 	};
+		
 
 	// Decode input wrappers.
 
@@ -432,24 +465,7 @@ namespace Audio
 		{
 			return Reqs;
 		}	
-
-		template<typename From, typename To>
-		static constexpr float GetConvertScalar()
-		{
-			if( TIsSame<From,To>::Value ) 
-			{
-				return 1.0f;
-			}
-			else if( TIsSame<From,int16>::Value && TIsSame<To,float>::Value)
-			{
-				return 1.f / (static_cast<float>(TNumericLimits<int16>::Max()) + 1.f);
-			}
-			else if( TIsSame<From,float>::Value && TIsSame<To,int16>::Value)
-			{
-				return static_cast<float>(TNumericLimits<int16>::Max()) + 1.f;
-			}
-		}
-
+		
 		template<typename T> int32 PushAudioInternal(
 			const FPushedAudioDetails& InDetails,
 			TArrayView<const T> InAudio) 
@@ -491,41 +507,37 @@ namespace Audio
 			return PushAudioInternal(InDetails,In16BitInterleave);
 		}
 	
+		// This a bit naive, but ok for proof of concept.
 		template<typename T> int32 PopAudioInternal(
-			TArrayView<T>& OutSamples )
+			TArrayView<T> InExternalBuffer )
 		{
+			check(InExternalBuffer.Num() > 0);
 			if (TIsSame<T, TSampleType>::Value && Offset > 0)
 			{
 				int32 NumSamplesPopped = Offset;
 				Offset = 0;
+				NumSamplesPopped = FMath::Min(InExternalBuffer.Num(), NumSamplesPopped);
 				TArrayView<TSampleType> AV = Buffer.Slice(0, NumSamplesPopped);
-				OutSamples = MakeArrayView((T*)AV.GetData(), AV.Num());
+				FMemory::Memcpy(InExternalBuffer.GetData(), Buffer.GetData(), sizeof(T)* NumSamplesPopped);
 				return NumSamplesPopped;
 			}
-			
 			audio_ensure(false);
-			OutSamples = TArrayView<T>();
-			
 			return 0;
 		}
 
-		virtual int32 PopAudio(
-			TArrayView<float>& OutFloat )
+		int32 PopAudio(
+			TArrayView<float> InExternalFloat32Buffer,
+			FPushedAudioDetails& OutDetails ) override
 		{
-			return PopAudioInternal(OutFloat);
+			return PopAudioInternal(InExternalFloat32Buffer);
 		}
 
-		virtual int32 PopAudio(			
-			TArrayView<int16>& OutInt16 )
+		int32 PopAudio(
+			TArrayView<int16> InExternalInt16Buffer,
+			FPushedAudioDetails& OutDetails ) override
 		{
-			return PopAudioInternal(OutInt16);
-		}
-
-		// For back compatibility only.
-		int32 Tell() const 
-		{
-			return Offset;
-		}
+			return PopAudioInternal(InExternalInt16Buffer);
+		}	
 	};
 
 	template<typename T>
@@ -538,6 +550,78 @@ namespace Audio
 		{
 			AlignedMemory.SetNumZeroed(Requirements.NumSampleFramesWanted);
 			TDecoderOutputArrayView<T>::SetArrayView(MakeArrayView(AlignedMemory));
+		}
+	};
+
+	template<typename TSampleType>
+	class TCircularOutputBuffer : public Audio::IDecoderOutput
+	{
+		Audio::TCircularAudioBuffer<TSampleType> Buffer;
+		FRequirements Reqs;
+	public:
+		TCircularOutputBuffer(
+			const FRequirements& InReqs)
+			: Buffer(InReqs.NumSampleFramesWanted*2) // Double buffered for now.
+			, Reqs(InReqs)
+		{
+		}
+
+		FRequirements GetRequirements(const FDecodedFormatInfo& InFormat) const override
+		{
+			return Reqs;
+		}
+
+		template<typename T>
+		int32 PushAudioInternal(
+			const FPushedAudioDetails& InDetails, TArrayView<const T> InBuffer) 
+		{
+			if (TIsSame<T, TSampleType>::Value)
+			{
+				return Buffer.Push(reinterpret_cast<const TSampleType*>(InBuffer.GetData()), InBuffer.Num());
+			}
+			else
+			{
+				constexpr float Scalar = GetConvertScalar<T, TSampleType>();
+				const T* Src = InBuffer.GetData();
+				int32 Num = InBuffer.Num();
+
+				// Convert 1 sample at a time, slow.
+				for (int32 i = 0; i < Num; ++i)
+				{
+					TSampleType Val = static_cast<TSampleType>(static_cast<float>(*Src++ * Scalar));
+					Buffer.Push(&Val, 1);
+				}
+
+				return Num;
+			}
+		}
+
+		int32 PushAudio(const FPushedAudioDetails& InDetails, TArrayView<const int16> In16BitInterleave) override
+		{
+			return PushAudioInternal(InDetails, In16BitInterleave);
+		}
+		int32 PushAudio(const FPushedAudioDetails& InDetails, TArrayView<const float> InFloat32Interleave) override
+		{
+			return PushAudioInternal(InDetails, InFloat32Interleave);
+		}
+		int32 PopAudio(TArrayView<int16> InExternalInt16Buffer, FPushedAudioDetails& OutDetails) override
+		{
+			if( TIsSame<TSampleType, int16>::Value )
+			{
+				return Buffer.Pop(reinterpret_cast<TSampleType*>(InExternalInt16Buffer.GetData()), InExternalInt16Buffer.Num());
+			}
+			audio_ensure(false);
+			return 0;
+		}
+
+		int32 PopAudio(TArrayView<float> InExternalFloat32Buffer, FPushedAudioDetails& OutDetails) override
+		{
+			if( TIsSame<TSampleType, float>::Value )
+			{
+				return Buffer.Pop(reinterpret_cast<TSampleType*>(InExternalFloat32Buffer.GetData()), InExternalFloat32Buffer.Num());
+			}
+			audio_ensure(false);
+			return 0;			
 		}
 	};
 };

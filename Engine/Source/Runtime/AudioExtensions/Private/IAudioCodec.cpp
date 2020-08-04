@@ -423,11 +423,13 @@ namespace Audio
 	{
 		if (Requirements.DownstreamFormat == EBitRepresentation::Float32_Interleaved)
 		{
-			return MakeUnique<TDecoderOutputOwnBuffer<float>>(Requirements);
+			return MakeUnique<TCircularOutputBuffer<float>>(Requirements);
+			//return MakeUnique<TDecoderOutputOwnBuffer<float>>(Requirements);
 		}
 		else if (Requirements.DownstreamFormat == EBitRepresentation::Int16_Interleaved)
 		{
-			return MakeUnique<TDecoderOutputOwnBuffer<int16>>(Requirements);
+			return MakeUnique<TCircularOutputBuffer<int16>>(Requirements);
+			//return MakeUnique<TDecoderOutputOwnBuffer<int16>>(Requirements);
 		}
 		checkNoEntry();
 		return nullptr;

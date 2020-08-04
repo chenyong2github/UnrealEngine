@@ -98,17 +98,23 @@ namespace Audio
 
 			auto FindLambda = [InCodecPtr](const TUniquePtr<ICodec>& i) -> bool { return i.Get() == InCodecPtr; };
 
+			auto RemoveLamda = [InCodecPtr](TMap<FName,TArray<FCodecPtr>>& InMap, FName InMapKey) -> void
+			{			
+				TArray<FCodecPtr>& VersionArray = InMap.FindChecked(InMapKey);
+				VersionArray.Remove(InCodecPtr);
+				if (VersionArray.Num() == 0)
+				{
+					InMap.Remove(InMapKey);
+				}
+			};
+
 			if (audio_ensure(LifetimeArray.ContainsByPredicate(FindLambda)))
 			{
 				UE_LOG(LogAudioCodec, Log, TEXT("Unregistered %s"), *InCodecPtr->GetDetails().ToString());
 
-				// Remove from lookups first. (maintain order).
-				TArray<FCodecPtr>& VersionArray = NameLookupMap.FindChecked(InCodecPtr->GetName());
-				VersionArray.Remove(InCodecPtr);
-				if( VersionArray.Num() == 0 )
-				{
-					NameLookupMap.Remove(InCodecPtr->GetName());
-				}
+				// Remove from Look ups.
+				RemoveLamda(FamilyNameLookupMap, InCodecPtr->GetDetails().FamilyName);
+				RemoveLamda(NameLookupMap, InCodecPtr->GetDetails().Name);
 
 				// Kill the object.
 				audio_ensure(LifetimeArray.RemoveAll(FindLambda) == 1);
@@ -254,13 +260,17 @@ namespace Audio
 
 	};
 
+	// Static instance.
+	TUniquePtr<Audio::ICodecRegistry> ICodecRegistry::Instance;
+
 	ICodecRegistry& ICodecRegistry::Get()
 	{
-		// FIXME.
-		//static IModuleInterface* ExtentionsModule = FModuleManager::LoadModulePtr<IModuleInterface>(FName(TEXT("AudioExtensions")));
-
-		static FCodecRegistry Impl;
-		return Impl;
+		// FIXME: Protect against race for the construction of the singleton.
+		if (!Instance.IsValid())
+		{
+			Instance = MakeUnique<FCodecRegistry>();
+		}
+		return *Instance;
 	}
 
 } //namespace Audio

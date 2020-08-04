@@ -11,11 +11,14 @@ namespace Audio
 {
 	class AUDIOEXTENSIONS_API ICodecRegistry
 	{
+		static TUniquePtr<ICodecRegistry> Instance;
 	public:
 		using FCodecPtr = ICodec * ;
-	
+
 		// Abstract Singleton.
 		static ICodecRegistry& Get();
+
+		virtual ~ICodecRegistry() = default;
 
 		// Register each codec.
 		virtual bool RegisterCodec(TUniquePtr<ICodec>&&) = 0;

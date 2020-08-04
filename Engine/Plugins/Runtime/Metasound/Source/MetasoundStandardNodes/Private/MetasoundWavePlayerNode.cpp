@@ -82,7 +82,7 @@ namespace Metasound
 		
 		void Execute()
 		{
-			int32 i = 0;
+			int32 NumPopped = 0;
 			float* Dst = AudioBuffer->GetData();
 
 			// If we don't have a valid state, just output silence.
@@ -91,16 +91,12 @@ namespace Metasound
 				// V1. Do the decode inline, this will sound bad.
 				Decoder->Decode();
 
-				TArrayView<float> Src;
-				int32 NumPopped = DecoderOutput->PopAudio(Src);
-				int32 NumFramesToCopy = FMath::Min(NumPopped, OperatorSettings.GetNumFramesPerBlock());
-
-				for (; i < NumFramesToCopy; ++i)
-				{
-					Dst[i] = Src[i];
-				}
+				Audio::IDecoderOutput::FPushedAudioDetails Details;
+				NumPopped = DecoderOutput->PopAudio(MakeArrayView(Dst, AudioBuffer->Num()), Details);
 			}
-			for ( ; i < OperatorSettings.GetNumFramesPerBlock(); ++i)
+
+			// Pad with Silence if we didn't pop enough
+			for ( int32 i = NumPopped; i < OperatorSettings.GetNumFramesPerBlock(); ++i)
 			{
 				Dst[i] = 0.0f;
 			}
