@@ -1045,7 +1045,19 @@ void SNiagaraSpreadsheetView::HandleTimeChange()
 					FName EntryName = NAME_None;
 					if (i != UISystemUpdate)
 					{
-						EntryName = SelectedEmitterHandle->GetEmitterHandle()->GetIdName();
+						auto EmitterInstances = TargetComponent->GetSystemInstance()->GetEmitters();
+						for (auto EmitterInstance : EmitterInstances)
+						{
+							if (SelectedEmitterHandle->GetEmitterHandle()->GetInstance() == EmitterInstance->GetCachedEmitter())
+							{
+								EntryName = EmitterInstance->GetCachedIDName();
+							}
+						}
+
+						if (EntryName.IsNone())
+						{
+							EntryName = SelectedEmitterHandle->GetEmitterHandle()->GetIdName();
+						}
 					}
 					else //if (i == UISystemUpdate)
 					{
