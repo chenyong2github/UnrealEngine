@@ -46,16 +46,36 @@ struct FVertexFactoryInput
 #if COMPUTESHADER || RAYHITGROUPSHADER
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
-	FVertexFactoryInput Input;
+	// Different numbers of cutout vertices correspond to different index buffers
+	// For 8 verts, use GSixTriangleParticleIndexBuffer
+	if (NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame == 8)
+	{		
+		FVertexFactoryInput Input;
+		
+		// Hard coded GSixTriangleParticleIndexBuffer
+		uint IndexBuffer[18] = { 0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7 };
+		uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 18];
+		float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
+		Input.TexCoord = TexCoords[VertexId];
+		Input.VertexId = VertexId;
+		Input.InstanceId = TriangleIndex / 6;
 	
-	uint IndexBuffer[6] = { 0, 2, 3, 0, 1, 2 };
-	uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 6];
-	float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
-	Input.TexCoord = TexCoords[VertexId];
-	Input.VertexId = VertexId;
-	Input.InstanceId = TriangleIndex / 2;
-
-	return Input;
+		return Input;
+	}
+	else
+	{
+		// For 4 verts cutout geometry and normal particle geometry, use the typical 6 indices
+		FVertexFactoryInput Input;
+		
+		uint IndexBuffer[6] = { 0, 2, 3, 0, 1, 2 };
+		uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 6];
+		float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
+		Input.TexCoord = TexCoords[VertexId];
+		Input.VertexId = VertexId;
+		Input.InstanceId = TriangleIndex / 2;
+	
+		return Input;
+	}
 }
 
 FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
