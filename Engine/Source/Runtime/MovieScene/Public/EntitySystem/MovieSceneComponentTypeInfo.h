@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "Templates/UniquePtr.h"
-#include "Misc/InlineValue.h"
 #include "Templates/MemoryOps.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
@@ -61,9 +60,6 @@ struct IComplexComponentOps
  */
 struct FComponentTypeInfo
 {
-	template<typename T>
-	using TInlinePtr = TInlineValue<T, sizeof(T*), alignof(T)>;
-
 	FComponentTypeInfo()
 		: bIsZeroConstructType(0)
 		, bIsTriviallyDestructable(0)
@@ -74,7 +70,7 @@ struct FComponentTypeInfo
 	{}
 
 	/** 16 bytes - Custom native definition for non-POD types */
-	mutable TInlinePtr<IComplexComponentOps> ComplexComponentOps;
+	mutable TUniquePtr<IComplexComponentOps> ComplexComponentOps;
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
 	/** 8 Bytes - Debugging information primarily for natviz support*/
@@ -175,7 +171,7 @@ struct FComponentTypeInfo
 	template<typename T>
 	void MakeComplexComponentOps()
 	{
-		ComplexComponentOps = TComplexComponentOps<T>();
+		ComplexComponentOps = MakeUnique<TComplexComponentOps<T>>();
 	}
 
 private:
