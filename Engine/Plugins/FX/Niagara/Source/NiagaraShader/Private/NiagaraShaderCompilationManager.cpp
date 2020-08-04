@@ -63,19 +63,6 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 {
 	check(IsInGameThread());
 
-	TArray<int32> FinalizedShaderMapIDs;
-	for (int32 JobIndex = JobQueue.Num() - 1; JobIndex >= 0; JobIndex--)
-	{
-		TSharedRef<FShaderCompileJob, ESPMode::ThreadSafe> Job = StaticCastSharedRef<FShaderCompileJob>(JobQueue[JobIndex]);
-		if (Job->bFinalized)
-		{
-			FinalizedShaderMapIDs.Add(Job->Id);
-		}
-	}
-
-	// We do this because the finalization flag is set by another thread, so the manager might not have had a chance to fully process the result.
-	GShaderCompilingManager->FinishCompilation(NULL, FinalizedShaderMapIDs);
-
 	// Process the results from the shader compile worker
 	for (int32 JobIndex = JobQueue.Num() - 1; JobIndex >= 0; JobIndex--)
 	{
