@@ -566,6 +566,8 @@ void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImme
 	SCOPED_DRAW_EVENT(RHICmdList, GPUResourceUpdate)
 	RemoveFromDeferredUpdateList();
 
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToGfx, RenderTargetTextureRHI);
+
  	// clear the target surface to green
 	if (bClearRenderTarget)
 	{
