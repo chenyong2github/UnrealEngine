@@ -249,30 +249,16 @@ FReply SNiagaraStackModuleItem::RefreshClicked()
 
 FReply SNiagaraStackModuleItem::OnModuleItemDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
-	if (DragDropOperation->IsOfType<FNiagaraParameterDragOperation>())
-	{
-		TSharedPtr<FNiagaraParameterDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraParameterDragOperation>(DragDropOperation);
-		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetSourceAction());
-		if (Action.IsValid() && ModuleItem->CanAddInput(Action->GetParameter()))
-		{
-			ModuleItem->AddInput(Action->GetParameter());
-			return FReply::Handled();
-		}
-	}
-
-	return FReply::Unhandled();
+	UNiagaraStackEntry::FDropRequest DropRequest(DragDropOperation.ToSharedRef(), EItemDropZone::OntoItem, UNiagaraStackEntry::EDragOptions::None, UNiagaraStackEntry::EDropOptions::None);
+	TOptional<UNiagaraStackEntry::FDropRequestResponse> DropResponse = ModuleItem->Drop(DropRequest);
+	return DropResponse.IsSet() && DropResponse->DropZone == EItemDropZone::OntoItem ? FReply::Handled() : FReply::Unhandled();
 }
 
 bool SNiagaraStackModuleItem::OnModuleItemAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
-	if (DragDropOperation->IsOfType<FNiagaraParameterDragOperation>())
-	{
-		TSharedPtr<FNiagaraParameterDragOperation> InputDragDropOperation = StaticCastSharedPtr<FNiagaraParameterDragOperation>(DragDropOperation);
-		TSharedPtr<FNiagaraParameterAction> Action = StaticCastSharedPtr<FNiagaraParameterAction>(InputDragDropOperation->GetSourceAction());
-		return Action.IsValid() && ModuleItem->CanAddInput(Action->GetParameter());
-	}
-
-	return false;
+	UNiagaraStackEntry::FDropRequest AllowDropRequest(DragDropOperation.ToSharedRef(), EItemDropZone::OntoItem, UNiagaraStackEntry::EDragOptions::None, UNiagaraStackEntry::EDropOptions::None);
+	TOptional<UNiagaraStackEntry::FDropRequestResponse> AllowDropResponse = ModuleItem->CanDrop(AllowDropRequest);
+	return AllowDropResponse.IsSet() && AllowDropResponse->DropZone == EItemDropZone::OntoItem;
 }
 
 void ReassignModuleScript(UNiagaraStackModuleItem* ModuleItem, FAssetData NewModuleScriptAsset)
