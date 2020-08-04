@@ -63,6 +63,9 @@ namespace Chaos
 
 }
 
+
+extern int32 GEnableKinematicDeferralStartPhysicsCondition;
+
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
 */
