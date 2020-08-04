@@ -137,10 +137,10 @@ bool FBasePositionSnapSolver3::IsIgnored(int TargetID) const
 }
 
 
-const FBasePositionSnapSolver3::FSnapTargetPoint* FBasePositionSnapSolver3::FindBestSnapInSet(const TArray<FSnapTargetPoint>& TestTargets, double& MinMetric, int& MinPriority,
+int32 FBasePositionSnapSolver3::FindIndexOfBestSnapInSet(const TArray<FSnapTargetPoint>& TestTargets, double& MinMetric, int& MinPriority,
 	const TFunction<FVector3d(const FVector3d&)>& GetSnapPointFromFunc)
 {
-	const FSnapTargetPoint* BestTarget = nullptr;
+	int32 BestIndex = -1;
 	int NumTargets = TestTargets.Num();
 	for (int k = 0; k < NumTargets; ++k)
 	{
@@ -178,10 +178,22 @@ const FBasePositionSnapSolver3::FSnapTargetPoint* FBasePositionSnapSolver3::Find
 			if (Metric < MinMetric || TestTargets[k].Priority < MinPriority)
 			{
 				MinMetric = Metric;
-				BestTarget = &TestTargets[k];
+				BestIndex = k;
 				MinPriority = TestTargets[k].Priority;
 			}
 		}
+	}
+	return BestIndex;
+}
+
+const FBasePositionSnapSolver3::FSnapTargetPoint* FBasePositionSnapSolver3::FindBestSnapInSet(const TArray<FSnapTargetPoint>& TestTargets, double& MinMetric, int& MinPriority,
+	const TFunction<FVector3d(const FVector3d&)>& GetSnapPointFromFunc)
+{
+	const FSnapTargetPoint* BestTarget = nullptr;
+	int32 BestIndex = FindIndexOfBestSnapInSet(TestTargets, MinMetric, MinPriority, GetSnapPointFromFunc);
+	if (BestIndex >= 0)
+	{
+		BestTarget = &TestTargets[BestIndex];
 	}
 	return BestTarget;
 }

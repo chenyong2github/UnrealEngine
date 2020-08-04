@@ -47,6 +47,28 @@ bool ToolSceneQueriesUtil::PointSnapQuery(const FViewCameraState& CameraState, c
 	}
 }
 
+double ToolSceneQueriesUtil::PointSnapMetric(const FViewCameraState& CameraState, const FVector3d& Point1, const FVector3d& Point2)
+{
+	if (!CameraState.bIsOrthographic)
+	{
+		double VisualAngle = VectorUtil::OpeningAngleD(Point1, Point2, (FVector3d)CameraState.Position);
+
+		// To go from a world space angle to a 90 degree division of the view, we divide by TrueFOVDegrees/90 (our normalization factor)
+		VisualAngle /= CameraState.GetFOVAngleNormalizationFactor();
+		return FMathd::Abs(VisualAngle);
+	}
+	else
+	{
+		FVector3d ViewPlaneNormal = CameraState.Orientation.GetForwardVector();
+
+		// Get projected distance in the plane
+		FVector3d DistanceVector = Point1 - Point2;
+		DistanceVector = DistanceVector - (DistanceVector).Dot(ViewPlaneNormal) * ViewPlaneNormal;
+
+		// We have one visual angle degree correspond to the width of the viewport divided by 90, so we divide by width/90.
+		return DistanceVector.Length() * 90.0 / CameraState.OrthoWorldCoordinateWidth;
+	}
+}
 
 
 double ToolSceneQueriesUtil::CalculateViewVisualAngleD(const UInteractiveTool* Tool, const FVector3d& Point1, const FVector3d& Point2)
