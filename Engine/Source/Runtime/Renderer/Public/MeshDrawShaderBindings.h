@@ -14,16 +14,12 @@
 class FMeshDrawShaderBindingsLayout
 {
 protected:
-	TRefCountPtr<FShaderMapBase> ShaderMap; // Hold a strong reference to ShaderMap, which will keep FShader::ParameterMapInfo alive
 	const FShaderParameterMapInfo& ParameterMapInfo;
-	const uint64 ParameterMapHash;
 
 public:
 
 	FMeshDrawShaderBindingsLayout(const TShaderRef<FShader>& Shader)
-		: ShaderMap(const_cast<FShaderMapBase*>(&Shader.GetShaderMapChecked()))
-		, ParameterMapInfo(Shader->ParameterMapInfo)
-		, ParameterMapHash(ParameterMapInfo.Hash)
+		: ParameterMapInfo(Shader->ParameterMapInfo)
 	{
 		check(Shader.IsValid());
 	}
@@ -37,7 +33,9 @@ public:
 
 	bool operator==(const FMeshDrawShaderBindingsLayout& Rhs) const
 	{
-		return ParameterMapHash == Rhs.ParameterMapHash;
+		// Since 4.25, FShader (the owner of this memory) is no longer shared across the shadermaps and gets deleted at the same time as the owning shadermap.
+		// To prevent crashes when a singe mesh draw command is shared across multiple MICs with compatible shaders, consider shader bindings belonging to different FShaders different.
+		return &ParameterMapInfo == &Rhs.ParameterMapInfo;
 	}
 
 	inline uint32 GetLooseDataSizeBytes() const
