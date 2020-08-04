@@ -47,6 +47,8 @@ struct FSingleLayerWaterPassData;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
 
+DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
+
 
 /** Mobile only. Information used to determine whether static meshes will be rendered with CSM shaders or not. */
 class FMobileCSMVisibilityInfo
