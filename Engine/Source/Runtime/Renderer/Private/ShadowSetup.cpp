@@ -3325,12 +3325,13 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
 
 						const FMatrix FaceProjection = FPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
-						const FVector LightPosition = LightProxy.GetPosition();
+
+						// Light projection and bounding volume is set up relative to the light position
+						// the view pre-translation (relative to light) is added later, when rendering & sampling.
+						const FVector LightPosition = ProjectedShadowInitializer.WorldToLight.GetOrigin();
 
 						ProjectedShadowInfo->OnePassShadowViewMatrices.Empty(6);
 						ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Empty(6);
-						ProjectedShadowInfo->OnePassShadowFrustums.Empty(6);
-						ProjectedShadowInfo->OnePassShadowFrustums.AddZeroed(6);
 						const FMatrix ScaleMatrix = FScaleMatrix(FVector(1, -1, 1));
 
 						// fill in the caster frustum with the far plane from every face
@@ -3338,23 +3339,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
 						{
 							// Create a view projection matrix for each cube face
-							const FMatrix WorldToLightMatrix = FLookAtMatrix(LightPosition, LightPosition + CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix;
+							const FMatrix WorldToLightMatrix = FLookFromMatrix(LightPosition, CubeDirections[FaceIndex], UpVectors[FaceIndex]) * ScaleMatrix;
 							ProjectedShadowInfo->OnePassShadowViewMatrices.Add(WorldToLightMatrix);
 							const FMatrix ShadowViewProjectionMatrix = WorldToLightMatrix * FaceProjection;
 							ProjectedShadowInfo->OnePassShadowViewProjectionMatrices.Add(ShadowViewProjectionMatrix);
-							// Create a convex volume out of the frustum so it can be used for object culling
-							GetViewFrustumBounds(ProjectedShadowInfo->OnePassShadowFrustums[FaceIndex], ShadowViewProjectionMatrix, false);
-
-							// Check we have a valid frustum
-							if (ProjectedShadowInfo->OnePassShadowFrustums[FaceIndex].Planes.Num() > 0 )
-							{
-								// We are assuming here that the last plane is the far plane
-								// we need to incorporate PreShadowTranslation (so it can be disincorporated later)
-								FPlane Src = ProjectedShadowInfo->OnePassShadowFrustums[FaceIndex].Planes.Last();
-								// add world space preview translation
-								Src.W += (FVector(Src) | ProjectedShadowInfo->PreShadowTranslation);
-								ProjectedShadowInfo->CasterFrustum.Planes.Add(Src);
-							}
+							// Add plane representing cube face to bounding volume
+							ProjectedShadowInfo->CasterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
 						}
 						ProjectedShadowInfo->CasterFrustum.Init();
 					}

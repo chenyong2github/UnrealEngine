@@ -428,10 +428,25 @@ struct FBasisVectorMatrix: FMatrix
 };
 
 
-struct FLookAtMatrix : FMatrix
+
+struct FLookFromMatrix : FMatrix
+{
+	/**
+	 * Creates a view matrix given an eye position, a direction to look in, and an up vector.
+	 * Direction or up vectors need not be normalized.
+	 * This does the same thing as FLookAtMatrix, except without completely destroying precision when position is large,
+	 * Always use this instead of e.g., FLookAtMatrix(Pos, Pos + Dir,...);
+	 */
+	FLookFromMatrix(const FVector& EyePosition, const FVector& LookDirection, const FVector& UpVector);
+};
+
+
+struct FLookAtMatrix : FLookFromMatrix
 {
 	/** 
 	 * Creates a view matrix given an eye position, a position to look at, and an up vector. 
+	 * Equivalent of FLookFromMatrix(EyePosition, LookAtPosition - EyePosition, UpVector)
+	 * The up vector need not be normalized.
 	 * This does the same thing as D3DXMatrixLookAtLH.
 	 */
 	FLookAtMatrix(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector);

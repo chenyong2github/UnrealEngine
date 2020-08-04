@@ -350,9 +350,6 @@ public:
 	/** View matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewMatrices;
 	
-	/** Frustums for each cubemap face, used for object culling one pass point light shadows. */
-	TArray<FConvexVolume> OnePassShadowFrustums;
-
 	/** Data passed from async compute begin to end. */
 	FComputeFenceRHIRef RayTracedShadowsEndFence;
 	TRefCountPtr<IPooledRenderTarget> RayTracedShadowsRT;

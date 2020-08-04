@@ -187,8 +187,8 @@ float CubemapHardwarePCF(
 			CubeFaceIndex = AbsLightVector.z == WorldSampleToLightVec.z ? 4 : 5;
 		}
 
-		// Transform the position into shadow space
-		float4 ShadowPosition = mul(float4(WorldPosition, 1), InShadowViewProjectionMatrices[CubeFaceIndex]);
+		// Transform the Light-relative position into shadow space (The light shadow view is pre-translated wrt the main view)
+		float4 ShadowPosition = mul(float4(-WorldSampleToLightVec, 1), InShadowViewProjectionMatrices[CubeFaceIndex]);
 
 		// Calculate the Z buffer value that would have been stored for this position in the shadow map
 		float CompareDistance = ShadowPosition.z / ShadowPosition.w;

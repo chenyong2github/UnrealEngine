@@ -819,9 +819,9 @@ FORCEINLINE FBasisVectorMatrix::FBasisVectorMatrix(const FVector& XAxis,const FV
 }
 
 
-FORCEINLINE FLookAtMatrix::FLookAtMatrix(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector)
+FORCEINLINE FLookFromMatrix::FLookFromMatrix(const FVector& EyePosition, const FVector& LookDirection, const FVector& UpVector)
 {
-	const FVector ZAxis = (LookAtPosition - EyePosition).GetSafeNormal();
+	const FVector ZAxis = LookDirection.GetSafeNormal();
 	const FVector XAxis = (UpVector ^ ZAxis).GetSafeNormal();
 	const FVector YAxis = ZAxis ^ XAxis;
 
@@ -836,5 +836,12 @@ FORCEINLINE FLookAtMatrix::FLookAtMatrix(const FVector& EyePosition, const FVect
 	M[3][1] = -EyePosition | YAxis;
 	M[3][2] = -EyePosition | ZAxis;
 	M[3][3] = 1.0f;
+}
+
+
+
+FORCEINLINE FLookAtMatrix::FLookAtMatrix(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector) :
+	FLookFromMatrix(EyePosition, LookAtPosition - EyePosition, UpVector)
+{
 }
 

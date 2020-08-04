@@ -104,14 +104,13 @@ void SetupShadowDepthPassUniformBuffer(
 
 	if (ShadowInfo->bOnePassPointLightShadow)
 	{
-		const FMatrix Translation = FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation());
+		// offset from translated world space to (pre translated) shadow space 
+		const FMatrix Translation = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation());
 
 		for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
 		{
-			// Have to apply the pre-view translation to the view - projection matrices
-			FMatrix TranslatedShadowViewProjectionMatrix = Translation * ShadowInfo->OnePassShadowViewProjectionMatrices[FaceIndex];
-			ShadowDepthPassParameters.ShadowViewProjectionMatrices[FaceIndex] = TranslatedShadowViewProjectionMatrix;
-			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = ShadowInfo->OnePassShadowViewMatrices[FaceIndex];
+			ShadowDepthPassParameters.ShadowViewProjectionMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewProjectionMatrices[FaceIndex];
+			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewMatrices[FaceIndex];
 		}
 	}
 
