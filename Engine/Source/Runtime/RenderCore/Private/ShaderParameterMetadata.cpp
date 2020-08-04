@@ -609,7 +609,7 @@ void FShaderParametersMetadata::InitializeLayout()
 		{
 			Layout.bHasNonGraphOutputs = true;
 		}
-		else if (BaseType == UBMT_REFERENCED_STRUCT)
+		else if (ChildStruct && BaseType == UBMT_REFERENCED_STRUCT)
 		{
 			for (const FShaderParametersMetadata::FMember& Member : ChildStruct->GetMembers())
 			{
