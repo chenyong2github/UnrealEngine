@@ -48,7 +48,15 @@ namespace Scalability
 		
 		bool operator==(const FQualityLevels& Other ) const
 		{
-			return FMemory::Memcmp( this, &Other, sizeof(FQualityLevels) ) == 0;
+			return ResolutionQuality == Other.ResolutionQuality &&
+				ViewDistanceQuality == Other.ViewDistanceQuality &&
+				AntiAliasingQuality == Other.AntiAliasingQuality &&
+				ShadowQuality == Other.ShadowQuality &&
+				PostProcessQuality == Other.PostProcessQuality &&
+				TextureQuality == Other.TextureQuality &&
+				EffectsQuality == Other.EffectsQuality &&
+				FoliageQuality == Other.FoliageQuality &&
+				ShadingQuality == Other.ShadingQuality;
 		}
 
 		bool operator!=(const FQualityLevels& Other ) const
@@ -59,8 +67,15 @@ namespace Scalability
 		/** used for DisplayInternals to quickly identify why a screenshot looks different */
 		uint32 GetHash() const
 		{
-			// Note: this assumes the memory of this class is not containing any uninitialized memory
-			return FCrc::MemCrc32(this, sizeof(*this));
+			return FCrc::TypeCrc32<float>(ResolutionQuality) ^
+				FCrc::TypeCrc32<int32>(ViewDistanceQuality) ^
+				FCrc::TypeCrc32<int32>(AntiAliasingQuality) ^
+				FCrc::TypeCrc32<int32>(ShadowQuality) ^
+				FCrc::TypeCrc32<int32>(PostProcessQuality) ^
+				FCrc::TypeCrc32<int32>(TextureQuality) ^
+				FCrc::TypeCrc32<int32>(EffectsQuality) ^
+				FCrc::TypeCrc32<int32>(FoliageQuality) ^
+				FCrc::TypeCrc32<int32>(ShadingQuality);
 		}
 
 		// Sets all other settings based on an overall value
