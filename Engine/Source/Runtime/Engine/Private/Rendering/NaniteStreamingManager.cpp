@@ -177,7 +177,8 @@ FORCEINLINE bool IsRootPage(uint32 PageIndex)	// Keep in sync with ClusterCullin
 
 FORCEINLINE static const void* GetPackedTriClusterMemberSOA(const void* Src, uint32 ClusterIndex, uint32 NumClusters, uint32 MemberOffset)
 {
-	return (const uint8*)Src + (((NumClusters << 4) * (MemberOffset >> 4)) + (MemberOffset & 15)) + (ClusterIndex << 4);
+	uint32 Offset = (((NumClusters << 4) * (MemberOffset >> 4)) + (MemberOffset & 15)) + (ClusterIndex << 4);	// Split offset from pointer arithmetic to make static analysis happy
+	return (const uint8*)Src + Offset;
 }
 
 class FBitReader

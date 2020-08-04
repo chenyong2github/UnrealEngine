@@ -25,6 +25,7 @@
 #define MAX_STREAMING_REQUESTS					( 128u * 1024u )										// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTER_TRIANGLES					128
 #define MAX_CLUSTER_VERTICES					256
+#define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
 #define MAX_NANITE_UVS							2
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush

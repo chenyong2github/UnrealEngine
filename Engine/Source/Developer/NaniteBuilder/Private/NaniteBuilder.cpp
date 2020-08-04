@@ -2245,7 +2245,7 @@ static void ConstrainClusterFIFO( FTriCluster& Cluster, FMeshlet& Meshlet )
 	uint32 NumNewVertices = 0;
 	uint32 NumNewTriangles = 0;
 	uint16 OldToNewVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
-	uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ];
+	uint16 NewToOldVertex[ MAX_CLUSTER_TRIANGLES * 3 ] = {};	// Initialize to make static analysis happy
 	FMemory::Memset( OldToNewVertex, -1, sizeof( OldToNewVertex ) );
 
 	auto ScoreVertex = [ &OldToNewVertex, &NumNewVertices ] ( uint32 OldVertex )
@@ -2524,7 +2524,7 @@ static void ConstrainClusterGeodesic( FTriCluster& Cluster, FMeshlet& Meshlet )
 
 		uint8 VertexDistances[ MAX_CLUSTER_TRIANGLES * 3 ][ 3 ];		// 0: Distance to previous range, 1: Distance to next range, 2: Distance to start triangle
 
-																		// Mark material boundary vertices
+		// Mark material boundary vertices
 		for( uint32 i = 0; i < RangeLength; i++ )
 		{
 			uint64 RangeBit = 1ull << RangeIndex;
@@ -2537,7 +2537,8 @@ static void ConstrainClusterGeodesic( FTriCluster& Cluster, FMeshlet& Meshlet )
 				uint64 RangesMask = VertexRangesMask[ OldIndex ];
 				uint32 Component = VertexToComponent[ OldIndex ];
 				uint32 ComponentStartVertex = ComponentStartScoreAndVertex[ Component ] & 0x1FF;
-
+				
+				check(OldIndex < MAX_CLUSTER_INDICES);
 				VertexDistances[ OldIndex ][ 0 ] = ( RangesMask & MaskLow ) ? 0 : MAX_DISTANCE;
 				VertexDistances[ OldIndex ][ 1 ] = ( RangesMask & MaskHigh ) ? 0 : MAX_DISTANCE;
 				VertexDistances[ OldIndex ][ 2 ] = OldIndex == ComponentStartVertex ? 0 : MAX_DISTANCE;
@@ -2956,9 +2957,10 @@ class FStripifier
 			uint16 NextNode;
 		};
 
-		FEdgeNode EdgeNodes[ MAX_CLUSTER_TRIANGLES * 3 ];
-		uint16 EdgeNodeHeads[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES * 3 ];	// Linked list per edge to support more than 2 triangles per edge.
-		FMemory::Memset( EdgeNodeHeads, -1 );
+		FEdgeNode EdgeNodes[ MAX_CLUSTER_INDICES ];
+		TArray<uint16> EdgeNodeHeads;
+		EdgeNodeHeads.Init(INVALID_NODE, MAX_CLUSTER_INDICES * MAX_CLUSTER_INDICES );	// Linked list per edge to support more than 2 triangles per edge.
+
 		FMemory::Memset( VertexToTriangleMasks, 0 );
 
 		uint32 NumTriangles = Cluster.NumTris;
@@ -2971,6 +2973,7 @@ class FStripifier
 			uint32 i1 = Meshlet.Indexes[ i * 3 + 1 ];
 			uint32 i2 = Meshlet.Indexes[ i * 3 + 2 ];
 			check( i0 != i1 && i1 != i2 && i2 != i0 );
+			check( i0 < NumVertices && i1 < NumVertices && i2 < NumVertices );
 
 			VertexToTriangleMasks[ i0 ][ i >> 5 ] |= 1 << ( i & 31 );
 			VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
@@ -2981,18 +2984,18 @@ class FStripifier
 
 			FEdgeNode& Node0 = EdgeNodes[ i * 3 + 0 ];
 			Node0.Corner = SetCorner( i, 0 );
-			Node0.NextNode = EdgeNodeHeads[ i1 ][ i2 ];
-			EdgeNodeHeads[ i1 ][ i2 ] = i * 3 + 0;
+			Node0.NextNode = EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i2 ];
+			EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i2 ] = i * 3 + 0;
 
 			FEdgeNode& Node1 = EdgeNodes[ i * 3 + 1 ];
 			Node1.Corner = SetCorner( i, 1 );
-			Node1.NextNode = EdgeNodeHeads[ i2 ][ i0 ];
-			EdgeNodeHeads[ i2 ][ i0 ] = i * 3 + 1;
+			Node1.NextNode = EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i0 ];
+			EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i0 ] = i * 3 + 1;
 
 			FEdgeNode& Node2 = EdgeNodes[ i * 3 + 2 ];
 			Node2.Corner = SetCorner( i, 2 );
-			Node2.NextNode = EdgeNodeHeads[ i0 ][ i1 ];
-			EdgeNodeHeads[ i0 ][ i1 ] = i * 3 + 2;
+			Node2.NextNode = EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i1 ];
+			EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i1 ] = i * 3 + 2;
 		}
 
 		// Gather adjacency from edge lists	
@@ -3002,9 +3005,9 @@ class FStripifier
 			uint32 i1 = Meshlet.Indexes[ i * 3 + 1 ];
 			uint32 i2 = Meshlet.Indexes[ i * 3 + 2 ];
 
-			uint16& Node0 = EdgeNodeHeads[ i2 ][ i1 ];
-			uint16& Node1 = EdgeNodeHeads[ i0 ][ i2 ];
-			uint16& Node2 = EdgeNodeHeads[ i1 ][ i0 ];
+			uint16& Node0 = EdgeNodeHeads[ i2 * MAX_CLUSTER_INDICES + i1 ];
+			uint16& Node1 = EdgeNodeHeads[ i0 * MAX_CLUSTER_INDICES + i2 ];
+			uint16& Node2 = EdgeNodeHeads[ i1 * MAX_CLUSTER_INDICES + i0 ];
 			if( Node0 != INVALID_NODE ) { OppositeCorner[ i * 3 + 0 ] = EdgeNodes[ Node0 ].Corner; Node0 = EdgeNodes[ Node0 ].NextNode; }
 			else { OppositeCorner[ i * 3 + 0 ] = INVALID_CORNER; }
 			if( Node1 != INVALID_NODE ) { OppositeCorner[ i * 3 + 1 ] = EdgeNodes[ Node1 ].Corner; Node1 = EdgeNodes[ Node1 ].NextNode; }
