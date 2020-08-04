@@ -353,12 +353,14 @@ bool FNiagaraSystemInstance::RequestCapture(const FGuid& RequestId)
 	for (const FNiagaraEmitterHandle& Handle : GetSystem()->GetEmitterHandles())
 	{
 		TArray<UNiagaraScript*> Scripts;
-		if (Handle.GetInstance())
+		if (Handle.GetInstance() && Handle.GetIsEnabled())
 		{
 			Handle.GetInstance()->GetScripts(Scripts, false);
 
 			for (UNiagaraScript* Script : Scripts)
 			{
+				if (Script->IsGPUScript(Script->Usage) && Handle.GetInstance()->SimTarget == ENiagaraSimTarget::CPUSim)
+					continue;
 				TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfoPtr = MakeShared<FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>(Handle.GetIdName(), Script->GetUsage(), Script->GetUsageId());
 				DebugInfoPtr->bWritten = false;
 
