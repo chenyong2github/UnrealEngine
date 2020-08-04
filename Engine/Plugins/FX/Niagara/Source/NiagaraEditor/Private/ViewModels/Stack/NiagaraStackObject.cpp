@@ -104,6 +104,21 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		PropertyRowGenerator->OnRowsRefreshed().AddUObject(this, &UNiagaraStackObject::PropertyRowsRefreshed);
 	}
 
+	if (!Object->HasAllFlags(EObjectFlags::RF_Transactional))
+	{
+		NewIssues.Add(FStackIssue(
+			EStackIssueSeverity::Warning,
+			NSLOCTEXT("StackObject", "ObjectNotTransactionalShort", "Object is not transctional, undo won't work for it!"),
+			NSLOCTEXT("StackObject", "ObjectNotTransactionalLong", "Object is not transctional, undo won't work for it! Please report this to the Niagara dev team."),
+			GetStackEditorDataKey(),
+			false,
+			{
+				FStackIssueFix(
+					NSLOCTEXT("StackObject","TransactionalFix", "Fix transactional status."),
+					FStackIssueFixDelegate::CreateLambda([this]() { Object->SetFlags(RF_Transactional); })),
+			}));
+	}
+
 	// TODO: Handle this in a more generic way.  Maybe add error apis to UNiagaraMergable, or use a UObject interface, or create a
 	// data interface specific implementation of UNiagaraStackObject.
 	UNiagaraDataInterface* DataInterfaceObject = Cast<UNiagaraDataInterface>(Object);
