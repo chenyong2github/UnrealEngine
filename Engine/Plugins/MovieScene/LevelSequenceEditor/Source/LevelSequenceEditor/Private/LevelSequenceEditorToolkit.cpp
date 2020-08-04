@@ -537,7 +537,7 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 				break;
 			}
 
-			if (!Sequencer->CanKeyProperty(FCanKeyPropertyParams(Actor.GetClass(), *PropertyPath)))
+			if (!Sequencer->CanKeyProperty(FCanKeyPropertyParams(PropertyOwner->GetClass(), *PropertyPath)))
 			{
 				continue;
 			}
