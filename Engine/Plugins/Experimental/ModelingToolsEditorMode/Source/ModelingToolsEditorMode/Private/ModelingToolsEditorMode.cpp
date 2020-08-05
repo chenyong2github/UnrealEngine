@@ -821,7 +821,7 @@ void FModelingToolsEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)
 				}
 				else
 				{
-					Viewport.RemoveRealtimeOverride(SystemDisplayName);
+					Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
 				}
 			}
 		}
