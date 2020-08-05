@@ -880,7 +880,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 
 	// Should we force activation to fail?
-	if (UNiagaraComponentSettings::ShouldSupressActivation(Asset))
+	if (UNiagaraComponentSettings::ShouldSuppressActivation(Asset))
 	{
 		return;
 	}

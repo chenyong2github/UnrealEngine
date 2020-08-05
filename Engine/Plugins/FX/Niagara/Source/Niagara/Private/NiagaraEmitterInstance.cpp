@@ -15,6 +15,7 @@
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraComponentSettings.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Custom Events"), STAT_NiagaraNumCustomEvents, STATGROUP_Niagara);
 
@@ -84,6 +85,14 @@ static FAutoConsoleVariableRef CVarMaxNiagaraGPUParticlesSpawnPerFrame(
 	TEXT("fx.MaxNiagaraGPUParticlesSpawnPerFrame"),
 	GMaxNiagaraGPUParticlesSpawnPerFrame,
 	TEXT("The max number of GPU particles we expect to spawn in a single frame.\n"),
+	ECVF_Default
+);
+
+static int32 GNiagaraUseSuppressEmitterList = 0;
+static FAutoConsoleVariableRef CVarNiagaraUseEmitterSupressList(
+	TEXT("fx.Niagara.UseEmitterSuppressList"),
+	GNiagaraUseSuppressEmitterList,
+	TEXT("When an emitter is activated we will check the surpession list."),
 	ECVF_Default
 );
 
@@ -217,11 +226,32 @@ void FNiagaraEmitterInstance::Dump()const
 
 bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 {
-	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
-	return EmitterHandle.GetIsEnabled() &&
-		CachedEmitter->IsAllowedByScalability() &&
-		// TODO: fall back to CPU sim instead once we have scalability functionality to do so
-		(CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim || (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
+	if (!GetEmitterHandle().GetIsEnabled()
+		|| !CachedEmitter->IsAllowedByScalability())
+	{
+		return false;
+	}
+
+	if (GNiagaraUseSuppressEmitterList != 0)
+	{
+		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
+		{
+			FNiagaraEmitterNameSettingsRef Ref;
+			if (const UNiagaraSystem* ParentSystem = ParentSystemInstance->GetSystem())
+			{
+				Ref.SystemName = ParentSystem->GetFName();
+			}
+			Ref.EmitterName = CachedEmitter->GetUniqueEmitterName();
+			if (ComponentSettings->SuppressEmitterList.Contains(Ref))
+			{
+				return false;
+			}
+		}
+	}
+
+	// TODO: fall back to CPU sim instead once we have scalability functionality to do so
+	return (CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim
+		|| (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
 }
 
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID InSystemInstanceID)
