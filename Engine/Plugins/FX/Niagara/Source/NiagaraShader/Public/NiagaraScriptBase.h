@@ -24,6 +24,10 @@ public:
 	UPROPERTY()
 	uint32 bWritesParticles : 1;
 
+	/** When enabled the simulation stage does not write all variables out, so we are reading / writing to the same buffer. */
+	UPROPERTY()
+	uint32 bPartialParticleUpdate : 1;
+
 	/** DataInterfaces that we write to in this stage.*/
 	UPROPERTY()
 	TArray<FName> OutputDestinations;
