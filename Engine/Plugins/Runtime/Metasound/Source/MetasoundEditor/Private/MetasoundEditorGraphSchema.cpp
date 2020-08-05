@@ -33,31 +33,6 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		FString GetDataTypeDisplayName(const FName& InDataTypeName)
-		{
-			FString CategoryString = InDataTypeName.ToString();
-			int32 Index = 0;
-			CategoryString.FindLastChar(':', Index);
-
-			return CategoryString.RightChop(Index + 1);
-		}
-
-		TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName)
-		{
-			FString CategoryString = InDataTypeName.ToString();
-
-			TArray<FString> Categories;
-			CategoryString.ParseIntoArray(Categories, TEXT(":"));
-
-			if (Categories.Num() > 0)
-			{
-				// Remove name
-				Categories.RemoveAt(Categories.Num() - 1);
-			}
-
-			return Categories;
-		}
-
 		TSharedPtr<FEditor> GetEditorForGraph(const UObject& Metasound)
 		{
 			TSharedPtr<IToolkit> FoundAssetEditor = FToolkitManager::Get().FindEditorForAsset(CastChecked<const UObject>(&Metasound));
@@ -188,7 +163,6 @@ FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText
 UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
 {
 	using namespace Metasound::Editor;
-	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewInput", "Add New Metasound Input"));
 
@@ -197,20 +171,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	FString NameBase = GetDataTypeDisplayName(NodeTypeName);
-
-	FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&ParentMetasound);
-	check(MetasoundAsset);
-
-	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-
-	int32 i = 1;
-	FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
-	while (GraphHandle.ContainsInputNodeWithName(NewNodeName))
-	{
-		NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
-	}
-
+	FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(ParentMetasound, NodeTypeName);
 	UEdGraphNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
 	return NewGraphNode;
 }
@@ -224,7 +185,6 @@ FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FTe
 UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode /* = true */)
 {
 	using namespace Metasound::Editor;
-	using namespace Metasound::Frontend;
 
 	const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorNewOutput", "Add New Metasound Output"));
 
@@ -233,19 +193,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	UObject& ParentMetasound = CastChecked<UMetasoundEditorGraph>(ParentGraph)->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	FString NameBase = GetDataTypeDisplayName(NodeTypeName);
-
-	FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(&ParentMetasound);
-	check(MetasoundAsset);
-
-	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-
-	int32 i = 1;
-	FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
-	while (GraphHandle.ContainsOutputNodeWithName(NewNodeName))
-	{
-		NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
-	}
+	FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(ParentMetasound, NodeTypeName);
 
 	UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, Location, NewNodeName, NodeTypeName, FText::GetEmpty());
 	return NewGraphNode;
@@ -289,7 +237,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_Paste::PerformAction(UEdGraph* ParentG
 	TSharedPtr<FEditor> MetasoundEditor = GetEditorForGraph(*ParentGraph);
 	if (MetasoundEditor.IsValid())
 	{
-		MetasoundEditor->PasteNodesAtLocation(Location);
+		MetasoundEditor->PasteNodes(&Location);
 	}
 
 	return nullptr;
@@ -594,11 +542,11 @@ void UMetasoundEditorGraphSchema::GetAllMetasoundActions(FGraphActionMenuBuilder
 	EditorModule.IterateDataTypes([InputMenuName, OutputMenuName, InMenuBuilder = &ActionMenuBuilder](const FEditorDataType& DataType)
 	{
 		const FName DataTypeName = DataType.RegistryInfo.DataTypeName;
-		const FText DataTypeDisplayName = FText::FromString(GetDataTypeDisplayName(DataTypeName));
+		const FText DataTypeDisplayName = FText::FromString(FGraphBuilder::GetDataTypeDisplayName(DataTypeName));
 		const FText DataTypeTextName = FText::FromName(DataTypeName);
 		const FText MenuJoinFormat = LOCTEXT("MetasoundFormatNodeSubCategory", "{0}|{1}");
 
-		const TArray<FString> Categories = GetDataTypeNameCategories(DataTypeName);
+		const TArray<FString> Categories = FGraphBuilder::GetDataTypeNameCategories(DataTypeName);
 		const FText CategoriesText = FText::FromString(FString::Join(Categories, TEXT("|")));
 
 

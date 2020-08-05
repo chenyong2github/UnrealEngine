@@ -23,9 +23,6 @@ class UMetasoundEditorGraphNode : public UEdGraphNode
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Fix up the node's owner after being copied */
-	METASOUNDEDITOR_API void PostCopyNode();
-
 	/** Create a new input pin for this node */
 	METASOUNDEDITOR_API void CreateInputPin();
 
@@ -38,6 +35,7 @@ public:
 	virtual void AllocateDefaultPins() override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
+	virtual bool CanUserDeleteNode() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FString GetDocumentationExcerptName() const override;
 	virtual FString GetDocumentationLink() const override;
@@ -59,7 +57,9 @@ public:
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
+
 	void SetNodeID(uint32 InNodeID);
+	uint32 GetNodeID() const;
 
 protected:
 	UPROPERTY()

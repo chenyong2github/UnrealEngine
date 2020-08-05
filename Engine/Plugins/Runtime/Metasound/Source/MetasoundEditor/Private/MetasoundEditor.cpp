@@ -10,6 +10,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -28,6 +29,8 @@
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -91,25 +94,33 @@ namespace Metasound
 			GEditor->UnregisterForUndo(this);
 		}
 
-		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
+		Frontend::FGraphHandle FEditor::InitMetasound(UObject& InMetasound)
 		{
-			checkf(Frontend::IsObjectAMetasoundArchetype(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
-			
-			Metasound = ObjectToEdit;
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(ObjectToEdit);
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
-
-			// Support undo/redo
-			ObjectToEdit->SetFlags(RF_Transactional);
 
 			if (!MetasoundAsset->GetGraph())
 			{
-				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(Metasound);
-				Graph->ParentMetasound = Metasound;
+				UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetasound);
+				Graph->ParentMetasound = &InMetasound;
 				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
 				MetasoundAsset->SetGraph(Graph);
-				FGraphBuilder::RebuildGraph(*Metasound);
+				FGraphBuilder::RebuildGraph(InMetasound);
 			}
+
+			return MetasoundAsset->GetRootGraphHandle();
+		}
+
+		void FEditor::InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
+		{
+			check(ObjectToEdit);
+			checkf(Frontend::IsObjectAMetasoundArchetype(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
+			
+			// Support undo/redo
+			ObjectToEdit->SetFlags(RF_Transactional);
+
+			Metasound = ObjectToEdit;
+			InitMetasound(*Metasound);
 
 			GEditor->RegisterForUndo(this);
 
@@ -353,7 +364,7 @@ namespace Metasound
 
 				FMetasoundDocument MetasoundDoc;
 
-				if (Frontend::ImportJSONToMetasound(InputPath, MetasoundDoc))
+				if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
 				{
 					Frontend::GetObjectForDocument(MetasoundDoc, OutputPath);
 				}
@@ -378,7 +389,7 @@ namespace Metasound
 
 			// TODO: We could just make this an object.
 			const FString Path = FPaths::ProjectSavedDir() / TEXT("Metasounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
-			InMetasoundAsset->ExportToJSON(Path);
+			InMetasoundAsset->GetRootGraphHandle().ExportToJSONAsset(Path);
 		}
 
 		void FEditor::Play()
@@ -517,7 +528,7 @@ namespace Metasound
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
 					FExecuteAction::CreateSP(this, &FEditor::DeleteSelectedNodes),
-					FCanExecuteAction::CreateLambda([this]() { return MetasoundGraphEditor->GetSelectedNodes().Num() > 0; }));
+					FCanExecuteAction::CreateLambda([this]() { return CanDeleteNodes(); }));
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
 					FExecuteAction::CreateSP(this, &FEditor::CopySelectedNodes),
@@ -525,15 +536,15 @@ namespace Metasound
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
 					FExecuteAction::CreateSP(this, &FEditor::CutSelectedNodes),
-					FCanExecuteAction::CreateSP(this, &FEditor::CanCutNodes));
+					FCanExecuteAction::CreateLambda([this]() { return CanCopyNodes() && CanDeleteNodes(); }));
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
-					FExecuteAction::CreateSP(this, &FEditor::PasteNodes),
+					FExecuteAction::CreateLambda([this]() { PasteNodes(); }),
 					FCanExecuteAction::CreateSP(this, &FEditor::CanPasteNodes));
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
-					FExecuteAction::CreateSP(this, &FEditor::DuplicateNodes),
-					FCanExecuteAction::CreateSP(this, &FEditor::CanDuplicateNodes));
+					FExecuteAction::CreateLambda([this] { CopySelectedNodes(); PasteNodes(); }),
+					FCanExecuteAction::CreateLambda([this]() { return CanCopyNodes(); }));
 
 				// Alignment Commands
 				GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
@@ -624,8 +635,6 @@ namespace Metasound
 
 		void FEditor::DeleteSelectedNodes()
 		{
-			using namespace Metasound::Frontend;
-
 			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
 
 			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
@@ -635,20 +644,52 @@ namespace Metasound
 			MetasoundGraphEditor->ClearSelectionSet();
 
 			UObject* ParentMetasoundObject = Graph->ParentMetasound;
-
-			if (FMetasoundAssetBase* MetasoundAsset = GetObjectAsAssetBase(ParentMetasoundObject))
+			check(ParentMetasoundObject);
+			if (FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(ParentMetasoundObject))
 			{
-				FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+				Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 				for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 				{
 					UMetasoundEditorGraphNode* Node = CastChecked<UMetasoundEditorGraphNode>(*NodeIt);
+					Frontend::FNodeHandle NodeHandle = Node->GetNodeHandle();
+
+					if (NodeHandle.GetNodeType() == EMetasoundClassType::Input)
+					{
+						if (GraphHandle.IsRequiredInput(NodeHandle.GetNodeName()))
+						{
+							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredInput",
+								"'Required Input '{0}' cannot be deleted."), GraphHandle.GetInputDisplayName(NodeHandle.GetNodeName())));
+							Info.bFireAndForget = true;
+							Info.ExpireDuration = 2.0f;
+							Info.bUseThrobber = true;
+							FSlateNotificationManager::Get().AddNotification(Info);
+							continue;
+						}
+					}
+
+					if (NodeHandle.GetNodeType() == EMetasoundClassType::Output)
+					{
+						if (GraphHandle.IsRequiredOutput(NodeHandle.GetNodeName()))
+						{
+							FNotificationInfo Info(FText::Format(LOCTEXT("Metasounds_CannotDeleteRequiredOutput",
+								"'Required Output '{0}' cannot be deleted."), GraphHandle.GetOutputDisplayName(NodeHandle.GetNodeName())));
+							Info.bFireAndForget = true;
+							Info.ExpireDuration = 2.0f;
+							Info.bUseThrobber = true;
+							FSlateNotificationManager::Get().AddNotification(Info);
+							continue;
+						}
+					}
+
 					FGraphBuilder::DeleteNode(*Node, false /* bInRecordTransaction */);
 				}
 			}
 		}
 
-		void FEditor::DeleteSelectedDuplicatableNodes()
+		void FEditor::CutSelectedNodes()
 		{
+			CopySelectedNodes();
+
 			// Cache off the old selection
 			const FGraphPanelSelectionSet OldSelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 
@@ -659,7 +700,7 @@ namespace Metasound
 			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(OldSelectedNodes); SelectedIter; ++SelectedIter)
 			{
 				UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
-				if ((Node != nullptr) && Node->CanDuplicateNode())
+				if (Node && Node->CanUserDeleteNode())
 				{
 					MetasoundGraphEditor->SetNodeSelection(Node, true);
 				}
@@ -669,7 +710,7 @@ namespace Metasound
 				}
 			}
 
-			// Delete the duplicatable nodes
+			// Delete the deleteable nodes
 			DeleteSelectedNodes();
 
 			// Reselect whatever's left from the original selection after the deletion
@@ -684,44 +725,61 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::CutSelectedNodes()
-		{
-			CopySelectedNodes();
-			// Cut should only delete nodes that can be duplicated
-			DeleteSelectedDuplicatableNodes();
-		}
-
-		bool FEditor::CanCutNodes() const
-		{
-			return CanCopyNodes();
-		}
-
 		void FEditor::CopySelectedNodes()
 		{
+			using namespace Metasound::Frontend;
+
 			// Export the selected nodes and place the text on the clipboard
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 
-			FString ExportedText;
-
+			TMap<uint32, FNodeHandle> HandlesToCopy;
 			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
 			{
 				if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*SelectedIter))
 				{
+					HandlesToCopy.Add(Node->GetNodeID(), Node->GetNodeHandle());
 					Node->PrepareForCopying();
 				}
 			}
 
-			FEdGraphUtilities::ExportNodesToText(SelectedNodes, /*out*/ ExportedText);
-			FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+			FMetasoundAssetBase* MetasoundAsset = Metasound::Frontend::GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+			FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 
-			// Make sure Metasound remains the owner of the copied nodes
-			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
+			UMetasound* MetasoundCopy = NewObject<UMetasound>();
+			FGraphHandle CopyGraphHandle = InitMetasound(*MetasoundCopy);
+
+			GraphHandle.CopyGraph(CopyGraphHandle);
+
+			TArray<FNodeHandle> AllCopiedNodes = CopyGraphHandle.GetAllNodes();
+			for (FNodeHandle& Node : AllCopiedNodes)
 			{
-				if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(*SelectedIter))
+				if (!HandlesToCopy.Contains(Node.GetNodeID()))
 				{
-					Node->PostCopyNode();
+					if (Node.GetNodeType() == EMetasoundClassType::Input)
+					{
+						CopyGraphHandle.RemoveInput(Node.GetNodeName());
+					}
+					else if (Node.GetNodeType() == EMetasoundClassType::Output)
+					{
+						CopyGraphHandle.RemoveOutput(Node.GetNodeName());
+					}
+					else
+					{
+						CopyGraphHandle.RemoveNode(Node);
+					}
 				}
 			}
+
+			FString ExportedEdText;
+			FEdGraphUtilities::ExportNodesToText(SelectedNodes, ExportedEdText);
+
+			FMetasoundEditorData EditorData;
+			EditorData.GraphData = ExportedEdText;
+			CopyGraphHandle.SetEditorData(EditorData);
+
+			const FString JSONToCopy = CopyGraphHandle.ExportToJSON();
+			FPlatformApplicationMisc::ClipboardCopy(*JSONToCopy);
 		}
 
 		bool FEditor::CanCopyNodes() const
@@ -739,109 +797,116 @@ namespace Metasound
 			return false;
 		}
 
-		void FEditor::PasteNodes()
+		bool FEditor::CanDeleteNodes() const
 		{
-			PasteNodesAtLocation(MetasoundGraphEditor->GetPasteLocation());
-		}
-
-		void FEditor::PasteNodesAtLocation(const FVector2D& Location)
-		{
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
-
-			if (!ensureAlways(MetasoundAsset))
+			if (MetasoundGraphEditor->GetSelectedNodes().Num() == 0)
 			{
-				return;
+				return false;
 			}
 
-			UEdGraph* Graph = MetasoundAsset->GetGraph();
-			if (!Graph)
+			const FGraphPanelSelectionSet& SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
+			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
 			{
-				return;
-			}
-
-			// Undo/Redo support
-			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MetasoundEditorPaste", "Paste Metasound Node"));
-			Graph->Modify();
-			Metasound->Modify();
-
-			// Clear the selection set (newly pasted stuff will be selected)
-			MetasoundGraphEditor->ClearSelectionSet();
-
-			// Grab the text to paste from the clipboard.
-			FString TextToImport;
-			FPlatformApplicationMisc::ClipboardPaste(TextToImport);
-
-			// Import the nodes
-			TSet<UEdGraphNode*> PastedNodes;
-			FEdGraphUtilities::ImportNodesFromText(Graph, TextToImport, /*out*/ PastedNodes);
-
-			//Average position of nodes so we can move them while still maintaining relative distances to each other
-			FVector2D AvgNodePosition(0.0f, 0.0f);
-
-			for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
-			{
-				UEdGraphNode* Node = *It;
-				AvgNodePosition.X += Node->NodePosX;
-				AvgNodePosition.Y += Node->NodePosY;
-			}
-
-			if (PastedNodes.Num() > 0)
-			{
-				float InvNumNodes = 1.0f / float(PastedNodes.Num());
-				AvgNodePosition.X *= InvNumNodes;
-				AvgNodePosition.Y *= InvNumNodes;
-			}
-
-			for (TSet<UEdGraphNode*>::TIterator It(PastedNodes); It; ++It)
-			{
-				UEdGraphNode* Node = *It;
-
-				if (UMetasoundEditorGraphNode* SoundGraphNode = Cast<UMetasoundEditorGraphNode>(Node))
+				UEdGraphNode* Node = Cast<UEdGraphNode>(*SelectedIter);
+				if (Node && Node->CanUserDeleteNode())
 				{
-					// TODO: Add newly referenced nodes to MS reference list
+					return true;
 				}
-
-				// Select the newly pasted stuff
-				MetasoundGraphEditor->SetNodeSelection(Node, true);
-
-				Node->NodePosX = (Node->NodePosX - AvgNodePosition.X) + Location.X;
-				Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + Location.Y;
-
-				Node->SnapToGrid(SNodePanel::GetSnapGridSize());
-
-				// Give new node a different Guid from the old one
-				Node->CreateNewGuid();
 			}
-
-			// Update UI
-			MetasoundGraphEditor->NotifyGraphChanged();
-
-			Metasound->PostEditChange();
-			Metasound->MarkPackageDirty();
-		}
-
-		bool FEditor::CanPasteNodes() const
-		{
-			FString ClipboardContent;
-			FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
-
-			// TODO: Implement
-		// 	const bool bCanPasteNodes = FEdGraphUtilities::CanImportNodesFromText(Metasound->MetasoundGraph, ClipboardContent);
-		// 	return bCanPasteNodes;
-
 			return false;
 		}
 
-		void FEditor::DuplicateNodes()
+		void FEditor::PasteNodes(const FVector2D* InLocation)
 		{
-			// Copy and paste current selection
-			CopySelectedNodes();
-			PasteNodes();
+// 			FVector2D Location;
+// 			if (InLocation)
+// 			{
+// 				Location = *InLocation;
+// 			}
+// 			else
+// 			{
+// 				check(MetasoundGraphEditor);
+// 				Location = MetasoundGraphEditor->GetPasteLocation();
+// 			}
+// 
+// 			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(Metasound);
+// 			check(MetasoundAsset);
+// 
+// 			UEdGraph* Graph = MetasoundAsset->GetGraph();
+// 			if (!Graph)
+// 			{
+// 				return;
+// 			}
+// 
+// 			// Undo/Redo support
+// 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MetasoundEditorPaste", "Paste Metasound Node"));
+// 			Graph->Modify();
+// 			Metasound->Modify();
+// 
+// 			// Clear the selection set (newly pasted stuff will be selected)
+// 			MetasoundGraphEditor->ClearSelectionSet();
+// 
+//			static_assert(false, "TODO: Delete this and assert & insert nodes/inputs/outputs from 'PastedDocument' into 'Metasound' doc here. Run fix-up on new nodes to generate ids ensuring no duplicates with nodes that pre-existed.");
+// 
+// 			// Import the nodes
+// 			TSet<UEdGraphNode*> PastedNodes;
+// 			FEdGraphUtilities::ImportNodesFromText(Graph, PastedDocument.EditorData.GraphData, PastedNodes);
+// 
+// 			// Clear out, no reason to hold a bunch of references to data no longer needed.
+// 			PastedDocument = FMetasoundDocument();
+// 
+// 			FVector2D AvgNodePosition = FVector2D::ZeroVector;
+// 			for (UEdGraphNode* Node : PastedNodes)
+// 			{
+// 				AvgNodePosition.X += Node->NodePosX;
+// 				AvgNodePosition.Y += Node->NodePosY;
+// 			}
+// 
+// 			if (PastedNodes.Num() > 0)
+// 			{
+// 				float InvNumNodes = 1.0f / PastedNodes.Num();
+// 				AvgNodePosition.X *= InvNumNodes;
+// 				AvgNodePosition.Y *= InvNumNodes;
+// 			}
+// 
+// 			for (UEdGraphNode* Node : PastedNodes)
+// 			{
+// 				// Select the newly pasted stuff
+// 				MetasoundGraphEditor->SetNodeSelection(Node, true);
+// 
+// 				Node->NodePosX = (Node->NodePosX - AvgNodePosition.X) + Location.X;
+// 				Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + Location.Y;
+// 
+// 				Node->SnapToGrid(SNodePanel::GetSnapGridSize());
+// 				Node->CreateNewGuid();
+// 			}
+// 
+// 			MetasoundGraphEditor->NotifyGraphChanged();
+// 
+// 			Metasound->PostEditChange();
+// 			Metasound->MarkPackageDirty();
 		}
 
-		bool FEditor::CanDuplicateNodes() const
+		bool FEditor::CanPasteNodes()
 		{
-			return CanCopyNodes();
+			return false;
+
+// 			static_assert(false, "Delete this assert once 'PasteNodes' includes doc fix-ups as described above.");
+// 			FString ClipboardContent;
+// 			FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+// 
+// 			FMetasoundAssetBase* AssetBase = Frontend::GetObjectAsAssetBase(Metasound);
+// 			check(AssetBase);
+// 
+// 			PastedDocument = FMetasoundDocument();
+// 			const bool bCanImportDocument = Metasound::Frontend::ImportJSONToMetasound(ClipboardContent, PastedDocument);
+// 			if (!bCanImportDocument)
+// 			{
+// 				return false;
+// 			}
+// 
+// 		 	const bool bCanPasteNodes = FEdGraphUtilities::CanImportNodesFromText(AssetBase->GetGraph(), PastedDocument.EditorData.GraphData);
+// 		 	return bCanPasteNodes;
 		}
 
 		void FEditor::UndoGraphAction()

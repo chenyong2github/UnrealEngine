@@ -91,22 +91,12 @@ TArray<Metasound::Frontend::FGraphHandle> FMetasoundAssetBase::GetAllSubgraphHan
 	return OutArray;
 }
 
-bool FMetasoundAssetBase::ImportFromJSON(const FString& InAbsolutePath)
+bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
-	return Metasound::Frontend::ImportJSONToMetasound(InAbsolutePath, GetDocument());
+	return Metasound::Frontend::ImportJSONToMetasound(InJSON, GetDocument());
 }
 
-bool FMetasoundAssetBase::ExportToJSON(const FString& InAbsolutePath) const
+bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
-	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InAbsolutePath)))
-	{
-		Metasound::TJsonStructSerializerBackend<Metasound::DefaultCharType> Backend(*FileWriter, EStructSerializerBackendFlags::Default);
-		FStructSerializer::Serialize<FMetasoundDocument>(GetDocument(), Backend);
-		FileWriter->Close();
-
-		return true;
-	}
-
-	ensureAlwaysMsgf(false, TEXT("Failed to create a filewriter with the given path."));
-	return false;
+	return Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, GetDocument());
 }

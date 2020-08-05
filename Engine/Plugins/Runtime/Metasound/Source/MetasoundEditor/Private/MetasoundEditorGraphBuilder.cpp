@@ -31,8 +31,6 @@ namespace Metasound
 		{
 			const FScopedTransaction Transaction(LOCTEXT("AddMetasoundGraphNode", "Add Metasound Node"));
 
-			const FString EdNodeName = InNodeHandle.GetNodeClassName() + TEXT("_") + FString::FromInt(InNodeHandle.GetNodeID());
-
 			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
 			check(MetasoundAsset);
 
@@ -56,14 +54,86 @@ namespace Metasound
 
 		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, const Frontend::FNodeClassInfo& InClassInfo, bool bInSelectNewNode)
 		{
-			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
-			check(MetasoundAsset);
-
-			Frontend::FNodeHandle NodeHandle = MetasoundAsset->GetRootGraphHandle().AddNewNode(InClassInfo);
+			Frontend::FNodeHandle NodeHandle = AddNodeHandle(InMetasound, InClassInfo);
 			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
 		}
 
+		Frontend::FNodeHandle FGraphBuilder::AddNodeHandle(UObject& InMetasound, const Frontend::FNodeClassInfo& InClassInfo)
+		{
+			FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			return MetasoundAsset->GetRootGraphHandle().AddNewNode(InClassInfo);
+		}
+
+		FString FGraphBuilder::GetDataTypeDisplayName(const FName& InDataTypeName)
+		{
+			FString CategoryString = InDataTypeName.ToString();
+			int32 Index = 0;
+			CategoryString.FindLastChar(':', Index);
+
+			return CategoryString.RightChop(Index + 1);
+		}
+
+		TArray<FString> FGraphBuilder::GetDataTypeNameCategories(const FName& InDataTypeName)
+		{
+			FString CategoryString = InDataTypeName.ToString();
+
+			TArray<FString> Categories;
+			CategoryString.ParseIntoArray(Categories, TEXT(":"));
+
+			if (Categories.Num() > 0)
+			{
+				// Remove name
+				Categories.RemoveAt(Categories.Num() - 1);
+			}
+
+			return Categories;
+		}
+
+		FString FGraphBuilder::GenerateUniqueInputName(const UObject& InMetasound, const FName InBaseName)
+		{
+			FString NameBase = GetDataTypeDisplayName(InBaseName);
+			const FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			const Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+
+			int32 i = 1;
+			FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			while (GraphHandle.ContainsInputNodeWithName(NewNodeName))
+			{
+				NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+			}
+
+			return NewNodeName;
+		}
+
+		FString FGraphBuilder::GenerateUniqueOutputName(const UObject& InMetasound, const FName InBaseName)
+		{
+			FString NameBase = GetDataTypeDisplayName(InBaseName);
+			const FMetasoundAssetBase* MetasoundAsset = Frontend::GetObjectAsAssetBase(&InMetasound);
+			check(MetasoundAsset);
+
+			const Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
+
+			int32 i = 1;
+			FString NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), i);
+			while (GraphHandle.ContainsOutputNodeWithName(NewNodeName))
+			{
+				NewNodeName = NameBase + FString::Printf(TEXT("_%02d"), ++i);
+			}
+
+			return NewNodeName;
+		}
+
 		UEdGraphNode* FGraphBuilder::AddInput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
+		{
+			Frontend::FNodeHandle NodeHandle = AddInputNodeHandle(InMetasound, InName, InTypeName, InToolTip);
+			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
+		}
+
+		Frontend::FNodeHandle FGraphBuilder::AddInputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip)
 		{
 			FMetasoundInputDescription Description;
 			Description.Name = InName;
@@ -77,7 +147,7 @@ namespace Metasound
 			Frontend::FNodeHandle NodeHandle = GraphHandle.AddNewInput(Description);
 			if (!NodeHandle.IsValid())
 			{
-				return nullptr;
+				return Frontend::FNodeHandle::InvalidHandle();
 			}
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
@@ -86,7 +156,7 @@ namespace Metasound
 			Metasound::FDataTypeLiteralParam LiteralParam = Frontend::GetDefaultParamForDataType(InTypeName);
 			if (!ensureAlways(LiteralParam.IsValid()))
 			{
-				return nullptr;
+				return Frontend::FNodeHandle::InvalidHandle();
 			}
 
 			switch (LiteralParam.ConstructorArgType)
@@ -125,11 +195,16 @@ namespace Metasound
 			}
 
 			GraphHandle.SetInputDisplayName(InName, FText::FromString(InName));
-
-			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
+			return NodeHandle;
 		}
 
 		UEdGraphNode* FGraphBuilder::AddOutput(UObject& InMetasound, const FVector2D& Location, const FString& InName, const FName InTypeName, const FText& InToolTip, bool bInSelectNewNode)
+		{
+			Frontend::FNodeHandle NodeHandle = AddOutputNodeHandle(InMetasound, InName, InTypeName, InToolTip);
+			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
+		}
+
+		Frontend::FNodeHandle FGraphBuilder::AddOutputNodeHandle(UObject& InMetasound, const FString& InName, const FName InTypeName, const FText& InToolTip)
 		{
 			FMetasoundOutputDescription Description;
 			Description.Name = InName;
@@ -141,10 +216,10 @@ namespace Metasound
 
 			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
 			Frontend::FNodeHandle NodeHandle = GraphHandle.AddNewOutput(Description);
-			
+
 			GraphHandle.SetOutputDisplayName(InName, FText::FromString(InName));
 
-			return AddNode(InMetasound, Location, NodeHandle, bInSelectNewNode);
+			return NodeHandle;
 		}
 
 		void FGraphBuilder::DeleteNode(UMetasoundEditorGraphNode& InNode, bool bInRecordTransaction)
@@ -284,7 +359,10 @@ namespace Metasound
 		{
 			const FScopedTransaction Transaction(LOCTEXT("RebuildMetasoundGraphNodePins", "Rebuild Metasound Pins"), bInRecordTransaction);
 
-			InGraphNode.Pins.Reset();
+			for (int32 i = InGraphNode.Pins.Num() - 1; i >= 0; i--)
+			{
+				InGraphNode.RemovePin(InGraphNode.Pins[i]);
+			}
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 

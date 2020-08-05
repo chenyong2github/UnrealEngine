@@ -94,7 +94,7 @@ struct FMetasoundInputDescription
 	GENERATED_BODY()
 
 	// The name of this input.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	FString Name;
 
 	// The name of this input displayed to users.
@@ -121,7 +121,7 @@ struct FMetasoundOutputDescription
 	GENERATED_BODY()
 
 	// The descriptive name of this output.
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = CustomView)
 	FString Name;
 
 	// The name of this input displayed to users.
@@ -216,6 +216,15 @@ struct FMetasoundExternalClassLookupInfo
 	uint32 ExternalNodeClassHash;
 };
 
+USTRUCT()
+struct FMetasoundEditorData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString GraphData;
+};
+
 // Full saved out description of a Metasound object,
 // which is anything that could be used as a node in a graph.
 // It is not called "FMetasoundNodeDescription" to avoid confusion with the individual node objects that compose
@@ -232,13 +241,13 @@ struct FMetasoundClassDescription
 	UPROPERTY()
 	uint32 UniqueID;
 
-	UPROPERTY(EditAnywhere, Category = Hidden)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundClassMetadata Metadata;
 
-	UPROPERTY(EditAnywhere, Category = Hidden)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	TArray<FMetasoundInputDescription> Inputs;
 
-	UPROPERTY(EditAnywhere, Category = Hidden)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	TArray<FMetasoundOutputDescription> Outputs;
 
 	// If this object is itself of the Metasound type, here we list the unique IDs of other objects it depends on to be built.
@@ -291,10 +300,13 @@ struct FMetasoundDocument
 
 	// The highest level Metasound Class in this document.
 	// Typically of type MetasoundGraph, contains graph of the node classes listed in Dependencies.
-	UPROPERTY(EditAnywhere, Category = Hidden)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundClassDescription RootClass;
 
 	// this is the list of every dependency required by the RootClass, as well as nested dependencies.
 	UPROPERTY()
 	TArray<FMetasoundClassDescription> Dependencies;
+
+	UPROPERTY()
+	FMetasoundEditorData EditorData;
 };

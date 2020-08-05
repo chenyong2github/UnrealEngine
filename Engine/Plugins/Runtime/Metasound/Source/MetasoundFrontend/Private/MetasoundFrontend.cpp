@@ -2,14 +2,14 @@
 
 #include "MetasoundFrontend.h"
 
-#include "MetasoundJsonBackend.h"
-#include "StructSerializer.h"
-#include "StructDeserializer.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
-#include "Modules/ModuleManager.h"
-
+#include "MetasoundJsonBackend.h"
 #include "MetasoundOperatorBuilder.h"
+#include "Modules/ModuleManager.h"
+#include "StructDeserializer.h"
+#include "StructSerializer.h"
+
 
 static int32 MetasoundUndoRollLimitCvar = 128;
 FAutoConsoleVariableRef CVarMetasoundUndoRollLimit(
@@ -213,7 +213,21 @@ namespace Metasound
 			return FMetasoundFrontendRegistryContainer::Get()->GetInfoForDataType(InDataType, OutInfo);
 		}
 
-		bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument)
+		bool ImportJSONToMetasound(const FString& InJSON, FMetasoundDocument& OutMetasoundDocument)
+		{
+			TArray<uint8> ReadBuffer;
+			ReadBuffer.SetNumUninitialized(InJSON.Len() * sizeof(ANSICHAR));
+			FMemory::Memcpy(ReadBuffer.GetData(), StringCast<ANSICHAR>(*InJSON).Get(), InJSON.Len() * sizeof(ANSICHAR));
+			FMemoryReader MemReader(ReadBuffer);
+
+			TJsonStructDeserializerBackend<DefaultCharType> Backend(MemReader);
+			bool DeserializeResult = FStructDeserializer::Deserialize(OutMetasoundDocument, Backend);
+
+			MemReader.Close();
+			return DeserializeResult && !MemReader.IsError();
+		}
+
+		bool ImportJSONAssetToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument)
 		{
 			if (TUniquePtr<FArchive> FileReader = TUniquePtr<FArchive>(IFileManager::Get().CreateFileReader(*InPath)))
 			{
@@ -1307,6 +1321,63 @@ namespace Metasound
 			return GraphPtr.IsValid() && GraphsClassDeclaration.IsValid();
 		}
 
+		void FGraphHandle::CopyGraph(FGraphHandle& InOther)
+		{
+			*InOther.GraphPtr.Get() = *GraphPtr.Get();
+			*InOther.GraphsClassDeclaration.Get() = *GraphsClassDeclaration.Get();
+			*InOther.OwningDocument.Get() = *OwningDocument.Get();
+		}
+
+		bool FGraphHandle::IsRequiredInput(const FString& InInputName) const
+		{
+			const TArray<FMetasoundInputDescription>& RequiredInputs = OwningDocument->Archetype.RequiredInputs;
+			for (const FMetasoundInputDescription& RequiredInput : RequiredInputs)
+			{
+				if (InInputName == RequiredInput.Name)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::IsRequiredOutput(const FString& InOutputName) const
+		{
+			const TArray<FMetasoundOutputDescription>& RequiredOutputs = OwningDocument->Archetype.RequiredOutputs;
+			for (const FMetasoundOutputDescription& RequiredOutput : RequiredOutputs)
+			{
+				if (InOutputName == RequiredOutput.Name)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		const TArray<FMetasoundInputDescription>& FGraphHandle::GetRequiredInputs() const
+		{
+			static const TArray<FMetasoundInputDescription> InvalidDesc;
+			if (!OwningDocument.IsValid())
+			{
+				return InvalidDesc;
+			}
+
+			return OwningDocument->Archetype.RequiredInputs;
+		}
+
+		const TArray<FMetasoundOutputDescription>& FGraphHandle::GetRequiredOutputs() const
+		{
+			static const TArray<FMetasoundOutputDescription> InvalidDesc;
+			if (!OwningDocument.IsValid())
+			{
+				return InvalidDesc;
+			}
+
+			return OwningDocument->Archetype.RequiredOutputs;
+		}
+
 		TArray<FNodeHandle> FGraphHandle::GetAllNodes()
 		{
 			TArray<FNodeHandle> OutArray;
@@ -1526,7 +1597,7 @@ namespace Metasound
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
 		}
 
-		bool FGraphHandle::RemoveInput(const FString& InputName)
+		bool FGraphHandle::RemoveInput(const FString& InInputName)
 		{
 			if (!IsValid())
 			{
@@ -1538,26 +1609,26 @@ namespace Metasound
 
 			for (int32 InputIndex = 0; InputIndex < Inputs.Num(); InputIndex++)
 			{
-				if (Inputs[InputIndex].Name == InputName)
+				if (Inputs[InputIndex].Name == InInputName)
 				{
 					IndexOfInputToRemove = InputIndex;
 					break;
 				}
 			}
 
-			if (!ensureAlwaysMsgf(IndexOfInputToRemove >= 0, TEXT("Tried to remove an Input that didn't exist: %s"), *InputName))
+			if (!ensureAlwaysMsgf(IndexOfInputToRemove >= 0, TEXT("Tried to remove an Input that didn't exist: %s"), *InInputName))
 			{
 				return false;
 			}
 
 			// find the corresponding node handle to delete.
-			FNodeHandle InputNode = GetInputNodeWithName(InputName);
+			FNodeHandle InputNode = GetInputNodeWithName(InInputName);
 
 			// If we found the input declared in the class description but couldn't find it in the graph,
 			// something has gone terribly wrong. Remove the input from the description, but still ensure.
 			if (!ensureAlwaysMsgf(InputNode.IsValid(), TEXT(R"(Couldn't find an input node with name %s, even though we found the input listed as a dependency.
 				This indicates the underlying FMetasoundClassDescription is corrupted.
-				Removing the Input in the class dependency to resolve...)"), *InputName))
+				Removing the Input in the class dependency to resolve...)"), *InInputName))
 			{
 				Inputs.RemoveAt(IndexOfInputToRemove);
 				return true;
@@ -1571,6 +1642,16 @@ namespace Metasound
 
 			Inputs.RemoveAt(IndexOfInputToRemove);
 			return true;
+		}
+
+		const FMetasoundEditorData& FGraphHandle::GetEditorData() const
+		{
+			return OwningDocument->EditorData;
+		}
+
+		void FGraphHandle::SetEditorData(const FMetasoundEditorData& InEditorData)
+		{
+			OwningDocument->EditorData = InEditorData;
 		}
 
 		FNodeHandle FGraphHandle::AddNewOutput(const FMetasoundOutputDescription& InDescription)
@@ -1990,6 +2071,24 @@ namespace Metasound
 			return GraphsClassDeclaration->Metadata;
 		}
 
+		FString FGraphHandle::ExportToJSON() const
+		{
+			TArray<uint8> WriterBuffer;
+			FMemoryWriter MemWriter(WriterBuffer);
+
+			Metasound::TJsonStructSerializerBackend<Metasound::DefaultCharType> Backend(MemWriter, EStructSerializerBackendFlags::Default);
+			FStructSerializer::Serialize<FMetasoundDocument>(*OwningDocument, Backend);
+
+			MemWriter.Close();
+
+			// null terminator
+			WriterBuffer.AddZeroed(sizeof(ANSICHAR));
+
+			FString Output;
+			Output.AppendChars(reinterpret_cast<ANSICHAR*>(WriterBuffer.GetData()), WriterBuffer.Num() / sizeof(ANSICHAR));
+			return Output;
+		}
+
 		bool FGraphHandle::ExportToJSONAsset(const FString& InAbsolutePath) const
 		{
 			if (!IsValid())
@@ -1997,7 +2096,6 @@ namespace Metasound
 				return false;
 			}
 
-			
 			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*InAbsolutePath)))
 			{
 				

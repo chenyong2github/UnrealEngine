@@ -111,12 +111,16 @@ void UMetasoundEditorGraphNode::IteratePins(TUniqueFunction<void(UEdGraphPin* /*
 
 void UMetasoundEditorGraphNode::AllocateDefaultPins()
 {
-	ensureAlways(Pins.Num() == 0);
-
 	using namespace Metasound;
 
+	ensureAlways(Pins.Num() == 0);
+
 	Frontend::FNodeHandle NodeHandle = Frontend::FNodeHandle::InvalidHandle();
-	Editor::FGraphBuilder::RebuildNodePins(*this, NodeHandle, false /* bInRecordTransaction */);
+	if (NodeID != INDEX_NONE)
+	{
+		NodeHandle = GetNodeHandle();
+	}
+	Metasound::Editor::FGraphBuilder::RebuildNodePins(*this, NodeHandle, false /* bInRecordTransaction */);
 }
 
 void UMetasoundEditorGraphNode::ReconstructNode()
@@ -124,6 +128,10 @@ void UMetasoundEditorGraphNode::ReconstructNode()
 	using namespace Metasound;
 
 	Frontend::FNodeHandle NodeHandle = Frontend::FNodeHandle::InvalidHandle();
+	if (NodeID != INDEX_NONE)
+	{
+		NodeHandle = GetNodeHandle();
+	}
 	Editor::FGraphBuilder::RebuildNodePins(*this, NodeHandle);
 }
 
@@ -171,6 +179,23 @@ bool UMetasoundEditorGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSche
 	return Schema->IsA(UMetasoundEditorGraphSchema::StaticClass());
 }
 
+bool UMetasoundEditorGraphNode::CanUserDeleteNode() const
+{
+	const FString& NodeName = GetNodeHandle().GetNodeName();
+	Metasound::Frontend::FGraphHandle GraphHandle = GetRootGraphHandle();
+	if (GraphHandle.IsRequiredInput(NodeName))
+	{
+		return false;
+	}
+
+	if (GraphHandle.IsRequiredOutput(NodeName))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 {
 	return TEXT("Shared/GraphNodes/Metasound");
@@ -179,6 +204,11 @@ FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 void UMetasoundEditorGraphNode::SetNodeID(uint32 InNodeID)
 {
 	NodeID = InNodeID;
+}
+
+uint32 UMetasoundEditorGraphNode::GetNodeID() const
+{
+	return NodeID;
 }
 
 FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -213,10 +243,6 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 }
 
 void UMetasoundEditorGraphNode::PrepareForCopying()
-{
-}
-
-void UMetasoundEditorGraphNode::PostCopyNode()
 {
 }
 

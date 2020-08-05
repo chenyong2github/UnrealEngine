@@ -7,19 +7,24 @@
 // Forward Declarations
 class IDetailLayoutBuilder;
 
-
-class FMetasoundDetailCustomization : public IDetailCustomization
+namespace Metasound
 {
-public:
-	FMetasoundDetailCustomization(FName InDocumentPropertyName);
+	namespace Editor
+	{
+		class FMetasoundDetailCustomization : public IDetailCustomization
+		{
+		public:
+			FMetasoundDetailCustomization(FName InDocumentPropertyName);
 
-	// IDetailCustomization interface
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
-	// End of IDetailCustomization interface
+			// IDetailCustomization interface
+			virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+			// End of IDetailCustomization interface
 
-private:
-	FName GetMetadataRootClassPath() const;
-	FName GetMetadataPropertyPath() const;
+		private:
+			FName GetMetadataRootClassPath() const;
+			FName GetMetadataPropertyPath() const;
 
-	FName DocumentPropertyName;
-};
+			FName DocumentPropertyName;
+		};
+	} // namespace Editor
+} // namespace Metasound

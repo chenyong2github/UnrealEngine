@@ -45,11 +45,11 @@ public:
 	// Returns the root class metadata
 	FMetasoundClassMetadata GetMetadata();
 
-	// Imports the asset from a JSON file at provided path
-	bool ImportFromJSON(const FString& InAbsolutePath);
+	// Imports data from a JSON string directly
+	bool ImportFromJSON(const FString& InJSON);
 
-	// Exports the asset to JSON file at provided path
-	bool ExportToJSON(const FString& InAbsolutePath) const;
+	// Imports the asset from a JSON file at provided path
+	bool ImportFromJSONAsset(const FString& InAbsolutePath);
 
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;

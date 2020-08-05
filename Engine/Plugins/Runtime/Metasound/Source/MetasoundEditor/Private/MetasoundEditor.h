@@ -7,6 +7,7 @@
 #include "GraphEditor.h"
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
+#include "MetasoundFrontend.h"
 #include "Misc/NotifyHook.h"
 #include "SMetasoundPalette.h"
 #include "Textures/SlateIcon.h"
@@ -67,10 +68,9 @@ namespace Metasound
 			// End of FEditorUndoClient
 
 			/** Whether pasting the currently selected nodes is permissible */
-			bool CanPasteNodes() const;
+			bool CanPasteNodes();
 
-			/** Paste the contents of the clipboard at the provided location */
-			void PasteNodesAtLocation(const FVector2D& Location);
+			void PasteNodes(const FVector2D* Location = nullptr);
 
 			int32 GetNumNodesSelected() const
 			{
@@ -93,14 +93,9 @@ namespace Metasound
 			/** Delete the currently selected nodes */
 			void DeleteSelectedNodes();
 
-			/** Delete only the currently selected nodes that can be duplicated */
-			void DeleteSelectedDuplicatableNodes();
-
 			/** Cut the currently selected nodes */
 			void CutSelectedNodes();
 
-			/** Whether we are able to cut the currently selected nodes */
-			bool CanCutNodes() const;
 
 			/** Copy the currently selected nodes */
 			void CopySelectedNodes();
@@ -108,14 +103,8 @@ namespace Metasound
 			/** Whether copying the currently selected nodes is permissible */
 			bool CanCopyNodes() const;
 
-			/** Paste the contents of the clipboard */
-			void PasteNodes();
-
-			/** Duplicate the currently selected nodes */
-			void DuplicateNodes();
-
-			/** Whether we are able to duplicate the currently selected nodes */
-			bool CanDuplicateNodes() const;
+			/** Whether the currently selected nodes can be deleted */
+			bool CanDeleteNodes() const;
 
 			/** Called to undo the last action */
 			void UndoGraphAction();
@@ -124,6 +113,8 @@ namespace Metasound
 			void RedoGraphAction();
 
 		private:
+			static Frontend::FGraphHandle InitMetasound(UObject& InMetasound);
+
 			/** FNotifyHook interface */
 			virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
@@ -198,6 +189,9 @@ namespace Metasound
 
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;
+
+			/** Document used when pasting from clipboard to avoid deserializing twice */
+			FMetasoundDocument PastedDocument;
 		};
 	} // namespace Editor
 } // namespace Metasound

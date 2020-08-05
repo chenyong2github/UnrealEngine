@@ -26,7 +26,7 @@ class METASOUNDENGINE_API UMetasoundSource : public USoundWaveProcedural, public
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, Category = Hidden)
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA

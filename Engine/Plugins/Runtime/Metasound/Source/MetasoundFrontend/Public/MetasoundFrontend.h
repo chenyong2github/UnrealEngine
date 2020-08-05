@@ -86,10 +86,13 @@ namespace Metasound
 		// returns false if InDataType couldn't be found.
 		METASOUNDFRONTEND_API bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
-		// This will open a json document at the given absolute path and convert it into a 
-		// metasound document struct. 
+		// Takes a JSON string and deserializes it into a Metasound document struct.
 		// @returns false if the file couldn't be found or parsed into a document.
-		METASOUNDFRONTEND_API bool ImportJSONToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
+		METASOUNDFRONTEND_API bool ImportJSONToMetasound(const FString& InJSON, FMetasoundDocument& OutMetasoundDocument);
+
+		// Opens a json document at the given absolute path and deserializes it into a Metasound document struct.
+		// @returns false if the file couldn't be found or parsed into a document.
+		METASOUNDFRONTEND_API bool ImportJSONAssetToMetasound(const FString& InPath, FMetasoundDocument& OutMetasoundDocument);
 
 		struct METASOUNDFRONTEND_API FMetasoundArchetypeRegistryParams_Internal
 		{
@@ -117,7 +120,7 @@ namespace Metasound
 		METASOUNDFRONTEND_API TArray<FName> GetAllRegisteredArchetypes();
 
 		// Returns a new UObject, whose class corresponds to the archetype in the document.
-		// @param InDocument a fully generated metasound document, typically retrieved from ImportJSONToMetasound().
+		// @param InDocument a fully generated metasound document, typically retrieved from ImportJSONAssetToMetasound().
 		// @param InPath, path in content directory to save the generated UAsset to (ex. "/game/MyDir/MyMetasoundAsset".
 		//                if InPath is invalid, we won't save to an asset.
 		// @returns nullptr if we couldn't find the archetype.
@@ -347,7 +350,18 @@ namespace Metasound
 
 			static FGraphHandle InvalidHandle();
 
+			void CopyGraph(FGraphHandle& InOther);
+
 			bool IsValid() const;
+
+			bool IsRequiredInput(const FString& InOutputName) const;
+			bool IsRequiredOutput(const FString& InOutputName) const;
+
+			const TArray<FMetasoundInputDescription>& GetRequiredInputs() const;
+			const TArray<FMetasoundOutputDescription>& GetRequiredOutputs() const;
+
+			const FMetasoundEditorData& GetEditorData() const;
+			void SetEditorData(const FMetasoundEditorData& InEditorData);
 
 			TArray<FNodeHandle> GetAllNodes();
 			FNodeHandle GetNodeWithId(uint32 InNodeId) const;
@@ -409,6 +423,10 @@ namespace Metasound
 
 			// Returns the metadata for the current graph, including the name, description and author.
 			FMetasoundClassMetadata GetGraphMetadata();
+
+			// Exports this graph to a JSON string.
+			// @returns JSON string.
+			FString ExportToJSON() const;
 
 			// Exports this graph to a JSON at the given path.
 			// @returns true on success.
