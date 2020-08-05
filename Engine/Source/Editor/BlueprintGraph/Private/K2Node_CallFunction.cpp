@@ -1937,29 +1937,32 @@ void UK2Node_CallFunction::FixupSelfMemberContext()
 	UClass* MemberClass = FunctionReference.GetMemberParentClass();
 	if (FunctionReference.IsSelfContext())
 	{
-		if (MemberClass == nullptr)
+		// if there is a function that matches the reference in the new context
+		// and there are no connections to the self pin, we just want to call
+		// that function
+		UEdGraphPin* SelfPin = GetDefault<UEdGraphSchema_K2>()->FindSelfPin(*this, EGPD_Input);
+		if (!FunctionReference.ResolveMember<UFunction>(Blueprint) || (SelfPin && SelfPin->HasAnyConnections()))
 		{
-			// the self pin may have type information stored on it
-			if (UEdGraphPin* SelfPin = GetDefault<UEdGraphSchema_K2>()->FindSelfPin(*this, EGPD_Input))
+			if (MemberClass == nullptr)
 			{
-				MemberClass = Cast<UClass>(SelfPin->PinType.PinSubCategoryObject.Get());
+				// the self pin may have type information stored on it
+				if (SelfPin)
+				{
+					MemberClass = Cast<UClass>(SelfPin->PinType.PinSubCategoryObject.Get());
+				}
 			}
-		}
-		// if we happened to retain the ParentClass for a self reference 
-		// (unlikely), then we know where this node came from... let's keep it
-		// referencing that function
-		if (MemberClass != nullptr)
-		{
-			if (!IsBlueprintOfType(MemberClass))
+			// if we happened to retain the ParentClass for a self reference 
+			// (unlikely), then we know where this node came from... let's keep it
+			// referencing that function
+			if (MemberClass != nullptr)
 			{
-				FunctionReference.SetExternalMember(FunctionReference.GetMemberName(), MemberClass);
+				if (!IsBlueprintOfType(MemberClass))
+				{
+					FunctionReference.SetExternalMember(FunctionReference.GetMemberName(), MemberClass);
+				}
 			}
+			// else, there is nothing we can do... the node will produce an error later during compilation
 		}
-		// else, there is nothing we can do... if there is an function matching 
-		// the member name in this Blueprint, then it will reference that 
-		// function (even if it came from a different Blueprint, one with an 
-		// identically named function)... if there is no function matching this 
-		// reference, then the node will produce an error later during compilation
 	}
 	else if (MemberClass != nullptr)
 	{
