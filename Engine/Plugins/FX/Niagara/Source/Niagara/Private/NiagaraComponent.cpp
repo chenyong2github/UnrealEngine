@@ -460,6 +460,8 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bDuringUpdateContextReset(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
+	, CurrLocalBounds(ForceInit)
+	, ForceUpdateTransformTime(0.0f)
 {
 	OverrideParameters.SetOwner(this);
 
@@ -611,7 +613,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
+			SystemInstance->ManualTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
@@ -642,7 +644,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 						{
 							//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
 							//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-							SystemInstance->ComponentTick(SeekDelta, nullptr);
+							SystemInstance->ManualTick(SeekDelta, nullptr);
 							CurrentTime = FPlatformTime::Seconds();
 						}
 					}
@@ -665,19 +667,19 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 					// When going back in time for a frame or more, reset and simulate a single frame.  We ignore small negative changes to delta
 					// time which can happen when controlling time with the timeline and the time snaps to a previous time when paused.
 					SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-					SystemInstance->ComponentTick(SeekDelta, nullptr);
+					SystemInstance->ManualTick(SeekDelta, nullptr);
 				}
 			}
 			else if (AgeDiff < MaxForwardFrames * SeekDelta)
 			{
 				// Allow ticks between 0 and MaxForwardFrames, but don't ever send more then 2 x the seek delta.
-				SystemInstance->ComponentTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
+				SystemInstance->ManualTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
 			}
 			else
 			{
 				// When going forward in time for more than MaxForwardFrames, reset and simulate a single frame.
 				SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-				SystemInstance->ComponentTick(SeekDelta, nullptr);
+				SystemInstance->ManualTick(SeekDelta, nullptr);
 			}
 			LastHandledDesiredAge = DesiredAge;
 		}
@@ -812,12 +814,19 @@ bool UNiagaraComponent::InitializeSystem()
 	{
 		LLM_SCOPE(ELLMTag::Niagara);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
-		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
+		
+		UWorld* World = GetWorld();
+		check(World);
+		check(Asset);
+
+		const bool bPooled = PoolingMethod != ENCPoolMethod::None;
+		FNiagaraSystemInstance::AllocateSystemInstance(SystemInstance, *World, *Asset, &OverrideParameters, this, TickBehavior, bPooled);
 		//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 #if WITH_EDITORONLY_DATA
 		OnSystemInstanceChangedDelegate.Broadcast();
 #endif
 		SystemInstance->Init(bForceSolo);
+		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		MarkRenderStateDirty();
 		return true;
 	}
@@ -832,6 +841,12 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScalabilityCull)
 {
 	bAwaitingActivationDueToNotReady = false;
+
+	// Reset our local bounds on reset
+	if (bReset)
+	{
+		CurrLocalBounds.Init();
+	}
 
 	if (GbSuppressNiagaraSystems != 0)
 	{
@@ -1065,7 +1080,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 	Super::Deactivate();
 
-	bool bWasCulledByScalabiltiy = bIsCulledByScalability;
+	bool bWasCulledByScalability = bIsCulledByScalability;
 
 	//UE_LOG(LogNiagara, Log, TEXT("DeactivateImmediate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 
@@ -1088,7 +1103,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	{
 		SystemInstance->Deactivate(true);
 	}
-	else if (bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
+	else if (bWasCulledByScalability && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 	{
 		OnSystemComplete();
 	}
@@ -1145,6 +1160,43 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 	}
 	bIsCulledByScalability = false;
 	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
+}
+
+void UNiagaraComponent::PostSystemTick_GameThread()
+{
+	check(SystemInstance.IsValid()); // sanity
+
+#if WITH_EDITOR
+	if (SystemInstance->HandleNeedsUIResync())
+	{
+		OnSynchronizedWithAssetParametersDelegate.Broadcast();
+	}
+#endif
+
+	// Check if the system got completed
+	if (IsActive() && SystemInstance->IsComplete())
+	{
+		OnSystemComplete();
+		return;
+	}
+
+	// NOTE: Since this is happening before scene visibility calculation, it's likely going to be off by a frame
+	SystemInstance->SetLastRenderTime(GetLastRenderTime());
+
+	MarkRenderDynamicDataDirty();
+
+	// Check to force update our transform based on a timer or bounds expanding beyond their previous local boundaries
+	const FBox NewLocalBounds = SystemInstance->GetLocalBounds();
+	ForceUpdateTransformTime += GetWorld()->GetDeltaSeconds();
+	if (!CurrLocalBounds.IsValid ||
+		!CurrLocalBounds.IsInsideOrOn(NewLocalBounds.Min) ||
+		!CurrLocalBounds.IsInsideOrOn(NewLocalBounds.Max) ||
+		(ForceUpdateTransformTime > MaxTimeBeforeForceUpdateTransform))
+	{
+		CurrLocalBounds = NewLocalBounds;
+		ForceUpdateTransformTime = 0.0f;
+		UpdateComponentToWorld();
+	}
 }
 
 void UNiagaraComponent::OnSystemComplete()
@@ -1252,7 +1304,7 @@ void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 
 	if (SystemInstance != nullptr)
 	{
-		SystemInstance->OnPooledReuse();
+		SystemInstance->OnPooledReuse(*NewWorld);
 	}
 }
 
@@ -1558,9 +1610,9 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	}
 
 	FBoxSphereBounds SystemBounds;
-	if (SystemInstance.IsValid())
+	if (CurrLocalBounds.IsValid)
 	{
-		SystemBounds = SystemInstance->GetLocalBounds();
+		SystemBounds = CurrLocalBounds;
 		SystemBounds.BoxExtent *= BoundsScale;
 		SystemBounds.SphereRadius *= BoundsScale;
 	}
