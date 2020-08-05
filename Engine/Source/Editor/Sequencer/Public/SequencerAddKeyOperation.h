@@ -43,6 +43,12 @@ struct SEQUENCER_API FAddKeyOperation
 
 
 	/**
+	 * Construct an operation from some key areas on a track.
+	 */
+	static FAddKeyOperation FromKeyAreas(ISequencerTrackEditor* TrackEditor, const TArrayView<TSharedRef<IKeyArea>> InKeyAreas);
+
+
+	/**
 	 * Commit this operation by choosing the section(s) to key for each key area, and adding a key at the specified time
 	 *
 	 * @param InKeyTime     The time to add keys at
@@ -85,6 +91,15 @@ private:
 	 * @param InKeyArea           The key area to add
 	 */
 	bool ProcessKeyArea(FSequencerTrackNode* InTrackNode, TSharedPtr<IKeyArea> InKeyArea);
+
+
+	/**
+	 * Add a key area to this operation
+	 *
+	 * @param InTrackEditor       The track editor responsible for the key area
+	 * @param InKeyArea           The key area to add
+	 */
+	bool ProcessKeyArea(ISequencerTrackEditor* InTrackEditor, TSharedPtr<IKeyArea> InKeyArea);
 
 
 	/**
