@@ -115,9 +115,11 @@ protected:
 	/** draw header for category */
 	void DrawCategoryHeader(int32 CategoryId, TSharedRef<FGameplayDebuggerCategory> Category, FGameplayDebuggerCanvasContext& CanvasContext);
 
+#if WITH_EDITOR
 	/** event for simulate in editor mode */
 	void OnSelectionChanged(UObject* Object);
 	void OnSelectedObject(UObject* Object);
+#endif
 
 	FString GetKeyDescriptionShort(const FKey& KeyBind) const;
 	FString GetKeyDescriptionLong(const FKey& KeyBind) const;

@@ -700,6 +700,7 @@ FString UGameplayDebuggerLocalController::GetKeyDescriptionLong(const FKey& KeyB
 	return (KeyDisplay == KeyName) ? FString::Printf(TEXT("[%s]"), *KeyDisplay) : FString::Printf(TEXT("%s [%s key])"), *KeyDisplay, *KeyName);
 }
 
+#if WITH_EDITOR
 void UGameplayDebuggerLocalController::OnSelectionChanged(UObject* Object)
 {
 	USelection* Selection = Cast<USelection>(Object);
@@ -733,6 +734,7 @@ void UGameplayDebuggerLocalController::OnSelectedObject(UObject* Object)
 		CachedReplicator->CollectCategoryData(/*bForce=*/true);
 	}
 }
+#endif
 
 void UGameplayDebuggerLocalController::OnCategoriesChanged()
 {

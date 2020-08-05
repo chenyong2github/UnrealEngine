@@ -1,27 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-#include "Engine/Selection.h"
+#include "Selection.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSelection, Log, All);
 
 USelection::FOnSelectionChanged	USelection::SelectionChangedEvent;
-USelection::FOnSelectionChanged	USelection::SelectObjectEvent;								
+USelection::FOnSelectionChanged	USelection::SelectObjectEvent;
 FSimpleMulticastDelegate		USelection::SelectNoneEvent;
-
-
-USelection::USelection(const FObjectInitializer& ObjectInitializer)
-:	UObject(ObjectInitializer)
-,	SelectionMutex( 0 )
-,	bIsBatchDirty(false)
-,	SelectionAnnotation(nullptr)
-,	bOwnsSelectionAnnotation(false)
-{
-
-}
-
 
 void USelection::Initialize(FUObjectAnnotationSparseBool* InSelectionAnnotation)
 {
@@ -229,7 +216,6 @@ void USelection::Serialize(FArchive& Ar)
 	}
 }
 
-#if WITH_EDITOR
 bool USelection::Modify(bool bAlwaysMarkDirty/* =true */)
 {
 	// If the selection currently contains any PIE objects we should not be including it in the transaction buffer
@@ -244,7 +230,6 @@ bool USelection::Modify(bool bAlwaysMarkDirty/* =true */)
 
 	return Super::Modify(bAlwaysMarkDirty);
 }
-#endif
 
 void USelection::BeginDestroy()
 {
