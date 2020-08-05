@@ -175,45 +175,42 @@ struct FTriCluster
 	uint3	QuantizedPosStart;
 	uint	PositionOffset;
 
-	float3  MeshBoundsMin;		//TODO: move MeshBoundsMin/MeshBoundsDelta to primitive to save memory and so shading pass can sometimes read it as scalar
+	float3  MeshBoundsMin;
 	uint	IndexOffset;
 
 	float3	MeshBoundsDelta;
-	uint	AttributeOffset;
-
-	FUVRange	UVRanges[2];
-	
 	uint	NumVerts;
 	uint	NumTris;
 	uint	BitsPerIndex;
 	uint	QuantizedPosShift;
 
+	float4	LODBounds;
+
+	float3	BoxBoundsCenter;
+	float	LODError;
+	float	EdgeLength;
+
+	float3	BoxBoundsExtent;
+	uint	Flags;
+
+	uint	GroupIndex;	// Debug only
+
+	uint	AttributeOffset;
 	uint	BitsPerAttrib;
 	uint	UV_Prec;
-	uint	GroupIndex;
 	
-	float	EdgeLength;
-	float	LODError;
-	
-	float3	BoxBounds[2];
-	//float4	SphereBounds;
-	float4	LODBounds;
-	uint	Flags;
-	
-	float2	ConeStart;
-	float3	ConeAxis;
-	float	ConeCosAngle;
-
-	// Slow path
+	// Material Slow path
 	uint	MaterialTableOffset;
 	uint	MaterialTableLength;
 
-	// Fast path
+	// Material Fast path
 	uint	Material0Length;
 	uint	Material0Index;
 	uint 	Material1Length;
 	uint	Material1Index;
 	uint	Material2Index;
+
+	FUVRange	UVRanges[2];
 };
 
 struct FHierarchyNodeSlice
@@ -753,7 +750,7 @@ FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint C
 	ClusterData[4] = InputBuffer.Load4( ClusterBaseAddress + 4 * ClusterSOAStride );
 	ClusterData[5] = InputBuffer.Load4( ClusterBaseAddress + 5 * ClusterSOAStride );
 	ClusterData[6] = InputBuffer.Load4( ClusterBaseAddress + 6 * ClusterSOAStride );
-	ClusterData[7] = uint4(InputBuffer.Load3( ClusterBaseAddress + 7 * ClusterSOAStride ), 0 );
+	ClusterData[7] = InputBuffer.Load4( ClusterBaseAddress + 7 * ClusterSOAStride );
 
 	FTriCluster Cluster;
 	Cluster.PageBaseAddress		= 0;
@@ -765,28 +762,29 @@ FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint C
 	Cluster.IndexOffset			= ClusterData[1].w;
 
 	Cluster.MeshBoundsDelta		= asfloat( ClusterData[2].xyz );
-	Cluster.AttributeOffset		= ClusterData[2].w;
-
-	uint Tmp = ClusterData[3].x;	// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
+	uint Tmp					= ClusterData[2].w;	// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
 	Cluster.NumVerts			= BitFieldExtractU32(Tmp, 9, 0);
 	Cluster.NumTris				= BitFieldExtractU32(Tmp, 8, 9);
 	Cluster.BitsPerIndex		= BitFieldExtractU32(Tmp, 4, 9+8);
 	Cluster.QuantizedPosShift	= BitFieldExtractU32(Tmp, 6, 9+8+4);
-	Cluster.BitsPerAttrib		= ClusterData[3].y;
-	Cluster.UV_Prec				= ClusterData[3].z;
-	Cluster.GroupIndex			= ClusterData[3].w;
 
-	Cluster.LODBounds			= asfloat( ClusterData[4] );
-	
-	Cluster.BoxBounds[0]		= asfloat( ClusterData[5].xyz );
-	Cluster.BoxBounds[1]		= asfloat( ClusterData[6].xyz );
-	//Cluster.SphereBounds			= asfloat( ClusterData[5] );
-	//Cluster.Bounds			= f16tof32( uint4( ClusterData[7].y, ClusterData[7].y >> 16, ClusterData[7].z, ClusterData[7].z >> 16 ) ) + Cluster.LODBounds;
+	Cluster.LODBounds			= asfloat(ClusterData[3]);
 
-	Cluster.LODError			= f16tof32( ClusterData[7].x );
-	Cluster.EdgeLength			= f16tof32( ClusterData[7].x >> 16 );
+	Cluster.BoxBoundsCenter		= asfloat(ClusterData[4].xyz);
+	Cluster.LODError			= f16tof32(ClusterData[4].w);
+	Cluster.EdgeLength			= f16tof32(ClusterData[4].w >> 16);
 
-	const uint MaterialEncoding = ClusterData[7].y;
+	Cluster.BoxBoundsExtent		= asfloat(ClusterData[5].xyz);
+	Cluster.Flags				= ClusterData[5].w;
+
+
+	Cluster.GroupIndex			= ClusterData[6].x;		// Debug only
+
+
+	Cluster.AttributeOffset		= ClusterData[7].x;
+	Cluster.BitsPerAttrib		= ClusterData[7].y;
+	Cluster.UV_Prec				= ClusterData[7].z;
+	const uint MaterialEncoding = ClusterData[7].w;
 
 	// Material Table Range Encoding (32 bits)
 	// uint TriStart        :  8;  // max 128 triangles
@@ -835,8 +833,6 @@ FTriCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint C
 		Cluster.Material2Index		= 0;
 	}
 	
-	Cluster.Flags				= ClusterData[7].z;
-
 	UNROLL
 	for( uint i = 0; i < 2; i++ )
 	{

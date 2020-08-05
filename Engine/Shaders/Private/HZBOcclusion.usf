@@ -23,11 +23,7 @@ void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	}
 #endif
 
-	float3 BoundsMin = BoundsCenter.xyz - BoundsExtent.xyz;
-	float3 BoundsMax = BoundsCenter.xyz + BoundsExtent.xyz;
-	float3 Bounds[2] = { BoundsMin, BoundsMax };
-
-	FFrustumCullData Cull = BoxCullFrustum(Bounds, View.TranslatedWorldToClip, true /* depth clip */, false /* skip culling */);
+	FFrustumCullData Cull = BoxCullFrustum(BoundsCenter.xyz, BoundsExtent.xyz, View.TranslatedWorldToClip, true /* depth clip */, false /* skip culling */);
 	
 	BRANCH
 	if( Cull.bIsVisible && !Cull.bCrossesNearPlane )

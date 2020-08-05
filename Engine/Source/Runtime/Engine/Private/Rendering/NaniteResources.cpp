@@ -52,49 +52,6 @@ FArchive& operator<<( FArchive& Ar, FTreeNode& Node )
 	return Ar;
 }
 
-FArchive& operator<<( FArchive& Ar, FPackedTriCluster& Cluster )
-{
-	Ar << Cluster.PositionOffset;
-	Ar << Cluster.IndexOffset;
-	Ar << Cluster.AttributeOffset;
-	Ar << Cluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;
-	Ar << Cluster.BitsPerAttrib;
-	Ar << Cluster.UV_Prec;
-	Ar << Cluster.GroupIndex;
-
-
-	Ar << Cluster.QuantizedPosStart.X;
-	Ar << Cluster.QuantizedPosStart.Y;
-	Ar << Cluster.QuantizedPosStart.Z;
-
-	Ar << Cluster.MeshBoundsMin;
-	Ar << Cluster.MeshBoundsDelta;
-
-	Ar << Cluster.LODBounds;
-
-	Ar << Cluster.BoxBounds[0];
-	Ar << Cluster.BoxBounds[1];
-	//Ar << Cluster.SphereBounds;
-	//Ar << Cluster.BoundsXY;
-	//Ar << Cluster.BoundsZW;
-
-	Ar << Cluster.LODErrorAndEdgeLength;
-	Ar << Cluster.PackedMaterialInfo;
-	Ar << Cluster.Flags;
-	
-	for( uint32 i = 0; i < 2; i++ )
-	{
-		Ar << Cluster.UVRanges[i].Min;
-		Ar << Cluster.UVRanges[i].Scale;
-		Ar << Cluster.UVRanges[i].GapStart[0];
-		Ar << Cluster.UVRanges[i].GapStart[1];
-		Ar << Cluster.UVRanges[i].GapLength[0];
-		Ar << Cluster.UVRanges[i].GapLength[1];
-	}
-	
-	return Ar;
-}
-
 FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 {
 	for (uint32 i = 0; i < 64; i++)

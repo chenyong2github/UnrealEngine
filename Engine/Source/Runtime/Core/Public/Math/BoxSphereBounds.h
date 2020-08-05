@@ -213,6 +213,26 @@ public:
 	}
 
 	/**
+	 * Gets the box/sphere origin.
+	 *
+	 * @return The box/sphere origin.
+	 */
+	FORCEINLINE FVector GetOrigin() const
+	{
+		return Origin;
+	}
+
+	/**
+	 * Gets the box extent.
+	 *
+	 * @return The box extent.
+	 */
+	FORCEINLINE FVector GetBoxExtent() const
+	{
+		return BoxExtent;
+	}
+
+	/**
 	 * Increase the size of the box and sphere by a given size.
 	 *
 	 * @param ExpandAmount The size to increase by.

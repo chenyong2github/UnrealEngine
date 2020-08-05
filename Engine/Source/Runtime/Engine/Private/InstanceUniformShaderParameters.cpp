@@ -6,15 +6,12 @@
 
 FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Instance)
 {
-	const FVector LocalBoundsMin = Instance.LocalBounds.GetBoxExtrema(0); // 0 == minimum
-	const FVector LocalBoundsMax = Instance.LocalBounds.GetBoxExtrema(1); // 1 == maximum
-
 	Setup(GetInstanceUniformShaderParameters(
 		Instance.LocalToWorld,
 		Instance.PrevLocalToWorld,
 		Instance.WorldToLocal,
-		LocalBoundsMin,
-		LocalBoundsMax,
+		Instance.LocalBounds.GetOrigin(),
+		Instance.LocalBounds.GetBoxExtent(),
 		Instance.NonUniformScale,
 		Instance.InvNonUniformScaleAndDeterminantSign,
 		Instance.NaniteInfo,
@@ -31,9 +28,9 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 	InstanceUniformShaderParameters.WorldToLocal.To3x4MatrixTranspose((float*)&Data[6]);
 	Data[9]    = *(const FVector4*)&InstanceUniformShaderParameters.NonUniformScale;
 	Data[10]   = *(const FVector4*)&InstanceUniformShaderParameters.InvNonUniformScaleAndDeterminantSign;
-	Data[11]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsMin;
+	Data[11]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsCenter;
 	Data[11].W = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
-	Data[12]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsMax;
+	Data[12]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsExtent;
 	Data[12].W = 0.0f;
 	Data[13].X = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
 	Data[13].Y = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset;

@@ -54,9 +54,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(FMatrix,  WorldToLocal)
 	SHADER_PARAMETER(FVector4, NonUniformScale)
 	SHADER_PARAMETER(FVector4, InvNonUniformScaleAndDeterminantSign)
-	SHADER_PARAMETER(FVector,  LocalBoundsMin)
+	SHADER_PARAMETER(FVector,  LocalBoundsCenter)
 	SHADER_PARAMETER(uint32,   PrimitiveId)
-	SHADER_PARAMETER(FVector,  LocalBoundsMax)
+	SHADER_PARAMETER(FVector,  LocalBoundsExtent)
 	SHADER_PARAMETER(uint32,   Unused1)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
 	SHADER_PARAMETER(int32,	   NaniteHierarchyOffset)
@@ -69,8 +69,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	const FMatrix&  LocalToWorld,
 	const FMatrix&  PrevLocalToWorld,
 	const FMatrix&  WorldToLocal,
-	const FVector&  LocalBoundsMin,
-	const FVector&  LocalBoundsMax,
+	const FVector&  LocalBoundsCenter,
+	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
 	const FNaniteInfo& NaniteInfo,
@@ -84,8 +84,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.NonUniformScale						= NonUniformScale;
 	Result.InvNonUniformScaleAndDeterminantSign	= InvNonUniformScaleAndDeterminantSign;
 	Result.PrimitiveId							= PrimitiveId;
-	Result.LocalBoundsMin						= LocalBoundsMin;
-	Result.LocalBoundsMax						= LocalBoundsMax;
+	Result.LocalBoundsCenter					= LocalBoundsCenter;
+	Result.LocalBoundsExtent					= LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
 	Result.NaniteHierarchyOffset				= NaniteInfo.HierarchyOffset;
 	return Result;
@@ -95,8 +95,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 	const FMatrix&  LocalToWorld,
 	const FMatrix&  PrevLocalToWorld,
 	const FMatrix&  WorldToLocal,
-	const FVector&  LocalBoundsMin,
-	const FVector&  LocalBoundsMax,
+	const FVector&  LocalBoundsCenter,
+	const FVector&  LocalBoundsExtent,
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
 	const FNaniteInfo& NaniteInfo,
@@ -109,8 +109,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 			LocalToWorld,
 			PrevLocalToWorld,
 			WorldToLocal,
-			LocalBoundsMin,
-			LocalBoundsMax,
+			LocalBoundsCenter,
+			LocalBoundsExtent,
 			NonUniformScale,
 			InvNonUniformScaleAndDeterminantSign,
 			NaniteInfo,

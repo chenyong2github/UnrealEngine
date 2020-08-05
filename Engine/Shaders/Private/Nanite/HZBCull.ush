@@ -299,10 +299,9 @@ float4 GetCubeFacePlane( float3 Dir )
 	return float4( FaceNormal, -1 );
 }
 
-float4 GetDominantFacePlane( float3 ViewOrigin, float3 Bounds[2] )
+float4 GetDominantFacePlane( float3 ViewOrigin, float3 BoundsCenter, float3 BoundsExtent )
 {
-	float3 BoundsCenter = 0.5 * ( Bounds[0] + Bounds[1] );
-	float3 UnitCubeDir = ( ViewOrigin - BoundsCenter ) / ( Bounds[1] - Bounds[0] );
+	float3 UnitCubeDir = ( ViewOrigin - BoundsCenter ) / BoundsExtent;
 
 	uint Face = GetCubeFaceIndex( UnitCubeDir );
 	uint Axis = Face >> 1;
@@ -314,14 +313,14 @@ float4 GetDominantFacePlane( float3 ViewOrigin, float3 Bounds[2] )
 	FaceNormal.y = Axis == 1 ? Sign : 0;
 	FaceNormal.z = Axis == 2 ? Sign : 0;
 
-	float3 ClosestCorner = UnitCubeDir > 0 ? Bounds[1] : Bounds[0];
+	float3 ClosestCorner = BoundsCenter + (UnitCubeDir > 0 ? BoundsExtent : -BoundsExtent);
 
 	return float4( FaceNormal, dot( FaceNormal, -ClosestCorner ) );
 }
 
-float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 Bounds[2] )
+float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 BoundsCenter, float3 BoundsExtent )
 {
-	float4 PlaneLocal = GetDominantFacePlane( ViewOriginLocal, Bounds );
+	float4 PlaneLocal = GetDominantFacePlane( ViewOriginLocal, BoundsCenter, BoundsExtent );
 	//float4 PlaneLocal = GetCubeFacePlane( ViewOriginLocal );
 
 	// Transform to post projective space. Inverse transpose for plane projection.
@@ -346,22 +345,19 @@ float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 Bou
 	return PlaneHZB;
 }
 
-FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Bounds[2], float4x4 LocalToClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x4 LocalToClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
-	
-	// Screen rect from bounds
-	float3 Center = ( Bounds[ 0 ] + Bounds[ 1 ] ) * 0.5f;	//TODO: would be nice if we used center + half-size representation.
-	float3 Delta = ( Bounds[ 0 ] - Bounds[ 1 ] ) * 0.5f;
+
 	float3 CenterClip = mul( float4( Center, 1 ), LocalToClip ).xyz;
-	
-	float3 ClipDelta = abs( Delta.x * LocalToClip[0].xyz ) + abs( Delta.y * LocalToClip[1].xyz ) + abs( Delta.z * LocalToClip[2].xyz );
+
+	float3 ClipDelta = abs( Extent.x * LocalToClip[0].xyz ) + abs( Extent.y * LocalToClip[1].xyz ) + abs( Extent.z * LocalToClip[2].xyz );
 	Cull.RectMin = CenterClip - ClipDelta;
 	Cull.RectMax = CenterClip + ClipDelta;
 
-	Cull.bCrossesFarPlane	= Cull.RectMin.z < 0;
-	Cull.bCrossesNearPlane	= false;
-	Cull.bIsVisible			= true;
+	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
+	Cull.bCrossesNearPlane = false;
+	Cull.bIsVisible = true;
 	
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
@@ -372,53 +368,99 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Bounds[2], float4x4 LocalToCli
 	return Cull;
 }
 
-FFrustumCullData BoxCullFrustumGeneral(float3 Bounds[2], float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
 
-	int NumInFrontOfNearPlane = 0;
+	// Transform center and axes to local space
+	float4 C =  mul(float4(Center, 1.0), LocalToClip);
 
-	bool2 SignMin = true;
-	bool2 SignMax = true;
+	float4 X = Extent.x * LocalToClip[0];
+	float4 Y = Extent.y * LocalToClip[1];
+	float4 Z = Extent.z * LocalToClip[2];
 
-	// Screen rect from bounds
-	Cull.RectMin = float3( 1, 1, 1 );
-	Cull.RectMax = float3( -1, -1, -1 );
-	UNROLL for( int i = 0; i < 8; i++ )
-	{
-		float3 PointSrc;
-		PointSrc.x = Bounds[ (i >> 0) & 1 ].x;
-		PointSrc.y = Bounds[ (i >> 1) & 1 ].y;
-		PointSrc.z = Bounds[ (i >> 2) & 1 ].z;
+	// Generate clip space positions
+	// Because of the symmetry around the center, if Center + Delta is a vertex, then so is Center - Delta.
+	// So we only need to calculate half of the vertex deltas.
+	// This also applies to the YZ deltas.
+	
+	// The 2 unique Y,Z deltas
+	float4 PZ_PY = Z + Y;
+	float4 PZ_NY = Z - Y;
+	
+	// The 4 unique X,Y,Z deltas
+	float4 PZ_PY_PX = PZ_PY + X;
+	float4 PZ_PY_NX = PZ_PY - X;
+	float4 PZ_NY_PX = PZ_NY + X;
+	float4 PZ_NY_NX = PZ_NY - X;
+	
+	// Add center to get clip space positions
+	float4 PC000 = C - PZ_PY_PX;
+	float4 PC001 = C - PZ_PY_NX;
+	float4 PC010 = C - PZ_NY_PX;
+	float4 PC011 = C - PZ_NY_NX;
+	float4 PC100 = C + PZ_NY_NX;
+	float4 PC101 = C + PZ_NY_PX;
+	float4 PC110 = C + PZ_PY_NX;
+	float4 PC111 = C + PZ_PY_PX;
 
-		float4 PointClip = mul( float4( PointSrc, 1 ), LocalToClip );
-		float3 PointScreen = PointClip.xyz / PointClip.w;
+	// Project clip space positions to screen space
+	float3 PS000 = PC000.xyz / PC000.w;
+	float3 PS001 = PC001.xyz / PC001.w;
+	float3 PS010 = PC010.xyz / PC010.w;
+	float3 PS011 = PC011.xyz / PC011.w;
+	float3 PS100 = PC100.xyz / PC100.w;
+	float3 PS101 = PC101.xyz / PC101.w;
+	float3 PS110 = PC110.xyz / PC110.w;
+	float3 PS111 = PC111.xyz / PC111.w;
 
-		Cull.RectMin = min( Cull.RectMin, PointScreen );
-		Cull.RectMax = max( Cull.RectMax, PointScreen );
+	Cull.RectMin = min3(	min3(PS000, PS001, PS010),
+							min3(PS011, PS100, PS101),
+							min3(PS110, PS111, float3( 1, 1, 1)));
 
-		SignMin = SignMin && ( PointClip.w - PointClip.xy < 0 );
-		SignMax = SignMax && ( PointClip.w + PointClip.xy < 0 );
+	Cull.RectMax = max3(	max3(PS000, PS001, PS010),
+							max3(PS011, PS100, PS101),
+							max3(PS110, PS111, float3(-1,-1,-1)));
 
-		NumInFrontOfNearPlane += PointClip.w < 0;
-	}
-		
+
 	Cull.bCrossesFarPlane = Cull.RectMin.z < 0;
-	Cull.bIsVisible       = Cull.RectMax.z > 0;
-	// Near depth clipping should only be disabled with orthographic projections
+	Cull.bIsVisible = Cull.RectMax.z > 0;
+
 	if (bNearClip)
 	{
-		Cull.bCrossesNearPlane	= NumInFrontOfNearPlane != 0;
-		Cull.bIsVisible			= NumInFrontOfNearPlane != 8 && Cull.bIsVisible;
+		// Near plane tests
+		float MaxW = max3(  max3(PC000.w, PC001.w, PC010.w),
+							max3(PC011.w, PC100.w, PC101.w),
+							max( PC110.w, PC111.w));
+
+		float MinW = min3(  min3(PC000.w, PC001.w, PC010.w),
+							min3(PC011.w, PC100.w, PC101.w),
+							min( PC110.w, PC111.w));
+
+
+		Cull.bCrossesNearPlane = MinW < 0.0;                // MinW <  0: At least one point is in front of near plane
+		Cull.bIsVisible = MaxW >= 0.0 && Cull.bIsVisible;   // MaxW >= 0: At least one point is behind the near plane
 	}
 	else
 	{
-		Cull.bCrossesNearPlane	= false;
-		Cull.bIsVisible			= true;
+		Cull.bCrossesNearPlane = false;
+		Cull.bIsVisible = true;
 	}
 
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
+		// Test if all points are outside one side of the frustum.
+		// One vector compare per test. The rest is scalar.
+		bool2 SignMin =		 PC000.xy > PC000.w &&  PC001.xy > PC001.w && 
+							 PC010.xy > PC010.w &&  PC011.xy > PC011.w && 
+							 PC100.xy > PC100.w &&  PC101.xy > PC101.w && 
+							 PC110.xy > PC110.w &&  PC111.xy > PC111.w;
+
+		bool2 SignMax =		-PC000.xy > PC000.w && -PC001.xy > PC001.w && 
+							-PC010.xy > PC010.w && -PC011.xy > PC011.w && 
+							-PC100.xy > PC100.w && -PC101.xy > PC101.w && 
+							-PC110.xy > PC110.w && -PC111.xy > PC111.w;
+
 		const bool bFrustumCull = any(SignMin || SignMax);
 		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
 	}
@@ -427,12 +469,12 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Bounds[2], float4x4 LocalToClip, b
 }
 
 
-FFrustumCullData BoxCullFrustum( float3 Bounds[ 2 ], float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull )
+FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull )
 {
 	if( !bNearClip )
-		return BoxCullFrustumOrthoNoClip( Bounds, LocalToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
+		return BoxCullFrustumOrthoNoClip( Center, Extent, LocalToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
 	else
-		return BoxCullFrustumGeneral( Bounds, LocalToClip, bNearClip, bSkipFrustumCull );
+		return BoxCullFrustumGeneral( Center, Extent, LocalToClip, bNearClip, bSkipFrustumCull );
 }
 
 float2 ProjectSphere( float x, float z, float r, float ResultScale )

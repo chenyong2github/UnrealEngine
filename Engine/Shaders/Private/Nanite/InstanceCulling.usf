@@ -104,17 +104,15 @@ void InstanceCull(
 		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
 		float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
-		float3 Bounds[2] = { InstanceData.LocalBoundsMin, InstanceData.LocalBoundsMax };
-		float3 BoundsExtent = .5f * (Bounds[1] - Bounds[0]);
-		float BoundsRadiusSq = dot(BoundsExtent, BoundsExtent);
 
+		float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 		bIsVisible = (InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu) && BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
 		
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 		BRANCH
 		if( bIsVisible )
 		{
-			FFrustumCullData Cull = BoxCullFrustum(Bounds, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
 			bIsVisible = Cull.bIsVisible;
 		}
 
@@ -140,7 +138,7 @@ void InstanceCull(
 				LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
 				float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
 
-				FFrustumCullData PrevCull = BoxCullFrustum(Bounds, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
+				FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
 				
 				BRANCH
 				if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
@@ -167,7 +165,7 @@ void InstanceCull(
 		BRANCH
 		if( bIsVisible )
 		{
-			FFrustumCullData Cull = BoxCullFrustum(Bounds, LocalToClip, bNearClip, bSkipBoxCullFrustum);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum);
 
 			BRANCH
 			if (Cull.bIsVisible && !Cull.bCrossesNearPlane)
@@ -289,9 +287,7 @@ void InstanceCullVSM(
 			LocalToTranslatedWorld[ 3 ].xyz += NaniteView.PreViewTranslation.xyz;
 			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
-			float3 Bounds[ 2 ] = { InstanceData.LocalBoundsMin, InstanceData.LocalBoundsMax };
-
-			FFrustumCullData Cull = BoxCullFrustum( Bounds, LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, bSkipBoxCullFrustum );
 			
 			for(uint TargetMipLevel = 0; TargetMipLevel < NaniteView.TargetNumMipLevels; TargetMipLevel++)
 			{
@@ -319,7 +315,7 @@ void InstanceCullVSM(
 					LocalToPrevTranslatedWorld[ 3 ].xyz += NaniteView.PrevPreViewTranslation.xyz;
 					float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
 
-					FFrustumCullData PrevCull = BoxCullFrustum(Bounds, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
+					FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
 				
 					BRANCH
 					if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )

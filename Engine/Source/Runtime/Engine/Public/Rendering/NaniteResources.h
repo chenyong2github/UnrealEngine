@@ -201,29 +201,35 @@ struct FPackedHierarchyNode
 // Packed TriCluster as it is used by the GPU
 struct FPackedTriCluster
 {
+	// Members needed for rasterization
 	FUIntVector	QuantizedPosStart;
 	uint32		PositionOffset;
 
 	FVector		MeshBoundsMin;
 	uint32		IndexOffset;
+
 	FVector		MeshBoundsDelta;
-	uint32		AttributeOffset;
-
 	uint32		NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;		// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
-	uint32		BitsPerAttrib;
-	uint32		UV_Prec;	// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
-	uint32		GroupIndex;	// Debug only
 	
+	// Members needed for culling
 	FSphere		LODBounds;
-	FVector4	BoxBounds[2];
-	//FSphere		SphereBounds;
-	//uint32	BoundsXY;
-	//uint32	BoundsZW;
 
+	FVector		BoxBoundsCenter;
 	uint32		LODErrorAndEdgeLength;
-	uint32		PackedMaterialInfo;
+	
+	FVector		BoxBoundsExtent;
 	uint32		Flags;
+
+	uint32		GroupIndex;		// Debug only
 	uint32		Pad0;
+	uint32		Pad1;
+	uint32		Pad2;
+
+	// Members needed by materials
+	uint32		AttributeOffset;
+	uint32		BitsPerAttrib;
+	uint32		UV_Prec;				// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
+	uint32		PackedMaterialInfo;
 
 	FUVRange	UVRanges[2];
 

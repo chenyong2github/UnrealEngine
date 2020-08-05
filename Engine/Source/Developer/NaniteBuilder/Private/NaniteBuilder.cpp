@@ -18,7 +18,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8CCB-1FDD-80DF-71B66692BD9A")
+#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8CCB-1FDD-82E0-71B66692BD9B")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -581,45 +581,48 @@ struct FEncodingInfo
 static void PackTriCluster(Nanite::FPackedTriCluster& OutCluster, const Nanite::FTriCluster& InCluster, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords)
 {
 	// 0
-	OutCluster.QuantizedPosStart	= InCluster.QuantizedPosStart;
-	OutCluster.PositionOffset		= 0;
+	OutCluster.QuantizedPosStart		= InCluster.QuantizedPosStart;
+	OutCluster.PositionOffset			= 0;
 
 	// 1
-	OutCluster.MeshBoundsMin		= InCluster.MeshBoundsMin;
-	OutCluster.IndexOffset			= 0;
+	OutCluster.MeshBoundsMin			= InCluster.MeshBoundsMin;
+	OutCluster.IndexOffset				= 0;
 
 	// 2
-	OutCluster.MeshBoundsDelta		= InCluster.MeshBoundsDelta;
-	OutCluster.AttributeOffset		= 0;
-
-	// 3
+	OutCluster.MeshBoundsDelta			= InCluster.MeshBoundsDelta;
 	check(InCluster.NumVerts < 512);
 	check(InCluster.NumTris < 256);
 	check(EncodingInfo.BitsPerIndex < 16);
-	check(EncodingInfo.BitsPerAttrib < 128);
 	check(InCluster.QuantizedPosShift < 32);
 	OutCluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = InCluster.NumVerts | (InCluster.NumTris << (9)) | (EncodingInfo.BitsPerIndex << (9 + 8)) | (InCluster.QuantizedPosShift << (9 + 8 + 4));
-	OutCluster.BitsPerAttrib		= EncodingInfo.BitsPerAttrib;
-	OutCluster.UV_Prec				= EncodingInfo.UVPrec;
-	OutCluster.GroupIndex			= InCluster.ClusterGroupIndex;
+
+	// 3
+	OutCluster.LODBounds				= InCluster.LODBounds;
 
 	// 4
-	OutCluster.LODBounds			= InCluster.LODBounds;
+	OutCluster.BoxBoundsCenter			= (InCluster.BoxBounds[0] + InCluster.BoxBounds[1]) * 0.5f;
+	OutCluster.LODErrorAndEdgeLength	= FFloat16(InCluster.LODError).Encoded | (FFloat16(InCluster.EdgeLength).Encoded << 16);
 
 	// 5
-	OutCluster.BoxBounds[0]			= InCluster.BoxBounds[0];
+	OutCluster.BoxBoundsExtent			= (InCluster.BoxBounds[1] - InCluster.BoxBounds[0]) * 0.5f;
+	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
+
 	// 6
-	OutCluster.BoxBounds[1]			= InCluster.BoxBounds[1];
-	//OutCluster.Bounds				= InCluster.SphereBounds;
-	//OutCluster.BoundsXY				= InCluster.PackedBounds.XY;
-	//OutCluster.BoundsZW				= InCluster.PackedBounds.ZW;
+	OutCluster.GroupIndex				= InCluster.ClusterGroupIndex;
+	OutCluster.Pad0						= 0;
+	OutCluster.Pad1						= 0;
+	OutCluster.Pad2						= 0;
+	
 
 	// 7
-	OutCluster.LODErrorAndEdgeLength	= FFloat16(InCluster.LODError).Encoded | (FFloat16(InCluster.EdgeLength).Encoded << 16);
+	check(EncodingInfo.BitsPerAttrib < 128);
+	OutCluster.AttributeOffset			= 0;
+	OutCluster.BitsPerAttrib			= EncodingInfo.BitsPerAttrib;
+	OutCluster.UV_Prec					= EncodingInfo.UVPrec;
 	OutCluster.PackedMaterialInfo		= 0;	// Filled out by WritePages
-	OutCluster.Flags					= NANITE_CLUSTER_FLAG_LEAF;
-	OutCluster.Pad0						= 0;
 	
+	// 8+
+	check(NumTexCoords <= UE_ARRAY_COUNT(OutCluster.UVRanges));
 	for( uint32 i = 0; i < NumTexCoords; i++ )
 	{
 		OutCluster.UVRanges[i] = EncodingInfo.UVInfos[i].UVRange;
