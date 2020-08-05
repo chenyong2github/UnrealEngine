@@ -176,6 +176,9 @@ public:
 	static UNiagaraClipboardFunctionInput* CreateFloatLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, float InLocalValue);
 
 	UFUNCTION(BlueprintPure, Category = "Input")
+	static UNiagaraClipboardFunctionInput* CreateVec2LocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, FVector2D InVec2Value);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
 	static UNiagaraClipboardFunctionInput* CreateVec3LocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, FVector InVec3Value);
 
 	UFUNCTION(BlueprintPure, Category = "Input")
