@@ -928,7 +928,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 					// We always snap to the start/end points because that's how we get out of initialization mode, and we don't want to
 					// risk the user not knowing what to do if they set snapping to be disabled.
 					if ((bSnappingEnabled ^ bSnapToggle) || SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID
-						|| SnapEngine.GetActiveSnapTargetID() == FirstPointSnapID)
+						|| SnapEngine.GetActiveSnapTargetID() == LastPointSnapID)
 					{
 						HitPoint = SnapEngine.GetActiveSnapToPoint();
 					}
