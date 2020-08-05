@@ -460,8 +460,8 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bDuringUpdateContextReset(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
-	, CurrLocalBounds(ForceInit)
 	, ForceUpdateTransformTime(0.0f)
+	, CurrLocalBounds(ForceInit)
 {
 	OverrideParameters.SetOwner(this);
 
