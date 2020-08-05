@@ -1069,6 +1069,11 @@ public:
 	void UpdateGlobalUserConfigFile();
 
 	/**
+	 * Saves just the section(s) for this class into the project user ini file for the class (with just the changes from base)
+	 */
+	void UpdateProjectUserConfigFile();
+
+	/**
 	 * Saves just the property into the global user ini file for the class (with just the changes from base)
 	 */
 	void UpdateSinglePropertyInConfigFile(const FProperty* InProperty, const FString& InConfigIniName);
@@ -1095,6 +1100,11 @@ public:
 	 * Get the global user override config filename for the specified UObject
 	 */
 	FString GetGlobalUserConfigFilename() const;
+
+	/**
+	 * Get the project user override config filename for the specified UObject
+	 */
+	FString GetProjectUserConfigFilename() const;
 
 	/** Returns the override config hierarchy platform (if NDAd platforms need defaults to not be in Base*.ini but still want editor to load them) */
 	virtual const TCHAR* GetConfigOverridePlatform() const { return nullptr; }
