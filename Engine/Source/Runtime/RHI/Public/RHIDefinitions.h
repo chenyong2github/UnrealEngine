@@ -152,6 +152,7 @@ private:
 		struct FStaticNameMapEntry
 		{
 			FName Name;
+			FName PlatformName;
 			int32 Index;
 		} NameMap[] =
 		{
@@ -167,7 +168,7 @@ private:
 			FPlatform& Platform = Platforms[PlatformIndex];
 			check(Platform.Name == NAME_None); // Check we've not already seen this platform
 
-			Platform.Name = Entry.Name;
+			Platform.Name = Entry.PlatformName;
 			Platform.ShaderPlatform = FName(*FString::Printf(TEXT("SP_%s"), *Entry.Name.ToString()), FNAME_Add);
 			Platform.ShaderFormat = FName(*FString::Printf(TEXT("SF_%s"), *Entry.Name.ToString()), FNAME_Add);
 		}
