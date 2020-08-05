@@ -13,5 +13,10 @@ void UExampleAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 
 TSharedPtr<FBaseAssetToolkit> UExampleAssetEditor::CreateToolkit()
 {
+	if (!InteractiveToolsContext)
+	{
+		InteractiveToolsContext = NewObject<UInteractiveToolsContext>(this);
+	}
+
 	return MakeShared<FExampleAssetToolkit>(this, InteractiveToolsContext);
 }

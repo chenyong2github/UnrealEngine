@@ -20,7 +20,13 @@ UAssetEditor::UAssetEditor()
 
 FName UAssetEditor::GetEditorName() const
 {
-	return ToolkitInstance->GetEditorName();
+	FName EditorName = ToolkitInstance->GetEditorName();
+	if (EditorName == NAME_None)
+	{
+		EditorName = GetClass()->GetFName();
+	}
+
+	return EditorName;
 }
 
 void UAssetEditor::FocusWindow(UObject* ObjectToFocusOn /*= nullptr*/)
@@ -58,7 +64,7 @@ void UAssetEditor::Initialize()
 	TArray<UObject*> ObjectsToEdit;
 	GetObjectsToEdit(ObjectsToEdit);
 	check(ObjectsToEdit.Num() > 0 && ObjectsToEdit[0] != nullptr);
-	Toolkit->InitAssetEditor(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), FName("BaseAssetEditor"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit, false);
+	Toolkit->InitAssetEditor(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), GetEditorName(), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit, false);
 	Toolkit->SetEditingObject(ObjectsToEdit[0]);
 }
 

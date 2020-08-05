@@ -99,8 +99,8 @@ public:
 	FAssetEditorToolkit();
 
 	/**
-	 * Initializes this asset editor.  Called immediately after construction.  If you override this, remember to
-	 * call the base class implementation
+	 * Initializes this asset editor.  Called immediately after construction.
+	 * Override PostInitAssetEditor if you need to do additional initialization
 	 *
 	 * @param	Mode					Asset editing mode for this editor (standalone or world-centric)
 	 * @param	InitToolkitHost			When Mode is WorldCentric, this is the level editor instance to spawn this editor within
@@ -112,9 +112,9 @@ public:
 	 * @param	bInIsToolbarFocusable	Whether the buttons on the default toolbar can receive keyboard focus
 	 * @param	bUseSmallToolbarIcons	Whether the buttons on the default toolbar use the small icons
 	 */
-	virtual void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, const TArray<UObject*>& ObjectsToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
-	virtual void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, UObject* ObjectToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
-
+	void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, const TArray<UObject*>& ObjectsToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
+	void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, UObject* ObjectToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
+	
 	/** Virtual destructor, so that we can clean up our app when destroyed */
 	virtual ~FAssetEditorToolkit();
 
@@ -257,6 +257,11 @@ public:
 	void SetAssetEditorModeManager(class FAssetEditorModeManager* InModeManager);
 
 protected:
+	/**
+	 * Perform any initialization that should happen after the basic toolkit needs are created for the asset editor.
+	 * For example, if you would like to activate a mode that is not the default from a mode manager, do that here.
+	 */
+	virtual void PostInitAssetEditor() {}
 
 	/**	Returns the single object currently being edited. Asserts if currently editing no object or multiple objects */
 	UObject* GetEditingObject() const;

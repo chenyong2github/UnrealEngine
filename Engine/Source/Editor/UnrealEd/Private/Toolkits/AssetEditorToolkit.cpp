@@ -279,6 +279,8 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		EditorModeManager->SetToolkitHost(ToolkitHost.Pin().ToSharedRef());
 	}
 
+	PostInitAssetEditor();
+
 	// NOTE: Currently, the AssetEditorSubsystem will keep a hard reference to our object as we're editing it
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( EditingObjects, this );
 }

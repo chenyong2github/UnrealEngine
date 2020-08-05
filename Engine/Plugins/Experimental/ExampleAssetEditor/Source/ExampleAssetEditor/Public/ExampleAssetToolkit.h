@@ -22,7 +22,7 @@ protected:
 	// Base Asset Toolkit overrides
 	virtual AssetEditorViewportFactoryFunction GetViewportDelegate() override;
 	virtual TSharedPtr<FEditorViewportClient> CreateEditorViewportClient() const override;
-	virtual void CreateEditorModeManager() override;
+	virtual void PostInitAssetEditor() override;
 	// End Base Asset Toolkit overrides
 
 	void AddInputBehaviorsForEditorClientViewport(TSharedPtr<FEditorViewportClient>& InViewportClient) const;

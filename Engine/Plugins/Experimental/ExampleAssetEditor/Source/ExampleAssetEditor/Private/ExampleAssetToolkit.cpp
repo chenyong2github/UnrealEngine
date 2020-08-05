@@ -11,6 +11,8 @@
 #include "ExampleToolsContextInterfaces.h"
 #include "ExampleAssetEditorViewport.h"
 #include "Viewports.h"
+#include "GizmoEdMode.h"
+#include "EditorModeManager.h"
 
 FExampleAssetToolkit::FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext)
     : FBaseAssetToolkit(InOwningAssetEditor)
@@ -48,9 +50,7 @@ TSharedPtr<FEditorViewportClient> FExampleAssetToolkit::CreateEditorViewportClie
 	return WrappedViewportClient;
 }
 
-void FExampleAssetToolkit::CreateEditorModeManager()
+void FExampleAssetToolkit::PostInitAssetEditor()
 {
-	FBaseAssetToolkit::CreateEditorModeManager();
-
-	EditorModeManager->ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
+	GetEditorModeManager().ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
 }
