@@ -9,6 +9,24 @@
 
 #include "EdGraphSchema_K2.h"
 
+// FIXME: Move to registration.
+namespace OptimusTypeName
+{
+	static FName Bool(TEXT("bool"));
+	static FName Int(TEXT("int32"));
+	static FName Float(TEXT("float"));
+	static FName String(TEXT("FString"));
+	static FName Name(TEXT("FName"));
+	static FName MeshCompoennt(TEXT("UMeshComponent*"));
+	static FName SkeletalMesh(TEXT("USkeletalMesh*"));	
+	static FName StaticMesh(TEXT("UStaticMesh*"));
+	static FName MeshAttribute(TEXT("UOptimusMeshAttribute*"));
+	static FName MeshSkinWeights(TEXT("UOptimusMeshSkinWeights*"));
+	static FName Skeleton(TEXT("USkeleton*"));
+}
+
+
+
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
 	check(InModelNode);
@@ -79,41 +97,39 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 {
 	FEdGraphPinType PinType;
 
-	FString ModelPinType = InModelPin->GetTypeString();
+	FName TypeName = InModelPin->GetTypeName();
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("ModelType: [%s]"), *ModelPinType);
-
-	if (ModelPinType == TEXT("bool"))
+	if (TypeName == OptimusTypeName::Bool)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	}
-	else if (ModelPinType == TEXT("int32"))
+	else if (TypeName == OptimusTypeName::Int)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-	else if (ModelPinType == TEXT("float"))
+	else if (TypeName == OptimusTypeName::Float)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 	}
-	else if (ModelPinType == TEXT("FString") || ModelPinType == TEXT("FName"))
+	else if (TypeName == OptimusTypeName::String || TypeName == OptimusTypeName::Name)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	}
-	else if (ModelPinType == TEXT("UMeshComponent*") || 
-		     ModelPinType == TEXT("USkeletalMesh*") ||
-			 ModelPinType == TEXT("UStaticMesh*"))
+	else if (TypeName == OptimusTypeName::MeshCompoennt || 
+		     TypeName == OptimusTypeName::SkeletalMesh ||
+			 TypeName == OptimusTypeName::StaticMesh)
 	{
 		PinType.PinCategory = OptimusSchemaPinTypes::Mesh;
 		PinType.ContainerType = EPinContainerType::Map;
 	}
-	else if (ModelPinType == TEXT("UOptimusMeshAttribute*") ||
-			 ModelPinType == TEXT("UOptimusMeshSkinWeights*"))
+	else if (TypeName == OptimusTypeName::MeshAttribute ||
+			 TypeName == OptimusTypeName::MeshSkinWeights)
 	{
 		PinType.PinCategory = OptimusSchemaPinTypes::Attribute;
 		PinType.ContainerType = EPinContainerType::Array;
-		PinType.PinSubCategory = *ModelPinType;
+		PinType.PinSubCategory = TypeName;
 	}
-	else if (ModelPinType == TEXT("USkeleton*"))
+	else if (TypeName == OptimusTypeName::Skeleton)
 	{
 		PinType.PinCategory = OptimusSchemaPinTypes::Skeleton;
 		PinType.ContainerType = EPinContainerType::Set;

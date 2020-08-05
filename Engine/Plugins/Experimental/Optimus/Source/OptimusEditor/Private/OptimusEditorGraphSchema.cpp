@@ -8,6 +8,7 @@
 
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusNodePin.h"
 #include "OptimusMeshAttribute.h"
 #include "OptimusMeshSkinWeights.h"
 
@@ -19,6 +20,19 @@
 FName OptimusSchemaPinTypes::Attribute("Optimus_Attribute");
 FName OptimusSchemaPinTypes::Skeleton("Optimus_Skeleton");
 FName OptimusSchemaPinTypes::Mesh("Optimus_Mesh");
+
+static UOptimusNodePin* GetModelPinFromGraphPin(const UEdGraphPin* InGraphPin)
+{
+	UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(InGraphPin->GetOwningNode());
+
+	if (ensure(GraphNode != nullptr) && ensure(GraphNode->ModelNode != nullptr))
+	{
+		return GraphNode->ModelNode->FindPin(InGraphPin->GetName());
+	}
+
+	return nullptr;
+}
+
 
 
 UOptimusEditorGraphSchema::UOptimusEditorGraphSchema()
@@ -58,7 +72,9 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 }
 
 
-bool UOptimusEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
+bool UOptimusEditorGraphSchema::TryCreateConnection(
+	UEdGraphPin* InPinA, 
+	UEdGraphPin* InPinB) const
 {
 #if WITH_EDITOR
 	if (GEditor)
@@ -67,52 +83,45 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphP
 	}
 #endif
 	
-	// Self-connections are not allowed.
-	if (PinA == PinB || PinA->GetOwningNode() == PinB->GetOwningNode())
+	if (InPinA->Direction == EGPD_Input)
+	{
+		Swap(InPinA, InPinB);
+	}
+
+	// The pins should be in the correct order now.
+	UOptimusNodePin *OutputModelPin = GetModelPinFromGraphPin(InPinA);
+	UOptimusNodePin* InputModelPin = GetModelPinFromGraphPin(InPinB);
+
+	if (!OutputModelPin->CanCannect(InputModelPin))
 	{
 		return false;
 	}
 
-	if (PinA->Direction == PinB->Direction)
-	{
-		return false;
-	}
-
-	if (PinA->Direction == EGPD_Input)
-	{
-		Swap(PinA, PinB);
-	}
-
-	UOptimusEditorGraphNode* OutputGraphNode = Cast<UOptimusEditorGraphNode>(PinA->GetOwningNode());
-	UOptimusEditorGraphNode* InputGraphNode = Cast<UOptimusEditorGraphNode>(PinB->GetOwningNode());
-
-	UOptimusNode* OutputModelNode = OutputGraphNode->ModelNode;
-	UOptimusNode* InputModelNode = InputGraphNode->ModelNode;
-
-	if (OutputModelNode->GetOuter() != InputModelNode->GetOuter())
-	{
-		return false;
-	}
-
-	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(OutputGraphNode->GetGraph());
-
-	UOptimusNodePin* OutputModelPin = OutputModelNode->FindPin(PinA->GetName());
-	UOptimusNodePin* InputModelPin = InputModelNode->FindPin(PinB->GetName());
-
-	return Graph->GetModelGraph()->AddLink(OutputModelPin, InputModelPin);
+	UOptimusNodeGraph *Graph = OutputModelPin->GetNode()->GetOwningGraph();
+	return Graph->AddLink(OutputModelPin, InputModelPin);
 }
 
 
 const FPinConnectionResponse UOptimusEditorGraphSchema::CanCreateConnection(
-	const UEdGraphPin* A, 
-	const UEdGraphPin* B
+	const UEdGraphPin* InPinA, 
+	const UEdGraphPin* InPinB
 	) const
 {
-	FText ResponseMessage;
+	if (InPinA->Direction == EGPD_Input)
+	{
+		Swap(InPinA, InPinB);
+	}
 
-	// FIXME: Add some actual validation.
+	// The pins should be in the correct order now.
+	UOptimusNodePin* OutputModelPin = GetModelPinFromGraphPin(InPinA);
+	UOptimusNodePin* InputModelPin = GetModelPinFromGraphPin(InPinB);
 
-	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, ResponseMessage);
+	FString FailureReason;
+	bool bCanConnect = OutputModelPin->CanCannect(InputModelPin, &FailureReason);
+
+	return FPinConnectionResponse(
+		bCanConnect ? CONNECT_RESPONSE_MAKE :  CONNECT_RESPONSE_DISALLOW,
+		FText::FromString(FailureReason));
 }
 
 

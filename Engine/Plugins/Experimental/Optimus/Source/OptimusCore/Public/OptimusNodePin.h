@@ -60,11 +60,18 @@ public:
 	static TArray<FName> GetPinNamePathFromString(const FString& PinPathString);
 
 	/// Returns the C++ data type string for this 
-	FString GetTypeString() const { return TypeString; }
+	FName GetTypeName() const { return TypeName; }
 
 	UObject* GetTypeObject() const;
 
 	const TArray<UOptimusNodePin*> &GetSubPins() const { return SubPins; }
+
+	/// Ask this pin if it allows a connection from the other pin. 
+	/// @param InOtherPin The other pin to connect to/from
+	/// @param OutReason An optional string that will contain the reason why the connection
+	/// cannot be made if this function returns false.
+	/// @return True if the connection can be made, false otherwise.
+	bool CanCannect(const UOptimusNodePin *InOtherPin, FString *OutReason = nullptr) const;
 
 protected:
 	friend class UOptimusNode;
@@ -83,7 +90,7 @@ private:
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
 	UPROPERTY()
-	FString TypeString;
+	FName TypeName;
 
 	UPROPERTY(transient)
 	mutable UObject* TypeObject = nullptr;

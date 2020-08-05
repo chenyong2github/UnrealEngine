@@ -14,6 +14,7 @@ class UOptimusNode;
 class UOptimusNodeGraph;
 class UOptimusNodeLink;
 class UOptimusNodePin;
+enum class EOptimusNodePinDirection : uint8;
 
 UENUM()
 enum class EOptimusNodeGraphType
@@ -113,6 +114,14 @@ public:
 
 	bool RemoveAllLinksToNodeDirect(UOptimusNode* InNode);
 
+	/// Check to see if connecting these two pins will form a graph cycle.
+	/// @param InNodeOutputPin The output pin to connect from.
+	/// @param InNodeInputPin The input pin to connect into.
+	/// @return True if connecting these two pins will result in a graph cycle.
+	bool DoesLinkFormCycle(
+		const UOptimusNodePin* InNodeOutputPin, 
+		const UOptimusNodePin* InNodeInputPin) const;
+
 	const TArray< UOptimusNode*>& GetAllNodes() const { return Nodes; }
 	const TArray< UOptimusNodeLink*>& GetAllLinks() const { return Links; }
 
@@ -135,7 +144,23 @@ protected:
 
 private:
 	void RemoveLinkByIndex(int32 LinkIndex);
-	TArray<int32> GetAllLinkIndexesToNode(UOptimusNode* InNode);
+
+	/// Returns the indexes of all links that connect to the node. If a direction is specified
+	/// then only links coming into the node for that direction will be added (e.g. if Input
+	/// is specified, then only links going into the input pins will be considered).
+	/// @param InNode The node to retrieve all link connections for.
+	/// @param InDirection The pins the links should be connected into, or Unknown if not 
+	/// direction is not important.
+	/// @return A list of indexes into the Links array of links to the given node.
+	TArray<int32> GetAllLinkIndexesToNode(
+		const UOptimusNode* InNode, 
+		EOptimusNodePinDirection InDirection
+		) const;
+
+	TArray<int32> GetAllLinkIndexesToNode(
+	    const UOptimusNode* InNode) const;
+
+		
 	TArray<int32> GetAllLinkIndexesToPin(UOptimusNodePin* InNodePin);
 
 	UPROPERTY()

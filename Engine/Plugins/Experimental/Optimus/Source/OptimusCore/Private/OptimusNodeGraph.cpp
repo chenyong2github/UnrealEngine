@@ -10,6 +10,7 @@
 #include "Actions/OptimusNodeActions.h"
 #include "Actions/OptimusNodeGraphActions.h"
 
+#include "Containers/Queue.h"
 #include "UObject/Package.h"
 
 FString UOptimusNodeGraph::GetGraphPath() const
@@ -406,6 +407,68 @@ bool UOptimusNodeGraph::RemoveAllLinksToNodeDirect(UOptimusNode* InNode)
 }
 
 
+bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin, const UOptimusNodePin* InNodeInputPin) const
+{
+	if (!ensure(InNodeOutputPin != nullptr && InNodeInputPin != nullptr) ||
+		!ensure(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output) ||
+		!ensure(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input) ||
+		!ensure(InNodeOutputPin->GetNode()->GetOwningGraph() == InNodeInputPin->GetNode()->GetOwningGraph()))
+	{
+		// Invalid pins -- no cycle.
+		return false;
+	}
+
+	// Self-connection is a cycle.
+	if (InNodeOutputPin->GetNode() == InNodeInputPin->GetNode())
+	{
+		return true;
+	}
+
+	const UOptimusNode *CycleNode = InNodeOutputPin->GetNode();
+
+	// Crawl forward from the input pin's node to see if we end up hitting the output pin's node.
+	TSet<const UOptimusNode *> ProcessedNodes;
+	TQueue<int32> QueuedLinks;
+
+	auto EnqueueIndexes = [&QueuedLinks](TArray<int32> InArray) -> void
+	{
+		for (int32 Index : InArray)
+		{
+			QueuedLinks.Enqueue(Index);
+		}
+	};
+
+	// Enqueue as a work set all links going from the output pins of the node.
+	EnqueueIndexes(GetAllLinkIndexesToNode(InNodeInputPin->GetNode(), EOptimusNodePinDirection::Output));
+	ProcessedNodes.Add(InNodeInputPin->GetNode());
+
+	int32 LinkIndex;
+	while (QueuedLinks.Dequeue(LinkIndex))
+	{
+		const UOptimusNodeLink *Link = Links[LinkIndex];
+
+		const UOptimusNode *NextNode = Link->GetNodeInputPin()->GetNode();
+
+		if (NextNode == CycleNode)
+		{
+			// We hit the node we want to connect from, so this would cause a cycle.
+			return true;
+		}
+
+		// If we haven't processed the next node yet, enqueue all its output links and mark
+		// this next node as done so we don't process it again.
+		if (!ProcessedNodes.Contains(NextNode))
+		{
+			EnqueueIndexes(GetAllLinkIndexesToNode(NextNode, EOptimusNodePinDirection::Output));
+			ProcessedNodes.Add(NextNode);
+		}
+	}
+
+	// We didn't hit our target node.
+	return false;
+}
+
+
 void UOptimusNodeGraph::Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject* InSubject)
 {
 	ModifiedEvent.Broadcast(InNotifyType, this, InSubject);
@@ -426,21 +489,30 @@ void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 }
 
 
-TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(UOptimusNode* InNode)
+TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(
+	const UOptimusNode* InNode,
+	EOptimusNodePinDirection InDirection
+	) const
 {
 	TArray<int32> LinkIndexes;
 	for (int32 LinkIndex = 0; LinkIndex < Links.Num(); LinkIndex++)
 	{
 		const UOptimusNodeLink* Link = Links[LinkIndex];
 
-		if (Link->GetNodeOutputPin()->GetNode() == InNode ||
-			Link->GetNodeInputPin()->GetNode() == InNode)
+		if ((Link->GetNodeOutputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Input) ||
+			(Link->GetNodeInputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Output))
 		{
 			LinkIndexes.Add(LinkIndex);
 		}
 	}
 
 	return LinkIndexes;
+}
+
+
+TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(const UOptimusNode* InNode) const
+{
+	return GetAllLinkIndexesToNode(InNode, EOptimusNodePinDirection::Unknown);
 }
 
 

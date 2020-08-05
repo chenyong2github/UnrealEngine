@@ -4,6 +4,7 @@
 
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
+#include "OptimusNodeGraph.h"
 
 #include "UObject/Package.h"
 
@@ -152,6 +153,74 @@ UObject* UOptimusNodePin::GetTypeObject() const
 }
 
 
+bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* OutReason) const
+{
+	if (!ensure(InOtherPin))
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("No pin given.");
+		}
+		return false;
+	}
+
+	if (Direction == InOtherPin->GetDirection())
+	{
+		if (OutReason)
+		{
+			*OutReason = FString::Printf(TEXT("Can't connect an %1$s pin to a %1$s"), 
+				Direction == EOptimusNodePinDirection::Input ? TEXT("input") : TEXT("output"));
+		}
+		return false;
+	}
+
+	// Check for self-connect.
+	if (GetNode() == InOtherPin->GetNode())
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Can't connect input and output pins on the same node.");
+		}
+		return false;
+	}
+
+	if (GetNode()->GetOwningGraph() != InOtherPin->GetNode()->GetOwningGraph())
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Pins belong to nodes from two different graphs.");
+		}
+		return false;
+	}
+
+	// Check for incompatible types.
+	if (TypeName != InOtherPin->GetTypeName())
+	{
+		// TBD: Automatic conversion.
+		if (OutReason)
+		{
+			*OutReason = TEXT("Incompatible pin types.");
+		}
+		return false;
+	}
+
+	// Will this connection cause a cycle?
+	const UOptimusNodePin *OutputPin = Direction == EOptimusNodePinDirection::Output ? this : InOtherPin;
+	const UOptimusNodePin* InputPin = Direction == EOptimusNodePinDirection::Input ? this : InOtherPin;
+
+	if (GetNode()->GetOwningGraph()->DoesLinkFormCycle(OutputPin, InputPin))
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("Connection would form a graph cycle.");
+		}
+		return false;
+	}
+
+	return true;
+}
+
+
 void UOptimusNodePin::InitializeFromProperty(
 	EOptimusNodePinDirection InDirection, 
 	const FProperty *InProperty
@@ -160,8 +229,13 @@ void UOptimusNodePin::InitializeFromProperty(
 	Direction = InDirection;
 
 	FString ExtendedType;
-	TypeString = InProperty->GetCPPType(&ExtendedType);
-	TypeString += ExtendedType;
+	FString TypeString = InProperty->GetCPPType(&ExtendedType);
+	if (!ExtendedType.IsEmpty())
+	{
+		TypeString += ExtendedType;
+	}
+
+	TypeName = *TypeString;
 
 	const FProperty* PropertyForType = InProperty;
 	const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(PropertyForType);
