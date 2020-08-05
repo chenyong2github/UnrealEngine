@@ -114,7 +114,9 @@ void UMoviePipelineWidgetRenderer::TeardownImpl()
 	RenderTarget = nullptr;
 }
 
+#if WITH_EDITOR
 FText UMoviePipelineWidgetRenderer::GetFooterText(UMoviePipelineExecutorJob* InJob) const
 { 
 	return NSLOCTEXT("MovieRenderPipeline", "WidgetRenderSetting_NoCompositeWarning", "This will render widgets added to the Viewport to a separate texture with alpha. This is currently not composited onto the final image, and will need to be combined in post.");
 }
+#endif

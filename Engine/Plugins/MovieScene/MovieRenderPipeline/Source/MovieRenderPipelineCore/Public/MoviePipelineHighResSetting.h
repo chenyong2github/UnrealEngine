@@ -63,6 +63,7 @@ public:
 		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/overlapPercent"), OverlapRatio);
 	}
 
+#if WITH_EDITOR
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override
 	{
 		if (!InJob || !InJob->GetConfiguration())
@@ -110,7 +111,7 @@ public:
 
 		return FText();
 	}
-
+#endif
 
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override
 	{

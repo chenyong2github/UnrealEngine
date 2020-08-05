@@ -272,7 +272,9 @@ public:
 
 public:
 	// UObject Interface
+#if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+#endif
 	// ~UObject Interface
 
 protected:
