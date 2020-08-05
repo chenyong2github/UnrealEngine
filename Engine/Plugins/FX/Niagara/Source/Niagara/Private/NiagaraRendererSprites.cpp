@@ -624,12 +624,16 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		FMeshBatch MeshBatch;
 		CreateMeshBatchForView(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, DynamicDataSprites, IndirectArgsOffset, MeshBatch, VFLooseParams, CollectorResources, RendererLayout);
 
-		ensureMsgf(MeshBatch.Elements[0].IndexBuffer != &GSixTriangleParticleIndexBuffer, TEXT("Cutout geometry is not supported by ray tracing"));
-
 		RayTracingInstance.Materials.Add(MeshBatch);
 
 		// USe the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
 		FRWBuffer* VertexBuffer = RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr;
+
+		// Different numbers of cutout vertices correspond to different index buffers
+		// For 8 verts, use GSixTriangleParticleIndexBuffer
+		// For 4 verts cutout geometry and normal particle geometry, use the typical 6 indices
+		const int32 NumVerticesPerInstance = NumCutoutVertexPerSubImage == 8 ? 18 : 6;
+		const int32 NumTrianglesPerInstance = NumCutoutVertexPerSubImage == 8 ? 6 : 2;
 
 		// Update dynamic ray tracing geometry
 		Context.DynamicRayTracingGeometriesToUpdate.Add(
@@ -637,9 +641,9 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			{
 				RayTracingInstance.Materials,
 				MeshBatch.Elements[0].NumPrimitives == 0,
-				6 *  SourceParticleData->GetNumInstances(),
-				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
-				2 *  SourceParticleData->GetNumInstances(),
+				NumVerticesPerInstance * SourceParticleData->GetNumInstances(),
+				NumVerticesPerInstance * SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
+				NumTrianglesPerInstance * SourceParticleData->GetNumInstances(),
 				&RayTracingGeometry,
 				VertexBuffer,
 				true
