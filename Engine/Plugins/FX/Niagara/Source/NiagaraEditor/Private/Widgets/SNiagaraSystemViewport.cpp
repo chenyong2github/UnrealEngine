@@ -194,7 +194,7 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 				FNiagaraShaderScript* ShaderScript = Script->GetRenderThreadScript();
 				if (ShaderScript != nullptr && ShaderScript->GetBaseVMScript() != nullptr)
 				{
-					const FNiagaraVMExecutableData& VMExecData = ShaderScript->GetBaseVMScript()->GetVMExecutableData();
+					TConstArrayView<FSimulationStageMetaData> SimulationStageMetaData = ShaderScript->GetBaseVMScript()->GetSimulationStageMetaData();
 
 					for (int32 iPermutation=0; iPermutation < ShaderScript->GetNumPermutations(); ++iPermutation)
 					{
@@ -207,14 +207,14 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 							int32 MaxStage = 1;
 
 							const int32 ShaderStage = iPermutation - 1;
-							if (VMExecData.SimulationStageMetaData.IsValidIndex(ShaderStage))
+							if (SimulationStageMetaData.IsValidIndex(ShaderStage))
 							{
-								if (VMExecData.SimulationStageMetaData[ShaderStage].bWritesParticles == false)
+								if (!SimulationStageMetaData[ShaderStage].IterationSource.IsNone())
 								{
-									IterationSource = VMExecData.SimulationStageMetaData[ShaderStage].IterationSource.ToString();
+									IterationSource = SimulationStageMetaData[ShaderStage].IterationSource.ToString();
 								}
-								MinStage = VMExecData.SimulationStageMetaData[ShaderStage].MinStage;
-								MaxStage = VMExecData.SimulationStageMetaData[ShaderStage].MaxStage;
+								MinStage = SimulationStageMetaData[ShaderStage].MinStage;
+								MaxStage = SimulationStageMetaData[ShaderStage].MaxStage;
 							}
 
 							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU Stage(%d - %d) Source(%s) = %u"), MinStage, MaxStage, *IterationSource, Shader->GetNumInstructions()), Font, DisplayColor);

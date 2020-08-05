@@ -109,7 +109,7 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 			UE_LOG(LogNiagaraEditor, Log, TEXT("GPU shader compile skipped. Id %d"), NewShaderMap->GetCompilingId());
 			continue;
 		}
-		UNiagaraScript* CompilableScript = ShaderScript->GetBaseVMScript();
+		UNiagaraScript* CompilableScript = CastChecked<UNiagaraScript>(ShaderScript->GetBaseVMScript());
 
 		// For now System scripts don't generate HLSL and go through a special pass...
 		// [OP] thinking they'll likely never run on GPU anyways
