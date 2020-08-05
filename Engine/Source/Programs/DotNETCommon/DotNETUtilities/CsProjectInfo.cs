@@ -402,7 +402,7 @@ namespace Tools.DotNETCommon
 						// Reference to another project
 						if (EvaluateCondition(ItemElement, ProjectInfo))
 						{
-							ParseProjectReference(BaseDirectory, ItemElement, ProjectInfo.ProjectReferences);
+							ParseProjectReference(BaseDirectory, ItemElement, ProjectInfo.Properties, ProjectInfo.ProjectReferences);
 						}
 						break;
 					case "Compile":
@@ -451,13 +451,14 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		/// <param name="BaseDirectory">Directory to resolve relative paths against</param>
 		/// <param name="ParentElement">The parent 'ProjectReference' element</param>
+		/// <param name="Properties">Dictionary of properties for parsing the file</param>
 		/// <param name="ProjectReferences">Dictionary of project files to a bool indicating whether the outputs of the project should be copied locally to the referencing project.</param>
-		static void ParseProjectReference(DirectoryReference BaseDirectory, XmlElement ParentElement, Dictionary<FileReference, bool> ProjectReferences)
+		static void ParseProjectReference(DirectoryReference BaseDirectory, XmlElement ParentElement, Dictionary<string, string> Properties, Dictionary<FileReference, bool> ProjectReferences)
 		{
 			string IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
 			if (!String.IsNullOrEmpty(IncludePath))
 			{
-				FileReference ProjectFile = FileReference.Combine(BaseDirectory, IncludePath);
+				FileReference ProjectFile = FileReference.Combine(BaseDirectory, ExpandProperties(IncludePath, Properties));
 				bool bPrivate = GetChildElementBoolean(ParentElement, "Private", true);
 				ProjectReferences[ProjectFile] = bPrivate;
 			}
