@@ -4,6 +4,7 @@
 #include "Components/Visual.h"
 #include "Components/Widget.h"
 #include "Blueprint/UserWidget.h"
+#include "UMGPrivate.h"
 
 /////////////////////////////////////////////////////
 // UWidgetTree
@@ -248,12 +249,23 @@ void UWidgetTree::PreSave(const class ITargetPlatform* TargetPlatform)
 #endif
 	}
 
+#if WITH_EDITOR
+	ForEachWidgetAndDescendants([this](UWidget* InChildWidget) {
+		// Our widget tree for our class should only have direct children initialized in it.
+		if (InChildWidget->GetOuter() != this)
+		{
+			UE_LOG(LogUMG, Warning, TEXT("WidgetTree(%s) Contains Foreign Child (%s)"), *GetPathName(), *InChildWidget->GetPathName());
+		}
+	});
+#endif
+
 	Super::PreSave(TargetPlatform);
 }
 
 void UWidgetTree::PostLoad()
 {
 	Super::PostLoad();
+
 #if WITH_EDITORONLY_DATA
 	AllWidgets.Empty();
 #endif

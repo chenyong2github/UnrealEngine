@@ -559,8 +559,6 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		{
 			TGuardValue<uint32> DisableInitializeFromWidgetTree(UUserWidget::bInitializingFromWidgetTree, 0);
 			UWidgetTree* NewWidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
-			NewWidgetTree->SetFlags(RF_ArchetypeObject);
-
 			BPGClass->SetWidgetTreeArchetype(NewWidgetTree);
 		}
 

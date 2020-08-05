@@ -828,6 +828,8 @@ void UWidgetBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
+	WidgetTree->ClearFlags(RF_ArchetypeObject);
+
 	WidgetTree->ForEachWidget([&] (UWidget* Widget) {
 		Widget->ConnectEditorData();
 	});

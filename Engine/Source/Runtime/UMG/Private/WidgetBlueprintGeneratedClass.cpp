@@ -393,7 +393,7 @@ void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidge
 
 	if (WidgetTree)
 	{
-		WidgetTree->SetFlags(RF_ArchetypeObject);
+		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject);
 	}
 }
 
@@ -408,6 +408,7 @@ void UWidgetBlueprintGeneratedClass::PreSave(const class ITargetPlatform* Target
 		if (WidgetTree)
 		{
 			WidgetTree->SetFlags(RF_Transient);
+			WidgetTree = nullptr;
 		}
 	}
 #endif
