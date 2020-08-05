@@ -6212,11 +6212,16 @@ void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText S
 
 void UEditorEngine::RemoveViewportsRealtimeOverride(FText SystemDisplayName)
 {
+	// We don't check that we had an override on all the viewport clients because since the caller added their override, there could have
+	// been new viewport clients added to the list by someone else. It's probably that the caller just wants to make sure no viewport has
+	// their override anymore so it's a sensible default to ignore those who don't have it.
+	const bool bCheckMissingOverride = false;
+
 	for (FEditorViewportClient* VC : AllViewportClients)
 	{
 		if (VC)
 		{
-			VC->RemoveRealtimeOverride(SystemDisplayName);
+			VC->RemoveRealtimeOverride(SystemDisplayName, bCheckMissingOverride);
 		}
 	}
 
