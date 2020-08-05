@@ -407,6 +407,20 @@ bool UOptimusNodeGraph::RemoveAllLinksToNodeDirect(UOptimusNode* InNode)
 }
 
 
+void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
+{
+	UOptimusNodeLink* Link = Links[LinkIndex];
+
+	Links.RemoveAt(LinkIndex);
+
+	Notify(EOptimusNodeGraphNotifyType::NodeLinkRemoved, Link);
+
+	// Unparent the link to a temporary storage and mark it for kill.
+	Link->Rename(nullptr, GetTransientPackage());
+	Link->MarkPendingKill();
+}
+
+
 bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin, const UOptimusNodePin* InNodeInputPin) const
 {
 	if (!ensure(InNodeOutputPin != nullptr && InNodeInputPin != nullptr) ||
@@ -472,20 +486,6 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin
 void UOptimusNodeGraph::Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject* InSubject)
 {
 	ModifiedEvent.Broadcast(InNotifyType, this, InSubject);
-}
-
-
-void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
-{
-	UOptimusNodeLink* Link = Links[LinkIndex];
-
-	Links.RemoveAt(LinkIndex);
-
-	Notify(EOptimusNodeGraphNotifyType::NodeLinkAdded, Link);
-
-	// Unparent the link to a temporary storage and mark it for kill.
-	Link->Rename(nullptr, GetTransientPackage());
-	Link->MarkPendingKill();
 }
 
 
