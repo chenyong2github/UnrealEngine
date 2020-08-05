@@ -3355,7 +3355,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	// Don't resolve, just add to request list as needed
 	TSet<FName> SoftObjectPackages;
 
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 
