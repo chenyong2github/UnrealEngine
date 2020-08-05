@@ -1036,11 +1036,10 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 	                Transform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
-	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
-	                               TransformProps->bSelectVertices);
 	FGroupTopologySelection Selection;
 	FVector3d LocalPosition, LocalNormal;
-	if (TopoSelector.FindSelectedElement(LocalRay, Selection, LocalPosition, LocalNormal) == false)
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings();
+	if (TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, Selection, LocalPosition, LocalNormal) == false)
 	{
 		return false;
 	}
@@ -1085,11 +1084,10 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 
 	HilightSelection.Clear();
 
-	TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
-	                               TransformProps->bSelectVertices);
 	FGroupTopologySelection Selection;
 	FVector3d LocalPosition, LocalNormal;
-	bool bHit = TopoSelector.FindSelectedElement(LocalRay, Selection, LocalPosition, LocalNormal);
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings();
+	bool bHit = TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, Selection, LocalPosition, LocalNormal);
 
 	if (bHit == false)
 	{
@@ -1300,10 +1298,9 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		LocalRay.Direction.Normalize();
 
 		HilightSelection.Clear();
-		TopoSelector.UpdateEnableFlags(TransformProps->bSelectFaces, TransformProps->bSelectEdges,
-		                               TransformProps->bSelectVertices);
 		FVector3d LocalPosition, LocalNormal;
-		bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
+		FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings();
+		bool bHit = TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, HilightSelection, LocalPosition, LocalNormal);
 
 		if (bHit)
 		{
@@ -1634,6 +1631,15 @@ void UDeformMeshPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UDeformMeshPolygonsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property) {}
 
+FGroupTopologySelector::FSelectionSettings UDeformMeshPolygonsTool::GetTopoSelectorSettings()
+{
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings;
+	TopoSelectorSettings.bEnableFaceHits = TransformProps->bSelectFaces;
+	TopoSelectorSettings.bEnableEdgeHits = TransformProps->bSelectEdges;
+	TopoSelectorSettings.bEnableCornerHits = TransformProps->bSelectVertices;
+
+	return TopoSelectorSettings;
+}
 
 //
 // Change Tracking
