@@ -16,6 +16,7 @@
 #include "NavigationPath.h"
 #include "NavigationData.h"
 #include "NavigationSystem.h"
+#include "NavMesh/NavMeshPath.h"
 #include "Logging/MessageLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAIBlueprint, Warning, All);
@@ -344,26 +345,50 @@ UNavigationPath* UAIBlueprintHelperLibrary::GetCurrentPath(AController* Controll
 	return ResultPath;
 }
 
-
-int32 UAIBlueprintHelperLibrary::GetCurrentPathIndex(AController* Controller)
-{
-	UPathFollowingComponent* PFComp = nullptr;
+UPathFollowingComponent* UAIBlueprintHelperLibrary::GetPathComp(const AController* Controller)
+{	
 	if (Controller)
 	{
-		AAIController* AIController = Cast<AAIController>(Controller);
+		UPathFollowingComponent* PFComp = nullptr;
+		const AAIController* AIController = Cast<AAIController>(Controller);
 		if (AIController)
 		{
-			PFComp = AIController->GetPathFollowingComponent();
+			return AIController->GetPathFollowingComponent();
 		}
 		else
 		{
 			// No AI Controller means its a player controller, most probably moving using SimpleMove
-			PFComp = Controller->FindComponentByClass<UPathFollowingComponent>();
+			return Controller->FindComponentByClass<UPathFollowingComponent>();
 		}
+	}
+	return nullptr;
+}
 
+int32 UAIBlueprintHelperLibrary::GetCurrentPathIndex(const AController* Controller)
+{
+	const UPathFollowingComponent* PFComp = GetPathComp(Controller);
+	return PFComp ? static_cast<int32>(PFComp->GetCurrentPathIndex()) : INDEX_NONE;
+}
+
+int32 UAIBlueprintHelperLibrary::GetNextNavLinkIndex(const AController* Controller)
+{
+	if (const UPathFollowingComponent* PFComp = GetPathComp(Controller))
+	{
+		const FNavPathSharedPtr Path = PFComp->GetPath();
+		if (Path.IsValid())
+		{
+			const TArray<FNavPathPoint>& PathPoints = Path->GetPathPoints();
+			for (int32 i = PFComp->GetCurrentPathIndex(); i < PathPoints.Num(); ++i)
+			{
+				if (FNavMeshNodeFlags(PathPoints[i].Flags).IsNavLink())
+				{
+					return i;
+				}
+			}
+		}
 	}
 
-	return PFComp ? static_cast<int32>(PFComp->GetCurrentPathIndex()) : INDEX_NONE;
+	return INDEX_NONE;
 }
 
 namespace
