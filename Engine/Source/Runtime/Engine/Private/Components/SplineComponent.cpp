@@ -883,6 +883,38 @@ void USplineComponent::SetUpVectorAtSplinePoint(int32 PointIndex, const FVector&
 	}
 }
 
+void USplineComponent::SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline /*= true*/)
+{
+	if (SplineCurves.Rotation.Points.IsValidIndex(PointIndex))
+	{
+		const FQuat Quat = (CoordinateSpace == ESplineCoordinateSpace::World) ?
+			GetComponentTransform().InverseTransformRotation(InRotation.Quaternion()) : InRotation.Quaternion();
+
+		FVector UpVector = Quat.GetUpVector();
+		SetUpVectorAtSplinePoint(PointIndex, UpVector, CoordinateSpace, false);
+
+		FVector Direction = Quat.GetForwardVector();
+		SetTangentAtSplinePoint(PointIndex, Direction, CoordinateSpace, false);
+
+		if (bUpdateSpline)
+		{
+			UpdateSpline();
+		}
+	}
+}
+
+void USplineComponent::SetScaleAtSplinePoint(int32 PointIndex, float InScaleY, float InScaleZ, bool bUpdateSpline /*= true*/)
+{
+	if (SplineCurves.Rotation.Points.IsValidIndex(PointIndex))
+	{
+		SplineCurves.Scale.Points[PointIndex].OutVal = FVector(1.0f, InScaleY, InScaleZ);
+
+		if (bUpdateSpline)
+		{
+			UpdateSpline();
+		}
+	}
+}
 
 ESplinePointType::Type USplineComponent::GetSplinePointType(int32 PointIndex) const
 {
