@@ -120,16 +120,38 @@ bool UOptimusNodeGraph::AddLink(UOptimusNodePin* InNodeOutputPin, UOptimusNodePi
 		return false;
 	}
 
-	check(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output);
-	check(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input);
-
-	if (InNodeOutputPin->GetDirection() != EOptimusNodePinDirection::Output ||
-		InNodeInputPin->GetDirection() != EOptimusNodePinDirection::Input)
+	if (!InNodeOutputPin->CanCannect(InNodeInputPin))
 	{
+		// FIXME: We should be able to report back the failure reason.
 		return false;
 	}
 
-	return GetActionStack()->RunAction<FOptimusNodeGraphAction_AddLink>(InNodeOutputPin, InNodeInputPin);
+	// Swap them if they're the wrong order -- a genuine oversight.
+	if (InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		Swap(InNodeOutputPin, InNodeInputPin);
+	}
+
+	// Check to see if there's an existing link on the _input_ pin. Output pins can have any
+	// number of connections coming out.
+	TArray<int32> PinLinks = GetAllLinkIndexesToPin(InNodeInputPin);
+
+	// This shouldn't happen, but we'll cover for it anyway.
+	checkSlow(PinLinks.Num() <= 1);
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
+		
+	for (int32 LinkIndex : PinLinks)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Links[LinkIndex]);
+	}
+
+	FOptimusNodeGraphAction_AddLink  *AddLinkAction = new FOptimusNodeGraphAction_AddLink(InNodeOutputPin, InNodeInputPin);
+
+	Action->SetTitle(AddLinkAction->GetTitle());
+	Action->AddSubAction(AddLinkAction);
+
+	return GetActionStack()->RunAction(Action);
 }
 
 
@@ -139,15 +161,19 @@ bool UOptimusNodeGraph::RemoveLink(UOptimusNodePin* InNodeOutputPin, UOptimusNod
 	{
 		return false;
 	}
-
-	check(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output);
-	check(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input);
-
-	if (InNodeOutputPin->GetDirection() != EOptimusNodePinDirection::Output ||
-		InNodeInputPin->GetDirection() != EOptimusNodePinDirection::Input)
+	
+	// Passing in pins of the same direction is a blatant fail.
+	if (!ensure(InNodeOutputPin->GetDirection() != InNodeInputPin->GetDirection()))
 	{
 		return false;
 	}
+
+	// Swap them if they're the wrong order -- a genuine oversight.
+	if (InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		Swap(InNodeOutputPin, InNodeInputPin);
+	}
+
 
 	for (UOptimusNodeLink* Link: Links)
 	{

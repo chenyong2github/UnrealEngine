@@ -28,6 +28,11 @@ struct FOptimusAction
 		return Title;
 	}
 
+	void SetTitle(const FString& InTitle)
+	{
+		Title = InTitle;
+	}
+
 	template <typename FmtType, typename... ArgTypes>
 	void SetTitlef(const FmtType& Fmt, ArgTypes&& ...Args)
 	{
@@ -70,6 +75,10 @@ struct FOptimusCompoundAction :
 	FOptimusCompoundAction(FmtType&& Fmt, ArgTypes&& ...Args) :
 		FOptimusAction(FString::Printf(Forward<FmtType>(Fmt), Forward<ArgTypes>(Args)...))
 	{ }
+
+	/// Add a sub-action from a heap-constructed action. This takes ownership of the pointer.
+	/// @param InAction The action to add.
+	void AddSubAction(FOptimusAction* InAction);
 
 	template<typename T, typename... ArgTypes>
 	typename TEnableIf<TPointerIsConvertibleFromTo<T, FOptimusAction>::Value, void>::Type 

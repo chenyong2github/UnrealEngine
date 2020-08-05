@@ -15,6 +15,14 @@ FOptimusAction::~FOptimusAction()
 
 }
 
+
+
+void FOptimusCompoundAction::AddSubAction(FOptimusAction* InAction)
+{
+	AddSubAction(TSharedPtr<FOptimusAction>(InAction));
+}
+
+
 bool FOptimusCompoundAction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 {
 	for (int32 ActionIndex = 0; ActionIndex < SubActions.Num(); ActionIndex++)
