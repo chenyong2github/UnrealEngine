@@ -51,18 +51,18 @@ TSharedRef<SWidget> SNiagaraGraphParameterMapSetNode::CreateNodeContentArea()
 
 FReply SNiagaraGraphParameterMapSetNode::OnDroppedOnTarget(TSharedPtr<FDragDropOperation> DropOperation)
 {
+	UNiagaraNodeParameterMapBase* MapNode = Cast<UNiagaraNodeParameterMapBase>(GraphNode);
+	if (MapNode != nullptr && MapNode->HandleDropOperation(DropOperation))
+	{
+		return FReply::Handled();
+	}
 	return FReply::Unhandled();
 }
 
 bool SNiagaraGraphParameterMapSetNode::OnAllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation)
 {
 	UNiagaraNodeParameterMapBase* MapNode = Cast<UNiagaraNodeParameterMapBase>(GraphNode);
-	if (MapNode
-		&& DragDropOperation->IsOfType<FNiagaraParameterGraphDragOperation>()
-		&& StaticCastSharedPtr<FNiagaraParameterGraphDragOperation>(DragDropOperation)->IsCurrentlyHoveringNode(GraphNode))
-	{
-		return MapNode->OnAllowDrop(DragDropOperation);
-	}
-	return false;
+	return MapNode != nullptr && MapNode->CanHandleDropOperation(DragDropOperation);
 }
+
 #undef LOCTEXT_NAMESPACE
