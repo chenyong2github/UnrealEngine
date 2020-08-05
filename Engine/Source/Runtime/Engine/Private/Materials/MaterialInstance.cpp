@@ -2729,11 +2729,10 @@ void UMaterialInstance::CacheResourceShadersForRendering(FMaterialResourceDeferr
 
 	UpdateOverridableBaseProperties();
 
-	// Delete any current resources before creating new ones, previous resources may not have the correct parent
-	// It would be possible to aupdate/re-use existing resources instead, but doesn't seem worth the effort
-	check(OutResourcesToFree.Num() == 0);
+#if STORE_ONLY_ACTIVE_SHADERMAPS
 	OutResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
 	StaticPermutationMaterialResources.Reset();
+#endif // STORE_ONLY_ACTIVE_SHADERMAPS
 
 	if (bHasStaticPermutationResource && FApp::CanEverRender())
 	{
@@ -3636,6 +3635,14 @@ void UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 
 		if (bSetParent && RecacheShaders)
 		{
+			// delete all the existing resources that may have previous parent as the owner
+			if (StaticPermutationMaterialResources.Num() > 0)
+			{
+				FMaterialResourceDeferredDeletionArray ResourcesToFree;
+				ResourcesToFree = MoveTemp(StaticPermutationMaterialResources);
+				DeleteDeferredResources(ResourcesToFree);
+				StaticPermutationMaterialResources.Reset();
+			}
 			InitStaticPermutation();
 		}
 		else
