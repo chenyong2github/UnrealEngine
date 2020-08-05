@@ -50,7 +50,9 @@ namespace GeometryCollectionTest
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleBodyCollidingWithGroundPlane)
 	{
 		using Traits = TypeParam;
+		FReal  Scale = 100.0f;
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
+		FVector BoxScale(Scale); Params.GeomTransform.SetScale3D(BoxScale); // Box dimensions
 		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
 
@@ -63,7 +65,7 @@ namespace GeometryCollectionTest
 		{
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD);
 			EXPECT_EQ(Collection->DynamicCollection->Transform.Num(), 1);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - 1.0), SMALL_THRESHOLD);
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale), SMALL_THRESHOLD);
 		}
 	}
 
@@ -98,7 +100,7 @@ namespace GeometryCollectionTest
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleCubeIntersectingWithSolverFloor)
 	{
 		using Traits = TypeParam;
-		FVector Scale(2.f);
+		FVector Scale(100.0f);
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.GeomTransform.SetScale3D(Scale); // Sphere radius
 
@@ -114,7 +116,7 @@ namespace GeometryCollectionTest
 		{
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD);
 			EXPECT_EQ(Collection->DynamicCollection->Transform.Num(), 1);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale[2]), SMALL_THRESHOLD);
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Scale[0]), SMALL_THRESHOLD);
 		}
 	}
 
