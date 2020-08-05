@@ -758,15 +758,7 @@ namespace Chaos
 			}
 			case EPhysicsProxyType::JointConstraintType:
 			{
-				auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-				const bool bIsNew = !JointProxy->IsInitialized();
-				if(bIsNew)
-				{
-					JointProxy->InitializeOnPhysicsThread(this);
-					JointProxy->SetInitialized();
-				}
-				JointProxy->PushStateOnPhysicsThread(this);
-				Dirty.Proxy->ResetDirtyIdx();
+				// Pass until after all bodies are created. 
 				break;
 			}
 			default:
@@ -776,6 +768,27 @@ namespace Chaos
 				Dirty.Proxy->ResetDirtyIdx();
 			}
 
+			}
+		});
+
+		//need to create new constraint handles
+		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT](int32 DataIdx, FDirtyProxy& Dirty)
+		{
+			switch (Dirty.Proxy->GetType())
+			{
+			case EPhysicsProxyType::JointConstraintType:
+			{
+				auto JointProxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
+				const bool bIsNew = !JointProxy->IsInitialized();
+				if (bIsNew)
+				{
+					JointProxy->InitializeOnPhysicsThread(this);
+					JointProxy->SetInitialized();
+				}
+				JointProxy->PushStateOnPhysicsThread(this);
+				Dirty.Proxy->ResetDirtyIdx();
+				break;
+			}
 			}
 		});
 
