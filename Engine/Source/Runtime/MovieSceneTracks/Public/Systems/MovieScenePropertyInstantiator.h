@@ -24,6 +24,7 @@ namespace MovieScene
 {
 
 struct FPropertyStats;
+struct FPropertyDefinition;
 class FEntityManager;
 
 } // namespace MovieScene
@@ -139,7 +140,7 @@ private:
 	TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovieScenePropertyBinding& PropertyBinding);
 	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding);
 
-	const FObjectPropertyInfo* FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
+	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
 	void AssignPreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 	void RestorePreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
@@ -167,6 +168,8 @@ private:
 	TBitArray<> InitialValueStateTasks;
 
 	UE::MovieScene::FBuiltInComponentTypes* BuiltInComponents;
+	 
+	UE::MovieScene::FPropertyRecomposerImpl RecomposerImpl;
 };
 
 
@@ -174,80 +177,12 @@ private:
 template<typename PropertyType, typename OperationalType>
 UE::MovieScene::TRecompositionResult<PropertyType> UMovieScenePropertyInstantiatorSystem::RecomposeBlendFinal(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const PropertyType& InCurrentValue)
 {
-	using namespace UE::MovieScene;
-
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(Components.CompositeID);
-
-	TRecompositionResult<PropertyType> Result(InCurrentValue, InQuery.Entities.Num());
-
-	if (InQuery.Entities.Num() == 0)
-	{
-		return Result;
-	}
-
-	const FObjectPropertyInfo* Property = FindPropertyFromSource(InQuery.Entities[0], InQuery.Object);
-
-	if (!Property || Property->BlendChannel == INVALID_BLEND_CHANNEL)
-	{
-		return Result;
-	}
-
-	UMovieSceneBlenderSystem* Blender = Property->Blender.Get();
-	if (!Blender)
-	{
-		return Result;
-	}
-
-	FFloatDecompositionParams Params;
-	Params.Query = InQuery;
-	Params.PropertyEntityID = Property->PropertyEntityID;
-	Params.DecomposeBlendChannel = Property->BlendChannel;
-	Params.PropertyTag = PropertyDefinition.PropertyType;
-
-	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
-
-	PropertyDefinition.Handler->RecomposeBlendFinal(PropertyDefinition, Composites, Params, Blender, InCurrentValue, Result.Values);
-
-	return Result;
+	return RecomposerImpl.RecomposeBlendFinal<PropertyType, OperationalType>(Components, InQuery, InCurrentValue);
 }
+
 
 template<typename PropertyType, typename OperationalType>
 UE::MovieScene::TRecompositionResult<OperationalType> UMovieScenePropertyInstantiatorSystem::RecomposeBlendOperational(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const OperationalType& InCurrentValue)
 {
-	using namespace UE::MovieScene;
-
-	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(Components.CompositeID);
-
-	TRecompositionResult<OperationalType> Result(InCurrentValue, InQuery.Entities.Num());
-
-	if (InQuery.Entities.Num() == 0)
-	{
-		return Result;
-	}
-
-	const FObjectPropertyInfo* Property = FindPropertyFromSource(InQuery.Entities[0], InQuery.Object);
-
-	if (!Property || Property->BlendChannel == INVALID_BLEND_CHANNEL)
-	{
-		return Result;
-	}
-
-	UMovieSceneBlenderSystem* Blender = Property->Blender.Get();
-	if (!Blender)
-	{
-		return Result;
-	}
-
-	FFloatDecompositionParams Params;
-	Params.Query = InQuery;
-	Params.PropertyEntityID = Property->PropertyEntityID;
-	Params.DecomposeBlendChannel = Property->BlendChannel;
-	Params.PropertyTag = PropertyDefinition.PropertyType;
-
-	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
-
-	PropertyDefinition.Handler->RecomposeBlendOperational(PropertyDefinition, Composites, Params, Blender, InCurrentValue, Result.Values);
-
-	return Result;
+	return RecomposerImpl.RecomposeBlendOperational<PropertyType, OperationalType>(Components, InQuery, InCurrentValue);
 }
-

@@ -28,8 +28,11 @@ namespace MovieScene
 		/** Defines all the entities that should have their pre-component values extracted for recomposition */
 		TArrayView<const FMovieSceneEntityID> Entities;
 
+		/** Whether the entities above are source entities or runtime entities */
+		bool bConvertFromSourceEntityIDs = true;
+
 		/** The object that is being decomposed */
-		UObject* Object;
+		UObject* Object = nullptr;
 	};
 
 

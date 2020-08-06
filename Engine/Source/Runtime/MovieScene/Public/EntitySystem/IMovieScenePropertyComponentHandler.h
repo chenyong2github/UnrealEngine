@@ -176,6 +176,7 @@ struct IPropertyComponentHandler
 	 *
 	 * @param Definition       The property definition this handler was registered for
 	 * @param Composites       The composite channels that this property type comprises
+	 * @param Params           The decomposition parameters
 	 * @param Blender          The blender system to recompose from
 	 * @param InCurrentValue   The current value (of type PropertyType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
 	 * @param OutResult        The result to receieve recomposed values, one for every entitiy in Params.Query.Entities. Must be of type PropertyType.
@@ -187,11 +188,24 @@ struct IPropertyComponentHandler
 	 *
 	 * @param Definition       The property definition this handler was registered for
 	 * @param Composites       The composite channels that this property type comprises
+	 * @param Params           The decomposition parameters
 	 * @param Blender          The blender system to recompose from
 	 * @param InCurrentValue   The current value (of type OperationalType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
 	 * @param OutResult        The result to receieve recomposed values, one for every entitiy in Params.Query.Entities. Must be of type OperationalType.
 	 */
 	virtual void RecomposeBlendOperational(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, FConstPropertyComponentView InCurrentValue, FPropertyComponentArrayView OutResult) = 0;
+
+	/**
+	 * Run a recomposition using the specified params and values.
+	 *
+	 * @param Definition       The property definition this handler was registered for
+	 * @param Composite        The composite channel of the property type that we want to decompose
+	 * @param Params           The decomposition parameters
+	 * @param Blender          The blender system to recompose from
+	 * @param InCurrentValue   The current value (of type OperationalType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
+	 * @param OutResults       The result to receieve recomposed values, one for every entitiy in Params.Query.Entities.
+	 */
+	virtual void RecomposeBlendChannel(const FPropertyDefinition& Definition, const FPropertyCompositeDefinition& Composite, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, float InCurrentValue, TArrayView<float> OutResults) = 0;
 
 	/**
 	 * Dispatch tasks that apply any entity that matches this property type to their final values
