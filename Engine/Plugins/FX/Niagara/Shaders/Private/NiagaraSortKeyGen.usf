@@ -60,9 +60,9 @@ groupshared uint CullGroupCount;
 float GetFloat(uint RegisterIdx, uint InstanceID)
 {
 	BRANCH
-	if (RegisterIdx & (1 << 31))
+	if (RegisterIdx & (1 << 31U))
 	{
-		RegisterIdx &= ~(1 << 31);
+		RegisterIdx &= ~(1 << 31U);
 		return NiagaraParticleDataHalf[RegisterIdx * HalfDataStride + InstanceID];
 	}
 	else
@@ -156,7 +156,7 @@ bool CullParticle(in uint ParticleIndex)
 	// Transform the bounding sphere
 	float4 BSphere = LocalBoundingSphere;
 	BSphere.xyz = RotateVectorByQuat(BSphere.xyz * Scale, Quat) + Pos;
-	BSphere.w *= max(Scale.x, max(Scale.y, Scale.z));
+	BSphere.w *= max(abs(Scale.x), max(abs(Scale.y), abs(Scale.z)));
 
 	// Cull particles using distance ranges
 	float3 CamVec = BSphere.xyz - CameraPosition;
@@ -179,21 +179,19 @@ bool CullParticle(in uint ParticleIndex)
 	}
 
 	// Cull particles using cull planes
-	for (int i = 0; i < NIAGARA_KEY_GEN_MAX_CULL_PLANES; ++i)
+	int NumCullPlanesToCheck = min(NumCullPlanes, NIAGARA_KEY_GEN_MAX_CULL_PLANES);
+	bool Found = false;
+	int i = 0;
+	while (!Found && (i < NumCullPlanesToCheck))
 	{
-		if (i >= NumCullPlanes)
-			break;
-
 		float4 Plane = CullPlanes[i];
-		if (dot(Plane.xyz, BSphere.xyz) - Plane.w > BSphere.w)
-		{
-			// We are completely outside one of the culling planes
-			return true;
-		}
+		Found = ((dot(Plane.xyz, BSphere.xyz) - Plane.w) > BSphere.w);
+		i = i + 1;
 	}
-#endif
-
+	return Found;
+#else
 	return false;
+#endif
 }
 
 [numthreads(THREAD_COUNT,1,1)]
