@@ -5,9 +5,15 @@
 #include "MetasoundArchetypeRegistration.h"
 #include "MetasoundSource.h"
 #include "Modules/ModuleManager.h"
-
+#include "MetasoundWave.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
+
+namespace Metasound
+{
+	REGISTER_METASOUND_DATATYPE(FWave, "Primitive:Wave");
+}
 
 class FMetasoundEngineModule : public IMetasoundEngineModule
 {

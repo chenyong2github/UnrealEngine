@@ -10,7 +10,7 @@
 
 namespace Metasound
 {
-	class METASOUNDSTANDARDNODES_API FWavePlayerNode : public FNode
+	class METASOUNDENGINE_API FWavePlayerNode : public FNode
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{

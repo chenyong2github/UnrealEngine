@@ -17,7 +17,7 @@ namespace Metasound
 	class FWave;
 	typedef TDataReadReference<FWave> FWaveReadRef;
 		
-	class FWave
+	class METASOUNDENGINE_API FWave
 	{
 		TArray<uint8> CompressedBytes;
 		friend class FWaveDecoderInput;
@@ -35,5 +35,5 @@ namespace Metasound
 		static FDecoderInputPtr CreateDecoderInput(
 			const FWaveReadRef& InWaveRef);
 	};
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWave, 0x0ddba11, FWaveTypeInfo, FWaveReadRef, FWaveWriteRef)
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWave, METASOUNDENGINE_API, 0x0ddba11, FWaveTypeInfo, FWaveReadRef, FWaveWriteRef)
 }

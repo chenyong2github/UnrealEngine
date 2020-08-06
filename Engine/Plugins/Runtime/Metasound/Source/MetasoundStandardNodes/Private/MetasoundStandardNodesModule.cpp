@@ -9,7 +9,6 @@
 #include "MetasoundDataReferenceTypes.h"
 #include "MetasoundTime.h"
 #include "MetasoundFrequency.h"
-#include "MetasoundWave.h"
 
 REGISTER_METASOUND_DATATYPE(bool, "Primitive:Bool", ::Metasound::ELiteralArgType::Boolean)
 REGISTER_METASOUND_DATATYPE(int32, "Primitive:Int32", ::Metasound::ELiteralArgType::Integer)
@@ -24,7 +23,6 @@ namespace Metasound
 	REGISTER_METASOUND_DATATYPE(FDoubleTime, "Primitive:Time:HighResolution", ::Metasound::ELiteralArgType::Float)
 	REGISTER_METASOUND_DATATYPE(FSampleTime, "Primitive:Time:SampleResolution", ::Metasound::ELiteralArgType::Float)
 	REGISTER_METASOUND_DATATYPE(FFrequency, "Primitive:Frequency", ::Metasound::ELiteralArgType::Float)
-	REGISTER_METASOUND_DATATYPE(FWave, "Primitive:Wave")
 }
 
 namespace Metasound 
