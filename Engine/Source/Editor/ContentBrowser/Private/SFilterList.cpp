@@ -1083,7 +1083,7 @@ void SFilterList::AddFilter(const TSharedRef<SFilter>& FilterToAdd)
 	Filters.Add(FilterToAdd);
 
 	FilterBox->AddSlot()
-	.Padding(3, 3)
+	.Padding(3, 0)
 	[
 		FilterToAdd
 	];
@@ -1447,7 +1447,6 @@ TSharedRef<SWidget> SFilterList::MakeAddFilterMenu(EAssetTypeCategories::Type Me
 
 	return 
 		SNew(SVerticalBox)
-
 		+SVerticalBox::Slot()
 		.MaxHeight(DisplaySize.Y * 0.9)
 		[

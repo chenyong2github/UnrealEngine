@@ -1803,9 +1803,9 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 
 		/* Set images for various SCheckBox states associated with menu check box items... */
 		const FCheckBoxStyle BasicMenuCheckBoxStyle = FCheckBoxStyle()
-			.SetUncheckedImage(FSlateNoResource(Icon14x14))
-			.SetUncheckedHoveredImage(FSlateNoResource(Icon14x14))
-			.SetUncheckedPressedImage(FSlateNoResource(Icon14x14))
+			.SetUncheckedImage(FSlateNoResource(Icon16x16))
+			.SetUncheckedHoveredImage(FSlateNoResource(Icon16x16))
+			.SetUncheckedPressedImage(FSlateNoResource(Icon16x16))
 			.SetCheckedImage(	    IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
 			.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
 			.SetCheckedPressedImage(IMAGE_BRUSH_SVG("Starship/Common/check", Icon16x16))
