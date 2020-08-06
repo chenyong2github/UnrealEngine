@@ -2736,6 +2736,9 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
 	}
 #endif
+
+	UnregisterWithScalabilityManager();
+
 	Asset = InAsset;
 
 #if WITH_EDITOR
