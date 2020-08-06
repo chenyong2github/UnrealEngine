@@ -60,6 +60,22 @@ FAutoConsoleVariableRef CVarDisableRetaining(
 	TEXT("0: Don't disable retaining, 1: retaining."),
 	ECVF_Default);
 
+static int32 BlockOnChunkLoadCompletionCVar = 0;
+FAutoConsoleVariableRef CVarBlockOnChunkLoadCompletion(
+	TEXT("au.streamcache.BlockOnChunkLoadCompletion"),
+	BlockOnChunkLoadCompletionCVar,
+	TEXT("When set to 1, USoundWaves we will always attempt to synchronously load a chunk after a USoundWave request has finished.\n")
+	TEXT("0: Don't try to block after a SoundWave has completed loading a chunk, 1: Block after a USoundWave's chunk request has completed."),
+	ECVF_Default);
+
+static int32 DispatchToGameThreadOnChunkRequestCVar = 1;
+FAutoConsoleVariableRef CVarDispatchToGameThreadOnChunkRequest(
+	TEXT("au.streamcache.DispatchToGameThreadOnChunkRequest"),
+	DispatchToGameThreadOnChunkRequestCVar,
+	TEXT("When set to 1, we will always dispatch a callback to the game thread whenever a USoundWave request has finished. This may cause chunks of audio to be evicted by the time we need them.\n")
+	TEXT("0: as soon as the chunk is loaded, capture the audio chunk. 1: As soon as the chunk is loaded, dispatch a callback to the gamethread."),
+	ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 static void DumpBakedAnalysisData(const TArray<FString>& Args)
 {
@@ -2506,6 +2522,9 @@ bool USoundWave::GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& 
 
 void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> OnLoadCompleted, bool bForceSync /*= false*/, int32 ChunkIndex /*= 1*/, ENamedThreads::Type CallbackThread /*= ENamedThreads::GameThread*/)
 {
+	ENamedThreads::Type ThreadToDispatchCallbackOn = (DispatchToGameThreadOnChunkRequestCVar != 0) ? ENamedThreads::GameThread : ENamedThreads::AnyThread;
+
+
 	// if we are requesting a chunk that is out of bounds,
 	// early exit.
 	if (ChunkIndex >= static_cast<int32>(GetNumChunks()))
@@ -2524,11 +2543,11 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 		TWeakObjectPtr<USoundWave> WeakThis = MakeWeakObjectPtr(this);
 
 		// For async cases, we call RequestChunk and request the loaded chunk in the completion callback.
-		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, ChunkIndex, [WeakThis, OnLoadCompleted, ChunkIndex, CallbackThread](EAudioChunkLoadResult LoadResult)
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, ChunkIndex, [ThreadToDispatchCallbackOn, WeakThis, OnLoadCompleted, ChunkIndex, CallbackThread](EAudioChunkLoadResult LoadResult)
 		{
-			auto DispatchOnLoadCompletedCallback = [OnLoadCompleted, CallbackThread](FAudioChunkHandle&& InHandle)
+			auto DispatchOnLoadCompletedCallback = [ThreadToDispatchCallbackOn, OnLoadCompleted, CallbackThread](FAudioChunkHandle&& InHandle)
 			{
-				if (CallbackThread == ENamedThreads::GameThread)
+				if (CallbackThread == ThreadToDispatchCallbackOn)
 				{
 					OnLoadCompleted(MoveTemp(InHandle));
 				}
@@ -2546,9 +2565,10 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 			if (WeakThis.IsValid() && (LoadResult == EAudioChunkLoadResult::Completed || LoadResult == EAudioChunkLoadResult::AlreadyLoaded))
 			{
 				USoundWave* ThisSoundWave = WeakThis.Get();
-				check(ThisSoundWave);
+				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave, ChunkIndex, (BlockOnChunkLoadCompletionCVar != 0));
 
-				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave, ChunkIndex, true);
+				// If we hit this, something went wrong in GetLoadedChunk.
+				ensureMsgf(ChunkHandle.IsValid(), TEXT("Failed to retrieve chunk %d from sound %s after successfully requesting it!"), ChunkIndex, *(WeakThis->GetName()));
 				DispatchOnLoadCompletedCallback(MoveTemp(ChunkHandle));
 			}
 			else
@@ -2557,7 +2577,7 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 				FAudioChunkHandle ChunkHandle;
 				DispatchOnLoadCompletedCallback(MoveTemp(ChunkHandle));
 			}
-		}, ENamedThreads::GameThread);
+		}, ThreadToDispatchCallbackOn);
 	}
 }
 
