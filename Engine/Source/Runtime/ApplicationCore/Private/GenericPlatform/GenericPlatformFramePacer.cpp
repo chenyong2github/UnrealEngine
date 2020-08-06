@@ -12,7 +12,7 @@ int32 FGenericPlatformRHIFramePacer::GetFramePaceFromSyncInterval()
 		int SyncInterval = SyncIntervalCVar->GetInt();
 		if (SyncInterval > 0)
 		{
-			return 60 / SyncInterval;
+			return GetMaxRefreshRate() / SyncInterval;
 		}
 	}
 
