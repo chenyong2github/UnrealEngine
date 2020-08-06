@@ -164,6 +164,8 @@ public:
 
 
 template<> CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
+template<> CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();
+template<> CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState();
 
 extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
 typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;
