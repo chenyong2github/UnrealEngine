@@ -987,9 +987,6 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	// Override the stack size for the thread pool.
 	FQueuedThreadPool::OverrideStackSize = 256 * 1024;
 
-	// Increase the HttpSendTimeout to 5 minutes
-	GConfig->SetFloat(TEXT("HTTP"), TEXT("HttpSendTimeout"), 5 * 60.0f, GEngineIni);
-
 	// Initialize the engine. -Messaging enables MessageBus transports required by Concert (Recovery Service).
 	FString FinalCommandLine(CommandLine);
 #if CRASH_REPORT_WITH_RECOVERY
@@ -997,6 +994,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 #endif
 	GEngineLoop.PreInit(*FinalCommandLine);
 	check(GConfig && GConfig->IsReadyForUse());
+
+	// Increase the HttpSendTimeout to 5 minutes
+	GConfig->SetFloat(TEXT("HTTP"), TEXT("HttpSendTimeout"), 5 * 60.0f, GEngineIni);
 
 	GLog->AddOutputDevice(&FDiagnosticLogger::Get());
 	FDiagnosticLogger::Get().LogEvent(TEXT("CRC/Load"));
