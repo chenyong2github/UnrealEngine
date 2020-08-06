@@ -7,6 +7,8 @@
 #include "LSALiveLinkPacket.h"
 #include "LSALiveLinkSource.h"
 #include "LSALiveLinkSkelMeshSource.h"
+#include "Serialization/MemoryWriter.h"
+#include "LiveStreamAnimationRole.h"
 
 #include "Animation/Skeleton.h"
 
