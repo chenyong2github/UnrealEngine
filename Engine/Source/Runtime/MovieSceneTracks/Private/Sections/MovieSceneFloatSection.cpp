@@ -51,6 +51,8 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 		return;
 	}
 
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
 	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
@@ -60,7 +62,7 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 			FEntityBuilder()
 			.Add(Components->FloatChannel[0], &FloatCurve)
 			.Add(Components->PropertyBinding, PropertyTrack->GetPropertyBinding())
-			.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+			.AddConditional(Components->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 			.AddTag(TracksComponents->Float.PropertyTag)
 		);
 	}
@@ -69,7 +71,7 @@ void UMovieSceneFloatSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 		OutImportedEntity->AddBuilder(
 			FEntityBuilder()
 			.Add(Components->FloatChannel[0], &FloatCurve)
-			.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+			.AddConditional(Components->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 			.AddTag(TracksComponents->Float.PropertyTag)
 		);
 	}

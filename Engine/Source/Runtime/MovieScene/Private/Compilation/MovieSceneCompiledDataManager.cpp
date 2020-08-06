@@ -970,6 +970,13 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	// Step 1 - Handle any entity producers that exist within the field
 	if (OutCompilerData->EntityField)
 	{
+		FMovieSceneEntityComponentFieldBuilder FieldBuilder(OutCompilerData->EntityField);
+
+		if (ObjectBinding)
+		{
+			FieldBuilder.GetSharedMetaData().ObjectBindingID = ObjectBinding->GetObjectGuid();
+		}
+
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 		{
 			IMovieSceneEntityProvider* EntityProvider = Cast<IMovieSceneEntityProvider>(Entry.Section);
@@ -982,15 +989,20 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, Entry.Range);
 			if (!EffectiveRange.IsEmpty())
 			{
-				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, OutCompilerData->EntityField))
-				{
-					OutCompilerData->EntityField->Entities.Populate(EffectiveRange, Entry.Section, 0);
-				}
-			}
+				FMovieSceneEvaluationFieldEntityMetaData MetaData;
 
-			if (ObjectBinding)
-			{
-				OutCompilerData->EntityField->EntityOwnerToObjectBinding.Add(Entry.Section, ObjectBinding->GetObjectGuid());
+				MetaData.ForcedTime = Entry.ForcedTime;
+				MetaData.Flags      = Entry.Flags;
+				MetaData.bEvaluateInSequencePreRoll  = Track->EvalOptions.bEvaluateInPreroll;
+				MetaData.bEvaluateInSequencePostRoll = Track->EvalOptions.bEvaluateInPostroll;
+
+				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, MetaData, &FieldBuilder))
+				{
+					const int32 EntityIndex   = FieldBuilder.FindOrAddEntity(Entry.Section, 0);
+					const int32 MetaDataIndex = FieldBuilder.AddMetaData(MetaData);
+
+					FieldBuilder.AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+				}
 			}
 		}
 	}

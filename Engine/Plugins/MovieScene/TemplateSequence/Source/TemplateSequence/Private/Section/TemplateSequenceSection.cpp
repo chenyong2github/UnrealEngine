@@ -33,9 +33,11 @@ void UTemplateSequenceSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 				AbsoluteInnerObjectBindingID.GetSequenceID(), AbsoluteInnerObjectBindingID.GetGuid());
 	}
 
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.AddConditional(FBuiltInComponentTypes::Get()->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+		.AddConditional(FBuiltInComponentTypes::Get()->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 		.Add(FTemplateSequenceComponentTypes::Get()->TemplateSequence, ComponentData)
 	);
 }

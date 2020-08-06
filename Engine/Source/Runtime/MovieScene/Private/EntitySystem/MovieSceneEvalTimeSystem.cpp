@@ -86,6 +86,7 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->InstanceHandle)
 	.Write(BuiltInComponents->EvalTime)
+	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
 	.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
 	.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, &FrameTimes);
 }

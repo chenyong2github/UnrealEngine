@@ -38,7 +38,7 @@ void UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker*
 {
 	using namespace UE::MovieScene;
 
-	if (!ConstraintBindingID.GetGuid().IsValid() || !Params.ObjectBindingID.IsValid())
+	if (!ConstraintBindingID.GetGuid().IsValid() || !Params.GetObjectBindingID().IsValid())
 	{
 		return;
 	}
@@ -54,7 +54,7 @@ void UMovieScene3DAttachSection::ImportEntityImpl(UMovieSceneEntitySystemLinker*
 
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.Add(BuiltInComponentTypes->SceneComponentBinding, Params.ObjectBindingID)
+		.Add(BuiltInComponentTypes->SceneComponentBinding, Params.GetObjectBindingID())
 		.Add(TrackComponents->AttachParentBinding, ConstraintBindingID)
 		.Add(TrackComponents->AttachComponent, AttachComponent)
 	);

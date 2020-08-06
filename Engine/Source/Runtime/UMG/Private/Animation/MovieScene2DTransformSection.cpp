@@ -249,11 +249,13 @@ void UMovieScene2DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 		return;
 	}
 
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
 	// Create a new entity for this section
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.Add(Components->PropertyBinding, Track->GetPropertyBinding())
-		.AddConditional(Components->GenericObjectBinding, Params.ObjectBindingID, Params.ObjectBindingID.IsValid())
+		.AddConditional(Components->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 		.AddConditional(Components->FloatChannel[0],      &Translation[0], ActiveChannelsMask[0])
 		.AddConditional(Components->FloatChannel[1],      &Translation[1], ActiveChannelsMask[1])
 		.AddConditional(Components->FloatChannel[2],      &Rotation,       ActiveChannelsMask[2])
