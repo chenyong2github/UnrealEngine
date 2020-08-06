@@ -74,6 +74,7 @@
 #include "NiagaraEditorCommands.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraComponentBroker.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -863,6 +864,9 @@ void FNiagaraEditorModule::StartupModule()
 
 	FNiagaraEditorCommands::Register();
 
+	NiagaraComponentBroker = MakeShareable(new FNiagaraComponentBroker);
+	FComponentAssetBrokerage::RegisterBroker(NiagaraComponentBroker, UNiagaraComponent::StaticClass(), true, true);
+
 	TSharedPtr<FNiagaraScriptGraphPanelPinFactory> GraphPanelPinFactory = MakeShareable(new FNiagaraScriptGraphPanelPinFactory());
 
 	GraphPanelPinFactory->RegisterTypePin(FNiagaraTypeDefinition::GetFloatStruct(), FNiagaraScriptGraphPanelPinFactory::FCreateGraphPin::CreateLambda(
@@ -1088,6 +1092,8 @@ void FNiagaraEditorModule::ShutdownModule()
 	FNiagaraEditorStyle::Shutdown();
 
 	UnregisterSettings();
+
+	FComponentAssetBrokerage::UnregisterBroker(NiagaraComponentBroker);
 
 	ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
 	if (SequencerModule != nullptr)
