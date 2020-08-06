@@ -226,7 +226,12 @@ struct FParticleBurstBlueprint
 {
 	GENERATED_USTRUCT_BODY()
 
-	FParticleBurstBlueprint() {};
+	FParticleBurstBlueprint()
+	{
+		Count = 0;
+		CountLow = 0;
+		Time = 0.0f;
+	};
 
 	FParticleBurstBlueprint(const FParticleBurst& InParticleBurst)
 		: Count(InParticleBurst.Count)
