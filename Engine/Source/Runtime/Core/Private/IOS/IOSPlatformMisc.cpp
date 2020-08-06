@@ -1652,6 +1652,11 @@ void FIOSPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
 	}
 }
 
+int32 FIOSPlatformMisc::GetMaxRefreshRate()
+{
+	return [UIScreen mainScreen].maximumFramesPerSecond;
+}
+
 void FIOSPlatformMisc::GPUAssert()
 {
     // make this a fatal error that ends here not in the log
