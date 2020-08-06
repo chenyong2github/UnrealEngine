@@ -28,7 +28,7 @@ class SBoolColumnHeader : public SColumnHeader
 
 		SColumnHeader::FArguments ColumnArgs;
 		ColumnArgs.Style( Style );
-		ColumnArgs.Customization( Customization );
+		ColumnArgs.Customization( InArgs._Customization );
 
 		SColumnHeader::Construct( ColumnArgs, InPropertyTableColumn, InPropertyUtilities );
 	}
@@ -59,5 +59,4 @@ class SBoolColumnHeader : public SColumnHeader
 private:
 
 	FName Style;
-	TSharedPtr< IPropertyTableCustomColumn > Customization;
 };
