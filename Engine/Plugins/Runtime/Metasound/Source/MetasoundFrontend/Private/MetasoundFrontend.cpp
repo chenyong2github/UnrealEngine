@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
+#include "Serialization/MemoryReader.h"
 
 
 static int32 MetasoundUndoRollLimitCvar = 128;
