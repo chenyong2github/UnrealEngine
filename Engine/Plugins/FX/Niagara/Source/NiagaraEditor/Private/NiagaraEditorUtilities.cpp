@@ -927,22 +927,32 @@ bool FNiagaraEditorUtilities::IsCompilableAssetClass(UClass* AssetClass)
 
 FText FNiagaraEditorUtilities::GetVariableTypeCategory(const FNiagaraVariable& Variable)
 {
+	return GetTypeDefinitionCategory(Variable.GetType());
+}
+
+FText FNiagaraEditorUtilities::GetTypeDefinitionCategory(const FNiagaraTypeDefinition& TypeDefinition)
+{
 	FText Category = FText::GetEmpty();
-	if (Variable.GetType().IsDataInterface())
+	if (TypeDefinition.IsDataInterface())
 	{
 		Category = LOCTEXT("NiagaraParameterMenuGroupDI", "Data Interface");
 	}
-	else if (Variable.GetType().IsEnum())
+	else if (TypeDefinition.IsEnum())
 	{
 		Category = LOCTEXT("NiagaraParameterMenuGroupEnum", "Enum");
 	}
-	else if (Variable.GetType().IsUObject())
+	else if (TypeDefinition.IsUObject())
 	{
 		Category = LOCTEXT("NiagaraParameterMenuGroupObject", "Object");
 	}
-	else if (Variable.GetName().ToString().Contains("event"))
+	else if (TypeDefinition.GetNameText().ToString().Contains("event"))
 	{
-		Category = LOCTEXT("NiagaraParameterMenuGroupObject", "Event");
+		Category = LOCTEXT("NiagaraParameterMenuGroupEventType", "Event");
+	}
+	else
+	{
+		// add common types like bool, vector, etc into a category of their own so they appear first in the search
+		Category = LOCTEXT("NiagaraParameterMenuGroupCommon", "Common");
 	}
 	return Category;
 }

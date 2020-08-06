@@ -90,15 +90,41 @@ private:
 	TSharedRef<SWidget> GetAddParameterMenuContent() const
 	{
 		FMenuBuilder AddMenuBuilder(true, nullptr);
-		for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : CollectionViewModel->GetAvailableTypes())
+		TSortedMap<FString, TArray<TSharedPtr<FNiagaraTypeDefinition>>> SubmenusToAdd;
+		for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : CollectionViewModel->GetAvailableTypesSorted())
 		{
-			AddMenuBuilder.AddMenuEntry
-			(
-				AvailableType->GetNameText(),
-				FText(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(CollectionViewModel.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
-			);
+			FText SubmenuText = FNiagaraEditorUtilities::GetTypeDefinitionCategory(*AvailableType);
+			if (SubmenuText.IsEmptyOrWhitespace())
+			{
+				AddMenuBuilder.AddMenuEntry
+                (
+                    AvailableType->GetNameText(),
+                    FText(),
+                    FSlateIcon(),
+                    FUIAction(FExecuteAction::CreateSP(CollectionViewModel.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
+                );
+			}
+			else
+			{
+				SubmenusToAdd.FindOrAdd(SubmenuText.ToString()).Add(AvailableType);
+			}
+		}
+		for (const auto& Entry : SubmenusToAdd)
+		{
+			TArray<TSharedPtr<FNiagaraTypeDefinition>> SubmenuEntries = Entry.Value;
+			AddMenuBuilder.AddSubMenu(FText::FromString(Entry.Key), FText(), FNewMenuDelegate::CreateLambda([SubmenuEntries, this](FMenuBuilder& InSubMenuBuilder)
+            {
+                for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : SubmenuEntries)
+                {
+                    InSubMenuBuilder.AddMenuEntry
+                    (
+                        AvailableType->GetNameText(),
+                        FText(),
+                        FSlateIcon(),
+                        FUIAction(FExecuteAction::CreateSP(CollectionViewModel.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
+                    );
+                }
+            }));
 		}
 		return AddMenuBuilder.MakeWidget();
 	}
