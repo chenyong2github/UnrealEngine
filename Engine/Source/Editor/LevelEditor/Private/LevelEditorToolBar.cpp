@@ -1176,10 +1176,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	RegisterSourceControlMenu();
 	RegisterCinematicsMenu();
 
-#if WITH_LIVE_CODING
-	RegisterCompileMenu();
-#endif
-
 	RegisterQuickSettingsMenu();
 	RegisterOpenBlueprintMenu();
 
@@ -1225,48 +1221,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelEditorCommands::Get().ToggleVR, LOCTEXT("ToggleVR", "VR Mode")));
 		}
-
-		//if(FCoreStyle::IsStarshipStyle())
-		{
-			FToolMenuSection& Section = AssetsToolBar->AddSection("Compile");
-
-			Section.AddDynamicEntry("CompilerAvailable", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
-				{
-					// Only show the compile options on machines with the solution (assuming they can build it)
-					if (FSourceCodeNavigation::IsCompilerAvailable())
-					{
-						// Since we can always add new code to the project, only hide these buttons if we haven't done so yet
-						InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
-							"CompileButton",
-							FUIAction(
-								FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::RecompileGameCode_Clicked),
-								FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::Recompile_CanExecute),
-								FIsActionChecked(),
-								FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
-							LOCTEXT("CompileMenuButton", "Compile"),
-							FLevelEditorCommands::Get().RecompileGameCode->GetDescription(),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile")
-						));
-
-#if WITH_LIVE_CODING
-						InSection.AddEntry(FToolMenuEntry::InitComboButton(
-							"CompileComboButton",
-							FUIAction(
-								FExecuteAction(),
-								FCanExecuteAction(),
-								FIsActionChecked(),
-								FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
-							FNewToolMenuChoice(),
-							LOCTEXT("CompileCombo_Label", "Compile Options"),
-							LOCTEXT("CompileComboToolTip", "Compile options menu"),
-							FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
-							true
-						));
-#endif
-					}
-				}));
-		}
-		
 
 	}
 
@@ -1600,28 +1554,7 @@ static void MakePreviewSettingsMenu( UToolMenu* InMenu )
 #undef LOCTEXT_NAMESPACE
 }
 
-#if WITH_LIVE_CODING
-void FLevelEditorToolBar::RegisterCompileMenu()
-{
-#define LOCTEXT_NAMESPACE "LevelToolBarCompileMenu"
 
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar.CompileComboButton");
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("LiveCodingMode", LOCTEXT( "LiveCodingMode", "General" ) );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_Enable );
-	}
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("LiveCodingActions", LOCTEXT( "LiveCodingActions", "Actions" ) );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_StartSession );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_ShowConsole );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().LiveCoding_Settings );
-	}
-
-#undef LOCTEXT_NAMESPACE
-}
-#endif
 
 TSharedRef< SWidget > FLevelEditorToolBar::GenerateQuickSettingsMenu(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor)
 {

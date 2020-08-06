@@ -54,6 +54,7 @@
 #include "Classes/EditorStyleSettings.h"
 #include "StatusBarSubsystem.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "SourceCodeNavigation.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -248,6 +249,8 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 		]
 	];
 	
+	RegisterStatusBarTools();
+
 	TtileBarMessageBox = SNew(SHorizontalBox);
 
 	ConstructTitleBarMessages();
@@ -1646,6 +1649,72 @@ void SLevelEditor::OnActorSelectionChanged(const TArray<UObject*>& NewSelection,
 void SLevelEditor::OnLevelActorOuterChanged(AActor* InActor, UObject* InOldOuter)
 {
 	bNeedsRefresh = true;
+}
+
+void SLevelEditor::RegisterStatusBarTools()
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarCompileMenu"
+
+#if WITH_LIVE_CODING
+	{
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.StatusBar.ToolBar.CompileComboButton");
+		{
+			FToolMenuSection& Section = Menu->AddSection("LiveCodingMode", LOCTEXT("LiveCodingMode", "General"));
+			Section.AddMenuEntry(FLevelEditorCommands::Get().LiveCoding_Enable);
+		}
+
+		{
+			FToolMenuSection& Section = Menu->AddSection("LiveCodingActions", LOCTEXT("LiveCodingActions", "Actions"));
+			Section.AddMenuEntry(FLevelEditorCommands::Get().LiveCoding_StartSession);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().LiveCoding_ShowConsole);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().LiveCoding_Settings);
+		}
+	}
+
+#endif
+
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.StatusBar.ToolBar");
+	
+	FToolMenuSection& Section = Menu->AddSection("Compile", FText::GetEmpty(), FToolMenuInsert("SourceControl", EToolMenuInsertType::Before));
+
+	Section.AddDynamicEntry("CompilerAvailable", 
+		FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			// Only show the compile options on machines with the solution (assuming they can build it)
+			if (FSourceCodeNavigation::IsCompilerAvailable())
+			{
+				// Since we can always add new code to the project, only hide these buttons if we haven't done so yet
+				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+					"CompileButton",
+					FUIAction(
+						FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::RecompileGameCode_Clicked),
+						FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::Recompile_CanExecute),
+						FIsActionChecked(),
+						FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
+					LOCTEXT("CompileMenuButton", "Compile"),
+					FLevelEditorCommands::Get().RecompileGameCode->GetDescription(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile")
+				));
+
+#if WITH_LIVE_CODING
+				InSection.AddEntry(FToolMenuEntry::InitComboButton(
+					"CompileComboButton",
+					FUIAction(
+						FExecuteAction(),
+						FCanExecuteAction(),
+						FIsActionChecked(),
+						FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::CanShowSourceCodeActions)),
+					FNewToolMenuChoice(),
+					LOCTEXT("CompileCombo_Label", "Compile Options"),
+					LOCTEXT("CompileComboToolTip", "Compile options menu"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
+					true
+				));
+#endif
+			}
+		}));
+	
+#undef LOCTEXT_NAMESPACE
 }
 
 void SLevelEditor::AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport )

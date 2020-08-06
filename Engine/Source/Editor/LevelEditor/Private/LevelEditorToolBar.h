@@ -50,14 +50,6 @@ protected:
 	 */
 	static TSharedRef< SWidget > GenerateSourceControlMenu(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
 
-	
-	/**
-	 * Generates menu content for the modes combo button drop down menu
-	 *
-	 * @return	Menu content widget
-	 */
-	static TSharedRef< SWidget > GenerateEditorModesMenu(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
-
 	/**
 	 * Generates menu content for the compile combo button drop down menu
 	 *
@@ -89,15 +81,6 @@ private:
 
 	static void RegisterSourceControlMenu();
 	static void RegisterCinematicsMenu();
-	static void RegisterEditorModesMenu();
-	static void RegisterBuildMenu();
-
-#if WITH_LIVE_CODING
-	/**
-	 * Generates menu content for the compile combo button drop down menu
-	 */
-	static void RegisterCompileMenu();
-#endif
 
 	static void RegisterQuickSettingsMenu();
 	static void RegisterOpenBlueprintMenu();

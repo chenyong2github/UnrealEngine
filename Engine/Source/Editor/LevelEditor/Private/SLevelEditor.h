@@ -224,6 +224,9 @@ private:
 
 	/** Called when an actor changes outer */
 	void OnLevelActorOuterChanged(AActor* InActor = nullptr, UObject* InOldOuter = nullptr);
+
+	/** Registers toolbar options for the level editor status bar */
+	void RegisterStatusBarTools();
 private:
 
 	// Tracking the active viewports in this level editor.
