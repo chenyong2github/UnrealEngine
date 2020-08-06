@@ -866,11 +866,27 @@ FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& Mate
 		MaterialResources.Add(CurrentResource);
 	}
 
+	const UMaterial* CurrentOwnerMaterial = CurrentResource->GetMaterial();
+	const UMaterialInstance* CurrentOwnerMaterialInstance = CurrentResource->GetMaterialInstance();
+	
 	// make sure the material resource we found has the correct owner
-	checkf(CurrentResource->GetMaterial() == OwnerMaterial, TEXT("expected FMaterialResource with material %s, got %s"),
-		*GetNameSafe(OwnerMaterial), *GetNameSafe(CurrentResource->GetMaterial()));
-	checkf(CurrentResource->GetMaterialInstance() == OwnerMaterialInstance, TEXT("expected FMaterialResource with MI %s, got %s"),
-		*GetNameSafe(OwnerMaterialInstance), *GetNameSafe(CurrentResource->GetMaterialInstance()));
+	// special case for nullptrs: since the Material and MI get fed to the reference collector, they can be zeroed out by GC or utility tools
+	checkf(CurrentOwnerMaterial == OwnerMaterial || CurrentOwnerMaterial == nullptr, TEXT("expected FMaterialResource with material %s, got %s"),
+		*GetNameSafe(OwnerMaterial), *GetNameSafe(CurrentOwnerMaterial));
+	checkf(CurrentOwnerMaterialInstance == OwnerMaterialInstance || CurrentOwnerMaterialInstance == nullptr, TEXT("expected FMaterialResource with MI %s, got %s"),
+		*GetNameSafe(OwnerMaterialInstance), *GetNameSafe(CurrentOwnerMaterialInstance));
+
+	// assume previous ownership and restore zeroed-out references
+	if (UNLIKELY(CurrentOwnerMaterial == nullptr))
+	{
+		CurrentResource->SetMaterial(OwnerMaterial);
+	}
+
+	// OwnerMI itself can be nullptr (for UMaterial resources).
+	if (UNLIKELY(CurrentOwnerMaterialInstance == nullptr && OwnerMaterialInstance != nullptr))
+	{
+		CurrentResource->SetMaterialInstance(OwnerMaterialInstance);
+	}
 
 	return CurrentResource;
 }

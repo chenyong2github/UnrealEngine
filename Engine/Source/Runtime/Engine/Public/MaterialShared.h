@@ -2500,6 +2500,8 @@ public:
 
 	inline const UMaterial* GetMaterial() const { return Material; }
 	inline const UMaterialInstance* GetMaterialInstance() const { return MaterialInstance; }
+	inline void SetMaterial(UMaterial* InMaterial) { Material = InMaterial; }
+	inline void SetMaterialInstance(UMaterialInstance* InMaterialInstance) { MaterialInstance = InMaterialInstance; }
 
 protected:
 	UMaterial* Material;
