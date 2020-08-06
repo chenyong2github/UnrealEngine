@@ -1136,7 +1136,6 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 
 		const float MaxDistanceScaling = PrioritizationConstants.MaxDistanceScaling;
 		const uint32 MaxFramesSinceLastRep = PrioritizationConstants.MaxFramesSinceLastRep;
-		const int32 TotalNumOfConnections = 1 + NetConnection->Children.Num();
 
 		for (FActorRepListRawView& List : GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default))
 		{
@@ -1200,7 +1199,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 				if (GlobalData.Settings.DistancePriorityScale > 0.f)
 				{
 					float SmallestDistanceSq = TNumericLimits<float>::Max();
-					int32 ConnectionsThatSkipActor = 0;
+					int32 ViewersThatSkipActor = 0;
 					
 					for (const FNetViewer& CurViewer : Viewers)
 					{
@@ -1210,13 +1209,13 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 						// Figure out if we should be skipping this actor
 						if (bDoDistanceCull && ConnectionData.GetCullDistanceSquared() > 0.f && DistSq > ConnectionData.GetCullDistanceSquared())
 						{
-							++ConnectionsThatSkipActor;
+							++ViewersThatSkipActor;
 							continue;
 						}
 					}
 
 					// If no one is near this actor, skip it.
-					if (ConnectionsThatSkipActor >= TotalNumOfConnections)
+					if (ViewersThatSkipActor >= Viewers.Num())
 					{
 						DO_REPGRAPH_DETAILS(PrioritizedReplicationList.GetNextSkippedDebugDetails(Actor)->DistanceCulled = FMath::Sqrt(SmallestDistanceSq));
 
