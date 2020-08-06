@@ -20,7 +20,9 @@ public:
 	 */
 	explicit FSequencerRootNode(FSequencerNodeTree& InParentTree)
 		: FSequencerDisplayNode(NAME_None, InParentTree)
-	{}
+	{
+		bExpanded = true;
+	}
 
 public:
 
