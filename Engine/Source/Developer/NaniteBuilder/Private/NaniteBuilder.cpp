@@ -56,8 +56,8 @@ public:
 		TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 		TArray<uint32>& TriangleIndices,
 		TArray<int32>& MaterialIndices,
-		uint32& NumTexCoords,
-		bool& bHasColors,
+		uint32 NumTexCoords,
+		bool bHasColors,
 		const FMeshNaniteSettings& Settings) override;
 
 	virtual bool Build(
@@ -65,8 +65,8 @@ public:
 		TArray< FStaticMeshBuildVertex>& Vertices,
 		TArray< uint32 >& TriangleIndices,
 		TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
-		uint32& NumTexCoords,
-		bool& bHasColors,
+		uint32 NumTexCoords,
+		bool bHasColors,
 		const FMeshNaniteSettings& Settings) override;
 };
 
@@ -99,11 +99,6 @@ FORCEINLINE uint32 GetTypeHash(const FUIntVector& V)
 FORCEINLINE uint32 GetTypeHash( const FIntVector4& Vector )
 {
 	return CityHash32( (const char*)&Vector, sizeof( FIntVector4 ) );
-}
-
-FORCEINLINE uint32 GetTypeHash(const VertType& V)
-{
-	return CityHash32((const char*)&V, sizeof(VertType));
 }
 
 /*
@@ -746,11 +741,11 @@ static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters,
 
 			FUIntVector UIntClusterMax = { 0, 0, 0 };
 			FUIntVector UIntClusterMin = { MAX_uint32, MAX_uint32, MAX_uint32 };
-			const uint32 NumVertices = Meshlet.Verts.Num();
+			const uint32 NumVertices = Meshlet.NumVerts;
 			for( uint32 i = 0; i < NumVertices; i++ )
 			{
 				// Quantize to UINT
-				FVector UnitPosition = ( Meshlet.Verts[ i ].Position - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
+				FVector UnitPosition = ( Meshlet.GetPosition(i) - MeshBounds.Min ) / ( MeshBounds.Max - MeshBounds.Min );
 
 				uint32 VertexIndex = VertexOffset + i;
 				UIntPositions[ VertexIndex ].Position.X = (uint32)FMath::Clamp( (double)UnitPosition.X * (double)MAX_uint32, 0.0, (double)MAX_uint32 );
@@ -828,7 +823,7 @@ static void CalculateQuantizedPositions(TArray< Nanite::FTriCluster >& Clusters,
 				UIntClusterMin = { MAX_uint32, MAX_uint32, MAX_uint32 };
 				for (uint32 i = 0; i < NumClusterVerts; i++)
 				{
-					FVector VertPosition = Meshlet.Verts[i].Position;
+					FVector VertPosition = Meshlet.GetPosition(i);
 					const FUIntVector& UIntPosition = UIntPositions[ClusterVertexOffset + i].Position;
 					uint32 ID = UIntPositions[ClusterVertexOffset + i].ID;
 
@@ -936,7 +931,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FTriCluster
 		VValues.AddUninitialized(NumClusterVerts);
 		for (uint32 i = 0; i < NumClusterVerts; i++)
 		{
-			const FVector2D& UV = Meshlet.Verts[ i ].UVs[ UVIndex ];
+			const FVector2D& UV = Meshlet.GetUVs(i)[ UVIndex ];
 			UValues[i] = UV.X;
 			VValues[i] = UV.Y;
 		}
@@ -1055,10 +1050,27 @@ static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const T
 	}
 }
 
+// Wasteful to store size for every vert but easier this way.
+struct FVariableVertex
+{
+	const float*	Data;
+	uint32			Size;
+
+	bool operator==( FVariableVertex Other ) const
+	{
+		return 0 == FMemory::Memcmp( &Data, &Other.Data, Size );
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash( FVariableVertex Vert )
+{
+	return CityHash32( (const char*)Vert.Data, Vert.Size );
+}
+
 static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FTriCluster& Cluster, const Nanite::FMeshlet& Meshlet, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords,
 								TArray<uint32>& StripBitmask, TArray<uint8>& IndexData,
 								TArray<uint32>& VertexRefBitmask, TArray<uint32>& VertexRefData, TArray<uint8>& PositionData, TArray<uint8>& AttributeData,
-								TMap<VertType, uint32>& UniqueVertices, uint32& NumCodedVertices)
+								TMap<FVariableVertex, uint32>& UniqueVertices, uint32& NumCodedVertices)
 {
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
@@ -1071,7 +1083,10 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FT
 	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
 	for (uint32 VertexIndex = 0; VertexIndex < NumClusterVerts; VertexIndex++)
 	{
-		const VertType& Vertex = Meshlet.Verts[VertexIndex];
+		FVariableVertex Vertex;
+		Vertex.Data = &Meshlet.Verts[ VertexIndex * Meshlet.GetVertSize() ];
+		Vertex.Size = Meshlet.GetVertSize();
+
 		uint32* VertexPtr = UniqueVertices.Find(Vertex);
 
 		if (VertexPtr)
@@ -1145,7 +1160,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FT
 
 		for(uint32 i : UniqueToVertexIndex)
 		{
-			const FVector2D& UV = Meshlet.Verts[ i ].UVs[ UVIndex ];
+			const FVector2D& UV = Meshlet.GetUVs(i)[ UVIndex ];
 			const FVector2D NormalizedUV = ((UV - UVMin) * UVRcpDelta).ClampAxes(0.0f, 1.0f);
 
 			int32 U = int32(NormalizedUV.X * NU + 0.5f);
@@ -1181,7 +1196,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FT
 	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
 		// Normal
-		uint32 PackedNormal = PackNormal(Meshlet.Verts[VertexIndex].Normal, NORMAL_QUANTIZATION_BITS);
+		uint32 PackedNormal = PackNormal(Meshlet.GetNormal( VertexIndex ), NORMAL_QUANTIZATION_BITS);
 		BitWriter_Attribute.PutBits(PackedNormal, 2 * NORMAL_QUANTIZATION_BITS);
 		
 		// UVs
@@ -1505,7 +1520,7 @@ static void WritePages(	Nanite::FResources& Resources,
 		uint32 IndexGpuOffset = Page.MiscGpuSize;
 		uint32 PositionGpuOffset = IndexGpuOffset + Page.IndexGpuSize;
 		uint32 AttributeGpuOffset = PositionGpuOffset + Page.PositionGpuSize;
-		TMap<VertType, uint32> UniqueVertices;
+		TMap<FVariableVertex, uint32> UniqueVertices;
 
 		for (uint32 i = 0; i < Page.PartsNum; i++)
 		{
@@ -2188,7 +2203,7 @@ static void PrintMaterialRangeStats( TArray<FTriCluster>& Clusters, TArray<FMesh
 #if DO_CHECK
 static void VerifyClusterConstaints( const FTriCluster& Cluster, const FMeshlet& Meshlet )
 {
-	check( Cluster.NumVerts == Meshlet.Verts.Num() );
+	check( Cluster.NumVerts == Meshlet.NumVerts );
 	check( Cluster.NumTris * 3 == Meshlet.Indexes.Num() );
 	check( Cluster.NumVerts <= 256 );
 
@@ -2401,12 +2416,16 @@ static void ConstrainClusterFIFO( FTriCluster& Cluster, FMeshlet& Meshlet )
 	}
 
 	// Write back new vertex order including possibly duplicates
-	TArray<VertType> OldVertices = Meshlet.Verts;
-	Meshlet.Verts.SetNumUninitialized( NumNewVertices );
+	TArray< float > OldVertices;
+	Swap( OldVertices, Meshlet.Verts );
+
+	uint32 VertStride = Meshlet.GetVertSize();
+	Meshlet.Verts.AddUninitialized( NumNewVertices * VertStride );
 	for( uint32 i = 0; i < NumNewVertices; i++ )
 	{
-		Meshlet.Verts[ i ] = OldVertices[ NewToOldVertex[ i ] ];
+		FMemory::Memcpy( &Meshlet.GetPosition(i), &OldVertices[ NewToOldVertex[ i ] * VertStride ], VertStride * sizeof( float ) );
 	}
+	Meshlet.NumVerts = NumNewVertices;
 	Cluster.NumVerts = NumNewVertices;
 }
 
@@ -2656,13 +2675,16 @@ static void ConstrainClusterGeodesic( FTriCluster& Cluster, FMeshlet& Meshlet )
 	}
 
 	// Write back new vertex order including possibly duplicates
-	TArray<VertType> OldVertices = Meshlet.Verts;
-	Meshlet.Verts.SetNumUninitialized( NumNewVertices );
+	TArray< float > OldVertices;
+	Swap( OldVertices, Meshlet.Verts );
+
+	uint32 VertStride = Meshlet.GetVertSize();
+	Meshlet.Verts.AddUninitialized( NumNewVertices * VertStride );
 	for( uint32 i = 0; i < NumNewVertices; i++ )
 	{
-		Meshlet.Verts[i] = OldVertices[ NewToOldVertex[ i ] ];
+		FMemory::Memcpy( &Meshlet.GetPosition(i), &OldVertices[ NewToOldVertex[ i ] * VertStride ], VertStride * sizeof( float ) );
 	}
-	
+	Meshlet.NumVerts = NumNewVertices;
 	Cluster.NumVerts = NumNewVertices;
 }
 
@@ -2982,7 +3004,7 @@ class FStripifier
 			VertexToTriangleMasks[ i1 ][ i >> 5 ] |= 1 << ( i & 31 );
 			VertexToTriangleMasks[ i2 ][ i >> 5 ] |= 1 << ( i & 31 );
 
-			FVector ScaledCenter = Meshlet.Verts[ i0 ].Position + Meshlet.Verts[ i1 ].Position + Meshlet.Verts[ i2 ].Position;
+			FVector ScaledCenter = Meshlet.GetPosition( i0 ) + Meshlet.GetPosition( i1 ) + Meshlet.GetPosition( i2 );
 			TrianglePriorities[ i ] = ScaledCenter.X;	//TODO: Find a good direction to sort by instead of just picking x?
 
 			FEdgeNode& Node0 = EdgeNodes[ i * 3 + 0 ];
@@ -3359,15 +3381,20 @@ public:
 		
 		// Reorder vertices
 		const uint32 NumNewVertices = Context.NumVertices;
-		TArray<VertType> OldVertices = Meshlet.Verts;
-		Meshlet.Verts.SetNumUninitialized( NumNewVertices );
+
+		TArray< float > OldVertices;
+		Swap( OldVertices, Meshlet.Verts );
+
+		uint32 VertStride = Meshlet.GetVertSize();
+		Meshlet.Verts.AddUninitialized( NumNewVertices * VertStride );
 		for( uint32 i = 0; i < NumNewVertices; i++ )
 		{
-			Meshlet.Verts[ i ] = OldVertices[ Context.NewToOldVertex[ i ] ];
+			FMemory::Memcpy( &Meshlet.GetPosition(i), &OldVertices[ Context.NewToOldVertex[ i ] * VertStride ], VertStride * sizeof( float ) );
 		}
 
 		check( Context.NumTriangles == NumOldTriangles );
 
+		Meshlet.NumVerts = Context.NumVertices;
 		Cluster.NumVerts = Context.NumVertices;
 		
 		uint32 NumPrevNewVerticesBeforeDwords1 = NumNewVerticesInDword[ 0 ];
@@ -3467,7 +3494,7 @@ static void DumpClusterToObj( const char* Filename,  const FTriCluster& Cluster,
 
 static void DumpClusterNormals(const char* Filename, const FMeshlet& Meshlet)
 {
-	uint32 NumVertices = Meshlet.Verts.Num();
+	uint32 NumVertices = Meshlet.NumVerts;
 	TArray<FIntPoint> Points;
 	Points.SetNumUninitialized(NumVertices);
 	for (uint32 i = 0; i < NumVertices; i++)
@@ -3643,22 +3670,29 @@ static uint32 BuildCoarseRepresentation(
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
 	// Need to update coarse representation UV count to match new data.
-	NumTexCoords = sizeof(VertType::UVs) / sizeof(FVector2D);
+	NumTexCoords = CoarseRepresentation.NumTexCoords;
 
 	// Rebuild vertex data
-	Vertices.Empty( CoarseRepresentation.Verts.Num() );
-	for (const auto& CoarseVert : CoarseRepresentation.Verts)
+	Vertices.Empty( CoarseRepresentation.NumVerts );
+	for( uint32 i = 0, Num = CoarseRepresentation.NumVerts; i < Num; i++ )
 	{
-		FStaticMeshBuildVertex Vertex;
-		Vertex.Position = CoarseVert.GetPos();
+		FStaticMeshBuildVertex Vertex = {};
+		Vertex.Position = CoarseRepresentation.GetPosition(i);
 		Vertex.TangentX = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
 		Vertex.TangentY = FVector::ZeroVector; // TODO: Should probably have correct TSB for non-Nanite rendering fallback
-		Vertex.TangentZ = CoarseVert.Normal;
+		Vertex.TangentZ = CoarseRepresentation.GetNormal(i);
+
+		const FVector2D* UVs = CoarseRepresentation.GetUVs(i);
 		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
 		{
-			Vertex.UVs[UVIndex] = CoarseVert.UVs[UVIndex].ContainsNaN() ? FVector2D::ZeroVector : CoarseVert.UVs[UVIndex];
+			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2D::ZeroVector : UVs[UVIndex];
 		}
-		Vertex.Color = CoarseVert.Color.ToFColor(false /* sRGB */);
+
+		if( CoarseRepresentation.bHasColors )
+		{
+			Vertex.Color = CoarseRepresentation.GetColor(i).ToFColor(false /* sRGB */);
+		}
+
 		Vertices.Add(Vertex);
 	}
 
@@ -3746,8 +3780,8 @@ static bool BuildNaniteData(
 	TArray<FStaticMeshBuildVertex>& Verts, // TODO: Do not require this vertex type for all users of Nanite
 	TArray<uint32>& Indexes,
 	TArray<int32>&  MaterialIndexes,
-	uint32& NumTexCoords,
-	bool& bHasColors,
+	uint32 NumTexCoords,
+	bool bHasColors,
 	const FMeshNaniteSettings& Settings
 )
 {
@@ -3764,27 +3798,27 @@ static bool BuildNaniteData(
 
 	FBounds	MeshBounds;
 	
-		// Normalize UVWeights using min/max UV range.
-		float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
-		float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
-		for( auto& Vert : Verts )
-		{
+	// Normalize UVWeights using min/max UV range.
+	float MinUV[ MAX_STATIC_TEXCOORDS ] = { +FLT_MAX, +FLT_MAX };
+	float MaxUV[ MAX_STATIC_TEXCOORDS ] = { -FLT_MAX, -FLT_MAX };
+	for( auto& Vert : Verts )
+	{
 		MeshBounds += Vert.Position;
 
-			for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-			{
-				MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-				MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
-				MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
-				MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
-			}
-		}
-
-	float UVWeights[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
 		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 		{
-			UVWeights[ UVIndex ] = 1.0f / ( 32.0f * NumTexCoords * FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] ) );
+			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
+			MinUV[ UVIndex ] = FMath::Min( MinUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
+			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].X );
+			MaxUV[ UVIndex ] = FMath::Max( MaxUV[ UVIndex ], Vert.UVs[ UVIndex ].Y );
 		}
+	}
+
+	float UVWeights[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
+	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+	{
+		UVWeights[ UVIndex ] = 1.0f / ( 32.0f * NumTexCoords * FMath::Max( 1.0f, MaxUV[ UVIndex ] - MinUV[ UVIndex ] ) );
+	}
 
 	TArray< uint32 > SharedEdges;
 	SharedEdges.AddUninitialized( Indexes.Num() );
@@ -3811,49 +3845,49 @@ static bool BuildNaniteData(
 			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
 		} );
 
-		const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
+	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
 
-		ParallelFor( NumDwords,
-			[&]( int32 DwordIndex )
+	ParallelFor( NumDwords,
+		[&]( int32 DwordIndex )
+		{
+			const int32 NumIndexes = Indexes.Num();
+			const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
+
+			uint32 Mask = 1;
+			uint32 Dword = 0;
+			for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
 			{
-				const int32 NumIndexes = Indexes.Num();
-				const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
+				int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
 
-				uint32 Mask = 1;
-				uint32 Dword = 0;
-				for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
-				{
-					int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
-
-					uint32 VertIndex0 = Indexes[ EdgeIndex ];
-					uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
+				uint32 VertIndex0 = Indexes[ EdgeIndex ];
+				uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Verts[ VertIndex0 ].Position;
-					const FVector& Position1 = Verts[ VertIndex1 ].Position;
+				const FVector& Position0 = Verts[ VertIndex0 ].Position;
+				const FVector& Position1 = Verts[ VertIndex1 ].Position;
 				
-					uint32 Hash0 = HashPosition( Position0 );
-					uint32 Hash1 = HashPosition( Position1 );
-					uint32 Hash = Murmur32( { Hash1, Hash0 } );
+				uint32 Hash0 = HashPosition( Position0 );
+				uint32 Hash1 = HashPosition( Position1 );
+				uint32 Hash = Murmur32( { Hash1, Hash0 } );
 	
-					// Find edge with opposite direction that shares these 2 verts.
-					/*
-						  /\
-						 /  \
-						o-<<-o
-						o->>-o
-						 \  /
-						  \/
-					*/
-					uint32 FoundEdge = ~0u;
-					for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
-					{
-						uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
-						uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
+				// Find edge with opposite direction that shares these 2 verts.
+				/*
+					  /\
+					 /  \
+					o-<<-o
+					o->>-o
+					 \  /
+					  \/
+				*/
+				uint32 FoundEdge = ~0u;
+				for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
+				{
+					uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
+					uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
 			
-						if( Position0 == Verts[ OtherVertIndex1 ].Position &&
-							Position1 == Verts[ OtherVertIndex0 ].Position )
-						{
-							// Found matching edge.
+					if( Position0 == Verts[ OtherVertIndex1 ].Position &&
+						Position1 == Verts[ OtherVertIndex0 ].Position )
+					{
+						// Found matching edge.
 						// Hash table is not in deterministic order. Find stable match not just first.
 						FoundEdge = FMath::Min( FoundEdge, OtherEdgeIndex );
 					}
@@ -3904,8 +3938,6 @@ static bool BuildNaniteData(
 	//UE_LOG( LogStaticMesh, Log, TEXT("Boundary CRC %u"), FCrc::MemCrc32( BoundaryEdges.GetData(), BoundaryEdges.GetAllocatedSize() ) );
 	//UE_LOG( LogStaticMesh, Log, TEXT("SharedEdges CRC %u"), FCrc::MemCrc32( SharedEdges.GetData(), SharedEdges.Num() * SharedEdges.GetTypeSize() ) );
 
-	FMeshlet CoarseRepresentation;
-
 	FGraphPartitioner Partitioner( NumTriangles );
 
 	{
@@ -3953,6 +3985,8 @@ static bool BuildNaniteData(
 	TArray< FMeshlet >		Meshlets;
 	TArray< FTriCluster >	Clusters;
 
+	FMeshlet CoarseRepresentation;
+
 	if( Partitioner.Ranges.Num() )
 	{
 		//UE_LOG( LogStaticMesh, Log, TEXT("TriIndexes CRC %u"), FCrc::MemCrc32( Partitioner.Indexes.GetData(), Partitioner.Indexes.Num() * Partitioner.Indexes.GetTypeSize() ) );
@@ -3975,7 +4009,7 @@ static bool BuildNaniteData(
 					// Negative notes it's a leaf
 					Clusters[ Index ].EdgeLength *= -1.0f;
 				}, bSingleThreaded);
-	}
+		}
 
 		uint32 LeavesTime = FPlatformTime::Cycles();
 		UE_LOG( LogStaticMesh, Log, TEXT("Leaves [%.2fs]"), FPlatformTime::ToMilliseconds( LeavesTime - ClusterTime ) / 1000.0f );
@@ -4091,8 +4125,8 @@ bool FBuilderModule::Build(
 	TArray<FStaticMeshBuildVertex>& Vertices, // TODO: Do not require this vertex type for all users of Nanite
 	TArray<uint32>& TriangleIndices,
 	TArray<int32>&  MaterialIndices,
-	uint32& NumTexCoords,
-	bool& bHasColors,
+	uint32 NumTexCoords,
+	bool bHasColors,
 	const FMeshNaniteSettings& Settings)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));
@@ -4116,8 +4150,8 @@ bool FBuilderModule::Build(
 	TArray< FStaticMeshBuildVertex>& Vertices,
 	TArray< uint32 >& TriangleIndices,
 	TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
-	uint32& NumTexCoords,
-	bool& bHasColors,
+	uint32 NumTexCoords,
+	bool bHasColors,
 	const FMeshNaniteSettings& Settings)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("Nanite::Build"));

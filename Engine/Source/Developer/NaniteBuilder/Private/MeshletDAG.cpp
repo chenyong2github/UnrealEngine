@@ -100,8 +100,8 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 					uint32 VertIndex0 = Meshlet.Indexes[ EdgeIndex ];
 					uint32 VertIndex1 = Meshlet.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Meshlet.Verts[ VertIndex0 ].Position;
-					const FVector& Position1 = Meshlet.Verts[ VertIndex1 ].Position;
+					const FVector& Position0 = Meshlet.GetPosition( VertIndex0 );
+					const FVector& Position1 = Meshlet.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );
@@ -130,8 +130,8 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 					uint32 VertIndex0 = Meshlet.Indexes[ EdgeIndex ];
 					uint32 VertIndex1 = Meshlet.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Meshlet.Verts[ VertIndex0 ].Position;
-					const FVector& Position1 = Meshlet.Verts[ VertIndex1 ].Position;
+					const FVector& Position0 = Meshlet.GetPosition( VertIndex0 );
+					const FVector& Position1 = Meshlet.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );
@@ -148,8 +148,8 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 							uint32 OtherVertIndex0 = OtherMeshlet.Indexes[ ExternalEdge.EdgeIndex ];
 							uint32 OtherVertIndex1 = OtherMeshlet.Indexes[ Cycle3( ExternalEdge.EdgeIndex ) ];
 			
-							if( Position0 == OtherMeshlet.Verts[ OtherVertIndex1 ].Position &&
-								Position1 == OtherMeshlet.Verts[ OtherVertIndex0 ].Position )
+							if( Position0 == OtherMeshlet.GetPosition( OtherVertIndex1 ) &&
+								Position1 == OtherMeshlet.GetPosition( OtherVertIndex0 ) )
 							{
 								// Found matching edge. Increase it's count.
 								Meshlet.AdjacentMeshlets.FindOrAdd( ExternalEdge.MeshletIndex, 0 )++;
@@ -289,102 +289,6 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 	ClusterGroups.Add( RootClusterGroup );
 }
 
-template< typename VertType >
-FGraphPartitioner::FGraphData* BuildGraph( FGraphPartitioner& Partitioner, const TArray< VertType >& Verts, const TArray< uint32 >& Indexes )
-{
-	uint32 NumTriangles = Indexes.Num() / 3;
-	
-	FDisjointSet DisjointSet( NumTriangles );
-	
-	TArray< int32 > SharedEdge;
-	SharedEdge.AddUninitialized( Indexes.Num() );
-
-	TMultiMap< uint32, int32 > EdgeHashTable;
-	EdgeHashTable.Reserve( Indexes.Num() );
-
-	for( int i = 0; i < Indexes.Num(); i++ )
-	{
-		uint32 TriI = i / 3;
-		uint32 i0 = Indexes[ 3 * TriI + (i + 0) % 3 ];
-		uint32 i1 = Indexes[ 3 * TriI + (i + 1) % 3 ];
-
-		uint32 Hash0 = HashPosition( Verts[ i0 ].Position );
-		uint32 Hash1 = HashPosition( Verts[ i1 ].Position );
-		uint32 Hash = Murmur32( { FMath::Min( Hash0, Hash1 ), FMath::Max( Hash0, Hash1 ) } );
-
-		bool bFound = false;
-		for( auto Iter = EdgeHashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
-		{
-			int32 j = Iter.Value();
-			if( SharedEdge[j] == -1 )
-			{
-				uint32 TriJ = j / 3;
-				uint32 j0 = Indexes[ 3 * TriJ + (j + 0) % 3 ];
-				uint32 j1 = Indexes[ 3 * TriJ + (j + 1) % 3 ];
-
-				if( Verts[ i0 ].Position == Verts[ j1 ].Position &&
-					Verts[ i1 ].Position == Verts[ j0 ].Position )
-				{
-					// Link edges
-					SharedEdge[i] = TriJ;
-					SharedEdge[j] = TriI;
-					DisjointSet.UnionSequential( TriI, TriJ );
-					bFound = true;
-					break;
-				}
-			}
-		}
-		if( !bFound )
-		{
-			EdgeHashTable.Add( Hash, i );
-			SharedEdge[i] = -1;
-		}
-	}
-
-	FBounds	MeshBounds;
-	for( uint32 i = 0, Num = Verts.Num(); i < Num; i++ )
-	{
-		MeshBounds += Verts[i].Position;
-		MeshBounds += Verts[i].Position;
-		MeshBounds += Verts[i].Position;
-	}
-
-	auto GetCenter = [ &Verts, &Indexes ]( uint32 TriIndex )
-	{
-		FVector Center;
-		Center  = Verts[ Indexes[ TriIndex * 3 + 0 ] ].Position;
-		Center += Verts[ Indexes[ TriIndex * 3 + 1 ] ].Position;
-		Center += Verts[ Indexes[ TriIndex * 3 + 2 ] ].Position;
-		return Center * (1.0f / 3.0f);
-	};
-
-	Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
-
-	auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
-
-	for( uint32 i = 0; i < NumTriangles; i++ )
-	{
-		Graph->AdjacencyOffset[i] = Graph->Adjacency.Num();
-
-		uint32 TriIndex = Partitioner.Indexes[i];
-
-		// Add shared edges
-		for( int k = 0; k < 3; k++ )
-		{
-			int32 AdjIndex = SharedEdge[ 3 * TriIndex + k ];
-			if( AdjIndex != -1 )
-			{
-				Partitioner.AddAdjacency( Graph, AdjIndex, 4 * 65 );
-			}
-	}
-
-		Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
-	}
-	Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
-
-	return Graph;
-}
-
 void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex )
 {
 	check( ClusterGroupIndex >= 0 );
@@ -432,10 +336,7 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		else
 		{
 			FGraphPartitioner Partitioner( Merged.Indexes.Num() / 3 );
-
-			auto* Graph = BuildGraph( Partitioner, Merged.Verts, Merged.Indexes );
-
-			Partitioner.PartitionStrict( Graph, FMeshlet::ClusterSize - 4, FMeshlet::ClusterSize, false );
+			Merged.Split( Partitioner );
 
 			if( Partitioner.Ranges.Num() <= NumParents )
 			{
@@ -508,7 +409,7 @@ void FMeshletDAG::CompleteMeshlet( uint32 Index )
 	FMeshlet&    Meshlet = Meshlets[ Index ];
 	FTriCluster& Cluster = Clusters[ Index ];
 	
-	NumVerts			+= Meshlet.Verts.Num();
+	NumVerts			+= Meshlet.NumVerts;
 	NumIndexes			+= Meshlet.Indexes.Num();
 	NumExternalEdges	+= Meshlet.NumExternalEdges;
 	MeshBounds			+= Meshlet.Bounds;

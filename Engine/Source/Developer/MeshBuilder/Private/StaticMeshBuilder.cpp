@@ -278,7 +278,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		//Build the vertex and index buffer
 		BuildVertexBuffer(StaticMesh, MeshDescriptions[LodIndex], LODBuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 
-		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
+		FStaticMeshConstAttributes Attributes( MeshDescriptions[LodIndex] );
+		const uint32 NumTextureCoord = Attributes.GetVertexInstanceUVs().GetNumChannels();
+		const bool bHasColors = Attributes.GetVertexInstanceColors().IsValid();
 
 		// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 		// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
@@ -327,11 +329,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Nanite"));
 
-			uint32 NumTexCoords = NumTextureCoord;
-			bool bHasColors = true;
-
 			Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
-			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTexCoords, bHasColors, NaniteSettings ) )
+			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTextureCoord, bHasColors, NaniteSettings ) )
 			{
 				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for static mesh. See previous line(s) for details."));
 			}

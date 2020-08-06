@@ -11,6 +11,21 @@ template< typename T > FORCEINLINE uint32 Max3Index( const T A, const T B, const
 namespace Nanite
 {
 
+void CorrectAttributes( float* Attributes )
+{
+	FVector& Normal = *reinterpret_cast< FVector* >( Attributes );
+	Normal.Normalize();
+}
+
+void CorrectAttributesColor( float* Attributes )
+{
+	CorrectAttributes( Attributes );
+	
+	FLinearColor& Color = *reinterpret_cast< FLinearColor* >( Attributes + 3 );
+	Color = Color.GetClamped();
+}
+
+
 FMeshlet::FMeshlet(
 	const TArray< FStaticMeshBuildVertex >& InVerts,
 	const TArray< uint32 >& InIndexes,
@@ -22,8 +37,11 @@ FMeshlet::FMeshlet(
 	
 	const uint32 NumTriangles = TriEnd - TriBegin;
 	//ensure(NumTriangles <= FMeshlet::ClusterSize);
+	
+	bHasColors = false;
+	NumTexCoords = 2;
 
-	Verts.Reserve( 128 );
+	Verts.Reserve( NumTriangles * GetVertSize() );
 	Indexes.Reserve( 3 * NumTriangles );
 	BoundaryEdges.Reserve( 3 * NumTriangles );
 	MaterialIndexes.Reserve( NumTriangles );
@@ -31,7 +49,7 @@ FMeshlet::FMeshlet(
 	check(InMaterialIndexes.Num() * 3 == InIndexes.Num());
 
 	TMap< uint32, uint32 > OldToNewIndex;
-	OldToNewIndex.Reserve( Verts.Max() );
+	OldToNewIndex.Reserve( NumTriangles );
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
@@ -45,29 +63,35 @@ FMeshlet::FMeshlet(
 
 			if( NewIndex == ~0u )
 			{
-				NewIndex = Verts.AddUninitialized();
+				Verts.AddUninitialized( GetVertSize() );
+				NewIndex = NumVerts++;
 				OldToNewIndex.Add( OldIndex, NewIndex );
 				
 				const FStaticMeshBuildVertex& InVert = InVerts[ OldIndex ];
 
-				VertType& NewVert = Verts.Last();
-
-				NewVert.Position	= InVert.Position;
-				NewVert.Normal		= InVert.TangentZ;
-				NewVert.Color		= InVert.Color.ReinterpretAsLinear();
-
-				NewVert.Normal		= NewVert.Normal.ContainsNaN() ? FVector::UpVector : NewVert.Normal;
-
-				const uint32 NumTexCoords = sizeof( VertType::UVs ) / sizeof( FVector2D );
-				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+				GetPosition( NewIndex ) = InVert.Position;
+				GetNormal( NewIndex ) = InVert.TangentZ.ContainsNaN() ? FVector::UpVector : InVert.TangentZ;
+	
+				if( bHasColors )
 				{
-					NewVert.UVs[ UVIndex ] = InVert.UVs[ UVIndex ].ContainsNaN() ? FVector2D::ZeroVector : InVert.UVs[ UVIndex ];
+					GetColor( NewIndex ) = InVert.Color.ReinterpretAsLinear();
 				}
 
-				// Make sure this vertex is valid from the start
-				NewVert.Correct();
+				FVector2D* UVs = GetUVs( NewIndex );
+				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+				{
+					UVs[ UVIndex ] = InVert.UVs[ UVIndex ].ContainsNaN() ? FVector2D::ZeroVector : InVert.UVs[ UVIndex ];
+				}
 
-				Bounds += NewVert.Position;
+				float* Attributes = GetAttributes( NewIndex );
+
+				// Make sure this vertex is valid from the start
+				if( bHasColors )
+					CorrectAttributesColor( Attributes );
+				else
+					CorrectAttributes( Attributes );
+
+				Bounds += InVert.Position;
 			}
 
 			Indexes.Add( NewIndex );
@@ -91,8 +115,6 @@ FMeshlet::FMeshlet(
 	}
 
 	FindExternalEdges();
-
-	//UE_LOG( LogStaticMesh, Log, TEXT("Leaf grid: %i, verts: %i, tris: %i"), GridLevel, Verts.Num(), Indexes.Num() / 3 );
 }
 
 // Split
@@ -100,16 +122,19 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 	: MipLevel( SrcMeshlet.MipLevel )
 {
 	GUID = Murmur32( { SrcMeshlet.GUID, TriBegin, TriEnd } );
+
+	NumTexCoords = SrcMeshlet.NumTexCoords;
+	bHasColors = SrcMeshlet.bHasColors;
 	
 	const uint32 NumTriangles = TriEnd - TriBegin;
 
-	Verts.Reserve( 128 );
+	Verts.Reserve( NumTriangles * GetVertSize() );
 	Indexes.Reserve( 3 * NumTriangles );
 	BoundaryEdges.Reserve( 3 * NumTriangles );
 	MaterialIndexes.Reserve( NumTriangles );
 
 	TMap< uint32, uint32 > OldToNewIndex;
-	OldToNewIndex.Reserve( Verts.Max() );
+	OldToNewIndex.Reserve( NumTriangles );
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
@@ -123,10 +148,13 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 
 			if( NewIndex == ~0u )
 			{
-				NewIndex = Verts.Add( SrcMeshlet.Verts[ OldIndex ] );
+				Verts.AddUninitialized( GetVertSize() );
+				NewIndex = NumVerts++;
 				OldToNewIndex.Add( OldIndex, NewIndex );
 
-				Bounds += Verts.Last().Position;
+				FMemory::Memcpy( &GetPosition( NewIndex ), &SrcMeshlet.GetPosition( OldIndex ), GetVertSize() * sizeof( float ) );
+
+				Bounds += GetPosition( NewIndex );
 			}
 
 			Indexes.Add( NewIndex );
@@ -134,9 +162,9 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 		}
 
 		{
-			const FVector& Position0 = SrcMeshlet.Verts[ SrcMeshlet.Indexes[ TriIndex * 3 + 0 ] ].Position;
-			const FVector& Position1 = SrcMeshlet.Verts[ SrcMeshlet.Indexes[ TriIndex * 3 + 1 ] ].Position;
-			const FVector& Position2 = SrcMeshlet.Verts[ SrcMeshlet.Indexes[ TriIndex * 3 + 2 ] ].Position;
+			const FVector& Position0 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 0 ] );
+			const FVector& Position1 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 1 ] );
+			const FVector& Position2 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 2 ] );
 
 			FVector Edge01 = Position1 - Position0;
 			FVector Edge12 = Position2 - Position1;
@@ -151,22 +179,23 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 	}
 
 	FindExternalEdges();
-
-	//UE_LOG( LogStaticMesh, Log, TEXT("Split grid: %i, verts: %i, tris: %i"), GridLevel, Verts.Num(), Indexes.Num() / 3 );
 }
 
 // Merge
 FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 {
-	uint32 NumOutputClusters = FMath::DivideAndRoundUp( MergeList.Num(), 2 );
+	NumTexCoords = MergeList[0]->NumTexCoords;
+	bHasColors = MergeList[0]->bHasColors;
 
-	Verts.Reserve( ClusterSize * NumOutputClusters );
-	Indexes.Reserve( 3 * ClusterSize * NumOutputClusters );
-	BoundaryEdges.Reserve( 3 * ClusterSize * NumOutputClusters );
-	MaterialIndexes.Reserve( ClusterSize * NumOutputClusters );
+	// Only need a guess
+	const uint32 NumTriangles = ClusterSize * MergeList.Num();
 
-	TMultiMap< uint32, uint32 > HashTable;
-	HashTable.Reserve( Verts.Max() );
+	Verts.Reserve( NumTriangles * GetVertSize() );
+	Indexes.Reserve( 3 * NumTriangles );
+	BoundaryEdges.Reserve( 3 * NumTriangles );
+	MaterialIndexes.Reserve( NumTriangles );
+
+	FHashTable HashTable( 1 << FMath::FloorLog2( NumTriangles ), NumTriangles );
 
 	for( const FMeshlet* Child : MergeList )
 	{
@@ -178,25 +207,27 @@ FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 
 		for( int32 i = 0; i < Child->Indexes.Num(); i++ )
 		{
-			const VertType& Vert = Child->Verts[ Child->Indexes[i] ];
+			const FVector& Position = Child->GetPosition( Child->Indexes[i] );
 
-			uint32 Index = ~0u;
-			uint32 Hash = HashPosition( Vert.GetPos() );
-			for( auto Iter = HashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
+			uint32 Hash = HashPosition( Position );
+			uint32 NewIndex;
+			for( NewIndex = HashTable.First( Hash ); HashTable.IsValid( NewIndex ); NewIndex = HashTable.Next( NewIndex ) )
 			{
-				if( Vert == Verts[ Iter.Value() ] )
+				if( 0 == FMemory::Memcmp( &GetPosition( NewIndex ), &Position, GetVertSize() * sizeof( float ) ) )
 				{
-					Index = Iter.Value();
 					break;
 				}
 			}
-			if( Index == ~0u )
+			if( !HashTable.IsValid( NewIndex ) )
 			{
-				Index = Verts.Add( Vert );
-				HashTable.Add( Hash, Index );
+				Verts.AddUninitialized( GetVertSize() );
+				NewIndex = NumVerts++;
+				HashTable.Add( Hash, NewIndex );
+
+				FMemory::Memcpy( &GetPosition( NewIndex ), &Position, GetVertSize() * sizeof( float ) );
 			}
 
-			Indexes.Add( Index );
+			Indexes.Add( NewIndex );
 			BoundaryEdges.Add( Child->BoundaryEdges[i] );
 		}
 
@@ -206,17 +237,6 @@ FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 			MaterialIndexes.Add(MaterialIndex);
 		}
 	}
-
-	//UE_LOG( LogStaticMesh, Log, TEXT("Merged verts: %i, tris: %i"), Verts.Num(), Indexes.Num() / 3 );
-}
-
-void CorrectAttributes( float* Attributes )
-{
-	FVector& Normal = *reinterpret_cast< FVector* >( Attributes );
-	FLinearColor& Color = *reinterpret_cast< FLinearColor* >( Attributes + 3 );
-
-	Normal.Normalize();
-	Color = Color.GetClamped();
 }
 
 float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeights )
@@ -226,27 +246,27 @@ float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeig
 		return 0.0f;
 	}
 
-	const uint32 NumTexCoords = sizeof( VertType::UVs ) / sizeof( FVector2D );
-	const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector ) ) / sizeof(float);
-	float AttributeWeights[ NumAttributes ] =
-	{
-		1.0f, 1.0f, 1.0f	// Normal
-	};
-	float* ColorWeights = AttributeWeights + 3;
-	float* UVWeights = ColorWeights + 4;
+	uint32 NumAttributes = GetVertSize() - 3;
+	float* AttributeWeights = (float*)FMemory_Alloca( NumAttributes * sizeof( float ) );
 
-	bool bHasColors = false;
+	// Normal
+	AttributeWeights[0] = 1.0f;
+	AttributeWeights[1] = 1.0f;
+	AttributeWeights[2] = 1.0f;
 
-	// Set weights if they are used
 	if( bHasColors )
 	{
+		float* ColorWeights = AttributeWeights + 3;
 		ColorWeights[0] = 0.0625f;
 		ColorWeights[1] = 0.0625f;
 		ColorWeights[2] = 0.0625f;
 		ColorWeights[3] = 0.0625f;
 	}
+	
+	uint32 TexCoordOffset = 3 + ( bHasColors ? 4 : 0 );
+	float* UVWeights = AttributeWeights + TexCoordOffset;
 
-	for( int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
+	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
 		UVWeights[ 2 * UVIndex + 0 ] = GlobalUVWeights[ UVIndex ];
 		UVWeights[ 2 * UVIndex + 1 ] = GlobalUVWeights[ UVIndex ];
@@ -266,25 +286,20 @@ float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeig
 	Scale = FloatScale.FloatValue;
 #endif
 
-	for( auto& Vert : Verts )
+	for( uint32 i = 0; i < NumVerts; i++ )
 	{
-		Vert.Position *= Scale;
-
-		for( int32 i = 0; i < NumTexCoords; i++ )
-		{
-			//Vert.UVs[i] *= Scale;
-		}
+		GetPosition(i) *= Scale;
 	}
 
-	FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
+	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
 
 	Simplifier.SetBoundaryLocked( BoundaryEdges );
 	
 	Simplifier.SetAttributeWeights( AttributeWeights );
-	Simplifier.SetCorrectAttributes( CorrectAttributes );
+	Simplifier.SetCorrectAttributes( bHasColors ? CorrectAttributesColor : CorrectAttributes );
 	Simplifier.SetEdgeWeight( 2.0f );
 
-	float MaxErrorSqr = Simplifier.Simplify( Verts.Num(), TargetNumTris );
+	float MaxErrorSqr = Simplifier.Simplify( NumVerts, TargetNumTris );
 
 	check( Simplifier.GetRemainingNumVerts() > 0 );
 	check( Simplifier.GetRemainingNumTris() > 0 );
@@ -292,24 +307,114 @@ float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeig
 	Simplifier.GetBoundaryUnlocked( BoundaryEdges );
 	Simplifier.Compact();
 	
-	Verts.SetNum( Simplifier.GetRemainingNumVerts() );
+	Verts.SetNum( Simplifier.GetRemainingNumVerts() * GetVertSize() );
 	Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
 	MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
 
-	float InvScale = 1.0f / Scale;
-	for( auto& Vert : Verts )
-	{
-		Vert.Position *= InvScale;
+	NumVerts = Simplifier.GetRemainingNumVerts();
 
-		for( int32 i = 0; i < NumTexCoords; i++ )
+	float InvScale = 1.0f / Scale;
+	for( uint32 i = 0; i < NumVerts; i++ )
+	{
+		GetPosition(i) *= InvScale;
+	}
+
+	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
+}
+
+void FMeshlet::Split( FGraphPartitioner& Partitioner ) const
+{
+	uint32 NumTriangles = Indexes.Num() / 3;
+	
+	FDisjointSet DisjointSet( NumTriangles );
+	
+	TArray< int32 > SharedEdge;
+	SharedEdge.AddUninitialized( Indexes.Num() );
+
+	TMultiMap< uint32, int32 > EdgeHashTable;
+	EdgeHashTable.Reserve( Indexes.Num() );
+
+	for( int i = 0; i < Indexes.Num(); i++ )
+	{
+		uint32 TriI = i / 3;
+		uint32 i0 = Indexes[ 3 * TriI + (i + 0) % 3 ];
+		uint32 i1 = Indexes[ 3 * TriI + (i + 1) % 3 ];
+
+		uint32 Hash0 = HashPosition( GetPosition( i0 ) );
+		uint32 Hash1 = HashPosition( GetPosition( i1 ) );
+		uint32 Hash = Murmur32( { FMath::Min( Hash0, Hash1 ), FMath::Max( Hash0, Hash1 ) } );
+
+		bool bFound = false;
+		for( auto Iter = EdgeHashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
 		{
-			//Vert.UVs[i] *= InvScale;
+			int32 j = Iter.Value();
+			if( SharedEdge[j] == -1 )
+			{
+				uint32 TriJ = j / 3;
+				uint32 j0 = Indexes[ 3 * TriJ + (j + 0) % 3 ];
+				uint32 j1 = Indexes[ 3 * TriJ + (j + 1) % 3 ];
+
+				if( GetPosition( i0 ) == GetPosition( j1 ) &&
+					GetPosition( i1 ) == GetPosition( j0 ) )
+				{
+					// Link edges
+					SharedEdge[i] = TriJ;
+					SharedEdge[j] = TriI;
+					DisjointSet.UnionSequential( TriI, TriJ );
+					bFound = true;
+					break;
+				}
+			}
+		}
+		if( !bFound )
+		{
+			EdgeHashTable.Add( Hash, i );
+			SharedEdge[i] = -1;
 		}
 	}
 
-	//UE_LOG( LogStaticMesh, Log, TEXT("Simplified verts: %i, tris: %i"), Verts.Num(), Indexes.Num() / 3 );
+	FBounds	MeshBounds;
+	for( uint32 i = 0; i < NumVerts; i++ )
+	{
+		MeshBounds += GetPosition(i);
+		MeshBounds += GetPosition(i);
+		MeshBounds += GetPosition(i);
+	}
 
-	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
+	auto GetCenter = [ this ]( uint32 TriIndex )
+	{
+		FVector Center;
+		Center  = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
+		Center += GetPosition( Indexes[ TriIndex * 3 + 1 ] );
+		Center += GetPosition( Indexes[ TriIndex * 3 + 2 ] );
+		return Center * (1.0f / 3.0f);
+	};
+
+	Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
+
+	auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
+
+	for( uint32 i = 0; i < NumTriangles; i++ )
+	{
+		Graph->AdjacencyOffset[i] = Graph->Adjacency.Num();
+
+		uint32 TriIndex = Partitioner.Indexes[i];
+
+		// Add shared edges
+		for( int k = 0; k < 3; k++ )
+		{
+			int32 AdjIndex = SharedEdge[ 3 * TriIndex + k ];
+			if( AdjIndex != -1 )
+			{
+				Partitioner.AddAdjacency( Graph, AdjIndex, 4 * 65 );
+			}
+	}
+
+		Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
+	}
+	Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
+
+	Partitioner.PartitionStrict( Graph, ClusterSize - 4, ClusterSize, false );
 }
 
 void FMeshlet::FindExternalEdges()
@@ -331,8 +436,8 @@ void FMeshlet::FindExternalEdges()
 		uint32 VertIndex0 = Indexes[ EdgeIndex ];
 		uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
-		const FVector& Position0 = Verts[ VertIndex0 ].Position;
-		const FVector& Position1 = Verts[ VertIndex1 ].Position;
+		const FVector& Position0 = GetPosition( VertIndex0 );
+		const FVector& Position1 = GetPosition( VertIndex1 );
 	
 		// Find edge with opposite direction that shares these 2 verts.
 		/*
@@ -355,8 +460,8 @@ void FMeshlet::FindExternalEdges()
 				uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
 				uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
 			
-				if( Position0 == Verts[ OtherVertIndex1 ].Position &&
-					Position1 == Verts[ OtherVertIndex0 ].Position )
+				if( Position0 == GetPosition( OtherVertIndex1 ) &&
+					Position1 == GetPosition( OtherVertIndex0 ) )
 				{
 					// Found matching edge.
 					ExternalEdges[ EdgeIndex ] = false;
@@ -487,7 +592,7 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 FTriCluster BuildCluster( const FMeshlet& Meshlet )
 {
 	FTriCluster Cluster;
-	Cluster.NumVerts = Meshlet.Verts.Num();
+	Cluster.NumVerts = Meshlet.NumVerts;
 	Cluster.NumTris  = Meshlet.Indexes.Num() / 3;
 	Cluster.QuantizedPosShift = 0;	//TODO: seed this with something sensible like floor(log2(range)), so we can skip testing a lot of quantization levels
 	Cluster.LODError = 0.0f;
@@ -499,9 +604,9 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 	TArray< FVector, TInlineAllocator<128> > Positions;
 	Positions.SetNum( Cluster.NumVerts, false );
 
-	for( int i = 0; i < Meshlet.Verts.Num(); i++ )
+	for( uint32 i = 0; i < Meshlet.NumVerts; i++ )
 	{
-		Positions[i] = Meshlet.Verts[i].Position;
+		Positions[i] = Meshlet.GetPosition(i);
 	}
 	Cluster.SphereBounds = FSphere( Positions.GetData(), Positions.Num() );
 	Cluster.LODBounds = Cluster.SphereBounds;
@@ -517,9 +622,9 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 	for( int i = 0; i < Meshlet.Indexes.Num(); i += 3 )
 	{
 		FVector v[3];
-		v[0] = Meshlet.Verts[ Meshlet.Indexes[ i + 0 ] ].Position;
-		v[1] = Meshlet.Verts[ Meshlet.Indexes[ i + 1 ] ].Position;
-		v[2] = Meshlet.Verts[ Meshlet.Indexes[ i + 2 ] ].Position;
+		v[0] = Meshlet.GetPosition( Meshlet.Indexes[ i + 0 ] );
+		v[1] = Meshlet.GetPosition( Meshlet.Indexes[ i + 1 ] );
+		v[2] = Meshlet.GetPosition( Meshlet.Indexes[ i + 2 ] );
 
 		FVector Edge01 = v[1] - v[0];
 		FVector Edge12 = v[2] - v[1];
@@ -585,7 +690,7 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 	FMatrix InvAxis = Axis.GetTransposed();
 
 	FBounds Bounds;
-	for( int i = 0; i < Meshlet.Verts.Num(); i++ )
+	for( int i = 0; i < Meshlet.NumVerts; i++ )
 	{
 		Bounds += InvAxis.TransformVector( Meshlet.Verts[i].Position );
 	}

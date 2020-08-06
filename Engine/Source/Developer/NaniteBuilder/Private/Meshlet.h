@@ -6,120 +6,10 @@
 #include "Rendering/NaniteResources.h"
 #include "Bounds.h"
 
+class FGraphPartitioner;
+
 namespace Nanite
 {
-
-template< uint32 NumTexCoords >
-class TVert
-{
-	using VertType = TVert< NumTexCoords >;
-	enum { NumUVs = NumTexCoords };
-public:
-	FVector			Position;
-	FVector			Normal;
-	FLinearColor	Color;
-	FVector2D		UVs[ NumTexCoords ];
-
-	FVector&		GetPos()					{ return Position; }
-	const FVector&	GetPos() const				{ return Position; }
-	float*			GetAttributes()				{ return (float*)&Normal; }
-	const float*	GetAttributes() const		{ return (const float*)&Normal; }
-
-	void Correct()
-	{
-		Normal.Normalize();
-		Color = Color.GetClamped();
-	}
-
-	bool Equals( const VertType& a ) const
-	{
-		if( !PointsEqual(  Position,	a.Position ) ||
-			!NormalsEqual( Normal,		a.Normal ) ||
-			!Color.Equals( a.Color ) )
-		{
-			return false;
-		}
-
-		// UVs
-		for( int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
-		{
-			if( !UVsEqual( UVs[ UVIndex ], a.UVs[ UVIndex ] ) )
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	bool operator==( const VertType& a ) const
-	{
-		if( Position		!= a.Position ||
-			Normal			!= a.Normal ||
-			Color			!= a.Color )
-		{
-			return false;
-		}
-
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			if( UVs[i] != a.UVs[i] )
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	VertType operator+( const VertType& a ) const
-	{
-		VertType v;
-		v.Position		= Position + a.Position;
-		v.Normal		= Normal + a.Normal;
-		v.Color			= Color + a.Color;
-
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.UVs[i] = UVs[i] + a.UVs[i];
-		}
-		return v;
-	}
-
-	VertType operator-( const VertType& a ) const
-	{
-		VertType v;
-		v.Position		= Position - a.Position;
-		v.Normal		= Normal - a.Normal;
-		v.Color			= Color - a.Color;
-		
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.UVs[i] = UVs[i] - a.UVs[i];
-		}
-		return v;
-	}
-
-	VertType operator*( const float a ) const
-	{
-		VertType v;
-		v.Position		= Position * a;
-		v.Normal		= Normal * a;
-		v.Color			= Color * a;
-		
-		for( uint32 i = 0; i < NumTexCoords; i++ )
-		{
-			v.UVs[i] = UVs[i] * a;
-		}
-		return v;
-	}
-
-	VertType operator/( const float a ) const
-	{
-		float ia = 1.0f / a;
-		return (*this) * ia;
-	}
-};
-using VertType = TVert<2>;
 
 class FMeshlet
 {
@@ -135,15 +25,32 @@ public:
 	FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
 	FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList );
 
-	float		Simplify( uint32 NumTris, float Scale, float* UVWeights );
+	float	Simplify( uint32 NumTris, float Scale, float* UVWeights );
+	void	Split( FGraphPartitioner& Partitioner ) const;
 
 private:
-	void		FindExternalEdges();
+	void	FindExternalEdges();
 
 public:
+	uint32				GetVertSize() const;
+	FVector&			GetPosition( uint32 VertIndex );
+	float*				GetAttributes( uint32 VertIndex );
+	FVector&			GetNormal( uint32 VertIndex );
+	FLinearColor&		GetColor( uint32 VertIndex );
+	FVector2D*			GetUVs( uint32 VertIndex );
+
+	const FVector&		GetPosition( uint32 VertIndex ) const;
+	const FVector&		GetNormal( uint32 VertIndex ) const;
+	const FLinearColor&	GetColor( uint32 VertIndex ) const;
+	const FVector2D*	GetUVs( uint32 VertIndex ) const;
+
 	static const uint32	ClusterSize = 128;
 
-	TArray< VertType >	Verts;
+	uint32		NumVerts = 0;
+	uint32		NumTexCoords = 0;
+	bool		bHasColors = false;
+
+	TArray< float >		Verts;
 	TArray< uint32 >	Indexes;
 	TArray< int32 >		MaterialIndexes;
 	TBitArray<>			BoundaryEdges;
@@ -157,6 +64,56 @@ public:
 	uint32	GUID = 0;
 	int32	MipLevel = 0;
 };
+
+FORCEINLINE uint32 FMeshlet::GetVertSize() const
+{
+	return 6 + ( bHasColors ? 4 : 0 ) + NumTexCoords * 2;
+}
+
+FORCEINLINE FVector& FMeshlet::GetPosition( uint32 VertIndex )
+{
+	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() ] );
+}
+
+FORCEINLINE const FVector& FMeshlet::GetPosition( uint32 VertIndex ) const
+{
+	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() ] );
+}
+
+FORCEINLINE float* FMeshlet::GetAttributes( uint32 VertIndex )
+{
+	return &Verts[ VertIndex * GetVertSize() + 3 ];
+}
+
+FORCEINLINE FVector& FMeshlet::GetNormal( uint32 VertIndex )
+{
+	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
+}
+
+FORCEINLINE const FVector& FMeshlet::GetNormal( uint32 VertIndex ) const
+{
+	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
+}
+
+FORCEINLINE FLinearColor& FMeshlet::GetColor( uint32 VertIndex )
+{
+	return *reinterpret_cast< FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+}
+
+FORCEINLINE const FLinearColor& FMeshlet::GetColor( uint32 VertIndex ) const
+{
+	return *reinterpret_cast< const FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
+}
+
+FORCEINLINE FVector2D* FMeshlet::GetUVs( uint32 VertIndex )
+{
+	return reinterpret_cast< FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+}
+
+FORCEINLINE const FVector2D* FMeshlet::GetUVs( uint32 VertIndex ) const
+{
+	return reinterpret_cast< const FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+}
 
 FTriCluster BuildCluster( const FMeshlet& Meshlet );
 
