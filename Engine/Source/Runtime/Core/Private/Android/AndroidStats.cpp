@@ -5,8 +5,10 @@
 #include "Android/AndroidPlatformMisc.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 DECLARE_STATS_GROUP(TEXT("Android CPU stats"), STATGROUP_AndroidCPU, STATCAT_Advanced);
+CSV_DEFINE_CATEGORY(AndroidCPU, true);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Frequency Groups"), STAT_NumFreqGroups, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Max frequency"), STAT_FreqGroup0MaxFrequency, STATGROUP_AndroidCPU);
@@ -36,13 +38,9 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 1 : highest core utilization %"), ST
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 2 : highest core utilization %"), STAT_FreqGroup2MaxUtilization, STATGROUP_AndroidCPU);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 3 : highest core utilization %"), STAT_FreqGroup3MaxUtilization, STATGROUP_AndroidCPU);
 
-float GAndroidCPUStatsUpdateRate = 0.100;
-static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
-	TEXT("Android.CPUStatsUpdateRate"),
-	GAndroidCPUStatsUpdateRate,
-	TEXT("Update rate in seconds for collecting CPU Stats (Default: 0.1)\n")
-	TEXT("0 to disable."),
-	ECVF_Default);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("CPU Temperature"), STAT_CPUTemp, STATGROUP_AndroidCPU);
+CSV_DEFINE_STAT(AndroidCPU, CPUTemp);
+CSV_DEFINE_STAT(AndroidCPU, ThermalStatus);
 
 #if !STATS
 
@@ -52,29 +50,43 @@ void FAndroidStats::UpdateAndroidStats()
 
 #else
 
+static float GAndroidCPUStatsUpdateRate = 0.100;
+static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
+	TEXT("Android.CPUStatsUpdateRate"),
+	GAndroidCPUStatsUpdateRate,
+	TEXT("Update rate in seconds for collecting CPU Stats (Default: 0.1)\n")
+	TEXT("0 to disable."),
+	ECVF_Default);
+
 #define SET_DWORD_STAT_BY_FNAME(Stat, Amount) \
 {\
-	if (Amount != 0) \
+	if (Amount != 0 && FThreadStats::IsCollectingData()) \
+	{ \
 		FThreadStats::AddMessage(Stat, EStatOperation::Set, int64(Amount));\
+		TRACE_STAT_SET(Stat, int64(Amount)); \
+	} \
 }
 
 #define SET_FLOAT_STAT_BY_FNAME(Stat, Amount) \
 {\
-	if (Amount != 0) \
+	if (Amount != 0 && FThreadStats::IsCollectingData()) \
+	{ \
 		FThreadStats::AddMessage(Stat, EStatOperation::Set, double(Amount));\
+		TRACE_STAT_SET(Stat, double(Amount)); \
+	} \
 }
 
 void FAndroidStats::UpdateAndroidStats()
 {	 
-	static uint64 LastCollectionTime = FPlatformTime::Cycles64();
-	uint64 CurrentTime = FPlatformTime::Cycles64();
 	if (GAndroidCPUStatsUpdateRate <= 0.0f)
 	{
 		return;
 	}
-	bool bUpdateStats = ((FPlatformTime::ToSeconds64(CurrentTime - LastCollectionTime) >= GAndroidCPUStatsUpdateRate));
-	
-	if( bUpdateStats )
+
+	static uint64 LastCollectionTime = FPlatformTime::Cycles64();
+	const uint64 CurrentTime = FPlatformTime::Cycles64();
+	const bool bUpdateStats = ((FPlatformTime::ToSeconds64(CurrentTime - LastCollectionTime) >= GAndroidCPUStatsUpdateRate));
+	if (bUpdateStats)
 	{
 		LastCollectionTime = CurrentTime;
 	}
@@ -191,12 +203,11 @@ void FAndroidStats::UpdateAndroidStats()
 		{
 			CurrentFrequencies[FrequencyGroupIndex] = GetFrequencyGroupCurrentFrequency(FrequencyGroupIndex);
 		}
-
 		SET_FLOAT_STAT_BY_FNAME(AndroidFrequencyGroupCurrentFreqStats[FrequencyGroupIndex], CurrentFrequencies[FrequencyGroupIndex]);
 	}
 
 	static float MaxSingleCoreUtilization[MaxFrequencyGroupStats] = { 0.0f };
-	if( bUpdateStats )
+	if (bUpdateStats)
 	{
 		FAndroidMisc::FCPUState& AndroidCPUState = FAndroidMisc::GetCPUState();
 		for (int32 CoreIndex = 0; CoreIndex < NumCores; CoreIndex++)
@@ -209,9 +220,25 @@ void FAndroidStats::UpdateAndroidStats()
 			}
 		}
 	}
+
 	for (int32 FrequencyGroupIndex = 0; FrequencyGroupIndex < FrequencyGroups.Num(); FrequencyGroupIndex++)
 	{
 		SET_FLOAT_STAT_BY_FNAME(AndroidFrequencyGroupMaxCoresUtilizationStats[FrequencyGroupIndex], MaxSingleCoreUtilization[FrequencyGroupIndex]);
 	}
+
+
+	static float CPUTemp = 0.0f;
+	static const FName CPUStatName = GET_STATFNAME(STAT_CPUTemp);
+	if (bUpdateStats)
+	{
+		CPUTemp = FAndroidMisc::GetCPUTemperature();
+	}
+	SET_FLOAT_STAT_BY_FNAME(CPUStatName, CPUTemp);
+	CSV_CUSTOM_STAT_DEFINED(CPUTemp, CPUTemp, ECsvCustomStatOp::Set);
 }
 #endif
+
+void FAndroidStats::OnThermalStatusChanged(int status)
+{
+	CSV_CUSTOM_STAT_DEFINED(ThermalStatus, status, ECsvCustomStatOp::Set);
+}
