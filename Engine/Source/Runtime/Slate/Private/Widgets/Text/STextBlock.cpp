@@ -153,21 +153,9 @@ void STextBlock::SetText( const FText& InText )
 {
 	SCOPE_CYCLE_COUNTER(Stat_SlateTextBlockSetText);
 
-	if ( !BoundText.IsBound() )
+	if (!BoundText.IsBound() && InText.IdenticalTo(BoundText.Get(), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
 	{
-		const FString& OldString = BoundText.Get().ToString();
-		const int32 OldLength = OldString.Len();
-
-		// Only compare reasonably sized strings, it's not worth checking this
-		// for large blocks of text.
-		if ( OldLength <= 20 )
-		{
-			const FString& NewString = InText.ToString();
-			if ( OldString.Compare(NewString, ESearchCase::CaseSensitive) == 0 )
-			{
-				return;
-			}
-		}
+		return;
 	}
 
 	BoundText = InText;
