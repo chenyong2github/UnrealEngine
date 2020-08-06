@@ -15,6 +15,7 @@
 #include "ISequencerHotspot.h"
 #include "SequencerHotspots.h"
 #include "Widgets/SOverlay.h"
+#include "SequencerAddKeyOperation.h"
 #include "SequencerObjectBindingNode.h"
 #include "SequencerSectionCategoryNode.h"
 #include "SequencerSectionKeyAreaNode.h"
@@ -808,6 +809,14 @@ void SSequencerSection::CreateKeysUnderMouse( const FVector2D& MousePosition, co
 
 		FGeometry SectionGeometry = MakeSectionGeometryWithoutHandles( AllottedGeometry, SectionInterface );
 
+		FTimeToPixel TimeToPixelConverter = ConstructTimeConverterForSection(SectionGeometry, Section, GetSequencer());
+		FVector2D LocalSpaceMousePosition = SectionGeometry.AbsoluteToLocal( MousePosition );
+		const FFrameTime CurrentTime = TimeToPixelConverter.PixelToFrame(LocalSpaceMousePosition.X);
+
+		ISequencerTrackEditor& TrackEditor = ParentSectionArea->GetTrackEditor();
+
+		TArray<TSharedRef<IKeyArea>> ValidKeyAreasUnderCursor;
+
 		// Search every key area until we find the one under the mouse
 		for (const FSectionLayoutElement& Element : Layout->GetElements())
 		{
@@ -820,22 +829,19 @@ void SSequencerSection::CreateKeysUnderMouse( const FVector2D& MousePosition, co
 				continue;
 			}
 
-			FTimeToPixel TimeToPixelConverter = ConstructTimeConverterForSection(SectionGeometry, Section, GetSequencer());
-
-			FVector2D LocalSpaceMousePosition = SectionGeometry.AbsoluteToLocal( MousePosition );
-			const FFrameTime KeyTime = TimeToPixelConverter.PixelToFrame(LocalSpaceMousePosition.X);
-
-			Section.Modify();
-
 			for (TSharedPtr<IKeyArea> KeyArea : Element.GetKeyAreas())
 			{
 				if (KeyArea.IsValid())
 				{
-					FKeyHandle NewHandle = KeyArea->AddOrUpdateKey(KeyTime.FrameNumber, ObjectBinding, GetSequencer());
-					OutKeys.Add(FSequencerSelectedKey(Section, KeyArea, NewHandle));
+					ValidKeyAreasUnderCursor.Add(KeyArea.ToSharedRef());
 				}
 			}
 		}
+
+		using namespace UE::Sequencer;
+
+		FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "CreateKeysUnderMouse", "Create keys under mouse"));
+		FAddKeyOperation::FromKeyAreas(&TrackEditor, ValidKeyAreasUnderCursor).Commit(CurrentTime.FrameNumber, GetSequencer());
 	}
 
 	if (OutKeys.Num())
