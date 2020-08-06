@@ -7,7 +7,7 @@
 #include "LSALiveLinkFrameTranslatorFactory.generated.h"
 
 UCLASS()
-class LSAEDITOR_API ULSALiveLinkFrameTranslatorFactory : public UFactory
+class LSALIVELINKEDITOR_API ULSALiveLinkFrameTranslatorFactory : public UFactory
 {
 	GENERATED_BODY()
 

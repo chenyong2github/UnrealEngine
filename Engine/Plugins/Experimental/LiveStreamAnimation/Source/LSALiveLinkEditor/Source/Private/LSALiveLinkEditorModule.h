@@ -4,13 +4,14 @@
 
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
+#include "IAssetTypeActions.h"
 
-class FLSAEditorModule : public IModuleInterface
+class FLSALiveLinkEditorModule : public IModuleInterface
 {
 public:
 
-	FLSAEditorModule() = default;
-	virtual ~FLSAEditorModule() = default;
+	FLSALiveLinkEditorModule() = default;
+	virtual ~FLSALiveLinkEditorModule() = default;
 
 	// IModuleInterface
 	virtual void StartupModule() override;
@@ -25,7 +26,11 @@ protected:
 
 	static FName GetModuleName()
 	{
-		static FName ModuleName = FName(TEXT("LSAEditor"));
+		static FName ModuleName = FName(TEXT("LSALiveLinkEditor"));
 		return ModuleName;
 	}
+
+private:
+
+	TSharedPtr<IAssetTypeActions> FrameTranslatorActions;
 };

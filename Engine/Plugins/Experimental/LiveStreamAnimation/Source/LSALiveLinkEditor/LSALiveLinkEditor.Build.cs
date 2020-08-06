@@ -2,17 +2,19 @@
 
 namespace UnrealBuildTool.Rules
 {
-	public class LSAEditor : ModuleRules
+	public class LSALiveLinkEditor : ModuleRules
 	{
-		public LSAEditor(ReadOnlyTargetRules Target) : base(Target)
+		public LSALiveLinkEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"LiveStreamAnimation",
+					"LSALiveLink",
 					"Core",
 					"CoreUObject",
 					"UnrealEd",
 					"AssetTools",
+					"LiveLinkInterface",
 					"Engine",
 					"PropertyEditor",
 					"SlateCore",

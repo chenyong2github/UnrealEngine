@@ -64,7 +64,7 @@ public:
 
 public:
 
-	friend class FArchive& operator<<(class FArchive& InAr, FLiveStreamAnimationHandle& SubjectHandle);
+	LIVESTREAMANIMATION_API friend class FArchive& operator<<(class FArchive& InAr, FLiveStreamAnimationHandle& SubjectHandle);
 
 	friend uint32 GetTypeHash(const FLiveStreamAnimationHandle& ToHash)
 	{

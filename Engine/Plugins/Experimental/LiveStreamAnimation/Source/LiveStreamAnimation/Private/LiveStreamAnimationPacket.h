@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LiveStreamAnimationFwd.h"
+#include "LiveStreamAnimationHandle.h"
 #include "ForwardingPacket.h"
 #include "Templates/SharedPointer.h"
 #include "Serialization/Archive.h"
@@ -11,20 +12,9 @@
 
 namespace LiveStreamAnimation
 {
-	// It might be worth making this more flexible / extensible through a registration system.
-	// For now though, it's trivial and less error prone to add new packet types manually.
-
-	/** Packet Subtypes. */
-	enum class ELiveStreamAnimationPacketType : uint8
-	{
-		Control,	//! Generic control packet.
-		LiveLink,	//! We're holding FLiveLinkPacket data.
-		INVALID
-	};
-
 	/**
 	 * Generic forwarding packet that's used by Live Stream Animation.
-	 * It can hold arbitrary data used by various packet subtypes.
+	 * It can hold arbitrary data used by various animation data handlers.
 	 */ 
 	class FLiveStreamAnimationPacket : public ForwardingChannels::FForwardingPacket
 	{
@@ -32,7 +22,7 @@ namespace LiveStreamAnimation
 
 		virtual ~FLiveStreamAnimationPacket() {}
 
-		ELiveStreamAnimationPacketType GetPacketType() const
+		int32 GetPacketType() const
 		{
 			return PacketType;
 		}
@@ -56,35 +46,17 @@ namespace LiveStreamAnimation
 
 		static TSharedPtr<FLiveStreamAnimationPacket> ReadFromStream(class FArchive& InReader);
 
-		template<typename TPacketClass>
-		static TSharedPtr<FLiveStreamAnimationPacket> CreateFromPacket(const TPacketClass& Packet)
-		{
-			TArray<uint8> Data;
-			Data.Reserve(40);
-
-			FMemoryWriter MemoryWriter(Data);
-			TPacketClass::WriteToStream(MemoryWriter, Packet);
-
-			Data.Shrink();
-
-			static constexpr ELiveStreamAnimationPacketType PacketType = TPacketClass::GetAnimationPacketType();
-			static_assert(PacketType != ELiveStreamAnimationPacketType::INVALID, "Class must provide a valid packet type");
-
-			return MakeShareable<FLiveStreamAnimationPacket>(new FLiveStreamAnimationPacket(
-				PacketType,
-				MoveTemp(Data)
-			));
-		}
+		static TSharedPtr<FLiveStreamAnimationPacket> CreateFromData(const uint32 InPacketType, TArray<uint8>&& InPacketData);
 
 	private:
 
-		FLiveStreamAnimationPacket(const ELiveStreamAnimationPacketType InPacketType, TArray<uint8>&& InPacketData)
+		FLiveStreamAnimationPacket(const uint32 InPacketType, TArray<uint8>&& InPacketData)
 			: PacketType(InPacketType)
 			, PacketData(MoveTemp(InPacketData))
 		{
 		}
 
-		const ELiveStreamAnimationPacketType PacketType;
+		const uint32 PacketType;
 		TArray<uint8> PacketData;
 		bool bReliable = false;
 	};

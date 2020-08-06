@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlPacket.h"
+#include "LiveStreamAnimationControlPacket.h"
 #include "LiveStreamAnimationLog.h"
 #include "LiveStreamAnimationHandle.h"
 

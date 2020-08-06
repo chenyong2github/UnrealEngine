@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkRole.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameData.h"
-#include "LiveStreamAnimationLog.h"
+#include "LSALiveLinkFrameTranslator.h"
+#include "LSALiveLinkRole.h"
+#include "LSALiveLinkFrameData.h"
+#include "LSALiveLinkLog.h"
 #include "UObject/UnrealType.h"
 #include "Animation/Skeleton.h"
 #include "Misc/ScopeExit.h"
 #include "Roles/LiveLinkAnimationRole.h"
 
-class FLiveStreamAnimationLiveLinkFrameTranslator : public ILiveLinkFrameTranslatorWorker
+class FLSALiveLinkFrameTranslator : public ILiveLinkFrameTranslatorWorker
 {
 public:
 
-	FLiveStreamAnimationLiveLinkFrameTranslator(TMap<FLiveStreamAnimationHandle, FLiveStreamAnimationLiveLinkTranslationProfile>&& InTranslationProfiles)
+	FLSALiveLinkFrameTranslator(TMap<FLiveStreamAnimationHandle, FLSALiveLinkTranslationProfile>&& InTranslationProfiles)
 		: TranslationProfiles(MoveTemp(InTranslationProfiles))
 	{
 	}
 
-	virtual ~FLiveStreamAnimationLiveLinkFrameTranslator()
+	virtual ~FLSALiveLinkFrameTranslator()
 	{
 	}
 
 	virtual TSubclassOf<ULiveLinkRole> GetFromRole() const override
 	{
-		return ULiveStreamAnimationLiveLinkRole::StaticClass();
+		return ULSALiveLinkRole::StaticClass();
 	}
 
 	virtual TSubclassOf<ULiveLinkRole> GetToRole() const override
@@ -34,9 +34,9 @@ public:
 
 	virtual bool Translate(const FLiveLinkStaticDataStruct& InStaticData, const FLiveLinkFrameDataStruct& InFrameData, FLiveLinkSubjectFrameData& OutTranslatedFrame) const override
 	{
-		if (const FLiveStreamAnimationLiveLinkFrameData* FrameData = InFrameData.Cast<const FLiveStreamAnimationLiveLinkFrameData>())
+		if (const FLSALiveLinkFrameData* FrameData = InFrameData.Cast<const FLSALiveLinkFrameData>())
 		{
-			const FLiveStreamAnimationLiveLinkSourceOptions Options = FrameData->Options;
+			const FLSALiveLinkSourceOptions Options = FrameData->Options;
 			const FLiveStreamAnimationHandle TranslationProfileHandle = FrameData->TranslationProfileHandle;
 
 			FLiveLinkAnimationFrameData* AnimFrameData = new FLiveLinkAnimationFrameData;
@@ -60,7 +60,7 @@ public:
 				return true;
 			}
 
-			const FLiveStreamAnimationLiveLinkTranslationProfile* TranslationProfile = TranslationProfiles.Find(TranslationProfileHandle);
+			const FLSALiveLinkTranslationProfile* TranslationProfile = TranslationProfiles.Find(TranslationProfileHandle);
 			const FLiveLinkSkeletonStaticData* StaticData = InStaticData.Cast<const FLiveLinkSkeletonStaticData>();
 
 			// Skeleton was invalid, or we don't need to do any translation, so we're done.
@@ -116,10 +116,10 @@ public:
 
 private:
 
-	TMap<FLiveStreamAnimationHandle, FLiveStreamAnimationLiveLinkTranslationProfile> TranslationProfiles;
+	TMap<FLiveStreamAnimationHandle, FLSALiveLinkTranslationProfile> TranslationProfiles;
 };
 
-bool FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings()
+bool FLSALiveLinkTranslationProfile::UpdateTransformMappings()
 {
 	BoneTransformsByName.Empty();
 	BoneTransformsByIndex.Empty();
@@ -143,8 +143,8 @@ bool FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings()
 
 			if (BoneTransformsByName.Contains(UseBoneName))
 			{
-				UE_LOG(LogLiveStreamAnimation, Warning,
-					TEXT("FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings: Duplicate bone name found when creating BoneMappings. This may cause broken animation. Bone=%s"));
+				UE_LOG(LogLSALiveLink, Warning,
+					TEXT("FLSALiveLinkTranslationProfile::UpdateTransformMappings: Duplicate bone name found when creating BoneMappings. This may cause broken animation. Bone=%s"));
 			}
 
 			BoneTransformsByName.Add(UseBoneName, RefBonePose[i]);
@@ -160,8 +160,8 @@ bool FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings()
 			{
 				if (FoundBones.Contains(BoneToUse))
 				{
-					UE_LOG(LogLiveStreamAnimation, Warning,
-						TEXT("FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings: Duplicate bone name, cannot use cached mappings. Bone=%s"),
+					UE_LOG(LogLSALiveLink, Warning,
+						TEXT("FLSALiveLinkTranslationProfile::UpdateTransformMappings: Duplicate bone name, cannot use cached mappings. Bone=%s"),
 						*BoneToUse.ToString());
 
 					BoneTransformsByIndex.Empty();
@@ -174,8 +174,8 @@ bool FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings()
 				}
 				else
 				{
-					UE_LOG(LogLiveStreamAnimation, Warning,
-						TEXT("FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings: Invalid bone name, cannot use cached mappings. Bone=%s"),
+					UE_LOG(LogLSALiveLink, Warning,
+						TEXT("FLSALiveLinkTranslationProfile::UpdateTransformMappings: Invalid bone name, cannot use cached mappings. Bone=%s"),
 						*BoneToUse.ToString());
 
 					BoneTransformsByIndex.Empty();
@@ -190,24 +190,24 @@ bool FLiveStreamAnimationLiveLinkTranslationProfile::UpdateTransformMappings()
 	return false;
 }
 
-TSubclassOf<ULiveLinkRole> ULiveStreamAnimationLiveLinkFrameTranslator::GetFromRole() const
+TSubclassOf<ULiveLinkRole> ULSALiveLinkFrameTranslator::GetFromRole() const
 {
-	return ULiveStreamAnimationLiveLinkRole::StaticClass();
+	return ULSALiveLinkRole::StaticClass();
 }
 
-TSubclassOf<ULiveLinkRole> ULiveStreamAnimationLiveLinkFrameTranslator::GetToRole() const
+TSubclassOf<ULiveLinkRole> ULSALiveLinkFrameTranslator::GetToRole() const
 {
 	return ULiveLinkAnimationRole::StaticClass();
 }
 
-ULiveStreamAnimationLiveLinkFrameTranslator::FWorkerSharedPtr ULiveStreamAnimationLiveLinkFrameTranslator::FetchWorker()
+ULSALiveLinkFrameTranslator::FWorkerSharedPtr ULSALiveLinkFrameTranslator::FetchWorker()
 {
 	// TODO: This won't be needed in live scenarios, but for testing purposes
 	//			it would *probably* be smart to hook into USkeleton's Bone Hierarchy Update
 	//			and invalidate our old worker.
 	if (!Worker.IsValid())
 	{
-		TMap<FLiveStreamAnimationHandle, FLiveStreamAnimationLiveLinkTranslationProfile> LocalTranslationProfiles;
+		TMap<FLiveStreamAnimationHandle, FLSALiveLinkTranslationProfile> LocalTranslationProfiles;
 		LocalTranslationProfiles.Reserve(TranslationProfiles.Num());
 
 		for (auto It = TranslationProfiles.CreateIterator(); It; ++It)
@@ -215,18 +215,18 @@ ULiveStreamAnimationLiveLinkFrameTranslator::FWorkerSharedPtr ULiveStreamAnimati
 			const FLiveStreamAnimationHandle Handle(It.Key());
 			if (!Handle.IsValid())
 			{
-				UE_LOG(LogLiveStreamAnimation, Warning,
-					TEXT("ULiveStreamAnimationLiveLinkFrameTranslator::FetchWorker: %s is not a registered LiveStreamAnimationHandle! Skipping translation profile. Class=%s"),
+				UE_LOG(LogLSALiveLink, Warning,
+					TEXT("ULSALiveLinkFrameTranslator::FetchWorker: %s is not a registered LiveStreamAnimationHandle! Skipping translation profile. Class=%s"),
 					*It.Key().Handle.ToString(), *GetClass()->GetName());
 
 				continue;
 			}
 
-			FLiveStreamAnimationLiveLinkTranslationProfile LocalTranslationProfile = It.Value();
+			FLSALiveLinkTranslationProfile LocalTranslationProfile = It.Value();
 			if (!LocalTranslationProfile.UpdateTransformMappings())
 			{
-				UE_LOG(LogLiveStreamAnimation, Warning,
-					TEXT("ULiveStreamAnimationLiveLinkFrameTranslator::FetchWorker: %s failed to update bone mappings for Skeleton %s! Skipping translation profile. Class=%s"),
+				UE_LOG(LogLSALiveLink, Warning,
+					TEXT("ULSALiveLinkFrameTranslator::FetchWorker: %s failed to update bone mappings for Skeleton %s! Skipping translation profile. Class=%s"),
 					*It.Key().Handle.ToString(), *LocalTranslationProfile.Skeleton.ToString(), *GetClass()->GetName());
 
 				continue;
@@ -235,16 +235,16 @@ ULiveStreamAnimationLiveLinkFrameTranslator::FWorkerSharedPtr ULiveStreamAnimati
 			LocalTranslationProfiles.Emplace(Handle, MoveTemp(LocalTranslationProfile));
 		}
 
-		Worker = MakeShared<FLiveStreamAnimationLiveLinkFrameTranslator, ESPMode::ThreadSafe>(MoveTemp(LocalTranslationProfiles));
+		Worker = MakeShared<FLSALiveLinkFrameTranslator, ESPMode::ThreadSafe>(MoveTemp(LocalTranslationProfiles));
 	}
 
 	return Worker;
 }
 
 #if WITH_EDITOR
-void ULiveStreamAnimationLiveLinkFrameTranslator::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void ULSALiveLinkFrameTranslator::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULiveStreamAnimationLiveLinkFrameTranslator, TranslationProfiles))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULSALiveLinkFrameTranslator, TranslationProfiles))
 	{
 		Worker.Reset();
 	}
@@ -252,9 +252,9 @@ void ULiveStreamAnimationLiveLinkFrameTranslator::PostEditChangeProperty(struct 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-void ULiveStreamAnimationLiveLinkFrameTranslator::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void ULSALiveLinkFrameTranslator::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULiveStreamAnimationLiveLinkFrameTranslator, TranslationProfiles))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULSALiveLinkFrameTranslator, TranslationProfiles))
 	{
 		Worker.Reset();
 	}
