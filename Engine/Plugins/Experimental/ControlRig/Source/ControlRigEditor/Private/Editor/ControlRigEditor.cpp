@@ -92,6 +92,7 @@ FControlRigEditor::FControlRigEditor()
 	, NodeDetailStruct(nullptr)
 	, NodeDetailName(NAME_None)
 	, bExecutionControlRig(true)
+	, LastDebuggedRig()
 {
 }
 
@@ -867,6 +868,8 @@ void FControlRigEditor::Compile()
 	{
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+		LastDebuggedRig.Empty();
+
 		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
 		GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
 
@@ -952,6 +955,18 @@ void FControlRigEditor::Compile()
 	// FStatsHierarchical::EndMeasurements();
 	// FMessageLog LogForMeasurements("ControlRigLog");
 	// FStatsHierarchical::DumpMeasurements(LogForMeasurements);
+}
+
+void FControlRigEditor::SaveAsset_Execute()
+{
+	LastDebuggedRig = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
+	FBlueprintEditor::SaveAsset_Execute();
+}
+
+void FControlRigEditor::SaveAssetAs_Execute()
+{
+	LastDebuggedRig = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
+	FBlueprintEditor::SaveAssetAs_Execute();
 }
 
 FName FControlRigEditor::GetToolkitFName() const
@@ -1536,6 +1551,22 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 		if(bIsJustBeingCompiled)
 		{
 			UpdateControlRig();
+
+			if (!LastDebuggedRig.IsEmpty())
+			{
+				TArray<FCustomDebugObject> DebugList;
+				GetCustomDebugObjects(DebugList);
+
+				for (const FCustomDebugObject& DebugObject : DebugList)
+				{
+					if (DebugObject.NameOverride == LastDebuggedRig)
+					{
+						GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
+						LastDebuggedRig.Empty();
+						break;
+					}
+				}
+			}
 		}
 	}
 }
