@@ -60,28 +60,24 @@ float GRenderingThreadMaxIdleTickFrequency = 40.f;
  * RT Task Graph polling.
  */
 
-extern CORE_API TAtomic<bool> GDoRenderThreadWakeupTrigger;
+extern CORE_API bool GRenderThreadPollingOn;
 extern CORE_API int32 GRenderThreadPollPeriodMs;
 
 static void OnRenderThreadPollPeriodMsChanged(IConsoleVariable* Var)
 {
 	const int32 DesiredRTPollPeriod = Var->GetInt();
 
-	GDoRenderThreadWakeupTrigger = true;
+	GRenderThreadPollingOn = (DesiredRTPollPeriod >= 0);
 	ENQUEUE_RENDER_COMMAND(WakeupCommand)([DesiredRTPollPeriod](FRHICommandListImmediate&)
 	{
 		GRenderThreadPollPeriodMs = DesiredRTPollPeriod;
-		if (DesiredRTPollPeriod != -1)
-		{
-			GDoRenderThreadWakeupTrigger = false;
-		}
 	});
 }
 
 static FAutoConsoleVariable CVarRenderThreadPollPeriodMs(
 	TEXT("TaskGraph.RenderThreadPollPeriodMs"),
 	-1,
-	TEXT("Render thread polling period in milliseconds. If value is -1, task graph tasks explicitly wake up RT, otherwise RT polls for tasks."),
+	TEXT("Render thread polling period in milliseconds. If value < 0, task graph tasks explicitly wake up RT, otherwise RT polls for tasks."),
 	FConsoleVariableDelegate::CreateStatic(&OnRenderThreadPollPeriodMsChanged)
 );
 
