@@ -859,35 +859,40 @@ namespace Chaos
 				for (IPhysicsProxyBase* Proxy : *Proxies)
 				{
 					if (Proxy != nullptr)
-			{
-				switch (DirtyParticle.GetParticleType())
-				{
-				case Chaos::EParticleType::Rigid:
-					((FRigidParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
-					break;
-				case Chaos::EParticleType::Kinematic:
-					((FKinematicGeometryParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
-					break;
-				case Chaos::EParticleType::Static:
-					((FGeometryParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
-					break;
-				case Chaos::EParticleType::GeometryCollection:
-					ActiveGC.AddUnique((TGeometryCollectionPhysicsProxy<Traits>*)(Proxy));
-					break;
-				case Chaos::EParticleType::Clustered:
-					ActiveGC.AddUnique((TGeometryCollectionPhysicsProxy<Traits>*)(Proxy));
-					break;
-				default:
-					check(false);
+					{
+						switch (DirtyParticle.GetParticleType())
+						{
+						case Chaos::EParticleType::Rigid:
+							((FRigidParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
+							break;
+						case Chaos::EParticleType::Kinematic:
+							((FKinematicGeometryParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
+							break;
+						case Chaos::EParticleType::Static:
+							((FGeometryParticlePhysicsProxy*)(Proxy))->BufferPhysicsResults();
+							break;
+						case Chaos::EParticleType::GeometryCollection:
+							ActiveGC.AddUnique((TGeometryCollectionPhysicsProxy<Traits>*)(Proxy));
+							break;
+						case Chaos::EParticleType::Clustered:
+							ActiveGC.AddUnique((TGeometryCollectionPhysicsProxy<Traits>*)(Proxy));
+							break;
+						default:
+							check(false);
+						}
+					}
 				}
-			}
-		}
 			}
 		}
 
 		for (auto* GCProxy : ActiveGC)
 		{
 			GCProxy->BufferPhysicsResults();
+		}
+
+		for (FJointConstraintPhysicsProxy* Proxy : JointConstraintPhysicsProxies)
+		{
+			Proxy->BufferPhysicsResults();
 		}
 
 		if(bEnabled)
@@ -942,6 +947,12 @@ namespace Chaos
 		{
 			GCProxy->FlipBuffer();
 		}
+
+		for (FJointConstraintPhysicsProxy* Proxy : JointConstraintPhysicsProxies)
+		{
+			Proxy->FlipBuffer();
+		}
+
 	}
 
 	// This function is not called during normal Engine execution.  
@@ -994,6 +1005,12 @@ namespace Chaos
 		{
 			GCProxy->PullFromPhysicsState();
 		}
+
+		for (FJointConstraintPhysicsProxy* Proxy : JointConstraintPhysicsProxies)
+		{
+			Proxy->PullFromPhysicsState();
+		}
+
 	}
 
 	template <typename Traits>

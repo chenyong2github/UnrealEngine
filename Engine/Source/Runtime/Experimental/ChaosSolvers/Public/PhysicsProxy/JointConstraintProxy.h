@@ -130,7 +130,7 @@ public:
 	void BufferPhysicsResults();
 
 	/**/
-	void PullFromPhysicsState();
+	void CHAOSSOLVERS_API PullFromPhysicsState();
 
 	/**/
 	bool IsDirty() { return Constraint->IsDirty(); }
