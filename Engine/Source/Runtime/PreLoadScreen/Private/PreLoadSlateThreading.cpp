@@ -129,6 +129,7 @@ FPreLoadScreenSlateSynchMechanism::~FPreLoadScreenSlateSynchMechanism()
 
 	if (FSlateApplication::IsInitialized())
 	{
+		FSlateApplication::Get().OnWindowBeingDestroyed().RemoveAll(this);
 		FSlateApplication::Get().OnPreShutdown().RemoveAll(this);
 	}
 }
@@ -142,6 +143,7 @@ void FPreLoadScreenSlateSynchMechanism::Initialize()
 	{
 		// Prevent the application from closing while we are rendering from another thread
 		FSlateApplication::Get().OnPreShutdown().AddRaw(this, &FPreLoadScreenSlateSynchMechanism::DestroySlateThread);
+		FSlateApplication::Get().OnWindowBeingDestroyed().AddRaw(this, &FPreLoadScreenSlateSynchMechanism::HandleWindowBeingDestroyed);
 
 		bIsRunningSlateMainLoop = true;
 		check(SlateLoadingThread == nullptr);
@@ -174,6 +176,17 @@ void FPreLoadScreenSlateSynchMechanism::DestroySlateThread()
         SlateLoadingThread = nullptr;
         SlateRunnableTask = nullptr;
     }
+}
+
+void FPreLoadScreenSlateSynchMechanism::HandleWindowBeingDestroyed(const SWindow& WindowBeingDestroyed)
+{
+	check(IsInGameThread());
+
+	if (WidgetRenderer && WidgetRenderer->GetMainWindow_GameThread() == &WindowBeingDestroyed)
+	{
+		// wait until the render has completed its task
+		DestroySlateThread();
+	}
 }
 
 bool FPreLoadScreenSlateSynchMechanism::IsSlateMainLoopRunning_AnyThread() const
