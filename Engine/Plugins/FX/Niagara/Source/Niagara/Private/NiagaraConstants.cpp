@@ -234,6 +234,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 		Attributes.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+		Attributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONID);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONTWIST);
@@ -274,6 +275,7 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_EXPONENT));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_VISIBILITY_TAG));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONID, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONID));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONWIDTH));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
@@ -406,6 +408,11 @@ void FNiagaraConstants::Init()
 		Var.SetValue<float>(0.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, Var);
 
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, TEXT("true"));
+		Var = SYS_PARAM_PARTICLES_COMPONENTS_ENABLED;
+		Var.SetValue<bool>(true);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, Var);
+
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, TEXT("0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONID;
 		Var.SetValue<FNiagaraID>(FNiagaraID());
@@ -480,6 +487,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, LOCTEXT("LightVolumetricScatteringParamDesc", "Used to drive the volumetric scattering intensity of the light when using a Light renderer."));
 		AttrDescStrMap.Add(SYS_PARAM_INSTANCE_ALIVE, LOCTEXT("AliveParamDesc", "Used to determine whether or not this particle instance is still valid or if it can be deleted."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, LOCTEXT("VisibilityTag", "Used for selecting renderers to use when rendering this particle. Without this, the particle will render in all renderers"));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, LOCTEXT("ComponentRenderEnabledParamDesc", "Used to check if component rendering should be enabled on a per-particle basis. Without this, the each particle will spawn a component."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, LOCTEXT("RibbonIDDesc", "Sets the ribbon id for a particle. Particles with the same ribbon id will be connected into a ribbon."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, LOCTEXT("RibbonWidthDesc", "Sets the ribbon width for a particle, in UE4 units."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
