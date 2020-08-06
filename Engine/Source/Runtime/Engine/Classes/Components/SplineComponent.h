@@ -475,7 +475,7 @@ public:
 
 	/** Set the scale at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetScaleAtSplinePoint(int32 PointIndex, float InScaleY, float InScaleZ, bool bUpdateSpline = true); 
+	void SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline = true); 
 
 	/** Get the type of a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
