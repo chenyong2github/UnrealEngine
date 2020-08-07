@@ -178,6 +178,7 @@ namespace AutomationTool
 		BalancedString,
 		Boolean,
 		Integer,
+		LabelChange
 	}
 
 	/// <summary>
@@ -343,6 +344,7 @@ namespace AutomationTool
 			NewSchema.Items.Add(CreateReportType());
 			NewSchema.Items.Add(CreateBadgeType());
 			NewSchema.Items.Add(CreateLabelType());
+			NewSchema.Items.Add(CreateEnumType(GetTypeName(ScriptSchemaStandardType.LabelChange), typeof(LabelChange)));
 			NewSchema.Items.Add(CreateNotifyType());
 			NewSchema.Items.Add(CreateIncludeType());
 			NewSchema.Items.Add(CreateOptionType());
@@ -722,8 +724,11 @@ namespace AutomationTool
 		{
 			XmlSchemaComplexType LabelType = new XmlSchemaComplexType();
 			LabelType.Name = GetTypeName(ScriptSchemaStandardType.Label);
-			LabelType.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
+			LabelType.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Optional));
 			LabelType.Attributes.Add(CreateSchemaAttribute("Category", ScriptSchemaStandardType.Name, XmlSchemaUse.Optional));
+			LabelType.Attributes.Add(CreateSchemaAttribute("UgsBadge", ScriptSchemaStandardType.Name, XmlSchemaUse.Optional));
+			LabelType.Attributes.Add(CreateSchemaAttribute("UgsProject", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			LabelType.Attributes.Add(CreateSchemaAttribute("Change", ScriptSchemaStandardType.LabelChange, XmlSchemaUse.Optional));
 			LabelType.Attributes.Add(CreateSchemaAttribute("Requires", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Required));
 			LabelType.Attributes.Add(CreateSchemaAttribute("Include", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
 			LabelType.Attributes.Add(CreateSchemaAttribute("Exclude", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
