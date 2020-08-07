@@ -119,10 +119,10 @@ FReply SNiagaraStackParameterStoreEntryValue::DeleteClicked()
 	return FReply::Handled();
 }
 
-void SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker(const FAssetData& InAssetData)
+void SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker(const FAssetData& InAssetData, UClass* InClass)
 {	
-	UMaterialInterface* Mat = Cast<UMaterialInterface>(InAssetData.GetAsset());
-	StackEntry->ReplaceValueObject(Mat);
+	if ( !InAssetData.GetAsset() || (InAssetData.GetAsset() && InAssetData.GetAsset()->IsA(InClass)))
+		StackEntry->ReplaceValueObject(InAssetData.GetAsset());
 }
 
 FString SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath() const
@@ -186,7 +186,23 @@ TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructW
 			return SNew(SObjectPropertyEntryBox)
 				.ObjectPath_Raw(this, &SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath)
 				.AllowedClass(UMaterialInterface::StaticClass())
-				.OnObjectChanged_Raw(this, &SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker)
+				.OnObjectChanged_Raw(this, &SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker, UMaterialInterface::StaticClass())
+				.AllowClear(false)
+				.DisplayUseSelected(true)
+				.DisplayBrowse(true)
+				.DisplayThumbnail(true)
+				.NewAssetFactories(TArray<UFactory*>());
+
+		}
+		else if (StackEntry->GetInputType().GetClass()->IsChildOf(UTexture::StaticClass()))
+		{
+			TArray<const UClass*> AllowedClasses;
+			AllowedClasses.Add(UTexture::StaticClass());
+
+			return SNew(SObjectPropertyEntryBox)
+				.ObjectPath_Raw(this, &SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath)
+				.AllowedClass(UTexture::StaticClass())
+				.OnObjectChanged_Raw(this, &SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker, UTexture::StaticClass())
 				.AllowClear(false)
 				.DisplayUseSelected(true)
 				.DisplayBrowse(true)

@@ -86,6 +86,7 @@ NIAGARA_API FNiagaraTypeDefinition UNiagaraComponentRendererProperties::ToNiagar
 	return FNiagaraTypeDefinition();
 }
 
+
 FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFColorDef()
 {
 	static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
@@ -111,6 +112,37 @@ UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
 {
 }
 
+
+void UNiagaraComponentRendererProperties::PostLoad()
+{
+	Super::PostLoad();
+	ENiagaraRendererSourceDataMode InSourceMode = ENiagaraRendererSourceDataMode::Particles;
+	for (FNiagaraComponentPropertyBinding& Binding : PropertyBindings)
+	{
+		Binding.AttributeBinding.PostLoad(InSourceMode);
+	}
+	EnabledBinding.PostLoad(InSourceMode);
+
+
+	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
+}
+
+
+void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode)
+{
+	Super::UpdateSourceModeDerivates(InSourceMode);
+	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (SrcEmitter)
+	{
+		EnabledBinding.CacheValues(SrcEmitter, InSourceMode);
+		for (FNiagaraComponentPropertyBinding& Binding : PropertyBindings)
+		{
+			Binding.AttributeBinding.CacheValues(SrcEmitter, InSourceMode);
+		}
+	}
+
+}
+
 void UNiagaraComponentRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -123,11 +155,17 @@ void UNiagaraComponentRendererProperties::PostInitProperties()
 			ComponentRendererPropertiesToDeferredInit.Add(this);
 			return;
 		}
-		else if (EnabledBinding.BoundVariable.GetName() == NAME_None)
+		else if (!EnabledBinding.IsValid())
 		{
 			EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 		}
 	}
+}
+
+
+void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) 
+{
+	UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode::Particles);
 }
 
 void UNiagaraComponentRendererProperties::PostDuplicate(bool bDuplicateForPIE)
@@ -153,7 +191,7 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	{
 		if (WeakComponentRendererProperties.Get())
 		{
-			if (WeakComponentRendererProperties->EnabledBinding.BoundVariable.GetName() == NAME_None)
+			if (!WeakComponentRendererProperties->EnabledBinding.IsValid())
 			{
 				WeakComponentRendererProperties->EnabledBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 			}
@@ -161,12 +199,12 @@ void UNiagaraComponentRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	}
 }
 
-FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRenderer* UNiagaraComponentRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	EmitterPtr = Emitter->GetCachedEmitter();
 
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererComponents(FeatureLevel, this, Emitter);
-	NewRenderer->Initialize(this, Emitter);
+	NewRenderer->Initialize(this, Emitter, InComponent);
 	return NewRenderer;
 }
 
@@ -199,14 +237,12 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 			CreateTemplateComponent();
 
 			FNiagaraComponentPropertyBinding PositionBinding;
-			PositionBinding.AttributeBinding.BoundVariable = SYS_PARAM_PARTICLES_POSITION;
-			PositionBinding.AttributeBinding.DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_POSITION);
+			PositionBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_POSITION,  FNiagaraConstants::GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_POSITION), SYS_PARAM_PARTICLES_POSITION);
 			PositionBinding.PropertyName = FName("RelativeLocation");
 			PropertyBindings.Add(PositionBinding);
 
 			FNiagaraComponentPropertyBinding ScaleBinding;
-			ScaleBinding.AttributeBinding.BoundVariable = SYS_PARAM_PARTICLES_SCALE;
-			ScaleBinding.AttributeBinding.DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SCALE);
+			ScaleBinding.AttributeBinding.Setup(SYS_PARAM_PARTICLES_SCALE, FNiagaraConstants::GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SCALE), SYS_PARAM_PARTICLES_SCALE);
 			ScaleBinding.PropertyName = FName("RelativeScale3D");
 			PropertyBindings.Add(ScaleBinding);
 		}
@@ -301,9 +337,9 @@ const TArray<FNiagaraVariable>& UNiagaraComponentRendererProperties::GetBoundAtt
 	}
 	for (const FNiagaraComponentPropertyBinding& PropertyBinding : PropertyBindings)
 	{
-		if (PropertyBinding.AttributeBinding.BoundVariable.IsValid())
+		if (PropertyBinding.AttributeBinding.IsValid())
 		{
-			CurrentBoundAttributes.Add(PropertyBinding.AttributeBinding.BoundVariable);
+			CurrentBoundAttributes.Add(PropertyBinding.AttributeBinding.GetParamMapBindableVariable());
 		}
 	}
 	return CurrentBoundAttributes;

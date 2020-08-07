@@ -49,7 +49,7 @@ private:
 
 	FSlateColor GetInputIconColor() const;
 
-	void OnAssetSelectedFromPicker(const FAssetData& InAssetData);
+	void OnAssetSelectedFromPicker(const FAssetData& InAssetData, UClass* InClass);
 	FString GetCurrentAssetPath() const;
 
 private:

@@ -254,6 +254,9 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	FName OwnerName;
 	UPROPERTY()
 	uint32 bRequiresContext : 1;
+	/** Does this function need an exec pin for control flow because it has internal side effects that be seen by the script VM and could therefore be optimized out? If so, set to true. Default is false. */
+	UPROPERTY()
+	uint32 bRequiresExecPin : 1;
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
 	uint32 bMemberFunction : 1;
@@ -282,6 +285,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bWriteFunction : 1;
 
+	/** Bitmask for which scripts are supported for this function. Use UNiagaraScript::MakeSupportedUsageContextBitmask to make the bitmask. */
+	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
+	int32 ModuleUsageBitmask;
+
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
@@ -294,11 +301,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	FNiagaraFunctionSignature() 
 		: bRequiresContext(false)
+		, bRequiresExecPin(false)
 		, bMemberFunction(false)
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, ModuleUsageBitmask(0)
 	{
 	}
 
@@ -307,11 +316,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Inputs(InInputs)
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
+		, bRequiresExecPin(false)
 		, bMemberFunction(bInMemberFunction)
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, ModuleUsageBitmask(0)
 	{
 
 	}
@@ -321,11 +332,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Inputs(InInputs)
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
+		, bRequiresExecPin(false)
 		, bMemberFunction(bInMemberFunction)
 		, bExperimental(false)
 		, bSupportsCPU(true)
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
+		, ModuleUsageBitmask(0)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -357,6 +370,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= Inputs == Other.Inputs;
 		bMatches &= Outputs == Other.Outputs;
 		bMatches &= bRequiresContext == Other.bRequiresContext;
+		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
 		bMatches &= OwnerName == Other.OwnerName;
 		return bMatches;
@@ -464,6 +478,8 @@ public:
 	UNiagaraDataInterface* GetDefaultDataInterface() const;
 
 	bool NeedsPerInstanceBinding() const;
+
+	bool MatchesClass(const UClass* InClass) const;
 };
 
 USTRUCT()
@@ -718,6 +734,17 @@ enum class ENiagaraIterationSource : uint8
 	DataInterface
 };
 
+UENUM()
+enum ENiagaraBindingSource 
+{
+	ImplicitFromSource = 0,
+	ExplicitParticles,
+	ExplicitEmitter,
+	ExplicitSystem,
+	ExplicitUser,
+	MaxBindingSource
+};
+
 
 /** Defines all you need to know about a variable.*/
 USTRUCT()
@@ -737,30 +764,106 @@ struct FNiagaraVariableInfo
 	UNiagaraDataInterface* DataInterface;
 };
 
+/** This enum decides how a renderer will attempt to process the incoming data from the stack.*/
+UENUM()
+enum class ENiagaraRendererSourceDataMode : uint8
+{
+	/** The renderer will draw particle data, but can potentially pull in data from the Emitter/User/or System namespaces when drawing each Particle.*/
+	Particles = 0,
+	/** The renderer will draw only one element per Emitter. It can only pull in data from Emitter/User/or System namespaces when drawing the single element. */
+	Emitter
+};
+
 USTRUCT()
 struct FNiagaraVariableAttributeBinding
 {
 	GENERATED_USTRUCT_BODY();
 
-	FNiagaraVariableAttributeBinding() {}
-	FNiagaraVariableAttributeBinding(const FNiagaraVariable& InVar, const FNiagaraVariable& InAttrVar) : BoundVariable(InVar), DataSetVariable(InAttrVar), DefaultValueIfNonExistent(InAttrVar)
+	FNiagaraVariableAttributeBinding() : BindingSourceMode(ENiagaraBindingSource::ImplicitFromSource), bBindingExistsOnSource(false), bIsCachedParticleValue(true) {}
+
+	bool NIAGARA_API IsParticleBinding() const { return bIsCachedParticleValue; }
+	bool NIAGARA_API DoesBindingExistOnSource() const { return bBindingExistsOnSource; }
+	bool NIAGARA_API CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
+	void NIAGARA_API SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+
+#if WITH_EDITORONLY_DATA
+	NIAGARA_API const FName& GetName(ENiagaraRendererSourceDataMode InSourceMode) const;
+	NIAGARA_API FString GetDefaultValueString() const;
+#endif
+	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
+	NIAGARA_API const FNiagaraVariableBase& GetDataSetBindableVariable() const { return DataSetVariable; }
+	NIAGARA_API const FNiagaraTypeDefinition& GetType() const { return DataSetVariable.GetType(); }
+
+	NIAGARA_API bool IsValid() const {	return DataSetVariable.IsValid();}
+	
+	template<typename T>
+	T GetDefaultValue() const
 	{
-		check(InVar.GetType() == InAttrVar.GetType());
-	}
-	FNiagaraVariableAttributeBinding(const FNiagaraVariable& InVar, const FNiagaraVariable& InAttrVar, const FNiagaraVariable& InNonExistentValue) : BoundVariable(InVar), DataSetVariable(InAttrVar), DefaultValueIfNonExistent(InNonExistentValue)
-	{
-		check(InVar.GetType() == InAttrVar.GetType() && InNonExistentValue.GetType() == InAttrVar.GetType());
+		return RootVariable.GetValue<T>();
 	}
 
+	void NIAGARA_API Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariableBase& InDataSetVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode = ENiagaraRendererSourceDataMode::Particles);
 
+	void NIAGARA_API PostLoad(ENiagaraRendererSourceDataMode InSourceMode);
+	void NIAGARA_API Dump() const;
+
+	void NIAGARA_API ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	bool NIAGARA_API MatchesDefault(const FNiagaraVariableAttributeBinding& InOther, ENiagaraRendererSourceDataMode InSourceMode) const;
+protected:
+	/** The fully expressed namespace for the variable. If an emitter namespace, this will include the Emitter's unique name.*/
+	UPROPERTY()
+	FNiagaraVariableBase ParamMapVariable;
+
+	/** The version of the namespace to be found in an attribute table lookup. I.e. without Particles or Emitter.*/
+	UPROPERTY()
+	FNiagaraVariable DataSetVariable;
+
+	/** The namespace and default value explicitly set by the user. If meant to be derived from the source mode, it will be without a namespace.*/
+	UPROPERTY()
+	FNiagaraVariable RootVariable;
+
+#if WITH_EDITORONLY_DATA
+	/** Old variable brought in from previous setup. Generally ignored other than postload work.*/
 	UPROPERTY()
 	FNiagaraVariable BoundVariable;
 
 	UPROPERTY()
-	FNiagaraVariable DataSetVariable;
+	FName CachedDisplayName;
+#endif
+
+	/** Captures the state of the namespace when the variable is set. Allows us to make later decisions about how to reconstititue the namespace.*/
+	UPROPERTY()
+	TEnumAsByte<ENiagaraBindingSource> BindingSourceMode;
+	
+	/** Determine if this varible is accessible by the associated emitter passed into CacheValues.*/
+	UPROPERTY()
+	uint32 bBindingExistsOnSource : 1; 
+
+	/** When CacheValues is called, was this a particle attribute?*/
+	UPROPERTY()
+	uint32 bIsCachedParticleValue : 1;
+};
+
+USTRUCT()
+struct FNiagaraMaterialAttributeBinding
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	FName MaterialParameterName;
+
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	FNiagaraVariableBase NiagaraVariable;
 
 	UPROPERTY()
-	FNiagaraVariable DefaultValueIfNonExistent;
+	FNiagaraVariableBase ResolvedNiagaraVariable;
+
+	UPROPERTY(EditAnywhere, Category = "Variable")
+	FNiagaraVariableBase NiagaraChildVariable;
+
+	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter); 
+	const FNiagaraVariableBase& GetParamMapBindableVariable() const;
 };
 
 USTRUCT()

@@ -71,12 +71,12 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
 }
 
-FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	if (ParticleMesh)
 	{
 		FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
-		NewRenderer->Initialize(this, Emitter);
+		NewRenderer->Initialize(this, Emitter, InComponent);
 		return NewRenderer;
 	}
 
@@ -141,7 +141,7 @@ void UNiagaraMeshRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 void UNiagaraMeshRendererProperties::InitBindings()
 {
-	if (PositionBinding.BoundVariable.GetName() == NAME_None)
+	if (!PositionBinding.IsValid())
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
 		ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
@@ -167,36 +167,36 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 {
 	// Initialize layout
 	RendererLayoutWithCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraMeshVFLayout::Velocity);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraMeshVFLayout::Color);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, ScaleBinding.DataSetVariable, ENiagaraMeshVFLayout::Scale);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, MeshOrientationBinding.DataSetVariable, ENiagaraMeshVFLayout::Transform);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraMeshVFLayout::MaterialRandom);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, CustomSortingBinding.DataSetVariable, ENiagaraMeshVFLayout::CustomSorting);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
-	RendererLayoutWithCustomSorting.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
-	MaterialParamValidMask  = RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
-	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
-	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
-	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraMeshVFLayout::Position);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, VelocityBinding, ENiagaraMeshVFLayout::Velocity);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, ColorBinding, ENiagaraMeshVFLayout::Color);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, ScaleBinding, ENiagaraMeshVFLayout::Scale);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraMeshVFLayout::MaterialRandom);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraMeshVFLayout::NormalizedAge);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, CustomSortingBinding, ENiagaraMeshVFLayout::CustomSorting);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, SubImageIndexBinding, ENiagaraMeshVFLayout::SubImage);
+	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, CameraOffsetBinding, ENiagaraMeshVFLayout::CameraOffset);
+	MaterialParamValidMask  = RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterialBinding, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
 	RendererLayoutWithCustomSorting.Finalize();
 
 	RendererLayoutWithoutCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraMeshVFLayout::Position);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraMeshVFLayout::Velocity);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraMeshVFLayout::Color);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, ScaleBinding.DataSetVariable, ENiagaraMeshVFLayout::Scale);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, MeshOrientationBinding.DataSetVariable, ENiagaraMeshVFLayout::Transform);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraMeshVFLayout::MaterialRandom);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraMeshVFLayout::NormalizedAge);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, SubImageIndexBinding.DataSetVariable, ENiagaraMeshVFLayout::SubImage);
-	RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, CameraOffsetBinding.DataSetVariable, ENiagaraMeshVFLayout::CameraOffset);
-	MaterialParamValidMask =  RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
-	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
-	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
-	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraMeshVFLayout::Position);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, VelocityBinding, ENiagaraMeshVFLayout::Velocity);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, ColorBinding, ENiagaraMeshVFLayout::Color);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, ScaleBinding, ENiagaraMeshVFLayout::Scale);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, MeshOrientationBinding, ENiagaraMeshVFLayout::Transform);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraMeshVFLayout::MaterialRandom);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraMeshVFLayout::NormalizedAge);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, SubImageIndexBinding, ENiagaraMeshVFLayout::SubImage);
+	RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, CameraOffsetBinding, ENiagaraMeshVFLayout::CameraOffset);
+	MaterialParamValidMask =  RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterialBinding, ENiagaraMeshVFLayout::DynamicParam0) ? 0x1 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraMeshVFLayout::DynamicParam1) ? 0x2 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraMeshVFLayout::DynamicParam2) ? 0x4 : 0;
+	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
 	RendererLayoutWithoutCustomSorting.Finalize();
 }
 
@@ -288,6 +288,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
 	}
 #endif
+	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 }
 
 #if WITH_EDITORONLY_DATA

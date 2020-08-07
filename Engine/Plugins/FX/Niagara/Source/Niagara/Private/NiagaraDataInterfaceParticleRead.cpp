@@ -2078,7 +2078,7 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 		{
 			for (const auto& DIInfo : Script->GetVMExecutableData().DataInterfaceInfo)
 			{
-				if (DIInfo.GetDefaultDataInterface()->GetClass() == GetClass())
+				if (DIInfo.MatchesClass(GetClass()))
 				{
 					for (const auto& Func : DIInfo.RegisteredFunctions)
 					{

@@ -25,6 +25,8 @@ struct FSlateBrush;
 
 extern int32 GbEnableMinimalGPUBuffers;
 
+
+
 /** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
 struct FNiagaraRendererVariableInfo
 {
@@ -60,6 +62,7 @@ struct FNiagaraRendererLayout
 {
 	void Initialize(int32 NumVariables);
 	bool SetVariable(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariable& Variable, int32 VFVarOffset);
+	bool SetVariableFromBinding(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableAttributeBinding& VariableBinding, int32 VFVarOffset);
 	void Finalize();
 
 	TConstArrayView<FNiagaraRendererVariableInfo> GetVFVariables_RenderThread() const { check(IsInRenderingThread()); return MakeArrayView(VFVariables_RT); }
@@ -94,8 +97,11 @@ public:
 	{
 	}
 
+
+	virtual void PostInitProperties() override;
+
 	//UObject Interface End
-	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() PURE_VIRTUAL(UNiagaraRendererProperties::CreateBoundsCalculator, return nullptr;);
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const PURE_VIRTUAL(UNiagaraRendererProperties::GetUsedMaterials,);
 
@@ -104,10 +110,15 @@ public:
 	const TArray<const FNiagaraVariableAttributeBinding*>& GetAttributeBindings() const { return AttributeBindings; }
 	uint32 ComputeMaxUsedComponents(const FNiagaraDataSetCompiledData* CompiledDataSetData) const;
 
-	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
+	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;	
 
+	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
+	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) { return false; }
+	
 #if WITH_EDITORONLY_DATA
 
+	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
+	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter) {};
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) { return true; }
 
 	virtual void FixMaterial(UMaterial* Material) { }
@@ -133,6 +144,8 @@ public:
 
 #endif // WITH_EDITORONLY_DATA
 
+	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const {	return ENiagaraRendererSourceDataMode::Particles;}
+
 
 	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
 	virtual uint32 GetNumIndicesPerInstance() const { return 0; }
@@ -142,6 +155,8 @@ public:
 	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) {}
+
+	virtual bool NeedsMIDsForMaterials() const { return false; }
 	
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")
@@ -161,6 +176,9 @@ public:
 
 protected:
 	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+
+	virtual void PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode);
+	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode);
 
 	// Copy of variables in the attribute binding, updated when GetBoundAttributes() is called.
 	TArray<FNiagaraVariable> CurrentBoundAttributes;
