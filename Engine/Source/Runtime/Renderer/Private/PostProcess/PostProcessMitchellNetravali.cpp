@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTemporalAA.cpp: Post process MotionBlur implementation.
-=============================================================================*/
-
 #include "PostProcess/PostProcessMitchellNetravali.h"
 #include "SceneUtils.h"
 #include "SceneRendering.h"

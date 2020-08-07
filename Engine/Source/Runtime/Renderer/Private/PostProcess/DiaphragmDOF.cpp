@@ -17,7 +17,7 @@
 #include "ScenePrivate.h"
 #include "ClearQuad.h"
 #include "SpriteIndexBuffer.h"
-#include "PostProcessTemporalAA.h"
+#include "TemporalAA.h"
 #include "SceneTextureParameters.h"
 
 // ---------------------------------------------------- Cvars
