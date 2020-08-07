@@ -431,11 +431,11 @@ namespace AutomationTool
 				foreach(Label Label in Labels)
 				{
 					Writer.WriteStartElement("Label");
-					if (Label.Category != null)
+					if (Label.DashboardCategory != null)
 					{
-						Writer.WriteAttributeString("Category", Label.Category);
+						Writer.WriteAttributeString("Category", Label.DashboardCategory);
 					}
-					Writer.WriteAttributeString("Name", Label.Name);
+					Writer.WriteAttributeString("Name", Label.DashboardName);
 					Writer.WriteAttributeString("Requires", String.Join(";", Label.RequiredNodes.Select(x => x.Name)));
 
 					HashSet<Node> IncludedNodes = new HashSet<Node>(Label.IncludedNodes);
@@ -701,11 +701,27 @@ namespace AutomationTool
 				foreach (Label Label in Labels)
 				{
 					JsonWriter.WriteObjectStart();
-					if (Label.Category != null)
+					if (!String.IsNullOrEmpty(Label.DashboardName))
 					{
-						JsonWriter.WriteValue("Category", Label.Category);
+						JsonWriter.WriteValue("Name", Label.DashboardName);
 					}
-					JsonWriter.WriteValue("Name", Label.Name);
+					if (!String.IsNullOrEmpty(Label.DashboardCategory))
+					{
+						JsonWriter.WriteValue("Category", Label.DashboardCategory);
+					}
+					if (!String.IsNullOrEmpty(Label.UgsBadge))
+					{
+						JsonWriter.WriteValue("UgsBadge", Label.UgsBadge);
+					}
+					if (!String.IsNullOrEmpty(Label.UgsProject))
+					{
+						JsonWriter.WriteValue("UgsProject", Label.UgsProject);
+					}
+					if (Label.Change != LabelChange.Current)
+					{
+						JsonWriter.WriteValue("Change", Label.Change.ToString());
+					}
+
 					JsonWriter.WriteArrayStart("RequiredNodes");
 					foreach (Node RequiredNode in Label.RequiredNodes.OrderBy(x => x.Name))
 					{
