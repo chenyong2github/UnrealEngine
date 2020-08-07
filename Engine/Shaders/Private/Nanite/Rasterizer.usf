@@ -1418,6 +1418,15 @@ void HWRasterizePS(VSOut In)
 #endif
 	{
 		WritePixel( OutVisBuffer64, PixelValue, PixelPos, In.DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET );
+
+// START - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK
+#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_PLATFORM && COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS && !COMPILER_PSSL
+		// Workaround Mithril compiler bug (as of June GDK 8/7/2020) that incorrectly specifies EarlyZThanLateZ DB shader control instead of LateZ
+		// By doing this "harmless" vanilla 32bit atomic add, this makes the compiler correctly use LateZ z-order mode.
+		InterlockedAdd(LockBuffer[ uint2(0, 0) ], 0);
+#endif
+// END - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK - HACK
+
 #if DEBUG_VISUALIZE
 		WritePixel( OutDbgBuffer64, In.DebugValues.x, PixelPos, In.DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET );
 		InterlockedAdd(OutDbgBuffer32[ PixelPos ], In.DebugValues.y);
