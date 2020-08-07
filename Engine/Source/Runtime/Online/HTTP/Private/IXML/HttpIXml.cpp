@@ -413,8 +413,8 @@ void FHttpRequestIXML::Tick(float DeltaSeconds)
 
 	// keep track of elapsed seconds
 	ElapsedTime += DeltaSeconds;
-	const float HttpTimeout = GetTimeoutOrDefault();
-	if (HttpTimeout > 0 &&
+	const float HttpTimeout = FHttpModule::Get().GetHttpTimeout();
+	if (HttpTimeout > 0 && 
 		ElapsedTime >= HttpTimeout)
 	{
 		UE_LOG(LogHttp, Warning, TEXT("Timeout processing Http request. %p"),

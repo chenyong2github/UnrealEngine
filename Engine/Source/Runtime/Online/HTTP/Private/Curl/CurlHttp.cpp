@@ -1043,7 +1043,7 @@ bool FCurlHttpRequest::IsThreadedRequestComplete()
 		return true;
 	}
 
-	const float HttpTimeout = GetTimeoutOrDefault();
+	const float HttpTimeout = FHttpModule::Get().GetHttpTimeout();
 	bool bTimedOut = (HttpTimeout > 0 && TimeSinceLastResponse >= HttpTimeout);
 #if CURL_ENABLE_NO_TIMEOUTS_OPTION
 	static const bool bNoTimeouts = FParse::Param(FCommandLine::Get(), TEXT("NoTimeouts"));
