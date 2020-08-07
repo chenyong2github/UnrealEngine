@@ -78,6 +78,8 @@ TSharedPtr<SDockTab> FTabManager::FLastMajorOrNomadTab::Search(const FTabManager
 	return FoundTab;
 }
 
+const TSharedRef<FTabManager::FLayout> FTabManager::FLayout::NullLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
+
 static const FString UE4_TABMANAGER_OPENED_TAB_STRING = TEXT("OpenedTab");
 static const FString UE4_TABMANAGER_CLOSED_TAB_STRING = TEXT("ClosedTab");
 static const FString UE4_TABMANAGER_INVALID_TAB_STRING = TEXT("InvalidTab");

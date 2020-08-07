@@ -16,9 +16,12 @@ const FString& FLayoutSaveRestore::GetAdditionalLayoutConfigIni()
 
 void FLayoutSaveRestore::SaveToConfig( const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& LayoutToSave )
 {
-	const FString LayoutAsString = FLayoutSaveRestore::PrepareLayoutStringForIni( LayoutToSave->ToString() );
-
-	GConfig->SetString(EditorLayoutsSectionName, *LayoutToSave->GetLayoutName().ToString(), *LayoutAsString, ConfigFileName );
+	// Only save to config if it's not the FTabManager::FLayout::NullLayout
+	if (LayoutToSave->GetLayoutName() != FTabManager::FLayout::NullLayout->GetLayoutName())
+	{
+		const FString LayoutAsString = FLayoutSaveRestore::PrepareLayoutStringForIni(LayoutToSave->ToString());
+		GConfig->SetString(EditorLayoutsSectionName, *LayoutToSave->GetLayoutName().ToString(), *LayoutAsString, ConfigFileName);
+	}
 }
 
 
