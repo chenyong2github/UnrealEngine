@@ -535,92 +535,41 @@ void SaveLayoutWithoutRemovingTempLayoutFiles()
  * It simply check whether PIE, SIE, or any Asset Editor is opened, and ask the user whether he wanna continue closing them or cancel the Editor layout load
  * @return Whether we should continue loading the layout
  */
-bool CheckAskUserAndClosePIESIEAndAssetEditors(const FText& InitialMessage)
+bool CheckAskUserToClosePIESIE(const FText& InitialMessage)
 {
-	UAssetEditorSubsystem* AssetEditorSubsystem = (GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr);
-	if (!GEditor || !AssetEditorSubsystem)
+	if (!GEditor)
 	{
-		ensureMsgf(false, TEXT("Both GEditor and AssetEditorSubsystem should not be false when CheckAskUserAndClosePIESIEAndAssetEditors() is called."));
+		ensureMsgf(false, TEXT("GEditor should not be false when CheckAskUserToClosePIESIE() is called."));
 		return true;
 	}
-	// If none are running, return
+	// If PIE/SIE are not opened, return true
 	const bool bIsPIEOrSIERunning = ((GEditor && GEditor->PlayWorld) || GIsPlayInEditorWorld);
-	const TArray<UObject*> AllEditedAssets = AssetEditorSubsystem->GetAllEditedAssets();
-	const bool bAreAssetEditorOpened = (AllEditedAssets.Num() > 0);
-	if (!bIsPIEOrSIERunning && !bAreAssetEditorOpened)
+	if (!bIsPIEOrSIERunning)
 	{
 		return true;
 	}
-	// Collect all open assets
-	FText OpenedEditorAssets;
-	if (bAreAssetEditorOpened)
-	{
-		FString AllAssets;
-		for (const UObject* EditedAsset : AllEditedAssets)
-		{
-			if (EditedAsset->IsAsset())
-			{
-				if (!AllAssets.IsEmpty())
-					AllAssets += TEXT(", ");
-				AllAssets += EditedAsset->GetName();
-			}
-		}
-		OpenedEditorAssets = FText::Format(LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsOpenEditorAssets", "\nOpen Asset Editors: {0}."), FText::FromString(AllAssets));
-	}
-	else
-	{
-		OpenedEditorAssets = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsOpenEditorAssetsEmpty", "\n");
-	}
-	FText TextTitle;
-	FText IfYesText;
-	// If both PIE/SIE and Asset Editors are opened
-	if (bIsPIEOrSIERunning && bAreAssetEditorOpened)
-	{
-		TextTitle = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesHeaderAll", "Close PIE/SIE and Asset Editors?");
-		IfYesText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesBodyAll", "If \"Yes\", your current game instances (PIE or SIE) as well as all open Asset Editors"
-			" will be closed. Any unsaved changes in those will also be lost.");
-	}
-	// If PIE or SIE are opened
-	else if (bIsPIEOrSIERunning)
-	{
-		TextTitle = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesHeaderPIE", "Close PIE/SIE?");
-		IfYesText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesBodyPIE", "If \"Yes\", your current game instances (PIE or SIE) will be closed. Any unsaved changes"
-			" in those will also be lost.");
-	}
-	// If any Asset Editors is opened
-	else if (bAreAssetEditorOpened)
-	{
-		TextTitle = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesHeaderEditorAssets", "Close Asset Editors?");
-		IfYesText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfYesBodyEditorAssets", "If \"Yes\", all open Asset Editors will be closed. Any unsaved changes in those"
-			" will also be lost.");
-	}
-	// FMessageDialog
-	const FText IfNoText = LOCTEXT("CheckAskUserAndClosePIESIEAndAssetEditorsIfNoBody", "If \"No\", you can manually reload the layout from the \"User Layouts\" section later.");
-	const FText TextBody = FText::Format(LOCTEXT("ClosePIESIEAssetEditorsBody", "{0}\n\n{1}{2}\n\n{3}"), InitialMessage, IfYesText, OpenedEditorAssets, IfNoText);
+	// If PIE/SIE are opened
+	// FMessageDialog - Ask the user whether he wants to automatically close them and continue loading the layout
+	const FText TextTitle = LOCTEXT("CheckAskUserToClosePIESIEIfYesHeaderPIE", "Close PIE/SIE?");
+	const FText IfYesText = LOCTEXT("CheckAskUserToClosePIESIEIfYesBodyPIE", "If \"Yes\", your current game instances (PIE or SIE) will be closed. Any unsaved changes"
+		" in those will also be lost.");
+	const FText IfNoText = LOCTEXT("CheckAskUserToClosePIESIEIfNoBody", "If \"No\", you can manually reload the layout from the \"User Layouts\" section later.");
+	const FText TextBody = FText::Format(LOCTEXT("ClosePIESIEAssetEditorsBody", "{0}\n\n{1}\n\n{2}"), InitialMessage, IfYesText, IfNoText);
+	// Return if the user did not want to close them
 	if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, TextBody, &TextTitle))
 	{
 		return false;
 	}
-	// If PIE or SIE are opened, ask the user whether he wants to automatically close them and continue loading the layout
-	if (bIsPIEOrSIERunning)
+	// Close PIE/SIE
+	if (GEditor && GEditor->PlayWorld)
 	{
-		// Close PIE/SIE
-		if (GEditor && GEditor->PlayWorld)
-		{
-			GEditor->EndPlayMap();
-		}
-		else
-		{
-			ensureMsgf(false,
-				TEXT("This has not been tested because the code does not reach this by default. The layout is loaded through the Editor UI, and GIsPlayInEditorWorld should"
-					" not have any kind of Editor UI, so it should not be possible to load a layout in that status."));
-		}
+		GEditor->EndPlayMap();
 	}
-	// If any Asset Editors is opened, ask the user whether he wants to automatically close them and continue loading the layout
-	if (bAreAssetEditorOpened)
+	else
 	{
-		// Close asset editors
-		AssetEditorSubsystem->CloseAllAssetEditors();
+		ensureMsgf(false,
+			TEXT("This has not been tested because the code does not reach this by default. The layout is loaded through the Editor UI, and GIsPlayInEditorWorld should"
+				" not have any kind of Editor UI, so it should not be possible to load a layout in that status."));
 	}
 	return true;
 }
@@ -814,7 +763,7 @@ bool FLayoutsMenuLoad::CanLoadChooseUserLayout(const int32 InLayoutIndex)
 void FLayoutsMenuLoad::ReloadCurrentLayout()
 {
 	// If PIE, SIE, or any Asset Editors are opened, ask the user whether he wants to automatically close them and continue loading the layout
-	if (!FPrivateFLayoutsMenu::CheckAskUserAndClosePIESIEAndAssetEditors(LOCTEXT("AreYouSureToLoadHeader", "Are you sure you want to continue loading the selected layout profile?")))
+	if (!FPrivateFLayoutsMenu::CheckAskUserToClosePIESIE(LOCTEXT("AreYouSureToLoadHeader", "Are you sure you want to continue loading the selected layout profile?")))
 	{
 		return;
 	}
@@ -833,10 +782,27 @@ void FLayoutsMenuLoad::ReloadCurrentLayout()
 	const FString& OriginalEditorLayoutIniFilePath = FPrivateFLayoutsMenu::GetOriginalEditorLayoutIniFilePathInternal();
 	IFileManager::Get().Copy(*OriginalEditorLayoutIniFilePath, *GEditorLayoutIni, bShouldReplace, bEvenIfReadOnly, bCopyAttributes);
 	GConfig->UnloadFile(OriginalEditorLayoutIniFilePath);
-	// Editor is reset on-the-fly
+	// Disable config saving
+	UAssetEditorSubsystem* AssetEditorSubsystem = (GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr);
+	const bool bAreAssetEditorOpened = (AssetEditorSubsystem ? AssetEditorSubsystem->GetAllEditedAssets().Num() > 0 : false); // Are there asset editors opened?
+	if (bAreAssetEditorOpened)
+	{
+		// Save open asset editors + disable manual saving (no need to close them with AssetEditorSubsystem->CloseAllAssetEditors)
+		AssetEditorSubsystem->SaveOpenAssetEditors(/*bOnShutdown*/true, /*bCancelIfDebugger*/false);
+		AssetEditorSubsystem->SetAutoRestoreAndDisableSaving(true);
+	}
 	FUnrealEdMisc::Get().AllowSavingLayoutOnClose(false);
+	// Editor is reset on-the-fly
 	EditorReinit();
+	// Reenable config saving
 	FUnrealEdMisc::Get().AllowSavingLayoutOnClose(true);
+	if (bAreAssetEditorOpened)
+	{
+		check(AssetEditorSubsystem);
+		// Restore asset editors + disable manual saving and avoid trying to re-open the asset editors twice
+		AssetEditorSubsystem->RestorePreviouslyOpenAssets();
+		AssetEditorSubsystem->SetAutoRestoreAndDisableSaving(false);
+	}
 	// Save layout and create duplicated ini file (DuplicatedEditorLayoutIniFilePath)
 	FPrivateFLayoutsMenu::SaveLayoutWithoutRemovingTempLayoutFiles();
 	// If same file, remove temp files
@@ -939,7 +905,7 @@ void FLayoutsMenuLoad::ImportLayout()
 				}
 			}
 			// If PIE, SIE, or any Asset Editors are opened, ask the user whether he wants to automatically close them and continue loading the layout
-			if (!FPrivateFLayoutsMenu::CheckAskUserAndClosePIESIEAndAssetEditors(LOCTEXT("LayoutImportClosePIEAndEditorAssetsHeader",
+			if (!FPrivateFLayoutsMenu::CheckAskUserToClosePIESIE(LOCTEXT("LayoutImportClosePIEAndEditorAssetsHeader",
 				"The layout(s) were successfully imported into the \"User Layouts\" section. Do you want to continue loading the selected layout profile?")))
 			{
 				return;
