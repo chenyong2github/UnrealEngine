@@ -216,6 +216,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
+#include "CustomResourcePool.h"
 #include "ToolMenus.h"
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -1965,6 +1966,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 				GRenderTargetPool.TickPoolElements();
 				FRDGBuilder::TickPoolElements();
+				ICustomResourcePool::TickPoolElements();
 			});
 	}
 
