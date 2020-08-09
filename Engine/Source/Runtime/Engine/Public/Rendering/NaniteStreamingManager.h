@@ -173,7 +173,7 @@ private:
 	FStreamingPageUploader*					PageUploader;
 
 	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
-	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 Priority, uint32 MaxSelectedPages );
+	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages );
 
 	void RegisterStreamingPage( FStreamingPageInfo* Page, const FPageKey& Key );
 	void UnregisterPage( const FPageKey& Key );
