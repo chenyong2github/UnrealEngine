@@ -28,9 +28,26 @@ void FLayoutSaveRestore::SaveToConfig( const FString& ConfigFileName, const TSha
 TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig(const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout,
 	const EOutputCanBeNullptr PrimaryAreaOutputCanBeNullptr)
 {
+	TArray<FString> DummyArray;
+	return FLayoutSaveRestore::LoadFromConfig(ConfigFileName, DefaultLayout, PrimaryAreaOutputCanBeNullptr, false, DummyArray);
+}
+
+
+TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig(const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout,
+	const EOutputCanBeNullptr PrimaryAreaOutputCanBeNullptr, TArray<FString>& OutRemovedOlderLayoutVersions)
+{
+	return FLayoutSaveRestore::LoadFromConfig(ConfigFileName, DefaultLayout, PrimaryAreaOutputCanBeNullptr, true, OutRemovedOlderLayoutVersions);
+}
+
+
+TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig(const FString& ConfigFileName, const TSharedRef<FTabManager::FLayout>& DefaultLayout,
+	const EOutputCanBeNullptr PrimaryAreaOutputCanBeNullptr, const bool bRemoveOlderLayoutVersions, TArray<FString>& OutRemovedOlderLayoutVersions)
+{
 	const FName LayoutName = DefaultLayout->GetLayoutName();
+	const FString LayoutNameString = LayoutName.ToString();
 	FString UserLayoutString;
-	if ( GConfig->GetString(EditorLayoutsSectionName, *LayoutName.ToString(), UserLayoutString, ConfigFileName ) && !UserLayoutString.IsEmpty() )
+	// If the Key (LayoutName) already exists in the section EditorLayoutsSectionName of the file ConfigFileName, try to load the layout from that file
+	if ( GConfig->GetString(EditorLayoutsSectionName, *LayoutNameString, UserLayoutString, ConfigFileName ) && !UserLayoutString.IsEmpty() )
 	{
 		TSharedPtr<FTabManager::FLayout> UserLayout = FTabManager::FLayout::NewFromString( FLayoutSaveRestore::GetLayoutStringFromIni( UserLayoutString ));
 		if ( UserLayout.IsValid() && UserLayout->GetPrimaryArea().IsValid() )
@@ -41,6 +58,46 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfig(const FStrin
 			if (PrimaryAreaOutputCanBeNullptr != EOutputCanBeNullptr::IfNoOpenTabValid || FGlobalTabmanager::Get()->HasValidOpenTabs(UserLayout->GetPrimaryArea().Pin().ToSharedRef()))
 			{
 				return UserLayout.ToSharedRef();
+			}
+		}
+	}
+	// If the file layout could not be loaded and the caller wants to remove old fields
+	else if (bRemoveOlderLayoutVersions)
+	{
+		// If File and Section exist
+		if (FConfigSection* ConfigSection = GConfig->GetSectionPrivate(EditorLayoutsSectionName, /*Force*/false, /*Const*/true, ConfigFileName))
+		{
+			// If Key does not exist (i.e., Section does but not contain that Key)
+			if (!ConfigSection->Find(*LayoutNameString))
+			{
+				// Create LayoutKeyToRemove
+				FString LayoutKeyToRemove;
+				for (int32 Index = LayoutNameString.Len() - 1; Index > 0; --Index)
+				{
+					if (LayoutNameString[Index] != TCHAR('.') && (LayoutNameString[Index] < TCHAR('0') || LayoutNameString[Index] > TCHAR('9')))
+					{
+						LayoutKeyToRemove = LayoutNameString.Left(Index+1);
+						break;
+					}
+				}
+				// Look for older versions of this Key
+				OutRemovedOlderLayoutVersions.Empty();
+				for (const auto& SectionPair : *ConfigSection/*->ArrayOfStructKeys*/)
+				{
+					FString CurrentKey = SectionPair.Key.ToString();
+					if (CurrentKey.Len() > LayoutKeyToRemove.Len() && CurrentKey.Left(LayoutKeyToRemove.Len()) == LayoutKeyToRemove)
+					{
+						OutRemovedOlderLayoutVersions.Emplace(std::move(CurrentKey));
+					}
+				}
+				// Remove older versions of this Key
+				for (const FString& KeyToRemove : OutRemovedOlderLayoutVersions)
+				{
+					GConfig->RemoveKey(EditorLayoutsSectionName, *KeyToRemove, ConfigFileName);
+					UE_LOG(LogTemp, Warning, TEXT("While key \"%s\" was not found, and older version exists (key \"%s\"). This means section \"%s\" was"
+						" created with a previous version of UE and is no longer compatible. The old key has been removed and updated with the new one."),
+						*LayoutNameString, *KeyToRemove, EditorLayoutsSectionName);
+				}
 			}
 		}
 	}

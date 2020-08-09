@@ -30,6 +30,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Toolkits/FConsoleCommandExecutor.h"
+#include "Misc/MessageDialog.h"
 
 DEFINE_LOG_CATEGORY(LogMainFrame);
 #define LOCTEXT_NAMESPACE "FMainFrameModule"
@@ -159,10 +160,11 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 			// 9. Move and rename the new file (Engine\Saved\Config\Layouts\Default_Editor_Layout.ini) into Engine\Config\Layouts\DefaultLayout.ini
 			// 10. Push the new "DefaultLayout.ini" together with your new code.
 			// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
-			TSharedRef<FTabManager::FLayout> DefaultLayout =
+			const FName LayoutName = TEXT("UnrealEd_Layout_v1.4");
+			const TSharedRef<FTabManager::FLayout> DefaultLayout =
 				// We persist the positioning of the level editor and the content browser.
 				// The asset editors currently do not get saved.
-				FTabManager::NewLayout( "UnrealEd_Layout_v1.4" )
+				FTabManager::NewLayout(LayoutName)
 				->AddArea
 				(
 					// level editor window
@@ -219,7 +221,22 @@ void FMainFrameModule::CreateDefaultMainFrame( const bool bStartImmersive, const
 				);
 			const bool bPrimaryAreaMustHaveOpenedTabsToBeValid = true;
 			const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoOpenTabValid;
-			TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr);
+			TArray<FString> RemovedOlderLayoutVersions;
+			const TSharedRef<FTabManager::FLayout> LoadedLayout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr, RemovedOlderLayoutVersions);
+
+			// If older fields of the layout name (i.e., lower versions than "UnrealEd_Layout_v1.4") were found
+			if (RemovedOlderLayoutVersions.Num() > 0)
+			{
+				// FMessageDialog - Notify the user that the layout version was updated and the current layout uses a deprecated one
+				const FText TextTitle = LOCTEXT("MainFrameModuleVersionErrorTitle", "Unreal Editor Layout Version Mismatch");
+				const FText TextBody = FText::Format(LOCTEXT("MainFrameModuleVersionErrorBody",
+					"The expected Unreal Editor layout version is \"{0}\", while only version \"{1}\" was found."
+					" I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible."
+					"\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed."
+					"\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
+					FText::FromString(LayoutName.ToString()), FText::FromString(RemovedOlderLayoutVersions[0]));
+				FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+			}
 
 			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 			// MainFrameContent will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes

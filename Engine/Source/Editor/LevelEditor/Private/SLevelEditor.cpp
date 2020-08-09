@@ -53,6 +53,9 @@
 #include "IPlacementModeModule.h"
 #include "Classes/EditorStyleSettings.h"
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
+#include "Misc/MessageDialog.h"
+
+#define LOCTEXT_NAMESPACE "SLevelEditor"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -1319,7 +1322,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	// 9. Move and rename the new file (Engine\Saved\Config\Layouts\Default_Editor_Layout.ini) into Engine\Config\Layouts\DefaultLayout.ini
 	// 10. Push the new "DefaultLayout.ini" together with your new code.
 	// 11. Also update these instructions if you change the version number (e.g., from "UnrealEd_Layout_v1.4" to "UnrealEd_Layout_v1.5").
-	const TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("LevelEditor_Layout_v1.2")
+	const FName LayoutName = TEXT("LevelEditor_Layout_v1.2");
+	const TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout(LayoutName)
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -1400,7 +1404,22 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 			)
 		);
 	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
-	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr);
+	TArray<FString> RemovedOlderLayoutVersions;
+	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr, RemovedOlderLayoutVersions);
+
+	// If older fields of the layout name (i.e., lower versions than "LevelEditor_Layout_v1.2") were found
+	if (RemovedOlderLayoutVersions.Num() > 0)
+	{
+		// FMessageDialog - Notify the user that the layout version was updated and the current layout uses a deprecated one
+		const FText TextTitle = LOCTEXT("LevelEditorVersionErrorTitle", "Unreal Level Editor Layout Version Mismatch");
+		const FText TextBody = FText::Format(LOCTEXT("LevelEditorVersionErrorBody",
+			"The expected Unreal Level Editor layout version is \"{0}\", while only version \"{1}\" was found."
+			" I.e., the current layout was created with a previous version of Unreal that is deprecated and no longer compatible."
+			"\n\nUnreal will continue with the default layout for its current version, the deprecated one has been removed."
+			"\n\nYou can create and save your custom layouts with \"Window\"->\"Save Layout\"->\"Save Layout As...\"."),
+			FText::FromString(LayoutName.ToString()), FText::FromString(RemovedOlderLayoutVersions[0]));
+		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+	}
 
 	FLayoutExtender LayoutExtender;
 
