@@ -136,7 +136,8 @@ FIoStatus FFileIoStoreReader::Initialize(const FIoStoreEnvironment& Environment)
 
 	ContainerFile.FilePath = ContainerFilePath;
 
-	FIoStoreTocResource TocResource;
+	TUniquePtr<FIoStoreTocResource> TocResourcePtr = MakeUnique<FIoStoreTocResource>();
+	FIoStoreTocResource& TocResource = *TocResourcePtr;
 	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ExcludeTocMeta, TocResource);
 	if (!Status.IsOk())
 	{
