@@ -13,7 +13,7 @@
 
 #include "Changes/MeshVertexChange.h"
 
-//#include "Sculpting/KelvinletBrushOp.h"
+#include "Sculpting/KelvinletBrushOp.h"
 #include "Sculpting/MeshSmoothingBrushOps.h"
 #include "Sculpting/MeshInflateBrushOps.h"
 #include "Sculpting/MeshMoveBrushOps.h"
@@ -171,6 +171,21 @@ void UMeshVertexSculptTool::Setup()
 		MakeUnique<TBasicMeshSculptBrushOpFactory<FPlaneBrushOp>>(),
 		NewObject<UFixedPlaneBrushOpProps>(this));
 
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::ScaleKelvin ,
+		MakeUnique<TBasicMeshSculptBrushOpFactory<FScaleKelvinletBrushOp>>(),
+		NewObject<UScaleKelvinletBrushOpProps>(this));
+
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullKelvin,
+		MakeUnique<TBasicMeshSculptBrushOpFactory<FPullKelvinletBrushOp>>(),
+		NewObject<UPullKelvinletBrushOpProps>(this));
+
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::PullSharpKelvin,
+		MakeUnique<TBasicMeshSculptBrushOpFactory<FSharpPullKelvinletBrushOp>>(),
+		NewObject<USharpPullKelvinletBrushOpProps>(this));
+
+	RegisterBrushType((int32)EMeshVertexSculptBrushType::TwistKelvin,
+		MakeUnique<TBasicMeshSculptBrushOpFactory<FTwistKelvinletBrushOp>>(),
+		NewObject<UTwistKelvinletBrushOpProps>(this));
 
 	// secondary brushes
 	RegisterSecondaryBrushType((int32)EMeshVertexSculptBrushType::Smooth,
