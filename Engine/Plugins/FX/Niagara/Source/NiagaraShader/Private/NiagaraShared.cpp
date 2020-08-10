@@ -8,7 +8,8 @@
 #include "NiagaraShaderModule.h"
 #include "NiagaraShaderType.h"
 #include "NiagaraShader.h"
-#include "NiagaraScript.h"
+#include "NiagaraScriptBase.h"
+#include "NiagaraScript.h"		//-TODO: This should be fixed so we are not reading structures from modules we do not depend on
 #include "Stats/StatsMisc.h"
 #include "UObject/CoreObjectVersion.h"
 #include "Misc/App.h"
@@ -353,7 +354,7 @@ void FNiagaraShaderScript::SerializeShaderMap(FArchive& Ar)
 	}
 }
 
-void FNiagaraShaderScript::SetScript(UNiagaraScript* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
+void FNiagaraShaderScript::SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersionID,  const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, bool bInUseShaderPermutations, FString InFriendlyName)
 {
@@ -430,11 +431,13 @@ void FNiagaraShaderScript::UpdateCachedData_PreCompile()
 
 		if (bUseShaderPermutations)
 		{
+			TConstArrayView<FSimulationStageMetaData> SimulationStages = BaseVMScript->GetSimulationStageMetaData();
+
 			// We add the number of simulation stages as Stage 0 is always the particle stage currently
-			NumPermutations += BaseVMScript->GetVMExecutableData().SimulationStageMetaData.Num();
+			NumPermutations += SimulationStages.Num();
 
 			ShaderStageToPermutation.Emplace(0, 1);
-			for (const FSimulationStageMetaData& StageMeta : BaseVMScript->GetVMExecutableData().SimulationStageMetaData)
+			for (const FSimulationStageMetaData& StageMeta : SimulationStages)
 			{
 				ShaderStageToPermutation.Emplace(StageMeta.MinStage, StageMeta.MaxStage);
 			}

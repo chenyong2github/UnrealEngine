@@ -29,7 +29,7 @@ class FNiagaraShaderScript;
 class FNiagaraShaderMap;
 class FNiagaraShader;
 class FNiagaraShaderMapId;
-class UNiagaraScript;
+class UNiagaraScriptBase;
 struct FNiagaraVMExecutableDataId;
 
 #define MAX_CONCURRENT_EVENT_DATASETS 4
@@ -719,14 +719,14 @@ public:
 
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
-	NIAGARASHADER_API void SetScript(UNiagaraScript* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
+	NIAGARASHADER_API void SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
 		bool bInUsesRapidIterationParams, bool bInUseShaderPermutations, FString InFriendlyName);
 #if WITH_EDITOR
 	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FNiagaraVMExecutableDataId& ScriptId) const;
 #endif
 
-	UNiagaraScript *GetBaseVMScript()
+	UNiagaraScriptBase* GetBaseVMScript()
 	{
 		return BaseVMScript;
 	}
@@ -790,7 +790,7 @@ protected:
 	void UpdateCachedData_PostCompile(bool bCalledFromSerialize = false);
 
 private:
-	UNiagaraScript* BaseVMScript;
+	UNiagaraScriptBase* BaseVMScript;
 
 	TArray<FString> CompileErrors;
 

@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "NiagaraCommon.h"
+#include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
 #include "NiagaraShader.h"
 #include "NiagaraParameters.h"
@@ -109,38 +110,6 @@ struct FNiagaraScriptDebuggerInfo
 
 	TAtomic<bool> bWritten;
 };
-
-USTRUCT()
-struct NIAGARA_API FSimulationStageMetaData
-{
-	GENERATED_USTRUCT_BODY()
-public:
-
-	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
-	UPROPERTY()
-	FName IterationSource;
-
-	/** Is this stage a spawn-only stage? */
-	UPROPERTY()
-	uint32 bSpawnOnly : 1;
-
-	/** Do we write to particles this stage?*/
-	UPROPERTY()
-	uint32 bWritesParticles : 1;
-
-	/** DataInterfaces that we write to in this stage.*/
-	UPROPERTY()
-	TArray<FName> OutputDestinations;
-
-	/** Index of the simulation stage where we begin iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
-	UPROPERTY()
-	int32 MinStage;
-
-	/** Index of the simulation stage where we end iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
-	UPROPERTY()
-	int32 MaxStage;
-};
-
 
 /** Struct containing all of the data necessary to look up a NiagaraScript's VM executable results from the Derived Data Cache.*/
 USTRUCT()
@@ -388,7 +357,7 @@ public:
 
 /** Runtime script for a Niagara system */
 UCLASS(MinimalAPI)
-class UNiagaraScript : public UObject
+class UNiagaraScript : public UNiagaraScriptBase
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -582,6 +551,10 @@ public:
 
 	virtual bool IsEditorOnly() const override;
 	//~ End UObject interface
+
+	//~ Begin UNiagaraScriptBase interface
+	virtual TConstArrayView<FSimulationStageMetaData> GetSimulationStageMetaData() const override { return MakeArrayView(CachedScriptVM.SimulationStageMetaData); }
+	//~ End UNiagaraScriptBase interface
 
 	// Infrastructure for GPU compute Shaders
 #if WITH_EDITOR
