@@ -469,6 +469,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	void SetUpVectorAtSplinePoint(int32 PointIndex, const FVector& InUpVector, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
+	/** Set the rotation of an existing spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	void SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+
+	/** Set the scale at a given spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	void SetScaleAtSplinePoint(int32 PointIndex, float InScaleY, float InScaleZ, bool bUpdateSpline = true); 
+
 	/** Get the type of a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	ESplinePointType::Type GetSplinePointType(int32 PointIndex) const;
@@ -686,7 +694,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	FVector FindLocationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
-	/** Given a location, in world spcae, return a unit direction vector of the spline tangent closest to the location. */
+	/** Given a location, in world space, return a unit direction vector of the spline tangent closest to the location. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	FVector FindDirectionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
