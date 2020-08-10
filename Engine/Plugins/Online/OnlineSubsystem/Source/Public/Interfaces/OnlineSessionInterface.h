@@ -166,6 +166,31 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnJoinSessionComplete, FName, EOnJoinSessi
 typedef FOnJoinSessionComplete::FDelegate FOnJoinSessionCompleteDelegate;
 
 /**
+ * Delegate fired when a player has joined or left a session
+ *
+ * @param SessionName The name of the session that changed
+ * @param UniqueId The ID of the user whose join state has changed
+ * @param bJoined If true this is a join event, (if false it is a leave event)
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSessionParticipantsChange, FName, const FUniqueNetId&, bool);
+typedef FOnSessionParticipantsChange::FDelegate FOnSessionParticipantsChangeDelegate;
+
+/**
+ * Delegate fired when session is requesting QOS measurements
+ * @param The name of the session for which the measurements need to be made
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnQosDataRequested, FName);
+typedef FOnQosDataRequested::FDelegate FOnQosDataRequestedDelegate;
+
+/**
+ * Delegate fired when a sessions custom data has changed
+ * @param The name of the session that had custom data changed
+ * @param the updated session data
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
+typedef FOnSessionCustomDataChanged::FDelegate FOnSessionCustomDataChangedDelegate;
+
+/**
  * Delegate fired once a single search result is returned (ie friend invite / join)
  * Session has not been joined at this point, and requires a call to JoinSession()
  *
@@ -650,12 +675,34 @@ public:
 
 
 	/**
-	 * Delegate fired when the joining process for an online session has completed
+	 * Delegate fired when the process for a local user joining an online session has completed
 	 *
 	 * @param SessionName the name of the session this callback is for
 	 * @param Result EOnJoinSessionCompleteResult describing the outcome of the call 
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnJoinSessionComplete, FName, EOnJoinSessionCompleteResult::Type);
+
+	/**
+	 * Delegate fired when a player has joined or left a session
+	 * @param SessionName The name of the session that changed
+	 * @param UniqueId The ID of the user whose join state has changed
+	 * @param bJoined if true this is a join event, (if false it is a leave event)
+	 */
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnSessionParticipantsChange, FName, const FUniqueNetId&, bool);
+
+	/**
+	 * Delegate fired when session is requesting QOS measurements
+	 * @param The name of the session for which the measurements need to be made
+	 */
+	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnQosDataRequested, FName);
+
+	/**
+	 * Delegate fired when a sessions custom data has been updated
+	 *
+	 * @param SessionName The session that had custom session data changed
+	 * @param SessionSettings The session settings for the session that changed
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
 
 	/**
 	 * Allows the local player to follow a friend into a session
