@@ -106,6 +106,9 @@ namespace Chaos
 		void UnprepareTick();
 		void Rewind(FReal Dt, FReal RewindDt);
 		void Integrate(FReal Dt);
+		void IntegrateImpl(FReal Dt);
+		void IntegrateImpl2(FReal Dt);
+		void IntegrateImplISPC(FReal Dt);
 		void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
 		void DetectCollisions(FReal Dt);
 		void PrepareIteration(FReal Dt);

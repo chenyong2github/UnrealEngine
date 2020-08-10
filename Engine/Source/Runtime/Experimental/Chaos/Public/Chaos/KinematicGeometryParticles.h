@@ -118,6 +118,10 @@ class TKinematicGeometryParticlesImp : public TGeometryParticlesImp<T, d, SimTyp
 		}
 	}
 
+	FORCEINLINE TArray<TVector<T, d>>& AllV() { return MV; }
+	FORCEINLINE TArray<TVector<T, d>>& AllW() { return MW; }
+	FORCEINLINE TArray<TKinematicTarget<T, d>>& AllKinematicTargets() { return KinematicTargets; }
+
   private:
 	TArrayCollectionArray<TVector<T, d>> MV;
 	TArrayCollectionArray<TVector<T, d>> MW;
