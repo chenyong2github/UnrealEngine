@@ -1213,9 +1213,11 @@ AActor* UGameplayAbility::GetGameplayTaskAvatar(const UGameplayTask* Task) const
 void UGameplayAbility::OnGameplayTaskInitialized(UGameplayTask& Task)
 {
 	UAbilityTask* AbilityTask = Cast<UAbilityTask>(&Task);
-	if (AbilityTask)
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+
+	if (AbilityTask && ActorInfo)
 	{
-		AbilityTask->SetAbilitySystemComponent(GetCurrentActorInfo()->AbilitySystemComponent.Get());
+		AbilityTask->SetAbilitySystemComponent(ActorInfo->AbilitySystemComponent.Get());
 		AbilityTask->Ability = this;
 	}
 }
