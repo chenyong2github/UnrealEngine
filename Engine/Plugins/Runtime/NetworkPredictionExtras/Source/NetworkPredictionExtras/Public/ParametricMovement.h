@@ -57,7 +57,7 @@ struct FParametricInputCmd
 	{
 		if (PlayRate.IsSet())
 		{
-			Out.Appendf("PlatRate: %.2f\n");
+			Out.Appendf("PlatRate: %.2f\n", PlayRate.GetValue());
 		}
 		else
 		{

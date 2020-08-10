@@ -116,7 +116,7 @@ public:
 			{
 				TStringBuilder<128> Builder;
 				FNetworkPredictionDriver<ModelDef>::GetDebugString(InstanceData.Info.Driver, Builder);
-				UE_LOG(LogNetworkPrediction, Warning, TEXT("Physics State out of sync on %s (Context: %s"), Builder.ToString(),  ContextStr);
+				UE_LOG(LogNetworkPrediction, Warning, TEXT("Physics State out of sync on %s (Context: %s)"), Builder.ToString(),  ContextStr);
 				npEnsure(false);
 			}
 		}
