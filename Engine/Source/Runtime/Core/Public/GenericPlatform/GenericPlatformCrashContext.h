@@ -33,9 +33,12 @@ enum ECrashExitCodes : int32
 
 	/** Used as MonitorExceptCode in analytics to track how often the out-of-process CRC exits because of a failed check. */
 	OutOfProcessReporterCheckFailed = 777007,
+
+	/** The exception code used for ensure, in case a kernel driver callback happens at in a dispatch level where SEH (on windows) is disabled. */
+	UnhandledEnsure = 777008,
 };
 
-/** 
+/**
  * Symbol information associated with a program counter. 
  * FString version.
  * To be used by external tools.

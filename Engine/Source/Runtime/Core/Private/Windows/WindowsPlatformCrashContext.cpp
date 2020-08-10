@@ -1523,7 +1523,10 @@ FORCENOINLINE void ReportEnsureInner(const TCHAR* ErrorMessage, int NumStackFram
 	__try
 #endif
 	{
-		::RaiseException(1, 0, 0, nullptr);
+		// Provide a rather unique/easily recongnizable exception code. It seems SEH can be disabled at runtime in kernel driver callback depending on the dispatch level. If UE fires
+		// an ensure during such callback, the hope is that the application crashes and reports this recongnizable exception code as the exit code, so that we can detect it in the analytics.
+		DWORD EnsureExceptionCode = ECrashExitCodes::UnhandledEnsure;
+		::RaiseException(EnsureExceptionCode, 0, 0, nullptr);
 	}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except (ReportEnsureUsingCrashReportClient( GetExceptionInformation(), NumStackFramesToIgnore, ErrorMessage, IsInteractiveEnsureMode() ? EErrorReportUI::ShowDialog : EErrorReportUI::ReportInUnattendedMode))
