@@ -343,6 +343,9 @@ public:
 	/** Set the global time directly, without performing any auto-scroll, snapping or other adjustments to the supplied time  */
 	virtual void SetGlobalTime(FFrameTime Time) = 0;
 
+	/** Invalidate cached data so that it will be reevaluated on the next frame */
+	virtual void RequestInvalidateCachedData() = 0;
+
 	/** Forcefully reevaluate the sequence on the next frame */
 	virtual void RequestEvaluate() = 0;
 

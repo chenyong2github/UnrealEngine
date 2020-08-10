@@ -538,6 +538,7 @@ FSequencer::FSequencer()
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
 	, bNeedsEvaluate(false)
+	, bNeedsInvalidateCachedData(false)
 	, bApplyViewModifier(false)
 	, bHasPreAnimatedInfo(false)
 {
@@ -613,6 +614,12 @@ void FSequencer::Tick(float InDeltaTime)
 	{
 		const int32 SequencerRefCount = AsShared().GetSharedReferenceCount() - 1;
 		ensureAlwaysMsgf(SequencerRefCount == 1, TEXT("Multiple persistent shared references detected for Sequencer. There should only be one persistent authoritative reference. Found %d additional references which will result in FSequencer not being released correctly."), SequencerRefCount - 1);
+	}
+
+	if (bNeedsInvalidateCachedData)
+	{
+		InvalidateCachedData();
+		bNeedsInvalidateCachedData = false;
 	}
 
 	// Ensure the time bases for our playback position are kept up to date with the root sequence
