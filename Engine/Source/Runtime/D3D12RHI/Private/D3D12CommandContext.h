@@ -123,9 +123,6 @@ public:
 	FD3D12CommandListHandle CommandListHandle;
 	FD3D12CommandAllocator* CommandAllocator;
 	FD3D12CommandAllocatorManager CommandAllocatorManager;
-
-	// Sync point with copy queue which needs to be checked before kicking this command lists
-	FD3D12SyncPoint CopyQueueSyncPoint;
 	
 	// Current GPU event stack
 	TArray<uint32> GPUEventStack;
@@ -407,16 +404,7 @@ public:
 	template<typename Predicate>
 	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, Predicate Func)
 	{
-		// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
-		FRHITexture* RHITexture = Texture;
-		if (RHITexture && RHITexture->GetFlags() & TexCreate_Presentable)
-		{
-			FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
-			FD3D12Viewport* ViewPort = BufferBufferReferenceTexture->GetViewPort();
-			RHITexture = BufferBufferReferenceTexture->IsSDR() ? ViewPort->GetSDRBackBuffer_RHIThread() : ViewPort->GetBackBuffer_RHIThread();
-		}
-
-		FD3D12TextureBase* Result = Texture ? (FD3D12TextureBase*)RHITexture->GetTextureBaseRHI() : nullptr;
+		FD3D12TextureBase* Result = Texture ? (FD3D12TextureBase*)Texture->GetTextureBaseRHI() : nullptr;
 #if WITH_MGPU
 		if (Result && GNumExplicitGPUsForRendering > 1)
 		{
