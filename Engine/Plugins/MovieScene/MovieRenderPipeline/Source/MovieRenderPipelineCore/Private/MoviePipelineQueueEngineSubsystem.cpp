@@ -18,14 +18,6 @@ UMoviePipelineExecutorBase* UMoviePipelineQueueEngineSubsystem::RenderQueueWithE
 	return ActiveExecutor;
 }
 
-void UMoviePipelineQueueEngineSubsystem::OnSequencerContextBinding(bool& bAllowBinding)
-{
-	if (ActiveExecutor && ActiveExecutor->IsRendering())
-	{
-		bAllowBinding = false;
-	}
-}
-
 void UMoviePipelineQueueEngineSubsystem::OnExecutorFinished(UMoviePipelineExecutorBase* InPipelineExecutor, bool bSuccess)
 {
 	ActiveExecutor = nullptr;
