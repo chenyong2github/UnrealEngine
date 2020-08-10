@@ -5085,7 +5085,15 @@ EVisibility FBlueprintGraphActionDetails::GetAddNewInputOutputVisibility() const
 
 bool FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled() const
 {
-	return FBlueprintEditorUtils::IsGraphReadOnly(GetGraph());
+	if (DetailsLayoutPtr)
+	{
+		if (const IDetailsView* DetailsView = DetailsLayoutPtr->GetDetailsView())
+		{
+			return DetailsView->IsPropertyEditingEnabled();
+		}
+	}
+
+	return false;
 }
 
 EVisibility FBlueprintGraphActionDetails::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const
