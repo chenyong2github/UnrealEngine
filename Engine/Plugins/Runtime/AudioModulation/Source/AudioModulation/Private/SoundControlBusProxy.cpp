@@ -7,7 +7,7 @@
 #include "AudioModulationLogging.h"
 #include "AudioModulationSystem.h"
 #include "Engine/World.h"
-#include "SoundModulatorLFO.h"
+#include "SoundModulationGeneratorLFO.h"
 
 
 namespace AudioModulation

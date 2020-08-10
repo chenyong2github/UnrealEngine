@@ -20,12 +20,12 @@
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
 
-FSoundControlBusMixChannel::FSoundControlBusMixChannel()
+FSoundControlBusMixStage::FSoundControlBusMixStage()
 	: Bus(nullptr)
 {
 }
 
-FSoundControlBusMixChannel::FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue)
+FSoundControlBusMixStage::FSoundControlBusMixStage(USoundControlBusBase* InBus, const float TargetValue)
 	: Bus(InBus)
 {
 	if (Bus)
@@ -129,11 +129,11 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 		{
 			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue))
 			{
-				for (FSoundControlBusMixChannel& Channel : Channels)
+				for (FSoundControlBusMixStage& Stage : MixStages)
 				{
-					if (Channel.Bus)
+					if (Stage.Bus)
 					{
-						Channel.Value.TargetValue = FMath::Clamp(Channel.Value.TargetValue, Channel.Bus->GetMin(), Channel.Bus->GetMax());
+						Stage.Value.TargetValue = FMath::Clamp(Stage.Value.TargetValue, Stage.Bus->GetMin(), Stage.Bus->GetMax());
 					}
 				}
 			}

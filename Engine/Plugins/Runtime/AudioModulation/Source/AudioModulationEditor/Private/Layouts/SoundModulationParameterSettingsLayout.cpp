@@ -107,7 +107,7 @@ void FSoundModulationParameterSettingsLayoutCustomization::CustomizeChildren(TSh
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 				.FillWidth(0.4f)
-				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				.Padding(1.0f, 0.0f, 0.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					UnitValueHandle->CreatePropertyValueWidget()

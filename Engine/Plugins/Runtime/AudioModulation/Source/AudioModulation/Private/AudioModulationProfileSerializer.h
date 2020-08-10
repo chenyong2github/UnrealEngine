@@ -17,7 +17,7 @@ namespace AudioModulation
 {
 	class FProfileSerializer
 	{
-		static bool ChannelValueToFloat(const FConfigSection& InSection, const FName& InMember, float& OutValue)
+		static bool StageValueToFloat(const FConfigSection& InSection, const FName& InMember, float& OutValue)
 		{
 			if (const FConfigValue* Value = InSection.Find(InMember))
 			{
@@ -110,14 +110,14 @@ namespace AudioModulation
 			FConfigFile& ConfigFile = GConfig->FindOrAdd(ConfigPath);
 			ConfigFile.Reset();
 
-			for (const FSoundControlBusMixChannel& Channel : InBusMix.Channels)
+			for (const FSoundControlBusMixStage& Stage : InBusMix.MixStages)
 			{
-				if (Channel.Bus)
+				if (Stage.Bus)
 				{
-					FConfigSection& ConfigSection = ConfigFile.Add(Channel.Bus->GetPathName());
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), FConfigValue(FString::Printf(TEXT("%f"), Channel.Value.AttackTime)));
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), FConfigValue(FString::Printf(TEXT("%f"), Channel.Value.ReleaseTime)));
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), FConfigValue(FString::Printf(TEXT("%f"), Channel.Value.TargetValue)));
+					FConfigSection& ConfigSection = ConfigFile.Add(Stage.Bus->GetPathName());
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.AttackTime)));
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.ReleaseTime)));
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.TargetValue)));
 				}
 			}
 			ConfigFile.Dirty = true;
@@ -150,29 +150,29 @@ namespace AudioModulation
 
 			bool bMarkDirty = false;
 			TSet<FString> SectionsProcessed;
-			TArray<FSoundControlBusMixChannel>& Channels = InOutBusMix.Channels;
-			for (int32 i = Channels.Num() - 1; i >= 0; --i)
+			TArray<FSoundControlBusMixStage>& Stages = InOutBusMix.MixStages;
+			for (int32 i = Stages.Num() - 1; i >= 0; --i)
 			{
-				FSoundControlBusMixChannel& Channel = Channels[i];
-				if (Channel.Bus)
+				FSoundControlBusMixStage& Stage = Stages[i];
+				if (Stage.Bus)
 				{
-					FString PathName = Channel.Bus->GetPathName();
+					FString PathName = Stage.Bus->GetPathName();
 					if (FConfigSection* ConfigSection = ConfigFile->Find(PathName))
 					{
-						ChannelValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), Channel.Value.AttackTime);
-						ChannelValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Channel.Value.ReleaseTime);
-						ChannelValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Channel.Value.TargetValue);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), Stage.Value.AttackTime);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Stage.Value.ReleaseTime);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Stage.Value.TargetValue);
 						SectionsProcessed.Emplace(MoveTemp(PathName));
 						bMarkDirty = true;
 					}
 					else
 					{
-						Channels.RemoveAt(i);
+						Stages.RemoveAt(i);
 					}
 				}
 				else
 				{
-					Channels.RemoveAt(i);
+					Stages.RemoveAt(i);
 				}
 			}
 
@@ -186,21 +186,21 @@ namespace AudioModulation
 					UObject* BusObj = FSoftObjectPath(SectionName).TryLoad();
 					if (USoundControlBusBase* Bus = Cast<USoundControlBusBase>(BusObj))
 					{
-						FSoundControlBusMixChannel Channel;
-						Channel.Bus = Bus;
+						FSoundControlBusMixStage Stage;
+						Stage.Bus = Bus;
 
-						ChannelValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime),  Channel.Value.AttackTime);
-						ChannelValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Channel.Value.ReleaseTime);
-						ChannelValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Channel.Value.TargetValue);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime),  Stage.Value.AttackTime);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Stage.Value.ReleaseTime);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Stage.Value.TargetValue);
 
-						Channels.Emplace(MoveTemp(Channel));
+						Stages.Emplace(MoveTemp(Stage));
 
 						bMarkDirty = true;
 					}
 					else
 					{
 						UE_LOG(LogAudioModulation, Warning,
-							TEXT("Bus missing or invalid type at '%s'. Profile '%s' channel not added/updated for mix '%s'"),
+							TEXT("Bus missing or invalid type at '%s'. Profile '%s' stage not added/updated for mix '%s'"),
 							*SectionName,
 							*ConfigPath,
 							*Path);

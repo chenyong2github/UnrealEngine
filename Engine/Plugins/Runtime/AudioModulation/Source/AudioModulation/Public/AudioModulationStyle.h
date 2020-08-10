@@ -14,7 +14,7 @@ public:
 	GENERATED_BODY()
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
-	static const FColor GetBusModulatorColor() { return FColor(204, 51, 153); }
+	static const FColor GetModulationGeneratorColor() { return FColor(204, 51, 153); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation|Style")
 	static const FColor GetControlBusColor() { return FColor(255, 51, 153); }

@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "IAudioModulation.h"
 #include "SoundModulationParameter.h"
-#include "SoundModulatorLFO.h"
+#include "SoundModulationGeneratorLFO.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -40,8 +40,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
 	FString Address;
 
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
-	TArray<USoundBusModulatorBase*> Modulators;
+	UPROPERTY(EditAnywhere, Category = Generators, BlueprintReadWrite, meta = (DisplayName = "Generators"))
+	TArray<USoundModulationGenerator*> Modulators;
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;

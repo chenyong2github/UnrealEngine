@@ -5,7 +5,7 @@
 #include "SoundControlBus.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 
 
 namespace AudioModulation
@@ -34,9 +34,9 @@ namespace AudioModulation
 			, Max(InBus.GetMax())
 			, MixFunction(InBus.GetMixFunction())
 		{
-			for (const USoundBusModulatorBase* Modulator : InBus.Modulators)
+			for (const USoundModulationGenerator* Modulator : InBus.Modulators)
 			{
-				if (const USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
+				if (const USoundModulationGeneratorLFO* LFO = Cast<USoundModulationGeneratorLFO>(Modulator))
 				{
 					LFOSettings.Add(*LFO);
 				}

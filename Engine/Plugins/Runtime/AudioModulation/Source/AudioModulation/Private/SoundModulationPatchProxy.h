@@ -5,7 +5,7 @@
 #include "SoundControlBusProxy.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 #include "Templates/Function.h"
 
 

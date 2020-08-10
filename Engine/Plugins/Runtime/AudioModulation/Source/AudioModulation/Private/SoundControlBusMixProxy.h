@@ -5,11 +5,11 @@
 #include "SoundControlBusProxy.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 
 
 // Forward Declarations
-struct FSoundControlBusMixChannel;
+struct FSoundControlBusMixStage;
 class USoundControlBusMix;
 
 
@@ -21,10 +21,10 @@ namespace AudioModulation
 	using FBusMixId = uint32;
 	extern const FBusMixId InvalidBusMixId;
 
-	class FModulatorBusMixChannelSettings : public TModulatorBase<FBusId>
+	class FModulatorBusMixStageSettings : public TModulatorBase<FBusId>
 	{
 	public:
-		FModulatorBusMixChannelSettings(const FSoundControlBusMixChannel& InChannel);
+		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage);
 
 		FString Address;
 		uint32 ClassId;
@@ -37,14 +37,14 @@ namespace AudioModulation
 	public:
 		FModulatorBusMixSettings(const USoundControlBusMix& InBusMix);
 
-		TArray<FModulatorBusMixChannelSettings> Channels;
+		TArray<FModulatorBusMixStageSettings> Stages;
 	};
 
-	class FModulatorBusMixChannelProxy : public TModulatorBase<FBusId>
+	class FModulatorBusMixStageProxy : public TModulatorBase<FBusId>
 	{
 	public:
 
-		FModulatorBusMixChannelProxy(const FModulatorBusMixChannelSettings& InSettings, FAudioModulationSystem& OutModSystem);
+		FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem);
 
 		FString Address;
 		uint32 ClassId;
@@ -68,18 +68,18 @@ namespace AudioModulation
 
 		EStatus GetStatus() const;
 
-		// Resets channel map
+		// Resets stage map
 		void Reset();
 
 		void SetEnabled(const FModulatorBusMixSettings& InSettings);
-		void SetMix(const TArray<FModulatorBusMixChannelSettings>& InChannels);
+		void SetMix(const TArray<FModulatorBusMixStageSettings>& InStages);
 		void SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue);
 		void SetStopping();
 
 		void Update(const double Elapsed, FBusProxyMap& ProxyMap);
 
-		using FChannelMap = TMap<FBusId, FModulatorBusMixChannelProxy>;
-		FChannelMap Channels;
+		using FStageMap = TMap<FBusId, FModulatorBusMixStageProxy>;
+		FStageMap Stages;
 
 	private:
 		EStatus Status;
