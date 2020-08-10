@@ -2,6 +2,13 @@
 //	Network Prediction Plugin
 // --------------------------------------------------------------------------------------------------------------------
 
+8-10-2020:
+
+Initial mock root motion checked in. This is the begining of root motion networking which will find its way into the new movement system.
+Initial focus is just on having montage-based root motion support back in, plus non animation based sources like curves (more to come here).
+The animation team is planning for other animation based root motion sources.
+
+
 7-31-2020:
 
 Couple notable changes related to physics and UPrimitiveComponents
