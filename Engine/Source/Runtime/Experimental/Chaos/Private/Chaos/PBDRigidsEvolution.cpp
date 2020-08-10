@@ -332,8 +332,8 @@ namespace Chaos
 				auto ParticleView = MakeConstParticleView(MoveTemp(ViewsPerBucket[BucketIdx]));
 				auto NewStruct = SpatialCollectionFactory.CreateAccelerationPerBucket_Threaded(ParticleView,BucketIdx,IsForceFullBuild);
 
-				// we kicked of the creation of a new structure and it's going to time-slice the work
-				IsTimeSlicingProgressing = true;
+				//If new structure is not done mark time slicing in progress
+				IsTimeSlicingProgressing |= !NewStruct->IsAsyncTimeSlicingComplete();
 
 				AccelerationStructure->AddSubstructure(MoveTemp(NewStruct),BucketIdx);
 
