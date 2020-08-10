@@ -335,23 +335,6 @@ private:
 	const FName TagKeyName;
 };
 
-struct FAssetDataKeyFuncs : BaseKeyFuncs<FAssetData, FName>
-{
-	static FORCEINLINE const FName& GetSetKey(const FAssetData& AssetData)
-	{
-		return AssetData.ObjectPath;
-	}
-	static FORCEINLINE bool Matches(const FName& A, const FName& B)
-	{
-		return A.GetDisplayIndex() == B.GetDisplayIndex();
-	}
-	static FORCEINLINE uint32 GetKeyHash(const FName& Key)
-	{
-		return GetTypeHash(Key.GetDisplayIndex());
-	}
-};
-typedef TSet<FAssetData, FAssetDataKeyFuncs> FAssetDataSet;
-
 void FAssetRegistrySearchProvider::Search(FSearchQueryPtr SearchQuery)
 {
 	IAssetRegistry& Registry = FAssetRegistryModule::GetRegistry();
@@ -360,15 +343,12 @@ void FAssetRegistrySearchProvider::Search(FSearchQueryPtr SearchQuery)
 	TArray<FAssetData> Assets;
 	Registry.GetAllAssets(Assets);
 
-	FAssetDataSet AssetSet;
-	AssetSet.Append(Assets);
-
-	Async(EAsyncExecution::LargeThreadPool, [AssetSet = MoveTemp(AssetSet), SearchQuery]() mutable {
+	Async(EAsyncExecution::LargeThreadPool, [Assets = MoveTemp(Assets), SearchQuery]() mutable {
 		FTextFilterExpressionEvaluator TextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::Complex);
 		TextFilterExpressionEvaluator.SetFilterText(FText::FromString(SearchQuery->QueryText));
 		FFrontendFilter_TextFilterExpressionContext_HackCopy TextFilterExpressionContext;
 
-		for (auto AssetIter = AssetSet.CreateIterator(); AssetIter; ++AssetIter)
+		for (auto AssetIter = Assets.CreateIterator(); AssetIter; ++AssetIter)
 		{
 			const FAssetData& Asset = *AssetIter;
 			TextFilterExpressionContext.SetAsset(&Asset);
@@ -380,7 +360,7 @@ void FAssetRegistrySearchProvider::Search(FSearchQueryPtr SearchQuery)
 		}
 
 		TArray<FSearchRecord> SearchResults;
-		for (const FAssetData& Asset : AssetSet)
+		for (const FAssetData& Asset : Assets)
 		{
 			FSearchRecord Record;
 			Record.AssetPath = Asset.ObjectPath.ToString();
