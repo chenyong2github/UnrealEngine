@@ -1968,6 +1968,8 @@ void USkeletalMeshComponent::HandleExistingParallelClothSimulation()
 
 	if(IsValidRef(ParallelClothTask))
 	{
+		CSV_SCOPED_SET_WAIT_STAT(Cloth);
+
 		// There's a simulation in flight
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(ParallelClothTask, ENamedThreads::AnyThread);
 		CompleteParallelClothSimulation();
