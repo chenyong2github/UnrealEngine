@@ -92,10 +92,13 @@ public:
 	/**
 	* Constructor, initializing member variables.
 	*
-	* @param InFilename	Filename to use, can be nullptr
+	* @param InFilename	Filename to use, can be nullptr. If null, a file name will be automatically generated. If a filename is specified but cannot be opened
+	*                   because it is already open/used by another process, the implementation will try to generate a new name automatically, until the a file
+	*                   is created or the number of trials exhausted (32). 
 	* @param bDisableBackup If true, existing files will not be backed up
+	* @param bCreateWriterLazily If true, delay the creation of the file until something needs to be written, otherwise, open it immediatedly.
 	*/
-	FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false);
+	FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false, bool bCreateWriterLazily = true);
 
 	/**
 	* Destructor to perform teardown

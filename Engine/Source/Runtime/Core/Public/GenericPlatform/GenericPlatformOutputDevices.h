@@ -7,6 +7,7 @@
 
 class FOutputDeviceConsole;
 class FOutputDeviceError;
+class FOutputDeviceFile;
 
 /**
  * Generic implementation for most platforms
@@ -27,6 +28,9 @@ struct CORE_API FGenericPlatformOutputDevices
 	static FFeedbackContext*            GetFeedbackContext();
 
 protected:
+	static void InitDefaultOutputDeviceFile();
+
 	static const SIZE_T AbsoluteFileNameMaxLength = 1024;
 	static TCHAR CachedAbsoluteFilename[AbsoluteFileNameMaxLength];
+	static TUniquePtr<FOutputDeviceFile> DefaultOutputDeviceFileTempHolder;
 };
