@@ -1055,7 +1055,10 @@ FGameplayEffectSpecHandle UGameplayAbility::MakeOutgoingGameplayEffectSpec(const
 
 void UGameplayAbility::ApplyAbilityTagsToGameplayEffectSpec(FGameplayEffectSpec& Spec, FGameplayAbilitySpec* AbilitySpec) const
 {
-	Spec.CapturedSourceTags.GetSpecTags().AppendTags(AbilityTags);
+	FGameplayTagContainer& CapturedSourceTags = Spec.CapturedSourceTags.GetSpecTags();
+
+	CapturedSourceTags.AppendTags(AbilityTags);
+	CapturedSourceTags.AppendTags(AbilitySpec->DynamicAbilityTags);
 
 	// Allow the source object of the ability to propagate tags along as well
 	if (AbilitySpec)
@@ -1066,7 +1069,7 @@ void UGameplayAbility::ApplyAbilityTagsToGameplayEffectSpec(FGameplayEffectSpec&
 			FGameplayTagContainer SourceObjTags;
 			SourceObjAsTagInterface->GetOwnedGameplayTags(SourceObjTags);
 
-			Spec.CapturedSourceTags.GetSpecTags().AppendTags(SourceObjTags);
+			CapturedSourceTags.AppendTags(SourceObjTags);
 		}
 
 		// Copy SetByCallerMagnitudes 
