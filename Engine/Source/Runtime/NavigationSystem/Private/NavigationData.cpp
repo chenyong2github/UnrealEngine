@@ -150,6 +150,9 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 	, FindHierarchicalPathImplementation(NULL)
 	, bRegistered(false)
 	, bRebuildingSuspended(false)
+#if WITH_EDITORONLY_DATA
+	, bIsBuildingOnLoad(false)
+#endif
 	, NavDataUniqueID(GetNextUniqueID())
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -525,8 +528,6 @@ void ANavigationData::RebuildAll()
 	
 	if (NavDataGenerator.IsValid())
 	{
-		// mark outermost package as dirty. Internal filters will dirty only for valid scenarios (i.e. commandlet or editor mode only)
-		MarkPackageDirty();
 		NavDataGenerator->RebuildAll();
 	}
 }
