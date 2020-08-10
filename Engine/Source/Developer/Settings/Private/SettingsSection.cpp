@@ -55,7 +55,7 @@ bool FSettingsSection::CanImport() const
 
 bool FSettingsSection::CanResetDefaults() const
 {
-	return (ResetDefaultsDelegate.IsBound() || (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig)));
+	return (ResetDefaultsDelegate.IsBound() || (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig)));
 }
 
 
@@ -67,7 +67,7 @@ bool FSettingsSection::CanSave() const
 
 bool FSettingsSection::CanSaveDefaults() const
 {
-	return (SaveDefaultsDelegate.IsBound() || (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig)));
+	return (SaveDefaultsDelegate.IsBound() || (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig)));
 }
 
 
@@ -173,7 +173,7 @@ bool FSettingsSection::ResetDefaults()
 		return ResetDefaultsDelegate.Execute();
 	}
 
-	if (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig))
+	if (SettingsObject.IsValid() && SettingsObject->GetClass()->HasAnyClassFlags(CLASS_Config) && !SettingsObject->GetClass()->HasAnyClassFlags(CLASS_DefaultConfig | CLASS_GlobalUserConfig | CLASS_ProjectUserConfig))
 	{
 		FString ConfigName = SettingsObject->GetClass()->GetConfigName();
 
@@ -223,6 +223,10 @@ bool FSettingsSection::Save()
 		else if (SettingsObject->GetClass()->HasAnyClassFlags(CLASS_GlobalUserConfig))
 		{
 			SettingsObject->UpdateGlobalUserConfigFile();
+		}
+		else if (SettingsObject->GetClass()->HasAnyClassFlags(CLASS_ProjectUserConfig))
+		{
+			SettingsObject->UpdateProjectUserConfigFile();
 		}
 		else
 		{
