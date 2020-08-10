@@ -486,6 +486,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			}
 
 			TeardownAudioRendering();
+			LevelSequenceActor->GetSequencePlayer()->Stop();
 			RestoreTargetSequenceToOriginalState();
 
 			if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
@@ -757,14 +758,16 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 		LevelSequenceActor = GetWorld()->SpawnActor<ALevelSequenceActor>();
 		check(LevelSequenceActor);
 	}
-
-	// Use our duplicated sequence
-	LevelSequenceActor->SetSequence(TargetSequence);
-
+	
 	// Enforce settings.
 	LevelSequenceActor->PlaybackSettings.LoopCount.Value = 0;
 	LevelSequenceActor->PlaybackSettings.bAutoPlay = false;
 	LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
+	LevelSequenceActor->PlaybackSettings.bRestoreState = true;
+
+	// Use our duplicated sequence
+	LevelSequenceActor->SetSequence(TargetSequence);
+
 	LevelSequenceActor->GetSequencePlayer()->SetTimeController(CustomSequenceTimeController);
 	LevelSequenceActor->GetSequencePlayer()->Stop();
 
