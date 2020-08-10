@@ -52,7 +52,7 @@ namespace UE4PimplPtr_Private
 	struct TPimplHeapObjectImpl
 	{
 		template <typename... ArgTypes>
-		explicit TPimplHeapObjectImpl(ArgTypes... Args)
+		explicit TPimplHeapObjectImpl(ArgTypes&&... Args)
 			: Deleter(&DeleterFunc<T>)
 			, Val(Forward<ArgTypes>(Args)...)
 		{
