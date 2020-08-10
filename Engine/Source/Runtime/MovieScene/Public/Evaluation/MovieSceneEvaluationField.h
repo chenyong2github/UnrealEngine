@@ -161,7 +161,7 @@ struct FMovieSceneEvaluationFieldEntityTree
 		}
 		friend bool operator==(const FEntityAndMetaDataIndex& A, const FEntityAndMetaDataIndex& B)
 		{
-			return A.EntityIndex == B.EntityIndex && B.MetaDataIndex == B.MetaDataIndex;
+			return A.EntityIndex == B.EntityIndex && A.MetaDataIndex == B.MetaDataIndex;
 		}
 	};
 	TMovieSceneEvaluationTree<FEntityAndMetaDataIndex> SerializedData;
