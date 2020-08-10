@@ -135,9 +135,9 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s found in map with no HLOD setup or disabled HLOD system. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
 	}
-	else if (InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(World))
+	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(World))
 	{
-		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with HLODProxy belonging to another level (%s). Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetProxy()->GetMap().ToString(), *InLODActor->GetOutermost()->GetPathName());
+		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with invalid HLODProxy. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
 	}
 	else if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && !InLODActor->HasAnyFlags(RF_Transient))
