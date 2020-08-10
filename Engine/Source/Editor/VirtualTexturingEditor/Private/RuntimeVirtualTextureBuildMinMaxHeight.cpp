@@ -148,9 +148,9 @@ namespace RuntimeVirtualTexture
 		FinalPixels.SetNumUninitialized(RenderTileResources.GetNumFinalTexels() * 4);
 
 		// Iterate over all mip0 tiles and downsample/store each one to the final image
-		for (int32 TileY = 0; TileY < NumTilesX && !Task.ShouldCancel(); TileY++)
+		for (int32 TileY = 0; TileY < NumTilesY && !Task.ShouldCancel(); TileY++)
 		{
-			for (int32 TileX = 0; TileX < NumTilesY; TileX++)
+			for (int32 TileX = 0; TileX < NumTilesX; TileX++)
 			{
 				// Render tile
 				Task.EnterProgressFrame();
@@ -162,6 +162,7 @@ namespace RuntimeVirtualTexture
 				// Stream textures for this tile. This triggers a render flush internally.
 				//todo[vt]: Batch groups of streaming locations and render commands to reduce number of flushes.
 				const FVector StreamingWorldPos = Transform.TransformPosition(FVector(UVRange.GetCenter(), 0.5f));
+				IStreamingManager::Get().Tick(0.f);
 				IStreamingManager::Get().AddViewSlaveLocation(StreamingWorldPos);
 				IStreamingManager::Get().StreamAllResources(0);
 
