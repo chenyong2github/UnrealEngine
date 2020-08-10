@@ -25,6 +25,10 @@
 		{
 			"Name": "WmfMedia",
 			"Enabled": true
+		},
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
 		}
 	]
 }

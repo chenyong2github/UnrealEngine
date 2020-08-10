@@ -12,7 +12,8 @@ namespace UnrealBuildTool.Rules
 					"ProResToolbox",
                     "WmfMediaFactory",
                     "WmfMedia",
-					"ImageWriteQueue"
+					"ImageWriteQueue",
+					"MovieRenderPipelineCore",
                 });
 
 			PrivateDependencyModuleNames.AddRange(
