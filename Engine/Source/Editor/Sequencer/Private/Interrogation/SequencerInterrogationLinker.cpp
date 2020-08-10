@@ -27,6 +27,7 @@ void USequencerInterrogationLinker::Reset()
 
 	EntitiesScratch.Reset();
 	EntityComponentField = FMovieSceneEntityComponentField();
+	ImportedEntities.Reset();
 
 	ChannelToTime.Reset();
 
@@ -78,33 +79,12 @@ UE::MovieScene::FInterrogationChannel USequencerInterrogationLinker::AddInterrog
 	EntitiesScratch.Reset();
 	EntityComponentField.Entities.ExtractAtTime(Time.FrameNumber, UnusedEntityRange, EntitiesScratch);
 
-	FEntityImportParams Params;
-	Params.Sequence.InterrogationChannel = Channel;
+	FEntityImportSequenceParams Params;
+	Params.InterrogationChannel = Channel;
 
 	for (const FMovieSceneEvaluationFieldEntityPtr& Entity : EntitiesScratch)
 	{
-		UObject* EntityOwner = Entity.EntityOwner.Get();
-		IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
-		if (!Provider)
-		{
-			continue;
-		}
-
-		Params.EntityID = Entity.EntityID;
-		Params.ObjectBindingID = EntityComponentField.EntityOwnerToObjectBinding.FindRef(EntityOwner);
-
-		FImportedEntity ImportedEntity;
-		Provider->InterrogateEntity(this, Params, &ImportedEntity);
-
-		if (!ImportedEntity.IsEmpty())
-		{
-			if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
-			{
-				Section->BuildDefaultComponents(this, Params, &ImportedEntity);
-			}
-
-			ImportedEntity.Manufacture(Params, &EntityManager);
-		}
+		InterrogateEntity(Params, Channel, Entity);
 	}
 
 	if (Channel == FInterrogationChannel::Last())
@@ -119,6 +99,40 @@ UE::MovieScene::FInterrogationChannel USequencerInterrogationLinker::AddInterrog
 	ChannelToTime.Add(Channel, Time);
 
 	return Channel;
+}
+
+void USequencerInterrogationLinker::InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityPtr& Entity)
+{
+	using namespace UE::MovieScene;
+
+	UObject* EntityOwner = Entity.EntityOwner.Get();
+	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
+	if (!Provider)
+	{
+		return;
+	}
+
+	FEntityImportParams Params;
+	Params.Sequence = ImportParams;
+	Params.EntityID = Entity.EntityID;
+	Params.ObjectBindingID = EntityComponentField.EntityOwnerToObjectBinding.FindRef(EntityOwner);
+
+	FImportedEntity ImportedEntity;
+	Provider->InterrogateEntity(this, Params, &ImportedEntity);
+
+	if (!ImportedEntity.IsEmpty())
+	{
+		if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
+		{
+			Section->BuildDefaultComponents(this, Params, &ImportedEntity);
+		}
+
+		const FMovieSceneEntityID NewEntityID = ImportedEntity.Manufacture(Params, &EntityManager);
+
+		const FImportedEntityKey NewEntityKey { InterrogationChannel, Entity };
+
+		ImportedEntities.Add(NewEntityKey, NewEntityID);
+	}
 }
 
 void USequencerInterrogationLinker::Update()
@@ -141,3 +155,23 @@ void USequencerInterrogationLinker::Update()
 
 	EntityManager.IncrementSystemSerial();
 }
+
+UE::MovieScene::FMovieSceneEntityID USequencerInterrogationLinker::FindEntityFromOwner(UE::MovieScene::FInterrogationChannel InterrogationChannel, UObject* Owner, uint32 EntityID) const
+{
+	using namespace UE::MovieScene;
+
+	FImportedEntityKey Key { InterrogationChannel, FMovieSceneEvaluationFieldEntityPtr { Owner, EntityID } };
+	return ImportedEntities.FindRef(Key);
+}
+
+UE::MovieScene::FMovieSceneEntityID USequencerInterrogationLinker::FindEntityFromOwner(FFrameTime InterrogationTime, UObject* Owner, uint32 EntityID) const
+{
+	using namespace UE::MovieScene;
+
+	if (const FInterrogationChannel* InterrogationChannel = ChannelToTime.FindKey(InterrogationTime))
+	{
+		return FindEntityFromOwner(*InterrogationChannel, Owner, EntityID);
+	}
+	return FMovieSceneEntityID::Invalid();
+}
+
