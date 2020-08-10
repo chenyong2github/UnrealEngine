@@ -2,37 +2,14 @@
 
 #include "EditorViewportTabContent.h"
 #include "SEditorViewport.h"
-#include "EditorViewportLayoutOnePane.h"
-#include "EditorViewportLayoutTwoPanes.h"
-#include "EditorViewportLayoutThreePanes.h"
-#include "EditorViewportLayoutFourPanes.h"
-#include "EditorViewportLayout2x2.h"
 #include "Framework/Docking/LayoutService.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 
 TSharedPtr< FEditorViewportLayout > FEditorViewportTabContent::ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts)
 {
-	TSharedPtr< FEditorViewportLayout > ViewportLayout;
-
-	//The items in these ifs should match the names in namespace EditorViewportConfigurationNames
-	if (TypeName == EditorViewportConfigurationNames::TwoPanesHoriz) ViewportLayout = MakeShareable(new FEditorViewportLayoutTwoPanesHoriz);
-	else if (TypeName == EditorViewportConfigurationNames::TwoPanesVert) ViewportLayout = MakeShareable(new FEditorViewportLayoutTwoPanesVert);
- 	else if (TypeName == EditorViewportConfigurationNames::FourPanes2x2) ViewportLayout = MakeShareable(new FEditorViewportLayout2x2);
-	else if (TypeName == EditorViewportConfigurationNames::ThreePanesLeft) ViewportLayout = MakeShareable(new FEditorViewportLayoutThreePanesLeft);
-	else if (TypeName == EditorViewportConfigurationNames::ThreePanesRight) ViewportLayout = MakeShareable(new FEditorViewportLayoutThreePanesRight);
-	else if (TypeName == EditorViewportConfigurationNames::ThreePanesTop) ViewportLayout = MakeShareable(new FEditorViewportLayoutThreePanesTop);
-	else if (TypeName == EditorViewportConfigurationNames::ThreePanesBottom) ViewportLayout = MakeShareable(new FEditorViewportLayoutThreePanesBottom);
-	else if (TypeName == EditorViewportConfigurationNames::FourPanesLeft) ViewportLayout = MakeShareable(new FEditorViewportLayoutFourPanesLeft);
-	else if (TypeName == EditorViewportConfigurationNames::FourPanesRight) ViewportLayout = MakeShareable(new FEditorViewportLayoutFourPanesRight);
-	else if (TypeName == EditorViewportConfigurationNames::FourPanesBottom) ViewportLayout = MakeShareable(new FEditorViewportLayoutFourPanesBottom);
-  	else if (TypeName == EditorViewportConfigurationNames::FourPanesTop) ViewportLayout = MakeShareable(new FEditorViewportLayoutFourPanesTop);
-	else /*(TypeName == EditorViewportConfigurationNames::OnePane)*/ ViewportLayout = MakeShareable(new FEditorViewportLayoutOnePane);
-
-	if (!ensure(ViewportLayout.IsValid()))
-	{
-		ViewportLayout = MakeShareable(new FEditorViewportLayoutOnePane);
-	}
+	TSharedPtr<FEditorViewportLayout> ViewportLayout = FactoryViewportLayout(bSwitchingLayouts);
+	ViewportLayout->FactoryPaneConfigurationFromTypeName(TypeName);
 	return ViewportLayout;
 }
 
@@ -84,15 +61,7 @@ void FEditorViewportTabContent::SaveConfig() const
 {
 	if (ActiveViewportLayout.IsValid())
 	{
-		if (!LayoutString.IsEmpty())
-		{
-			FString LayoutTypeString = ActiveViewportLayout->GetLayoutTypeName().ToString();
-
-			const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
-			GConfig->SetString(*IniSection, *(LayoutString + TEXT(".LayoutType")), *LayoutTypeString, GEditorPerProjectIni);
-		}
-
-		ActiveViewportLayout->SaveLayoutString(LayoutString);
+		ActiveViewportLayout->SaveConfig(LayoutString);
 	}
 }
 
@@ -142,7 +111,7 @@ void FEditorViewportTabContent::RefreshViewportConfiguration()
 		return;
 	}
 
-	FName ConfigurationName = ActiveViewportLayout->GetLayoutTypeName();
+	FName ConfigurationName = ActiveViewportLayout->GetActivePaneConfigurationTypeName();
 	for (auto& Pair : ActiveViewportLayout->GetViewports())
 	{
 		if (Pair.Value->AsWidget()->HasFocusedDescendants())
@@ -160,4 +129,9 @@ void FEditorViewportTabContent::RefreshViewportConfiguration()
 const AssetEditorViewportFactoryFunction* FEditorViewportTabContent::FindViewportCreationFactory(FName InTypeName) const
 {
 	return ViewportCreationFactories.Find(InTypeName);
+}
+
+TSharedPtr<FEditorViewportLayout> FEditorViewportTabContent::FactoryViewportLayout(bool bIsSwitchingLayouts)
+{
+	return MakeShareable(new FAssetEditorViewportLayout);
 }

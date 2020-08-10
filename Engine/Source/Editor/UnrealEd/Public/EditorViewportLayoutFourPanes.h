@@ -8,20 +8,19 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "AssetEditorViewportLayout.h"
 
-class FEditorViewportLayoutFourPanes : public FAssetEditorViewportLayout
+class FEditorViewportLayoutFourPanes : public FAssetEditorViewportPaneLayout
 {
-protected:
-	/**
-	 * Creates the viewports and splitter for the four-pane layout              
-	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
+public:
+	// IAssetEditorViewportLayoutConfiguration overrides
+	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) override;
+	virtual void SaveLayoutString(const FString& LayoutString) const override;
+	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
-		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		TSharedRef<SWidget> Viewport0, TSharedRef<SWidget> Viewport1, TSharedRef<SWidget> Viewport2, TSharedRef<SWidget> Viewport3,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage0, float SecondarySplitterPercentage1) = 0;
 
-protected:
 	/** The splitter widgets */
 	TSharedPtr< class SSplitter > PrimarySplitterWidget;
 	TSharedPtr< class SSplitter > SecondarySplitterWidget;
@@ -33,10 +32,10 @@ protected:
 class FEditorViewportLayoutFourPanesLeft : public FEditorViewportLayoutFourPanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::FourPanesLeft; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
-		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		TSharedRef<SWidget> Viewport0, TSharedRef<SWidget> Viewport1, TSharedRef<SWidget> Viewport2, TSharedRef<SWidget> Viewport3,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage0, float SecondarySplitterPercentage1) override;
 };
@@ -47,10 +46,10 @@ public:
 class FEditorViewportLayoutFourPanesRight : public FEditorViewportLayoutFourPanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::FourPanesRight; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
-		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		TSharedRef<SWidget> Viewport0, TSharedRef<SWidget> Viewport1, TSharedRef<SWidget> Viewport2, TSharedRef<SWidget> Viewport3,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage0, float SecondarySplitterPercentage1) override;
 };
@@ -61,10 +60,10 @@ public:
 class FEditorViewportLayoutFourPanesTop : public FEditorViewportLayoutFourPanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::FourPanesTop; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
-		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		TSharedRef<SWidget> Viewport0, TSharedRef<SWidget> Viewport1, TSharedRef<SWidget> Viewport2, TSharedRef<SWidget> Viewport3,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage0, float SecondarySplitterPercentage1) override;
 };
@@ -75,10 +74,10 @@ public:
 class FEditorViewportLayoutFourPanesBottom : public FEditorViewportLayoutFourPanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::FourPanesBottom; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeFourPanelWidget(
-		TMap<FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		TSharedRef<SWidget> Viewport0, TSharedRef<SWidget> Viewport1, TSharedRef<SWidget> Viewport2, TSharedRef<SWidget> Viewport3,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage0, float SecondarySplitterPercentage1) override;
 };

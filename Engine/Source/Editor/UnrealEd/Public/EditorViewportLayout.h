@@ -35,7 +35,7 @@ class FEditorViewportLayout
 {
 public:
 	/** Virtual destruction */
-	virtual ~FEditorViewportLayout() {};
+	virtual ~FEditorViewportLayout() = default;
 
 	virtual bool IsVisible() const { return true; }
 
@@ -44,16 +44,13 @@ public:
 	*/
 	const TMap< FName, TSharedPtr<IEditorViewportLayoutEntity> >& GetViewports() const { return Viewports; }
 
-	/**
-	* Saves viewport layout information between editor sessions
-	*/
-	virtual void SaveLayoutString(const FString& LayoutString) const {}
+	virtual void FactoryPaneConfigurationFromTypeName(const FName& InLayoutConfigTypeName) = 0;
+	virtual const FName GetActivePaneConfigurationTypeName() const = 0;
 
-	virtual const FName& GetLayoutTypeName() const = 0;
+	virtual void SaveConfig(const FString& LayoutSring) const {}
+	virtual void LoadConfig(const FString& LayoutString) {}
 
 protected:
 	/** List of all of the viewports in this layout, keyed on their config key */
 	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > > Viewports;
-
-
 };

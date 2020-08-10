@@ -2,49 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "LevelViewportLayout.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "LevelViewportActions.h"
+#include "EditorViewportLayoutTwoPanes.h"
 
-template <EOrientation TOrientation>
-class TLevelViewportLayoutTwoPanes : public FLevelViewportLayout
-{
-public:
-	/**
-	 * Saves viewport layout information between editor sessions
-	 */
-	virtual void SaveLayoutString(const FString& LayoutString) const override;
-protected:
-	/**
-	 * Creates the viewports and splitter for the two panes vertical layout                   
-	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutTwoPanesVert instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutTwoPanesVert FLevelViewportLayoutTwoPanesVert;
 
-	/** Overridden from FLevelViewportLayout */
-	virtual void ReplaceWidget( TSharedRef< SWidget > Source, TSharedRef< SWidget > Replacement ) override;
-
-
-private:
-	/** The splitter widget */
-	TSharedPtr< class SSplitter > SplitterWidget;
-};
-
-
-// FLevelViewportLayoutTwoPanesVert /////////////////////////////
-
-class FLevelViewportLayoutTwoPanesVert : public TLevelViewportLayoutTwoPanes<EOrientation::Orient_Vertical>
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::TwoPanesVert; }
-};
-
-
-// FLevelViewportLayoutTwoPanesHoriz /////////////////////////////
-
-class FLevelViewportLayoutTwoPanesHoriz : public TLevelViewportLayoutTwoPanes<EOrientation::Orient_Horizontal>
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::TwoPanesHoriz; }
-};
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutTwoPanesHoriz instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutTwoPanesHoriz FLevelViewportLayoutTwoPanesHoriz;

@@ -46,18 +46,18 @@ using AssetEditorViewportFactoryFunction = TFunction<TSharedRef<SAssetEditorView
 
 namespace EditorViewportConfigurationNames
 {
-	static FName TwoPanesHoriz("TwoPanesHoriz");
-	static FName TwoPanesVert("TwoPanesVert");
-	static FName ThreePanesLeft("ThreePanesLeft");
-	static FName ThreePanesRight("ThreePanesRight");
-	static FName ThreePanesTop("ThreePanesTop");
-	static FName ThreePanesBottom("ThreePanesBottom");
-	static FName FourPanesLeft("FourPanesLeft");
-	static FName FourPanesRight("FourPanesRight");
-	static FName FourPanesTop("FourPanesTop");
-	static FName FourPanesBottom("FourPanesBottom");
-	static FName FourPanes2x2("FourPanes2x2");
-	static FName OnePane("OnePane");
+	static const FName TwoPanesHoriz("TwoPanesHoriz");
+	static const FName TwoPanesVert("TwoPanesVert");
+	static const FName ThreePanesLeft("ThreePanesLeft");
+	static const FName ThreePanesRight("ThreePanesRight");
+	static const FName ThreePanesTop("ThreePanesTop");
+	static const FName ThreePanesBottom("ThreePanesBottom");
+	static const FName FourPanesLeft("FourPanesLeft");
+	static const FName FourPanesRight("FourPanesRight");
+	static const FName FourPanesTop("FourPanesTop");
+	static const FName FourPanesBottom("FourPanesBottom");
+	static const FName FourPanes2x2("FourPanes2x2");
+	static const FName OnePane("OnePane");
 }
 
 /**
@@ -113,6 +113,39 @@ private:
 	FVector2D CachedSize;
 };
 
+class UNREALED_API FAssetEditorViewportPaneLayout
+{
+public:
+	virtual ~FAssetEditorViewportPaneLayout() = default;
+
+	/**
+	 * Sets up the layout based on the specific layout configuration implementation.
+	 *
+	 * @param SpecificLayoutString		The layout string loaded from a file.
+	 * @return The base widget representing the layout.  This is commonly a splitter.
+	 */
+	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) = 0;
+
+	/**
+	 * Returns the typename of this layout
+	 * Generally one of EditorViewportConfigurationNames
+	 */
+	virtual const FName& GetLayoutTypeName() const = 0;
+
+	void LoadConfig(const FString& LayoutString, TFunction<void(const FString&, const FName)> LoadAdditionalLayoutInfoCallback = nullptr);
+
+	void SaveConfig(const FString& LayoutString, TFunction<void(const FString&)> SaveAdditionalLayoutInfoCallback = nullptr) const;
+
+	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) = 0;
+
+protected:
+	FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
+	virtual void SaveLayoutString(const FString& LayoutString) const {}
+	virtual void LoadLayoutString(const FString& LayoutString) {}
+
+	FName PerspectiveViewportConfigKey;
+};
+
 /**
  * Base class for viewport layout configurations
  * Handles maximizing and restoring well as visibility of specific viewports.
@@ -131,12 +164,15 @@ public:
 	virtual ~FAssetEditorViewportLayout();
 
 	/** Create an instance of a custom viewport from the specified viewport type name */
-	virtual TSharedRef<IEditorViewportLayoutEntity> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const;
+	virtual TSharedRef<SWidget> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs);
 
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool IsTickable() const override { return false; }
  	virtual TStatId GetStatId() const override { return TStatId(); }
+
+	virtual void FactoryPaneConfigurationFromTypeName(const FName& InLayoutConfigTypeName) override;
+	virtual const FName GetActivePaneConfigurationTypeName() const override;
 
 	/**
 	 * Builds a viewport layout and returns the widget containing the layout
@@ -150,16 +186,17 @@ public:
 	/** Returns the parent tab content object */
 	TWeakPtr< FEditorViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
 
-	/** Generates a layout string for persisting settings for this layout based on the runtime type of layout */
-	FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
-
 	/**
-	 * Overridden in derived classes to set up custom layouts  
+	 * Sets up the layout based on the specific layout configuration implementation.
 	 *
-	 * @param LayoutString		The layout string loaded from a file
-	 * @return The base widget representing the layout.  Usually a splitter
+	 * @param LayoutString		The layout string loaded from a file.
+	 * @return The base widget representing the layout.  This is commonly a splitter.
 	 */
-  	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) = 0;
+	UE_DEPRECATED(5.0, "This functionality has moved to the layout configurations. Use BuildViewportLayout.")
+	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) final;
+
+	virtual void LoadConfig(const FString& LayoutString);
+	virtual void SaveConfig(const FString& LayoutString) const;
 
 protected:
 	/**
@@ -179,4 +216,5 @@ protected:
 	/** The parent tab where this layout resides */
 	TWeakPtr< SDockTab > ParentTab;
 
+	TSharedPtr<FAssetEditorViewportPaneLayout> LayoutConfiguration;
 };

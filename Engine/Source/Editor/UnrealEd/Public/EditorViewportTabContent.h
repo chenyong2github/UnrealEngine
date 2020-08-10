@@ -28,7 +28,7 @@ public:
 		return ActiveViewportLayout;
 	}
 	   
-	virtual TSharedPtr<FEditorViewportLayout> ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts);
+	TSharedPtr<FEditorViewportLayout> ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts);
 
 	virtual void Initialize(AssetEditorViewportFactoryFunction Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString);
 
@@ -61,6 +61,9 @@ public:
 	 * @returns the creation function if one is found with the given typename, otherwise nullptr.
 	 */
 	const AssetEditorViewportFactoryFunction* FindViewportCreationFactory(FName InTypeName) const;
+
+protected:
+	virtual TSharedPtr<FEditorViewportLayout> FactoryViewportLayout(bool bIsSwitchingLayouts);
 
 private:
 	using AssetEditorViewportCreationFactories = TMap<FName, AssetEditorViewportFactoryFunction>;

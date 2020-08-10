@@ -2,91 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "LevelViewportLayout.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "LevelViewportActions.h"
+#include "EditorViewportLayoutThreePanes.h"
 
-class FLevelViewportLayoutThreePanes : public FLevelViewportLayout
-{
-public:
-	/**
-	 * Saves viewport layout information between editor sessions
-	 */
-	virtual void SaveLayoutString(const FString& LayoutString) const override;
-protected:
-	/**
-	 * Creates the viewports and splitter for the two panes vertical layout                   
-	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
-
-	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
-		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
-		float PrimarySplitterPercentage, float SecondarySplitterPercentage) = 0;
-
-	/** Overridden from FLevelViewportLayout */
-	virtual void ReplaceWidget( TSharedRef< SWidget > Source, TSharedRef< SWidget > Replacement ) override;
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutThreePanesLeft instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutThreePanesLeft FLevelViewportLayoutThreePanesLeft;
 
 
-protected:
-	/** The splitter widgets */
-	TSharedPtr< class SSplitter > PrimarySplitterWidget;
-	TSharedPtr< class SSplitter > SecondarySplitterWidget;
-};
-
-// FLevelViewportLayoutThreePanesLeft /////////////////////////////
-
-class FLevelViewportLayoutThreePanesLeft : public FLevelViewportLayoutThreePanes
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::ThreePanesLeft; }
-
-	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
-		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
-		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
-};
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutThreePanesRight instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutThreePanesRight FLevelViewportLayoutThreePanesRight;
 
 
-// FLevelViewportLayoutThreePanesRight /////////////////////////////
-
-class FLevelViewportLayoutThreePanesRight : public FLevelViewportLayoutThreePanes
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::ThreePanesRight; }
-
-	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
-		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
-		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
-};
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutThreePanesTop instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutThreePanesTop FLevelViewportLayoutThreePanesTop;
 
 
-// FLevelViewportLayoutThreePanesTop /////////////////////////////
-
-class FLevelViewportLayoutThreePanesTop : public FLevelViewportLayoutThreePanes
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::ThreePanesTop; }
-
-	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
-		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
-		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
-};
-
-
-// FLevelViewportLayoutThreePanesBottom /////////////////////////////
-
-class FLevelViewportLayoutThreePanesBottom : public FLevelViewportLayoutThreePanes
-{
-public:
-	virtual const FName& GetLayoutTypeName() const override { return LevelViewportConfigurationNames::ThreePanesBottom; }
-
-	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
-		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
-		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
-};
+UE_DEPRECATED(5.0, "Level Pane layouts are now owned by their level layouts. Use FEditorViewportLayoutThreePanesBottom instead, and add any custom types to FAssetEditorViewportLayout::FactoryPaneConfigurationFromTypeName.")
+typedef FEditorViewportLayoutThreePanesBottom FLevelViewportLayoutThreePanesBottom;

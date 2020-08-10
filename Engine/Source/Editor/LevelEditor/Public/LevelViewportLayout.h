@@ -69,7 +69,7 @@ public:
 	 */
 	virtual TSharedRef<SWidget> BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString) override;
 
-	virtual TSharedRef<IEditorViewportLayoutEntity> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) const override;
+	virtual TSharedRef<SWidget> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs) override;
 
 	/**
 	 * Makes a request to maximize a specific viewport and hide the others in this layout
@@ -133,6 +133,9 @@ public:
 	/** Returns whether a viewport animation is currently taking place */
 	bool IsTransitioning() const { return bIsTransitioning; }
 
+	virtual void LoadConfig(const FString& LayoutString) override;
+	virtual void SaveConfig(const FString& LayoutString) const override;
+
 protected:
 
 	/**
@@ -144,14 +147,6 @@ protected:
 	 * @param	bAllowAnimation		True if an animated transition should be used
 	 */
 	void MaximizeViewport( FName ViewportToMaximize, const bool bWantMaximize, const bool bWantImmersive, const bool bAllowAnimation );
-
-	/**
-	 * Overridden in derived classes to set up custom layouts  
-	 *
-	 * @param LayoutString		The layout string loaded from a file
-	 * @return The base widget representing the layout.  Usually a splitter
-	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) = 0;
 
 	/**
 	 * Delegate called to get the visibility of the non-maximized viewports
@@ -175,14 +170,6 @@ protected:
 	 */
 	FVector2D GetMaximizedViewportSizeOnCanvas() const;
 
-	/**
-	 * Inline replaces a viewport content widget within this layout
-	 *
-	 * @param	Source	The widget to replace
-	 * @param	Replacement	The widget to replace the source widget with
-	 */
-	virtual void ReplaceWidget( TSharedRef< SWidget > Source, TSharedRef< SWidget > Replacement ) = 0;
-
 	/** If a viewport animation is in progress, finishes that transition immediately */
 	void FinishMaximizeTransition();
 
@@ -196,23 +183,13 @@ protected:
 	 */
 	void EndThrottleForAnimatedResize();
 
-	/** Generates a layout string for persisting settings for this layout based on the runtime type of layout */
-	FString GetTypeSpecificLayoutString(const FString& LayoutString) const
-	{ 
-		if (LayoutString.IsEmpty())
-		{
-			return LayoutString;
-		}
-		return FString::Printf(TEXT("%s.%s"), *GetLayoutTypeName().ToString(), *LayoutString);
-	}
-
-	/** Called in MakeViewportLayout() functions for derived types of layout to init values common to all types */
-	void InitCommonLayoutFromString( const FString& SpecificLayoutString, FName DefaultMaximizedViewport );
-
-	/** Called in SaveLayoutString() functions for derived types of layout to save values common to all types */
-	void SaveCommonLayoutString( const FString& SpecificLayoutString ) const;
-
 protected:
+	/** Called in after factory of a new layout functions for derived types of layout to init values common to all types */
+	void InitCommonLayoutFromString(const FString& LayoutString, const FName PerspectiveViewportKey);
+
+	/** Called in SaveConfig() functions for derived types of layout to save values common to all types */
+	void SaveCommonLayoutString(const FString& SpecificLayoutString) const;
+
 	/** True if we've started an animation and are waiting for it to finish */
 	bool bIsTransitioning;
 

@@ -2,29 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "EditorViewportLayout.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "AssetEditorViewportLayout.h"
 
-class FEditorViewportLayoutThreePanes : public FAssetEditorViewportLayout
+class SSplitter;
+class SWidget;
+class FName;
+
+class FEditorViewportLayoutThreePanes : public FAssetEditorViewportPaneLayout
 {
-protected:
+public:
 	/**
 	 * Creates the viewports and splitter for the two panes vertical layout                   
 	 */
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
+	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) override;
+	virtual void SaveLayoutString(const FString& LayoutString) const override;
+	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage) = 0;
 
-protected:
 	/** The splitter widgets */
-	TSharedPtr< class SSplitter > PrimarySplitterWidget;
-	TSharedPtr< class SSplitter > SecondarySplitterWidget;
+	TSharedPtr< SSplitter > PrimarySplitterWidget;
+	TSharedPtr< SSplitter > SecondarySplitterWidget;
+	FName PerspectiveViewportConfigKey;
 };
 
 // FEditorViewportLayoutThreePanesLeft /////////////////////////////
@@ -32,10 +34,10 @@ protected:
 class FEditorViewportLayoutThreePanesLeft : public FEditorViewportLayoutThreePanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::ThreePanesLeft; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
 };
@@ -46,10 +48,10 @@ public:
 class FEditorViewportLayoutThreePanesRight : public FEditorViewportLayoutThreePanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::ThreePanesRight; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
 };
@@ -60,10 +62,10 @@ public:
 class FEditorViewportLayoutThreePanesTop : public FEditorViewportLayoutThreePanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::ThreePanesTop; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
 };
@@ -74,10 +76,10 @@ public:
 class FEditorViewportLayoutThreePanesBottom : public FEditorViewportLayoutThreePanes
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::ThreePanesBottom; }
+	virtual const FName& GetLayoutTypeName() const override;
 
+protected:
 	virtual TSharedRef<SWidget> MakeThreePanelWidget(
-		TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 		const TSharedRef<SWidget>& ViewportKey0, const TSharedRef<SWidget>& ViewportKey1, const TSharedRef<SWidget>& ViewportKey2,
 		float PrimarySplitterPercentage, float SecondarySplitterPercentage) override;
 };

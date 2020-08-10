@@ -28,7 +28,7 @@ bool FViewportTabContent::IsViewportConfigurationSet(const FName& ConfigurationN
 {
 	if (ActiveViewportLayout.IsValid())
 	{
-		return ActiveViewportLayout->GetLayoutTypeName() == ConfigurationName;
+		return ActiveViewportLayout->GetActivePaneConfigurationTypeName() == ConfigurationName;
 	}
 	return false;
 }

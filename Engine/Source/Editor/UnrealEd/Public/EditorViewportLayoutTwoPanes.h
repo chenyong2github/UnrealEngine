@@ -2,46 +2,38 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "AssetEditorViewportLayout.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "Types/SlateEnums.h"
 
+class SSplitter;
+class SWidget;
+class FString;
+class FName;
 
 template <EOrientation TOrientation>
-class TEditorViewportLayoutTwoPanes : public FAssetEditorViewportLayout
+class TEditorViewportLayoutTwoPanes : public FAssetEditorViewportPaneLayout
 {
 public:
-	/**
-	 * Saves viewport layout information between editor sessions
-	 */
-  	virtual void SaveLayoutString(const FString& LayoutString) const override {}
-
-protected:
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
-
+	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) override;
+	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) override;
+	virtual void SaveLayoutString(const FString& LayoutString) const override;
 
 private:
 	/** The splitter widget */
 	TSharedPtr< class SSplitter > SplitterWidget;
 };
 
-
 // FEditorViewportLayoutTwoPanesVert /////////////////////////////
-
-
 class FEditorViewportLayoutTwoPanesVert : public TEditorViewportLayoutTwoPanes<EOrientation::Orient_Vertical>
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::TwoPanesVert; }
+	virtual const FName& GetLayoutTypeName() const override;
 };
 
 
 // FEditorViewportLayoutTwoPanesHoriz /////////////////////////////
-
 class FEditorViewportLayoutTwoPanesHoriz : public TEditorViewportLayoutTwoPanes<EOrientation::Orient_Horizontal>
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override { return EditorViewportConfigurationNames::TwoPanesHoriz; }
+	virtual const FName& GetLayoutTypeName() const override;
 };

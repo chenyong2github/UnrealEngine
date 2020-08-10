@@ -2,22 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "EditorViewportLayout.h"
 #include "AssetEditorViewportLayout.h"
+#include "Templates/SharedPointer.h"
 
 class SHorizontalBox;
+class SWidget;
+class FString;
+class FName;
 
-class FEditorViewportLayoutOnePane : public FAssetEditorViewportLayout
+class FEditorViewportLayoutOnePane : public FAssetEditorViewportPaneLayout
 {
 public:
-	virtual const FName& GetLayoutTypeName() const override{ return EditorViewportConfigurationNames::OnePane; }
-protected:
-	/**
-	* Creates the viewport for the single pane
-	*/
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) override;
+	// IAssetEditorViewportLayoutConfiguration overrides
+	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) override;
+	virtual const FName& GetLayoutTypeName() const override;
+	virtual void SaveLayoutString(const FString& LayoutString) const override;
+	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) override;
 
 protected:
 	/** The viewport widget parent box */

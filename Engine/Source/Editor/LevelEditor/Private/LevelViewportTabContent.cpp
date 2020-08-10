@@ -5,11 +5,6 @@
 #include "Framework/Docking/LayoutService.h"
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
-#include "LevelViewportLayout2x2.h"
-#include "LevelViewportLayoutOnePane.h"
-#include "LevelViewportLayoutTwoPanes.h"
-#include "LevelViewportLayoutThreePanes.h"
-#include "LevelViewportLayoutFourPanes.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "LevelViewportLayout.h"
 #include "LevelEditorViewport.h"
@@ -17,29 +12,10 @@
 
 // FLevelViewportTabContent ///////////////////////////
 
-TSharedPtr< FEditorViewportLayout > FLevelViewportTabContent::ConstructViewportLayoutByTypeName(const FName& TypeName, bool bSwitchingLayouts)
+TSharedPtr< FEditorViewportLayout > FLevelViewportTabContent::FactoryViewportLayout(bool bIsSwitchingLayouts)
 {
-	TSharedPtr< FLevelViewportLayout > ViewportLayout;
-
-	// The items in these ifs should match the names in namespace LevelViewportConfigurationNames
-	if (TypeName == LevelViewportConfigurationNames::FourPanes2x2) ViewportLayout = MakeShareable(new FLevelViewportLayout2x2);
-	else if (TypeName == LevelViewportConfigurationNames::TwoPanesVert) ViewportLayout = MakeShareable(new FLevelViewportLayoutTwoPanesVert);
-	else if (TypeName == LevelViewportConfigurationNames::TwoPanesHoriz) ViewportLayout = MakeShareable(new FLevelViewportLayoutTwoPanesHoriz);
-	else if (TypeName == LevelViewportConfigurationNames::ThreePanesLeft) ViewportLayout = MakeShareable(new FLevelViewportLayoutThreePanesLeft);
-	else if (TypeName == LevelViewportConfigurationNames::ThreePanesRight) ViewportLayout = MakeShareable(new FLevelViewportLayoutThreePanesRight);
-	else if (TypeName == LevelViewportConfigurationNames::ThreePanesTop) ViewportLayout = MakeShareable(new FLevelViewportLayoutThreePanesTop);
-	else if (TypeName == LevelViewportConfigurationNames::ThreePanesBottom) ViewportLayout = MakeShareable(new FLevelViewportLayoutThreePanesBottom);
-	else if (TypeName == LevelViewportConfigurationNames::FourPanesLeft) ViewportLayout = MakeShareable(new FLevelViewportLayoutFourPanesLeft);
-	else if (TypeName == LevelViewportConfigurationNames::FourPanesRight) ViewportLayout = MakeShareable(new FLevelViewportLayoutFourPanesRight);
-	else if (TypeName == LevelViewportConfigurationNames::FourPanesBottom) ViewportLayout = MakeShareable(new FLevelViewportLayoutFourPanesBottom);
-	else if (TypeName == LevelViewportConfigurationNames::FourPanesTop) ViewportLayout = MakeShareable(new FLevelViewportLayoutFourPanesTop);
-	else if (TypeName == LevelViewportConfigurationNames::OnePane) ViewportLayout = MakeShareable(new FLevelViewportLayoutOnePane);
-
-	if (!ensure(ViewportLayout.IsValid()))
-	{
-		ViewportLayout = MakeShareable(new FLevelViewportLayoutOnePane);
-	}
-	ViewportLayout->SetIsReplacement(bSwitchingLayouts);
+	TSharedPtr<FLevelViewportLayout> ViewportLayout = MakeShareable(new FLevelViewportLayout);
+	ViewportLayout->SetIsReplacement(bIsSwitchingLayouts);
 	return ViewportLayout;
 }
 
@@ -61,7 +37,7 @@ void FLevelViewportTabContent::Initialize(AssetEditorViewportFactoryFunction Fun
 	if(InLayoutString.IsEmpty() ||
 		!GConfig->GetString(*IniSection, *(InLayoutString + TEXT(".LayoutType")), LayoutTypeString, GEditorPerProjectIni))
 	{
-		LayoutTypeString = LevelViewportConfigurationNames::FourPanes2x2.ToString();
+		LayoutTypeString = EditorViewportConfigurationNames::FourPanes2x2.ToString();
 	}
 
 	OnViewportTabContentLayoutStartChangeEvent.AddSP(this, &FLevelViewportTabContent::OnLayoutStartChange);

@@ -4,9 +4,9 @@
 #include "Framework/Docking/LayoutService.h"
 #include "ShowFlags.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
-#include "LevelEditor.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Layout/SSplitter.h"
 
 namespace ViewportLayoutThreePanesDefs
 {
@@ -17,10 +17,8 @@ namespace ViewportLayoutThreePanesDefs
 
 // FEditorViewportLayoutThreePanes /////////////////////////////
 
-TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(const FString& LayoutString)
+TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString)
 {
-	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
-
 	FEngineShowFlags OrthoShowFlags(ESFIM_Editor);	
 	ApplyViewMode(VMI_BrushWireframe, false, OrthoShowFlags);
 
@@ -32,6 +30,7 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(const FS
 	float PrimarySplitterPercentage = ViewportLayoutThreePanesDefs::DefaultSplitterPercentage;
 	float SecondarySplitterPercentage = ViewportLayoutThreePanesDefs::DefaultSplitterPercentage;
 
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 	if (!SpecificLayoutString.IsEmpty())
 	{
 		// The Layout String only holds the unique ID of the Additional Layout Configs to use
@@ -58,41 +57,87 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanes::MakeViewportLayout(const FS
 
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;
-	Args.ParentLayout = AsShared();
+	Args.ParentLayout = InParentLayout;
 	Args.IsEnabled = FSlateApplication::Get().GetNormalExecutionAttribute();
 
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *ViewportKey0;
 	Args.ViewportType = LVT_Perspective;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport0 =FactoryViewport(*ViewportType0, Args);
+	TSharedRef<SWidget> Viewport0 = InParentLayout->FactoryViewport(*ViewportType0, Args);
+	PerspectiveViewportConfigKey = *ViewportKey0;
 
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey1;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport1 =FactoryViewport(*ViewportType1, Args);
+	TSharedRef<SWidget> Viewport1 = InParentLayout->FactoryViewport(*ViewportType1, Args);
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *ViewportKey2;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedRef<IEditorViewportLayoutEntity> Viewport2 =FactoryViewport(*ViewportType2, Args);
-
-	Viewports.Add( *ViewportKey0, Viewport0 );
-	Viewports.Add( *ViewportKey1, Viewport1 );
-	Viewports.Add( *ViewportKey2, Viewport2 );
+	TSharedRef<SWidget> Viewport2 = InParentLayout->FactoryViewport(*ViewportType2, Args);
 
 	TSharedRef<SWidget> LayoutWidget = MakeThreePanelWidget(
-		Viewports,
-		Viewport0->AsWidget(), Viewport1->AsWidget(), Viewport2->AsWidget(),
+		Viewport0, Viewport1, Viewport2,
 		PrimarySplitterPercentage, SecondarySplitterPercentage);
 
 	return LayoutWidget;
 }
 
+void FEditorViewportLayoutThreePanes::SaveLayoutString(const FString& SpecificLayoutString) const
+{
+	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+	check(PrimarySplitterWidget->GetChildren()->Num() == 2);
+	float PrimaryPercentage = PrimarySplitterWidget->SlotAt(0).SizeValue.Get();
+	check(SecondarySplitterWidget->GetChildren()->Num() == 2);
+	float SecondaryPercentage = SecondarySplitterWidget->SlotAt(0).SizeValue.Get();
+
+	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage0")), *TTypeToString<float>::ToString(PrimaryPercentage), GEditorPerProjectIni);
+	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage1")), *TTypeToString<float>::ToString(SecondaryPercentage), GEditorPerProjectIni);
+}
+
+void FEditorViewportLayoutThreePanes::ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget)
+{
+	bool bWasFound = false;
+
+	for (int32 SlotIdx = 0; SlotIdx < PrimarySplitterWidget->GetChildren()->Num(); SlotIdx++)
+	{
+		if (PrimarySplitterWidget->GetChildren()->GetChildAt(SlotIdx) == OriginalWidget)
+		{
+			PrimarySplitterWidget->SlotAt(SlotIdx)
+				[
+					ReplacementWidget
+				];
+			bWasFound = true;
+			break;
+		}
+	}
+
+	for (int32 SlotIdx = 0; SlotIdx < SecondarySplitterWidget->GetChildren()->Num(); SlotIdx++)
+	{
+		if (SecondarySplitterWidget->GetChildren()->GetChildAt(SlotIdx) == OriginalWidget)
+		{
+			SecondarySplitterWidget->SlotAt(SlotIdx)
+				[
+					ReplacementWidget
+				];
+			bWasFound = true;
+			break;
+		}
+	}
+
+	// Source widget should have already been a content widget for the splitter
+	check(bWasFound);
+}
+
 // FEditorViewportLayoutThreePanesLeft /////////////////////////////
+const FName& FEditorViewportLayoutThreePanesLeft::GetLayoutTypeName() const
+{
+	return EditorViewportConfigurationNames::ThreePanesLeft;
+}
 
 TSharedRef<SWidget> FEditorViewportLayoutThreePanesLeft::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -126,9 +171,12 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanesLeft::MakeThreePanelWidget(
 
 
 // FEditorViewportLayoutThreePanesRight /////////////////////////////
+const FName& FEditorViewportLayoutThreePanesRight::GetLayoutTypeName() const
+{
+	return EditorViewportConfigurationNames::ThreePanesRight;
+}
 
 TSharedRef<SWidget> FEditorViewportLayoutThreePanesRight::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -162,9 +210,12 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanesRight::MakeThreePanelWidget(
 
 
 // FEditorViewportLayoutThreePanesTop /////////////////////////////
+const FName& FEditorViewportLayoutThreePanesTop::GetLayoutTypeName() const
+{
+	return EditorViewportConfigurationNames::ThreePanesTop;
+}
 
 TSharedRef<SWidget> FEditorViewportLayoutThreePanesTop::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {
@@ -198,9 +249,12 @@ TSharedRef<SWidget> FEditorViewportLayoutThreePanesTop::MakeThreePanelWidget(
 
 
 // FEditorViewportLayoutThreePanesBottom /////////////////////////////
+const FName& FEditorViewportLayoutThreePanesBottom::GetLayoutTypeName() const
+{
+	return EditorViewportConfigurationNames::ThreePanesBottom;
+}
 
 TSharedRef<SWidget> FEditorViewportLayoutThreePanesBottom::MakeThreePanelWidget(
-	TMap< FName, TSharedPtr< IEditorViewportLayoutEntity >>& ViewportWidgets,
 	const TSharedRef<SWidget>& Viewport0, const TSharedRef<SWidget>& Viewport1, const TSharedRef<SWidget>& Viewport2,
 	float PrimarySplitterPercentage, float SecondarySplitterPercentage)
 {

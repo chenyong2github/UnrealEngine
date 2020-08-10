@@ -4,9 +4,9 @@
 #include "Framework/Docking/LayoutService.h"
 #include "Editor.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
-// #include "LevelEditor.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Layout/SSplitter.h"
 
 namespace ViewportLayout2x2Defs
 {
@@ -16,16 +16,15 @@ namespace ViewportLayout2x2Defs
 
 // FLevelViewportLayout2x2 //////////////////////////////////////////
 
-TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(const FString& LayoutString)
+TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString)
 {
- 	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
-
 	FString TopLeftKey, BottomLeftKey, TopRightKey, BottomRightKey;
 
 	FString TopLeftType = TEXT("Default"), BottomLeftType = TEXT("Default"), TopRightType = TEXT("Default"), BottomRightType = TEXT("Default");
 
 	TArray<FVector2D> SplitterPercentages;
 	
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
  	if (!SpecificLayoutString.IsEmpty())
 	{
 		// The Layout String only holds the unique ID of the Additional Layout Configs to use
@@ -53,58 +52,53 @@ TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(const FString& 
 		}
 	}
 
-
 	// Set up the viewports
 	FAssetEditorViewportConstructionArgs Args;
- 	Args.ParentLayout = AsShared();
+ 	Args.ParentLayout = InParentLayout;
 
 	// Left viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopLeftKey;
 	Args.ViewportType = LVT_OrthoYZ;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportTL = FactoryViewport(*TopLeftType, Args);
+	TSharedRef< SWidget > ViewportTL = InParentLayout->FactoryViewport(*TopLeftType, Args);
 
 	// Persp viewport
 	Args.bRealtime = !FPlatformMisc::IsRemoteSession();
 	Args.ConfigKey = *BottomLeftKey;
 	Args.ViewportType = LVT_Perspective;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportBL = FactoryViewport(*BottomLeftType, Args);
+	TSharedRef< SWidget > ViewportBL = InParentLayout->FactoryViewport(*BottomLeftType, Args);
+	PerspectiveViewportConfigKey = *BottomLeftKey;
 
 	// Front viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *TopRightKey;
 	Args.ViewportType = LVT_OrthoXZ;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportTR = FactoryViewport(*TopRightType, Args);
+	TSharedRef< SWidget > ViewportTR = InParentLayout->FactoryViewport(*TopRightType, Args);
 
 	// Top Viewport
 	Args.bRealtime = false;
 	Args.ConfigKey = *BottomRightKey;
 	Args.ViewportType = LVT_OrthoXY;
-	TSharedPtr< IEditorViewportLayoutEntity > ViewportBR = FactoryViewport(*BottomRightType, Args);
-
-	Viewports.Add( *TopLeftKey, ViewportTL );
-	Viewports.Add( *BottomLeftKey, ViewportBL );
-	Viewports.Add( *TopRightKey, ViewportTR );
-	Viewports.Add( *BottomRightKey, ViewportBR );
+	TSharedRef< SWidget > ViewportBR = InParentLayout->FactoryViewport(*BottomRightType, Args);
 
 	// Set up the splitter
 	SplitterWidget = 
 	SNew( SSplitter2x2 )
 	.TopLeft()
 	[
-		ViewportTL->AsWidget()
+		ViewportTL
 	]
 	.BottomLeft()
 	[
-		ViewportBL->AsWidget()
+		ViewportBL
 	]
 	.TopRight()
 	[
-		ViewportTR->AsWidget()
+		ViewportTR
 	]
 	.BottomRight()
 	[
-		ViewportBR->AsWidget()
+		ViewportBR
 	];
 	
 	if (SplitterPercentages.Num() > 0)
@@ -116,3 +110,53 @@ TSharedRef<SWidget> FEditorViewportLayout2x2::MakeViewportLayout(const FString& 
 	return SplitterWidget.ToSharedRef();
 }
 
+void FEditorViewportLayout2x2::ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget)
+{
+	bool bWasFound = false;
+
+	if (SplitterWidget->GetTopLeftContent() == OriginalWidget)
+	{
+		SplitterWidget->SetTopLeftContent(ReplacementWidget);
+		bWasFound = true;
+	}
+
+	else if (SplitterWidget->GetBottomLeftContent() == OriginalWidget)
+	{
+		SplitterWidget->SetBottomLeftContent(ReplacementWidget);
+		bWasFound = true;
+	}
+
+	else if (SplitterWidget->GetTopRightContent() == OriginalWidget)
+	{
+		SplitterWidget->SetTopRightContent(ReplacementWidget);
+		bWasFound = true;
+	}
+
+	else if (SplitterWidget->GetBottomRightContent() == OriginalWidget)
+	{
+		SplitterWidget->SetBottomRightContent(ReplacementWidget);
+		bWasFound = true;
+	}
+
+	// Source widget should have already been a content widget for the splitter
+	check(bWasFound);
+}
+
+const FName& FEditorViewportLayout2x2::GetLayoutTypeName() const
+{
+	return EditorViewportConfigurationNames::FourPanes2x2;
+}
+
+void FEditorViewportLayout2x2::SaveLayoutString(const FString& LayoutString) const
+{
+	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
+
+	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+	TArray<FVector2D> Percentages;
+	SplitterWidget->GetSplitterPercentages(Percentages);
+	for (int32 i = 0; i < Percentages.Num(); ++i)
+	{
+		GConfig->SetString(*IniSection, *(SpecificLayoutString + FString::Printf(TEXT(".Percentages%i"), i)), *Percentages[i].ToString(), GEditorPerProjectIni);
+	}
+}
