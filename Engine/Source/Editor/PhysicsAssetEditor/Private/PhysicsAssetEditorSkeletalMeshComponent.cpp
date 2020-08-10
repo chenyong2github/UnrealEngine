@@ -522,6 +522,18 @@ void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impu
 #endif
 }
 
+bool UPhysicsAssetEditorSkeletalMeshComponent::ShouldCreatePhysicsState() const
+{
+#if !WITH_CHAOS
+	return Super::ShouldCreatePhysicsState();
+#else
+	// Chaos uses a RigidBody AnimNode to run the simulation in the PhysicsAsset Editor.
+	// See FPhysicsAssetEditorAnimInstanceProxy
+	return false;
+#endif
+}
+
+
 void UPhysicsAssetEditorSkeletalMeshComponent::Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained)
 {
 	UPhysicsAssetEditorAnimInstance* PhatPreviewInstance = Cast<UPhysicsAssetEditorAnimInstance>(PreviewInstance);
