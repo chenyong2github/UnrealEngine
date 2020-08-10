@@ -380,7 +380,13 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 		break;
 
 		case Chaos::EObjectStateType::Sleeping:
-		// from sleeping we can't change state without waking first
+		// this case was not allowed from CL 10506092, but it needs to in order for
+		// FBodyInstance::SetInstanceSimulatePhysics to work on dynamic bodies which
+		// have fallen asleep.
+		if (NewState == Chaos::EObjectStateType::Kinematic)
+		{
+			AllowedToChangeToNewState = true;
+		}
 		break;
 		}
 
