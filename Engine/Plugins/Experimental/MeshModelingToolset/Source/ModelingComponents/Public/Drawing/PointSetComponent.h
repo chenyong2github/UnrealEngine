@@ -79,6 +79,9 @@ public:
 	/** Sets the size of a point */
 	void SetPointSize(const int32 ID, const float NewSize);
 
+	/** Sets the color of all points currently in the set. */
+	void SetAllPointsColor(const FColor& NewColor);
+
 	/** Remove a point from the set. */
 	void RemovePoint(const int32 ID);
 
