@@ -807,11 +807,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					continue;
 				}
 				
-				FSceneViewState* ViewState = (FSceneViewState*)View.State;
-				const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
-				const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
-
-				if (HLODState && HLODState->IsNodeForcedHidden(PrimitiveIndex))
+				// Check if the primitive has been distance culled already during frustum culling
+				if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
 				{
 					continue;
 				}
