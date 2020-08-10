@@ -508,13 +508,17 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "-5.00", ClampMax = "20.00"))
 	float SelectedSplinePointSizeAdjustment;
 
-	/** The size adjustment to apply to selected spline tangent handle (in screen space units). */
-	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "-5.00", ClampMax = "20.00"))
-	float SelectedSplineTangentHandleSizeAdjustment;
-
 	/** The size adjustment to apply to spline line thickness which increases the spline's hit tolerance. */
-	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00", ClampMax = "100.00"))
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00"))
 	float SplineLineThicknessAdjustment;
+
+	/** The size adjustment to apply to spline tangent handle (in screen space units). */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "-5.00", ClampMax = "20.00"))
+	float SplineTangentHandleSizeAdjustment;
+
+	/** The scale to apply to spline tangent lengths */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, AdvancedDisplay, meta = (ClampMin = "0.00"))
+	float SplineTangentScale;
 
 private:
 
