@@ -48,7 +48,7 @@
 		},
 		{
 			"Name": "UEOpenExrRTTI",
-			"Type": "Uncookedonly",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	]
