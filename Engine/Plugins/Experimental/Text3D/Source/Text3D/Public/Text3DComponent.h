@@ -28,7 +28,7 @@ enum class EText3DHorizontalTextAlignment : uint8
 };
 
 
-UCLASS(ClassGroup = (Text3D))
+UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
 class TEXT3D_API UText3DComponent final : public USceneComponent
 {
 	GENERATED_BODY()
@@ -37,6 +37,7 @@ public:
 	UText3DComponent();
 
 	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -223,14 +224,17 @@ private:
 	class USceneComponent* TextRoot;
 	FTextGenerated TextGeneratedDelegate;
 
-#if WITH_EDITOR
-	bool bInitialized;
-#endif
 	bool bPendingBuild;
 	bool bFreezeBuild;
 
 	TSharedPtr<struct FText3DShapedText> ShapedText;
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
+
+	UPROPERTY(Transient)
+	TArray<USceneComponent*> CharacterKernings;
+
+	UPROPERTY(Transient)
+	TArray<UStaticMeshComponent*> CharacterMeshes;
 
 	class UMaterialInterface* GetMaterial(const EText3DGroupType Type) const;
 	void SetMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
@@ -238,6 +242,7 @@ private:
 
 	void Rebuild();
 	void UpdateTransforms();
+	void ClearTextMesh();
 	void BuildTextMesh(const bool bCleanCache = false);
 	void CheckBevel();
 	float MaxBevel() const;

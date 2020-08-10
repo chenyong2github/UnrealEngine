@@ -3550,6 +3550,7 @@ public:
 	}
 
 	void Skeletal_ComputeTangents(
+		const FString& SkeletalMeshName,
 		IMeshBuildData* BuildData,
 		const FOverlappingCorners& OverlappingCorners
 		)
@@ -3902,7 +3903,7 @@ public:
 				}
 			}
 
-			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData](FVector& NormalizedVector)
+			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData, &SkeletalMeshName](FVector& NormalizedVector)
 			{
 				if (NormalizedVector.IsNearlyZero() || NormalizedVector.ContainsNaN())
 				{
@@ -3911,8 +3912,11 @@ public:
 					if (!bIsZeroLengthNormalErrorMessageDisplayed)
 					{
 						bIsZeroLengthNormalErrorMessageDisplayed = true;
+
 						// add warning message if available, do a log if not
-						FText TextMessage = LOCTEXT("Skeletal_ComputeTangents_MikkTSpace_Warning_ZeroLengthNormal", "Skeletal ComputeTangents MikkTSpace function: Compute a zero length normal vector.");
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+						FText TextMessage = FText::Format(LOCTEXT("Skeletal_ComputeTangents_MikkTSpace_Warning_ZeroLengthNormal", "{SkeletalMeshName} ComputeTangents MikkTSpace function: Compute a zero length normal vector."), Args);
 						if (BuildData->OutWarningMessages)
 						{
 							BuildData->OutWarningMessages->Add(TextMessage);
@@ -3962,7 +3966,7 @@ public:
 		check(WedgeTangentZ.Num() == NumWedges);
 	}
 
-	bool PrepareSourceMesh(IMeshBuildData* BuildData)
+	bool PrepareSourceMesh(const FString& SkeletalMeshName, IMeshBuildData* BuildData)
 	{
 		check(Stage == EStage::Uninit);
 
@@ -4000,7 +4004,7 @@ public:
 		}
 
 		// Compute any missing tangents. MikkTSpace should be use only when the user want to recompute the normals or tangents otherwise should always fallback on builtin tangent
-		Skeletal_ComputeTangents(BuildData, OverlappingCorners);
+		Skeletal_ComputeTangents(SkeletalMeshName, BuildData, OverlappingCorners);
 
 		// At this point the mesh will have valid tangents.
 		BuildData->ValidateTangentArraySize();
@@ -4228,7 +4232,7 @@ private:
 	EStage Stage;
 };
 
-bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
+bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FString& SkeletalMeshName, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -4298,7 +4302,7 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FR
 		OutWarningNames);
 
 	FSkeletalMeshUtilityBuilder Builder;
-	if (!Builder.PrepareSourceMesh(&BuildData))
+	if (!Builder.PrepareSourceMesh(SkeletalMeshName, &BuildData))
 	{
 		return false;
 	}

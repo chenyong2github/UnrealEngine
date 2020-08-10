@@ -110,6 +110,13 @@ enum class EDatasmithCADStitchingTechnique : uint8
 	StitchingSew,
 };
 
+UENUM()
+enum class EDatasmithCADRetessellationRule : uint8
+{
+	All = 0,
+	SkipDeletedSurfaces,
+};
+
 USTRUCT(BlueprintType)
 struct DATASMITHCONTENT_API FDatasmithAssetImportOptions
 {
@@ -281,6 +288,30 @@ public:
 			Hash = HashCombine(Hash, GetTypeHash(Param));
 		}
 		return Hash;
+	}
+};
+
+USTRUCT(BlueprintType)
+struct DATASMITHCONTENT_API FDatasmithRetessellationOptions : public FDatasmithTessellationOptions
+{
+	GENERATED_BODY()
+
+	FDatasmithRetessellationOptions(float InChordTolerance = 0.2f, float InMaxEdgeLength = 0.0f, float InNormalTolerance = 20.0f, EDatasmithCADStitchingTechnique InStitchingTechnique = EDatasmithCADStitchingTechnique::StitchingSew, EDatasmithCADRetessellationRule InRetessellationRule = EDatasmithCADRetessellationRule::All)
+		: FDatasmithTessellationOptions(InChordTolerance, InMaxEdgeLength, InNormalTolerance, InStitchingTechnique)
+		, RetessellationRule(InRetessellationRule)
+	{
+	}
+
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Retessellation Options", meta = (ToolTip = "Regenerate deleted surfaces during retesselate or ignore them"))
+	EDatasmithCADRetessellationRule RetessellationRule;
+
+public:
+	void operator = (const FDatasmithTessellationOptions& Other)
+	{
+		ChordTolerance = Other.ChordTolerance;
+		MaxEdgeLength = Other.MaxEdgeLength;
+		NormalTolerance = Other.NormalTolerance;
+		StitchingTechnique = Other.StitchingTechnique;
 	}
 };
 

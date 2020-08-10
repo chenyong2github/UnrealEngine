@@ -1,0 +1,140 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using Rhino.DocObjects;
+using System.Collections.Generic;
+
+namespace DatasmithRhino
+{
+	public class FUniqueNameGenerator
+	{
+		/// <summary>
+		/// Gives a human readable name based on the type of the given model component. 
+		/// </summary>
+		/// <param name="InModelComponent"></param>
+		/// <returns></returns>
+		public static string GetDefaultTypeName(ModelComponent InModelComponent)
+		{
+			string DefaultName;
+
+			if (InModelComponent is RhinoObject)
+			{
+				RhinoObject InRhinoObject = InModelComponent as RhinoObject;
+
+				switch (InRhinoObject.ObjectType)
+				{
+					case ObjectType.InstanceDefinition:
+						DefaultName = "block definition";
+						break;
+					case ObjectType.InstanceReference:
+						DefaultName = "block instance";
+						break;
+					case ObjectType.Point:
+						DefaultName = "point";
+						break;
+					case ObjectType.Curve:
+						DefaultName = "curve";
+						break;
+					case ObjectType.Surface:
+						DefaultName = "surface";
+						break;
+					case ObjectType.Brep:
+						DefaultName = "brep";
+						break;
+					case ObjectType.Mesh:
+						DefaultName = "mesh";
+						break;
+					case ObjectType.TextDot:
+						DefaultName = "textdot";
+						break;
+					case ObjectType.SubD:
+						DefaultName = "subd";
+						break;
+					case ObjectType.BrepLoop:
+						DefaultName = "loop";
+						break;
+					case ObjectType.Cage:
+						DefaultName = "cage";
+						break;
+					case ObjectType.ClipPlane:
+						DefaultName = "clip plane";
+						break;
+					case ObjectType.Extrusion:
+						DefaultName = "extrusion";
+						break;
+					case ObjectType.Light:
+						DefaultName = "light";
+						break;
+					default:
+						DefaultName = "unknown";
+						break;
+				}
+			}
+			else if (InModelComponent is Layer)
+			{
+				DefaultName = "layer";
+			}
+			else if (InModelComponent is Material)
+			{
+				DefaultName = "material";
+			}
+			else
+			{
+				DefaultName = "unknown";
+			}
+
+			return DefaultName;
+		}
+
+		/// <summary>
+		/// Gives the non-unique "base" name for the given model component.
+		/// </summary>
+		/// <param name="InModelComponent"></param>
+		/// <returns></returns>
+		public static string GetTargetName(ModelComponent InModelComponent)
+		{
+			string TargetName = (InModelComponent.Name != null && InModelComponent.Name != "")
+				? InModelComponent.Name
+				: GetDefaultTypeName(InModelComponent);
+
+			return TargetName;
+		}
+
+		public string GenerateUniqueName(ModelComponent InModelComponent)
+		{
+			string TargetName = GetTargetName(InModelComponent);
+			return GenerateUniqueNameFromBaseName(TargetName);
+		}
+
+		public string GenerateUniqueNameFromBaseName(string BaseName)
+		{
+			int UniqueNameIndex = GetFirstUniqueNameIndexFromBaseName(BaseName);
+			UniqueNameIndexDictionary[BaseName] = UniqueNameIndex;
+
+			string UniqueName;
+			if (UniqueNameIndex == 1)
+			{
+				UniqueName = BaseName;
+			}
+			else
+			{
+				UniqueName = string.Format("{0}_{1}", BaseName, UniqueNameIndex);
+			}
+
+			return UniqueName;
+		}
+
+		private int GetFirstUniqueNameIndexFromBaseName(string BaseName)
+		{
+			if (UniqueNameIndexDictionary.TryGetValue(BaseName, out int NameIndex))
+			{
+				return NameIndex + 1;
+			}
+			else
+			{
+				return 1;
+			}
+		}
+
+		private Dictionary<string, int> UniqueNameIndexDictionary = new Dictionary<string, int>();
+	}
+}

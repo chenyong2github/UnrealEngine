@@ -609,7 +609,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(FSkeletalMeshImportDat
 		TArray<FText> WarningMessages;
 		TArray<FName> WarningNames;
 
-		bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[0], SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, &WarningNames);
+		bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[0], SkeletalMesh->GetPathName(), SkeletalMesh->RefSkeleton, LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, &WarningNames);
 		if( !bBuildSuccess )
 		{
 			SkeletalMesh->MarkPendingKill();

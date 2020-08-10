@@ -22,6 +22,7 @@ class IDatasmithShaderElement;
 class IDatasmithSpotLightElement;
 class IDatasmithTextureElement;
 struct FDatasmithImportContext;
+struct FDatasmithAssetsImportContext;
 class UDatasmithAreaLightComponent;
 class ULightComponent;
 class ULightmassPortalComponent;
@@ -45,13 +46,11 @@ public:
 	static AActor* CreatePhysicalSky(FDatasmithImportContext& ImportContext);
 
 private:
-	static void CreateIESTexture(FDatasmithImportContext& InContext, const TSharedPtr< IDatasmithLightActorElement >& InLightActorElement);
-	static void SetTextureLightProfile( const TSharedRef< IDatasmithLightActorElement >& LightElement, class UDatasmithLightComponentTemplate* LightComponentTemplate, const TCHAR* LightsFolderPath );
-	static UTextureLightProfile* FindTextureLightProfile( const TSharedRef< IDatasmithLightActorElement >& LightElement, const TCHAR* LightsFolderPath );
+	static void SetTextureLightProfile( const TSharedRef< IDatasmithLightActorElement >& LightElement, class UDatasmithLightComponentTemplate* LightComponentTemplate, FDatasmithAssetsImportContext& AssetsContext );
 
-	static void SetupLightComponent( ULightComponent* LightComponent, const TSharedPtr< IDatasmithLightActorElement >& LightElement, const TCHAR* MaterialsFolderPath, const TCHAR* LightsFolderPath );
-	static void SetupPointLightComponent( UPointLightComponent* PointLightComponent, const TSharedRef< IDatasmithPointLightElement >& PointLightElement, const TCHAR* LightsFolderPath, const TCHAR* MaterialsFolderPath );
-	static void SetupSpotLightComponent( USpotLightComponent* SpotLightComponent, const TSharedRef< IDatasmithSpotLightElement >& SpotLightElement, const TCHAR* LightsFolderPath, const TCHAR* MaterialsFolderPath );
+	static void SetupLightComponent( ULightComponent* LightComponent, const TSharedPtr< IDatasmithLightActorElement >& LightElement, FDatasmithAssetsImportContext& AssetsContext );
+	static void SetupPointLightComponent( UPointLightComponent* PointLightComponent, const TSharedRef< IDatasmithPointLightElement >& PointLightElement, FDatasmithAssetsImportContext& AssetsContext );
+	static void SetupSpotLightComponent( USpotLightComponent* SpotLightComponent, const TSharedRef< IDatasmithSpotLightElement >& SpotLightElement, FDatasmithAssetsImportContext& AssetsContext );
 
 	static AActor* ImportAreaLightActor( const TSharedRef< IDatasmithAreaLightElement >& AreaLightElement, FDatasmithImportContext& ImportContext );
 	static USceneComponent* ImportAreaLightComponent( const TSharedRef< IDatasmithAreaLightElement >& AreaLightElement, FDatasmithImportContext& ImportContext, UObject* Outer, FDatasmithActorUniqueLabelProvider& UniqueNameProvider );

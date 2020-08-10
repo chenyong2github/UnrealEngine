@@ -66,7 +66,6 @@ public:
 	static UMaterialFunction* CreateUEPbrMaterialFunction(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
 	static UMaterialInterface* CreateUEPbrMaterial(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags);
 	static UMaterialInterface* CreateUEPbrMaterialInstance(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterialInterface* ParentMaterial, EObjectFlags ObjectFlags);
-	static UTextureLightProfile* CreateDatasmithIES(const FString& Filename, UPackage* Package, EObjectFlags ObjectFlags);
 	static UMaterialInterface* CreateDatasmithEnvironmentMaterial(UPackage* Package, const TSharedPtr< IDatasmithShaderElement >& ShaderElement, FDatasmithAssetsImportContext& AssetsContext,
 																  UMaterial* ExistingMaterial);
 

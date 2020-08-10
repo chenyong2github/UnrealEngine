@@ -19,7 +19,7 @@ public:
 
 	static bool CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets);
 	static void ApplyOnAssets(const TArray<FAssetData>& SelectedAssets);
-	static bool ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithTessellationOptions& RetesselateOptions);
+	static bool ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithRetessellationOptions& RetesselateOptions);
 };
 
 
@@ -51,5 +51,5 @@ class DATASMITHCORETECHEXTENSION_API UCoreTechRetessellateActionOptions : public
 
 public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))
-	FDatasmithTessellationOptions Options;
+	FDatasmithRetessellationOptions Options;
 };

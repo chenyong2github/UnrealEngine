@@ -19,33 +19,6 @@ class UStaticMesh;
 
 DECLARE_LOG_CATEGORY_EXTERN( LogDataprep, Log, All );
 
-namespace DataprepOperationsLibraryUtil
-{
-	class FStaticMeshBuilder
-	{
-	public:
-		FStaticMeshBuilder(const TSet<UStaticMesh*>& InStaticMeshes);
-		~FStaticMeshBuilder();
-	private:
-		TArray<UStaticMesh*> StaticMeshes;
-	};
-
-	/*
-	 * Builds render data of a set of static meshes.
-	 * @param StaticMeshes	Set of static meshes to build if render data is missing or a forced build is required
-	 * @param bForceBuild	Indicates if all static meshes should be built or only the incomplete ones
-	 * @returns the array of static meshes which have actually been built
-	 */
-	TArray<UStaticMesh*> BuildStaticMeshes( const TSet<UStaticMesh*>& StaticMeshes, bool bForceBuild = false );
-
-	/*
-	 * Find the set of static meshes in or referenced by a given array of objects.
-	 * @param SelectedObjects	Array of UObjects to go through
-	 * @returns a set of static meshes
-	 */
-	TSet<UStaticMesh*> GetSelectedMeshes(const TArray<UObject*>& SelectedObjects);
-}
-
 /*
  * Simple struct for the table row used for UDataprepOperationsLibrary::SubstituteMaterials
  */

@@ -1944,7 +1944,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	AdjustImportDataFaceMaterialIndex(SkeletalMeshDest->Materials, ImportDataDest.Materials, LODFacesDest, LODIndexDest);
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
+	bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMeshDest->GetName(), RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	//Re-Apply the user section changes, the UserSectionsData is map to original section and should match the builded LODModel
 	LODModelDest.SyncronizeUserSectionsDataArray();
 

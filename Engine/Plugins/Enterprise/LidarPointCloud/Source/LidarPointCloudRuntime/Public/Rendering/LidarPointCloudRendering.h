@@ -21,6 +21,9 @@ struct FLidarPointCloudProxyUpdateData
 	/** Index of the first element within the structured buffer */
 	int32 FirstElementIndex;
 
+	/** Index of the first element within the normal buffer */
+	int32 FirstNormalIndex;
+
 	/** Number of elements within the structured buffer related to this proxy */
 	int32 NumElements;
 
@@ -34,6 +37,8 @@ struct FLidarPointCloudProxyUpdateData
 	/** Stores bounds of selected nodes, used for debugging */
 	TArray<FBox> Bounds;
 #endif
+
+	TArray<const class ALidarClippingVolume*> ClippingVolumes;
 
 	FLidarPointCloudProxyUpdateData();
 };

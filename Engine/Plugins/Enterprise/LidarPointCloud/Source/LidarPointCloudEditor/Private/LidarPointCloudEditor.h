@@ -19,7 +19,7 @@ class FLidarPointCloudEditor : public FAssetEditorToolkit, public FGCObject
 private:
 	ULidarPointCloud* PointCloudBeingEdited;
 
-	TArray<FLidarPointCloudPoint*> SelectedPoints;
+	TArray64<FLidarPointCloudPoint*> SelectedPoints;
 	
 	bool bEditMode;
 
@@ -58,11 +58,12 @@ public:
 	void SelectPointsByFrustum(const FConvexVolume& SelectionFrustum, bool bAdditive);
 	void DeselectPointsByFrustum(const FConvexVolume& SelectionFrustum);
 	void DeselectPoints();
+	void InvertSelection();
 	void DeletePoints();
 	void DeleteHiddenPoints();
 	void HidePoints();
 	void UnhideAll();
-	TArray<FLidarPointCloudPoint*>& GetSelectedPoints() { return SelectedPoints; }
+	TArray64<FLidarPointCloudPoint*>& GetSelectedPoints() { return SelectedPoints; }
 
 	bool HasSelectedPoints() const { return SelectedPoints.Num() > 0; }
 
@@ -95,8 +96,11 @@ private:
 	void BuildCollision();
 	void RemoveCollision();
 	void Align();
+	void CalculateNormals();
+	void CalculateNormalsSelection();
 	bool HasCollisionData() const;
 
+	TSharedRef<SWidget> GenerateNormalsMenuContent();
 	TSharedRef<SWidget> GenerateExtractionMenuContent();
 	TSharedRef<SWidget> GenerateCollisionMenuContent();
 	TSharedRef<SWidget> GenerateDeleteMenuContent();

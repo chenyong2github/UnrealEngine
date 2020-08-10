@@ -124,6 +124,9 @@ public:
 	/** Return the number of steps the preview system is currently previewing */
 	int32 GetCountOfPreviewedSteps() const;
 
+	/** Select all actors and assets that have status Pass from the preview system */
+	void SyncSelectionToPreviewSystem();
+
 private:
 	void BindCommands();
 	void OnSaveScene();
@@ -138,7 +141,11 @@ private:
 
 	void CreateTabs();
 
+	void RegisterMenus();
+
 	void CreateScenePreviewTab();
+
+	void CreateAssetPreviewTab();
 
 	TSharedRef<SDockTab> SpawnTabAssetPreview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabScenePreview(const FSpawnTabArgs& Args);
@@ -210,6 +217,8 @@ private:
 	void UpdateDataForPreviewSystem();
 
 	void OnStepObjectsAboutToBeDeleted(const TArrayView<UDataprepParameterizableObject*>& StepObject);
+
+	TSharedPtr<SWidget> OnSceneOutlinerContextMenuOpening();
 
 	virtual void PostUndo( bool bSuccess ) override;
 	virtual void PostRedo( bool bSuccess ) override;

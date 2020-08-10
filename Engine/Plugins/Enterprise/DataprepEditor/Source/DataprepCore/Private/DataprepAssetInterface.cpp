@@ -161,7 +161,7 @@ void UDataprepAssetInterface::ExecuteRecipe_Internal(const TSharedPtr<FDataprepA
 
 	for (UDataprepActionAsset* ActionAsset : ActionAssets)
 	{
-		if (ActionAsset != nullptr)
+		if (ActionAsset != nullptr && ActionAsset->bIsEnabled)
 		{
 			Task.ReportNextStep(FText::Format(LOCTEXT("ExecutingAction", "Executing \"{0}\" ..."), FText::FromString(ActionAsset->GetLabel())));
 

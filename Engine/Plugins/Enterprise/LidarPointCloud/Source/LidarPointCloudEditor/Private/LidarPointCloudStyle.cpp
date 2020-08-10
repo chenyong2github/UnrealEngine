@@ -44,10 +44,17 @@ void FLidarPointCloudStyle::Initialize()
 	StyleSet->Set("ClassIcon.LidarPointCloudComponent", new IMAGE_PLUGIN_BRUSH("icon_32", Icon16x16));
 	StyleSet->Set("ClassThumbnail.LidarPointCloudComponent", new IMAGE_PLUGIN_BRUSH("icon_128", Icon128x128));
 
+	StyleSet->Set("ClassIcon.LidarClippingVolume", new IMAGE_PLUGIN_BRUSH("icon_32", Icon16x16));
+	StyleSet->Set("ClassIcon32.LidarClippingVolume", new IMAGE_PLUGIN_BRUSH("icon_32", Icon32x32));
+	StyleSet->Set("ClassThumbnail.LidarClippingVolume", new IMAGE_PLUGIN_BRUSH("icon_128", Icon128x128));
+
 	StyleSet->Set("LidarPointCloudEditor.BuildCollision", new IMAGE_PLUGIN_BRUSH("icon_collision_40", Icon40x40));
 	StyleSet->Set("LidarPointCloudEditor.RemoveCollision", new IMAGE_PLUGIN_BRUSH("icon_removecollision_40", Icon40x40));
 
 	StyleSet->Set("LidarPointCloudEditor.EditMode", new IMAGE_PLUGIN_BRUSH("icon_edit_40", Icon40x40));
+	
+	StyleSet->Set("LidarPointCloudEditor.InvertSelection", new IMAGE_PLUGIN_BRUSH("icon_invsel_40", Icon40x40));
+
 	StyleSet->Set("LidarPointCloudEditor.HideSelected", new IMAGE_PLUGIN_BRUSH("icon_hideselected_40", Icon40x40));
 	StyleSet->Set("LidarPointCloudEditor.UnhideAll", new IMAGE_PLUGIN_BRUSH("icon_unhideall_40", Icon40x40));
 

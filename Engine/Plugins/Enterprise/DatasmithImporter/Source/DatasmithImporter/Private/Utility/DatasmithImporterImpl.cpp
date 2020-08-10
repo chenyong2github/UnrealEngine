@@ -208,6 +208,11 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 		ImportContext.bUserCancelled |= FDatasmithImporterImpl::HasUserCancelledTask( ImportContext.FeedbackContext );
 
 		TSharedPtr< IDatasmithTextureElement > TextureElement = ImportContext.FilteredScene->GetTexture( TextureIndex );
+		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
+		{
+			continue;
+		}
+
 		const FString TextureName = ObjectTools::SanitizeObjectName( TextureElement->GetName() );
 
 		for ( int32 MaterialIndex = 0; MaterialIndex < MaterialsCount; ++MaterialIndex )
@@ -581,6 +586,11 @@ UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& Sou
 			FObjectReader ObjectReader(DestinationComponent, Bytes);
 		}
 
+		if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
+		{
+			DestinationComponent->Rename( *SourceComponent.GetName() );
+		}
+
 		FixReferencesForObject(DestinationComponent, ReferencesToRemap);
 
 		// #ueent_todo: we shouldn't be copying instanced object pointers in the first place
@@ -622,6 +632,23 @@ void FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImportContext& Imp
 	else
 	{
 		check(ImportContext.ActorsContext.CurrentTargetedScene);
+
+		if ( !DestinationComponent )
+		{
+			// Look at components of the actor, we might find the scene component we are looking for.
+			for ( UActorComponent* Component : DestinationActor.GetInstanceComponents() )
+			{
+				if ( Component && Component->IsA( SourceComponent.GetClass() ) )
+				{
+					FName ComponentDatasmithId = FDatasmithImporterUtils::GetDatasmithElementId( Component );
+					if ( ComponentDatasmithId.IsEqual( SourceComponentDatasmithId ) )
+					{
+						DestinationComponent = static_cast< USceneComponent* >( Component );
+						break;
+					}
+				}
+			}
+		}
 
 		TArray< FMigratedTemplatePairType > MigratedTemplates = MigrateTemplates(
 			&SourceComponent,

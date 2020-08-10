@@ -2,8 +2,8 @@
 
 #include "DisplayNodes/VariantManagerVariantNode.h"
 
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "SVariantManager.h"
+#include "ThumbnailGenerator.h"
 #include "Variant.h"
 #include "VariantManagerDragDropOp.h"
 #include "VariantManagerEditorCommands.h"
@@ -82,7 +82,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 		.HAlign(HAlign_Fill)
 		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
 		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
-		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		.Padding(FMargin(20.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(SHorizontalBox)
 
@@ -474,9 +474,9 @@ void FVariantManagerVariantNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().SwitchOnSelectedVariantCommand);
 	MenuBuilder.EndSection();
 	MenuBuilder.BeginSection(TEXT("Thumbnail"), LOCTEXT("ThumbnailSectionText", "Thumbnail"));
-	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().CreateThumbnailVariantCommand);
-	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().LoadThumbnailVariantCommand);
-	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().ClearThumbnailVariantCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().CreateThumbnailCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().LoadThumbnailCommand);
+	MenuBuilder.AddMenuEntry(FVariantManagerEditorCommands::Get().ClearThumbnailCommand);
 	MenuBuilder.EndSection();
 }
 
@@ -509,7 +509,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetThumbnailWidget()
 	{
 		ThumbnailPool = MakeShared<FAssetThumbnailPool>(1, false);
 
-		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&Variant, VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, ThumbnailPool);
+		TSharedRef<FAssetThumbnail> AssetThumbnail = MakeShared<FAssetThumbnail>(&Variant, VARIANT_MANAGER_THUMBNAIL_SIZE, VARIANT_MANAGER_THUMBNAIL_SIZE, ThumbnailPool);
 		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
 	}
 

@@ -5,6 +5,8 @@
 #include <Unknwn.h>
 
 #include <vector>
+#include <utility>
+#include <unordered_map>
 
 #if !defined(Navisworks_API)
 #error "Navisworks_API is undefined - won't find Navisworks assemblies and typelibs"
@@ -15,8 +17,24 @@
 #import lcodieD(Navisworks_API/lcodieD.dll) rename_namespace("NavisworksIntegratedAPI") // renaming to omit API version(e.g. NavisworksIntegratedAPI17) 
 
 
-using namespace DatasmithNavisworksUtilImpl;
+bool DoesTriangleHaveInvalidNormals(DatasmithNavisworksUtilImpl::FGeometry& Geom, uint32_t TriangleIndex, double NormalThreshold)
+{
+	const uint32_t TriangleBaseVertexIndex = TriangleIndex * 3;
 
+	// Find out if any triangle normal is invalid
+	for (uint32_t VertexIndex = TriangleBaseVertexIndex; VertexIndex < TriangleBaseVertexIndex + 3; ++VertexIndex)
+	{
+		double X = Geom.Normals[VertexIndex * 3 + 0];
+		double Y = Geom.Normals[VertexIndex * 3 + 1];
+		double Z = Geom.Normals[VertexIndex * 3 + 2];
+
+		if ((abs(X) <= NormalThreshold) && (abs(Y) <= NormalThreshold) && (abs(Z) <= NormalThreshold))
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 // Implementation of callback object that goes to Naviswork's GenerateSimplePrimitives
 // Although it's an IDispatch interface we don't need its mechanics implemented when
@@ -24,11 +42,65 @@ using namespace DatasmithNavisworksUtilImpl;
 class SimplePrimitivesCallback : public NavisworksIntegratedAPI::InwSimplePrimitivesCB {
 public:
 
-	TriangleReaderNative* Geometry;
+	DatasmithNavisworksUtilImpl::FGeometry* Geometry;
+	bool bReadNormals;
+	bool bReadUVs;
+	
+	DatasmithNavisworksUtilImpl::FGeometrySettings GeometrySettings;
 
-	void ConvertCoord(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<double>& Result)
+	struct Vector3d
+	{
+		double X, Y, Z;
+		
+		Vector3d(double X, double Y, double Z) : X(X), Y(Y), Z(Z)
+		{
+		}
+		
+		bool AlmostEqual(const Vector3d Other, double Threshold) const
+		{
+			return (abs(X - Other.X) <= Threshold)
+				&& (abs(Y - Other.Y) <= Threshold)
+				&& (abs(Z - Other.Z) <= Threshold);
+		}
+
+		Vector3d Cross(const Vector3d V) const
+		{
+			return {
+				Y * V.Z - Z * V.Y,
+				Z * V.X - X * V.Z,
+				X * V.Y - Y * V.X
+			};
+		}
+
+		double LengthSquared() const
+		{
+			return X * X + Y * Y + Z * Z;
+		}
+		
+		Vector3d operator -(const Vector3d V) const
+		{
+			return {
+				X - V.X,
+				Y - V.Y,
+				Z - V.Z
+			};
+		}
+		
+		Vector3d operator *(const double S) const
+		{
+			return {
+				X * S,
+				Y * S,
+				Z * S
+			};
+		}
+	};
+
+	// Returns added position vector
+	Vector3d ConvertCoord(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<double>& Result)
 	{
 		ExtractVectorFromVariant(SimpleVertex->coord, Result, 3);
+		return Vector3d{ Result[Result.size() - 3], Result[Result.size() - 2], Result[Result.size() - 1] };
 	}
 
 	void ConvertNormal(NavisworksIntegratedAPI::InwSimpleVertex* SimpleVertex, std::vector<double>& Result)
@@ -56,22 +128,71 @@ public:
 		}
 	}
 
-	void AddVertex(NavisworksIntegratedAPI::InwSimpleVertex* v)
-	{
-		Geometry->VertexCount += 1;
-		
-		ConvertCoord(v, Geometry->Coords);
-		ConvertNormal(v, Geometry->Normals);
-		ConvertUV(v, Geometry->UVs);
-	}
-
 	HRESULT raw_Triangle(NavisworksIntegratedAPI::InwSimpleVertex* V1, NavisworksIntegratedAPI::InwSimpleVertex* V2, NavisworksIntegratedAPI::InwSimpleVertex* V3) override
 	{
 		const int BaseIndex = Geometry->VertexCount;
 
-		AddVertex(V1);
-		AddVertex(V2);
-		AddVertex(V3);
+		const Vector3d P0 = ConvertCoord(V1, Geometry->Coords);
+		const Vector3d P1 = ConvertCoord(V2, Geometry->Coords);
+		const Vector3d P2 = ConvertCoord(V3, Geometry->Coords);
+
+		// Test Degenerate triangle
+		if (P0.AlmostEqual(P1, GeometrySettings.PositionThreshold)
+			|| P0.AlmostEqual(P2, GeometrySettings.PositionThreshold)
+			|| P1.AlmostEqual(P2, GeometrySettings.PositionThreshold))
+		{
+			// Rollback added coords, we are skipping degenerate triangle
+			Geometry->Coords.resize(Geometry->Coords.size() - 3 * 3);
+			return S_OK;
+		}
+		
+		if (bReadNormals)
+		{
+			ConvertNormal(V1, Geometry->Normals);
+			ConvertNormal(V2, Geometry->Normals);
+			ConvertNormal(V3, Geometry->Normals);
+		}
+		else
+		{
+			Geometry->Normals.resize(Geometry->Normals.size() + 3 * 3, 0);
+		}
+
+		// Try repairing normals
+		// In case normals are not read or read as near zero.
+		// Importing invalid normals into Unreal will make Unreal regenerate them and display warnings which we can fix on export.
+		// Also merging meshes with valid normals will invalidate those merged meshes and make Unreal regenerate normals for the whole merged mesh making it faceted even for partch that were smooth without merge
+		// Geometry without normals is faceted in Navisworks anyway so we are making it explicit, early, simple(we know topology) and fixing merged meshes
+		uint32_t TriangleIndex = Geometry->TriangleCount;
+		if (DoesTriangleHaveInvalidNormals(*Geometry, TriangleIndex, GeometrySettings.NormalThreshold))
+		{
+			Vector3d TriangleNormal = (P1 - P0).Cross(P2 - P0);
+			double TriangleArea = 0.5 * TriangleNormal.LengthSquared();
+			if (TriangleArea < GeometrySettings.TriangleSizeThreshold)
+			{
+				// Skip triangle that is too small(degenerate)
+				Geometry->Coords.resize(Geometry->Coords.size() - 3 * 3);
+				Geometry->Normals.resize(Geometry->Normals.size() - 3 * 3);
+				return S_OK;
+			}
+
+			double Scale = 1.0 / sqrt(TriangleArea);
+			Vector3d Normal = TriangleNormal * Scale;
+			for (int I = 0; I < 3; ++I)
+			{
+				Geometry->Normals[(BaseIndex + I) * 3 + 0] = Normal.X;
+				Geometry->Normals[(BaseIndex + I) * 3 + 1] = Normal.Y;
+				Geometry->Normals[(BaseIndex + I) * 3 + 2] = Normal.Z;
+			}
+		}
+
+		if (bReadUVs)
+		{
+			ConvertUV(V1, Geometry->UVs);
+			ConvertUV(V2, Geometry->UVs);
+			ConvertUV(V3, Geometry->UVs);
+		}
+
+		Geometry->VertexCount += 3;
 
 		for (int I = 0; I < 3; ++I)
 		{
@@ -136,21 +257,153 @@ public:
 	// end IDispatch implementation
 };
 
-TriangleReaderNative::TriangleReaderNative()
+DatasmithNavisworksUtilImpl::FTriangleReaderNative::FTriangleReaderNative()
 {
 }
 
-TriangleReaderNative::~TriangleReaderNative()
+DatasmithNavisworksUtilImpl::FTriangleReaderNative::~FTriangleReaderNative()
 {
 }
 
-
-void TriangleReaderNative::Read(void* FragmentIUnknownPtr)
+void DatasmithNavisworksUtilImpl::FTriangleReaderNative::Read(void* FragmentIUnknownPtr, DatasmithNavisworksUtilImpl::FGeometry& Geom, FGeometrySettings& Settings)
 {
 	NavisworksIntegratedAPI::InwOaFragment3Ptr Fragment(static_cast<IUnknown*>(FragmentIUnknownPtr));
 	SimplePrimitivesCallback Callback;
-	Callback.Geometry = this;
+	Callback.Geometry = &Geom;
 
+	// TODO: Interesting, what is this UserOffset?
+	NavisworksIntegratedAPI::InwLVec3fPtr InwLVec3F = Fragment->GetUserOffset();
+	double UserOffset[] = { InwLVec3F->data1, InwLVec3F->data2, InwLVec3F->data1 };
+
+	NavisworksIntegratedAPI::nwEVertexProperty VertexProperty = Fragment->GetVertexProps();
+	Callback.bReadNormals = VertexProperty & NavisworksIntegratedAPI::nwEVertexProperty::eNORMAL;
+	Callback.bReadUVs = VertexProperty & NavisworksIntegratedAPI::nwEVertexProperty::eTEX_COORD;
+	Callback.GeometrySettings = Settings;
 	// Callback will be called for each triangle in the fragment mesh
-	Fragment->GenerateSimplePrimitives(NavisworksIntegratedAPI::nwEVertexProperty(NavisworksIntegratedAPI::nwEVertexProperty::eNORMAL | NavisworksIntegratedAPI::nwEVertexProperty::eTEX_COORD), &Callback);
+	Fragment->GenerateSimplePrimitives(VertexProperty, &Callback);
+
+	if (!Callback.bReadUVs)
+	{
+		Geom.UVs.resize(Geom.VertexCount * 2, 0.0);
+	}
+}
+
+inline void CombineHash(std::size_t& A, const std::size_t& B)
+{
+	A = A ^ (B + 0x9e3779b9 + (A << 6) + (A >> 2));
+}
+
+uint64_t DatasmithNavisworksUtilImpl::FGeometry::ComputeHash()
+{
+	std::size_t Hash = 0;
+
+	CombineHash(Hash, std::hash<uint32_t>()(VertexCount));
+
+	for (double Value : Coords)
+	{
+		CombineHash(Hash, std::hash<double>()(Value));
+	}
+
+	for (double Value : Normals)
+	{
+		CombineHash(Hash, std::hash<double>()(Value));
+	}
+
+	for (double Value : UVs)
+	{
+		CombineHash(Hash, std::hash<double>()(Value));
+	}
+
+	CombineHash(Hash, std::hash<uint32_t>()(TriangleCount));
+
+	for (uint32_t Value : Indices)
+	{
+		CombineHash(Hash, std::hash<uint32_t>()(Value));
+	}
+	return Hash;
+}
+
+void DatasmithNavisworksUtilImpl::FGeometry::Optimize()
+{
+	std::vector<std::size_t> VertexHashes(VertexCount);
+
+	// TODO: parallel this loop and add tolerance to vertex values
+	for (uint32_t VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+	{
+		std::size_t Hash = 0;
+		for (int I = 0; I < 3; ++I)
+		{
+			CombineHash(Hash, std::hash<double>()(Coords[VertexIndex * 3 + I]));
+		}
+		for (int I = 0; I < 3; ++I)
+		{
+			CombineHash(Hash, std::hash<double>()(Normals[VertexIndex * 3 + I]));
+		}
+		for (int I = 0; I < 2; ++I)
+		{
+			CombineHash(Hash, std::hash<double>()(UVs[VertexIndex * 2 + I]));
+		}
+		VertexHashes[VertexIndex] = Hash;
+	}
+	auto VertexEquals = [this](const uint32_t& A, const uint32_t& B)
+	{
+		return std::equal(Coords.begin() + A * 3, Coords.begin() + A * 3 + 3, Coords.begin() + B * 3)
+			&& std::equal(Normals.begin() + A * 3, Normals.begin() + A * 3 + 3, Normals.begin() + B * 3)
+			&& std::equal(UVs.begin() + A * 2, UVs.begin() + A * 2 + 2, UVs.begin() + B * 2)
+			;
+	};
+
+	auto VertexHash = [&VertexHashes](const uint32_t& VertexIndex)
+	{
+		return VertexHashes[VertexIndex];
+	};
+
+	std::unordered_map<uint32_t, uint32_t, decltype(VertexHash), decltype(VertexEquals)> VerticesMap(VertexCount, VertexHash, VertexEquals);
+
+	std::vector<uint32_t> OldVertexIndexToNew(VertexCount);
+	std::vector<uint32_t> NewVertices;
+	NewVertices.reserve(VertexCount);
+
+	for (uint32_t VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+	{
+		uint32_t NextNewVertexIndex = static_cast<uint32_t>(NewVertices.size()); // if current vertex is not yet in VerticesMap this will be its new index
+		const auto Insert = VerticesMap.try_emplace(VertexIndex, NextNewVertexIndex);
+		const bool bHasInsertedNewVertex = Insert.second;
+		if (bHasInsertedNewVertex)
+		{
+			NewVertices.push_back(VertexIndex);
+		}
+		const auto OldAndNew = Insert.first;
+		OldVertexIndexToNew[VertexIndex] = OldAndNew->second;
+	}
+
+	// Move vertices
+	for (uint32_t NewIndex = 0; NewIndex < NewVertices.size(); ++NewIndex)
+	{
+		const uint32_t OldIndex = NewVertices[NewIndex];
+
+		for (int I = 0; I < 3; ++I)
+		{
+			Coords[NewIndex * 3 + I] = Coords[OldIndex * 3 + I];
+		}
+		for (int I = 0; I < 3; ++I)
+		{
+			Normals[NewIndex * 3 + I] = Normals[OldIndex * 3 + I];
+		}
+		for (int I = 0; I < 2; ++I)
+		{
+			UVs[NewIndex * 2 + I] = UVs[OldIndex * 2 + I];
+		}
+	}
+
+	// Update VertexCount and dependants
+	VertexCount = static_cast<uint32_t>(NewVertices.size());
+	Coords.resize(VertexCount * 3);
+	Normals.resize(VertexCount * 3);
+	UVs.resize(VertexCount * 2);
+
+	for (auto& Index : Indices)
+	{
+		Index = OldVertexIndexToNew[Index];
+	}
 }

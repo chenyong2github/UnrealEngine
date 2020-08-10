@@ -11,6 +11,7 @@
 #include "Async/Async.h"
 #include "Misc/ScopeLock.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 
 #if WITH_EDITOR
 #include "Classes/EditorStyleSettings.h"
@@ -185,6 +186,24 @@ void SetScaleData(uint8* Buffer, const TArray<FLidarPointCloudTraversalOctreeNod
 	}
 }
 
+void SetNormalData(uint8* Buffer, const TArray<FLidarPointCloudTraversalOctreeNode*>& Nodes)
+{
+	for (const FLidarPointCloudTraversalOctreeNode* Node : Nodes)
+	{
+		// Skip nodes with no available data
+		if (!Node->DataNode->HasData())
+		{
+			continue;
+		}
+
+		for (uint8* Data = ((uint8*)Node->DataNode->GetData() + 16), *DataEnd = Data + Node->DataNode->GetNumVisiblePoints() * sizeof(FLidarPointCloudPoint); Data != DataEnd; Data += sizeof(FLidarPointCloudPoint))
+		{
+			FMemory::Memcpy(Buffer, Data, 3);
+			Buffer += 3;
+		}
+	}
+}
+
 FLidarPointCloudViewData::FLidarPointCloudViewData(bool bCompute)
 	: bValid(false)
 	, ViewOrigin(FVector::ZeroVector)
@@ -296,6 +315,19 @@ void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLOD
 
 	const float BaseLODImportance = FMath::Max(0.0f, CVarBaseLODImportance.GetValueOnAnyThread());
 
+	bool bStartClipped = false;
+	if (SelectionParams.ClippingVolumes)
+	{
+		for (const ALidarClippingVolume* Volume : *SelectionParams.ClippingVolumes)
+		{
+			if (Volume->Mode == ELidarClippingVolumeMode::ClipOutside)
+			{
+				bStartClipped = true;
+				break;
+			}
+		}
+	}
+
 	TQueue<FLidarPointCloudTraversalOctreeNode*> Nodes;
 	FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
 	Nodes.Enqueue(&Root);
@@ -307,11 +339,43 @@ void FLidarPointCloudTraversalOctree::GetVisibleNodes(TArray<FLidarPointCloudLOD
 		// Update number of visible points, if needed
 		CurrentNode->DataNode->UpdateNumVisiblePoints();
 
+		const FVector NodeExtent = Extents[CurrentNode->Depth] * SelectionParams.BoundsScale;
+
 		// In Frustum?
 		// #todo: Skip frustum checks for nodes fully in frustum
-		if (!ViewData.ViewFrustum.IntersectBox(CurrentNode->Center, Extents[CurrentNode->Depth] * SelectionParams.BoundsScale))
+		if (!ViewData.ViewFrustum.IntersectBox(CurrentNode->Center, NodeExtent))
 		{
 			continue;
+		}
+
+		const FBox NodeBounds(CurrentNode->Center - NodeExtent, CurrentNode->Center + NodeExtent);
+
+		// Check vs Clipping Volumes
+		bool bClip = bStartClipped;
+		if (SelectionParams.ClippingVolumes)
+		{
+			for (const ALidarClippingVolume* Volume : *SelectionParams.ClippingVolumes)
+			{
+				if (Volume->Mode == ELidarClippingVolumeMode::ClipOutside)
+				{
+					if (Volume->GetBounds().GetBox().Intersect(NodeBounds))
+					{
+						bClip = false;
+					}
+				}
+				else
+				{
+					if (Volume->GetBounds().GetBox().IsInside(NodeBounds))
+					{
+						bClip = true;
+					}
+				}
+			}
+
+			if (bClip)
+			{
+				continue;
+			}
 		}
 
 		// Only process this node if it has any visible points - do not use continue; as the children may still contain visible points!
@@ -385,10 +449,16 @@ void FLidarPointCloudLODManager::Tick(float DeltaTime)
 	
 	PrepareProxies();
 
+	// Gather clipping volumes
+	TArray<const ALidarClippingVolume*> ClippingVolumes = GetClippingVolumes();
+
+	// Sort clipping volumes by priority
+	Algo::Sort(ClippingVolumes, [](const ALidarClippingVolume* A, const ALidarClippingVolume* B) { return (A->Priority < B->Priority) || (A->Priority == B->Priority && A->Mode > B->Mode); });
+
 	// A copy of the array will be passed, to avoid concurrency issues
 	TArray<FRegisteredProxy> CurrentRegisteredProxies = RegisteredProxies;
 
-	Async(EAsyncExecution::ThreadPool, [this, CurrentRegisteredProxies] { ProcessLOD(CurrentRegisteredProxies, Time); });
+	Async(EAsyncExecution::ThreadPool, [this, CurrentRegisteredProxies, ClippingVolumes] { ProcessLOD(CurrentRegisteredProxies, Time, ClippingVolumes); });
 }
 
 TStatId FLidarPointCloudLODManager::GetStatId() const
@@ -405,7 +475,7 @@ void FLidarPointCloudLODManager::RegisterProxy(ULidarPointCloudComponent* Compon
 	}
 }
 
-void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODManager::FRegisteredProxy>& InRegisteredProxies, const float CurrentTime)
+void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODManager::FRegisteredProxy>& InRegisteredProxies, const float CurrentTime, const TArray<const ALidarClippingVolume*>& ClippingVolumes)
 {
 	int32 PointBudget = CVarLidarPointBudget.GetValueOnAnyThread();
 
@@ -471,6 +541,9 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 				SelectionParams.MaxDepth = RegisteredProxy.Component->MaxDepth;
 				SelectionParams.BoundsScale = RegisteredProxy.Component->BoundsScale;
 
+				// Ignore clipping if in editor viewport
+				SelectionParams.ClippingVolumes = RegisteredProxy.Component->IsOwnedByEditor() ? nullptr : &ClippingVolumes;
+
 				// Append visible nodes
 				RegisteredProxy.TraversalOctree->GetVisibleNodes(NodeSizeData, RegisteredProxy.ViewData, i, SelectionParams, CurrentTime);
 			}
@@ -500,6 +573,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 
 	// Used to pass render data updates to render thread
 	FLidarPointCloudDataBuffer* Buffer = BufferManager.GetFreeBuffer();
+	FLidarPointCloudDataBuffer* BufferNormal = BufferManager.GetFreeBuffer();
 	TArray<FLidarPointCloudProxyUpdateData> ProxyUpdateData;
 
 	// Build buffer data
@@ -510,8 +584,10 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 		uint8* BufferData = Buffer->GetData();
 		uint8* LocationAndColorBufferPtr = BufferData;
 		uint8* ScaleBufferPtr = BufferData + TotalPointsSelected * 16;
+		uint8* NormalPtr = BufferNormal->GetData();
 
 		int32 FirstElementIndex = 0;
+		int32 FirstNormalIndex = 0;
 
 		// Set when to release the BulkData, if no longer visible
 		const float BulkDataLifetime = CurrentTime + 1;
@@ -531,6 +607,8 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 
 			int32 NumPoints = 0;
 
+			const bool bUseNormals = RegisteredProxy.Component->ShouldRenderFacingNormals();
+
 			// Since the process is async, make sure we can access the data!
 			{
 				FScopeLock OctreeLock(&RegisteredProxy.PointCloud->Octree.DataLock);
@@ -549,15 +627,22 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 
 				NumPoints = SetLocationAndColorData(LocationAndColorBufferPtr, SelectedNodesData[i], RegisteredProxy.Component->ColorSource == ELidarPointCloudColorationMode::Classification, RegisteredProxy.Component->IsOwnedByEditor());
 				SetScaleData(ScaleBufferPtr, SelectedNodesData[i]);
+				
+				if (bUseNormals)
+				{
+					SetNormalData(NormalPtr, SelectedNodesData[i]);
+				}
 			}
 
 			FLidarPointCloudProxyUpdateData UpdateData;
 			UpdateData.SceneProxyWrapper = RegisteredProxy.SceneProxyWrapper;
 			UpdateData.FirstElementIndex = FirstElementIndex;
+			UpdateData.FirstNormalIndex = FirstNormalIndex;
 			UpdateData.NumElements = NumPoints;
 			UpdateData.PointBudget = PointBudget;
 			UpdateData.VDMultiplier = RegisteredProxy.TraversalOctree->ReversedVirtualDepthMultiplier;
 			UpdateData.RootCellSize = RegisteredProxy.PointCloud->Octree.GetRootCellSize();
+			UpdateData.ClippingVolumes = ClippingVolumes;
 
 #if !(UE_BUILD_SHIPPING)
 			// Prepare bounds
@@ -579,6 +664,12 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 			FirstElementIndex += NumPoints;
 			LocationAndColorBufferPtr += NumPoints * 16;
 			ScaleBufferPtr += NumPoints;
+
+			if (bUseNormals)
+			{
+				NormalPtr += NumPoints * 3;
+				FirstNormalIndex += NumPoints;
+			}
 		}
 	}
 
@@ -593,7 +684,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 	}
 
 	// Process buffer updates on RT
-	ENQUEUE_RENDER_COMMAND(ProcessLidarPointCloudLOD)([PointBudget, Buffer, TotalPointsSelected, ProxyUpdateData](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(ProcessLidarPointCloudLOD)([PointBudget, Buffer, BufferNormal, TotalPointsSelected, ProxyUpdateData](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BufferUpdateRT);
 
@@ -601,18 +692,23 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 		GLidarPointCloudIndexBuffer.Resize(PointBudget);
 
 		// 17 bytes per point, element size set to 4 bytes to minimize wastage. Rounded to 4.3 elements per point
-		GLidarPointCloudRenderBuffer.Resize(PointBudget * 4.3f);
+		GLidarPointCloudRenderBuffer.Resize(FMath::CeilToInt(PointBudget * 4.3f));
+
+		// 3 bytes per point, element size set to 4 bytes to minimize wastage. Rounded to 0.8 elements per point
+		GLidarPointCloudNormalBuffer.Resize(FMath::CeilToInt(PointBudget * 0.8f));
 
 		GLidarPointCloudRenderBuffer.PointCount = TotalPointsSelected;
 
 		if (TotalPointsSelected > 0)
 		{
-			int32 TotalDataSize = TotalPointsSelected * 17;
-
 			// Update contents of the Structured Buffer
-			uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(GLidarPointCloudRenderBuffer.Buffer, 0, TotalDataSize, RLM_WriteOnly);
-			FMemory::Memcpy(StructuredBuffer, Buffer->GetData(), TotalDataSize);
+			uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(GLidarPointCloudRenderBuffer.Buffer, 0, TotalPointsSelected * 17, RLM_WriteOnly);
+			FMemory::Memcpy(StructuredBuffer, Buffer->GetData(), TotalPointsSelected * 17);
 			RHIUnlockVertexBuffer(GLidarPointCloudRenderBuffer.Buffer);
+
+			StructuredBuffer = (uint8*)RHILockVertexBuffer(GLidarPointCloudNormalBuffer.Buffer, 0, TotalPointsSelected * 3, RLM_WriteOnly);
+			FMemory::Memcpy(StructuredBuffer, BufferNormal->GetData(), TotalPointsSelected * 3);
+			RHIUnlockVertexBuffer(GLidarPointCloudNormalBuffer.Buffer);
 
 			// Iterate over proxies and, if valid, update its FirstElementIndex
 			for (int32 i = 0; i < ProxyUpdateData.Num(); ++i)
@@ -626,6 +722,7 @@ void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMana
 		}
 
 		Buffer->MarkAsFree();
+		BufferNormal->MarkAsFree();
 	});
 
 	bProcessing = false;
@@ -715,6 +812,40 @@ void FLidarPointCloudLODManager::PrepareProxies()
 
 	INC_DWORD_STAT_BY(STAT_PointCountTotal, TotalPointCount / 1000);
 	INC_DWORD_STAT_BY(STAT_ProxyCount, RegisteredProxies.Num());
+}
+
+TArray<const ALidarClippingVolume*> FLidarPointCloudLODManager::GetClippingVolumes() const
+{
+	TArray<const ALidarClippingVolume*> ClippingVolumes;
+	TArray<UWorld*> Worlds;
+
+	for (int32 i = 0; i < RegisteredProxies.Num(); ++i)
+	{
+		if (ULidarPointCloudComponent* Component = RegisteredProxies[i].Component)
+		{
+			if (!Component->IsOwnedByEditor())
+			{
+				if (UWorld* World = Component->GetWorld())
+				{
+					Worlds.AddUnique(World);
+				}
+			}
+		}
+	}
+
+	for (UWorld* World : Worlds)
+	{
+		for (TActorIterator<ALidarClippingVolume> It(World); It; ++It)
+		{
+			ALidarClippingVolume* Volume = *It;
+			if (Volume->bEnabled)
+			{
+				ClippingVolumes.Add(Volume);
+			}
+		}
+	}
+
+	return ClippingVolumes;
 }
 
 FLidarPointCloudLODManager::FRegisteredProxy::FRegisteredProxy(ULidarPointCloudComponent* Component, TWeakPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper)

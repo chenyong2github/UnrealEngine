@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"Cbor",
 					"RawMesh",
 					"MeshDescription",
 					"StaticMeshDescription"
@@ -24,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Json",
 					"XmlParser",
+					"MessagingCommon",
 				}
 			);
         }

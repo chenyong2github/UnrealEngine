@@ -81,7 +81,7 @@ public:
 struct FLidarPointCloudImportResults
 {
 public:
-	TArray<FLidarPointCloudPoint> Points;
+	TArray64<FLidarPointCloudPoint> Points;
 	FBox Bounds;
 	FDoubleVector OriginalCoordinates;
 
@@ -96,78 +96,38 @@ private:
 	uint64 ProgressCounter;
 	uint64 TotalProgressCounter;
 	uint64 MaxProgressCounter;
+	TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InitCallback;
+	TFunction<void(TArray64<FLidarPointCloudPoint>*)> BufferCallback;
 
 public:
-	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled = nullptr, TFunction<void(float)> InProgressCallback = TFunction<void(float)>())
-		: Bounds(EForceInit::ForceInit)
-		, OriginalCoordinates(0)
-		, ProgressCallback(InProgressCallback)
-		, bCancelled(bInCancelled)
-		, ProgressFrequency(UINT64_MAX)
-		, ProgressCounter(0)
-		, TotalProgressCounter(0)
-		, MaxProgressCounter(0)
+	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled = nullptr, TFunction<void(float)> InProgressCallback = TFunction<void(float)>());
+	FLidarPointCloudImportResults(FThreadSafeBool* bInCancelled, TFunction<void(float)> InProgressCallback, TFunction<void(const FDoubleBox& Bounds, FDoubleVector)> InInitCallback, TFunction<void(TArray64<FLidarPointCloudPoint>*)> InBufferCallback);
+
+	void InitializeOctree(const FDoubleBox& InBounds);
+
+	void ProcessBuffer(TArray64<FLidarPointCloudPoint>* InPoints);
+
+	void SetPointCount(const uint64& InTotalPointCount);
+
+	FORCEINLINE void AddPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A = 1.0f)
 	{
+		AddPoint(Location.X, Location.Y, Location.Z, R, G, B, A);
 	}
 
-	void SetPointCount(const uint64& InTotalPointCount)
+	void AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A = 1.0f);
+
+	void AddPointsBulk(TArray64<FLidarPointCloudPoint>& InPoints);
+
+	void CenterPoints();
+
+	FORCEINLINE bool IsCancelled() const
 	{
-		SetMaxProgressCounter(InTotalPointCount);
-		Points.Empty(InTotalPointCount);
+		return bCancelled && *bCancelled;
 	}
 
-	FORCEINLINE void AddPoint(const FVector& Location, const float& R, const float& G, const float& B, const float& A = 1.0f) { AddPoint(Location.X, Location.Y, Location.Z, R, G, B, A); }
+	void SetMaxProgressCounter(uint64 MaxCounter);
 
-	void AddPoint(const float& X, const float& Y, const float& Z, const float& R, const float& G, const float& B, const float& A = 1.0f)
-	{
-		Points.Emplace(X, Y, Z, R, G, B, A);
-		Bounds += Points.Last().Location;
-		IncrementProgressCounter(1);
-	}
-
-	void AddPointsBulk(TArray<FLidarPointCloudPoint>& InPoints)
-	{
-		Points.Append(InPoints);
-		IncrementProgressCounter(InPoints.Num());
-	}
-
-	void CenterPoints()
-	{
-		// Get the offset value
-		FVector CenterOffset = Bounds.GetCenter();
-
-		// Apply it to the points
-		for (FLidarPointCloudPoint& Point : Points)
-		{
-			Point.Location -= CenterOffset;
-		}
-
-		// Account for this in the original coordinates
-		OriginalCoordinates += CenterOffset;
-
-		// Shift the bounds
-		Bounds = Bounds.ShiftBy(-CenterOffset);
-	}
-
-	bool IsCancelled() { return bCancelled && *bCancelled; }
-
-	void SetMaxProgressCounter(uint64 MaxCounter)
-	{
-		MaxProgressCounter = MaxCounter;
-		ProgressFrequency = MaxProgressCounter / 100;
-	}
-
-	void IncrementProgressCounter(uint64 Increment)
-	{
-		ProgressCounter += Increment;
-		
-		if (ProgressCallback && ProgressCounter >= ProgressFrequency)
-		{
-			TotalProgressCounter += ProgressCounter;
-			ProgressCounter = 0;
-			ProgressCallback(FMath::Min((double)TotalProgressCounter / MaxProgressCounter, 1.0));
-		}
-	}
+	void IncrementProgressCounter(uint64 Increment);
 };
 
 /** Base type implemented by all file handlers. */
@@ -195,7 +155,13 @@ public:
 	virtual bool HandleExport(const FString& Filename, class ULidarPointCloud* PointCloud) { return false; }
 
 	/** Returns a shared pointer for the import settings of this importer. */
-	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) = 0;
+	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) const = 0;
+
+	/**
+	 * Returns true if the given file supports importing and building an octree concurrently.
+	 * False if the data needs caching first.
+	 */
+	virtual bool SupportsConcurrentInsertion(const FString& Filename) const = 0;
 
 	/**
 	 * Must return true if the provided UID is of supported Import Settings type.
@@ -253,6 +219,12 @@ public:
 
 	/** Responsible for serialization using correct serializer for the given format. */
 	static void SerializeImportSettings(FArchive& Ar, TSharedPtr<FLidarPointCloudImportSettings>& ImportSettings);
+
+	/**
+	 * Returns true if the given file supports importing and building an octree concurrently.
+	 * False if the data needs caching first.
+	 */
+	static bool FileSupportsConcurrentInsertion(const FString& Filename);
 
 public:
 	// Begin UExporter Interface

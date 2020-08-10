@@ -262,6 +262,7 @@ public:
 	 */
 	virtual bool BuildSkeletalMesh( 
 		FSkeletalMeshLODModel& LODModel,
+		const FString& SkeletalMeshName,
 		const FReferenceSkeleton& RefSkeleton,
 		const TArray<SkeletalMeshImportData::FVertInfluence>& Influences,
 		const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges,

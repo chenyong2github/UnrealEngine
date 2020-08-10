@@ -3,10 +3,6 @@
 #include "MasterMaterials/DatasmithMasterMaterial.h"
 
 #include "Materials/Material.h"
-#include "Materials/MaterialExpressionScalarParameter.h"
-#include "Materials/MaterialExpressionStaticBoolParameter.h"
-#include "Materials/MaterialExpressionTextureSampleParameter.h"
-#include "Materials/MaterialExpressionVectorParameter.h"
 
 #include "UObject/SoftObjectPath.h"
 
@@ -17,7 +13,6 @@ FDatasmithMasterMaterial::FDatasmithMasterMaterial()
 
 void FDatasmithMasterMaterial::FromMaterial( UMaterial* InMaterial )
 {
-#if WITH_EDITOR
 	if ( InMaterial )
 	{
 		TArray< FGuid > ParameterIds;
@@ -43,14 +38,15 @@ void FDatasmithMasterMaterial::FromMaterial( UMaterial* InMaterial )
 			TextureParams.Add(Info.Name.ToString());
 		}
 
+#if WITH_EDITORONLY_DATA
 		TArray< FMaterialParameterInfo > BoolParameterInfo;
 		InMaterial->GetAllStaticSwitchParameterInfo(BoolParameterInfo, ParameterIds);
 		for (const FMaterialParameterInfo& Info : BoolParameterInfo)
 		{
 			BoolParams.Add(Info.Name.ToString());
 		}
-	}
 #endif
+	}
 
 	Material = InMaterial;
 }

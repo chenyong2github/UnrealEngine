@@ -159,6 +159,11 @@ void FCachedFontData::LoadFreeTypeFace()
 	const FTypefaceEntry& Typeface = CompositeFont->DefaultTypeface.Fonts[0];
 	const FFontFaceDataConstPtr FaceData = Typeface.Font.GetFontFaceData();
 
+	if (!FaceData.IsValid())
+	{
+		return;
+	}
+
 	if (FaceData->HasData() && FaceData->GetData().Num() > 0)
 	{
 		Data = FaceData->GetData();

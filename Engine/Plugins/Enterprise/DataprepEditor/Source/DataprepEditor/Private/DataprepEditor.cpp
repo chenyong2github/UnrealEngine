@@ -13,6 +13,7 @@
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorModule.h"
 #include "DataprepEditorStyle.h"
+#include "DataprepEditorMenu.h"
 #include "PreviewSystem/DataprepPreviewAssetColumn.h"
 #include "PreviewSystem/DataprepPreviewSceneOutlinerColumn.h"
 #include "PreviewSystem/DataprepPreviewSystem.h"
@@ -41,6 +42,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "ICustomSceneOutliner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -58,6 +60,7 @@
 #include "StatsViewerModule.h"
 #include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
+#include "ToolMenus.h"
 #include "UObject/Object.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -404,6 +407,8 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	CreateTabs();
 	
+	RegisterMenus();
+
 	const TSharedRef<FTabManager::FLayout> Layout = bIsDataprepInstance ? CreateDataprepInstanceLayout() : CreateDataprepLayout();
 
 	const bool bCreateDefaultStandaloneMenu = true;
@@ -417,6 +422,52 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 #ifdef DATAPREP_EDITOR_VERBOSE
 	LogDataprepEditor.SetVerbosity( ELogVerbosity::Verbose );
 #endif
+
+	// Get notified when previewing is done to update outliner selection
+	PreviewSystem->GetOnPreviewIsDoneProcessing().AddSP( this, &FDataprepEditor::SyncSelectionToPreviewSystem );
+}
+
+void FDataprepEditor::SyncSelectionToPreviewSystem()
+{
+	// Select actors passing filter
+	TArray<UObject*> WorldActors;
+	FDataprepCoreUtils::GetActorsFromWorld( PreviewWorld.Get(), WorldActors );
+
+	TSet<TWeakObjectPtr<UObject>> SelectedActors;
+
+	for ( UObject* Actor : WorldActors )
+	{
+		TSharedPtr< FDataprepPreviewProcessingResult > Result = PreviewSystem->GetPreviewDataForObject( Actor );
+		if ( Result.IsValid() && Result->Status == EDataprepPreviewStatus::Pass )
+		{
+			SelectedActors.Add( Actor );
+		}
+	}
+
+	SetWorldObjectsSelection( MoveTemp(SelectedActors) );
+
+	// Select assets passing filter
+	TArray<UObject*> WorldAssets;
+	for ( TWeakObjectPtr<UObject>& WeakObjectPtr : Assets )
+	{
+		if ( UObject* Object = WeakObjectPtr.Get() )
+		{
+			WorldAssets.Add( Object );
+		}
+	}
+
+	TSet< UObject* > SelectedAssets;
+
+	for ( UObject* Asset : WorldAssets )
+	{
+		TSharedPtr< FDataprepPreviewProcessingResult > Result = PreviewSystem->GetPreviewDataForObject( Asset );
+		if ( Result.IsValid() && Result->Status == EDataprepPreviewStatus::Pass )
+		{
+			SelectedAssets.Add( Asset );
+		}
+	}
+
+	AssetPreviewView->SelectMatchingItems( SelectedAssets );
 }
 
 void FDataprepEditor::BindCommands()
@@ -782,13 +833,7 @@ void FDataprepEditor::ExtendToolBar()
 
 void FDataprepEditor::CreateTabs()
 {
-	AssetPreviewView = SNew(AssetPreviewWidget::SAssetsPreviewWidget);
-	AssetPreviewView->OnSelectionChanged().AddLambda(
-		[this](TSet< UObject* > Selection)
-		{
-			SetDetailsObjects(MoveTemp(Selection), false);
-		}
-	);
+	CreateAssetPreviewTab();
 
 	CreateGraphEditor();
 
@@ -831,6 +876,83 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabAssetPreview(const FSpawnTabArgs &
 				AssetPreviewView.ToSharedRef()
 			]
 		];
+}
+
+void FDataprepEditor::CreateAssetPreviewTab()
+{
+	AssetPreviewView = SNew(AssetPreviewWidget::SAssetsPreviewWidget);
+	AssetPreviewView->OnSelectionChanged().AddLambda(
+		[this](TSet< UObject* > Selection)
+		{
+			SetDetailsObjects(MoveTemp(Selection), false);
+		}
+	);
+
+	AssetPreviewView->OnContextMenu().BindLambda(
+		[this](TSet< UObject* > Selection) -> TSharedPtr<SWidget>
+		{
+			UDataprepEditorContextMenuContext* ContextObject = NewObject<UDataprepEditorContextMenuContext>();
+			ContextObject->SelectedObjects = Selection.Array();
+			ContextObject->DataprepAsset = GetDataprepAsset();
+
+			UToolMenus* ToolMenus = UToolMenus::Get();
+			FToolMenuContext MenuContext( ContextObject );
+			return ToolMenus->GenerateWidget( "DataprepEditor.AssetContextMenu", MenuContext );
+		});
+}
+
+void FDataprepEditor::RegisterMenus()
+{
+	TFunction<void(const FName&, const FName&)> RegisterCopyNameAndLabelMenu = [](const FName& MenuNameToExtend, const FName& MenuSection)
+	{
+		UToolMenus* ToolMenus = UToolMenus::Get();
+
+		UToolMenu* Menu = ToolMenus->ExtendMenu(MenuNameToExtend);
+
+		if (!Menu)
+		{
+			return;
+		}
+
+		FToolMenuSection& AssetActionsSection = Menu->FindOrAddSection(MenuSection);
+
+		AssetActionsSection.AddDynamicEntry("GetCopyName", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			UDataprepEditorContextMenuContext* Context = InSection.FindContext<UDataprepEditorContextMenuContext>();
+			if (Context)
+			{
+				if (Context->SelectedObjects.Num() == 1)
+				{
+					InSection.AddMenuEntry(
+						"CopyName",
+						LOCTEXT("CopyNameLabel", "Copy Name"),
+						LOCTEXT("CopyNameTooltip", "Copy name to clipboard"),
+						FSlateIcon(),
+						FExecuteAction::CreateLambda([Obj = Context->SelectedObjects[0]]()
+						{
+							FPlatformApplicationMisc::ClipboardCopy(*Obj->GetName());
+						}));
+
+
+					if (AActor* Actor = Cast<AActor>(Context->SelectedObjects[0]))
+					{
+						InSection.AddMenuEntry(
+							"CopyLabel",
+							LOCTEXT("CopyLabelLabel", "Copy Label"),
+							LOCTEXT("CopyLabelTooltip", "Copy actor label to clipboard"),
+							FSlateIcon(),
+							FExecuteAction::CreateLambda([Actor]()
+							{
+								FPlatformApplicationMisc::ClipboardCopy(*Actor->GetActorLabel());
+							}));
+					}
+				}
+			}
+		}));
+	};
+
+	RegisterCopyNameAndLabelMenu("DataprepEditor.AssetContextMenu", "AssetActions");
+	RegisterCopyNameAndLabelMenu("DataprepEditor.SceneOutlinerContextMenu", "SceneOutlinerActions");
 }
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args)

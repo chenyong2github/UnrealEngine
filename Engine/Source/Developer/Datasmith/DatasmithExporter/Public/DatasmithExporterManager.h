@@ -6,6 +6,13 @@
 class DATASMITHEXPORTER_API FDatasmithExporterManager
 {
 public:
+	struct FInitOptions
+	{
+		bool bSuppressLogs = true;
+		bool bSaveLogToUserDir = true;
+		bool bEnableMessaging = false;
+	};
+
 	/**
 	 * Initializes the Datasmith Exporter module.
 	 * @param LogFilename specifies the file where to store the text logged.
@@ -15,6 +22,7 @@ public:
 	 * @return True if the initialization was successful
 	 */
 	static bool Initialize();
+	static bool Initialize(const FInitOptions& InitOptions);
 
 	/**
 	 * Shuts down the Datasmith Exporter module.

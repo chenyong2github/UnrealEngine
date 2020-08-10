@@ -39,6 +39,7 @@ struct FLidarPointCloudNodeSelectionParams
 	int32 MinDepth;
 	int32 MaxDepth;
 	float BoundsScale;
+	const TArray<const ALidarClippingVolume*>* ClippingVolumes;
 };
 
 /**  
@@ -101,8 +102,11 @@ private:
 	 * - Iterates over all registered proxies and selects the best set of nodes within the point budget
 	 * - Generates the data for the StructuredBuffer and passes it to the Render Thread for an update
 	 */
-	void ProcessLOD(const TArray<FRegisteredProxy>& RegisteredProxies, const float CurrentTime);
+	void ProcessLOD(const TArray<FRegisteredProxy>& RegisteredProxies, const float CurrentTime, const TArray<const ALidarClippingVolume*>& ClippingVolumes);
 
 	/** Called to prepare the proxies for processing */
 	void PrepareProxies();
+
+	/** Compiles a list of all clipping volumes affecting any of the registered proxies */
+	TArray<const ALidarClippingVolume*> GetClippingVolumes() const;
 };

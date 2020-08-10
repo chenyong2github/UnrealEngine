@@ -63,7 +63,8 @@ public class DatasmithFacadeCSharpTarget : TargetRules
 		string DstPath = @"$(EngineDir)\Binaries\$(TargetPlatform)\DatasmithFacadeCSharp\Public\";
 
 		// Copy the generated C# files.
-		PostBuildSteps.Add(string.Format("echo Copying {0} to {1}", SrcPath, DstPath));
+		PostBuildSteps.Add(string.Format("echo Replace {1} with {0}", SrcPath, DstPath));
+		PostBuildSteps.Add(string.Format("del /S /Q {0}\\*", DstPath));
 		PostBuildSteps.Add(string.Format("xcopy {0} {1} /R /S /Y", SrcPath, DstPath));
 	}
 }

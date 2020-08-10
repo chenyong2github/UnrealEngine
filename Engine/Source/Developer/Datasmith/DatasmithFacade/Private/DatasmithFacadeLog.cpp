@@ -6,6 +6,8 @@
 #include "Misc/FileHelper.h"
 
 
+DEFINE_LOG_CATEGORY(LogDatasmithFacade);
+
 FDatasmithFacadeLog::FDatasmithFacadeLog() :
 	LineIndentation(0)
 {
@@ -15,6 +17,8 @@ void FDatasmithFacadeLog::AddLine(
 	const TCHAR* InLine
 )
 {
+	UE_LOG(LogDatasmithFacade, Warning, TEXT("Facade: %s"), InLine);
+
 	Log.Append(FString::ChrN(LineIndentation, TEXT('\t')));
 	Log.Append(InLine);
 	Log.AppendChar(TEXT('\n'));

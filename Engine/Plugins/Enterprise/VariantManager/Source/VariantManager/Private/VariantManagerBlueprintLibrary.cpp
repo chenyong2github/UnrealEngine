@@ -352,6 +352,32 @@ UPropertyValue* UVariantManagerBlueprintLibrary::CaptureProperty(UVariant* Varia
 	return nullptr;
 }
 
+int32 UVariantManagerBlueprintLibrary::AddDependency( UVariant* Variant, FVariantDependency& Dependency )
+{
+	if ( Variant )
+	{
+		return Variant->AddDependency(Dependency);
+	}
+
+	return INDEX_NONE;
+}
+
+void UVariantManagerBlueprintLibrary::SetDependency( UVariant* Variant, int32 Index, FVariantDependency& Dependency )
+{
+	if ( Variant )
+	{
+		Variant->SetDependency(Index, Dependency);
+	}
+}
+
+void UVariantManagerBlueprintLibrary::DeleteDependency( UVariant* Variant, int32 Index )
+{
+	if ( Variant )
+	{
+		Variant->DeleteDependency(Index);
+	}
+}
+
 TArray<UPropertyValue*> UVariantManagerBlueprintLibrary::GetCapturedProperties(UVariant* Variant, AActor* Actor)
 {
 	if (Variant == nullptr || Actor == nullptr)

@@ -7,6 +7,7 @@ namespace UnrealBuildTool.Rules
 		public DatasmithImporter(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -37,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"MovieScene",
 					"MovieSceneTracks",
 					"PropertyEditor",
+					"RenderCore",
 					"RHI",
 					"RawMesh",
 					"Slate",

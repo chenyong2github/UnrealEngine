@@ -937,7 +937,10 @@ void FFbxExporter::ExportStaticMesh(AActor* Actor, UStaticMeshComponent* StaticM
 				double LodScreenSize = (double)(10.0f / StaticMesh->RenderData->ScreenSize[CurrentLodIndex].Default);
 				FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 			}
-			ExportStaticMeshToFbx(StaticMesh, CurrentLodIndex, *FbxMeshName, FbxActorLOD, -1, ColorBuffer);
+
+			const int32 LightmapUVChannel = -1;
+			const TArray<FStaticMaterial>* MaterialOrderOverride = nullptr;
+			ExportStaticMeshToFbx(StaticMesh, CurrentLodIndex, *FbxMeshName, FbxActorLOD, LightmapUVChannel, ColorBuffer, MaterialOrderOverride, &StaticMeshComponent->OverrideMaterials);
 		}
 	}
 	else
@@ -948,7 +951,9 @@ void FFbxExporter::ExportStaticMesh(AActor* Actor, UStaticMeshComponent* StaticM
 			ColorBuffer = StaticMeshComponent->LODData[LODIndex].OverrideVertexColors;
 		}
 		FbxNode* FbxActor = ExportActor(Actor, false, NodeNameAdapter);
-		ExportStaticMeshToFbx(StaticMesh, LODIndex, *FbxMeshName, FbxActor, -1, ColorBuffer);
+		const int32 LightmapUVChannel = -1;
+		const TArray<FStaticMaterial>* MaterialOrderOverride = nullptr;
+		ExportStaticMeshToFbx(StaticMesh, LODIndex, *FbxMeshName, FbxActor, LightmapUVChannel, ColorBuffer, MaterialOrderOverride, &StaticMeshComponent->OverrideMaterials);
 	}
 }
 
@@ -2141,7 +2146,10 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 					else
 					{
 						const int32 LODIndex = (StaticMeshComp->ForcedLodModel > 0 ? StaticMeshComp->ForcedLodModel - 1 : /* auto-select*/ 0);
-						ExportStaticMeshToFbx(StaticMeshComp->GetStaticMesh(), LODIndex, *StaticMeshComp->GetName(), ExportNode);
+						const int32 LightmapUVChannel = -1;
+						const TArray<FStaticMaterial>* MaterialOrderOverride = nullptr;
+						const FColorVertexBuffer* ColorBuffer = nullptr;
+						ExportStaticMeshToFbx(StaticMeshComp->GetStaticMesh(), LODIndex, *StaticMeshComp->GetName(), ExportNode, LightmapUVChannel, ColorBuffer, MaterialOrderOverride, &StaticMeshComp->OverrideMaterials);
 					}
 				}
 				else if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
@@ -4125,7 +4133,7 @@ void FFbxExporter::ExportObjectMetadata(const UObject* ObjectToExport, FbxNode* 
  * @param ColorBuffer	Vertex color overrides to export
  * @param MaterialOrderOverride	Optional ordering of materials to set up correct material ID's across multiple meshes being export such as BSP surfaces which share common materials. Should be used sparingly
  */
-FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int32 ExportLOD, const TCHAR* MeshName, FbxNode* FbxActor, int32 LightmapUVChannel /*= -1*/, const FColorVertexBuffer* ColorBuffer /*= NULL*/, const TArray<FStaticMaterial>* MaterialOrderOverride /*= NULL*/)
+FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int32 ExportLOD, const TCHAR* MeshName, FbxNode* FbxActor, int32 LightmapUVChannel /*= -1*/, const FColorVertexBuffer* ColorBuffer /*= NULL*/, const TArray<FStaticMaterial>* MaterialOrderOverride /*= NULL*/, const TArray<UMaterialInterface*>* OverrideMaterials /*= NULL*/)
 {
 	FbxMesh* Mesh = nullptr;
 	if ((ExportLOD == 0 || ExportLOD == -1) && LightmapUVChannel == -1 && ColorBuffer == nullptr && MaterialOrderOverride == nullptr)
@@ -4319,7 +4327,16 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 		{
 			const FStaticMeshSection& Polygons = RenderMesh.Sections[PolygonsIndex];
 			FIndexArrayView RawIndices = RenderMesh.IndexBuffer.GetArrayView();
-			UMaterialInterface* Material = StaticMesh->GetMaterial(Polygons.MaterialIndex);
+			UMaterialInterface* Material = nullptr;
+			
+			if (OverrideMaterials && OverrideMaterials->IsValidIndex(Polygons.MaterialIndex))
+			{
+				Material = (*OverrideMaterials)[Polygons.MaterialIndex];
+			}
+			else
+			{
+				StaticMesh->GetMaterial(Polygons.MaterialIndex);
+			}
 
 			FbxSurfaceMaterial* FbxMaterial = Material ? ExportMaterial(Material) : NULL;
 			if (!FbxMaterial)
@@ -4432,7 +4449,16 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 		{
 			const FStaticMeshSection& Polygons = RenderMesh.Sections[PolygonsIndex];
 			FIndexArrayView RawIndices = RenderMesh.IndexBuffer.GetArrayView();
-			UMaterialInterface* Material = StaticMesh->GetMaterial(Polygons.MaterialIndex);
+			UMaterialInterface* Material = nullptr;
+			
+			if (OverrideMaterials && OverrideMaterials->IsValidIndex(Polygons.MaterialIndex))
+			{
+				Material = (*OverrideMaterials)[Polygons.MaterialIndex];
+			}
+			else
+			{
+				StaticMesh->GetMaterial(Polygons.MaterialIndex);
+			}
 
 			FbxSurfaceMaterial* FbxMaterial = Material ? ExportMaterial(Material) : NULL;
 			if (!FbxMaterial)
@@ -4716,7 +4742,10 @@ void FFbxExporter::ExportInstancedMeshToFbx(const UInstancedStaticMeshComponent*
 			InstNode->LclScaling.Set(Converter.ConvertToFbxScale(RelativeTransform.GetScale3D()));
 
 			// Todo - export once and then clone the node
-			ExportStaticMeshToFbx(StaticMesh, LODIndex, *FString::Printf(TEXT("%d"), InstanceIndex), InstNode);
+			const int32 LightmapUVChannel = -1;
+			const TArray<FStaticMaterial>* MaterialOrderOverride = nullptr;
+			const FColorVertexBuffer* ColorBuffer = nullptr;
+			ExportStaticMeshToFbx(StaticMesh, LODIndex, *FString::Printf(TEXT("%d"), InstanceIndex), InstNode, LightmapUVChannel, ColorBuffer, MaterialOrderOverride, &InstancedMeshComp->OverrideMaterials);
 			FbxActor->AddChild(InstNode);
 		}
 	}

@@ -3,7 +3,9 @@
 #pragma once
 
 // Datasmith SDK.
+#include "Logging/LogMacros.h"
 #include "Containers/UnrealString.h"
+DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithFacade, Log, All);
 
 
 class DATASMITHFACADE_API FDatasmithFacadeLog

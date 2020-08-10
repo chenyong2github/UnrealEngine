@@ -447,11 +447,11 @@ struct FSkeletalMaterial
 	ENGINE_API friend bool operator==( const FSkeletalMaterial& LHS, const UMaterialInterface& RHS );
 	ENGINE_API friend bool operator==( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS );
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletalMesh)
 	class UMaterialInterface *	MaterialInterface;
 	
 	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SkeletalMesh)
 	FName						MaterialSlotName;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -677,7 +677,7 @@ public:
 #endif
 
 	/** List of materials applied to this mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, transient, duplicatetransient, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, transient, duplicatetransient, Category=SkeletalMesh)
 	TArray<FSkeletalMaterial> Materials;
 
 	/** List of bones that should be mirrored. */

@@ -195,6 +195,7 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 		});
 
 	FEditorDelegates::MapChange.AddRaw(this, &SLevelEditor::HandleEditorMapChange);
+	FEditorDelegates::OnAssetsDeleted.AddRaw(this, &SLevelEditor::HandleAssetsDeleted);
 	HandleEditorMapChange(MapChangeEventFlags::NewMap);
 }
 
@@ -316,6 +317,7 @@ SLevelEditor::~SLevelEditor()
 		GetMutableDefault<UEditorPerProjectUserSettings>()->OnUserSettingChanged().RemoveAll(this);
 	}
 
+	FEditorDelegates::OnAssetsDeleted.RemoveAll(this);
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 	if (GEngine)
@@ -1708,6 +1710,28 @@ void SLevelEditor::HandleEditorMapChange( uint32 MapChangeFlags )
 	if (WorldSettingsView.IsValid())
 	{
 		WorldSettingsView->SetObject(GetWorld()->GetWorldSettings(), true);
+	}
+}
+
+void SLevelEditor::HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses)
+{
+	bool bDeletedMaterials = false;
+	for (UClass* AssetClass : DeletedClasses)
+	{
+		if (AssetClass->IsChildOf<UMaterialInterface>())
+		{
+			bDeletedMaterials = true;
+			break;
+		}
+	}
+
+	if (bDeletedMaterials)
+	{
+		// If a material asset has been deleted, it may be being referenced by the BSP model.
+		// In case this is the case, invalidate the surface and immediately commit it (rather than waiting until the next tick as is usual),
+		// to ensure that it is rebuilt prior to the viewport being redrawn.
+		GetWorld()->InvalidateModelSurface(false);
+		GetWorld()->CommitModelSurfaces();
 	}
 }
 

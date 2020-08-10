@@ -345,7 +345,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	FLODUtilities::AdjustImportDataFaceMaterialIndex(SkeletalMesh->Materials, ImportDataDest.Materials, LODFacesDest, LODIndex);
 
 	//Build the destination mesh with the Alternate influences, so the chunking is done properly.
-	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
+	const bool bBuildSuccess = MeshUtilities.BuildSkeletalMesh(LODModelDest, SkeletalMesh->GetPathName(), SkeletalMesh->RefSkeleton, LODInfluencesDest, LODWedgesDest, LODFacesDest, LODPointsDest, LODPointToRawMapDest, BuildOptions, &WarningMessages, &WarningNames);
 	FLODUtilities::RegenerateAllImportSkinWeightProfileData(LODModelDest);
 
 	return bBuildSuccess;

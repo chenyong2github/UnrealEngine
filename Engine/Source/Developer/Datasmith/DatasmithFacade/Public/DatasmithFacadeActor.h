@@ -5,75 +5,116 @@
 // Datasmith facade.
 #include "DatasmithFacadeElement.h"
 
+class IDatasmithActorElement;
+class IDatasmithMetaDataElement;
 
 class DATASMITHFACADE_API FDatasmithFacadeActor :
 	public FDatasmithFacadeElement
 {
 public:
 
+	enum class EActorType
+	{
+		DirectionalLight,
+		AreaLight,
+		EnvironmentLight,
+		LightmassPortal,
+		PointLight,
+		SpotLight,
+		StaticMeshActor,
+		Camera,
+		Actor,
+		Unsupported,
+	};
+
 	FDatasmithFacadeActor(
-		const TCHAR* InElementName, // Datasmith element name
-		const TCHAR* InElementLabel // Datasmith element label
+		const TCHAR* InElementName
 	);
 
 	virtual ~FDatasmithFacadeActor() {}
 
-	// Prevent the Datasmith actor from being removed by optimization.
-	void KeepActor();
-
-	// Set the world transform of the Datasmith actor.
+	/** Set the world transform of the Datasmith actor. */
 	void SetWorldTransform(
-		const float* InWorldMatrix // Datasmith actor world transform matrix
+		const float InWorldMatrix[16],
+		bool bRowMajor = false
 	);
+
+	void SetScale(
+		float X,
+		float Y,
+		float Z
+	);
+
+	void GetScale(
+		float& OutX,
+		float& OutY,
+		float& OutZ
+	) const;
+
+	void SetRotation(
+		float Pitch,
+		float Yaw,
+		float Roll
+	);
+	
+	void GetRotation(
+		float& OutPitch,
+		float& OutYaw,
+		float& OutRoll
+	) const;
+	
+	void SetRotation(
+		float X,
+		float Y,
+		float Z,
+		float W
+	);
+
+	void GetRotation(
+		float& OutX,
+		float& OutY,
+		float& OutZ,
+		float& OutW
+	) const;
+
+	void SetTranslation(
+		float X,
+		float Y,
+		float Z
+	);
+	
+	void GetTranslation(
+		float& OutX,
+		float& OutY,
+		float& OutZ
+	) const;
 
 	// Set the layer of the Datasmith actor.
 	void SetLayer(
-		const TCHAR* InLayerName // Datasmith actor layer name
+		const TCHAR* InLayerName
 	);
+
+	// Get the layer of the Datasmith actor.
+	const TCHAR* GetLayer() const;
 
 	// Add a new tag to the Datasmith actor.
 	void AddTag(
-		const TCHAR* InTag // Datasmith actor tag
+		const TCHAR* InTag
 	);
 
-	// Add a metadata boolean property to the Datasmith actor.
-	void AddMetadataBoolean(
-		const TCHAR* InPropertyName,  // property name
-		bool         bInPropertyValue // property value
-	);
+	// Remove all Tags on the Actor element
+	void ResetTags();
 
-	// Add a metadata sRGBA color property to the Datasmith actor.
-	void AddMetadataColor(
-		const TCHAR*  InPropertyName, // color property name
-		unsigned char InR,            // red
-		unsigned char InG,            // green
-		unsigned char InB,            // blue
-		unsigned char InA             // alpha
-	);
+	// Get the number of tags attached to an Actor element
+	int32 GetTagsCount() const;
 
-	// Add a metadata float property to the Datasmith actor.
-	void AddMetadataFloat(
-		const TCHAR* InPropertyName, // property name
-		float        InPropertyValue // property value
-	);
+	// Get the 'TagIndex'th tag of an Actor element
+	const TCHAR* GetTag(
+		int32 TagIndex
+	) const;
 
-	// Add a metadata string property to the Datasmith actor.
-	virtual void AddMetadataString(
-		const TCHAR* InPropertyName, // property name
-		const TCHAR* InPropertyValue // property value
-	);
-
-	// Add a metadata texture property to the Datasmith actor.
-	void AddMetadataTexture(
-		const TCHAR* InPropertyName,   // texture property name
-		const TCHAR* InTextureFilePath // texture file path
-	);
-
-	// Add a metadata vector property to the Datasmith actor.
-	void AddMetadataVector(
-		const TCHAR* InPropertyName, // property name
-		const TCHAR* InPropertyValue // property value
-	);
+	// Get whether or not the Datasmith actor is a component when used in a hierarchy.
+	bool IsComponent() const;
 
 	// Set whether or not the Datasmith actor is a component when used in a hierarchy.
 	void SetIsComponent(
@@ -85,77 +126,72 @@ public:
 		FDatasmithFacadeActor* InChildActorPtr // Datasmith child actor
 	);
 
-	// Make sure all the actor names are unique in the hierarchy of Datasmith actor children.
-	void SanitizeActorHierarchyNames();
+	// Get the number of children on this actor
+	int32 GetChildrenCount() const;
+
+	/** 
+	 *	Returns a new FDatasmithFacadeActor pointing to the InIndex-th child of the mesh actor
+	 *	If there is no child at the given index, returned value is nullptr.
+	 *	The caller is responsible of deleting the returned object pointer.
+	 */
+	FDatasmithFacadeActor* GetNewChild(
+		int32 InIndex
+	);
+
+	void RemoveChild(
+		FDatasmithFacadeActor* InChild
+	);
+
+	// Set a mesh actor as a switch or not
+	void SetAsSelector(
+		bool bInIsASelector
+	);
+
+	// Get if a mesh actor is a switch or not
+	bool IsASelector() const;
+
+	// Set the index of the visible child of a mesh actor which is a selector
+	void SetSelectionIndex(
+		int32 InSelectionID
+	);
+
+	// Get the index of the visible child of a mesh actor which is a selector
+	int32 GetSelectionIndex() const;
+
+	// Get a mesh actor's visibility
+	void SetVisibility(
+		bool bInVisibility
+	);
+
+	// Set a mesh actor's visibility
+	bool GetVisibility() const;
+
+	EActorType GetActorType() const;
 
 #ifdef SWIG_FACADE
 protected:
 #endif
 
+	explicit FDatasmithFacadeActor(
+		const TSharedRef<IDatasmithActorElement>& InInternalActor
+	);
+
+	static EActorType GetActorType(
+		const TSharedPtr<const IDatasmithActorElement>& InActor
+	);
+
+	static FDatasmithFacadeActor* GetNewFacadeActorFromSharedPtr(
+		const TSharedPtr<IDatasmithActorElement>& InActor
+	);
+
 	// Convert a source matrix into a Datasmith actor transform.
 	FTransform ConvertTransform(
-		const float* InSourceMatrix
+		const float InSourceMatrix[16],
+		bool bRowMajor
 	) const;
-
-	// Add a new child to the Datasmith actor.
-	void AddChild(
-		TSharedPtr<FDatasmithFacadeActor> InChildActorPtr // Datasmith child actor
-	);
-
-	// Return the optimized Datasmith actor.
-	virtual TSharedPtr<FDatasmithFacadeElement> Optimize(
-		TSharedPtr<FDatasmithFacadeElement> InElementPtr,           // this Datasmith actor
-		bool                                bInNoSingleChild = true // remove intermediate Datasmith actors having a single child
-	);
 
 	// Build a Datasmith actor element and add it to the Datasmith scene.
-	virtual void BuildScene(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
-	) override;
+	virtual void BuildScene( FDatasmithFacadeScene& SceneRef ) override;
 
-	// Create and initialize a Datasmith actor hierarchy.
-	virtual TSharedPtr<IDatasmithActorElement> CreateActorHierarchy(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
-	) const;
-
-	// Set the properties of a Datasmith actor.
-	void SetActorProperties(
-		TSharedRef<IDatasmithScene>        IOSceneRef, // Datasmith scene
-		TSharedPtr<IDatasmithActorElement> IOActorPtr  // Datasmith actor element
-	) const;
-
-	// Add the hierarchy of children to a Datasmith actor
-	// or to the Datasmith scene when a null actor pointer is provided.
-	void AddActorChildren(
-		TSharedRef<IDatasmithScene>        IOSceneRef, // Datasmith scene
-		TSharedPtr<IDatasmithActorElement> IOActorPtr  // Datasmith actor element
-	) const;
-
-	// Get the Datasmith actor children.
-	const TArray<TSharedPtr<FDatasmithFacadeActor>> GetActorChildren() const;
-
-protected:
-
-	// Datasmith actor world transform.
-	FTransform WorldTransform;
-
-private:
-
-	// Datasmith actor layer name.
-	FString LayerName;
-
-	// Array of Datasmith actor tags.
-	TArray<FString> TagArray;
-
-	// Array of Datasmith metadata properties.
-	TArray<TSharedPtr<IDatasmithKeyValueProperty>> MetadataPropertyArray;
-
-	// Whether or not the Datasmith actor is a component when used in a hierarchy.
-	bool bIsComponent;
-
-	// Array of Datasmith actor children.
-	TArray<TSharedPtr<FDatasmithFacadeActor>> ChildActorArray;
-
-	// Whether or not the Datasmith actor can be removed by optimization.
-	bool bOptimizeActor;
+	TSharedRef<IDatasmithActorElement> GetDatasmithActorElement() const;
 };

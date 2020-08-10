@@ -695,6 +695,11 @@ void FDatasmithSceneXmlReader::ParseLight(FXmlNode* InNode, TSharedPtr<IDatasmit
 			OutElement->SetUseIes(true);
 			OutElement->SetIesFile( *ResolveFilePath(ChildNode->GetAttribute(TEXT("file"))) );
 		}
+		else if (ChildNode->GetTag().Compare(DATASMITH_LIGHTIESTEXTURENAME, ESearchCase::IgnoreCase) == 0)
+		{
+			OutElement->SetUseIes(true);
+			OutElement->SetIesTexturePathName( *ChildNode->GetAttribute(TEXT("name")) );
+		}
 		else if (ChildNode->GetTag().Compare(DATASMITH_LIGHTIESBRIGHTNAME, ESearchCase::IgnoreCase) == 0)
 		{
 			OutElement->SetIesBrightnessScale(FCString::Atod(*ChildNode->GetAttribute(TEXT("scale"))));
@@ -951,6 +956,11 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 		{
 			OutScene->SetExporterSDKVersion(*Nodes[i]->GetContent());
 		}
+		// RESOURCE PATH
+		else if (Nodes[i]->GetTag().Compare(DATASMITH_RESOURCEPATH, ESearchCase::IgnoreCase) == 0)
+		{
+			OutScene->SetResourcePath(*Nodes[i]->GetContent());
+		}
 		// APPLICATION INFO
 		else if (Nodes[i]->GetTag().Compare(DATASMITH_APPLICATION, ESearchCase::IgnoreCase) == 0)
 		{
@@ -1117,6 +1127,8 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 	}
 
 	PatchUpVersion(OutScene);
+
+	FDatasmithSceneUtils::CleanUpScene(OutScene);
 
 	return true;
 }
@@ -1533,12 +1545,17 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 					IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< IDatasmithMaterialExpressionFlattenNormal* >( Expression );
 
 					{
-						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [ InputName = FlattenNormal->GetNormal().GetInputName() ]( FXmlNode* Node ) -> bool
+						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetInputName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
-						});
+						} );
+						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetInputName()]( FXmlNode* Node ) -> bool
+						{
+							return Node->GetTag() == InputName;
+						} );
 
 						ParseExpressionInput( *NormalNode, OutElement, FlattenNormal->GetNormal() );
+						ParseExpressionInput( *NormalNode, OutElement, FlattenNormal->GetFlatness() );
 					}
 				}
 			}

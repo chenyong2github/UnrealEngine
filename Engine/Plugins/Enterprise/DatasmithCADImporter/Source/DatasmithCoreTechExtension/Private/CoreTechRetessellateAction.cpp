@@ -163,7 +163,7 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 #endif // CAD_LIBRARY
 }
 
-bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithTessellationOptions& RetessellateOptions)
+bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithRetessellationOptions& RetessellateOptions)
 {
 	bool bSuccessfulTessellation = false;
 
@@ -196,6 +196,11 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 		FMeshDescription MeshDescription;
 		FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
 		MeshDescriptionAttributes.Register();
+
+		if (RetessellateOptions.RetessellationRule == EDatasmithCADRetessellationRule::SkipDeletedSurfaces)
+		{
+			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
+		}
 
 		if ( Loader.LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
 		{

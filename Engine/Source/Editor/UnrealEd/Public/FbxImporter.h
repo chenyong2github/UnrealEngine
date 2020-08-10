@@ -102,7 +102,7 @@ struct FExistingStaticMeshData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFbx, Log, All);
 
-#define DEBUG_FBX_NODE( Prepend, FbxNode ) FPlatformMisc::LowLevelOutputDebugStringf( TEXT("%s %s\n"), ANSI_TO_TCHAR(Prepend), ANSI_TO_TCHAR( FbxNode->GetName() ) )
+#define DEBUG_FBX_NODE( Prepend, FbxNode ) FPlatformMisc::LowLevelOutputDebugStringf( TEXT("%s %s\n"), UTF8_TO_TCHAR(Prepend), UTF8_TO_TCHAR( FbxNode->GetName() ) )
 
 #define FBX_METADATA_PREFIX TEXT("FBX.")
 
@@ -1202,7 +1202,7 @@ private:
 	/**
 	* Node with no name we will name it "ncl1_x" x is a a unique counter.
 	*/
-	void EnsureNodeNameAreValid();
+	void EnsureNodeNameAreValid(const FString& BaseFilename);
 
 public:
 	// current Fbx scene we are importing. Make sure to release it after import
@@ -1222,7 +1222,7 @@ public:
 			, Material(nullptr)
 		{}
 
-		FString GetName() const { return FbxMaterial ? ANSI_TO_TCHAR(FbxMaterial->GetName()) : (Material != nullptr ? Material->GetName() : TEXT("None")); }
+		FString GetName() const { return FbxMaterial ? UTF8_TO_TCHAR(FbxMaterial->GetName()) : (Material != nullptr ? Material->GetName() : TEXT("None")); }
 	};
 
 	FbxGeometryConverter* GetGeometryConverter() { return GeometryConverter; }

@@ -5,4 +5,4 @@
 
 #include "Logging/LogMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogDatasmith, Log, All);
+DATASMITHCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogDatasmith, Log, All);

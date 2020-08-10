@@ -39,6 +39,8 @@ private:
 
 	void RefreshAssetInRegistry(const FAssetData& InAssetData);
 
+	TSharedRef<SWidget> ConstructAddActionMenu() const;
+
 	// The options for the category selection
 	FText AllCategory;
 	FText SelectorsCategory;

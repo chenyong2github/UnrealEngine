@@ -4,6 +4,7 @@
 
 // Dataprep includes
 #include "DataprepOperation.h"
+#include "DataprepEditorUtils.h"
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/DataprepFilterMenuActionCollector.h"
@@ -14,15 +15,20 @@
 // Engine includes
 #include "AssetDiscoveryIndicator.h"
 #include "AssetRegistryModule.h"
+#include "Brushes/SlateColorBrush.h"
+#include "EditorFontGlyphs.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EditorStyleSet.h"
 #include "EditorWidgetsModule.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
 #define LOCTEXT_NAMESPACE "SDataprepPalette"
@@ -39,6 +45,105 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	OperationsCategory = FDataprepOperationMenuActionCollector::OperationCategory;
 
 	this->ChildSlot
+	[
+		SNew(SVerticalBox)
+
+		// Path and history
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding( 0, 0, 0, 0 )
+		[
+			SNew( SWrapBox )
+			.UseAllottedSize( true )
+			.InnerSlotPadding( FVector2D( 5, 2 ) )
+
+			+ SWrapBox::Slot()
+			.FillLineWhenSizeLessThan( 600 )
+			.FillEmptySpace( true )
+			[
+				SNew( SHorizontalBox )
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				[
+					SNew( SBorder )
+					.Padding( FMargin( 3 ) )
+					.BorderImage( FEditorStyle::GetBrush( "ContentBrowser.TopBar.GroupBorder" ) )
+					[
+						SNew( SHorizontalBox )
+
+						// Add New
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign( VAlign_Center )
+						.HAlign( HAlign_Left )
+						[
+							SNew( SComboButton )
+							.ComboButtonStyle( FEditorStyle::Get(), "ToolbarComboButton" )
+							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+							.ForegroundColor(FLinearColor::White)
+							.ContentPadding(FMargin(6, 2))
+							.OnGetMenuContent_Lambda( [this]{ return ConstructAddActionMenu(); } )
+							.HasDownArrow(false)
+							.ButtonContent()
+							[
+								SNew( SHorizontalBox )
+
+								// New Icon
+								+ SHorizontalBox::Slot()
+								.VAlign(VAlign_Center)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+									.Text(FEditorFontGlyphs::File)
+								]
+
+								// New Text
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(4, 0, 0, 0)
+								[
+									SNew( STextBlock )
+									.TextStyle( FEditorStyle::Get(), "ContentBrowser.TopBar.Font" )
+									.Text( LOCTEXT( "AddNewButton", "Add New" ) )
+								]
+
+								// Down Arrow
+								+ SHorizontalBox::Slot()
+								.VAlign(VAlign_Center)
+								.AutoWidth()
+								.Padding(4, 0, 0, 0)
+								[
+									SNew(STextBlock)
+									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+									.Text(FEditorFontGlyphs::Caret_Down)
+								]
+							]
+						]
+					]
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(0,0,0,0)
+		[
+			SNew(SBox)
+			.HeightOverride(2.0f)
+			[
+				SNew(SImage)
+				.Image(new FSlateColorBrush(FLinearColor( FColor( 34, 34, 34) ) ) )
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.Padding(0,2,0,0)
 		[
 			SNew(SBorder)
 			.Padding(2.0f)
@@ -71,7 +176,8 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 					]
 				]
 			]
-		];
+		]
+	];
 
 	// Register with the Asset Registry to be informed when it is done loading up files and when a file changed (Added/Removed/Renamed).
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked< FAssetRegistryModule >( TEXT("AssetRegistry") );
@@ -81,6 +187,29 @@ void SDataprepPalette::Construct(const FArguments& InArgs)
 	AssetRegistryModule.Get().OnAssetRenamed().AddSP( this, &SDataprepPalette::RenameAssetFromRegistry );
 }
 
+TSharedRef<SWidget> SDataprepPalette::ConstructAddActionMenu() const
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr, nullptr, /*bCloseSelfOnly=*/true);
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("DataprepPaletteLabel", "Dataprep Palette"));
+	{
+		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewFilterLabel", "Create New Filter"), LOCTEXT("CreateNewFilterTooltip", "Create new user-defined filter"), FSlateIcon(), 
+			FUIAction(FExecuteAction::CreateStatic(&FDataprepEditorUtils::CreateUserDefinedFilter),
+				FCanExecuteAction(),
+				FGetActionCheckState()
+			)
+		);
+		MenuBuilder.AddMenuEntry(LOCTEXT("CreateNewOperatorLabel", "Create New Operator"), LOCTEXT("CreateNewOperatorTooltip", "Create new user-defined operator"), FSlateIcon(), 
+			FUIAction(FExecuteAction::CreateLambda(&FDataprepEditorUtils::CreateUserDefinedOperation),
+				FCanExecuteAction(),
+				FGetActionCheckState()
+			)
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
 
 void SDataprepPalette::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {

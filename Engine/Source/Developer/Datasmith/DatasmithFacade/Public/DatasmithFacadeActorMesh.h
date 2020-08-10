@@ -5,6 +5,7 @@
 // Datasmith facade.
 #include "DatasmithFacadeActor.h"
 
+class FDatasmithFacadeMaterialID;
 
 class DATASMITHFACADE_API FDatasmithFacadeActorMesh :
 	public FDatasmithFacadeActor
@@ -12,8 +13,7 @@ class DATASMITHFACADE_API FDatasmithFacadeActorMesh :
 public:
 
 	FDatasmithFacadeActorMesh(
-		const TCHAR* InElementName, // Datasmith element name
-		const TCHAR* InElementLabel // Datasmith element label
+		const TCHAR* InElementName // Datasmith element name
 	);
 
 	virtual ~FDatasmithFacadeActorMesh() {}
@@ -23,18 +23,44 @@ public:
 		const TCHAR* InMeshName // Datasmith static mesh name
 	);
 
+	// Get the name of the StaticMesh associated with the actor
+	const TCHAR* GetMeshName() const;
+
+	// Adds a new material override to the Actor Element
+	void AddMaterialOverride(
+		const TCHAR* MaterialName //name of the material, it should be unique
+		, int32 Id //material identifier to be used with mesh sub-material indices
+	);
+
+	// Adds a new material override to the Actor Element
+	void AddMaterialOverride(
+		FDatasmithFacadeMaterialID& Material
+	);
+
+	// Get the amount of material overrides on this mesh
+	int32 GetMaterialOverridesCount() const;
+
+	/**
+	 *	Returns a new FDatasmithFacadeMaterialID pointing to the i-th material override of this actor.
+	 *	If there is no child at the given index, returned value is nullptr.
+	 *	The caller is responsible of deleting the returned object pointer.
+	 */
+	FDatasmithFacadeMaterialID* GetNewMaterialOverride(
+		int32 MaterialOverrideIndex
+	);
+
+	// Remove material from the Actor Element
+	void RemoveMaterialOverride(
+		FDatasmithFacadeMaterialID& Material
+	);
+
 #ifdef SWIG_FACADE
 protected:
 #endif
 
-	// Create and initialize a Datasmith mesh actor hierarchy, or
-	// a Datasmith actor hierarchy when the static mesh name is not set.
-	virtual TSharedPtr<IDatasmithActorElement> CreateActorHierarchy(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
-	) const override;
+	FDatasmithFacadeActorMesh(
+		const TSharedRef<IDatasmithMeshActorElement>& InInternalElement
+	);
 
-private:
-
-	// Datasmith static mesh name.
-	FString MeshName;
+	TSharedRef<IDatasmithMeshActorElement> GetDatasmithMeshActorElement() const;
 };

@@ -676,10 +676,21 @@ void FDatasmithSceneXmlWriterImpl::WriteLightActorElement(const TSharedPtr< IDat
 
 	if (LightActorElement->GetUseIes())
 	{
-		WriteIndent(Archive, Indent + 1);
+		if(FCString::Strlen(LightActorElement->GetIesFile()) > 0)
+		{
+			WriteIndent(Archive, Indent + 1);
 
-		XmlString = TEXT("<") + FString(DATASMITH_LIGHTIESNAME) + TEXT(" file=\"") + SanitizeXMLText(LightActorElement->GetIesFile()) + TEXT("\"/>") + LINE_TERMINATOR;
-		SerializeToArchive( Archive, XmlString );
+			XmlString = TEXT("<") + FString(DATASMITH_LIGHTIESNAME) + TEXT(" file=\"") + SanitizeXMLText(LightActorElement->GetIesFile()) + TEXT("\"/>") + LINE_TERMINATOR;
+			SerializeToArchive( Archive, XmlString );
+		}
+
+		if(FCString::Strlen(LightActorElement->GetIesTexturePathName()) > 0)
+		{
+			WriteIndent(Archive, Indent + 1);
+
+			XmlString = TEXT("<") + FString(DATASMITH_LIGHTIESTEXTURENAME) + TEXT(" name=\"") + SanitizeXMLText(LightActorElement->GetIesTexturePathName()) + TEXT("\"/>") + LINE_TERMINATOR;
+			SerializeToArchive( Archive, XmlString );
+		}
 
 		if (LightActorElement->GetUseIesBrightness())
 		{
@@ -1601,6 +1612,11 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 	// Add Vendor, ProductName, ProductVersion
 	XmlString = TEXT("<Application Vendor=\"") + FString( DatasmithScene->GetVendor() ) + TEXT("\" ProductName=\"") + FString( DatasmithScene->GetProductName() ) + TEXT("\" ProductVersion=\"") + FString( DatasmithScene->GetProductVersion() ) + TEXT("\"/>") + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
+
+	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
+
+	XmlString = TEXT("<ResourcePath>") + FString( DatasmithScene->GetResourcePath() ) + TEXT("</ResourcePath>") + LINE_TERMINATOR;
+	FDatasmithSceneXmlWriterImpl::SerializeToArchive( Archive, XmlString );
 
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
 

@@ -61,6 +61,8 @@ protected:
 	UPROPERTY( EditAnywhere, Category = DatasmithProducer )
 	FString FilePath;
 
+	TWeakObjectPtr<ADatasmithSceneActor> ImportSceneActor;
+
 private:
 	/** Fill up world with content of Datasmith scene element */
 	void SceneElementToWorld();
@@ -190,6 +192,15 @@ private:
 
 	/** Try import files in the FolderPath as parts of constructed PLMXML file */
 	bool ImportAsPlmXml(UPackage* RootPackage, TArray< TWeakObjectPtr< UObject > >& OutAssets, TArray<FString>& FilesCouldntBeProcessedWithPlmXml);
+
+	/** 
+	 * Make resulting scene hierarchy look the way it looks when each of files is imported individually
+	 * Which means each separate CAD file should have DatasmithSceneActor as root actor
+	 * In order to have this 
+	 * 1. Root ImportSceneActor is removed 
+	 * 2. Every child of this ImportSceneActor is converted into DatasmithSceneActor, filling RelatedChildren from this child's subtree
+	*/
+	void FixPlmXmlHierarchy();
 
 	/** Indicates if ExtensionString contains "*.*" */
 	bool bHasWildCardSearch;

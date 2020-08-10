@@ -103,6 +103,27 @@ TSharedPtr<IDatasmithActorElement> DuplicateActorElement(TSharedPtr<IDatasmithAc
 	return DuplicatedElement;
 }
 
+TSharedPtr<IDatasmithMetaDataElement> DuplicateMetaDataElement(const TSharedPtr<IDatasmithMetaDataElement>& SourceMetaData, const TSharedPtr<IDatasmithActorElement>& TargetActorElement)
+{
+	FString MetaDataName = FString::Printf(TEXT("%s%s"), TargetActorElement->GetName(), TEXT("_DATA"));
+	TSharedPtr<IDatasmithMetaDataElement> DuplicatedMetaData = FDatasmithSceneFactory::CreateMetaData(*MetaDataName);
+	DuplicatedMetaData->SetAssociatedElement(TargetActorElement);
+
+	for (int32 PropertyIndex = 0, PropertyCount = SourceMetaData->GetPropertiesCount(); PropertyIndex < PropertyCount; ++PropertyIndex)
+	{
+		TSharedPtr<IDatasmithKeyValueProperty> SourceProperty = SourceMetaData->GetProperty(PropertyIndex);
+		if (SourceProperty)
+		{
+			TSharedRef<IDatasmithKeyValueProperty> DuplicatedProperty = FDatasmithSceneFactory::CreateKeyValueProperty(SourceProperty->GetName());
+			
+			DuplicatedProperty->SetValue(SourceProperty->GetValue());
+			DuplicatedMetaData->AddProperty(DuplicatedProperty);
+		}
+	}
+
+	return DuplicatedMetaData;
+}
+
 // #ueent_wip: test with CADSDK_ENABLED undefined
 class FOpenNurbsObjectWrapper
 {
@@ -675,6 +696,7 @@ private:
 	TSharedPtr<IDatasmithMeshActorElement> GetMeshActorElement(const FOpenNurbsObjectWrapper& Object);
 	TSharedPtr<IDatasmithActorElement> GetPointActorElement(const FOpenNurbsObjectWrapper& Object);
 	TSharedPtr<IDatasmithMeshElement> GetMeshElement(const FOpenNurbsObjectWrapper& Object, const FString& Uuid, const FString& Label);
+	TSharedPtr<IDatasmithMetaDataElement> GetObjectMetaData(const FOpenNurbsObjectWrapper& Object, const TSharedPtr<IDatasmithElement>& DatasmithElement);
 
 	struct FMaterial
 	{
@@ -791,6 +813,7 @@ private:
 	std::map<ON_UUID, TSharedPtr<IDatasmithActorElement>> uuidToInstanceContainer;
 	std::map<ON_UUID, int> uuidToInstanceChildrenCount;
 	std::map<ON_UUID, ON_UUID> objectUUIDToInstanceUUID;
+	TMap<TSharedPtr<IDatasmithActorElement>, TSharedPtr<IDatasmithMetaDataElement>> ActorElementToMetaDataMap;
 	TMap<IDatasmithMeshElement*, FOpenNurbsTranslatorImpl*> MeshElementToTranslatorMap;
 
 	//Objects
@@ -1019,7 +1042,8 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 
 				UVParameters.UVTiling.Y = Tiling.Y;
 
-				if (!Tiling.IsNearlyZero())
+				if ( !FMath::IsNearlyZero( Tiling.X, KINDA_SMALL_NUMBER )
+					&& !FMath::IsNearlyZero( Tiling.Y, KINDA_SMALL_NUMBER ) )
 				{
 					UVParameters.UVOffset.X = Translation.X / Tiling.X;
 
@@ -1090,6 +1114,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 			{
 				// Transparent color
 				IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+				Scalar->SetName( TEXT( "Opacity" ) );
 				Scalar->GetScalar() = LinearColor.A;
 
 				Material->GetOpacity().SetExpression(Scalar);
@@ -1098,9 +1123,10 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 			{
 				// Modulate the opacity map with the color transparency setting
 				IDatasmithMaterialExpressionGeneric* Multiply = static_cast<IDatasmithMaterialExpressionGeneric*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::Generic));
-				Multiply->SetExpressionName(TEXT("Multiply"));
+				Multiply->SetExpressionName( TEXT( "Multiply" ) );
 
 				IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+				Scalar->SetName( TEXT( "Opacity Output Level" ) );
 				Scalar->GetScalar() = LinearColor.A;
 				Scalar->ConnectExpression(*Multiply->GetInput(0));
 
@@ -1116,6 +1142,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 		if (!FMath::IsNearlyZero(Shininess))
 		{
 			IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+			Scalar->SetName( TEXT( "Roughness" ) );
 			Scalar->GetScalar() = 1.f - Shininess;
 			Material->GetRoughness().SetExpression(Scalar);
 		}
@@ -1124,6 +1151,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 		if (!FMath::IsNearlyZero(Reflectivity))
 		{
 			IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+			Scalar->SetName( TEXT( "Metallic" ) );
 			Scalar->GetScalar() = Reflectivity;
 			Material->GetMetallic().SetExpression(Scalar);
 		}
@@ -1372,6 +1400,12 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 		else
 		{
 			Scene->AddActor(LightElement);
+		}
+
+		TSharedPtr<IDatasmithMetaDataElement> MetaData = GetObjectMetaData(Object, LightElement);
+		if (MetaData.IsValid())
+		{
+			Scene->AddMetaData(MetaData);
 		}
 	}
 }
@@ -1691,6 +1725,12 @@ void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObject
 		if (ContainerElement.IsValid())
 		{
 			ContainerElement->AddChild(PartElement);
+
+			TSharedPtr<IDatasmithMetaDataElement> MetaData = GetObjectMetaData(Object, PartElement);
+			if (MetaData.IsValid())
+			{
+				ActorElementToMetaDataMap.FindOrAdd(PartElement) = MetaData;
+			}
 		}
 
 		SetTags(PartElement, Object);
@@ -1706,6 +1746,12 @@ void FOpenNurbsTranslatorImpl::TranslateNonInstanceObject(const FOpenNurbsObject
 		else
 		{
 			Scene->AddActor(PartElement);
+		}
+
+		TSharedPtr<IDatasmithMetaDataElement> MetaData = GetObjectMetaData(Object, PartElement);
+		if (MetaData.IsValid())
+		{
+			Scene->AddMetaData(MetaData);
 		}
 
 		SetLayers(PartElement, Object);
@@ -1830,12 +1876,20 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 	ContainerElement->SetTranslation(CorrectedTransform.GetTranslation() * ScalingFactor);
 	ContainerElement->SetScale(CorrectedTransform.GetScale3D());
 	ContainerElement->SetRotation(CorrectedTransform.GetRotation());
+	bool bIsPartOfInstanceDefinition = false;
 
 	// If instance of an instance, parent to parent instance definition
 	if (ON_UuidIsNotNil(instanceUuid) == true)
 	{
+		bIsPartOfInstanceDefinition = true;
 		TSharedPtr<IDatasmithActorElement> InstanceContainer = uuidToInstanceContainer[instanceUuid];
 		InstanceContainer->AddChild(ContainerElement);
+
+		TSharedPtr<IDatasmithMetaDataElement> MetaData = GetObjectMetaData(Object, ContainerElement);
+		if (MetaData.IsValid())
+		{
+			ActorElementToMetaDataMap.FindOrAdd(ContainerElement) = MetaData;
+		}
 	}
 	else
 	{
@@ -1847,6 +1901,12 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 		else
 		{
 			Scene->AddActor(ContainerElement);
+		}
+
+		TSharedPtr<IDatasmithMetaDataElement> MetaData = GetObjectMetaData(Object, ContainerElement);
+		if (MetaData.IsValid())
+		{
+			Scene->AddMetaData(MetaData);
 		}
 	}
 
@@ -1864,6 +1924,20 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 
 		TSharedPtr<IDatasmithActorElement> DuplicatedChild = DuplicateActorElement(Child, ContainerElement->GetName());
 		ContainerElement->AddChild(DuplicatedChild, EDatasmithActorAttachmentRule::KeepRelativeTransform);
+
+		if (TSharedPtr<IDatasmithMetaDataElement>* SourceMetaData = ActorElementToMetaDataMap.Find(Child))
+		{
+			TSharedPtr<IDatasmithMetaDataElement> DuplicatedMetaData = DuplicateMetaDataElement(*SourceMetaData, DuplicatedChild);
+
+			if (bIsPartOfInstanceDefinition)
+			{
+				ActorElementToMetaDataMap.FindOrAdd(DuplicatedChild) = DuplicatedMetaData;
+			}
+			else
+			{
+				Scene->AddMetaData(DuplicatedMetaData);
+			}
+		}
 	}
 
 	SetLayers(ContainerElement, Object);
@@ -1871,6 +1945,38 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 
 	// TODO: Apply material override
 	return true;
+}
+
+TSharedPtr<IDatasmithMetaDataElement> FOpenNurbsTranslatorImpl::GetObjectMetaData(const FOpenNurbsObjectWrapper& Object, const TSharedPtr<IDatasmithElement>& DatasmithElement)
+{
+	ON_ClassArray<ON_wString> UserStringKeys;
+	if (Object.Attributes.GetUserStringKeys(UserStringKeys))
+	{
+		FString MetaDataName = FString::Printf(TEXT("%s%s"), DatasmithElement->GetName(), TEXT("_DATA"));
+		TSharedPtr<IDatasmithMetaDataElement> MetaData = FDatasmithSceneFactory::CreateMetaData(*MetaDataName);
+		MetaData->SetAssociatedElement(DatasmithElement);
+
+		for (int32 UserTextIndex = 0; UserTextIndex < UserStringKeys.Count(); ++UserTextIndex)
+		{
+			ON_wString& KeyString = *UserStringKeys.At(UserTextIndex);
+			ON_wString Value;
+			if (Object.Attributes.GetUserString(KeyString.Array(), Value))
+			{
+				TSharedRef<IDatasmithKeyValueProperty> MetaDataProperty = FDatasmithSceneFactory::CreateKeyValueProperty(KeyString.Array());
+				MetaDataProperty->SetValue(Value.Array());
+				MetaDataProperty->SetPropertyType(EDatasmithKeyValuePropertyType::String);
+
+				MetaData->AddProperty(MetaDataProperty);
+			}
+		}
+
+		if (MetaData->GetPropertiesCount() > 0)
+		{
+			return  MetaData;
+		}
+	}
+
+	return TSharedPtr<IDatasmithMetaDataElement>();
 }
 
 TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetActorElement(const FOpenNurbsObjectWrapper& Object)

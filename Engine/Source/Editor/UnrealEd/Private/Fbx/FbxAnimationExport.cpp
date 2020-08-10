@@ -324,7 +324,7 @@ void FFbxExporter::CorrectAnimTrackInterpolation( TArray<FbxNode*>& BoneNodes, F
 }
 
 
-FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshName, FbxNode* ActorRootNode )
+FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const USkeletalMesh* SkelMesh, bool bExportSkelMesh, const TCHAR* MeshName, FbxNode* ActorRootNode, const TArray<UMaterialInterface*>* OverrideMaterials /*= nullptr*/ )
 {
 	if( Scene == NULL || AnimSeq == NULL || SkelMesh == NULL )
 	{
@@ -398,7 +398,7 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 					double LodScreenSize = (double)(10.0f / SkelMesh->GetLODInfo(CurrentLodIndex)->ScreenSize.Default);
 					FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 				}
-				FbxNode* FbxActorLOD = CreateMesh(SkelMesh, *FbxLODNodeName, CurrentLodIndex, AnimSeq);
+				FbxNode* FbxActorLOD = CreateMesh(SkelMesh, *FbxLODNodeName, CurrentLodIndex, AnimSeq, OverrideMaterials);
 				if (FbxActorLOD)
 				{
 					MeshRootNode->AddChild(FbxActorLOD);
@@ -414,14 +414,15 @@ FbxNode* FFbxExporter::ExportAnimSequence( const UAnimSequence* AnimSeq, const U
 		}
 		else
 		{
-			MeshRootNode = CreateMesh(SkelMesh, *MeshNodeName, 0, AnimSeq);
+			const int32 LodIndex = 0;
+			MeshRootNode = CreateMesh(SkelMesh, *MeshNodeName, LodIndex, AnimSeq, OverrideMaterials);
 			if (MeshRootNode)
 			{
 				TmpNodeNoTransform->AddChild(MeshRootNode);
 				if (SkeletonRootNode)
 				{
 					// Bind the mesh to the skeleton
-					BindMeshToSkeleton(SkelMesh, MeshRootNode, BoneNodes, 0);
+					BindMeshToSkeleton(SkelMesh, MeshRootNode, BoneNodes, LodIndex);
 
 					// Add the bind pose
 					CreateBindPose(MeshRootNode);

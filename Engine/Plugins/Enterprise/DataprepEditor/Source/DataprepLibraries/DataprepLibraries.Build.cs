@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DataprepCore",
+					"DataprepEditor",
 					"DatasmithContent",
 					"EditorScriptingUtilities",
 					"EditorStyle",
@@ -25,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
+					"ToolMenus",
 					"UnrealEd",
 				}
 			);

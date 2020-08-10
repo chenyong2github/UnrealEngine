@@ -6,9 +6,9 @@ namespace UnrealBuildTool.Rules
 	public class DatasmithExporter : ModuleRules
 	{
 		public DatasmithExporter(ReadOnlyTargetRules Target)
-            : base(Target)
+			: base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Core",
@@ -22,12 +22,13 @@ namespace UnrealBuildTool.Rules
 					"ApplicationCore",
 					"CoreUObject",
 					"FreeImage",
+					"MeshDescription",
+					"MessagingCommon",
 					"Projects",
-                    "RawMesh",
-                    "MeshDescription",
+					"RawMesh",
 					"StaticMeshDescription",
-                }
-            );
+				}
+			);
 
 			PrivateIncludePaths.AddRange(
 				new string[]
@@ -37,6 +38,6 @@ namespace UnrealBuildTool.Rules
 			);
 
 // 			PrecompileForTargets = PrecompileTargetsType.Any;
-        }
+		}
 	}
 }

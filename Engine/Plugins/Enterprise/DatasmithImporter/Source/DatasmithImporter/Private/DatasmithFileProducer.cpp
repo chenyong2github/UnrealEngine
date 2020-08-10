@@ -249,6 +249,9 @@ void UDatasmithFileProducer::SceneElementToWorld()
 	// ACTORS
 	{
 		FDatasmithImporter::ImportActors( *ImportContextPtr );
+		
+		// ImportSceneActor is created in FDatasmithImporter::ImportActors
+		ImportSceneActor = ImportContextPtr->ActorsContext.ImportSceneActor;
 
 		// Level sequences have to be imported after the actors to be able to bind the tracks to the actors to be animated
 		FDatasmithImporter::ImportLevelSequences( *ImportContextPtr );
@@ -958,7 +961,79 @@ bool UDatasmithDirProducer::ImportAsPlmXml(UPackage* RootPackage, TArray<TWeakOb
 		LogError(ErrorReport);
 		return false;
 	}
+
+	FixPlmXmlHierarchy();
+
 	return true;
+}
+
+void UDatasmithDirProducer::FixPlmXmlHierarchy()
+{
+	TFunction<void(AActor*, ADatasmithSceneActor*, const TMap<AActor*, FName>&)> AddActorHierachyToRelatedActors = [&AddActorHierachyToRelatedActors](AActor* Actor, ADatasmithSceneActor* SceneActor, const TMap<AActor*, FName>& NameForRelatedActor)
+	{
+		// Add all attached actors to related actors of a SceneActor
+		const FName* NamePtr = NameForRelatedActor.Find(Actor);
+		if (ensure(NamePtr))
+		{
+			SceneActor->RelatedActors.FindOrAdd(*NamePtr) = Actor;
+		}
+
+		TArray<class AActor*> AttachedActors;
+		Actor->GetAttachedActors(AttachedActors);
+		for (AActor* Child : AttachedActors)
+		{
+			AddActorHierachyToRelatedActors(Child, SceneActor, NameForRelatedActor);
+		}
+	};
+
+	ADatasmithSceneActor* ImportSceneActor = FileProducer->ImportSceneActor.Get();
+	if (ImportSceneActor)
+	{
+		// Convert each child actor of ImportSceneActor into ADatasmithSceneActor
+		TArray<class AActor*> ImportSceneActorChildren;
+		ImportSceneActor->GetAttachedActors(ImportSceneActorChildren);
+		for (AActor* ImportSceneActorChild : ImportSceneActorChildren)
+		{
+			FString Label = ImportSceneActorChild->GetActorLabel();
+
+			ADatasmithSceneActor* SceneActor = Cast<ADatasmithSceneActor>(Context.WorldPtr->SpawnActor(ADatasmithSceneActor::StaticClass(), nullptr, nullptr));
+			if (!ensure(SceneActor))
+			{
+				continue;
+			}
+			SceneActor->SetActorLabel(Label);
+			SceneActor->SpriteScale = 0.1f;
+
+			USceneComponent* RootComponent = RootComponent = NewObject<USceneComponent>(SceneActor, *Label, RF_Transactional);
+			RootComponent->SetWorldTransform(FTransform::Identity);
+			RootComponent->Mobility = EComponentMobility::Static;
+			RootComponent->bVisualizeComponent = true;
+			RootComponent->RegisterComponent();
+			SceneActor->SetRootComponent(RootComponent);
+			SceneActor->AddInstanceComponent(RootComponent);
+
+			// Create map of related actors to their names 
+			TMap<AActor*, FName> NameForRelatedActor;
+			for (TPair<FName, TSoftObjectPtr<AActor>>& ActorPair : ImportSceneActor->RelatedActors)
+			{
+				NameForRelatedActor.Add(ActorPair.Value.LoadSynchronous(), ActorPair.Key);
+			}
+
+			// Move child actors and related actors to new SceneActor
+			TArray<class AActor*> AttachedActors;
+			ImportSceneActorChild->GetAttachedActors(AttachedActors);
+			for (AActor* AttachedActor : AttachedActors)
+			{
+				AttachedActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+				AttachedActor->AttachToActor(SceneActor, FAttachmentTransformRules::KeepWorldTransform);
+				AddActorHierachyToRelatedActors(AttachedActor, SceneActor, NameForRelatedActor);
+			}
+			Context.WorldPtr.Get()->EditorDestroyActor(ImportSceneActorChild, true);
+		}
+		Context.WorldPtr.Get()->EditorDestroyActor(ImportSceneActor, true);
+		FileProducer->ImportSceneActor.Reset();
+	}
+
 }
 
 void UDatasmithDirProducer::Reset()

@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
+
+#include "CoreMinimal.h"
 
 class FAssetThumbnailPool;
 class FDragDropEvent;

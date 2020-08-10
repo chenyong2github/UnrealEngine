@@ -12,8 +12,7 @@ class DATASMITHFACADE_API FDatasmithFacadeActorCamera :
 public:
 
 	FDatasmithFacadeActorCamera(
-		const TCHAR* InElementName, // Datasmith element name
-		const TCHAR* InElementLabel // Datasmith element label
+		const TCHAR* InElementName
 	);
 
 	virtual ~FDatasmithFacadeActorCamera() {}
@@ -40,10 +39,16 @@ public:
 		float InSensorWidth // camera sensor width (in millimeters)
 	);
 
+	/** Get camera sensor width */
+	float GetSensorWidth() const;
+	
 	// Set the aspect ratio of the Datasmith camera.
 	void SetAspectRatio(
 		float InAspectRatio // camera aspect ratio (width/height)
 	);
+
+	/** Get Datasmith camera aspect ratio (width/height) */
+	float GetAspectRatio() const;
 
 	// Set the Datasmith camera focus distance with the current camera world position and a target world position.
 	void SetFocusDistance(
@@ -57,6 +62,9 @@ public:
 		float InFocusDistance // camera focus distance (in world units)
 	);
 
+	/** Get camera focus distance */
+	float GetFocusDistance() const;
+	
 	// Set the Datasmith camera focal length.
 	void SetFocalLength(
 		float InFocalLength // camera focal length (in millimeters)
@@ -68,45 +76,48 @@ public:
 		bool  bInVerticalFOV // whether or not the field of view value represents the camera view height
 	);
 
+	/** Get camera focal length in millimeters */
+	float GetFocalLength() const;
+
 	// Set the Datasmith camera look-at actor.
 	void SetLookAtActor(
 		const TCHAR* InActorName // look-at actor name
 	);
+
+	// Get the Datasmith camera look-at actor.
+	const TCHAR* GetLookAtActor() const;
 
 	// Set the Datasmith camera look-at roll allowed state.
 	void SetLookAtAllowRoll(
 		bool bInAllow // allow roll when look-at is active
 	);
 
+	// Get the Datasmith camera look-at actor.
+	bool GetLookAtAllowRoll() const;
+
+	/** The focus method of the camera, either None (no DoF) or Manual */
+	bool GetEnableDepthOfField() const;
+
+	/** The focus method of the camera, either None (no DoF) or Manual */
+	void SetEnableDepthOfField(
+		bool bInEnableDepthOfField
+	);
+
+	/** Get camera FStop also known as FNumber */
+	float GetFStop() const;
+
+	/** Set camera FStop also known as FNumber */
+	void SetFStop(
+		float InFStop
+	);
+
 #ifdef SWIG_FACADE
 protected:
 #endif
 
-	// Create and initialize a Datasmith camera actor hierarchy.
-	virtual TSharedPtr<IDatasmithActorElement> CreateActorHierarchy(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
-	) const override;
+	FDatasmithFacadeActorCamera(
+		const TSharedRef<IDatasmithCameraActorElement>& InInternalElement
+	);
 
-private:
-
-	// Datasmith camera world position.
-	FVector WorldCameraPosition;
-
-	// Datasmith camera sensor width (in millimeters).
-	float SensorWidth;
-
-	// Datasmith camera aspect ratio (width/height).
-	float AspectRatio;
-
-	// Datasmith camera focus distance (in centimeters).
-	float FocusDistance;
-
-	// Datasmith camera focal length (in millimeters).
-	float FocalLength;
-
-	// Datasmith camera look-at actor name.
-	FString LookAtActorName;
-
-	// Whether the Datasmith camera allows roll when look-at is active.
-	bool bLookAtAllowRoll;
+	TSharedRef<IDatasmithCameraActorElement> GetDatasmithActorCameraElement() const;
 };

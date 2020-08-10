@@ -20,6 +20,7 @@
 //////////////////////////////////////////////////////////// Base Buffer
 
 TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
+TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudNormalBuffer;
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
 
@@ -126,8 +127,11 @@ void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<in
 void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
 	BINDPARAM(DataBuffer);
+	BINDPARAM(NormalBuffer);
+	BINDPARAM(bEditorView);
 	BINDPARAM(IndexDivisor);
 	BINDPARAM(FirstElementIndex);
+	BINDPARAM(FirstNormalIndex);
 	BINDPARAM(LocationOffset);
 	BINDPARAM(VDMultiplier);
 	BINDPARAM(SizeOffset);
@@ -136,6 +140,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(SpriteSizeMultiplier);
 	BINDPARAM(ViewRightVector);
 	BINDPARAM(ViewUpVector);
+	BINDPARAM(bUseCameraFacing);
 	BINDPARAM(BoundsSize);
 	BINDPARAM(ElevationColorBottom);
 	BINDPARAM(ElevationColorTop);
@@ -150,6 +155,9 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(IntensityInfluence);
 	BINDPARAM(bUseClassification);
 	BINDPARAM(ClassificationColors);
+	BINDPARAM(ClippingVolume);
+	BINDPARAM(NumClippingVolumes);
+	BINDPARAM(bStartClipped);
 }
 
 void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(const class FSceneInterface* Scene, const FSceneView* View, const FMeshMaterialShader* Shader, const EVertexInputStreamType InputStreamType, ERHIFeatureLevel::Type FeatureLevel,
@@ -158,8 +166,11 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	FLidarPointCloudBatchElementUserData* UserData = (FLidarPointCloudBatchElementUserData*)BatchElement.UserData;
 
 	SETSRVPARAM(DataBuffer);
+	SETSRVPARAM(NormalBuffer);
+	SETPARAM(bEditorView);
 	SETPARAM(IndexDivisor);
 	SETPARAM(FirstElementIndex);
+	SETPARAM(FirstNormalIndex);
 	SETPARAM(LocationOffset);
 	SETPARAM(VDMultiplier);
 	SETPARAM(SizeOffset);
@@ -168,6 +179,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(SpriteSizeMultiplier);
 	SETPARAM(ViewRightVector);
 	SETPARAM(ViewUpVector);
+	SETPARAM(bUseCameraFacing);
 	SETPARAM(BoundsSize);
 	SETPARAM(ElevationColorBottom);
 	SETPARAM(ElevationColorTop);
@@ -182,6 +194,9 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(IntensityInfluence);
 	SETPARAM(bUseClassification);
 	SETPARAM(ClassificationColors);
+	SETPARAM(ClippingVolume);
+	SETPARAM(NumClippingVolumes);
+	SETPARAM(bStartClipped);
 }
 
 bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)

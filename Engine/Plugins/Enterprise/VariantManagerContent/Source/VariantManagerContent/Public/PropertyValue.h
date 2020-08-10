@@ -40,7 +40,7 @@ ENUM_CLASS_FLAGS(EPropertyValueCategory)
 // is important for handling component reordering and transient components (e.g.
 // runtime billboard components, etc)
 USTRUCT()
-struct FCapturedPropSegment
+struct VARIANTMANAGERCONTENT_API FCapturedPropSegment
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -101,6 +101,9 @@ public:
 	virtual UClass* GetObjectPropertyObjectClass() const;
 	UEnum* GetEnumPropertyEnum() const;
 	virtual bool ContainsProperty(const FProperty* Prop) const;
+
+	// Returns an array of link segments that together describe the full property path
+	const TArray<FCapturedPropSegment>& GetCapturedPropSegments() const;
 
 	// Utility functions for UEnumProperties
 	TArray<FName> GetValidEnumsFromPropertyOverride();

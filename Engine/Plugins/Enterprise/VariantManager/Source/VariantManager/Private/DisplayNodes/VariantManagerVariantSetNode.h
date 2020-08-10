@@ -2,16 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"
 
-class FMenuBuilder;
-enum class EItemDropZone;
+#include "CoreMinimal.h"
+#include "Styling/SlateColor.h"
+
+class FAssetThumbnailPool;
 class FDragDropEvent;
+class FMenuBuilder;
 class SVariantManagerTableRow;
 class UVariantSet;
-
+enum class EItemDropZone;
+struct FSlateImageBrush;
 
 /** A variant manager display node representing a variant set in the outliner. */
 class FVariantManagerVariantSetNode : public FVariantManagerDisplayNode
@@ -33,6 +35,7 @@ public:
 	virtual FSlateColor GetNodeBackgroundTint() const override;
 	virtual const FSlateBrush* GetNodeBorderImage() const override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow) override;
+	TSharedRef<SWidget> GetThumbnailWidget();
 	virtual void SetExpansionState(bool bInExpanded) override;
 
 	/** Gets the folder data for this display node. */
@@ -46,4 +49,9 @@ private:
 	/** Different brushes so that the edges look good when expanded and collapsed */
 	const FSlateBrush* ExpandedBackgroundBrush;
 	const FSlateBrush* CollapsedBackgroundBrush;
+
+	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
+
+	// We need to keep the brush alive while the thumbnail is rendered
+	TSharedPtr<FSlateImageBrush> ImageBrush;
 };

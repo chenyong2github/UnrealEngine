@@ -303,8 +303,11 @@ public:
 		BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
 
 		// Update shader parameters
+		UserDataElement.bEditorView = Component->IsOwnedByEditor();
+
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
 		UserDataElement.FirstElementIndex = RenderData.FirstElementIndex;
+		UserDataElement.FirstNormalIndex = RenderData.FirstNormalIndex;
 
 		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();
 		
@@ -313,6 +316,7 @@ public:
 
 		UserDataElement.ViewRightVector = InView->GetViewRight();
 		UserDataElement.ViewUpVector = InView->GetViewUp();
+		UserDataElement.bUseCameraFacing = !Component->ShouldRenderFacingNormals();
 		UserDataElement.BoundsSize = BoundsSize;
 		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
@@ -328,9 +332,24 @@ public:
 
 		UserDataElement.bUseClassification = Component->ColorSource == ELidarPointCloudColorationMode::Classification;
 		UserDataElement.SetClassificationColors(Component->ClassificationColors);
+				
+		UserDataElement.NumClippingVolumes = FMath::Min(RenderData.ClippingVolumes.Num(), 16);
+
+		for (uint32 i = 0; i < UserDataElement.NumClippingVolumes; ++i)
+		{
+			const ALidarClippingVolume* ClippingVolume = RenderData.ClippingVolumes[i];
+			const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
+			UserDataElement.ClippingVolume[i] = FMatrix(FPlane(ClippingVolume->GetActorLocation(), ClippingVolume->Mode == ELidarClippingVolumeMode::ClipInside),
+													 FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
+												     FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
+													 FPlane(ClippingVolume->GetActorUpVector(), Extent.Z));
+
+			UserDataElement.bStartClipped = UserDataElement.bStartClipped || ClippingVolume->Mode == ELidarClippingVolumeMode::ClipOutside;
+		}
 
 		// Make sure to update the reference to the resource, in case it was re-initialized
 		UserDataElement.DataBuffer = GLidarPointCloudRenderBuffer.SRV;
+		UserDataElement.NormalBuffer = GLidarPointCloudNormalBuffer.SRV;
 
 		return UserDataElement;
 	}

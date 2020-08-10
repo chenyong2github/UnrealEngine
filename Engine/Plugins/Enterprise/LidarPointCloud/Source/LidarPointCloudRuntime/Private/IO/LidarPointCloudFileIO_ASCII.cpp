@@ -7,10 +7,12 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 
+#define MAX_BUFFER_SIZE 52428800LL
+
 // #todo: Simplify those
 #define PC_STREAMTEXTFILE_OFFSET(Offset)															\
 	{																								\
-		uint32 ReadSize = FMath::Min(RemainingSize, MaxBufferSize - Offset);						\
+		uint32 ReadSize = FMath::Min(RemainingSize, MAX_BUFFER_SIZE - Offset);						\
 		DataPtr = Data + Offset;																	\
 		Reader->Serialize(DataPtr, ReadSize);														\
 		RemainingLoadedSize = ReadSize;																\
@@ -133,13 +135,12 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 			int64 RemainingSize = TotalSize;
 			int64 RemainingLoadedSize = 0;
 
-			const int64 MaxBufferSize = GetDefault<ULidarPointCloudSettings>()->MaxImportBufferSize;
 			const float ImportScale = GetDefault<ULidarPointCloudSettings>()->ImportScale;
 
 			bool bFirstPointSet = false;
 
 			// Prepare pointers
-			uint8 *Data = (uint8*)FMemory::Malloc(MaxBufferSize);
+			uint8 *Data = (uint8*)FMemory::Malloc(MAX_BUFFER_SIZE);
 			uint8 *DataPtr = nullptr;
 
 			PC_STREAMTEXTFILE;
@@ -147,7 +148,7 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 			TArray<double> TempDoubles;
 			TempDoubles.AddZeroed(SelectedColumns.Num());
 			int32 CurrentColumnIndex = 0;
-			int32 LineIndex = 0;
+			int64 LineIndex = 0;
 			bool bEndOfLine = false;
 			while (RemainingLoadedSize > 0 && !OutImportResults.IsCancelled())
 			{
@@ -252,32 +253,29 @@ bool ULidarPointCloudFileIO_ASCII::HandleImport(const FString& Filename, TShared
 
 bool ULidarPointCloudFileIO_ASCII::HandleExport(const FString& Filename, class ULidarPointCloud* PointCloud)
 {
-	int64 NumProcessedPoints = 0;
-	TArray<FLidarPointCloudPoint*> Points;
-	TArray<FString> Lines;
-
 	// Store the point count
 	FFileHelper::SaveStringToFile(FString::Printf(TEXT("%d\n"), PointCloud->GetNumPoints()), *Filename);
 
-	const int64 MaxBatchSize = GetDefault<ULidarPointCloudSettings>()->ExportBatchSize;
 	const float ExportScale = GetDefault<ULidarPointCloudSettings>()->ExportScale;
 
-	while (NumProcessedPoints < PointCloud->GetNumPoints())
-	{
-		int64 BatchSize = FMath::Min(MaxBatchSize, PointCloud->GetNumPoints() - NumProcessedPoints);
-		PointCloud->GetPoints(Points, NumProcessedPoints, BatchSize);
-		Lines.Empty(BatchSize);
+	const FDoubleVector LocationOffset = PointCloud->LocationOffset;
 
-		for (FLidarPointCloudPoint* Point : Points)
+	TArray<FString> Lines;
+	Lines.Reserve(5000000);
+	PointCloud->Octree.GetPointsAsCopiesInBatches([&LocationOffset, &ExportScale, Filename, &Lines](TSharedPtr<TArray64<FLidarPointCloudPoint>> Points)
+	{
+		Lines.Reset();
+
+		for (FLidarPointCloudPoint* Data = Points->GetData(), *DestEnd = Data + Points->Num(); Data != DestEnd; ++Data)
 		{
-			FDoubleVector Location = (PointCloud->LocationOffset + Point->Location) * ExportScale;
-			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%d,%d,%d,%d"), Location.X, -Location.Y, Location.Z, Point->Color.A, Point->Color.R, Point->Color.G, Point->Color.B));
+			const FDoubleVector Location = (LocationOffset + Data->Location) * ExportScale;
+			const FVector Normal = Data->Normal.ToVector();
+			Lines.Emplace(FString::Printf(TEXT("%f,%f,%f,%f,%f,%f,%d,%d,%d,%d"), Location.X, -Location.Y, Location.Z, Normal.X, Normal.Y, Normal.Z, Data->Color.A, Data->Color.R, Data->Color.G, Data->Color.B));
 		}
 
 		FFileHelper::SaveStringArrayToFile(Lines, *Filename, FFileHelper::EEncodingOptions::ForceAnsi, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
-		NumProcessedPoints += BatchSize;
-	}
-	
+	}, 5000000, false);
+
 	return true;
 }
 
@@ -316,14 +314,20 @@ void FLidarPointCloudImportSettings_ASCII::Serialize(FArchive& Ar)
 {
 	FLidarPointCloudImportSettings::Serialize(Ar);
 
-	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) >= 10)
+	// Used for backwards compatibility
+	int32 Dummy32;
+
+	if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) >= 18)
 	{
-		Ar << LinesToSkip << EstimatedPointCount << Delimiter << Columns << SelectedColumns << RGBRange;
+		Ar << LinesToSkip << Delimiter << Columns << SelectedColumns << RGBRange;
+	}
+	else if (Ar.CustomVer(ULidarPointCloud::PointCloudFileGUID) >= 10)
+	{
+		Ar << LinesToSkip << Dummy32 << Delimiter << Columns << SelectedColumns << RGBRange;
 	}
 	else
 	{
-		int32 Dummy32;
-		Ar << LinesToSkip << EstimatedPointCount << Delimiter << Columns << SelectedColumns << RGBRange << Dummy32 << Dummy32;
+		Ar << LinesToSkip << Dummy32 << Delimiter << Columns << SelectedColumns << RGBRange << Dummy32 << Dummy32;
 	}
 }
 
@@ -504,7 +508,7 @@ void FLidarPointCloudImportSettings_ASCII::ReadFileHeader(const FString& InFilen
 				}
 			}
 
-			int32 LineCount = 0;
+			int64 LineCount = 0;
 			int32 Count = 0;
 			while (*DataPtr != 0)
 			{
@@ -568,19 +572,16 @@ FVector2D FLidarPointCloudImportSettings_ASCII::ReadFileMinMaxColumns(TArray<int
 		int64 RemainingSize = TotalSize;
 		int64 RemainingLoadedSize = 0;
 
-		const int64 MaxBufferSize = GetDefault<ULidarPointCloudSettings>()->MaxImportBufferSize;
-		const int32 MaxNumberOfPointsToScan = GetDefault<ULidarPointCloudSettings>()->MaxNumberOfPointsToScanASCII;
-
 		// Prepare pointers
-		uint8 *Data = (uint8*)FMemory::Malloc(MaxBufferSize);
+		uint8 *Data = (uint8*)FMemory::Malloc(MAX_BUFFER_SIZE);
 		uint8 *DataPtr = nullptr;
 
 		PC_STREAMTEXTFILE;
 
 		uint8 Iterator = 0;
 		bool bEndOfLine = false;
-		int32 LineNumber = 0;
-		while (RemainingLoadedSize > 0 && LineNumber < MaxNumberOfPointsToScan)
+		int64 LineNumber = 0;
+		while (RemainingLoadedSize > 0 && LineNumber < 100000)
 		{
 			const char* ChunkStart = (char*)DataPtr;
 			while (RemainingLoadedSize > 0 && *DataPtr != '\r' && *DataPtr != '\n' && *DataPtr != Delimiter[0])
