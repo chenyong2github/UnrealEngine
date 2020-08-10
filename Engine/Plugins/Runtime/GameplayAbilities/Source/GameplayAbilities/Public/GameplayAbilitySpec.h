@@ -274,6 +274,10 @@ struct GAMEPLAYABILITIES_API FGameplayAbilitySpec : public FFastArraySerializerI
 	UPROPERTY(NotReplicated)
 	FGameplayAbilityActivationInfo	ActivationInfo;
 
+	/** Optional ability tags that are replicated.  These tags are also captured as source tags by applied gameplay effects. */
+	UPROPERTY()
+	FGameplayTagContainer DynamicAbilityTags;
+
 	/** Non replicating instances of this ability. */
 	UPROPERTY(NotReplicated)
 	TArray<UGameplayAbility*> NonReplicatedInstances;
