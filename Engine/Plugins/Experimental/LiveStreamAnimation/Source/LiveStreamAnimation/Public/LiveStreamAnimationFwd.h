@@ -2,17 +2,18 @@
 
 #pragma once
 
-struct FLiveStreamAnimationLiveLinkSourceOptions;
+class ULiveStreamAnimationSubsystem;
+class ULiveStreamAnimationDataHandler;
+
+struct FLSALiveLinkSourceOptions;
 struct FLiveStreamAnimationHandle;
 
 enum class ELiveStreamAnimationRole : uint8;
 
 namespace LiveStreamAnimation
 {
-	class FLiveLinkPacket;
-	class FLiveStreamAnimationLiveLinkSource;
+	class FLSALiveLinkSource;
 	class FLiveStreamAnimationPacket;
-	class FLiveLinkStreamingHelper;
 
 	enum class ELiveStreamAnimationPacketType : uint8;
 }

@@ -5,15 +5,15 @@
 #include "CoreMinimal.h"
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
+#include "LSALiveLinkFrameTranslator.h"
 
 class FLSALiveLinkFrameTranslatorAssetActions : public FAssetTypeActions_Base
 {
 public:
 	//~ Begin IAssetTypeActions Implementation
-	virtual FText GetName() const override { return NSLOCTEXT("LiveStreamAnimation", "LiveLinkFrameTranslatorAssetActions_Name", "Live Stream Animation Live Link Frame Translator"); }
+	virtual FText GetName() const override { return NSLOCTEXT("LSALiveLink", "LiveLinkFrameTranslatorAssetActions_Name", "Live Stream Animation Live Link Frame Translator"); }
 	virtual FColor GetTypeColor() const override { return FColor(212, 97, 85); }
-	virtual UClass* GetSupportedClass() const override { return ULiveStreamAnimationLiveLinkFrameTranslator::StaticClass(); }
+	virtual UClass* GetSupportedClass() const override { return ULSALiveLinkFrameTranslator::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
 	virtual bool IsImportedAsset() const override { return false; }
 	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override { return nullptr; }

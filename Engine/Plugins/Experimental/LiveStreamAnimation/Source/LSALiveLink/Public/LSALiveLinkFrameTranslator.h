@@ -4,7 +4,7 @@
 
 #include "LiveLinkFrameTranslator.h"
 #include "LiveStreamAnimationHandle.h"
-#include "LiveStreamAnimationLiveLinkFrameTranslator.generated.h"
+#include "LSALiveLinkFrameTranslator.generated.h"
 
 class USkeleton;
 
@@ -12,7 +12,7 @@ class USkeleton;
  * A single translation profile that can map one Live Link Subject Skeleton onto one UE Skeleton.
  */
 USTRUCT(BlueprintType)
-struct LIVESTREAMANIMATION_API FLiveStreamAnimationLiveLinkTranslationProfile
+struct LSALIVELINK_API FLSALiveLinkTranslationProfile
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ private:
  * Class that defines how we can translate incoming Live Stream Skeletons
  * onto live UE Skeletons.
  *
- * Individual translations are defined as FLiveStreamAnimationLiveLinkTranslationProfiles.
+ * Individual translations are defined as FLSALiveLinkTranslationProfiles.
  *
  * This is necessary for things like Quantization, Compression, and Stripping unused to work properly
  * as we won't have access to the Live Stream Animation frame data inside the Anim BP, and therefore
@@ -89,7 +89,7 @@ private:
  * will be used.
  */
 UCLASS(Blueprintable, BlueprintType, Config=Game, ClassGroup = (LiveStreamAnimation))
-class LIVESTREAMANIMATION_API ULiveStreamAnimationLiveLinkFrameTranslator : public ULiveLinkFrameTranslator
+class LSALIVELINK_API ULSALiveLinkFrameTranslator : public ULiveLinkFrameTranslator
 {
 	GENERATED_BODY()
 
@@ -110,17 +110,17 @@ public:
 	//~ End UObject Interface
 #endif
 
-	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandle TranslationProfileHandle) const
+	const FLSALiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandle TranslationProfileHandle) const
 	{
 		return GetTranslationProfile(FLiveStreamAnimationHandleWrapper(TranslationProfileHandle));
 	}
 
-	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileHandleName) const
+	const FLSALiveLinkTranslationProfile* GetTranslationProfile(FName TranslationProfileHandleName) const
 	{
 		return GetTranslationProfile(FLiveStreamAnimationHandleWrapper(TranslationProfileHandleName));
 	}
 
-	const FLiveStreamAnimationLiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandleWrapper TranslationProfileHandle) const
+	const FLSALiveLinkTranslationProfile* GetTranslationProfile(FLiveStreamAnimationHandleWrapper TranslationProfileHandle) const
 	{
 		return TranslationProfiles.Find(TranslationProfileHandle);
 	}
@@ -135,7 +135,7 @@ private:
 	 * See @ULiveStreamAnimationSubsystem::HandleNames.
 	 */
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Live Stream Animation|Live Link|Translation")
-	TMap<FLiveStreamAnimationHandleWrapper, FLiveStreamAnimationLiveLinkTranslationProfile> TranslationProfiles;
+	TMap<FLiveStreamAnimationHandleWrapper, FLSALiveLinkTranslationProfile> TranslationProfiles;
 
 	FWorkerSharedPtr Worker;
 };

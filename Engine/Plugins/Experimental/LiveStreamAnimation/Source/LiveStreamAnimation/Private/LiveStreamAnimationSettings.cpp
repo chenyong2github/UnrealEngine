@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveStreamAnimationSettings.h"
-#include "LiveLink/LiveStreamAnimationLiveLinkFrameTranslator.h"
 
 ULiveStreamAnimationSettings::ULiveStreamAnimationSettings()
 {
@@ -28,28 +27,9 @@ ULiveStreamAnimationSettings::ULiveStreamAnimationSettings()
 			FName(TEXT("LiveLinkFrameTranslation4")),
 			FName(TEXT("LiveLinkFrameTranslation5")),
 		});
+
+		ConfiguredDataHandlers.Add(FSoftClassPath(TEXT("/Script/LSALiveLink.LSALiveLinkDataHandler")));
 	}
-}
-
-
-class ULiveStreamAnimationLiveLinkFrameTranslator* ULiveStreamAnimationSettings::GetFrameTranslator()
-{
-	return GetMutableDefault<ULiveStreamAnimationSettings>()->FrameTranslator.LoadSynchronous();
-}
-
-FDelegateHandle ULiveStreamAnimationSettings::AddFrameTranslatorChangedCallback(FSimpleMulticastDelegate::FDelegate&& InDelegate)
-{
-	return GetMutableDefault<ULiveStreamAnimationSettings>()->OnFrameTranslatorChanged.Add(MoveTemp(InDelegate));
-}
-
-FDelegateHandle ULiveStreamAnimationSettings::AddFrameTranslatorChangedCallback(const FSimpleMulticastDelegate::FDelegate& InDelegate)
-{
-	return GetMutableDefault<ULiveStreamAnimationSettings>()->OnFrameTranslatorChanged.Add(InDelegate);
-}
-
-void ULiveStreamAnimationSettings::RemoveFrameTranslatorChangedCallback(FDelegateHandle DelegateHandle)
-{
-	GetMutableDefault<ULiveStreamAnimationSettings>()->OnFrameTranslatorChanged.Remove(DelegateHandle);
 }
 
 const TArrayView<const FName> ULiveStreamAnimationSettings::GetHandleNames()
@@ -57,27 +37,10 @@ const TArrayView<const FName> ULiveStreamAnimationSettings::GetHandleNames()
 	return GetDefault<ULiveStreamAnimationSettings>()->HandleNames;
 }
 
-#if WITH_EDITOR
-void ULiveStreamAnimationSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+const TArrayView<const FSoftClassPath> ULiveStreamAnimationSettings::GetConfiguredDataHandlers()
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULiveStreamAnimationSettings, FrameTranslator))
-	{
-		OnFrameTranslatorChanged.Broadcast();
-	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	return GetDefault<ULiveStreamAnimationSettings>()->ConfiguredDataHandlers;
 }
-
-void ULiveStreamAnimationSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULiveStreamAnimationSettings, FrameTranslator))
-	{
-		OnFrameTranslatorChanged.Broadcast();
-	}
-
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-#endif
 
 FName ULiveStreamAnimationSettings::GetContainerName() const
 {
