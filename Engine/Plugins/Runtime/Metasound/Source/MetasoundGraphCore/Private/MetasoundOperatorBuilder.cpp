@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundOperatorBuilder.h"
-#include "MetasoundBuilderInterface.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundGraphOperator.h"
-#include "MetasoundTarjan.h"
 
+#include "MetasoundBuilderInterface.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundGraphAlgo.h"
+#include "MetasoundGraphOperator.h"
+#include "MetasoundOperatorInterface.h"
+
 
 namespace Metasound
 {
@@ -140,11 +141,11 @@ namespace Metasound
 				bool bExcludeSingleVertex = true;
 
 				// Try to find cycles
-				TArray<FMetasoundStronglyConnectedComponent> Cycles;
+				TArray<FStronglyConnectedComponent> Cycles;
 
-				if(FTarjan::FindStronglyConnectedComponents(InGraph, Cycles, bExcludeSingleVertex))
+				if(FDirectedGraphAlgo::TarjanStronglyConnectedComponents(InGraph, Cycles, bExcludeSingleVertex))
 				{
-					for (const FMetasoundStronglyConnectedComponent& Cycle : Cycles)
+					for (const FStronglyConnectedComponent& Cycle : Cycles)
 					{
 						AddBuildError<FGraphCycleError>(OutErrors, Cycle.Nodes, Cycle.Edges);
 					}

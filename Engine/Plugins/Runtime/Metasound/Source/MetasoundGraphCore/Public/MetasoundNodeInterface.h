@@ -237,6 +237,9 @@ namespace Metasound
 		,	Vertex(InVertex)
 		{
 		}
+
+		/** Check if two FOutputDataSources are equal. */
+		friend bool operator==(const FOutputDataSource& InLeft, const FOutputDataSource& InRight);
 	};
 
 	/** FInputDataSource describes the destination of data which produced 
@@ -259,6 +262,9 @@ namespace Metasound
 		,	Vertex(InVertex)
 		{
 		}
+
+		/** Check if two FInputDataDestinations are equal. */
+		friend bool operator==(const FInputDataDestination& InLeft, const FInputDataDestination& InRight);
 	};
 
 	/** Key type for an FOutputDataSource or FInputDataDestination. */
@@ -304,6 +310,9 @@ namespace Metasound
 		,	To(InTo)
 		{
 		}
+
+		/** Check if two FDataEdges are equal. */
+		friend bool operator==(const FDataEdge& InLeft, const FDataEdge& InRight);
 	};
 
 
