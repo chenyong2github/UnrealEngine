@@ -500,11 +500,18 @@ namespace UnrealBuildTool
 				Arguments.Add("/wd4463"); // 4463 - overflow; assigning 1 to bit-field that can only hold values from -1 to 0
 			}
 
-			if(CompileEnvironment.bEnableUndefinedIdentifierWarnings)
+			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
 			{
 				if (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors)
 				{
-					Arguments.Add("/we4668");
+					if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2015_DEPRECATED)
+					{
+						Arguments.Add("/we4668");
+					}
+					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2017)
+					{
+						Arguments.Add("/wd4668");
+					}
 				}
 				else
 				{
