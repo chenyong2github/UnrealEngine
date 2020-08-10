@@ -312,7 +312,8 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, con
 		}
 
 		Index ++;
-		BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
+		if (Mat)
+			BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
 	}
 }
 
