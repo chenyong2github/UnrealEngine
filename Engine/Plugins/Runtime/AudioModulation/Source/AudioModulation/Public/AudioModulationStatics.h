@@ -41,7 +41,7 @@ public:
 		WorldContext = "WorldContextObject", 
 		Keywords = "activate modulation modulator control bus")
 	)
-	static void ActivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus);
+	static void ActivateBus(const UObject* WorldContextObject, USoundControlBus* Bus);
 
 	/** Activates a bus modulator mix. Does nothing if an instance of the provided bus mix is already active
 	 * @param BusMix - Mix to activate
@@ -106,7 +106,7 @@ public:
 	)
 	static FSoundControlBusMixStage CreateBusMixStage(
 		const UObject* WorldContextObject,
-		USoundControlBusBase* Bus,
+		USoundControlBus* Bus,
 		float Value,
 		float AttackTime = 0.1f,
 		float ReleaseTime = 0.1f);
@@ -133,7 +133,7 @@ public:
 		WorldContext = "WorldContextObject", 
 		Keywords = "deactivate modulation modulator bus")
 	)
-	static void DeactivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus);
+	static void DeactivateBus(const UObject* WorldContextObject, USoundControlBus* Bus);
 
 	/** Deactivates a modulation bus mix. Does nothing if an instance of the provided bus mix is already inactive
 	 * @param BusMix - Mix to deactivate
@@ -182,48 +182,53 @@ public:
 	/** Sets a mix with the provided stage data if stages provided in active instance proxy of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to update
 	 * @param Stages - Stages to set.  If stage's bus is not referenced by mix, stage's update request is ignored.
-	 * @param bUpdateObject - If true, will dirty mix object and update stages on the SoundControlBusMix object in addition
-	 * to updating the audio thread proxy.
+	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
+	 * If negative, falls back to last fade time set on stage. If fade time never set on stage,
+	 * uses attack time set on stage in mix asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "set bus control modulation modulator mix stage")
 	)
-	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages);
+	static void UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float InFadeTime = -1.0f);
 
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix. Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
 	 * @param AddressFilter - Address filter to apply to provided mix's stages.
 	 * @param BusClass - Filters buses by subclass.
 	 * @param Value - Target value to mix filtered stages to.
+	 * @param FadeTime - If non-negative, updates the fade time for the resulting bus stages found matching the provided filter.
 	 * @param AttackTime - If non-negative, updates the attack time for the resulting bus stages found matching the provided filter.
 	 * @param ReleaseTime - If non-negative, updates the release time for the resulting bus stages found matching the provided filter.
 	 * @param bUpdateObject - If true, will dirty mix object and update stages on the SoundControlBusMix object in addition to updating 
 	 * the audio thread proxy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Set Control Bus Mix By Filter", meta = (
-		AdvancedDisplay = "5",
+		AdvancedDisplay = "6",
 		WorldContext = "WorldContextObject",
 		Keywords = "set bus control class modulation modulator mix stage value filter")
 	)
 	static void UpdateMixByFilter(
-		const UObject*						WorldContextObject,
-		USoundControlBusMix*				Mix,
-		FString								AddressFilter,
-		TSubclassOf<USoundControlBusBase>	BusClassFilter,
-		float								Value,
-		float								AttackTime	= -1.0f,
-		float								ReleaseTime = -1.0f);
+		const UObject* WorldContextObject,
+		USoundControlBusMix* Mix,
+		FString AddressFilter,
+		TSubclassOf<USoundModulationParameter> ParamClassFilter,
+		USoundModulationParameter* ParamFilter,
+		float Value = 1.0f,
+		float FadeTime = -1.0f);
 
 	/** Commits updates from a UObject definition of a bus mix to active instance in audio thread
 	 * (ignored if mix has not been activated).
 	 * @param Mix - Mix to update
+	 * @param FadeTime - Fade time to user when interpolating between current value and new values.
+	 * If negative, falls back to last fade time set on stage. If fade time never set on stage,
+	 * uses attack time set on stage in mix asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Update Control Bus Mix", meta = (
 		WorldContext = "WorldContextObject",
 		Keywords = "update set control bus mix modulation modulator")
 	)
-	static void UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix);
+	static void UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix, float FadeTime = -1.0f);
 
 	/** Commits updates from a UObject definition of a modulator (e.g. Bus, Bus Mix, LFO) to active instance in audio thread
 	 * (ignored if modulator type has not been activated).

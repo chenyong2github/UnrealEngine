@@ -42,12 +42,6 @@ namespace AudioModulation
 			, Shape(InLFO.Shape)
 		{
 		}
-
-		// TODO: Remove once moved all UObjects off AudioModSystem render command queue
-		FLFOId GetUniqueID() const
-		{
-			return GetId();
-		}
 	};
 
 	class FModulatorLFOProxy : public TModulatorProxyRefType<FLFOId, FModulatorLFOProxy, FModulatorLFOSettings>

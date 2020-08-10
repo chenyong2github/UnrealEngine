@@ -20,18 +20,14 @@ namespace AudioModulation
 	{
 		bool bBypass;
 		float DefaultValue;
-		float Min;
-		float Max;
 
 		TArray<FModulatorLFOSettings> LFOSettings;
 		Audio::FModulationMixFunction MixFunction;
 
-		FControlBusSettings(const USoundControlBusBase& InBus)
+		FControlBusSettings(const USoundControlBus& InBus)
 			: TModulatorBase<FBusId>(InBus.GetName(), InBus.GetUniqueID())
 			, bBypass()
-			, DefaultValue(InBus.GetDefaultValue())
-			, Min(InBus.GetMin())
-			, Max(InBus.GetMax())
+			, DefaultValue(InBus.GetDefaultLinearValue())
 			, MixFunction(InBus.GetMixFunction())
 		{
 			for (const USoundModulationGenerator* Modulator : InBus.Modulators)
@@ -56,7 +52,6 @@ namespace AudioModulation
 		const TArray<FLFOHandle>& GetLFOHandles() const;
 		float GetLFOValue() const;
 		float GetMixValue() const;
-		FVector2D GetRange() const;
 		float GetValue() const;
 		bool IsBypassed() const;
 		void MixIn(const float InValue);
@@ -77,7 +72,6 @@ namespace AudioModulation
 
 		Audio::FModulationMixFunction MixFunction;
 		TArray<FLFOHandle> LFOHandles;
-		FVector2D Range;
 	};
 
 	using FBusProxyMap = TMap<FBusId, FControlBusProxy>;

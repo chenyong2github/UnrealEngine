@@ -21,7 +21,8 @@ namespace AudioModulation
 	FModulatorBusMixStageSettings::FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage)
 		: TModulatorBase<FBusId>(InStage.Bus->GetName(), InStage.Bus->GetUniqueID())
 		, Address(InStage.Bus->Address)
-		, ClassId(InStage.Bus->GetClass()->GetUniqueID())
+		, ParamClassId(InStage.Bus->Parameter->GetClass()->GetUniqueID())
+		, ParamId(InStage.Bus->Parameter->GetUniqueID())
 		, Value(InStage.Value)
 		, BusSettings(FControlBusSettings(*InStage.Bus))
 	{
@@ -30,7 +31,8 @@ namespace AudioModulation
 	FModulatorBusMixStageProxy::FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem)
 		: TModulatorBase<FBusId>(InSettings.BusSettings.GetName(), InSettings.BusSettings.GetId())
 		, Address(InSettings.Address)
-		, ClassId(InSettings.ClassId)
+		, ParamClassId(InSettings.ParamClassId)
+		, ParamId(InSettings.ParamId)
 		, Value(InSettings.Value)
 		, BusHandle(FBusHandle::Create(InSettings.BusSettings, OutModSystem.RefProxies.Buses, OutModSystem))
 	{
@@ -101,7 +103,7 @@ namespace AudioModulation
 		}
 	}
 
-	void FModulatorBusMixProxy::SetMix(const TArray<FModulatorBusMixStageSettings>& InStages)
+	void FModulatorBusMixProxy::SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime)
 	{
 		for (const FModulatorBusMixStageSettings& NewStage : InStages)
 		{
@@ -111,18 +113,24 @@ namespace AudioModulation
 				StageProxy->Value.TargetValue = NewStage.Value.TargetValue;
 				StageProxy->Value.AttackTime = NewStage.Value.AttackTime;
 				StageProxy->Value.ReleaseTime = NewStage.Value.ReleaseTime;
+
+				// Setting entire mix wipes pre-existing user fade requests
+				StageProxy->Value.SetActiveFade(FSoundModulationMixValue::EActiveFade::Override, InFadeTime);
 			}
 		}
 	}
 
-	void FModulatorBusMixProxy::SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue)
+	void FModulatorBusMixProxy::SetMixByFilter(const FString& InAddressFilter, uint32 InParamClassId, uint32 InParamId, float InValue, float InFadeTime)
 	{
-		static const uint32 BaseClassId = USoundControlBusBase::StaticClass()->GetUniqueID();
-
 		for (TPair<FBusId, FModulatorBusMixStageProxy>& IdProxyPair : Stages)
 		{
 			FModulatorBusMixStageProxy& StageProxy = IdProxyPair.Value;
-			if (InFilterClassId != BaseClassId && StageProxy.ClassId != InFilterClassId)
+			if (InParamId != INDEX_NONE && StageProxy.ParamId != InParamId)
+			{
+				continue;
+			}
+
+			if (InParamClassId != INDEX_NONE && StageProxy.ParamClassId != InParamClassId)
 			{
 				continue;
 			}
@@ -132,17 +140,8 @@ namespace AudioModulation
 				continue;
 			}
 
-			StageProxy.Value.TargetValue = InValue.TargetValue;
-
-			if (InValue.AttackTime >= 0.0f)
-			{
-				StageProxy.Value.AttackTime = InValue.AttackTime;
-			}
-
-			if (InValue.ReleaseTime >= 0.0f)
-			{
-				StageProxy.Value.ReleaseTime = InValue.ReleaseTime;
-			}
+			StageProxy.Value.TargetValue = InValue;
+			StageProxy.Value.SetActiveFade(FSoundModulationMixValue::EActiveFade::Override, InFadeTime);
 		}
 	}
 
@@ -160,7 +159,7 @@ namespace AudioModulation
 		for (TPair<FBusId, FModulatorBusMixStageProxy>& Stage : Stages)
 		{
 			FModulatorBusMixStageProxy& StageProxy = Stage.Value;
-			FSoundModulationValue& MixStageValue = StageProxy.Value;
+			FSoundModulationMixValue& MixStageValue = StageProxy.Value;
 
 			if (FControlBusProxy* BusProxy = OutProxyMap.Find(StageProxy.GetId()))
 			{
@@ -170,6 +169,7 @@ namespace AudioModulation
 				if (Status == EStatus::Stopping)
 				{
 					MixStageValue.TargetValue = BusProxy->GetDefaultValue();
+					MixStageValue.SetActiveFade(FSoundModulationMixValue::EActiveFade::Release);
 					if (!FMath::IsNearlyEqual(MixStageValue.TargetValue, CurrentValue))
 					{
 						bRequestStop = false;

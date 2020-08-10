@@ -10,7 +10,7 @@
 
 #include "SoundModulationPatch.generated.h"
 
-class USoundControlBusBase;
+// Forward Declarations
 class USoundControlBus;
 
 
@@ -48,11 +48,11 @@ struct AUDIOMODULATION_API FSoundModulationInputBase
 	UPROPERTY()
 	FSoundModulationInputTransform Transform;
 
-	virtual const USoundControlBusBase* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
+	virtual const USoundControlBus* GetBus() const PURE_VIRTUAL(FSoundModulationInputBase::GetBus, return nullptr; );
 
-	const USoundControlBusBase& GetBusChecked() const
+	const USoundControlBus& GetBusChecked() const
 	{
-		const USoundControlBusBase* Bus = GetBus();
+		const USoundControlBus* Bus = GetBus();
 		check(Bus);
 		return *GetBus();
 	}
@@ -67,7 +67,7 @@ struct AUDIOMODULATION_API FSoundControlModulationInput : public FSoundModulatio
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input)
 	USoundControlBus* Bus = nullptr;
 
-	virtual const USoundControlBusBase* GetBus() const override;
+	virtual const USoundControlBus* GetBus() const override;
 };
 
 USTRUCT(BlueprintType)

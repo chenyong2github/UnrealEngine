@@ -75,9 +75,9 @@ FSoundModulationInputBase::FSoundModulationInputBase()
 {
 }
 
-const USoundControlBusBase* FSoundControlModulationInput::GetBus() const
+const USoundControlBus* FSoundControlModulationInput::GetBus() const
 {
-	return Cast<USoundControlBusBase>(Bus);
+	return Bus;
 }
 
 FSoundModulationPatchBase::FSoundModulationPatchBase()

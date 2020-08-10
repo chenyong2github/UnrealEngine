@@ -35,9 +35,9 @@ namespace AudioModulation
 		const int32 MaxNameLength = 40;
 		const int32 XIndent       = 36;
 
-		FColor GetUnitRenderColor(const float Value, const FVector2D& Range)
+		FColor GetUnitRenderColor(const float Value)
 		{
-			return Value > Range.Y || Range.X < Value
+			return Value > 1.0f || Value < 0.0f
 				? FColor::Red
 				: FColor::Green;
 		}
@@ -246,7 +246,7 @@ namespace AudioModulation
 				}
 				else
 				{
-					const FColor Color = Debug::GetUnitRenderColor(Value, Bus.Range);
+					const FColor Color = Debug::GetUnitRenderColor(Value);
 					Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 				}
 			}
@@ -258,7 +258,7 @@ namespace AudioModulation
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
 				const float Value = Bus.LFOValue;
-				const FColor Color = Debug::GetUnitRenderColor(Value, Bus.Range);
+				const FColor Color = Debug::GetUnitRenderColor(Value);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Value), &Font, Color);
 			}
 
@@ -268,7 +268,7 @@ namespace AudioModulation
 			for (const FControlBusDebugInfo& Bus : FilteredBuses)
 			{
 				RowX += Width * CellWidth; // Add before to leave space for row headers
-				const FColor Color = Debug::GetUnitRenderColor(Bus.Value, Bus.Range);
+				const FColor Color = Debug::GetUnitRenderColor(Bus.Value);
 				Canvas.DrawShadowedString(RowX, Y, *FString::Printf(TEXT("%.4f"), Bus.Value), &Font, Color);
 			}
 			Y += Height;
@@ -338,7 +338,6 @@ namespace AudioModulation
 			DebugInfo.LFOValue = Proxy->GetLFOValue();
 			DebugInfo.MixValue = Proxy->GetMixValue();
 			DebugInfo.Name = Proxy->GetName();
-			DebugInfo.Range = Proxy->GetRange();
 			DebugInfo.RefCount = Proxy->GetRefCount();
 			DebugInfo.Value = Proxy->GetValue();
 			RefreshedFilteredBuses.Add(DebugInfo);

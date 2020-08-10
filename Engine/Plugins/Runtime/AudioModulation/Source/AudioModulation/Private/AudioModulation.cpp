@@ -37,6 +37,11 @@ namespace AudioModulation
 		ModSystem->Initialize(InitializationParams);
 	}
 
+	void FAudioModulation::OnAuditionEnd()
+	{
+		ModSystem->OnAuditionEnd();
+	}
+
 #if !UE_BUILD_SHIPPING
 	bool FAudioModulation::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{

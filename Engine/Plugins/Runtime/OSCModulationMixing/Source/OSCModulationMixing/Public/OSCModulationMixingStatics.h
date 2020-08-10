@@ -67,5 +67,5 @@ class OSCMODULATIONMIXING_API UOSCModulationMixingStatics : public UBlueprintFun
 
 	/** Converts OSCBundle to Control Bus Values & Mix Path from which it came */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "OSCBundle To Stage Values", meta = (WorldContext = "WorldContextObject"))
-	static UPARAM(DisplayName = "Bus Values") TArray<FSoundModulationValue> OSCBundleToStageValues(UObject* WorldContextObject, const FOSCBundle& Bundle, FOSCAddress& MixPath, TArray<FOSCAddress>& BusPaths, TArray<FString>& BusClassNames);
+	static UPARAM(DisplayName = "Bus Values") TArray<FSoundModulationMixValue> OSCBundleToStageValues(UObject* WorldContextObject, const FOSCBundle& Bundle, FOSCAddress& MixPath, TArray<FOSCAddress>& BusPaths, TArray<FString>& BusClassNames);
 };

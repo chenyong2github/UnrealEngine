@@ -4892,6 +4892,10 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 
 			if (bDeleteActiveSound)
 			{
+				if (ActiveSound->bIsPreviewSound && bModulationInterfaceEnabled && ModulationInterface.IsValid())
+				{
+					ModulationInterface->OnAuditionEnd();
+				}
 				ActiveSound->bAsyncOcclusionPending = false;
 				PendingSoundsToDelete.RemoveAtSwap(i, 1, false);
 				delete ActiveSound;
