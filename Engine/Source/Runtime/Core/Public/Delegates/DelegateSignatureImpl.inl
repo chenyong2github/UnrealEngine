@@ -26,7 +26,7 @@ template <typename FuncType> struct IBaseDelegateInstance;
 template<typename ObjectPtrType> class FMulticastDelegateBase;
 
 /**
- * Unicast delegate base object.
+ * Unicast delegate template class.
  *
  * Use the various DECLARE_DELEGATE macros to create the actual delegate type, templated to
  * the function signature the delegate is compatible with. Then, you can create an instance
@@ -563,6 +563,7 @@ public:
 	}
 };
 
+/** Specialization for a delegate with no return value */
 template <typename... ParamTypes>
 class TBaseDelegate<void, ParamTypes...> : public TBaseDelegate<TTypeWrapper<void>, ParamTypes...>
 {
@@ -647,7 +648,7 @@ public:
 
 
 /**
- * Multicast delegate base class.
+ * Multicast delegate template base class, used for both normal and event multicast delegates.
  *
  * This class implements the functionality of multicast delegates. It is templated to the function signature
  * that it is compatible with. Use the various DECLARE_MULTICAST_DELEGATE and DECLARE_EVENT macros to create
@@ -1024,7 +1025,7 @@ protected:
 
 
 /**
- * Implements a multicast delegate.
+ * Non-event implementation of a multicast delegate.
  *
  * This class should not be instantiated directly. Use the DECLARE_MULTICAST_DELEGATE macros instead.
  */
@@ -1041,7 +1042,7 @@ private:
 
 
 /**
- * Dynamic delegate base object (UObject-based, serializable).  You'll use the various DECLARE_DYNAMIC_DELEGATE
+ * Dynamic delegate template class (UObject-based, serializable).  You'll use the various DECLARE_DYNAMIC_DELEGATE
  * macros to create the actual delegate type, templated to the function signature the delegate is compatible with.
  * Then, you can create an instance of that class when you want to assign functions to the delegate.
  */
@@ -1112,7 +1113,7 @@ public:
 
 
 /**
- * Dynamic multi-cast delegate base object (UObject-based, serializable).  You'll use the various
+ * Dynamic multi-cast delegate template class (UObject-based, serializable).  You'll use the various
  * DECLARE_DYNAMIC_MULTICAST_DELEGATE macros to create the actual delegate type, templated to the function
  * signature the delegate is compatible with.   Then, you can create an instance of that class when you
  * want to assign functions to the delegate.
