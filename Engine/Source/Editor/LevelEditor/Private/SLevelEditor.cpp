@@ -1844,3 +1844,4 @@ TSharedRef<SWidget> SLevelEditor::CreateToolBox()
 	return NewToolBox;
 }
 
+#undef LOCTEXT_NAMESPACE
