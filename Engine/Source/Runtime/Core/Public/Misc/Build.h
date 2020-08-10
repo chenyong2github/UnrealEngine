@@ -423,3 +423,14 @@
 #ifndef PRESERVE_LOG_BACKUPS_IN_SHIPPING
 	#define PRESERVE_LOG_BACKUPS_IN_SHIPPING 1
 #endif
+
+// Controls whether FPlatformMisc::GetDeviceId() is available to be called.
+// When set to 1, calls to this API will be hardcoded to return an empty string
+// to avoid running afoul of calling device APIs that platform owners may restrict
+// access to without waivers or special steps. Code that uses GetDeviceId() should
+// expect to receive empty strings in these cases and response appropriately with
+// fallback logic.
+#ifndef GET_DEVICE_ID_UNAVAILABLE
+	#define GET_DEVICE_ID_UNAVAILABLE 0
+#endif
+

@@ -237,9 +237,7 @@ bool UKismetSystemLibrary::IsPackagedForDistribution()
 
 FString UKismetSystemLibrary::GetUniqueDeviceId()
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FPlatformMisc::GetUniqueDeviceId();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return FString();
 }
 
 FString UKismetSystemLibrary::GetDeviceId()
