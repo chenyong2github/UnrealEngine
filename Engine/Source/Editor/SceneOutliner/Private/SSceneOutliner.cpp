@@ -1340,7 +1340,7 @@ namespace SceneOutliner
 					{
 						for (UActorComponent* Component : Actor->GetComponents())
 						{
-							if (Filters->PassesAllFilters(FComponentTreeItem(Component)))
+							if (Component && Filters->PassesAllFilters(FComponentTreeItem(Component)))
 							{
 								bool IsHandled = false;
 								if (CustomImplementation)
@@ -3492,7 +3492,7 @@ namespace SceneOutliner
 						TArray<ISceneOutlinerTraversal*> ConstructTreeItemImp = IModularFeatures::Get().GetModularFeatureImplementations<ISceneOutlinerTraversal>("SceneOutlinerTraversal");
 						for (UActorComponent* Component : InActor->GetComponents())
 						{
-							if (Filters->PassesAllFilters(FComponentTreeItem(Component)))
+							if (Component && Filters->PassesAllFilters(FComponentTreeItem(Component)))
 							{
 								bool IsHandled = false;
 								for (ISceneOutlinerTraversal* CustomImplementation : ConstructTreeItemImp)
