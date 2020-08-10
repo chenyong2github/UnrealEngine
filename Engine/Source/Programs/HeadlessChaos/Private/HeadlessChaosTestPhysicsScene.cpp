@@ -307,6 +307,136 @@ namespace ChaosTest {
 		}
 	}
 
+	GTEST_TEST(EngineInterface,CreateDelayed)
+	{
+		for(int Delay = 0; Delay < 4; ++Delay)
+		{
+			FChaosScene Scene(nullptr);
+			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+			Scene.GetSolver()->SetEnabled(true);
+			Scene.GetSolver()->GetMarshallingManager().SetTickDelay(Delay);
+
+			FActorCreationParams Params;
+			Params.Scene = &Scene;
+
+			TGeometryParticle<FReal,3>* Particle = nullptr;
+
+			FChaosEngineInterface::CreateActor(Params,Particle);
+			EXPECT_NE(Particle,nullptr);
+
+			{
+				auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+				Particle->SetGeometry(MoveTemp(Sphere));
+			}
+
+			//create actor after flush
+			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle};
+			Scene.AddActorsToScene_AssumesLocked(Particles);
+
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				//tick solver
+				{
+					FVec3 Grav(0,0,-1);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+				}
+
+				//make sure sim hasn't seen it yet
+				{
+					FPBDRigidsEvolution* Evolution = Scene.GetSolver()->GetEvolution();
+					const auto& SOA = Evolution->GetParticles();
+					EXPECT_EQ(SOA.GetAllParticlesView().Num(),0);
+				}
+
+				//make sure external thread knows about it
+				{
+					const auto HitBuffer = InSphereHelper(Scene,FTransform::Identity,3);
+					EXPECT_EQ(HitBuffer.GetNumHits(),1);
+				}
+			}
+
+			//tick solver one last time
+			{
+				FVec3 Grav(0,0,-1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+			}
+
+			//now sim knows about it
+			{
+				FPBDRigidsEvolution* Evolution = Scene.GetSolver()->GetEvolution();
+				const auto& SOA = Evolution->GetParticles();
+				EXPECT_EQ(SOA.GetAllParticlesView().Num(),1);
+			}
+
+			Particle->SetX(FVec3(5,0,0));
+
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				//tick solver
+				{
+					FVec3 Grav(0,0,-1);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+				}
+
+				//make sure sim hasn't seen new X yet
+				{
+					FPBDRigidsEvolution* Evolution = Scene.GetSolver()->GetEvolution();
+					const auto& SOA = Evolution->GetParticles();
+					const auto& InternalParticle = *SOA.GetAllParticlesView().Begin();
+					EXPECT_EQ(InternalParticle.X()[0],0);
+				}
+			}
+
+			//tick solver one last time
+			{
+				FVec3 Grav(0,0,-1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+			}
+
+			//now sim knows about new X
+			{
+				FPBDRigidsEvolution* Evolution = Scene.GetSolver()->GetEvolution();
+				const auto& SOA = Evolution->GetParticles();
+				const auto& InternalParticle = *SOA.GetAllParticlesView().Begin();
+				EXPECT_EQ(InternalParticle.X()[0],5);
+			}
+
+			//make sure commands are also deferred
+
+			int Count = 0;
+			int ExternalCount = 0;
+			const auto Lambda = [&]()
+			{
+				++Count;
+				EXPECT_EQ(Count,1);	//only hit once on internal thread
+				EXPECT_EQ(ExternalCount,Delay); //internal hits with expected delay
+			};
+
+			Scene.GetSolver()->EnqueueCommandImmediate(Lambda);
+
+			for(int Repeat = 0; Repeat < Delay+1; ++Repeat)
+			{
+				//tick solver
+				FVec3 Grav(0,0,-1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+
+				++ExternalCount;
+			}
+
+		}
+		
+	}
+
 	GTEST_TEST(EngineInterface, SimRoundTrip)
 	{
 		FChaosScene Scene(nullptr);

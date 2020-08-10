@@ -320,7 +320,7 @@ namespace Chaos
 
 		AddDirtyProxy(ProxyBase);
 
-		MEvolution->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false,MTime);	//todo: MTime should use external time for async mode
+		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/false);
 	}
 
 	template <typename Traits>
@@ -335,7 +335,7 @@ namespace Chaos
 		// Grab the particle's type
 		const EParticleType InParticleType = GTParticle->ObjectType();
 
-		MEvolution->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true,MTime);	//todo: MTime should use external time for async mode
+		UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true);
 
 		// remove the proxy from the invalidation list
 		RemoveDirtyProxy(GTParticle->GetProxy());
@@ -1070,6 +1070,12 @@ namespace Chaos
 				}
 			}
 		}
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::UpdateExternalAccelerationStructure_External(TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>>& ExternalStructure)
+	{
+		GetEvolution()->UpdateExternalAccelerationStructure_External(ExternalStructure,*PendingSpatialOperations_External);
 	}
 
 #define EVOLUTION_TRAIT(Trait) template class CHAOSSOLVERS_API TPBDRigidsSolver<Trait>;

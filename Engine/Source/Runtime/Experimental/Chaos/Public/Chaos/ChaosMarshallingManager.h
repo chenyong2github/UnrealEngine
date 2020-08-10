@@ -305,6 +305,12 @@ public:
 
 	/** Returns the amount of external time consumed. Note the simulation may be pending, but any data associated with the interval up to this point has been passed */
 	FReal GetExternalTimeConsumed_External() const { return SimTime; }
+
+	/** Returns the amount of external time pushed so far. Any external commands or events should be associated with this time */
+	FReal GetExternalTime_External() const { return ExternalTime; }
+
+	/** Used to delay marshalled data. This is mainly used for testing at the moment */
+	void SetTickDelay_External(int32 InDelay) { Delay = InDelay; }
 	
 private:
 	FReal ExternalTime;	//the global time external thread is currently at
@@ -315,6 +321,8 @@ private:
 	TArray<TUniquePtr<FPushPhysicsData>> BackingBuffer;	//all push data is cleaned up by this
 	TQueue<FSimCallbackData*,EQueueMode::Spsc> CallbackDataPool;	//pool to grab more callback data to avoid expensive reallocs
 	TArray<TUniquePtr<FSimCallbackData>> CallbackDataBacking;	//callback data actually backed by this
+
+	int32 Delay;
 
 	void PrepareExternalQueue();
 
