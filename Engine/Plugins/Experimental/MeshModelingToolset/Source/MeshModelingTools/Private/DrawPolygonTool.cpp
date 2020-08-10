@@ -478,8 +478,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	// if we found a scene snap point, add to snap set
 	if (bIgnoreSnappingToggle || SnapProperties->bEnableSnapping == false)
 	{
-		SnapEngine.ResetActiveSnap();
-		SnapEngine.UpdatePointHistory(TArray<FVector>());
+		SnapEngine.Reset();
 	}
 	else 
 	{
