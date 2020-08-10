@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
+#include "UObject/LinkerInstancingContext.h"
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineBaseTypes.h"
@@ -32,6 +33,7 @@ struct FLevelCollection;
 class ULevelActorContainer;
 class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
+class FLinkerLoad;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -939,9 +941,16 @@ public:
 
 	/**
 	 * Get the list of (on disk) external actor packages associated with this level
-	 * @return Array of packages associated with this level
+	 * @return Array of package names associated with this level
 	 */
 	ENGINE_API TArray<FString> GetOnDiskExternalActorPackages() const;
+
+	/**
+	 * Get the list of (on disk) external actor packages associated with the specified package name
+	 * @param InPackageName The package to get the associated external actors, should be a level package
+	 * @return Array of package names associated with InPackageName
+	 */
+	ENGINE_API static TArray<FString> GetOnDiskExternalActorPackages(const FString& InPackageName);
 
 	/**
 	 * Get the list of (loaded) external actor packages associated with this level
@@ -955,22 +964,29 @@ public:
 	 * @param InPackageShortName Optional short name to use instead of the package short name
 	 * @return the folder
 	 */
-	static ENGINE_API FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
+	ENGINE_API static FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
 
 	/**
 	 * Get the folder containing the external actors for this level
-	 * @param InLevelPackage The package to get the external actors path of
+	 * @param InLevelPackage The package to get the external actors path of, will strip `/Temp` prefix if present
 	 * @param InPackageShortName Optional short name to use instead of the package short name
 	 * @return the folder
 	 */
-	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
+	ENGINE_API static FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
+
+	/**
+	 * Get the array of dynamic imports to resolve for this Linker, if any
+	 * @param Linker The linker in which we want to inject additional package import
+	 * @return the array of package import we want to inject in that linker
+	 */
+	ENGINE_API static TArray<FDynamicPackageImport> GetLevelDynamicPackageImports(const FLinkerLoad& Linker);
 
 	/**
 	 * Create an package for this actor
 	 * @param InGuid the guid to generate the name from.
 	 * @return the created package
 	 */
-	static ENGINE_API UPackage* CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid);
+	ENGINE_API static UPackage* CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid);
 
 	/**
 	 * Detach or reattach all level actors to from/to their external package
