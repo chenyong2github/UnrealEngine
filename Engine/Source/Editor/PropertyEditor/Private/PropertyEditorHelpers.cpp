@@ -37,7 +37,7 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 
 	static const FName NAME_TitleProperty = FName(TEXT("TitleProperty"));
 	// If our property has title support we pass in empty below so it retrieves a live value
-	const bool bHasTitleProperty = InPropertyEditor->GetProperty()->HasMetaData(NAME_TitleProperty);
+	const bool bHasTitleProperty = InPropertyEditor->GetProperty() && InPropertyEditor->GetProperty()->HasMetaData(NAME_TitleProperty);
 
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	ChildSlot
