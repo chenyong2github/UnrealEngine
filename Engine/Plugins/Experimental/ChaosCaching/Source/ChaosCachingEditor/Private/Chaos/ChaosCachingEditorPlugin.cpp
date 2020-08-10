@@ -168,6 +168,8 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 					Manager = SpawnManager(Component->GetWorld());
 				}
 
+				check(Manager);
+
 				FObservedComponent* Existing = Manager->ObservedComponents.FindByPredicate([PrimitiveComp](const FObservedComponent& InItem) {
 					return InItem.GetComponent() == PrimitiveComp;
 				});
