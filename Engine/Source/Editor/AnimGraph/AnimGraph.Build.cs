@@ -36,6 +36,7 @@ public class AnimGraph : ModuleRules
 				"KismetWidgets",
 				"ToolMenus",
 				"KismetCompiler",
+				"Kismet",
 			}
 		);
 

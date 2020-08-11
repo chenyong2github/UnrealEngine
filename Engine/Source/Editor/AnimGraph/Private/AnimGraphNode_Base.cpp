@@ -19,6 +19,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AnimBlueprintCompiler.h"
 #include "AnimBlueprintCompilerSubsystem_Base.h"
+#include "FindInBlueprintManager.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -449,6 +450,17 @@ FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
 		}
 	}
 	return MetaData;
+}
+
+void UAnimGraphNode_Base::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
+{
+	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
+
+	for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
+	{
+		OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(BindingPair.Key)));
+		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Binding", "Binding"), BindingPair.Value.PathAsText));
+	}
 }
 
 bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection InDirection) const
