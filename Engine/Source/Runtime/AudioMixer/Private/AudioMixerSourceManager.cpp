@@ -2084,9 +2084,19 @@ namespace Audio
 				float VolumeDestination = SourceInfo.VolumeSourceDestination;
 				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 				{
-					VolumeStart *= SourceInfo.VolumeModulation.GetValue();
+					const bool bIsFirstProcessCall = SourceInfo.VolumeModulation.GetHasProcessed();
+					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
 					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
-					VolumeDestination *= SourceInfo.VolumeModulation.GetValue();
+					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
+					if (bIsFirstProcessCall)
+					{
+						VolumeStart *= ModVolumeEnd;
+					}
+					else
+					{
+						VolumeStart *= ModVolumeStart;
+					}
+					VolumeDestination *= ModVolumeEnd;
 				}
 				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumSamples, VolumeStart, VolumeDestination);
 
@@ -2103,9 +2113,19 @@ namespace Audio
 				float VolumeDestination = SourceInfo.VolumeSourceDestination;
 				if (MixerDevice->IsModulationPluginEnabled() && MixerDevice->ModulationInterface.IsValid())
 				{
-					VolumeStart *= SourceInfo.VolumeModulation.GetValue();
+					const bool bIsFirstProcessCall = SourceInfo.VolumeModulation.GetHasProcessed();
+					const float ModVolumeStart = SourceInfo.VolumeModulation.GetValue();
 					SourceInfo.VolumeModulation.ProcessControl(SourceInfo.VolumeModulationBase);
-					VolumeDestination *= SourceInfo.VolumeModulation.GetValue();
+					const float ModVolumeEnd = SourceInfo.VolumeModulation.GetValue();
+					if (bIsFirstProcessCall)
+					{
+						VolumeStart *= ModVolumeEnd;
+					}
+					else
+					{
+						VolumeStart *= ModVolumeStart;
+					}
+					VolumeDestination *= ModVolumeEnd;
 				}
 				Audio::FadeBufferFast(PreDistanceAttenBufferPtr, NumSamples, VolumeStart, VolumeDestination);
 			}

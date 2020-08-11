@@ -47,6 +47,8 @@ namespace Audio
 			FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
 			FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
 
+			FORCEINLINE bool GetHasProcessed() const;
+
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
@@ -80,9 +82,10 @@ namespace Audio
 
 			float ValueTarget = 1.0f;
 
-			uint8 bIsBuffered  = 0;
-			uint8 bValueLinear = 0;
-			uint8 bIsActive    = 0;
+			uint8 bIsBuffered   = 0;
+			uint8 bValueLinear  = 0;
+			uint8 bIsActive     = 0;
+			uint8 bHasProcessed = 0;
 
 			AlignedFloatBuffer OutputBuffer;
 			AlignedFloatBuffer TempBufferLinear;
