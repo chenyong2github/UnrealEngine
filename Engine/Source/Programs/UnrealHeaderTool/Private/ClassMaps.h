@@ -7,6 +7,7 @@
 #include "UnderlyingEnumType.h"
 
 #include "UnrealSourceFile.h"
+#include "UObject/ErrorException.h"
 
 class UField;
 class UClass;
