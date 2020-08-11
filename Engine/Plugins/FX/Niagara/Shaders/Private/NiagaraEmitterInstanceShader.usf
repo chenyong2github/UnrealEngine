@@ -375,7 +375,7 @@ int rand_int(int x)
 	// Going through the float function also give us a better distribution than using modulo 
 	// to get an integer range.
 	// This will not include the upper range as rand_float returns [0, max), not [0, max].
-	return rand_float(x.x);
+	return (int) rand_float(x.x);
 }
 
 // Explicit deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes

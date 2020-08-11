@@ -261,9 +261,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 		static const TCHAR* FormatBounds = TEXT(R"(
 			void {FunctionName}(out int Out_Width, out int Out_Height)
 			{			
-				Out_Width = 0;
-				Out_Height = 0;
-				RW{Output}.GetDimensions(Out_Width, Out_Height);
+				unsigned int BufferWidth = 0U;
+				unsigned int BufferHeight = 0U;
+				RW{Output}.GetDimensions(BufferWidth, BufferHeight);
+
+				Out_Width = (int) BufferWidth;
+				Out_Height = (int) BufferHeight;
 			}
 		)");
 		TMap<FString, FStringFormatArg> ArgsBounds = {
@@ -294,7 +297,6 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	check(Proxy);
 
 	FRenderTarget2DRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTarget2DRWInstanceData_GameThread();
-#
 	if (!InstanceData->TargetTexture)
 	{
 		InstanceData->TargetTexture = NewObject<UTextureRenderTarget2D>(this);
