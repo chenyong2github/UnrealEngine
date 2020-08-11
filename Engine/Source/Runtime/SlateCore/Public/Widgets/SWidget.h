@@ -1127,6 +1127,21 @@ public:
 		}
 	}
 
+	FORCEINLINE FVector2D GetRenderTransformPivotWithRespectToFlowDirection() const
+	{
+		if (LIKELY(GSlateFlowDirection == EFlowDirection::LeftToRight))
+		{
+			return RenderTransformPivot.Get();
+		}
+		else
+		{
+			// If we're going right to left, flip the X's pivot mirrored about 0.5.
+			FVector2D TransformPivot = RenderTransformPivot.Get();
+			TransformPivot.X = 0.5f + (0.5f - TransformPivot.X);
+			return TransformPivot;
+		}
+	}
+
 	/** @param InTransform the render transform to set for the widget (transforms from widget's local space). TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
 	FORCEINLINE void SetRenderTransform(TAttribute<TOptional<FSlateRenderTransform>> InTransform)
 	{
@@ -1714,10 +1729,11 @@ FORCEINLINE_DEBUGGABLE FArrangedWidget FGeometry::MakeChild(const TSharedRef<SWi
 {
 	// If there is no render transform set, use the simpler MakeChild call that doesn't bother concatenating the render transforms.
 	// This saves a significant amount of overhead since every widget does this, and most children don't have a render transform.
-	TOptional<FSlateRenderTransform> RenderTransform = ChildWidget->GetRenderTransformWithRespectToFlowDirection();
+	const TOptional<FSlateRenderTransform> RenderTransform = ChildWidget->GetRenderTransformWithRespectToFlowDirection();
 	if (RenderTransform.IsSet() )
 	{
-		return FArrangedWidget(ChildWidget, MakeChild(InLocalSize, LayoutTransform, RenderTransform.GetValue(), ChildWidget->GetRenderTransformPivot()));
+		const FVector2D RenderTransformPivot = ChildWidget->GetRenderTransformPivotWithRespectToFlowDirection();
+		return FArrangedWidget(ChildWidget, MakeChild(InLocalSize, LayoutTransform, RenderTransform.GetValue(), RenderTransformPivot));
 	}
 	else
 	{
