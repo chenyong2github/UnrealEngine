@@ -24,6 +24,8 @@ class SCurveEditorPanel;
 class UCurveBase;
 class USoundModulationPatch;
 
+struct FSoundControlModulationInput;
+
 
 class FModulationPatchEditor : public FAssetEditorToolkit, public FNotifyHook, public FEditorUndoClient
 {
@@ -49,7 +51,7 @@ protected:
 	virtual void PostRedo(bool bSuccess) override;
 
 private:
-	void SetCurve(FRichCurve& InRichCurve, EModPatchOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve = nullptr);
+	void SetCurve(int32 InInputIndex, FRichCurve& InRichCurve, EModPatchOutputEditorCurveSource InSource);
 
 	/**	Spawns the tab allowing for editing/viewing the output curve(s) */
 	TSharedRef<SDockTab> SpawnTab_OutputCurve(const FSpawnTabArgs& Args);
@@ -62,22 +64,40 @@ private:
 	/** Get the orientation for the snap value controls. */
 	EOrientation GetSnapLabelOrientation() const;
 
-	/** Updates patch's output curve. */
-	void UpdateCurve();
+	/** Updates patch's input curves. */
+	void RefreshCurves();
 
 	/** Trims keys out-of-bounds in provided output transform's curve */
-	void TrimKeys(FSoundModulationOutputTransform& OutTransform) const;
+	static void TrimKeys(FSoundModulationTransform& OutTransform);
 
-	void GenerateExpressionCurve(const FSoundModulationOutputTransform& InTransform, bool bIsUnset = false);
+	/** Clears the expression curve at the given input index */
+	void ClearExpressionCurve(int32 InInputIndex);
+
+	/** Generates expression curve at the given index. */
+	void GenerateExpressionCurve(int32 InInputIndex, EModPatchOutputEditorCurveSource InSource, bool bInIsUnset = false);
+
+	void InitCurves();
+
+	void ResetCurves();
+
+	bool RequiresNewCurve(int32 InInputIndex, const FRichCurve& InRichCurve) const;
 
 	TSharedPtr<FUICommandList> ToolbarCurveTargetCommands;
 
 	TSharedPtr<FCurveEditor> CurveEditor;
 	TSharedPtr<SCurveEditorPanel> CurvePanel;
 
-	TSharedPtr<FRichCurve> ExpressionCurve;
+	struct FCurveData
+	{
+		FCurveModelID ModelID;
+		TSharedPtr<FRichCurve> ExpressionCurve;
 
-	FCurveModelID CurveModel;
+		FCurveData()
+			: ModelID(FCurveModelID::Unique())
+		{
+		}
+	};
+	TArray<FCurveData> CurveData;
 
 	/** Properties tab */
 	TSharedPtr<IDetailsView> PropertiesView;

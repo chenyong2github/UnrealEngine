@@ -13,14 +13,14 @@
 
 
 // Forward Declarations
-struct FSoundModulationOutputTransform;
+struct FSoundModulationTransform;
 
-class FSoundModulationOutputTransformLayoutCustomization : public IPropertyTypeCustomization
+class FSoundModulationTransformLayoutCustomization : public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FSoundModulationOutputTransformLayoutCustomization>();
+		return MakeShared<FSoundModulationTransformLayoutCustomization>();
 	}
 
 	//~ Begin IPropertyTypeCustomization
@@ -29,6 +29,6 @@ public:
 	//~ End IPropertyTypeCustomization
 
 private:
-	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<ESoundModulatorOutputCurve>& Filters) const;
+	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
 	bool IsSharedCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
 };

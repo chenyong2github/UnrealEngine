@@ -20,6 +20,7 @@
 #include "RichCurveEditorModel.h"
 #include "SCurveEditorPanel.h"
 #include "SoundModulationPatch.h"
+#include "SoundModulationTransform.h"
 #include "Tree/SCurveEditorTree.h"
 #include "Tree/ICurveEditorTreeItem.h"
 #include "Tree/SCurveEditorTreePin.h"
@@ -28,8 +29,6 @@
 #include "Widgets/Input/SNumericDropDown.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SFrameRatePicker.h"
-#include "ModulationPatchCurveEditorViewStacked.h"
-#include "SoundModulationPatch.h"
 
 
 #define LOCTEXT_NAMESPACE "ModulationPatchEditor"
@@ -41,7 +40,6 @@ const FName FModulationPatchEditor::PropertiesTabId(TEXT("ModulationPatchEditor_
 
 
 FModulationPatchEditor::FModulationPatchEditor()
-	: CurveModel(FCurveModelID::Unique())
 {
 }
 
@@ -160,37 +158,57 @@ void FModulationPatchEditor::Init(const EToolkitMode::Type Mode, const TSharedPt
 	}
 }
 
-void FModulationPatchEditor::GenerateExpressionCurve(const FSoundModulationOutputTransform& InTransform, bool bIsUnset)
+void FModulationPatchEditor::ClearExpressionCurve(int32 InInputIndex)
+{
+	if (CurveData.IsValidIndex(InInputIndex))
+	{
+		CurveData[InInputIndex].ExpressionCurve.Reset();
+	}
+}
+
+void FModulationPatchEditor::GenerateExpressionCurve(int32 InInputIndex, EModPatchOutputEditorCurveSource InSource, bool bInIsUnset)
 {
 	if (!CurveEditor.IsValid())
 	{
 		return;
 	}
 
-	TSharedPtr<FRichCurve> NewCurve = MakeShared<FRichCurve>();
-	ExpressionCurve = NewCurve;
+	USoundModulationPatch* Patch = CastChecked<USoundModulationPatch>(GetEditingObject());
+	if (!ensure(Patch) || !CurveData.IsValidIndex(InInputIndex))
+	{
+		return;
+	}
+
+	TSharedPtr<FRichCurve> Curve = CurveData[InInputIndex].ExpressionCurve;
+	if (!Curve.IsValid())
+	{
+		Curve = MakeShared<FRichCurve>();
+		CurveData[InInputIndex].ExpressionCurve = Curve;
+	}
 
 	if (!GetIsBypassed())
 	{
+		const FSoundControlModulationInput& Input = Patch->PatchSettings.Inputs[InInputIndex];
+
 		int32 CurveResolution;
-		switch (InTransform.Curve)
+		switch (Input.Transform.Curve)
 		{
-			case ESoundModulatorOutputCurve::Linear:
+			case ESoundModulatorCurve::Linear:
 			{
 				CurveResolution = 2;
 			}
 			break;
 
-			case ESoundModulatorOutputCurve::Sin:
-			case ESoundModulatorOutputCurve::SCurve:
+			case ESoundModulatorCurve::Sin:
+			case ESoundModulatorCurve::SCurve:
 			{
 				CurveResolution = 64;
 			}
 			break;
 
-			case ESoundModulatorOutputCurve::Log:
-			case ESoundModulatorOutputCurve::Exp:
-			case ESoundModulatorOutputCurve::Exp_Inverse:
+			case ESoundModulatorCurve::Log:
+			case ESoundModulatorCurve::Exp:
+			case ESoundModulatorCurve::Exp_Inverse:
 			{
 				CurveResolution = 256;
 			}
@@ -203,29 +221,68 @@ void FModulationPatchEditor::GenerateExpressionCurve(const FSoundModulationOutpu
 			break;
 		}
 
+		Curve->Reset();
+
+		check(CurveResolution > 1);
 		const float CurveResolutionRatio = 1.0f / (CurveResolution - 1);
 		for (int32 i = 0; i < CurveResolution; ++i)
 		{
-			const float X = FMath::Lerp(InTransform.InputMin, InTransform.InputMax, CurveResolutionRatio * i);
+			const float X = FMath::Lerp(0.0f, 1.0f, CurveResolutionRatio * i);
 			float Y = X;
-			InTransform.Apply(Y);
-
-			NewCurve->AddKey(X, Y);
+			Input.Transform.Apply(Y);
+			Curve->AddKey(X, Y);
 		}
 	}
 
-	const EModPatchOutputEditorCurveSource Source = bIsUnset ? EModPatchOutputEditorCurveSource::Unset : EModPatchOutputEditorCurveSource::Expression;
-	SetCurve(*NewCurve.Get(), Source, nullptr);
+	const EModPatchOutputEditorCurveSource Source = bInIsUnset ? EModPatchOutputEditorCurveSource::Unset : EModPatchOutputEditorCurveSource::Expression;
+	SetCurve(InInputIndex, *Curve.Get(), Source);
 }
 
-void FModulationPatchEditor::SetCurve(FRichCurve& InRichCurve, EModPatchOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve)
+bool FModulationPatchEditor::RequiresNewCurve(int32 InInputIndex, const FRichCurve& InRichCurve) const
+{
+	const FCurveModelID CurveModelID = CurveData[InInputIndex].ModelID;
+	const TUniquePtr<FCurveModel>* CurveModel = CurveEditor->GetCurves().Find(CurveModelID);
+	if (!CurveModel || !CurveModel->IsValid())
+	{
+		return true;
+	}
+
+	FModPatchCurveEditorModel* PatchCurveModel = static_cast<FModPatchCurveEditorModel*>(CurveModel->Get());
+	check(PatchCurveModel);
+	if (&PatchCurveModel->GetRichCurve() != &InRichCurve)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+
+void FModulationPatchEditor::SetCurve(int32 InInputIndex, FRichCurve& InRichCurve, EModPatchOutputEditorCurveSource InSource)
 {
 	check(CurveEditor.IsValid());
 
-	CurveEditor->RemoveAllCurves();
-	TUniquePtr<FModPatchCurveEditorModel> NewCurve = MakeUnique<FModPatchCurveEditorModel>(InRichCurve, GetEditingObject(), InSource, InSharedCurve);
-	CurveModel = CurveEditor->AddCurve(MoveTemp(NewCurve));
-	CurveEditor->PinCurve(CurveModel);
+	if (!ensure(CurveData.IsValidIndex(InInputIndex)))
+	{
+		return;
+	}
+
+	FCurveData& CurveDataEntry = CurveData[InInputIndex];
+
+	const bool bRequiresNewCurve = RequiresNewCurve(InInputIndex, InRichCurve);
+	if (bRequiresNewCurve)
+	{
+		TUniquePtr<FModPatchCurveEditorModel> NewCurve = MakeUnique<FModPatchCurveEditorModel>(InRichCurve, GetEditingObject(), InSource, InInputIndex);
+		CurveDataEntry.ModelID = CurveEditor->AddCurve(MoveTemp(NewCurve));
+	}
+	else
+	{
+		const TUniquePtr<FCurveModel>& CurveModel = CurveEditor->GetCurves().FindChecked(CurveDataEntry.ModelID);
+		check(CurveModel.Get());
+		static_cast<FModPatchCurveEditorModel*>(CurveModel.Get())->Refresh(InSource, InInputIndex);
+	}
+
+	CurveEditor->PinCurve(CurveDataEntry.ModelID);
 }
 
 bool FModulationPatchEditor::GetIsBypassed() const
@@ -269,7 +326,7 @@ void FModulationPatchEditor::NotifyPostChange(const FPropertyChangedEvent& Prope
 {
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		UpdateCurve();
+		RefreshCurves();
 	}
 }
 
@@ -287,7 +344,7 @@ TSharedRef<SDockTab> FModulationPatchEditor::SpawnTab_Properties(const FSpawnTab
 
 TSharedRef<SDockTab> FModulationPatchEditor::SpawnTab_OutputCurve(const FSpawnTabArgs& Args)
 {
-	UpdateCurve();
+	RefreshCurves();
 	CurveEditor->ZoomToFit();
 
 	TSharedRef<SDockTab> NewDockTab = SNew(SDockTab)
@@ -310,65 +367,172 @@ void FModulationPatchEditor::PostUndo(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		UpdateCurve();
+		RefreshCurves();
 	}
 }
 
-void FModulationPatchEditor::UpdateCurve()
+void FModulationPatchEditor::ResetCurves()
 {
-	check(CurveEditor.IsValid());
+	const USoundModulationPatch* Patch = CastChecked<USoundModulationPatch>(GetEditingObject());
+	check(Patch);
 
-	CurveEditor->UnpinCurve(CurveModel);
+	CurveEditor->RemoveAllCurves();
+	CurveData.Reset();
+	CurveData.AddDefaulted(Patch->PatchSettings.Inputs.Num());
+}
 
-	USoundModulationPatch* Patch = CastChecked<USoundModulationPatch>(GetEditingObject());
-
-	if (Patch->PatchSettings.bBypass)
+void FModulationPatchEditor::InitCurves()
+{
+	const USoundModulationPatch * Patch = CastChecked<USoundModulationPatch>(GetEditingObject());
+	const FSoundControlModulationPatch& PatchSettings = Patch->PatchSettings;
+	const int32 NumInputs = PatchSettings.Inputs.Num();
+	if (NumInputs < CurveData.Num() || NumInputs > CurveData.Num())
 	{
-		CurveEditor->RemoveAllCurves();
+		ResetCurves();
 		return;
 	}
 
-	FSoundModulationOutputTransform Transform = Patch->PatchSettings.Transform;
-	switch (Transform.Curve)
+	for (int32 i = 0; i < PatchSettings.Inputs.Num(); ++i)
 	{
-		case ESoundModulatorOutputCurve::Exp:
-		case ESoundModulatorOutputCurve::Exp_Inverse:
-		case ESoundModulatorOutputCurve::Linear:
-		case ESoundModulatorOutputCurve::Log:
-		case ESoundModulatorOutputCurve::SCurve:
-		case ESoundModulatorOutputCurve::Sin:
+		const FSoundControlModulationInput& Input = PatchSettings.Inputs[i];
+		switch (Input.Transform.Curve)
 		{
-			GenerateExpressionCurve(Transform);
-		}
-		break;
-
-		case ESoundModulatorOutputCurve::Shared:
-		{
-			if (UCurveFloat* SharedCurve = Transform.CurveShared)
+			case ESoundModulatorCurve::Exp:
+			case ESoundModulatorCurve::Exp_Inverse:
+			case ESoundModulatorCurve::Linear:
+			case ESoundModulatorCurve::Log:
+			case ESoundModulatorCurve::SCurve:
+			case ESoundModulatorCurve::Sin:
 			{
-				SetCurve(SharedCurve->FloatCurve, EModPatchOutputEditorCurveSource::Shared, SharedCurve);
+				if (RequiresNewCurve(i, *CurveData[i].ExpressionCurve.Get()))
+				{
+					ResetCurves();
+				}
 			}
-			else
+			break;
+
+			case ESoundModulatorCurve::Shared:
 			{
-				// Builds a dummy expression that just maps input to output in case
-				// where asset isn't selected and leave source as unset
-				GenerateExpressionCurve(Transform, true /* bIsUnset */);
+				if (UCurveFloat* SharedCurve = Input.Transform.CurveShared)
+				{
+					if (RequiresNewCurve(i, SharedCurve->FloatCurve))
+					{
+						ResetCurves();
+					}
+				}
+				else if (RequiresNewCurve(i, *CurveData[i].ExpressionCurve.Get()))
+				{
+					ResetCurves();
+				}
 			}
-		}
-		break;
+			break;
 
-		case ESoundModulatorOutputCurve::Custom:
-		{
-			TrimKeys(Transform);
-			SetCurve(Transform.CurveCustom, EModPatchOutputEditorCurveSource::Custom);
-		}
-		break;
+			case ESoundModulatorCurve::Custom:
+			{
+				if (RequiresNewCurve(i, Input.Transform.CurveCustom))
+				{
+					ResetCurves();
+				}
+			}
+			break;
 
-		default:
-		{
-			static_assert(static_cast<int32>(ESoundModulatorOutputCurve::Count) == 8, "Possible missing case coverage for output curve.");
+			default:
+			{
+				static_assert(static_cast<int32>(ESoundModulatorCurve::Count) == 8, "Possible missing case coverage for output curve.");
+			}
+			break;
 		}
-		break;
+	}
+}
+
+void FModulationPatchEditor::RefreshCurves()
+{
+	check(CurveEditor.IsValid());
+
+	for (const FCurveData& CurveDataEntry : CurveData)
+	{
+		CurveEditor->UnpinCurve(CurveDataEntry.ModelID);
+	}
+
+	USoundModulationPatch* Patch = CastChecked<USoundModulationPatch>(GetEditingObject());
+	check(Patch);
+
+	if (Patch->PatchSettings.bBypass)
+	{
+		ResetCurves();
+		return;
+	}
+
+	InitCurves();
+
+	for (int32 i = 0; i < Patch->PatchSettings.Inputs.Num(); ++i)
+	{
+		FSoundControlModulationInput& Input = Patch->PatchSettings.Inputs[i];
+		switch (Input.Transform.Curve)
+		{
+			case ESoundModulatorCurve::Exp:
+			case ESoundModulatorCurve::Exp_Inverse:
+			case ESoundModulatorCurve::Linear:
+			case ESoundModulatorCurve::Log:
+			case ESoundModulatorCurve::SCurve:
+			case ESoundModulatorCurve::Sin:
+			{
+				GenerateExpressionCurve(i, EModPatchOutputEditorCurveSource::Expression);
+			}
+			break;
+
+			case ESoundModulatorCurve::Shared:
+			{
+				if (UCurveFloat* SharedCurve = Input.Transform.CurveShared)
+				{
+					ClearExpressionCurve(i);
+					SetCurve(i, SharedCurve->FloatCurve, EModPatchOutputEditorCurveSource::Shared);
+				}
+				else
+				{
+					// Builds a dummy expression that just maps input to output in case
+					// where asset isn't selected and leave source as unset
+					GenerateExpressionCurve(i, EModPatchOutputEditorCurveSource::Expression, true /* bIsUnset */);
+				}
+			}
+			break;
+
+			case ESoundModulatorCurve::Custom:
+			{
+				TrimKeys(Input.Transform);
+				ClearExpressionCurve(i);
+				SetCurve(i, Input.Transform.CurveCustom, EModPatchOutputEditorCurveSource::Custom);
+			}
+			break;
+
+			default:
+			{
+				static_assert(static_cast<int32>(ESoundModulatorCurve::Count) == 8, "Possible missing case coverage for output curve.");
+			}
+			break;
+		}
+	}
+
+	// Collect and remove stale curves from editor
+	TArray<FCurveModelID> ToRemove;
+	TSet<FCurveModelID> ActiveModelIDs;
+	for (const FCurveData& CurveDataEntry : CurveData)
+	{
+		ActiveModelIDs.Add(CurveDataEntry.ModelID);
+	}
+
+	const TMap<FCurveModelID, TUniquePtr<FCurveModel>>& Curves = CurveEditor->GetCurves();
+	for (const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& Pair : Curves)
+	{
+		if (!ActiveModelIDs.Contains(Pair.Key))
+		{
+			ToRemove.Add(Pair.Key);
+		}
+	}
+
+	for (FCurveModelID ModelID : ToRemove)
+	{
+		CurveEditor->RemoveCurve(ModelID);
 	}
 }
 
@@ -376,19 +540,19 @@ void FModulationPatchEditor::PostRedo(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		UpdateCurve();
+		RefreshCurves();
 	}
 }
 
-void FModulationPatchEditor::TrimKeys(FSoundModulationOutputTransform& OutTransform) const
+void FModulationPatchEditor::TrimKeys(FSoundModulationTransform& OutTransform)
 {
 	FRichCurve& Curve = OutTransform.CurveCustom;
-	while (Curve.GetNumKeys() > 0 && OutTransform.InputMin > Curve.GetFirstKey().Time)
+	while (Curve.GetNumKeys() > 0 && 0.0f > Curve.GetFirstKey().Time)
 	{
 		Curve.DeleteKey(Curve.GetFirstKeyHandle());
 	}
 
-	while (Curve.GetNumKeys() > 0 && OutTransform.InputMax < Curve.GetLastKey().Time)
+	while (Curve.GetNumKeys() > 0 && 1.0f < Curve.GetLastKey().Time)
 	{
 		Curve.DeleteKey(Curve.GetLastKeyHandle());
 	}

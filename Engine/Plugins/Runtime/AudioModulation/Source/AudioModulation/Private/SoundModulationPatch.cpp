@@ -52,25 +52,9 @@ void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEve
 
 	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
 }
-
-void FSoundModulationPatchBase::Clamp()
-{
-	if (FSoundModulationOutputBase* Output = GetOutput())
-	{
-		if (Output->Transform.InputMin > Output->Transform.InputMax)
-		{
-			Output->Transform.InputMin = Output->Transform.InputMax;
-		}
-
-		if (Output->Transform.OutputMin > Output->Transform.OutputMax)
-		{
-			Output->Transform.OutputMin = Output->Transform.OutputMax;
-		}
-	}
-}
 #endif // WITH_EDITOR
 
-FSoundModulationInputBase::FSoundModulationInputBase()
+FSoundControlModulationInput::FSoundControlModulationInput()
 	: bSampleAndHold(0)
 {
 }
@@ -80,9 +64,10 @@ const USoundControlBus* FSoundControlModulationInput::GetBus() const
 	return Bus;
 }
 
-FSoundModulationPatchBase::FSoundModulationPatchBase()
-	: bBypass(1)
+const USoundControlBus& FSoundControlModulationInput::GetBusChecked() const
 {
+	check(Bus);
+	return *Bus;
 }
 
 #undef LOCTEXT_NAMESPACE // SoundModulationPatch

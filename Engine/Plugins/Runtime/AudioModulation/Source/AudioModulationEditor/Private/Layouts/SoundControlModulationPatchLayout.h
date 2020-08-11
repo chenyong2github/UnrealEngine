@@ -16,20 +16,15 @@ class SSearchableComboBox;
 struct FSoundModulationSettings;
 
 
-class FSoundModulationPatchLayoutCustomization : public IPropertyTypeCustomization
+class FSoundControlModulationPatchLayoutCustomization : public IPropertyTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FSoundModulationPatchLayoutCustomization>();
+		return MakeShared<FSoundControlModulationPatchLayoutCustomization>();
 	}
 
-	//~ Begin IPropertyTypeCustomization
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	//~ End IPropertyTypeCustomization
-
-protected:
+private:
 	template <typename T>
 	void AddPatchProperties(TAttribute<EVisibility> VisibilityAttribute, TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder)
 	{
@@ -42,60 +37,10 @@ protected:
 			.Visibility(VisibilityAttribute);
 	}
 
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder);
-};
+	//~ Begin IPropertyTypeCustomization
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	//~ End IPropertyTypeCustomization
 
-class FSoundVolumeModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundVolumeModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
-};
-
-class FSoundPitchModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundPitchModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
-};
-
-class FSoundLPFModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundLPFModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
-};
-
-class FSoundHPFModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundHPFModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
-};
-
-class FSoundControlModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
-{
-public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShared<FSoundControlModulationPatchLayoutCustomization>();
-	}
-
-	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
+	TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder);
 };

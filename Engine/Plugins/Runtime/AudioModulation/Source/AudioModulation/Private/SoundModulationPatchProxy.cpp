@@ -13,7 +13,6 @@
 #include "SoundModulationTransform.h"
 
 
-
 namespace AudioModulation
 {
 	const FPatchId InvalidPatchId = INDEX_NONE;
@@ -25,7 +24,7 @@ namespace AudioModulation
 	{
 	}
 
-	FModulationOutputProxy::FModulationOutputProxy(FSoundModulationOutputTransform InTransform, float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction)
+	FModulationOutputProxy::FModulationOutputProxy(float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction)
 		: MixFunction(InMixFunction)
 		, DefaultValue(InDefaultValue)
 	{
@@ -39,7 +38,7 @@ namespace AudioModulation
 	void FModulationPatchProxy::Init(const FModulationPatchSettings& InSettings, FAudioModulationSystem& OutModSystem)
 	{
 		bBypass = InSettings.bBypass;
-		DefaultInputValue = InSettings.DefaultInputValue;
+		DefaultValue = InSettings.DefaultOutputValue;
 
 		// Cache proxies to avoid releasing bus state (and potentially referenced bus state) when reinitializing
 		TArray<FModulationInputProxy> CachedProxies = InputProxies;
@@ -50,7 +49,7 @@ namespace AudioModulation
 			InputProxies.Emplace(Input, OutModSystem);
 		}
 
-		OutputProxy = FModulationOutputProxy(InSettings.Transform, InSettings.DefaultOutputValue, InSettings.MixFunction);
+		OutputProxy = FModulationOutputProxy(InSettings.DefaultOutputValue, InSettings.MixFunction);
 	}
 
 	bool FModulationPatchProxy::IsBypassed() const
@@ -70,12 +69,13 @@ namespace AudioModulation
 
 	void FModulationPatchProxy::Update()
 	{
-		Value = DefaultInputValue;
+		Value = DefaultValue;
 
 		float& OutSampleHold = OutputProxy.SampleAndHoldValue;
 		if (!OutputProxy.bInitialized)
 		{
-			OutSampleHold = DefaultInputValue;
+			OutSampleHold = DefaultValue;
+			OutputProxy.bInitialized = true;
 		}
 
 		for (const FModulationInputProxy& Input : InputProxies)
@@ -108,15 +108,6 @@ namespace AudioModulation
 			}
 		}
 
-		if (!OutputProxy.bInitialized)
-		{
-			const float OutputMin = OutputProxy.Transform.OutputMin;
-			const float OutputMax = OutputProxy.Transform.OutputMax;
-			OutSampleHold = FMath::Clamp(OutSampleHold, OutputMin, OutputMax);
-			OutputProxy.bInitialized = true;
-		}
-
-		OutputProxy.Transform.Apply(Value);
 		OutputProxy.MixFunction(&Value, &OutSampleHold, 1);
 	}
 
