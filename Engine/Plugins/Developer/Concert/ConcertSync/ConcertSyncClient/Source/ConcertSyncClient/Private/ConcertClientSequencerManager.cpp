@@ -30,7 +30,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogConcertSequencerSync, Warning, Log)
 static TAutoConsoleVariable<int32> CVarEnablePlaybackSync(TEXT("Concert.EnableSequencerPlaybackSync"), 1, TEXT("Enable Concert Sequencer Playback Syncing of opened Sequencer."));
 
 // Enable Sequence Playing on game client
-static TAutoConsoleVariable<int32> CVarEnableSequencePlayer(TEXT("Concert.EnableSequencePlayer"), 0, TEXT("Enable Concert Sequence Players on `-game` client."));
+static TAutoConsoleVariable<int32> CVarEnableSequencePlayer(TEXT("Concert.EnableSequencePlayer"), 1, TEXT("Enable Concert Sequence Players on `-game` client."));
 
 // Enable opening Sequencer on remote machine whenever a sequencer is opened, if both instance have this option on.
 static TAutoConsoleVariable<int32> CVarEnableRemoteSequencerOpen(TEXT("Concert.EnableOpenRemoteSequencer"), 0, TEXT("Enable Concert remote Sequencer opening."));

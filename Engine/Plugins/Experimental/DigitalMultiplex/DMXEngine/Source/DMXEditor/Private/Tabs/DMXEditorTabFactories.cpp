@@ -1,13 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tabs/DMXEditorTabFactories.h"
+
 #include "DMXEditorTabs.h"
 #include "DMXEditor.h"
-
-#include "Widgets/SDMXInputConsole.h"
+#include "Library/DMXEntityFixtureType.h"
 #include "Widgets/SDMXEntityEditor.h"
+#include "Widgets/Controller/SDMXControllerEditor.h"
+#include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
+#include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SBox.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXWorkflowTabFactory"
 
@@ -20,7 +25,6 @@ TSharedRef<SDockTab> FDMXEditorPropertyTabSummoner::SpawnTab(const FWorkflowTabS
 
 	return NewTab;
 }
-
 
 FDMXEditorControllersSummoner::FDMXEditorControllersSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp)
 	: FDMXEditorPropertyTabSummoner(FDMXEditorTabs::DMXControllersId, InHostingApp)
@@ -42,7 +46,7 @@ TSharedRef<SWidget> FDMXEditorControllersSummoner::CreateTabBody(const FWorkflow
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		[
-			DMXEditor->GetControllersTab()
+			DMXEditor->GetControllerEditor()
 		];
 }
 
@@ -66,7 +70,7 @@ TSharedRef<SWidget> FDMXEditorFixtureTypesSummoner::CreateTabBody(const FWorkflo
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		[
-			DMXEditor->GetFixtureTypesTab()
+			DMXEditor->GetFixtureTypeEditor()
 		];
 }
 
@@ -90,51 +94,8 @@ TSharedRef<SWidget> FDMXEditorFixturePatchSummoner::CreateTabBody(const FWorkflo
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		[
-			DMXEditor->GetFixturePatchTab()
+			DMXEditor->GetFixturePatchEditor()
 		];
-}
-
-FDMXEditorInputConsoleSummoner::FDMXEditorInputConsoleSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp)
-	: FWorkflowTabFactory(FDMXEditorTabs::DMXInputConsoleEditorTabId, InHostingApp)
-{
-	TabLabel = LOCTEXT("DMXInputConsoleTabLabel", "Monitor");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults");
-
-	bIsSingleton = true;
-
-	ViewMenuDescription = LOCTEXT("DMXInputConsoleView", "Monitor");
-	ViewMenuTooltip = LOCTEXT("DMXInputConsoleViewTooltip", "Show the monitor view");
-}
-
-TSharedRef<SWidget> FDMXEditorInputConsoleSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
-{
-	TSharedPtr<FDMXEditor> DMXEditor = StaticCastSharedPtr<FDMXEditor>(HostingApp.Pin());
-
-	return SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			DMXEditor->GetInputConsoleTab()
-		];
-}
-
-FDMXEditorOutputConsoleSummoner::FDMXEditorOutputConsoleSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp)
-	: FWorkflowTabFactory(FDMXEditorTabs::DMXOutputConsoleEditorTabId, InHostingApp)
-{
-	TabLabel = LOCTEXT("DMXOutputConsoleTabLabel", "Output Console");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "Kismet.Tabs.BlueprintDefaults");
-
-	bIsSingleton = true;
-
-	ViewMenuDescription = LOCTEXT("DMXOutputConsoleView", "Output Console");
-	ViewMenuTooltip = LOCTEXT("DMXOutputConsoleViewTooltip", "Show the output console view");
-}
-
-TSharedRef<SWidget> FDMXEditorOutputConsoleSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
-{
-	TSharedPtr<FDMXEditor> DMXEditor = StaticCastSharedPtr<FDMXEditor>(HostingApp.Pin());
-
-	return DMXEditor->GetOutputConsoleTab();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,23 +3,21 @@
 // Read http://lucumr.pocoo.org/2012/9/24/websockets-101/ for a nice intro to web sockets.
 // This uses https://libwebsockets.org/trac/libwebsockets
 #pragma  once
+#include "IWebSocketServer.h"
 #include "WebSocketNetworkingPrivate.h"
 
-class FWebSocketServer
+class FWebSocketServer : public IWebSocketServer
 {
 public:
 
-	FWebSocketServer();
-	~FWebSocketServer();
-
-	/** Create a web socket server*/
-	bool Init(uint32 Port, FWebSocketClientConnectedCallBack);
-
-	/** Service libwebsocket */
-	bool Tick();
-
-	/** Describe this libwebsocket server */
-	FString Info();
+	FWebSocketServer() = default;
+	
+	//~ Begin IWebSocketServer interface
+	virtual ~FWebSocketServer() override;
+	virtual bool Init(uint32 Port, FWebSocketClientConnectedCallBack) override;
+	virtual void Tick() override;
+	virtual FString Info() override;
+	//~ End IWebSocketServer interface
 
 // this was made public because of cross-platform build issues
 public:

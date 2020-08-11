@@ -13,7 +13,6 @@
 #include "Misc/App.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "Misc/OutputDeviceConsole.h"
-#include "Templates/UniquePtr.h"
 
 TCHAR FGenericPlatformOutputDevices::CachedAbsoluteFilename[FGenericPlatformOutputDevices::AbsoluteFileNameMaxLength] = { 0 };
 TUniquePtr<FOutputDeviceFile> FGenericPlatformOutputDevices::DefaultOutputDeviceFileTempHolder;

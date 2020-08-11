@@ -17,6 +17,7 @@ class IVirtualCameraOptions;
 class IVirtualCameraPresetContainer;
 class UCineCameraComponent;
 class ULevelSequencePlaybackController;
+class USceneCaptureComponent2D;
 class UWorld;
 
 UENUM(BlueprintType)
@@ -88,12 +89,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Component")
 	UCineCameraComponent* GetStreamedCameraComponent() const;
 
-	/** Returns the recorded camera. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Component")
-	UCineCameraComponent* GetRecordingCameraComponent() const;
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Component")
-	UCineCameraComponent* GetActiveCameraComponent() const;
+	USceneCaptureComponent2D* GetSceneCaptureComponent() const;
 
 	/** Returns the VirtualCamera's Sequence Controller. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Sequencer")
@@ -127,9 +124,6 @@ public:
 	/** Sets whether settings should be saved when stream is stopped. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Settings")
 	void SetSaveSettingsOnStopStreaming(bool bShouldSettingsSave);
-
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
-	void SetRelativeTransform(const FTransform& InControllerTransform);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VirtualCamera | Movement")
 	FTransform GetRelativeTransform() const;

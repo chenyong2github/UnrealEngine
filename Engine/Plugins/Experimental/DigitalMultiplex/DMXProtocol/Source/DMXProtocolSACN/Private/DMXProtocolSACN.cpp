@@ -11,8 +11,12 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUniverseSACN.h"
 #include "Managers/DMXProtocolUniverseManager.h"
+#include "DMXStats.h"
 
 #include "Serialization/BufferArchive.h"
+
+// Stats
+DECLARE_CYCLE_STAT(TEXT("SACN Packages Enqueue To Send"), STAT_SACNPackagesEnqueueToSend, STATGROUP_DMX);
 
 FDMXProtocolSACN::FDMXProtocolSACN(const FName& InProtocolName, FJsonObject& InSettings)
 	: ProtocolName(InProtocolName)
@@ -31,7 +35,7 @@ TSharedPtr<FJsonObject> FDMXProtocolSACN::GetSettings() const
 }
 
 bool FDMXProtocolSACN::Init()
-{	
+{
 	InterfaceIPAddress = GetDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
 
 	// Set Network Interface listener
@@ -68,8 +72,8 @@ bool FDMXProtocolSACN::IsEnabled() const
 
 TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUniverse(const FJsonObject& InSettings)
 {
-	checkf(InSettings.HasField(TEXT("UniverseID")), TEXT("DMXProtocol UniverseID is not valid"));
-	uint32 UniverseID = InSettings.GetNumberField(TEXT("UniverseID"));
+	checkf(InSettings.HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol UniverseID is not valid"));
+	uint32 UniverseID = InSettings.GetNumberField(DMXJsonFieldNames::DMXUniverseID);
 	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(UniverseID);
 	if (Universe.IsValid())
 	{
@@ -86,9 +90,26 @@ void FDMXProtocolSACN::CollectUniverses(const TArray<FDMXUniverse>& Universes)
 	for (const FDMXUniverse& Universe : Universes)
 	{
 		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
-		UniverseSettings.SetNumberField(TEXT("IpAddress"), Universe.UnicastIpAddress.IsEmpty() ? GetUniverseAddrByID(Universe.UniverseNumber) : GetUniverseAddrUnicast(Universe.UnicastIpAddress));
-		UniverseSettings.SetNumberField(TEXT("EthernetPort"), ACN_PORT);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, Universe.UniverseNumber);
+		TArray<TSharedPtr<FJsonValue>> IpAddresses;
+		for (FString IpAddress : Universe.UnicastIpAddresses)
+		{
+			if (IpAddress.IsEmpty())
+			{
+				IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrByID(Universe.UniverseNumber)));
+			}
+			else
+			{
+				IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrUnicast(IpAddress)));
+			}
+		}
+		// Broadcast Only ?
+		if (IpAddresses.Num() == 0)
+		{
+			IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrByID(Universe.UniverseNumber)));
+		}
+		UniverseSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ACN_PORT);
 
 		if (UniverseManager->GetAllUniverses().Contains(Universe.UniverseNumber))
 		{
@@ -129,7 +150,8 @@ void FDMXProtocolSACN::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObje
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXPortID, 0.0);
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, InUniverseID);
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ACN_PORT);
-	OutSettings.SetNumberField(DMXJsonFieldNames::DMXIpAddress, GetUniverseAddrByID(InUniverseID));		// Broadcast IP address
+	const TArray<TSharedPtr<FJsonValue>> IpAddresses = { MakeShared<FJsonValueNumber>(GetUniverseAddrByID(InUniverseID)) };
+	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
 
@@ -211,6 +233,17 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 	}
 
 	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetOutputDMXBuffer());
+
+	if (Result == EDMXSendResult::Success)
+	{
+		const FDMXBufferPtr& OutputBuffer = Universe->GetOutputDMXBuffer();
+		check(OutputBuffer.IsValid());
+
+		OutputBuffer->AccessDMXData([this, FinalSendUniverseID](TArray<uint8>& Buffer) {
+				OnUniverseOutputBufferUpdated.Broadcast(ProtocolName, FinalSendUniverseID, Buffer);
+			});
+	}
+
 	return Result;
 }
 
@@ -250,7 +283,7 @@ uint16 FDMXProtocolSACN::GetMaxUniverses() const
 	return ACN_MAX_UNIVERSES;
 }
 
-EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const
+EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMXBufferPtr& DMXBuffer) const
 {
 	// Init Packager
 	FDMXProtocolPackager Packager;
@@ -271,16 +304,16 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const TSha
 	DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
 	bool bBufferSizeIsWrong = false;
 	DMXBuffer->AccessDMXData([&DMPLayer, &bBufferSizeIsWrong](TArray<uint8>& InData)
+	{
+		if (InData.Num() == ACN_DMX_SIZE)
 		{
-			if (InData.Num() == ACN_DMX_SIZE)
-			{
-				FMemory::Memcpy(DMPLayer.DMX, InData.GetData(), ACN_DMX_SIZE);
-			}
-			else
-			{
-				bBufferSizeIsWrong = true;
-			}
-		});
+			FMemory::Memcpy(DMPLayer.DMX, InData.GetData(), ACN_DMX_SIZE);
+		}
+		else
+		{
+			bBufferSizeIsWrong = true;
+		}
+	});
 
 	if (bBufferSizeIsWrong)
 	{
@@ -308,7 +341,10 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const TSha
 	{
 		return EDMXSendResult::ErrorNoSenderInterface;
 	}
-	
+
+	// Stats
+	SCOPE_CYCLE_COUNTER(STAT_SACNPackagesEnqueueToSend);
+
 	return EDMXSendResult::Success;
 }
 
@@ -351,11 +387,11 @@ bool FDMXProtocolSACN::RestartNetworkInterface(const FString& InInterfaceIPAddre
 	FSocket* NewSenderSocket = FUdpSocketBuilder(TEXT("UDPSACNSenderSocket"))
 		.AsNonBlocking()
 #if PLATFORM_SUPPORTS_UDP_MULTICAST_GROUP
-        .WithMulticastInterface(SenderEndpoint.Address)
-        .WithMulticastLoopback()
-        .WithMulticastTtl(1)
+		.WithMulticastInterface(SenderEndpoint.Address)
+		.WithMulticastLoopback()
+		.WithMulticastTtl(1)
 #endif
-        .BoundToEndpoint(SenderEndpoint)
+		.BoundToEndpoint(SenderEndpoint)
 		.AsReusable();
 
 	if (NewSenderSocket == nullptr)

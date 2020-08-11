@@ -1,0 +1,115 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "K2Node_CastPatchToTypeCustomization.h"
+
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Input/SButton.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "DetailCategoryBuilder.h"
+#include "IDetailsView.h"
+#include "K2Node_CastPatchToType.h"
+
+#define LOCTEXT_NAMESPACE "K2Node_CastPatchToTypeCustomization"
+
+TSharedRef<IDetailCustomization> K2Node_CastPatchToTypeCustomization::MakeInstance()
+{
+	return MakeShared<K2Node_CastPatchToTypeCustomization>();
+}
+
+void K2Node_CastPatchToTypeCustomization::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
+{
+
+	DetailLayout = &InDetailLayout;
+	UK2Node_CastPatchToType* Node = GetK2Node_CastPatchToType();
+
+	static const FName FixtureSettingsCategoryName = TEXT("Fixture Settings");
+	InDetailLayout.EditCategory(FixtureSettingsCategoryName, FText::GetEmpty(), ECategoryPriority::Important);
+	IDetailCategoryBuilder& FunctionActionsCategory = InDetailLayout.EditCategory("DMXFunctionActions",
+																				  LOCTEXT("FunctionActionCategoryName", "Function Actions"),
+																				  ECategoryPriority::Important);
+
+	FunctionActionsCategory.AddCustomRow(FText::GetEmpty())
+		.WholeRowContent()
+		.HAlign(HAlign_Left)
+		[
+			SNew( SBox )
+			.MaxDesiredWidth(300.f)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(2.0f)
+				+ SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked)
+					.ToolTipText(LOCTEXT("ExposeFunctionsButtonTooltip", "Expose Functions to Node Pins"))
+					.IsEnabled_Lambda([Node]() -> bool { return Node && !Node->IsExposed(); })
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ExposeFunctionsButton", "Expose Functions"))
+					]
+				]
+				+ SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &K2Node_CastPatchToTypeCustomization::ResetFunctionsClicked)
+					.ToolTipText(LOCTEXT("ResetFunctionsButtonTooltip", "Resets Functions from Node Pins."))
+					.IsEnabled_Lambda([Node]() -> bool { return Node && Node->IsExposed(); })
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ResetEmitterButton", "Reset Functions"))
+					]
+				]
+			]
+		];
+}
+
+FReply K2Node_CastPatchToTypeCustomization::ExposeFunctionsClicked()
+{
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = DetailLayout->GetSelectedObjects();
+
+	for (int32 SelectedIndex = 0; SelectedIndex < SelectedObjects.Num(); ++SelectedIndex)
+	{
+		if (SelectedObjects[SelectedIndex].IsValid())
+		{
+			if (UK2Node_CastPatchToType* Node = Cast<UK2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get()))
+			{
+				Node->ExposeFunctions();
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply K2Node_CastPatchToTypeCustomization::ResetFunctionsClicked()
+{
+	if (UK2Node_CastPatchToType* Node = GetK2Node_CastPatchToType())
+	{
+		Node->ResetFunctions();
+	}
+
+	return FReply::Handled();
+}
+
+UK2Node_CastPatchToType* K2Node_CastPatchToTypeCustomization::GetK2Node_CastPatchToType() const
+{
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = DetailLayout->GetSelectedObjects();
+
+	for (int32 SelectedIndex = 0; SelectedIndex < SelectedObjects.Num(); ++SelectedIndex)
+	{
+		if (SelectedObjects[SelectedIndex].IsValid())
+		{
+			return Cast<UK2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get());
+		}
+	}
+
+	return nullptr;
+}
+
+#undef LOCTEXT_NAMESPACE

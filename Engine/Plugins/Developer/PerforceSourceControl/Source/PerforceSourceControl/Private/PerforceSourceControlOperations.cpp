@@ -11,6 +11,7 @@
 #include "PerforceSourceControlCommand.h"
 #include "PerforceConnection.h"
 #include "PerforceSourceControlModule.h"
+#include "PerforceSourceControlChangeStatusOperation.h"
 #include "SPerforceSourceControlSettings.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
@@ -613,12 +614,20 @@ bool FPerforceSyncWorker::Execute(FPerforceSourceControlCommand& InCommand)
 		TArray<FString> Parameters;
 		Parameters.Append(InCommand.Files);
 
+		TSharedRef<FSync, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FSync>(InCommand.Operation);
+		const FString& Revision = Operation->GetRevision();
+
 		// check for directories and add '...'
-		for(auto& FileName : Parameters)
+		for(FString& FileName : Parameters)
 		{
 			if(FileName.EndsWith(TEXT("/")))
 			{
 				FileName += TEXT("...");
+			}
+			if (!Revision.IsEmpty())
+			{
+				// @= syncs the file to the submitted/shelved changelist number
+				FileName += FString::Printf(TEXT("@%s"), *Revision);
 			}
 		}
 
@@ -1521,5 +1530,54 @@ bool FPerforceResolveWorker::UpdateStates() const
 
 	return UpdatedFiles.Num() > 0;
 }
+
+FName FPerforceChangeStatusWorker::GetName() const
+{
+	return "ChangeStatus";
+}
+
+bool FPerforceChangeStatusWorker::Execute(class FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+
+		TArray<FString> Parameters;
+		Parameters.Append(InCommand.Files);
+
+		FP4RecordSet Records;
+		InCommand.bCommandSuccessful = Connection.RunCommand(TEXT("cstat"), Parameters, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+		if (InCommand.bCommandSuccessful)
+		{
+			TSharedRef<FPerforceSourceControlChangeStatusOperation, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FPerforceSourceControlChangeStatusOperation>(InCommand.Operation);
+
+			for (const FP4Record& Record : Records)
+			{
+				const FString Changelist = Record[TEXT("change")];
+				const FString StatusText = Record[TEXT("status")];
+				EChangelistStatus Status = EChangelistStatus::Have;
+				if (StatusText == TEXT("need"))
+				{
+					Status = EChangelistStatus::Need;
+				}
+				else if (StatusText == TEXT("partial"))
+				{
+					Status = EChangelistStatus::Partial;
+				}
+				
+				Operation->OutResults.Add({ Changelist, Status });
+			}
+		}
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceChangeStatusWorker::UpdateStates() const
+{
+	return true;
+}
+
 
 #undef LOCTEXT_NAMESPACE

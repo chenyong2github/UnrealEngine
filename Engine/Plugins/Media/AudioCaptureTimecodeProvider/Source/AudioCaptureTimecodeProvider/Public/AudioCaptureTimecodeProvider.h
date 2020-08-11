@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Engine/TimecodeProvider.h"
+#include "GenlockedTimecodeProvider.h"
 
 #include "Misc/FrameRate.h"
 #include "DropTimecode.h"
@@ -13,7 +13,7 @@
  * Read the LTC from the audio capture device.
  */
 UCLASS(Blueprintable, editinlinenew)
-class AUDIOCAPTURETIMECODEPROVIDER_API UAudioCaptureTimecodeProvider : public UTimecodeProvider
+class AUDIOCAPTURETIMECODEPROVIDER_API UAudioCaptureTimecodeProvider : public UGenlockedTimecodeProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -43,7 +43,7 @@ public:
 
 public:
 	//~ UTimecodeProvider interface
-	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
+	virtual bool FetchTimecode(FQualifiedFrameTime& OutFrameTime) override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override { return SynchronizationState; }
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;

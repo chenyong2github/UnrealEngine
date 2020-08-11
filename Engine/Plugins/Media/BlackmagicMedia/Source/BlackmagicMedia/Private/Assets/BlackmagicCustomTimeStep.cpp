@@ -27,9 +27,10 @@ namespace BlackmagicCustomTimeStepHelpers
 			, WaitSyncEvent(nullptr)
 			, bWaitedOnce(false)
 			, bEnableOverrunDetection(bInEnableOverrunDetection)
+			, CurrentSyncCount(0)
 			, bIsPreviousSyncCountValid(false)
 			, PreviousSyncCount(0)
-			, CurrentSyncCount(0)
+			, SyncCountDelta(1)
 		{
 		}
 
@@ -40,7 +41,7 @@ namespace BlackmagicCustomTimeStepHelpers
 				FPlatformProcess::ReturnSynchEventToPool(WaitSyncEvent);
 			}
 		}
-	
+
 
 		bool Initialize(const BlackmagicDesign::FInputChannelOptions& InChannelInfo)
 		{
@@ -63,32 +64,63 @@ namespace BlackmagicCustomTimeStepHelpers
 			Release();
 		}
 
-		ECustomTimeStepSynchronizationState GetSynchronizationState() const { return State; }
+		ECustomTimeStepSynchronizationState GetSynchronizationState() const 
+		{ 
+			return State; 
+		}
 
 		bool WaitForSync()
 		{
-			bool bResult = false;
-			if (WaitSyncEvent && State == ECustomTimeStepSynchronizationState::Synchronized)
-			{
-				uint32 NumberOfMilliseconds = 100;
-				bResult = WaitSyncEvent->Wait(NumberOfMilliseconds);
-				uint64 LocalCurrentSyncCount = CurrentSyncCount;
-				if (!bResult)
-				{
-					State = ECustomTimeStepSynchronizationState::Error;
-				}
-				else if (bEnableOverrunDetection && bIsPreviousSyncCountValid && LocalCurrentSyncCount != PreviousSyncCount+1)
-				{
-					UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), CurrentSyncCount - PreviousSyncCount + 1);
-				}
+			bool bWaitIsValid = false;
 
-				bIsPreviousSyncCountValid = bResult;
-				PreviousSyncCount = LocalCurrentSyncCount;
+			SyncCountDelta = 1;
+
+			if (!WaitSyncEvent || (State != ECustomTimeStepSynchronizationState::Synchronized))
+			{
+				bIsPreviousSyncCountValid = false;
+				return false;
 			}
-			return bResult;
+
+			constexpr uint32 MaxWaitForSyncInMs = 100;
+
+			if (!WaitSyncEvent->Wait(MaxWaitForSyncInMs))
+			{
+				bIsPreviousSyncCountValid = false;
+				State = ECustomTimeStepSynchronizationState::Error;
+				return false;
+			}
+
+			uint64 NewSyncCount = CurrentSyncCount;
+
+			if (bIsPreviousSyncCountValid)
+			{
+				SyncCountDelta = NewSyncCount - PreviousSyncCount;
+			}
+
+			PreviousSyncCount = NewSyncCount;
+
+			if (bEnableOverrunDetection && bIsPreviousSyncCountValid && SyncCountDelta != 1)
+			{
+				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine couldn't run fast enough to keep up with the CustomTimeStep Sync. '%d' frame(s) was dropped."), CurrentSyncCount - PreviousSyncCount + 1);
+			}
+
+			bIsPreviousSyncCountValid = true;
+
+			return true;
+		}
+
+		uint64 GetLastSyncCountDelta() const
+		{
+			return SyncCountDelta;
+		}
+
+		bool IsLastSyncDataValid() const
+		{
+			return bIsPreviousSyncCountValid;
 		}
 
 	private:
+
 		virtual void AddRef() override
 		{
 			++RefCounter;
@@ -170,9 +202,13 @@ namespace BlackmagicCustomTimeStepHelpers
 		bool bWaitedOnce;
 
 		bool bEnableOverrunDetection;
+
+		TAtomic<uint64> CurrentSyncCount;
+
+		/** Remember the last Sync Count*/
 		bool bIsPreviousSyncCountValid;
 		uint64 PreviousSyncCount;
-		TAtomic<uint64> CurrentSyncCount;
+		uint64 SyncCountDelta;
 	};
 }
 
@@ -236,6 +272,7 @@ bool UBlackmagicCustomTimeStep::UpdateTimeStep(class UEngine* InEngine)
 	bool bRunEngineTimeStep = true;
 
 	const ECustomTimeStepSynchronizationState CurrentState = GetSynchronizationState();
+
 	if (CurrentState == ECustomTimeStepSynchronizationState::Synchronized)
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
@@ -244,7 +281,7 @@ bool UBlackmagicCustomTimeStep::UpdateTimeStep(class UEngine* InEngine)
 			bool bLockToVsync = CVar->GetValueOnGameThread() != 0;
 			if (bLockToVsync)
 			{
-				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine is using VSync and the BlackmagicCustomTimeStep. It may break the 'genlock'."));
+				UE_LOG(LogBlackmagicMedia, Warning, TEXT("The Engine is using VSync and may break the 'genlock'"));
 				bWarnedAboutVSync = true;
 			}
 		}
@@ -252,14 +289,11 @@ bool UBlackmagicCustomTimeStep::UpdateTimeStep(class UEngine* InEngine)
 		// Updates logical last time to match logical current time from last tick
 		UpdateApplicationLastTime();
 
-		const double BeforeTime = FPlatformTime::Seconds();
-
+		const double TimeBeforeSync = FPlatformTime::Seconds();
 		WaitForSync();
+		const double TimeAfterSync = FPlatformTime::Seconds();
 
-		// Use fixed delta time and update time.
-		FApp::SetCurrentTime(FPlatformTime::Seconds());
-		FApp::SetIdleTime(FApp::GetCurrentTime() - BeforeTime);
-		FApp::SetDeltaTime(GetFixedFrameRate().AsInterval());
+		UpdateAppTimes(TimeBeforeSync, TimeAfterSync);
 
 		bRunEngineTimeStep = false;
 	}
@@ -291,12 +325,14 @@ void UBlackmagicCustomTimeStep::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UBlackmagicCustomTimeStep::WaitForSync() const
+bool UBlackmagicCustomTimeStep::WaitForSync()
 {
-	if (InputEventCallback)
+	if (!InputEventCallback)
 	{
-		InputEventCallback->WaitForSync();
+		return false;
 	}
+
+	return InputEventCallback->WaitForSync();
 }
 
 void UBlackmagicCustomTimeStep::ReleaseResources()
@@ -306,4 +342,30 @@ void UBlackmagicCustomTimeStep::ReleaseResources()
 		InputEventCallback->Uninitialize();
 		InputEventCallback = nullptr;
 	}
+}
+
+FFrameRate UBlackmagicCustomTimeStep::GetSyncRate() const
+{
+	return GetFixedFrameRate();
+}
+
+uint32 UBlackmagicCustomTimeStep::GetLastSyncCountDelta() const
+{
+	if (!InputEventCallback)
+	{
+		return 1;
+	}
+
+	// deltas are not expected to be big (a delta bigger than uint32 implies years)
+	return uint32(InputEventCallback->GetLastSyncCountDelta());
+}
+
+bool UBlackmagicCustomTimeStep::IsLastSyncDataValid() const
+{
+	if (!InputEventCallback)
+	{
+		return false;
+	}
+
+	return InputEventCallback->IsLastSyncDataValid();
 }

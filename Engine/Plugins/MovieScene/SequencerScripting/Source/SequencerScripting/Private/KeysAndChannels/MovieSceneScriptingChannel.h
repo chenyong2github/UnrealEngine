@@ -87,7 +87,8 @@ struct TMovieSceneScriptingChannel
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
-			Channel->DeleteKeys(MakeArrayView(&Key->KeyHandle, 1));
+			TArrayView<FKeyHandle, int> KeyArray = TArrayView<FKeyHandle, int>(&Key->KeyHandle, 1);
+			Channel->DeleteKeys(KeyArray);
 			return;
 		}
 

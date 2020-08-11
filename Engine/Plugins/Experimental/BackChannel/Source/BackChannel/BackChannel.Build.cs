@@ -8,7 +8,8 @@ public class BackChannel : ModuleRules
 	{
 		PublicIncludePaths.AddRange(
 			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, "..")
+				System.IO.Path.Combine(ModuleDirectory, ".."),
+				System.IO.Path.Combine(ModuleDirectory, "Public")
 			}
 		);
 

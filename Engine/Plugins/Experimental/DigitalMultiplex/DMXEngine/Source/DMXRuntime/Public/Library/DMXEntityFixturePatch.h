@@ -6,9 +6,11 @@
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
 #include "DMXEntityFixturePatch.generated.h"
 
 class UDMXEntityFixtureType;
+
 
 UCLASS(BlueprintType, Blueprintable, meta = (DisplayName = "DMX Fixture Patch"))
 class DMXRUNTIME_API UDMXEntityFixturePatch
@@ -26,15 +28,15 @@ public:
 	 *
 	 * When set to a value on several Controllers' range, the functions are sent by all of those Controllers.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (ClampMin = 0, DisplayName = "Universe"))
 	int32 UniverseID;
 
-	/** Auto-assign channel from drag/drop list order and available channels */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "Auto-Assign Channel"))
+	/** Auto-assign address from drag/drop list order and available channels */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "Auto-Assign Address"))
 	bool bAutoAssignAddress;
 
-	/** Starting channel for when auto-assign channel is false */
-	UPROPERTY(EditAnywhere, Category = "Fixture Settings", meta = (EditCondition = "!bAutoAssignAddress", DisplayName = "Manual Starting Channel", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
+	/** Starting channel for when auto-assign address is false */
+	UPROPERTY(EditAnywhere, Category = "Fixture Settings", meta = (EditCondition = "!bAutoAssignAddress", DisplayName = "Manual Starting Address", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
 	int32 ManualStartingAddress;
 
 	/** Starting channel from auto-assignment. Used when AutoAssignAddress is true */
@@ -48,6 +50,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Type Settings")
 	int32 ActiveMode;
 
+#if WITH_EDITORONLY_DATA
+	/** Color when displayed in the fixture patch editor */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Type Settings")
+	FLinearColor EditorColor = FLinearColor(1.0f, 0.0f, 1.0f);
+#endif
+
 public:
 	/**
 	 * Returns the number of channels this Patch occupies with the Fixture functions from its Active Mode.
@@ -60,6 +68,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	int32 GetStartingChannel() const;
 
+	/**  Return the remote universe the patch is registered to. */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	int32 GetRemoteUniverse() const;
+
 	/**
 	 * Return an array of function names for the currently active mode.
 	 * Functions outside the Active Mode's channel span range are ignored.
@@ -68,55 +80,76 @@ public:
 	TArray<FName> GetAllFunctionsInActiveMode() const;
 
 	/**
+	 * Return an array of valid attributes for the currently active mode.
+	 * Attributes outside the Active Mode's channel span range are ignored.
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	TArray<FDMXAttributeName> GetAllAttributesInActiveMode() const;
+
+	/**
+	 * Return map of function names and attributes
+	 * Attributes outside the Active Mode's channel span range are ignored.
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	TMap<FName, FDMXAttributeName> GetFunctionAttributes() const;
+
+	/**
+	 * Return map of attributes and function names.
+	 * Attributes outside the Active Mode's channel span range are ignored.
+	 */
+	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
+	TMap<FDMXAttributeName, FDMXFixtureFunction> GetAttributeFunctions() const;
+
+	/**
 	 * Return map of function names and default values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, int32> GetFunctionDefaultMap() const;
+	TMap<FDMXAttributeName, int32> GetFunctionDefaultMap() const;
 
 	/**
 	 * Return map of function names and their assigned channels.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, int32> GetFunctionChannelAssignments() const;
+	TMap<FDMXAttributeName, int32> GetFunctionChannelAssignments() const;
 
 	/**
 	 * Return map of function names and their Data Types.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, EDMXFixtureSignalFormat> GetFunctionSignalFormats() const;
+	TMap<FDMXAttributeName, EDMXFixtureSignalFormat> GetFunctionSignalFormats() const;
 
 	/**  Given a <Channel Index -> Raw Value> map , return map of function names and their values. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, int32> ConvertRawMapToFunctionMap(const TMap<int32, uint8>& RawMap) const;
+	TMap<FDMXAttributeName, int32> ConvertRawMapToFunctionMap(const TMap<int32, uint8>& RawMap) const;
 
 	/**
 	 * Return map of function channels and their values.
 	 * Functions outside the Active Mode's channel span range are ignored.
 	 */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<int32, uint8> ConvertFunctionMapToRawMap(const TMap<FName, int32>& FunctionMap) const;
+	TMap<int32, uint8> ConvertFunctionMapToRawMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
 	/**  Return if given function map valid for this fixture. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	bool IsMapValid(const TMap<FName, int32>& FunctionMap) const;
+	bool IsMapValid(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
 	/**  Return if fixture contains function. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	FORCEINLINE bool ContainsFunction(const FName& FunctionName) const
+	FORCEINLINE bool ContainsFunction(const FDMXAttributeName FunctionAttribute) const
 	{
 		const TArray<FDMXFixtureFunction>& Functions = ParentFixtureTypeTemplate->Modes[ActiveMode].Functions;
-		return Functions.ContainsByPredicate([&FunctionName](const FDMXFixtureFunction& Function)
+		return Functions.ContainsByPredicate([&FunctionAttribute](const FDMXFixtureFunction& Function)
 			{
-				return FunctionName.IsEqual(*Function.FunctionName);
+				return FunctionAttribute == Function.Attribute;
 			});
 	}
 
 	/**  Return a map that is valid for this fixture. */
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
-	TMap<FName, int32> ConvertToValidMap(const TMap<FName, int32>& FunctionMap) const;
+	TMap<FDMXAttributeName, int32> ConvertToValidMap(const TMap<FDMXAttributeName, int32>& FunctionMap) const;
 
 	/**
 	 * Scans the parent DMXLibrary and returns the Controllers which Universe range
@@ -137,20 +170,60 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX|Fixture Patch")
 	bool IsInControllersRange(const TArray<UDMXEntityController*>& InControllers) const;
 
+	/**
+	 * Retrieve the value of a Function mapped to an Attribute. Will fail and return 0 if
+	 * there's no Function mapped to the selected Attribute.
+	 * 
+	 * Note: if the Patch is affected by more than one Controller, the first one found
+	 * will be used for protocol selection.
+	 *
+	 * @param Attribute	The Attribute to try to get the value from.
+	 * @param bSuccess	Whether the Attribute was found in this Fixture Patch
+	 * @return			The value of the Function mapped to the selected Attribute, if found.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	int32 GetAttributeValue(FDMXAttributeName Attribute, bool& bSuccess);
+
+	/**
+	 * Retrieve the value of all Functions mapped to Attributes in this Fixture Patch.
+	 * 
+	 * Note: if the Patch is affected by more than one Controller, the first one found
+	 * will be used for protocol selection.
+	 *
+	 * @param AttributesValues The values from Functions mapped to Attributes in this Patch.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DMX|Fixture Patch")
+	void GetAttributesValues(TMap<FDMXAttributeName, int32>& AttributesValues);
+
 public:
 	UDMXEntityFixturePatch();
 
 	//~ Begin UDMXEntity Interface
-	virtual bool IsValidEntity(FText& OutReason) const;
+	virtual bool IsValidEntity(FText& OutReason) const override;
 	//~ End UDMXEntity Interface
 
-	// Called from Fixture Type to keep ActiveMode in valid range when Modes are removed from the Type
+	/** Called from Fixture Type to keep ActiveMode in valid range when Modes are removed from the Type */
 	void ValidateActiveMode();
 
+	/**
+	 * Return the function currently mapped to the passed in Attribute, if any.
+	 * If no function is mapped to it, returns nullptr.
+	 *
+	 * @param Attribute The attribute name to search for.
+	 * @return			The function mapped to the passed in Attribute or nullptr
+	 *					if no function is mapped to it.
+	 */
+	const FDMXFixtureFunction* GetAttributeFunction(const FDMXAttributeName& Attribute) const;
+
+	/** Return the first controller found which affects this Fixture Patch. nullptr if none */
+	UDMXEntityController* GetFirstRelevantController() const;
+
+	/** Checks if the current Mode for this Patch is valid for its Fixture Type */
 	FORCEINLINE bool CanReadActiveMode() const
 	{
 		return ParentFixtureTypeTemplate != nullptr
-			&& ParentFixtureTypeTemplate->Modes.Num() > 0
-			&& ActiveMode < ParentFixtureTypeTemplate->Modes.Num();
+			&& ParentFixtureTypeTemplate->IsValidLowLevelFast()
+			&& ParentFixtureTypeTemplate->Modes.Num() > ActiveMode
+			&& ActiveMode >= 0;
 	}
 };

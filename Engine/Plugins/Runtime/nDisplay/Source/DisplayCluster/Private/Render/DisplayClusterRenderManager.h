@@ -61,6 +61,7 @@ public:
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
+	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) override;
 
 	// Camera
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
@@ -69,6 +70,8 @@ public:
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 	virtual bool SetBufferRatio(const FString& InViewportID, float InBufferRatio) override;
 	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const override;
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
 
 	// Camera API
 	virtual float GetInterpupillaryDistance(const FString& CameraId) const override;

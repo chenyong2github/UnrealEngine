@@ -41,6 +41,7 @@ private:
 
 public:
 	static const TCHAR* BaseModuleName;
+	static const FString LocalHostIpAddress;
 
 private:
 	TMap<FName, IDMXProtocolFactory*> DMXFactories;

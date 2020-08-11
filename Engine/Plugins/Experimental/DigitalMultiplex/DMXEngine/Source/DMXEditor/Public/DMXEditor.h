@@ -8,12 +8,14 @@
 class UDMXLibrary;
 class SDockTab;
 class UFactory;
-class SDMXControllers;
 class SDMXInputConsole;
-class SDMXFixturePatch;
-class SDMXFixtureTypes;
+class SDMXControllerEditor;
+class SDMXFixturePatchEditor;
+class SDMXFixtureTypeEditor;
 class SDMXEntityEditor;
 class FDMXEditorToolbar;
+class FDMXFixtureTypeSharedData;
+class FDMXFixturePatchSharedData;
 class UDMXEntity;
 
 // Used to enable Entity creator code to inject a base name before the entity creation
@@ -62,11 +64,9 @@ public:
 	TArray<UDMXEntity*> GetSelectedEntitiesFromTypeTab(TSubclassOf<UDMXEntity> InEntityClass) const;
 
 	//~ Getters for the various DMX widgets
-	TSharedRef<SDMXControllers> GetControllersTab() const { return ControllersWidget.ToSharedRef(); }
-	TSharedRef<SDMXFixturePatch> GetFixturePatchTab() const { return FixturePatchWidget.ToSharedRef(); }
-	TSharedRef<SDMXFixtureTypes> GetFixtureTypesTab() const { return FixtureTypesWidget.ToSharedRef(); }
-	TSharedRef<SDMXInputConsole> GetInputConsoleTab() const { return InputConsoleWidget.ToSharedRef(); }
-	TSharedRef<SWidget> GetOutputConsoleTab() const { return OutputConsoleWidget.ToSharedRef(); }
+	TSharedRef<SDMXControllerEditor> GetControllerEditor() const { return ControllerEditor.ToSharedRef(); }
+	TSharedRef<SDMXFixturePatchEditor> GetFixturePatchEditor() const { return FixturePatchEditor.ToSharedRef(); }
+	TSharedRef<SDMXFixtureTypeEditor> GetFixtureTypeEditor() const { return FixtureTypeEditor.ToSharedRef(); }
 
 	//~ Getters for event dispatchers
 	/**
@@ -114,11 +114,9 @@ private:
 	UDMXLibrary* GetEditableDMXLibrary() const;
 
 	//~ Generate Editor widgets for tabs
-	TSharedRef<SDMXInputConsole> CreateInputConsoleWidget();
-	TSharedRef<SWidget> CreateOutputConsoleWidget();
-	TSharedRef<SDMXControllers> CreateControllersWidget();
-	TSharedRef<SDMXFixtureTypes> CreateFixtureTypesWidget();
-	TSharedRef<SDMXFixturePatch> CreateFixturePatchWidget();
+	TSharedRef<SDMXControllerEditor> CreateControllerEditor();
+	TSharedRef<SDMXFixtureTypeEditor> CreateFixtureTypeEditor();
+	TSharedRef<SDMXFixturePatchEditor> CreateFixturePatchEditor();
 
 private:
 	/** The toolbar builder class */
@@ -127,23 +125,31 @@ private:
 	/** The name given to all instances of this type of editor */
 	static const FName ToolkitFName;
 
-	/** UI for the "DMX Monitor" tab */
-	TSharedPtr<SDMXInputConsole> InputConsoleWidget;
-
-	/** UI for the "DMX Output Console" tab */
-	TSharedPtr<SWidget> OutputConsoleWidget;
-
 	// TODO. Should sold object for particular DMX object, like actor components in blueprint editor
 	/** UI for the "DMX Controllers" tab */
-	TSharedPtr<SDMXControllers> ControllersWidget;
+	TSharedPtr<SDMXControllerEditor> ControllerEditor;
 
 	/** UI for the "DMX Fixture Types" tab */
-	TSharedPtr<SDMXFixtureTypes> FixtureTypesWidget;
+	TSharedPtr<SDMXFixtureTypeEditor> FixtureTypeEditor;
 
 	/** UI for the "DMX Fixture Patch" tab */
-	TSharedPtr<SDMXFixturePatch> FixturePatchWidget;
+	TSharedPtr<SDMXFixturePatchEditor> FixturePatchEditor;
 
 	//~ Event dispatchers
 	FOnGetBaseNameForNewEntity OnGetBaseNameForNewEntity;
 	FOnSetupNewEntity OnSetupNewEntity;
+
+public:
+	/** Gets the fixture type shared data instance */
+	TSharedPtr<FDMXFixtureTypeSharedData> GetFixtureTypeSharedData() const;
+
+	/** Gets the Fixture Patch shared Data Instance */
+	const TSharedPtr<FDMXFixturePatchSharedData>& GetFixturePatchSharedData() const;
+
+private:
+	/** Fixture type shared data instance */
+	TSharedPtr<FDMXFixtureTypeSharedData> FixtureTypeSharedData;
+
+	/** Shared Data for Fixture Patch editors */
+	TSharedPtr<FDMXFixturePatchSharedData> FixturePatchSharedData;
 };

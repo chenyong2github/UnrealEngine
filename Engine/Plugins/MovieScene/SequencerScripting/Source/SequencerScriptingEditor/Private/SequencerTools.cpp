@@ -27,6 +27,7 @@
 #include "K2Node_CustomEvent.h"
 #include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintActionMenuItem.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTools"
 

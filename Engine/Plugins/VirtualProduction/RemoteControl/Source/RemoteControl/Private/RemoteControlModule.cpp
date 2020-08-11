@@ -107,7 +107,7 @@ public:
 
 				if (!Function)
 				{
-					ErrorText = FString::Printf(TEXT("function: %s does not exist on object: %s"), *ObjectPath, *FunctionName);
+					ErrorText = FString::Printf(TEXT("Function: %s does not exist on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
 				}
 				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) 
@@ -117,7 +117,7 @@ public:
 #endif
 					)
 				{
-					ErrorText = FString::Printf(TEXT("function: %s is deprecated or unavailable remotely on object: %s"), *ObjectPath, *FunctionName);
+					ErrorText = FString::Printf(TEXT("Function: %s is deprecated or unavailable remotely on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
 				}
 				else
@@ -128,13 +128,13 @@ public:
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("object: %s does not exists."), *ObjectPath);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exists."), *ObjectPath);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
+			ErrorText = FString::Printf(TEXT("Can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 
@@ -186,7 +186,7 @@ public:
 					}
 					else
 					{
-						ErrorText = FString::Printf(TEXT("object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
+						ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
 						bSuccess = false;
 					}
 				}
@@ -198,13 +198,13 @@ public:
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
+			ErrorText = FString::Printf(TEXT("Can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 
@@ -324,9 +324,6 @@ public:
 		}
 		return false;
 	}
-
-
-private:
 };
 
 #undef LOCTEXT_NAMESPACE

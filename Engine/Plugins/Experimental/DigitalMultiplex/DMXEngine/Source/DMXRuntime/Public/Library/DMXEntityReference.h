@@ -66,8 +66,8 @@ public:
 		uint64 ToHash[] =
 		{
 			reinterpret_cast<uintptr_t>(EntityRef.DMXLibrary),
-			static_cast<uint64>(EntityId64[0]),
-			static_cast<uint64>(EntityId64[1])
+			EntityId64[0],
+			EntityId64[1]
 		};
 		
 		return CityHash64(reinterpret_cast<char*>(&ToHash), sizeof(ToHash));

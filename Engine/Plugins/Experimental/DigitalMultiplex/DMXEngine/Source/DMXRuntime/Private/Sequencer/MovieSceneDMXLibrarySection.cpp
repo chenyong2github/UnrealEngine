@@ -469,8 +469,8 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 #if WITH_EDITOR
 			const FDMXFixtureFunction& Function = Functions[FunctionIndex];
 
-			const FText ChannelDisplayName(FText::FromString(Function.FunctionName));
-			const FName ChannelPropertyName(*FString::Printf(TEXT("%s.%s"), *PatchName, *Function.FunctionName));
+			const FText ChannelDisplayName(FText::FromName(Function.Attribute.GetName()));
+			const FName ChannelPropertyName(*FString::Printf(TEXT("%s.%s"), *PatchName, *Function.Attribute.GetName().ToString()));
 
 			FMovieSceneChannelMetaData MetaData;
 			MetaData.SetIdentifiers(ChannelPropertyName, ChannelDisplayName, PatchNameText);

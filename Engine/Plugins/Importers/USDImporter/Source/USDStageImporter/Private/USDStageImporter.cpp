@@ -17,6 +17,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdTyped.h"
 
+#include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -154,6 +155,11 @@ namespace UsdStageImporterImpl
 
 	void SetupSceneActor(FUsdStageImportContext& ImportContext)
 	{
+		if ( !ImportContext.ImportOptions->bImportActors )
+		{
+			return;
+		}
+
 		ULevel* Level = ImportContext.World->GetCurrentLevel();
 		if(!Level)
 		{
@@ -192,11 +198,15 @@ namespace UsdStageImporterImpl
 	{
 		// We always reuse the existing scene actor for a scene, regardless of ReplacePolicy
 		FString TargetActorLabel = ObjectTools::SanitizeObjectName(ImportContext.ObjectName);
-		AActor* ExistingActor = nullptr;
 		for (TActorIterator<AActor> ActorItr(ImportContext.World); ActorItr; ++ActorItr)
 		{
 			AActor* ThisActor = *ActorItr;
-			if (ThisActor->GetActorLabel() == TargetActorLabel && ExistingActor != ImportContext.SceneActor)
+
+			// Found a top level actor with the same label
+			if ( !ThisActor->HasAnyFlags(RF_Transient) &&
+				 ThisActor->GetAttachParentActor() == nullptr &&
+				 ThisActor->GetActorLabel() == TargetActorLabel &&
+				 ThisActor != ImportContext.SceneActor)
 			{
 				return ThisActor;
 			}
@@ -362,13 +372,23 @@ namespace UsdStageImporterImpl
 				}
 			}
 		}
+		else if ( UAnimSequence* AnimSequence = Cast<UAnimSequence>( Asset ) )
+		{
+			AssetPrefix = TEXT( "Anim_" );
+
+			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(AnimSequence->AssetImportData))
+			{
+				AssetPath = AssetImportData->PrimPath;
+			}
+		}
 		else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
 		{
 			AssetPrefix = TEXT("M_");
 
 			if (UUsdAssetImportData* AssetImportData = Cast<UUsdAssetImportData>(Material->AssetImportData))
 			{
-				AssetPath = AssetImportData->PrimPath;
+				// The only materials with no prim path are our auto-generated displayColor materials
+				AssetPath = AssetImportData->PrimPath.IsEmpty()? TEXT("DisplayColor") : AssetImportData->PrimPath;
 			}
 		}
 		else if (UTexture* Texture = Cast<UTexture>(Asset))
@@ -381,10 +401,20 @@ namespace UsdStageImporterImpl
 			}
 		}
 
+		FString FinalName = FPaths::GetBaseFilename(AssetPath);
+		if ( !FinalName.StartsWith( AssetPrefix ) )
+		{
+			FinalName = AssetPrefix + FinalName;
+		}
+		if ( !FinalName.EndsWith( AssetSuffix ) )
+		{
+			FinalName = FinalName + AssetSuffix;
+		}
+
 		// We don't care if our assets overwrite something in the final destination package (that conflict will be
 		// handled according to EReplaceAssetPolicy). But we do want these assets to have unique names amongst themselves
 		// or else they will overwrite each other when publishing
-		FString FinalName = GetUniqueName(ObjectTools::SanitizeObjectName(AssetPrefix + FPaths::GetBaseFilename(AssetPath) + AssetSuffix), UniqueAssetNames);
+		FinalName = GetUniqueName( ObjectTools::SanitizeObjectName( FinalName ), UniqueAssetNames );
 		UniqueAssetNames.Add(FinalName);
 
 		return FinalName;
@@ -571,21 +601,39 @@ namespace UsdStageImporterImpl
 			}
 
 			FString AssetTypeFolder;
-			if (Asset->IsA(UMaterialInterface::StaticClass()))
+			if ( ImportContext.ImportOptions->bPrimPathFolderStructure )
 			{
-				AssetTypeFolder = "Materials";
+				UUsdAssetImportData* ImportData = UUsdStageImporter::GetAssetImportData( Asset );
+
+				// For skeletal stuff, the primpaths point to the SkelRoot, so it is useful to place the assets in there,
+				// as we'll always have at least the skeletal mesh and the skeleton
+				if ( Asset->IsA( USkeletalMesh::StaticClass() ) || Asset->IsA( USkeleton::StaticClass() ) || Asset->IsA( UAnimSequence::StaticClass() ) )
+				{
+					AssetTypeFolder = ImportData->PrimPath;
+				}
+				else
+				{
+					AssetTypeFolder = FPaths::GetPath( ImportData->PrimPath );
+				}
 			}
-			else if (Asset->IsA(UStaticMesh::StaticClass()))
+			else
 			{
-				AssetTypeFolder = "StaticMeshes";
-			}
-			else if (Asset->IsA(UTexture::StaticClass()))
-			{
-				AssetTypeFolder = "Textures";
-			}
-			else if (Asset->IsA(USkeletalMesh::StaticClass()) || Asset->IsA(USkeleton::StaticClass()))
-			{
-				AssetTypeFolder = "SkeletalMeshes";
+				if (Asset->IsA(UMaterialInterface::StaticClass()))
+				{
+					AssetTypeFolder = "Materials";
+				}
+				else if (Asset->IsA(UStaticMesh::StaticClass()))
+				{
+					AssetTypeFolder = "StaticMeshes";
+				}
+				else if (Asset->IsA(UTexture::StaticClass()))
+				{
+					AssetTypeFolder = "Textures";
+				}
+				else if (Asset->IsA(USkeletalMesh::StaticClass()) || Asset->IsA(USkeleton::StaticClass()) || Asset->IsA(UAnimSequence::StaticClass()))
+				{
+					AssetTypeFolder = "SkeletalMeshes";
+				}
 			}
 
 			FString TargetAssetName = GetUserFriendlyName(Asset, UniqueAssetNames);
@@ -783,6 +831,11 @@ namespace UsdStageImporterImpl
 
 	void ResolveActorConflicts(FUsdStageImportContext& ImportContext, AActor* ExistingSceneActor, TMap<UObject*, UObject*>& ObjectsToRemap)
 	{
+		if ( !ImportContext.ImportOptions->bImportActors )
+		{
+			return;
+		}
+
 		if (!ImportContext.SceneActor)
 		{
 			ImportContext.AddErrorMessage(EMessageSeverity::Error, LOCTEXT("NoSceneActor", "Failed to publish actors as there was no scene actor available!"));
@@ -901,6 +954,11 @@ namespace UsdStageImporterImpl
 
 	void Cleanup(TMap<FString, UObject*>& AssetsToCleanup, AActor* NewSceneActor, AActor* ExistingSceneActor, EReplaceActorPolicy ReplacePolicy)
 	{
+		if ( !NewSceneActor )
+		{
+			return;
+		}
+
 		// By this point all of our actors and components are moved to the new hierarchy, and all references
 		// are remapped. So let's clear the replaced existing actors and components
 		if (ExistingSceneActor && ExistingSceneActor != NewSceneActor && ReplacePolicy == EReplaceActorPolicy::Replace)
@@ -942,6 +1000,11 @@ namespace UsdStageImporterImpl
 		}
 #endif // #if USE_USD_SDK
 	}
+
+	void FetchMainImportedPackage(FUsdStageImportContext& ImportContext)
+	{
+		ImportContext.ImportedPackage = FindPackage( nullptr, *FPaths::Combine(ImportContext.PackagePath, ImportContext.ObjectName) );
+	}
 }
 
 UUsdAssetImportData* UUsdStageImporter::GetAssetImportData(UObject* Asset)
@@ -951,9 +1014,20 @@ UUsdAssetImportData* UUsdStageImporter::GetAssetImportData(UObject* Asset)
 	{
 		ImportData = Cast<UUsdAssetImportData>(Mesh->AssetImportData);
 	}
+	else if (USkeleton* Skeleton = Cast<USkeleton>( Asset ) )
+	{
+		if ( USkeletalMesh* SkMesh = Skeleton->GetPreviewMesh() )
+		{
+			ImportData = Cast<UUsdAssetImportData>( SkMesh->AssetImportData );
+		}
+	}
 	else if (USkeletalMesh* SkMesh = Cast<USkeletalMesh>(Asset))
 	{
 		ImportData = Cast<UUsdAssetImportData>(SkMesh->AssetImportData);
+	}
+	else if (UAnimSequence* SkelAnim = Cast<UAnimSequence>( Asset ) )
+	{
+		ImportData = Cast<UUsdAssetImportData>(SkelAnim->AssetImportData);
 	}
 	else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
 	{
@@ -983,7 +1057,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	}
 
 	UsdStageImporterImpl::SetupSceneActor(ImportContext);
-	if (!ImportContext.SceneActor)
+	if (!ImportContext.SceneActor && ImportContext.ImportOptions->bImportActors)
 	{
 		return;
 	}
@@ -995,14 +1069,17 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::SetupStageForImport(ImportContext);
 
 	TMap<UObject*, UObject*> ObjectsToRemap;
+	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
-	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>(ImportContext.PrimPathsToAssets, ImportContext.AssetsCache);
+	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>(ImportContext.Stage, ImportContext.PrimPathsToAssets, ImportContext.AssetsCache, &BlendShapesByPath );
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
 	TranslationContext->Time = ImportContext.ImportOptions->ImportTime;
 	TranslationContext->PurposesToLoad = (EUsdPurpose) ImportContext.ImportOptions->PurposesToImport;
-	TranslationContext->ParentComponent = ImportContext.SceneActor->GetRootComponent();
+	TranslationContext->ParentComponent = ImportContext.SceneActor ? ImportContext.SceneActor->GetRootComponent() : nullptr;
 	TranslationContext->bAllowCollapsing = ImportContext.ImportOptions->bCollapse;
+	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
+	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportSkeletalAnimations;
 	{
 		UsdStageImporterImpl::ImportMaterials(ImportContext, TranslationContext.Get());
 		UsdStageImporterImpl::ImportMeshes(ImportContext, TranslationContext.Get());
@@ -1017,6 +1094,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::RemapReferences(ImportContext, ObjectsToRemap);
 	UsdStageImporterImpl::Cleanup(ImportContext.AssetsCache, ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy);
 	UsdStageImporterImpl::CloseStageIfNeeded(ImportContext);
+	UsdStageImporterImpl::FetchMainImportedPackage(ImportContext);
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
 #endif // #if USE_USD_SDK
@@ -1044,13 +1122,16 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	UsdStageImporterImpl::SetupStageForImport( ImportContext );
 
 	TMap<UObject*, UObject*> ObjectsToRemap;
+	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
-	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.PrimPathsToAssets, ImportContext.AssetsCache );
+	TSharedRef<FUsdSchemaTranslationContext> TranslationContext = MakeShared<FUsdSchemaTranslationContext>( ImportContext.Stage, ImportContext.PrimPathsToAssets, ImportContext.AssetsCache, &BlendShapesByPath );
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
 	TranslationContext->Time = ImportContext.ImportOptions->ImportTime;
 	TranslationContext->PurposesToLoad = (EUsdPurpose) ImportContext.ImportOptions->PurposesToImport;
 	TranslationContext->bAllowCollapsing = ImportContext.ImportOptions->bCollapse;
+	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;
+	TranslationContext->bAllowParsingSkeletalAnimations = ImportContext.ImportOptions->bImportSkeletalAnimations;
 	{
 		UE::FUsdPrim TargetPrim = ImportContext.Stage.GetPrimAtPath( UE::FSdfPath( *OriginalImportData->PrimPath ) );
 		if ( TargetPrim )
@@ -1077,6 +1158,8 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	UsdStageImporterImpl::Cleanup( ImportContext.AssetsCache, ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
+	UsdStageImporterImpl::FetchMainImportedPackage( ImportContext );
+
 	FUsdDelegates::OnPostUsdImport.Broadcast(ImportContext.FilePath);
 
 #endif // #if USE_USD_SDK

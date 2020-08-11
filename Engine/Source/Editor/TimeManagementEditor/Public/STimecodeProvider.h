@@ -25,7 +25,7 @@ public:
 		, _DisplayFrameRate(true)
 		, _DisplaySynchronizationState(true)
 		, _TimecodeColor(FLinearColor::White)
-		, _DisplayLabel(true)
+		, _DisplayLabel(false)
 		, _LabelColor(FLinearColor::Gray)
 	{
 		FSlateFontInfo NormalFontInfo = FCoreStyle::Get().GetFontStyle(TEXT("NormalText"));

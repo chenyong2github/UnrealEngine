@@ -35,8 +35,9 @@ enum class EDMXProtocolDirectionality : uint8
 UENUM()
 enum class EDMXCommunicationTypes : uint8
 {
-	Broadcast UMETA(DisplayName = "Broadcast"),
-	Unicast	UMETA(DisplayName = "Unicast")
+	Broadcast	UMETA(DisplayName = "Broadcast"),
+	Unicast		UMETA(DisplayName = "Unicast"),
+	Multicast	UMETA(DisplayName = "Multicast"),
 };
 
 UENUM(BlueprintType, Category = "DMX")
@@ -158,7 +159,7 @@ struct DMXPROTOCOL_API FDMXUniverse
 	EDMXProtocolDirectionality DMXProtocolDirectionality;
 
 	UPROPERTY()
-	FString UnicastIpAddress;
+	TArray<FString> UnicastIpAddresses;
 
 	FDMXUniverse()
 		: UniverseNumber(0)
@@ -176,7 +177,7 @@ public:
 		DMXData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
-	/** @return Gets actual SequanceID  */
+	/** @return Gets actual SequenceID  */
 	uint32 GetSequenceID() const { return SequenceID; }
 
 	/** @return DMX buffer address value */
@@ -206,6 +207,9 @@ public:
 	 * @return True if it was successfully set
 	 */
 	bool SetDMXBuffer(const uint8* InBuffer, uint32 InSize);
+
+	/** Sets all values in the buffer to Zero */
+	void ZeroDMXBuffer();
 
 private:
 	/** DMX bytes buffer array */

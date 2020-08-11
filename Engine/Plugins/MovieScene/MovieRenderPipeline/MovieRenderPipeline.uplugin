@@ -23,6 +23,11 @@
 			"Name": "LevelSequenceEditor",
 			"Enabled": true,
 			"Optional": true
+		},
+		{
+			"Name": "OpenColorIO",
+			"Enabled": true,
+			"Optional": false
 		}
 	],
 	"Modules": [
@@ -35,9 +40,9 @@
 			"Name": "MovieRenderPipelineSettings",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
-		}, 
+		},
 		{
-			"Name" : "MovieRenderPipelineRenderPasses",
+			"Name": "MovieRenderPipelineRenderPasses",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},

@@ -15,7 +15,7 @@ class FBackChannelTransport : public IBackChannelTransport
 public:
 
 
-	virtual TSharedPtr<IBackChannelConnection> CreateConnection(const int32 Type) override
+	virtual TSharedPtr<IBackChannelSocketConnection> CreateConnection(const int32 Type) override
 	{
 		check(Type == IBackChannelTransport::TCP);
 		TSharedPtr<FBackChannelConnection> Connection = MakeShareable(new FBackChannelConnection());

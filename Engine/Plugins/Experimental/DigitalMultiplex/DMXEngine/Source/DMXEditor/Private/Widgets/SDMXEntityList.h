@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Library/DMXEntity.h"
 #include "Widgets/SDMXEntityDropdownMenu.h"
 
+#include "CoreMinimal.h"
+#include "EditorUndoClient.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-
-#include "EditorUndoClient.h"
 
 class FDMXEditor;
 class SDMXEntityList;
@@ -28,6 +25,7 @@ class SSearchBox;
 class SInlineEditableTextBlock;
 class SDockTab;
 class SComboButton;
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // FDMXEntityListTreeNode
@@ -228,10 +226,10 @@ protected:
 	FText ToolTip;
 };
 
-class FDMXEntityBaseTreeNode : public FDMXTreeNodeBase
+class FDMXEntityTreeNode : public FDMXTreeNodeBase
 {
 public:
-	FDMXEntityBaseTreeNode(UDMXEntity* InEntity);
+	FDMXEntityTreeNode(UDMXEntity* InEntity);
 
 	// ~ start FDMXTreeNodeBase interface
 	virtual bool IsEntityNode() const override;
@@ -240,61 +238,6 @@ public:
 	// ~ end FDMXTreeNodeBase interface
 };
 
-///////////////////////////////////////////////////////////////////////////////
-// FDMXEntityDragDropOperation
-
-class FDMXEntityDragDropOperation
-	: public FDragDropOperation
-{
-public:
-	DRAG_DROP_OPERATOR_TYPE(FDMXEntityDragDropOperation, FDragDropOperation)
-
-	FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, TWeakPtr<SDMXEntityList> EntityList, TArray<TSharedPtr<FDMXEntityBaseTreeNode>>&& InEntities);
-
-	void SetHoveredEntity(TSharedPtr<FDMXEntityBaseTreeNode> InEntityNode, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType);
-	void SetHoveredCategory(TSharedPtr<FDMXCategoryTreeNode> InCategory, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType);
-
-	void DroppedOnEntity(TSharedRef<FDMXEntityBaseTreeNode> InEntity, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType);
-	void DroppedOnCategory(TSharedRef<FDMXCategoryTreeNode> InCategory, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType);
-
-protected:
-	/** Constructs the tooltip widget that follows the mouse */
-	virtual void Construct() override;
-
-private:
-	void HoverTargetChanged();
-
-	// Common after-dropping actions
-	/** Move all dragged entities to NewIndex */
-	void ReorderEntities(int32 NewIndex);
-	/** Set the required property to move the dragged entities into a specific category from the list */
-	void SetPropertyForNewCategory();
-
-	void SetDraggingFromMultipleCategories();
-	bool GetCategoryPropertyNameFromTabType(FText& PropertyName, FText& CategoryPropertyValue);
-	bool IsDraggingToDifferentCategory() const;
-	TSharedPtr<FDMXCategoryTreeNode> GetTargetCategory() const;
-
-	void SetFeedbackMessageError(const FText& Message);
-	void SetFeedbackMessageOK(const FText& Message);
-	void SetFeedbackMessage(const FSlateBrush* Icon, const FText& Message);
-
-private:
-	UDMXLibrary* DraggedFromLibrary;
-	TArray<TSharedPtr<FDMXEntityBaseTreeNode>> DraggedEntities;
-	TWeakPtr<SDMXEntityList> EntityList;
-
-	TSharedPtr<FDMXEntityBaseTreeNode> HoveredEntity;
-	TSharedPtr<FDMXCategoryTreeNode> HoveredCategory;
-	TSubclassOf<UDMXEntity> HoveredTabType;
-	UDMXLibrary* HoveredLibrary;
-
-	bool bValidDropTarget;
-	bool bDraggingFromMultipleCategories;
-
-	/** Name of the entity being dragged or entities type for several ones */
-	FText DraggedLabel;
-};
 
 ///////////////////////////////////////////////////////////////////////////////
 // Row widgets
@@ -307,9 +250,13 @@ class SDMXCategoryRow
 public:
 
 	SLATE_BEGIN_ARGS(SDMXCategoryRow)
+		: _OnEntityOrderChanged()
 		{}
 		
 		SLATE_DEFAULT_SLOT(typename SDMXCategoryRow::FArguments, Content)
+
+		SLATE_EVENT(FSimpleDelegate, OnEntityOrderChanged)
+
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedPtr<FDMXTreeNodeBase> InNodePtr, bool bInIsRootCategory, TWeakPtr<SDMXEntityList> InEditorList);
@@ -318,26 +265,33 @@ public:
 	virtual void SetRowContent(TSharedRef< SWidget > InContent) override;
 
 	virtual const FSlateBrush* GetBorder() const { return nullptr; }
-	/* Get the node used by the row Widget */
+
+	/** Get the node used by the row Widget */
 	virtual TSharedPtr<FDMXCategoryTreeNode> GetNode() const { return TreeNodePtr.Pin(); };
+
+	/** Returns the parent entity list */
+	TWeakPtr<SDMXEntityList> GetEntityList() const { return EntityListPtr; }
 
 protected:
 	//~ SWidget interface begin
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	//~ SWidget interface end
 
 protected:
 	/** Pointer to node we represent */
 	TWeakPtr<FDMXCategoryTreeNode> TreeNodePtr;
-	TWeakPtr<SDMXEntityList> EditorListPtr;
+	TWeakPtr<SDMXEntityList> EntityListPtr;
+
+	/** Called when the entity list changed order of the library's entity array */
+	FSimpleDelegate OnEntityOrderChanged;
 
 private:
 	const FSlateBrush* GetBackgroundImage() const;
 
 	TSharedPtr<SBorder> ContentBorder;
 };
+
 
 class SDMXEntityRow : public SDMXTableRowType
 {
@@ -350,40 +304,48 @@ public:
 		: _OnEntityDragged()
 		, _OnGetFilterText()
 		, _OnAutoAssignChannelStateChanged()
+		, _OnEntityOrderChanged()
 		{}
 
 		SLATE_EVENT(FOnEntityDragged, OnEntityDragged)
 		SLATE_EVENT(FOnGetFilterText, OnGetFilterText)
 		SLATE_EVENT(FOnAutoAssignChannelStateChanged, OnAutoAssignChannelStateChanged)
+		SLATE_EVENT(FSimpleDelegate, OnEntityOrderChanged)
+
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FDMXTreeNodeBase> InNodePtr, TSharedPtr<STableViewBase> InOwnerTableView, TWeakPtr<SDMXEntityList> InEditorList);
 
 	/* Get the node used by the row Widget */
-	virtual TSharedPtr<FDMXEntityBaseTreeNode> GetNode() const { return TreeNodePtr.Pin(); };
+	virtual TSharedPtr<FDMXEntityTreeNode> GetNode() const { return TreeNodePtr.Pin(); };
+
+	/** Returns the parent entity list */
+	TWeakPtr<SDMXEntityList> GetEntityList() const { return EntityListPtr; }
 
 	FOnAutoAssignChannelStateChanged& GetOnAutoAssignChannelStateChanged() { return OnAutoAssignChannelStateChanged; }
 
 protected:
+	/** For Fixture Patches, returns wether Auto Assign Channel is enabled */
+	ECheckBoxState IsAutoAssignChannelEnabled() const;
+
 	/** Data accessors */
 	FText GetDisplayText() const;
 	FText GetStartingChannelLabel() const;
 	FText GetEndingChannelLabel() const;
 
-	/**  Called when the auto-assign channel check-box state is changed */
+	/**  Called when the auto-assign address check-box state is changed */
 	void OnAutoAssignChannelBoxStateChanged(ECheckBoxState NewState);
 
 	//~ SWidget interface begin
 	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	//~ SWidget interface end
 
 protected:
 	/** Pointer to node we represent */
-	TWeakPtr<FDMXEntityBaseTreeNode> TreeNodePtr;
+	TWeakPtr<FDMXEntityTreeNode> TreeNodePtr;
 
-	TWeakPtr<SDMXEntityList> EditorListPtr;
+	TWeakPtr<SDMXEntityList> EntityListPtr;
 
 private:
 	/** Verifies the name of the component when changing it */
@@ -411,10 +373,15 @@ private:
 	FOnGetFilterText OnGetFilterText;
 	FText StatusIconToolTip;
 
+	/** Called when the entity list changed auto assign channel state */
 	FOnAutoAssignChannelStateChanged OnAutoAssignChannelStateChanged;
+
+	/** Called when the entity list changed order of the library's entity array */
+	FSimpleDelegate OnEntityOrderChanged;
 
 	TSharedPtr<SInlineEditableTextBlock> InlineRenameWidget;
 };
+
 
 //////////////////////////////////////////////////////////////////////////
 // SDMXEntityListBase
@@ -424,22 +391,43 @@ class SDMXEntityList
 	: public SCompoundWidget, public FEditorUndoClient
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnSelectionUpdated, TArray<TSharedPtr<FDMXTreeNodeBase>>);
+	DECLARE_DELEGATE_OneParam(FOnSelectionUpdated, TArray<UDMXEntity*>);
 	DECLARE_DELEGATE_OneParam(FOnItemDoubleClicked, const TSharedPtr<FDMXTreeNodeBase>);
+	DECLARE_DELEGATE_OneParam(FOnAutoAssignAddressChanged, TArray<UDMXEntityFixturePatch*>);
 
 	SLATE_BEGIN_ARGS(SDMXEntityList)
 		: _OnSelectionUpdated()
+		, _OnAutoAssignAddressChanged()
+		, _OnEntitiesAdded()
+		, _OnEntityOrderChanged()
+		, _OnEntitiesRemoved()
 		{}
 
-		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>,	DMXEditor)
-		SLATE_EVENT(FOnSelectionUpdated,		OnSelectionUpdated)
+		/** The DMX Editor that owns this widget */
+		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
+
+		/** Exectued when the list changed its selection */
+		SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
+
+		/** Exectued when the auto assign address of fixture patches changed */
+		SLATE_EVENT(FOnAutoAssignAddressChanged, OnAutoAssignAddressChanged)
+
+		/** Exectued when entites were added to the DMXEditor's library */
+		SLATE_EVENT(FSimpleDelegate, OnEntitiesAdded)
+
+		/** Exectued when entites were reorderd in the list, and potentially in the library */
+		SLATE_EVENT(FSimpleDelegate, OnEntityOrderChanged)
+
+		/** Exectued when entites were removed from the DMXEditor's library */
+		SLATE_EVENT(FSimpleDelegate, OnEntitiesRemoved)
 
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs, const TSubclassOf<UDMXEntity> InListType);
 
-	~SDMXEntityList();
+	/** Destructor */
+	virtual ~SDMXEntityList();
 
 	/** SWidget interface */
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
@@ -470,6 +458,12 @@ public:
 	void OnRenameNode();
 	/** Checks to see if renaming is allowed on the selected Entity */
 	bool CanRenameNode() const;
+
+	/** Gets selected nodes */
+	TArray<TSharedPtr<FDMXEntityTreeNode>> GetSelectedNodes() const;
+
+	/** Returns the category node of the entity, or null if is not in the list */
+	TSharedPtr<FDMXTreeNodeBase> GetCategoryNode(UDMXEntity* Entity) const;
 
 	/** Get only the valid selected entities */
 	TArray<UDMXEntity*> GetSelectedEntities() const;
@@ -539,8 +533,14 @@ protected:
 	bool IsInTab(TSharedPtr<SDockTab> InDockTab) const;
 
 protected:
+	/** Called when fixture patches were selected in shared data */
+	void OnSharedDataSelectedFixturePatches();
+
 	/** Pointer back to the DMXEditor tool that owns us */
 	TWeakPtr<FDMXEditor> DMXEditor;
+
+	/** Shared data for fixture patch editors */
+	TSharedPtr<FDMXFixturePatchSharedData> FixturePatchSharedData;
 
 	/** Entity type we're editing. Might change the list layout */
 	TSubclassOf<UDMXEntity> ListType;
@@ -554,6 +554,18 @@ protected:
 	/** Delegate to invoke on selection update. */
 	FOnSelectionUpdated OnSelectionUpdated;
 
+	/** Delegate to invoke when a fixture patch changed the auto assign address property */
+	FOnAutoAssignAddressChanged OnAutoAssignAddressChanged;
+
+	/** Called when the entity list added an entity to the library */
+	FSimpleDelegate OnEntitiesAdded;
+
+	/** Called when the entity list changed order of the library's entity array */
+	FSimpleDelegate OnEntityOrderChanged;
+
+	/** Called when the entity list deleted an entity from the library */
+	FSimpleDelegate OnEntitiesRemoved;
+
 	/**
 	 * Dummy root tree node.
 	 * It's not added to the tree, but the main categories and all their children
@@ -565,7 +577,7 @@ private:
 	/** Empty Nodes array and create a FDMXEntityListTreeNode for each relevant entity and category */
 	void InitializeNodes();
 
-	TSharedPtr<FDMXEntityBaseTreeNode> CreateEntityTreeNode(UDMXEntity* Entity);
+	TSharedPtr<FDMXEntityTreeNode> CreateEntityTreeNode(UDMXEntity* Entity);
 
 	FReply OnAddNewClicked();
 

@@ -51,7 +51,7 @@ public:
 		FBackChannelThreadedListener ThreadedConnection;
 
 		ThreadedConnection.Start(ListenerConnection.ToSharedRef(), 
-			FBackChannelListenerDelegate::CreateLambda([this, &AcceptConnected](TSharedPtr<IBackChannelConnection> NewConnection)
+			FBackChannelListenerDelegate::CreateLambda([this, &AcceptConnected](TSharedPtr<IBackChannelSocketConnection> NewConnection)
 		{
 			AcceptConnected = true;
 			AcceptedConnection = NewConnection;
@@ -62,7 +62,7 @@ public:
 		{
 			if (ClientConnected == false)
 			{
-				ClientConnection->WaitForConnection(0, [&ClientConnected](TSharedPtr<IBackChannelConnection> NewConnection) {
+				ClientConnection->WaitForConnection(0, [&ClientConnected](TSharedPtr<IBackChannelSocketConnection> NewConnection) {
 					ClientConnected = true;
 					return true;
 				});
@@ -75,9 +75,9 @@ public:
 		return AcceptedConnection.IsValid();
 	}
 
-	TSharedPtr<IBackChannelConnection>	ListenerConnection;
-	TSharedPtr<IBackChannelConnection>	ClientConnection;
-	TSharedPtr<IBackChannelConnection>	AcceptedConnection;
+	TSharedPtr<IBackChannelSocketConnection>	ListenerConnection;
+	TSharedPtr<IBackChannelSocketConnection>	ClientConnection;
+	TSharedPtr<IBackChannelSocketConnection>	AcceptedConnection;
 
 };
 

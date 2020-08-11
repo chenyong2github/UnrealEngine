@@ -2,11 +2,11 @@
 
 #include "OpenColorIOColorTransform.h"
 
-#include "IOpenColorIOModule.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/PackedVector.h"
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOModule.h"
 #include "UObject/UObjectIterator.h"
 
 

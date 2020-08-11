@@ -57,6 +57,12 @@ void FObjectPropertyNode::AddObject( UObject* InObject )
 	Objects.Add( InObject );
 }
 
+// Adds new objects to the list.
+void FObjectPropertyNode::AddObjects(const TArray<UObject*>& InObjects)
+{
+	Objects.Append( InObjects );
+}
+
 // Removes an object from the list.
 void FObjectPropertyNode::RemoveObject( UObject* InObject )
 {

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,41 +9,42 @@
 
 #include "VCamModifier.generated.h"
 
-UCLASS(Blueprintable, Abstract)
+class UVCamModifierContext;
+
+UCLASS(Blueprintable, Abstract, EditInlineNew)
 class VCAMCORE_API UVCamModifier : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(UVCamModifierContext* Context);
 
-	virtual void Initialize()  PURE_VIRTUAL(UVCamModifier::Initialize);
+	virtual void Apply(UVCamModifierContext* Context, const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
+		UCineCameraComponent* CameraComponent, const float DeltaTime) {};
 
-	virtual void Apply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
-		UCineCameraComponent* CameraComponent, const float DeltaTime) PURE_VIRTUAL(UVCamModifier::Apply);
+	virtual void PostLoad();
 
-	virtual void SetActive(const bool InActive) { bIsActive = InActive; };
-	virtual bool IsActive() const { return bIsActive; };
+	bool DoesRequireInitialization() const { return bRequiresInitialization; };
 
 private:
-	UPROPERTY()
-	bool bIsActive = true;
+	bool bRequiresInitialization = true;
 };
 
-UCLASS()
+UCLASS(EditInlineNew)
 class VCAMCORE_API UVCamBlueprintModifier : public UVCamModifier
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual void Initialize() override;
-	virtual void Apply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
+	virtual void Initialize(UVCamModifierContext* Context) override;
+	virtual void Apply(UVCamModifierContext* Context, const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
         UCineCameraComponent* CameraComponent, const float DeltaTime) override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
-	void OnInitialize();
+	void OnInitialize(UVCamModifierContext* Context);
 
 	UFUNCTION(BlueprintImplementableEvent, Category="VirtualCamera")
-	void OnApply(const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
+	void OnApply(UVCamModifierContext* Context, const FLiveLinkCameraBlueprintData& InitialLiveLinkData,
         UCineCameraComponent* CameraComponent, const float DeltaTime);
 };

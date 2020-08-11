@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Optional.h"
 #include "UObject/Object.h"
 #include "DMXProtocolTypes.h"
 #include "DMXAttribute.h"
@@ -10,7 +11,7 @@
 #include "DMXProtocolSettings.generated.h"
 
 /**  User defined protocol settings that apply to a whole protocol module */
-UCLASS(config = Engine, notplaceable)
+UCLASS(config = Engine, defaultconfig, notplaceable)
 class DMXPROTOCOL_API UDMXProtocolSettings : public UObject
 {
 public:
@@ -20,9 +21,8 @@ public:
 	UDMXProtocolSettings();
 
 #if WITH_EDITOR
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
-
 public:
 	/** Manual Interface IP Address */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Interface IP address"))
@@ -44,17 +44,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Function Attributes"))
 	TSet<FDMXAttribute> Attributes;
 
-	//~ Properties controlled by the Input Console (SDMXInputInfoSelecter)
-
-	/** Display a single universe or listen for all */
-	UPROPERTY(Config)
-	FName InputConsoleListenFor;
-
-	/** Set the current protocol to be monitored */
-	UPROPERTY(Config)
-	FName InputConsoleProtocol;
-
-	/** Set the current Universe ID to be monitored */
-	UPROPERTY(Config)
-	uint16 InputConsoleUniverseID;
+	/**
+	 * DMX packets senting refresh rate.
+	 * User can set the value from 0 up to 1000
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "0", ClampMax = "1000"))
+	int32 SendingRefreshRate;
 };

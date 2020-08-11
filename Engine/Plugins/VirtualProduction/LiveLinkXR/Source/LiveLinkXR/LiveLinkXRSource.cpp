@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Async/Async.h"
 #include "LiveLinkXRSourceSettings.h"
+#include "Misc/CoreDelegates.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 
@@ -26,79 +27,24 @@ FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRSettings& Settings)
 	SourceType = LOCTEXT("SourceType_XR", "XR");
 	SourceMachineName = LOCTEXT("XRSourceMachineName", "Local XR");
 
-	if (GEngine->XRSystem.IsValid())
-	{
-		if (GEngine->XRSystem->GetSystemName() == FName(TEXT("SteamVR")))
-		{
-			TrackedDevices.Empty();
-			TrackedDeviceTypes.Empty();
-			TrackedSubjectNames.Empty();
-
-			bTrackTrackers = Settings.bTrackTrackers;
-			bTrackControllers = Settings.bTrackControllers;
-			bTrackHMDs = Settings.bTrackHMDs;
-			LocalUpdateRateInHz = Settings.LocalUpdateRateInHz;
-
-			// Create subject names for all requested tracked devices
-			TArray<int32> AllTrackedDevices;
-			if (GEngine->XRSystem->EnumerateTrackedDevices(AllTrackedDevices, EXRTrackedDeviceType::Any))
-			{
-				for (int32 Tracker = 0; Tracker < AllTrackedDevices.Num(); Tracker++)
-				{
-					FString SubjectName = GEngine->XRSystem->GetSystemName().ToString();
-					bool bValidDevice = false;
-					switch ((int32)GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]))
-					{
-						case (int32)EXRTrackedDeviceType::Other:
-							if (bTrackTrackers)
-							{
-								SubjectName += TEXT("Tracker_");
-								bValidDevice = true;
-							}
-							break;
-
-						case (int32)EXRTrackedDeviceType::HeadMountedDisplay:
-							if (bTrackHMDs)
-							{
-								SubjectName += TEXT("HMD_");
-								bValidDevice = true;
-							}
-							break;
-
-						case (int32)EXRTrackedDeviceType::Controller:
-							if (bTrackControllers)
-							{
-								SubjectName += TEXT("Controller_");
-								bValidDevice = true;
-							}
-							break;
-					}
-
-					if (bValidDevice)
-					{
-						SubjectName += GEngine->XRSystem->GetTrackedDevicePropertySerialNumber(AllTrackedDevices[Tracker]);
-						TrackedDevices.Add(AllTrackedDevices[Tracker]);
-						TrackedDeviceTypes.Add(GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]));
-						TrackedSubjectNames.Add(SubjectName);
-
-						UE_LOG(LogTemp, Log, TEXT("LiveLinkXRSource: Found a tracked device with DeviceId %d and named it %s"), AllTrackedDevices[Tracker], *SubjectName);
-					}
-				}
-			}
-
-			Start();
-
-			SourceStatus = LOCTEXT("SourceStatus_Receiving", "Receiving");
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("LiveLinkXRSource: Couldn't find a compatible XR System - currently, only SteamVR is supported!"));
-		}
-	}
-	else
+	if (!GEngine->XRSystem.IsValid())
 	{
 		UE_LOG(LogTemp, Error, TEXT("LiveLinkXRSource: Couldn't find a valid XR System!"));
+		return;
 	}
+
+	if (GEngine->XRSystem->GetSystemName() != FName(TEXT("SteamVR")))
+	{
+		UE_LOG(LogTemp, Error, TEXT("LiveLinkXRSource: Couldn't find a compatible XR System - currently, only SteamVR is supported!"));
+		return;
+	}
+
+	bTrackTrackers = Settings.bTrackTrackers;
+	bTrackControllers = Settings.bTrackControllers;
+	bTrackHMDs = Settings.bTrackHMDs;
+	LocalUpdateRateInHz = Settings.LocalUpdateRateInHz;
+
+	DeferredStartDelegateHandle = FCoreDelegates::OnEndFrame.AddRaw(this, &FLiveLinkXRSource::Start);
 }
 
 FLiveLinkXRSource::~FLiveLinkXRSource()
@@ -135,9 +81,86 @@ bool FLiveLinkXRSource::RequestSourceShutdown()
 	return true;
 }
 
+void FLiveLinkXRSource::EnumerateTrackedDevices()
+{
+	TrackedDevices.Empty();
+	TrackedDeviceTypes.Empty();
+	TrackedSubjectNames.Empty();
+
+	if (!GEngine->XRSystem.IsValid())
+	{
+		return;
+	}
+
+	if (GEngine->XRSystem->GetSystemName() != FName(TEXT("SteamVR")))
+	{
+		return;
+	}
+
+	// Create subject names for all requested tracked devices
+
+	TArray<int32> AllTrackedDevices;
+
+	if (!GEngine->XRSystem->EnumerateTrackedDevices(AllTrackedDevices, EXRTrackedDeviceType::Any))
+	{
+		return;
+	}
+
+	for (int32 Tracker = 0; Tracker < AllTrackedDevices.Num(); Tracker++)
+	{
+		FString SubjectName = GEngine->XRSystem->GetSystemName().ToString();
+		bool bValidDevice = false;
+		switch ((int32)GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]))
+		{
+		case (int32)EXRTrackedDeviceType::Other:
+			if (bTrackTrackers)
+			{
+				SubjectName += TEXT("Tracker_");
+				bValidDevice = true;
+			}
+			break;
+
+		case (int32)EXRTrackedDeviceType::HeadMountedDisplay:
+			if (bTrackHMDs)
+			{
+				SubjectName += TEXT("HMD_");
+				bValidDevice = true;
+			}
+			break;
+
+		case (int32)EXRTrackedDeviceType::Controller:
+			if (bTrackControllers)
+			{
+				SubjectName += TEXT("Controller_");
+				bValidDevice = true;
+			}
+			break;
+		}
+
+		if (bValidDevice)
+		{
+			SubjectName += GEngine->XRSystem->GetTrackedDevicePropertySerialNumber(AllTrackedDevices[Tracker]);
+			TrackedDevices.Add(AllTrackedDevices[Tracker]);
+			TrackedDeviceTypes.Add(GEngine->XRSystem->GetTrackedDeviceType(AllTrackedDevices[Tracker]));
+			TrackedSubjectNames.Add(SubjectName);
+
+			UE_LOG(LogTemp, Log, TEXT("LiveLinkXRSource: Found a tracked device with DeviceId %d and named it %s"), AllTrackedDevices[Tracker], *SubjectName);
+		}
+	}
+}
+
 // FRunnable interface
 void FLiveLinkXRSource::Start()
 {
+	check(DeferredStartDelegateHandle.IsValid());
+
+	FCoreDelegates::OnEndFrame.Remove(DeferredStartDelegateHandle);
+	DeferredStartDelegateHandle.Reset();
+
+	EnumerateTrackedDevices();
+	
+	SourceStatus = LOCTEXT("SourceStatus_Receiving", "Receiving");
+
 	ThreadName = "LiveLinkXR Receiver ";
 	ThreadName.AppendInt(FAsyncThreadIndex::GetNext());
 

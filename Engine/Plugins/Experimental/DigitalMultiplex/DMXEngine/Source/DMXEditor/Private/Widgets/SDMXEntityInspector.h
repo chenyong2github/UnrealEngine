@@ -8,6 +8,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FDMXEditor;
+class UDMXEntity;
+
 class SBorder;
 
 /** DMX inspector details view base class */
@@ -46,10 +48,10 @@ public:
 	//~End of SWidget interface
 
 	/** Update the inspector window to show information on the supplied Entity */
-	void ShowDetailsForSingleEntity(UObject* Object);
+	void ShowDetailsForSingleEntity(UDMXEntity* Entity);
 
 	/** Update the inspector window to show information on the supplied objects */
-	void ShowDetailsForEntities(const TArray<UObject*>& PropertyObjects);
+	void ShowDetailsForEntities(const TArray<UDMXEntity*>& Entities);
 
 	/** Get current property view widget */
 	TSharedPtr<class IDetailsView> GetPropertyView() const { return PropertyView; }
@@ -111,21 +113,15 @@ public:
 	void Construct(const FArguments& InArgs);
 };
 
-/** DMX fixture confiturations inspector */
-class SDMXEntityInspectorFixturePatches
-	: public SDMXEntityInspector
+/** Enum specifying how Fixture Type Details should be layed out */
+enum class EDMXFixtureTypeLayout : uint8
 {
-public:
-	SLATE_BEGIN_ARGS(SDMXEntityInspectorFixturePatches)
-	{}
-
-	SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
-	SLATE_EVENT(FOnFinishedChangingProperties::FDelegate, OnFinishedChangingProperties)
-
-	SLATE_END_ARGS()
-
-	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
+	Default,
+	FixtureSettings,
+	Modes,
+	ModeProperties,
+	Functions,
+	FunctionProperties
 };
 
 /** DMX fixture types inspector */
@@ -142,24 +138,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
-};
-
-/** DMX fixture types inspector */
-class SDMXEntityInspectorFaders
-	: public SDMXEntityInspector
-{
-public:
-	SLATE_BEGIN_ARGS(SDMXEntityInspectorFaders)
-	{}
-
-		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
-		SLATE_EVENT(FOnFinishedChangingProperties::FDelegate, OnFinishedChangingProperties)
-
-	SLATE_END_ARGS()
-
-	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, EDMXFixtureTypeLayout DetailsView);
 };
 
 /** DMX Component inspector */
@@ -173,8 +152,8 @@ public:
 	SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 		SLATE_EVENT(FOnFinishedChangingProperties::FDelegate, OnFinishedChangingProperties)
 
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-		/** Constructs the widget */
-		void Construct(const FArguments& InArgs);
+	/** Constructs the widget */
+	void Construct(const FArguments& InArgs);
 };

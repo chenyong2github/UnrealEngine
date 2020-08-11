@@ -34,8 +34,7 @@
 			"LoadingPhase": "Default"
 		}
 	],
-	"Plugins":
-	[
+	"Plugins": [
 		{
 			"Name": "MediaIOFramework",
 			"Enabled": true
@@ -54,6 +53,10 @@
 		},
 		{
 			"Name": "VirtualProductionUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "VCamCore",
 			"Enabled": true
 		}
 	]

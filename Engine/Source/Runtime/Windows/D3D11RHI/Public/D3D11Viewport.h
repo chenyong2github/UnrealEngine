@@ -130,6 +130,9 @@ protected:
 
 	void ResetSwapChainInternal(bool bIgnoreFocus);
 
+	/** Gets the swap chain flags */
+	uint32 GetSwapChainFlags();
+
 	/** Presents the frame synchronizing with DWM. */
 	void PresentWithVsyncDWM();
 
@@ -155,6 +158,9 @@ protected:
 	EPixelFormat PixelFormat;
 	EColorSpaceAndEOTF PixelColorSpace;
 	bool bIsFullscreen;
+	bool bAllowTearing;
+
+	static uint32 GSwapChainFlags;
 
 #if PLATFORM_HOLOLENS
 	TRefCountPtr<IDXGISwapChain1> SwapChain;

@@ -45,28 +45,30 @@ UAjaTimecodeProvider::UAjaTimecodeProvider(const FObjectInitializer& ObjectIniti
 {
 }
 
-FQualifiedFrameTime UAjaTimecodeProvider::GetQualifiedFrameTime() const
+bool UAjaTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
 {
-	FFrameRate FrameRate = bUseDedicatedPin ? LTCConfiguration.LtcFrameRate : VideoConfiguration.MediaConfiguration.MediaMode.FrameRate;
-	if (TimecodeChannel)
+	if (!TimecodeChannel || (State != ETimecodeProviderSynchronizationState::Synchronized))
 	{
-		if (State == ETimecodeProviderSynchronizationState::Synchronized)
-		{
-			AJA::FTimecode NewTimecode;
-			if (TimecodeChannel->GetTimecode(NewTimecode))
-			{
-				//We expect the timecode to be processed in the library. What we receive will be a "linear" timecode even for frame rates greater than 30.
-				FTimecode Timecode = FAja::ConvertAJATimecode2Timecode(NewTimecode, FrameRate);
-				return FQualifiedFrameTime(Timecode, FrameRate);
-			}
-			else
-			{
-				const_cast<UAjaTimecodeProvider*>(this)->State = ETimecodeProviderSynchronizationState::Error;
-			}
-		}
+		return false;
 	}
 
-	return FQualifiedFrameTime(0, FrameRate);
+	AJA::FTimecode NewTimecode;
+
+	if (!TimecodeChannel->GetTimecode(NewTimecode))
+	{
+		State = ETimecodeProviderSynchronizationState::Error;
+		return false;
+	}
+
+	// We expect the timecode to be processed in the library. 
+	// What we receive will be a "linear" timecode even for frame rates greater than 30.
+
+	FFrameRate FrameRate = bUseDedicatedPin ? LTCConfiguration.LtcFrameRate : VideoConfiguration.MediaConfiguration.MediaMode.FrameRate;
+	FTimecode Timecode = FAja::ConvertAJATimecode2Timecode(NewTimecode, FrameRate);
+
+	OutFrameTime = FQualifiedFrameTime(Timecode, FrameRate);
+
+	return true;
 }
 
 bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
@@ -164,6 +166,7 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 
 	check(TimecodeChannel == nullptr);
 	TimecodeChannel = new AJA::AJATimecodeChannel();
+
 	if (!TimecodeChannel->Initialize(DeviceOptions, Options))
 	{
 		State = ETimecodeProviderSynchronizationState::Error;

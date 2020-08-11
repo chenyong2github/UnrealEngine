@@ -3,6 +3,37 @@
 #include "LinearTimecodeDecoder.h"
 #include "HAL/UnrealMemory.h"
 
+namespace FLinearTimecodeDecoderHelpers
+{
+	bool ValidateTimecode(const FDropTimecode& InTimecode)
+	{
+		if ((InTimecode.Timecode.Hours < 0) || (InTimecode.Timecode.Hours > 23))
+		{
+			return false;
+		}
+
+		if ((InTimecode.Timecode.Minutes < 0) || (InTimecode.Timecode.Minutes > 59))
+		{
+			return false;
+		}
+
+		if ((InTimecode.Timecode.Seconds < 0) || (InTimecode.Timecode.Seconds > 59))
+		{
+			return false;
+		}
+
+		if ((InTimecode.Timecode.Frames < 0) || (InTimecode.Timecode.Frames > 29))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	constexpr uint16 Preamble = 0x3ffd;
+	constexpr uint16 PreambleReversed = 0xbffc;
+}
+
 FLinearTimecodeDecoder::FLinearTimecodeDecoder()
 {
 	Reset();
@@ -153,27 +184,35 @@ void FLinearTimecodeDecoder::ShiftAndInsert(uint16* InBitStream, bool InBit) con
 	InBitStream[1] = (InBitStream[1] << 1) + ((InBitStream[2] & 0x8000) ? 1 : 0);
 	InBitStream[2] = (InBitStream[2] << 1) + ((InBitStream[3] & 0x8000) ? 1 : 0);
 	InBitStream[3] = (InBitStream[3] << 1) + ((InBitStream[4] & 0x8000) ? 1 : 0);
-	InBitStream[4] = (InBitStream[4] << 1) + (InBit ? 1 : 0);
+	InBitStream[4] = (InBitStream[4] << 1) + ((InBitStream[5] & 0x8000) ? 1 : 0);
+	InBitStream[5] = (InBitStream[5] << 1) + (InBit ? 1 : 0);
 }
 
 bool FLinearTimecodeDecoder::HasCompleteFrame(uint16* InBitStream) const
 {
-	return (InBitStream[4] == 0x3ffd) || (InBitStream[4] == 0xbffc);
+	return ((InBitStream[0] == 0x3ffd) && (InBitStream[5] == 0x3ffd)) 
+		|| ((InBitStream[0] == 0xbffc) && (InBitStream[5] == 0xbffc));
 }
 
 bool FLinearTimecodeDecoder::DecodeFrame(uint16* InBitStream, FDropTimecode& OutTimeCode)
 {
+	constexpr uint16 Preamble = FLinearTimecodeDecoderHelpers::Preamble;
+	constexpr uint16 PreambleReversed = FLinearTimecodeDecoderHelpers::PreambleReversed;
+
 	// forward stream
-	if (InBitStream[4] == 0x3ffd)
+	if (InBitStream[0] == Preamble && InBitStream[5] == Preamble)
 	{
-		DecodeBitStream(InBitStream, ForwardPattern, 1, OutTimeCode);
-		return true;
+		// Adding 1 to InBitStream since the decoder doesn't look at the preamble.
+		DecodeBitStream(InBitStream+1, ForwardPattern, 1, OutTimeCode);
+		return FLinearTimecodeDecoderHelpers::ValidateTimecode(OutTimeCode);
 	}
+
 	// backward stream
-	if (InBitStream[0] == 0xbffc)
+	if (InBitStream[0] == PreambleReversed && InBitStream[5] == PreambleReversed)
 	{
+		// Not adding +1 here since the backward pattern expects the reversed postamble to be there.
 		DecodeBitStream(InBitStream, BackwardPattern, 0, OutTimeCode);
-		return true;
+		return FLinearTimecodeDecoderHelpers::ValidateTimecode(OutTimeCode);
 	}
 
 	return false;
@@ -191,7 +230,10 @@ void FLinearTimecodeDecoder::Reset(void)
 	FrameMax = 0;
 	FrameRate = 0;
 
-	TimecodeBits[0] = TimecodeBits[1] = TimecodeBits[2] = TimecodeBits[3] = TimecodeBits[4] = 0;
+	FMemory::Memset(TimecodeBits, 0, sizeof(TimecodeBits));
+
+	MinSamplesPerEdge = 1;
+	MaxSamplesPerEdge = INT_MAX;
 }
 
 int32 FLinearTimecodeDecoder::AdjustCycles(int32 InClock) const
@@ -202,12 +244,21 @@ int32 FLinearTimecodeDecoder::AdjustCycles(int32 InClock) const
 bool FLinearTimecodeDecoder::Sample(float InSample, FDropTimecode& OutTimeCode)
 {
 	++Clock;
+
 	if ((!bCurrent && InSample > Center) || (bCurrent && InSample < Center))
 	{		
 		bCurrent = !bCurrent;
 
+		if ((Clock < MinSamplesPerEdge) || (Clock > MaxSamplesPerEdge))
+		{
+			Clock = 0;
+			return false;
+		}
+
 		if (bFlip)
 		{
+			// second half 1-bit
+
 			bFlip = false;
 			Cycles = AdjustCycles(Clock);
 			Clock = 0;
@@ -216,18 +267,24 @@ bool FLinearTimecodeDecoder::Sample(float InSample, FDropTimecode& OutTimeCode)
 		{
 			if (Clock < (3 * Cycles) / 4)
 			{
+				// first half 1-bit. 
+				// Don't call AdjustCycles or we'd measure a half bit instead of a full bit.
+
 				ShiftAndInsert(TimecodeBits, true);
 				bFlip = true;
 			}
 			else
 			{
+				// full 0-bit
+
 				ShiftAndInsert(TimecodeBits, false);
 				Cycles = AdjustCycles(Clock);
 				Clock = 0;
 			}
+
 			return DecodeFrame(TimecodeBits, OutTimeCode);
 		}
 	}
+
 	return false;
 }
-

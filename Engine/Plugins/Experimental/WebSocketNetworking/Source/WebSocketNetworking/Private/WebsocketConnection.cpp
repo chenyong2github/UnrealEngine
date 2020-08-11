@@ -126,12 +126,12 @@ FString UWebSocketConnection::LowLevelDescribe()
 		);
 }
 
-void UWebSocketConnection::SetWebSocket(FWebSocket* InWebSocket)
+void UWebSocketConnection::SetWebSocket(INetworkingWebSocket* InWebSocket)
 {
 	WebSocket = InWebSocket; 
 }
 
-FWebSocket* UWebSocketConnection::GetWebSocket()
+INetworkingWebSocket* UWebSocketConnection::GetWebSocket()
 {
 	return WebSocket;
 }
@@ -148,7 +148,7 @@ void UWebSocketConnection::FinishDestroy()
 	if (WebSocket)
 	{
 #if USE_LIBWEBSOCKET
-		WebSocket->Context = NULL; // UE-68340
+		static_cast<FWebSocket*>(WebSocket)->Context = NULL; // UE-68340;
 #endif
 		delete WebSocket; 
 		WebSocket = NULL;

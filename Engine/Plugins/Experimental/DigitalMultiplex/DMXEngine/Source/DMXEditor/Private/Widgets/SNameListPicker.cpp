@@ -6,8 +6,12 @@
 #include "DMXNameListItem.h"
 
 #include "EditorStyleSet.h"
+#include "SListViewSelectorDropdownMenu.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "SDMXProtocolNamePicker"
 
@@ -31,16 +35,57 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 		UpdateOptionsHandle = UpdateOptionsDelegate->Add(FSimpleDelegate::CreateSP(this, &SNameListPicker::UpdateOptionsSource));
 	}
 
-	ChildSlot
-	[
-		SAssignNew(PickerComboButton, SComboBox<TSharedPtr<FName>>)
-		.OptionsSource(&OptionsSource)
-		.OnGenerateWidget(this, &SNameListPicker::GenerateNameItemWidget)
+	MaxVisibleItems = InArgs._MaxVisibleItems;
+
+	// List of selectable names for the dropdown menu
+	SAssignNew(OptionsListView, SListView< TSharedPtr<FName> >)
+		.ListItemsSource(&FilteredOptions)
 		.OnSelectionChanged(this, &SNameListPicker::HandleSelectionChanged)
-		.OnComboBoxOpening(this, &SNameListPicker::UpdateSelectedOption)
-		.InitiallySelectedItem(GetSelectedItemFromCurrentValue())
+		.OnGenerateRow(this, &SNameListPicker::GenerateNameItemWidget)
+		.SelectionMode(ESelectionMode::Single);
+	UpdateFilteredOptions(TEXT(""));
+
+	// Search box. Visible only when the list has 16+ names
+	SAssignNew(SearchBox, SSearchBox)
+		.HintText(LOCTEXT("ValueSearchHint", "Search Values"))
+		.Visibility(this, &SNameListPicker::GetSearchBoxVisibility)
+		.OnTextChanged(this, &SNameListPicker::OnSearchBoxTextChanged)
+		.OnTextCommitted(this, &SNameListPicker::OnSearchBoxTextCommitted);
+
+	// Dropdown menu
+	SAssignNew(NamesListDropdown, SListViewSelectorDropdownMenu< TSharedPtr<FName> >, SearchBox, OptionsListView)
+	[
+		SNew(SBorder)
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.Padding(2)
+		[
+			SNew(SBox)
+			.WidthOverride(250)
+			[				
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.Padding(1.f)
+				.AutoHeight()
+				[
+					SearchBox.ToSharedRef()
+				]
+
+				+SVerticalBox::Slot()
+				.MaxHeight(200.0f)
+				[
+					OptionsListView.ToSharedRef()
+				]
+			]
+		]
+	];
+
+	// Combo button that summons the dropdown menu
+	SAssignNew(PickerComboButton, SComboButton)
+		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
+
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
@@ -61,6 +106,17 @@ void SNameListPicker::Construct(const FArguments& InArgs)
 				.Text(this, &SNameListPicker::GetCurrentNameLabel)
 			]
 		]
+		.MenuContent()
+		[
+			NamesListDropdown.ToSharedRef()
+		]
+		.IsFocusable(true)
+		.ContentPadding(2.0f)
+		.OnComboBoxOpened(this, &SNameListPicker::OnMenuOpened);
+
+	ChildSlot
+	[
+		PickerComboButton.ToSharedRef()
 	];
 }
 
@@ -93,27 +149,41 @@ SNameListPicker::~SNameListPicker()
 	}
 }
 
-TSharedRef<SWidget> SNameListPicker::GenerateNameItemWidget(TSharedPtr<FName> InItem)
+TSharedRef<ITableRow> SNameListPicker::GenerateNameItemWidget(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& OwnerTable) const
 {
+	TSharedPtr<STextBlock> RowTextBlock = nullptr;
+	TSharedRef< STableRow< TSharedPtr<FName> > > TableRow =
+		SNew(STableRow< TSharedPtr<FName> >, OwnerTable)
+		.ShowSelection(true)
+		.Content()
+		[
+			SAssignNew(RowTextBlock, STextBlock)
+		];
+
 	if (!InItem.IsValid())
 	{
 		UE_LOG_DMXEDITOR(Warning, TEXT("InItem for GenerateProtocolItemWidget was null!"));
-		return SNew(STextBlock)
-			.Text(LOCTEXT("NullComboBoxItemLabel", "Null Error"));
+		RowTextBlock->SetText(LOCTEXT("NullComboBoxItemLabel", "Null Error"));
+		return TableRow;
 	}
 
 	if (InItem->IsEqual(FDMXNameListItem::None))
 	{
-		return SNew(STextBlock)
-			.Text(NoneLabel);
+		RowTextBlock->SetText(NoneLabel);
+		return TableRow;
 	}
 
-	return SNew(STextBlock)
-		.Text(FText::FromName(*InItem));
+	RowTextBlock->SetText(FText::FromName(*InItem));
+	return TableRow;
 }
 
 void SNameListPicker::HandleSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo)
 {
+	if (SelectInfo == ESelectInfo::OnKeyPress || SelectInfo == ESelectInfo::OnNavigation)
+	{
+		return;
+	}
+
 	if (!Item.IsValid())
 	{
 		UE_LOG_DMXEDITOR(Error, TEXT("HandleProtocolChanged called with null Item pointer"));
@@ -129,10 +199,9 @@ void SNameListPicker::HandleSelectionChanged(const TSharedPtr<FName> Item, ESele
 		ValueAttribute = *Item;
 	}
 
-	TSharedPtr<SComboButton> PickerComboButtonPin = PickerComboButton.Pin();
-	if (PickerComboButtonPin.IsValid())
+	if (PickerComboButton.IsValid())
 	{
-		PickerComboButtonPin->SetIsOpen(false);
+		PickerComboButton->SetIsOpen(false);
 	}
 }
 
@@ -163,11 +232,24 @@ TSharedPtr<FName> SNameListPicker::GetSelectedItemFromCurrentValue() const
 	return InitiallySelected;
 }
 
-void SNameListPicker::UpdateSelectedOption()
+void SNameListPicker::OnMenuOpened()
 {
-	if (TSharedPtr<SComboBox<TSharedPtr<FName>>> PinnedButton = PickerComboButton.Pin())
+	if (GetSearchBoxVisibility() != EVisibility::Collapsed)
 	{
-		PinnedButton->SetSelectedItem(GetSelectedItemFromCurrentValue());
+		SearchBox->SetText(FText::GetEmpty());
+		UpdateFilteredOptions(TEXT(""));
+		FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly);
+	}
+	else
+	{
+		FSlateApplication::Get().SetKeyboardFocus(OptionsListView, EFocusCause::SetDirectly);
+	}
+
+	if (OptionsListView.IsValid())
+	{
+		const TSharedPtr<FName> SelectedName = GetSelectedItemFromCurrentValue();
+		OptionsListView->SetSelection(SelectedName, ESelectInfo::OnKeyPress);
+		OptionsListView->RequestScrollIntoView(SelectedName);
 	}
 }
 
@@ -184,6 +266,67 @@ EVisibility SNameListPicker::GetWarningVisibility() const
 	}
 
 	return EVisibility::Collapsed;
+}
+
+EVisibility SNameListPicker::GetSearchBoxVisibility() const
+{
+	return OptionsSource.Num() > MaxVisibleItems ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SNameListPicker::OnSearchBoxTextChanged(const FText& InSearchText)
+{
+	UpdateFilteredOptions(InSearchText.ToString());
+}
+
+void SNameListPicker::OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnEnter && FilteredOptions.Num() > 0)
+	{
+		OptionsListView->SetSelection(FilteredOptions[0], ESelectInfo::Direct);
+	}
+}
+
+void SNameListPicker::UpdateFilteredOptions(const FString& Filter)
+{
+	// Don't bother filtering if we have nothing to filter
+	if (OptionsSource.Num() == 0 || Filter.IsEmpty())
+	{
+		FilteredOptions = OptionsSource;
+	}
+	else
+	{
+		FilteredOptions.Reset();
+
+		const FString FilterTrimmed = Filter.TrimStartAndEnd();
+		TArray<FString> FilterTerms;
+		FilterTrimmed.ParseIntoArray(FilterTerms, TEXT(" "), /*bInCullEmpty=*/true);
+
+		for (TSharedPtr<FName>& NameOption : OptionsSource)
+		{
+			if (!NameOption.IsValid() || NameOption->IsEqual(FDMXNameListItem::None))
+			{
+				continue;
+			}
+
+			for (const FString& FilterTerm : FilterTerms)
+			{
+				if (NameOption->ToString().Contains(FilterTerm))
+				{
+					FilteredOptions.Add(NameOption);
+					break;
+				}
+			}
+		}
+
+		// select the first entry that passed the filter
+		if (FilteredOptions.Num() > 0)
+		{
+			OptionsListView->SetSelection(FilteredOptions[0], ESelectInfo::OnKeyPress);
+		}
+	}
+
+	// Ask the list to update its contents on next tick
+	OptionsListView->RequestListRefresh();
 }
 
 FText SNameListPicker::GetCurrentNameLabel() const

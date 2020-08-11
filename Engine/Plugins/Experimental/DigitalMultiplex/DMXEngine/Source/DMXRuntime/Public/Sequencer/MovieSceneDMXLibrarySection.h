@@ -81,17 +81,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
 	void AddFixturePatch(UDMXEntityFixturePatch* InPatch, int32 ActiveMode = -1);
 
-	/** Remove all Functions from a Fixture Patch */
+	/** Remove all Functions of a Fixture Patch */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
 	void RemoveFixturePatch(UDMXEntityFixturePatch* InPatch);
-	/** Remove all Functions from a Fixture Patch, searching it by name */
+
+	/** Remove all Functions of a Fixture Patch, searching it by name */
 	void RemoveFixturePatch(const FName& InPatchName);
 	
 	/** Check if this Section animates a Fixture Patch's Functions */
 	UFUNCTION(BlueprintPure, Category = "Movie Scene")
 	bool ContainsFixturePatch(UDMXEntityFixturePatch* InPatch) const;
 
-	/** Set the mode to be animated for a Fixture Patch */
+	/** Sets the active mode for a Fixture Patch */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
 	void SetFixturePatchActiveMode(UDMXEntityFixturePatch* InPatch, int32 InActiveMode);
 

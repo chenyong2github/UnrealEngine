@@ -39,6 +39,15 @@ public class DMXProtocol : ModuleRules
 				new string[] {
 					"Settings",
 				});
+
+			PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"SlateCore",
+				"Slate",
+				"InputCore"
+			}
+		);
 		}
 
 	}

@@ -5,6 +5,8 @@
 #include "Library/DMXEntity.h"
 #include "DMXEntityController.generated.h"
 
+struct FDMXBuffer;
+
 UCLASS(meta = (DisplayName = "DMX Controller"))
 class DMXRUNTIME_API UDMXEntityController
 	: public UDMXEntityUniverseManaged
@@ -16,9 +18,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DMX") // Hidden. For now it has just a single value. More values will be added in the future.
 	EDMXCommunicationTypes CommunicationMode;
 	
-	UPROPERTY(EditAnywhere, Category = "DMX")
-	FString UnicastIP;
-
 	/**  First Universe ID on this Controller's range. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Universe Start", DisplayPriority = 1, ClampMin = 1))
 	int32 UniverseLocalStart;
@@ -56,16 +55,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Universe Properties", meta = (DisplayName = "Remote Universe Range End", DisplayPriority = 22))
 	int32 UniverseRemoteEnd;
 
+	UPROPERTY(EditAnywhere, Category = "DMX")
+	TArray<FString> AdditionalUnicastIPs;
+
 public:
 	UDMXEntityController()
-		: UnicastIP(TEXT("0.0.0.0"))
-		, UniverseLocalStart(1)
+		: UniverseLocalStart(1)
 		, UniverseLocalNum(1)
+		, UniverseLocalEnd(1)
+		, RemoteOffset(0)
+		, UniverseRemoteStart(1)
+		, UniverseRemoteEnd(1)
 	{}
 
 	/** Returns the currently assigned protocol for this controller */
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	FName GetProtocol() const { return DeviceProtocol.Name; }
+
+	FDMXBufferPtr GetInputDMXBuffer(int32 LocalUniverseID) const;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -19,6 +19,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"EditorStyle",
 					"Engine",
+                    "GeometryCache",
+                    "GeometryCacheUSD",
 					"MaterialEditor",
 					"MeshDescription",
 					"MeshUtilities",

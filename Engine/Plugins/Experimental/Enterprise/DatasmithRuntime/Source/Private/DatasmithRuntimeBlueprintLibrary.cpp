@@ -16,6 +16,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
+#include "Widgets/SWindow.h"
 
 bool UDatasmithRuntimeLibrary::LoadDatasmithScene(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& FilePath)
 {

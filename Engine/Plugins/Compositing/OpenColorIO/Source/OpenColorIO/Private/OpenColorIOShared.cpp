@@ -356,25 +356,6 @@ void FOpenColorIOTransformResource::FinishCompilation()
 #endif
 }
 
-OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> FOpenColorIOTransformResource::GetShader() const
-{
-	check(!GIsThreadedRendering || !IsInGameThread());
-	if (!GIsEditor || RenderingThreadShaderMap)
-	{
-		return RenderingThreadShaderMap->GetShader<FOpenColorIOPixelShader>();
-	}
-	return TShaderRef<FOpenColorIOPixelShader>();
-};
-
-OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> FOpenColorIOTransformResource::GetShaderGameThread() const
-{
-	if (GameThreadShaderMap)
-	{
-		return GameThreadShaderMap->GetShader<FOpenColorIOPixelShader>();
-	}
-
-	return TShaderRef<FOpenColorIOPixelShader>();
-};
 
 void FOpenColorIOTransformResource::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds)
 {

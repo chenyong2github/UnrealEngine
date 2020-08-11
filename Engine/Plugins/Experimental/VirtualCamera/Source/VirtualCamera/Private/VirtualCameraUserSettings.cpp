@@ -67,3 +67,14 @@ void UVirtualCameraUserSettings::SetShouldDisplayFilmLeader(const bool bInDispla
 	bDisplayFilmLeader = bInDisplayFilmLeader;
 	SaveConfig();
 }
+
+bool UVirtualCameraUserSettings::GetTeleportOnStart()
+{
+    return bTeleportOnStart;
+}
+
+void UVirtualCameraUserSettings::SetTeleportOnStart(const bool bInTeleportOnStart)
+{
+	bTeleportOnStart = bInTeleportOnStart;
+	SaveConfig();
+}

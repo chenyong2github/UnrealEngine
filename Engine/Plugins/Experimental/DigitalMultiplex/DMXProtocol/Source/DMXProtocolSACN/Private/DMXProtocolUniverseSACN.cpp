@@ -13,6 +13,13 @@
 #include "SocketSubsystem.h"
 
 #include "DMXProtocolSACNUtils.h"
+#include "DMXStats.h"
+
+// Stats
+DECLARE_MEMORY_STAT(TEXT("SACN Input And Output Buffer Memory"), STAT_SACNInputAndOutputBufferMemory, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Universes Count"), STAT_SACNUniversesCount, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("SACN Packages Recieved"), STAT_SACNPackagesRecieved, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("SACN Packages Recieved Total"), STAT_SACNPackagesRecievedTotal, STATGROUP_DMX);
 
 const double FDMXProtocolUniverseSACN::TimeWithoutInputBufferRequest = 5.0;
 
@@ -35,8 +42,12 @@ FDMXProtocolUniverseSACN::FDMXProtocolUniverseSACN(IDMXProtocolPtr InDMXProtocol
 	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is not valid"));
 
 	// Allocate new buffers
-	OutputDMXBuffer = MakeShared<FDMXBuffer>();
-	InputDMXBuffer = MakeShared<FDMXBuffer>();
+	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+
+	// Stats
+	INC_MEMORY_STAT_BY(STAT_SACNInputAndOutputBufferMemory, DMX_UNIVERSE_SIZE * 2);
+	INC_DWORD_STAT(STAT_SACNUniversesCount);
 
 	// Set default IP address
 	InterfaceIPAddress = GetDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
@@ -63,12 +74,7 @@ IDMXProtocolPtr FDMXProtocolUniverseSACN::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
-{
-	return OutputDMXBuffer;
-}
-
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
 {
 	TimeWithoutInputBufferRequestStart = FPlatformTime::Seconds();
 	TimeWithoutInputBufferRequestEnd = TimeWithoutInputBufferRequestStart + TimeWithoutInputBufferRequest;
@@ -77,7 +83,22 @@ TSharedPtr<FDMXBuffer> FDMXProtocolUniverseSACN::GetInputDMXBuffer() const
 	return InputDMXBuffer;
 }
 
-bool FDMXProtocolUniverseSACN::SetDMXFragment(const IDMXFragmentMap & DMXFragment)
+FDMXBufferPtr FDMXProtocolUniverseSACN::GetOutputDMXBuffer() const
+{
+	return OutputDMXBuffer;
+}
+
+void FDMXProtocolUniverseSACN::ZeroInputDMXBuffer()
+{
+	InputDMXBuffer->ZeroDMXBuffer();
+}
+
+void FDMXProtocolUniverseSACN::ZeroOutputDMXBuffer()
+{
+	OutputDMXBuffer->ZeroDMXBuffer();
+}
+
+bool FDMXProtocolUniverseSACN::SetDMXFragment(const IDMXFragmentMap& DMXFragment)
 {
 	return OutputDMXBuffer->SetDMXFragment(DMXFragment);
 }
@@ -102,10 +123,17 @@ void FDMXProtocolUniverseSACN::UpdateSettings(const FJsonObject& InSettings)
 	Settings = MakeShared<FJsonObject>(InSettings);
 	checkf(Settings->HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol UniverseID is not valid"));
 	checkf(Settings->HasField(DMXJsonFieldNames::DMXEthernetPort), TEXT("DMXProtocol EthernPort is not valid"));
-	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddress), TEXT("DMXProtocol IPAddress  is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddresses), TEXT("DMXProtocol IPAddresses is not valid"));
 	UniverseID = Settings->GetNumberField(DMXJsonFieldNames::DMXUniverseID);
 	EthernetPort = Settings->GetNumberField(DMXJsonFieldNames::DMXEthernetPort);
-	IpAddress = Settings->GetNumberField(DMXJsonFieldNames::DMXIpAddress);
+	IpAddresses.Empty();
+	for (TSharedPtr<FJsonValue> JsonIpAddress : Settings->GetArrayField(DMXJsonFieldNames::DMXIpAddresses))
+	{
+		uint64 IpAddress = 0;
+		const bool bValid = JsonIpAddress->TryGetNumber(IpAddress);
+		checkf(bValid, TEXT("DMXProtocol IPAddresses content is not valid"));
+		IpAddresses.Add(IpAddress);
+	}
 }
 
 bool FDMXProtocolUniverseSACN::IsSupportRDM() const
@@ -196,25 +224,30 @@ bool FDMXProtocolUniverseSACN::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 	// Copy the data from incoming socket buffer to SACN universe
 	SetLayerPackets(Buffer);
 
-	// Access the buffer thread-safety
+	// Access the buffer thread-safe
 	InputDMXBuffer->AccessDMXData([this, &bCopySuccessful](TArray<uint8>& InData)
+	{
+		// Make sure we copy same amount of data
+		if (InData.Num() == ACN_DMX_SIZE)
 		{
-			// Make sure we copy same amount of data
-			if (InData.Num() == ACN_DMX_SIZE)
-			{
-				InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
-				GetProtocol()->GetOnUniverseInputUpdate().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, InData);
-				bCopySuccessful = true;
-			}
-			else
-			{
-				UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
-					, NetworkErrorMessagePrefix
-					, ACN_DMX_SIZE
-					, InData.Num());
-				bCopySuccessful = false;
-			}
-		});
+			InputDMXBuffer->SetDMXBuffer(IncomingDMXDMPLayer.DMX, ACN_DMX_SIZE);
+			GetProtocol()->GetOnUniverseInputBufferUpdated().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, InData);
+			bCopySuccessful = true;
+		}
+		else
+		{
+			UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong! Expected: %d; Found: %d")
+				, NetworkErrorMessagePrefix
+				, ACN_DMX_SIZE
+				, InData.Num());
+			bCopySuccessful = false;
+		}
+	});
+
+	if (bCopySuccessful)
+	{
+		GetProtocol()->GetOnPacketReceived().Broadcast(GetProtocol()->GetProtocolName(), UniverseID, *Buffer);
+	}
 
 	return bCopySuccessful;
 }
@@ -236,9 +269,12 @@ bool FDMXProtocolUniverseSACN::ReceiveDMXBuffer()
 			if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ListenerInternetAddr))
 
 			{
+				// Stats
+				SCOPE_CYCLE_COUNTER(STAT_SACNPackagesRecieved);
+				INC_DWORD_STAT(STAT_SACNPackagesRecievedTotal);
+
 				Reader->RemoveAt(Read, Reader->Num() - Read, false);
 				return OnDataReceived(Reader);
-
 			}
 			else
 			{

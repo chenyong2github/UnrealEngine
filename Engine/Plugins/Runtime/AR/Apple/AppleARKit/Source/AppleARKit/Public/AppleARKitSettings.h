@@ -42,7 +42,8 @@ class APPLEARKIT_API UAppleARKitSettings :
 
 public:
 	UAppleARKitSettings()
-		: LivelinkTrackingType(ELivelinkTrackingType::None)
+		: bRequireARKitSupport(true)
+        , LivelinkTrackingType(ELivelinkTrackingType::None)
 		, bFaceTrackingLogData(false)
 		, bFaceTrackingWriteEachFrame(false)
 		, FaceTrackingFileWriterType(EARFaceTrackingFileWriterType::None)
@@ -88,6 +89,9 @@ protected:
 	//~ FSelfRegisteringExec
 
 	/** Where to write the curve files and image files */
+    UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings", meta=(ToolTip="When True the project can only be installed on devices that support ARKit."))
+    bool bRequireARKitSupport;
+    
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
 	FString FaceTrackingLogDir;
 

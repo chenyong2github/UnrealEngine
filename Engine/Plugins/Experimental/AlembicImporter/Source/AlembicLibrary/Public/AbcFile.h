@@ -61,7 +61,7 @@ public:
 	void ProcessFrames(TFunctionRef<void(int32, FAbcFile*)> InCallback, const EFrameReadFlags InFlags);
 	
 	/** Returns ABC specific frame and timing information */
-	const int32 GetMinFrameIndex() const;
+	const int32 GetMinFrameIndex() const; // index of the first frame with data regardless of the imported range
 	const int32 GetMaxFrameIndex() const;
 	const float GetImportTimeOffset() const;
 	const float GetImportLength() const;
@@ -69,6 +69,10 @@ public:
 	const int32 GetFramerate() const;
 	const FBoxSphereBounds& GetArchiveBounds() const;
 	const bool ContainsHeterogeneousMeshes() const;
+
+	/** Returns start/end frame index of imported playback range */
+	const int32 GetStartFrameIndex() const;
+	const int32 GetEndFrameIndex() const;
 
 	/** Returns user specified import settings */
 	const UAbcImportSettings* GetImportSettings() const;	

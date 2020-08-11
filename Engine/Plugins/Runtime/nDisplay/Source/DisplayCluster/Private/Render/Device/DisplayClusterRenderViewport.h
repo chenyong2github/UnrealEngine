@@ -14,22 +14,25 @@ class FDisplayClusterRenderViewport
 {
 public:
 	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId)
-		: FDisplayClusterRenderViewport(ViewportId, ViewportArea, ProjectionPolicy, ContextsAmount, InCameraId, 1.f, false)
+		: FDisplayClusterRenderViewport(ViewportId, ViewportArea, ProjectionPolicy, ContextsAmount, InCameraId, 1.f, true, -1, false, false)
 	{
 	}
 
-	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId, float InBufferRatio, bool IsRTT)
+	FDisplayClusterRenderViewport(const FString& ViewportId, const FIntRect& ViewportArea, TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy, uint8 ContextsAmount, const FString& InCameraId, float InBufferRatio, bool InbAllowCrossGPUTransfer, int InGPUIndex, bool InbIsRTT, bool InbIsShared)
 		: Id(ViewportId)
 		, CameraId(InCameraId)
 		, Area(ViewportArea)
 		, Policy(ProjectionPolicy)
-		, bRTT(IsRTT)
+		, bRTT(InbIsRTT)
+		, bAllowCrossGPUTransfer(InbAllowCrossGPUTransfer)
 	{
 		check(ProjectionPolicy.IsValid());
 		
 		Contexts.AddDefaulted(ContextsAmount);
 		
 		SetBufferRatio(InBufferRatio);
+		SetGPUIndex(InGPUIndex);
+		SetShared(InbIsShared);
 	}
 
 	virtual ~FDisplayClusterRenderViewport()
@@ -60,13 +63,26 @@ public:
 	bool IsRTT() const
 	{ return bRTT; }
 
+	bool IsCrossGPUTransferAllowed() const
+	{ return bAllowCrossGPUTransfer; }
+
 	float GetBufferRatio() const
 	{ return BufferRatio; }
 
 	void SetBufferRatio(float Ratio)
-	{
-		BufferRatio = FMath::Clamp(Ratio, 0.05f, 1.f);
-	}
+	{ BufferRatio = Ratio; }
+
+	int GetGPUIndex() const
+	{ return GPUIndex; }
+
+	void SetGPUIndex(int InGPUIndex)
+	{ GPUIndex = InGPUIndex; }
+
+	bool IsShared() const
+	{ return bShared; }
+
+	void SetShared(bool IsShared)
+	{ bShared = IsShared; }
 
 	FDisplayClusterRenderViewContext& GetContext(uint8 ContextNum)
 	{
@@ -95,4 +111,10 @@ private:
 	bool bRTT;
 	// Viewport's buffer ratio
 	float BufferRatio;
+	// override GPUIndex
+	int GPUIndex;
+	// forward this UE4 Core flag for view
+	bool bAllowCrossGPUTransfer;
+	// allow viewport share to ext app
+	bool bShared;
 };

@@ -4,6 +4,7 @@
 
 #include "DMXProtocolCommon.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "DMXProtocolMacros.h"
 
 #include "Dom/JsonObject.h"
 
@@ -37,8 +38,7 @@ public:
 		else
 		{
 			FJsonObject UniverseSettings;
-			UniverseSettings.SetNumberField(TEXT("UniverseID"), InUniverseID);
-			UniverseSettings.SetNumberField(TEXT("PortID"), 0); // TODO set PortID
+			DMXProtocol->GetDefaultUniverseSettings(InUniverseID, UniverseSettings);
 
 			TUniversesPtr Universe = StaticCastSharedPtr<TUniverse>(DMXProtocol->AddUniverse(UniverseSettings));
 

@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "OpenColorIOColorSpace.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -28,6 +29,7 @@ class FMoviePipelineOutputMerger;
 class FRenderTarget;
 class UMoviePipeline;
 struct FMoviePipelineFormatArgs;
+
 namespace Audio { class FMixerSubmix; }
 
 /**
@@ -749,6 +751,8 @@ public:
 	MoviePipeline::FTileWeight1D WeightFunctionY;
 
 	MoviePipeline::FMoviePipelineFrameInfo FrameInfo;
+
+	FOpenColorIODisplayConfiguration* OCIOConfiguration;
 };
 
 namespace MoviePipeline

@@ -3,6 +3,7 @@
 #include "USDStageActor.h"
 
 #include "USDConversionUtils.h"
+#include "USDErrorUtils.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomXformableTranslator.h"
 #include "USDListener.h"
@@ -14,6 +15,8 @@
 #include "USDTypesConversion.h"
 #include "UnrealUSDWrapper.h"
 
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdGeomXformable.h"
 #include "UsdWrappers/SdfLayer.h"
 
 #include "Async/ParallelFor.h"
@@ -32,16 +35,19 @@
 #include "MeshDescription.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "ScopedTransaction.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Tracks/MovieScene3DTransformTrack.h"
+
 #if WITH_EDITOR
 #include "LevelEditor.h"
 #endif // WITH_EDITOR
 
-#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "USDStageActor"
@@ -54,11 +60,22 @@ struct FUsdStageActorImpl
 {
 	static TSharedRef< FUsdSchemaTranslationContext > CreateUsdSchemaTranslationContext( AUsdStageActor* StageActor, const FString& PrimPath )
 	{
-		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = MakeShared< FUsdSchemaTranslationContext >( StageActor->PrimPathsToAssets, StageActor->AssetsCache );
+		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = MakeShared< FUsdSchemaTranslationContext >(
+			StageActor->GetUsdStage(),
+			StageActor->PrimPathsToAssets,
+			StageActor->AssetsCache,
+			&StageActor->BlendShapesByPath);
+
 		TranslationContext->Level = StageActor->GetLevel();
 		TranslationContext->ObjectFlags = DefaultObjFlag;
 		TranslationContext->Time = StageActor->GetTime();
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
+
+		// Its more convenient to toggle between variants using the USDStage window, as opposed to parsing LODs
+		TranslationContext->bAllowInterpretingLODs = false;
+
+		// No point in baking these UAnimSequence assets if we're going to be sampling the stage in real time anyway
+		TranslationContext->bAllowParsingSkeletalAnimations = false;
 
 		UE::FSdfPath UsdPrimPath( *PrimPath );
 		UUsdPrimTwin* ParentUsdPrimTwin = StageActor->RootUsdTwin->Find( UsdPrimPath.GetParentPath().GetString() );
@@ -83,9 +100,6 @@ AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
 	, PurposesToLoad((int32) EUsdPurpose::Proxy)
 	, Time( 0.0f )
-	, StartTimeCode( 0.f )
-	, EndTimeCode( 100.f )
-	, TimeCodesPerSecond( 24.f )
 	, LevelSequenceHelper(this)
 {
 	SceneComponent = CreateDefaultSubobject< USceneComponent >( TEXT("SceneComponent0") );
@@ -98,6 +112,22 @@ AUsdStageActor::AUsdStageActor()
 
 	if ( HasAutorithyOverStage() )
 	{
+		// Update the supported filetypes in our RootPath property
+		for ( TFieldIterator<FProperty> PropertyIterator( AUsdStageActor::StaticClass() ); PropertyIterator; ++PropertyIterator )
+		{
+			FProperty* Property = *PropertyIterator;
+			if ( Property && Property->GetFName() == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RootLayer ) )
+			{
+				TArray< FString > SupportedExtensions = UnrealUSDWrapper::GetAllSupportedFileFormats();
+				if ( SupportedExtensions.Num() > 0 )
+				{
+					FString JoinedExtensions = FString::Join( SupportedExtensions, TEXT( "; *." ) ); // Combine "usd" and "usda" into "usd; *.usda"
+					Property->SetMetaData( TEXT("FilePathFilter"), FString::Printf( TEXT( "usd files (*.%s)|*.%s" ), *JoinedExtensions, *JoinedExtensions ) );
+				}
+				break;
+			}
+		}
+
 #if WITH_EDITOR
 		// We can't use PostLoad to trigger LoadUsdStage when first loading a saved level because LoadUsdStage may trigger
 		// Rename() calls, and that is not allowed.
@@ -161,13 +191,18 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 	FScopedSlowTask RefreshStageTask( SortedPrimsChangedList.Num(), LOCTEXT( "RefreshingUSDStage", "Refreshing USD Stage" ) );
 	RefreshStageTask.MakeDialog();
 
+	FScopedUsdMessageLog ScopedMessageLog;
+
 	TSet< FString > UpdatedAssets;
+	TSet< FString > ResyncedAssets;
 	TSet< FString > UpdatedComponents;
 	TSet< FString > ResyncedComponents;
 
 	for ( const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList )
 	{
 		RefreshStageTask.EnterProgressFrame();
+
+		const bool bIsResync = PrimChangedInfo.Value;
 
 		auto UnwindToNonCollapsedPrim = [ &PrimChangedInfo, this ]( FUsdSchemaTranslator::ECollapsingType CollapsingType ) -> UE::FSdfPath
 		{
@@ -228,21 +263,25 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 		{
 			UE::FSdfPath AssetsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Assets );
 
-			if ( !IsPathAlreadyProcessed( UpdatedAssets, AssetsPrimPath.GetString() ) )
+			TSet< FString >& RefreshedAssets = bIsResync ? ResyncedAssets : UpdatedAssets;
+
+			if ( !IsPathAlreadyProcessed( RefreshedAssets, AssetsPrimPath.GetString() ) )
 			{
 				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, AssetsPrimPath.GetString() );
 
-				const bool bIsResync = PrimChangedInfo.Value;
 				if ( bIsResync )
 				{
 					LoadAssets( *TranslationContext, GetUsdStage().GetPrimAtPath( AssetsPrimPath ) );
+
+					// Resyncing also includes "updating" the prim
+					UpdatedAssets.Add( AssetsPrimPath.GetString() );
 				}
 				else
 				{
 					LoadAsset( *TranslationContext, GetUsdStage().GetPrimAtPath( AssetsPrimPath ) );
 				}
 
-				UpdatedAssets.Add( AssetsPrimPath.GetString() );
+				RefreshedAssets.Add( AssetsPrimPath.GetString() );
 			}
 		}
 
@@ -250,18 +289,17 @@ void AUsdStageActor::OnPrimsChanged( const TMap< FString, bool >& PrimsChangedLi
 		{
 			UE::FSdfPath ComponentsPrimPath = UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType::Components );
 
-			const bool bResync = PrimChangedInfo.Value;
-			TSet< FString >& RefreshedComponents = bResync ? ResyncedComponents : UpdatedComponents;
+			TSet< FString >& RefreshedComponents = bIsResync ? ResyncedComponents : UpdatedComponents;
 
 			if ( !IsPathAlreadyProcessed( RefreshedComponents, ComponentsPrimPath.GetString() ) )
 			{
 				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, ComponentsPrimPath.GetString() );
-				UpdatePrim( ComponentsPrimPath, PrimChangedInfo.Value, *TranslationContext );
+				UpdatePrim( ComponentsPrimPath, bIsResync, *TranslationContext );
 				TranslationContext->CompleteTasks();
 
 				RefreshedComponents.Add( ComponentsPrimPath.GetString() );
 
-				if ( bResync )
+				if ( bIsResync )
 				{
 					// Consider that the path has been updated in the case of a resync
 					UpdatedComponents.Add( ComponentsPrimPath.GetString() );
@@ -309,13 +347,11 @@ USDSTAGE_API void AUsdStageActor::Reset()
 
 	Clear();
 	AssetsCache.Reset();
+	BlendShapesByPath.Reset();
 
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
 	LevelSequence = nullptr;
-	StartTimeCode = 0.0f;
-	EndTimeCode = 100.0f;
-	TimeCodesPerSecond = 24.0f;
-	Time = 0;
+	Time = 0.f;
 
 	RootUsdTwin->Clear();
 	RootUsdTwin->PrimPath = TEXT("/");
@@ -358,16 +394,6 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPa
 			{
 				this->OnUsdPrimTwinDestroyed( UsdPrimTwin );
 			} );
-	}
-
-	// Update the prim animated status
-	if ( UsdUtils::IsAnimated( Prim ) )
-	{
-		PrimsToAnimate.Add( PrimPath );
-	}
-	else
-	{
-		PrimsToAnimate.Remove( PrimPath );
 	}
 
 	return UsdPrimTwin;
@@ -440,6 +466,24 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 		ObjectsToWatch.Add( UsdPrimTwin->SceneComponent.Get(), UsdPrimTwin->PrimPath );
 	}
 
+	// Update the prim animated status
+	if ( UsdUtils::IsAnimated( Prim ) )
+	{
+		if ( !PrimsToAnimate.Contains( UsdPrimTwin->PrimPath ) )
+		{
+			PrimsToAnimate.Add( UsdPrimTwin->PrimPath );
+			LevelSequenceHelper.AddPrim( *UsdPrimTwin );
+		}
+	}
+	else
+	{
+		if ( PrimsToAnimate.Contains( UsdPrimTwin->PrimPath ) )
+		{
+			PrimsToAnimate.Remove( UsdPrimTwin->PrimPath );
+			LevelSequenceHelper.RemovePrim( *UsdPrimTwin );
+		}
+	}
+
 	return UsdPrimTwin;
 }
 
@@ -507,21 +551,12 @@ void AUsdStageActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		UsdStage = UE::FUsdStage();
 
 		AssetsCache.Reset(); // We've changed USD file, clear the cache
+		BlendShapesByPath.Reset();
 		LoadUsdStage();
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, Time ) )
 	{
 		Refresh();
-	}
-	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, StartTimeCode ) || PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, EndTimeCode ) )
-	{
-		if ( UsdStage )
-		{
-			UsdStage.SetStartTimeCode( StartTimeCode );
-			UsdStage.SetEndTimeCode( EndTimeCode );
-
-			LevelSequenceHelper.UpdateLevelSequence( UsdStage );
-		}
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) ||
 		      PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
@@ -548,9 +583,14 @@ void AUsdStageActor::OpenUsdStage()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE( AUsdStageActor::OpenUsdStage );
 
-	FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead( *RootLayer.FilePath );
-	FilePath = FPaths::GetPath(FilePath) + TEXT("/");
-	FString CleanFilename = FPaths::GetCleanFilename( RootLayer.FilePath );
+	FUsdLevelSequenceHelper::FBlockMonitoring BlockSequenceMonitoring( LevelSequenceHelper );
+
+	FScopedTransaction Transaction(FText::Format(
+		LOCTEXT("OpenStageTransaction", "Open USD stage '{0}'"),
+		FText::FromString( RootLayer.FilePath )
+	));
+
+	UsdUtils::StartMonitoringErrors();
 
 	if ( FPaths::FileExists( RootLayer.FilePath ) )
 	{
@@ -565,6 +605,8 @@ void AUsdStageActor::OpenUsdStage()
 
 		OnStageChanged.Broadcast();
 	}
+
+	UsdUtils::ShowErrorsAndStopMonitoring( FText::Format( LOCTEXT("USDOpenError", "Encountered some errors opening USD file at path '{0}!\nCheck the Output Log for details."), FText::FromString( RootLayer.FilePath ) ) );
 }
 
 #if WITH_EDITOR
@@ -613,6 +655,8 @@ void AUsdStageActor::LoadUsdStage()
 	RootUsdTwin->Clear();
 	RootUsdTwin->PrimPath = TEXT("/");
 
+	FScopedUsdMessageLog ScopedMessageLog;
+
 	OpenUsdStage();
 	if ( !UsdStage )
 	{
@@ -632,7 +676,10 @@ void AUsdStageActor::LoadUsdStage()
 
 	TranslationContext->CompleteTasks();
 
-	SetTime( StartTimeCode );
+	if ( UsdStage.GetRootLayer() )
+	{
+		SetTime( UsdStage.GetRootLayer().GetStartTimeCode() );
+	}
 
 	GEditor->BroadcastLevelActorListChanged();
 
@@ -661,16 +708,22 @@ void AUsdStageActor::ReloadAnimations()
 
 	if ( HasAutorithyOverStage() )
 	{
+		bool bLevelSequenceEditorWasOpened = false;
 		if (LevelSequence)
 		{
 			// The sequencer won't update on its own, so let's at least force it closed
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence);
+			bLevelSequenceEditorWasOpened = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(LevelSequence) > 0;
 		}
 
 		LevelSequence = nullptr;
-		SubLayerLevelSequencesByIdentifier.Reset();
+		LevelSequencesByIdentifier.Reset();
 
 		LevelSequenceHelper.InitLevelSequence(UsdStage);
+
+		if (LevelSequence && bLevelSequenceEditorWasOpened)
+		{
+			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(LevelSequence);
+		}
 	}
 }
 
@@ -720,6 +773,7 @@ void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
 	// Setup for the very first frame when we duplicate into PIE, or else we will just show a T-pose
 	if ( bDuplicateForPIE )
 	{
+		OpenUsdStage();
 		AnimatePrims();
 	}
 }
@@ -743,12 +797,13 @@ void AUsdStageActor::Serialize(FArchive& Ar)
 	{
 		// We want to duplicate these properties for PIE only, as they are required to animate and listen to notices
 		Ar << LevelSequence;
-		Ar << SubLayerLevelSequencesByIdentifier;
+		Ar << LevelSequencesByIdentifier;
 		Ar << RootUsdTwin;
 		Ar << PrimsToAnimate;
 		Ar << ObjectsToWatch;
 		Ar << AssetsCache;
 		Ar << PrimPathsToAssets;
+		Ar << BlendShapesByPath;
 	}
 }
 
@@ -869,6 +924,8 @@ void AUsdStageActor::OnUsdPrimTwinDestroyed( const UUsdPrimTwin& UsdPrimTwin )
 
 	UObject* WatchedObject = UsdPrimTwin.SpawnedActor.IsValid() ? (UObject*)UsdPrimTwin.SpawnedActor.Get() : (UObject*)UsdPrimTwin.SceneComponent.Get();
 	ObjectsToWatch.Remove( WatchedObject );
+
+	LevelSequenceHelper.RemovePrim( UsdPrimTwin );
 }
 
 void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
@@ -920,13 +977,11 @@ void AUsdStageActor::OnPrimObjectPropertyChanged( UObject* ObjectBeingModified, 
 				UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) );
 
 #if USE_USD_SDK
+				UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim );
+
 				if ( UMeshComponent* MeshComponent = Cast< UMeshComponent >( PrimSceneComponent ) )
 				{
 					UnrealToUsd::ConvertMeshComponent( UsdStage, MeshComponent, UsdPrim );
-				}
-				else
-				{
-					UnrealToUsd::ConvertSceneComponent( UsdStage, PrimSceneComponent, UsdPrim );
 				}
 #endif // #if USE_USD_SDK
 

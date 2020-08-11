@@ -59,6 +59,14 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bTickAnimationOnSkeletalMeshInit;
 
+	/** List of custom attribute names to import directly on bones */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	TArray<FString> BoneCustomAttributesNames;
+
+	/** List of bone names whose custom attributes are directly importer on the bone. */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	TArray<FString> BoneNamesWithCustomAttributes;
+
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }
 

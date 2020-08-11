@@ -19,6 +19,7 @@ class IDetailNodeTree;
 class FComplexPropertyNode;
 class FDetailTreeNode;
 class IPropertyGenerationUtilities;
+class FStructOnScope;
 
 struct FPropertyNodeMap
 {
@@ -80,6 +81,8 @@ public:
 
 	/** IPropertyRowGenerator interface */
 	virtual void SetObjects(const TArray<UObject*>& InObjects) override;
+	virtual void SetStructure(const TSharedPtr<FStructOnScope>& InStruct) override;
+	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override { return SelectedObjects; }
 	virtual const TArray<TSharedRef<IDetailTreeNode>>& GetRootTreeNodes() const override;
 	virtual TSharedPtr<IDetailTreeNode> FindTreeNode(TSharedPtr<IPropertyHandle> PropertyHandle) const override;
 	virtual TArray<TSharedPtr<IDetailTreeNode>> FindTreeNodes(TArray<TSharedPtr<IPropertyHandle>> PropertyHandles) const override;
@@ -102,11 +105,10 @@ public:
 	/** IPropertyUtilities interface */
 	virtual class FNotifyHook* GetNotifyHook() const { return Args.NotifyHook; }
 	virtual void EnqueueDeferredAction(FSimpleDelegate DeferredAction);	
-	virtual bool IsPropertyEditingEnabled() const { return true; }
+	virtual bool IsPropertyEditingEnabled() const;
 	virtual void ForceRefresh();
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const;
 	virtual bool HasClassDefaultObject() const { return bViewingClassDefaultObject; }
-	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const { return SelectedObjects;  }
 
 	const FCustomPropertyTypeLayoutMap& GetInstancedPropertyTypeLayoutMap() const;
 	void UpdateDetailRows();

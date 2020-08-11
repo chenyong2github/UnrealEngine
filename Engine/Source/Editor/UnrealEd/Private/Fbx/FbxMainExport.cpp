@@ -19,6 +19,8 @@
 #include "Components/LightComponent.h"
 #include "Model.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "Animation/AnimTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor/EditorPerProjectUserSettings.h"
@@ -402,14 +404,17 @@ void FFbxExporter::CloseDocument()
 	bSceneGlobalTimeLineSet = false;
 }
 
-void FFbxExporter::CreateAnimatableUserProperty(FbxNode* Node, float Value, const char* Name, const char* Label)
+template <typename T> 
+void FFbxExporter::CreateAnimatableUserProperty(FbxNode* Node, T Value, const char* Name, const char* Label, FbxDataType DataType)
 {
 	// Add one user property for recording the animation
-	FbxProperty IntensityProp = FbxProperty::Create(Node, FbxFloatDT, Name, Label);
-	IntensityProp.Set(Value);
-	IntensityProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
-	IntensityProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
+	FbxProperty UserProp = FbxProperty::Create(Node, DataType, Name, Label);
+	UserProp.Set(Value);
+	UserProp.ModifyFlag(FbxPropertyFlags::eUserDefined, true);
+	UserProp.ModifyFlag(FbxPropertyFlags::eAnimatable, true);
 }
+
+
 
 /**
 *	Sorts actors such that parent actors will appear before children actors in the list
@@ -1869,11 +1874,6 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 			UMovieScene3DTransformTrack* TransformTrack = (UMovieScene3DTransformTrack*)Track;
 			ExportLevelSequence3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, *TransformTrack, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
 		}
-		else if (Track->IsA(UMovieScenePropertyTrack::StaticClass()))
-		{
-			UMovieScenePropertyTrack* PropertyTrack = (UMovieScenePropertyTrack*)Track;
-			ExportLevelSequencePropertyTrack(FbxActor, *PropertyTrack, MovieScene->GetPlaybackRange(), RootToLocalTransform);
-		}
 		else if (Track->IsA(UMovieSceneSkeletalAnimationTrack::StaticClass()) && !bExportedAnimTrack)
 		{
 			if (SkeletalMeshComp)
@@ -1882,6 +1882,10 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 				FLevelSequenceAnimTrackAdapter AnimTrackAdapter(MovieScenePlayer, MovieScene, RootToLocalTransform);
 				ExportAnimTrack(AnimTrackAdapter, Actor, SkeletalMeshComp, 1.0 / DisplayRate.AsDecimal());
 			}
+		}
+		else
+		{
+			ExportLevelSequenceTrackChannels(FbxActor, *Track, MovieScene->GetPlaybackRange(), RootToLocalTransform);
 		}
 	}
 	return true;
@@ -2811,6 +2815,31 @@ void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovi
 	InFbxCurve.KeyModifyEnd();
 }
 
+void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneIntegerChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform)
+{
+	InFbxCurve.KeyModifyBegin();
+
+	TArrayView<const FFrameNumber> Times  = InChannel.GetTimes();
+	TArrayView<const int32> Values = InChannel.GetValues();
+
+	for (int32 Index = 0; Index < Times.Num(); ++Index)
+	{
+		const FFrameNumber KeyTime = Times[Index];
+		int32 KeyValue = Values[Index];
+
+		FbxTime FbxTime;
+		FbxAnimCurveKey FbxKey;
+		const double KeyTimeSeconds = GetExportOptions()->bExportLocalTime ? KeyTime / TickResolution : (KeyTime * RootToLocalTransform.InverseLinearOnly()) / TickResolution;
+
+		FbxTime.SetSecondDouble(KeyTimeSeconds);
+
+		const int FbxKeyIndex = InFbxCurve.KeyAdd(FbxTime);
+
+		InFbxCurve.KeySet(FbxKeyIndex, FbxTime, KeyValue, FbxAnimCurveDef::eInterpolationConstant);
+	}
+	InFbxCurve.KeyModifyEnd();
+}
+
 void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, UMovieScene3DTransformTrack& TransformTrack, UObject* BoundObject, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	//if more than one section, we use baked version of all sections.
@@ -3106,10 +3135,10 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 }
 
 
-void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieScenePropertyTrack& PropertyTrack, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
+void FFbxExporter::ExportLevelSequenceTrackChannels( FbxNode* FbxNode, UMovieSceneTrack& Track, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	// TODO: Support more than one section?
-	UMovieSceneSection* Section = PropertyTrack.GetAllSections().Num() > 0 ? PropertyTrack.GetAllSections()[0] : nullptr;
+	UMovieSceneSection* Section = Track.GetAllSections().Num() > 0 ? Track.GetAllSections()[0] : nullptr;
 
 	if (!Section)
 	{
@@ -3118,18 +3147,22 @@ void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieSce
 
 	if (!FbxNode)
 	{
-		FbxNode = CreateNode(PropertyTrack.GetDisplayName().ToString());
+		FbxNode = CreateNode(Track.GetDisplayName().ToString());
 	}
 
 	FbxCamera* FbxCamera = FbxNode->GetCamera();
-	FFrameRate TickResolution = PropertyTrack.GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FFrameRate TickResolution = Track.GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
+	const FName StringChannelTypeName = FMovieSceneStringChannel::StaticStruct()->GetFName();
 	FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
 	for (const FMovieSceneChannelEntry& Entry : Section->GetChannelProxy().GetAllEntries())
 	{
 		const FName ChannelTypeName = Entry.GetChannelTypeName();
-		if (ChannelTypeName != FloatChannelTypeName)
+		if (ChannelTypeName != FloatChannelTypeName && 
+			ChannelTypeName != IntegerChannelTypeName && 
+			ChannelTypeName != StringChannelTypeName)
 		{
 			continue;
 		}
@@ -3140,18 +3173,21 @@ void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieSce
 		for (int32 Index = 0; Index < Channels.Num(); ++Index)
 		{
 			FMovieSceneChannelHandle Channel = ChannelProxy.MakeHandle(ChannelTypeName, Index);
-			FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
 
-			if (!FloatChannel || FloatChannel->GetTimes().Num() == 0)
+			FMovieSceneFloatChannel* FloatChannel = Entry.GetChannelTypeName() == FloatChannelTypeName ? Channel.Cast<FMovieSceneFloatChannel>().Get() : nullptr;
+			FMovieSceneIntegerChannel* IntegerChannel = Entry.GetChannelTypeName() == IntegerChannelTypeName ? Channel.Cast<FMovieSceneIntegerChannel>().Get() : nullptr;
+			FMovieSceneStringChannel* StringChannel = Entry.GetChannelTypeName() == StringChannelTypeName ? Channel.Cast<FMovieSceneStringChannel>().Get() : nullptr;
+
+			if (!FloatChannel && !IntegerChannel && !StringChannel)
 			{
 				continue;
 			}
-
+			
 			const FMovieSceneChannelMetaData& MetaData = AllMetaData[Index];
 			FText Name = FText::FromName(MetaData.Name);
 
 			FbxProperty Property;
-			FString PropertyName = MetaData.Name.IsNone() ? PropertyTrack.GetTrackName().ToString() : MetaData.Name.ToString();
+			FString PropertyName = MetaData.Name.IsNone() ? Track.GetTrackName().ToString() : MetaData.Name.ToString();
 			bool IsFoV = false;
 			// most properties are created as user property, only FOV of camera in FBX supports animation
 			if (PropertyName == "Intensity")
@@ -3190,7 +3226,20 @@ void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieSce
 
 			if (Property == 0)
 			{
-				CreateAnimatableUserProperty(FbxNode, FloatChannel->GetDefault().Get(MAX_flt), TCHAR_TO_UTF8(*PropertyName), TCHAR_TO_UTF8(*PropertyName));
+				if (FloatChannel)
+				{
+					CreateAnimatableUserProperty(FbxNode, FloatChannel->GetDefault().Get(MAX_flt), TCHAR_TO_UTF8(*PropertyName), TCHAR_TO_UTF8(*PropertyName));
+				}
+				else if (IntegerChannel)
+				{
+					CreateAnimatableUserProperty(FbxNode, IntegerChannel->GetDefault().Get(0), TCHAR_TO_UTF8(*PropertyName), TCHAR_TO_UTF8(*PropertyName), FbxIntDT);
+				}
+				else if (StringChannel)
+				{
+					FbxString FbxValueString(TCHAR_TO_UTF8(*StringChannel->GetDefault().Get(TEXT(""))));
+
+					CreateAnimatableUserProperty(FbxNode, FbxValueString, TCHAR_TO_UTF8(*PropertyName), TCHAR_TO_UTF8(*PropertyName), FbxStringDT);
+				}
 
 				Property = FbxNode->FindProperty(TCHAR_TO_UTF8(*PropertyName), false);
 			}
@@ -3210,10 +3259,20 @@ void FFbxExporter::ExportLevelSequencePropertyTrack( FbxNode* FbxNode, UMovieSce
 				continue;
 			}
 
-			CurveNode->SetChannelValue<double>(0U, FloatChannel->GetDefault().Get(MAX_flt));
-			CurveNode->ConnectToChannel(AnimCurve, 0U);
+			if (FloatChannel)
+			{
+				CurveNode->SetChannelValue<double>(0U, FloatChannel->GetDefault().Get(MAX_flt));
+				CurveNode->ConnectToChannel(AnimCurve, 0U);
 
-			ExportChannelToFbxCurve(*AnimCurve, *FloatChannel, TickResolution, IsFoV ? ERichCurveValueMode::Fov : ERichCurveValueMode::Default, false, RootToLocalTransform);
+				ExportChannelToFbxCurve(*AnimCurve, *FloatChannel, TickResolution, IsFoV ? ERichCurveValueMode::Fov : ERichCurveValueMode::Default, false, RootToLocalTransform);
+			}
+			else if (IntegerChannel)
+			{
+				CurveNode->SetChannelValue<double>(0U, IntegerChannel->GetDefault().Get(0));
+				CurveNode->ConnectToChannel(AnimCurve, 0U);
+
+				ExportChannelToFbxCurve(*AnimCurve, *IntegerChannel, TickResolution, RootToLocalTransform);
+			}
 		}
 	}
 }

@@ -25,6 +25,7 @@
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SRotatorInputBox.h"
 #include "ScopedTransaction.h"
@@ -33,6 +34,7 @@
 #include "Widgets/Input/NumericUnitTypeInterface.inl"
 #include "Settings/EditorProjectSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "FComponentTransformDetails"
 
@@ -89,7 +91,18 @@ FComponentTransformDetails::FComponentTransformDetails( const TArray< TWeakObjec
 	, HiddenFieldMask( 0 )
 {
 	GConfig->GetBool(TEXT("SelectionDetails"), TEXT("PreserveScaleRatio"), bPreserveScaleRatio, GEditorPerProjectIni);
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().AddRaw(this, &FComponentTransformDetails::OnObjectsReplaced);
+	}
+}
 
+FComponentTransformDetails::~FComponentTransformDetails()
+{
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
 }
 
 TSharedRef<SWidget> FComponentTransformDetails::BuildTransformFieldLabel( ETransformField::Type TransformField )
@@ -320,6 +333,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("LocationFilter", "Location") )
 		.CopyAction( CreateCopyAction( ETransformField::Location ) )
 		.PasteAction( CreatePasteAction( ETransformField::Location ) )
+		.PropertyHandleList({ GeneratePropertyHandle(USceneComponent::GetRelativeLocationPropertyName(), ChildrenBuilder) })
 		.NameContent()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -393,6 +407,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RotationFilter", "Rotation") )
 		.CopyAction( CreateCopyAction(ETransformField::Rotation) )
 		.PasteAction( CreatePasteAction(ETransformField::Rotation) )
+		.PropertyHandleList({ GeneratePropertyHandle(USceneComponent::GetRelativeRotationPropertyName(), ChildrenBuilder) })
 		.NameContent()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -459,6 +474,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		ChildrenBuilder.AddCustomRow( LOCTEXT("ScaleFilter", "Scale") )
 		.CopyAction( CreateCopyAction(ETransformField::Scale) )
 		.PasteAction( CreatePasteAction(ETransformField::Scale) )
+		.PropertyHandleList({ GeneratePropertyHandle(USceneComponent::GetRelativeScale3DPropertyName(), ChildrenBuilder) })
 		.NameContent()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
@@ -560,6 +576,39 @@ void FComponentTransformDetails::CacheCommonLocationUnits()
 	}
 
 	SetupFixedDisplay(LargestValue);
+}
+
+TSharedPtr<IPropertyHandle> FComponentTransformDetails::GeneratePropertyHandle(FName PropertyName, IDetailChildrenBuilder& ChildrenBuilder)
+{
+	// Try finding the property handle in the details panel's property map first.
+	IDetailLayoutBuilder& LayoutBuilder = ChildrenBuilder.GetParentCategory().GetParentLayout();
+	TSharedPtr<IPropertyHandle> PropertyHandle = LayoutBuilder.GetProperty(PropertyName, USceneComponent::StaticClass());
+	if (!PropertyHandle || !PropertyHandle->IsValidHandle())
+	{
+		// If it wasn't found, add a collapsed row which contains the property node.
+		TArray<UObject*> SceneComponents;
+		Algo::Transform(SelectedObjects, SceneComponents, [](TWeakObjectPtr<UObject> Obj) { return GetSceneComponentFromDetailsObject(Obj.Get()); });
+		PropertyHandle = LayoutBuilder.AddObjectPropertyData(SceneComponents, PropertyName);
+		CachedHandlesObjects.Append(SceneComponents);
+	}
+
+	PropertyHandles.Add(PropertyHandle);
+	return PropertyHandle;
+}
+
+void FComponentTransformDetails::UpdatePropertyHandlesObjects(const TArray<UObject*> NewSceneComponents)
+{
+	// Cached the old handles objects.
+	CachedHandlesObjects.Reset(NewSceneComponents.Num());
+	Algo::Transform(NewSceneComponents, CachedHandlesObjects, [](UObject* Obj) { return TWeakObjectPtr<UObject>(Obj); });
+
+	for (TSharedPtr<IPropertyHandle>& Handle : PropertyHandles)
+	{
+		if (Handle && Handle->IsValidHandle())
+		{
+			Handle->ReplaceOuterObjects(NewSceneComponents);
+		}
+	}
 }
 
 bool FComponentTransformDetails::GetIsEnabled() const
@@ -1462,6 +1511,23 @@ void FComponentTransformDetails::OnEndScaleSlider(float NewValue)
 {
 	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
+}
+
+void FComponentTransformDetails::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	TArray<UObject*> NewSceneComponents;
+	for (const TWeakObjectPtr<UObject> Obj : CachedHandlesObjects)
+	{
+		if (UObject* Replacement = ReplacementMap.FindRef(Obj.GetEvenIfUnreachable()))
+		{
+			NewSceneComponents.Add(Replacement);
+		}
+	}
+
+	if (NewSceneComponents.Num())
+	{
+		UpdatePropertyHandlesObjects(NewSceneComponents);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

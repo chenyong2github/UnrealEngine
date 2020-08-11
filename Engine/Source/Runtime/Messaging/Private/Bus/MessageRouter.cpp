@@ -119,23 +119,9 @@ void FMessageRouter::DispatchMessage(const TSharedRef<IMessageContext, ESPMode::
 		TArray<TSharedPtr<IMessageReceiver, ESPMode::ThreadSafe>> Recipients;
 
 		// get recipients, either from the context...
-		const TArray<FMessageAddress>& RecipientList = Context->GetRecipients();
-
-		if (RecipientList.Num() > 0)
+		if (Context->GetRecipients().Num() > 0)
 		{
-			for (const auto& RecipientAddress : RecipientList)
-			{
-				auto Recipient = ActiveRecipients.FindRef(RecipientAddress).Pin();
-
-				if (Recipient.IsValid())
-				{
-					Recipients.AddUnique(Recipient);
-				}
-				else
-				{
-					ActiveRecipients.Remove(RecipientAddress);
-				}
-			}
+			FilterRecipients(Context, Recipients);
 		}
 		// ... or from subscriptions
 		else
@@ -202,6 +188,32 @@ void FMessageRouter::FilterSubscriptions(
 		{
 			Subscriptions.RemoveAtSwap(SubscriptionIndex);
 			--SubscriptionIndex;
+		}
+	}
+}
+
+
+void FMessageRouter::FilterRecipients(
+	const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+	TArray<TSharedPtr<IMessageReceiver, ESPMode::ThreadSafe>>& OutRecipients)
+{
+	FMessageScopeRange IncludeNetwork = FMessageScopeRange::AtLeast(EMessageScope::Network);
+	const TArray<FMessageAddress>& RecipientList = Context->GetRecipients();
+	for (const auto& RecipientAddress : RecipientList)
+	{
+		auto Recipient = ActiveRecipients.FindRef(RecipientAddress).Pin();
+
+		if (Recipient.IsValid())
+		{
+			// if the recipient is not local and the scope does not include network, filter it out of the recipient list
+			if (Recipient->IsLocal() || IncludeNetwork.Contains(Context->GetScope()))
+			{
+				OutRecipients.AddUnique(Recipient);
+			}
+		}
+		else
+		{
+			ActiveRecipients.Remove(RecipientAddress);
 		}
 	}
 }

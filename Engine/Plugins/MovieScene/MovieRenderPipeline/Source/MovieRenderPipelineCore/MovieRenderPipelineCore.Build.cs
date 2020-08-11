@@ -31,8 +31,9 @@ public class MovieRenderPipelineCore : ModuleRules
                 "MovieSceneTracks",
 				"LevelSequence",
 				"Engine",
-                "ImageWriteQueue", // For debug tile writing
-            }
-        );
+				"ImageWriteQueue", // For debug tile writing
+				"OpenColorIO",
+			}
+		);
 	}
 }

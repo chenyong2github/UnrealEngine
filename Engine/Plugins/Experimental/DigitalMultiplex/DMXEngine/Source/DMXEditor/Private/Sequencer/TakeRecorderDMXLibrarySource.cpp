@@ -183,8 +183,8 @@ void UTakeRecorderDMXLibrarySource::TickRecording(const FQualifiedFrameTime& Cur
 			}
 
 			// Get the Patch's functions values input from DMX protocol
-			TMap<FName, int32> FunctionsMap;
-			DMXSubsystem->GetFunctionsMap(Patch, Controllers[0]->DeviceProtocol, FunctionsMap);
+			TMap<FDMXAttributeName, int32> FunctionsMap;
+			DMXSubsystem->GetFunctionsMap(Patch, FunctionsMap);
 			auto FunctionsIterator = FunctionsMap.CreateConstIterator();
 
 			// Add the value keyframe to each Function channel

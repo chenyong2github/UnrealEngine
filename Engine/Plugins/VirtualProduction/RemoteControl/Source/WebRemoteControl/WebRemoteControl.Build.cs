@@ -18,6 +18,8 @@ public class WebRemoteControl : ModuleRules
 				"HTTPServer",
 				"RemoteControl",
 				"Serialization",
+				"Settings",
+				"WebSocketNetworking"
 			}
         );
     }

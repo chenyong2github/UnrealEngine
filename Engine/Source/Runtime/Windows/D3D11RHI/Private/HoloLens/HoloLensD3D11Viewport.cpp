@@ -14,12 +14,7 @@ using namespace Windows::Foundation;
 using namespace Windows::ApplicationModel::Core;
 using namespace Windows::UI::Core;
 
-static uint32 GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-uint32 D3D11GetSwapChainFlags()
-{
-	return GSwapChainFlags;
-}
+uint32 FD3D11Viewport::GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 DXGI_FORMAT GetSupportedSwapChainBufferFormat(DXGI_FORMAT InPreferredDXGIFormat)
 {
@@ -58,6 +53,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	ValidState(0),
 	PixelFormat(InPreferredPixelFormat),
 	bIsFullscreen(bInIsFullscreen),
+	bAllowTearing(false),
 	FrameSyncEvent(InD3DRHI)
 {
 	D3DRHI->Viewports.Add(this);

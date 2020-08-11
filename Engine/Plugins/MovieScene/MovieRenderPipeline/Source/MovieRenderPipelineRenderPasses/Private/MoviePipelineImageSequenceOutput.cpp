@@ -18,8 +18,6 @@
 #include "MoviePipelineOutputBase.h"
 #include "MoviePipelineImageQuantization.h"
 
-// Forward Declare
-static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(FImagePixelData* InPixelData);
 
 DECLARE_CYCLE_STAT(TEXT("ImgSeqOutput_RecieveImageData"), STAT_ImgSeqRecieveImageData, STATGROUP_MoviePipeline);
 
@@ -66,6 +64,8 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 	UMoviePipelineOutputSetting* OutputSettings = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
+	UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
+
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
@@ -111,7 +111,7 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		{
 			// All three of these formats only support 8 bit data, so we need to take the incoming buffer type,
 			// copy it into a new 8-bit array and optionally apply a little noise to the data to help hide gradient banding.
-			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8);
+			QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(RenderPassData.Value.Get(), 8, nullptr, !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled));
 			break;
 		}
 		case EImageFormat::EXR:

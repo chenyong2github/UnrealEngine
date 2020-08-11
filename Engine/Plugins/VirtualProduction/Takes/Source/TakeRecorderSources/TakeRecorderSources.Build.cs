@@ -24,6 +24,7 @@ public class TakeRecorderSources : ModuleRules
 				"SlateCore",
 				"TakesCore",
 				"TakeRecorder",
+				"TakeMovieScene",
 				"UnrealEd",
 			}
 		);

@@ -133,7 +133,7 @@ struct FAbcNormalGenerationSettings
 	}
 
 	/** Whether or not to force smooth normals for each individual object rather than calculating smoothing groups */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation, meta = (EditCondition = "bRecomputeNormals"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NormalCalculation)
 	bool bForceOneSmoothingGroupPerObject;
 
 	/** Threshold used to determine whether an angle between two normals should be considered hard, closer to 0 means more smooth vs 1 */

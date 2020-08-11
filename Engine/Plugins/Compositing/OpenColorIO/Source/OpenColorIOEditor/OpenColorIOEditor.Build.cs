@@ -23,13 +23,18 @@ namespace UnrealBuildTool.Rules
 					"DesktopWidgets",
 					"EditorStyle",
 					"Engine",
+					"LevelEditor",
 					"OpenColorIO",
 					"OpenColorIOLib",
 					"Projects",
 					"PropertyEditor",
+					"Renderer",
+					"RenderCore",
+					"RHI",
 					"Settings",
 					"Slate",
 					"SlateCore",
+					"ToolMenus",
 					"UnrealEd",
 				});
 

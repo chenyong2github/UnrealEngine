@@ -25,7 +25,7 @@ namespace EMovieScenePlayerStatus
 	};
 }
 
-UENUM()
+UENUM(BlueprintType)
 enum class EMovieSceneEvaluationType : uint8
 {
 	/** Play the sequence frame-locked to its playback rate (snapped to the tick resolution - no sub-frames) */
@@ -38,7 +38,7 @@ enum class EMovieSceneEvaluationType : uint8
 /**
  * Enum used to define how to update to a particular time
  */
-UENUM()
+UENUM(BlueprintType)
 enum class EUpdateClockSource : uint8
 {
 	/** Use the default world tick delta for timing. Honors world and actor pause state, but is susceptible to accumulation errors */

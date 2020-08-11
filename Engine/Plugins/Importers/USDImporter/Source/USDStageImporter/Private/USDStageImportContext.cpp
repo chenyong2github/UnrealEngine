@@ -20,10 +20,11 @@ FUsdStageImportContext::FUsdStageImportContext()
 	bReadFromStageCache = false;
 	bStageWasOriginallyOpen = false;
 	SceneActor = nullptr;
+	ImportedPackage = nullptr;
 	OriginalMetersPerUnit = 0.01f;
 }
 
-bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport)
+bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport, bool bAllowActorImport)
 {
 	ObjectName = InName;
 	FilePath = InFilePath;
@@ -50,6 +51,8 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 			}
 			PackagePath = PickContentPathDlg->GetPath().ToString() + "/";
 		}
+
+		ImportOptions->EnableActorImport( bAllowActorImport );
 
 		// Show dialog for import options
 		bool bProceedWithImport = SUsdOptionsWindow::ShowImportOptions(*ImportOptions);

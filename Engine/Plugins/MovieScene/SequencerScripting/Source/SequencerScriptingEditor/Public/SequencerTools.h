@@ -20,7 +20,7 @@ class UK2Node_CustomEvent;
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
 
 USTRUCT(BlueprintType)
-struct FSequencerBoundObjects
+struct SEQUENCERSCRIPTINGEDITOR_API FSequencerBoundObjects
 {
 	GENERATED_BODY()
 

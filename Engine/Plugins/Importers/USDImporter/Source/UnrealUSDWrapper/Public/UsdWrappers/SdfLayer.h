@@ -12,8 +12,9 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class SdfLayer;
-	template< typename T > class TfRefPtr;
+	class SdfLayerOffset;
 
+	template< typename T > class TfRefPtr;
 	using SdfLayerRefPtr = TfRefPtr< SdfLayer >;
 PXR_NAMESPACE_CLOSE_SCOPE
 
@@ -51,15 +52,17 @@ namespace UE
 
 		FSdfLayer( const FSdfLayer& Other );
 		FSdfLayer( FSdfLayer&& Other );
+		~FSdfLayer();
 
 		FSdfLayer& operator=( const FSdfLayer& Other );
 		FSdfLayer& operator=( FSdfLayer&& Other );
 
-		~FSdfLayer();
+		bool operator==( const FSdfLayer& Other ) const;
+		bool operator!=( const FSdfLayer& Other ) const;
 
 		operator bool() const;
 
-	// Auto conversion from/to pxr::UsdPrim
+	// Auto conversion from/to pxr::SdfLayerRefPtr
 	public:
 #if USE_USD_SDK
 		explicit FSdfLayer( const pxr::SdfLayerRefPtr& InSdfLayer );
@@ -83,11 +86,20 @@ namespace UE
 		FString GetDisplayName() const;
 
 		bool HasStartTimeCode() const;
-		bool HasEndTimeCode() const;
 		double GetStartTimeCode() const;
+		void SetStartTimeCode( double TimeCode );
+
+		bool HasEndTimeCode() const;
 		double GetEndTimeCode() const;
+		void SetEndTimeCode( double TimeCode );
+
 		bool HasTimeCodesPerSecond() const;
 		double GetTimeCodesPerSecond() const;
+		void SetTimeCodesPerSecond( double TimeCodesPerSecond );
+
+		bool HasFramesPerSecond() const;
+		double GetFramesPerSecond() const;
+		void SetFramesPerSecond( double FramesPerSecond );
 
 		int64 GetNumSubLayerPaths() const;
 		TArray< FString > GetSubLayerPaths() const;
@@ -96,6 +108,9 @@ namespace UE
 		void SetSubLayerOffset( const FSdfLayerOffset& LayerOffset, int32 Index );
 
 		bool HasSpec( const FSdfPath& Path ) const;
+
+		TSet< double > ListTimeSamplesForPath( const FSdfPath& Path ) const;
+		void EraseTimeSample( const FSdfPath& Path, double Time );
 
 	private:
 		TUniquePtr< Internal::FSdfLayerImpl > Impl;

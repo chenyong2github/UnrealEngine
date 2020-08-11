@@ -9,6 +9,7 @@
 #include "DMXComponent.generated.h"
 
 class UDMXLibrary;
+class UDMXEntityFixturePatch;
 
 UCLASS( ClassGroup=(DMX), meta=(BlueprintSpawnableComponent), HideCategories = ("Variable", "Sockets", "Tags", "Activation", "Cooking", "ComponentReplication", "AssetUserData", "Collision", "Events"))
 class DMXRUNTIME_API UDMXComponent
@@ -16,9 +17,11 @@ class DMXRUNTIME_API UDMXComponent
 {
 	GENERATED_BODY()
 
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FDMXComponentFixturePatchReceivedSignature, UDMXComponent, OnFixturePatchReceived, UDMXEntityFixturePatch*, FixturePatch, TArray<uint8>, ChannelsArray);
+
 public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
-	FDMXEntityFixturePatchRef FixturePatch;
+	FDMXEntityFixturePatchRef FixturePatchRef;
 
 public:
 	UFUNCTION(BlueprintPure, Category = "DMX")
@@ -27,14 +30,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void SetFixturePatch(UDMXEntityFixturePatch* InFixturePatch);
 
+	/** Called when the component has been activated, with parameter indicating if it was from a reset */
+	UPROPERTY(BlueprintAssignable, Category = "Components|DMX")
+	FDMXComponentFixturePatchReceivedSignature OnFixturePatchReceived;
+
 public:
-	// Sets default values for this component's properties
 	UDMXComponent();
+	~UDMXComponent();
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	void SetupPacketReceiver();
+	void ReleasePacketReceiver();
+	void ResetPacketReceiver();
+	void PacketReceiver(FName InProtocol, uint16 InUniverseID, const TArray<uint8>& InValues);
+
+private:
+	FDelegateHandle DMXComponentReceiveHandle;
+
+	TArray<uint8> ChannelBuffer;
+
+	TAtomic<bool> bBufferUpdated;
 };

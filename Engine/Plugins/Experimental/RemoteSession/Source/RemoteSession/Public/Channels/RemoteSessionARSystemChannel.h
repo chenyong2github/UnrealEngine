@@ -6,6 +6,8 @@
 #include "ARSystem.h"
 #include "ARTraceResult.h"
 
+class IBackChannelPacket;
+
 /**
  * This class acts as if there is a AR system present on the desktop that is receiving data from a remote device
  */
@@ -100,7 +102,7 @@ class REMOTESESSION_API FRemoteSessionARSystemChannel :
 	public FRemoteSessionXRTrackingChannel
 {
 public:
-	FRemoteSessionARSystemChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+	FRemoteSessionARSystemChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection);
 
 	virtual ~FRemoteSessionARSystemChannel();
 
@@ -110,10 +112,10 @@ public:
 	/* End IRemoteSessionChannel implementation */
 
 	// Message handlers
-	void ReceiveARInit(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
-	void ReceiveAddTrackable(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
-	void ReceiveUpdateTrackable(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
-	void ReceiveRemoveTrackable(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
+	void ReceiveARInit(IBackChannelPacket& Message);
+	void ReceiveAddTrackable(IBackChannelPacket& Message);
+	void ReceiveUpdateTrackable(IBackChannelPacket& Message);
+	void ReceiveRemoveTrackable(IBackChannelPacket& Message);
 
 	// Game thead message handlers
 	void ReceiveARInit_GameThread(FString ConfigObjectPathName, TArray<FARVideoFormat> Formats);
@@ -148,6 +150,5 @@ private:
 class REMOTESESSION_API FRemoteSessionARSystemChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
 {
 public:
-	virtual const TCHAR* GetType() const override { return FRemoteSessionARSystemChannel::StaticType(); }
-	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection) const override;
 };

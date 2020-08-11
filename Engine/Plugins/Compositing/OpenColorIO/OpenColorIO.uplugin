@@ -2,8 +2,8 @@
 	"FileVersion" : 3,
 	"Version" : 0.1,
 	"VersionName" : "0.1",
-	"FriendlyName" : "OpenColorIO handler",
-	"Description" : "Plugin to bring OpenColorIO functionnalities into Unreal Engine",
+	"FriendlyName" : "OpenColorIO (OCIO)",
+	"Description" : "Provides support for OpenColorIO",
 	"Category" : "Rendering",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
@@ -23,9 +23,9 @@
 		{
 			"Name": "OpenColorIOEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PreDefault",
 			"WhitelistPlatforms": [
-				"Win64",
+				"Win64"
 			]
 		}
 	],

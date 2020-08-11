@@ -6,7 +6,7 @@
 #include "Channels/MovieSceneByteChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
-#include "Sections/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "LiveLinkMovieScenePrivate.h"
 
 

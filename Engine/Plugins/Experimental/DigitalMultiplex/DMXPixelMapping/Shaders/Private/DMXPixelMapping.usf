@@ -1,0 +1,59 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "DMXPixelMapping.ush"
+
+/*=============================================================================
+ DMXPixelMapping.usf: Draw downsampled texture
+ =============================================================================*/
+
+
+/* Vertex shader
+=============================================================================*/
+
+OutputVS DMXPixelMappingVS(InputVS IN)
+{
+	OutputVS OUT;
+	
+	// Used for calculating vertex positions and UVs when drawing with DrawRectangleForPixelMapping
+	DrawRectangleForPixelMapping(IN.Position, IN.UV, OUT.Position, OUT.UV.xy);
+		
+	return OUT;
+}
+
+/* Pixel shader
+=============================================================================*/
+
+OutputPS DMXPixelMappingPS(OutputVS IN)
+{
+	OutputPS OUT;
+	float2 UV = IN.UV.xy;
+	
+	// Draw colors only within 0...1 X and Y coordinates
+	if (UV.x < 0.f ||
+		UV.x > 1.f ||
+		UV.y < 0.f ||
+		UV.y > 1.f
+	)
+	{
+		OUT.Color = float4(0.f, 0.f, 0.f, 1.f);
+	}
+	else
+	{
+		// Sample color from input texture
+		OUT.Color = Texture2DSample(InputTexture, InputSampler, UV);
+		
+		// Invert color
+		for (int ColorIndex = 0; ColorIndex < 4; ColorIndex++)
+		{
+			if (InvertPixel[ColorIndex])
+			{
+				OUT.Color[ColorIndex] = 1.f - OUT.Color[ColorIndex];
+			}
+		}
+		
+		// Apply color factor
+		OUT.Color *= PixelFactor;
+	}
+			
+	return OUT;
+}

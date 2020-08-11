@@ -522,6 +522,12 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 			{
 				ProcessVertexAttributeArray(Sample->Indices, FaceCounts, bNeedsTriangulation, Sample->Vertices.Num(), Sample->Normals);
 			}
+
+			// Make sure the normals from the Alembic are really normalized
+			ParallelFor(Sample->Normals.Num(), [&Sample](int32 Index)
+			{
+				Sample->Normals[Index].Normalize();
+			});
 		}
 	}
 
@@ -949,10 +955,9 @@ void AbcImporterUtilities::CalculateNormalsWithSampleData(FAbcMeshSample* Sample
 
 void AbcImporterUtilities::ComputeTangents(FAbcMeshSample* Sample, bool bIgnoreDegenerateTriangles, IMeshUtilities& MeshUtilities)
 {
-	uint32 TangentOptions = 0x4;
-	TangentOptions |= bIgnoreDegenerateTriangles ? ETangentOptions::IgnoreDegenerateTriangles : 0;
-
-	MeshUtilities.CalculateTangents(Sample->Vertices, Sample->Indices, Sample->UVs[0], Sample->SmoothingGroupIndices, TangentOptions, Sample->TangentX, Sample->TangentY, Sample->Normals);
+	// At this point, the normals are already computed/retrieved from the Alembic
+	// so directly call CalculateMikkTSpaceTangents, which won't compute normals
+	MeshUtilities.CalculateMikkTSpaceTangents(Sample->Vertices, Sample->Indices, Sample->UVs[0], Sample->Normals, bIgnoreDegenerateTriangles, Sample->TangentX, Sample->TangentY);
 }
 
 FAbcMeshSample* AbcImporterUtilities::MergeMeshSamples(const TArray<const FAbcMeshSample*>& Samples)
@@ -1442,10 +1447,13 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 	OutMeshData.BoundingBox = FBox(MeshSample->Vertices);
 
 	// We currently always have everything except motion vectors
-	// TODO: Make this user configurable
+	// and tangents are auto-configure based on their presence in the mesh sample data
+	const int32 NumNormals = MeshSample->Normals.Num();
+	const bool bHasTangents = MeshSample->TangentX.Num() == NumNormals && MeshSample->TangentY.Num() == NumNormals;
+
 	OutMeshData.VertexInfo.bHasColor0 = true;
-	OutMeshData.VertexInfo.bHasTangentX = true;
-	OutMeshData.VertexInfo.bHasTangentZ = true;
+	OutMeshData.VertexInfo.bHasTangentX = bHasTangents;
+	OutMeshData.VertexInfo.bHasTangentZ = NumNormals > 0;
 	OutMeshData.VertexInfo.bHasUV0 = true;
 	OutMeshData.VertexInfo.bHasMotionVectors = false;
 
@@ -1457,11 +1465,16 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 	TArray<TArray<uint32>> SectionIndices;
 	SectionIndices.AddDefaulted(NumSections);
 
-	OutMeshData.Positions.AddZeroed(MeshSample->Normals.Num());
-	OutMeshData.TangentsX.AddZeroed(MeshSample->Normals.Num());
-	OutMeshData.TangentsZ.AddZeroed(MeshSample->Normals.Num());
-	OutMeshData.TextureCoordinates.AddZeroed(MeshSample->Normals.Num());
-	OutMeshData.Colors.AddZeroed(MeshSample->Normals.Num());
+	OutMeshData.Positions.AddZeroed(NumNormals);
+
+	if (bHasTangents)
+	{
+		OutMeshData.TangentsX.AddZeroed(NumNormals);
+	}
+
+	OutMeshData.TangentsZ.AddZeroed(NumNormals);
+	OutMeshData.TextureCoordinates.AddZeroed(NumNormals);
+	OutMeshData.Colors.AddZeroed(NumNormals);
 
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
 	{
@@ -1474,10 +1487,17 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 			const int32 Index = MeshSample->Indices[CornerIndex];
 
 			OutMeshData.Positions[CornerIndex] = MeshSample->Vertices[Index];
-			OutMeshData.TangentsX[CornerIndex] = MeshSample->TangentX[CornerIndex];
 			OutMeshData.TangentsZ[CornerIndex] = MeshSample->Normals[CornerIndex];
 			// store determinant of basis in w component of normal vector
-			OutMeshData.TangentsZ[CornerIndex].Vector.W = GetBasisDeterminantSignByte(MeshSample->TangentX[CornerIndex], MeshSample->TangentY[CornerIndex], MeshSample->Normals[CornerIndex]);
+			if (bHasTangents)
+			{
+				OutMeshData.TangentsX[CornerIndex] = MeshSample->TangentX[CornerIndex];
+				OutMeshData.TangentsZ[CornerIndex].Vector.W = GetBasisDeterminantSignByte(MeshSample->TangentX[CornerIndex], MeshSample->TangentY[CornerIndex], MeshSample->Normals[CornerIndex]);
+			}
+			else
+			{
+				OutMeshData.TangentsZ[CornerIndex].Vector.W = 127;
+			}
 			OutMeshData.TextureCoordinates[CornerIndex] = MeshSample->UVs[0][CornerIndex];
 			OutMeshData.Colors[CornerIndex] = MeshSample->Colors[CornerIndex].ToFColor(false);
 

@@ -88,6 +88,28 @@ namespace UnFbx {
 		}
 	}
 
+	void FFbxCurvesAPI::GetCustomStringPropertyArray(const FString& NodeName, TArray<TPair<FString, FString> >& CustomPropertyPairs) const
+	{
+		CustomPropertyPairs.Empty();
+
+		FbxNode* Node = GetNodeFromName(NodeName, Scene->GetRootNode());
+		if (Node)
+		{
+			// Import all custom user-defined FBX properties from the FBX node to the object metadata
+			FbxProperty CurrentProperty = Node->GetFirstProperty();
+			while (CurrentProperty.IsValid())
+			{
+				if (CurrentProperty.GetFlag(FbxPropertyFlags::eUserDefined) && CurrentProperty.GetPropertyDataType().GetType() == eFbxString)
+				{
+					FString PropertyValue = UTF8_TO_TCHAR(CurrentProperty.Get<FbxString>().Buffer());
+
+					CustomPropertyPairs.Add(TPair<FString, FString>(UTF8_TO_TCHAR(CurrentProperty.GetName()), PropertyValue));
+				}
+				CurrentProperty = Node->GetNextProperty(CurrentProperty);
+			}
+		}
+	}
+
 	void FFbxCurvesAPI::GetAllNodePropertyCurveHandles(const FString& NodeName, const FString& PropertyName, TArray<FFbxAnimCurveHandle> &PropertyCurveHandles) const
 	{
 		PropertyCurveHandles.Empty();

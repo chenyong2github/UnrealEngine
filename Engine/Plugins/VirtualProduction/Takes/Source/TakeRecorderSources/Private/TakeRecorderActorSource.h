@@ -147,6 +147,13 @@ public:
 	/** Get the record type. If set to project default, gets the type from the project settings */
 	bool GetRecordToPossessable() const;
 
+	TOptional<FMovieSceneSequenceID> GetSequenceID() const
+	{
+		return SequenceID;
+	}
+
+	void SetSequenceID(FMovieSceneSequenceID InSequenceID) { SequenceID = InSequenceID; }
+
 protected:
 
 	/**
@@ -274,6 +281,9 @@ private:
 	virtual FText GetCategoryTextImpl() const;
 	virtual FText GetDisplayTextImpl() const override;
 	virtual FText GetDescriptionTextImpl() const override;
+
+	void ProcessRecordedTimes(ULevelSequence* InSequence);
+
 private:
 	/** Object Binding guid that is created in the Level Sequence when recording starts.*/
 	FGuid CachedObjectBindingGuid;

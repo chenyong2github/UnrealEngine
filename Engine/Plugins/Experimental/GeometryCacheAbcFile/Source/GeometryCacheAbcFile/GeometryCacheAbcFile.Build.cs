@@ -20,6 +20,7 @@ public class GeometryCacheAbcFile : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"GeometryCacheStreamer",
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",

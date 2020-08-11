@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "BackChannel/Protocol/OSC/BackChannelOSCDispatch.h"
+#include "BackChannel/IBackChannelConnection.h"
+#include "BackChannel/Utils/DispatchMap.h"
 #include "HAL/ThreadSafeBool.h"
 
-class IBackChannelConnection;
+class IBackChannelSocketConnection;
 class FBackChannelOSCPacket;
 
 /**
@@ -16,13 +17,29 @@ class FBackChannelOSCPacket;
  *	a background thread. Incoming messages are received on a background thread and queued until 
  *	DispatchMessages() is called. Outgoing messages are sent immediately
  */
-class BACKCHANNEL_API FBackChannelOSCConnection : FRunnable
+class BACKCHANNEL_API FBackChannelOSCConnection : FRunnable, public IBackChannelConnection
 {
 public:
 
-	FBackChannelOSCConnection(TSharedRef<IBackChannelConnection> InConnection);
+	FBackChannelOSCConnection(TSharedRef<IBackChannelSocketConnection> InConnection);
 
 	~FBackChannelOSCConnection();
+
+	/**
+	 * IBackChannelConnection implementation
+	 */
+public:
+	FString GetProtocolName() const override;
+
+	TBackChannelSharedPtr<IBackChannelPacket> CreatePacket() override;
+
+	int SendPacket(const TBackChannelSharedPtr<IBackChannelPacket>& Packet) override;
+
+	/* Bind a delegate to a message address */
+	FDelegateHandle AddRouteDelegate(FStringView Path, FBackChannelRouteDelegate::FDelegate Delegate) override;
+
+	/* Remove a delegate handle */
+	void RemoveRouteDelegate(FStringView Path, FDelegateHandle& InHandle) override;
 
 public:
 
@@ -42,12 +59,6 @@ public:
 
 	/* Send the provided OSC packet */
 	bool SendPacket(FBackChannelOSCPacket& Packet);
-
-	/* Bind a delegate to a message address */
-	FDelegateHandle AddMessageHandler(const TCHAR* Path, FBackChannelDispatchDelegate::FDelegate Delegate);
-	
-	/* Remove a delegate handle */
-	void RemoveMessageHandler(const TCHAR* Path, FDelegateHandle& InHandle);
 
 	/* Set options for the specified message path */
 	void SetMessageOptions(const TCHAR* Path, int32 MaxQueuedMessages);
@@ -75,9 +86,9 @@ protected:
 
 protected:
 
-	TSharedPtr<IBackChannelConnection>  Connection;
+	TSharedPtr<IBackChannelSocketConnection>  Connection;
 
-	FBackChannelOSCDispatch				DispatchMap;
+	FBackChannelDispatchMap				DispatchMap;
 
 	TArray<TSharedPtr<FBackChannelOSCPacket>> ReceivedPackets;
 
@@ -96,7 +107,7 @@ protected:
 	bool				HasErrorState;
 
 	int32				ReceivedDataSize;
-	int32				ExpectedDataSize;
+	int32				ExpectedSizeOfNextPacket;
 	TArray<uint8>		ReceiveBuffer;
 
 };

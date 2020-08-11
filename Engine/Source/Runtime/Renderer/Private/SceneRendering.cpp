@@ -2565,7 +2565,11 @@ void FSceneRenderer::ComputeViewGPUMasks(FRHIGPUMask RenderTargetGPUMask)
 				}
 				else
 				{
-					ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
+					if (!ViewInfo.bOverrideGPUMask)
+					{
+						ViewInfo.GPUMask = FRHIGPUMask::FromIndex(*GPUIterator);
+					}
+
 					ViewFamily.bMultiGPUForkAndJoin |= (ViewInfo.GPUMask != RenderTargetGPUMask);
 
 					// Increment and wrap around if we reach the last index.
@@ -2606,7 +2610,7 @@ void FSceneRenderer::DoCrossGPUTransfers(FRHICommandListImmediate& RHICmdList, F
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			const FViewInfo& ViewInfo = Views[ViewIndex];
-			if (ViewInfo.GPUMask != RenderTargetGPUMask)
+			if (ViewInfo.bAllowCrossGPUTransfer && ViewInfo.GPUMask != RenderTargetGPUMask)
 			{
 				// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
 				const FIntRect TransferRect(ViewInfo.ViewRect.Min.ComponentMin(SceneRenderTarget->GetSizeXY()), ViewInfo.ViewRect.Max.ComponentMin(SceneRenderTarget->GetSizeXY()));

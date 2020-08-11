@@ -38,6 +38,9 @@
 #include "UnrealClient.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "CineCameraComponent.h"
+#include "Engine/Scene.h"
+
 
 FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 {
@@ -462,6 +465,27 @@ bool FDisplayClusterRenderManager::GetViewportRect(const FString& InViewportID, 
 	return RenderDevicePtr->GetViewportRect(InViewportID, Rect);
 }
 
+bool FDisplayClusterRenderManager::GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy)
+{
+	if (!RenderDevicePtr)
+	{
+		return false;
+	}
+
+	return RenderDevicePtr->GetViewportProjectionPolicy(InViewportID, OutProjectionPolicy);
+}
+
+
+bool FDisplayClusterRenderManager::GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext)
+{
+	if (!RenderDevicePtr)
+	{
+		return false;
+	}
+
+	return RenderDevicePtr->GetViewportContext(InViewportID, ViewIndex, OutViewContext);
+}
+
 bool FDisplayClusterRenderManager::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
 {
 	check(IsInGameThread());
@@ -521,6 +545,23 @@ void FDisplayClusterRenderManager::SetFinalPostProcessingSettings(const FString&
 
 	RenderDevicePtr->SetFinalPostProcessingSettings(ViewportID, FinalPostProcessingSettings);
 }
+
+FPostProcessSettings FDisplayClusterRenderManager::GetUpdatedCinecameraPostProcessing(float deltaSeconds, UCineCameraComponent* CineCamera)
+{
+	check(IsInGameThread());
+
+	if (!CineCamera)
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("GetUpdatedCinecameraPostProcessing - CineCamera is null."));
+		FPostProcessSettings pp;
+		return pp;
+	}
+
+	FMinimalViewInfo info;
+	CineCamera->GetCameraView(deltaSeconds, info);
+	return info.PostProcessSettings;
+}
+
 
 void FDisplayClusterRenderManager::SetInterpupillaryDistance(const FString& CameraId, float EyeDistance)
 {

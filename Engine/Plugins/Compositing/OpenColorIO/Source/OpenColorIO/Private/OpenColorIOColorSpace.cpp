@@ -74,3 +74,13 @@ FString FOpenColorIOColorConversionSettings::ToString() const
 	}
 	return TEXT("<Invalid Conversion>");
 }
+
+bool FOpenColorIOColorConversionSettings::IsValid() const
+{
+	if (ConfigurationSource)
+	{
+		return ConfigurationSource->HasTransform(SourceColorSpace.ColorSpaceName, DestinationColorSpace.ColorSpaceName);
+	}
+
+	return false;
+}

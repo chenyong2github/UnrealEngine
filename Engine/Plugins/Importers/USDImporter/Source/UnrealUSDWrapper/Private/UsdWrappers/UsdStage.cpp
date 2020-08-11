@@ -11,6 +11,7 @@
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
+	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/prim.h"
 	#include "pxr/usd/usd/stage.h"
 #include "USDIncludesEnd.h"
@@ -136,6 +137,15 @@ namespace UE
 #endif // #if USE_USD_SDK
 	}
 
+	bool FUsdStage::HasLocalLayer( const FSdfLayer& Layer ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->HasLocalLayer( pxr::SdfLayerRefPtr( Layer ) );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	FUsdPrim FUsdStage::GetPseudoRoot() const
 	{
 #if USE_USD_SDK
@@ -175,7 +185,28 @@ namespace UE
 	void FUsdStage::SetEditTarget( const FSdfLayer& Layer )
 	{
 #if USE_USD_SDK
-		Impl->PxrUsdStageRefPtr.Get()->SetEditTarget( pxr::UsdEditTarget( Layer ) );
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::SdfLayerRefPtr LayerRef( Layer );
+		const pxr::UsdEditTarget EditTarget = Impl->PxrUsdStageRefPtr.Get()->GetEditTargetForLocalLayer( LayerRef );
+
+		Impl->PxrUsdStageRefPtr.Get()->SetEditTarget( EditTarget );
+#endif // #if USE_USD_SDK
+	}
+
+	FSdfLayer FUsdStage::GetEditTarget() const
+	{
+#if USE_USD_SDK
+		if ( IsEditTargetValid() )
+		{
+			return FSdfLayer( Impl->PxrUsdStageRefPtr.Get()->GetEditTarget().GetLayer() );
+		}
+		else
+		{
+			return FSdfLayer();
+		}
+#else
+		return FSdfLayer();
 #endif // #if USE_USD_SDK
 	}
 
@@ -200,15 +231,55 @@ namespace UE
 	void FUsdStage::SetStartTimeCode( double TimeCode )
 	{
 #if USE_USD_SDK
-		Impl->PxrUsdStageRefPtr.Get()->SetStartTimeCode( TimeCode );
+		if ( !FMath::IsNearlyEqual( TimeCode, Impl->PxrUsdStageRefPtr.Get()->GetStartTimeCode() ) )
+		{
+			Impl->PxrUsdStageRefPtr.Get()->SetStartTimeCode( TimeCode );
+		}
 #endif // #if USE_USD_SDK
 	}
 
 	void FUsdStage::SetEndTimeCode( double TimeCode )
 	{
 #if USE_USD_SDK
-		Impl->PxrUsdStageRefPtr.Get()->SetEndTimeCode( TimeCode );
+		if ( !FMath::IsNearlyEqual( TimeCode, Impl->PxrUsdStageRefPtr.Get()->GetEndTimeCode() ) )
+		{
+			Impl->PxrUsdStageRefPtr.Get()->SetEndTimeCode( TimeCode );
+		}
 #endif // #if USE_USD_SDK
+	}
+
+	double FUsdStage::GetTimeCodesPerSecond() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->GetTimeCodesPerSecond();
+#else
+		return 24.0;
+#endif // #if USE_USD_SDK
+	}
+
+	void FUsdStage::SetTimeCodesPerSecond( double TimeCodesPerSecond )
+	{
+#if USE_USD_SDK
+		pxr::UsdEditContext EditContext( Impl->PxrUsdStageRefPtr.Get(), Impl->PxrUsdStageRefPtr.Get()->GetRootLayer() );
+		Impl->PxrUsdStageRefPtr.Get()->SetTimeCodesPerSecond( TimeCodesPerSecond );
+#endif
+	}
+
+	double FUsdStage::GetFramesPerSecond() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->GetFramesPerSecond();
+#else
+		return 24.0;
+#endif // #if USE_USD_SDK
+	}
+
+	void FUsdStage::SetFramesPerSecond( double FramesPerSecond )
+	{
+#if USE_USD_SDK
+		pxr::UsdEditContext EditContext( Impl->PxrUsdStageRefPtr.Get(), Impl->PxrUsdStageRefPtr.Get()->GetRootLayer() );
+		Impl->PxrUsdStageRefPtr.Get()->SetFramesPerSecond( FramesPerSecond );
+#endif
 	}
 
 	void FUsdStage::SetDefaultPrim( const FUsdPrim& Prim )

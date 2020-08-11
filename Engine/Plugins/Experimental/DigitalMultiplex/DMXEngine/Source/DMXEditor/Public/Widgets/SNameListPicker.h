@@ -8,8 +8,14 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 
+class ITableRow;
+class SComboButton;
 template <typename OptionType>
-class SComboBox;
+class SListView;
+template <typename OptionType>
+class SListViewSelectorDropdownMenu;
+class SSearchBox;
+class STableViewBase;
 
 /**  A widget which allows the user to pick a name of a specified list of names. */
 class DMXEDITOR_API SNameListPicker
@@ -30,6 +36,7 @@ public:
 		, _ContentPadding(FMargin(2.f, 0.f))
 		, _HasMultipleValues(false)
 		, _Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+		, _MaxVisibleItems(15)
 	{}
 
 		/** The visual style of the combo button */
@@ -64,11 +71,14 @@ public:
 		/** Delegate for handling when for when the current value changes. */
 		SLATE_EVENT(FOnValueChanged, OnValueChanged)
 	
-		/** Attribute used to retrieve whether the picker has multiple values. */
+		/** Attribute used to retrieve whether the picker is representing multiple different values. */
 		SLATE_ATTRIBUTE(bool, HasMultipleValues)
 
 		/** Sets the font used to draw the text on the button */
 		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
+
+		/** If there're more than this, the list will be scrollable and a search box will be displayed */
+		SLATE_ARGUMENT(int32, MaxVisibleItems)
 
 	SLATE_END_ARGS()
 
@@ -80,12 +90,17 @@ public:
 private:
 	EVisibility GetWarningVisibility() const;
 
+	EVisibility GetSearchBoxVisibility() const;
+	void OnSearchBoxTextChanged(const FText& InSearchText);
+	void OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+	void UpdateFilteredOptions(const FString& Filter);
+
 	FText GetCurrentNameLabel() const;
 
 	void UpdateOptionsSource();
 
 	/** Create an option widget for the combo box */
-	TSharedRef<SWidget> GenerateNameItemWidget(TSharedPtr<FName> InItem);
+	TSharedRef<ITableRow> GenerateNameItemWidget(TSharedPtr<FName> InItem, const TSharedRef<STableViewBase>& OwnerTable) const;
 	/** Handles a selection change from the combo box */
 	void HandleSelectionChanged(const TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 
@@ -97,12 +112,18 @@ private:
 	 * that the button will keep the previous value highlighted. So we set the currently highlighted
 	 * option every time the menu is opened.
 	 */
-	void UpdateSelectedOption();
+	void OnMenuOpened();
 
 private:
-	TWeakPtr<SComboBox<TSharedPtr<FName>>> PickerComboButton;
+	TSharedPtr< SComboButton > PickerComboButton;
+	TSharedPtr< SListView< TSharedPtr<FName> > > OptionsListView;
+	TSharedPtr<SSearchBox> SearchBox;
+	int32 MaxVisibleItems;
+	TSharedPtr< SListViewSelectorDropdownMenu< TSharedPtr<FName> > > NamesListDropdown;
+
 	TAttribute<TArray<FName>> OptionsSourceAttr;
 	TArray<TSharedPtr<FName>> OptionsSource;
+	TArray<TSharedPtr<FName>> FilteredOptions;
 
 	FSimpleMulticastDelegate* UpdateOptionsDelegate;
 	FDelegateHandle UpdateOptionsHandle;

@@ -20,7 +20,7 @@ public class DisplayCluster : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"InputCore",
+				"InputCore"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -40,7 +40,10 @@ public class DisplayCluster : ModuleRules
 				"RenderCore",
 				"Slate",
 				"SlateCore",
-				"Sockets"
+				"Sockets",
+				"CinematicCamera",
+				"TextureShare",
+				"TextureShareCore",
 			});
 
 		if (Target.bBuildEditor == true)

@@ -44,6 +44,7 @@ class UFbxExportOption;
 struct FAnimControlTrackKey;
 struct FExpressionInput;
 struct FMovieSceneFloatChannel;
+struct FMovieSceneIntegerChannel;
 struct FMovieSceneSequenceTransform;
 
 namespace UnFbx
@@ -466,7 +467,7 @@ private:
 	/** 
 	 * Exports a level sequence property track into the FBX animation stack. 
 	 */
-	void ExportLevelSequencePropertyTrack( FbxNode* FbxActor, UMovieScenePropertyTrack& PropertyTrack, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform);
+	void ExportLevelSequenceTrackChannels( FbxNode* FbxActor, UMovieSceneTrack& Track, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform);
 
 	/** Defines value export modes for the EportRichCurveToFbxCurve method. */
 	enum class ERichCurveValueMode
@@ -477,8 +478,11 @@ private:
 		Fov
 	};
 
-	/** Exports a movie scene channel to an fbx animation curve. */
+	/** Exports a movie scene float channel to an fbx animation curve. */
 	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneFloatChannel& InChannel, FFrameRate TickResolution, ERichCurveValueMode ValueMode = ERichCurveValueMode::Default, bool bNegative = false, const FMovieSceneSequenceTransform& RootToLocalTransform = FMovieSceneSequenceTransform());
+
+	/** Exports a movie scene integer channel to an fbx animation curve. */
+	void ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovieSceneIntegerChannel& InChannel, FFrameRate TickResolution, const FMovieSceneSequenceTransform& RootToLocalTransform = FMovieSceneSequenceTransform());
 
 	/**
 	 * Finds the given actor in the already-exported list of structures
@@ -514,7 +518,8 @@ private:
 	 * @param Name  Property name.
 	 * @param Label Property label.
 	 */
-	void CreateAnimatableUserProperty(FbxNode* Node, float Value, const char* Name, const char* Label);
+	template<typename T>
+	void CreateAnimatableUserProperty(FbxNode* Node, T Value, const char* Name, const char* Label, FbxDataType DataType = FbxFloatDT);
 
 	/** Exports all the object's FBX metadata to the FBX node */
 	void ExportObjectMetadata(const UObject* ObjectToExport, FbxNode* Node);

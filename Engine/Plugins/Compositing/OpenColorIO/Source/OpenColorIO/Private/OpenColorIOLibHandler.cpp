@@ -4,9 +4,9 @@
 
 #include "HAL/PlatformProcess.h"
 #include "Interfaces/IPluginManager.h"
-#include "IOpenColorIOModule.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
+#include "OpenColorIOModule.h"
 
 
  //~ Static initialization

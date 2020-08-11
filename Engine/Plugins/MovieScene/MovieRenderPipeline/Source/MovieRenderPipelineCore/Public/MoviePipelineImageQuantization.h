@@ -7,7 +7,7 @@ namespace UE
 {
 namespace MoviePipeline
 {
-	MOVIERENDERPIPELINECORE_API TUniquePtr<FImagePixelData> QuantizeImagePixelDataToBitDepth(const FImagePixelData* InData, const int32 TargetBitDepth, FImagePixelPayloadPtr InPayload = nullptr);
+	MOVIERENDERPIPELINECORE_API TUniquePtr<FImagePixelData> QuantizeImagePixelDataToBitDepth(const FImagePixelData* InData, const int32 TargetBitDepth, FImagePixelPayloadPtr InPayload = nullptr, bool bConvertToSrgb = true);
 }
 }
 	  

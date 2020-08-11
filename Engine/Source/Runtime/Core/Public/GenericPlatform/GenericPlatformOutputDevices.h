@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "GenericPlatform/GenericPlatform.h"
+#include "Templates/UniquePtr.h"
 
 class FOutputDeviceConsole;
 class FOutputDeviceError;

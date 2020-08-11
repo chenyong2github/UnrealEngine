@@ -8,6 +8,11 @@
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolArtNetConstants.h"
 #include "DMXProtocolArtNet.h"
+#include "DMXStats.h"
+
+// Stats
+DECLARE_MEMORY_STAT(TEXT("Art-Net Input And Output Buffer Memory"), STAT_ArtNetInputAndOutputBufferMemory, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Universes Count"), STAT_ArtNetUniversesCount, STATGROUP_DMX);
 
 //~ Artnet specific constants
 static const uint8 HIGH_NIBBLE = 0xF0;
@@ -20,8 +25,12 @@ FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProt
 	checkf(WeakDMXProtocol.IsValid(), TEXT("DMXProtocol pointer is nullptr"));
 
 	Priority = 100;
-	OutputDMXBuffer = MakeShared<FDMXBuffer>();
-	InputDMXBuffer = MakeShared<FDMXBuffer>();
+	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
+
+	// Stats
+	INC_MEMORY_STAT_BY(STAT_ArtNetInputAndOutputBufferMemory, DMX_UNIVERSE_SIZE * 2);
+	INC_DWORD_STAT(STAT_ArtNetUniversesCount);
 
 	UpdateSettings(InSettings);
 	/* Bits 15 			Bits 14-8        | Bits 7-4      | Bits 3-0
@@ -42,14 +51,24 @@ IDMXProtocolPtr FDMXProtocolUniverseArtNet::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
+FDMXBufferPtr FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
+{
+	return InputDMXBuffer;
+}
+
+FDMXBufferPtr FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
 {
 	return OutputDMXBuffer;
 }
 
-TSharedPtr<FDMXBuffer> FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
+void FDMXProtocolUniverseArtNet::ZeroInputDMXBuffer()
 {
-	return InputDMXBuffer;
+	InputDMXBuffer->ZeroDMXBuffer();
+}
+
+void FDMXProtocolUniverseArtNet::ZeroOutputDMXBuffer()
+{
+	OutputDMXBuffer->ZeroDMXBuffer();
 }
 
 bool FDMXProtocolUniverseArtNet::SetDMXFragment(const IDMXFragmentMap & DMXFragment)
@@ -78,11 +97,18 @@ void FDMXProtocolUniverseArtNet::UpdateSettings(const FJsonObject& InSettings)
 	checkf(Settings->HasField(DMXJsonFieldNames::DMXPortID), TEXT("DMXProtocol PortID is not valid"));
 	checkf(Settings->HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol Universe is not valid"));
 	checkf(Settings->HasField(DMXJsonFieldNames::DMXEthernetPort), TEXT("DMXProtocol EthernPort is not valid"));
-	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddress), TEXT("DMXProtocol IPAddress  is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddresses), TEXT("DMXProtocol IPAddresses is not valid"));
 	PortID = Settings->GetNumberField(DMXJsonFieldNames::DMXPortID);
 	UniverseID = Settings->GetNumberField(DMXJsonFieldNames::DMXUniverseID);
 	EthernetPort = Settings->GetNumberField(DMXJsonFieldNames::DMXEthernetPort);
-	IpAddress = Settings->GetNumberField(DMXJsonFieldNames::DMXIpAddress);
+	IpAddresses.Empty();
+	for (TSharedPtr<FJsonValue> JsonIpAddress : Settings->GetArrayField(DMXJsonFieldNames::DMXIpAddresses))
+	{
+		uint64 IpAddress = 0;
+		const bool bValid = JsonIpAddress->TryGetNumber(IpAddress);
+		checkf(bValid, TEXT("DMXProtocol IPAddresses content is not valid"));
+		IpAddresses.Add(IpAddress);
+	}
 }
 
 bool FDMXProtocolUniverseArtNet::IsSupportRDM() const

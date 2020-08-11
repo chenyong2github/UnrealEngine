@@ -25,6 +25,7 @@
 class FOpenColorIOTransformResource;
 class FOpenColorIOShaderMap;
 class FOpenColorIOPixelShader;
+class FOpenColorIOPixelShader_RDG;
 class FOpenColorIOShaderMapId;
 
 
@@ -296,7 +297,7 @@ private:
 /**
  * FOpenColorIOTransformResource represents a OpenColorIO color transform to the shader compilation process
  */
-class FOpenColorIOTransformResource
+class OPENCOLORIO_API FOpenColorIOTransformResource
 {
 public:
 
@@ -314,13 +315,13 @@ public:
 	/**
 	 * Destructor
 	 */
-	OPENCOLORIO_API  virtual ~FOpenColorIOTransformResource();
+	virtual ~FOpenColorIOTransformResource();
 
 	/**
 	 * Caches the shaders for this color transform with no static parameters on the given platform.
 	 * This is used by UOpenColorIOColorTransform
 	 */
-	OPENCOLORIO_API  bool CacheShaders(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
+	bool CacheShaders(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
 	bool CacheShaders(const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform, bool bApplyCompletedShaderMapForRendering, bool bSynchronous);
 
 	/**
@@ -332,20 +333,20 @@ public:
 	 *
 	 * @return true if the shader should be compiled
 	 */
-	OPENCOLORIO_API  virtual bool ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const;
+	virtual bool ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const;
 
-	OPENCOLORIO_API void SerializeShaderMap(FArchive& Ar);
+	void SerializeShaderMap(FArchive& Ar);
 
 	/** Releases this color transform's shader map.  Must only be called on ColorTransforms not exposed to the rendering thread! */
-	OPENCOLORIO_API void ReleaseShaderMap();
+	void ReleaseShaderMap();
 
 	/** Discards loaded shader maps if the application can't render */
-	OPENCOLORIO_API void DiscardShaderMap();
+	void DiscardShaderMap();
 
 	void GetDependentShaderTypes(EShaderPlatform InPlatform, TArray<FShaderType*>& OutShaderTypes) const;
-	OPENCOLORIO_API  virtual void GetShaderMapId(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, FOpenColorIOShaderMapId& OutId) const;
+	virtual void GetShaderMapId(EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, FOpenColorIOShaderMapId& OutId) const;
 
-	OPENCOLORIO_API void Invalidate();
+	void Invalidate();
 
 	/**
 	 * Should shaders compiled for this color transform be saved to disk?
@@ -355,24 +356,24 @@ public:
 	/**
 	 * Called when compilation finishes, after the GameThreadShaderMap is set and the render command to set the RenderThreadShaderMap is queued
 	 */
-	OPENCOLORIO_API virtual void NotifyCompilationFinished();
+	virtual void NotifyCompilationFinished();
 
 	/**
 	 * Cancels all outstanding compilation jobs
 	 */
-	OPENCOLORIO_API  void CancelCompilation();
+	void CancelCompilation();
 
 	/**
 	 * Blocks until compilation has completed. Returns immediately if a compilation is not outstanding.
 	 */
-	OPENCOLORIO_API  void FinishCompilation();
+	void FinishCompilation();
 
 	/**
 	 * Checks if the compilation for this shader is finished
 	 *
 	 * @return returns true if compilation is complete false otherwise
 	 */
-	OPENCOLORIO_API  bool IsCompilationFinished() const;
+	bool IsCompilationFinished() const;
 
 	// Accessors.
 	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }
@@ -394,7 +395,7 @@ public:
 	}
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
-	OPENCOLORIO_API  void SetRenderingThreadShaderMap(FOpenColorIOShaderMap* InShaderMap);
+	void SetRenderingThreadShaderMap(FOpenColorIOShaderMap* InShaderMap);
 
 	void AddCompileId(uint32 InIdentifier) 
 	{
@@ -410,14 +411,14 @@ public:
 		CookedShaderMapId = InShaderMap->GetShaderMapId();
 	}
 
-	OPENCOLORIO_API void RemoveOutstandingCompileId(const int32 InOldOutstandingCompileShaderMapId);
+	void RemoveOutstandingCompileId(const int32 InOldOutstandingCompileShaderMapId);
 
 	/**
 	* Get OCIO generated source code for the shader
 	* @param OutSource - generated source code
 	* @return - true on Success
 	*/
-	OPENCOLORIO_API  bool GetColorTransformHLSLSource(FString& OutSource) 
+	bool GetColorTransformHLSLSource(FString& OutSource) 
 	{
 		OutSource = ShaderCode;
 		return true;
@@ -426,7 +427,7 @@ public:
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
 
-	OPENCOLORIO_API void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName);
+	void SetupResource(ERHIFeatureLevel::Type InFeatureLevel, const FString& InShaderCodeHash, const FString& InShadercode, const FString& InFriendlyName);
 
 	void SetCompileErrors(TArray<FString> &InErrors)
 	{
@@ -435,8 +436,29 @@ public:
 	
 	FString ShaderCode;
 
-	OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> GetShader() const;
-	OPENCOLORIO_API  TShaderRef<FOpenColorIOPixelShader> GetShaderGameThread() const;
+	template <typename ShaderType>
+	TShaderRef<ShaderType> GetShader() const
+	{
+		check(!GIsThreadedRendering || !IsInGameThread());
+		if (!GIsEditor || RenderingThreadShaderMap)
+		{
+			return RenderingThreadShaderMap->GetShader<ShaderType>();
+		}
+		return TShaderRef<ShaderType>();
+	};
+
+
+	template <typename ShaderType>
+	TShaderRef<ShaderType> GetShaderGameThread() const
+	{
+		if (GameThreadShaderMap)
+		{
+			return GameThreadShaderMap->GetShader<ShaderType>();
+		}
+
+		return TShaderRef<ShaderType>();
+	};
+
 	
 	bool IsSame(const FOpenColorIOShaderMapId& InId) const;
 protected:
