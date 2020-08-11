@@ -74,6 +74,7 @@ private:
 	uint32 bSubImageBlend : 1;
 	uint32 bRemoveHMDRollInVR : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
+	uint32 bGpuLowLatencyTranslucency : 1;
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;

@@ -85,6 +85,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
 	, bSortOnlyWhenTranslucent(true)
+	, bGpuLowLatencyTranslucency(true)
 	, MinFacingCameraBlendDistance(0.0f)
 	, MaxFacingCameraBlendDistance(0.0f)
 	, MaterialParamValidMask(0)
@@ -101,6 +102,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	bSubImageBlend = Properties->bSubImageBlend;
 	bRemoveHMDRollInVR = Properties->bRemoveHMDRollInVR;
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
+	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency;
 	MinFacingCameraBlendDistance = Properties->MinFacingCameraBlendDistance;
 	MaxFacingCameraBlendDistance = Properties->MaxFacingCameraBlendDistance;
 
@@ -425,9 +427,6 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		}
 	}
 
-	FNiagaraDataBuffer* SourceParticleData = DynamicDataSprites->GetParticleDataToRender();
-	check(SourceParticleData);//Can be null but should be checked before here.
-
 	//Sort particles if needed.
 	if (SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
@@ -438,9 +437,12 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 		EBlendMode BlendMode = MaterialRenderProxy->GetMaterial(FeatureLevel)->GetBlendMode();
 		OutVertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
 
-		const int32 NumInstances = SourceParticleData->GetNumInstances();
-		FNiagaraGPUSortInfo SortInfo;
 		const bool bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
+		FNiagaraDataBuffer* SourceParticleData = DynamicDataSprites->GetParticleDataToRender(bHasTranslucentMaterials && bGpuLowLatencyTranslucency);
+		check(SourceParticleData);//Can be null but should be checked before here.
+		const int32 NumInstances = SourceParticleData->GetNumInstances();
+
+		FNiagaraGPUSortInfo SortInfo;
 		const bool bShouldSort = SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
 		const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
 		TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
