@@ -404,6 +404,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting, meta=(EditCondition="CastShadow", DisplayName = "Volumetric Translucent Shadow"))
 	uint8 bCastVolumetricTranslucentShadow:1;
 
+	/**
+	 * Whether the object should cast contact shadows.
+	 * This flag is only used if CastShadow is true.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting, AdvancedDisplay, meta=(EditCondition="CastShadow", DisplayName = "Contact Shadow"))
+	uint8 bCastContactShadow:1;
+
 	/** 
 	 * When enabled, the component will only cast a shadow on itself and not other components in the world.  
 	 * This is especially useful for first person weapons, and forces bCastInsetShadow to be enabled.

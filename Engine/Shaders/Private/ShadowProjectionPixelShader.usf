@@ -264,8 +264,7 @@ void Main(
 		if (bIsSubsurfaceCompatible && IsSubsurfaceModel(GBufferData.ShadingModelID))
 		{
 			float Opacity = GBufferData.CustomData.a;
-			// Derive density from a heuristic using opacity, tweaked for useful falloff ranges and to give a linear depth falloff with opacity
-			float Density = -.05f * log(1 - min(Opacity, .999f));
+			float Density = SubsurfaceDensityFromOpacity(Opacity);
 			if( GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE )
 			{
 				Opacity = 1;

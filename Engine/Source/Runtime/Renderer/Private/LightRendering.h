@@ -23,6 +23,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct,)
 	SHADER_PARAMETER(FVector4,ShadowMapChannelMask)
 	SHADER_PARAMETER(FVector2D,DistanceFadeMAD)
 	SHADER_PARAMETER(float, ContactShadowLength)
+	SHADER_PARAMETER(float, ContactShadowNonShadowCastingIntensity)
+	SHADER_PARAMETER(int32, ContactShadowSubsurfaceFalloff)
 	SHADER_PARAMETER(float, VolumetricScatteringIntensity)
 	SHADER_PARAMETER(uint32,ShadowedBits)
 	SHADER_PARAMETER(uint32,LightingChannelMask)
@@ -74,6 +76,7 @@ void SetDeferredLightParameters(
 
 	static auto* ContactShadowsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows"));
 	DeferredLightUniformsValue.ContactShadowLength = 0;
+	DeferredLightUniformsValue.ContactShadowNonShadowCastingIntensity = 0.0f;
 
 	if (ContactShadowsCVar && ContactShadowsCVar->GetValueOnRenderThread() != 0 && View.Family->EngineShowFlags.ContactShadows)
 	{
@@ -81,6 +84,13 @@ void SetDeferredLightParameters(
 		// Sign indicates if contact shadow length is in world space or screen space.
 		// Multiply by 2 for screen space in order to preserve old values after introducing multiply by View.ClipToView[1][1] in shader.
 		DeferredLightUniformsValue.ContactShadowLength *= LightSceneInfo->Proxy->IsContactShadowLengthInWS() ? -1.0f : 2.0f;
+
+		// NOTE: Cvars temporary - move to light parameter
+		static auto* IntensityCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ContactShadows.NonShadowCastingIntensity"));
+		DeferredLightUniformsValue.ContactShadowNonShadowCastingIntensity = IntensityCVar ? IntensityCVar->GetValueOnRenderThread() : 0.0f;
+
+		static auto* FalloffCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows.SubsurfaceFalloff"));
+		DeferredLightUniformsValue.ContactShadowSubsurfaceFalloff = FalloffCVar ? FalloffCVar->GetValueOnRenderThread() : 0;
 	}
 
 	// When rendering reflection captures, the direct lighting of the light is actually the indirect specular from the main view

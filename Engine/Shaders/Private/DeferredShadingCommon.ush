@@ -196,6 +196,12 @@ float3 EncodeSubsurfaceProfile(float SubsurfaceProfile)
 	return float3(SubsurfaceProfile, 0, 0);
 }
 
+// Derive density from a heuristic using opacity, tweaked for useful falloff ranges and to give a linear depth falloff with opacity
+float SubsurfaceDensityFromOpacity(float Opacity)
+{
+	return (-0.05f * log(1.0f - min(Opacity, 0.999f)));
+}
+
 float EncodeIndirectIrradiance(float IndirectIrradiance)
 {
 	float L = IndirectIrradiance;
@@ -335,7 +341,7 @@ struct FGBufferData
 	uint ShadingModelID;
 	// 0..255 
 	uint SelectiveOutputMask;
-	// 0..1, 2 bits, use CastDynamicShadow(GBuffer) or HasDynamicIndirectShadowCasterRepresentation(GBuffer) to extract
+	// 0..1, 2 bits, use CastContactShadow(GBuffer) or HasDynamicIndirectShadowCasterRepresentation(GBuffer) to extract
 	float PerObjectGBufferData;
 	// in world units
 	float CustomDepth;
@@ -355,7 +361,7 @@ struct FGBufferData
 	float StoredMetallic;
 };
 
-bool CastDynamicShadow(FGBufferData GBufferData)
+bool CastContactShadow(FGBufferData GBufferData)
 {
 	uint PackedAlpha = (uint)(GBufferData.PerObjectGBufferData * 3.999f);
 	return PackedAlpha & 1;
