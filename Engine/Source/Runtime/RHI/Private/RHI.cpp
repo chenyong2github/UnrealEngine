@@ -1048,7 +1048,7 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 				int32 MinShaderVersion = 3;
 				if(!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
 				{
-					MaxShaderVersion = 3;
+					MaxShaderVersion = 4;
 				}
 				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
 			}
@@ -1132,6 +1132,19 @@ bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
 		return GDynamicRHI->RHIPreferredPixelFormatHint(PreferredPixelFormat);
 	}
 	return PreferredPixelFormat;
+}
+
+RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatform Platform)
+{
+	if (IsMetalPlatform(Platform))
+	{
+		static constexpr uint32 METAL_TEXTUREBUFFER_SHADER_LANGUAGE_VERSION = 4;
+		if (METAL_TEXTUREBUFFER_SHADER_LANGUAGE_VERSION <= RHIGetShaderLanguageVersion(Platform))
+		{
+			return 0; // BUFFER
+		}
+	}
+	return 1; // TEXTURE_2D
 }
 
 void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const

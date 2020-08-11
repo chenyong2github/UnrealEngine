@@ -35,7 +35,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	int32 MaxShaderVersion = 0;
 	int32 IndirectArgumentTier = 0;
 #if PLATFORM_MAC
-	int32 DefaultMaxShaderVersion = 3;
+	int32 DefaultMaxShaderVersion = 4;
 	int32 MinShaderVersion = 3;
     const TCHAR* const Settings = TEXT("/Script/MacTargetPlatform.MacTargetSettings");
 #else
