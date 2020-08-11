@@ -39,6 +39,7 @@
 
 #define LOCTEXT_NAMESPACE "EditorLevelLibrary"
 
+
 namespace InternalEditorLevelLibrary
 {
 	FJoinStaticMeshActorsOptions ConvertJoinStaticMeshActorsOptions(const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated &Options)
@@ -220,18 +221,18 @@ void UEditorLevelLibrary::EditorInvalidateViewports()
 	}
 }
 
-AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation)
+AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient)
 {
 	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromObject(ObjToUse, Location, Rotation) : nullptr;
+	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromObject(ObjToUse, Location, Rotation, bTransient) : nullptr;
 }
 
-AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation)
+AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation, bool bTransient)
 {
 	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 
-	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromClass(ActorClass, Location, Rotation) : nullptr;
+	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromClass(ActorClass, Location, Rotation, bTransient) : nullptr;
 }
 
 bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)

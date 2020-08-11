@@ -63,7 +63,7 @@ namespace InternalActorUtilitiesSubsystemLibrary
 		return Result;
 	}
 
-	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation)
+	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient)
 	{
 		UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
@@ -95,7 +95,17 @@ namespace InternalActorUtilitiesSubsystemLibrary
 		GEditor->ClickLocation = Location;
 		GEditor->ClickPlane = FPlane(Location, FVector::UpVector);
 
-		const EObjectFlags NewObjectFlags = RF_Transactional;
+		EObjectFlags NewObjectFlags = RF_NoFlags;
+
+		if (bTransient)
+		{
+			NewObjectFlags |= RF_Transient;
+		}
+		else
+		{
+			NewObjectFlags |= RF_Transactional;
+		}
+
 		UActorFactory* FactoryToUse = nullptr;
 		bool bSelectActors = true;
 		TArray<AActor*> Actors = FLevelEditorViewportClient::TryPlacingActorFromObject(DesiredLevel, ObjToUse, bSelectActors, NewObjectFlags, FactoryToUse);
@@ -211,7 +221,7 @@ void UEditorActorSubsystem::BroadcastDeleteActorsEnd()
 	OnDeleteActorsEnd.Broadcast();
 }
 
-void UEditorActorSubsystem ::DuplicateSelectedActors(UWorld* InWorld)
+void UEditorActorSubsystem::DuplicateSelectedActors(UWorld* InWorld)
 {
 	if (!GEditor || !InWorld)
 	{
@@ -242,7 +252,7 @@ void UEditorActorSubsystem ::DuplicateSelectedActors(UWorld* InWorld)
 	GEditor->RedrawLevelEditingViewports();
 }
 
-void UEditorActorSubsystem ::DeleteSelectedActors(UWorld* InWorld)
+void UEditorActorSubsystem::DeleteSelectedActors(UWorld* InWorld)
 {
 	if (!GEditor || !InWorld)
 	{
@@ -258,7 +268,7 @@ void UEditorActorSubsystem ::DeleteSelectedActors(UWorld* InWorld)
 	FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 }
 
-void UEditorActorSubsystem ::InvertSelection(UWorld* InWorld)
+void UEditorActorSubsystem::InvertSelection(UWorld* InWorld)
 {
 	if (!GUnrealEd || !InWorld)
 	{
@@ -269,7 +279,7 @@ void UEditorActorSubsystem ::InvertSelection(UWorld* InWorld)
 	GUnrealEd->edactSelectInvert(InWorld);
 }
 
-void UEditorActorSubsystem ::SelectAll(UWorld* InWorld)
+void UEditorActorSubsystem::SelectAll(UWorld* InWorld)
 {
 	if (!GUnrealEd || !InWorld)
 	{
@@ -280,7 +290,7 @@ void UEditorActorSubsystem ::SelectAll(UWorld* InWorld)
 	GUnrealEd->edactSelectAll(InWorld);
 }
 
-void UEditorActorSubsystem ::SelectAllChildren(bool bRecurseChildren)
+void UEditorActorSubsystem::SelectAllChildren(bool bRecurseChildren)
 {
 	if (!GUnrealEd)
 	{
@@ -299,7 +309,7 @@ void UEditorActorSubsystem ::SelectAllChildren(bool bRecurseChildren)
 	GUnrealEd->edactSelectAllChildren(bRecurseChildren);
 }
 
-TArray<AActor*> UEditorActorSubsystem ::GetAllLevelActors()
+TArray<AActor*> UEditorActorSubsystem::GetAllLevelActors()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 	TArray<AActor*> Result;
@@ -328,7 +338,7 @@ TArray<AActor*> UEditorActorSubsystem ::GetAllLevelActors()
 	return Result;
 }
 
-TArray<UActorComponent*> UEditorActorSubsystem ::GetAllLevelActorsComponents()
+TArray<UActorComponent*> UEditorActorSubsystem::GetAllLevelActorsComponents()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -340,7 +350,7 @@ TArray<UActorComponent*> UEditorActorSubsystem ::GetAllLevelActorsComponents()
 	return InternalActorUtilitiesSubsystemLibrary::GetAllLoadedObjects<UActorComponent>();
 }
 
-TArray<AActor*> UEditorActorSubsystem ::GetSelectedLevelActors()
+TArray<AActor*> UEditorActorSubsystem::GetSelectedLevelActors()
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -363,7 +373,7 @@ TArray<AActor*> UEditorActorSubsystem ::GetSelectedLevelActors()
 	return Result;
 }
 
-void UEditorActorSubsystem ::SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect)
+void UEditorActorSubsystem::SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -404,32 +414,32 @@ void UEditorActorSubsystem ::SetSelectedLevelActors(const TArray<class AActor*>&
 	}
 }
 
-void UEditorActorSubsystem ::ClearActorSelectionSet()
+void UEditorActorSubsystem::ClearActorSelectionSet()
 {
 	GEditor->GetSelectedActors()->Modify();
 	GEditor->GetSelectedActors()->DeselectAll();
 	GEditor->NoteSelectionChange();
 }
 
-void UEditorActorSubsystem ::SelectNothing()
+void UEditorActorSubsystem::SelectNothing()
 {
 	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectNone(true, true, false);
 }
 
-void UEditorActorSubsystem ::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
+void UEditorActorSubsystem::SetActorSelectionState(AActor* Actor, bool bShouldBeSelected)
 {
 	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
 }
 
-AActor* UEditorActorSubsystem ::GetActorReference(FString PathToActor)
+AActor* UEditorActorSubsystem::GetActorReference(FString PathToActor)
 {
 	return Cast<AActor>(StaticFindObject(AActor::StaticClass(), GEditor->GetEditorWorldContext().World(), *PathToActor, false));
 }
 
 
-AActor* UEditorActorSubsystem ::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation)
+AActor* UEditorActorSubsystem::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -444,10 +454,10 @@ AActor* UEditorActorSubsystem ::SpawnActorFromObject(UObject* ObjToUse, FVector 
 		return nullptr;
 	}
 
-	return InternalActorUtilitiesSubsystemLibrary::SpawnActor(TEXT("SpawnActorFromObject"), ObjToUse, Location, Rotation);
+	return InternalActorUtilitiesSubsystemLibrary::SpawnActor(TEXT("SpawnActorFromObject"), ObjToUse, Location, Rotation, bTransient);
 }
 
-AActor* UEditorActorSubsystem ::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation)
+AActor* UEditorActorSubsystem::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation, bool bTransient)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -462,10 +472,10 @@ AActor* UEditorActorSubsystem ::SpawnActorFromClass(TSubclassOf<class AActor> Ac
 		return nullptr;
 	}
 
-	return InternalActorUtilitiesSubsystemLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation);
+	return InternalActorUtilitiesSubsystemLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation, bTransient);
 }
 
-bool UEditorActorSubsystem ::DestroyActor(class AActor* ToDestroyActor)
+bool UEditorActorSubsystem::DestroyActor(class AActor* ToDestroyActor)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -511,7 +521,7 @@ bool UEditorActorSubsystem ::DestroyActor(class AActor* ToDestroyActor)
 	return World->EditorDestroyActor(ToDestroyActor, true);
 }
 
-TArray<class AActor*> UEditorActorSubsystem ::ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath)
+TArray<class AActor*> UEditorActorSubsystem::ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 

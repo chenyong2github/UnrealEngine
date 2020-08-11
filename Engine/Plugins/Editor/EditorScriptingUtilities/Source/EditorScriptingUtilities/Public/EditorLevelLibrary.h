@@ -194,8 +194,8 @@ public:
 	 * @return	The created actor.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
-	static AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (KeyWords = "Transient"))
+	static AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Create an actor and place it in the world editor. Can be created from a Blueprint or a Class.
@@ -204,9 +204,9 @@ public:
 	 * @param	Location		Location of the new actor.
 	 * @return	The created actor.
 	 */
-	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass", DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem"))
-	static AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
+    UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Editor Actor Utilities Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass", KeyWords = "Transient"))
+	static AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
