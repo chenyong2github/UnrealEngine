@@ -2,7 +2,8 @@
 
 #include "TrailHierarchy.h"
 #include "MotionTrailEditorMode.h"
-
+#include "TrajectoryDrawInfo.h"
+#include "Containers/Queue.h"
 #include "CanvasItem.h"
 
 void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)

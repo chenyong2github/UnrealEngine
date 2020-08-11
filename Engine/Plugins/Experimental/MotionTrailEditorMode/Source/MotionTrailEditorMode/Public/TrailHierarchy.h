@@ -3,6 +3,10 @@
 #pragma once
 
 #include "Trail.h"
+#include "EditorViewportClient.h"
+
+#include "SceneView.h"
+#include "UnrealClient.h"
 
 class ITrailHierarchyRenderer
 {

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionTrailEditorToolset.h"
+#include "MotionTrailEditorMode.h"
 
 #include "BaseGizmos/TransformGizmo.h"
 #include "InteractiveGizmoManager.h"
