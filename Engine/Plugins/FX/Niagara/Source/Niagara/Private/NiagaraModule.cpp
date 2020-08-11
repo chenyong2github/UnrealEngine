@@ -1028,12 +1028,12 @@ FArchive& operator<<(FArchive& Ar, FNiagaraTypeDefinitionHandle& Handle)
 	if (Ar.IsSaving())
 	{
 		FNiagaraTypeDefinition TypeDef = *Handle;
-		TypeDefStruct->SerializeTaggedProperties(Ar, (uint8*) &TypeDef, TypeDefStruct, nullptr);
+		TypeDefStruct->SerializeItem(Ar, &TypeDef, nullptr);
 	}
 	else if (Ar.IsLoading())
 	{
 		FNiagaraTypeDefinition TypeDef;
-		TypeDefStruct->SerializeTaggedProperties(Ar, (uint8*) &TypeDef, TypeDefStruct, nullptr);
+		TypeDefStruct->SerializeItem(Ar, &TypeDef, nullptr);
 		Handle = FNiagaraTypeDefinitionHandle(TypeDef);
 	}
 
