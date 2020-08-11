@@ -372,12 +372,10 @@ void ReconstructVolumetricRenderTargetPS(
 			DepthBoxMinCross = min(DepthBoxMinCross, MiddlePointDepth);
 			DepthBoxMaxCross = max(DepthBoxMaxCross, MiddlePointDepth);
 
-			//float DepthBoxMin = 0.5f * (DepthBoxMinPlus + DepthBoxMinCross);
-			//float DepthBoxMax = 0.5f * (DepthBoxMaxPlus + DepthBoxMaxCross);
-			//FilteredDepth = clamp(PrevDepth, DepthBoxMin, DepthBoxMax); // simple depth range clamp
-			// Doing some mean + clamp of depth as above does not have any justification really.
-			// So instead we simply take the min.
-			FilteredDepth = min(DepthBoxMinPlus, DepthBoxMinCross); 
+			// This reconstruction must be done for now to get proper depth matching the particpating media extent on screen
+			float DepthBoxMin = 0.5f * (DepthBoxMinPlus + DepthBoxMinCross);
+			float DepthBoxMax = 0.5f * (DepthBoxMaxPlus + DepthBoxMaxCross);
+			FilteredDepth = clamp(PrevDepth, DepthBoxMin, DepthBoxMax); // simple depth range clamp
 
 			float FinalTemporalFactor = TemporalFactor;
 #if 1
