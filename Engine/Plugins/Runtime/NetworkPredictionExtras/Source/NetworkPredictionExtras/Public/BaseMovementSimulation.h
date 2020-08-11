@@ -34,7 +34,7 @@ public:
 	/**  Flags that control the behavior of calls to MoveComponent() on our UpdatedComponent. */
 	mutable EMoveComponentFlags MoveComponentFlags = MOVECOMP_NoFlags; // Mutable because we sometimes need to disable these flags ::ResolvePenetration. Better way may be possible
 
-	virtual void SetComponents(USceneComponent* InUpdatedComponent, UPrimitiveComponent* InPrimitiveComponent)
+	void SetComponents(USceneComponent* InUpdatedComponent, UPrimitiveComponent* InPrimitiveComponent)
 	{
 		UpdatedComponent = InUpdatedComponent;
 		UpdatedPrimitive = InPrimitiveComponent;

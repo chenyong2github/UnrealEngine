@@ -18,6 +18,7 @@ void FMockRootMotionSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 	npCheckSlow(RootMotionComponent);
 
 	FMockRootMotionSyncState LocalSync = *Input.Sync;
+	const FMockRootMotionAuxState* LocalAuxPtr = Input.Aux;
 
 	// See if InputCmd wants to play a new RootMotion (only if we aren't currently playing one)
 	if (Input.Cmd->PlayCount != Input.Sync->InputPlayCount && LocalSync.RootMotionSourceID == INDEX_NONE)
@@ -32,7 +33,12 @@ void FMockRootMotionSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 		LocalSync.PlayRate = 1.f; // input initiated root motions are assumed to be 1.f play rate
 		LocalSync.PlayPosition = 0.f; // also assumed to start at t=0
 
-		// Question: should we advance the root motion here or not? When you play a montage, do you expect the next render 
+		// Copy the play parameters to the aux state
+		FMockRootMotionAuxState* OutAux = Output.Aux.Get();
+		OutAux->Parameters = Input.Cmd->Parameters;
+		LocalAuxPtr = OutAux;
+
+		// Question: should we advance the root motion here or not? When you play a new montage, do you expect the next render 
 		// frame to be @ t=0? Or should we advance it by TimeStep.StepMS? 
 		//
 		// It seems one frame of no movement would be bad. If we were chaining animations together, we wouldn't want to enforce
@@ -58,7 +64,7 @@ void FMockRootMotionSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 	UpdatedComponent->SetWorldTransform(StartingTransform, false, nullptr, ETeleportType::TeleportPhysics);
 
 	// Call into root motion source map to actually update the root motino state
-	FTransform LocalDeltaTransform = this->SourceMap->StepRootMotion(TimeStep, &LocalSync, Output.Sync);
+	FTransform LocalDeltaTransform = this->SourceMap->StepRootMotion(TimeStep, &LocalSync, Output.Sync, LocalAuxPtr);
 
 	// StepRootMotion should return local delta transform, we need to convert to world
 	FTransform DeltaWorldTransform;

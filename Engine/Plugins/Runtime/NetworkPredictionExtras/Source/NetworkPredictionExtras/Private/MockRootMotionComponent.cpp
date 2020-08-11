@@ -10,6 +10,7 @@
 #include "NetworkPredictionProxyWrite.h"
 #include "Curves/CurveVector.h"
 #include "Animation/AnimInstance.h"
+#include "Templates/UniquePtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMockRootMotionComponent, Log, All);
 
@@ -89,7 +90,7 @@ void UMockRootMotionComponent::InitializeNetworkPredictionProxy()
 	NetworkPredictionProxy.Init<FMockRootMotionModelDef>(GetWorld(), GetReplicationProxies(), OwnedMockRootMotionSimulation.Get(), this);
 }
 
-void UMockRootMotionComponent::InitializeSimulationState(FMockRootMotionSyncState* SyncState, void* AuxState)
+void UMockRootMotionComponent::InitializeSimulationState(FMockRootMotionSyncState* SyncState, FMockRootMotionAuxState* AuxState)
 {
 	// This assumes no animation is currently playing. Any "play anim on startup" should go through the same path 
 	// as playing an animation at runttime wrt NP.
@@ -107,7 +108,7 @@ void UMockRootMotionComponent::ProduceInput(const int32 SimTimeMS, FMockRootMoti
 	*Cmd = PendingInputCmd;
 }
 
-void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* SyncState, const void* AuxState)
+void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState)
 {
 	npCheckSlow(UpdatedComponent);
 	npCheckSlow(AnimInstance);
@@ -120,24 +121,6 @@ void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* Syn
 
 	// Update animation state (pose) - make sure it matches SyncState.
 	RootMotionSourceDataAsset->FinalizePose(SyncState, AnimInstance);
-}
-
-
-void UMockRootMotionComponent::Input_PlayRootMotionBySourceID(int32 ID)
-{
-	if (!npEnsureMsgf(RootMotionSourceDataAsset != nullptr, TEXT("No RootMotionSourceDataAsset set on %s. Skipping Input_PlayRootMotionBySourceID."), *GetPathName()))
-	{
-		return;
-	}
-
-	if (!RootMotionSourceDataAsset->IsValidSourceID(ID))
-	{
-		UE_LOG(LogMockRootMotionComponent, Warning, TEXT("Invalid RootMotionSource ID: %d called on %s. Skipping"), ID, *GetPathName());
-		return;
-	}
-
-	PendingInputCmd.PlaySourceID = ID;
-	PendingInputCmd.PlayCount++;
 }
 
 template<typename AssetType>
@@ -161,15 +144,15 @@ int32 UMockRootMotionComponent::PlayRootMotionByAssetType(AssetType* Asset)
 	return ID;
 }
 
-
 void UMockRootMotionComponent::Input_PlayRootMotionByMontage(UAnimMontage* Montage)
 {
 	PlayRootMotionByAssetType(Montage);
 }
 
-void UMockRootMotionComponent::Input_PlayRootMotionByCurve(UCurveVector* CurveVector)
+void UMockRootMotionComponent::Input_PlayRootMotionByCurve(UCurveVector* CurveVector, FVector Scale)
 {
 	PlayRootMotionByAssetType(CurveVector);
+	PendingInputCmd.Parameters.SetByType(&Scale);
 }
 
 void UMockRootMotionComponent::PlayRootMotionMontage(UAnimMontage* Montage, float PlayRate)

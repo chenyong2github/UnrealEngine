@@ -92,11 +92,11 @@ public:
 	// ---------------------------------------------------------------------
 	// IMockRootMotionSourceMap
 	// ---------------------------------------------------------------------
-	FTransform StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out) final override;
+	FTransform StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux) final override;
 	void FinalizePose(const FMockRootMotionSyncState* Sync, UAnimInstance* AnimInstance) final override;
 
 private:
 
-	FTransform StepRootMotion_Impl(UCurveVector* Curve, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out);
-	FTransform StepRootMotion_Impl(UAnimMontage* Montage, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out);
+	FTransform StepRootMotion_Curve(UCurveVector* Curve, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux);
+	FTransform StepRootMotion_Montage(UAnimMontage* Montage, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux);
 };
