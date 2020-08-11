@@ -114,7 +114,7 @@ TSharedRef<SWidget> FLevelViewportLayout::FactoryViewport(FName InTypeName, cons
 	// Both the legacy level editor factory viewport, and the viewport creation functions should fall back to a valid default
 	check(ViewportLayoutEntity.IsValid());
 	
-	Viewports.Add(InTypeName, ViewportLayoutEntity);
+	Viewports.Add(ConstructionArgs.ConfigKey, ViewportLayoutEntity);
 	return ViewportLayoutEntity->AsWidget();
 }
 
