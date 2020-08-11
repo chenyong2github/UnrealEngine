@@ -96,14 +96,13 @@ void TEditorViewportLayoutTwoPanes<TOrientation>::ReplaceWidget(TSharedRef<SWidg
 }
 
 template <EOrientation TOrientation>
-void TEditorViewportLayoutTwoPanes<TOrientation>::SaveLayoutString(const FString& LayoutString) const
+void TEditorViewportLayoutTwoPanes<TOrientation>::SaveLayoutString(const FString& SpecificLayoutString) const
 {
 	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 
 	check(SplitterWidget->GetChildren()->Num() == 2);
 	float Percentage = SplitterWidget->SlotAt(0).SizeValue.Get();
 
-	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
 	GConfig->SetString(*IniSection, *(SpecificLayoutString + TEXT(".Percentage")), *TTypeToString<float>::ToString(Percentage), GEditorPerProjectIni);
 }
 

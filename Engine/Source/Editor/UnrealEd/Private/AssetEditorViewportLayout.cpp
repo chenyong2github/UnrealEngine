@@ -215,6 +215,7 @@ TSharedRef<SWidget> FAssetEditorViewportLayout::BuildViewportLayout(TSharedPtr<S
 
 	// Don't set the content until the OverlayPtr has been set, because it access this when we want to start with the viewports maximized.
 	TSharedRef<SWidget> ViewportLayoutWidget = LayoutConfiguration->MakeViewportLayout(this->AsShared(), LayoutString);
+	LoadConfig(LayoutString);
 	ViewportsBorder->SetContent(ViewportLayoutWidget);
 
 	return ViewportsOverlay;

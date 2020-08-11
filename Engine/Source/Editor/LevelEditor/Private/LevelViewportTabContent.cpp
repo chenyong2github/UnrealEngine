@@ -19,6 +19,20 @@ TSharedPtr< FEditorViewportLayout > FLevelViewportTabContent::FactoryViewportLay
 	return ViewportLayout;
 }
 
+FName FLevelViewportTabContent::GetLayoutTypeNameFromLayoutString() const
+{
+	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
+
+	FString LayoutTypeString;
+	if (LayoutString.IsEmpty() ||
+		!GConfig->GetString(*IniSection, *(LayoutString + TEXT(".LayoutType")), LayoutTypeString, GEditorPerProjectIni))
+	{
+		return EditorViewportConfigurationNames::FourPanes2x2;
+	}
+
+	return *LayoutTypeString;
+}
+
 FLevelViewportTabContent::~FLevelViewportTabContent()
 {
 	if (GEditor)
@@ -29,21 +43,13 @@ FLevelViewportTabContent::~FLevelViewportTabContent()
 
 void FLevelViewportTabContent::Initialize(AssetEditorViewportFactoryFunction Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString)
 {
+	check(InParentTab.IsValid());
 	InParentTab->SetOnPersistVisualState( SDockTab::FOnPersistVisualState::CreateSP(this, &FLevelViewportTabContent::SaveConfig) );
-
-	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
-
-	FString LayoutTypeString;
-	if(InLayoutString.IsEmpty() ||
-		!GConfig->GetString(*IniSection, *(InLayoutString + TEXT(".LayoutType")), LayoutTypeString, GEditorPerProjectIni))
-	{
-		LayoutTypeString = EditorViewportConfigurationNames::FourPanes2x2.ToString();
-	}
 
 	OnViewportTabContentLayoutStartChangeEvent.AddSP(this, &FLevelViewportTabContent::OnLayoutStartChange);
 	OnViewportTabContentLayoutChangedEvent.AddSP(this, &FLevelViewportTabContent::OnLayoutChanged);
 
-	FEditorViewportTabContent::Initialize(Func, InParentTab, LayoutTypeString);
+	FEditorViewportTabContent::Initialize(Func, InParentTab, InLayoutString);
 }
 
 void FLevelViewportTabContent::OnLayoutStartChange(bool bSwitchingLayouts)

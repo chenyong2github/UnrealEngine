@@ -21,7 +21,7 @@ void FEditorViewportTabContent::Initialize(AssetEditorViewportFactoryFunction Fu
 	ParentTab = InParentTab;
 	LayoutString = InLayoutString;
 
-	FName LayoutType(*LayoutString);
+	FName LayoutType = GetLayoutTypeNameFromLayoutString();
 	ViewportCreationFactories.Add(AssetEditorViewportCreationFactories::ElementType(NAME_None, Func));
 	SetViewportConfiguration(LayoutType);
 }
@@ -129,6 +129,11 @@ void FEditorViewportTabContent::RefreshViewportConfiguration()
 const AssetEditorViewportFactoryFunction* FEditorViewportTabContent::FindViewportCreationFactory(FName InTypeName) const
 {
 	return ViewportCreationFactories.Find(InTypeName);
+}
+
+FName FEditorViewportTabContent::GetLayoutTypeNameFromLayoutString() const
+{
+	return *LayoutString;
 }
 
 TSharedPtr<FEditorViewportLayout> FEditorViewportTabContent::FactoryViewportLayout(bool bIsSwitchingLayouts)

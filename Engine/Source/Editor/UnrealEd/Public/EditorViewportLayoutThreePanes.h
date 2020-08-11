@@ -15,7 +15,7 @@ public:
 	 * Creates the viewports and splitter for the two panes vertical layout                   
 	 */
 	virtual TSharedRef<SWidget> MakeViewportLayout(TSharedPtr<FAssetEditorViewportLayout> InParentLayout, const FString& LayoutString) override;
-	virtual void SaveLayoutString(const FString& LayoutString) const override;
+	virtual void SaveLayoutString(const FString& SpecificLayoutString) const override;
 	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) override;
 
 protected:

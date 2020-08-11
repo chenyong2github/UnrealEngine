@@ -147,10 +147,8 @@ const FName& FEditorViewportLayout2x2::GetLayoutTypeName() const
 	return EditorViewportConfigurationNames::FourPanes2x2;
 }
 
-void FEditorViewportLayout2x2::SaveLayoutString(const FString& LayoutString) const
+void FEditorViewportLayout2x2::SaveLayoutString(const FString& SpecificLayoutString) const
 {
-	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
-
 	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 
 	TArray<FVector2D> Percentages;

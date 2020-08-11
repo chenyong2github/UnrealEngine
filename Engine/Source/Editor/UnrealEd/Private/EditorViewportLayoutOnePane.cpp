@@ -53,7 +53,7 @@ const FName& FEditorViewportLayoutOnePane::GetLayoutTypeName() const
 	return EditorViewportConfigurationNames::OnePane;
 }
 
-void FEditorViewportLayoutOnePane::SaveLayoutString(const FString& LayoutString) const
+void FEditorViewportLayoutOnePane::SaveLayoutString(const FString& SpecificLayoutString) const
 {
 }
 

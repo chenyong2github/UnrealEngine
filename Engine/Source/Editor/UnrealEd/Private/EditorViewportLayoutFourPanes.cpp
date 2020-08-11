@@ -92,10 +92,8 @@ TSharedRef<SWidget> FEditorViewportLayoutFourPanes::MakeViewportLayout(TSharedPt
 	return LayoutWidget;
 }
 
-void FEditorViewportLayoutFourPanes::SaveLayoutString(const FString& LayoutString) const
+void FEditorViewportLayoutFourPanes::SaveLayoutString(const FString& SpecificLayoutString) const
 {
-	FString SpecificLayoutString = GetTypeSpecificLayoutString(LayoutString);
-
 	const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 
 	check(PrimarySplitterWidget->GetChildren()->Num() == 2);

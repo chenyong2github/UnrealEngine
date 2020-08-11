@@ -64,6 +64,7 @@ public:
 
 protected:
 	virtual TSharedPtr<FEditorViewportLayout> FactoryViewportLayout(bool bIsSwitchingLayouts);
+	virtual FName GetLayoutTypeNameFromLayoutString() const;
 
 private:
 	using AssetEditorViewportCreationFactories = TMap<FName, AssetEditorViewportFactoryFunction>;

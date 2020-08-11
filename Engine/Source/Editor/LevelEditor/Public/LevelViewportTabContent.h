@@ -23,6 +23,7 @@ public:
 
 protected:
 	virtual TSharedPtr<FEditorViewportLayout> FactoryViewportLayout(bool bIsSwitchingLayouts) override;
+	virtual FName GetLayoutTypeNameFromLayoutString() const override;
 
 	void OnLayoutStartChange(bool bSwitchingLayouts);
 	void OnLayoutChanged();
