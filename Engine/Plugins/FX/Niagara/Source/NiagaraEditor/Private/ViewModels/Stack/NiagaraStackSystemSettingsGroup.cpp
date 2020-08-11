@@ -2,22 +2,17 @@
 
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
-#include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
-#include "NiagaraGraph.h"
-#include "NiagaraNodeOutput.h"
 #include "NiagaraNodeFunctionCall.h"
-#include "EdGraphSchema_Niagara.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraStackEditorData.h"
-#include "ScopedTransaction.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackSystemPropertiesItem.h"
 #include "NiagaraConstants.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystem.h"
+#include "NiagaraEditorUtilities.h"
 
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackParameterStoreGroup"
@@ -37,7 +32,7 @@ public:
 
 	virtual FText GetCategory() const override
 	{
-		return LOCTEXT("CreateNewParameterCategory", "Parameter Types");
+		return FNiagaraEditorUtilities::GetVariableTypeCategory(GetNewParameterVariable());
 	}
 
 	virtual FText GetDisplayName() const override
