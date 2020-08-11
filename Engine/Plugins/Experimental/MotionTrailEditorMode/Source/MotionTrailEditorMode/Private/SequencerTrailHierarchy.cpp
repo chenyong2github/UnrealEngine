@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrailHierarchy.h"
+#include "MotionTrailEditorMode.h"
 
 #include "MovieSceneSequence.h"
 #include "ISequencer.h"

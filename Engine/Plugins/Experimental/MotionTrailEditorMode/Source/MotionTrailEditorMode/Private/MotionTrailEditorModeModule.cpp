@@ -2,10 +2,12 @@
 
 #include "MotionTrailEditorModeModule.h"
 #include "MotionTrailEditorMode.h"
+#include "EditorModeManager.h"
 
 #include "ISequencerModule.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "UnrealEdGlobals.h"
+#include "Editor.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 
 #define LOCTEXT_NAMESPACE "FMotionTrailEditorModeModule"
