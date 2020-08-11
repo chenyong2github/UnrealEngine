@@ -27,6 +27,12 @@ enum ECrashExitCodes : int32
 
 	/** Used by the application to flag when it detects that its out-of-process applicate supposed to report the bugs died (ex if CrashReportClientEditor dies before the Editor).*/
 	OutOfProcessReporterExitedUnexpectedly = 777005,
+
+	/** Application crashed during static initialization. It may or may not have been able to have sent a crash report. */
+	CrashDuringStaticInit = 777006,
+
+	/** Used as MonitorExceptCode in analytics to track how often the out-of-process CRC exits because of a failed check. */
+	OutOfProcessReporterCheckFailed = 777007,
 };
 
 /** 

@@ -777,6 +777,9 @@ protected:
 	 * Note: This modifies material variables used for rendering and is assumed to be called within a FMaterialUpdateContext!
 	 */
 	void CacheResourceShadersForRendering();
+	void CacheResourceShadersForRendering(FMaterialResourceDeferredDeletionArray& OutResourcesToFree);
+
+	void DeleteDeferredResources(FMaterialResourceDeferredDeletionArray& ResourcesToFree);
 
 	/** Caches shader maps for an array of material resources. */
 	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, const ITargetPlatform* TargetPlatform = nullptr);

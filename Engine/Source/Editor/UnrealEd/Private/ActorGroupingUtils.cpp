@@ -8,6 +8,7 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 
 bool UActorGroupingUtils::bGroupingActive = true;
 
@@ -64,7 +65,6 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 				// Add each selected actor to our new group
 				// Adding an actor will remove it from any existing groups.
 				FinalActorList.Add(Actor);
-
 			}
 		}
 
@@ -81,6 +81,7 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 
 					FActorSpawnParameters SpawnInfo;
 					SpawnInfo.OverrideLevel = ActorLevel;
+					SpawnInfo.bCreateActorPackage = true;
 					AGroupActor* SpawnedGroupActor = World->SpawnActor<AGroupActor>(SpawnInfo);
 
 					bool bActorsInSameFolder = true;
@@ -107,6 +108,12 @@ void UActorGroupingUtils::GroupActors(const TArray<AActor*>& ActorsToGroup)
 					SpawnedGroupActor->SetFolderPath(FolderPath);
 					SpawnedGroupActor->CenterGroupLocation();
 					SpawnedGroupActor->Lock();
+
+					UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+					if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+					{
+						WorldPartitionSubsystem->UpdateActorDesc(SpawnedGroupActor);
+					}
 				}
 			}
 		}
@@ -168,6 +175,12 @@ void UActorGroupingUtils::UngroupActors(const TArray<AActor*>& ActorsToUngroup)
 			{
 				AGroupActor* GroupActor = OutermostGroupActors[GroupIndex];
 				GroupActor->ClearAndRemove();
+
+				UWorldPartitionSubsystem* WorldPartitionSubsystem = GroupActor->GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+				if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+				{
+					WorldPartitionSubsystem->UpdateActorDesc(GroupActor);
+				}
 			}
 		}
 	}

@@ -185,7 +185,7 @@ uint32 FApplePlatformStackWalk::CaptureStackBackTrace( uint64* BackTrace, uint32
 		return 0;
 	}
 
-#if PLATFORM_MAC
+#if PLATFORM_MAC && !defined(USE_UNTESTED_PL_CRASHREPORTER)
 	if(Context)
 	{
 		return plcrashreporter_backtrace((void**)BackTrace, MaxDepth);

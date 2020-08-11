@@ -203,6 +203,7 @@ export interface ChangeInfo extends TargetInfo {
 	propagatingNullMerge: boolean
 	forceCreateAShelf: boolean
 	overriddenCommand: string
+	hasOkForGithubTag: boolean
 }
 
 export interface PendingChange {

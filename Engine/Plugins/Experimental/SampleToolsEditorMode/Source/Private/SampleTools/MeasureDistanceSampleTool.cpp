@@ -46,11 +46,6 @@ UMeasureDistanceProperties::UMeasureDistanceProperties()
 }
 
 
-UMeasureDistanceSampleTool::UMeasureDistanceSampleTool()
-{
-}
-
-
 void UMeasureDistanceSampleTool::SetWorld(UWorld* World)
 {
 	check(World);

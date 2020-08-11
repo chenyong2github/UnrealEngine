@@ -61,53 +61,17 @@ public:
 	)
 	static void ActivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator);
 
-	/** Creates a volume modulation bus with the provided default value.
+	/** Creates a modulation bus with the provided default value.
 	 * @param Name - Name of bus
 	 * @param DefaultValue - Default value for created bus
 	 * @param Activate - Whether or not to activate bus on creation.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Volume Control Bus", meta = (
-		AdvancedDisplay = "3",
-		WorldContext = "WorldContextObject", 
-		Keywords = "make create bus modulation volume modulator")
-	)
-	static USoundVolumeControlBus* CreateVolumeBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate);
-
-	/** Creates a pitch modulation bus with the provided default value.
-	 * @param Name - Name of bus
-	 * @param DefaultValue - Default value for created bus
-	 * @param Activate - Whether or not to activate bus on creation.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Pitch Control Bus", meta = (
-		AdvancedDisplay = "3",
-		WorldContext = "WorldContextObject",
-		Keywords = "make create bus modulation pitch modulator")
-	)
-	static USoundPitchControlBus* CreatePitchBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate = true);
-
-	/** Creates a high-pass filter (HPF) modulation bus with the provided default value.
-	 * @param Name - Name of bus
-	 * @param DefaultValue - Default value for created bus
-	 * @param Activate - Whether or not to activate bus on creation.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create HPF Control Bus", meta = (
-		AdvancedDisplay = "3", 
-		WorldContext = "WorldContextObject", 
-		Keywords = "make create bus modulation HPF modulator")
-	)
-	static USoundHPFControlBus* CreateHPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate = true);
-
-	/** Creates a low-pass filter (LPF) modulation bus with the provided default value.
-	 * @param Name - Name of bus
-	 * @param DefaultValue - Default value for created bus
-	 * @param Activate - Whether or not to activate bus on creation.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create LPF Control Bus", meta = (
+	UFUNCTION(BlueprintCallable, Category = "Audio", DisplayName = "Create Control Bus", meta = (
 		AdvancedDisplay = "3",
 		WorldContext = "WorldContextObject",
 		Keywords = "make create bus modulation LPF modulator")
 	)
-	static USoundLPFControlBus* CreateLPFBus(const UObject* WorldContextObject, FName Name, float DefaultValue, bool Activate = true);
+	static USoundControlBus* CreateBus(const UObject* WorldContextObject, FName Name, USoundModulationParameter* Parameter, bool Activate = true);
 
 	/** Creates an LFO modulator.
 	 * @param Name - Name of LFO

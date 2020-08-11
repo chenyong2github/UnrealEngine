@@ -779,7 +779,7 @@ void FVirtualTextureSystem::RequestTiles(const FVector2D& InScreenSpaceSize, int
 {
 	check(IsInRenderingThread());
 
-	for (auto const Pair : AllocatedVTs)
+	for (const auto& Pair : AllocatedVTs)
 	{
 		RequestTilesForRegion(Pair.Value, InScreenSpaceSize, FIntRect(), InMipLevel);
 	}

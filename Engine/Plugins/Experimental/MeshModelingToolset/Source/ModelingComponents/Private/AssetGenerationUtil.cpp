@@ -52,7 +52,8 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 bool AssetGenerationUtil::SaveGeneratedTexture2D(
 	IToolsContextAssetAPI* AssetAPI,
 	UTexture2D* TransientTexture,
-	FString ObjectName)
+	FString ObjectName,
+	const UObject* RelativeToAsset)
 {
-	return AssetAPI->SaveGeneratedTexture2D(TransientTexture, ObjectName);
+	return AssetAPI->SaveGeneratedTexture2D(TransientTexture, ObjectName, RelativeToAsset);
 }

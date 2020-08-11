@@ -551,6 +551,7 @@ public:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
+	virtual bool SupportsExternalPackaging() const override { return false; }
 #endif // WITH_EDITOR
 	virtual void Destroyed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -917,6 +918,10 @@ public:
 	/** updates state of rendering component */
 	void SetNavRenderingEnabled(bool bEnable);
 
+#if WITH_EDITOR
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+#endif
+
 protected:
 	void InstantiateAndRegisterRenderingComponent();
 
@@ -956,7 +961,7 @@ protected:
 	TArray<FNavPathWeakPtr> ActivePaths;
 
 	/** Synchronization object for paths registration from main thread and async pathfinding thread */
-	FCriticalSection ActivePathsLock;
+	mutable FCriticalSection ActivePathsLock;
 
 	/**
 	 *	Contains paths that requested observing its goal's location. These paths will be 

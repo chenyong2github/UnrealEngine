@@ -67,12 +67,23 @@ struct FCameraLensSettings
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Default constructor, initializing with default values */
+	FCameraLensSettings()
+		: MinFocalLength(50.f)
+		, MaxFocalLength(50.f)
+		, MinFStop(2.f)
+		, MaxFStop(2.f)
+		, MinimumFocusDistance(15.f)
+		, DiaphragmBladeCount(FPostProcessSettings::kDefaultDepthOfFieldBladeCount)
+	{
+	}
+
 	/** Minimum focal length for this lens */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm, ClampMin = "0.001"))
 	float MinFocalLength;
 
 	/** Maximum focal length for this lens */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens", meta = (ForceUnits = mm, ClampMin = "0.001"))
 	float MaxFocalLength;
 
 	/** Minimum aperture for this lens (e.g. 2.8 for an f/2.8 lens) */
@@ -267,7 +278,7 @@ public:
 	virtual void SetFieldOfView(float InFieldOfView) override;
 	
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Cine Camera")
-	void SetCurrentFocalLength(const float& InFocalLength);
+	void SetCurrentFocalLength(float InFocalLength);
 
 	/** Returns the horizonal FOV of the camera with current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")

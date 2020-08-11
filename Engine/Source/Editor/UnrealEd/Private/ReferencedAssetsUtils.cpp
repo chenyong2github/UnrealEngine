@@ -90,7 +90,7 @@ void FFindReferencedAssets::AddReferencedObjects( FReferenceCollector& Collector
  *
  * @return true if it should be searched, false otherwise
  */
-bool FFindReferencedAssets::ShouldSearchForAssets( const UObject* Object, const TArray<UClass*>& ClassesToIgnore, const TArray<UObject*>& PackagesToIgnore, bool bIncludeDefaults/*=false*/ )
+bool FFindReferencedAssets::ShouldSearchForAssets( const UObject* Object, const TArray<UClass*>& ClassesToIgnore, const TArray<UPackage*>& PackagesToIgnore, bool bIncludeDefaults/*=false*/ )
 {
 	bool bShouldSearch = true;
 
@@ -118,7 +118,7 @@ bool FFindReferencedAssets::ShouldSearchForAssets( const UObject* Object, const 
 		for ( int32 Index = 0; Index < PackagesToIgnore.Num(); Index++ )
 		{
 			// If this object belongs to this package, bail
-			if ( Object->IsIn(PackagesToIgnore[Index]) )
+			if ( Object->IsInPackage(PackagesToIgnore[Index]) )
 			{
 				bShouldSearch = false;
 				break;
@@ -138,7 +138,7 @@ bool FFindReferencedAssets::ShouldSearchForAssets( const UObject* Object, const 
 /**
  * Returns a list of all assets referenced by the specified UObject.
  */
-void FFindReferencedAssets::BuildAssetList(UObject *Object, const TArray<UClass*>& IgnoreClasses, const TArray<UObject*>& IgnorePackages, TSet<UObject*>& ReferencedAssets, bool bIncludeDefaultRefs)
+void FFindReferencedAssets::BuildAssetList(UObject *Object, const TArray<UClass*>& IgnoreClasses, const TArray<UPackage*>& IgnorePackages, TSet<UObject*>& ReferencedAssets, bool bIncludeDefaultRefs)
 {
 	TArray<FReferencedAssets> LocalReferencers;
 

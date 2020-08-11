@@ -124,53 +124,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 			}
 		}
 	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId;
-			float4 Channels = RawSample[MultiplexId];
-
-			// TODO(Denoiser): feed the actual number of sample.
-			OutSamples.Array[MultiplexId].SampleCount = (Channels.g == -2.0 ? 0.0 : 1.0);
-			OutSamples.Array[MultiplexId].MissCount = OutSamples.Array[MultiplexId].SampleCount * Channels.r;
-			OutSamples.Array[MultiplexId].TransmissionDistance = OutSamples.Array[MultiplexId].SampleCount * Channels.a;
-
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.g == -1 ? WORLD_RADIUS_MISS : Channels.g);
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.g;
-			
-			//FLATTEN
-			//if (OutSamples.Array[MultiplexId].SampleCount == 0)
-			//{
-			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
-			//}
-			//else if (OutSamples.Array[MultiplexId].MissCount != 0)
-			//{
-			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
-			//}
-		}
-	}
-	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
-	//{
-	//	UNROLL_N(SIGNAL_ARRAY_SIZE)
-	//	for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
-	//	{
-	//		float2 Channels = float2(RawSample[MultiplexId / 2][2 * (MultiplexId % 2)], RawSample[MultiplexId / 2][2 * (MultiplexId % 2) + 1]);
-	//
-	//		if (bNormalizeSample)
-	//		{
-	//			OutSamples.Array[MultiplexId].SampleCount = Channels.g > 0 ? 1 : 0;
-	//			OutSamples.Array[MultiplexId].MissCount = Channels.g > 0 ? Channels.r : 0;
-	//		}
-	//		else
-	//		{
-	//			OutSamples.Array[MultiplexId].SampleCount = Channels.g;
-	//			OutSamples.Array[MultiplexId].MissCount = Channels.r * Channels.g;
-	//		}
-	//	}
-	//}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY)
 	{
 		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_BATCH_SIZE; MultiplexId++)
@@ -183,34 +137,6 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
 			OutSamples.Array[MultiplexId].TransmissionDistance = Channels.a * SampleCount;
 
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.b == DENOISER_MISS_HIT_DISTANCE ? WORLD_RADIUS_MISS : Channels.b);
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.b;
-
-			//FLATTEN
-			//if (OutSamples.Array[MultiplexId].SampleCount == 0)
-			//{
-			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_INVALID;
-			//}
-			//else if (OutSamples.Array[MultiplexId].MissCount != 0)
-			//{
-			//	OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WORLD_RADIUS_MISS;
-			//}
-		}
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint BatchSignalId = 0; BatchSignalId < MAX_SIGNAL_BATCH_SIZE; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId;
-			float4 Channels = RawSample[BatchSignalId];
-			float SampleCount = Channels.g;
-
-			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId].MissCount = Channels.r * SampleCount;
-			OutSamples.Array[MultiplexId].TransmissionDistance = Channels.a * SampleCount;
-
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (Channels.b == -1 ? WORLD_RADIUS_MISS : Channels.b);
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = Channels.b;
 		}
 	}
@@ -532,49 +458,6 @@ void DecodeMultiplexedSignalsFromUint2(
 			OutSamples.Array[MultiplexId].MissCount = MissCount;
 			OutSamples.Array[MultiplexId].TransmissionDistance = TransmissionDistance;
 
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
-		}
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_BATCH_SIZE; MultiplexId++)
-		{
-			uint2 EncodedData = RawSample[MultiplexId];
-
-			float MissCount = f16tof32(EncodedData.x);
-			float SampleCount = f16tof32(EncodedData.x >> 16);
-			float WorldBluringRadius = f16tof32(EncodedData.y);
-			float TransmissionDistance = f16tof32(EncodedData.y >> 16);
-
-			OutSamples.Array[MultiplexId].MissCount = MissCount;
-			OutSamples.Array[MultiplexId].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId].TransmissionDistance = TransmissionDistance;
-
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
-			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
-		}
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
-	{
-		UNROLL_N(MAX_SIGNAL_BATCH_SIZE)
-		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_BATCH_SIZE; MultiplexId++)
-		{
-			uint2 EncodedData = RawSample[MultiplexId];
-
-			float SampleCount = f16tof32(EncodedData.y);
-			float WorldBluringRadius = f16tof32(EncodedData.y >> 16);
-			float MissCount0 = f16tof32(EncodedData.x);
-			float MissCount1 = f16tof32(EncodedData.x >> 16);
-
-			OutSamples.Array[MultiplexId + 0].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId + 0].MissCount = MissCount0;
-
-			OutSamples.Array[MultiplexId + 1].SampleCount = SampleCount;
-			OutSamples.Array[MultiplexId + 1].MissCount = MissCount1;
-
-			OutSampleFrequencies.Array[MultiplexId + 0].WorldBluringRadius = (WorldBluringRadius == -1.0 ? WORLD_RADIUS_MISS : WorldBluringRadius);
 			OutSampleFrequencies.Array[MultiplexId].WorldBluringRadius = WorldBluringRadius;
 		}
 	}
@@ -633,49 +516,7 @@ void EncodeMultiplexedSignals(
 		// NOP
 	}
 	#if 1
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_NSPP)
-	{
-		UNROLL
-		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
-		{
-			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
-
-			float4 EncodedChannels = float4(
-				Sample[MultiplexId].MissCount,
-				SampleFrequency[MultiplexId].WorldBluringRadius,
-				0.0,
-				Sample[MultiplexId].TransmissionDistance * NormalizationFactor);
-			
-			//if (Sample[MultiplexId].SampleCount == 0)
-			//{
-			//	EncodedChannels.y = -2;
-			//}
-			//else if (SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS)
-			//{
-			//	EncodedChannels.y = -1;
-			//}
-
-			OutRawSample[MultiplexId] = EncodedChannels;
-		}
-		OutBufferCount = MultiplexCount;
-	}
-	//else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
-	//{
-	//	UNROLL
-	//	for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
-	//	{
-	//		float2 EncodedChannels = float2(
-	//			Sample[MultiplexId].MissCount * SafeRcp(Sample[MultiplexId].SampleCount),
-	//			Sample[MultiplexId].SampleCount);
-	//
-	//		if (MultiplexId % 2)
-	//			OutRawSample[MultiplexId / 2].zw = EncodedChannels;
-	//		else
-	//			OutRawSample[MultiplexId / 2].xy = EncodedChannels;
-	//	}
-	//	OutBufferCount = (MultiplexCount + 1) / 2;
-	//}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY)
 	{
 		UNROLL
 		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
@@ -691,25 +532,6 @@ void EncodeMultiplexedSignals(
 				NormalizedTransmissionDistance);
 		}
 		OutBufferCount = MultiplexCount;
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
-	{
-		const uint BatchSignalCount = MultiplexCount;
-		OutBufferCount = BatchSignalCount;
-
-		UNROLL
-		for (uint BatchSignalId = 0; BatchSignalId < BatchSignalCount; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId;
-
-			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
-
-			OutRawSample[BatchSignalId] = float4(
-				Sample[MultiplexId].MissCount * NormalizationFactor,
-				Sample[MultiplexId].SampleCount,
-				SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS ? -1 : SampleFrequency[MultiplexId].WorldBluringRadius,
-				Sample[MultiplexId].TransmissionDistance * NormalizationFactor);
-		}
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR_ARRAY >= 2
@@ -883,10 +705,6 @@ void EncodeMultiplexedSignals(
 			{
 				WorldBluringRadius = -2.0;
 			}
-			else if (WorldBluringRadius == WORLD_RADIUS_MISS)
-			{
-				WorldBluringRadius = -1.0;
-			}
 
 			float MissCountRatio = MissCount * SafeRcp(SampleCount);
 			float TransmissionDistanceRatio = TransmissionDistance / 5.0;
@@ -905,55 +723,6 @@ void EncodeMultiplexedSignals(
 			}
 		}
 		OutBufferCount = (MultiplexCount + 1) / 2;
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY || SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION)
-	{
-		UNROLL
-		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
-		{
-			float SampleCount = Sample[MultiplexId].SampleCount;
-			float NormalizationFactor = rcp(SampleCount);
-
-			float MissCount = Sample[MultiplexId].MissCount;
-			float WorldBluringRadius = (SampleFrequency[MultiplexId].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : SampleFrequency[MultiplexId].WorldBluringRadius);
-			float TransmissionDistance = Sample[MultiplexId].TransmissionDistance;
-
-			uint2 EncodedData = 0;
-			EncodedData.x = f32tof16(MissCount);
-			EncodedData.x |= f32tof16(SampleCount) << 16;
-			EncodedData.y = f32tof16(WorldBluringRadius);
-			EncodedData.y |= asuint(f32tof16(TransmissionDistance)) << 16;
-
-			OutRawSample[MultiplexId] = EncodedData;
-		}
-		OutBufferCount = MultiplexCount;
-	}
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_REJECTION)
-	{
-		const uint BatchSignalCount = MultiplexCount / 2;
-		OutBufferCount = BatchSignalCount;
-
-		UNROLL
-		for (uint BatchSignalId = 0; BatchSignalId < BatchSignalCount; BatchSignalId++)
-		{
-			uint MultiplexId = BatchSignalId * 2;
-
-			float SampleCount = Sample[MultiplexId + 0].SampleCount;
-			float NormalizationFactor = rcp(SampleCount);
-
-			float MissCount0 = Sample[MultiplexId + 0].MissCount;
-			float MissCount1 = Sample[MultiplexId + 1].MissCount;
-			float WorldBluringRadius = (SampleFrequency[MultiplexId + 0].WorldBluringRadius == WORLD_RADIUS_MISS ? -1.0 : SampleFrequency[MultiplexId + 0].WorldBluringRadius);
-			float TransmissionDistance = 0.0;
-
-			uint2 EncodedData = 0;
-			EncodedData.x  = f32tof16(MissCount0);
-			EncodedData.x |= f32tof16(MissCount1) << 16;
-			EncodedData.y  = f32tof16(SampleCount);
-			EncodedData.y |= f32tof16(WorldBluringRadius) << 16;
-
-			OutRawSample[BatchSignalId] = EncodedData;
-		}
 	}
 	#if COMPILE_SIGNAL_COLOR_SH
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)

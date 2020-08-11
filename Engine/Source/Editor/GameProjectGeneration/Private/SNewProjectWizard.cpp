@@ -300,6 +300,26 @@ private:
 	
 };
 
+SNewProjectWizard::~SNewProjectWizard()
+{
+	// remove any UTemplateProjectDefs we were keeping alive
+	for (const TPair<FName, TArray<TSharedPtr<FTemplateItem>>>& Pair : Templates)
+	{
+		for (const TSharedPtr<FTemplateItem>& Template : Pair.Value)
+		{
+			if (Template->CodeTemplateDefs != nullptr)
+			{
+				Template->CodeTemplateDefs->RemoveFromRoot();
+			}
+
+			if (Template->BlueprintTemplateDefs != nullptr)
+			{
+				Template->BlueprintTemplateDefs->RemoveFromRoot();
+			}
+		}
+	}
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SNewProjectWizard::Construct( const FArguments& InArgs )
 {
@@ -791,6 +811,9 @@ TMap<FName, TArray<TSharedPtr<FTemplateItem>> >& SNewProjectWizard::FindTemplate
 		{
 			continue;
 		}
+
+		// we don't have an appropriate referencing UObject to keep these alive with, so we need to keep these template defs alive from GC
+		TemplateDefs->AddToRoot();
 
 		// Ignore any templates whose definition says we cannot use to create a project
 		if (TemplateDefs->bAllowProjectCreation == false)

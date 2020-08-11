@@ -258,7 +258,7 @@ DECLARE_GPU_STAT(HZB);
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
 DECLARE_GPU_DRAWCALL_STAT(WaterRendering);
 DECLARE_GPU_STAT(HairRendering);
-DECLARE_GPU_DRAWCALL_STAT(VirtualTextureFeedback);
+DECLARE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
 DECLARE_GPU_STAT(UploadDynamicBuffers);
 DECLARE_GPU_STAT(PostOpaqueExtensions);
 
@@ -969,6 +969,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_DynamicElements);
 
+		Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
+
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
 		{
 			const uint8 RayTracedMeshElementsMask = RelevantPrimitive.RayTracedMeshElementsMask;
@@ -1031,6 +1033,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					{
 						Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
 					}
+
+#if DO_CHECK
+					ReferenceView.RayTracingGeometries.Add(Instance.Geometry);
+					for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
+					{
+						Views[ViewIndex].RayTracingGeometries.Add(Instance.Geometry);
+					}
+#endif // DO_CHECK
 
 					if (GRayTracingParallelMeshBatchSetup && FApp::ShouldUseThreadingForPerformance())
 					{
@@ -1215,6 +1225,15 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		FViewInfo& View = Views[ViewIndex];
 		SET_DWORD_STAT(STAT_RayTracingInstances, View.RayTracingGeometryInstances.Num());
 
+#ifdef DO_CHECK
+		// Validate all the ray tracing geometries lifetimes
+		int64 SharedBufferGenerationID = (int64)Scene->GetRayTracingDynamicGeometryCollection()->GetSharedBufferGenerationID();
+		for (const FRayTracingGeometry* Geometry : View.RayTracingGeometries)
+		{
+			check(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers || Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID);
+		}
+#endif // DO_CHECK
+
 		FRayTracingSceneInitializer SceneInitializer;
 		SceneInitializer.Instances = View.RayTracingGeometryInstances;
 		SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
@@ -1301,6 +1320,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		RHIAsyncCmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToGfx, nullptr, RayTracingDynamicGeometryUpdateEndFence);
 		FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
 	}
+
+	Scene->GetRayTracingDynamicGeometryCollection()->EndUpdate(RHICmdList);
 
 	return true;
 }
@@ -1535,7 +1556,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SceneContext.ReleaseSceneColor();
 
 	const bool bDBuffer = !ViewFamily.EngineShowFlags.ShaderComplexity && ViewFamily.EngineShowFlags.Decals && IsUsingDBuffers(ShaderPlatform);
-	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 
 	WaitOcclusionTests(RHICmdList);
 
@@ -1558,6 +1578,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		// Allocate the maximum scene render target space for the current view family.
 		SceneContext.Allocate(RHICmdList, this);
+	}
+
+	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
+	if (bUseVirtualTexturing)
+	{
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
+		// AllocateResources needs to be called before RHIBeginScene
+		FVirtualTextureSystem::Get().AllocateResources(RHICmdList, FeatureLevel);
+		FVirtualTextureSystem::Get().CallPendingCallbacks();
 	}
 
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
@@ -1657,7 +1686,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		if (bUseVirtualTexturing)
 		{
-			SCOPED_GPU_STAT(RHICmdList, VirtualTextureFeedback);
+			SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 			FVirtualTextureSystem::Get().Update(RHICmdList, FeatureLevel, Scene);
 
 			// Clear virtual texture feedback to default value
@@ -2216,8 +2245,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ComputeVolumetricFog(RHICmdList);
 	}
 
-	FHairStrandsDatas* HairDatas = nullptr;
-	FHairStrandsDatas HairDatasStorage;
+	FHairStrandsRenderingData* HairDatas = nullptr;
+	FHairStrandsRenderingData HairDatasStorage;
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
 	const bool bHairEnable = IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible;
 
@@ -2321,6 +2350,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	bool bRenderLightmapDensity = ViewFamily.EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
 	bool bRenderSkyAtmosphereEditorNotifications = ShouldRenderSkyAtmosphereEditorNotifications();
 	bool bDoParallelBasePass = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePass.GetValueOnRenderThread();
+	bool bNeedsBeginRender = AllowDebugViewmodes() &&
+			(ViewFamily.EngineShowFlags.RequiredTextureResolution ||
+			 ViewFamily.EngineShowFlags.MaterialTextureScaleAccuracy ||
+			 ViewFamily.EngineShowFlags.MeshUVDensityAccuracy ||
+			 ViewFamily.EngineShowFlags.PrimitiveDistanceAccuracy ||
+			 ViewFamily.EngineShowFlags.ShaderComplexity ||
+			 ViewFamily.EngineShowFlags.LODColoration ||
+			 ViewFamily.EngineShowFlags.HLODColoration);
 	
 	// BASE PASS AND GBUFFER SETUP
 	// Gross logic to cover all the cases of special rendering modes + parallel dispatch
@@ -2384,7 +2421,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.EndRenderPass();
 		}
 	}
-	else if (!bIsGBufferCurrent && (!bDoParallelBasePass || bRenderLightmapDensity))
+	else if (!bIsGBufferCurrent && (!bDoParallelBasePass || bRenderLightmapDensity || bNeedsBeginRender))
 	{
 		// Make sure we have began the renderpass
 		ERenderTargetLoadAction DepthLoadAction = bDepthWasCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear;
@@ -2412,7 +2449,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	ServiceLocalQueue();
 
 	// If we ran parallel in the basepass there will be no renderpass at this point.
-	if (bDoParallelBasePass && !bRenderLightmapDensity)
+	if (bDoParallelBasePass && !bRenderLightmapDensity && !bNeedsBeginRender)
 	{
 		SceneContext.BeginRenderingGBuffer(RHICmdList, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, BasePassDepthStencilAccess, ViewFamily.EngineShowFlags.ShaderComplexity);
 	}
@@ -3110,7 +3147,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bUseVirtualTexturing)
 	{
-		SCOPED_GPU_STAT(RHICmdList, VirtualTextureFeedback);
+		SCOPED_GPU_STAT(RHICmdList, VirtualTextureUpdate);
 		
 		// No pass after this should make VT page requests
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EGfxToGfx, SceneContext.VirtualTextureFeedbackUAV);

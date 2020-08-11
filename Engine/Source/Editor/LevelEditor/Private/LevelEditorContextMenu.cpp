@@ -462,6 +462,32 @@ void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 	}));
 }
 
+void FLevelEditorContextMenu::RegisterEmptySelectionContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.EmptySelectionContextMenu"))
+	{
+		return;
+	}
+
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.EmptySelectionContextMenu");
+	Menu->AddDynamicSection("PlaceActors", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	{
+		if (ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>())
+		{
+			{
+				FToolMenuSection& Section = InMenu->AddSection("SelectActorGeneral", LOCTEXT("SelectAnyHeading", "General"));
+				Section.AddMenuEntry(FGenericCommands::Get().SelectAll, TAttribute<FText>(), LOCTEXT("SelectAll_ToolTip", "Selects all actors"));
+			}
+
+			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
+			{
+				LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(InMenu, LevelEditorContext);
+			}
+		}
+	}));
+}
+
 FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext ContextType)
 {
 	if (GEditor->GetSelectedComponentCount() > 0)
@@ -477,14 +503,15 @@ FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext Contex
 		return "LevelEditor.SceneOutlinerContextMenu";
 	}
 
-	return NAME_None;
+	return "LevelEditor.EmptySelectionContextMenu";
 }
 
-FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType)
+FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor)
 {
 	RegisterComponentContextMenu();
 	RegisterActorContextMenu();
 	RegisterSceneOutlinerContextMenu();
+	RegisterEmptySelectionContextMenu();
 
 	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditor.Pin()->GetLevelEditorActions();
 	Context.AppendCommandList(LevelEditorActionsList);
@@ -492,6 +519,7 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	ULevelEditorContextMenuContext* ContextObject = NewObject<ULevelEditorContextMenuContext>();
 	ContextObject->LevelEditor = LevelEditor;
 	ContextObject->ContextType = ContextType;
+	ContextObject->HitProxyActor = HitProxyActor;
 	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
 	{
 		ContextObject->SelectedComponents.Add(CastChecked<UActorComponent>(*It));
@@ -524,7 +552,7 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	return GetContextMenuName(ContextType);
 }
 
-UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender)
+UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, AActor* HitProxyActor)
 {
 	FToolMenuContext Context;
 	if (Extender.IsValid())
@@ -532,15 +560,15 @@ UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEdi
 		Context.AddExtender(Extender);
 	}
 
-	FName ContextMenuName = InitMenuContext(Context, LevelEditor, ContextType);
+	FName ContextMenuName = InitMenuContext(Context, LevelEditor, ContextType, HitProxyActor);
 	return UToolMenus::Get()->GenerateMenu(ContextMenuName, Context);
 }
 
 // NOTE: We intentionally receive a WEAK pointer here because we want to be callable by a delegate whose
 //       payload contains a weak reference to a level editor instance
-TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender)
+TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, AActor* HitProxyActor)
 {
-	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender);
+	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender, HitProxyActor);
 	return UToolMenus::Get()->GenerateWidget(Menu);
 }
 
@@ -645,7 +673,7 @@ void FLevelEditorContextMenu::SummonViewOptionMenu( const TSharedRef< SLevelEdit
 	BuildViewOptionMenu(LevelEditor, MakeViewOptionWidget(LevelEditor, bShouldCloseWindowAfterMenuSelection, ViewOptionType), MouseCursorLocation);
 }
 
-void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType)
+void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor)
 {
 	struct Local
 	{
@@ -669,7 +697,7 @@ void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& Level
 	Extender->AddMenuExtension("LevelViewportAttach", EExtensionHook::After, TSharedPtr< FUICommandList >(), FMenuExtensionDelegate::CreateStatic(&Local::ExtendMenu));
 
 	// Create the context menu!
-	TSharedPtr<SWidget> MenuWidget = BuildMenuWidget( LevelEditor, ContextType, Extender );
+	TSharedPtr<SWidget> MenuWidget = BuildMenuWidget( LevelEditor, ContextType, Extender, HitProxyActor );
 	if ( MenuWidget.IsValid() )
 	{
 		// @todo: Should actually use the location from a click event instead!
@@ -960,7 +988,7 @@ void FLevelEditorContextMenuImpl::FillActorLevelMenu(UToolMenu* Menu)
 {
 	{
 		FToolMenuSection& Section = Menu->AddSection("ActorLevel", LOCTEXT("ActorLevel", "Actor Level"));
-		if( SelectionInfo.SharedLevel && SelectionInfo.SharedWorld && SelectionInfo.SharedWorld->GetCurrentLevel() != SelectionInfo.SharedLevel )
+		if( SelectionInfo.SharedLevel && !SelectionInfo.SharedLevel->IsInstancedLevel() && SelectionInfo.SharedWorld && SelectionInfo.SharedWorld->GetCurrentLevel() != SelectionInfo.SharedLevel )
 		{
 			// All actors are in the same level and that level is not the current level 
 			// so add a menu entry to make the shared level current

@@ -18,7 +18,7 @@ TArray<AActor*> ULayersBlueprintLibrary::GetActors(UObject* WorldContextObject, 
 	TArray<AActor*> AllActors;
 
 	// Iterate over all actors, looking for actors in the specified layers.
-	for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(World))
+	for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
 	{
 		AActor* Actor = WeakActor.Get();
 		if (Actor && Actor->Layers.Contains(ActorLayer.Name))

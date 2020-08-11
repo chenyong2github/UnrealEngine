@@ -76,7 +76,7 @@ protected:
 	void DrawAudioTracks(FPrimitiveDrawInterface* PDI);
 
 protected:
-	static void GetLocationAtTime(FMovieSceneEvaluationTrack* Track, UObject* BoundObject, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer);
+	static void GetLocationAtTime(const FMovieSceneEvaluationTrack* Track, UObject* BoundObject, FFrameTime KeyTime, FVector& KeyPos, FRotator& KeyRot, const TSharedPtr<FSequencer>& Sequencer);
 	static void GetParents(TArray<const UObject *>& Parents, const UObject* InObject);
 	static FTransform GetRefFrameFromParents(const TSharedPtr<FSequencer>& Sequencer, const TArray<const UObject *>& Parents, FFrameTime KeyTime);
 	static bool GetParentTM(FTransform& CurrentRefTM, const TSharedPtr<FSequencer>& Sequencer, UObject* ParentObject, FFrameTime KeyTime);

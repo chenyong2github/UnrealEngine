@@ -215,31 +215,70 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
 
 	const bool bRecompilingOnLoad = Blueprint->bIsRegeneratingOnLoad;
-	const ERenameFlags RenFlags = REN_DontCreateRedirectors | (bRecompilingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
+	auto RenameObjectToTransientPackage = [bRecompilingOnLoad](UObject* ObjectToRename, const FName BaseName,  bool bClearFlags)
+	{
+		const ERenameFlags RenFlags = REN_DontCreateRedirectors | (bRecompilingOnLoad ? REN_ForceNoResetLoaders : 0) | REN_NonTransactional | REN_DoNotDirty;
+
+		if (BaseName.IsNone())
+		{
+			ObjectToRename->Rename(nullptr, GetTransientPackage(), RenFlags);
+		}
+		else
+		{
+			FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), ObjectToRename->GetClass(), BaseName);
+			ObjectToRename->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
+		}
+
+		ObjectToRename->SetFlags(RF_Transient);
+
+		if (bClearFlags)
+		{
+			ObjectToRename->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
+		}
+		FLinkerLoad::InvalidateExport(ObjectToRename);
+	};
 
 	if ( !Blueprint->bIsRegeneratingOnLoad && bIsFullCompile )
 	{
-		UPackage* WidgetTemplatePackage = WidgetBP->GetWidgetTemplatePackage();
-		UUserWidget* OldArchetype = FindObjectFast<UUserWidget>(WidgetTemplatePackage, TEXT("WidgetArchetype"));
-		if (OldArchetype)
+		if (UWidgetBlueprintGeneratedClass* WBC_ToClean = Cast<UWidgetBlueprintGeneratedClass>(ClassToClean))
 		{
-			FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_%s"), *OldArchetype->GetName());
-			FName TransientArchetypeName = MakeUniqueObjectName(GetTransientPackage(), OldArchetype->GetClass(), FName(*TransientArchetypeString));
-			OldArchetype->Rename(*TransientArchetypeName.ToString(), GetTransientPackage(), RenFlags);
-			OldArchetype->SetFlags(RF_Transient);
-			OldArchetype->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
-			FLinkerLoad::InvalidateExport(OldArchetype);
-
-			TArray<UObject*> Children;
-			ForEachObjectWithOuter(OldArchetype, [&Children] (UObject* Child) {
-				Children.Add(Child);
-			}, false);
-
-			for ( UObject* Child : Children )
+			if (UWidgetTree* OldArchetype = WBC_ToClean->GetWidgetTreeArchetype())
 			{
-				Child->Rename(nullptr, GetTransientPackage(), RenFlags);
-				Child->SetFlags(RF_Transient);
-				FLinkerLoad::InvalidateExport(Child);
+				FString TransientArchetypeString = FString::Printf(TEXT("OLD_TEMPLATE_TREE%s"), *OldArchetype->GetName());
+				RenameObjectToTransientPackage(OldArchetype, *TransientArchetypeString, true);
+
+				TArray<UObject*> Children;
+				ForEachObjectWithOuter(OldArchetype, [&Children] (UObject* Child) {
+					Children.Add(Child);
+				}, false);
+
+				for ( UObject* Child : Children )
+				{
+					RenameObjectToTransientPackage(Child, FName(), false);
+				}
+
+				WBC_ToClean->SetWidgetTreeArchetype(nullptr);
+			}
+		}
+	}
+
+	// Remove widgets that are created but not referenced by the widget tree. This could happen when another referenced UserWidget is modified.
+	{
+		TArray<UWidget*> OuterWidgets = WidgetBP->GetAllSourceWidgets();
+		TArray<UWidget*> TreeWidgets;
+		if (WidgetBP->WidgetTree)
+		{
+			WidgetBP->WidgetTree->GetAllWidgets(TreeWidgets);
+		}
+
+		for (UWidget* OuterWidget : OuterWidgets)
+		{
+			if (!TreeWidgets.Contains(OuterWidget))
+			{
+				MessageLog.Note(*FText::Format(LOCTEXT("UnusedWidgetFoundAndRemoved", "Removed unused widget '{0}'."), FText::FromName(OuterWidget->GetFName())).ToString());
+
+				FString TransientCDOString = FString::Printf(TEXT("TRASH_%s"), *OuterWidget->GetName());
+				RenameObjectToTransientPackage(OuterWidget, *TransientCDOString, true);
 			}
 		}
 	}
@@ -251,7 +290,7 @@ void FWidgetBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedC
 
 	for (UWidgetAnimation* Animation : NewWidgetBlueprintClass->Animations)
 	{
-		Animation->Rename(nullptr, GetTransientPackage(), RenFlags);
+		RenameObjectToTransientPackage(Animation, FName(), false);
 	}
 	NewWidgetBlueprintClass->Animations.Empty();
 
@@ -482,74 +521,6 @@ void FWidgetBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* D
 	}
 }
 
-bool FWidgetBlueprintCompilerContext::CanAllowTemplate(FCompilerResultsLog& MessageLog, UWidgetBlueprintGeneratedClass* InClass)
-{
-	if ( InClass == nullptr )
-	{
-		MessageLog.Error(*LOCTEXT("NoWidgetClass", "No Widget Class Found.").ToString());
-
-		return false;
-	}
-
-	UWidgetBlueprint* WidgetBP = Cast<UWidgetBlueprint>(InClass->ClassGeneratedBy);
-
-	if ( WidgetBP == nullptr )
-	{
-		MessageLog.Error(*LOCTEXT("NoWidgetBlueprint", "No Widget Blueprint Found.").ToString());
-
-		return false;
-	}
-
-	// If this widget forces the slow construction path, we can't template it.
-	if ( WidgetBP->bForceSlowConstructionPath )
-	{
-		if (GetDefault<UUMGEditorProjectSettings>()->CompilerOption_CookSlowConstructionWidgetTree(WidgetBP))
-		{
-			MessageLog.Note(*LOCTEXT("ForceSlowConstruction", "Fast Templating Disabled By User.").ToString());
-			return false;
-		}
-		else
-		{
-			MessageLog.Error(*LOCTEXT("UnableToForceSlowConstruction", "This project has [Cook Slow Construction Widget Tree] disabled, so [Force Slow Construction Path] is no longer allowed.").ToString());
-		}
-	}
-
-	// For now we don't support nativization, it's going to require some extra work moving the template support
-	// during the nativization process. Also see UUserWidget::CreateInstanceInternal (we skip the runtime warning for the nativized case).
-	if ( WidgetBP->NativizationFlag != EBlueprintNativizationFlag::Disabled )
-	{
-		MessageLog.Warning(*LOCTEXT("TemplatingAndNativization", "Nativization and Fast Widget Creation is not supported at this time.").ToString());
-
-		return false;
-	}
-
-	if (WidgetBP->bGenerateAbstractClass)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool FWidgetBlueprintCompilerContext::CanTemplateWidget(FCompilerResultsLog& MessageLog, UUserWidget* ThisWidget, TArray<FText>& OutErrors)
-{
-	UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(ThisWidget->GetClass());
-	if ( WidgetClass == nullptr )
-	{
-		MessageLog.Error(*LOCTEXT("NoWidgetClass", "No Widget Class Found.").ToString());
-
-		return false;
-	}
-
-	if ( WidgetClass->bAllowTemplate == false )
-	{
-		MessageLog.Warning(*LOCTEXT("ClassDoesNotAllowTemplating", "This widget class is not allowed to be templated.").ToString());
-		return false;
-	}
-
-	return ThisWidget->VerifyTemplateIntegrity(OutErrors);
-}
-
 void FWidgetBlueprintCompilerContext::SanitizeBindings(UBlueprintGeneratedClass* Class)
 {
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
@@ -621,11 +592,10 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 		FixAbandonedWidgetTree(WidgetBP);
 
-		BPGClass->bCookSlowConstructionWidgetTree = GetDefault<UUMGEditorProjectSettings>()->CompilerOption_CookSlowConstructionWidgetTree(WidgetBP);
-
 		{
 			TGuardValue<uint32> DisableInitializeFromWidgetTree(UUserWidget::bInitializingFromWidgetTree, 0);
-			BPGClass->WidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
+			UWidgetTree* NewWidgetTree = Cast<UWidgetTree>(StaticDuplicateObject(WidgetBP->WidgetTree, BPGClass, NAME_None, RF_AllFlags & ~RF_DefaultSubObject));
+			BPGClass->SetWidgetTreeArchetype(NewWidgetTree);
 		}
 
 		for ( const UWidgetAnimation* Animation : WidgetBP->Animations )
@@ -862,57 +832,12 @@ void FWidgetBlueprintCompilerContext::OnPostCDOCompiled()
 	WidgetAnimToMemberVariableMap.Empty();
 
 	UWidgetBlueprintGeneratedClass* WidgetClass = NewWidgetBlueprintClass;
-
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
-
-	// PostCompile almost always only runs for full compiles now, but
-	// some old codepaths (e.g. blueprint duplicate) have only been updated in 4.21. 
-	// For now we can use this flag to avoid running this logic when PostCompile is 
-	// run for skeleton passes:
-	if(bIsFullCompile)
-	{
-		WidgetClass->bAllowDynamicCreation = WidgetBP->WidgetSupportsDynamicCreation();
-		WidgetClass->bAllowTemplate = CanAllowTemplate(MessageLog, NewWidgetBlueprintClass);
-	}
 
 	if (!Blueprint->bIsRegeneratingOnLoad && bIsFullCompile)
 	{
 		FBlueprintCompilerLog BlueprintLog(MessageLog, WidgetClass);
 		WidgetClass->GetDefaultObject<UUserWidget>()->ValidateBlueprint(*WidgetBP->WidgetTree, BlueprintLog);
-
-		if (MessageLog.NumErrors == 0 && WidgetClass->bAllowTemplate)
-		{
-			UUserWidget* WidgetTemplate = NewObject<UUserWidget>(GetTransientPackage(), WidgetClass);
-			WidgetTemplate->TemplateInit();
-
-			int32 TotalWidgets = 0;
-			int32 TotalWidgetSize = WidgetTemplate->GetClass()->GetStructureSize();
-			WidgetTemplate->WidgetTree->ForEachWidgetAndDescendants([&TotalWidgets, &TotalWidgetSize](UWidget* Widget) {
-				TotalWidgets++;
-				TotalWidgetSize += Widget->GetClass()->GetStructureSize();
-			});
-			WidgetBP->InclusiveWidgets = TotalWidgets;
-			WidgetBP->EstimatedTemplateSize = WidgetClass->bAllowDynamicCreation ? TotalWidgetSize : 0;
-
-			// Determine if we can generate a template for this widget to speed up CreateWidget time.
-			TArray<FText> PostCompileErrors;
-			if (CanTemplateWidget(MessageLog, WidgetTemplate, PostCompileErrors))
-			{
-				MessageLog.Note(*LOCTEXT("TemplateSuccess", "Fast Template Successfully Created.").ToString());
-			}
-			else
-			{
-				MessageLog.Error(*LOCTEXT("NoTemplate", "Unable To Create Template For Widget.").ToString());
-				for (FText& Error : PostCompileErrors)
-				{
-					MessageLog.Error(*Error.ToString());
-				}
-			}
-		}
-		else
-		{
-			WidgetBP->EstimatedTemplateSize = 0;
-		}
 	}
 }
 

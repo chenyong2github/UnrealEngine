@@ -359,7 +359,6 @@ public:
 	 */
 	void SetTriangleNormals(const TArray<int>& Triangles);
 
-
 	/**
 	 * For a 'tube' of triangles connecting loops of corresponded vertices, set smooth normals such that corresponding vertices have corresponding normals
 	 */
@@ -384,15 +383,33 @@ public:
 
 	/**
 	* Project triangles onto a plane defined by the ProjectionFrame and use that to create/set new shared per-triangle UVs.
-	* UVs are translated so that their bbox min-corner is at origin, and scaled by given scale factor
+	* UVs can be translated so that their bbox min-corner is at origin, and scaled by given scale factor
+	* This is an older function signature that forwards to the more specific one.
+	*
 	* @param Triangles TArray of triangle IDs
 	* @param ProjectFrame vertices are projected into XY axes of this frame
 	* @param UVScaleFactor UVs are scaled by this uniform scale factor
 	* @param UVTranslation UVs are translated after scaling
+	* @param bShiftToOrigin Whether to translate the UV coordinates to make their bounding box min corner be (0,0) before applying UVTranslation
 	* @param UVLayerIndex which UV layer to operate on (must exist)
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), bool bShiftToOrigin = true, int32 UVLayerIndex = 0);
+	void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, 
+		float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), bool bShiftToOrigin = true, int32 UVLayerIndex = 0);
 
+	/**
+	* Project triangles onto a plane defined by the ProjectionFrame and use that to create/set new shared per-triangle UVs.
+	*
+	* @param Triangles TArray of triangle IDs
+	* @param ProjectFrame Vertices are projected into XY axes of this frame
+	* @param UVScaleFactor UVs are scaled by these factors
+	* @param UVTranslation UVs are translated after scaling by these amounts
+	* @param UVLayerIndex Which UV layer to operate on (must exist)
+	* @param bShiftToOrigin Whether to translate the UV coordinates to make their bounding box min corner be (0,0) before applying UVTranslation
+	* @param bNormalizeBeforeScaling Whether to place the UV coordinates into the range [0,1] before applying UVScaleFactor and UVTranslation
+	*/
+	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, 
+		const FVector2f& UVScale = FVector2f::One(), const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0,
+		bool bShiftToOrigin = true, bool bNormalizeBeforeScaling = false);
 
 	/**
 	 * For triangles connecting loops of corresponded vertices, set UVs in a cylindrical pattern so that the U coordinate starts at 0 for the first corresponded pair of vertices, and cycles around to 1

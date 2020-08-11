@@ -33,6 +33,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = VisualStyle)
 	bool bShowGraphInstructionText;
 
+	/** If true, fade nodes which are not connected to the selected nodes */
+	UPROPERTY(EditAnywhere, config, Category = VisualStyle)
+	bool bHideUnrelatedNodes;
+
 // Workflow Settings
 public:
 	/** If enabled, we'll save off your chosen target setting based off of the context (allowing you to have different preferences based off what you're operating on). */
@@ -91,7 +95,7 @@ public:
 	UPROPERTY(config)
 	bool bShowAccessSpecifier;
 
-	/** If set will spawn default nodes in new Blueprints */
+	/** If set will spawn default "ghost" event nodes in new Blueprints, modifiable in the [DefaultEventNodes] section of EditorPerProjectUserSettings */
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bSpawnDefaultBlueprintNodes;
 
@@ -103,7 +107,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bHostFindInBlueprintsInGlobalTab;
 	
-	/** If set double clicking on a call function node will jump to the native source definition: */
+	/** If set, double clicking on a call function node will attempt to navigate an open C++ editor to the native source definition */
 	UPROPERTY(EditAnywhere, config, Category=Workflow)
 	bool bNavigateToNativeFunctionsFromCallNodes;
 

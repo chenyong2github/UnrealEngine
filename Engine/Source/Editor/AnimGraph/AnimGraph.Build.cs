@@ -12,6 +12,8 @@ public class AnimGraph : ModuleRules
                 "Editor/AnimGraph/Private",
             }
         );
+		
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
 
         PublicDependencyModuleNames.AddRange(
 			new string[] { 

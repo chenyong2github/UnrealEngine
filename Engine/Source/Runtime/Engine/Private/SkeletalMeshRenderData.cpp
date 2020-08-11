@@ -59,7 +59,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("EBBE2ED33091418FAFD49FBE3AC511BA")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("CFCA20D743FC47F4826C2C0CAC29ABB1")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -103,7 +103,7 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 
 	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
 	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-	const bool bSupportLODStreaming = !SkelMesh->NeverStream && SkelMesh->GetSupportsLODStreaming(TargetPlatform);
+	const bool bSupportLODStreaming = SkelMesh->GetSupportsLODStreaming(TargetPlatform);
 	
 	if (bMeshStreamingEnabled && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) && bSupportLODStreaming)
 	{

@@ -310,7 +310,7 @@ static void AddPatchGbufferDataPass(
 void RenderHairComposition(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	const FHairStrandsDatas* HairDatas)
+	const FHairStrandsRenderingData* HairDatas)
 {
 	if (!HairDatas || HairDatas->HairVisibilityViews.HairDatas.Num() == 0)
 		return;

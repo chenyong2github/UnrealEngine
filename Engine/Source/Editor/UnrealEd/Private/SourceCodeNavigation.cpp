@@ -1816,7 +1816,7 @@ void FSourceCodeNavigation::DownloadAndInstallSuggestedIDE(FOnIDEInstallerDownlo
 	if (!IPlatformFile::GetPlatformPhysical().FileExists(*InstallerFullPath))
 	{
 		FString DownloadURL;
-		TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 		// Download the installer for the suggested IDE
 		HttpRequest->OnProcessRequestComplete().BindRaw(&SourceCodeNavImpl, &FSourceCodeNavigationImpl::OnSuggestedIDEInstallerDownloadComplete, OnDownloadComplete);

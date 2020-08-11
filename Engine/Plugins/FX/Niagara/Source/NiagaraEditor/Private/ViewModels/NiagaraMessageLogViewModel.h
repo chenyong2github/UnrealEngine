@@ -15,13 +15,12 @@ public:
 
 	~FNiagaraMessageLogViewModel();
 
-	void UpdateMessageLog(const FGuid& InMessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> InNewMessages);
+	void RefreshMessageLog(const TArray<TSharedRef<const INiagaraMessage>>& InNewMessages);
 
 	void SetMessageLogGuidKey(const FGuid& InMessageLogGuidKey);
 
 private:
 	TSharedPtr<IMessageLogListing> MessageLogListing;
 	FGuid MessageLogGuidKey;
-
-	FDelegateHandle OnMessageManagerRequestRefreshHandle;
+	FGuid MessageManagerRegistrationKey;
 };

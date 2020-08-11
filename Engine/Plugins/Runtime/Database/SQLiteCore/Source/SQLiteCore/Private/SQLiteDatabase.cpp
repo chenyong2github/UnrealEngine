@@ -204,3 +204,22 @@ int64 FSQLiteDatabase::GetLastInsertRowId() const
 		? sqlite3_last_insert_rowid(Database)
 		: 0;
 }
+
+PRAGMA_DISABLE_OPTIMIZATION
+
+bool FSQLiteDatabase::PerformQuickIntegrityCheck() const
+{
+	bool OutIntegrityOk = true;
+	bool bSuccessful = const_cast<FSQLiteDatabase*>(this)->Execute(TEXT("pragma quick_check;"), [&OutIntegrityOk](const FSQLitePreparedStatement& InStatement)
+	{
+		FString Results;
+		InStatement.GetColumnValueByIndex(0, Results);
+		OutIntegrityOk = Results == TEXT("ok");
+
+		return ESQLitePreparedStatementExecuteRowResult::Stop;
+	}) == 1;
+
+	return bSuccessful && OutIntegrityOk;
+}
+
+PRAGMA_ENABLE_OPTIMIZATION

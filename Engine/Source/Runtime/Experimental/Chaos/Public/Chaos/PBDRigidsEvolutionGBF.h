@@ -241,6 +241,8 @@ namespace Chaos
 		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
 		CHAOS_API void SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache);
 
+		CHAOS_API FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
+
 	protected:
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FReal StepFraction);

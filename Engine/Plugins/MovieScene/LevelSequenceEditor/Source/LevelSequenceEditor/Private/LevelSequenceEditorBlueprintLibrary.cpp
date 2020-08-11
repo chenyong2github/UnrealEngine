@@ -92,6 +92,98 @@ bool ULevelSequenceEditorBlueprintLibrary::IsPlaying()
 	return false;
 }
 
+TArray<UMovieSceneTrack*> ULevelSequenceEditorBlueprintLibrary::GetSelectedTracks()
+{
+	TArray<UMovieSceneTrack*> OutSelectedTracks;
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->GetSelectedTracks(OutSelectedTracks);
+	}
+	return OutSelectedTracks;
+}
+
+TArray<UMovieSceneSection*> ULevelSequenceEditorBlueprintLibrary::GetSelectedSections()
+{
+	TArray<UMovieSceneSection*> OutSelectedSections;
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->GetSelectedSections(OutSelectedSections);
+	}
+	return OutSelectedSections;
+}
+
+TArray<UMovieSceneFolder*> ULevelSequenceEditorBlueprintLibrary::GetSelectedFolders()
+{
+	TArray<UMovieSceneFolder*> OutSelectedFolders;
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->GetSelectedFolders(OutSelectedFolders);
+	}
+	return OutSelectedFolders;
+}
+
+TArray<FGuid> ULevelSequenceEditorBlueprintLibrary::GetSelectedObjects()
+{
+	TArray<FGuid> OutSelectedGuids;
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->GetSelectedObjects(OutSelectedGuids);
+	}
+	return OutSelectedGuids;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectTracks(const TArray<UMovieSceneTrack*>& Tracks)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (UMovieSceneTrack* Track : Tracks)
+		{
+			CurrentSequencer.Pin()->SelectTrack(Track);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectSections(const TArray<UMovieSceneSection*>& Sections)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (UMovieSceneSection* Section : Sections)
+		{
+			CurrentSequencer.Pin()->SelectSection(Section);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectFolders(const TArray<UMovieSceneFolder*>& Folders)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (UMovieSceneFolder* Folder : Folders)
+		{
+			CurrentSequencer.Pin()->SelectFolder(Folder);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectObjects(TArray<FGuid> ObjectBindings)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (FGuid ObjectBinding : ObjectBindings)
+		{
+			CurrentSequencer.Pin()->SelectObject(ObjectBinding);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::EmptySelection()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		CurrentSequencer.Pin()->EmptySelection();
+	}
+}
+
 void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> InSequencer)
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);

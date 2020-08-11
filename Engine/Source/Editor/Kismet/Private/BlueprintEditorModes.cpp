@@ -272,9 +272,8 @@ FBlueprintComponentsApplicationMode::FBlueprintComponentsApplicationMode(TShared
 	// setup toolbar
 	if (UToolMenu* Toolbar = InBlueprintEditor->RegisterModeToolbarIfUnregistered(GetModeName()))
 	{
-		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
 		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
-		InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(Toolbar);
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar, false);
 	}
 }
 
@@ -721,13 +720,7 @@ FBlueprintEditorUnifiedMode::FBlueprintEditorUnifiedMode(TSharedPtr<class FBluep
 	{
 		InBlueprintEditor->GetToolbarBuilder()->AddCompileToolbar(Toolbar);
 		InBlueprintEditor->GetToolbarBuilder()->AddScriptingToolbar(Toolbar);
-		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
-
-		if ( bRegisterViewport )
-		{
-			InBlueprintEditor->GetToolbarBuilder()->AddComponentsToolbar(Toolbar);
-		}
-
+		InBlueprintEditor->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar, bRegisterViewport);
 		InBlueprintEditor->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
 	}
 

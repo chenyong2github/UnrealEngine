@@ -96,7 +96,7 @@ struct ENGINE_API FAreaNavModifier : public FNavigationModifier
 	float Cost;
 	float FixedCost;
 
-	FAreaNavModifier() : Cost(0.0f), FixedCost(0.0f), Bounds(ForceInitToZero), ShapeType(ENavigationShapeType::Unknown), ApplyMode(ENavigationAreaMode::Apply), bIncludeAgentHeight(false), bIsLowAreaModifier(false) {}
+	FAreaNavModifier();
 	FAreaNavModifier(float Radius, float Height, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	FAreaNavModifier(const FVector& Extent, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	FAreaNavModifier(const FBox& Box, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
@@ -112,7 +112,9 @@ struct ENGINE_API FAreaNavModifier : public FNavigationModifier
 	FORCEINLINE ENavigationShapeType::Type GetShapeType() const { return ShapeType; }
 	FORCEINLINE ENavigationAreaMode::Type GetApplyMode() const { return ApplyMode; }
 	FORCEINLINE bool IsLowAreaModifier() const { return bIsLowAreaModifier; }
+	FORCEINLINE bool ShouldExpandTopByCellHeight() const { return bExpandTopByCellHeight; }
 	FORCEINLINE bool ShouldIncludeAgentHeight() const { return bIncludeAgentHeight; }
+	FORCEINLINE void SetExpandTopByCellHeight(bool bExpand) { bExpandTopByCellHeight = bExpand; }
 	FORCEINLINE FAreaNavModifier& SetIncludeAgentHeight(bool bInclude) { bIncludeAgentHeight = bInclude; return *this; }
 	FORCEINLINE const TSubclassOf<UNavAreaBase> GetAreaClass() const { return TSubclassOf<UNavAreaBase>(AreaClassOb.Get()); }
 	FORCEINLINE const TSubclassOf<UNavAreaBase> GetAreaClassToReplace() const { return TSubclassOf<UNavAreaBase>(ReplaceAreaClassOb.Get()); }
@@ -140,6 +142,9 @@ protected:
 	TArray<FVector> Points;
 	TEnumAsByte<ENavigationShapeType::Type> ShapeType;
 	TEnumAsByte<ENavigationAreaMode::Type> ApplyMode;
+
+	/** if set, area shape will be extended at the top by one cell height */
+	uint8 bExpandTopByCellHeight : 1;
 
 	/** if set, area shape will be extended by agent's height to cover area underneath like regular colliding geometry */
 	uint8 bIncludeAgentHeight : 1;

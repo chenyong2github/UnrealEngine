@@ -111,7 +111,7 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	/**
 	 * Create a component or subobject, allows creating a child class and returning the parent class.
 	 * @param	TReturnType					Class of return type, all overrides must be of this type
-	 * @param	TClassToConstructByDefault	Class of object to actually construct
+	 * @param	TClassToConstructByDefault	Class of object to actually construct, must be a subclass of TReturnType
 	 * @param	SubobjectName				Name of the new component
 	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
 	 */
@@ -122,8 +122,8 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	}
 	
 	/**
-	 * Create an optional component or subobject. Optional subobjects may not get created.
-	 * when a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
+	 * Create an optional component or subobject. Optional subobjects will not get created
+	 * if a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
 	 * @param	TReturnType					Class of return type, all overrides must be of this type
 	 * @param	SubobjectName				Name of the new component
 	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
@@ -135,6 +135,19 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 		return static_cast<TReturnType*>(CreateDefaultSubobject(SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 	
+	/**
+	 * Create an optional component or subobject. Optional subobjects will not get created
+	 * if a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
+	 * @param	TReturnType					Class of return type, all overrides must be of this type
+	 * @param	TClassToConstructByDefault	Class of object to actually construct, must be a subclass of TReturnType
+	 * @param	SubobjectName				Name of the new component
+	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
+	 */
+	template<class TReturnType, class TClassToConstructByDefault>
+	TReturnType* CreateOptionalDefaultSubobject(FName SubobjectName, bool bTransient = false)
+	{
+		return static_cast<TReturnType*>(CreateDefaultSubobject(SubobjectName, TReturnType::StaticClass(), TClassToConstructByDefault::StaticClass(), /*bIsRequired =*/ false, bTransient));
+	}
 	/**
 	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
 	 * @param	TReturnType					Class of return type, all overrides must be of this type
@@ -390,7 +403,16 @@ public:
 
 	/** Called at the end of Rename(), but only if the rename was actually carried out */
 	virtual void PostRename(UObject* OldOuter, const FName OldName) {}
-	
+
+	/**
+	 * Called before duplication.
+	 *
+	 * @param DupParams the full parameters the object will be duplicated with.
+	 *        Allows access to modify params such as the duplication seed for example for pre-filling the dup-source => dup-target map used by StaticDuplicateObject. 
+	 * @see FObjectDuplicationParameters
+	 */
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) {}
+
 	/**
 	 * Called after duplication & serialization and before PostLoad. Used to e.g. make sure UStaticMesh's UModel gets copied as well.
 	 * Note: NOT called on components on actor duplication (alt-drag or copy-paste).  Use PostEditImport as well to cover that case.

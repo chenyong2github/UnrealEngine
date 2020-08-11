@@ -126,8 +126,10 @@ public:
 	void GetInterpolatedTriangleTangent(int32 TriangleID, const FVector3<RealType>& BaryCoords, FVector3<RealType>& TangentOut, FVector3<RealType>& BitangentOut) const
 	{
 		int32 k = TriangleID * 3;
-		TangentOut = BaryCoords.X*Tangents[k] + BaryCoords.Y*Tangents[k+1] + BaryCoords.Z*Tangents[k+2];
-		BitangentOut = BaryCoords.X*Bitangents[k] + BaryCoords.Y*Bitangents[k+1] + BaryCoords.Z*Bitangents[k+2];
+		TangentOut = FVector3<RealType>::Blend3(Tangents[k], Tangents[k+1], Tangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+		TangentOut.Normalize();
+		BitangentOut = FVector3<RealType>::Blend3(Bitangents[k], Bitangents[k+1], Bitangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+		BitangentOut.Normalize();
 	}
 
 

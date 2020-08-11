@@ -218,6 +218,23 @@ FGlobalComponentRecreateRenderStateContext::FGlobalComponentRecreateRenderStateC
 	UpdateAllPrimitiveSceneInfos();
 }
 
+FGlobalComponentRecreateRenderStateContext::FGlobalComponentRecreateRenderStateContext(const TArray<UActorComponent*>& InComponents)
+{
+	// wait until resources are released
+	FlushRenderingCommands();
+
+	// recreate render state for provided components.
+	for (UActorComponent* Component : InComponents)
+	{
+		if (Component->IsRegistered() && Component->IsRenderStateCreated())
+		{
+			ComponentContexts.Emplace(Component, &ScenesToUpdateAllPrimitiveSceneInfos);
+		}
+	}
+
+	UpdateAllPrimitiveSceneInfos();
+}
+
 FGlobalComponentRecreateRenderStateContext::~FGlobalComponentRecreateRenderStateContext()
 {
 	ComponentContexts.Empty();
@@ -1430,7 +1447,7 @@ void UActorComponent::CreatePhysicsState(bool bAllowDeferral)
 	if (!bPhysicsStateCreated && WorldPrivate->GetPhysicsScene() && ShouldCreatePhysicsState())
 	{
 		UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(this);
-		if (GEnableDeferredPhysicsCreation && bAllowDeferral && Primitive && Primitive->GetBodySetup())
+		if (GEnableDeferredPhysicsCreation && bAllowDeferral && Primitive && Primitive->GetBodySetup() && !Primitive->GetGenerateOverlapEvents())
 		{
 #if WITH_CHAOS
 			WorldPrivate->GetPhysicsScene()->DeferPhysicsStateCreation(Primitive);

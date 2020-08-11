@@ -1596,9 +1596,15 @@ private:
 	UPROPERTY(NonPIEDuplicateTransient)
 	class UPrimitiveComponent* LODParentPrimitive;
 
+	UPROPERTY(Transient)
+	class UPrimitiveComponent* CachedLODParentPrimitive;
+
 public:
-	/** Set LOD Parent component, normally associated with an ALODActor */
+	/** Set the LOD parent component */
 	void SetLODParentPrimitive(UPrimitiveComponent* InLODParentPrimitive);
+
+	/** Set the cached LOD parent component */
+	void SetCachedLODParentPrimitive(UPrimitiveComponent* InCachedLODParentPrimitive);
 
 	/** Gets the LOD Parent, which is used to compute visibility when hierarchical LOD is enabled */
 	UPrimitiveComponent* GetLODParentPrimitive() const;

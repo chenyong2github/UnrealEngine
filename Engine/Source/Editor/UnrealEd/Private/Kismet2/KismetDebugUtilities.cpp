@@ -224,7 +224,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		}
 	};
 
-	checkSlow(ActiveObject != NULL);
+	checkSlow(ActiveObject != nullptr);
 
 	// Ignore script exceptions for preview actors
 	if(FActorEditorUtils::IsAPreviewOrInactiveActor(Cast<const AActor>(ActiveObject)))
@@ -233,7 +233,7 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 	}
 	
 	UClass* ClassContainingCode = FindClassForNode(ActiveObject, StackFrame.Node);
-	UBlueprint* BlueprintObj = (ClassContainingCode ? Cast<UBlueprint>(ClassContainingCode->ClassGeneratedBy) : NULL);
+	UBlueprint* BlueprintObj = (ClassContainingCode ? Cast<UBlueprint>(ClassContainingCode->ClassGeneratedBy) : nullptr);
 	if (BlueprintObj)
 	{
 		const FBlueprintExceptionInfo* ExceptionInfo = &Info;
@@ -241,6 +241,19 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		UObject* ObjectBeingDebugged = BlueprintObj->GetObjectBeingDebugged();
 		UObject* SavedObjectBeingDebugged = ObjectBeingDebugged;
 		UWorld* WorldBeingDebugged = BlueprintObj->GetWorldBeingDebugged();
+		const FString& PathToDebug = BlueprintObj->GetObjectPathToDebug();
+		
+		if (ObjectBeingDebugged == nullptr)
+		{
+			// Check if we need to update the object being debugged
+			UObject* ObjectToDebug = FindObjectSafe<UObject>(nullptr, *PathToDebug);
+			if (ObjectToDebug)
+			{
+				// If the path to debug matches a newly-spawned object, set the hard reference now
+				ObjectBeingDebugged = ObjectToDebug;
+				BlueprintObj->SetObjectBeingDebugged(ObjectBeingDebugged);
+			}
+		}
 
 		const int32 BreakpointOffset = StackFrame.Code - StackFrame.Node->Script.GetData() - 1;
 
@@ -278,11 +291,11 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 
 #if WITH_EDITORONLY_DATA // to protect access to GeneratedClass->DebugData
 				UBlueprintGeneratedClass* GeneratedClass = Cast<UBlueprintGeneratedClass>(ClassContainingCode);
-				if ((GeneratedClass != NULL) && GeneratedClass->DebugData.IsValid())
+				if ((GeneratedClass != nullptr) && GeneratedClass->DebugData.IsValid())
 				{
 					UEdGraphNode* BlueprintNode = GeneratedClass->DebugData.FindSourceNodeFromCodeLocation(StackFrame.Node, BreakpointOffset, true);
 					// if instead, there is a node we can point to...
-					if (BlueprintNode != NULL)
+					if (BlueprintNode != nullptr)
 					{
 						Message->AddToken(FTextToken::Create(LOCTEXT("RuntimeErrorBlueprintGraphLabel", "Graph: ")));
 						Message->AddToken(FUObjectToken::Create(BlueprintNode->GetGraph(), FText::FromString(GetNameSafe(BlueprintNode->GetGraph())))
@@ -312,13 +325,13 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		}
 
 		// If we are debugging a specific world, the object needs to be in it
-		if (WorldBeingDebugged != NULL && !ActiveObject->IsIn(WorldBeingDebugged))
+		if (WorldBeingDebugged != nullptr && !ActiveObject->IsIn(WorldBeingDebugged))
 		{
 			// Might be a streaming level case, so find the real world to see
 			const UObject *ObjOuter = ActiveObject;
-			const UWorld *ObjWorld = NULL;
+			const UWorld *ObjWorld = nullptr;
 			bool FailedWorldCheck = true;
-			while(ObjWorld == NULL && ObjOuter != NULL)
+			while(ObjWorld == nullptr && ObjOuter != nullptr)
 			{
 				ObjOuter = ObjOuter->GetOuter();
 				ObjWorld = Cast<const UWorld>(ObjOuter);
@@ -341,16 +354,17 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 
 		if (bShouldBreakExecution)
 		{
-			if ((ObjectBeingDebugged == NULL) || (bForceToCurrentObject))
+			if ((PathToDebug.IsEmpty()) || (bForceToCurrentObject))
 			{
 				// If there was nothing being debugged, treat this as a one-shot, temporarily set this object as being debugged,
 				// and continue allowing any breakpoint to hit later on
 				bResetObjectBeingDebuggedWhenFinished = true;
-				BlueprintObj->SetObjectBeingDebugged(const_cast<UObject*>(ActiveObject));
+				ObjectBeingDebugged = const_cast<UObject*>(ActiveObject);
+				BlueprintObj->SetObjectBeingDebugged(ObjectBeingDebugged);
 			}
 		}
 
-		if (BlueprintObj->GetObjectBeingDebugged() == ActiveObject)
+		if (ObjectBeingDebugged == ActiveObject)
 		{
 			// Record into the trace log
 			FKismetTraceSample& Tracer = Data.TraceStackSamples.WriteNewElementUninitialized();
@@ -383,12 +397,16 @@ void FKismetDebugUtilities::OnScriptException(const UObject* ActiveObject, const
 		// Reset the object being debugged if we forced it to be something different
 		if (bResetObjectBeingDebuggedWhenFinished)
 		{
-			BlueprintObj->SetObjectBeingDebugged(SavedObjectBeingDebugged);
+			if (BlueprintObj->GetObjectBeingDebugged() == ObjectBeingDebugged)
+			{
+				// Only reset if it's still what we expected, if the user picked a new object from the UI we want to respect that
+				BlueprintObj->SetObjectBeingDebugged(SavedObjectBeingDebugged);
+			}
 		}
 
 		const auto ShowScriptExceptionError = [&](const FText& InExceptionErrorMsg)
 		{
-			if (GUnrealEd->PlayWorld != NULL)
+			if (GUnrealEd->PlayWorld != nullptr)
 			{
 				GEditor->RequestEndPlayMap();
 				FSlateApplication::Get().LeaveDebuggingMode();

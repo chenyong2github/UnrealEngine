@@ -440,7 +440,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 void RenderHairStrandsSceneColorScattering(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	FHairStrandsDatas* HairDatas)
+	FHairStrandsRenderingData* HairDatas)
 {
 	if (Views.Num() == 0 || !HairDatas || GHairScatterSceneLighting <= 0)
 		return;
@@ -492,7 +492,7 @@ void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const uint32 ViewIndex,
 	const TArray<FViewInfo>& Views, 
-	FHairStrandsDatas* HairDatas)
+	FHairStrandsRenderingData* HairDatas)
 {
 	if (!GetHairStrandsSkyLightingEnable() || !HairDatas)
 		return;
@@ -541,7 +541,7 @@ void RenderHairStrandsEnvironmentLighting(
 void RenderHairStrandsAmbientOcclusion(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
-	const FHairStrandsDatas* HairDatas,
+	const FHairStrandsRenderingData* HairDatas,
 	const TRefCountPtr<IPooledRenderTarget>& InAOTexture)
 {
 	if (!GetHairStrandsSkyAOEnable() || Views.Num() == 0 || !InAOTexture || !HairDatas)

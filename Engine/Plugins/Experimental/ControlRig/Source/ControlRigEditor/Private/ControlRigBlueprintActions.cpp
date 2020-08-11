@@ -273,6 +273,14 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 	}
 
 	ULevelSequence* Sequence = LevelSequenceActor->GetSequence();
+	if (Sequence == nullptr)
+	{
+		Sequence = LevelSequenceActor->LoadSequence();
+	}
+	if (Sequence == nullptr)
+	{
+		return;
+	}
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Sequence);
@@ -299,7 +307,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 
 				UControlRig* ControlRig = NewObject<UControlRig>(Track, ControlRigClass, FName(*ObjectName), RF_Transactional);
 				ControlRig->SetObjectBinding(MakeShared<FControlRigSkeletalMeshBinding>());
-				ControlRig->GetObjectBinding()->BindToObject(SkeletalMesh);
+				ControlRig->GetObjectBinding()->BindToObject(MeshActor->GetSkeletalMeshComponent());
 				ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject());
 				ControlRig->Initialize();
 				ControlRig->Execute(EControlRigState::Update);

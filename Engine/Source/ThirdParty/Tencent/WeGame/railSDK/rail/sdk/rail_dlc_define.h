@@ -1,22 +1,22 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
+
 #ifndef RAIL_SDK_RAIL_DLC_DEFINE_H
 #define RAIL_SDK_RAIL_DLC_DEFINE_H
 
-#include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_event.h"
 
 namespace rail {
 #pragma pack(push, RAIL_SDK_PACKING)
 
 struct RailDlcInfo {
-    RailDlcID dlc_id;
-    RailGameID game_id;
-    RailString version;
-    RailString name;
-    RailString description;
-    double original_price;
-    double discount_price;
+    RailDlcID dlc_id;     // ID of the DLC
+    RailGameID game_id;   // ID of the game
+    RailString version;   // version number of the DLC
+    RailString name;      // DLC's name
+    RailString description;  // Description of the DLC
+    double original_price;   // The original price of the DLC
+    double discount_price;   // The discount price of the DLC
     RailDlcInfo() {
         dlc_id = kInvalidDlcId;
         game_id = kInvalidGameId;

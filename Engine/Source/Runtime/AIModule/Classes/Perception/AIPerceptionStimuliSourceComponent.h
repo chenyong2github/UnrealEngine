@@ -30,6 +30,10 @@ public:
 
 	UAIPerceptionStimuliSourceComponent(const FObjectInitializer& ObjectInitializer);
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+
 	/** Registers owning actor as source of stimuli for senses specified in RegisterAsSourceForSenses. 
 	 *	Note that you don't have to do it if bAutoRegisterAsSource == true */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")

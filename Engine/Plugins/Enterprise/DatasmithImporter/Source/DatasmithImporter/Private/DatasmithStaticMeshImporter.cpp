@@ -236,14 +236,14 @@ bool FDatasmithStaticMeshImporter::ShouldRecomputeNormals(const FMeshDescription
 {
 	TVertexInstanceAttributesConstRef<FVector> Normals = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceNormals();
 	check(Normals.IsValid());
-	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Normals[InstanceID].IsNormalized(); });
+	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Normals[InstanceID].IsNormalized(); }, Algo::NoRef);
 }
 
 bool FDatasmithStaticMeshImporter::ShouldRecomputeTangents(const FMeshDescription& MeshDescription, int32 BuildRequirements)
 {
 	TVertexInstanceAttributesConstRef<FVector> Tangents = FStaticMeshConstAttributes(MeshDescription).GetVertexInstanceTangents();
 	check(Tangents.IsValid());
-	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Tangents[InstanceID].IsNormalized(); });
+	return Algo::AnyOf(MeshDescription.VertexInstances().GetElementIDs(), [&](const FVertexInstanceID& InstanceID) { return !Tangents[InstanceID].IsNormalized(); }, Algo::NoRef);
 }
 
 bool FDatasmithStaticMeshImporter::PreBuildStaticMesh( UStaticMesh* StaticMesh )

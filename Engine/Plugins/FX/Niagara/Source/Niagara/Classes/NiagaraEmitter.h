@@ -10,12 +10,14 @@
 #include "NiagaraCollision.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraEffectType.h"
+#include "NiagaraDataSetAccessor.h"
+#include "NiagaraBoundsCalculator.h"
+#include "NiagaraRendererProperties.h"
 #include "NiagaraEmitter.generated.h"
 
 class UMaterial;
 class UNiagaraEmitter;
 class UNiagaraEventReceiverEmitterAction;
-class UNiagaraRendererProperties;
 class UNiagaraSimulationStageBase;
 class UNiagaraEditorDataBase;
 
@@ -286,6 +288,11 @@ public:
 
 	UPROPERTY()
 	FNiagaraEmitterScriptProperties EmitterUpdateScriptProps;
+
+	/** A whitelist of Particle attributes (e.g. "Particle.Position" or "Particle.Age") that will not be removed from the DataSet  even if they aren't read by the VM.
+	    Used in conjunction with UNiagaraSystem::bTrimAttributes */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	TArray<FString> AttributesToPreserve;
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Emitter")
@@ -370,6 +377,9 @@ public:
 
 	NIAGARA_API UNiagaraScript* GetGPUComputeScript() { return GPUComputeScript; }
 	NIAGARA_API const UNiagaraScript* GetGPUComputeScript() const { return GPUComputeScript; }
+
+	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData);
+	void CacheFromShaderCompiled();
 
 #if WITH_EDITORONLY_DATA
 	/** 'Source' data/graphs for the scripts used by this emitter. */
@@ -458,11 +468,26 @@ public:
 	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
 	bool UsesCollection(const class UNiagaraParameterCollection* Collection)const;
 
+#if !UE_BUILD_SHIPPING
+	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+#endif
+
 	FString NIAGARA_API GetUniqueEmitterName()const;
 	bool NIAGARA_API SetUniqueEmitterName(const FString& InName);
 
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
-	TArray<UNiagaraRendererProperties*> GetEnabledRenderers() const;
+
+	template<typename TAction>
+	void ForEachEnabledRenderer(TAction Func) const
+	{
+		for (UNiagaraRendererProperties* Renderer : RendererProperties)
+		{
+			if (Renderer && Renderer->GetIsEnabled() && Renderer->IsSimTargetSupported(this->SimTarget))
+			{
+				Func(Renderer);
+			}
+		}
+	}
 
 	void NIAGARA_API AddRenderer(UNiagaraRendererProperties* Renderer);
 
@@ -512,6 +537,19 @@ public:
 
 	void OnQualityLevelChanged();
 
+#if WITH_EDITORONLY_DATA
+	NIAGARA_API const TMap<FGuid, UNiagaraMessageDataBase*>& GetMessages() const { return MessageKeyToMessageMap; };
+	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
+	NIAGARA_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+#endif
+
+	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
+
+	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
+
+	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -551,6 +589,10 @@ private:
 	FOnEmitterCompiled OnGPUScriptCompiledDelegate;
 
 	void RaiseOnEmitterGPUCompiled(UNiagaraScript* InScript);
+#endif
+
+#if !UE_BUILD_SHIPPING
+	FString DebugSimName;
 #endif
 
 	UPROPERTY()
@@ -594,10 +636,23 @@ private:
 	mutable TStatId StatID_RT_CNC;
 #endif
 
+	/** Indicates that the GPU script requires the view uniform buffer. */
+	uint32 bRequiresViewUniformBuffer : 1;
+
+	/** Maximum number of instances we can create for this emitter. */
+	uint32 MaxInstanceCount = 0;
+
+	/** Optional list of bounds calculators. */
+	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;
+
 	MemoryRuntimeEstimation RuntimeEstimation;
 	FCriticalSection EstimationCriticalSection;
 
 	FNiagaraEmitterScalabilitySettings CurrentScalabilitySettings;
+
+#if WITH_EDITORONLY_DATA
+	/** Messages associated with the Emitter asset. */
+	UPROPERTY()
+	TMap<FGuid, UNiagaraMessageDataBase*> MessageKeyToMessageMap;
+#endif
 };
-
-

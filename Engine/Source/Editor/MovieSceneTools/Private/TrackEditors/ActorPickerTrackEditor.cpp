@@ -174,7 +174,7 @@ void FActorPickerTrackEditor::ExistingBindingPicked(FMovieSceneObjectBindingID E
 	if (ExistingBindingID.IsValid())
 	{
 		// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-		FMovieSceneObjectBindingID RootBindingID = ExistingBindingID.ResolveLocalToRoot(SequenceID, SequencerPtr->GetEvaluationTemplate().GetHierarchy());
+		FMovieSceneObjectBindingID RootBindingID = ExistingBindingID.ResolveLocalToRoot(SequenceID, *SequencerPtr);
 		SequenceID = RootBindingID.GetSequenceID();
 	}
 

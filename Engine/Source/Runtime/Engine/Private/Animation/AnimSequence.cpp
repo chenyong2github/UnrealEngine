@@ -2367,7 +2367,7 @@ bool UAnimSequence::DoesSequenceContainZeroScale()
 {
 	for (const FRawAnimSequenceTrack& RawTrack : RawAnimationData)
 	{
-		for (const FVector ScaleKey : RawTrack.ScaleKeys)
+		for (const FVector& ScaleKey : RawTrack.ScaleKeys)
 		{
 			if (ScaleKey.IsZero())
 			{
@@ -4880,7 +4880,7 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 				}
 			}
 
-			const float TimeToMarker = NextMarker.TimeToMarker;
+			const float TimeToMarker = PrevMarker.TimeToMarker;
 
 			if (CurrentMoveDelta < TimeToMarker)
 			{

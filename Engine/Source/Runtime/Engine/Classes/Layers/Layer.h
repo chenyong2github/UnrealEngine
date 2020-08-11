@@ -27,11 +27,27 @@ struct FLayerActorStats
 	}
 };
  
-UCLASS( MinimalAPI )
-class ULayer : public UObject
+UCLASS()
+class ENGINE_API ULayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
+public:
+	void SetLayerName(FName InName);	
+	FName GetLayerName() const;
+
+	void SetVisible(bool bIsVisible);
+	bool IsVisible() const;
+
+	void SetShouldLoadActors(bool bShouldLoadActors);
+	bool ShouldLoadActors() const;
+
+	const TArray<FLayerActorStats>& GetActorStats() const;
+	void ClearActorStats();
+	void AddToStats(AActor* Actor);
+	bool RemoveFromStats(AActor* Actor);
+
+private:
 	/** The display name of the layer */
 	UPROPERTY()
 	FName LayerName;
@@ -40,9 +56,13 @@ class ULayer : public UObject
 	UPROPERTY()
 	uint32 bIsVisible:1;
 
+	/** Whether actors associated with the layer should be loaded or not */
+	UPROPERTY()
+	uint32 bShouldLoadActors:1;
+
 	/** 
 	 * Basic stats regarding the number of Actors and their types currently assigned to the Layer 
 	 */
-	UPROPERTY(transient)
-	TArray< FLayerActorStats > ActorStats;
+	UPROPERTY(Transient)
+	TArray<FLayerActorStats> ActorStats;
 };

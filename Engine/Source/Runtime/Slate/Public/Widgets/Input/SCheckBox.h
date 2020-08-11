@@ -40,7 +40,9 @@ public:
 		, _CheckBoxContentUsesAutoWidth(true)
 		, _Padding()
 		, _ClickMethod( EButtonClickMethod::DownAndUp )
-		, _ForegroundColor()
+		, _TouchMethod(EButtonTouchMethod::DownAndUp)
+		, _PressMethod(EButtonPressMethod::DownAndUp)
+		, _ForegroundColor(FSlateColor::UseStyle())
 		, _BorderBackgroundColor ()
 		, _IsFocusable( true )
 		, _UncheckedImage( nullptr )
@@ -52,6 +54,9 @@ public:
 		, _UndeterminedImage( nullptr )
 		, _UndeterminedHoveredImage( nullptr )
 		, _UndeterminedPressedImage( nullptr )
+		, _BackgroundImage( nullptr )
+		, _BackgroundHoveredImage( nullptr )
+		, _BackgroundPressedImage( nullptr )
 	{
 	}
 
@@ -80,7 +85,13 @@ public:
 		SLATE_ATTRIBUTE( FMargin, Padding )
 
 		/** Sets the rules to use for determining whether the button was clicked.  This is an advanced setting and generally should be left as the default. */
-		SLATE_ATTRIBUTE( EButtonClickMethod::Type, ClickMethod )
+		SLATE_ARGUMENT( EButtonClickMethod::Type, ClickMethod )
+
+		/** How should the button be clicked with touch events? */
+		SLATE_ARGUMENT(EButtonTouchMethod::Type, TouchMethod)
+
+		/** How should the button be clicked with keyboard/controller button events? */
+		SLATE_ARGUMENT(EButtonPressMethod::Type, PressMethod)
 
 		/** Foreground color for the checkbox's content and parts (set by the Style arg but the Style can be overridden with this) */
 		SLATE_ATTRIBUTE( FSlateColor, ForegroundColor )
@@ -128,6 +139,18 @@ public:
 		/** The undetermined pressed image for the checkbox - overrides the style's */
 		SLATE_ARGUMENT(const FSlateBrush*, UndeterminedPressedImage)
 
+		/** The background image for the checkbox - overrides the style's */
+		SLATE_ARGUMENT(const FSlateBrush*, BackgroundImage)
+
+		/** The background hovered image for the checkbox - overrides the style's */
+		SLATE_ARGUMENT(const FSlateBrush*, BackgroundHoveredImage)
+
+		/** The background pressed image for the checkbox - overrides the style's */
+		SLATE_ARGUMENT(const FSlateBrush*, BackgroundPressedImage)
+
+
+
+
 	SLATE_END_ARGS()
 
 	SCheckBox();
@@ -141,6 +164,7 @@ public:
 
 	// SWidget interface
 	virtual bool SupportsKeyboardFocus() const override;
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
@@ -148,6 +172,7 @@ public:
 	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 	virtual bool IsInteractable() const override;
+	virtual FSlateColor GetForegroundColor() const;
 #if WITH_ACCESSIBILITY
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
@@ -211,13 +236,15 @@ public:
 	/** See the UndeterminedPressedImage attribute */
 	void SetUndeterminedPressedImage(const FSlateBrush* Brush);
 
+	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
+	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+
 protected:
 
 	/** Rebuilds the checkbox based on the current ESlateCheckBoxType */
 	void BuildCheckBox(TSharedRef<SWidget> InContent);
 
-	/** Attribute getter for the foreground color */
-	FSlateColor OnGetForegroundColor() const;
 	/** Attribute getter for the padding */
 	FMargin OnGetPadding() const;
 	/** Attribute getter for the border background color */
@@ -242,6 +269,14 @@ protected:
 	const FSlateBrush* GetUndeterminedImage() const;
 	const FSlateBrush* GetUndeterminedHoveredImage() const;
 	const FSlateBrush* GetUndeterminedPressedImage() const;
+
+	/** Attribute getter for the background image */
+	const FSlateBrush* OnGetBackgroundImage() const;
+
+	const FSlateBrush* GetBackgroundImage() const;
+	const FSlateBrush* GetBackgroundHoveredImage() const;
+	const FSlateBrush* GetBackgroundPressedImage() const;
+
 	
 protected:
 	
@@ -274,6 +309,12 @@ protected:
 	const FSlateBrush* UndeterminedHoveredImage;
 	/** Image to use when the checkbox is in an ambiguous state and pressed*/
 	const FSlateBrush* UndeterminedPressedImage;
+	/** Image to use for the checkbox background */
+	const FSlateBrush* BackgroundImage;
+	/** Image to use for the checkbox background when hovered*/
+	const FSlateBrush* BackgroundHoveredImage;
+	/** Image to use for the checkbox background when pressed*/
+	const FSlateBrush* BackgroundPressedImage;
 
 	/** Overrides padding in the widget style, if set */
 	TAttribute<FMargin> PaddingOverride;
@@ -293,6 +334,12 @@ protected:
 	/** Sets whether a click should be triggered on mouse down, mouse up, or that both a mouse down and up are required. */
 	EButtonClickMethod::Type ClickMethod;
 
+	/** How should the button be clicked with touch events? */
+	TEnumAsByte<EButtonTouchMethod::Type> TouchMethod;
+
+	/** How should the button be clicked with keyboard/controller button events? */
+	TEnumAsByte<EButtonPressMethod::Type> PressMethod;
+
 	/** When true, this checkbox will be keyboard focusable. Defaults to true. */
 	bool bIsFocusable;
 
@@ -307,6 +354,12 @@ protected:
 
 	/** Play the hovered sound */
 	void PlayHoverSound() const;
+
+	/** Utility function to translate other input click methods to regular ones. */
+	TEnumAsByte<EButtonClickMethod::Type> GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const;
+
+	/** Utility function to determine if the incoming mouse event is for a precise tap or click */
+	bool IsPreciseTapOrClick(const FPointerEvent& MouseEvent) const;
 
 	/** The Sound to play when the check box is hovered  */
 	FSlateSound HoveredSound;

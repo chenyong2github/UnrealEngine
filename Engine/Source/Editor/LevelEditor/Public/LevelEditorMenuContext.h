@@ -22,6 +22,7 @@ public:
 	TWeakPtr<SLevelEditor> LevelEditor;
 };
 
+
 /** Enum to describe what a level editor context menu should be built for */
 enum class ELevelEditorMenuContext
 {
@@ -38,8 +39,14 @@ class LEVELEDITOR_API ULevelEditorContextMenuContext : public UObject
 public:
 
 	TWeakPtr<SLevelEditor> LevelEditor;
-	TArray<UActorComponent*> SelectedComponents;
 	ELevelEditorMenuContext ContextType;
+
+	UPROPERTY()
+	TArray<UActorComponent*> SelectedComponents;
+
+	/** If the ContextType is Viewport this property can be set to the HitProxy actor that triggered the ContextMenu. */
+	UPROPERTY()
+	AActor* HitProxyActor = nullptr;
 };
 
 UCLASS()

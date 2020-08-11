@@ -53,7 +53,7 @@ void UAbilityTask_ApplyRootMotionRadialForce::SharedInitAndApply()
 		if (MovementComponent)
 		{
 			ForceName = ForceName.IsNone() ? FName("AbilityTaskApplyRootMotionRadialForce") : ForceName;
-			FRootMotionSource_RadialForce* RadialForce = new FRootMotionSource_RadialForce();
+			TSharedPtr<FRootMotionSource_RadialForce> RadialForce = MakeShared<FRootMotionSource_RadialForce>();
 			RadialForce->InstanceName = ForceName;
 			RadialForce->AccumulateMode = bIsAdditive ? ERootMotionAccumulateMode::Additive : ERootMotionAccumulateMode::Override;
 			RadialForce->Priority = 5;

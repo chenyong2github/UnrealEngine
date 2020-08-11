@@ -1,4 +1,4 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_TEXT_INPUT_DEFINE_H
@@ -48,4 +48,4 @@ struct RailTextInputResult : public RailEvent<kRailEventTextInputShowTextInputWi
 #pragma pack(pop)
 }  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_UTILS_DEFINE_H
+#endif  // RAIL_SDK_RAIL_TEXT_INPUT_DEFINE_H

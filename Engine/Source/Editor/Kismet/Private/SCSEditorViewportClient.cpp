@@ -248,7 +248,7 @@ void FSCSEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 			{
 				FSCSEditorTreeNodePtrType SelectedNode = SelectedNodes[SelectionIndex];
 
-				UActorComponent* Comp = Cast<USceneComponent>(SelectedNode->FindComponentInstanceInActor(PreviewActor));
+				UActorComponent* Comp = SelectedNode->FindComponentInstanceInActor(PreviewActor);
 				if (Comp != NULL && Comp->IsRegistered())
 				{
 					// Try and find a visualizer
@@ -266,7 +266,7 @@ void FSCSEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 		const int32 HalfX = 0.5f * Viewport->GetSizeXY().X;
 		const int32 HalfY = 0.5f * Viewport->GetSizeXY().Y;
 
-		auto SelectedNodes = BlueprintEditorPtr.Pin()->GetSelectedSCSEditorTreeNodes();
+		TArray<TSharedPtr<FSCSEditorTreeNode>> SelectedNodes = BlueprintEditorPtr.Pin()->GetSelectedSCSEditorTreeNodes();
 		if(bIsManipulating && SelectedNodes.Num() > 0)
 		{
 			USceneComponent* SceneComp = Cast<USceneComponent>(SelectedNodes[0]->FindComponentInstanceInActor(PreviewActor));
@@ -409,7 +409,7 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 	{
 		bHandled = true;
 		AActor* PreviewActor = GetPreviewActor();
-		auto BlueprintEditor = BlueprintEditorPtr.Pin();
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
 		if (PreviewActor && BlueprintEditor.IsValid())
 		{
 			TArray<FSCSEditorTreeNodePtrType> SelectedNodes = BlueprintEditor->GetSelectedSCSEditorTreeNodes();
@@ -430,9 +430,8 @@ bool FSCSEditorViewportClient::InputWidgetDelta( FViewport* InViewport, EAxisLis
 					ModifiedScale = FVector::ZeroVector;
 				}
 
-				for(auto It(SelectedNodes.CreateIterator());It;++It)
+				for (const FSCSEditorTreeNodePtrType& SelectedNodePtr : SelectedNodes)
 				{
-					FSCSEditorTreeNodePtrType SelectedNodePtr = *It;
 					// Don't allow editing of a root node, inherited SCS node or child node that also has a movable (non-root) parent node selected
 					const bool bCanEdit = GUnrealEd->ComponentVisManager.IsActive() ||
 						(!SelectedNodePtr->IsRootComponent() && !IsMovableParentNodeSelected(SelectedNodePtr, SelectedNodes));
@@ -687,13 +686,13 @@ FMatrix FSCSEditorViewportClient::GetWidgetCoordSystem() const
 	if( GetWidgetCoordSystemSpace() == COORD_Local )
 	{
 		AActor* PreviewActor = GetPreviewActor();
-		auto BlueprintEditor = BlueprintEditorPtr.Pin();
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
 		if (PreviewActor && BlueprintEditor.IsValid())
 		{
 			TArray<FSCSEditorTreeNodePtrType> SelectedNodes = BlueprintEditor->GetSelectedSCSEditorTreeNodes();
 			if(SelectedNodes.Num() > 0)
 			{
-				const auto SelectedNode = SelectedNodes.Last();
+				const FSCSEditorTreeNodePtrType SelectedNode = SelectedNodes.Last();
 				USceneComponent* SceneComp = SelectedNode.IsValid() ? Cast<USceneComponent>(SelectedNode->FindComponentInstanceInActor(PreviewActor)) : NULL;
 				if( SceneComp )
 				{
@@ -861,7 +860,7 @@ bool FSCSEditorViewportClient::GetShowFloor()
 
 void FSCSEditorViewportClient::ToggleShowFloor() 
 {
-	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	UEditorPerProjectUserSettings* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 
 	bool bShowFloor = Settings->bSCSEditorShowFloor;
 	bShowFloor = !bShowFloor;
@@ -882,7 +881,7 @@ bool FSCSEditorViewportClient::GetShowGrid()
 
 void FSCSEditorViewportClient::ToggleShowGrid() 
 {
-	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	UEditorPerProjectUserSettings* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 
 	bool bShowGrid = Settings->bSCSEditorShowGrid;
 	bShowGrid = !bShowGrid;
@@ -903,7 +902,7 @@ void FSCSEditorViewportClient::BeginTransaction(const FText& Description)
 	{
 		ScopedTransaction = new FScopedTransaction(Description);
 
-		auto BlueprintEditor = BlueprintEditorPtr.Pin();
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
 		if (BlueprintEditor.IsValid())
 		{
 			UBlueprint* PreviewBlueprint = BlueprintEditor->GetBlueprintObj();
@@ -913,9 +912,8 @@ void FSCSEditorViewportClient::BeginTransaction(const FText& Description)
 			}
 
 			TArray<FSCSEditorTreeNodePtrType> SelectedNodes = BlueprintEditor->GetSelectedSCSEditorTreeNodes();
-			for(auto SelectedSCSNodeIter(SelectedNodes.CreateIterator()); SelectedSCSNodeIter; ++SelectedSCSNodeIter)
+			for (const FSCSEditorTreeNodePtrType& Node : SelectedNodes)
 			{
-				FSCSEditorTreeNodePtrType Node = *SelectedSCSNodeIter;
 				if(Node.IsValid())
 				{
 					if(USCS_Node* SCS_Node = Node->GetSCSNode())

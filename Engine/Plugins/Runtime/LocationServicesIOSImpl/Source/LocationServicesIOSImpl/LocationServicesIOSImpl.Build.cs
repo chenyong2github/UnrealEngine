@@ -22,8 +22,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Launch",
-					"LocationServicesBPLibrary",
-					"LocationServicesIOSImpl",
+					"LocationServicesBPLibrary"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

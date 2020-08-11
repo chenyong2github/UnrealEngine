@@ -166,6 +166,33 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldAmbientOcclusion)
 	FColor OcclusionTint;
 
+	/**
+	 * Whether the cloud should contribute to ambiant occlusion onto the atmosphere and other scene elements.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
+	uint32 bCloudAmbientOcclusion : 1;
+	/**
+	 * The strength of the ambient occlusion, higher value will block more light.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	float CloudAmbientOcclusionStrength;
+	/**
+	 * The world space radius of the cloud ambiant occlusion map around the camera in kilometers.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "1", ClampMin = "1"))
+	float CloudAmbientOcclusionExtent;
+	/**
+	 * Scale the cloud ambiant occlusion map resolution. The resolution is still clamped to 'r.VolumetricCloud.ShadowMap.MaxResolution'.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.25", UIMax = "8", ClampMin = "0.25", SliderExponent = 3.0))
+	float CloudAmbientOcclusionMapResolutionScale;
+	/**
+	 * Controls the aperture angle to integrate sky visibility over. 1 Means entire hemisphere and 0 infinitely small solid angle oriented up.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	float CloudAmbientOcclusionApertureScale;
+
+
 	/** Controls how occlusion from Distance Field Ambient Occlusion is combined with Screen Space Ambient Occlusion. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldAmbientOcclusion)
 	TEnumAsByte<enum EOcclusionCombineMode> OcclusionCombineMode;

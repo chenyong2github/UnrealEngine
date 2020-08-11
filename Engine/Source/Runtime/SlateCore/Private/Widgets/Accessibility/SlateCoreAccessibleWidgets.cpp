@@ -153,20 +153,16 @@ bool FSlateAccessibleWidget::IsHidden() const
 
 bool FSlateAccessibleWidget::SupportsFocus() const
 {
-	if (Widget.IsValid())
-	{
-		return Widget.Pin()->SupportsKeyboardFocus();
-	}
-	return false;
+	// all widgets that support accessibility support accessibility focus right now 
+	// This check is analogous to Widget.Pin()->IsAccessible()
+	// By definition all FSlateAccessibleWidgets are accessible. So we just return true 
+	return true;
 }
 
 bool FSlateAccessibleWidget::HasFocus() const
 {
-	if (Widget.IsValid())
-	{
-		return Widget.Pin()->HasKeyboardFocus();
-	}
-	return false;
+	TSharedPtr<FSlateAccessibleWidget> AccessibilityFocusedWidget = FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibilityFocusedWidget();
+	return AccessibilityFocusedWidget == AsShared();
 }
 
 void FSlateAccessibleWidget::SetFocus()
@@ -181,6 +177,10 @@ void FSlateAccessibleWidget::SetFocus()
 			FWidgetPath WidgetPath;
 			if (FSlateWindowHelper::FindPathToWidget(WindowArray, Widget.Pin().ToSharedRef(), WidgetPath))
 			{
+				// From FSlateApplication::SetUserFocus(), it seems that 
+				// no focus change will occur if we pass in a widget that cannot accept keyboard focus.
+				// this behavior is fine for widgets that don't support keyboard focus but do support accessibility focus 
+//@TODOAccessibility: Possible early out if not keyboard focusable 				
 				FSlateApplicationBase::Get().SetKeyboardFocus(WidgetPath, EFocusCause::SetDirectly);
 			}
 		}
@@ -322,7 +322,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetFocusedWidget() const
 {
-	return FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(FSlateApplicationBase::Get().GetKeyboardFocusedWidget());
+	return FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibilityFocusedWidget();
 }
 
 FString FSlateAccessibleWindow::GetWidgetName() const

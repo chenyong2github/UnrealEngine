@@ -16,6 +16,9 @@ struct FManifestModule
 	/** Module type */
 	EBuildModuleType::Type ModuleType;
 
+	/** Overridden package settings to add additional flags that can help with organization */
+	EPackageOverrideType::Type OverrideModuleType;
+
 	/** Long package name for this module's UObject class */
 	FString LongPackageName;
 
@@ -56,6 +59,7 @@ struct FManifestModule
 	{
 		Ar << ManifestModule.Name;
 		Ar << ManifestModule.ModuleType;
+		Ar << ManifestModule.OverrideModuleType;
 		Ar << ManifestModule.LongPackageName;
 		Ar << ManifestModule.BaseDirectory;
 		Ar << ManifestModule.IncludeBase;

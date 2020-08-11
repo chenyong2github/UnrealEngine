@@ -52,6 +52,7 @@ public:
 	virtual const FSlateBrush* GetIconBrush() const override;
 	virtual void BuildAddTrackMenu( FMenuBuilder& MenuBuilder ) override;
 	TSharedPtr<SWidget> BuildOutlinerEditWidget( const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params ) override;
+	virtual void BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track ) override;
 
 private:
 	/** Adds a new section which spans the length of the owning movie scene with the specified visibility. */
@@ -65,4 +66,12 @@ private:
 
 	/** Handles when the add visibility trigger menu item is activated. */
 	void OnAddNewSection( UMovieSceneTrack* LevelVisibilityTrack, ELevelVisibility Visibility );
+
+	/** Handles when the add current level visibility menu item is activated. */
+	void OnAddCurrentLevelVisibility(UMovieSceneTrack* LevelVisibilityTrack);
+
+	/** Handles when the replace current level visibility menu item is activated. */
+	void OnSetCurrentLevelVisibility(UMovieSceneTrack* LevelVisibilityTrack);
+
+	void GetCurrentLevelVisibility(TArray<FName>& OutVisibleLevelNames, TArray<FName>& OutHiddenLevelNames);
 };

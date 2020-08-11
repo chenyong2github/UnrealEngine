@@ -207,6 +207,13 @@ static FAutoConsoleVariableRef CVarNetDormancyValidate(
 	TEXT("0: Dont validate. 1: Validate on wake up. 2: Validate on each net update"),
 	ECVF_Default);
 
+bool GbNetReuseReplicatorsForDormantObjects = false;
+static FAutoConsoleVariableRef CVarNetReuseReplicatorsForDormantObjects(
+	TEXT("Net.ReuseReplicatorsForDormantObjects"),
+	GbNetReuseReplicatorsForDormantObjects,
+	TEXT("When true, Server's will persist and attempt to reuse replicators for Dormant Actors and Objects. This can cut down on bandwidth by preventing redundant information from being sent when waking objects from Dormancy."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> CVarNetDebugDraw(
 	TEXT("net.DebugDraw"),
 	0,
@@ -1608,7 +1615,7 @@ void UNetDriver::Shutdown()
 		{
 			TArray<FString> GuidStrings;
 			GuidStrings.Reserve(GuidsToLog.Num());
-			for (const FNetworkGUID GuidToLog : GuidsToLog)
+			for (const FNetworkGUID& GuidToLog : GuidsToLog)
 			{
 				FString FullNetGUIDPath = ClientPackageMap->GetFullNetGUIDPath(GuidToLog);
 				if (!FullNetGUIDPath.IsEmpty())
@@ -1958,7 +1965,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 		DEBUG_REMOTEFUNCTION(TEXT("FieldCache empty, not calling %s::%s"), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return;
 	}
-		
+
 	// Get the actor channel.
 	UActorChannel* Ch = Connection->FindActorChannelRef(Actor);
 	if (!Ch)
@@ -1990,7 +1997,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 		if (bIsServer)
 		{
 			Ch->SetChannelActor(Actor, ESetChannelActorFlags::None);
-		}	
+		}
 	}
 
 	ProcessRemoteFunctionForChannelPrivate(Ch, ClassCache, FieldCache, TargetObj, Connection, Function, Parms, OutParms, Stack, bIsServer, ERemoteFunctionSendPolicy::Default, Flags);
@@ -2080,8 +2087,8 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			Ch->GetActor()->CallPreReplication(this);
 			RemoteFunctionFlags |= EProcessRemoteFunctionFlags::ReplicatedActor;
 		}
-		
-		
+
+
 		Ch->ReplicateActor();
 	}
 
@@ -4755,6 +4762,9 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		// net.DormancyValidate can be set to 2 to validate all dormant actors against last known state before going dormant
 		if ( GNetDormancyValidate == 2 )
 		{
+			// TODO: DormantReplicatorMap will actually contain all Actors and Subobjects.
+			// This means that we will call FObjectReplicator::ValidateAgainstState multiple times for
+			// the same object (once for itself and again for each subobject).
 			for ( auto It = Connection->DormantReplicatorMap.CreateIterator(); It; ++It )
 			{
 				FObjectReplicator& Replicator = It.Value().Get();
@@ -5761,12 +5771,12 @@ void UNetDriver::ProcessRemoteFunction(
 		{
 			return;
 		}
-		
+
 		// RepDriver didn't handle it, default implementation
 		UNetConnection* Connection = nullptr;
 		if (bIsServerMulticast)
 		{
-			TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
+			TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout(Function);
 
 			// Multicast functions go to every client
 			EProcessRemoteFunctionFlags RemoteFunctionFlags = EProcessRemoteFunctionFlags::None;
@@ -5794,7 +5804,7 @@ void UNetDriver::ProcessRemoteFunction(
 						// Builds any shared serialization state for this rpc
 						RepLayout->BuildSharedSerializationForRPC(Parameters);
 
-						InternalProcessRemoteFunctionPrivate(Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer, RemoteFunctionFlags);	
+						InternalProcessRemoteFunctionPrivate(Actor, SubObject, Connection, Function, Parameters, OutParms, Stack, bIsServer, RemoteFunctionFlags);
 					}
 				}
 			}

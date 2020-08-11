@@ -249,7 +249,7 @@ void ExtendSequencePlaybackRange(ULevelSequence* LevelSequence)
 		const double OutputViewSize = PlayRange.Size<FFrameNumber>() / TickResolution;
 		const double OutputChange   = OutputViewSize * 0.1;
 
-		TRange<double> NewRange = MovieScene::ExpandRange(PlayRange / TickResolution, OutputChange);
+		TRange<double> NewRange = UE::MovieScene::ExpandRange(PlayRange / TickResolution, OutputChange);
 		FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
 		EditorData.ViewStart = EditorData.WorkStart = NewRange.GetLowerBoundValue();
 		EditorData.ViewEnd   = EditorData.WorkEnd   = NewRange.GetUpperBoundValue();

@@ -192,7 +192,7 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBe
 
 	for (FContour& Contour : *Contours)
 	{
-		for (const FPartPtr Part : Contour)
+		for (const FPartPtr& Part : Contour)
 		{
 			Part->ResetDoneExpand();
 		}
@@ -291,7 +291,7 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBe
 			ExpandPoint(Point, {1.f, 1.f - TextureCoordinateVs[Index++ - 1]});
 		}
 
-		for (const FPartPtr Edge : Contour)
+		for (const FPartPtr& Edge : Contour)
 		{
 			Data->FillEdge(Edge, false);
 		}
@@ -519,7 +519,7 @@ void FMeshCreator::DuplicateContourVertices()
 
 	for (FContour& Contour : *Contours)
 	{
-		for (const FPartPtr Point : Contour)
+		for (const FPartPtr& Point : Contour)
 		{
 			EmptyPaths(Point);
 			// Duplicate points of contour (expansion with value 0)
@@ -544,7 +544,7 @@ void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 
 	for (FContour& Contour : *Contours)
 	{
-		for (const FPartPtr Point : Contour)
+		for (const FPartPtr& Point : Contour)
 		{
 			if (!FMath::IsNearlyEqual(Point->DoneExpand, MaxExpand) || FMath::IsNearlyZero(MaxExpand))
 			{
@@ -557,7 +557,7 @@ void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 			Point->DecreaseExpandsFar(Delta);
 		}
 
-		for (const FPartPtr Edge : Contour)
+		for (const FPartPtr& Edge : Contour)
 		{
 			Data->FillEdge(Edge, false);
 		}

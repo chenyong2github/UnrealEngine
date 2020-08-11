@@ -25,6 +25,9 @@ class ULevel;
 class UWorld;
 class UPrimitiveComponent;
 
+
+ENGINE_API extern int32 GEnableDeferredPhysicsCreation;
+
 class FRegisterComponentContext
 {
 public:
@@ -354,6 +357,13 @@ public:
 	/** Follow the Outer chain to get the  AActor  that 'Owns' this component */
 	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Actor Owning Parent"))
 	AActor* GetOwner() const;
+
+	/** Templated version of GetOwner(), will return nullptr if cast fails */
+	template< class T >
+	T* GetOwner() const
+	{
+		return Cast<T>(GetOwner());
+	}
 
 	/** Getter for the cached world pointer, will return null if the component is not actually spawned in a level */
 	virtual UWorld* GetWorld() const override final { return (WorldPrivate ? WorldPrivate : GetWorld_Uncached()); }
@@ -862,6 +872,7 @@ public:
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual bool IsSelectedInEditor() const override;
+	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) {}
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 

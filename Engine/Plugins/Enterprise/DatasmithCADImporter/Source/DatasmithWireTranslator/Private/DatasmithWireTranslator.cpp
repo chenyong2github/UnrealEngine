@@ -17,6 +17,13 @@
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 
+#if WITH_EDITOR
+#include "IMessageLogListing.h"
+#include "Logging/TokenizedMessage.h"
+#include "MessageLogModule.h"
+#include "Modules/ModuleManager.h"
+#endif
+
 #ifdef CAD_LIBRARY
 #include "AliasCoretechWrapper.h" // requires CoreTech as public dependency
 #include "CoreTechParametricSurfaceExtension.h"
@@ -44,6 +51,12 @@
 #include <AlTM.h>
 #include <AlUniverse.h>
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
+
+#define LOCTEXT_NAMESPACE "DatasmithWireTranslator"
+
+#define WRONG_VERSION_TEXT "Unsupported version of Alias detected. Please downgrade to Alias 2020.0 (or earlier version) or upgrade to Alias 2021 (or later version)."
 
 #ifdef USE_OPENMODEL
 
@@ -2140,6 +2153,39 @@ bool FDatasmithWireTranslator::IsSourceSupported(const FDatasmithSceneSource& So
 bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 #ifdef USE_OPENMODEL
+	// Check installed version of Alias Tools because binaries from 2020.1 to 2020.3 crashes on load
+	const uint64 LibAlias2020Version = 7318349414924288;
+	const uint64 LibAlias2021Version = 7599824377020416;
+	uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
+
+	if (FileVersion > LibAlias2020Version && FileVersion < LibAlias2021Version)
+	{
+#if WITH_EDITOR
+		// Display message and abort import
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+
+		TSharedPtr<IMessageLogListing> LogListing = MessageLogModule.GetLogListing("DatasmithWireTranslator");
+
+		if(LogListing.IsValid())
+		{
+			LogListing->SetLabel(LOCTEXT("MessageLogging", "Datasmith Wire Translator"));
+
+			FText Message = LOCTEXT("WrongVersion", WRONG_VERSION_TEXT);
+			LogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, Message));
+
+			LogListing->NotifyIfAnyMessages(LOCTEXT("LibraryIssue", "There was an issue with the wire import"), EMessageSeverity::Info);
+		}
+		else
+		{
+			UE_LOG(LogDatasmithWireTranslator, Error, TEXT(WRONG_VERSION_TEXT));
+		}
+#else
+		UE_LOG(LogDatasmithWireTranslator, Error, TEXT(WRONG_VERSION_TEXT));
+#endif
+
+		return false;
+	}
+
 	const FString& Filename = GetSource().GetSourceFile();
 
 	Translator = MakeShared<FWireTranslatorImpl>(Filename, OutScene);
@@ -2195,6 +2241,5 @@ void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDa
 #endif
 }
 
-
-
+#undef LOCTEXT_NAMESPACE // "DatasmithWireTranslator"
 

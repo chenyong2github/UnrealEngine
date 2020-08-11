@@ -49,6 +49,8 @@ public:
 		return false;
 	}
 
+	virtual const TCHAR* GetDebugName() const override { return TEXT("TranslationPicker"); }
+
 private:
 	STranslationPickerFloatingWindow* Owner;
 };

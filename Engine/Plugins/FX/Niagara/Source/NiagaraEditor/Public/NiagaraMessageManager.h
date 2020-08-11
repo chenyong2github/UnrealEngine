@@ -4,201 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraShared.h"
+#include "NiagaraCommon.h"
 #include "Logging/TokenizedMessage.h"
-#include "NiagaraGraph.h"
 #include "TickableEditorObject.h"
 #include "UObject/ObjectKey.h"
+#include "Templates/SharedPointer.h"
+#include "NiagaraMessages.h"
 
 class FNiagaraScriptToolkit;
-
-//enum to specify the class of an FNiagaraMessage. 
-enum class ENiagaraMessageType : uint8
-{
-	None = 0,
-	CompileEventMessage,
-	NeedRecompileMessage
-};
-
-enum class ENiagaraMessageJobType : uint8 {
-	None = 0,
-	CompileEventMessageJob
-};
-
-//Struct for passing around script asset info from compile event message job to message types
-struct FNiagaraScriptNameAndAssetPath
-{
-public:
-	FNiagaraScriptNameAndAssetPath(const FString& InScriptNameString, const FString& InScriptAssetPathString)
-		: ScriptNameString(InScriptNameString)
-		, ScriptAssetPathString(InScriptAssetPathString)
-	{};
-
-	const FString ScriptNameString;
-	const FString ScriptAssetPathString;
-};
-
-/** Interface for view-agnostic message that holds limited lifetime information on a message (e.g. a weak pointer to an asset.)
-*	Implements GenerateTokenizedMessage() to provide FTokenizedMessage for the message log, and should separately define a GenerateMessage() implementation for any specific views it needs to support (e.g. errors in SNiagaraStack).
-*/
-class INiagaraMessage 
-{
-public:
-	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const = 0;
-
-	virtual const ENiagaraMessageType GetMessageType() const = 0;
-
-	// TODO: Add a better API for generating stack issues.
-	virtual FText GenerateMessageText() const = 0;
-	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const = 0;
-
-	virtual void GetAssociatedObjectKeys(TArray<FObjectKey>& OutAssociatedObjectKeys) const = 0;
-
-	virtual ~INiagaraMessage() {};
-};
-
-/** Interface for job supplied to FNiagaraMessageManager to generated FNiagaraMessages.
-*	Implements GenerateNiagaraMessage() to return a derived type of abstract INiagaraMessage.
-*/
-class INiagaraMessageJob
-{
-public:
-	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage() const = 0;
-
-	virtual const ENiagaraMessageJobType GetMessageJobType() const = 0;
-
-	virtual ~INiagaraMessageJob() {};
-};
-
-class FNiagaraMessageJobCompileEvent : public INiagaraMessageJob
-{
-public:
-	FNiagaraMessageJobCompileEvent(
-		  const FNiagaraCompileEvent& InCompileEvent
-		, const TWeakObjectPtr<const UNiagaraScript>& InOriginatingScriptWeakObjPtr
-		, const TOptional<const FString>& InOwningScriptNameString = TOptional<const FString>()
-		, const TOptional<const FString>& InSourceScriptAssetPath = TOptional<const FString>()
-	);
-
-	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage() const override;
-
-	virtual const ENiagaraMessageJobType GetMessageJobType() const override { return ENiagaraMessageJobType::CompileEventMessageJob; };
-
-private:
-
-	bool RecursiveGetScriptNamesAndAssetPathsFromContextStack(
-		  TArray<FGuid>& InContextStackNodeGuids
-		, FGuid NodeGuid
-		, const UNiagaraGraph* InGraphToSearch
-		, TArray<FNiagaraScriptNameAndAssetPath>& OutContextScriptNamesAndAssetPaths
-		, TOptional<const FString>& OutEmitterName
-		, TOptional<const FText>& OutFailureReason
-		, TArray<FObjectKey>& OutContextNodeObjectKeys
-	) const;
-
-	const FNiagaraCompileEvent CompileEvent;
-	const TWeakObjectPtr<const UNiagaraScript> OriginatingScriptWeakObjPtr;
-	TOptional<const FString> OwningScriptNameString;
-	TOptional<const FString> SourceScriptAssetPath;
-};
-
-class FNiagaraMessageJobPostCompileSummary : public INiagaraMessageJob
-{
-public:
-	FNiagaraMessageJobPostCompileSummary(const int32& InNumCompileErrors, const int32& InNumCompileWarnings, const ENiagaraScriptCompileStatus& InScriptCompileStatus, const FText& InCompiledObjectNameText)
-		: NumCompileErrors(InNumCompileErrors)
-		, NumCompileWarnings(InNumCompileWarnings)
-		, ScriptCompileStatus(InScriptCompileStatus)
-		, CompiledObjectNameText(InCompiledObjectNameText)
-	{
-	};
-
-	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage() const override;
-
-	// we alias the messagejob type as post compile summary is always generated with compile events
-	virtual const ENiagaraMessageJobType GetMessageJobType() const override { return ENiagaraMessageJobType::CompileEventMessageJob; };
-
-private:
-	const int32 NumCompileErrors;
-	const int32 NumCompileWarnings;
-	const ENiagaraScriptCompileStatus ScriptCompileStatus;
-	const FText CompiledObjectNameText;
-};
-
-class FNiagaraMessageCompileEvent : public INiagaraMessage
-{
-public:
-	FNiagaraMessageCompileEvent(
-		  const FNiagaraCompileEvent& InCompileEvent
-		, TArray<FNiagaraScriptNameAndAssetPath>& InContextScriptNamesAndAssetPaths
-		, TOptional<const FText>& InOwningScriptNameAndUsageText
-		, TOptional<const FNiagaraScriptNameAndAssetPath>& InCompiledScriptNameAndAssetPath
-		, const TArray<FObjectKey>& InAssociatedObjectKeys
-	);
-
-	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
-
-	virtual const ENiagaraMessageType GetMessageType() const override { return ENiagaraMessageType::CompileEventMessage; };
-
-	virtual FText GenerateMessageText() const override;
-
-	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override;
-
-	virtual void GetAssociatedObjectKeys(TArray<FObjectKey>& OutAssociatedObjectKeys) const override { OutAssociatedObjectKeys.Append(AssociatedObjectKeys); }
-
-private:
-	const FNiagaraCompileEvent CompileEvent;
-	const TArray<FNiagaraScriptNameAndAssetPath> ContextScriptNamesAndAssetPaths;
-	const TOptional<const FText> OwningScriptNameAndUsageText;
-	const TOptional<const FNiagaraScriptNameAndAssetPath> CompiledScriptNameAndAssetPath;
-	const TArray<FObjectKey> AssociatedObjectKeys;
-};
-
-class FNiagaraMessageNeedRecompile : public INiagaraMessage
-{
-public:
-	FNiagaraMessageNeedRecompile(const FText& InNeedRecompileMessage)
-		: NeedRecompileMessage(InNeedRecompileMessage)
-	{
-	};
-
-	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
-
-	virtual const ENiagaraMessageType GetMessageType() const override { return ENiagaraMessageType::NeedRecompileMessage; };
-
-	virtual FText GenerateMessageText() const override;
-
-	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override { }
-
-	virtual void GetAssociatedObjectKeys(TArray<FObjectKey>& OutAssociatedObjectKeys) const override { }
-
-private:
-	const FText NeedRecompileMessage;
-};
-
-class FNiagaraMessagePostCompileSummary : public INiagaraMessage
-{
-public: 
-	FNiagaraMessagePostCompileSummary(const FText& InPostCompileSummaryText, const EMessageSeverity::Type& InMessageSeverity)
-		: PostCompileSummaryText(InPostCompileSummaryText)
-		, MessageSeverity(InMessageSeverity)
-	{
-	};
-
-	virtual TSharedRef<FTokenizedMessage> GenerateTokenizedMessage() const override;
-	
-	// we alias the message type as post compile summary is always generated with compile events
-	virtual const ENiagaraMessageType GetMessageType() const override { return  ENiagaraMessageType::CompileEventMessage; };
-
-	virtual FText GenerateMessageText() const override;
-
-	virtual void GenerateLinks(TArray<FText>& OutLinkDisplayNames, TArray<FSimpleDelegate>& OutLinkNavigationActions) const override { }
-
-	virtual void GetAssociatedObjectKeys(TArray<FObjectKey>& OutAssociatedObjectKeys) const override { }
-
-private:
-	const FText PostCompileSummaryText;
-	const EMessageSeverity::Type MessageSeverity;
-};
 
 //Extension of message token to allow opening the asset editor when clicking on the linked asset name.
 class FNiagaraCompileEventToken : public IMessageToken
@@ -230,7 +43,7 @@ private:
 
 	/**
 	 * Find and open an asset in editor
-	 * @param	Token		The token that was clicked
+	 * @param	Token			The token that was clicked
 	 * @param	InAssetPath		The asset to find
 	 */
 	static void OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
@@ -240,7 +53,7 @@ private:
 		, const TOptional<const FGuid> InPinGUID
 	);
 
-	/** The script asset path to open the editor for. */
+	/** The script asset path to open the editor toolkit for. */
 	const FString ScriptAssetPath;
 
 	/** The optional Node or Pin GUID to find and focus after opening the script asset */
@@ -248,42 +61,88 @@ private:
 	const TOptional<const FGuid> PinGUID;
 };
 
+class NIAGARAEDITOR_API INiagaraMessageRegistrationHandle : public TSharedFromThis<INiagaraMessageRegistrationHandle>
+{
+public:
+	DECLARE_DELEGATE_OneParam(FOnRequestRefresh, const TArray<TSharedRef<const INiagaraMessage>>& /** NewMessages*/)
+
+	INiagaraMessageRegistrationHandle(const uint32 InTopicBitfield = 0)
+		: TopicBitfield(InTopicBitfield)
+	{};
+
+	virtual ~INiagaraMessageRegistrationHandle() = default;
+
+	virtual TArray<TSharedRef<const INiagaraMessage>> FilterMessages(const TArray<TSharedRef<const INiagaraMessage>>& Messages, const uint32& DesiredTopicBitfield) const = 0;
+
+	FOnRequestRefresh& GetOnRequestRefresh() { return RefreshDelegate; };
+	uint32 GetTopicBitfield() const { return TopicBitfield; };
+
+protected:
+	const uint32 TopicBitfield;
+	FOnRequestRefresh RefreshDelegate;
+};
+
+class FNiagaraMessageTopicRegistrationHandle : public INiagaraMessageRegistrationHandle
+{
+public:
+	FNiagaraMessageTopicRegistrationHandle(const uint32 InTopicBitfield)
+		: INiagaraMessageRegistrationHandle(InTopicBitfield)
+	{};
+
+	virtual TArray<TSharedRef<const INiagaraMessage>> FilterMessages(const TArray<TSharedRef<const INiagaraMessage>>& Messages, const uint32& DesiredTopicBitfield) const override;
+};
+
+class FNiagaraMessageObjectRegistrationHandle : public INiagaraMessageRegistrationHandle
+{
+public:
+	FNiagaraMessageObjectRegistrationHandle(const FObjectKey& InObjectKey)
+		: INiagaraMessageRegistrationHandle(INT32_MAX) //Pure object registrations listen for every topic
+		, ObjectKey(InObjectKey)
+	{};
+
+	virtual TArray<TSharedRef<const INiagaraMessage>> FilterMessages(const TArray<TSharedRef<const INiagaraMessage>>& Messages, const uint32& DesiredTopicBitfield) const override;
+
+protected:
+	const FObjectKey ObjectKey;
+};
+
 class FNiagaraMessageManager : FTickableEditorObject
 {
-	struct FNiagaraMessageJobBatch
-	{
-	public:
-		FNiagaraMessageJobBatch(TArray<TSharedPtr<const INiagaraMessageJob>> InMessageJobs, const FGuid& InMessageJobsAssetKey)
-			: MessageJobs(InMessageJobs)
-			, MessageJobsAssetKey(InMessageJobsAssetKey)
-		{
-		};
-
-		TArray<TSharedPtr<const INiagaraMessageJob>> MessageJobs;
-		FGuid MessageJobsAssetKey;
-
-	};
-
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRequestRefresh, const FGuid& /*MessageJobBatchAssetKey*/, const TArray<TSharedRef<const INiagaraMessage>> /*NewMessages*/)
 
-	static FNiagaraMessageManager* Get();
+	NIAGARAEDITOR_API static FNiagaraMessageManager* Get();
 
-	void QueueMessageJob(TSharedPtr<const INiagaraMessageJob> InMessageJob, const FGuid& InMessageJobAssetKey);
+	NIAGARAEDITOR_API void AddMessage(const TSharedRef<const INiagaraMessage>& InMessage, const FGuid& InMessageAssetKey);
 
-	void QueueMessageJobBatch(TArray<TSharedPtr<const INiagaraMessageJob>> InMessageJobBatch, const FGuid& InMessageJobBatchAssetKey);
+	NIAGARAEDITOR_API void AddMessageJob(TUniquePtr<const INiagaraMessageJob>&& InMessageJob, const FGuid& InMessageJobAssetKey);
 
-	void RefreshMessagesForAssetKey(const FGuid& InAssetKey);
+	void ClearAssetMessages(const FGuid& AssetKey);
 
-	void RefreshMessagesForAssetKeyAndMessageJobType(const FGuid& InAssetKey, const ENiagaraMessageJobType& InMessageJobType);
+	void ClearAssetMessagesForTopic(const FGuid& AssetKey, const FName& Topic);
+
+	void ClearAssetMessagesForObject(const FGuid& AssetKey, const FObjectKey& ObjectKeys);
 
 	static const TOptional<const FString> GetStringForScriptUsageInStack(const ENiagaraScriptUsage InScriptUsage);
 
-	const TArray<TSharedRef<const INiagaraMessage>> GetMessagesForAssetKey(const FGuid& InAssetKey) const;
+	NIAGARAEDITOR_API void RegisterMessageTopic(FName TopicName);
+	NIAGARAEDITOR_API void RegisterAdditionalMessageLogTopic(FName MessageLogTopicName);
+	uint32 GetMessageTopicBitflag(FName TopicName) const;
 
-	const TArray<TSharedRef<const INiagaraMessage>> GetMessagesForAssetKeyAndObjectKey(const FGuid& InAssetKey, const FObjectKey& InObjectKey);
+	NIAGARAEDITOR_API FNiagaraMessageTopicRegistrationHandle::FOnRequestRefresh& SubscribeToAssetMessagesByTopic(
+		  const FText& DebugNameText
+		, const FGuid& MessageAssetKey
+		, const TArray<FName>& MessageTopics
+		, FGuid& OutMessageManagerRegistrationKey);
 
-	FOnRequestRefresh& GetOnRequestRefresh() { return OnRequestRefresh; };
+	NIAGARAEDITOR_API FNiagaraMessageTopicRegistrationHandle::FOnRequestRefresh& SubscribeToAssetMessagesByObject(
+		  const FText& DebugNameText
+		, const FGuid& MessageAssetKey
+		, const FObjectKey& ObjectKey
+		, FGuid& OutMessageManagerRegistrationKey);
+
+	void Unsubscribe(const FText& DebugNameText, const FGuid& MessageAssetKey, FGuid& MessageManagerRegistrationKey);
+
+	const TArray<FName>& GetAdditionalMessageLogTopics() { return AdditionalMessageLogTopics; };
 
 	//~ Begin FTickableEditorObject Interface.
 	virtual void Tick(float DeltaSeconds) override;
@@ -294,27 +153,58 @@ public:
 	//~ End FTickableEditorObject Interface
 
 private:
-	class FMessageData
-	{
-	public:
-		const TArray<TSharedRef<const INiagaraMessage>>& GetMessages() const;
-		const void GetMessagesForObjectKey(FObjectKey InObjectKey, TArray<TSharedRef<const INiagaraMessage>>& OutMessages) const;
-		void AddMessage(TSharedRef<const INiagaraMessage> InMessage);
-		void Reset();
 
-	private:
+	struct NIAGARAEDITOR_API FAssetMessageInfo
+	{
+		FAssetMessageInfo()
+			: bDirty(false)
+			, DirtyTopicBitfield(0)
+		{};
+
 		TArray<TSharedRef<const INiagaraMessage>> Messages;
-		TMap<FObjectKey, TArray<TSharedRef<const INiagaraMessage>>> ObjectKeyToMessagesMap;
+		TMap<FGuid, TSharedPtr<INiagaraMessageRegistrationHandle>> RegistrationKey_To_RegistrationHandleMap;
+		bool bDirty;
+		uint32 DirtyTopicBitfield;
+	};
+
+	struct FMessageJobAndAssetKey
+	{
+		FMessageJobAndAssetKey(const FGuid& InAssetKey)
+			: AssetKey(InAssetKey)
+		{};
+
+// 		FMessageJobAndAssetKey(TUniquePtr<const INiagaraMessageJob>&& InMessageJob, const FGuid& InAssetKey) //@todo(ng) impl
+// 			: MessageJob(MoveTemp(InMessageJob))
+// 			, AssetKey(InAssetKey)
+// 		{};
+
+		TUniquePtr<const INiagaraMessageJob> MessageJob;
+		const FGuid AssetKey;
 	};
 
 	FNiagaraMessageManager();
 
-	FOnRequestRefresh OnRequestRefresh;
+	void DoMessageJobsTick();
+	void TryFlushMessagesTick();
 
-	void DoMessageJobsInQueueTick();
-	static const double MaxJobWorkTime;
-	TArray<FNiagaraMessageJobBatch> MessageJobBatchArr;
-	TArray<TSharedRef<const INiagaraMessage>> GeneratedMessagesForCurrentMessageJobBatch;
-	TMap<FGuid, TMap<const ENiagaraMessageJobType, FMessageData>> ObjectToTypeMappedMessagesMap;
+	void FlushMessages();
+	static void SetRefreshTimerElapsed();
+
+	uint32 MakeBitfieldForMessageTopics(const FText& DebugNameText, const TArray<FName>& MessageTopics);
+
+private:
+
+	static constexpr double MaxJobWorkTime = .02f; // do message jobs at 50 fps.
+	static constexpr double RefreshHysterisisTime = 2.0f; // do not consecutively request refresh subscribers more often than every 2 seconds.
+
+	static bool bRefreshTimeElapsed;
+	static bool bNeedFlushMessages;
+	static uint32 NextTopicBitflag; // every time a topic is registered, assign this bitflag to the topic and then binary increment this bitflag.
 	static FNiagaraMessageManager* Singleton;
+
+	FTimerHandle RefreshTimerHandle;
+	TArray<FMessageJobAndAssetKey> MessageJobs;
+	TMap<const FGuid, FAssetMessageInfo> AssetToMessageInfoMap;
+	TMap<const FName, uint32> RegisteredTopicToBitflagsMap;
+	TArray<FName> AdditionalMessageLogTopics;
 };

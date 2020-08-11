@@ -3,6 +3,9 @@
 #include "HairStrandsMeshProjection.h"
 #include "MeshMaterialShader.h"
 #include "ScenePrivate.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "SkeletalRenderPublic.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "MeshPassProcessor.h"
 #include "RenderGraphUtils.h"
@@ -84,6 +87,81 @@ static FRDGBufferRef AddMeshSectionId(
 	}
 
 	return VertexSectionIdBuffer;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+class FSkinUpdateCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSkinUpdateCS);
+	SHADER_USE_PARAMETER_STRUCT(FSkinUpdateCS, FGlobalShader);
+
+	class FUnlimitedBoneInfluence : SHADER_PERMUTATION_INT("GPUSKIN_UNLIMITED_BONE_INFLUENCE", 2);
+	class FUseExtraInfluence : SHADER_PERMUTATION_INT("GPUSKIN_USE_EXTRA_INFLUENCES", 2);
+	class FIndexUint16 : SHADER_PERMUTATION_INT("GPUSKIN_BONE_INDEX_UINT16", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FUnlimitedBoneInfluence, FUseExtraInfluence, FIndexUint16>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, IndexSize)
+		SHADER_PARAMETER(uint32, NumVertices)
+		SHADER_PARAMETER(uint32, WeightStride)
+		SHADER_PARAMETER_SRV(Buffer<uint>, WeightLookup)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, BoneMatrices)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MatrixOffsets)
+		SHADER_PARAMETER_SRV(Buffer<uint>, VertexWeights)
+		SHADER_PARAMETER_SRV(Buffer<float>, RestPositions)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, DeformedPositions)
+
+		END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+};
+
+IMPLEMENT_GLOBAL_SHADER(FSkinUpdateCS, "/Engine/Private/HairStrands/HairStrandsSkinUpdate.usf", "UpdateSkinPositionCS", SF_Compute);
+
+inline uint32 ComputeGroupSize()
+{
+	const uint32 GroupSize = IsRHIDeviceAMD() ? 64 : (IsRHIDeviceNVIDIA() ? 32 : 64);
+	check(GroupSize == 64 || GroupSize == 32);
+	return GroupSize;
+}
+
+static void AddSkinUpdatePass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	FSkinWeightVertexBuffer* SkinWeight,
+	FSkeletalMeshLODRenderData& RenderData,
+	FRDGBufferRef BoneMatrices,
+	FRDGBufferRef MatrixOffsets,
+	FRDGBufferRef OutDeformedosition)
+{
+	FSkinUpdateCS::FParameters* Parameters = GraphBuilder.AllocParameters<FSkinUpdateCS::FParameters>();
+
+	Parameters->IndexSize = SkinWeight->GetBoneIndexByteSize();
+	Parameters->NumVertices = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+	Parameters->WeightStride = SkinWeight->GetConstantInfluencesVertexStride();
+	Parameters->WeightLookup = SkinWeight->GetLookupVertexBuffer()->GetSRV();
+	Parameters->BoneMatrices = GraphBuilder.CreateSRV(BoneMatrices, PF_A32B32G32R32F);//BoneBuffer.VertexBufferSRV;
+	Parameters->MatrixOffsets = GraphBuilder.CreateSRV(MatrixOffsets, PF_R32_UINT);//BoneBuffer.VertexBufferSRV;
+	Parameters->VertexWeights = SkinWeight->GetDataVertexBuffer()->GetSRV();
+	Parameters->RestPositions = RenderData.StaticVertexBuffers.PositionVertexBuffer.GetSRV();
+	Parameters->DeformedPositions = GraphBuilder.CreateUAV(OutDeformedosition, PF_R32_FLOAT);
+
+	FSkinUpdateCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FSkinUpdateCS::FUnlimitedBoneInfluence>(SkinWeight->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence);
+	PermutationVector.Set<FSkinUpdateCS::FUseExtraInfluence>(SkinWeight->GetMaxBoneInfluences() > MAX_INFLUENCES_PER_STREAM);
+	PermutationVector.Set<FSkinUpdateCS::FIndexUint16>(SkinWeight->Use16BitBoneIndex());
+
+	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices(), 64);
+	check(DispatchGroupCount.X < 65536);
+	TShaderMapRef<FSkinUpdateCS> ComputeShader(ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("UpdateSkinPosition"),
+		ComputeShader,
+		Parameters,
+		DispatchGroupCount);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -380,6 +458,19 @@ void TransferMesh(
 	const FHairStrandsProjectionMeshData::Section& TargetMeshSection = TargetMeshData.LODs[TargetLODIndex].Sections[TargetSectionIndex];
 	AddMeshTransferPass(GraphBuilder, ShaderMap, true, SourceMeshSection, TargetMeshSection, VertexSectionId, OutPositionBuffer, OutTransitionQueue);
 }
+
+void UpateSkin(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	FSkinWeightVertexBuffer* SkinWeight,
+	FSkeletalMeshLODRenderData& RenderData,
+	FRDGBufferRef BoneMatrices,
+	FRDGBufferRef MatrixOffsets,
+	FRDGBufferRef OutDeformedosition)
+{
+	AddSkinUpdatePass(GraphBuilder, ShaderMap, SkinWeight, RenderData, BoneMatrices, MatrixOffsets, OutDeformedosition);
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

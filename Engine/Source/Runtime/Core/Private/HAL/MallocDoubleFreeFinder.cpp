@@ -8,7 +8,6 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
-//#include "Templates/Function.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformMisc.h"
@@ -18,12 +17,8 @@ CORE_API FMallocDoubleFreeFinder* GMallocDoubleFreeFinder;
 CORE_API bool GMallocDoubleFreeFinderEnabled = false;
 
 FMallocDoubleFreeFinder::FMallocDoubleFreeFinder(FMalloc* InMalloc)
-	: UsedMalloc(InMalloc)
-	, Initialized(false)
+	: FMallocCallstackHandler(InMalloc)
 {
-	DisabledTLS = FPlatformTLS::AllocTlsSlot();
-	uint64_t Count = 0;
-	FPlatformTLS::SetTlsValue(DisabledTLS, (void*)Count);
 }
 
 void FMallocDoubleFreeFinder::Init()
@@ -32,93 +27,12 @@ void FMallocDoubleFreeFinder::Init()
 	{
 		return;
 	}
-	CallStackInfoArray.Reserve(1250000);	/* Needs to be big enough to never resize! */
-	CallStackMapKeyToCallStackIndexMap.Reserve(1250000);
+
+	FMallocCallstackHandler::Init();
 	TrackedFreeAllocations.Reserve(6000000);
 	TrackedCurrentAllocations.Reserve(8000000);
-	Initialized = true;
 }
 
-
-
-//***********************************
-// FMalloc
-//***********************************
-
-void* FMallocDoubleFreeFinder::Malloc(SIZE_T Size, uint32 Alignment)
-{
-	if (IsDisabled())
-	{
-		return UsedMalloc->Malloc(Size, Alignment);
-	}
-
-	FScopeDisableDoubleFreeFinder Disable;
-
-	int32 CallStackIndex = GetCallStackIndex();
-
-	FScopeLock Lock(&CriticalSection);
-
-	void* Ptr = UsedMalloc->Malloc(Size, Alignment);
-
-	SIZE_T AllocatedSize = Size;
-	if (UsedMalloc->GetAllocationSize(Ptr, AllocatedSize))
-	{
-		TrackMalloc(Ptr, (uint32)AllocatedSize, CallStackIndex);
-	}
-	else
-	{
-		TrackMalloc(Ptr, (uint32)Size, CallStackIndex);
-	}
-	return Ptr;
-}
-
-void* FMallocDoubleFreeFinder::Realloc(void* OldPtr, SIZE_T NewSize, uint32 Alignment)
-{
-	if (IsDisabled())
-	{
-		return UsedMalloc->Realloc(OldPtr, NewSize, Alignment);
-	}
-
-	FScopeDisableDoubleFreeFinder Disable;
-
-	int32 CallStackIndex = GetCallStackIndex();
-	SIZE_T OldSize = 0;
-
-	FScopeLock Lock(&CriticalSection);
-
-	UsedMalloc->GetAllocationSize(OldPtr, OldSize);
-
-	void* NewPtr = UsedMalloc->Realloc(OldPtr, NewSize, Alignment);
-
-	SIZE_T AllocatedSize = NewSize;
-	if (UsedMalloc->GetAllocationSize(NewPtr, AllocatedSize))
-	{
-		TrackRealloc(OldPtr, NewPtr, (uint32)AllocatedSize, (uint32)OldSize, CallStackIndex);
-	}
-	else
-	{
-		TrackRealloc(OldPtr, NewPtr, (uint32)NewSize, (uint32)OldSize, CallStackIndex);
-	}
-	return NewPtr;
-}
-
-void FMallocDoubleFreeFinder::Free(void* Ptr)
-{
-	if (IsDisabled() || Ptr == nullptr)
-	{
-		return UsedMalloc->Free(Ptr);
-	}
-
-	FScopeDisableDoubleFreeFinder Disable;
-
-	int32 CallStackIndex = GetCallStackIndex();
-
-	FScopeLock Lock(&CriticalSection);
-	SIZE_T OldSize = 0;
-	UsedMalloc->GetAllocationSize(Ptr, OldSize);
-	UsedMalloc->Free(Ptr);
-	TrackFree(Ptr, (uint32)OldSize, CallStackIndex);
-}
 
 void FMallocDoubleFreeFinder::TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex)
 {
@@ -157,81 +71,13 @@ void FMallocDoubleFreeFinder::TrackFree(void* Ptr, uint32 OldSize, int32 CallSta
 	}
 }
 
-void FMallocDoubleFreeFinder::TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex)
-{
-	if (OldPtr == nullptr)
-	{
-		TrackMalloc(NewPtr, NewSize, CallStackIndex);
-	}
-	else
-	{
-		if (OldPtr != NewPtr)
-		{
-			if (OldPtr)
-			{
-				TrackFree(OldPtr, OldSize, CallStackIndex);
-			}
-			if (NewPtr)
-			{
-				TrackMalloc(NewPtr, NewSize, CallStackIndex);
-			}
-		}
-	}
-}
-
-int32 FMallocDoubleFreeFinder::GetCallStackIndex()
-{
-	// Index of the callstack in CallStackInfoArray.
-	int32 Index = INDEX_NONE;
-
-	// Capture callstack and create FCallStackMapKey.
-	uint64 FullCallStack[MallocDoubleFreeFinderMaxCallStackDepth + MallocDoubleFreeFinderCallStackEntriesToSkipCount] = { 0 };
-	// CRC is filled in by the CaptureStackBackTrace, not all platforms calculate this for you.
-	uint32 CRC;
-	FPlatformStackWalk::CaptureStackBackTrace(&FullCallStack[0], MallocDoubleFreeFinderMaxCallStackDepth + MallocDoubleFreeFinderCallStackEntriesToSkipCount, &CRC);
-	// Skip first n entries as they are inside the allocator.
-	uint64* CallStack = &FullCallStack[MallocDoubleFreeFinderCallStackEntriesToSkipCount];
-	FCallStackMapKey CallStackMapKey(CRC, CallStack);
-	RWLock.ReadLock();
-	int32* IndexPtr = CallStackMapKeyToCallStackIndexMap.Find(CallStackMapKey);
-	if (IndexPtr)
-	{
-		// Use index if found
-		Index = *IndexPtr;
-		RWLock.ReadUnlock();
-	}
-	else
-	{
-		// new call stack, add to array and set index.
-		RWLock.ReadUnlock();
-		FCallStackInfoDoublleFreeFinder CallStackInfo;
-		CallStackInfo.Count = MallocDoubleFreeFinderMaxCallStackDepth;
-		for (int32 i = 0; i < MallocDoubleFreeFinderMaxCallStackDepth; i++)
-		{
-			if (!CallStack[i] && CallStackInfo.Count == MallocDoubleFreeFinderMaxCallStackDepth)
-			{
-				CallStackInfo.Count = i;
-			}
-			CallStackInfo.FramePointers[i] = CallStack[i];
-		}
-
-		RWLock.WriteLock();
-		Index = CallStackInfoArray.Num();
-		CallStackInfoArray.Append(&CallStackInfo, 1);
-		CallStackMapKey.CallStack = &CallStackInfoArray[Index].FramePointers[0];
-		CallStackMapKeyToCallStackIndexMap.Add(CallStackMapKey, Index);
-		RWLock.WriteUnlock();
-	}
-	return Index;
-}
-
 // This can be set externally, if it is we try and find what freed it before.
 void * GTrackFreeSpecialPtr = nullptr;
 
 // Can be called to find out what freed something last
 void FMallocDoubleFreeFinder::TrackSpecial(void* Ptr)
 {
-	FScopeDisableDoubleFreeFinder Disable;
+	FScopeDisableMallocCallstackHandler Disable;
 	FScopeLock Lock(&CriticalSection);
 	static TrackedAllocationData WhatHaveWeHere;	// Made static so it should be visible in the debugger
 	TrackedAllocationData*AlreadyThere;
@@ -287,30 +133,6 @@ void FMallocDoubleFreeFinder::TrackSpecial(void* Ptr)
 		}
 	}
 }
-
-FORCENOINLINE void FMallocDoubleFreeFinder::DumpStackTraceToLog(int32 StackIndex)
-{
-#if !NO_LOGGING
-	// Walk the stack and dump it to the allocated memory.
-	const SIZE_T StackTraceStringSize = 16384;
-	ANSICHAR StackTraceString[StackTraceStringSize];
-	{
-		StackTraceString[0] = 0;
-		uint32 CurrentDepth = 0;
-		while (CurrentDepth < MallocDoubleFreeFinderMaxCallStackDepth && CallStackInfoArray[StackIndex].FramePointers[CurrentDepth] != 0)
-		{
-			FPlatformStackWalk::ProgramCounterToHumanReadableString(CurrentDepth, CallStackInfoArray[StackIndex].FramePointers[CurrentDepth], &StackTraceString[0], StackTraceStringSize, reinterpret_cast<FGenericCrashContext*>(0));
-			FCStringAnsi::Strncat(StackTraceString, LINE_TERMINATOR_ANSI, StackTraceStringSize);
-			CurrentDepth++;
-		}
-	}
-	// Dump the error and flush the log.
-	// ELogVerbosity::Error to make sure it gets printed in log for convenience.
-	FDebug::LogFormattedMessageWithCallstack(LogOutputDevice.GetCategoryName(), __FILE__, __LINE__, TEXT("FMallocDoubleFreeFinder::DumpStackTraceToLog"), ANSI_TO_TCHAR(&StackTraceString[0]), ELogVerbosity::Error);
-	GLog->Flush();
-#endif
-}
-
 
 bool FMallocDoubleFreeFinder::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {

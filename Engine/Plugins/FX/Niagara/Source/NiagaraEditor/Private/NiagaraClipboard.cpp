@@ -11,6 +11,8 @@
 #include "UnrealExporter.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "Engine/UserDefinedEnum.h"
 
 struct FNiagaraClipboardContentTextObjectFactory : public FCustomizableTextObjectFactory
 {
@@ -282,6 +284,40 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 	return const_cast<UNiagaraClipboardFunctionInput*>(CreateLocalValue(InOuter, InInputName, InputType, bInHasEditCondition, bInEditConditionValue, IntValue));
 }
 
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateStructLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, UUserDefinedStruct* InStructValue)
+{
+	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition(InStructValue);
+	FStructOnScope StructOnScope = FStructOnScope(InStructValue);
+	TArray<uint8> StructValue;
+	const int32 StructSize = InStructValue->GetStructureSize();
+	StructValue.AddUninitialized(StructSize);
+	FMemory::Memcpy(StructValue.GetData(), StructOnScope.GetStructMemory(), StructSize);
+	
+	return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateLocalValue(
+		InOuter != nullptr ? InOuter : GetTransientPackage(),
+		InInputName,
+		InputType,
+		bInHasEditCondition ? TOptional<bool>(bInEditConditionValue) : TOptional<bool>(),
+		StructValue)
+	);
+}
+
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateEnumLocalValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditCoditionValue, UUserDefinedEnum* InEnumValue)
+{
+	FNiagaraTypeDefinition InputType = FNiagaraTypeDefinition(Cast<UEnum>(InEnumValue));
+	TArray<uint8> EnumValue;
+	EnumValue.AddUninitialized(sizeof(int64));
+	FMemory::Memcpy(EnumValue.GetData(), InEnumValue, sizeof(int64));
+
+	return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateLocalValue(
+		InOuter != nullptr ? InOuter : GetTransientPackage(),
+		InInputName,
+		InputType,
+		bInHasEditCondition ? TOptional<bool>(bInEditCoditionValue) : TOptional<bool>(),
+		EnumValue)
+	);
+}
+
 UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateLinkedValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, FName InLinkedValue)
 {
 	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputName);
@@ -297,15 +333,14 @@ UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::Creat
 	return nullptr;
 }
 
-UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateDataValueInput(UObject* InOuter, FName InInputName, FName InInputTypeName, bool bInHasEditCondition, bool bInEditConditionValue, UNiagaraDataInterface* InDataValue)
+UNiagaraClipboardFunctionInput* UNiagaraClipboardEditorScriptingUtilities::CreateDataValueInput(UObject* InOuter, FName InInputName, bool bInHasEditCondition, bool bInEditConditionValue, UNiagaraDataInterface* InDataValue)
 {
-	FNiagaraTypeDefinition InputType = GetRegisteredTypeDefinitionByName(InInputName);
-	if (InputType.IsValid())
-	{
+	if (InDataValue != nullptr)
+	{ 
 		return const_cast<UNiagaraClipboardFunctionInput*>(UNiagaraClipboardFunctionInput::CreateDataValue(
 			InOuter != nullptr ? InOuter : GetTransientPackage(),
 			InInputName,
-			InputType,
+			FNiagaraTypeDefinition(InDataValue->GetClass()),
 			bInHasEditCondition ? TOptional<bool>(bInEditConditionValue) : TOptional<bool>(),
 			InDataValue));
 	}

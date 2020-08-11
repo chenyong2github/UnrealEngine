@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Xml;
 using System.Globalization;
 using Tools.DotNETCommon;
+using System.Linq;
 
 namespace iPhonePackager
 {
@@ -133,6 +134,11 @@ namespace iPhonePackager
 
             Program.Log("Searching for mobile provisions that match the game '{0}' (distribution: {3}) with CFBundleIdentifier='{1}' in '{2}'", GameName, CFBundleIdentifier, Config.ProvisionDirectory, Config.bForDistribution);
 
+            // first sort all profiles so we look at newer ones first.
+            IEnumerable<string> ProfileKeys = ProvisionLibrary.Select(KV => KV.Key)
+                .OrderByDescending(K => ProvisionLibrary[K].CreationDate)
+                .ToArray();
+
             // check the cache for a provision matching the app id (com.company.Game)
             // First checking for a contains match and then for a wildcard match
             for (int Phase = -1; Phase < 3; ++Phase)
@@ -141,10 +147,10 @@ namespace iPhonePackager
                 {
                     continue;
                 }
-                foreach (KeyValuePair<string, MobileProvision> Pair in ProvisionLibrary)
+                foreach (string Key in ProfileKeys)
                 {
-                    string DebugName = Path.GetFileName(Pair.Key);
-                    MobileProvision TestProvision = Pair.Value;
+                    string DebugName = Path.GetFileName(Key);
+                    MobileProvision TestProvision = ProvisionLibrary[Key];
 
                     // make sure the file is not managed by Xcode
                     if (Path.GetFileName(TestProvision.FileName).ToLower().Equals(TestProvision.UUID.ToLower() + ".mobileprovision"))
@@ -269,7 +275,7 @@ namespace iPhonePackager
 
                     // Made it past all the tests
                     Program.LogVerbose("  Picked '{0}' with AppID '{1}' and Name '{2}' as a matching provision for the game '{3}'", DebugName, TestProvision.ApplicationIdentifier, TestProvision.ProvisionName, GameName);
-                    return Pair.Key;
+                    return Key;
                 }
             }
 

@@ -190,6 +190,9 @@ public:
 	/** Removes a runtime virtual texture object from the scene. */
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
 
+	/** Invalidates pages in a runtime virtual texture object. */
+	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */
@@ -232,6 +235,10 @@ public:
 	 * @param FogComponent - fog component to remove
 	 */	
 	virtual void RemoveExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) = 0;
+	/**
+	 * @return True if there are any exponential height fog potentially enabled in the scene
+	 */
+	virtual bool HasAnyExponentialHeightFog() const = 0;
 
 	/** 
 	 * Adds a new atmospheric fog component to the scene

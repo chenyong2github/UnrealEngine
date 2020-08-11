@@ -48,6 +48,7 @@ struct TQuaternion
 	FVector3<RealType> AxisX() const;
 	FVector3<RealType> AxisY() const;
 	FVector3<RealType> AxisZ() const;
+	void GetAxes(FVector3<RealType>& X, FVector3<RealType>& Y, FVector3<RealType>& Z) const;
 
 	RealType Normalize(const RealType epsilon = 0);
 	TQuaternion<RealType> Normalized(const RealType epsilon = 0) const;
@@ -282,6 +283,19 @@ FVector3<RealType> TQuaternion<RealType>::AxisZ() const
 	RealType twoXZ = twoZ * X; RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y;
 	return FVector3<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
 }
+
+template<typename RealType>
+void TQuaternion<RealType>::GetAxes(FVector3<RealType>& XOut, FVector3<RealType>& YOut, FVector3<RealType>& ZOut) const
+{
+	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
+	RealType twoWX = twoX * W; RealType twoWY = twoY * W; RealType twoWZ = twoZ * W;
+	RealType twoXX = twoX * X; RealType twoXY = twoY * X; RealType twoXZ = twoZ * X;
+	RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y; RealType twoZZ = twoZ * Z;
+	XOut = FVector3<RealType>((RealType)1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
+	YOut = FVector3<RealType>(twoXY - twoWZ, (RealType)1 - (twoXX + twoZZ), twoYZ + twoWX);
+	ZOut = FVector3<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
+}
+
 
 template<typename RealType>
 TQuaternion<RealType> TQuaternion<RealType>::Inverse() const

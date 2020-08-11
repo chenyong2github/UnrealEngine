@@ -14,6 +14,10 @@
 #endif
 #if !defined(PLATFORM_MAC)
 	#define PLATFORM_MAC 0
+	// If PLATFORM_MAC is defined these will be set appropriately in
+	// MacPlatform.h
+	#define PLATFORM_MAC_X86 0
+	#define PLATFORM_MAC_ARM64 0
 #endif
 #if !defined(PLATFORM_PS4)
 	#define PLATFORM_PS4 0
@@ -853,13 +857,6 @@
 
 #ifndef DEPRECATED_FORGAME
 	#define DEPRECATED_FORGAME(...) DEPRECATED_MACRO(4.22, "The DEPRECATED_FORGAME macro has been deprecated in favor of UE_DEPRECATED_FORGAME().")
-#endif
-
-// This is a temporary macro, will be removed when TSubobjectPtr can be safely removed
-#ifndef private_subobject
-#define private_subobject \
-DEPRECATED_MACRO(4.17, "private_subobject macro is deprecated.  Please use the standard 'private' keyword instead.") \
-private
 #endif
 
 // Console ANSICHAR/TCHAR command line handling

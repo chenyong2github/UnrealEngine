@@ -53,6 +53,12 @@ struct FARFilter
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category=AssetRegistry)
 	bool bIncludeOnlyOnDiskAssets = false;
 
+	/** The exclusive filter component for package flags. Only assets without any of the specified flags will be returned. */
+	uint32 WithoutPackageFlags = 0;
+
+	/** The inclusive filter component for package flags. Only assets with all of the specified flags will be returned. */
+	uint32 WithPackageFlags = 0;
+
 	/** Appends the other filter to this one */
 	void Append(const FARFilter& Other)
 	{
@@ -71,12 +77,14 @@ struct FARFilter
 		bRecursivePaths |= Other.bRecursivePaths;
 		bRecursiveClasses |= Other.bRecursiveClasses;
 		bIncludeOnlyOnDiskAssets |= Other.bIncludeOnlyOnDiskAssets;
+		WithoutPackageFlags |= Other.WithoutPackageFlags;
+		WithPackageFlags |= Other.WithPackageFlags;
 	}
 
 	/** Returns true if this filter has no entries */
 	bool IsEmpty() const
 	{
-		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassNames.Num() + TagsAndValues.Num() == 0;
+		return PackageNames.Num() + PackagePaths.Num() + ObjectPaths.Num() + ClassNames.Num() + TagsAndValues.Num() + WithoutPackageFlags + WithPackageFlags == 0;
 	}
 
 	/** Returns true if this filter is recursive */
@@ -98,11 +106,12 @@ struct FARFilter
 		bRecursivePaths = false;
 		bRecursiveClasses = false;
 		bIncludeOnlyOnDiskAssets = false;
+		WithoutPackageFlags = 0;
+		WithPackageFlags = 0;
 
 		ensure(IsEmpty());
 	}
 };
-
 /**
  * A struct to serve as a filter for Asset Registry queries.
  * Each component element is processed as an 'OR' operation while all the components are processed together as an 'AND' operation.
@@ -125,6 +134,12 @@ struct FARCompiledFilter
 	/** The filter component for properties marked with the AssetRegistrySearchable flag */
 	TMultiMap<FName, TOptional<FString>> TagsAndValues;
 
+	/** The exclusive filter component for package flags. Only assets without any of the specified flags will be returned. */
+	uint32 WithoutPackageFlags = 0;
+
+	/** The inclusive filter component for package flags. Only assets with all of the specified flags will be returned. */
+	uint32 WithPackageFlags = 0;
+
 	/** If true, only on-disk assets will be returned. Be warned that this is rarely what you want and should only be used for performance reasons */
 	bool bIncludeOnlyOnDiskAssets = false;
 
@@ -144,6 +159,8 @@ struct FARCompiledFilter
 		TagsAndValues.Empty();
 
 		bIncludeOnlyOnDiskAssets = false;
+		WithoutPackageFlags = 0;
+		WithPackageFlags = 0;
 
 		ensure(IsEmpty());
 	}

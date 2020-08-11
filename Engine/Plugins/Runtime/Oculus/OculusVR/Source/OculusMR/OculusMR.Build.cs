@@ -30,7 +30,6 @@ namespace UnrealBuildTool.Rules
                     "MediaAssets",
                     "HeadMountedDisplay",
 					"OculusHMD",
-					"OculusInput",
                     "OVRPlugin"
                 });
 

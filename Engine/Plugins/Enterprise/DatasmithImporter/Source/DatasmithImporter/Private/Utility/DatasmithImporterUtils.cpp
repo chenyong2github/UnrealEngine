@@ -375,7 +375,7 @@ void FDatasmithImporterUtils::AddUniqueLayersToWorld(UWorld* World, const TSet< 
 	TSet< FName > ExistingLayers;
 	for (ULayer* Layer : World->Layers)
 	{
-		ExistingLayers.Add(Layer->LayerName);
+		ExistingLayers.Add(Layer->GetLayerName());
 	}
 
 	ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr;
@@ -396,8 +396,8 @@ void FDatasmithImporterUtils::AddUniqueLayersToWorld(UWorld* World, const TSet< 
 				World->Modify();
 				World->Layers.Add(NewLayer);
 
-				NewLayer->LayerName = LayerName;
-				NewLayer->bIsVisible = true;
+				NewLayer->SetLayerName(LayerName);
+				NewLayer->SetVisible(true);
 			}
 		}
 	}

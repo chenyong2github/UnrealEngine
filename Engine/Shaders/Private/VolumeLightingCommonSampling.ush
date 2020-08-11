@@ -101,11 +101,10 @@ float ComputeVolumeShadowing(
 		}
 	}		
 
-#if DYNAMICALLY_SHADOWED
+#if DYNAMICALLY_SHADOWED && FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	bool bUseCubemapShadowing = bPointLight;
 	float DynamicShadowFactor = 1;
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	if (bUseCubemapShadowing)
 	{
 		bShadowFactorValid = true;
@@ -118,7 +117,6 @@ float ComputeVolumeShadowing(
 			WorldPositionForLighting, VSSLIGHTPOSITION, VSSLIGHTINVRADIUS, DepthBias, SlopeDepthBias, MaxSlopeDepthBias);
 	}
 	else
-#endif	// FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	{
 		// Transform the world position into shadowmap space
 		// NOTE: Shadow space is reverse Z, but shadowmap is stored in "linear Z"

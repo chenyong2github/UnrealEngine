@@ -8,7 +8,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Rotator.h"
-#include "VisualLogger/VisualLoggerTypes.h"
+#include "VisualLogger/VisualLogger.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Class.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
@@ -16,6 +16,8 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Name.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_String.h"
 #include "Misc/RuntimeErrors.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogBlackboard, Log, All);
 
 UBlackboardComponent::UBlackboardComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -41,31 +43,14 @@ void UBlackboardComponent::InitializeComponent()
 		}
 	}
 
-	// Use DefaultBlackboardAsset if available.
-	if (DefaultBlackboardAsset)
+	if (!BlackboardAsset && DefaultBlackboardAsset)
 	{
-		if (BlackboardAsset == nullptr)
-		{
-			BlackboardAsset = DefaultBlackboardAsset;
-		}
-		else if (BlackboardAsset != DefaultBlackboardAsset)
-		{
-			UE_LOG(LogBehaviorTree, Warning, TEXT("Ignoring DefaultBlackboardAsset \'%s\', Blackboard asset already set to \'%s\'."),
-				*GetNameSafe(DefaultBlackboardAsset), *GetNameSafe(BlackboardAsset));
-		}
+		InitializeBlackboard(*DefaultBlackboardAsset);
 	}
-
-	if (BlackboardAsset)
+	else
 	{
-		// Here we expect that BlackboardAsset has been set via DefaultBlackboardAsset above
-		// or somewhere in derived class prior to call this function,
-		// and we expect that the blackboard is not yet initialized.
-		// The trick below ensures that the blackboard gets initialized,
-		// as the function InitializeBlackboard() treats BlackboardAsset
-		// as previously initialized blackboard and early outs if they are the same.
-		UBlackboardData* NewBlackboardAsset = BlackboardAsset;
-		BlackboardAsset = nullptr;
-		InitializeBlackboard(*NewBlackboardAsset);
+		UE_CVLOG(BlackboardAsset, this, LogBlackboard, Log, TEXT("InitializeComponent called while BlackboardAsset is not null (set to %s). Assuming it's been set via InitializeBlackboard prior to RegisterComponent call. Ignoring DefaultBlackboardAsset %s")
+			, *GetNameSafe(BlackboardAsset), *GetNameSafe(DefaultBlackboardAsset));
 	}
 }
 
@@ -203,7 +188,7 @@ bool UBlackboardComponent::InitializeBlackboard(UBlackboardData& NewAsset)
 	else
 	{
 		bSuccess = false;
-		UE_LOG(LogBehaviorTree, Error, TEXT("Blackboard asset (%s) has errors and can't be used!"), *GetNameSafe(BlackboardAsset));
+		UE_LOG(LogBlackboard, Error, TEXT("Blackboard asset (%s) has errors and can't be used!"), *GetNameSafe(BlackboardAsset));
 	}
 
 	return bSuccess;

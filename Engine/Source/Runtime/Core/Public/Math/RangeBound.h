@@ -6,6 +6,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Templates/TypeHash.h"
 #include "Containers/EnumAsByte.h"
+#include "Misc/FrameNumber.h"
 #include "Misc/DateTime.h"
 
 namespace ERangeBoundTypes
@@ -418,3 +419,4 @@ DEFINE_RANGEBOUND_WRAPPER_STRUCT(FInt8RangeBound,   int8)
 DEFINE_RANGEBOUND_WRAPPER_STRUCT(FInt16RangeBound,  int16)
 DEFINE_RANGEBOUND_WRAPPER_STRUCT(FInt32RangeBound,  int32)
 DEFINE_RANGEBOUND_WRAPPER_STRUCT(FInt64RangeBound,  int64)
+DEFINE_RANGEBOUND_WRAPPER_STRUCT(FFrameNumberRangeBound, FFrameNumber)

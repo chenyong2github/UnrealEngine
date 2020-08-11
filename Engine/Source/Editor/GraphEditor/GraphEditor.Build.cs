@@ -60,5 +60,12 @@ public class GraphEditor : ModuleRules
 				"StructViewer",
 			}
 		);
+
+		// Circular references that need to be cleaned up
+		CircularlyReferencedDependentModules.AddRange(
+		   new string[] {
+				"Kismet"
+		   }
+	   );
 	}
 }

@@ -144,6 +144,8 @@ extern ENGINE_API int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendi
 extern ENGINE_API int32 GLevelStreamingAllowLevelRequestsWhileAsyncLoadingInMatch;
 /** When we're already loading this many levels and actively in match, don't allow any more requests until one of those completes.  Set to zero to disable. */
 extern ENGINE_API int32 GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch;
+/** Whether to force a verification of objects residing in a GC'ed level package (ignored in shipping builds). */
+extern ENGINE_API int32 GLevelStreamingForceVerifyLevelsGotRemovedByGC;
 
 
 /**

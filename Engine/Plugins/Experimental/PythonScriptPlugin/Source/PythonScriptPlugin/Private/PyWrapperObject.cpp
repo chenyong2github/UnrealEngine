@@ -908,6 +908,67 @@ PyTypeObject InitializePyWrapperObjectType()
 
 			Py_RETURN_NONE;
 		}
+
+		static PyObject* CallMethod(FPyWrapperObject* InSelf, PyObject* InArgs, PyObject* InKwds)
+		{
+			if (!FPyWrapperObject::ValidateInternalState(InSelf))
+			{
+				return nullptr;
+			}
+
+			PyObject* PyNameObj = nullptr;
+			PyObject* PyArgsObj = nullptr;
+			PyObject* PyKwargsObj = nullptr;
+
+			static const char* ArgsKwdList[] = { "name", "args", "kwargs", nullptr };
+			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "O|OO:call_method", (char**)ArgsKwdList, &PyNameObj, &PyArgsObj, &PyKwargsObj))
+			{
+				return nullptr;
+			}
+
+			FName Name;
+			if (!PyConversion::Nativize(PyNameObj, Name))
+			{
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("Failed to convert 'name' (%s) to 'Name'"), *PyUtil::GetFriendlyTypename(PyNameObj)));
+				return nullptr;
+			}
+
+			// Args must be a tuple
+			if (PyArgsObj && !PyTuple_Check(PyArgsObj))
+			{
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("'args' (%s) must be 'tuple'"), *PyUtil::GetFriendlyTypename(PyArgsObj)));
+				return nullptr;
+			}
+
+			// Kwargs must be a dict
+			if (PyKwargsObj && !PyDict_Check(PyKwargsObj))
+			{
+				PyUtil::SetPythonError(PyExc_TypeError, InSelf, *FString::Printf(TEXT("'kwargs' (%s) must be 'dict'"), *PyUtil::GetFriendlyTypename(PyKwargsObj)));
+				return nullptr;
+			}
+
+			// Find the named function we want to call
+			const UFunction* Func = InSelf->ObjectInstance->GetClass()->FindFunctionByName(Name);
+			if (!Func)
+			{
+				PyUtil::SetPythonError(PyExc_Exception, InSelf, *FString::Printf(TEXT("Failed to find function '%s' on '%s'"), *Name.ToString(), *InSelf->ObjectInstance->GetClass()->GetName()));
+				return nullptr;
+			}
+
+			// Args must always be set to a tuple, even if empty, for the parameter validation to work
+			FPyObjectPtr EmptyArgs;
+			if (!PyArgsObj)
+			{
+				EmptyArgs = FPyObjectPtr::StealReference(PyTuple_New(0));
+				PyArgsObj = EmptyArgs;
+			}
+
+			// Build temporary glue for this function and call it
+			const FString PythonFunctionName = PyGenUtil::PythonizeName(Func->GetName(), PyGenUtil::EPythonizeNameCase::Lower);
+			PyGenUtil::FGeneratedWrappedFunction GeneratedWrappedFunction;
+			GeneratedWrappedFunction.SetFunction(Func);
+			return FPyWrapperObject::CallFunction(InSelf, PyArgsObj, PyKwargsObj, GeneratedWrappedFunction, TCHAR_TO_UTF8(*PythonFunctionName));
+		}
 	};
 
 	static PyMethodDef PyMethods[] = {
@@ -929,6 +990,7 @@ PyTypeObject InitializePyWrapperObjectType()
 		{ "get_editor_property", PyCFunctionCast(&FMethods::GetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.get_editor_property(name) -> object -- get the value of any property visible to the editor" },
 		{ "set_editor_property", PyCFunctionCast(&FMethods::SetEditorProperty), METH_VARARGS | METH_KEYWORDS, "x.set_editor_property(name, value, notify_mode=PropertyAccessChangeNotifyMode.DEFAULT) -> None -- set the value of any property visible to the editor, ensuring that the pre/post change notifications are called" },
 		{ "set_editor_properties", PyCFunctionCast(&FMethods::SetEditorProperties), METH_VARARGS, "x.set_editor_properties(property_info) -> None -- set the value of any properties visible to the editor (from a name->value dict), ensuring that the pre/post change notifications are called" },
+		{ "call_method", PyCFunctionCast(&FMethods::CallMethod), METH_VARARGS | METH_KEYWORDS, "x.call_method(name, args=tuple(), kwargs=dict()) -> object -- call a method on this object via Unreal reflection using the given ordered (tuple) or named (dict) argument data - allows calling methods that don't have Python glue" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 

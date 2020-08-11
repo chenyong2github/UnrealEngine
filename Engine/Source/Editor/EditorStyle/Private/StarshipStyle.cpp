@@ -263,6 +263,7 @@ void FStarshipEditorStyle::FStyle::Initialize()
 	SetupGeneralStyles();
 	SetupLevelGeneralStyles();
 	SetupWorldBrowserStyles();
+	SetupWorldPartitionStyles();
 	SetupSequencerStyles();
 	SetupViewportStyles();
 	SetupMenuBarStyles();
@@ -650,6 +651,8 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	Set( "Editor.AppIcon", new IMAGE_BRUSH( "Icons/EditorAppIcon", Icon24x24) );
 
+	Set( "FocusRectangle", new BORDER_BRUSH( "Old/DashedBorder", FMargin(6.0f/32.0f) ) );
+
 	Set( "MarqueeSelection", new BORDER_BRUSH( "Old/DashedBorder", FMargin(6.0f/32.0f) ) );
 
 	Set( "GenericLock", new IMAGE_BRUSH( "Icons/padlock_locked_16x", Icon16x16 ) );
@@ -661,8 +664,11 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	Set( "GenericPause", new IMAGE_BRUSH( "Icons/generic_pause_16x", Icon16x16 ) );
 	Set( "GenericStop", new IMAGE_BRUSH( "Icons/generic_stop_16x", Icon16x16 ) );
 
-
+	Set( "SoftwareCursor_Grab", new IMAGE_BRUSH( "Icons/cursor_grab", Icon16x16 ) );
+	Set( "SoftwareCursor_CardinalCross", new IMAGE_BRUSH( "Icons/cursor_cardinal_cross", Icon24x24 ) );
 	Set( "SoftwareCursor_UpDown", new IMAGE_BRUSH( "Icons/cursor_updown", Icon16x20 ) );
+
+	Set( "Border", new BOX_BRUSH( "Old/Border", 4.0f/16.0f ) );
 	
 	Set( "NoteBorder", new BOX_BRUSH( "Old/NoteBorder", FMargin(15.0f/40.0f, 15.0f/40.0f) ) );
 	
@@ -2017,6 +2023,7 @@ void FStarshipEditorStyle::FStyle::SetupWorldBrowserStyles()
 		Set("WorldBrowser.HierarchyButtonBrush", new IMAGE_BRUSH("Icons/icon_levels_hierarchybutton_16x", Icon16x16));
 		Set("WorldBrowser.DetailsButtonBrush", new IMAGE_BRUSH("Icons/icon_levels_detailsbutton_40x", Icon16x16));
 		Set("WorldBrowser.CompositionButtonBrush", new IMAGE_BRUSH("Icons/icon_levels_compositionbutton_16x", Icon16x16));
+		Set("WorldBrowser.PartitionEditorButtonBrush", new IMAGE_BRUSH( "/Icons/icon_levels_partitionbutton_16x", Icon16x16 ) );
 
 		Set("WorldBrowser.FolderClosed", new IMAGE_BRUSH("Icons/FolderClosed", Icon16x16));
 		Set("WorldBrowser.FolderOpen", new IMAGE_BRUSH("Icons/FolderOpen", Icon16x16));
@@ -2031,6 +2038,14 @@ void FStarshipEditorStyle::FStyle::SetupWorldBrowserStyles()
 		Set("WorldBrowser.LabelFont", DEFAULT_FONT("Regular", 9));
 		Set("WorldBrowser.LabelFontBold", DEFAULT_FONT("Bold", 10));
 	}
+}
+
+void FStarshipEditorStyle::FStyle::SetupWorldPartitionStyles()
+{
+	// World Partition
+	Set("WorldPartition.PartiallyLoadedCell", new IMAGE_BRUSH("WorldPartition/PartiallyLoadedCell", Icon32x32));
+	Set("WorldPartition.GridBackground", new BOX_BRUSH("WorldPartition/GridBackground", FMargin(0.f)));
+	Set("WorldPartition.SimulationViewPosition", new IMAGE_BRUSH("Icons/icon_levels_simulationviewpos_16x", Icon16x16));
 }
 
 void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
@@ -4311,6 +4326,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 			Set( "LevelEditor.Tabs.WorldBrowserDetails",    new IMAGE_BRUSH_SVG("Starship/Common/WorldSettings", Icon16x16) );
 
 			Set( "LevelEditor.Tabs.WorldBrowserComposition",new IMAGE_BRUSH("Icons/icon_levels_compositionbutton_16x", Icon16x16 ) );
+			Set( "LevelEditor.Tabs.WorldPartition", new IMAGE_BRUSH( "/Icons/icon_levels_partitionbutton_16x", Icon16x16 ) );
 
 			Set( "LevelEditor.Tabs.Layers",                 new IMAGE_BRUSH_SVG("Starship/Common/Layers", Icon16x16) );
 			Set( "LevelEditor.Tabs.ComposureCompositing",   new IMAGE_BRUSH_SVG("Starship/Common/ComposureCompositing", Icon16x16) );

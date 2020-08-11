@@ -10,10 +10,13 @@
 #include "HAL/IConsoleManager.h"
 #include "Framework/Commands/InputChord.h"
 #include "Kismet2/EnumEditorUtils.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FPythonScriptPlugin;
 class FPythonScriptRemoteExecution;
 class FPackageReloadedEvent;
+class UContentBrowserFileDataSource;
+class UToolMenu;
 
 struct FAssetData;
 
@@ -182,6 +185,10 @@ private:
 
 #if WITH_EDITOR
 	void OnPrepareToCleanseEditorObject(UObject* InObject);
+
+	void PopulatePythonFileContextMenu(UToolMenu* InMenu);
+
+	TStrongObjectPtr<UContentBrowserFileDataSource> PythonFileDataSource;
 #endif	// WITH_EDITOR
 
 	TUniquePtr<FPythonScriptRemoteExecution> RemoteExecution;

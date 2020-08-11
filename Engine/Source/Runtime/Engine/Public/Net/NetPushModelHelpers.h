@@ -15,8 +15,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Net")
 	static void MarkPropertyDirty(UObject* Object, FName PropertyName);
 
-private:
-
 	UFUNCTION(BlueprintCallable, Category = "Net", Meta=(BlueprintInternalUseOnly = "true", HidePin = "Object|RepIndex|PropertyName"))
 	static void MarkPropertyDirtyFromRepIndex(UObject* Object, int32 RepIndex, FName PropertyName);
 };

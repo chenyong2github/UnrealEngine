@@ -162,9 +162,9 @@ float CubemapHardwarePCF(
 	// Skip pixels outside of the light's influence
 	if (Distance * LightInvRadius < 1.0f)
 	{
-		float3 ToLightDir = WorldSampleToLightVec / Distance;
-		float3 SideVector = normalize(cross(ToLightDir, float3(0, 0, 1)));
-		float3 UpVector = cross(SideVector, ToLightDir);
+		float3 NormalizedLightVector = WorldSampleToLightVec / Distance;
+		float3 SideVector = normalize(cross(NormalizedLightVector, float3(0, 0, 1)));
+		float3 UpVector = cross(SideVector, NormalizedLightVector);
 
 		SideVector *= InvShadowmapResolution;
 		UpVector *= InvShadowmapResolution;
@@ -198,12 +198,12 @@ float CubemapHardwarePCF(
 
 #if SHADOW_QUALITY <= 2
 
-		Shadow = InShadowDepthCubeTexture.SampleCmpLevelZero(InShadowDepthCubeTextureSampler, ToLightDir, CompareDistance + ShadowDepthBias);
+		Shadow = InShadowDepthCubeTexture.SampleCmpLevelZero(InShadowDepthCubeTextureSampler, WorldSampleToLightVec, CompareDistance + ShadowDepthBias);
 
 #elif SHADOW_QUALITY == 3
 		UNROLL for(int i = 0; i < 5; ++i)
 		{
-			float3 SamplePos = ToLightDir + SideVector * DiscSamples5[i].x + UpVector * DiscSamples5[i].y;
+			float3 SamplePos = NormalizedLightVector + SideVector * DiscSamples5[i].x + UpVector * DiscSamples5[i].y;
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
@@ -215,7 +215,7 @@ float CubemapHardwarePCF(
 
 		UNROLL for(int i = 0; i < 12; ++i)
 		{
-			float3 SamplePos = ToLightDir + SideVector * DiscSamples12[i].x + UpVector * DiscSamples12[i].y;
+			float3 SamplePos = NormalizedLightVector + SideVector * DiscSamples12[i].x + UpVector * DiscSamples12[i].y;
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
@@ -227,7 +227,7 @@ float CubemapHardwarePCF(
 
 		UNROLL for(int i = 0; i < 29; ++i)
 		{
-			float3 SamplePos = ToLightDir + SideVector * DiscSamples29[i].x + UpVector * DiscSamples29[i].y;
+			float3 SamplePos = NormalizedLightVector + SideVector * DiscSamples29[i].x + UpVector * DiscSamples29[i].y;
 			Shadow += InShadowDepthCubeTexture.SampleCmpLevelZero(
 				InShadowDepthCubeTextureSampler,
 				SamplePos, 
@@ -241,10 +241,10 @@ float CubemapHardwarePCF(
 		{
 			float4 ShadowResults;
 			// TODO CubePCF3x3Quarter should use the In parameters similarly to InShadowDepthCubeTexture
-			ShadowResults.x = CubePCF3x3Quarter(ToLightDir, - SideVector, - UpVector, CompareDistance, ShadowDepthBias);
-			ShadowResults.y = CubePCF3x3Quarter(ToLightDir, - SideVector,   UpVector, CompareDistance, ShadowDepthBias);
-			ShadowResults.z = CubePCF3x3Quarter(ToLightDir,   SideVector, - UpVector, CompareDistance, ShadowDepthBias);
-			ShadowResults.w = CubePCF3x3Quarter(ToLightDir,   SideVector,   UpVector, CompareDistance, ShadowDepthBias);
+			ShadowResults.x = CubePCF3x3Quarter(NormalizedLightVector, - SideVector, - UpVector, CompareDistance, ShadowDepthBias);
+			ShadowResults.y = CubePCF3x3Quarter(NormalizedLightVector, - SideVector,   UpVector, CompareDistance, ShadowDepthBias);
+			ShadowResults.z = CubePCF3x3Quarter(NormalizedLightVector,   SideVector, - UpVector, CompareDistance, ShadowDepthBias);
+			ShadowResults.w = CubePCF3x3Quarter(NormalizedLightVector,   SideVector,   UpVector, CompareDistance, ShadowDepthBias);
 				
 			Shadow = dot(ShadowResults, .25f);
 		}*/

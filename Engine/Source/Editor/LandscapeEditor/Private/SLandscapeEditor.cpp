@@ -90,7 +90,7 @@ void FLandscapeToolKit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 	MAP_MODE("ToolMode_Paint");
 #undef MAP_MODE
 
-#define MAP_TOOL(ToolName) CommandList->MapAction(NameToCommandMap.FindChecked("Tool_" ToolName), FUIAction(FExecuteAction::CreateSP(this, &FLandscapeToolKit::OnChangeTool, FName(ToolName)), FCanExecuteAction::CreateSP(this, &FLandscapeToolKit::IsToolEnabled, FName(ToolName)), FIsActionChecked::CreateSP(this, &FLandscapeToolKit::IsToolActive, FName(ToolName))));
+#define MAP_TOOL(ToolName) CommandList->MapAction(NameToCommandMap.FindChecked("Tool_" ToolName), FUIAction(FExecuteAction::CreateSP(this, &FLandscapeToolKit::OnChangeTool, FName(ToolName)), FCanExecuteAction::CreateSP(this, &FLandscapeToolKit::IsToolEnabled, FName(ToolName)), FIsActionChecked::CreateSP(this, &FLandscapeToolKit::IsToolActive, FName(ToolName)), FIsActionButtonVisible::CreateSP(this, &FLandscapeToolKit::IsToolAvailable, FName(ToolName))));
 	MAP_TOOL("NewLandscape");
 	MAP_TOOL("ResizeLandscape");
 
@@ -216,11 +216,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 	{
 
 		ToolBarBuilder.AddToolBarButton(Commands.SculptTool);
-		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
-		{
-			ToolBarBuilder.AddToolBarButton(Commands.EraseTool);
-		}
-
+		ToolBarBuilder.AddToolBarButton(Commands.EraseTool);
 		ToolBarBuilder.AddToolBarButton(Commands.SmoothTool);
 		ToolBarBuilder.AddToolBarButton(Commands.FlattenTool);
 		ToolBarBuilder.AddToolBarButton(Commands.RampTool);
@@ -228,11 +224,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.HydroErosionTool);
 		ToolBarBuilder.AddToolBarButton(Commands.NoiseTool);
 		ToolBarBuilder.AddToolBarButton(Commands.RetopologizeTool);
-		ToolBarBuilder.AddToolBarButton(Commands.VisibilityTool);
-		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
-		{
-			ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
-		}
+		ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
 		ToolBarBuilder.AddToolBarButton(Commands.MirrorTool);
 
 		ToolBarBuilder.AddToolBarButton(Commands.RegionSelectTool);
@@ -242,7 +234,6 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 
 	else if (PaletteName == LandscapeEditorNames::Paint)
 	{
-
 		ToolBarBuilder.AddToolBarButton(Commands.PaintTool);
 		ToolBarBuilder.AddToolBarButton(Commands.SmoothTool);
 		ToolBarBuilder.AddToolBarButton(Commands.FlattenTool);
@@ -274,13 +265,21 @@ void FLandscapeToolKit::OnToolPaletteChanged(FName PaletteName)
 FText FLandscapeToolKit::GetActiveToolDisplayName() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return LandscapeEdMode->CurrentTool->GetDisplayName();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
+	{
+		return LandscapeEdMode->CurrentTool->GetDisplayName();
+	}
+	return FText::GetEmpty();
 }
 
 FText FLandscapeToolKit::GetActiveToolMessage() const
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	return LandscapeEdMode->CurrentTool->GetDisplayMessage();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentTool)
+	{
+		return LandscapeEdMode->CurrentTool->GetDisplayMessage();
+	}
+	return FText::GetEmpty();
 }
 
 void FLandscapeToolKit::NotifyToolChanged()
@@ -354,6 +353,21 @@ bool FLandscapeToolKit::IsToolEnabled(FName ToolName) const
 	}
 
 	return false;
+}
+
+bool FLandscapeToolKit::IsToolAvailable(FName ToolName) const
+{
+	// Hide Tools that are available in Edit Layers only
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode != nullptr)
+	{
+		if ((ToolName == "BlueprintBrush" || ToolName == "Erase") && !LandscapeEdMode->CanHaveLandscapeLayersContent())
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool FLandscapeToolKit::IsToolActive(FName ToolName) const

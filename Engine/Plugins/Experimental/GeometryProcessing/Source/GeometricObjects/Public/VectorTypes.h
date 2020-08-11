@@ -671,6 +671,15 @@ struct FVector3
 						   OneMinusAlpha * A.Z + Alpha * B.Z);
 	}
 
+	static FVector3<T> Blend3(const FVector3<T>& A, const FVector3<T>& B, const FVector3<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
+	{
+		return FVector3<T>(
+			WeightA*A.X + WeightB*B.X + WeightC*C.X,
+			WeightA*A.Y + WeightB*B.Y + WeightC*C.Y,
+			WeightA*A.Z + WeightB*B.Z + WeightC*C.Z);
+	}
+
+
 	constexpr bool operator==(const FVector3<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;

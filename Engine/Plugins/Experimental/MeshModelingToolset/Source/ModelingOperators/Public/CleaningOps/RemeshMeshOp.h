@@ -60,6 +60,10 @@ public:
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips;
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
+
+	FDynamicMesh3* ProjectionTarget = nullptr;
+	FDynamicMeshAABBTree3* ProjectionTargetSpatial = nullptr;
+
 	void SetTransform(const FTransform& Transform);
 
 	//

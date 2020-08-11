@@ -58,7 +58,7 @@ namespace FHttpRetrySystem
 
 FHttpRetrySystem::FRequest::FRequest(
 	FManager& InManager,
-	const TSharedRef<IHttpRequest>& HttpRequest, 
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest, 
 	const FHttpRetrySystem::FRetryLimitCountSetting& InRetryLimitCountOverride,
 	const FHttpRetrySystem::FRetryTimeoutRelativeSecondsSetting& InRetryTimeoutRelativeSecondsOverride,
 	const FHttpRetrySystem::FRetryResponseCodes& InRetryResponseCodes,
@@ -95,7 +95,7 @@ FHttpRetrySystem::FRequest::FRequest(
 
 bool FHttpRetrySystem::FRequest::ProcessRequest()
 { 
-	TSharedRef<FRequest> RetryRequest = StaticCastSharedRef<FRequest>(AsShared());
+	TSharedRef<FRequest, ESPMode::ThreadSafe> RetryRequest = StaticCastSharedRef<FRequest>(AsShared());
 
 	OriginalUrl = HttpRequest->GetURL();
 	if (RetryDomains.IsValid())
@@ -103,7 +103,7 @@ bool FHttpRetrySystem::FRequest::ProcessRequest()
 		SetUrlFromRetryDomains();
 	}
 
-	HttpRequest->OnRequestProgress().BindSP(RetryRequest, &FHttpRetrySystem::FRequest::HttpOnRequestProgress);
+	HttpRequest->OnRequestProgress().BindThreadSafeSP(RetryRequest, &FHttpRetrySystem::FRequest::HttpOnRequestProgress);
 
 	return RetryManager.ProcessRequest(RetryRequest);
 }
@@ -132,7 +132,7 @@ void FHttpRetrySystem::FRequest::MoveToNextRetryDomain()
 
 void FHttpRetrySystem::FRequest::CancelRequest() 
 { 
-	TSharedRef<FRequest> RetryRequest = StaticCastSharedRef<FRequest>(AsShared());
+	TSharedRef<FRequest, ESPMode::ThreadSafe> RetryRequest = StaticCastSharedRef<FRequest>(AsShared());
 
 	RetryManager.CancelRequest(RetryRequest);
 }
@@ -148,7 +148,7 @@ FHttpRetrySystem::FManager::FManager(const FRetryLimitCountSetting& InRetryLimit
 	, RetryTimeoutRelativeSecondsDefault(InRetryTimeoutRelativeSecondsDefault)
 {}
 
-TSharedRef<FHttpRetrySystem::FRequest> FHttpRetrySystem::FManager::CreateRequest(
+TSharedRef<FHttpRetrySystem::FRequest, ESPMode::ThreadSafe> FHttpRetrySystem::FManager::CreateRequest(
 	const FRetryLimitCountSetting& InRetryLimitCountOverride,
 	const FRetryTimeoutRelativeSecondsSetting& InRetryTimeoutRelativeSecondsOverride,
 	const FRetryResponseCodes& InRetryResponseCodes,
@@ -358,7 +358,7 @@ bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount,
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_Update_RequestListItem);
 
 		FHttpRetryRequestEntry& HttpRetryRequestEntry = RequestList[index];
-		TSharedRef<FHttpRetrySystem::FRequest>& HttpRetryRequest = HttpRetryRequestEntry.Request;
+		TSharedRef<FHttpRetrySystem::FRequest, ESPMode::ThreadSafe>& HttpRetryRequest = HttpRetryRequestEntry.Request;
 
 		const EHttpRequestStatus::Type RequestStatus = HttpRetryRequest->GetStatus();
 
@@ -532,14 +532,14 @@ bool FHttpRetrySystem::FManager::Update(uint32* FileCount, uint32* FailingCount,
 	return bIsGreen;
 }
 
-FHttpRetrySystem::FManager::FHttpRetryRequestEntry::FHttpRetryRequestEntry(TSharedRef<FHttpRetrySystem::FRequest>& InRequest)
+FHttpRetrySystem::FManager::FHttpRetryRequestEntry::FHttpRetryRequestEntry(TSharedRef<FHttpRetrySystem::FRequest, ESPMode::ThreadSafe>& InRequest)
     : bShouldCancel(false)
     , CurrentRetryCount(0)
 	, RequestStartTimeAbsoluteSeconds(FPlatformTime::Seconds())
 	, Request(InRequest)
 {}
 
-bool FHttpRetrySystem::FManager::ProcessRequest(TSharedRef<FHttpRetrySystem::FRequest>& HttpRetryRequest)
+bool FHttpRetrySystem::FManager::ProcessRequest(TSharedRef<FHttpRetrySystem::FRequest, ESPMode::ThreadSafe>& HttpRetryRequest)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_ProcessRequest);
 
@@ -553,7 +553,7 @@ bool FHttpRetrySystem::FManager::ProcessRequest(TSharedRef<FHttpRetrySystem::FRe
 	return bResult;
 }
 
-void FHttpRetrySystem::FManager::CancelRequest(TSharedRef<FHttpRetrySystem::FRequest>& HttpRetryRequest)
+void FHttpRetrySystem::FManager::CancelRequest(TSharedRef<FHttpRetrySystem::FRequest, ESPMode::ThreadSafe>& HttpRetryRequest)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpRetrySystem_FManager_CancelRequest);
 

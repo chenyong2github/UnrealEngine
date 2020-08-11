@@ -117,7 +117,8 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 	}
 
 	// Property is advanced if it is marked advanced or the entire class is advanced and the property not marked as simple
-	bool bAdvanced = Property.IsValid() ? ( Property->HasAnyPropertyFlags(CPF_AdvancedDisplay) || ( !Property->HasAnyPropertyFlags( CPF_SimpleDisplay ) && Property->GetOwnerClass() && Property->GetOwnerClass()->HasAnyClassFlags( CLASS_AdvancedDisplay ) ) ): false;
+	static const FName Name_AdvancedClassDisplay("AdvancedClassDisplay");
+	bool bAdvanced = Property.IsValid() ? ( Property->HasAnyPropertyFlags(CPF_AdvancedDisplay) || ( !Property->HasAnyPropertyFlags( CPF_SimpleDisplay ) && Property->GetOwnerClass() && Property->GetOwnerClass()->GetBoolMetaData(Name_AdvancedClassDisplay) ) ) : false;
 
 	PropertyNodeFlags = EPropertyNodeFlags::NoFlags;
 	SetNodeFlags(EPropertyNodeFlags::IsSparseClassData, bIsSparse);

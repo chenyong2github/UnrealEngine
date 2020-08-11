@@ -29,6 +29,8 @@ void UMovieSceneSignedObject::PostLoad()
 
 void UMovieSceneSignedObject::MarkAsChanged()
 {
+	using namespace UE::MovieScene;
+
 	Signature = FGuid::NewGuid();
 
 	OnSignatureChangedEvent.Broadcast();

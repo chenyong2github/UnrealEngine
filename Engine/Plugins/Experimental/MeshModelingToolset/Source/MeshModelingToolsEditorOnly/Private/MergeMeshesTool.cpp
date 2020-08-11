@@ -134,14 +134,10 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
+
 		// Generate the result
-		{
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("MergeMeshes", "Merge Meshes"));
-
-			GenerateAsset(Result);
-
-			GetToolManager()->EndUndoTransaction();
-		}
+		GenerateAsset(Result);
 
 		TArray<AActor*> Actors;
 		for (auto& ComponentTarget : ComponentTargets)
@@ -149,6 +145,8 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			Actors.Add(ComponentTarget->GetOwnerActor());
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
+
+		GetToolManager()->EndUndoTransaction();
 	}
 }
 

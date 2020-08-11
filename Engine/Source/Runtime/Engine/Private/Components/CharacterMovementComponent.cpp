@@ -2561,25 +2561,28 @@ void UCharacterMovementComponent::SaveBaseLocation()
 	}
 
 	const UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
-	if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+	if (MovementBase)
 	{
-		// Read transforms into OldBaseLocation, OldBaseQuat
+		// Read transforms into OldBaseLocation, OldBaseQuat. Do this regardless of whether the object is movable, since mobility can change.
 		MovementBaseUtility::GetMovementBaseTransform(MovementBase, CharacterOwner->GetBasedMovement().BoneName, OldBaseLocation, OldBaseQuat);
 
-		// Location
-		const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
+		if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+		{
+			// Relative Location
+			const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
 
-		// Rotation
-		if (bIgnoreBaseRotation)
-		{
-			// Absolute rotation
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
-		}
-		else
-		{
-			// Relative rotation
-			const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			// Rotation
+			if (bIgnoreBaseRotation)
+			{
+				// Absolute rotation
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
+			}
+			else
+			{
+				// Relative rotation
+				const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			}
 		}
 	}
 }
@@ -8478,6 +8481,7 @@ void UCharacterMovementComponent::ServerMoveDualHybridRootMotion_Implementation(
 bool UCharacterMovementComponent::VerifyClientTimeStamp(float TimeStamp, FNetworkPredictionData_Server_Character& ServerData)
 {
 	bool bTimeStampResetDetected = false;
+	bool bNeedsForcedUpdate = false;
 	const bool bIsValid = IsClientTimeStampValid(TimeStamp, ServerData, bTimeStampResetDetected);
 	if (bIsValid)
 	{
@@ -8496,7 +8500,6 @@ bool UCharacterMovementComponent::VerifyClientTimeStamp(float TimeStamp, FNetwor
 			UE_LOG(LogNetPlayerMovement, VeryVerbose, TEXT("TimeStamp %f Accepted! CurrentTimeStamp: %f"), TimeStamp, ServerData.CurrentClientTimeStamp);
 			ProcessClientTimeStampForTimeDiscrepancy(TimeStamp, ServerData);
 		}
-		return true;
 	}
 	else
 	{
@@ -8504,8 +8507,15 @@ bool UCharacterMovementComponent::VerifyClientTimeStamp(float TimeStamp, FNetwor
 		{
 			UE_LOG(LogNetPlayerMovement, Log, TEXT("TimeStamp expired. Before TimeStamp Reset. CurrentTimeStamp: %f, TimeStamp: %f"), ServerData.CurrentClientTimeStamp, TimeStamp);
 		}
-		return false;
+		else
+		{
+			bNeedsForcedUpdate = (TimeStamp <= ServerData.LastReceivedClientTimeStamp);
+		}
 	}
+
+	ServerData.LastReceivedClientTimeStamp = TimeStamp;
+	ServerData.bLastRequestNeedsForcedUpdates = bNeedsForcedUpdate;
+	return bIsValid;
 }
 
 void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float ClientTimeStamp, FNetworkPredictionData_Server_Character& ServerData)
@@ -8544,18 +8554,18 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 			{
 				if (NewTimeDiscrepancy > 0.f)
 				{
-					NewTimeDiscrepancy = FMath::Max(NewTimeDiscrepancy - ServerDelta*DriftAllowance, 0.f); 
+					NewTimeDiscrepancy = FMath::Max(NewTimeDiscrepancy - ServerDelta * DriftAllowance, 0.f);
 				}
 				else
 				{
-					NewTimeDiscrepancy = FMath::Min(NewTimeDiscrepancy + ServerDelta*DriftAllowance, 0.f); 
+					NewTimeDiscrepancy = FMath::Min(NewTimeDiscrepancy + ServerDelta * DriftAllowance, 0.f);
 				}
 			}
 
 			// Enforce bounds
 			// Never go below MinTimeMargin - ClientError being negative means the client is BEHIND
 			// the server (they are going slower).
-			NewTimeDiscrepancy = FMath::Max(NewTimeDiscrepancy, GameNetworkManager->MovementTimeDiscrepancyMinTimeMargin); 
+			NewTimeDiscrepancy = FMath::Max(NewTimeDiscrepancy, GameNetworkManager->MovementTimeDiscrepancyMinTimeMargin);
 		}
 
 		// Determine EffectiveClientError, which is error for the currently-being-processed move after 
@@ -8575,7 +8585,7 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 		// Per-frame spew of time discrepancy-related values - useful for investigating state of time discrepancy tracking
 		if (CharacterMovementCVars::DebugTimeDiscrepancy > 0)
 		{
-			UE_LOG(LogNetPlayerMovement, Warning, TEXT("TimeDiscrepancyDetection: ClientError: %f, TimeDiscrepancy: %f, LifetimeRawTimeDiscrepancy: %f (Lifetime %f), Resolving: %d, ClientDelta: %f, ServerDelta: %f, ClientTimeStamp: %f"), 
+			UE_LOG(LogNetPlayerMovement, Warning, TEXT("TimeDiscrepancyDetection: ClientError: %f, TimeDiscrepancy: %f, LifetimeRawTimeDiscrepancy: %f (Lifetime %f), Resolving: %d, ClientDelta: %f, ServerDelta: %f, ClientTimeStamp: %f"),
 				ClientError, ServerData.TimeDiscrepancy, ServerData.LifetimeRawTimeDiscrepancy, WorldTimeSeconds - ServerData.WorldCreationTime, ServerData.bResolvingTimeDiscrepancy, ClientDelta, ServerDelta, ClientTimeStamp);
 		}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -8588,7 +8598,7 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 		//
 		// 3. Determine if NewTimeDiscrepancy is significant enough to trigger detection, and if so, trigger resolution if enabled
 		//
-		if (!ServerData.bResolvingTimeDiscrepancy) 
+		if (!ServerData.bResolvingTimeDiscrepancy)
 		{
 			if (NewTimeDiscrepancy > GameNetworkManager->MovementTimeDiscrepancyMaxTimeMargin)
 			{
@@ -8661,7 +8671,7 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 				ServerData.TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick += BaseDeltaTime;
 			}
 
-			float ServerBoundDeltaTime = FMath::Min(BaseDeltaTime + ServerData.TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick, ServerDeltaSinceLastMovementUpdate); 
+			float ServerBoundDeltaTime = FMath::Min(BaseDeltaTime + ServerData.TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick, ServerDeltaSinceLastMovementUpdate);
 			ServerBoundDeltaTime = FMath::Max(ServerBoundDeltaTime, 0.f); // No negative deltas allowed
 
 			if (bIsFirstServerMoveThisServerTick)
@@ -8686,12 +8696,12 @@ void UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy(float
 			ServerData.TimeDiscrepancy -= TimeToPayBack;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		// Per-frame spew of time discrepancy resolution related values - useful for investigating state of time discrepancy tracking
-		if ( CharacterMovementCVars::DebugTimeDiscrepancy > 1 )
-		{
-			UE_LOG(LogNetPlayerMovement, Warning, TEXT("TimeDiscrepancyResolution: DeltaOverride: %f, TimeToPayBack: %f, BaseDelta: %f, ServerDeltaSinceLastMovementUpdate: %f, TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick: %f"), 
-				ServerData.TimeDiscrepancyResolutionMoveDeltaOverride, TimeToPayBack, BaseDeltaTime, ServerDeltaSinceLastMovementUpdate, ServerData.TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick);
-		}
+			// Per-frame spew of time discrepancy resolution related values - useful for investigating state of time discrepancy tracking
+			if (CharacterMovementCVars::DebugTimeDiscrepancy > 1)
+			{
+				UE_LOG(LogNetPlayerMovement, Warning, TEXT("TimeDiscrepancyResolution: DeltaOverride: %f, TimeToPayBack: %f, BaseDelta: %f, ServerDeltaSinceLastMovementUpdate: %f, TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick: %f"),
+					ServerData.TimeDiscrepancyResolutionMoveDeltaOverride, TimeToPayBack, BaseDeltaTime, ServerDeltaSinceLastMovementUpdate, ServerData.TimeDiscrepancyAccumulatedClientDeltasSinceLastServerTick);
+			}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		}
 	}
@@ -10689,9 +10699,9 @@ bool UCharacterMovementComponent::HasRootMotionSources() const
 	return CurrentRootMotion.HasActiveRootMotionSources() || (CharacterOwner && CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh());
 }
 
-uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr)
 {
-	if (SourcePtr != nullptr)
+	if (ensure(SourcePtr.IsValid()))
 	{
 		// Set default StartTime if it hasn't been set manually
 		if (!SourcePtr->IsStartTimeValid())
@@ -10719,16 +10729,17 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* Sou
 			}
 		}
 
-		OnRootMotionSourceBeingApplied(SourcePtr);
+		OnRootMotionSourceBeingApplied(SourcePtr.Get());
 
 		return CurrentRootMotion.ApplyRootMotionSource(SourcePtr);
 	}
-	else
-	{
-		checkf(false, TEXT("Passing nullptr into UCharacterMovementComponent::ApplyRootMotionSource"));
-	}
 
 	return (uint16)ERootMotionSourceID::Invalid;
+}
+
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+{
+	return ApplyRootMotionSource(TSharedPtr<FRootMotionSource>(SourcePtr));
 }
 
 void UCharacterMovementComponent::OnRootMotionSourceBeingApplied(const FRootMotionSource* Source)

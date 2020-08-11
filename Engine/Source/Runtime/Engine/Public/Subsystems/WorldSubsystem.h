@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Subsystem.h"
-
+#include "Engine/EngineTypes.h"
 #include "WorldSubsystem.generated.h"
 
 /**
@@ -21,4 +21,14 @@ public:
 	UWorldSubsystem();
 
 	virtual UWorld* GetWorld() const override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+
+	/** Called once all UWorldSubsystems have been initialized */
+	virtual void PostInitialize() {}
+
+	/** Updates sub-system required streaming levels (called by world's UpdateStreamingState function) */
+	virtual void UpdateStreamingState() {}
+
+protected:
+	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const;
 };

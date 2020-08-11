@@ -7,9 +7,10 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "HAL/ConsoleManager.h"
 
-static TAutoConsoleVariable<int32> CVarSequencerLinearCubicInterpolation(
+int32 GSequencerLinearCubicInterpolation = 1;
+static FAutoConsoleVariableRef CVarSequencerLinearCubicInterpolation(
 	TEXT("Sequencer.LinearCubicInterpolation"),
-	1,
+	GSequencerLinearCubicInterpolation,
 	TEXT("If 1 Linear Keys Act As Cubic Interpolation with Linear Tangents, if 0 Linear Key Forces Linear Interpolation to Next Key."),
 	ECVF_Default);
 
@@ -221,7 +222,7 @@ static float EvalForTwoKeys(const FMovieSceneFloatValue& Key1, FFrameNumber Key1
 
 	float Diff = (float)(Key2Time - Key1Time).Value;
 	Diff /= DecimalRate;
-	const int CheckBothLinear = CVarSequencerLinearCubicInterpolation->GetInt();
+	const int CheckBothLinear = GSequencerLinearCubicInterpolation;
 
 	if (Diff > 0 && Key1.InterpMode != RCIM_Constant)
 	{
@@ -559,8 +560,8 @@ bool FMovieSceneFloatChannel::Evaluate(FFrameTime InTime,  float& OutValue) cons
 	// Evaluate the curve data
 	float Interp = 0.f;
 	int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
-	MovieScene::EvaluateTime(Times, Params.Time, Index1, Index2, Interp);
-	const int CheckBothLinear = CVarSequencerLinearCubicInterpolation->GetInt();
+	UE::MovieScene::EvaluateTime(Times, Params.Time, Index1, Index2, Interp);
+	const int CheckBothLinear = GSequencerLinearCubicInterpolation;
 
 	if (Index1 == INDEX_NONE)
 	{

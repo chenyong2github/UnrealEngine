@@ -14,6 +14,8 @@ public class BlueprintGraph : ModuleRules
             }
 		);
 
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
+
 		PublicDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core", 

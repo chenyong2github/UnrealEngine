@@ -20,17 +20,6 @@ void FSoundModulationInputTransform::Apply(float& Value) const
 	Value = FMath::Clamp(Value, OutputMin, OutputMax);
 }
 
-FSoundModulationOutputTransform::FSoundModulationOutputTransform()
-	: InputMin(0.0f)
-	, InputMax(1.0f)
-	, Curve(ESoundModulatorOutputCurve::Linear)
-	, Scalar(2.5f)
-	, CurveShared(nullptr)
-	, OutputMin(0.0f)
-	, OutputMax(1.0f)
-{
-}
-
 void FSoundModulationOutputTransform::Apply(float& Value) const
 {
 	// Clamp the input

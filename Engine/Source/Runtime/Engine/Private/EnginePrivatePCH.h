@@ -480,7 +480,7 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/OnlineReplStructs.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Math/GenericOctreePublic.h"
 #include "Camera/PlayerCameraManager.h"

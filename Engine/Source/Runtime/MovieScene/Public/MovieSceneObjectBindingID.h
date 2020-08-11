@@ -11,6 +11,8 @@
 
 struct FMovieSceneSequenceHierarchy;
 
+class IMovieScenePlayer;
+
 /** Enumeration specifying how a movie scene object binding ID relates to the sequence */
 UENUM()
 enum class EMovieSceneObjectBindingSpace : uint8
@@ -92,7 +94,7 @@ struct FMovieSceneObjectBindingID
 	/**
 	 * Resolve this binding ID from a local binding to be accessible from the root, by treating the specified local sequence ID as this binding's root
 	 */
-	MOVIESCENE_API FMovieSceneObjectBindingID ResolveLocalToRoot(FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy& Hierarchy) const;
+	MOVIESCENE_API FMovieSceneObjectBindingID ResolveLocalToRoot(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player) const;
 
 public:
 

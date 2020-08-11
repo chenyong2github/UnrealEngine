@@ -30,10 +30,7 @@ public:
 	static TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> CreateHttpConnection(
 		FWinHttpSession& Session,
 		const FString& Verb,
-		const bool bIsSecure,
-		const FString& Domain,
-		const TOptional<uint16> Port,
-		const FString& PathAndQuery,
+		const FString& Url,
 		const TMap<FString, FString>& Headers,
 		const TSharedPtr<FRequestPayload, ESPMode::ThreadSafe>& Payload);
 
@@ -45,7 +42,7 @@ public:
 
 	//~ Begin IWinHttpConnection Interface
 	virtual bool IsValid() const override;
-	virtual const FString& GetUrlDomain() const override;
+	virtual const FString& GetRequestUrl() const override;
 	virtual void* GetHandle() override;
 	virtual bool StartRequest() override;
 	virtual bool CancelRequest() override;
@@ -77,6 +74,7 @@ public:
 protected:
 	FWinHttpConnectionHttp(
 		FWinHttpSession& Session,
+		const FString& Url,
 		const FString& Verb,
 		const bool bIsSecure,
 		const FString& Domain,
@@ -89,12 +87,22 @@ protected:
 
 	/**
 	 * Add to our request's headers. These new headers will be added to the existing headers set, and will
-	 * replace any values that already exist with the name header name.
+	 * replace any values that already exist with the same header name.
 	 *
 	 * @param Headers Key/Value Map of headers to add to our request
-	 * @return True if we could set thea headers, false otherwise
+	 * @return True if we could set the headers, false otherwise
 	 */
 	bool SetHeaders(const TMap<FString, FString>& Headers);
+
+	/**
+	 * Add to our request's headers. Theis new header will be added to the existing headers set, and will
+	 * replace any values that already exist with the same header name.
+	 *
+	 * @param Key Key of header to add to our request
+	 * @param Value Value of header to set on our request
+	 * @return True if we could set the header, false otherwise
+	 */
+	bool SetHeader(const FString& Key, const FString& Value);
 	/**
 	 * Set the payload object of our request. This may only be called before StartRequest is called.
 	 *
@@ -226,7 +234,7 @@ protected:
 	bool bRequestCancelled = false;
 
 private:
-	FString UrlDomain;
+	FString RequestUrl;
 
 	enum class EState : uint8
 	{

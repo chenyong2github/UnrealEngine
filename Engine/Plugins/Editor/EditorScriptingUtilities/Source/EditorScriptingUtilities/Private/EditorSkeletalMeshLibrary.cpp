@@ -32,3 +32,40 @@ bool UEditorSkeletalMeshLibrary::RenameSocket(USkeletalMesh* SkeletalMesh, FName
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->RenameSocket(SkeletalMesh, OldName, NewName) : 0;
 }
+int32 UEditorSkeletalMeshLibrary::GetLODCount(USkeletalMesh* SkeletalMesh)
+{
+	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
+
+	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->GetLODCount(SkeletalMesh) : INDEX_NONE;
+}
+
+int32 UEditorSkeletalMeshLibrary::ImportLOD(USkeletalMesh* BaseMesh, const int32 LODIndex, const FString& SourceFilename)
+{
+	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
+
+	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->ImportLOD(BaseMesh, LODIndex, SourceFilename) : INDEX_NONE;
+}
+
+bool UEditorSkeletalMeshLibrary::ReimportAllCustomLODs(USkeletalMesh* SkeletalMesh)
+{
+	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
+
+	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->ReimportAllCustomLODs(SkeletalMesh) : false;
+}
+
+void UEditorSkeletalMeshLibrary::GetLodBuildSettings(const USkeletalMesh* SkeletalMesh, const int32 LodIndex, FSkeletalMeshBuildSettings& OutBuildOptions)
+{
+	if (USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>())
+	{
+		SkeletalMeshEditorSubsystem->GetLodBuildSettings(SkeletalMesh, LodIndex, OutBuildOptions);
+	}
+}
+
+void UEditorSkeletalMeshLibrary::SetLodBuildSettings(USkeletalMesh* SkeletalMesh, const int32 LodIndex, const FSkeletalMeshBuildSettings& BuildOptions)
+{
+	if (USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>())
+	{
+		SkeletalMeshEditorSubsystem->SetLodBuildSettings(SkeletalMesh, LodIndex, BuildOptions);
+	}
+}
+

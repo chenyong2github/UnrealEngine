@@ -96,7 +96,7 @@ void UMeshEditorStaticMeshAdapter::OnRebuildRenderMeshFinish( const UEditableMes
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	for( const FPolygonID PolygonID : EditableMesh->PolygonsPendingNewTangentBasis )
+	for( const FPolygonID& PolygonID : EditableMesh->PolygonsPendingNewTangentBasis )
 	{
 		WireframeMesh->SetPolygonNormal( PolygonID, PolygonNormals[ PolygonID ] );
 	}
@@ -177,7 +177,7 @@ void UMeshEditorStaticMeshAdapter::OnDeleteVertexInstances( const UEditableMesh*
 
 void UMeshEditorStaticMeshAdapter::OnDeleteOrphanVertices( const UEditableMesh* EditableMesh, const TArray<FVertexID>& VertexIDs )
 {
-	for( const FVertexID VertexID : VertexIDs )
+	for( const FVertexID& VertexID : VertexIDs )
 	{
 		WireframeMesh->RemoveVertex( VertexID );
 	}
@@ -186,7 +186,7 @@ void UMeshEditorStaticMeshAdapter::OnDeleteOrphanVertices( const UEditableMesh* 
 
 void UMeshEditorStaticMeshAdapter::OnCreateEmptyVertexRange( const UEditableMesh* EditableMesh, const TArray<FVertexID>& VertexIDs )
 {
-	for( const FVertexID VertexID : VertexIDs )
+	for( const FVertexID& VertexID : VertexIDs )
 	{
 		WireframeMesh->AddVertex( VertexID );
 	}
@@ -199,7 +199,7 @@ void UMeshEditorStaticMeshAdapter::OnCreateVertices( const UEditableMesh* Editab
 	check( MeshDescription );
 
 	TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
-	for( const FVertexID VertexID : VertexIDs )
+	for( const FVertexID& VertexID : VertexIDs )
 	{
 		WireframeMesh->AddVertex( VertexID );
 		WireframeMesh->SetVertexPosition( VertexID, VertexPositions[ VertexID ] );
@@ -228,13 +228,13 @@ void UMeshEditorStaticMeshAdapter::OnCreateEdges( const UEditableMesh* EditableM
 
 	TEdgeAttributesConstRef<bool> EdgeHardnesses = MeshDescription->EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsHard );
 
-	for( const FEdgeID EdgeID : EdgeIDs )
+	for( const FEdgeID& EdgeID : EdgeIDs )
 	{
 		WireframeMesh->AddEdge( EdgeID );
 		WireframeMesh->SetEdgeVertices( EdgeID, EditableMesh->GetEdgeVertex( EdgeID, 0 ), EditableMesh->GetEdgeVertex( EdgeID, 1 ) );
 		WireframeMesh->SetEdgeColor( EdgeID, GetEdgeColor( EdgeHardnesses[ EdgeID ] ) );
 
-		for( const FPolygonID PolygonID : MeshDescription->GetEdgeConnectedPolygons( EdgeID ) )
+		for( const FPolygonID& PolygonID : MeshDescription->GetEdgeConnectedPolygons( EdgeID ) )
 		{
 			WireframeMesh->AddEdgeInstance( EdgeID, PolygonID );
 		}
@@ -247,9 +247,9 @@ void UMeshEditorStaticMeshAdapter::OnDeleteEdges( const UEditableMesh* EditableM
 	const FMeshDescription* MeshDescription = EditableMesh->GetMeshDescription();
 	check( MeshDescription );
 
-	for( const FEdgeID EdgeID : EdgeIDs )
+	for( const FEdgeID& EdgeID : EdgeIDs )
 	{
-		for( const FPolygonID PolygonID : MeshDescription->GetEdgeConnectedPolygons( EdgeID ) )
+		for( const FPolygonID& PolygonID : MeshDescription->GetEdgeConnectedPolygons( EdgeID ) )
 		{
 			WireframeMesh->RemoveEdgeInstance( EdgeID, PolygonID );
 		}
@@ -261,7 +261,7 @@ void UMeshEditorStaticMeshAdapter::OnDeleteEdges( const UEditableMesh* EditableM
 
 void UMeshEditorStaticMeshAdapter::OnSetEdgesVertices( const UEditableMesh* EditableMesh, const TArray<FEdgeID>& EdgeIDs )
 {
-	for( const FEdgeID EdgeID : EdgeIDs )
+	for( const FEdgeID& EdgeID : EdgeIDs )
 	{
 		WireframeMesh->SetEdgeVertices( EdgeID, EditableMesh->GetEdgeVertex( EdgeID, 0 ), EditableMesh->GetEdgeVertex( EdgeID, 1 ) );
 	}
@@ -290,7 +290,7 @@ void UMeshEditorStaticMeshAdapter::OnCreatePolygons( const UEditableMesh* Editab
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TPolygonAttributesConstRef<FVector> PolygonNormals = MeshDescription->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Normal );
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		WireframeMesh->AddPolygon( PolygonID );
 		WireframeMesh->SetPolygonNormal( PolygonID, PolygonNormals[ PolygonID ] );
@@ -307,7 +307,7 @@ void UMeshEditorStaticMeshAdapter::OnCreatePolygons( const UEditableMesh* Editab
 
 void UMeshEditorStaticMeshAdapter::OnDeletePolygons( const UEditableMesh* EditableMesh, const TArray<FPolygonID>& PolygonIDs )
 {
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		const int32 NumEdges = EditableMesh->GetPolygonPerimeterEdgeCount( PolygonID );
 		for( int32 Index = 0; Index < NumEdges; ++Index )

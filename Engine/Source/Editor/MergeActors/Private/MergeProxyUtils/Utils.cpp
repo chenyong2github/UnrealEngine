@@ -13,7 +13,6 @@
 #include "Components/ChildActorComponent.h"
 #include "Components/ShapeComponent.h"
 
-
 #define LOCTEXT_NAMESPACE "MergeProxyDialog"
 
 void FComponentSelectionControl::UpdateSelectedCompnentsAndListBox()
@@ -43,36 +42,26 @@ void FComponentSelectionControl::UpdateSelectedStaticMeshComponents()
 
 	// Retrieve selected actors
 	USelection* SelectedActors = GEditor->GetSelectedActors();
-	TArray<AActor*> Actors;
-	TArray<ULevel*> UniqueLevels;
+
+	TSet<AActor*> Actors;
+
 	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 	{
 		AActor* Actor = Cast<AActor>(*Iter);
 		if (Actor)
 		{
 			Actors.Add(Actor);
-			UniqueLevels.AddUnique(Actor->GetLevel());
+
+			// Add child actors & actors found under foundations
+			Actor->EditorGetUnderlyingActors(Actors);
 		}
 	}
 
 	// Retrieve static mesh components from selected actors
 	SelectedComponents.Empty();
-	for (int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
+	for (AActor* Actor : Actors)
 	{
-		AActor* Actor = Actors[ActorIndex];
 		check(Actor != nullptr);
-
-		TArray<UChildActorComponent*> ChildActorComponents;
-		Actor->GetComponents<UChildActorComponent>(ChildActorComponents);
-		for (UChildActorComponent* ChildComponent : ChildActorComponents)
-		{
-			// Push actor at the back of array so we will process it
-			AActor* ChildActor = ChildComponent->GetChildActor();
-			if (ChildActor)
-			{
-				Actors.Add(ChildActor);
-			}
-		}
 
 		TArray<UPrimitiveComponent*> PrimComponents;
 		Actor->GetComponents<UPrimitiveComponent>(PrimComponents);

@@ -19,23 +19,25 @@ TSharedRef<FGameplayDebuggerCategory> FGameplayDebuggerCategory_Perception::Make
 
 void FGameplayDebuggerCategory_Perception::CollectData(APlayerController* OwnerPC, AActor* DebugActor)
 {
+	UAIPerceptionComponent* PerceptionComponent = nullptr;
 	APawn* MyPawn = Cast<APawn>(DebugActor);
 	if (MyPawn)
 	{
-		AAIController* BTAI = Cast<AAIController>(MyPawn->GetController());
-		if (BTAI)
+		AAIController* AIC = Cast<AAIController>(MyPawn->GetController());
+		if (AIC)
 		{
-			UAIPerceptionComponent* PerceptionComponent = BTAI->GetPerceptionComponent();
-			if (PerceptionComponent == nullptr)
-			{
-				PerceptionComponent = MyPawn->FindComponentByClass<UAIPerceptionComponent>();
-			}
-
-			if (PerceptionComponent)
-			{
-				PerceptionComponent->DescribeSelfToGameplayDebugger(this);
-			}
+			PerceptionComponent = AIC->GetPerceptionComponent();
 		}
+	}
+
+	if (PerceptionComponent == nullptr && DebugActor != nullptr)
+	{
+		PerceptionComponent = DebugActor->FindComponentByClass<UAIPerceptionComponent>();
+	}
+
+	if (PerceptionComponent)
+	{
+		PerceptionComponent->DescribeSelfToGameplayDebugger(this);
 	}
 }
 

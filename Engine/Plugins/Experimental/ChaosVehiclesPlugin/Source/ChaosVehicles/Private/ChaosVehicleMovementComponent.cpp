@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
+#include "Components/StaticMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -42,28 +43,42 @@ DEFINE_LOG_CATEGORY(LogVehicle);
 
 FVehicleDebugParams GVehicleDebugParams;
 
-FAutoConsoleVariableRef CVarChaosVehiclesShowCOM(TEXT("p.Vehicles.ShowCOM"), GVehicleDebugParams.ShowCOM, TEXT("Enable/Disable Center Of Mass Debug Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesShowModelAxis(TEXT("p.Vehicles.ShowModelOrigin"), GVehicleDebugParams.ShowModelOrigin, TEXT("Enable/Disable Model Origin Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesDisableAirControl(TEXT("p.Vehicles.DisableAirControl"), GVehicleDebugParams.DisableAirControl, TEXT("Enable/Disable In Air Control."));
-FAutoConsoleVariableRef CVarChaosVehiclesDisableGroundControl(TEXT("p.Vehicles.DisableGroundControl"), GVehicleDebugParams.DisableGroundControl, TEXT("Enable/Disable In Ground Control."));
-FAutoConsoleVariableRef CVarChaosVehiclesDisableAerodynamics(TEXT("p.Vehicles.DisableAerodynamics"), GVehicleDebugParams.DisableAerodynamics, TEXT("Enable/Disable Aerodynamic forces drag/downforce."));
-FAutoConsoleVariableRef CVarChaosVehiclesBatchQueries(TEXT("p.Vehicles.BatchQueries"), GVehicleDebugParams.BatchQueries, TEXT("Enable/Disable Batching of suspension raycasts."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowCOM(TEXT("p.Vehicle.ShowCOM"), GVehicleDebugParams.ShowCOM, TEXT("Enable/Disable Center Of Mass Debug Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowModelAxis(TEXT("p.Vehicle.ShowModelOrigin"), GVehicleDebugParams.ShowModelOrigin, TEXT("Enable/Disable Model Origin Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowAllForces(TEXT("p.Vehicle.ShowAllForces"), GVehicleDebugParams.ShowAllForces, TEXT("Enable/Disable Force Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesAerofoilForces(TEXT("p.Vehicle.ShowAerofoilForces"), GVehicleDebugParams.ShowAerofoilForces, TEXT("Enable/Disable Aerofoil Force Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesAerofoilSurface(TEXT("p.Vehicle.ShowAerofoilSurface"), GVehicleDebugParams.ShowAerofoilSurface, TEXT("Enable/Disable Aerofoil Surface Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableTorqueControl(TEXT("p.Vehicle.DisableTorqueControl"), GVehicleDebugParams.DisableTorqueControl, TEXT("Enable/Disable Direct Torque Control."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableStabilizeControl(TEXT("p.Vehicle.DisableStabilizeControl"), GVehicleDebugParams.DisableStabilizeControl, TEXT("Enable/Disable Position Stabilization Control."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableAerodynamics(TEXT("p.Vehicle.DisableAerodynamics"), GVehicleDebugParams.DisableAerodynamics, TEXT("Enable/Disable Aerodynamic Forces Drag/Downforce."));
+FAutoConsoleVariableRef CVarChaosVehiclesBatchQueries(TEXT("p.Vehicle.BatchQueries"), GVehicleDebugParams.BatchQueries, TEXT("Enable/Disable Batching Of Suspension Raycasts."));
+FAutoConsoleVariableRef CVarChaosVehiclesForceDebugScaling(TEXT("p.Vehicle.SetForceDebugScaling"), GVehicleDebugParams.ForceDebugScaling, TEXT("Set Scaling For Force Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesPersistDebugLinesTime(TEXT("p.Vehicle.SetPersistDebugLinesTime"), GVehicleDebugParams.PersistDebugLinesTime, TEXT("Set Debug Line Persistence Time For Force Visualisation."));
 
-void FVehicleState::CaptureState(FBodyInstance* TargetInstance, float DeltaTime)
+
+void FVehicleState::CaptureState(FBodyInstance* TargetInstance, float GravityZ, float DeltaTime)
 {
 	if (TargetInstance)
 	{
 		VehicleWorldTransform = TargetInstance->GetUnrealWorldTransform();
 		VehicleWorldVelocity = TargetInstance->GetUnrealWorldVelocity();
 		VehicleWorldAngularVelocity = TargetInstance->GetUnrealWorldAngularVelocityInRadians();
+		VehicleWorldCOM = TargetInstance->GetCOMPosition();
+		WorldVelocityNormal = VehicleWorldVelocity.GetSafeNormal();
+
+		VehicleLocalVelocity = VehicleWorldTransform.InverseTransformVector(VehicleWorldVelocity);
+
+		LocalAcceleration = (VehicleLocalVelocity - LastFrameVehicleLocalVelocity) / DeltaTime;
+		LocalGForce = LocalAcceleration / FMath::Abs(GravityZ);
+		LastFrameVehicleLocalVelocity = VehicleLocalVelocity;
+
 
 		VehicleUpAxis = VehicleWorldTransform.GetUnitAxis(EAxis::Z);
 		VehicleForwardAxis = VehicleWorldTransform.GetUnitAxis(EAxis::X);
 		VehicleRightAxis = VehicleWorldTransform.GetUnitAxis(EAxis::Y);
 
 		ForwardSpeed = FVector::DotProduct(VehicleWorldVelocity, VehicleForwardAxis);
-		ForwardsAcceleration = (ForwardSpeed - PrevForwardSpeed) / DeltaTime;
-		PrevForwardSpeed = ForwardSpeed;
+		ForwardsAcceleration = LocalAcceleration.X;
 
 		// bVehicleInAir is determined elsewhere
 	}
@@ -72,27 +87,17 @@ void FVehicleState::CaptureState(FBodyInstance* TargetInstance, float DeltaTime)
 UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bReverseAsBrake = true;
 	Mass = 1500.0f;
-	DragCoefficient = 0.3f;
 	ChassisWidth = 180.f;
 	ChassisHeight = 140.f;
+	DragCoefficient = 0.3f;
+	DownforceCoefficient = 0.3f;
 	InertiaTensorScale = FVector( 1.0f, 1.0f, 1.0f );
+
+	TorqueControl.InitDefaults();
+
 	AngErrorAccumulator = 0.0f;
-
-	AirControl.Enabled = true;
-	AirControl.RollTorqueScaling = 5.0f;
-	AirControl.PitchTorqueScaling = 5.0f; 
-	AirControl.YawTorqueScaling = 5.0f;
-	AirControl.RotationDamping = 0.02f;
-
-	GroundControl.Enabled = false;
-	GroundControl.PitchTorqueScaling = 10.0f;
-	GroundControl.RollTorqueScaling = 10.0f;
-	GroundControl.YawTorqueScaling = 10.0f;
-	GroundControl.PitchDamping = 0.05f;
-	GroundControl.RollDamping = 0.00f;
-	GroundControl.YawDamping = 0.00f;
-
 
 	IdleBrakeInput = 0.0f;
 	StopThreshold = 10.0f; 
@@ -111,23 +116,6 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 	HandbrakeInputRate.FallRate = 12.0f;
 	SteeringInputRate.RiseRate = 2.5f;
 	SteeringInputRate.FallRate = 5.0f;
-
-	//bDeprecatedSpringOffsetMode = false;	//This is just for backwards compat. Newly tuned content should never need to use this
-
-#if WANT_RVO
-	bUseRVOAvoidance = false;
-	AvoidanceVelocity = FVector::ZeroVector;
-	AvoidanceLockVelocity = FVector::ZeroVector;
-	AvoidanceLockTimer = 0.0f;
-	AvoidanceGroup.bGroup0 = true;
-	GroupsToAvoid.Packed = 0xFFFFFFFF;
-	GroupsToIgnore.Packed = 0;
-	RVOAvoidanceRadius = 400.0f;
-	RVOAvoidanceHeight = 200.0f;
-	AvoidanceConsiderationRadius = 2000.0f;
-	RVOSteeringStep = 0.5f;
-	RVOThrottleStep = 0.25f;
-#endif
 
 	SetIsReplicatedByDefault(true);
 
@@ -210,21 +198,22 @@ bool UChaosVehicleMovementComponent::CanCreateVehicle() const
 
 	if (UpdatedComponent == NULL)
 	{
-		UE_LOG(LogVehicle, Warning, TEXT("Ca't create vehicle %s (%s). UpdatedComponent is not set."), *ActorName, *GetPathName());
+		UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent is not set."), *ActorName, *GetPathName());
 		return false;
 	}
 
 	if (UpdatedPrimitive == NULL)
 	{
-		UE_LOG(LogVehicle, Warning, TEXT("Ca't create vehicle %s (%s). UpdatedComponent is not a PrimitiveComponent."), *ActorName, *GetPathName());
+		UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent is not a PrimitiveComponent."), *ActorName, *GetPathName());
 		return false;
 	}
 
-	if (UpdatedPrimitive->GetBodyInstance() == NULL)
-	{
-		UE_LOG(LogVehicle, Warning, TEXT("Cannot create vehicle %s (%s). UpdatedComponent has not initialized its rigid body actor."), *ActorName, *GetPathName());
-		return false;
-	}
+	// #Note: As of 22/06/2020 BodyInstance is no longer valid at this point in the Init process
+	//if (UpdatedPrimitive->GetBodyInstance() == NULL)
+	//{
+	//	UE_LOG(LogVehicle, Warning, TEXT("Can't create vehicle %s (%s). UpdatedComponent has not initialized its rigid body actor."), *ActorName, *GetPathName());
+	//	return false;
+	//}
 
 	return true;
 }
@@ -234,25 +223,64 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
 
-	if (USkeletalMeshComponent* SkeletalMesh = Cast<USkeletalMeshComponent>(GetMesh()))
+	VehicleSetupTag = FChaosVehicleManager::VehicleSetupTag;
+
+	// only create Physics vehicle in game
+	UWorld* World = GetWorld();
+	if (World->IsGameWorld())
 	{
+		FPhysScene* PhysScene = World->GetPhysicsScene();
+
+		if (PhysScene && FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene))
+		{
+			//FixupSkeletalMesh();
+			CreateVehicle();
+
+			if (PVehicle)
+			{
+				FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
+				VehicleManager->AddVehicle(this);
+			}
+		}
+	}
+
+	FBodyInstance* BodyInstance = nullptr;
+	if (USkeletalMeshComponent* SkeletalMesh = GetSkeletalMesh())
+	{
+		// #todo: should we touch these
 		SkeletalMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 		SkeletalMesh->SetNotifyRigidBodyCollision(true);
 		SkeletalMesh->SetEnablePhysicsBlending(false); //??
 
-		//SkeletalMesh->BodyInstance.bStartAwake = false;
-		//SkeletalMesh->BodyInstance.bGenerateWakeEvents = true;
-		//SkeletalMesh->BodyInstance.bContactModification = true; // #todo: put this on a param - expose implementation
-		//SkeletalMesh->BodyInstance.bUseCCD = true; // #todo: put this on a param
-		//SkeletalMesh->BodyInstance.bEnableGravity = false;  // #todo: param to say use own gravity or not
+		BodyInstance = &SkeletalMesh->BodyInstance;
 	}
+//	else if (UStaticMeshComponent* StaticMesh = GetStaticMesh())
+//	{
+//		BodyInstance = &StaticMesh->BodyInstance;
+//	}
 
+	// #todo: should we touch these
+	//BodyInstance.bStartAwake = false;
+	//BodyInstance.bGenerateWakeEvents = true;
+	//BodyInstance.bContactModification = true; // #todo: put this on a param - expose implementation
+	//BodyInstance.bUseCCD = true; // #todo: put this on a param
 }
 
 void UChaosVehicleMovementComponent::OnDestroyPhysicsState()
 {
 	Super::OnDestroyPhysicsState();
 
+	if (PVehicle.IsValid())
+	{
+		FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(GetWorld()->GetPhysicsScene());
+		VehicleManager->RemoveVehicle(this);
+		PVehicle.Reset(nullptr);
+
+		if (UpdatedComponent)
+		{
+			UpdatedComponent->RecreatePhysicsState();
+		}
+	}
 }
 
 void UChaosVehicleMovementComponent::PreTick(float DeltaTime)
@@ -281,12 +309,38 @@ void UChaosVehicleMovementComponent::TickVehicle(float DeltaTime)
 	//}
 
 	// movement updates and replication
-	if (PVehicle && UpdatedComponent)
+	FBodyInstance* TargetInstance = GetBodyInstance();
+	if (PVehicle && UpdatedComponent && TargetInstance)
 	{
 		APawn* MyOwner = Cast<APawn>(UpdatedComponent->GetOwner());
 		if (MyOwner)
 		{
-			UpdateSimulation(DeltaTime);
+			// Wake if control input pressed - #note : some other input might wake the vehicle also
+			if (!TargetInstance->IsInstanceAwake() && RawThrottleInput > SMALL_NUMBER)
+			{
+				VehicleState.bSleeping = false;
+				TargetInstance->WakeInstance();
+			}
+
+			if (!VehicleState.bSleeping)
+			{
+				UpdateSimulation(DeltaTime);
+			}
+
+			//// Sleep - possibly more aggressive than the standard physics one
+			//bool bAutoSleepEnabled = true;
+			//float LinearThreshold = 0.001f;
+			//float AngularThreshold = 0.001f;
+			//if (bAutoSleepEnabled && !VehicleState.bSleeping && RawBrakeInput == 1.f && !VehicleState.bVehicleInAir)
+			//{
+			//	if (TargetInstance
+			//		&& TargetInstance->GetUnrealWorldVelocity().SizeSquared() < LinearThreshold
+			//		&& TargetInstance->GetUnrealWorldAngularVelocityInRadians().SizeSquared() < AngularThreshold)
+			//	{
+			//		TargetInstance->PutInstanceToSleep();
+			//		VehicleState.bSleeping = true;
+			//	}
+			//}
 		}
 	}
 
@@ -304,6 +358,16 @@ void UChaosVehicleMovementComponent::StopMovementImmediately()
 void UChaosVehicleMovementComponent::SetThrottleInput(float Throttle)
 {
 	RawThrottleInput = FMath::Clamp(Throttle, -1.0f, 1.0f);
+}
+
+void UChaosVehicleMovementComponent::IncreaseThrottleInput(float ThrottleDelta)
+{
+	RawThrottleInput = FMath::Clamp(RawThrottleInput + ThrottleDelta, 0.f, 1.0f);
+}
+
+void UChaosVehicleMovementComponent::DecreaseThrottleInput(float ThrottleDelta)
+{
+	RawThrottleInput = FMath::Clamp(RawThrottleInput - ThrottleDelta, 0.f, 1.0f);
 }
 
 void UChaosVehicleMovementComponent::SetBrakeInput(float Brake)
@@ -348,25 +412,58 @@ void UChaosVehicleMovementComponent::SetChangeDownInput(bool bNewGearDown)
 
 void UChaosVehicleMovementComponent::SetTargetGear(int32 GearNum, bool bImmediate)
 {
-	if (PVehicle.IsValid() && GearNum != PVehicle->GetTransmission().GetTargetGear())
+	if (PVehicle.IsValid() && PVehicle->HasTransmission() && GearNum != PVehicle->GetTransmission().GetTargetGear())
 	{
-		// #todo: do we need this translation - what values are comming through in GearNum?
-		//const uint32 TargetGearNum = GearToChaosGear(GearNum);
 		PVehicle->GetTransmission().SetGear(GearNum, bImmediate);
 	}
 }
 
 void UChaosVehicleMovementComponent::SetUseAutomaticGears(bool bUseAuto)
 {
-	if (PVehicle.IsValid())
+	if (PVehicle.IsValid() && PVehicle->HasTransmission())
 	{
-		check(false); // fix
 		Chaos::ETransmissionType TransmissionType = bUseAuto ? Chaos::ETransmissionType::Automatic : Chaos::ETransmissionType::Manual;
-		//PVehicle->GetTransmission().AccessSetup().TransmissionType = TransmissionType;
+		PVehicle->GetTransmission().AccessSetup().TransmissionType = TransmissionType;
 	}
 }
 
 // Data access
+
+int32 UChaosVehicleMovementComponent::GetCurrentGear() const
+{
+	int32 CurrentGear = 0;
+
+	if (PVehicle.IsValid() && PVehicle->HasTransmission())
+	{
+		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
+	}
+
+	return CurrentGear;
+}
+
+int32 UChaosVehicleMovementComponent::GetTargetGear() const
+{
+	int32 TargetGear = 0;
+
+	if (PVehicle.IsValid() && PVehicle->HasTransmission())
+	{
+		TargetGear = PVehicle->GetTransmission().GetTargetGear();
+	}
+
+	return TargetGear;
+}
+
+bool UChaosVehicleMovementComponent::GetUseAutoGears() const
+{
+	bool UseAutoGears = 0;
+
+	if (PVehicle.IsValid() && PVehicle->HasTransmission())
+	{
+		UseAutoGears = PVehicle->GetTransmission().Setup().TransmissionType == Chaos::ETransmissionType::Automatic;
+	}
+
+	return UseAutoGears;
+}
 
 float UChaosVehicleMovementComponent::GetForwardSpeed() const
 {
@@ -382,21 +479,6 @@ float UChaosVehicleMovementComponent::GetForwardSpeedMPH() const
 // input related
 float UChaosVehicleMovementComponent::CalcSteeringInput()
 {
-#if WANT_RVO
-	if (bUseRVOAvoidance)
-	{
-		const float AngleDiff = AvoidanceVelocity.HeadingAngle() - GetVelocityForRVOConsideration().HeadingAngle();
-		if (AngleDiff > 0.0f)
-		{
-			RawSteeringInput = FMath::Clamp(RawSteeringInput + RVOSteeringStep, 0.0f, 1.0f);
-		}
-		else if (AngleDiff < 0.0f)
-		{
-			RawSteeringInput = FMath::Clamp(RawSteeringInput - RVOSteeringStep, -1.0f, 0.0f);
-		}
-	}
-#endif
-
 	return RawSteeringInput;
 }
 
@@ -426,7 +508,6 @@ float UChaosVehicleMovementComponent::CalcBrakeInput()
 				NewBrakeInput = 1.0f;			// Seems a bit severe to have 0 or 1 braking. Better control can be had by allowing continuous brake input values
 			}
 		}
-
 		// if player isn't pressing forward or backwards...
 		else
 		{
@@ -444,7 +525,19 @@ float UChaosVehicleMovementComponent::CalcBrakeInput()
 	}
 	else
 	{
-		return FMath::Abs(RawBrakeInput);
+		float NewBrakeInput = FMath::Abs(RawBrakeInput);
+
+		// if player isn't pressing forward or backwards...
+		if (RawBrakeInput < SMALL_NUMBER && RawThrottleInput < SMALL_NUMBER)
+		{
+			if (VehicleState.ForwardSpeed < StopThreshold && VehicleState.ForwardSpeed > -StopThreshold)	//auto break 
+			{
+				NewBrakeInput = 1.f;
+				FBodyInstance* TargetInstance = GetBodyInstance();
+			}
+		}
+
+		return NewBrakeInput;
 	}
 
 }
@@ -471,25 +564,8 @@ float UChaosVehicleMovementComponent::CalcYawInput()
 
 float UChaosVehicleMovementComponent::CalcThrottleInput()
 {
-#if WANT_RVO
-	if (bUseRVOAvoidance)
-	{
-		const float AvoidanceSpeedSq = AvoidanceVelocity.SizeSquared();
-		const float DesiredSpeedSq = GetVelocityForRVOConsideration().SizeSquared();
-
-		if (AvoidanceSpeedSq > DesiredSpeedSq)
-		{
-			RawThrottleInput = FMath::Clamp(RawThrottleInput + RVOThrottleStep, -1.0f, 1.0f);
-		}
-		else if (AvoidanceSpeedSq < DesiredSpeedSq)
-		{
-			RawThrottleInput = FMath::Clamp(RawThrottleInput - RVOThrottleStep, -1.0f, 1.0f);
-		}
-	}
-#endif
-
 	float NewThrottleInput = RawThrottleInput;
-	if (bReverseAsBrake)
+	if (bReverseAsBrake && PVehicle->HasTransmission())
 	{
 		if (RawBrakeInput > 0.f && PVehicle->GetTransmission().GetTargetGear() < 0/*ForwardSpeed < -WrongDirectionThreshold*/)
 		{
@@ -497,7 +573,7 @@ float UChaosVehicleMovementComponent::CalcThrottleInput()
 		}
 		else
 			//If the user is changing direction we should really be braking first and not applying any gas, so wait until they've changed gears
-			if ((RawThrottleInput > 0.f && PVehicle->GetTransmission().GetTargetGear() < 0)/* || (RawBrakeInput > 0.f && PVehicle->GetTransmission().GetTargetGear() > 0)*/)
+			if ((RawThrottleInput > 0.f && PVehicle->GetTransmission().GetTargetGear() < 0) || (RawBrakeInput > 0.f && PVehicle->GetTransmission().GetTargetGear() > 0))
 			{
 				NewThrottleInput = 0.f;
 			}
@@ -518,12 +594,12 @@ void UChaosVehicleMovementComponent::ClearInput()
 
 	// Send this immediately.
 	int32 CurrentGear = 0;
-	if (PVehicle)
+	if (PVehicle && PVehicle->HasTransmission())
 	{
 		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
 	}
 
-	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear/*GetCurrentGear()*/);
+	ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, CurrentGear, RollInput, PitchInput, YawInput);
 }
 
 void UChaosVehicleMovementComponent::ClearRawInput()
@@ -550,7 +626,7 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 	// Should we remove input instead of relying on replicated state in that case?
 	if (Controller && Controller->IsLocalController() && PVehicle)
 	{
-		if (bReverseAsBrake)
+		if (bReverseAsBrake && PVehicle->HasTransmission())
 		{
 			//for reverse as state we want to automatically shift between reverse and first gear
 			if (FMath::Abs(GetForwardSpeed()) < WrongDirectionThreshold)	//we only shift between reverse and first if the car is slow enough.
@@ -566,13 +642,6 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 			}
 		}
 
-#if WANT_RVO
-		if (bUseRVOAvoidance)
-		{
-			CalculateAvoidanceVelocity(DeltaTime);
-			UpdateAvoidance(DeltaTime);
-		}
-#endif
 		SteeringInput = SteeringInputRate.InterpInputValue(DeltaTime, SteeringInput, CalcSteeringInput());
 		ThrottleInput = ThrottleInputRate.InterpInputValue(DeltaTime, ThrottleInput, CalcThrottleInput());
 		BrakeInput = BrakeInputRate.InterpInputValue(DeltaTime, BrakeInput, CalcBrakeInput());
@@ -582,8 +651,12 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		HandbrakeInput = HandbrakeInputRate.InterpInputValue(DeltaTime, HandbrakeInput, CalcHandbrakeInput());
 
 		// and send to server - (ServerUpdateState_Implementation below)
-		int32 TargetGear = PVehicle->GetTransmission().GetTargetGear();
-		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear);
+		int32 TargetGear = 0;
+		if (PVehicle->HasTransmission())
+		{
+			TargetGear = PVehicle->GetTransmission().GetTargetGear();
+		}
+		ServerUpdateState(SteeringInput, ThrottleInput, BrakeInput, HandbrakeInput, TargetGear, RollInput, PitchInput, YawInput);
 
 		if (PawnOwner && PawnOwner->IsNetMode(NM_Client))
 		{
@@ -610,76 +683,244 @@ void UChaosVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 
 	if (CanSimulate() && TargetInstance)
 	{
-		VehicleState.CaptureState(TargetInstance, DeltaTime);
+		VehicleState.CaptureState(TargetInstance, GetGravityZ(), DeltaTime);
 
 		// #todo: param to say use own gravity or not
-		//TargetInstance->AddForce(GetGravity(), true, true);
+		//AddForce(GetGravity(), true, true);
 
 		ApplyAerodynamics(DeltaTime);
-		ApplyAirControl(DeltaTime);
-		ApplyGroundControl(DeltaTime);
+		ApplyAerofoilForces(DeltaTime);
+		ApplyThrustForces(DeltaTime);
+		ApplyTorqueControl(DeltaTime);
 	}
 }
+
+/** Pass control Input to the vehicle systems */
+void UChaosVehicleMovementComponent::ApplyInput(float DeltaTime)
+{
+	for (int AerofoilIdx = 0; AerofoilIdx < Aerofoils.Num(); AerofoilIdx++)
+	{
+		FAerofoil& Aerofoil = PVehicle->GetAerofoil(AerofoilIdx);
+		switch (Aerofoil.Setup().Type)
+		{
+		case Chaos::EAerofoilType::Rudder:
+			Aerofoil.SetControlSurface(-YawInput);
+			break;
+
+		case Chaos::EAerofoilType::Elevator:
+			Aerofoil.SetControlSurface(PitchInput);
+			break;
+
+		case Chaos::EAerofoilType::Wing:
+			if (Aerofoil.Setup().Offset.Y < 0.0f)
+			{
+				Aerofoil.SetControlSurface(RollInput);
+			}
+			else
+			{
+				Aerofoil.SetControlSurface(-RollInput);
+			}
+			break;
+		}
+	}
+}
+
 
 void UChaosVehicleMovementComponent::ApplyAerodynamics(float DeltaTime)
 {
-	FBodyInstance* TargetInstance = GetBodyInstance();
-	if (!GVehicleDebugParams.DisableAerodynamics && TargetInstance)
+	if (!GVehicleDebugParams.DisableAerodynamics)
 	{
+		// This force applied all the time whether the vehicle is on the ground or not
 		Chaos::FSimpleAerodynamicsSim& PAerodynamics = PVehicle->GetAerodynamics();
 		FVector LocalDragLiftForce = /*MToCm*/(PAerodynamics.GetCombinedForces(CmToM(VehicleState.ForwardSpeed))) * 100.0f;
 		FVector WorldLiftDragForce = VehicleState.VehicleWorldTransform.TransformVector(LocalDragLiftForce);
-		TargetInstance->AddForce(WorldLiftDragForce); // applied whether the vehicle is on the ground or not
+		AddForce(WorldLiftDragForce);
 	}
 }
 
-void UChaosVehicleMovementComponent::ApplyAirControl(float DeltaTime)
+void UChaosVehicleMovementComponent::ApplyAerofoilForces(float DeltaTime)
+{
+	TArray<FVector> VelocityLocal;
+	TArray<FVector> VelocityWorld;
+	VelocityLocal.SetNum(PVehicle->Aerofoils.Num());
+	VelocityWorld.SetNum(PVehicle->Aerofoils.Num());
+
+	float Altitude = VehicleState.VehicleWorldTransform.GetLocation().Z;
+
+	// Work out velocity at each aerofoil before applying any forces
+	for (int AerofoilIdx = 0; AerofoilIdx < PVehicle->Aerofoils.Num(); AerofoilIdx++)
+	{
+		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(PVehicle->GetAerofoil(AerofoilIdx).Setup().Offset * 100.0f);
+		VelocityWorld[AerofoilIdx] = GetBodyInstance()->GetUnrealWorldVelocityAtPoint(WorldLocation);
+		VelocityLocal[AerofoilIdx] = VehicleState.VehicleWorldTransform.InverseTransformVector(VelocityWorld[AerofoilIdx]);
+	}
+
+	for (int AerofoilIdx = 0; AerofoilIdx < PVehicle->Aerofoils.Num(); AerofoilIdx++)
+	{
+		Chaos::FAerofoil& Aerofoil = PVehicle->GetAerofoil(AerofoilIdx);
+
+		FVector Force = Aerofoil.GetForce(VehicleState.VehicleWorldTransform, VelocityLocal[AerofoilIdx] * 0.01f, CmToM(Altitude), DeltaTime);
+
+		FVector WorldForce = VehicleState.VehicleWorldTransform.TransformVector(Force);
+		FVector WorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(Aerofoil.GetCenterOfLiftOffset() * 100.0f);
+		AddForceAtPosition(WorldForce * 100.0f, WorldLocation);
+
+		FVector WorldAxis = VehicleState.VehicleWorldTransform.TransformVector(FVector::CrossProduct(FVector(1,0,0), Aerofoil.Setup().UpAxis));
+		if (GVehicleDebugParams.ShowAerofoilSurface)
+		{
+			DrawDebugLine(GetWorld(), WorldLocation - WorldAxis * 150.0f, WorldLocation + WorldAxis * 150.0f, FColor::Black, false, -1.f, 0, 5.f);
+		}
+		if (GVehicleDebugParams.ShowAerofoilForces)
+		{
+			DrawDebugLine(GetWorld(), WorldLocation, WorldLocation + WorldForce * GVehicleDebugParams.ForceDebugScaling, FColor::Green, false, -1.f, 0, 16.f);
+		}
+	}
+
+}
+
+
+void UChaosVehicleMovementComponent::ApplyThrustForces(float DeltaTime)
+{
+	for (int ThrusterIdx = 0; ThrusterIdx < PVehicle->Thrusters.Num(); ThrusterIdx++)
+	{
+		Chaos::FSimpleThrustSim& Thruster = PVehicle->GetThruster(ThrusterIdx);
+
+		FVector COM_Offset = GetBodyInstance()->GetMassSpaceLocal().GetLocation();
+		COM_Offset.Z = 0.0f;
+		Thruster.SetPitch(PitchInput);
+		Thruster.SetRoll(RollInput);
+		Thruster.SetThrottle(ThrottleInput);
+		Thruster.SetWorldVelocity(VehicleState.VehicleWorldVelocity);
+
+		Thruster.Simulate(DeltaTime);
+		FVector ThrustWorldLocation = VehicleState.VehicleWorldTransform.TransformPosition(Thruster.GetThrustLocation() + COM_Offset);
+		FVector ThrustForce = VehicleState.VehicleWorldTransform.TransformPosition(Thruster.GetThrustForce());
+
+		AddForceAtPosition(ThrustForce, ThrustWorldLocation);
+	}
+
+}
+
+
+void UChaosVehicleMovementComponent::ApplyTorqueControl(float DeltaTime)
 {
 	FBodyInstance* TargetInstance = GetBodyInstance();
-	if (!GVehicleDebugParams.DisableAirControl && AirControl.Enabled && VehicleState.bVehicleInAir && TargetInstance)
+	if (!GVehicleDebugParams.DisableTorqueControl && TargetInstance)
 	{
-		// user control
-		FVector LocalTorque(-RollInput * AirControl.RollTorqueScaling
-			, PitchInput * AirControl.PitchTorqueScaling
-			, YawInput * AirControl.YawTorqueScaling);
+		FVector TotalTorque = FVector::ZeroVector;
+		if (TargetRotationControl.Enabled/*&& VehicleState.bVehicleInAir*/)
+		{
+			auto ComputeTorque = [](const FVector& TargetUp, const FVector& CurrentUp, const FVector& AngVelocityWorld, float Stiffness, float Damping, float MaxAccel) -> FVector
+			{
+				const FQuat CurUpToTargetUp = FQuat::FindBetweenNormals(CurrentUp, TargetUp);
+				const FVector Axis = CurUpToTargetUp.GetRotationAxis();
+				const float Angle = CurUpToTargetUp.GetAngle();
 
-		// slowing rotation effect
-		FVector DampingTorque = (VehicleState.VehicleWorldAngularVelocity / DeltaTime) * AirControl.RotationDamping;
+				float Strength = (Angle * Stiffness - FVector::DotProduct(AngVelocityWorld, Axis) * Damping);
+				Strength = FMath::Clamp(Strength, -MaxAccel, MaxAccel);
+				const FVector Torque = Axis * Strength;
+				return Torque;
+			};
 
-		// combined world torque
-		FVector TotalWorldTorque = VehicleState.VehicleWorldTransform.TransformVector(LocalTorque) - DampingTorque;
+			 
+			FVector TargetUp = FVector(0.f, 0.f, 1.f);
+			float RollMaxAngleRadians = DegToRad(TargetRotationControl.RollMaxAngle);
+			float PitchMaxAngleRadians = DegToRad(TargetRotationControl.PitchMaxAngle);
+			float Speed = FMath::Min(CmToM(VehicleState.ForwardSpeed), 20.0f); // cap here
 
-		// apply torque to physics body
-		TargetInstance->AddTorqueInRadians(TotalWorldTorque, /*bAllowSubstepping=*/false, /*bAccelChange=*/true);
+			float SpeeScaledRollAmount = 1.0f;
+			float TargetRoll = 0.f;
+			if (TargetRotationControl.bRollVsSpeedEnabled)
+			{
+				if (PVehicle->Wheels[0].InContact()) // HACK need IsAllowedToSteer virtual method
+				{
+					TargetRoll = SteeringInput * TargetRotationControl.RollControlScaling * (Speed * Speed) * DeltaTime * 60.0f;
+				}
+			}
+			else
+			{
+				TargetRoll = SteeringInput * TargetRotationControl.RollControlScaling;
+			}
+
+			FVector Rt = VehicleState.VehicleRightAxis * FMath::Max(FMath::Min(TargetRoll, RollMaxAngleRadians), -RollMaxAngleRadians);
+			FVector Pt = VehicleState.VehicleForwardAxis * FMath::Max(FMath::Min(PitchInput * TargetRotationControl.PitchControlScaling, PitchMaxAngleRadians), -PitchMaxAngleRadians);
+
+			FVector UseUp = TargetUp + Rt + Pt;
+			UseUp.Normalize();
+
+			TargetUp = UseUp;
+
+			const FVector UpVector = VehicleState.VehicleUpAxis;
+			const FVector AngVelocityWorld = VehicleState.VehicleWorldAngularVelocity;
+
+			const FVector AirControlTorque = ComputeTorque(TargetUp, UpVector, AngVelocityWorld,TargetRotationControl.RotationStiffness, TargetRotationControl.RotationDamping, TargetRotationControl.MaxAccel);
+			const FVector ForwardVector = VehicleState.VehicleForwardAxis;
+			const FVector RightVector = VehicleState.VehicleRightAxis;
+
+			const float RollAirControl = FVector::DotProduct(AirControlTorque, ForwardVector);
+			const float PitchAirControl = FVector::DotProduct(AirControlTorque, RightVector);
+			const float YawAirControl = FVector::DotProduct(AirControlTorque, UpVector);
+
+			TotalTorque = RollAirControl * ForwardVector * TargetRotationControl.AutoCentreRollStrength
+				+ YawAirControl * UpVector * TargetRotationControl.AutoCentreYawStrength
+				+ PitchAirControl * RightVector * TargetRotationControl.AutoCentrePitchStrength;
+		}
+
+		if (TorqueControl.Enabled)
+		{
+			TotalTorque -= VehicleState.VehicleForwardAxis * RollInput * TorqueControl.RollTorqueScaling;
+			TotalTorque += VehicleState.VehicleRightAxis * PitchInput * TorqueControl.PitchTorqueScaling;
+			TotalTorque += VehicleState.VehicleUpAxis * YawInput * TorqueControl.YawTorqueScaling;
+			TotalTorque += VehicleState.VehicleUpAxis * RollInput * TorqueControl.YawFromRollTorqueScaling;
+
+			// slowing rotation effect
+			FVector DampingTorque = (VehicleState.VehicleWorldAngularVelocity/* / DeltaTime*/) * TorqueControl.RotationDamping;
+
+			// combined world torque
+			TotalTorque -= DampingTorque;
+		}
+
+		AddTorqueInRadians(TotalTorque /*/ DeltaTime * 0.016f*/, /*bAllowSubstepping=*/true, /*bAccelChange=*/true);
 	}
+
+
+	if (!GVehicleDebugParams.DisableStabilizeControl && StabilizeControl.Enabled && TargetInstance)
+	{
+		// try to cancel out velocity on Z axis
+		FVector CorrectionalForce = FVector::ZeroVector;
+		{
+			static float UpDownMultiplier = 4.0f;
+			bool MaintainAltitude = true;
+			if (MaintainAltitude)
+			{
+				CorrectionalForce.Z = -StabilizeControl.AltitudeHoldZ * VehicleState.VehicleWorldVelocity.Z / DeltaTime;
+			}
+		}
+
+		// try to cancel out velocity on X/Y plane
+		if (FMath::Abs(RollInput) < SMALL_NUMBER && FMath::Abs(PitchInput) < SMALL_NUMBER)
+		{
+			static float PositionMultiplier = 8.0f;
+			CorrectionalForce.X = -StabilizeControl.PositionHoldXY * VehicleState.VehicleWorldVelocity.X / DeltaTime;
+			CorrectionalForce.Y = -StabilizeControl.PositionHoldXY * VehicleState.VehicleWorldVelocity.Y / DeltaTime;
+		}
+		AddForce(CorrectionalForce);
+	}
+
+	//// maintain specified roll angle
+	//{
+	//	//	desired Roll and actual roll then try to match it
+	//	static float Scaling = 40.f;
+	//	static float Scaling2 = 0.6f;
+	//	float CurrentRoll = FVehicleUtility::RollFromRightVectorRadians(VehicleState.VehicleRightAxis);
+	//	float DesiredRoll = -RawSteeringInput /*-VehicleState.LocalGForce.Y*/ * Scaling2;
+	//	FVector CorrectRollTorque((DesiredRoll - CurrentRoll) * Scaling * DeltaTime, 0.f, 0.f);
+	//	CorrectRollTorque = VehicleState.VehicleWorldTransform.TransformVector(CorrectRollTorque);
+	////	TargetInstance->AddTorqueInRadians(CorrectRollTorque, /*bAllowSubstepping=*/true, /*bAccelChange=*/true);
+	//	TargetInstance->SetAngularVelocityInRadians(CorrectRollTorque, true, false);
+	//}
 }
 
-void UChaosVehicleMovementComponent::ApplyGroundControl(float DeltaTime)
-{
-	FBodyInstance* TargetInstance = GetBodyInstance();
-	if (!GVehicleDebugParams.DisableGroundControl && GroundControl.Enabled && TargetInstance)
-	{
-		// user control
-		FVector LocalTorque(-RollInput * GroundControl.RollTorqueScaling
-			, PitchInput * GroundControl.PitchTorqueScaling
-			, YawInput * GroundControl.YawTorqueScaling);
-
-		//FVector LocalDamping(GroundControl.RollDamping, GroundControl.PitchDamping, GroundControl.YawDamping);
-		//FVector WorldDamping = VehicleState.VehicleWorldTransform.TransformVector(LocalDamping);
-		// slowing rotation effect
-		FVector WorldDampingTorque = (VehicleState.VehicleWorldAngularVelocity / DeltaTime);
-		FVector LocalDampingTorque = VehicleState.VehicleWorldTransform.InverseTransformVector(WorldDampingTorque);
-		LocalDampingTorque.X *= GroundControl.RollDamping;
-		LocalDampingTorque.Y *= GroundControl.PitchDamping;
-		LocalDampingTorque.Z *= GroundControl.YawDamping;
-		FVector DampingTorque = VehicleState.VehicleWorldTransform.TransformVector(LocalDampingTorque);
-		// combined world torque
-		FVector TotalWorldTorque = VehicleState.VehicleWorldTransform.TransformVector(LocalTorque) - DampingTorque;
-
-		// apply torque to physics body
-		TargetInstance->AddTorqueInRadians(TotalWorldTorque, /*bAllowSubstepping=*/false, /*bAccelChange=*/true);
-	}
-}
 
 void UChaosVehicleMovementComponent::CopyToSolverSafeContactStaticData()
 {
@@ -691,29 +932,33 @@ void UChaosVehicleMovementComponent::CopyToSolverSafeContactStaticData()
 	//	SolverSafeContactData.VehicleSideScrapeMaxCosAngle = GetPhysicsVehicleConfigs()->VehicleSideScrapeMaxCosAngle;
 	//}
 	//else
-	{
-		SolverSafeContactData.ContactModificationOffset = 10.f;
-		SolverSafeContactData.VehicleFloorFriction = 0.f;
-		SolverSafeContactData.VehicleSideScrapeFriction = 0.1f;
-	}
+	//{
+	//	SolverSafeContactData.ContactModificationOffset = 10.f;
+	//	SolverSafeContactData.VehicleFloorFriction = 0.f;
+	//	SolverSafeContactData.VehicleSideScrapeFriction = 0.1f;
+	//}
 }
 
 
 /// @cond DOXYGEN_WARNINGS
 
-bool UChaosVehicleMovementComponent::ServerUpdateState_Validate(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear)
+bool UChaosVehicleMovementComponent::ServerUpdateState_Validate(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput)
 {
 	return true;
 }
 
-void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSteeringInput, float InThrottleInput, float InBrakeInput, float InHandbrakeInput, int32 InCurrentGear)
+void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSteeringInput, float InThrottleInput, float InBrakeInput
+	, float InHandbrakeInput, int32 InCurrentGear, float InRollInput, float InPitchInput, float InYawInput)
 {
 	SteeringInput = InSteeringInput;
 	ThrottleInput = InThrottleInput;
 	BrakeInput = InBrakeInput;
 	HandbrakeInput = InHandbrakeInput;
+	RollInput = InRollInput;
+	PitchInput = InPitchInput;
+	YawInput = InYawInput;
 
-	if (false/*!GetUseAutoGears()*/)
+	if (!GetUseAutoGears())
 	{
 		SetTargetGear(InCurrentGear, true);
 	}
@@ -724,6 +969,10 @@ void UChaosVehicleMovementComponent::ServerUpdateState_Implementation(float InSt
 	ReplicatedState.BrakeInput = InBrakeInput;
 	ReplicatedState.HandbrakeInput = InHandbrakeInput;
 	ReplicatedState.TargetGear = InCurrentGear;
+	ReplicatedState.RollInput = InRollInput;
+	ReplicatedState.PitchInput = InPitchInput;
+	ReplicatedState.YawInput = InYawInput;
+
 }
 
 /// @endcond
@@ -755,9 +1004,43 @@ FBodyInstance* UChaosVehicleMovementComponent::GetBodyInstance()
 }
 
 
-USkinnedMeshComponent* UChaosVehicleMovementComponent::GetMesh()
+UMeshComponent* UChaosVehicleMovementComponent::GetMesh() const
 {
-	return Cast<USkinnedMeshComponent>(UpdatedComponent);
+	return Cast<UMeshComponent>(UpdatedComponent);
+}
+
+USkeletalMeshComponent* UChaosVehicleMovementComponent::GetSkeletalMesh()
+{
+	return Cast<USkeletalMeshComponent>(UpdatedComponent);
+}
+
+UStaticMeshComponent* UChaosVehicleMovementComponent::GetStaticMesh()
+{
+	return Cast<UStaticMeshComponent>(UpdatedComponent);
+}
+
+FVector UChaosVehicleMovementComponent::LocateBoneOffset(const FName InBoneName, const FVector& InExtraOffset) const
+{
+	FVector Offset = InExtraOffset;
+
+	if (InBoneName != NAME_None)
+	{
+		if (USkinnedMeshComponent* Mesh = Cast<USkinnedMeshComponent>(GetMesh()))
+		{
+			check(Mesh->SkeletalMesh);
+			const FVector BonePosition = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(InBoneName).GetOrigin() * Mesh->GetRelativeScale3D();
+			//BonePosition is local for the root BONE of the skeletal mesh - however, we are using the Root BODY which may have its own transform, so we need to return the position local to the root BODY
+			FMatrix RootBodyMTX = FMatrix::Identity;
+			// Body Instance is no longer valid at this point in the code
+			if (Mesh->GetBodyInstance())
+			{
+				RootBodyMTX = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
+			}
+			const FVector LocalBonePosition = RootBodyMTX.InverseTransformPosition(BonePosition);
+			Offset += LocalBonePosition;
+		}
+	}
+	return Offset;
 }
 
 void UChaosVehicleMovementComponent::CreateVehicle()
@@ -771,7 +1054,8 @@ void UChaosVehicleMovementComponent::CreateVehicle()
 			check(UpdatedComponent);
 			if (ensure(UpdatedPrimitive != nullptr))
 			{
-				check(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
+				// The underlying code has changed - BodyInstance is not valid at this time
+				//check(UpdatedPrimitive->GetBodyInstance()->IsDynamic());
 
 				// Low level physics representation
 				PVehicle = MakeUnique<Chaos::FSimpleWheeledVehicle>();
@@ -791,60 +1075,58 @@ void UChaosVehicleMovementComponent::SetupVehicle()
 {
 	Chaos::FSimpleAerodynamicsSim AerodynamicsSim(&GetAerodynamicsConfig());
 	PVehicle->Aerodynamics.Add(AerodynamicsSim);
+
+	for (FVehicleAerofoilConfig& AerofoilSetup : Aerofoils)
+	{
+		Chaos::FAerofoil AerofoilSim(&AerofoilSetup.GetPhysicsAerofoilConfig(*this));
+		PVehicle->Aerofoils.Add(AerofoilSim);
+	}
+
+	for (FVehicleThrustConfig& ThrustSetup : Thrusters)
+	{
+		Chaos::FSimpleThrustSim ThrustSim(&ThrustSetup.GetPhysicsThrusterConfig(*this));
+		PVehicle->Thrusters.Add(ThrustSim);
+	}
+
 }
 
 void UChaosVehicleMovementComponent::PostSetupVehicle()
 {
-#if WANT_RVO
-	if (bUseRVOAvoidance)
-	{
-		UAvoidanceManager* AvoidanceManager = GetWorld()->GetAvoidanceManager();
-		if (AvoidanceManager)
-		{
-			AvoidanceManager->RegisterMovementComponent(this, AvoidanceWeight);
-		}
-	}
-#endif
 }
 
 void UChaosVehicleMovementComponent::SetupVehicleMass()
 {
-	if (!UpdatedPrimitive)
+	if (UpdatedPrimitive && UpdatedPrimitive->GetBodyInstance())
 	{
-		return;
+		//Ensure that if mass properties ever change we set them back to our override
+		UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties().AddUObject(this, &UChaosVehicleMovementComponent::UpdateMassProperties);
+
+		UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 	}
-
-	//Ensure that if mass properties ever change we set them back to our override
-	UpdatedPrimitive->GetBodyInstance()->OnRecalculatedMassProperties().AddUObject(this, &UChaosVehicleMovementComponent::UpdateMassProperties);
-
-	UpdateMassProperties(UpdatedPrimitive->GetBodyInstance());
 }
 
-void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BI)
+void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BodyInstance)
 {
-	FBodyInstance* TargetInstance = GetBodyInstance();
+	if (BodyInstance && FPhysicsInterface::IsValid(BodyInstance->ActorHandle) && FPhysicsInterface::IsRigidBody(BodyInstance->ActorHandle))
+	{
+		FPhysicsCommand::ExecuteWrite(BodyInstance->ActorHandle, [&](FPhysicsActorHandle& Actor)
+			{
+				const float MassRatio = this->Mass > 0.0f ? this->Mass / BodyInstance->GetBodyMass() : 1.0f;
 
-	//FPhysicsCommand::ExecuteWrite(BI->ActorHandle, [&](const FPhysicsActorHandle& Actor)
-	//{
-	//	PxRigidActor* PActor = FPhysicsInterface::GetPxRigidActor_AssumesLocked(Actor);
-	//	if (!PActor)
-	//	{
-	//		return;
-	//	}
+				FVector InertiaTensor = BodyInstance->GetBodyInertiaTensor();
 
-	//	if (PxRigidDynamic* PVehicleActor = PActor->is<PxRigidDynamic>())
-	//	{
-	//		// Override mass
-	//		const float MassRatio = Mass > 0.0f ? Mass / PVehicleActor->getMass() : 1.0f;
+				InertiaTensor.X *= this->InertiaTensorScale.X * MassRatio;
+				InertiaTensor.Y *= this->InertiaTensorScale.Y * MassRatio;
+				InertiaTensor.Z *= this->InertiaTensorScale.Z * MassRatio;
 
-	//		PxVec3 PInertiaTensor = PVehicleActor->getMassSpaceInertiaTensor();
+				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, InertiaTensor);
+				FPhysicsInterface::SetMass_AssumesLocked(Actor, this->Mass);
 
-	//		PInertiaTensor.x *= InertiaTensorScale.X * MassRatio;
-	//		PInertiaTensor.y *= InertiaTensorScale.Y * MassRatio;
-	//		PInertiaTensor.z *= InertiaTensorScale.Z * MassRatio;
-
-	//		PVehicleActor->setMassSpaceInertiaTensor(PInertiaTensor);
-	//		PVehicleActor->setMass(Mass);
+				//FTransform COMTransform = FPhysicsInterface::GetComTransformLocal_AssumesLocked(Actor);
+				//COMTransform.GetLocation() += CenterOfMassShift;
+				//FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, COMTransform);
+			});
+	}
 
 	//		const PxVec3 PCOMOffset = U2PVector(GetLocalCOM());
 	//		PVehicleActor->setCMassLocalPose(PxTransform(PCOMOffset, PxQuat(physx::PxIdentity)));	//ignore the mass reference frame. TODO: expose this to the user
@@ -854,8 +1136,6 @@ void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BI)
 	//		//	PxVehicleWheelsSimData& WheelData = PVehicle->mWheelsSimData;
 	//		//	SetupWheelMassProperties_AssumesLocked(WheelData.getNbWheels(), &WheelData, PVehicleActor);
 	//		//}
-	//	}
-	//});
 }
 
 void UChaosVehicleMovementComponent::ComputeConstants()
@@ -883,10 +1163,49 @@ void UChaosVehicleMovementComponent::ShowDebugInfo(AHUD* HUD, UCanvas* Canvas, c
 
 void UChaosVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float& YPos)
 {
+#if WITH_EDITOR
+	FBodyInstance* TargetInstance = GetBodyInstance();
+	if (!PVehicle.IsValid() || TargetInstance == nullptr)
+	{
+		return;
+	}
+
+	UFont* RenderFont = GEngine->GetMediumFont();
+	// draw general vehicle data
+	{
+		Canvas->SetDrawColor(FColor::White);
+		YPos += 16;
+
+		float ForwardSpeedKmH = CmSToKmH(GetForwardSpeed());
+		float ForwardSpeedMPH = CmSToMPH(GetForwardSpeed());
+		float ForwardSpeedMSec = CmToM(GetForwardSpeed());
+
+		if (TargetInstance)
+		{
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Mass (Kg): %.1f"), TargetInstance->GetBodyMass()), 4, YPos);
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Inertia : %s"), *TargetInstance->GetBodyInertiaTensor().ToString()), 4, YPos);
+		}
+
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Awake %d"), TargetInstance->IsInstanceAwake()), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Speed (km/h): %.1f  (MPH): %.1f  (m/s): %.1f"), ForwardSpeedKmH, ForwardSpeedMPH, ForwardSpeedMSec), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Acceleration (m/s-2): %.1f"), CmToM(VehicleState.LocalAcceleration.X)), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("GForce : %2.1f"), VehicleState.LocalGForce.X), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Steering: %.1f (RAW %.1f)"), SteeringInput, RawSteeringInput), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Throttle: %.1f (RAW %.1f)"), ThrottleInput, RawThrottleInput), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Brake: %.1f (RAW %.1f)"), BrakeInput, RawBrakeInput), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Roll: %.1f (RAW %.1f)"), RollInput, RawRollInput), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Pitch: %.1f (RAW %.1f)"), PitchInput, RawPitchInput), 4, YPos);
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Yaw: %.1f (RAW %.1f)"), YawInput, RawYawInput), 4, YPos);
+		FString GearState = GetUseAutoGears() ? "Automatic" : "Manual";
+		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Gears: %s"), *GearState), 4, YPos);
+	}
+
+#endif
 }
 
 void UChaosVehicleMovementComponent::DrawDebug3D()
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FBodyInstance* TargetInstance = GetBodyInstance();
 	if (TargetInstance == nullptr)
 	{
@@ -905,7 +1224,7 @@ void UChaosVehicleMovementComponent::DrawDebug3D()
 	{
 		DrawDebugCoordinateSystem(GetWorld(), BodyTransform.GetLocation(), FRotator(BodyTransform.GetRotation()), 200.f, false, -1.f, 0, 2.f);
 	}
-
+#endif
 }
 
 
@@ -942,248 +1261,100 @@ void UChaosVehicleMovementComponent::DrawLine2D(UCanvas* Canvas, const FVector2D
 	}
 }
 
-#if WANT_RVO
 
-void UChaosVehicleMovementComponent::UpdateAvoidance(float DeltaTime)
+void UChaosVehicleMovementComponent::AddForce(const FVector& Force, bool bAllowSubstepping /*= true*/, bool bAccelChange /*= false*/)
 {
-	UpdateDefaultAvoidance();
-}
-
-void UChaosVehicleMovementComponent::UpdateDefaultAvoidance()
-{
-	if (!bUseRVOAvoidance)
-	{
-		return;
-	}
-
-	UAvoidanceManager* AvoidanceManager = GetWorld()->GetAvoidanceManager();
-	if (AvoidanceManager && !bWasAvoidanceUpdated)
-	{
-		AvoidanceManager->UpdateRVO(this);
-
-		//Consider this a clean move because we didn't even try to avoid.
-		SetAvoidanceVelocityLock(AvoidanceManager, AvoidanceManager->LockTimeAfterClean);
-	}
-
-	bWasAvoidanceUpdated = false;		//Reset for next frame
-}
-
-void UChaosVehicleMovementComponent::SetAvoidanceVelocityLock(class UAvoidanceManager* Avoidance, float Duration)
-{
-	Avoidance->OverrideToMaxWeight(AvoidanceUID, Duration);
-	AvoidanceLockVelocity = AvoidanceVelocity;
-	AvoidanceLockTimer = Duration;
-}
-
-void UChaosVehicleMovementComponent::CalculateAvoidanceVelocity(float DeltaTime)
-{
-	if (!bUseRVOAvoidance)
-	{
-		return;
-	}
-	
-	UAvoidanceManager* AvoidanceManager = GetWorld()->GetAvoidanceManager();
-	APawn* MyOwner = UpdatedComponent ? Cast<APawn>(UpdatedComponent->GetOwner()) : NULL;
-
-	// since we don't assign the avoidance velocity but instead use it to adjust steering and throttle,
-	// always reset the avoidance velocity to the current velocity
-	AvoidanceVelocity = GetVelocityForRVOConsideration();
-
-	if (AvoidanceWeight >= 1.0f || AvoidanceManager == NULL || MyOwner == NULL)
-	{
-		return;
-	}
-	
-	if (MyOwner->GetLocalRole() != ROLE_Authority)
-	{	
-		return;
-	}
+	check(GetBodyInstance());
+	GetBodyInstance()->AddForce(Force, bAllowSubstepping, bAccelChange);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	const bool bShowDebug = AvoidanceManager->IsDebugEnabled(AvoidanceUID);
-#endif
-
-	if (!AvoidanceVelocity.IsZero())
+	if (GVehicleDebugParams.ShowAllForces)
 	{
-		//See if we're doing a locked avoidance move already, and if so, skip the testing and just do the move.
-		if (AvoidanceLockTimer > 0.0f)
-		{
-			AvoidanceVelocity = AvoidanceLockVelocity;
+		FVector Position = VehicleState.VehicleWorldCOM;
+		DrawDebugDirectionalArrow(GetWorld(), Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Blue, false, GVehicleDebugParams.PersistDebugLinesTime, 0, 2.f);
+	}
+#endif
+}
+
+void UChaosVehicleMovementComponent::AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping /*= true*/, bool bIsLocalForce /*= false*/)
+{
+	check(GetBodyInstance());
+	GetBodyInstance()->AddForceAtPosition(Force, Position, bAllowSubstepping, bIsLocalForce);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (bShowDebug)
-			{
-				DrawDebugLine(GetWorld(), GetRVOAvoidanceOrigin(), GetRVOAvoidanceOrigin() + AvoidanceVelocity, FColor::Blue, true, 0.5f, SDPG_MAX);
-			}
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		DrawDebugDirectionalArrow(GetWorld(), Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Blue, false, GVehicleDebugParams.PersistDebugLinesTime, 0, 2.f);
+	}
 #endif
-		}
-		else
-		{
-			FVector NewVelocity = AvoidanceManager->GetAvoidanceVelocityForComponent(this);
-			if (!NewVelocity.Equals(AvoidanceVelocity))		//Really want to branch hint that this will probably not pass
-			{
-				//Had to divert course, lock this avoidance move in for a short time. This will make us a VO, so unlocked others will know to avoid us.
-				AvoidanceVelocity = NewVelocity;
-				SetAvoidanceVelocityLock(AvoidanceManager, AvoidanceManager->LockTimeAfterAvoid);
+}
+
+void UChaosVehicleMovementComponent::AddImpulse(const FVector& Impulse, bool bVelChange)
+{
+	check(GetBodyInstance());
+	GetBodyInstance()->AddImpulse(Impulse, bVelChange);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				if (bShowDebug)
-				{
-					DrawDebugLine(GetWorld(), GetRVOAvoidanceOrigin(), GetRVOAvoidanceOrigin() + AvoidanceVelocity, FColor::Red, true, 20.0f, SDPG_MAX, 10.0f);
-				}
-#endif
-			}
-			else
-			{
-				//Although we didn't divert course, our velocity for this frame is decided. We will not reciprocate anything further, so treat as a VO for the remainder of this frame.
-				SetAvoidanceVelocityLock(AvoidanceManager, AvoidanceManager->LockTimeAfterClean);	//10 ms of lock time should be adequate.
-			}
-		}
-
-		AvoidanceManager->UpdateRVO(this);
-		bWasAvoidanceUpdated = true;
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		FVector Position = VehicleState.VehicleWorldCOM;
+		DrawDebugDirectionalArrow(GetWorld(), Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Red, false, GVehicleDebugParams.PersistDebugLinesTime, 0, 2.f);
 	}
+#endif
+}
+
+void UChaosVehicleMovementComponent::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position)
+{
+	check(GetBodyInstance());
+	GetBodyInstance()->AddImpulseAtPosition(Impulse, Position);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	else if (bShowDebug)
+	if (GVehicleDebugParams.ShowAllForces)
 	{
-		DrawDebugLine(GetWorld(), GetRVOAvoidanceOrigin(), GetRVOAvoidanceOrigin() + GetVelocityForRVOConsideration(), FColor::Yellow, true, 0.05f, SDPG_MAX);
+		DrawDebugDirectionalArrow(GetWorld(), Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Red, false, GVehicleDebugParams.PersistDebugLinesTime, 0, 2.f);
 	}
+#endif
 
-	if (bShowDebug)
-	{
-		FVector UpLine(0, 0, 500);
-		DrawDebugLine(GetWorld(), GetRVOAvoidanceOrigin(), GetRVOAvoidanceOrigin() + UpLine, (AvoidanceLockTimer > 0.01f) ? FColor::Red : FColor::Blue, true, 0.05f, SDPG_MAX, 5.0f);
-	}
+}
+
+void UChaosVehicleMovementComponent::AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping /*= true*/, bool bAccelChange /*= false*/)
+{
+	check(GetBodyInstance());
+	GetBodyInstance()->AddTorqueInRadians(Torque, bAllowSubstepping, bAccelChange);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	//#todo: how do we visualize torque?
 #endif
 }
 
-void UChaosVehicleMovementComponent::SetAvoidanceGroup(int32 GroupFlags)
-{
-	SetAvoidanceGroupMask(GroupFlags);
-}
-
-void UChaosVehicleMovementComponent::SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask)
-{
-	SetAvoidanceGroupMask(GroupMask.Packed);
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToAvoid(int32 GroupFlags)
-{
-	SetGroupsToAvoidMask(GroupFlags);
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask)
-{
-	SetGroupsToAvoidMask(GroupMask.Packed);
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToIgnore(int32 GroupFlags)
-{
-	SetGroupsToIgnoreMask(GroupFlags);
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask)
-{
-	SetGroupsToIgnoreMask(GroupMask.Packed);
-}
-
-void UChaosVehicleMovementComponent::SetAvoidanceEnabled(bool bEnable)
-{
-	if (bUseRVOAvoidance != bEnable)
-	{
-		bUseRVOAvoidance = bEnable;
-		
-		// reset id, RegisterMovementComponent call is required to initialize update timers in avoidance manager
-		AvoidanceUID = 0;
-
-		UAvoidanceManager* AvoidanceManager = GetWorld()->GetAvoidanceManager();
-		if (AvoidanceManager && bEnable)
-		{
-			AvoidanceManager->RegisterMovementComponent(this, AvoidanceWeight);
-		}
-	}
-}
-
-
-void UChaosVehicleMovementComponent::SetRVOAvoidanceUID(int32 UID)
-{
-	AvoidanceUID = UID;
-}
-
-int32 UChaosVehicleMovementComponent::GetRVOAvoidanceUID()
-{
-	return AvoidanceUID;
-}
-
-void UChaosVehicleMovementComponent::SetRVOAvoidanceWeight(float Weight)
-{
-	AvoidanceWeight = Weight;
-}
-
-float UChaosVehicleMovementComponent::GetRVOAvoidanceWeight()
-{
-	return AvoidanceWeight;
-}
-
-FVector UChaosVehicleMovementComponent::GetRVOAvoidanceOrigin()
-{
-	return UpdatedComponent->GetComponentLocation();
-}
-
-float UChaosVehicleMovementComponent::GetRVOAvoidanceRadius()
-{
-	return RVOAvoidanceRadius;
-}
-
-float UChaosVehicleMovementComponent::GetRVOAvoidanceHeight()
-{
-	return RVOAvoidanceHeight;
-}
-
-float UChaosVehicleMovementComponent::GetRVOAvoidanceConsiderationRadius()
-{
-	return AvoidanceConsiderationRadius;
-}
-
-FVector UChaosVehicleMovementComponent::GetVelocityForRVOConsideration()
-{
-	FVector Velocity2D = UpdatedComponent->GetComponentVelocity();
-	Velocity2D.Z = 0.f;
-
-	return Velocity2D;
-}
-
-void UChaosVehicleMovementComponent::SetAvoidanceGroupMask(int32 GroupFlags)
-{
-	AvoidanceGroup.SetFlagsDirectly(GroupFlags);
-}
-
-int32 UChaosVehicleMovementComponent::GetAvoidanceGroupMask()
-{
-	return AvoidanceGroup.Packed;
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToAvoidMask(int32 GroupFlags)
-{
-	GroupsToAvoid.SetFlagsDirectly(GroupFlags);
-}
-
-int32 UChaosVehicleMovementComponent::GetGroupsToAvoidMask()
-{
-	return GroupsToAvoid.Packed;
-}
-
-void UChaosVehicleMovementComponent::SetGroupsToIgnoreMask(int32 GroupFlags)
-{
-	GroupsToIgnore.SetFlagsDirectly(GroupFlags);
-}
-
-int32 UChaosVehicleMovementComponent::GetGroupsToIgnoreMask()
-{
-	return GroupsToIgnore.Packed;
-}
-
-#endif // WANT_RVO
-
 #endif
+
+void FVehicleAerofoilConfig::FillAerofoilSetup(const UChaosVehicleMovementComponent& MovementComponent)
+{
+	PAerofoilConfig.Type = (Chaos::EAerofoilType)(this->AerofoilType);
+	PAerofoilConfig.Offset = MovementComponent.LocateBoneOffset(this->BoneName, this->Offset);
+	PAerofoilConfig.UpAxis = this->UpAxis;
+	PAerofoilConfig.Area = this->Area;
+	PAerofoilConfig.Camber = this->Camber;
+	PAerofoilConfig.MaxControlAngle = this->MaxControlAngle;
+	PAerofoilConfig.StallAngle = this->StallAngle;
+	PAerofoilConfig.LiftMultiplier = this->LiftMultiplier;
+	PAerofoilConfig.DragMultiplier = this->DragMultiplier;
+}
+
+void FVehicleThrustConfig::FillThrusterSetup(const UChaosVehicleMovementComponent& MovementComponent)
+{
+	PThrusterConfig.Type = (Chaos::EThrustType)(this->ThrustType);
+	PThrusterConfig.Offset = MovementComponent.LocateBoneOffset(this->BoneName, this->Offset);
+	PThrusterConfig.Axis = this->ThrustAxis;
+	//	PThrusterConfig.ThrustCurve = this->ThrustCurve;
+	PThrusterConfig.MaxThrustForce = MToCm(this->MaxThrustForce);
+	PThrusterConfig.MaxControlAngle = this->MaxControlAngle;
+}
 
 #undef LOCTEXT_NAMESPACE
 

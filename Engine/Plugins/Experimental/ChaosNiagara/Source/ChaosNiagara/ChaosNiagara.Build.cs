@@ -25,7 +25,8 @@ public class ChaosNiagara : ModuleRules
                 "Chaos",
                 "ChaosSolvers",
                 "GeometryCollectionEngine",
-                "GeometryCollectionCore"
+                "GeometryCollectionCore",
+				"PhysicsCore"
             }
         );
 					

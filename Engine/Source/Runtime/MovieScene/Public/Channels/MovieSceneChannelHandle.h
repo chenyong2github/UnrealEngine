@@ -65,11 +65,24 @@ public:
 	FName GetChannelTypeName() const;
 
 	/**
+	 * Access this channel's index
+	 */
+	int32 GetChannelIndex() const;
+
+	/**
 	 * Get the channel pointer this handle represents.
 	 *
 	 * @return the channel's pointer, or nullptr if the proxy it was created with is no longer alive.
 	 */
 	FMovieSceneChannel* Get() const;
+
+	/**
+	 * Attempt to access the proxy for this channel. Will return nullptr if it is no longer valid.
+	 */
+	FMovieSceneChannelProxy* GetChannelProxy() const
+	{
+		return WeakChannelProxy.Pin().Get();
+	}
 
 #if WITH_EDITOR
 

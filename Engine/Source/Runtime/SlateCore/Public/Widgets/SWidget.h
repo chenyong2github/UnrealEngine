@@ -1269,8 +1269,14 @@ public:
 	template<typename MetaDataType>
 	void AddMetadata(const TSharedRef<MetaDataType>& AddMe)
 	{
-		MetaData.Add(AddMe);
+		AddMetadataInternal(AddMe);
 	}
+
+private:
+
+	void AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe);
+
+public:
 
 	/** See OnMouseButtonDown event */
 	void SetOnMouseButtonDown(FPointerEventHandler EventHandler);
@@ -1314,6 +1320,9 @@ public:
 
 	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
 	virtual FSlateColor GetForegroundColor() const;
+
+	/** @return the Foreground color that this widget sets when this widget or any of its ancestors are disabled; unset options if the widget does not set a foreground color */
+	virtual FSlateColor GetDisabledForegroundColor() const;
 
 	//UE_DEPRECATED(4.23, "GetCachedGeometry has been deprecated, use GetTickSpaceGeometry instead")
 	const FGeometry& GetCachedGeometry() const;

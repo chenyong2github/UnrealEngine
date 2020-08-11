@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_ROOM_DEFINE_H
@@ -10,61 +10,50 @@
 namespace rail {
 #pragma pack(push, RAIL_SDK_PACKING)
 
-const int32_t RAIL_DEFAULT_MAX_ROOM_MEMBERS = 2;
-// the type of room
+// rename from RAIL_DEFAULT_MAX_ROOM_MEMBERS, 2018/11/27.
+const uint32_t kRailRoomDefaultMaxMemberNumber = 2;
+
+const uint32_t kRailRoomDataKeyValuePairsLimit = 50;
+
+// the type of room.
 enum EnumRoomType {
-    kRailRoomTypePrivate = 0x0000,
-    kRailRoomTypeWithFriends = 0x0001,
-    kRailRoomTypePublic = 0x0002,
-    kRailRoomTypeHidden = 0x0003,
+    kRailRoomTypePrivate = 0,
+    kRailRoomTypeWithFriends = 1,
+    kRailRoomTypePublic = 2,
+    kRailRoomTypeHidden = 3,
 };
 
-// the status of room
-enum EnumRoomStatus {
-    kRailRoomStatusFree = 0,
-    kRailRoomStatusFull = 1,
-};
-
-// the status of zone
-enum EnumZoneStatus {
-    kRailZoneStatusSmooth = 0,
-    kRailZoneStatusNormal = 1,
-    kRailZoneStatusBusy = 2,
-    kRailZoneStatusFull = 3,
-};
-
-// the reason for leaving room
+// the reason for leaving room.
 enum EnumLeaveRoomReason {
     kLeaveRoomReasonActive = 1,
     kLeaveRoomReasonTimeout = 2,
     kLeaveRoomReasonKick = 3,
 };
 
-// member status changed
+// member status changed.
 enum EnumRoomMemberActionStatus {
-    kMemberEnteredRoom = 0x0001,
-    kMemberLeftRoom = 0x0002,
-    kMemberDisconnectServer = 0x0004,
+    kMemberEnteredRoom = 1,
+    kMemberLeftRoom = 2,
+    kMemberDisconnectServer = 4,
 };
 
-// the reason for owner changed
+// the reason for owner changed.
 enum EnumRoomOwnerChangeReason {
     kRoomOwnerActiveChange = 1,
     kRoomOwnerLeave = 2,
 };
 
 struct RoomOptions {
-    explicit RoomOptions(uint64_t zone) {
+    RoomOptions() {
         type = kRailRoomTypePublic;
-        max_members = RAIL_DEFAULT_MAX_ROOM_MEMBERS;
-        zone_id = zone;
+        max_members = kRailRoomDefaultMaxMemberNumber;
         enable_team_voice = true;
     }
 
     EnumRoomType type;
     uint32_t max_members;
-    uint64_t zone_id;
     RailString password;
+    RailString room_tag;
     bool enable_team_voice;
 };
 
@@ -78,7 +67,7 @@ struct RoomInfoListSorter {
     EnumRailPropertyValueType property_value_type;
     EnumRailSortType property_sort_type;
     RailString property_key;
-    double close_to_value;  // this value is valid when property_sort_type == kRailSortTypeCloseTo
+    double close_to_value;  // this value is valid when property_sort_type is kRailSortTypeCloseTo.
 };
 
 struct RoomInfoListFilterKey {
@@ -87,17 +76,18 @@ struct RoomInfoListFilterKey {
         comparison_type = kRailComparisonTypeEqualToOrLessThan;
     }
 
-    RailString key_name;                   // filter key name
-    EnumRailPropertyValueType value_type;  // value of 'key'(indicated by key_name), type of value
-    // comparison type between value( value of 'key') and filter_value
-    EnumRailComparisonType comparison_type;
-    RailString filter_value;  // user define filter value
+    RailString key_name;                     // filter key name.
+    EnumRailPropertyValueType value_type;    // value of 'key'(indicated by key_name).
+    EnumRailComparisonType comparison_type;  // comparison type between value( value of 'key')
+                                             // and filter_value.
+    RailString filter_value;                 // defined filter value.
 };
 
 struct RoomInfoListFilter {
     RoomInfoListFilter() {
         filter_password = kRailOptionalAny;
         filter_friends_owned = kRailOptionalAny;
+        filter_friends_in_room = kRailOptionalAny;
         available_slot_at_least = 0;
     }
 
@@ -117,38 +107,29 @@ struct RoomInfoListFilter {
     //
     // available_slot_at_least
 
-    // user define filter condition
-    RailArray<RoomInfoListFilterKey> key_filters;  // filter by all conditions in key_filters array
-    // filters[0] AND filters[1] AND ... AND filters[N]
-    RailString room_name_contained;
-    // filter rooms whether have password or not
-    EnumRailOptionalValue filter_password;
-    // filter rooms whether created by friends or not
-    EnumRailOptionalValue filter_friends_owned;
-    uint32_t available_slot_at_least;
-};
-
-struct ZoneInfo {
-    ZoneInfo() {
-        zone_id = 0;
-        idc_id = 0;
-        country_code = 0;
-        status = kRailZoneStatusNormal;
-    }
-    uint64_t zone_id;
-    uint64_t idc_id;
-    uint32_t country_code;
-    EnumZoneStatus status;
-    RailString name;
-    RailString description;
+    // defined filter condition
+    RailArray<RoomInfoListFilterKey> key_filters;  // filter by all conditions in key_filters array,
+                                                   // like key_filters[0] AND key_filters[1] AND ...
+                                                   // AND key_filters[N].
+    RailString room_name_contained;  // filter rooms containing the specified room name.
+                                     // If the room_name_contained value is part of the room name,
+                                     // this room will be returned from the server.
+    RailString room_tag;             // filter rooms with specified room tag. The room can be
+                                     // returned from the server ONLY when the room tag of this
+                                     // room is the same with the room_tag value.
+    EnumRailOptionalValue filter_password;         // filter rooms whether have password or not.
+    EnumRailOptionalValue filter_friends_owned;    // filter rooms whether created by friends or
+                                                   // not.
+    EnumRailOptionalValue filter_friends_in_room;  // filter rooms whether the player's friends
+                                                   // in or not.
+    uint32_t available_slot_at_least;              // filter rooms where at least
+                                                   // available_slot_at_least number slot left.
 };
 
 struct RoomInfo {
     RoomInfo() {
-        zone_id = 0;
         room_id = 0;
         owner_id = 0;
-        room_state = kRailRoomStatusFree;
         max_members = 0;
         current_members = 0;
         create_time = 0;
@@ -158,151 +139,97 @@ struct RoomInfo {
         game_server_rail_id = 0;
     }
 
-    uint64_t zone_id;
     uint64_t room_id;
     RailID owner_id;
-    EnumRoomStatus room_state;
     uint32_t max_members;
     uint32_t current_members;
     uint32_t create_time;
     RailString room_name;
+    RailString room_tag;
     bool has_password;
     bool is_joinable;
     EnumRoomType type;
-    uint64_t game_server_rail_id;
+    RailID game_server_rail_id;
     RailArray<RailKeyValue> room_kvs;
 };
 
-struct MemberInfo {
-    MemberInfo() {
+struct RoomMemberInfo {
+    RoomMemberInfo() {
         room_id = 0;
         member_id = 0;
         member_index = 0;
     }
 
     uint64_t room_id;
-    uint64_t member_id;
+    RailID member_id;
     uint32_t member_index;
     RailString member_name;
+    RailArray<RailKeyValue> member_kvs;
 };
 
 namespace rail_event {
 
-// response for the request of zone info
-struct ZoneInfoList : public RailEvent<kRailEventRoomZoneListResult> {
-    ZoneInfoList() {}
-
-    RailArray<ZoneInfo> zone_info;
-};
-
-// request for room info list
-struct RoomInfoList : public RailEvent<kRailEventRoomListResult> {
-    RoomInfoList() {
-        zone_id = 0;
-        begin_index = 0;
-        end_index = 0;
-        total_room_num_in_zone = 0;
-    }
-
-    uint64_t zone_id;
-    uint32_t begin_index;
-    uint32_t end_index;
-    uint32_t total_room_num_in_zone;
-    RailArray<RoomInfo> room_info;
-};
-
-struct RoomAllData : public RailEvent<kRailEventRoomGetAllDataResult> {
-    RoomAllData() {}
-
-    RoomInfo room_info;
-};
-
-// request for creating room info
-struct CreateRoomInfo : public RailEvent<kRailEventRoomCreated> {
-    CreateRoomInfo() {
-        zone_id = 0;
+// rename from CreateRoomInfo, 2018/11/27.
+struct CreateRoomResult : public RailEvent<kRailEventRoomCreated> {
+    CreateRoomResult() {
         room_id = 0;
     }
 
-    uint64_t zone_id;
     uint64_t room_id;
 };
 
-struct RoomMembersInfo : public RailEvent<kRailEventRoomGotRoomMembers> {
-    RoomMembersInfo() {
+struct OpenRoomResult : public RailEvent<kRailEventRoomOpenRoomResult> {
+    OpenRoomResult() {
+        result = kFailure;
+        room_id = 0;
+    }
+    uint64_t room_id;
+};
+
+// rename from RoomInfoList, 2018/11/27.
+struct GetRoomListResult : public RailEvent<kRailEventRoomGetRoomListResult> {
+    GetRoomListResult() {
+        begin_index = 0;
+        end_index = 0;
+        total_room_num = 0;
+    }
+
+    uint32_t begin_index;
+    uint32_t end_index;
+    uint32_t total_room_num;  // rename from total_room_num_in_zone, 2018/11/27.
+    RailArray<RoomInfo> room_infos;
+};
+
+// rename from UserRoomListInfo, 2018/11/27.
+struct GetUserRoomListResult : public RailEvent<kRailEventRoomGetUserRoomListResult> {
+    GetUserRoomListResult() {
+        result = kFailure;
+    }
+
+    RailArray<RoomInfo> room_info;
+};
+
+struct SetNewRoomOwnerResult : public RailEvent<kRailEventRoomSetNewRoomOwnerResult> {
+    SetNewRoomOwnerResult() {
+        result = kFailure;
+    }
+};
+
+// rename from RoomMembersInfo, 2018/11/27.
+struct GetRoomMembersResult : public RailEvent<kRailEventRoomGetRoomMembersResult> {
+    GetRoomMembersResult() {
         room_id = 0;
         member_num = 0;
     }
 
     uint64_t room_id;
     uint32_t member_num;
-    RailArray<MemberInfo> member_info;
+    RailArray<RoomMemberInfo> member_infos;
 };
 
-// info for joining a room
-struct JoinRoomInfo : public RailEvent<kRailEventRoomJoinRoomResult> {
-    JoinRoomInfo() {
-        room_id = 0;
-        zone_id = 0;
-    }
-
-    uint64_t zone_id;
-    uint64_t room_id;
-};
-
-// info for kick member
-struct KickOffMemberInfo : public RailEvent<kRailEventRoomKickOffMemberResult> {
-    KickOffMemberInfo() {
-        room_id = 0;
-        kicked_id = 0;
-    }
-
-    uint64_t room_id;
-    uint64_t kicked_id;
-};
-
-struct SetRoomMetadataInfo : public RailEvent<kRailEventRoomSetRoomMetadataResult> {
-    SetRoomMetadataInfo() { room_id = 0; }
-
-    uint64_t room_id;
-};
-
-struct GetRoomMetadataInfo : public RailEvent<kRailEventRoomGetRoomMetadataResult> {
-    GetRoomMetadataInfo() { room_id = 0; }
-
-    uint64_t room_id;
-    RailArray<RailKeyValue> key_value;
-};
-
-struct ClearRoomMetadataInfo : public RailEvent<kRailEventRoomClearRoomMetadataResult> {
-    ClearRoomMetadataInfo() { room_id = 0; }
-
-    uint64_t room_id;
-};
-
-struct GetMemberMetadataInfo : public RailEvent<kRailEventRoomGetMemberMetadataResult> {
-    GetMemberMetadataInfo() {
-        room_id = 0;
-        member_id = 0;
-    }
-
-    uint64_t room_id;
-    uint64_t member_id;
-    RailArray<RailKeyValue> key_value;
-};
-
-struct SetMemberMetadataInfo : public RailEvent<kRailEventRoomSetMemberMetadataResult> {
-    SetMemberMetadataInfo() {
-        room_id = 0;
-        member_id = 0;
-    }
-
-    uint64_t room_id;
-    uint64_t member_id;
-};
-
-struct LeaveRoomInfo : public RailEvent<kRailEventRoomLeaveRoomResult> {
-    LeaveRoomInfo() {
+// rename from LeaveRoomInfo, 2018/11/27.
+struct LeaveRoomResult : public RailEvent<kRailEventRoomLeaveRoomResult> {
+    LeaveRoomResult() {
         room_id = 0;
         reason = kLeaveRoomReasonActive;
     }
@@ -311,58 +238,96 @@ struct LeaveRoomInfo : public RailEvent<kRailEventRoomLeaveRoomResult> {
     EnumLeaveRoomReason reason;
 };
 
-struct UserRoomListInfo : public RailEvent<kRailEventRoomGetUserRoomListResult> {
-    UserRoomListInfo() {}
-
-    RailArray<RoomInfo> room_info;
-};
-
-// info of room property changed
-struct NotifyMetadataChange : public RailEvent<kRailEventRoomNotifyMetadataChanged> {
-    NotifyMetadataChange() {
+// rename from JoinRoomInfo, 2018/11/27.
+struct JoinRoomResult : public RailEvent<kRailEventRoomJoinRoomResult> {
+    JoinRoomResult() {
         room_id = 0;
-        changer_id = 0;
     }
 
     uint64_t room_id;
-    uint64_t changer_id;
 };
 
-// info of room member changed
-struct NotifyRoomMemberChange : public RailEvent<kRailEventRoomNotifyMemberChanged> {
-    NotifyRoomMemberChange() {
-        room_id = 0;
-        changer_id = 0;
-        id_for_making_change = 0;
-        state_change = kMemberEnteredRoom;
-    }
+// rename from RoomAllData, 2018/11/27.
+struct GetAllRoomDataResult : public RailEvent<kRailEventRoomGetAllDataResult> {
+    GetAllRoomDataResult() {}
 
-    uint64_t room_id;
-    uint64_t changer_id;
-    uint64_t id_for_making_change;
-    EnumRoomMemberActionStatus state_change;
+    RoomInfo room_info;
 };
 
-// info of member being kicked
-struct NotifyRoomMemberKicked : public RailEvent<kRailEventRoomNotifyMemberkicked> {
-    NotifyRoomMemberKicked() {
+// rename from KickOffMemberInfo, 2018/11/27.
+struct KickOffMemberResult : public RailEvent<kRailEventRoomKickOffMemberResult> {
+    KickOffMemberResult() {
         room_id = 0;
-        id_for_making_kick = 0;
         kicked_id = 0;
-        due_to_kicker_lost_connect = 0;
     }
 
     uint64_t room_id;
-    uint64_t id_for_making_kick;
-    uint64_t kicked_id;
-    uint32_t due_to_kicker_lost_connect;
+    RailID kicked_id;
 };
 
-// info of room destroyed
-struct NotifyRoomDestroy : public RailEvent<kRailEventRoomNotifyRoomDestroyed> {
-    NotifyRoomDestroy() { room_id = 0; }
+struct SetRoomTagResult : public RailEvent<kRailEventRoomSetRoomTagResult> {
+    SetRoomTagResult() {
+        result = kFailure;
+    }
+};
+
+struct GetRoomTagResult : public RailEvent<kRailEventRoomGetRoomTagResult> {
+    GetRoomTagResult() {
+        result = kFailure;
+    }
+
+    RailString room_tag;
+};
+
+// rename from SetRoomMetadataInfo, 2018/11/27.
+struct SetRoomMetadataResult : public RailEvent<kRailEventRoomSetRoomMetadataResult> {
+    SetRoomMetadataResult() {
+        room_id = 0;
+    }
 
     uint64_t room_id;
+};
+
+// rename from GetRoomMetadataInfo, 2018/11/27.
+struct GetRoomMetadataResult : public RailEvent<kRailEventRoomGetRoomMetadataResult> {
+    GetRoomMetadataResult() {
+        room_id = 0;
+    }
+
+    uint64_t room_id;
+    RailArray<RailKeyValue> key_value;
+};
+
+// rename from ClearRoomMetadataInfo, 2018/11/27.
+struct ClearRoomMetadataResult : public RailEvent<kRailEventRoomClearRoomMetadataResult> {
+    ClearRoomMetadataResult() {
+        room_id = 0;
+    }
+
+    uint64_t room_id;
+};
+
+// rename from SetMemberMetadataInfo, 2018/11/27.
+struct SetMemberMetadataResult : public RailEvent<kRailEventRoomSetMemberMetadataResult> {
+    SetMemberMetadataResult() {
+        room_id = 0;
+        member_id = 0;
+    }
+
+    uint64_t room_id;
+    RailID member_id;
+};
+
+// rename from GetMemberMetadataInfo, 2018/11/27.
+struct GetMemberMetadataResult : public RailEvent<kRailEventRoomGetMemberMetadataResult> {
+    GetMemberMetadataResult() {
+        room_id = 0;
+        member_id = 0;
+    }
+
+    uint64_t room_id;
+    RailID member_id;
+    RailArray<RailKeyValue> key_value;
 };
 
 struct RoomDataReceived : public RailEvent<kRailEventRoomNotifyRoomDataReceived> {
@@ -378,7 +343,70 @@ struct RoomDataReceived : public RailEvent<kRailEventRoomNotifyRoomDataReceived>
     RailString data_buf;
 };
 
-// info of room owner changed
+struct SetRoomTypeResult : public RailEvent<kRailEventRoomSetRoomTypeResult> {
+    SetRoomTypeResult() {
+        room_type = kRailRoomTypePublic;
+    }
+
+    EnumRoomType room_type;
+};
+
+struct SetRoomMaxMemberResult : public RailEvent<kRailEventRoomSetRoomMaxMemberResult> {
+    SetRoomMaxMemberResult() {
+        result = kFailure;
+    }
+};
+
+// info of room property changed.
+struct NotifyMetadataChange : public RailEvent<kRailEventRoomNotifyMetadataChanged> {
+    NotifyMetadataChange() {
+        room_id = 0;
+        changer_id = 0;
+    }
+
+    uint64_t room_id;
+    RailID changer_id;
+};
+
+// info of room member changed.
+struct NotifyRoomMemberChange : public RailEvent<kRailEventRoomNotifyMemberChanged> {
+    NotifyRoomMemberChange() {
+        room_id = 0;
+        changer_id = 0;
+        id_for_making_change = 0;
+        state_change = kMemberEnteredRoom;
+    }
+
+    uint64_t room_id;
+    RailID changer_id;
+    RailID id_for_making_change;
+    EnumRoomMemberActionStatus state_change;
+};
+
+// info of member being kicked.
+struct NotifyRoomMemberKicked : public RailEvent<kRailEventRoomNotifyMemberkicked> {
+    NotifyRoomMemberKicked() {
+        room_id = 0;
+        id_for_making_kick = 0;
+        kicked_id = 0;
+        due_to_kicker_lost_connect = 0;
+    }
+
+    uint64_t room_id;
+    RailID id_for_making_kick;
+    RailID kicked_id;
+    uint32_t due_to_kicker_lost_connect;
+};
+
+// info of room destroyed.
+struct NotifyRoomDestroy : public RailEvent<kRailEventRoomNotifyRoomDestroyed> {
+    NotifyRoomDestroy() { room_id = 0; }
+
+    uint64_t room_id;
+};
+
+
+// info of room owner changed.
 struct NotifyRoomOwnerChange : public RailEvent<kRailEventRoomNotifyRoomOwnerChanged> {
     NotifyRoomOwnerChange() {
         room_id = 0;
@@ -387,12 +415,12 @@ struct NotifyRoomOwnerChange : public RailEvent<kRailEventRoomNotifyRoomOwnerCha
         reason = kRoomOwnerActiveChange;
     }
     uint64_t room_id;
-    uint64_t old_owner_id;
-    uint64_t new_owner_id;
+    RailID old_owner_id;
+    RailID new_owner_id;
     EnumRoomOwnerChangeReason reason;
 };
 
-// info of room game server changed
+// info of room game server changed.
 struct NotifyRoomGameServerChange : public RailEvent<kRailEventRoomNotifyRoomGameServerChanged> {
     NotifyRoomGameServerChange() {
         room_id = 0;
@@ -401,7 +429,7 @@ struct NotifyRoomGameServerChange : public RailEvent<kRailEventRoomNotifyRoomGam
     }
 
     uint64_t room_id;
-    uint64_t game_server_rail_id;
+    RailID game_server_rail_id;
     uint64_t game_server_channel_id;
 };
 

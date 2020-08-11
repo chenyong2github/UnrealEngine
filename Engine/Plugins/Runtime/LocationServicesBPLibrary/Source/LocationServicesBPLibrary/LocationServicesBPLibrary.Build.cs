@@ -19,10 +19,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"LocationServicesBPLibrary",
 					// ... add private dependencies that you statically link with here ...
 				}
-				);
+			);
 
             PublicIncludePathModuleNames.Add("LocationServicesBPLibrary");
         }

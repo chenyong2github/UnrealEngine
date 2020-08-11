@@ -1578,7 +1578,23 @@ TWeakObjectPtr<UStaticMesh> UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeak
 #if WITH_EDITORONLY_DATA
 	if (!OutMesh.IsValid() && PreviewMesh)
 	{
-		OutMesh = PreviewMesh;
+		bool bUsePreviewMesh = true;
+		if (SystemInstance != nullptr)
+		{
+			UNiagaraComponent*  OwningComponent = SystemInstance->GetComponent();
+			if (OwningComponent != nullptr)
+			{
+				if (UWorld* World = OwningComponent->GetWorld())
+				{
+					bUsePreviewMesh = !World->IsGameWorld();
+				}
+			}
+		}
+
+		if (bUsePreviewMesh)
+		{
+			OutMesh = PreviewMesh;
+		}
 	}
 #endif
 	return OutMesh;

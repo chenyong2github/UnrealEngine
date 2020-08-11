@@ -43,6 +43,7 @@ AInfo::AInfo(const FObjectInitializer& ObjectInitializer)
 	SetHidden(true);
 	SetReplicatingMovement(false);
 	SetCanBeDamaged(false);
+	bEnableAutoLODGeneration = false;
 }
 
 #if WITH_EDITORONLY_DATA

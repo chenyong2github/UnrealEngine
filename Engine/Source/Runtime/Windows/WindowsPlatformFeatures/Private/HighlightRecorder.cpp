@@ -63,7 +63,7 @@ bool FHighlightRecorder::Start(double RingBufferDurationSecs)
 	RingBuffer.Reset();
 	RingBuffer.SetMaxDuration(FTimespan::FromSeconds(RingBufferDurationSecs));
 
-	RecordingStartTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
+	RecordingStartTime = FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock());
 	PauseTimestamp = 0;
 	TotalPausedDuration = 0;
 	NumPushedFrames = 0;
@@ -96,7 +96,8 @@ bool FHighlightRecorder::Pause(bool bPause)
 		State = EState::Paused;
 		UE_LOG(HighlightRecorder, Log, TEXT("paused"));
 	}
-	else if (!bPause && PauseTimestamp != 0.0)
+	//allow unpause to occur if we are actually paused or if we happened to pause on the same frame as recording start
+	else if (!bPause && (PauseTimestamp != 0.0 || PauseTimestamp == GetRecordingTime()))
 	{
 		FTimespan LastPausedDuration = GetRecordingTime() - PauseTimestamp;
 		TotalPausedDuration += LastPausedDuration;
@@ -127,7 +128,7 @@ void FHighlightRecorder::Stop()
 
 FTimespan FHighlightRecorder::GetRecordingTime() const
 {
-	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - RecordingStartTime - TotalPausedDuration;
+	return FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock()) - RecordingStartTime - TotalPausedDuration;
 }
 
 void FHighlightRecorder::OnMediaSample(const AVEncoder::FAVPacket& InSample)

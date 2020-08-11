@@ -85,6 +85,7 @@ AActor* FFoliageActor::Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.ObjectFlags = RF_Transactional;
 	SpawnParameters.bHideFromSceneOutliner = true;
+	SpawnParameters.bCreateActorPackage = true;
 	SpawnParameters.OverrideLevel = IFA->GetLevel();
 	AActor* NewActor = IFA->GetWorld()->SpawnActor(ActorClass, nullptr, nullptr, SpawnParameters);
 	if (NewActor)
@@ -346,23 +347,18 @@ void FFoliageActor::ClearSelection(const TSet<int32>& SelectedIndices)
 	AInstancedFoliageActor::SelectionChanged.Broadcast(false, GetActorsFromSelectedIndices(SelectedIndices));
 }
 
-bool FFoliageActor::UpdateInstanceFromActor(AInstancedFoliageActor* IFA, AActor* InActor, FFoliageInfo& FoliageInfo)
+bool FFoliageActor::UpdateInstanceFromActor(AInstancedFoliageActor* IFA, int32 Index, FFoliageInfo& FoliageInfo)
 {
-	int32 Index = FindIndex(InActor);
-	if (Index == INDEX_NONE)
-	{
-		return false;
-	}
-
+	AActor* Actor = ActorInstances[Index];
 	IFA->Modify();
 	const bool bChecked = false; // In the case of the PostEditUndo its possible that the instancehash is empty.
 	FoliageInfo.InstanceHash->RemoveInstance(FoliageInfo.Instances[Index].Location, Index, bChecked);
 	
-	FTransform ActorTransform = InActor->GetTransform();
+	FTransform ActorTransform = Actor->GetTransform();
 	FoliageInfo.Instances[Index].Location = ActorTransform.GetLocation();
 	FoliageInfo.Instances[Index].Rotation = FRotator(ActorTransform.GetRotation());
 	FoliageInfo.Instances[Index].PreAlignRotation = FoliageInfo.Instances[Index].Rotation;
-	FoliageInfo.Instances[Index].DrawScale3D = InActor->GetActorScale3D();
+	FoliageInfo.Instances[Index].DrawScale3D = Actor->GetActorScale3D();
 	FoliageInfo.InstanceHash->InsertInstance(FoliageInfo.Instances[Index].Location, Index);
 	
 	return true;

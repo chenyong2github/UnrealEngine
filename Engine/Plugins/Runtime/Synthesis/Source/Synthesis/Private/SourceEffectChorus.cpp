@@ -8,14 +8,14 @@ void FSourceEffectChorus::Init(const FSoundEffectSourceInitData& InitData)
 
 	if (USourceEffectChorusPreset* ProcPreset = Cast<USourceEffectChorusPreset>(Preset.Get()))
 	{
-		const uint32 PresetId = ProcPreset->GetUniqueID();
-
-		DepthMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		FeedbackMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		FrequencyMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */, 0.0f, MAX_FILTER_FREQUENCY);
-		WetMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		DryMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
-		SpreadMod.Init(InitData.AudioDeviceId, PresetId, true /* bInIsBuffered */);
+		Audio::FDeviceId DeviceId = static_cast<Audio::FDeviceId>(InitData.AudioDeviceId);
+		const bool bIsBuffered = true;
+		DepthMod.Init(DeviceId, bIsBuffered);
+		FeedbackMod.Init(DeviceId, bIsBuffered);
+		FrequencyMod.Init(DeviceId, FName("FilterFrequency"), bIsBuffered);
+		WetMod.Init(DeviceId, bIsBuffered);
+		DryMod.Init(DeviceId, bIsBuffered);
+		SpreadMod.Init(DeviceId, bIsBuffered);
 	}
 
 	Chorus.Init(InitData.SampleRate, InitData.NumSourceChannels, 2.0f, 64);
@@ -44,21 +44,21 @@ void FSourceEffectChorus::ProcessAudio(const FSoundEffectSourceInputData& InData
 		const int32 NumChannels = Chorus.GetNumChannels();
 		for (int32 SampleIndex = 0; SampleIndex < InData.NumSamples; SampleIndex += NumChannels)
 		{
-			Chorus.SetWetLevel(WetMod.GetSample(SampleIndex));
-			Chorus.SetDryLevel(DryMod.GetSample(SampleIndex));
-			Chorus.SetSpread(SpreadMod.GetSample(SampleIndex));
+			Chorus.SetWetLevel(WetMod.GetBuffer()[SampleIndex]);
+			Chorus.SetDryLevel(DryMod.GetBuffer()[SampleIndex]);
+			Chorus.SetSpread(SpreadMod.GetBuffer()[SampleIndex]);
 
-			const float Depth = DepthMod.GetSample(SampleIndex);
+			const float Depth = DepthMod.GetBuffer()[SampleIndex];
 			Chorus.SetDepth(Audio::EChorusDelays::Left, Depth);
 			Chorus.SetDepth(Audio::EChorusDelays::Center, Depth);
 			Chorus.SetDepth(Audio::EChorusDelays::Right, Depth);
 
-			const float Feedback = FeedbackMod.GetSample(SampleIndex);
+			const float Feedback = FeedbackMod.GetBuffer()[SampleIndex];
 			Chorus.SetFeedback(Audio::EChorusDelays::Left, Feedback);
 			Chorus.SetFeedback(Audio::EChorusDelays::Center, Feedback);
 			Chorus.SetFeedback(Audio::EChorusDelays::Right, Feedback);
 
-			const float Frequency = FrequencyMod.GetSample(SampleIndex);
+			const float Frequency = FrequencyMod.GetBuffer()[SampleIndex];
 			Chorus.SetFrequency(Audio::EChorusDelays::Left, Frequency);
 			Chorus.SetFrequency(Audio::EChorusDelays::Center, Frequency);
 			Chorus.SetFrequency(Audio::EChorusDelays::Right, Frequency);
@@ -72,32 +72,32 @@ void FSourceEffectChorus::ProcessAudio(const FSoundEffectSourceInputData& InData
 	}
 }
 
-void FSourceEffectChorus::SetDepthModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	DepthMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectChorus::SetFeedbackModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	FeedbackMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectChorus::SetSpreadModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	SpreadMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectChorus::SetDryModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	DryMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectChorus::SetWetModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	WetMod.UpdateSettings(InModulatorSettings);
 }
 
-void FSourceEffectChorus::SetFrequencyModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void FSourceEffectChorus::SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	FrequencyMod.UpdateSettings(InModulatorSettings);
 }
@@ -112,7 +112,7 @@ void USourceEffectChorusPreset::OnInit()
 	SetSpreadModulator(Settings.SpreadModulation);
 }
 
-void USourceEffectChorusPreset::SetDepthModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{
@@ -120,7 +120,7 @@ void USourceEffectChorusPreset::SetDepthModulator(const FSoundModulationParamete
 	});
 }
 
-void USourceEffectChorusPreset::SetFeedbackModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{
@@ -128,7 +128,7 @@ void USourceEffectChorusPreset::SetFeedbackModulator(const FSoundModulationParam
 	});
 }
 
-void USourceEffectChorusPreset::SetFrequencyModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{
@@ -136,7 +136,7 @@ void USourceEffectChorusPreset::SetFrequencyModulator(const FSoundModulationPara
 	});
 }
 
-void USourceEffectChorusPreset::SetWetModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{
@@ -144,7 +144,7 @@ void USourceEffectChorusPreset::SetWetModulator(const FSoundModulationParameterS
 	});
 }
 
-void USourceEffectChorusPreset::SetDryModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{
@@ -152,7 +152,7 @@ void USourceEffectChorusPreset::SetDryModulator(const FSoundModulationParameterS
 	});
 }
 
-void USourceEffectChorusPreset::SetSpreadModulator(const FSoundModulationParameterSettings& InModulatorSettings)
+void USourceEffectChorusPreset::SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings)
 {
 	IterateEffects<FSourceEffectChorus>([InModulatorSettings](FSourceEffectChorus& InDelay)
 	{

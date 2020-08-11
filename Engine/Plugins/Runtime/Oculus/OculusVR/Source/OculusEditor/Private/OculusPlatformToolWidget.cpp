@@ -1356,7 +1356,7 @@ void FPlatformDownloadTask::DoWork()
 {
 	// Create HTTP request for downloading oculus platform tool
 	downloadCompleteEvent = FGenericPlatformProcess::GetSynchEventFromPool(false);
-	TSharedRef<IHttpRequest> httpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> httpRequest = FHttpModule::Get().CreateRequest();
 
 	httpRequest->OnProcessRequestComplete().BindRaw(this, &FPlatformDownloadTask::OnDownloadRequestComplete);
 	httpRequest->OnRequestProgress().BindRaw(this, &FPlatformDownloadTask::OnRequestDownloadProgress);

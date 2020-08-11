@@ -328,7 +328,7 @@ namespace Chaos
 
 			if (ContactWidth > 0)
 			{
-				bool bIsManifold = (Contact.GetType() == FCollisionConstraintBase::FType::MultiPoint) && (Contact.As<FRigidBodyMultiPointContactConstraint>()->GetManifoldPlaneOwnerIndex() >= 0);
+				bool bIsManifold = (Contact.GetType() == FCollisionConstraintBase::FType::MultiPoint) && Contact.As<FRigidBodyMultiPointContactConstraint>()->IsManifoldValid();
 				if (!bIsManifold)
 				{
 					FColor C0 = (ColorScale * FColor(200, 0, 0)).ToFColor(false);

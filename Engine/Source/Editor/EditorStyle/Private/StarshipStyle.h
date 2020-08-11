@@ -45,6 +45,7 @@ public:
 		void SetupGeneralStyles();
 		void SetupLevelGeneralStyles();
 		void SetupWorldBrowserStyles();
+		void SetupWorldPartitionStyles();
 		void SetupSequencerStyles();
 		void SetupViewportStyles();
 		void SetupMenuBarStyles();

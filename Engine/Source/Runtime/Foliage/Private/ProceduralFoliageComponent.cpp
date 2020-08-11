@@ -9,6 +9,7 @@
 #include "ProceduralFoliageTile.h"
 #include "ProceduralFoliageSpawner.h"
 #include "Engine/LevelBounds.h"
+#include "EngineUtils.h"
 #include "Misc/FeedbackContext.h"
 
 
@@ -279,41 +280,25 @@ bool UProceduralFoliageComponent::GenerateProceduralContent(TArray <FDesiredFoli
 void UProceduralFoliageComponent::RemoveProceduralContent(bool InRebuildTree)
 {
 #if WITH_EDITOR
-	UWorld* World = GetWorld();
-
-	for (ULevel* Level : World->GetLevels())
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
 	{
-		if (Level)
-		{
-			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
-			if (IFA)
-			{
-				IFA->DeleteInstancesForProceduralFoliageComponent(this, InRebuildTree);
-			}
-		}
+		(*It)->DeleteInstancesForProceduralFoliageComponent(this, InRebuildTree);
 	}
 #endif
 }
 
 bool UProceduralFoliageComponent::HasSpawnedAnyInstances()
 {
-	bool bHasSpawnedInstances = false;
 #if WITH_EDITOR
-	UWorld* World = GetWorld();
-
-	for (ULevel* Level : World->GetLevels())
+	for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
 	{
-		if (Level)
+		if ((*It)->ContainsInstancesFromProceduralFoliageComponent(this))
 		{
-			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
-			if (IFA)
-			{
-				bHasSpawnedInstances |= IFA->ContainsInstancesFromProceduralFoliageComponent(this);
-			}
+			return true;
 		}
 	}
 #endif
-	return bHasSpawnedInstances;
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

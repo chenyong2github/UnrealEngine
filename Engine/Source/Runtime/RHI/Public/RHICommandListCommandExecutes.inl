@@ -282,7 +282,7 @@ void FRHICommandSetGraphicsPipelineState::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(SetGraphicsPipelineState);
 	extern FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(FGraphicsPipelineState* GraphicsPipelineState);
 	FRHIGraphicsPipelineState* RHIGraphicsPipelineState = ExecuteSetGraphicsPipelineState(GraphicsPipelineState);
-	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(RHIGraphicsPipelineState);
+	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(RHIGraphicsPipelineState, bApplyAdditionalState);
 }
 
 void FRHICommandDispatchComputeShader::Execute(FRHICommandListBase& CmdList)

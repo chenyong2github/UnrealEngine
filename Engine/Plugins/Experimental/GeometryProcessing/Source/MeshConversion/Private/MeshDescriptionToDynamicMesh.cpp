@@ -210,6 +210,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			{
 				GroupID = PolygonGroupID;
 			}
+			GroupID++; // Shift IDs up by 1 to leave ID 0 as a default/unassigned group
 
 			// append triangle
 			int32 VertexID0 = MeshIn->GetVertexInstanceVertex(InstanceTri[0]).GetValue();

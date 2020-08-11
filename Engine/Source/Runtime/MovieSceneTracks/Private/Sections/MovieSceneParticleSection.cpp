@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneParticleSection.h"
-#include "Evaluation/MovieSceneParticleTemplate.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "UObject/Package.h"
@@ -36,9 +35,4 @@ UMovieSceneParticleSection::UMovieSceneParticleSection( const FObjectInitializer
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(ParticleKeys);
 
 #endif
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneParticleSection::GenerateTemplate() const
-{
-	return FMovieSceneParticleSectionTemplate(*this);
 }

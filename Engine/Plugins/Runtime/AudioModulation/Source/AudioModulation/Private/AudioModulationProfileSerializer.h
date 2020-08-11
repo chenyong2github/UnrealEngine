@@ -6,6 +6,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "SoundModulationValue.h"
 #include "UObject/Object.h"

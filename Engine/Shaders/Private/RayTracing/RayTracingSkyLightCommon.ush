@@ -61,7 +61,16 @@ float PdfSkyLightOcclusionRay(
 		// Determine texel choice
 		uint2 MipOffset = (MipCoord.xy >> MipIndex) - MipPixel;
 		uint LinearIndex = MipOffset.y << 1 | MipOffset.x;
-		MipPdf *= LinearIndex > 0 ? Cdf[LinearIndex] - Cdf[LinearIndex - 1] : Cdf[LinearIndex];
+		
+		if (LinearIndex > 0)
+		{
+			MipPdf *= Cdf[LinearIndex] - Cdf[LinearIndex - 1] 
+		}
+		else
+		{
+			MipPdf *= Cdf[LinearIndex];
+		}
+
 		MipPixel += MipOffset;
 
 		MipPixel = MipPixel << 1;

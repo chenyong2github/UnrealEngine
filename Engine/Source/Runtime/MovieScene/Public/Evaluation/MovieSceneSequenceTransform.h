@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Algo/AllOf.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/FrameTime.h"
@@ -109,6 +110,14 @@ struct FMovieSceneNestedSequenceTransform
 		, Warping(InWarping)
 	{}
 
+	/**
+	 * Returns whether this transform is identity.
+	 */
+	bool IsIdentity() const { return LinearTransform.IsIdentity() && !IsWarping(); }
+
+	/**
+	 * Returns whether this transform is warping.
+	 */
 	bool IsWarping() const { return Warping.IsValid(); }
 
 	/**
@@ -185,6 +194,20 @@ struct FMovieSceneSequenceTransform
 	friend bool operator!=(const FMovieSceneSequenceTransform& A, const FMovieSceneSequenceTransform& B)
 	{
 		return A.LinearTransform != B.LinearTransform || A.NestedTransforms != B.NestedTransforms;
+	}
+
+	/**
+	 * Returns whether this sequence transform is an identity transform (i.e. it doesn't change anything).
+	 */
+	bool IsIdentity() const
+	{
+		return LinearTransform.IsIdentity() && 
+			(NestedTransforms.Num() == 0 || 
+			 Algo::AllOf(NestedTransforms,
+				 [](const FMovieSceneNestedSequenceTransform& A) -> bool
+				 {
+					return A.IsIdentity();
+				 }));
 	}
 
 	/**
@@ -494,9 +517,13 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 		else
 		{
 			// LHS is linear, but RHS is warping. Since transforms are supposed to apply from right to left,
-			// We need to append LHS at the "bottom" of RHS, i.e. add a new nested transform that's LHS.
+			// we need to append LHS at the "bottom" of RHS, i.e. add a new nested transform that's LHS. However
+			// if LHS is identity, we have nothing to do.
 			FMovieSceneSequenceTransform Result(RHS);
-			Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+			if (!LHS.LinearTransform.IsIdentity())
+			{
+				Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+			}
 			return Result;
 		}
 	}
@@ -517,7 +544,7 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 			// because whatever linear placement/scaling it has would be in the linear part of the nested transform
 			// struct.
 			FMovieSceneSequenceTransform Result(RHS);
-			const bool bHasOnlyNested = LHS.LinearTransform.Offset == 0 && LHS.LinearTransform.TimeScale == 1.f;
+			const bool bHasOnlyNested = LHS.LinearTransform.IsIdentity();
 			ensure(bHasOnlyNested);
 			if (!bHasOnlyNested)
 			{

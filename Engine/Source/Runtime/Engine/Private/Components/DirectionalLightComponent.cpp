@@ -170,6 +170,15 @@ public:
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
 	float TraceDistance;
 
+	uint32 bCastShadowsOnClouds : 1;
+	uint32 bCastShadowsOnAtmosphere : 1;
+	uint32 bCastCloudShadows : 1;
+	float CloudShadowExtent;
+	float CloudShadowStrength;
+	float CloudShadowMapResolutionScale;
+	FLinearColor CloudScatteredLuminanceScale;
+	uint32 bPerPixelAtmosphereTransmittance : 1;
+
 	/** Initialization constructor. */
 	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component) :
 		FLightSceneProxy(Component),
@@ -189,7 +198,15 @@ public:
 		DistanceFieldShadowDistance(Component->bUseRayTracedDistanceFieldShadows ? Component->DistanceFieldShadowDistance : 0),
 		LightSourceAngle(Component->LightSourceAngle),
 		LightSourceSoftAngle(Component->LightSourceSoftAngle),
-		TraceDistance(FMath::Clamp(Component->TraceDistance, 1000.0f, 1000000.0f))
+		TraceDistance(FMath::Clamp(Component->TraceDistance, 1000.0f, 1000000.0f)),
+		bCastShadowsOnClouds(Component->bCastShadowsOnClouds),
+		bCastShadowsOnAtmosphere(Component->bCastShadowsOnAtmosphere),
+		bCastCloudShadows(Component->bCastCloudShadows),
+		CloudShadowExtent(Component->CloudShadowExtent),
+		CloudShadowStrength(Component->CloudShadowStrength),
+		CloudShadowMapResolutionScale(Component->CloudShadowMapResolutionScale),
+		CloudScatteredLuminanceScale(Component->CloudScatteredLuminanceScale),
+		bPerPixelAtmosphereTransmittance(Component->bPerPixelAtmosphereTransmittance)
 	{
 		LightShaftOverrideDirection.Normalize();
 
@@ -452,6 +469,40 @@ public:
 	virtual float GetSunLightHalfApexAngleRadian() const override
 	{
 		return 0.5f * LightSourceAngle * PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree
+	}
+
+
+	virtual bool GetCastShadowsOnClouds()  const override 
+	{ 
+		return bCastShadowsOnClouds; 
+	}
+	virtual bool GetCastShadowsOnAtmosphere()  const override
+	{
+		return bCastShadowsOnAtmosphere;
+	}
+	virtual bool GetCastCloudShadows()  const override
+	{
+		return bCastCloudShadows;
+	}
+	virtual float GetCloudShadowExtent()  const override
+	{
+		return CloudShadowExtent;
+	}
+	virtual float GetCloudShadowMapResolutionScale()  const override
+	{
+		return CloudShadowMapResolutionScale;
+	}
+	virtual float GetCloudShadowStrength()  const override
+	{
+		return CloudShadowStrength;
+	}
+	virtual FLinearColor GetCloudScatteredLuminanceScale()  const override
+	{
+		return CloudScatteredLuminanceScale;
+	}
+	virtual bool GetUsePerPixelAtmosphereTransmittance()  const override
+	{
+		return bPerPixelAtmosphereTransmittance;
 	}
 
 private:
@@ -805,7 +856,7 @@ private:
 				FadeExtension *= FMath::Clamp(CVarRtdfFarTransitionScale.GetValueOnAnyThread(), 0.0f, 1.0f);
 			}
 			// For the last cascade, we want to fade out to avoid a hard line, since there is no further cascade to overlap with, 
-			// extending the far makes little sensse as extending the shadow range would be counter intuitive and affect performance. 
+			// extending the far makes little sense as extending the shadow range would be counter intuitive and affect performance. 
 			// Thus, move the fade plane closer:
 			FadePlane -= FadeExtension;
 		}
@@ -892,6 +943,15 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	bUsedAsAtmosphereSunLight = false;
 	AtmosphereSunLightIndex = 0;
 	AtmosphereSunDiskColorScale = FLinearColor::White;
+
+	bCastShadowsOnClouds = 0;
+	bCastShadowsOnAtmosphere = 0;
+	bCastCloudShadows = 0;
+	CloudShadowExtent = 150.0f;
+	CloudShadowMapResolutionScale = 1.0f;
+	CloudShadowStrength = 1.0f;
+	CloudScatteredLuminanceScale = FLinearColor::White;
+	bPerPixelAtmosphereTransmittance = 0;
 }
 
 #if WITH_EDITOR
@@ -982,6 +1042,27 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 		{
 			return bUseInsetShadowsForMovableObjects && bCastModulatedShadows;
 		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowExtent)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowMapResolutionScale)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowStrength))
+		{
+			return bCastCloudShadows && bUsedAsAtmosphereSunLight;
+		}
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastCloudShadows)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastShadowsOnAtmosphere)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudScatteredLuminanceScale)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bPerPixelAtmosphereTransmittance)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, AtmosphereSunLightIndex)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, AtmosphereSunDiskColorScale))
+		{
+			return bUsedAsAtmosphereSunLight;
+		}
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bCastShadowsOnClouds))
+		{
+			return bUsedAsAtmosphereSunLight && AtmosphereSunLightIndex == 0;	// AtmosphereLight1 has opaque shadow on cloud disabled.
+		}
+
 
 	}
 

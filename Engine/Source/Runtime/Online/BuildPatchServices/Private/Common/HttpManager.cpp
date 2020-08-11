@@ -13,7 +13,7 @@ namespace BuildPatchServices
 		~FHttpManager();
 
 		// IHttpManager interface begin.
-		virtual TSharedRef<IHttpRequest> CreateRequest() override;
+		virtual TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest() override;
 		// IHttpManager interface end.
 
 	private:
@@ -29,7 +29,7 @@ namespace BuildPatchServices
 	{
 	}
 
-	TSharedRef<IHttpRequest> FHttpManager::CreateRequest()
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FHttpManager::CreateRequest()
 	{
 		return HttpModule.CreateRequest();
 	}

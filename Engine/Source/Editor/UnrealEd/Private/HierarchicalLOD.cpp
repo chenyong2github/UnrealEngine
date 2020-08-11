@@ -26,7 +26,7 @@
 #include "../Classes/Editor/EditorEngine.h"
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
-#include "Subsystems/HLODEditorSubsystem.h"
+#include "HLOD/HLODEngineSubsystem.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #endif // WITH_EDITOR
@@ -67,7 +67,7 @@ void UHierarchicalLODSettings::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UHierarchicalLODSettings, bSaveLODActorsToHLODPackages))
 	{
-		GEditor->GetEditorSubsystem<UHLODEditorSubsystem>()->OnSaveLODActorsToHLODPackagesChanged();
+		GEngine->GetEngineSubsystem<UHLODEngineSubsystem>()->OnSaveLODActorsToHLODPackagesChanged();
 	}
 }
 
@@ -93,33 +93,15 @@ void FHierarchicalLODBuilder::Build()
 
 void FHierarchicalLODBuilder::PreviewBuild()
 {
-	check(World);
-	bool bVisibleLevelsWarning = false;
-
-	const TArray<ULevel*>& Levels = World->GetLevels();
-	for (ULevel* LevelIter : Levels)
+	if (ensure(World))
 	{
-		if (ShouldBuildHLODForLevel(World, LevelIter))
+		for (ULevel* Level : World->GetLevels())
 		{
-			// Only build clusters for levels that are visible, and throw warning if any are hidden
-			if (LevelIter->bIsVisible)
+			if (ShouldBuildHLODForLevel(World, Level))
 			{
-				BuildClusters(LevelIter);
-			}
-			else
-			{
-				bVisibleLevelsWarning |= LevelIter->GetWorldSettings()->bEnableHierarchicalLODSystem;
+				BuildClusters(Level);
 			}
 		}
-	}
-
-	// Fire map check warnings for hidden levels 
-	if (bVisibleLevelsWarning)
-	{
-		FMessageLog MapCheck("HLODResults");
-		MapCheck.Warning()
-			->AddToken(FUObjectToken::Create(World->GetWorldSettings()))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_PreviewBuild_HLODHiddenLevels", "Certain levels are marked as hidden, Hierarchical LODs will not be built for hidden levels.")));
 	}
 }
 
@@ -150,7 +132,7 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 	LODLevelLODActors.AddDefaulted(NumHLODLevels);
 
 	// only build if it's enabled
-	if (InLevel->GetWorldSettings()->bEnableHierarchicalLODSystem && BuildLODLevelSettings.Num() > 0)
+	if (BuildLODLevelSettings.Num() > 0)
 	{
 		CreateTempLODActorLevel(InLevel);
 
@@ -279,16 +261,6 @@ void FHierarchicalLODBuilder::BuildClusters(ULevel* InLevel)
 
 		ApplyClusteringChanges(InLevel);
 	}
-	else
-	{
-		// Fire map check warnings if HLOD System is not enabled
-		FMessageLog MapCheck("HLODResults");
-		MapCheck.Warning()
-			->AddToken(FUObjectToken::Create(InLevel->GetWorldSettings()))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_HLODSystemNotEnabled", "Hierarchical LOD System is disabled in (sub-)level, unable to build LOD actors.")))
-			->AddToken(FUObjectToken::Create(InLevel->GetOutermost()))
-			->AddToken(FMapErrorToken::Create(FMapErrors::HLODSystemNotEnabled));
-	}
 
 	// Clear Clusters. It is using stack mem, so it won't be good after this
 	Clusters.Empty();
@@ -353,19 +325,28 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 {
 	bool bSaveLODActorsToHLODPackages = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
 
-	bool bChanged = false;
+	// Check if the level must be resaved
+	bool bLevelChanged = false;
 	for (ALODActor* LODActor : OldLODActors)
 	{
+		// If the config was changed, we must resave the level
 		if (LODActor->WasBuiltFromHLODDesc() != bSaveLODActorsToHLODPackages)
 		{
-			bChanged = true;
+			bLevelChanged = true;
+			break;
+		}
+
+		// If actors spawned from the HLODPackage aren't transients, we must resave the level
+		if (LODActor->WasBuiltFromHLODDesc() && !LODActor->HasAllFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient))
+		{
+			bLevelChanged = true;
 			break;
 		}
 	}
 
 	// Compare the LOD actors we spawned against those in the level
-	bChanged = bChanged || OldLODActors.Num() != NewLODActors.Num();
-	if (!bChanged)
+	bool bActorChanged = bLevelChanged || OldLODActors.Num() != NewLODActors.Num();
+	if (!bActorChanged)
 	{
 		TSet<int32> HashedLODActors;
 		Algo::Transform(OldLODActors, HashedLODActors, [](ALODActor* LODActor) { return HashLODActorForClusterComparison(LODActor); });
@@ -375,14 +356,14 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 			int32 Hash = HashLODActorForClusterComparison(LODActor);
 			if (!HashedLODActors.Contains(Hash))
 			{
-				bChanged = true;
+				bActorChanged = true;
 				break;
 			}
 		}
 	}
 
 	// If clusters changed, delete old LOD actors and move the new ones in the proper level
-	if (bChanged)
+	if (bActorChanged)
 	{
 		// Delete all 
 		DeleteLODActors(InLevel);
@@ -393,7 +374,15 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 		for (ALODActor* LODActor : NewLODActors)
 		{
 			// Move the LOD actor from the temp level to the proper level
-			LODActor->Rename(nullptr, InLevel);
+			LODActor->Rename(nullptr, InLevel, REN_DoNotDirty);
+
+			// Ensure the new LODActor use it's own package if the level is setup to use external actors.
+			if (InLevel->bUseExternalActors)
+			{
+				LODActor->SetPackageExternal(true, false);
+			}
+
+			LODActor->MarkPackageDirty();
 
 			// Reinsert actors properly in the LODActor subactors array
 			// Will also setup LODParentPrimitive for each actors primitive components.
@@ -409,10 +398,12 @@ void FHierarchicalLODBuilder::ApplyClusteringChanges(ULevel* InLevel)
 				UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(InLevel, LODActor->LODLevel - 1);
 				Proxy->AddLODActor(LODActor);
 			}
-			else
-			{
-				LODActor->MarkPackageDirty();
-			}
+		}
+
+		// If the level must be resaved, mark its package dirty
+		if (bLevelChanged)
+		{
+			InLevel->MarkPackageDirty();
 		}
 	}
 
@@ -775,31 +766,15 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 
 void FHierarchicalLODBuilder::ClearHLODs()
 {
-	bool bVisibleLevelsWarning = false;
-
-	for (ULevel* Level : World->GetLevels())
+	if (ensure(World))
 	{
-		if (ShouldBuildHLODForLevel(World, Level))
+		for (ULevel* Level : World->GetLevels())
 		{
-			if (Level->bIsVisible)
+			if (ShouldBuildHLODForLevel(World, Level))
 			{
 				DeleteLODActors(Level);
 			}
-			else
-			{
-				bVisibleLevelsWarning |= Level->GetWorldSettings()->bEnableHierarchicalLODSystem;
-			}
 		}
-	}
-
-
-	// Fire map check warnings for hidden levels 
-	if (bVisibleLevelsWarning)
-	{
-		FMessageLog MapCheck("MapCheck");
-		MapCheck.Warning()
-			->AddToken(FUObjectToken::Create(World->GetWorldSettings()))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NoDeleteHLODHiddenLevels", "Certain levels are marked as hidden, Hierarchical LODs will not be deleted for hidden levels.")));
 	}
 }
 
@@ -817,13 +792,6 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 	{
 		if (!ShouldBuildHLODForLevel(World, LevelIter))
 		{
-			continue;
-		}
-
-		// Only meshes for clusters that are in a visible level
-		if (!LevelIter->bIsVisible)
-		{
-			bVisibleLevelsWarning |= LevelIter->GetWorldSettings()->bEnableHierarchicalLODSystem;
 			continue;
 		}
 
@@ -881,48 +849,76 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 				for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
 				{
-					UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
-					UPackage* AssetsOuter = Proxy->GetOutermost();
-					checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+					TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
 
-					if (AssetsOuter)
+					if (LODLevel.Num() > 0)
 					{
-						int32 LODActorIndex = 0;
-						TArray<ALODActor*>& LODLevel = LODLevelActors[LODIndex];
-						for (ALODActor* Actor : LODLevel)
+						UHLODProxy* Proxy = Utilities->CreateOrRetrieveLevelHLODProxy(LevelIter, LODIndex);
+
+						UPackage* AssetsOuter = Proxy->GetOutermost();
+						checkf(AssetsOuter != nullptr, TEXT("Failed to created outer for generated HLOD assets"));
+						if (AssetsOuter)
 						{
-							SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
-
-							bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
-
-							// Report an error if the build failed
-							if (!bBuildSuccessful)
+							int32 LODActorIndex = 0;
+							for (ALODActor* Actor : LODLevel)
 							{
-								FMessageLog("HLODResults").Error()
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
-									->AddToken(FUObjectToken::Create(Actor))
-									->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
-							}
-							else
-							{
-								AssetsOuter->Modify();
-							}
+								SlowTask.EnterProgressFrame(100.0f / (float)NumLODActors, FText::Format(LOCTEXT("HierarchicalLOD_BuildLODActorMeshesProgress", "Building LODActor Mesh {0} of {1} (LOD Level {2})"), FText::AsNumber(LODActorIndex), FText::AsNumber(LODLevelActors[LODIndex].Num()), FText::AsNumber(LODIndex + 1)));
 
-							++LODActorIndex;
+								bool bBuildSuccessful = Utilities->BuildStaticMeshForLODActor(Actor, AssetsOuter, BuildLODLevelSettings[LODIndex], BaseMaterial);
+
+								// Report an error if the build failed
+								if (!bBuildSuccessful)
+								{
+									FMessageLog("HLODResults").Error()
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
+										->AddToken(FUObjectToken::Create(Actor))
+										->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
+								}
+								else
+								{
+									AssetsOuter->Modify();
+								}
+
+								++LODActorIndex;
+							}
+						}
+					}
+					else
+					{
+						// No HLODs were generated for this HLOD level, ensure the proxy is cleaned and that the associated package is deleted
+						UHLODProxy* Proxy = Utilities->RetrieveLevelHLODProxy(LevelIter, LODIndex);
+						if (Proxy)
+						{
+							Proxy->Clean();
 						}
 					}
 				}
 			}
 		}
 	}
+}
 
-	// Fire map check warnings for hidden levels 
-	if (bVisibleLevelsWarning)
+void FHierarchicalLODBuilder::DeleteEmptyHLODPackages(ULevel* InLevel)
+{
+	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
+
+	// Look for HLODProxy packages associated with this level
+	int32 NumLODLevels = InLevel->GetWorldSettings()->GetHierarchicalLODSetup().Num();
+	for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
 	{
-		FMessageLog MapCheck("MapCheck");
-		MapCheck.Warning()
-			->AddToken(FUObjectToken::Create(World->GetWorldSettings()))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_NoBuildHLODHiddenLevels", "Certain levels are marked as hidden, Hierarchical LODs will not be built for hidden levels.")));
+		// Obtain HLOD package for the current HLOD level
+		UHLODProxy* HLODProxy = Utilities->RetrieveLevelHLODProxy(InLevel, LODIndex);
+		if (HLODProxy)
+		{
+			HLODProxy->Clean();
+
+			// If this proxy is empty, we can delete the package
+			if (HLODProxy->IsEmpty())
+			{
+				HLODProxy->DeletePackage();
+			}
+		}
 	}
 }
 
@@ -939,7 +935,6 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
 		// Retrieve LOD actors from the level
-		uint32 NumLODActors = 0;
 		for (int32 ActorId = 0; ActorId < InLevel->Actors.Num(); ++ActorId)
 		{
 			AActor* Actor = InLevel->Actors[ActorId];
@@ -958,11 +953,9 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			if (HLODProxy)
 			{
 				// Ensure the HLOD descs are up to date.
-				if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
-				{
-					HLODProxy->UpdateHLODDescs(InLevel);
-				}
+				HLODProxy->Clean();
 
+				// Add the HLODProxy package to the list of packages to save
 				InHLODPackagesToSave.Add(HLODProxy->GetOutermost());
 			}
 			// If we couldn't find the HLOD package, the level may have been renamed, 
@@ -998,7 +991,10 @@ void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPac
 			{
 				for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
 				{
-					InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+					if (Component->GetStaticMesh())
+					{
+						InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+					}
 				}
 			}
 		}
@@ -1101,7 +1097,7 @@ void FHierarchicalLODBuilder::BuildMeshForLODActor(ALODActor* LODActor, const ui
 		FMessageLog("HLODResults").Error()
 			->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildOne", "Cannot create proxy mesh for ")))
 			->AddToken(FUObjectToken::Create(LODActor))
-			->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));			
+			->AddToken(FTextToken::Create(LOCTEXT("HLODError_MeshNotBuildTwo", " this could be caused by incorrect mesh components in the sub actors")));
 	}
 }
 
@@ -1281,6 +1277,9 @@ ALODActor* FHierarchicalLODBuilder::CreateLODActor(const FLODCluster& InCluster,
 
 			FActorSpawnParameters ActorSpawnParams;
 			ActorSpawnParams.OverrideLevel = TempLevel;
+
+			// LODActors that are saved to HLOD packages must be transient
+			ActorSpawnParams.ObjectFlags = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages ? EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient : EObjectFlags::RF_NoFlags;
 
 			NewActor = LevelWorld->SpawnActor<ALODActor>(ALODActor::StaticClass(), Transform, ActorSpawnParams);
 			NewLODActors.Add(NewActor);

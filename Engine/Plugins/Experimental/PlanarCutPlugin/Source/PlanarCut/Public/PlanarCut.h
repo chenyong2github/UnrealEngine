@@ -56,6 +56,11 @@ struct PLANARCUT_API FPlanarCells
 	TArray<TArray<int32>> PlaneBoundaries;
 	TArray<FVector> PlaneBoundaryVertices;
 
+	// most cellular complexes we're interested in lend themselves to reasonably-fast ways to go directly from a point in space to a cell classification, so we don't try to compute it directly from this generic representation
+	TFunction<int32(FVector)> CellFromPosition;
+
+	FInternalSurfaceMaterials InternalSurfaceMaterials;
+	
 	/**
 	 * Debugging function to check that the plane boundary vertices are wound to match the orientation of the plane normal vectors
 	 * @return	false if any plane boundary vertices are found in the 'wrong' orientation relative to the plane normal
@@ -102,11 +107,6 @@ struct PLANARCUT_API FPlanarCells
 		}
 		return true;
 	}
-
-	// most cellular complexes we're interested in lend themselves to reasonably-fast ways to go directly from a point in space to a cell classification, so we don't try to compute it directly from this generic representation
-	TFunction<int32(FVector)> CellFromPosition;
-
-	FInternalSurfaceMaterials InternalSurfaceMaterials;
 
 	void EmptyGeometricData()
 	{

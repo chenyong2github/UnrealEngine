@@ -19,7 +19,6 @@ namespace AudioModulation
 		, LFOValue(1.0f)
 		, MixValue(NAN)
 		, bBypass(false)
-		, Operator(ESoundModulatorOperator::Multiply)
 		, Range(0.0f, 1.0f)
 	{
 	}
@@ -71,10 +70,9 @@ namespace AudioModulation
 	{
 		check(ModSystem);
 
-		DefaultValue = InSettings.DefaultValue;
 		LFOValue = 1.0f;
 		MixValue = NAN;
-		Operator = InSettings.Operator;
+		MixFunction = InSettings.MixFunction;
 		Range = FVector2D(InSettings.Min, InSettings.Max);
 		if (InSettings.Min > InSettings.Max)
 		{
@@ -82,7 +80,7 @@ namespace AudioModulation
 			Range.Y = InSettings.Min;
 		}
 
-		DefaultValue = FMath::Clamp(DefaultValue, Range.X, Range.Y);
+		DefaultValue = FMath::Clamp(InSettings.DefaultValue, Range.X, Range.Y);
 		bBypass = InSettings.bBypass;
 
 		TArray<FLFOHandle> NewHandles;
@@ -109,7 +107,10 @@ namespace AudioModulation
 		{
 			return ValueA;
 		}
-		return SoundModulatorOperator::Apply(Operator, MixValue, ValueA);
+
+		float OutValue = MixValue;
+		MixFunction(&OutValue, &ValueA, 1);
+		return OutValue;
 	}
 
 	void FControlBusProxy::MixIn(const float InValue)

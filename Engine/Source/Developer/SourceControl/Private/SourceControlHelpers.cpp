@@ -887,12 +887,9 @@ static FString PackageFilename_Internal( const FString& InPackageName )
 		if ( FPackageName::IsValidLongPackageName(InPackageName, bIncludeReadOnlyRoots) )
 		{
 			UPackage* Package = FindPackage(nullptr, *InPackageName);
-			if ( Package )
-			{
-				// This is a package in memory that has not yet been saved. Determine the extension and convert to a filename
-				const FString PackageExtension = Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-				Filename = FPackageName::LongPackageNameToFilename(InPackageName, PackageExtension);
-			}
+			// This is a package in memory that has not yet been saved. Determine the extension and convert to a filename, if we do have the package, just assume normal asset extension
+			const FString PackageExtension = Package && Package->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+			Filename = FPackageName::LongPackageNameToFilename(InPackageName, PackageExtension);
 		}
 	}
 

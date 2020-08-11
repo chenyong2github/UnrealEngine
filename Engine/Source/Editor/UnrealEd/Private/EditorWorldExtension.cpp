@@ -218,7 +218,6 @@ void UEditorWorldExtension::ReparentActor(AActor* Actor, UWorld* NewWorld)
 	ULevel* Level = NewWorld->PersistentLevel;
 	Actor->Rename(nullptr, Level);
 
-
 	// Are we transitioning into a live world?
 	if( NewWorld->HasBegunPlay() )
 	{

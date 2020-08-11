@@ -47,6 +47,23 @@ UMaterialInterface* ToolSetupUtil::GetDefaultWorkingMaterial(UInteractiveToolMan
 }
 
 
+UMaterialInstanceDynamic* ToolSetupUtil::GetUVCheckerboardMaterial(double CheckerDensity)
+{
+	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/CheckerMaterial"));
+	if (CheckerMaterialBase != nullptr)
+	{
+		UMaterialInstanceDynamic* CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, NULL);
+		if (CheckerMaterial != nullptr)
+		{
+			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+			return CheckerMaterial;
+		}
+	}
+	return UMaterialInstanceDynamic::Create(GetDefaultMaterial(), NULL);
+}
+
+
+
 UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager)
 {
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BrushIndicatorMaterial"));
@@ -127,7 +144,7 @@ UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(UInteractiveToolManager*
 }
 
 
-UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float DepthOffset)
+UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseColor, UInteractiveToolManager* ToolManager, float PercentDepthOffset)
 {
 	check(ToolManager != nullptr);		// required for outer
 	UMaterialInterface* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/SelectionMaterial"));
@@ -139,9 +156,9 @@ UMaterialInterface* ToolSetupUtil::GetSelectionMaterial(const FLinearColor& UseC
 	{
 		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
 		MatInstance->SetVectorParameterValue(TEXT("ConstantColor"), UseColor);
-		if (DepthOffset != 0)
+		if (PercentDepthOffset != 0)
 		{
-			MatInstance->SetScalarParameterValue(TEXT("DepthOffset"), DepthOffset);
+			MatInstance->SetScalarParameterValue(TEXT("PercentDepthOffset"), PercentDepthOffset);
 		}
 		return MatInstance;
 	}

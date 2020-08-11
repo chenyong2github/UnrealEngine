@@ -163,10 +163,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 {
 	SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 	SetGenerateOverlapEvents(false);
-	CastShadow = true;
-	// by default we want to see the Landscape shadows even in the far shadow cascades
-	bCastFarShadow = true;
-	bAffectDistanceFieldLighting = true;
+	
 	bUseAsOccluder = true;
 	bAllowCullDistanceVolume = false;
 	CollisionMipLevel = 0;
@@ -714,9 +711,12 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 {
 	ALandscapeProxy* LandscapeProxy = GetLandscapeProxy();
 
+	CastShadow = LandscapeProxy->CastShadow;
+	bCastDynamicShadow = LandscapeProxy->bCastDynamicShadow;
 	bCastStaticShadow = LandscapeProxy->bCastStaticShadow;
-	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bCastFarShadow = LandscapeProxy->bCastFarShadow;
+	bCastHiddenShadow = LandscapeProxy->bCastHiddenShadow;
+	bCastShadowAsTwoSided = LandscapeProxy->bCastShadowAsTwoSided;
 	bAffectDistanceFieldLighting = LandscapeProxy->bAffectDistanceFieldLighting;
 	bRenderCustomDepth = LandscapeProxy->bRenderCustomDepth;
 	LDMaxDrawDistance = LandscapeProxy->LDMaxDrawDistance;
@@ -1051,8 +1051,13 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	SetHidden(false);
 	SetReplicatingMovement(false);
 	SetCanBeDamaged(false);
-	// by default we want to see the Landscape shadows even in the far shadow cascades
+	
+	CastShadow = true;
+	bCastDynamicShadow = true;
+	bCastStaticShadow = true;
 	bCastFarShadow = true;
+	bCastHiddenShadow = false;
+	bCastShadowAsTwoSided = false;
 	bAffectDistanceFieldLighting = true;
 
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent0"));
@@ -1078,7 +1083,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	LOD0DistributionSetting = 1.25f;
 	LODDistributionSetting = 3.0f;
 	bCastStaticShadow = true;
-	bCastShadowAsTwoSided = false;
 	bUsedForNavigation = true;
 	bFillCollisionUnderLandscapeForNavmesh = false;
 	CollisionThickness = 16;
@@ -2560,8 +2564,13 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 
 		//PrePivot = Landscape->PrePivot;
 		StaticLightingResolution = Landscape->StaticLightingResolution;
+		CastShadow = Landscape->CastShadow;
+		bCastDynamicShadow = Landscape->bCastDynamicShadow;
 		bCastStaticShadow = Landscape->bCastStaticShadow;
+		bCastFarShadow = Landscape->bCastFarShadow;
+		bCastHiddenShadow = Landscape->bCastHiddenShadow;
 		bCastShadowAsTwoSided = Landscape->bCastShadowAsTwoSided;
+		bAffectDistanceFieldLighting = Landscape->bAffectDistanceFieldLighting;
 		LightingChannels = Landscape->LightingChannels;
 		bRenderCustomDepth = Landscape->bRenderCustomDepth;
 		LDMaxDrawDistance = Landscape->LDMaxDrawDistance;		
@@ -3123,7 +3132,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			checkf(!LandscapeActor || LandscapeActor == Landscape, TEXT("Multiple landscapes with the same GUID detected: %s vs %s"), *LandscapeActor->GetPathName(), *Landscape->GetPathName());
 			LandscapeActor = Landscape;
 			// In world composition user is not allowed to move landscape in editor, only through WorldBrowser 
-			LandscapeActor->bLockLocation = OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
+			LandscapeActor->bLockLocation |= OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
 
 			// update proxies reference actor
 			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)
@@ -4032,8 +4041,10 @@ bool ULandscapeLODStreamingProxy::StreamIn(int32 NewMipCount, bool bHighPrio)
 	return false;
 }
 
-bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading)
+bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
+	bool bUpdatePending = false;
+
 	if (PendingUpdate)
 	{
 		if (IsEngineExitRequested() || !IsReadyForStreaming())
@@ -4050,13 +4061,17 @@ bool ULandscapeLODStreamingProxy::UpdateStreamingStatus(bool bWaitForMipFading)
 
 		if (!PendingUpdate->IsCompleted())
 		{
-			return true;
+			bUpdatePending = true;
 		}
-
-		PendingUpdate.SafeRelease();
+		else
+		{
+			PendingUpdate.SafeRelease();
+		}
 	}
 
-	return false;
+	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
+
+	return bUpdatePending;
 }
 
 void ULandscapeLODStreamingProxy::LinkStreaming()
@@ -4079,6 +4094,7 @@ void ULandscapeLODStreamingProxy::UnlinkStreaming()
 	if (!IsTemplate() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
 		IStreamingManager::Get().GetTextureStreamingManager().RemoveStreamingRenderAsset(this);
+		RemoveAllMipLevelChangeCallbacks();
 	}
 }
 

@@ -701,6 +701,7 @@ enum class ERepLayoutCmdType : uint8
 	PropertyNativeBool		= 21,
 	PropertySoftObject		= 22,
 	PropertyWeakObject		= 23,
+	NetSerializeStructWithObjectReferences = 24,
 };
 
 /** Various flags that describe how a Top Level Property should be handled. */
@@ -1805,4 +1806,6 @@ private:
 	/** Properties that have push model enabled. */
 	TBitArray<> PushModelProperties;
 #endif
+
+	TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>> NetSerializeLayouts;
 };

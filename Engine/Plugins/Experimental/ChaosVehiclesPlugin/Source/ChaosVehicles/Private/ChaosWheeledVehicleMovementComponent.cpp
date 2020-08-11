@@ -5,14 +5,20 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
-#include "CanvasItem.h"
-#include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "VehicleAnimationInstance.h"
 #include "ChaosVehicleManager.h"
+#include "ChaosVehicleWheel.h"
 #include "SuspensionUtility.h"
+#include "SteeringUtility.h"
+
+#if WITH_EDITOR
+#include "CanvasItem.h"
+#include "Engine/Canvas.h"
+#endif
 
 using namespace Chaos;
 
@@ -27,28 +33,30 @@ extern FVehicleDebugParams GVehicleDebugParams;
 
 EDebugPages UChaosWheeledVehicleMovementComponent::DebugPage = EDebugPages::BasicPage;
 
-FAutoConsoleVariableRef CVarChaosVehiclesShowWheelCollisionNormal(TEXT("p.Vehicles.ShowWheelCollisionNormal"), GWheeledVehicleDebugParams.ShowWheelCollisionNormal, TEXT("Enable/Disable Wheel Collision Normal Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionRaycasts(TEXT("p.Vehicles.ShowSuspensionRaycasts"), GWheeledVehicleDebugParams.ShowSuspensionRaycasts, TEXT("Enable/Disable Suspension Raycast Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionLimits(TEXT("p.Vehicles.ShowSuspensionLimits"), GWheeledVehicleDebugParams.ShowSuspensionLimits, TEXT("Enable/Disable Suspension Limits Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesShowWheelForces(TEXT("p.Vehicles.ShowWheelForces"), GWheeledVehicleDebugParams.ShowWheelForces, TEXT("Enable/Disable Wheel Forces Visualisation."));
-FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionForces(TEXT("p.Vehicles.ShowSuspensionForces"), GWheeledVehicleDebugParams.ShowSuspensionForces, TEXT("Enable/Disable Suspension Forces Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowWheelCollisionNormal(TEXT("p.Vehicle.ShowWheelCollisionNormal"), GWheeledVehicleDebugParams.ShowWheelCollisionNormal, TEXT("Enable/Disable Wheel Collision Normal Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionRaycasts(TEXT("p.Vehicle.ShowSuspensionRaycasts"), GWheeledVehicleDebugParams.ShowSuspensionRaycasts, TEXT("Enable/Disable Suspension Raycast Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionLimits(TEXT("p.Vehicle.ShowSuspensionLimits"), GWheeledVehicleDebugParams.ShowSuspensionLimits, TEXT("Enable/Disable Suspension Limits Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowWheelForces(TEXT("p.Vehicle.ShowWheelForces"), GWheeledVehicleDebugParams.ShowWheelForces, TEXT("Enable/Disable Wheel Forces Visualisation."));
+FAutoConsoleVariableRef CVarChaosVehiclesShowSuspensionForces(TEXT("p.Vehicle.ShowSuspensionForces"), GWheeledVehicleDebugParams.ShowSuspensionForces, TEXT("Enable/Disable Suspension Forces Visualisation."));
 
-FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionForces(TEXT("p.Vehicles.DisableSuspensionForces"), GWheeledVehicleDebugParams.DisableSuspensionForces, TEXT("Enable/Disable Suspension Forces."));
-FAutoConsoleVariableRef CVarChaosVehiclesDisableFrictionForces(TEXT("p.Vehicles.DisableFrictionForces"), GWheeledVehicleDebugParams.DisableFrictionForces, TEXT("Enable/Disable Wheel Friction Forces."));
-FAutoConsoleVariableRef CVarChaosVehiclesDisableRollbarForces(TEXT("p.Vehicles.DisableRollbarForces"), GWheeledVehicleDebugParams.DisableRollbarForces, TEXT("Enable/Disable Rollbar Forces."));
-FAutoConsoleVariableRef CVarChaosVehiclesApplyWheelForcetoSurface(TEXT("p.Vehicles.ApplyWheelForcetoSurface"), GWheeledVehicleDebugParams.ApplyWheelForcetoSurface, TEXT("Enable/Disable Apply Wheel Force To Underlyinh Surface."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionForces(TEXT("p.Vehicle.DisableSuspensionForces"), GWheeledVehicleDebugParams.DisableSuspensionForces, TEXT("Enable/Disable Suspension Forces."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableFrictionForces(TEXT("p.Vehicle.DisableFrictionForces"), GWheeledVehicleDebugParams.DisableFrictionForces, TEXT("Enable/Disable Wheel Friction Forces."));
+FAutoConsoleVariableRef CVarChaosVehiclesDisableRollbarForces(TEXT("p.Vehicle.DisableRollbarForces"), GWheeledVehicleDebugParams.DisableRollbarForces, TEXT("Enable/Disable Rollbar Forces."));
+FAutoConsoleVariableRef CVarChaosVehiclesApplyWheelForcetoSurface(TEXT("p.Vehicle.ApplyWheelForcetoSurface"), GWheeledVehicleDebugParams.ApplyWheelForcetoSurface, TEXT("Enable/Disable Apply Wheel Force To Underlying Surface."));
 
-FAutoConsoleVariableRef CVarChaosVehiclesThrottleOverride(TEXT("p.Vehicles.ThrottleOverride"), GWheeledVehicleDebugParams.ThrottleOverride, TEXT("Hard code throttle input on."));
-FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicles.SteeringOverride"), GWheeledVehicleDebugParams.SteeringOverride, TEXT("Hard code steering input on."));
+FAutoConsoleVariableRef CVarChaosVehiclesThrottleOverride(TEXT("p.Vehicle.ThrottleOverride"), GWheeledVehicleDebugParams.ThrottleOverride, TEXT("Hard code throttle input on."));
+FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicle.SteeringOverride"), GWheeledVehicleDebugParams.SteeringOverride, TEXT("Hard code steering input on."));
+
+FAutoConsoleVariableRef CVarChaosVehiclesResetMeasurements(TEXT("p.Vehicle.ResetMeasurements"), GWheeledVehicleDebugParams.ResetPerformanceMeasurements, TEXT("Reset Vehicle Performance Measurements."));
 
 
 FAutoConsoleCommand CVarCommandVehiclesNextDebugPage(
-	TEXT("p.Vehicles.NextDebugPage"),
+	TEXT("p.Vehicle.NextDebugPage"),
 	TEXT("Display the next page of vehicle debug data."),
 	FConsoleCommandDelegate::CreateStatic(UChaosWheeledVehicleMovementComponent::NextDebugPage));
 
 FAutoConsoleCommand CVarCommandVehiclesPrevDebugPage(
-	TEXT("p.Vehicles.PrevDebugPage"),
+	TEXT("p.Vehicle.PrevDebugPage"),
 	TEXT("Display the previous page of vehicle debug data."),
 	FConsoleCommandDelegate::CreateStatic(UChaosWheeledVehicleMovementComponent::PrevDebugPage));
 
@@ -66,24 +74,18 @@ UChaosWheeledVehicleMovementComponent::UChaosWheeledVehicleMovementComponent(con
 {
 	// default values setup
 
-	MechanicalSimEnabled = true;
-	SuspensionEnabled = true;
-	WheelFrictionEnabled = true;
+	EngineSetup.InitDefaults();
+	DifferentialSetup.InitDefaults();
+	TransmissionSetup.InitDefaults();
+	SteeringSetup.InitDefaults();
+
+	// possible to switch whole systems off
+	bMechanicalSimEnabled = true;
+	bSuspensionEnabled = true;
+	bWheelFrictionEnabled = true;
 
 	NumDrivenWheels = 0;
 
-	EngineSetup.MaxRPM = 6000.f;
-	EngineSetup.MaxTorque = 10000.f;
-	EngineSetup.EngineIdleRPM = 1200.f;
-	EngineSetup.EngineBrakeEffect = 0.001f;
-	
-	TransmissionSetup.ForwardGearRatios.Add(4.0f);
-	TransmissionSetup.ForwardGearRatios.Add(3.0f);
-	TransmissionSetup.ForwardGearRatios.Add(2.0f);
-	TransmissionSetup.ForwardGearRatios.Add(1.0f);
-	TransmissionSetup.FinalRatio = 4.0f;
-
-	TransmissionSetup.ReverseGearRatios.Add(3.0f);
 }
 
 // Public
@@ -100,16 +102,19 @@ void UChaosWheeledVehicleMovementComponent::PostEditChangeProperty(struct FPrope
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if (PropertyName == TEXT("SteeringCurve"))
-	{
-		// make sure values are capped between 0 and 1
-		TArray<FRichCurveKey> SteerKeys = SteeringCurve.GetRichCurve()->GetCopyOfKeys();
-		for (int32 KeyIdx = 0; KeyIdx < SteerKeys.Num(); ++KeyIdx)
-		{
-			float NewValue = FMath::Clamp(SteerKeys[KeyIdx].Value, 0.f, 1.f);
-			SteeringCurve.GetRichCurve()->UpdateOrAddKey(SteerKeys[KeyIdx].Time, NewValue);
-		}
-	}
+	// #todo: use or remove
+	//if (PropertyName == TEXT("SteeringCurve"))
+	//{
+	//	// make sure values are capped between 0 and 1
+	//	TArray<FRichCurveKey> SteerKeys = SteeringSetup.SteeringCurve.GetRichCurve()->GetCopyOfKeys();
+	//	for (int32 KeyIdx = 0; KeyIdx < SteerKeys.Num(); ++KeyIdx)
+	//	{
+	//		float NewValue = FMath::Clamp(SteerKeys[KeyIdx].Value, 0.f, 1.f);
+	//		SteeringSetup.SteeringCurve.GetRichCurve()->UpdateOrAddKey(SteerKeys[KeyIdx].Time, NewValue);
+	//	}
+	//}
+
+	RecalculateAxles();
 }
 #endif
 
@@ -150,47 +155,25 @@ bool UChaosWheeledVehicleMovementComponent::CanSimulate() const
 	}
 
 	return (PVehicle && PVehicle.IsValid()
-		&& PVehicle->Engine.Num() > 0 && PVehicle->Engine.Num() == PVehicle->Transmission.Num()
-		&& Wheels.Num() > 0 &&Wheels.Num() == PVehicle->Suspension.Num());
+		&& PVehicle->Engine.Num() == PVehicle->Transmission.Num()
+		&& Wheels.Num() > 0 && Wheels.Num() == PVehicle->Suspension.Num());
 }
 
 void UChaosWheeledVehicleMovementComponent::OnCreatePhysicsState()
 {
 	Super::OnCreatePhysicsState();
 
-	VehicleSetupTag = FChaosVehicleManager::VehicleSetupTag;
-
-	// only create Physics vehicle in game
-	UWorld* World = GetWorld();
-	if (World->IsGameWorld())
+	if (PVehicle)
 	{
-		FPhysScene* PhysScene = World->GetPhysicsScene();
+		CreateWheels();
 
-		if (PhysScene && FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene))
+		// Need to bind to the notify delegate on the mesh in case physics state is changed
+		if (USkeletalMeshComponent* MeshComp = GetSkeletalMesh())
 		{
-			//FixupSkeletalMesh();
-			CreateVehicle();
-
-			if (PVehicle)
+			MeshOnPhysicsStateChangeHandle = MeshComp->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateUObject(this, &UChaosWheeledVehicleMovementComponent::RecreatePhysicsState));
+			if (UVehicleAnimationInstance* VehicleAnimInstance = Cast<UVehicleAnimationInstance>(MeshComp->GetAnimInstance()))
 			{
-				FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
-				VehicleManager->AddVehicle(this);
-
-				CreateWheels();
-
-			//	//LogVehicleSettings( PVehicle );
-			//	SCOPED_SCENE_WRITE_LOCK(VehicleManager->GetScene());
-			//	PVehicle->getRigidDynamicActor()->wakeUp();
-
-			//	// Need to bind to the notify delegate on the mesh incase physics state is changed
-			//	if (USkeletalMeshComponent* MeshComp = Cast<USkeletalMeshComponent>(GetMesh()))
-			//	{
-			//		MeshOnPhysicsStateChangeHandle = MeshComp->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateUObject(this, &UVehicleMovementComponent::RecreatePhysicsState));
-			//		if (UVehicleAnimInstance* VehicleAnimInstance = Cast<UVehicleAnimInstance>(MeshComp->GetAnimInstance()))
-			//		{
-			//			VehicleAnimInstance->SetWheeledVehicleComponent(this);
-			//		}
-			//	}
+				VehicleAnimInstance->SetWheeledVehicleComponent(this);
 			}
 		}
 	}
@@ -198,29 +181,20 @@ void UChaosWheeledVehicleMovementComponent::OnCreatePhysicsState()
 
 void UChaosWheeledVehicleMovementComponent::OnDestroyPhysicsState()
 {
-	Super::OnDestroyPhysicsState();
-
 	if (PVehicle.IsValid())
 	{
+		if (MeshOnPhysicsStateChangeHandle.IsValid())
+		{
+			if (USkeletalMeshComponent* MeshComp = GetSkeletalMesh())
+			{
+				MeshComp->UnregisterOnPhysicsCreatedDelegate(MeshOnPhysicsStateChangeHandle);
+			}
+		}
+
 		DestroyWheels();
-
-		FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(GetWorld()->GetPhysicsScene());
-		VehicleManager->RemoveVehicle(this);
-		PVehicle.Reset(nullptr);
-
-		//if (MeshOnPhysicsStateChangeHandle.IsValid())
-		//{
-		//	if (USkeletalMeshComponent* MeshComp = Cast<USkeletalMeshComponent>(GetMesh()))
-		//	{
-		//		MeshComp->UnregisterOnPhysicsCreatedDelegate(MeshOnPhysicsStateChangeHandle);
-		//	}
-		//}
-
-		//if (UpdatedComponent)
-		//{
-		//	UpdatedComponent->RecreatePhysicsState();
-		//}
 	}
+
+	Super::OnDestroyPhysicsState();
 }
 
 void UChaosWheeledVehicleMovementComponent::TickVehicle(float DeltaTime)
@@ -290,6 +264,8 @@ void UChaosWheeledVehicleMovementComponent::CreateWheels()
 	{
 		Wheels[WheelIdx]->Init(this, WheelIdx);
 	}
+
+	RecalculateAxles();
 }
 
 void UChaosWheeledVehicleMovementComponent::DestroyWheels()
@@ -316,6 +292,30 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle()
 
 		// create Dynamic states passing in pointer to their Static setup data
 		Chaos::FSimpleWheelSim WheelSim(&Wheel->GetPhysicsWheelConfig());
+
+		if (Wheel->GetAxleType() != EAxleType::Undefined)
+		{
+			bool EngineEnable = false;
+			if (Wheel->GetAxleType() == EAxleType::Front)
+			{
+				if (DifferentialSetup.DifferentialType == EVehicleDifferential::AllWheelDrive
+					|| DifferentialSetup.DifferentialType == EVehicleDifferential::FrontWheelDrive)
+				{
+					EngineEnable = true;
+				}
+			}
+			else if (Wheel->GetAxleType() == EAxleType::Rear)
+			{
+				if (DifferentialSetup.DifferentialType == EVehicleDifferential::AllWheelDrive
+					|| DifferentialSetup.DifferentialType == EVehicleDifferential::RearWheelDrive)
+				{
+					EngineEnable = true;
+				}
+			}
+
+			WheelSim.AccessSetup().EngineEnabled = EngineEnable;
+		}
+
 		WheelSim.SetWheelRadius(Wheel->WheelRadius); // initial radius
 		PVehicle->Wheels.Add(WheelSim);
 
@@ -332,11 +332,20 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle()
 		PVehicle->Suspension[WheelIdx].SetSpringIndex(WheelIdx);
 	}
 
-	Chaos::FSimpleEngineSim EngineSim(&EngineSetup.GetPhysicsEngineConfig());
-	PVehicle->Engine.Add(EngineSim);
+	// cache this value as it's useful for steering setup calculations and debug rendering
+	WheelTrackDimensions = CalculateWheelLayoutDimensions();
 
-	Chaos::FSimpleTransmissionSim TransmissionSim(&TransmissionSetup.GetPhysicsTransmissionConfig());
-	PVehicle->Transmission.Add(TransmissionSim);
+	if (bMechanicalSimEnabled)
+	{
+		Chaos::FSimpleEngineSim EngineSim(&EngineSetup.GetPhysicsEngineConfig());
+		PVehicle->Engine.Add(EngineSim);
+
+		Chaos::FSimpleTransmissionSim TransmissionSim(&TransmissionSetup.GetPhysicsTransmissionConfig());
+		PVehicle->Transmission.Add(TransmissionSim);
+	}
+
+	Chaos::FSimpleSteeringSim SteeringSim(&SteeringSetup.GetPhysicsSteeringConfig(WheelTrackDimensions));
+	PVehicle->Steering.Add(SteeringSim);
 
 	WheelState.Init(PVehicle->Wheels.Num());
 
@@ -348,6 +357,7 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle()
 
 	// Setup Suspension
 	SetupSuspension();
+
 }
 
 void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
@@ -378,6 +388,25 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
 		check(Wheel);
 
 		const FVector WheelOffset = GetWheelRestingPosition(WheelSetup);
+
+		//GetSkeletalMesh()->GetBodyInstance(WheelSetup.BoneName));
+		//
+		//UPhysicalMaterial* SimplePhysMat = GetBodyInstance()->GetSimplePhysicalMaterial();
+		//TArray<UPhysicalMaterial*> ComplexPhysMats;
+		//TArray<FPhysicalMaterialMaskParams> ComplexPhysMatMasks;
+		//ComplexPhysMats = GetBodyInstance()->GetComplexPhysicalMaterials(ComplexPhysMatMasks);
+		//FBodyCollisionData BodyCollisionData;
+		//GetBodyInstance()->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
+
+		//GetBodyInstance()->BodySetup->AddShapesToRigidActor_AssumesLocked(GetBodyInstance(), GetBodyInstance()->Scale3D
+		//	, SimplePhysMat, ComplexPhysMats, ComplexPhysMatMasks, BodyCollisionData, FTransform::Identity);
+
+		//FCollisionShape::MakeSphere(SphereRadius);
+		//FPhysicsInterface::AttachShape()
+		//PWheelShape = GPhysXSDK->createShape(PxSphereGeometry(Wheel->WheelRadius), *WheelMaterial, /*bIsExclusive=*/true);
+		//PWheelShape->setLocalPose(PLocalPose);
+		//PVehicleActor->attachShape(*PWheelShape);
+		//PWheelShape->release();
 
 		//				const PxTransform PLocalPose = PxTransform(U2PVector(WheelOffset));
 		//				PxShape* PWheelShape = NULL;
@@ -468,67 +497,79 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
 
 void UChaosWheeledVehicleMovementComponent::SetupSuspension()
 {
-	FBodyInstance* TargetInstance = GetBodyInstance();
-	if (!PVehicle.IsValid() || TargetInstance == nullptr)
+	if (!PVehicle.IsValid())
 	{
 		return;
 	}
+	
+	float TotalMass = this->Mass;
+	ensureMsgf(TotalMass >= 1.0f, TEXT("The mass of this vehicle is too small."));
 
-	float TotalMass = TargetInstance->GetBodyMass();
-	// local positions 
 	TArray<FVector> LocalSpringPositions;
 
-	for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+	// cache vehicle local position of springs
+	for (int SpringIdx = 0; SpringIdx < PVehicle->Suspension.Num(); SpringIdx++)
 	{
-		PVehicle->Suspension[SpringIdx].AccessSetup().MaxLength = PVehicle->Suspension[SpringIdx].Setup().SuspensionMaxDrop;
+		auto& PSuspension = PVehicle->Suspension[SpringIdx];
 
-		LocalSpringPositions.Add(GetWheelRestingPosition(WheelSetups[SpringIdx]));
+		PSuspension.AccessSetup().MaxLength = PSuspension.Setup().SuspensionMaxDrop + PSuspension.Setup().SuspensionMaxRaise;
+
+		FVector TotalOffset = GetWheelRestingPosition(WheelSetups[SpringIdx]);
+		LocalSpringPositions.Add(TotalOffset);
 		PVehicle->Suspension[SpringIdx].SetLocalRestingPosition(LocalSpringPositions[SpringIdx]);
 	}
 
+	// Calculate the mass that will rest on each of the springs
 	TArray<float> OutSprungMasses;
 	FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, TotalMass, OutSprungMasses);
 
-	for (int SpringIdx = 0; SpringIdx < 4; SpringIdx++)
+	// Calculate spring damping values we will use for physics simulation from the normalized damping ratio
+	for (int SpringIdx = 0; SpringIdx < PVehicle->Suspension.Num(); SpringIdx++)
 	{
 		auto& Susp = PVehicle->Suspension[SpringIdx];
 		float NaturalFrequency = FSuspensionUtility::ComputeNaturalFrequency(Susp.Setup().SpringRate, OutSprungMasses[SpringIdx]);
 		float Damping = FSuspensionUtility::ComputeDamping(Susp.Setup().SpringRate, OutSprungMasses[SpringIdx], Susp.Setup().DampingRatio);
-		UE_LOG(LogChaos, Warning, TEXT("OutNaturalFrequency %.1f Hz  (@1.0) DampingRate %.1f"), NaturalFrequency / (2.0f * PI), Damping);
-
-		//Setup.SpringPreload = 0.f;
+		//UE_LOG(LogChaos, Warning, TEXT("OutNaturalFrequency %.1f Hz  (@1.0) DampingRate %.1f"), NaturalFrequency / (2.0f * PI), Damping);
 
 		PVehicle->Suspension[SpringIdx].AccessSetup().ReboundDamping = Damping;
 		PVehicle->Suspension[SpringIdx].AccessSetup().CompressionDamping = Damping;
+		PVehicle->Suspension[SpringIdx].AccessSetup().RestingForce = OutSprungMasses[SpringIdx] * -GetGravityZ();
 	}
 
+}
+
+void UChaosWheeledVehicleMovementComponent::RecalculateAxles()
+{
+	AxleToWheelMap.Empty();
+
+	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+	{
+		FChaosWheelSetup& WheelSetup = WheelSetups[WheelIdx];
+		UChaosVehicleWheel* Wheel = WheelSetup.WheelClass.GetDefaultObject();
+
+		if (auto* WheelIdxArray = AxleToWheelMap.Find(Wheel))
+		{
+			WheelIdxArray->Add(WheelIdx);
+		}
+		else
+		{
+			TArray<int> WheelIndices;
+			WheelIndices.Add(WheelIdx);
+			AxleToWheelMap.Add(Wheel, WheelIndices);
+		}
+	}
 }
 
 FVector UChaosWheeledVehicleMovementComponent::GetWheelRestingPosition(const FChaosWheelSetup& WheelSetup)
 {
 	FVector Offset = WheelSetup.WheelClass.GetDefaultObject()->Offset + WheelSetup.AdditionalOffset;
-
-	if (WheelSetup.BoneName != NAME_None)
-	{
-		USkinnedMeshComponent* Mesh = GetMesh();
-		if (Mesh && Mesh->SkeletalMesh)
-		{
-			const FVector BonePosition = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(WheelSetup.BoneName).GetOrigin() * Mesh->GetRelativeScale3D();
-			//BonePosition is local for the root BONE of the skeletal mesh - however, we are using the Root BODY which may have its own transform, so we need to return the position local to the root BODY
-			const FMatrix RootBodyMTX = Mesh->SkeletalMesh->GetComposedRefPoseMatrix(Mesh->GetBodyInstance()->BodySetup->BoneName);
-			const FVector LocalBonePosition = RootBodyMTX.InverseTransformPosition(BonePosition);
-			Offset += LocalBonePosition;
-
-		}
-	}
-
-	return Offset;
+	return LocateBoneOffset(WheelSetup.BoneName, Offset);
 }
 
 // Update
 void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 {
-	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyAirControl, etc
+	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyTorqueControl, etc
 	Super::UpdateSimulation(DeltaTime);
 
 	FBodyInstance* TargetInstance = GetBodyInstance();
@@ -541,9 +582,6 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		check(WheelState.LocalWheelVelocity.Num() == Wheels.Num());
 		check(WheelState.WheelWorldLocation.Num() == Wheels.Num());
 		check(WheelState.WorldWheelVelocity.Num() == Wheels.Num());
-
-		auto& PEngine = PVehicle->GetEngine();
-		auto& PTransmission = PVehicle->GetTransmission();
 
 		///////////////////////////////////////////////////////////////////////
 		// Cache useful state so we are not re-calculating the same transforms
@@ -563,7 +601,7 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 			PSuspension.UpdateWorldRaycastLocation(VehicleState.VehicleWorldTransform, PWheel.Setup().WheelRadius, WheelState.Trace[WheelIdx]);
 		}
 
-		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && SuspensionEnabled)
+		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && bSuspensionEnabled)
 		{
 			PerformSuspensionTraces(WheelState.Trace);
 		}
@@ -590,8 +628,7 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 
 		///////////////////////////////////////////////////////////////////////
 		// Engine/Transmission
-
-		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && MechanicalSimEnabled)
+		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && bMechanicalSimEnabled)
 		{
 			ProcessMechanicalSimulation(DeltaTime);
 		}
@@ -599,7 +636,7 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		///////////////////////////////////////////////////////////////////////
 		// Suspension
 
-		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && SuspensionEnabled)
+		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && bSuspensionEnabled)
 		{
 			ApplySuspensionForces(DeltaTime);
 		}
@@ -612,9 +649,14 @@ void UChaosWheeledVehicleMovementComponent::UpdateSimulation(float DeltaTime)
 		///////////////////////////////////////////////////////////////////////
 		// Wheel Friction
 
-		if (!GWheeledVehicleDebugParams.DisableFrictionForces && WheelFrictionEnabled)
+		if (!GWheeledVehicleDebugParams.DisableFrictionForces && bWheelFrictionEnabled)
 		{		
 			ApplyWheelFrictionForces(DeltaTime);
+		}
+
+		if (PerformanceMeasure.IsEnabled())
+		{
+			PerformanceMeasure.Update(DeltaTime, VehicleState.VehicleWorldTransform.GetLocation(), VehicleState.ForwardSpeed);
 		}
 
 	}
@@ -657,8 +699,9 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 				QueryBox.Max = QueryBox.Max.ComponentMax(TraceEnd);
 			}
 		}
+		float OneWheelRadius = PVehicle->Wheels[0].GetEffectiveRadius(); // or wheel width
 
-		QueryBox.ExpandBy(FVector(1.0f, 1.0f, 1.0f)); // little extra just to be on yhe safe side
+		QueryBox.ExpandBy(FVector(OneWheelRadius, OneWheelRadius, OneWheelRadius)); // little extra just to be on the safe side consider 1 or 2 wheel vehicle
 		TArray<FOverlapResult> OverlapResults;
 		FCollisionShape CollisionBox;
 		CollisionBox.SetBox(QueryBox.GetExtent());
@@ -671,29 +714,55 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 			FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
 			HitResult = FHitResult();
 
-			const FVector& TraceStart = SuspensionTrace[WheelIdx].Start;
-			const FVector& TraceEnd = SuspensionTrace[WheelIdx].End;
-			bool MadeContact = false;
 			if (bOverlapHit)
 			{
+				const FVector& TraceStart = SuspensionTrace[WheelIdx].Start;
+				const FVector& TraceEnd = SuspensionTrace[WheelIdx].End;
+				TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep || Wheels[WheelIdx]->SweepType == ESweepType::SimpleAndComplexSweep);
 
 				// Test each overlapped object for a hit result
 				for (FOverlapResult OverlapResult : OverlapResults)
 				{
 					FHitResult ComponentHit;
-					if (OverlapResult.Component->LineTraceComponent(ComponentHit, TraceStart, TraceEnd, TraceParams))
+
+					switch (Wheels[WheelIdx]->SweepShape)
 					{
-						if (ComponentHit.Time < HitResult.Time)
+						case ESweepShape::Spherecast:
 						{
-							HitResult = ComponentHit;
-							HitResult.bBlockingHit = OverlapResult.bBlockingHit;
+							float WheelRadius = PVehicle->Wheels[WheelIdx].GetEffectiveRadius(); // or wheel width
+							FVector VehicleUpAxis = GetOwner()->GetTransform().GetUnitAxis(EAxis::Z);
+
+							FVector Start = TraceStart + VehicleUpAxis * WheelRadius;
+							FVector End = TraceEnd + VehicleUpAxis * WheelRadius;
+
+							if (OverlapResult.Component->SweepComponent(ComponentHit, Start, End, FQuat::Identity, FCollisionShape::MakeSphere(WheelRadius), TraceParams.bTraceComplex))
+							{
+								if (ComponentHit.Time < HitResult.Time)
+								{
+									HitResult = ComponentHit;
+									HitResult.bBlockingHit = OverlapResult.bBlockingHit;
+								}
+							}
 						}
+						break;
+
+						case ESweepShape::Raycast:
+						default:
+						{
+							if (OverlapResult.Component->LineTraceComponent(ComponentHit, TraceStart, TraceEnd, TraceParams))
+							{
+								if (ComponentHit.Time < HitResult.Time)
+								{
+									HitResult = ComponentHit;
+									HitResult.bBlockingHit = OverlapResult.bBlockingHit;
+								}
+							}
+						}
+						break;
 					}
 				}
 			}
-
 		}
-
 	}
 	else
 	{
@@ -701,22 +770,36 @@ void UChaosWheeledVehicleMovementComponent::PerformSuspensionTraces(const TArray
 		{
 			FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
 
-			TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep || Wheels[WheelIdx]->SweepType == ESweepType::SimpleAndComplexSweep);
 			FVector TraceStart = SuspensionTrace[WheelIdx].Start;
 			FVector TraceEnd = SuspensionTrace[WheelIdx].End;
+			TraceParams.bTraceComplex = (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep || Wheels[WheelIdx]->SweepType == ESweepType::SimpleAndComplexSweep);
 
-			// #todo: should select method/shape from options passed in
-			bool MadeContact = GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, FCollisionResponseParams::DefaultResponseParam);
-			/*	float WheelRadius = PVehicle->Wheels[WheelIdx].GetEffectiveRadius();
+			switch (Wheels[WheelIdx]->SweepShape)
+			{
+				case ESweepShape::Spherecast:
+				{
+					//float WheelRadius = PVehicle->Wheels[WheelIdx].GetEffectiveRadius(); // or wheel width
+					float WheelRadius = PVehicle->Wheels[WheelIdx].Setup().WheelWidth * 0.5f; // or wheel width
+					FVector VehicleUpAxis = GetOwner()->GetTransform().GetUnitAxis(EAxis::Z);
 
-				FVector VehicleUpAxis = GetOwner()->GetTransform().GetUnitAxis(EAxis::Z);
+					GetWorld()->SweepSingleByChannel(HitResult
+						, TraceStart + VehicleUpAxis * WheelRadius
+						, TraceEnd + VehicleUpAxis * WheelRadius
+						, FQuat::Identity, SpringCollisionChannel
+						, FCollisionShape::MakeSphere(WheelRadius), TraceParams
+						, FCollisionResponseParams::DefaultResponseParam);
+				}
+				break;
 
-				bool MadeContact = GetWorld()->SweepSingleByChannel(HitResult
-					, TraceStart + VehicleUpAxis * WheelRadius
-					, TraceEnd + VehicleUpAxis * WheelRadius
-					, FQuat::Identity, ECollisionChannel::ECC_WorldDynamic
-					, FCollisionShape::MakeSphere(WheelRadius), TraceParams
-					, FCollisionResponseParams::DefaultResponseParam);*/
+
+
+				case ESweepShape::Raycast:
+				default:
+				{
+					GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, FCollisionResponseParams::DefaultResponseParam);
+				}
+				break;
+			}
 		}
 	}
 
@@ -751,12 +834,12 @@ void UChaosWheeledVehicleMovementComponent::ApplyWheelFrictionForces(float Delta
 			FVector FrictionForceLocal = PWheel.GetForceFromFriction();
 			FrictionForceLocal = SteeringRotator.RotateVector(FrictionForceLocal);
 
-			FVector GroundZVector = HitResult.ImpactNormal;
+			FVector GroundZVector = HitResult.Normal;
 			FVector GroundXVector = FVector::CrossProduct(VehicleState.VehicleRightAxis, GroundZVector);
 			FVector GroundYVector = FVector::CrossProduct(GroundZVector, GroundXVector);
 
 			// the force should be applied along the ground surface not along vehicle forward vector?
-			// NEW FVector FrictionForceVector = VehicleState.VehicleWorldTransform.TransformVector(FrictionForceLocal);
+			//FVector FrictionForceVector = VehicleState.VehicleWorldTransform.TransformVector(FrictionForceLocal);
 			FMatrix Mat(GroundXVector, GroundYVector, GroundZVector, VehicleState.VehicleWorldTransform.GetLocation());
 			FVector FrictionForceVector = Mat.TransformVector(FrictionForceLocal);
 
@@ -768,34 +851,41 @@ void UChaosWheeledVehicleMovementComponent::ApplyWheelFrictionForces(float Delta
 						, WheelState.WheelWorldLocation[WheelIdx]
 						, WheelState.WheelWorldLocation[WheelIdx] + FrictionForceVector * 0.001f
 						, FColor::Yellow, false, -1.0f, 0, 2);
+
+
+					DrawDebugLine(GetWorld()
+						, WheelState.WheelWorldLocation[WheelIdx]
+						, WheelState.WheelWorldLocation[WheelIdx] + GroundZVector * 100.f
+						, FColor::Orange, false, -1.0f, 0, 2);
+
 				}
 
 			}
 
 			check(PWheel.InContact());
-			TargetInstance->AddForceAtPosition(FrictionForceVector * PWheel.Setup().CheatFrictionForce, WheelState.WheelWorldLocation[WheelIdx]);
+			AddForceAtPosition(FrictionForceVector, WheelState.WheelWorldLocation[WheelIdx]);
 
 			if (GWheeledVehicleDebugParams.ApplyWheelForcetoSurface)
 			{
-				// #todo: trying this - bit of a special case for the brick assets
-				const FHitResult& Hit = Wheels[WheelIdx]->HitResult;
-				if (Hit.GetComponent() && Hit.GetComponent()->IsAnyRigidBodyAwake())
-				{
-					//FVector Location = Hit.GetComponent()->GetComponentLocation();
-					//FVector Location = Hit.ImpactPoint
-					//Hit.GetComponent()->AddForceAtLocation(-FrictionForceVector, Location);
+				//// #todo: trying this - bit of a special case for the brick assets
+				//const FHitResult& Hit = Wheels[WheelIdx]->HitResult;
+				//if (Hit.GetComponent() && Hit.GetComponent()->IsAnyRigidBodyAwake())
+				//{
+				//	//FVector Location = Hit.GetComponent()->GetComponentLocation();
+				//	//FVector Location = Hit.ImpactPoint
+				//	//Hit.GetComponent()->AddForceAtLocation(-FrictionForceVector, Location);
 
-					FVector SpeedDiffLocal(PWheel.GetRoadSpeed() - PWheel.GetWheelGroundSpeed(), 0.f, 0.f);
-					FVector SpeedDiffWorld = Mat.TransformVector(SpeedDiffLocal);
+				//	FVector SpeedDiffLocal(PWheel.GetRoadSpeed() - PWheel.GetWheelGroundSpeed(), 0.f, 0.f);
+				//	FVector SpeedDiffWorld = Mat.TransformVector(SpeedDiffLocal);
 
-					Hit.GetComponent()->AddImpulse(SpeedDiffWorld, NAME_None, true);
+				//	Hit.GetComponent()->AddImpulse(SpeedDiffWorld, NAME_None, true);
 
-					//DrawDebugLine(GetWorld()
-					//	, Hit.Location
-					//	, Hit.Location - FrictionForceVector * 0.001f
-					//	, FColor::Yellow, true, 1.0f, 0, 2);
+				//	//DrawDebugLine(GetWorld()
+				//	//	, Hit.Location
+				//	//	, Hit.Location - FrictionForceVector * 0.001f
+				//	//	, FColor::Yellow, true, 1.0f, 0, 2);
 
-				}
+				//}
 			}
 		}
 		else
@@ -840,12 +930,12 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 
 
 			FVector GroundZVector = HitResult.Normal;
-			FVector SuspensionForceVector = /*VehicleUpAxis*/ GroundZVector * ForceMagnitude;
+			FVector SuspensionForceVector = VehicleState.VehicleUpAxis /*GroundZVector*/ * ForceMagnitude;
 
 			FVector SusApplicationPoint = WheelState.WheelWorldLocation[WheelIdx] + PVehicle->Suspension[WheelIdx].Setup().SuspensionForceOffset;
 
 			check(PWheel.InContact());
-			TargetInstance->AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
+			AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
 
 			if (GWheeledVehicleDebugParams.ShowSuspensionForces)
 			{
@@ -860,43 +950,48 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 					, FColor::Yellow, false, -1.0f, 0, 5);
 			}
 
+			ForceMagnitude = PSuspension.Setup().WheelLoadRatio * ForceMagnitude + (1.f - PSuspension.Setup().WheelLoadRatio) * PSuspension.Setup().RestingForce;
 			PWheel.SetWheelLoadForce(ForceMagnitude);
+			PWheel.SetMassPerWheel(TargetInstance->GetBodyMass() / PVehicle->Wheels.Num());
 			SusForces[WheelIdx] = ForceMagnitude;
 
 		}
 
 	}
 
-	if (!GWheeledVehicleDebugParams.DisableRollbarForces)
+
+	if (!GWheeledVehicleDebugParams.DisableRollbarForces && AxleToWheelMap.Num() > 0)
 	{
-		// anti-roll forces
-		static float FV = 0.01f; // 0.1f better
-		float ForceDiffOnAxleF = SusForces[0] - SusForces[1];
-		FVector SuspensionForceVector0 = VehicleState.VehicleUpAxis * ForceDiffOnAxleF * FV;
-		FVector SuspensionForceVector1 = VehicleState.VehicleUpAxis * ForceDiffOnAxleF * -FV;
+		for (auto& Axle : AxleToWheelMap)
+		{
+			const UChaosVehicleWheel* Wheel = Axle.Key;
+			const TArray<int>& WheelIndices = Axle.Value;
 
-		FVector SusApplicationPoint0 = WheelState.WheelWorldLocation[0] + PVehicle->Suspension[0].Setup().SuspensionForceOffset;
-		TargetInstance->AddForceAtPosition(SuspensionForceVector0, SusApplicationPoint0);
+			//#todo: only works with 2 wheels on an axle at present
+			if (WheelIndices.Num() == 2)
+			{
+				int WheelIdxA = WheelIndices[0];
+				int WheelIdxB = WheelIndices[1];
 
-		FVector SusApplicationPoint1 = WheelState.WheelWorldLocation[1] + PVehicle->Suspension[1].Setup().SuspensionForceOffset;
-		TargetInstance->AddForceAtPosition(SuspensionForceVector1, SusApplicationPoint1);
+				float FV = Wheel->RollbarScaling;
+				float ForceDiffOnAxleF = SusForces[WheelIdxA] - SusForces[WheelIdxB];
+				FVector ForceVector0 = VehicleState.VehicleUpAxis * ForceDiffOnAxleF * FV;
+				FVector ForceVector1 = VehicleState.VehicleUpAxis * ForceDiffOnAxleF * -FV;
 
+				FVector SusApplicationPoint0 = WheelState.WheelWorldLocation[WheelIdxA] + PVehicle->Suspension[WheelIdxA].Setup().SuspensionForceOffset;
+				AddForceAtPosition(ForceVector0, SusApplicationPoint0);
 
-		float ForceDiffOnAxleR = SusForces[2] - SusForces[3];
-
-		FVector SuspensionForceVector2 = VehicleState.VehicleUpAxis * ForceDiffOnAxleR * FV;
-		FVector SuspensionForceVector3 = VehicleState.VehicleUpAxis * ForceDiffOnAxleR * -FV;
-
-		FVector SusApplicationPoint2 = WheelState.WheelWorldLocation[2] + PVehicle->Suspension[2].Setup().SuspensionForceOffset;
-		TargetInstance->AddForceAtPosition(SuspensionForceVector2, SusApplicationPoint2);
-
-		FVector SusApplicationPoint3 = WheelState.WheelWorldLocation[3] + PVehicle->Suspension[3].Setup().SuspensionForceOffset;
-		TargetInstance->AddForceAtPosition(SuspensionForceVector3, SusApplicationPoint3);
+				FVector SusApplicationPoint1 = WheelState.WheelWorldLocation[WheelIdxB] + PVehicle->Suspension[WheelIdxB].Setup().SuspensionForceOffset;
+				AddForceAtPosition(ForceVector1, SusApplicationPoint1);
+			}
+		}
 	}
 }
 
 void UChaosWheeledVehicleMovementComponent::ProcessSteering()
 {
+	auto& PSteering = PVehicle->GetSteering();
+
 	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 	{
 		auto& PWheel = PVehicle->Wheels[WheelIdx]; // Physics Wheel
@@ -904,87 +999,95 @@ void UChaosWheeledVehicleMovementComponent::ProcessSteering()
 
 		if (PWheel.Setup().SteeringEnabled)
 		{
-			// cheap Ackerman steering - outside wheel steers more than inside wheel
-			bool OutsideWheel = ((SteeringInput > 0.f) && (WheelIdx == 1)) || ((SteeringInput < 0.f) && (WheelIdx == 0));
-			float MaxAngle = OutsideWheel ? PWheel.Setup().MaxSteeringAngle : PWheel.Setup().MaxSteeringAngle * 0.6f;
+			FRichCurve* SteeringCurveData = SteeringSetup.SteeringCurve.GetRichCurve();
+			float SpeedScale = 1.0f;
+
+			// allow full counter steering when steering into a power slide
+			if (SteeringInput * VehicleState.LocalGForce.Y < 0.1f)
 			{
-				float SpeedScaling = 1.0f - (VehicleState.ForwardSpeed * 0.0001f); // #todo: do this scaling properly
-				SpeedScaling = FMath::Min(1.f, FMath::Max(SpeedScaling, 0.2f));
-				if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
-				{
-					PWheel.SetSteeringAngle(PWheel.Setup().MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride);
-				}
-				else
-				{
-					PWheel.SetSteeringAngle(SteeringInput * MaxAngle * SpeedScaling);
-				}
+				SpeedScale = SteeringCurveData->Eval(CmSToMPH(VehicleState.ForwardSpeed));
 			}
 
+			float UseSteeringValue = SteeringInput * SpeedScale;
+
+			float SteeringAngle = 0.f;
+			if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
+			{
+				SteeringAngle = PWheel.Setup().MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
+			}
+			else
+			{
+				float WheelSide = PVehicle->GetSuspension(WheelIdx).GetLocalRestingPosition().Y;
+				SteeringAngle = PSteering.GetSteeringAngle(UseSteeringValue, PWheel.Setup().MaxSteeringAngle, WheelSide);
+			}
+
+			PWheel.SetSteeringAngle(SteeringAngle);
 		}
 		else
 		{
 			PWheel.SetSteeringAngle(0.0f);
 		}
-
-		//float EngineBraking = 0.f;
-
-		//if (PWheel.Setup().EngineEnabled)
-		//{
-		//	check(NumDrivenWheels > 0);
-		//	PWheel.SetDriveTorque(TransmissionTorque / (float)NumDrivenWheels);
-		//	if (ThrottleInput < SMALL_NUMBER)
-		//	{
-		//		EngineBraking = 0.f;// PWheel.Setup().HandbrakeTorque * 0.015f; // PEngine.GetEngineRPM()* PEngine.Setup().EngineBrakeEffect * 0.001f;
-		//	}
-		//}
-
 	}
 }
 
 void UChaosWheeledVehicleMovementComponent::ApplyInput(float DeltaTime)
 {
-	auto& PEngine = PVehicle->GetEngine();
-	auto& PTransmission = PVehicle->GetTransmission();
+	Super::ApplyInput(DeltaTime);
 
-	if (bRawGearUpInput)
+	float EngineBraking = 0.f;
+	if (bMechanicalSimEnabled)
 	{
-		PTransmission.ChangeUp();
-		bRawGearUpInput = false;
-	}
+		auto& PEngine = PVehicle->GetEngine();
+		auto& PTransmission = PVehicle->GetTransmission();
 
-	if (bRawGearDownInput)
-	{
-		PTransmission.ChangeDown();
-		bRawGearDownInput = false;
-	}
+		if (bRawGearUpInput)
+		{
+			PTransmission.ChangeUp();
+			bRawGearUpInput = false;
+		}
 
-	if (GWheeledVehicleDebugParams.ThrottleOverride > 0.f)
-	{
-		PTransmission.SetGear(1);
-		PEngine.SetThrottle(GWheeledVehicleDebugParams.ThrottleOverride);
-	}
-	else
-	{
-		PEngine.SetThrottle(ThrottleInput);
+		if (bRawGearDownInput)
+		{
+			PTransmission.ChangeDown();
+			bRawGearDownInput = false;
+		}
+
+		if (GWheeledVehicleDebugParams.ThrottleOverride > 0.f)
+		{
+			PTransmission.SetGear(1);
+			PEngine.SetThrottle(GWheeledVehicleDebugParams.ThrottleOverride);
+		}
+		else
+		{
+			PEngine.SetThrottle(ThrottleInput* ThrottleInput);
+		}
+
+		EngineBraking = PEngine.GetEngineRPM() * PEngine.Setup().EngineBrakeEffect;
 	}
 
 	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 	{
 		auto& PWheel = PVehicle->Wheels[WheelIdx];
 
+		float EngineBrakingForce = 0.0f;
+		if ((ThrottleInput < SMALL_NUMBER) && FMath::Abs(VehicleState.ForwardSpeed) > SMALL_NUMBER && PWheel.Setup().EngineEnabled)
+		{
+			EngineBrakingForce = EngineBraking;
+		}
+
 		if (PWheel.Setup().BrakeEnabled)
 		{
 			float BrakeForce = PWheel.Setup().MaxBrakeTorque * BrakeInput;
-			PWheel.SetBrakeTorque(BrakeForce /*+ EngineBraking*/);
+			PWheel.SetBrakeTorque(MToCm(BrakeForce + EngineBrakingForce));
 		}
 		else
 		{
-			PWheel.SetBrakeTorque(0.f /*+ EngineBraking*/);
+			PWheel.SetBrakeTorque(MToCm(EngineBraking));
 		}
 
 		if (bRawHandbrakeInput && PWheel.Setup().HandbrakeEnabled)
 		{
-			PWheel.SetBrakeTorque(bRawHandbrakeInput * PWheel.Setup().HandbrakeTorque);
+			PWheel.SetBrakeTorque(MToCm(bRawHandbrakeInput * PWheel.Setup().HandbrakeTorque));
 		}
 	}
 
@@ -996,11 +1099,22 @@ void UChaosWheeledVehicleMovementComponent::ProcessMechanicalSimulation(float De
 	auto& PEngine = PVehicle->GetEngine();
 	auto& PTransmission = PVehicle->GetTransmission();
 
+	// #todo: driven wheel(s) RPM
+	float WheelRPM = 0;
+	for (int I=0; I<PVehicle->Wheels.Num(); I++)
+	{
+		if (PVehicle->Wheels[I].Setup().EngineEnabled)
+		{ 
+			WheelRPM = FMath::Abs(PVehicle->Wheels[I].GetWheelRPM());
+		}
+	}
+
+	PEngine.SetEngineRPM(PTransmission.IsOutOfGear() , PTransmission.GetEngineRPMFromWheelRPM(WheelRPM));
 	PEngine.Simulate(DeltaTime);
 
 	// SET SPEED FROM A DRIVEN WHEEL!!! - average all driven wheel speeds?? No notion of a differential as yet
-	PEngine.SetEngineRPM(PTransmission.GetEngineRPMFromWheelRPM(FMath::Abs(PVehicle->Wheels[2].GetWheelRPM())));
 	PTransmission.SetEngineRPM(PEngine.GetEngineRPM()); // needs engine RPM to decide when to change gear (automatic gearbox)
+	PTransmission.SetAllowedToChangeGear(!VehicleState.bVehicleInAir && !IsWheelSpinning());
 	float GearRatio = PTransmission.GetGearRatio(PTransmission.GetCurrentGear());
 
 	PTransmission.Simulate(DeltaTime);
@@ -1010,11 +1124,31 @@ void UChaosWheeledVehicleMovementComponent::ProcessMechanicalSimulation(float De
 	// apply drive torque to wheels
 	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 	{
+		UChaosVehicleWheel* Wheel = WheelSetups[WheelIdx].WheelClass.GetDefaultObject();
 		auto& PWheel = PVehicle->Wheels[WheelIdx];
 		if (PWheel.Setup().EngineEnabled)
 		{
 			check(NumDrivenWheels > 0);
-			PWheel.SetDriveTorque(TransmissionTorque / (float)NumDrivenWheels);
+
+			if (DifferentialSetup.DifferentialType == EVehicleDifferential::AllWheelDrive)
+			{
+				float SplitTorque = 1.0f;
+
+				if (Wheel->GetAxleType() == EAxleType::Front)
+				{
+					SplitTorque = (1.0f - DifferentialSetup.FrontRearSplit);
+				}
+				else
+				{
+					SplitTorque = DifferentialSetup.FrontRearSplit;
+				}	
+
+				PWheel.SetDriveTorque(MToCm(TransmissionTorque * SplitTorque) / (float)NumDrivenWheels);
+			}
+			else
+			{
+				PWheel.SetDriveTorque(MToCm(TransmissionTorque) / (float)NumDrivenWheels);
+			}
 		}
 	}
 }
@@ -1045,42 +1179,6 @@ float UChaosWheeledVehicleMovementComponent::GetEngineMaxRotationSpeed() const
 	return MaxEngineRPM;
 }
 
-int32 UChaosWheeledVehicleMovementComponent::GetCurrentGear() const
-{
-	int32 CurrentGear = 0;
-
-	if (PVehicle.IsValid())
-	{
-		CurrentGear = PVehicle->GetTransmission().GetCurrentGear();
-	}
-
-	return CurrentGear;
-}
-
-int32 UChaosWheeledVehicleMovementComponent::GetTargetGear() const
-{
-	int32 TargetGear = 0;
-
-	if (PVehicle.IsValid())
-	{
-		TargetGear = PVehicle->GetTransmission().GetTargetGear();
-	}
-
-	return TargetGear;
-}
-
-bool UChaosWheeledVehicleMovementComponent::GetUseAutoGears() const
-{
-	bool UseAutoGears = 0;
-
-	if (PVehicle.IsValid())
-	{
-		UseAutoGears = PVehicle->GetTransmission().Setup().TransmissionType == Chaos::ETransmissionType::Automatic;
-	}
-
-	return UseAutoGears;
-}
-
 float UChaosWheeledVehicleMovementComponent::GetMaxSpringForce() const
 {
 	// #todo:
@@ -1088,8 +1186,21 @@ float UChaosWheeledVehicleMovementComponent::GetMaxSpringForce() const
 	return 0.0f;
 }
 
+bool UChaosWheeledVehicleMovementComponent::IsWheelSpinning() const
+{
+	for (auto& Wheel : PVehicle->Wheels)
+	{
+		if (Wheel.IsSpinning())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // Helper
-FVector2D UChaosWheeledVehicleMovementComponent::GetWheelLayoutDimensions()
+FVector2D UChaosWheeledVehicleMovementComponent::CalculateWheelLayoutDimensions()
 {
 	FVector2D MaxSize(0.f, 0.f);
 
@@ -1109,45 +1220,40 @@ FVector2D UChaosWheeledVehicleMovementComponent::GetWheelLayoutDimensions()
 		{
 			MaxSize.X = FMath::Abs(WheelOffset.X);
 		}
+
 	}
+
+	// full width/length not half
+	MaxSize *= 2.0f;
 
 	return MaxSize;
-}
-
-
-float FVehicleEngineConfig::FindPeakTorque() const
-{
-	// Find max torque
-	float PeakTorque = 0.f;
-	TArray<FRichCurveKey> TorqueKeys = TorqueCurve.GetRichCurveConst()->GetCopyOfKeys();
-	for (int32 KeyIdx = 0; KeyIdx < TorqueKeys.Num(); KeyIdx++)
-	{
-		FRichCurveKey& Key = TorqueKeys[KeyIdx];
-		PeakTorque = FMath::Max(PeakTorque, Key.Value);
-	}
-	return PeakTorque;
 }
 
 // Debug
 void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float& YPos)
 {
+#if WITH_EDITOR
+
+	Super::DrawDebug(Canvas, YL, YPos);
+
 	FChaosVehicleManager* MyVehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(GetWorld()->GetPhysicsScene());
 	FBodyInstance* TargetInstance = GetBodyInstance();
 
-	if (!PVehicle.IsValid() || TargetInstance == nullptr || MyVehicleManager == nullptr)
+	// #todo: Should use Pawn->Controller->IsLocalPlayerController() or something?
+	if (!PVehicle.IsValid() || TargetInstance == nullptr || MyVehicleManager == nullptr /*|| GetOwnerRole() != ROLE_Authority*/)
 	{
 		return;
 	}
 
-	float ForwardSpeedKmH = CmSToKmH(GetForwardSpeed());
 	float ForwardSpeedMPH = CmSToMPH(GetForwardSpeed());
-	float ForwardSpeedMSec = CmToM(GetForwardSpeed());
-	auto& PTransmission = PVehicle->GetTransmission();
-	auto& PEngine = PVehicle->GetEngine();
-	auto& PTransmissionSetup = PTransmission.Setup();
 
 	// always draw this even on (DebugPage == EDebugPages::BasicPage)
+	if (PVehicle->HasTransmission())
 	{
+		auto& PTransmission = PVehicle->GetTransmission();
+		auto& PEngine = PVehicle->GetEngine();
+		auto& PTransmissionSetup = PTransmission.Setup();
+
 		UFont* RenderFont = GEngine->GetLargeFont();
 		Canvas->SetDrawColor(FColor::Yellow);
 
@@ -1159,6 +1265,11 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 		Canvas->DrawText(RenderFont, FString::Printf(TEXT("%d mph"), (int)ForwardSpeedMPH), X-100, YLine, Scaling, Scaling);
 		Canvas->DrawText(RenderFont, FString::Printf(TEXT("[%d]"), (int)PTransmission.GetCurrentGear()), X, YLine, Scaling, Scaling);
 		Canvas->DrawText(RenderFont, FString::Printf(TEXT("%d rpm"), (int)PEngine.GetEngineRPM()), X+50, YLine, Scaling, Scaling);
+
+		FVector2D DialPos(X+10, YLine-40);
+		float DialRadius = 50;
+		DrawDial(Canvas, DialPos, DialRadius, PEngine.GetEngineRPM(), PEngine.Setup().MaxRPM);
+
 	}
 
 	UFont* RenderFont = GEngine->GetMediumFont();
@@ -1166,21 +1277,17 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 	{
 		Canvas->SetDrawColor(FColor::White);
 		YPos += 16;
-
-		if (TargetInstance)
+		
+		if (PVehicle->HasTransmission())
 		{
-			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Mass (Kg): %.1f"), TargetInstance->GetBodyMass()), 4, YPos);
-			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Inertia : %s"), *TargetInstance->GetBodyInertiaTensor().ToString()), 4, YPos);
-		}
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("RPM: %.1f (ChangeUp RPM %d, ChangeDown RPM %d)")
+				, GetEngineRotationSpeed()
+				, PVehicle->GetTransmission().Setup().ChangeUpRPM
+				, PVehicle->GetTransmission().Setup().ChangeDownRPM), 4, YPos);
 
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Speed (km/h): %.1f  (MPH): %.1f  (m/s): %.1f"), ForwardSpeedKmH, ForwardSpeedMPH, ForwardSpeedMSec), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Acceleration (m/s-2): %.1f"), CmToM(GetForwardAcceleration())), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Steering: %.1f (RAW %.1f)"), SteeringInput, RawSteeringInput), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Throttle: %.1f (RAW %.1f)"), ThrottleInput, RawThrottleInput), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Brake: %.1f (RAW %.1f)"), BrakeInput, RawBrakeInput), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Pitch: %.1f (RAW %.1f)"), PitchInput, RawPitchInput), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("RPM: %.1f (ChangeUp RPM %d, ChangeDown RPM %d)"), GetEngineRotationSpeed(), PTransmissionSetup.ChangeUpRPM, PTransmissionSetup.ChangeDownRPM), 4, YPos);
-		YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Gear: %d (Target %d)"), GetCurrentGear(), GetTargetGear()), 4, YPos);
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Gear: %d (Target %d)")
+				, GetCurrentGear(), GetTargetGear()), 4, YPos);
+		}
 		//YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Drag: %.1f"), DebugDragMagnitude), 4, YPos);
 
 		YPos += 16;
@@ -1195,6 +1302,25 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("SurfaceFriction: [%d] %.2f"), i, PVehicle->Wheels[i].GetSurfaceFriction()), 4, YPos);
 		}
 		
+	}
+
+	if (DebugPage == EDebugPages::PerformancePage)
+	{
+		if (GWheeledVehicleDebugParams.ResetPerformanceMeasurements)
+		{
+			GWheeledVehicleDebugParams.ResetPerformanceMeasurements = false;
+			PerformanceMeasure.ResetAll();
+		}
+
+		PerformanceMeasure.Enable();
+
+		YPos += 16;
+		for (int I=0; I<PerformanceMeasure.GetNumMeasures(); I++)
+		{
+			const FTimeAndDistanceMeasure& Measure = PerformanceMeasure.GetMeasure(I);
+
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s"), *Measure.ToString()), 4, YPos);
+		}
 	}
 
 	// draw wheel layout
@@ -1216,11 +1342,11 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 
 			const FVector WheelOffset = GetWheelRestingPosition(WheelSetup);
 
-			float DrawScale = 100;
+			float DrawScale = 300;
 			FVector2D CentreDrawPosition(350, 400);
 			FVector2D WheelDrawPosition(WheelOffset.Y, -WheelOffset.X);
 			WheelDrawPosition *= DrawScale;
-			WheelDrawPosition /= MaxSize;
+			WheelDrawPosition /= MaxSize.X;
 			WheelDrawPosition += CentreDrawPosition;
 
 			FVector2D WheelDimensions(Wheel->WheelWidth, Wheel->WheelRadius * 2.0f);
@@ -1249,14 +1375,38 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 
 			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("GroundV : %.1f"), PWheel.GetRoadSpeed()), Xpos, Ypos);
 			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("WheelV : %.1f"), PWheel.GetWheelGroundSpeed()), Xpos, Ypos);
-			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Sx : %.2f"), PWheel.GetNormalizedLongitudinalSlip()), Xpos, Ypos);
+//			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Sx : %.2f"), PWheel.GetNormalizedLongitudinalSlip()), Xpos, Ypos);
+			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Long Ad Limit : %.2f"), PWheel.LongitudinalAdhesiveLimit), Xpos, Ypos);
+			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Lat Ad Limit : %.2f"), PWheel.LateralAdhesiveLimit), Xpos, Ypos);
+			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Side Slip : %.2f"), PWheel.SideSlipModifier), Xpos, Ypos);
 
-			if (PWheel.Setup().EngineEnabled)
+			if (PWheel.AppliedLinearDriveForce > PWheel.LongitudinalAdhesiveLimit)
 			{
-				Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("RPM        : %.1f"), PWheel.GetWheelRPM()), Xpos, Ypos);
-				Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Geared RPM : %.1f"), PTransmission.GetEngineRPMFromWheelRPM(PWheel.GetWheelRPM())), Xpos, Ypos);
-
+				Canvas->SetDrawColor(FColor::Red);
 			}
+			else
+			{
+				Canvas->SetDrawColor(FColor::Green);
+			}
+			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Ap Drive : %.2f"), PWheel.AppliedLinearDriveForce), Xpos, Ypos);
+
+			if (PWheel.AppliedLinearBrakeForce > PWheel.LongitudinalAdhesiveLimit)
+			{
+				Canvas->SetDrawColor(FColor::Red);
+			}
+			else
+			{
+				Canvas->SetDrawColor(FColor::Green);
+			}
+			Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Ap Brake : %.2f"), PWheel.AppliedLinearBrakeForce), Xpos, Ypos);
+			Canvas->SetDrawColor(FColor::White);
+
+			//if (PWheel.Setup().EngineEnabled)
+			//{
+			//	Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("RPM        : %.1f"), PWheel.GetWheelRPM()), Xpos, Ypos);
+			//	Ypos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Geared RPM : %.1f"), PTransmission.GetEngineRPMFromWheelRPM(PWheel.GetWheelRPM())), Xpos, Ypos);
+
+			//}
 
 			if (ContactMat)
 			{
@@ -1264,6 +1414,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 					, FString::Printf(TEXT("Friction %d"), ContactMat->Friction)
 					, WheelDrawPosition.X, WheelDrawPosition.Y-95.f);
 			}
+			
 
 			// ground velocity
 			// wheel ground velocity
@@ -1275,80 +1426,167 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 
 	}
 
-	// draw longitudinal friction slip curve for each wheel
-	if (DebugPage == EDebugPages::FrictionPage)
+	if (DebugPage == EDebugPages::SteeringPage)
 	{
-		for (int WheelIdx=0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
-		{
-			int GraphWidth = 100; int GraphHeight = 60; int Spacing = 35;
-			int GraphXPos = 500 + (GraphWidth+Spacing) * (int)(WheelIdx % 2); 
-			int GraphYPos = 50 + (GraphHeight + Spacing) * (int)(WheelIdx / 2);
-			float XSample = PVehicle->Wheels[WheelIdx].GetNormalizedLongitudinalSlip();
-			
-			FVector2D CurrentValue(XSample, Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(XSample));
-			Canvas->DrawDebugGraph(FString::Printf(TEXT("Longitudinal Slip Graph [%d]"), WheelIdx)
-					, CurrentValue.X, CurrentValue.Y
-					, GraphXPos, GraphYPos
-					, GraphWidth, GraphHeight
-					, FVector2D(0, 1), FVector2D(1, 0));
+		FVector2D MaxSize = GetWheelLayoutDimensions();
 
-			float Step = 0.02f;
-			FVector2D LastPoint;
-			for (float X = 0; X < 1.0f; X += Step)
-			{
-				float Y = Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(X);
-				FVector2D NextPoint(GraphXPos + GraphWidth * X, GraphYPos + GraphHeight - GraphHeight * Y);
-				if (X > SMALL_NUMBER)
-				{
-					DrawLine2D(Canvas, LastPoint, NextPoint, FColor::Cyan);
-				}
-				LastPoint = NextPoint;
-			}	
-		}
+		auto& PSteering = PVehicle->GetSteering();
 
-	}
-
-	// draw lateral friction slip curve for each wheel
-	if (DebugPage == EDebugPages::FrictionPage)
-	{
+		FVector2D J1, J2;
 		for (int WheelIdx = 0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
 		{
-			int GraphWidth = 100; int GraphHeight = 60; int Spacing = 35;
-			int GraphXPos = 500 + (GraphWidth + Spacing) * (int)(WheelIdx % 2);
-			int GraphYPos = 350 + (GraphHeight + Spacing) * (int)(WheelIdx / 2);
-			float XSample = PVehicle->Wheels[WheelIdx].GetNormalizedLateralSlip();
+			FChaosWheelSetup& WheelSetup = WheelSetups[WheelIdx];
+			auto& PWheel = PVehicle->Wheels[WheelIdx];
+			const FVector WheelOffset = GetWheelRestingPosition(WheelSetup);
 
-			FVector2D CurrentValue(XSample, Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(XSample));
-			Canvas->DrawDebugGraph(FString::Printf(TEXT("Lateral Slip Graph [%d]"), WheelIdx)
-				, CurrentValue.X, CurrentValue.Y
-				, GraphXPos, GraphYPos
-				, GraphWidth, GraphHeight
-				, FVector2D(0, 1), FVector2D(1, 0));
+			float Scale = 300.0f / MaxSize.X;
+			FVector2D CentreDrawPosition(450, 400);
+			FVector2D WheelDrawPosition(WheelOffset.Y, -WheelOffset.X);
+			WheelDrawPosition *= Scale;
+			WheelDrawPosition += CentreDrawPosition;
 
-			float Step = 0.02f;
-			FVector2D LastPoint;
-			for (float X = 0; X < 1.0f; X += Step)
+			if (PWheel.Setup().SteeringEnabled)
 			{
-				float Y = Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(X);
-				FVector2D NextPoint(GraphXPos + GraphWidth * X, GraphYPos + GraphHeight - GraphHeight * Y);
-				if (X > SMALL_NUMBER)
+				if (WheelOffset.Y > 0)
 				{
-					DrawLine2D(Canvas, LastPoint, NextPoint, FColor::Cyan);
+					float SteerAngle = DegToRad(PWheel.GetSteeringAngle());
+					FVector2D Tire = FVector2D(FMath::Sin(SteerAngle), -FMath::Cos(SteerAngle)) * 30.0f;
+					FVector2D WPt = WheelDrawPosition;
+					DrawLine2D(Canvas, WPt - Tire, WPt + Tire, FColor::Black, 8);
+
+					if (SteeringSetup.SteeringType == ESteeringType::Ackermann)
+					{
+						FVector2D C1, P, C2;
+						PSteering.Ackermann.GetRightHingeLocations(C1, P, C2);
+						C1.Y = -C1.Y;
+						P.Y = -P.Y;
+						C2.Y = -C2.Y;
+
+						FVector2D JPt = WheelDrawPosition + (P - C2) * Scale;
+						FVector2D CPt = WheelDrawPosition + (C1 - C2) * Scale;
+						DrawLine2D(Canvas, CPt, JPt, FColor::Orange, 3);
+						DrawLine2D(Canvas, WPt, JPt, FColor::Orange, 3);
+						J1 = CPt;
+					}
 				}
-				LastPoint = NextPoint;
+				else
+				{
+					float SteerAngle = DegToRad(PWheel.GetSteeringAngle());
+					FVector2D Tire = FVector2D(FMath::Sin(SteerAngle), -FMath::Cos(SteerAngle)) * 30.0f;
+					FVector2D WPt = WheelDrawPosition;
+
+					if (SteeringSetup.SteeringType == ESteeringType::Ackermann)
+					{
+						DrawLine2D(Canvas, WPt - Tire, WPt + Tire, FColor::Black, 8);
+
+						FVector2D C1, P, C2;
+						PSteering.Ackermann.GetLeftHingeLocations(C1, P, C2);
+						C1.Y = -C1.Y;
+						P.Y = -P.Y;
+						C2.Y = -C2.Y;
+
+						FVector2D JPt = WheelDrawPosition + (P - C2) * Scale;
+						FVector2D CPt = WheelDrawPosition + (C1 - C2) * Scale;
+						DrawLine2D(Canvas, CPt, JPt, FColor::Orange, 3);
+						DrawLine2D(Canvas, WPt, JPt, FColor::Orange, 3);
+						J2 = CPt;
+					}
+				}
 			}
+			else
+			{
+				FVector2D CPt = WheelDrawPosition;
+				FVector2D Tire = FVector2D(0.f, 30.0f);
+				DrawLine2D(Canvas, CPt - Tire, CPt + Tire, FColor::Black, 8);
+			}
+
+			Canvas->DrawText(RenderFont
+				, FString::Printf(TEXT("Angle %.1f"), PWheel.GetSteeringAngle())
+				, WheelDrawPosition.X, WheelDrawPosition.Y - 15.f);
+
 		}
+		DrawLine2D(Canvas, J1, J2, FColor::Red, 3);
 
 	}
 
+	// draw longitudinal friction slip curve for each wheel
+	//if (DebugPage == EDebugPages::FrictionPage)
+	//{
+	//	for (int WheelIdx=0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
+	//	{
+	//		int GraphWidth = 100; int GraphHeight = 60; int Spacing = 35;
+	//		int GraphXPos = 500 + (GraphWidth+Spacing) * (int)(WheelIdx % 2); 
+	//		int GraphYPos = 50 + (GraphHeight + Spacing) * (int)(WheelIdx / 2);
+	//		float XSample = PVehicle->Wheels[WheelIdx].GetNormalizedLongitudinalSlip();
+	//		
+	//		FVector2D CurrentValue(XSample, Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(XSample));
+	//		Canvas->DrawDebugGraph(FString::Printf(TEXT("Longitudinal Slip Graph [%d]"), WheelIdx)
+	//				, CurrentValue.X, CurrentValue.Y
+	//				, GraphXPos, GraphYPos
+	//				, GraphWidth, GraphHeight
+	//				, FVector2D(0, 1), FVector2D(1, 0));
+
+	//		float Step = 0.02f;
+	//		FVector2D LastPoint;
+	//		for (float X = 0; X < 1.0f; X += Step)
+	//		{
+	//			float Y = Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(X);
+	//			FVector2D NextPoint(GraphXPos + GraphWidth * X, GraphYPos + GraphHeight - GraphHeight * Y);
+	//			if (X > SMALL_NUMBER)
+	//			{
+	//				DrawLine2D(Canvas, LastPoint, NextPoint, FColor::Cyan);
+	//			}
+	//			LastPoint = NextPoint;
+	//		}	
+	//	}
+
+	//}
+
+	//// draw lateral friction slip curve for each wheel
+	//if (DebugPage == EDebugPages::FrictionPage)
+	//{
+	//	for (int WheelIdx = 0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
+	//	{
+	//		int GraphWidth = 100; int GraphHeight = 60; int Spacing = 35;
+	//		int GraphXPos = 500 + (GraphWidth + Spacing) * (int)(WheelIdx % 2);
+	//		int GraphYPos = 350 + (GraphHeight + Spacing) * (int)(WheelIdx / 2);
+	//		float XSample = PVehicle->Wheels[WheelIdx].GetNormalizedLateralSlip();
+
+	//		FVector2D CurrentValue(XSample, Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(XSample));
+	//		Canvas->DrawDebugGraph(FString::Printf(TEXT("Lateral Slip Graph [%d]"), WheelIdx)
+	//			, CurrentValue.X, CurrentValue.Y
+	//			, GraphXPos, GraphYPos
+	//			, GraphWidth, GraphHeight
+	//			, FVector2D(0, 1), FVector2D(1, 0));
+
+	//		float Step = 0.02f;
+	//		FVector2D LastPoint;
+	//		for (float X = 0; X < 1.0f; X += Step)
+	//		{
+	//			float Y = Chaos::FSimpleWheelSim::GetNormalisedFrictionFromSlipAngle(X);
+	//			FVector2D NextPoint(GraphXPos + GraphWidth * X, GraphYPos + GraphHeight - GraphHeight * Y);
+	//			if (X > SMALL_NUMBER)
+	//			{
+	//				DrawLine2D(Canvas, LastPoint, NextPoint, FColor::Cyan);
+	//			}
+	//			LastPoint = NextPoint;
+	//		}
+	//	}
+
+	//}
+
 	// draw engine torque curve - just putting engine under transmission
-	if (DebugPage == EDebugPages::TransmissionPage)
+	if (DebugPage == EDebugPages::TransmissionPage && PVehicle->HasTransmission())
 	{
+		auto& PTransmission = PVehicle->GetTransmission();
+		auto& PEngine = PVehicle->GetEngine();
+		auto& PTransmissionSetup = PTransmission.Setup();
+
 		float MaxTorque = PEngine.Setup().MaxTorque;
 		int CurrentRPM = (int)PEngine.GetEngineRPM();
 		FVector2D CurrentValue(CurrentRPM, PEngine.GetEngineTorque());
 		int GraphWidth = 200; int GraphHeight = 120;
-		int GraphXPos = 200; int GraphYPos = 350;
+		int GraphXPos = 200; int GraphYPos = 400;
 
 		Canvas->DrawDebugGraph(FString("Engine Torque Graph")
 			, CurrentValue.X, CurrentValue.Y
@@ -1368,11 +1606,20 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 			}
 			LastPoint = NextPoint;
 		}
+
+		Canvas->DrawText(RenderFont
+			, FString::Printf(TEXT("RevRate %.1f"), PEngine.GetEngineRevRate())
+			, GraphXPos, GraphYPos);
+
 	}
 
 	// draw transmission torque curve
-	if (DebugPage == EDebugPages::TransmissionPage)
+	if (DebugPage == EDebugPages::TransmissionPage && PVehicle->HasTransmission())
 	{
+		auto& PTransmission = PVehicle->GetTransmission();
+		auto& PEngine = PVehicle->GetEngine();
+		auto& PTransmissionSetup = PTransmission.Setup();
+
 		auto& ESetup = PEngine.Setup();
 		auto& TSetup = PTransmission.Setup();
 		float MaxTorque = ESetup.MaxTorque;
@@ -1428,11 +1675,11 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 
 			const FVector WheelOffset = GetWheelRestingPosition(WheelSetup);
 
-			float DrawScale = 100;
+			float DrawScale = 200;
 			FVector2D CentreDrawPosition(500, 350);
 			FVector2D WheelDrawPosition(WheelOffset.Y, -WheelOffset.X);
 			WheelDrawPosition *= DrawScale;
-			WheelDrawPosition /= MaxSize;
+			WheelDrawPosition /= MaxSize.X;
 			WheelDrawPosition += CentreDrawPosition;
 
 			{
@@ -1471,6 +1718,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL
 
 		}
 	}
+#endif
 
 }
 
@@ -1491,24 +1739,42 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug3D()
 		for (int WheelIdx = 0; WheelIdx < PVehicle->Suspension.Num(); WheelIdx++)
 		{
 			auto& PSuspension = PVehicle->Suspension[WheelIdx];
+			auto& PWheel = PVehicle->Wheels[WheelIdx];
 			// push the visualization out a bit sideways from the wheel model so we can actually see it
-			FVector VehicleRightAxis = BodyTransform.GetUnitAxis(EAxis::Y) * -40.0f;
+			FVector VehicleRightAxis = VehicleState.VehicleWorldTransform.GetUnitAxis(EAxis::Y) * 48.0f;
 			const FVector& WheelOffset = PSuspension.GetLocalRestingPosition();
 			if (WheelOffset.Y < 0.0f)
 			{
 				VehicleRightAxis = VehicleRightAxis * -1.0f;
 			}
 
-			FVector Up(0.f, 0.f, -PSuspension.Setup().SuspensionMaxRaise);
-			FVector Down(0.f, 0.f, PSuspension.Setup().SuspensionMaxDrop);
+			FVector LocalDirection = PSuspension.Setup().SuspensionAxis;
+			FVector WorldLocation = BodyTransform.TransformPosition(WheelOffset);
+			FVector WorldDirection = BodyTransform.TransformVector(LocalDirection);
 
-			Up = BodyTransform.TransformVector(Up);
-			Down = BodyTransform.TransformVector(Down);
+			FVector Start = WorldLocation + WorldDirection * (PWheel.GetEffectiveRadius() - PSuspension.Setup().SuspensionMaxRaise);
+			FVector End = WorldLocation + WorldDirection * (PWheel.GetEffectiveRadius() + PSuspension.Setup().SuspensionMaxDrop);
 
-			FVector Position = PSuspension.GetLocalRestingPosition();
-			Position = BodyTransform.TransformPosition(Position);
+			DrawDebugLine(GetWorld(), Start + VehicleRightAxis, End + VehicleRightAxis, FColor::Orange, false, -1.f, 0, 3.f);
 
-			DrawDebugLine(GetWorld(), Position + Up + VehicleRightAxis, Position + Down + VehicleRightAxis, FColor::Orange, false, -1.f, 0, 2.f);
+			FVector Start2 = WorldLocation - WorldDirection * PSuspension.Setup().SuspensionMaxRaise;
+			FVector End2 = WorldLocation + WorldDirection * PSuspension.Setup().SuspensionMaxDrop;
+
+			DrawDebugLine(GetWorld(), Start2 + VehicleRightAxis, End2 + VehicleRightAxis, FColor::Yellow, false, -1.f, 0, 3.f);
+
+
+			//FVector Up(0.f, 0.f, -PSuspension.Setup().SuspensionMaxRaise);
+			//FVector Down(0.f, 0.f, PSuspension.Setup().SuspensionMaxDrop);
+
+			//Up = BodyTransform.TransformVector(Up);
+			//Down = BodyTransform.TransformVector(Down);
+
+			//FVector Position = PSuspension.GetLocalRestingPosition();
+			//Position = BodyTransform.TransformPosition(Position);
+
+			//DrawDebugLine(GetWorld(), Position + Up + VehicleRightAxis, Position + Down + VehicleRightAxis, FColor::Orange, false, -1.f, 0, 3.f);
+
+
 		}
 	}
 
@@ -1529,7 +1795,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug3D()
 			const FVector& TraceEnd = WheelState.Trace[WheelIdx].End;
 
 			// push the visualization out a bit sideways from the wheel model so we can actually see it
-			FVector VehicleRightAxis = GetOwner()->GetTransform().GetUnitAxis(EAxis::Y) * 50.0f;
+			FVector VehicleRightAxis = VehicleState.VehicleWorldTransform.GetUnitAxis(EAxis::Y) * 50.0f;
 			const FVector& WheelOffset = PVehicle->Suspension[WheelIdx].GetLocalRestingPosition();
 			if (WheelOffset.Y < 0.0f)
 			{
@@ -1537,14 +1803,49 @@ void UChaosWheeledVehicleMovementComponent::DrawDebug3D()
 			}
 
 			FColor UseColor = PVehicle->Wheels[WheelIdx].InContact() ? FColor::Green : FColor::Red;
-			DrawDebugLine(GetWorld(), TraceStart + VehicleRightAxis, TraceEnd + VehicleRightAxis, UseColor, false, -1.f, 0, 2.f);
+			DrawDebugDirectionalArrow(GetWorld(), TraceStart + VehicleRightAxis, TraceEnd + VehicleRightAxis, 10.f, UseColor, false, -1.f, 0, 2.f);
+
+			DrawDebugLine(GetWorld(), TraceStart, TraceStart + VehicleRightAxis, FColor::White, false, -1.f, 0, 1.f);
+			DrawDebugLine(GetWorld(), TraceEnd, TraceEnd + VehicleRightAxis, FColor::White, false, -1.f, 0, 1.f);
 		}
 	}
 }
 
+#if WITH_EDITOR
+
+float UChaosWheeledVehicleMovementComponent::CalcDialAngle(float CurrentValue, float MaxValue)
+{
+	return (CurrentValue / MaxValue) * 3.f / 2.f * PI - (PI * 0.25f);
+}
+
+void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D Pos, float Radius, float CurrentValue, float MaxValue)
+{
+	float Angle = CalcDialAngle(CurrentValue, MaxValue);
+	FVector2D PtEnd(Pos.X - FMath::Cos(Angle) * Radius, Pos.Y - FMath::Sin(Angle) * Radius);
+	DrawLine2D(Canvas, Pos, PtEnd, FColor::White, 3.f);
+
+	for (float I = 0; I < MaxValue; I += 1000.0f)
+	{
+		Angle = CalcDialAngle(I, MaxValue);
+		PtEnd.Set(-FMath::Cos(Angle) * Radius, -FMath::Sin(Angle) * Radius);
+		FVector2D PtStart = PtEnd * 0.8f;
+		DrawLine2D(Canvas, Pos + PtStart, Pos + PtEnd, FColor::White, 2.f);
+	}
+
+	// the last checkmark
+	Angle = CalcDialAngle(MaxValue, MaxValue);
+	PtEnd.Set(-FMath::Cos(Angle) * Radius, -FMath::Sin(Angle) * Radius);
+	FVector2D PtStart = PtEnd * 0.8f;
+	DrawLine2D(Canvas, Pos+PtStart, Pos+PtEnd, FColor::Red, 2.f);
+
+}
+
+
+#endif
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())
+	, SteeringBoneName(NAME_None)
 	, BoneName(NAME_None)
 	, AdditionalOffset(0.0f)
 {

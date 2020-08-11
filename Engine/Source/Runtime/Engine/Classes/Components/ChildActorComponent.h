@@ -51,6 +51,11 @@ public:
 	UPROPERTY()
 	TArray<FChildActorAttachedActorInfo> AttachedActors;
 
+#if WITH_EDITOR
+	/** Keep track of the child actor GUID to reuse it when reinstancing */
+	FGuid ChildActorGUID;
+#endif
+
 	// The component instance data cache for the ChildActor spawned by this component
 	TSharedPtr<FComponentInstanceDataCache> ComponentInstanceData;
 };
@@ -120,6 +125,9 @@ private:
 	/** We try to keep the child actor's name as best we can, so we store it off here when destroying */
 	FName ChildActorName;
 
+	/** Detect when the parent actor is renamed, in which case we can't preseve the child actor's name */
+	UObject* ActorOuter;
+
 	/** Cached copy of the instance data when the ChildActor is destroyed to be available when needed */
 	mutable FChildActorComponentInstanceData* CachedInstanceData;
 
@@ -131,6 +139,10 @@ private:
 
 	/** Flag indicating that when the component is registered that the child actor should be recreated */
 	uint8 bNeedsRecreate:1;
+
+#if WITH_EDITOR
+	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) override;
+#endif
 
 public:
 
@@ -181,5 +193,9 @@ public:
 #endif
 };
 
-
-
+struct FActorParentComponentSetter
+{
+	static void Set(AActor* ChildActor, UChildActorComponent* ParentComponent);
+private:
+	friend UChildActorComponent;
+};

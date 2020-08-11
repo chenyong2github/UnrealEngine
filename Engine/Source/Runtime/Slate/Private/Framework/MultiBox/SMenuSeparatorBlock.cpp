@@ -2,7 +2,7 @@
 
 #include "Framework/MultiBox/SMenuSeparatorBlock.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSeparator.h"
 
 
 /**
@@ -11,6 +11,7 @@
 FMenuSeparatorBlock::FMenuSeparatorBlock(const FName& InExtensionHook, bool bInIsPartOfHeading)
 	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::Separator, bInIsPartOfHeading )
 {
+	SetSearchable(false);
 }
 
 
@@ -51,17 +52,12 @@ void SMenuSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 				// Add some empty space before the line, and a tiny bit after it
 				.Padding( 0.0f, 4.0f, 0.0f, 2.0f )
 				[
-					SNew( SBorder )
-
-						// We'll use the border's padding to actually create the horizontal line
-						.Padding( StyleSet->GetMargin( StyleName, ".Separator.Padding" ) )
-
-						// Separator graphic
-						.BorderImage( StyleSet->GetBrush( StyleName, ".Separator" ) )
+					SNew( SSeparator )
+					.SeparatorImage(StyleSet->GetBrush(StyleName, ".Separator"))
+					.Thickness(2.0f)
 				]
 	];
 
 	// Add this widget to the search list of the multibox and hide it
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), FText::GetEmpty());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), FText::GetEmpty(), MultiBlock->GetSearchable());
 }

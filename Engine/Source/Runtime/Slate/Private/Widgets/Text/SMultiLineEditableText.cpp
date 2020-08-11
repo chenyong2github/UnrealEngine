@@ -89,6 +89,12 @@ void SMultiLineEditableText::Construct( const FArguments& InArgs )
 	MenuExtender->AddMenuExtension("EditText", EExtensionHook::Before, TSharedPtr<FUICommandList>(), InArgs._ContextMenuExtender);
 }
 
+
+void SMultiLineEditableText::GetCurrentTextLine(FString& OutTextLine) const
+{
+	EditableTextLayout->GetCurrentTextLine(OutTextLine);
+}
+
 void SMultiLineEditableText::SetText(const TAttribute< FText >& InText)
 {
 	EditableTextLayout->SetText(InText);

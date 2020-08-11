@@ -14,7 +14,6 @@
 #include "ChaosSolversModule.h"
 
 #include "Modules/ModuleManager.h"
-#include "Framework/PhysicsTickTask.h"
 
 
 namespace ChaosTest {
@@ -27,10 +26,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -46,10 +44,7 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get() });
 
-		Solver->PushPhysicsState(Module->GetDispatcher());
-
-		FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-		AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+		Solver->AdvanceAndDispatch_External(100.0f);
 
 		Solver->BufferPhysicsResults();
 		Solver->FlipBuffers();
@@ -83,10 +78,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::DedicatedThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr, EThreadingMode::DedicatedThread);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -102,11 +96,10 @@ namespace ChaosTest {
 		int32 Counter = 0;
 		while (Particle->X().Size() == 0.f)
 		{
-			Solver->PushPhysicsState(Module->GetDispatcher()); 
-
 			// This might not be the correct way to advance when using the TaskGraph.
-			FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-			AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+			//TODO: use event returned
+			Solver->AdvanceAndDispatch_External(100.0f);
+
 
 			Solver->BufferPhysicsResults();
 			Solver->FlipBuffers();
@@ -138,10 +131,9 @@ namespace ChaosTest {
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Module->ChangeThreadingMode(EChaosThreadingMode::SingleThread);
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		auto* Solver = Module->CreateSolver<Traits>(nullptr);
 		Solver->SetEnabled(true);
 
 		// Make a particle
@@ -163,14 +155,11 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(),Particle2.Get() });
 
-		Solver->PushPhysicsState(Module->GetDispatcher());
-
 		// let top paticle collide and wake up second particle
 		int32 LoopCount = 0;
 		while (Particle2->GetWakeEvent() == EWakeEventEntry::None && LoopCount++ < 20)
 		{
-			FPhysicsSolverAdvanceTask AdvanceTask(Solver, 100.0f);
-			AdvanceTask.DoTask(ENamedThreads::GameThread, FGraphEventRef());
+			Solver->AdvanceAndDispatch_External(100.0f);
 
 			Solver->BufferPhysicsResults();
 			Solver->FlipBuffers();

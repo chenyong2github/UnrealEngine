@@ -5,6 +5,7 @@
 
 #include "NiagaraBoundsCalculator.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraDataSetAccessor.h"
 
 template<bool bUsedWithSprites, bool bUsedWithMeshes, bool bUsedWithRibbons>
 class FNiagaraBoundsCalculatorHelper : public FNiagaraBoundsCalculator
@@ -15,69 +16,29 @@ public:
 		: MeshExtents(InMeshExtents)
 	{}
 
-	virtual void InitAccessors(FNiagaraDataSet& DataSet) override final
+	virtual void InitAccessors(const FNiagaraDataSetCompiledData* CompiledData) override final
 	{
 		static const FName PositionName(TEXT("Position"));
 		static const FName SpriteSizeName(TEXT("SpriteSize"));
 		static const FName ScaleName(TEXT("Scale"));
 		static const FName RibbonWidthName(TEXT("RibbonWidth"));
 
-		if (DataSet.HasVariable(PositionName))
-		{
-			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(DataSet, PositionName);
-		}
-		else
-		{
-			PositionAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>();
-		}
-
-		if (bUsedWithSprites && DataSet.HasVariable(SpriteSizeName))
-		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>>(DataSet, SpriteSizeName);
-		}
-		else
-		{
-			SpriteSizeAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>>();
-		}
-
-		if (bUsedWithMeshes && DataSet.HasVariable(ScaleName))
-		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>(DataSet, ScaleName);
-		}
-		else
-		{
-			ScaleAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>>();
-		}
-
-		if (bUsedWithRibbons && DataSet.HasVariable(RibbonWidthName))
-		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>(DataSet, RibbonWidthName);
-		}
-		else
-		{
-			RibbonWidthAccessor = FNiagaraDataSetAccessor<FNiagaraDataConversions<float>>();
-		}
-	}
-
-	virtual void RefreshAccessors() override final
-	{
-		PositionAccessor.InitForAccess();
-
+		PositionAccessor.Init(CompiledData, PositionName);
 		if (bUsedWithSprites)
 		{
-			SpriteSizeAccessor.InitForAccess();
+			SpriteSizeAccessor.Init(CompiledData, SpriteSizeName);
 		}
 		if (bUsedWithMeshes)
 		{
-			ScaleAccessor.InitForAccess();
+			ScaleAccessor.Init(CompiledData, ScaleName);
 		}
 		if (bUsedWithRibbons)
 		{
-			RibbonWidthAccessor.InitForAccess();
+			RibbonWidthAccessor.Init(CompiledData, RibbonWidthName);
 		}
 	}
 
-	virtual FBox CalculateBounds(const int32 NumInstances) const override final
+	virtual FBox CalculateBounds(const FNiagaraDataSet& DataSet, const int32 NumInstances) const override final
 	{
 		if (!NumInstances || !PositionAccessor.IsValid())
 		{
@@ -86,13 +47,9 @@ public:
 
 		constexpr float kDefaultSize = 50.0f;
 
-
-		FNiagaraMinMaxStruct MinMaxXs = PositionAccessor.GetMinMaxElement(0);
-		FNiagaraMinMaxStruct MinMaxYs = PositionAccessor.GetMinMaxElement(1);
-		FNiagaraMinMaxStruct MinMaxZs = PositionAccessor.GetMinMaxElement(2);
-
-		const FVector PositionMax = FVector(MinMaxXs.Max, MinMaxYs.Max, MinMaxZs.Max);
-		const FVector PositionMin = FVector(MinMaxXs.Min, MinMaxYs.Min, MinMaxZs.Min);
+		FVector PositionMax;
+		FVector PositionMin;
+		PositionAccessor.GetReader(DataSet).GetMinMax(PositionMin, PositionMax);
 
 		float MaxSize = KINDA_SMALL_NUMBER;
 		if (bUsedWithMeshes)
@@ -100,12 +57,7 @@ public:
 			FVector MaxScale = FVector(kDefaultSize, kDefaultSize, kDefaultSize);
 			if (ScaleAccessor.IsValid())
 			{
-				MaxScale = FVector
-				(
-					ScaleAccessor.GetMaxElement(0),
-					ScaleAccessor.GetMaxElement(1),
-					ScaleAccessor.GetMaxElement(2)
-				);
+				MaxScale = ScaleAccessor.GetReader(DataSet).GetMax();
 			}
 
 			const FVector ScaledExtents = MeshExtents * (MaxScale.IsNearlyZero() ? FVector::OneVector : MaxScale);
@@ -118,7 +70,8 @@ public:
 
 			if (SpriteSizeAccessor.IsValid())
 			{
-				MaxSpriteSize = FMath::Max(SpriteSizeAccessor.GetMaxElement(0), SpriteSizeAccessor.GetMaxElement(1));
+				const FVector2D MaxSpriteSize2D = SpriteSizeAccessor.GetReader(DataSet).GetMax();
+				MaxSpriteSize = FMath::Max(MaxSpriteSize2D.X, MaxSpriteSize2D.Y);
 			}
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxSpriteSize) ? 1.0f : MaxSpriteSize);
 		}
@@ -128,7 +81,7 @@ public:
 			float MaxRibbonWidth = kDefaultSize;
 			if (RibbonWidthAccessor.IsValid())
 			{
-				MaxRibbonWidth = RibbonWidthAccessor.GetMaxElement(0);
+				MaxRibbonWidth = RibbonWidthAccessor.GetReader(DataSet).GetMax();
 			}
 
 			MaxSize = FMath::Max(MaxSize, FMath::IsNearlyZero(MaxRibbonWidth) ? 1.0f : MaxRibbonWidth);
@@ -137,9 +90,10 @@ public:
 		return FBox(PositionMin, PositionMax).ExpandBy(MaxSize);
 	}
 
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> PositionAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector2D>> SpriteSizeAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<FVector>> ScaleAccessor;
-	FNiagaraDataSetAccessor<FNiagaraDataConversions<float>> RibbonWidthAccessor;
+	FNiagaraDataSetAccessor<FVector> PositionAccessor;
+	FNiagaraDataSetAccessor<FVector2D> SpriteSizeAccessor;
+	FNiagaraDataSetAccessor<FVector> ScaleAccessor;
+	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;
+
 	const FVector MeshExtents = FVector::OneVector;
 };

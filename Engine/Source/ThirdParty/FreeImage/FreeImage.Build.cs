@@ -8,7 +8,7 @@ public class FreeImage : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "Source"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "FreeImage-3.18.0", "Dist"));
 
 		string BinaryLibraryFolder = Path.Combine(Target.UEThirdPartyBinariesDirectory, "FreeImage", Target.Platform.ToString());
 		string LibraryFileName = "";

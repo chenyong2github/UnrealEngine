@@ -81,7 +81,7 @@ FReply FSequencerEditTool_Movement::OnMouseMove(SWidget& OwnerWidget, const FGeo
 				{
 					DragPosition.X = FMath::Max(DragPosition.X, 0.f);
 					FFrameTime CurrentTime = VirtualTrackArea.PixelToFrame(DragPosition.X);
-					CurrentTime = MovieScene::ClampToDiscreteRange(CurrentTime, Sequencer.GetPlaybackRange());
+					CurrentTime = UE::MovieScene::ClampToDiscreteRange(CurrentTime, Sequencer.GetPlaybackRange());
 					DragPosition.X = VirtualTrackArea.FrameToPixel(CurrentTime);
 				}
 					

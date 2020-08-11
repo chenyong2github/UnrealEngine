@@ -320,13 +320,13 @@ void UContentBrowserAssetDataSource::CompileFilter(const FName InPath, const FCo
 		if (PackageFilter)
 		{
 			AssetDataFilter.bRecursivePackagePathsToInclude = PackageFilter->bRecursivePackagePathsToInclude;
-			for (const FName PackagePathToInclude : PackageFilter->PackagePathsToInclude)
+			for (const FName& PackagePathToInclude : PackageFilter->PackagePathsToInclude)
 			{
 				AssetDataFilter.PackagePathsToInclude.AddWhitelistItem(NAME_None, PackagePathToInclude);
 			}
 
 			AssetDataFilter.bRecursivePackagePathsToExclude = PackageFilter->bRecursivePackagePathsToExclude;
-			for (const FName PackagePathToExclude : PackageFilter->PackagePathsToExclude)
+			for (const FName& PackagePathToExclude : PackageFilter->PackagePathsToExclude)
 			{
 				AssetDataFilter.PackagePathsToExclude.AddBlacklistItem(NAME_None, PackagePathToExclude);
 			}
@@ -696,7 +696,7 @@ void UContentBrowserAssetDataSource::EnumerateItemsMatchingFilter(const FContent
 		}
 		else
 		{
-			for (const FName SubPath : AssetDataFilter->CachedSubPaths)
+			for (const FName& SubPath : AssetDataFilter->CachedSubPaths)
 			{
 				if (!InCallback(CreateAssetFolderItem(SubPath)))
 				{
@@ -750,7 +750,7 @@ void UContentBrowserAssetDataSource::EnumerateItemsAtPath(const FName InPath, co
 	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFiles))
 	{
 		FARFilter ARFilter;
-		ARFilter.PackageNames.Add(InternalPath);
+		ARFilter.ObjectPaths.Add(InternalPath);
 		AssetRegistry->EnumerateAssets(ARFilter, [this, &InCallback](const FAssetData& AssetData)
 		{
 			if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
@@ -1603,7 +1603,7 @@ void UContentBrowserAssetDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 
 	// Extract the internal asset paths that belong to this data source from the full list of selected paths given in the context
 	TArray<FName> SelectedAssetPaths;
-	for (const FName SelectedPath : ContextObject->SelectedPaths)
+	for (const FName& SelectedPath : ContextObject->SelectedPaths)
 	{
 		FName InternalPath;
 		if (TryConvertVirtualPathToInternal(SelectedPath, InternalPath) && IsKnownContentPath(InternalPath))

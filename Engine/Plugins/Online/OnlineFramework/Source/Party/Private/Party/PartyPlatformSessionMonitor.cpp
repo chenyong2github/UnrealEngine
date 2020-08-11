@@ -465,6 +465,7 @@ void FPartyPlatformSessionMonitor::Initialize()
 	Party.OnPartyConfigurationChanged().AddSP(this, &FPartyPlatformSessionMonitor::HandlePartyConfigurationChanged);
 	Party.GetRepData().OnPlatformSessionsChanged().AddSP(this, &FPartyPlatformSessionMonitor::HandlePlatformSessionsChanged);
 	Party.OnPartyLeft().AddSP(this, &FPartyPlatformSessionMonitor::HandlePartyLeft);
+	Party.OnPartyMemberLeft().AddSP(this, &FPartyPlatformSessionMonitor::HandlePartyMemberLeft);
 
 	EvaluateCurrentSession();
 }
@@ -548,12 +549,39 @@ void FPartyPlatformSessionMonitor::AddLocalPlayerToSession(UPartyMember* PartyMe
 			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformUniqueId();
 			if (PartyMemberPlatformUniqueId.IsValid())
 			{
+				UE_LOG(LogParty, Verbose, TEXT("AddLocalPlayerToSession: Registering player, PartyMember=%s PPUID=%s"), *PartyMember->ToDebugString(true), *PartyMemberPlatformUniqueId->ToDebugString());
 				SessionInterface->RegisterPlayer(Session->SessionName, *PartyMemberPlatformUniqueId, false);
 
 				SessionInterface->RegisterLocalPlayer(*PartyMemberPlatformUniqueId, Session->SessionName,
 					FOnRegisterLocalPlayerCompleteDelegate::CreateLambda([](const FUniqueNetId& UserId, EOnJoinSessionCompleteResult::Type Result)
 				{
 					UE_LOG(LogParty, Log, TEXT("AddLocalPlayerToSession: Complete User=%s Result=%s"), *UserId.ToDebugString(), LexToString(Result));
+				}));
+			}
+		}
+	}
+}
+
+void FPartyPlatformSessionMonitor::RemoveLocalPlayerFromSession(UPartyMember* PartyMember)
+{
+	if (ensure(MonitoredParty.IsValid()) &&
+		!MonitoredParty->IsMissingPlatformSession())
+	{
+		const IOnlineSessionPtr& SessionInterface = SessionManager->GetSessionInterface();
+		const FNamedOnlineSession* Session = SessionInterface->GetNamedSession(PartySessionName);
+
+		if (ensure(Session))
+		{
+			const FUniqueNetIdRepl PartyMemberPlatformUniqueId = PartyMember->GetRepData().GetPlatformUniqueId();
+			if (PartyMemberPlatformUniqueId.IsValid())
+			{
+				UE_LOG(LogParty, Verbose, TEXT("RemoveLocalPlayerFromSession: Unregistering player, PartyMember=%s PPUID=%s"), *PartyMember->ToDebugString(true), *PartyMemberPlatformUniqueId->ToDebugString());
+				SessionInterface->UnregisterPlayer(Session->SessionName, *PartyMemberPlatformUniqueId);
+
+				SessionInterface->UnregisterLocalPlayer(*PartyMemberPlatformUniqueId, Session->SessionName,
+					FOnUnregisterLocalPlayerCompleteDelegate::CreateLambda([](const FUniqueNetId& UserId, const bool bWasSuccessful)
+				{
+					UE_LOG(LogParty, Log, TEXT("RemoveLocalPlayerFromSession: Complete User=%s bWasSuccessful=%s"), *UserId.ToDebugString(), *LexToString(bWasSuccessful));
 				}));
 			}
 		}
@@ -758,11 +786,19 @@ void FPartyPlatformSessionMonitor::HandlePartyMemberInitialized(UPartyMember* In
 	}
 }
 
-void FPartyPlatformSessionMonitor::HandlePartyMemberLeft(UPartyMember* OldMember)
+void FPartyPlatformSessionMonitor::HandlePartyMemberLeft(UPartyMember* OldMember, const EMemberExitedReason ExitReason)
 {
+	UE_LOG(LogParty, Verbose, TEXT("HandlePartyMemberLeft: PartyMember=%s User=%s ExitReason=%s"),
+		*OldMember->ToDebugString(true), *OldMember->GetRepData().GetPlatformUniqueId().ToDebugString(), ToString(ExitReason));
+
 	if (IsTencentPlatform() && OldMember->GetPlatformOssName() == TENCENT_SUBSYSTEM)
 	{
 		SessionManager->GetSessionInterface()->UnregisterPlayer(PartySessionName, *OldMember->GetRepData().GetPlatformUniqueId());
+	}
+
+	if (OldMember->IsLocalPlayer())
+	{
+		RemoveLocalPlayerFromSession(OldMember);
 	}
 }
 

@@ -64,7 +64,7 @@ public:
 	TSharedPtr<class SLevelViewport> GetActiveViewport();
 
 	/** ILevelEditor interface */
-	virtual void SummonLevelViewportContextMenu() override;
+	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
 	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const override;

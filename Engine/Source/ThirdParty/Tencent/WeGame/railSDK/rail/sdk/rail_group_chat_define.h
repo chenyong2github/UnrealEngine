@@ -1,8 +1,8 @@
-// Copyright (c) 2018, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
-#ifndef RAIL_SDK_RAIL_GROUP_CHAT_DEFIEN_H
-#define RAIL_SDK_RAIL_GROUP_CHAT_DEFIEN_H
+#ifndef RAIL_SDK_RAIL_GROUP_CHAT_DEFINE_H
+#define RAIL_SDK_RAIL_GROUP_CHAT_DEFINE_H
 
 #include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_event.h"
@@ -29,9 +29,15 @@ struct RailQueryGroupsInfoResult : public RailEvent<kRailEventGroupChatQueryGrou
     RailArray<RailString> group_ids;
 };
 
+struct RailOpenGroupChatResult : public RailEvent<kRailEventGroupChatOpenGroupChatResult> {
+    RailOpenGroupChatResult() {
+        result = kFailure;
+    }
+};
+
 }  // namespace rail_event
 
 #pragma pack(pop)
 }  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_GROUP_CHAT_DEFIEN_H
+#endif  // RAIL_SDK_RAIL_GROUP_CHAT_DEFINE_H

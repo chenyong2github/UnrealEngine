@@ -251,3 +251,9 @@ uint32 FDynamicRenderAssetInstanceManager::GetAllocatedSize() const
 	const FRenderAssetInstanceState* State = StateSync.GetState();
 	return  State ? (sizeof(FRenderAssetInstanceState) + State->GetAllocatedSize()) : 0;
 }
+
+const FRenderAssetInstanceView* FDynamicRenderAssetInstanceManager::GetGameThreadView()
+{
+	check(IsInGameThread());
+	return StateSync.GetState();
+}

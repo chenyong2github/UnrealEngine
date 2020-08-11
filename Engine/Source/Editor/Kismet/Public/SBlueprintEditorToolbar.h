@@ -81,12 +81,11 @@ public:
 	FBlueprintEditorToolbar(TSharedPtr<FBlueprintEditor> InBlueprintEditor)
 		: BlueprintEditor(InBlueprintEditor) {}
 
-	void AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu);
+	void AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu, bool bRegisterViewport = false);
 	void AddCompileToolbar(UToolMenu* InMenu);
 	void AddNewToolbar(UToolMenu* InMenu);
 	void AddScriptingToolbar(UToolMenu* InMenu);
 	void AddDebuggingToolbar(UToolMenu* InMenu);
-	void AddComponentsToolbar(UToolMenu* InMenu);
 
 	/** Returns the current status icon for the blueprint being edited */
 	FSlateIcon GetStatusImage() const;

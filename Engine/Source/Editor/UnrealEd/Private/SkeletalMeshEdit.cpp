@@ -112,7 +112,7 @@ UAnimSequence * UEditorEngine::ImportFbxAnimation( USkeleton* Skeleton, UObject*
 	return NewAnimation;
 }
 
-bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename)
+bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions)
 {
 	check(Skeleton);
 	bool bResult = true;
@@ -127,7 +127,7 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 	ReimportUI->bOverrideFullName = false;
 	ReimportUI->bImportAnimations = true;
 
-	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !GIsAutomationTesting;
+	const bool ShowImportDialogAtReimport = GetDefault<UEditorPerProjectUserSettings>()->bShowImportDialogAtReimport && !GIsAutomationTesting && bFactoryShowOptions;
 	if (ImportData && !ShowImportDialogAtReimport)
 	{
 		// Prepare the import options
@@ -151,7 +151,6 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 		bool bImportOperationCanceled = false;
 		bool bShowOptionDialog = true;
 		bool bForceImportType = true;
-		bool bOutImportAll = false;
 		bool bIsObjFormat = false;
 		bool bIsAutomated = false;
 
@@ -1193,13 +1192,13 @@ namespace AnimationTransformDebug
 						// now print information - it doesn't match well, find out what it is
 						FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("FBXImport_TransformError", "Imported bone transform is different from original. Please check Output Log to see detail of error. "),
 							FText::FromName(Data.BoneName), FText::AsNumber(Data.BoneIndex), FText::FromString(Data.SourceGlobalTransform[Key].ToString()), FText::FromString(GlobalTransform.ToString()))), FFbxErrors::Animation_TransformError);
+						
+						// now print information - it doesn't match well, find out what it is
+						UE_LOG(LogFbx, Warning, TEXT("IMPORT TRANSFORM ERROR : Bone (%s:%d) \r\nSource Global Transform (%s), \r\nConverted Global Transform (%s)"),
+							*Data.BoneName.ToString(), Data.BoneIndex, *Data.SourceGlobalTransform[Key].ToString(), *GlobalTransform.ToString());
 
 						bShouldOutputToMessageLog = false;
 					}
-					
-					// now print information - it doesn't match well, find out what it is
-					UE_LOG(LogFbx, Warning, TEXT("IMPORT TRANSFORM ERROR : Bone (%s:%d) \r\nSource Global Transform (%s), \r\nConverted Global Transform (%s)"),
-						*Data.BoneName.ToString(), Data.BoneIndex, *Data.SourceGlobalTransform[Key].ToString(), *GlobalTransform.ToString());
 				}
 			}
 		}
@@ -1498,7 +1497,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 	if (bReimportWarnings && ExistingCurveNames.Num())
 	{
-		for (const FString CurveName : ExistingCurveNames)
+		for (const FString& CurveName : ExistingCurveNames)
 		{
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Warning_NonExistingCurve", "Curve ({0}) was not found in the new Animation."), FText::FromString(CurveName))), FFbxErrors::Animation_CurveNotFound);
 		}

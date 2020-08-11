@@ -77,11 +77,6 @@ APPLICATIONCORE_API
 	
 	volatile int32 KeyboardShowCount;
 
-#if WITH_ACCESSIBILITY
-@private
-	// Single-element array used for the accessibilityElements property. It holds the IAccessibleWindow for the app.
-	NSMutableArray* _accessibilityElements;
-#endif
 }
 
 #if WITH_ACCESSIBILITY

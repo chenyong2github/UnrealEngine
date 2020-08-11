@@ -9,13 +9,15 @@
 
 /**
  * Takes an input string and escapes it so it can be written as a valid Json string. Also adds the quotes.
- * Appends to a given string to avoid reallocations.
+ * Appends to a given string-like object to avoid reallocations.
+ * String-like object must support operator+=(const TCHAR*) and operation+=(TCHAR)
  *
  * @param AppendTo the string to append to.
  * @param StringVal the string to escape
  * @return the AppendTo string for convenience.
  */
-inline FString& AppendEscapeJsonString(FString& AppendTo, const FString& StringVal)
+template<typename StringType>
+inline StringType& AppendEscapeJsonString(StringType& AppendTo, const FString& StringVal)
 {
 	AppendTo += TEXT("\"");
 	for (const TCHAR* Char = *StringVal; *Char != TCHAR('\0'); ++Char)
@@ -42,7 +44,7 @@ inline FString& AppendEscapeJsonString(FString& AppendTo, const FString& StringV
 		}
 	}
 	AppendTo += TEXT("\"");
-	
+
 	return AppendTo;
 }
 

@@ -56,7 +56,7 @@ FBox ALevelBounds::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFro
 				BoundsCenter + BoundsExtent);
 }
 
-FBox ALevelBounds::CalculateLevelBounds(ULevel* InLevel)
+FBox ALevelBounds::CalculateLevelBounds(const ULevel* InLevel)
 {
 	FBox LevelBounds(ForceInit);
 	

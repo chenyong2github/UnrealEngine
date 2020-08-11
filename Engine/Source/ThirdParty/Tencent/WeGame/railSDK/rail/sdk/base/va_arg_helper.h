@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_BASE_VAARG_HELPER_H
@@ -13,10 +13,10 @@
 #define RAIL_IS_COMMA(...) RAIL_ARG_N_(__VA_ARGS__, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE,\
     COMMA)
 #define RAIL_ARG_COMMA ,
-#define RAIL_ARG_NONE 
+#define RAIL_ARG_NONE
 #define RAIL_VA_ARGS(...) RAIL_COMBINE(RAIL_ARG_, RAIL_IS_COMMA(__VA_ARGS__)) __VA_ARGS__
 #else
 #define RAIL_VA_ARGS(...) __VA_ARGS__
 #endif
 
-#endif
+#endif  // RAIL_BASE_VAARG_HELPER_H

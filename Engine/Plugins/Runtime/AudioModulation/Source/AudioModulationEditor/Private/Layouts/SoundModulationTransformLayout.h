@@ -9,6 +9,7 @@
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
 #include "SCurveEditor.h"
+#include "SoundModulationTransform.h"
 
 
 // Forward Declarations
@@ -28,6 +29,6 @@ public:
 	//~ End IPropertyTypeCustomization
 
 private:
-	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<FString>& Filter) const;
+	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle, const TArray<ESoundModulatorOutputCurve>& Filters) const;
 	bool IsSharedCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
 };

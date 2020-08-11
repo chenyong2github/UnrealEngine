@@ -408,12 +408,12 @@ static void BlueprintEditorToolbarImpl::MakeCompileDeveloperSubMenu(FMenuBuilder
 //////////////////////////////////////////////////////////////////////////
 // FBlueprintEditorToolbar
 
-void FBlueprintEditorToolbar::AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu)
+void FBlueprintEditorToolbar::AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu, bool bRegisterViewport)
 {
 	FToolMenuSection& Section = InMenu->AddSection("Settings");
 	Section.InsertPosition = FToolMenuInsert("Asset", EToolMenuInsertType::After);
 
-	Section.AddDynamicEntry("BlueprintGlobalOptions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	Section.AddDynamicEntry("BlueprintGlobalOptions", FNewToolMenuSectionDelegate::CreateLambda([bRegisterViewport](FToolMenuSection& InSection)
 	{
 		UBlueprintEditorToolMenuContext* Context = InSection.FindContext<UBlueprintEditorToolMenuContext>();
 		if (Context && Context->GetBlueprintObj())
@@ -421,6 +421,11 @@ void FBlueprintEditorToolbar::AddBlueprintGlobalOptionsToolbar(UToolMenu* InMenu
 			const FFullBlueprintEditorCommands& Commands = FFullBlueprintEditorCommands::Get();
 			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.EditGlobalOptions));
 			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.EditClassDefaults));
+
+			if (bRegisterViewport)
+			{
+				InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FBlueprintEditorCommands::Get().EnableSimulation));
+			}
 		}
 	}));
 }
@@ -506,8 +511,8 @@ void FBlueprintEditorToolbar::AddScriptingToolbar(UToolMenu* InMenu)
 				"HideUnrelatedNodesOptions",
 				FUIAction(),
 				FOnGetContent::CreateSP(Context->BlueprintEditor.Pin().Get(), &FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu),
-				LOCTEXT("HideUnrelatedNodesOptions", "Focus Related Nodes Options"),
-				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Focus Related Nodes options menu"),
+				LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
+				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
 				TAttribute<FSlateIcon>(),
 				true
 			));
@@ -534,25 +539,6 @@ void FBlueprintEditorToolbar::AddDebuggingToolbar(UToolMenu* InMenu)
 			}
 		}
 	}));
-}
-
-void FBlueprintEditorToolbar::AddComponentsToolbar(UToolMenu* InMenu)
-{
-	FToolMenuInsert InsertPosition("Asset", EToolMenuInsertType::After);
-
-#if 0 // restore this if we ever need the ability to toggle component editing on/off
-	{
-		FToolMenuSection& Section = InMenu->AddSection("Components");
-		Section.InsertPosition = InsertPosition;
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FSCSCommands::Get().ToggleComponentEditing));
-	}
-#endif
-
-	{
-		FToolMenuSection& Section = InMenu->AddSection("ComponentsViewport");
-		Section.InsertPosition = InsertPosition;
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FBlueprintEditorCommands::Get().EnableSimulation));
-	}
 }
 
 FSlateIcon FBlueprintEditorToolbar::GetStatusImage() const

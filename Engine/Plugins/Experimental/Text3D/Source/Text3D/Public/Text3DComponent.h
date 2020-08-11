@@ -28,7 +28,7 @@ enum class EText3DHorizontalTextAlignment : uint8
 };
 
 
-UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Text3D))
 class TEXT3D_API UText3DComponent final : public USceneComponent
 {
 	GENERATED_BODY()

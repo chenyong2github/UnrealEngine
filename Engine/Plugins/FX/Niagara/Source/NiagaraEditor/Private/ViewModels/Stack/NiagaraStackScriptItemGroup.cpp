@@ -393,7 +393,7 @@ bool UNiagaraStackScriptItemGroup::TestCanPasteWithMessage(const UNiagaraClipboa
 			}
 			else if (Function->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset)
 			{
-				UNiagaraScript* ClipboardFunctionScript = Function->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = Function->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr)
 				{
 					bValidFunction = true;
@@ -1197,7 +1197,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			}
 			case ENiagaraClipboardFunctionScriptMode::ScriptAsset:
 			{
-				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunction->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr && ClipboardFunctionScript->GetSupportedUsageContexts().Contains(OutputNode->GetUsage()))
 				{
 					UNiagaraScript* NewFunctionScript;
@@ -1213,6 +1213,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 						NewFunctionScript = GetSystemViewModel()->GetScriptScratchPadViewModel()->CreateNewScriptAsDuplicate(ClipboardFunctionScript)->GetOriginalScript();
 					}
 					NewFunctionCallNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(NewFunctionScript, *OutputNode, CurrentPasteIndex);
+
 				}
 				else
 				{
@@ -1227,6 +1228,7 @@ void UNiagaraStackScriptItemGroup::PasteModules(const UNiagaraClipboardContent* 
 			if (NewFunctionCallNode != nullptr)
 			{
 				NewFunctionCallNode->SuggestName(ClipboardFunction->FunctionName);
+				ClipboardFunction->OnPastedFunctionCallNodeDelegate.ExecuteIfBound(NewFunctionCallNode);
 				ClipboardFunctionAndNodeFunctionPairs.Add(TPair<const UNiagaraClipboardFunction*, UNiagaraNodeFunctionCall*>(ClipboardFunction, NewFunctionCallNode));
 				CurrentPasteIndex++;
 			}

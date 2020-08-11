@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Blueprint/UserWidget.h"
 #include "IMovieScenePlayer.h"
+#include "Animation/UMGSequenceTickManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "UMGSequencePlayer.generated.h"
@@ -69,6 +70,7 @@ public:
 
 	/** IMovieScenePlayer interface */
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
+	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
 	virtual UObject* AsUObject() override { return this; }
 	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
 	virtual void SetViewportSettings(const TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) override {}
@@ -77,6 +79,13 @@ public:
 	virtual UObject* GetPlaybackContext() const override;
 	virtual TArray<UObject*> GetEventContexts() const override;
 	virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override;
+	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
+	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
+
+	/** UObject interface */
+	virtual void BeginDestroy() override;
+
+	void TearDown();
 
 	DECLARE_EVENT_OneParam(UUMGSequencePlayer, FOnSequenceFinishedPlaying, UUMGSequencePlayer&);
 	FOnSequenceFinishedPlaying& OnSequenceFinishedPlaying() { return OnSequenceFinishedPlayingEvent; }
@@ -85,7 +94,8 @@ private:
 	/** Internal play function with a verbose parameter set */
 	void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
-	/** Apply any latent actions which may have accumulated while the sequence was being evaluated */
+	bool NeedsQueueLatentAction() const;
+	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void ApplyLatentActions();
 
 	/** Animation being played */
@@ -95,6 +105,7 @@ private:
 	/** The user widget this sequence is animating */
 	TWeakObjectPtr<UUserWidget> UserWidget;
 
+	UPROPERTY()
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
 
 	/** The resolution at which all FFrameNumbers are stored */
@@ -145,11 +156,9 @@ private:
 	/** Set to true while evaluating to prevent reentrancy */
 	bool bIsEvaluating : 1;
 
-	enum class ELatentAction
-	{
-		Stop, Pause
-	};
+	/** Set to true if we need to run the finishing logic in post-evaluation */
+	bool bCompleteOnPostEvaluation : 1;
 
-	/** Set of latent actions that are to be performed when the sequence has finished evaluating this frame */
-	TArray<ELatentAction> LatentActions;
+	/** List of latent action delegates. Only used when multi-threaded animation evaluation is disabled */
+	TArray<FMovieSceneSequenceLatentActionDelegate> LatentActions;
 };

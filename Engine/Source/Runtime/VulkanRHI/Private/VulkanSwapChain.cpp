@@ -453,6 +453,18 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		}
 	}
 
+	if (Device.GetOptionalExtensions().HasQcomRenderPassTransform)
+	{
+		QCOMRenderPassTransform = SurfProperties.currentTransform;
+		SwapChainInfo.preTransform = QCOMRenderPassTransform;
+		ImageFormat = SwapChainInfo.imageFormat;
+		if (SwapChainInfo.preTransform == VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
+			SwapChainInfo.preTransform == VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR)
+		{
+			Swap(SwapChainInfo.imageExtent.width, SwapChainInfo.imageExtent.height);
+		}
+	}
+
 	VkBool32 bSupportsPresent;
 	VERIFYVULKANRESULT(VulkanRHI::vkGetPhysicalDeviceSurfaceSupportKHR(Device.GetPhysicalHandle(), Device.GetPresentQueue()->GetFamilyIndex(), Surface, &bSupportsPresent));
 	ensure(bSupportsPresent);
@@ -581,6 +593,22 @@ void FVulkanSwapChain::Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo)
 	{
 		VulkanRHI::vkDestroySurfaceKHR(Instance, Surface, VULKAN_CPU_ALLOCATOR);
 	}
+
+	if (QCOMDepthView && QCOMDepthView != QCOMDepthStencilView)
+	{
+		QCOMDepthView->Destroy(Device);
+		delete QCOMDepthView;
+		QCOMDepthView = nullptr;
+	}
+
+	if (QCOMDepthStencilView)
+	{
+		QCOMDepthStencilView->Destroy(Device);
+		delete QCOMDepthStencilView;
+		QCOMDepthStencilView = nullptr;
+		QCOMDepthView = nullptr;
+	}
+
 	Surface = VK_NULL_HANDLE;
 }
 
@@ -997,6 +1025,65 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 	return EStatus::Healthy;
 }
 
+void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanSurface& InSurface) const
+{
+	check(!QCOMDepthStencilSurface);
+	check(!QCOMDepthStencilView);
+	check(!QCOMDepthView);
+
+	uint32 UEFlags = InSurface.UEFlags;
+	check(UEFlags & TexCreate_DepthStencilTargetable);
+
+	QCOMDepthStencilSurface = new FVulkanSurface(*InSurface.Device, InSurface.GetViewType(), InSurface.PixelFormat, InSurface.Height, InSurface.Width,
+													InSurface.Depth, 1, InSurface.GetNumMips(), InSurface.GetNumSamples(), UEFlags, FRHIResourceCreateInfo());
+
+	check(QCOMDepthStencilSurface->GetViewType() == VK_IMAGE_VIEW_TYPE_2D);
+	check(QCOMDepthStencilSurface->Image != VK_NULL_HANDLE);
+
+	QCOMDepthStencilView = new FVulkanTextureView;
+	QCOMDepthStencilView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetFullAspectMask(),
+								QCOMDepthStencilSurface->PixelFormat, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u);
+
+	if (QCOMDepthStencilSurface->GetFullAspectMask() == QCOMDepthStencilSurface->GetPartialAspectMask())
+	{
+		QCOMDepthView = QCOMDepthStencilView;
+	}
+	else
+	{
+		QCOMDepthView = new FVulkanTextureView;
+		QCOMDepthView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetPartialAspectMask(),
+			QCOMDepthStencilSurface->PixelFormat, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u);
+	}
+}
+
+const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(const FVulkanSurface& InSurface) const
+{
+	if (QCOMDepthStencilView)
+	{
+		return QCOMDepthStencilView;
+	}
+
+	CreateQCOMDepthStencil(InSurface);
+
+	return QCOMDepthStencilView;
+}
+
+const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulkanSurface& InSurface) const
+{
+	if (QCOMDepthView)
+	{
+		return QCOMDepthView;
+	}
+
+	CreateQCOMDepthStencil(InSurface);
+
+	return QCOMDepthView;
+}
+
+const FVulkanSurface* FVulkanSwapChain::GetQCOMDepthStencilSurface() const
+{
+	return QCOMDepthStencilSurface;
+}
 
 void FVulkanDevice::SetupPresentQueue(VkSurfaceKHR Surface)
 {
@@ -1015,7 +1102,12 @@ void FVulkanDevice::SetupPresentQueue(VkSurfaceKHR Surface)
 		};
 
 		bool bGfx = SupportsPresent(Gpu, GfxQueue);
-		checkf(bGfx, TEXT("Graphics Queue doesn't support present!"));
+		if (!bGfx)
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Cannot find a compatible Vulkan device that supports surface presentation.\n\n"), TEXT("Vulkan device not available"));
+			FPlatformMisc::RequestExitWithStatus(true, 1);
+		}
+
 		bool bCompute = SupportsPresent(Gpu, ComputeQueue);
 		if (TransferQueue->GetFamilyIndex() != GfxQueue->GetFamilyIndex() && TransferQueue->GetFamilyIndex() != ComputeQueue->GetFamilyIndex())
 		{

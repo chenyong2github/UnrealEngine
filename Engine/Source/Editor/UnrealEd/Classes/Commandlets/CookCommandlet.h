@@ -47,6 +47,8 @@ class UCookCommandlet
 	bool bUseSerializationForGeneratingPackageDependencies;
 	/** Only cook packages specified on commandline options (for debugging)*/
 	bool bCookSinglePackage;
+	/** Modification to bCookSinglePackage - cook transitive hard references in addition to the packages on the commandline */
+	bool bKeepSinglePackageRefs;
 	/** Should we output additional verbose cooking warnings */
 	bool bVerboseCookerWarnings;
 	/** only clean up objects which are not in use by the cooker when we gc (false will enable full gc) */
@@ -70,8 +72,8 @@ class UCookCommandlet
 	 */
 	bool CookOnTheFly( FGuid InstanceId, int32 Timeout = 180, bool bForceClose = false, const TArray<ITargetPlatform*>& TargetPlatforms=TArray<ITargetPlatform*>() );
 
-	/** Cooks specified list of files */
-	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms, TArray<FString>& FilesInPath);
+	/** Cooks for specified targets */
+	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms);
 
 	/**	Process deferred commands */
 	void ProcessDeferredCommands();

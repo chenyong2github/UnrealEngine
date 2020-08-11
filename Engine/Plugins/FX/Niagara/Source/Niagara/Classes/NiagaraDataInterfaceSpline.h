@@ -44,6 +44,7 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return Target == ENiagaraSimTarget::CPUSim; }
+	virtual bool HasPreSimulateTick() const override { return true; }
 	//UNiagaraDataInterface Interface End
 
 	template<typename TransformHandlerType, typename SplineSampleType>

@@ -1750,7 +1750,12 @@ public:
 	/**
 	 * Returns a copy of this string, with the characters in reverse order
 	 */
-	FString Reverse() const;
+	FString Reverse() const &;
+
+	/**
+	 * Returns this string, with the characters in reverse order
+	 */
+	FString Reverse() &&;
 
 	/**
 	 * Reverses the order of characters in this string
@@ -1765,7 +1770,17 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
+
+	/**
+	 * Replace all occurrences of a substring in this string
+	 *
+	 * @param From substring to replace
+	 * @param To substring to replace From with
+	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return a copy of this string with the replacement made
+	 */
+	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
 
 	/**
 	 * Replace all occurrences of SearchText with ReplacementText in this string.
@@ -1807,7 +1822,16 @@ public:
 	/**
 	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
 	 */
-	FString ReplaceQuotesWithEscapedQuotes() const;
+	FString ReplaceQuotesWithEscapedQuotes() const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceQuotesWithEscapedQuotes();
+	}
+
+	/**
+	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
+	 */
+	FString ReplaceQuotesWithEscapedQuotes() &&;
 
 	/**
 	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1817,14 +1841,39 @@ public:
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
-	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const;
+	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceCharWithEscapedChar(Chars);
+	}
+
+	/**
+	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
+	 * The characters supported are: { \n, \r, \t, \', \", \\ }.
+	 *
+	 * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
+	 *
+	 * @return	a string with all control characters replaced by the escaped version.
+	 */
+	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
 	 * @return copy of this string with replacement made
 	 */
-	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const;
+	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceEscapedCharWithChar(Chars);
+	}
+
+	/**
+	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
+	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
+	 * @return copy of this string with replacement made
+	 */
+	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Replaces all instances of '\t' with TabWidth number of spaces
@@ -1837,11 +1886,22 @@ public:
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 * @return copy of this string with replacement made
 	 */
-	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const
+	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const &
 	{
 		FString FinalString(*this);
 		FinalString.ConvertTabsToSpacesInline(InSpacesPerTab);
 		return FinalString;
+	}
+
+	/**
+	 * Replaces all instances of '\t' with TabWidth number of spaces
+	 * @param InSpacesPerTab - Number of spaces that a tab represents
+	 * @return copy of this string with replacement made
+	 */
+	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) &&
+	{
+		ConvertTabsToSpacesInline(InSpacesPerTab);
+		return MoveTemp(*this);
 	}
 
 	// Takes the number passed in and formats the string in comma format ( 12345 becomes "12,345")

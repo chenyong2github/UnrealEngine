@@ -34,7 +34,7 @@ public:
 	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, uint64 InReadBufferSize);
 	~FGenericFileIoStoreImpl();
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
-	void ReadBlockFromFile(uint8* Target, uint64 FileHandle, FFileIoStoreRawBlock* Block);
+	void ReadBlockFromFile(FFileIoStoreRawBlock* Block);
 	void FlushReads() {};
 	FFileIoStoreRawBlock* GetCompletedBlocks();
 

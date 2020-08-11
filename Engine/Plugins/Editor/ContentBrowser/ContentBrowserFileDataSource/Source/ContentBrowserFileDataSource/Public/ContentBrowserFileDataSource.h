@@ -69,6 +69,12 @@ public:
 
 	virtual bool BulkEditItems(TArrayView<const FContentBrowserItemData> InItems) override;
 
+	virtual bool CanPreviewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg) override;
+
+	virtual bool PreviewItem(const FContentBrowserItemData& InItem) override;
+
+	virtual bool BulkPreviewItems(TArrayView<const FContentBrowserItemData> InItems) override;
+
 	virtual bool CanDuplicateItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg) override;
 
 	virtual bool DuplicateItem(const FContentBrowserItemData& InItem, FContentBrowserItemDataTemporaryContext& OutPendingItem) override;

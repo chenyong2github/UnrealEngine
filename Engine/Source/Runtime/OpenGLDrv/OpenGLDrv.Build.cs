@@ -60,11 +60,17 @@ public class OpenGLDrv : ModuleRules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                "Launch",
-                "GoogleGameSDK"
+					"GoogleGameSDK"
                 }
             );
-        }
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"Launch"
+				}
+			);
+		}
 
         if (Target.Platform != UnrealTargetPlatform.Win32 && Target.Platform != UnrealTargetPlatform.Win64
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android

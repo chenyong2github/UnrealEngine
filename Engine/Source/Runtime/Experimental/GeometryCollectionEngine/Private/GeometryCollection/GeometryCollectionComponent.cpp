@@ -22,7 +22,7 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Physics/PhysicsFiltering.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 #include "AI/NavigationSystemHelpers.h"
 
 #if WITH_EDITOR
@@ -271,8 +271,6 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 
 	// #todo(dmp): hack to make bounds calculation work when we don't have valid physics proxy data.  This will
 	// force bounds calculation.
-	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-	Module->LockResultsRead();
 
 	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
@@ -476,6 +474,13 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Ev
 
 bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
+	if(!RestCollection)
+	{
+		// No geometry data so skip export - geometry collections don't have other geometry sources
+		// so return false here to skip non-custom export for this component as well.
+		return false;
+	}
+
 	TArray<FVector> OutVertexBuffer;
 	TArray<int32> OutIndexBuffer;
 
@@ -616,7 +621,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForCollisionEvents(this, this);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateCollisionData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateCollisionData(true);
 #endif
 		}
 
@@ -624,7 +629,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 		{
 			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetScene().GetSolver()->SetGenerateBreakingData(true);
+			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateBreakingData(true);
 #endif
 		}
 	}
@@ -2146,9 +2151,6 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
 		checkSlow(ChaosModule);
 
-		Chaos::IDispatcher* PhysicsDispatcher = ChaosModule->GetDispatcher();
-		checkSlow(PhysicsDispatcher); // Should always have one of these
-
 		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()
 		{
 			// Pass through nullptr here as geom component commands can never affect other solvers
@@ -2191,11 +2193,10 @@ FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 #if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
-			FPhysScene_ChaosInterface* WorldPhysScene = GetOwner()->GetWorld()->GetPhysicsScene();
-			return &WorldPhysScene->GetScene();
+			return GetOwner()->GetWorld()->GetPhysicsScene();
 		}
 		check(GWorld);
-		return &GWorld->GetPhysicsScene()->GetScene();
+		return GWorld->GetPhysicsScene();
 #else
 		return nullptr;
 #endif
@@ -2239,9 +2240,7 @@ void UGeometryCollectionComponent::CalculateLocalBounds()
 void UGeometryCollectionComponent::CalculateGlobalMatrices()
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
-	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-	Module->LockResultsRead();
-	
+
 	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
 
 	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
@@ -2273,8 +2272,6 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		}
 	}
 #endif
-
-	Module->UnlockResultsRead();
 }
 
 // #todo(dmp): for backwards compatibility with existing maps, we need to have a default of 3 materials.  Otherwise

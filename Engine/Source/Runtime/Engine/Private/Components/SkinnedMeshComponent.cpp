@@ -3008,11 +3008,9 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 			}
 		}
 
-		// This clamp is needed for meshes with LODs streamed but doesn't work well
-		// with those that have forced LOD level. Need to think of a better solution.
 		if (SkeletalMesh->bIsStreamable && MeshObject)
 		{
-			NewPredictedLODLevel = FMath::Max(NewPredictedLODLevel, MeshObject->MinDesiredLODLevel);
+			NewPredictedLODLevel = FMath::Max<int32>(NewPredictedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

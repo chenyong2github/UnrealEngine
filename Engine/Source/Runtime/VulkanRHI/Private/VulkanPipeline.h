@@ -598,7 +598,7 @@ public:
 			}
 			else
 			{
-				Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Pipeline, Pipeline);
+				Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Pipeline, Pipeline);
 			}
 			Pipeline = VK_NULL_HANDLE;
 		}

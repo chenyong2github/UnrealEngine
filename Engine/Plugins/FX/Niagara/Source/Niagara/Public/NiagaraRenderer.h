@@ -12,10 +12,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "Materials/Material.h"
 #include "PrimitiveViewRelevance.h"
 #include "ParticleHelper.h"
-#include "NiagaraSpriteRendererProperties.h"
-#include "NiagaraRibbonRendererProperties.h"
-#include "NiagaraMeshRendererProperties.h"
-#include "NiagaraLightRendererProperties.h"
+#include "NiagaraRendererProperties.h"
 #include "RenderingThread.h"
 #include "SceneView.h"
 #include "NiagaraComponent.h"
@@ -60,38 +57,6 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////
 
-extern int32 GbEnableMinimalGPUBuffers;
-
-/** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
-struct FNiagaraRendererVariableInfo
-{
-	FNiagaraRendererVariableInfo()
-		: DatasetOffset(INDEX_NONE), GPUBufferOffset(INDEX_NONE), NumComponents(0), bUpload(true), bHalfType(false)
-	{
-	}
-	
-	FNiagaraRendererVariableInfo(int32 InDatasetOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool InbUpload, bool bInHalfType)
-		: DatasetOffset(InDatasetOffset), GPUBufferOffset(InGPUBufferOffset), NumComponents(InNumComponents), bUpload(InbUpload), bHalfType(bInHalfType)
-	{
-	}
-
-	FORCEINLINE int32 GetGPUOffset()const 
-	{ 
-		int32 Offset = GbEnableMinimalGPUBuffers ? GPUBufferOffset : DatasetOffset;
-		if (bHalfType)
-		{
-			Offset |= 1 << 31;
-		}
-		return Offset;
-	}
-
-	int32 DatasetOffset;
-	int32 GPUBufferOffset;
-	int32 NumComponents;
-	bool bUpload;
-	bool bHalfType;
-};
-
 struct FParticleRenderData
 {
 	FGlobalDynamicReadBuffer::FAllocation FloatData;
@@ -123,7 +88,7 @@ public:
 	virtual int32 GetDynamicDataSize()const { return 0; }
 	virtual bool IsMaterialValid(UMaterialInterface* Mat)const { return Mat != nullptr; }
 
-	void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, int32 SortVarIdx, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)const;
+	static void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, const FNiagaraRendererVariableInfo& SortVariable, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
 
 	void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
 	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData() const { return DynamicDataRender; }
@@ -170,13 +135,8 @@ protected:
 
 	virtual int32 GetMaxIndirectArgs() const { return SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : 0; }
 
-	bool SetVertexFactoryVariable(const FNiagaraDataSet& DataSet, const FNiagaraVariable& Var, int32 VFVarOffset);
-	FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, FNiagaraDataBuffer* SrcData)const;
+	static FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, FNiagaraDataBuffer* SrcData);
 	
-	mutable TArray<FNiagaraRendererVariableInfo, TInlineAllocator<16>> VFVariables;
-	int32 TotalVFHalfComponents;
-	int32 TotalVFFloatComponents;
-
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;
 	FMaterialRelevance BaseMaterialRelevance_GT;

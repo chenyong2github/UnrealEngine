@@ -960,7 +960,7 @@ void FAssetFileContextMenu::ExecuteCreateLocalizedAsset(TSet<FName> InSelectedSo
 	TArray<UPackage*> PackagesToSave;
 	TArray<FAssetData> NewObjects;
 
-	for (const FName SourceAssetName : InSelectedSourceAssets)
+	for (const FName& SourceAssetName : InSelectedSourceAssets)
 	{
 		if (InLocalizedAssetsStateForCulture.CurrentAssets.Contains(SourceAssetName))
 		{

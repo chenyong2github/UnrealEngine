@@ -298,7 +298,7 @@ FOcclusionResult ComputeOcclusion(
 		WorldNormal = LightDirection;
 		bApplyNormalCulling = false;
 	}
-	else if (ShadingModelID == SHADINGMODELID_EYE || ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	else if (ShadingModelID == SHADINGMODELID_EYE || ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModelID == SHADINGMODELID_SUBSURFACE)
 	{
 		bApplyNormalCulling = false;
 	}
@@ -430,7 +430,7 @@ FOcclusionResult ComputeOcclusion(
 
 		Out.TransmissionDistance = ComputeDiffuseTransmission(V, WorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax);
 	}
-	else // if ((ShadingModelID == SHADINGMODELID_EYE) || (ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE))
+	else // if ((ShadingModelID == SHADINGMODELID_EYE) || (ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE) || (ShadingModelID == SHADINGMODELID_SUBSURFACE))
 	{
 		Out.TransmissionDistance = (LocalSamplesPerPixel > 0) ? Out.Visibility / LocalSamplesPerPixel : Out.Visibility;
 	}

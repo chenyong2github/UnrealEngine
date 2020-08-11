@@ -39,6 +39,7 @@
 #include "DesktopPlatformModule.h"
 #include "InstalledPlatformInfo.h"
 #include "DrawDebugHelpers.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SettingsClasses"
 
@@ -196,8 +197,6 @@ void UEditorExperimentalSettings::PostInitProperties()
 
 void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent )
 {
-	static const FName NAME_EQS = GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bEQSEditor);
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName Name = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -205,13 +204,6 @@ void UEditorExperimentalSettings::PostEditChangeProperty( struct FPropertyChange
 	if (Name == FName(TEXT("ConsoleForGamepadLabels")))
 	{
 		EKeys::SetConsoleForGamepadLabels(ConsoleForGamepadLabels);
-	}
-	else if (Name == NAME_EQS)
-	{
-		if (bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
 	}
 	else if (Name == FName(TEXT("bHDREditor")))
 	{
@@ -498,6 +490,19 @@ void ULevelEditorPlaySettings::PushDebugDrawingSettings()
 #endif
 }
 
+void FPlayScreenResolution::PostInitProperties()
+{
+	ScaleFactor = 1.0f;
+	LogicalHeight = Height;
+	LogicalWidth = Width;
+
+	UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(ProfileName, false);
+	if (DeviceProfile)
+	{
+		GetMutableDefault<ULevelEditorPlaySettings>()->RescaleForMobilePreview(DeviceProfile, LogicalWidth, LogicalHeight, ScaleFactor);
+	}
+}
+
 void ULevelEditorPlaySettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (BuildGameBeforeLaunch != EPlayOnBuildMode::PlayOnBuild_Always && !FSourceCodeNavigation::IsCompilerAvailable())
@@ -549,6 +554,27 @@ void ULevelEditorPlaySettings::PostInitProperties()
 #if WITH_EDITOR
 	FCoreDelegates::OnSafeFrameChangedEvent.AddUObject(this, &ULevelEditorPlaySettings::UpdateCustomSafeZones);
 #endif
+
+	for (FPlayScreenResolution& Resolution : LaptopScreenResolutions)
+	{
+		Resolution.PostInitProperties();
+	}
+	for (FPlayScreenResolution& Resolution : MonitorScreenResolutions)
+	{
+		Resolution.PostInitProperties();
+	}
+	for (FPlayScreenResolution& Resolution : PhoneScreenResolutions)
+	{
+		Resolution.PostInitProperties();
+	}
+	for (FPlayScreenResolution& Resolution : TabletScreenResolutions)
+	{
+		Resolution.PostInitProperties();
+	}
+	for (FPlayScreenResolution& Resolution : TelevisionScreenResolutions)
+	{
+		Resolution.PostInitProperties();
+	}
 
 	PushDebugDrawingSettings();
 }
@@ -787,7 +813,72 @@ void ULevelEditorPlaySettings::RescaleForMobilePreview(const UDeviceProfile* Dev
 			PreviewWidth *= ScaleFactor;
 			PreviewHeight *= ScaleFactor;
 		}
-	
+
+	}
+}
+
+void ULevelEditorPlaySettings::RegisterCommonResolutionsMenu()
+{
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(GetCommonResolutionsMenuName());
+	check(Menu);
+
+	FToolMenuSection& ResolutionsSection = Menu->AddSection("CommonResolutions");
+	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
+
+	auto AddSubMenuToSection = [&ResolutionsSection](const FString& SectionName, const FText& SubMenuTitle, const TArray<FPlayScreenResolution>& Resolutions)
+	{
+		ResolutionsSection.AddSubMenu(
+			FName(*SectionName),
+			SubMenuTitle,
+			FText(),
+			FNewToolMenuChoice(FNewToolMenuDelegate::CreateStatic(&ULevelEditorPlaySettings::AddScreenResolutionSection, &Resolutions, SectionName))
+		);
+	};
+
+	AddSubMenuToSection(FString("Phones"), LOCTEXT("CommonPhonesSectionHeader", "Phones"), PlaySettings->PhoneScreenResolutions);
+	AddSubMenuToSection(FString("Tablets"), LOCTEXT("CommonTabletsSectionHeader", "Tablets"), PlaySettings->TabletScreenResolutions);
+	AddSubMenuToSection(FString("Laptops"), LOCTEXT("CommonLaptopsSectionHeader", "Laptops"), PlaySettings->LaptopScreenResolutions);
+	AddSubMenuToSection(FString("Monitors"), LOCTEXT("CommonMonitorsSectionHeader", "Monitors"), PlaySettings->MonitorScreenResolutions);
+	AddSubMenuToSection(FString("Televisions"), LOCTEXT("CommonTelevesionsSectionHeader", "Televisions"), PlaySettings->TelevisionScreenResolutions);
+}
+
+FName ULevelEditorPlaySettings::GetCommonResolutionsMenuName()
+{
+	const static FName MenuName("EditorSettingsViewer.LevelEditorPlaySettings");
+	return MenuName;
+}
+
+void ULevelEditorPlaySettings::AddScreenResolutionSection(UToolMenu* InToolMenu, const TArray<FPlayScreenResolution>* Resolutions, const FString SectionName)
+{
+	check(Resolutions);
+	for (const FPlayScreenResolution& Resolution : *Resolutions)
+	{
+		FInternationalization& I18N = FInternationalization::Get();
+
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Width"), FText::AsNumber(Resolution.Width, NULL, I18N.GetInvariantCulture()));
+		Args.Add(TEXT("Height"), FText::AsNumber(Resolution.Height, NULL, I18N.GetInvariantCulture()));
+		Args.Add(TEXT("AspectRatio"), FText::FromString(Resolution.AspectRatio));
+
+		FText ToolTip;
+		if (!Resolution.ProfileName.IsEmpty())
+		{
+			Args.Add(TEXT("LogicalWidth"), FText::AsNumber(Resolution.LogicalWidth, NULL, I18N.GetInvariantCulture()));
+			Args.Add(TEXT("LogicalHeight"), FText::AsNumber(Resolution.LogicalHeight, NULL, I18N.GetInvariantCulture()));
+			Args.Add(TEXT("ScaleFactor"), FText::AsNumber(Resolution.ScaleFactor, NULL, I18N.GetInvariantCulture()));
+			ToolTip = FText::Format(LOCTEXT("CommonResolutionFormatWithContentScale", "{Width} x {Height} ({AspectRatio}, Logical Res: {LogicalWidth} x {LogicalHeight}, Content Scale: {ScaleFactor})"), Args);
+		}
+		else
+		{
+			ToolTip = FText::Format(LOCTEXT("CommonResolutionFormat", "{Width} x {Height} ({AspectRatio})"), Args);
+		}
+
+		UCommonResolutionMenuContext* Context = InToolMenu->FindContext<UCommonResolutionMenuContext>();
+		check(Context);
+		check(Context->GetUIActionFromLevelPlaySettings.IsBound());
+
+		FUIAction Action = Context->GetUIActionFromLevelPlaySettings.Execute(Resolution);
+		InToolMenu->AddMenuEntry(FName(*SectionName), FToolMenuEntry::InitMenuEntry(FName(*Resolution.Description), FText::FromString(Resolution.Description), ToolTip, FSlateIcon(), Action));
 	}
 }
 
@@ -797,6 +888,7 @@ void ULevelEditorPlaySettings::RescaleForMobilePreview(const UDeviceProfile* Dev
 ULevelEditorViewportSettings::ULevelEditorViewportSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
+	MinimumOrthographicZoom = 250.0f;
 	bLevelStreamingVolumePrevis = false;
 	BillboardScale = 1.0f;
 	TransformWidgetSizeAdjustment = 0.0f;
@@ -926,21 +1018,6 @@ UProjectPackagingSettings::UProjectPackagingSettings( const FObjectInitializer& 
 
 void UProjectPackagingSettings::PostInitProperties()
 {
-	// Migrate from deprecated Blueprint nativization packaging flags.
-	// Note: This assumes that LoadConfig() has been called before getting here.
-	FString NewValue;
-	const FString ConfigFileName = UProjectPackagingSettings::StaticClass()->GetConfigName();
-	const FString ClassSectionName = UProjectPackagingSettings::StaticClass()->GetPathName();
-	const bool bIgnoreOldFlags = GConfig->GetString(*ClassSectionName, GET_MEMBER_NAME_STRING_CHECKED(UProjectPackagingSettings, BlueprintNativizationMethod), NewValue, ConfigFileName);
-	if (!bIgnoreOldFlags && bNativizeBlueprintAssets_DEPRECATED)
-	{
-		BlueprintNativizationMethod = bNativizeOnlySelectedBlueprints_DEPRECATED ? EProjectPackagingBlueprintNativizationMethod::Exclusive : EProjectPackagingBlueprintNativizationMethod::Inclusive;
-	}
-
-	// Reset deprecated settings to defaults.
-	bNativizeBlueprintAssets_DEPRECATED = false;
-	bNativizeOnlySelectedBlueprints_DEPRECATED = false;
-
 	// Build code projects by default
 	Build = EProjectPackagingBuild::IfProjectHasCode;
 

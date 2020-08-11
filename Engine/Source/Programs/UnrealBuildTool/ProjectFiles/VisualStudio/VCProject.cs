@@ -949,7 +949,7 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <ProjectGuid>{0}</ProjectGuid>", ProjectGUID.ToString("B").ToUpperInvariant());
 				VCProjectFileContent.AppendLine("    <Keyword>MakeFileProj</Keyword>");
 				VCProjectFileContent.AppendLine("    <RootNamespace>{0}</RootNamespace>", ProjectName);
-				VCProjectFileContent.AppendLine("    <PlatformToolset>{0}</PlatformToolset>", VCProjectFileGenerator.GetProjectFilePlatformToolsetVersionString(ProjectFileFormat));
+				VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
 				VCProjectFileContent.AppendLine("    <MinimumVisualStudioVersion>{0}</MinimumVisualStudioVersion>", VCProjectFileGenerator.GetProjectFileToolVersionString(ProjectFileFormat));
 				VCProjectFileContent.AppendLine("    <TargetRuntime>Native</TargetRuntime>");
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
@@ -1444,19 +1444,24 @@ namespace UnrealBuildTool
 			string ConditionString = "Condition=\"'$(Configuration)|$(Platform)'=='" + ProjectConfigurationAndPlatformName + "'\"";
 
 			StringBuilder PlatformToolsetString = new StringBuilder();
-			if(ProjGenerator != null)
+			if (ProjGenerator != null)
 			{
 				ProjGenerator.GetVisualStudioPlatformToolsetString(TargetPlatform, TargetConfiguration, ProjectFileFormat, PlatformToolsetString);
-			}
-			if (PlatformToolsetString.Length == 0)
-			{
-				PlatformToolsetString.AppendLine("    <PlatformToolset>" + VCProjectFileGenerator.GetProjectFilePlatformToolsetVersionString(ProjectFileFormat) + "</PlatformToolset>");
 			}
 
 			string PlatformConfigurationType = (ProjGenerator == null) ? "Makefile" : ProjGenerator.GetVisualStudioPlatformConfigurationType(TargetPlatform, ProjectFileFormat);
 			VCProjectFileContent.AppendLine("  <PropertyGroup {0} Label=\"Configuration\">", ConditionString);
 			VCProjectFileContent.AppendLine("    <ConfigurationType>{0}</ConfigurationType>", PlatformConfigurationType);
-			VCProjectFileContent.Append(PlatformToolsetString);
+
+			if (PlatformToolsetString.Length == 0)
+			{
+				VCProjectFileGenerator.AppendPlatformToolsetProperty(VCProjectFileContent, ProjectFileFormat);
+			}
+			else
+			{
+				VCProjectFileContent.Append(PlatformToolsetString);
+			}
+
 			VCProjectFileContent.AppendLine("  </PropertyGroup>");
 		}
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneNameableTrack.h"
-
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneNameableTrack"
 
@@ -22,6 +22,21 @@ void UMovieSceneNameableTrack::SetDisplayName(const FText& NewDisplayName)
 	Modify();
 
 	DisplayName = NewDisplayName;
+}
+
+bool UMovieSceneNameableTrack::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
+{
+	if (NewDisplayName.IsEmpty())
+	{
+		OutErrorMessage = LOCTEXT("RenameFailed_LeftBlank", "Labels cannot be left blank");
+		return false;
+	}
+	else if (NewDisplayName.ToString().Len() >= NAME_SIZE)
+	{
+		OutErrorMessage = FText::Format(LOCTEXT("RenameFailed_TooLong", "Names must be less than {0} characters long"), NAME_SIZE);
+		return false;
+	}
+	return true;
 }
 
 #endif

@@ -52,7 +52,7 @@ void UK2Node_MatineeController::AllocateDefaultPins()
 		TArray<FName> EventNames;
 		MatineeActor->MatineeData->GetAllEventNames(EventNames);
 
-		for (const FName EventName : EventNames)
+		for (const FName& EventName : EventNames)
 		{
 			CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, EventName);			
 		}

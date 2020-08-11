@@ -14,8 +14,6 @@
 #include "Widgets/Text/STextBlock.h"
 #endif
 
-
-
 #define LOCTEXT_NAMESPACE "UNiagaraRibbonRendererProperties"
 
 TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
@@ -144,6 +142,58 @@ void UNiagaraRibbonRendererProperties::InitBindings()
 		RibbonLinkOrderBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
 		MaterialRandomBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
 	}
+}
+
+void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
+{
+	// Initialize accessors
+	bSortKeyDataSetAccessorIsAge = false;
+	SortKeyDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.DataSetVariable.GetName());
+	if (!SortKeyDataSetAccessor.IsValid())
+	{
+		bSortKeyDataSetAccessorIsAge = true;
+		SortKeyDataSetAccessor.Init(CompiledData, NormalizedAgeBinding.DataSetVariable.GetName());
+	}
+
+	PositionDataSetAccessor.Init(CompiledData, PositionBinding.DataSetVariable.GetName());
+	SizeDataSetAccessor.Init(CompiledData, RibbonWidthBinding.DataSetVariable.GetName());
+	TwistDataSetAccessor.Init(CompiledData, RibbonTwistBinding.DataSetVariable.GetName());
+	FacingDataSetAccessor.Init(CompiledData, RibbonFacingBinding.DataSetVariable.GetName());
+
+	MaterialParam0DataSetAccessor.Init(CompiledData, DynamicMaterialBinding.DataSetVariable.GetName());
+	MaterialParam1DataSetAccessor.Init(CompiledData, DynamicMaterial1Binding.DataSetVariable.GetName());
+	MaterialParam2DataSetAccessor.Init(CompiledData, DynamicMaterial2Binding.DataSetVariable.GetName());
+	MaterialParam3DataSetAccessor.Init(CompiledData, DynamicMaterial3Binding.DataSetVariable.GetName());
+
+	if (RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
+	{
+		RibbonFullIDDataSetAccessor.Init(CompiledData, RibbonIdBinding.DataSetVariable.GetName());
+	}
+	else
+	{
+		RibbonIdDataSetAccessor.Init(CompiledData, RibbonIdBinding.DataSetVariable.GetName());
+	}
+
+	const bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
+
+	// Initialize layout
+	RendererLayout.Initialize(ENiagaraRibbonVFLayout::Num);
+	RendererLayout.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraRibbonVFLayout::Position);
+	RendererLayout.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraRibbonVFLayout::Velocity);
+	RendererLayout.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraRibbonVFLayout::Color);
+	RendererLayout.SetVariable(CompiledData, RibbonWidthBinding.DataSetVariable, ENiagaraRibbonVFLayout::Width);
+	RendererLayout.SetVariable(CompiledData, RibbonTwistBinding.DataSetVariable, ENiagaraRibbonVFLayout::Twist);
+	if (bShouldDoFacing)
+	{
+		RendererLayout.SetVariable(CompiledData, RibbonFacingBinding.DataSetVariable, ENiagaraRibbonVFLayout::Facing);
+	}
+	RendererLayout.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraRibbonVFLayout::NormalizedAge);
+	RendererLayout.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialRandom);
+	MaterialParamValidMask  = RendererLayout.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam0) ? 1 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
+	RendererLayout.Finalize();
 }
 
 #if WITH_EDITORONLY_DATA

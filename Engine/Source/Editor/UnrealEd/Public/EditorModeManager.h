@@ -23,6 +23,8 @@ class USelection;
 struct FConvexVolume;
 struct FViewportClick;
 class UEdMode;
+class UInteractiveGizmoManager;
+class UInputRouter;
 
 /**
  * A helper class to store the state of the various editor modes.

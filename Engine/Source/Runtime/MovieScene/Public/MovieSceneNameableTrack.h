@@ -40,7 +40,7 @@ public:
 	 * @return True if the given display name is valid, false if it is not. 
 	 * Error message should be set if the name is not valid.
 	 */
-	MOVIESCENE_API virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const { return true; }
+	MOVIESCENE_API virtual bool ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const;
 
 public:
 

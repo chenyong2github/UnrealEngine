@@ -102,6 +102,9 @@ public:
 		// The level to Transform.
 		ULevel* Level;
 
+		// If the actor is non null, directly transform only this actor
+		AActor* Actor = nullptr;
+
 		// How to Transform the level.
 		const FTransform& LevelTransform;
 
@@ -152,16 +155,18 @@ public:
 	 *
 	 * @param	StreamingLevel		The level.
 	 * @param   bDoPostEditMove		Whether to call PostEditMove on actors after transforming
+	 * @param	Actor				Optional actor on which to apply the transform instead of the full level.
 	 */
-	static void ApplyEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true);
+	static void ApplyEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
 
 	/**
 	 * Remove the LevelEditorTransform from a level.
 	 *
 	 * @param	StreamingLevel		The level.
 	 * @param	bDoPostEditMove		Whether to call PostEditMove on actors after transforming
+	 * @param	Actor				Optional actor on which to apply the transform instead of the full level.
 	 */
-	static void RemoveEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true);
+	static void RemoveEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
 
 	/**
 	* Returns true if we are moving a level

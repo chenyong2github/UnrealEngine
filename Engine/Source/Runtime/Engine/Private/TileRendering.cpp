@@ -19,6 +19,8 @@
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 
+DECLARE_GPU_STAT_NAMED(CanvasDrawTile, TEXT("CanvasDrawTile"));
+
 static const uint32 CanvasTileVertexCount = 4;
 static const uint32 CanvasTileIndexCount = 6;
 
@@ -170,12 +172,14 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 {
 	check(IsInRenderingThread());
 
+	SCOPED_GPU_STAT(RHICmdList, CanvasDrawTile);
+	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
+	TRACE_CPUPROFILER_EVENT_SCOPE("CanvasDrawTile");
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
+
 	IRendererModule& RendererModule = GetRendererModule();
 
 	InitTileMesh(View, bNeedsToSwitchVerticalAxis);
-
-	SCOPED_DRAW_EVENTF(RHICmdList, CanvasDrawTile, *MaterialRenderProxy->GetMaterial(GMaxRHIFeatureLevel)->GetFriendlyName());
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
 
 	for (int32 TileIdx = 0; TileIdx < Tiles.Num(); TileIdx++)
 	{

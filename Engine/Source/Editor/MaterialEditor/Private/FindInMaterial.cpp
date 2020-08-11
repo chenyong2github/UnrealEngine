@@ -272,7 +272,7 @@ void SFindInMaterial::MatchTokens(const TArray<FString> &Tokens)
 	{
 		UEdGraphNode* Node = *It;
 
-		const FString NodeName = Node->GetNodeTitle(ENodeTitleType::ListView).ToString();
+		const FString NodeName = Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString();
 		FSearchResult NodeResult(new FFindInMaterialResult(NodeName, RootSearchResult, Node));
 
 		FString NodeSearchString = NodeName + Node->NodeComment;

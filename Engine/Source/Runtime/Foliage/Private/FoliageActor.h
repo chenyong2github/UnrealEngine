@@ -60,7 +60,7 @@ struct FFoliageActor : public FFoliageImpl
 	AActor* Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance& Instance);
 	TArray<AActor*> GetActorsFromSelectedIndices(const TSet<int32>& SelectedIndices) const;
 	virtual bool ShouldAttachToBaseComponent() const override { return bShouldAttachToBaseComponent; }
-	bool UpdateInstanceFromActor(AInstancedFoliageActor* IFA, AActor* InActor, FFoliageInfo& FoliageInfo);
+	bool UpdateInstanceFromActor(AInstancedFoliageActor* IFA, int32 Index, FFoliageInfo& FoliageInfo);
 	void GetInvalidInstances(TArray<int32>& InvalidInstances);
 
 private:

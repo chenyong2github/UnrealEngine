@@ -23,14 +23,14 @@ void RenderHairStrandsShadowMask(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
-	const struct FHairStrandsDatas* HairDatas,
+	const struct FHairStrandsRenderingData* HairDatas,
 	FRDGTextureRef ScreenShadowMaskTexture); 
 
 void RenderHairStrandsShadowMask(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const class FLightSceneInfo* LightSceneInfo,
-	const struct FHairStrandsDatas* Hairdatas,
+	const struct FHairStrandsRenderingData* Hairdatas,
 	IPooledRenderTarget* ScreenShadowMaskTexture);
 
 /// Write hair transmittance onto screen shadow mask
@@ -38,5 +38,5 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRHICommandListImmediate& RHICmdList,
 	const TArray<FViewInfo>& Views,
 	const class FLightSceneInfo* LightSceneInfo,
-	const struct FHairStrandsDatas* Hairdatas,
+	const struct FHairStrandsRenderingData* Hairdatas,
 	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture);

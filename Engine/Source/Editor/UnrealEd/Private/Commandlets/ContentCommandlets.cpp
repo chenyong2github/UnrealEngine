@@ -949,7 +949,6 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bGenerateMeshProxies = HLODOptions.Contains("Proxies");
 	bForceClusterGeneration = HLODOptions.Contains("ForceClusters");
 	bForceProxyGeneration = HLODOptions.Contains("ForceProxies");
-	bForceEnableHLODForLevel = HLODOptions.Contains("ForceEnableHLOD");
 	bForceSingleClusterForLevel = HLODOptions.Contains("ForceSingleCluster");
 
 	if (bShouldBuildHLOD)
@@ -959,7 +958,6 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Proxies"), bGenerateMeshProxies ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceClusters"), bForceClusterGeneration ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceProxies"), bForceProxyGeneration ? TEXT("X") : TEXT(" "));
-		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceEnableHLOD"), bForceEnableHLODForLevel ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceSingleCluster"), bForceSingleClusterForLevel ? TEXT("X") : TEXT(" "));
 	}
 
@@ -1504,15 +1502,9 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		};
 
 		FString WorldPackageName;
-		FString WorldPackageCheckedOutUser;
 		if (FPackageName::DoesPackageExist(World->GetOutermost()->GetName(), NULL, &WorldPackageName))
 		{
-			// If we are checking out only dirty package, simply check if level can be checked out. They will be added to list of fsaved/checked-out files after rebuilding the data
-			if (bShouldCheckoutDirtyPackageOnly)
-			{
-				bShouldProceedWithRebuild = (CanCheckoutFile(WorldPackageName, WorldPackageCheckedOutUser) || !bSkipCheckedOutFiles);
-			}
-			else
+			if (!bShouldCheckoutDirtyPackageOnly)
 			{
 				// if we can't check out the main map or it's not up to date then we can't do the lighting rebuild at all!
 				if (CheckoutFile(WorldPackageName))
@@ -1550,24 +1542,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				const FString StreamingLevelWorldAssetPackageName = StreamingLevel->GetWorldAssetPackageName();
 				if (FPackageName::DoesPackageExist(StreamingLevelWorldAssetPackageName, NULL, &StreamingLevelPackageFilename))
 				{
-					if (bShouldCheckoutDirtyPackageOnly)
-					{
-						FString OutUser;
-						bShouldBeLoaded = (CanCheckoutFile(StreamingLevelPackageFilename, OutUser) || !bSkipCheckedOutFiles);
-
-						if (!bShouldBeLoaded)
-						{
-							if (OutUser.Len())
-							{
-								UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it is checked out by %s"), *StreamingLevelPackageFilename, *OutUser);
-							}
-							else
-							{
-								UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it could not be checked out (not at head revision ?)"), *StreamingLevelPackageFilename);
-							}
-						}
-					}
-					else
+					if (!bShouldCheckoutDirtyPackageOnly)
 					{
 						// check to see if we need to check this package out
 						if (CheckoutFile(StreamingLevelPackageFilename))
@@ -1637,12 +1612,6 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					}
 				}
 
-				// Force HLOD support on for this level if we were asked to
-				if( bForceEnableHLODForLevel )
-				{
-					World->GetWorldSettings()->bEnableHierarchicalLODSystem = true;
-				}
-
 				// Use a single cluster for all actors in the level if we were asked to
 				if( bForceSingleClusterForLevel )
 				{
@@ -1708,11 +1677,14 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				}
 
 				// Checkout and save each dirty package
-				for (UPackage* Package : PackagesToSave)
+				if (!bVerifyContent)
 				{
-					if (Package->IsDirty())
+					for (UPackage* Package : PackagesToSave)
 					{
-						CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
+						if (Package->IsDirty())
+						{
+							CheckoutAndSavePackage(Package, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
+						}
 					}
 				}
 
@@ -1781,7 +1753,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 						UPackage* MapBuildDataPackage = InLevel->MapBuildData->GetOutermost();
 						if (MapBuildDataPackage != InLevel->GetOutermost() && MapBuildDataPackage->IsDirty())
 						{
-							CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames);
+							CheckoutAndSavePackage(MapBuildDataPackage, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 						}
 					}
 				};
@@ -1803,18 +1775,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 						if (bSaveSubLevelPackage)
 						{
-							bool bFileCheckedOut = true;
-							if (bShouldCheckoutDirtyPackageOnly)
-							{
-								bFileCheckedOut = CheckoutFile(StreamingLevelPackageFilename, true);
-							}
-
-							// Try to save the level package 
-							const bool bSavePackageResult = SavePackageHelper(SubLevelPackage, StreamingLevelPackageFilename);
-							if (!bFileCheckedOut && !bSavePackageResult)
-							{
-								UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Failed to save sub level: %s"), *StreamingLevelPackageFilename);
-							}
+							CheckoutAndSavePackage(SubLevelPackage, CheckedOutPackagesFilenames, bSkipCheckedOutFiles);
 						}
 
 						SaveMapBuildData(NextStreamingLevel->GetLoadedLevel());
@@ -1824,14 +1785,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 		}
 		else
 		{
-			if (bShouldBuildHLOD)
-			{
-				UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it is checked out by %s"), *World->GetName(), *WorldPackageCheckedOutUser);
-			}
-			else
-			{
-				UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Failed to complete steps necessary to start a lightmass or texture streaming build of %s"), *World->GetName());
-			}
+			UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] Failed to complete steps necessary to perform build for %s"), *World->GetName());
 		}
 
 		if (!bShouldProceedWithRebuild || !bSavePackage)
@@ -1860,6 +1814,22 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 			if (bShouldCheckoutDirtyPackageOnly)
 			{
 				bSavePackage = World->GetOutermost()->IsDirty();
+				if (bSavePackage && bSkipCheckedOutFiles)
+				{
+					FString OutUser;
+					bSavePackage = CanCheckoutFile(WorldPackageName, OutUser);
+					if (!bSavePackage)
+					{
+						if (OutUser.Len())
+						{
+							UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it is checked out by %s"), *WorldPackageName, *OutUser);
+						}
+						else
+						{
+							UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] Skipping %s as it could not be checked out (not at head revision ?)"), *WorldPackageName);
+						}
+					}
+				}
 			}
 		}
 

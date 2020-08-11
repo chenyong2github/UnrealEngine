@@ -61,6 +61,12 @@ struct FUObjectItem
 #endif
 	}
 
+	// Non-copyable
+	FUObjectItem(FUObjectItem&&) = delete;
+	FUObjectItem(const FUObjectItem&) = delete;
+	FUObjectItem& operator=(FUObjectItem&&) = delete;
+	FUObjectItem& operator=(const FUObjectItem&) = delete;
+
 	FORCEINLINE void SetOwnerIndex(int32 OwnerIndex)
 	{
 		ClusterRootIndex = OwnerIndex;
@@ -92,7 +98,7 @@ struct FUObjectItem
 	FORCEINLINE void SetFlags(EInternalObjectFlags FlagsToSet)
 	{
 		check((int32(FlagsToSet) & ~int32(EInternalObjectFlags::AllFlags)) == 0);
-		Flags |= int32(FlagsToSet);
+		ThisThreadAtomicallySetFlag(FlagsToSet);
 	}
 
 	FORCEINLINE EInternalObjectFlags GetFlags() const
@@ -103,7 +109,7 @@ struct FUObjectItem
 	FORCEINLINE void ClearFlags(EInternalObjectFlags FlagsToClear)
 	{
 		check((int32(FlagsToClear) & ~int32(EInternalObjectFlags::AllFlags)) == 0);
-		Flags &= ~int32(FlagsToClear);
+		ThisThreadAtomicallyClearedFlag(FlagsToClear);
 	}
 
 	/**
@@ -123,7 +129,6 @@ struct FUObjectItem
 				break;
 			}
 			int32 NewValue = StartValue & ~int32(FlagToClear);
-			checkSlow(NewValue != StartValue);
 			if ((int32)FPlatformAtomics::InterlockedCompareExchange((int32*)&Flags, NewValue, StartValue) == StartValue)
 			{
 				bIChangedIt = true;
@@ -145,7 +150,6 @@ struct FUObjectItem
 				break;
 			}
 			int32 NewValue = StartValue | int32(FlagToSet);
-			checkSlow(NewValue != StartValue);
 			if ((int32)FPlatformAtomics::InterlockedCompareExchange((int32*)&Flags, NewValue, StartValue) == StartValue)
 			{
 				bIChangedIt = true;
@@ -162,11 +166,11 @@ struct FUObjectItem
 
 	FORCEINLINE void SetUnreachable()
 	{
-		Flags |= int32(EInternalObjectFlags::Unreachable);
+		ThisThreadAtomicallySetFlag(EInternalObjectFlags::Unreachable);
 	}
 	FORCEINLINE void ClearUnreachable()
 	{
-		Flags &= ~int32(EInternalObjectFlags::Unreachable);
+		ThisThreadAtomicallyClearedFlag(EInternalObjectFlags::Unreachable);
 	}
 	FORCEINLINE bool IsUnreachable() const
 	{
@@ -179,11 +183,11 @@ struct FUObjectItem
 
 	FORCEINLINE void SetPendingKill()
 	{
-		Flags |= int32(EInternalObjectFlags::PendingKill);
+		ThisThreadAtomicallySetFlag(EInternalObjectFlags::PendingKill);
 	}
 	FORCEINLINE void ClearPendingKill()
 	{
-		Flags &= ~int32(EInternalObjectFlags::PendingKill);
+		ThisThreadAtomicallyClearedFlag(EInternalObjectFlags::PendingKill);
 	}
 	FORCEINLINE bool IsPendingKill() const
 	{
@@ -192,11 +196,11 @@ struct FUObjectItem
 
 	FORCEINLINE void SetRootSet()
 	{
-		Flags |= int32(EInternalObjectFlags::RootSet);
+		ThisThreadAtomicallySetFlag(EInternalObjectFlags::RootSet);
 	}
 	FORCEINLINE void ClearRootSet()
 	{
-		Flags &= ~int32(EInternalObjectFlags::RootSet);
+		ThisThreadAtomicallyClearedFlag(EInternalObjectFlags::RootSet);
 	}
 	FORCEINLINE bool IsRootSet() const
 	{
@@ -800,6 +804,13 @@ public:
 	 * @param Listener listener to remove
 	 */
 	void RemoveUObjectDeleteListener(FUObjectDeleteListener* Listener);
+
+	/**
+	 * Removes an object from delete listeners
+	 *
+	 * @param Object to remove from delete listeners
+	 */
+	void RemoveObjectFromDeleteListeners(UObjectBase* Object);
 
 	/**
 	 * Checks if a UObject pointer is valid

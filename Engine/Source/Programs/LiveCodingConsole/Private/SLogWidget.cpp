@@ -4,6 +4,9 @@
 #include "Framework/Text/SlateTextRun.h"
 #include "LiveCodingConsoleStyle.h"
 #include "SlateOptMacros.h"
+#include "HAL/FileManager.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -150,6 +153,49 @@ EActiveTimerReturnType SLogWidget::OnTimerElapsed(double CurrentTime, float Delt
 	}
 	QueuedLines.Empty();
 	return EActiveTimerReturnType::Continue;
+}
+
+bool ExtractFilepathAndLineNumber(FString& PotentialFilePath, int32& LineNumber)
+{
+	// Extract filename and line number using regex	
+#if PLATFORM_WINDOWS
+	const FRegexPattern SourceCodeRegexPattern(TEXT("([a-zA-Z]:/[^:\\n\\r()]+(h|cpp))\\s?\\(([0-9]+)\\)"));
+	const int32 LineNumberCaptureGroupID = 3;
+#else
+	const FRegexPattern SourceCodeRegexPattern(TEXT("((//([^:/\\n]+[/])*)([^/]+)(h|cpp))\\s?\\(([0-9]+)\\)"));
+	const int32 LineNumberCaptureGroupID = 6;
+#endif
+
+	FRegexMatcher SourceCodeRegexMatcher(SourceCodeRegexPattern, PotentialFilePath);
+	if (SourceCodeRegexMatcher.FindNext())
+	{
+		PotentialFilePath = SourceCodeRegexMatcher.GetCaptureGroup(1);
+		LineNumber = FCString::Strtoi(*SourceCodeRegexMatcher.GetCaptureGroup(LineNumberCaptureGroupID), nullptr, 10);
+		return true;
+	}
+
+	return false;
+}
+
+FReply SLogWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		// grab cursor location's line of text
+		FString PotentialCodeFilePath;
+		MessagesTextBox->GetCurrentTextLine(PotentialCodeFilePath);
+
+		// Extract potential .cpp./h files file path & line number
+		int32 LineNumber = 0;
+		PotentialCodeFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PotentialCodeFilePath);
+		if (ExtractFilepathAndLineNumber(PotentialCodeFilePath, LineNumber) && PotentialCodeFilePath.Len() && IFileManager::Get().FileSize(*PotentialCodeFilePath) != INDEX_NONE)
+		{
+			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+			SourceCodeAccessModule.GetAccessor().OpenFileAtLine(PotentialCodeFilePath, LineNumber);
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

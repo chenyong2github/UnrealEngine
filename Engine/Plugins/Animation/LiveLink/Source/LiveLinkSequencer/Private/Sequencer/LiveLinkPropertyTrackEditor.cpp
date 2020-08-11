@@ -85,7 +85,7 @@ void FLiveLinkSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const 
 		{
 			TArrayView<const FMovieSceneChannelMetaData> EntryMetaData = Entry.GetMetaData();
 			AllMetaData.Reserve(AllMetaData.Num() + EntryMetaData.Num());
-			for (const FMovieSceneChannelMetaData MetaData : EntryMetaData)
+			for (const FMovieSceneChannelMetaData& MetaData : EntryMetaData)
 			{
 				AllMetaData.Add(MetaData);
 			}
@@ -132,7 +132,7 @@ bool FLiveLinkSection::RequestDeleteKeyArea(const TArray<FName>& KeyAreaNamePath
 			{
 				TArrayView<const FMovieSceneChannelMetaData> EntryMetaData = Entry.GetMetaData();
 				AllMetaData.Reserve(AllMetaData.Num() + EntryMetaData.Num());
-				for (const FMovieSceneChannelMetaData MetaData : EntryMetaData)
+				for (const FMovieSceneChannelMetaData& MetaData : EntryMetaData)
 				{
 					AllMetaData.Add(MetaData);
 				}

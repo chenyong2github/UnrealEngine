@@ -15,7 +15,8 @@ public class FlurryEditor : ModuleRules
                 "Analytics",
                 "AnalyticsVisualEditing",
                 "Engine",
-				"Projects"
+				"Projects",
+				"DeveloperSettings"
 			}
 			);
 

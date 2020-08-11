@@ -137,9 +137,10 @@ public:
 	* true while there are pending requests in flight and updating needs to continue.
 	*
 	* @param bWaitForMipFading	Whether to wait for Mip Fading to complete before finalizing.
+	* @param DeferredTickCBAssets An array of assets that need to have their CBs ticked. Non-null if not on the game thread.
 	* @return					true if there are requests in flight, false otherwise
 	*/
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false)
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr)
 	{
 		STREAMABLERENDERASSET_NODEFAULT(UpdateStreamingStatus);
 		return false;
@@ -170,13 +171,32 @@ public:
 			|| ForceMipLevelsToBeResidentTimestamp >= FApp::GetCurrentTime();
 	}
 
+	/**
+	* Register a callback to get notified when a certain mip or LOD is resident or evicted.
+	* @param Component The context component
+	* @param LODIdx The mip or LOD level to wait for
+	* @param TimeoutSecs Timeout in seconds
+	* @param bOnStreamIn Whether to get notified when the specified level is resident or evicted
+	* @param Callback The callback to call
+	*/
 	ENGINE_API void RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn, FLODStreamingCallback&& Callback);
 
+	/**
+	* Remove mip level change callbacks registered by a component.
+	* @param Component The context component
+	*/
 	ENGINE_API void RemoveMipLevelChangeCallback(UPrimitiveComponent* Component);
 
+	/**
+	* Not thread safe and must be called on GT timeline but not necessarily on GT (e.g. ParallelFor called from GT).
+	*/
 	ENGINE_API void RemoveAllMipLevelChangeCallbacks();
 
-	ENGINE_API void TickMipLevelChangeCallbacks();
+	/**
+	* Invoke registered mip level change callbacks.
+	* @param DeferredTickCBAssets Non-null if not called on GT. An array that collects assets with CBs that need to be called later on GT
+	*/
+	ENGINE_API void TickMipLevelChangeCallbacks(TArray<UStreamableRenderAsset*>* DeferredTickCBAssets);
 
 	/**
 	* Tells the streaming system that it should force all mip-levels to be resident for a number of seconds.

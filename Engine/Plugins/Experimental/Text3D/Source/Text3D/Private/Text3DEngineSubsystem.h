@@ -62,6 +62,7 @@ public:
 private:
 	FT_Face FreeTypeFace;
 	FString FontName;
+	TArray<uint8> Data;
 	TSharedPtr<int32> CacheCounter;
 	uint32 TypefaceFontDataHash;
 };

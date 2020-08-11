@@ -52,7 +52,7 @@ SamplerState ScreenSpaceReflectionsSampler;
 
 #if ENABLE_DYNAMIC_SKY_LIGHT
 #include "VolumetricCloudCommon.ush"
-Texture2D<float2> CloudSkyAOTexture;
+Texture2D<float3> CloudSkyAOTexture;
 SamplerState CloudSkyAOSampler;
 float4x4 CloudSkyAOWorldToLightClipMatrix;
 float CloudSkyAOFarDepthKm;

@@ -15,7 +15,7 @@
 static int32 GHairStrandsClusterCullingUsesHzb = 1;
 static FAutoConsoleVariableRef CVarHairCullingUseHzb(TEXT("r.HairStrands.Cluster.CullingUsesHzb"), GHairStrandsClusterCullingUsesHzb, TEXT("Enable/disable the use of HZB to help cull more hair clusters."));
 
-static int32 GHairStrandsClusterCulling = 1;
+static int32 GHairStrandsClusterCulling = 0;
 static FAutoConsoleVariableRef CVarHairClusterCulling(TEXT("r.HairStrands.Cluster.Culling"), GHairStrandsClusterCulling, TEXT("Enable/Disable hair cluster culling"));
 
 static int32 GHairStrandsClusterCullingLodMode = -1;

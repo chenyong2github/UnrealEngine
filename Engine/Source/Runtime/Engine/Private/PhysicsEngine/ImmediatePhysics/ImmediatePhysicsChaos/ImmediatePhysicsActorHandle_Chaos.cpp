@@ -126,7 +126,7 @@ namespace ImmediatePhysics_Chaos
 			return CloneGeometry(BodyInstance, ActorType, Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 		}
 
-		UBodySetup* BodySetup = BodyInstance->BodySetup.Get();
+		UBodySetup* BodySetup = BodyInstance->GetBodySetup();
 
 		FBodyCollisionData BodyCollisionData;
 		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
@@ -165,7 +165,10 @@ namespace ImmediatePhysics_Chaos
 #if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 		if (ActorType == EActorType::DynamicActor)
 		{
-			TMassProperties<float, 3> MassProperties = BodyUtils::ComputeMassProperties(BodyInstance, Shapes, FTransform::Identity);
+			// bInertaScaleIncludeMass = true is to match legacy physics behaviour. This will scale the inertia by the change in mass (density x volumescale) 
+			// as well as the dimension change even though we don't actually change the mass.
+			const bool bInertaScaleIncludeMass = true;
+			TMassProperties<float, 3> MassProperties = BodyUtils::ComputeMassProperties(BodyInstance, Shapes, FTransform::Identity, bInertaScaleIncludeMass);
 			OutMass = MassProperties.Mass;
 			OutInertia = MassProperties.InertiaTensor.GetDiagonal();
 			OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);

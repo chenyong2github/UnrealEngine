@@ -113,7 +113,6 @@ protected:
 	bool bGenerateMeshProxies;
 	bool bForceClusterGeneration;
 	bool bForceProxyGeneration;
-	bool bForceEnableHLODForLevel;
 	bool bForceSingleClusterForLevel;
 	FString ForceHLODSetupAsset;
 	FString HLODSkipToMap;

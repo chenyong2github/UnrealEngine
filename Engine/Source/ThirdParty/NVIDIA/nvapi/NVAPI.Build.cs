@@ -7,20 +7,33 @@ public class NVAPI : ModuleRules
 	{
 		Type = ModuleType.External;
 
-        string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
-        PublicSystemIncludePaths.Add(nvApiPath);
+		/*string nvApiNoRedistLibrary = System.IO.Path.Combine(EngineDirectory,
+			"Restricted/NoRedist/Source/ThirdParty/NVIDIA/nvapi/amd64/nvapi64.lib");
+
+		// Check if we should redirect to a beta version of nvapi
+		bool bHaveNoRedistnvApi = System.IO.File.Exists(nvApiNoRedistLibrary);
+		bool bCompilingForProject = Target.ProjectFile != null;*/
+		bool bUseNoRedistnvApi = false;//bHaveNoRedistnvApi && bCompilingForProject;
+
+		string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
+
+		if (bUseNoRedistnvApi)
+		{
+			nvApiPath = System.IO.Path.Combine(EngineDirectory, "Restricted/NoRedist/Source/ThirdParty/NVIDIA/nvapi/");
+		}
+
+		PublicSystemIncludePaths.Add(nvApiPath);
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Platform != UnrealTargetPlatform.Win32)
 		{
-            string nvApiLibPath = nvApiPath + "amd64/";
-            PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");
+			string nvApiLibPath = nvApiPath + "amd64/";
+			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-            string nvApiLibPath = nvApiPath + "x86/";
-            PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi.lib");
+			string nvApiLibPath = nvApiPath + "x86/";
+			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi.lib");
 		}
-
 	}
 }
 

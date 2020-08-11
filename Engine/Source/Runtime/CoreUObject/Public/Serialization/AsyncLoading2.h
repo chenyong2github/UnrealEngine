@@ -130,8 +130,7 @@ class FPackageObjectIndex
 
 	uint64 TypeAndId = Invalid;
 
-public:
-	enum Type
+	enum EType
 	{
 		Export,
 		ScriptImport,
@@ -141,8 +140,27 @@ public:
 	};
 	static_assert((TypeCount - 1) <= (TypeMask >> TypeShift), "FPackageObjectIndex: Too many types for TypeMask");
 
+	inline explicit FPackageObjectIndex(EType InType, uint64 InId) : TypeAndId((uint64(InType) << TypeShift) | InId) {}
+
+	COREUOBJECT_API static uint64 GenerateImportHashFromObjectPath(const FStringView& ObjectPath);
+
+public:
 	FPackageObjectIndex() = default;
-	inline explicit FPackageObjectIndex(Type InType, uint64 InId) : TypeAndId((uint64(InType) << TypeShift) | InId) {}
+
+	inline static FPackageObjectIndex FromExportIndex(const int32 Index)
+	{
+		return FPackageObjectIndex(Export, Index);
+	}
+
+	inline static FPackageObjectIndex FromScriptPath(const FStringView& ScriptObjectPath)
+	{
+		return FPackageObjectIndex(ScriptImport, GenerateImportHashFromObjectPath(ScriptObjectPath));
+	}
+
+	inline static FPackageObjectIndex FromPackagePath(const FStringView& PackageObjectPath)
+	{
+		return FPackageObjectIndex(PackageImport, GenerateImportHashFromObjectPath(PackageObjectPath));
+	}
 
 	inline bool IsNull() const
 	{
@@ -173,11 +191,6 @@ public:
 	{
 		check(IsExport());
 		return uint32(TypeAndId);
-	}
-
-	inline Type GetType() const
-	{
-		return Type(TypeAndId >> TypeShift);
 	}
 
 	inline uint64 Value() const
@@ -326,6 +339,8 @@ struct FExportMapEntry
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
+
+COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages);
 
 #ifndef WITH_ASYNCLOADING2
 #define WITH_ASYNCLOADING2 !WITH_EDITORONLY_DATA

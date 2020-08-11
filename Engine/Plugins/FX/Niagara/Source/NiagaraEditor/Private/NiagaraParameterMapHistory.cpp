@@ -181,7 +181,7 @@ int32 FNiagaraParameterMapHistory::FindVariableByName(const FName& VariableName,
 }
 
 
-int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type)
+int32 FNiagaraParameterMapHistory::FindVariable(const FName& VariableName, const FNiagaraTypeDefinition& Type) const
 {
 	int32 FoundIdx = Variables.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
 	{
@@ -577,6 +577,25 @@ bool FNiagaraParameterMapHistory::IsPrimaryDataSetOutput(const FNiagaraVariable&
 				return true;
 			}
 		}
+		return IsInNamespace(InVar, PARAM_MAP_SYSTEM_STR) || IsInNamespace(InVar, PARAM_MAP_EMITTER_STR);
+	}
+	else if (Usage == ENiagaraScriptUsage::Module || Usage == ENiagaraScriptUsage::Function)
+	{
+		return IsInNamespace(InVar, PARAM_MAP_MODULE_STR);
+	}
+	return IsInNamespace(InVar, PARAM_MAP_ATTRIBUTE_STR);
+}
+
+bool FNiagaraParameterMapHistory::IsWrittenToScriptUsage(const FNiagaraVariable& InVar, ENiagaraScriptUsage Usage, bool bAllowDataInterfaces)
+{
+	if (bAllowDataInterfaces == false && InVar.GetType().GetClass() != nullptr)
+	{
+		return false;
+	}
+
+	if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript ||
+		Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
+	{
 		return IsInNamespace(InVar, PARAM_MAP_SYSTEM_STR) || IsInNamespace(InVar, PARAM_MAP_EMITTER_STR);
 	}
 	else if (Usage == ENiagaraScriptUsage::Module || Usage == ENiagaraScriptUsage::Function)
@@ -1479,6 +1498,13 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
 	return false;
 }
 
@@ -1961,7 +1987,6 @@ int32 FNiagaraParameterMapHistoryWithMetaDataBuilder::AddVariableToHistory(FNiag
 		}
 		return History.AddVariable(InVar, InAliasedVar, InPin, MetaData);
 	}
-	//UE_LOG(LogNiagaraEditor, Display, TEXT("Variable added to parameter map history did not have metadata! Variable: %s"), *InVar.GetName().ToString());
 	TOptional<FNiagaraVariableMetaData> BlankMetaData = FNiagaraVariableMetaData();
 	return History.AddVariable(InVar, InAliasedVar, InPin, BlankMetaData);
 }

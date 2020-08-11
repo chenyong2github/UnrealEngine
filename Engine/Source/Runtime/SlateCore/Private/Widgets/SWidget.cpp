@@ -28,6 +28,18 @@
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
 
+// Enabled to assign FindWidgetMetaData::FoundWidget to the widget that has the matching reflection data 
+#define WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA 0
+
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+namespace FindWidgetMetaData
+{
+	SWidget* FoundWidget = nullptr;
+	FName WidgeName = "ItemNameToFind";
+	FName AssetName = "AssetNameToFind";
+}
+#endif
+
 DEFINE_STAT(STAT_SlateTotalWidgetsPerFrame);
 DEFINE_STAT(STAT_SlateNumPaintedWidgets);
 DEFINE_STAT(STAT_SlateNumTickedWidgets);
@@ -218,6 +230,13 @@ SWidget::SWidget()
 
 SWidget::~SWidget()
 {
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+	if (FindWidgetMetaData::FoundWidget == this)
+	{
+		FindWidgetMetaData::FoundWidget = nullptr;
+	}
+#endif
+
 	// Unregister all ActiveTimers so they aren't left stranded in the Application's list.
 	if (FSlateApplicationBase::IsInitialized())
 	{
@@ -226,9 +245,14 @@ SWidget::~SWidget()
 			FSlateApplicationBase::Get().UnRegisterActiveTimer(ActiveTimerHandle);
 		}
 
-		if (FSlateInvalidationRoot* Root = FastPathProxyHandle.GetInvalidationRoot())
+		// Warn the invalidation root
+		FSlateInvalidationRootHandle SlateInvalidationRootHandle = FastPathProxyHandle.GetInvalidationRootHandle();
+#if WITH_SLATE_DEBUGGING
+		ensure(!SlateInvalidationRootHandle.IsStale());
+#endif
+		if (FSlateInvalidationRoot* InvalidationRoot = SlateInvalidationRootHandle.GetInvalidationRoot())
 		{
-			Root->OnWidgetDestroyed(this);
+			InvalidationRoot->OnWidgetDestroyed(this);
 		}
 
 		// Reset handle
@@ -618,10 +642,11 @@ void SWidget::InvalidatePrepass()
 
 void SWidget::InvalidateChildRemovedFromTree(SWidget& Child)
 {
-	if (Child.FastPathProxyHandle.IsValid())
+	// If the root is invalidated, we need to clear out its PersistentState regardless.
+	if (FSlateInvalidationRoot* ChildInvalidationRoot = Child.FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
 	{
 		SCOPED_NAMED_EVENT(SWidget_InvalidateChildRemovedFromTree, FColor::Red);
-		Child.UpdateFastPathVisibility(false, true, Child.FastPathProxyHandle.GetInvalidationRoot()->GetHittestGrid());
+		Child.UpdateFastPathVisibility(false, true, ChildInvalidationRoot->GetHittestGrid());
 	}
 }
 
@@ -775,9 +800,15 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 			FastPathProxyHandle.GetInvalidationRoot()->RemoveWidgetFromFastPath(Proxy);
 		}
 	}
-	else
+	else if (bWidgetRemoved)
 	{
-		ensure(FastPathProxyHandle.GetIndex() == INDEX_NONE);
+		// The widget can be deleted before the next FastWidgetPathList is built. Remove it now from its InvalidationRoot
+		if (FSlateInvalidationRoot* InvalidationRoot = FastPathProxyHandle.GetInvalidationRootHandle().GetInvalidationRoot())
+		{
+			InvalidationRoot->OnWidgetDestroyed(this);
+		}
+
+		FastPathProxyHandle = FWidgetProxyHandle();
 	}
 
 	if (HittestGridToRemoveFrom)
@@ -785,9 +816,16 @@ void SWidget::UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved,
 		HittestGridToRemoveFrom->RemoveWidget(SharedThis(this));
 	}
 
+	if (bWidgetRemoved)
+	{
+		PersistentState.CachedElementHandle.RemoveFromCache();
+	}
+	else
+	{
+		PersistentState.CachedElementHandle.ClearCachedElements();
+	}
 
-	PersistentState.CachedElementHandle.ClearCachedElements();
-
+	// Loop through children
 	FChildren* MyChildren = GetAllChildren();
 	const int32 NumChildren = MyChildren->Num();
 	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
@@ -1593,6 +1631,22 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 	MouseLeaveHandler = EventHandler;
 }
 
+void SWidget::AddMetadataInternal(const TSharedRef<ISlateMetaData>& AddMe)
+{
+	MetaData.Add(AddMe);
+
+#if WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA
+	if (AddMe->IsOfType<FReflectionMetaData>())
+	{
+		TSharedRef<FReflectionMetaData> Reflection = StaticCastSharedRef<FReflectionMetaData>(AddMe);
+		if (Reflection->Name == FindWidgetMetaData::WidgeName && Reflection->Asset.Get() && Reflection->Asset.Get()->GetFName() == FindWidgetMetaData::AssetName)
+		{
+			FindWidgetMetaData::FoundWidget = this;
+		}
+	}
+#endif
+}
+
 #if WITH_ACCESSIBILITY
 TSharedRef<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
 {
@@ -1782,3 +1836,4 @@ bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrang
 }
 
 #endif
+#undef WITH_SLATE_FIND_WIDGET_REFLECTION_METADATA

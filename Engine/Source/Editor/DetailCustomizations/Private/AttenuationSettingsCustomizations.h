@@ -17,6 +17,7 @@ public:
 	//~ End IPropertyTypeCustomization
 
 	TAttribute<bool> IsAttenuationOverriddenAttribute() const;
+	TAttribute<EVisibility> IsAttenuationOverriddenVisibleAttribute() const;
 
 protected:
 

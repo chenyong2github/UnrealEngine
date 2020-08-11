@@ -769,6 +769,11 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 
 	for (int tid : Triangles)
 	{
+		if (Normals->IsSetTriangle(tid))
+		{
+			Normals->UnsetTriangle(tid);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(tid);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)
@@ -789,7 +794,6 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 }
 
 
-
 void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles)
 {
 	check(Mesh->HasAttributes());
@@ -802,6 +806,11 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles)
 
 	for (int tid : Triangles)
 	{
+		if (Normals->IsSetTriangle(tid))
+		{
+			Normals->UnsetTriangle(tid);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(tid);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)
@@ -1015,6 +1024,12 @@ void FDynamicMeshEditor::SetGeneralTubeUVs(const TArray<int>& Triangles,
 
 void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, const FVector2f& UVTranslation, bool bShiftToOrigin, int UVLayerIndex)
 {
+	SetTriangleUVsFromProjection(Triangles, ProjectionFrame, FVector2f(UVScaleFactor, UVScaleFactor), UVTranslation, UVLayerIndex, bShiftToOrigin, false);
+}
+
+void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, const FVector2f& UVScale, 
+	const FVector2f& UVTranslation, int UVLayerIndex, bool bShiftToOrigin, bool bNormalizeBeforeScaling)
+{
 	if (!Triangles.Num())
 	{
 		return;
@@ -1030,6 +1045,11 @@ void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangl
 
 	for (int TID : Triangles)
 	{
+		if (UVs->IsSetTriangle(TID))
+		{
+			UVs->UnsetTriangle(TID);
+		}
+
 		FIndex3i BaseTri = Mesh->GetTriangle(TID);
 		FIndex3i ElemTri;
 		for (int j = 0; j < 3; ++j)
@@ -1051,11 +1071,14 @@ void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangl
 		UVs->SetTriangle(TID, ElemTri);
 	}
 
+	FVector2f UvScaleToUse = bNormalizeBeforeScaling ? FVector2f(UVScale[0] / UVBounds.Width(), UVScale[1] / UVBounds.Height())
+		: UVScale;
+
 	// shift UVs so that their bbox min-corner is at origin and scaled by external scale factor
 	for (int UVID : AllUVIndices)
 	{
 		FVector2f UV = UVs->GetElement(UVID);
-		FVector2f TransformedUV = (bShiftToOrigin) ? ((UV - UVBounds.Min) * UVScaleFactor) : (UV * UVScaleFactor);
+		FVector2f TransformedUV = (bShiftToOrigin) ? ((UV - UVBounds.Min) * UvScaleToUse) : (UV * UvScaleToUse);
 		TransformedUV += UVTranslation;
 		UVs->SetElement(UVID, TransformedUV);
 	}
@@ -1657,12 +1680,15 @@ void FDynamicMeshEditor::AppendTriangles(const FDynamicMesh3* SourceMesh, const 
 		if (SourceMesh->HasTriangleGroups())
 		{
 			int SourceGroupID = SourceMesh->GetTriangleGroup(SourceTriangleID);
-			NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
-			if (NewGroupID == IndexMaps.InvalidID())
+			if (SourceGroupID >= 0)
 			{
-				NewGroupID = Mesh->AllocateTriangleGroup();
-				IndexMaps.SetGroup(SourceGroupID, NewGroupID);
-				ResultOut.NewGroups.Add(NewGroupID);
+				NewGroupID = IndexMaps.GetNewGroup(SourceGroupID);
+				if (NewGroupID == IndexMaps.InvalidID())
+				{
+					NewGroupID = Mesh->AllocateTriangleGroup();
+					IndexMaps.SetGroup(SourceGroupID, NewGroupID);
+					ResultOut.NewGroups.Add(NewGroupID);
+				}
 			}
 		}
 

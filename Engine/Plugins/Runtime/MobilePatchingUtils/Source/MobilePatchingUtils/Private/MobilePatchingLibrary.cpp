@@ -443,7 +443,7 @@ void UMobilePatchingLibrary::RequestContent(const FString& RemoteManifestURL, co
 	MobilePendingContent->AddToRoot();
 
 	// Request remote manifest
-	TSharedRef<class IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<class IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	HttpRequest->OnProcessRequestComplete().BindStatic(OnRemoteManifestReady, MobilePendingContent, OnSucceeded, OnFailed);
 	HttpRequest->SetURL(*RemoteManifestURL);
 	HttpRequest->SetVerb(TEXT("GET"));

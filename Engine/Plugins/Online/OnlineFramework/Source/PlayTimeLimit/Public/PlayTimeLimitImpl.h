@@ -63,6 +63,12 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(FPlayTimeLimitUserRawPtr, OnRequestCreateUserDelegate, const FUniqueNetId&);
 
 	/**
+	*  Delegate called when a game exit is requested
+	*/
+	DECLARE_MULTICAST_DELEGATE(FOnGameExitRequested);
+	typedef FOnGameExitRequested::FDelegate FOnGameExitRequestedDelegate;
+
+	/**
 	 * Register a user to monitor their play time
 	 * @see UnregisterUser
 	 * @param NewUser the user to register
@@ -92,6 +98,7 @@ public:
 	virtual int32 GetPlayTimeMinutes(const FUniqueNetId& UserId) override;
 	virtual float GetRewardRate(const FUniqueNetId& UserId) override;
 	virtual FWarnUserPlayTime& GetWarnUserPlayTimeDelegate() override;
+	void GameExitByRequest();
 	// End IOnlinePlayTimeLimit
 
 	/**
@@ -107,6 +114,9 @@ public:
 	void DumpState();
 
 	OnRequestCreateUserDelegate OnRequestCreateUser;
+
+	/** Delegate used to request a game exit */
+	FOnGameExitRequested OnGameExitRequestedDelegate;
 
 protected:
 	/**

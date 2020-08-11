@@ -15,7 +15,7 @@
 class IHttpRequest;
 struct FSlateBrush;
 
-typedef TSharedPtr<class IHttpRequest> FHttpRequestPtr;
+typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
 /** 
@@ -108,7 +108,7 @@ private:
 	TSharedPtr<FSlateDynamicImageBrush> DownloadedBrush;
 
 	/** Any pending request */
-	TSharedPtr<IHttpRequest> PendingRequest;
+	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> PendingRequest;
 
 	/** Callback to call upon completion */
 	FOnImageDownloaded PendingCallback;

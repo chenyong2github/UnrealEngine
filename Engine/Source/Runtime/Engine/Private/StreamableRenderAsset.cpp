@@ -49,8 +49,6 @@ void UStreamableRenderAsset::RemoveMipLevelChangeCallback(UPrimitiveComponent* C
 
 void UStreamableRenderAsset::RemoveAllMipLevelChangeCallbacks()
 {
-	check(IsInGameThread());
-
 	for (int32 Idx = 0; Idx < MipChangeCallbacks.Num(); ++Idx)
 	{
 		const FLODStreamingCallbackPayload& Payload = MipChangeCallbacks[Idx];
@@ -59,10 +57,16 @@ void UStreamableRenderAsset::RemoveAllMipLevelChangeCallbacks()
 	MipChangeCallbacks.Empty();
 }
 
-void UStreamableRenderAsset::TickMipLevelChangeCallbacks()
+void UStreamableRenderAsset::TickMipLevelChangeCallbacks(TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
 	if (MipChangeCallbacks.Num() > 0)
 	{
+		if (DeferredTickCBAssets)
+		{
+			DeferredTickCBAssets->Add(this);
+			return;
+		}
+
 		const double Now = FApp::GetCurrentTime();
 		const int32 ResidentMips = GetCachedNumResidentLODs();
 

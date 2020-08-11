@@ -3,7 +3,6 @@
 #include "Sections/MovieSceneAudioSection.h"
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Sound/SoundBase.h"
-#include "Evaluation/MovieSceneAudioTemplate.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieScene.h"
@@ -50,11 +49,9 @@ UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& Obje
 
 	SoundVolume.SetDefault(1.f);
 	PitchMultiplier.SetDefault(1.f);
-
-	UpdateChannelProxy();
 }
 
-void UMovieSceneAudioSection::UpdateChannelProxy()
+EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 {
 	// Set up the channel proxy
 	FMovieSceneChannelProxyData Channels;
@@ -84,28 +81,8 @@ void UMovieSceneAudioSection::UpdateChannelProxy()
 #endif
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
-}
 
-void UMovieSceneAudioSection::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	if (Ar.IsLoading())
-	{
-		UpdateChannelProxy();
-	}
-}
-
-void UMovieSceneAudioSection::PostEditImport()
-{
-	Super::PostEditImport();
-
-	UpdateChannelProxy();
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneAudioSection::GenerateTemplate() const
-{
-	return FMovieSceneAudioSectionTemplate(*this);
+	return EMovieSceneChannelProxyType::Dynamic;
 }
 
 TOptional<FFrameTime> UMovieSceneAudioSection::GetOffsetTime() const

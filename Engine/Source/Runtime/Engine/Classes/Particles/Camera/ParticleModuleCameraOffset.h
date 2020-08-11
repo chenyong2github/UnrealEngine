@@ -24,7 +24,7 @@ enum EParticleCameraOffsetUpdateMethod
 	EPCOUM_MAX,
 };
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Camera Offset"))
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Camera Offset"), MinimalAPI)
 class UParticleModuleCameraOffset : public UParticleModuleCameraBase
 {
 	GENERATED_UCLASS_BODY()

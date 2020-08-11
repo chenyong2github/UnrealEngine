@@ -13,7 +13,7 @@ namespace PropertyTemplate
 	template<>
 	UObject* ConvertFromIntermediateType<UObject*, FMovieSceneObjectBindingID>(const FMovieSceneObjectBindingID& InObjectBinding, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
 	{
-		FMovieSceneObjectBindingID ResolvedID = InObjectBinding.ResolveLocalToRoot(Operand.SequenceID, Player.GetEvaluationTemplate().GetHierarchy());
+		FMovieSceneObjectBindingID ResolvedID = InObjectBinding.ResolveLocalToRoot(Operand.SequenceID, Player);
 
 		for (TWeakObjectPtr<>& WeakObject : Player.FindBoundObjects(ResolvedID.GetGuid(), ResolvedID.GetSequenceID()))
 		{
@@ -49,7 +49,7 @@ namespace PropertyTemplate
 }
 
 FMovieSceneActorReferenceSectionTemplate::FMovieSceneActorReferenceSectionTemplate(const UMovieSceneActorReferenceSection& Section, const UMovieScenePropertyTrack& Track)
-	: PropertyData(Track.GetPropertyName(), Track.GetPropertyPath())
+	: PropertyData(Track.GetPropertyName(), Track.GetPropertyPath().ToString())
 	, ActorReferenceData(Section.GetActorReferenceData())
 {
 }

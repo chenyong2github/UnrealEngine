@@ -256,24 +256,26 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackSimulationStage
 
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackSimulationStageGroup::DropInternal(const FDropRequest& DropRequest)
 {
-	UNiagaraEmitter* OwningEmitter = GetEmitterViewModel()->GetEmitter();
-
-	TSharedRef<const FNiagaraStackEntryDragDropOp> StackEntryDragDropOp = StaticCastSharedRef<const FNiagaraStackEntryDragDropOp>(DropRequest.DragDropOperation);
-	UNiagaraStackSimulationStageGroup* SourceSimulationStageGroup = Cast<UNiagaraStackSimulationStageGroup>(StackEntryDragDropOp->GetDraggedEntries()[0]);
-
-	if (SourceSimulationStageGroup)
+	if (DropRequest.DragDropOperation->IsOfType<FNiagaraStackEntryDragDropOp>() &&
+		(DropRequest.DropZone == EItemDropZone::AboveItem || DropRequest.DropZone == EItemDropZone::BelowItem))
 	{
-		int32 SourceIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SourceSimulationStageGroup->GetSimulationStage());
-		if (SourceIndex != INDEX_NONE)
+		TSharedRef<const FNiagaraStackEntryDragDropOp> StackEntryDragDropOp = StaticCastSharedRef<const FNiagaraStackEntryDragDropOp>(DropRequest.DragDropOperation);
+		UNiagaraStackSimulationStageGroup* SourceSimulationStageGroup = Cast<UNiagaraStackSimulationStageGroup>(StackEntryDragDropOp->GetDraggedEntries()[0]);
+		if (SourceSimulationStageGroup)
 		{
-			int32 TargetOffset = DropRequest.DropZone == EItemDropZone::BelowItem ? 1 : 0;
-			int32 TargetIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SimulationStage.Get()) + TargetOffset;
+			UNiagaraEmitter* OwningEmitter = GetEmitterViewModel()->GetEmitter();
+			int32 SourceIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SourceSimulationStageGroup->GetSimulationStage());
+			if (SourceIndex != INDEX_NONE)
+			{
+				int32 TargetOffset = DropRequest.DropZone == EItemDropZone::BelowItem ? 1 : 0;
+				int32 TargetIndex = OwningEmitter->GetSimulationStages().IndexOfByKey(SimulationStage.Get()) + TargetOffset;
 
-			FScopedTransaction Transaction(FText::Format(LOCTEXT("MoveSimulationStage", "Move Shader Stage {0}"), GetDisplayName()));
-			OwningEmitter->MoveSimulationStageToIndex(SourceSimulationStageGroup->GetSimulationStage(), TargetIndex);
+				FScopedTransaction Transaction(FText::Format(LOCTEXT("MoveSimulationStage", "Move Shader Stage {0}"), GetDisplayName()));
+				OwningEmitter->MoveSimulationStageToIndex(SourceSimulationStageGroup->GetSimulationStage(), TargetIndex);
 
-			OnRequestFullRefreshDeferred().Broadcast();
-			return FDropRequestResponse(DropRequest.DropZone, FText());
+				OnRequestFullRefreshDeferred().Broadcast();
+				return FDropRequestResponse(DropRequest.DropZone, FText());
+			}
 		}
 	}
 	return Super::DropInternal(DropRequest);

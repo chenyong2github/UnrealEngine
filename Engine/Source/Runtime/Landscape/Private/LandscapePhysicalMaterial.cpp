@@ -274,7 +274,7 @@ namespace
 
 		// Draw
 		{
-			SCOPED_GPU_STAT(RHICmdList, LandscapePhysicalMaterial_Draw);
+			SCOPED_DRAW_EVENTF(RHICmdList, LandscapePhysicalMaterial, TEXT("LandscapePhysicalMaterial"));
 
 			FRHIRenderPassInfo RPInfo(RenderTargetTexture, ERenderTargetActions::Clear_Store);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("LandscapePhysicalMaterial"));
@@ -282,6 +282,8 @@ namespace
 			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
 			{
+				SCOPED_GPU_STAT(RHICmdList, LandscapePhysicalMaterial_Draw);
+
 				FMemMark Mark(FMemStack::Get());
 
 				DrawDynamicMeshPass(*View, RHICmdList,
@@ -456,8 +458,7 @@ namespace
 				Task.CompletionState = ECompletionState::Pending;
 			}
 		}
-
-		if (Task.CompletionState == ECompletionState::Pending)
+		else if (Task.CompletionState == ECompletionState::Pending)
 		{
 			if (bFlush || Task.ReadbackFence->Poll())
 			{

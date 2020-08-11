@@ -63,10 +63,10 @@ class UMovieSceneSequence;
 class UMovieSceneSubSection;
 class USequencerSettings;
 class UMovieSceneCopyableBinding;
+class UMovieSceneCompiledDataManager;
 class UMovieSceneCopyableTrack;
 struct FMovieSceneTimeController;
 struct FMovieScenePossessable;
-struct FSequencerTemplateStore;
 struct FTransformData;
 struct ISequencerHotspot;
 struct FKeyAttributes;
@@ -526,10 +526,10 @@ public:
 	 * Attempts to paste from the clipboard
 	 * @return Whether the paste event was handled
 	 */
-	bool DoPaste();
-	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
+	bool DoPaste(bool bClearSelection = false);
+	bool PasteTracks(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
-	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
+	bool PasteObjectBindings(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 
 	void ImportTracksFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableTrack*>& ImportedTracks);
 	void ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections);
@@ -732,8 +732,8 @@ public:
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
 	virtual void RenderMovie(UMovieSceneSection* InSection) const override;
-	virtual void EnterSilentMode() override { ++SilentModeCount; }
-	virtual void ExitSilentMode() override { --SilentModeCount; ensure(SilentModeCount >= 0); }
+	virtual void EnterSilentMode() override;
+	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }
 	virtual FGuid GetHandleToObject(UObject* Object, bool bCreateHandleIfMissing = true, const FName& CreatedFolderName = NAME_None) override;
 	virtual ISequencerObjectChangeListener& GetObjectChangeListener() override;
@@ -761,8 +761,9 @@ public:
 	virtual void SelectObject(FGuid ObjectBinding) override;
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
+	virtual void SelectFolder(UMovieSceneFolder* Folder) override;
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) override;
-	virtual void SelectByKeyAreas(UMovieSceneSection* Section, const TArray<IKeyArea>& InKeyAreas, bool bSelectParentInstead, bool bSelect) override;
+	virtual void SelectByChannels(UMovieSceneSection* Section, TArrayView<const FMovieSceneChannelHandle> InChannels, bool bSelectParentInstead, bool bSelect) override;
 	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) override;
 	virtual void EmptySelection() override;
 	virtual void ThrobKeySelection() override;
@@ -893,6 +894,18 @@ protected:
 
 	/** Get the unqualified local time */
 	FFrameTime GetLocalFrameTime() const { return GetLocalTime().Time; }
+
+	/** Get the frame time text */
+	FString GetFrameTimeText() const;
+
+	/** The parent sequence that the scrub position display text is relative to */
+	FMovieSceneSequenceID GetScrubPositionParent() const;
+	
+	/** The parent sequence chain of the current sequence */
+	TArray<FMovieSceneSequenceID> GetScrubPositionParentChain() const;
+	
+	/** Called when the scrub position parent sequence is changed */
+	void OnScrubPositionParentChanged(FMovieSceneSequenceID InScrubPositionParent);
 
 	/** Exports sequence to a FBX file */
 	void ExportFBXInternal(const FString& Filename, TArray<FGuid>& Bindings);
@@ -1084,6 +1097,11 @@ private:
 
 	/** Recompile any dirty director blueprints in the sequence hierarchy */
 	void RecompileDirtyDirectors();
+
+	void ToggleAsyncEvaluation();
+	bool UsesAsyncEvaluation();
+
+	void UpdateCachedPlaybackContext();
 
 public:
 
@@ -1340,7 +1358,7 @@ private:
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;
 
-	TSharedPtr<struct FSequencerTemplateStore> TemplateStore;
+	UMovieSceneCompiledDataManager* CompiledDataManager;
 
 	TMap<FName, TFunction<void()>> CleanupFunctions;
 
@@ -1372,15 +1390,23 @@ private:
 
 	FCachedViewState CachedViewState;
 	
+	struct FViewModifierInfo
+	{
+		bool bApplyViewModifier = false;
+		FVector ViewModifierLocation = FVector::ZeroVector;
+		FRotator ViewModifierRotation = FRotator::ZeroRotator;
+		float ViewModifierFOV = 0.f;
+	};
 	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
-	bool bApplyViewModifier;
-	FVector ViewModifierLocation;
-	FRotator ViewModifierRotation;
-	float ViewModifierFOV;
+	FViewModifierInfo ViewModifierInfo;
+	/** Information cached before entering silent mode, so we can restore it afterwards. */
+	FViewModifierInfo CachedViewModifierInfo;
 	
 	/** Original editor camera info, for when previewing a sequence with a blend from/to gameplay. */
 	bool bHasPreAnimatedInfo;
 	FVector PreAnimatedViewportLocation;
 	FRotator PreAnimatedViewportRotation;
 	float PreAnimatedViewportFOV;
+
+	TOptional<FMovieSceneSequenceID> ScrubPositionParent;
 };

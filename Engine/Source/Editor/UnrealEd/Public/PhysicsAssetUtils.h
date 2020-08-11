@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "PhysicsAssetUtils.generated.h"
 
 class UBodySetup;

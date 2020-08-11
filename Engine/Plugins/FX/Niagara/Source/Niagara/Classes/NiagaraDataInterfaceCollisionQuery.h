@@ -62,11 +62,21 @@ public:
 
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
 	
+	virtual bool HasPreSimulateTick() const override{ return true; }
+	virtual bool HasPostSimulateTick() const override { return true; }
 private:
 
 	static FCriticalSection CriticalSection;
 	UEnum* TraceChannelEnum;
+
+	const static FName SceneDepthName;
+	const static FName DistanceFieldName;
+	const static FName SyncTraceName;
+	const static FName AsyncTraceName;
 };
 
 struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy

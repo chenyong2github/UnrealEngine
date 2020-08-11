@@ -852,7 +852,7 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 	NewSectionIndices.Reserve(GeneratedMenu->Sections.Num());
 
 	// Add sections with customized ordering first
-	for (const FName SectionName : CustomizedMenu.SectionOrder)
+	for (const FName& SectionName : CustomizedMenu.SectionOrder)
 	{
 		if (SectionName != NAME_None)
 		{
@@ -887,7 +887,7 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 		{
 			if (FCustomizedToolMenuNameArray* EntryOrder = CustomizedMenu.EntryOrder.Find(OriginalSection.Name))
 			{
-				for (const FName EntryName : EntryOrder->Names)
+				for (const FName& EntryName : EntryOrder->Names)
 				{
 					if (EntryName != NAME_None)
 					{
@@ -1488,6 +1488,11 @@ FUIAction UToolMenus::ConvertUIAction(const FToolUIAction& Actions, const FToolM
 	return UIAction;
 }
 
+bool UToolMenus::CanSafelyRouteCall()
+{
+	return !(GIntraFrameDebuggingGameThread || FUObjectThreadContext::Get().IsRoutingPostLoad);
+}
+
 FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const FToolMenuContext& Context)
 {
 	FUIAction UIAction;
@@ -1504,7 +1509,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.CanExecuteAction.BindLambda([DelegateToCall = Actions.CanExecuteAction, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return false;
 		});
 	}
 
@@ -1512,7 +1522,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.GetActionCheckState.BindLambda([DelegateToCall = Actions.GetActionCheckState, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return ECheckBoxState::Unchecked;
 		});
 	}
 
@@ -1520,7 +1535,12 @@ FUIAction UToolMenus::ConvertUIAction(const FToolDynamicUIAction& Actions, const
 	{
 		UIAction.IsActionVisibleDelegate.BindLambda([DelegateToCall = Actions.IsActionVisibleDelegate, Context]()
 		{
-			return DelegateToCall.Execute(Context);
+			if (DelegateToCall.IsBound() && UToolMenus::CanSafelyRouteCall())
+			{
+				return DelegateToCall.Execute(Context);
+			}
+
+			return true;
 		});
 	}
 
@@ -1533,6 +1553,7 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 
 	if (ScriptObject)
 	{
+		TWeakObjectPtr<UToolMenuEntryScript> WeakScriptObject(ScriptObject);
 		UClass* ScriptClass = ScriptObject->GetClass();
 
 		static const FName ExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, Execute);
@@ -1544,19 +1565,31 @@ FUIAction UToolMenus::ConvertScriptObjectToUIAction(UToolMenuEntryScript* Script
 		static const FName CanExecuteName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, CanExecute);
 		if (ScriptClass->IsFunctionImplementedInScript(CanExecuteName))
 		{
-			UIAction.CanExecuteAction.BindUFunction(ScriptObject, CanExecuteName, Context);
+			UIAction.CanExecuteAction.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->CanExecute(Context) : false;
+			});
 		}
 
 		static const FName GetCheckStateName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, GetCheckState);
 		if (ScriptClass->IsFunctionImplementedInScript(GetCheckStateName))
 		{
-			UIAction.GetActionCheckState.BindUFunction(ScriptObject, GetCheckStateName, Context);
+			UIAction.GetActionCheckState.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->GetCheckState(Context) : ECheckBoxState::Unchecked;
+			});
 		}
 
 		static const FName IsVisibleName = GET_FUNCTION_NAME_CHECKED(UToolMenuEntryScript, IsVisible);
 		if (ScriptClass->IsFunctionImplementedInScript(IsVisibleName))
 		{
-			UIAction.IsActionVisibleDelegate.BindUFunction(ScriptObject, IsVisibleName, Context);
+			UIAction.IsActionVisibleDelegate.BindLambda([WeakScriptObject, Context]()
+			{
+				UToolMenuEntryScript* Object = UToolMenuEntryScript::GetIfCanSafelyRouteCall(WeakScriptObject);
+				return Object ? Object->IsVisible(Context) : true;
+			});
 		}
 	}
 
@@ -1612,7 +1645,7 @@ void UToolMenus::AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMult
 	{
 		TArray<const UObject*>& References = WidgetObjectReferences.FindOrAdd(InMultiBox);
 		References.AddUnique(InMenu);
-		for (const TWeakObjectPtr<UObject>& WeakObject : InMenu->Context.ContextObjects)
+		for (const TWeakObjectPtr<UObject> WeakObject : InMenu->Context.ContextObjects)
 		{
 			if (UObject* Object = WeakObject.Get())
 			{

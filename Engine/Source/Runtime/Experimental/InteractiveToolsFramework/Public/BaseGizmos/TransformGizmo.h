@@ -9,6 +9,7 @@
 #include "InteractiveToolChange.h"
 #include "BaseGizmos/GizmoActor.h"
 #include "BaseGizmos/TransformProxy.h"
+
 #include "TransformGizmo.generated.h"
 
 class UInteractiveGizmoManager;
@@ -296,6 +297,27 @@ public:
 	UPROPERTY()
 	bool bSnapToWorldGrid = false;
 
+	/**
+	 * Optional grid size which overrides the Context Grid
+	 */
+	UPROPERTY()
+	bool bGridSizeIsExplicit = false;
+	UPROPERTY()
+	FVector ExplicitGridSize;
+
+	/**
+	 * Optional grid size which overrides the Context Rotation Grid
+	 */
+	UPROPERTY()
+	bool bRotationGridSizeIsExplicit = false;
+	UPROPERTY()
+	FRotator ExplicitRotationGridSize;
+
+	/**
+	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in RotationSnapFunction)
+	 */
+	UPROPERTY()
+	bool bSnapToWorldRotGrid = false;
 
 	/**
 	 * Whether to use the World/Local coordinate system provided by the context via the ContextyQueriesAPI.
@@ -484,7 +506,8 @@ protected:
 		IGizmoStateTarget* StateTarget);
 
 	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
-	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut);
+	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
+	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
 
 };
 

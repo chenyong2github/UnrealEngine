@@ -52,6 +52,7 @@ public class NiagaraEditor : ModuleRules
 				"Renderer",
 				"EditorWidgets",
 				"Renderer",
+				"DeveloperSettings"
 			}
         );
 

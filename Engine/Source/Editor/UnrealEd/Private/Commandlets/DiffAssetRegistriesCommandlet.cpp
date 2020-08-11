@@ -171,7 +171,7 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	}
 
 	auto FindAssetRegistryPath = [&](const FString& PathVal, FString& OutPath) {
-			for (const FString SearchPath : AssetRegistrySearchPath)
+			for (const FString& SearchPath : AssetRegistrySearchPath)
 			{
 				FString FinalSearchPath = SearchPath;
 				FinalSearchPath.ReplaceInline(TEXT("[buildversion]"), *PathVal);
@@ -682,7 +682,7 @@ void UDiffAssetRegistriesCommandlet::SummarizeDeterminism()
 	TArray<FName> AssetPaths;
 	ChangeInfoByAsset.GetKeys(AssetPaths);
 
-	for (const FName AssetPath : AssetPaths)
+	for (const FName& AssetPath : AssetPaths)
 	{
 		const FChangeInfo& ChangeInfo = ChangeInfoByAsset[AssetPath];
 
@@ -811,7 +811,7 @@ void UDiffAssetRegistriesCommandlet::LogChangedFiles(FArchive *CSVFile, FString 
 		UE_LOG(LogDiffAssets, Display, TEXT("Saving CSV results to %s"), *CSVFilename);
 	}
 
-	for (const FName AssetPath : AssetPaths)
+	for (const FName& AssetPath : AssetPaths)
 	{
 		const FChangeInfo& ChangeInfo = ChangeInfoByAsset[AssetPath];
 

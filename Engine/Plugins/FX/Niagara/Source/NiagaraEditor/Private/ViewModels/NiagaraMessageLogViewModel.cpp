@@ -4,11 +4,22 @@
 #include "NiagaraScriptSourceBase.h"
 #include "Modules/ModuleManager.h"
 #include "MessageLog/Public/MessageLogModule.h"
+#include "NiagaraMessages.h"
 
 FNiagaraMessageLogViewModel::FNiagaraMessageLogViewModel(const FName& InMessageLogName, const FGuid& InMessageLogGuidKey, TSharedPtr<class SWidget>& OutMessageLogWidget)
 	: MessageLogGuidKey(InMessageLogGuidKey)
 {
-	OnMessageManagerRequestRefreshHandle = FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddRaw(this, &FNiagaraMessageLogViewModel::UpdateMessageLog);
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	TArray<FName> MessageTopicsToSubscribe;
+	MessageTopicsToSubscribe.Add(FNiagaraMessageTopics::CompilerTopicName);
+	MessageTopicsToSubscribe.Append(MessageManager->GetAdditionalMessageLogTopics());
+	
+	FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByTopic(
+		  FText::FromString("MessageLogViewModel")
+		, InMessageLogGuidKey
+		, MessageTopicsToSubscribe
+		, MessageManagerRegistrationKey
+	).BindRaw(this, &FNiagaraMessageLogViewModel::RefreshMessageLog);
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 
@@ -37,22 +48,20 @@ FNiagaraMessageLogViewModel::FNiagaraMessageLogViewModel(const FName& InMessageL
 
 FNiagaraMessageLogViewModel::~FNiagaraMessageLogViewModel()
 {
-	FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(OnMessageManagerRequestRefreshHandle);
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKey(MessageLogGuidKey);
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	MessageManager->Unsubscribe(FText::FromString("MessageLogViewModel"), MessageLogGuidKey, MessageManagerRegistrationKey);
+	MessageManager->ClearAssetMessages(MessageLogGuidKey);
 }
 
-void FNiagaraMessageLogViewModel::UpdateMessageLog(const FGuid& InMessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> InNewMessages)
+void FNiagaraMessageLogViewModel::RefreshMessageLog(const TArray<TSharedRef<const INiagaraMessage>>& InNewMessages)
 {
-	if (MessageLogGuidKey == InMessageJobBatchAssetKey)
+	MessageLogListing->ClearMessages();
+	TArray<TSharedRef<FTokenizedMessage>> NewTokenizedMessages;
+	for (const TSharedRef<const INiagaraMessage>& NewMessage : InNewMessages)
 	{
-		MessageLogListing->ClearMessages();
-		TArray<TSharedRef<FTokenizedMessage>> NewTokenizedMessages;
-		for (const TSharedRef<const INiagaraMessage> NewMessage : InNewMessages)
-		{
-			NewTokenizedMessages.Add(NewMessage->GenerateTokenizedMessage());
-		}
-		MessageLogListing->AddMessages(NewTokenizedMessages);
+		NewTokenizedMessages.Add(NewMessage->GenerateTokenizedMessage());
 	}
+	MessageLogListing->AddMessages(NewTokenizedMessages);
 }
 
 void FNiagaraMessageLogViewModel::SetMessageLogGuidKey(const FGuid& InViewedAssetObjectKey)

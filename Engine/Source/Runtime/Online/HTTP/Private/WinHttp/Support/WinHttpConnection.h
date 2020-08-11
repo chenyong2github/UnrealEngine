@@ -28,11 +28,11 @@ public:
 	/**
 	 * [Call on Any Thread]
 	 *
-	 * Get the Domain part of the URL for this connection
+	 * Get the request URL for this connection
 	 *
-	 * @return A reference to the Domain for this connection
+	 * @return A reference to the request URL for this connection
 	 */
-	virtual const FString& GetUrlDomain() const = 0;
+	virtual const FString& GetRequestUrl() const = 0;
 
 	/**
 	 * [Call on Any Thread in Request Callback]

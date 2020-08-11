@@ -500,7 +500,7 @@ FTimedDataChannelSampleTime UTimedDataMonitorSubsystem::GetInputOldestDataTime(c
 	if (const FTimeDataInputItem* SourceItem = InputMap.Find(Identifier))
 	{
 		bool bFirstElement = true;
-		for (const FTimedDataMonitorChannelIdentifier ChannelIdentifier : SourceItem->ChannelIdentifiers)
+		for (const FTimedDataMonitorChannelIdentifier& ChannelIdentifier : SourceItem->ChannelIdentifiers)
 		{
 			FTimedDataChannelSampleTime OldestSampleTime = ChannelMap[ChannelIdentifier].Channel->GetOldestDataTime();
 			if (bFirstElement)

@@ -185,7 +185,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
-			int PolyID = Generator->TrianglePolygonIDs.Num() > 0 ? Generator->TrianglePolygonIDs[i] : i;
+			int PolyID = Generator->TrianglePolygonIDs.Num() > 0 ? 1 + Generator->TrianglePolygonIDs[i] : 0;
 			int tid = AppendTriangle(Generator->Triangles[i], PolyID);
 			check(tid == i);
 			UVOverlay->SetTriangle(tid, Generator->TriangleUVs[i]);
@@ -197,7 +197,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
-			int tid = AppendTriangle(Generator->Triangles[i], Generator->TrianglePolygonIDs[i]);
+			int tid = AppendTriangle(Generator->Triangles[i], 1 + Generator->TrianglePolygonIDs[i]);
 			check(tid == i);
 		}
 	}
@@ -206,7 +206,7 @@ void FDynamicMesh3::Copy(const FMeshShapeGenerator* Generator)
 		int NumTris = Generator->Triangles.Num();
 		for (int i = 0; i < NumTris; ++i)
 		{
-			int tid = AppendTriangle(Generator->Triangles[i], i);
+			int tid = AppendTriangle(Generator->Triangles[i], 0);
 			check(tid == i);
 		}
 	}
@@ -434,6 +434,7 @@ void FDynamicMesh3::EnableTriangleGroups(int InitialGroup)
 	{
 		return;
 	}
+	checkSlow(InitialGroup >= 0);
 	TriangleGroups = TDynamicVector<int>();
 	int NT = MaxTriangleID();
 	TriangleGroups->Resize(NT);
@@ -441,7 +442,7 @@ void FDynamicMesh3::EnableTriangleGroups(int InitialGroup)
 	{
 		TriangleGroups.GetValue()[i] = InitialGroup;
 	}
-	GroupIDCounter = 0;
+	GroupIDCounter = InitialGroup + 1;
 }
 
 void FDynamicMesh3::DiscardTriangleGroups()
@@ -808,6 +809,19 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 				int found = IndexUtil::FindTriOrderedEdge(b, a, othertv);
 				CheckOrFailF(found != InvalidID);
 			}
+		}
+	}
+
+	if (HasTriangleGroups())
+	{
+		const TDynamicVector<int>& Groups = TriangleGroups.GetValue();
+		// must have a group per triangle ID
+		CheckOrFailF(Groups.Num() == MaxTriangleID());
+		// group IDs must be in range [0, GroupIDCounter)
+		for (int TID : TriangleIndicesItr())
+		{
+			CheckOrFailF(Groups[TID] >= 0);
+			CheckOrFailF(Groups[TID] < GroupIDCounter);
 		}
 	}
 

@@ -14,7 +14,7 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
         return FSSPR_InvalidSection;
     }
 
-    const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+    const int32 SectionSize = UE::MovieScene::DiscreteSize(SectionRange);
     if (SectionSize <= 0)
     {
         return FSSPR_InvalidSection;
@@ -97,7 +97,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
     const FFrameNumber SectionStartFrame = SectionObject.GetInclusiveStartFrame();
 
     const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
-    const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+    const int32 SectionSize = UE::MovieScene::DiscreteSize(SectionRange);
     const float PixelsPerFrame = InPainter.SectionGeometry.Size.X / float(SectionSize);
 
     UMovieScene* MovieScene = InnerSequence.GetMovieScene();
@@ -105,7 +105,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
 
     // We're in the non-looping case so we know we have a purely linear transform.
     const FMovieSceneSequenceTransform InnerToOuterTransform = SectionObject.OuterToInnerTransform().InverseLinearOnly();
-    const FFrameNumber PlaybackStart = (MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
+    const FFrameNumber PlaybackStart = (UE::MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
     if (SectionRange.Contains(PlaybackStart))
     {
         const int32 StartOffset = (PlaybackStart - SectionStartFrame).Value;
@@ -136,7 +136,7 @@ void FSubSectionPainterUtil::DoPaintNonLoopingSection(const UMovieSceneSubSectio
                 );
     }
 
-    const FFrameNumber PlaybackEnd = (MovieScene::DiscreteExclusiveUpper(PlaybackRange) * InnerToOuterTransform) .FloorToFrame();
+    const FFrameNumber PlaybackEnd = (UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange) * InnerToOuterTransform) .FloorToFrame();
     if (SectionRange.Contains(PlaybackEnd))
     {
         // add dark tint for right out-of-bounds
@@ -175,7 +175,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
     const FFrameNumber SectionEndFrame   = SectionObject.GetExclusiveEndFrame();
 
     const TRange<FFrameNumber> SectionRange = SectionObject.GetRange();
-    const int32 SectionSize = MovieScene::DiscreteSize(SectionRange);
+    const int32 SectionSize = UE::MovieScene::DiscreteSize(SectionRange);
     const float PixelsPerFrame = InPainter.SectionGeometry.Size.X / float(SectionSize);
 
     const float InvTimeScale = FMath::IsNearlyZero(SectionObject.Parameters.TimeScale) ? 1.0f : 1.0f / SectionObject.Parameters.TimeScale;
@@ -183,7 +183,7 @@ void FSubSectionPainterUtil::DoPaintLoopingSection(const UMovieSceneSubSection& 
     const UMovieScene* MovieScene = InnerSequence.GetMovieScene();
     const TRange<FFrameNumber> InnerPlaybackRange = UMovieSceneSubSection::GetValidatedInnerPlaybackRange(SectionObject.Parameters, *MovieScene);
 
-    const FFrameNumber InnerSubSeqLength = MovieScene::DiscreteSize(InnerPlaybackRange);
+    const FFrameNumber InnerSubSeqLength = UE::MovieScene::DiscreteSize(InnerPlaybackRange);
     const FFrameNumber InnerSubSeqFirstLoopLength = InnerSubSeqLength - SectionObject.Parameters.FirstLoopStartFrameOffset;
 
     const FFrameRate OuterFrameRate   = SectionObject.GetTypedOuter<UMovieScene>()->GetTickResolution();
@@ -264,7 +264,7 @@ FFrameNumber FSubSectionEditorUtil::ResizeSection(ESequencerSectionResizeMode Re
         const FFrameNumber InnerResizeDifference = (ConvertFrameTime(ResizeDifference, OuterFrameRate, InnerFrameRate) * SectionParameters.TimeScale).FrameNumber;
         FFrameNumber NewStartOffset = InitialStartOffsetDuringResize + InnerResizeDifference;
 
-        const int32 InnerPlaybackLength = MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
+        const int32 InnerPlaybackLength = UE::MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
         const float InvTimeScale = FMath::IsNearlyZero(SectionParameters.TimeScale) ? 1.0f : 1.0f / SectionParameters.TimeScale;
         const FFrameNumber InnerLoopLength = InnerPlaybackLength - SectionParameters.StartFrameOffset - SectionParameters.EndFrameOffset;
 
@@ -319,7 +319,7 @@ FFrameNumber FSubSectionEditorUtil::SlipSection(FFrameNumber SlipTime)
         const FFrameNumber InnerResizeDifference = (ConvertFrameTime(ResizeDifference, OuterFrameRate, InnerFrameRate) * SectionParameters.TimeScale).FrameNumber;
         FFrameNumber NewStartOffset = InitialStartOffsetDuringResize + InnerResizeDifference;
 
-        const int32 InnerPlaybackLength = MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
+        const int32 InnerPlaybackLength = UE::MovieScene::DiscreteSize(InnerMovieScene->GetPlaybackRange());
         const float InvTimeScale = FMath::IsNearlyZero(SectionParameters.TimeScale) ? 1.0f : 1.0f / SectionParameters.TimeScale;
         const FFrameNumber InnerLoopLength = InnerPlaybackLength - SectionParameters.StartFrameOffset - SectionParameters.EndFrameOffset;
 

@@ -168,7 +168,12 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 	{
 		// Get any files pending delete
 		TArray<FSourceControlStateRef> PendingDeleteItems = SourceControlProvider.GetCachedStateByPredicate(
-			[](const FSourceControlStateRef& State) { return State->IsDeleted(); }
+			[&States](const FSourceControlStateRef& State) 
+			{ 
+				return State->IsDeleted() 
+					// if the states already contains the pending delete do not bother appending it
+					&& !States.Contains(State); 
+			}
 		);
 
 		// And append them to the list

@@ -680,10 +680,17 @@ void SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey)
 
 void SRigHierarchy::AddBoneElement(FRigBone InBone)
 {
+	if (ElementMap.Contains(InBone.GetElementKey()))
+	{
+		return;
+	}
+
 	const FRigHierarchyContainer* Container = GetHierarchyContainer();
 	const FRigBoneHierarchy& BoneHierarchy = Container->BoneHierarchy;
 	const FRigControlHierarchy& ControlHierarchy = Container->ControlHierarchy;
 	const FRigSpaceHierarchy& SpaceHierarchy = Container->SpaceHierarchy;
+
+	AddElement(InBone.GetElementKey());
 
 	FRigElementKey ParentKey;
 	if(InBone.ParentIndex != INDEX_NONE)
@@ -691,14 +698,25 @@ void SRigHierarchy::AddBoneElement(FRigBone InBone)
 		AddBoneElement(BoneHierarchy[InBone.ParentIndex]);
 		ParentKey = BoneHierarchy[InBone.ParentIndex].GetElementKey();
 	}
-	AddElement(InBone.GetElementKey(), ParentKey);
+
+	if (ParentKey.IsValid())
+	{
+		ReparentElement(InBone.GetElementKey(), ParentKey);
+	}
 }
 
 void SRigHierarchy::AddControlElement(FRigControl InControl)
 {
+	if (ElementMap.Contains(InControl.GetElementKey()))
+	{
+		return;
+	}
+
 	const FRigHierarchyContainer* Container = GetHierarchyContainer();
 	const FRigControlHierarchy& ControlHierarchy = Container->ControlHierarchy;
 	const FRigSpaceHierarchy& SpaceHierarchy = Container->SpaceHierarchy;
+
+	AddElement(InControl.GetElementKey());
 
 	FRigElementKey ParentKey;
 	if(InControl.SpaceIndex != INDEX_NONE)
@@ -711,15 +729,26 @@ void SRigHierarchy::AddControlElement(FRigControl InControl)
 		AddControlElement(ControlHierarchy[InControl.ParentIndex]);
 		ParentKey = ControlHierarchy[InControl.ParentIndex].GetElementKey();
 	}
-	AddElement(InControl.GetElementKey(), ParentKey);
+
+	if (ParentKey.IsValid())
+	{
+		ReparentElement(InControl.GetElementKey(), ParentKey);
+	}
 }
 
 void SRigHierarchy::AddSpaceElement(FRigSpace InSpace)
 {
+	if (ElementMap.Contains(InSpace.GetElementKey()))
+	{
+		return;
+	}
+
 	const FRigHierarchyContainer* Container = GetHierarchyContainer();
 	const FRigBoneHierarchy& BoneHierarchy = Container->BoneHierarchy;
 	const FRigControlHierarchy& ControlHierarchy = Container->ControlHierarchy;
 	const FRigSpaceHierarchy& SpaceHierarchy = Container->SpaceHierarchy;
+
+	AddElement(InSpace.GetElementKey());
 
 	FRigElementKey ParentKey;
 	if(InSpace.ParentIndex != INDEX_NONE)
@@ -750,7 +779,68 @@ void SRigHierarchy::AddSpaceElement(FRigSpace InSpace)
 			}
 		}
 	}
-	AddElement(InSpace.GetElementKey(), ParentKey);
+
+	if (ParentKey.IsValid())
+	{
+		ReparentElement(InSpace.GetElementKey(), ParentKey);
+	}
+}
+
+void SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey)
+{
+	if (!InKey.IsValid() || InKey == InParentKey)
+	{
+		return;
+	}
+
+	TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InKey);
+	if (FoundItem == nullptr)
+	{
+		return;
+	}
+
+	if (!FilterText.IsEmpty())
+	{
+		return;
+	}
+
+	if (const FRigElementKey* ExistingParentKey = ParentMap.Find(InKey))
+	{
+		if (*ExistingParentKey == InParentKey)
+		{
+			return;
+		}
+
+		if (TSharedPtr<FRigTreeElement>* ExistingParent = ElementMap.Find(*ExistingParentKey))
+		{
+			(*ExistingParent)->Children.Remove(*FoundItem);
+		}
+
+		ParentMap.Remove(InKey);
+	}
+	else
+	{
+		if (!InParentKey.IsValid())
+		{
+			return;
+		}
+
+		RootElements.Remove(*FoundItem);
+	}
+
+	if (InParentKey)
+	{
+		ParentMap.Add(InKey, InParentKey);
+
+		TSharedPtr<FRigTreeElement>* FoundParent = ElementMap.Find(InParentKey);
+		check(FoundParent);
+		FoundParent->Get()->Children.Add(*FoundItem);
+	}
+	else
+	{
+		RootElements.Add(*FoundItem);
+	}
+
 }
 
 void SRigHierarchy::OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey)

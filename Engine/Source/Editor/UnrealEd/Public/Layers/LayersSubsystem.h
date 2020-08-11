@@ -67,6 +67,10 @@ public:
 	DECLARE_EVENT_ThreeParams(ULayersSubsystem, FOnLayersChanged, const ELayersAction::Type /*Action*/, const TWeakObjectPtr< ULayer >& /*ChangedLayer*/, const FName& /*ChangedProperty*/);
 	virtual FOnLayersChanged& OnLayersChanged() final { return LayersChanged; }
 
+	/** Broadcasts whenever one or more Actors changed layers*/
+	DECLARE_EVENT_OneParam(ULayersSubsystem, FOnActorsLayersChanged, const TWeakObjectPtr< AActor >& /*ChangedActor*/);
+	virtual FOnActorsLayersChanged& OnActorsLayersChanged() final { return ActorsLayersChanged; }
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Operations on Levels
 
@@ -505,6 +509,44 @@ public:
 	virtual void MakeAllLayersVisible() final;
 
 	/**
+	 * Changes the named layer's actors loading behavior to the provided state
+	 *
+	 * @param	LayerName	The name of the layer to affect.
+	 * @param	bLoadActors	If true, actors from this layer will be loaded.
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	void SetLayerActorsLoading(const FName& LayerName, const bool bLoadActors);
+	/**
+	 * Changes the actors loading behavior of the named layers to the provided state (world partition only)
+	 *
+	 * @param	LayerNames	The names of the layers to affect
+	 * @param	bLoadActors	If true actors from the provided layers will be loaded; false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	void SetLayersActorsLoading(const TArray< FName >& LayerNames, const bool bLoadActors);
+
+	/**
+	 * Toggles the named layer's actors loading behavior
+	 *
+	 * @param LayerName	The name of the layer to affect
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	void ToggleLayerActorsLoading(const FName& LayerName);
+	/**
+	 * Toggles the actors loading behavior of all of the named layers
+	 *
+	 * @param	LayerNames	The names of the layers to affect
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	void ToggleLayersActorsLoading(const TArray< FName >& LayerNames);
+
+	/**
+	 * Enable actors loading for all layers
+	 */
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	void MakeAllLayersLoadActors();
+
+	/**
 	 * Gets the ULayer Object of the named layer
 	 *
 	 * @param	LayerName	The name of the layer whose ULayer Object is returned
@@ -602,6 +644,10 @@ public:
 	 **/
 	UFUNCTION(BlueprintCallable, Category = Layers)
 	void EditorRefreshLayerBrowser();
+	/**
+	 * Delegate handler for FEditorDelegates::PostUndoRedo. It internally calls LayersChanged.Broadcast and UpdateAllActorsVisibility to refresh the actors of each layer.
+	 **/
+	void PostUndoRedo();
 
 private:
 	void AddActorToStats(ULayer* Layer, AActor* Actor);
@@ -617,6 +663,9 @@ private:
 
 	/**	Fires whenever one or more layer changes */
 	FOnLayersChanged LayersChanged;
+
+	/**	Fires whenever one or more actor layer changes */
+	FOnActorsLayersChanged ActorsLayersChanged;
 
 	/**
 	 * Auxiliary class that sets the callback function to FEditorDelegates::MapChange.Broadcast() and FEditorDelegates::RefreshLayerBrowser.Broadcast().

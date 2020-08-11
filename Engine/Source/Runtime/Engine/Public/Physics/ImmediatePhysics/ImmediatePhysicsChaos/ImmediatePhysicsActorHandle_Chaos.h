@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsCore_Chaos.h"
-
+#include "Chaos/ChaosEngineInterface.h"
 
 #include "Engine/EngineTypes.h"
 

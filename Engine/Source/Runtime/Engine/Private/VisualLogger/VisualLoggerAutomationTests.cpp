@@ -66,18 +66,13 @@ void FVisualLoggerTestDevice::Serialize(const UObject* LogOwner, FName OwnerName
 	LastEntry = LogEntry;
 }
 
-#define CHECK_SUCCESS(__Test__) \
-if (!(__Test__)) \
-{ \
-	TestTrue(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__); \
-	return false; \
-}
-#define CHECK_FAIL(__Test__) \
-if ((__Test__)) \
-{ \
-	TestFalse(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__); \
-	return false; \
-}
+#define CHECK_SUCCESS(__Test__) UTEST_TRUE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
+#define CHECK_FAIL(__Test__) UTEST_FALSE(FString::Printf( TEXT("%s (%s:%d)"), TEXT(#__Test__), TEXT(__FILE__), __LINE__ ), __Test__)
+#define CHECK_NOT_NULL(Pointer) \
+	if (!TestNotNull(TEXT(#Pointer), Pointer))\
+	{\
+		return false;\
+	}
 
 template<typename TYPE = FVisualLoggerTestDevice>
 struct FTestDeviceContext
@@ -119,7 +114,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVisualLogTest, "System.Engine.VisualLogger.Log
 bool FVisualLogTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GetSimpleEngineAutomationTestWorld(GetTestFlags());
-	CHECK_SUCCESS(World != nullptr);
+	CHECK_NOT_NULL(World);
 
 	FTestDeviceContext<FVisualLoggerTestDevice> Context;
 
@@ -142,7 +137,7 @@ bool FVisualLogTest::RunTest(const FString& Parameters)
 		FVisualLogEntry* CurrentEntry = FVisualLogger::Get().GetEntryToWrite(World, World->TimeSeconds, ECreateIfNeeded::DontCreate);
 		
 		{
-			CHECK_SUCCESS(CurrentEntry != nullptr);
+			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 			CHECK_SUCCESS(CurrentEntry->LogLines.Num() == 1);
 			CHECK_SUCCESS(CurrentEntry->LogLines[0].Category == LogVisual.GetCategoryName());
@@ -151,13 +146,13 @@ bool FVisualLogTest::RunTest(const FString& Parameters)
 			const float NewTimestamp = CurrentTimestamp + 0.1;
 			FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
 			CurrentEntry = &Context.Device.LastEntry;
-			CHECK_SUCCESS(CurrentEntry != nullptr);
+			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 			CHECK_SUCCESS(CurrentEntry->LogLines.Num() == 1);
 			CHECK_SUCCESS(CurrentEntry->LogLines[0].Category == LogVisual.GetCategoryName());
 			CHECK_SUCCESS(CurrentEntry->LogLines[0].Line == TextToLog);
 
-			CHECK_SUCCESS(NewEntry != nullptr);
+			CHECK_NOT_NULL(NewEntry);
 			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
 			CHECK_SUCCESS(NewEntry->LogLines.Num() == 0);
 		}
@@ -173,7 +168,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVisualLogSegmentsTest, "System.Engine.VisualLo
 bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GetSimpleEngineAutomationTestWorld(GetTestFlags());
-	CHECK_SUCCESS(World != nullptr);
+	CHECK_NOT_NULL(World);
 
 	FTestDeviceContext<FVisualLoggerTestDevice> Context;
 
@@ -196,7 +191,7 @@ bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 
 		float CurrentTimestamp = World->TimeSeconds;
 		{
-			CHECK_SUCCESS(CurrentEntry != nullptr);
+			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw.Num() == 1);
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw[0].GetType() == EVisualLoggerShapeElement::Segment);
@@ -207,7 +202,7 @@ bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 			const float NewTimestamp = CurrentTimestamp + 0.1;
 			FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
 			CurrentEntry = &Context.Device.LastEntry;
-			CHECK_SUCCESS(CurrentEntry != nullptr);
+			CHECK_NOT_NULL(CurrentEntry);
 			CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw.Num() == 1);
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw[0].GetType() == EVisualLoggerShapeElement::Segment);
@@ -215,7 +210,7 @@ bool FVisualLogSegmentsTest::RunTest(const FString& Parameters)
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw[0].Points[0] == StartPoint);
 			CHECK_SUCCESS(CurrentEntry->ElementsToDraw[0].Points[1] == EndPoint);
 
-			CHECK_SUCCESS(NewEntry != nullptr);
+			CHECK_NOT_NULL(NewEntry);
 			CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
 			CHECK_SUCCESS(NewEntry->ElementsToDraw.Num() == 0);
 		}
@@ -233,7 +228,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVisualLogEventsTest, "System.Engine.VisualLogg
 bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 {
 	UWorld* World = GetSimpleEngineAutomationTestWorld(GetTestFlags());
-	CHECK_SUCCESS(World != nullptr);
+	CHECK_NOT_NULL(World);
 
 	FTestDeviceContext<FVisualLoggerTestDevice> Context;
 	FVisualLogger::Get().SetIsRecording(true);
@@ -250,13 +245,13 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 	FVisualLogEntry* CurrentEntry = FVisualLogger::Get().GetEntryToWrite(World, World->TimeSeconds, ECreateIfNeeded::DontCreate);
 	float CurrentTimestamp = World->TimeSeconds;
 	UE_VLOG_EVENTS(World, NAME_None, EventTest);
-	CHECK_SUCCESS(CurrentEntry != nullptr);
+	CHECK_NOT_NULL(CurrentEntry);
 	CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 	CHECK_SUCCESS(CurrentEntry->Events.Num() == 1);
 	CHECK_SUCCESS(CurrentEntry->Events[0].Name == TEXT("EventTest"));
 
 	UE_VLOG_EVENTS(World, NAME_None, EventTest, EventTest2);
-	CHECK_SUCCESS(CurrentEntry != nullptr);
+	CHECK_NOT_NULL(CurrentEntry);
 	CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 	CHECK_SUCCESS(CurrentEntry->Events.Num() == 2);
 	CHECK_SUCCESS(CurrentEntry->Events[0].Counter == 2);
@@ -268,7 +263,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 	UE_VLOG_EVENTS(World, NAME_None, EventTest, EventTest2, EventTest3);
 
 	{
-		CHECK_SUCCESS(CurrentEntry != nullptr);
+		CHECK_NOT_NULL(CurrentEntry);
 		CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 		CHECK_SUCCESS(CurrentEntry->Events.Num() == 3);
 		CHECK_SUCCESS(CurrentEntry->Events[0].Counter == 3);
@@ -285,7 +280,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 		const float NewTimestamp = CurrentTimestamp + 0.1;
 		FVisualLogEntry* NewEntry = FVisualLogger::Get().GetEntryToWrite(World, NewTimestamp); //generate new entry and serialize old one
 		CurrentEntry = &Context.Device.LastEntry;
-		CHECK_SUCCESS(CurrentEntry != nullptr);
+		CHECK_NOT_NULL(CurrentEntry);
 		CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 		CHECK_SUCCESS(CurrentEntry->Events.Num() == 3);
 		CHECK_SUCCESS(CurrentEntry->Events[0].Counter == 3);
@@ -299,7 +294,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 		CHECK_SUCCESS(CurrentEntry->Events[1].UserFriendlyDesc == TEXT("Second simple event for vlog tests"));
 		CHECK_SUCCESS(CurrentEntry->Events[2].UserFriendlyDesc == TEXT("Third simple event for vlog tests"));
 
-		CHECK_SUCCESS(NewEntry != nullptr);
+		CHECK_NOT_NULL(NewEntry);
 		CHECK_SUCCESS(NewEntry->TimeStamp - NewTimestamp <= SMALL_NUMBER);
 		CHECK_SUCCESS(NewEntry->Events.Num() == 0);
 	}
@@ -311,7 +306,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 	CurrentTimestamp = World->TimeSeconds + 0.2;
 	CurrentEntry = FVisualLogger::Get().GetEntryToWrite(World, CurrentTimestamp); //generate new entry and serialize old one
 	UE_VLOG_EVENT_WITH_DATA(World, EventTest, EventTag1);
-	CHECK_SUCCESS(CurrentEntry != nullptr);
+	CHECK_NOT_NULL(CurrentEntry);
 	CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 	CHECK_SUCCESS(CurrentEntry->Events.Num() == 1);
 	CHECK_SUCCESS(CurrentEntry->Events[0].Name == TEXT("EventTest"));
@@ -322,7 +317,7 @@ bool FVisualLogEventsTest::RunTest(const FString& Parameters)
 	CurrentEntry = FVisualLogger::Get().GetEntryToWrite(World, CurrentTimestamp); //generate new entry and serialize old one
 	UE_VLOG_EVENT_WITH_DATA(World, EventTest, EventTag1, EventTag2, EventTag3);
 	UE_VLOG_EVENT_WITH_DATA(World, EventTest, EventTag3);
-	CHECK_SUCCESS(CurrentEntry != nullptr);
+	CHECK_NOT_NULL(CurrentEntry);
 	CHECK_SUCCESS(CurrentEntry->TimeStamp == CurrentTimestamp);
 	CHECK_SUCCESS(CurrentEntry->Events.Num() == 1);
 	CHECK_SUCCESS(CurrentEntry->Events[0].Name == TEXT("EventTest"));

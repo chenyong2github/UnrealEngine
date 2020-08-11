@@ -11,18 +11,19 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "CurveModel.h"
 #include "ISequencer.h"
+#include "ISequencerSection.h"
 #include "MovieSceneSequence.h"
 
-IKeyArea::IKeyArea(UMovieSceneSection* InSection, FMovieSceneChannelHandle InChannel)
+IKeyArea::IKeyArea(TWeakPtr<ISequencerSection> InSection, FMovieSceneChannelHandle InChannel)
 	: TreeSerialNumber(0)
 	, ChannelHandle(InChannel)
 {
 	Reinitialize(InSection, InChannel);
 }
 
-void IKeyArea::Reinitialize(UMovieSceneSection* InSection, FMovieSceneChannelHandle InChannel)
+void IKeyArea::Reinitialize(TWeakPtr<ISequencerSection> InSection, FMovieSceneChannelHandle InChannel)
 {
-	WeakOwningSection = InSection;
+	WeakSection = InSection;
 	ChannelHandle = InChannel;
 	Color = FLinearColor::White;
 
@@ -33,10 +34,11 @@ void IKeyArea::Reinitialize(UMovieSceneSection* InSection, FMovieSceneChannelHan
 		DisplayText = MetaData->DisplayText;
 	}
 
-	UMovieScenePropertyTrack* PropertyTrack = InSection->GetTypedOuter<UMovieScenePropertyTrack>();
-	if (PropertyTrack && !PropertyTrack->GetPropertyPath().IsEmpty())
+	UMovieSceneSection*       SectionObject = InSection.Pin()->GetSectionObject();
+	UMovieScenePropertyTrack* PropertyTrack = SectionObject->GetTypedOuter<UMovieScenePropertyTrack>();
+	if (PropertyTrack && PropertyTrack->GetPropertyPath() != NAME_None)
 	{
-		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
+		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
 	}
 }
 
@@ -47,7 +49,13 @@ FMovieSceneChannel* IKeyArea::ResolveChannel() const
 
 UMovieSceneSection* IKeyArea::GetOwningSection() const
 {
-	return WeakOwningSection.Get();
+	TSharedPtr<ISequencerSection> SectionInterface = WeakSection.Pin();
+	return SectionInterface ? SectionInterface->GetSectionObject() : nullptr;;
+}
+
+TSharedPtr<ISequencerSection> IKeyArea::GetSectionInterface() const
+{
+	return WeakSection.Pin();
 }
 
 FName IKeyArea::GetName() const
@@ -72,6 +80,7 @@ FKeyHandle IKeyArea::AddOrUpdateKey(FFrameNumber Time, const FGuid& ObjectBindin
 {
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	FMovieSceneChannel* Channel = ChannelHandle.Get();
+	UMovieSceneSection* Section = GetOwningSection();
 
 	// The extended editor data may be null, but is passed to the interface regardless
 	const void* RawExtendedData = ChannelHandle.GetExtendedEditorData();
@@ -79,7 +88,7 @@ FKeyHandle IKeyArea::AddOrUpdateKey(FFrameNumber Time, const FGuid& ObjectBindin
 	if (EditorInterface && Channel)
 	{
 		FTrackInstancePropertyBindings* BindingsPtr = PropertyBindings.IsSet() ? &PropertyBindings.GetValue() : nullptr;
-		return EditorInterface->AddOrUpdateKey_Raw(Channel, WeakOwningSection.Get(), RawExtendedData, Time, InSequencer, ObjectBindingID, BindingsPtr);
+		return EditorInterface->AddOrUpdateKey_Raw(Channel, Section, RawExtendedData, Time, InSequencer, ObjectBindingID, BindingsPtr);
 	}
 
 	return FKeyHandle();
@@ -178,6 +187,7 @@ void IKeyArea::CopyKeys(FMovieSceneClipboardBuilder& ClipboardBuilder, TArrayVie
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	FMovieSceneChannel* Channel = ChannelHandle.Get();
 	UMovieSceneSection* OwningSection = GetOwningSection();
+
 	if (EditorInterface && Channel && OwningSection)
 	{
 		EditorInterface->CopyKeys_Raw(Channel, OwningSection, ChannelName, ClipboardBuilder, KeyMask);

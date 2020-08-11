@@ -244,6 +244,9 @@ public:
 	/** Returns the UFactory object associated with this reimport handler */
 	virtual const UObject* GetFactoryObject() const { return nullptr; }
 
+	/** Call after multiple import happen */
+	virtual void PostImportCleanUp() {}
+
 	/**	Sets the preferred reimport path, for aiding in resolving reimporting objects where the
 	 *	object path differs from the new path (ex. differing extensions).
 	 */

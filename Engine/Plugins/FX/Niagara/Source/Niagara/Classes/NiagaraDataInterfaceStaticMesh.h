@@ -270,6 +270,8 @@ public:
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
+	virtual bool HasPreSimulateTick() const override { return true; }
+
 #if WITH_EDITOR
 	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
 #endif

@@ -49,18 +49,22 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "HAL/PlatformApplicationMisc.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "Dialogs/Dialogs.h"
+
+#include "Algo/AnyOf.h"
 
 DEFINE_LOG_CATEGORY(LogLevelTools);
 
 #define LOCTEXT_NAMESPACE "EditorLevelUtils"
 
+UEditorLevelUtils::FCanMoveActorToLevelDelegate UEditorLevelUtils::CanMoveActorToLevelDelegate;
 
 int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevelStreaming* DestStreamingLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
 {
 	return MoveActorsToLevel(ActorsToMove, DestStreamingLevel ? DestStreamingLevel->GetLoadedLevel() : nullptr, bWarnAboutReferences, bWarnAboutRenaming);
 }
 
-int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
+int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevel* DestLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming, bool bMoveAllOrFail)
 {
 	int32 NumMovedActors = 0;
 
@@ -78,6 +82,7 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 		FinalMoveList.Reserve(ActorsToMove.Num());
 
 		bool bIsDestLevelLocked = FLevelUtils::IsLevelLocked(DestLevel);
+		int32 ActorCount = 0;
 		if (!bIsDestLevelLocked)
 		{
 			for (AActor* CurActor : ActorsToMove)
@@ -86,14 +91,19 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 				{
 					continue;
 				}
-
+				ActorCount++;
 				bool bIsSourceLevelLocked = FLevelUtils::IsLevelLocked(CurActor);
 
 				if (!bIsSourceLevelLocked)
 				{
 					if (CurActor->GetLevel() != DestLevel)
 					{
-						FinalMoveList.Add(CurActor);
+						bool bCanMove = true;
+						CanMoveActorToLevelDelegate.Broadcast(CurActor, DestLevel, bCanMove);
+						if (bCanMove)
+						{
+							FinalMoveList.Add(CurActor);
+						}
 					}
 					else
 					{
@@ -112,7 +122,7 @@ int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, 
 		}
 
 
-		if (FinalMoveList.Num() > 0)
+		if (FinalMoveList.Num() > 0 && (!bMoveAllOrFail || FinalMoveList.Num() == ActorCount))
 		{
 			TMap<FSoftObjectPath, FSoftObjectPath> ActorPathMapping;
 			GEditor->SelectNone(false, true, false);
@@ -325,9 +335,9 @@ ULevel* UEditorLevelUtils::AddLevelsToWorld(UWorld* InWorld, TArray<FString> Pac
 	InWorld->BroadcastLevelsChanged();
 	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
-	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
 	if (GUnrealEd)
 	{
+		// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
 		GUnrealEd->UpdateVolumeActorVisibility(nullptr);
 	}
 
@@ -351,6 +361,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	ULevel* NewLevel = nullptr;
 
 	ULevelStreaming* NewStreamingLevel = AddLevelToWorld_Internal(InWorld, LevelPackageName, LevelStreamingClass, LevelTransform);
+
+	// Broadcast the levels have changed (new style)
+	InWorld->BroadcastLevelsChanged();
+	FEditorDelegates::RefreshLevelBrowser.Broadcast();
+
 	if (NewStreamingLevel)
 	{
 		NewLevel = NewStreamingLevel->GetLoadedLevel();
@@ -372,10 +387,6 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 		GLevelEditorModeTools().ActivateDefaultMode();
 	}
 
-	// Broadcast the levels have changed (new style)
-	InWorld->BroadcastLevelsChanged();
-	FEditorDelegates::RefreshLevelBrowser.Broadcast();
-
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
 	if (GUnrealEd)
 	{
@@ -396,7 +407,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld_Internal(UWorld* InWorld, co
 		// Do nothing if the level already exists in the world.
 		const FString LevelName(LevelPackageName);
 		const FText MessageText = FText::Format(NSLOCTEXT("UnrealEd", "LevelAlreadyExistsInWorld", "A level with that name ({0}) already exists in the world."), FText::FromString(LevelName));
-		FMessageDialog::Open(EAppMsgType::Ok, MessageText);
+
+		FSuppressableWarningDialog::FSetupInfo Info(MessageText, LOCTEXT("AddLevelToWorld_Title", "Add Level"), "LevelAlreadyExistsInWorldWarning");
+		Info.ConfirmText = LOCTEXT("AlreadyExist_Ok", "Ok");
+		FSuppressableWarningDialog RemoveLevelWarning(Info);
+		RemoveLevelWarning.ShowModal();
 	}
 	else
 	{
@@ -425,7 +440,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld_Internal(UWorld* InWorld, co
 		TArray<ULevelStreaming*> LevelsForRefresh;
 		LevelsForRefresh.Add(StreamingLevel);
 		InWorld->RefreshStreamingLevels(LevelsForRefresh);
-		InWorld->MarkPackageDirty();
+
+		if (!StreamingLevel->HasAnyFlags(RF_Transient))
+		{
+			InWorld->MarkPackageDirty();
+		}
 
 		NewLevel = StreamingLevel->GetLoadedLevel();
 		if (NewLevel != nullptr)
@@ -567,7 +586,7 @@ bool UEditorLevelUtils::PrivateRemoveInvalidLevelFromWorld(ULevelStreaming* InLe
 		if (UWorld* OwningWorld = InLevelStreaming->GetWorld())
 		{
 			OwningWorld->RemoveStreamingLevel(InLevelStreaming);
-			OwningWorld->RefreshStreamingLevels();
+			OwningWorld->RefreshStreamingLevels({});
 			bRemovedLevelStreaming = true;
 		}
 	}
@@ -690,75 +709,135 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	return NewStreamingLevel;
 }
 
-
-bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel)
+bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bClearSelection, bool bResetTransBuffer)
 {
-	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-	Layers->RemoveLevelLayerInformation(InLevel);
-
-	GEditor->CloseEditedWorldAssets(CastChecked<UWorld>(InLevel->GetOuter()));
-
-	UWorld* OwningWorld = InLevel->OwningWorld;
-	const FName LevelPackageName = InLevel->GetOutermost()->GetFName();
-	const bool bRemovingCurrentLevel = InLevel->IsCurrentLevel();
-	const bool bRemoveSuccessful = PrivateRemoveLevelFromWorld(InLevel);
-	if (bRemoveSuccessful)
+	// Check that all levels can be removed first
+	if (!InLevels.Num() || Algo::AnyOf(InLevels, [](ULevel* LevelToRemove)
 	{
+		if (!LevelToRemove || LevelToRemove->IsPersistentLevel())
+		{
+			return true;
+		}
+
+		if (FLevelUtils::IsLevelLocked(LevelToRemove))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevelRemoveLevelFromWorld", "RemoveLevelFromWorld: The requested operation could not be completed because the level is locked."));
+			return true;
+		}
+
+		return false;
+	}))
+	{
+		return false;
+	}
+	
+	TSet<UWorld*> ChangedWorlds;
+
+	TArray<UPackage*> PackagesToUnload;
+	PackagesToUnload.Reserve(InLevels.Num());
+	TArray<FName> PackageNames;
+	PackageNames.Reserve(InLevels.Num());
+
+	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+
+	for (ULevel* Level : InLevels)
+	{
+		Layers->RemoveLevelLayerInformation(Level);
+		GEditor->CloseEditedWorldAssets(CastChecked<UWorld>(Level->GetOuter()));
+
+		UWorld* OwningWorld = Level->OwningWorld;
+		const bool bRemovingCurrentLevel = Level->IsCurrentLevel();
+		PrivateRemoveLevelFromWorld(Level);
 		if (bRemovingCurrentLevel)
 		{
 			// we must set a new level.  It must succeed
-			bool bEvenIfLocked = true;
+			const bool bEvenIfLocked = true;
 			MakeLevelCurrent(OwningWorld->PersistentLevel, bEvenIfLocked);
 		}
 
-		FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(InLevel);
+		FEditorSupportDelegates::PrepareToCleanseEditorObject.Broadcast(Level);
 
-		if (GEditor->Trans != nullptr)
-		{
-			GEditor->Trans->Reset(LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
-		}
+		PrivateDestroyLevel(Level);
 
-		EditorDestroyLevel(InLevel);
+		PackagesToUnload.Add(Level->GetOutermost());
+		// Keep Names in other list because unload of package will make the PackagesToUnload invalid.
+		PackageNames.Add(Level->GetOutermost()->GetFName());
+		ChangedWorlds.Add(OwningWorld);
+	}
 
-		// Redraw the main editor viewports.
-		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+	FText TransResetText(LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
+	if (bResetTransBuffer)
+	{
+		GEditor->Trans->Reset(TransResetText);
+	}
 
+	if (!UPackageTools::UnloadPackages(PackagesToUnload))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("UnloadPackagesFail", "Unable to unload packages."));
+	}
+
+	// Redraw the main editor viewports.
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+	for (UWorld* ChangedWorld : ChangedWorlds)
+	{
 		// Broadcast the levels have changed (new style)
-		OwningWorld->BroadcastLevelsChanged();
-		FEditorDelegates::RefreshLevelBrowser.Broadcast();
+		ChangedWorld->BroadcastLevelsChanged();
+	}
+	FEditorDelegates::RefreshLevelBrowser.Broadcast();
+	
+	// Reset transaction buffer and run GC to clear out the destroyed level
+	GEditor->Cleanse(bClearSelection, false, TransResetText, bResetTransBuffer);
 
-		// Reset transaction buffer and run GC to clear out the destroyed level
-		GEditor->Cleanse(true, false, LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
-
-		// Ensure that world was removed
-		UPackage* LevelPackage = FindObjectFast<UPackage>(NULL, LevelPackageName);
-		if (LevelPackage != nullptr)
+	auto CheckPackage = [](const TArray<FName>& PackageNames, bool bFatal)
+	{
+		// Check Package no longer exists
+		for (const FName& LevelPackageName : PackageNames)
 		{
-			UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
-			if (TheWorld != nullptr)
+			// Ensure that world was removed
+			UPackage* LevelPackage = FindObjectFast<UPackage>(NULL, LevelPackageName);
+			if (LevelPackage != nullptr)
 			{
-				FReferenceChainSearch RefChainSearch(TheWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-				UE_LOG(LogStreaming, Fatal, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
+				UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
+				if (TheWorld != nullptr)
+				{
+					FReferenceChainSearch RefChainSearch(TheWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+					if (bFatal)
+					{
+						UE_LOG(LogStreaming, Fatal, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
+					}
+					else
+					{
+						UE_LOG(LogStreaming, Log, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
+					}
+					return false;
+				}
 			}
 		}
+		return true;
+	};
+
+	// Check that packages no longer exist
+	bool bFatal = bResetTransBuffer;
+	bool bFailed = !CheckPackage(PackageNames, bFatal);
+	if (bFailed && !bFatal)
+	{
+		// We tried avoiding clearing the Transaction buffer but it failed. Plan B.
+		GEditor->Cleanse(bClearSelection, false, TransResetText, true);
+		CheckPackage(PackageNames, true);
 	}
-	return bRemoveSuccessful;
+
+	return true;
 }
 
 
-bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
+bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel, bool bClearSelection, bool bResetTransBuffer)
 {
-	if (!InLevel || InLevel->IsPersistentLevel())
-	{
-		return false;
-	}
+	return RemoveLevelsFromWorld({ InLevel }, bClearSelection, bResetTransBuffer);
+}
 
-	if (FLevelUtils::IsLevelLocked(InLevel))
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevelRemoveLevelFromWorld", "RemoveLevelFromWorld: The requested operation could not be completed because the level is locked."));
-		return false;
-	}
 
+void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
+{
 	int32 StreamingLevelIndex = INDEX_NONE;
 
 	for (int32 LevelIndex = 0; LevelIndex < InLevel->OwningWorld->GetStreamingLevels().Num(); ++LevelIndex)
@@ -771,12 +850,14 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		}
 	}
 
+	bool bIsTransientLevelStreaming = false;
 	if (StreamingLevelIndex != INDEX_NONE)
 	{
 		ULevelStreaming* StreamingLevel = InLevel->OwningWorld->GetStreamingLevels()[StreamingLevelIndex];
+		bIsTransientLevelStreaming = StreamingLevel->HasAnyFlags(RF_Transient);
 		StreamingLevel->MarkPendingKill();
 		InLevel->OwningWorld->RemoveStreamingLevel(StreamingLevel);
-		InLevel->OwningWorld->RefreshStreamingLevels();
+		InLevel->OwningWorld->RefreshStreamingLevels({});
 	}
 	else if (InLevel->bIsVisible)
 	{
@@ -789,6 +870,10 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	IStreamingManager::Get().RemoveLevel(InLevel);
 	UWorld* World = InLevel->OwningWorld;
 	World->RemoveLevel(InLevel);
+	if (InLevel->bIsLightingScenario)
+	{
+		World->PropagateLightingScenarioChange();
+	}
 	InLevel->ClearLevelComponents();
 
 	// remove all group actors from the world in the level we are removing
@@ -821,13 +906,14 @@ bool UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		}
 	}
 
-	World->MarkPackageDirty();
+	if (!bIsTransientLevelStreaming)
+	{
+		World->MarkPackageDirty();
+	}
 	World->BroadcastLevelsChanged();
-
-	return true;
 }
 
-bool UEditorLevelUtils::EditorDestroyLevel(ULevel* InLevel)
+void UEditorLevelUtils::PrivateDestroyLevel(ULevel* InLevel)
 {
 	UWorld* World = InLevel->OwningWorld;
 
@@ -846,19 +932,10 @@ bool UEditorLevelUtils::EditorDestroyLevel(ULevel* InLevel)
 
 	UPackage* Package = InLevel->GetOutermost();
 	// We want to unconditionally destroy the level, so clear the dirty flag here so it can be unloaded successfully
-	Package->SetDirtyFlag(false);
-
-	TArray<UPackage*> Packages;
-	Packages.Add(Package);
-	if (!UPackageTools::UnloadPackages(Packages))
+	if (Package->IsDirty())
 	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Package"), FText::FromString(Package->GetName()));
-		FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("UnloadPackagesFail", "Unable to unload package '{Package}'."), Args));
-		return false;
+		Package->SetDirtyFlag(false);
 	}
-
-	return true;
 }
 
 ULevel* UEditorLevelUtils::CreateNewLevel(UWorld* InWorld, bool bMoveSelectedActorsIntoNewLevel, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename)
@@ -1220,10 +1297,8 @@ void UEditorLevelUtils::SetLevelsVisibility(const TArray<ULevel*>& Levels, const
 	}
 }
 
-void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, bool bIncludeInWorld, bool bOnlyEditorVisible)
+void UEditorLevelUtils::ForEachWorlds(UWorld* InWorld, TFunctionRef<bool(UWorld*)> Operation, bool bIncludeInWorld, bool bOnlyEditorVisible)
 {
-	OutWorlds.Empty();
-
 	if (!InWorld)
 	{
 		return;
@@ -1231,7 +1306,10 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 
 	if (bIncludeInWorld)
 	{
-		OutWorlds.AddUnique(InWorld);
+		if (!Operation(InWorld))
+		{
+			return;
+		}
 	}
 
 	// Iterate over the world's level array to find referenced levels ("worlds"). We don't 
@@ -1252,7 +1330,10 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 					UWorld* World = Cast<UWorld>(Level->GetOuter());
 					if (World)
 					{
-						OutWorlds.AddUnique(World);
+						if (!Operation(World))
+						{
+							return;
+						}
 					}
 				}
 			}
@@ -1268,10 +1349,19 @@ void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, b
 			UWorld* World = Cast<UWorld>(Level->GetOuter());
 			if (World)
 			{
-				OutWorlds.AddUnique(World);
+				if (!Operation(World))
+				{
+					return;
+				}
 			}
 		}
 	}
+}
+
+void UEditorLevelUtils::GetWorlds(UWorld* InWorld, TArray<UWorld*>& OutWorlds, bool bIncludeInWorld, bool bOnlyEditorVisible)
+{
+	OutWorlds.Empty();
+	ForEachWorlds(InWorld, [&OutWorlds](UWorld* World) { OutWorlds.AddUnique(World); return true; }, bIncludeInWorld, bOnlyEditorVisible);
 }
 
 #undef LOCTEXT_NAMESPACE

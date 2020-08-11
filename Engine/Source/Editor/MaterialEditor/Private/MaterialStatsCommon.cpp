@@ -343,7 +343,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 	bool bMobileHDR = MobileHDR && MobileHDR->GetValueOnAnyThread() == 1;
 
 	static const FName FLocalVertexFactoryName = FLocalVertexFactory::StaticType.GetFName();
-	static const FName FGPUFactoryName = TEXT("TGPUSkinVertexFactoryExtra");
+	static const FName FGPUFactoryName = TEXT("TGPUSkinVertexFactoryDefault");
 
 	if (TargetMaterial->IsUIMaterial())
 	{
@@ -706,7 +706,7 @@ void FMaterialStatsUtils::ExtractMatertialStatsInfo(FShaderStatsInfo& OutInfo, c
 		// extract estimated VT info
 		const uint32 NumVirtualTextureLookups = MaterialResource->GetEstimatedNumVirtualTextureLookups();
 		OutInfo.VirtualTextureLookupCount.StrDescription = FString::Printf(TEXT("%u"), NumVirtualTextureLookups);
-		OutInfo.TextureSampleCount.StrDescriptionLong = FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups);
+		OutInfo.VirtualTextureLookupCount.StrDescriptionLong = FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups);
 
 		// extract interpolators info
 		uint32 UVScalarsUsed, CustomInterpolatorScalarsUsed;

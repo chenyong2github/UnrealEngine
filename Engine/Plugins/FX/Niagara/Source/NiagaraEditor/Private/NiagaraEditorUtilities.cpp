@@ -59,6 +59,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraEditorSettings.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "ViewModels/NiagaraScratchPadUtilities.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -1816,6 +1817,8 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 	{
 		CreatedAsset->SetUniqueEmitterName(CreatedAsset->GetName());
 
+		FNiagaraScratchPadUtilities::FixExternalScratchPadScriptsForEmitter(SystemViewModel->GetSystem(), *CreatedAsset);
+
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(CreatedAsset);
 
 		// find the existing overview node to store the position
@@ -1978,7 +1981,7 @@ bool FNiagaraEditorUtilities::AddEmitterContextMenuActions(FMenuBuilder& MenuBui
 		MenuBuilder.BeginSection("EmitterActions", LOCTEXT("ParentActions", "Parent Actions"));
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("UpdateParentEmitter", "Update Parent Emitter"),
+				LOCTEXT("UpdateParentEmitter", "Set New Parent Emitter"),
 				LOCTEXT("UpdateParentEmitterToolTip", "Change or add a parent emitter."),
 				FSlateIcon(),
 				FUIAction(
@@ -2771,7 +2774,8 @@ FName FNiagaraParameterUtilities::ChangeNamespace(FName ParameterName, const FNi
 				NameParts.RemoveAt(0, NumberOfNamespaceModifiers - 1);
 			}
 		}
-		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None && NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)
+		if (NewNamespaceMetadata.RequiredNamespaceModifier != NAME_None &&
+			(NameParts.Num() == 1 || (NameParts.Num() > 1 && NameParts[0] != NewNamespaceMetadata.RequiredNamespaceModifier)))
 		{
 			NameParts.Insert(NewNamespaceMetadata.RequiredNamespaceModifier, 0);
 		}

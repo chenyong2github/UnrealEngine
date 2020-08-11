@@ -2,6 +2,8 @@
 
 #include "NiagaraStandaloneScriptViewModel.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
+#include "NiagaraMessageUtilities.h"
 
 FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
 	FText DisplayName,
@@ -19,7 +21,7 @@ void FNiagaraStandaloneScriptViewModel::Initialize(UNiagaraScript* InScript, UNi
 {
 	SetScript(InScript);
 	SourceScript = InSourceScript;
-	SendLastCompileMessageJobs(SourceScript);
+	SendLastCompileMessages(SourceScript);
 }
 
 UNiagaraScript* FNiagaraStandaloneScriptViewModel::GetStandaloneScript()
@@ -31,15 +33,16 @@ UNiagaraScript* FNiagaraStandaloneScriptViewModel::GetStandaloneScript()
 void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
 	FNiagaraScriptViewModel::OnVMScriptCompiled(InScript);
-	SendLastCompileMessageJobs(InScript);
+	SendLastCompileMessages(InScript);
 }
 
-void FNiagaraStandaloneScriptViewModel::SendLastCompileMessageJobs(const UNiagaraScript* InScript)
+void FNiagaraStandaloneScriptViewModel::SendLastCompileMessages(const UNiagaraScript* InScript)
 {
+	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
+	MessageManager->ClearAssetMessagesForTopic(ScriptMessageLogGuidKey, FNiagaraMessageTopics::CompilerTopicName);
+
 	int32 ErrorCount = 0;
 	int32 WarningCount = 0;
-
-	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
 
 	const TArray<FNiagaraCompileEvent>& CurrentCompileEvents = InScript->GetVMExecutableData().LastCompileEvents;
 
@@ -56,10 +59,10 @@ void FNiagaraStandaloneScriptViewModel::SendLastCompileMessageJobs(const UNiagar
 			WarningCount++;
 		}
 
-		JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<const UNiagaraScript>(InScript), TOptional<const FString>(), SourceScript->GetPathName()));
+		MessageManager->AddMessageJob(MakeUnique<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<const UNiagaraScript>(InScript), TOptional<const FString>(), SourceScript->GetPathName()), ScriptMessageLogGuidKey);
 	}
 
-	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("Script")), 0);
-	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(ScriptMessageLogGuidKey, ENiagaraMessageJobType::CompileEventMessageJob);
-	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, ScriptMessageLogGuidKey);
+	const FText PostCompileSummaryText = FNiagaraMessageUtilities::MakePostCompileSummaryText(FText::FromString("Script"), GetLatestCompileStatus(), WarningCount, ErrorCount);
+	TSharedRef<const FNiagaraMessageText> PostCompileSummaryMessage =  MakeShared<FNiagaraMessageText>(PostCompileSummaryText, EMessageSeverity::Info, FNiagaraMessageTopics::CompilerTopicName);
+	MessageManager->AddMessage(PostCompileSummaryMessage, ScriptMessageLogGuidKey);
 }

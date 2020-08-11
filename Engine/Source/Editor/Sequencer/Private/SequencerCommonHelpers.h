@@ -63,6 +63,11 @@ public:
 	 * Attempt to summon a context menu for the current hotspot
 	 */
 	static TSharedPtr<SWidget> SummonContextMenu(FSequencer& Sequencer, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
+	/*
+	 * Build a context menu for the sections
+	 */
+	static void AddPropertiesMenu(FSequencer& Sequencer, FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& Sections);
 };
 
 #undef LOCTEXT_NAMESPACE

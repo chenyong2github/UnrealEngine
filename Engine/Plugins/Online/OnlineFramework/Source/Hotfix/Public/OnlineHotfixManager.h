@@ -285,6 +285,8 @@ protected:
 	/** Fires the progress delegate with our updated progress */
 	void UpdateProgress(uint32 FileCount, uint64 UpdateSize);
 
+	virtual bool ShouldWarnAboutMissingWhenPatchingFromIni(const FString& AssetPath) const { return true; }
+
 	/** Called after any hotfixes are applied to apply last-second changes to certain asset types from .ini file data */
 	virtual void PatchAssetsFromIniFiles();
 	
@@ -293,6 +295,14 @@ protected:
 	
 	/** Used in PatchAssetsFromIniFiles to hotfix an entire table. */
 	void HotfixTableUpdate(UObject* Asset, const FString& AssetPath, const FString& JsonData, TArray<FString>& ProblemStrings);
+
+	/** Called after modifying table values by HotfixRowUpdate() */
+	virtual void OnHotfixTableValueInt64(UObject& Asset, const FString& RowName, const FString& ColumnName, const int64& OldValue, const int64& NewValue) { }
+	virtual void OnHotfixTableValueDouble(UObject& Asset, const FString& RowName, const FString& ColumnName, const double& OldValue, const double& NewValue) { }
+	virtual void OnHotfixTableValueFloat(UObject& Asset, const FString& RowName, const FString& ColumnName, const float& OldValue, const float& NewValue) { }
+	virtual void OnHotfixTableValueString(UObject& Asset, const FString& RowName, const FString& ColumnName, const FString& OldValue, const FString& NewValue) { }
+	virtual void OnHotfixTableValueName(UObject& Asset, const FString& RowName, const FString& ColumnName, const FName& OldValue, const FName& NewValue) { }
+	virtual void OnHotfixTableValueObject(UObject& Asset, const FString& RowName, const FString& ColumnName, const UObject* OldValue, const UObject* NewValue) { }
 
 public:
 	UOnlineHotfixManager();

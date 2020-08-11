@@ -74,27 +74,6 @@ public:
 
 protected:
 
-	/**
-	 * Adds a menu entry to the common screen resolutions menu.
-	 */
-	void AddCommonResolutionEntry( FMenuBuilder& MenuBuilder, int32 Width, int32 Height, const FString& AspectRatio, const FText& Description );
-
-	/**
-	 * Adds a section to the screen resolution menu.
-	 *
-	 * @param MenuBuilder The menu builder to add the section to.
-	 * @param Resolutions The collection of screen resolutions to add.
-	 * @param SectionName The name of the section to add.
-	 */
-	void AddScreenResolutionSection( FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName );
-
-	/**
-	 * Creates a widget for the resolution picker.
-	 *
-	 * @return The widget.
-	 */
-	TSharedRef<SWidget> MakeCommonResolutionsMenu();
-	
 	// Resets LevelEditorPlaySettings that relate to the title safe zone debug draw.
 	void ResetCustomTitleSafeZoneSettings(ULevelEditorPlaySettings* PlayInSettings, const int32 Width, const int32 Height);
 
@@ -114,6 +93,10 @@ private:
 	const FSlateBrush* GetAspectRatioSwitchImage() const;
 
 	void OnSizeChanged();
+
+	FUIAction GetResolutionMenuAction( const FPlayScreenResolution& ScreenResolution );
+
+	TSharedRef<SWidget> GetResolutionsMenu();
 
 private:
 

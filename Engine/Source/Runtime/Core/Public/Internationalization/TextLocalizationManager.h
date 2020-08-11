@@ -93,6 +93,16 @@ public:
 	void CompactDataStructures();
 
 	/**
+	 * Get the language that will be requested during localization initialization, based on the hierarchy of: command line -> configs -> OS default.
+	 */
+	FString GetRequestedLanguageName() const;
+
+	/**
+	 * Get the locale that will be requested during localization initialization, based on the hierarchy of: command line -> configs -> OS default.
+	 */
+	FString GetRequestedLocaleName() const;
+
+	/**
 	 * Given a localization category, get the native culture for the category (if known).
 	 * @return The native culture for the given localization category, or an empty string if the native culture is unknown.
 	 */

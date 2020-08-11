@@ -12,6 +12,8 @@
 #include "Factories/Factory.h"
 #include "BlueprintFactory.generated.h"
 
+class FClassViewerInitializationOptions;
+
 UCLASS(hidecategories=Object, collapsecategories)
 class UNREALED_API UBlueprintFactory : public UFactory
 {
@@ -20,6 +22,10 @@ class UNREALED_API UBlueprintFactory : public UFactory
 	// The parent class of the created blueprint
 	UPROPERTY(EditAnywhere, Category=BlueprintFactory, meta=(AllowAbstract = "", BlueprintBaseOnly = ""))
 	TSubclassOf<class UObject> ParentClass;
+
+	// Delegate allows overriding the class viewer initialization options before displaying it
+	DECLARE_DELEGATE_OneParam(FOnConfigureProperties, FClassViewerInitializationOptions*)
+	FOnConfigureProperties OnConfigurePropertiesDelegate;
 
 	// UFactory Interface
 	virtual bool ConfigureProperties() override;

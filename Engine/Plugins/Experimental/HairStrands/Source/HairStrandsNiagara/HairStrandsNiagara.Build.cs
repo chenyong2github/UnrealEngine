@@ -22,6 +22,8 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "Renderer",
                     "VectorVM",
+					"FieldSystemCore",
+					"FieldSystemEngine",
 					"RHI",
 					"HairStrandsCore"
                 }

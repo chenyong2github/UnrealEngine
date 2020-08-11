@@ -23,15 +23,17 @@ FPropertyLocalizationDataGatherer::FPropertyLocalizationDataGatherer(TArray<FGat
 	, AllObjectsInPackage()
 {
 	// Build up the list of objects that are within our package - we won't follow object references to things outside of our package
-	ForEachObjectWithOuter(Package, [this](UObject* Object)
+	ForEachObjectWithPackage(Package, [this](UObject* Object)
 	{
 		AllObjectsInPackage.Add(Object);
+		return true;
 	}, true, RF_Transient, EInternalObjectFlags::PendingKill);
 
 	// Iterate over each root object in the package
-	ForEachObjectWithOuter(Package, [this](UObject* Object)
+	ForEachObjectWithPackage(Package, [this](UObject* Object)
 	{
 		GatherLocalizationDataFromObjectWithCallbacks(Object, EPropertyLocalizationGathererTextFlags::None);
+		return true;
 	}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 
 	// Iterate any bytecode containing objects
@@ -214,7 +216,11 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromObject(const U
 	{
 		ForEachObjectWithOuter(Object, [this, GatherTextFlags](UObject* ChildObject)
 		{
-			GatherLocalizationDataFromObjectWithCallbacks(ChildObject, GatherTextFlags);
+			// if the child object as a package set, do not gather from it
+			if (!ChildObject->GetExternalPackage())
+			{
+				GatherLocalizationDataFromObjectWithCallbacks(ChildObject, GatherTextFlags);
+			}
 		}, false, RF_Transient, EInternalObjectFlags::PendingKill);
 	}
 }

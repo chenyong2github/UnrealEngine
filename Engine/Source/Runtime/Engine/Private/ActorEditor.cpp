@@ -12,6 +12,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -20,6 +21,8 @@
 #include "Misc/MapErrors.h"
 #include "ActorEditorUtils.h"
 #include "EngineGlobals.h"
+
+#include "AssetRegistryModule.h"
 
 #if WITH_EDITOR
 
@@ -43,6 +46,36 @@ void AActor::PreEditChange(FProperty* PropertyThatWillChange)
 	{
 		UnregisterAllComponents();
 	}
+}
+
+bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
+{
+	if ((PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Layers)) ||
+		(PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, ActorGuid)))
+	{
+		return false;
+	}
+
+	if ((PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, GridPlacement)) || 
+		(PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid)))
+	{
+		if (!IsTemplate())
+		{
+			const UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UWorldPartitionSubsystem>() : nullptr;
+			const bool bIsPartitionedWorld = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled();
+			if (!bIsPartitionedWorld)
+			{
+				return false;
+			}
+		}
+
+		if (GetDefaultGridPlacement() != EActorGridPlacement::None)
+		{
+			return false;
+		}
+	}
+
+	return Super::CanEditChange(PropertyThatWillChange);
 }
 
 static FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropertyName();
@@ -171,7 +204,6 @@ void AActor::PostEditMove(bool bFinished)
 	// If the root component was not just recreated by the construction script - call PostEditComponentMove on it
 	if(RootComponent != NULL && !RootComponent->IsCreatedByConstructionScript())
 	{
-		// @TODO Should we call on ALL components?
 		RootComponent->PostEditComponentMove(bFinished);
 	}
 
@@ -560,6 +592,18 @@ bool AActor::InternalPostEditUndo()
 		FNavigationSystem::RemoveActorData(*this);
 	}
 
+	if (!IsTemplate())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+			if (WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled())
+			{
+				WorldPartitionSubsystem->UpdateActorDesc(this);
+			}
+		}
+	}
+
 	// This is a normal undo, so call super
 	return true;
 }
@@ -724,6 +768,27 @@ void AActor::EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotL
 	}
 }
 
+void AActor::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors)
+{
+	TInlineComponentArray<UChildActorComponent*> ChildActorComponents;
+	GetComponents(ChildActorComponents);
+
+	OutUnderlyingActors.Reserve(OutUnderlyingActors.Num() + ChildActorComponents.Num());
+	
+	for (UChildActorComponent* ChildActorComponent : ChildActorComponents)
+	{
+		if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+		{
+			bool bAlreadySet = false;
+			OutUnderlyingActors.Add(ChildActor, &bAlreadySet);
+			if (!bAlreadySet)
+			{
+				ChildActor->EditorGetUnderlyingActors(OutUnderlyingActors);
+			}
+		}
+	}
+}
+
 bool AActor::IsHiddenEd() const
 {
 	// If any of the standard hide flags are set, return true
@@ -749,6 +814,11 @@ bool AActor::IsEditable() const
 	return bEditable;
 }
 
+bool AActor::IsSelectable() const
+{
+	return true;
+}
+
 bool AActor::IsListedInSceneOutliner() const
 {
 	return bListedInSceneOutliner;
@@ -757,6 +827,65 @@ bool AActor::IsListedInSceneOutliner() const
 bool AActor::EditorCanAttachTo(const AActor* InParent, FText& OutReason) const
 {
 	return true;
+}
+
+class UHLODLayer* AActor::GetHLODLayer() const
+{
+	return HLODLayer;
+}
+
+void AActor::SetHLODLayer(class UHLODLayer* InHLODLayer)
+{
+	HLODLayer = InHLODLayer;
+}
+
+void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
+{
+	if (bExternal == IsPackageExternal())
+	{
+		return;
+	}
+
+    // Mark the current actor & package as dirty
+	Modify(bShouldDirty);
+
+	UPackage* LevelPackage = GetLevel()->GetPackage();
+	if (bExternal)
+	{
+		ActorGuid = ActorGuid.IsValid() ? ActorGuid : FGuid::NewGuid();
+		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage,  ActorGuid);
+		SetExternalPackage(NewActorPackage);
+		// should be removed but needed for now so the package creation is visible to Multi-User
+		FAssetRegistryModule::AssetCreated(this);
+	}
+	// if the actor package is different, embed the actor back in the level
+	else 
+	{
+		UPackage* ActorPackage = GetExternalPackage();
+		// Detach the linker from the actor package so that the actor won't keep references to it if we wanted to delete the package
+		ResetLoaders(ActorPackage);
+		SetExternalPackage(nullptr);
+	}
+
+	for (UActorComponent* ActorComponent : GetComponents())
+	{
+		if (ActorComponent && ActorComponent->IsRegistered())
+		{
+			ActorComponent->SetPackageExternal(bExternal, bShouldDirty);
+		}
+	}
+	
+	// Mark the new actor package dirty
+	MarkPackageDirty();
+}
+
+EActorGridPlacement AActor::GetDefaultGridPlacement() const
+{
+	if (GetClass()->GetClassFlags() & CLASS_NotPlaceable)
+	{
+		return EActorGridPlacement::AlwaysLoaded;
+	}
+	return EActorGridPlacement::None;
 }
 
 const FString& AActor::GetActorLabel() const
@@ -1000,6 +1129,12 @@ bool AActor::GetReferencedContentObjects( TArray<UObject*>& Objects ) const
 
 EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 {
+	// Do not run asset validation on external actors, validation will be caught through map check
+	if (IsPackageExternal())
+	{
+		return EDataValidationResult::NotValidated;
+	}
+
 	bool bSuccess = CheckDefaultSubobjects();
 	if (!bSuccess)
 	{

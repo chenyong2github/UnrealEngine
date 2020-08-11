@@ -111,7 +111,8 @@ namespace UnrealBuildTool.Rules
 				"Sockets",
                 "MediaUtils",
 				"AVEncoder",
-            });
+				"DeveloperSettings"
+			});
 
             DynamicallyLoadedModuleNames.AddRange(new string[]
            {

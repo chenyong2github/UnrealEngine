@@ -62,14 +62,16 @@ static FAutoConsoleVariableRef CVarRayTracingOcclusion(
 	TEXT("r.RayTracing.Shadows"),
 	GRayTracingShadows,
 	TEXT("0: use traditional rasterized shadow map\n")
-	TEXT("1: use ray tracing shadows (default)")
+	TEXT("1: use ray tracing shadows (default)"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GShadowRayTracingSamplesPerPixel = 1;
 static FAutoConsoleVariableRef CVarShadowRayTracingSamplesPerPixel(
 	TEXT("r.RayTracing.Shadow.SamplesPerPixel"),
 	GShadowRayTracingSamplesPerPixel,
-	TEXT("Sets the samples-per-pixel for directional light occlusion (default = 1)"));
+	TEXT("Sets the samples-per-pixel for directional light occlusion (default = 1)"),
+	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarShadowUseDenoiser(
 	TEXT("r.Shadow.Denoiser"),
@@ -1106,12 +1108,12 @@ void FDeferredShadingSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo
 	check(OutSortedLights.AttenuationLightStart >= OutSortedLights.ClusteredSupportedEnd);
 }
 
-static bool HasHairStrandsClusters(int32 ViewIndex, const FHairStrandsDatas* HairDatas)
+static bool HasHairStrandsClusters(int32 ViewIndex, const FHairStrandsRenderingData* HairDatas)
 {
 	return HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && HairDatas->MacroGroupsPerViews.Views[ViewIndex].Datas.Num() > 0;
 };
 
-static FHairStrandsOcclusionResources GetHairStrandsResources(int32 ViewIndex, FRDGBuilder& GraphBuilder, const FHairStrandsDatas* HairDatas)
+static FHairStrandsOcclusionResources GetHairStrandsResources(int32 ViewIndex, FRDGBuilder& GraphBuilder, const FHairStrandsRenderingData* HairDatas)
 {
 	FHairStrandsOcclusionResources Out;
 	if (HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num())
@@ -1131,7 +1133,7 @@ static FHairStrandsOcclusionResources GetHairStrandsResources(int32 ViewIndex, F
 }
 
 /** Renders the scene's lighting. */
-void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas)
+void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsRenderingData* HairDatas)
 {
 	const bool bUseHairLighting = HairDatas != nullptr;
 	const FHairStrandsVisibilityViews* InHairVisibilityViews = HairDatas ? &HairDatas->HairVisibilityViews : nullptr;
@@ -2225,17 +2227,26 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 			}
 			else
 			{
-				const bool bAtmospherePerPixelTransmittance = LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && ShouldApplyAtmosphereLightPerPixelTransmittance(Scene, View.Family->EngineShowFlags);
+				const bool bAtmospherePerPixelTransmittance = LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() 
+					&& LightSceneInfo->Proxy->GetUsePerPixelAtmosphereTransmittance() && ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags);
 
 				// Only atmospheric light 0 supports cloud shadow as of today.
 				FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+				FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
 				FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
-				const bool bCloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap.IsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
-				if (bCloudPerPixelTransmittance)
+				const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[0].IsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
+				const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[1].IsValid() && AtmosphereLight1Proxy == LightSceneInfo->Proxy;
+				if (bLight0CloudPerPixelTransmittance)
 				{
-					RenderLightParams.Cloud_ShadowmapTexture = View.VolumetricCloudShadowMap;
-					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm;
-					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix;
+					RenderLightParams.Cloud_ShadowmapTexture = View.VolumetricCloudShadowMap[0];
+					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[0];
+					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[0];
+				}
+				else if(bLight1CloudPerPixelTransmittance)
+				{
+					RenderLightParams.Cloud_ShadowmapTexture = View.VolumetricCloudShadowMap[1];
+					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[1];
+					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[1];
 				}
 
 				FDeferredLightPS::FPermutationDomain PermutationVector;
@@ -2248,7 +2259,7 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				PermutationVector.Set< FDeferredLightPS::FHairLighting>(bHairLighting ? 1 : 0);
 				// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 				PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(bAtmospherePerPixelTransmittance);
-				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bCloudPerPixelTransmittance);
+				PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance);
 
 				TShaderMapRef< FDeferredLightPS > PixelShader( View.ShaderMap, PermutationVector );
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
@@ -2375,6 +2386,8 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		return;
 	}
 
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
 
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 	const bool bTransmission = LightSceneInfo->Proxy->Transmission();
@@ -2396,6 +2409,9 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		{
 			continue;
 		}
+
+		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 		FRenderLightParams RenderLightParams;
 		RenderLightParams.DeepShadow_TransmittanceMaskBuffer = InTransmittanceMaskData ? InTransmittanceMaskData->TransmittanceMaskSRV : nullptr;
@@ -2459,7 +2475,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 }
 
 // Forward lighting version for hair
-void FDeferredShadingSceneRenderer::RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsDatas* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture)
+void FDeferredShadingSceneRenderer::RenderLightsForHair(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet, const FHairStrandsRenderingData* HairDatas, TRefCountPtr<IPooledRenderTarget>& InScreenShadowMaskSubPixelTexture)
 {
 	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;

@@ -35,6 +35,10 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Net/Core/PushModel/PushModel.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorViewportSettings.h"	// For legacy post edit move behavior
+#endif // WITH_EDITOR
+
 #define LOCTEXT_NAMESPACE "SceneComponent"
 
 namespace SceneComponentStatics
@@ -689,18 +693,25 @@ void USceneComponent::OnRegister()
 	Super::OnRegister();
 
 #if WITH_EDITORONLY_DATA
-	if (bVisualizeComponent && SpriteComponent == nullptr && GetOwner() && !GetWorld()->IsGameWorld() )
+	CreateSpriteComponent();
+#endif
+}
+
+#if WITH_EDITORONLY_DATA
+void USceneComponent::CreateSpriteComponent(UTexture2D* SpriteTexture)
+{
+	if (bVisualizeComponent && SpriteComponent == nullptr && GetOwner() && !GetWorld()->IsGameWorld())
 	{
 		// Create a new billboard component to serve as a visualization of the actor until there is another primitive component
 		SpriteComponent = NewObject<UBillboardComponent>(GetOwner(), NAME_None, RF_Transactional | RF_Transient | RF_TextExportTransient);
 
-		SpriteComponent->Sprite = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/EmptyActor.EmptyActor"));
+		SpriteComponent->Sprite = SpriteTexture? SpriteTexture : LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorResources/EmptyActor.EmptyActor"));
 		SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->Mobility = EComponentMobility::Movable;
 		SpriteComponent->AlwaysLoadOnClient = false;
 		SpriteComponent->SetIsVisualizationComponent(true);
 		SpriteComponent->SpriteInfo.Category = TEXT("Misc");
-		SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT( "SpriteCategory", "Misc", "Misc" );
+		SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("SpriteCategory", "Misc", "Misc");
 		SpriteComponent->CreationMethod = CreationMethod;
 		SpriteComponent->bIsScreenSizeScaled = true;
 		SpriteComponent->bUseInEditorScaling = true;
@@ -708,8 +719,8 @@ void USceneComponent::OnRegister()
 		SpriteComponent->SetupAttachment(this);
 		SpriteComponent->RegisterComponent();
 	}
-#endif
 }
+#endif
 
 void USceneComponent::OnUnregister()
 {
@@ -1354,6 +1365,14 @@ void USceneComponent::AddWorldTransform(const FTransform& DeltaTransform, bool b
 	const FQuat NewWorldRotation = DeltaTransform.GetRotation() * LocalComponentTransform.GetRotation();
 	const FVector NewWorldLocation = FTransform::AddTranslations(DeltaTransform, LocalComponentTransform);
 	SetWorldTransform(FTransform(NewWorldRotation, NewWorldLocation, FVector(1,1,1)),bSweep, OutSweepHitResult, Teleport);
+}
+
+void USceneComponent::AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
+{
+	const FTransform& LocalComponentTransform = GetComponentTransform();
+	const FQuat NewWorldRotation = DeltaTransform.GetRotation() * LocalComponentTransform.GetRotation();
+	const FVector NewWorldLocation = FTransform::AddTranslations(DeltaTransform, LocalComponentTransform);
+	SetWorldTransform(FTransform(NewWorldRotation, NewWorldLocation, LocalComponentTransform.GetScale3D()), bSweep, OutSweepHitResult, Teleport);
 }
 
 void USceneComponent::SetRelativeScale3D(FVector NewScale3D)
@@ -2298,9 +2317,7 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		// and so the rebuilt component should not take back attachment ownership
 		if (ChildComponent && (ChildComponent->GetAttachParent() == nullptr || ChildComponent->GetAttachParent()->IsPendingKill()))
 		{
-			ChildComponent->SetRelativeLocation_Direct(ChildComponentPair.Value.GetLocation());
-			ChildComponent->SetRelativeRotation_Direct(ChildComponentPair.Value.GetRotation().Rotator());
-			ChildComponent->SetRelativeScale3D_Direct(ChildComponentPair.Value.GetScale3D());
+			ChildComponent->SetRelativeTransform_Direct(ChildComponentPair.Value);
 			ChildComponent->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}
@@ -3326,6 +3343,17 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 		// This allows listeners to be notified of intermediate changes of state
 		SnapshotTransactionBuffer(this);
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		// Call on all attached children
+		for (USceneComponent* ChildComponent : GetAttachChildren())
+		{
+			ChildComponent->PostEditComponentMove(bFinished);
+		}
+	}
 }
 
 bool USceneComponent::CanEditChange( const FProperty* Property ) const
@@ -3834,6 +3862,11 @@ void USceneComponent::K2_AddWorldRotation(FRotator DeltaRotation, bool bSweep, F
 void USceneComponent::K2_AddWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
 {
 	AddWorldTransform(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
+}
+
+void USceneComponent::K2_AddWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
+{
+	AddWorldTransformKeepScale(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
 }
 
 void USceneComponent::SetVisibleFlag(const bool bNewVisible)

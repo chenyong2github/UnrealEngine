@@ -27,15 +27,7 @@ class LEVELEDITOR_API FLevelEditorCommands : public TCommands<FLevelEditorComman
 {
 
 public:
-	FLevelEditorCommands() : TCommands<FLevelEditorCommands>
-	(
-		"LevelEditor", // Context name for fast lookup
-		NSLOCTEXT("Contexts", "LevelEditor", "Level Editor"), // Localized context name for displaying
-		"LevelViewport", // Parent
-		FEditorStyle::GetStyleSetName() // Icon Style Set
-	)
-	{
-	}
+	FLevelEditorCommands();
 	
 
 	/**

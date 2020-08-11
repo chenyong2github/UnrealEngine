@@ -63,10 +63,14 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
 static TAutoConsoleVariable<int32> CVarEnableClothPhysics(TEXT("p.ClothPhysics"), 1, TEXT("If 1, physics cloth will be used for simulation."));
+static TAutoConsoleVariable<int32> CVarEnableClothPhysicsUseTaskThread(TEXT("p.ClothPhysics.UseTaskThread"), 1, TEXT("If 1, run cloth on the task thread. If 0, run on game thread."));
+
 static TAutoConsoleVariable<bool> CVarClothTeleportOverride(TEXT("p.Cloth.TeleportOverride"), false, TEXT("Force console variable teleport override values over skeletal mesh properties.\n Default: false."));
 static TAutoConsoleVariable<bool> CVarClothResetAfterTeleport(TEXT("p.Cloth.ResetAfterTeleport"), true, TEXT("Require p.Cloth.TeleportOverride. Reset the clothing after moving the clothing position (called teleport).\n Default: true."));
 static TAutoConsoleVariable<float> CVarClothTeleportDistanceThreshold(TEXT("p.Cloth.TeleportDistanceThreshold"), 300.f, TEXT("Require p.Cloth.TeleportOverride. Conduct teleportation if the character's movement is greater than this threshold in 1 frame.\n Zero or negative values will skip the check.\n Default: 300."));
 static TAutoConsoleVariable<float> CVarClothTeleportRotationThreshold(TEXT("p.Cloth.TeleportRotationThreshold"), 0.f, TEXT("Require p.Cloth.TeleportOverride. Rotation threshold in degrees, ranging from 0 to 180.\n Conduct teleportation if the character's rotation is greater than this threshold in 1 frame.\n Zero or negative values will skip the check.\n Default 0."));
+
+static TAutoConsoleVariable<int32> CVarEnableKinematicDeferralPrePhysicsCondition(TEXT("p.EnableKinematicDeferralPrePhysicsCondition"), 1, TEXT("If is 1, and deferral would've been disallowed due to EUpdateTransformFlags, allow if in PrePhysics tick. If 0, condition is unchanged."));
 
 //This is the total cloth time split up among multiple computation (updating gpu, updating sim, etc...)
 DECLARE_CYCLE_STAT(TEXT("Cloth Total"), STAT_ClothTotalTime, STATGROUP_Physics);
@@ -83,7 +87,11 @@ void FSkeletalMeshComponentClothTickFunction::ExecuteTick(float DeltaTime, enum 
 
 FString FSkeletalMeshComponentClothTickFunction::DiagnosticMessage()
 {
-	return TEXT("FSkeletalMeshComponentClothTickFunction");
+	if (Target)
+	{
+		return Target->GetFullName() + TEXT("[ClothTick]");
+	}
+	return TEXT("<NULL>[ClothTick]");
 }
 
 FName FSkeletalMeshComponentClothTickFunction::DiagnosticContext(bool bDetailed)
@@ -104,7 +112,11 @@ void FSkeletalMeshComponentEndPhysicsTickFunction::ExecuteTick(float DeltaTime, 
 
 FString FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticMessage()
 {
-	return TEXT("FSkeletalMeshComponentEndPhysicsTickFunction");
+	if (Target)
+	{
+		return Target->GetFullName() + TEXT("[EndPhysicsTick]");
+	}
+	return TEXT("<NULL>[EndPhysicsTick]");
 }
 
 FName FSkeletalMeshComponentEndPhysicsTickFunction::DiagnosticContext(bool bDetailed)
@@ -812,7 +824,7 @@ void USkeletalMeshComponent::InstantiatePhysicsAsset_Internal(const UPhysicsAsse
 			// GetBoneTransform already accounts for component scale.
 			auto ScalePosition = [](const FBodyInstance* InBody, const float InScale, FVector& OutPosition)
 			{
-				const FBodyInstance& DefaultBody = InBody->BodySetup.Get()->DefaultInstance;
+				const FBodyInstance& DefaultBody = InBody->GetBodySetup()->DefaultInstance;
 				const FVector ScaledDefaultBodyScale = DefaultBody.Scale3D * InScale;
 				const FVector AdjustedBodyScale = InBody->Scale3D * ScaledDefaultBodyScale.Reciprocal();
 				OutPosition *= AdjustedBodyScale;
@@ -1165,7 +1177,7 @@ void USkeletalMeshComponent::ResetAllBodiesSimulatePhysics()
 			{
 				continue;
 			}
-			UBodySetup*	BodyInstSetup = BodyInst->BodySetup.Get();
+			UBodySetup*	BodyInstSetup = BodyInst->GetBodySetup();
 
 			// Set fixed on any bodies with bAlwaysFullAnimWeight set to true
 			if (BodyInstSetup && BodyInstSetup->PhysicsType != PhysType_Default)
@@ -1220,7 +1232,7 @@ void USkeletalMeshComponent::SetAllBodiesPhysicsBlendWeight(float PhysicsBlendWe
 		{
 			continue;
 		}
-		UBodySetup*	BodyInstSetup	= BodyInst->BodySetup.Get();
+		UBodySetup*	BodyInstSetup	= BodyInst->GetBodySetup();
 
 		// Set fixed on any bodies with bAlwaysFullAnimWeight set to true
 		if(BodyInstSetup && (!bSkipCustomPhysicsType || BodyInstSetup->PhysicsType == PhysType_Default) )
@@ -1317,9 +1329,24 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 		// Deferred kinematic updates are applied during TG_StartPhysics.
 		// Propagation from the parent movement happens during TG_EndPhysics (for physics objects... could in theory be from any tick group).
 		// Therefore, deferred kinematic updates are safe from animation, but not from parent movement.
-		const EAllowKinematicDeferral AllowDeferral
-			= !!(UpdateTransformFlags & EUpdateTransformFlags::PropagateFromParent)
-			? EAllowKinematicDeferral::DisallowDeferral : EAllowKinematicDeferral::AllowDeferral;
+		EAllowKinematicDeferral AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
+
+		if (!!(UpdateTransformFlags & EUpdateTransformFlags::PropagateFromParent))
+		{
+			AllowDeferral = EAllowKinematicDeferral::DisallowDeferral;
+			
+			// If enabled, allow deferral of PropagateFromParent updates in prephysics only.
+			// Probably should rework this entire condition to be more concrete, but do not want to introduce that much risk.
+			if (CVarEnableKinematicDeferralPrePhysicsCondition.GetValueOnGameThread())
+			{
+				UWorld* World = GetWorld();
+				if (World && (World->TickGroup == ETickingGroup::TG_PrePhysics))
+				{
+					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
+				}
+			}
+		}
+
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), Teleport, false, AllowDeferral);
 #else
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), ETeleportType::TeleportPhysics, false);
@@ -3125,7 +3152,11 @@ public:
 	}
 	static ENamedThreads::Type GetDesiredThread()
 	{
-		return CPrio_FParallelClothTask.Get();
+		if (CVarEnableClothPhysicsUseTaskThread.GetValueOnGameThread() != 0)
+		{
+			return CPrio_FParallelClothTask.Get();
+		}
+		return ENamedThreads::GameThread;
 	}
 	static ESubsequentsMode::Type GetSubsequentsMode()
 	{
@@ -3136,6 +3167,7 @@ public:
 	{
 		FScopeCycleCounterUObject ContextScope(SkeletalMeshComponent.SkeletalMesh);
 		SCOPE_CYCLE_COUNTER(STAT_ClothTotalTime);
+		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 
 		if(SkeletalMeshComponent.ClothingSimulation)
 		{
@@ -3287,6 +3319,7 @@ void USkeletalMeshComponent::GetUpdateClothSimulationData(TMap<int32, FClothSimu
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_ClothTotalTime);
+	CSV_SCOPED_TIMING_STAT(Animation, Cloth);
 
 	if(bDisableClothSimulation)
 	{

@@ -25,7 +25,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.31";
+        private static string VersionString = "2.32";
         
         public static string Get() { return VersionString; }
     };
@@ -218,7 +218,7 @@ namespace CSVTools
 			"       -hideStatPrefix <list>\n" +
 			"       -hierarchySeparator <character>\n" +
 			"       -highlightEventRegions <startEventName,endEventName>\n" +
-			"       -ignoreStats <list> (can include wildcards)\n" +
+			"       -ignoreStats <list> (can include wildcards. Separate states with stat1;stat2;etc)\n" +
 			"       -interactive\n" +
 			"       -legend <list> \n" +
 			"       -maxHierarchyDepth <depth>\n" +
@@ -313,10 +313,13 @@ namespace CSVTools
             {
                 DirectoryInfo di = new DirectoryInfo(csvDir);
                 bool recurse = GetBoolArg("recurse");
-                var files = di.GetFiles("*.csv", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
-                csvFilenames = new string[files.Length];
+                FileInfo[] csvFiles = di.GetFiles("*.csv", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+				FileInfo[] binFiles = di.GetFiles("*.csv.bin", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+				List<FileInfo> allFiles = new List<FileInfo>(csvFiles);
+				allFiles.AddRange(binFiles);
+				csvFilenames = new string[allFiles.Count];
                 int i = 0;
-                foreach (FileInfo csvFile in files)
+                foreach (FileInfo csvFile in allFiles)
                 {
                     csvFilenames[i] = csvFile.FullName;
                     i++;
@@ -711,8 +714,13 @@ namespace CSVTools
             if (graphTitle.Length == 0 && statNames.Length == 1 && csvStats.Count > 0 && !statNames[0].EndsWith("*"))
             {
                 StatSamples stat = csvStats[0].GetStat(statNames[0]);
-                if (graphTitle.Length == 0)
-                {
+                if (stat == null)
+				{
+                    Console.Out.WriteLine("Warning: Could not find stat {0}", statNames[0]);
+                    graphTitle = string.Format("UnknownStat {0}", statNames[0]);
+                }
+                else
+                { 
                     graphTitle = stat.Name;
                 }
             }

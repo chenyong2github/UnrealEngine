@@ -330,7 +330,7 @@ TUniquePtr<FChange> FMeshEditorMode::FSetElementSelectionModeChange::Execute( UO
 						// @todo mesheditor: is that reasonable? Should it only select a polygon which has all its vertices selected?
 						TArray<FPolygonID> VertexConnectedPolygons;
 						EditableMesh->GetVertexConnectedPolygons( FVertexID( ElementAddress.ElementID ), VertexConnectedPolygons );
-						for( const FPolygonID VertexConnectedPolygon : VertexConnectedPolygons )
+						for( const FPolygonID& VertexConnectedPolygon : VertexConnectedPolygons )
 						{
 							ElementsToSelect.Emplace( Component, SubMeshAddress, VertexConnectedPolygon );
 						}
@@ -1421,7 +1421,7 @@ void FMeshEditorMode::UpdateDebugNormals()
 			const float Length = 10.0f; // @todo mesheditor: determine length of debug line from distance from the mesh origin to the camera?
 
 			TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances( PolygonID );
-			for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+			for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 			{
 				const FVector Position = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 				const FVector Normal = VertexNormals[ VertexInstanceID ];
@@ -1806,14 +1806,14 @@ void FMeshEditorMode::GetSelectedMeshesAndPolygonsPerimeterEdges( TMap<UEditable
 			static TArray<FEdgeID> PerimeterEdgeIDs;
 			EditableMesh->GetPolygonPerimeterEdges( FPolygonID( PolygonElement.ElementAddress.ElementID ), /* Out */ PerimeterEdgeIDs );
 
-			for( const FEdgeID PerimeterEdgeID : PerimeterEdgeIDs )
+			for( const FEdgeID& PerimeterEdgeID : PerimeterEdgeIDs )
 			{
 				UniqueSelectedEdgeIDs.AddUnique( PerimeterEdgeID );	// Unique add, because polygons can share edges
 			}
 		}
 
 		TArray<FMeshElement>& EdgeElementsToFill = OutMeshesAndPolygonsEdges.Add( EditableMesh, TArray<FMeshElement>() );
-		for( const FEdgeID EdgeID : UniqueSelectedEdgeIDs )
+		for( const FEdgeID& EdgeID : UniqueSelectedEdgeIDs )
 		{
 			FMeshElement EdgeElement;
 			EdgeElement.Component = FirstPolygonElement.Component;
@@ -2095,7 +2095,7 @@ void FMeshEditorMode::FrameSelectedElements( FEditorViewportClient* ViewportClie
 						const FPolygonID PolygonID( PolygonElement.ElementAddress.ElementID );
 
 						TArray<FVertexInstanceID> VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances( PolygonID );
-						for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+						for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 						{
 							const FVector VertexPosition = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 							BoundingBox += Component->GetComponentTransform().TransformPosition( VertexPosition );
@@ -2147,13 +2147,13 @@ bool FMeshEditorMode::SelectEdgeLoops()
 			const FEdgeID EdgeID( SelectedEdgeElement.ElementAddress.ElementID );
 			TArray<FEdgeID> EdgeLoopIDs;
 			EditableMesh->GetEdgeLoopElements( EdgeID, EdgeLoopIDs );
-			for( const FEdgeID EdgeLoopID : EdgeLoopIDs )
+			for( const FEdgeID& EdgeLoopID : EdgeLoopIDs )
 			{
 				UniqueEdgeIDsPerMesh.AddUnique( EdgeLoopID );
 			}
 		}
 
-		for( const FEdgeID UniqueEdgeID : UniqueEdgeIDsPerMesh )
+		for( const FEdgeID& UniqueEdgeID : UniqueEdgeIDsPerMesh )
 		{
 			MeshElementsToSelect.Emplace( SelectedEdgeElements[ 0 ].Component.Get(), EditableMesh->GetSubMeshAddress(), UniqueEdgeID );
 		}
@@ -2305,7 +2305,7 @@ bool FMeshEditorMode::TriangulateSelectedPolygons()
 		static TArray<FPolygonID> NewTrianglePolygonIDs;
 		EditableMesh->TriangulatePolygons( PolygonsToTriangulate, /* Out */ NewTrianglePolygonIDs );
 
-		for( const FPolygonID NewTrianglePolygonID : NewTrianglePolygonIDs )
+		for( const FPolygonID& NewTrianglePolygonID : NewTrianglePolygonIDs )
 		{
 			// Select the new polygon
 			FMeshElement NewPolygonMeshElement;
@@ -3323,7 +3323,7 @@ void FMeshEditorMode::UpdateActiveAction( const bool bIsActionFinishing )
 					FVertexID EdgeVertexIDs[ 2 ];
 					EditableMesh->GetEdgeVertices( EdgeID, /* Out */ EdgeVertexIDs[ 0 ], /* Out */ EdgeVertexIDs[ 1 ] );
 
-					for( const FVertexID EdgeVertexID : EdgeVertexIDs )
+					for( const FVertexID& EdgeVertexID : EdgeVertexIDs )
 					{
 						if( !VertexIDsAlreadyMoved.Contains( EdgeVertexID ) )
 						{
@@ -3345,7 +3345,7 @@ void FMeshEditorMode::UpdateActiveAction( const bool bIsActionFinishing )
 					static TArray<FVertexID> PolygonPerimeterVertexIDs;
 					EditableMesh->GetPolygonPerimeterVertices( PolygonID, /* Out */ PolygonPerimeterVertexIDs );
 
-					for( const FVertexID PolygonPerimeterVertexID : PolygonPerimeterVertexIDs )
+					for( const FVertexID& PolygonPerimeterVertexID : PolygonPerimeterVertexIDs )
 					{
 						if( !VertexIDsAlreadyMoved.Contains( PolygonPerimeterVertexID ) )
 						{
@@ -4161,7 +4161,7 @@ bool FMeshEditorMode::FrustumSelect( const FConvexVolume& InFrustum, FEditorView
 		if( MeshElementSelectionMode == EEditableMeshElementType::Polygon || MeshElementSelectionMode == EEditableMeshElementType::Any )
 		{
 			MarqueeSelectPolygons.Reserve( MarqueeSelectPolygons.Num() + SelectedPolygonIDs.Num() );
-			for( const FPolygonID SelectedPolygonID : SelectedPolygonIDs )
+			for( const FPolygonID& SelectedPolygonID : SelectedPolygonIDs )
 			{
 				MarqueeSelectPolygons.Emplace( Component, EditableMesh->GetSubMeshAddress(), SelectedPolygonID );
 			}

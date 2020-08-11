@@ -88,7 +88,6 @@ protected:
 	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
 	virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 
 private:
 

@@ -40,6 +40,11 @@ void FPhysicsAssetDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 	PhysicalAnimationProfilesHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, PhysicalAnimationProfiles));
 	ConstraintProfilesHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, ConstraintProfiles));
 
+#if !WITH_CHAOS
+	// Hide Chaos-Only settings in PhysX
+	DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPhysicsAsset, SolverIterations))->MarkHiddenByCustomization();
+#endif
+
 	DetailLayout.EditCategory(TEXT("Physical Animation Profiles"))
 	.AddProperty(PhysicalAnimationProfilesHandle)
 	.CustomWidget()
@@ -134,6 +139,8 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 
 	const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 
+	const float MenuIconSize = FCoreStyle::Get().GetFloat("Menu.MenuIconSize", nullptr, 16.f);
+
 	if(SharedData->PhysicsAsset)
 	{
 		MenuBuilder.BeginSection("CurrentProfile", LOCTEXT("PhysicsAssetEditor_CurrentPhysicalAnimationMenu", "Current Profile"));
@@ -214,8 +221,8 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 						.OnClicked_Lambda(SearchClickedLambda)
 						[
 							SNew(SBox)
-							.WidthOverride(MultiBoxConstants::MenuIconSize)
-							.HeightOverride(MultiBoxConstants::MenuIconSize)
+							.WidthOverride(MenuIconSize)
+							.HeightOverride(MenuIconSize)
 							.Visibility_Lambda([ProfileName](){ return ProfileName == NAME_None ? EVisibility::Collapsed : EVisibility::Visible; })
 							[
 								SNew(SImage)
@@ -247,6 +254,8 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
+
+	const float MenuIconSize = FCoreStyle::Get().GetFloat("Menu.MenuIconSize", nullptr, 16.f);
 
 	if(SharedData->PhysicsAsset)
 	{
@@ -327,8 +336,8 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 					.OnClicked_Lambda(SearchClickedLambda)
 					[
 						SNew(SBox)
-						.WidthOverride(MultiBoxConstants::MenuIconSize)
-						.HeightOverride(MultiBoxConstants::MenuIconSize)
+						.WidthOverride(MenuIconSize)
+						.HeightOverride(MenuIconSize)
 						.Visibility_Lambda([ProfileName]() { return ProfileName == NAME_None ? EVisibility::Collapsed : EVisibility::Visible; })
 						[
 							SNew(SImage)

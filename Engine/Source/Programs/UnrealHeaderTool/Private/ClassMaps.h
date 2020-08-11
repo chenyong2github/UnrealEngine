@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Stack.h"
+#include "UObject/ErrorException.h"
 #include "UnderlyingEnumType.h"
 
 #include "UnrealSourceFile.h"
@@ -69,7 +70,11 @@ struct FUnrealSourceFiles
 {
 	void Add(FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
 	{
-		SourceFilesByString.Add(MoveTemp(Filename), SourceFile);
+		TSharedRef<FUnrealSourceFile>& Value = SourceFilesByString.FindOrAdd(MoveTemp(Filename), SourceFile);
+		if (Value != SourceFile)
+		{
+			FError::Throwf(TEXT("Duplicate filename found with different path '%s'."), *Value.Get().GetFilename());
+		}
 		SourceFilesByPackage.FindOrAdd(SourceFile->GetPackage()).Add(&SourceFile.Get());
 	}
 	const TSharedRef<FUnrealSourceFile>* Find(const FString& Id) const { return SourceFilesByString.Find(Id); }

@@ -2111,6 +2111,10 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 		OutDrawElements.PopCachedElementData();
 	}
 
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::PaintDebugElements.Broadcast(PaintArgs, GetWindowGeometryInWindow(), OutDrawElements, Result.MaxLayerIdPainted);
+#endif 
+
 	return Result.MaxLayerIdPainted;
 
 }

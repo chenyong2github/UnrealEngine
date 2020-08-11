@@ -16,7 +16,7 @@ UBTService::UBTService(const FObjectInitializer& ObjectInitializer) : Super(Obje
 
 void UBTService::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	ScheduleNextTick(NodeMemory);
+	ScheduleNextTick(OwnerComp, NodeMemory);
 }
 
 void UBTService::OnSearchStart(FBehaviorTreeSearchData& SearchData)
@@ -39,7 +39,7 @@ void UBTService::NotifyParentActivation(FBehaviorTreeSearchData& SearchData)
 				const float RemainingTime = bRestartTimerOnEachActivation ? 0.0f : GetNextTickRemainingTime(NodeMemory);
 				if (RemainingTime <= 0.0f)
 				{
-					ServiceNodeOb->ScheduleNextTick(NodeMemory);
+					ServiceNodeOb->ScheduleNextTick(SearchData.OwnerComp, NodeMemory);
 				}
 			}
 
@@ -84,7 +84,7 @@ FName UBTService::GetNodeIconName() const
 
 #endif // WITH_EDITOR
 
-void UBTService::ScheduleNextTick(uint8* NodeMemory)
+void UBTService::ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	const float NextTickTime = FMath::FRandRange(FMath::Max(0.0f, Interval - RandomDeviation), (Interval + RandomDeviation));
 	SetNextTickTime(NodeMemory, NextTickTime);

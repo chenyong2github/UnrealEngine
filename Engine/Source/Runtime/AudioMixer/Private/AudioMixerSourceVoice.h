@@ -47,6 +47,18 @@ namespace Audio
 		// Sets the source voice's HPF filter frequency.
 		void SetHPFFrequency(const float InFrequency);
 
+		// Sets the source voice modulation base pitch value.
+		void SetModPitch(const float InPitch);
+
+		// Sets the source voice's volume modulation base frequency.
+		void SetModVolume(const float InVolume);
+
+		// Sets the source voice's LPF filter modulation base frequency.
+		void SetModLPFFrequency(const float InFrequency);
+
+		// Sets the source voice's HPF filter modulation base frequency.
+		void SetModHPFFrequency(const float InFrequency);
+
 		// Sets the source voice's channel map (2d or 3d).
 		void SetChannelMap(const uint32 NumInputChannels, const Audio::AlignedFloatBuffer& InChannelMap, const bool bInIs3D, const bool bInIsCenterChannelOnly);
 
@@ -127,6 +139,10 @@ namespace Audio
 		float Distance;
 		float LPFFrequency;
 		float HPFFrequency;
+		float PitchModBase;
+		float VolumeModBase;
+		float LPFFrequencyModBase;
+		float HPFFrequencyModBase;
 		int32 SourceId;
 		uint16 bIsPlaying : 1;
 		uint16 bIsPaused : 1;

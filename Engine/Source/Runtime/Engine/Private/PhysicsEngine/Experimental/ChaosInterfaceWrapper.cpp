@@ -21,8 +21,8 @@ namespace ChaosInterface
 	}
 
 #if WITH_CHAOS
-	FScopedSceneReadLock::FScopedSceneReadLock(FPhysScene_ChaosInterface& SceneIn)
-		: Scene(SceneIn.GetScene())
+	FScopedSceneReadLock::FScopedSceneReadLock(FPhysScene_Chaos& SceneIn)
+		: Scene(SceneIn)
 	{
 		Scene.ExternalDataLock.ReadLock();
 	}

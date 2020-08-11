@@ -480,6 +480,12 @@ void USkeletalMesh::ValidateBoundsExtension()
 /* Return true if the reduction settings are setup to reduce a LOD*/
 bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
+	//Invalid LOD are not reduced
+	if(!IsValidLODIndex(LODIndex))
+	{
+		return false;
+	}
+
 	bool bReductionActive = false;
 	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface())
 	{
@@ -738,6 +744,7 @@ void USkeletalMesh::InitResources()
 
 	UpdateUVChannelData(false);
 
+	bool bAllLODsLookValid = false;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	if (SkelMeshRenderData)
 	{
@@ -788,6 +795,17 @@ void USkeletalMesh::InitResources()
 			}
 		}
 #endif
+		bAllLODsLookValid = true;
+		for (int32 LODIdx = 0; LODIdx < SkeletalMeshRenderData->LODRenderData.Num(); ++LODIdx)
+		{
+			const FSkeletalMeshLODRenderData& LODRenderData = SkeletalMeshRenderData->LODRenderData[LODIdx];
+			if (!LODRenderData.GetNumVertices() && (!LODRenderData.bIsLODOptional || LODRenderData.BuffersSize > 0))
+			{
+				bAllLODsLookValid = false;
+				break;
+			}
+		}
+
 		SkelMeshRenderData->InitResources(bHasVertexColors, MorphTargets, this);
 	}
 
@@ -795,6 +813,7 @@ void USkeletalMesh::InitResources()
 	const int32 NumLODs = GetLODNum();
 	bIsStreamable = !NeverStream
 		&& NumLODs > 1
+		&& bAllLODsLookValid
 		&& SkelMeshRenderData
 		&& !SkelMeshRenderData->LODRenderData[0].bStreamedDataInlined;
 
@@ -811,8 +830,12 @@ void USkeletalMesh::ReleaseResources()
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	if (SkelMeshRenderData)
 	{
-		//Flush the rendering command to be sure there is no command left that can create a rendering ressource
-		FlushRenderingCommands();
+
+		if(GIsEditor && !GIsPlayInEditorWorld)
+		{
+			//Flush the rendering command to be sure there is no command left that can create/modify a rendering ressource
+			FlushRenderingCommands();
+		}
 
 		SkelMeshRenderData->ReleaseResources();
 	}
@@ -1124,8 +1147,10 @@ bool USkeletalMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 	return false;
 }
 
-bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
+bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
+	bool bUpdatePending = false;
+
 	// if resident and requested mip counts match then no pending request is in flight
 	if (PendingUpdate)
 	{
@@ -1146,46 +1171,47 @@ bool USkeletalMesh::UpdateStreamingStatus(bool bWaitForMipFading)
 
 		if (!PendingUpdate->IsCompleted())
 		{
-			TickMipLevelChangeCallbacks();
-			return true;
+			bUpdatePending = true;
 		}
-
-#if WITH_EDITOR
-		const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
-#endif
-
-		PendingUpdate.SafeRelease();
-
-#if WITH_EDITOR
-		if (GIsEditor)
+		else
 		{
-			// When all the requested mips are streamed in, generate an empty property changed event, to force the
-			// ResourceSize asset registry tag to be recalculated.
-			FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
-
-			// We can't load the source art from a bulk data object if the mesh itself is pending kill because the linker will have been detached.
-			// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
-			// destroying the object.
-			if (bRebuildPlatformData)
-			{
-				ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-				ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
-
-				// TODO: force rebuild even if DDC keys match
-				SkeletalMeshRenderData->Cache(TargetPlatform, this);
-				// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
-				// UpdateResource();
-			}
-		}
+#if WITH_EDITOR
+			const bool bRebuildPlatformData = PendingUpdate->DDCIsInvalid() && !IsPendingKillOrUnreachable();
 #endif
+
+			PendingUpdate.SafeRelease();
+
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				// When all the requested mips are streamed in, generate an empty property changed event, to force the
+				// ResourceSize asset registry tag to be recalculated.
+				FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(this, EmptyPropertyChangedEvent);
+
+				// We can't load the source art from a bulk data object if the mesh itself is pending kill because the linker will have been detached.
+				// In this case we don't rebuild the data and instead let the streaming request be cancelled. This will let the garbage collector finish
+				// destroying the object.
+				if (bRebuildPlatformData)
+				{
+					ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+					ITargetPlatform* TargetPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+
+					// TODO: force rebuild even if DDC keys match
+					SkeletalMeshRenderData->Cache(TargetPlatform, this);
+					// @TODO this can not be called from this callstack since the entry needs to be removed completely from the streamer.
+					// UpdateResource();
+				}
+			}
+#endif
+		}
 	}
 
-	TickMipLevelChangeCallbacks();
+	TickMipLevelChangeCallbacks(DeferredTickCBAssets);
 
 	// TODO: LOD fading?
 
-	return false;
+	return bUpdatePending;
 }
 
 void USkeletalMesh::LinkStreaming()
@@ -1308,7 +1334,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	//Block any re-entrant call by incrementing PostEditChangeStackCounter. It will be decrement when we will go out of scope.
 	const bool bCallPostEditChange = false;
 	const bool bReRegisterComponents = false;
-	FScopedSkeletalMeshPostEditChange(this, bCallPostEditChange, bReRegisterComponents);
+	FScopedSkeletalMeshPostEditChange BlockRecursiveCallScope(this, bCallPostEditChange, bReRegisterComponents);
 
 	bool bFullPrecisionUVsReallyChanged = false;
 
@@ -1414,8 +1440,8 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	//The stack counter after a PostEditChange should be 0
-	check(PostEditChangeStackCounter == 0);
+	//The stack counter here should be 1 since the BlockRecursiveCallScope protection has the lock and it will be decrement to 0 when we get out of the function scope
+	check(PostEditChangeStackCounter == 1);
 }
 
 void USkeletalMesh::PostEditUndo()
@@ -1498,8 +1524,8 @@ void USkeletalMesh::BeginDestroy()
 
 bool USkeletalMesh::IsReadyForFinishDestroy()
 {
-	// see if we have hit the resource flush fence
-	return ReleaseResourcesFence.IsFenceComplete();
+	// see if we have hit the resource flush fence or pending streaming udpate
+	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
 }
 
 void USkeletalMesh::Serialize( FArchive& Ar )
@@ -4142,6 +4168,10 @@ void USkeletalMesh::ResetLODInfo()
 bool USkeletalMesh::GetSupportsLODStreaming(const ITargetPlatform* TargetPlatform) const
 {
 	check(TargetPlatform);
+	if (NeverStream)
+	{
+		return false;
+	}
 	if (bOverrideLODStreamingSettings)
 	{
 		return bSupportLODStreaming.GetValueForPlatform(*TargetPlatform->IniPlatformName());
@@ -4915,7 +4945,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 		{
 			const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
 			
-			if (LODSections.Num() > 0)
+			if (LODSections.Num() > 0 && LODData.GetNumVertices() > 0)
 			{
 				float ScreenSize = MeshObject->GetScreenSize(LODIndex);
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
@@ -4956,7 +4986,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 					MeshElement.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					MeshElement.CastShadow = SectionElementInfo.bEnableShadowCasting;
 				#if RHI_RAYTRACING
-					MeshElement.CastRayTracedShadow = MeshElement.CastShadow;
+					MeshElement.CastRayTracedShadow = MeshElement.CastShadow && bCastDynamicShadow;
 				#endif
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.LODIndex = LODIndex;
@@ -5087,7 +5117,7 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 	Mesh.MaterialRenderProxy = SectionElementInfo.Material->GetRenderProxy();
 #if RHI_RAYTRACING
 	Mesh.SegmentIndex = SectionIndex;
-	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting;
+	Mesh.CastRayTracedShadow = SectionElementInfo.bEnableShadowCasting && bCastDynamicShadow;
 #endif
 
 	FMeshBatchElement& BatchElement = Mesh.Elements[0];
@@ -5262,11 +5292,16 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			FRayTracingInstance RayTracingInstance;
 			RayTracingInstance.Geometry = MeshObject->GetRayTracingGeometry();
 
-			{
 				// Setup materials for each segment
 				const int32 LODIndex = MeshObject->GetLOD();
 				check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
 				const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
+
+			if (LODIndex < SkeletalMeshRenderData->CurrentFirstLODIdx)
+			{
+				// According to GetMeshElementsConditionallySelectable(), non-resident LODs should just be skipped
+				return;
+			}
 
 				ensure(LODSections.Num() > 0);
 				const FLODSectionElements& LODSection = LODSections[LODIndex];
@@ -5332,11 +5367,11 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 							LODData.GetNumVertices() * (uint32)sizeof(FVector),
 							MeshObject->GetRayTracingGeometry()->Initializer.TotalPrimitiveCount,
 							MeshObject->GetRayTracingGeometry(),
-							MeshObject->GetRayTracingDynamicVertexBuffer()
+							MeshObject->GetRayTracingDynamicVertexBuffer(),
+							true
 						}
 					);
 				}
-			}
 
 			RayTracingInstance.BuildInstanceMaskAndFlags();
 
@@ -5664,7 +5699,7 @@ bool FSkeletalMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sec
 		if (Material)
 		{
 			// This is thread safe because material texture data is only updated while the renderthread is idle.
-			for (const FMaterialTextureInfo TextureData : Material->GetTextureStreamingData())
+			for (const FMaterialTextureInfo& TextureData : Material->GetTextureStreamingData())
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureData.IsValid(true))
@@ -5673,7 +5708,7 @@ bool FSkeletalMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sec
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
 				}
 			}
-			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			for (const FMaterialTextureInfo& TextureData : Material->TextureStreamingDataMissingEntries)
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)

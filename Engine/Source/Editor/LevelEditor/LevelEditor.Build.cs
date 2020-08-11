@@ -35,6 +35,7 @@ public class LevelEditor : ModuleRules
 			new string[] {
 				"LevelSequence",
 				"Analytics",
+				"ApplicationCore",
 				"Core",
 				"CoreUObject",
 				"LauncherPlatform",
@@ -70,7 +71,8 @@ public class LevelEditor : ModuleRules
 				"ToolMenus",
 				"StatusBar",
 				"AppFramework",
-				"EditorSubsystem"
+				"EditorSubsystem",
+				"EnvironmentLightingViewer"
 			}
 		);
 
@@ -85,6 +87,7 @@ public class LevelEditor : ModuleRules
 				"AutomationWindow",
 				"Layers",
                 "WorldBrowser",
+				"WorldPartitionEditor",
 				"EditorWidgets",
 				"AssetTools",
 				"WorkspaceMenuStructure",

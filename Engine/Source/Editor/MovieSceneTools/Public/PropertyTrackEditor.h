@@ -83,7 +83,7 @@ protected:
 	* @param PropertyChangedParams Parameters associated with the property change.
 	* @param OutGeneratedKeys Array of keys that are generated from the changed property
 	*/
-	virtual void GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys ) = 0;
+	virtual void GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys ) = 0;
 
 	/** When true, this track editor will only be used on properties which have specified it as a custom track class. This is necessary to prevent duplicate
 		property change handling in cases where a custom track editor handles the same type of data as one of the standard track editors. */
@@ -208,9 +208,6 @@ private:
 	{
 		FKeyPropertyResult KeyPropertyResult;
 
-		FGeneratedTrackKeys GeneratedKeys;
-		GenerateKeysFromPropertyChanged( PropertyChangedParams, GeneratedKeys );
-
 		FProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 		if (!Property)
 		{
@@ -235,14 +232,19 @@ private:
 		// also check for track editors which should only be used for customization.
 		if ( SupportsType( TrackClass ) && ( ForCustomizedUseOnly() == false || *CustomizedClass != nullptr) )
 		{
+			auto GenerateKeys = [this, PropertyChangedParams](UMovieSceneSection* Section, FGeneratedTrackKeys& OutGeneratedKeys)
+			{
+				this->GenerateKeysFromPropertyChanged(PropertyChangedParams, Section, OutGeneratedKeys);
+			};
+
 			return this->AddKeysToObjects(
 				PropertyChangedParams.ObjectsThatChanged,
 				KeyTime,
-				GeneratedKeys,
 				PropertyChangedParams.KeyMode,
 				TrackClass,
 				UniqueName,
-				[&](TrackType* NewTrack) { InitializeNewTrack(NewTrack, PropertyChangedParams); }
+				[&](TrackType* NewTrack) { InitializeNewTrack(NewTrack, PropertyChangedParams); },
+				GenerateKeys
 			);
 		}
 		else

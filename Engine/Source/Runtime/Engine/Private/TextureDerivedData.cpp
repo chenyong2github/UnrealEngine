@@ -1125,6 +1125,7 @@ bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData, 
 
 	int32 NumMipsCached = 0;
 	const int32 LoadableMips = Mips.Num() - ((GetNumMipsInTail() > 0) ? (GetNumMipsInTail() - 1) : 0);
+	check(LoadableMips >= 0);
 
 #if WITH_EDITOR
 	TArray<uint8> TempData;

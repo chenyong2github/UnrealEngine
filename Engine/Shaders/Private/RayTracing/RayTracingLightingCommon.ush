@@ -539,7 +539,13 @@ float3 ComputeIndirectLighting(
 	float3 IndirectLighting = float3(0.0f, 0.0f, 0.0f);
 
 	// Payload indirect irradiance contribution
-	IndirectLighting += Payload.GetDiffuseColor() * Payload.GetIndirectIrradiance();
+	float3 DiffuseColor = Payload.GetDiffuseColor();
+	if (Payload.GetShadingModelID() ==  SHADINGMODELID_CLOTH)
+	{
+		float4 CustomData = Payload.GetCustomData();
+		DiffuseColor += CustomData.rgb * CustomData.a;
+	}
+	IndirectLighting += DiffuseColor * Payload.GetIndirectIrradiance();
 
 	// Ray traced sky light contribution
 	if (bRayTraceSkyLightContribution)

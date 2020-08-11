@@ -233,6 +233,9 @@ protected:
 	/** Called to get the visibility of the tree view */
 	EVisibility GetTreeVisibility() const;
 
+	/** Called to get the visibility of the scrollbar based on options, needs to be dynamic to avoid layout changing on expansion */
+	EVisibility GetScrollBarVisibility() const;
+
 	/** Returns the name of the image used for the icon on the filter button */
 	const FSlateBrush* OnGetFilterButtonImageResource() const;
 
@@ -307,7 +310,7 @@ protected:
 	/** Called when show keyable is clicked */
 	void OnShowKeyableClicked();
 	
-	/** Calledw when show animated is clicked */
+	/** Called when show animated is clicked */
 	void OnShowAnimatedClicked();
 
 	/**
@@ -363,6 +366,9 @@ protected:
 	void HandlePendingCleanupTimer();
 	/** Free memory that is pending delete */
 	void HandlePendingCleanup();
+	
+	void SavePreSearchExpandedItems();
+	void RestorePreSearchExpandedItems();
 
 protected:
 	/** The user defined args for the details view */
@@ -406,6 +412,7 @@ protected:
 	/** The actual width of the right column.  The left column is 1-ColumnWidth */
 	float ColumnWidth;
 	/** True if there is an active filter (text in the filter box) */
+	UE_DEPRECATED(4.26, "Use HasActiveSearch function instead.")
 	bool bHasActiveFilter;
 	/** True if this property view is currently locked (I.E The objects being observed are not changed automatically due to user selection)*/
 	bool bIsLocked;
@@ -434,7 +441,10 @@ protected:
 	/** Property extension handler returns additional UI to apply after the customization is applied to the property. */
 	TSharedPtr<IDetailPropertyExtensionHandler> ExtensionHandler;
 	/** The tree node that is currently highlighted, may be none: */
-	TWeakPtr< FDetailTreeNode > CurrentlyHighlightedNode;
+	TWeakPtr<FDetailTreeNode> CurrentlyHighlightedNode;
+
+	TSet<FString> PreSearchExpandedItems;
+	TSet<FString> PreSearchExpandedCategories;
 
 	/** Executed when the tree is refreshed */
 	FOnDisplayedPropertiesChanged OnDisplayedPropertiesChangedDelegate;

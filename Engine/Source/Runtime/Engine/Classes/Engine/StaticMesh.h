@@ -274,6 +274,10 @@ struct FMeshSectionInfo
 	UPROPERTY()
 	bool bCastShadow;
 
+	/** If true, this section will be visible in ray tracing Geometry. */
+	UPROPERTY()
+	bool bVisibleInRayTracing;
+
 	/** If true, this section will always considered opaque in ray tracing Geometry. */
 	UPROPERTY()
 	bool bForceOpaque;
@@ -283,6 +287,7 @@ struct FMeshSectionInfo
 		: MaterialIndex(0)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, bForceOpaque(false)
 	{
 	}
@@ -292,6 +297,7 @@ struct FMeshSectionInfo
 		: MaterialIndex(InMaterialIndex)
 		, bEnableCollision(true)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, bForceOpaque(false)
 	{
 	}
@@ -924,7 +930,10 @@ public:
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	ENGINE_API virtual void PostEditUndo() override;
 	ENGINE_API virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+	
+	UFUNCTION(BlueprintCallable, Category = "StaticMesh")
 	ENGINE_API void SetLODGroup(FName NewGroup, bool bRebuildImmediately = true);
+	
 	ENGINE_API void BroadcastNavCollisionChange();
 
 	FOnExtendedBoundsChanged& GetOnExtendedBoundsChanged() { return OnExtendedBoundsChanged; }
@@ -996,7 +1005,7 @@ public:
 	virtual bool IsPendingUpdateLocked() const final override;
 	virtual bool StreamOut(int32 NewMipCount) final override;
 	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr) final override;
 	//~ End UStreamableRenderAsset Interface
 
 #if USE_BULKDATA_STREAMING_TOKEN

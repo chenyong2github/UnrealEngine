@@ -6,6 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "EngineDefines.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "ConstraintTypes.generated.h"
 
 #if WITH_PHYSX
@@ -14,20 +15,6 @@ namespace physx
 	class PxD6Joint;
 }
 #endif // WITH_PHYSX
-
-// LINEAR DOF
-UENUM()
-enum ELinearConstraintMotion
-{
-	/** No constraint against this axis. */ 
-	LCM_Free	UMETA(DisplayName="Free"),
-	/** Limited freedom along this axis. */ 
-	LCM_Limited UMETA(DisplayName="Limited"),
-	/** Fully constraint against this axis. */
-	LCM_Locked UMETA(DisplayName="Locked"),
-
-	LCM_MAX,
-};
 
 USTRUCT()
 struct ENGINE_API FConstraintBaseParams
@@ -47,7 +34,7 @@ struct ENGINE_API FConstraintBaseParams
 	float Restitution;
 
 	/** Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Constraint, meta = (ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Constraint, meta = (ClampMin = "0.0"))
 	float ContactDistance;
 
 	/** Whether we want to use a soft constraint (spring). */

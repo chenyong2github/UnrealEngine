@@ -127,6 +127,9 @@ void FEditorSessionSummarySender::SendStoredSessions(const bool bForceSendOwnedS
 
 			FEditorAnalyticsSession::SaveStoredSessionIDs(SessionIDs);
 
+			// Trim left-over sessions that were written using an older format (so weren't loaded above) and that are now expired because the corresponding Editor version wasn't used recently.
+			FEditorAnalyticsSession::CleanupOutdatedIncompatibleSessions(EditorSessionSenderDefs::SessionExpiration);
+
 			FEditorAnalyticsSession::Unlock();
 			bSessionsLoaded = true;
 		}
@@ -176,11 +179,10 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("StartupTimestamp"), Session.StartupTimestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("Timestamp"), Session.Timestamp.ToIso8601());
 	AnalyticsAttributes.Emplace(TEXT("SessionDurationWall"), FMath::FloorToInt(static_cast<float>((Session.Timestamp - Session.StartupTimestamp).GetTotalSeconds()))); // Session duration from system date/time.
-	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.TotalUserInactivitySeconds); // Session duration using FTimePlatform::Seconds(). Less accurate (+/- few seconds per day) but doesn't depend on system date time.	
+	AnalyticsAttributes.Emplace(TEXT("SessionDuration"), Session.SessionDuration);
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Session.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Session.Idle5Min);
 	AnalyticsAttributes.Emplace(TEXT("30MinIdle"), Session.Idle30Min);
-	//AnalyticsAttributes.Emplace(TEXT("TotalUserInactivitySecs"), Session.TotalUserInactivitySeconds); // To avoid breaking public API, Session.TotalUserInactivitySeconds was repurposed to contain the session duration in 4.25.1. Should be removed in 4.26
 	AnalyticsAttributes.Emplace(TEXT("TotalEditorInactivitySecs"), Session.TotalEditorInactivitySeconds);
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
@@ -242,12 +244,23 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 			if (!MonitorExceptCode.IsSet() || MonitorExceptCode.GetValue() == ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
 			{
 				// Find the first entry in the log that match an exception reported like: "CRC/Crash:-1073741819"
-				FRegexPattern Pattern(TEXT(R"(CRC.Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
-				FRegexMatcher Matcher(Pattern, *MonitorLog);
-				if (Matcher.FindNext())
+				FRegexPattern CrashPattern(TEXT(R"(CRC\/Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
+				FRegexMatcher CrashMatcher(CrashPattern, *MonitorLog);
+				if (CrashMatcher.FindNext())
 				{
-					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), Matcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
+					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrashMatcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
 					MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+				}
+				else
+				{
+					// Check for 'CRC/Error'. Those are errors reported in log and the interesting one are the failed 'check()'. Normally CRC doesn't output errors.
+					FRegexPattern ErrorPattern(TEXT(R"(CRC\/Error)")); // Need help with regex? Try https://regex101.com/
+					FRegexMatcher ErrorMatcher(ErrorPattern, *MonitorLog);
+					if (ErrorMatcher.FindNext())
+					{
+						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), static_cast<int32>(ECrashExitCodes::OutOfProcessReporterCheckFailed));
+						MonitorExceptCode.Reset(); // Except code was added, prevent adding it again below.
+					}
 				}
 			}
 		}
@@ -264,7 +277,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	// Sending the summary event of the current process analytic session?
 	if (AnalyticsProvider.GetSessionID().Contains(Session.SessionId)) // The string (GUID) returned by GetSessionID() is surrounded with braces like "{3FEA3232-...}" while Session.SessionId is not -> "3FEA3232-..."
 	{
-		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
+		AnalyticsProvider.RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
 	}
 	else // The summary was created by another process/instance in a different session. (Ex: Editor sending a summary a prevoulsy crashed instance or CrashReportClientEditor sending it on behalf of the Editor)
 	{
@@ -281,7 +294,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		TempSummaryProvider->SetUserID(CopyTemp(Session.UserId));
 
 		// Send the summary.
-		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), MoveTemp(AnalyticsAttributes));
+		TempSummaryProvider->RecordEvent(TEXT("SessionSummary"), AnalyticsAttributes);
 
 		// The temporary provider is about to be deleted (going out of scope), ensure it sents its report.
 		TempSummaryProvider->BlockUntilFlushed(2.0f);

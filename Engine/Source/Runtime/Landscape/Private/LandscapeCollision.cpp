@@ -55,6 +55,7 @@
 #include "Chaos/Vector.h"
 #include "Chaos/Core.h"
 #include "Chaos/HeightField.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 #endif
 
 using namespace PhysicsInterfaceTypes;
@@ -443,11 +444,11 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					QueryFilterDataSimple.Word3 = (QueryFilterDataSimple.Word3 & ~EPDF_ComplexCollision) | EPDF_SimpleCollision;
 					SimFilterDataSimple.Word3 = (SimFilterDataSimple.Word3 & ~EPDF_ComplexCollision) | EPDF_SimpleCollision;
 
-					NewShape->SetGeometry(MakeSerializable(ChaosSimpleHeightFieldFromCooked));
-					NewShape->SetQueryData(QueryFilterDataSimple);
-					NewShape->SetSimData(SimFilterDataSimple);
+					NewSimpleShape->SetGeometry(MakeSerializable(ChaosSimpleHeightFieldFromCooked));
+					NewSimpleShape->SetQueryData(QueryFilterDataSimple);
+					NewSimpleShape->SetSimData(SimFilterDataSimple);
 
-					Geoms.Emplace(MoveTemp(ChaosHeightFieldFromCooked));
+					Geoms.Emplace(MoveTemp(ChaosSimpleHeightFieldFromCooked));
 					ShapeArray.Emplace(MoveTemp(NewSimpleShape));
 				}
 
@@ -516,8 +517,7 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				PhysScene->AddToComponentMaps(this, PhysHandle->GetProxy());
 				if (BodyInstance.bNotifyRigidBodyCollision)
 				{
-					FPhysScene_Chaos& Scene = PhysScene->GetScene();
-					Scene.RegisterForCollisionEvents(this);
+					PhysScene->RegisterForCollisionEvents(this);
 				}
 
 			}
@@ -542,7 +542,7 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 #endif
 
 #if WITH_CHAOS
-	if (FPhysScene_ChaosInterface* PhysScene = GetWorld()->GetPhysicsScene())
+	if (FPhysScene_Chaos* PhysScene = GetWorld()->GetPhysicsScene())
 	{
 		FPhysicsActorHandle& ActorHandle = BodyInstance.GetPhysicsActorHandle();
 		if (FPhysicsInterface::IsValid(ActorHandle))
@@ -551,8 +551,7 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 		}
 		if (BodyInstance.bNotifyRigidBodyCollision)
 		{
-			FPhysScene_Chaos& Scene = PhysScene->GetScene();
-			Scene.UnRegisterForCollisionEvents(this);
+			PhysScene->UnRegisterForCollisionEvents(this);
 		}
 	}
 #endif // WITH_CHAOS
@@ -1001,7 +1000,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	{
 		// #BGTODO Materials for simple geometry, currently just passing in the default
 		TArrayView<const uint16> SimpleHeightView(Heights + NumSamples, NumSimpleSamples);
-		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), SimpleCollisionSizeVerts, SimpleCollisionSizeVerts, Chaos::TVector<float, 3>(1));
 		Ar << HeightfieldSimple;
 	}
 
@@ -1626,6 +1625,21 @@ void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 Comp
 			CollisionHeightData.Unlock();
 
 			HeightfieldRef->EditorHeightfield->EditHeights(Samples, HeightfieldY1, HeightfieldX1, DstVertsY, DstVertsX);
+
+#if WITH_CHAOS
+			// Rebuild geometry to update local bounds, and update in acceleration structure.
+			const Chaos::FImplicitObjectUnion& Union = PhysActorHandle->Geometry()->GetObjectChecked<Chaos::FImplicitObjectUnion>();
+			TArray<TUniquePtr<Chaos::FImplicitObject>> NewGeometry;
+			for (const TUniquePtr<Chaos::FImplicitObject>& Object : Union.GetObjects())
+			{
+				const Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>& TransformedHeightField = Object->GetObjectChecked<Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>>();
+				NewGeometry.Emplace(MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>>(TransformedHeightField.Object(), TransformedHeightField.GetTransform()));
+			}
+			PhysActorHandle->SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(NewGeometry)));
+
+			FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
+			PhysScene->UpdateActorInAccelerationStructure(PhysActorHandle);
+#endif
 #endif
 		});
 	}

@@ -698,7 +698,7 @@ void UOnlineHotfixManager::ApplyHotfix()
 
 void UOnlineHotfixManager::TriggerHotfixComplete(EHotfixResult HotfixResult)
 {
-	if (HotfixResult != EHotfixResult::Failed)
+	if (HotfixResult != EHotfixResult::Failed && HotfixResult != EHotfixResult::SuccessNoChange)
 	{
 		PatchAssetsFromIniFiles();
 	}
@@ -1441,6 +1441,8 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						const FString& AssetPath(Tokens[0]);
 						const FString& HotfixType(Tokens[1]);
 
+						bool bAddAssetToHotfixedList = false;
+
 						// Find or load the asset
 						UObject* Asset = StaticLoadObject(AssetClass, nullptr, *AssetPath);
 						if (Asset != nullptr)
@@ -1455,6 +1457,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 								//	+CurveTable=<curve table path>;RowUpdate;<row name>;<column name>;<new value>
 								//	+CurveFloat=<curve float path>;RowUpdate;None;<column name>;<new value>
 								HotfixRowUpdate(Asset, AssetPath, Tokens[2], Tokens[3], Tokens[4], ProblemStrings);
+								bAddAssetToHotfixedList = ProblemStrings.Num() == 0;
 							}
 							else if (HotfixType == TableUpdate && Tokens.Num() == 3)
 							{
@@ -1467,6 +1470,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 								if (FParse::QuotedString(*Tokens[2], JsonData))
 								{
 									HotfixTableUpdate(Asset, AssetPath, JsonData, ProblemStrings);
+									bAddAssetToHotfixedList = ProblemStrings.Num() == 0;
 								}
 								else
 								{
@@ -1480,11 +1484,14 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						}
 						else
 						{
-							const FString Problem(FString::Printf(TEXT("Couldn't find or load asset '%s' (class '%s').  This asset will not be patched.  Double check that your asset type and path string is correct."), *AssetPath, *AssetClass->GetPathName()));
-							ProblemStrings.Add(Problem);
+							if (ShouldWarnAboutMissingWhenPatchingFromIni(AssetPath))
+							{
+								const FString Problem(FString::Printf(TEXT("Couldn't find or load asset '%s' (class '%s').  This asset will not be patched.  Double check that your asset type and path string is correct."), *AssetPath, *AssetClass->GetPathName()));
+								ProblemStrings.Add(Problem);
+							}
 						}
 
-						if (ProblemStrings.Num() > 0)
+						if (!bAddAssetToHotfixedList)
 						{
 							for (const FString& ProblemString : ProblemStrings)
 							{
@@ -1581,6 +1588,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								const int64 OldPropertyValue = NumProp->GetSignedIntPropertyValue(RowData);
 								const int64 NewPropertyValue = FCString::Atoi(*NewValue);
 								NumProp->SetIntPropertyValue(RowData, NewPropertyValue);
+								OnHotfixTableValueInt64(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
 								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %i to %i."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
@@ -1590,6 +1598,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 								const double OldPropertyValue = NumProp->GetFloatingPointPropertyValue(RowData);
 								const double NewPropertyValue = FCString::Atod(*NewValue);
 								NumProp->SetFloatingPointPropertyValue(RowData, NewPropertyValue);
+								OnHotfixTableValueDouble(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 								bWasDataTableChanged = true;
 								UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %.2f to %.2f."), *AssetPath, *RowName, *ColumnName, OldPropertyValue, NewPropertyValue);
 							}
@@ -1607,6 +1616,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const FString OldPropertyValue = StrProp->GetPropertyValue(RowData);
 						const FString NewPropertyValue = NewValue;
 						StrProp->SetPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueString(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue, *NewPropertyValue);
 					}
@@ -1616,6 +1626,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const FName OldPropertyValue = NameProp->GetPropertyValue(RowData);
 						const FName NewPropertyValue = FName(*NewValue);
 						NameProp->SetPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueName(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue.ToString(), *NewPropertyValue.ToString());
 					}
@@ -1625,6 +1636,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 						const UObject* OldPropertyValue = SoftObjProp->GetObjectPropertyValue(RowData);
 						UObject* NewPropertyValue = LoadObject<UObject>(nullptr, *NewValue);
 						SoftObjProp->SetObjectPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueObject(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue->GetFullName(), *NewPropertyValue->GetFullName());
 					}
@@ -1665,7 +1677,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 		if (bWasDataTableChanged)
 		{
-			DataTable->OnDataTableChanged().Broadcast();
+			DataTable->HandleDataTableChanged();
 		}
 	}
 	else if (CurveTable)
@@ -1693,6 +1705,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					Key = CurveTableRow->UpdateOrAddKey(KeyTime, NewPropertyValue);
 					if (CurveTableRow->IsKeyHandleValid(Key))
 					{
+						OnHotfixTableValueFloat(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasCurveTableChanged = true;
 
 						if (bWasExistingKey)
@@ -1747,6 +1760,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					const float OldPropertyValue = CurveFloat->FloatCurve.GetKeyValue(Key);
 					const float NewPropertyValue = FCString::Atof(*NewValue);
 					CurveFloat->FloatCurve.SetKeyValue(Key, NewPropertyValue);
+					OnHotfixTableValueFloat(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 
 					UE_LOG(LogHotfixManager, Verbose, TEXT("Curve float %s updated column %s from %.2f to %.2f."), *AssetPath, *ColumnName, OldPropertyValue, NewPropertyValue);
 				}

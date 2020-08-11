@@ -185,7 +185,7 @@ private:
 
 
 FMovieSceneMediaPlayerPropertySectionTemplate::FMovieSceneMediaPlayerPropertySectionTemplate(const UMovieSceneMediaPlayerPropertySection* InSection, const UMovieSceneMediaPlayerPropertyTrack* InTrack)
-	: FMovieScenePropertySectionTemplate(InTrack->GetPropertyName(), InTrack->GetPropertyPath())
+	: FMovieScenePropertySectionTemplate(InTrack->GetPropertyName(), InTrack->GetPropertyPath().ToString())
 {
 	MediaSource = InSection->MediaSource;
 	bLoop = InSection->bLoop;

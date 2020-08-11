@@ -26,6 +26,9 @@ enum class EMultiBoxType : uint8
 	/** Vertical tool bar */
 	VerticalToolBar,
 
+	/** Toolbar which is a slim version of the toolbar that aligns an icon and a text element horizontally */
+	SlimHorizontalToolBar,
+
 	/** A toolbar that tries to arrange all toolbar items uniformly (supports only horizontal toolbars for now) */
 	UniformToolBar,
 
@@ -34,9 +37,6 @@ enum class EMultiBoxType : uint8
 
 	/** Buttons arranged in rows, with a maximum number of buttons per row, like a toolbar but can have multiple rows*/
 	ButtonRow,
-
-	/** Horizontal menu bar used as a tool bar */
-	ToolMenuBar
 };
 
 

@@ -147,7 +147,7 @@ bool FOnlineFriendsFacebookCommon::ReadFriendsList(int32 LocalUserNum, const FSt
 	FOnlineFriendsList& FriendsList = FriendsMap.FindOrAdd(LocalUserNum);
 	FriendsList.Friends.Empty();
 	
-	TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 	FriendsQueryRequests.Add(&HttpRequest.Get(), FPendingFriendsQuery(LocalUserNum));
 
 	// Optional list of fields to query for each friend
@@ -392,7 +392,7 @@ void FOnlineFriendsFacebookCommon::QueryFriendsList_HttpRequestComplete(FHttpReq
 
 				if (bMoreToProcess)
 				{
-					TSharedRef<IHttpRequest> NextHttpRequest = FHttpModule::Get().CreateRequest();
+					TSharedRef<IHttpRequest, ESPMode::ThreadSafe> NextHttpRequest = FHttpModule::Get().CreateRequest();
 					FriendsQueryRequests.Add(&NextHttpRequest.Get(), FPendingFriendsQuery(PendingFriendsQuery.LocalUserNum));
 
 					// read next page of friends

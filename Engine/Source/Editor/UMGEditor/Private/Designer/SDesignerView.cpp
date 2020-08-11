@@ -71,6 +71,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/DPICustomScalingRule.h"
 #include "UMGEditorModule.h"
+#include "ToolMenus.h"
 #include "Styling/ToolBarStyle.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
@@ -141,7 +142,7 @@ public:
 
 			if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
 			{
-				for (const FDebugResolution Resolution : Settings->DebugResolutions)
+				for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 				{
 					if (((AreaSize - FVector2D(Resolution.Width, Resolution.Height)) * ZoomAmount).Size() < 10.0f)
 					{
@@ -351,21 +352,7 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 
 	bMovingExistingWidget = false;
 
-	// TODO UMG - Register these with the module through some public interface to allow for new extensions to be registered.
-	Register(MakeShareable(new FVerticalSlotExtension()));
-	Register(MakeShareable(new FHorizontalSlotExtension()));
-	Register(MakeShareable(new FCanvasSlotExtension()));
-	Register(MakeShareable(new FUniformGridSlotExtension()));
-	Register(MakeShareable(new FGridSlotExtension()));
-
-	//Register External Extensions
-	IUMGEditorModule& UMGEditorInterface = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
-
-	TSharedPtr<FDesignerExtensibilityManager>DesignerExtensibilityManager = UMGEditorInterface.GetDesignerExtensibilityManager();
-	for (const auto& Extension : DesignerExtensibilityManager->GetExternalDesignerExtensions())
-	{
-		Register(Extension);
-	}
+	RegisterExtensions();
 
 	GEditor->OnBlueprintReinstanced().AddRaw(this, &SDesignerView::OnPreviewNeedsRecreation);
 
@@ -838,6 +825,12 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 
 SDesignerView::~SDesignerView()
 {
+	for (const TSharedRef<FDesignerExtension>& Ext : DesignerExtensions)
+	{
+		Ext->Uninitialize();
+	}
+	DesignerExtensions.Reset();
+
 	UWidgetBlueprint* Blueprint = GetBlueprint();
 	if ( Blueprint )
 	{
@@ -1626,8 +1619,52 @@ UWidgetBlueprint* SDesignerView::GetBlueprint() const
 
 void SDesignerView::Register(TSharedRef<FDesignerExtension> Extension)
 {
-	Extension->Initialize(this, GetBlueprint());
-	DesignerExtensions.Add(Extension);
+	if (!DesignerExtensions.Contains(Extension))
+	{
+		Extension->Initialize(this, GetBlueprint());
+		DesignerExtensions.Add(Extension);
+	}
+}
+
+void SDesignerView::Unregister(TSharedRef<FDesignerExtension> Extension)
+{
+	if (DesignerExtensions.Contains(Extension))
+	{
+		DesignerExtensions.RemoveSingle(Extension);
+		Extension->Uninitialize();
+	}
+}
+
+namespace DesignerView
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	void RegisterDeprecatedExtensions(SDesignerView* Self, TSharedPtr<FDesignerExtensibilityManager> DesignerExtensibilityManager)
+	{
+		for (const TSharedRef<FDesignerExtension>& Extension : DesignerExtensibilityManager->GetExternalDesignerExtensions())
+		{
+			Self->Register(Extension);
+		}
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void SDesignerView::RegisterExtensions()
+{
+	Register(MakeShareable(new FVerticalSlotExtension()));
+	Register(MakeShareable(new FHorizontalSlotExtension()));
+	Register(MakeShareable(new FCanvasSlotExtension()));
+	Register(MakeShareable(new FUniformGridSlotExtension()));
+	Register(MakeShareable(new FGridSlotExtension()));
+
+	//Register External Extensions
+	IUMGEditorModule& UMGEditorInterface = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+	TSharedPtr<FDesignerExtensibilityManager> DesignerExtensibilityManager = UMGEditorInterface.GetDesignerExtensibilityManager();
+
+	DesignerView::RegisterDeprecatedExtensions(this, DesignerExtensibilityManager);
+	for (const TSharedRef<IDesignerExtensionFactory>& ExtensionFactory : DesignerExtensibilityManager->GetExternalDesignerExtensionFactories())
+	{
+		Register(ExtensionFactory->CreateDesignerExtension());
+	}
 }
 
 void SDesignerView::OnPreviewNeedsRecreation()
@@ -1639,6 +1676,12 @@ void SDesignerView::OnPreviewNeedsRecreation()
 
 	PreviewWidget = nullptr;
 	PreviewSizeConstraint->SetContent(SNullWidget::NullWidget);
+
+	// Notify all designer extensions that the content has changed
+	for (const TSharedRef<FDesignerExtension>& Ext : DesignerExtensions)
+	{
+		Ext->PreviewContentChanged(SNullWidget::NullWidget);
+	}
 }
 
 SDesignerView::FWidgetHitResult::FWidgetHitResult()
@@ -2112,7 +2155,7 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 int32 SDesignerView::HandleEffectsPainting(const FOnPaintHandlerParams& PaintArgs)
 {
 	DrawSelectionAndHoverOutline(PaintArgs);
-	DrawSafeZone(PaintArgs);
+	//DrawSafeZone(PaintArgs);
 
 	return PaintArgs.Layer + 1;
 }
@@ -2323,6 +2366,12 @@ void SDesignerView::UpdatePreviewWidget(bool bForceUpdate)
 
 			PreviewSizeConstraint->SetContent(NewPreviewSlateWidget);
 
+			// Notify all designer extensions that the content has changed
+			for (const TSharedRef<FDesignerExtension>& Ext : DesignerExtensions)
+			{
+				Ext->PreviewContentChanged(NewPreviewSlateWidget);
+			}
+
 			// Notify all selected widgets that they are selected, because there are new preview objects
 			// state may have been lost so this will recreate it if the widget does something special when
 			// selected.
@@ -2472,7 +2521,7 @@ void SDesignerView::OnPaintBackground(const FGeometry& AllottedGeometry, const F
 	{
 		if (const UUMGEditorProjectSettings* Settings = GetDefault<UUMGEditorProjectSettings>())
 		{
-			for (const FDebugResolution Resolution : Settings->DebugResolutions)
+			for (const FDebugResolution& Resolution : Settings->DebugResolutions)
 			{
 				DrawResolution(Resolution, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 			}
@@ -2624,17 +2673,22 @@ FReply SDesignerView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEve
 	return FReply::Unhandled();
 }
 
-void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent)
+void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets, const FDragDropEvent& DragDropEvent, UWidgetTree* RootWidgetTree)
 {
 	OutWidgets.Empty();
 	UWidgetBlueprint* Blueprint = GetBlueprint();
+
+	if (RootWidgetTree == nullptr)
+	{
+		return;
+	}
 
 	TSharedPtr<FWidgetTemplateDragDropOp> TemplateDragDropOp = DragDropEvent.GetOperationAs<FWidgetTemplateDragDropOp>();
 	TSharedPtr<FAssetDragDropOp> AssetDragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 
 	if (TemplateDragDropOp.IsValid())
 	{
-		UWidget* Widget = TemplateDragDropOp->Template->Create(Blueprint->WidgetTree);
+		UWidget* Widget = TemplateDragDropOp->Template->Create(RootWidgetTree);
 
 		if (Widget)
 		{
@@ -2658,7 +2712,7 @@ void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets
 				FString BlueprintPath = Blueprint->GetPathName();
 				if (BlueprintPath != AssetData.ObjectPath.ToString())
 				{
-					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(Blueprint->WidgetTree);
+					Widget = FWidgetTemplateBlueprintClass(AssetData).Create(RootWidgetTree);
 
 					// Check to make sure that this widget can be added to the current blueprint
 					if ( Cast<UUserWidget>(Widget) != nullptr && !Blueprint->IsWidgetFreeFromCircularReferences(Cast<UUserWidget>(Widget)) )
@@ -2669,7 +2723,7 @@ void SDesignerView::DetermineDragDropPreviewWidgets(TArray<UWidget*>& OutWidgets
 			}
 			else if (FWidgetTemplateImageClass::Supports(AssetClass))
 			{
-				Widget = FWidgetTemplateImageClass(AssetData).Create(Blueprint->WidgetTree);
+				Widget = FWidgetTemplateImageClass(AssetData).Create(RootWidgetTree);
 			}
 
 			if (Widget)
@@ -2717,19 +2771,26 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 
 	ClearDropPreviews();
 
+	UWidgetBlueprint* BP = GetBlueprint();
+
 	UWidget* Target = nullptr;
+	UWidgetTree* TargetTree = nullptr;
 
 	FWidgetHitResult HitResult;
 	if ( FindWidgetUnderCursor(MyGeometry, DragDropEvent, UPanelWidget::StaticClass(), HitResult) )
 	{
 		Target = bIsPreview ? HitResult.Widget.GetPreview() : HitResult.Widget.GetTemplate();
+		TargetTree = (bIsPreview && Target) ? Cast<UWidgetTree>(Target->GetOuter()) : BP->WidgetTree;
+	}
+	else if (BP->WidgetTree->RootWidget == nullptr || !bIsPreview)
+	{
+		TargetTree = BP->WidgetTree;
 	}
 
 	FGeometry WidgetUnderCursorGeometry = HitResult.WidgetArranged.Geometry;
-	UWidgetBlueprint* BP = GetBlueprint();
 	
 	TArray<UWidget*> DragDropPreviewWidgets;
-	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent);
+	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent, TargetTree);
 
 	if ( DragDropPreviewWidgets.Num() > 0 )
 	{
@@ -3293,26 +3354,20 @@ void SDesignerView::HandleOnCommonResolutionSelected(const FPlayScreenResolution
 	// Most resolutions (tablets, phones, TVs, etc.) can be stored in either portrait or landscape mode, and may need to be flipped
 	if (bCanPreviewSwapAspectRatio && (bPreviewIsPortrait != (InResolution.Width < InResolution.Height)))
 	{
-		PreviewWidth = InResolution.Height;
-		PreviewHeight = InResolution.Width;
+		PreviewWidth = InResolution.LogicalHeight;
+		PreviewHeight = InResolution.LogicalWidth;
 	}
 	else
 	{
-		PreviewWidth = InResolution.Width;
-		PreviewHeight = InResolution.Height;
+		PreviewWidth = InResolution.LogicalWidth;
+		PreviewHeight = InResolution.LogicalHeight;
 	}
 	bPreviewIsPortrait = PreviewWidth < PreviewHeight;
 	PreviewAspectRatio = InResolution.AspectRatio;
 
 	PreviewOverrideName = InResolution.ProfileName;
 
-	ScaleFactor = 1.0f;
-	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
-	const UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(PreviewOverrideName, false);
-	if (DeviceProfile)
-	{
-		PlayInSettings->RescaleForMobilePreview(DeviceProfile, PreviewWidth, PreviewHeight, ScaleFactor);
-	}
+	ScaleFactor = InResolution.ScaleFactor;
 
 	GConfig->SetInt(*ConfigSectionName, TEXT("PreviewWidth"), PreviewWidth, GEditorPerProjectIni);
 	GConfig->SetInt(*ConfigSectionName, TEXT("PreviewHeight"), PreviewHeight, GEditorPerProjectIni);
@@ -3324,6 +3379,7 @@ void SDesignerView::HandleOnCommonResolutionSelected(const FPlayScreenResolution
 
 	if (!PreviewOverrideName.IsEmpty())
 	{
+		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		DesignerSafeZoneOverride = PlayInSettings->CalculateCustomUnsafeZones(CustomSafeZoneStarts, CustomSafeZoneDimensions, PreviewOverrideName, FVector2D(PreviewWidth, PreviewHeight));
 	}
 	else
@@ -3394,21 +3450,11 @@ bool SDesignerView::HandleIsCommonResolutionSelected(const FPlayScreenResolution
 	return bSizeMatches;
 }
 
-void SDesignerView::AddScreenResolutionSection(FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName)
+FUIAction SDesignerView::GetResolutionMenuAction( const FPlayScreenResolution& ScreenResolution )
 {
-	MenuBuilder.BeginSection(NAME_None, SectionName);
-	{
-		for ( auto Iter = Resolutions.CreateConstIterator(); Iter; ++Iter )
-		{
-			// Actions for the resolution menu entry
-			FExecuteAction OnResolutionSelected = FExecuteAction::CreateRaw(this, &SDesignerView::HandleOnCommonResolutionSelected, *Iter);
-			FIsActionChecked OnIsResolutionSelected = FIsActionChecked::CreateRaw(this, &SDesignerView::HandleIsCommonResolutionSelected, *Iter);
-			FUIAction Action(OnResolutionSelected, FCanExecuteAction(), OnIsResolutionSelected);
-
-			MenuBuilder.AddMenuEntry(FText::FromString(Iter->Description), GetResolutionText(Iter->Width, Iter->Height, Iter->AspectRatio), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Check);
-		}
-	}
-	MenuBuilder.EndSection();
+	FExecuteAction OnResolutionSelected = FExecuteAction::CreateRaw( this, &SDesignerView::HandleOnCommonResolutionSelected, ScreenResolution );
+	FIsActionChecked OnIsResolutionSelected = FIsActionChecked::CreateRaw( this, &SDesignerView::HandleIsCommonResolutionSelected, ScreenResolution );
+	return FUIAction( OnResolutionSelected, FCanExecuteAction(), OnIsResolutionSelected );
 }
 
 TOptional<int32> SDesignerView::GetCustomResolutionWidth() const
@@ -3466,7 +3512,7 @@ EVisibility SDesignerView::GetCustomResolutionEntryVisibility() const
 UUserWidget* SDesignerView::GetDefaultWidget() const
 {
 	TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
-	if ( UUserWidget* Default = BPEd->GetWidgetBlueprintObj()->GeneratedClass->GetDefaultObject<UUserWidget>() )
+	if (UUserWidget* Default = BPEd->GetWidgetBlueprintObj()->GeneratedClass->GetDefaultObject<UUserWidget>())
 	{
 		return Default;
 	}
@@ -3476,46 +3522,10 @@ UUserWidget* SDesignerView::GetDefaultWidget() const
 
 TSharedRef<SWidget> SDesignerView::GetResolutionsMenu()
 {
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-	FMenuBuilder MenuBuilder(true, nullptr);
-	// Add the normal set of resolution options.
-	FText PhoneTitle = LOCTEXT("CommonPhonesSectionHeader", "Phones");
-	FText TabletTitle = LOCTEXT("CommonTabletsSectionHeader", "Tablets");
-	FText LaptopTitle = LOCTEXT("CommonLaptopsSectionHeader", "Laptops");
-	FText MonitorTitle = LOCTEXT("CommonMonitorsSectionHeader", "Monitors");
-	FText TelevisionTitle = LOCTEXT("CommonTelevesionsSectionHeader", "Televisions");
-	MenuBuilder.AddSubMenu(
-		PhoneTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw(this, &SDesignerView::AddScreenResolutionSection, (PlaySettings->PhoneScreenResolutions), PhoneTitle),
-		false,
-		FSlateIcon());
-	MenuBuilder.AddSubMenu(
-		TabletTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw(this, &SDesignerView::AddScreenResolutionSection, (PlaySettings->TabletScreenResolutions), TabletTitle),
-		false,
-		FSlateIcon());
-	MenuBuilder.AddSubMenu(
-		LaptopTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw(this, &SDesignerView::AddScreenResolutionSection, (PlaySettings->LaptopScreenResolutions), LaptopTitle),
-		false,
-		FSlateIcon());
-	MenuBuilder.AddSubMenu(
-		MonitorTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw(this, &SDesignerView::AddScreenResolutionSection, (PlaySettings->MonitorScreenResolutions), MonitorTitle),
-		false,
-		FSlateIcon());
-	MenuBuilder.AddSubMenu(
-		TelevisionTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw(this, &SDesignerView::AddScreenResolutionSection, (PlaySettings->TelevisionScreenResolutions), TelevisionTitle),
-		false,
-		FSlateIcon());
+	UCommonResolutionMenuContext* CommonResolutionMenuContext = NewObject<UCommonResolutionMenuContext>();
+	CommonResolutionMenuContext->GetUIActionFromLevelPlaySettings = UCommonResolutionMenuContext::FGetUIActionFromLevelPlaySettings::CreateRaw(this, &SDesignerView::GetResolutionMenuAction);
 
-	return MenuBuilder.MakeWidget();
+	return UToolMenus::Get()->GenerateWidget(ULevelEditorPlaySettings::GetCommonResolutionsMenuName(), CommonResolutionMenuContext);
 }
 
 TSharedRef<SWidget> SDesignerView::GetScreenSizingFillMenu()
@@ -3652,14 +3662,14 @@ FReply SDesignerView::HandleSwapAspectRatioClicked()
 		PreviewWidth = WidthReadFromSettings;
 	}
 
-	ScaleFactor = 1.0f;
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	const UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(PreviewOverrideName, false);
 
-	// Rescale the swapped sizes if we are on Android
+	// Rescale the swapped sizes that are from the initial settings load
 	if (DeviceProfile)
 	{
-		PlayInSettings->RescaleForMobilePreview(DeviceProfile, PreviewWidth, PreviewHeight, ScaleFactor);
+		float TempScaleFactor = 1.0f;
+		PlayInSettings->RescaleForMobilePreview(DeviceProfile, PreviewWidth, PreviewHeight, TempScaleFactor);
 	}
 
 	bPreviewIsPortrait = (PreviewHeight > PreviewWidth);

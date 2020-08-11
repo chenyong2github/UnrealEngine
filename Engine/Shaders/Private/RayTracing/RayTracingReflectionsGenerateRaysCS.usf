@@ -9,8 +9,7 @@
 
 #include "RayTracingCommon.ush"
 #include "RayTracingReflectionsCommon.ush"
-
-#define REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE 32
+#include "RayTracingDeferredReflections.ush"
 
 #define NUM_DIRECTION_BINS_X REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE
 #define NUM_DIRECTION_BINS_Y REFLECTION_RAY_DIRECTION_SORT_TILE_SIZE
@@ -44,6 +43,7 @@ groupshared uint Bins[NUM_DIRECTION_BINS];
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
+int   GlossyReflections;
 
 // Outputs
 RWStructuredBuffer<FSortedReflectionRay> RayBuffer;
@@ -75,50 +75,8 @@ void GenerateReflectionRaysCS(
 	const uint2 NumTiles         = TileAlignedResolution / TileSize;
 	const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
 	const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
-	const float2 ScreenPos       = ViewportUVToScreenPos((PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
-	const float2 UV              = PixelPos.xy * View.BufferSizeAndInvSize.zw;
 
-	// not 'const', may need to be modified below
-	FGBufferData GBuffer         = GetGBufferDataFromSceneTextures(UV);
-	float DeviceZ                = SceneDepthBuffer.Load(int3(PixelPos, 0)).r;
-
-	float3 WorldPosition;
-	float3 CameraDirection;
-	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelPos, DeviceZ, WorldPosition, CameraDirection);
-	float3 V = -CameraDirection;
-
-#if GBUFFER_HAS_TANGENT
-	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
-#endif
-	
-	float2 E = Rand1SPPDenoiserInput(PixelPos);
-	
-	const bool bOutputForDenoiser = true; // #todo: pass this in via constants when denoiser is on
-	if (bOutputForDenoiser)
-	{
-		E.y *= 1 - GGX_IMPORTANT_SAMPLE_BIAS;
-	}
-	
-	float3x3 TangentBasis = GetTangentBasis(GBuffer.WorldNormal);
-	float3 TangentV       = mul(TangentBasis, V);
-
-	float3 L = (float3)0;
-
-	bool bGlossy = true; // #todo: pass this in via constants (change based on required quality, similar to SSR)
-	if (bGlossy)
-	{
-		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBuffer.Roughness), TangentV).xyz, TangentBasis);
-		L = 2 * dot(V, H) * H - V;
-	}
-	else
-	{
-		L = reflect(-V, GBuffer.WorldNormal);
-	}
-
-	FSortedReflectionRay Ray;
-	Ray.Origin = WorldPosition;
-	Ray.Direction = L;
-	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
+	FSortedReflectionRay Ray = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, GlossyReflections==1);
 
 	uint Bin = RayDirectionToBin(Ray.Direction, uint2(NUM_DIRECTION_BINS_X,NUM_DIRECTION_BINS_Y));
 	if (any(PixelPos >= RayTracingResolution))
@@ -171,7 +129,6 @@ void GenerateReflectionRaysCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
 	Ray.DebugSortKey = Bin;
 
 	uint StoreIndex = GroupId * (TileSize.x*TileSize.y) + Bins[Bin] + SlotForThisThread;

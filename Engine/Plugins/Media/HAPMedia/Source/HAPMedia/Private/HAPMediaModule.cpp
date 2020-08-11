@@ -39,7 +39,13 @@ public:
 			return;
 		}
 
-		IWmfMediaModule::Get()->GetCodecManager()->AddCodec(MakeUnique<WmfMediaCodecGenerator<WmfMediaHAPDecoder>>(true));
+		if (IWmfMediaModule* Module = IWmfMediaModule::Get())
+		{
+			if (Module->IsInitialized())
+			{
+				Module->GetCodecManager()->AddCodec(MakeUnique<WmfMediaCodecGenerator<WmfMediaHAPDecoder>>(true));
+			}
+		}
 
 #endif //WMFMEDIA_SUPPORTED_PLATFORM
 

@@ -597,19 +597,9 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 	}
 }
 
-// Returns `true` when running on RT-capable machine and RT support is enabled for the project.
-// This function is a runtime only function!
-FORCEINLINE bool IsRayTracingEnabled()
-{
-	if (GRHISupportsRayTracing)
-	{
-		return ShouldCompileRayTracingShadersForProject(GMaxRHIShaderPlatform);
-	}
-	else
-	{
-		return false;
-	}
-}
+// Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options.
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API bool IsRayTracingEnabled();
 
 /** A ray tracing geometry resource */
 class RENDERCORE_API FRayTracingGeometry : public FRenderResource
@@ -627,6 +617,16 @@ public:
 #if RHI_RAYTRACING
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
 	FRayTracingGeometryInitializer Initializer;
+
+	/** When set to NonSharedVertexBuffers, then shared vertex buffers are not used  */
+	static constexpr int64 NonSharedVertexBuffers = -1;
+
+	/** 
+	Vertex buffers for dynamic geometries may be sub-allocated from a shared pool, which is periodically reset and its generation ID is incremented.
+	Geometries that use the shared buffer must be updated (rebuilt or refit) before they are used for rendering after the pool is reset.
+	This is validated by comparing the current shared pool generation ID against generation IDs stored in FRayTracingGeometry during latest update.
+	*/
+	int64 DynamicGeometrySharedBufferGenerationID = NonSharedVertexBuffers;
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI() override

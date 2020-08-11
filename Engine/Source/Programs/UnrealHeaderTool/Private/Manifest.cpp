@@ -141,6 +141,10 @@ FManifest FManifest::LoadFromFile(const FString& Filename)
 		GetJsonFieldValue(ModuleTypeText, ModuleObj, TEXT("ModuleType"), *Outer);
 		KnownModule.ModuleType = EBuildModuleType::Parse(*ModuleTypeText);
 
+		FString OverrideModuleTypeText;
+		GetJsonFieldValue(OverrideModuleTypeText, ModuleObj, TEXT("OverrideModuleType"), *Outer);
+		KnownModule.OverrideModuleType = EPackageOverrideType::Parse(*OverrideModuleTypeText);
+
 		KnownModule.LongPackageName = FPackageName::ConvertToLongScriptPackageName(*KnownModule.Name);
 
 		// Convert relative paths

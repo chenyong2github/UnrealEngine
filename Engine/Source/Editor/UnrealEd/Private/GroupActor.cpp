@@ -38,6 +38,8 @@ void AGroupActor::PostActorCreated()
 
 void AGroupActor::PostLoad()
 {
+	GetLevel()->ConditionalPostLoad();
+
 	if( !GetWorld()->IsPlayInEditor() && !IsRunningCommandlet() && GIsEditor )
 	{
 		// Cache group on de-serialization
@@ -266,6 +268,42 @@ void AGroupActor::SetIsTemporarilyHiddenInEditor( bool bIsHidden )
 	}
 }
 
+void AGroupActor::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	FBox Bounds = GetComponentsBoundingBox(!bOnlyCollidingComponents);;
+
+	for(int32 ActorIndex=0; ActorIndex<GroupActors.Num(); ++ActorIndex)
+	{
+		if( GroupActors[ActorIndex] != NULL )
+		{
+			FVector ActorOrigin;
+			FVector ActorBoxExtent;
+			GroupActors[ActorIndex]->GetActorBounds(bOnlyCollidingComponents, ActorOrigin, ActorBoxExtent, bIncludeFromChildActors);
+
+			Bounds += FBox(ActorOrigin - ActorBoxExtent, ActorOrigin + ActorBoxExtent);
+		}
+	}
+
+	for(int32 SubGroupIndex=0; SubGroupIndex<SubGroups.Num(); ++SubGroupIndex)
+	{
+		if( SubGroups[SubGroupIndex] != NULL )
+		{
+			FVector SubGroupOrigin;
+			FVector SubGroupBoxExtent;
+			SubGroups[SubGroupIndex]->GetActorBounds(bOnlyCollidingComponents, SubGroupOrigin, SubGroupBoxExtent, bIncludeFromChildActors);
+
+			Bounds += FBox(SubGroupOrigin - SubGroupBoxExtent, SubGroupOrigin + SubGroupBoxExtent);
+		}
+	}
+
+	// To keep consistency with the other GetBounds functions, transform our result into an origin / extent formatting
+	Bounds.GetCenterAndExtents(Origin, BoxExtent);
+}
+
+void AGroupActor::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+}
 
 void GetBoundingVectorsForGroup(AGroupActor* GroupActor, FViewport* Viewport, FVector& OutVectorMin, FVector& OutVectorMax)
 {

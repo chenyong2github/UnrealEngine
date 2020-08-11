@@ -7,6 +7,7 @@
 #include "MovieScene.h"
 #include "DisplayNodes/SequencerDisplayNode.h"
 #include "SequencerDisplayNodeDragDropOp.h"
+#include "SequencerUtilities.h"
 #include "SlateOptMacros.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SBoxPanel.h"
@@ -103,7 +104,8 @@ struct FSequencerNodeGroupNode : public FSequencerNodeGroupTreeNode
 		UMovieScene* MovieScene = GroupManager ? GroupManager->GetMovieScene() : nullptr;
 		if (MovieScene)
 		{
-			MovieScene->Modify();
+			const FScopedTransaction Transaction(LOCTEXT("RenameGroupTransaction", "Rename Group"));
+
 			Group->SetName(FName(*FText::TrimPrecedingAndTrailing(NewLabel).ToString()));
 		}
 	}
@@ -435,7 +437,7 @@ void SSequencerGroupManager::Tick(const FGeometry& AllottedGeometry, const doubl
 
 	if (RequestedRenameNodeGroup && !TreeView->IsPendingRefresh())
 	{
-		for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : NodeGroupsTree)
+		for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : NodeGroupsTree)
 		{
 			if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::GroupNode)
 			{
@@ -486,7 +488,6 @@ void SSequencerGroupManager::RequestDeleteNodeGroup(FSequencerNodeGroupNode* Nod
 
 	const FScopedTransaction Transaction(LOCTEXT("DeleteGroupTransaction", "Delete Group"));
 
-	MovieScene->Modify();
 	MovieScene->GetNodeGroups().RemoveNodeGroup(NodeGroupNode->Group);
 }
 
@@ -506,7 +507,7 @@ void SSequencerGroupManager::RemoveSelectedItemsFromNodeGroup()
 
 	TArray<TPair<UMovieSceneNodeGroup*,FString>> ItemsToRemove;
 	TArray<TSharedPtr<FSequencerNodeGroupTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
-	for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : SelectedNodes)
+	for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : SelectedNodes)
 	{
 		if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::ItemNode)
 		{
@@ -522,18 +523,55 @@ void SSequencerGroupManager::RemoveSelectedItemsFromNodeGroup()
 
 	const FScopedTransaction Transaction(LOCTEXT("RemoveItemFromGroupTransaction", "Remove Items From Group"));
 
-	MovieScene->Modify();
-	for (const TPair<UMovieSceneNodeGroup*, FString> Item : ItemsToRemove)
+	for (const TPair<UMovieSceneNodeGroup*, FString>& Item : ItemsToRemove)
 	{
 		Item.Key->RemoveNode(Item.Value);
 	}
 	
 }
 
+void SSequencerGroupManager::CreateNodeGroup()
+{
+	UMovieScene* MovieScene = GetMovieScene();
+
+	if (!ensure(MovieScene))
+	{
+		return;
+	}
+
+	if (MovieScene->IsReadOnly())
+	{
+		return;
+	}
+
+	TArray<FName> ExistingGroupNames;
+	for (const UMovieSceneNodeGroup* NodeGroup : MovieScene->GetNodeGroups())
+	{
+		ExistingGroupNames.Add(NodeGroup->GetName());
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("CreateNewGroupTransaction", "Create New Group"));
+
+	UMovieSceneNodeGroup* NewNodeGroup = NewObject<UMovieSceneNodeGroup>(&MovieScene->GetNodeGroups(), NAME_None, RF_Transactional);
+	NewNodeGroup->SetName(FSequencerUtilities::GetUniqueName(FName("Group"), ExistingGroupNames));
+
+	TSet<FString> SelectedNodePaths;
+	GetSelectedItemsNodePaths(SelectedNodePaths);
+
+	for (const FString& NodeToAdd : SelectedNodePaths)
+	{
+		NewNodeGroup->AddNode(NodeToAdd);
+	}
+
+	MovieScene->GetNodeGroups().AddNodeGroup(NewNodeGroup);
+
+	RequestRenameNodeGroup(NewNodeGroup);
+}
+
 void SSequencerGroupManager::GetSelectedItemsNodePaths(TSet<FString>& OutSelectedNodePaths) const
 {
 	TArray<TSharedPtr<FSequencerNodeGroupTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
-	for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : SelectedNodes)
+	for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : SelectedNodes)
 	{
 		if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::ItemNode)
 		{
@@ -619,7 +657,7 @@ void SSequencerGroupManager::SelectItemsSelectedInSequencer()
 
 	// Build a list of the treenodes which match a nodepath we want to select
 	TArray<TSharedPtr<FSequencerGroupItemNode>> TreeNodesToSelect;
-	for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : NodeGroupsTree)
+	for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : NodeGroupsTree)
 	{
 		if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::ItemNode)
 		{
@@ -653,10 +691,16 @@ TSharedPtr<SWidget> SSequencerGroupManager::OnContextMenuOpening()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CreateNodeGroup", "Create Group"),
+		LOCTEXT("CreateNodeGroupTooltip", "Create a new group and add any selected items to it"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SSequencerGroupManager::CreateNodeGroup)));
+
 	UMovieScene* MovieScene = GetMovieScene();
 	bool bIsReadOnly = MovieScene? MovieScene->IsReadOnly() : true;
 
-	for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : SelectedNodes)
+	for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : SelectedNodes)
 	{
 		if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::GroupNode)
 		{
@@ -691,7 +735,7 @@ TSharedPtr<SWidget> SSequencerGroupManager::OnContextMenuOpening()
 	}
 
 	bool bAnyItemSelected = false;
-	for (const TSharedPtr<FSequencerNodeGroupTreeNode> Node : SelectedNodes)
+	for (const TSharedPtr<FSequencerNodeGroupTreeNode>& Node : SelectedNodes)
 	{
 		if (Node->GetType() == FSequencerNodeGroupTreeNode::Type::ItemNode)
 		{

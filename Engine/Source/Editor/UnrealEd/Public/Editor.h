@@ -144,6 +144,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnMapChanged MapChange;
 	/** Called when an actor is added to a layer */
 	static FSimpleMulticastDelegate LayerChange;
+	/** Called after an undo/redo */
+	static FSimpleMulticastDelegate PostUndoRedo;
 	/** surfprops changed */
 	static FSimpleMulticastDelegate SurfProps;
 	/** Sent when requesting to display the properties of selected actors or BSP surfaces */

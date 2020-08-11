@@ -202,25 +202,8 @@ FLidarPointCloudViewData::FLidarPointCloudViewData(bool bCompute)
 
 void FLidarPointCloudViewData::Compute()
 {
-#if WITH_EDITOR
-	bPIE = false;
-	if (GIsEditor && GEditor && GEditor->GetActiveViewport())
-	{
-		bPIE = GEditor->GetActiveViewport() == GEditor->GetPIEViewport();
-		
-		// PIE needs a different computation method
-		if (!bPIE)
-		{
-			ComputeFromEditorViewportClient(GEditor->GetActiveViewport()->GetClient());
-		}
-
-		// Simulating counts as PIE for the purpose of LOD calculation
-		bPIE |= GEditor->bIsSimulatingInEditor;
-	}
-#endif
-
-	// Check for bValid, in case we run inside editor and already have the View set up
-	if (!bValid && GEngine)
+	// Attempt to get the first local player's viewport
+	if (GEngine)
 	{
 		ULocalPlayer* const LP = GEngine->FindFirstLocalPlayerFromControllerId(0);
 		if (LP && LP->ViewportClient)
@@ -252,6 +235,23 @@ void FLidarPointCloudViewData::Compute()
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	bPIE = false;
+	if (GIsEditor && GEditor && GEditor->GetActiveViewport())
+	{
+		bPIE = GEditor->GetActiveViewport() == GEditor->GetPIEViewport();
+		
+		// PIE needs a different computation method
+		if (!bValid && !bPIE)
+		{
+			ComputeFromEditorViewportClient(GEditor->GetActiveViewport()->GetClient());
+		}
+
+		// Simulating counts as PIE for the purpose of LOD calculation
+		bPIE |= GEditor->bIsSimulatingInEditor;
+	}
+#endif
 }
 
 bool FLidarPointCloudViewData::ComputeFromEditorViewportClient(FViewportClient* ViewportClient)
@@ -407,7 +407,22 @@ void FLidarPointCloudLODManager::RegisterProxy(ULidarPointCloudComponent* Compon
 
 void FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODManager::FRegisteredProxy>& InRegisteredProxies, const float CurrentTime)
 {
-	const int32 PointBudget = CVarLidarPointBudget.GetValueOnAnyThread();
+	int32 PointBudget = CVarLidarPointBudget.GetValueOnAnyThread();
+
+#if PLATFORM_MAC
+	static bool bMetalBudgetNotified = false;
+	if (PointBudget > 9586980)
+	{
+		PointBudget = 9586980;
+		
+		if (!bMetalBudgetNotified)
+		{
+			bMetalBudgetNotified = true;
+			PC_WARNING("Metal API supports a maximum point budget of 9,586,980. The requested budget has been automatically capped to avoid a crash. This will be fixed for 4.26.");
+		}
+	}
+#endif
+
 	static FLidarPointCloudDataBufferManager BufferManager(PointBudget * 17);
 	BufferManager.Resize(PointBudget * 17);
 

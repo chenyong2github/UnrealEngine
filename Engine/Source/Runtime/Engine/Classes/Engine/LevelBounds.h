@@ -49,7 +49,7 @@ class ENGINE_API ALevelBounds
 	//~ End AActor Interface.
 
 	/** @return Bounding box which includes all relevant actors bounding boxes belonging to specified level */
-	static FBox CalculateLevelBounds(ULevel* InLevel);
+	static FBox CalculateLevelBounds(const ULevel* InLevel);
 
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;

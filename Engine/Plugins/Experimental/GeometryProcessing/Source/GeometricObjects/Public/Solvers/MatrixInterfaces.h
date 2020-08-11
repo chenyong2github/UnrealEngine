@@ -47,6 +47,28 @@ namespace UE
 
 
 
+		/**
+		 * Basic UV constraint
+		 */
+		struct FUVConstraint
+		{
+			/** ID of constrained UV element */
+			int32 ElementID = -1;
+
+			/** Index/Identifier of constraint, defined by usage */
+			int32 ConstraintIndex = -1;
+
+			/** Constraint position */
+			FVector2d Position = FVector2d::Zero();
+
+			/** If bPostFix is true, this position constraint should be explicitly enforced after a solve */
+			bool bPostFix = false;
+
+			/** Arbitrary weight */
+			double Weight = 1.0;
+		};
+
+
 	}
 }
 

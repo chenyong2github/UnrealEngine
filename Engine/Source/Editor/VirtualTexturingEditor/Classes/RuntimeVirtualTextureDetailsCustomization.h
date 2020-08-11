@@ -45,10 +45,20 @@ public:
 protected:
 	FRuntimeVirtualTextureComponentDetailsCustomization();
 
+	/** Callback for Set Bounds button */
+	FReply SetBounds();
+
 	/** Callback for Build button */
 	FReply BuildStreamedMips();
 	/** Callback for Build Debug button */
 	FReply BuildLowMipsDebug();
+	/** Shared implementation for Build callbacks */
+	FReply BuildStreamedMipsInternal(bool bDebug);
+
+	/** Returns true if MinMax texture build button is enabled */
+	bool IsMinMaxTextureEnabled() const;
+	/** Callback for Build MinMax Texture button */
+	FReply BuildMinMaxTexture();
 
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;

@@ -108,14 +108,6 @@ void FStudioAnalytics::RecordEvent(const FString& EventName, const TArray<FAnaly
 	}
 }
 
-void FStudioAnalytics::RecordEvent(const FString& EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
-{
-	if (FStudioAnalytics::IsAvailable())
-	{
-		FStudioAnalytics::GetProvider().RecordEvent(EventName, MoveTemp(Attributes));
-	}
-}
-
 void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double SecondsSpentLoading, const TArray<FAnalyticsEventAttribute>& InAttributes)
 {
 	// Ignore anything less than a 1/4th a second.
@@ -125,7 +117,7 @@ void FStudioAnalytics::FireEvent_Loading(const FString& LoadingName, double Seco
 	}
 
 	// Throw out anything over 10 hours - 
-	if (SecondsSpentLoading > 36000)
+	if (!ensureMsgf(SecondsSpentLoading < 36000, TEXT("The loading event shouldn't be over 10 hours, perhaps an uninitialized bit of memory?")))
 	{
 		return;
 	}

@@ -114,7 +114,7 @@ class Watchdog {
 
 	constructor() {
 		// expose a webserver that can be used to check status
-		this.statusServer = new RoboServer(VersionReader.toString(), args.externalUrl,
+		this.statusServer = new RoboServer(args.externalUrl,
 			(name: string, args?: any[]) => this.sendMessage(name, args), 
 			() => this.watchdogLogger.getLogTail(), () => this.getLastCrash(), () => this.stopBot(), () => this.startBot()
 		)

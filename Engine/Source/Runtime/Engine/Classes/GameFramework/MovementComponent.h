@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
+#include "Chaos/ChaosEngineInterface.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "MovementComponent.generated.h"
@@ -19,6 +20,7 @@ class UPrimitiveComponent;
 struct FCollisionQueryParams;
 struct FCollisionResponseParams;
 struct FCollisionShape;
+
 
 /**
  * Setting that controls behavior when movement is restricted to a 2D plane defined by a specific axis/normal,

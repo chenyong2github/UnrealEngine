@@ -309,28 +309,6 @@ struct TSQTraits
 	constexpr static bool IsSweep() { return GeometryQuery == ESweepOrRay::Sweep;  }
 };
 
-struct FScopeHelper
-{
-	FScopeHelper()
-	{
-		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Chaos::FPersistentPhysicsTask* PhysicsThread = Module ? Module->GetDedicatedTask() : nullptr;
-		MLock = PhysicsThread ? &PhysicsThread->CacheLock : nullptr;
-		if (MLock)
-		{
-			MLock->ReadLock();
-		}
-	}
-	~FScopeHelper()
-	{
-		if (MLock)
-		{
-			MLock->ReadUnlock();
-		}
-	}
-	FRWLock* MLock;
-};
-
 template <typename Traits, typename TGeomInputs>
 bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, const TGeomInputs& GeomInputs, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
@@ -378,8 +356,6 @@ bool TSceneCastCommon(const UWorld* World, typename Traits::TOutHits& OutHits, c
 		// Enable scene locks, in case they are required
 		FPhysScene& PhysScene = *World->GetPhysicsScene();
 		
-		FScopeHelper ChaosLockedScope;
-
 		FScopedSceneReadLock SceneLocks(PhysScene);
 		{
 			FScopedSQHitchRepeater<decltype(HitBufferSync)> HitchRepeater(HitBufferSync, QueryCallback, FHitchDetectionInfo(Start, End, TraceChannel, Params));

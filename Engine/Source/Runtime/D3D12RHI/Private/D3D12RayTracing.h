@@ -101,6 +101,9 @@ public:
 
 	uint32 ShaderSlotsPerGeometrySegment = 1;
 
+	// Exclusive prefix sum of `Instance.NumTransforms` for all instances in this scene. Used to emulate SV_InstanceID in hit shaders.
+	TArray<uint32> BaseInstancePrefixSum;
+
 	// Exclusive prefix sum of instance geometry segments is used to calculate SBT record address from instance and segment indices.
 	TArray<uint32> SegmentPrefixSum;
 	uint32 NumTotalSegments = 0;

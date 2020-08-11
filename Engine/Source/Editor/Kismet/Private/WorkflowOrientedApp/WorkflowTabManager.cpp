@@ -455,7 +455,7 @@ void FDocumentTracker::OnTabForegrounded(TSharedPtr<SDockTab> ForegroundedTab, T
 	TSharedPtr<FDocumentTabFactory> ForegroundFactory, BackgroundFactory;
 
 	FTabList& List = GetSpawnedList();
-	for ( const TSharedPtr<FTabInfo> TabInfo : List )
+	for ( const TSharedPtr<FTabInfo>& TabInfo : List )
 	{
 		// Get the factory (can't fail; the tabs had to come from somewhere; failing means a tab survived a mode transition to a mode where it is not allowed!)
 		TSharedPtr<FDocumentTabFactory> Factory = TabInfo->GetFactory().Pin();

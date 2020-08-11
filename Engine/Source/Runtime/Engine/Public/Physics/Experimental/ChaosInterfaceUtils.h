@@ -5,7 +5,7 @@
 #include "Containers/ContainersFwd.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Templates/UniquePtr.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "Chaos/GeometryParticles.h"
 

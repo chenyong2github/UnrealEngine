@@ -134,6 +134,10 @@ namespace Chaos
 		FReal TwistRestitution;
 		FReal SwingRestitution;
 
+		FReal LinearContactDistance;
+		FReal TwistContactDistance;
+		FReal SwingContactDistance;
+
 		FVec3 LinearDrivePositionTarget;
 		FVec3 LinearDriveVelocityTarget;
 		TVector<bool, 3> bLinearPositionDriveEnabled;
@@ -157,6 +161,8 @@ namespace Chaos
 
 		FReal LinearBreakForce;
 		FReal AngularBreakTorque;
+
+		void* UserData;
 	};
 
 	class CHAOS_API FPBDJointSolverSettings

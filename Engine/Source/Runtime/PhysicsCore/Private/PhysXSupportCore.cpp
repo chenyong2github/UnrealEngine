@@ -11,6 +11,9 @@ PxFoundation* GPhysXFoundation = nullptr;
 FPhysXAllocator* GPhysXAllocator = nullptr;
 PxPvd* GPhysXVisualDebugger = nullptr;
 physx::PxPhysics* GPhysXSDK = nullptr;
+
+TArray<PxMaterial*> GPhysXPendingKillMaterial;
+
 #if WITH_APEX
 PHYSICSCORE_API apex::ApexSDK* GApexSDK = nullptr;
 

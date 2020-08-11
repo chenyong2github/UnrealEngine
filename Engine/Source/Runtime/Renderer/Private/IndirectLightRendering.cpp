@@ -1252,7 +1252,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	FRHICommandListImmediate& RHICmdList,
 	TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO,
 	const TRefCountPtr<IPooledRenderTarget>& VelocityRT,
-	FHairStrandsDatas* HairDatas,
+	FHairStrandsRenderingData* HairDatas,
 	const TRefCountPtr<IPooledRenderTarget>& LumenDiffuseGI)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -1671,7 +1671,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
 	FRHICommandListImmediate& RHICmdList,
-	FHairStrandsDatas* HairDatas)
+	FHairStrandsRenderingData* HairDatas)
 {
 	check(RHICmdList.IsOutsideRenderPass());
 

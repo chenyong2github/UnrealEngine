@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieSceneFloatTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneFadeTrack.generated.h"
 
 /**
@@ -13,6 +14,7 @@
 UCLASS(MinimalAPI)
 class UMovieSceneFadeTrack
 	: public UMovieSceneFloatTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

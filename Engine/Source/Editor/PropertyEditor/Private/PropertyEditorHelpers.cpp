@@ -35,6 +35,10 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 {
 	PropertyEditor = InPropertyEditor;
 
+	static const FName NAME_TitleProperty = FName(TEXT("TitleProperty"));
+	// If our property has title support we pass in empty below so it retrieves a live value
+	const bool bHasTitleProperty = InPropertyEditor->GetProperty() && InPropertyEditor->GetProperty()->HasMetaData(NAME_TitleProperty);
+
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	ChildSlot
 	[
@@ -49,7 +53,7 @@ void SPropertyNameWidget::Construct( const FArguments& InArgs, TSharedPtr<FPrope
 			.VAlign(VAlign_Center)
 			[
 				SNew( SPropertyEditorTitle, PropertyEditor.ToSharedRef() )
-				.StaticDisplayName( PropertyEditor->GetDisplayName() )
+				.StaticDisplayName(bHasTitleProperty ? FText::GetEmpty() : PropertyEditor->GetDisplayName())
 				.OnDoubleClicked( InArgs._OnDoubleClicked )
                 .ToolTip( IDocumentation::Get()->CreateToolTip( PropertyEditor->GetToolTipText(), NULL, PropertyEditor->GetDocumentationLink(), PropertyEditor->GetDocumentationExcerptName() ) )
 			]
@@ -281,9 +285,12 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		}
 		else if ( SPropertyEditorCombo::Supports( PropertyEditorRef ) )
 		{
+			FPropertyComboBoxArgs ComboArgs;
+			ComboArgs.Font = FontStyle;
+
 			TSharedRef<SPropertyEditorCombo> ComboWidget = 
 				SAssignNew( PropertyWidget, SPropertyEditorCombo, PropertyEditorRef )
-				.Font( FontStyle );
+				.ComboArgs( ComboArgs );
 
 			ComboWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
 		}
@@ -682,12 +689,6 @@ namespace PropertyEditorHelpers
 		// Handle a container property.
 		if( NodeProperty->IsA(FArrayProperty::StaticClass()) || NodeProperty->IsA(FSetProperty::StaticClass()) || NodeProperty->IsA(FMapProperty::StaticClass()) )
 		{
-			if (!NodeProperty->IsA(FArrayProperty::StaticClass()))
-		{
-				// Only Sets and Maps get a Documentation widget
-				OutRequiredButtons.Add(EPropertyButton::Documentation);
-			}
-			
 			if( !(NodeProperty->PropertyFlags & CPF_EditFixedSize) )
 			{
 				OutRequiredButtons.Add( EPropertyButton::Add );

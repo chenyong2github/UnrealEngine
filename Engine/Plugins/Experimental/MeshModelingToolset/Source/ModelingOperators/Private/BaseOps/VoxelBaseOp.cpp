@@ -6,7 +6,8 @@
 
 #include "DynamicMeshEditor.h"
 #include "MeshSimplification.h"
-
+#include "MeshNormals.h"
+#include "Operations/RemoveOccludedTriangles.h"
 
 void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellSize)
 {
@@ -15,12 +16,15 @@ void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellS
 		return;
 	}
 
+	if (bRemoveInternalSurfaces)
+	{
+		UE::MeshAutoRepair::RemoveInternalTriangles(*ResultMesh.Get(), true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
+	}
+
 
 	bool bFixNormals = bAutoSimplify;
-
-	
 	{
-		FAttrMeshSimplification Reducer(ResultMesh.Get());
+		FQEMSimplification Reducer(ResultMesh.Get());
 		Reducer.Progress = Progress;
 		Reducer.FastCollapsePass(MeshCellSize * .5, 3, true);
 
@@ -51,6 +55,11 @@ void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellS
 		EditNormalsOp.CalculateResult(Progress);
 
 		ResultMesh = EditNormalsOp.ExtractResult(); // return the edit normals operator copy to this tool.
+	}
+	else
+	{
+		// if nothing was simplified, just use quick vertex normals
+		FMeshNormals::QuickComputeVertexNormals(*ResultMesh.Get());
 	}
 
 	if (MinComponentVolume > 0 || MinComponentArea > 0)

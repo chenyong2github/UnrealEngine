@@ -473,6 +473,7 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NativeUpdateAnimation);
+		CSV_SCOPED_TIMING_STAT(Animation, NativeUpdate);
 		NativeUpdateAnimation(DeltaSeconds);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -482,6 +483,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
+		CSV_SCOPED_TIMING_STAT(Animation, BlueprintUpdate);
 		BlueprintUpdateAnimation(DeltaSeconds);
 	}
 	

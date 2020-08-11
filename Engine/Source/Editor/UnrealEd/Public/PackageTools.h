@@ -192,8 +192,8 @@ private:
 
 	static void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
-	static UPackage* PackageBeingUnloaded;
-	static TMap<UObject*, UObject*> ObjectsThatHadFlagsCleared;
+	static TArray<UPackage*>* PackagesBeingUnloaded;
+	static TSet<UObject*> ObjectsThatHadFlagsCleared;
 	static FDelegateHandle ReachabilityCallbackHandle;
 };
 

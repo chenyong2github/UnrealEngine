@@ -34,6 +34,8 @@
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Images/SImage.h"
+#include "InputRouter.h"
+#include "InteractiveGizmoManager.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -821,12 +823,12 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 		{
 			bReentrant = true;
 
-			for( const FEditorModeID ModeID : DefaultModeIDs )
+			for( const FEditorModeID& ModeID : DefaultModeIDs )
 			{
 				ActivateMode( ModeID );
 			}
 
-			for( const FEditorModeID ModeID : DefaultModeIDs )
+			for( const FEditorModeID& ModeID : DefaultModeIDs )
 			{
 				check( IsModeActive( ModeID ) );
 			}
@@ -896,9 +898,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 		Toolkit->GetToolPaletteNames(PaletteNames);
 		for (auto Palette : PaletteNames)
 		{
-			const bool bUniform = true;
-
-			FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName));
+			FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
 			ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 			Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
@@ -1701,7 +1701,7 @@ bool FEditorModeTools::IsModeActive( FEditorModeID InID ) const
 bool FEditorModeTools::IsDefaultModeActive() const
 {
 	bool bAllDefaultModesActive = true;
-	for( const FEditorModeID ModeID : DefaultModeIDs )
+	for( const FEditorModeID& ModeID : DefaultModeIDs )
 	{
 		if( !IsModeActive( ModeID ) )
 		{

@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_VOICE_CHANNEL_H
@@ -6,6 +6,9 @@
 
 #include "rail/sdk/base/rail_component.h"
 #include "rail/sdk/rail_voice_channel_define.h"
+
+// @desc To use the IRailVoiceChannel APIs, you will first enable the feature by contacting the
+// platform. In future, enabling the feature might be configurable on the developer portal.
 
 namespace rail {
 #pragma pack(push, RAIL_SDK_PACKING)
@@ -119,6 +122,10 @@ class IRailVoiceHelper {
     // show the overlay ui provided by WeGame, players could do simple operations of voice features
     // it was not shown by default
     virtual RailResult ShowOverlayUI(bool show) = 0;
+
+    virtual RailResult SetMicroVolume(uint32_t volume) = 0;
+
+    virtual RailResult SetSpeakerVolume(uint32_t volume) = 0;
 };
 
 class IRailVoiceChannel : public IRailComponent {

@@ -29,6 +29,7 @@ enum class EInstallBundleManagerInitResult : int
 {
 	OK,
 	BuildMetaDataNotFound,
+	RemoteBuildMetaDataNotFound,
 	BuildMetaDataDownloadError,
 	BuildMetaDataParsingError,
 	DistributionRootParseError,
@@ -39,6 +40,7 @@ enum class EInstallBundleManagerInitResult : int
 	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
 	ConfigurationError,
+	ClientPatchRequiredError,
 	Count
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleManagerInitResult Result);
@@ -91,15 +93,16 @@ DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleC
 
 enum class EInstallBundleRequestInfoFlags : int32
 {
-	None = 0,
-	EnqueuedBundlesForInstall = (1 << 0),
-	SkippedAlreadyMountedBundles = (1 << 1),
-	SkippedAlreadyUpdatedBundles = (1 << 2), // Only possible with EInstallBundleRequestFlags::SkipMount
-	SkippedUnknownBundles = (1 << 3),
-	SkippedInvalidBundles = (1 << 4), // Bundle can't be used with this build
-	SkippedUnusableLanguageBundles = (1 << 5), // Can't enqueue language bundles because of current system settings
-	SkippedBundlesDueToBundleSource = (1 << 6), // A bundle source rejected a bundle for some reason
-	InitializationError = (1 << 7), // Can't enqueue because the bundle manager failed to initialize
+	None							= 0,
+	EnqueuedBundles					= (1 << 0),
+	SkippedAlreadyMountedBundles	= (1 << 1),
+	SkippedAlreadyUpdatedBundles	= (1 << 2), // Only possible with EInstallBundleRequestFlags::SkipMount
+	SkippedAlreadyReleasedBundles	= (1 << 3),
+	SkippedAlreadyRemovedBundles	= (1 << 4), // Only possible with EInstallBundleReleaseRequestFlags::RemoveFilesIfPossible
+	SkippedUnknownBundles			= (1 << 5),
+	SkippedInvalidBundles			= (1 << 6), // Bundle can't be used with this build
+	SkippedUnusableLanguageBundles	= (1 << 7), // Can't enqueue language bundles because of current system settings
+	SkippedBundlesDueToBundleSource	= (1 << 8), // A bundle source rejected a bundle for some reason
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestInfoFlags);
 
@@ -114,6 +117,7 @@ enum class EInstallBundleResult : int
 	ManifestArchiveError,
 	UserCancelledError,
 	InitializationError,
+	InitializationPending,
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleResult Result);
@@ -133,17 +137,24 @@ enum class EInstallBundleRequestFlags : uint32
 };
 ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
-enum class EInstallBundleRequestReleaseFlags : uint32
+enum class EInstallBundleReleaseResult
+{
+	OK,
+	Count,
+};
+INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleReleaseResult Result);
+
+enum class EInstallBundleReleaseRequestFlags : uint32
 {
 	None = 0,
 	RemoveFilesIfPossible = (1 << 0),  // Bundle sources must support removal, and bundle must not be part of the source's cache
 };
-ENUM_CLASS_FLAGS(EInstallBundleRequestReleaseFlags)
+ENUM_CLASS_FLAGS(EInstallBundleReleaseRequestFlags)
 
 struct FInstallBundleRequestInfo
 {
 	EInstallBundleRequestInfoFlags InfoFlags = EInstallBundleRequestInfoFlags::None;
-	TArray<FName> BundlesQueuedForInstall;
+	TArray<FName> BundlesEnqueued;
 };
 
 enum class EInstallBundleCancelFlags : uint32
@@ -171,6 +182,12 @@ enum class EInstallBundleStatus : int
 	Count,
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleStatus Status);
+
+enum class EOverallInstallationProcessStep : int
+{
+	Downloading,
+	Installing
+};
 
 enum class EInstallBundleManagerPatchCheckResult : uint32
 {
@@ -254,6 +271,8 @@ struct FInstallBundleSourceUpdateContentResultInfo
 	TArray<FString> AdditionalRootDirs;
 	// Support platforms that need shaderlibs in the physical FS
 	TSet<FString> NonUFSShaderLibPaths;
+
+	uint64 CurrentInstallSize = 0;
 
 	bool bContentWasInstalled = false;
 	

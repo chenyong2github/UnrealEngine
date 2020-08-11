@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 
 DEFINE_LOG_CATEGORY(LogMovieScene);
 
@@ -97,10 +98,13 @@ public:
 			void operator()(FMovieSceneModule* Object) const {}
 		};
 		ModuleHandle = MakeShareable(this, FNoopDefaultDeleter());
+
+		UE::MovieScene::FBuiltInComponentTypes::Get();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UE::MovieScene::FBuiltInComponentTypes::Destroy();
 	}
 
 	virtual void RegisterEvaluationGroupParameters(FName GroupName, const FMovieSceneEvaluationGroupParameters& GroupParameters) override

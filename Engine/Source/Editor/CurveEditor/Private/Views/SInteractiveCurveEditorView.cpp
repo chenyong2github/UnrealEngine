@@ -1220,7 +1220,7 @@ void SInteractiveCurveEditorView::AddKeyAtTime(const TSet<FCurveModelID>& ToCurv
 	// Clear the selection set as we will be selecting all the new keys created.
 	CurveEditor->GetSelection().Clear();
 
-	for (const FCurveModelID CurveModelID : ToCurves)
+	for (const FCurveModelID& CurveModelID : ToCurves)
 	{
 		FCurveModel* CurveModel = CurveEditor->FindCurve(CurveModelID);
 		check(CurveModel);

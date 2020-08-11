@@ -47,10 +47,12 @@ public:
 	static const FName SequencerGraphEditor;
 	static const FName WorldSettings;
 	static const FName WorldBrowserComposition;
+	static const FName WorldBrowserPartitionEditor;
 	static const FName WorldBrowserHierarchy;
 	static const FName WorldBrowserDetails;
 	static const FName LevelEditorHierarchicalLODOutliner;
 	static const FName OutputLog;
+	static const FName LevelEditorEnvironmentLightingViewer;
 };
 
 /**
@@ -99,6 +101,7 @@ public:
 	virtual void SummonWorldBrowserHierarchy();
 	virtual void SummonWorldBrowserDetails();
 	virtual void SummonWorldBrowserComposition();
+	virtual void SummonWorldBrowserPartitionEditor();
 
 	// @todo remove when world-centric mode is added
 	/**

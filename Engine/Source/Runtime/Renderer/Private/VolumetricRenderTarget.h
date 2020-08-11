@@ -19,7 +19,6 @@ class FViewInfo;
 
 
 
-bool ShouldViewRenderVolumetricRenderTarget(const FViewInfo& ViewInfo);
+bool ShouldViewRenderVolumetricCloudRenderTarget(const FViewInfo& ViewInfo);
 
-uint32 GetVolumetricRenderTargetMode();
 

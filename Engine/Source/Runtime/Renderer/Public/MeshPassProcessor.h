@@ -625,12 +625,12 @@ struct FMeshDrawCommandDebugData
 {
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
-	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
 	TShaderRef<FShader> VertexShader;
 	TShaderRef<FShader> PixelShader;
 	const FVertexFactory* VertexFactory;
 	FName ResourceName;
+	FString MaterialName;
 #endif
 };
 
@@ -810,7 +810,7 @@ public:
 
 	/** Set shader bindings on the commandlist, filtered by state cache. */
 	void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
-	void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const;
+	void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
 	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndex, uint32 ShaderSlot) const;

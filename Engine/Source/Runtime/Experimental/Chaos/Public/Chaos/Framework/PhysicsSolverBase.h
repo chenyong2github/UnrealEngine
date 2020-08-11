@@ -10,6 +10,7 @@
 #include "Async/ParallelFor.h"
 #include "Containers/Queue.h"
 #include "Chaos/EvolutionTraits.h"
+#include "Chaos/ChaosMarshallingManager.h"
 
 class FChaosSolversModule;
 
@@ -26,16 +27,17 @@ namespace Chaos
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase* InSolver, FReal InDt);
+		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt);
 
 		TStatId GetStatId() const;
 		static ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode();
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		static void AdvanceSolver(FPhysicsSolverBase& Solver,TArray<TFunction<void()>>&& Queue,const FReal Dt);
 
 	private:
 
-		FPhysicsSolverBase* Solver;
+		FPhysicsSolverBase& Solver;
 		TArray<TFunction<void()>> Queue;
 		FReal Dt;
 	};
@@ -51,167 +53,6 @@ namespace Chaos
 		DedicatedThread,
 		TaskGraph,
 		SingleThread
-	};
-
-	struct FDirtyProxy
-	{
-		IPhysicsProxyBase* Proxy;
-		FParticleDirtyData ParticleData;
-		TArray<int32> ShapeDataIndices;
-
-		FDirtyProxy(IPhysicsProxyBase* InProxy)
-			: Proxy(InProxy)
-		{
-		}
-
-		void SetDirtyIdx(int32 Idx)
-		{
-			Proxy->SetDirtyIdx(Idx);
-		}
-
-		void AddShape(int32 ShapeDataIdx)
-		{
-			ShapeDataIndices.Add(ShapeDataIdx);
-		}
-
-		void Clear(FDirtyPropertiesManager& Manager,int32 DataIdx,FShapeDirtyData* ShapesData)
-		{
-			ParticleData.Clear(Manager,DataIdx);
-			for(int32 ShapeDataIdx : ShapeDataIndices)
-			{
-				ShapesData[ShapeDataIdx].Clear(Manager,ShapeDataIdx);
-			}
-		}
-	};
-
-	class FDirtySet
-	{
-	public:
-		void Add(IPhysicsProxyBase* Base)
-		{
-			if(Base->GetDirtyIdx() == INDEX_NONE)
-			{
-				const int32 Idx = ProxiesData.Num();
-				Base->SetDirtyIdx(Idx);
-				ProxiesData.Add(Base);
-			}
-		}
-
-		// Batch proxy insertion, does not check DirtyIdx.
-		template< typename TProxiesArray>
-		void AddMultipleUnsafe(TProxiesArray& ProxiesArray)
-		{
-			int32 Idx = ProxiesData.Num();
-			ProxiesData.Append(ProxiesArray);
-
-			for(IPhysicsProxyBase* Proxy : ProxiesArray)
-			{
-				Proxy->SetDirtyIdx(Idx++);
-			}
-		}
-
-
-		void Remove(IPhysicsProxyBase* Base)
-		{
-			const int32 Idx = Base->GetDirtyIdx();
-			if(Idx != INDEX_NONE)
-			{
-				if(Idx == ProxiesData.Num() - 1)
-				{
-					//last element so just pop
-					ProxiesData.Pop(/*bAllowShrinking=*/false);
-				} else
-				{
-					//update other proxy's idx
-					ProxiesData.RemoveAtSwap(Idx);
-					ProxiesData[Idx].SetDirtyIdx(Idx);
-				}
-
-				Base->ResetDirtyIdx();
-			}
-		}
-
-		void Reset()
-		{
-			ProxiesData.Reset();
-			ShapesData.Reset();
-		}
-
-		int32 NumDirtyProxies() const { return ProxiesData.Num(); }
-		int32 NumDirtyShapes() const { return ShapesData.Num(); }
-
-		FShapeDirtyData* GetShapesDirtyData(){ return ShapesData.GetData(); }
-
-		template <typename Lambda>
-		void ParallelForEachProxy(const Lambda& Func)
-		{
-			::ParallelFor(ProxiesData.Num(),[this,&Func](int32 Idx)
-			{
-				Func(Idx,ProxiesData[Idx]);
-			});
-		}
-
-		template <typename Lambda>
-		void ParallelForEachProxy(const Lambda& Func) const
-		{
-			::ParallelFor(ProxiesData.Num(),[this,&Func](int32 Idx)
-			{
-				Func(Idx,ProxiesData[Idx]);
-			});
-		}
-
-		template <typename Lambda>
-		void ForEachProxy(const Lambda& Func)
-		{
-			int32 Idx = 0;
-			for(FDirtyProxy& Dirty : ProxiesData)
-			{
-				Func(Idx++,Dirty);
-			}
-		}
-
-		template <typename Lambda>
-		void ForEachProxy(const Lambda& Func) const
-		{
-			int32 Idx = 0;
-			for(const FDirtyProxy& Dirty : ProxiesData)
-			{
-				Func(Idx++,Dirty);
-			}
-		}
-
-		void AddShape(IPhysicsProxyBase* Proxy,int32 ShapeIdx)
-		{
-			Add(Proxy);
-			FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
-			for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx <= ShapeIdx; ++NewShapeIdx)
-			{
-				const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
-				Dirty.AddShape(ShapeDataIdx);
-			}
-		}
-
-		void SetNumDirtyShapes(IPhysicsProxyBase* Proxy,int32 NumShapes)
-		{
-			Add(Proxy);
-			FDirtyProxy& Dirty = ProxiesData[Proxy->GetDirtyIdx()];
-
-			if(NumShapes < Dirty.ShapeDataIndices.Num())
-			{
-				Dirty.ShapeDataIndices.SetNum(NumShapes);
-			} else
-			{
-				for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx < NumShapes; ++NewShapeIdx)
-				{
-					const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
-					Dirty.AddShape(ShapeDataIdx);
-				}
-			}
-		}
-
-	private:
-		TArray<FDirtyProxy> ProxiesData;
-		TArray<FShapeDirtyData> ShapesData;
 	};
 
 	class CHAOS_API FPhysicsSolverBase
@@ -241,28 +82,28 @@ namespace Chaos
 		bool HasPendingCommands() const { return CommandQueue.Num() > 0; }
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
-			DirtyProxiesDataBuffer.AccessProducerBuffer()->Add(ProxyBaseIn);
+			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.Add(ProxyBaseIn);
 		}
 		void RemoveDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
-			DirtyProxiesDataBuffer.AccessProducerBuffer()->Remove(ProxyBaseIn);
+			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.Remove(ProxyBaseIn);
 		}
 
 		// Batch dirty proxies without checking DirtyIdx.
 		template <typename TProxiesArray>
 		void AddDirtyProxiesUnsafe(TProxiesArray& ProxiesArray)
 		{
-			DirtyProxiesDataBuffer.AccessProducerBuffer()->AddMultipleUnsafe(ProxiesArray);
+			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.AddMultipleUnsafe(ProxiesArray);
 		}
 
 		void AddDirtyProxyShape(IPhysicsProxyBase* ProxyBaseIn, int32 ShapeIdx)
 		{
-			DirtyProxiesDataBuffer.AccessProducerBuffer()->AddShape(ProxyBaseIn,ShapeIdx);
+			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.AddShape(ProxyBaseIn,ShapeIdx);
 		}
 
 		void SetNumDirtyShapes(IPhysicsProxyBase* Proxy, int32 NumShapes)
 		{
-			DirtyProxiesDataBuffer.AccessProducerBuffer()->SetNumDirtyShapes(Proxy,NumShapes);
+			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.SetNumDirtyShapes(Proxy,NumShapes);
 		}
 
 		template <typename Lambda>
@@ -290,6 +131,17 @@ namespace Chaos
 			}
 		}
 
+		//Need this until we have a better way to deal with pending commands that affect scene query structure
+		void FlushCommands_External()
+		{
+			WaitOnPendingTasks_External();
+			for(const auto& Command : CommandQueue)
+			{
+				Command();
+			}
+			CommandQueue.Empty();
+		}
+
 		const UObject* GetOwner() const
 		{ 
 			return Owner; 
@@ -312,16 +164,34 @@ namespace Chaos
 			}
 		}
 
+		EThreadingModeTemp GetThreadingMode() const
+		{
+			return ThreadingMode;
+		}
+
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
+			//make sure any GT state is pushed into necessary buffer
+			PushPhysicsState(InDt);
+
 			//todo: handle dt etc..
-			FGraphEventArray Prereqs;
-			if(PendingTasks && !PendingTasks->IsComplete())
+			if(ThreadingMode == EThreadingModeTemp::SingleThread)
 			{
-				Prereqs.Add(PendingTasks);
+				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
+				ensure(CommandQueue.Num() == 0);	//commands execute right away. Once we add fixed dt this will change
+				FPhysicsSolverAdvanceTask::AdvanceSolver(*this, MoveTemp(CommandQueue),InDt);
+			}
+			else
+			{
+				FGraphEventArray Prereqs;
+				if(PendingTasks && !PendingTasks->IsComplete())
+				{
+					Prereqs.Add(PendingTasks);
+				}
+
+				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue),InDt);
 			}
 
-			PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(this,InDt);
 			return PendingTasks;
 		}
 
@@ -377,15 +247,13 @@ namespace Chaos
 		FPhysicsSolverBase& operator =(FPhysicsSolverBase&& InSteal) = delete;
 
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
-
-
-		//NOTE: if you want to make this virtual, you need to make sure AddProxy is still inlinable since it gets called every time we do a write
-		//The easiest way is probably to have an FDirtySet* that we always write to, and then swap it into this generic buffer that is virtual
-		FDoubleBuffer<FDirtySet> DirtyProxiesDataBuffer;
+		virtual void PushPhysicsState(const FReal Dt) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;
 #endif
+
+	FChaosMarshallingManager MarshallingManager;
 
 	//
 	// Commands
@@ -406,7 +274,6 @@ namespace Chaos
 		FRWLock QueryMaterialLock;
 
 		friend FChaosSolversModule;
-		friend FPersistentPhysicsTask;
 		friend FPhysicsSolverAdvanceTask;
 
 		template<ELockType>

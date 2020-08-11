@@ -1039,11 +1039,11 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
 					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(Material, bUseInstancing);
 
-					if (VertexShader.IsValid() && PixelShader.IsValid())
+					if (VertexShader.IsValid() && PixelShader.IsValid() && IsSceneTexturesValid(RHICmdList))
 					{
 						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
 							RHICmdList,
-							ActiveSceneView.GetFeatureLevel(),
+							FeatureLevel,
 							ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SSAO | ESceneTextureSetupMode::CustomDepth,
 							UniformBuffer_SingleDraw);
 						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);

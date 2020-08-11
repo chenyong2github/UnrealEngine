@@ -45,7 +45,7 @@ FName FActorLayerViewModel::GetFName() const
 		return NAME_None;
 	}
 
-	return Layer->LayerName;
+	return Layer->GetLayerName();
 }
 
 
@@ -56,7 +56,7 @@ FText FActorLayerViewModel::GetName() const
 		return FText::GetEmpty();
 	}
 
-	return FText::FromName(Layer->LayerName);
+	return FText::FromName(Layer->GetLayerName());
 }
 
 
@@ -67,7 +67,17 @@ bool FActorLayerViewModel::IsVisible() const
 		return false;
 	}
 
-	return Layer->bIsVisible;
+	return Layer->IsVisible();
+}
+
+bool FActorLayerViewModel::ShouldActorsBeLoaded() const
+{
+	if( !Layer.IsValid() )
+	{
+		return false;
+	}
+
+	return Layer->ShouldLoadActors();
 }
 
 

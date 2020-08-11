@@ -100,7 +100,8 @@ void UK2Node_SwitchString::CreateCasePins()
 {
 	for( const FName& PinName : PinNames)
 	{
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+		UEdGraphPin* Pin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+		Pin->bAllowFriendlyName = false;
 	}
 }
 
@@ -124,7 +125,8 @@ void UK2Node_SwitchString::AddPinToSwitchNode()
 	const FName PinName = GetUniquePinName();
 	PinNames.Add(PinName);
 
-	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+	UEdGraphPin* Pin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+	Pin->bAllowFriendlyName = false;
 }
 
 void UK2Node_SwitchString::RemovePin(UEdGraphPin* TargetPin)
@@ -138,11 +140,23 @@ void UK2Node_SwitchString::RemovePin(UEdGraphPin* TargetPin)
 void UK2Node_SwitchString::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const
 {
 	Super::ValidateNodeDuringCompilation(MessageLog);
+	
+	TArray<FString> UniquePinNames;
+	UniquePinNames.Reserve(PinNames.Num());
+	ESearchCase::Type CaseSensitivity = bIsCaseSensitive ? ESearchCase::CaseSensitive : ESearchCase::IgnoreCase;
 
-	TSet<FName> UniquePinNames(PinNames);
-
-	if (UniquePinNames.Num() != PinNames.Num())
+	for (FName Pin : PinNames)
 	{
-		MessageLog.Error(*NSLOCTEXT("K2Node", "SwitchString_DuplicateCases", "@@ contains duplicate cases.").ToString(), this);
+		FString PinStr = Pin.ToString();
+
+		for (const FString& UniquePin : UniquePinNames)
+		{
+			if (PinStr.Equals(UniquePin, CaseSensitivity))
+			{
+				MessageLog.Error(*NSLOCTEXT("K2Node", "SwitchString_DuplicateCases", "@@ contains duplicate cases.").ToString(), this);
+				return;
+			}
+		}
+		UniquePinNames.Emplace(MoveTemp(PinStr));
 	}
 }

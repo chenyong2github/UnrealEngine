@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016, Entropy Game Global Limited.
+﻿// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_EVENT_H
@@ -68,6 +68,10 @@ enum RAILEventID {
     kRailEventUserSpaceRemoveSpaceWorkResult = 4008,
     kRailEventUserSpaceVoteSpaceWorkResult = 4009,
     kRailEventUserSpaceSearchSpaceWorkResult = 4010,
+    kRailEventUserSpaceQuerySpaceWorksResultV2 = 4011,
+    kRailEventUserSpaceDownloadProgress = 4012,
+    kRailEventUserSpaceDownloadResult = 4013,
+    kRailEventUserSpaceRateSpaceWorkResult = 4014,
 
     // net channel
     kRailEventNetChannel = 5000,
@@ -113,6 +117,7 @@ enum RAILEventID {
     kRailEventUtilsBegin = 8000,
     kRailEventUtilsSignatureResult = 8002,
     kRailEventUtilsGetImageDataResult = 8003,
+    kRailEventUtilsGameSettingMetadataChanged = 8004,
 
     // in-game purchase
     kRailEventInGamePurchaseBegin = 9000,
@@ -130,10 +135,11 @@ enum RAILEventID {
 
     // room
     kRailEventRoom = 10000,
-    kRailEventRoomZoneListResult = 10001,
-    kRailEventRoomListResult = 10002,
+    // kRailEventRoomGetRoomGroupListResult = 10001,  // not used.
+    kRailEventRoomGetRoomListResult = 10002,  // rename from kRailEventRoomListResult, 2018/11/27.
     kRailEventRoomCreated = 10003,
-    kRailEventRoomGotRoomMembers = 10004,
+    kRailEventRoomGetRoomMembersResult = 10004,  // rename from
+                                                 // kRailEventRoomGotRoomMembers, 2018/11/27.
     kRailEventRoomJoinRoomResult = 10005,
     kRailEventRoomKickOffMemberResult = 10006,
     kRailEventRoomSetRoomMetadataResult = 10007,
@@ -144,6 +150,12 @@ enum RAILEventID {
     kRailEventRoomGetAllDataResult = 10012,
     kRailEventRoomGetUserRoomListResult = 10013,
     kRailEventRoomClearRoomMetadataResult = 10014,
+    kRailEventRoomOpenRoomResult = 10015,
+    kRailEventRoomSetRoomTagResult = 10016,
+    kRailEventRoomGetRoomTagResult = 10017,
+    kRailEventRoomSetNewRoomOwnerResult = 10018,
+    kRailEventRoomSetRoomTypeResult = 10019,
+    kRailEventRoomSetRoomMaxMemberResult = 10020,
 
     kRailEventRoomNotify = 11000,
     kRailEventRoomNotifyMetadataChanged = 11001,
@@ -179,6 +191,8 @@ enum RAILEventID {
     kRailEventQueryPlayerBannedStatus = 13004,
     kRailEventPlayerGetAuthenticateURL = 13005,
     kRailEventPlayerAntiAddictionGameOnlineTimeChanged = 13006,
+    kRailEventPlayerGetEncryptedGameTicketResult = 13007,
+    kRailEventPlayerGetPlayerMetadataResult = 13008,
 
     // users
     kRailEventUsersGetUsersInfo = 13501,
@@ -213,6 +227,8 @@ enum RAILEventID {
     kRailEventNetwork = 16000,
     kRailEventNetworkCreateSessionRequest = 16001,
     kRailEventNetworkCreateSessionFailed = 16002,
+    kRailEventNetworkCreateRawSessionRequest = 16003,
+    kRailEventNetworkCreateRawSessionFailed = 16004,
 
     // dlc
     kRailEventDlcBegin = 17000,
@@ -257,6 +273,7 @@ enum RAILEventID {
     // IME helper input
     kRailEventIMEHelperTextInputBegin = 22000,
     kRailEventIMEHelperTextInputSelectedResult = 22001,
+    kRailEventIMEHelperTextInputCompositionStateChanged = 22002,
 
     // http session
     kRailEventHttpSessionBegin = 23000,
@@ -274,6 +291,12 @@ enum RAILEventID {
     // group chat
     kRailEventGroupChatBegin = 26000,
     kRailEventGroupChatQueryGroupsInfoResult = 26001,
+    kRailEventGroupChatOpenGroupChatResult = 26002,
+
+    // in-game coin
+    kRailEventInGameCoinBegin = 27000,
+    kRailEventInGameCoinRequestCoinInfoResult = 27001,
+    kRailEventInGameCoinPurchaseCoinsResult = 27002,
 
     kCustomEventBegin = 10000000,  // 10,000,000 + customize define events
 };

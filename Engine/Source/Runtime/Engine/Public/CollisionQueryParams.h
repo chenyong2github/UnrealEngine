@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Chaos/ChaosEngineInterface.h"
 
 /** Macro to convert ECollisionChannels to bit flag **/
 #define ECC_TO_BITFIELD(x)	(1<<(x))

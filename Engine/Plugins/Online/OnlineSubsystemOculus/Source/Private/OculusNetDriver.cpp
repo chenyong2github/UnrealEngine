@@ -357,6 +357,9 @@ bool UOculusNetDriver::AddNewClientConnection(ovrID PeerID)
 	// Add to the list of clients we are expecting a challenge from
 	PendingClientConnections.Add(PeerID, ovr_Net_IsConnected(PeerID) ? USOCK_Open : USOCK_Pending);
 
+	// Remove it from existing connections map if it exists.
+	Connections.Remove(PeerID);
+
 	return true;
 }
 

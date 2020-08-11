@@ -75,6 +75,7 @@
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenus.h"
+#include "Bookmarks/IBookmarkTypeTools.h"
 
 static const FName LevelEditorName("LevelEditor");
 
@@ -533,7 +534,7 @@ void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInst
 	if (FPlatformMisc::IsRemoteSession())
 	{
 		bool bShouldBeRealtime = false;
-		LevelViewportClient->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop"));
+		LevelViewportClient->AddRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_RDP", "Remote Desktop"));
 	}
 }
 
@@ -1113,10 +1114,6 @@ TSharedRef< SWidget > SLevelViewport::BuildViewportDragDropContextMenu()
 
 void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 {
-	// If the level is being unloaded, disable input in the viewport. Since click actions are deferred,
-	// It's possible to get into a state where the selected actors have been cleaned up by the time the click message is handled
-	LevelViewportClient->bDisableInput = (MapChangeType == EMapChangeType::TearDownWorld);
-
 	if( World && ( ( World == GetWorld() ) || ( World->EditorViews[LevelViewportClient->ViewportType].CamUpdated ) ) )
 	{
 		if( MapChangeType == EMapChangeType::LoadMap )
@@ -1165,7 +1162,7 @@ void SLevelViewport::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 		}
 		World->EditorViews[LevelViewportClient->ViewportType].CamUpdated = false;
 
-		World->ChangeFeatureLevel(GWorld->FeatureLevel);
+		World->ChangeFeatureLevel(GEditor->GetActiveFeatureLevelPreviewType());
 
 		RedrawViewport(true);
 	}

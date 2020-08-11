@@ -137,7 +137,7 @@ void UUnrealEdEngine::FinishAllSnaps()
 }
 
 
-void UUnrealEdEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Reason )
+void UUnrealEdEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Reason, bool bResetTrans )
 {
 	if (GIsRunning)
 	{
@@ -149,7 +149,7 @@ void UUnrealEdEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Re
 		StatsViewerModule.Clear();
 	}
 
-	Super::Cleanse( ClearSelection, Redraw, Reason );
+	Super::Cleanse( ClearSelection, Redraw, Reason, bResetTrans );
 }
 
 
@@ -256,35 +256,7 @@ void UUnrealEdEngine::ResetPivot()
 
 void UUnrealEdEngine::SetActorSelectionFlags (AActor* InActor)
 {
-	TInlineComponentArray<UActorComponent*> Components;
-	InActor->GetComponents(Components);
-
-	//for every component in the actor
-	for(int32 ComponentIndex = 0; ComponentIndex < Components.Num(); ComponentIndex++)
-	{
-		UActorComponent* Component = Components[ComponentIndex];
-		if (Component->IsRegistered())
-		{
-			// If we have a 'child actor' component, want to update its visible selection state
-			UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(Component);
-			if(ChildActorComponent != NULL && ChildActorComponent->GetChildActor() != NULL)
-			{
-				SetActorSelectionFlags(ChildActorComponent->GetChildActor());
-			}
-
-			UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Component);
-			if(PrimComponent != NULL && PrimComponent->IsRegistered())
-			{
-				PrimComponent->PushSelectionToProxy();
-			}
-
-			UDecalComponent* DecalComponent = Cast<UDecalComponent>(Component);
-			if(DecalComponent != NULL)// && DecalComponent->IsRegistered())
-			{
-				DecalComponent->PushSelectionToProxy();
-			}
-		}
-	}
+	InActor->PushSelectionToProxies();	
 }
 
 
@@ -547,10 +519,10 @@ void UUnrealEdEngine::SelectActor(AActor* Actor, bool bInSelected, bool bNotify,
 	{
 		if (bInSelected)
 		{
-			// If trying to select an Actor spawned by a ChildActorComponent, instead iterate up the hierarchy until we find a valid actor to select
-			while (Actor->IsChildActor())
+			// If trying to select an actor, return this actors root selection actor instead (if it has one)
+			if (AActor* RootSelection = Actor->GetRootSelectionParent())
 			{
-				Actor = Actor->GetParentComponent()->GetOwner();
+				Actor = RootSelection;
 			}
 		}
 

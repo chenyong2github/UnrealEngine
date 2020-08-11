@@ -2,14 +2,14 @@
 
 #include "Sections/MovieSceneFadeSection.h"
 #include "UObject/SequencerObjectVersion.h"
+#include "Channels/MovieSceneChannelProxy.h"
 
 
 /* UMovieSceneFadeSection structors
  *****************************************************************************/
 
 UMovieSceneFadeSection::UMovieSceneFadeSection()
-	: UMovieSceneFloatSection()
-	, FadeColor(FLinearColor::Black)
+	: FadeColor(FLinearColor::Black)
 	, bFadeAudio(false)
 {
 #if WITH_EDITORONLY_DATA
@@ -22,4 +22,17 @@ UMovieSceneFadeSection::UMovieSceneFadeSection()
 		(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 
 			EMovieSceneCompletionMode::RestoreState : 
 			EMovieSceneCompletionMode::ProjectDefault);
+
+	BlendType = EMovieSceneBlendType::Absolute;
+	bSupportsInfiniteRange = true;
+
+#if WITH_EDITOR
+
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve, FMovieSceneChannelMetaData(), TMovieSceneExternalValue<float>::Make());
+
+#else
+
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(FloatCurve);
+
+#endif
 }

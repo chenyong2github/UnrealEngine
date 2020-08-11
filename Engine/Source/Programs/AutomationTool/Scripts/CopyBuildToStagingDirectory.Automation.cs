@@ -1070,6 +1070,7 @@ public partial class Project : CommandUtils
 		if (SC.StageTargetPlatform.DeployLowerCaseFilenames())
 		{
 			SC.FilesToStage.NonUFSFiles = SC.FilesToStage.NonUFSFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
+			SC.FilesToStage.NonUFSDebugFiles = SC.FilesToStage.NonUFSDebugFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
 			if (!Params.UsePak(SC.StageTargetPlatform))
 			{
 				SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);

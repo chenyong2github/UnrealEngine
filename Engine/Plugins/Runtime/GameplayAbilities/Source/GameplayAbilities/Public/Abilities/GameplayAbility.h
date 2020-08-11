@@ -748,7 +748,7 @@ protected:
 	//	Ability Tasks
 	// ----------------------------------------------------------------------------------------------------------------
 
-	/** Destroys instanced-per-execution abilities. Instance-per-actor abilities should 'reset'. Non instance abilities - what can we do? */
+	/** Finds all currently active tasks named InstanceName and confirms them. What this means depends on the individual task. By default, this does nothing other than ending if bEndTask is true. */
 	UFUNCTION(BlueprintCallable, Category = Ability)
 	void ConfirmTaskByInstanceName(FName InstanceName, bool bEndTask);
 

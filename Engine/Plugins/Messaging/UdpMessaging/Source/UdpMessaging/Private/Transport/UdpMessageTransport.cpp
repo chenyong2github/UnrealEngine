@@ -102,6 +102,7 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 		.AsNonBlocking()
 		.BoundToEndpoint(UnicastEndpoint)
 		.WithMulticastLoopback()
+		.WithMulticastTtl(MulticastTtl) // since this socket is also used to send to multicast addresses
 		.WithReceiveBufferSize(UDP_MESSAGING_RECEIVE_BUFFER_SIZE);
 
 	if (UnicastSocket == nullptr)

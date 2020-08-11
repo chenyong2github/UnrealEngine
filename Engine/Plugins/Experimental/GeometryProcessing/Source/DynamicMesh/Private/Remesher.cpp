@@ -170,17 +170,18 @@ FRemesher::EProcessResult FRemesher::ProcessEdge(int edgeID)
 	bool bTriedCollapse = false;
 	if (bCanCollapse) 
 	{
-		int iKeep = b, iCollapse = a;
 		double collapse_t = 0.5;		// need to know t-value along edge to update lerpable attributes properly
 		FVector3d vNewPos = (vA + vB) * collapse_t;
 
+		int iKeep = b;
+		int iCollapse = a;
 		// if either vtx is fixed, collapse to that position
-		if (collapse_to == b) 
+		if (collapse_to == b)
 		{
-			collapse_t = 0;
+			collapse_t = 1.0;
 			vNewPos = vB;
 		}
-		else if (collapse_to == a) 
+		else if (collapse_to == a)
 		{
 			iKeep = a; iCollapse = b;
 			collapse_t = 0;
@@ -360,19 +361,19 @@ void FRemesher::UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3
 		// vert inherits Fixed if both orig edge verts Fixed, and both tagged with same SetID
 		FVertexConstraint ca = Constraints->GetVertexConstraint(va);
 		FVertexConstraint cb = Constraints->GetVertexConstraint(vb);
-		if (ca.Fixed && cb.Fixed) 
+		if (ca.bCannotDelete && cb.bCannotDelete)
 		{
 			int nSetID = (ca.FixedSetID > 0 && ca.FixedSetID == cb.FixedSetID) ?
 				ca.FixedSetID : FVertexConstraint::InvalidSetID;
-			bool bMovable = ca.Movable && cb.Movable;
+			bool bMovable = ca.bCanMove && cb.bCanMove;
 			Constraints->SetOrUpdateVertexConstraint(SplitInfo.NewVertex,
 				FVertexConstraint(true, bMovable, nSetID));
 			bPositionFixed = true;
 		}
 
 		// vert inherits Target if:
-		//  1) both source verts and edge have same Target, and is same as edge target
-		//  2) either vert has same target as edge, and other vert is fixed
+		//  1) both source verts and edge have same Target, and is same as edge target, or
+		//  2) either vert has same target as edge, and other vert can't move
 		if (ca.Target != nullptr || cb.Target != nullptr) 
 		{
 			IProjectionTarget* edge_target = Constraints->GetEdgeConstraint(edgeID).Target;
@@ -381,11 +382,11 @@ void FRemesher::UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3
 			{
 				set_target = edge_target;
 			}
-			else if (ca.Target == edge_target && cb.Fixed)
+			else if (ca.Target == edge_target && !cb.bCanMove)
 			{
 				set_target = edge_target;
 			}
-			else if (cb.Target == edge_target && ca.Fixed)
+			else if (cb.Target == edge_target && !ca.bCanMove)
 			{
 				set_target = edge_target;
 			}
@@ -425,7 +426,7 @@ FVector3d FRemesher::GetProjectedCollapsePosition(int vid, const FVector3d& vNew
 		{
 			return vc.Target->Project(vNewPos, vid);
 		}
-		if (vc.Fixed)
+		if (vc.bCanMove == false)
 		{
 			return vNewPos;
 		}
@@ -592,7 +593,7 @@ FVector3d FRemesher::ComputeSmoothedVertexPos(int vID,
 	bModified = false;
 	FVertexConstraint vConstraint = FVertexConstraint::Unconstrained();
 	GetVertexConstraint(vID, vConstraint);
-	if (vConstraint.Fixed && vConstraint.Movable == false)
+	if (vConstraint.bCanMove == false)
 	{
 		return Mesh->GetVertex(vID);
 	}

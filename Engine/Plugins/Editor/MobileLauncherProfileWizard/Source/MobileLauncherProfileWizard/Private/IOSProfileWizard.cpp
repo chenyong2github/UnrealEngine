@@ -41,7 +41,7 @@ static void SetupIOSAppProfile(ILauncherProfileRef& AppProfile, const FProfilePa
 	//// Cooking
 	AppProfile->SetCookMode(ELauncherProfileCookModes::ByTheBook);
 	AppProfile->SetCookConfiguration(Params.BuildConfiguration);
-	for (const FString MapName : Params.AppMaps)
+	for (const FString& MapName : Params.AppMaps)
 	{
 		AppProfile->AddCookedMap(MapName);
 	}

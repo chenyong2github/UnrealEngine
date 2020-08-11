@@ -659,6 +659,9 @@ TArray<FEditorModeInfo> UAssetEditorSubsystem::GetEditorModeInfoOrderedByPriorit
 	return ModeInfoArray;
 }
 
+
+
+
 void UAssetEditorSubsystem::RegisterUAssetEditor(UAssetEditor* NewAssetEditor)
 {
 	OwnedAssetEditors.Add(NewAssetEditor);
@@ -874,7 +877,7 @@ void UAssetEditorSubsystem::HandlePackageReloaded(const EPackageReloadPhase InPa
 		TArray<UObject*> ObjectsToClose;
 		const TMap<UObject*, UObject*>& RepointedMap = InPackageReloadedEvent->GetRepointedObjects();
 
-		for (const TPair<UObject*, UObject*> RepointPair : RepointedMap)
+		for (const TPair<UObject*, UObject*>& RepointPair : RepointedMap)
 		{
 			if (RepointPair.Key->IsAsset())
 			{
@@ -931,7 +934,7 @@ void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FString>& AssetsTo
 
 void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FName>& AssetsToOpen)
 {
-	for (const FName AssetName : AssetsToOpen)
+	for (const FName& AssetName : AssetsToOpen)
 	{
 		OpenEditorForAsset(AssetName.ToString());
 	}

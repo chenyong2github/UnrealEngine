@@ -9,13 +9,14 @@
 namespace Trace
 {
 	class IAnalysisSession;
+	class FThreadProvider;
 }
 
 class FCpuProfilerAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider);
+	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider, Trace::FThreadProvider& InThreadProvider);
 	~FCpuProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -60,12 +61,11 @@ private:
 
 	Trace::IAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
+	Trace::FThreadProvider& ThreadProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TMap<uint32, uint32> SpecIdToTimerIdMap;
 	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
-	uint32 CpuChannelId = 0;
-	bool bCpuChannelState = true;
 	double BytesPerScope = 0.0;
 };

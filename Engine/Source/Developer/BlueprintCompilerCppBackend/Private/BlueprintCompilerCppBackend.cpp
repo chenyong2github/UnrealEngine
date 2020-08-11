@@ -855,9 +855,9 @@ FString FBlueprintCompilerCppBackend::EmitCallStatmentInner(FEmitterLocalContext
 	{
 		UBlueprintGeneratedClass* OwnerBPGC = Cast<UBlueprintGeneratedClass>(FunctionOwner);
 		const bool bUnconvertedClass = OwnerBPGC && !EmitterContext.Dependencies.WillClassBeConverted(OwnerBPGC);
-		const bool bIsCustomThunk = bStaticCall && ( Statement.FunctionToCall->GetBoolMetaData(TEXT("CustomThunk"))
-			|| Statement.FunctionToCall->HasMetaData(TEXT("CustomStructureParam"))
-			|| Statement.FunctionToCall->HasMetaData(TEXT("ArrayParm")) );
+		const bool bIsCustomThunk = bStaticCall && ( Statement.FunctionToCall->GetBoolMetaData(FBlueprintMetadata::MD_CustomThunk)
+			|| Statement.FunctionToCall->HasMetaData(FBlueprintMetadata::MD_CustomStructureParam)
+			|| Statement.FunctionToCall->HasMetaData(FBlueprintMetadata::MD_ArrayParam) );
 		if (bUnconvertedClass)
 		{
 			ensure(!Statement.bIsParentContext); //unsupported yet
@@ -873,13 +873,8 @@ FString FBlueprintCompilerCppBackend::EmitCallStatmentInner(FEmitterLocalContext
 			if (bIsCustomThunk)
 			{
 				// Check class metadata for a specified CustomThunkTemplates override
-				FName CustomThunkTemplatesMetadataKey = FName(TEXT("CustomThunkTemplates"));
 				FString CustomThunkTemplatesName;
-				if (OwnerClass->HasMetaDataHierarchical(CustomThunkTemplatesMetadataKey))
-				{
-					OwnerClass->GetStringMetaDataHierarchical(CustomThunkTemplatesMetadataKey, &CustomThunkTemplatesName);
-				}
-				else
+				if (!OwnerClass->GetStringMetaDataHierarchical(FBlueprintMetadata::MD_CustomThunkTemplates, &CustomThunkTemplatesName))
 				{
 					// Fall back to the engine-supplied templates
 					CustomThunkTemplatesName = TEXT("FCustomThunkTemplates");

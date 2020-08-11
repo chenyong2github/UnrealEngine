@@ -33,6 +33,21 @@ struct FAttachedActorInfo;
 struct FNetViewer;
 struct FNetworkObjectInfo;
 
+#if WITH_EDITOR
+// @todo_ow this is temporary and will be removed
+class FArchiveGetActorRefs : public FArchiveUObject
+{
+public:
+	FArchiveGetActorRefs(AActor* InRoot, TSet<AActor*>& InActorReferences);
+	virtual FArchive& operator<<(UObject*& Obj) override;
+
+private:
+	AActor* Root;
+	TSet<AActor*>& ActorReferences;
+	TSet<UObject*> SubObjects;
+};
+#endif
+
 /** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
 UENUM(BlueprintType)
 enum class EActorUpdateOverlapsMethod : uint8
@@ -42,6 +57,17 @@ enum class EActorUpdateOverlapsMethod : uint8
 	OnlyUpdateMovable,	// Only update if root component has Movable mobility.
 	NeverUpdate			// Never update overlap state on initialization.
 };
+
+/** Enum defining how actor will be placed in the partition */
+UENUM()
+enum class EActorGridPlacement : uint8
+{
+	Bounds,
+	Location,
+	AlwaysLoaded,
+	None UMETA(Hidden)
+};
+
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActor, Log, Warning);
 
@@ -507,6 +533,20 @@ public:
 	 */
 	float CreationTime;
 
+	/** 
+	 * Determine how this actor will be placed in the partition (if the world is partitioned). This value is not taken into account
+	 * if the function ActorClass->GetDefaultGridPlacement returns other than EActorGridPlacement::None.
+	 */
+	UPROPERTY(EditAnywhere, Category=Partition)
+	EActorGridPlacement GridPlacement;
+
+	/** 
+	 * Determine in which partition grid this actor will be placed in the partition (if the world is partitioned).
+	 * If None, the decision will be left to the partition.
+	 */
+	UPROPERTY(EditAnywhere, Category=Partition)
+	FName RuntimeGrid;
+
 private:
 	/**
 	 * Used for replicating attachment of this actor's RootComponent to another actor.
@@ -670,6 +710,22 @@ protected:
 	FTimerHandle TimerHandle_LifeSpanExpired;
 
 public:
+#if WITH_EDITOR
+	/** Return the HLOD layer that should include this actor. */
+	class UHLODLayer* GetHLODLayer() const;
+
+	/** Specify in which HLOD layer this actor should be included. */
+	void SetHLODLayer(class UHLODLayer* InHLODLayer);
+#endif
+
+private:
+#if WITH_EDITORONLY_DATA
+	/** The UHLODLayer in which this actor should be included. */
+	UPROPERTY(EditAnywhere, Category = HLOD, meta = (DisplayName = "HLOD Layer"))
+	class UHLODLayer* HLODLayer;
+#endif
+
+public:
 	/** Return the value of bAllowReceiveTickEventOnDedicatedServer, indicating whether the Blueprint ReceiveTick() event will occur on dedicated servers. */
 	FORCEINLINE bool AllowReceiveTickEventOnDedicatedServer() const { return bAllowReceiveTickEventOnDedicatedServer; }
 
@@ -677,7 +733,7 @@ public:
 	FORCEINLINE bool IsRunningUserConstructionScript() const { return bRunningUserConstructionScript; }
 
 	/** Layers the actor belongs to.  This is outside of the editoronly data to allow hiding of LD-specified layers at runtime for profiling. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Actor)
 	TArray< FName > Layers;
 
 private:
@@ -692,6 +748,13 @@ private:
 	TWeakObjectPtr<UChildActorComponent> ParentComponent;	
 
 #if WITH_EDITORONLY_DATA
+protected:
+	/**
+	 * The GUID for this actor.
+	 */
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category=Actor, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
+	FGuid ActorGuid;
+
 public:
 	/** The editor-only group this actor is a part of. */
 	UPROPERTY(Transient)
@@ -704,7 +767,37 @@ public:
 	/** Bitflag to represent which views this actor is hidden in, via per-view layer visibility. */
 	UPROPERTY(Transient)
 	uint64 HiddenEditorViews;
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
+	/**
+	 * Set the actor packaging mode.
+	 * @param bExternal will set the actor packaging mode to external if true, to internal otherwise
+	 * @param bShouldDirty should dirty or not the level package
+	 */
+	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
+
+	/**
+	 * Determine how this actor should be placed in the partition (meant to be called on the default object).
+	 / @return EActorGridPlacement::None if the placement should be on a per-instance basis, otherwise the default value wins.
+	 */
+	virtual EActorGridPlacement GetDefaultGridPlacement() const;
+
+	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
+	inline const FGuid& GetActorGuid() const { return ActorGuid; }
+#endif // WITH_EDITOR
+
+public:
+	/**
+	 * Get the actor packaging mode.
+	 * @return true if the actor is packaged in an external package different than its level package
+	 */
+	bool IsPackageExternal() const
+	{
+		return HasAnyFlags(RF_HasExternalPackage);
+	}
+
+#if WITH_EDITORONLY_DATA
 private:
 	/**
 	 * The friendly name for this actor, displayed in the editor.  You should always use AActor::GetActorLabel() to access the actual label to display,
@@ -753,7 +846,7 @@ protected:
 	/** Whether this actor should be listed in the scene outliner. */
 	UPROPERTY()
 	uint8 bListedInSceneOutliner:1;
-	
+
 	/** Whether to cook additional data to speed up spawn events at runtime for any Blueprint classes based on this Actor. This option may slightly increase memory usage in a cooked build. */
 	UPROPERTY(EditDefaultsOnly, AdvancedDisplay, Category=Cooking, meta=(DisplayName="Generate Optimized Blueprint Component Data"))
 	uint8 bOptimizeBPComponentData:1;
@@ -960,7 +1053,7 @@ public:
 	 * @param	bIncludeFromChildActors		If true then recurse in to ChildActor components 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(DisplayName = "GetActorBounds"))
-	void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
+	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
 
 	/** Returns the RootComponent of this Actor */
 	UFUNCTION(BlueprintGetter)
@@ -1107,10 +1200,15 @@ public:
 	void AddActorWorldRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 	void AddActorWorldRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
-	/** Adds a delta to the transform of this actor in world space. Scale is unchanged. */
+	/** Adds a delta to the transform of this actor in world space. Ignores scale and sets it to (1,1,1). */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Transformation", meta=(DisplayName="AddActorWorldTransform", ScriptName="AddActorWorldTransform"))
 	void K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
 	void AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+
+	/** Adds a delta to the transform of this actor in world space. Scale is unchanged. */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation", meta = (DisplayName = "AddActorWorldTransformKeepScale", ScriptName = "AddActorWorldTransformKeepScale"))
+	void K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	void AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep = false, FHitResult* OutSweepHitResult = nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Set the Actors transform to the specified one.
@@ -1658,10 +1756,17 @@ public:
 	virtual bool CanBeInCluster() const override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual bool IsEditorOnly() const override;
+	virtual bool IsAsset() const override;
+
+	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
+	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+
 #if WITH_EDITOR
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	virtual bool CanEditChange(const FProperty* InProperty) const;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
@@ -1671,6 +1776,9 @@ public:
 
 	/** When selected can this actor be deleted? */
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const { return true; }
+
+	/** Does this actor supports external packaging? */
+	virtual bool SupportsExternalPackaging() const { return true; }
 
 	/** Internal struct used to store information about an actor's components during reconstruction */
 	struct FActorRootComponentReconstructionData
@@ -1821,6 +1929,16 @@ public:
 	{
 		return PivotOffset;
 	}
+
+	/**
+	 * Returns the location and the bounding box of all components that make up this Actor.
+	 *
+	 * This function differs from GetActorBounds because it will return a valid origin and an empty extent if this actor
+	 * doesn't have primitive components.
+	 *
+	 * @see GetActorBounds()
+	 */
+	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
 #endif
 
 
@@ -1870,6 +1988,9 @@ public:
 	/** Called by MirrorActors to perform a mirroring operation on the actor */
 	virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation);	
 
+	/** Get underlying actors */
+	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors);
+
 	/** Returns true if the actor is hidden upon editor startup/by default, false if it is not */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
 	bool IsHiddenEdAtStartup() const
@@ -1901,7 +2022,7 @@ public:
 
 	/** Returns true if this actor can EVER be selected in a level in the editor.  Can be overridden by specific actors to make them unselectable. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	virtual bool IsSelectable() const { return true; }
+	virtual bool IsSelectable() const;
 
 	/** Returns true if this actor should be shown in the scene outliner */
 	virtual bool IsListedInSceneOutliner() const;
@@ -2150,6 +2271,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Actor)
 	AActor* GetOwner() const;
 
+	/** Templated version of GetOwner(), will return nullptr if cast fails */
+	template< class T >
+	T* GetOwner() const
+	{
+		return Cast<T>(GetOwner());
+	}
+
 	/**
 	 * This will check to see if the Actor is still in the world.  It will check things like
 	 * the KillZ, outside world bounds, etc. and handle the situation.
@@ -2344,6 +2472,21 @@ public:
 	/** Returns whether this Actor was spawned by a child actor component */
 	UFUNCTION(BlueprintCallable, Category="Actor")
 	bool IsChildActor() const;
+
+	/** Returns whether this actor can select its attached actors */
+	virtual bool IsSelectionParentOfAttachedActors() const;
+
+	/** Returns whether this Actor is part of another's actor selection */
+	virtual bool IsSelectionChild() const;
+
+	/** Returns immediate selection parent */
+	virtual AActor* GetSelectionParent() const;
+
+	/** Returns top most selection parent */
+	virtual AActor* GetRootSelectionParent() const;
+
+	/** Push Selection to actor */
+	virtual void PushSelectionToProxies();
 
 	/** 
 	 * Returns a list of all actors spawned by our Child Actor Components, including children of children. 
@@ -3239,6 +3382,8 @@ private:
 	friend struct FSetActorWantsDestroyDuringBeginPlay;
 #if WITH_EDITOR
 	friend struct FSetActorHiddenInSceneOutliner;
+	friend struct FSetActorGuid;
+	friend struct FSetActorSelectable;
 #endif
 
 	// Static helpers for accessing functions on SceneComponent.
@@ -3478,6 +3623,18 @@ private:
 
 	friend UWorld;
 	friend class FFoliageHelper;
+	friend class ULevelStreamingFoundationInstance;
+};
+
+struct FSetActorGuid
+{
+private:
+	FSetActorGuid(AActor* InActor, const FGuid& InActorGuid)
+	{
+		InActor->ActorGuid = InActorGuid;
+	}
+	friend class ULevelStreamingFoundationInstance;
+	friend UWorld;
 };
 #endif
 

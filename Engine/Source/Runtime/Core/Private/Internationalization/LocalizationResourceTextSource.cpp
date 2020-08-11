@@ -139,6 +139,8 @@ void FLocalizationResourceTextSource::LoadLocalizedResources(const ELocalization
 
 void FLocalizationResourceTextSource::LoadLocalizedResourcesFromPaths(TArrayView<const FString> InPrioritizedNativePaths, TArrayView<const FString> InPrioritizedLocalizationPaths, TArrayView<const FString> InGameNativePaths, const ELocalizationLoadFlags InLoadFlags, TArrayView<const FString> InPrioritizedCultures, FTextLocalizationResource& InOutNativeResource, FTextLocalizationResource& InOutLocalizedResource) const
 {
+	SCOPED_BOOT_TIMING("LoadLocalizedResourcesFromPaths");
+
 	const int32 BaseResourcePriority = GetPriority() * -1; // Flip the priority as larger text source priorities are more important, but smaller text resource priorities are more important
 
 	static const FString PlatformLocalizationFolderName = FPaths::GetPlatformLocalizationFolderName();

@@ -59,12 +59,12 @@ public:
 public:
 
 	SLATE_BEGIN_ARGS( SNumericEntryBox<NumericType> )
-		: _EditableTextBoxStyle( &FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox") )
-		, _SpinBoxStyle(&FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox") )
+		: _EditableTextBoxStyle( &FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox") )
+		, _SpinBoxStyle(&FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox") )
 		, _Label()
 		, _LabelVAlign( VAlign_Fill )
 		, _LabelPadding( FMargin(3,0) )
-		, _BorderForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		, _BorderForegroundColor(FAppStyle::Get().GetWidgetStyle<FSpinBoxStyle>("NumericEntrySpinBox").ForegroundColor)
 		, _BorderBackgroundColor(FLinearColor::White)
 		, _UndeterminedString( SNumericEntryBox<NumericType>::DefaultUndeterminedString )
 		, _AllowSpin(false)
@@ -472,23 +472,18 @@ private:
 			return;
 		}
 
-		// Only call the delegates if we have a valid numeric value
-		if (bCommit)
-		{
-			TOptional<NumericType> ExistingValue = ValueAttribute.Get();
-			TOptional<NumericType> NumericValue = Interface->FromString(NewValue.ToString(), ExistingValue.Get(0));
+		TOptional<NumericType> ExistingValue = ValueAttribute.Get();
+		TOptional<NumericType> NumericValue = Interface->FromString(NewValue.ToString(), ExistingValue.Get(0));
 
-			if (NumericValue.IsSet())
-			{
-				OnValueCommitted.ExecuteIfBound(NumericValue.GetValue(), CommitInfo );
-			}
-		}
-		else
+		if (NumericValue.IsSet())
 		{
-			NumericType NumericValue;
-			if (LexTryParseString(NumericValue, *NewValue.ToString()))
+			if (bCommit)
 			{
-				OnValueChanged.ExecuteIfBound( NumericValue );
+				OnValueCommitted.ExecuteIfBound(NumericValue.GetValue(), CommitInfo);
+			}
+			else
+			{
+				OnValueChanged.ExecuteIfBound(NumericValue.GetValue());
 			}
 		}
 	}

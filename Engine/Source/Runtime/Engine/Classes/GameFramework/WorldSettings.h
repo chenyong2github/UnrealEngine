@@ -14,9 +14,11 @@
 #include "UObject/ConstructorHelpers.h"
 #include "WorldSettings.generated.h"
 
+class UWorldPartition;
 class UAssetUserData;
 class UNetConnection;
 class UNavigationSystemConfig;
+class UWorldPartitionStreamingPolicy;
 
 UENUM()
 enum EVisibilityAggressiveness
@@ -463,7 +465,18 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
 	uint8 bEnableWorldComposition:1;
-		
+
+	/** 
+	 * Enables tools for creating a partitioned world. 
+	 * Level has to be saved and all sub-levels removed before enabling this option.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = WorldPartition)
+	uint8 bEnableWorldPartition:1;
+
+	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
+	UPROPERTY(EditAnywhere, Category = WorldPartition, AdvancedDisplay, meta = (editcondition = "bEnableWorldPartition"))
+	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
+
 	/**
 	 * Enables client-side streaming volumes instead of server-side.
 	 * Expected usage scenario: server has all streaming levels always loaded, clients independently stream levels in/out based on streaming volumes.
@@ -520,6 +533,9 @@ protected:
 	/** Overrides NavigationSystemConfig. */
 	UPROPERTY(Transient)
 	UNavigationSystemConfig* NavigationSystemConfigOverride;
+
+	UPROPERTY(EditAnywhere, Category = WorldPartition, NoClear, meta = (NoResetToDefault), Instanced)
+	UWorldPartition* WorldPartition;
 
 public:
 
@@ -620,29 +636,25 @@ public:
 	class USoundMix* DefaultBaseSoundMix;
 
 #if WITH_EDITORONLY_DATA
-	/** if set to true, hierarchical LODs will be built, which will create hierarchical LODActors*/
-	UPROPERTY(EditAnywhere, config, Category=LODSystem)
-	uint32 bEnableHierarchicalLODSystem:1;
-
 	/** If set overrides the level settings and global project settings */
-	UPROPERTY(EditAnywhere, config, Category = LODSystem)
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem)
 	TSoftClassPtr<class UHierarchicalLODSetup> HLODSetupAsset;
 
-	/** If set overrides the project-wide base material used for Proxy Materials*/
-	UPROPERTY(EditAnywhere, config, Category = LODSystem, meta=(editcondition = "bEnableHierarchicalLODSystem && HLODSetupAsset == nullptr"))
-	TSoftObjectPtr<class UMaterialInterface> OverrideBaseMaterial;	
+	/** If set overrides the project-wide base material used for Proxy Materials */
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta=(editcondition = "HLODSetupAsset == nullptr"))
+	TSoftObjectPtr<class UMaterialInterface> OverrideBaseMaterial;
 
 protected:
 	/** Hierarchical LOD Setup */
-	UPROPERTY(EditAnywhere, Category=LODSystem, config, meta=(editcondition = "bEnableHierarchicalLODSystem && HLODSetupAsset == nullptr"))
-	TArray<struct FHierarchicalSimplification>	HierarchicalLODSetup;
+	UPROPERTY(EditAnywhere, Category = HLODSystem, config, meta=(editcondition = "HLODSetupAsset == nullptr"))
+	TArray<struct FHierarchicalSimplification> HierarchicalLODSetup;
 
 public:
 	UPROPERTY()
 	int32 NumHLODLevels;
 
-	/** if set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels)*/
-	UPROPERTY(EditAnywhere, config, Category = LODSystem, AdvancedDisplay)
+	/** if set to true, all eligible actors in this level will be added to a single cluster representing the entire level (used for small sublevels) */
+	UPROPERTY(EditAnywhere, config, Category = HLODSystem, AdvancedDisplay)
 	uint32 bGenerateSingleClusterForLevel : 1;
 
 	/************************************/
@@ -733,11 +745,15 @@ public:
 #if WITH_EDITOR
 	virtual void CheckForErrors() override;
 	virtual bool IsSelectable() const override { return false; }
+	virtual bool SupportsExternalPackaging() const override { return false; }
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;
 	virtual void PreInitializeComponents() override;
 	virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface.
+
+	UWorldPartition* GetWorldPartition() const;
+	void SetWorldPartition(UWorldPartition* InWorldPartition);
 
 	/**
 	 * Returns the Z component of the current world gravity and initializes it to the default
@@ -797,6 +813,9 @@ public:
 	TArray<struct FHierarchicalSimplification>& GetHierarchicalLODSetup();
 	int32 GetNumHierarchicalLODLevels() const;
 	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
+	void ResetHierarchicalLODSetup();
+
+	virtual const struct FSlateBrush* GetWorldImage() const { return nullptr; }
 #endif // WITH EDITOR
 
 	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }
@@ -921,5 +940,11 @@ public:
 	 * Clears all references to current bookmarks.
 	 */
 	void ClearAllBookmarks();
+
+#if WITH_EDITORONLY_DATA
+private: //DEPRECATED
+	UPROPERTY()
+	uint32 bEnableHierarchicalLODSystem_DEPRECATED:1;
+#endif
 };
 

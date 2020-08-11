@@ -287,7 +287,7 @@ void FClassDeclarationMetaData::ParseClassProperties(TArray<FPropertySpecifier>&
 			case EClassMetadataSpecifier::AdvancedClassDisplay:
 
 				// By default the class properties are shown in advanced sections in UI
-				ClassFlags |= CLASS_AdvancedDisplay;
+				MetaData.Add(FHeaderParserNames::NAME_AdvancedClassDisplay, TEXT("true"));
 				break;
 
 			case EClassMetadataSpecifier::ConversionRoot:

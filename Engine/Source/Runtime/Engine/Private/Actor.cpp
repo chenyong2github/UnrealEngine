@@ -43,6 +43,9 @@
 #include "ObjectTrace.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Engine/AutoDestroySubsystem.h"
+#include "ActorRegistry.h"
+#include "LevelUtils.h"
+#include "Components/DecalComponent.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -77,6 +80,60 @@ TMap<FName, int32> CSVActorClassNameToCountMap;
 FCriticalSection CSVActorClassNameToCountMapLock;
 
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
+
+#if WITH_EDITOR
+FArchiveGetActorRefs::FArchiveGetActorRefs(AActor* InRoot, TSet<AActor*>& InActorReferences)
+	: Root(InRoot)
+	, ActorReferences(InActorReferences)
+{
+	SetIsSaving(true);
+	SetIsPersistent(true);
+	ArIsObjectReferenceCollector = true;
+	ArShouldSkipBulkData = true;
+}
+
+FArchive& FArchiveGetActorRefs::operator<<(UObject*& Obj)
+{
+	if (Obj && !Obj->IsTemplate() && !Obj->HasAnyFlags(RF_Transient))
+	{
+		if (Obj->IsInOuter(Root))
+		{
+			bool bWasAlreadyInSet;
+			SubObjects.Add(Obj, &bWasAlreadyInSet);
+
+			if (!bWasAlreadyInSet)
+			{
+				// Recurse into subobjects
+				Obj->Serialize(*this);
+			}
+		}
+		else
+		{
+			// Check if external reference is an actor
+			if(Obj->IsA<AActor>())
+			{
+				AActor* Actor = (AActor*)Obj;
+				if (Actor->IsInLevel(Root->GetLevel()))
+				{
+					AActor* TopParentActor = Actor;
+					while(TopParentActor->GetParentActor())
+					{
+						TopParentActor = TopParentActor->GetParentActor();
+					}
+
+					check(TopParentActor);
+
+					if (TopParentActor->IsPackageExternal())
+					{
+						ActorReferences.Add(TopParentActor);
+					}
+				}
+			}
+		}
+	}
+	return *this;
+}
+#endif
 
 uint32 AActor::BeginPlayCallDepth = 0;
 
@@ -159,6 +216,8 @@ void AActor::InitializeDefaults()
 		}
 	}
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
+
+	GridPlacement = EActorGridPlacement::Bounds;
 }
 
 void FActorTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -304,7 +363,7 @@ void AActor::ResetOwnedComponents()
 
 			if (Component->GetIsReplicated())
 			{
-				ReplicatedComponents.AddUnique(Component);
+				ReplicatedComponents.Add(Component);
 			}
 		}
 	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
@@ -347,7 +406,125 @@ bool AActor::IsEditorOnly() const
 	return bIsEditorOnlyActor; 
 }
 
+bool AActor::IsAsset() const
+{
+	// External actors are considered assets, to allow using the asset logic for save dialogs, etc.
+	// Also, they return true even if pending kill, in order to show up as deleted in these dialogs.
+	return IsPackageExternal() && !IsChildActor() && !HasAnyFlags(RF_Transient | RF_ClassDefaultObject);
+}
+
+bool AActor::PreSaveRoot(const TCHAR* InFilename)
+{
+	bool bResult = Super::PreSaveRoot(InFilename);
 #if WITH_EDITOR
+	// if `PreSaveRoot` is called on an actor, it should be have its package overridden (external to the level)
+	// if this actor is not in the current persistent level then we might need to remove level streamin transform before saving it
+	ULevel* Level = GetLevel();
+	if (IsPackageExternal() && Level && !Level->IsPersistentLevel())
+	{
+		// If we can get the streaming level, we should remove the editor transform before saving
+		ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(Level);
+		if (LevelStreaming && Level->bAlreadyMovedActors)
+		{
+			FLevelUtils::RemoveEditorTransform(LevelStreaming, true, this);
+		}
+		bResult |= true;
+	}
+#endif
+	return bResult;
+}
+
+void AActor::PostSaveRoot(bool bCleanupIsRequired)
+{
+	Super::PostSaveRoot(bCleanupIsRequired);
+#if WITH_EDITOR
+	// if this actor is not in the current persistent level then we will need to clean up the removal of level streaming
+	ULevel* Level = GetLevel();
+	if (bCleanupIsRequired && IsPackageExternal() && Level && !Level->IsPersistentLevel())
+	{
+		// If we can get the streaming level, we should remove the editor transform before saving
+		ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(Level);
+		if (LevelStreaming && Level->bAlreadyMovedActors)
+		{
+			FLevelUtils::ApplyEditorTransform(LevelStreaming, true, this);
+		}
+	}
+#endif
+}
+
+#if WITH_EDITOR
+void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	if (IsPackageExternal() && !IsChildActor())
+	{
+		check(ActorGuid.IsValid());
+		static const FName NAME_ActorGuid(TEXT("ActorGuid"));
+		FActorRegistry::SaveActorMetaData(NAME_ActorGuid, ActorGuid, OutTags);
+
+		// Get the first native class in the hierarchy, to be able to recreate the actor descriptor without having to load a BP class
+		UClass* NativeClass = GetParentNativeClass(GetClass());
+		static const FName NAME_ActorClass(TEXT("ActorClass"));
+		FActorRegistry::SaveActorMetaData(NAME_ActorClass, NativeClass->GetFName(), OutTags);
+
+		static const FName NAME_LevelPackage(TEXT("LevelPackage"));
+		FString LevelPackageName = GetOuter()->GetOutermost()->GetName();
+		FActorRegistry::SaveActorMetaData(NAME_LevelPackage, LevelPackageName, OutTags);
+
+		FVector BoundsLocation;
+		FVector BoundsExtent;		
+		GetActorLocationBounds(false, BoundsLocation, BoundsExtent);
+
+		static const FName NAME_BoundsLocation(TEXT("BoundsLocation"));
+		FActorRegistry::SaveActorMetaData(NAME_BoundsLocation, BoundsLocation, OutTags);
+
+		static const FName NAME_BoundsExtent(TEXT("BoundsExtent"));
+		FActorRegistry::SaveActorMetaData(NAME_BoundsExtent, BoundsExtent, OutTags);
+
+		static const FName NAME_GridPlacement(TEXT("GridPlacement"));
+		FActorRegistry::SaveActorMetaData(NAME_GridPlacement, (int32)GridPlacement, OutTags);
+
+		static const FName NAME_RuntimeGrid(TEXT("RuntimeGrid"));
+		FActorRegistry::SaveActorMetaData(NAME_RuntimeGrid, RuntimeGrid, OutTags);
+
+		static const FName NAME_IsEditorOnly(TEXT("IsEditorOnly"));
+		FActorRegistry::SaveActorMetaData(NAME_IsEditorOnly, IsEditorOnly(), OutTags);
+
+		static const FName NAME_IsLevelBoundsRelevant(TEXT("IsLevelBoundsRelevant"));
+		FActorRegistry::SaveActorMetaData(NAME_IsLevelBoundsRelevant, IsLevelBoundsRelevant(), OutTags);		
+
+		if (Layers.Num())
+		{
+			FString ActorLayers;
+			for(FName Layer: Layers)
+			{
+				ActorLayers += Layer.ToString() + TEXT(";");
+			}
+			ActorLayers.RemoveFromEnd(TEXT(";"));
+
+			static const FName NAME_Layers(TEXT("Layers"));
+			FActorRegistry::SaveActorMetaData(NAME_Layers, ActorLayers, OutTags);
+		}
+
+		TSet<AActor*> ActorReferences;
+		FArchiveGetActorRefs GetActorRefsAr((AActor*)this, ActorReferences);
+		((AActor*)this)->Serialize(GetActorRefsAr);
+
+		if (ActorReferences.Num())
+		{
+			FString ActorRefs;
+			for(AActor* ActorReference: ActorReferences)
+			{
+				ActorRefs += ActorReference->ActorGuid.ToString() + TEXT(";");
+			}
+			ActorRefs.RemoveFromEnd(TEXT(";"));
+
+			static const FName NAME_ActorReferences(TEXT("ActorReferences"));
+			FActorRegistry::SaveActorMetaData(NAME_ActorReferences, ActorRefs, OutTags);
+		}
+	}
+}
 
 bool AActor::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
 {
@@ -424,8 +601,7 @@ FVector AActor::GetVelocity() const
 
 void AActor::ClearCrossLevelReferences()
 {
-	// TODO: Change GetOutermost to GetLevel?
-	if(RootComponent && GetRootComponent()->GetAttachParent() && (GetOutermost() != GetRootComponent()->GetAttachParent()->GetOutermost()))
+	if(RootComponent && GetRootComponent()->GetAttachParent() && (GetLevel() != GetRootComponent()->GetAttachParent()->GetOwner()->GetLevel()))
 	{
 		GetRootComponent()->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 	}
@@ -575,11 +751,11 @@ void AActor::RemoveControllingMatineeActor( AMatineeActor& InMatineeActor )
 
 void AActor::BeginDestroy()
 {
-	ULevel* OwnerLevel = GetLevel();
 	UnregisterAllComponents();
-	if (OwnerLevel && !OwnerLevel->HasAnyInternalFlags(EInternalObjectFlags::Unreachable))
+	ULevel* Level = GetLevel();
+	if (Level && !Level->HasAnyInternalFlags(EInternalObjectFlags::Unreachable))
 	{
-		OwnerLevel->Actors.RemoveSingleSwap(this, false);
+		Level->Actors.RemoveSingleSwap(this, false);
 	}
 
 #if (CSV_PROFILER && !UE_BUILD_SHIPPING)
@@ -662,6 +838,24 @@ void AActor::Serialize(FArchive& Ar)
 #endif
 
 	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	// Fixup actor guids
+	if (Ar.IsLoading())
+	{
+		if (IsTemplate())
+		{
+			if (ActorGuid.IsValid())
+			{
+				ActorGuid.Invalidate();
+			}
+		}
+		else if ((Ar.GetPortFlags() & PPF_Duplicate) || (Ar.IsPersistent() && !ActorGuid.IsValid()))
+		{
+			ActorGuid = FGuid::NewGuid();
+		}
+	}
+#endif
 }
 
 void AActor::PostLoad()
@@ -803,6 +997,22 @@ void AActor::ProcessEvent(UFunction* Function, void* Parameters)
 	}
 }
 
+#if WITH_EDITOR
+void AActor::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	// Only PrimitiveComponents provides bounds contribution
+	if (FindComponentByClass<UPrimitiveComponent>())
+	{
+		GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+	}
+	else
+	{
+		Origin = GetActorLocation();
+		BoxExtent = FVector(ForceInitToZero);
+	}
+}
+#endif
+
 void AActor::ApplyWorldOffset(const FVector& InOffset, bool bWorldShift)
 {
 	// Attached components will be shifted by parents, will shift only USceneComponents derived components
@@ -926,6 +1136,11 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	const bool bRenameTest = ((Flags & REN_Test) != 0);
 	const bool bChangingOuters = (NewOuter && (NewOuter != GetOuter()));
 
+#if WITH_EDITOR
+	// if we have an external actor and the actor is changing outer, we will want to move its package location
+	const bool bExternalActor = IsPackageExternal();
+#endif
+
 	if (!bRenameTest && bChangingOuters)
 	{
 		RegisterAllActorTickFunctions(false, true); // unregister all tick functions
@@ -940,6 +1155,13 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 				MyLevel->ActorsForGC.Remove(this);
 				// TODO: There may need to be some consideration about removing this actor from the level cluster, but that would probably require destroying the entire cluster, so defer for now
 			}
+
+#if WITH_EDITOR
+			if (bExternalActor)
+			{
+				SetPackageExternal(false, MyLevel->IsUsingExternalActors());
+			}
+#endif
 		}
 	}
 
@@ -952,6 +1174,12 @@ bool AActor::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags 
 	{
 		if (ULevel* MyLevel = GetLevel())
 		{
+#if WITH_EDITOR
+			if (bExternalActor)
+			{
+				SetPackageExternal(true, MyLevel->IsUsingExternalActors());
+			}
+#endif
 			MyLevel->Actors.Add(this);
 			MyLevel->ActorsForGC.Add(this);
 
@@ -1227,9 +1455,18 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	}
 
 	// If the root component is blueprint constructed we don't save it to the transaction buffer
-	if( RootComponent && !RootComponent->IsCreatedByConstructionScript())
+	if (RootComponent)
 	{
-		bSavedToTransactionBuffer = RootComponent->Modify( bAlwaysMarkDirty ) || bSavedToTransactionBuffer;
+		if (!RootComponent->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = RootComponent->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
+
+		USceneComponent* DefaultAttachComp = GetDefaultAttachComponent();
+		if (DefaultAttachComp && DefaultAttachComp != RootComponent && !DefaultAttachComp->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = DefaultAttachComp->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
 	}
 
 	return bSavedToTransactionBuffer;
@@ -2716,7 +2953,7 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 
 	if (OwnedComponents.Remove(Component) > 0)
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 		if (Component->IsCreatedByConstructionScript())
 		{
 			BlueprintCreatedComponents.RemoveSingleSwap(Component);
@@ -2737,14 +2974,13 @@ bool AActor::OwnsComponent(UActorComponent* Component) const
 
 void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 {
-	checkf(Component->GetOwner() == this, TEXT("UE-9568: Component %s being updated for Actor %s"), *Component->GetPathName(), *GetPathName() );
 	if (Component->GetIsReplicated())
 	{
 		ReplicatedComponents.AddUnique(Component);
 	}
 	else
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 	}
 }
 
@@ -2914,7 +3150,6 @@ bool AActor::IsSelectedInEditor() const
 {
 	return !IsPendingKill() && GSelectedActorAnnotation.Get(this);
 }
-
 #endif
 
 /** Util that sets up the actor's component hierarchy (when users forget to do so, in their native ctor) */
@@ -3050,7 +3285,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 	// at the native class level. In that case, if this is a Blueprint instance, we need to defer native registration until after SCS execution can establish a scene root.
 	// Note: This API will also call PostRegisterAllComponents() on the actor instance. If deferred, PostRegisterAllComponents() won't be called until the root is set by SCS.
 	bHasDeferredComponentRegistration = (SceneRootComponent == nullptr && Cast<UBlueprintGeneratedClass>(GetClass()) != nullptr);
-	if (!bHasDeferredComponentRegistration)
+	if (!bHasDeferredComponentRegistration && GetWorld())
 	{
 		RegisterAllComponents();
 	}
@@ -3264,23 +3499,30 @@ void AActor::SetReplicates(bool bInReplicates)
 		RemoteRole = bInReplicates ? ROLE_SimulatedProxy : ROLE_None;
 		bReplicates = bInReplicates;
 
-		if (bReplicates)
+		if (bActorInitialized)
 		{
-			// GetWorld will return nullptr on CDO, FYI
-			if (UWorld* MyWorld = GetWorld())
+			if (bReplicates)
 			{
-				// Only call into net driver if we just started replicating changed
-				// This actor should already be in the Network Actors List if it was already replicating.
-				if (bNewlyReplicates)
+				// GetWorld will return nullptr on CDO, FYI
+				if (UWorld* MyWorld = GetWorld())
 				{
-					MyWorld->AddNetworkActor(this);
+					// Only call into net driver if we just started replicating changed
+					// This actor should already be in the Network Actors List if it was already replicating.
+					if (bNewlyReplicates)
+					{
+						MyWorld->AddNetworkActor(this);
+					}
+
+					ForcePropertyCompare();
 				}
-
-				ForcePropertyCompare();
 			}
-		}
 
-		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+			MARK_PROPERTY_DIRTY_FROM_NAME(AActor, RemoteRole, this);
+		}
+		else
+		{
+			UE_LOG(LogActor, Warning, TEXT("SetReplicates called on non-initialized actor %s. Directly setting bReplicates is the correct procedure for pre-init actors."), *GetName());
+		}
 	}
 	else
 	{
@@ -3741,6 +3983,17 @@ void AActor::AddActorWorldTransform(const FTransform& DeltaTransform, bool bSwee
 	}
 }
 
+void AActor::AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
+{
+	if (RootComponent)
+	{
+		RootComponent->AddWorldTransformKeepScale(DeltaTransform, bSweep, OutSweepHitResult, Teleport);
+	}
+	else if (OutSweepHitResult)
+	{
+		*OutSweepHitResult = FHitResult();
+	}
+}
 
 bool AActor::SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
@@ -4324,6 +4577,95 @@ bool AActor::IsTemporarilyHiddenInEditor(const bool bIncludeParent) const
 	return false;
 }
 #endif
+
+bool AActor::IsSelectionParentOfAttachedActors() const
+{
+	return false;
+}
+
+bool AActor::IsSelectionChild() const
+{
+	if (IsChildActor())
+	{
+		return true;
+	}
+
+	if (AActor* AttachParent = GetAttachParentActor())
+	{
+		return AttachParent->IsSelectionParentOfAttachedActors();
+	}
+
+	return false;
+}
+
+AActor* AActor::GetSelectionParent() const
+{
+	if (IsChildActor())
+	{
+		return GetParentActor();
+	}
+
+	if (AActor* AttachParent = GetAttachParentActor())
+	{
+		if (AttachParent->IsSelectionParentOfAttachedActors())
+		{
+			return AttachParent;
+		}
+	}
+
+	return nullptr;
+}
+
+AActor* AActor::GetRootSelectionParent() const
+{
+	AActor* Parent = GetSelectionParent();
+	while (Parent != nullptr && Parent->IsSelectionChild())
+	{
+		Parent = Parent->GetSelectionParent();
+	}
+	return Parent;
+}
+
+void AActor::PushSelectionToProxies()
+{
+	TInlineComponentArray<UActorComponent*> Components;
+	GetComponents(Components);
+
+	//for every component in the actor
+	for (int32 ComponentIndex = 0; ComponentIndex < Components.Num(); ComponentIndex++)
+	{
+		UActorComponent* Component = Components[ComponentIndex];
+		if (Component->IsRegistered())
+		{
+			if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(Component))
+			{
+				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+				{
+					ChildActor->PushSelectionToProxies();
+				}
+			}
+			
+			if(UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Component))
+			{
+				PrimComponent->PushSelectionToProxy();
+			}
+
+			if(UDecalComponent* DecalComponent = Cast<UDecalComponent>(Component))
+			{
+				DecalComponent->PushSelectionToProxy();
+			}
+		}
+	}
+
+	if (IsSelectionParentOfAttachedActors())
+	{
+		ForEachAttachedActors([](AActor* AttachedActor)
+		{
+			AttachedActor->PushSelectionToProxies();
+			return true;
+		});
+	}
+}
 
 bool AActor::IsChildActor() const
 {
@@ -4910,6 +5252,11 @@ void AActor::K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bS
 {
 	AddActorWorldTransform(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
 }
+
+ void AActor::K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
+ {
+ 	AddActorWorldTransformKeepScale(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
+ }
 
 bool AActor::K2_SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
 {

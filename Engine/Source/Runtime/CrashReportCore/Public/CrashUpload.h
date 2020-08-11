@@ -218,7 +218,7 @@ private:
 	/**
 	 * Create a request object and bind this class's response handler to it
 	 */
-	TSharedRef<IHttpRequest> CreateHttpRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpRequest();
 
 	/**
 	 * Send a ping request to the server
@@ -264,7 +264,7 @@ public:
 	/**
 	 * Create a request object and bind this class's response handler to it
 	 */
-	TSharedRef<IHttpRequest> CreateHttpRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpRequest();
 
 	/**
 	 * Callback from HTTP library when a request has completed

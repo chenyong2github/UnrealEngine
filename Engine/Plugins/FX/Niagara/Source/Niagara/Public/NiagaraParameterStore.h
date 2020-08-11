@@ -153,7 +153,7 @@ private:
 	TMap<FNiagaraVariable, int32> ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 
-	/** Storage for the set of variables that are represented by this ParameterStore.  Shouldn't be accecssed directly, instead use
+	/** Storage for the set of variables that are represented by this ParameterStore.  Shouldn't be accessed directly, instead use
 	ReadParameterVariables() */
 	UPROPERTY()
 	TArray<FNiagaraVariableWithOffset> SortedParameterOffsets;
@@ -585,6 +585,8 @@ protected:
 	void TickBindings();
 	void OnLayoutChange();
 	void CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src);
+	void AssignParameterData(TConstArrayView<uint8> SourceParameterData);
+	static int32 PaddedParameterSize(int32 ParameterSize);
 
 	/** Returns the parameter data at the passed offset. */
 	FORCEINLINE uint8* GetParameterData_Internal(int32 Offset) 

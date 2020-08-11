@@ -68,10 +68,12 @@ const FName LevelEditorTabIds::Sequencer(TEXT("Sequencer"));
 const FName LevelEditorTabIds::SequencerGraphEditor(TEXT("SequencerGraphEditor"));
 const FName LevelEditorTabIds::WorldSettings(TEXT("WorldSettingsTab"));
 const FName LevelEditorTabIds::WorldBrowserComposition(TEXT("WorldBrowserComposition"));
+const FName LevelEditorTabIds::WorldBrowserPartitionEditor(TEXT("WorldBrowserPartitionEditor"));
 const FName LevelEditorTabIds::WorldBrowserHierarchy(TEXT("WorldBrowserHierarchy"));
 const FName LevelEditorTabIds::WorldBrowserDetails(TEXT("WorldBrowserDetails"));
 const FName LevelEditorTabIds::LevelEditorHierarchicalLODOutliner(TEXT("LevelEditorHierarchicalLODOutliner"));
 const FName LevelEditorTabIds::OutputLog(TEXT("OutputLog"));
+const FName LevelEditorTabIds::LevelEditorEnvironmentLightingViewer(TEXT("LevelEditorEnvironmentLightingViewer"));
 
 FLevelEditorModule::FLevelEditorModule()
 	: ToggleImmersiveConsoleCommand(
@@ -386,6 +388,12 @@ void FLevelEditorModule::SummonWorldBrowserComposition()
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
 	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserComposition);
+}
+
+void FLevelEditorModule::SummonWorldBrowserPartitionEditor()
+{
+	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
+	LevelEditorInstance->TryInvokeTab(LevelEditorTabIds::WorldBrowserPartitionEditor);
 }
 
 // @todo remove when world-centric mode is added

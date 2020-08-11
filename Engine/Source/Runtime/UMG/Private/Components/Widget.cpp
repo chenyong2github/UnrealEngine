@@ -1311,6 +1311,30 @@ TSharedPtr<SWidget> UWidget::GetAccessibleWidget() const
 }
 #endif
 
+FText UWidget::GetAccessibleText() const
+{
+#if WITH_ACCESSIBILITY
+	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+	if (AccessibleWidget.IsValid())
+	{
+		return AccessibleWidget->GetAccessibleText();
+	}
+#endif
+	return FText::GetEmpty();
+}
+
+FText UWidget::GetAccessibleSummaryText() const
+{
+#if WITH_ACCESSIBILITY
+	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+	if (AccessibleWidget.IsValid())
+	{
+		return AccessibleWidget->GetAccessibleSummary();
+	}
+#endif
+	return FText::GetEmpty();
+}
+
 UObject* UWidget::GetSourceAssetOrClass() const
 {
 	UObject* SourceAsset = nullptr;

@@ -27,7 +27,9 @@ FWinHttpSession::FWinHttpSession(uint32 SecurityProtocolFlags, const bool bInFor
 	LPCWSTR ProxyAddress = WINHTTP_NO_PROXY_NAME;
 	LPCWSTR ProxyBypass = WINHTTP_NO_PROXY_BYPASS;
 	DWORD Flags = WINHTTP_FLAG_ASYNC;
-#if defined(WINHTTP_FLAG_SECURE_DEFAULTS)
+
+	// Disable this on Windows now until we can do a runtime check for a future version of Windows10 that supports this flag
+#if defined(WINHTTP_FLAG_SECURE_DEFAULTS) && !PLATFORM_WINDOWS
 	if (bForceSecureConnections)
 	{
 		Flags |= WINHTTP_FLAG_SECURE_DEFAULTS;

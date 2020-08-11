@@ -58,6 +58,14 @@ static FAutoConsoleVariableRef CVarNiagaraSpawnPerTickGroup(
 	ECVF_Default
 );
 
+int GNigaraAllowPrimedPools = 1;
+static FAutoConsoleVariableRef CVarNigaraAllowPrimedPools(
+	TEXT("fx.Niagara.AllowPrimedPools"),
+	GNigaraAllowPrimedPools,
+	TEXT("Allow Niagara pools to be primed."),
+	ECVF_Default
+);
+
 FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
 	TEXT("DumpNiagaraWorldManager"),
 	TEXT("Dump Information About the Niagara World Manager Contents"),
@@ -71,6 +79,31 @@ FAutoConsoleCommandWithWorld DumpNiagaraWorldManagerCommand(
 			}
 		}
 	)
+);
+
+
+static int GEnableNiagaraVisCulling = 1;
+static FAutoConsoleVariableRef CVarEnableNiagaraVisCulling(
+	TEXT("fx.Niagara.Scalability.VisibilityCulling"),
+	GEnableNiagaraVisCulling,
+	TEXT("When non-zero, high level scalability culling based on visibility is enabled."),
+	ECVF_Default
+);
+
+static int GEnableNiagaraDistanceCulling = 1;
+static FAutoConsoleVariableRef CVarEnableNiagaraDistanceCulling(
+	TEXT("fx.Niagara.Scalability.DistanceCulling"),
+	GEnableNiagaraDistanceCulling,
+	TEXT("When non-zero, high level scalability culling based on distance is enabled."),
+	ECVF_Default
+);
+
+static int GEnableNiagaraInstanceCountCulling = 1;
+static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
+	TEXT("fx.Niagara.Scalability.InstanceCountCulling"),
+	GEnableNiagaraInstanceCountCulling,
+	TEXT("When non-zero, high level scalability culling based on instance count is enabled."),
+	ECVF_Default
 );
 
 FDelegateHandle FNiagaraWorldManager::OnWorldInitHandle;
@@ -152,13 +185,19 @@ FName FNiagaraWorldManagerTickFunction::DiagnosticContext(bool bDetailed)
 
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
-	: World(InWorld)
+FNiagaraWorldManager::FNiagaraWorldManager()
+	: World(nullptr)
 	, ActiveNiagaraTickGroup(-1)
 	, CachedEffectsQuality(INDEX_NONE)
 	, bAppHasFocus(true)
 {
-	for (int32 TickGroup=0; TickGroup < NiagaraNumTickGroups; ++TickGroup)
+
+}
+
+void FNiagaraWorldManager::Init(UWorld* InWorld)
+{
+	World = InWorld;
+	for (int32 TickGroup = 0; TickGroup < NiagaraNumTickGroups; ++TickGroup)
 	{
 		FNiagaraWorldManagerTickFunction& TickFunc = TickFunctions[TickGroup];
 		TickFunc.TickGroup = ETickingGroup(NiagaraFirstTickGroup + TickGroup);
@@ -172,6 +211,10 @@ FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	}
 
 	ComponentPool = NewObject<UNiagaraComponentPool>();
+
+	//Ideally we'd do this here but it's too early in the init process and the world does not have a Scene yet.
+	//Possibly a later hook we can use.
+	//PrimePoolForAllSystems();
 }
 
 FNiagaraWorldManager::~FNiagaraWorldManager()
@@ -442,7 +485,9 @@ void FNiagaraWorldManager::PreGarbageCollectBeginDestroy()
 void FNiagaraWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
 {
 	check(WorldManagers.Find(World) == nullptr);
-	WorldManagers.Add(World) = new FNiagaraWorldManager(World);
+	FNiagaraWorldManager*& NewManager = WorldManagers.Add(World);
+	NewManager = new FNiagaraWorldManager();
+	NewManager->Init(World);
 }
 
 void FNiagaraWorldManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
@@ -535,7 +580,7 @@ void FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy()
 
 void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -629,7 +674,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 {
 	check(TickGroup >= NiagaraFirstTickGroup && TickGroup <= NiagaraLastTickGroup);
 
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -637,6 +682,14 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	// We do book keeping in the first tick group
 	if ( TickGroup == NiagaraFirstTickGroup )
 	{
+		//Ensure the pools have been primed.
+		//WorldInit is too early.
+		if(!bPoolIsPrimed)
+		{
+			PrimePoolForAllSystems();
+			bPoolIsPrimed = true;
+		}
+
 		FNiagaraSharedObject::FlushDeletionList();
 
 #if WITH_EDITOR //PLATFORM_DESKTOP
@@ -868,10 +921,13 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	OutState.Significance = Significance;
 
 	bool bOldCulled = OutState.bCulled;
-	SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
+	if (GEnableNiagaraDistanceCulling)
+	{
+		SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
+	}
 
 	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
-	if (bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	{
 		InstanceCountCull(EffectType, ScalabilitySettings, OutState);
 	}
@@ -894,17 +950,21 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 
 	bool bOldCulled = OutState.bCulled;
 	OutState.bCulled = false;
-	SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
+
+	if (GEnableNiagaraDistanceCulling)
+	{
+		SignificanceCull(EffectType, ScalabilitySettings, Significance, OutState);
+	}
 	
 	//Can't cull dynamic bounds by visibility
 
-	if (System->bFixedBounds && bAppHasFocus)
+	if (System->bFixedBounds && bAppHasFocus && GEnableNiagaraVisCulling)
 	{
 		VisibilityCull(EffectType, ScalabilitySettings, Component, OutState);
 	}
 
 	//Only apply hard instance count cull limit for precull + spawn only fx. We can apply instance count via significance cull for managed fx.
-	if (bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
+	if (GEnableNiagaraInstanceCountCulling && bIsPreCull && EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::SpawnOnly)
 	{
 		InstanceCountCull(EffectType, ScalabilitySettings, OutState);
 	}
@@ -1030,6 +1090,44 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 	}
 	return 1.0f;
 }
+
+void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)
+{
+	if (GNigaraAllowPrimedPools)
+	{
+		for (auto& Pair : WorldManagers)
+		{
+			if (Pair.Value)
+			{
+				Pair.Value->PrimePool(System);
+			}
+		}
+	}
+}
+
+void FNiagaraWorldManager::PrimePoolForAllSystems()
+{
+	if (GNigaraAllowPrimedPools)
+	{
+		//Prime the pool for all currently loaded systems.
+		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+		{
+			if (UNiagaraSystem* Sys = *It)
+			{
+				ComponentPool->PrimePool(Sys, World);
+			}
+		}
+	}
+}
+
+void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
+{
+	if (GNigaraAllowPrimedPools)
+	{
+		ComponentPool->PrimePool(System, World);
+	}
+}
+
 
 #if DEBUG_SCALABILITY_STATE
 

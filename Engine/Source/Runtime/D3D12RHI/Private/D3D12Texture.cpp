@@ -34,6 +34,16 @@ static TAutoConsoleVariable<int32> CVarUseUpdateTexture3DComputeShader(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe );
 
+static TAutoConsoleVariable<bool> CVarTexturePoolOnlyAccountStreamableTexture(
+	TEXT("D3D12.TexturePoolOnlyAccountStreamableTexture"),
+	0,
+	TEXT("Texture streaming pool size only account streamable texture .\n")
+	TEXT(" - 0: All texture types are counted in the pool (legacy, default).\n")
+	TEXT(" - 1: Only streamable textures are counted in the pool.\n")
+	TEXT("When enabling the new behaviour, r.Streaming.PoolSize will need to be re-adjusted.\n"),
+	ECVF_ReadOnly
+);
+
 // Forward Decls for template types
 template TD3D12Texture2D<FD3D12BaseTexture2D>::TD3D12Texture2D(class FD3D12Device* InParent, uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples,
 	EPixelFormat InFormat, bool bInCubemap, uint32 InFlags, const FClearValueBinding& InClearValue, const FD3D12TextureLayout* InTextureLayout
@@ -293,7 +303,7 @@ TStatId FD3D12TextureStats::GetD3D12StatEnum(uint32 MiscFlags, bool bCubeMap, bo
 // Note: This function can be called from many different threads
 // @param TextureSize >0 to allocate, <0 to deallocate
 // @param b3D true:3D, false:2D or cube map
-void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap)
+void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable)
 {
 	if (TextureSize == 0)
 	{
@@ -303,7 +313,12 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc
 	const int64 AlignedSize = (TextureSize > 0) ? Align(TextureSize, 1024) / 1024 : -(Align(-TextureSize, 1024) / 1024);
 	if (ShouldCountAsTextureMemory(Desc.Flags))
 	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
+		bool bOnlyStreamableTextureAccounted = CVarTexturePoolOnlyAccountStreamableTexture.GetValueOnAnyThread();
+
+		if (!bOnlyStreamableTextureAccounted || bStreamable)
+		{
+			FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
+		}
 	}
 	else
 	{
@@ -342,7 +357,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>
 
 			Texture.SetMemorySize(TextureSize);
 
-			UpdateD3D12TextureStats(*Desc, TextureSize, false, Texture.IsCubemap());
+			UpdateD3D12TextureStats(*Desc, TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 			// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -366,7 +381,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& 
 		const int64 TextureSize = Texture.GetMemorySize();
 		ensure(TextureSize > 0 || (Texture.Flags & TexCreate_Virtual) || Texture.GetAliasingSourceTexture() != nullptr);
 
-		UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap());
+		UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 		// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -394,7 +409,7 @@ void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture3D& Texture)
 
 		Texture.SetMemorySize(TextureSize);
 
-		UpdateD3D12TextureStats(Desc, TextureSize, true, false);
+		UpdateD3D12TextureStats(Desc, TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 		// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -415,7 +430,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture3D& Texture)
 		const int64 TextureSize = Texture.GetMemorySize();
 		if (TextureSize > 0)
 		{
-			UpdateD3D12TextureStats(Desc, -TextureSize, true, false);
+			UpdateD3D12TextureStats(Desc, -TextureSize, true, false, Texture.IsStreamable());
 
 #if PLATFORM_WINDOWS
 			// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -835,7 +850,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
-	const D3D12_RESOURCE_STATES DestinationState = Type.GetOptimalInitialState(false);
+	const D3D12_RESOURCE_STATES InitialState = Type.GetOptimalInitialState(false);
 
 	TD3D12Texture2D<BaseResourceType>* D3D12TextureOut = Adapter->CreateLinkedObject<TD3D12Texture2D<BaseResourceType>>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 	{
@@ -859,7 +874,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 			&Location,
 			Format,
 			Flags,
-			(CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState,
+			(CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : InitialState,
 			CreateInfo.DebugName);
 
 		uint32 RTVIndex = 0;
@@ -996,7 +1011,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 	// Initialize if data is given
 	if (CreateInfo.BulkData != nullptr)
 	{
-		D3D12TextureOut->InitializeTextureData(RHICmdList, CreateInfo.BulkData->GetResourceBulkData(), CreateInfo.BulkData->GetResourceBulkDataSize(), SizeX, SizeY, 1, SizeZ, NumMips, Format, DestinationState);
+		D3D12TextureOut->InitializeTextureData(RHICmdList, CreateInfo.BulkData->GetResourceBulkData(), CreateInfo.BulkData->GetResourceBulkDataSize(), SizeX, SizeY, 1, SizeZ, NumMips, Format, InitialState);
 
 		CreateInfo.BulkData->Discard();
 	}
@@ -1055,14 +1070,14 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
-	const D3D12_RESOURCE_STATES DestinationState = Type.GetOptimalInitialState(false);
+	const D3D12_RESOURCE_STATES InitialState = Type.GetOptimalInitialState(false);
 
 	FD3D12Adapter* Adapter = &GetAdapter();
 	FD3D12Texture3D* D3D12TextureOut = Adapter->CreateLinkedObject<FD3D12Texture3D>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 	{
 		FD3D12Texture3D* Texture3D = new FD3D12Texture3D(Device, SizeX, SizeY, SizeZ, NumMips, Format, Flags, CreateInfo.ClearValueBinding);
 
-		VERIFYD3D12CREATETEXTURERESULT(Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : DestinationState, CreateInfo.DebugName), TextureDesc, Device->GetDevice());
+		VERIFYD3D12CREATETEXTURERESULT(Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : InitialState, CreateInfo.DebugName), TextureDesc, Device->GetDevice());
 
 		if (bCreateRTV)
 		{
@@ -1096,7 +1111,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	{
 		if (CreateInfo.BulkData != nullptr)
 		{
-			D3D12TextureOut->InitializeTextureData(RHICmdList, CreateInfo.BulkData->GetResourceBulkData(), CreateInfo.BulkData->GetResourceBulkDataSize(), SizeX, SizeY, SizeZ, 1, NumMips, Format, DestinationState);
+			D3D12TextureOut->InitializeTextureData(RHICmdList, CreateInfo.BulkData->GetResourceBulkData(), CreateInfo.BulkData->GetResourceBulkDataSize(), SizeX, SizeY, SizeZ, 1, NumMips, Format, InitialState);
 		}
 
 		FD3D12TextureStats::D3D12TextureAllocated(*D3D12TextureOut);
@@ -1437,30 +1452,9 @@ uint32 FD3D12DynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 	return Texture->GetMemorySize();
 }
 
-/**
- * Starts an asynchronous texture reallocation. It may complete immediately if the reallocation
- * could be performed without any reshuffling of texture memory, or if there isn't enough memory.
- * The specified status counter will be decremented by 1 when the reallocation is complete (success or failure).
- *
- * Returns a new reference to the texture, which will represent the new mip count when the reallocation is complete.
- * RHIGetAsyncReallocateTexture2DStatus() can be used to check the status of an ongoing or completed reallocation.
- *
- * @param Texture2D		- Texture to reallocate
- * @param NewMipCount	- New number of mip-levels
- * @param NewSizeX		- New width, in pixels
- * @param NewSizeY		- New height, in pixels
- * @param RequestStatus	- Will be decremented by 1 when the reallocation is complete (success or failure).
- * @return				- New reference to the texture, or an invalid reference upon failure
- */
-FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* Texture2DRHI, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
+
+static void DoAsyncReallocateTexture2D(FD3D12Texture2D* Texture2D, FD3D12Texture2D* NewTexture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
 {
-	FD3D12Texture2D*  Texture2D = FD3D12DynamicRHI::ResourceCast(Texture2DRHI);
-
-	// Allocate a new texture.
-	FRHIResourceCreateInfo CreateInfo;
-	FD3D12Texture2D* NewTexture2D = CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, NewSizeX, NewSizeY, 1, false, false, Texture2D->GetFormat(), NewMipCount, 1, Texture2D->GetFlags(), CreateInfo);
-	FD3D12Texture2D* OriginalTexture = NewTexture2D;
-
 	// Use the GPU to asynchronously copy the old mip-maps into the new texture.
 	const uint32 NumSharedMips = FMath::Min(Texture2D->GetNumMips(), NewTexture2D->GetNumMips());
 	const uint32 SourceMipOffset = Texture2D->GetNumMips() - NumSharedMips;
@@ -1510,8 +1504,80 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* Te
 	// Decrement the thread-safe counter used to track the completion of the reallocation, since D3D handles sequencing the
 	// async mip copies with other D3D calls.
 	RequestStatus->Decrement();
+}
 
-	return OriginalTexture;
+
+struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHICommandD3D12AsyncReallocateTexture2D>
+{
+	FD3D12Texture2D* OldTexture;
+	FD3D12Texture2D* NewTexture;
+	int32 NewMipCount;
+	int32 NewSizeX;
+	int32 NewSizeY;
+	FThreadSafeCounter* RequestStatus;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandD3D12AsyncReallocateTexture2D(FD3D12Texture2D* InOldTexture, FD3D12Texture2D* InNewTexture, int32 InNewMipCount, int32 InNewSizeX, int32 InNewSizeY, FThreadSafeCounter* InRequestStatus)
+		: OldTexture(InOldTexture)
+		, NewTexture(InNewTexture)
+		, NewMipCount(InNewMipCount)
+		, NewSizeX(InNewSizeX)
+		, NewSizeY(InNewSizeY)
+		, RequestStatus(InRequestStatus)
+	{
+	}
+
+	void Execute(FRHICommandListBase& RHICmdList)
+	{
+		DoAsyncReallocateTexture2D(OldTexture, NewTexture, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+	}
+};
+
+
+FTexture2DRHIRef FD3D12DynamicRHI::AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2DRHI, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
+{
+	if (RHICmdList.Bypass())
+	{
+		return FDynamicRHI::AsyncReallocateTexture2D_RenderThread(RHICmdList, Texture2DRHI, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+	}
+
+	FD3D12Texture2D* Texture2D = FD3D12DynamicRHI::ResourceCast(Texture2DRHI);
+
+	// Allocate a new texture.
+	FRHIResourceCreateInfo CreateInfo;
+	FD3D12Texture2D* NewTexture2D = CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, NewSizeX, NewSizeY, 1, false, false, Texture2DRHI->GetFormat(), NewMipCount, 1, Texture2DRHI->GetFlags(), CreateInfo);
+	
+	ALLOC_COMMAND_CL(RHICmdList, FRHICommandD3D12AsyncReallocateTexture2D)(Texture2D, NewTexture2D, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+
+	return NewTexture2D;
+}
+
+
+/**
+ * Starts an asynchronous texture reallocation. It may complete immediately if the reallocation
+ * could be performed without any reshuffling of texture memory, or if there isn't enough memory.
+ * The specified status counter will be decremented by 1 when the reallocation is complete (success or failure).
+ *
+ * Returns a new reference to the texture, which will represent the new mip count when the reallocation is complete.
+ * RHIGetAsyncReallocateTexture2DStatus() can be used to check the status of an ongoing or completed reallocation.
+ *
+ * @param Texture2D		- Texture to reallocate
+ * @param NewMipCount	- New number of mip-levels
+ * @param NewSizeX		- New width, in pixels
+ * @param NewSizeY		- New height, in pixels
+ * @param RequestStatus	- Will be decremented by 1 when the reallocation is complete (success or failure).
+ * @return				- New reference to the texture, or an invalid reference upon failure
+ */
+FTexture2DRHIRef FD3D12DynamicRHI::RHIAsyncReallocateTexture2D(FRHITexture2D* Texture2DRHI, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus)
+{
+	FD3D12Texture2D*  Texture2D = FD3D12DynamicRHI::ResourceCast(Texture2DRHI);
+
+	// Allocate a new texture.
+	FRHIResourceCreateInfo CreateInfo;
+	FD3D12Texture2D* NewTexture2D = CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, NewSizeX, NewSizeY, 1, false, false, Texture2DRHI->GetFormat(), NewMipCount, 1, Texture2DRHI->GetFlags(), CreateInfo);
+	
+	DoAsyncReallocateTexture2D(Texture2D, NewTexture2D, NewMipCount, NewSizeX, NewSizeY, RequestStatus);
+
+	return NewTexture2D;
 }
 
 /**
@@ -2594,10 +2660,10 @@ FTexture2DRHIRef FD3D12DynamicRHI::RHICreateTexture2DFromResource(EPixelFormat F
 	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
 	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
 
-	const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+	const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;
 
 	FD3D12Device* Device = Adapter->GetDevice(0);
-	FD3D12Resource* TextureResource = new FD3D12Resource(Device, Device->GetGPUMask(), Resource, State, TextureDesc);
+	FD3D12Resource* TextureResource = new FD3D12Resource(Device, Device->GetGPUMask(), Resource, InitialState, TextureDesc);
 	TextureResource->AddRef();
 
 	FD3D12Texture2D* Texture2D = Adapter->CreateLinkedObject<FD3D12Texture2D>(Device->GetGPUMask(), [&](FD3D12Device* Device)
@@ -2739,10 +2805,10 @@ FTextureCubeRHIRef FD3D12DynamicRHI::RHICreateTextureCubeFromResource(EPixelForm
 	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
 	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
 
-	const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+	const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_COMMON;
 
 	FD3D12Device* Device = Adapter->GetDevice(0);
-	FD3D12Resource* TextureResource = new FD3D12Resource(Device, Device->GetGPUMask(), Resource, State, TextureDesc);
+	FD3D12Resource* TextureResource = new FD3D12Resource(Device, Device->GetGPUMask(), Resource, InitialState, TextureDesc);
 	TextureResource->AddRef();
 
 	FD3D12TextureCube* TextureCube = Adapter->CreateLinkedObject<FD3D12TextureCube>(Device->GetGPUMask(), [&](FD3D12Device* Device)

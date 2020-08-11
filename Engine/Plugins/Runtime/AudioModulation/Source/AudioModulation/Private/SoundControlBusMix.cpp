@@ -19,24 +19,6 @@
 
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
-namespace AudioModulation
-{
-	void IterateModSystems(TUniqueFunction<void(FAudioModulationSystem&)> InFunction)
-	{
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
-		{
-			TArray<FAudioDevice*> Devices = DeviceManager->GetAudioDevices();
-			DeviceManager->IterateOverAllDevices([ModFunction = MoveTemp(InFunction)](Audio::FDeviceId DeviceId, FAudioDevice* AudioDevice)
-			{
-				if (AudioDevice && AudioDevice->IsModulationPluginEnabled() && AudioDevice->ModulationInterface.IsValid())
-				{
-					auto ModulationInterface = static_cast<AudioModulation::FAudioModulation*>(AudioDevice->ModulationInterface.Get());
-					ModFunction(*ModulationInterface->GetModulationSystem());
-				}
-			});
-		}
-	}
-} // namespace AudioModulation
 
 FSoundControlBusMixChannel::FSoundControlBusMixChannel()
 	: Bus(nullptr)
@@ -46,7 +28,14 @@ FSoundControlBusMixChannel::FSoundControlBusMixChannel()
 FSoundControlBusMixChannel::FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue)
 	: Bus(InBus)
 {
-	Value.TargetValue = FMath::Clamp(TargetValue, 0.0f, 1.0f);
+	if (Bus)
+	{
+		Value.TargetValue = FMath::Clamp(TargetValue, Bus->GetMin(), Bus->GetMax());
+	}
+	else
+	{
+		Value.TargetValue = FMath::Clamp(TargetValue, 0.0f, 1.0f);
+	}
 }
 
 USoundControlBusMix::USoundControlBusMix(const FObjectInitializer& ObjectInitializer)
@@ -122,34 +111,39 @@ void USoundControlBusMix::LoadMixFromProfile()
 
 void USoundControlBusMix::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (FProperty* Property = InPropertyChangedEvent.Property)
+	OnPropertyChanged(InPropertyChangedEvent.Property, InPropertyChangedEvent.ChangeType);
+	Super::PostEditChangeProperty(InPropertyChangedEvent);
+}
+
+void USoundControlBusMix::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
+{
+	OnPropertyChanged(InPropertyChangedEvent.Property, InPropertyChangedEvent.ChangeType);
+	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
+}
+
+void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChangeType::Type InChangeType)
+{
+	if (Property)
 	{
-		if (!GEngine)
+		if (InChangeType == EPropertyChangeType::Interactive || InChangeType == EPropertyChangeType::ValueSet)
 		{
-			return;
-		}
-
-		FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-		if (!DeviceManager)
-		{
-			return;
-		}
-
-		TArray<FAudioDevice*> Devices = DeviceManager->GetAudioDevices();
-		for (FAudioDevice* Device : Devices)
-		{
-			if (Device && Device->IsModulationPluginEnabled() && Device->ModulationInterface.IsValid())
+			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue))
 			{
-				auto ModulationInterface = static_cast<AudioModulation::FAudioModulation*>(Device->ModulationInterface.Get());
-				AudioModulation::FAudioModulationSystem* ModulationSystem = ModulationInterface->GetModulationSystem();
-				check(ModulationSystem);
-
-				ModulationSystem->UpdateMix(*this);
+				for (FSoundControlBusMixChannel& Channel : Channels)
+				{
+					if (Channel.Bus)
+					{
+						Channel.Value.TargetValue = FMath::Clamp(Channel.Value.TargetValue, Channel.Bus->GetMin(), Channel.Bus->GetMax());
+					}
+				}
 			}
 		}
 	}
 
-	Super::PostEditChangeProperty(InPropertyChangedEvent);
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
+	{
+		OutModSystem.UpdateMix(*this);
+	});
 }
 
 void USoundControlBusMix::SaveMixToProfile()

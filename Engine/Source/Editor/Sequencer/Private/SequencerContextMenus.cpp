@@ -277,7 +277,20 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.AddSubMenu(
 		LOCTEXT("SectionProperties", "Properties"),
 		LOCTEXT("SectionPropertiesTooltip", "Modify the section properties"),
-		FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){ Shared->AddPropertiesMenu(SubMenuBuilder); })
+		FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+		{
+			TArray<TWeakObjectPtr<UObject>> Sections;
+			{
+				for (TWeakObjectPtr<UMovieSceneSection> Section : Sequencer->GetSelection().GetSelectedSections())
+				{
+					if (Section.IsValid())
+					{
+						Sections.Add(Section);
+					}
+				}
+			}
+			SequencerHelpers::AddPropertiesMenu(*Sequencer, SubMenuBuilder, Sections);
+		})
 	);
 
 	MenuBuilder.BeginSection("SequencerKeyEdit", LOCTEXT("EditMenu", "Edit"));
@@ -535,105 +548,6 @@ FMovieSceneBlendTypeField FSectionContextMenu::GetSupportedBlendTypes() const
 
 	return BlendTypes;
 }
-
-
-/** A widget which wraps the section details view which is an FNotifyHook which is used to forward
-	changes to the section to sequencer. */
-class SSectionDetailsNotifyHookWrapper : public SCompoundWidget, public FNotifyHook
-{
-public:
-	SLATE_BEGIN_ARGS(SSectionDetailsNotifyHookWrapper) {}
-	SLATE_END_ARGS();
-
-	void Construct(FArguments InArgs) { }
-
-	void SetDetailsAndSequencer(TSharedRef<SWidget> InDetailsPanel, TSharedRef<ISequencer> InSequencer)
-	{
-		ChildSlot
-		[
-			InDetailsPanel
-		];
-		Sequencer = InSequencer;
-	}
-
-	//~ FNotifyHook interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override
-	{
-		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
-	}
-
-private:
-	TSharedPtr<ISequencer> Sequencer;
-};
-
-
-void FSectionContextMenu::AddPropertiesMenu(FMenuBuilder& MenuBuilder)
-{
-	TSharedRef<SSectionDetailsNotifyHookWrapper> DetailsNotifyWrapper = SNew(SSectionDetailsNotifyHookWrapper);
-	FDetailsViewArgs DetailsViewArgs;
-	{
-		DetailsViewArgs.bAllowSearch = false;
-		DetailsViewArgs.bCustomFilterAreaLocation = true;
-		DetailsViewArgs.bCustomNameAreaLocation = true;
-		DetailsViewArgs.bHideSelectionTip = true;
-		DetailsViewArgs.bLockable = false;
-		DetailsViewArgs.bSearchInitialKeyFocus = true;
-		DetailsViewArgs.bUpdatesFromSelection = false;
-		DetailsViewArgs.bShowOptions = false;
-		DetailsViewArgs.bShowModifiedPropertiesOption = false;
-		DetailsViewArgs.NotifyHook = &DetailsNotifyWrapper.Get();
-		DetailsViewArgs.ColumnWidth = 0.45f;
-	}
-
-	TArray<TWeakObjectPtr<UObject>> Sections;
-	{
-		for (TWeakObjectPtr<UMovieSceneSection> Section : Sequencer->GetSelection().GetSelectedSections())
-		{
-			if (Section.IsValid())
-			{
-				Sections.Add(Section);
-			}
-		}
-	}
-
-	// We pass the current scene to the UMovieSceneSection customization so we can get the overall bounds of the section when we change a section from infinite->bounded.
-	UMovieScene* CurrentScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-
-	TSharedRef<IDetailsView> DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	DetailsView->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {
-		return MakeShared<FFrameNumberDetailsCustomization>(Sequencer->GetNumericTypeInterface()); }));
-	DetailsView->RegisterInstancedCustomPropertyLayout(UMovieSceneSection::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() {
-		return MakeShared<FMovieSceneSectionDetailsCustomization>(Sequencer->GetNumericTypeInterface(), CurrentScene); }));
-
-	// Let section interfaces further customize the properties details view.
-	TSharedRef<FSequencerNodeTree> SequencerNodeTree = Sequencer->GetNodeTree();
-	for (TWeakObjectPtr<UObject> Section : Sections)
-	{
-		if (Section.IsValid())
-		{
-			TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Cast<UMovieSceneSection>(Section));
-			if (SectionHandle)
-			{
-				TSharedRef<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
-				FSequencerSectionPropertyDetailsViewCustomizationParams CustomizationDetails(
-					SectionInterface, Sequencer, SectionHandle->GetTrackNode()->GetTrackEditor());
-				TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
-				if (ParentObjectBindingNode.IsValid())
-				{
-					CustomizationDetails.ParentObjectBindingGuid = ParentObjectBindingNode->GetObjectBinding();
-				}
-				SectionInterface->CustomizePropertiesDetailsView(DetailsView, CustomizationDetails);
-			}
-		}
-	}
-
-	Sequencer->OnInitializeDetailsPanel().Broadcast(DetailsView, Sequencer);
-	DetailsView->SetObjects(Sections);
-
-	DetailsNotifyWrapper->SetDetailsAndSequencer(DetailsView, Sequencer);
-	MenuBuilder.AddWidget(DetailsNotifyWrapper, FText::GetEmpty(), true);
-}
-
 
 void FSectionContextMenu::AddOrderMenu(FMenuBuilder& MenuBuilder)
 {
@@ -1373,7 +1287,7 @@ void FPasteContextMenu::GatherPasteDestinationsForNode(FSequencerDisplayNode& In
 	}
 
 	// Add children
-	for (const TSharedPtr<FSequencerDisplayNode>& Child : InNode.GetChildNodes())
+	for (const TSharedPtr<FSequencerDisplayNode> Child : InNode.GetChildNodes())
 	{
 		GatherPasteDestinationsForNode(*Child, InSection, ThisScope, Map);
 	}
@@ -1851,12 +1765,12 @@ void FEasingContextMenu::OnUpdateLength(int32 NewLength)
 			if (Handle.EasingType == ESequencerEasingType::In)
 			{
 				Section->Easing.bManualEaseIn = true;
-				Section->Easing.ManualEaseInDuration = FMath::Min(MovieScene::DiscreteSize(Section->GetRange()), NewLength);
+				Section->Easing.ManualEaseInDuration = FMath::Min(UE::MovieScene::DiscreteSize(Section->GetRange()), NewLength);
 			}
 			else
 			{
 				Section->Easing.bManualEaseOut = true;
-				Section->Easing.ManualEaseOutDuration = FMath::Min(MovieScene::DiscreteSize(Section->GetRange()), NewLength);
+				Section->Easing.ManualEaseOutDuration = FMath::Min(UE::MovieScene::DiscreteSize(Section->GetRange()), NewLength);
 			}
 		}
 	}

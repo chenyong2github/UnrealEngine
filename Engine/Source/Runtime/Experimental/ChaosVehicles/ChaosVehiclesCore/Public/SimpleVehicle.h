@@ -7,8 +7,10 @@
 #include "TransmissionSystem.h"
 #include "SuspensionSystem.h"
 #include "WheelSystem.h"
+#include "SteeringSystem.h"
 #include "AerodynamicsSystem.h"
-//#include "AerofoilSystem.h"
+#include "AerofoilSystem.h"
+#include "ThrustSystem.h"
 //#include "FuelSystem.h"
 //#include "BallastSystem.h"
 
@@ -57,6 +59,11 @@ public:
 		return Engine[0];
 	}
 
+	bool HasTransmission() const
+	{
+		return (Transmission.Num() > 0);
+	}
+
 	FSimpleTransmissionSim& GetTransmission()
 	{
 		check(Transmission.Num() == 1);
@@ -75,18 +82,38 @@ public:
 		return Suspension[WheelIdx];
 	}
 
+	FSimpleSteeringSim& GetSteering()
+	{
+		check(Steering.Num() == 1);
+		return Steering[0];
+	}
+
 	FSimpleAerodynamicsSim& GetAerodynamics()
 	{
 		check(Aerodynamics.Num() == 1);
 		return Aerodynamics[0];
+	}
+	
+	FAerofoil& GetAerofoil(int AerofoilIdx)
+	{
+		check(AerofoilIdx < Aerofoils.Num());
+		return Aerofoils[AerofoilIdx];
+	}
+
+	FSimpleThrustSim& GetThruster(int ThrusterIdx)
+	{
+		check(ThrusterIdx < Thrusters.Num());
+		return Thrusters[ThrusterIdx];
 	}
 
 	TArray<FSimpleEngineSim> Engine;
 	TArray<FSimpleTransmissionSim> Transmission;
 	TArray<FSimpleWheelSim> Wheels;
 	TArray<FSimpleSuspensionSim> Suspension;
+	TArray<FSimpleSteeringSim> Steering;
 	TArray<FSimpleAerodynamicsSim> Aerodynamics;
-	//TArray<FSimpleAerofoilSim> Aerofoil;
+	TArray<FAerofoil> Aerofoils;
+	TArray<FSimpleThrustSim> Thrusters;
 	//TArray<FSimpleFuelSim> Fuel;
 	//TArray<FSimpleBallastSim> Ballast;
 	// turbo

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//~=============================================================================
-// SoundSurroundFactory
-//~=============================================================================
-
 #pragma once
 
 #include "CoreMinimal.h"

@@ -64,6 +64,14 @@ DEFINE_STAT(STAT_PostAnimEvaluation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
+static bool GParallelAnimCompletionTaskHighPriority = false;
+static FAutoConsoleVariableRef CVarParallelAnimCompletionTaskHighPriority(
+	TEXT("TaskGraph.TaskPriorities.ParallelAnimCompletionTaskHighPriority"),
+	GParallelAnimCompletionTaskHighPriority,
+	TEXT("Allows parallel anim completion tasks to take priority on the GT so further work (if needed) can be kicked off earlier."),
+	ECVF_Default
+);
+
 FAutoConsoleTaskPriority CPrio_ParallelAnimationEvaluationTask(
 	TEXT("TaskGraph.TaskPriorities.ParallelAnimationEvaluationTask"),
 	TEXT("Task and thread priority for FParallelAnimationEvaluationTask"),
@@ -133,6 +141,10 @@ public:
 	}
 	static ENamedThreads::Type GetDesiredThread()
 	{
+		if (GParallelAnimCompletionTaskHighPriority)
+		{
+			return static_cast<ENamedThreads::Type>(ENamedThreads::GameThread | ENamedThreads::HighTaskPriority);
+		}
 		return ENamedThreads::GameThread;
 	}
 	static ESubsequentsMode::Type GetSubsequentsMode()
@@ -3285,7 +3297,7 @@ float USkeletalMeshComponent::CalculateMass(FName BoneName)
 	{
 		for (int32 i = 0; i < Bodies.Num(); ++i)
 		{
-			UBodySetup* BodySetupPtr = Bodies[i]->BodySetup.Get();
+			UBodySetup* BodySetupPtr = Bodies[i]->GetBodySetup();
 			//if bone name is not provided calculate entire mass - otherwise get mass for just the bone
 			if (BodySetupPtr && (BoneName == NAME_None || BoneName == BodySetupPtr->BoneName))
 			{

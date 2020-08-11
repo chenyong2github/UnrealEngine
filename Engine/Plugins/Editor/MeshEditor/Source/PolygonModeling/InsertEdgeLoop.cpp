@@ -64,7 +64,7 @@ void UInsertEdgeLoopCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Me
 					// Select all of the new edges that were created by inserting the loop
 					if( NewEdgeIDs.Num() > 0 )
 					{
-						for( const FEdgeID NewEdgeID : NewEdgeIDs )
+						for( const FEdgeID& NewEdgeID : NewEdgeIDs )
 						{
 							FMeshElement MeshElementToSelect;
 							{

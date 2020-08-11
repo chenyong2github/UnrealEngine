@@ -7,21 +7,21 @@ public class GizmoEdMode : ModuleRules
 	public GizmoEdMode(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
 		PublicIncludePaths.AddRange(
 			new string[] {
 				// ... add public include paths required here ...
 			}
 			);
-				
-		
+
+
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...
 			}
 			);
-			
-		
+
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -29,20 +29,23 @@ public class GizmoEdMode : ModuleRules
 				"Core"
 			}
 			);
-			
-		
+
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Engine",
+				"InputCore",
 				"UnrealEd",
 				"SlateCore",
 				"CoreUObject",
-				"EditorInteractiveToolsFramework"
+				"EditorInteractiveToolsFramework",
+				"InteractiveToolsFramework"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);
-		
-		
+
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{

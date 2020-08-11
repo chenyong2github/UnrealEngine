@@ -97,6 +97,9 @@ public:
 	/** Toggles the visibility of the given layer and those of the other layers selected with it */
 	void ToggleLayerVisibility( const TSharedPtr< FLayerViewModel >& InLayer );
 
+	/** Toggles the actors loading of the given layer and those of the other layers selected with it */
+	void ToggleLayerActorsLoading(const TSharedPtr< FLayerViewModel >& InLayer);
+
 	/********************************************************************
 	 * EVENTS
 	 ********************************************************************/
@@ -227,16 +230,23 @@ private:
 	/** @return	whether all layers can be made visible */
 	bool MakeAllLayersVisible_CanExecute() const;
 
+	/** Toggles the selected layers actors loading */
+	void ToggleSelectedLayersActorsLoading_Executed();
+
+	/** @return	whether the selected layers actors loading can be toggled */
+	bool ToggleSelectedLayersActorsLoading_CanExecute() const;
+
+	/** Enable actors loading on all layers */
+	void MakeAllLayersLoadActors_Executed();
+
+	/** @return	whether it's possible to enable actors loading on all layers */
+	bool MakeAllLayersLoadActors_CanExecute() const;
+
 	/** Requests renaming of selected layers */
 	void RequestRenameLayer_Executed();
 
 	/** @return true if the layer can be renamed */
 	bool RequestRenameLayer_CanExecute() const;
-
-	// Begin FEditorUndoClient
-	virtual void PostUndo(bool bSuccess) override { Refresh(); }
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
-	// End of FEditorUndoClient
 
 private:
 

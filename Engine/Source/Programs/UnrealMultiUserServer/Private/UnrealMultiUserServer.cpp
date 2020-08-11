@@ -9,6 +9,9 @@ IMPLEMENT_APPLICATION(UnrealMultiUserServer, "UnrealMultiUserServer");
 
 int32 RunUnrealMultiUserServer(int ArgC, TCHAR* ArgV[])
 {
+	// Main thread is tagged as the game thread.
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+
 	FString Role(TEXT("MultiUser"));
 	FConcertSyncServerLoopInitArgs ServerLoopInitArgs;
 	ServerLoopInitArgs.SessionFlags = EConcertSyncSessionFlags::Default_MultiUserSession;

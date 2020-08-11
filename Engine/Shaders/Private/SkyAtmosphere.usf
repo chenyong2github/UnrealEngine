@@ -8,7 +8,7 @@
 #include "Common.ush"
 
 #if SHADING_PATH_MOBILE
-#define MobileSceneTextures SceneTexturesStruct
+#define MobileSceneTextures SceneTexturesStruct 
 #endif
 
 #include "SceneTexturesCommon.ush"
@@ -66,6 +66,9 @@
 #ifndef SAMPLE_CLOUD_SKYAO
 #define SAMPLE_CLOUD_SKYAO 0
 #endif
+#ifndef SAMPLE_ATMOSPHERE_ON_CLOUDS
+#define SAMPLE_ATMOSPHERE_ON_CLOUDS 0
+#endif
 
 #if SAMPLE_OPAQUE_SHADOW
 
@@ -95,6 +98,11 @@
 #include "VolumetricCloudCommon.ush" 
 #endif
 
+
+#if SAMPLE_ATMOSPHERE_ON_CLOUDS
+Texture2D<float>	VolumetricCloudDepthTexture;
+Texture2D<float4>	InputCloudLuminanceTransmittanceTexture;
+#endif
 
 
 // View data is not available for passes running once per scene (and not once per view).
@@ -354,7 +362,7 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 // Exposure used for regular views by the FastSky and AP LUTs.
 #define ViewPreExposure			View.PreExposure
 #define ViewOneOverPreExposure	View.OneOverPreExposure
-// When rendering a real time reflection capture (sky envmap) whe use a different exposure
+// When rendering a real time reflection capture (sky envmap) whe use a different output exposure
 #define OutputPreExposure		(View.RealTimeReflectionCapture ? View.RealTimeReflectionCapturePreExposure : View.PreExposure)
 #else
 #define ViewPreExposure			1.0f
@@ -367,15 +375,17 @@ SamplerState TransmittanceLutTextureSampler;
 SamplerState MultiScatteredLuminanceLutTextureSampler;
 SamplerState SkyViewLutTextureSampler;
 SamplerState CameraAerialPerspectiveVolumeTextureSampler;
-SamplerState VolumetricCloudShadowMapTextureSampler;
+SamplerState VolumetricCloudShadowMapTexture0Sampler;
+SamplerState VolumetricCloudShadowMapTexture1Sampler;
 SamplerState VolumetricCloudSkyAOTextureSampler;
 
 Texture2D<float4> TransmittanceLutTexture;
 Texture2D<float4> MultiScatteredLuminanceLutTexture;
 Texture2D<float4> SkyViewLutTexture;
 Texture3D<float4> CameraAerialPerspectiveVolumeTexture;
-Texture2D<float2> VolumetricCloudShadowMapTexture;
-Texture2D<float2> VolumetricCloudSkyAOTexture;
+Texture2D<float3> VolumetricCloudShadowMapTexture0;
+Texture2D<float3> VolumetricCloudShadowMapTexture1;
+Texture2D<float3> VolumetricCloudSkyAOTexture;
 
 
 #if SOURCE_DISK_ENABLED
@@ -443,7 +453,7 @@ float SkyAtmosphereNoise(float2 UV)
 	//	return DEFAULT_SAMPLE_OFFSET;
 	//	return float(Rand3DPCG32(int3(UV.x, UV.y, S)).x) / 4294967296.0f;
 #if VIEWDATA_AVAILABLE && PER_PIXEL_NOISE
-	return InterleavedGradientNoise(UV.xy, float(View.StateFrameIndexMod8));
+	return View.RealTimeReflectionCapture ? DEFAULT_SAMPLE_OFFSET : InterleavedGradientNoise(UV.xy, float(View.StateFrameIndexMod8));
 #else
 	return DEFAULT_SAMPLE_OFFSET;
 #endif
@@ -485,7 +495,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	Result.Transmittance = 1.0f;
 	Result.MultiScatAs1 = 0;
 
-	if (dot(WorldPos, WorldPos) <= Atmosphere.BottomRadiusKm*Atmosphere.BottomRadiusKm)
+	if (dot(WorldPos, WorldPos) <= Atmosphere.BottomRadiusKm * Atmosphere.BottomRadiusKm)
 	{
 		return Result;	// Camera is inside the planet ground
 	}
@@ -519,6 +529,16 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 	float PlanetOnOpaque = 1.0f;	// This is used to hide opaque meshes under the planet ground
 #if VIEWDATA_AVAILABLE
+#if SAMPLE_ATMOSPHERE_ON_CLOUDS
+	if (true)
+	{
+		float tDepth = DeviceZ; // When SAMPLE_ATMOSPHERE_ON_CLOUDS, DeviceZ is world distance in kilometer.
+		if (tDepth < tMax)
+		{
+			tMax = tDepth;
+		}
+	}
+#else // SAMPLE_ATMOSPHERE_ON_CLOUDS
 	if (DeviceZ != FarDepthValue)
 	{
 		const float3 DepthBufferWorldPosKm = GetScreenWorldPos(SVPos, DeviceZ).xyz * CM_TO_SKY_UNIT;
@@ -542,6 +562,7 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 			return Result;
 		}
 	}
+#endif // SAMPLE_ATMOSPHERE_ON_CLOUDS
 #endif
 	tMax = min(tMax, tMaxMax);
 
@@ -680,8 +701,8 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth2 = 0.0f;
-		PlanetShadow0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix,
-			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm, VolumetricCloudShadowMapTexture, VolumetricCloudShadowMapTextureSampler, OutOpticalDepth2);
+		PlanetShadow0 *= GetCloudVolumetricShadow(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[0],
+			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[0], VolumetricCloudShadowMapTexture0, VolumetricCloudShadowMapTexture0Sampler, OutOpticalDepth2);
 #endif
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
@@ -690,12 +711,17 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		float tPlanet1 = RaySphereIntersectNearest(P, Light1Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere.BottomRadiusKm);
 		float PlanetShadow1 = tPlanet1 >= 0.0f ? 0.0f : 1.0f;
-#if SAMPLE_OPAQUE_SHADOW
 		float3 ShadowP1 = P;
+#if SAMPLE_OPAQUE_SHADOW
 	#if SKYVIEWLUT_PASS
 		ShadowP1 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 	#endif
 		PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
+#endif
+#if SAMPLE_CLOUD_SHADOW
+		float OutOpticalDepth3 = 0.0f;
+		PlanetShadow1 *= GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[1],
+			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[1], VolumetricCloudShadowMapTexture1, VolumetricCloudShadowMapTexture1Sampler, OutOpticalDepth3);
 #endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
 		S += ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1;// +MultiScatteredLuminance * Medium.Scattering);
@@ -789,6 +815,8 @@ float4 PrepareOutput(float3 PreExposedLuminance, float3 Transmittance = float3(1
 	return float4(SafePreExposedLuminance, GreyScaleTransmittance);
 }
 
+uint DepthReadDisabled;
+
 void RenderSkyAtmosphereRayMarchingPS(
 	in float4 SVPos : SV_POSITION,
 	out float4 OutLuminance : SV_Target0
@@ -814,16 +842,32 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float3 WorldPos = GetCameraPlanetPos();
 	float3 WorldDir = GetScreenWorldDir(SVPos);
 
-	// Get the light disk luminance to draw 
 	float3 PreExposedL = 0;
 	float3 LuminanceScale = 1.0f;
-	float DeviceZ = LookupDeviceZ(UvBuffer);
+
+#if SAMPLE_ATMOSPHERE_ON_CLOUDS
+	// We could read cloud color and skip if transmittance<0.999. Could do that if it would be a compute shader.
+
+	const float4 CloudLuminanceTransmittance = InputCloudLuminanceTransmittanceTexture.Load(int3(PixPos, 0));
+	const float CloudCoverage = 1.0f - CloudLuminanceTransmittance.a;
+	if (CloudLuminanceTransmittance.a > 0.999)
+	{
+		OutLuminance = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		return;
+	}
+
+	const float CloudDepthKm = VolumetricCloudDepthTexture.Load(int3(PixPos, 0)).r;
+	float DeviceZ = CloudDepthKm; // Warning: for simplicity, we use DeviceZ as world distance in kilometer when SAMPLE_ATMOSPHERE_ON_CLOUDS. See special case in IntegrateSingleScatteredLuminance.
+
+#else // SAMPLE_ATMOSPHERE_ON_CLOUDS
+	// Get the light disk luminance to draw 
+	float DeviceZ = DepthReadDisabled ? FarDepthValue : LookupDeviceZ(UvBuffer);
 	if (DeviceZ == FarDepthValue)
 	{
+		LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
 #if SOURCE_DISK_ENABLED
 		if (SourceDiskEnabled > 0)
 		{
-			LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
 			PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 0);
 		#if SECOND_ATMOSPHERE_LIGHT_ENABLED
 			PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);
@@ -849,6 +893,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		clip(-1.0f);
 		return;
 	}
+#endif // SAMPLE_ATMOSPHERE_ON_CLOUDS
 
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED && RENDERSKY_ENABLED
@@ -936,9 +981,18 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 	PreExposedL += ss.L * LuminanceScale;
 
+#if SAMPLE_ATMOSPHERE_ON_CLOUDS
+	// We use gray scale transmittance to match the rendering when applying the AerialPerspective texture
+	const float GreyScaleAtmosphereTransmittance = dot(ss.Transmittance, float3(1.0 / 3.0f, 1.0 / 3.0f, 1.0 / 3.0f));
+	// Reduce cloud luminance according to the atmosphere transmittance and add the atmosphere in scattred luminance according to the cloud coverage.
+	PreExposedL = CloudLuminanceTransmittance.rgb * GreyScaleAtmosphereTransmittance + CloudCoverage * PreExposedL;
+	// Coverage of the cloud layer itself does not change.
+	ss.Transmittance = CloudLuminanceTransmittance.a;
+#endif
+
 #if COLORED_TRANSMITTANCE_ENABLED
 #error Requires support for dual source blending.
-	output.Luminance = float4(L, 1.0f);
+	output.Luminance = float4(PreExposedL, 1.0f);
 	output.Transmittance = float4(ss.Transmittance, 1.0f);
 #else
 	OutLuminance = PrepareOutput(PreExposedL, ss.Transmittance);

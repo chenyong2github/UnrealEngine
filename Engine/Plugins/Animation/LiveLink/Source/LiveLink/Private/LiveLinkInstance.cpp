@@ -40,13 +40,6 @@ void FLiveLinkInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& 
 	}
 }
 
-ULiveLinkInstance::ULiveLinkInstance(const FObjectInitializer& Initializer)
-	: Super(Initializer)
-	, CurrentRetargetAsset(nullptr)
-{
-
-}
-
 FAnimInstanceProxy* ULiveLinkInstance::CreateAnimInstanceProxy()
 {
 	return new FLiveLinkInstanceProxy(this);

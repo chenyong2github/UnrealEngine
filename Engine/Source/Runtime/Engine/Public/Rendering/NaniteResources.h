@@ -11,7 +11,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInterface.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Serialization/BulkData.h"
 #include "Misc/MemoryReadStream.h"
 

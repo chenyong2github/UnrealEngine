@@ -70,11 +70,6 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
-// Enable this define to do slow checks for components being added to the wrong
-// world's scene, when using PIE. This can happen if a PIE component is reattached
-// while GWorld is the editor world, for example.
-#define CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH	0
-
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
 	TEXT("r.EarlyZPassOnlyMaterialMasking"),
@@ -884,14 +879,12 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSc
  */
 FORCEINLINE static void VerifyProperPIEScene(UPrimitiveComponent* Component, UWorld* World)
 {
-#if CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH
-	checkf(Component->GetOuter() == GetTransientPackage() || 
-		(FPackageName::GetLongPackageAssetName(Component->GetOutermost()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX) == 
-		FPackageName::GetLongPackageAssetName(World->GetOutermost()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX)),
+	checkfSlow(Component->GetOuter() == GetTransientPackage() || 
+		(FPackageName::GetLongPackageAssetName(Component->GetOutermostObject()->GetPackage()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX) == 
+		FPackageName::GetLongPackageAssetName(World->GetPackage()->GetName()).StartsWith(PLAYWORLD_PACKAGE_PREFIX)),
 		TEXT("The component %s was added to the wrong world's scene (due to PIE). The callstack should tell you why"), 
 		*Component->GetFullName()
 		);
-#endif
 }
 
 void FPersistentUniformBuffers::Clear()
@@ -1072,6 +1065,11 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View, b
 void FPersistentUniformBuffers::UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters)
 {
 	ViewUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	CachedView = nullptr;
+}
+
+void FPersistentUniformBuffers::InvalidateCachedView()
+{
 	CachedView = nullptr;
 }
 
@@ -1364,7 +1362,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 
 	INC_DWORD_STAT_BY( STAT_GameToRendererMallocTotal, PrimitiveSceneProxy->GetMemoryFootprint() + PrimitiveSceneInfo->GetMemoryFootprint() );
 
-	// Verify the primitive is valid (this will compile away to a nop without CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH)
+	// Verify the primitive is valid
 	VerifyProperPIEScene(Primitive, World);
 
 	// Increment the attachment counter, the primitive is about to be attached to the scene.
@@ -2616,6 +2614,19 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	return 0;
 }
 
+void FScene::InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds)
+{
+	if (Component->SceneProxy != nullptr)
+	{
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+		ENQUEUE_RENDER_COMMAND(RuntimeVirtualTextureComponent_SetDirty)(
+			[SceneProxy, WorldBounds](FRHICommandList& RHICmdList)
+		{
+			SceneProxy->Dirty(WorldBounds);
+		});
+	}
+}
+
 void FScene::FlushDirtyRuntimeVirtualTextures()
 {
 	checkSlow(IsInRenderingThread());
@@ -2932,6 +2943,11 @@ void FScene::RemoveExponentialHeightFog(UExponentialHeightFogComponent* FogCompo
 				}
 			}
 		});
+}
+
+bool FScene::HasAnyExponentialHeightFog() const
+{
+	return this->ExponentialFogs.Num() > 0;
 }
 
 void FScene::AddWindSource(UWindDirectionalSourceComponent* WindComponent)
@@ -4414,6 +4430,7 @@ public:
 
 	virtual void AddExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) override {}
 	virtual void RemoveExponentialHeightFog(class UExponentialHeightFogComponent* FogComponent) override {}
+	virtual bool HasAnyExponentialHeightFog() const override { return false; }
 	virtual void AddAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFog(class UAtmosphericFogComponent* FogComponent) override {}
 	virtual void RemoveAtmosphericFogResource_RenderThread(FRenderResource* FogResource) override {}

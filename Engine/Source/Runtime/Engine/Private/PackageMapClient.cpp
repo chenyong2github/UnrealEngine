@@ -48,11 +48,29 @@ CSV_DEFINE_CATEGORY(PackageMap, true);
  */
 static const int INTERNAL_LOAD_OBJECT_RECURSION_LIMIT = 16;
 
-static TAutoConsoleVariable<int32> CVarAllowAsyncLoading( TEXT( "net.AllowAsyncLoading" ), 0, TEXT( "Allow async loading" ) );
-static TAutoConsoleVariable<int32> CVarIgnoreNetworkChecksumMismatch( TEXT( "net.IgnoreNetworkChecksumMismatch" ), 0, TEXT( "" ) );
-static TAutoConsoleVariable<int32> CVarReservedNetGuidSize(TEXT("net.ReservedNetGuidSize"), 512, TEXT("Reserved size in bytes for NetGUID serialization"));
 extern FAutoConsoleVariableRef CVarEnableMultiplayerWorldOriginRebasing;
 extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
+
+static TAutoConsoleVariable<int32> CVarAllowAsyncLoading(
+	TEXT("net.AllowAsyncLoading"),
+	0,
+	TEXT("Allow async loading of unloaded assets referenced in packets."
+		" If false the client will hitch and immediately load the asset,"
+		" if true the packet will be delayed while the asset is async loaded."
+		" net.DelayUnmappedRPCs can be enabled to delay RPCs relying on async loading assets.")
+);
+
+static TAutoConsoleVariable<int32> CVarIgnoreNetworkChecksumMismatch(
+	TEXT("net.IgnoreNetworkChecksumMismatch"),
+	0,
+	TEXT("If true, the integrity checksum on packagemap objects will be ignored, which can cause issues with out of sync data")
+);
+
+static TAutoConsoleVariable<int32> CVarReservedNetGuidSize(
+	TEXT("net.ReservedNetGuidSize"),
+	512,
+	TEXT("Reserved size in bytes for NetGUID serialization, used as a placeholder for later serialization")
+);
 
 static float GGuidCacheTrackAsyncLoadingGUIDThreshold = 0.f;
 static FAutoConsoleVariableRef CVarTrackAsyncLoadingGUIDTreshold(
@@ -2095,7 +2113,8 @@ bool UPackageMapClient::ObjectLevelHasFinishedLoading(UObject* Object)
 	if (Object != NULL && Connection!= NULL && Connection->Driver != NULL && Connection->Driver->GetWorld() != NULL)
 	{
 		// get the level for the object
-		ULevel* Level = Object->GetTypedOuter<ULevel>();
+		AActor* Actor = Cast<AActor>(Object);
+		ULevel* Level = Actor ? Actor->GetLevel() : Object->GetTypedOuter<ULevel>();
 		
 		if (Level != NULL && Level != Connection->Driver->GetWorld()->PersistentLevel)
 		{
@@ -3024,7 +3043,8 @@ static bool ObjectLevelHasFinishedLoading( UObject* Object, UNetDriver* Driver )
 	if ( Object != NULL && Driver != NULL && Driver->GetWorld() != NULL )
 	{
 		// get the level for the object
-		ULevel* Level = Object->GetTypedOuter<ULevel>();
+		AActor* Actor = Cast<AActor>(Object);
+		ULevel* Level = Actor ? Actor->GetLevel() : Object->GetTypedOuter<ULevel>();
 
 		if ( Level != NULL && Level != Driver->GetWorld()->PersistentLevel )
 		{

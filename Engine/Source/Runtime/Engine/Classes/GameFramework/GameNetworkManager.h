@@ -39,7 +39,7 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	UPROPERTY(GlobalConfig)
 	float SeverePacketLossThreshold = 0.15f;
 
-	/** The point we determine the server is either delaying packets or has bad upstream. */
+	/** If average ping is higher than this threshold in ms, determine the server is either delaying packets or has bad upstream. */
 	UPROPERTY(GlobalConfig)
 	int32 BadPingThreshold;
 
@@ -48,25 +48,25 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	int32 SeverePingThreshold;
 
 	//======================================================================================================================
-	// Listen server dynamic netspeed adjustment
+	// Listen/dedicated server dynamic bandwidth (NetSpeed) adjustment
 	
-	/** Current adjusted net speed - Used for dynamically managing netspeed for listen servers*/
+	/** Current adjusted bandwidth per player, based on total and dynamic bandwidth */
 	UPROPERTY()
 	int32 AdjustedNetSpeed;
 
-	/**  Last time netspeed was updated for server (by client entering or leaving) */
+	/** Last time AdjustedNetSpeed was updated for server (by client entering or leaving) */
 	UPROPERTY()
 	float LastNetSpeedUpdateTime;
 
-	/** Total available bandwidth for listen server, split dynamically across net connections */
+	/** Total available bandwidth (in bytes/sec) for listen server, split dynamically across net connections */
 	UPROPERTY(globalconfig)
 	int32 TotalNetBandwidth;
 
-	/** Minimum bandwidth dynamically set per connection */
+	/** Minimum bandwidth set per connection after splitting TotalNetBandwidth */
 	UPROPERTY(globalconfig)
 	int32 MinDynamicBandwidth;
 
-	/** Maximum bandwidth dynamically set per connection */
+	/** Maximum bandwidth set per connection after splitting TotalNetBandwidth */
 	UPROPERTY(globalconfig)
 	int32 MaxDynamicBandwidth;
 
@@ -172,7 +172,7 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	UPROPERTY(GlobalConfig)
 	int32 ClientNetSendMoveThrottleOverPlayerCount;
 
-	/** If client update is within MAXPOSITIONERRORSQUARED then he is authorative on his final position */
+	/** If client update is within MAXPOSITIONERRORSQUARED of what the server expects then the client is authoritative on it's final position */
 	UPROPERTY(GlobalConfig)
 	bool ClientAuthorativePosition;
 
@@ -191,7 +191,7 @@ class ENGINE_API AGameNetworkManager : public AInfo
 	//======================================================================================================================
 	// Movement Time Discrepancy settings for Characters (speed hack detection and prevention)
 
-	/** Whether movement time discrepancy detection is enabled. */
+	/** Whether movement time discrepancy (speed hack) detection is enabled. */
 	UPROPERTY(GlobalConfig)
 	bool bMovementTimeDiscrepancyDetection;
 

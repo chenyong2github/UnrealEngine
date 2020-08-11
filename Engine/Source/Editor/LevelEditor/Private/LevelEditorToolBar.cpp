@@ -1752,7 +1752,7 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 
 					for (ULevel* const Level : SortedLevels)
 					{
-						if (Level != NULL && Level->GetOutermost() != NULL && !Level->IsPersistentLevel())
+						if (Level != NULL && Level->GetOutermost() != NULL && !Level->IsPersistentLevel() && !Level->IsInstancedLevel())
 						{
 							FUIAction UIAction
 							(

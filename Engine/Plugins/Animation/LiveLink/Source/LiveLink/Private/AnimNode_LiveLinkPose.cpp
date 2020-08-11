@@ -77,7 +77,7 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 	TSubclassOf<ULiveLinkRole> SubjectRole = LiveLinkClient_AnyThread->GetSubjectRole(LiveLinkSubjectName);
 	if (SubjectRole)
 	{
-		if (SubjectRole->IsChildOf(ULiveLinkAnimationRole::StaticClass()))
+		if (LiveLinkClient_AnyThread->DoesSubjectSupportsRole(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass()))
 		{
 			//Process animation data if the subject is from that type
 			if (LiveLinkClient_AnyThread->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkAnimationRole::StaticClass(), SubjectFrameData))
@@ -92,7 +92,7 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 				CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
 			}
 		}
-		else
+		else if (LiveLinkClient_AnyThread->DoesSubjectSupportsRole(LiveLinkSubjectName, ULiveLinkBasicRole::StaticClass()))
 		{
 			//Otherwise, fetch basic data that contains property / curve data
 			if (LiveLinkClient_AnyThread->EvaluateFrame_AnyThread(LiveLinkSubjectName, ULiveLinkBasicRole::StaticClass(), SubjectFrameData))

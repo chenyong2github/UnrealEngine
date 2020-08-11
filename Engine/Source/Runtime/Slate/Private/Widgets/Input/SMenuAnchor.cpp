@@ -425,7 +425,10 @@ void SMenuAnchor::SetIsOpen( bool InIsOpen, const bool bFocusMenu, const int32 F
 							// We are re-using the current window instead of creating a new one.
 							// The popup will be presented as a child of this widget.
 							ensure(MethodInUse.GetPopupMethod() == EPopupMethod::UseCurrentWindow);
-							PopupWindowPtr = MyWidgetPath.GetWindow();
+							// We get the deepest window so that it works correctly inside a widget component
+							// though we may need to come up with a more complex setup if we ever need
+							// parents to be in a virtual window, but not the popup.
+							PopupWindowPtr = MyWidgetPath.GetDeepestWindow();
 
 							if (bFocusMenu)
 							{

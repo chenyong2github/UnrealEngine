@@ -29,7 +29,7 @@ TSharedRef<ISequencerSection> FColorPropertyTrackEditor::MakeSectionInterface(UM
 }
 
 
-void FColorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FColorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	FProperty* Property = PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get();
 	if (!Property)
@@ -128,10 +128,11 @@ bool FColorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *O
 	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
 
 	UMovieSceneColorTrack* ColorTrack = Cast<UMovieSceneColorTrack>(Track);
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
 
 	if (ColorTrack)
 	{
+		FMovieSceneEvaluationTrack EvalTrack = ColorTrack->GenerateTrackTemplate(ColorTrack);
+
 		FMovieSceneInterrogationData InterrogationData;
 		GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
 

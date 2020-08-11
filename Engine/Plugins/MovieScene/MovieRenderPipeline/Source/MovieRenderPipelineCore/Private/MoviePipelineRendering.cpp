@@ -38,32 +38,18 @@ static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipeline
 	TArray<UMoviePipelineRenderPass*> RenderPasses;
 
 	// Master Configuration first.
-	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>());
+	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>(true));
 
 	// And then any additional passes requested by the shot.
 	if (InShot->ShotOverrideConfig != nullptr)
 	{
-		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>());
+		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>(true));
 	}
 
 	return RenderPasses;
 }
 
 
-bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig)
-{
-	TArray<UMoviePipelineOutputBase*> OutputSettings = InConfig->FindSettings<UMoviePipelineOutputBase>();
-
-	for (const UMoviePipelineOutputBase* Output : OutputSettings)
-	{
-		if (Output->IsAlphaSupported())
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
 
 void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
@@ -85,7 +71,6 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
 
-	bool bAnyOutputWantsAlpha = GetAnyOutputWantsAlpha(GetPipelineMasterConfig());
 
 	FIntPoint BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 	
@@ -104,75 +89,27 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	MoviePipeline::FMoviePipelineRenderPassInitSettings RenderPassInitSettings;
 	RenderPassInitSettings.BackbufferResolution = BackbufferResolution;
 	RenderPassInitSettings.TileCount = BackbufferTileCount;
-	RenderPassInitSettings.bAccumulateAlpha = bAnyOutputWantsAlpha;
 
 	// Code expects at least a 1x1 tile.
 	ensure(RenderPassInitSettings.TileCount.X > 0 && RenderPassInitSettings.TileCount.Y > 0);
 
-	// Now we need to look at all of the desired passes and find a unique set of actual engine passes that need
-	// to be rendered. This allows us to have multiple passes that re-use one render from the engine for efficiency.
-	TSet<FMoviePipelinePassIdentifier> RequiredEnginePasses;
-
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
-	{
-		RenderPass->GetRequiredEnginePasses(RequiredEnginePasses);
-	}
-
-	// There shouldn't be any render passes active from previous shots by now. The system should have flushed/stalled between
-	// them to complete using resources before switching passes.
-	check(ActiveRenderPasses.Num() == 0);
-
-	// Instantiate a new instance of every engine render pass we know how to use.
-	TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>> RenderPasses;
-
-	FMovieRenderPipelineCoreModule& CoreModule = FModuleManager::Get().LoadModuleChecked<FMovieRenderPipelineCoreModule>("MovieRenderPipelineCore");
-	for (const FOnCreateEngineRenderPass& PassCreationDelegate : CoreModule.GetEngineRenderPasses())
-	{
-		TSharedRef<MoviePipeline::FMoviePipelineEnginePass> PassInstance = PassCreationDelegate.Execute();
-		if (RequiredEnginePasses.Contains(PassInstance->PassIdentifier))
-		{
-			ActiveRenderPasses.Add(PassInstance);
-			RequiredEnginePasses.Remove(PassInstance->PassIdentifier);
-		}
-	}
-
-	for(const FMoviePipelinePassIdentifier& RemainingPass : RequiredEnginePasses)
-	{
-		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Pass \"%d\" was listed as a required engine render pass but was not found. Did you forget to register it with the module?"), *RemainingPass.Name);
-		OnMoviePipelineErrored().Broadcast(this, true, LOCTEXT("MissingEnginePass", "A Render Pass specified an invalid Pass Identifier. Aborting Render. Check the log for more information."));
-	}
-
-	// Initialize each of the engine render passes.
-	for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
-	{
-		EnginePass->Setup(MakeWeakObjectPtr(this), RenderPassInitSettings);
-	}
-
-	// We can now initialize the output passes and provide them a reference to the engine passes to get data from.
+	// Initialize out output passes
 	int32 NumOutputPasses = 0;
 	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
 	{
-		RenderPass->Setup(ActiveRenderPasses, RenderPassInitSettings);
+		RenderPass->Setup(RenderPassInitSettings);
 		NumOutputPasses++;
 	}
 
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Engine Passes and %d Output Passes."), ActiveRenderPasses.Num(), NumOutputPasses);
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished setting up rendering for shot. Shot has %d Passes."), NumOutputPasses);
 }
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
-	// Master Configuration first.
 	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
 	{
 		RenderPass->Teardown();
 	}
-
-	for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
-	{
-		EnginePass->Teardown();
-	}
-
-	ActiveRenderPasses.Empty();
 }
 
 void UMoviePipeline::RenderFrame()
@@ -381,6 +318,12 @@ void UMoviePipeline::RenderFrame()
 				SampleState.AntiAliasingMethod = AntiAliasingMethod;
 				SampleState.SceneCaptureSource = OutputSettings->bDisableToneCurve ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
+				if (CameraSettings->CameraShutterAngle == 0)
+				{
+					// If they're using a zero degree shutter angle we lie about how long a frame is to prevent divide by zeros earlier,
+					// so now we correct for that so that we don't end up with motion blur when the user doesn't want it.
+					SampleState.OutputState.TimeData.MotionBlurFraction = 0.f;
+				}
 				SampleState.ProjectionMatrixJitterAmount = FVector2D((float)(SpatialShiftX) * 2.0f / BackbufferResolution.X, (float)SpatialShiftY * -2.0f / BackbufferResolution.Y);
 				SampleState.TileIndexes = FIntPoint(TileX, TileY);
 				SampleState.TileCounts = TileCount;
@@ -411,14 +354,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.WeightFunctionX.InitHelper(SampleState.OverlappedPad.X, SampleState.TileSize.X, SampleState.OverlappedPad.X);
 				SampleState.WeightFunctionY.InitHelper(SampleState.OverlappedPad.Y, SampleState.TileSize.Y, SampleState.OverlappedPad.Y);
 
-				// Now we can request that all of the engine passes render. The individual render passes should have already registered delegates
-				// to receive data when the engine render pass is run, so no need to run them.
-				for (TSharedPtr<MoviePipeline::FMoviePipelineEnginePass> EnginePass : ActiveRenderPasses)
-				{
-					EnginePass->RenderSample_GameThread(SampleState);
-				}
-
-				// We give a chance for each individual render pass to render as well. This should be used if they're not trying to share data from an Engine Pass.
+				// Render each output pass
 				for (UMoviePipelineRenderPass* RenderPass : InputBuffers)
 				{
 					RenderPass->RenderSample_GameThread(SampleState);
@@ -431,13 +367,18 @@ void UMoviePipeline::RenderFrame()
 	SetProgressWidgetVisible(true);
 }
 
+void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
+{
+	OutputFutures.Add(MoveTemp(OutputFuture));
+}
+
 void UMoviePipeline::ProcessOutstandingFinishedFrames()
 {
 	while (!OutputBuilder->FinishedFrames.IsEmpty())
 	{
 		FMoviePipelineMergerOutputFrame OutputFrame;
 		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
-
+	
 		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 		{
 			OutputContainer->OnRecieveImageData(&OutputFrame);
@@ -445,7 +386,7 @@ void UMoviePipeline::ProcessOutstandingFinishedFrames()
 	}
 }
 
-void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample, const TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> InFrameData)
+void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample)
 {
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
@@ -453,13 +394,13 @@ void UMoviePipeline::OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample
 	// This is for debug output, writing every individual sample to disk that comes off of the GPU (that isn't discarded).
 	TUniquePtr<FImageWriteTask> TileImageTask = MakeUnique<FImageWriteTask>();
 
-
+	FImagePixelDataPayload* InFrameData = OutputSample->GetPayload<FImagePixelDataPayload>();
 	TileImageTask->Format = EImageFormat::EXR;
 	TileImageTask->CompressionQuality = 100;
 
 	FString OutputName = FString::Printf(TEXT("/%s_SS_%d_TS_%d_TileX_%d_TileY_%d.%d.jpeg"),
 		*InFrameData->PassIdentifier.Name, InFrameData->SampleState.SpatialSampleIndex, InFrameData->SampleState.TemporalSampleIndex,
-		InFrameData->SampleState.TileIndexes.X, InFrameData->SampleState.TileIndexes.Y, InFrameData->OutputState.OutputFrameNumber);
+		InFrameData->SampleState.TileIndexes.X, InFrameData->SampleState.TileIndexes.Y, InFrameData->SampleState.OutputState.OutputFrameNumber);
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 	FString OutputPath = OutputDirectory + OutputName;

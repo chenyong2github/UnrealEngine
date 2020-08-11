@@ -2299,10 +2299,11 @@ namespace VulkanRHI
 
 	FGPUEvent::~FGPUEvent()
 	{
-		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Event, Handle);
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Event, Handle);
 	}
 
 
+	/// Note: FDeferredDeletionQueue is deprecated internally, and replaced by FDeferredDeletionQueue2. it is left only for patch compatibility, and should -not- be used
 	FDeferredDeletionQueue::FDeferredDeletionQueue(FVulkanDevice* InDevice)
 		: FDeviceChild(InDevice)
 	{
@@ -2407,6 +2408,176 @@ namespace VulkanRHI
 	}
 
 	void FDeferredDeletionQueue::OnCmdBufferDeleted(FVulkanCmdBuffer* DeletedCmdBuffer)
+	{
+		FScopeLock ScopeLock(&CS);
+		for (int32 Index = 0; Index < Entries.Num(); ++Index)
+		{
+			FEntry& Entry = Entries[Index];
+			if (Entry.CmdBuffer == DeletedCmdBuffer)
+			{
+				Entry.CmdBuffer = nullptr;
+			}
+		}
+	}
+
+
+
+	FDeferredDeletionQueue2::FDeferredDeletionQueue2(FVulkanDevice* InDevice)
+		: FDeviceChild(InDevice)
+	{
+	}
+
+	FDeferredDeletionQueue2::~FDeferredDeletionQueue2()
+	{
+		check(Entries.Num() == 0);
+	}
+
+	void FDeferredDeletionQueue2::EnqueueGenericResource(EType Type, uint64 Handle)
+	{
+		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+
+		FEntry Entry;
+		Entry.SubAllocationDirect = 0;
+		Entry.StructureType = Type;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
+		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = Handle;
+		{
+			FScopeLock ScopeLock(&CS);
+
+#if VULKAN_HAS_DEBUGGING_ENABLED
+			FEntry* ExistingEntry = Entries.FindByPredicate([&](const FEntry& InEntry)
+				{
+					return InEntry.Handle == Entry.Handle;
+				});
+			checkf(ExistingEntry == nullptr, TEXT("Attempt to double-delete resource, FDeferredDeletionQueue::EType: %d, Handle: %llu"), (int32)Type, Handle);
+#endif
+
+			Entries.Add(Entry);
+		}
+	}
+
+	void FDeferredDeletionQueue2::EnqueueResourceAllocation(TRefCountPtr<VulkanRHI::FOldResourceAllocation> ResourceAllocation)
+	{
+		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+
+		FEntry Entry;
+		Entry.SubAllocationDirect = 0;
+		Entry.StructureType = EType::ResourceAllocation;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
+		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = VK_NULL_HANDLE;
+		Entry.ResourceAllocation = ResourceAllocation;
+
+		{
+			FScopeLock ScopeLock(&CS);
+
+			Entries.Add(Entry);
+		}
+	}
+	void FDeferredDeletionQueue2::EnqueueBufferSuballocation(TRefCountPtr<VulkanRHI::FBufferSuballocation> SubAllocation)
+	{
+		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+
+		FEntry Entry;
+		Entry.SubAllocationDirect = 0;
+		Entry.StructureType = EType::BufferSuballocation;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
+		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = VK_NULL_HANDLE;
+		Entry.SubAllocation = SubAllocation;
+
+		{
+			FScopeLock ScopeLock(&CS);
+
+			Entries.Add(Entry);
+		}
+	}
+	void FDeferredDeletionQueue2::EnqueueBufferSuballocationDirect(FBufferSuballocation* SubAllocation)
+	{
+		FVulkanQueue* Queue = Device->GetGraphicsQueue();
+
+		FEntry Entry;
+		Entry.SubAllocationDirect = 0;
+		Entry.StructureType = EType::BufferSuballocation;
+		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
+		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
+
+		Entry.Handle = VK_NULL_HANDLE;
+		Entry.SubAllocationDirect = SubAllocation;
+
+		{
+			FScopeLock ScopeLock(&CS);
+
+			Entries.Add(Entry);
+		}
+	}
+
+
+	void FDeferredDeletionQueue2::ReleaseResources(bool bDeleteImmediately)
+	{
+#if VULKAN_ENABLE_AGGRESSIVE_STATS
+		SCOPE_CYCLE_COUNTER(STAT_VulkanDeletionQueue);
+#endif
+		FScopeLock ScopeLock(&CS);
+
+		VkDevice DeviceHandle = Device->GetInstanceHandle();
+
+		// Traverse list backwards so the swap switches to elements already tested
+		for (int32 Index = Entries.Num() - 1; Index >= 0; --Index)
+		{
+			FEntry* Entry = &Entries[Index];
+			// #todo-rco: Had to add this check, we were getting null CmdBuffers on the first frame, or before first frame maybe
+			if (bDeleteImmediately ||
+				(GVulkanRHIDeletionFrameNumber > Entry->FrameNumber + NUM_FRAMES_TO_WAIT_FOR_RESOURCE_DELETE &&
+					(Entry->CmdBuffer == nullptr || Entry->FenceCounter < Entry->CmdBuffer->GetFenceSignaledCounterC()))
+				)
+			{
+				switch (Entry->StructureType)
+				{
+#define VKSWITCH(Type, ...)	case EType::Type: __VA_ARGS__; VulkanRHI::vkDestroy##Type(DeviceHandle, (Vk##Type)Entry->Handle, VULKAN_CPU_ALLOCATOR); break
+					VKSWITCH(RenderPass);
+					VKSWITCH(Buffer);
+					VKSWITCH(BufferView);
+					VKSWITCH(Image);
+					VKSWITCH(ImageView);
+					VKSWITCH(Pipeline, DEC_DWORD_STAT(STAT_VulkanNumPSOs));
+					VKSWITCH(PipelineLayout);
+					VKSWITCH(Framebuffer);
+					VKSWITCH(DescriptorSetLayout);
+					VKSWITCH(Sampler);
+					VKSWITCH(Semaphore);
+					VKSWITCH(ShaderModule);
+					VKSWITCH(Event);
+#undef VKSWITCH
+				case EType::BufferSuballocation:
+				case EType::ResourceAllocation:
+					Entry->ResourceAllocation.SafeRelease();
+					Entry->SubAllocation.SafeRelease();
+					if (Entry->SubAllocationDirect)
+					{
+						delete Entry->SubAllocationDirect;
+						Entry->SubAllocationDirect = 0;
+					}
+					break;
+
+
+				default:
+					check(0);
+					break;
+				}
+				Entries.RemoveAtSwap(Index, 1, false);
+			}
+		}
+	}
+
+
+
+
+	void FDeferredDeletionQueue2::OnCmdBufferDeleted(FVulkanCmdBuffer* DeletedCmdBuffer)
 	{
 		FScopeLock ScopeLock(&CS);
 		for (int32 Index = 0; Index < Entries.Num(); ++Index)
@@ -2580,7 +2751,7 @@ namespace VulkanRHI
 		check(SemaphoreHandle != VK_NULL_HANDLE);
 		if (!bExternallyOwned)
 		{
-			Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Semaphore, SemaphoreHandle);
+			Device.GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Semaphore, SemaphoreHandle);
 		}
 		SemaphoreHandle = VK_NULL_HANDLE;
 	}

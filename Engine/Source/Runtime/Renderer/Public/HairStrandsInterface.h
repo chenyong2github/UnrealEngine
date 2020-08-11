@@ -342,6 +342,7 @@ struct FHairStrandsProjectionDebugInfo
 RENDERER_API void RegisterHairStrands(
 	uint32 ComponentId,
 	uint32 SkeletalComponentId,
+	USkeletalMeshComponent* SkeletalMesh,
 	EWorldType::Type WorldType,
 	const FHairStrandsInterpolationData& E,
 	const FHairStrandsProjectionHairData& RenProjection,

@@ -33,7 +33,7 @@ bool FPluginManifest::Load(const FString& FileName, FText& OutFailReason)
 bool FPluginManifest::Read(const FJsonObject& Object, FText& OutFailReason)
 {
 	TArray<TSharedPtr<FJsonValue>> JsonContents = Object.GetArrayField(TEXT("Contents"));
-	for (const TSharedPtr<FJsonValue> JsonEntryValue : JsonContents)
+	for (const TSharedPtr<FJsonValue>& JsonEntryValue : JsonContents)
 	{
 		TSharedPtr<FJsonObject> JsonEntry = JsonEntryValue->AsObject();
 

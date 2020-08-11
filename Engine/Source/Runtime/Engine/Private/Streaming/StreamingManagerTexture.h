@@ -191,8 +191,9 @@ private:
 		 *
 		 * @param StageIndex		Current stage index
 		 * @param NumUpdateStages	Number of texture/mesh update stages
+		 * @Param bAsync			Whether this is called on an async task
 		 */
-		void UpdateStreamingRenderAssets( int32 StageIndex, int32 NumStages, bool bWaitForMipFading );
+		void UpdateStreamingRenderAssets(int32 StageIndex, int32 NumStages, bool bWaitForMipFading, bool bAsync = false);
 
 		/** Check visibility of fast response assets and initiate stream-in requests if necessary. */
 		void TickFastResponseAssets();
@@ -300,6 +301,12 @@ private:
 	 */
 	void ProcessPendingMipCopyRequests();
 
+	/**
+	 * Mip-change callbacks can only be called on the game thread.
+	 * When asset streamign status is updated on an async task, we need to tick their callabcks later.
+	 */
+	void TickDeferredMipLevelChangeCallbacks();
+
 	void AddStreamingRenderAsset_Internal(UStreamableRenderAsset* InAsset, FStreamingRenderAsset::EAssetType InType);
 
 	/** Next sync, dump texture group stats. */
@@ -331,6 +338,9 @@ private:
 
 	/** The list of indices with null render asset in StreamingRenderAssets. */
 	TArray<int32>	RemovedRenderAssetIndices;
+
+	/** [Game/Task Thread] A list of assets whose callbacks need to be ticked on the game thread. */
+	TArray<UStreamableRenderAsset*> DeferredTickCBAssets;
 
 	/** [Game Thread] Forced fully resident assets that need to be loaded ASAP when visible. */
 	TSet<UStreamableRenderAsset*> FastResponseRenderAssets;

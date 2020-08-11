@@ -14,7 +14,7 @@ class FWidgetSnapshotService;
  * Widget reflector implementation.
  * User widget to enable iteration without recompilation.
  */
-class SLATEREFLECTOR_API SWidgetReflector
+class SWidgetReflector
 	: public SUserWidget
 	, public IWidgetReflector
 {

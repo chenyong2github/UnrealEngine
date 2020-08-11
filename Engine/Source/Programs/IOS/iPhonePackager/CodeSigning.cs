@@ -11,6 +11,7 @@ using System.IO;
 using MachObjectHandling;
 using System.Diagnostics;
 using System.Xml;
+using System.Linq;
 
 namespace iPhonePackager
 {
@@ -298,10 +299,27 @@ namespace iPhonePackager
 			string SelectedCert = "";
 			string SelectedFile = "";
 			int FoundName = -1;
+
 			Dictionary<string, MobileProvision> ProvisionLibrary = new Dictionary<string, MobileProvision>();
-			foreach (string Provision in Directory.EnumerateFiles(Config.ProvisionDirectory, "*.mobileprovision"))
+
+			foreach (string ProvisionFile in Directory.EnumerateFiles(Config.ProvisionDirectory, "*.mobileprovision"))
 			{
-				MobileProvision p = MobileProvisionParser.ParseFile(Provision);
+				MobileProvision Provision = MobileProvisionParser.ParseFile(ProvisionFile);
+				ProvisionLibrary.Add(ProvisionFile, Provision);
+			}
+
+			// first sort all profiles so we look at newer ones first.
+			IEnumerable<string> ProfileKeys = ProvisionLibrary.Select(KV => KV.Key)
+				.OrderByDescending(K => ProvisionLibrary[K].CreationDate)
+				.ToArray();
+
+			// note - all of this is a near duplicate of code in MobileProvisionUtilities, which other functions
+			// in this class call to do similar work! 
+			// @todo - unify all of this.
+
+			foreach (string ProvisionFile in ProfileKeys)
+			{
+				MobileProvision p = ProvisionLibrary[ProvisionFile];
 
 				DateTime EffectiveDate = p.CreationDate;
 				DateTime ExpirationDate = p.ExpirationDate;
@@ -371,11 +389,11 @@ namespace iPhonePackager
 					if (FoundName != Prev)
 					{
 						SelectedProvision = p.ProvisionName;
-						SelectedFile = Path.GetFileName(Provision);
+						SelectedFile = Path.GetFileName(ProvisionFile);
 						SelectedCert = CryptoAdapter.GetFriendlyNameFromCert(Cert);
 					}
 				}
-				Program.LogVerbose("PROVISION-File:{0},Name:{1},Validity:{2},StartDate:{3},EndDate:{4},Type:{5}", Path.GetFileName(Provision), p.ProvisionName, Validity, EffectiveDate.ToString(), ExpirationDate.ToString(), bDistribution ? "DISTRIBUTION" : "DEVELOPMENT");
+				Program.LogVerbose("PROVISION-File:{0},Name:{1},Validity:{2},StartDate:{3},EndDate:{4},Type:{5}", Path.GetFileName(ProvisionFile), p.ProvisionName, Validity, EffectiveDate.ToString(), ExpirationDate.ToString(), bDistribution ? "DISTRIBUTION" : "DEVELOPMENT");
 			}
 
 			Program.LogVerbose("MATCHED-Provision:{0},File:{1},Cert:{2}", SelectedProvision, SelectedFile, SelectedCert);

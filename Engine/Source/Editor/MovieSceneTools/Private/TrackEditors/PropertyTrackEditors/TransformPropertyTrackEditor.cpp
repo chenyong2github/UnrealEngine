@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/PropertyTrackEditors/TransformPropertyTrackEditor.h"
+#include "TransformData.h"
 #include "MatineeImportTools.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
@@ -8,6 +9,9 @@
 #include "SequencerUtilities.h"
 #include "MovieSceneToolHelpers.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+
+#include "Systems/MovieScenePropertyInstantiator.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 TSharedRef<ISequencerTrackEditor> FTransformPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
 {
@@ -45,58 +49,49 @@ TSharedPtr<SWidget> FTransformPropertyTrackEditor::BuildOutlinerEditWidget(const
 }
 
 
-void FTransformPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys )
+void FTransformPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
-	FTransform Transform = PropertyChangedParams.GetPropertyValue<FTransform>();
+	using namespace UE::MovieScene;
 
-	const FVector& Translation = Transform.GetTranslation();
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, Translation.X, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, Translation.Y, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, Translation.Z, true));
+	FIntermediate3DTransform CurrentTransform;
+	ConvertOperationalProperty(PropertyChangedParams.GetPropertyValue<FTransform>(), CurrentTransform);
 
-	const FRotator& Rotator = Transform.GetRotation().Rotator();
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, Rotator.Roll, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, Rotator.Pitch, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, Rotator.Yaw, true));
+	FIntermediate3DTransform Recomposed = RecomposeTransform(CurrentTransform, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
 
-	const FVector& Scale = Transform.GetScale3D();
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, Scale.X, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(7, Scale.Y, true));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(8, Scale.Z, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, Recomposed.T_X, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, Recomposed.T_Y, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, Recomposed.T_Z, true));
+
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, Recomposed.R_X, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, Recomposed.R_Y, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, Recomposed.R_Z, true));
+
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, Recomposed.S_X, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(7, Recomposed.S_Y, true));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(8, Recomposed.S_Z, true));
 }
 
-bool FTransformPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
+UE::MovieScene::FIntermediate3DTransform FTransformPropertyTrackEditor::RecomposeTransform(const UE::MovieScene::FIntermediate3DTransform& InTransformData, UObject* AnimatedObject, UMovieSceneSection* Section)
 {
+	using namespace UE::MovieScene;
 
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+	const FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = GetSequencer()->GetEvaluationTemplate();
 
-	FMovieSceneEvaluationTrack EvalTrack = Track->GenerateTrackTemplate();
-	FMovieSceneInterrogationData InterrogationData;
-	GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+	UMovieSceneEntitySystemLinker* EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
+	FMovieSceneEntityID EntityID = EvaluationTemplate.FindEntityFromOwner(Section, 0, GetSequencer()->GetFocusedTemplateID());
 
-	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-	EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-	FVector CurrentPos(0.f); FRotator CurrentRot(0.f);
-	FVector CurrentScale(1.f);
-	for (const FTransformData& Transform : InterrogationData.Iterate<FTransformData>(FMovieSceneInterrogationKey::GetTransformInterrogationKey()))
+	if (EntityLinker && EntityID)
 	{
-		CurrentPos = Transform.Translation;
-		CurrentRot = Transform.Rotation;
-		CurrentScale = Transform.Scale;
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		if (System)
+		{
+			FDecompositionQuery Query;
+			Query.Entities = MakeArrayView(&EntityID, 1);
+			Query.Object   = AnimatedObject;
 
-		FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
-		GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentPos.X, Weight);
-		GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentPos.Y, Weight);
-		GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentPos.Z, Weight);
-		GeneratedTotalKeys[3]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentRot.Roll, Weight);
-		GeneratedTotalKeys[4]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentRot.Pitch, Weight);
-		GeneratedTotalKeys[5]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentRot.Yaw, Weight);
-		GeneratedTotalKeys[6]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentScale.X, Weight);
-		GeneratedTotalKeys[7]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentScale.Y, Weight);
-		GeneratedTotalKeys[8]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentScale.Z, Weight);
-		return true;
+			return System->RecomposeBlendOperational(FMovieSceneTracksComponentTypes::Get()->Transform, Query, InTransformData).Values[0];
+		}
 	}
-	return false;
 
+	return InTransformData;
 }

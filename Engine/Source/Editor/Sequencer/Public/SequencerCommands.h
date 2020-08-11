@@ -109,6 +109,9 @@ public:
 	/** Reruns construction scripts on bound actors every frame. */
 	TSharedPtr< FUICommandInfo > ToggleRerunConstructionScripts;
 
+	/** When enabled, enables a single asynchronous evaluation once per-frame. When disabled, forces a full blocking evaluation every time this sequence is evaluated (should be avoided for real-time content). */
+	TSharedPtr< FUICommandInfo > ToggleAsyncEvaluation;
+
 	/** Toggle constraining the time cursor to the playback range while scrubbing */
 	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRangeWhileScrubbing;
 

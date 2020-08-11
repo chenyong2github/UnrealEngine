@@ -61,6 +61,8 @@ public:
 	/** Return the size taken for sub-allocation. */
 	uint32 GetAllocatedSize() const final override;
 
+	const FRenderAssetInstanceView* GetGameThreadView();
+
 protected:
 
 	void OnCreateViewDone(FRenderAssetInstanceView* InView);

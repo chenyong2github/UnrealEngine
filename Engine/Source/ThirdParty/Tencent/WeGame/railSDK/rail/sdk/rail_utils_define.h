@@ -1,4 +1,4 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_UTILS_DEFINE_H
@@ -32,6 +32,12 @@ enum RailUtilsCrashType {
 
 enum RailWarningMessageLevel {
     kRailWarningMessageLevelWarning = 0,
+};
+
+enum RailGameSettingMetadataChangedSource {
+    kRailGameSettingMetadataChangedUnknow = 0,
+    kRailGameSettingMetadataChangedInGame = 1,
+    kRailGameSettingMetadataChangedOutGame = 2,
 };
 
 struct RailImageDataDescriptor {
@@ -96,9 +102,22 @@ struct RailGetImageDataResult : public RailEvent<kRailEventUtilsGetImageDataResu
         user_data = "";
     }
 
-    RailString image_data;
+    RailArray<uint8_t> image_data;
     RailImageDataDescriptor image_data_descriptor;
 };
+
+struct RailGameSettingMetadataChanged
+    : public RailEvent<kRailEventUtilsGameSettingMetadataChanged> {
+    RailGameSettingMetadataChanged() {
+        result = kFailure;
+        source = kRailGameSettingMetadataChangedUnknow;
+        rail_id = 0;
+    }
+
+    RailGameSettingMetadataChangedSource source;
+    RailArray<RailKeyValue> key_values;
+};
+
 }  // namespace rail_event
 
 #pragma pack(pop)

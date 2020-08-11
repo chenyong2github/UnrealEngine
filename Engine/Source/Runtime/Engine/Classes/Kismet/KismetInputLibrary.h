@@ -47,43 +47,74 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	*/
 	UFUNCTION( BlueprintPure, meta = ( DisplayName = "Equal (Input Chord)", CompactNodeTitle = "==" ), Category = "Utilities|Key" )
 	static bool EqualEqual_InputChordInputChord( FInputChord A, FInputChord B );
-	
+
 	/**
 	 * Returns true if the key is a modifier key: Ctrl, Command, Alt, Shift
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Modifier Key"), Category="Utilities|Key")
 	static bool Key_IsModifierKey(const FKey& Key);
-	
+
 	/**
 	 * Returns true if the key is a gamepad button
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Gamepad Key"), Category="Utilities|Key")
 	static bool Key_IsGamepadKey(const FKey& Key);
-	
+
 	/**
 	 * Returns true if the key is a mouse button
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Mouse Button"), Category="Utilities|Key")
 	static bool Key_IsMouseButton(const FKey& Key);
-	
+
 	/**
 	 * Returns true if the key is a keyboard button
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Keyboard Key"), Category="Utilities|Key")
 	static bool Key_IsKeyboardKey(const FKey& Key);
-	
-	/**
-	 * Returns true if the key is a float axis
-	 */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Float Axis"), Category="Utilities|Key")
-	static bool Key_IsFloatAxis(const FKey& Key);
-	
+
 	/**
 	 * Returns true if the key is a vector axis
+	 * @note Deprecated. Use Is Axis 2D/3D instead.
 	 */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Vector Axis"), Category="Utilities|Key")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Vector Axis", DeprecatedFunction, DeprecationMessage = "Use Is Axis 2D/3D instead."), Category = "Utilities|Key")
 	static bool Key_IsVectorAxis(const FKey& Key);
-	
+
+	/**
+	 * Returns true if the key is a 1D (float) axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsFloatAxis", DisplayName = "Is Axis 1D"), Category="Utilities|Key")
+	static bool Key_IsAxis1D(const FKey& Key);
+
+	/**
+	 * Returns true if the key is a 2D (vector) axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsVectorAxis", DisplayName = "Is Axis 2D"), Category="Utilities|Key")
+	static bool Key_IsAxis2D(const FKey& Key);
+
+	/**
+	 * Returns true if the key is a 3D (vector) axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsVectorAxis", DisplayName = "Is Axis 3D"), Category="Utilities|Key")
+	static bool Key_IsAxis3D(const FKey& Key);
+
+	/**
+	 * Returns true if the key is a 1D axis emulating a digital button press.
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsFloatAxis", DisplayName = "Is Button Axis"), Category = "Utilities|Key")
+	static bool Key_IsButtonAxis(const FKey& Key);
+
+	/**
+	 * Returns true if the key is an analog axis
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsFloatAxis, IsVectorAxis", DisplayName = "Is Analog"), Category = "Utilities|Key")
+	static bool Key_IsAnalog(const FKey& Key);
+
+	/**
+	 * Returns true if the key is a digital button press
+	 */
+	UFUNCTION(BlueprintPure, meta = (Keywords = "IsFloatAxis, IsVectorAxis", DisplayName = "Is Digital"), Category = "Utilities|Key")
+	static bool Key_IsDigital(const FKey& Key);
+
 	/**
 	 * Returns true if this is a valid key.
 	 */
@@ -190,8 +221,8 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	static bool InputEvent_IsRightCommandDown(const FInputEvent& Input);
 
 	/** @return The display name of the input chord */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Input Chord Display Name"), Category = "Utilities|Key") 
-	static FText InputChord_GetDisplayName(const FInputChord& Key); 
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Input Chord Display Name"), Category = "Utilities|Key")
+	static FText InputChord_GetDisplayName(const FInputChord& Key);
 
 	/**
 	 * Returns the key for this event.
@@ -223,7 +254,7 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Is Mouse Button Down" ), Category="Utilities|PointerEvent")
 	static bool PointerEvent_IsMouseButtonDown(const FPointerEvent& Input, FKey MouseButton);
 
-	/** Mouse button that caused this event to be raised (possibly EB_None) */
+	/** Mouse button that caused this event to be raised (possibly FKey::Invalid) */
 	UFUNCTION(BlueprintPure, meta=( DisplayName = "Get Effecting Button" ), Category="Utilities|PointerEvent")
 	static FKey PointerEvent_GetEffectingButton(const FPointerEvent& Input);
 

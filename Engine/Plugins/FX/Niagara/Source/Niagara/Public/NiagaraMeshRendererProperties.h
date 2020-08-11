@@ -38,7 +38,7 @@ enum class ENiagaraMeshLockedAxisSpace : uint8 {
 };
 
 USTRUCT()
-struct FNiagaraMeshMaterialOverride 
+struct NIAGARA_API FNiagaraMeshMaterialOverride 
 {
 	GENERATED_USTRUCT_BODY()
 public:	
@@ -65,8 +65,31 @@ struct TStructOpsTypeTraits<FNiagaraMeshMaterialOverride> : public TStructOpsTyp
 	};
 };
 
+namespace ENiagaraMeshVFLayout
+{
+	enum Type
+	{
+		Position,
+		Velocity,
+		Color,
+		Scale,
+		Transform,
+		MaterialRandom,
+		NormalizedAge,
+		CustomSorting,
+		SubImage,
+		DynamicParam0,
+		DynamicParam1,
+		DynamicParam2,
+		DynamicParam3,
+		CameraOffset,
+
+		Num,
+	};
+};
+
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
-class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
+class NIAGARA_API UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
 public:
 	GENERATED_BODY()
@@ -102,6 +125,8 @@ public:
 	void OnMeshChanged();
 	void CheckMaterialUsage();
 #endif // WITH_EDITORONLY_DATA
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+	//UNiagaraRendererProperties Interface END
 
 	virtual uint32 GetNumIndicesPerInstance() const final override;
 	void GetIndexInfoPerSection(int32 LODIndex, TArray<TPair<int32, int32>>& InfoPerSection) const;
@@ -228,6 +253,10 @@ public:
 	/** Which attribute should we use for the renderer visibility tag? */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
+
+	uint32 MaterialParamValidMask = 0;
+	FNiagaraRendererLayout RendererLayoutWithCustomSorting;
+	FNiagaraRendererLayout RendererLayoutWithoutCustomSorting;
 
 protected:
 	bool FindBinding(const FNiagaraUserParameterBinding& InBinding, const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials);

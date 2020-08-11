@@ -63,13 +63,13 @@ bool SPropertyEditorCombo::Supports( const TSharedRef< class FPropertyEditor >& 
 void SPropertyEditorCombo::Construct( const FArguments& InArgs, const TSharedPtr< class FPropertyEditor >& InPropertyEditor )
 {
 	PropertyEditor = InPropertyEditor;
-	PropertyHandle = InArgs._PropertyHandle;
+	ComboArgs = InArgs._ComboArgs;
 
 	TAttribute<FText> TooltipAttribute;
 
 	if (PropertyEditor.IsValid())
 	{
-		PropertyHandle = PropertyEditor->GetPropertyHandle();
+		ComboArgs.PropertyHandle = PropertyEditor->GetPropertyHandle();
 		TooltipAttribute = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(PropertyEditor.ToSharedRef(), &FPropertyEditor::GetValueAsText));
 	}
 
@@ -77,21 +77,23 @@ void SPropertyEditorCombo::Construct( const FArguments& InArgs, const TSharedPtr
 	TArray<bool> Restrictions;
 	TArray<TSharedPtr<SToolTip>> RichToolTips;
 
-	OnGetComboBoxStrings = InArgs._OnGetComboBoxStrings;
-	OnGetComboBoxValue = InArgs._OnGetComboBoxValue;
-	OnComboBoxValueSelected = InArgs._OnComboBoxValueSelected;
+	if (!ComboArgs.Font.HasValidFont())
+	{
+		ComboArgs.Font = FEditorStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle);
+	}
 
 	GenerateComboBoxStrings(ComboItems, RichToolTips, Restrictions);
 
 	SAssignNew(ComboBox, SPropertyComboBox)
-		.Font( InArgs._Font )
+		.Font( ComboArgs.Font )
 		.RichToolTipList( RichToolTips )
 		.ComboItemList( ComboItems )
 		.RestrictedList( Restrictions )
 		.OnSelectionChanged( this, &SPropertyEditorCombo::OnComboSelectionChanged )
 		.OnComboBoxOpening( this, &SPropertyEditorCombo::OnComboOpening )
 		.VisibleText( this, &SPropertyEditorCombo::GetDisplayValueAsString )
-		.ToolTipText( TooltipAttribute );
+		.ToolTipText( TooltipAttribute )
+		.ShowSearchForItemCount( ComboArgs.ShowSearchForItemCount );
 
 	ChildSlot
 	[
@@ -103,9 +105,9 @@ void SPropertyEditorCombo::Construct( const FArguments& InArgs, const TSharedPtr
 
 FString SPropertyEditorCombo::GetDisplayValueAsString() const
 {
-	if (OnGetComboBoxValue.IsBound())
+	if (ComboArgs.OnGetValue.IsBound())
 	{
-		return OnGetComboBoxValue.Execute();
+		return ComboArgs.OnGetValue.Execute();
 	}
 	else if (PropertyEditor.IsValid())
 	{
@@ -117,11 +119,11 @@ FString SPropertyEditorCombo::GetDisplayValueAsString() const
 
 		if (bUsesAlternateDisplayValues)
 		{
-			PropertyHandle->GetValueAsDisplayString(ValueString);
+			ComboArgs.PropertyHandle->GetValueAsDisplayString(ValueString);
 		}
 		else
 		{
-			PropertyHandle->GetValueAsFormattedString(ValueString);
+			ComboArgs.PropertyHandle->GetValueAsFormattedString(ValueString);
 		}
 		return ValueString;
 	}
@@ -129,19 +131,19 @@ FString SPropertyEditorCombo::GetDisplayValueAsString() const
 
 void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> >& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& RichToolTips, TArray<bool>& OutRestrictedItems )
 {
-	if (OnGetComboBoxStrings.IsBound())
+	if (ComboArgs.OnGetStrings.IsBound())
 	{
-		OnGetComboBoxStrings.Execute(OutComboBoxStrings, RichToolTips, OutRestrictedItems);
+		ComboArgs.OnGetStrings.Execute(OutComboBoxStrings, RichToolTips, OutRestrictedItems);
 		return;
 	}
 
 	TArray<FText> BasicTooltips;
-	bUsesAlternateDisplayValues = PropertyHandle->GeneratePossibleValues(OutComboBoxStrings, BasicTooltips, OutRestrictedItems);
+	bUsesAlternateDisplayValues = ComboArgs.PropertyHandle->GeneratePossibleValues(OutComboBoxStrings, BasicTooltips, OutRestrictedItems);
 
 	// For enums, look for rich tooltip information
-	if(PropertyHandle.IsValid())
+	if(ComboArgs.PropertyHandle.IsValid())
 	{
-		if(const FProperty* Property = PropertyHandle->GetProperty())
+		if(const FProperty* Property = ComboArgs.PropertyHandle->GetProperty())
 		{
 			UEnum* Enum = nullptr;
 
@@ -173,7 +175,7 @@ void SPropertyEditorCombo::GenerateComboBoxStrings( TArray< TSharedPtr<FString> 
 
 					if (!bShouldBeHidden)
 					{
-						bShouldBeHidden = PropertyHandle->IsHidden(Excerpt);
+						bShouldBeHidden = ComboArgs.PropertyHandle->IsHidden(Excerpt);
 					}
 				
 					if(!bShouldBeHidden)
@@ -212,13 +214,13 @@ void SPropertyEditorCombo::OnComboOpening()
 void SPropertyEditorCombo::SendToObjects( const FString& NewValue )
 {
 	FString Value = NewValue;
-	if (OnComboBoxValueSelected.IsBound())
+	if (ComboArgs.OnValueSelected.IsBound())
 	{
-		OnComboBoxValueSelected.Execute(NewValue);
+		ComboArgs.OnValueSelected.Execute(NewValue);
 	}
-	else if (PropertyHandle.IsValid())
+	else if (ComboArgs.PropertyHandle.IsValid())
 	{
-		FProperty* Property = PropertyHandle->GetProperty();
+		FProperty* Property = ComboArgs.PropertyHandle->GetProperty();
 
 		if (bUsesAlternateDisplayValues && !Property->IsA(FStrProperty::StaticClass()))
 		{
@@ -250,7 +252,7 @@ void SPropertyEditorCombo::SendToObjects( const FString& NewValue )
 			SetToolTipText(ToolTipText);
 		}
 
-		PropertyHandle->SetValueFromFormattedString(Value);
+		ComboArgs.PropertyHandle->SetValueFromFormattedString(Value);
 	}
 }
 

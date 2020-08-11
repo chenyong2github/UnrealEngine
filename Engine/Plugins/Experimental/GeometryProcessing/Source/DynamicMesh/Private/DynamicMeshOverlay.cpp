@@ -875,6 +875,11 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 	int vid_base_kept = collapseInfo.KeptVertex;
 	int vid_base_removed = collapseInfo.RemovedVertex;
 	
+
+	bool bIsSeam = false;
+	bool bIsSeamEnd = false;
+
+	
 	// look up triangle 0
 	FIndex3i Triangle0(-1,-1,-1), BaseTriangle0(-1,-1,-1);
 	int idx_removed0_a = -1, idx_removed0_b = -1;
@@ -896,58 +901,81 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 		int idx_removed1_a = BaseTriangle1.IndexOf(vid_base_kept);
 		int idx_removed1_b = BaseTriangle1.IndexOf(vid_base_removed);
 
-		// if this is an internal edge it cannot be a seam or we cannot collapse
-		bool bHasSharedUVEdge = IndexUtil::SamePairUnordered(Triangle0[idx_removed0_a], Triangle0[idx_removed0_b], Triangle1[idx_removed1_a], Triangle1[idx_removed1_b]);
-		check(bHasSharedUVEdge);
+		if (bT0Set)
+		{
+			int el_a_tri0 = Triangle0[idx_removed0_a];
+			int el_b_tri0 = Triangle0[idx_removed0_b];
+			int el_a_tri1 = Triangle1[idx_removed1_a];
+			int el_b_tri1 = Triangle1[idx_removed1_b];
+
+			// is this a seam?
+			bIsSeam = !IndexUtil::SamePairUnordered(Triangle0[idx_removed0_a], Triangle0[idx_removed0_b], Triangle1[idx_removed1_a], Triangle1[idx_removed1_b]);
+
+			if (bIsSeam)
+			{
+				// is only one of elements split?
+				if ((el_a_tri0 == el_a_tri1 || el_a_tri0 == el_b_tri1) || (el_b_tri0 == el_a_tri1 || el_b_tri0 == el_b_tri1))
+				{
+					bIsSeamEnd = true;
+				}
+			}
+		}
 	}
 
-	// need to find the elementid for the "kept" and "removed" vertices. 
-	// Since this isn't a seam, there is just one of each, *unless* either the kept
-	// or removed vertices is on a seam (ie connected to a separate edge that is a seam).
-	// In that case this code may fail. Currently this case must be caught and avoided
-	// at a higher level. 
-	// @todo: handle this case, we would then have removed_elements.Num() > 1
-	int kept_elemid = FDynamicMesh3::InvalidID;
-	int removed_elemid = FDynamicMesh3::InvalidID;
-	bool bFoundRemovedElement = false, bFoundKeptElement = false;
+	// need to find the elementid for the "kept" and "removed" vertices that are connected by the edges of T0 and T1.
+	// If this edge is :
+	//       not a seam - just one kept and one removed element.
+	//       a seam end - one (two) kept and two (one) removed elements.
+	//       a seam     - two kept and two removed elements.
+	// The collapse of a seam end must be protected against by the higher-level code.
+	//     There is no sensible way to handle the collapse of a seam end.  Retaining two elements would require some arbitrary split
+	//     of the removed element and conversely if one element is retained there is no reason to believe a single element value 
+	//     would be a good approximation to collapsing the edges on both sides of the seam end.
+	int kept_elemid[2]    = { FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID };
+	int removed_elemid[2] = { FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID };
+	bool bFoundRemovedElement[2] = { false,false };
+	bool bFoundKeptElement[2]    = { false, false };
 	if (bT0Set)
 	{
 		for (int j = 0; j < 3; ++j)
 		{
 			if (BaseTriangle0[j] == vid_base_kept)
 			{
-				kept_elemid = Triangle0[j];
+				kept_elemid[0] = Triangle0[j];
 			}
 			if (BaseTriangle0[j] == vid_base_removed)
 			{
-				removed_elemid = Triangle0[j];
+				removed_elemid[0] = Triangle0[j];
 			}
 		}
-		check(kept_elemid != FDynamicMesh3::InvalidID);
-		check(removed_elemid != FDynamicMesh3::InvalidID);
-		bFoundKeptElement = bFoundRemovedElement = true;
+		check(kept_elemid[0] != FDynamicMesh3::InvalidID);
+		check(removed_elemid[0] != FDynamicMesh3::InvalidID);
+		bFoundKeptElement[0]= bFoundRemovedElement[0] = true;
 	}
-	else if (bT1Set)
+	if ((bIsSeam || !bT0Set) && bT1Set)
 	{
 		for (int j = 0; j < 3; ++j)
 		{
 			if (BaseTriangle1[j] == vid_base_kept)
 			{
-				kept_elemid = Triangle1[j];
+				kept_elemid[1] = Triangle1[j];
 			}
 			if (BaseTriangle1[j] == vid_base_removed)
 			{
-				removed_elemid = Triangle1[j];
+				removed_elemid[1] = Triangle1[j];
 			}
 		}
-		check(kept_elemid != FDynamicMesh3::InvalidID);
-		check(removed_elemid != FDynamicMesh3::InvalidID);
-		bFoundKeptElement = bFoundRemovedElement = true;
+		check(kept_elemid[1] != FDynamicMesh3::InvalidID);
+		check(removed_elemid[1] != FDynamicMesh3::InvalidID);
+		bFoundKeptElement[1] = bFoundRemovedElement[1] = true;
 	}
-	else
+	if (!bT0Set && !bT1Set)
 	{
 		// if neither triangle was set, still need to check surrounding triangles; one or both elements may still be used
-		check(!bFoundRemovedElement);
+		check(!bFoundRemovedElement[0] && !bFoundRemovedElement[1]);
+		
+		// note this may do the wrong thing in the case that at least one of the verts has split elements.
+		// higher-level code should make sure this doesn't happen.
 		
 		for (int onering_tid : ParentMesh->VtxTrianglesItr(vid_base_kept))
 		{
@@ -962,13 +990,13 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 				int vid_base = ParentVertices[elem_id];
 				if (vid_base == vid_base_removed)
 				{
-					bFoundRemovedElement = true;
-					removed_elemid = elem_id;
+					bFoundRemovedElement[0] = true;
+					removed_elemid[0] = elem_id;
 				}
 				if (vid_base == vid_base_kept)
 				{
-					bFoundKeptElement = true;
-					kept_elemid = elem_id;
+					bFoundKeptElement[0] = true;
+					kept_elemid[0] = elem_id;
 				}
 			}
 		}
@@ -976,10 +1004,9 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 
 	// look for still-existing triangles that have elements linked to the removed vertex.
 	// in that case, replace with the element we found
-	TArray<int> removed_elements;
-	if (bFoundRemovedElement)
+
+	if (bFoundRemovedElement[0] || bFoundRemovedElement[1])
 	{
-		removed_elements.AddUnique(removed_elemid);
 		for (int onering_tid : ParentMesh->VtxTrianglesItr(vid_base_kept))
 		{
 			if (!IsSetTriangle(onering_tid))
@@ -992,21 +1019,43 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 				int elem_id = elem_tri[j];
 				if (ParentVertices[elem_id] == vid_base_removed)
 				{
-					ElementsRefCounts.Decrement(elem_id);
-					//removed_elements.AddUnique(elem_id);
-					check(elem_id == removed_elemid);
-					ElementTriangles[3 * onering_tid + j] = kept_elemid;
-					if (bFoundKeptElement)
+					if (elem_id == removed_elemid[0])
 					{
-						ElementsRefCounts.Increment(kept_elemid);
+					ElementsRefCounts.Decrement(elem_id);
+						ElementTriangles[3 * onering_tid + j] = kept_elemid[0];
+						if (bFoundKeptElement[0])
+						{
+							ElementsRefCounts.Increment(kept_elemid[0]);
+						}
+					}
+					else if (elem_id == removed_elemid[1])
+					{
+						ElementsRefCounts.Decrement(elem_id);
+						ElementTriangles[3 * onering_tid + j] = kept_elemid[1];
+						if (bFoundKeptElement[1])
+						{
+							ElementsRefCounts.Increment(kept_elemid[1]);
+						}
+					}
+					else
+					{
+						// this could happen if a split edge is adjacent to the edge we collapse
+						ParentVertices[elem_id] = vid_base_kept;
 					}
 				}
 			}
 		}
-		check(removed_elements.Num() == 1);   // should always be true for non-seam edges...
 
-		// update position of kept element
-		SetElementFromLerp(kept_elemid, kept_elemid, removed_elements[0], collapseInfo.CollapseT);
+		for (int i = 0; i < 2; ++i)
+		{
+			if (kept_elemid[i] == FDynamicMesh3::InvalidID || removed_elemid[i] == FDynamicMesh3::InvalidID)
+			{
+				continue;
+			}
+
+			// update value of kept element
+			SetElementFromLerp(kept_elemid[i], kept_elemid[i], removed_elemid[i], collapseInfo.CollapseT);
+		}
 	}
 
 	// clear the two triangles we removed
@@ -1014,6 +1063,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 	{
 		if (bT0Set)
 		{
+
 			ElementsRefCounts.Decrement(Triangle0[j]);
 			ElementTriangles[3 * tid_removed0 + j] = FDynamicMesh3::InvalidID;
 		}
@@ -1024,12 +1074,22 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 		}
 	}
 
-	// remove the elements associated with the removed vertex
-	for (int k = 0; k < removed_elements.Num(); ++k) 
+	// if the edge was split, but still shared one element, this should be protected against in the calling code
+	if (removed_elemid[1] == removed_elemid[0])
 	{
-		check(ElementsRefCounts.GetRefCount(removed_elements[k]) == 1);
-		ElementsRefCounts.Decrement(removed_elements[k]);
-		ParentVertices[removed_elements[k]] = FDynamicMesh3::InvalidID;
+		removed_elemid[1] = FDynamicMesh3::InvalidID;
+	}
+
+	// remove the elements associated with the removed vertex
+	for (int k = 0; k < 2; ++k)
+	{
+		if (removed_elemid[k] != FDynamicMesh3::InvalidID)
+	{
+			int rc = ElementsRefCounts.GetRefCount(removed_elemid[k]);
+			check(rc == 1);
+			ElementsRefCounts.Decrement(removed_elemid[k]);
+			ParentVertices[removed_elemid[k]] = FDynamicMesh3::InvalidID;
+		}
 	}
 
 }

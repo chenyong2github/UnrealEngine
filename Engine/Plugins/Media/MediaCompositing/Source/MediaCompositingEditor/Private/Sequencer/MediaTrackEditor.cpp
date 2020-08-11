@@ -209,6 +209,7 @@ FKeyPropertyResult FMediaTrackEditor::AddAttachedMediaSource(FFrameNumber KeyTim
 				UMovieSceneSection* NewSection = MediaTrack->AddNewMediaSourceOnRow(*MediaSource, KeyTime, RowIndex);
 				MediaTrack->SetDisplayName(LOCTEXT("MediaTrackName", "Media"));
 				KeyPropertyResult.bTrackModified = true;
+				KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 				GetSequencer()->EmptySelection();
 				GetSequencer()->SelectSection(NewSection);
@@ -229,7 +230,7 @@ FKeyPropertyResult FMediaTrackEditor::AddMasterMediaSource(FFrameNumber KeyTime,
 	UMovieSceneTrack* Track = TrackResult.Track;
 	auto MediaTrack = Cast<UMovieSceneMediaTrack>(Track);
 
-	MediaTrack->AddNewMediaSourceOnRow(*MediaSource, KeyTime, RowIndex);
+	UMovieSceneSection* NewSection = MediaTrack->AddNewMediaSourceOnRow(*MediaSource, KeyTime, RowIndex);
 
 	if (TrackResult.bWasCreated)
 	{
@@ -237,6 +238,7 @@ FKeyPropertyResult FMediaTrackEditor::AddMasterMediaSource(FFrameNumber KeyTime,
 	}
 
 	KeyPropertyResult.bTrackModified = true;
+	KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 	return KeyPropertyResult;
 }

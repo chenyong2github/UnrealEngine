@@ -152,6 +152,17 @@ static inline bool SwappyVk_initAndGetRefreshCycleDuration(
 }
 
 /**
+ * @brief Tell Swappy which ANativeWindow to use when calling to ANativeWindow_* API.
+ * @param[in]  device    - The VkDevice associated with the swapchain
+ * @param[in]  swapchain - The VkSwapchainKHR the application wants Swappy to swap
+ * @param[in]  window    - The ANativeWindow that was used to create the VkSwapchainKHR
+*/
+void SwappyVk_setWindow(
+        VkDevice       device,
+        VkSwapchainKHR swapchain,
+        ANativeWindow* window);
+
+/**
  * @brief Tell Swappy the duration of that each presented image should be visible.
  *
  * If your application presents to more than one swapchain at a time, you must

@@ -37,7 +37,7 @@ struct FSoundModulationInputTransform
 };
 
 UENUM()
-enum class ESoundModulatorOutputCurve
+enum class ESoundModulatorOutputCurve : uint8
 {
 	// Expressions
 	Linear		UMETA(DisplayName = "Linear"),
@@ -61,19 +61,17 @@ struct AUDIOMODULATION_API FSoundModulationOutputTransform
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundModulationOutputTransform();
-
 	/** Minimum value to clamp the input to. */
-	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Input Min", UIMin = "0", UIMax = "1"))
-	float InputMin;
+	UPROPERTY()
+	float InputMin = 0.0f;
 
 	/** Maximum value to clamp the input to. */
-	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Input Max", UIMin = "0", UIMax = "1"))
-	float InputMax;
+	UPROPERTY()
+	float InputMax = 1.0f;
 
 	/** The curve to apply when transforming the output. */
-	UPROPERTY(EditAnywhere, Category = Curve, BlueprintReadWrite)
-	ESoundModulatorOutputCurve Curve;
+	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Transform Curve"))
+	ESoundModulatorOutputCurve Curve = ESoundModulatorOutputCurve::Linear;
 
 	/** When curve set to log, exponential or exponential inverse, value is factor 'b' in following equations with output 'y' and input 'x':
 	 *  Exponential: y = x * 10^-b(1-x)
@@ -81,7 +79,7 @@ struct AUDIOMODULATION_API FSoundModulationOutputTransform
 	 *  Logarithmic: y = b * log(x) + 1
 	 */
 	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Exponential Scalar", ClampMin = "0.1", ClampMax = "10.0", UIMin = "0.1", UIMax = "10.0"))
-	float Scalar;
+	float Scalar = 2.5;
 
 	/** Custom curve to apply if output curve type is set to 'Custom.' */
 	UPROPERTY()
@@ -89,15 +87,15 @@ struct AUDIOMODULATION_API FSoundModulationOutputTransform
 
 	/** Asset curve reference to apply if output curve type is set to 'Shared.' */
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "Asset"), Category = Curve, BlueprintReadWrite)
-	UCurveFloat* CurveShared;
+	UCurveFloat* CurveShared = nullptr;
 
 	/** Minimum value to clamp output to. */
-	UPROPERTY(EditAnywhere, Category = Output, BlueprintReadWrite)
-	float OutputMin;
+	UPROPERTY()
+	float OutputMin = 0.0f;
 
 	/** Maximum value to clamp output to. */
-	UPROPERTY(EditAnywhere, Category = Output, BlueprintReadWrite)
-	float OutputMax;
+	UPROPERTY()
+	float OutputMax = 1.0f;
 
 	/** Applies transform to provided value */
 	void Apply(float& OutValue) const;

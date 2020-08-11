@@ -18,14 +18,14 @@ private:
 	class URuntimeVirtualTextureComponent* VirtualTextureComponent;
 
 #if WITH_EDITORONLY_DATA
-	/** Component that enables Editor bounds copy functionality. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Transform, meta = (AllowPrivateAccess = "true"))
-	class UBoundsCopyComponent* BoundsCopyComponent;
-
 	/** Box for visualizing virtual texture extents. */
 	UPROPERTY(Transient)
 	class UBoxComponent* Box = nullptr;
 #endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+#endif
 
 protected:
 	//~ Begin UObject Interface.

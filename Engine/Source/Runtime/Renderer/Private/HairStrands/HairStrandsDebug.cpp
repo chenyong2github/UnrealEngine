@@ -88,7 +88,8 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxel_DebugTraversalType(TEXT("r.H
 
 // Helper functions for accessing interpolation data for debug purpose.
 // Definitions is in HairStrandsInterface.cpp
-void GetGroomInterpolationData(const EWorldType::Type WorldType, const EHairStrandsProjectionMeshType MeshtType, const FGPUSkinCache* SkinCache, FHairStrandsProjectionMeshData::LOD& OutGeometries);
+void GetGroomInterpolationData(FRHICommandListImmediate& RHICmdList,
+	const EWorldType::Type WorldType, const EHairStrandsProjectionMeshType MeshtType, const FGPUSkinCache* SkinCache, FHairStrandsProjectionMeshData::LOD& OutGeometries);
 void GetGroomInterpolationData(const EWorldType::Type WorldType, const EHairStrandsInterpolationType StrandType, const FGPUSkinCache* SkinCache, FHairStrandsProjectionHairData& OutHairData, TArray<int32>& OutLODIndices);
 
 static int32 GHairStrandsCull = 0;
@@ -1428,7 +1429,7 @@ static void AddDrawDebugClusterPass(
 void RenderHairStrandsDebugInfo(
 	FRHICommandListImmediate& RHICmdList, 
 	TArray<FViewInfo>& Views, 
-	const FHairStrandsDatas* HairDatas, 
+	const FHairStrandsRenderingData* HairDatas,
 	const struct FHairStrandClusterData& HairClusterData)
 {
 	const float YStep = 14;
@@ -1764,10 +1765,10 @@ void RenderHairStrandsDebugInfo(
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
 			{
 				FViewInfo* LocalView = &View;
-				auto RenderMeshProjection = [&bClearDepth, WorldType, LocalView, SkinCache, &SceneColorTexture, &DepthTexture](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
+				auto RenderMeshProjection = [&bClearDepth, WorldType, LocalView, SkinCache, &SceneColorTexture, &DepthTexture, &RHICmdList](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
 					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-					GetGroomInterpolationData(WorldType, MeshType, SkinCache, MeshProjectionLODData);
+					GetGroomInterpolationData(RHICmdList, WorldType, MeshType, SkinCache, MeshProjectionLODData);
 					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
 					{
 						AddDebugProjectionMeshPass(LocalGraphBuilder, LocalView, MeshType, bClearDepth, Section, SceneColorTexture, DepthTexture);

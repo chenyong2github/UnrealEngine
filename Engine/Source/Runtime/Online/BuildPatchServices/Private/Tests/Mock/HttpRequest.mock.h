@@ -86,6 +86,11 @@ namespace BuildPatchServices
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetContent");
 		}
 
+		virtual void SetContent(TArray<uint8>&& ContentPayload) override
+		{
+			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetContent");
+		}
+
 		virtual void SetContentAsString(const FString& ContentString) override
 		{
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::SetContentAsString");

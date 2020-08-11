@@ -17,6 +17,7 @@ public class CascadeToNiagaraConverter : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"MessageLog",
 			}
 		);	
 		
@@ -32,7 +33,7 @@ public class CascadeToNiagaraConverter : ModuleRules
 				"CoreUObject",
 				"Slate",
 				"SlateCore",
-				"PythonScriptPlugin"
+				"PythonScriptPlugin",
 			}
 		);
 

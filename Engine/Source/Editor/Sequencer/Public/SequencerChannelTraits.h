@@ -126,7 +126,7 @@ namespace Sequencer
 	template<typename ChannelType, typename ValueType>
 	FKeyHandle EvaluateAndAddKey(ChannelType* InChannel, const TMovieSceneChannelData<ValueType>& InChannelData, FFrameNumber InTime, ISequencer& InSequencer, ValueType InDefaultValue = ValueType{})
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		ValueType ValueAtTime = InDefaultValue;
 		EvaluateChannel(InChannel, InTime, ValueAtTime);
@@ -157,7 +157,7 @@ namespace Sequencer
 		FTrackInstancePropertyBindings*            InPropertyBindings
 		)
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		// Add a key for the current value of the valid first object we can find
 		if (InExternalValue.OnGetExternalValue && InObjectBindingID.IsValid())
@@ -226,7 +226,7 @@ namespace Sequencer
 		const FGuid&                               InObjectBindingID,
 		FTrackInstancePropertyBindings*            InPropertyBindings)
 	{
-		using namespace MovieScene;
+		using namespace UE::MovieScene;
 
 		TOptional<FKeyHandle> Handle = AddKeyForExternalValue(InChannel, InExternalValue, InTime, InSequencer, InObjectBindingID, InPropertyBindings);
 		if (!Handle.IsSet())

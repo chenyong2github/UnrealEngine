@@ -21,6 +21,11 @@ UMovieSceneSection* UMovieScenePrimitiveMaterialTrack::CreateNewSection()
 	return NewObject<UMovieScenePrimitiveMaterialSection>(this, NAME_None, RF_Transactional);
 }
 
+bool UMovieScenePrimitiveMaterialTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieScenePrimitiveMaterialSection::StaticClass();
+}
+
 FMovieSceneEvalTemplatePtr UMovieScenePrimitiveMaterialTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	return FMovieScenePrimitiveMaterialTemplate(*CastChecked<UMovieScenePrimitiveMaterialSection>(&InSection), *this);

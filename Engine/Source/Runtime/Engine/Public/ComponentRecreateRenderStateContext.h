@@ -47,7 +47,7 @@ public:
 	}
 };
 
-/** Destroys render states for all components and then recreates them when this object is destroyed */
+/** Destroys render states for all components or for a provided list of components and then recreates them when this object is destroyed */
 class FGlobalComponentRecreateRenderStateContext
 {
 public:
@@ -55,6 +55,12 @@ public:
 	* Initialization constructor. 
 	*/
 	ENGINE_API FGlobalComponentRecreateRenderStateContext();
+
+	/** 
+	* Initialization constructor for a provided component list. 
+	*/
+	ENGINE_API FGlobalComponentRecreateRenderStateContext(const TArray<UActorComponent*>& InComponents);
+
 
 	/** Destructor */
 	ENGINE_API ~FGlobalComponentRecreateRenderStateContext();

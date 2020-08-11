@@ -4,7 +4,7 @@
 
 #include "Sound/SoundEffectSource.h"
 #include "DSP/Chorus.h"
-#include "Sound/SoundModulationParameter.h"
+#include "Sound/SoundModulationDestination.h"
 
 #include "SourceEffectChorus.generated.h"
 
@@ -18,42 +18,42 @@ struct SYNTHESIS_API FSourceEffectChorusSettings
 	float Depth;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	FSoundModulationParameterSettings DepthModulation;
+	FSoundModulationDestinationSettings DepthModulation;
 
 	// The frequency of the chorus effect
 	UPROPERTY(meta = (DeprecatedProperty))
 	float Frequency;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Frequency", ClampMin = "0.0", UIMin = "0.0", UIMax = "5.0"))
-	FSoundModulationParameterSettings FrequencyModulation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Frequency", AudioParam = "LowRateFrequency", UIMin = "0.0", UIMax = "5.0"))
+	FSoundModulationDestinationSettings FrequencyModulation;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	float Feedback;
 
 	// The feedback of the chorus effect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Feedback", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	FSoundModulationParameterSettings FeedbackModulation;
+	FSoundModulationDestinationSettings FeedbackModulation;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	float WetLevel;
 
 	// The wet level of the chorus effect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Wet Level", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	FSoundModulationParameterSettings WetModulation;
+	FSoundModulationDestinationSettings WetModulation;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	float DryLevel;
 
 	// The dry level of the chorus effect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Dry Level", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	FSoundModulationParameterSettings DryModulation;
+	FSoundModulationDestinationSettings DryModulation;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	float Spread;
 
 	// The spread of the effect (larger means greater difference between left and right delay lines)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Spread", ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	FSoundModulationParameterSettings SpreadModulation;
+	FSoundModulationDestinationSettings SpreadModulation;
 
 	FSourceEffectChorusSettings()
 		: Depth(0.2f)
@@ -84,24 +84,24 @@ public:
 	// Process the input block of audio. Called on audio thread.
 	virtual void ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData) override;
 
-	void SetDepthModulator(const FSoundModulationParameterSettings& InModulatorSettings);
-	void SetFeedbackModulator(const FSoundModulationParameterSettings& InModulatorSettings);
-	void SetFrequencyModulator(const FSoundModulationParameterSettings& InModulatorSettings);
-	void SetWetModulator(const FSoundModulationParameterSettings& InModulatorSettings);
-	void SetDryModulator(const FSoundModulationParameterSettings& InModulatorSettings);
-	void SetSpreadModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
+	void SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
+	void SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
+	void SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
+	void SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
+	void SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 protected:
 	Audio::FChorus Chorus;
 
 	FSourceEffectChorusSettings SettingsCopy;
 
-	Audio::FModulationParameter DepthMod;
-	Audio::FModulationParameter FeedbackMod;
-	Audio::FModulationParameter FrequencyMod;
-	Audio::FModulationParameter WetMod;
-	Audio::FModulationParameter DryMod;
-	Audio::FModulationParameter SpreadMod;
+	Audio::FModulationDestination DepthMod;
+	Audio::FModulationDestination FeedbackMod;
+	Audio::FModulationDestination FrequencyMod;
+	Audio::FModulationDestination WetMod;
+	Audio::FModulationDestination DryMod;
+	Audio::FModulationDestination SpreadMod;
 };
 
 UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
@@ -117,22 +117,22 @@ public:
 	virtual void OnInit() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetDepthModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetDepthModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetFeedbackModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetFeedbackModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetFrequencyModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetFrequencyModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetWetModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetWetModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetDryModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetDryModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSpreadModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetSpreadModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
 	void SetSettings(const FSourceEffectChorusSettings& InSettings);

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Algo/Common.h"
 #include "Templates/Invoke.h"
 
 
@@ -41,6 +42,29 @@ namespace Algo
 	FORCEINLINE bool NoneOf(const RangeType& Range, ProjectionType Projection)
 	{
 		for (const auto& Element : Range)
+		{
+			if (Invoke(Projection, Element))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Checks if no projection of the elements in the range is truthy.
+	 * Should be used when the range iterator doesn't return a reference.
+	 *
+	 * @param  Range       The range to check.
+	 * @param  Projection  The projection to apply to each element.
+	 *
+	 * @return  true if none of the projections are truthy, false otherwise.
+	 */
+	template <typename RangeType, typename ProjectionType>
+	FORCEINLINE bool NoneOf(const RangeType& Range, ProjectionType Projection, ENoRef NoRef)
+	{
+		for (const auto Element : Range)
 		{
 			if (Invoke(Projection, Element))
 			{

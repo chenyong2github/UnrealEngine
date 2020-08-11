@@ -598,6 +598,13 @@ void UEditorEngine::SetSelectionStateOfLevel(const FSelectionStateOfLevel& InSel
 	NoteSelectionChange();
 }
 
+void UEditorEngine::ResetAllSelectionSets()
+{
+	GetSelectedObjects()->DeselectAll();
+	GetSelectedActors()->DeselectAll();
+	GetSelectedComponents()->DeselectAll();
+}
+
 static bool GetSmallToolBarIcons()
 {
 	return GetDefault<UEditorStyleSettings>()->bUseSmallToolBarIcons;
@@ -1072,13 +1079,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			FModuleManager::Get().LoadModule(TEXT("PListEditor"));
 		}
 
-		bool bEnvironmentQueryEditor = false;
-		GConfig->GetBool(TEXT("EnvironmentQueryEd"), TEXT("EnableEnvironmentQueryEd"), bEnvironmentQueryEditor, GEngineIni);
-		if (bEnvironmentQueryEditor || GetDefault<UEditorExperimentalSettings>()->bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
-
 		FModuleManager::Get().LoadModule(TEXT("LogVisualizer"));
 		FModuleManager::Get().LoadModule(TEXT("HotReload"));
 
@@ -1504,15 +1504,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	bool bAWorldTicked = false;
 	ELevelTick TickType = IsRealtime ? LEVELTICK_ViewportsOnly : LEVELTICK_TimeOnly;
 
-#if WITH_CHAOS
-	// Before we begin ticking any of our worlds, dispatch the global command lists and queues for physics
-	FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
-	if(ensure(ChaosModule))
-	{
-		ChaosModule->DispatchGlobalCommands();
-	}
-#endif
-
 	if( bShouldTickEditorWorld )
 	{ 
 		//EditorContext.World()->FXSystem->Resume();
@@ -1703,9 +1694,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 
 				// Update the level.
-				GameCycles=0;
-				CLOCK_CYCLES(GameCycles);
-
 				{
 					// So that hierarchical stats work in PIE
 					SCOPE_CYCLE_COUNTER(STAT_FrameTime);
@@ -1726,9 +1714,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
 				}
-
-
-				UNCLOCK_CYCLES(GameCycles);
 
 				// Tick the viewports.
 				if ( GameViewport != NULL )
@@ -2209,7 +2194,7 @@ void UEditorEngine::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 }
 
-void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& TransReset )
+void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& TransReset, bool bTransReset )
 {
 	check( !TransReset.IsEmpty() );
 
@@ -2222,8 +2207,11 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 			GetSelectedObjects()->DeselectAll();
 		}
 
-		// Reset the transaction tracking system.
-		ResetTransaction( TransReset );
+		if (bTransReset)
+		{
+			// Reset the transaction tracking system.
+			ResetTransaction(TransReset);
+		}
 
 		// Invalidate hit proxies as they can retain references to objects over a few frames
 		FEditorSupportDelegates::CleanseEditor.Broadcast();
@@ -2265,7 +2253,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 			}
 
 			TArray<UObject*> PackageObjects;
-			GetObjectsWithOuter(RedirectorPackage, PackageObjects);
+			GetObjectsWithPackage(RedirectorPackage, PackageObjects);
 
 			if (!PackageObjects.ContainsByPredicate(
 					[](UObject* Object)
@@ -2288,7 +2276,7 @@ void UEditorEngine::Cleanse( bool ClearSelection, bool Redraw, const FText& Tran
 		for (UPackage* PackageToUnload : PackagesToUnload)
 		{
 			TArray<UObject*> PackageObjects;
-			GetObjectsWithOuter(PackageToUnload, PackageObjects);
+			GetObjectsWithPackage(PackageToUnload, PackageObjects);
 			for (UObject* Object : PackageObjects)
 			{
 				Object->ClearFlags(FlagsToClear);
@@ -2885,6 +2873,13 @@ void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,
 
 	// Update the actor before leaving.
 	InComponent->MarkPackageDirty();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!GetDefault<ULevelEditorViewportSettings>()->bUseLegacyPostEditBehavior)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		InComponent->PostEditComponentMove(false);
+	}
 
 	// Fire callbacks
 	FEditorSupportDelegates::RefreshPropertyWindows.Broadcast();
@@ -4444,9 +4439,29 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
 	UObject* Base = InBase;
-	if ( !Base && InOuter && InOuter->HasAnyPackageFlags(PKG_ContainsMap) )
+	if (!Base && InOuter)
 	{
-		Base = UWorld::FindWorldInPackage(InOuter);
+		// Check if the package contains a map and set the world object as base
+		if (InOuter->HasAnyPackageFlags(PKG_ContainsMap) )
+		{
+			Base = UWorld::FindWorldInPackage(InOuter);
+		}
+		else
+		{
+			// Look at top level object for the base root candidate,
+			// this should find the world if the package contains a map, however worlds are sometimes not properly flagged as asset when saved
+			// This will also allow other asset types that need to have Pre/PostSaveRoot called on them to be done so properly
+			TArray<UObject*> PotentialAssets;
+			GetObjectsWithPackage(InOuter, PotentialAssets, false);
+			for (UObject* Object : PotentialAssets)
+			{
+				if (Object->IsAsset())
+				{
+					Base = Object;
+					break;
+				}
+			}
+		}
 	}
 
 	// Record the package flags before OnPreSaveWorld. They will be used in OnPostSaveWorld.
@@ -5231,6 +5246,11 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				else
 				{
 					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->GetRelativeScale3D() );
+				}
+
+				if (OldActor->GetRootComponent() != NULL)
+				{
+					NewActorRootComponent->SetMobility(OldActor->GetRootComponent()->Mobility);
 				}
 			}
 
@@ -6189,7 +6209,27 @@ void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText S
 	{
 		if (VC)
 		{
-			VC->SetRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+			VC->AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
+void UEditorEngine::RemoveViewportsRealtimeOverride(FText SystemDisplayName)
+{
+	// We don't check that we had an override on all the viewport clients because since the caller added their override, there could have
+	// been new viewport clients added to the list by someone else. It's probably that the caller just wants to make sure no viewport has
+	// their override anymore so it's a sensible default to ignore those who don't have it.
+	const bool bCheckMissingOverride = false;
+
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->RemoveRealtimeOverride(SystemDisplayName, bCheckMissingOverride);
 		}
 	}
 
@@ -6204,7 +6244,7 @@ void UEditorEngine::RemoveViewportsRealtimeOverride()
 	{
 		if (VC)
 		{
-			VC->RemoveRealtimeOverride();
+			VC->PopRealtimeOverride();
 		}
 	}
 
@@ -6314,6 +6354,10 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 
 bool UEditorEngine::AreAllWindowsHidden() const
 {
+	if (!FSlateApplication::IsInitialized())
+	{
+		return true;
+	}
 	const TArray< TSharedRef<SWindow> > AllWindows = FSlateApplication::Get().GetInteractiveTopLevelWindows();
 
 	bool bAllHidden = true;
@@ -6389,6 +6433,7 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.OverrideLevel = DesiredLevel;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnInfo.bCreateActorPackage = true;
 		SpawnInfo.ObjectFlags = InObjectFlags;
 		const auto Location = Transform.GetLocation();
 		const auto Rotation = Transform.GetRotation().Rotator();

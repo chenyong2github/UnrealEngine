@@ -221,7 +221,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	// add vertices
 	int32 VertIndex = 0;
 	int32 FaceIndex = 0;
-	for(const FTriangleID TriangleID : RawMesh->Triangles().GetElementIDs())
+	for(const FTriangleID& TriangleID : RawMesh->Triangles().GetElementIDs())
 	{
 		const FPolygonGroupID PolygonGroupID = RawMesh->GetTrianglePolygonGroup(TriangleID);
 		if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))

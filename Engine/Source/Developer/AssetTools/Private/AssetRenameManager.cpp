@@ -491,7 +491,7 @@ TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(con
 		for (TFieldIterator<FObjectProperty> PropertyIt(Cls); PropertyIt; ++PropertyIt)
 		{
 			const UObject* Object = PropertyIt->GetPropertyValue(PropertyIt->ContainerPtrToValuePtr<UObject>(CDO));
-			for (const TWeakObjectPtr<UObject> Asset : LocalAssetsToRename)
+			for (const TWeakObjectPtr<UObject>& Asset : LocalAssetsToRename)
 			{
 				if (Object == Asset.Get())
 				{
@@ -980,6 +980,7 @@ struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 		}
 
 		this->ArIsObjectReferenceCollector = true;
+		this->ArIsModifyingWeakAndStrongReferences = true;
 
 		// Mark it as saving to correctly process all references
 		this->SetIsSaving(true);
@@ -1121,7 +1122,7 @@ void FAssetRenameManager::RenameReferencingSoftObjectPaths(const TArray<UPackage
 	for (UPackage* Package : PackagesToCheck)
 	{
 		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithOuter(Package, ObjectsInPackage);
+		GetObjectsWithPackage(Package, ObjectsInPackage);
 
 		for (UObject* Object : ObjectsInPackage)
 		{
@@ -1152,9 +1153,9 @@ void FAssetRenameManager::OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
 }
 
 bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap, TArray<UObject*>& OutReferencingObjects) const
-{	
+{
 	TMap<FSoftObjectPath, TArray<UObject*>> ReferencingObjectsMap;
-	
+
 	CheckPackageForSoftObjectReferences(Package, AssetRedirectorMap, ReferencingObjectsMap);
 
 	// Build an array out of the map results.
@@ -1191,7 +1192,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 		FSoftObjectPathRenameSerializer CheckSerializer(EmptyMap, true, &MapForCache, Package->GetFName());
 
 		TArray<UObject*> ObjectsInPackage;
-		GetObjectsWithOuter(Package, ObjectsInPackage);
+		GetObjectsWithPackage(Package, ObjectsInPackage);
 
 		for (UObject* Object : ObjectsInPackage)
 		{
@@ -1208,7 +1209,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 		CachedReferences->Map = MoveTemp(MapForCache);
 
 		CachedReferences->Map.GenerateKeyArray(CachedReferences->Keys);
-		
+
 		// Keys need to be sorted for binary search
 		CachedReferences->Keys.Sort(FSoftObjectPathFastLess());
 	}
@@ -1466,7 +1467,7 @@ int32 FAssetRenameManager::ReportFailures(const TArray<FAssetRenameDataWithRefer
 		}
 		else
 		{
-			for (const FText FailedRename : FailedRenames)
+			for (const FText& FailedRename : FailedRenames)
 			{
 				UE_LOG(LogAssetTools, Error, TEXT("%s"), *FailedRename.ToString());
 			}

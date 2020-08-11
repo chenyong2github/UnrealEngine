@@ -230,7 +230,7 @@ void FCurveEditorTransformTool::UpdateMarqueeBoundingBox()
 	FSlateLayoutTransform AbsoluteToContainer = CurveEditor->GetPanel()->GetViewContainerGeometry().GetAccumulatedLayoutTransform();
 
 	const TMap<FCurveModelID, FKeyHandleSet>& SelectedKeySet = CurveEditor->GetSelection().GetAll();
-	for (const TPair<FCurveModelID, FKeyHandleSet> Pair : SelectedKeySet)
+	for (const TPair<FCurveModelID, FKeyHandleSet>& Pair : SelectedKeySet)
 	{
 		const SCurveEditorView* View = CurveEditor->FindFirstInteractiveView(Pair.Key);
 		if (!View)

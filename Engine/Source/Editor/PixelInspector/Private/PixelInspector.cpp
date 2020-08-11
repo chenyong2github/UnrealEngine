@@ -426,7 +426,7 @@ namespace PixelInspector
 					if (!EditorViewport->IsRealtime())
 					{
 						const bool bShouldBeRealtime = true;
-						EditorViewport->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PixelInspector", "Pixel Inspector"));
+						EditorViewport->AddRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PixelInspector", "Pixel Inspector"));
 					}
 				}
 			}

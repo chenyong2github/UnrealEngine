@@ -21,8 +21,9 @@ public class Niagara : ModuleRules
 				"Json",
 				"AudioPlatformConfiguration",
 				"SignalProcessing",
-				"ApplicationCore"
-            }
+				"ApplicationCore",
+				"DeveloperSettings"
+			}
         );
 
 

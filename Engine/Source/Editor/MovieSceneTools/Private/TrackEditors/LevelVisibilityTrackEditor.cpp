@@ -7,6 +7,10 @@
 #include "Sections/LevelVisibilitySection.h"
 #include "Tracks/MovieSceneLevelVisibilityTrack.h"
 #include "SequencerUtilities.h"
+#include "Engine/LevelStreaming.h"
+#include "Engine/World.h"
+#include "Misc/PackageName.h"
+#include "LevelUtils.h"
 
 #define LOCTEXT_NAMESPACE "LevelVisibilityTrackEditor.h"
 
@@ -60,6 +64,34 @@ TSharedPtr<SWidget> FLevelVisibilityTrackEditor::BuildOutlinerEditWidget( const 
 		LOCTEXT( "AddVisibilityTrigger", "Visibility Trigger" ),
 		FOnGetContent::CreateSP( this, &FLevelVisibilityTrackEditor::BuildAddVisibilityTriggerMenu, Track ),
 		Params.NodeIsHovered, GetSequencer() );
+}
+
+void FLevelVisibilityTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
+{
+	MenuBuilder.BeginSection("Level Visibility", LOCTEXT("LevelVisibilitySection", "Level Visibility"));
+
+	FFrameNumber CurrentTime = GetSequencer()->GetLocalTime().Time.FrameNumber;
+
+	if (MovieSceneHelpers::FindSectionAtTime(Track->GetAllSections(), CurrentTime))
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT( "ReplaceCurentLevelVisibility", "Replace with Current Level Visibility" ),
+			LOCTEXT( "ReplaceCurentLevelVisibilityTooltip", "Replace the existing sections with the current level visibility state" ),
+			FSlateIcon(),
+			FUIAction(
+			FExecuteAction::CreateRaw(this, &FLevelVisibilityTrackEditor::OnSetCurrentLevelVisibility, Track )));
+	}
+	else
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT( "AddCurentLevelVisibility", "Add from Current Level Visibility" ),
+			LOCTEXT( "AddCurentLevelVisibilityTooltip", "Add new sections from the current level visibility state" ),
+			FSlateIcon(),
+			FUIAction(
+			FExecuteAction::CreateRaw(this, &FLevelVisibilityTrackEditor::OnSetCurrentLevelVisibility, Track )));
+	}
+
+	MenuBuilder.EndSection();
 }
 
 
@@ -152,6 +184,122 @@ void FLevelVisibilityTrackEditor::OnAddNewSection( UMovieSceneTrack* LevelVisibi
 	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 	GetSequencer()->EmptySelection();
 	GetSequencer()->SelectSection(NewSection);
+	GetSequencer()->ThrobSectionSelection();
+}
+
+void FLevelVisibilityTrackEditor::GetCurrentLevelVisibility(TArray<FName>& OutVisibleLevelNames, TArray<FName>& OutHiddenLevelNames)
+{
+	UWorld* World = Cast<UWorld>(GetSequencer()->GetPlaybackContext());
+	if (!World)
+	{
+		return;
+	}
+
+	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
+	{
+		if (LevelStreaming)
+		{
+			FName LevelName = FPackageName::GetShortFName( LevelStreaming->GetWorldAssetPackageFName() );
+
+			if (FLevelUtils::IsStreamingLevelVisibleInEditor(LevelStreaming))
+			{
+				OutVisibleLevelNames.Add(LevelName);
+			}
+			else
+			{
+				OutHiddenLevelNames.Add(LevelName);
+			}
+		}
+	}
+}
+
+void FLevelVisibilityTrackEditor::OnSetCurrentLevelVisibility( UMovieSceneTrack* LevelVisibilityTrack)
+{
+	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
+
+	if ( FocusedMovieScene == nullptr )
+	{
+		return;
+	}
+
+	TArray<FName> VisibleLevelNames, HiddenLevelNames;
+	GetCurrentLevelVisibility(VisibleLevelNames, HiddenLevelNames);
+
+	if (VisibleLevelNames.Num() + HiddenLevelNames.Num() == 0)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction( LOCTEXT( "SetCurrentLevelVisibility_Transaction", "Set Current Level Visibility" ) );
+
+	UMovieSceneLevelVisibilitySection* VisibleSection = nullptr;
+	UMovieSceneLevelVisibilitySection* HiddenSection = nullptr;
+
+	FFrameNumber CurrentTime = GetSequencer()->GetLocalTime().Time.FrameNumber;
+
+	for (UMovieSceneSection* Section : LevelVisibilityTrack->GetAllSections())
+	{
+		if (Section->IsTimeWithinSection(CurrentTime))
+		{
+			UMovieSceneLevelVisibilitySection* LevelVisibilitySection = Cast<UMovieSceneLevelVisibilitySection>(Section);
+
+			LevelVisibilitySection->Modify();
+
+			if (LevelVisibilitySection->GetVisibility() == ELevelVisibility::Visible)
+			{
+				if (!VisibleSection)
+				{
+					VisibleSection = LevelVisibilitySection;
+					LevelVisibilitySection->SetLevelNames(VisibleLevelNames);
+				}
+				else
+				{
+					LevelVisibilitySection->SetLevelNames(TArray<FName>());
+				}
+			}
+			else
+			{
+				if (!HiddenSection)
+				{
+					HiddenSection = LevelVisibilitySection;
+					LevelVisibilitySection->SetLevelNames(HiddenLevelNames);
+				}
+				else
+				{
+					LevelVisibilitySection->SetLevelNames(TArray<FName>());
+				}
+			}
+		}
+	}
+
+	if (!VisibleSection && VisibleLevelNames.Num() > 0)
+	{
+		VisibleSection = AddNewSection( FocusedMovieScene, LevelVisibilityTrack, ELevelVisibility::Visible );
+		VisibleSection->SetLevelNames(VisibleLevelNames);
+	}
+
+	if (!HiddenSection && HiddenLevelNames.Num() > 0)
+	{
+		HiddenSection = AddNewSection( FocusedMovieScene, LevelVisibilityTrack, ELevelVisibility::Hidden );
+		HiddenSection->SetLevelNames(HiddenLevelNames);
+	}
+
+	if (!VisibleSection && !HiddenSection)
+	{
+		return;
+	}
+
+	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
+	GetSequencer()->EmptySelection();
+	if (VisibleSection != nullptr)
+	{
+		GetSequencer()->SelectSection(VisibleSection);
+	}
+	
+	if (HiddenSection != nullptr)
+	{
+		GetSequencer()->SelectSection(HiddenSection);
+	}
 	GetSequencer()->ThrobSectionSelection();
 }
 

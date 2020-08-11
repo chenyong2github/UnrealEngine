@@ -191,12 +191,15 @@ bool FPatchCheck::SkipPatchCheck() const
 	// Prevent a patch check on editor builds 
 	const bool bSkipDueToEditor = UE_EDITOR;
 
+	// Prevent a patch check on dedicated server. UpdateManager also doesn't do a patch check on dedicated server.
+	const bool bSkipDueToDedicatedServer = IsRunningDedicatedServer();
+
 	// prevent a check when running unattended
 	const bool bSkipDueToUnattended = FApp::IsUnattended();
 
 	// Explicitly skipping the check
 	const bool bForceSkipCheck = FParse::Param(FCommandLine::Get(), TEXT("SkipPatchCheck"));
-	const bool bSkipPatchCheck = !bForcePatchCheck && (!bEnvironmentWantsPatchCheck || bSkipDueToEditor || bForceSkipCheck || bSkipDueToUnattended);
+	const bool bSkipPatchCheck = !bForcePatchCheck && (!bEnvironmentWantsPatchCheck || bSkipDueToEditor || bSkipDueToDedicatedServer || bForceSkipCheck || bSkipDueToUnattended);
 
 	return bSkipPatchCheck;
 }

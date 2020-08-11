@@ -76,6 +76,7 @@ private:
 
 	void CreateSession(const FUniqueNetIdRepl& LocalUserPlatformId);
 	void AddLocalPlayerToSession(UPartyMember* InitializedMember);
+	void RemoveLocalPlayerFromSession(UPartyMember* PartyMember);
 	void FindSession(const FPartyPlatformSessionInfo& SessionInfo);
 	void JoinSession(const FOnlineSessionSearchResult& SessionSearchResult);
 	void LeaveSession();
@@ -96,7 +97,7 @@ private:
 	void HandlePartyLeft(EMemberExitedReason Reason);
 	void HandlePartyMemberCreated(UPartyMember& NewMember);
 	void HandlePartyMemberInitialized(UPartyMember* InitializedMember);
-	void HandlePartyMemberLeft(UPartyMember* OldMember);
+	void HandlePartyMemberLeft(UPartyMember* OldMember, const EMemberExitedReason Reason);
 
 	void HandleCreateSessionComplete(const FName SessionName, bool bWasSuccessful);
 	void HandleFindSessionComplete(bool bWasSuccessful, const FOnlineSessionSearchResult& FoundSession);

@@ -264,13 +264,13 @@ double STimeRange::GetSpinboxDelta() const
 
 double STimeRange::PlayStartTime() const
 {
-	FFrameNumber LowerBound = MovieScene::DiscreteInclusiveLower(TimeSliderController->GetPlayRange());
+	FFrameNumber LowerBound = UE::MovieScene::DiscreteInclusiveLower(TimeSliderController->GetPlayRange());
 	return LowerBound.Value; 
 }
 
 double STimeRange::PlayEndTime() const
 {
-	FFrameNumber UpperBound = MovieScene::DiscreteExclusiveUpper(TimeSliderController->GetPlayRange());
+	FFrameNumber UpperBound = UE::MovieScene::DiscreteExclusiveUpper(TimeSliderController->GetPlayRange());
 	return UpperBound.Value;
 }
 
@@ -399,13 +399,13 @@ void STimeRange::OnPlayStartTimeChanged(double NewValue)
 
 	TRange<FFrameNumber> PlayRange = TimeSliderController->GetPlayRange();
 	FFrameNumber PlayDuration;
-	if (Time.FrameNumber >= MovieScene::DiscreteExclusiveUpper(PlayRange))
+	if (Time.FrameNumber >= UE::MovieScene::DiscreteExclusiveUpper(PlayRange))
 	{
-		PlayDuration = MovieScene::DiscreteExclusiveUpper(PlayRange) - MovieScene::DiscreteInclusiveLower(PlayRange);
+		PlayDuration = UE::MovieScene::DiscreteExclusiveUpper(PlayRange) - UE::MovieScene::DiscreteInclusiveLower(PlayRange);
 	}
 	else
 	{
-		PlayDuration = MovieScene::DiscreteExclusiveUpper(PlayRange) - Time.FrameNumber;
+		PlayDuration = UE::MovieScene::DiscreteExclusiveUpper(PlayRange) - Time.FrameNumber;
 	}
 
 	TimeSliderController->SetPlayRange(Time.FrameNumber, PlayDuration.Value);
@@ -433,10 +433,10 @@ void STimeRange::OnPlayEndTimeChanged(double NewValue)
 
 	TRange<FFrameNumber> PlayRange = TimeSliderController->GetPlayRange();
 	FFrameNumber PlayDuration;
-	FFrameNumber StartFrame = MovieScene::DiscreteInclusiveLower(PlayRange);
+	FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower(PlayRange);
 	if (Time.FrameNumber <= StartFrame)
 	{
-		PlayDuration = MovieScene::DiscreteExclusiveUpper(PlayRange) - StartFrame;
+		PlayDuration = UE::MovieScene::DiscreteExclusiveUpper(PlayRange) - StartFrame;
 		StartFrame = Time.FrameNumber - PlayDuration;
 	}
 	else

@@ -306,7 +306,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				&& TranslucencyGIVolumeHistory0->Desc.Compare(LumenTranslucencyGIDesc0, true);
 
 			PassParameters->HistoryWeight = GTranslucencyVolumeHistoryWeight;
-			PassParameters->FrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState->GetFrameIndex());
+			PassParameters->FrameJitterOffset = TranslucencyVolumeTemporalRandom(View.ViewState ? View.ViewState->GetFrameIndex() : 0);
 			PassParameters->UnjitteredClipToTranslatedWorld = View.ViewMatrices.ComputeInvProjectionNoAAMatrix() * View.ViewMatrices.GetTranslatedViewMatrix().GetTransposed();
 			PassParameters->UnjitteredPrevWorldToClip = View.PrevViewInfo.ViewMatrices.GetViewMatrix() * View.PrevViewInfo.ViewMatrices.ComputeProjectionNoAAMatrix();
 			PassParameters->TranslucencyGIHistory0 = TranslucencyGIVolumeHistory0;

@@ -138,25 +138,25 @@ struct FIoStoreTocCompressedBlockEntry
 		*Offset = InOffset & OffsetMask;
 	}
 
-	inline uint64 GetSize() const
+	inline uint32 GetCompressedSize() const
 	{
 		const uint32* Size = reinterpret_cast<const uint32*>(Data) + 1;
 		return (*Size >> SizeShift) & SizeMask;
 	}
 
-	inline void SetSize(uint64 InSize)
+	inline void SetCompressedSize(uint32 InSize)
 	{
 		uint32* Size = reinterpret_cast<uint32*>(Data) + 1;
 		*Size |= (uint32(InSize) << SizeShift);
 	}
 
-	inline uint64 GetUncompressedSize() const
+	inline uint32 GetUncompressedSize() const
 	{
 		const uint32* UncompressedSize = reinterpret_cast<const uint32*>(Data) + 2;
 		return *UncompressedSize & SizeMask;
 	}
 
-	inline void SetUncompressedSize(uint64 InSize)
+	inline void SetUncompressedSize(uint32 InSize)
 	{
 		uint32* UncompressedSize = reinterpret_cast<uint32*>(Data) + 2;
 		*UncompressedSize = InSize & SizeMask;

@@ -35,8 +35,10 @@ public class AssetTools : ModuleRules
 				"RHI",
 				"MaterialEditor",
 				"ToolMenus",
-				"InterchangeCore",
-            }
+				"PhysicsCore",
+				"DeveloperSettings",
+				"InterchangeCore"
+			}
 		);
 
 		PrivateIncludePathModuleNames.AddRange(
@@ -66,7 +68,7 @@ public class AssetTools : ModuleRules
                 "AnimationEditor",
                 "AnimationBlueprintEditor",
                 "AnimationModifiers"
-            }
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(

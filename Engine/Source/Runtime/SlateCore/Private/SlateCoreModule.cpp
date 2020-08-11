@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Debugging/ConsoleSlateDebugger.h"
+#include "Debugging/ConsoleSlateDebuggerPaint.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "SlateGlobals.h"
@@ -20,7 +22,19 @@ class FSlateCoreModule
 	: public IModuleInterface
 {
 public:
+	FSlateCoreModule()
+	{
+#if WITH_SLATE_DEBUGGING
+		SlateDebuggerEvent = MakeUnique<FConsoleSlateDebugger>();
+		SlateDebuggerPaint = MakeUnique<FConsoleSlateDebuggerPaint>();
+#endif
+	}
 
+#if WITH_SLATE_DEBUGGING
+private:
+	TUniquePtr<FConsoleSlateDebugger> SlateDebuggerEvent;
+	TUniquePtr<FConsoleSlateDebuggerPaint> SlateDebuggerPaint;
+#endif
 };
 
 

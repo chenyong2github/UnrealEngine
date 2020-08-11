@@ -11,7 +11,6 @@
 #include "ISequencer.h"
 #include "SequencerSettings.h"
 #include "Sequencer/ControlRigSequence.h"
-#include "Sequencer/ControlRigBindingTemplate.h"
 #include "Sections/MovieSceneSpawnSection.h"
 #include "MovieScene.h"
 #include "EditorViewportClient.h"

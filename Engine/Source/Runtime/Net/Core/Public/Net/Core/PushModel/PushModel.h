@@ -12,6 +12,10 @@
 /**
  * Push Model Support for networking.
  *
+ * Note: While the theoretical gains for Push Model are good, in practice the gains seen haven't been as good as expected.
+ *			More work may be needed in order to optimize comparisons, and have other systems buy in / use Push Model in order
+ *			to increase gains.
+ *
  ****************************************************************
  * Rationale
  ****************************************************************
@@ -54,7 +58,7 @@
  *
  * With Fast Arrays (see NetSerialization.h), no changes will be replicated unless devs explicitly mark a given Array Property
  * as being dirty. Beyond that, individual elements won't be sent unless they are marked dirty. This means that the replication
- * system only needs to check a few flags / keys, and if they are different, it doesn't need to do anything.
+ * system only needs to check a few flags / keys, and if they aren't different, it doesn't need to do anything.
  *
  * With Replication Keys (see ActorChannel.h, KeyNeedsToReplicate / ReplicateSubobject), we go up a step and handle changes
  * at the Subobject level. Devs can assign an arbitrary ID and Key to a specific subobject. As they make changes to the
@@ -82,7 +86,7 @@
  * C++, then it is completely up to them to call the necessary methods.
  *
  * UFUNCTIONS or Blueprint Defined Functions that take Properties by reference will check for Networked Properties and
- * should add nodes automatically (see UNetPushModelHelpers).
+ * should add nodes automatically (see UNetPushModelHelpers). This is **only** true when they are called from Blueprints!!
  *
  * Devs don't need to care *if* a given object is actually networked or is actively replicating, Push Model handles
  * that sort of tracking internally. As such, we don't expect users to ever need to know or have a reference to
@@ -117,6 +121,7 @@
  */
 
 #if 0
+USTRUCT()
 struct FMyAwesomeStruct
 {
 	UPROPERTY()
@@ -126,6 +131,7 @@ struct FMyAwesomeStruct
 	bool bSomeOtherReplicatedProperty;
 }
 
+UCLASS()
 class AMyAwesomeActor : public AActor
 {
 	GENERATED_BODY()
@@ -138,9 +144,11 @@ class AMyAwesomeActor : public AActor
 	}
 
 	/**
-	 * Calls to Set this from Blueprints will be automatically flagged, but we still need
-	 * to manually set this if we change it natively.
+	 * Typically, calls to Set <Property> in blueprint will be handled automatically.
+	 * However, since this is just an exposed Blueprint Function (especially since it is callable
+	 * from native code), we should make the property dirty.
 	 */
+	UFUNCTION(BlueprintCallable)
 	void SetMyBlueprintProperty(const int32 NewValue)
 	{
 		MyBlueprintProperty = NewValue;
@@ -229,36 +237,48 @@ class AMyAwesomeActor : public AActor
 private:
 
 	/** This is a standard property that can only be set natively */
+	UPROPERTY(Replicated)
 	bool bMyReplicatedBool;
 
 	/**
 	 * Properties marked as BlueprintReadWrite will automatically be marked dirty when set is called.
 	 * This won't work if the value is passed by reference.
+	 *
+	 * Note: AllowPrivateAccess is only necessary here because this property is private.
 	 */
+	UPROPERTY(Replicated, BlueprintReadWrite, Meta=(AllowPrivateAccess="true"))
 	int32 MyBlueprintProperty;
 
 	/**
 	 * Properties with custom BlueprintSetters won't automatically be marked dirty when set is called.
 	 * This means our setter will need to call it manually.
 	 */
+	UPROPERTY(Replicated, BlueprintSetter=SetMyBlueprintSetterProperty, Meta = (AllowPrivateAccess = "true"))
 	FString MyBlueprintSetterProperty;
 
+	UPROPERTY(Replicated)
 	FMyAwesomeStruct MyStruct;
 
 	/**
 	 * Static Arrays are broken into separate replicated properties for each index, so we can flag individual
 	 * indices for comparison, or the entire array.
 	 */
+	UPROPERTY(Replicated)
 	int32 MyStaticArray[4];
 
+	UPROPERTY(Replicated)
 	int32 NonPushModelProperty;
 };
 #endif
 
 // DO NOT USE METHODS IN THIS NAMESPACE DIRECTLY
 // Use the Macros instead, as they respect conditional compilation.
+// See PushModelMarcos.h
 namespace UE4PushModelPrivate
 {
+	//~ Using int32 isn't very forward looking, but for now GUObjectArray also uses int32
+	//~ so we're probably safe.
+
 	using FNetPushObjectId = int32;
 	using FNetPushPerNetDriverId = int32;
 
@@ -341,6 +361,10 @@ namespace UE4PushModelPrivate
 	 */
 	NETCORE_API void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 StartRepIndex, const int32 EndRepIndex);
 
+	//~ As the comments above state, none of the methods in this namespace should be invoked directly.
+	//~ Particularly, the methods below are **only** needed by internal systems.
+	//~ When Push Model is enabled, registration is handled automatically by the networking system, so no
+	//~ extra dev work is required.
 
 	NETCORE_API const FPushModelPerNetDriverHandle AddPushModelObject(const FObjectKey ObjectId, const uint16 NumberOfReplicatedProperties);
 	NETCORE_API void RemovePushModelObject(const FPushModelPerNetDriverHandle Handle);

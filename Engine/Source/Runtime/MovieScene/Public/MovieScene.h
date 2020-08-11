@@ -1106,14 +1106,17 @@ protected:
 
 protected:
 
-	/** Called after this object has been deserialized */
-	virtual void PostLoad() override;
-
 	/** Called before this object is being deserialized. */
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 
 	/** Perform legacy upgrade of time ranges */
 	void UpgradeTimeRanges();
+
+private:
+
+#if WITH_EDITOR
+	void RemoveNullTracks();
+#endif
 
 private:
 

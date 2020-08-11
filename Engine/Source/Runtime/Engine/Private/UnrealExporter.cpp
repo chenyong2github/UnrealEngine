@@ -25,6 +25,11 @@
 #include "Misc/FeedbackContext.h"
 #include "AssetExportTask.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Engine/Selection.h"
+
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogExporter, Log, All);
 
@@ -716,11 +721,12 @@ void ExportProperties
 						// compare each element's value manually so that elements which match the NULL value for the array's inner property type
 						// but aren't in the diff array are still exported
 						uint8* SourceData = ArrayHelper.GetRawPtr(DynamicArrayIndex);
-						uint8* DiffData = DiffArr && DynamicArrayIndex < DiffArrayHelper.Num()
-							? DiffArrayHelper.GetRawPtr(DynamicArrayIndex)
-							: StructDefaults;
+						bool bHasDiffData = DiffArr && DynamicArrayIndex < DiffArrayHelper.Num();
+						uint8* DiffData = bHasDiffData ? DiffArrayHelper.GetRawPtr(DynamicArrayIndex) : StructDefaults;
 
-						bool bExportItem = DiffData == NULL || (DiffData != SourceData && !InnerProp->Identical(SourceData, DiffData, ExportFlags));
+						// Make sure to export the last element even if it is default value if the default data doesn't have an element at that index (!bHasDiffData && (DynamicArrayIndex == ArrayHelper.Num()-1) && !bHasDiffData) 
+						// because that will ensure the resulting imported array will be of proper size
+						bool bExportItem = DiffData == NULL || (!bHasDiffData && (DynamicArrayIndex == ArrayHelper.Num()-1)) || (DiffData != SourceData && !InnerProp->Identical(SourceData, DiffData, ExportFlags));
 						if (bExportItem)
 						{
 							InnerProp->ExportTextItem(Value, SourceData, DiffData, Parent, ExportFlags, ExportRootScope);
@@ -892,3 +898,34 @@ FString DumpObjectToString(UObject* Object)
 
 	return MoveTemp(Archive);
 }
+
+#if WITH_EDITOR
+FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
+	//call the empty version of the base class
+	: FExportObjectInnerContext(false)
+{
+	// For each selected actor...
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = (AActor*)*It;
+		checkSlow(Actor->IsA(AActor::StaticClass()));
+
+		ForEachObjectWithOuter(Actor, [this](UObject* InnerObj)
+		{
+			UObject* OuterObj = InnerObj->GetOuter();
+			InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
+			if (Inners)
+			{
+				// Add object to existing inner list.
+				Inners->Add( InnerObj );
+			}
+			else
+			{
+				// Create a new inner list for the outer object.
+				InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
+				InnersForOuterObject.Add(InnerObj);
+			}
+		}, /** bIncludeNestedObjects */ true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+	}
+}
+#endif

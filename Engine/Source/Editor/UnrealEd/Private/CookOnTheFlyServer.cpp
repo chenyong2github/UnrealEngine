@@ -392,10 +392,12 @@ public:
 
 	/** error when detecting engine content being used in this cook */
 	bool							bErrorOnEngineContentUse = false;
-	bool							bDisableUnsolicitedPackages = false;
+	bool							bSkipHardReferences = false;
 	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
+	bool							bCookAgainstFixedBase = false;
+	bool							bDLCNoCookAllAssets = true;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -1009,6 +1011,11 @@ bool UCookOnTheFlyServer::IsCookingDLC() const
 	return false;
 }
 
+bool UCookOnTheFlyServer::IsCookingAgainstFixedBase() const
+{
+	return IsCookingDLC() && CookByTheBookOptions && CookByTheBookOptions->bCookAgainstFixedBase;
+}
+
 FString UCookOnTheFlyServer::GetBaseDirectoryForDLC() const
 {
 	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
@@ -1431,7 +1438,7 @@ void UCookOnTheFlyServer::ProcessRequest(UE::Cook::FPackageData& PackageData, UE
 	}
 
 
-	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages))
+	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
 	{
 		AddDependenciesToLoadQueue(PackageData);
 	}
@@ -1653,7 +1660,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
 	if (LoadedPackage->GetFName() != PackageData.GetPackageName())
 	{
-		// This case should never happen since we are checking for the existing of the file in PumpExternalRequests
+		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
 		UE_LOG(LogCook, Warning, TEXT("Unexpected change in PackageName when loading a requested package. \"%s\" changed to \"%s\"."),
 			*PackageData.GetPackageName().ToString(), *LoadedPackage->GetName());
 
@@ -1672,7 +1679,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 
 	if (NewPackageFileName != PackageFileName)
 	{
-		// This case should never happen since we are checking for the existing of the file in PumpExternalRequests
+		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
 		UE_LOG(LogCook, Warning, TEXT("Unexpected change in FileName when loading a requested package. \"%s\" changed to \"%s\"."),
 			*PackageFileName.ToString(), *NewPackageFileName.ToString());
 
@@ -1745,7 +1752,7 @@ void UCookOnTheFlyServer::FilterLoadedPackage(UPackage* Package, bool bUpdatePla
 	}
 	else
 	{
-		if (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages)
+		if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences)
 		{
 			// Send this unsolicited package into the LoadReadyQueue to fully load it and send it on to the SaveQueue
 			PackageData.SetRequestData(TargetPlatforms, bIsUrgent, UE::Cook::FCompletionCallback());
@@ -1837,16 +1844,24 @@ bool UCookOnTheFlyServer::BeginPackageCacheForCookedPlatformData(UE::Cook::FPack
 
 	const TArray<const ITargetPlatform*>& TargetPlatforms = PackageData.GetRequestedPlatforms();
 	int NumPlatforms = TargetPlatforms.Num();
-	TArray<UObject*>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
 	int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
-	UObject* const* const CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
+	FWeakObjectPtr* CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
 
 	int NumIndexes = CachedObjectsInOuter.Num() * NumPlatforms;
 	while (CookedPlatformDataNextIndex < NumIndexes)
 	{
 		int ObjectIndex = CookedPlatformDataNextIndex / NumPlatforms;
 		int PlatformIndex = CookedPlatformDataNextIndex - ObjectIndex * NumPlatforms;
-		UObject* Obj = CachedObjectsInOuterData[ObjectIndex];
+		UObject* Obj = CachedObjectsInOuterData[ObjectIndex].Get();
+		if (!Obj)
+		{
+			// Objects can be marked as pending kill even without a garbage collect, and our weakptr.get will return null for them, so we have to always check the WeakPtr before using it
+			// Treat objects that have been marked as pending kill or deleted as no-longer-required for BeginCacheForCookedPlatformData and ClearAllCachedCookedPlatformData
+			CachedObjectsInOuterData[ObjectIndex] = nullptr; // If the weakptr is merely pendingkill, set it to null explicitly so we don't think that we've called BeginCacheForCookedPlatformData on it if it gets unmarked pendingkill later
+			++CookedPlatformDataNextIndex;
+			continue;
+		}
 		const ITargetPlatform* TargetPlatform = TargetPlatforms[PlatformIndex];
 
 		if (Obj->IsA(UMaterialInterface::StaticClass()))
@@ -1941,8 +1956,9 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
-			for (UObject* Object : PackageData.GetCachedObjectsInOuter())
+			for (FWeakObjectPtr& WeakPtr: PackageData.GetCachedObjectsInOuter())
 			{
+				UObject* Object = WeakPtr.Get();
 				if (Object)
 				{
 					Object->ClearAllCachedCookedPlatformData();
@@ -1968,15 +1984,17 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 			TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
 			for (FPendingCookedPlatformData& PendingCookedPlatformData : PackageDatas->GetPendingCookedPlatformDatas())
 			{
-				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete() && PendingCookedPlatformData.Object != nullptr)
+				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
 				{
+					UObject* Object = PendingCookedPlatformData.Object.Get();
+					check(Object); // Otherwise PollIsComplete would have returned true
 					check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
-					PendingObjects.FindOrAdd(PendingCookedPlatformData.Object).Add(&PendingCookedPlatformData);
+					PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
 				}
 			}
 
 			// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
-			TArray<UObject*> CachedObjects = PackageData.GetCachedObjectsInOuter();
+			TArray<FWeakObjectPtr>& CachedObjects = PackageData.GetCachedObjectsInOuter();
 			int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
 			check(NumIndexes <= NumPlatforms * CachedObjects.Num());
 			// GetCookedPlatformDataNextIndex is a value in an inline iteration over the two-dimensional array of Objects x Platforms, in Object-major order.
@@ -1984,7 +2002,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 			int32 NumObjects = (NumIndexes + NumPlatforms - 1) / NumPlatforms;
 			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
 			{
-				UObject* Object = CachedObjects[ObjectIndex];
+				UObject* Object = CachedObjects[ObjectIndex].Get();
 				if (!Object)
 				{
 					continue;
@@ -2105,7 +2123,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 
 		for (UPackage* Package : NewPackages)
 		{
-			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bDisableUnsolicitedPackages)
+			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 			{
 				PostLoadPackageFixup(Package);
 			}
@@ -2378,8 +2396,9 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 				// For each object for which data is cached we can call FinishedCookedPlatformDataCache
 				// we can only safely call this when we are finished caching the object completely.
 				// this doesn't ever happen for cook in editor or cook on the fly mode
-				for (UObject* Obj : PackageData.GetCachedObjectsInOuter())
+				for (FWeakObjectPtr& WeakPtr: PackageData.GetCachedObjectsInOuter())
 				{
+					UObject* Obj = WeakPtr.Get();
 					if (Obj)
 					{
 						Obj->WillNeverCacheCookedPlatformDataAgain();
@@ -2933,12 +2952,12 @@ const TArray<FName>& UCookOnTheFlyServer::GetFullPackageDependencies(const FName
 
 			// all these packages referenced us apparently so fix them all up
 			const TArray<FName>& PackagesForFixup = CachedFullPackageDependencies.FindChecked(CircularReferenceArrayName);
-			for ( const FName FixupPackage : PackagesForFixup )
+			for ( const FName& FixupPackage : PackagesForFixup )
 			{
 				TArray<FName> &FixupList = CachedFullPackageDependencies.FindChecked(FixupPackage);
 				// check( FixupList.Contains( CircularReferenceArrayName) );
 				ensure( FixupList.Remove(CircularReferenceArrayName) == 1 );
-				for( const FName AdditionalDependency : Dependencies )
+				for( const FName& AdditionalDependency : Dependencies )
 				{
 					FixupList.AddUnique(AdditionalDependency);
 					if ( AdditionalDependency.GetComparisonIndex() == NAME_CircularReference.GetComparisonIndex() )
@@ -2981,19 +3000,10 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		check(PackageData->GetState() == EPackageState::Save || !PackageData->HasReferencedObjects());
 	}
 #endif
-
-	// If there is a GarbageCollect while we are saving a package, convert all of the CachedObjectPointers on the SavingPackage to weak pointers,
-	// so we can get notified if they are destroyed without declaring them as references.  We do not want to declare them as references, in case there is 
-	// the expectation by some licensee code that removing references to an object will cause it to not be saved
 	if (SavingPackageData)
 	{
-		check(SavingPackageCachedObjectsInOuter.Num() == 0);
-		SavingPackageCachedObjectsInOuter.Reserve(SavingPackageCachedObjectsInOuter.Num());
-		for (UObject* Object : SavingPackageData->GetCachedObjectsInOuter())
-		{
-			SavingPackageCachedObjectsInOuter.Add(FWeakObjectPtr(Object));
-		}
-		SavingPackageData->GetCachedObjectsInOuter().Reset();
+		check(SavingPackageData->GetPackage());
+		GCKeepObjects.Add(SavingPackageData->GetPackage());
 	}
 
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
@@ -3068,26 +3078,7 @@ void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collec
 {
 	using namespace UE::Cook;
 
-	// Serialize all object pointers we are holding.
-	// We have to serialize these object pointers by reference rather than by copy, so they can be nulled out if the GarbageCollector wants to delete them despite our reference.
-	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
-	{
-		PackageData->AddReferencedObjects(Collector);
-	}
-	if (SavingPackageData)
-	{
-		SavingPackageData->AddReferencedObjects(Collector);
-	}
-
-	for (UE::Cook::FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
-	{
-		if (PendingData.Object)
-		{
-			Collector.AddReferencedObject(PendingData.Object);
-		}
-	}
-
-	// GCKeepObjects are the objects that we want to keep loaded but we don't hold references to
+	// GCKeepObjects are the objects that we want to keep loaded but we only have a WeakPtr to
 	Collector.AddReferencedObjects(GCKeepObjects);
 }
 
@@ -3110,22 +3101,11 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 		PackageDatas->GetRequestQueue().AddRequest(PackageData, /* bForceUrgent */ true);
 	}
 
-	if (SavingPackageData)
-	{
-		// If garbage collection deleted the package WHILE WE WERE SAVING IT, we have problems
-		check(SavingPackageData->GetPackage() != nullptr);
-
-		// All other object references on the SavingPackageData were converted to weak pointers during the garbage collect; read them back into raw pointers now.
-		TArray<UObject*>& CachedObjectsInOuter = SavingPackageData->GetCachedObjectsInOuter();
-		for (FWeakObjectPtr& WeakPtr : SavingPackageCachedObjectsInOuter)
-		{
-			// Note we may be adding a null here, which is okay.  We need to maintain the index each object had before the garbage collect.
-			// All code between the call to SavePackage and the exit from the save state checks these pointers for null before using them.
-			UObject* Object = WeakPtr.Get();
-			CachedObjectsInOuter.Add(Object);
-		}
-		SavingPackageCachedObjectsInOuter.Empty();
-	}
+	// If there was a GarbageCollect while we are saving a package, some of the WeakObjectPtr in SavingPackageData->CachedObjectPointers may have been deleted and set to null
+	// We need to handle nulls in that array at any point after calling SavePackage. We do not want to declare them as references and prevent their GC, in case there is 
+	// the expectation by some licensee code that removing references to an object will cause it to not be saved
+	// However, if garbage collection deleted the package WHILE WE WERE SAVING IT, then we have problems.
+	check(!SavingPackageData || SavingPackageData->GetPackage() != nullptr);
 
 	GCKeepObjects.Empty();
 }
@@ -3335,12 +3315,12 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 	FString Filename(PackageData.GetFileName().ToString());
 
 	// Also request any localized variants of this package
-	if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages && !FPackageName::IsLocalizedPackage(PackageName))
+	if (IsCookByTheBookMode() && !CookByTheBookOptions->bSkipSoftReferences && !FPackageName::IsLocalizedPackage(PackageName))
 	{
 		const TArray<FName>* LocalizedVariants = CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(Package->GetFName());
 		if (LocalizedVariants)
 		{
-			for (const FName LocalizedPackageName : *LocalizedVariants)
+			for (const FName& LocalizedPackageName : *LocalizedVariants)
 			{
 				UE::Cook::FPackageData* LocalizedPackageData = PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
 				if (LocalizedPackageData)
@@ -3374,7 +3354,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 			// Verify package actually exists
 
-			if (IsCookByTheBookMode() && !CookByTheBookOptions->bDisableUnsolicitedPackages)
+			if (IsCookByTheBookMode())
 			{
 				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 				if (SoftObjectPackageData)
@@ -3643,13 +3623,13 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
 		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
 
-#if PLATFORM_WINDOWS // Preloading moves file handles between threads; this is only supported on windows for now
-	if (IsCookByTheBookMode() && !IsCookingInEditor())
+	if (IsCookByTheBookMode() && !IsCookingInEditor() &&
+		FPlatformMisc::SupportsMultithreadedFileHandles()// Preloading moves file handles between threads
+		)
 	{
 		bPreloadingEnabled = true;
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
-#endif
 
 	{
 		const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
@@ -3767,7 +3747,7 @@ bool UCookOnTheFlyServer::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputD
 			FName PackageFileFName = GetPackageNameCache().GetCachedStandardFileName(StandardPackageName);
 			StartupOptions.CookMaps.Add(StandardPackageName.ToString());
 		}
-		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::DisableUnsolicitedPackages | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
+		StartupOptions.CookOptions = ECookByTheBookOptions::NoAlwaysCookMaps | ECookByTheBookOptions::NoDefaultMaps | ECookByTheBookOptions::NoGameAlwaysCookPackages | ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 		
 		StartCookByTheBook(StartupOptions);
 	}
@@ -4239,7 +4219,6 @@ void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, 
 
 	FString ConfigName = bFoundPlatformName ? FString::Printf(TEXT("%s.%s"),*PlatformName, *Config->Name.ToString()) : Config->Name.ToString();
 	const FName& ConfigFName = FName(*ConfigName);
-	
 	for ( auto& ConfigSection : *Config )
 	{
 		TSet<FName> ProcessedValues; 
@@ -5234,34 +5213,43 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		}
 	}
 
-
-
 	const FString ExternalMountPointName(TEXT("/Game/"));
 	if (IsCookingDLC())
 	{
 		// get the dlc and make sure we cook that directory 
 		FString DLCPath = FPaths::Combine(*GetBaseDirectoryForDLC(), TEXT("Content"));
 
-		TArray<FString> Files;
-		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
-		IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
-		for (int32 Index = 0; Index < Files.Num(); Index++)
+		FString MountPoint = ExternalMountPointName;
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
+		if (Plugin.IsValid())
 		{
-			FString StdFile = Files[Index];
-			FPaths::MakeStandardFilename(StdFile);
-			AddFileToCook(FilesInPath, StdFile);
+			MountPoint = Plugin->GetMountedAssetPath();
+		}
 
-			// this asset may not be in our currently mounted content directories, so try to mount a new one now
-			FString LongPackageName;
-			if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+		if (!CookByTheBookOptions->bDLCNoCookAllAssets)
+		{
+			TArray<FString> Files;
+			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
+			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
+
+			for (int32 Index = 0; Index < Files.Num(); Index++)
 			{
-				FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
+				FString StdFile = Files[Index];
+				FPaths::MakeStandardFilename(StdFile);
+				AddFileToCook(FilesInPath, StdFile);
+
+				// this asset may not be in our currently mounted content directories, so try to mount a new one now
+				FString LongPackageName;
+				if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+				{
+					FPackageName::RegisterMountPoint(MountPoint, DLCPath);
+				}
 			}
 		}
 	}
 
 
-	if (!(FilesToCookFlags & ECookByTheBookOptions::DisableUnsolicitedPackages))
+	if (!(FilesToCookFlags & ECookByTheBookOptions::SkipSoftReferences))
 	{
 		for (const FString& CurrEntry : CookDirectories)
 		{
@@ -5984,6 +5972,10 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	CookByTheBookOptions->bRunning = false;
 	CookByTheBookOptions->bFullLoadAndSave = false;
 
+	if (!IsCookingInEditor())
+	{
+		FCoreUObjectDelegates::PackageCreatedForLoad.RemoveAll(this);
+	}
 	PlatformManager->ClearSessionPlatforms();
 
 	PrintFinishStats();
@@ -6488,20 +6480,24 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bGenerateStreamingInstallManifests = CookByTheBookStartupOptions.bGenerateStreamingInstallManifests;
 	CookByTheBookOptions->bGenerateDependenciesForMaps = CookByTheBookStartupOptions.bGenerateDependenciesForMaps;
 	CookByTheBookOptions->CreateReleaseVersion = CreateReleaseVersion;
-	CookByTheBookOptions->bDisableUnsolicitedPackages = !!(CookOptions & ECookByTheBookOptions::DisableUnsolicitedPackages);
+	CookByTheBookOptions->bSkipHardReferences = !!(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
+	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
+	CookByTheBookOptions->bDLCNoCookAllAssets = !!(CookOptions & ECookByTheBookOptions::DLCNoCookAllAssets);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
-	GenerateAssetRegistry();
-	if (!bHasRunCookByTheBookBefore)
+	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
 	{
-		bHasRunCookByTheBookBefore = true;
-		if (!IsCookingInEditor())
-		{
-			FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
-		}
+		UE_LOG(LogCook, Warning, TEXT("Setting bSkipSoftReferences to true since bSkipHardReferences is true and skipping hard references requires skipping soft references."));
+		CookByTheBookOptions->bSkipSoftReferences = true;
+	}
+
+	GenerateAssetRegistry();
+	if (!IsCookingInEditor())
+	{
+		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
 	// SelectSessionPlatforms does not check for uniqueness and non-null, and we rely on those properties for performance, so ensure it here before calling SelectSessionPlatforms
@@ -6719,6 +6715,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			PackageNameCache.SetAssetRegistry(AssetRegistry);
 		}
 
+		// If we're cooking against a fixed base, we don't need to verify the packages exist on disk, we simply want to use the Release Data 
+		const bool bVerifyPackagesExist = !IsCookingAgainstFixedBase();
+
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
@@ -6730,11 +6729,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 			TArray<FName> PackageList;
 			// if this check fails probably because the asset registry can't be found or read
-			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 			if (!bSucceeded)
 			{
 				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString) / GetAssetRegistryFilename();
-				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 			}
 
 			if (!bSucceeded)
@@ -6744,7 +6743,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavorInfo : TargetPlatform->GetTargetPlatformInfo().Flavors)
 				{
 					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->Name.ToString()) / GetAssetRegistryFilename();
-					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, PackageList);
+					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
 					if (bSucceeded)
 					{
 						break;
@@ -6792,7 +6791,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	TArray<FName> FilesInPath;
 	TSet<FName> StartupSoftObjectPackages;
-	if (!CookByTheBookOptions->bSkipSoftReferences)
+	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		// Get the list of soft references, for both empty package and all startup packages
 		GRedirectCollector.ProcessSoftObjectPathPackageList(NAME_None, false, StartupSoftObjectPackages);
@@ -6819,7 +6818,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			}
 		}
 
-		if (!CookByTheBookOptions->bDisableUnsolicitedPackages)
+		if (!CookByTheBookOptions->bSkipSoftReferences)
 		{
 			AddFileToCook(FilesInPath, SoftObjectPackage.ToString());
 		}
@@ -6884,7 +6883,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				FString OriginalAssetRegistryPath = GetBasedOnReleaseVersionAssetRegistryPath( BasedOnReleaseVersion, TargetPlatform->PlatformName() ) / GetAssetRegistryFilename();
 
 				TArray<FName> PackageFiles;
-				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, PackageFiles) );
+				verify( GetAllPackageFilenamesFromAssetRegistry(OriginalAssetRegistryPath, true, PackageFiles) );
 
 				TArray<const ITargetPlatform*, TInlineAllocator<1>> RequestPlatforms;
 				RequestPlatforms.Add(TargetPlatform);
@@ -6910,7 +6909,7 @@ bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<const ITargetPlat
 bool UCookOnTheFlyServer::RecompileChangedShaders(const TArray<FName>& TargetPlatformNames)
 {
 	bool bShadersRecompiled = false;
-	for (const FName TargetPlatformName : TargetPlatformNames)
+	for (const FName& TargetPlatformName : TargetPlatformNames)
 	{
 		bShadersRecompiled |= RecompileChangedShadersForPlatform(TargetPlatformName.ToString());
 	}
@@ -7245,7 +7244,7 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 		RecompileData.bCompileChangedShaders);
 }
 
-bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, TArray<FName>& OutPackageFilenames ) const
+bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const
 {
 	UE_SCOPED_COOKTIMER(GetAllPackageFilenamesFromAssetRegistry);
 	FArrayReader SerializedAssetData;
@@ -7274,7 +7273,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 		TArray<TTuple<FName, FString>> PackageToStandardFileNames;
 		PackageToStandardFileNames.SetNum(RegistryDataMap.Num());
 
-		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this](int32 AssetIndex)
+		ParallelFor(PackageNames.Num(), [&AssetRegistryPath, &OutPackageFilenames, &PackageToStandardFileNames, &PackageNames, this, bVerifyPackagesExist](int32 AssetIndex)
 			{
 				if (!OutPackageFilenames[AssetIndex].IsNone())
 				{
@@ -7285,7 +7284,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 
 				FString StandardFilename;
 				FName StandardFileFName;
-				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, StandardFileFName))
+				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, StandardFileFName) && bVerifyPackagesExist)
 				{
 					UE_LOG(LogCook, Warning, TEXT("Could not resolve package %s from %s"), *PackageName.ToString(), *AssetRegistryPath);
 				}
@@ -7525,7 +7524,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
-				if (!CookByTheBookOptions->bSkipSoftReferences)
+				if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;

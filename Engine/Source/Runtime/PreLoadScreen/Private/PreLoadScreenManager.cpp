@@ -68,7 +68,7 @@ FPreLoadScreenManager::FPreLoadScreenManager()
 	, bInitialized(false)
 	, SyncMechanism(nullptr)
 	, bIsResponsibleForRendering(false)
-	, bHasRenderPreLoadScreenFrame(false)
+	, bHasRenderPreLoadScreenFrame_RenderThread(false)
 	, LastRenderTickTime(0.0)
 	, OriginalSlateSleepVariableValue(0.f)
 	, bIsEngineLoadingComplete(false)
@@ -520,11 +520,12 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 				{
 					FScopeLock Lock(&FPreLoadScreenManager::AcquireCriticalSection);
 					// Self is still valid because we do a FlushRenderingCommands in StopPreLoadScreen
-					if (Self->bRenderingEnabled && Self->HasActivePreLoadScreenTypeForEarlyStartup() && !Self->bHasRenderPreLoadScreenFrame)
+					if (Self->bRenderingEnabled && Self->HasActivePreLoadScreenTypeForEarlyStartup() && !Self->bHasRenderPreLoadScreenFrame_RenderThread)
 					{
 						GFrameNumberRenderThread++;
 						GRHICommandList.GetImmediateCommandList().BeginFrame();
 
+						Self->bHasRenderPreLoadScreenFrame_RenderThread = true;
 						IPreLoadScreen* ActivePreLoadScreen = Self->PreLoadScreens[Self->ActivePreLoadScreenIndex].Get();
 						ActivePreLoadScreen->RenderTick(SlateDeltaTime);
 					}
@@ -532,19 +533,20 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 
 			SlateApp.Tick();
 
+			AcquireCriticalSection.Unlock();
+
 			// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
 			SlateApp.GetRenderer()->Sync();
+
+			AcquireCriticalSection.Lock();
 
 			ENQUEUE_RENDER_COMMAND(FinishPreLoadScreenFrame)(
 				[Self](FRHICommandListImmediate& RHICmdList)
 				{
-					FScopeLock Lock(&FPreLoadScreenManager::AcquireCriticalSection);
-					if (Self->bHasRenderPreLoadScreenFrame)
-					{
-						Self->bHasRenderPreLoadScreenFrame = false;
-						GRHICommandList.GetImmediateCommandList().EndFrame();
-						GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-					}
+					// Self is still valid because we do a FlushRenderingCommands in StopPreLoadScreen
+					Self->bHasRenderPreLoadScreenFrame_RenderThread = false;
+					GRHICommandList.GetImmediateCommandList().EndFrame();
+					GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 				});
 		}
 	}
@@ -560,7 +562,10 @@ void FPreLoadScreenManager::StopPreLoadScreen()
 		{
 			HandleStopPreLoadScreen();
 		}
+
+		AcquireCriticalSection.Unlock();
 		FlushRenderingCommands();
+		AcquireCriticalSection.Lock();
 	}
 }
 

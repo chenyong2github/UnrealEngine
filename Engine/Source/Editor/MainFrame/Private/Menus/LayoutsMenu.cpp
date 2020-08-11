@@ -148,7 +148,7 @@ bool TrySaveLayoutOrWarnInternal(
 						.Buttons({ SCustomDialog::FButton(PreserveValuesText), SCustomDialog::FButton(ClearValuesText), SCustomDialog::FButton(CancelText) })
 					;
 					// Returns 0 when "Preserve Values" is pressed, 1 when "Clear Values" is pressed, or 2 when Cancel/Esc is pressed
-					const int ButtonPressed = CustomDialog->ShowModal();
+					const int32 ButtonPressed = CustomDialog->ShowModal();
 					// Preserve Values
 					if (ButtonPressed == 0)
 					{

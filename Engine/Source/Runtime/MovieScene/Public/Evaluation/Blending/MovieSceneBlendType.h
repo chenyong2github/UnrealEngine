@@ -30,6 +30,11 @@ struct FOptionalMovieSceneBlendType
 		, bIsValid(false)
 	{}
 
+	explicit FOptionalMovieSceneBlendType(EMovieSceneBlendType InBlendType)
+		: BlendType(InBlendType)
+		, bIsValid(true)
+	{}
+
 	/**
 	 * Assignment from a EMovieSceneBlendType enumeration
 	 */

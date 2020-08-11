@@ -140,9 +140,9 @@ void FHttpManager::Flush(bool bShutdown)
 			UE_LOG(LogHttp, Display, TEXT("Http module shutting down, but needs to wait on %d outstanding Http requests:"), Requests.Num());
 		}
 		// Clear delegates since they may point to deleted instances
-		for (TArray<TSharedRef<IHttpRequest>>::TIterator It(Requests); It; ++It)
+		for (TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>>::TIterator It(Requests); It; ++It)
 		{
-			TSharedRef<IHttpRequest>& Request = *It;
+			TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request = *It;
 			Request->OnProcessRequestComplete().Unbind();
 			Request->OnRequestProgress().Unbind();
 			Request->OnHeaderReceived().Unbind();
@@ -161,9 +161,9 @@ void FHttpManager::Flush(bool bShutdown)
 		if (bShutdown && MaxFlushTimeSeconds > 0 && (AppTime - BeginWaitTime > MaxFlushTimeSeconds))
 		{
 			UE_LOG(LogHttp, Display, TEXT("Canceling remaining HTTP requests after waiting %0.2f seconds"), (AppTime - BeginWaitTime));
-			for (TArray<TSharedRef<IHttpRequest>>::TIterator It(Requests); It; ++It)
+			for (TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>>::TIterator It(Requests); It; ++It)
 			{
-				TSharedRef<IHttpRequest>& Request = *It;
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request = *It;
 				if (IsEngineExitRequested())
 				{
 					ensureMsgf(Request.IsUnique(), TEXT("Dangling HTTP request! This may cause undefined behaviour or crash during module shutdown!"));
@@ -207,9 +207,9 @@ bool FHttpManager::Tick(float DeltaSeconds)
 	FScopeLock ScopeLock(&RequestLock);
 
 	// Tick each active request
-	for (TArray<TSharedRef<IHttpRequest>>::TIterator It(Requests); It; ++It)
+	for (TArray<TSharedRef<IHttpRequest, ESPMode::ThreadSafe>>::TIterator It(Requests); It; ++It)
 	{
-		TSharedRef<IHttpRequest> Request = *It;
+		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = *It;
 		Request->Tick(DeltaSeconds);
 	}
 
@@ -229,21 +229,21 @@ bool FHttpManager::Tick(float DeltaSeconds)
 	return true;
 }
 
-void FHttpManager::AddRequest(const TSharedRef<IHttpRequest>& Request)
+void FHttpManager::AddRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request)
 {
 	FScopeLock ScopeLock(&RequestLock);
 
 	Requests.Add(Request);
 }
 
-void FHttpManager::RemoveRequest(const TSharedRef<IHttpRequest>& Request)
+void FHttpManager::RemoveRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request)
 {
 	FScopeLock ScopeLock(&RequestLock);
 
 	Requests.Remove(Request);
 }
 
-void FHttpManager::AddThreadedRequest(const TSharedRef<IHttpThreadedRequest>& Request)
+void FHttpManager::AddThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESPMode::ThreadSafe>& Request)
 {
 	check(Thread);
 	{
@@ -253,7 +253,7 @@ void FHttpManager::AddThreadedRequest(const TSharedRef<IHttpThreadedRequest>& Re
 	Thread->AddRequest(&Request.Get());
 }
 
-void FHttpManager::CancelThreadedRequest(const TSharedRef<IHttpThreadedRequest>& Request)
+void FHttpManager::CancelThreadedRequest(const TSharedRef<IHttpThreadedRequest, ESPMode::ThreadSafe>& Request)
 {
 	check(Thread);
 	Thread->CancelRequest(&Request.Get());
@@ -264,7 +264,7 @@ bool FHttpManager::IsValidRequest(const IHttpRequest* RequestPtr) const
 	FScopeLock ScopeLock(&RequestLock);
 
 	bool bResult = false;
-	for (const TSharedRef<IHttpRequest>& Request : Requests)
+	for (const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request : Requests)
 	{
 		if (&Request.Get() == RequestPtr)
 		{
@@ -281,7 +281,7 @@ void FHttpManager::DumpRequests(FOutputDevice& Ar) const
 	FScopeLock ScopeLock(&RequestLock);
 
 	Ar.Logf(TEXT("------- (%d) Http Requests"), Requests.Num());
-	for (const TSharedRef<IHttpRequest>& Request : Requests)
+	for (const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request : Requests)
 	{
 		Ar.Logf(TEXT("	verb=[%s] url=[%s] status=%s"),
 			*Request->GetVerb(), *Request->GetURL(), EHttpRequestStatus::ToString(Request->GetStatus()));

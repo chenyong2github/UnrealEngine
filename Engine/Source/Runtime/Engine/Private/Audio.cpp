@@ -156,10 +156,7 @@ UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType)
 
 		case EAudioPlugin::MODULATION:
 		{
-			if (IAudioModulationFactory* Factory = AudioPluginUtilities::GetDesiredModulationPlugin())
-			{
-				return Factory->GetCustomModulationSettingsClass();
-			}
+			return nullptr;
 		}
 		break;
 

@@ -10,8 +10,35 @@
 #import <SafariServices/SafariServices.h>
 #import <WebKit/WebKit.h>
 
+#ifdef WEBAUTH_PLATFORM_IOS_13
+#include "IOS/IOSAppDelegate.h"
+#endif
+
+#ifdef WEBAUTH_PLATFORM_IOS_13
+@interface PresentationContext : NSObject <ASWebAuthenticationPresentationContextProviding>
+{
+}
+@end
+
+@implementation PresentationContext
+
+- (ASPresentationAnchor)presentationAnchorForWebAuthenticationSession:(ASWebAuthenticationSession *)session
+{
+	if ([IOSAppDelegate GetDelegate].Window == nullptr)
+	{
+		NSLog(@"authorizationController: presentationAnchorForAuthorizationController: error window is NULL");
+	}
+	return [IOSAppDelegate GetDelegate].Window;
+}
+
+@end
+#endif
 
 static NSMutableDictionary* MakeSearchDictionary(NSString *EnvironmentName);
+#ifdef WEBAUTH_PLATFORM_IOS_13
+static PresentationContext* PresentationContextProvider = nullptr;
+#endif
+
 
 // Returns true if the request is made
 bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &SchemeStr, const FWebAuthSessionCompleteDelegate& Delegate)
@@ -48,6 +75,15 @@ bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &Schem
 			}
 			AuthSessionCompleteDelegate = nullptr;
 		}];
+
+#ifdef WEBAUTH_PLATFORM_IOS_13
+		// If we are using iOS 13+ ensure we supply the context provider
+		if (@available(iOS 13.0, *))
+		{
+			check(PresentationContextProvider);
+			((ASWebAuthenticationSession*)SavedAuthSession).presentationContextProvider = PresentationContextProvider;
+		}
+#endif
 
 		[(ASWebAuthenticationSession*)SavedAuthSession start];
 	}
@@ -227,7 +263,7 @@ void FIOSWebAuth::DeleteLoginCookies(const FString& PrefixStr, const FString& Sc
 				for (WKWebsiteDataRecord *record  in records)
 				{
 					NSLog(@"record: %@", record);
-// TODO: Mark.Fitt Kairos has this very spcifically can we generalise to domain?
+					// TODO: Mark.Fitt Kairos has this very specifically can we generalise to domain?
 					if ([record.displayName containsString:@"epicgames"])
 					{
 						[[WKWebsiteDataStore defaultDataStore] removeDataOfTypes:[NSSet setWithArray:@[WKWebsiteDataTypeCookies]] forDataRecords:@[record] completionHandler:^
@@ -242,10 +278,20 @@ void FIOSWebAuth::DeleteLoginCookies(const FString& PrefixStr, const FString& Sc
 
 FIOSWebAuth::FIOSWebAuth()
 {
+#ifdef WEBAUTH_PLATFORM_IOS_13
+	PresentationContextProvider = [PresentationContext new];
+#endif
 }
 
 FIOSWebAuth::~FIOSWebAuth()
 {
+#ifdef WEBAUTH_PLATFORM_IOS_13
+	if (PresentationContextProvider != nil)
+	{
+		[PresentationContextProvider release];
+		PresentationContextProvider = nil;
+	}
+#endif
 }
 
 

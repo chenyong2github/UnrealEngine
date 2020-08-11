@@ -91,10 +91,13 @@ void UK2Node::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 
-	if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
+	if (Ar.IsSaving())
 	{
-		// When this is a reference collector/modifier, serialize some pins as structs
-		FixupPinStringDataReferences(&Ar);
+		if (Ar.IsObjectReferenceCollector() || Ar.Tell() < 0)
+		{
+			// When this is a reference collector/modifier, serialize some pins as structs
+			FixupPinStringDataReferences(&Ar);
+		}
 	}
 
 	Super::Serialize(Ar);
@@ -1016,6 +1019,8 @@ void UK2Node::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) con
 			ValidateOrphanPins(MessageLog, false);
 		}
 	}
+
+	FBlueprintEditorUtils::ValidateEditorOnlyNodes(this, MessageLog);
 }
 
 FString UK2Node::GetPinMetaData(FName InPinName, FName InKey)

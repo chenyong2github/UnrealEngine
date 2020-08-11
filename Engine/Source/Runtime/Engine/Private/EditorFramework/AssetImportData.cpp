@@ -20,6 +20,18 @@ UAssetImportData::UAssetImportData(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+#if WITH_EDITOR
+void UAssetImportData::ScriptedAddFilename(const FString& InPath, int32 Index, FString SourceFileLabel)
+{
+	Modify();
+	//Add or update the Source filename
+	AddFileName(InPath, Index, SourceFileLabel);
+
+	PostEditChange();
+}
+#endif //WITH_EDITOR
+
+
 #if WITH_EDITORONLY_DATA
 
 FOnImportDataChanged UAssetImportData::OnImportDataChanged;
@@ -319,9 +331,9 @@ FString UAssetImportData::ResolveImportFilename(const FString& InRelativePath, c
 	{
 		// Relative to the package filename?
 		const FString PathRelativeToPackage = FPaths::GetPath(FPackageName::LongPackageNameToFilename(Outermost->GetPathName())) / InRelativePath;
-		if (FPaths::FileExists(PathRelativeToPackage))
+		FString FullConvertPath = FPaths::ConvertRelativePathToFull(PathRelativeToPackage);
+		if (FPaths::FileExists(FullConvertPath))
 		{
-			FString FullConvertPath = FPaths::ConvertRelativePathToFull(PathRelativeToPackage);
 			//FileExist return true when testing Path like c:/../folder1/filename. ConvertRelativePathToFull specify having .. in front of a drive letter is an error.
 			//It is relative to package only if the conversion to full path is successful.
 			if (FullConvertPath.Find(TEXT("..")) == INDEX_NONE)

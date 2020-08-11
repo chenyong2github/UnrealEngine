@@ -54,7 +54,7 @@ public:
 	ESimplifyType SimplifierType;
 	int TargetPercentage, TargetCount;
 	float TargetEdgeLength;
-	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges;
+	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse;
 	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 
 	// stored for the UE4 Standard path

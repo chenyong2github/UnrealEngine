@@ -8,10 +8,11 @@
  *
  * @param	InHeadingText	Heading text
  */
-FHeadingBlock::FHeadingBlock( const FName& InExtensionHook, const TAttribute< FText >& InHeadingText )
+FHeadingBlock::FHeadingBlock( const FName& InExtensionHook, const FText& InHeadingText )
 	: FMultiBlock( NULL, NULL, InExtensionHook, EMultiBlockType::Heading, /* bInIsPartOfHeading=*/ true )
 	, HeadingText( InHeadingText )
 {
+	SetSearchable(false);
 }
 
 
@@ -45,14 +46,13 @@ void SHeadingBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 	TSharedRef< const FHeadingBlock > HeadingBlock = StaticCastSharedRef< const FHeadingBlock >( MultiBlock.ToSharedRef() );
 
 	// Add this widget to the search list of the multibox
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), FText::GetEmpty());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), FText::GetEmpty(), MultiBlock->GetSearchable());
 
 	ChildSlot
-		.Padding( 2.0f )
-		[
-			SNew( STextBlock )
-				.Text( HeadingBlock->HeadingText )
-				.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Heading" ) )
-		];
+	.Padding(StyleSet->GetMargin(StyleName, ".Heading.Padding"))
+	[
+		SNew( STextBlock )
+			.Text( HeadingBlock->HeadingText.ToUpper() )
+			.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Heading" ) )
+	];
 }

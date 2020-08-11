@@ -29,10 +29,13 @@ FMetalIndexBuffer::FMetalIndexBuffer(uint32 InStride, uint32 InSize, uint32 InUs
 	, FMetalRHIBuffer(InSize, MetalIndexBufferUsage(InUsage), RRT_IndexBuffer)
 	, IndexType((InStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32)
 {
-	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
+	if (InSize)
 	{
-		EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
-		CreateLinearTexture(Format, this);
+		if (RHISupportsTessellation(GMaxRHIShaderPlatform))
+		{
+			EPixelFormat Format = IndexType == mtlpp::IndexType::UInt16 ? PF_R16_UINT : PF_R32_UINT;
+			CreateLinearTexture(Format, this);
+		}
 	}
 }
 

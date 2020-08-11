@@ -38,6 +38,7 @@ class AMatineeActor;
 class APhysicsVolume;
 class APlayerController;
 class AWorldSettings;
+class UWorldPartition;
 class Error;
 class FTimerManager;
 class FUniqueNetId;
@@ -142,6 +143,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneSequenceTick, float);
 
 /** Proxy class that allows verification on GWorld accesses. */
 class UWorldProxy
@@ -525,6 +527,17 @@ struct ENGINE_API FActorSpawnParameters
 	/* The ULevel to spawn the Actor in, i.e. the Outer of the Actor. If left as NULL the Outer of the Owner is used. If the Owner is NULL the persistent level is used. */
 	class	ULevel* OverrideLevel;
 
+#if WITH_EDITOR
+	/* The UPackage to set the Actor in. If left as NULL the Package will not be set and the actor will be saved in the same package as the persistent level. */
+	class	UPackage* OverridePackage;
+
+	/* The parent component to set the Actor in. */
+	class   UChildActorComponent* OverrideParentComponent;
+
+	/** The Guid to set to this actor. Should only be set when reinstancing blueprint actors. */
+	FGuid	OverrideActorGuid;
+#endif
+
 	/** Method for resolving collisions at the spawn point. Undefined means no override, use the actor's setting. */
 	ESpawnActorCollisionHandlingMethod SpawnCollisionHandlingOverride;
 
@@ -554,6 +567,9 @@ public:
 
 	/* Determines whether or not the actor should be hidden from the Scene Outliner */
 	uint8	bHideFromSceneOutliner:1;
+
+	/** Determines whether to create a new package for the actor or not. */
+	uint16	bCreateActorPackage:1;
 #endif
 
 	/* Modes that SpawnActor can use the supplied name when it is not None. */
@@ -874,11 +890,11 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 
 #if WITH_EDITORONLY_DATA
 	/** List of all the layers referenced by the world's actors */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray< class ULayer* > Layers; 
 
 	// Group actors currently "active"
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<AActor*> ActiveGroupActors;
 
 	/** Information for thumbnail rendering */
@@ -925,10 +941,6 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	 */
 	UPROPERTY(Transient)
 	TArray<UObject*>							PerModuleDataObjects;
-
-	// Level sequence actors to tick first
-	UPROPERTY(transient)
-	TArray<AActor*>								LevelSequenceActors;
 
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
@@ -1089,6 +1101,9 @@ public:
 	* currently only used by editor level viewport world, and do not use this for in-game scene
 	*/
 	uint8 bEnableTraceCollision:1;
+
+	/** If True, overloaded method IsNameStableForNetworking will always return true. */
+	uint8 bIsNameStableForNetworking:1;
 #endif
 
 	/** frame rate is below DesiredFrameRate, so drop high detail actors */
@@ -1188,7 +1203,7 @@ private:
 	UPROPERTY(Transient)
 	class UAvoidanceManager*					AvoidanceManager;
 
-	/** Array of levels currently in this world. Not serialized to disk to avoid hard references.								*/
+	/** Array of levels currently in this world. Not serialized to disk to avoid hard references. */
 	UPROPERTY(Transient)
 	TArray<class ULevel*>						Levels;
 
@@ -1208,8 +1223,8 @@ public:
 	FAudioDeviceHandle AudioDeviceHandle;
 
 #if WITH_EDITOR
-	/** Hierarchical LOD System. Used when WorldSetting.bEnableHierarchicalLODSystem is true */
-	struct FHierarchicalLODBuilder*						HierarchicalLODBuilder;
+	/** Hierarchical LOD System. */
+	struct FHierarchicalLODBuilder*				HierarchicalLODBuilder;
 #endif // WITH_EDITOR
 
 	/** Called from DemoNetDriver when playing back a replay and the timeline is successfully scrubbed */
@@ -1222,7 +1237,7 @@ private:
 	FDelegateHandle AudioDeviceDestroyedHandle;
 
 #if WITH_EDITORONLY_DATA
-	/** Pointer to the current level being edited. Level has to be in the Levels array and == PersistentLevel in the game.		*/
+	/** Pointer to the current level being edited. Level has to be in the Levels array and == PersistentLevel in the game. */
 	UPROPERTY(Transient)
 	class ULevel*								CurrentLevel;
 #endif
@@ -1284,6 +1299,9 @@ public:
 
 	/** Initialize all world subsystems */
 	void InitializeSubsystems();
+
+	/** Finalize initialization of all world subsystems */
+	void PostInitializeSubsystems();
 
 #if WITH_EDITOR
 
@@ -1449,8 +1467,10 @@ private:
 
 	/** a delegate that broadcasts a notification whenever the current feautre level is changed */
 	FOnFeatureLevelChanged OnFeatureLevelChanged;
-
 #endif //WITH_EDITORONLY_DATA
+
+	FOnMovieSceneSequenceTick MovieSceneSequenceTick;
+
 public:
 	/** The URL that was used when loading this World.																			*/
 	FURL										URL;
@@ -2328,6 +2348,13 @@ public:
 	AWorldSettings* GetWorldSettings( bool bCheckStreamingPersistent = false, bool bChecked = true ) const;
 
 	/**
+	 * Returns the UWorldPartition associated with this world.
+	 *
+	 * @return UWorldPartition object associated with this world
+	 */
+	UWorldPartition* GetWorldPartition() const;
+
+	/**
 	 * Returns the current levels BSP model.
 	 *
 	 * @return BSP UModel
@@ -2423,11 +2450,17 @@ public:
 	 */
 	bool AllowAudioPlayback() const;
 
+	/** Adds a tick handler for sequences. These handlers get ticked before pre-physics */
+	FDelegateHandle AddMovieSceneSequenceTickHandler(const FOnMovieSceneSequenceTick::FDelegate& InHandler);
+	/** Removes a tick handler for sequences */
+	void RemoveMovieSceneSequenceTickHandler(FDelegateHandle InHandle);
+
 	//~ Begin UObject Interface
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
 	virtual void PostLoad() override;
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual bool PreSaveRoot(const TCHAR* Filename) override;
 	virtual void PostSaveRoot( bool bCleanupIsRequired ) override;
 	virtual UWorld* GetWorld() const override;
@@ -2436,6 +2469,7 @@ public:
 #if WITH_EDITOR
 	virtual bool Rename(const TCHAR* NewName = NULL, UObject* NewOuter = NULL, ERenameFlags Flags = REN_None) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	virtual bool IsNameStableForNetworking() const override;
 #endif
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//~ End UObject Interface
@@ -2643,12 +2677,12 @@ public:
 	/**
 	 * Initializes a newly created world.
 	 */
-	void InitializeNewWorld(const InitializationValues IVS = InitializationValues());
+	void InitializeNewWorld(const InitializationValues IVS = InitializationValues(), bool bInSkipInitWorld = false);
 	
 	/**
 	 * Static function that creates a new UWorld and returns a pointer to it
 	 */
-	static UWorld* CreateWorld( const EWorldType::Type InWorldType, bool bInformEngineOfWorld, FName WorldName = NAME_None, UPackage* InWorldPackage = NULL, bool bAddToRoot = true, ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num );
+	static UWorld* CreateWorld( const EWorldType::Type InWorldType, bool bInformEngineOfWorld, FName WorldName = NAME_None, UPackage* InWorldPackage = NULL, bool bAddToRoot = true, ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, const InitializationValues* InIVS = nullptr, bool bInSkipInitWorld = false);
 
 	/** 
 	 * Destroy this World instance. If destroying the world to load a different world, supply it here to prevent GC of the new world or it's sublevels.
@@ -2771,6 +2805,12 @@ public:
 	 * @param OverrideViewLocation Optional position used to override the location used to calculate current streaming volumes
 	 */
 	void ProcessLevelStreamingVolumes(FVector* OverrideViewLocation=NULL);
+
+	/*
+	 * Updates world's level streaming state using active game players view and blocks until all sub - levels are loaded / visible / hidden
+	 * so further calls to UpdateLevelStreaming won't do any work unless state changes.
+	 */
+	void BlockTillLevelStreamingCompleted();
 
 	/**
 	 * Transacts the specified level -- the correct way to modify a level
@@ -3252,6 +3292,9 @@ private:
 
 	APhysicsVolume* InternalGetDefaultPhysicsVolume() const;
 
+	/** Updates world's required streaming levels */
+	void InternalUpdateStreamingState();
+
 #if WITH_EDITOR
 public:
 	void SetPlayInEditorInitialNetMode(ENetMode InNetMode)
@@ -3314,6 +3357,7 @@ public:
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
 
 	/** Returns the BeginTearingDownEvent member. */
+	UE_DEPRECATED(4.26, "OnBeginTearingDown has been replaced by FWorldDelegates::OnWorldBeginTearDown")
 	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
 
 	/** Returns the actor count. */
@@ -3611,6 +3655,9 @@ public:
 
 	/** Return the prefix for PIE packages given a PIE Instance ID */
 	static FString BuildPIEPackagePrefix(int32 PIEInstanceID);
+
+	/** Duplicate the editor world to create the PIE world. */
+	static UWorld* GetDuplicatedWorldForPIE(UWorld* InWorld, UPackage* InPIEackage, int32 PIEInstanceID);
 
 	/** Given a loaded editor UWorld, duplicate it for play in editor purposes with OwningWorld as the world with the persistent level. */
 	static UWorld* DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningWorld);

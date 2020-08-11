@@ -37,6 +37,7 @@ class SWindow;
 class USequencerSettings;
 class FSequencerTrackFilter;
 class SSequencerGroupManager;
+class SSequencerTreeFilterStatusBar;
 struct FPaintPlaybackRangeArgs;
 struct FSequencerCustomizationInfo;
 struct FSequencerSelectionCurveFilter;
@@ -193,6 +194,18 @@ public:
 		/** The current scrub position in (seconds) */
 		SLATE_ATTRIBUTE( FFrameTime, ScrubPosition )
 
+		/** The current scrub position text */
+		SLATE_ATTRIBUTE( FString, ScrubPositionText )
+
+		/** The parent sequence that the scrub position display text is relative to */
+		SLATE_ATTRIBUTE( FMovieSceneSequenceID, ScrubPositionParent )
+
+		/** Called when the scrub position parent sequence is changed */
+		SLATE_EVENT( FOnScrubPositionParentChanged, OnScrubPositionParentChanged )
+
+		/** Attribute for the parent sequence chain of the current sequence */
+		SLATE_ATTRIBUTE( TArray<FMovieSceneSequenceID>, ScrubPositionParentChain )
+
 		/** Called when the user changes the view range */
 		SLATE_EVENT( FOnViewRangeChanged, OnViewRangeChanged )
 
@@ -320,6 +333,9 @@ public:
 	/** Sets the play time for the sequence but clamped by the working range. This is useful for cases where we can't clamp via the UI control. */
 	void SetPlayTimeClampedByWorkingRange(double Frame);
 
+	/** Sets the play time for the sequence. Will extend the working range if out of bounds. */
+	void SetPlayTime(double Frame);
+
 	/** Set's the specified filter to be on or off*/
 	void SetFilterOn(const FText& InName, bool bOn);
 
@@ -438,7 +454,7 @@ private:
 	void FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder);
 	void FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder);
 
-	void OnResetNodeGroupFilters();
+	void OnEnableAllNodeGroupFilters(bool bEnableAll);
 	void OnNodeGroupFilterClicked(UMovieSceneNodeGroup* NodeGroup);
 
 	/**
@@ -588,6 +604,9 @@ private:
 	/** Main Sequencer Area*/
 	TSharedPtr<SVerticalBox> MainSequencerArea;
 
+	/** Filter Status Bar */
+	TSharedPtr<SSequencerTreeFilterStatusBar> SequencerTreeFilterStatusBar;
+	
 	/** Section area widget */
 	TSharedPtr<SSequencerTrackArea> TrackArea;
 

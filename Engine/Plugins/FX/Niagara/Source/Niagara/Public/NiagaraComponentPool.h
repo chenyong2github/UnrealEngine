@@ -94,7 +94,7 @@ public:
 	void Cleanup();
 
 	/** Gets a component from the pool ready for use. */
-	UNiagaraComponent* Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod);
+	UNiagaraComponent* Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew=false);
 
 	/** Returns a component to the pool. */
 	void Reclaim(UNiagaraComponent* NC, const float CurrentTimeSeconds);
@@ -126,6 +126,7 @@ public:
 
 	void Cleanup();
 
+	void PrimePool(UNiagaraSystem* Template, UWorld* World);
 	UNiagaraComponent* CreateWorldParticleSystem(UNiagaraSystem* Template, UWorld* World, ENCPoolMethod PoolingMethod);
 
 	/** Called when an in-use particle component is finished and wishes to be returned to the pool. */

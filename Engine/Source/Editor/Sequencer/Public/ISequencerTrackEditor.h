@@ -9,14 +9,17 @@
 #include "Framework/Commands/UICommandList.h"
 #include "ISequencerSection.h"
 #include "MovieSceneTrack.h"
+#include "SequencerKeyParams.h"
 #include "Sections/MovieScene3DTransformSection.h"
 
 class FExtender;
+class ISequencer;
 class FMenuBuilder;
 class FPaintArgs;
 class FSlateWindowElementList;
 class SHorizontalBox;
 class UMovieScene;
+class UMovieSceneTrack;
 class UMovieSceneSequence;
 
 /** Data structure containing information required to build an edit widget */
@@ -41,11 +44,13 @@ class ISequencerTrackEditor
 public:
 
 	/**
-	 * Manually adds a key.
+	 * Add keys for the following sections based on an external value if possible
 	 *
-	 * @param ObjectGuid The Guid of the object that we are adding a key to.
+	 * @param InKeyTime   The time at which to add keys
+	 * @param Operation   Structure containing all the sections and channels to key
+	 * @param InSequencer The sequencer UI that is applying the key operation
 	 */
-	virtual void AddKey(const FGuid& ObjectGuid) = 0;
+	virtual void ProcessKeyOperation(FFrameNumber InKeyTime, const UE::Sequencer::FKeyOperation& Operation, ISequencer& InSequencer) { Operation.ApplyDefault(InKeyTime, InSequencer); }
 
 	/**
 	 * Add a new track to the sequence.

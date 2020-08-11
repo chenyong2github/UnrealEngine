@@ -114,6 +114,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
+	/** Sets whether or not the low pass filter is enabled on the audio component. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
+
+	/** Sets lowpass filter frequency of the audio component. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	virtual void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
+
 	/** Auto destroy this component on completion */
 	UPROPERTY()
 	uint8 bAutoDestroy : 1;
@@ -169,10 +177,6 @@ public:
 	/** This sound will send its audio output to this list of buses if there are bus instances playing after source effects are processed.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Post-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> BusSends;
-
-	/** Modulation for the sound */
-	UPROPERTY(EditAnywhere, Category = Modulation)
-	FSoundModulation Modulation;
 
 	/** This sound will send its audio output to this list of buses if there are bus instances playing before source effects are processed.  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Pre-Effect Bus Sends"))

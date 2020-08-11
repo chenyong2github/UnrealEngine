@@ -7,9 +7,28 @@
 #include "PlatformHttp.h"
 #include "Algo/Accumulate.h"
 #include "Serialization/JsonWriter.h"
+#include "Containers/StringConv.h"
+#include "Misc/StringBuilder.h"
+#include "Misc/CString.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformTime.h"
 
 namespace EventCacheStatic
 {
+	static float PayloadPercentageOfMaxForWarning = 1.00f;
+	FAutoConsoleVariableRef CvarPayloadPercentageOfMaxForWarning(
+		TEXT("AnalyticsET.PayloadPercentageOfMaxForWarning"),
+		PayloadPercentageOfMaxForWarning,
+		TEXT("Percentage of the maximum payload for an EventCache that will trigger a warning message, listing the events in the payload. This is intended to be used to investigate spammy or slow telemetry.")
+	);
+
+	static float PayloadFlushTimeSecForWarning = 0.001f;
+	FAutoConsoleVariableRef CvarPayloadFlushTimeSecForWarning(
+		TEXT("AnalyticsET.PayloadFlushTimeSecForWarning"),
+		PayloadFlushTimeSecForWarning,
+		TEXT("Time in seconds that flushing an EventCache payload can take before it will trigger a warning message, listing the events in the payload. This is intended to be used to investigate spammy or slow telemetry.")
+	);
+
 	/** Used for testing below to ensure stable output */
 	bool bUseZeroDateOffset = false;
 
@@ -44,38 +63,47 @@ namespace EventCacheStatic
 				TEXT("FragmentAttr"), FJsonFragment(TEXT("{\"Key\":\"Value\",\"Key2\":\"Value2\"}"))
 			));
 
-			int32 ApproxSize = cache.ComputeApproximatePayloadChars();
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FString Payload = cache.FlushCache();
-			check(Payload == TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"},{\"EventName\":\"NumericalAttributes\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false},{\"EventName\":\"JsonAttributes\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}"));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"},{\"EventName\":\"NumericalAttributes\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false},{\"EventName\":\"JsonAttributes\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}");
+			if (Payload != ExpectedResult)
+			{
+				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Failed. Expect:%s"), *ExpectedResult);
+				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Failed. Actual:%s"), *Payload);
+				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest expected array size:%d. Actual array size:%d"), ExpectedResult.GetCharArray().Num(), Payload.GetCharArray().Num());
+				for (int i=0;i<ExpectedResult.Len();++i)
+				{
+					if (ExpectedResult[i] != Payload[i])
+					{
+						UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Differ, char %d: %c != %c"), i, (uint16)ExpectedResult[i], (uint16)Payload[i]);
+					}
+				}
+				check(Payload == ExpectedResult);
+			}
 		}
 	};
 
-	Tests GTests;
+	bool bHasRunTests = false;
 
 
-	int ComputeAttributeSize(const FAnalyticsEventAttribute& Attribute)
+	inline int ComputeAttributeSize(const FAnalyticsEventAttribute& Attribute)
 	{
 		return 
 		// "              Name             "   :             Value              ,   (maybequoted)                                          
 		   1 + Attribute.GetName().Len() + 1 + 1 + Attribute.GetValue().Len() + 1 + (Attribute.IsJsonFragment() ? 0 : 2);
 	}
 
-	int ComputeAttributeSize(const TArray<FAnalyticsEventAttribute>& Attributes)
+	inline int ComputeAttributeSize(const TArray<FAnalyticsEventAttribute>& Attributes)
 	{
-		//int Accum = 0;
-		//for (const FAnalyticsEventAttribute& Attr : Attributes)
-		//{
-		//	Accum += EventCacheStatic::ComputeAttributeSize(Attr);
-		//}
-		//return Accum;
 		return Algo::Accumulate(Attributes, 0, [](int Accum, const FAnalyticsEventAttribute& Attr) { return Accum + EventCacheStatic::ComputeAttributeSize(Attr); });
 	}
 
-	int ComputeEventSize(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes, int CurrentDefaultAttributeSizeEstimate)
+	inline int ComputeEventSize(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes, int CurrentDefaultAttributeSizeEstimate)
 	{
 		return
-			// "EventName":"   EVENT_NAME     ",
-					 13 +   EventName.Len() + 2
+			// "{EventName":"   EVENT_NAME     ",
+					 14 +   EventName.Len() + 2
 			// "DateOffset":"+00:00:00.000",
 						 + 29
 			// ATTRIBUTES_SIZE
@@ -83,45 +111,224 @@ namespace EventCacheStatic
 			// ATTRIBUTES_SIZE
 			+ ComputeAttributeSize(Attributes)
 			// Last attribute will not have a comma, so subtract that off the estimate.
-			-1
+			- 1
+			// "},"
+			+2
 			;
 
 	}
 
-	int ComputePayloadSize(int NumEventsCached, int EventSizeEstimate)
+	// We need to allocate some stack space (inline storage) for UTF8 conversion strings. This is the longest attribute value we can support without imposing a dynamic allocation
+	constexpr int32 ConversionBufferSize = 512;
+	// This is the buffer we will convert strings into UTF8 into, since it's difficult to convert them directly into a TArray<>, since it doesn't know how to resize itself.
+	// We also don't want to walk the string once to count the chars if we don't have to. so we pay the price to copy directly into a stack-allocated buffer most of the time,
+	// but let it spill over to a dynamic allocation for long strings.
+	//typedef TStringConversion<FTCHARToUTF8_Convert, ConversionBufferSize> FPayloadUTF8Converter;
+	typedef TStringBuilder<ConversionBufferSize> FJsonStringBuilder;
+
+	const ANSICHAR* PayloadTemplate = "{\"Events\":[]}";
+	const int32 PayloadTemplateLength = 13;
+	const ANSICHAR* PayloadTrailer = "]}";
+	const int32 PayloadTrailerLength = 2;
+
+	/** Appends UTF8 chars directly to a UTF8 stream. Must already be properly UTF8 encoded. Does NOT add a NULL terminator. */
+	inline void AppendString(TArray<uint8>& UTF8Stream, const ANSICHAR* UTF8Chars, int32 CharCount)
 	{
-		// Payload is {"Events":[{EVENT_ESTIMATE},{EVENT_ESTIMATE}]}
-		// That is 13 bytes constant overhead, and 3 more bytes per event for the object bracket and comma (minus 1 for the trailing comma removal)
-		return 13 + FMath::Max(0, 3 * NumEventsCached - 1) + EventSizeEstimate;
+		UTF8Stream.Append(reinterpret_cast<const uint8*>(UTF8Chars), CharCount);
+	}
+
+	/** 
+	 * Appends a TCHAR* string (need not be null-terminated) to a UTF8 stream.
+	 * Converts the string directly into the UTF8Stream. Does NOT add a NULL terminator. 
+	 * 
+	 * This function is highly optimized for efficiency. writes directly into the output stream without precomputing the string length.
+	 * Optimistically adds a bit of space to handle ocassional multibyte chars, but keeps growing until it fits.
+	 * In practice, this makes this function 30-40% faster than precomputing the string length in advance,
+	 * and over 2x faster than usig FStringConversion<> directly, even with an appropriately sized buffer.
+	 */
+	inline void AppendString(TArray<uint8>& UTF8Stream, const TCHAR* Str, int32 Len)
+	{
+		const int32 OldLen = UTF8Stream.Num();
+
+		// *** ORIGINAL, simpler code. But slower. ***
+		// convert directly into new array, precompute length
+		// get the string length and expand our buffer to fit it.
+		//const int32 StrLen = FTCHARToUTF8_Convert::ConvertedLength(Str, Len);
+		//UTF8Stream.SetNumUninitialized(OldLen + StrLen, false);
+		//FTCHARToUTF8_Convert::Convert(&UTF8Stream[OldLen], StrLen, Str, Len);
+
+		// optimistically allocate a bit of extra space and see if we fill up the buffer.
+		// If we do, lengthen the buffer a bit and try again.
+		// This works 33% better than always precomputing the string length in practice, as walking over the chars to find the actual length is pretty slow.
+		bool bWroteFullString = false;
+		float SizeMultiplier = 0.25f;
+		while (!bWroteFullString)
+		{
+			// Give some padding. ensure we add at least one char.
+			const int32 StrLen = (int32)(Len + FMath::Max(1.f, Len * (SizeMultiplier)));
+			// make space for the string
+			UTF8Stream.SetNumUninitialized(OldLen + StrLen, false);
+			// convert it to UTF8
+			int32 CharsWritten = FTCHARToUTF8_Convert::Convert(&UTF8Stream[OldLen], StrLen, Str, Len);
+			// figure out how many characters were actually written 
+			if (CharsWritten >= 0)
+			{
+				// truncate to that length.
+				UTF8Stream.SetNum(OldLen + CharsWritten, false);
+				bWroteFullString = true;
+			}
+			else
+			{
+				// we overflowed our buffer. Must be lots of multibyte chars. double the slack and try again.
+				SizeMultiplier *= 2.0;
+				// if we grow too much, give up and compute the true chars needed.
+				if (SizeMultiplier >= 2.0)
+				{
+					const int32 ActualCharsNeeded = FTCHARToUTF8_Convert::ConvertedLength(Str, Len);
+					UTF8Stream.SetNumUninitialized(OldLen + ActualCharsNeeded, false);
+					// convert it to UTF8 using the known number of charts
+					FTCHARToUTF8_Convert::Convert(&UTF8Stream[OldLen], ActualCharsNeeded, Str, Len);
+					bWroteFullString = true;
+				}
+			}
+		}
+	}
+
+	/** Appends an FString efficiently into a UTF8 stream. Does NOT add a NULL terminator. */
+	inline void AppendString(TArray<uint8>& UTF8Stream, const FString& Str)
+	{
+		AppendString(UTF8Stream, *Str, Str.Len());
+	}
+
+	/** Appends an TStringBuilder efficiently into a UTF8 stream. Does NOT add a NULL terminator. */
+	inline void AppendString(TArray<uint8>& UTF8Stream, const FJsonStringBuilder& str)
+	{
+		AppendString(UTF8Stream, str.GetData(), str.Len());
+	}
+
+	/** Append a Json string to a UTF8 stream. Escapes the string, adds quotes, and converts it to UTF8 in temp space. Does NOT add a NULL terminator. If it's a JsonFragment, doesn't escape or add the quotes. */
+	inline void AppendJsonString(TArray<uint8>& UTF8Stream, FJsonStringBuilder& JsonStringBuilder, const FString& str, bool bIsJsonFragment)
+	{
+		if (bIsJsonFragment)
+		{
+			// if it's a JsonFragment, not need to escape. Write it straight out.
+			AppendString(UTF8Stream, str);
+		}
+		else
+		{
+			// always reset first.
+			JsonStringBuilder.Reset();
+			// escape the Json and add quotes
+			AppendEscapeJsonString(JsonStringBuilder, str);
+			// Add "<NAME>"
+			AppendString(UTF8Stream, JsonStringBuilder);
+
+		}
+	}
+
+	/** Append an AnalyticsEventAttribute to a UTF8 stream: ,"<NAME>":<VALUE> */
+	inline void AppendEventAttribute(TArray<uint8>& UTF8Stream, FJsonStringBuilder& JsonStringBuilder, const FAnalyticsEventAttribute& Attr)
+	{
+		// Add ,
+		UTF8Stream.Add(static_cast<uint8>(','));
+		AppendJsonString(UTF8Stream, JsonStringBuilder, Attr.GetName(), false);
+		// Add :
+		UTF8Stream.Add(static_cast<uint8>(':'));
+		AppendJsonString(UTF8Stream, JsonStringBuilder, Attr.GetValue(), Attr.IsJsonFragment());
+	}
+
+	inline void InitializePayloadBuffer(TArray<uint8>& Buffer, int32 MaximumPayloadSize)
+	{
+		Buffer.Reserve(MaximumPayloadSize * 1.2);
+		// we are going to write UTF8 directly into our payload buffer.
+		AppendString(Buffer, PayloadTemplate, PayloadTemplateLength);
 	}
 }
 
-FAnalyticsProviderETEventCache::FAnalyticsProviderETEventCache()
+FAnalyticsProviderETEventCache::FAnalyticsProviderETEventCache(int32 InMaximumPayloadSize, int32 InPreallocatedPayloadSize)
+: MaximumPayloadSize(InMaximumPayloadSize)
+, PreallocatedPayloadSize(InPreallocatedPayloadSize)
 {
-	// if we are caching events, presize the array to max size. Otherwise, we will never have more than two entries in the array (one for the default attributes, one for the actual event)
-	CachedEvents.Reserve(2);
-	// make sure that we always start with one control event in the CachedEvents array.
-	CachedEvents.Emplace(FString(), TArray<FAnalyticsEventAttribute>(), true);
-}
+	// reserve space for a few flushes to build up.
+	FlushQueue.Reserve(4);
+	// reserve space for a few entries to build up.
+	CachedEventEntries.Reserve(100);
 
-void FAnalyticsProviderETEventCache::AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes, bool bIsJsonEvent)
-{
-	// call deprecated functions here to convert these attributes into JsonFragments, so turn off warnings.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	for (FAnalyticsEventAttribute& Attr : Attributes)
+	// #WRHTODO - move this to EngineTests
+	if (!EventCacheStatic::bHasRunTests)
 	{
-		Attr.SwitchToJsonFragment();
+		EventCacheStatic::bHasRunTests = true;
+		EventCacheStatic::Tests Tests;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	AddToCache(MoveTemp(EventName), MoveTemp(Attributes));
+
+	if (MaximumPayloadSize < 0)
+	{
+		// default to 100KB.
+		MaximumPayloadSize = 100*1024;
+		GConfig->GetInt(TEXT("AnalyticsProviderETEventCache"), TEXT("MaximumPayloadSize"), MaximumPayloadSize, GEngineIni);
+	}
+
+	if (PreallocatedPayloadSize < 0)
+	{
+		PreallocatedPayloadSize = MaximumPayloadSize;
+	}
+	// allocate the payload buffer to the maximum size, and insert the payload template to start with.
+	EventCacheStatic::InitializePayloadBuffer(CachedEventUTF8Stream, PreallocatedPayloadSize);
 }
 
-void FAnalyticsProviderETEventCache::AddToCache(FString EventName, TArray<FAnalyticsEventAttribute>&& Attributes)
+// We start with {"Events":[]}
+// We End with {"Events":[{"EventName":"<NAME>","DateOffset":"<OFFSET>",<DefaultAttrs>,<Attrs>}]}
+void FAnalyticsProviderETEventCache::AddToCache(FString EventName, const TArray<FAnalyticsEventAttribute>& Attributes)
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
-	EventSizeEstimate += ComputeApproximateEventChars(EventName, Attributes);
-	NumEventsCached++;
-	CachedEvents.Emplace(MoveTemp(EventName), MoveTemp(Attributes), false);
+
+	// If we estimate that 110% of the size estimate (in case there are a lot of Json escaping or multi-byte UTF8 chars) will exceed our max payload, queue up a flush. 
+	const int32 EventSizeEstimate = EventCacheStatic::ComputeEventSize(EventName, Attributes, CachedDefaultAttributeUTF8Stream.Num());
+	if (CachedEventUTF8Stream.Num() + (EventSizeEstimate * 11 / 10) > MaximumPayloadSize)
+	{
+		UE_LOG(LogAnalytics, VeryVerbose, TEXT("AddToCache for event (%s) may overflow MaximumPayloadSize (%d). Payload is currently (%d) bytes, and event will use an estimated (%d) bytes. Queuing up existing payload for flush before adding this event."), *EventName, MaximumPayloadSize, CachedEventUTF8Stream.Num(), EventSizeEstimate);
+		QueueFlush();
+	}
+
+	// reserve enough space for the new data (an estimate, but should work fine if not a lot of UNICODE and Json escaping)
+	const int32 OldBufferSize = CachedEventUTF8Stream.Num();
+	CachedEventUTF8Stream.Reserve(CachedEventUTF8Stream.Num() + EventSizeEstimate + 10);
+
+	// We will use this to esacpe the Json of our strings to avoid allocations.
+	EventCacheStatic::FJsonStringBuilder EscapedJsonBuffer;
+
+	// strip the payload tail off
+	CachedEventUTF8Stream.SetNum(CachedEventUTF8Stream.Num() - EventCacheStatic::PayloadTrailerLength, false);
+	if (CachedEventEntries.Num() > 0)
+	{
+		// If we already have an event in there, start with a comma.
+		CachedEventUTF8Stream.Add(static_cast<uint8>(','));
+	}
+	// Add {"EventName":
+	EventCacheStatic::AppendString(CachedEventUTF8Stream, "{\"EventName\":", 13);
+	// Add "<EVENTNAME>"
+	EventCacheStatic::AppendJsonString(CachedEventUTF8Stream, EscapedJsonBuffer, EventName, false);
+	// Add ,"DateOffset":"
+	EventCacheStatic::AppendString(CachedEventUTF8Stream, ",\"DateOffset\":\"", 15);
+	// record the location of this offset
+	const int32 DateOffsetByteOffset = CachedEventUTF8Stream.Num();
+	// add reserved space for the offset: +00:00:00.000"
+	EventCacheStatic::AppendString(CachedEventUTF8Stream, "+00:00:00.000\"", 14);
+	// append default attributes
+	CachedEventUTF8Stream.Append(CachedDefaultAttributeUTF8Stream);
+	// for each attribute, add ,"<NAME>":<VALUE>
+	for (const FAnalyticsEventAttribute& Attr : Attributes)
+	{
+		EventCacheStatic::AppendEventAttribute(CachedEventUTF8Stream, EscapedJsonBuffer, Attr);
+	}
+	// Add }
+	CachedEventUTF8Stream.Add(static_cast<uint8>('}'));
+	// put the payload trailer back on
+	EventCacheStatic::AppendString(CachedEventUTF8Stream, EventCacheStatic::PayloadTrailer, EventCacheStatic::PayloadTrailerLength);
+	const int32 NewBufferSize = CachedEventUTF8Stream.Num();
+
+	// Add the EventEntry
+	CachedEventEntries.Add(FAnalyticsEventEntry(MoveTemp(EventName), DateOffsetByteOffset, NewBufferSize - OldBufferSize));
 }
 
 void FAnalyticsProviderETEventCache::AddToCache(FString EventName)
@@ -133,212 +340,169 @@ void FAnalyticsProviderETEventCache::SetDefaultAttributes(TArray<FAnalyticsEvent
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
 
-	// further events will add this many additional bytes
-	// don't need to hold the lock to compute this value.
-	CurrentDefaultAttributeSizeEstimate = EventCacheStatic::ComputeAttributeSize(DefaultAttributes);
+	// store the array so we can return if if the user asks again.
+	CachedDefaultAttributes = MoveTemp(DefaultAttributes);
 
-	// we know we always have one entry in CachedEvents, so no need to check for Num() > 0.
-	// If we are trying to add two default attribute events in a row, just overwrite the last one.
-	if (CachedEvents.Last().bIsDefaultAttributes)
+	// presize the UTF8 stream that will store the pre-serialized default attribute buffer
+	const int32 EstimatedAttributesSize = EventCacheStatic::ComputeAttributeSize(CachedDefaultAttributes) + 10;
+	CachedDefaultAttributeUTF8Stream.Reset(EstimatedAttributesSize);
+	if (CachedDefaultAttributes.Num() > 0)
 	{
-		CachedEvents.Last() = FAnalyticsEventEntry(FString(), MoveTemp(DefaultAttributes), true);
-	}
-	else
-	{
-		CachedEvents.Emplace(FString(), MoveTemp(DefaultAttributes), true);
+		EventCacheStatic::FJsonStringBuilder EscapedJsonBuffer;
+		for (const FAnalyticsEventAttribute& Attr : CachedDefaultAttributes)
+		{
+			EventCacheStatic::AppendEventAttribute(CachedDefaultAttributeUTF8Stream, EscapedJsonBuffer, Attr);
+		}
 	}
 }
 
 TArray<FAnalyticsEventAttribute> FAnalyticsProviderETEventCache::GetDefaultAttributes() const
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
-
-	int32 DefaultIndex = CachedEvents.FindLastByPredicate([](const FAnalyticsEventEntry& Entry) { return Entry.bIsDefaultAttributes == 1; });
-	checkf(DefaultIndex != INDEX_NONE, TEXT("failed to find default attributes entry in analytics cached events list"));
-	return CachedEvents[DefaultIndex].Attributes;
+	return CachedDefaultAttributes;
 }
 
 int32 FAnalyticsProviderETEventCache::GetDefaultAttributeCount() const
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
-
-	int32 DefaultIndex = CachedEvents.FindLastByPredicate([](const FAnalyticsEventEntry& Entry) { return Entry.bIsDefaultAttributes == 1; });
-	checkf(DefaultIndex != INDEX_NONE, TEXT("failed to find default attributes entry in analytics cached events list"));
-	return CachedEvents[DefaultIndex].Attributes.Num();
+	return CachedDefaultAttributes.Num();
 }
 
 FAnalyticsEventAttribute FAnalyticsProviderETEventCache::GetDefaultAttribute(int32 AttributeIndex) const
 {
 	FScopeLock ScopedLock(&CachedEventsCS);
-
-	int32 DefaultIndex = CachedEvents.FindLastByPredicate([](const FAnalyticsEventEntry& Entry) { return Entry.bIsDefaultAttributes == 1; });
-	checkf(DefaultIndex != INDEX_NONE, TEXT("failed to find default attributes entry in analytics cached events list"));
-	return CachedEvents[DefaultIndex].Attributes[AttributeIndex];
+	return CachedDefaultAttributes[AttributeIndex];
 }
 
 FString FAnalyticsProviderETEventCache::FlushCache(SIZE_T* OutEventCount)
 {
-	FDateTime CurrentTime = FDateTime::UtcNow();
-
-	// Track the current set of default attributes. We move into this array instead of just referencing it
-	// because at the end we will push the latest value back onto the list of cached events.
-	// We can do this without actually copying the array this way.
-	TArray<FAnalyticsEventAttribute> CurrentDefaultAttributes;
-	
-	// allocate enough space for the event.
-	FString Payload;
-	// Reserve a bit more space for the payload in case we have to escape a lot of Json
-	const int PayloadSize = ComputeApproximatePayloadChars();
-	Payload.Reserve(PayloadSize + 100);
-	// Avoid using the generally slow JsonWriter library, build the Json manually.
-	// **** WARNING: If you change these hardcoded values, you MUST also change ComputeEventSize() helper function!!! *****
-	Payload += TEXT("{\"Events\":[");
-
 	FScopeLock ScopedLock(&CachedEventsCS);
-	bool bFirstEvent = true;
-	for (FAnalyticsEventEntry& Entry : CachedEvents)
+	if (OutEventCount)
 	{
-		if (Entry.bIsDefaultAttributes)
-		{
-			// This is the default attributes, so update the array.
-			CurrentDefaultAttributes = MoveTemp(Entry.Attributes);
-		}
-		else
-		{
-			if (OutEventCount)
-			{
-				++(*OutEventCount);
-			}
-
-			// event entry
-			if (bFirstEvent)
-			{
-				bFirstEvent = false;
-			}
-			else
-			{
-				Payload += TEXT(',');
-			}
-
-			// **** WARNING: If you change these hardcoded values, you MUST also change ComputeEventSize() helper function!!! *****
-			Payload += TEXT("{\"EventName\":"); AppendEscapeJsonString(Payload, Entry.EventName);
-			FString DateOffset = EventCacheStatic::bUseZeroDateOffset ? FTimespan::Zero().ToString() : (CurrentTime - Entry.TimeStamp).ToString();
-			Payload += TEXT(",\"DateOffset\":"); AppendEscapeJsonString(Payload, DateOffset);
-
-			// default attributes for this event
-			for (const FAnalyticsEventAttribute& Attr : CurrentDefaultAttributes)
-			{
-				Payload += TEXT(',');
-				AppendEscapeJsonString(Payload, Attr.GetName());
-				Payload += TEXT(':');
-				if (Attr.IsJsonFragment())
-				{
-					Payload += Attr.GetValue();
-				}
-				else
-				{
-					AppendEscapeJsonString(Payload, Attr.GetValue());
-				}
-			}
-			// optional attributes for this event
-			for (const FAnalyticsEventAttribute& Attr : Entry.Attributes)
-			{
-				Payload += TEXT(',');
-				AppendEscapeJsonString(Payload, Attr.GetName());
-				Payload += TEXT(':');
-				if (Attr.IsJsonFragment())
-				{
-					Payload += Attr.GetValue();
-				}
-				else
-				{
-					AppendEscapeJsonString(Payload, Attr.GetValue());
-				}
-			}
-			Payload += TEXT('}');
-		}
+		*OutEventCount = CachedEventEntries.Num();
 	}
-
-	Payload += TEXT("]}");
-	if (Payload.Len() > PayloadSize+10)
-	{
-		UE_LOG(LogAnalytics, Display, TEXT("Estimated Payload Size %d was significantly smaller than actual payload size %d"), PayloadSize, Payload.Len());
-	}
-
-	// reset our payload size estimate counters.
-	NumEventsCached = 0;
-	EventSizeEstimate = 0;
-	CurrentDefaultAttributeSizeEstimate = EventCacheStatic::ComputeAttributeSize(CurrentDefaultAttributes);
-	// clear the array but don't reclaim the memory.
-	CachedEvents.Reset();
-	// Push the current set of default attributes back onto the events list for next time we flush.
-	// Can't call SetDefaultEventAttributes to do this because it already assumes we have one item in the array.
-	CachedEvents.Emplace(FString(), MoveTemp(CurrentDefaultAttributes), true);
-
-	return Payload;
+	TArray<uint8> Payload = FlushCacheUTF8();
+	Payload.Add(TEXT('\0'));
+	return UTF8_TO_TCHAR(Payload.GetData());
 }
 
-void FAnalyticsProviderETEventCache::FlushCacheLegacy(TFunctionRef<void(const FString&, const FString&)> SendPayloadFunc)
+TArray<uint8> FAnalyticsProviderETEventCache::FlushCacheUTF8()
 {
-	// Track the current set of default attributes. We move into this array instead of just referencing it
-	// because at the end we will push the latest value back onto the list of cached events.
-	// We can do this without actually copying the array this way.
-	TArray<FAnalyticsEventAttribute> CurrentDefaultAttributes;
-
 	FScopeLock ScopedLock(&CachedEventsCS);
-	
-	// this is a legacy pathway that doesn't accept batch payloads of cached data. We'll just send one request for each event, which will be slow for a large batch of requests at once.
-	for (auto& Event : CachedEvents)
-	{
-		if (Event.bIsDefaultAttributes)
-		{
-			// This is the default attributes, so update the array.
-			CurrentDefaultAttributes = MoveTemp(Event.Attributes);
-		}
-		else
-		{
-			FString EventParams;
-			int PayloadNdx = 0;
-			// default attributes for this event
-			for (int DefaultAttributeNdx = 0; DefaultAttributeNdx < CurrentDefaultAttributes.Num() && PayloadNdx < 40; ++DefaultAttributeNdx, ++PayloadNdx)
-			{
-				EventParams += FString::Printf(TEXT("&AttributeName%d=%s&AttributeValue%d=%s"),
-					PayloadNdx,
-					*FPlatformHttp::UrlEncode(CurrentDefaultAttributes[DefaultAttributeNdx].GetName()),
-					PayloadNdx,
-					*FPlatformHttp::UrlEncode(CurrentDefaultAttributes[DefaultAttributeNdx].GetValue()));
-			}
-			// optional attributes for this event
-			for (int AttrNdx = 0; AttrNdx < Event.Attributes.Num() && PayloadNdx < 40; ++AttrNdx, ++PayloadNdx)
-			{
-				EventParams += FString::Printf(TEXT("&AttributeName%d=%s&AttributeValue%d=%s"),
-					PayloadNdx,
-					*FPlatformHttp::UrlEncode(Event.Attributes[AttrNdx].GetName()),
-					PayloadNdx,
-					*FPlatformHttp::UrlEncode(Event.Attributes[AttrNdx].GetValue()));
-			}
 
-			SendPayloadFunc(Event.EventName, EventParams);
+	// if there's nothing queued up, flush what we have.
+	if (FlushQueue.Num() == 0 && CachedEventEntries.Num() > 0)
+	{
+		QueueFlush();
+	}
+
+	if (FlushQueue.Num() > 0)
+	{
+		// pull out the first element without copying the array or shrinking the queue size
+		TArray<uint8> Payload = MoveTemp(FlushQueue[0]);
+		FlushQueue.RemoveAt(0, 1, false);
+		return Payload;
+	}
+
+	return TArray<uint8>();
+}
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// !!!! This method tries extremely hard to avoid any dynamic allocations
+// !!!! to optimize the flush time. Please don't add new allocations to this function 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+void FAnalyticsProviderETEventCache::QueueFlush()
+{
+	const double StartTime = FPlatformTime::Seconds();
+	FScopeLock ScopedLock(&CachedEventsCS);
+
+	// early exit if nothing to flush.
+	if (CachedEventEntries.Num() == 0)
+	{
+		return;
+	}
+
+	const FDateTime CurrentTime = FDateTime::UtcNow();
+
+	// The only thing we have to do is go through each event and fix up the DateOffset
+	for (const FAnalyticsEventEntry& Entry : CachedEventEntries)
+	{
+		FTimespan DateOffset = CurrentTime - Entry.TimeStamp;
+		// clamp thee timespan > 0 and less than 1 day.
+		if (EventCacheStatic::bUseZeroDateOffset || DateOffset.GetTicks() < 0)
+		{
+			DateOffset = FTimespan(0);
+		}
+		else if (DateOffset.GetTotalDays() > 1.0)
+		{
+			DateOffset = FTimespan(23, 59, 59);
+		}
+		// implemnt our our ToString() directly into ANSICHARs, overwriting the placeholder Timespan we put there earlier.
+		// Easiest to sprintf to a temp buffer that will null-terminate, then copy that into place.
+		ANSICHAR DateOffsetBuf[14];
+		FCStringAnsi::Snprintf(DateOffsetBuf, 14, "+%02i:%02i:%02i.%03i",
+			FMath::Abs(DateOffset.GetHours()),
+			FMath::Abs(DateOffset.GetMinutes()),
+			FMath::Abs(DateOffset.GetSeconds()),
+			FMath::Abs(DateOffset.GetFractionMilli()));
+		FPlatformMemory::Memcpy(&CachedEventUTF8Stream[Entry.DateOffsetByteOffset], DateOffsetBuf, UE_ARRAY_COUNT(DateOffsetBuf) - 1); // don't copy the null
+	}
+
+	// see if it took too long or we have a really large payload. If so, log out the events.
+	const double EndTime = FPlatformTime::Seconds();
+	if ((EndTime - StartTime) > EventCacheStatic::PayloadFlushTimeSecForWarning || CachedEventUTF8Stream.Num() > (int32)(MaximumPayloadSize * EventCacheStatic::PayloadPercentageOfMaxForWarning))
+	{
+		UE_LOG(LogAnalytics, Warning, TEXT("EventCache either took too long to flush (%.3f ms) or had a very large payload (%.3f KB, %d events). Listing events in the payload for investigation:"), (EndTime-StartTime) * 1000, CachedEventUTF8Stream.Num() / 1024.f, CachedEventEntries.Num());
+		for (const FAnalyticsEventEntry& Entry : CachedEventEntries)
+		{
+			UE_LOG(LogAnalytics, Warning, TEXT("    %s,%d"), *Entry.EventName, Entry.EventSizeChars);
 		}
 	}
+
+	// clear out the old data
+	CachedEventEntries.Reset();
+	FlushQueue.Add(MoveTemp(CachedEventUTF8Stream));
+	// reset our payload with the empty payload template. This will incure an allocation, which is the only allocation this function makes.
+	EventCacheStatic::InitializePayloadBuffer(CachedEventUTF8Stream, PreallocatedPayloadSize);
 }
+
 
 bool FAnalyticsProviderETEventCache::CanFlush() const
 {
-	return NumEventsCached > 0;
+	FScopeLock ScopedLock(&CachedEventsCS);
+	return CachedEventEntries.Num() > 0 || FlushQueue.Num() > 0;
+}
+
+bool FAnalyticsProviderETEventCache::HasFlushesQueued() const
+{
+	return FlushQueue.Num() > 0;
 }
 
 int FAnalyticsProviderETEventCache::GetNumCachedEvents() const
 {
-	return NumEventsCached;
+	FScopeLock ScopedLock(&CachedEventsCS);
+	return CachedEventEntries.Num();
 }
 
-int FAnalyticsProviderETEventCache::ComputeApproximateEventChars(const FString& EventName, const TArray<FAnalyticsEventAttribute>& Attributes) const
+void FAnalyticsProviderETEventCache::SetPreallocatedPayloadSize(int32 InPreallocatedPayloadSize)
 {
-	return EventCacheStatic::ComputeEventSize(EventName, Attributes, CurrentDefaultAttributeSizeEstimate);
+	PreallocatedPayloadSize = InPreallocatedPayloadSize;
+	if (PreallocatedPayloadSize < 0)
+	{
+		PreallocatedPayloadSize = MaximumPayloadSize;
+	}
+	// if we are asking for a smaller buffer try to accommodate immediately.
+	if (PreallocatedPayloadSize < (int32)CachedEventUTF8Stream.GetAllocatedSize())
+	{
+		FScopeLock ScopedLock(&CachedEventsCS);
+		TArray<uint8> NewPayload;
+		NewPayload.Reserve(PreallocatedPayloadSize);
+		NewPayload = CachedEventUTF8Stream;
+		CachedEventUTF8Stream = NewPayload;
+	}
 }
 
-int FAnalyticsProviderETEventCache::ComputeApproximatePayloadChars() const
+int32 FAnalyticsProviderETEventCache::GetSetPreallocatedPayloadSize() const
 {
-	return EventCacheStatic::ComputePayloadSize(NumEventsCached, EventSizeEstimate);
+	return PreallocatedPayloadSize;
 }

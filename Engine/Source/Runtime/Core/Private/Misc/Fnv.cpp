@@ -26,8 +26,8 @@ uint32 FFnv::MemFnv32( const void* InData, int32 Length, uint32 InOffset )
 uint64 FFnv::MemFnv64( const void* InData, int32 Length, uint64 InOffset )
 {
     // constants from above reference
-    static const uint64 Offset = 0x00000100000001b3;
-    static const uint64 Prime = 0xcbf29ce484222325;
+    static const uint64 Offset = 0xcbf29ce484222325;
+    static const uint64 Prime = 0x00000100000001b3;
     
     const uint8* __restrict Data = (uint8*)InData;
     

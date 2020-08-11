@@ -227,9 +227,6 @@ struct CORE_API FMapErrors
 	/** {LODActor} : NoActor is assigned. We recommend to delete this actor. */
 	static FLazyName LODActorNoActorFound;
 
-	/** Hierarchical LOD System is disabled, unable to build LOD actors */
-	static FLazyName HLODSystemNotEnabled;
-
 	/** Virtual Textures */
 
 	/** {ObjectName} is using a virtual texture ('{TextureName}') on an unsupported property ('{PropertyName}'). */

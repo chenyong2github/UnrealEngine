@@ -20,7 +20,7 @@ UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& Obj
 	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024) );
 
 	MaxSearchDepth = 1;
-	MaxSearchBreadth = 15;
+	MaxSearchBreadth = 20;
 
 	bLimitSearchDepth = true;
 	bLimitSearchBreadth = true;
@@ -444,8 +444,7 @@ void UEdGraph_ReferenceViewer::GatherAssetData(const TSet<FName>& AllPackageName
 	for ( auto PackageIt = AllPackageNames.CreateConstIterator(); PackageIt; ++PackageIt )
 	{
 		const FString& PackageName = (*PackageIt).ToString();
-		const FString& PackagePath = PackageName + TEXT(".") + FPackageName::GetLongPackageAssetName(PackageName);
-		Filter.ObjectPaths.Add( FName(*PackagePath) );
+		Filter.PackageNames.Add(*PackageIt);
 	}
 
 	TArray<FAssetData> AssetDataList;

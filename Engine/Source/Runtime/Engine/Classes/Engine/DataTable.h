@@ -46,6 +46,16 @@ struct FTableRowBase
 	 * @param OutCollectedImportProblems	List of problems accumulated during import; Can be added to via this method
 	 */
 	virtual void OnPostDataImport(const UDataTable* InDataTable, const FName InRowName, TArray<FString>& OutCollectedImportProblems) {}
+
+	/**
+	 * Can be overridden by subclasses; Called on every row when the owning data table is modified
+	 * Allows for custom fix-ups, parsing, etc for user changes
+	 * This will be called in addition to OnPostDataImport when importing
+	 *
+	 * @param InDataTable					The data table that owns this row
+	 * @param InRowName						The name of the row we're performing fix-up on
+	 */
+	virtual void OnDataTableChanged(const UDataTable* InDataTable, const FName InRowName) {}
 };
 
 
@@ -149,19 +159,16 @@ private:
 	/** A multicast delegate that is called any time the data table changes. */
 	FOnDataTableChanged OnDataTableChangedDelegate;
 
-	/** A multicast delegate that is called any time a data table is imported. */
-	FOnDataTableChanged OnDataTableImportedDelegate;
-
 public:
 	/** Gets a multicast delegate that is called any time the data table changes. */
 	FOnDataTableChanged& OnDataTableChanged() { return OnDataTableChangedDelegate; }
 
-	/** Gets a multicast delegate that is called any time a data table is imported. */
-	FOnDataTableImport& OnDataTableImported() { return OnDataTableImportedDelegate; }
-
-
-	//~ Begin UDataTable Interface
-
+	/** 
+	 * Call whenever the data of a table has changed, this calls the OnDataTableChanged() delegate and per-row callbacks.
+	 * If ChangedRowName is not none, only that row was changed, otherwise assume all rows have changed
+	 */
+	ENGINE_API void HandleDataTableChanged(FName ChangedRowName = NAME_None);
+	
 	/** Get all of the rows in the table, regardless of name */
 	template <class T>
 	void GetAllRows(const TCHAR* ContextString, OUT TArray<T*>& OutRowArray) const

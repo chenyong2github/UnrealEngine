@@ -154,8 +154,11 @@ public:
 	FRenderQueryRHIRef OuterOcclusionQuery;
 	bool bOuterOcclusionQuerySubmitted;
 
-	/** When a new shader is set, we discard all old constants set for the previous shader. */
-	bool bDiscardSharedConstants;
+	/** When a new graphics PSO is set, we discard all old constants set for the previous shader. */
+	bool bDiscardSharedGraphicsConstants;
+
+	/** When a new compute PSO is set, we discard all old constants set for the previous shader. */
+	bool bDiscardSharedComputeConstants;
 
 	/** Set to true when the current shading setup uses tessellation */
 	bool bUsingTessellation;
@@ -279,7 +282,7 @@ public:
 	virtual void RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBuffer, uint32 Offset) final override;
 	virtual void RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ) final override;
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) final override;
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState) final override;
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState, bool bApplyAdditionalState) final override;
 	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) final override;
 	virtual void RHISetShaderSampler(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) final override;
 	virtual void RHISetShaderResourceViewParameter(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) final override;
@@ -624,9 +627,9 @@ public:
 	{
 		ContextRedirect(RHISetScissorRect(bEnable, MinX, MinY, MaxX, MaxY));
 	}
-	FORCEINLINE void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState) final override
+	FORCEINLINE void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState, bool bApplyAdditionalState) final override
 	{
-		ContextRedirect(RHISetGraphicsPipelineState(GraphicsPipelineState));
+		ContextRedirect(RHISetGraphicsPipelineState(GraphicsPipelineState, bApplyAdditionalState));
 	}
 	FORCEINLINE virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) final override
 	{

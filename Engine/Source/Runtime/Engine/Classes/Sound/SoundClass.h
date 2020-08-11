@@ -212,13 +212,6 @@ class ENGINE_API USoundClass : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = General)
 	TArray<FPassiveSoundMixModifier> PassiveSoundMixModifiers;
 
-	/**
-	  * Modulation for the sound class. If not set on sound directly, settings
-	  * fall back to the modulation settings provided here.
-	  */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Modulation)
-	FSoundModulation Modulation;
-
 public:
 	UPROPERTY(BlueprintReadOnly, Category = General)
 	USoundClass* ParentClass;

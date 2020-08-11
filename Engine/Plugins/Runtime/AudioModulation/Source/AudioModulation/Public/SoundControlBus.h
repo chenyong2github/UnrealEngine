@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioDefines.h"
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 #include "CoreMinimal.h"
 #include "IAudioModulation.h"
-#include "SoundModulationValue.h"
+#include "SoundModulationParameter.h"
 #include "SoundModulatorLFO.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -19,57 +20,15 @@ class USoundModulatorBase;
 struct FPropertyChangedEvent;
 
 
-#if WITH_EDITOR
-namespace AudioModulation
-{
-	static void OnEditModulator(FPropertyChangedEvent& InPropertyChangedEvent, USoundModulatorBase& InModulator)
-	{
-		check(InPropertyChangedEvent.Property);
-
-		if (!GEngine)
-		{
-			return;
-		}
-
-		FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-		if (!DeviceManager)
-		{
-			return;
-		}
-
-		const TArray<FAudioDevice*>& Devices = DeviceManager->GetAudioDevices();
-		for (FAudioDevice* Device : Devices)
-		{
-			if (Device && Device->IsModulationPluginEnabled() && Device->ModulationInterface.IsValid())
-			{
-				Device->ModulationInterface->UpdateModulator(InModulator);
-			}
-		}
-	}
-} // namespace AudioModulation
-#endif // WITH_EDITOR
-
 UCLASS(BlueprintType, hidecategories = Object, abstract, MinimalAPI)
 class USoundControlBusBase : public USoundModulatorBase
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** If true, bypasses control bus from being mixed. */
+	/** If true, bypasses control bus from being modulated by parameters, patches, or mixed (control bus remains active and computed). */
 	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite)
 	bool bBypass;
-
-	/** Default value of modulator when no mix is applied. Value that is also returned to when mix is released. */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float DefaultValue;
-
-	/** Minimum value the bus can achieve (applied post mix phase, pre patch output) */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float Min;
-
-	/** Maximum value the bus can achieve (applied post mix phase, pre patch output) */
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadWrite, meta = (UIMin = "0", UIMax = "1"))
-	float Max;
 
 #if WITH_EDITORONLY_DATA
 	/** If true, Address field is used in place of object name for address used when applying mix changes using filtering. */
@@ -92,37 +51,10 @@ public:
 #endif // WITH_EDITOR
 
 	virtual void BeginDestroy() override;
-	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Multiply; }
-};
-
-UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundVolumeControlBus : public USoundControlBusBase
-{
-	GENERATED_UCLASS_BODY()
-};
-
-UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundPitchControlBus : public USoundControlBusBase
-{
-	GENERATED_UCLASS_BODY()
-
-	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Multiply; }
-};
-
-UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundHPFControlBus : public USoundControlBusBase
-{
-	GENERATED_UCLASS_BODY()
-
-	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Max; }
-};
-
-UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundLPFControlBus : public USoundControlBusBase
-{
-	GENERATED_UCLASS_BODY()
-
-	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Min; }
+	virtual const Audio::FModulationMixFunction& GetMixFunction() const;
+	virtual float GetDefaultValue() const { return 1.0f; }
+	virtual float GetMin() const { return 0.0f; }
+	virtual float GetMax() const { return 1.0f; }
 };
 
 UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
@@ -130,5 +62,24 @@ class USoundControlBus : public USoundControlBusBase
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual ESoundModulatorOperator GetOperator() const { return ESoundModulatorOperator::Multiply; }
+public:
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
+	USoundModulationParameter* Parameter;
+
+	virtual float GetDefaultValue() const { return Parameter ? Parameter->ConvertLinearToUnit(Parameter->Settings.ValueLinear) : 1.0f; }
+	virtual float GetMin() const override { return 0.0f; }
+	virtual float GetMax() const override { return 1.0f; }
+
+	virtual FName GetOutputParameterName() const override
+	{
+		if (Parameter)
+		{
+			return Parameter->GetFName();
+		}
+		return Super::GetOutputParameterName();
+	}
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
+#endif // WITH_EDITOR
 };

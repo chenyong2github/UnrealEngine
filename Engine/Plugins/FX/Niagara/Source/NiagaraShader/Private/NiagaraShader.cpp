@@ -24,6 +24,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "NiagaraShaderModule.h"
 #include "NiagaraCustomVersion.h"
+#include "UObject/UObjectThreadContext.h"
 
 IMPLEMENT_SHADER_TYPE(, FNiagaraShader, TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
@@ -771,7 +772,12 @@ void FNiagaraShaderMap::Compile(
 				{
 					UE_LOG(LogShaders, Display, TEXT("Skipping compilation of %s as it isn't supported on this target type."), *Script->SourceName);
 					Script->RemoveOutstandingCompileId(CompilingId);
-					Script->NotifyCompilationFinished();
+					// Can't call NotifyCompilationFinished() when post-loading. 
+					// This normally happens when compiled in-sync for which the callback is not required.
+					if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+					{
+						Script->NotifyCompilationFinished();
+					}
 				}
 			}
   
@@ -1070,6 +1076,12 @@ bool FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 		{
 			Script->RemoveOutstandingCompileId(It.Key()->CompilingId);
 			Script->NotifyCompilationFinished();
+			// Can't call NotifyCompilationFinished() when post-loading. 
+			// This normally happens when compiled in-sync for which the callback is not required.
+			if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+			{
+				Script->NotifyCompilationFinished();
+			}
 			bRemoved = true;
 		}
 #if DEBUG_INFINITESHADERCOMPILE
@@ -1094,7 +1106,12 @@ void FNiagaraShaderMap::RemovePendingMap(FNiagaraShaderMap* Map)
 		for (FNiagaraShaderScript* Script : *Scripts)
 		{
 			Script->RemoveOutstandingCompileId(Map->CompilingId);
-			Script->NotifyCompilationFinished();
+			// Can't call NotifyCompilationFinished() when post-loading. 
+			// This normally happens when compiled in-sync for which the callback is not required.
+			if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+			{
+				Script->NotifyCompilationFinished();
+			}
 		}
 	}
 

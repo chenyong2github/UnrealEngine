@@ -270,16 +270,19 @@ public:
 	}
 
 	/**
-	 * Converts the string to the desired format.
+	 * Converts a Source string into UTF8 and stores it in Dest.
 	 *
-	 * @param Dest      The destination buffer of the converted string.
+	 * @param Dest      The destination output iterator. Usually ANSICHAR*, but you can supply your own output iterator.
+	 *                  One can determine the number of characters written by checking the offset of Dest when the function returns.
 	 * @param DestLen   The length of the destination buffer.
 	 * @param Source    The source string to convert.
 	 * @param SourceLen The length of the source string.
+	 * @return          The number of bytes written to Dest, up to DestLen, or -1 if the entire Source string could did not fit in DestLen bytes.
 	 */
-	static FORCEINLINE void Convert(ANSICHAR* Dest, int32 DestLen, const TCHAR* Source, int32 SourceLen)
+	template <typename DestBufferType>
+	static FORCEINLINE int32 Convert(DestBufferType Dest, int32 DestLen, const TCHAR* Source, int32 SourceLen)
 	{
-		Convert_Impl(Dest, DestLen, Source, SourceLen);
+		return Convert_Impl(Dest, DestLen, Source, SourceLen);
 	}
 
 	/**
@@ -298,8 +301,9 @@ public:
 
 private:
 	template <typename DestBufferType>
-	static void Convert_Impl(DestBufferType& Dest, int32 DestLen, const TCHAR* Source, const int32 SourceLen)
+	static int32 Convert_Impl(DestBufferType& Dest, int32 DestLen, const TCHAR* Source, const int32 SourceLen)
 	{
+		DestBufferType DestStartingPosition = Dest;
 #if PLATFORM_TCHAR_IS_4_BYTES
 		for (int32 i = 0; i < SourceLen; ++i)
 		{
@@ -308,7 +312,7 @@ private:
 			if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
 			{
 				// Could not write data, bail out
-				return;
+				return -1;
 			}
 		}
 #else	// PLATFORM_TCHAR_IS_4_BYTES
@@ -330,7 +334,7 @@ private:
 					if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
 					{
 						// Could not write data, bail out
-						return;
+						return -1;
 					}
 				}
 
@@ -354,7 +358,7 @@ private:
 					if (!WriteCodepointToBuffer(HighSurrogate, Dest, DestLen))
 					{
 						// Could not write data, bail out
-						return;
+						return -1;
 					}
 				}
 
@@ -365,10 +369,11 @@ private:
 			if (!WriteCodepointToBuffer(Codepoint, Dest, DestLen))
 			{
 				// Could not write data, bail out
-				return;
+				return -1;
 			}
 		}
 #endif	// PLATFORM_TCHAR_IS_4_BYTES
+		return UE_PTRDIFF_TO_INT32(Dest - DestStartingPosition);
 	}
 
 	template <typename DestBufferType>

@@ -2676,7 +2676,6 @@ UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParam
 
 	MenuCategories.Empty();
 	MenuCategories.Add( ConstructorStatics.NAME_Obsolete);
-	SortPriority = 0;
 	ApplyChannelNames();
 #endif
 }
@@ -3105,7 +3104,7 @@ bool UMaterialExpressionTextureProperty::MatchesSearchQuery(const TCHAR* SearchQ
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{
@@ -4393,7 +4392,7 @@ bool UMaterialExpressionTextureCoordinate::MatchesSearchQuery(const TCHAR* Searc
 {
 	TArray<FString> Captions;
 	GetCaption(Captions);
-	for (const FString Caption : Captions)
+	for (const FString& Caption : Captions)
 	{
 		if (Caption.Contains(SearchQuery))
 		{
@@ -7314,7 +7313,6 @@ UMaterialExpressionParameter::UMaterialExpressionParameter(const FObjectInitiali
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
-	SortPriority = 0;
 
 	bCollapsed = false;
 #endif
@@ -12983,7 +12981,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 		if (LayerIndex == INDEX_NONE)
 		{
 			// Check to see if we have any layers with parents that haven't been initialized yet, that match this parent layer
-			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num(); ++CheckLayerIndex)
+			for (int32 CheckLayerIndex = 1; CheckLayerIndex < Layers.Num() && CheckLayerIndex < Parent.Layers.Num(); ++CheckLayerIndex)
 			{
 				if (Layers[CheckLayerIndex] == Parent.Layers[ParentLayerIndex] &&
 					Blends[CheckLayerIndex - 1] && Parent.Blends[CheckLayerIndex - 1] &&
@@ -17754,14 +17752,15 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstPhaseG = 0.0f;
 	ConstPhaseG2 = 0.0f;
 	ConstPhaseBlend = 0.0f;
-	EvaluatePhaseOncePerPixel = true;
+	PerSamplePhaseEvaluation = false;
+	bGrayScaleMaterial = false;
 
 	MultiScatteringApproximationOctaveCount = 0;
 	ConstMultiScatteringContribution = 0.5f;
 	ConstMultiScatteringOcclusion = 0.5f;
 	ConstMultiScatteringEccentricity = 0.5f;
 
-	bGroundContribution = true;
+	bGroundContribution = false;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);
@@ -17816,9 +17815,9 @@ void UMaterialExpressionVolumetricAdvancedMaterialOutput::GetCaption(TArray<FStr
 	OutCaptions.Add(FString(TEXT("Volumetric Advanced Output")));
 }
 
-bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GetEvaluatePhaseOncePerPixel() const
+bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GetEvaluatePhaseOncePerSample() const
 {
-	return EvaluatePhaseOncePerPixel || (!PhaseG.IsConnected() && !PhaseG2.IsConnected() && !PhaseBlend.IsConnected());
+	return PerSamplePhaseEvaluation && (PhaseG.IsConnected() || PhaseG2.IsConnected() || PhaseBlend.IsConnected());
 }
 
 uint32 UMaterialExpressionVolumetricAdvancedMaterialOutput::GetMultiScatteringApproximationOctaveCount() const

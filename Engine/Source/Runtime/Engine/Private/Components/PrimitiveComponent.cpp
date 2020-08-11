@@ -1214,6 +1214,9 @@ void UPrimitiveComponent::PostLoad()
 	}
 #endif
 
+	// Ensure the cached LOD parent primitive matches the loaded one
+	CachedLODParentPrimitive = LODParentPrimitive;
+
 	// Make sure cached cull distance is up-to-date.
 	if( LDMaxDrawDistance > 0.f )
 	{
@@ -1435,14 +1438,9 @@ bool UPrimitiveComponent::ShouldRenderSelected() const
 			{
 				return true;
 			}
-			else if (Owner->IsChildActor())
+			else if (const AActor* RootSelection = Owner->GetRootSelectionParent())
 			{
-				AActor* ParentActor = Owner->GetParentActor();
-				while (ParentActor->IsChildActor())
-				{
-					ParentActor = ParentActor->GetParentActor();
-				}
-				return ParentActor->IsSelected();
+				return RootSelection->IsSelected();
 			}
 		}
 	}
@@ -3734,14 +3732,21 @@ void UPrimitiveComponent::SetLODParentPrimitive(UPrimitiveComponent * InLODParen
 	{
 		// @todo, what do we do with old parent. We can't just reset undo parent because the parent might be used by other primitive
 		LODParentPrimitive = InLODParentPrimitive;
-		MarkRenderStateDirty();
+		SetCachedLODParentPrimitive(LODParentPrimitive);
 	}
+}
+
+void UPrimitiveComponent::SetCachedLODParentPrimitive(UPrimitiveComponent* InCachedLODParentPrimitive)
+{
+	CachedLODParentPrimitive = InCachedLODParentPrimitive;
+	MarkRenderStateDirty();
 }
 
 UPrimitiveComponent* UPrimitiveComponent::GetLODParentPrimitive() const
 {
-	return LODParentPrimitive;
+	return CachedLODParentPrimitive;
 }
+
 #if WITH_EDITOR
 const int32 UPrimitiveComponent::GetNumUncachedStaticLightingInteractions() const
 {

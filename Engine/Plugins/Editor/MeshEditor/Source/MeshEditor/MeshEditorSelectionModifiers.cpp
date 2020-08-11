@@ -232,7 +232,7 @@ bool USelectPolygonsBySmoothingGroup::ModifySelection(TMap< UEditableMesh*, TArr
 					{
 						if (!EdgeHardnesses[EdgeID])
 						{
-							for (const FPolygonID ConnectedPolygonID : MeshDescription->GetEdgeConnectedPolygons(EdgeID))
+							for (const FPolygonID& ConnectedPolygonID : MeshDescription->GetEdgeConnectedPolygons(EdgeID))
 							{
 								if (!CheckedPolygons.Contains(ConnectedPolygonID))
 								{

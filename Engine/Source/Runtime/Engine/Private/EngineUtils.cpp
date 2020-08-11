@@ -368,7 +368,7 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World )
 		FSubLevelStatus LevelStatus = {};
 		LevelStatus.PackageName = World->GetOutermost()->GetFName();
 		LevelStatus.StreamingStatus = LEVEL_Visible;
-		LevelStatus.LODIndex	= INDEX_NONE;
+		LevelStatus.LODIndex = INDEX_NONE;
 		Result.Add(LevelStatus);
 	}
 	
@@ -381,50 +381,8 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World )
 		{
 			FSubLevelStatus LevelStatus = {};
 			LevelStatus.PackageName = LevelStreaming->GetWorldAssetPackageFName();
-			LevelStatus.LODIndex	= LevelStreaming->GetLevelLODIndex();
-
-			if (ULevel* Level = LevelStreaming->GetLoadedLevel())
-			{
-				if( World->ContainsLevel( Level ) == true )
-				{
-					if( World->GetCurrentLevelPendingVisibility() == Level )
-					{
-						LevelStatus.StreamingStatus = LEVEL_MakingVisible;
-					}
-					else
-					{
-						LevelStatus.StreamingStatus = LEVEL_Visible;
-					}
-				}
-				else
-				{
-					LevelStatus.StreamingStatus = LEVEL_Loaded;
-				}
-			}
-			else
-			{
-				// See whether the level's world object is still around.
-				UPackage* LevelPackage	= FindObjectFast<UPackage>(nullptr, LevelStatus.PackageName);
-				UWorld*	  LevelWorld	= nullptr;
-				if( LevelPackage )
-				{
-					LevelWorld = UWorld::FindWorldInPackage(LevelPackage);
-				}
-
-				if( LevelWorld )
-				{
-					LevelStatus.StreamingStatus = LEVEL_UnloadedButStillAround;
-				}
-				else if( LevelStreaming->HasLoadRequestPending() )
-				{
-					LevelStatus.StreamingStatus = LEVEL_Loading;
-				}
-				else
-				{
-					LevelStatus.StreamingStatus = LEVEL_Unloaded;
-				}
-			}
-
+			LevelStatus.LODIndex = LevelStreaming->GetLevelLODIndex();
+			LevelStatus.StreamingStatus = LevelStreaming->GetLevelStreamingStatus();
 			Result.Add(LevelStatus);
 		}
 	}

@@ -33,7 +33,6 @@
 FPhysCommandHandler * GPhysCommandHandler = NULL;
 FDelegateHandle GPreGarbageCollectDelegateHandle;
 
-FPhysicsDelegates::FOnUpdatePhysXMaterial FPhysicsDelegates::OnUpdatePhysXMaterial;
 FPhysicsDelegates::FOnPhysicsAssetChanged FPhysicsDelegates::OnPhysicsAssetChanged;
 FPhysicsDelegates::FOnPhysSceneInit FPhysicsDelegates::OnPhysSceneInit;
 FPhysicsDelegates::FOnPhysSceneTerm FPhysicsDelegates::OnPhysSceneTerm;
@@ -53,22 +52,10 @@ public:
 	{
 
 	}
-
-	virtual Chaos::EThreadingMode GetDefaultThreadingMode() const override
+	virtual float GetMinDeltaVelocityForHitEvents() const override
 	{
-		return GetChaosSettings().DefaultThreadingModel;
+		return GetSettings()->MinDeltaVelocityForHitEvents;
 	}
-
-	virtual EChaosSolverTickMode GetDedicatedThreadTickMode() const override
-	{
-		return GetChaosSettings().DedicatedThreadTickMode;
-	}
-
-	virtual EChaosBufferMode GetDedicatedThreadBufferMode() const override
-	{
-		return GetChaosSettings().DedicatedThreadBufferMode;
-	}
-
 private:
 
 	const UPhysicsSettings* GetSettings() const
@@ -179,7 +166,11 @@ void UWorld::FinishPhysicsSim()
 		return;
 	}
 
+#if WITH_CHAOS
+	PhysScene->EndFrame();
+#else
 	PhysScene->EndFrame(LineBatcher);
+#endif
 }
 
 // the physics tick functions
@@ -268,7 +259,6 @@ void PostEngineInitialize()
 		// If the solver module is available, pass along our settings provider
 		// #BG - Collect all chaos modules settings into one provider?
 		ChaosModule->SetSettingsProvider(&GEngineChaosSettingsProvider);
-		ChaosModule->OnSettingsChanged();
 	}
 }
 

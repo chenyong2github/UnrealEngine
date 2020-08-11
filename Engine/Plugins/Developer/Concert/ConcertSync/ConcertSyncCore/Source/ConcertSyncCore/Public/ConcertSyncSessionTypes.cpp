@@ -45,6 +45,10 @@ void DebugPrintExportedObject(const FConcertExportedObject& Object)
 	{
 		UE_LOG(LogConcert, Display, TEXT("PendingKill: Yes"));
 	}
+	if (!Object.ObjectData.NewPackageName.IsNone())
+	{
+		UE_LOG(LogConcert, Display, TEXT("NewName: %s"), *Object.ObjectData.NewPackageName.ToString());
+	}
 	if (!Object.ObjectData.NewName.IsNone())
 	{
 		UE_LOG(LogConcert, Display, TEXT("NewName: %s"), *Object.ObjectData.NewName.ToString());
@@ -53,9 +57,13 @@ void DebugPrintExportedObject(const FConcertExportedObject& Object)
 	{
 		UE_LOG(LogConcert, Display, TEXT("NewOuterPathName: %s"), *Object.ObjectData.NewOuterPathName.ToString());
 	}
+	if (!Object.ObjectData.NewExternalPackageName.IsNone())
+	{
+		UE_LOG(LogConcert, Display, TEXT("NewPackageName: %s"), *Object.ObjectData.NewExternalPackageName.ToString());
+	}
 	if (Object.SerializedAnnotationData.Num())
 	{
-		UE_LOG(LogConcert, Display, TEXT("Has annotation"));
+		UE_LOG(LogConcert, Display, TEXT("Has Annotation"));
 	}
 	for (const FConcertSerializedPropertyData& Prop : Object.PropertyDatas)
 	{

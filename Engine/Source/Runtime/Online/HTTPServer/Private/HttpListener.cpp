@@ -39,7 +39,6 @@ bool FHttpListener::StartListening()
 {
 	check(nullptr == ListenSocket);
 	check(!bIsListening);
-	bIsListening = true;
 
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	if (nullptr == SocketSubsystem)
@@ -83,13 +82,13 @@ bool FHttpListener::StartListening()
 	{
 		UE_LOG(LogHttpListener, Error, 
 			TEXT("HttpListener unable to bind to %s:%u"),
-			*BindAddress->ToString(true), ListenPort);
+			*BindAddress->ToString(false), ListenPort);
 		return false;
 	}
 
 	int32 ActualBufferSize;
 	ListenSocket->SetSendBufferSize(Config.BufferSize, ActualBufferSize);
-	if (ActualBufferSize != Config.BufferSize)
+	if (ActualBufferSize < Config.BufferSize)
 	{
 		UE_LOG(LogHttpListener, Warning, 
 			TEXT("HttpListener unable to set desired buffer size (%d): Limited to %d"),
@@ -103,9 +102,10 @@ bool FHttpListener::StartListening()
 		return false;
 	}
 
+	bIsListening = true;
 	UE_LOG(LogHttpListener, Log, 
 		TEXT("Created new HttpListener on %s:%u"), 
-		*BindAddress->ToString(true), ListenPort);
+		*BindAddress->ToString(false), ListenPort);
 	return true;
 }
 
@@ -137,14 +137,17 @@ void FHttpListener::StopListening()
 
 void FHttpListener::Tick(float DeltaTime)
 {
-	// Accept new connections
-	AcceptConnections();
+	if (bIsListening)
+	{
+		// Accept new connections
+		AcceptConnections();
 
-	// Tick Connections
-	TickConnections(DeltaTime);
+		// Tick Connections
+		TickConnections(DeltaTime);
 
-	// Remove any destroyed connections
-	RemoveDestroyedConnections();
+		// Remove any destroyed connections
+		RemoveDestroyedConnections();
+	}
 }
 
 bool FHttpListener::HasPendingConnections() const 

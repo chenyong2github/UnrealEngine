@@ -140,7 +140,7 @@ protected:
 	friend FPreLoadScreenSlateSynchMechanism;
 
 	bool bIsResponsibleForRendering;
-	bool bHasRenderPreLoadScreenFrame;
+	bool bHasRenderPreLoadScreenFrame_RenderThread;
 
     double LastRenderTickTime;
 

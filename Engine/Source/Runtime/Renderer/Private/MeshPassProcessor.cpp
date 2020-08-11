@@ -852,13 +852,20 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 	}
 }
 
-void FMeshDrawShaderBindings::SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader) const
+void FMeshDrawShaderBindings::SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, FShaderBindingState* StateCacheShaderBindings) const
 {
 	check(ShaderLayouts.Num() == 1);
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
 	check(ShaderFrequencyBits & (1 << SF_Compute));
 
-	SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
+	if (StateCacheShaderBindings != nullptr)
+	{
+		SetShaderBindings(RHICmdList, Shader, SingleShaderBindings, *StateCacheShaderBindings);
+	}
+	else
+	{
+		SetShaderBindings(RHICmdList, Shader, SingleShaderBindings);
+	}
 }
 
 bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const
@@ -1035,13 +1042,13 @@ void FMeshDrawCommand::SubmitDraw(
 
 	if (GShowMaterialDrawEvents)
 	{
-		const FMaterial* Material = MeshDrawCommand.DebugData.Material;
+		const FString& MaterialName = MeshDrawCommand.DebugData.MaterialName;
 		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
 
 		FString DrawEventName = FString::Printf(
 				TEXT("%s %s"),
 				// Note: this is the parent's material name, not the material instance
-				*Material->GetFriendlyName(),
+			*MaterialName,
 			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
 
 		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
@@ -1141,12 +1148,12 @@ void FMeshDrawCommand::SubmitDraw(
 void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {
 	DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = PrimitiveSceneProxy;
-	DebugData.Material = Material;
 	DebugData.MaterialRenderProxy = MaterialRenderProxy;
 	DebugData.VertexShader = UntypedShaders.VertexShader;
 	DebugData.PixelShader = UntypedShaders.PixelShader;
 	DebugData.VertexFactory = VertexFactory;
 	DebugData.ResourceName =  PrimitiveSceneProxy ? PrimitiveSceneProxy->GetResourceName() : FName();
+	DebugData.MaterialName = Material->GetFriendlyName();
 }
 #endif
 
@@ -1403,7 +1410,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 		FScopeLock Lock(&CachedMeshDrawCommandLock);
 		// Only one FMeshDrawCommand supported per FStaticMesh in a pass
 		// Allocate at lowest free index so that 'r.DoLazyStaticMeshUpdate' can shrink the TSparseArray more effectively
-		CommandInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.AddAtLowestFreeIndex(MeshDrawCommand, CachedDrawLists.LowestFreeIndexSearchStart);
+		CommandInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.EmplaceAtLowestFreeIndex(CachedDrawLists.LowestFreeIndexSearchStart, MeshDrawCommand);
 	}
 
 	CommandInfo.SortKey = SortKey;

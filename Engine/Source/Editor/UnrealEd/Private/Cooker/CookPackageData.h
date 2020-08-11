@@ -15,6 +15,8 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FPreloadableFile;
 class FReferenceCollector;
@@ -211,7 +213,7 @@ namespace Cook
 		void CheckPreloadEmpty();
 
 		/** The list of objects inside the package.  Only non-empty during saving; it is populated on demand by TryCreateObjectCache and is cleared when leaving the save state. */
-		TArray<UObject*>& GetCachedObjectsInOuter();
+		TArray<FWeakObjectPtr>& GetCachedObjectsInOuter();
 		/** Validate that the variables relying on the CachedObjectsInOuter are empty as required, when e.g. entering the save state. */
 		void CheckObjectCacheEmpty() const;
 		/** Populate the CachedObjectsInOuter list if it is not already populated. Invalid to call except when in the save state. */
@@ -236,10 +238,10 @@ namespace Cook
 		 * Always false except during the save state.
 		 */
 		bool GetCookedPlatformDataCalled() const { return static_cast<bool>(bCookedPlatformDataCalled); }
-		void SetCookedPlatformDataCalled(bool Value) { bCookedPlatformDataCalled = Value != 0; }
+		void SetCookedPlatformDataCalled(bool bValue) { bCookedPlatformDataCalled = bValue != 0; }
 		/** Get/Set the flag for whether BeginCacheForCookedPlatformData has been called and IsCachedCookedPlatformDataLoaded has subsequently returned true for every object in GetCachedObjectsInOuter.  Always false except during the save state. */
 		bool GetCookedPlatformDataComplete() const { return static_cast<bool>(bCookedPlatformDataComplete); }
-		void SetCookedPlatformDataComplete(bool Value) { bCookedPlatformDataComplete = Value != 0; }
+		void SetCookedPlatformDataComplete(bool bValue) { bCookedPlatformDataComplete = bValue != 0; }
 		/** Check whether savestate contracts on the PackageData were invalidated by by e.g. garbage collection of objects in its package. */
 		bool IsSaveInvalidated() const;
 
@@ -257,9 +259,6 @@ namespace Cook
 
 		/** Report whether this PackageData is holding any references to Objects and would therefore be affected by GarbageCollection. */
 		bool HasReferencedObjects() const;
-
-		/** AddReferencedObjects call forwarded from the Cooker, to serialize all references for GarbageCollection. */
-		void AddReferencedObjects(FReferenceCollector& Collector);
 
 	private:
 		friend struct UE::Cook::FPackageDatas;
@@ -319,11 +318,11 @@ namespace Cook
 		TArray<const ITargetPlatform*> RequestedPlatforms;
 		TArray<const ITargetPlatform*> CookedPlatforms; // Platform part of the CookedPlatforms set. Always the same length as CookSucceeded.
 		TArray<bool> CookSucceeded; // Success flag part of the CookedPlatforms set. Always the same length as CookedPlatforms.
-		TArray<UObject*> CachedObjectsInOuter;
+		TArray<FWeakObjectPtr> CachedObjectsInOuter;
 		FCompletionCallback CompletionCallback;
 		FName PackageName;
 		FName FileName;
-		UPackage* Package = nullptr;
+		TWeakObjectPtr<UPackage> Package;
 		FPackageDatas& PackageDatas; // The one-per-CookOnTheFlyServer owner of this PackageData
 		TSharedPtr<FPreloadableFile> PreloadableFile;
 		int32 NumPendingCookedPlatformData = 0;
@@ -365,7 +364,7 @@ namespace Cook
 		void Release();
 
 		/** The object with the pending call. */
-		UObject* Object;
+		FWeakObjectPtr Object;
 		/** The platform that was passed to BeginCacheForCookedPlatformData. */
 		const ITargetPlatform* TargetPlatform;
 		/** The PackageData that owns the call; the pending count needs to be updated on this PackageData. */

@@ -115,7 +115,15 @@ void FShowFlagMenuCommands::CreateShowFlagsSubMenu(UToolMenu* Menu, TArray<uint3
 		const FShowFlagCommand& ShowFlagCommand = ShowFlagCommands[FlagIndex];
 
 		ensure(Section.FindEntry(ShowFlagCommand.ShowMenuItem->GetCommandName()) == nullptr);
-		Section.AddMenuEntry(ShowFlagCommand.ShowMenuItem->GetCommandName(), ShowFlagCommand.ShowMenuItem, ShowFlagCommand.LabelOverride);
+
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("ShowFlagDefault"), FText::AsCultureInvariant("ShowFlag." + FEngineShowFlags::FindNameByIndex(ShowFlagCommand.FlagIndex) + " 2"));
+
+		FText OverrideEnabledWarning = FEngineShowFlags::IsForceFlagSet(ShowFlagCommand.FlagIndex)
+			? FText::GetEmpty()
+			: FText::Format(LOCTEXT("ShowFlagOverrideWarning", "ShowFlag override on. Set to default in console to use Editor UI (Set: \"{ShowFlagDefault}\")."), Args);
+
+		Section.AddMenuEntry(ShowFlagCommand.ShowMenuItem->GetCommandName(), ShowFlagCommand.ShowMenuItem, ShowFlagCommand.LabelOverride, OverrideEnabledWarning);
 
 		if (ArrayIndex == EntryOffset - 1)
 		{
@@ -174,7 +182,7 @@ void FShowFlagMenuCommands::BindCommands(FUICommandList& CommandList, const TSha
 
 		CommandList.MapAction(ShowFlagCommand.ShowMenuItem,
 							  FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FShowFlagMenuCommands::ToggleShowFlag, Client, ShowFlagCommand.FlagIndex),
-							  FCanExecuteAction(),
+							  FCanExecuteAction::CreateStatic(&FEngineShowFlags::IsForceFlagSet, static_cast<uint32>(ShowFlagCommand.FlagIndex)),
 							  FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FShowFlagMenuCommands::IsShowFlagEnabled, Client, ShowFlagCommand.FlagIndex));
 	}
 }

@@ -93,6 +93,11 @@ public:
 	 */
 	virtual void ShutdownModule() override
 	{
+		if (GUnrealEd)
+		{
+			GUnrealEd->UnregisterComponentVisualizer(UProceduralFoliageComponent::StaticClass()->GetFName());
+		}
+
 		FFoliageEditCommands::Unregister();
 
 		FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Foliage);

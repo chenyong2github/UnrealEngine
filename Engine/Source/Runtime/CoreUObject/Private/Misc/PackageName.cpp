@@ -330,7 +330,7 @@ private:
 		
 		FWriteScopeLock ScopeLock(ContentMountPointCriticalSection);
 
-		ContentPathToRoot.Empty(12);
+		ContentPathToRoot.Empty(13);
 		ContentPathToRoot.Emplace(EngineRootPath, EngineContentPath);
 		if (FPaths::IsSamePath(GameContentPath, ContentPathShort))
 		{
@@ -350,8 +350,9 @@ private:
 		ContentPathToRoot.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentPathToRoot.Emplace(ConfigRootPath, GameConfigPath);
 		ContentPathToRoot.Emplace(ExtraRootPath,  GameExtraPath);
+		ContentPathToRoot.Emplace(ExtraRootPath,  GameExtraPathRebased);
 
-		ContentRootToPath.Empty(10);
+		ContentRootToPath.Empty(11);
 		ContentRootToPath.Emplace(EngineRootPath, EngineContentPath);
 		ContentRootToPath.Emplace(EngineRootPath, EngineShadersPath);
 		ContentRootToPath.Emplace(GameRootPath,   GameContentPath);
@@ -359,6 +360,7 @@ private:
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPath);
 		ContentRootToPath.Emplace(GameRootPath,   GameContentPathRebased);
 		ContentRootToPath.Emplace(ScriptRootPath, GameScriptPathRebased);
+		ContentRootToPath.Emplace(ExtraRootPath,  GameExtraPath);
 		ContentRootToPath.Emplace(ExtraRootPath,  GameExtraPathRebased);
 		ContentRootToPath.Emplace(TempRootPath,   GameSavedPathRebased);
 		ContentRootToPath.Emplace(ConfigRootPath, GameConfigPathRebased);
@@ -798,18 +800,19 @@ bool FPackageName::MountPointExists(const FString& RootPath)
 	return FLongPackagePathsSingleton::Get().MountPointExists(RootPath);
 }
 
-FName FPackageName::GetPackageMountPoint(const FString& InPackagePath)
+FName FPackageName::GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes)
 {
 	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
 	
 	TArray<FString> MountPoints;
 	Paths.GetValidLongPackageRoots(MountPoints, true);
 
+	int32 WithoutSlashes = InWithoutSlashes ? 1 : 0;
 	for (auto RootIt = MountPoints.CreateConstIterator(); RootIt; ++RootIt)
 	{
 		if (InPackagePath.StartsWith(*RootIt))
 		{
-			return FName(*RootIt->Mid(1, RootIt->Len() - 2));
+			return FName(*RootIt->Mid(WithoutSlashes, RootIt->Len() - (2 * WithoutSlashes)));
 		}
 	}
 
@@ -997,12 +1000,7 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 	FString Filename = LongPackageNameToFilename(PackageName, TEXT(""));
 
 	// Find the filename (with extension).
-#if WITH_EDITORONLY_DATA
-	if (!IsExtraPackage(PackageName))
-#endif
-	{
-		bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
-	}
+	bFoundFile = FindPackageFileWithoutExtension(Filename, Filename, InAllowTextFormats);
 
 	// On consoles, we don't support package downloading, so no need to waste any extra cycles/disk io dealing with it
 	if (!FPlatformProperties::RequiresCookedData() && bFoundFile && Guid != NULL)
@@ -1027,11 +1025,7 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		delete PackageReader;
 	}
 
-#if WITH_EDITORONLY_DATA
-	if (OutFilename && (bFoundFile || IsExtraPackage(PackageName)))
-#else
 	if (OutFilename && bFoundFile)
-#endif
 	{
 		*OutFilename = Filename;
 	}

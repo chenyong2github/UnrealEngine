@@ -24,11 +24,11 @@ public:
 
 	SLATE_BEGIN_ARGS(SSearchableComboBox)
 		: _Content()
-		, _ComboBoxStyle(&FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox"))
+		, _ComboBoxStyle(&FAppStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"))
 		, _ButtonStyle(nullptr)
-		, _ItemStyle(&FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row"))
-		, _ContentPadding(FMargin(4.0, 2.0))
-		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		, _ItemStyle(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("ComboBox.Row"))
+		, _ContentPadding(_ComboBoxStyle->ContentPadding)
+		, _ForegroundColor(FSlateColor::UseStyle())
 		, _OptionsSource()
 		, _OnSelectionChanged()
 		, _OnGenerateWidget()
@@ -36,6 +36,7 @@ public:
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow(true)
+		, _SearchVisibility()
 	{}
 
 	/** Slot for this button's content (optional) */
@@ -75,6 +76,9 @@ public:
 		 */
 		SLATE_ARGUMENT(bool, HasDownArrow)
 
+		/** Allow setting the visibility of the search box dynamically */
+		SLATE_ATTRIBUTE(EVisibility, SearchVisibility)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -112,12 +116,17 @@ private:
 	/** Invoked when the search text changes */
 	void OnSearchTextChanged(const FText& ChangedText);
 
+	/** Sets the current selection to the first valid match when user presses enter in the filter box */
+	void OnSearchTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
+
 	/** Handle clicking on the content menu */
 	virtual FReply OnButtonClicked() override;
 
 	/** The item style to use. */
 	const FTableRowStyle* ItemStyle;
 
+	/** The padding around each menu row */
+	FMargin MenuRowPadding;
 private:
 	/** Delegate that is invoked when the selected item in the combo box changes */
 	FOnSelectionChanged OnSelectionChanged;
@@ -135,6 +144,7 @@ private:
 	FOnGenerateWidget OnGenerateWidget;
 
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+	TArray< TSharedPtr<FString> > FilteredOptionsSource;
 };
 
 

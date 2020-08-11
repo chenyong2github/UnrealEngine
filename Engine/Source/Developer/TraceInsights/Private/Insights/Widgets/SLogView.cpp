@@ -1199,7 +1199,7 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 
 void SLogView::CreateCategoriesFilterMenuSection(FMenuBuilder& MenuBuilder)
 {
-	for (const FName CategoryName : Filter.GetAvailableLogCategories())
+	for (const FName& CategoryName : Filter.GetAvailableLogCategories())
 	{
 		const FString CategoryString = CategoryName.ToString();
 		const FText CategoryText(FText::AsCultureInvariant(CategoryString));

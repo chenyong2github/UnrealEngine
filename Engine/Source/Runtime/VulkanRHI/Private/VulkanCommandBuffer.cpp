@@ -184,6 +184,17 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 	Info.clearValueCount = Layout.GetNumUsedClearValues();
 	Info.pClearValues = AttachmentClearValues;
 
+	VkRenderPassTransformBeginInfoQCOM RPTransformBeginInfoQCOM;
+	VkSurfaceTransformFlagBitsKHR QCOMTransform = Layout.GetQCOMRenderPassTransform();
+
+	if (QCOMTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+	{
+		ZeroVulkanStruct(RPTransformBeginInfoQCOM, (VkStructureType)VK_STRUCTURE_TYPE_RENDER_PASS_TRANSFORM_BEGIN_INFO_QCOM);
+
+		RPTransformBeginInfoQCOM.transform = QCOMTransform;
+		Info.pNext = &RPTransformBeginInfoQCOM;
+	}
+
 	VulkanRHI::vkCmdBeginRenderPass(CommandBufferHandle, &Info, VK_SUBPASS_CONTENTS_INLINE);
 
 	State = EState::IsInsideRenderPass;
@@ -807,7 +818,7 @@ void FVulkanCommandBufferPool::FreeUnusedCmdBuffers(FVulkanQueue* InQueue)
 	InQueue->GetLastSubmittedInfo(LastSubmittedCmdBuffer, LastSubmittedFenceCounter);
 
 	// Deferred deletion queue caches pointers to cmdbuffers
-	FDeferredDeletionQueue& DeferredDeletionQueue = Device->GetDeferredDeletionQueue();
+	FDeferredDeletionQueue2& DeferredDeletionQueue = Device->GetDeferredDeletionQueue();
 	
 	for (int32 Index = CmdBuffers.Num() - 1; Index >= 0; --Index)
 	{

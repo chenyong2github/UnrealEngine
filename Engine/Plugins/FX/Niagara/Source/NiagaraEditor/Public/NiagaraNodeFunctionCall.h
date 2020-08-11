@@ -10,6 +10,7 @@
 #include "NiagaraNodeFunctionCall.generated.h"
 
 class UNiagaraScript;
+class UNiagaraMessageData;
 
 USTRUCT()
 struct FNiagaraPropagatedVariable
@@ -134,6 +135,11 @@ public:
 	void UpgradeDIFunctionCalls();
 
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
+
+	NIAGARAEDITOR_API const TMap<FGuid, UNiagaraMessageData*>& GetMessages() const { return MessageKeyToMessageMap; };
+	NIAGARAEDITOR_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageData* NewMessage) { MessageKeyToMessageMap.Add(MessageKey, NewMessage); };
+	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
+	void RemoveMessageDelegateable(const FGuid MessageKey) { MessageKeyToMessageMap.Remove(MessageKey); };
 protected:
 
 	virtual bool GetValidateDataInterfaces() const { return true; };
@@ -158,6 +164,9 @@ protected:
 
 	UPROPERTY()
 	FString FunctionDisplayName;
+
+	UPROPERTY(meta = (SkipForCompileHash="true"))
+	TMap<FGuid, UNiagaraMessageData*> MessageKeyToMessageMap;
 
 	FOnInputsChanged OnInputsChangedDelegate;
 };

@@ -284,10 +284,110 @@ namespace ChaosTest {
 		
 	}
 
+	void EditHeights()
+	{
+		const int32 Columns = 10;
+		const int32 Rows = 10;
+		const uint16 InitialHeight = 32768; // Real height = 0, (half of uint16 max of 65535)
+
+		TArray<uint16> Heights;
+		Heights.AddZeroed(Rows * Columns);
+
+		// Stolen from Heightfield.cpp
+		TUniqueFunction<FReal(const uint16)> ConversionFunc = [](const FReal InVal) -> float
+		{
+			return (float)((int32)InVal - 32768);
+		};
+
+
+
+		for (int32 Row = 0; Row < Rows; ++Row)
+		{
+			for (int32 Col = 0; Col < Columns; ++Col)
+			{
+				Heights[Row * Columns + Col] = InitialHeight;
+			}
+		}
+
+
+		TVector<FReal, 3> Scale(1, 1, 1);
+		FHeightField Heightfield(MoveTemp(Heights),TArray<uint8>(),Rows,Columns,Scale);
+
+		// Test is intended to catch trivial regressions in EditGeomData,
+		// specifically handling Landscape module providing buffer with column index inverted from heightfield whe editing.
+
+		int32 InRows = 1;
+		int32 InCols = 3;
+		TArray<uint16> ModifiedHeights;
+		ModifiedHeights.Init(InitialHeight, InRows * InCols);
+
+		int32 Row = 0;
+		int32 Col = 0;
+		ModifiedHeights[Row * (InCols) + Col] = 35000;
+		Col = 1;
+		ModifiedHeights[Row * (InCols) + Col] = 40000;
+		Col = 2;
+		ModifiedHeights[Row * (InCols) + Col] = 45000;
+
+		float ExpectedMaxRealHeight = ConversionFunc(45000);
+		float ExpectedMinRealHeight = ConversionFunc(InitialHeight);
+		float ExpectedRange = ExpectedMaxRealHeight - ExpectedMinRealHeight;
+
+		int32 RowBegin = 3;
+		int32 ColBegin = 4;
+
+		// Expectation is that all values are at default, and ModifiedHeights is applied to heightfield
+		// starting at (ColBegin, RowBegin) to (ColBegin + InCols, RowBegin + InRows).
+		// Landscape module provides buffer with col idx inverted, so they are expected to be written reverse order over columns within this range.
+		// The Begin indices however are not inverted. These match heightfield.
+		// If this seems confusing, that's because it is. -MaxW
+		Heightfield.EditHeights(ModifiedHeights, RowBegin, ColBegin, InRows, InCols);
+
+
+		auto& GeomData = Heightfield.GeomData;
+
+
+		// Validate heights using 2d iteration scheme
+		for (int32 RowIdx = 0; RowIdx < Rows; ++RowIdx)
+		{
+			for (int32 ColIdx = 0; ColIdx < Columns; ++ColIdx)
+			{
+				if (RowIdx >= RowBegin && RowIdx < RowBegin + InRows && ColIdx >= ColBegin && ColIdx < ColBegin + InCols)
+				{
+					// This is in modified range
+					int32 ModifiedRowIdx = RowIdx - RowBegin;
+					int32 ModifiedColIdx = ColIdx - ColBegin;
+					int32 ModifiedIdx = ModifiedRowIdx * InCols + ModifiedColIdx;
+
+					int32 HeightIdx = RowIdx * Columns + (Columns - 1 - ColIdx); // Remember that modified heights buffer uses inverted col index
+					float HeightReal = GeomData.MinValue + GeomData.Heights[HeightIdx] * GeomData.HeightPerUnit;
+
+					uint16 ModifiedHeight = ModifiedHeights[ModifiedIdx];
+					float ModifiedHeightReal = ConversionFunc(ModifiedHeight);
+					EXPECT_NEAR(ModifiedHeightReal, HeightReal, 1);
+				}
+				else
+				{
+					int32 HeightIdx = RowIdx * Columns + (Columns - 1 - ColIdx); // Remember that modified heights buffer uses inverted col index
+					float HeightReal = GeomData.MinValue + GeomData.Heights[HeightIdx] * GeomData.HeightPerUnit;
+
+					float InitialHeightReal = ConversionFunc(InitialHeight);
+					EXPECT_NEAR(InitialHeightReal, HeightReal, 0.0001f);
+				}
+			}
+		}
+
+		EXPECT_EQ(GeomData.MinValue, ExpectedMinRealHeight);
+		EXPECT_EQ(GeomData.MaxValue, ExpectedMaxRealHeight);
+		EXPECT_EQ(GeomData.Range, ExpectedRange); 
+		EXPECT_EQ(GeomData.HeightPerUnit, (ExpectedRange) / TNumericLimits<uint16>::Max()); // Range over uint16 max (65535)
+	}
+
 
 	TEST(ChaosTests, Heightfield)
 	{
 		ChaosTest::Raycast<float>();
+		EditHeights();
 		SUCCEED();
 	}
 

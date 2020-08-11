@@ -363,12 +363,6 @@ static FIntVector4 GetVisualizeConfig()
 	return FIntVector4(GNaniteDebugVisualize, GNaniteDebugOverdrawScale, 0, 0);
 }
 
-struct FUintVector2
-{
-	uint32 X;
-	uint32 Y;
-};
-
 // Must match FStats in NaniteDataDecode.ush
 struct FNaniteStats
 {

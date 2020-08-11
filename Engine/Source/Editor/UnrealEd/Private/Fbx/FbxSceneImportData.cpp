@@ -17,7 +17,7 @@ UFbxSceneImportData::UFbxSceneImportData(const FObjectInitializer& ObjectInitial
 	bCreateFolderHierarchy = false;
 	bForceFrontXAxis = false;
 	bImportScene = true;
-	HierarchyType = FBXSOCHT_CreateLevelActors;
+	HierarchyType = (int32)EFBXSceneOptionsCreateHierarchyType::FBXSOCHT_CreateLevelActors;
 #endif
 }
 
@@ -320,7 +320,7 @@ FString UFbxSceneImportData::ToJson() const
 	{
 		Json += TEXT(", \"MeshInfo\" : [");
 		bool bFirstNode = true;
-		for (const TSharedPtr<FFbxMeshInfo> MeshInfo : SceneInfoSourceData->MeshInfo)
+		for (const TSharedPtr<FFbxMeshInfo>& MeshInfo : SceneInfoSourceData->MeshInfo)
 		{
 			if (!MeshInfo.IsValid())
 			{

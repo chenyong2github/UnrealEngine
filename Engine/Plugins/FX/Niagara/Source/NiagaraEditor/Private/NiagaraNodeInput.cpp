@@ -108,6 +108,13 @@ void UNiagaraNodeInput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuil
 
 void UNiagaraNodeInput::AllocateDefaultPins()
 {
+	const FNiagaraTypeDefinition& InputType = Input.GetType();
+	if (InputType.IsUObject() && InputType.IsDataInterface() == false)
+	{
+		this->ErrorMsg = TEXT("Invalid Input Type");
+		return;
+	}
+
 	if (UClass* Class = const_cast<UClass*>(Input.GetType().GetClass()))
 	{
 		check(Class->IsChildOf(UNiagaraDataInterface::StaticClass()));

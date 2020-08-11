@@ -64,7 +64,7 @@ void UAnimGraphNode_Base::CreateOutputPins()
 void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
 	// Validate any bone references we have
-	for(const TPair<FStructProperty*, const void*> PropertyValuePair : TPropertyValueRange<FStructProperty>(GetClass(), this))
+	for(const TPair<FStructProperty*, const void*>& PropertyValuePair : TPropertyValueRange<FStructProperty>(GetClass(), this))
 	{
 		if(PropertyValuePair.Key->Struct == FBoneReference::StaticStruct())
 		{

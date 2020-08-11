@@ -446,12 +446,6 @@ public:
 private:
 	/** Helper array used to mirror Blueprint asset selections across edits */
 	TArray<FFilePath> CachedNativizeBlueprintAssets;
-
-	UPROPERTY(config)
-	bool bNativizeBlueprintAssets_DEPRECATED;
-
-	UPROPERTY(config)
-	bool bNativizeOnlySelectedBlueprints_DEPRECATED;
 	
 public:
 

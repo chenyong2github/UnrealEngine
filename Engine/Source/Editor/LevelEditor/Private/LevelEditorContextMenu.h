@@ -24,8 +24,9 @@ public:
 	 * Summons the level viewport context menu
 	 * @param	LevelEditor		The level editor using this menu.
 	 * @param	ContextType		The context we should use to specialize this menu
+	 * @param	HitProxyActor	The hitproxy actor in the case the ContextType is Viewport
 	 */
-	static void SummonMenu( const TSharedRef< class SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType );
+	static void SummonMenu( const TSharedRef< class SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor = nullptr);
 
 	/**
 	 * Summons the viewport view option menu
@@ -39,9 +40,10 @@ public:
 	 * @param	LevelEditor		The level editor using this menu.
 	 * @param	ContextType		The context we should use to specialize this menu
 	 * @param	Extender		Allows extension of this menu based on context.
+	 * @param	HitProxyActor	The hitproxy actor in the case the ContextType is Viewport
 	 * @return	Widget for this context menu
 	 */
-	static TSharedPtr< SWidget > BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>());
+	static TSharedPtr< SWidget > BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), AActor* HitProxyActor = nullptr);
 
 	/**
 	 * Populates the specified menu builder for the context menu that can be inserted into a pop-up window
@@ -50,11 +52,12 @@ public:
 	 * @param	LevelEditor		The level editor using this menu.
 	 * @param	ContextType		The context we should use to specialize this menu
 	 * @param	Extender		Allows extension of this menu based on context.
+	 * @param	HitProxyActor	The hitproxy actor in the case the ContextType is Viewport
 	 */
-	static UToolMenu* GenerateMenu(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>());
+	static UToolMenu* GenerateMenu(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), AActor* HitProxyActor = nullptr);
 
 	/* Adds required information to Context for build menu based on current selection */
-	static FName InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType);
+	static FName InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor = nullptr);
 
 	/* Returns name of menu to display based on current selection */
 	static FName GetContextMenuName(ELevelEditorMenuContext ContextType);
@@ -64,6 +67,7 @@ private:
 	static void RegisterComponentContextMenu();
 	static void RegisterActorContextMenu();
 	static void RegisterSceneOutlinerContextMenu();
+	static void RegisterEmptySelectionContextMenu();
 
 	/**
 	 * Builds the actor group menu

@@ -604,7 +604,7 @@ void FBlueprintTypeDiffControl::GenerateTreeEntries(TArray< TSharedPtr<FBlueprin
 	OutTreeEntries.Push(CategoryEntry);
 
 	// Now add subobject diffs, one category per object
-	for (const TSharedPtr<FSubObjectDiff> SubObjectDiff : SubObjectDiffs)
+	for (const TSharedPtr<FSubObjectDiff>& SubObjectDiff : SubObjectDiffs)
 	{
 		Children.Reset();
 

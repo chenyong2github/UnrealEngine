@@ -94,6 +94,7 @@ struct FTransactionObjectDeltaChange
 	FTransactionObjectDeltaChange()
 		: bHasNameChange(false)
 		, bHasOuterChange(false)
+		, bHasExternalPackageChange(false)
 		, bHasPendingKillChange(false)
 		, bHasNonPropertyChanges(false)
 	{
@@ -101,13 +102,14 @@ struct FTransactionObjectDeltaChange
 
 	bool HasChanged() const
 	{
-		return bHasNameChange || bHasOuterChange || bHasPendingKillChange || bHasNonPropertyChanges || ChangedProperties.Num() > 0;
+		return bHasNameChange || bHasOuterChange || bHasExternalPackageChange || bHasPendingKillChange || bHasNonPropertyChanges || ChangedProperties.Num() > 0;
 	}
 
 	void Merge(const FTransactionObjectDeltaChange& InOther)
 	{
 		bHasNameChange |= InOther.bHasNameChange;
 		bHasOuterChange |= InOther.bHasOuterChange;
+		bHasExternalPackageChange |= InOther.bHasExternalPackageChange;
 		bHasPendingKillChange |= InOther.bHasPendingKillChange;
 		bHasNonPropertyChanges |= InOther.bHasNonPropertyChanges;
 
@@ -121,6 +123,8 @@ struct FTransactionObjectDeltaChange
 	bool bHasNameChange : 1;
 	/** True of the object outer has changed */
 	bool bHasOuterChange : 1;
+	/** True of the object assigned package has changed */
+	bool bHasExternalPackageChange : 1;
 	/** True if the object "pending kill" state has changed */
 	bool bHasPendingKillChange : 1;
 	/** True if the object has changes other than property changes (may be caused by custom serialization) */
@@ -154,15 +158,18 @@ class FTransactionObjectEvent
 public:
 	FTransactionObjectEvent() = default;
 
-	FTransactionObjectEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const ETransactionObjectEventType InEventType, const FTransactionObjectDeltaChange& InDeltaChange, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation, const FName InOriginalObjectName, const FName InOriginalObjectPathName, const FName InOriginalObjectOuterPathName, const FName InOriginalObjectClassPathName)
+	FTransactionObjectEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const ETransactionObjectEventType InEventType, const FTransactionObjectDeltaChange& InDeltaChange, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation
+		, const FName InOriginalObjectPackageName, const FName InOriginalObjectName, const FName InOriginalObjectPathName, const FName InOriginalObjectOuterPathName, const FName InOriginalObjectExternalPackageName, const FName InOriginalObjectClassPathName)
 		: TransactionId(InTransactionId)
 		, OperationId(InOperationId)
 		, EventType(InEventType)
 		, DeltaChange(InDeltaChange)
 		, Annotation(InAnnotation)
+		, OriginalObjectPackageName(InOriginalObjectPackageName)
 		, OriginalObjectName(InOriginalObjectName)
 		, OriginalObjectPathName(InOriginalObjectPathName)
 		, OriginalObjectOuterPathName(InOriginalObjectOuterPathName)
+		, OriginalObjectExternalPackageName(InOriginalObjectExternalPackageName)
 		, OriginalObjectClassPathName(InOriginalObjectClassPathName)
 	{
 		check(TransactionId.IsValid());
@@ -199,6 +206,12 @@ public:
 		return DeltaChange.bHasNameChange;
 	}
 
+	/** Get the original package name of this object */
+	FName GetOriginalObjectPackageName() const
+	{
+		return OriginalObjectPackageName;
+	}
+
 	/** Get the original name of this object */
 	FName GetOriginalObjectName() const
 	{
@@ -222,16 +235,29 @@ public:
 		return DeltaChange.bHasOuterChange;
 	}
 
+	/** Has the package assigned to this object changed? (implies non-property changes) */
+	bool HasExternalPackageChange() const
+	{
+		return DeltaChange.bHasExternalPackageChange;
+	}
+
 	/** Get the original outer path name of this object */
 	FName GetOriginalObjectOuterPathName() const
 	{
 		return OriginalObjectOuterPathName;
 	}
 
+	/** Get the original package name of this object */
+	FName GetOriginalObjectExternalPackageName() const
+	{
+		return OriginalObjectExternalPackageName;
+	}
+
+
 	/** Were any non-property changes made to the object? */
 	bool HasNonPropertyChanges(const bool InSerializationOnly = false) const
 	{
-		return (!InSerializationOnly && (DeltaChange.bHasNameChange || DeltaChange.bHasOuterChange || DeltaChange.bHasPendingKillChange)) || DeltaChange.bHasNonPropertyChanges;
+		return (!InSerializationOnly && (DeltaChange.bHasNameChange || DeltaChange.bHasOuterChange || DeltaChange.bHasExternalPackageChange || DeltaChange.bHasPendingKillChange)) || DeltaChange.bHasNonPropertyChanges;
 	}
 
 	/** Were any property changes made to the object? */
@@ -269,9 +295,11 @@ private:
 	ETransactionObjectEventType EventType;
 	FTransactionObjectDeltaChange DeltaChange;
 	TSharedPtr<ITransactionObjectAnnotation> Annotation;
+	FName OriginalObjectPackageName;
 	FName OriginalObjectName;
 	FName OriginalObjectPathName;
 	FName OriginalObjectOuterPathName;
+	FName OriginalObjectExternalPackageName;
 	FName OriginalObjectClassPathName;
 };
 

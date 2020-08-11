@@ -5,6 +5,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Engine/Engine.h"
 #include "NiagaraComponent.h"
+#include "NiagaraComponentSettings.h"
 #include "NiagaraSystem.h"
 #include "ContentStreaming.h"
 #include "Internationalization/Internationalization.h"
@@ -56,11 +57,19 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 	{
 		if (PoolingMethod == ENCPoolMethod::None)
 		{
-			NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
-			NiagaraComponent->SetAsset(SystemTemplate);
-			NiagaraComponent->bAutoActivate = false;
-			NiagaraComponent->SetAutoDestroy(bAutoDestroy);
-			NiagaraComponent->bAllowAnyoneToDestroyMe = true;
+			if (UNiagaraComponentSettings::ShouldForceAutoPooling(SystemTemplate))
+			{
+				UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
+				NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, ENCPoolMethod::AutoRelease);
+			}
+			else
+			{
+				NiagaraComponent = NewObject<UNiagaraComponent>((Actor ? Actor : (UObject*)World));
+				NiagaraComponent->SetAsset(SystemTemplate);
+				NiagaraComponent->bAutoActivate = false;
+				NiagaraComponent->SetAutoDestroy(bAutoDestroy);
+				NiagaraComponent->bAllowAnyoneToDestroyMe = true;
+			}
 		}
 		else
 		{
@@ -99,7 +108,11 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject*
 #if WITH_EDITORONLY_DATA
 					PSC->bWaitForCompilationOnActivate = true;
 #endif
-					PSC->RegisterComponentWithWorld(World);
+
+					if (!PSC->IsRegistered())
+					{
+						PSC->RegisterComponentWithWorld(World);
+					}
 
 					PSC->SetAbsolute(true, true, true);
 					PSC->SetWorldLocationAndRotation(SpawnLocation, SpawnRotation);
@@ -153,7 +166,10 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(UNiagaraSystem* 
 						PSC->SetForceSolo(true);
 					}
 #endif
-					PSC->RegisterComponentWithWorld(AttachToComponent->GetWorld());
+					if(!PSC->IsRegistered())
+					{
+						PSC->RegisterComponentWithWorld(AttachToComponent->GetWorld());
+					}
 
 					PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
 					if (LocationType == EAttachLocation::KeepWorldPosition)
@@ -227,36 +243,49 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 							PSC->SetForceSolo(true);
 						}
 #endif
-						PSC->SetupAttachment(AttachToComponent, AttachPointName);
-
-						if (LocationType == EAttachLocation::KeepWorldPosition)
+						auto SetupRelativeTransforms = [&]()
 						{
-							const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
-							const FTransform ComponentToWorld(Rotation, Location, Scale);
-							const FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
-							PSC->SetRelativeLocation_Direct(RelativeTM.GetLocation());
-							PSC->SetRelativeRotation_Direct(RelativeTM.GetRotation().Rotator());
-							PSC->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
-						}
-						else
-						{
-							PSC->SetRelativeLocation_Direct(Location);
-							PSC->SetRelativeRotation_Direct(Rotation);
-
-							if (LocationType == EAttachLocation::SnapToTarget)
+							if (LocationType == EAttachLocation::KeepWorldPosition)
 							{
-								// SnapToTarget indicates we "keep world scale", this indicates we we want the inverse of the parent-to-world scale 
-								// to calculate world scale at Scale 1, and then apply the passed in Scale
 								const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
-								PSC->SetRelativeScale3D_Direct(Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D()));
+								const FTransform ComponentToWorld(Rotation, Location, Scale);
+								const FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
+								PSC->SetRelativeLocation_Direct(RelativeTM.GetLocation());
+								PSC->SetRelativeRotation_Direct(RelativeTM.GetRotation().Rotator());
+								PSC->SetRelativeScale3D_Direct(RelativeTM.GetScale3D());
 							}
 							else
 							{
-								PSC->SetRelativeScale3D_Direct(Scale);
+								PSC->SetRelativeLocation_Direct(Location);
+								PSC->SetRelativeRotation_Direct(Rotation);
+
+								if (LocationType == EAttachLocation::SnapToTarget)
+								{
+									// SnapToTarget indicates we "keep world scale", this indicates we we want the inverse of the parent-to-world scale 
+									// to calculate world scale at Scale 1, and then apply the passed in Scale
+									const FTransform ParentToWorld = AttachToComponent->GetSocketTransform(AttachPointName);
+									PSC->SetRelativeScale3D_Direct(Scale * ParentToWorld.GetSafeScaleReciprocal(ParentToWorld.GetScale3D()));
+								}
+								else
+								{
+									PSC->SetRelativeScale3D_Direct(Scale);
+								}
 							}
+						};
+
+						if (PSC->IsRegistered())
+						{
+							//It is now possible for us to be already regisetered so we must use AttachToComponent() instead.
+							SetupRelativeTransforms();
+							PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform);
+						}
+						else
+						{
+							PSC->SetupAttachment(AttachToComponent, AttachPointName);
+							SetupRelativeTransforms();
+							PSC->RegisterComponentWithWorld(World);
 						}
 
-						PSC->RegisterComponentWithWorld(World);
 						if (bAutoActivate)
 						{
 							PSC->Activate(true);
@@ -481,6 +510,32 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 	NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
 #endif
 	TextureDI->SetTexture(Texture);
+}
+
+UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass, UNiagaraComponent* NiagaraSystem, FName OverrideName)
+{
+	if (NiagaraSystem == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem was nullptr for OverrideName \"%s\"."), *OverrideName.ToString());
+		return nullptr;
+	}
+
+	const FNiagaraParameterStore& OverrideParameters = NiagaraSystem->GetOverrideParameters();
+	FNiagaraVariableBase Variable(FNiagaraTypeDefinition(DIClass), OverrideName);
+	const int32* Index = OverrideParameters.FindParameterOffset(Variable, true);
+	if (Index == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface \"%s\" was not found"), *OverrideName.ToString(), *GetNameSafe(DIClass));
+		return nullptr;
+	}
+
+	UNiagaraDataInterface* UntypedDI = OverrideParameters.GetDataInterface(*Index);
+	if (UntypedDI->IsA(DIClass))
+	{
+		return UntypedDI;
+	}
+	UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface is a \"%s\" and not expected type \"%s\""), *OverrideName.ToString(), *GetNameSafe(UntypedDI->GetClass()), *GetNameSafe(DIClass));
+	return nullptr;
 }
 
 UNiagaraParameterCollectionInstance* UNiagaraFunctionLibrary::GetNiagaraParameterCollection(UObject* WorldContextObject, UNiagaraParameterCollection* Collection)

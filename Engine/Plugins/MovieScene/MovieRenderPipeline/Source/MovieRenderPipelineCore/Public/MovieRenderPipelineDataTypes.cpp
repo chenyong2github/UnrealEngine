@@ -161,12 +161,6 @@ void MoviePipeline::FTileWeight1D::CalculateArrayWeight(TArray<float>& WeightDat
 	}
 }
 
-
-UMoviePipeline* MoviePipeline::FMoviePipelineEnginePass::GetPipeline() const
-{
-	return OwningPipeline.Get();
-}
-
 static FString GetPaddingFormatString(int32 InZeroPadCount, const int32 InFrameNumber)
 {
 	// Printf takes the - sign into account when you specify the number of digits to pad to

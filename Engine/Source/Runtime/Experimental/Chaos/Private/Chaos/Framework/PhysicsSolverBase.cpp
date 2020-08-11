@@ -20,12 +20,11 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase* InSolver,FReal InDt)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt)
 		: Solver(InSolver)
+		, Queue(MoveTemp(InQueue))
 		, Dt(InDt)
 	{
-		//todo: make this based on proper dt etc...
-		Queue = MoveTemp(Solver->CommandQueue);
 	}
 
 	TStatId FPhysicsSolverAdvanceTask::GetStatId() const
@@ -46,6 +45,11 @@ namespace Chaos
 
 	void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
 	{
+		FPhysicsSolverAdvanceTask::AdvanceSolver(Solver,MoveTemp(Queue),Dt);
+	}
+
+	void FPhysicsSolverAdvanceTask::AdvanceSolver(FPhysicsSolverBase& Solver, TArray<TFunction<void()>>&& Queue, const FReal Dt)
+	{
 		using namespace Chaos;
 
 		LLM_SCOPE(ELLMTag::Chaos);
@@ -61,7 +65,7 @@ namespace Chaos
 			}
 		}
 
-		Solver->AdvanceSolverBy(Dt);
+		Solver.AdvanceSolverBy(Dt);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

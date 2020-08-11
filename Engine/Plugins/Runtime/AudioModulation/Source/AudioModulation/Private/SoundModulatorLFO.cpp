@@ -17,10 +17,10 @@ USoundBusModulatorBase::USoundBusModulatorBase(const FObjectInitializer& ObjectI
 #if WITH_EDITOR
 void USoundBusModulatorBase::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
-	if (FProperty* Property = InPropertyChangedEvent.Property)
+	AudioModulation::IterateModSystems([this](AudioModulation::FAudioModulationSystem& OutModSystem)
 	{
-		AudioModulation::OnEditModulator(InPropertyChangedEvent, *this);
-	}
+		OutModSystem.UpdateModulator(*this);
+	});
 
 	Super::PostEditChangeProperty(InPropertyChangedEvent);
 }

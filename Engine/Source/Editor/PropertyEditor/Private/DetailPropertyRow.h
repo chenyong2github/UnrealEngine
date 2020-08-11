@@ -186,6 +186,8 @@ private:
 	TSharedPtr<FPropertyEditor> PropertyEditor;
 	/** The property editor for this row's key */
 	TSharedPtr<FPropertyEditor> PropertyKeyEditor;
+	/** The property Type customization for this row's key */
+	TSharedPtr<IPropertyTypeCustomization> CachedKeyCustomTypeInterface;
 	/** Custom widgets to use for this row instead of the default ones */
 	TSharedPtr<FDetailWidgetRow> CustomPropertyWidget;
 	/** User customized edit condition */

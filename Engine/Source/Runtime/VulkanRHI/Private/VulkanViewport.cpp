@@ -403,6 +403,8 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		}
 	}
 
+	VkSurfaceTransformFlagBitsKHR QCOMRenderPassTransform = RTLayout.GetQCOMRenderPassTransform();
+
 	if (RTLayout.GetHasDepthStencil())
 	{
 		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(InRTInfo.DepthStencilRenderTarget.Texture);
@@ -419,6 +421,13 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 			NumLayers = 6;
 			AttachmentTextureViews.Add(RTView);
 			AttachmentViewsToDelete.Add(RTView.View);
+		}
+		else if (QCOMRenderPassTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR &&
+			Texture->Surface.Width == RTExtents.width && Texture->Surface.Height == RTExtents.height)
+		{
+			FVulkanSwapChain* SwapChain = Device.GetImmediateContext().GetSwapChain();
+			PartialDepthTextureView = *SwapChain->GetOrCreateQCOMDepthView(Texture->Surface);
+			AttachmentTextureViews.Add(*SwapChain->GetOrCreateQCOMDepthStencilView(Texture->Surface));
 		}
 		else
 		{
@@ -455,10 +464,17 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 	CreateInfo.width  = RTExtents.width;
 	CreateInfo.height = RTExtents.height;
 	CreateInfo.layers = NumLayers;
+
+	if (QCOMRenderPassTransform == VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
+		QCOMRenderPassTransform == VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR)
+	{
+		Swap(CreateInfo.width, CreateInfo.height);
+	}
+
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateFramebuffer(Device.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &Framebuffer));
 
-	Extents.width = CreateInfo.width;
-	Extents.height = CreateInfo.height;
+	Extents.width = RTExtents.width;
+	Extents.height = RTExtents.height;
 
 	INC_DWORD_STAT(STAT_VulkanNumFrameBuffers);
 }
@@ -470,16 +486,16 @@ FVulkanFramebuffer::~FVulkanFramebuffer()
 
 void FVulkanFramebuffer::Destroy(FVulkanDevice& Device)
 {
-	VulkanRHI::FDeferredDeletionQueue& Queue = Device.GetDeferredDeletionQueue();
+	VulkanRHI::FDeferredDeletionQueue2& Queue = Device.GetDeferredDeletionQueue();
 	
 	// will be deleted in reverse order
-	Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::Framebuffer, Framebuffer);
+	Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Framebuffer, Framebuffer);
 	Framebuffer = VK_NULL_HANDLE;
 
 	for (int32 Index = 0; Index < AttachmentViewsToDelete.Num(); ++Index)
 	{
 		DEC_DWORD_STAT(STAT_VulkanNumImageViews);
-		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue::EType::ImageView, AttachmentViewsToDelete[Index]);
+		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ImageView, AttachmentViewsToDelete[Index]);
 	}
 
 	for (int32 Index = 0; Index < ResourceAllocationsToDelete.Num(); ++Index)
@@ -959,6 +975,16 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	++GVulkanRHI->TotalPresentCount;
 
 	return bResult;
+}
+
+VkSurfaceTransformFlagBitsKHR FVulkanViewport::GetSwapchainQCOMRenderPassTransform() const
+{
+	return SwapChain->QCOMRenderPassTransform;
+}
+
+VkFormat FVulkanViewport::GetSwapchainImageFormat() const
+{
+	return SwapChain->ImageFormat;
 }
 
 /*=============================================================================

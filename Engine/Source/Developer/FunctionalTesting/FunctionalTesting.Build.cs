@@ -34,6 +34,13 @@ public class FunctionalTesting : ModuleRules
 					"LevelEditor"
 				}
 			);
+
+			// Circular references that need to be cleaned up
+			CircularlyReferencedDependentModules.AddRange(
+				new string[] {
+					"UnrealEd",
+				}
+			);
 		}
 
         PrivateIncludePaths.AddRange(

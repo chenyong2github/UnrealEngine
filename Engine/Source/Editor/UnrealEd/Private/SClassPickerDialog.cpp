@@ -41,29 +41,32 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 
 	ClassViewer = StaticCastSharedRef<SClassViewer>(FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(InArgs._Options, FOnClassPicked::CreateSP(this,&SClassPickerDialog::OnClassPicked)));
 
-	// Load in default settings
-	for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->NewAssetDefaultClasses)
+	if (InArgs._Options.bShowDefaultClasses)
 	{
-		UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
-		
-		if (InArgs._AssetType->IsChildOf(AssetType))
+		// Load in default settings
+		for (const FClassPickerDefaults& DefaultObj : GUnrealEd->GetUnrealEdOptions()->NewAssetDefaultClasses)
 		{
-			if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
+			UClass* AssetType = LoadClass<UObject>(NULL, *DefaultObj.AssetClass, NULL, LOAD_None, NULL);
+
+			if (InArgs._AssetType->IsChildOf(AssetType))
 			{
-				// Don't add if we are looking for editor classes only and this isn't an editor only class
-				break;
+				if (InArgs._Options.bEditorClassesOnly && !IsEditorOnlyObject(AssetType))
+				{
+					// Don't add if we are looking for editor classes only and this isn't an editor only class
+					break;
+				}
+				AssetDefaultClasses.Add(MakeShareable(new FClassPickerDefaults(DefaultObj)));
 			}
-			AssetDefaultClasses.Add(MakeShareable(new FClassPickerDefaults(DefaultObj)));
 		}
-	}
 
-	for (UClass* CommonClass : InArgs._Options.ExtraPickerCommonClasses)
-	{
-		TSharedPtr<FClassPickerDefaults> PickerDefault = MakeShareable(new FClassPickerDefaults());
-		PickerDefault->AssetClass = InArgs._AssetType->GetPathName();
-		PickerDefault->ClassName  = CommonClass->GetPathName();
+		for (UClass* CommonClass : InArgs._Options.ExtraPickerCommonClasses)
+		{
+			TSharedPtr<FClassPickerDefaults> PickerDefault = MakeShareable(new FClassPickerDefaults());
+			PickerDefault->AssetClass = InArgs._AssetType->GetPathName();
+			PickerDefault->ClassName = CommonClass->GetPathName();
 
-		AssetDefaultClasses.Add(PickerDefault);
+			AssetDefaultClasses.Add(PickerDefault);
+		}
 	}
 
 	const bool bHasDefaultClasses = AssetDefaultClasses.Num() > 0;

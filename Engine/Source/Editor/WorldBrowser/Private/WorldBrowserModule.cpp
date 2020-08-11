@@ -18,7 +18,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "LevelEditor.h"
 #include "EditorLevelUtils.h"
-
+#include "ThumbnailRendering/ThumbnailManager.h"
 
 IMPLEMENT_MODULE( FWorldBrowserModule, WorldBrowser );
 
@@ -98,6 +98,7 @@ void FWorldBrowserModule::StartupModule()
 void FWorldBrowserModule::ShutdownModule()
 {
 	ReleaseWorldModel();
+    ShutdownDelegate.Broadcast(); 
 
 	FLevelFolders::Cleanup();
 

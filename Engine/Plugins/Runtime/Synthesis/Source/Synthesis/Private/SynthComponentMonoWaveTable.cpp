@@ -488,12 +488,12 @@ void USynthComponentMonoWaveTable::SetSynthPreset(UMonoWaveTableSynthPreset* Syn
 }
 
 
-void USynthComponentMonoWaveTable::SetLowPassFilterFrequency(float InNewFrequency)
+void USynthComponentMonoWaveTable::SetLowPassFilterFrequency(float InLowPassFilterFrequency)
 {
-	InNewFrequency = FMath::Max(InNewFrequency, 5.0f);
-	SynthCommand([this, InNewFrequency]
+	InLowPassFilterFrequency = FMath::Max(InLowPassFilterFrequency, 5.0f);
+	SynthCommand([this, InLowPassFilterFrequency]
 	{
-		Synth.SetLpfFreq(InNewFrequency);
+		Synth.SetLpfFreq(InLowPassFilterFrequency);
 	});
 }
 

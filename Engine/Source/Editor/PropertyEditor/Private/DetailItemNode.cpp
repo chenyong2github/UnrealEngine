@@ -710,6 +710,11 @@ void FDetailItemNode::FilterNode(const FDetailFilter& InFilter)
 {
 	bShouldBeVisibleDueToFiltering = PassesAllFilters( this, Customization, InFilter, ParentCategory.Pin()->GetDisplayName().ToString() );
 
+	if (!bShouldBeVisibleDueToFiltering && ParentGroup.IsValid() && !ParentGroup.Pin()->GetGroupName().IsNone())
+	{
+		bShouldBeVisibleDueToFiltering = PassesAllFilters( this, Customization, InFilter, ParentGroup.Pin()->GetGroupName().ToString() );
+	}
+
 	bShouldBeVisibleDueToChildFiltering = false;
 
 	// Filter each child

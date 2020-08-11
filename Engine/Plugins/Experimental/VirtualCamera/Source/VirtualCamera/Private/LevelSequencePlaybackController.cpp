@@ -159,7 +159,7 @@ FFrameNumber ULevelSequencePlaybackController::GetCurrentSequenceDuration() cons
 {
 	if (ActiveLevelSequence)
 	{
-		FFrameNumber Value = MovieScene::DiscreteSize(ActiveLevelSequence->GetMovieScene()->GetPlaybackRange());
+		FFrameNumber Value = UE::MovieScene::DiscreteSize(ActiveLevelSequence->GetMovieScene()->GetPlaybackRange());
 		if (ActiveLevelSequence->GetMovieScene()->GetDisplayRate() != ActiveLevelSequence->GetMovieScene()->GetTickResolution())
 		{
 			const FFrameTime ConvertedTime = FFrameRate::TransformTime(FFrameTime(Value), ActiveLevelSequence->GetMovieScene()->GetTickResolution(), ActiveLevelSequence->GetMovieScene()->GetDisplayRate());

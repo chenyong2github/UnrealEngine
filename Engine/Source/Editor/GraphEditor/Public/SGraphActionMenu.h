@@ -91,6 +91,7 @@ struct FContextMenuWeightDebugInfo
 	float DescriptionWeight = 0.0f;
 	float NodeTitleWeight = 0.0f;
 	float CategoryWeight = 0.0f;
+	float FavoriteBonusWeight = 0.0f;
 
 	float PercentageMatchWeight = 0.0f;
 	/** The calculated match percentage */

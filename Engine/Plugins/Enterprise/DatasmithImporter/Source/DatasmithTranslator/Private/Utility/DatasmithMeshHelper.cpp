@@ -57,7 +57,7 @@ namespace DatasmithMeshHelper
 	void RemoveEmptyPolygonGroups(FMeshDescription& Mesh)
 	{
 		bool bRemovedSection = false;
-		for (const FPolygonGroupID& PolygonGroupID : Mesh.PolygonGroups().GetElementIDs())
+		for (const FPolygonGroupID PolygonGroupID : Mesh.PolygonGroups().GetElementIDs())
 		{
 			if (Mesh.GetNumPolygonGroupPolygons(PolygonGroupID) == 0)
 			{
@@ -326,7 +326,7 @@ namespace DatasmithMeshHelper
 			UVs.SetNumChannels(1);
 		}
 
-		for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
+		for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 		{
 			if (const FVector2D* UVCoord = TexCoords.Find(VertexInstanceID))
 			{

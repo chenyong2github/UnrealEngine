@@ -28,7 +28,7 @@ struct FStoreKitTransactionData
 		return FString::Printf(TEXT("OfferId: %s TransactionId: %s%s ReceiptData: %s Error:%s [%s:%d]"),
 						*OfferId,
 						*TransactionIdentifier,
-						OriginalTransactionIdentifier.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" OriginalTransactionId: %s"), *OriginalTransactionIdentifier),
+						(!OriginalTransactionIdentifier.IsEmpty() && OriginalTransactionIdentifier != TransactionIdentifier) ? *FString::Printf(TEXT(" OriginalTransactionId: %s"), *OriginalTransactionIdentifier) : TEXT(""),
 						*ReceiptData,
 						*ErrorRaw,
 						*ErrorDomain,

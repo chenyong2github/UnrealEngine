@@ -85,10 +85,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 	}
 
 	// Add this widget to the search list of the multibox
-	if (MultiBlock->GetSearchable())
-	{
-		OwnerMultiBoxWidgetPinned->AddSearchElement(this->AsWidget(), WidgetBlock->Label);
-	}
+	OwnerMultiBoxWidgetPinned->AddElement(this->AsWidget(), WidgetBlock->Label, MultiBlock->GetSearchable());
 
 	// This widget holds the search text, set it as the search block widget
 	if (OwnerMultiBoxWidgetPinned->GetSearchTextWidget() == WidgetBlock->ContentWidget)

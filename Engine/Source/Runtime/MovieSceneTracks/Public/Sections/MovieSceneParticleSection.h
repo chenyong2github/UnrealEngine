@@ -62,11 +62,6 @@ public:
 	/** Curve containing the particle keys. */
 	UPROPERTY()
 	FMovieSceneParticleChannel ParticleKeys;
-
-protected:
-
-	//~ UMovieSceneSection interface
-	virtual FMovieSceneEvalTemplatePtr GenerateTemplate() const override;
 };
 
 

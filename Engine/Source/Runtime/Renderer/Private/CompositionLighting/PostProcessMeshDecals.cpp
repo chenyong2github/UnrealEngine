@@ -453,6 +453,10 @@ void RenderMeshDecalsMobile(FRHICommandList& RHICmdList, const FViewInfo& View)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, MeshDecals);
 
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit); 
+	
 	DrawDynamicMeshPass(View, RHICmdList, [&View](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
 		FMeshDecalMeshProcessor PassMeshProcessor(

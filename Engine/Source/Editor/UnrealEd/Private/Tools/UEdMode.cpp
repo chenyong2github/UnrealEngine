@@ -128,6 +128,11 @@ bool UEdMode::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewpo
 
 bool UEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
+	if (!Viewport)
+	{
+		return false;
+	}
+
 	if (ToolsContext->InputKey(ViewportClient, Viewport, Key, Event))
 	{
 		return true;
@@ -196,7 +201,7 @@ void UEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 
 bool UEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
 {
-	return true;
+	return false;
 }
 
 void UEdMode::Enter()

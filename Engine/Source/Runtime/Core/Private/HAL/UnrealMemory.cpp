@@ -25,6 +25,7 @@
 #include "HAL/PlatformMallocCrash.h"
 #include "HAL/MallocPoisonProxy.h"
 #include "HAL/MallocDoubleFreeFinder.h"
+#include "HAL/MallocFrameProfiler.h"
 
 #if MALLOC_GT_HOOKS
 
@@ -379,6 +380,7 @@ static int FMemory_GCreateMalloc_ThreadUnsafe()
 #endif
 
 	GMalloc = FMallocDoubleFreeFinder::OverrideIfEnabled(GMalloc);
+	GMalloc = FMallocFrameProfiler::OverrideIfEnabled(GMalloc);
 	return 0;
 }
 

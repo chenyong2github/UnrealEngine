@@ -25,7 +25,7 @@
 #include "MeshBatch.h"
 #include "SceneManagement.h"
 #include "Components/StaticMeshComponent.h"
-#include "PhysicsEngine/BodySetupEnums.h"
+#include "BodySetupEnums.h"
 #include "Materials/MaterialInterface.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "Rendering/StaticMeshVertexBuffer.h"
@@ -196,6 +196,8 @@ struct FStaticMeshSection
 
 	/** If true, this section will cast a shadow. */
 	bool bCastShadow;
+	/** If true, this section will be visible in ray tracing effects. */
+	bool bVisibleInRayTracing;
 	/** If true, this section will be considered opaque in ray tracing effects. */
 	bool bForceOpaque;
 #if WITH_EDITORONLY_DATA
@@ -215,6 +217,7 @@ struct FStaticMeshSection
 		, MaxVertexIndex(0)
 		, bEnableCollision(false)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, bForceOpaque(false)
 	{
 #if WITH_EDITORONLY_DATA

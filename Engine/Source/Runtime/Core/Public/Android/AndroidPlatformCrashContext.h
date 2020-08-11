@@ -65,6 +65,9 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	/** Async-safe ItoA */
 	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
 
+	// temporary accessor to allow overriding of the portable callstack.
+	TArray<FCrashStackFrame>& GetPortableCallstack_TEMP() { return CallStack; }
+
 protected:
 
 	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */

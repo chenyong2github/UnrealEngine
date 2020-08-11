@@ -1,0 +1,223 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "WorldPartition/SWorldPartitionEditorGridSpatialHash.h"
+#include "GameFramework/WorldSettings.h"
+#include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
+#include "Misc/SecureHash.h"
+#include "WorldPartition/WorldPartitionEditorCell.h"
+#include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
+#include "WorldPartition/WorldPartitionEditorSpatialHash.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/FileHelper.h"
+#include "Misc/ScopedSlowTask.h"
+#include "Layout/WidgetPath.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Slate/SlateTextures.h"
+#include "Brushes/SlateColorBrush.h"
+#include "ObjectTools.h"
+#include "UObject/ObjectResource.h"
+#include "EditorStyleSet.h"
+#include "Engine/World.h"
+#include "Engine/Texture2DDynamic.h"
+#include "Misc/HashBuilder.h"
+
+#define LOCTEXT_NAMESPACE "WorldPartitionEditor"
+
+SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
+{
+}
+
+SWorldPartitionEditorGridSpatialHash::~SWorldPartitionEditorGridSpatialHash()
+{
+}
+
+void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
+{
+	if (InArgs._InWorld)
+	{
+		bShowActors = !InArgs._InWorld->PersistentLevel->GetWorldSettings()->GetWorldImage();
+	}
+
+	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
+
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+
+	Trans = FVector2D(0, 0);
+	Scale = 0.00133333332;
+}
+
+int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
+	const FBox2D ViewRectWorld(ScreenToWorld.TransformPoint(ViewRect.Min), ScreenToWorld.TransformPoint(ViewRect.Max));
+
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+	
+	FBox VisibleGridRectWorld(
+		FVector(
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Min.X),
+			FMath::Max(FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Min.Y),
+			FMath::FloorToFloat(EditorSpatialHash->Bounds.Min.Z / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+		),
+		FVector(
+			FMath::Min(FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Max.X),
+			FMath::Min(FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize, ViewRectWorld.Max.Y),
+			FMath::FloorToFloat(EditorSpatialHash->Bounds.Max.Z / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+		)
+	);
+
+	// Shadow whole grid area
+	{
+		FSlateColorBrush ShadowBrush(FLinearColor::Black);
+		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+
+		FPaintGeometry GridGeometry = AllottedGeometry.ToPaintGeometry(
+			WorldToScreen.TransformPoint(FVector2D(VisibleGridRectWorld.Min)),
+			WorldToScreen.TransformPoint(FVector2D(VisibleGridRectWorld.Max)) - WorldToScreen.TransformPoint(FVector2D(VisibleGridRectWorld.Min))
+		);
+
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			++LayerId,
+			GridGeometry,
+			&ShadowBrush,
+			ESlateDrawEffect::None,
+			ShadowColor
+		);
+	}
+
+	// Draw world image if any
+	if (const FSlateBrush* WorldImage = World->PersistentLevel->GetWorldSettings()->GetWorldImage())
+	{
+		if (WorldImage->HasUObject())
+		{
+			const FVector2D& WorldImageTopLeftW = EditorSpatialHash->WorldImageTopLeftW;
+			const FVector2D& WorldImageBottomRightW = EditorSpatialHash->WorldImageBottomRightW;
+
+			FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
+				WorldToScreen.TransformPoint(WorldImageTopLeftW),
+				WorldToScreen.TransformPoint(WorldImageBottomRightW) - WorldToScreen.TransformPoint(WorldImageTopLeftW)
+			);
+
+			FSlateDrawElement::MakeRotatedBox(
+				OutDrawElements,
+				++LayerId,
+				WorldImageGeometry,
+				WorldImage,
+				ESlateDrawEffect::None,
+				FMath::DegreesToRadians(90.0f)
+			);
+		}
+	}
+
+	{
+		// Flatten cells in 2D
+		struct FCellDesc2D
+		{
+			FCellDesc2D()
+				: Bounds(ForceInitToZero)
+				, bSelected(false)
+				, bLoaded(false)
+				, bEmpty(true)
+			{}
+
+			FBox2D Bounds;
+			bool bSelected : 1;
+			bool bLoaded : 1;
+			bool bEmpty : 1;
+		};
+
+		TMap<uint32, FCellDesc2D> UniqueCells2D;
+		WorldPartition->EditorHash->ForEachIntersectingCell(VisibleGridRectWorld, [&](UWorldPartitionEditorCell* Cell)
+		{
+			// Compute a hash of the 2D bounds, snapped to centimeters
+			FHashBuilder HashBuilder;
+			HashBuilder << FMath::RoundToInt(Cell->Bounds.Min.X) 
+						<< FMath::RoundToInt(Cell->Bounds.Min.Y) 
+						<< FMath::RoundToInt(Cell->Bounds.Max.X) 
+						<< FMath::RoundToInt(Cell->Bounds.Max.Y);
+			uint32 CellHash2D = HashBuilder.GetHash();
+
+			FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+
+			CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
+			CellDesc2D.bSelected |= Cell->bSelected;
+			CellDesc2D.bLoaded |= Cell->bLoaded;
+			CellDesc2D.bEmpty &= !Cell->Actors.Num();
+		});
+
+		for(auto& UniqueCell: UniqueCells2D)
+		{
+			const FCellDesc2D& Cell = UniqueCell.Value;
+
+			if (!Cell.bLoaded || Cell.bEmpty || Cell.bSelected)
+			{
+				FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+					WorldToScreen.TransformPoint(Cell.Bounds.Min),
+					WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
+				);
+
+				FSlateColorBrush CellBrush(FLinearColor::White);
+				FLinearColor CellColor(Cell.bSelected ? FLinearColor(1, 1, 1, 0.25f) : FLinearColor(0, 0, 0, Cell.bEmpty ? 1.0f : 0.5f));
+
+				FSlateDrawElement::MakeBox(
+					OutDrawElements,
+					++LayerId,
+					CellGeometry,
+					&CellBrush,
+					ESlateDrawEffect::None,
+					CellColor
+				);
+			}
+		}
+	}
+
+	if (FBox2D(FVector2D(VisibleGridRectWorld.Min), FVector2D(VisibleGridRectWorld.Max)).GetArea() > 0.0f)
+	{
+		const FLinearColor Color = FLinearColor(0.1f, 0.1f, 0.1f, 1.f);
+
+		FIntVector2 TopLeftW(
+			FMath::FloorToFloat(VisibleGridRectWorld.Min.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize,
+			FMath::FloorToFloat(VisibleGridRectWorld.Min.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+		);
+
+		FIntVector2 BottomRightW(
+			FMath::CeilToFloat(VisibleGridRectWorld.Max.X / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize,
+			FMath::CeilToFloat(VisibleGridRectWorld.Max.Y / EditorSpatialHash->CellSize) * EditorSpatialHash->CellSize
+		);
+
+		TArray<FVector2D> LinePoints;
+		LinePoints.SetNum(2);
+
+		// Horizontal
+		for (int32 i=TopLeftW.Y; i<=BottomRightW.Y; i+=EditorSpatialHash->CellSize)
+		{
+			FVector2D LineStartH(TopLeftW.X, i);
+			FVector2D LineEndH(BottomRightW.X, i);
+
+			LinePoints[0] = WorldToScreen.TransformPoint(LineStartH);
+			LinePoints[1] = WorldToScreen.TransformPoint(LineEndH);
+
+			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::NoBlending, Color, false, 1.0f);
+		}
+
+		// Vertical
+		for (int32 i=TopLeftW.X; i<=BottomRightW.X; i+=EditorSpatialHash->CellSize)
+		{
+			FVector2D LineStartH(i, TopLeftW.Y);
+			FVector2D LineEndH(i, BottomRightW.Y);
+
+			LinePoints[0] = WorldToScreen.TransformPoint(LineStartH);
+			LinePoints[1] = WorldToScreen.TransformPoint(LineEndH);
+
+			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::NoBlending, Color, false, 1.0f);
+		}
+
+		++LayerId;
+	}
+
+	return SWorldPartitionEditorGrid2D::PaintGrid(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
+}
+
+#undef LOCTEXT_NAMESPACE

@@ -99,6 +99,20 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 {
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 
+	auto RemapGuid = [](FUniqueObjectGuid& Guid, int32 PIEInstanceID)
+	{
+		check(PIEInstanceID != INDEX_NONE);
+		FGuid& FoundGuid = PIEGuidMap[PIEInstanceID % MAX_PIE_INSTANCES].FindOrAdd(Guid.GetGuid());
+		if (!FoundGuid.IsValid())
+		{
+			Guid = FoundGuid = FGuid::NewGuid();
+		}
+		else
+		{
+			Guid = FoundGuid;
+		}
+	};
+
 	if (UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory())
 	{
 		FUniqueObjectGuid Guid = GuidAnnotation.GetAnnotation(Object);
@@ -107,16 +121,7 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 		{
 			if (UnderlyingArchive.GetPortFlags() & PPF_DuplicateForPIE)
 			{
-				check(GPlayInEditorID != -1);
-				FGuid &FoundGuid = PIEGuidMap[GPlayInEditorID % MAX_PIE_INSTANCES].FindOrAdd(Guid.GetGuid());
-				if (!FoundGuid.IsValid())
-				{
-					Guid = FoundGuid = FGuid::NewGuid();
-				}
-				else
-				{
-					Guid = FoundGuid;
-				}
+				RemapGuid(Guid, GPlayInEditorID);
 			}
 
 			GuidSlot.GetValue() << Guid;
@@ -149,6 +154,13 @@ void FLazyObjectPtr::PossiblySerializeObjectGuid(UObject *Object, FStructuredArc
 							GuidAnnotation.RemoveAnnotation(OtherObject);
 							GuidAnnotation.AddAnnotation(Object, Guid);
 						}
+#if WITH_EDITOR
+						else if (Object->GetOutermostObject()->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+						{
+							RemapGuid(Guid, Object->GetOutermostObject()->GetPackage()->PIEInstanceID);
+							GuidAnnotation.AddAnnotation(Object, Guid);
+						}
+#endif
 						else
 						{
 							if (!bReassigning)

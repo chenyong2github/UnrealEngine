@@ -313,7 +313,13 @@ void UGameplayTask::Resume()
 
 	TaskState = EGameplayTaskState::Active;
 
-	TasksComponent->OnGameplayTaskActivated(*this);
+	UE_CLOG(TasksComponent.IsValid() == false, LogGameplayTasks, Error
+		, TEXT("%s Resume called while TasksComponent is no longer valid"), *GetName());
+
+	if (TasksComponent.IsValid())
+	{
+		TasksComponent->OnGameplayTaskActivated(*this);
+	}
 }
 
 //----------------------------------------------------------------------//

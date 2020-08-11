@@ -34,9 +34,11 @@ public class AssetSearch : ModuleRules
 				"AssetRegistry",
 				"JsonUtilities",
 				"Projects",
+				"PropertyPath",
 				"UMG",
 				"UMGEditor",
 				"BlueprintGraph",
+				"DeveloperSettings"
 			}
 		);
 	}

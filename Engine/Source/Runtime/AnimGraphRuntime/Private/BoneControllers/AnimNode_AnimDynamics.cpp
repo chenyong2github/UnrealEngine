@@ -169,7 +169,6 @@ FAnimNode_AnimDynamics::FAnimNode_AnimDynamics()
 
 void FAnimNode_AnimDynamics::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
-	CSV_SCOPED_TIMING_STAT(Animation, AnimDynamicsInit);
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
 

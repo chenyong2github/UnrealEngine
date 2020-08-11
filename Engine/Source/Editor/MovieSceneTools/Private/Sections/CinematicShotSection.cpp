@@ -14,7 +14,7 @@
 #include "EditorStyleSet.h"
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneTimeHelpers.h"
-
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
@@ -161,23 +161,29 @@ UCameraComponent* FCinematicShotSection::GetViewCamera()
 	const UMovieSceneCinematicShotSection&	SectionObject    = GetSectionObjectAs<UMovieSceneCinematicShotSection>();
 	const FMovieSceneSequenceID             ThisSequenceID   = Sequencer->GetFocusedTemplateID();
 	const FMovieSceneSequenceID             TargetSequenceID = SectionObject.GetSequenceID();
-	const FMovieSceneSequenceHierarchy&     Hierarchy        = Sequencer->GetEvaluationTemplate().GetHierarchy();
-	const FMovieSceneSequenceHierarchyNode* ThisSequenceNode = Hierarchy.FindNode(ThisSequenceID);
+	const FMovieSceneSequenceHierarchy*     Hierarchy        = Sequencer->GetEvaluationTemplate().GetCompiledDataManager()->FindHierarchy(Sequencer->GetEvaluationTemplate().GetCompiledDataID());
+
+	if (!Hierarchy)
+	{
+		return nullptr;
+	}
+
+	const FMovieSceneSequenceHierarchyNode* ThisSequenceNode = Hierarchy->FindNode(ThisSequenceID);
 	
 	check(ThisSequenceNode);
 	
 	// Find the TargetSequenceID by comparing deterministic sequence IDs for all children of the current node
 	const FMovieSceneSequenceID* InnerSequenceID = Algo::FindByPredicate(ThisSequenceNode->Children,
-		[&Hierarchy, TargetSequenceID](FMovieSceneSequenceID InSequenceID)
+		[Hierarchy, TargetSequenceID](FMovieSceneSequenceID InSequenceID)
 		{
-			const FMovieSceneSubSequenceData* SubData = Hierarchy.FindSubData(InSequenceID);
+			const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(InSequenceID);
 			return SubData && SubData->DeterministicSequenceID == TargetSequenceID;
 		}
 	);
 	
 	if (InnerSequenceID)
 	{
-		UCameraComponent* CameraComponent = FindCameraCutComponentRecursive(Sequencer->GetGlobalTime().Time.FrameNumber, *InnerSequenceID, Hierarchy, *Sequencer);
+		UCameraComponent* CameraComponent = FindCameraCutComponentRecursive(Sequencer->GetGlobalTime().Time.FrameNumber, *InnerSequenceID, *Hierarchy, *Sequencer);
 		if (CameraComponent)
 		{
 			return CameraComponent;

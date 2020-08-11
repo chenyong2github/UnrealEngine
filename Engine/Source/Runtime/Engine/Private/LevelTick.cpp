@@ -33,7 +33,6 @@
 #include "Engine/NetConnection.h"
 #include "UnrealEngine.h"
 #include "Engine/LevelStreamingVolume.h"
-#include "Engine/WorldComposition.h"
 #include "Collision.h"
 #include "PhysicsPublic.h"
 #include "Tickable.h"
@@ -62,7 +61,7 @@
 #include "GPUSkinCache.h"
 
 #if WITH_EDITOR
-	#include "Editor.h"
+#include "Editor.h"
 #endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
@@ -1373,13 +1372,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 		}
 
 		// Tick level sequence actors first
-		for (int32 i = LevelSequenceActors.Num() - 1; i >= 0; --i)
-		{
-			if (LevelSequenceActors[i] != nullptr)
-			{
-				LevelSequenceActors[i]->Tick(DeltaSeconds);
-			}
-		}
+		MovieSceneSequenceTick.Broadcast(DeltaSeconds);
 	}
 
 	for (int32 i = 0; i < LevelCollections.Num(); ++i)
@@ -1508,18 +1501,10 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 					}
 				}
 
-				if( !bIsPaused )
+				if( !bIsPaused && IsGameWorld())
 				{
-					// Issues level streaming load/unload requests based on local players being inside/outside level streaming volumes.
-					if (IsGameWorld())
-					{
-						ProcessLevelStreamingVolumes();
-
-						if (WorldComposition)
-						{
-							WorldComposition->UpdateStreamingState();
-						}
-					}
+					// Update world's required streaming levels
+					InternalUpdateStreamingState();
 				}
 			}
 		}

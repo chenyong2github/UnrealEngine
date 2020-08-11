@@ -55,6 +55,17 @@ UObject* StaticFindObjectFastExplicit(const UClass* ObjectClass, FName ObjectNam
 COREUOBJECT_API void GetObjectsWithOuter(const class UObjectBase* Outer, TArray<UObject *>& Results, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
+ * Performs an operation on objects with a given outer, with the possibility to break iteration
+ *
+ * @param	Outer						Outer to search for
+ * @param	Operation					Function to be called for each object, returning if we want to continue iteration or not
+ * @param	bIncludeNestedObjects		If true, then things whose outers directly or indirectly have Outer as an outer are included, these are the nested objects.
+ * @param	ExclusionFlags				Specifies flags to use as a filter for which objects to return
+ * @param	ExclusiveInternalFlags	Specifies internal flags to use as a filter for which objects to return
+ */
+COREUOBJECT_API void ForEachObjectWithOuterBreakable(const class UObjectBase* Outer, TFunctionRef<bool(UObject*)> Operation, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+
+/**
  * Performs an operation on all objects with a given outer
  *
  * @param	Outer						Outer to search for
@@ -63,7 +74,10 @@ COREUOBJECT_API void GetObjectsWithOuter(const class UObjectBase* Outer, TArray<
  * @param	ExclusionFlags				Specifies flags to use as a filter for which objects to return
  * @param	ExclusiveInternalFlags	Specifies internal flags to use as a filter for which objects to return
  */
-COREUOBJECT_API void ForEachObjectWithOuter(const class UObjectBase* Outer, TFunctionRef<void(UObject*)> Operation, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+inline void ForEachObjectWithOuter(const class UObjectBase* Outer, TFunctionRef<void(UObject*)> Operation, bool bIncludeNestedObjects = true, EObjectFlags ExclusionFlags = RF_NoFlags, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None)
+{
+	ForEachObjectWithOuterBreakable(Outer, [Operation](UObject* Object) { Operation(Object); return true; }, bIncludeNestedObjects, ExclusionFlags, ExclusionInternalFlags);
+}
 
 /**
  * Find an objects with a given name and or class within an outer

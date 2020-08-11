@@ -1,8 +1,8 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
-#ifndef RAIL_SDK_RAIL_IN_GAME_PRUCHASE_DEFINE_H
-#define RAIL_SDK_RAIL_IN_GAME_PRUCHASE_DEFINE_H
+#ifndef RAIL_SDK_RAIL_IN_GAME_PURCHASE_DEFINE_H
+#define RAIL_SDK_RAIL_IN_GAME_PURCHASE_DEFINE_H
 
 #include "rail/sdk/rail_assets_define.h"
 
@@ -23,17 +23,17 @@ enum EnumRailProductId {
 // in game purchase products discount type
 enum PurchaseProductDiscountType {
     kPurchaseProductDiscountTypeInvalid = 0,
-    kPurchaseProductDiscountTypeNone = 1,       // 没有折扣
-    kPurchaseProductDiscountTypePermanent = 2,  // 永久折扣
-    kPurchaseProductDiscountTypeTimed = 3,      // 限时折扣
+    kPurchaseProductDiscountTypeNone = 1,
+    kPurchaseProductDiscountTypePermanent = 2,
+    kPurchaseProductDiscountTypeTimed = 3,
 };
 
 // in game purchase order state
 enum PurchaseProductOrderState {
     kPurchaseProductOrderStateInvalid = 0,
-    kPurchaseProductOrderStateCreateOrderOk = 100,  // 下单成功
-    kPurchaseProductOrderStatePayOk = 200,          // 支付成功
-    kPurchaseProductOrderStateDeliverOk = 300,      // 发货成功
+    kPurchaseProductOrderStateCreateOrderOk = 100,
+    kPurchaseProductOrderStatePayOk = 200,
+    kPurchaseProductOrderStateDeliverOk = 300,
 };
 
 struct RailDiscountInfo {
@@ -45,23 +45,20 @@ struct RailDiscountInfo {
         end_time = 0;
     }
 
-    float off;                         // 折扣率，[0~1.0)之间:
-                                       //        0.15 - 15%off - 8.5折
-                                       //        0.20 - 20%off - 8折
-    float discount_price;              // 折扣后的价格,后台根据off值自动计算出来的
-
-    PurchaseProductDiscountType type;  // 折扣类型
-    uint32_t start_time;               // 限时折扣开始时间，只对限时折扣类型有效
-    uint32_t end_time;                 // 限时折扣结束时间，只对限时折扣类型有效
+    float off;
+    float discount_price;  // this value will be automatically calculated
+                           // by backend server according off parameter.
+    PurchaseProductDiscountType type;
+    uint32_t start_time;
+    uint32_t end_time;
 };
 
 // product info
-// 道具信息
 struct RailPurchaseProductExtraInfo {
     RailPurchaseProductExtraInfo() {}
 
-    RailString exchange_rule;      // 道具的合成规则
-    RailString bundle_rule;        // 道具的打包规则
+    RailString exchange_rule;
+    RailString bundle_rule;
 };
 
 struct RailPurchaseProductInfo {
@@ -71,35 +68,40 @@ struct RailPurchaseProductInfo {
         original_price = 0.0;
     }
 
-    RailProductID product_id;      // 道具ID
-    bool is_purchasable;           // 道具是否可以购买
-    RailString name;               // 道具名称
-    RailString description;        // 道具描述
-    RailString category;           // 道具类别
-    RailString product_thumbnail;  // 道具图片url
-    RailPurchaseProductExtraInfo extra_info;  // 道具附加信息
-    // 当is_purchasable=true的时候，下面三个属性有效
-    float original_price;          // 道具原价
-    RailString currency_type;      // 货币种类
-    RailDiscountInfo discount;     // 折扣信息
+    RailProductID product_id;
+    bool is_purchasable;
+    RailString name;
+    RailString description;
+    RailString category;
+    RailString product_thumbnail;
+    RailPurchaseProductExtraInfo extra_info;
+    // when is_purchasable is true, the following parameters will be available
+    float original_price;
+    RailString currency_type;
+    RailDiscountInfo discount;
 };
 
 namespace rail_event {
 
 struct RailInGamePurchaseRequestAllPurchasableProductsResponse
     : RailEvent<kRailEventInGamePurchaseAllPurchasableProductsInfoReceived> {
-    RailInGamePurchaseRequestAllPurchasableProductsResponse() { result = kFailure; }
+    RailInGamePurchaseRequestAllPurchasableProductsResponse() {
+        result = kFailure;
+    }
 
-    RailArray<RailPurchaseProductInfo> purchasable_products;  // 获取成功时有效，否则为空
+    RailArray<RailPurchaseProductInfo> purchasable_products;
 };
 
 struct RailInGamePurchaseRequestAllProductsResponse
     : RailEvent<kRailEventInGamePurchaseAllProductsInfoReceived> {
-    RailInGamePurchaseRequestAllProductsResponse() { result = kFailure; }
+    RailInGamePurchaseRequestAllProductsResponse() {
+        result = kFailure;
+    }
 
-        RailArray<RailPurchaseProductInfo> all_products;  // 获取成功时有效，否则为空
+    RailArray<RailPurchaseProductInfo> all_products;
 };
 
+// Deprecated
 struct RailInGamePurchasePurchaseProductsResponse
     : RailEvent<kRailEventInGamePurchasePurchaseProductsResult> {
     RailInGamePurchasePurchaseProductsResponse() {
@@ -108,20 +110,20 @@ struct RailInGamePurchasePurchaseProductsResponse
     }
 
     RailString order_id;
-    RailArray<RailProductItem> delivered_products;  // 发货成功时有效，记录每个物品的发货数量
+    RailArray<RailProductItem> delivered_products;
 };
 
 struct RailInGamePurchasePurchaseProductsToAssetsResponse
     : RailEvent<kRailEventInGamePurchasePurchaseProductsToAssetsResult> {
     RailInGamePurchasePurchaseProductsToAssetsResponse() {
         result = kFailure;
-        user_data = "";
     }
 
     RailString order_id;
-    RailArray<RailAssetInfo> delivered_assets;  // 发货成功时有效，记录每个物品的发货数量,id
+    RailArray<RailAssetInfo> delivered_assets;
 };
 
+// Deprecated
 struct RailInGamePurchaseFinishOrderResponse :
     RailEvent<kRailEventInGamePurchaseFinishOrderResult> {
     RailInGamePurchaseFinishOrderResponse() {
@@ -136,4 +138,4 @@ struct RailInGamePurchaseFinishOrderResponse :
 #pragma pack(pop)
 }  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_IN_GAME_PRUCHASE_DEFINE_H
+#endif  // RAIL_SDK_RAIL_IN_GAME_PURCHASE_DEFINE_H

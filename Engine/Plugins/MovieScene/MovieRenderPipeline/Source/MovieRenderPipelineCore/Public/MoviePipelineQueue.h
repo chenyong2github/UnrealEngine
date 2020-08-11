@@ -304,7 +304,7 @@ public:
 	FString Author;
 
 	/** (Optional) Shot specific information. If a shot is missing from this list it will assume to be enabled and will be rendered. */
-	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	UPROPERTY(BlueprintReadWrite, Instanced, Category = "Movie Render Pipeline")
 	TArray<UMoviePipelineExecutorShot*> ShotInfo;
 
 	/** 
@@ -411,7 +411,7 @@ public:
 	}
 
 private:
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	TArray<UMoviePipelineExecutorJob*> Jobs;
 	
 private:

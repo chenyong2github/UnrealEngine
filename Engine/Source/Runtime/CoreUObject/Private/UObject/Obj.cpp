@@ -1018,6 +1018,10 @@ bool UObject::ConditionalFinishDestroy()
 		DebugFinishDestroyed.Add(this);
 #endif
 		FinishDestroy();
+
+		// Make sure this object can't be found through any delete listeners (annotation maps etc) after it's been FinishDestroyed
+		GUObjectArray.RemoveObjectFromDeleteListeners(this);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if( DebugFinishDestroyed.Contains(this) )
 		{
@@ -1281,6 +1285,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		UClass *ObjClass = GetClass();
 		UObject* LoadOuter = GetOuter();
 		FName LoadName = GetFName();
+		UPackage* LoadPackage = GetExternalPackage();
 
 		// Make sure this object's class's data is loaded.
 		if(ObjClass->HasAnyFlags(RF_NeedLoad) )
@@ -1318,7 +1323,7 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			{
 				if (UnderlyingArchive.IsLoading())
 				{
-					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter) << SA_VALUE(TEXT("LoadPackage"), LoadPackage);
 
 					// If the name we loaded is different from the current one,
 					// unhash the object, change the name and hash it again.
@@ -1350,10 +1355,13 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 						
 						LowLevelRename(LoadName,LoadOuter);
 					}
+
+					// Set the package override
+					SetExternalPackage(LoadPackage);
 				}
 				else
 				{
-					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter);
+					Record << SA_VALUE(TEXT("LoadName"), LoadName) << SA_VALUE(TEXT("LoadOuter"), LoadOuter) << SA_VALUE(TEXT("LoadPackage"), LoadPackage);
 				}
 			}
 		}
@@ -1754,14 +1762,14 @@ void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObje
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 		else if (Prop->IsA(FArrayProperty::StaticClass()) || Prop->IsA(FMapProperty::StaticClass()) || Prop->IsA(FSetProperty::StaticClass())
-			|| Prop->IsA(FStructProperty::StaticClass()) || Prop->IsA(FObjectPropertyBase::StaticClass()))
+			|| Prop->IsA(FStructProperty::StaticClass()))
 		{
-			// Arrays/maps/sets/structs/objects are hidden, it is often too much information to display and sort
+			// Arrays/maps/sets/structs are hidden, it is often too much information to display and sort
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
 		}
 		else
 		{
-			// All other types are alphabetical
+			// All other types are alphabetical, there are special UI parsers for object properties
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 	}
@@ -3238,7 +3246,7 @@ COREUOBJECT_API TArray<const TCHAR*> ParsePropertyFlags(EPropertyFlags InFlags)
 		TEXT("CPF_InstancedReference"),
 		TEXT("0x0000000000100000"),
 		TEXT("CPF_DuplicateTransient"),
-		TEXT("CPF_SubobjectReference"),
+		TEXT("0x0000000000400000"),
 		TEXT("0x0000000000800000"),
 		TEXT("CPF_SaveGame"),	
 		TEXT("CPF_NoClear"),
@@ -4368,13 +4376,6 @@ void InitUObject()
 	
 	FCoreDelegates::NewFileAddedDelegate.AddStatic(FLinkerLoad::OnNewFileAdded);
 	FCoreDelegates::OnPakFileMounted2.AddStatic(FLinkerLoad::OnPakFileMounted);
-
-#if WITH_EDITOR
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreUObjectDelegates::StringAssetReferenceLoaded.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceLoaded);
-	FCoreUObjectDelegates::StringAssetReferenceSaving.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceSaved);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 
 	// Object initialization.
 	StaticUObjectInit();

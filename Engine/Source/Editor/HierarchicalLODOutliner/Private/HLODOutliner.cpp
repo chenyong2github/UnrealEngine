@@ -578,14 +578,9 @@ namespace HLODOutliner
 			/** Delegate to show all properties */
 			static bool IsPropertyVisible(const FPropertyAndParent& PropertyAndParent, bool bInShouldShowNonEditable)
 			{
-				if (PropertyAndParent.Property.GetFName() == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableHierarchicalLODSystem))
-				{
-					return false;
-				}
-
 				const char* CategoryNames[5] =
 				{
-					"LODSystem",
+					"HLODSystem",
 					"ProxySettings",
 					"LandscapeCulling",
 					"MeshSettings",
@@ -597,8 +592,6 @@ namespace HLODOutliner
 				{
 					if (CategoryName == CategoryNames[CategoryIndex])
 					{
-
-
 						return true;
 					}
 				}
@@ -1689,6 +1682,8 @@ namespace HLODOutliner
 	{
 		ResetCachedData();
 		FullRefresh();
+
+		SelectedLODActors.RemoveAll([InLevel](const AActor* Actor) { return Actor->GetLevel() == InLevel; });
 	}
 
 	void SHLODOutliner::OnLevelActorsAdded(AActor* InActor)
@@ -2146,12 +2141,7 @@ namespace HLODOutliner
 
 	bool SHLODOutliner::OutlinerEnabled() const
 	{
-		bool bHLODEnabled = false;
-
-		if (CurrentWorldSettings != nullptr)
-		{
-			bHLODEnabled = CurrentWorldSettings->bEnableHierarchicalLODSystem;
-		}
+		bool bHLODEnabled = CurrentWorldSettings != nullptr;
 
 		if (bHLODEnabled && CurrentWorld.IsValid())
 		{

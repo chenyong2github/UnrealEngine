@@ -35,6 +35,7 @@
 #include "SceneOutlinerModule.h"
 #include "Editor/Layers/Public/LayersModule.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
+#include "Editor/WorldPartitionEditor/Public/WorldPartitionEditorModule.h"
 #include "Toolkits/ToolkitManager.h"
 #include "PropertyEditorModule.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -54,10 +55,15 @@
 #include "Classes/EditorStyleSettings.h"
 #include "StatusBarSubsystem.h"
 #include "Widgets/Colors/SColorPicker.h"
+#include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "SourceCodeNavigation.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
+static const FName WorldBrowserHierarchyTab("WorldBrowserHierarchy");
+static const FName WorldBrowserDetailsTab("WorldBrowserDetails");
+static const FName WorldBrowserCompositionTab("WorldBrowserComposition");
+static const FName WorldPartitionEditorTab("WorldBrowserPartitionEditor");
 
 
 namespace LevelEditorConstants
@@ -179,19 +185,15 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	if (GEditor != nullptr)
 	{
 		GEditor->GetEditorWorldContext(true).AddRef(World);
-	}
 
-	// Set the initial preview feature level.
-	UEditorEngine* Editor = (UEditorEngine*)GEngine;
-	World->ChangeFeatureLevel(Editor->GetActiveFeatureLevelPreviewType());
+		// Set the initial preview feature level.
+		World->ChangeFeatureLevel(GEditor->GetActiveFeatureLevelPreviewType());
 
-	if (GEditor != nullptr)
-	{
 		LevelActorOuterChangedHandle = GEditor->OnLevelActorOuterChanged().AddSP(this, &SLevelEditor::OnLevelActorOuterChanged);
 	}
 
 	// Patch into the OnPreviewFeatureLevelChanged() delegate to swap out the current feature level with a user selection.
-	PreviewFeatureLevelChangedHandle = Editor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
+	PreviewFeatureLevelChangedHandle = GEditor->OnPreviewFeatureLevelChanged().AddLambda([this](ERHIFeatureLevel::Type NewFeatureLevel)
 		{
 			// Do one recapture if atleast one ReflectionComponent is dirty
 			// BuildReflectionCapturesOnly_Execute in LevelEditorActions relies on this happening on toggle between SM5->ES31. If you remove this, update that code!
@@ -234,11 +236,11 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 		.AutoHeight()
 		[
 			FLevelEditorToolBar::MakeLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this))
-		]
+				]
 		+SVerticalBox::Slot()
 		.Padding(0.0f, 1.0f, 0.0f, 0.0f)
 		.FillHeight( 1.0f )
-		[
+			[
 			ContentArea
 		]
 		+SVerticalBox::Slot()
@@ -304,6 +306,7 @@ SLevelEditor::~SLevelEditor()
 
 	if (GEditor)
 	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 		GEditor->OnLevelActorOuterChanged().Remove(LevelActorOuterChangedHandle);
 		GEditor->GetEditorWorldContext(true).RemoveRef(World);
 
@@ -809,7 +812,17 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 				WorldBrowserModule.CreateWorldBrowserComposition()
 			];
 	}
-	else if(TabIdentifier == LevelEditorTabIds::Sequencer)
+	else if( TabIdentifier == LevelEditorTabIds::WorldBrowserPartitionEditor )
+	{
+		FWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<FWorldPartitionEditorModule>( "WorldPartitionEditor" );
+		return SNew( SDockTab )
+			.Icon( FEditorStyle::GetBrush( "LevelEditor.Tabs.WorldPartition" ) )
+			.Label( NSLOCTEXT("LevelEditor", "WorldBrowserPartitionTabTitle", "World Partition") )
+			[
+				WorldPartitionEditorModule.CreateWorldPartitionEditor()
+			];
+	}
+	else if( TabIdentifier == TEXT("Sequencer") )
 	{
 		if (FSlateStyleRegistry::FindSlateStyle("LevelSequenceEditorStyle"))
 		{
@@ -862,6 +875,16 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("WorldSettings"), TEXT("WorldSettingsTab")))
 			[
 				WorldSettingsView.ToSharedRef()
+			];
+	}
+	else if( TabIdentifier == LevelEditorTabIds::LevelEditorEnvironmentLightingViewer)
+	{
+		FEnvironmentLightingViewerModule& EnvironmentLightingViewerModule = FModuleManager::Get().LoadModuleChecked<FEnvironmentLightingViewerModule>( "EnvironmentLightingViewer" );
+		return SNew(SDockTab)
+			.Icon(FEditorStyle::GetBrush("EditorViewport.ReflectionOverrideMode"))
+			.Label(NSLOCTEXT("LevelEditor", "EnvironmentLightingViewerTitle", "Env. Light Mixer"))
+			[
+				EnvironmentLightingViewerModule.CreateEnvironmentLightingViewer()
 			];
 	}
 	
@@ -1204,6 +1227,12 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "WorldBrowserComposition", "World Composition"))
 				.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
 				.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.WorldBrowserComposition") );
+
+			LevelEditorTabManager->RegisterTabSpawner( WorldPartitionEditorTab, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, WorldPartitionEditorTab, FString()) )
+				.SetMenuType( ETabSpawnerMenuType::Hidden )
+				.SetDisplayName(NSLOCTEXT("GridEditorTabs", "WorldPartitionEditor", "World Grid Editor"))
+				.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
+				.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.WorldPartition") );
 		}
 
 		{
@@ -1238,6 +1267,15 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "WorldSettingsTooltipText", "Open the World Settings tab, in which global properties of the level can be viewed and edited."))
 				.SetGroup( MenuStructure.GetLevelEditorCategory() )
 				.SetIcon( WorldPropertiesIcon );
+		}
+
+		{
+			const FSlateIcon EnvironmentLightingViewerIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.ReflectionOverrideMode");
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorEnvironmentLightingViewer, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorEnvironmentLightingViewer, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "EnvironmentLightingViewer", "Env. Light Mixer"))
+				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorEnvironmentLightingViewerTooltipText", "Open the Environmment Lighting tab to edit all the entities important for world lighting."))
+				.SetGroup(MenuStructure.GetLevelEditorCategory())
+				.SetIcon(EnvironmentLightingViewerIcon);
 		}
 
 		FTabSpawnerEntry& BuildAndSubmitEntry = LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorBuildAndSubmit, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorBuildAndSubmit, FString()));
@@ -1336,7 +1374,8 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 				)
 			)
 		));
-	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout);
+	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
+	const TSharedRef<FTabManager::FLayout> Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, DefaultLayout, OutputCanBeNullptr);
 
 	FLayoutExtender LayoutExtender;
 
@@ -1344,7 +1383,6 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 	Layout->ProcessExtensions(LayoutExtender);
 
 	const bool bEmbedTitleAreaContent = false;
-	const EOutputCanBeNullptr OutputCanBeNullptr = EOutputCanBeNullptr::IfNoTabValid;
 	TSharedPtr<SWidget> ContentAreaWidget = LevelEditorTabManager->RestoreFrom(Layout, OwnerWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 	// ContentAreaWidget will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
 	if (!ContentAreaWidget.IsValid())
@@ -1432,7 +1470,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-		if (!GLevelEditorModeTools().ShouldShowModeToolbox() && !GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+		if (!GLevelEditorModeTools().ShouldShowModeToolbox())
 		{
 			TSharedPtr<SDockTab> ToolboxTab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::LevelEditorToolBox);
 			if (ToolboxTab.IsValid())
@@ -1440,7 +1478,7 @@ void SLevelEditor::OnEditorModeIdChanged(const FEditorModeID& ModeChangedID, boo
 				ToolboxTab->RequestCloseTab();
 			}
 		}
-		else
+		else if (!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
 		{
 			LevelEditorTabManager->TryInvokeTab(LevelEditorTabIds::LevelEditorToolBox);
 		}
@@ -1543,9 +1581,9 @@ void SLevelEditor::OnLayoutHasChanged()
 	// ...
 }
 
-void SLevelEditor::SummonLevelViewportContextMenu()
+void SLevelEditor::SummonLevelViewportContextMenu(AActor* HitProxyActor)
 {
-	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport );
+	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport, HitProxyActor);
 }
 
 void SLevelEditor::SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption)

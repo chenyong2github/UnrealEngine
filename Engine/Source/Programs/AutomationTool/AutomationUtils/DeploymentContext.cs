@@ -237,12 +237,14 @@ public class DeploymentContext //: ProjectParams
 	public HashSet<string> RestrictedFolderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 	/// <summary>
-	/// List of directories to remap during the stage
+	/// List of directories to remap during staging, allowing moving files to different final paths
+	/// This list is read from the +RemapDirectories=(From=, To=) array in the [Staging] section of *Game.ini files
 	/// </summary>
 	public List<Tuple<StagedDirectoryReference, StagedDirectoryReference>> RemapDirectories = new List<Tuple<StagedDirectoryReference, StagedDirectoryReference>>();
 
 	/// <summary>
-	/// List of directories to allow staging, even if they contain restricted folder names 
+	/// List of directories to allow staging, even if they contain restricted folder names
+	/// This list is read from the +WhitelistDirectories=... array in the [Staging] section of *Game.ini files
 	/// </summary>
 	public List<StagedDirectoryReference> WhitelistDirectories = new List<StagedDirectoryReference>();
 

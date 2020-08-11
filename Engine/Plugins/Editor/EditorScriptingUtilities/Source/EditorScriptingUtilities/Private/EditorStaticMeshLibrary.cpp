@@ -115,6 +115,52 @@ int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh,
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, ConvertReductionOptions(ReductionOptions), bApplyChanges) : -1;
 }
 
+void UEditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions)
+{
+	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
+	{
+		StaticMeshEditorSubsystem->GetLodReductionSettings(StaticMesh, LodIndex, OutReductionOptions);
+	}
+}
+
+void UEditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions)
+{
+	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
+	{
+		StaticMeshEditorSubsystem->SetLodReductionSettings(StaticMesh, LodIndex, ReductionOptions);
+	}
+}
+
+void UEditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions)
+{
+	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
+	{
+		StaticMeshEditorSubsystem->GetLodBuildSettings(StaticMesh, LodIndex, OutBuildOptions);
+	}
+}
+
+void UEditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions)
+{
+	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
+	{
+		StaticMeshEditorSubsystem->SetLodBuildSettings(StaticMesh, LodIndex, BuildOptions);
+	}
+}
+
+int32 UEditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->ImportLOD(BaseStaticMesh, LODIndex, SourceFilename) : INDEX_NONE;
+}
+
+bool UEditorStaticMeshLibrary::ReimportAllCustomLODs(UStaticMesh* StaticMesh)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->ReimportAllCustomLODs(StaticMesh) : false;
+}
+
 int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();

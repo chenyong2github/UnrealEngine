@@ -121,6 +121,12 @@ struct FObjectDuplicationParameters
 	EDuplicateMode::Type DuplicateMode;
 
 	/**
+	 * if an object being duplicated as an assigned external package, the duplicated object will try to assign an associated package to itself.
+	 * The associated package should come from the DuplicationSeed.
+	 */
+	bool bAssignExternalPackages = true;
+	
+	/**
 	 * Optional class to specify for the destination object.
 	 * @warning: MUST BE SERIALIZATION COMPATIBLE WITH SOURCE OBJECT, AND DOES NOT WORK WELL FOR OBJECT WHICH HAVE COMPLEX COMPONENT HIERARCHIES!!!
 	 */
@@ -184,7 +190,7 @@ COREUOBJECT_API FString ResolveIniObjectsReference(const FString& ObjectReferenc
  * @param	InstancingContext		The linker instancing context used to resolve package name during instacning (i.e. when a package file is loaded into a package with a different name)
  * @return	True if the name was successfully resolved
  */
-COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API bool ResolveName(UObject*& Outer, FString& ObjectsReferenceString, bool Create, bool Throw, uint32 LoadFlags = LOAD_None, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Internal function used to possibly output an error message, taking into account the outer and LoadFlags. Returns true if a log message was emitted. */
 COREUOBJECT_API bool SafeLoadError( UObject* Outer, uint32 LoadFlags, const TCHAR* ErrorMessage);
@@ -275,7 +281,7 @@ COREUOBJECT_API bool ParseObject( const TCHAR* Stream, const TCHAR* Match, UClas
  *
  * @return The object that was loaded or found. nullptr for a failure.
  */
-COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API UObject* StaticLoadObject( UClass* Class, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr, bool bAllowObjectReconciliation = true, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Version of StaticLoadObject() that will load classes */
 COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, const TCHAR* Name, const TCHAR* Filename = nullptr, uint32 LoadFlags = LOAD_None, UPackageMap* Sandbox = nullptr);
@@ -362,7 +368,7 @@ COREUOBJECT_API void StaticTick( float DeltaTime, bool bUseFullTimeLimit = true,
  *
  * @return	Loaded package if successful, nullptr otherwise
  */
-COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, FLinkerInstancingContext* InstancingContext = nullptr);
+COREUOBJECT_API UPackage* LoadPackage( UPackage* InOuter, const TCHAR* InLongPackageName, uint32 LoadFlags, FArchive* InReaderOverride = nullptr, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /** Async package loading result */
 namespace EAsyncLoadingResult
@@ -402,7 +408,7 @@ DECLARE_DELEGATE_ThreeParams(FLoadPackageAsyncDelegate, const FName& /*PackageNa
  * @param	InPackagePriority		Loading priority
  * @return Unique ID associated with this load request (the same package can be associated with multiple IDs).
  */
-COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0);
+COREUOBJECT_API int32 LoadPackageAsync(const FString& InName, const FGuid* InGuid = nullptr, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, TAsyncLoadPriority InPackagePriority = 0, const FLinkerInstancingContext* InstancingContext = nullptr);
 
 /**
  * Asynchronously load a package and all contained objects that match context flags. Non-blocking.
@@ -676,122 +682,6 @@ bool StaticAllocateObjectErrorTests( const UClass* Class, UObject* InOuter, FNam
  */
 COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr, UPackage* ExternalPackage = nullptr);
 
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-class COREUOBJECT_API FSubobjectPtr
-{
-protected:
-
-	enum EInvalidPtr
-	{
-		InvalidPtrValue = 3,
-	};
-
-	/** Subobject pointer. */
-	UObject* Object;
-
-	/** Constructor used by TSubobjectPtr. */
-	explicit FSubobjectPtr(UObject* InObject)
-		: Object(InObject)
-	{
-	}
-
-	/** Sets the object pointer. Does runtime checks to see if the assignment is allowed.
-	 * 
-	 * @param InObject New subobject pointer.
-	 */
-	void Set(UObject* InObject);
-
-public:
-	/** Resets the internal pointer to nullptr. */
-	FORCEINLINE void Reset()
-	{
-		Set(nullptr);
-	}
-	/** Gets the pointer to the subobject. */
-	FORCEINLINE UObject* Get() const
-	{
-		return Object;
-	}
-	/** Checks if the subobject != nullptr. */
-	FORCEINLINE bool IsValid() const
-	{
-		return !!Object && Object != (UObject*)InvalidPtrValue;
-	}
-	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE explicit operator bool() const
-	{
-		return IsValid();
-	}
-	/** Compare against nullptr */
-	FORCEINLINE bool operator==(TYPE_OF_NULL Other) const
-	{
-		return !IsValid();
-	}
-	FORCEINLINE bool operator!=(TYPE_OF_NULL Other) const
-	{
-		return IsValid();
-	}
-
-	FORCEINLINE static bool IsInitialized(const UObject* Ptr)
-	{
-		return (Ptr != (UObject*)InvalidPtrValue);
-	}
-};
-
-template<> struct TIsPODType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsZeroConstructType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsWeakPointerType<FSubobjectPtr> { enum { Value = false }; };
-
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-template <class SubobjectType>
-class TSubobjectPtrDeprecated : public FSubobjectPtr
-{
-public:
-	/** Internal constructors. */
-	TSubobjectPtrDeprecated(SubobjectType* InObject)
-		: FSubobjectPtr(InObject)
-	{}
-	TSubobjectPtrDeprecated& operator=(const TSubobjectPtrDeprecated& Other)
-	{ 
-		Set(Other.Object);
-		return *this; 
-	}
-
-	/** Default constructor. */
-	TSubobjectPtrDeprecated()
-		: FSubobjectPtr((UObject*)FSubobjectPtr::InvalidPtrValue)
-	{
-		static_assert(sizeof(TSubobjectPtrDeprecated) == sizeof(UObject*), "TSuobjectPtr should equal pointer size.");
-	}
-	/** Copy constructor */
-	template <class DerivedSubobjectType>
-	TSubobjectPtrDeprecated(TSubobjectPtrDeprecated<DerivedSubobjectType>& Other)
-		: FSubobjectPtr(Other.Object)
-	{
-		static_assert(TPointerIsConvertibleFromTo<DerivedSubobjectType, const SubobjectType>::Value, "Subobject pointers must be compatible.");
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* Get() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* operator->() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE operator SubobjectType*() const
-	{
-		return (SubobjectType*)Object;
-	}
-};
-
-template<class T> struct TIsPODType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsZeroConstructType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsWeakPointerType< TSubobjectPtrDeprecated<T> > { enum { Value = false }; };
-
-
 /**
  * Internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
@@ -865,29 +755,6 @@ public:
 		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 
-	/**
-	 * Create optional component or subobject. Optional subobjects may not get created
-	 * when a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
-	 * @param	TReturnType					class of return type, all overrides must be of this type
-	 * @param	Outer						outer to construct the subobject in
-	 * @param	SubobjectName				name of the new component
-	 * @param bTransient		true if the component is being assigned to a transient property
-	 */
-
-	/**
-	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
-	 * @param	TReturnType					Class of return type, all overrides must be of this type
-	 * @param	SubobjectName				Name of the new component
-	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
-	 */
-	template<class TReturnType>
-	UE_DEPRECATED(4.23, "CreateAbstract did not work as intended and has been deprecated in favor of CreateDefaultObject")
-	TReturnType* CreateAbstractDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
-	{
-		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
-	}
-
 	/** 
 	* Create a component or subobject 
 	* @param TReturnType class of return type, all overrides must be of this type 
@@ -936,13 +803,6 @@ public:
 	 * @param bIsTransient		true if the component is being assigned to a transient property
 	 */
 	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const;
-
-	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
-	{
-		return CreateDefaultSubobject(Outer, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
-	}
-
 
 	/**
 	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
@@ -1208,12 +1068,13 @@ COREUOBJECT_API void CheckIsClassChildOf_Internal(const UClass* Parent, const UC
  * @param	Template	the object to use for initializing the new object.  If not specified, the class's default object will be used
  * @param	bCopyTransientsFromClassDefaults	if true, copy transient from the class defaults instead of the pass in archetype ptr (often these are the same)
  * @param	InInstanceGraph						contains the mappings of instanced objects and components to their templates
+ * @param	ExternalPackage						Assign an external Package to the created object if non-null
  *
  * @return	a pointer of type T to a new object of the specified class
  */
 template< class T >
 FUNCTION_NON_NULL_RETURN_START
-	T* NewObject(UObject* Outer, const UClass* Class, FName Name = NAME_None, EObjectFlags Flags = RF_NoFlags, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, FObjectInstancingGraph* InInstanceGraph = nullptr)
+	T* NewObject(UObject* Outer, const UClass* Class, FName Name = NAME_None, EObjectFlags Flags = RF_NoFlags, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, FObjectInstancingGraph* InInstanceGraph = nullptr, UPackage* ExternalPackage = nullptr)
 FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
@@ -1226,7 +1087,7 @@ FUNCTION_NON_NULL_RETURN_END
 	CheckIsClassChildOf_Internal(T::StaticClass(), Class);
 #endif
 
-	return static_cast<T*>(StaticConstructObject_Internal(Class, Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph));
+	return static_cast<T*>(StaticConstructObject_Internal(Class, Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph, false/*bAssumeTemplateIsArchetype*/, ExternalPackage));
 }
 
 template< class T >
@@ -2121,18 +1982,6 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	/** Called when trying to figure out if a UObject is a primary asset, if it doesn't implement GetPrimaryAssetId itself */
 	DECLARE_DELEGATE_RetVal_OneParam(FPrimaryAssetId, FGetPrimaryAssetIdForObject, const UObject*);
 	static FGetPrimaryAssetIdForObject GetPrimaryAssetIdForObject;
-
-	DECLARE_DELEGATE_OneParam(FSoftObjectPathLoaded, const FString&);
-	UE_DEPRECATED(4.17, "StringAssetReferenceLoaded is deprecated, call FSoftObjectPath::PostLoadPath instead")
-	static FSoftObjectPathLoaded StringAssetReferenceLoaded;
-
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FSoftObjectPathSaving, FString const& /*SavingAssetLongPathname*/);
-	UE_DEPRECATED(4.17, "StringAssetReferenceSaving is deprecated, call FSoftObjectPath::PreSavePath instead")
-	static FSoftObjectPathSaving StringAssetReferenceSaving;
-
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRedirectorFollowed, const FString&, UObject*);
-	UE_DEPRECATED(4.17, "RedirectorFollowed is deprecated, FixeupRedirects was replaced with ResavePackages -FixupRedirect")
-	static FOnRedirectorFollowed RedirectorFollowed;
 
 	/** Called during cooking to see if a specific package should be cooked for a given target platform */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FShouldCookPackageForPlatform, const UPackage*, const ITargetPlatform*);

@@ -61,7 +61,6 @@ FLazyName FMapErrors::RepairedPaintedVertexColors(TEXT("RepairedPaintedVertexCol
 FLazyName FMapErrors::LODActorMissingStaticMesh(TEXT("LODActorMissingStaticMesh"));
 FLazyName FMapErrors::LODActorMissingActor(TEXT("LODActorMissingActor"));
 FLazyName FMapErrors::LODActorNoActorFound(TEXT("LODActorNoActor"));
-FLazyName FMapErrors::HLODSystemNotEnabled(TEXT("HLODSystemNotEnabled"));
 FLazyName FMapErrors::InvalidVirtualTextureUsage(TEXT("InvalidVirtualTextureUsage"));
 
 namespace

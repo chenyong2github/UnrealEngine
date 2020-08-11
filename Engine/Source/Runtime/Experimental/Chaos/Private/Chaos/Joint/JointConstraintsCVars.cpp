@@ -24,3 +24,6 @@ FAutoConsoleVariableRef CVarChaosJointVelProjectionScale(TEXT("p.Chaos.Joint.Vel
 
 bool bChaos_Joint_DisableSoftLimits = false;
 FAutoConsoleVariableRef CVarChaosJointDisableSoftLimits(TEXT("p.Chaos.Joint.DisableSoftLimits"), bChaos_Joint_DisableSoftLimits, TEXT("Disable soft limits (for debugging only)"));
+
+bool bChaos_Joint_EnableMatrixSolve = false;
+FAutoConsoleVariableRef CVarChaosJointEnableMatrixSolve(TEXT("p.Chaos.Joint.EnableMatrixSolve"), bChaos_Joint_EnableMatrixSolve, TEXT(""));

@@ -485,7 +485,12 @@ UMaterialFunction* FDatasmithImporter::ImportMaterialFunction(FDatasmithImportCo
 UMaterialFunction* FDatasmithImporter::FinalizeMaterialFunction(UObject* SourceMaterialFunction, const TCHAR* MaterialFunctionsFolderPath,
 	UMaterialFunction* ExistingMaterialFunction, TMap< UObject*, UObject* >* ReferencesToRemap)
 {
-	return Cast< UMaterialFunction >(FDatasmithImporterImpl::FinalizeAsset(SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap));
+	UMaterialFunction* MaterialFunction = Cast< UMaterialFunction >( FDatasmithImporterImpl::FinalizeAsset( SourceMaterialFunction, MaterialFunctionsFolderPath, ExistingMaterialFunction, ReferencesToRemap ) );
+	
+	MaterialFunction->PreEditChange( nullptr );
+	MaterialFunction->PostEditChange();
+
+	return MaterialFunction;
 }
 
 UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext& ImportContext,
@@ -1042,48 +1047,48 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		// Setup the actor to allow modifications.
 		FDatasmithImporterImpl::FScopedFinalizeActorChanges ScopedFinalizedActorChanges(DestinationActor, ImportContext);
 		
-		ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
+	ReferencesToRemap.Add( &SourceActor ) = DestinationActor;
 
 		TArray< FDatasmithImporterImpl::FMigratedTemplatePairType > MigratedTemplates = FDatasmithImporterImpl::MigrateTemplates(
-			&SourceActor,
-			ExistingActor,
-			&ReferencesToRemap,
-			true
-		);
+		&SourceActor,
+		ExistingActor,
+		&ReferencesToRemap,
+		true
+	);
 
-		// Copy actor data
-		{
-			TArray< uint8 > Bytes;
+	// Copy actor data
+	{
+		TArray< uint8 > Bytes;
 			FDatasmithImporterImpl::FActorWriter ObjectWriter( &SourceActor, Bytes );
-			FObjectReader ObjectReader( DestinationActor, Bytes );
-		}
+		FObjectReader ObjectReader( DestinationActor, Bytes );
+	}
 
 		FDatasmithImporterImpl::FixReferencesForObject( DestinationActor, ReferencesToRemap );
 
 		FDatasmithImporterImpl::FinalizeComponents( ImportContext, SourceActor, *DestinationActor, ReferencesToRemap );
 
-		// The templates for the actor need to be applied after the components were created.
+	// The templates for the actor need to be applied after the components were created.
 		FDatasmithImporterImpl::ApplyMigratedTemplates( MigratedTemplates, DestinationActor );
 
-		// Restore hierarchy
-		for ( AActor* Child : Children )
-		{
-			Child->AttachToActor( DestinationActor, FAttachmentTransformRules::KeepWorldTransform );
-		}
+	// Restore hierarchy
+	for ( AActor* Child : Children )
+	{
+		Child->AttachToActor( DestinationActor, FAttachmentTransformRules::KeepWorldTransform );
+	}
 
-		// Hotfix for UE-69555
-		TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> HierarchicalInstancedStaticMeshComponents;
-		DestinationActor->GetComponents(HierarchicalInstancedStaticMeshComponents);
-		for (UHierarchicalInstancedStaticMeshComponent* HierarchicalInstancedStaticMeshComponent : HierarchicalInstancedStaticMeshComponents )
-		{
-			HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
-		}
+	// Hotfix for UE-69555
+	TInlineComponentArray<UHierarchicalInstancedStaticMeshComponent*> HierarchicalInstancedStaticMeshComponents;
+	DestinationActor->GetComponents(HierarchicalInstancedStaticMeshComponents);
+	for (UHierarchicalInstancedStaticMeshComponent* HierarchicalInstancedStaticMeshComponent : HierarchicalInstancedStaticMeshComponents )
+	{
+		HierarchicalInstancedStaticMeshComponent->BuildTreeIfOutdated( true, true );
+	}
 
-		if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
-		{
-			FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
-			Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
-		}
+	if ( ALandscape* Landscape = Cast< ALandscape >( DestinationActor ) )
+	{
+		FPropertyChangedEvent MaterialPropertyChangedEvent( FindFieldChecked< FProperty >( Landscape->GetClass(), FName("LandscapeMaterial") ) );
+		Landscape->PostEditChangeProperty( MaterialPropertyChangedEvent );
+	}
 	}
 
 	return DestinationActor;

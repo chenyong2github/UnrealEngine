@@ -47,6 +47,14 @@ namespace ContentBrowserFileData
 
 	CONTENTBROWSERFILEDATASOURCE_API bool EditFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads);
 
+	CONTENTBROWSERFILEDATASOURCE_API bool CanPreviewItem(const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg);
+
+	CONTENTBROWSERFILEDATASOURCE_API bool CanPreviewFileItem(const FContentBrowserFileItemDataPayload& InFilePayload, FText* OutErrorMsg);
+
+	CONTENTBROWSERFILEDATASOURCE_API bool PreviewItems(const UContentBrowserDataSource* InOwnerDataSource, TArrayView<const FContentBrowserItemData> InItems);
+
+	CONTENTBROWSERFILEDATASOURCE_API bool PreviewFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads);
+
 	CONTENTBROWSERFILEDATASOURCE_API bool CanDuplicateItem(const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg);
 
 	CONTENTBROWSERFILEDATASOURCE_API bool CanDuplicateFileItem(const FContentBrowserFileItemDataPayload& InFilePayload, FText* OutErrorMsg);

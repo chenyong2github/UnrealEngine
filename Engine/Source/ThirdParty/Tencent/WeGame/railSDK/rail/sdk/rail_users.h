@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_USERS_H
@@ -33,7 +33,6 @@ class IRailUsersHelper {
     //                         with AsyncGetInviteCommandLine.(may be deprecated in the future)
     //
     //                  kRailInviteTypeRoom(invite_type)  command line must has
-    //                      " --rail_connect_to_zoneid=[zone id]",
     //                      " --rail_connect_to_roomid=[room id]"," --rail_room_password=[password]"
     //                      parameters other than these is permitted if added to the end of these.
     //                      The parameter set by the called is directly passed when launch game.

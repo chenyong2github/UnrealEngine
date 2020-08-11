@@ -37,6 +37,7 @@ class AGroupActor : public AActor
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 	virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
+	virtual bool IsEditorOnly() const override { return true; }
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
@@ -44,6 +45,9 @@ class AGroupActor : public AActor
 	virtual void InvalidateLightingCacheDetailed(bool bTranslationOnly) override;
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
+	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
+	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::None; }
 	//~ End AActor Interface
 
 	// @todo document

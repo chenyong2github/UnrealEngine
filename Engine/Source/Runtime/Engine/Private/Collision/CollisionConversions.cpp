@@ -148,7 +148,7 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 
 		//Normal case where we hit a body
 		OutResult.Item = BodyInst->InstanceBodyIndex;
-		const UBodySetup* BodySetup = BodyInst->BodySetup.Get();	//this data should be immutable at runtime so ok to check from worker thread.
+		const UBodySetupCore* BodySetup = BodyInst->BodySetup.Get();	//this data should be immutable at runtime so ok to check from worker thread.
 		if (BodySetup)
 		{
 			OutResult.BoneName = BodySetup->BoneName;

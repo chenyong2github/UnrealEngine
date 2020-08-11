@@ -178,9 +178,13 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 
 				// Some field types may be replaced after conversion (e.g. converted user-defined enum types).
 				const UClass* FieldClass = Field->GetClass();
-				if (const UClass* ReplacedClass = IBlueprintNativeCodeGenCore::Get()->FindReplacedClassForObject(Field, NativizationOptions))
+				const IBlueprintNativeCodeGenCore* NativeCodeGenCore = IBlueprintNativeCodeGenCore::Get();
+				if (ensureMsgf(NativeCodeGenCore, TEXT("The Blueprint native C++ code generation module has not been properly loaded and/or initialized.")))
 				{
-					FieldClass = ReplacedClass;
+					if (const UClass* ReplacedClass = NativeCodeGenCore->FindReplacedClassForObject(Field, NativizationOptions))
+					{
+						FieldClass = ReplacedClass;
+					}
 				}
 
 				return FString::Printf(TEXT("FindFieldChecked<%s>(%s, TEXT(\"%s\"))")
@@ -432,6 +436,31 @@ FString FEmitterLocalContext::ExportCppDeclaration(const FProperty* Property, EE
 	else
 	{
 		ActualCppType = GetCppTypeFromProperty(Property, ActualExtendedCppType);
+	}
+
+	if (const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>(Property))
+	{
+		// Interface parameters are a special case; we have to consider both native C++ API overrides (from a native parent class) and non-native
+		// functions that may include an interface parameter. First, there is some legacy code in FProperty::ExportCppDeclaration() that traces
+		// back to UE3/UnrealScript, which enforces that all interface parameters should be declared as 'const' even if 'CPF_ConstParm' is not set.
+		// But for Blueprint (non-native) APIs, these are not truly "constant" terms, since we don't support true 'const ref' input pins. We
+		// can get around that easily enough by passing 'CPPF_NoConst' in the export flags to override the legacy behavior if the 'CPF_ConstParm'
+		// flag is not also set; however, if the API is an override inherited from a native C++ parent class, we need to match the original C++
+		// declaration in the parent class. Since the 'CPF_ConstParm' flag will not be set on the override (again, due to not supporting a true
+		// 'const ref' input term), to get around this, nativization has UHT also set 'NativeConst' metadata, which does get carried through the
+		// compilation phase (also see FBlueprintCompilerCppBackend::TermToText, where we also need to const_cast to get around the native decl).
+		// 
+		// Thus, here we append 'CPPF_NoConst' to disable the legacy path in ExportCppDeclaration(), except in either of the following cases:
+		//
+		// a) 'CPF_ConstParm' is set on the property, OR
+		// b) 'NativeConst' is set on the property's metadata
+		//
+		// We don't need to worry about inner types on container properties because the legacy path in FProperty::ExportCppDeclaration() won't
+		// kick in for that case, so that's why we aren't also checking for 'NativeConstTemplateArg' metadata here on e.g. TArray-type arguments.
+		if (bIsParameter && !InterfaceProperty->HasAnyPropertyFlags(CPF_ConstParm) && !InterfaceProperty->HasMetaData(FName(TEXT("NativeConst"))))
+		{
+			ExportCPPFlags |= CPPF_NoConst;
+		}
 	}
 
 	FStringOutputDevice Out;
@@ -2065,8 +2094,20 @@ FString FEmitHelper::AccessInaccessibleProperty(FEmitterLocalContext& EmitterCon
 	const FString TypeDeclaration = (!CustomTypeDeclaration.IsEmpty() ? MoveTemp(CustomTypeDeclaration)
 									: EmitterContext.ExportCppDeclaration(Property, EExportedDeclaration::Member, CppTemplateTypeFlags, FEmitterLocalContext::EPropertyNameInDeclaration::Skip));
 	
+	// Types marked as 'NoExport' do not have a generated body, and thus will not have a PPO function definition.
+	bool bOwnerIsNoExportType = false;
+	const UStruct* PropertyOwner = Property->GetOwnerStruct();
+	if (const UClass* OwnerAsClass = Cast<UClass>(PropertyOwner))
+	{
+		bOwnerIsNoExportType = OwnerAsClass->HasAnyClassFlags(CLASS_NoExport);
+	}
+	else if (const UScriptStruct* OwnerAsScriptStruct = Cast<UScriptStruct>(PropertyOwner))
+	{
+		bOwnerIsNoExportType = (OwnerAsScriptStruct->StructFlags & STRUCT_NoExport) != 0;
+	}
+
 	// Private Property Offset functions are generated only for private/protected properties - see PrivatePropertiesOffsetGetters in CodeGenerator.cpp
-	const bool bHasPPO = Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected); 
+	const bool bHasPPO = Property->HasAnyPropertyFlags(CPF_NativeAccessSpecifierPrivate | CPF_NativeAccessSpecifierProtected) && !bOwnerIsNoExportType; 
 	if (!bHasPPO)
 	{
 		//TODO: if property is inaccessible due to const specifier, use const_cast
@@ -2081,7 +2122,6 @@ FString FEmitHelper::AccessInaccessibleProperty(FEmitterLocalContext& EmitterCon
 			, StaticArrayIdx);
 	}
 
-	const UStruct* PropertyOwner = Property->GetOwnerStruct();
 	const FString OwnerStructName = FEmitHelper::GetCppName(PropertyOwner);
 	const FString PropertyName = FEmitHelper::GetCppName(Property);
 	const FString ArrayParams = (StaticArrayIdx != 0)
@@ -2175,7 +2215,7 @@ void FBackendHelperStaticSearchableValues::EmitFunctionDefinition(FEmitterLocalC
 	if(ensure(OriginalSourceClass))
 	{
 		FAssetData ClassAsset(OriginalSourceClass);
-		for (const FName TagPropertyName : FSearchableValuesdHelper_StaticData::Get().TagPropertyNames)
+		for (const FName& TagPropertyName : FSearchableValuesdHelper_StaticData::Get().TagPropertyNames)
 		{
 			const FName FoundValue = ClassAsset.GetTagValueRef<FName>(TagPropertyName);
 			if (!FoundValue.IsNone())
@@ -2372,6 +2412,8 @@ private:
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInt32Range>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFloatInterval>::Get());
 		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FInt32Interval>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFrameNumber>::Get());
+		MAP_BASE_STRUCTURE_ACCESS(TBaseStructure<FFrameTime>::Get());
 
 		{
 			// Cache the known set of noexport types that are known to be compatible with emitting native code to access fields directly.

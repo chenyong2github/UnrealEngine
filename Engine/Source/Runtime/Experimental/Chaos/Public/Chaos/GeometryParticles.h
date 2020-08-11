@@ -259,6 +259,13 @@ namespace Chaos
 		{
 		}
 	};
+
+
+	FORCEINLINE uint32 GetTypeHash(const FParticleID& Unique)
+	{
+		return ::GetTypeHash(Unique.GlobalID);
+	}
+
 	//Used for down casting when iterating over multiple SOAs.
 	enum class EParticleType : uint8
 	{

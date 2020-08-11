@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScene3DConstraintTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieScene3DPathTrack.generated.h"
 
 /**
@@ -13,6 +14,7 @@
 UCLASS(MinimalAPI)
 class UMovieScene3DPathTrack
 	: public UMovieScene3DConstraintTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -20,7 +22,7 @@ public:
 
 	// UMovieScene3DConstraintTrack interface
 
-	virtual void AddConstraint(FFrameNumber Time, int32 Duration, const FName SocketName, const FName ComponentName, const FMovieSceneObjectBindingID& ConstraintBindingID) override;
+	virtual UMovieSceneSection* AddConstraint(FFrameNumber Time, int32 Duration, const FName SocketName, const FName ComponentName, const FMovieSceneObjectBindingID& ConstraintBindingID) override;
 
 public:
 

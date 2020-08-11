@@ -36,8 +36,18 @@ public:
 	 * NOTE: this is called on multiple threads, and should be written in a way that handles this safely!
 	 * 
 	 * @param Connection the connection to validate
+	 * @return True if the request validated successfully, false if not
 	 */
 	virtual bool ValidateRequestCertificates(IWinHttpConnection& Connection);
+
+	/**
+	 * Release any resources that were pinned for this request.
+	 *
+	 * NOTE: this is a no-op on Windows builds, but does things on other platforms.
+	 *
+	 * @param Connection The connection to release resources for
+	 */
+	virtual void ReleaseRequestResources(IWinHttpConnection& Connection);
 
 	//~ Begin FHttpManager Interface
 	virtual void OnBeforeFork() override;

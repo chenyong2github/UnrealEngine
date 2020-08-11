@@ -41,6 +41,11 @@ private:
 	const FSlateBrush* GetSummonCompositionBrush() const;
 
 	/**  */
+	EVisibility GetPartitionEditorButtonVisibility() const;
+	FReply OnSummonPartitionEditor();
+	const FSlateBrush* GetSummonPartitionEditorBrush() const;
+
+	/**  */
 	TSharedRef<SWidget> GetFileButtonContent();
 
 private:

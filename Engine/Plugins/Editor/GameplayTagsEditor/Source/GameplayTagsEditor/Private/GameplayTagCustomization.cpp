@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "IDetailChildrenBuilder.h"
 #include "GameplayTagsEditorModule.h"
 #include "Widgets/Input/SHyperlink.h"
 
@@ -239,6 +240,38 @@ void FGameplayTagCustomization::BuildEditableContainerList()
 FText FGameplayTagCustomization::SelectedTag() const
 {
 	return FText::FromString(*TagName);
+}
+
+TSharedRef<IPropertyTypeCustomization> FGameplayTagCreationWidgetHelperDetails::MakeInstance()
+{
+	return MakeShareable(new FGameplayTagCreationWidgetHelperDetails());
+}
+
+void FGameplayTagCreationWidgetHelperDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+
+}
+
+void FGameplayTagCreationWidgetHelperDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	FString FilterString = UGameplayTagsManager::Get().GetCategoriesMetaFromPropertyHandle(StructPropertyHandle);
+	const float MaxPropertyWidth = 480.0f;
+	const float MaxPropertyHeight = 240.0f;
+
+	StructBuilder.AddCustomRow(NSLOCTEXT("GameplayTagReferenceHelperDetails", "NewTag", "NewTag"))
+		.ValueContent()
+		.MaxDesiredWidth(MaxPropertyWidth)
+		[
+			SAssignNew(TagWidget, SGameplayTagWidget, TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum>())
+			.Filter(FilterString)
+		.NewTagName(FilterString)
+		.MultiSelect(false)
+		.GameplayTagUIMode(EGameplayTagUIMode::ManagementMode)
+		.MaxHeight(MaxPropertyHeight)
+		.NewTagControlsInitiallyExpanded(true)
+		//.OnTagChanged(this, &FGameplayTagsSettingsCustomization::OnTagChanged)
+		];
+
 }
 
 #undef LOCTEXT_NAMESPACE

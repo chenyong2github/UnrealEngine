@@ -13,11 +13,11 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Rendering/RenderingCommon.h"
 #include "Widgets/SWindow.h"
-#include "Input/HittestGrid.h"
 
 class FActiveTimerHandle;
 class FPaintArgs;
 class FSlateWindowElementList;
+class ICustomHitTestPath;
 
 class SLATE_API SViewport
 	: public SCompoundWidget

@@ -131,6 +131,9 @@ public:
 	 */
 	int64 GetLastInsertRowId() const;
 
+	/** Performs a quick check on the integrity of the database, returns true if everything is ok. */
+	bool PerformQuickIntegrityCheck() const;
+
 private:
 	friend class FSQLitePreparedStatement;
 

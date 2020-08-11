@@ -8,6 +8,8 @@
 #include "Math/Range.h"
 #include "Math/RangeBound.h"
 
+namespace UE
+{
 namespace MovieScene
 {
 
@@ -190,6 +192,7 @@ inline FFrameTime ClampToDiscreteRange(FFrameTime InTime, const TRange<FFrameNum
 
 
 } // namespace MovieScene
+} // namespace UE
 
 inline FString LexToString(const TRange<FFrameNumber>& InRange)
 {

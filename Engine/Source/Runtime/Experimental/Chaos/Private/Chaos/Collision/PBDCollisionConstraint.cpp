@@ -2,6 +2,8 @@
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/ParticleHandle.h"
 
+//PRAGMA_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	FString FCollisionConstraintBase::ToString() const
@@ -31,11 +33,31 @@ namespace Chaos
 		return false;
 	}
 
-	void FCollisionConstraintsArray::SortConstraints()
+	void FRigidBodyMultiPointContactConstraint::InitManifoldTolerance(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal InPositionTolerance, const FReal InRotationTolerance)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_SortConstraints);
-		SinglePointConstraints.Sort();
-		SinglePointSweptConstraints.Sort();
-		MultiPointConstraints.Sort();
+		InitialPositionSeparation = ParticleTransform1.GetTranslation() - ParticleTransform0.GetTranslation();
+		InitialRotationSeparation = FRotation3::CalculateAngularDelta(ParticleTransform0.GetRotation(), ParticleTransform1.GetRotation());
+		PositionToleranceSq = InPositionTolerance * InPositionTolerance;
+		RotationToleranceSq = InRotationTolerance * InRotationTolerance;
+		bUseManifoldTolerance = true;
+	}
+
+	bool FRigidBodyMultiPointContactConstraint::IsManifoldWithinToleranceImpl(const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1)
+	{
+		const FVec3 PositionSeparation = ParticleTransform1.GetTranslation() - ParticleTransform0.GetTranslation();
+		const FVec3 PositionDelta = PositionSeparation - InitialPositionSeparation;
+		if (PositionDelta.SizeSquared() > PositionToleranceSq)
+		{
+			return false;
+		}
+
+		const FVec3 RotationSeparation = FRotation3::CalculateAngularDelta(ParticleTransform0.GetRotation(), ParticleTransform1.GetRotation());
+		const FVec3 RotationDelta = RotationSeparation - InitialRotationSeparation;
+		if (RotationDelta.SizeSquared() > RotationToleranceSq)
+		{
+			return false;
+		}
+
+		return true;
 	}
 }

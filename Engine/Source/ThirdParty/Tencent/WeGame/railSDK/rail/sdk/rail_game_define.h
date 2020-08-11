@@ -1,4 +1,4 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_GAME_DEFINE_H
@@ -20,6 +20,7 @@ enum EnumRailGamePlayingState {
     kRailGamePlayingStateUnknow = 0,
     kRailGamePlayingStateLaunched = 1,  // just start game client, not actually playing the game
     kRailGamePlayingStatePlaying = 2,   // playing the game
+    kRailGamePlayingStateStopped = 3,   // game process stopped
 
     kRailGamePlayingStateGameDefinePlayingState = 100,  // you could define your own game state
 };

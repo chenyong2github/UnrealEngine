@@ -44,6 +44,8 @@ class SViewport;
 class FSlateUser;
 class FSlateVirtualUserHandle;
 
+enum class ESlateDebuggingInputEvent : uint8;
+
 /** A Delegate for querying whether source code access is possible */
 DECLARE_DELEGATE_RetVal(bool, FQueryAccessSourceCode);
 
@@ -248,8 +250,6 @@ public:
 	/** Set the slate sound provider that the slate app should use. */
 	virtual void InitializeSound( const TSharedRef<ISlateSoundDevice>& InSlateSoundDevice );
 
-	void DestroyRenderer();
-
 	/** Play SoundToPlay. Interrupt previous sound if one is playing. */
 	void PlaySound( const FSlateSound& SoundToPlay, int32 UserIndex = 0 ) const;
 
@@ -272,6 +272,11 @@ public:
 	 * @param MouseCoordinate		The new position.
 	 */
 	void SetCursorPos( const FVector2D& MouseCoordinate );
+
+	/** 
+	 *	Updates the cursor user's cursor to either the platform cursor or fake cursor
+	 */
+	void UsePlatformCursorForCursorUser(bool bUsePlatformCursor);
 
 	/** Polls game devices for input */
 	void PollGameDeviceState();
@@ -454,6 +459,9 @@ public:
 	/** Event after slate application ticks. */
 	FSlateTickEvent& OnPostTick()  { return PostTickEvent; }
 
+	/** Event when the application is about to shutdown. */
+	FSimpleMulticastDelegate& OnPreShutdown() { return PreShutdownEvent; }
+
 	/** Delegate for when a new user has been registered. */
 	DECLARE_EVENT_OneParam(FSlateApplication, FUserRegisteredEvent, int32);
 	FUserRegisteredEvent& OnUserRegistered() { return UserRegisteredEvent; }
@@ -615,6 +623,11 @@ public:
 	/**
 	 * Mouse capture
 	 */
+
+	 /**
+	  * @param bAllow If true, mouse pointer capture will be processed even when the application is not active or widget is not a virtual window
+	  */
+	void SetHandleDeviceInputWhenApplicationNotActive(bool bAllow) { bHandleDeviceInputWhenApplicationNotActive = bAllow; }
 
 	/** returning platform-specific value designating window that captures mouse, or nullptr if mouse isn't captured */
 	virtual void* GetMouseCaptureWindow() const;
@@ -974,6 +987,11 @@ protected:
 
 	TSharedRef<FNavigationConfig> GetRelevantNavConfig(int32 UserIndex) const;
 
+	/** Called when the slate application is being shut down. */
+	void OnShutdown();
+
+	void DestroyRenderer();
+
 	/** Advances time for the application. */
 	void TickTime();
 
@@ -1174,9 +1192,6 @@ public:
 	void SetNavigationConfigFactory(TFunction<TSharedRef<FNavigationConfig>()> InNavigationConfigFactory) { }
 
 public:
-
-	/** Called when the slate application is being shut down. */
-	void OnShutdown();
 
 	/** Closes all active windows immediately */
 	void CloseAllWindowsImmediately();
@@ -1775,6 +1790,9 @@ private:
 	/**For desktop platforms that the touch move event be called when this variable is true */
 	bool bIsFakingTouched;
 
+	/** Force Mouse Pointer Capture to always occur even when the application is not active or widget is not a virtual window */
+	bool bHandleDeviceInputWhenApplicationNotActive;
+
 	/** Delegate for when a key down event occurred but was not handled in any other way by ProcessKeyDownMessage */
 	FOnKeyEvent UnhandledKeyDownEventHandler;
 
@@ -1824,6 +1842,9 @@ private:
 
 	/** Delegate for post slate Tick */
 	FSlateTickEvent PostTickEvent;
+
+	/** Delegate for pre shutdown */
+	FSimpleMulticastDelegate PreShutdownEvent;
 
 	/** Delegate for when a new user has been registered. */
 	FUserRegisteredEvent UserRegisteredEvent;
@@ -1890,7 +1911,7 @@ private:
 		int32 Find(TSharedPtr<IInputProcessor> InputProcessor) const;
 
 	private:
-		bool PreProcessInput(TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
+		bool PreProcessInput(ESlateDebuggingInputEvent InputEvent, TFunctionRef<bool(IInputProcessor&)> InputProcessFunc);
 
 		void AddInternal(TSharedPtr<IInputProcessor> InputProcessor, const int32 Index);
 

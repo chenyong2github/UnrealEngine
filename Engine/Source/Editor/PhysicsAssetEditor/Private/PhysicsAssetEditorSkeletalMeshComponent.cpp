@@ -39,34 +39,36 @@ UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshCompone
 	, InfluenceLineLength(2.0f)
 	, InfluenceLineColor(0, 255, 0)
 {
+	if (!HasAnyFlags(RF_DefaultSubObject | RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		// Body materials
+		UMaterialInterface* BaseElemSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_ElemSelectedMaterial.PhAT_ElemSelectedMaterial"), NULL, LOAD_None, NULL);
+		ElemSelectedMaterial = UMaterialInstanceDynamic::Create(BaseElemSelectedMaterial, GetTransientPackage());
+		check(ElemSelectedMaterial);
 
-	// Body materials
-	UMaterialInterface* BaseElemSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_ElemSelectedMaterial.PhAT_ElemSelectedMaterial"), NULL, LOAD_None, NULL);
-	ElemSelectedMaterial = UMaterialInstanceDynamic::Create(BaseElemSelectedMaterial, GetTransientPackage());
-	check(ElemSelectedMaterial);
+		UMaterialInterface* BaseBoneSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_BoneSelectedMaterial.PhAT_BoneSelectedMaterial"), NULL, LOAD_None, NULL);
+		BoneSelectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneSelectedMaterial, GetTransientPackage());
+		check(BoneSelectedMaterial);
 
-	UMaterialInterface* BaseBoneSelectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_BoneSelectedMaterial.PhAT_BoneSelectedMaterial"), NULL, LOAD_None, NULL);
-	BoneSelectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneSelectedMaterial, GetTransientPackage());
-	check(BoneSelectedMaterial);
+		BoneMaterialHit = UMaterial::GetDefaultMaterial(MD_Surface);
+		check(BoneMaterialHit);
 
-	BoneMaterialHit = UMaterial::GetDefaultMaterial(MD_Surface);
-	check(BoneMaterialHit);
+		UMaterialInterface* BaseBoneUnselectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial.PhAT_UnselectedMaterial"), NULL, LOAD_None, NULL);
+		BoneUnselectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneUnselectedMaterial, GetTransientPackage());
+		check(BoneUnselectedMaterial);
 
-	UMaterialInterface* BaseBoneUnselectedMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial.PhAT_UnselectedMaterial"), NULL, LOAD_None, NULL);
-	BoneUnselectedMaterial = UMaterialInstanceDynamic::Create(BaseBoneUnselectedMaterial, GetTransientPackage());
-	check(BoneUnselectedMaterial);
+		UMaterialInterface* BaseBoneNoCollisionMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_NoCollisionMaterial.PhAT_NoCollisionMaterial"), NULL, LOAD_None, NULL);
+		BoneNoCollisionMaterial = UMaterialInstanceDynamic::Create(BaseBoneNoCollisionMaterial, GetTransientPackage());
+		check(BoneNoCollisionMaterial);
 
-	UMaterialInterface* BaseBoneNoCollisionMaterial = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EditorMaterials/PhAT_NoCollisionMaterial.PhAT_NoCollisionMaterial"), NULL, LOAD_None, NULL);
-	BoneNoCollisionMaterial = UMaterialInstanceDynamic::Create(BaseBoneNoCollisionMaterial, GetTransientPackage());
-	check(BoneNoCollisionMaterial);
+		// this is because in phat editor, you'd like to see fixed bones to be fixed without animation force update
+		KinematicBonesUpdateType = EKinematicBonesUpdateToPhysics::SkipSimulatingBones;
+		bUpdateJointsFromAnimation = false;
+		SetForcedLOD(1);
 
-	// this is because in phat editor, you'd like to see fixed bones to be fixed without animation force update
-	KinematicBonesUpdateType = EKinematicBonesUpdateToPhysics::SkipSimulatingBones;
-	bUpdateJointsFromAnimation = false;
-	SetForcedLOD(1);
-
-	static FName CollisionProfileName(TEXT("PhysicsActor"));
-	SetCollisionProfileName(CollisionProfileName);
+		static FName CollisionProfileName(TEXT("PhysicsActor"));
+		SetCollisionProfileName(CollisionProfileName);
+	}
 
 	bSelectable = false;
 }

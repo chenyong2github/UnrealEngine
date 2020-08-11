@@ -8,6 +8,11 @@
 #include "SoundModulatorLFOProxy.h"
 
 
+// Forward Declarations
+struct FSoundControlBusMixChannel;
+class USoundControlBusMix;
+
+
 namespace AudioModulation
 {
 	// Forward Declarations

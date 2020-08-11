@@ -81,7 +81,7 @@ void FOnlineIdentityFacebookCommon::ProfileRequest(int32 LocalUserNum, const FSt
 				bStarted = true;
 
 				// kick off http request to get user info with the access token
-				TSharedRef<IHttpRequest> HttpRequest = FHttpModule::Get().CreateRequest();
+				TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 				LoginUserRequests.Add(&HttpRequest.Get(), FPendingLoginUser(LocalUserNum, AccessToken));
 
 				FString FinalURL = MeURL.Replace(TEXT("`token"), *AccessToken, ESearchCase::IgnoreCase);

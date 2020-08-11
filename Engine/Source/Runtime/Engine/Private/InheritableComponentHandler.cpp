@@ -47,7 +47,7 @@ void UInheritableComponentHandler::PostLoad()
 				
 				// Fix up component template name on load, if it doesn't match the original template name. Otherwise, archetype lookups will fail for this template.
 				// For example, this can occur after a component variable rename in a parent BP class, but before a child BP class with an override template is loaded.
-				if (UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate())
+				if (UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate(Record.ComponentTemplate->GetFName()))
 				{
 					FString ExpectedTemplateName = OriginalTemplate->GetName();
 					if (USCS_Node* SCSNode = Record.ComponentKey.FindSCSNode())
@@ -297,7 +297,7 @@ bool UInheritableComponentHandler::IsRecordValid(const FComponentOverrideRecord&
 	}
 
 	// Note: If the original template is missing, we consider the record to be unnecessary, but not invalid.
-	UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate();
+	UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate(Record.ComponentTemplate->GetFName());
 	if (OriginalTemplate != nullptr && OriginalTemplate->GetClass() != Record.ComponentTemplate->GetClass())
 	{
 		return false;
@@ -359,21 +359,23 @@ bool UInheritableComponentHandler::IsRecordNecessary(const FComponentOverrideRec
 	}
 	else
 	{
+		const FName TemplateName = Record.ComponentTemplate->GetFName();
+
 		// Consider the record to be unnecessary if the original template no longer exists.
-		UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate();
+		UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate(TemplateName);
 		if (OriginalTemplate == nullptr)
 		{
 			return false;
 		}
 	
 		UActorComponent* ChildComponentTemplate = Record.ComponentTemplate;
-		UActorComponent* ParentComponentTemplate = FindBestArchetype(Record.ComponentKey);
+		UActorComponent* ParentComponentTemplate = FindBestArchetype(Record.ComponentKey, TemplateName);
 		check(ChildComponentTemplate && ParentComponentTemplate && (ParentComponentTemplate != ChildComponentTemplate));
 		return !FComponentComparisonHelper::AreIdentical(ChildComponentTemplate, ParentComponentTemplate);
 	}
 }
 
-UActorComponent* UInheritableComponentHandler::FindBestArchetype(const FComponentKey& Key) const
+UActorComponent* UInheritableComponentHandler::FindBestArchetype(const FComponentKey& Key, const FName& TemplateName) const
 {
 	UActorComponent* ClosestArchetype = nullptr;
 
@@ -392,7 +394,7 @@ UActorComponent* UInheritableComponentHandler::FindBestArchetype(const FComponen
 
 		if (!ClosestArchetype)
 		{
-			ClosestArchetype = Key.GetOriginalTemplate();
+			ClosestArchetype = Key.GetOriginalTemplate(TemplateName);
 		}
 	}
 
@@ -496,8 +498,9 @@ void UInheritableComponentHandler::FixComponentTemplateName(UActorComponent* Com
 	{
 		if (Record.ComponentTemplate && Record.ComponentTemplate != ComponentTemplate && Record.ComponentTemplate->GetName() == NewName)
 		{
-			const UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate();
-			return ensureMsgf(OriginalTemplate && OriginalTemplate->GetFName() != Record.ComponentTemplate->GetFName(),
+			const FName OverrideTemplateName = ComponentTemplate->GetFName();
+			const UActorComponent* OriginalTemplate = Record.ComponentKey.GetOriginalTemplate(OverrideTemplateName);
+			return ensureMsgf(OriginalTemplate && OriginalTemplate->GetFName() != OverrideTemplateName,
 				TEXT("Found a collision with an existing override record, but its associated template object is either invalid or already matches its inherited template's name (%s). This is unexpected."), *NewName);
 		}
 
@@ -548,7 +551,7 @@ USCS_Node* FComponentKey::FindSCSNode() const
 	return ParentSCS ? ParentSCS->FindSCSNodeByGuid(AssociatedGuid) : nullptr;
 }
 
-UActorComponent* FComponentKey::GetOriginalTemplate() const
+UActorComponent* FComponentKey::GetOriginalTemplate(const FName& TemplateName) const
 {
 	UActorComponent* ComponentTemplate = nullptr;
 	if (IsSCSKey())
@@ -561,7 +564,7 @@ UActorComponent* FComponentKey::GetOriginalTemplate() const
 #if WITH_EDITOR
 	else if (IsUCSKey())
 	{
-		ComponentTemplate = FBlueprintEditorUtils::FindUCSComponentTemplate(*this);
+		ComponentTemplate = FBlueprintEditorUtils::FindUCSComponentTemplate(*this, TemplateName);
 	}
 #endif // WITH_EDITOR
 	return ComponentTemplate;

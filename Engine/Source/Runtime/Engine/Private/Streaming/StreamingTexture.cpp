@@ -150,9 +150,11 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 {
-	if (OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
+	// Cache the pointer to prevent a race condition with FRenderAssetStreamingManager::RemoveStreamingRenderAsset() which could nullify the ptr.
+	UStreamableRenderAsset*	CachedRenderAsset = RenderAsset;
+	if (CachedRenderAsset && OptionalMipsState == EOptionalMipsState::OMS_NotCached && FirstOptionalMipIndex != INDEX_NONE)
 	{
-		if (RenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
+		if (CachedRenderAsset->DoesMipDataExist(FirstOptionalMipIndex))
 		{
 			OptionalMipsState = EOptionalMipsState::OMS_HasOptionalMips;
 		}
@@ -163,12 +165,12 @@ void FStreamingRenderAsset::UpdateOptionalMipsState_Async()
 	}	
 }
 
-void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading)
+void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
 	// Note that those values are read from the async task and must not be assigned temporary values!!
 	if (RenderAsset)
 	{
-		UpdateStreamingStatus(bWaitForMipFading);
+		UpdateStreamingStatus(bWaitForMipFading, DeferredTickCBAssets);
 
 		// The last render time of this texture/mesh. Can be FLT_MAX when texture has no resource.
 		const float LastRenderTimeForTexture = RenderAsset->GetLastRenderTimeForStreaming();
@@ -245,11 +247,11 @@ void FStreamingRenderAsset::UpdateDynamicData(const int32* NumStreamedMips, int3
 	}
 }
 
-void FStreamingRenderAsset::UpdateStreamingStatus(bool bWaitForMipFading)
+void FStreamingRenderAsset::UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets)
 {
 	if (RenderAsset)
 	{
-		bInFlight = RenderAsset->UpdateStreamingStatus(bWaitForMipFading);
+		bInFlight = RenderAsset->UpdateStreamingStatus(bWaitForMipFading, DeferredTickCBAssets);
 
 		// Optimization: Use GetCachedNumResidentLODs() and GetCachedReadyForStreaming()
 		// instead of GetNumResidentMips() and IsReadyForStreaming() to reduce cache misses

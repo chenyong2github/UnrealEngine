@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using Tools.DotNETCommon;
+using System.Linq;
 
 namespace UnrealBuildTool
 {
@@ -12,6 +13,13 @@ namespace UnrealBuildTool
 	/// </summary>
 	public class MacTargetRules
 	{
+		/// <summary>
+		/// Lists Architectures that you want to build
+		/// </summary>
+		[CommandLine("-Arch=", ListSeparator = '+')]
+		[CommandLine("-Architectures=", ListSeparator = '+')]
+		public List<string> Architectures = new List<string>();
+
 		/// <summary>
 		/// Whether to generate dSYM files.
 		/// Lists Architectures that you want to build.
@@ -88,6 +96,11 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
 		}
 
+		public List<string> Architectures
+		{
+			get { return Inner.Architectures; }
+		}
+
 		#if !__MonoCS__
 		#pragma warning restore CS1591
 		#endif
@@ -147,7 +160,12 @@ namespace UnrealBuildTool
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
 
-			Target.bCompileISPC = true;
+			bool bCompilingForArm = Target.MacPlatform.Architectures
+				.Where(A => A.StartsWith("Arm", StringComparison.OrdinalIgnoreCase))
+				.Any();
+
+			// Mac-Arm todo - Do we need to compile in two passes so we can set this differently?
+			Target.bCompileISPC = !bCompilingForArm;
 		}
 
 		/// <summary>
@@ -339,7 +357,8 @@ namespace UnrealBuildTool
 			{
 				Options |= MacToolChainOptions.OutputDylib;
 			}
-			return new MacToolChain(Target.ProjectFile, Options);
+
+			return new MacToolChain(Target.ProjectFile, Options, Target.MacPlatform.Architectures);
 		}
 
 		/// <summary>

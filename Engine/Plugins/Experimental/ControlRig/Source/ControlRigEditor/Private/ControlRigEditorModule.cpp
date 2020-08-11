@@ -36,9 +36,6 @@
 #include "ToolMenus.h"
 #include "ControlRigEditModeSettings.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "ControlRigSequenceExporter.h"
-#include "ControlRigSequenceExporterSettingsDetailsCustomization.h"
-#include "ControlRigSequenceExporterSettings.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistryModule.h"
 #include "Editor/ControlRigEditor.h"
@@ -115,9 +112,6 @@ void FControlRigEditorModule::StartupModule()
 
 	ClassesToUnregisterOnShutdown.Add(UMovieSceneControlRigParameterSection::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneControlRigSectionDetailsCustomization::MakeInstance));
-
-	ClassesToUnregisterOnShutdown.Add(UControlRigSequenceExporterSettings::StaticClass()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigSequenceExporterSettingsDetailsCustomization::MakeInstance));
 
 	ClassesToUnregisterOnShutdown.Add(FRigBone::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneDetails::MakeInstance));
@@ -457,15 +451,6 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
-			{
-				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-				// Break pin links
-				if (InGraphPin->LinkedTo.Num() > 0)
-				{
-					Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-				}
-			}
-
 			// Add the watch pin / unwatch pin menu items
 			{
 				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));

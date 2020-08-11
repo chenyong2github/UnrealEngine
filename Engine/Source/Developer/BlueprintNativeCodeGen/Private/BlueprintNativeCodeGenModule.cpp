@@ -194,7 +194,7 @@ namespace
 	void GetFieldFormPackage(const UPackage* Package, UStruct*& OutStruct, UEnum*& OutEnum, EObjectFlags ExcludedFlags = RF_Transient)
 	{
 		TArray<UObject*> Objects;
-		GetObjectsWithOuter(Package, Objects, false);
+		GetObjectsWithPackage(Package, Objects, false);
 		for (UObject* Entry : Objects)
 		{
 			if (Entry->HasAnyFlags(ExcludedFlags))

@@ -905,14 +905,17 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI,FIntRect Rect
 
 void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, TArray<FLinearColor>& OutData, FReadSurfaceDataFlags InFlags)
 {
-	VERIFY_GL_SCOPE();
-
 	// Verify requirements, but don't crash
 	// Ignore texture format here, GL will convert it for us in glReadPixels
 	if (!ensure(FOpenGL::SupportsFloatReadSurface()) || !ensure(TextureRHI))
 	{
 		return;
 	}
+	
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	
+	RHITHREAD_GLCOMMAND_PROLOGUE();
+	VERIFY_GL_SCOPE();
 
 	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 	if (!ensure(Texture))
@@ -943,6 +946,8 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	glPixelStorei(GL_PACK_ALIGNMENT, 4);
 
 	GetContextStateForCurrentContext().Framebuffer = (GLuint)-1;
+	
+	RHITHREAD_GLCOMMAND_EPILOGUE();
 }
 
 void FOpenGLDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)

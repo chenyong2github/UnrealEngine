@@ -328,7 +328,7 @@ bool FSubversionSourceControlProvider::TestConnection(const FString& RepositoryN
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add( TEXT("RepositoryName"), FText::FromString(RepositoryName) );
-		SourceControlLog.Warning(FText::Format(LOCTEXT("ConnectionSuccess", "Successfully connected to repository {RepositoryName}"), Arguments));
+		SourceControlLog.Info(FText::Format(LOCTEXT("ConnectionSuccess", "Successfully connected to repository {RepositoryName}"), Arguments));
 	}
 	else
 	{

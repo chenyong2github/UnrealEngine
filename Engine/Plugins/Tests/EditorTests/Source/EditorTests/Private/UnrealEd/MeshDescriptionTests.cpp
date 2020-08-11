@@ -416,7 +416,7 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 	}
 	else
 	{
-		for (const FEdgeID& EdgeID : MeshDescription.Edges().GetElementIDs())
+		for (const FEdgeID EdgeID : MeshDescription.Edges().GetElementIDs())
 		{
 			if (ReferenceEdgeHardnesses[EdgeID] != ResultEdgeHardnesses[EdgeID])
 			{
@@ -608,7 +608,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 				*ErrorMessage)));
 		};
 		bool bError = false;
-		for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
+		for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
 		{
 			if (bError)
 			{
@@ -617,7 +617,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 			const FPolygonGroupID& PolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
 			int32 PolygonIDValue = PolygonID.GetValue();
 			TArrayView<const FTriangleID> TriangleIDs = MeshDescription.GetPolygonTriangles(PolygonID);
-			for (const FTriangleID TriangleID : TriangleIDs)
+			for (const FTriangleID& TriangleID : TriangleIDs)
 			{
 				if (bError)
 				{
@@ -886,7 +886,7 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 
 	// Get list of unique polygons connected to the vertices that have moved
 	TArray<FPolygonID> ConnectedPolygons = MeshDescription.GetVertexConnectedPolygons(TopVertexIDs[0]);
-	for (const FPolygonID ConnectedPolygon : MeshDescription.GetVertexConnectedPolygons(BottomVertexIDs[0]))
+	for (const FPolygonID& ConnectedPolygon : MeshDescription.GetVertexConnectedPolygons(BottomVertexIDs[0]))
 	{
 		ConnectedPolygons.AddUnique(ConnectedPolygon);
 	}
@@ -898,7 +898,7 @@ bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
 	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(MeshDescription.GetTrianglePolygon(BottomTriangleIDs[0])));
 	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(MeshDescription.GetTrianglePolygon(BottomTriangleIDs[NumSides - 1])));
 
-	for (const FPolygonID ConnectedPolygon : ConnectedPolygons)
+	for (const FPolygonID& ConnectedPolygon : ConnectedPolygons)
 	{
 		MeshDescription.ComputePolygonTriangulation(ConnectedPolygon);
 	}

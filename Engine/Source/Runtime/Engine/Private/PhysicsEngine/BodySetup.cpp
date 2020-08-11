@@ -53,42 +53,10 @@
 	#include "Chaos/CollisionConvexMesh.h"
 #endif
 
-/** Helper for enum output... */
-#ifndef CASE_ENUM_TO_TEXT
-#define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
-#endif
-
 /** Enable to verify that the cooked data matches the source data as we cook it */
 #define VERIFY_COOKED_PHYS_DATA 0
 
 #define LOCTEXT_NAMESPACE "PhysicsAsset"
-
-const TCHAR* LexToString(ECollisionTraceFlag Enum)
-{
-	switch (Enum)
-	{
-		FOREACH_ENUM_ECOLLISIONTRACEFLAG(CASE_ENUM_TO_TEXT)
-	}
-	return TEXT("<Unknown ECollisionTraceFlag>");
-}
-
-const TCHAR* LexToString(EPhysicsType Enum)
-{
-	switch (Enum)
-	{
-		FOREACH_ENUM_EPHYSICSTYPE(CASE_ENUM_TO_TEXT)
-	}
-	return TEXT("<Unknown EPhysicsType>");
-}
-
-const TCHAR* LexToString(EBodyCollisionResponse::Type Enum)
-{
-	switch (Enum)
-	{
-		FOREACH_ENUM_EBODYCOLLISIONRESPONSE(CASE_ENUM_TO_TEXT)
-	}
-	return TEXT("<Unknown EBodyCollisionResponse>");
-}
 
 
 FCookBodySetupInfo::FCookBodySetupInfo() :
@@ -179,7 +147,6 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 {
 	bConsiderForBounds = true;
 	bMeshCollideAll = false;
-	CollisionTraceFlag = CTF_UseDefault;
 	bFailedToCreatePhysicsMeshes = false;
 	bHasCookedCollisionData = true;
 	bNeverNeedsCookedCollisionData = false;
@@ -1156,9 +1123,15 @@ void UBodySetup::PostLoad()
 
 	// make sure that we load the physX data while the linker's loader is still open
 #if PHYSICS_INTERFACE_PHYSX
-	// Chaos does not call this so we can defer work and CreatePhysicsMeshes in parallel.
 	CreatePhysicsMeshes();
+#elif WITH_CHAOS
+	// If Deferring physics creation, skip so we can call CreatePhysicsMeshes in parallel.
+	if (GEnableDeferredPhysicsCreation == false)
+	{
+		CreatePhysicsMeshes();
+	}
 #endif
+
 
 }
 
@@ -1519,7 +1492,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 	int32 NumElements = AggGeom.GetElementCount();
 	if (NumElements == 0)
 	{
-		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
+		ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoCollision", "Bone {0} requires at least one collision shape"), FText::FromName(BoneName)));
 		Result = EDataValidationResult::Invalid;
 	}
 
@@ -1540,7 +1513,7 @@ EDataValidationResult UBodySetup::IsDataValid(TArray<FText>& ValidationErrors)
 		
 		if (NumMassContributors == 0)
 		{
-			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetup", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
+			ValidationErrors.Add(FText::Format(LOCTEXT("UBodySetupHasNoMass", "Bone {0} requires at least one shape with 'Contribute to Mass' set to 'true'"), FText::FromName(BoneName)));
 			Result = EDataValidationResult::Invalid;
 		}
 	}
@@ -2260,12 +2233,6 @@ float UBodySetup::CalculateMass(const UPrimitiveComponent* Component) const
 float UBodySetup::GetVolume(const FVector& Scale) const
 {
 	return AggGeom.GetVolume(Scale);
-}
-
-TEnumAsByte<enum ECollisionTraceFlag> UBodySetup::GetCollisionTraceFlag() const
-{
-	TEnumAsByte<enum ECollisionTraceFlag> DefaultFlag = UPhysicsSettings::Get()->DefaultShapeComplexity;
-	return CollisionTraceFlag == ECollisionTraceFlag::CTF_UseDefault ? DefaultFlag : CollisionTraceFlag;
 }
 
 #undef LOCTEXT_NAMESPACE

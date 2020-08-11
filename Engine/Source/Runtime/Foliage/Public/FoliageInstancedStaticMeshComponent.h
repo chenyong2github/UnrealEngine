@@ -47,6 +47,6 @@ public:
 private:
 
 	UPROPERTY()
-		FGuid GenerationGuid;
+	FGuid GenerationGuid;
 };
 

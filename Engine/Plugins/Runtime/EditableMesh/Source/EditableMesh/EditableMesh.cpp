@@ -1036,7 +1036,7 @@ void UEditableMesh::SetVertexAttribute( const FVertexID VertexID, const FMeshEle
 		{
 			static TArray<FPolygonID> ConnectedPolygons;
 			GetVertexConnectedPolygons( VertexID, /* Out */ ConnectedPolygons );
-			for( const FPolygonID PolygonID : ConnectedPolygons )
+			for( const FPolygonID& PolygonID : ConnectedPolygons )
 			{
 				// Only mark the polygon to be removed from the octree if it was already in it to begin with
 				bool bAlreadyInSet = false;
@@ -1152,12 +1152,12 @@ void UEditableMesh::GetPolygonsInSameSoftEdgedGroupAsPolygon( const FPolygonID P
 			// Now look at its adjacent polygons. If they are joined by a soft edge which includes the vertex we're interested in, we want to consider them.
 			// We take a shortcut by doing this process in reverse: we already know all the soft edges we are interested in, so check if any of them
 			// have the current polygon as an adjacent.
-			for( const FEdgeID SoftEdgeID : SoftEdgeIDs )
+			for( const FEdgeID& SoftEdgeID : SoftEdgeIDs )
 			{
 				const TArray<FPolygonID>& EdgeConnectedPolygons = GetMeshDescription()->GetEdgeConnectedPolygons( SoftEdgeID );
 				if( EdgeConnectedPolygons.Contains( PolygonToCheck ) )
 				{
-					for( const FPolygonID AdjacentPolygon : EdgeConnectedPolygons )
+					for( const FPolygonID& AdjacentPolygon : EdgeConnectedPolygons )
 					{
 						// Only add new polygons which haven't yet been added to the list. This prevents circular runs of polygons triggering infinite loops.
 						PolygonsToCheck.AddUnique( AdjacentPolygon );
@@ -1218,7 +1218,7 @@ void UEditableMesh::ReplaceVertexInstanceInPolygons( const FVertexInstanceID Old
 	static TArray<FChangeVertexInstancesForPolygon>  VertexInstancesToChange;
 	VertexInstancesToChange.Reset( PolygonIDs.Num() );
 
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		VertexInstancesToChange.Emplace();
 		FChangeVertexInstancesForPolygon& ChangeVertexInstances = VertexInstancesToChange.Last();
@@ -1251,7 +1251,7 @@ void UEditableMesh::SplitVerticesIfNecessary( const TArray<FVertexID>& VerticesT
 	VertexInstancesToCreate.Reset();
 
 	// Loop for each vertex to split
-	for( const FVertexID VertexToSplit : VerticesToSplit )
+	for( const FVertexID& VertexToSplit : VerticesToSplit )
 	{
 		// Cache a list of all soft edges which share this vertex.
 		static TArray<FEdgeID> ConnectedSoftEdges;
@@ -1262,7 +1262,7 @@ void UEditableMesh::SplitVerticesIfNecessary( const TArray<FVertexID>& VerticesT
 		static TArray<FVertexInstanceID> VertexInstanceIDs;
 		VertexInstanceIDs = GetMeshDescription()->GetVertexVertexInstanceIDs( VertexToSplit );
 
-		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+		for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 		{
 			// Get the list of polygons connected to this vertex instance.
 			// We only need to potentially do something if there is more than one polygon connected.
@@ -1284,7 +1284,7 @@ void UEditableMesh::SplitVerticesIfNecessary( const TArray<FVertexID>& VerticesT
 					// Check that all polygons in the smoothing group are attached to this vertex instance, and remove them from the master list of polygons
 					// connected to this instance. If a polygon in the smoothing group is not attached to this vertex instance, it's because it's the other
 					// side of a UV seam and hence has a distinct vertex instance.
-					for( const FPolygonID PolygonInSameSoftEdgedGroup : PolygonsInSameSoftEdgedGroup )
+					for( const FPolygonID& PolygonInSameSoftEdgedGroup : PolygonsInSameSoftEdgedGroup )
 					{
 						verify( PolygonIDsToCheck.Remove( PolygonInSameSoftEdgedGroup ) == 1 );
 					}
@@ -1316,7 +1316,7 @@ void UEditableMesh::MergeVertexInstances()
 	static TArray<FVertexInstanceID> VertexInstancesToDelete;
 	VertexInstancesToDelete.Reset();
 
-	for( const FVertexID VertexID : VerticesPendingMerging )
+	for( const FVertexID& VertexID : VerticesPendingMerging )
 	{
 		// Get all polygons connected to this vertex.
 		static TArray<FPolygonID> VertexConnectedPolygons;
@@ -1509,7 +1509,7 @@ void UEditableMesh::GetEdgeLoopElements( const FEdgeID EdgeID, TArray<FEdgeID>& 
 				{
 					// ...see if it shares any polygons with the original edge (intersection operation)
 					bool bIsCandidateEdge = true;
-					for( const FPolygonID ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( ConnectedEdgeID ) )
+					for( const FPolygonID& ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( ConnectedEdgeID ) )
 					{
 						if( CurrentEdgeConnectedPolygons.Contains( ConnectedPolygonID ) )
 						{
@@ -1543,7 +1543,7 @@ void UEditableMesh::GetEdgeLoopElements( const FEdgeID EdgeID, TArray<FEdgeID>& 
 		}
 	}
 
-	for( const FEdgeID EdgeLoopID : EdgeIDs )
+	for( const FEdgeID& EdgeLoopID : EdgeIDs )
 	{
 		EdgeLoopIDs.Add( EdgeLoopID );
 	}
@@ -1621,12 +1621,12 @@ void UEditableMesh::GetPolygonAdjacentPolygons( const FPolygonID PolygonID, TArr
 	static TArray<FEdgeID> PolygonPerimeterEdges;
 	GetPolygonPerimeterEdges( PolygonID, PolygonPerimeterEdges );
 
-	for( const FEdgeID EdgeID : PolygonPerimeterEdges )
+	for( const FEdgeID& EdgeID : PolygonPerimeterEdges )
 	{
 		static TArray<FPolygonID> EdgeConnectedPolygons;
 		GetEdgeConnectedPolygons( EdgeID, EdgeConnectedPolygons );
 
-		for( const FPolygonID EdgeConnectedPolygon : EdgeConnectedPolygons )
+		for( const FPolygonID& EdgeConnectedPolygon : EdgeConnectedPolygons )
 		{
 			if( EdgeConnectedPolygon != PolygonID )
 			{
@@ -1673,7 +1673,7 @@ FVector UEditableMesh::ComputePolygonCenter( const FPolygonID PolygonID ) const
 
 	TVertexAttributesConstRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
 
-	for( const FVertexID VertexID : PerimeterVertexIDs )
+	for( const FVertexID& VertexID : PerimeterVertexIDs )
 	{
 		Centroid += VertexPositions[ VertexID ];
 	}
@@ -2355,7 +2355,7 @@ void UEditableMesh::RetriangulatePolygons()
 	FPolygonArray& Polygons = GetMeshDescription()->Polygons();
 
 	// Perform triangulation directly into mesh polygons
-	for( const FPolygonID PolygonID : PolygonsPendingTriangulation )
+	for( const FPolygonID& PolygonID : PolygonsPendingTriangulation )
 	{
 		GetMeshDescription()->ComputePolygonTriangulation( PolygonID );
 	}
@@ -2608,7 +2608,7 @@ void UEditableMesh::SplitEdge( const FEdgeID EdgeID, const TArray<float>& Splits
 		int32 VertexInstanceIndex = 0;
 
 		// Iterate through each polygon connected to the edge being split
-		for( const FPolygonID ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( EdgeID ) )
+		for( const FPolygonID& ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( EdgeID ) )
 		{
 			TArray<FVertexInstanceID> PerimeterVertexInstances = GetMeshDescription()->GetPolygonVertexInstances( ConnectedPolygonID );
 			const int32 NumVertexInstances = PerimeterVertexInstances.Num();
@@ -2616,7 +2616,7 @@ void UEditableMesh::SplitEdge( const FEdgeID EdgeID, const TArray<float>& Splits
 			// Find vertex indices around the perimeter corresponding to the vertices defining the edge
 			int32 VertexIndex = 0;
 			int32 VertexIndices[ 2 ] = { INDEX_NONE, INDEX_NONE };
-			for( const FVertexInstanceID PerimeterVertexInstance : PerimeterVertexInstances )
+			for( const FVertexInstanceID& PerimeterVertexInstance : PerimeterVertexInstances )
 			{
 				if( GetMeshDescription()->GetVertexInstanceVertex( PerimeterVertexInstance ) == OriginalEdgeVertexIDs[ 0 ] )
 				{
@@ -2692,7 +2692,7 @@ void UEditableMesh::SplitEdge( const FEdgeID EdgeID, const TArray<float>& Splits
 
 	// Update all affected polygons with their new vertices.  Also, we'll fill in polygon-specific vertex attributes (texture coordinates)
 	{
-		for( const FPolygonID ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( EdgeID ) )
+		for( const FPolygonID& ConnectedPolygonID : GetMeshDescription()->GetEdgeConnectedPolygons( EdgeID ) )
 		{
 			const FPolygonGroupID PolygonGroupID = GetMeshDescription()->GetPolygonPolygonGroup( ConnectedPolygonID );
 			TArray<FVertexInstanceID> PerimeterVertexInstanceIDs = GetMeshDescription()->GetPolygonVertexInstances( ConnectedPolygonID );
@@ -2872,7 +2872,7 @@ void UEditableMesh::FindPolygonLoop( const FEdgeID EdgeID, TArray<FEdgeID>& OutE
 				GetPolygonPerimeterEdges( ConnectedPolygonID, /* Out */ CandidateEdgeIDs );
 
 				// Which edge of the connected polygon will be at the other end of our split?
-				for( const FEdgeID CandidateEdgeID : CandidateEdgeIDs )
+				for( const FEdgeID& CandidateEdgeID : CandidateEdgeIDs )
 				{
 					// Don't bother with the edge we just came from
 					if( CandidateEdgeID != CurrentEdgeID )
@@ -3422,7 +3422,7 @@ void UEditableMesh::DeleteVertexAndConnectedEdgesAndPolygons( const FVertexID Ve
 		EdgeIDsToDelete.Add( ConnectedEdgeID );
 	}
 
-	for( const FEdgeID EdgeIDToDelete : EdgeIDsToDelete )
+	for( const FEdgeID& EdgeIDToDelete : EdgeIDsToDelete )
 	{
 		// Make sure the edge still exists.  It may have been deleted as a polygon's edges were deleted during
 		// a previous iteration through this loop.
@@ -3474,7 +3474,7 @@ void UEditableMesh::DeleteOrphanVertices( const TArray<FVertexID>& VertexIDsToDe
 	
 	// Actually delete the vertices
 	{
-		for( const FVertexID VertexIDToDelete : VertexIDsToDelete )
+		for( const FVertexID& VertexIDToDelete : VertexIDsToDelete )
 		{
 			VerticesPendingMerging.Remove( VertexIDToDelete );
 			GetMeshDescription()->DeleteVertex( VertexIDToDelete );
@@ -3524,7 +3524,7 @@ void UEditableMesh::DeleteVertexInstances( const TArray<FVertexInstanceID>& Vert
 
 	// Actually delete the vertex instances
 	{
-		for( const FVertexInstanceID VertexInstanceIDToDelete : VertexInstanceIDsToDelete )
+		for( const FVertexInstanceID& VertexInstanceIDToDelete : VertexInstanceIDsToDelete )
 		{
 			VerticesPendingMerging.Add( GetMeshDescription()->GetVertexInstanceVertex( VertexInstanceIDToDelete ) );
 			GetMeshDescription()->DeleteVertexInstance( VertexInstanceIDToDelete, bDeleteOrphanedVertices ? &OrphanedVertexIDs : nullptr );
@@ -3578,7 +3578,7 @@ void UEditableMesh::DeleteEdges( const TArray<FEdgeID>& EdgeIDsToDelete, const b
 		static TArray<FVertexID> OrphanedVertexIDs;
 		OrphanedVertexIDs.Reset();
 
-		for( const FEdgeID EdgeID : EdgeIDsToDelete )
+		for( const FEdgeID& EdgeID : EdgeIDsToDelete )
 		{
 			GetMeshDescription()->DeleteEdge( EdgeID, bDeleteOrphanedVertices ? &OrphanedVertexIDs : nullptr );
 		}
@@ -3994,7 +3994,7 @@ void UEditableMesh::CreatePolygons( const TArray<FPolygonToCreate>& PolygonsToCr
 			// Set directly hardness of any edges which were automatically created by the polygon.
 			// This needn't be done transactionally as we explicitly add the undo action later on.
 			const bool bHardEdge = ( PolygonToCreate.PolygonEdgeHardness == EPolygonEdgeHardness::AllEdgesHard || PolygonToCreate.PolygonEdgeHardness == EPolygonEdgeHardness::NewEdgesHard );
-			for( const FEdgeID EdgeID : OutNewEdgeIDs )
+			for( const FEdgeID& EdgeID : OutNewEdgeIDs )
 			{
 				GetMeshDescription()->EdgeAttributes().SetAttribute( EdgeID, MeshAttribute::Edge::IsHard, 0, bHardEdge );
 			}
@@ -4005,7 +4005,7 @@ void UEditableMesh::CreatePolygons( const TArray<FPolygonToCreate>& PolygonsToCr
 				( PolygonToCreate.PolygonEdgeHardness == EPolygonEdgeHardness::AllEdgesHard || PolygonToCreate.PolygonEdgeHardness == EPolygonEdgeHardness::AllEdgesSoft ) )
 			{
 				FVertexInstanceID LastVertexInstanceID = PerimeterVertexInstances.Last();
-				for( const FVertexInstanceID VertexInstanceID : PerimeterVertexInstances )
+				for( const FVertexInstanceID& VertexInstanceID : PerimeterVertexInstances )
 				{
 					const FVertexID VertexID0 = GetMeshDescription()->GetVertexInstanceVertex( VertexInstanceID );
 					const FVertexID VertexID1 = GetMeshDescription()->GetVertexInstanceVertex( LastVertexInstanceID );
@@ -4099,7 +4099,7 @@ void UEditableMesh::DeletePolygons( const TArray<FPolygonID>& PolygonIDsToDelete
 
 			TArray<FVertexInstanceID> VertexInstanceIDs = GetMeshDescription()->GetPolygonVertexInstances( PolygonID );
 			PolygonToCreate.PerimeterVertices.Reserve( VertexInstanceIDs.Num() );
-			for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+			for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 			{
 				PolygonToCreate.PerimeterVertices.Emplace();
 				FVertexAndAttributes& VertexAndAttributes = PolygonToCreate.PerimeterVertices.Last();
@@ -4130,7 +4130,7 @@ void UEditableMesh::DeletePolygons( const TArray<FPolygonID>& PolygonIDsToDelete
 		static TArray<FPolygonGroupID> EmptyPolygonGroupIDs;
 		EmptyPolygonGroupIDs.Reset();
 
-		for( const FPolygonID PolygonID : PolygonIDsToDelete )
+		for( const FPolygonID& PolygonID : PolygonIDsToDelete )
 		{
 			GetMeshDescription()->DeletePolygon( PolygonID, 
 				bDeleteOrphanedEdges ? &OrphanedEdgeIDs : nullptr,
@@ -4176,7 +4176,7 @@ void UEditableMesh::DeletePolygons( const TArray<FPolygonID>& PolygonIDsToDelete
 	}
 
 	// If any of these polygons are in the pending list for triangulation or computing a new tangent basis, remove them
-	for( const FPolygonID PolygonID : PolygonIDsToDelete )
+	for( const FPolygonID& PolygonID : PolygonIDsToDelete )
 	{
 		PolygonsPendingNewTangentBasis.Remove( PolygonID );
 		PolygonsPendingTriangulation.Remove( PolygonID );
@@ -4284,7 +4284,7 @@ void UEditableMesh::DeletePolygonGroups( const TArray<FPolygonGroupID>& PolygonG
 
 	// Delete the polygon groups
 	{
-		for( const FPolygonGroupID PolygonGroupID : PolygonGroupIDs )
+		for( const FPolygonGroupID& PolygonGroupID : PolygonGroupIDs )
 		{
 			GetMeshDescription()->DeletePolygonGroup( PolygonGroupID );
 		}
@@ -4788,7 +4788,7 @@ void UEditableMesh::TryToRemoveVertex( const FVertexID VertexID, bool& bOutWasVe
 
 		// Remove the vertex from its connected polygons
 		{
-			for( const FPolygonID PolygonID : NewEdgeConnectedPolygons )
+			for( const FPolygonID& PolygonID : NewEdgeConnectedPolygons )
 			{
 				FPolygonToCreate& PolygonToCreate = PolygonsToCreate.Emplace_GetRef();
 
@@ -4923,7 +4923,7 @@ void UEditableMesh::ExtrudePolygons( const TArray<FPolygonID>& PolygonIDs, const
 		static TArray<FEdgeID> PolygonPerimeterEdgeIDs;
 		GetPolygonPerimeterEdges( PolygonID, /* Out */ PolygonPerimeterEdgeIDs );
 
-		for( const FEdgeID EdgeID : PolygonPerimeterEdgeIDs )
+		for( const FEdgeID& EdgeID : PolygonPerimeterEdgeIDs )
 		{
 			FVertexID EdgeVertexIDs[ 2 ];
 			GetEdgeVertices( EdgeID, /* Out */ EdgeVertexIDs[ 0 ], /* Out */ EdgeVertexIDs[ 1 ] );
@@ -4943,7 +4943,7 @@ void UEditableMesh::ExtrudePolygons( const TArray<FPolygonID>& PolygonIDs, const
 		static TArray<FVertexID> PolygonPerimeterVertexIDs;
 		this->GetPolygonPerimeterVertices( PolygonID, /* Out */ PolygonPerimeterVertexIDs );
 
-		for( const FVertexID VertexID : PolygonPerimeterVertexIDs )
+		for( const FVertexID& VertexID : PolygonPerimeterVertexIDs )
 		{
 			UniqueVertexIDs.Add( VertexID );
 		}
@@ -5043,7 +5043,7 @@ void UEditableMesh::ExtrudePolygons( const TArray<FPolygonID>& PolygonIDs, const
 
 								static TArray<FPolygonID> NeighborPolygonIDs;
 								NeighborPolygonIDs.Reset();
-								for( const FPolygonID ConnectedPolygonID : ConnectedPolygonIDs )
+								for( const FPolygonID& ConnectedPolygonID : ConnectedPolygonIDs )
 								{
 									// We only care about polygons that are members of the set of polygons we were asked to extrude
 									if( PolygonsSet.Contains( ConnectedPolygonID ) )
@@ -5064,7 +5064,7 @@ void UEditableMesh::ExtrudePolygons( const TArray<FPolygonID>& PolygonIDs, const
 								FVector ClosestIntersectionPointWithExtrudedPlanes;
 								float ClosestIntersectionDistanceSquared = TNumericLimits<float>::Max();
 
-								for( const FPolygonID NeighborPolygonID : NeighborPolygonIDs )
+								for( const FPolygonID& NeighborPolygonID : NeighborPolygonIDs )
 								{
 									const FPlane NeighborPolygonPlane = ComputePolygonPlane( NeighborPolygonID );
 
@@ -5276,12 +5276,12 @@ void UEditableMesh::ExtendEdges( const TArray<FEdgeID>& EdgeIDs, const bool bWel
 		VerticesToCreate.Reset();
 		VerticesToCreate.Reserve( EdgeIDs.Num() * 2 );	// Might actually end up needing less, but that's OK.
 
-		for( const FEdgeID EdgeID : EdgeIDs )
+		for( const FEdgeID& EdgeID : EdgeIDs )
 		{
 			FVertexID EdgeVertexIDs[ 2 ];
 			GetEdgeVertices( EdgeID, /* Out */ EdgeVertexIDs[0], /* Out */ EdgeVertexIDs[1] );
 
-			for( const FVertexID EdgeVertexID : EdgeVertexIDs )
+			for( const FVertexID& EdgeVertexID : EdgeVertexIDs )
 			{
 				// Have we already created a counterpart for this vertex?  If we were asked to weld extended neighbor edges,
 				// we'll want to make sure that we share the extended vertex too!
@@ -5312,7 +5312,7 @@ void UEditableMesh::ExtendEdges( const TArray<FEdgeID>& EdgeIDs, const bool bWel
 		EdgesToCreate.Reset();
 		EdgesToCreate.Reserve( EdgeIDs.Num() );
 
-		for( const FEdgeID EdgeID : EdgeIDs )
+		for( const FEdgeID& EdgeID : EdgeIDs )
 		{
 			FVertexID EdgeVertexIDs[ 2 ];
 			GetEdgeVertices( EdgeID, /* Out */ EdgeVertexIDs[0], /* Out */ EdgeVertexIDs[1] );
@@ -5420,7 +5420,7 @@ void UEditableMesh::ExtendVertices( const TArray<FVertexID>& VertexIDs, const bo
 		VerticesToCreate.Reset();
 		VerticesToCreate.Reserve( VertexIDs.Num() );
 
-		for( const FVertexID VertexID : VertexIDs )
+		for( const FVertexID& VertexID : VertexIDs )
 		{
 			const int32 CreatedVertexNumber = VerticesToCreate.Num();
 			FVertexToCreate& VertexToCreate = *new( VerticesToCreate ) FVertexToCreate();
@@ -5474,7 +5474,7 @@ void UEditableMesh::ExtendVertices( const TArray<FVertexID>& VertexIDs, const bo
 			GetVertexAdjacentVertices( OriginalVertexID, /* Out */ AdjacentVertexIDs );
 
 			// For every adjacent vertex, go ahead and create a new triangle
-			for( const FVertexID AdjacentVertexID : AdjacentVertexIDs )
+			for( const FVertexID& AdjacentVertexID : AdjacentVertexIDs )
 			{
 				// If we were asked to only extend an edge that's closest to a reference position, check for that here
 				if( !bOnlyExtendClosestEdge || ( AdjacentVertexID == ClosestVertexID ) )
@@ -5487,7 +5487,7 @@ void UEditableMesh::ExtendVertices( const TArray<FVertexID>& VertexIDs, const bo
 						static TArray<FPolygonID> ConnectedPolygonIDs;
 						GetVertexConnectedPolygons( OriginalVertexID, /* Out */ ConnectedPolygonIDs );
 
-						for( const FPolygonID PolygonID : ConnectedPolygonIDs )
+						for( const FPolygonID& PolygonID : ConnectedPolygonIDs )
 						{
 							const int32 AdjacentVertexNumber = FindPolygonPerimeterVertexNumberForVertex( PolygonID, AdjacentVertexID );
 							if( AdjacentVertexNumber != INDEX_NONE )
@@ -5587,12 +5587,12 @@ void UEditableMesh::ComputePolygonsSharedEdges( const TArray<FPolygonID>& Polygo
 
 	static TSet<FEdgeID> EdgesSeenSoFar;
 	EdgesSeenSoFar.Reset();
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		static TArray<FEdgeID> PolygonPerimeterEdgeIDs;
 		GetPolygonPerimeterEdges( PolygonID, /* Out */ PolygonPerimeterEdgeIDs );
 
-		for( const FEdgeID EdgeID : PolygonPerimeterEdgeIDs )
+		for( const FEdgeID& EdgeID : PolygonPerimeterEdgeIDs )
 		{
 			bool bWasAlreadyInSet = false;
 			EdgesSeenSoFar.Add( EdgeID, /* Out */ &bWasAlreadyInSet );
@@ -5622,7 +5622,7 @@ void UEditableMesh::BevelOrInsetPolygons( const TArray<FPolygonID>& PolygonIDs, 
 
 	const TVertexAttributesRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
 
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		const FPolygonGroupID PolygonGroupID = GetGroupForPolygon( PolygonID );
 
@@ -5661,7 +5661,7 @@ void UEditableMesh::BevelOrInsetPolygons( const TArray<FPolygonID>& PolygonIDs, 
 
 				static TArray<FPolygonID> ConnectedPolygonIDs;
 				GetVertexConnectedPolygons( PerimeterVertexID, /* Out */ ConnectedPolygonIDs );
-				for( const FPolygonID ConnectedPolygonID : ConnectedPolygonIDs )
+				for( const FPolygonID& ConnectedPolygonID : ConnectedPolygonIDs )
 				{
 					if( PolygonIDs.Contains( ConnectedPolygonID ) )
 					{
@@ -5897,12 +5897,12 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 	TPolygonAttributesRef<FVector> PolygonBinormals = MD->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Binormal );
 	TPolygonAttributesRef<FVector> PolygonCenters = MD->PolygonAttributes().GetAttributesRef<FVector>( MeshAttribute::Polygon::Center );
 
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		// Calculate the center of this polygon
 		FVector Center(ForceInitToZero);
 		TArray<FVertexInstanceID> VertexInstanceIDs = MD->GetPolygonVertexInstances( PolygonID );
-		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+		for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 		{
 			Center += VertexPositions[ MD->GetVertexInstanceVertex( VertexInstanceID ) ];
 		}
@@ -5962,10 +5962,10 @@ void UEditableMesh::GenerateTangentsAndNormals()
 	static TSet<FVertexInstanceID> VertexInstanceIDs;
 	VertexInstanceIDs.Reset();
 
-	for( const FPolygonID PolygonID : PolygonsPendingNewTangentBasis )
+	for( const FPolygonID& PolygonID : PolygonsPendingNewTangentBasis )
 	{
 		TArray<FVertexInstanceID> PolyVertInstances = GetMeshDescription()->GetPolygonVertexInstances( PolygonID );
-		for (const FVertexInstanceID PolyVertInstance : PolyVertInstances)
+		for (const FVertexInstanceID& PolyVertInstance : PolyVertInstances)
 		{
 			VertexInstanceIDs.Add( PolyVertInstance );
 		}
@@ -5974,7 +5974,7 @@ void UEditableMesh::GenerateTangentsAndNormals()
 	static TArray<FAttributesForVertexInstance> AttributesForVertexInstances;
 	AttributesForVertexInstances.Reset( VertexInstanceIDs.Num() );
 
-	for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+	for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 	{
 		FVector Normal = FVector::ZeroVector;
 		FVector Tangent = FVector::ZeroVector;
@@ -5990,7 +5990,7 @@ void UEditableMesh::GenerateTangentsAndNormals()
 		GetVertexConnectedPolygonsInSameSoftEdgedGroup( VertexID, VertexInstanceConnectedPolygons[ 0 ], AllConnectedPolygons );
 
 		// The vertex instance normal is computed as a sum of all connected polygons' normals, weighted by the angle they make with the vertex
-		for( const FPolygonID ConnectedPolygonID : AllConnectedPolygons )
+		for( const FPolygonID& ConnectedPolygonID : AllConnectedPolygons )
 		{
 			const float Angle = GetMeshDescription()->GetPolygonCornerAngleForVertex( ConnectedPolygonID, VertexID );
 
@@ -6043,10 +6043,10 @@ void UEditableMesh::FlipTangentsAndNormals()
 	static TSet<FVertexInstanceID> VertexInstanceIDs;
 	VertexInstanceIDs.Reset();
 
-	for( const FPolygonID PolygonID : PolygonsPendingFlipTangentBasis )
+	for( const FPolygonID& PolygonID : PolygonsPendingFlipTangentBasis )
 	{
 		TArray<FVertexInstanceID> PolyVertInstances = GetMeshDescription()->GetPolygonVertexInstances( PolygonID );
-		for (const FVertexInstanceID PolyVertInstance : PolyVertInstances)
+		for (const FVertexInstanceID& PolyVertInstance : PolyVertInstances)
 		{
 			VertexInstanceIDs.Add( PolyVertInstance );
 		}
@@ -6055,7 +6055,7 @@ void UEditableMesh::FlipTangentsAndNormals()
 	static TArray<FAttributesForVertexInstance> AttributesForVertexInstances;
 	AttributesForVertexInstances.Reset( VertexInstanceIDs.Num() );
 
-	for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
+	for( const FVertexInstanceID& VertexInstanceID : VertexInstanceIDs )
 	{
 		const FVertexID VertexID = GetMeshDescription()->GetVertexInstanceVertex( VertexInstanceID );
 
@@ -6090,7 +6090,7 @@ void UEditableMesh::SplitPolygonalMesh(const FPlane& InPlane, TArray<FPolygonID>
     }
 
     TMap<FPolygonID, TArray<FEdgeID>> PolygonToEdgesMap;
-    for (const auto& PolygonID : GetMeshDescription()->Polygons().GetElementIDs())
+    for (const auto PolygonID : GetMeshDescription()->Polygons().GetElementIDs())
     {
         PolygonToEdgesMap.Add(PolygonID, {});
         GetMeshDescription()->GetPolygonPerimeterEdges(PolygonID, PolygonToEdgesMap[PolygonID]);
@@ -6099,7 +6099,7 @@ void UEditableMesh::SplitPolygonalMesh(const FPlane& InPlane, TArray<FPolygonID>
     // Find polygons that need to be split and if they don't need to add them to the appropriate list
     TArray<FPolygonToSplit> PolygonsToSplit;
     TMap<FEdgeID, FVertexID> EdgeToSplitVertMap;
-    for (const auto& PolygonID : GetMeshDescription()->Polygons().GetElementIDs())
+    for (const auto PolygonID : GetMeshDescription()->Polygons().GetElementIDs())
     {
         bool bIsPolygonIntersecting = false;
         if (PotentialPolygonsToSplitSet.Contains(PolygonID))
@@ -6745,7 +6745,7 @@ void UEditableMesh::TriangulatePolygons( const TArray<FPolygonID>& PolygonIDs, T
 	static TArray<FPolygonID> PolygonsToDelete;
 	PolygonsToDelete.Reset();
 
-	for( const FPolygonID PolygonID : PolygonIDs )
+	for( const FPolygonID& PolygonID : PolygonIDs )
 	{
 		// Skip right over polygons with fewer than four vertices
 		const int32 PerimeterVertexCount = GetPolygonPerimeterVertexCount( PolygonID );
@@ -7149,7 +7149,7 @@ void UEditableMesh::TessellatePolygons( const TArray<FPolygonID>& PolygonIDs, co
 	{
 		static TArray<FVertexToCreate> VerticesToCreate;
 		VerticesToCreate.Reset();
-		for( const FPolygonID PolygonID : PolygonIDs )
+		for( const FPolygonID& PolygonID : PolygonIDs )
 		{
 			const int32 PerimeterEdgeCount = GetPolygonPerimeterEdgeCount( PolygonID );
 			if( TriangleTessellationMode == ETriangleTessellationMode::ThreeTriangles || PerimeterEdgeCount > 3 )
@@ -7181,14 +7181,14 @@ void UEditableMesh::TessellatePolygons( const TArray<FPolygonID>& PolygonIDs, co
 			
 			if( TriangleTessellationMode == ETriangleTessellationMode::FourTriangles || PerimeterEdgeIDs.Num() > 3 )
 			{
-				for( const FEdgeID PerimeterEdgeID : PerimeterEdgeIDs )
+				for( const FEdgeID& PerimeterEdgeID : PerimeterEdgeIDs )
 				{
 					EdgesToSplit.Add( PerimeterEdgeID );
 				}
 			}
 		}
 
-		for( const FEdgeID EdgeID : EdgesToSplit )
+		for( const FEdgeID& EdgeID : EdgesToSplit )
 		{
 			// Split the edge
 			static TArray<float> Splits;
@@ -7567,7 +7567,7 @@ void UEditableMesh::QuadrangulatePolygonGroup( const FPolygonGroupID PolygonGrou
 		const TEdgeAttributesRef<bool> EdgeHardnesses = GetMeshDescription()->EdgeAttributes().GetAttributesRef<bool>( MeshAttribute::Edge::IsHard );
 		const TVertexAttributesRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
 
-		for( const FPolygonID PolygonID : PolygonIDs )
+		for( const FPolygonID& PolygonID : PolygonIDs )
 		{
 			// If it's not a triangle, don't consider this polygon at all
 			if( GetPolygonPerimeterEdgeCount( PolygonID ) != 3 )
@@ -7839,7 +7839,7 @@ void UEditableMesh::QuadrangulatePolygonGroup( const FPolygonGroupID PolygonGrou
 		// This implies they have no connected neighbors which can be merged (either because they are near an edge with only unmergeable polygons nearby, or because
 		// they are in the middle of the quadrangulated area)
 
-		for( const FPolygonID AdjacentPolygonsEntry : AdjacentPolygonsEntryToDelete )
+		for( const FPolygonID& AdjacentPolygonsEntry : AdjacentPolygonsEntryToDelete )
 		{
 			AdjacentPolygonsMap.Remove( AdjacentPolygonsEntry );
 			BoundaryPolygons.Remove( AdjacentPolygonsEntry );
@@ -7849,7 +7849,7 @@ void UEditableMesh::QuadrangulatePolygonGroup( const FPolygonGroupID PolygonGrou
 
 		float BestScore = TNumericLimits<float>::Max();
 		PolygonIDToMerge1 = INDEX_NONE;
-		for( const FPolygonID BoundaryPolygon : BoundaryPolygons )
+		for( const FPolygonID& BoundaryPolygon : BoundaryPolygons )
 		{
 			const FAdjacentPolygons& AdjacentPolygons = AdjacentPolygonsMap.FindChecked( BoundaryPolygon );
 			const FAdjacentPolygon& AdjacentPolygon = AdjacentPolygons.GetBestAdjacentPolygon();
@@ -7943,7 +7943,7 @@ void UEditableMesh::UpdateOrRebuildOctree()
 
 			// Clear out deleted polygons from our octree
 			{
-				for( const FPolygonID PolygonID : DeletedOctreePolygonIDs )
+				for( const FPolygonID& PolygonID : DeletedOctreePolygonIDs )
 				{
 					const FOctreeElementId2 OctreeElementID = PolygonIDToOctreeElementIDMap.FindAndRemoveChecked( PolygonID );
 					Octree->RemoveElement( OctreeElementID );
@@ -7954,7 +7954,7 @@ void UEditableMesh::UpdateOrRebuildOctree()
 			// Now, add new polygons to the octree
 			{
 				const TVertexAttributesRef<FVector> VertexPositions = GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
-				for( const FPolygonID PolygonID : NewOctreePolygonIDs )
+				for( const FPolygonID& PolygonID : NewOctreePolygonIDs )
 				{
 					checkSlow( IsValidPolygon( PolygonID ) );
 
@@ -7964,7 +7964,7 @@ void UEditableMesh::UpdateOrRebuildOctree()
 
 						static TArray<FVertexID> PerimeterVertices;
 						GetPolygonPerimeterVertices( PolygonID, /* Out */ PerimeterVertices );
-						for( const FVertexID VertexID : PerimeterVertices )
+						for( const FVertexID& VertexID : PerimeterVertices )
 						{
 							BoundingBox += VertexPositions[ VertexID ];
 						}
@@ -8031,7 +8031,7 @@ void UEditableMesh::RebuildOctree()
 
 				static TArray<FVertexID> PerimeterVertices;
 				GetPolygonPerimeterVertices( PolygonID, /* Out */ PerimeterVertices );
-				for( const FVertexID VertexID : PerimeterVertices )
+				for( const FVertexID& VertexID : PerimeterVertices )
 				{
 					BoundingBox += VertexPositions[ VertexID ];
 				}

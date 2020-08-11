@@ -2,6 +2,7 @@
 
 #include "CookPackageData.h"
 
+#include "Algo/AnyOf.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Containers/StringView.h"
 #include "Misc/CoreMiscDefines.h"
@@ -323,7 +324,7 @@ namespace Cook
 
 	UPackage* FPackageData::GetPackage() const
 	{
-		return Package;
+		return Package.Get();
 	}
 
 	void FPackageData::SetPackage(UPackage* InPackage)
@@ -745,7 +746,7 @@ namespace Cook
 		check(!GetIsPreloaded());
 	}
 
-	TArray<UObject*>& FPackageData::GetCachedObjectsInOuter()
+	TArray<FWeakObjectPtr>& FPackageData::GetCachedObjectsInOuter()
 	{
 		return CachedObjectsInOuter;
 	}
@@ -763,10 +764,22 @@ namespace Cook
 			return;
 		}
 
-		if (Package && Package->IsFullyLoaded())
+		UPackage* LocalPackage = GetPackage();
+		if (LocalPackage && LocalPackage->IsFullyLoaded())
 		{
-			PackageName = Package->GetFName();
-			GetObjectsWithOuter(Package, CachedObjectsInOuter);
+			PackageName = LocalPackage->GetFName();
+			TArray<UObject*> ObjectsInOuter;
+			GetObjectsWithOuter(LocalPackage, ObjectsInOuter);
+			CachedObjectsInOuter.Reset(ObjectsInOuter.Num());
+			for (UObject* Object : ObjectsInOuter)
+			{
+				FWeakObjectPtr ObjectWeakPointer(Object);
+				if (!ObjectWeakPointer.Get()) // ignore pending kill objects; they will not be serialized out so we don't need to call BeginCacheForCookedPlatformData on them
+				{
+					continue;
+				}
+				CachedObjectsInOuter.Emplace(MoveTemp(ObjectWeakPointer));
+			}
 			SetHasSaveCache(true);
 		}
 		else
@@ -828,12 +841,6 @@ namespace Cook
 		return Package != nullptr || CachedObjectsInOuter.Num() > 0;
 	}
 
-	void FPackageData::AddReferencedObjects(FReferenceCollector& Collector)
-	{
-		Collector.AddReferencedObject(Package);
-		Collector.AddReferencedObjects(CachedObjectsInOuter);
-	}
-
 	bool FPackageData::IsSaveInvalidated() const
 	{
 		if (GetState() != EPackageState::Save)
@@ -841,9 +848,14 @@ namespace Cook
 			return false;
 		}
 
-		return GetPackage() == nullptr || !GetPackage()->IsFullyLoaded() || CachedObjectsInOuter.Contains(nullptr);
+		return GetPackage() == nullptr || !GetPackage()->IsFullyLoaded() ||
+			Algo::AnyOf(CachedObjectsInOuter, [](const FWeakObjectPtr& WeakPtr)
+				{
+					// TODO: Keep track of which objects were public, and only invalidate the save if the object that has been deleted or marked pending kill was public
+					// Until we make that change, we will unnecessarily invalidate and demote some packages after a garbage collect
+					return WeakPtr.Get() == nullptr;
+				});
 	}
-
 
 	//////////////////////////////////////////////////////////////////////////
 	// FPendingCookedPlatformData
@@ -853,7 +865,7 @@ namespace Cook
 		:Object(InObject), TargetPlatform(InTargetPlatform), PackageData(InPackageData), CookOnTheFlyServer(InCookOnTheFlyServer),
 		CancelManager(nullptr), ClassName(InObject->GetClass()->GetFName()), bHasReleased(false), bNeedsResourceRelease(bInNeedsResourceRelease)
 	{
-		check(Object);
+		check(InObject);
 		PackageData.GetNumPendingCookedPlatformData() += 1;
 	}
 
@@ -876,7 +888,8 @@ namespace Cook
 			return true;
 		}
 
-		if (!Object || Object->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+		UObject* LocalObject = Object.Get();
+		if (!LocalObject || LocalObject->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 		{
 			Release();
 			return true;
@@ -884,13 +897,13 @@ namespace Cook
 		else
 		{
 #if DEBUG_COOKONTHEFLY
-			UE_LOG(LogCook, Display, TEXT("Object %s isn't cached yet"), *Object->GetFullName());
+			UE_LOG(LogCook, Display, TEXT("Object %s isn't cached yet"), *LocalObject->GetFullName());
 #endif
-			/*if ( Object->IsA(UMaterial::StaticClass()) )
+			/*if ( LocalObject->IsA(UMaterial::StaticClass()) )
 			{
 				if (GShaderCompilingManager->HasShaderJobs() == false)
 				{
-					UE_LOG(LogCook, Warning, TEXT("Shader compiler is in a bad state!  Shader %s is finished compile but shader compiling manager did not notify shader.  "), *Object->GetPathName());
+					UE_LOG(LogCook, Warning, TEXT("Shader compiler is in a bad state!  Shader %s is finished compile but shader compiling manager did not notify shader.  "), *LocalObject->GetPathName());
 				}
 			}*/
 			return false;
@@ -934,9 +947,10 @@ namespace Cook
 		if (NumPendingPlatforms <= 0)
 		{
 			check(NumPendingPlatforms == 0);
-			if (Data.Object)
+			UObject* LocalObject = Data.Object.Get();
+			if (LocalObject)
 			{
-				Data.Object->ClearAllCachedCookedPlatformData();
+				LocalObject->ClearAllCachedCookedPlatformData();
 			}
 			delete this;
 		}

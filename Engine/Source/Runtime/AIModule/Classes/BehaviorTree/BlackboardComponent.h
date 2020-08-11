@@ -211,7 +211,9 @@ public:
 	FORCEINLINE const uint8* GetKeyRawData(const FName& KeyName) const { return GetKeyRawData(GetKeyID(KeyName)); }
 	FORCEINLINE const uint8* GetKeyRawData(FBlackboard::FKey KeyID) const { return ValueMemory.Num() && ValueOffsets.IsValidIndex(KeyID) ? (ValueMemory.GetData() + ValueOffsets[KeyID]) : NULL; }
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 	FORCEINLINE bool IsValidKey(FBlackboard::FKey KeyID) const { check(BlackboardAsset); return KeyID != FBlackboard::InvalidKey && BlackboardAsset->Keys.IsValidIndex(KeyID); }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 
 	/** compares blackboard's values under specified keys */
 	EBlackboardCompare::Type CompareKeyValues(TSubclassOf<UBlackboardKeyType> KeyType, FBlackboard::FKey KeyA, FBlackboard::FKey KeyB) const;
@@ -233,10 +235,14 @@ protected:
 	UPROPERTY(transient)
 	UBrainComponent* BrainComp;
 
-	/** data asset defining entries */
+	/** data asset defining entries. Will be used as part of InitializeComponent 
+	 *	call provided BlackboardAsset hasn't been already set (via a InitializeBlackboard 
+	 *	call). */
 	UPROPERTY(EditDefaultsOnly, Category = AI)
 	UBlackboardData* DefaultBlackboardAsset;
 
+	/** internal use, current BB asset being used. Will be made private in the future */
+	UE_DEPRECATED_FORGAME(4.26, "Directly accessing BlackboardAsset is not longer supported. Use DefaultBlackboardAsset or InitializeBlackboard to set it and GetBlackboardAsset to retrieve it")
 	UPROPERTY(transient)
 	UBlackboardData* BlackboardAsset;
 
@@ -308,6 +314,8 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////
 // Inlines
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 
 FORCEINLINE bool UBlackboardComponent::HasValidAsset() const
 {
@@ -398,6 +406,7 @@ typename TDataClass::FDataType UBlackboardComponent::GetValue(FBlackboard::FKey 
 	return RawData ? TDataClass::GetValue((TDataClass*)KeyOb, RawData) : TDataClass::InvalidValue;
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 
 /**
  *	A helper type that improved performance of reading data from BB

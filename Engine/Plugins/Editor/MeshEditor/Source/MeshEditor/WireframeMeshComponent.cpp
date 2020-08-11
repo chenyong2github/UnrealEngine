@@ -283,7 +283,7 @@ public:
 			InstanceVertexBuffer.SetVertexUV( Index, 0, FVector2D::ZeroVector );
 		}
 
-		for( const FEdgeID HiddenEdgeID : Component->HiddenEdgeIDs )
+		for( const FEdgeID& HiddenEdgeID : Component->HiddenEdgeIDs )
 		{
 			const TArray<int32>& EdgeInstanceIndices = Component->GetWireframeMesh()->GetEdgeInstanceIDs( HiddenEdgeID );
 			for( const int32 EdgeInstanceIndex : EdgeInstanceIndices )

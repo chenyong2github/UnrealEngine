@@ -18,6 +18,18 @@ uint VolumeCascadeIndex;
 float4 SimpleLightPositionAndRadius;
 float4 SimpleLightColorAndExponent;
 
+#if RADIAL_ATTENUATION==0
+#include "VolumetricCloudCommon.ush"
+float4x4 VolumetricCloudWorldToLightClipShadowMatrix;
+float VolumetricCloudShadowmapFarDepthKm;
+Texture2D<float3> VolumetricCloudShadowmapTexture;
+SamplerState VolumetricCloudShadowmapTextureSampler;
+uint VolumetricCloudShadowEnabled;
+
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
+uint AtmospherePerPixelTransmittanceEnabled;
+#endif
+
 float CalcSimpleLightAttenuation(float3 WorldPosition)
 {
 	float3 WorldLightVector = SimpleLightPositionAndRadius.xyz - WorldPosition;
@@ -180,6 +192,15 @@ void InjectMainPS(
 
 		// Apply light function (it will also fade out at the edge of the volume so overall dimming of light using light function is not a recommended workflow)
 		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);
+
+		#if RADIAL_ATTENUATION==0
+		// Apply cloud shadow for atmosphere directional lights only if needed
+		if (VolumetricCloudShadowEnabled > 0)
+		{
+			float OutOpticalDepth = 0.0f;
+			ShadowFactor *= GetCloudVolumetricShadow(WorldPositionForLighting, VolumetricCloudWorldToLightClipShadowMatrix, VolumetricCloudShadowmapFarDepthKm, VolumetricCloudShadowmapTexture, VolumetricCloudShadowmapTextureSampler, OutOpticalDepth);
+		}
+		#endif
 		
 		if (VolumeCascadeIndex == 1)
 		{
@@ -203,6 +224,15 @@ void InjectMainPS(
 		}
 
 		float3 Lighting = DeferredLightUniforms.Color / PI * Attenuation * ShadowFactor;
+
+		#if RADIAL_ATTENUATION==0
+		// Apply color atmosphere transmittance for atmosphere directional lights only if ndeeded
+		if (AtmospherePerPixelTransmittanceEnabled > 0)
+		{
+			const float3 PlanetCenterToWorldPos = (WorldPositionForLighting - View.SkyPlanetCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+			Lighting *= GetAtmosphereTransmittance(PlanetCenterToWorldPos, NormalizedLightVector, View.SkyAtmosphereBottomRadiusKm, View.SkyAtmosphereTopRadiusKm, View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+		}
+		#endif
 
 		FTwoBandSHVectorRGB SHLighting = MulSH(SHBasisFunction(NormalizedLightVector), Lighting);
 

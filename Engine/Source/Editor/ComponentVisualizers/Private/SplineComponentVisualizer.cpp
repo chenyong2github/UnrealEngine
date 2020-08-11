@@ -455,7 +455,7 @@ void FSplineComponentVisualizer::DrawVisualization(const UActorComponent* Compon
 			// If not the first keypoint, draw a line to the previous keypoint.
 			if (KeyIdx > 0)
 			{
-				const FColor LineColor = (SplineComp == EditedSplineComp && SelectedKeys.Contains(KeyIdx - 1)) ? SelectedColor : NormalColor;
+				const FColor LineColor = NormalColor;
 				if (bIsSplineEditable)
 				{
 					PDI->SetHitProxy(new HSplineSegmentProxy(Component, KeyIdx - 1));
@@ -1729,9 +1729,9 @@ bool FSplineComponentVisualizer::DuplicateKeyForAltDrag(const FVector& InDrag)
 	// Set key index to which the drag will be applied after duplication
 	int32 SegmentIndex = CurrentIndex;
 
+	// Note dragging off first or last key in non-closed loop spline always adds a new segment
 	if ((bHasPrevKey && bHasNextKey && PrevAngle < NextAngle) ||
-		(bHasPrevKey && !bHasNextKey && PrevAngle < HALF_PI) ||
-		(!bHasPrevKey && bHasNextKey && NextAngle >= HALF_PI))
+		(!bHasPrevKey && bHasNextKey))
 	{
 		SegmentIndex--;
 	}

@@ -97,6 +97,9 @@ protected:
 	virtual float InternalTakeRadialDamage(float Damage, struct FRadialDamageEvent const& RadialDamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 public:
 #if WITH_EDITOR
+	FOLIAGE_API void EnterEditMode();
+	FOLIAGE_API void ExitEditMode();
+
 	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	virtual void Destroyed() override;
@@ -140,7 +143,7 @@ public:
 	/**
 	* Get the instanced foliage actor for the current streaming level.
 	*
-	* @param InCreationWorldIfNone			World to create the foliage instance in
+	* @param InWorld						World to create the foliage instance in
 	* @param bCreateIfNone					Create if doesnt already exist
 	* returns								pointer to foliage object instance
 	*/
@@ -149,12 +152,24 @@ public:
 
 	/**
 	* Get the instanced foliage actor for the specified streaming level.
+	* @param InLevel						Level to create the foliage instance in
 	* @param bCreateIfNone					Create if doesnt already exist
 	* returns								pointer to foliage object instance
 	*/
 	static FOLIAGE_API AInstancedFoliageActor* GetInstancedFoliageActorForLevel(ULevel* Level, bool bCreateIfNone = false);
-
+						
 #if WITH_EDITOR
+	/**
+	 * Get the instanced foliage actor for the specified params
+	 * @param InWorld						World to create the foliage instance in
+	 * @param bCreateIfNone					Create if doesnt already exist
+	 * @param InLevelHint					Level hint for foliage instance creation
+	 * @param InLocationHint				Location hint for foliage instance creation
+	 */
+	static FOLIAGE_API AInstancedFoliageActor* Get(UWorld* InWorld, bool bCreateIfNone, ULevel* InLevelHint = nullptr, const FVector& InLocationHint = FVector(ForceInitToZero));
+
+	static FOLIAGE_API AInstancedFoliageActor* GetDefault(UWorld* InWorld);
+
 	static FOLIAGE_API bool FoliageTrace(const UWorld* InWorld, FHitResult& OutHit, const FDesiredFoliageInstance& DesiredInstance, FName InTraceTag = NAME_None, bool InbReturnFaceIndex = false, const FFoliageTraceFilterFunc& FilterFunc = FFoliageTraceFilterFunc());
 	static FOLIAGE_API bool CheckCollisionWithWorld(const UWorld* InWorld, const UFoliageType* Settings, const FFoliageInstance& Inst, const FVector& HitNormal, const FVector& HitLocation, UPrimitiveComponent* HitComponent);
 
@@ -223,7 +238,7 @@ public:
 	FOLIAGE_API void SelectInstance(UInstancedStaticMeshComponent* InComponent, int32 InComponentInstanceIndex, bool bToggle);
 
 	// Select an individual instance.
-	FOLIAGE_API void SelectInstance(AActor* InActor, bool bToggle);
+	FOLIAGE_API bool SelectInstance(AActor* InActor, bool bToggle);
 
 	// Whether actor has selected instances
 	FOLIAGE_API bool HasSelectedInstances() const;
@@ -257,6 +272,8 @@ public:
 	void RepairDuplicateIFA(AInstancedFoliageActor* InDuplicateIFA);
 
 	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
+
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Location; }
 #endif	//WITH_EDITOR
 
 private:
@@ -283,7 +300,7 @@ private:
 	FDelegateHandle OnPostApplyLevelOffsetDelegateHandle;
 	FDelegateHandle OnApplyLevelTransformDelegateHandle;
 	FDelegateHandle OnPostWorldInitializationDelegateHandle;
-
+	
 	FOnFoliageTypeMeshChanged OnFoliageTypeMeshChangedEvent;
 #endif
 

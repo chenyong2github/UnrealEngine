@@ -273,6 +273,7 @@ private:
 	void AddBoneElement(FRigBone InBone);
 	void AddControlElement(FRigControl InControl);
 	void AddSpaceElement(FRigSpace InSpace);
+	void ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
 
 public:
 	bool RenameElement(const FRigElementKey& OldKey, const FName& NewName);

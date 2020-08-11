@@ -27,7 +27,7 @@ class ILevelEditor : public SCompoundWidget, public IToolkitHost
 public:
 
 	/** Summons a context menu for this level editor at the mouse cursor's location */
-	virtual void SummonLevelViewportContextMenu() = 0;
+	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) = 0;
 
 	/** Summons a context menu for view options */
 	virtual void SummonLevelViewportViewOptionMenu(ELevelViewportType ViewOption) = 0;

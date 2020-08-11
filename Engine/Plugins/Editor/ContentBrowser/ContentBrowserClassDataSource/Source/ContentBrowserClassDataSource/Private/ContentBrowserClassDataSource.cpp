@@ -112,7 +112,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	}
 
 	// Find the child class folders
-	if (bIncludeFolders)
+	if (bIncludeFolders && !ClassHierarchyFilter.IsEmpty())
 	{
 		TArray<FString> ChildClassFolders;
 		NativeClassHierarchy->GetMatchingFolders(ClassHierarchyFilter, ChildClassFolders);
@@ -133,7 +133,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	}
 
 	// Find the child class files
-	if (bIncludeFiles)
+	if (bIncludeFiles && !ClassHierarchyFilter.IsEmpty())
 	{
 		TArray<UClass*> ChildClassObjects;
 		NativeClassHierarchy->GetMatchingClasses(ClassHierarchyFilter, ChildClassObjects);
@@ -183,7 +183,7 @@ void UContentBrowserClassDataSource::EnumerateItemsMatchingFilter(const FContent
 
 	if (EnumHasAnyFlags(InFilter.ItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 	{
-		for (const FName ValidFolder : ClassDataFilter->ValidFolders)
+		for (const FName& ValidFolder : ClassDataFilter->ValidFolders)
 		{
 			if (!InCallback(CreateClassFolderItem(ValidFolder)))
 			{
@@ -437,7 +437,7 @@ void UContentBrowserClassDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 
 	// Extract the internal class paths that belong to this data source from the full list of selected paths given in the context
 	TArray<FName> SelectedClassPaths;
-	for (const FName SelectedPath : ContextObject->SelectedPaths)
+	for (const FName& SelectedPath : ContextObject->SelectedPaths)
 	{
 		FName InternalPath;
 		if (TryConvertVirtualPathToInternal(SelectedPath, InternalPath) && IsKnownClassPath(InternalPath))

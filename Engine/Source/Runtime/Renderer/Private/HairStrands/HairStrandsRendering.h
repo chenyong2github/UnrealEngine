@@ -23,7 +23,7 @@
 #include "HairStrandsInterface.h"
 
 /// Hold all the hair strands data
-struct FHairStrandsDatas
+struct FHairStrandsRenderingData
 {
 	FHairStrandsVisibilityViews HairVisibilityViews;
 	FHairStrandsMacroGroupViews MacroGroupsPerViews;
@@ -50,7 +50,7 @@ void RenderHairPrePass(
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
 	FHairStrandClusterData HairClusterData,
-	FHairStrandsDatas& OutHairDatas);
+	FHairStrandsRenderingData& OutHairDatas);
 
 void RenderHairBasePass(
 	FRHICommandListImmediate& RHICmdList,
@@ -58,4 +58,4 @@ void RenderHairBasePass(
 	FSceneRenderTargets& SceneContext,
 	TArray<FViewInfo>& Views,
 	FHairStrandClusterData HairClusterData,
-	FHairStrandsDatas& OutHairDatas);
+	FHairStrandsRenderingData& OutHairDatas);

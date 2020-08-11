@@ -63,7 +63,7 @@ public:
 		StatButtonWidgets.Empty();
 		StatsArea->ClearChildren();
 
-		const TArray< FLayerActorStats > ActorStats = ViewModel->GetActorStats();
+		const TArray< FLayerActorStats >& ActorStats = ViewModel->GetActorStats();
 		for( int StatsIndex = 0; StatsIndex < ActorStats.Num(); ++StatsIndex )
 		{
 			const TWeakObjectPtr< UClass > StatsActorClass = ActorStats[ StatsIndex ].Type;

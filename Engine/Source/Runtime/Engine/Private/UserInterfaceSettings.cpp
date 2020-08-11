@@ -143,6 +143,8 @@ float UUserInterfaceSettings::CalculateScale(FIntPoint Size, bool& bError) const
 		case EUIScalingRule::Vertical:
 			EvalPoint = Size.Y;
 			break;
+		case EUIScalingRule::ScaleToFit:
+			return DesignScreenSize.X > 0 && DesignScreenSize.Y > 0 ? FMath::Min((float)(Size.X) / DesignScreenSize.X, (float)(Size.Y) / DesignScreenSize.Y) : 1.f;
 		}
 
 		const FRichCurve* DPICurve = UIScaleCurve.GetRichCurveConst();

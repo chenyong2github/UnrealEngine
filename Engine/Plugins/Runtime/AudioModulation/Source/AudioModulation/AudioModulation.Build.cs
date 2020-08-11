@@ -20,7 +20,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"AudioMixer",
-					"SignalProcessing"
+					"SignalProcessing",
+					"DeveloperSettings"
 				}
 			);
 

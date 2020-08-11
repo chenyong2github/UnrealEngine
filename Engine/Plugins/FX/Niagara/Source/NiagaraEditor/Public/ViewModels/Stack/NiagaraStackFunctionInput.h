@@ -336,7 +336,7 @@ private:
 	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
 
 	/** Handles the message manager refreshing messages. */
-	void OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages);
+	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
@@ -446,6 +446,11 @@ private:
 	/** Whether or not the dynamic input for this input has a function script reassignment pending due to a request to fix a missing script. */
 	bool bIsDynamicInputScriptReassignmentPending;
 
-	/** A handled to the refresh delegate on the message manager if it's bound. */
-	FDelegateHandle MessageManagerRefreshHandle;
+	/** A key to the message manager registration and its delegate binding. */
+	FGuid MessageManagerRegistrationKey;
+
+	//** Issues created outside of the RefreshChildren call that will be committed the next time the UI state is refreshed. */
+	TArray<FStackIssue> MessageManagerIssues;
+
+	FGuid MessageLogGuid;
 };

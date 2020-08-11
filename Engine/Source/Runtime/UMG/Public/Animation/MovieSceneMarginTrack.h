@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneMarginTrack.generated.h"
 
 /**
  * Handles manipulation of FMargins in a movie scene
  */
 UCLASS( MinimalAPI )
-class UMovieSceneMarginTrack : public UMovieScenePropertyTrack
+class UMovieSceneMarginTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 

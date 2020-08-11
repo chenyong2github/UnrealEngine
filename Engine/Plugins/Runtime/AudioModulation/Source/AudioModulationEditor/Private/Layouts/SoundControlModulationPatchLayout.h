@@ -89,3 +89,13 @@ public:
 	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
 };
 
+class FSoundControlModulationPatchLayoutCustomization : public FSoundModulationPatchLayoutCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FSoundControlModulationPatchLayoutCustomization>();
+	}
+
+	virtual TAttribute<EVisibility> CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder) override;
+};

@@ -266,7 +266,7 @@ bool FGameplayMediaEncoder::Start()
 		}
 	}
 
-	StartTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
+	StartTime = FTimespan::FromSeconds(QueryClock());
 	AudioClock = 0;
 	NumCapturedFrames = 0;
 	
@@ -343,7 +343,7 @@ void FGameplayMediaEncoder::Shutdown()
 
 FTimespan FGameplayMediaEncoder::GetMediaTimestamp() const
 {
-	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - StartTime;
+	return FTimespan::FromSeconds(QueryClock()) - StartTime;
 }
 
 void FGameplayMediaEncoder::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double /*AudioClock*/)
@@ -445,6 +445,11 @@ void FGameplayMediaEncoder::SetVideoFramerate(uint32 Framerate)
 {
 	NewVideoFramerate = FMath::Clamp(Framerate, MinVideoFPS, MaxVideoFPS);
 	bChangeFramerate = true;
+}
+
+void FGameplayMediaEncoder::SetFramesShouldUseAppTime(bool bUseAppTime)
+{
+	bShouldFramesUseAppTime = bUseAppTime;
 }
 
 bool FGameplayMediaEncoder::ChangeVideoConfig()

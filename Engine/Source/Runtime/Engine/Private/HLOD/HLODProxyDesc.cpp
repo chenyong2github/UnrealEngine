@@ -6,6 +6,8 @@
 #include "Engine/LODActor.h"
 #include "Algo/Transform.h"
 #include "GameFramework/WorldSettings.h"
+#include "LevelUtils.h"
+#include "Engine/LevelStreaming.h"
 #endif
 
 #if WITH_EDITOR
@@ -16,10 +18,53 @@ FHLODISMComponentDesc::FHLODISMComponentDesc(const UInstancedStaticMeshComponent
 	StaticMesh = InISMComponent->GetStaticMesh();
 
 	Instances.Reset(InISMComponent->GetInstanceCount());
-	for (const FInstancedStaticMeshInstanceData& InstanceData : InISMComponent->PerInstanceSMData)
+
+	for (int32 InstanceIndex = 0; InstanceIndex < InISMComponent->GetInstanceCount(); ++InstanceIndex)
 	{
-		Instances.Emplace(InstanceData.Transform);
+		FTransform InstanceTransform;
+		InISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform);
+		Instances.Emplace(InstanceTransform);
 	}
+}
+
+bool FHLODISMComponentDesc::operator==(const FHLODISMComponentDesc& Other) const
+{
+	if (StaticMesh != Other.StaticMesh)
+	{
+		return false;
+	}
+
+	if (Material != Other.Material)
+	{
+		return false;
+	}
+
+	if (Instances.Num() != Other.Instances.Num())
+	{
+		return false;
+	}
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Instances.Num(); ++InstanceIdx)
+	{
+		const float Tolerance = 0.1f;
+		if (!Instances[InstanceIdx].Equals(Other.Instances[InstanceIdx], Tolerance))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+FTransform RemoveStreamingLevelTransform(ULevel* InLevel, const FTransform InTransform)
+{
+	ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel);
+	if (StreamingLevel)
+	{
+		return InTransform.GetRelativeTransform(StreamingLevel->LevelTransform);
+	}
+
+	return InTransform;
 }
 
 bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
@@ -67,9 +112,10 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 	bOverrideScreenSize = InLODActor->bOverrideScreenSize;
 	ScreenSize = InLODActor->ScreenSize;
 
-	Key = InLODActor->Key;
 	LODLevel = InLODActor->LODLevel;
 	LODActorTag = InLODActor->LODActorTag;
+
+	Location = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
 
 	return true;
 }
@@ -156,11 +202,6 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
-	if (Key != InLODActor->Key)
-	{
-		return true;
-	}
-
 	if (LODLevel != InLODActor->LODLevel)
 	{
 		return true;
@@ -171,31 +212,66 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
+	FVector LODActorLocation = RemoveStreamingLevelTransform(InLODActor->GetLevel(), FTransform(InLODActor->GetActorLocation())).GetTranslation();
+	const float Tolerance = 0.1f;
+	if (!Location.Equals(LODActorLocation, Tolerance))
+	{
+		return true;
+	}
+
 	return false;
 }
 
 ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 {
+	const bool bWasWorldPackageDirty = InLevel->GetOutermost()->IsDirty();
+
 	FActorSpawnParameters ActorSpawnParameters;
 	ActorSpawnParameters.Name = MakeUniqueObjectName(InLevel, ALODActor::StaticClass());
 	ActorSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ActorSpawnParameters.OverrideLevel = InLevel;
 	ActorSpawnParameters.bHideFromSceneOutliner = true;
+	ActorSpawnParameters.ObjectFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient;
 
-	ALODActor* LODActor = InLevel->GetWorld()->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorSpawnParameters);
+	FTransform ActorTransform(Location);
+
+	// If level is a streamed level with a transform and the transform was already applied,
+	// make sure to spawn this new LODActor with a proper transform.
+	if (InLevel->bAlreadyMovedActors)
+	{
+		ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel);
+		if (StreamingLevel)
+		{
+			ActorTransform = ActorTransform * StreamingLevel->LevelTransform;
+		}
+	}
+
+	ALODActor* LODActor = InLevel->GetWorld()->SpawnActor<ALODActor>(ALODActor::StaticClass(), ActorTransform, ActorSpawnParameters);
 	if (!LODActor)
 	{
 		return nullptr;
 	}
 
-	// Temporarily switch to movable in order to update the static mesh...
-	LODActor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
 	LODActor->SetStaticMesh(StaticMesh);
-	LODActor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static);
 
 	for (const FHLODISMComponentDesc& ISMComponentDesc : ISMComponentsDesc)
 	{
-		LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, ISMComponentDesc.Instances);
+		// Apply transform to HISM instances
+		const bool bTransformInstances = !ActorTransform.Equals(FTransform::Identity);
+		if (bTransformInstances)
+		{
+			TArray<FTransform> Transforms = ISMComponentDesc.Instances;
+			for (FTransform& Transform : Transforms)
+			{
+				Transform *= ActorTransform;
+			}
+
+			LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, Transforms);
+		}
+		else
+		{
+			LODActor->SetupImposters(ISMComponentDesc.Material, ISMComponentDesc.StaticMesh, ISMComponentDesc.Instances);
+		}
 	}
 
 	LODActor->SetDrawDistance(LODDrawDistance);
@@ -239,6 +315,12 @@ ALODActor* UHLODProxyDesc::SpawnLODActor(ULevel* InLevel) const
 
 	LODActor->ProxyDesc = const_cast<UHLODProxyDesc*>(this);
 	LODActor->bBuiltFromHLODDesc = true;
+
+	// Don't dirty the level file after spawning a transient actor
+	if (!bWasWorldPackageDirty)
+	{
+		InLevel->GetOutermost()->SetDirtyFlag(false);
+	}
 
 	return LODActor;
 }

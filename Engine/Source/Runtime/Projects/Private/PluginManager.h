@@ -103,6 +103,7 @@ public:
 	virtual void RefreshPluginsList() override;
 	virtual bool AddToPluginsList( const FString& PluginFilename ) override;
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) override;
+	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() override;
 	virtual void GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths ) override;
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
 	virtual void SetUpdatePackageLocalizationCacheDelegate( const FUpdatePackageLocalizationCacheDelegate& Delegate ) override;
@@ -208,6 +209,9 @@ private:
 	/** Callback for notifications that a new plugin was mounted */
 	FNewPluginMountedEvent NewPluginCreatedEvent;
 	FNewPluginMountedEvent NewPluginMountedEvent;
+
+	/** Callback for notifications that a loading phase was completed */
+	FLoadingModulesForPhaseEvent LoadingPhaseCompleteEvent;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

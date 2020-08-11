@@ -30,11 +30,6 @@ UMovieSceneSection* UMovieSceneCameraShakeTrack::AddNewCameraShake(FFrameNumber 
 	return NewSection;
 }
 
-FMovieSceneTrackSegmentBlenderPtr UMovieSceneCameraShakeTrack::GetTrackSegmentBlender() const
-{
-	return FMovieSceneAdditiveCameraTrackBlender();
-}
-
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneCameraShakeTrack::GetDisplayName() const
 {
@@ -42,8 +37,15 @@ FText UMovieSceneCameraShakeTrack::GetDisplayName() const
 }
 #endif
 
-
-
+FMovieSceneEvalTemplatePtr UMovieSceneCameraShakeTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	const UMovieSceneCameraShakeSection* CameraShakeSection = CastChecked<const UMovieSceneCameraShakeSection>(&InSection);
+	if (*CameraShakeSection->ShakeData.ShakeClass)
+	{
+		return FMovieSceneCameraShakeSectionTemplate(*CameraShakeSection);
+	}
+	return FMovieSceneEvalTemplatePtr();
+}
 
 /* UMovieSceneTrack interface
 *****************************************************************************/

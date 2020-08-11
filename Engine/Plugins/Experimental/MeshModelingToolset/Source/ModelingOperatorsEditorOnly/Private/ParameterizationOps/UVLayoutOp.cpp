@@ -115,7 +115,7 @@ FOverlappingCorners OverlappingCornersFromUVs(const FDynamicMesh3* Mesh, int UVL
 
 void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -127,7 +127,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh->EnableAttributes();
 	}
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -136,7 +136,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 	int UVLayerInput = 0, UVLayerOutput = 0;
 	ResultMesh->Attributes()->GetUVLayer(UVLayerInput)->SplitBowties();
 
-	if (Progress->Cancelled())
+	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
@@ -196,19 +196,19 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 		FCompactDynamicMeshWithAttributesLayoutView MeshView(ResultMesh.Get(), UVLayerInput, UVLayerOutput);
 		FLayoutUV LayoutUV(MeshView);
 		FOverlappingCorners Overlaps = OverlappingCornersFromUVs(ResultMesh.Get(), UVLayerInput);
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
 
 		LayoutUV.FindCharts(Overlaps);
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}
 
 		LayoutUV.FindBestPacking(TextureResolution);
-		if (Progress->Cancelled())
+		if (Progress && Progress->Cancelled())
 		{
 			return;
 		}

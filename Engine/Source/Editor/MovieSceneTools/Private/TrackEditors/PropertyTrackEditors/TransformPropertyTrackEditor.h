@@ -12,6 +12,8 @@
 #include "Tracks/MovieSceneTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 
+namespace UE { namespace MovieScene { struct FIntermediate3DTransform; } }
+
 /**
  * A property track editor for transforms.
  */
@@ -55,7 +57,10 @@ protected:
 
 	//~ FPropertyTrackEditor interface
 
-	virtual void GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, FGeneratedTrackKeys& OutGeneratedKeys) override;
-	virtual bool ModifyGeneratedKeysByCurrentAndWeight(UObject* Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber Time, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const override;
+	virtual void GenerateKeysFromPropertyChanged(const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys) override;
+
+private:
+
+	UE::MovieScene::FIntermediate3DTransform RecomposeTransform(const UE::MovieScene::FIntermediate3DTransform& InTransformData, UObject* AnimatedObject, UMovieSceneSection* Section);
 
 };

@@ -320,6 +320,12 @@ FBlueprintCompileReinstancer::FBlueprintCompileReinstancer(UClass* InClassToRein
 						{
 							ReparentChild(ChildClass);
 						}
+						else
+						{
+							ChildClass->AssembleReferenceTokenStream();
+							ChildClass->Bind();
+							ChildClass->StaticLink(true);
+						}
 
 						//TODO: some stronger condition would be nice
 						if (!bClassIsDirectlyGeneratedByTheBlueprint)
@@ -1810,14 +1816,15 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	SpawnInfo.bDeferConstruction = true;
 	SpawnInfo.Name = OldActor->GetFName();
 
-#if WITH_EDITOR
 	if (!OldActor->IsListedInSceneOutliner())
 	{
 		SpawnInfo.bHideFromSceneOutliner = true;
 	}
-#endif
 
-	OldActor->UObject::Rename(nullptr, OldActor->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+	SpawnInfo.OverridePackage = OldActor->GetExternalPackage();
+	SpawnInfo.OverrideActorGuid = OldActor->GetActorGuid();
+
+	OldActor->Rename(nullptr, OldActor->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 
 	AActor* NewActor = nullptr;
 	{

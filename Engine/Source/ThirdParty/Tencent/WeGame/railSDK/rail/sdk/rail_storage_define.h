@@ -1,4 +1,4 @@
-// Copyright (C) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 #ifndef RAIL_SDK_RAIL_STORAGE_DEFINE_H
 #define RAIL_SDK_RAIL_STORAGE_DEFINE_H

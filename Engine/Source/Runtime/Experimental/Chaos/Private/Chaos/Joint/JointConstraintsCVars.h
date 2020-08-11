@@ -21,3 +21,5 @@ extern float Chaos_Joint_DegenerateRotationLimit;
 extern float Chaos_Joint_VelProjectionAlpha;
 
 extern bool bChaos_Joint_DisableSoftLimits;
+
+extern bool bChaos_Joint_EnableMatrixSolve;

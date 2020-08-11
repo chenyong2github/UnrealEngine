@@ -2303,7 +2303,18 @@ bool FLevelEditorActionCallbacks::CanConvertSelectedActorsIntoBlueprintClass()
 void FLevelEditorActionCallbacks::ConvertSelectedActorsIntoBlueprintClass()
 {
 	const ECreateBlueprintFromActorMode ValidCreateModes = FCreateBlueprintFromActorDialog::GetValidCreationMethods();
-	const ECreateBlueprintFromActorMode DefaultCreateMode = ((GEditor->GetSelectedActorCount() == 1 && !!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass)) ? ECreateBlueprintFromActorMode::Subclass : ECreateBlueprintFromActorMode::ChildActor);
+	ECreateBlueprintFromActorMode DefaultCreateMode = ECreateBlueprintFromActorMode::Harvest;
+	if (!!(ValidCreateModes & ECreateBlueprintFromActorMode::Subclass) && (GEditor->GetSelectedActorCount() == 1))
+	{
+		// If a single actor is selected and it can be subclassed, use that as default
+		DefaultCreateMode = ECreateBlueprintFromActorMode::Subclass;
+	}
+	else if (!!(ValidCreateModes & ECreateBlueprintFromActorMode::ChildActor))
+	{
+		// Otherwise if there is an actor that can be spawned as a child actor, use that as default
+		DefaultCreateMode = ECreateBlueprintFromActorMode::ChildActor;
+	}
+
 	FCreateBlueprintFromActorDialog::OpenDialog(DefaultCreateMode);
 }
 
@@ -2525,6 +2536,10 @@ void FLevelEditorActionCallbacks::OnAudioMutedChanged(bool bMuted)
 void FLevelEditorActionCallbacks::SnapObjectToView_Clicked()
 {
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SnapObjectToView", "Snap Object to View"));
+
+	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
+	FScopedLevelDirtied		LevelDirtyCallback;
+
 	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 	{
 		AActor* Actor = Cast<AActor>(*It);
@@ -2534,6 +2549,9 @@ void FLevelEditorActionCallbacks::SnapObjectToView_Clicked()
 
 		Actor->SetActorLocation(Location);
 		Actor->SetActorRotation(Rotation);
+		Actor->PostEditMove(true);
+
+		LevelDirtyCallback.Request();
 	}
 
 }
@@ -2748,6 +2766,7 @@ void FLevelEditorActionCallbacks::MoveActorTo_Clicked( const bool InAlign, const
 		Actor->TeleportTo( NewLocation, ( !InAlign ? Actor->GetActorRotation() : NewRotation ), false, true );
 		Actor->InvalidateLightingCache();
 		Actor->UpdateComponentTransforms();
+		Actor->PostEditMove(true);
 
 		Actor->MarkPackageDirty();
 		LevelDirtyCallback.Request();
@@ -2793,6 +2812,7 @@ void FLevelEditorActionCallbacks::SnapTo2DLayer_Clicked()
 
 				Actor->InvalidateLightingCache();
 				Actor->UpdateComponentTransforms();
+				Actor->PostEditMove(true);
 
 				Actor->MarkPackageDirty();
 				LevelDirtyCallback.Request();
@@ -2897,6 +2917,20 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const bool InAlign, const bool
 		bSnappedComponents = true;
 	}
 
+	// Gather the selected actors and components to later add to the ingore list for object snapping
+	TArray<FActorOrComponent> ObjectsToIgnore;
+	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
+	{
+		USceneComponent* SceneComponent = Cast<USceneComponent>(*It);
+		ObjectsToIgnore.Add(FActorOrComponent(SceneComponent));
+	}
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		AActor* Actor = Cast<AActor>(*It);
+		ObjectsToIgnore.Add(FActorOrComponent(Actor));
+	}
+
+
 	if( !bSnappedComponents && GEditor->GetSelectedComponentCount() > 0 )
 	{
 		for(FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
@@ -2910,7 +2944,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const bool InAlign, const bool
 				if(ActorOwner)
 				{
 					ActorOwner->Modify();
-					GEditor->SnapObjectTo(FActorOrComponent(SceneComponent), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination));
+					GEditor->SnapObjectTo(FActorOrComponent(SceneComponent), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination), ObjectsToIgnore);
 					ActorOwner->InvalidateLightingCache();
 					ActorOwner->UpdateComponentTransforms();
 
@@ -2932,7 +2966,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const bool InAlign, const bool
 			if(Actor)
 			{
 				Actor->Modify();
-				GEditor->SnapObjectTo(FActorOrComponent(Actor), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination));
+				GEditor->SnapObjectTo(FActorOrComponent(Actor), InAlign, InUseLineTrace, InUseBounds, InUsePivot, FActorOrComponent(InDestination), ObjectsToIgnore);
 				Actor->InvalidateLightingCache();
 				Actor->UpdateComponentTransforms();
 
@@ -3004,6 +3038,25 @@ class UWorld* FLevelEditorActionCallbacks::GetWorld()
 	return GEditor->GetEditorWorldContext().World();
 }
 
+namespace
+{
+	const FName OpenRecentFileBundle = "OpenRecentFile";
+	const FName OpenFavoriteFileBundle = "OpenFavoriteFile";
+}
+
+FLevelEditorCommands::FLevelEditorCommands()
+	: TCommands<FLevelEditorCommands>
+	(
+		"LevelEditor", // Context name for fast lookup
+		NSLOCTEXT("Contexts", "LevelEditor", "Level Editor"), // Localized context name for displaying
+		"LevelViewport", // Parent
+		FEditorStyle::GetStyleSetName() // Icon Style Set
+	)
+{
+	AddBundle(OpenRecentFileBundle, NSLOCTEXT("LevelEditorCommands", "OpenRecentFileBundle", "Open Recent File"));
+	AddBundle(OpenFavoriteFileBundle, NSLOCTEXT("LevelEditorCommands", "OpenFavoriteFileBundle", "Open Favorite File"));
+}
+
 /** UI_COMMAND takes long for the compile to optimize */
 PRAGMA_DISABLE_OPTIMIZATION
 void FLevelEditorCommands::RegisterCommands()
@@ -3028,7 +3081,8 @@ void FLevelEditorCommands::RegisterCommands()
 				this->AsShared(),
 				FName( *FString::Printf( TEXT( "OpenRecentFile%i" ), CurRecentIndex ) ),
 				FText::Format( NSLOCTEXT( "LevelEditorCommands", "OpenRecentFile", "Open Recent File {0}" ), FText::AsNumber( CurRecentIndex ) ),
-				NSLOCTEXT( "LevelEditorCommands", "OpenRecentFileToolTip", "Opens a recently opened file" ) )
+				NSLOCTEXT( "LevelEditorCommands", "OpenRecentFileToolTip", "Opens a recently opened file" ),
+				OpenRecentFileBundle)
 			.UserInterfaceType( EUserInterfaceActionType::Button )
 			.DefaultChord( FInputChord() );
 		OpenRecentFileCommands.Add( OpenRecentFile );
@@ -3042,7 +3096,8 @@ void FLevelEditorCommands::RegisterCommands()
 				this->AsShared(),
 				FName(*FString::Printf(TEXT("OpenFavoriteFile%i"), CurFavoriteIndex)),
 				FText::Format(NSLOCTEXT("LevelEditorCommands", "OpenFavoriteFile", "Open Favorite File {0}"), FText::AsNumber(CurFavoriteIndex)),
-				NSLOCTEXT("LevelEditorCommands", "OpenFavoriteFileToolTip", "Opens a favorite file"))
+				NSLOCTEXT("LevelEditorCommands", "OpenFavoriteFileToolTip", "Opens a favorite file"),
+				OpenFavoriteFileBundle)
 			.UserInterfaceType(EUserInterfaceActionType::Button)
 			.DefaultChord(FInputChord());
 		OpenFavoriteFileCommands.Add(OpenFavoriteFile);

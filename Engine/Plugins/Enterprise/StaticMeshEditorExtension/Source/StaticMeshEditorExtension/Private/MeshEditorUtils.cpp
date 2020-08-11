@@ -207,11 +207,11 @@ TMap<FPolygonID, FTriangleData> MeshEditingUtilsImpl::GetFilteredTriangleData(co
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FVector TriangleVertexPositions[3];
-	for (const FPolygonID PolygonID : Polygons)
+	for (const FPolygonID& PolygonID : Polygons)
 	{
 		TArrayView<const FTriangleID> PolygonTriangleIDs = MeshDescription->GetPolygonTriangles(PolygonID);
 
-		for (const FTriangleID MeshTriangleID : PolygonTriangleIDs)
+		for (const FTriangleID& MeshTriangleID : PolygonTriangleIDs)
 		{
 			for (int32 TriangleVertex = 0; TriangleVertex < 3; ++TriangleVertex)
 			{
@@ -361,7 +361,7 @@ FBox FMeshEditingUtils::GetElementsBoundingBox(const TArray<FMeshElement>& MeshE
 			{
 				const FPolygonID PolygonID( MeshElement.ElementAddress.ElementID );
 
-				for( const FVertexInstanceID VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
+				for( const FVertexInstanceID& VertexInstanceID : MeshDescription->GetPolygonVertexInstances( PolygonID ) )
 				{
 					const FVector VertexPosition = VertexPositions[ MeshDescription->GetVertexInstanceVertex( VertexInstanceID ) ];
 					BoundingBox += Component->GetComponentTransform().TransformPosition( VertexPosition );

@@ -55,7 +55,7 @@ protected:
 		TWeakPtr<class IBackgroundHttpRequest, ESPMode::ThreadSafe> OriginalRequest;
 
 		//Current Http Request being processed by this wrapper
-		TSharedPtr<IHttpRequest> HttpRequest;
+		TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest;
 
 		//Tracking retry number we are currently on
 		int32 CurrentRetryNumber;

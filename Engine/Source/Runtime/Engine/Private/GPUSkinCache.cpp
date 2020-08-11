@@ -321,12 +321,21 @@ public:
 	void UpdateSkinWeightBuffer()
 	{
 		FSkinWeightVertexBuffer* WeightBuffer = GPUSkin->GetSkinWeightVertexBuffer(LOD);
-		BoneInfluenceType = WeightBuffer->GetBoneInfluenceType();
 		bUse16BitBoneIndex = WeightBuffer->Use16BitBoneIndex();
 		InputWeightIndexSize = WeightBuffer->GetBoneIndexByteSize();
 		InputWeightStride = WeightBuffer->GetConstantInfluencesVertexStride();
 		InputWeightStreamSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
 		InputWeightLookupStreamSRV = WeightBuffer->GetLookupVertexBuffer()->GetSRV();
+				
+		if (WeightBuffer->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+		{
+			int32 MaxBoneInfluences = WeightBuffer->GetMaxBoneInfluences();
+			BoneInfluenceType = MaxBoneInfluences > MAX_INFLUENCES_PER_STREAM ? 1 : 0;
+		}
+		else
+		{
+			BoneInfluenceType = 2;
+		}
 	}
 
 	void SetupSection(int32 SectionIndex, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation, FSkelMeshRenderSection* Section, const FMorphVertexBuffer* MorphVertexBuffer, const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer,
@@ -1625,7 +1634,15 @@ void FGPUSkinCache::CVarSinkFunction()
 	float NewSceneMaxSizeInMb = CVarGPUSkinCacheSceneMemoryLimitInMB.GetValueOnAnyThread();
 	int32 NewNumTangentIntermediateBuffers = CVarGPUSkinNumTangentIntermediateBuffers.GetValueOnAnyThread();
 
-	if (!GEnableGPUSkinCacheShaders)
+	if (GEnableGPUSkinCacheShaders)
+	{
+		if (GIsRHIInitialized && IsRayTracingEnabled())
+		{
+			// Skin cache is *required* for ray tracing.
+			NewGPUSkinCacheValue = 1;
+		}
+	}
+	else
 	{
 		NewGPUSkinCacheValue = 0;
 		NewRecomputeTangentsValue = 0;

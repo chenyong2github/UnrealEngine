@@ -273,7 +273,11 @@ const FDateTime& FPerforceSourceControlState::GetTimeStamp() const
 
 bool FPerforceSourceControlState::CanCheckIn() const
 {
-	return ( (State == EPerforceState::CheckedOut) || (State == EPerforceState::OpenForAdd) || (State == EPerforceState::Branched) ) && !IsConflicted() && IsCurrent();
+	return ( (State == EPerforceState::CheckedOut) 
+			|| (State == EPerforceState::OpenForAdd) 
+			|| (State == EPerforceState::MarkedForDelete)
+			|| (State == EPerforceState::Branched) )
+		&& !IsConflicted() && IsCurrent();
 }
 
 bool FPerforceSourceControlState::CanCheckout() const

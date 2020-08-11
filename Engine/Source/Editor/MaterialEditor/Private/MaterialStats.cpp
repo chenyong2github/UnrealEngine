@@ -222,7 +222,7 @@ bool FShaderPlatformSettings::Update()
 					MaterialShaderMap->GetShaderList(ShaderMap);
 
 					QualityItem.ArrShaderNames.Empty();
-					for (const auto Entry : ShaderMap)
+					for (const auto& Entry : ShaderMap)
 					{
 						QualityItem.ArrShaderNames.Add(MakeShareable(new FName(Entry.Value.GetType()->GetFName())));
 					}
@@ -299,7 +299,7 @@ void FMaterialStats::LoadSettings()
 {
 	Options = NewObject<UMaterialStatsOptions>();
 
-	for (const auto PlatformEntry : ShaderPlatformStatsDB)
+	for (const auto& PlatformEntry : ShaderPlatformStatsDB)
 	{
 		const EShaderPlatform PlatformID = PlatformEntry.Key;
 		const bool bPresentInGrid = !!Options->bPlatformUsed[PlatformID];
@@ -313,7 +313,7 @@ void FMaterialStats::LoadSettings()
 		const bool bUsed = !!Options->bMaterialQualityUsed[i];
 		bArrStatsQualitySelector[(EMaterialQualityLevel::Type)i] = bUsed;
 
-		for (const auto PlatformEntry : ShaderPlatformStatsDB)
+		for (const auto& PlatformEntry : ShaderPlatformStatsDB)
 		{
 			TSharedPtr<FShaderPlatformSettings> SomePlatform = PlatformEntry.Value;
 			if (SomePlatform.IsValid())
@@ -326,7 +326,7 @@ void FMaterialStats::LoadSettings()
 
 void FMaterialStats::SaveSettings()
 {
-	for (const auto PlatformEntry : ShaderPlatformStatsDB)
+	for (const auto& PlatformEntry : ShaderPlatformStatsDB)
 	{
 		const EShaderPlatform PlatformID = PlatformEntry.Key;
 		const auto Platform = PlatformEntry.Value;
@@ -513,7 +513,7 @@ void FMaterialStats::SetStatusQualityFlag(const EMaterialQualityLevel::Type Qual
 
 	bArrStatsQualitySelector[QualityLevel] = bValue;
 
-	for (const auto PlatformEntry : ShaderPlatformStatsDB)
+	for (const auto& PlatformEntry : ShaderPlatformStatsDB)
 	{
 		TSharedPtr<FShaderPlatformSettings> SomePlatform = PlatformEntry.Value;
 		if (SomePlatform.IsValid())
@@ -609,7 +609,7 @@ void FMaterialStats::Update()
 
 	bool bInfoChanged = false;
 
-	for (const auto Entry : ShaderPlatformStatsDB)
+	for (const auto& Entry : ShaderPlatformStatsDB)
 	{
 		auto PlatformStats = Entry.Value;
 		bInfoChanged |= PlatformStats->Update();
@@ -868,7 +868,7 @@ void FMaterialStats::BuildViewShaderCodeMenus()
 
 bool FMaterialStats::IsCodeViewWindowActive() const
 {
-	for (const auto MapEntry : ShaderPlatformStatsDB)
+	for (const auto& MapEntry : ShaderPlatformStatsDB)
 	{
 		TSharedPtr<FShaderPlatformSettings> PlatformPtr = MapEntry.Value;
 

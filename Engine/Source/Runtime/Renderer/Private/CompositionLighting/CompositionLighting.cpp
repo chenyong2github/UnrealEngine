@@ -34,7 +34,7 @@ static TAutoConsoleVariable<int32> CVarSSAOSmoothPass(
 
 static TAutoConsoleVariable<int32> CVarGTAODownsample(
 	TEXT("r.GTAO.Downsample"),
-	1,
+	0,
 	TEXT("Perform GTAO at Halfres \n ")
 	TEXT("0: Off \n ")
 	TEXT("1: On (default)\n "),
@@ -256,8 +256,7 @@ static FRenderingCompositeOutputRef AddPostProcessingGTAOAllPasses(FRHICommandLi
 		FinalOutputPass = TemporalPass;
 	}
 	
-	// If downsampled then upsample the final result
-	if(DownsampleFactor > 1)
+	// Upsample the final result
 	{
 		FRenderingCompositePass* UpsamplePass;
 		UpsamplePass = Context.Graph.RegisterPass(new (FMemStack::Get()) FRCPassPostProcessAmbientOcclusion_GTAO_Upsample(Context.View, DownsampleFactor, GTAOType));
@@ -681,6 +680,9 @@ void FCompositionLighting::ProcessAsyncSSAO(FRHICommandListImmediate& RHICmdList
 	{
 		PrepareAsyncSSAO(RHICmdList, Views);
 
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, SceneContext.GetCurrentFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 		// so that the passes can register themselves to the graph
 		for (int32 i = 0; i < Views.Num(); ++i)
 		{
@@ -693,7 +695,12 @@ void FCompositionLighting::ProcessAsyncSSAO(FRHICommandListImmediate& RHICmdList
 			if (FSSAOHelper::IsAmbientOcclusionAsyncCompute(View, Levels))
 			{
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-				SCOPED_GPU_MASK(FRHICommandListExecutor::GetImmediateAsyncComputeCommandList(), View.GPUMask);
+
+				FRHIAsyncComputeCommandListImmediate& RHICmdListComputeImmediate = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
+				SCOPED_GPU_MASK(RHICmdListComputeImmediate, View.GPUMask);
+
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdListComputeImmediate, GlobalUniformBuffers);
 
 				FPostprocessContext Context(RHICmdList, CompositeContext.Graph, View);
 

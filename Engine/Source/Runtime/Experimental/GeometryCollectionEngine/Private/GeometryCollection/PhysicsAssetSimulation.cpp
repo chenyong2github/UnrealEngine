@@ -14,7 +14,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
-#include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
+#include "Chaos/ChaosPhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"

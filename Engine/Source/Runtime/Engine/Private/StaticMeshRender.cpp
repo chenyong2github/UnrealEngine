@@ -358,12 +358,9 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 				Initializer.bFastBuild = true;
 			}
 
-			DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
-
 			for (int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
 			{
 				auto& Geometry = DynamicRayTracingGeometries[i];
-				DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("RayTracingDynamicVertexBuffer"));
 				Geometry.InitResource();
 			}
 
@@ -404,7 +401,7 @@ void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewV
 FStaticMeshSceneProxy::~FStaticMeshSceneProxy()
 {
 #if RHI_RAYTRACING
-	for (auto& Buffer: DynamicRayTracingGeometryVertexBuffers)
+	for (auto& Buffer : DynamicRayTracingGeometryVertexBuffers)
 	{
 		Buffer.Release();
 	}
@@ -620,7 +617,7 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 		OutMeshBatch.ReverseCulling = IsReversedCullingNeeded(bUseReversedIndices);
 		OutMeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
 #if RHI_RAYTRACING
-		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow;
+		OutMeshBatch.CastRayTracedShadow = OutMeshBatch.CastShadow && bCastDynamicShadow;
 #endif
 		OutMeshBatch.DepthPriorityGroup = (ESceneDepthPriorityGroup)InDepthPriorityGroup;
 		OutMeshBatch.LCI = &ProxyLODInfo;
@@ -674,11 +671,9 @@ void FStaticMeshSceneProxy::CreateRenderThreadResources()
 			}
 		}
 
-		DynamicRayTracingGeometryVertexBuffers.AddDefaulted(DynamicRayTracingGeometries.Num());
 		for(int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
 		{
 			auto& Geometry = DynamicRayTracingGeometries[i];
-			DynamicRayTracingGeometryVertexBuffers[i].Initialize(4, 256, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("FStaticMeshSceneProxy::RayTracingDynamicVertexBuffer"));
 			Geometry.InitResource();
 		}
 	}
@@ -869,7 +864,7 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 		if (Material)
 		{
 			// This is thread safe because material texture data is only updated while the renderthread is idle.
-			for (const FMaterialTextureInfo TextureData : Material->GetTextureStreamingData())
+			for (const FMaterialTextureInfo& TextureData : Material->GetTextureStreamingData())
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureData.IsValid(true))
@@ -878,7 +873,7 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
 				}
 			}
-			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			for (const FMaterialTextureInfo& TextureData : Material->TextureStreamingDataMissingEntries)
 			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)
@@ -1699,6 +1694,12 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
 	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
+	if (LODModel.GetNumVertices() <= 0)
+	{
+		return;
+	}
+
 	bool bEvaluateWPO = CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 1;
 
 	if (bEvaluateWPO && CVarRayTracingStaticMeshesWPOCulling.GetValueOnRenderThread() > 0)
@@ -1745,6 +1746,13 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		{
 			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
 	
+			// Use the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame
+			FRWBuffer* VertexBuffer = nullptr;
+			if (DynamicRayTracingGeometryVertexBuffers.Num() > (int32)LODIndex && DynamicRayTracingGeometryVertexBuffers[LODIndex].NumBytes > 0)
+			{
+				VertexBuffer = &DynamicRayTracingGeometryVertexBuffers[LODIndex];
+			}
+
 			Context.DynamicRayTracingGeometriesToUpdate.Add(
 				FRayTracingDynamicGeometryUpdateParams
 				{
@@ -1754,7 +1762,8 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
 					Geometry.Initializer.TotalPrimitiveCount,
 					&Geometry,
-					&DynamicRayTracingGeometryVertexBuffers[LODIndex]
+					VertexBuffer,
+					true
 				}
 		);
 		}

@@ -65,7 +65,7 @@ public:
 		FKeyHandleSet& SelectedKeySet = OutSelectionMap.FindOrAdd(InCurve);
 		OutKeysToSelect.Reserve(SelectedKeySet.Num());
 
-		for (const FKeyHandle Handle : SelectedKeySet.AsArray())
+		for (const FKeyHandle& Handle : SelectedKeySet.AsArray())
 		{
 			OutKeysToSelect.Add(Handle);
 		}

@@ -86,7 +86,7 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		Chaos::TEventManager<Traits> EventManager(Chaos::EMultiBufferMode::Single);
-		Chaos::TPBDRigidsSolver<Traits>* Solver = FChaosSolversModule::GetModule()->CreateSolver<Traits>(nullptr, ESolverFlags::Standalone);
+		Chaos::TPBDRigidsSolver<Traits>* Solver = FChaosSolversModule::GetModule()->CreateSolver<Traits>(nullptr);
 
 		MyEventHandler<Traits> HandlerTest(EventManager);
 		MyEventHandler<Traits> AnotherHandlerTest(EventManager);

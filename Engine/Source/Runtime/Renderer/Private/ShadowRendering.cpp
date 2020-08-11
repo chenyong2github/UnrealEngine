@@ -1651,7 +1651,10 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		else
 		{
 			NormalShadows.Add(ProjectedShadowInfo);
-			if (ProjectedShadowInfo->bAllocated && ProjectedShadowInfo->RenderTargets.DepthTarget)
+			if (ProjectedShadowInfo->bAllocated && ProjectedShadowInfo->RenderTargets.DepthTarget 
+				// this barrier causes rendering corruption on Adreno GPUs (UE-95149)
+				// this barrier is not required for modulated shadows, as target was already transitioned to a Readable state right after shadow atlas rendering
+				&& !bMobileModulatedProjections) 
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, ProjectedShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference());
 			}
@@ -1921,7 +1924,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 	return true;
 }
 	
-bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const FHairStrandsDatas* HairDatas, bool& bInjectedTranslucentVolume)
+bool FDeferredShadingSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdList, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture, IPooledRenderTarget* ScreenShadowMaskSubPixelTexture, const FHairStrandsRenderingData* HairDatas, bool& bInjectedTranslucentVolume)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderShadowProjections, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);

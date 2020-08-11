@@ -13,7 +13,7 @@ class FOneSkyLocalizationServiceCommand;
 class IHttpRequest;
 class IHttpResponse;
 
-typedef TSharedPtr<class IHttpRequest> FHttpRequestPtr;
+typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
 class FOneSkyConnect : public IOneSkyLocalizationServiceWorker

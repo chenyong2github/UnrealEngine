@@ -138,6 +138,9 @@ public:
 		return NamePrivate;
 	}
 
+	/** Removes the class prefix from the given string */
+	static FString RemoveClassPrefix(const TCHAR* ClassName);
+
 	/** Returns the external UPackage associated with this object, if any */
 	UPackage* GetExternalPackage() const;
 	

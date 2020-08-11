@@ -1587,7 +1587,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 		UE_LOG(LogEditorServer, Log, TEXT("Rebuildmap Clear paths rebuilt"));
 	}
 
-	TArray<ULevel*> UpdatedLevels;
+	TSet<ULevel*> UpdatedLevels;
 
 	switch (RebuildType)
 	{
@@ -1604,7 +1604,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 				csgRebuild( InWorld );
 				InWorld->InvalidateModelGeometry( Level );
 				Level->bGeometryDirtyForLighting = false;
-				UpdatedLevels.AddUnique( Level );
+				UpdatedLevels.Add( Level );
 			}
 
 			// Build CSG for all visible streaming levels
@@ -1620,7 +1620,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 						csgRebuild( InWorld );
 						InWorld->InvalidateModelGeometry( Level );
 						InWorld->GetCurrentLevel()->bGeometryDirtyForLighting = false;
-						UpdatedLevels.AddUnique( Level );
+						UpdatedLevels.Add( Level );
 					}
 				}
 			}
@@ -1642,7 +1642,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 					csgRebuild( InWorld );
 					InWorld->InvalidateModelGeometry( Level );
 					Level->bGeometryDirtyForLighting = false;
-					UpdatedLevels.AddUnique( Level );
+					UpdatedLevels.Add( Level );
 				}
 
 				// Build CSG for each streaming level that is out of date
@@ -1658,7 +1658,7 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 							csgRebuild( InWorld );
 							InWorld->InvalidateModelGeometry( Level );
 							Level->bGeometryDirtyForLighting = false;
-							UpdatedLevels.AddUnique( Level );
+							UpdatedLevels.Add( Level );
 						}
 					}
 				}
@@ -1674,16 +1674,16 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 			csgRebuild( InWorld );
 			InWorld->InvalidateModelGeometry( InWorld->GetCurrentLevel() );
 			InWorld->GetCurrentLevel()->bGeometryDirtyForLighting = false;
-			UpdatedLevels.AddUnique( InWorld->GetCurrentLevel() );
+			UpdatedLevels.Add( InWorld->GetCurrentLevel() );
 		}
 		break;
 	}
 
 	// See if there is any foliage that also needs to be updated
-	for (ULevel* Level : UpdatedLevels)
+	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
-		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
-		if (IFA)
+		AInstancedFoliageActor* IFA = *It;
+		if (UpdatedLevels.Contains(IFA->GetLevel()))
 		{
 			IFA->MapRebuild();
 		}
@@ -1697,6 +1697,9 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::MapRebuild);
 	GEngine->BroadcastLevelActorListChanged();
 	
+	// Need to reinitialize world subsystems since they are torn down as part of the lighting build
+	GWorld->InitializeSubsystems();
+
 	GWarn->EndSlowTask();
 }
 
@@ -1739,12 +1742,15 @@ void UEditorEngine::RebuildLevel(ULevel& Level)
 	RebuildStaticNavigableGeometry(&Level);
 
 	// See if there is any foliage that also needs to be updated
-	AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(&Level);
-	if (IFA)
+	for (TActorIterator<AInstancedFoliageActor> It(World); It; ++It)
 	{
-		IFA->MapRebuild();
+		AInstancedFoliageActor* IFA = *It;
+		if (IFA->GetLevel() == &Level)
+		{
+			IFA->MapRebuild();
+		}
 	}
-
+	
 	GLevelEditorModeTools().MapChangeNotify();
 }
 
@@ -2655,7 +2661,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						//Load the map normally into a new package
 						const FName WorldPackageFName = FName(*LongTempFname);
 						UWorld::WorldTypePreLoadMap.FindOrAdd(WorldPackageFName) = EWorldType::Editor;
-						WorldPackage = LoadPackage( NULL, *LongTempFname, LoadFlags );
+						WorldPackage = LoadPackage( NULL, *LongTempFname, LoadFlags);
 						UWorld::WorldTypePreLoadMap.Remove(WorldPackageFName);
 					}
 				}
@@ -2703,7 +2709,8 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					// Inactive worlds are already initialized but lack these two objects for memory reasons.
 					World->ClearWorldComponents();
 
-					// If the world was inactive subsystems would not have been initialized.  When we transition to the editor world initialize them
+					// If the world was inactive subsystems would not have been initialized (happens when loading a world trough the asset browser).
+					// When we transition to the editor world initialize them.
 					World->InitializeSubsystems();
 
 					if (World->FeatureLevel != FeatureLevelIndex)
@@ -2819,10 +2826,8 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						for( auto LayerIter = Context.World()->Layers.CreateIterator(); LayerIter; ++LayerIter )
 						{
 							// Clear away any previously cached actor stats
-							(*LayerIter)->ActorStats.Empty();
+							(*LayerIter)->ClearActorStats();
 						}
-
-						TArray< FName > LayersToHide;
 
 						for( FActorIterator It(Context.World()); It; ++It )
 						{
@@ -2839,9 +2844,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 								if( !LayersSubsystem->IsLayer( Name ) )
 								{
 									LayersSubsystem->CreateLayer( Name );
-
-									// The layers created here need to be hidden.
-									LayersToHide.AddUnique( Name );
 								}
 
 								Actor->Layers.AddUnique( Name );
@@ -2849,9 +2851,6 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 
 							LayersSubsystem->InitializeNewActorLayers( Actor.Get() );
 						}
-
-						const bool bIsVisible = false;
-						LayersSubsystem->SetLayersVisibility( LayersToHide, bIsVisible );
 					}
 
 					InitializingFeedback.EnterProgressFrame();
@@ -4943,7 +4942,7 @@ void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActi
  * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
  * @return					Whether or not the actor was moved.
  */
-bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination )
+bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination, TArray<FActorOrComponent> ObjectsToIgnore)
 {
 	if ( !Object.IsValid() || Object == InDestination )	// Early out
 	{
@@ -5049,9 +5048,23 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 	// If we hit anything, we will move the actor to a position that lets it rest on the floor.
 	FHitResult Hit(1.0f);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MoveActorToTrace), false);
+	for (FActorOrComponent ObjectToIgnore : ObjectsToIgnore)
+	{
+		if (ObjectToIgnore.Actor)
+		{
+			Params.AddIgnoredActor(ObjectToIgnore.Actor);
+		}
+		else
+		{
+			Params.AddIgnoredComponent(Cast<UPrimitiveComponent>(ObjectToIgnore.Component));
+		}
+	}
 	if( Object.Actor )
 	{
 		Params.AddIgnoredActor( Object.Actor );
+		TArray<AActor*> ChildActors;
+		Object.Actor->GetAllChildActors(ChildActors);
+		Params.AddIgnoredActors(ChildActors);
 	}
 	else
 	{
@@ -5308,6 +5321,8 @@ void UEditorEngine::BroadcastPostUndoRedo(const FTransactionContext& UndoContext
 
 	// Invalidate all viewports
 	InvalidateAllViewportsAndHitProxies();
+
+	FEditorDelegates::PostUndoRedo.Broadcast();
 }
 
 bool UEditorEngine::Exec_Particle(const TCHAR* Str, FOutputDevice& Ar)
@@ -5372,75 +5387,6 @@ void UEditorEngine::ExecFile( UWorld* InWorld, const TCHAR* InFilename, FOutputD
 	else
 	{
 		UE_SUPPRESS(LogExec, Warning, Ar.Logf(TEXT("Can't find file '%s'"), InFilename));
-	}
-}
-
-
-void UEditorEngine::AssignReplacementComponentsByActors(TArray<AActor*>& ActorsToReplace, AActor* Replacement, UClass* ClassToReplace)
-{
-	// look for a mesh component to replace with
-	UPrimitiveComponent* ReplacementComponent = nullptr;
-
-	// if we are clearing the replacement, then we don't need to find a component
-	if (Replacement)
-	{
-		// the code will use this to find the best possible component, in the priority listed here
-		// (ie it will first look for a mesh component, then a particle, and finally a sprite)
-		TArray<UClass*, TInlineAllocator<3>> PossibleReplacementClasses;
-
-		if (ClassToReplace)
-		{
-			PossibleReplacementClasses.Emplace(ClassToReplace);
-		}
-		else
-		{
-			PossibleReplacementClasses.Emplace(UMeshComponent::StaticClass());
-			PossibleReplacementClasses.Emplace(UParticleSystemComponent::StaticClass());
-			PossibleReplacementClasses.Emplace(UBillboardComponent::StaticClass());
-		}
-
-		// loop over the clases until a component is found
-		for (UClass* ReplacementComponentClass : PossibleReplacementClasses)
-		{
-			for (UActorComponent* Component : Replacement->GetComponents())
-			{
-				UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
-				if (PrimitiveComponent && PrimitiveComponent->IsA(ReplacementComponentClass))
-				{
-					ReplacementComponent = PrimitiveComponent;
-					goto FoundComponent;
-				}
-			}
-		}
-	}
-
-FoundComponent:
-
-	// attempt to set replacement component for all selected actors
-	for (int32 ActorIndex = 0; ActorIndex < ActorsToReplace.Num(); ActorIndex++)
-	{
-		AActor* Actor = ActorsToReplace[ActorIndex];
-
-		TInlineComponentArray<UPrimitiveComponent*> Components;
-		Actor->GetComponents(Components);
-
-		for (int32 ComponentIndex = 0; ComponentIndex < Components.Num(); ComponentIndex++)
-		{
-			UPrimitiveComponent* PrimitiveComponent = Components[ComponentIndex];
-			// if the primitive component matches the class we are looking for (if specified)
-			// then set its replacement component
-			if (ClassToReplace == nullptr || PrimitiveComponent->IsA(ClassToReplace))
-			{
-				// need to reregister the component
-				FComponentReregisterContext ComponentReattch(PrimitiveComponent);
-
-				// set the replacement
-				PrimitiveComponent->SetLODParentPrimitive(ReplacementComponent);
-
-				// mark the package as dirty now that we've modified it
-				Actor->MarkPackageDirty();
-			}
-		}
 	}
 }
 
@@ -5641,10 +5587,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	//------------------------------------------------------------------------------------
 	// MISC
 	//
-	else if (FParse::Command(&Str, TEXT("BLUEPRINTIFY")))
-	{
-		HandleBlueprintifyFunction( Str, Ar );
-	}
 	else if( FParse::Command(&Str,TEXT("EDCALLBACK")) )
 	{
 		HandleCallbackCommand( InWorld, Str, Ar );
@@ -5882,13 +5824,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	{
 		return HandleLightmassProfileCommand( Str, Ar );
 	}
-	//----------------------------------------------------------------------------------
-	// SETREPLACEMENT - Sets the replacement primitive for selected actors
-	//
-	else if( FParse::Command(&Str,TEXT("SETREPLACEMENT")) )
-	{
-		HandleSetReplacementCommand( Str, Ar, InWorld );
-	}
 	//------------------------------------------------------------------------------------
 	// Other handlers.
 	//
@@ -5985,27 +5920,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	}
 
 	return bProcessed;
-}
-
-bool UEditorEngine::HandleBlueprintifyFunction( const TCHAR* Str , FOutputDevice& Ar )
-{
-	bool bResult = false;
-	TArray<AActor*> SelectedActors;
-	USelection* EditorSelection = GetSelectedActors();
-	for (FSelectionIterator Itor(*EditorSelection); Itor; ++Itor)
-	{
-		if (AActor* Actor = Cast<AActor>(*Itor))
-		{
-			SelectedActors.Add(Actor);
-		}
-	}
-	if(SelectedActors.Num() >0)
-	{
-		FKismetEditorUtilities::HarvestBlueprintFromActors(TEXT("/Game/Unsorted/"), SelectedActors, false);
-		bResult = true;
-	}
-	return bResult;
-	
 }
 
 bool UEditorEngine::HandleCallbackCommand( UWorld* InWorld, const TCHAR* Str , FOutputDevice& Ar )
@@ -6318,43 +6232,6 @@ bool UEditorEngine::HandleLightmassProfileCommand( const TCHAR* Str, FOutputDevi
 	UE_LOG(LogEditorServer, Log, TEXT("\tLightmass ImmediateProcess mode is DISABLED"));
 	return true;
 }
-
-bool UEditorEngine::HandleSetReplacementCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld )
-{
-	UPrimitiveComponent* ReplacementComponent;
-	if (!ParseObject<UPrimitiveComponent>(Str, TEXT("COMPONENT="), ReplacementComponent, ANY_PACKAGE))
-	{
-		Ar.Logf(TEXT("Replacement component was not specified or invalid(COMPONENT=)"));
-		return false;
-	}
-
-	// filter which types of component to set to the ReplacementComponent
-	UClass* ClassToReplace;
-	if (!ParseObject<UClass>(Str, TEXT("CLASS="), ClassToReplace, ANY_PACKAGE))
-	{
-		ClassToReplace = NULL;
-	}
-
-	// attempt to set replacement component for all selected actors
-	for( FSelectedActorIterator It(InWorld); It; ++It )
-	{
-		for (UActorComponent* Component : It->GetComponents())
-		{
-			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component))
-			{
-				// if the primitive component matches the class we are looking for (if specified)
-				// then set it's replacement component
-				if (ClassToReplace == NULL || PrimitiveComponent->IsA(ClassToReplace))
-				{
-					PrimitiveComponent->SetLODParentPrimitive(ReplacementComponent);
-				}
-			}
-		}
-	}
-	return true;
-}
-
-
 
 bool UEditorEngine::HandleSelectNameCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld  )
 {

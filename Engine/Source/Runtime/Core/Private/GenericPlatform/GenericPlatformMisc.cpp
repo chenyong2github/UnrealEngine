@@ -590,7 +590,7 @@ bool FGenericPlatformMisc::GetStoredValue(const FString& InStoreId, const FStrin
 }
 
 bool FGenericPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName)
-{	
+{
 	check(!InStoreId.IsEmpty());
 	check(!InSectionName.IsEmpty());
 	check(!InKeyName.IsEmpty());
@@ -608,6 +608,26 @@ bool FGenericPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FSt
 
 		ConfigFile.Dirty = true;
 		return ConfigFile.Write(ConfigPath) && RemovedNum == 1;
+	}
+
+	return false;
+}
+
+bool FGenericPlatformMisc::DeleteStoredSection(const FString& InStoreId, const FString& InSectionName)
+{
+	check(!InStoreId.IsEmpty());
+	check(!InSectionName.IsEmpty());
+
+	// This assumes that FPlatformProcess::ApplicationSettingsDir() returns a user-specific directory; it doesn't on Windows, but Windows overrides this behavior to use the registry
+	const FString ConfigPath = FString(FPlatformProcess::ApplicationSettingsDir()) / InStoreId / FString(TEXT("KeyValueStore.ini"));
+
+	FConfigFile ConfigFile;
+	ConfigFile.Read(ConfigPath);
+
+	if (ConfigFile.Remove(InSectionName) != 0)
+	{
+		ConfigFile.Dirty = true;
+		return ConfigFile.Write(ConfigPath);
 	}
 
 	return false;

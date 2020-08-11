@@ -753,7 +753,7 @@ void FSlateUser::QueryCursor()
 					if (CursorReply.IsEventHandled())
 					{
 #if WITH_SLATE_DEBUGGING
-						FSlateDebugging::BroadcastCursorQuery(&ArrangedWidget.Widget.Get(), CursorReply);
+						FSlateDebugging::BroadcastCursorQuery(ArrangedWidget.Widget, CursorReply);
 #endif
 
 						if (!CursorReply.GetCursorWidget().IsValid())
@@ -778,7 +778,7 @@ void FSlateUser::QueryCursor()
 					CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
 					
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+					FSlateDebugging::BroadcastCursorQuery(TSharedPtr<SWidget>(), CursorReply);
 #endif
 				}
 			}
@@ -788,7 +788,7 @@ void FSlateUser::QueryCursor()
 				CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
 
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+				FSlateDebugging::BroadcastCursorQuery(TSharedPtr<SWidget>(), CursorReply);
 #endif
 			}
 		}

@@ -400,9 +400,9 @@ public:
 	/** Copy vertex SourceVertexID from existing SourceMesh, returns new vertex id */
 	int AppendVertex(const FDynamicMesh3& SourceMesh, int SourceVertexID);
 
-	int AppendTriangle(const FIndex3i& TriVertices, int GroupID = -1);
+	int AppendTriangle(const FIndex3i& TriVertices, int GroupID = 0);
 
-	inline int AppendTriangle(int Vertex0, int Vertex1, int Vertex2, int GroupID = -1)
+	inline int AppendTriangle(int Vertex0, int Vertex1, int Vertex2, int GroupID = 0)
 	{
 		return AppendTriangle(FIndex3i(Vertex0, Vertex1, Vertex2), GroupID);
 	}
@@ -451,7 +451,7 @@ public:
 	 * If bUnsafe, we use fast id allocation that does not update free list.
 	 * You should only be using this between BeginUnsafeTrianglesInsert() / EndUnsafeTrianglesInsert() calls
 	 */
-	EMeshResult InsertTriangle(int TriangleID, const FIndex3i& TriVertices, int GroupID = -1, bool bUnsafe = false);
+	EMeshResult InsertTriangle(int TriangleID, const FIndex3i& TriVertices, int GroupID = 0, bool bUnsafe = false);
 
 	//
 	// Vertex/Tri/Edge accessors
@@ -690,7 +690,7 @@ public:
 
 	int AllocateTriangleGroup()
 	{
-		return ++GroupIDCounter;
+		return GroupIDCounter++;
 	}
 
 	int GetTriangleGroup(int tID) const

@@ -3,6 +3,8 @@
 #include "FoliageEditUtility.h"
 #include "FoliageType.h"
 #include "InstancedFoliage.h"
+#include "InstancedFoliageActor.h"
+#include "EngineUtils.h"
 #include "LevelUtils.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -79,43 +81,32 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 {
 	FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "FoliageMode_ReplaceSettingsObject", "Foliage Editing: Replace Settings Object"));
 
-	// Collect set of all available foliage types
-	ULevel* CurrentLevel = InWorld->GetCurrentLevel();
-	const int32 NumLevels = InWorld->GetNumLevels();
-
-	for (int32 LevelIdx = 0; LevelIdx < NumLevels; ++LevelIdx)
+	for (TActorIterator<AInstancedFoliageActor> It(InWorld); It; ++It)
 	{
-		ULevel* Level = InWorld->GetLevel(LevelIdx);
-		if (Level && Level->bIsVisible)
-		{
-			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level);
-			if (IFA)
-			{
-				IFA->Modify();
-				TUniqueObj<FFoliageInfo> OldInfo;
-				IFA->FoliageInfos.RemoveAndCopyValue(OldType, OldInfo);
+		AInstancedFoliageActor* IFA = *It;
+		IFA->Modify();
+		TUniqueObj<FFoliageInfo> OldInfo;
+		IFA->FoliageInfos.RemoveAndCopyValue(OldType, OldInfo);
 
-				// Old component needs to go
-				if (OldInfo->IsInitialized())
-				{
-					OldInfo->Uninitialize();
-				}
-				
-				// Append instances if new foliage type is already exists in this actor
-				// Otherwise just replace key entry for instances
-				TUniqueObj<FFoliageInfo>* NewInfo = IFA->FoliageInfos.Find(NewType);
-				if (NewInfo)
-				{
-					(*NewInfo)->Instances.Append(OldInfo->Instances);
-					(*NewInfo)->ReallocateClusters(IFA, NewType);
-				}
-				else
-				{
-					// Make sure if type changes we have proper implementation
-					TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(NewType, MoveTemp(OldInfo));
-					NewFoliageInfo->ReallocateClusters(IFA, NewType);
-				}
-			}
+		// Old component needs to go
+		if (OldInfo->IsInitialized())
+		{
+			OldInfo->Uninitialize();
+		}
+
+		// Append instances if new foliage type is already exists in this actor
+		// Otherwise just replace key entry for instances
+		TUniqueObj<FFoliageInfo>* NewInfo = IFA->FoliageInfos.Find(NewType);
+		if (NewInfo)
+		{
+			(*NewInfo)->Instances.Append(OldInfo->Instances);
+			(*NewInfo)->ReallocateClusters(IFA, NewType);
+		}
+		else
+		{
+			// Make sure if type changes we have proper implementation
+			TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->FoliageInfos.Add(NewType, MoveTemp(OldInfo));
+			NewFoliageInfo->ReallocateClusters(IFA, NewType);
 		}
 	}
 }

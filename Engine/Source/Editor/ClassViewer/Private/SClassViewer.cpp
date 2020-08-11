@@ -145,12 +145,12 @@ public:
 	*/
 	void UpdateClassInNode(FName InGeneratedClassPath, UClass* InNewClass, UBlueprint* InNewBluePrint );
 
-	/** Finds the node, recursively going deeper into the hierarchy. Does so by comparing class names.
-	*	@param InClassName			The name of the generated class package to find the node for.
-	*
-	*	@return The node.
-	*/
-	TSharedPtr< FClassViewerNode > FindNodeByClassName(const TSharedPtr< FClassViewerNode >& InRootNode, const FString& InClassName);
+	/** Finds the node, recursively going deeper into the hierarchy. Does so by comparing generated class package names.
+	 *	@param InGeneratedClassPath		The path of the generated class to find the node for.
+	 *
+	 *	@return The node.
+	 */
+	TSharedPtr< FClassViewerNode > FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InGeneratedClassPath);
 
 private:
 	/** Recursive function to build a tree, will not filter.
@@ -161,13 +161,6 @@ private:
 
 	/** Called when hot reload has finished */
 	void OnHotReload( bool bWasTriggeredAutomatically );
-
-	/** Finds the node, recursively going deeper into the hierarchy. Does so by comparing generated class package names.
-	 *	@param InGeneratedClassPath		The path of the generated class to find the node for.
-	 *
-	 *	@return The node.
-	 */
-	TSharedPtr< FClassViewerNode > FindNodeByGeneratedClassPath(const TSharedPtr< FClassViewerNode >& InRootNode, FName InGeneratedClassPath);
 
 	/** 
 	 * Loads the tag data for an unloaded blueprint asset.
@@ -1048,7 +1041,7 @@ FClassHierarchy::~FClassHierarchy()
 			HotReloadSupport.OnHotReload().RemoveAll(this);
 		}
 
-		if(GEditor)
+		if (GEditor)
 		{
 			// Unregister to have Populate called when a Blueprint is compiled.
 			GEditor->OnBlueprintCompiled().Remove(OnBlueprintCompiledRequestPopulateClassHierarchyDelegateHandle);
@@ -1059,7 +1052,7 @@ FClassHierarchy::~FClassHierarchy()
 	FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 }
 
-void FClassHierarchy::OnHotReload( bool bWasTriggeredAutomatically )
+void FClassHierarchy::OnHotReload(bool bWasTriggeredAutomatically)
 {
 	ClassViewer::Helpers::RequestPopulateClassHierarchy();
 }
@@ -1077,12 +1070,12 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 	VisitedNodes.Add(RootClass, ObjectClassRoot);
 
 	// Go through all of the classes children and see if they should be added to the list.
-	for ( TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt )
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		UClass* CurrentClass = *ClassIt;
 
 		// Ignore deprecated and temporary trash classes.
-		if (CurrentClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists) || 
+		if (CurrentClass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists) ||
 			FKismetEditorUtilities::IsClassABlueprintSkeleton(CurrentClass))
 		{
 			continue;
@@ -1097,12 +1090,12 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 		else
 		{
 			// Process this node and all it's parent classes.
-			while ( CurrentClass->GetSuperClass() != nullptr )
+			while (CurrentClass->GetSuperClass() != nullptr)
 			{
 				TSharedPtr<FClassViewerNode>& ParentEntry = VisitedNodes.FindOrAdd(CurrentClass->GetSuperClass());
 				// If ParentEntry is not valid, it's the first time we visited that class.
 				// We add it to the ClassPathToNode map if it's not there
-				if ( !ParentEntry.IsValid() )
+				if (!ParentEntry.IsValid())
 				{
 					/// If the class is already present, make sure we use it.
 					FName ParentClassPath = FName(*CurrentClass->GetSuperClass()->GetPathName());
@@ -1114,7 +1107,7 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 					else
 					{
 						ParentEntry = MakeShared<FClassViewerNode>(CurrentClass->GetSuperClass());
-                    	InOutClassPathToNode.Add(ParentEntry->ClassPath, ParentEntry);
+						InOutClassPathToNode.Add(ParentEntry->ClassPath, ParentEntry);
 					}
 
 				}
@@ -1122,7 +1115,7 @@ void FClassHierarchy::AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOu
 				TSharedPtr<FClassViewerNode>& MyEntry = VisitedNodes.FindOrAdd(CurrentClass);
 				// If MyEntry is not valid, it's the first time we visited that class.
 				// We add it to the ClassPathToNode map if it's not there and add it as a child to MyEntry
-				if ( !MyEntry.IsValid() )
+				if (!MyEntry.IsValid())
 				{
 					/// If the class is already present, make sure we use it.
 					FName ClassPath = FName(*CurrentClass->GetPathName());
@@ -1178,31 +1171,6 @@ TSharedPtr< FClassViewerNode > FClassHierarchy::FindParent(const TSharedPtr< FCl
 		ReturnNode = FindParent(InRootNode->GetChildrenList()[ChildClassIndex], InParentClassname, InParentClass);
 
 		if(ReturnNode.IsValid())
-		{
-			break;
-		}
-	}
-
-	return ReturnNode;
-}
-
-TSharedPtr< FClassViewerNode > FClassHierarchy::FindNodeByClassName(const TSharedPtr< FClassViewerNode >& InRootNode, const FString& InClassName)
-{
-	FString NodeClassName = InRootNode->Class.IsValid() ? InRootNode->Class->GetPathName() : FString();
-	if (NodeClassName == InClassName)
-	{
-		return InRootNode;
-	}
-
-	TSharedPtr< FClassViewerNode > ReturnNode;
-
-	// Search the children recursively, one of them might have the parent.
-	for (int32 ChildClassIndex = 0; !ReturnNode.IsValid() && ChildClassIndex < InRootNode->GetChildrenList().Num(); ChildClassIndex++)
-	{
-		// Check the child, then check the return to see if it is valid. If it is valid, end the recursion.
-		ReturnNode = FindNodeByClassName(InRootNode->GetChildrenList()[ChildClassIndex], InClassName);
-
-		if (ReturnNode.IsValid())
 		{
 			break;
 		}
@@ -1321,10 +1289,10 @@ void FClassHierarchy::AddAsset(const FAssetData& InAddedAssetData)
 				FString ParentClassPath = NewNode->ParentClassPath.ToString();
 				UClass* ParentClass = FindObject<UClass>(nullptr, *ParentClassPath);
 				TSharedPtr< FClassViewerNode > ParentNode = FindParent(ObjectClassRoot, NewNode->ParentClassPath, ParentClass); 
-				if(ParentNode.IsValid())
+				if (ParentNode.IsValid())
 				{
 					ParentNode->AddChild(NewNode);
-				
+
 					// Make sure the children are properly sorted.
 					SortChildren(ObjectClassRoot);
 
@@ -1485,7 +1453,7 @@ void FClassHierarchy::PopulateClassHierarchy()
 
 	// Recursively sort the children.
 	SortChildren(ObjectClassRoot);
-	
+
 	// All viewers must refresh.
 	ClassViewer::Helpers::RefreshAll();
 }
@@ -1930,10 +1898,19 @@ TSharedRef< ITableRow > SClassViewer::OnGenerateRowForClassViewer( TSharedPtr<FC
 {	
 	// If the item was accepted by the filter, leave it bright, otherwise dim it.
 	float AlphaValue = Item->bPassesFilter? 1.0f : 0.5f;
+
+	// If the item passed the filter, it may be from a match with hidden class name strings, update the search box text to retain highlighting of valid matching text
+	FText SearchBoxTextForHighlight = SearchBox->GetText();
+	TSharedPtr<FString> ClassNameDisplay = Item->GetClassName(InitOptions.NameTypeToDisplay);
+	if (!SearchBoxTextForHighlight.IsEmpty() && (ClassNameDisplay->Find(*SearchBoxTextForHighlight.ToString()) == INDEX_NONE))
+	{
+		SearchBoxTextForHighlight = FText::FromString(UObjectBase::RemoveClassPrefix(*SearchBoxTextForHighlight.ToString()));
+	}
+
 	TSharedRef< SClassItem > ReturnRow = SNew(SClassItem, OwnerTable)
-		.ClassName(Item->GetClassName(InitOptions.NameTypeToDisplay))
+		.ClassName(ClassNameDisplay)
 		.bIsPlaceable(Item->IsClassPlaceable())
-		.HighlightText(SearchBox->GetText())
+		.HighlightText(SearchBoxTextForHighlight)
 		.TextColor(Item->IsClassPlaceable()? FLinearColor(0.2f, 0.4f, 0.6f, AlphaValue) : FLinearColor(1.0f, 1.0f, 1.0f, AlphaValue))
 		.AssociatedNode(Item)
 		.bIsInClassViewer( InitOptions.Mode == EClassViewerMode::ClassBrowsing )
@@ -2451,8 +2428,8 @@ void SClassViewer::Populate()
 		// Take the package names for the internal only classes and convert them into their UClass
 		for (int i = 0; i < InternalClassNames.Num(); i++)
 		{
-			FString PackageClassName = InternalClassNames[i].ToString();
-			const TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByClassName(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), PackageClassName);
+			FName PackageClassName = *InternalClassNames[i].ToString();
+			const TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByGeneratedClassPath(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), PackageClassName);
 
 			if (ClassNode.IsValid())
 			{
@@ -2526,24 +2503,16 @@ void SClassViewer::Populate()
 		// Now that new items are in the tree, we need to request a refresh.
 		ClassTree->RequestTreeRefresh();
 
-		UClass* CurrentClass = nullptr;
+		TSharedPtr<FClassViewerNode> ClassNode;
 		if (PreviousSelection.Num() > 0)
 		{
-			if (TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByClassName(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), PreviousSelection[0].ToString()))
-			{
-				if (ClassNode.IsValid())
-				{
-					CurrentClass = ClassNode->Class.Get();
-				}
-			}
+			ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByGeneratedClassPath(RootNode, PreviousSelection[0]);
 		}
 		else if (InitOptions.InitiallySelectedClass)
 		{
-			CurrentClass = InitOptions.InitiallySelectedClass;
-		}
+			UClass* CurrentClass = InitOptions.InitiallySelectedClass;
+			InitOptions.InitiallySelectedClass = nullptr;
 
-		if (CurrentClass)
-		{
 			TArray<UClass*> ClassHierarchy;
 			while (CurrentClass)
 			{
@@ -2551,10 +2520,7 @@ void SClassViewer::Populate()
 				CurrentClass = CurrentClass->GetSuperClass();
 			}
 
-			ClassTree->SetItemExpansion(RootNode, true);
-
-			TSharedPtr<FClassViewerNode> ClassNode = RootNode;
-
+			ClassNode = RootNode;
 			for (int32 Index = ClassHierarchy.Num() - 2; Index >= 0; --Index)
 			{
 				for (const TSharedPtr<FClassViewerNode>& ChildClassNode : ClassNode->GetChildrenList())
@@ -2562,16 +2528,21 @@ void SClassViewer::Populate()
 					UClass* ChildClass = ChildClassNode->Class.Get();
 					if (ChildClass == ClassHierarchy[Index])
 					{
-						ClassTree->SetItemExpansion(ChildClassNode, true);
 						ClassNode = ChildClassNode;
 						break;
 					}
 				}
 			}
+		}
+
+		if (ClassNode)
+		{
+			for (TSharedPtr<FClassViewerNode> ParentNode = ClassNode->ParentNode.Pin(); ParentNode; ParentNode = ParentNode->ParentNode.Pin())
+			{
+				ClassTree->SetItemExpansion(ParentNode, true);
+			}
 
 			ClassTree->SetSelection(ClassNode);
-
-			InitOptions.InitiallySelectedClass = nullptr;
 		}
 	}
 	else
@@ -2611,9 +2582,9 @@ void SClassViewer::Populate()
 
 		if (ClassPathNameToSelect.Len() > 0)
 		{
-			if (TSharedPtr<FClassViewerNode> ClassNode = ClassViewer::Helpers::ClassHierarchy->FindNodeByClassName(ClassViewer::Helpers::ClassHierarchy->GetObjectRootNode(), ClassPathNameToSelect))
+			if(TSharedPtr<FClassViewerNode>* ClassNode = RootTreeItems.FindByPredicate([ClassPathNameToSelect](const TSharedPtr< FClassViewerNode > InClassNode) { return InClassNode->Class.IsValid() && (InClassNode->Class->GetPathName() == ClassPathNameToSelect); }))
 			{
-				ClassList->SetSelection(ClassNode);
+				ClassList->SetSelection(*ClassNode);
 			}
 			InitOptions.InitiallySelectedClass = nullptr;
 		}

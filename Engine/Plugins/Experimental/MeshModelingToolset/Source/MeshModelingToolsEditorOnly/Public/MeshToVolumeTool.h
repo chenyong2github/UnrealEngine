@@ -10,7 +10,7 @@
 #include "DynamicMesh3.h"
 #include "PreviewMesh.h"
 #include "Drawing/LineSetComponent.h"
-#include "Properties/OnAcceptProperties.h"
+#include "PropertySets/OnAcceptProperties.h"
 #include "MeshToVolumeTool.generated.h"
 
 /**

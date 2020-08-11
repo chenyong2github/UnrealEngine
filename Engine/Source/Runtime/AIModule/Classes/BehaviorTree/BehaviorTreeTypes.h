@@ -377,6 +377,29 @@ struct FBTNodeIndex
 	FORCEINLINE FString Describe() const { return FString::Printf(TEXT("[%d:%d]"), InstanceIndex, ExecutionIndex); }
 };
 
+struct FBTNodeIndexRange
+{
+	/** first node index */
+	FBTNodeIndex FromIndex;
+
+	/** last node index */
+	FBTNodeIndex ToIndex;
+
+	FBTNodeIndexRange(const FBTNodeIndex& From, const FBTNodeIndex& To) : FromIndex(From), ToIndex(To) {}
+
+	bool IsSet() const { return FromIndex.IsSet() && ToIndex.IsSet(); }
+
+	bool operator==(const FBTNodeIndexRange& Other) const { return Other.FromIndex == FromIndex && Other.ToIndex == ToIndex; }
+	bool operator!=(const FBTNodeIndexRange& Other) const { return !operator==(Other); }
+
+	bool Contains(const FBTNodeIndex& Index) const
+	{ 
+		return Index.InstanceIndex == FromIndex.InstanceIndex && FromIndex.ExecutionIndex <= Index.ExecutionIndex && Index.ExecutionIndex <= ToIndex.ExecutionIndex;
+	}
+
+	FString Describe() const { return FString::Printf(TEXT("[%s...%s]"), *FromIndex.Describe(), *ToIndex.Describe()); }
+};
+
 /** node update data */
 struct FBehaviorTreeSearchUpdate
 {

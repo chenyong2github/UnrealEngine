@@ -286,8 +286,8 @@ public:
 
 	/** Map of object to their outers, used to avoid an object iterator to find such things. **/
 	TMap<UObjectBase*, FHashBucket> ObjectOuterMap;
-	TMap<UClass*, FHashBucket> ClassToObjectListMap;
-	TMap<UClass*, TSet<UClass*>> ClassToChildListMap;
+	TMap<UClass*, FHashBucket > ClassToObjectListMap;
+	TMap<UClass*, TSet<UClass*> > ClassToChildListMap;
 	TAtomic<uint64> ClassToChildListMapVersion;
 
 	/** Map of package to the object their contain. */
@@ -943,7 +943,7 @@ void GetObjectsWithOuter(const class UObjectBase* Outer, TArray<UObject *>& Resu
 	}
 }
 
-void ForEachObjectWithOuter(const class UObjectBase* Outer, TFunctionRef<void(UObject*)> Operation, bool bIncludeNestedObjects, EObjectFlags ExclusionFlags, EInternalObjectFlags ExclusionInternalFlags)
+void ForEachObjectWithOuterBreakable(const class UObjectBase* Outer, TFunctionRef<bool(UObject*)> Operation, bool bIncludeNestedObjects, EObjectFlags ExclusionFlags, EInternalObjectFlags ExclusionInternalFlags)
 {
 	checkf(Outer != nullptr, TEXT("Getting objects with a null outer is no longer supported. If you want to get all packages you might consider using GetObjectsOfClass instead."));
 	
@@ -981,7 +981,11 @@ void ForEachObjectWithOuter(const class UObjectBase* Outer, TFunctionRef<void(UO
 			UObject *Object = static_cast<UObject*>(*It);
 			if (!Object->HasAnyFlags(ExclusionFlags) && !Object->HasAnyInternalFlags(ExclusionInternalFlags))
 			{
-				Operation(Object);
+				if (!Operation(Object))
+				{
+					AllInners.Empty();
+					break;
+				}
 			}
 			if (bIncludeNestedObjects)
 			{

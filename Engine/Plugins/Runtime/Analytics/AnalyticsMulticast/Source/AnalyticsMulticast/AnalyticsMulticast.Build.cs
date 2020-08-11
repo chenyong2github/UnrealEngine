@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
                 new string[]
 				{
 					"Analytics",
+					"DeveloperSettings"
 					// ... add private dependencies that you statically link with here ...
 				}
                 );

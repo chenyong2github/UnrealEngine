@@ -414,7 +414,8 @@ namespace Chaos
 			{
 				for(int32 ColIdx = 0; ColIdx < OutData.NumCols; ++ColIdx)
 				{
-					const int32 HeightIndex = RowIdx * OutData.NumCols + ColIdx;
+					// Provided buffer has inverted column index, invert col to ensure Heights is filled out the same was as BuildGeomData.
+					const int32 HeightIndex = RowIdx * OutData.NumCols + (OutData.NumCols - 1 - ColIdx);
 
 					if(RowIdx >= InBeginRow && RowIdx < EndRow &&
 						ColIdx >= InBeginCol && ColIdx < EndCol)
@@ -458,7 +459,8 @@ namespace Chaos
 			{
 				for(int32 ColIdx = InBeginCol; ColIdx < EndCol; ++ColIdx)
 				{
-					const int32 HeightIndex = RowIdx * NumCols + ColIdx;
+					// Provided buffer has inverted column index, invert col to ensure Heights is filled out the same was as BuildGeomData.
+					const int32 HeightIndex = RowIdx * OutData.NumCols + (OutData.NumCols - 1 - ColIdx);
 					const int32 NewSetIndex = (RowIdx - InBeginRow) * NumCols + (ColIdx - InBeginCol);
 					OutData.Heights[HeightIndex] = static_cast<typename FDataType::StorageType>((ToRealFunc(BufferView[NewSetIndex]) - OutData.MinValue) / OutData.HeightPerUnit);
 				}

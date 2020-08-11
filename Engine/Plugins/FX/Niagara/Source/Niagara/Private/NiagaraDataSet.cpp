@@ -104,6 +104,20 @@ FNiagaraDataSet::~FNiagaraDataSet()
 	ReleaseBuffers();
 }
 
+void FNiagaraDataSet::Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData)
+{
+	CompiledData.Init(InDataSetCompiledData != nullptr ? InDataSetCompiledData : &FNiagaraDataSetCompiledData::DummyCompiledData);
+	if (bInitialized)
+	{
+		Reset();
+	}
+	else
+	{
+		ResetBuffersInternal();
+		bInitialized = true;
+	}
+}
+
 void FNiagaraDataSet::Reset()
 {
 	ResetBuffers();
@@ -129,7 +143,10 @@ void FNiagaraDataSet::ResetBuffers()
 
 void FNiagaraDataSet::ResetBuffersInternal()
 {
-	CheckCorrectThread();
+	if (bInitialized == true)
+	{
+		CheckCorrectThread();
+	}
 
 	CurrentData = nullptr;
 	DestinationData = nullptr;

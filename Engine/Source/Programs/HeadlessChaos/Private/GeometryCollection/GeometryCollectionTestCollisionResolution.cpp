@@ -157,7 +157,7 @@ namespace GeometryCollectionTest
 
 			const FVector& CurrX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
 			EXPECT_NE(CurrX.Z, FirstX.Z); // moved since init
-			EXPECT_LE(CurrX.Z, PrevX.Z); // falling in -Z, or stopped
+			EXPECT_GE(PrevX.Z - CurrX.Z, -KINDA_SMALL_NUMBER); // falling in -Z, or stopped
 			EXPECT_LE(FMath::Abs(CurrX.X), KINDA_SMALL_NUMBER); // straight down
 			EXPECT_LE(FMath::Abs(CurrX.Y), KINDA_SMALL_NUMBER); // straight down
 			PrevX = CurrX;
@@ -326,9 +326,9 @@ namespace GeometryCollectionTest
 
 			// validate the ball collides and moved away from the static ball
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z) - 10.f, KINDA_SMALL_NUMBER);
-			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().X) < KINDA_SMALL_NUMBER); // No deflection
-			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Y) < KINDA_SMALL_NUMBER); // No deflection
-			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 1.f); // ball fell
+			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().X) < 0.001); // No deflection
+			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Y) < 0.001); // No deflection
+			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 1.1f); // ball fell
 		}
 	}
 
@@ -395,7 +395,7 @@ namespace GeometryCollectionTest
 			// We expect the simplical sphere to drop by 0.1 in Z and come to rest
 			// on top of the implicit sphere.
 			const FVector& CurrX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
-			EXPECT_LE(CurrX.Z - 2.0, 0.2); // Relative large fudge factor accounts for aliasing?
+			EXPECT_LE(FMath::Abs(CurrX.Z - 2.0f), 0.1);
 		}
 	}
 

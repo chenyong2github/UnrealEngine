@@ -1,4 +1,4 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_LEADERBOARD_H
@@ -7,40 +7,47 @@
 #include "rail/sdk/base/rail_component.h"
 #include "rail/sdk/rail_user_space_define.h"
 
+// @desc classes and structures here provide simple and reliable services for game leaderboards.
+// To update and retrieve leaderboards, usually the leaderboards need to be configured first
+// on the Developer Portal. Leaderboards can also be created programmatically with
+// AsyncCreateLeaderboard
+
+
 namespace rail {
 #pragma pack(push, RAIL_SDK_PACKING)
 
 enum LeaderboardType {
-    kLeaderboardUnknown = 0,
-    kLeaderboardAllZone = 1,
-    kLeaderboardMyZone = 2,
-    kLeaderboardMyServer = 3,
-    kLeaderboardFriends = 4,
+    kLeaderboardUnknown = 0,   // invalid value
+    kLeaderboardAllZone = 1,   // for global leaderboard
+    kLeaderboardMyZone = 2,    // for global leaderboard, same as above
+    kLeaderboardMyServer = 3,  // for global leaderboard, same as above
+    kLeaderboardFriends = 4,   // for leaderboard of friends only
 };
 
 enum LeaderboardUploadType {
-    kLeaderboardUploadInvalid = 0,
-    kLeaderboardUploadRewrite = 1,     // rewrite unconditionally
-    kLeaderboardUploadChooseBest = 2,  // choose the best score
+    kLeaderboardUploadInvalid = 0,     // invalid value
+    kLeaderboardUploadRewrite = 1,     // rewrite unconditionally if an entry already exists
+    kLeaderboardUploadChooseBest = 2,  // update only when the new score is better
 };
 
 enum LeaderboardSortType {
-    kLeaderboardSortTypeNone = 0,
+    kLeaderboardSortTypeNone = 0,  // invalid
     kLeaderboardSortTypeAsc = 1,   // ascending
     kLeaderboardSortTypeDesc = 2,  // descending
 };
 
+// used to properly display the leaderboard entries on game platform
 enum LeaderboardDisplayType {
-    kLeaderboardDisplayTypeNone = 0,
-    kLeaderboardDisplayTypeDouble = 1,
-    kLeaderboardDisplayTypeSeconds = 2,
-    kLeaderboardDisplayTypeMilliSeconds = 3,
+    kLeaderboardDisplayTypeNone = 0,          // invalid value
+    kLeaderboardDisplayTypeDouble = 1,        // interpret number as a double value
+    kLeaderboardDisplayTypeSeconds = 2,       // interpret number as seconds
+    kLeaderboardDisplayTypeMilliSeconds = 3,  // interpret number as milliseconds
 };
 
 struct LeaderboardParameters {
     LeaderboardParameters() {}
 
-    RailString param;  // JSON format, configured at back-end server
+    RailString param;  // of JSON format. Configured on Developer Portal
 };
 
 struct RequestLeaderboardEntryParam {
@@ -48,14 +55,17 @@ struct RequestLeaderboardEntryParam {
         type = kLeaderboardUnknown;
         range_start = 0;
         range_end = 0;
-        user_coordinate = false;
+        user_coordinate = false;   // if true, current player's position will be added to the range
     }
 
-    LeaderboardType type;
-    int32_t range_start;
-    // normally, range_end >= range_start. set range_end to -1 via request to the last one.
-    int32_t range_end;
-    bool user_coordinate;
+    LeaderboardType type;  // either for friend leaderboards or global leaderboards
+    // If range_end >= range_start, the range will be [param.range_start, param.range_end]
+    // If range_end == -1, the range will be [param.range_start, index of the last entry]
+    // Please note for global leaderboard, if user_coordinate is true, current player's position
+    // will be added to the range
+    int32_t range_start;   // could be less than 0 for global leaderboard if user_coordinate == true
+    int32_t range_end;     // use -1 to retrieve till the last leaderboard entry
+    bool user_coordinate;  // use true for relative coordinates range for global leaderboards
 };
 
 struct LeaderboardData {
@@ -91,9 +101,21 @@ class IRailLeaderboardHelper {
   public:
     virtual ~IRailLeaderboardHelper() {}
 
+    // @desc Open a leaderboard that was already configured on Developer Portal
+    // @param leaderboard_name API name configured on the Developer Portal. Not the display name.
+    // On the Developer Portal, you will find 'API name' in the leaderboard section.
+    // @return The pointer to the leaderboard object
     virtual IRailLeaderboard* OpenLeaderboard(const RailString& leaderboard_name) = 0;
 
-    // trigger event LeaderboardCreated
+    // @desc If the leaderboard of the name 'leaderboard_name' was neither configured on the
+    // Developer Portal nor created with this interface earlier, the call will create one.
+    // Otherwise, the existing leaderboard will be opened just like using OpenLeaderboard.
+    // The callback event is LeaderboardCreated
+    // @param leaderboard_name Name of the leaderboard
+    // @param sort_type How to sort the leaderboard. Could be ascending or decending.
+    // @param display_type How the data in the leaderboard is displayed on the game platform
+    // @param user_data Will be copied to the asynchronous result.
+    // @return Pointer to the leaderboard created or the existing one of the same name
     virtual IRailLeaderboard* AsyncCreateLeaderboard(const RailString& leaderboard_name,
                                 LeaderboardSortType sort_type,
                                 LeaderboardDisplayType display_type,
@@ -103,56 +125,101 @@ class IRailLeaderboardHelper {
 
 class IRailLeaderboard : public IRailComponent {
   public:
+    // @desc Get the name of the current leaderboard
+    // @return Name of the current leaderboard
     virtual RailString GetLeaderboardName() = 0;
 
+    // @desc Get the total number of entries in the leaderboard
     virtual int32_t GetTotalEntriesCount() = 0;
 
-    // trigger event LeaderboardReceived
+    // @desc Get meta data for leaderboard to check whether the leaderboard exists
+    // The callback is LeaderboardReceived
+    // @param user_data Will be copied to the asynchronous result.
+    // @return Returns kSuccess on success
     virtual RailResult AsyncGetLeaderboard(const RailString& user_data) = 0;
 
+    // @desc Get customized parameter for the leaderboard
+    // @param param Retrieved parameter
+    // @return Returns kSuccess on success
     virtual RailResult GetLeaderboardParameters(LeaderboardParameters* param) = 0;
 
+    // @desc Create an object to download leaderboard entries later
+    // @return Pointer to the object to download info for leaderboard entries
     virtual IRailLeaderboardEntries* CreateLeaderboardEntries() = 0;
 
-    // trigger event LeaderboardUploaded
-    // don't support to attach spacework_id with uploaded score
-    // you should call AsyncAttachSpaceWork to update the attached spacework_id
+    // @desc Update the leaderboard
+    // The callback event is LeaderboardUploaded
+    // For leaderboard in a mod(player modification), use AsyncAttachSpaceWork to attach an MOD ID
+    // @param update_param See definition of UploadLeaderboardParam for details
+    // @param user_data Will be copied to the asynchronous result.
+    // @return Returns kSuccess on success
     virtual RailResult AsyncUploadLeaderboard(const UploadLeaderboardParam& update_param,
                         const RailString& user_data) = 0;
 
+    // @desc Get the LeaderboardSortType
+    // @param sort_type Usually ascending or decending
+    // @return Returns kSuccess on success
     virtual RailResult GetLeaderboardSortType(LeaderboardSortType* sort_type) = 0;
 
+    // @desc Get the LeaderboardDisplayType
+    // @param display_type Type to show on the game platform
+    // @return Returns kSuccess on success
     virtual RailResult GetLeaderboardDisplayType(LeaderboardDisplayType* display_type) = 0;
 
-    // trigger event LeaderboardAttachSpaceWork
-    // only supports one spacework_id attached to the leaderboard
-    // the new spacework_id will replace the old one
+    // @desc Attach the leaderboard to a mod (player modification)
+    // The callback is LeaderboardAttachSpaceWork
+    // Only one spacework_id can be attached to the leaderboard
+    // The new spacework_id will replace the old one if there is an existing one
+    // @param spacework_id ID of the player mod
+    // @param user_data Will be copied to the asynchronous result.
+    // @return Returns kSuccess on success
     virtual RailResult AsyncAttachSpaceWork(SpaceWorkID spacework_id,
                         const RailString& user_data) = 0;
 };
 
 class IRailLeaderboardEntries : public IRailComponent {
   public:
+    // @desc Get the Rail ID used in AsyncRequestLeaderboardEntries last time
+    // @return RailID used in AsyncRequestLeaderboardEntries last time
     virtual RailID GetRailID() = 0;
 
+    // @desc Get the name of the current leaderboard
+    // @return Name of the leaderboard
     virtual RailString GetLeaderboardName() = 0;
 
-    // range_start could be little than zero.
-    // if player is not zero, when param.user_coordinate equals true,
+    // @desc Download leaderboard entries
+    // 'range_start' can be less than zero.
+    // For global leaderboard, if player != RailID(0) and param.user_coordinate == true,
     // the actual range is [player_pos + range_start, player_pos + range_end].
-    // otherwise, the actual range is [max(1, player_pos) + range_start, max(0, player_pos) +
-    // range_end]. for example: if player_pos is 6, range_start is -2, range_end is 2, then the
-    // actual range is [4, 8]. if player is RailID(0), range_start is -2, range_end is 2, then the
-    // actual range is [1, 2] trigger event LeaderboardEntryReceived
+    // If user_coordinate == false, the actual range is
+    // [max(1, player_pos) + range_start, max(0, player_pos) + range_end].
+    // For example: if player_pos == 6, range_start == -2 and range_end == 2, the
+    // actual range is [4, 8]. If player == RailID(0), range_start == -2 and range_end == 2, the
+    // actual range is [1, 2]
+    // The callback event is LeaderboardEntryReceived
+    // @param player If player.IsValid() == false, a global leaderboard will be retrieved.
+    // Otherwise, a leaderboard for friends only will be retrieved
+    // @param param See definition of RequestLeaderboardEntryParam for details. Notice: If
+    // type ==  kLeaderboardFriends, range_start and range_end will be ignored, and the
+    // whole data of leaderboard for friends will be retrieved.
+    // @param user_data Will be copied to the asynchronous result
+    // @return Returns kSuccess on success
     virtual RailResult AsyncRequestLeaderboardEntries(const RailID& player,
                         const RequestLeaderboardEntryParam& param,
                         const RailString& user_data) = 0;
 
+    // @desc Get the param that was used in AsyncRequestLeaderboardEntries
+    // @return The param used in AsyncRequestLeaderboardEntries
     virtual RequestLeaderboardEntryParam GetEntriesParam() = 0;
 
+    // @desc Get the number of the entries retrieved
+    // @return Number of the entries retrieved
     virtual int32_t GetEntriesCount() = 0;
 
-    // index's range is [0, entries_count)
+    // @desc Get an entry of 'index' in the retrieved entries
+    // @param index Should be in the range [0, entries_count)
+    // @param leaderboard_entry The retrieved entry
+    // @return Returns kSuccess on success
     virtual RailResult GetLeaderboardEntry(int32_t index, LeaderboardEntry* leaderboard_entry) = 0;
 };
 

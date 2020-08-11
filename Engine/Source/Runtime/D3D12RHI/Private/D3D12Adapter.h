@@ -168,13 +168,7 @@ public:
 		return Devices[GPUIndex];
 	}
 
-	FORCEINLINE void CreateDXGIFactory()
-	{
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		VERIFYD3D12RESULT(::CreateDXGIFactory(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
-#endif
-	}
+	void CreateDXGIFactory(bool bWithDebug);
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 
@@ -190,19 +184,47 @@ public:
 	void EndFrame();
 
 	// Resource Creation
+	HRESULT CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc,
+		FRHIGPUMask CreationNode,
+		const D3D12_HEAP_PROPERTIES& HeapProps,
+		D3D12_RESOURCE_STATES InInitialState,
+		const D3D12_CLEAR_VALUE* ClearValue,
+		FD3D12Resource** ppOutResource,
+		const TCHAR* Name,
+		bool bVerifyHResult = true)
+	{
+		return CreateCommittedResource(InDesc, CreationNode, HeapProps, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, ClearValue, ppOutResource, Name, bVerifyHResult);
+	}
+
 	HRESULT CreateCommittedResource(const D3D12_RESOURCE_DESC& Desc,
 		FRHIGPUMask CreationNode,
 		const D3D12_HEAP_PROPERTIES& HeapProps,
-		const D3D12_RESOURCE_STATES& InitialUsage,
+		D3D12_RESOURCE_STATES InInitialState,
+		ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InDefaultState,
 		const D3D12_CLEAR_VALUE* ClearValue,
 		FD3D12Resource** ppOutResource,
 		const TCHAR* Name,
 		bool bVerifyHResult = true);
 
+	HRESULT CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc,
+		FD3D12Heap* BackingHeap,
+		uint64 HeapOffset,
+		D3D12_RESOURCE_STATES InInitialState,
+		const D3D12_CLEAR_VALUE* ClearValue,
+		FD3D12Resource** ppOutResource,
+		const TCHAR* Name,
+		bool bVerifyHResult = true)
+	{
+		return CreatePlacedResource(InDesc, BackingHeap, HeapOffset, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, ClearValue, ppOutResource, Name, bVerifyHResult);
+	}
+
 	HRESULT CreatePlacedResource(const D3D12_RESOURCE_DESC& Desc,
 		FD3D12Heap* BackingHeap,
 		uint64 HeapOffset,
-		const D3D12_RESOURCE_STATES& InitialUsage,
+		D3D12_RESOURCE_STATES InInitialState,
+		ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InDefaultState,
 		const D3D12_CLEAR_VALUE* ClearValue,
 		FD3D12Resource** ppOutResource,
 		const TCHAR* Name,
@@ -227,7 +249,9 @@ public:
 
 	HRESULT CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 		FRHIGPUMask CreationNode,
-		D3D12_RESOURCE_STATES InitialState,
+		D3D12_RESOURCE_STATES InInitialState,
+		ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InDefaultState,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,
 		const TCHAR* Name,
@@ -237,6 +261,7 @@ public:
 	BufferType* CreateRHIBuffer(FRHICommandListImmediate* RHICmdList,
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
+		ED3D12ResourceStateMode InResourceStateMode,
 		FRHIResourceCreateInfo& CreateInfo);
 
 	template <typename ObjectType, typename CreationCoreFunction>
@@ -286,6 +311,7 @@ protected:
 		const D3D12_RESOURCE_DESC& Desc,
 		uint32 Size,
 		uint32 InUsage,
+		ED3D12ResourceStateMode InResourceStateMode,
 		FRHIResourceCreateInfo& CreateInfo,
 		uint32 Alignment,
 		FD3D12TransientResource& TransientResource,

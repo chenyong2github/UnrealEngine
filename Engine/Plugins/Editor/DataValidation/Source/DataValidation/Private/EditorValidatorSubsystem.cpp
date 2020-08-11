@@ -332,7 +332,7 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList)
 	FMessageLog DataValidationLog("AssetCheck");
 	FText SavedAsset = AssetDataList.Num() == 1 ? FText::FromName(AssetDataList[0].AssetName) : LOCTEXT("MultipleErrors", "multiple assets");
 	DataValidationLog.NewPage(FText::Format(LOCTEXT("DataValidationLogPage", "Asset Save: {0}"), SavedAsset));
-	if (ValidateAssets(AssetDataList, true, false) > 0)
+	if (ValidateAssets(MoveTemp(AssetDataList), true, false) > 0)
 	{
 		const FText ErrorMessageNotification = FText::Format(
 			LOCTEXT("ValidationFailureNotification", "Validation failed when saving {0}, check Data Validation log"), SavedAsset);
@@ -403,14 +403,15 @@ void UEditorValidatorSubsystem::ValidateAllSavedPackages()
 		}
 	}
 
-	TArray<FAssetData> Assets;
-	for (FName PackageName : SavedPackagesToValidate)
-	{
-		// We need to query the in-memory data as the disk cache may not be accurate
-		AssetRegistry.GetAssetsByPackageName(PackageName, Assets);
-	}
+	// We need to query the in-memory data as the disk cache may not be accurate
+	FARFilter Filter;
+	Filter.PackageNames = SavedPackagesToValidate;
+	Filter.bIncludeOnlyOnDiskAssets = false;
 
-	ValidateOnSave(Assets);
+	TArray<FAssetData> Assets;
+	AssetRegistry.GetAssets(Filter, Assets);
+
+	ValidateOnSave(MoveTemp(Assets));
 
 	SavedPackagesToValidate.Empty();
 }

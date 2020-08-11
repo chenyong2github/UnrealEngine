@@ -462,7 +462,8 @@ namespace Audio
 		int32 EnvelopeNumChannels;
 		FCriticalSection EnvelopeCriticalSection;
 
-		// Spectrum analyzer:
+		// Spectrum analyzer. Created and destroyed on the audio thread.
+		FCriticalSection SpectrumAnalyzerCriticalSection;
 		FSoundSpectrumAnalyzerSettings SpectrumAnalyzerSettings;
 		TUniquePtr<FSpectrumAnalyzer> SpectrumAnalyzer;
 		

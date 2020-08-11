@@ -51,6 +51,10 @@ public:
 	 */
 	DECLARE_EVENT_OneParam(FWorldBrowserModule, FOnBrowseWorld, UWorld*);
 	FOnBrowseWorld OnBrowseWorld;
+
+	/** Delegate called when WorldBrowserModule is shutdown. */
+	DECLARE_MULTICAST_DELEGATE(FOnWorldBrowserModuleShutdown);
+	FOnWorldBrowserModuleShutdown& OnShutdown() { return ShutdownDelegate; }
 				
 private:
 	void OnWorldCreated(UWorld* InWorld);
@@ -75,4 +79,6 @@ private:
 	FLevelEditorModule::FLevelEditorMenuExtender LevelMenuExtender;
 	/** Delegate called when the menu is created */
 	FDelegateHandle LevelMenuExtenderHandle;
+	// Holds FOnWorldBrowserModuleShutdown
+	FOnWorldBrowserModuleShutdown ShutdownDelegate;
 };

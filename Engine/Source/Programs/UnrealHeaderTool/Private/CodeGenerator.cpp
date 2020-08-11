@@ -2546,7 +2546,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			const FProperty* const Property = Class->ClassReps[i].Property;
 			const FString PropertyName = Property->GetName();
 
-			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *PropertyName);
+			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *FNativeClassHeaderGenerator::GetOverriddenName(Property));
 
 			if (Property->ArrayDim == 1)
 			{
@@ -2615,9 +2615,9 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	{
 		OuterFunc = TEXT("nullptr");
 	}
-
+	
 	TArray<FProperty*> Props;
-	Algo::Copy(TFieldRange<FProperty>(Function, EFieldIteratorFlags::ExcludeSuper), Props);
+	Algo::Copy(TFieldRange<FProperty>(Function, EFieldIteratorFlags::ExcludeSuper), Props, Algo::NoRef);
 
 	FString StructureSize;
 	if (Props.Num())
@@ -3893,7 +3893,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	FString MetaDataParams = OutputMetaDataCodeForObject(GeneratedStructRegisterFunctionText, StaticDefinitions, Struct, *FString::Printf(TEXT("%s::Struct_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
 
 	TArray<FProperty*> Props;
-	Algo::Copy(TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper), Props);
+	Algo::Copy(TFieldRange<FProperty>(Struct, EFieldIteratorFlags::ExcludeSuper), Props, Algo::NoRef);
 
 	FString NewStructOps;
 	if (Struct->StructFlags & STRUCT_Native)
@@ -6499,7 +6499,7 @@ void GetScriptPlugins(TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins)
 void ResolveSuperClasses(UPackage* Package)
 {
 	TArray<UObject*> Objects;
-	GetObjectsWithOuter(Package, Objects);
+	GetObjectsWithPackage(Package, Objects);
 
 	for (UObject* Object : Objects)
 	{
@@ -6608,22 +6608,46 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		//       want to make sure our flags get set
 		Package->SetPackageFlags(PKG_ContainsScript | PKG_Compiling);
 		Package->ClearPackageFlags(PKG_ClientOptional | PKG_ServerSideOnly);
-		switch (Module.ModuleType)
+		
+		if(Module.OverrideModuleType == EPackageOverrideType::None)
 		{
-		case EBuildModuleType::GameEditor:
-		case EBuildModuleType::EngineEditor:
-			Package->SetPackageFlags(PKG_EditorOnly);
-			break;
+			switch (Module.ModuleType)
+			{
+			case EBuildModuleType::GameEditor:
+			case EBuildModuleType::EngineEditor:
+				Package->SetPackageFlags(PKG_EditorOnly);
+				break;
 
-		case EBuildModuleType::GameDeveloper:
-		case EBuildModuleType::EngineDeveloper:
-			Package->SetPackageFlags(PKG_Developer);
-			break;
+			case EBuildModuleType::GameDeveloper:
+			case EBuildModuleType::EngineDeveloper:
+				Package->SetPackageFlags(PKG_Developer);
+				break;
 
-		case EBuildModuleType::GameUncooked:
-		case EBuildModuleType::EngineUncooked:
-			Package->SetPackageFlags(PKG_UncookedOnly);
-			break;
+			case EBuildModuleType::GameUncooked:
+			case EBuildModuleType::EngineUncooked:
+				Package->SetPackageFlags(PKG_UncookedOnly);
+				break;
+			}
+		}
+		else
+		{
+			// If the user has specified this module to have another package flag, then OR it on
+			switch (Module.OverrideModuleType)
+			{
+			case EPackageOverrideType::EditorOnly:
+				Package->SetPackageFlags(PKG_EditorOnly);
+				break;
+
+			case EPackageOverrideType::EngineDeveloper:
+			case EPackageOverrideType::GameDeveloper:
+				Package->SetPackageFlags(PKG_Developer);
+				break;
+
+			case EPackageOverrideType::EngineUncookedOnly:
+			case EPackageOverrideType::GameUncookedOnly:
+				Package->SetPackageFlags(PKG_UncookedOnly);
+				break;
+			}
 		}
 
 		// Add new module or overwrite whatever we had loaded, that data is obsolete.
@@ -7034,6 +7058,11 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, TArray<FHeaderProvider>& De
 	if (!FHeaderParser::ClassNameHasValidPrefix(ClassName, ClassNameStripped))
 	{
 		FError::Throwf(TEXT("Invalid class name '%s'. The class name must have an appropriate prefix added (A for Actors, U for other classes)."), *ClassName);
+	}
+
+	if(FHeaderParser::IsReservedTypeName(ClassNameStripped))
+	{
+		FError::Throwf(TEXT("Invalid class name '%s'. Cannot use a reserved name ('%s')."), *ClassName, *ClassNameStripped);
 	}
 
 	// Ensure the base class has any valid prefix and exists as a valid class. Checking for the 'correct' prefix will occur during compilation

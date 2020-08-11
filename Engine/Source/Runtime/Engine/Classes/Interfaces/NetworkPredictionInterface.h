@@ -87,6 +87,7 @@ public:
 	, ServerTimeLastForcedUpdate(0.f)
 	, bTriggeringForcedUpdates(false)
 	, bForcedUpdateDurationExceeded(false)
+	, bLastRequestNeedsForcedUpdates(false)
 	{
 	}
 
@@ -113,9 +114,12 @@ public:
 	float ServerTimeLastForcedUpdate;
 
 	/** Set to true while requirements for ForcePositionUpdate interval are met, and set back to false after updates are received again. */
-	bool bTriggeringForcedUpdates;
+	uint8 bTriggeringForcedUpdates : 1;
 
 	/** Set to true while bTriggeringForcedUpdates is true and after update duration has been exceeded (when server will stop forcing updates). */
-	bool bForcedUpdateDurationExceeded;
+	uint8 bForcedUpdateDurationExceeded : 1;
+
+	/** Set to true if last received move request  is bad and needs correction */
+	uint8 bLastRequestNeedsForcedUpdates : 1;
 };
 

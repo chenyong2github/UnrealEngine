@@ -17,6 +17,7 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
+#include "Containers/StringView.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
@@ -1197,46 +1198,52 @@ void FPaths::RemoveDuplicateSlashes(FString& InPath)
 	InPath.TrimToNullTerminator();
 }
 
-void FPaths::MakeStandardFilename(FString& InPath)
+FString FPaths::CreateStandardFilename(const FString& InPath)
 {
 	// if this is an empty path, use the relative base dir
 	if (InPath.Len() == 0)
 	{
-		InPath = FPlatformProcess::BaseDir();
+		FString BaseDir = FPlatformProcess::BaseDir();
 		// if the base directory is nothing then this function will recurse infinitely instead of returning nothing.
-		if (InPath.Len() == 0)
-			return;
-		FPaths::MakeStandardFilename(InPath);
-		return;
+		if (BaseDir.Len() == 0)
+			return BaseDir;
+		return FPaths::CreateStandardFilename(BaseDir);
 	}
 
-	FString WithSlashes = InPath.Replace(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
+	FString WithSlashes = InPath;
+	WithSlashes.ReplaceInline(TEXT("\\"), TEXT("/"), ESearchCase::CaseSensitive);
+	const FStringView SlashesView(WithSlashes);
 
-	FString RootDirectory = FPaths::RootDir();
+	const TCHAR* RootDirectory = FPlatformMisc::RootDir();
+	const FStringView RootDirectoryView(RootDirectory);
 
 	// look for paths that cannot be made relative, and are therefore left alone
 	// UNC (windows) network path
 	bool bCannotBeStandardized = InPath.StartsWith(TEXT("\\\\"), ESearchCase::CaseSensitive);
 	// windows drive letter path that doesn't start with base dir
-	bCannotBeStandardized |= ((InPath.Len() > 1) && (InPath[1] == ':') && !WithSlashes.StartsWith(RootDirectory));
+	bCannotBeStandardized |= ((InPath.Len() > 1) && (InPath[1] == ':') && !SlashesView.StartsWith(RootDirectoryView));
 	// Unix style absolute path that doesn't start with base dir
-	bCannotBeStandardized |= (WithSlashes.GetCharArray()[0] == '/' && !WithSlashes.StartsWith(RootDirectory));
+	bCannotBeStandardized |= (WithSlashes.GetCharArray()[0] == '/' && !SlashesView.StartsWith(RootDirectoryView));
 
 	// if it can't be standardized, just return itself
 	if (bCannotBeStandardized)
 	{
-		return;
+		return InPath;
 	}
 
 	// make an absolute path
-	
-	FString Standardized = FPaths::ConvertRelativePathToFull(InPath);
+	FString Standardized = FPaths::ConvertRelativePathToFull(WithSlashes);
 
 	// remove duplicate slashes
 	FPaths::RemoveDuplicateSlashes(Standardized);
-
 	// make it relative to Engine\Binaries\Platform
-	InPath = Standardized.Replace(*RootDirectory, *FPaths::GetRelativePathToRoot());
+	Standardized.ReplaceInline(RootDirectory, *FPaths::GetRelativePathToRoot());
+	return Standardized;
+}
+
+void FPaths::MakeStandardFilename(FString& InPath)
+{
+	InPath = FPaths::CreateStandardFilename(InPath);
 }
 
 void FPaths::MakePlatformFilename( FString& InPath )

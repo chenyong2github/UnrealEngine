@@ -13,6 +13,7 @@
 UCLASS(MinimalAPI)
 class UMovieSceneWidgetMaterialTrack
 	: public UMovieSceneMaterialTrack
+	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 

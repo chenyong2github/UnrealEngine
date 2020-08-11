@@ -178,7 +178,11 @@ FString UQosRegionManager::GetDatacenterId()
 
 		FString DCIDString;
 	};
-	static FDcidInfo DCID;
+
+	// TODO (EvanK): making this not static (and thus removing the only-once optimization) due to forked servers
+	//               not being able to change their DCID after the fork point. will add it back in after we can
+	//               deprecate the static versions of the getters.
+	FDcidInfo DCID;
 	return DCID.DCIDString;
 }
 
@@ -208,7 +212,11 @@ FString UQosRegionManager::GetAdvertisedSubregionId()
 
 		FString SubregionString;
 	};
-	static FSubregion Subregion;
+
+	// TODO (EvanK): making this not static (and thus removing the only-once optimization) due to forked servers
+	//               not being able to change their subregion after the fork point. will add it back in after we can
+	//               deprecate the static versions of the getters.
+	FSubregion Subregion;
 	return Subregion.SubregionString;
 }
 

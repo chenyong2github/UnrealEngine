@@ -24,6 +24,7 @@
 #include "StreamingLevels/StreamingLevelModel.h"
 #include "Engine/Selection.h"
 #include "Engine/LevelStreamingVolume.h"
+#include "GameFramework/WorldSettings.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
 
@@ -72,7 +73,7 @@ void FStreamingLevelCollectionModel::OnLevelsCollectionChanged()
 	// Add models for each streaming level in the world
 	for (ULevelStreaming* StreamingLevel : CurrentWorld->GetStreamingLevels())
 	{
-		if (StreamingLevel)
+		if (StreamingLevel && StreamingLevel->ShowInLevelCollection())
 		{
 			TSharedPtr<FStreamingLevelModel> LevelModel = MakeShareable(new FStreamingLevelModel(*this, StreamingLevel));
 			AllLevelsList.Add(LevelModel);
@@ -412,6 +413,11 @@ void FStreamingLevelCollectionModel::UnregisterDetailsCustomization(FPropertyEdi
 																	TSharedPtr<IDetailsView> InDetailsView)
 {
 	InDetailsView->UnregisterInstancedCustomPropertyLayout(ULevelStreaming::StaticClass());
+}
+
+bool FStreamingLevelCollectionModel::IsPartitionWorld() const
+{
+	return CurrentWorld.IsValid() ? !!CurrentWorld->GetWorldPartition() : false;
 }
 
 const FLevelModelList& FStreamingLevelCollectionModel::GetInvalidSelectedLevels() const 

@@ -394,6 +394,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void SearchAllAssets(bool bSynchronousSearch) = 0;
 
+	/** Wait for scan to be complete */
+	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
+	virtual void WaitForCompletion() = 0;
+
 	/** If assets are currently being asynchronously scanned in the specified path, this will cause them to be scanned before other assets. */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void PrioritizeSearchPath(const FString& PathToPrioritize) = 0;

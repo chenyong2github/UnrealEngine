@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealUSDWrapper",
 					"USDClasses",
 					"USDUtilities",
+					"DeveloperSettings"
 				}
 				);
 

@@ -39,4 +39,7 @@ class ENGINE_API UInputDelegateBinding : public UDynamicBlueprintBinding
 	virtual void BindToInputComponent(UInputComponent* InputComponent) const { };
 	static bool SupportsInputDelegate(const UClass* InClass);
 	static void BindInputDelegates(const UClass* InClass, UInputComponent* InputComponent);
+
+protected:
+	static TSet<UClass*> InputBindingClasses;
 };

@@ -507,6 +507,9 @@ namespace Tools.DotNETCommon
 					if (Option == SearchOption.AllDirectories)
 					{
 						RemainingComponents = new[] { RemainingComponents.Last() };
+
+						// ** includes files in the current directory too
+						Directories = Directories.Concat(new[] { ExistingPath });
 					}
 
 					foreach (DirectoryReference Dir in Directories)

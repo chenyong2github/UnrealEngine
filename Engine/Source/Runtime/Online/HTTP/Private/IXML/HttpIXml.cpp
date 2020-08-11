@@ -125,6 +125,14 @@ void FHttpRequestIXML::SetContent(const TArray<uint8>& ContentPayload)
 //-----------------------------------------------------------------------------
 //	
 //-----------------------------------------------------------------------------
+void FHttpRequestIXML::SetContent(TArray<uint8>&& ContentPayload)
+{
+	Payload = MakeUnique<FRequestPayloadInMemory>(MoveTemp(ContentPayload));
+}
+
+//-----------------------------------------------------------------------------
+//	
+//-----------------------------------------------------------------------------
 void FHttpRequestIXML::SetContentAsString(const FString& ContentString)
 {
 	if ( ContentString.Len() )

@@ -101,6 +101,11 @@ bool FWinHttpHttpManager::ValidateRequestCertificates(IWinHttpConnection& Connec
 	return true;
 }
 
+void FWinHttpHttpManager::ReleaseRequestResources(IWinHttpConnection& Connection)
+{
+	// No-op
+}
+
 FWinHttpSession* FWinHttpHttpManager::FindOrCreateSession(const uint32 SecurityProtocols)
 {
 	TUniquePtr<FWinHttpSession>* SessionPtrPtr = ActiveSessions.Find(SecurityProtocols);

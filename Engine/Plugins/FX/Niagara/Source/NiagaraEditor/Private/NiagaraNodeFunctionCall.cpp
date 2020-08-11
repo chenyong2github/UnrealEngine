@@ -19,6 +19,7 @@
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
 #include "Misc/SecureHash.h"
+#include "NiagaraMessages.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"

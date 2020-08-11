@@ -136,7 +136,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 			{
 				const TVertexAttributesRef<FVector> VertexPositions = EditableMesh->GetMeshDescription()->VertexAttributes().GetAttributesRef<FVector>( MeshAttribute::Vertex::Position );
 
-				for( const FPolygonID CandidatePolygonID : CandidatePolygonIDs )
+				for( const FPolygonID& CandidatePolygonID : CandidatePolygonIDs )
 				{
 					const FTransform ComponentToWorld = Component->GetComponentToWorld();
 
@@ -175,7 +175,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 						static TArray<FEdgeID> PolygonPerimeterEdgeIDs;
 						EditableMesh->GetPolygonPerimeterEdges( CandidatePolygonID, /* Out */ PolygonPerimeterEdgeIDs );
 
-						for( const FEdgeID TargetEdgeID : PolygonPerimeterEdgeIDs )
+						for( const FEdgeID& TargetEdgeID : PolygonPerimeterEdgeIDs )
 						{
 							bool bIsDisqualified = false;
 
@@ -388,7 +388,7 @@ void USplitPolygonCommand::ApplyDuringDrag( IMeshEditorModeEditingContract& Mesh
 
 			// Select the new edges that were created
 			{
-				for( const FEdgeID NewEdgeID : NewEdgeIDs )
+				for( const FEdgeID& NewEdgeID : NewEdgeIDs )
 				{
 					FMeshElement MeshElementToSelect;
 					{

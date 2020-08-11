@@ -992,7 +992,7 @@ namespace RuntimeVirtualTexture
 		//todo[vt]: Have specific shader variations and setup for different output texture configs
 		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, nullptr, FEngineShowFlags(ESFIM_Game));
 		ViewFamilyInit.SetWorldTimes(0.0f, 0.0f, 0.0f);
-		FSceneViewFamilyContext ViewFamily(ViewFamilyInit);
+		FSceneViewFamily ViewFamily(ViewFamilyInit);
 
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.ViewFamily = &ViewFamily;
@@ -1030,10 +1030,12 @@ namespace RuntimeVirtualTexture
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverlayColor = FLinearColor::White;
 
-		FViewInfo* View = new FViewInfo(ViewInitOptions);
+		FViewInfo ViewInfo(ViewInitOptions);
+		FViewInfo* View = &ViewInfo;
 		ViewFamily.Views.Add(View);
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		View->bIsVirtualTexture = true;
 		View->ViewRect = View->UnconstrainedViewRect;
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 		View->SetupUniformBufferParameters(SceneContext, nullptr, 0, *View->CachedViewUniformShaderParameters);
@@ -1131,8 +1133,6 @@ namespace RuntimeVirtualTexture
 
 		// Execute the graph
 		GraphBuilder.Execute();
-
-		View->CachedViewUniformShaderParameters.Reset();
 	}
 
 	void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc)

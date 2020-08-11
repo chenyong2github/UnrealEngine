@@ -29,6 +29,7 @@ private:
 	EObjectFlags							ApplyFlags;
 	EInternalObjectFlags InternalFlagMask;
 	EInternalObjectFlags ApplyInternalFlags;
+	bool bAssignExternalPackages;
 
 	/**
 	 * This is used to prevent object & component instancing resulting from the calls to StaticConstructObject(); instancing subobjects and components is pointless,
@@ -129,5 +130,6 @@ public:
 		EInternalObjectFlags InInternalFlagMask,
 		EInternalObjectFlags InApplyInternalFlags,
 		FObjectInstancingGraph* InInstanceGraph,
-		uint32 InPortFlags);
+		uint32 InPortFlags,
+		bool InAssignExternalPackages);
 };

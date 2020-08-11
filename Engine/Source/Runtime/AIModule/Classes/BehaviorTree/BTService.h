@@ -80,5 +80,5 @@ protected:
 #endif // WITH_EDITOR
 
 	/** set next tick time */
-	void ScheduleNextTick(uint8* NodeMemory);
+	virtual void ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 };

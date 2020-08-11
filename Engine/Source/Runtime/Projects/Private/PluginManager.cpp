@@ -623,6 +623,21 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					}
 				}
 			}
+
+			// Which extra plugins should be disabled?
+			TArray<FString> ExtraPluginsToDisable;
+			ExtraPluginsToDisable = ParsePluginsList(TEXT("DisablePlugins="));
+			for (const FString& DisablePluginName : ExtraPluginsToDisable)
+			{
+				if (!ConfiguredPluginNames.Contains(DisablePluginName))
+				{
+					if (!ConfigureEnabledPluginForCurrentTarget(FPluginReferenceDescriptor(DisablePluginName, false), EnabledPlugins))
+					{
+						return false;
+					}
+					ConfiguredPluginNames.Add(DisablePluginName);
+				}
+			}
 		}
 
 		if (!FParse::Param(FCommandLine::Get(), TEXT("NoEnginePlugins")))
@@ -644,7 +659,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 					FTargetReceipt Receipt;
 					if (Receipt.Read(TargetFile))
 					{
-						if (Receipt.TargetType == FApp::GetBuildTargetType())
+						if (Receipt.TargetType == FApp::GetBuildTargetType() && Receipt.Configuration == FApp::GetBuildConfiguration())
 						{
 							bool bIsDefaultTarget = Receipt.TargetType != EBuildTargetType::Editor || (DefaultEditorTarget.Len() == 0) || (DefaultEditorTarget == Receipt.TargetName);
 
@@ -1323,26 +1338,35 @@ bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type Loa
 	// Figure out which plugins are enabled
 	if(!ConfigureEnabledPlugins())
 	{
+		LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
 		return false;
 	}
 
 	FScopedSlowTask SlowTask(AllPlugins.Num());
 
 	// Load plugins!
-	for( const TPair<FString, TSharedRef< FPlugin >> PluginPair : AllPlugins )
+	for( const TPair<FString, TSharedRef< FPlugin >>& PluginPair : AllPlugins )
 	{
 		const TSharedRef<FPlugin> &Plugin = PluginPair.Value;
+
 		SlowTask.EnterProgressFrame(1);
 
 		if ( Plugin->bEnabled && !Plugin->Descriptor.bExplicitlyLoaded )
 		{
 			if (!TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase))
 			{
+				LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
 				return false;
 			}
 		}
 	}
+	LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/true);
 	return true;
+}
+
+IPluginManager::FLoadingModulesForPhaseEvent& FPluginManager::OnLoadingPhaseComplete()
+{
+	return LoadingPhaseCompleteEvent;
 }
 
 void FPluginManager::GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths )

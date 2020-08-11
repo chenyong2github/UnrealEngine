@@ -1,8 +1,84 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/GraphColoring.h"
 #include "Chaos/Array.h"
+#include "ChaosLog.h"
 
 using namespace Chaos;
+
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+{
+	for (int32 i = 0; i < ColorGraph.Num(); ++i)
+	{
+		TMap<int32, int32> NodeToColorMap;
+		for (const auto& Edge : ColorGraph[i])
+		{
+			int32 Node1 = Graph[Edge][0];
+			int32 Node2 = Graph[Edge][1];
+			if (NodeToColorMap.Contains(Node1))
+			{
+				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node1);
+				return false;
+			}
+			if (NodeToColorMap.Contains(Node2))
+			{
+				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node2);
+				return false;
+			}
+			if (InParticles.InvM(Node1) != 0)
+			{
+				NodeToColorMap.Add(Node1, i);
+			}
+			if (InParticles.InvM(Node2) != 0)
+			{
+				NodeToColorMap.Add(Node2, i);
+			}
+		}
+	}
+	return true;
+}
+
+bool VerifyGraph(TArray<TArray<int32>> ColorGraph, const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
+{
+	for (int32 i = 0; i < ColorGraph.Num(); ++i)
+	{
+		TMap<int32, int32> NodeToColorMap;
+		for (const auto& Edge : ColorGraph[i])
+		{
+			int32 Node1 = Graph[Edge][0];
+			int32 Node2 = Graph[Edge][1];
+			int32 Node3 = Graph[Edge][2];
+			if (NodeToColorMap.Contains(Node1))
+			{
+				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node1);
+				return false;
+			}
+			if (NodeToColorMap.Contains(Node2))
+			{
+				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node2);
+				return false;
+			}
+			if (NodeToColorMap.Contains(Node3))
+			{
+				UE_LOG(LogChaos, Error, TEXT("Color %d has duplicate Node %d"), i, Node3);
+				return false;
+			}
+			if (InParticles.InvM(Node1) != 0)
+			{
+				NodeToColorMap.Add(Node1, i);
+			}
+			if (InParticles.InvM(Node2) != 0)
+			{
+				NodeToColorMap.Add(Node2, i);
+			}
+			if (InParticles.InvM(Node3) != 0)
+			{
+				NodeToColorMap.Add(Node3, i);
+			}
+		}
+	}
+	return true;
+}
+
 
 TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<Chaos::FReal, 3>& InParticles)
 {
@@ -126,6 +202,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 		}
 	}
 
+	checkSlow(VerifyGraph(ColorGraph, Graph, InParticles));
 	return ColorGraph;
 }
 
@@ -227,9 +304,20 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 					const bool bIsOtherGraphNodeDynamic = InParticles.InvM(OtherNodeIndex2) != 0;
 					if (bIsOtherGraphNodeDynamic)
 					{
-						while (OtherNode.UsedColors.Contains(ColorToUse) || GraphNode.UsedColors.Contains(ColorToUse))
+						if (OtherNodeIndex == INDEX_NONE)
 						{
-							ColorToUse++;
+							while (OtherNode.UsedColors.Contains(ColorToUse) || GraphNode.UsedColors.Contains(ColorToUse))
+							{
+								ColorToUse++;
+							}
+						}
+						else
+						{
+							FGraphNode& PrevOtherNode = Nodes[OtherNodeIndex];
+							while (OtherNode.UsedColors.Contains(ColorToUse) || PrevOtherNode.UsedColors.Contains(ColorToUse) || GraphNode.UsedColors.Contains(ColorToUse))
+							{
+								ColorToUse++;
+							}
 						}
 					}
 				}
@@ -293,6 +381,7 @@ TArray<TArray<int32>> FGraphColoring::ComputeGraphColoring(const TArray<TVector<
 		}
 	}
 
+	checkSlow(VerifyGraph(ColorGraph, Graph, InParticles));
 	return ColorGraph;
 }
 

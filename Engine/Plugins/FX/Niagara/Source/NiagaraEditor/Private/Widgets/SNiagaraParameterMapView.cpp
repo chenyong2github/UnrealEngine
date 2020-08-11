@@ -1664,8 +1664,13 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 		return;
 	}
 
-	bool bSuccess = false;
 	FNiagaraVariable Parameter = ParameterAction->Parameter;
+	if (Parameter.GetName() == NewName)
+	{
+		return;
+	}
+
+	bool bSuccess = false;
 	if (ToolkitType == SCRIPT)
 	{
 		if (Graphs.Num() > 0)
@@ -1697,44 +1702,62 @@ void SNiagaraParameterMapView::RenameParameter(TSharedPtr<FNiagaraParameterActio
 		if (System != nullptr)
 		{
 			// Rename the parameter in the parameter stores.
+			FNiagaraParameterStore* OwningParameterStore = nullptr;
 			if (System->GetExposedParameters().IndexOf(Parameter) != INDEX_NONE)
 			{
-				System->GetExposedParameters().RenameParameter(Parameter, NewName);
-				bSuccess = true;
+				OwningParameterStore = &System->GetExposedParameters();
 			}
-			if (System->EditorOnlyAddedParameters.IndexOf(Parameter) != INDEX_NONE)
+			else if (System->EditorOnlyAddedParameters.IndexOf(Parameter) != INDEX_NONE)
 			{
-				System->EditorOnlyAddedParameters.RenameParameter(Parameter, NewName);
+				OwningParameterStore = &System->EditorOnlyAddedParameters;
+			}
+
+			if(OwningParameterStore != nullptr)
+			{
+				TArray<FNiagaraVariable> OwningParameters;
+				OwningParameterStore->GetParameters(OwningParameters);
+				if (OwningParameters.ContainsByPredicate([NewName](const FNiagaraVariable& Variable) { return Variable.GetName() == NewName; }))
+				{
+					// If the parameter store already has a parameter with this name, remove the old parameter to prevent collisions.
+					OwningParameterStore->RemoveParameter(Parameter);
+				}
+				else
+				{
+					// Otherwise it's safe to rename.
+					OwningParameterStore->RenameParameter(Parameter, NewName);
+				}
 				bSuccess = true;
 			}
 
-			// Look for set variables nodes or linked inputs which reference this parameter.
-			for (FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
+			if (bSuccess)
 			{
-				for (FNiagaraGraphParameterReference& ParameterReference : ReferenceCollection.ParameterReferences)
+				// Look for set variables nodes or linked inputs which reference this parameter.
+				for (FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
 				{
-					UNiagaraNode* ReferenceNode = Cast<UNiagaraNode>(ParameterReference.Value);
-					if (ReferenceNode != nullptr)
+					for (FNiagaraGraphParameterReference& ParameterReference : ReferenceCollection.ParameterReferences)
 					{
-						UNiagaraNodeAssignment* OwningAssignmentNode = ReferenceNode->GetTypedOuter<UNiagaraNodeAssignment>();
-						if (OwningAssignmentNode != nullptr)
+						UNiagaraNode* ReferenceNode = Cast<UNiagaraNode>(ParameterReference.Value);
+						if (ReferenceNode != nullptr)
 						{
-							// If this is owned by a set variables node and it's not locked, update the assignment target on the assignment node.
-							bSuccess = FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(*OwningAssignmentNode, Parameter, NewName);
-						}
-						else
-						{
-							// Otherwise if the reference node is a get node it's for a linked input so we can just update pin name.
-							UNiagaraNodeParameterMapGet* ReferenceGetNode = Cast<UNiagaraNodeParameterMapGet>(ReferenceNode);
-							if (ReferenceGetNode != nullptr)
+							UNiagaraNodeAssignment* OwningAssignmentNode = ReferenceNode->GetTypedOuter<UNiagaraNodeAssignment>();
+							if (OwningAssignmentNode != nullptr)
 							{
-								UEdGraphPin** LinkedInputPinPtr = ReferenceGetNode->Pins.FindByPredicate([&ParameterReference](UEdGraphPin* Pin) { return Pin->PersistentGuid == ParameterReference.Key; });
-								if (LinkedInputPinPtr != nullptr)
+								// If this is owned by a set variables node and it's not locked, update the assignment target on the assignment node.
+								FNiagaraStackGraphUtilities::TryRenameAssignmentTarget(*OwningAssignmentNode, Parameter, NewName);
+							}
+							else
+							{
+								// Otherwise if the reference node is a get node it's for a linked input so we can just update pin name.
+								UNiagaraNodeParameterMapGet* ReferenceGetNode = Cast<UNiagaraNodeParameterMapGet>(ReferenceNode);
+								if (ReferenceGetNode != nullptr)
 								{
-									UEdGraphPin* LinkedInputPin = *LinkedInputPinPtr;
-									LinkedInputPin->Modify();
-									LinkedInputPin->PinName = NewName;
-									bSuccess = true;
+									UEdGraphPin** LinkedInputPinPtr = ReferenceGetNode->Pins.FindByPredicate([&ParameterReference](UEdGraphPin* Pin) { return Pin->PersistentGuid == ParameterReference.Key; });
+									if (LinkedInputPinPtr != nullptr)
+									{
+										UEdGraphPin* LinkedInputPin = *LinkedInputPinPtr;
+										LinkedInputPin->Modify();
+										LinkedInputPin->PinName = NewName;
+									}
 								}
 							}
 						}
@@ -2117,7 +2140,25 @@ void SNiagaraAddParameterMenu::AddParameterGroup(
 			Tooltip = VariableStruct->GetToolTipText(true);
 		}
 
-		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(Category, DisplayName, Tooltip, 0, FText(),
+		FText SubCategory = FText::GetEmpty();
+		if (Variable.GetType().IsDataInterface())
+		{
+			SubCategory = LOCTEXT("NiagaraParameterMenuGroupDI", "Data Interface");
+		} 
+		else if (Variable.GetType().IsEnum())
+		{
+			SubCategory = LOCTEXT("NiagaraParameterMenuGroupEnum", "Enum");
+		} 
+		else if (Variable.GetType().IsUObject())
+		{
+			SubCategory = LOCTEXT("NiagaraParameterMenuGroupObject", "Object");
+		}
+		else if (Variable.GetName().ToString().Contains("event"))
+		{
+			SubCategory = LOCTEXT("NiagaraParameterMenuGroupEvent", "Event");
+		}
+		FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
+		TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(FullCategory, DisplayName, Tooltip, 0, FText(),
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraAddParameterMenu::AddParameterSelected, Variable, bCustomName, InSection)));
 		if (bForMakeNew == false)
 		{

@@ -72,6 +72,11 @@ void FNullHttpRequest::SetContent(const TArray<uint8>& ContentPayload)
 	Payload = ContentPayload;
 }
 
+void FNullHttpRequest::SetContent(TArray<uint8>&& ContentPayload)
+{
+	Payload = MoveTemp(ContentPayload);
+}
+
 void FNullHttpRequest::SetContentAsString(const FString& ContentString)
 {
 	int32 Utf8Length = FTCHARToUTF8_Convert::ConvertedLength(*ContentString, ContentString.Len());
@@ -163,7 +168,7 @@ float FNullHttpRequest::GetElapsedTime() const
 void FNullHttpRequest::FinishedRequest()
 {
 	CompletionStatus = EHttpRequestStatus::Failed;
-	TSharedRef<IHttpRequest> Request = SharedThis(this);
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = SharedThis(this);
 	FHttpModule::Get().GetHttpManager().RemoveRequest(Request);
 
 	UE_LOG(LogHttp, Log, TEXT("Finished request %p. no response %s url=%s elapsed=%.3f"),

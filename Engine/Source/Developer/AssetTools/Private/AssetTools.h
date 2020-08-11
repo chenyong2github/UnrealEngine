@@ -176,6 +176,15 @@ private:
 	/** Internal method that performs actions when asset class blacklist filter changes */
 	void AssetClassBlacklistChanged();
 
+	/**
+	 * Add sub content blacklist filter for a new mount point
+	 * @param InMount The mount point
+	 */
+	void AddSubContentBlacklist(const FString& InMount);
+
+	/** Called when a new mount is added to add the proper sub content blacklist to it. */
+	void OnContentPathMounted(const FString& InAssetPath, const FString& FileSystemPath);
+
 private:
 	/** The list of all registered AssetTypeActions */
 	TArray<TSharedRef<IAssetTypeActions>> AssetTypeActionsList;
@@ -197,6 +206,9 @@ private:
 
 	/** Blacklist of folder paths to write to */
 	TSharedRef<FBlacklistPaths> WritableFolderBlacklist;
+
+	/** List of sub content path blacklisted for every mount. */
+	TArray<FString> SubContentBlacklistPaths;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

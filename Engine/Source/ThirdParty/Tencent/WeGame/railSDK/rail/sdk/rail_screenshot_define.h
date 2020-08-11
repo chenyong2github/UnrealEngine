@@ -1,8 +1,8 @@
-// Copyright (c) 2016, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
-#ifndef RAIL_SDK_RAIL_SCREENSHOTS_DEFINE_H
-#define RAIL_SDK_RAIL_SCREENSHOTS_DEFINE_H
+#ifndef RAIL_SDK_RAIL_SCREENSHOT_DEFINE_H
+#define RAIL_SDK_RAIL_SCREENSHOT_DEFINE_H
 
 #include "rail/sdk/base/rail_define.h"
 #include "rail/sdk/rail_event.h"
@@ -37,4 +37,4 @@ struct PublishScreenshotResult : public RailEvent<kRailEventScreenshotPublishScr
 #pragma pack(pop)
 }  // namespace rail
 
-#endif  // RAIL_SDK_RAIL_SCREENSHOTS_DEFINE_H
+#endif  // RAIL_SDK_RAIL_SCREENSHOT_DEFINE_H

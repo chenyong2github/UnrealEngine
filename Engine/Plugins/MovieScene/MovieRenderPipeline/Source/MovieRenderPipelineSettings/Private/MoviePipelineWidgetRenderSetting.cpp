@@ -70,19 +70,18 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 			RHICmdList.ReadSurfaceData(BackbufferRenderTarget->GetRenderTargetTexture(), SourceRect, RawPixels, ReadDataFlags);
 
 			TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FrameData = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
-			FrameData->OutputState = InSampleState.OutputState;
 			FrameData->PassIdentifier = FMoviePipelinePassIdentifier(TEXT("ViewportUI"));
 			FrameData->SampleState = InSampleState;
 			FrameData->bRequireTransparentOutput = true;
 
 			TUniquePtr<FImagePixelData> PixelData = MakeUnique<TImagePixelData<FColor>>(InSampleState.BackbufferSize, TArray64<FColor>(MoveTemp(RawPixels)), FrameData);
 
-			OutputBuilder->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(PixelData), FrameData);
+			OutputBuilder->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(PixelData));
 		});
 	}
 }
 
-void UMoviePipelineWidgetRenderer::SetupImpl(TArray<TSharedPtr<MoviePipeline::FMoviePipelineEnginePass>>& InEnginePasses, const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	// If this was transiently added, don't render.
 	if (!GetIsUserCustomized() || !IsEnabled())

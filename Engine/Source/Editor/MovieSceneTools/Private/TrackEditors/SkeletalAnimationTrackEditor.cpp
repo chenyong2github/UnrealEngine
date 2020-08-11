@@ -527,37 +527,6 @@ TSharedRef<ISequencerSection> FSkeletalAnimationTrackEditor::MakeSectionInterfac
 }
 
 
-void FSkeletalAnimationTrackEditor::AddKey(const FGuid& ObjectGuid)
-{
-	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectGuid, GetSequencer());
-
-	if (Skeleton)
-	{
-		// Load the asset registry module
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-
-		// Collect a full list of assets with the specified class
-		TArray<FAssetData> AssetDataList;
-		AssetRegistryModule.Get().GetAssetsByClass(UAnimSequenceBase::StaticClass()->GetFName(), AssetDataList, true);
-
-		if (AssetDataList.Num())
-		{
-			TSharedPtr< SWindow > Parent = FSlateApplication::Get().GetActiveTopLevelWindow(); 
-			if (Parent.IsValid())
-			{
-				FSlateApplication::Get().PushMenu(
-					Parent.ToSharedRef(),
-					FWidgetPath(),
-					BuildAnimationSubMenu(ObjectGuid, Skeleton, nullptr),
-					FSlateApplication::Get().GetCursorPos(),
-					FPopupTransitionEffect(FPopupTransitionEffect::TypeInPopup)
-					);
-			}
-		}
-	}
-}
-
-
 bool FSkeletalAnimationTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid& TargetObjectGuid)
 {
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
@@ -840,6 +809,7 @@ FKeyPropertyResult FSkeletalAnimationTrackEditor::AddKeyInternal( FFrameNumber K
 
 			UMovieSceneSection* NewSection = Cast<UMovieSceneSkeletalAnimationTrack>(Track)->AddNewAnimationOnRow( KeyTime, AnimSequence, RowIndex );
 			KeyPropertyResult.bTrackModified = true;
+			KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 			GetSequencer()->EmptySelection();
 			GetSequencer()->SelectSection(NewSection);
@@ -852,7 +822,7 @@ FKeyPropertyResult FSkeletalAnimationTrackEditor::AddKeyInternal( FFrameNumber K
 
 void CopyInterpAnimControlTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackAnimControl* MatineeAnimControlTrack, UMovieSceneSkeletalAnimationTrack* SkeletalAnimationTrack)
 {
-	FFrameNumber EndPlaybackRange = MovieScene::DiscreteExclusiveUpper(Sequencer.Get().GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange());
+	FFrameNumber EndPlaybackRange = UE::MovieScene::DiscreteExclusiveUpper(Sequencer.Get().GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange());
 
 	if (FMatineeImportTools::CopyInterpAnimControlTrack(MatineeAnimControlTrack, SkeletalAnimationTrack, EndPlaybackRange))
 	{
@@ -964,7 +934,11 @@ FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent
 
 	USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(TargetObjectGuid, GetSequencer());
 
+	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
+
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
+
+	FMovieSceneTrackEditor::BeginKeying();
 
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
@@ -980,6 +954,8 @@ FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent
 			bAnyDropped = true;
 		}
 	}
+
+	FMovieSceneTrackEditor::EndKeying();
 
 	return bAnyDropped ? FReply::Handled() : FReply::Unhandled();
 }

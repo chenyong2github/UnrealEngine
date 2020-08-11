@@ -1,4 +1,4 @@
-// Copyright (c) 2016, KAI YUEN TECHNOLOGY COMPANY LIMITED.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_WEB_API_H
@@ -7,7 +7,7 @@
 #include <string>
 
 #include "rail/sdk/base/rail_define.h"
-#include "rail/sdk/rail_web_define.h"
+#include "rail/sdk/rail_web_api_define.h"
 
 namespace rail {
 

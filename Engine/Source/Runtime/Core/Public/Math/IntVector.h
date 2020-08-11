@@ -527,6 +527,104 @@ FORCEINLINE uint32 GetTypeHash(const FIntVector& Vector)
 	return FCrc::MemCrc_DEPRECATED(&Vector,sizeof(FIntVector));
 }
 
+struct FIntVector2
+{
+	int32 X, Y;
+
+	FORCEINLINE FIntVector2()
+	{
+	}
+
+	FORCEINLINE FIntVector2(int32 InX, int32 InY)
+		: X(InX)
+		, Y(InY)
+	{
+	}
+
+	FORCEINLINE explicit FIntVector2(int32 InValue)
+		: X(InValue)
+		, Y(InValue)
+	{
+	}
+
+	FORCEINLINE FIntVector2(EForceInit)
+		: X(0)
+		, Y(0)
+	{
+	}
+
+	FORCEINLINE const int32& operator[](int32 ComponentIndex) const
+	{
+		return (&X)[ComponentIndex];
+	}
+
+
+	FORCEINLINE int32& operator[](int32 ComponentIndex)
+	{
+		return (&X)[ComponentIndex];
+	}
+
+	FORCEINLINE bool operator==(const FIntVector2& Other) const
+	{
+		return X==Other.X && Y==Other.Y;
+	}
+
+
+	FORCEINLINE bool operator!=(const FIntVector2& Other) const
+	{
+		return X!=Other.X || Y!=Other.Y;
+	}
+};
+
+struct FUintVector2
+{
+	uint32 X, Y;
+
+	FORCEINLINE FUintVector2()
+	{
+	}
+
+	FORCEINLINE FUintVector2(uint32 InX, uint32 InY)
+		: X(InX)
+		, Y(InY)
+	{
+	}
+
+	FORCEINLINE explicit FUintVector2(uint32 InValue)
+		: X(InValue)
+		, Y(InValue)
+	{
+	}
+
+	FORCEINLINE FUintVector2(EForceInit)
+		: X(0)
+		, Y(0)
+	{
+	}
+
+	FORCEINLINE const uint32& operator[](int32 ComponentIndex) const
+	{
+		return (&X)[ComponentIndex];
+	}
+
+
+	FORCEINLINE uint32& operator[](int32 ComponentIndex)
+	{
+		return (&X)[ComponentIndex];
+	}
+
+	FORCEINLINE bool operator==(const FUintVector2& Other) const
+	{
+		return X==Other.X && Y==Other.Y;
+	}
+
+
+	FORCEINLINE bool operator!=(const FUintVector2& Other) const
+	{
+		return X!=Other.X || Y!=Other.Y;
+	}
+};
+
 struct FIntVector4
 {
 	int32 X, Y, Z, W;

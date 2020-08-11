@@ -30,7 +30,7 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 
 	Identifiers = NewIdentifiers;
 	const FAssetIdentifier& First = NewIdentifiers[0];
-	FString ShortPackageName = FPackageName::GetLongPackageAssetName(First.PackageName.ToString());
+	FString MainAssetName = InAssetData.AssetName.ToString();
 
 	bIsCollapsed = false;
 	bIsPackage = true;
@@ -38,13 +38,13 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 	FPrimaryAssetId PrimaryAssetID = NewIdentifiers[0].GetPrimaryAssetId();
 	if (PrimaryAssetID.IsValid())
 	{
-		ShortPackageName = PrimaryAssetID.ToString();
+		MainAssetName = PrimaryAssetID.ToString();
 		bIsPackage = false;
 		bIsPrimaryAsset = true;
 	}
 	else if (NewIdentifiers[0].IsValue())
 	{
-		ShortPackageName = FString::Printf(TEXT("%s::%s"), *First.ObjectName.ToString(), *First.ValueName.ToString());
+		MainAssetName = FString::Printf(TEXT("%s::%s"), *First.ObjectName.ToString(), *First.ValueName.ToString());
 		bIsPackage = false;
 	}
 
@@ -54,12 +54,12 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 		{
 			NodeComment = First.PackageName.ToString();
 		}
-		NodeTitle = FText::FromString(ShortPackageName);
+		NodeTitle = FText::FromString(MainAssetName);
 	}
 	else
 	{
 		NodeComment = FText::Format(LOCTEXT("ReferenceNodeMultiplePackagesTitle", "{0} nodes"), FText::AsNumber(NewIdentifiers.Num())).ToString();
-		NodeTitle = FText::Format(LOCTEXT("ReferenceNodeMultiplePackagesComment", "{0} and {1} others"), FText::FromString(ShortPackageName), FText::AsNumber(NewIdentifiers.Num() - 1));
+		NodeTitle = FText::Format(LOCTEXT("ReferenceNodeMultiplePackagesComment", "{0} and {1} others"), FText::FromString(MainAssetName), FText::AsNumber(NewIdentifiers.Num() - 1));
 	}
 	
 	CacheAssetData(InAssetData);

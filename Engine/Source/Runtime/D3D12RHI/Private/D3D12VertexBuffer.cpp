@@ -64,13 +64,16 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, CreateInfo);
+	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient() )
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -96,13 +99,16 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 {	
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(&RHICmdList, Desc, Alignment, 0, Size, InUsage, CreateInfo);
+	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(&RHICmdList, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level
@@ -342,7 +348,7 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateAndLockVertexBuffer_RenderThread(FRH
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
 	const uint32 Alignment = 4;
 
-	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, CreateInfo);
+	FD3D12VertexBuffer* Buffer = GetAdapter().CreateRHIBuffer<FD3D12VertexBuffer>(nullptr, Desc, Alignment, 0, Size, InUsage, ED3D12ResourceStateMode::Default, CreateInfo);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level

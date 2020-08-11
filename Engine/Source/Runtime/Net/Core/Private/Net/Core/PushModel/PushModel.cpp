@@ -45,9 +45,10 @@ namespace UE4PushModelPrivate
 	 * If that changes, we may need to move the custom IDs to base UObject and eat the memory.
 	 *
 	 * Also, instead of tracking Objects by pointer, we need another ID that can be used to track
-	 * objects **outside** of networking contexts. For now, we rely on UObject::GetUniqueId, which
-	 * is ultimately the GUObjectArray index of the Object. This same ID is used for Lazy Object Pointers,
-	 * and should be fine so long as that never changes during an Object's lifetime.
+	 * objects **outside** of networking contexts. We opt for FObjectKey. Although they are
+	 * somewhat expensive to construct, they ensure uniqueness and ensure that the reference
+	 * to a given object will be unique even across garbage collections if we're given stale
+	 * pointers.
 	 *
 	 * **********************************************************************************
 	 * ************* Adding Objects to and Remove Objects From the Manager **************
@@ -120,6 +121,21 @@ namespace UE4PushModelPrivate
 	 * When a property is *not* marked dirty but is Push Enabled, then we will skip comparing it.
 	 * When a property is marked dirty, or is not Push Enabled, we will compare it.
 	 * See the comments in PushModel.h for more info on that.
+	 *
+	 * **********************************************************************************
+	 * ******************* Potential for "Automatic Subobject Keys" *********************
+	 * **********************************************************************************
+	 *
+	 * Push Model could achieve the same effect as Subobject Keys without requiring users
+	 * to do any extra work or manage additional state themselves.
+	 *
+	 * When an Object is about to be replicated (see FObjectReplicator::ReplicateProperties)
+	 * we could check to see if all the Object's properties were Push Model based.
+	 *
+	 * If they were, we could efficiently check to see whether or not *any* properties had changed.
+	 *
+	 * If they hadn't, we could skip doing any additional work for standard properties.
+	 * Some work may still need to happen for Custom Delta Properties (Fast Arrays).
 	 *
 	 * **********************************************************************************
 	 * ********************** Potential for "Automatic Dormancy" ************************
@@ -214,9 +230,7 @@ namespace UE4PushModelPrivate
 			FNetPushObjectId& InternalPushId = ObjectKeyToInternalId.FindOrAdd(ObjectKey, INDEX_NONE);
 			if (INDEX_NONE == InternalPushId)
 			{
-				FSparseArrayAllocationInfo AllocationInfo = PerObjectStates.AddUninitializedAtLowestFreeIndex(NewObjectLookupPosition);
-				new (AllocationInfo.Pointer) FPushModelPerObjectState(ObjectKey, NumReplicatedProperties);
-				InternalPushId = AllocationInfo.Index;
+				InternalPushId = PerObjectStates.EmplaceAtLowestFreeIndex(NewObjectLookupPosition, ObjectKey, NumReplicatedProperties);
 			}
 
 			FPushModelPerObjectState& PerObjectState = PerObjectStates[InternalPushId];
@@ -312,7 +326,7 @@ namespace UE4PushModelPrivate
 	FAutoConsoleVariableRef CVarMakeBpPropertiesPushModel(
 		TEXT("Net.MakeBpPropertiesPushModel"),
 		bMakeBpPropertiesPushModel,
-		TEXT("Whether or not Blueprint Properties will be forced to used Push Model")
+		TEXT("Whether or not properties declared in Blueprints will be forced to used Push Model")
 	);
 
 	void MarkPropertyDirty(const FNetPushObjectId ObjectId, const int32 RepIndex)

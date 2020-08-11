@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "NiagaraRendererProperties.h"
 #include "NiagaraCommon.h"
+#include "NiagaraDataSetAccessor.h"
 #include "NiagaraRibbonRendererProperties.generated.h"
 
 class FNiagaraEmitterInstance;
@@ -56,8 +57,28 @@ enum class ENiagaraRibbonTessellationMode : uint8
 	Disabled
 };
 
+namespace ENiagaraRibbonVFLayout
+{
+	enum Type
+	{
+		Position,
+		Velocity,
+		Color,
+		Width,
+		Twist,
+		Facing,
+		NormalizedAge,
+		MaterialRandom,
+		MaterialParam0,
+		MaterialParam1,
+		MaterialParam2,
+		MaterialParam3,
+		Num,
+	};
+};
+
 UCLASS(editinlinenew, meta = (DisplayName = "Ribbon Renderer"))
-class UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
+class NIAGARA_API UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
 {
 public:
 	GENERATED_BODY()
@@ -87,10 +108,9 @@ public:
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
-
 #endif
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	//UNiagaraRendererProperties Interface END
-
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	UMaterialInterface* Material;
@@ -216,6 +236,22 @@ public:
 	/** Which attribute should we use for dynamic material parameters when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial3Binding;
+
+	bool								bSortKeyDataSetAccessorIsAge = false;
+	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
+	FNiagaraDataSetAccessor<FVector>	PositionDataSetAccessor;
+	FNiagaraDataSetAccessor<float>		SizeDataSetAccessor;
+	FNiagaraDataSetAccessor<float>		TwistDataSetAccessor;
+	FNiagaraDataSetAccessor<FVector>	FacingDataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4>	MaterialParam0DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4>	MaterialParam1DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4>	MaterialParam2DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4>	MaterialParam3DataSetAccessor;
+	FNiagaraDataSetAccessor<int32>		RibbonIdDataSetAccessor;
+	FNiagaraDataSetAccessor<FNiagaraID>	RibbonFullIDDataSetAccessor;
+
+	uint32 MaterialParamValidMask = 0;
+	FNiagaraRendererLayout RendererLayout;
 
 protected:
 	void InitBindings();

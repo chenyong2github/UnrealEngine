@@ -2,13 +2,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 // Disable Optimizations in non debug build configurations
-#define VEHICLE_DEBUGGING_ENABLED 0
+#define VEHICLE_DEBUGGING_ENABLED 1
 
 namespace Chaos
 {
 
-	struct RealWorldConsts
+	struct CHAOSVEHICLESCORE_API RealWorldConsts
 	{
 		FORCEINLINE static float AirDensity()
 		{
@@ -30,10 +32,44 @@ namespace Chaos
 			return 0.4f; // friction coefficient
 		}
 
-
 	};
 
-	class FVehicleUtility
+	class CHAOSVEHICLESCORE_API FNormalisedGraph
+	{
+	public:
+		void Empty()
+		{
+			Graph.Empty();
+		}
+
+		void AddNormalized(float Value)
+		{
+			Graph.Add(Value);
+		}
+
+		float GetValue(float InX, float MaxX = 1.0f, float MaxY = 1.0f) const
+		{
+			float Step = MaxX / (Graph.Num() - 1);
+			int StartIndex = InX / Step;
+			float NormalisedRamp = ((float)InX - (float)StartIndex * Step) / Step;
+
+			float NormYValue = 0.0f;
+			if (StartIndex >= Graph.Num() - 1)
+			{
+				NormYValue = Graph[Graph.Num() - 1];
+			}
+			else
+			{
+				NormYValue = Graph[StartIndex] * (1.f - NormalisedRamp) + Graph[StartIndex + 1] * NormalisedRamp;
+			}
+
+			return NormYValue * MaxY;
+		}
+	private:
+		TArray<float> Graph;
+	};
+
+	class CHAOSVEHICLESCORE_API FVehicleUtility
 	{
 	public:
 
@@ -43,10 +79,26 @@ namespace Chaos
 			InOutValue = FMath::Clamp(InOutValue, 0.f, 1.f);
 		}
 
-		FORCEINLINE static float CalculateInertia(float Mass, float Radius)
+		/** Calculate Yaw angle in Radians from a Normalized Forward facing vector */
+		static float YawFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
 		{
-			return (0.5f * Mass * Radius * Radius);
+			return FMath::Atan2(NormalizedForwardsVector.Y, NormalizedForwardsVector.X);
 		}
+
+		/** Calculate Pitch angle in Radians from a Normalized Forward facing vector */
+		static float PitchFromForwardVectorRadians(const FVector& NormalizedForwardsVector)
+		{
+			return FMath::Atan2(NormalizedForwardsVector.Z, FMath::Sqrt(NormalizedForwardsVector.X * NormalizedForwardsVector.X + NormalizedForwardsVector.Y * NormalizedForwardsVector.Y));
+		}
+
+		/** Calculate Roll angle in Radians from a Normalized Right facing vector */
+		static float RollFromRightVectorRadians(const FVector& NormalizedRightVector)
+		{
+			return FMath::Atan2(NormalizedRightVector.Z, FMath::Sqrt(NormalizedRightVector.X * NormalizedRightVector.X + NormalizedRightVector.Y * NormalizedRightVector.Y));
+		}
+
+		/** Calculate turn radius from three points. Note: this function is quite inaccurate for large radii. Return 0 if there is no answer, i.e. points lie on a line */
+		static float TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC);
 	};
 
 	/** revolutions per minute to radians per second */
@@ -109,6 +161,13 @@ namespace Chaos
 		return M * 100.0f;
 	}
 
+	/** cm to meters - warning loss of precision */
+	FORCEINLINE float CmToMiles(float Cm)
+	{
+		return Cm * 0.0000062137119224f;
+	}
+
+
 	/** Km to miles */
 	FORCEINLINE float KmToMile(float Km)
 	{
@@ -143,4 +202,102 @@ namespace Chaos
 		return InRad * 180.f / PI;
 	}
 
+	FORCEINLINE float Sqr(float Val)
+	{
+		return Val * Val;
+	}
+
+	class CHAOSVEHICLESCORE_API FTimeAndDistanceMeasure
+	{
+	public:
+		FTimeAndDistanceMeasure(const FString& DescriptionIn, float InitialVelocityIn, float TargetVelocityIn, float TargetDistanceIn);
+
+		void Reset();
+
+		bool IsComplete() const { return MeasurementComplete; }
+
+		void Update(float DeltaTime, const FVector& CurrentLocation, float CurrentVelocity);
+
+		FString ToString() const;
+
+	private:
+		FString Description;
+		bool PreStartConditionsMet;
+		bool StartConditionsMet;
+		bool MeasurementComplete;
+
+		FVector InitialLocation;
+		double InitialTime;
+
+		float InitialVelocityMPH;
+		float FinalTargetVelocityMPH;
+		float FinalTargetDistanceMiles;
+
+		float VelocityResultMPH;
+		float DistanceResultMiles;
+		float TimeResultSeconds;
+	};
+
+	class CHAOSVEHICLESCORE_API FPerformanceMeasure
+	{
+	public:
+		enum class EMeasure : uint8
+		{
+			ZeroToThirtyMPH = 0,
+			ZeroToSixtyMPH,
+			QuarterMile,
+			ThirtyToZeroMPH,
+			SixtyToZeroMPH,
+		};
+
+		FPerformanceMeasure();
+
+		void AddMeasure(FTimeAndDistanceMeasure& MeasureIn)
+		{
+			PerformanceMeasure.Add(MeasureIn);
+		}
+
+		const FTimeAndDistanceMeasure& GetMeasure(int MeasurementIdx)
+		{
+			return PerformanceMeasure[MeasurementIdx];
+		}
+
+		void ResetAll()
+		{
+			for (int I = 0; I < PerformanceMeasure.Num(); I++)
+			{
+				PerformanceMeasure[I].Reset();
+			}
+		}
+
+		void Update(float DeltaTime, const FVector& CurrentLocation, float CurrentVelocity)
+		{
+			for (int I = 0; I < PerformanceMeasure.Num(); I++)
+			{
+				PerformanceMeasure[I].Update(DeltaTime, CurrentLocation, CurrentVelocity);
+			}
+		}
+
+		int GetNumMeasures() const
+		{
+			return PerformanceMeasure.Num();
+		}
+
+		void Enable()
+		{
+			IsEnabledThisFrame = true;
+		}
+
+		bool IsEnabled() const
+		{
+			return IsEnabledThisFrame;
+		}
+
+	private:
+
+		bool IsEnabledThisFrame;
+		TArray<FTimeAndDistanceMeasure> PerformanceMeasure;
+	};
+
 } // namespace Chaos
+

@@ -1123,7 +1123,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 	for (const FPolygonID PolygonID : InMesh.Polygons().GetElementIDs())
 	{
 		TArrayView<const FTriangleID> TriangleIDs = InMesh.GetPolygonTriangles(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
+		for (const FTriangleID& TriangleID : TriangleIDs)
 		{
 			FaceStruct Face;
 			Face.Group = -1;

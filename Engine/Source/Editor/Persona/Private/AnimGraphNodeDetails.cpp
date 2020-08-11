@@ -46,6 +46,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "LODInfoUILayout.h"
 #include "IPersonaToolkit.h"
+#include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
 #define LOCTEXT_NAMESPACE "KismetNodeWithOptionalPinsDetails"
 
@@ -503,7 +504,8 @@ void FBoneReferenceCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> S
 	{
 		// if this FBoneReference is used by some other Outers, this will fail	
 		// should warn programmers instead of silent fail
-		ensureAlways(false);
+		ensureAlways(!bEnsureOnInvalidSkeleton);
+		UE_LOG(LogAnimation, Warning, TEXT("FBoneReferenceCustomization::CustomizeHeader: SetEditableSkeleton failed to find an appropriate skeleton!"));
 	}
 }
 
@@ -515,46 +517,41 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 {
 	TArray<UObject*> Objects;
 	StructPropertyHandle->GetOuterObjects(Objects);
-	UAnimGraphNode_Base* AnimGraphNode = nullptr;
-	USkeletalMesh* SkeletalMesh = nullptr;
-	UAnimationAsset * AnimationAsset = nullptr;
-	ULODInfoUILayout* LODInfoUILayout = nullptr;
 
 	USkeleton* TargetSkeleton = nullptr;
 	TSharedPtr<IEditableSkeleton> EditableSkeleton;
 
-	for (auto OuterIter = Objects.CreateIterator(); OuterIter; ++OuterIter)
+	bEnsureOnInvalidSkeleton = true;
+
+	for (UObject* Outer : Objects)
 	{
-		AnimGraphNode = Cast<UAnimGraphNode_Base>(*OuterIter);
-		if (AnimGraphNode)
+		if (UAnimGraphNode_Base* AnimGraphNode = Cast<UAnimGraphNode_Base>(Outer))
 		{
 			TargetSkeleton = AnimGraphNode->GetAnimBlueprint()->TargetSkeleton;
 			break;
 		}
-		SkeletalMesh = Cast<USkeletalMesh>(*OuterIter);
-		if (SkeletalMesh)
+
+		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Outer))
 		{
 			TargetSkeleton = SkeletalMesh->Skeleton;
 			break;
 		}
 
-		LODInfoUILayout = Cast<ULODInfoUILayout>(*OuterIter);
-		if (LODInfoUILayout)
+		if (ULODInfoUILayout* LODInfoUILayout = Cast<ULODInfoUILayout>(Outer))
 		{
-			SkeletalMesh = LODInfoUILayout->GetPersonaToolkit()->GetPreviewMesh();
+			USkeletalMesh* SkeletalMesh = LODInfoUILayout->GetPersonaToolkit()->GetPreviewMesh();
 			check(SkeletalMesh);
 			TargetSkeleton = SkeletalMesh->Skeleton;
 			break;
 		}
 
-		AnimationAsset = Cast<UAnimationAsset>(*OuterIter);
-		if (AnimationAsset)
+		if (UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(Outer))
 		{
 			TargetSkeleton = AnimationAsset->GetSkeleton();
 			break;
 		}
 
-		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(*OuterIter))
+		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Outer))
 		{
 			if (AnimInstance->CurrentSkeleton)
 			{
@@ -570,9 +567,16 @@ void FBoneReferenceCustomization::SetEditableSkeleton(TSharedRef<IPropertyHandle
 
 		// editor animation curve bone links are responsible for linking joints to curve
 		// this is editor object that only exists for editor
-		if (UEditorAnimCurveBoneLinks* AnimCurveObj = Cast<UEditorAnimCurveBoneLinks>(*OuterIter))
+		if (UEditorAnimCurveBoneLinks* AnimCurveObj = Cast<UEditorAnimCurveBoneLinks>(Outer))
 		{
 			EditableSkeleton = AnimCurveObj->EditableSkeleton.Pin();
+			break;
+		}
+
+		if (IBoneReferenceSkeletonProvider* SkeletonProvider = Cast<IBoneReferenceSkeletonProvider>(Outer))
+		{
+			TargetSkeleton = SkeletonProvider->GetSkeleton(bEnsureOnInvalidSkeleton);
+			break;
 		}
 	}
 

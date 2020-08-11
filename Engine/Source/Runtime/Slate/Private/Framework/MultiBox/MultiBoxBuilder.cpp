@@ -308,11 +308,7 @@ void FMenuBuilder::AddWidget( TSharedRef<SWidget> InWidget, const FText& Label, 
 
 void FMenuBuilder::AddSearchWidget()
 {
-	MultiBox->SearchTextWidget = SNew(STextBlock)
-		.Visibility( EVisibility::Visible )
-		.Text( FText::FromString("Search Start") );
-
-	AddWidget( MultiBox->SearchTextWidget.ToSharedRef(), FText::GetEmpty(), false, false );
+	MultiBox->bHasSearchWidget = true;
 }
 
 void FMenuBuilder::ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition)
@@ -335,8 +331,7 @@ void FMenuBuilder::ApplySectionBeginning()
 {
 	if (bSectionNeedsToBeApplied)
 	{
-		bool bHasSearchWidget = MultiBox->SearchTextWidget.IsValid();
-		const int32 NumBlocksBeforeSeparator = bHasSearchWidget ? 2 : 1;
+		const int32 NumBlocksBeforeSeparator = MultiBox->bHasSearchWidget ? 2 : 1;
 
 		// Do not count search block, which starts as invisible
 		if( MultiBox->GetBlocks().Num() >= NumBlocksBeforeSeparator || FMultiBoxSettings::DisplayMultiboxHooks.Get() )

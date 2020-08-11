@@ -14,8 +14,7 @@ namespace UnrealBuildTool.Rules
             (
                 new string[]
                 {
-                    "LocationServicesBPLibrary",
-                    "MagicLeapLocationServices"
+                    "LocationServicesBPLibrary"
                 }
             );
 
@@ -25,8 +24,7 @@ namespace UnrealBuildTool.Rules
                     "LuminRuntimeSettings",
                     "MLSDK",
                     "MagicLeap",
-                    "LocationServicesBPLibrary",
-                    "MagicLeapLocationServices"
+                    "LocationServicesBPLibrary"
                 }
             );
 

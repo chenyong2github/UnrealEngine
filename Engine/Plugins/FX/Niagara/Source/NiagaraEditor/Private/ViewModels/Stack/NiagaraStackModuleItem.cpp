@@ -37,6 +37,8 @@
 #include "NiagaraConvertInPlaceUtilityBase.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
+#include "NiagaraMessageUtilities.h"
 
 #include "ScopedTransaction.h"
 #include "NiagaraScriptVariable.h"
@@ -142,7 +144,14 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 		AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackModuleItem::FilterLinkedInputCollection));
 	}
 
-	FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackModuleItem::OnMessageManagerRefresh);
+	MessageLogGuid = GetSystemViewModel()->GetMessageLogGuid();
+
+	FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByObject(
+		  FText::FromString("StackModuleItem")
+		, MessageLogGuid
+		, FObjectKey(FunctionCallNode)
+		, MessageManagerRegistrationKey
+	).BindUObject(this, &UNiagaraStackModuleItem::OnMessageManagerRefresh);
 }
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
@@ -174,7 +183,10 @@ INiagaraStackItemGroupAddUtilities* UNiagaraStackModuleItem::GetGroupAddUtilitie
 
 void UNiagaraStackModuleItem::FinalizeInternal()
 {
-	FNiagaraMessageManager::Get()->GetOnRequestRefresh().RemoveAll(this);
+	if (MessageManagerRegistrationKey.IsValid())
+	{
+		FNiagaraMessageManager::Get()->Unsubscribe(FText::FromString("StackModuleItem"), MessageLogGuid, MessageManagerRegistrationKey);
+	}
 	Super::FinalizeInternal();
 }
 
@@ -419,18 +431,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 			}
 		}
 
-		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
-			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(FunctionCallNode));
-		for (TSharedRef<const INiagaraMessage> Message : Messages)
-		{
-			// Sometimes compile errors with the same info are generated, so guard against duplicates here.
-			FStackIssue Issue = FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey());
-			if (NewIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
-				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
-			{
-				NewIssues.Add(Issue);
-			}
-		}
+		NewIssues.Append(MessageManagerIssues);
 
 		if (FunctionCallNode->FunctionScript == nullptr && FunctionCallNode->GetClass() == UNiagaraNodeFunctionCall::StaticClass())
 		{
@@ -871,15 +872,21 @@ void UNiagaraStackModuleItem::RefreshIsEnabled()
 	}
 }
 
-void UNiagaraStackModuleItem::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+void UNiagaraStackModuleItem::OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages)
 {
-	if (GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	MessageManagerIssues.Reset();
+	for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 	{
-		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(FunctionCallNode)).Num() > 0)
+		// Sometimes compile errors with the same info are generated, so guard against duplicates here.
+		FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
+		if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+			{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
 		{
-			RefreshChildren();
+			MessageManagerIssues.Add(Issue);
 		}
 	}
+
+	RefreshChildren();
 }
 
 bool UNiagaraStackModuleItem::CanMoveAndDelete() const

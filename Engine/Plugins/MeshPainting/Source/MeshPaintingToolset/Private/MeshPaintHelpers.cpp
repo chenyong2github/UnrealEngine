@@ -25,6 +25,8 @@
 #include "Engine/StaticMesh.h"
 #include "BaseTools/BaseBrushTool.h"
 
+extern void PropagateVertexPaintToSkeletalMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex);
+
 bool UMeshPaintingToolset::HasPaintableMesh(UActorComponent* Component)
 {
 	return Cast<UMeshComponent>(Component) != nullptr;
@@ -798,6 +800,7 @@ void UMeshPaintingToolset::FillSkeletalMeshVertexColors(USkeletalMeshComponent* 
 			for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
 				UMeshPaintingToolset::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
+				PropagateVertexPaintToSkeletalMesh(Mesh, LODIndex);
 			}
 			Mesh->InitResources();
 		}
@@ -1266,6 +1269,8 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 				const FSkeletalMeshLODRenderData& BaseLOD = Resource->LODRenderData[0];
 				GeometryInfo.PreEdit();				
 
+				PropagateVertexPaintToSkeletalMesh(Mesh, 0);
+
 				FBox BaseBounds(ForceInitToZero);
 
 				TArray<FPaintedMeshVertex> PaintedVertices;
@@ -1375,6 +1380,7 @@ void UMeshPaintingToolset::ApplyVertexColorsToAllLODs(IMeshPaintComponentAdapter
 							SrcLOD.Sections[SectionIndex].SoftVertices[SectionVertexIndex].Color = PointsToConsider[BestVertexIndex].Color;
 						}
 					}
+					PropagateVertexPaintToSkeletalMesh(Mesh, LODIndex);
 				}
 				
 				GeometryInfo.PostEdit();

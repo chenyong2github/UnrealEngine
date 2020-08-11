@@ -94,8 +94,8 @@ FText GetLayerDescription(ULayer* InLayer)
 {
 	check(InLayer);
 
-	int32 TotalNumActors = Algo::Accumulate(InLayer->ActorStats, 0, [](int32 Total, const FLayerActorStats& InStats){ return Total + InStats.Total; });
-	return FText::Format(LOCTEXT("LayerNameFormat", "{0} ({1} {1}|plural(one=Actor, other=Actors))"), FText::FromName(InLayer->LayerName), TotalNumActors);
+	int32 TotalNumActors = Algo::Accumulate(InLayer->GetActorStats(), 0, [](int32 Total, const FLayerActorStats& InStats){ return Total + InStats.Total; });
+	return FText::Format(LOCTEXT("LayerNameFormat", "{0} ({1} {1}|plural(one=Actor, other=Actors))"), FText::FromName(InLayer->GetLayerName()), TotalNumActors);
 }
 
 FText FActorLayerPropertyTypeCustomization::GetLayerText() const
@@ -164,7 +164,7 @@ TSharedRef<SWidget> FActorLayerPropertyTypeCustomization::OnGetLayerMenu()
 					FText(),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "Layer.Icon16x"),
 					FUIAction(
-						FExecuteAction::CreateSP(this, &FActorLayerPropertyTypeCustomization::AssignLayer, Layer->LayerName)
+						FExecuteAction::CreateSP(this, &FActorLayerPropertyTypeCustomization::AssignLayer, Layer->GetLayerName())
 					)
 				);
 			}

@@ -22,26 +22,31 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CollisionMeshObj(TEXT("/Engine/EngineMeshes/Cylinder"));
 	CollisionMesh = CollisionMeshObj.Object;
 
-	WheelRadius = 30.0f;
-	WheelWidth = 10.0f;
-	bAutoAdjustCollisionSize = true;
-	WheelMass = 20.0f;
-	CheatFrictionForce = 2.0f;
+	WheelRadius = 32.0f;
+	WheelWidth = 20.0f;
+	//bAutoAdjustCollisionSize = true;
+	//WheelMass = 20.0f;
+	CheatLongitudinalFrictionForce = 1.0f;
+	CheatLateralFrictionForce = 2.0f;
+	CheatSkidFactor = 1.0f;
+	SideSlipModifier = 1.0f;
+
 	bAffectedByBrake = true;
 	bAffectedByHandbrake = false;
 	MaxSteerAngle = 50.0f;
 	MaxBrakeTorque = 1500.f;
 	MaxHandBrakeTorque = 3000.f;
 
-	SpringRate = 588000;
-
-	SpringRate = 1000.0f;
-	SpringPreload = 0.3f;
+	SpringRate = 250.0f;
+	SpringPreload = 50.f;
+	SuspensionAxis = FVector(0.f, 0.f, -1.f);
 	SuspensionForceOffset = FVector::ZeroVector;
 	SuspensionMaxRaise = 10.0f;
 	SuspensionMaxDrop = 10.0f;
-	SuspensionDampingRatio = 0.3f;
-	SuspensionSmoothing = 8;
+	SuspensionDampingRatio = 0.5f;
+	SuspensionSmoothing = 6;
+	WheelLoadRatio = 1.f;
+	RollbarScaling = 0.15f;
 	SweepType = ESweepType::SimpleAndComplexSweep;
 }
 
@@ -71,7 +76,8 @@ float UChaosVehicleWheel::GetRotationAngle() const
 float UChaosVehicleWheel::GetSuspensionOffset() const
 {
 	check(VehicleSim && VehicleSim->PhysicsVehicle());
-	return VehicleSim->PhysicsVehicle()->Suspension[WheelIndex].GetSpringLength();
+	FSimpleSuspensionSim& SimSuspension = VehicleSim->PhysicsVehicle()->Suspension[WheelIndex];
+	return SimSuspension.GetSuspensionOffset();
 }
 
 bool UChaosVehicleWheel::IsInAir() const

@@ -738,7 +738,7 @@ TSet<UObject*> UMaterialEditingLibrary::GetMaterialSelectedNodes(UMaterial* Mate
 	if (IMaterialEditor* MaterialEditor = MaterialEditingLibraryImpl::FindMaterialEditorForAsset(Material))
 	{
 		TSet<UObject*> SelectedMaterialObjects;
-		for (const FFieldVariant& SelectedNode : MaterialEditor->GetSelectedNodes())
+		for (const FFieldVariant SelectedNode : MaterialEditor->GetSelectedNodes())
 		{
 			check(SelectedNode.IsUObject());
 			SelectedMaterialObjects.Add(SelectedNode.ToUObject());
@@ -747,6 +747,38 @@ TSet<UObject*> UMaterialEditingLibrary::GetMaterialSelectedNodes(UMaterial* Mate
 	}
 
 	return TSet<UObject*>();
+}
+
+UMaterialExpression* UMaterialEditingLibrary::GetMaterialPropertyInputNode(UMaterial* Material, EMaterialProperty Property)
+{
+	if (Material)
+	{
+		FExpressionInput*  ExpressionInput = Material->GetExpressionInputForProperty(Property);
+		return ExpressionInput->Expression;
+	}
+
+	return nullptr;
+}
+
+TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression)
+{
+	TArray<UMaterialExpression*> MaterialExpressions;
+	if (Material)
+	{
+		for (const FExpressionInput* Input : MaterialExpression->GetInputs())
+		{
+			MaterialExpressions.Add(Input->Expression);
+		}
+	}
+
+	return MaterialExpressions;
+}
+
+TArray<UTexture*> UMaterialEditingLibrary::GetUsedTextures(UMaterial* Material)
+{
+	TArray<UTexture*> OutTextures;
+	Material->GetUsedTextures(OutTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, true);
+	return OutTextures;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1022,7 +1054,7 @@ void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArr
 	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
 	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
 	
-	for (const FAssetData MatInstRef : AssetList)
+	for (const FAssetData& MatInstRef : AssetList)
 	{
 		ChildInstances.Add(MatInstRef);
 	}

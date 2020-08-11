@@ -41,12 +41,15 @@ private:
 	UPROPERTY(config)
 	TArray<FName> OssNamesWithEnvironmentIdPrefix;
 
+	/** How many players are in a party by default */
 	UPROPERTY(config)
 	int32 DefaultMaxPartySize = 4;
 
+	/** If true, prioritize the platform's social system over the publisher's */
 	UPROPERTY(config)
 	bool bPreferPlatformInvites = true;
 
+	/** If true, always send invites using the publisher's system even if already sent via a platform system */
 	UPROPERTY(config)
 	bool bMustSendPrimaryInvites = false;
 
@@ -54,15 +57,18 @@ private:
 	UPROPERTY(config)
 	bool bLeavePartyOnDisconnect = true;
 
+	/** How often the user list will update in seconds */
 	UPROPERTY(config)
 	bool bSetDesiredPrivacyOnLocalPlayerBecomesLeader = true;
 
 	UPROPERTY(config)
 	float UserListAutoUpdateRate = 0.5f;
 
+	/** Shortest possible player nickname */
 	UPROPERTY(Config)
 	int32 MinNicknameLength = 3;
 
+	/** Longest possible player nickname */
 	UPROPERTY(Config)
 	int32 MaxNicknameLength = 16;
 };

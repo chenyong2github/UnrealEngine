@@ -5,6 +5,7 @@
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneBoolChannel.h"
+#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneComposureExportTrack.generated.h"
 
 /**
@@ -33,7 +34,7 @@ struct FMovieSceneComposureExportPass
  * Movie scene track that exports a single pass (either the element's output, or an internal transform pass) during burnouts
  */
 UCLASS(MinimalAPI)
-class UMovieSceneComposureExportTrack : public UMovieSceneTrack
+class UMovieSceneComposureExportTrack : public UMovieSceneTrack, public IMovieSceneTrackTemplateProducer
 {
 public:
 	GENERATED_BODY()

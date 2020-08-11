@@ -196,6 +196,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bShowTypeInColumnView = InArgs._ShowTypeInColumnView;
 	bSortByPathInColumnView = bShowPathInColumnView & InArgs._SortByPathInColumnView;
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
+	bForceShowPluginContent = InArgs._ForceShowPluginContent;
 
 	bPendingUpdateThumbnails = false;
 	bShouldNotifyNextAssetSync = true;
@@ -1778,7 +1779,7 @@ void SAssetView::RefreshSourceItems()
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			ContentBrowserData->EnumerateItemsUnderPath(DataSourcePath, DataFilter, [this, &PreviousAvailableBackendItems](FContentBrowserItemData&& InItemData)
 			{
@@ -1798,6 +1799,7 @@ void SAssetView::RefreshSourceItems()
 				if (NewItem)
 				{
 					NewItem->AppendItemData(InItemData);
+					NewItem->CacheCustomColumns(CustomColumns, true, true, false /*bUpdateExisting*/);
 				}
 				else
 				{
@@ -2409,7 +2411,7 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SAssetView::ToggleShowPluginContent ),
-				FCanExecuteAction(),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowPluginContentAllowed),
 				FIsActionChecked::CreateSP( this, &SAssetView::IsShowingPluginContent )
 			),
 			EUserInterfaceActionType::ToggleButton
@@ -2634,7 +2636,7 @@ void SAssetView::ToggleShowPluginContent()
 
 bool SAssetView::IsShowingPluginContent() const
 {
-	return GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
+	return bForceShowPluginContent || GetDefault<UContentBrowserSettings>()->GetDisplayPluginFolders();
 }
 
 void SAssetView::ToggleShowEngineContent()
@@ -2686,6 +2688,11 @@ bool SAssetView::IsToggleShowDevelopersContentAllowed() const
 bool SAssetView::IsToggleShowEngineContentAllowed() const
 {
 	return !bForceShowEngineContent;
+}
+
+bool SAssetView::IsToggleShowPluginContentAllowed() const
+{
+	return !bForceShowPluginContent;
 }
 
 bool SAssetView::IsShowingDevelopersContent() const
@@ -2977,7 +2984,7 @@ void SAssetView::OnPreviewAssets()
 void SAssetView::ClearSelection(bool bForceSilent)
 {
 	const bool bTempBulkSelectingValue = bForceSilent ? true : bBulkSelecting;
-	TGuardValue<bool>(bBulkSelecting, bTempBulkSelectingValue);
+	TGuardValue<bool> Guard(bBulkSelecting, bTempBulkSelectingValue);
 	switch ( GetCurrentViewType() )
 	{
 		case EAssetViewType::List: ListView->ClearSelection(); break;
@@ -4154,7 +4161,7 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
-		for (const FName DataSourcePath : DataSourcePaths)
+		for (const FName& DataSourcePath : DataSourcePaths)
 		{
 			FContentBrowserDataCompiledFilter& CompiledDataFilter = CompiledDataFilters.AddDefaulted_GetRef();
 			ContentBrowserData->CompileFilter(DataSourcePath, DataFilter, CompiledDataFilter);

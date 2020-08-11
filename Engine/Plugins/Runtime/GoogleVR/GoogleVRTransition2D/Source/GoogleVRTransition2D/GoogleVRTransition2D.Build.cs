@@ -57,8 +57,6 @@ public class GoogleVRTransition2D : ModuleRules
 		
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PrivateDependencyModuleNames.AddRange(new string[] { "GoogleVRTransition2D" });
-
 			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
 			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "GoogleVRTransition2D_APL.xml"));
 		}

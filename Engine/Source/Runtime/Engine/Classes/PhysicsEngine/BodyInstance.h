@@ -12,6 +12,7 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsPublic.h"
+#include "BodyInstanceCore.h"
 #include "BodyInstance.generated.h"
 
 class UBodySetup;
@@ -245,7 +246,7 @@ enum class BodyInstanceSceneState : uint8
 
 /** Container for a physics representation of an object */
 USTRUCT(BlueprintType)
-struct ENGINE_API FBodyInstance
+struct ENGINE_API FBodyInstance : public FBodyInstanceCore
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -296,7 +297,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Physics)
 	ESleepFamily SleepFamily;
 
-	/** Locks physical movement along specified axis.*/
+	/** [Physx Only] Locks physical movement along specified axis.*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Mode"))
 	TEnumAsByte<EDOFMode::Type> DOFMode;
 
@@ -320,67 +321,35 @@ public:
 	/////////
 	// SIM SETTINGS
 
-	/** 
-	 * If true, this body will use simulation. If false, will be 'fixed' (ie kinematic) and move where it is told. 
-	 * For a Skeletal Mesh Component, simulating requires a physics asset setup and assigned on the SkeletalMesh asset.
-	 * For a Static Mesh Component, simulating requires simple collision to be setup on the StaticMesh asset.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Physics)
-	uint8 bSimulatePhysics : 1;
-
-	/** If true, mass will not be automatically computed and you must set it directly */
-	UPROPERTY(EditAnywhere, Category = Physics, meta = (InlineEditConditionToggle))
-	uint8 bOverrideMass : 1;
-
-	/** If object should have the force of gravity applied */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Physics)
-	uint8 bEnableGravity : 1;
-
-	/** If true and is attached to a parent, the two bodies will be joined into a single rigid body. Physical settings like collision profile and body settings are determined by the root */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Physics, meta = (editcondition = "!bSimulatePhysics"))
-	uint8 bAutoWeld : 1;
-
-	/** If object should start awake, or if it should initially be sleeping */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics, meta = (editcondition = "bSimulatePhysics"))
-	uint8 bStartAwake:1;
-
-	/**	Should 'wake/sleep' events fire when this object is woken up or put to sleep by the physics simulation. */
-	UPROPERTY(EditAnywhere,AdvancedDisplay, BlueprintReadOnly, Category = Physics)
-	uint8 bGenerateWakeEvents : 1;
-
-	/** If true, it will update mass when scale changes **/
-	UPROPERTY()
-	uint8 bUpdateMassWhenScaleChanges:1;
-
-	/** When a Locked Axis Mode is selected, will lock translation on the specified axis*/
+	/** [Physx Only] When a Locked Axis Mode is selected, will lock translation on the specified axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(DisplayName = "Lock Axis Translation"))
 	uint8 bLockTranslation : 1;
 	
-	/** When a Locked Axis Mode is selected, will lock rotation to the specified axis*/
+	/** [Physx Only] When a Locked Axis Mode is selected, will lock rotation to the specified axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(DisplayName = "Lock Axis Rotation"))
 	uint8 bLockRotation : 1;
 
-	/** Lock translation along the X-axis*/
+	/** [Physx Only] Lock translation along the X-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "X"))
 	uint8 bLockXTranslation : 1;
 
-	/** Lock translation along the Y-axis*/
+	/** [Physx Only] Lock translation along the Y-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Y"))
 	uint8 bLockYTranslation : 1;
 
-	/** Lock translation along the Z-axis*/
+	/** [Physx Only] Lock translation along the Z-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Z"))
 	uint8 bLockZTranslation : 1;
 
-	/** Lock rotation about the X-axis*/
+	/** [Physx Only] Lock rotation about the X-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "X"))
 	uint8 bLockXRotation : 1;
 
-	/** Lock rotation about the Y-axis*/
+	/** [Physx Only] Lock rotation about the Y-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Y"))
 	uint8 bLockYRotation : 1;
 
-	/** Lock rotation about the Z-axis*/
+	/** [Physx Only] Lock rotation about the Z-axis*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta = (DisplayName = "Z"))
 	uint8 bLockZRotation : 1;
 
@@ -401,7 +370,7 @@ public:
 
 protected:
 
-	/** Whether this body instance has its own custom MaxDepenetrationVelocity*/
+	/** [PhysX Only] Whether this body instance has its own custom MaxDepenetrationVelocity*/
 	UPROPERTY(EditAnywhere, Category = Physics, meta=(InlineEditConditionToggle))
 	uint8 bOverrideMaxDepenetrationVelocity : 1;
 
@@ -442,11 +411,11 @@ private:
 
 public:
 
-	/** This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
+	/** [PhysX Only] This physics body's solver iteration count for position. Increasing this will be more CPU intensive, but better stabilized.  */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Physics)
 	uint8 PositionSolverIterationCount;
 
-	/** This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
+	/** [PhysX Only] This physics body's solver iteration count for velocity. Increasing this will be more CPU intensive, but better stabilized. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics)
 	uint8 VelocitySolverIterationCount;
 
@@ -456,7 +425,7 @@ private:
 	struct FCollisionResponse CollisionResponses;
 
 protected:
-	/** The maximum velocity used to depenetrate this object*/
+	/** [PhysX Only] The maximum velocity used to depenetrate this object*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics, meta = (editcondition = "bOverrideMaxDepenetrationVelocity", ClampMin = "0.0", UIMin = "0.0"))
 	float MaxDepenetrationVelocity;
 
@@ -514,15 +483,16 @@ public:
 
 	void ClearExternalCollisionProfile();
 
-	/** Locks physical movement along axis. */
+	/** [Physx Only] Locks physical movement along axis. */
 	void SetDOFLock(EDOFMode::Type NewDOFMode);
 
+	/** [Physx Only] */
 	FVector GetLockedAxis() const;
 	void CreateDOFLock();
 
 	static EDOFMode::Type ResolveDOFMode(EDOFMode::Type DOFMode);
 
-	/** Constraint used to allow for easy DOF setup per bodyinstance */
+	/** [Physx Only] Constraint used to allow for easy DOF setup per bodyinstance */
 	FConstraintInstance* DOFConstraint;
 
 	/** The parent body that we are welded to*/
@@ -562,6 +532,8 @@ public:
 
 public:
 
+	UBodySetup* GetBodySetup() const;
+	
 	FPhysicsActorHandle& GetPhysicsActorHandle();
 	const FPhysicsActorHandle& GetPhysicsActorHandle() const;
 	const FPhysicsActorHandle& GetActorReferenceWithWelding() const;
@@ -575,9 +547,6 @@ public:
 
 	/** PrimitiveComponent containing this body.   */
 	TWeakObjectPtr<class UPrimitiveComponent> OwnerComponent;
-
-	/** BodySetup pointer that this instance is initialized from */
-	TWeakObjectPtr<UBodySetup> BodySetup;
 
 	/** Constructor **/
 	FBodyInstance();
@@ -752,8 +721,6 @@ public:
 	void UpdateInstanceSimulatePhysics();
 	/** Returns true if this body is simulating, false if it is fixed (kinematic) */
 	bool IsInstanceSimulatingPhysics() const;
-	/** Should Simulate Physics **/
-	bool ShouldInstanceSimulatingPhysics() const;
 	/** Returns whether this body is awake */
 	bool IsInstanceAwake() const;
 	/** Wake this body */

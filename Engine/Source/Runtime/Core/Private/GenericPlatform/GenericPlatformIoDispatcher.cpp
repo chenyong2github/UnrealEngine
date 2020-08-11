@@ -100,8 +100,9 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 	return true;
 }
 
-void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHandle, FFileIoStoreRawBlock* Block)
+void FGenericFileIoStoreImpl::ReadBlockFromFile(FFileIoStoreRawBlock* Block)
 {
+	check(Block->Buffer);
 	FCachedBlock* CachedBlock = nullptr;
 	bool bIsCacheableBlock = CacheMemory != nullptr && ((Block->Flags & FFileIoStoreRawBlock::Cacheable) > 0);
 	if (bIsCacheableBlock)
@@ -111,7 +112,7 @@ void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHand
 
 	if (CachedBlock)
 	{
-		FMemory::Memcpy(Target, CachedBlock->Buffer, ReadBufferSize);
+		FMemory::Memcpy(Block->Buffer->Memory, CachedBlock->Buffer, ReadBufferSize);
 		CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
 		CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
 		
@@ -125,7 +126,7 @@ void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHand
 	}
 	else
 	{
-		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(InFileHandle));
+		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(Block->FileHandle));
 		if (FileHandle->Tell() != Block->Offset)
 		{
 			if (uint64(FileHandle->Tell()) > Block->Offset)
@@ -143,7 +144,7 @@ void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHand
 		{
 			TRACE_COUNTER_INCREMENT(IoDispatcherSequentialReads);
 		}
-		FileHandle->Read(Target, Block->Size);
+		FileHandle->Read(Block->Buffer->Memory, Block->Size);
 
 		if (bIsCacheableBlock)
 		{
@@ -161,7 +162,7 @@ void FGenericFileIoStoreImpl::ReadBlockFromFile(uint8* Target, uint64 InFileHand
 			BlockToReplace->LruPrev->LruNext = BlockToReplace;
 			BlockToReplace->LruNext->LruPrev = BlockToReplace;
 			
-			FMemory::Memcpy(BlockToReplace->Buffer, Target, ReadBufferSize);
+			FMemory::Memcpy(BlockToReplace->Buffer, Block->Buffer->Memory, ReadBufferSize);
 		}
 	}
 	{

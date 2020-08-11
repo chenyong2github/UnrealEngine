@@ -47,7 +47,7 @@ class AIMODULE_API UBTTask_MoveTo : public UBTTask_BlackboardBase
 
 	/** if task is expected to react to changes to location represented by BB key 
 	 *	this property can be used to tweak sensitivity of the mechanism. Value is 
-	 *	recommended to be less then AcceptableRadius */
+	 *	recommended to be less than AcceptableRadius */
 	UPROPERTY(Category=Blackboard, EditAnywhere, meta = (ClampMin = "1", UIMin = "1", EditCondition="bObserveBlackboardValue", DisplayAfter="bObserveBlackboardValue"))
 	float ObservedBlackboardValueTolerance;
 

@@ -406,6 +406,8 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 
 ETickingGroup UNiagaraDataInterfaceCamera::CalculateTickGroup(const void* PerInstanceData) const
 {
+	if (!bRequireCurrentFrameData)
+		return NiagaraFirstTickGroup;
 	return ETickingGroup::TG_PostUpdateWork;
 }
 
@@ -532,6 +534,7 @@ void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Co
 	}
 }
 
+
 void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMContext& Context)
 {
 	VectorVM::FUserPtrHandler<CameraDataInterface_InstanceData> InstData(Context);
@@ -554,6 +557,32 @@ void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMContext& Context)
 }
 
 // ------------------------------------------------------------
+
+
+bool UNiagaraDataInterfaceCamera::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
+
+	UNiagaraDataInterfaceCamera* OtherTyped = CastChecked<UNiagaraDataInterfaceCamera>(Destination);
+	OtherTyped->PlayerControllerIndex = PlayerControllerIndex;
+	OtherTyped->bRequireCurrentFrameData = bRequireCurrentFrameData;
+	return true;
+}
+
+bool UNiagaraDataInterfaceCamera::Equals(const UNiagaraDataInterface* Other) const
+{
+	if (!Super::Equals(Other))
+	{
+		return false;
+	}
+	const UNiagaraDataInterfaceCamera* OtherTyped = CastChecked<const UNiagaraDataInterfaceCamera>(Other);
+	return OtherTyped->PlayerControllerIndex == PlayerControllerIndex &&
+		OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData ;
+}
+
 
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceCamera, FNiagaraDataInterfaceParametersCS_CameraQuery);
 

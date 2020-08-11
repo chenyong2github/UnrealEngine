@@ -18,7 +18,13 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            if (Target.Platform == UnrealTargetPlatform.Win64)
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+				PrivateDependencyModuleNames.Add("GameProjectGeneration");
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 PrivateIncludePaths.Add("RiderSourceCodeAccess/Private/RiderPathLocatorWin");
             }

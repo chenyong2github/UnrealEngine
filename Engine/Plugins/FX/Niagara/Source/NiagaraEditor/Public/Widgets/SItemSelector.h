@@ -278,14 +278,14 @@ private:
 
 		virtual bool PassesFilter() const
 		{
-			for (const TSharedRef<FItemSelectorItemContainerViewModel> ChildItemViewModel : ChildItemViewModels)
+			for (const TSharedRef<FItemSelectorItemContainerViewModel>& ChildItemViewModel : ChildItemViewModels)
 			{
 				if (ChildItemViewModel->PassesFilter())
 				{
 					return true;
 				}
 			}
-			for (const TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
+			for (const TSharedRef<FItemSelectorItemCategoryViewModel>& ChildCategoryViewModel : ChildCategoryViewModels)
 			{
 				if (ChildCategoryViewModel->PassesFilter())
 				{

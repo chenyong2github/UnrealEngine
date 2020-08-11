@@ -47,7 +47,7 @@
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
-
+	
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
 	TEXT("au.SetAudioChannelCount"),
@@ -785,11 +785,6 @@ void FAudioDevice::UpdateAudioPluginSettingsObjectCache()
 	}
 
 	for (TObjectIterator<UReverbPluginSourceSettingsBase> It; It; ++It)
-	{
-		PluginSettingsObjects.Add(*It);
-	}
-
-	for (TObjectIterator<USoundModulationPluginSourceSettingsBase> It; It; ++It)
 	{
 		PluginSettingsObjects.Add(*It);
 	}
@@ -2736,7 +2731,7 @@ static void UpdateClassAdjustorOverrideEntry(FSoundClassAdjuster& ClassAdjustor,
 
 float FAudioDevice::GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const
 {
-	const float NormFrequency = InterpolateAdjuster(InFrequency / MAX_FILTER_FREQUENCY, InterpValue);
+	const float NormFrequency = InterpolateAdjuster(Audio::GetLinearFrequencyClamped(InFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY)), InterpValue);
 	return Audio::GetLogFrequencyClamped(NormFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
 }
 
@@ -4678,11 +4673,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 	}
 	(*PlayCount)++;
 
-	if (USoundModulationPluginSourceSettingsBase* ModulationSettings = ActiveSound->FindModulationSettings())
-	{
-		ModulationInterface->OnInitSound(static_cast<ISoundModulatable&>(*ActiveSound), *ModulationSettings);
-	}
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_LOG(LogAudio, VeryVerbose, TEXT("New ActiveSound %s Comp: %s Loc: %s"), *Sound->GetName(), *NewActiveSound.GetAudioComponentName(), *NewActiveSound.Transform.GetTranslation().ToString());
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -4946,9 +4936,20 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
 	if (!bAlreadyPending)
 	{
+		const bool bIsVirtual = VirtualLoops.Contains(SoundToStop);
+		if (bIsVirtual)
+		{
+			FAudioThread::RunCommandOnGameThread([AudioComponentID = SoundToStop->GetAudioComponentID()]()
+			{
+				if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
+				{
+					AudioComponent->SetIsVirtualized(false);
+				}
+			});
+		}
 		UnlinkActiveSoundFromComponent(*SoundToStop);
 
-		if (VirtualLoops.Contains(SoundToStop))
+		if (bIsVirtual)
 		{
 			SoundToStop->bIsStopping = true;
 		}
@@ -6287,11 +6288,19 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 {
 	check(IsInAudioThread());
 
-	// First check to see if the device manager has "bPlayAllPIEAudio" enabled
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager && DeviceManager->IsPlayAllDeviceAudio())
+	if(DeviceManager)
 	{
-		return false;
+		// Check to see if the device manager has "bPlayAllPIEAudio" enabled
+		const bool bIsPlayAllDeviceAudio = DeviceManager->IsPlayAllDeviceAudio();
+
+		// Check if always playing NonRealtime devices, and this is a NonRealtime device
+		const bool bIsAlwaysPlayNonRealtime = DeviceManager->IsAlwaysPlayNonRealtimeDeviceAudio() && IsNonRealtime();
+
+		if (bIsPlayAllDeviceAudio || bIsAlwaysPlayNonRealtime)
+		{
+			return false;
+		}
 	}
 
 	return bIsDeviceMuted;

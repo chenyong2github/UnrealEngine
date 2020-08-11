@@ -103,7 +103,8 @@ void UWorldThumbnailRenderer::GetView(UWorld* World, FSceneViewFamily* ViewFamil
 			if (Level && Level->bIsVisible)
 			{
 				ALevelBounds* LevelBounds = Level->LevelBoundsActor.Get();
-				if (!LevelBounds)
+				
+				if (!LevelBounds && !Level->HasAllFlags(RF_Transient))
 				{
 					// Ensure a Level Bounds Actor exists for future renders
 					FActorSpawnParameters SpawnParameters;
@@ -113,9 +114,20 @@ void UWorldThumbnailRenderer::GetView(UWorld* World, FSceneViewFamily* ViewFamil
 					Level->LevelBoundsActor = LevelBounds;
 				}
 
-				if (!LevelBounds->IsUsingDefaultBounds())
+				if (LevelBounds)
 				{
-					WorldBox += LevelBounds->GetComponentsBoundingBox();
+					if(!LevelBounds->IsUsingDefaultBounds())
+					{
+						WorldBox += LevelBounds->GetComponentsBoundingBox();
+					}
+				}
+				else
+				{
+					FBox LevelBox = ALevelBounds::CalculateLevelBounds(Level);
+					if (LevelBox.IsValid)
+					{
+						WorldBox += LevelBox;
+					}
 				}
 			}
 		}

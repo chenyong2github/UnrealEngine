@@ -72,10 +72,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorActor, Log, All);
 
-PRAGMA_DISABLE_OPTIMIZATION /* Not performance-critical */
-
-	 
-
 static int32 RecomputePoly( ABrush* InOwner, FPoly* Poly )
 {
 	// force recalculation of normal, and texture U and V coordinates in FPoly::Finalize()
@@ -87,52 +83,6 @@ static int32 RecomputePoly( ABrush* InOwner, FPoly* Poly )
 /*-----------------------------------------------------------------------------
    Actor adding/deleting functions.
 -----------------------------------------------------------------------------*/
-
-class FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
-{
-public:
-	FSelectedActorExportObjectInnerContext()
-		//call the empty version of the base class
-		: FExportObjectInnerContext(false)
-	{
-		// For each object . . .
-		for (UObject* InnerObj : TObjectRange<UObject>(RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** IternalExcludeFlags */ EInternalObjectFlags::PendingKill))
-		{
-			UObject* OuterObj = InnerObj->GetOuter();
-
-			//assume this is not part of a selected actor
-			bool bIsChildOfSelectedActor = false;
-
-			UObject* TestParent = OuterObj;
-			while (TestParent)
-			{
-				AActor* TestParentAsActor = Cast<AActor>(TestParent);
-				if (TestParentAsActor && TestParentAsActor->IsSelected())
-				{
-					bIsChildOfSelectedActor = true;
-					break;
-				}
-				TestParent = TestParent->GetOuter();
-			}
-
-			if (bIsChildOfSelectedActor)
-			{
-				InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
-				if (Inners)
-				{
-					// Add object to existing inner list.
-					Inners->Add( InnerObj );
-				}
-				else
-				{
-					// Create a new inner list for the outer object.
-					InnerList& InnersForOuterObject = ObjectToInnerMap.Add(OuterObj, InnerList());
-					InnersForOuterObject.Add(InnerObj);
-				}
-			}
-		}
-	}
-};
 
 void UUnrealEdEngine::edactCopySelected( UWorld* InWorld, FString* DestinationData )
 {
@@ -1068,7 +1018,9 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 		if ( LevelsAlreadyModified.Find( Level ) == INDEX_NONE )
 		{
 			LevelsAlreadyModified.Add( Level );
-			Level->Modify();
+			// Don't mark the level dirty when deleting external actors and the level is in `use external actors` mode.
+			bool bShouldDirty = !(Actor->IsPackageExternal() && Level->IsUsingExternalActors());
+			Level->Modify(bShouldDirty);
 		}
 
 		UE_LOG(LogEditorActor, Log,  TEXT("Deleted Actor: %s"), *Actor->GetClass()->GetName() );
@@ -2626,7 +2578,5 @@ void UUnrealEdEngine::edactAlignVertices()
 		}
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

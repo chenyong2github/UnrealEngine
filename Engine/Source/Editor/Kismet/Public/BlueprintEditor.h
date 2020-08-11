@@ -400,9 +400,22 @@ public:
 	 * @param VarScope			Scope to find the variable in
 	 * @param VarName			Name of variable
 	 * @param IconColorOut		The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
 	 * @return					The resulting glyph brush
 	 */
 	static FSlateBrush const* GetVarIconAndColor(const UStruct* VarScope, FName VarName, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
+
+	/**
+	 * Util for finding a glyph and color for a variable.
+	 *
+	 * @param Property       The variable's property
+	 * @param IconColorOut      The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
+	 * @return					The resulting glyph brush
+	 */
+	static FSlateBrush const* GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
 
 	/** Overridable function for determining if the current mode can script */
 	virtual bool IsInAScriptingMode() const;
@@ -840,6 +853,19 @@ protected:
 	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
 
 	void OnConvertFunctionToEvent();
+
+public:
+	/** Converts the given function entry node to an event if it passes validation */
+	bool ConvertFunctionIfValid(UK2Node_FunctionEntry* FuncEntryNode);
+
+	/** Converts the given event node to a function graph on this blueprint if it passes validation */
+	bool ConvertEventIfValid(UK2Node_Event* EventToConv);
+
+protected:
+	/** 
+	* Callback function for the context menu on a node to determine if a function 
+	* could possibly be converted to an event
+	*/
 	bool CanConvertFunctionToEvent() const;
 
 	/*
@@ -1158,9 +1184,6 @@ private:
 	/** Returns the appropriate check box state representing whether or not the selected nodes are enabled */
 	ECheckBoxState GetEnabledCheckBoxStateForSelectedNodes();
 
-	/** Configuration class used to store editor settings across sessions. */
-	UBlueprintEditorOptions* EditorOptions;
-
 	/**
 	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
 	 */
@@ -1310,6 +1333,7 @@ public:
 	/** Make nodes which are unrelated to the selected nodes fade out */
 	void ToggleHideUnrelatedNodes();
 	bool IsToggleHideUnrelatedNodesChecked() const;
+	bool ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const;
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
 	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();

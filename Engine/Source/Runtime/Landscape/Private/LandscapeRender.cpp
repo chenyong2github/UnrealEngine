@@ -1850,7 +1850,7 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		Result.bStaticRelevance = true;
 	}
 
-	Result.bShadowRelevance = (GAllowLandscapeShadows > 0) && IsShadowCast(View);
+	Result.bShadowRelevance = (GAllowLandscapeShadows > 0) && IsShadowCast(View) && View->Family->EngineShowFlags.Landscape;
 	return Result;
 }
 
@@ -2715,6 +2715,12 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 
 			int32 LodSubsectionSizeVerts = SubsectionSizeVerts >> CurrentLOD;
+
+			if (LodSubsectionSizeVerts <= 0)
+			{
+				continue;
+			}
+
 			uint32 NumPrimitives = FMath::Square(LodSubsectionSizeVerts - 1) * 2;
 
 			BatchElement.IndexBuffer = SharedBuffers->ZeroOffsetIndexBuffers[CurrentLOD];
@@ -2786,6 +2792,9 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 			if (bNeedsRayTracingGeometryUpdate)
 			{
+				// Use the internal managed vertex buffer because landscape dynamic RT geometries are not updated every frame
+				// which is a requirement for the shared vertex buffer usage
+
 				Context.DynamicRayTracingGeometriesToUpdate.Add(
 					FRayTracingDynamicGeometryUpdateParams
 					{
@@ -2795,7 +2804,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
 						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
 						&SectionRayTracingStates[SubSectionIdx].Geometry,
-						&SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer
+						&SectionRayTracingStates[SubSectionIdx].RayTracingDynamicVertexBuffer,
+						true
 					}
 				);
 			}

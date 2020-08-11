@@ -335,7 +335,7 @@ public:
 
 						// If the user provided a custom MID, we can't do anything but use that single MID for page 0
 						UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(InMaterial);
-						for (const FMaterialParameterInfo FontParameterInfo : FontParameters)
+						for (const FMaterialParameterInfo& FontParameterInfo : FontParameters)
 						{
 							MID->SetFontParameterValue(FontParameterInfo, InFont, 0);
 						}
@@ -347,7 +347,7 @@ public:
 						for (int32 FontPageIndex = 0; FontPageIndex < NumFontPages; ++FontPageIndex)
 						{
 							UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(InMaterial, nullptr);
-							for (const FMaterialParameterInfo FontParameterInfo : FontParameters)
+							for (const FMaterialParameterInfo& FontParameterInfo : FontParameters)
 							{
 								MID->SetFontParameterValue(FontParameterInfo, InFont, FontPageIndex);
 							}
@@ -1171,6 +1171,11 @@ FBoxSphereBounds UTextRenderComponent::CalcBounds(const FTransform& LocalToWorld
 	{
 		return FBoxSphereBounds(ForceInit).TransformBy(LocalToWorld);
 	}
+}
+
+bool UTextRenderComponent::RequiresGameThreadEndOfFrameUpdates() const
+{
+	return true;
 }
 
 FMatrix UTextRenderComponent::GetRenderMatrix() const

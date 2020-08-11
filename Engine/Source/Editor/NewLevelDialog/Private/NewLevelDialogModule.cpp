@@ -92,6 +92,7 @@ public:
 		{}
 		/** A pointer to the parent window */
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
+		SLATE_ATTRIBUTE(TArray<FTemplateMapInfo>, Templates)
 
 	SLATE_END_ARGS()
 
@@ -102,18 +103,15 @@ public:
 		OutTemplateMapPackageName = TEXT("");
 		bUserClickedOkay = false;
 
-		if ( GUnrealEd )
-		{
-			const TArray<FTemplateMapInfo>& TemplateInfoList = GUnrealEd->TemplateMapInfos;
+		const TArray<FTemplateMapInfo>& TemplateInfoList = InArgs._Templates.Get();
 
-			// Build a list of items - one for each template
-			for (int32 i=0; i < TemplateInfoList.Num(); i++)
-			{
-				TSharedPtr<FTemplateListItem> Item = MakeShareable(new FTemplateListItem());
-				Item->TemplateMapInfo = TemplateInfoList[i];
-				Item->bIsNewLevelItem = false;
-				TemplateItemsList.Add(Item);
-			}
+		// Build a list of items - one for each template
+		for (int32 i=0; i < TemplateInfoList.Num(); i++)
+		{
+			TSharedPtr<FTemplateListItem> Item = MakeShareable(new FTemplateListItem());
+			Item->TemplateMapInfo = TemplateInfoList[i];
+			Item->bIsNewLevelItem = false;
+			TemplateItemsList.Add(Item);
 		}
 
 		// Add an extra item for creating a new, blank level
@@ -311,12 +309,18 @@ void FNewLevelDialogModule::ShutdownModule()
 {
 }
 
-bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName )
+bool FNewLevelDialogModule::CreateAndShowNewLevelDialog(const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName)
+{
+	TArray<FTemplateMapInfo> EmptyTemplates;
+	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->TemplateMapInfos : EmptyTemplates, OutTemplateMapPackageName);
+}
+
+bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName )
 {
 	
 	TSharedPtr<SWindow> NewLevelWindow =
 		SNew(SWindow)
-		.Title(LOCTEXT("WindowHeader", "New Level"))
+		.Title(Title)
 		.ClientSize(SNewLevelDialog::DEFAULT_WINDOW_SIZE)
 		.SizingRule( ESizingRule::UserSized )
 		.SupportsMinimize(false)
@@ -324,7 +328,8 @@ bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const 
 
 	TSharedRef<SNewLevelDialog> NewLevelDialog =
 		SNew(SNewLevelDialog)
-		.ParentWindow(NewLevelWindow);
+		.ParentWindow(NewLevelWindow)
+		.Templates(Templates);
 
 	NewLevelWindow->SetContent(NewLevelDialog);
 

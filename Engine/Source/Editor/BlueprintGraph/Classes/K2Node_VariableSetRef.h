@@ -35,7 +35,7 @@ class UK2Node_VariableSetRef : public UK2Node
 	/** 
 	 * Changes the type of variable set by this node, based on the specified pin
 	 *
-	 * @param Pin				The pin to gather type information from.  If NULL, node will reset to wildcards
+	 * @param Pin				The pin to gather type information from.
 	 */
 	void CoerceTypeFromPin(const UEdGraphPin* Pin);
 

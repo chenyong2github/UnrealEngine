@@ -9,6 +9,7 @@
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundSubmixSend.h"
+#include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 
@@ -1081,11 +1082,15 @@ namespace Audio
 
 		// If spectrum analysis is enabled for this submix, downmix the resulting audio
 		// and push it to the spectrum analyzer.
-		if (SpectrumAnalyzer.IsValid())
 		{
-			MixBufferDownToMono(InputBuffer, NumChannels, MonoMixBuffer);
-			SpectrumAnalyzer->PushAudio(MonoMixBuffer.GetData(), MonoMixBuffer.Num());
-			SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
+			FScopeTryLock TryLock(&SpectrumAnalyzerCriticalSection);
+
+			if (TryLock.IsLocked() && SpectrumAnalyzer.IsValid())
+			{
+				MixBufferDownToMono(InputBuffer, NumChannels, MonoMixBuffer);
+				SpectrumAnalyzer->PushAudio(MonoMixBuffer.GetData(), MonoMixBuffer.Num());
+				SpectrumAnalyzer->PerformAnalysisIfPossible(true, true);
+			}
 		}
 
 		// Perform any envelope following if we're told to do so
@@ -1197,7 +1202,7 @@ namespace Audio
 			check(SoundfieldStreams.Mixer.IsValid());
 
 			// Loop through this submix's sound sources
-			for (const auto MixerSourceVoiceIter : MixerSourceVoices)
+			for (const auto& MixerSourceVoiceIter : MixerSourceVoices)
 			{
 				const FMixerSourceVoice* MixerSourceVoice = MixerSourceVoiceIter.Key;
 				const float SendLevel = MixerSourceVoiceIter.Value.SendLevel;
@@ -1634,6 +1639,8 @@ namespace Audio
 
 	void FMixerSubmix::StartSpectrumAnalysis(const FSoundSpectrumAnalyzerSettings& InSettings)
 	{
+		ensure(IsInAudioThread());
+
 		using namespace MixerSubmixIntrinsics;
 		using EMetric = FSpectrumBandExtractorSettings::EMetric;
 		using EBandType = ISpectrumBandExtractor::EBandType;
@@ -1648,7 +1655,10 @@ namespace Audio
 		AudioSpectrumAnalyzerSettings.WindowType = GetWindowType(SpectrumAnalyzerSettings.WindowType);
 		AudioSpectrumAnalyzerSettings.HopSize = SpectrumAnalyzerSettings.HopSize;
 
-		SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
+		{
+			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+			SpectrumAnalyzer.Reset(new FSpectrumAnalyzer(AudioSpectrumAnalyzerSettings, MixerDevice->GetSampleRate()));
+		}
 
 		EMetric Metric = GetExtractorMetric(SpectrumAnalyzerSettings.SpectrumType);
 		EBandType BandType = GetExtractorBandType(SpectrumAnalyzerSettings.InterpolationMethod);
@@ -1688,12 +1698,17 @@ namespace Audio
 
 	void FMixerSubmix::StopSpectrumAnalysis()
 	{
+		ensure(IsInAudioThread());
+
+		FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
 		bIsSpectrumAnalyzing = false;
 		SpectrumAnalyzer.Reset();
 	}
 
 	void FMixerSubmix::GetMagnitudeForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes)
 	{
+		FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+
 		if (SpectrumAnalyzer.IsValid())
 		{
 			using EMethod = FSpectrumAnalyzer::EPeakInterpolationMethod;
@@ -1737,6 +1752,8 @@ namespace Audio
 
 	void FMixerSubmix::GetPhaseForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutPhases)
 	{
+		FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+
 		if (SpectrumAnalyzer.IsValid())
 		{
 			using EMethod = FSpectrumAnalyzer::EPeakInterpolationMethod;
@@ -1822,6 +1839,8 @@ namespace Audio
 		// If we're analyzing spectra and if we've got delegates setup
 		if (bIsSpectrumAnalyzing && SpectralAnalysisDelegates.Num() > 0)
 		{
+			FScopeLock SpectrumAnalyzerLock(&SpectrumAnalyzerCriticalSection);
+
 			if (ensureMsgf(SpectrumAnalyzer.IsValid(), TEXT("Analyzing spectrum with invalid spectrum analyzer")))
 			{
 				// New results array

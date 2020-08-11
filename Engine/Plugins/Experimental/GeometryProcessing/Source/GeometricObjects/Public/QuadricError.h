@@ -5,6 +5,7 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 #include "MatrixTypes.h"
+#include "Math/UnrealMathUtility.h"
 
 
 /**
@@ -15,6 +16,8 @@
 template<typename RealType>
 struct TQuadricError 
 {
+	typedef RealType   ScalarType;
+
 	RealType Axx, Axy, Axz, Ayy, Ayz, Azz;
 	RealType bx, by, bz; //d = -normal.dot(c); b = d*normal
 	RealType c; // d*d
@@ -92,6 +95,30 @@ struct TQuadricError
 		c +=  b.c;
 	}
 
+	void Subtract(const TQuadricError& b)
+	{
+		Axx -= b.Axx;
+		Axy -= b.Axy;
+		Axz -= b.Axz;
+		Ayy -= b.Ayy;
+		Ayz -= b.Ayz;
+		Azz -= b.Azz;
+		bx -= b.bx;
+		by -= b.by;
+		bz -= b.bz;
+		c -= b.c;
+	}
+
+	void AddSeamQuadric(const TQuadricError& b)
+	{
+		Add(b);
+	}
+
+	void SubtractSeamQuadric(const TQuadricError& b)
+	{
+		Subtract(b);
+	}
+
 	TQuadricError& operator=(const TQuadricError& b)
 	{
 		Axx = b.Axx;
@@ -106,6 +133,23 @@ struct TQuadricError
 		c = b.c;
 
 		return *this;
+	}
+
+	/** 
+	* Scale this quadric by the weight 'w'
+	*/
+	void Scale(RealType w)
+	{
+		Axx *= w;
+		Axy *= w;
+		Axz *= w;
+		Ayy *= w;
+		Ayz *= w;
+		Azz *= w;
+		bx *= w;
+		by *= w;
+		bz *= w;
+		c *= w;
 	}
 
 	/**
@@ -259,6 +303,9 @@ public:
 			Dist += other.Dist;
 		}
 
+		/**
+		* Add scalar multiple of a FPlaneData to this FPlaneData
+		*/
 		void Add(RealType w, const FPlaneData& other)
 		{
 			N    += w * other.N;
@@ -291,7 +338,7 @@ public:
 		: BaseStruct(Normal, Point)
 		, PlaneData(Normal, Point)
 	{ }
-	
+
 
 	TVolPresQuadricError(const TVolPresQuadricError& a, const TVolPresQuadricError& b)
 		: BaseStruct(a, b)
@@ -310,6 +357,9 @@ public:
 		PlaneData.Add(-1., DuplicatePlaneData);
 	}
 
+	/**
+	* Area Weighted Add
+	*/
 	void Add(RealType w, const TVolPresQuadricError& b)
 	{
 		BaseStruct::Add(w, b);
@@ -317,11 +367,6 @@ public:
 		PlaneData.Add(w, b.PlaneData);
 	}
 
-	void Add(const TVolPresQuadricError& b)
-	{
-		BaseStruct::Add(b);
-		PlaneData.Add(b.PlaneData);
-	}
 
 	TVolPresQuadricError& operator=(const TVolPresQuadricError& other)
 	{
@@ -330,6 +375,9 @@ public:
 		return *this;
 	}
 
+	/**
+	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
+	*/
 	bool OptimalPoint(FVector3<RealType>& OutResult, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
 	{
 		// Compute the unconstrained optimal point
@@ -389,14 +437,15 @@ template<typename RealType>
 class TAttrBasedQuadricError : public TVolPresQuadricError<RealType>
 {
 public:
+	typedef RealType  ScalarType;
 	typedef TVolPresQuadricError<RealType>  BaseClass;
 	typedef TQuadricError<RealType>  BaseStruct;
 
 	// Triangle Quadric constructor.  Take vertex locations, vertex normals, face normal, and center of face.
-	TAttrBasedQuadricError(const FVector3<RealType>& P0,    const FVector3<RealType>& P1, const FVector3<RealType>& P2,
-		                   const FVector3<RealType>& N0,    const FVector3<RealType>& N1, const FVector3<RealType>& N2,
-		                   const FVector3<RealType>& NFace, const FVector3<RealType>& CenterPoint, RealType AttrWeight)
-		: BaseClass(NFace, CenterPoint), 
+	TAttrBasedQuadricError(const FVector3<RealType>& P0, const FVector3<RealType>& P1, const FVector3<RealType>& P2,
+		const FVector3<RealType>& N0, const FVector3<RealType>& N1, const FVector3<RealType>& N2,
+		const FVector3<RealType>& NFace, const FVector3<RealType>& CenterPoint, RealType AttrWeight)
+		: BaseClass(NFace, CenterPoint),
 		a(0),
 		attrweight(AttrWeight)
 	{
@@ -441,12 +490,12 @@ public:
 					d[i] = NFaceT_InvMatrix.Dot(AttrVec) / NFaceDotInvMOne;
 					grad[i] = InvMatrix * (AttrVec - FVector3d(d[i], d[i], d[i]));
 
-					BaseStruct::Axx += grad[i].X * grad[i].X; 
-					
-					BaseStruct::Axy += grad[i].X * grad[i].Y;  
+					BaseStruct::Axx += grad[i].X * grad[i].X;
+
+					BaseStruct::Axy += grad[i].X * grad[i].Y;
 					BaseStruct::Axz += grad[i].X * grad[i].Z;
 
-					BaseStruct::Ayy += grad[i].Y * grad[i].Y;  
+					BaseStruct::Ayy += grad[i].Y * grad[i].Y;
 					BaseStruct::Ayz += grad[i].Y * grad[i].Z;
 					BaseStruct::Azz += grad[i].Z * grad[i].Z;
 
@@ -470,12 +519,11 @@ public:
 		}
 	}
 
-	
 	TAttrBasedQuadricError()
-		:BaseClass()
+		:BaseClass(),
+		a(0.),
+		attrweight(1.)
 	{
-		a = 0.;
-		attrweight = 1.;
 		const RealType zero[3] = { RealType(0), RealType(0), RealType(0) };
 		grad[0] = FVector3<RealType>(zero);
 		grad[1] = FVector3<RealType>(zero);
@@ -503,10 +551,13 @@ public:
 
 	static TAttrBasedQuadricError Zero() { return TAttrBasedQuadricError(); }
 
+	/**
+	* Area Weighted Add
+	*/
 	void Add(RealType w, const TAttrBasedQuadricError& other)
 	{
 		BaseClass::Add(w, other);
-		
+
 		a += w; // accumulate weight
 		attrweight = other.attrweight;
 
@@ -519,20 +570,6 @@ public:
 		d[2] += w * other.d[2];
 	}
 
-	void Add(const TAttrBasedQuadricError& other)
-	{
-		BaseClass::Add(other);
-		a += other.a;
-		attrweight = other.attrweight;
-
-		grad[0] += other.grad[0];
-		grad[1] += other.grad[1];
-		grad[2] += other.grad[2];
-
-		d[0] += other.d[0];
-		d[1] += other.d[1];
-		d[2] += other.d[2];
-	}
 
 	TAttrBasedQuadricError& operator=(const TAttrBasedQuadricError& other)
 	{
@@ -552,7 +589,9 @@ public:
 		return *this;
 	}
 
-	// The optimal point not counting volume conservation.
+	/**
+	* The optimal point minimizing the quadric error with respect to a volume conserving constraint
+	*/
 	bool OptimalPoint(FVector3<RealType>& OptPoint, RealType minThresh = 1000.0*TMathUtil<RealType>::Epsilon) const
 	{
 		// Generate symmetric matrix
@@ -688,7 +727,7 @@ public:
 	}
 
 public:
-	
+
 	// accumulated area
 	RealType           a;
 
@@ -699,9 +738,56 @@ public:
 	// Additional planes for the attributes.
 	FVector3<RealType> grad[3];
 	RealType           d[3];
-	
+
 
 };
 
 typedef TAttrBasedQuadricError<float>  FAttrBasedQuadricErrorf;
 typedef TAttrBasedQuadricError<double> FAttrBasedQuadricErrord;
+
+/**
+* A "Seam Quadric" is a quadric defined with respect to the plane passing through the edge p1-p0, but perpendicular to the adjacent face.
+* On return the quadric has been weighted by the length of the (p1-p0).
+*/
+template<typename RealType>
+TQuadricError<RealType>  CreateSeamQuadric(const FVector3<RealType>& p0, const FVector3<RealType>& p1, FVector3<RealType> AdjFaceNormal)
+{
+
+	RealType LenghtSqrd = AdjFaceNormal.SquaredLength();
+	RealType error = 100000.0 * TMathUtil<RealType>::Epsilon;
+	if (!FMath::IsNearlyEqual(LenghtSqrd, (RealType)1., error) )
+	{
+		// zero quadric
+		return TQuadricError<RealType>::Zero();
+	}
+
+
+	FVector3<RealType> Edge = p1 - p0;
+
+	// Weight scaled on edge length 
+
+	const RealType EdgeLengthSqrd = Edge.SquaredLength();
+	if (FMath::IsNearlyZero(EdgeLengthSqrd, (RealType)1000.0 * TMathUtil<RealType>::Epsilon))
+	{
+		// zero quadric
+		return TQuadricError<RealType>::Zero();
+	}
+
+	const RealType EdgeLength = FMath::Sqrt(EdgeLengthSqrd);
+	// normalize
+	Edge *= 1. / EdgeLength;
+
+
+	const RealType Weight = EdgeLength;
+
+	// Normal that is perpendicular to the edge, and face Normal. - i.e. in the face plane and perpendicular to the edge.
+	// The constraint should try to keep points on the plane associated with this constraint plane.
+	FVector3<RealType> ConstraintNormal = Edge.Cross(AdjFaceNormal);
+
+
+	TQuadricError<RealType> SeamQuadric(ConstraintNormal, p0);
+
+	SeamQuadric.Scale(EdgeLength);
+
+	return SeamQuadric;
+}

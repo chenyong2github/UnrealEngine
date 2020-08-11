@@ -65,7 +65,7 @@ void UAbilityTask_ApplyRootMotionMoveToForce::SharedInitAndApply()
 			}
 
 			ForceName = ForceName.IsNone() ? FName("AbilityTaskApplyRootMotionMoveToForce") : ForceName;
-			FRootMotionSource_MoveToForce* MoveToForce = new FRootMotionSource_MoveToForce();
+			TSharedPtr<FRootMotionSource_MoveToForce> MoveToForce = MakeShared<FRootMotionSource_MoveToForce>();
 			MoveToForce->InstanceName = ForceName;
 			MoveToForce->AccumulateMode = ERootMotionAccumulateMode::Override;
 			MoveToForce->Settings.SetFlag(ERootMotionSourceSettingsFlags::UseSensitiveLiftoffCheck);

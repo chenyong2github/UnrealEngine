@@ -261,7 +261,7 @@ void FOnlinePurchaseIOS::OnProductPurchaseRequestResponse(SKProductsResponse* Re
 
 void FOnlinePurchaseIOS::OnTransactionCompleteResponse(EPurchaseTransactionState Result, const FStoreKitTransactionData& TransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnTransactionCompleteResponse %d %s"), (int32)Result, *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Log, TEXT("FOnlinePurchaseIOS::OnTransactionCompleteResponse Result=%s TransactionData=[%s]"), LexToString(Result), *TransactionData.ToDebugString());
 	
 	FString UserIdStr = IOSUSER;
 	const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransactionPtr = PendingTransactions.Find(UserIdStr);
@@ -345,7 +345,7 @@ void FOnlinePurchaseIOS::OnTransactionCompleteResponse(EPurchaseTransactionState
 
 void FOnlinePurchaseIOS::OnTransactionRestored(const FStoreKitTransactionData& TransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionRestored %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionRestored TransactionData=[%s]"), *TransactionData.ToDebugString());
 
 	// Single item restored amongst a group of items
 	TSharedRef<FPurchaseReceipt> OfflineReceipt = FOnlinePurchasePendingTransactionIOS::GenerateReceipt(EPurchaseTransactionState::Restored, TransactionData);
@@ -386,12 +386,12 @@ void FOnlinePurchaseIOS::OnRestoreTransactionsComplete(EPurchaseTransactionState
 
 void FOnlinePurchaseIOS::OnTransactionInProgress(const FStoreKitTransactionData& TransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionInProgress %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionInProgress TransactionData=[%s]"), *TransactionData.ToDebugString());
 }
 
 void FOnlinePurchaseIOS::OnTransactionDeferred(const FStoreKitTransactionData& TransactionData)
 {
-	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionDeferred %s"), *TransactionData.ToDebugString());
+	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseIOS::OnTransactionDeferred TransactionData=[%s]"), *TransactionData.ToDebugString());
 	
 	FString UserIdStr = IOSUSER;
 	const TSharedRef<FOnlinePurchasePendingTransactionIOS>* UserPendingTransactionPtr = PendingTransactions.Find(UserIdStr);

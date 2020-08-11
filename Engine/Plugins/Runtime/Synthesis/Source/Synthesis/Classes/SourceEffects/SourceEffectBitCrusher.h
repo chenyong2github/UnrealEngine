@@ -3,7 +3,7 @@
 
 #include "DSP/BitCrusher.h"
 #include "Sound/SoundEffectSource.h"
-#include "Sound/SoundModulationParameter.h"
+#include "Sound/SoundModulationDestination.h"
 
 #include "SourceEffectBitCrusher.generated.h"
 
@@ -17,15 +17,15 @@ struct SYNTHESIS_API FSourceEffectBitCrusherSettings
 	float CrushedSampleRate;
 
 	// The reduced frequency to use for the audio stream. 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Sample Rate", ClampMin = "1.0", ClampMax = "192000.0", UIMin = "500.0", UIMax = "16000.0"))
-	FSoundModulationParameterSettings SampleRateModulation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Sample Rate", AudioParam = "SampleRate", UIMin = "500.0", UIMax = "16000.0"))
+	FSoundModulationDestinationSettings SampleRateModulation;
 
 	UPROPERTY(meta = (PropertyDeprecated))
 	float CrushedBits;
 
 	// The reduced bit depth to use for the audio stream
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Bit Depth", ClampMin = "1.0", ClampMax = "24.0", UIMin = "1.0", UIMax = "16.0"))
-	FSoundModulationParameterSettings BitModulation;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Bit Depth", AudioParam = "BitDepth", ClampMin = "1.0", ClampMax = "24.0", UIMin = "1.0", UIMax = "16.0"))
+	FSoundModulationDestinationSettings BitModulation;
 
 	FSourceEffectBitCrusherSettings()
 		: CrushedSampleRate(8000.0f)
@@ -48,17 +48,17 @@ public:
 	// Process the input block of audio. Called on audio thread.
 	virtual void ProcessAudio(const FSoundEffectSourceInputData& InData, float* OutAudioBufferData) override;
 
-	void SetSampleRateModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
-	void SetBitModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 protected:
 	Audio::FBitCrusher BitCrusher;
 
 	FSourceEffectBitCrusherSettings SettingsCopy;
 
-	Audio::FModulationParameter SampleRateMod;
-	Audio::FModulationParameter BitMod;
+	Audio::FModulationDestination SampleRateMod;
+	Audio::FModulationDestination BitMod;
 };
 
 UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
@@ -76,10 +76,10 @@ public:
 	virtual FColor GetPresetColor() const override { return FColor(196.0f, 185.0f, 121.0f); }
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetBitModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetBitModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSampleRateModulator(const FSoundModulationParameterSettings& InModulatorSettings);
+	void SetSampleRateModulator(const FSoundModulationDestinationSettings& InModulatorSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
 	void SetSettings(const FSourceEffectBitCrusherSettings& InSettings);

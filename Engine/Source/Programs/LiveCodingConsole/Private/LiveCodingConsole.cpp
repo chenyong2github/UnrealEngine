@@ -15,6 +15,8 @@
 #include "Windows/WindowsHWrapper.h"
 #include "Misc/MonitoredProcess.h"
 #include "LiveCodingManifest.h"
+#include "SourceCodeAccess/Public/ISourceCodeAccessModule.h"
+#include "Modules/ModuleInterface.h"
 
 #define LOCTEXT_NAMESPACE "LiveCodingConsole"
 
@@ -453,6 +455,18 @@ bool LiveCodingConsoleMain(const TCHAR* CmdLine)
 
 			// Set the icon
 			Slate->SetAppIcon(FLiveCodingConsoleStyle::Get().GetBrush("AppIcon"));
+
+			// Load the source code access module
+			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(FName("SourceCodeAccess"));
+
+			// Manually load in the source code access plugins, as standalone programs don't currently support plugins.
+#if PLATFORM_MAC
+			IModuleInterface& XCodeSourceCodeAccessModule = FModuleManager::LoadModuleChecked<IModuleInterface>(FName("XCodeSourceCodeAccess"));
+			SourceCodeAccessModule.SetAccessor(FName("XCodeSourceCodeAccess"));
+#elif PLATFORM_WINDOWS
+			IModuleInterface& VisualStudioSourceCodeAccessModule = FModuleManager::LoadModuleChecked<IModuleInterface>(FName("VisualStudioSourceCodeAccess"));
+			SourceCodeAccessModule.SetAccessor(FName("VisualStudioSourceCodeAccess"));
+#endif
 
 			// Load the server module
 			FModuleManager::Get().LoadModuleChecked<ILiveCodingServer>(TEXT("LiveCodingServer"));

@@ -7,11 +7,11 @@ namespace UnrealBuildTool.Rules
 		public AudioMixer(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PrivateIncludePathModuleNames.Add("TargetPlatform");
-            PublicIncludePathModuleNames.Add("TargetPlatform");
+			PublicIncludePathModuleNames.Add("TargetPlatform");
 
-            PublicIncludePathModuleNames.Add("Engine");
+			PublicIncludePathModuleNames.Add("Engine");
 
-            PrivateIncludePaths.AddRange(
+			PrivateIncludePaths.AddRange(
 				new string[]
 				{
 					"Runtime/AudioMixer/Private",
@@ -31,13 +31,13 @@ namespace UnrealBuildTool.Rules
 				{
 					"CoreUObject",
 					"Engine",
-                    "NonRealtimeAudioRenderer",
-                    "AudioMixerCore",
-                    "SignalProcessing",
+					"NonRealtimeAudioRenderer",
+					"AudioMixerCore",
+					"SignalProcessing",
 					"AudioPlatformConfiguration",
 					"SoundFieldRendering",
-                    "AudioExtensions",
-                }
+					"AudioExtensions",
+				}
 			);
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
@@ -48,7 +48,13 @@ namespace UnrealBuildTool.Rules
 					"UELibSampleRate"
 					);
 
-
+			// Circular references that need to be cleaned up
+			CircularlyReferencedDependentModules.AddRange(
+				new string[] {
+					"NonRealtimeAudioRenderer",
+					"SoundFieldRendering"
+				}
+			);
 		}
 	}
 }

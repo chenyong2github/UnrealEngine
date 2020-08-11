@@ -65,6 +65,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GameFramework/WorldSettings.h"
 #include "Components/AudioComponent.h"
 #include "Particles/ParticleSystem.h"
+#include "Performance/LatencyMarkerModule.h"
+#include "Performance/MaxTickRateHandlerModule.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture.h"
@@ -124,7 +126,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GameDelegates.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/LevelStreamingVolume.h"
-#include "Engine/WorldComposition.h"
 #include "Engine/LevelScriptActor.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -136,6 +137,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
+#include "Particles/ParticlePerfStats.h"
 
 #include "Components/TextRenderComponent.h"
 #include "Sound/AudioSettings.h"
@@ -469,10 +471,6 @@ void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
 		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
 	}
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FSimpleMulticastDelegate UEngine::OnPostEngineInit;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 // We expose these variables to everyone as we need to access them in other files via an extern
 ENGINE_API float GAverageFPS = 0.0f;
@@ -1760,6 +1758,9 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitTime"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatUnitTime));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Raw"), TEXT("STATCAT_Engine"), FText::GetEmpty(), NULL, &UEngine::ToggleStatRaw));
 #endif
+#if WITH_PARTICLE_PERF_STATS
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ParticlePerf"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatParticlePerf, nullptr, bIsRHS));
+#endif
 
 	// Let any listeners know about the new stats
 	for (int32 StatIdx = 0; StatIdx < EngineStats.Num(); StatIdx++)
@@ -2005,6 +2006,46 @@ double UEngine::CorrectNegativeTimeDelta(double DeltaRealTime)
 	return 0.01;
 }
 
+void UEngine::SetGameLatencyMarkerStart(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetGameLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetGameLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetGameLatencyMarkerEnd(FrameNumber);
+	}
+}
+
+void UEngine::SetRenderLatencyMarkerStart(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderLatencyMarkerStart(FrameNumber);
+	}
+}
+
+void UEngine::SetRenderLatencyMarkerEnd(uint64 FrameNumber)
+{
+	TArray<ILatencyMarkerModule*> LatencyMarkerModules = IModularFeatures::Get().GetModularFeatureImplementations<ILatencyMarkerModule>(ILatencyMarkerModule::GetModularFeatureName());
+
+	for (ILatencyMarkerModule* LatencyMarkerModule : LatencyMarkerModules)
+	{
+		LatencyMarkerModule->SetRenderLatencyMarkerEnd(FrameNumber);
+	}
+}
+
 void UEngine::UpdateTimeAndHandleMaxTickRate()
 {
 	PumpABTest();
@@ -2100,36 +2141,51 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			SCOPE_CYCLE_COUNTER(STAT_GameTickWaitTime);
 			SCOPE_CYCLE_COUNTER(STAT_GameIdleTime);
 
-			if (IsRunningDedicatedServer()) // We aren't so concerned about wall time with a server, lots of CPU is wasted spinning. I suspect there is more to do with sleeping and time on dedicated servers.
-			{
-				FPlatformProcess::SleepNoStats(WaitTime);
-			}
-			else
-			{
-				// Sleep if we're waiting more than 5 ms. We set the scheduler granularity to 1 ms
-				// at startup on PC. We reserve 2 ms of slack time which we will wait for by giving
-				// up our timeslice.
-				if( WaitTime > 5 / 1000.f )
-				{
-					// For improved handling of drag and drop, continue to pump messages while throttled down
-					if (GIsEditor && ShouldThrottleCPUUsage())
-					{
-						do
-						{
-							FPlatformProcess::SleepNoStats(0.005f);
-							FPlatformApplicationMisc::PumpMessages(true);
-						} while (ShouldThrottleCPUUsage() && FPlatformTime::Seconds() < (WaitEndTime - 0.005f));
-					}
-					else
-					{
-						FPlatformProcess::SleepNoStats( WaitTime - 0.002f );
-					}
-				}
+			bool bMaxTickRateHandled = false;
+			TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
 
-				// Give up timeslice for remainder of wait time.
-				while( FPlatformTime::Seconds() < WaitEndTime )
+			for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
+			{
+				if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
 				{
-					FPlatformProcess::SleepNoStats( 0 );
+					bMaxTickRateHandled = true;
+					break;
+				}
+			}
+
+			if (!bMaxTickRateHandled)
+			{
+				if (IsRunningDedicatedServer()) // We aren't so concerned about wall time with a server, lots of CPU is wasted spinning. I suspect there is more to do with sleeping and time on dedicated servers.
+				{
+					FPlatformProcess::SleepNoStats(WaitTime);
+				}
+				else
+				{
+					// Sleep if we're waiting more than 5 ms. We set the scheduler granularity to 1 ms
+					// at startup on PC. We reserve 2 ms of slack time which we will wait for by giving
+					// up our timeslice.
+					if (WaitTime > 5 / 1000.f)
+					{
+						// For improved handling of drag and drop, continue to pump messages while throttled down
+						if (GIsEditor && ShouldThrottleCPUUsage())
+						{
+							do
+							{
+								FPlatformProcess::SleepNoStats(0.005f);
+								FPlatformApplicationMisc::PumpMessages(true);
+							} while (ShouldThrottleCPUUsage() && FPlatformTime::Seconds() < (WaitEndTime - 0.005f));
+						}
+						else
+						{
+							FPlatformProcess::SleepNoStats(WaitTime - 0.002f);
+						}
+					}
+
+					// Give up timeslice for remainder of wait time.
+					while (FPlatformTime::Seconds() < WaitEndTime)
+					{
+						FPlatformProcess::SleepNoStats(0);
+					}
 				}
 			}
 			CurrentRealTime = FPlatformTime::Seconds();
@@ -2594,6 +2650,8 @@ void UEngine::InitializeObjectReferences()
 			DefaultPhysMaterial = NewObject<UPhysicalMaterial>();
 		}
 	}
+
+	UPhysicalMaterial::SetEngineDefaultPhysMaterial(DefaultPhysMaterial);
 
 	LoadEngineClass<UConsole>(ConsoleClassName, ConsoleClass);
 	LoadEngineClass<UGameViewportClient>(GameViewportClientClassName, GameViewportClientClass);
@@ -7653,7 +7711,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 			if (bCSV)
 			{
-				Ar.Logf(TEXT("Object, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcShrSysKB, ResExcDedVidKB, ResExcShrVidKB, ResExcUnkKB"));
+				Ar.Logf(TEXT(", Object, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcShrSysKB, ResExcDedVidKB, ResExcShrVidKB, ResExcUnkKB"));
 			}
 			else
 			{
@@ -7676,7 +7734,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				if (bCSV)
 				{
 					Ar.Logf(
-						TEXT("%s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f"),
+						TEXT(", %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f"),
 						*ObjItem.Object->GetFullName(),
 						ObjItem.Num / 1024.0f,
 						ObjItem.Max / 1024.0f,
@@ -9585,31 +9643,7 @@ bool UEngine::HandleLogoutStatLevelsCommand( const TCHAR* Cmd, FOutputDevice& Ar
 	{
 		const FSubLevelStatus& LevelStatus = SubLevelsStatusList[LevelIdx];
 		FString DisplayName = LevelStatus.PackageName.ToString();
-		FString StatusName;
-
-		switch( LevelStatus.StreamingStatus )
-		{
-		case LEVEL_Visible:
-			StatusName = TEXT( "red loaded and visible" );
-			break;
-		case LEVEL_MakingVisible:
-			StatusName = TEXT( "orange, in process of being made visible" );
-			break;
-		case LEVEL_Loaded:
-			StatusName = TEXT( "yellow loaded but not visible" );
-			break;
-		case LEVEL_UnloadedButStillAround:
-			StatusName = TEXT( "blue  (GC needs to occur to remove this)" );
-			break;
-		case LEVEL_Unloaded:
-			StatusName = TEXT( "green Unloaded" );
-			break;
-		case LEVEL_Preloading:
-			StatusName = TEXT( "purple (preloading)" );
-			break;
-		default:
-			break;
-		};
+		const TCHAR* StatusName = ULevelStreaming::GetLevelStreamingStatusDisplayName(LevelStatus.StreamingStatus);
 
 		if (LevelStatus.LODIndex != INDEX_NONE)
 		{
@@ -9643,7 +9677,7 @@ bool UEngine::HandleLogoutStatLevelsCommand( const TCHAR* Cmd, FOutputDevice& Ar
 			DisplayName = *FString::Printf( TEXT("    %s"), *DisplayName );
 		}
 
-		DisplayName = FString::Printf( TEXT("%s \t\t%s"), *DisplayName, *StatusName );
+		DisplayName = FString::Printf( TEXT("%s \t\t%s"), *DisplayName, StatusName );
 
 		Ar.Logf( TEXT( "%s" ), *DisplayName );
 
@@ -10023,12 +10057,9 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		}
 	}
 
-	// Check HLOD clusters and show warning if unbuilt
-#if WITH_EDITOR
-	if (World->GetWorldSettings()->bEnableHierarchicalLODSystem)
-#endif // WITH_EDITOR
-	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// Check HLOD clusters and show warning if unbuilt
+	{
 		static double LastCheckTime = 0;
 
 		double TimeNow = FPlatformTime::Seconds();
@@ -10055,8 +10086,8 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
 			MessageY += FontSizeY;
 		}
-#endif
 	}
+#endif
 
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
@@ -13110,34 +13141,7 @@ void UEngine::BlockTillLevelStreamingCompleted(UWorld* InWorld)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UEngine_BlockTillLevelStreamingCompleted);
 
 	check(InWorld);
-
-	// Update streaming levels state using streaming volumes
-	InWorld->ProcessLevelStreamingVolumes();
-
-	if (InWorld->WorldComposition)
-	{
-		InWorld->WorldComposition->UpdateStreamingState();
-	}
-
-	// Probe if we have anything to do
-	InWorld->UpdateLevelStreaming();
-	bool bWorkToDo = (InWorld->IsVisibilityRequestPending() || IsAsyncLoading());
-
-	if (bWorkToDo)
-	{
-		if( GameViewport && GEngine->BeginStreamingPauseDelegate && GEngine->BeginStreamingPauseDelegate->IsBound() )
-		{
-			GEngine->BeginStreamingPauseDelegate->Execute( GameViewport->Viewport );
-		}	
-
-		// Flush level streaming requests, blocking till completion.
-		InWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-
-		if( GEngine->EndStreamingPauseDelegate && GEngine->EndStreamingPauseDelegate->IsBound() )
-		{
-			GEngine->EndStreamingPauseDelegate->Execute( );
-		}	
-	}
+	InWorld->BlockTillLevelStreamingCompleted();
 }
 
 void UEngine::CleanupPackagesToFullyLoad(FWorldContext &Context, EFullyLoadPackageType FullyLoadType, const FString& Tag)
@@ -13787,7 +13791,7 @@ bool UEngine::PrepareMapChange(FWorldContext &Context, const TArray<FName>& Leve
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// Verify that all levels specified are in the package file cache.
-		for (const FName LevelName : Context.LevelsToLoadForPendingMapChange)
+		for (const FName& LevelName : Context.LevelsToLoadForPendingMapChange)
 		{
 			if( !FPackageName::DoesPackageExist( LevelName.ToString() ) )
 			{
@@ -13813,7 +13817,7 @@ bool UEngine::PrepareMapChange(FWorldContext &Context, const TArray<FName>& Leve
 		}
 
 		// Kick off async loading of packages.
-		for (const FName LevelName : Context.LevelsToLoadForPendingMapChange)
+		for (const FName& LevelName : Context.LevelsToLoadForPendingMapChange)
 		{
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "PrepareMapChange - " ) + LevelName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("PrepareMapChange - %s"), *LevelName.ToString());
@@ -14238,6 +14242,10 @@ private:
 	int32 TaggedDataScope;
 };
 
+#if WITH_EDITOR
+static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
+#endif
+
 /* Serializes and stores property data from a specified 'source' object. Only stores data compatible with a target destination object. */
 struct FCPFUOWriter : public FObjectWriter, public FCPFUOArchive
 {
@@ -14284,8 +14292,9 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
-		static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
-		return bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName);
+		return
+			(InProperty->HasAnyPropertyFlags(CPF_Transient) && !IsPersistent() && IsSerializingDefaults()) ||
+			(bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
 	}
 #endif 
 	//~ End FArchive Interface
@@ -14668,41 +14677,6 @@ void FSystemResolution::RequestResolutionChange(int32 InResX, int32 InResY, EWin
 
 //////////////////////////////////////////////////////////////////////////
 // STATS
-
-/** Utility that gets a color for a particular level status */
-FColor GetColorForLevelStatus(int32 Status)
-{
-	FColor Color = FColor::White;
-	switch (Status)
-	{
-	case LEVEL_Visible:
-		Color = FColor::Green;		// green  loaded and visible
-		break;
-	case LEVEL_MakingVisible:
-		Color = FColorList::Orange;	// orange, in process of being made visible
-		break;
-	case LEVEL_Loading:
-		Color = FColor::Magenta;	// purple, in process of being loaded
-		break;
-	case LEVEL_Loaded:
-		Color = FColor::Yellow;		// yellow loaded but not visible
-		break;
-	case LEVEL_UnloadedButStillAround:
-		Color = FColor::Blue;		// blue  (GC needs to occur to remove this)
-		break;
-	case LEVEL_Unloaded:
-		Color = FColor::Red;		// Red   unloaded
-		break;
-	case LEVEL_Preloading:
-		Color = FColor::Magenta;	// purple (preloading)
-		break;
-	default:
-		break;
-	};
-
-	return Color;
-}
-
 void UEngine::ExecEngineStat(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* InName)
 {
 	// Store a ptr to the viewport that needs to process this stat command
@@ -15082,7 +15056,8 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 			X += 350;
 		}
 
-		FColor	Color = GetColorForLevelStatus(LevelStatus.StreamingStatus);
+		FColor	Color = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
+		const TCHAR* StatusDisplayName = ULevelStreaming::GetLevelStreamingStatusDisplayName(LevelStatus.StreamingStatus);
 		FString DisplayName = LevelStatus.PackageName.ToString();
 
 		if (LevelStatus.LODIndex != INDEX_NONE)
@@ -15108,7 +15083,7 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 			}
 		}
 
-		DisplayName = *FString::Printf(TEXT("%s %s %s"), (LevelStatus.bPlayerInside ? TEXT("->") : TEXT("  ")), (LevelStatus.bInConsiderList ? TEXT("*") : TEXT(" ")), *DisplayName);
+		DisplayName = *FString::Printf(TEXT("%s %s %s (%s)"), (LevelStatus.bPlayerInside ? TEXT("->") : TEXT("  ")), (LevelStatus.bInConsiderList ? TEXT("*") : TEXT(" ")), *DisplayName, StatusDisplayName);
 
 		Canvas->DrawShadowedString(X + 4, Y, *DisplayName, GetSmallFont(), Color);
 		Y += 12;
@@ -15161,7 +15136,7 @@ int32 UEngine::RenderStatLevelMap(UWorld* World, FViewport* Viewport, FCanvas* C
 	for (const FSubLevelStatus& LevelStatus : SubLevelsStatusList)
 	{
 		// Find the color to draw this level in
-		FColor StatusColor = GetColorForLevelStatus(LevelStatus.StreamingStatus);
+		FColor StatusColor = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
 		StatusColor.A = 64; // make it translucent
 
 		ULevelStreaming* LevelStreaming = World->GetLevelStreamingForPackageName(LevelStatus.PackageName);
@@ -16242,6 +16217,14 @@ int32 UEngine::RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanva
 	return Y;
 }
 #endif
+
+int32 UEngine::RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+{
+#if WITH_PARTICLE_PERF_STATS
+	Y = FParticlePerfStats::RenderStats(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
+#endif
+	return Y;
+}
 
 ERHIFeatureLevel::Type UEngine::GetDefaultWorldFeatureLevel() const
 {

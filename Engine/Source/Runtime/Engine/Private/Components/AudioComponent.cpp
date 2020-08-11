@@ -111,7 +111,7 @@ void UAudioComponent::BeginDestroy()
 	AudioIDToComponentMap.Remove(AudioComponentID);
 }
 
-FString UAudioComponent::GetDetailedInfoInternal( void ) const
+FString UAudioComponent::GetDetailedInfoInternal() const
 {
 	FString Result;
 
@@ -314,6 +314,19 @@ void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFla
 		}
 	}
 };
+
+void UAudioComponent::BroadcastPlayState()
+{
+	if (OnAudioPlayStateChanged.IsBound())
+	{
+		OnAudioPlayStateChanged.Broadcast(GetPlayState());
+	}
+
+	if (OnAudioPlayStateChangedNative.IsBound())
+	{
+		OnAudioPlayStateChangedNative.Broadcast(this, GetPlayState());
+	}
+}
 
 FBoxSphereBounds UAudioComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
@@ -544,6 +557,8 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
 			// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
 			SetActiveFlag(ActiveCount > 0);
+
+			BroadcastPlayState();
 		}
 	}
 }
@@ -588,7 +603,7 @@ void UAudioComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolum
 	AdjustVolumeInternal(AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut, FadeCurve);
 }
 
-void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut, const EAudioFaderCurve FadeCurve)
+void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bInIsFadeOut, const EAudioFaderCurve FadeCurve)
 {
 	if (!IsActive())
 	{
@@ -609,11 +624,17 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 		return;
 	}
 
-	bIsFadingOut = bIsFadeOut || FMath::IsNearlyZero(AdjustVolumeLevel);
+	const bool bWasFadingOut = bIsFadingOut;
+	bIsFadingOut = bInIsFadeOut || FMath::IsNearlyZero(AdjustVolumeLevel);
+
+	if (bWasFadingOut != bIsFadingOut)
+	{
+		BroadcastPlayState();
+	}
 
 	const uint64 InAudioComponentID = AudioComponentID;
 	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
-	FAudioThread::RunCommandOnAudioThread([AudioDevice, InAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut, FadeCurve]()
+	FAudioThread::RunCommandOnAudioThread([AudioDevice, InAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel, bInIsFadeOut, FadeCurve]()
 	{
 		FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InAudioComponentID);
 		if (!ActiveSound)
@@ -625,7 +646,7 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 		const float InitialTargetVolume = Fader.GetTargetVolume();
 
 		// Ignore fade out request if requested volume is higher than current target.
-		if (bIsFadeOut && AdjustVolumeLevel >= InitialTargetVolume)
+		if (bInIsFadeOut && AdjustVolumeLevel >= InitialTargetVolume)
 		{
 			return;
 		}
@@ -647,10 +668,10 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 		}
 		else
 		{
-			ActiveSound->FadeOut = bIsFadeOut || ToZeroVolume ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
+			ActiveSound->FadeOut = bInIsFadeOut || ToZeroVolume ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
 		}
 
-		if (bIsFadeOut || ToZeroVolume)
+		if (bInIsFadeOut || ToZeroVolume)
 		{
 			// If negative, active indefinitely, so always make sure set to minimum positive value for active fade.
 			const float OldActiveDuration = Fader.GetActiveDuration();
@@ -685,6 +706,8 @@ void UAudioComponent::Stop()
 		Sound ? *Sound->GetName() : TEXT("nullptr"));
 
 	AudioDevice->StopActiveSound(AudioComponentID);
+
+	BroadcastPlayState();
 }
 
 void UAudioComponent::StopDelayed(float DelayTime)
@@ -771,6 +794,8 @@ void UAudioComponent::SetPaused(bool bPause)
 				}, GET_STATID(STAT_AudioPauseActiveSound));
 			}
 		}
+
+		BroadcastPlayState();
 	}
 }
 
@@ -822,11 +847,18 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	{
 		CancelAutoAttachment(true, MyWorld);
 	}
+
+	BroadcastPlayState();
 }
 
 bool UAudioComponent::IsPlaying() const
 {
 	return IsActive();
+}
+
+bool UAudioComponent::IsVirtualized() const
+{
+	return bIsVirtualized;
 }
 
 EAudioComponentPlayState UAudioComponent::GetPlayState() const
@@ -1113,7 +1145,6 @@ void UAudioComponent::SetBoolParameter( const FName InName, const bool InBool )
 	}
 }
 
-
 void UAudioComponent::SetIntParameter( const FName InName, const int32 InInt )
 {
 	if (InName != NAME_None)
@@ -1199,6 +1230,33 @@ void UAudioComponent::SetSoundParameter(const FAudioComponentParam& Param)
 			}
 		}
 	}
+}
+
+void UAudioComponent::SetFadeInComplete()
+{
+	EAudioComponentPlayState PlayState = GetPlayState();
+	if (PlayState != EAudioComponentPlayState::FadingIn)
+	{
+		BroadcastPlayState();
+	}
+}
+
+void UAudioComponent::SetIsVirtualized(bool bInIsVirtualized)
+{
+	if (bIsVirtualized != bInIsVirtualized)
+	{
+		if (OnAudioVirtualizationChanged.IsBound())
+		{
+			OnAudioVirtualizationChanged.Broadcast(bInIsVirtualized);
+		}
+
+		if (OnAudioVirtualizationChangedNative.IsBound())
+		{
+			OnAudioVirtualizationChangedNative.Broadcast(this, bInIsVirtualized);
+		}
+	}
+
+	bIsVirtualized = bInIsVirtualized ? 1 : 0;
 }
 
 void UAudioComponent::SetVolumeMultiplier(const float NewVolumeMultiplier)

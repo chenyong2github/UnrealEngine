@@ -37,7 +37,6 @@
 #include "PropertyEditorModule.h"
 #include "UObject/StructOnScope.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
-#include "DataTableRowUtlis.h"
 #include "Engine/DataTable.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -144,8 +143,6 @@ FDataTableEditor::~FDataTableEditor()
 	if (Table)
 	{
 		SaveLayoutData();
-
-		Table->OnDataTableImported().RemoveAll(this);
 	}
 }
 
@@ -206,8 +203,8 @@ void FDataTableEditor::PostChange(const UDataTable* Changed, FDataTableEditorUti
 	UDataTable* Table = GetEditableDataTable();
 	if (Changed == Table)
 	{
+		// Don't need to notify the DataTable about changes, that's handled before this
 		HandlePostChange();
-		Table->OnDataTableChanged().Broadcast();
 	}
 }
 
@@ -276,27 +273,22 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		SpawnToolkitTab( DataTableTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
-	ToolkitCommands->MapAction(FGlobalEditorCommonCommands::Get().OpenDocumentation, FExecuteAction::CreateSP(this, &FDataTableEditor::BrowseDocumentation_Execute));
-
 	// asset editor commands here
 	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Rename, FExecuteAction::CreateSP(this, &FDataTableEditor::RenameSelectedRowCommand));
 	ToolkitCommands->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &FDataTableEditor::DeleteSelectedRow));
+}
 
-	Table->OnDataTableImported().AddSP(this, &FDataTableEditor::ImportDataTableUpdate);
-
+bool FDataTableEditor::CanEditRows() const
+{
+	return true;
 }
 
 FName FDataTableEditor::GetToolkitFName() const
 {
 	return FName("DataTableEditor");
-}
-
-void FDataTableEditor::BrowseDocumentation_Execute() const
-{
-	IDocumentation::Get()->Open(GetDocumentationLink(), FDocumentationSourceInfo(TEXT("help_menu_asset")));
 }
 
 FString FDataTableEditor::GetDocumentationLink() const
@@ -541,6 +533,17 @@ void FDataTableEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	ToolbarBuilder.BeginSection("DataTableCommands");
 	{
 		ToolbarBuilder.AddToolBarButton(
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FDataTableEditor::Reimport_Execute),
+				FCanExecuteAction::CreateSP(this, &FDataTableEditor::CanReimport)),
+			NAME_None,
+			LOCTEXT("ReimportText", "Reimport"),
+			LOCTEXT("ReimportTooltip", "Reimport this DataTable"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.ReimportAsset"));
+
+		ToolbarBuilder.AddSeparator();
+
+		ToolbarBuilder.AddToolBarButton(
 			FUIAction(FExecuteAction::CreateSP(this, &FDataTableEditor::OnAddClicked)),
 			NAME_None,
 			LOCTEXT("AddIconText", "Add"),
@@ -765,7 +768,8 @@ TSharedRef<ITableRow> FDataTableEditor::MakeRowWidget(FDataTableEditorRowListVie
 	return
 		SNew(SDataTableListViewRow, OwnerTable)
 		.DataTableEditor(SharedThis(this))
-		.RowDataPtr(InRowDataPtr);
+		.RowDataPtr(InRowDataPtr)
+		.IsEditable(CanEditRows());
 }
 
 TSharedRef<SWidget> FDataTableEditor::MakeCellWidget(FDataTableEditorRowListViewDataPtr InRowDataPtr, const int32 InRowIndex, const FName& InColumnId)
@@ -842,6 +846,9 @@ void FDataTableEditor::PasteOnSelectedRow()
 	FDataTableEditorUtils::BroadcastPreChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
 
 	const TCHAR* Result = TablePtr->RowStruct->ImportText(*ClipboardValue, RowPtr, TablePtr, PPF_Copy, GWarn, GetPathNameSafe(TablePtr->RowStruct));
+
+	TablePtr->HandleDataTableChanged(HighlightedRowName);
+	TablePtr->MarkPackageDirty();
 
 	FDataTableEditorUtils::BroadcastPostChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
 
@@ -1066,23 +1073,26 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	{
 		ColumnNamesHeaderRow->ClearColumns();
 
-		ColumnNamesHeaderRow->AddColumn(
-			SHeaderRow::Column(RowDragDropColumnId)
-			[
-				SNew(SBox)
-				.VAlign(VAlign_Fill) 
+		if (CanEditRows())
+		{
+			ColumnNamesHeaderRow->AddColumn(
+				SHeaderRow::Column(RowDragDropColumnId)
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Fill)
 				.HAlign(HAlign_Fill)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("DataTableRowHandleTooltip", "Drag Drop Handles"),
-				nullptr,
-				*FDataTableEditorUtils::VariableTypesTooltipDocLink,
-				TEXT("DataTableRowHandle")))
+					LOCTEXT("DataTableRowHandleTooltip", "Drag Drop Handles"),
+					nullptr,
+					*FDataTableEditorUtils::VariableTypesTooltipDocLink,
+					TEXT("DataTableRowHandle")))
 				[
 					SNew(STextBlock)
 					.Text(FText::GetEmpty())
 				]
-			]
-		);
+				]
+			);
+		}	
 
 		ColumnNamesHeaderRow->AddColumn(
 			SHeaderRow::Column(RowNumberColumnId)
@@ -1147,16 +1157,6 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	if (PropertyView.IsValid())
 	{
 		PropertyView->SetObject(Table);
-	}
-}
-
-void FDataTableEditor::ImportDataTableUpdate()
-{
-	UDataTable* Table = GetEditableDataTable();
-
-	if (Table)
-	{
-		FDataTableEditorUtils::FDataTableEditorManager::Get().PostChange(Table, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	}
 }
 

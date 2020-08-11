@@ -141,6 +141,8 @@ void SNPWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& 
 		FName(TEXT("MENU"))
 	);
 
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
+
 	ChildSlot
 		[
 			SNew(SOverlay)
@@ -167,7 +169,7 @@ void SNPWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& 
 					+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							MenuBarBuilder.MakeWidget()
+							MenuWidget
 						]
 
 					+ SVerticalBox::Slot()
@@ -196,7 +198,7 @@ void SNPWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& 
 		];
 
 	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox());
+	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
 
 	BindCommands();
 
@@ -551,7 +553,7 @@ void SNPWindow::PopulateFilteredDataView()
 			// Filter
 			for (auto& SharedRef : UnfilteredSimulationList)
 			{
-				if (SharedRef->ConstData.ID.NetGUID == 0)
+				if (SharedRef->ConstData.ID.SimID <= 0)
 				{
 					// No NetGUID assigned yet (this would only happen first few frames in a live session)
 					continue;
@@ -571,25 +573,26 @@ void SNPWindow::PopulateFilteredDataView()
 			for (auto& SharedPtr : FilteredSimulationList)
 			{
 				const FSimulationData* SimData = SharedPtr.Get();
-				if (!ensure(SimData) || SimData->EOFState.Num() <= 0) // EOF data is currently required. Eventually EOF data may go away and this will be refactored
+				if (!ensure(SimData))
 				{
 					continue;
 				}
 
 				uint64 SimMinEngineFrame = TNumericLimits<uint64>::Max();
 				uint64 SimMaxEngineFrame = 0;
-				/*
+
 				if (SimData->Ticks.Num() > 0)
 				{
 					SimMinEngineFrame = FMath::Min<uint64>(SimMinEngineFrame, SimData->Ticks[0].EngineFrame);
 					SimMaxEngineFrame = FMath::Max<uint64>(SimMinEngineFrame, SimData->Ticks[SimData->Ticks.Num()-1].EngineFrame);
 				}
-				*/
+				/*
 				if (SimData->EOFState.Num() > 0)
 				{
 					SimMinEngineFrame = FMath::Min<uint64>(SimMinEngineFrame, SimData->EOFState[0].EngineFrame);
 					SimMaxEngineFrame = FMath::Max<uint64>(SimMinEngineFrame, SimData->EOFState[SimData->EOFState.Num()-1].EngineFrame);
 				}
+				*/
 				/*
 				if (SimData->NetRecv.Num() > 0)
 				{

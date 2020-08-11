@@ -186,10 +186,10 @@ struct COREUOBJECT_API FSoftObjectPath
 	void PostLoadPath(FArchive* InArchive) const;
 
 	/** Fixes up this SoftObjectPath to add the PIE prefix depending on what is currently active, returns true if it was modified. The overload that takes an explicit PIE instance is preferred, if it's available. */
-	bool FixupForPIE();
+	bool FixupForPIE(TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
 
 	/** Fixes up this SoftObjectPath to add the PIE prefix for the given PIEInstance index, returns true if it was modified */
-	bool FixupForPIE(int32 PIEInstance);
+	bool FixupForPIE(int32 PIEInstance, TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
 
 	/** Fixes soft object path for CoreRedirects to handle renamed native objects, returns true if it was modified */
 	bool FixupCoreRedirects();

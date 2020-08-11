@@ -2,22 +2,27 @@
 
 #include "MovieSceneTestObjects.h"
 #include "Misc/AutomationTest.h"
-#include "Compilation/MovieSceneCompiler.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
-#include "Evaluation/MovieSceneSequenceTemplateStore.h"
 #include "Algo/Find.h"
 #include "UObject/Package.h"
 #include "MovieSceneTimeHelpers.h"
 
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// TODO: Reimplement compiler automation tests
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+UE_MOVIESCENE_TODO(Reimplement compiler automation tests)
+
+#if 0
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMovieSceneCompilerPerfTest, "System.Engine.Sequencer.Compiler.Perf", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled)
 bool FMovieSceneCompilerPerfTest::RunTest(const FString& Parameters)
 {
-	static bool  bFullCompile              = true;
 	static bool  bInvalidateEveryIteration = false;
 	static int32 NumIterations             = 1000000;
 
@@ -53,19 +58,16 @@ bool FMovieSceneCompilerPerfTest::RunTest(const FString& Parameters)
 		virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override {}
 	} TestPlayer;
 
-	TestPlayer.RootInstance.Initialize(*Sequence, TestPlayer);
+	UMovieSceneCompiledDataManager* CompiledDataManager = UMovieSceneCompiledDataManager::GetPrecompiledData();
 
-	if (bFullCompile)
-	{
-		FMovieSceneSequencePrecompiledTemplateStore Store;
-		FMovieSceneCompiler::Compile(*Sequence, Store);
-	}
+	FMovieSceneCompiledDataID DataID = CompiledDataManager->Compile(Sequence);
+	TestPlayer.RootInstance.Initialize(*Sequence, TestPlayer);
 
 	for (int32 i = 0; i < NumIterations; ++i)
 	{
 		if (bInvalidateEveryIteration)
 		{
-			Sequence->PrecompiledEvaluationTemplate.EvaluationField = FMovieSceneEvaluationField();
+			CompiledDataManager->RemoveTrackTemplateField(DataID);
 		}
 
 		double StartSeconds    = FMath::FRand() * 60.f;
@@ -307,6 +309,8 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 		Track->SectionArray.Add(Section);
 	}
 
+	UMovieSceneCompiledDataManager* CompileDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage());
+
 	struct FTemplateStore : IMovieSceneSequenceTemplateStore
 	{
 		FMovieSceneEvaluationTemplate& AccessTemplate(UMovieSceneSequence&) override
@@ -351,7 +355,7 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 			{
 				// Verify that the field entry is either empty or populated as the test expects
 				const int32 FieldIndex       = FieldRange - FieldRanges.GetData();
-				const bool  FieldIsEmptyHere = (Store.Template.EvaluationField.GetGroup(FieldIndex).SegmentPtrLUT.Num() == 0);
+				const bool  FieldIsEmptyHere = (Store.Template.EvaluationField.GetGroup(FieldIndex).TrackLUT.Num() == 0);
 
 				if (Result.bExpectEmpty != FieldIsEmptyHere)
 				{
@@ -434,3 +438,4 @@ bool FMovieSceneCompilerSubSequencesTest::RunTest(const FString& Parameters)
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
+#endif // #if 0

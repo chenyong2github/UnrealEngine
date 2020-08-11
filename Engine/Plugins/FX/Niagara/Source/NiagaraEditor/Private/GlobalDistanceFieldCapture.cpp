@@ -39,7 +39,7 @@ void FGlobalDistanceFieldCapture::RequestCommon(UVolumeTexture* VolumeTexture, b
 
 FGlobalDistanceFieldCapture::FGlobalDistanceFieldCapture(UVolumeTexture* Tex, bool bCompress, bool bSetCamPos, const FVector& CamPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate)
 {
-	ensure(Tex != nullptr);
+	check(Tex != nullptr);
 	
 	VolumeTex = Tex;
 	bRangeCompress = bCompress;
@@ -74,7 +74,10 @@ FGlobalDistanceFieldCapture::~FGlobalDistanceFieldCapture()
 
 void FGlobalDistanceFieldCapture::OnReadbackComplete()
 {
-	ensure(Readback);
+	if (!ensureMsgf(Readback, TEXT("FGlobalDistanceFieldCapture::OnReadbackComplete called without a pending request!")))
+	{
+		return;
+	}
 
 	float MaxDist = -MAX_FLT;
 	float MinDist = MAX_FLT;

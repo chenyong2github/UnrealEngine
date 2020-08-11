@@ -264,9 +264,6 @@ id<MTLDevice> GMetalDevice = nil;
 {
 	[CachedMarkedText release];
 	[markedTextStyle release];
-#if WITH_ACCESSIBILITY
-	[_accessibilityElements release];
-#endif
 	[super dealloc];
 }
 
@@ -389,24 +386,18 @@ id<MTLDevice> GMetalDevice = nil;
 
 -(void)SetAccessibilityWindow:(AccessibleWidgetId)WindowId
 {
-	if (_accessibilityElements == nil)
+	[FIOSAccessibilityCache AccessibilityElementCache].RootWindowId = WindowId;
+ 	if (WindowId != IAccessibleWidget::InvalidAccessibleWidgetId)
 	{
-		_accessibilityElements = [[NSMutableArray alloc] init];
+		FIOSAccessibilityLeaf* Window = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement: WindowId];
+		// We go ahead and assume the window will have children and add the FIOSAccessibilityContainer
+		// for the Window to enforce accessibility hierarchy
+self.accessibilityElements = @[Window.accessibilityContainer];
 	}
 	else
 	{
-		[_accessibilityElements removeAllObjects];
+		self.accessibilityElements = Nil;
 	}
-
-	if (WindowId != IAccessibleWidget::InvalidAccessibleWidgetId)
-	{
-		[_accessibilityElements addObject : [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:WindowId]];
-	}
-}
-
--(NSArray*)accessibilityElements
-{
-	return _accessibilityElements;
 }
 
 -(BOOL)isAccessibilityElement

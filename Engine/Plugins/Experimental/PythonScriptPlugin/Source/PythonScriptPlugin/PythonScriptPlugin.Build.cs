@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"Sockets",
 					"Networking",
 					"Json",
+					"DeveloperSettings"
 				}
 			);
 
@@ -48,6 +49,9 @@ namespace UnrealBuildTool.Rules
 						"EditorSubsystem",
 						"BlueprintGraph",
 						"KismetCompiler",
+						"AssetTools",
+						"ContentBrowserData",
+						"ContentBrowserFileDataSource",
 					}
 				);
 			}

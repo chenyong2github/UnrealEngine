@@ -175,7 +175,7 @@ FDatasmithImportContext::FDatasmithImportContext(const FString& FileName, bool b
 	if (bLoadConfig)
 	{
 		DatasmithImportContextImpl::LoadOptionConfig(Options.Get());
-		for (const TStrongObjectPtr<UObject>& AdditionalImportOption : AdditionalImportOptions)
+		for (const auto& AdditionalImportOption : AdditionalImportOptions)
 		{
 			DatasmithImportContextImpl::LoadOptionConfig(AdditionalImportOption.Get());
 		}

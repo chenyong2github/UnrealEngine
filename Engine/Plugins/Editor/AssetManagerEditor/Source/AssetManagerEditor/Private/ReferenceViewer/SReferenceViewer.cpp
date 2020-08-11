@@ -89,6 +89,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	bShowShowReferencesOptions = true;
 	bShowShowSearchableNames = true;
 	bShowShowNativePackages = true;
+	bDirtyResults = false;
 
 	ChildSlot
 	[
@@ -134,6 +135,23 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 				.IsEnabled(this, &SReferenceViewer::IsForwardEnabled)
 				[
 					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.CircleArrowRight"))
+				]
+			]
+
+			// Refresh Button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0,3,0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+				.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+				.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh current view"))
+				.ContentPadding( 0 )
+				.OnClicked(this, &SReferenceViewer::RefreshClicked)
+				[
+					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.Refresh"))
 				]
 			]
 
@@ -454,6 +472,15 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			[
 				AssetDiscoveryIndicator
 			]
+
+			+SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Bottom)
+			.Padding(FMargin(0, 0, 0, 16))
+			[
+				SNew(STextBlock)
+				.Text(this, &SReferenceViewer::GetStatusText)
+			]
 		]
 	];
 
@@ -533,6 +560,15 @@ void SReferenceViewer::RebuildGraph()
 		{
 			GraphObj->RebuildGraph();
 		}
+
+		bDirtyResults = false;
+		if (!AssetRefreshHandle.IsValid())
+		{
+			// Listen for updates
+			AssetRefreshHandle = AssetRegistryModule.Get().OnAssetUpdated().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+			AssetRegistryModule.Get().OnAssetAdded().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+			AssetRegistryModule.Get().OnAssetRemoved().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+		}
 	}
 }
 
@@ -562,6 +598,15 @@ FReply SReferenceViewer::BackClicked()
 FReply SReferenceViewer::ForwardClicked()
 {
 	HistoryManager.GoForward();
+
+	return FReply::Handled();
+}
+
+FReply SReferenceViewer::RefreshClicked()
+{
+	RebuildGraph();
+	TriggerZoomToFit(0, 0);
+	RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
 
 	return FReply::Handled();
 }
@@ -614,6 +659,43 @@ FText SReferenceViewer::GetAddressBarText() const
 		{
 			return TemporaryPathBeingEdited;
 		}
+	}
+
+	return FText();
+}
+
+FText SReferenceViewer::GetStatusText() const
+{
+	FString DirtyPackages;
+	if (GraphObj)
+	{
+		const TArray<FAssetIdentifier>& CurrentGraphRootPackageNames = GraphObj->GetCurrentGraphRootIdentifiers();
+		
+		for (const FAssetIdentifier& CurrentAsset : CurrentGraphRootPackageNames)
+		{
+			if (CurrentAsset.IsPackage())
+			{
+				FString PackageString = CurrentAsset.PackageName.ToString();
+				UPackage* InMemoryPackage = FindPackage(nullptr, *PackageString);
+				if (InMemoryPackage && InMemoryPackage->IsDirty())
+				{
+					DirtyPackages += FPackageName::GetShortName(*PackageString);
+
+					// Break on first modified asset to avoid string going too long, the multi select case is fairly rare
+					break;
+				}
+			}
+		}
+	}
+
+	if (DirtyPackages.Len() > 0)
+	{
+		return FText::Format(LOCTEXT("ModifiedWarning", "Showing old saved references for edited asset {0}"), FText::FromString(DirtyPackages));
+	}
+
+	if (bDirtyResults)
+	{
+		return LOCTEXT("DirtyWarning", "Saved references changed, refresh for update");
 	}
 
 	return FText();
@@ -1104,7 +1186,6 @@ void SReferenceViewer::ShowSelectionInContentBrowser()
 void SReferenceViewer::OpenSelectedInAssetEditor()
 {
 	TArray<FAssetIdentifier> IdentifiersToEdit;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TSet<UObject*> SelectedNodes = GraphEditorPtr->GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
 	{
@@ -1137,7 +1218,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		for (const FName SelectedPackageName : AllSelectedPackageNames)
+		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
 			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
@@ -1149,7 +1230,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 			if (HardDependencies.Num() > 0)
 			{
 				ReferencedObjectsList += TEXT("  [HARD]\n");
-				for (const FName HardDependency : HardDependencies)
+				for (const FName& HardDependency : HardDependencies)
 				{
 					const FString PackageString = HardDependency.ToString();
 					ReferencedObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1158,7 +1239,7 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 			if (SoftDependencies.Num() > 0)
 			{
 				ReferencedObjectsList += TEXT("  [SOFT]\n");
-				for (const FName SoftDependency : SoftDependencies)
+				for (const FName& SoftDependency : SoftDependencies)
 				{
 					const FString PackageString = SoftDependency.ToString();
 					ReferencedObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1181,7 +1262,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 	{
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		for (const FName SelectedPackageName : AllSelectedPackageNames)
+		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
 			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
@@ -1193,7 +1274,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 			if (HardDependencies.Num() > 0)
 			{
 				ReferencingObjectsList += TEXT("  [HARD]\n");
-				for (const FName HardDependency : HardDependencies)
+				for (const FName& HardDependency : HardDependencies)
 				{
 					const FString PackageString = HardDependency.ToString();
 					ReferencingObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1202,7 +1283,7 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 			if (SoftDependencies.Num() > 0)
 			{
 				ReferencingObjectsList += TEXT("  [SOFT]\n");
-				for (const FName SoftDependency : SoftDependencies)
+				for (const FName& SoftDependency : SoftDependencies)
 				{
 					const FString PackageString = SoftDependency.ToString();
 					ReferencingObjectsList += FString::Printf(TEXT("    %s.%s\n"), *PackageString, *FPackageName::GetLongPackageAssetName(PackageString));
@@ -1516,6 +1597,12 @@ bool SReferenceViewer::HasAtLeastOneRealNodeSelected() const
 	}
 
 	return false;
+}
+
+void SReferenceViewer::OnAssetRegistryChanged(const FAssetData& AssetData)
+{
+	// We don't do more specific checking because that data is not exposed, and it wouldn't handle newly added references anyway
+	bDirtyResults = true;
 }
 
 void SReferenceViewer::OnInitialAssetRegistrySearchComplete()

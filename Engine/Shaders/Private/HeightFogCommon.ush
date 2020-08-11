@@ -250,9 +250,14 @@ float ComputeNormalizedZSliceFromDepth(float SceneDepth)
 	return log2(SceneDepth * View.VolumetricFogGridZParams.x + View.VolumetricFogGridZParams.y) * View.VolumetricFogGridZParams.z * View.VolumetricFogInvGridSize.z;
 }
 
-float3 ComputeVolumeUV(float3 WorldPosition, float4x4 WorldToClip)
+float3 ComputeVolumeUVFromNDC(float4 NDCPosition)
 {
-	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
 	NDCPosition.xy /= NDCPosition.w;
 	return float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, ComputeNormalizedZSliceFromDepth(NDCPosition.w));
 }
+float3 ComputeVolumeUV(float3 WorldPosition, float4x4 WorldToClip)
+{
+	float4 NDCPosition = mul(float4(WorldPosition, 1), WorldToClip);
+	return ComputeVolumeUVFromNDC(NDCPosition);
+}
+

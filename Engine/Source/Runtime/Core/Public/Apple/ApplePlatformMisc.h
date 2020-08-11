@@ -83,6 +83,13 @@ struct CORE_API FApplePlatformMisc : public FGenericPlatformMisc
 	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
 	static int32 NumberOfCores();
 	
+	/** @return Whether filehandles can be opened on one thread and read/written on another thread */
+	static bool SupportsMultithreadedFileHandles()
+	{
+		// ApplePlatformFile currently uses thread-local lists that can close filehandles arbitrarily and reopen them at need, so filehandles are not transferrable between threads
+		return false;
+	}
+
 	static void CreateGuid(struct FGuid& Result);
 	static TArray<uint8> GetSystemFontBytes();
 	static FString GetDefaultLocale();

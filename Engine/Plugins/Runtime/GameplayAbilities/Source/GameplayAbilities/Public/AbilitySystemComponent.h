@@ -1110,7 +1110,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY()
 	bool UserAbilityActivationInhibited;
 
-	/** When enabled, we will not replicate this ASC to simulated proxies. We will route multicast RPCs through   */
+	/** When enabled GameplayCue RPCs will be routed through the AvatarActor's IAbilitySystemReplicationProxyInterface rather than this component */
 	UPROPERTY()
 	bool ReplicationProxyEnabled;
 

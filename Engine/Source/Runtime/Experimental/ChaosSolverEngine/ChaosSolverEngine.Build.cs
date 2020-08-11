@@ -16,12 +16,12 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Engine",
                     "RenderCore",
-					"ChaosSolvers",
-					"Chaos",
-                    "RHI"
+                    "RHI",
+					"DeveloperSettings"
                 }
 				);
 
+			SetupModulePhysicsSupport(Target);
 			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 		}
 	}

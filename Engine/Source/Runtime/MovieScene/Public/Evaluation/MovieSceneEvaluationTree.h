@@ -324,6 +324,27 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 		: RootNode(FMovieSceneEvaluationTreeNode(TRange<FFrameNumber>::All(), FMovieSceneEvaluationTreeNodeHandle::Invalid()))
 	{}
 
+	FMovieSceneEvaluationTree(const FMovieSceneEvaluationTree& RHS) = default;
+
+	FMovieSceneEvaluationTree& operator=(const FMovieSceneEvaluationTree& RHS) = default;
+
+	/** Move construction must ensure that the root node is correctly restored to its default to ensure that invariant */
+	FMovieSceneEvaluationTree(FMovieSceneEvaluationTree&& RHS)
+		: RootNode(RHS.RootNode)
+		, ChildNodes(MoveTemp(RHS.ChildNodes))
+	{
+		RHS.RootNode = FMovieSceneEvaluationTreeNode(TRange<FFrameNumber>::All(), FMovieSceneEvaluationTreeNodeHandle::Invalid());
+	}
+
+	/** Move assignment must ensure that the root node is correctly restored to its default to ensure that invariant */
+	FMovieSceneEvaluationTree& operator=(FMovieSceneEvaluationTree&& RHS)
+	{
+		RootNode = RHS.RootNode;
+		ChildNodes = MoveTemp(RHS.ChildNodes);
+		RHS.RootNode = FMovieSceneEvaluationTreeNode(TRange<FFrameNumber>::All(), FMovieSceneEvaluationTreeNodeHandle::Invalid());
+		return *this;
+	}
+
 	/**
 	 * Start iterating this tree from the specified time
 	 * 
@@ -444,8 +465,9 @@ protected:
 	 * @param InTimeRange 		The time range to add to the tree
 	 * @param InOperator 		Operator implementation to call for each node that is relevant to the time range
 	 * @param InParent 			The current parent node
+	 * @param InPredicate 		(Optional) Predicate that determines whether the time should be added for a particular point
 	 */
-	void AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent);
+	void AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent, const TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)>* Predicate);
 
 	/**
 	 * Helper function that creates a new child for the specified parent node
@@ -526,11 +548,11 @@ private:
 	/** (In)Equality operators */
 	friend bool operator==(const FMovieSceneEvaluationTreeRangeIterator& Lhs, const FMovieSceneEvaluationTreeRangeIterator& Rhs)
 	{
-		return &Lhs.Tree == &Rhs.Tree && Lhs.CurrentNodeHandle == Rhs.CurrentNodeHandle && Lhs.CurrentRange == Rhs.CurrentRange;
+		return Lhs.Tree == Rhs.Tree && Lhs.CurrentNodeHandle == Rhs.CurrentNodeHandle && Lhs.CurrentRange == Rhs.CurrentRange;
 	}
 	friend bool operator!=(const FMovieSceneEvaluationTreeRangeIterator& Lhs, const FMovieSceneEvaluationTreeRangeIterator& Rhs)
 	{
-		return &Lhs.Tree != &Rhs.Tree || Lhs.CurrentNodeHandle != Rhs.CurrentNodeHandle || Lhs.CurrentRange != Rhs.CurrentRange;
+		return Lhs.Tree != Rhs.Tree || Lhs.CurrentNodeHandle != Rhs.CurrentNodeHandle || Lhs.CurrentRange != Rhs.CurrentRange;
 	}
 
 	/** Compare a bound with a range based on whether we're iterating forwards or backwards */
@@ -563,7 +585,7 @@ private:
 	/** Handle of the current node */
 	FMovieSceneEvaluationTreeNodeHandle CurrentNodeHandle;
 	/** The tree we're iterating */
-	const FMovieSceneEvaluationTree& Tree;
+	const FMovieSceneEvaluationTree* Tree;
 };
 
 /**
@@ -572,6 +594,15 @@ private:
 template<typename DataType>
 struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 {
+
+	/**
+	 * Check whether this tree is empty
+	 */
+	bool IsEmpty() const
+	{
+		return GetChildren(GetRootNode()).Num() == 0 &&	GetDataForSingleNode(GetRootNode()).Num() == 0;
+	}
+
 	/**
 	 * Add a time range with no data associated
 	 *
@@ -585,7 +616,7 @@ struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 			{}
 		};
 
-		AddTimeRange(InTimeRange, FNullOperator(), FMovieSceneEvaluationTreeNodeHandle::Root());
+		AddTimeRange(InTimeRange, FNullOperator(), FMovieSceneEvaluationTreeNodeHandle::Root(), nullptr);
 	}
 
 	/**
@@ -596,7 +627,40 @@ struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 	 */
 	void AddUnique(TRange<FFrameNumber> InTimeRange, DataType InData)
 	{
-		AddTimeRange(InTimeRange, FAddUniqueOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root());
+		AddTimeRange(InTimeRange, FAddUniqueOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root(), nullptr);
+	}
+
+	/**
+	 * Adds a new time range with the associated data to the tree, only for segments where there's no data yet.
+	 *
+	 * @param InTimeRange 		The range with which this data should be associated
+	 * @param InData 			The data to assoicate with this time range
+	 */
+	void AddIfEmpty(TRange<FFrameNumber> InTimeRange, DataType InData)
+	{
+		AddTimeRange(InTimeRange, FAddIfEmptyOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root(), nullptr);
+	}
+
+	/**
+	 * Adds a new time range with the associated data to the tree, only for segments where there's no data yet.
+	 *
+	 * @param InTimeRange 		The range with which this data should be associated
+	 * @param InData 			The data to assoicate with this time range
+	 */
+	void AddIfEmptySelective(TRange<FFrameNumber> InTimeRange, DataType InData, TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)> Predicate)
+	{
+		AddTimeRange(InTimeRange, FAddIfEmptyOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root(), &Predicate);
+	}
+
+	/**
+	 * Add a new time range with the associated data to the tree.
+	 *
+	 * @param InTimeRange 		The range with which this data should be associated
+	 * @param InData 			The data to assoicate with this time range
+	 */
+	void AddSelective(TRange<FFrameNumber> InTimeRange, DataType InData, TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)> Predicate)
+	{
+		AddTimeRange(InTimeRange, FAddOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root(), &Predicate);
 	}
 
 	/**
@@ -607,7 +671,7 @@ struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 	 */
 	void Add(TRange<FFrameNumber> InTimeRange, DataType InData)
 	{
-		AddTimeRange(InTimeRange, FAddOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root());
+		AddTimeRange(InTimeRange, FAddOperator(*this, MoveTemp(InData)), FMovieSceneEvaluationTreeNodeHandle::Root(), nullptr);
 	}
 
 	/**
@@ -634,6 +698,14 @@ struct TMovieSceneEvaluationTree : FMovieSceneEvaluationTree
 	TArrayView<const DataType> GetDataForSingleNode(const FMovieSceneEvaluationTreeNode& InNode) const
 	{
 		return InNode.DataID.IsValid() ? Data.Get(InNode.DataID) : TArrayView<const DataType>();
+	}
+
+	/**
+	 * Access the data associated with a single node in the tree.
+	 */
+	TArrayView<DataType> GetMutableDataForSingleNode(const FMovieSceneEvaluationTreeNode& InNode)
+	{
+		return InNode.DataID.IsValid() ? Data.Get(InNode.DataID) : TArrayView<DataType>();
 	}
 
 	/**
@@ -692,6 +764,23 @@ private:
 		DataType DataToInsert;
 	};
 
+	/** Operator that adds data to nodes only the first time (i.e. if the node is empty) */
+	struct FAddIfEmptyOperator : IMovieSceneEvaluationTreeNodeOperator
+	{
+		FAddIfEmptyOperator(TMovieSceneEvaluationTree<DataType>& InTree, DataType&& InDataToInsert) : Tree(InTree), DataToInsert(InDataToInsert) {}
+
+		virtual void operator()(FMovieSceneEvaluationTreeNode& InNode) const override
+		{
+			if (!InNode.DataID.IsValid())
+			{
+				InNode.DataID = Tree.Data.AllocateEntry(1);
+				Tree.Data.Add(InNode.DataID, CopyTemp(DataToInsert));
+			}
+		}
+		TMovieSceneEvaluationTree<DataType>& Tree;
+		DataType DataToInsert;
+	};
+
 	/** Operator that adds data to nodes */
 	struct FAddOperator : IMovieSceneEvaluationTreeNodeOperator
 	{
@@ -720,14 +809,14 @@ struct TMovieSceneEvaluationTreeDataIterator
 {
 	/** Construction from a tree and a node */
 	TMovieSceneEvaluationTreeDataIterator(const TMovieSceneEvaluationTree<DataType>& InTree, FMovieSceneEvaluationTreeNodeHandle StartNode)
-		: Tree(InTree)
-		, CurrentNode(StartNode.IsValid() ? &Tree.GetNode(StartNode) : nullptr)
+		: Tree(&InTree)
+		, CurrentNode(StartNode.IsValid() ? &InTree.GetNode(StartNode) : nullptr)
 		, DataIndex(0)
 	{
 		// Walk up the tree until we find some data. We reset the iterator so begin() == end() where there is no data
-		while (CurrentNode && !Tree.GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex))
+		while (CurrentNode && !InTree.GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex))
 		{
-			CurrentNode = CurrentNode->Parent.IsValid() ? &Tree.GetNode(CurrentNode->Parent) : nullptr;
+			CurrentNode = CurrentNode->Parent.IsValid() ? &InTree.GetNode(CurrentNode->Parent) : nullptr;
 			DataIndex = 0;
 		}
 	}
@@ -735,13 +824,19 @@ struct TMovieSceneEvaluationTreeDataIterator
 	/** Dereference the data for the current iteration */
 	const DataType& operator*() const
 	{
-		return Tree.GetDataForSingleNode(*CurrentNode)[DataIndex];
+		return Tree->GetDataForSingleNode(*CurrentNode)[DataIndex];
+	}
+
+	/** Check the iterator for validity */
+	bool IsValid() const
+	{
+		return CurrentNode && Tree->GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex);
 	}
 
 	/** Check the iterator for validity */
 	explicit operator bool() const
 	{
-		return CurrentNode && Tree.GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex);
+		return IsValid();
 	}
 
 	/** Move on to the next piece of data */
@@ -750,9 +845,9 @@ struct TMovieSceneEvaluationTreeDataIterator
 		++DataIndex;
 
 		// Skip up parents while the data index is invalid
-		while (CurrentNode && !Tree.GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex))
+		while (CurrentNode && !Tree->GetDataForSingleNode(*CurrentNode).IsValidIndex(DataIndex))
 		{
-			CurrentNode = CurrentNode->Parent.IsValid() ? &Tree.GetNode(CurrentNode->Parent) : nullptr;
+			CurrentNode = CurrentNode->Parent.IsValid() ? &Tree->GetNode(CurrentNode->Parent) : nullptr;
 			DataIndex = 0;
 		}
 		return *this;
@@ -760,14 +855,14 @@ struct TMovieSceneEvaluationTreeDataIterator
 
 	/** Range-for support */
 	friend TMovieSceneEvaluationTreeDataIterator<DataType> begin(const TMovieSceneEvaluationTreeDataIterator<DataType>& In)                      { return In; }
-	friend TMovieSceneEvaluationTreeDataIterator<DataType> end(const TMovieSceneEvaluationTreeDataIterator<DataType>& In)                        { return TMovieSceneEvaluationTreeDataIterator<DataType>(In.Tree, FMovieSceneEvaluationTreeNodeHandle::Invalid()); }
+	friend TMovieSceneEvaluationTreeDataIterator<DataType> end(const TMovieSceneEvaluationTreeDataIterator<DataType>& In)                        { return TMovieSceneEvaluationTreeDataIterator<DataType>(*In.Tree, FMovieSceneEvaluationTreeNodeHandle::Invalid()); }
 	/** (In)Equality operators */
-	friend bool operator==(const TMovieSceneEvaluationTreeDataIterator<DataType>& A, const TMovieSceneEvaluationTreeDataIterator<DataType>& B)   { return &A.Tree == &B.Tree && A.CurrentNode == B.CurrentNode && A.DataIndex == B.DataIndex; }
-	friend bool operator!=(const TMovieSceneEvaluationTreeDataIterator<DataType>& A, const TMovieSceneEvaluationTreeDataIterator<DataType>& B)   { return &A.Tree != &B.Tree || A.CurrentNode != B.CurrentNode || A.DataIndex != B.DataIndex; }
+	friend bool operator==(const TMovieSceneEvaluationTreeDataIterator<DataType>& A, const TMovieSceneEvaluationTreeDataIterator<DataType>& B)   { return A.Tree == B.Tree && A.CurrentNode == B.CurrentNode && A.DataIndex == B.DataIndex; }
+	friend bool operator!=(const TMovieSceneEvaluationTreeDataIterator<DataType>& A, const TMovieSceneEvaluationTreeDataIterator<DataType>& B)   { return A.Tree != B.Tree || A.CurrentNode != B.CurrentNode || A.DataIndex != B.DataIndex; }
 
 private:
 	/** The tree we're reading */
-	const TMovieSceneEvaluationTree<DataType>& Tree;
+	const TMovieSceneEvaluationTree<DataType>* Tree;
 	/** The current node of the iteration (nullptr for invalid iterators) */
 	const FMovieSceneEvaluationTreeNode* CurrentNode;
 	/** The current data index within CurrentNode's data */

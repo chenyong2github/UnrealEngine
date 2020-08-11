@@ -214,6 +214,9 @@ FText SSCreateBlueprintPicker::GetCreateMethodTooltip(ECreateBlueprintFromActorM
 			}
 		}
 
+		case ECreateBlueprintFromActorMode::ChildActor:
+			return LOCTEXT("ChildActorDisabled", "No selected actor can be spawned as a child actor.");
+
 		case ECreateBlueprintFromActorMode::Harvest:
 			return LOCTEXT("HavestDisabled", "No harvestable components in selected actors.");
 
@@ -805,7 +808,10 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bInReplaceActors, ParentClass);
+			FKismetEditorUtilities::FHarvestBlueprintFromActorsParams Params;
+			Params.bReplaceActors = true;
+			Params.ParentClass = ParentClass;
+			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, Params);
 		}
 		break;
 
@@ -840,7 +846,11 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bInReplaceActors, ParentClass);
+			FKismetEditorUtilities::FCreateBlueprintFromActorsParams Params(Actors);
+			Params.bReplaceActors = true;
+			Params.ParentClass = ParentClass;
+
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Params);
 		}
 		break;
 	}

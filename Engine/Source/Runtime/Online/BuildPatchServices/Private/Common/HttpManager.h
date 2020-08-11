@@ -21,7 +21,7 @@ namespace BuildPatchServices
 		 *
 		 * @return new Http request instance
 		 */
-		virtual TSharedRef<IHttpRequest> CreateRequest() = 0;
+		virtual TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateRequest() = 0;
 	};
 
 	/**

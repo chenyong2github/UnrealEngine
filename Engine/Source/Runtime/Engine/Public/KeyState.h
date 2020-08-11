@@ -29,6 +29,9 @@ struct FKeyState
 	/** True if this key has been "consumed" by an InputComponent and should be ignored for further components during this update. */
 	uint8 bConsumed:1;
 
+	/** Flag paired axes that have been sampled this tick. X = LSB, Z = MSB */
+	uint8 PairSampledAxes : 3;
+
 	/** How many samples contributed to RawValueAccumulator. Used for smoothing operations, e.g. mouse */
 	uint8 SampleCountAccumulator;
 
@@ -48,6 +51,7 @@ struct FKeyState
 		, bDown(false)
 		, bDownPrevious(false)
 		, bConsumed(false)
+		, PairSampledAxes(0)
 		, SampleCountAccumulator(0)
 		, RawValueAccumulator(0.f, 0.f, 0.f)
 	{

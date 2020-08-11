@@ -121,6 +121,9 @@ public:
 	/** Will set the initially selected row, if possible, to this class when the viewer is created */
 	UClass* InitiallySelectedClass;
 
+	/** (true) Will show the default classes if they exist. */
+	bool bShowDefaultClasses;
+
 public:
 
 	/** Constructor */
@@ -139,6 +142,7 @@ public:
 		, bAllowViewOptions(true)
 		, bEditorClassesOnly(false)
 		, InitiallySelectedClass(nullptr)
+		, bShowDefaultClasses(true)
 	{
 	}
 };

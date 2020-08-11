@@ -302,6 +302,8 @@ public:
 	/** Handles "Enable World Composition" option in WorldSettings */
 	bool EnableWorldComposition(UWorld* InWorld, bool bEnable);
 
+	bool EnableWorldPartition(UWorld* InWorld, bool bEnable);
+
 private:
 
 	/** The current state of the autosave */

@@ -160,7 +160,7 @@ public:
 		return FontFace == Other.FontFace 
 			&& FontSize == Other.FontSize
 			&& OutlineSize == Other.OutlineSize
-			&& OutlineSizeSeparateFillAlpha == Other.OutlineSizeSeparateFillAlpha
+			&& OutlineSeparateFillAlpha == Other.OutlineSeparateFillAlpha
 			&& FontScale == Other.FontScale
 			&& GlyphIndex == Other.GlyphIndex;
 	}
@@ -183,7 +183,7 @@ private:
 	/** The size in pixels of the outline to render for the font */
 	float OutlineSize;
 	/** If checked, the outline will be completely translucent where the filled area will be. @see FFontOutlineSettings */
-	bool OutlineSizeSeparateFillAlpha;
+	bool OutlineSeparateFillAlpha;
 	/** Provides the final scale used to render to the font */
 	float FontScale;
 	/** The index of this glyph in the FreeType face */
@@ -610,7 +610,7 @@ private:
  * Font caching implementation
  * Caches characters into textures as needed
  */
-class SLATECORE_API FSlateFontCache : public ISlateAtlasProvider
+class SLATECORE_API FSlateFontCache : public ISlateAtlasProvider, public FSlateFlushableAtlasCache
 {
 	friend FCharacterList;
 
@@ -908,18 +908,6 @@ private:
 
 	/** Whether or not we have a pending request to flush the cache when it is safe to do so */
 	volatile bool bFlushRequested;
-
-	/** Number of grayscale atlas pages we can have before we request that the cache be flushed */
-	int32 CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest;
-
-	/** Number of color atlas pages we can have before we request that the cache be flushed */
-	int32 CurrentMaxColorAtlasPagesBeforeFlushRequest;
-
-	/** Number of non-atlased textures we can have before we request that the cache be flushed */
-	int32 CurrentMaxNonAtlasedTexturesBeforeFlushRequest;
-
-	/** The frame counter the last time the font cache was asked to be flushed */
-	uint64 FrameCounterLastFlushRequest;
 
 	/** Critical section preventing concurrent access to FontObjectsToFlush */
 	mutable FCriticalSection FontObjectsToFlushCS;

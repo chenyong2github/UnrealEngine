@@ -689,6 +689,10 @@ public:
 	DECLARE_EVENT_OneParam( UEditorEngine, FOnEndTransformObject, UObject& );
 	FOnEndTransformObject& OnEndObjectMovement() { return OnEndObjectTransformEvent; }
 
+	/** Editor-only event triggered after actors are moved, rotated or scaled by an editor system */
+	DECLARE_EVENT_OneParam(UEditorEngine, FOnActorsMoved, TArray<AActor*>&);
+	FOnActorsMoved& OnActorsMoved() { return OnActorsMovedEvent; }
+
 	/** Editor-only event triggered before the camera viewed through the viewport is moved by an editor system */
 	DECLARE_EVENT_OneParam( UEditorEngine, FOnBeginTransformCamera, UObject& );
 	FOnBeginTransformCamera& OnBeginCameraMovement() { return OnBeginCameraTransformEvent; }
@@ -763,6 +767,13 @@ public:
 	 * @param Object	The actor or component that moved
 	 */
 	void BroadcastEndObjectMovement(UObject& Object) const { OnEndObjectTransformEvent.Broadcast(Object); }
+
+	/**
+	 * Called when actors have been translated, rotated, or scaled by the editor
+	 *
+	 * @param Object	The actor or component that moved
+	 */
+	void BroadcastActorsMoved(TArray<AActor*>& Actors) const { OnActorsMovedEvent.Broadcast(Actors); }
 
 	/**
 	 * Called before the camera viewed through the viewport is moved by the editor
@@ -840,7 +851,6 @@ public:
 	/**
 	 * Exec command handlers
 	 */
-	bool	HandleBlueprintifyFunction( const TCHAR* Str , FOutputDevice& Ar );
 	bool	HandleCallbackCommand( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleTestPropsCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleMapCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
@@ -856,7 +866,6 @@ public:
 	bool	HandleLightmassPaddingCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleLightmassDebugPaddingCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleLightmassProfileCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool	HandleSetReplacementCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
 	bool	HandleSelectNameCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld  );
 	bool	HandleDumpPublicCommand( const TCHAR* Str, FOutputDevice& Ar );
 	bool	HandleJumpToCommand( const TCHAR* Str, FOutputDevice& Ar );
@@ -1064,14 +1073,14 @@ public:
 	/** 
 	 * Snaps an actor in a direction.  Optionally will align with the trace normal.
 	 * @param InActor			Actor to move to the floor.
-	 * @param InAlign			sWhether or not to rotate the actor to align with the trace normal.
+	 * @param InAlign			Whether or not to rotate the actor to align with the trace normal.
 	 * @param InUseLineTrace	Whether or not to only trace with a line through the world.
 	 * @param InUseBounds		Whether or not to base the line trace off of the bounds.
 	 * @param InUsePivot		Whether or not to use the pivot position.
 	 * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
 	 * @return					Whether or not the actor was moved.
 	 */
-	bool SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination = FActorOrComponent() );
+	bool SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination = FActorOrComponent(), TArray<FActorOrComponent> ObjectsToIgnore = TArray<FActorOrComponent>() );
 
 	/**
 	 * Snaps the view of the camera to that of the provided actor.
@@ -1115,7 +1124,7 @@ public:
 	 * @param	Redraw			Whether to redraw viewports
 	 * @param	TransReset		Human readable reason for resetting the transaction system
 	 */
-	virtual void Cleanse( bool ClearSelection, bool Redraw, const FText& TransReset );
+	virtual void Cleanse( bool ClearSelection, bool Redraw, const FText& TransReset, bool bTransReset = true );
 	virtual void FinishAllSnaps() { }
 
 	/**
@@ -1452,15 +1461,6 @@ public:
 	virtual void SelectComponent(class UActorComponent* Component, bool bInSelected, bool bNotify, bool bSelectEvenIfHidden = false) {}
 
 	/**
-	 * Replaces the components in ActorsToReplace with an primitive component in Replacement
-	 *
-	 * @param ActorsToReplace Primitive components in the actors in this array will have their ReplacementPrimitive set to a component in Replacement
-	 * @param Replacement The first usable component in Replacement will be the ReplacementPrimitive for the actors
-	 * @param ClassToReplace If this is set, only components will of this class will be used/replaced
-	 */
-	virtual void AssignReplacementComponentsByActors(TArray<AActor*>& ActorsToReplace, AActor* Replacement, UClass* ClassToReplace=NULL);
-
-	/**
 	 * Selects or deselects a BSP surface in the persistent level's UModel.  Does nothing if GEdSelectionLock is true.
 	 *
 	 * @param	InModel					The model of the surface to select.
@@ -1620,7 +1620,7 @@ public:
 	 * @param Skeleton	The skeleton that animation is import into
 	 * @param Filename	The FBX filename
 	 */
-	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename);
+	static bool ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* AnimSequence, class UFbxAnimSequenceImportData* ImportData, const TCHAR* InFilename, bool& bOutImportAll, const bool bFactoryShowOptions);
 
 
 	// Object management.
@@ -1838,6 +1838,9 @@ public:
 	/**
 	 * Removes the current realtime override.  If there was another realtime override set it will restore that override
 	 */
+	void RemoveViewportsRealtimeOverride(FText SystemDisplayName);
+
+	UE_DEPRECATED(4.26, "To remove realtime overrides, please now provide a system name to make sure you remove the correct override.")
 	void RemoveViewportsRealtimeOverride();
 
 	/**
@@ -1961,6 +1964,12 @@ public:
 	 * Restore the selection state of the current level (its actors and components) from a previous state.
 	 */
 	void SetSelectionStateOfLevel(const FSelectionStateOfLevel& InSelectionStateOfLevel);
+
+	/**
+	 * Reset All Selection Sets (i.e. objects, actors, components)
+	 * @note each set is independent and a selected actor might not be in the object selection set.
+	 */
+	void ResetAllSelectionSets();
 
 	/**
 	 * Clears out the current map, if any, and creates a new blank map.
@@ -2832,6 +2841,9 @@ private:
 
 	/** Delegate broadcast when an actor or component has been moved, rotated, or scaled */
 	FOnEndTransformObject OnEndObjectTransformEvent;
+
+	/** Delegate broadcast when aactors have been moved, rotated, or scaled */
+	FOnActorsMoved OnActorsMovedEvent;
 
 	/** Delegate broadcast when the camera viewed through the viewport is about to be moved */
 	FOnBeginTransformCamera OnBeginCameraTransformEvent;

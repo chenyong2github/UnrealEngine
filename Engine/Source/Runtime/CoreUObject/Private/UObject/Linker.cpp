@@ -646,7 +646,7 @@ FLinkerLoad* GetPackageLinker
 	FArchive*		InReaderOverride,
 	FUObjectSerializeContext** InOutLoadContext,
 	FLinkerLoad*	ImportLinker,
-	FLinkerInstancingContext* InstancingContext
+	const FLinkerInstancingContext* InstancingContext
 )
 {
 	FUObjectSerializeContext* InExistingContext = InOutLoadContext ? *InOutLoadContext : nullptr;
@@ -788,7 +788,7 @@ FLinkerLoad* GetPackageLinker
 			InOuter = FilenamePkg;
 			Result = FLinkerLoad::FindExistingLinkerForPackage(InOuter);
 		}
-		else if (InOuter != FilenamePkg) //!!should be tested and validated in new UnrealEd
+		else if (InOuter != FilenamePkg && FLinkerLoad::FindExistingLinkerForPackage(InOuter)) //!!should be tested and validated in new UnrealEd
 		{
 			// Loading a new file into an existing package, so reset the loader.
 			//UE_LOG(LogLinker, Log,  TEXT("New File, Existing Package (%s, %s)"), *InOuter->GetFullName(), *FilenamePkg->GetFullName() );

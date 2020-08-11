@@ -203,16 +203,20 @@ IMPLEMENT_GLOBAL_SHADER(FLumenRoughReflectionsPS, "/Engine/Private/Lumen/LumenRe
 
 bool ShouldRenderLumenReflections(const FViewInfo& View)
 {
-	const FScene* Scene = (const FScene*)View.Family->Scene;
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FScene* Scene = (const FScene*) View.Family->Scene;
+	if (Scene)
+	{
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	return GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(View.GetShaderPlatform())
-		&& Scene
-		&& (LumenSceneData.VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, *View.Family))
-		&& LumenSceneData.AlbedoAtlas
-		&& View.Family->EngineShowFlags.LumenReflections
-		&& View.ViewState;
+		return GAllowLumenScene
+			&& DoesPlatformSupportLumenGI(View.GetShaderPlatform())
+			&& (LumenSceneData.VisibleCardsIndices.Num() > 0 || ShouldRenderDynamicSkyLight(Scene, *View.Family))
+			&& LumenSceneData.AlbedoAtlas
+			&& View.Family->EngineShowFlags.LumenReflections
+			&& View.ViewState;
+	}
+
+	return false;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionStencilParameters, )

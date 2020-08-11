@@ -35,11 +35,11 @@
 
 namespace LevelViewportClickHandlers
 {
-	static void PrivateSummonContextMenu( FLevelEditorViewportClient* ViewportClient )
+	static void PrivateSummonContextMenu( FLevelEditorViewportClient* ViewportClient, AActor* HitProxyActor = nullptr)
 	{
 		if( ViewportClient->ParentLevelEditor.IsValid() )
 		{
-			ViewportClient->ParentLevelEditor.Pin()->SummonLevelViewportContextMenu();
+			ViewportClient->ParentLevelEditor.Pin()->SummonLevelViewportContextMenu(HitProxyActor);
 		}
 	}	
 
@@ -142,7 +142,8 @@ namespace LevelViewportClickHandlers
 				if( bAllowSelectionChange && GEditor->CanSelectActor(Actor, true, true) )
 				{
 					// If the actor the user clicked on was already selected, then we won't bother clearing the selection
-					if( !Actor->IsSelected() )
+					const AActor* RootSelectionParent = Actor->GetRootSelectionParent();
+					if( !Actor->IsSelected() && (RootSelectionParent == nullptr || !RootSelectionParent->IsSelected()))
 					{
 						GEditor->SelectNone( false, true );
 						bNeedViewportRefresh = true;
@@ -160,7 +161,7 @@ namespace LevelViewportClickHandlers
 				FlushRenderingCommands();
 			}
 
-			PrivateSummonContextMenu(ViewportClient);
+			PrivateSummonContextMenu(ViewportClient, Actor);
 			return true;
 		}
 		else if( Click.GetEvent() == IE_DoubleClick && Click.GetKey() == EKeys::LeftMouseButton && !Click.IsControlDown() && !Click.IsShiftDown() )

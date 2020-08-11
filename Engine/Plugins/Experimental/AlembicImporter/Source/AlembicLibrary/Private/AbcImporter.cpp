@@ -424,10 +424,14 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 				{
 					if (PolyMesh->bShouldImport)
 					{
+						FName BaseName = FName(*(PolyMesh->GetName()));
 						//UGeometryCacheCodecRaw* Codec = NewObject<UGeometryCacheCodecRaw>(GeometryCache, FName(*(PolyMesh->GetName() + FString(TEXT("_Codec")))), RF_Public);
-						UGeometryCacheCodecV1* Codec = NewObject<UGeometryCacheCodecV1>(GeometryCache, FName(*(PolyMesh->GetName() + FString(TEXT("_Codec")))), RF_Public);
+						FName CodecName = MakeUniqueObjectName(GeometryCache, UGeometryCacheCodecV1::StaticClass(), FName(BaseName.ToString() + FString(TEXT("_Codec"))));
+						UGeometryCacheCodecV1* Codec = NewObject<UGeometryCacheCodecV1>(GeometryCache, CodecName, RF_Public);
 						Codec->InitializeEncoder(ImportSettings->GeometryCacheSettings.CompressedPositionPrecision, ImportSettings->GeometryCacheSettings.CompressedTextureCoordinatesNumberOfBits);
-						UGeometryCacheTrackStreamable* Track = NewObject<UGeometryCacheTrackStreamable>(GeometryCache, FName(*PolyMesh->GetName()), RF_Public);
+
+						FName TrackName = MakeUniqueObjectName(GeometryCache, UGeometryCacheTrackStreamable::StaticClass(), BaseName);
+						UGeometryCacheTrackStreamable* Track = NewObject<UGeometryCacheTrackStreamable>(GeometryCache, TrackName, RF_Public);
 						Track->BeginCoding(Codec, ImportSettings->GeometryCacheSettings.bApplyConstantTopologyOptimizations && !bContainsHeterogeneousMeshes, ImportSettings->GeometryCacheSettings.bCalculateMotionVectorsDuringImport, ImportSettings->GeometryCacheSettings.bOptimizeIndexBuffers);
 
 						ImportPolyMeshes.Add(PolyMesh);

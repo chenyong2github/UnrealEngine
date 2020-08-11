@@ -58,8 +58,7 @@ void SEditableTextBlock::BuildMultiBlockWidget( const ISlateStyle* StyleSet, con
 	const bool bHasLabel = !Label.Get().IsEmpty();
 
 	// Add this widget to the search list of the multibox
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), Label.Get());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), Label.Get(), MultiBlock->GetSearchable());
 
 	// See if the action is valid and if so we will use the actions icon if we dont override it later
 	const FSlateIcon ActionIcon = UICommand.IsValid() ? UICommand->GetIcon() : FSlateIcon();
@@ -79,6 +78,8 @@ void SEditableTextBlock::BuildMultiBlockWidget( const ISlateStyle* StyleSet, con
 		}
 	}
 
+	const float MenuIconSize = StyleSet->GetFloat(StyleName, ".MenuIconSize", 16.f);
+
 	ChildSlot
 	[
 		SNew( SHorizontalBox )
@@ -86,7 +87,7 @@ void SEditableTextBlock::BuildMultiBlockWidget( const ISlateStyle* StyleSet, con
 		.AutoWidth()
 		[
 			SNew(SSpacer)
-			.Size( FVector2D(MultiBoxConstants::MenuCheckBoxSize + 3, MultiBoxConstants::MenuCheckBoxSize) )
+			.Size( FVector2D(MenuIconSize + 3, MenuIconSize) )
 		]
 
 		+ SHorizontalBox::Slot()
@@ -94,14 +95,14 @@ void SEditableTextBlock::BuildMultiBlockWidget( const ISlateStyle* StyleSet, con
 		[
 			SNew( SBox )
 			.Visibility(IconWidget != SNullWidget::NullWidget ? EVisibility::Visible : EVisibility::Collapsed)
-			.WidthOverride( MultiBoxConstants::MenuIconSize + 2 )
-			.HeightOverride( MultiBoxConstants::MenuIconSize )
+			.WidthOverride(MenuIconSize + 2 )
+			.HeightOverride(MenuIconSize)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
 				SNew( SBox )
-				.WidthOverride( MultiBoxConstants::MenuIconSize )
-				.HeightOverride( MultiBoxConstants::MenuIconSize )
+				.WidthOverride(MenuIconSize)
+				.HeightOverride(MenuIconSize)
 				[
 					IconWidget
 				]

@@ -32,6 +32,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Scalability)
 	TArray<FText> QualityLevels;
 
+	/** Info texts that the component renderer shows the user depending on the selected component class. */
+	UPROPERTY(config, EditAnywhere, Category = Renderer)
+	TMap<FString, FText> ComponentRendererWarningsPerClass;
+
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR

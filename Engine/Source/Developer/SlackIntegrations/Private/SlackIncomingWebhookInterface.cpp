@@ -18,7 +18,7 @@ bool FSlackIncomingWebhookInterface::SendMessage(const FSlackIncomingWebhook& In
 	return HttpRequest->ProcessRequest();
 }
 
-TSharedRef<IHttpRequest> FSlackIncomingWebhookInterface::CreateHttpRequest() const
+TSharedRef<IHttpRequest, ESPMode::ThreadSafe> FSlackIncomingWebhookInterface::CreateHttpRequest() const
 {
 	auto Request = FHttpModule::Get().CreateRequest();
 	Request->OnProcessRequestComplete().BindRaw(this, &FSlackIncomingWebhookInterface::OnProcessRequestComplete);

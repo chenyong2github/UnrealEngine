@@ -529,11 +529,13 @@ void FSoftObjectPath::ClearPIEPackageNames()
 	PIEPackageNames.Empty();
 }
 
-bool FSoftObjectPath::FixupForPIE(int32 PIEInstance)
+bool FSoftObjectPath::FixupForPIE(int32 InPIEInstance, TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction)
 {
 #if WITH_EDITOR
-	if (PIEInstance != INDEX_NONE && !IsNull())
+	if (InPIEInstance != INDEX_NONE && !IsNull())
 	{
+		InPreFixupForPIECustomFunction(InPIEInstance, *this);
+
 		const FString Path = ToString();
 
 		// Determine if this reference has already been fixed up for PIE
@@ -543,7 +545,7 @@ bool FSoftObjectPath::FixupForPIE(int32 PIEInstance)
 			// Name of the ULevel subobject of UWorld, set in InitializeNewWorld
 			const bool bIsChildOfLevel = SubPathString.StartsWith(TEXT("PersistentLevel."));
 
-			FString PIEPath = FString::Printf(TEXT("%s/%s_%d_%s"), *FPackageName::GetLongPackagePath(Path), PLAYWORLD_PACKAGE_PREFIX, PIEInstance, *ShortPackageOuterAndName);
+			FString PIEPath = FString::Printf(TEXT("%s/%s_%d_%s"), *FPackageName::GetLongPackagePath(Path), PLAYWORLD_PACKAGE_PREFIX, InPIEInstance, *ShortPackageOuterAndName);
 			const FName PIEPackage = (!bIsChildOfLevel ? FName(*FPackageName::ObjectPathToPackageName(PIEPath)) : NAME_None);
 
 			// Duplicate if this an already registered PIE package or this looks like a level subobject reference
@@ -560,9 +562,9 @@ bool FSoftObjectPath::FixupForPIE(int32 PIEInstance)
 	return false;
 }
 
-bool FSoftObjectPath::FixupForPIE()
+bool FSoftObjectPath::FixupForPIE(TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction)
 {
-	return FixupForPIE(GPlayInEditorID);
+	return FixupForPIE(GPlayInEditorID, InPreFixupForPIECustomFunction);
 }
 
 bool FSoftObjectPath::FixupCoreRedirects()

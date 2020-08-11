@@ -420,7 +420,7 @@ namespace Chaos
 		 * Get the specified axis (0-indexed, X,Y,Z).
 		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
 		 */
-		TVector<float, 3> GetAxis(int32 AxisIndex) const
+		FORCEINLINE TVector<float, 3> GetAxis(int32 AxisIndex) const
 		{
 			return TVector<float, 3>(M[AxisIndex][0], M[AxisIndex][1], M[AxisIndex][2]);
 		}
@@ -429,7 +429,7 @@ namespace Chaos
 		 * Set the specified axis (0-indexed, X,Y,Z).
 		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
 		 */
-		void SetAxis(int32 AxisIndex, const TVector<float, 3>& Axis)
+		FORCEINLINE void SetAxis(int32 AxisIndex, const TVector<float, 3>& Axis)
 		{
 			M[AxisIndex][0] = Axis.X;
 			M[AxisIndex][1] = Axis.Y;
@@ -442,7 +442,7 @@ namespace Chaos
 		 * @note: we are treating matrices as column major, so rows are not sequential in memory
 		 * @seealso GetAxis, GetColumn
 		 */
-		TVector<float, 3> GetRow(int32 RowIndex) const
+		FORCEINLINE TVector<float, 3> GetRow(int32 RowIndex) const
 		{
 			return TVector<float, 3>(M[0][RowIndex], M[1][RowIndex], M[2][RowIndex]);
 		}
@@ -452,7 +452,7 @@ namespace Chaos
 		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
 		 * @seealso SetAxis, SetColumn
 		 */
-		void SetRow(int32 RowIndex, const TVector<float, 3>& V)
+		FORCEINLINE void SetRow(int32 RowIndex, const TVector<float, 3>& V)
 		{
 			M[0][RowIndex] = V.X;
 			M[1][RowIndex] = V.Y;
@@ -465,7 +465,7 @@ namespace Chaos
 		 * @note: we are treating matrices as column major, so columns are sequential in memory
 		 * @seealso GetAxis, GetRow
 		 */
-		TVector<float, 3> GetColumn(int32 ColumnIndex) const
+		FORCEINLINE TVector<float, 3> GetColumn(int32 ColumnIndex) const
 		{
 			return GetAxis(ColumnIndex);
 		}
@@ -475,7 +475,7 @@ namespace Chaos
 		 * @note: we are treating matrices as column major, so axis elements are sequential in memory
 		 * @seealso SetAxis, SetRow
 		 */
-		void SetColumn(int32 ColumnIndex, const TVector<float, 3>& V)
+		FORCEINLINE void SetColumn(int32 ColumnIndex, const TVector<float, 3>& V)
 		{
 			SetAxis(ColumnIndex, V);
 		}
@@ -483,9 +483,19 @@ namespace Chaos
 		/**
 		 * Get the diagonal elements as a vector.
 		 */
-		TVector<float, 3> GetDiagonal() const
+		FORCEINLINE TVector<float, 3> GetDiagonal() const
 		{
 			return TVector<float, 3>(M[0][0], M[1][1], M[2][2]);
+		}
+
+		FORCEINLINE float GetAt(int32 RowIndex, int32 ColIndex) const
+		{
+			return M[ColIndex][RowIndex];
+		}
+
+		FORCEINLINE void SetAt(int32 RowIndex, int32 ColIndex, float V)
+		{
+			M[ColIndex][RowIndex] = V;
 		}
 
 		/**

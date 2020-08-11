@@ -5,11 +5,11 @@
 #include "Sound/SoundWave.h"
 #include "MovieScene.h"
 #include "Sections/MovieSceneAudioSection.h"
+#include "Evaluation/MovieSceneAudioTemplate.h"
 #include "Kismet/GameplayStatics.h"
 #include "AudioDecompress.h"
 #include "Evaluation/MovieSceneSegment.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
-#include "Compilation/MovieSceneCompilerRules.h"
 #include "MovieSceneCommonHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneAudioTrack"
@@ -25,6 +25,10 @@ UMovieSceneAudioTrack::UMovieSceneAudioTrack( const FObjectInitializer& ObjectIn
 #endif
 }
 
+FMovieSceneEvalTemplatePtr UMovieSceneAudioTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+{
+	return FMovieSceneAudioSectionTemplate(*CastChecked<UMovieSceneAudioSection>(&InSection));
+}
 
 const TArray<UMovieSceneSection*>& UMovieSceneAudioTrack::GetAllSections() const
 {
@@ -113,34 +117,9 @@ bool UMovieSceneAudioTrack::IsAMasterTrack() const
 }
 
 
-FMovieSceneTrackRowSegmentBlenderPtr UMovieSceneAudioTrack::GetRowSegmentBlender() const
-{
-	struct FBlender : FMovieSceneTrackRowSegmentBlender
-	{
-		virtual void Blend(FSegmentBlendData& BlendData) const override
-		{
-			// Run the default high pass filter for overlap priority
-			MovieSceneSegmentCompiler::FilterOutUnderlappingSections(BlendData);
-		}
-	};
-	return FBlender();
-}
-
 UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneAudioSection>(this, NAME_None, RF_Transactional);
-}
-
-void UMovieSceneAudioTrack::PostRename(UObject* OldOuter, const FName OldName)
-{
-	// If this audio track is outered to something new, update the channel proxy because the channel can depend on whether this is a master track or not
-	for (UMovieSceneSection* Section : AudioSections)
-	{
-		if (UMovieSceneAudioSection* AudioSection =Cast<UMovieSceneAudioSection>(Section))
-		{
-			AudioSection->UpdateChannelProxy();
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

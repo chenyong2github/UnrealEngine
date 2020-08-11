@@ -69,16 +69,16 @@ void FExclusiveLoadPackageTimeTracker::InternalPopLoadPackage(UPackage* LoadedPa
 		}
 		else if (LoadedPackage)
 		{
-			TArray<UObject*> ObjectsInPackage;
-			GetObjectsWithOuter(LoadedPackage, ObjectsInPackage, false);
-			for (UObject* Object : ObjectsInPackage)
+
+			ForEachObjectWithPackage(LoadedPackage, [&ClassName](UObject* Object)
 			{
 				if (Object && Object->IsAsset())
 				{
 					ClassName = Object->GetClass()->GetFName();
-					break;
+					return false;
 				}
-			}
+				return true;
+			}, false);
 		}
 
 		double InclusiveTime = CurrentTime - Time.OriginalStartTime;

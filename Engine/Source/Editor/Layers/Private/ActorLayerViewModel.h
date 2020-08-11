@@ -47,6 +47,9 @@ public:
 	/**	@return Whether the Layer is visible */
 	bool IsVisible() const;
 
+	/**	@return Whether the actors in this layer should be loaded */
+	bool ShouldActorsBeLoaded() const;
+
 	/********************************************************************
 	 * EVENTS
 	 ********************************************************************/

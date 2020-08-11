@@ -3,6 +3,7 @@
 #include "SourceFilterSetup.h"
 
 #include "Algo/Accumulate.h"
+#include "Misc/CoreDelegates.h"
 
 #include "SourceFilterSet.h"
 #include "SourceFilter.h"
@@ -49,9 +50,16 @@ FSourceFilterSetup::FSourceFilterSetup()
 	OnSourceFiltersUpdated();
 	
 	FilterCollection->GetSourceFiltersUpdated().AddRaw(this, &FSourceFilterSetup::OnSourceFiltersUpdated);
+
+	FCoreDelegates::OnPreExit.AddRaw(this, &FSourceFilterSetup::ShutdownOnPreExit);
 }
 
 FSourceFilterSetup::~FSourceFilterSetup()
+{
+	FCoreDelegates::OnPreExit.RemoveAll(this);
+}
+
+void FSourceFilterSetup::ShutdownOnPreExit()
 {
 	FilterCollection->GetSourceFiltersUpdated().RemoveAll(this);
 }

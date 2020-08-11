@@ -8,6 +8,7 @@
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
@@ -103,35 +104,33 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 
 	TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
 
-	// Search box
+	if (InArgs._AssetPickerConfig.bAddFilterUI)
+	{
+		// Filter
+		HorizontalBox->AddSlot()
+		.AutoWidth()
+		[
+			SAssignNew(FilterComboButtonPtr, SComboButton)
+			.ComboButtonStyle( FEditorStyle::Get(), "GenericFilters.ComboButtonStyle" )
+			.ForegroundColor(FLinearColor::White)
+			.ToolTipText( LOCTEXT( "AddFilterToolTip", "Add an asset filter." ) )
+			.OnGetMenuContent( this, &SAssetPicker::MakeAddFilterMenu )
+			.HasDownArrow( true )
+			.ContentPadding( FMargin( 1, 0 ) )
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
+			.ButtonContent()
+			[
+				SNew( STextBlock )
+				.TextStyle( FEditorStyle::Get(), "GenericFilters.TextStyle" )
+				.Text( LOCTEXT( "Filters", "Filters" ) )
+			]
+		];
+	}
+	
 	if (!InArgs._AssetPickerConfig.bAutohideSearchBar)
 	{
-		HighlightText = TAttribute< FText >( this, &SAssetPicker::GetHighlightedText );
-
-
-		if (InArgs._AssetPickerConfig.bAddFilterUI)
-		{
-			// Filter
-			HorizontalBox->AddSlot()
-			.AutoWidth()
-			[
-				SAssignNew(FilterComboButtonPtr, SComboButton)
-				.ComboButtonStyle( FEditorStyle::Get(), "GenericFilters.ComboButtonStyle" )
-				.ForegroundColor(FLinearColor::White)
-				.ToolTipText( LOCTEXT( "AddFilterToolTip", "Add an asset filter." ) )
-				.OnGetMenuContent( this, &SAssetPicker::MakeAddFilterMenu )
-				.HasDownArrow( true )
-				.ContentPadding( FMargin( 1, 0 ) )
-				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
-				.ButtonContent()
-				[
-					SNew( STextBlock )
-					.TextStyle( FEditorStyle::Get(), "GenericFilters.TextStyle" )
-					.Text( LOCTEXT( "Filters", "Filters" ) )
-				]
-			];
-		}
-
+		// Search box
+		HighlightText = TAttribute< FText >(this, &SAssetPicker::GetHighlightedText);
 		HorizontalBox->AddSlot()
 		.FillWidth(1.0f)
 		[
@@ -158,14 +157,22 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 				.Image(FEditorStyle::GetBrush("ContentBrowser.ColumnViewDeveloperFolderIcon"))
 			]
 		];
-
-		VerticalBox->AddSlot()
-		.AutoHeight()
-		.Padding( 0, 0, 0, 1 )
+	}
+	else
+	{
+		HorizontalBox->AddSlot()
+		.FillWidth(1.0)
 		[
-			HorizontalBox
+			SNew(SSpacer)
 		];
 	}
+		
+	VerticalBox->AddSlot()
+	.AutoHeight()
+	.Padding(0, 0, 0, 1)
+	[
+		HorizontalBox
+	];
 
 	// "None" button
 	if (InArgs._AssetPickerConfig.bAllowNullSelection)
@@ -310,7 +317,8 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		.FilterRecursivelyWithBackendFilter( false )
 		.CanShowRealTimeThumbnails( InArgs._AssetPickerConfig.bCanShowRealTimeThumbnails )
 		.CanShowDevelopersFolder( InArgs._AssetPickerConfig.bCanShowDevelopersFolder )
-		.ForceShowEngineContent( InArgs._AssetPickerConfig.bForceShowEngineContent)
+		.ForceShowEngineContent( InArgs._AssetPickerConfig.bForceShowEngineContent )
+		.ForceShowPluginContent( InArgs._AssetPickerConfig.bForceShowPluginContent )
 		.PreloadAssetsForContextMenu( InArgs._AssetPickerConfig.bPreloadAssetsForContextMenu )
 		.HighlightedText( HighlightText )
 		.ThumbnailLabel( ThumbnailLabel )
@@ -761,7 +769,7 @@ TSharedPtr<SWidget> SAssetPicker::GetItemContextMenu(TArrayView<const FContentBr
 			}
 		}
 
-		if (OnGetFolderContextMenu.IsBound())
+		if (OnGetAssetContextMenu.IsBound())
 		{
 			return OnGetAssetContextMenu.Execute(SelectedAssets);
 		}

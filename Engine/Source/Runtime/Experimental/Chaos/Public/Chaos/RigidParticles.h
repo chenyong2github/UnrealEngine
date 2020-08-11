@@ -3,6 +3,7 @@
 
 #include "Containers/Queue.h"
 #include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "Chaos/BVHParticles.h"
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitObject.h"
@@ -82,6 +83,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
+		TArrayCollection::AddArray(&MCollisionConstraintFlags);
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
@@ -103,6 +105,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		, MRotationOfMass(MoveTemp(Other.MRotationOfMass))
 		, MCollisionParticles(MoveTemp(Other.MCollisionParticles))
 		, MCollisionGroup(MoveTemp(Other.MCollisionGroup))
+		, MCollisionConstraintFlags(MoveTemp(Other.MCollisionConstraintFlags))
 		, MObjectState(MoveTemp(Other.MObjectState))
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MResimType(MoveTemp(Other.MResimType))
@@ -121,6 +124,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MAngularEtherDrag);
 		TArrayCollection::AddArray(&MCollisionParticles);
 		TArrayCollection::AddArray(&MCollisionGroup);
+		TArrayCollection::AddArray(&MCollisionConstraintFlags);
 		TArrayCollection::AddArray(&MDisabled);
 		TArrayCollection::AddArray(&MObjectState);
 		TArrayCollection::AddArray(&MIsland);
@@ -178,6 +182,11 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 
 	FORCEINLINE const int32 CollisionGroup(const int32 Index) const { return MCollisionGroup[Index]; }
 	FORCEINLINE int32& CollisionGroup(const int32 Index) { return MCollisionGroup[Index]; }
+
+	FORCEINLINE bool HasCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) const { return (MCollisionConstraintFlags[Index] & (uint32)Flag) != 0; }
+	FORCEINLINE void AddCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) { MCollisionConstraintFlags[Index] |= (uint32)Flag; }
+	FORCEINLINE void RemoveCollisionConstraintFlag(const ECollisionConstraintFlags Flag, const int32 Index) { MCollisionConstraintFlags[Index] &= ~(uint32)Flag; }
+	FORCEINLINE void ClearCollisionConstraintFlag(const int32 Index) { MCollisionConstraintFlags[Index] = (uint32)ECollisionConstraintFlags::CCF_None; }
 
 	FORCEINLINE const bool Disabled(const int32 Index) const { return MDisabled[Index]; }
 
@@ -274,6 +283,7 @@ class TRigidParticles : public TKinematicGeometryParticles<T, d>
 	TArrayCollectionArray<T> MAngularEtherDrag;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
 	TArrayCollectionArray<int32> MCollisionGroup;
+	TArrayCollectionArray<uint32> MCollisionConstraintFlags;
 	TArrayCollectionArray<int32> MIsland;
 	TArrayCollectionArray<bool> MDisabled;
 	TArrayCollectionArray<bool> MToBeRemovedOnFracture;

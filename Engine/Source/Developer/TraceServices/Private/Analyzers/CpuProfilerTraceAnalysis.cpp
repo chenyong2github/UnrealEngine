@@ -2,11 +2,12 @@
 #include "CpuProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
-#include "TraceServices/Model/Threads.h"
+#include "Model/ThreadsPrivate.h"
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider)
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(Trace::IAnalysisSession& InSession, Trace::FTimingProfilerProvider& InTimingProfilerProvider, Trace::FThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, TimingProfilerProvider(InTimingProfilerProvider)
+	, ThreadProvider(InThreadProvider)
 {
 
 }
@@ -29,8 +30,6 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndThread, "CpuProfiler", "EndThread");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
-	Builder.RouteEvent(RouteId_ChannelAnnounce, "Trace", "ChannelAnnounce");
-	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 }
 
 bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -94,41 +93,6 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	case RouteId_CpuScope:
 		(Style == EStyle::EnterScope) ? OnCpuScopeEnter(Context) : OnCpuScopeLeave(Context);
 		break;
-	case RouteId_ChannelAnnounce:
-	{
-		FString ChannelName = FTraceAnalyzerUtils::LegacyAttachmentString<ANSICHAR>("Name", Context);
-		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-		if (FCString::Stricmp(*ChannelName, TEXT("cpu")) == 0)
-		{
-			CpuChannelId = ChannelId;
-		}
-		break;
-	}
-	case RouteId_ChannelToggle:
-	{
-		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-		const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
-
-		if (ChannelId == CpuChannelId && bCpuChannelState != bEnabled)
-		{
-			bCpuChannelState = bEnabled;
-			if (bEnabled == false)
-			{
-				for (auto ThreadPair : ThreadStatesMap)
-				{
-					FThreadState& ThreadState = *ThreadPair.Value;
-					const double Timestamp = Context.EventTime.AsSeconds(ThreadState.LastCycle);
-					Session.UpdateDurationSeconds(Timestamp);
-					while (ThreadState.ScopeStack.Num())
-					{
-						ThreadState.ScopeStack.Pop();
-						ThreadState.Timeline->AppendEndEvent(Timestamp);
-					}
-				}
-			}
-		}
-		break;
-	}
 	}
 
 	return true;
@@ -146,7 +110,14 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 	while (BufferPtr < BufferEnd)
 	{
 		uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-		uint64 ActualCycle = (DecodedCycle >> 1) + LastCycle;
+		uint64 ActualCycle = (DecodedCycle >> 1);
+
+		// ActualCycle larger or equeal to LastCycle means we have a new
+		// base value.
+		if (ActualCycle < LastCycle)
+		{
+			ActualCycle += LastCycle;
+		}
 
 		// If we late connect we will be joining the cycle stream mid-flow and
 		// will have missed out on it's base timestamp. Reconstruct it here.
@@ -210,10 +181,15 @@ uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 T
 			ThreadState.Timeline->AppendBeginEvent(EventTime.AsSeconds(ActualCycle), Event);
 			++TotalScopeCount;
 		}
-		else if (ThreadState.ScopeStack.Num())
+		else
 		{
-			ThreadState.ScopeStack.Pop();
-			ThreadState.Timeline->AppendEndEvent(EventTime.AsSeconds(ActualCycle));
+			// If we receive mismatched end events ignore them for now.
+			// This can happen for example because tracing connects to the store after events were traced. Those events can be lost.
+			if (ThreadState.ScopeStack.Num() > 0)
+			{
+				ThreadState.ScopeStack.Pop();
+				ThreadState.Timeline->AppendEndEvent(EventTime.AsSeconds(ActualCycle));
+			}
 		}
 
 		LastCycle = ActualCycle;
@@ -319,6 +295,10 @@ FCpuProfilerAnalyzer::FThreadState& FCpuProfilerAnalyzer::GetThreadState(uint32 
 		ThreadState = new FThreadState();
 		ThreadState->Timeline = &TimingProfilerProvider.EditCpuThreadTimeline(ThreadId);
 		ThreadStatesMap.Add(ThreadId, ThreadState);
+
+		// Just in case the rest of Insight's reporting/analysis doesn't know about
+		// this thread, we'll explicitly add it. For fault tolerance.
+		ThreadProvider.AddThread(ThreadId, nullptr, TPri_Normal);
 	}
 	return *ThreadState;
 }

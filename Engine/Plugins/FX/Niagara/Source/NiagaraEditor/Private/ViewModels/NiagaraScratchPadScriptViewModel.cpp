@@ -9,6 +9,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
+#include "ViewModels/NiagaraScratchPadUtilities.h"
 
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
@@ -121,17 +122,8 @@ void FNiagaraScratchPadScriptViewModel::SetScriptName(FText InScriptName)
 		FNiagaraEditorUtilities::GetReferencingFunctionCallNodes(OriginalScript, ReferencingFunctionCallNodes);
 		for(UNiagaraNodeFunctionCall* ReferencingFunctionCallNode : ReferencingFunctionCallNodes)
 		{
-			ReferencingFunctionCallNode->Modify();
-			FString OldFunctionName = ReferencingFunctionCallNode->GetFunctionName();
-			ReferencingFunctionCallNode->SuggestName(FString());
-			const FString NewFunctionName = ReferencingFunctionCallNode->GetFunctionName();
-			UNiagaraSystem* System = ReferencingFunctionCallNode->GetTypedOuter<UNiagaraSystem>();
-			UNiagaraEmitter* Emitter = ReferencingFunctionCallNode->GetTypedOuter<UNiagaraEmitter>();
-			if (System != nullptr)
-			{
-				FNiagaraStackGraphUtilities::RenameReferencingParameters(*System, Emitter, *ReferencingFunctionCallNode, OldFunctionName, NewFunctionName);
-				ReferencingFunctionCallNode->MarkNodeRequiresSynchronization(TEXT("ScratchPad script renamed"), true);
-			}
+			FNiagaraScratchPadUtilities::FixFunctionInputsFromFunctionScriptRename(*ReferencingFunctionCallNode, NewUniqueName);
+			ReferencingFunctionCallNode->MarkNodeRequiresSynchronization(TEXT("ScratchPad script renamed"), true);
 		}
 
 		OnRenamedDelegate.Broadcast();

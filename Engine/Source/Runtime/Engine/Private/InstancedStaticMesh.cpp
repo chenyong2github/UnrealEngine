@@ -2312,7 +2312,7 @@ int32 UInstancedStaticMeshComponent::AddInstanceWorldSpace(const FTransform& Wor
 // Per Instance Custom Data - Updating custom data for specific instance
 bool UInstancedStaticMeshComponent::SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty)
 {
-	if (!PerInstanceSMData.IsValidIndex(InstanceIndex) && 0 <= CustomDataIndex && CustomDataIndex < NumCustomDataFloats)
+	if (!PerInstanceSMData.IsValidIndex(InstanceIndex) || CustomDataIndex < 0 || CustomDataIndex >= NumCustomDataFloats)
 	{
 		return false;
 	}
@@ -2367,7 +2367,7 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 	if (!InstanceAlreadyRemoved && PerInstanceSMData.IsValidIndex(InstanceIndex))
 	{
 		PerInstanceSMData.RemoveAt(InstanceIndex);
-		PerInstanceSMCustomData.RemoveAt(InstanceIndex, NumCustomDataFloats);
+		PerInstanceSMCustomData.RemoveAt(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats);
 	}
 
 #if WITH_EDITOR
@@ -3059,16 +3059,6 @@ void UInstancedStaticMeshComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UInstancedStaticMeshComponent::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-
-	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject) && bDuplicateForPIE)
-	{
-		InitPerInstanceRenderData(true);		
-	}
-}
-
 #if WITH_EDITOR
 void UInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
@@ -3253,13 +3243,13 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	const int32 InstanceOffsetValue = BatchElement.UserIndex;
 
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVertexFactoryUniformShaderParameters>(), InstancedVertexFactory->GetUniformBuffer());
+	ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 
 	if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
 	{
 		ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
 		ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
 		ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
-		ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 	}
 	if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
 	{

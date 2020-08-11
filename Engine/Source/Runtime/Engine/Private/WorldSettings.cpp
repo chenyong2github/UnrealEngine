@@ -12,6 +12,9 @@
 #include "EngineUtils.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/WorldComposition.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "AudioDevice.h"
@@ -55,6 +58,7 @@ AWorldSettings::FOnNumberOfBookmarksChanged AWorldSettings::OnNumberOfBoomarksCh
 
 AWorldSettings::AWorldSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
+	, WorldPartition(nullptr)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
@@ -75,12 +79,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bEnableAISystem = true;
 	bEnableWorldComposition = false;
 	bEnableWorldOriginRebasing = false;
-#if WITH_EDITORONLY_DATA	
-	bEnableHierarchicalLODSystem = false;
-
- 	FHierarchicalSimplification LODBaseSetup;
-	HierarchicalLODSetup.Add(LODBaseSetup);
-	NumHLODLevels = HierarchicalLODSetup.Num();
+#if WITH_EDITORONLY_DATA
+	bEnableHierarchicalLODSystem_DEPRECATED = true;
+	NumHLODLevels = 0;
 	bGenerateSingleClusterForLevel = false;
 #endif
 
@@ -118,6 +119,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	DefaultBookmarkClass = UBookMark::StaticClass();
 	LastBookmarkClass = DefaultBookmarkClass;
+
+	// Default to UWorldPartitionLevelStreamingPolicy
+	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
 }
 
 void AWorldSettings::PostInitProperties()
@@ -201,6 +205,20 @@ void AWorldSettings::PostRegisterAllComponents()
 	}
 }
 
+UWorldPartition* AWorldSettings::GetWorldPartition() const
+{
+	return bEnableWorldPartition ? WorldPartition : nullptr;
+}
+
+void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
+{
+	check(!WorldPartition);
+	check(InWorldPartition);
+	WorldPartition = InWorldPartition;
+	bEnableWorldPartition = true;
+	bEnableWorldComposition = false;
+}
+
 float AWorldSettings::GetGravityZ() const
 {
 	if (!bWorldGravitySet)
@@ -268,12 +286,39 @@ void AWorldSettings::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 	DOREPLIFETIME( AWorldSettings, bHighPriorityLoading );
 }
 
+// Custom serialization version for all packages containing WorldSetting
+struct FWorldSettingCustomVersion
+{
+	enum Type
+	{
+		// Before any version changes were made
+		BeforeCustomVersionWasAdded = 0,
+
+		// Deprecated bEnableHierarchicalLODSystem
+		DeprecatedEnableHierarchicalLODSystem = 1,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+
+	FWorldSettingCustomVersion() = delete;
+};
+
+const FGuid FWorldSettingCustomVersion::GUID(0x1ED048F4, 0x2F2E4C68, 0x89D053A4, 0xF18F102D);
+// Register the custom version with core
+FCustomVersionRegistration GRegisterWorldSettingCustomVersion(FWorldSettingCustomVersion::GUID, FWorldSettingCustomVersion::LatestVersion, TEXT("WorldSettingVer"));
+
 void AWorldSettings::Serialize( FArchive& Ar )
 {
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FEnterpriseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FWorldSettingCustomVersion::GUID);
 
 	if (Ar.UE4Ver() < VER_UE4_ADD_OVERRIDE_GRAVITY_FLAG)
 	{
@@ -315,6 +360,14 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			const int32 NumBookmarks = sizeof(BookMarks) / sizeof(UBookMark*);
 			BookmarkArray = TArray<UBookmarkBase*>(LocalBookmarks, NumBookmarks);
 			AdjustNumberOfBookmarks();
+		}
+
+		if (Ar.CustomVer(FWorldSettingCustomVersion::GUID) < FWorldSettingCustomVersion::DeprecatedEnableHierarchicalLODSystem)
+		{
+			if (!bEnableHierarchicalLODSystem_DEPRECATED)
+			{
+				ResetHierarchicalLODSetup();
+			}
 		}
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -395,7 +448,7 @@ int32 AWorldSettings::GetNumHierarchicalLODLevels() const
 		return HLODSettings->DefaultSetup->GetDefaultObject<UHierarchicalLODSetup>()->HierarchicalLODSetup.Num();
 	}
 
-	return  HierarchicalLODSetup.Num();
+	return HierarchicalLODSetup.Num();
 }
 
 UMaterialInterface* AWorldSettings::GetHierarchicalLODBaseMaterial() const
@@ -418,6 +471,13 @@ UMaterialInterface* AWorldSettings::GetHierarchicalLODBaseMaterial() const
 	return Material;
 }
 
+void AWorldSettings::ResetHierarchicalLODSetup()
+{
+	HLODSetupAsset = nullptr;
+	OverrideBaseMaterial = nullptr;
+	HierarchicalLODSetup.Reset();
+	NumHLODLevels = 0;
+}
 #endif // WITH_EDITOR
 
 void AWorldSettings::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass)
@@ -569,6 +629,14 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 				return LightmassSettings.EnvironmentIntensity > 0;
 			}
 		}
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldPartition))
+		{
+			return false;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldComposition))
+		{
+			return !bEnableWorldPartition;
+		}
 	}
 
 	return Super::CanEditChange(InProperty);
@@ -578,7 +646,7 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
-{
+	{
 		InternalPostPropertyChanged(PropertyThatChanged->GetFName());
 	}
 
@@ -647,39 +715,32 @@ void AWorldSettings::InternalPostPropertyChanged(FName PropertyName)
 		}
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bForceNoPrecomputedLighting) && bForceNoPrecomputedLighting)
+	{
+		FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("bForceNoPrecomputedLightingIsEnabled", "bForceNoPrecomputedLighting is now enabled, build lighting once to propagate the change (will remove existing precomputed lighting data)."));
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings,bEnableWorldComposition))
+	{
+		bEnableWorldComposition = UWorldComposition::EnableWorldCompositionEvent.IsBound() ? UWorldComposition::EnableWorldCompositionEvent.Execute(GetWorld(), bEnableWorldComposition): false;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, NavigationSystemConfig))
+	{
+		UWorld* World = GetWorld();
+		if (World)
 		{
-			FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("bForceNoPrecomputedLightingIsEnabled", "bForceNoPrecomputedLighting is now enabled, build lighting once to propagate the change (will remove existing precomputed lighting data)."));
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings,bEnableWorldComposition))
-		{
-			if (UWorldComposition::EnableWorldCompositionEvent.IsBound())
+			World->SetNavigationSystem(nullptr);
+			if (NavigationSystemConfig)
 			{
-				bEnableWorldComposition = UWorldComposition::EnableWorldCompositionEvent.Execute(GetWorld(), bEnableWorldComposition);
-			}
-			else
-			{
-				bEnableWorldComposition = false;
-			}
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, NavigationSystemConfig))
-		{
-			UWorld* World = GetWorld();
-			if (World)
-			{
-				World->SetNavigationSystem(nullptr);
-				if (NavigationSystemConfig)
-				{
-					FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
-				}
+				FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
 			}
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, MaxNumberOfBookmarks))
-		{
-			UpdateNumberOfBookmarks();
-		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultBookmarkClass))
-		{
-			UpdateBookmarkClass();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, MaxNumberOfBookmarks))
+	{
+		UpdateNumberOfBookmarks();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AWorldSettings, DefaultBookmarkClass))
+	{
+		UpdateBookmarkClass();
 	}
 
 	if (GetWorld() != nullptr && GetWorld()->PersistentLevel && GetWorld()->PersistentLevel->GetWorldSettings() == this)

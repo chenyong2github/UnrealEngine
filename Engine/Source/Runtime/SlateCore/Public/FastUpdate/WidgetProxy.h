@@ -6,6 +6,7 @@
 #include "Types/PaintArgs.h"
 #include "Styling/WidgetStyle.h"
 #include "Misc/MemStack.h"
+#include "FastUpdate/SlateInvalidationRootHandle.h"
 #include "Layout/Clipping.h"
 #include "Layout/FlowDirection.h"
 #include "Rendering/DrawElements.h"
@@ -196,15 +197,16 @@ class FWidgetProxyHandle
 	friend class FSlateInvalidationRoot;
 public:
 	FWidgetProxyHandle()
-		: InvalidationRoot(nullptr)
-		, MyIndex(INDEX_NONE)
+		: MyIndex(INDEX_NONE)
 		, GenerationNumber(INDEX_NONE)
 
 	{}
 
 	SLATECORE_API bool IsValid() const;
 
-	FSlateInvalidationRoot* GetInvalidationRoot() const { return InvalidationRoot; }
+	FSlateInvalidationRootHandle GetInvalidationRootHandle() const { return InvalidationRootHandle; }
+	FSlateInvalidationRoot* GetInvalidationRoot() const { return InvalidationRootHandle.Advanced_GetInvalidationRootNoCheck(); }
+
 	FWidgetProxy& GetProxy();
 	const FWidgetProxy& GetProxy() const;
 
@@ -219,11 +221,13 @@ public:
 	
 	void MarkWidgetDirty(EInvalidateWidgetReason InvalidateReason);
 	SLATECORE_API void UpdateWidgetFlags(EWidgetUpdateFlags NewFlags);
+
 private:
 	FWidgetProxyHandle(FSlateInvalidationRoot& InInvalidationRoot, int32 InIndex);
+
 private:
 	/** The root of invalidation tree this proxy belongs to */
-	FSlateInvalidationRoot* InvalidationRoot;
+	FSlateInvalidationRootHandle InvalidationRootHandle;
 	/** Index to myself in the fast path list */
 	int32 MyIndex;
 	/** This serves as an efficient way to test for validity which does not require invalidating all handles directly*/

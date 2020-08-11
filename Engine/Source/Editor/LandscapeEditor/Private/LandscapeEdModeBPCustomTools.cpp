@@ -96,7 +96,7 @@ public:
 			FActorSpawnParameters SpawnInfo;
 			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			SpawnInfo.bNoFail = true;
-			SpawnInfo.OverrideLevel = Info->LandscapeActor.Get()->GetTypedOuter<ULevel>(); // always spawn in the same level as the one containing the ALandscape
+			SpawnInfo.OverrideLevel = Info->LandscapeActor.Get()->GetLevel(); // always spawn in the same level as the one containing the ALandscape
 
 			FScopedTransaction Transaction(LOCTEXT("LandscapeEdModeBlueprintToolSpawn", "Create landscape brush"));
 			ALandscapeBlueprintBrushBase* Brush = ViewportClient->GetWorld()->SpawnActor<ALandscapeBlueprintBrushBase>(EdMode->UISettings->BlueprintBrush, SpawnLocation, FRotator(0.0f), SpawnInfo);

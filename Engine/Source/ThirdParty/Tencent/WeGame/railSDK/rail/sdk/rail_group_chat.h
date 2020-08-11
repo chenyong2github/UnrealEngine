@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Entropy Game Global Limited.
+// Copyright (C) 2020, Entropy Game Global Limited.
 // All rights reserved.
 
 #ifndef RAIL_SDK_RAIL_GROUP_CHAT_H
@@ -13,10 +13,14 @@ namespace rail {
 class IRailGroupChat;
 class IRailGroupChatHelper {
   public:
+    // query current player's group information. You can get a list of group ids from
+    // the RailQueryGroupsInfoResult callback.
     virtual RailResult AsyncQueryGroupsInfo(const RailString& user_data) = 0;
 
-    virtual IRailGroupChat* OpenGroupChat(const RailString& group_id,
-                                RailResult* result = NULL) = 0;
+    // get a group chat object. You can't use the IRailGroupChat pointer until you receive
+    // the RailOpenGroupChatResult callback and the result parameter is kSuccess.
+    virtual IRailGroupChat* AsyncOpenGroupChat(const RailString& group_id,
+                                const RailString& user_data) = 0;
 };
 
 class IRailGroupChat : public IRailComponent {

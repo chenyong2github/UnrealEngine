@@ -291,7 +291,7 @@ namespace Chaos
 		//Chaos::FParticlePropertiesData& RemoteParticleData = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteParticleProperties();
 		//Chaos::FShapeRemoteDataContainer& RemoteShapeContainer = *DirtyPropertiesManager->AccessProducerBuffer()->NewRemoteShapeContainer();
 
-		const bool bIsSingleThreaded = FChaosSolversModule::GetModule()->GetDispatcher()->GetMode() == EThreadingMode::SingleThread;
+		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
 
 		// Make a physics proxy, giving it our particle and particle handle
 		const EParticleType InParticleType = GTParticle->ObjectType();
@@ -576,7 +576,8 @@ namespace Chaos
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
 
-		DirtyPropertiesManager = MakeUnique<FDoubleBuffer<FDirtyPropertiesManager>>();
+		//todo: do we need this?
+		//MarshallingManager.Reset();
 
 		if(RewindCaptureNumFrames >= 0)
 		{
@@ -620,106 +621,14 @@ namespace Chaos
 		GetEventManager()->DispatchEvents();
 	}
 
-	/**
-	 * ProxyType is FSingleParticlePhysicsProxy<T>, where T is:
-	 *    Chaos::TPBDRigidParticle<float,3>
-	 *    Chaos::TKinematicGeometryParticle<float,3>
-	 *    Chaos::TGeometryParticle<float,3>
-	 */
-	template<typename ProxyType>
-	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, Chaos::IDispatcher* Dispatcher)
-	{
-		//todo: remove 99% of this
-		LLM_SCOPE(ELLMTag::Chaos);
-#if 0
-		if (Chaos::FParticlePropertiesData* ProxyData = Proxy->NewData())
-		{
-			if (auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle()))
-			{
-				if (Dispatcher)
-				{
-					Dispatcher->EnqueueCommandImmediate([Proxy, ProxyData, Solver](Chaos::FPersistentPhysicsTask* PhysThread)
-					{
-						// make sure the handle is still valid
-						if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle()))
-						{
-							Solver->GetEvolution()->DirtyParticle(*Handle);
-							Proxy->PushToPhysicsState(ProxyData);
-						}
-						//todo: ProxyData->Clear()
-						delete ProxyData;
-					});
-				}
-				else
-				{
-					Solver->GetEvolution()->DirtyParticle(*RigidHandle);
-					Proxy->PushToPhysicsState(ProxyData);
-					delete ProxyData;
-				}
-
-				Proxy->ClearAccumulatedData();
-				Solver->RemoveDirtyProxy(Proxy);
-
-			}
-			else
-			{
-				delete ProxyData;
-			}
-		}
-#endif
-	}
-
-	template<typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
-	void FlushExec(FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher, FPBDRigidsSolver * Solver)
-	{
-#if 0
-		Dispatcher->EnqueueCommandImmediate([Solver, &PoolParticles](Chaos::FPersistentPhysicsTask* PhysThread)
-		{
-			for (int32 i = 0; i < PoolParticles.GetEntryCount(); i++)
-			{
-				auto& Entry = PoolParticles.GetEntry(i);
-				// make sure the handle is still valid
-				if (auto* Handle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Entry.Proxy->GetHandle()))
-				{
-					Solver->GetEvolution()->DirtyParticle(*Handle);
-					Entry.Proxy->PushToPhysicsState(&Entry.Particle);
-				}
-				Entry.Particle.Reset();
-			}
-		});
-#endif
-	}
-
-	template<typename ProxyType, typename ParticleEntry, typename ProxyEntry, SIZE_T PreAllocCount>
-	void PushPhysicsStateExec(FPBDRigidsSolver * Solver, ProxyType* Proxy, FPBDRigidsSolver::TFramePool<ParticleEntry, ProxyEntry, PreAllocCount>& PoolParticles, Chaos::IDispatcher* Dispatcher)
-	{
-		auto* RigidHandle = static_cast<Chaos::TGeometryParticleHandle<float, 3>*>(Proxy->GetHandle());
-		if (RigidHandle == nullptr)
-		{
-			return;
-		}
-
-		// get a new entry in the pool
-		auto& Entry = PoolParticles.GetNewEntry();
-		Entry.Particle.Init(*Proxy->GetParticle());
-		Entry.Proxy = Proxy;
-
-		Proxy->ClearAccumulatedData();
-		Solver->RemoveDirtyProxy(Proxy);
-	}
-
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsStatePooled(IDispatcher* Dispatcher)
-	{
-	}
-
-	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::PushPhysicsState(IDispatcher* Dispatcher)
+	void TPBDRigidsSolver<Traits>::PushPhysicsState(const FReal DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PushPhysicsState);
-		FDirtySet* DirtyProxiesData = DirtyProxiesDataBuffer.AccessProducerBuffer();
+		FPushPhysicsData* PushData = MarshallingManager.GetProducerData_External();
+		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
+		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
-		FDirtyPropertiesManager* Manager = DirtyPropertiesManager->AccessProducerBuffer();
 		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
@@ -771,11 +680,12 @@ namespace Chaos
 			}
 		});
 
-		DirtyPropertiesManager->FlipProducer();
-		DirtyProxiesDataBuffer.FlipProducer();
-		const bool bIsSingleThreaded = FChaosSolversModule::GetModule()->GetDispatcher()->GetMode() == EThreadingMode::SingleThread;
+		const bool bIsSingleThreaded = GetThreadingMode() == EThreadingModeTemp::SingleThread;
+		MarshallingManager.Step_External(DeltaTime);
+		TArray<FPushPhysicsData*> PushedData = MarshallingManager.StepInternalTime_External(DeltaTime);
+		ensure(PushedData.Num() == 1 && PushedData[0] == PushData);	//internal and external dt matches so should be the exact data we just wrote to
 
-		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, this]()
+		EnqueueCommandImmediate([bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, PushData, this]()
 		{
 			FRewindData* RewindData = GetRewindData();
 			auto ProcessProxyPT = [bIsSingleThreaded, Manager,DirtyProxiesData,ShapeDirtyData, RewindData, this](auto& Proxy,int32 DataIdx,FDirtyProxy& Dirty,const auto& CreateHandleFunc)
@@ -879,7 +789,7 @@ namespace Chaos
 				}
 			});
 
-			DirtyProxiesData->Reset();
+			MarshallingManager.FreeData_Internal(PushData);
 		});
 	}
 

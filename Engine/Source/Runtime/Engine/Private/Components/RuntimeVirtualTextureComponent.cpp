@@ -3,6 +3,7 @@
 #include "Components/RuntimeVirtualTextureComponent.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "GameDelegates.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
@@ -16,7 +17,27 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 	: Super(ObjectInitializer)
 	, SceneProxy(nullptr)
 {
+	Mobility = EComponentMobility::Stationary;
 }
+
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureComponent::OnRegister()
+{
+	Super::OnRegister();
+	// PIE duplicate will take ownership of the URuntimeVirtualTexture, so we add a delegate to be called when PIE finishes allowing us to retake ownership.
+	PieEndDelegateHandle = FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &URuntimeVirtualTextureComponent::MarkRenderStateDirty);
+}
+
+void URuntimeVirtualTextureComponent::OnUnregister()
+{
+	FGameDelegates::Get().GetEndPlayMapDelegate().Remove(PieEndDelegateHandle);
+	PieEndDelegateHandle.Reset();
+
+	Super::OnUnregister();
+}
+
+#endif
 
 bool URuntimeVirtualTextureComponent::IsVisible() const
 {
@@ -51,6 +72,11 @@ void URuntimeVirtualTextureComponent::DestroyRenderState_Concurrent()
 	GetScene()->RemoveRuntimeVirtualTexture(this);
 
 	Super::DestroyRenderState_Concurrent();
+}
+
+void URuntimeVirtualTextureComponent::Invalidate(FBoxSphereBounds const& InWorldBounds)
+{
+	GetScene()->InvalidateRuntimeVirtualTexture(this, InWorldBounds);
 }
 
 FBoxSphereBounds URuntimeVirtualTextureComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -114,6 +140,7 @@ bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 
 void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX, uint32 InSizeY, uint8* InData)
 {
+	// We need an existing StreamingTexture object to update.
 	if (VirtualTexture != nullptr && StreamingTexture != nullptr)
 	{
 		// Release current runtime virtual texture producer.
@@ -159,6 +186,64 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 	}
 }
 
+#endif
+
+bool URuntimeVirtualTextureComponent::IsMinMaxTextureEnabled() const
+{
+	return VirtualTexture != nullptr && VirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight;
+}
+
+bool URuntimeVirtualTextureComponent::IsMinMaxTextureValid() const
+{
+	return VirtualTexture != nullptr && MinMaxTexture != nullptr && VirtualTexture->GetTileCount() == MinMaxTexture->GetSizeX() && VirtualTexture->GetTileCount() == MinMaxTexture->GetSizeY();
+}
+
+#if WITH_EDITOR
+
+void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData)
+{
+	// We need an existing MinMaxTexture object to update.
+	if (VirtualTexture != nullptr && MinMaxTexture != nullptr)
+	{
+		MinMaxTexture->Modify();
+
+		FTextureFormatSettings Settings;
+		Settings.CompressionSettings = TC_EditorIcon;
+		Settings.CompressionNone = true;
+		Settings.SRGB = false;
+
+		const EObjectFlags Flags = RF_Public | RF_Standalone | RF_Transactional;
+		UTexture2D* Texture = NewObject<UTexture2D>(MinMaxTexture->GetOutermost(), MinMaxTexture->GetFName(), Flags);
+		Texture->Filter = TF_Nearest;
+		Texture->MipGenSettings = TMGS_LeaveExistingMips;
+		Texture->MipLoadOptions = ETextureMipLoadOptions::AllMips;
+		Texture->NeverStream = true;
+		Texture->SetLayerFormatSettings(0, Settings);
+		Texture->Source.Init(InSizeX, InSizeY, 1, InNumMips, TSF_BGRA8, InData);
+		Texture->PostEditChange();
+		
+		MinMaxTexture = Texture;
+	}
+}
+
+bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty) const
+{
+	bool bCanEdit = Super::CanEditChange(InProperty);
+	if (InProperty->GetFName() == TEXT("MinMaxTexture"))
+	{
+		bCanEdit &= IsMinMaxTextureEnabled();
+	}
+	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
+	{
+		bCanEdit &= NumStreamingMips() > 0 && GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
+	}
+	else if (InProperty->GetFName() == TEXT("bUseStreamingLowMipsInEditor"))
+	{
+		bCanEdit &= GetStreamingTexture() != nullptr && NumStreamingMips() > 0;
+	}
+	return bCanEdit;
+}
+
 void URuntimeVirtualTextureComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
@@ -170,6 +255,15 @@ void URuntimeVirtualTextureComponent::CheckForErrors()
 			->AddToken(FUObjectToken::Create(this))
 			->AddToken(FTextToken::Create(LOCTEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate", "The settings have changed since the streaming texture was last rebuilt. Streaming mips are disabled.")))
 			->AddToken(FMapErrorToken::Create(FName(TEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate"))));
+	}
+
+	// Check if MinMax texture has been built with the latest settings.
+	if (MinMaxTexture != nullptr && !IsMinMaxTextureValid())
+	{
+		FMessageLog("MapCheck").Warning()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(LOCTEXT("RuntimeVirtualTextureComponent_MinMaxTextureNeedsUpdate", "The settings have changed since the MinMax texture was last rebuilt.")))
+			->AddToken(FMapErrorToken::Create(FName(TEXT("RuntimeVirtualTextureComponent_MinMaxTextureNeedsUpdate"))));
 	}
 }
 

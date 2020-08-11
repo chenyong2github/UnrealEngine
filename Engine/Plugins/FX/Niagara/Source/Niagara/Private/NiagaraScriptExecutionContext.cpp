@@ -98,6 +98,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			const int32 FunctionCount = ScriptExecutableData.CalledVMExternalFunctions.Num();
 			FunctionTable.Reset(FunctionCount);
 			FunctionTable.AddZeroed(FunctionCount);
+			LocalFunctionTable.Reset();
 			TArray<int32> LocalFunctionTableIndices;
 			LocalFunctionTableIndices.Reserve(FunctionCount);
 
@@ -321,8 +322,6 @@ TArrayView<const uint8> FNiagaraScriptExecutionContext::GetScriptLiterals() cons
 
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
-	check(IsInGameThread());
-
 	ensure(InSystemInstance != nullptr);
 	CA_ASSUME(InSystemInstance != nullptr);
 	ensure(!InSystemInstance->IsComplete());
@@ -330,6 +329,7 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	bRequiresDistanceFieldData = InSystemInstance->RequiresDistanceFieldData();
 	bRequiresDepthBuffer = InSystemInstance->RequiresDepthBuffer();
 	bRequiresEarlyViewData = InSystemInstance->RequiresEarlyViewData();
+	bRequiresViewUniformBuffer = false;
 	uint32 DataSizeForGPU = InSystemInstance->GPUDataInterfaceInstanceDataSize;
 
 	if (DataSizeForGPU > 0)
@@ -449,6 +449,8 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				ensure((EmitterInstance->GetExecutionState() == ENiagaraExecutionState::Inactive) || (EmitterInstance->GetExecutionState() == ENiagaraExecutionState::InactiveClear));
 				continue;
 			}
+
+			bRequiresViewUniformBuffer |= Emitter->RequiresViewUniformBuffer();
 
 			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
 			InstanceIndex++;

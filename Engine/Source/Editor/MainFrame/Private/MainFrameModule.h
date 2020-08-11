@@ -227,9 +227,4 @@ private:
 
 	// Allow delaying when to show main frame's window
 	bool bDelayedShowMainFrame;
-
-	// Sounds used for compilation.
-	class USoundBase* CompileStartSound;
-	class USoundBase* CompileSuccessSound;
-	class USoundBase* CompileFailSound;
 };

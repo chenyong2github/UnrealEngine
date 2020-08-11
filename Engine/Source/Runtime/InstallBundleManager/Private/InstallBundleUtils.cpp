@@ -83,6 +83,13 @@ namespace InstallBundleUtil
 		Tasks.Add(MoveTemp(Task));
 	}
 
+	void StartInstallBundleAsyncIOTask(FQueuedThreadPool* ThreadPool, TArray<TUniquePtr<FInstallBundleTask>>& Tasks, TUniqueFunction<void()> WorkFunc, TUniqueFunction<void()> OnComplete)
+	{
+		TUniquePtr<FInstallBundleTask> Task = MakeUnique<FInstallBundleTask>(MoveTemp(WorkFunc), MoveTemp(OnComplete));
+		Task->StartBackgroundTask(ThreadPool);
+		Tasks.Add(MoveTemp(Task));
+	}
+
 	void FinishInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks)
 	{
 		TArray<TUniquePtr<FInstallBundleTask>> FinishedTasks;

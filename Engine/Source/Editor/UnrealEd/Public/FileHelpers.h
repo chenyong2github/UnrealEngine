@@ -171,7 +171,14 @@ public:
 class FEditorFileUtils
 {
 public:
+	/** Dirty Package Ignore */
+	using FShouldIgnorePackageFunctionRef = TFunctionRef<bool(UPackage*)>;
+	struct FShouldIgnorePackage
+	{
+		static bool Default(UPackage*) { return false; }
+	};
 
+	
 	/** Used to decide how to handle garbage collection. */
 	enum EGarbageCollectionOption
 	{
@@ -262,7 +269,7 @@ public:
 	static UNREALED_API bool SaveLevel(ULevel* Level, const FString& DefaultFilename = TEXT( "" ), FString* OutSavedFilename = nullptr );
 
 	/** Saves packages which contain map data but are not map packages themselves. */
-	static UNREALED_API void SaveMapDataPackages(UWorld* World, bool bCheckDirty);
+	static UNREALED_API void SaveMapDataPackages(UWorld* World, bool bCheckDirty, bool bSaveExternal = false);
 
 	/**
 	 * Does a SaveAs for the specified assets.
@@ -337,7 +344,7 @@ public:
 	 * @param	bOutPackagesNeededSaving	when not NULL, will be set to true if there was any work to be done, and false otherwise.
 	 * @return								true on success, false on fail.
 	 */
-	UNREALED_API static bool SaveDirtyPackages(const bool bPromptUserToSave, const bool bSaveMapPackages, const bool bSaveContentPackages, const bool bFastSave = false, const bool bNotifyNoPackagesSaved = false, const bool bCanBeDeclined = true, bool* bOutPackagesNeededSaving = NULL);
+	UNREALED_API static bool SaveDirtyPackages(const bool bPromptUserToSave, const bool bSaveMapPackages, const bool bSaveContentPackages, const bool bFastSave = false, const bool bNotifyNoPackagesSaved = false, const bool bCanBeDeclined = true, bool* bOutPackagesNeededSaving = NULL, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction = FShouldIgnorePackage::Default);
 
 	/**
 	* Looks at all currently loaded packages and saves them if their "bDirty" flag is set and they include specified clasees, optionally prompting the user to select which packages to save)
@@ -356,14 +363,23 @@ public:
 	 *
 	 * @param OutDirtyPackages Array to append dirty packages to.
 	 */
-	UNREALED_API static void GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages);
+	UNREALED_API static void GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction = FShouldIgnorePackage::Default);
 
 	/**
 	 * Appends array with all currently dirty content packages.
 	 *
 	 * @param OutDirtyPackages Array to append dirty packages to.
 	 */
-	UNREALED_API static void GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages);
+	UNREALED_API static void GetDirtyContentPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction = FShouldIgnorePackage::Default);
+
+	/**
+	 * Appends array with all currently dirty packages
+	 *
+	 * @param OutDirtyPackages Array to append dirty packages to.
+	 * @param FilterFunction Allows filtering out some dirty packages.
+	 */
+	UNREALED_API static void GetDirtyPackages(TArray<UPackage*>& OutDirtyPackages, const FShouldIgnorePackageFunctionRef& ShouldIgnorePackageFunction = FShouldIgnorePackage::Default);
+
 
 	/**
 	 * Saves the active level, prompting the use for checkout if necessary.
@@ -574,7 +590,7 @@ public:
 	 * @param	ObjectPath		The path to the package to test
 	 * @return					The package name from the string
 	 */
-	UNREALED_API static FString ExtractPackageName(const FString& ObjectPath);\
+	UNREALED_API static FString ExtractPackageName(const FString& ObjectPath);
 
 	////////////////////////////////////////////////////////////////////////////
 	// File

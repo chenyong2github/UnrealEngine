@@ -650,23 +650,7 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 			}
 			else if(UStaticMesh* StaticMesh = Cast<UStaticMesh>(AssetObject))
 			{
-				// This ensures we have mesh description and thus avoid an assert when building meshes (StaticMesh.cpp:2470).
-				// We can clear the mesh descriptions post load.
-				const int32 NumLODs = StaticMesh->GetNumSourceModels();
-				bool bValidMesh = true;
-				for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
-				{
-					if ( !StaticMesh->GetMeshDescription(LODIndex) )
-					{
-						bValidMesh = false;
-						break;
-					}
-				}
-
-				if( bValidMesh )
-				{
-					StaticMeshes.Add( StaticMesh );
-				}
+				StaticMeshes.Add( StaticMesh );
 			}
 		}
 	}

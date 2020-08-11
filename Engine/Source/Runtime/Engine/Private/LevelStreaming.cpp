@@ -32,7 +32,7 @@
 #include "Engine/PackageMapClient.h"
 #include "Serialization/LoadTimeTrace.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogLevelStreaming, Log, All);
+DEFINE_LOG_CATEGORY(LogLevelStreaming);
 
 #define LOCTEXT_NAMESPACE "World"
 
@@ -1471,7 +1471,7 @@ void ULevelStreaming::SetWorldAssetByPackageName(FName InPackageName)
 	SetWorldAsset(NewWorld);
 }
 
-void ULevelStreaming::RenameForPIE(int32 PIEInstanceID)
+void ULevelStreaming::RenameForPIE(int32 PIEInstanceID, bool bKeepWorldAssetName)
 {
 	const UWorld* const World = GetWorld();
 
@@ -1488,7 +1488,14 @@ void ULevelStreaming::RenameForPIE(int32 PIEInstanceID)
 		}
 		FName PlayWorldStreamingPackageName = FName(*UWorld::ConvertToPIEPackageName(GetWorldAssetPackageName(), PIEInstanceID));
 		FSoftObjectPath::AddPIEPackageName(PlayWorldStreamingPackageName);
-		SetWorldAssetByPackageName(PlayWorldStreamingPackageName);
+		if (bKeepWorldAssetName)
+		{
+			SetWorldAsset(TSoftObjectPtr<UWorld>(FString::Printf(TEXT("%s.%s"), *PlayWorldStreamingPackageName.ToString(), *FPackageName::ObjectPathToObjectName(WorldAsset.ToString()))));
+		}
+		else
+		{
+			SetWorldAssetByPackageName(PlayWorldStreamingPackageName);
+		}
 
 		NetDriverRenameStreamingLevelPackageForPIE(World, PackageNameToLoad);
 	}
@@ -1690,6 +1697,78 @@ bool ULevelStreaming::IsValidStreamingLevel() const
 	return true;
 }
 
+EStreamingStatus ULevelStreaming::GetLevelStreamingStatus() const
+{
+	if (CurrentState == ECurrentState::FailedToLoad)
+	{
+		return LEVEL_FailedToLoad;
+	}
+	else if (CurrentState == ECurrentState::MakingInvisible)
+	{
+		return LEVEL_MakingInvisible;
+	}
+	else if (LoadedLevel)
+	{
+		if (CurrentState == ECurrentState::LoadedVisible)
+		{
+			return LEVEL_Visible;
+		}
+		else if ((CurrentState == ECurrentState::MakingVisible) && (GetWorld()->GetCurrentLevelPendingVisibility() == LoadedLevel))
+		{
+			return LEVEL_MakingVisible;
+		}
+		return LEVEL_Loaded;
+	}
+	else
+	{
+		if (CurrentState == ECurrentState::Loading)
+		{
+			return LEVEL_Loading;
+		}
+
+		check(CurrentState == ECurrentState::Removed || CurrentState == ECurrentState::Unloaded);
+		// See whether the level's world object is still around.
+		UPackage* LevelPackage = FindObjectFast<UPackage>(nullptr, GetWorldAssetPackageFName());
+		UWorld* LevelWorld = LevelPackage ? UWorld::FindWorldInPackage(LevelPackage) : nullptr;
+		return LevelWorld ? LEVEL_UnloadedButStillAround : LEVEL_Unloaded;
+	}
+}
+
+/** Utility that gets a color for a particular level status */
+FColor ULevelStreaming::GetLevelStreamingStatusColor(EStreamingStatus Status)
+{
+	switch (Status)
+	{
+	case LEVEL_Unloaded: return FColor::Red;
+	case LEVEL_UnloadedButStillAround: return FColor::Purple;
+	case LEVEL_Loading: return FColor::Yellow;
+	case LEVEL_Loaded: return FColor::Cyan;
+	case LEVEL_MakingVisible: return FColor::Blue;
+	case LEVEL_Visible: return FColor::Green;
+	case LEVEL_Preloading: return FColor::Magenta;
+	case LEVEL_FailedToLoad: return FColorList::Maroon;
+	case LEVEL_MakingInvisible: return FColorList::Orange;
+	default: return FColor::White;
+	};
+}
+
+const TCHAR* ULevelStreaming::GetLevelStreamingStatusDisplayName(EStreamingStatus Status)
+{
+	switch (Status)
+	{
+	case LEVEL_Unloaded: return TEXT("Unloaded");
+	case LEVEL_UnloadedButStillAround: return TEXT("Unloaded Still Around");
+	case LEVEL_Loading: return TEXT("Loading");
+	case LEVEL_Loaded: return TEXT("Loaded Not Visible");
+	case LEVEL_MakingVisible: return TEXT("Making Visible");
+	case LEVEL_Visible: return TEXT("Loaded Visible");
+	case LEVEL_Preloading: return TEXT("Preloading");
+	case LEVEL_FailedToLoad: return TEXT("Failed to Load");
+	case LEVEL_MakingInvisible: return TEXT("Making Invisible");
+	default: return TEXT("Unknown");
+	};
+}
+
 #if WITH_EDITOR
 void ULevelStreaming::PostEditUndo()
 {
@@ -1759,7 +1838,7 @@ void ULevelStreamingDynamic::SetShouldBeLoaded(const bool bInShouldBeLoaded)
 	}
 }
 
-ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* WorldContextObject, const FString LevelName, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride)
+ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* WorldContextObject, const FString LevelName, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass)
 {
 	bOutSuccess = false;
 	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -1776,10 +1855,10 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance(UObject* World
 		return nullptr;
 	}
 
-	return LoadLevelInstance_Internal(World, LongPackageName, Location, Rotation, bOutSuccess, OptionalLevelNameOverride);
+	return LoadLevelInstance_Internal(World, LongPackageName, Location, Rotation, bOutSuccess, OptionalLevelNameOverride, OptionalLevelStreamingClass);
 }
 
-ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride)
+ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass)
 {
 	bOutSuccess = false;
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
@@ -1794,13 +1873,14 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr
 		return nullptr;
 	}
 
-	return LoadLevelInstance_Internal(World, Level.GetLongPackageName(), Location, Rotation, bOutSuccess, OptionalLevelNameOverride);
+	return LoadLevelInstance_Internal(World, Level.GetLongPackageName(), Location, Rotation, bOutSuccess, OptionalLevelNameOverride, OptionalLevelStreamingClass);
 }
 
-ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorld* World, const FString& LongPackageName, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride)
+ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorld* World, const FString& LongPackageName, const FVector Location, const FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride, TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass)
 {
 	const FString PackagePath = FPackageName::GetLongPackagePath(LongPackageName);
 	FString ShortPackageName = FPackageName::GetShortName(LongPackageName);
+	UClass* LevelStreamingClass = OptionalLevelStreamingClass != nullptr ? OptionalLevelStreamingClass.Get() : ULevelStreamingDynamic::StaticClass();
 
 	if (ShortPackageName.StartsWith(World->StreamingLevelsPrefix))
 	{
@@ -1853,7 +1933,7 @@ ULevelStreamingDynamic* ULevelStreamingDynamic::LoadLevelInstance_Internal(UWorl
 	}
     
 	// Setup streaming level object that will load specified map
-	ULevelStreamingDynamic* StreamingLevel = NewObject<ULevelStreamingDynamic>(World, ULevelStreamingDynamic::StaticClass(), NAME_None, RF_Transient, NULL);
+	ULevelStreamingDynamic* StreamingLevel = NewObject<ULevelStreamingDynamic>(World, LevelStreamingClass, NAME_None, RF_Transient, NULL);
     StreamingLevel->SetWorldAssetByPackageName(UnmodifiedLevelPackageName);
 #if WITH_EDITOR
 	if (bIsPlayInEditor)

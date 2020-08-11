@@ -460,7 +460,7 @@ float UPrimitiveComponent::CalculateMass(FName)
 
 	if (BodyInstance.BodySetup.IsValid())
 	{
-		return BodyInstance.BodySetup->CalculateMass(this);
+		return BodyInstance.GetBodySetup()->CalculateMass(this);
 	}
 	else if (UBodySetup * BodySetup = GetBodySetup())
 	{

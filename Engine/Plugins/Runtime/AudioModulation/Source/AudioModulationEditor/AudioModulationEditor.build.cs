@@ -19,6 +19,7 @@ public class AudioModulationEditor : ModuleRules
 				"InputCore",
 				"EditorStyle",
 				"AudioEditor",
+				"AudioExtensions",
 				"AudioModulation",
 				"CurveEditor",
 				"EditorWidgets"

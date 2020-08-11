@@ -21,6 +21,7 @@
 #include "EditConditionContext.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ActorTreeItem.h"
+#include "PropertyHandleImpl.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -511,7 +512,16 @@ void FPropertyEditor::ToggleEditConditionState()
 		}
 	}
 
-	FPropertyChangedEvent ChangeEvent(PropertyNode->GetProperty());
+	TArray<TMap<FString,int32>> ArrayIndicesPerObject;
+	ArrayIndicesPerObject.AddDefaulted(ComplexParentNode->GetInstancesNum());
+
+	for (int32 ObjectIndex = 0; ObjectIndex < ComplexParentNode->GetInstancesNum(); ++ObjectIndex)
+	{
+		FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[ObjectIndex], &PropertyNode.Get());
+	}
+
+	FPropertyChangedEvent ChangeEvent(PropertyNode->GetProperty(), EPropertyChangeType::ValueSet);
+	ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 	PropertyNode->NotifyPostChange( ChangeEvent, PropertyUtilities->GetNotifyHook() );
 }
 

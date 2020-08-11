@@ -34,6 +34,8 @@
 #include "NiagaraClipboard.h"
 #include "Toolkits/NiagaraSystemToolkit.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraMessages.h"
+#include "NiagaraMessageUtilities.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -168,6 +170,8 @@ void UNiagaraStackFunctionInput::Initialize(
 	FString UniqueEmitterName = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter()->GetUniqueEmitterName() : FString();
 	EditCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
 	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, UniqueEmitterName, OwningFunctionCallNode.Get());
+
+	MessageLogGuid = GetSystemViewModel()->GetMessageLogGuid();
 }
 
 void UNiagaraStackFunctionInput::FinalizeInternal()
@@ -184,10 +188,12 @@ void UNiagaraStackFunctionInput::FinalizeInternal()
 		SourceScript->GetSource()->OnChanged().RemoveAll(this);
 	}
 
-	if (MessageManagerRefreshHandle.IsValid())
+	if (MessageManagerRegistrationKey.IsValid())
 	{
-		FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
-		MessageManagerRefreshHandle.Reset();
+		FNiagaraMessageManager::Get()->Unsubscribe(
+			  DisplayName
+			, MessageLogGuid
+			, MessageManagerRegistrationKey);
 	}
 
 	Super::FinalizeInternal();
@@ -277,7 +283,7 @@ bool UNiagaraStackFunctionInput::TestCanCopyWithMessage(FText& OutMessage) const
 
 void UNiagaraStackFunctionInput::Copy(UNiagaraClipboardContent* ClipboardContent) const
 {
-	const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(GetTransientPackage());
+	const UNiagaraClipboardFunctionInput* ClipboardInput = ToClipboardFunctionInput(ClipboardContent);
 	if (ClipboardInput != nullptr)
 	{
 		ClipboardContent->FunctionInputs.Add(ClipboardInput);
@@ -300,7 +306,8 @@ bool UNiagaraStackFunctionInput::TestCanPasteWithMessage(const UNiagaraClipboard
 			{
 				if (ClipboardFunctionInput->ValueMode == ENiagaraClipboardFunctionInputValueMode::Dynamic)
 				{
-					if (ClipboardFunctionInput->Dynamic->Script.IsValid() == false)
+					UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput->Dynamic->Script.LoadSynchronous();
+					if (ClipboardFunctionScript == nullptr)
 					{
 						OutMessage = LOCTEXT("CantPasteInvalidDynamicInputScript", "Can not paste the dynamic input because its script is no longer valid.");
 						return false;
@@ -407,17 +414,21 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 	if (InputValues.DynamicNode.IsValid())
 	{
-		if (MessageManagerRefreshHandle.IsValid() == false)
+		if (MessageManagerRegistrationKey.IsValid() == false)
 		{
-			MessageManagerRefreshHandle = FNiagaraMessageManager::Get()->GetOnRequestRefresh().AddUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
+			FNiagaraMessageManager::Get()->SubscribeToAssetMessagesByObject(
+				  DisplayName
+				, MessageLogGuid
+				, FObjectKey(InputValues.DynamicNode.Get())
+				, MessageManagerRegistrationKey
+			).BindUObject(this, &UNiagaraStackFunctionInput::OnMessageManagerRefresh);
 		}
 	}
 	else
 	{
-		if (MessageManagerRefreshHandle.IsValid())
+		if (MessageManagerRegistrationKey.IsValid())
 		{
-			FNiagaraMessageManager::Get()->GetOnRequestRefresh().Remove(MessageManagerRefreshHandle);
-			MessageManagerRefreshHandle.Reset();
+			FNiagaraMessageManager::Get()->Unsubscribe(DisplayName, MessageLogGuid, MessageManagerRegistrationKey);
 		}
 	}
 
@@ -583,15 +594,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		}	
 	}
 
-	if (InputValues.DynamicNode.IsValid())
-	{
-		TArray<TSharedRef<const INiagaraMessage>> Messages = FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(
-			GetSystemViewModel()->GetMessageLogGuid(), FObjectKey(InputValues.DynamicNode.Get()));
-		for (TSharedRef<const INiagaraMessage> Message : Messages)
-		{
-			NewIssues.Add(FNiagaraStackGraphUtilities::MessageManagerMessageToStackIssue(Message, GetStackEditorDataKey()));
-		}
-	}
+	NewIssues.Append(MessageManagerIssues);
 }
 
 class UNiagaraStackFunctionInputUtilities
@@ -609,14 +612,11 @@ public:
 		{
 			if (Material != nullptr)
 			{
-				for (UMaterialExpression* Expression : Material->Expressions)
+				TArray<UMaterialExpressionDynamicParameter*> Expressions;
+				Material->GetAllExpressionsInMaterialAndFunctionsOfType(Expressions);
+				for (UMaterialExpressionDynamicParameter* DynParamExpFound : Expressions)
 				{
-					UMaterialExpressionDynamicParameter* DynParamExpFound = Cast<UMaterialExpressionDynamicParameter>(Expression);
-
-					if (DynParamExpFound != nullptr)
-					{
-						OutDynamicParameterExpressions.Add(DynParamExpFound);
-					}
+					OutDynamicParameterExpressions.Add(DynParamExpFound);
 				}
 			}
 		}
@@ -1519,13 +1519,14 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 	return FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OutputNode->GetUsage(), InName, InputType);
 }
 
-void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const FGuid& MessageJobBatchAssetKey, const TArray<TSharedRef<const INiagaraMessage>> NewMessages)
+void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages)
 {
-	if (InputValues.DynamicNode.IsValid() && GetSystemViewModel()->GetMessageLogGuid() == MessageJobBatchAssetKey)
+	MessageManagerIssues.Reset();
+	if (InputValues.DynamicNode.IsValid())
 	{
-		if (FNiagaraMessageManager::Get()->GetMessagesForAssetKeyAndObjectKey(MessageJobBatchAssetKey, FObjectKey(InputValues.DynamicNode.Get())).Num() > 0)
+		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
-			RefreshChildren();
+			MessageManagerIssues.Add(FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey()));
 		}
 	}
 }
@@ -1802,7 +1803,7 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			if (ensureMsgf(ClipboardFunctionInput.Dynamic->ScriptMode == ENiagaraClipboardFunctionScriptMode::ScriptAsset,
 				TEXT("Dynamic input values can only be set from script asset clipboard functions.")))
 			{
-				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.Get();
+				UNiagaraScript* ClipboardFunctionScript = ClipboardFunctionInput.Dynamic->Script.LoadSynchronous();
 				if (ClipboardFunctionScript != nullptr)
 				{
 					UNiagaraScript* NewDynamicInputScript;
@@ -1938,7 +1939,7 @@ UNiagaraNodeParameterMapSet& UNiagaraStackFunctionInput::GetOrCreateOverrideNode
 	UNiagaraNodeParameterMapSet* OverrideNode = GetOverrideNode();
 	if (OverrideNode == nullptr)
 	{
-		TGuardValue<bool>(bUpdatingGraphDirectly, true);
+		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
 		OverrideNode = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionOverrideNode(*OwningFunctionCallNode);
 		OverrideNodeCache = OverrideNode;
 	}
@@ -1959,7 +1960,7 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 	UEdGraphPin* OverridePin = GetOverridePin();
 	if (OverridePin == nullptr)
 	{
-		TGuardValue<bool>(bUpdatingGraphDirectly, true);
+		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
 		OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode, AliasedInputParameterHandle, InputType);
 		OverridePinCache = OverridePin;
 	}

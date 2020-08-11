@@ -93,7 +93,7 @@ namespace FHttpRetrySystem
 
 		HTTP_API FRequest(
 			class FManager& InManager,
-			const TSharedRef<IHttpRequest>& HttpRequest,
+			const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest,
 			const FRetryLimitCountSetting& InRetryLimitCountOverride = FRetryLimitCountSetting(),
 			const FRetryTimeoutRelativeSecondsSetting& InRetryTimeoutRelativeSecondsOverride = FRetryTimeoutRelativeSecondsSetting(),
             const FRetryResponseCodes& InRetryResponseCodes = FRetryResponseCodes(),
@@ -135,7 +135,7 @@ namespace FHttpRetrySystem
 		/**
 		 * Create a new http request with retries
 		 */
-		HTTP_API TSharedRef<class FHttpRetrySystem::FRequest> CreateRequest(
+		HTTP_API TSharedRef<class FHttpRetrySystem::FRequest, ESPMode::ThreadSafe> CreateRequest(
 			const FRetryLimitCountSetting& InRetryLimitCountOverride = FRetryLimitCountSetting(),
 			const FRetryTimeoutRelativeSecondsSetting& InRetryTimeoutRelativeSecondsOverride = FRetryTimeoutRelativeSecondsSetting(),
 			const FRetryResponseCodes& InRetryResponseCodes = FRetryResponseCodes(),
@@ -167,18 +167,18 @@ namespace FHttpRetrySystem
 
         struct FHttpRetryRequestEntry
         {
-            FHttpRetryRequestEntry(TSharedRef<FRequest>& InRequest);
+            FHttpRetryRequestEntry(TSharedRef<FRequest, ESPMode::ThreadSafe>& InRequest);
 
             bool                    bShouldCancel;
             uint32                  CurrentRetryCount;
             double                  RequestStartTimeAbsoluteSeconds;
             double                  LockoutEndTimeAbsoluteSeconds;
 
-            TSharedRef<FRequest>	Request;
+            TSharedRef<FRequest, ESPMode::ThreadSafe>	Request;
         };
 
-		bool ProcessRequest(TSharedRef<FRequest>& HttpRequest);
-		void CancelRequest(TSharedRef<FRequest>& HttpRequest);
+		bool ProcessRequest(TSharedRef<FRequest, ESPMode::ThreadSafe>& HttpRequest);
+		void CancelRequest(TSharedRef<FRequest, ESPMode::ThreadSafe>& HttpRequest);
 
         // @return true if there is a no formal response to the request
         // @TODO return true if a variety of 5xx errors are the result of a formal response

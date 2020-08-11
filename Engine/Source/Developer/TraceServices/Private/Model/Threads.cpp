@@ -59,7 +59,10 @@ void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Pr
 		ThreadInfo = ThreadMap[Id];
 	}
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
-	ThreadInfo->Name = Session.StoreString(Name);
+	if (Name != nullptr)
+	{
+		ThreadInfo->Name = Session.StoreString(Name);
+	}
 	SortThreads();
 	++ModCount;
 }

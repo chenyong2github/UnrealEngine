@@ -253,6 +253,25 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThrea
 }
 
 /**
+ * Removes an object from delete listeners
+ *
+ * @param Object to remove from delete listeners
+ */
+void FUObjectArray::RemoveObjectFromDeleteListeners(UObjectBase* Object)
+{
+#if THREADSAFE_UOBJECTS
+	FScopeLock UObjectDeleteListenersLock(&UObjectDeleteListenersCritical);
+#endif
+	int32 Index = Object->InternalIndex;
+	check(Index >= 0);
+	// Iterate in reverse order so that when one of the listeners removes itself from the array inside of NotifyUObjectDeleted we don't skip the next listener.
+	for (int32 ListenerIndex = UObjectDeleteListeners.Num() - 1; ListenerIndex >= 0; --ListenerIndex)
+	{
+		UObjectDeleteListeners[ListenerIndex]->NotifyUObjectDeleted(Object, Index);
+	}
+}
+
+/**
  * Returns a UObject index to the global uobject array
  *
  * @param Object object to free
@@ -269,16 +288,6 @@ void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 		UE_LOG(LogUObjectArray, Fatal, TEXT("Unexpected concurency while adding new object"));
 	}
 
-	{
-#if THREADSAFE_UOBJECTS
-		FScopeLock UObjectDeleteListenersLock(&UObjectDeleteListenersCritical);
-#endif
-		// Iterate in reverse order so that when one of the listeners removes itself from the array inside of NotifyUObjectDeleted we don't skip the next listener.
-		for (int32 ListenerIndex = UObjectDeleteListeners.Num() - 1; ListenerIndex >= 0; --ListenerIndex)
-		{
-			UObjectDeleteListeners[ListenerIndex]->NotifyUObjectDeleted(Object, Index);
-		}
-	}
 	// You cannot safely recycle indicies in the non-GC range
 	// No point in filling this list when doing exit purge. Nothing should be allocated afterwards anyway.
 	IndexToObject(Index)->ResetSerialNumberAndFlags();

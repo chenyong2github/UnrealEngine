@@ -13,7 +13,7 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Size By Speed"))
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Size By Speed"), MinimalAPI)
 class UParticleModuleSizeScaleBySpeed : public UParticleModuleSizeBase
 {
 	GENERATED_UCLASS_BODY()

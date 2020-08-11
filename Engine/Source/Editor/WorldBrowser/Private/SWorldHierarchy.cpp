@@ -153,6 +153,26 @@ void SWorldHierarchy::OnBrowseWorld(UWorld* InWorld)
 							.Image(this, &SWorldHierarchy::GetSummonCompositionBrush)
 						]
 					]
+
+					// Button to summon world partition editor tab
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Left)
+					[
+						SNew(SButton)
+						.Visibility(this, &SWorldHierarchy::GetPartitionEditorButtonVisibility)
+						.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+						.OnClicked(this, &SWorldHierarchy::OnSummonPartitionEditor)
+						.ToolTipText(LOCTEXT("SummonPartitionEditorToolTipText", "Summons world partition editor"))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.Content()
+						[
+							SNew(SImage)
+							.Image(this, &SWorldHierarchy::GetSummonPartitionEditorBrush)
+						]
+					]
 				]
 			]
 			
@@ -198,6 +218,23 @@ FReply SWorldHierarchy::OnSummonComposition()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>( "LevelEditor" );
 	LevelEditorModule.SummonWorldBrowserComposition();
+	return FReply::Handled();
+}
+
+const FSlateBrush* SWorldHierarchy::GetSummonPartitionEditorBrush() const
+{
+	return FEditorStyle::GetBrush("WorldBrowser.PartitionEditorButtonBrush");
+}
+
+EVisibility SWorldHierarchy::GetPartitionEditorButtonVisibility() const
+{
+	return WorldModel->IsPartitionWorld() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply SWorldHierarchy::OnSummonPartitionEditor()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>( "LevelEditor" );
+	LevelEditorModule.SummonWorldBrowserPartitionEditor();
 	return FReply::Handled();
 }
 

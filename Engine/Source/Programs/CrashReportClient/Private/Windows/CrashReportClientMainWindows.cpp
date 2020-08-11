@@ -12,42 +12,41 @@
 #include "Serialization/Archive.h"
 #endif
 
-#if CRASH_REPORT_WITH_MTBF
+#if CRASH_REPORT_WITH_MTBF && !PLATFORM_SEH_EXCEPTIONS_DISABLED
 extern void LogCrcEvent(const TCHAR*);
 
-LONG WINAPI UnhandledCrashReportException(EXCEPTION_POINTERS* ExceptionInfo)
+/**
+ * Invoked when an exception was not handled by vectored exception handler(s) nor structured exception handler(s)(__try/__except).
+ * For good understanding a SEH inner working,take a look at EngineUnhandledExceptionFilter documentation in WindowsPlatformCrashContext.cpp.
+ */
+LONG WINAPI CrashReportUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)
 {
-	// Most significant bit in exception code is for fatal exceptions. Report those but not other types.
-	if ((ExceptionInfo->ExceptionRecord->ExceptionCode & 0x80000000L) != 0)
+	// Try to write the exception code in the appropriate field if the session was created. The first crashing thread
+	// incrementing the counter wins the race and can write its exception code.
+	static volatile int32 CrashCount = 0;
+	if (FPlatformAtomics::InterlockedIncrement(&CrashCount) == 1)
 	{
-		// The logger is thread safe and will log all exceptions (unless it happened before the engine was initialized)
 		TCHAR CrashEventLog[64];
 		FCString::Sprintf(CrashEventLog, TEXT("CRC/Crash:%d"), ExceptionInfo->ExceptionRecord->ExceptionCode);
 		LogCrcEvent(CrashEventLog);
 
-		// Try to write the exit code in the appropriate field if the session was created. The first crashing thread
-		// incrementing the counter wins the race and can write its exception code.
-		static volatile int32 CrashCount = 0;
-		if (FPlatformAtomics::InterlockedIncrement(&CrashCount) == 1)
+		uint64 MonitoredEditorPid;
+		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
 		{
-			uint64 MonitoredEditorPid;
-			if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
+			FTimespan Timeout = FTimespan::FromSeconds(1);
+			if (FEditorAnalyticsSession::Lock(Timeout)) // This lock is reentrant for the same process.
 			{
-				FTimespan Timeout = FTimespan::FromSeconds(1);
-				if (FEditorAnalyticsSession::Lock(Timeout)) // This lock is reentrant for the same process.
+				FEditorAnalyticsSession MonitoredSession;
+				if (FEditorAnalyticsSession::FindSession(MonitoredEditorPid, MonitoredSession))
 				{
-					FEditorAnalyticsSession MonitoredSession;
-					if (FEditorAnalyticsSession::FindSession(MonitoredEditorPid, MonitoredSession))
-					{
-						MonitoredSession.SaveMonitorExceptCode(ExceptionInfo->ExceptionRecord->ExceptionCode);
-					}
-					FEditorAnalyticsSession::Unlock();
+					MonitoredSession.SaveMonitorExceptCode(ExceptionInfo->ExceptionRecord->ExceptionCode);
 				}
+				FEditorAnalyticsSession::Unlock();
 			}
 		}
 	}
 
-	// The exception was logged but not handled, continue searching for a real handler.
+	// Let the OS deal with the exception. (the process will crash)
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 #endif
@@ -98,12 +97,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 			}
 		}
 
+		RequestEngineExit(TEXT("Respawn instance."));
 		return 0; // Exit this intermediate instance, the Editor is waiting for it to continue.
 	}
 
-	// In case of CRC crashing, this handler is going to be called.
-	AddVectoredExceptionHandler(0, UnhandledCrashReportException);
-#endif
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	::SetUnhandledExceptionFilter(CrashReportUnhandledExceptionFilter);
+#endif // !PLATFORM_SEH_EXCEPTIONS_DISABLED
+#endif // CRASH_REPORT_WITH_MTBF
 
 	RunCrashReportClient(GetCommandLineW());
 	return 0;

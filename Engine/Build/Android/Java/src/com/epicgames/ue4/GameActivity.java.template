@@ -67,7 +67,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
-import java.security.NoSuchAlgorithmException;
 
 import android.annotation.TargetApi;
 
@@ -3358,7 +3357,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							public void onClick(DialogInterface dialog, int id) {
 								dialog.dismiss();
 								AndroidThunkJava_LaunchURL(ForceExitLink);
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -3396,7 +3395,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 										AndroidThunkJava_OpenIntentAction("android.settings.SETTINGS");
 									}
 								}
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -3406,7 +3405,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							@Override
 							public void onClick(DialogInterface dialog, int id) {
 								dialog.dismiss();
-								System.exit(0);
+								AndroidThunkJava_ForceQuit();
 							}
 						});
 					}
@@ -4592,10 +4591,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				return;
 			}
 		}
-		else if( IapStoreHelper != null )
-		{
-				super.onActivityResult(requestCode, resultCode, data);
-		}
+//$${gameActivityOnActivityResultIapStoreHelperHandler}$$
 		else
 		{
 			super.onActivityResult(requestCode, resultCode, data);
@@ -4609,20 +4605,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 	}
 	
-	public boolean AndroidThunkJava_IapBeginPurchase(String ProductId)
-	{
-		Log.debug("[JAVA] - AndroidThunkJava_IapBeginPurchase");
-		boolean bTriggeredPurchase = false;
-		if( IapStoreHelper != null )
-		{
-			bTriggeredPurchase = IapStoreHelper.BeginPurchase(ProductId);
-		}
-		else
-		{
-			Log.debug("[JAVA] - Store Helper is invalid");
-		}
-		return bTriggeredPurchase;
-	}
+//$${gameActivityAndroidThunkJavaIapBeginPurchase}$$
 
 	public boolean AndroidThunkJava_IapIsAllowedToMakePurchases()
 	{
@@ -5964,7 +5947,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		if (intent.resolveActivity(getPackageManager()) != null)
 		{
 			startActivity(intent);
-			System.exit(0);
+			AndroidThunkJava_ForceQuit();
 			return true;
 		}
 
@@ -6029,7 +6012,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if (bExit)
 		{
-			System.exit(0);
+			AndroidThunkJava_ForceQuit();
 		}
 		
 		return true;

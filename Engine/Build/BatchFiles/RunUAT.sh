@@ -56,13 +56,13 @@ if [ -f Build/InstalledBuild.txt ]; then
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
-	# Setup Mono
-	source "$SCRIPT_DIR/Mac/SetupMono.sh" "$SCRIPT_DIR/Mac"
+	# Setup Environment and Mono
+	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Mac"
 fi
 
 if [ "$(uname)" = "Linux" ]; then
-	# Setup Mono
-	source "$SCRIPT_DIR/Linux/SetupMono.sh" "$SCRIPT_DIR/Linux"
+	# Setup Environment and Mono
+	source "$SCRIPT_DIR/Mac/SetupEnvironment.sh" -mono "$SCRIPT_DIR/Linux"
 fi
 
 
