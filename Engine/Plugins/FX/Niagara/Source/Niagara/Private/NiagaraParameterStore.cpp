@@ -105,6 +105,29 @@ struct FNiagaraVariableSearch
 	}
 };
 
+bool FNiagaraVariableWithOffset::Serialize(FArchive& Ar)
+{
+	FNiagaraVariableBase::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (!Ar.IsLoading() || NiagaraVersion >= FNiagaraCustomVersion::VariablesUseTypeDefRegistry)
+	{
+		Ar << Offset;
+		return true;
+	}
+
+	return false;
+}
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraVariableWithOffset::PostSerialize(const FArchive& Ar)
+{
+	FNiagaraVariableBase::PostSerialize(Ar);
+}
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 
 void FNiagaraParameterStore::CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src)

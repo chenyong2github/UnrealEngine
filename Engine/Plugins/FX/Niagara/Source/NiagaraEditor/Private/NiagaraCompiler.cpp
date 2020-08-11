@@ -494,10 +494,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
 			Builder.BuildParameterMaps(FoundOutputNode, true);
 			
-			TArray<FNiagaraParameterMapHistory> Histories = Builder.Histories;
-			ensure(Histories.Num() <= 1);
+			ensure(Builder.Histories.Num() <= 1);
 
-			for (FNiagaraParameterMapHistory& History : Histories)
+			for (FNiagaraParameterMapHistory& History : Builder.Histories)
 			{
 				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
 				for (FNiagaraVariable& Var : History.Variables)
@@ -513,7 +512,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 				NumSimStageNodes++;
 			}
 
-			PrecompiledHistories.Append(Histories);
+			PrecompiledHistories.Append(Builder.Histories);
 			Builder.EndTranslation(TranslationName);
 		}
 

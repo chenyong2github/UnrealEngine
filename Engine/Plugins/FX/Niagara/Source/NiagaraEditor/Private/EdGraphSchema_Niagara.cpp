@@ -566,8 +566,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 			{
 				if (bAddMakes)
 				{
-					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : FNiagaraTypeRegistry::GetRegisteredTypes())
 					{
 						if (Type.IsInternalType())
 						{
@@ -584,8 +583,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 
 				if (bAddBreaks)
 				{
-					const TArray<FNiagaraTypeDefinition>& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
-					for (const FNiagaraTypeDefinition& Type : RegisteredTypes)
+					for (const FNiagaraTypeDefinition& Type : FNiagaraTypeRegistry::GetRegisteredTypes())
 					{
 						if (Type.IsInternalType())
 						{

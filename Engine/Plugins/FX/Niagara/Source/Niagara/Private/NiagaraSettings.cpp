@@ -33,7 +33,7 @@ void UNiagaraSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		SettingsChangedDelegate.Broadcast(PropertyChangedEvent.Property->GetName(), this);
+		SettingsChangedDelegate.Broadcast(PropertyChangedEvent.Property->GetFName(), this);
 	}
 
 	DefaultEffectTypePtr = Cast<UNiagaraEffectType>(DefaultEffectType.TryLoad());

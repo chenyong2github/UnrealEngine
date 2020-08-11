@@ -50,7 +50,7 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNiagaraSettingsChanged, const FString&, const UNiagaraSettings*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNiagaraSettingsChanged, const FName&, const UNiagaraSettings*);
 
 	/** Gets a multicast delegate which is called whenever one of the parameters in this settings object changes. */
 	static FOnNiagaraSettingsChanged& OnSettingsChanged();

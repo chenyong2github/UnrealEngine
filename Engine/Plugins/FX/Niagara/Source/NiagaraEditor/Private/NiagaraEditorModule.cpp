@@ -1190,9 +1190,11 @@ FNiagaraEditorModule& FNiagaraEditorModule::Get()
 	return FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 }
 
-void FNiagaraEditorModule::OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings)
+void FNiagaraEditorModule::OnNiagaraSettingsChangedEvent(const FName& PropertyName, const UNiagaraSettings* Settings)
 {
-	if (PropertyName == "AdditionalParameterTypes" || PropertyName == "AdditionalPayloadTypes")
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalParameterTypes)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalPayloadTypes)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalParameterEnums))
 	{
 		FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry();
 	}
