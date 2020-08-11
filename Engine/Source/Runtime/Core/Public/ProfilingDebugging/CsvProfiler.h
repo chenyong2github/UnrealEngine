@@ -285,6 +285,9 @@ public:
 	 */
 	CORE_API TSharedFuture<FString> EndCapture(FGraphEventRef EventToSignal = nullptr);
 
+	/** Called at the end of the first frame after forking */
+	CORE_API void OnEndFramePostFork();
+
 	/** Renderthread begin/end frame */
 	CORE_API void BeginFrameRT();
 	CORE_API void EndFrameRT();

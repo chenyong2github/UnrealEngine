@@ -2821,6 +2821,32 @@ void FCsvProfiler::EndFrame()
 	GCsvProfilerFrameNumber++;
 }
 
+void FCsvProfiler::OnEndFramePostFork()
+{
+	if (FForkProcessHelper::IsForkedMultithreadInstance())
+	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("csvNoProcessingThread")))
+		{
+			GCsvUseProcessingThread = false;
+		}
+		else 
+		{
+			if (ProcessingThread == nullptr)
+			{
+				GCsvUseProcessingThread = true;
+				// Lazily create the CSV processing thread
+				ProcessingThread = new FCsvProfilerProcessingThread(*this);
+				if (ProcessingThread->IsValid() == false)
+				{
+					UE_LOG(LogCsvProfiler, Error, TEXT("CSV Processing Thread could not be created due to being in a single-thread environment "));
+					delete ProcessingThread;
+					ProcessingThread = nullptr;
+					GCsvUseProcessingThread = false;
+				}
+			}
+		}
+	}
+}
 
 /** Per-frame update */
 void FCsvProfiler::BeginFrameRT()
@@ -3252,7 +3278,7 @@ void FCsvProfiler::Init()
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
 
 	// Always disable the CSV profiling thread if the platform does not support threading.
-	if (!FPlatformProcess::SupportsMultithreading() && FForkProcessHelper::SupportsMultithreadingPostFork() == false)
+	if (!FPlatformProcess::SupportsMultithreading())
 	{
 		GCsvUseProcessingThread = false;
 	}
