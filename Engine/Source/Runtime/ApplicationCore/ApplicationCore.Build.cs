@@ -43,7 +43,8 @@ public class ApplicationCore : ModuleRules
 			);
 			if (Target.bBuildEditor == true)
 			{
-				PublicAdditionalLibraries.Add("/System/Library/PrivateFrameworks/MultitouchSupport.framework/Versions/Current/MultitouchSupport");
+				string SDKROOT = Utils.RunLocalProcessAndReturnStdOut("/usr/bin/xcrun", "--sdk macosx --show-sdk-path");
+				PublicAdditionalLibraries.Add(SDKROOT + "/System/Library/PrivateFrameworks/MultitouchSupport.framework/Versions/Current/MultitouchSupport.tbd");
 			}
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
