@@ -83,6 +83,10 @@ public:
 
 	void RemoveSequencer(TSharedRef<ISequencer> InSequencer);
 
+	TArray<TWeakPtr<ISequencer>> GetSequencers();
+	DECLARE_MULTICAST_DELEGATE(FOnSequencersChanged);
+	FOnSequencersChanged& GetOnSequencersChanged() { return OnSequencersChanged; };
+
 private:
 
 	/** Called before the world is going to be saved. The sequencer puts everything back to its initial state. */
@@ -199,4 +203,6 @@ private:
 	TSharedPtr<class FDetailKeyframeHandlerWrapper> KeyFrameHandler;
 
 	bool bDeferUpdates;
+
+	FOnSequencersChanged OnSequencersChanged;
 };
