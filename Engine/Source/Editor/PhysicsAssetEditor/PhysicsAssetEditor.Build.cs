@@ -31,6 +31,7 @@ public class PhysicsAssetEditor : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"LevelEditor",
+				"EditorFramework",
 				"UnrealEd",
                 "Kismet",
                 "Persona",

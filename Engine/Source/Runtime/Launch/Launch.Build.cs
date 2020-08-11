@@ -185,6 +185,7 @@ public class Launch : ModuleRules
 
 			PrivateDependencyModuleNames.AddRange(new string[] {
 					"SourceControl",
+					"EditorFramework",
 					"UnrealEd",
 					"DesktopPlatform",
 					"PIEPreviewDeviceProfileSelector",

@@ -13,6 +13,7 @@ public class AssetTools : ModuleRules
 				"Core",
 				"CoreUObject",
 				"SlateCore",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

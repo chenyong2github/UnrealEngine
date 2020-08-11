@@ -13,6 +13,7 @@ public class TextureAlignMode : ModuleRules
 				"Engine",
 				"SlateCore",
 				"Slate",
+				"EditorFramework",
 				"UnrealEd",
 				"RenderCore",
 				"LevelEditor",

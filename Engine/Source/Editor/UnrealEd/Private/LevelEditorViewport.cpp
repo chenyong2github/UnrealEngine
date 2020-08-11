@@ -4961,6 +4961,49 @@ void FLevelEditorViewportClient::UpdateAudioListener(const FSceneView& View)
 	}
 }
 
+/** Determines if the new MoveCanvas movement should be used
+ * @return - true if we should use the new drag canvas movement.  Returns false for combined object-camera movement and marquee selection
+ */
+bool FLevelEditorViewportClient::ShouldUseMoveCanvasMovement()
+{
+	const bool LeftMouseButtonDown = Viewport->KeyState(EKeys::LeftMouseButton) ? true : false;
+	const bool MiddleMouseButtonDown = Viewport->KeyState(EKeys::MiddleMouseButton) ? true : false;
+	const bool RightMouseButtonDown = Viewport->KeyState(EKeys::RightMouseButton) ? true : false;
+	const bool bMouseButtonDown = (LeftMouseButtonDown || MiddleMouseButtonDown || RightMouseButtonDown );
+
+	const bool AltDown = IsAltPressed();
+	const bool ShiftDown = IsShiftPressed();
+	const bool ControlDown = IsCtrlPressed();
+
+	//if we're using the new move canvas mode, we're in an ortho viewport, and the mouse is down
+	if (GetDefault<ULevelEditorViewportSettings>()->bPanMovesCanvas && IsOrtho() && bMouseButtonDown)
+	{
+		//MOVING CAMERA
+		if ( !MouseDeltaTracker->UsingDragTool() && AltDown == false && ShiftDown == false && ControlDown == false && (Widget->GetCurrentAxis() == EAxisList::None) && (LeftMouseButtonDown ^ RightMouseButtonDown))
+		{
+			return true;
+		}
+
+		//OBJECT MOVEMENT CODE
+		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
+			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
+		{
+			return true;
+		}
+
+
+		//ALL other cases hide the mouse
+		return false;
+	}
+	else
+	{
+		//current system - do not show cursor when mouse is down
+		return false;
+	}
+}
+
 void FLevelEditorViewportClient::SetupViewForRendering( FSceneViewFamily& ViewFamily, FSceneView& View )
 {
 	FEditorViewportClient::SetupViewForRendering( ViewFamily, View );

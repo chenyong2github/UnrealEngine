@@ -30,6 +30,7 @@ public class AnimGraph : ModuleRules
 			new string[] {
 				"InputCore",
 				"SlateCore",
+				"EditorFramework",
 				"UnrealEd",
                 "GraphEditor",
 				"PropertyEditor",

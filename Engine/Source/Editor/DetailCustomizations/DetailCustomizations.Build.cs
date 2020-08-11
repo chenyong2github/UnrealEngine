@@ -22,6 +22,7 @@ public class DetailCustomizations : ModuleRules
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 				"EditorWidgets",
 				"KismetWidgets",

@@ -36,6 +36,7 @@ public class GizmoEdMode : ModuleRules
 			{
 				"Engine",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"SlateCore",
 				"CoreUObject",

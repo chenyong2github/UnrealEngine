@@ -5,59 +5,48 @@
 #include "CoreMinimal.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
-#include "Editor.h"
 #include "Tools/Modes.h"
 
-enum EModeTools : int8;
-class FEditorViewportClient;
-class HHitProxy;
-struct FViewportClick;
-class FModeTool;
-
-DECLARE_LOG_CATEGORY_EXTERN(LogEditorModes, Log, All);
+EDITORFRAMEWORK_API DECLARE_LOG_CATEGORY_EXTERN(LogEditorModes, Log, All);
 
 // Builtin editor mode constants
-struct UNREALED_API FBuiltinEditorModes
+namespace FBuiltinEditorModes
 {
-public:
 	/** Gameplay, editor disabled. */
-	const static FEditorModeID EM_None;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_None;
 
 	/** Camera movement, actor placement. */
-	const static FEditorModeID EM_Default;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Default;
 
 	/** Placement mode */
-	const static FEditorModeID EM_Placement;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Placement;
 
 	/** Interpolation editing. */
-	const static FEditorModeID EM_InterpEdit;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_InterpEdit;
 
 	/** Mesh paint tool */
-	const static FEditorModeID EM_MeshPaint;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_MeshPaint;
 
 	/** Landscape editing */
-	const static FEditorModeID EM_Landscape;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Landscape;
 
 	/** Foliage painting */
-	const static FEditorModeID EM_Foliage;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Foliage;
 
 	/** Level editing mode */
-	const static FEditorModeID EM_Level;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Level;
 
 	/** Streaming level editing mode */
-	const static FEditorModeID EM_StreamingLevel;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_StreamingLevel;
 
 	/** Physics manipulation mode ( available only when simulating in viewport )*/
-	const static FEditorModeID EM_Physics;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_Physics;
 
 	/** Actor picker mode, used to interactively pick actors in the viewport */
-	const static FEditorModeID EM_ActorPicker;
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_ActorPicker;
 
 	/** Actor picker mode, used to interactively pick actors in the viewport */
-	const static FEditorModeID EM_SceneDepthPicker;
-
-private:
-	FBuiltinEditorModes() {}
+	EDITORFRAMEWORK_API extern const FEditorModeID EM_SceneDepthPicker;
 };
 
 /** Material proxy wrapper that can be created on the game thread and passed on to the render thread. */

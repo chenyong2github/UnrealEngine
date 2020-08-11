@@ -41,33 +41,6 @@ TSharedRef<FEdMode> FEditorModeFactory::CreateMode() const
 	return FactoryCallback.Execute();
 }
 
-FEditorModeInfo::FEditorModeInfo()
-	: ID(NAME_None)
-	, bVisible(false)
-	, PriorityOrder(MAX_int32)
-{
-}
-
-FEditorModeInfo::FEditorModeInfo(
-	FEditorModeID InID,
-	FText InName,
-	FSlateIcon InIconBrush,
-	bool InIsVisible,
-	int32 InPriorityOrder
-	)
-	: ID(InID)
-	, ToolbarCustomizationName(*(InID.ToString()+TEXT("Toolbar")))
-	, Name(InName)
-	, IconBrush(InIconBrush)
-	, bVisible(InIsVisible)
-	, PriorityOrder(InPriorityOrder)
-{
-	if (!InIconBrush.IsSet())
-	{
-		IconBrush = FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditorModes");
-	}
-}
-
 void FEditorModeRegistry::Initialize()
 {
 	// Send notifications for any legacy modes that were registered before the asset subsytem started up

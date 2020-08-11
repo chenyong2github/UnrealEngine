@@ -42,6 +42,7 @@ public class FractureEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
                 "GeometryCollectionCore",

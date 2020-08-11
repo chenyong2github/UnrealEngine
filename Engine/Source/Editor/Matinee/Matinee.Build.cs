@@ -37,6 +37,7 @@ public class Matinee : ModuleRules
                 "InputCore",
 				"LevelEditor",
 				"DistCurveEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"RenderCore",
 				"AssetRegistry",

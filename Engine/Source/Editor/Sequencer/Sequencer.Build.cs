@@ -36,6 +36,7 @@ public class Sequencer : ModuleRules
 				"SlateCore",
 				"SceneOutliner",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd", 
 				"MovieScene", 
 				"MovieSceneTracks", 

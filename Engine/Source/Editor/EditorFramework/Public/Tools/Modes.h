@@ -13,10 +13,10 @@ typedef FName FEditorModeID;
 struct FEditorModeInfo
 {
 	/** Default constructor */
-	UNREALED_API FEditorModeInfo();
+	EDITORFRAMEWORK_API FEditorModeInfo();
 
 	/** Helper constructor */
-	UNREALED_API FEditorModeInfo(
+	EDITORFRAMEWORK_API FEditorModeInfo(
 		FEditorModeID InID,
 		FText InName = FText(),
 		FSlateIcon InIconBrush = FSlateIcon(),

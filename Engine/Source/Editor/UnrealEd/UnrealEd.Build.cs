@@ -86,6 +86,7 @@ public class UnrealEd : ModuleRules
 				"SandboxFile",
 				"Slate",
 				"SlateCore",
+				"EditorFramework",
 				"EditorStyle",
 				"SourceControl",
 				"UnrealEdMessages",

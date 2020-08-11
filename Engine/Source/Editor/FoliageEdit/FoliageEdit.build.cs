@@ -13,6 +13,7 @@ public class FoliageEdit : ModuleRules
 				"CoreUObject",
 				"InputCore",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"Slate",
 				"SlateCore",

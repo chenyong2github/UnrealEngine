@@ -15,6 +15,7 @@ public class ActorPickerMode : ModuleRules
                 "Slate",
                 "SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);
