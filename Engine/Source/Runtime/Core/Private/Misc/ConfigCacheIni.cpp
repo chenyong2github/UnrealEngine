@@ -1923,6 +1923,22 @@ void FConfigFile::SetInt64( const TCHAR* Section, const TCHAR* Key, int64 Value 
 }
 
 
+void FConfigFile::SetArray(const TCHAR* Section, const TCHAR* Key, const TArray<FString>& Value)
+{
+	FConfigSection* Sec = FindOrAddSection(Section);
+
+	if (Sec->Remove(Key) > 0)
+	{
+		Dirty = true;
+	}
+
+	for (int32 i = 0; i < Value.Num(); i++)
+	{
+		Sec->Add(Key, *Value[i]);
+		Dirty = true;
+	}
+}
+
 void FConfigFile::SaveSourceToBackupFile()
 {
 	FString Text;
@@ -2961,17 +2977,8 @@ void FConfigCacheIni::SetArray
 	{
 		return;
 	}
-	
-	FConfigSection* Sec  = File->FindOrAddSection( Section );
 
-	if ( Sec->Remove(Key) > 0 )
-		File->Dirty = 1;
-
-	for ( int32 i = 0; i < Value.Num(); i++ )
-	{
-		Sec->Add(Key, *Value[i]);
-		File->Dirty = 1;
-	}
+	File->SetArray(Section, Key, Value);
 }
 /** Saves a "delimited" list of strings
  * @param Section - Section of the ini file to save to

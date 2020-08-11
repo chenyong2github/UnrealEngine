@@ -391,6 +391,7 @@ public:
 	CORE_API void SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value );
 	CORE_API void SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value );
 	CORE_API void SetInt64( const TCHAR* Section, const TCHAR* Key, const int64 Value );
+	CORE_API void SetArray(const TCHAR* Section, const TCHAR* Key, const TArray<FString>& Value);
 	
 	/**
 	 * Process the contents of an .ini file that has been read into an FString
