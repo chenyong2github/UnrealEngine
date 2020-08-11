@@ -55,11 +55,6 @@ namespace Audio
 		return *this;
 	}
 
-	bool FModulationDestination::GetHasProcessed() const
-	{
-		return bHasProcessed != 0;
-	}
-
 	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueLinear)
 	{
 		DeviceId = InDeviceId;
