@@ -3435,7 +3435,7 @@ void UStaticMesh::BeginDestroy()
 	// Remove from the list of tracked assets if necessary
 	TrackRenderAssetEvent(nullptr, this, false, nullptr);
 
-	if (bRenderingResourcesInitialized)
+	if (!UpdateStreamingStatus() && bRenderingResourcesInitialized)
 	{
 		ReleaseResources();
 	}
@@ -3443,7 +3443,15 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
+	if (UpdateStreamingStatus())
+	{
+		return false;
+	}
+	if (bRenderingResourcesInitialized)
+	{
+		ReleaseResources();
+	}
+	return ReleaseResourcesFence.IsFenceComplete();
 }
 
 int32 UStaticMesh::GetNumSectionsWithCollision() const
