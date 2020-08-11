@@ -1186,7 +1186,7 @@ namespace DatasmithSceneUtilsImpl
 
 		void CleanUpLevelSequences()
 		{
-			const int32 LevelSequencesLastIndex = Scene->GetLevelSequencesCount() - 1;
+			int32 LevelSequencesLastIndex = Scene->GetLevelSequencesCount() - 1;
 
 			// Remove level seequences without animation
 			for (int32 SequenceIndex = LevelSequencesLastIndex; SequenceIndex >= 0; --SequenceIndex)
@@ -1224,6 +1224,9 @@ namespace DatasmithSceneUtilsImpl
 					Scene->RemoveLevelSequence(LevelSequence.ToSharedRef());
 				}
 			}
+
+			// The last valid index can change in the previous loop
+			LevelSequencesLastIndex = Scene->GetLevelSequencesCount() - 1;
 
 			// Process sequences without sub-sequence animation first
 			TSet<TSharedPtr< IDatasmithLevelSequenceElement >> ValidSequences;

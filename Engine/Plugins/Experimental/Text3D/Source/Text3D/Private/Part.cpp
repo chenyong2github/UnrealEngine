@@ -17,6 +17,19 @@ FPart::FPart()
 	DoneExpand = 0.f;
 }
 
+FPart::FPart(const FPartConstPtr& Other)
+{
+	Position = Other->Position;
+	DoneExpand = Other->DoneExpand;
+	TangentX = Other->TangentX;
+	Normal = Other->Normal;
+	bSmooth = Other->bSmooth;
+	InitialPosition = Other->InitialPosition;
+	PathPrev = Other->PathPrev;
+	PathNext = Other->PathNext;
+	AvailableExpandNear = Other->AvailableExpandNear;
+}
+
 float FPart::TangentsDotProduct() const
 {
 	check(Prev);

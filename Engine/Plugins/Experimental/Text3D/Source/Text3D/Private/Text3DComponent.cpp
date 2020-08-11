@@ -74,6 +74,7 @@ UText3DComponent::UText3DComponent() :
 	}
 
 	Text = LOCTEXT("DefaultText", "Text");
+	bOutline = false;
 	Extrude = 5.0f;
 	Bevel = 0.0f;
 	BevelType = EText3DBevelType::Convex;
@@ -155,6 +156,15 @@ void UText3DComponent::SetFont(UFont* const InFont)
 	if (Font != InFont)
 	{
 		Font = InFont;
+		Rebuild();
+	}
+}
+
+void UText3DComponent::SetOutline(const bool bValue)
+{
+	if (bOutline != bValue)
+	{
+		bOutline = bValue;
 		Rebuild();
 	}
 }
@@ -593,7 +603,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 	}
 
 	CachedCounterReferences.Add(CachedFontData.GetCacheCounter());
-	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(Extrude, Bevel, BevelType, BevelSegments));
+	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(bOutline, Extrude, Bevel, BevelType, BevelSegments));
 
 	ShapedText->Reset();
 	ShapedText->LineHeight = Face->size->metrics.height * FontInverseScale;
@@ -622,7 +632,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 				continue;
 			}
 
-			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, Extrude, Bevel, BevelType, BevelSegments);
+			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, bOutline, Extrude, Bevel, BevelType, BevelSegments);
 			if (!CachedMesh)
 			{
 				continue;

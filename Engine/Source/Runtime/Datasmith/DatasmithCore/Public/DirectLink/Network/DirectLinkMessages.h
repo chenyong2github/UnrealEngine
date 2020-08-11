@@ -186,15 +186,12 @@ struct FDirectLinkMsg_DeltaMessage
 	FDirectLinkMsg_DeltaMessage() = default;
 
 	FDirectLinkMsg_DeltaMessage(EKind Kind, DirectLink::FStreamPort DestinationStreamPort, uint32 BatchNumber, uint32 MessageIndex)
-		: Kind(Kind)
-		, DestinationStreamPort(DestinationStreamPort)
+		: DestinationStreamPort(DestinationStreamPort)
 		, BatchCode(BatchNumber)
 		, MessageCode(MessageIndex)
+		, Kind(Kind)
 	{
 	}
-
-	UPROPERTY()
-	uint8 Kind = 0;
 
 	UPROPERTY()
 	int32 DestinationStreamPort = 0; // FStreamPort
@@ -204,6 +201,9 @@ struct FDirectLinkMsg_DeltaMessage
 
 	UPROPERTY()
 	int32 MessageCode = 0;
+
+	UPROPERTY()
+	uint8 Kind = 0;
 
 	UPROPERTY()
 	TArray<uint8> Payload;

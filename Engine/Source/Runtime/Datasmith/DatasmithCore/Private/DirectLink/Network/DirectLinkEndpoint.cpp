@@ -214,9 +214,11 @@ void FEndpoint::RemoveEndpointObserver(IEndpointObserver* Observer)
 	SharedState.Observers.RemoveSwap(Observer);
 }
 
-// #ue_directlink_streams could return an error code...
-void FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId)
+
+FEndpoint::EOpenStreamResult FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId)
 {
+	// #cleanup Merge with Handle_OpenStreamRequest
+
 	// check if the stream is already opened
 	{
 		FRWScopeLock _(SharedState.StreamsLock, SLT_ReadOnly);
@@ -224,9 +226,12 @@ void FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHand
 		{
 			if (Stream.SourcePoint == SourceId && Stream.DestinationPoint == DestinationId)
 			{
-				// useless case, temp because of the unfinished connection policy.
-				// #ue_directlink_cleanup Replace with proper policy (user driven connection map) + log if this happen
-				return;
+				if (Stream.Status == FStreamDescription::EConnectionState::Active)
+				{
+					// useless case, temp because of the unfinished connection policy.
+					// #ue_directlink_connexion Replace with proper policy (user driven connection map) + log if this happen
+					return EOpenStreamResult::AlreadyOpened;
+				}
 			}
 		}
 	}
@@ -250,24 +255,25 @@ void FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHand
 		FRWScopeLock _(SharedState.DestinationsLock, SLT_ReadOnly);
 		for (TSharedPtr<FStreamDestination>& Destination : SharedState.Destinations)
 		{
-			if (Destination->GetId() == SourceId)
+			if (Destination->GetId() == DestinationId)
 			{
 				bRequestFromDestination = true;
 				break;
 			}
 		}
 	}
+
 	if (!bRequestFromSource && ! bRequestFromDestination)
 	{
-		// #ue_directlink_cleanup log
 		// we don't have any side of the connection...
-		return;
+		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Cannot open stream: no source or destination point found."), *SharedState.NiceName);
+		return EOpenStreamResult::SourceAndDestinationNotFound;
 	}
 
 	// Find Remote address.
 	FMessageAddress RemoteAddress;
 	{
-		FGuid RemoteDataPointId = bRequestFromSource ? DestinationId : SourceId;
+		const FGuid& RemoteDataPointId = bRequestFromSource ? DestinationId : SourceId;
 
 		FRWScopeLock _(SharedState.RawInfoCopyLock, SLT_ReadOnly);
 		if (FRawInfo::FDataPointInfo* DataPointInfo = SharedState.RawInfo.DataPointsInfo.Find(RemoteDataPointId))
@@ -302,7 +308,9 @@ void FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHand
 	else
 	{
 		UE_LOG(LogDirectLink, Error, TEXT("Connection Request failed: no recipent found"));
+		return EOpenStreamResult::RemoteEndpointNotFound;
 	}
+	return EOpenStreamResult::Opened;
 }
 
 
@@ -407,7 +415,6 @@ FString FEndpoint::FInternalThreadState::ToString_dbg() const
 
 void FEndpoint::FInternalThreadState::Handle_EndpointLifecycle(const FDirectLinkMsg_EndpointLifecycle& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_EndpointLifecycle"), *SharedState.NiceName);
 
 	// #ue_directlink_quality ignore incompatible peers (based on serial revision)
@@ -480,15 +487,12 @@ void FEndpoint::FInternalThreadState::Handle_EndpointLifecycle(const FDirectLink
 
 void FEndpoint::FInternalThreadState::Handle_QueryEndpointState(const FDirectLinkMsg_QueryEndpointState& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
 	ReplicateState(Context->GetSender());
 }
 
 
 void FEndpoint::FInternalThreadState::Handle_EndpointState(const FDirectLinkMsg_EndpointState& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
-
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
 	if (IsMine(RemoteEndpointAddress))
 	{
@@ -507,65 +511,90 @@ void FEndpoint::FInternalThreadState::Handle_EndpointState(const FDirectLinkMsg_
 
 void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStreamRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
-
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
 
+	FDirectLinkMsg_OpenStreamAnswer* Answer = NewMessage<FDirectLinkMsg_OpenStreamAnswer>();
+	Answer->RecipientStreamPort = Message.RequestFromStreamPort;
+
+	// first, check if that stream is already opened
+	{
+		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
+		for (FStreamDescription& Stream : SharedState.Streams)
+		{
+			if (Stream.SourcePoint == Message.SourceGuid && Stream.DestinationPoint == Message.DestinationGuid)
+			{
+				// #ue_directlink_cleanup implement a robust handling of duplicated connections, reopened connections, etc...
+				if (Stream.Status == FStreamDescription::EConnectionState::Active)
+				{
+					Answer->bAccepted = false; // #ue_directlink_cleanup send the same enum as returned by OpenStream
+					UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_OpenStreamAnswer (refused, already active)"), *SharedState.NiceName);
+					MessageEndpoint->Send(Answer, RemoteEndpointAddress);
+					return;
+				}
+			}
+		}
+	}
+
+	TUniquePtr<FStreamReceiver> NewReceiver;
+	TUniquePtr<FStreamSender> NewSender;
 	if (Message.bRequestFromSource)
 	{
 		// request from source, we must have the destination.
-		TSharedPtr<ISceneProvider> Provider;
 		{
 			FRWScopeLock _(SharedState.DestinationsLock, SLT_ReadOnly);
 			for (const TSharedPtr<FStreamDestination>& Dest : SharedState.Destinations)
 			{
 				if (Dest->GetId() == Message.DestinationGuid)
 				{
-					Provider = Dest->Provider;
+					const TSharedPtr<ISceneProvider>& Provider = Dest->Provider;
+					if (Provider != nullptr && Provider->CanOpenNewConnection())
+					{
+						NewReceiver = MakeUnique<FStreamReceiver>();
+						NewReceiver->SetConsumer(Provider->GetDeltaConsumer(FSceneIdentifier{}));
+					}
 					break;
 				}
 			}
 		}
-
-		FDirectLinkMsg_OpenStreamAnswer* Answer = NewMessage<FDirectLinkMsg_OpenStreamAnswer>();
-		Answer->RecipientStreamPort = Message.RequestFromStreamPort;
-		Answer->bAccepted = Provider != nullptr && Provider->CanOpenNewConnection();
-
-		if (Answer->bAccepted)
-		{
-			FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
-			FStreamPort StreamPort = ++SharedState.StreamPortIdGenerator;
-			Answer->OpenedStreamPort = StreamPort;
-			FStreamDescription& NewStream = SharedState.Streams.AddDefaulted_GetRef();
-			NewStream.bThisIsSource = !Message.bRequestFromSource;
-			NewStream.SourcePoint = Message.SourceGuid;
-			NewStream.DestinationPoint = Message.DestinationGuid;
-			NewStream.RemoteAddress = RemoteEndpointAddress;
-			NewStream.RemoteStreamPort = Message.RequestFromStreamPort;
-			NewStream.LocalStreamPort = StreamPort;
-			NewStream.Status = FStreamDescription::EConnectionState::Active;
-			NewStream.LastRemoteLifeSign = Now_s;
-
-			bool bThisIsSource = !Message.bRequestFromSource;
-			if (bThisIsSource)
-			{
-				check(false); // niy
-			}
-			else
-			{
-				NewStream.Receiver = MakeUnique<FStreamReceiver>();
-				NewStream.Receiver->SetConsumer(Provider->GetDeltaConsumer(FSceneIdentifier{}));
-			}
-		}
-
-		UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_OpenStreamAnswer"), *SharedState.NiceName);
-		MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 	}
 	else
 	{
-		// #ue_directlink_streams todo: enable destinations to open stream
-		ensure(!"not implemented yet");
+		// request from dest, we must have the source.
+		{
+			FRWScopeLock _(SharedState.SourcesLock, SLT_ReadOnly);
+			for (const TSharedPtr<FStreamSource>& Source : SharedState.Sources)
+			{
+				if (Source->GetId() == Message.SourceGuid)
+				{
+					NewSender = MakeUnique<FStreamSender>(MessageEndpoint);
+					break;
+				}
+			}
+		}
 	}
+
+	Answer->bAccepted = NewSender.IsValid() || NewReceiver.IsValid();
+
+	if (Answer->bAccepted)
+	{
+		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
+		FStreamPort StreamPort = ++SharedState.StreamPortIdGenerator;
+		Answer->OpenedStreamPort = StreamPort;
+		FStreamDescription& NewStream = SharedState.Streams.AddDefaulted_GetRef();
+		NewStream.bThisIsSource = !Message.bRequestFromSource;
+		NewStream.SourcePoint = Message.SourceGuid;
+		NewStream.DestinationPoint = Message.DestinationGuid;
+		NewStream.RemoteAddress = RemoteEndpointAddress;
+		NewStream.RemoteStreamPort = Message.RequestFromStreamPort;
+		NewStream.LocalStreamPort = StreamPort;
+		NewStream.Sender = MoveTemp(NewSender);
+		NewStream.Receiver = MoveTemp(NewReceiver);
+		NewStream.Status = FStreamDescription::EConnectionState::Active;
+		NewStream.LastRemoteLifeSign = Now_s;
+	}
+
+	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Log, TEXT("Endpoint '%s': Send FDirectLinkMsg_OpenStreamAnswer (accepted)"), *SharedState.NiceName);
+	MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamRequest"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("%s"), *ToString_dbg());
@@ -574,61 +603,75 @@ void FEndpoint::FInternalThreadState::Handle_OpenStreamRequest(const FDirectLink
 
 void FEndpoint::FInternalThreadState::Handle_OpenStreamAnswer(const FDirectLinkMsg_OpenStreamAnswer& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
+	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamAnswer"), *SharedState.NiceName);
 	const FMessageAddress& RemoteEndpointAddress = Context->GetSender();
 
 	{
 		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
-		for (FStreamDescription& Stream : SharedState.Streams)
+		if (FStreamDescription* StreamPtr = SharedState.GetStreamByLocalPort(Message.RecipientStreamPort, _))
 		{
-			if (Stream.Status != FStreamDescription::EConnectionState::Closed
-				&& Stream.LocalStreamPort == Message.RecipientStreamPort) // destination instead of recipient ?
+			FStreamDescription& Stream = *StreamPtr;
+			if (Stream.Status == FStreamDescription::EConnectionState::RequestSent)
 			{
 				if (Message.bAccepted)
 				{
 					Stream.RemoteStreamPort = Message.OpenedStreamPort;
-					Stream.Sender = MakeUnique<FStreamSender>(MessageEndpoint);
-					Stream.Sender->SetRemoteInfo(RemoteEndpointAddress, Message.OpenedStreamPort);
-
+					if (Stream.bThisIsSource)
+					{
+						Stream.Sender = MakeUnique<FStreamSender>(MessageEndpoint);
+						Stream.Sender->SetRemoteInfo(RemoteEndpointAddress, Message.OpenedStreamPort);
+						// this wouldn't be required if the sender knew the stream description...
+					}
+					else
+					{
+						Stream.Receiver = MakeUnique<FStreamReceiver>();
+					}
+					check(Stream.Receiver || Stream.Sender);
 					Stream.Status = FStreamDescription::EConnectionState::Active;
 				}
 				else
 				{
-					Stream.Status = FStreamDescription::EConnectionState::Closed; // don't remove yet, as current stupid policy would just retry indefinitely...
+					Stream.Status = FStreamDescription::EConnectionState::Closed;
 				}
 				Stream.LastRemoteLifeSign = Now_s;
-				break;
 			}
+		}
+		else
+		{
+			UE_LOG(LogDirectLinkNet, Warning, TEXT("error: no such stream (%d)"), Message.RecipientStreamPort);
 		}
 	}
 
-	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamAnswer"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("%s"), *ToString_dbg());
 }
 
 
 void FEndpoint::FInternalThreadState::Handle_DeltaMessage(const FDirectLinkMsg_DeltaMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	check(IsInnerThread());
-
-	FRWScopeLock _(SharedState.StreamsLock, SLT_Write); // read array, lock specific stream ?
-	for (FStreamDescription& Stream : SharedState.Streams)
 	{
-		if (Stream.LocalStreamPort == Message.DestinationStreamPort)
+		FRWScopeLock _(SharedState.StreamsLock, SLT_Write);
+		// #ue_directlink_cleanup read array, lock specific stream ? TArray<TUniquePtr<>> ?
+
+		FStreamDescription* StreamPtr = SharedState.GetStreamByLocalPort(Message.DestinationStreamPort, _);
+		if (StreamPtr == nullptr)
 		{
-			if (Stream.Status == FStreamDescription::EConnectionState::Active
-			&& ensure(Stream.Receiver) && ensure(Stream.RemoteAddress == Context->GetSender()))
-			{
-				Stream.LastRemoteLifeSign = Now_s;
-				Stream.Receiver->HandleDeltaMessage(Message);
-				return;
-			}
-			UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Warning, TEXT("Endpoint '%s': Dropped delta message (inactive stream used on port %d)"), *SharedState.NiceName, Message.DestinationStreamPort);
+			UE_LOG(LogDirectLinkNet, Warning, TEXT("Endpoint '%s': Dropped delta message (no stream at port %d)"), *SharedState.NiceName, Message.DestinationStreamPort);
 			return;
 		}
-	}
 
-	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Warning, TEXT("Endpoint '%s': Dropped delta message (no stream found at port %d)"), *SharedState.NiceName, Message.DestinationStreamPort);
+		FStreamDescription& Stream = *StreamPtr;
+		bool bIsActive = Stream.Status == FStreamDescription::EConnectionState::Active;
+		bool bIsReceiver = Stream.Receiver.IsValid();
+		bool bIsExpectedSender = Stream.RemoteAddress == Context->GetSender();
+		if (!bIsActive || !bIsReceiver || !bIsExpectedSender)
+		{
+			UE_LOG(LogDirectLinkNet, Warning, TEXT("Endpoint '%s': Dropped delta message (inactive stream used on port %d)"), *SharedState.NiceName, Message.DestinationStreamPort);
+			return;
+		}
+
+		Stream.Receiver->HandleDeltaMessage(Message);
+		Stream.LastRemoteLifeSign = Now_s;
+	}
 }
 
 
@@ -636,25 +679,15 @@ void FEndpoint::FInternalThreadState::Handle_CloseStreamRequest(const FDirectLin
 {
 	{
 		FRWScopeLock _(SharedState.StreamsLock, SLT_Write); // read array, lock specific stream ?
-		for (FStreamDescription& Stream : SharedState.Streams)
+		if (FStreamDescription* StreamPtr = SharedState.GetStreamByLocalPort(Message.RecipientStreamPort, _))
 		{
-			if (Stream.LocalStreamPort == Message.RecipientStreamPort)
-			{
-				bool bNotifyRemote = false; // since it's already a request from Remote...
-				Owner.CloseStreamInternal(Stream, _, bNotifyRemote);
-			}
+			bool bNotifyRemote = false; // since it's already a request from Remote...
+			Owner.CloseStreamInternal(*StreamPtr, _, bNotifyRemote);
 		}
 	}
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_CloseStreamRequest"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("%s"), *ToString_dbg());
-}
-
-
-bool FEndpoint::FInternalThreadState::IsAliveOnNetwork() const
-{
-// #ue_directlink_cleanup not clear when this should be used.. before any message send ?
-	return MessageEndpoint.IsValid() && SharedState.bInnerThreadShouldRun;
 }
 
 
@@ -666,15 +699,10 @@ bool FEndpoint::FInternalThreadState::IsMine(const FMessageAddress& MaybeRemoteA
 
 void FEndpoint::FInternalThreadState::ReplicateState(const FMessageAddress& RemoteEndpointAddress) const
 {
-	check(IsInnerThread());
-
-	if (IsAliveOnNetwork())
+	if (MessageEndpoint.IsValid())
 	{
-		auto* EndpointStateMessage = NewMessage<FDirectLinkMsg_EndpointState>();
-		{
-// 			FRWScopeLock _(ThisDescriptionLock, SLT_ReadOnly);
-			*EndpointStateMessage = ThisDescription;
-		}
+		FDirectLinkMsg_EndpointState* EndpointStateMessage = NewMessage<FDirectLinkMsg_EndpointState>();
+		*EndpointStateMessage = ThisDescription;
 
 		if (RemoteEndpointAddress.IsValid())
 		{
@@ -700,7 +728,6 @@ void FEndpoint::FInternalThreadState::ReplicateState_Broadcast() const
 
 void FEndpoint::FInternalThreadState::UpdateSourceDescription()
 {
-	check(IsInnerThread());
 	{
 		ThisDescription.Sources.Reset();
 		FRWScopeLock _(SharedState.SourcesLock, SLT_ReadOnly);
@@ -718,7 +745,6 @@ void FEndpoint::FInternalThreadState::UpdateSourceDescription()
 
 void FEndpoint::FInternalThreadState::UpdateDestinationDescription()
 {
-	check(IsInnerThread());
 	{
 		ThisDescription.Destinations.Reset();
 		FRWScopeLock _(SharedState.DestinationsLock, SLT_ReadOnly);
@@ -734,7 +760,6 @@ void FEndpoint::FInternalThreadState::UpdateDestinationDescription()
 }
 
 
-
 FRawInfo::FEndpointInfo::FEndpointInfo(const FMessageAddress& A, const FDirectLinkMsg_EndpointState& Msg)
 {
 	// tbd
@@ -746,8 +771,7 @@ FRawInfo::FEndpointInfo::FEndpointInfo(const FMessageAddress& A, const FDirectLi
 
 void FEndpoint::FInternalThreadState::Init()
 {
-	FMessageEndpointBuilder Builder(TEXT("DirectLinkEndpoint"));
-	Builder
+	MessageEndpoint = FMessageEndpoint::Builder(TEXT("DirectLinkEndpoint"))
 		.Handling<FDirectLinkMsg_EndpointLifecycle>(this, &FInternalThreadState::Handle_EndpointLifecycle)
 		.Handling<FDirectLinkMsg_QueryEndpointState>(this, &FInternalThreadState::Handle_QueryEndpointState)
 		.Handling<FDirectLinkMsg_EndpointState>(this, &FInternalThreadState::Handle_EndpointState)
@@ -755,20 +779,18 @@ void FEndpoint::FInternalThreadState::Init()
 		.Handling<FDirectLinkMsg_OpenStreamAnswer>(this, &FInternalThreadState::Handle_OpenStreamAnswer)
 		.Handling<FDirectLinkMsg_DeltaMessage>(this, &FInternalThreadState::Handle_DeltaMessage)
 		.Handling<FDirectLinkMsg_CloseStreamRequest>(this, &FInternalThreadState::Handle_CloseStreamRequest)
+		.WithInbox();
 
-		.WithInbox()
-	;
-
-	Now_s = FPlatformTime::Seconds();
-	MessageEndpoint = Builder.Build();
-	SharedState.MessageEndpoint = MessageEndpoint;
-	if (ensure(IsAliveOnNetwork()))
+	if (ensure(MessageEndpoint.IsValid()))
 	{
 		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointLifecycle>();
 		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointState>();
+		SharedState.MessageEndpoint = MessageEndpoint;
+		SharedState.bInnerThreadShouldRun = true;
+		Now_s = FPlatformTime::Seconds();
 	}
-	SharedState.bInnerThreadShouldRun = MessageEndpoint.IsValid();
 }
+
 
 void FEndpoint::FInternalThreadState::Run()
 {
@@ -813,27 +835,6 @@ void FEndpoint::FInternalThreadState::Run()
 
 		// consume remote messages
 		MessageEndpoint->ProcessInbox();
-
-		// #ue_directlink_cleanup temp connection policy.
-		// for all local source, connect to all remote dest with the same name
-		// reimpl with named broadcast source, and client connect themselves
-		{
-			for (const auto& Src : ThisDescription.Sources)
-			{
-				for (const auto& KV : RemoteEndpointDescriptions)
-				{
-					const FMessageAddress& Remote = KV.Key;
-
-					for (const auto& Dst : KV.Value.Destinations)
-					{
-						if (Src.Name == Dst.Name)
-						{
-							Owner.OpenStream(Src.Id, Dst.Id);
-						}
-					}
-				}
-			}
-		}
 
 		// rebuild description of remote endpoints
 		if (true) // #ue_directlink_integration flag based: user-side api driven
@@ -904,6 +905,38 @@ void FEndpoint::FInternalThreadState::Run()
 			}
 		}
 
+		// #ue_directlink_connexion temp connection policy.
+		// for all local source, connect to all remote dest with the same name
+		// reimpl with named broadcast source, and client connect themselves
+		// if (SharedState.bAutoconnectStreamsByName)
+		{
+			TArray<FNamedId> AllSources = ThisDescription.Sources;
+			TArray<FNamedId> AllDestinations = ThisDescription.Destinations;
+
+			for (const auto& KV : RemoteEndpointDescriptions)
+			{
+				for (const auto& Dst : KV.Value.Destinations)
+				{
+					AllDestinations.Add(Dst);
+				}
+				for (const auto& Src : KV.Value.Sources)
+				{
+					AllSources.Add(Src);
+				}
+			}
+
+			for (const auto& Dst : AllDestinations)
+			{
+				for (const auto& Src : AllSources)
+				{
+					if (Src.Name == Dst.Name)
+					{
+						Owner.OpenStream(Src.Id, Dst.Id);
+					}
+				}
+			}
+		}
+
 		// #ue_directlink_streams don't wait if active communication in progress
 		Owner.InnerThreadEvent->Wait(FTimespan::FromMilliseconds(50));
 	}
@@ -911,6 +944,26 @@ void FEndpoint::FInternalThreadState::Run()
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Display, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Stop"), *SharedState.NiceName);
 	MessageEndpoint->Publish(NewMessage<FDirectLinkMsg_EndpointLifecycle>(FDirectLinkMsg_EndpointLifecycle::ELifecycle::Stop));
 	FMessageEndpoint::SafeRelease(MessageEndpoint);
+}
+
+
+FStreamDescription* FEndpoint::FSharedState::GetStreamByLocalPort(FStreamPort LocalPort, const FRWScopeLock& _)
+{
+	// try to skip a lookup
+	if (Streams.IsValidIndex(LocalPort-1)
+		&& ensure(Streams[LocalPort-1].LocalStreamPort == LocalPort))
+	{
+		return &Streams[LocalPort-1];
+	}
+
+	for (FStreamDescription& Stream : Streams)
+	{
+		if (Stream.LocalStreamPort == LocalPort)
+		{
+			return &Stream;
+		}
+	}
+	return nullptr;
 }
 
 } // namespace DirectLink

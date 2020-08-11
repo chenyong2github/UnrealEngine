@@ -74,6 +74,15 @@ class DATASMITHCORE_API FEndpoint
 	: public FNoncopyable
 {
 public:
+	enum class EOpenStreamResult
+	{
+		Opened,
+		AlreadyOpened,
+		SourceAndDestinationNotFound,
+		RemoteEndpointNotFound,
+	};
+
+public:
 	FEndpoint(const FString& InName);
 	void SetVerbose(bool bVerbose=true) { SharedState.bDebugLog = bVerbose; }
 	~FEndpoint();
@@ -90,7 +99,7 @@ public:
 	void AddEndpointObserver(IEndpointObserver* Observer);
 	void RemoveEndpointObserver(IEndpointObserver* Observer);
 
-	void OpenStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId);
+	EOpenStreamResult OpenStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId);
 	void CloseStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId);
 
 private:
@@ -119,10 +128,12 @@ private:
 		mutable FRWLock RawInfoCopyLock;
 		FRawInfo RawInfo;
 
-		std::atomic<bool> bInnerThreadShouldRun{true};
+		std::atomic<bool> bInnerThreadShouldRun{false};
 		bool bDebugLog = false;
 		const FString NiceName; // not locked (wrote once)
 		TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+
+		FStreamDescription* GetStreamByLocalPort(FStreamPort LocalPort, const FRWScopeLock& _);
 	};
 	FSharedState SharedState;
 
@@ -132,7 +143,7 @@ private:
 	public:
 		FInternalThreadState(FEndpoint& Owner) : Owner(Owner), SharedState(Owner.SharedState) {}
 		void Init(); // once, any thread
-		void Run(); // once, blocking, inner thread
+		void Run(); // once, blocking, inner thread only
 
 	private:
 		void Handle_EndpointLifecycle(const FDirectLinkMsg_EndpointLifecycle& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
@@ -143,27 +154,25 @@ private:
 		void Handle_DeltaMessage(const FDirectLinkMsg_DeltaMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 		void Handle_CloseStreamRequest(const FDirectLinkMsg_CloseStreamRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
-		bool IsAliveOnNetwork() const; // inner thread only
 		/** Check if a received message is sent by 'this' endpoint.
 		 * Can be useful to skip handling of own messages. Makes sense in handlers of subscribed messages.
 		 * @param MaybeRemoteAddress Address of the sender (see Context->GetSender())
 		 * @returns whether given address is this address */
-		bool IsMine(const FMessageAddress& MaybeRemoteAddress) const; // inner thread only
+		bool IsMine(const FMessageAddress& MaybeRemoteAddress) const;
 
 		/** Note on state replication:
 		 * On local state edition (eg. when a source is added) the new state is broadcasted.
 		 * On top of that, the state revision is broadcasted on heartbeats every few seconds.
 		 * This allow other endpoint to detect when a replicated state is no longer valid, and query an update.
 		 * This covers all failure case, and is lightweight as only the revision number is frequently broadcasted. */
-		void ReplicateState(const FMessageAddress& RemoteEndpointAddress) const; // inner thread only
-		void ReplicateState_Broadcast() const; // inner thread only
-		void Heartbeat_Broadcast() const; // inner thread only
+		void ReplicateState(const FMessageAddress& RemoteEndpointAddress) const;
+		void ReplicateState_Broadcast() const;
+		void Heartbeat_Broadcast() const;
 
-		bool IsInnerThread() const {return true;}
-		FString ToString_dbg() const; // inner thread only
+		FString ToString_dbg() const;
 
-		void UpdateSourceDescription(); // inner thread only
-		void UpdateDestinationDescription(); // inner thread only
+		void UpdateSourceDescription();
+		void UpdateDestinationDescription();
 
 	private:
 		FEndpoint& Owner;

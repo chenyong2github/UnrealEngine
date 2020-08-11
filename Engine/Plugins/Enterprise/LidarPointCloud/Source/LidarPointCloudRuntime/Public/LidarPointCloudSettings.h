@@ -62,6 +62,13 @@ public:
 	bool bPrioritizeActiveViewport;
 
 	/**
+	 * Sets how long the nodes wil be kept in RAM after they are no longer visible.
+	 * Larger values are more likely to avoid re-loads from storage, at the cost of increased RAM usage. 
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (ClampMin = "0"))
+	float CachedNodeLifetime;
+
+	/**
 	 * Enabling this will compress data when saving the assets.
 	 * May introduce delay when streaming points on slower machines.
 	 */

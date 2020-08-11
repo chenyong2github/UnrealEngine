@@ -225,6 +225,8 @@ void FLidarPointCloudEditor::SelectPointsByFrustum(const FConvexVolume& Selectio
 			(*Data)->bSelected = true;
 		}
 	}	
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
 }
 
 void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& SelectionFrustum)
@@ -250,6 +252,8 @@ void FLidarPointCloudEditor::DeselectPointsByFrustum(const FConvexVolume& Select
 	}
 
 	SelectedPoints.Shrink();
+
+	PointCloudBeingEdited->Octree.MarkRenderDataInFrustumDirty(SelectionFrustum);
 }
 
 void FLidarPointCloudEditor::DeselectPoints()
@@ -260,6 +264,8 @@ void FLidarPointCloudEditor::DeselectPoints()
 	}
 
 	SelectedPoints.Empty();
+
+	PointCloudBeingEdited->Octree.MarkRenderDataDirty();
 }
 
 void FLidarPointCloudEditor::InvertSelection()
@@ -277,6 +283,8 @@ void FLidarPointCloudEditor::InvertSelection()
 			SelectedPoints.Add(Point);
 		}
 	}, true);
+
+	PointCloudBeingEdited->Octree.MarkRenderDataDirty();
 }
 
 void FLidarPointCloudEditor::DeletePoints()

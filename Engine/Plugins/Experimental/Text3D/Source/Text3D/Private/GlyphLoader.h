@@ -175,6 +175,11 @@ private:
 	 */
 	bool FindRegular();
 	TArray<FVector2f> CopyVertices() const;
+
+	/**
+	 * Separate bad contour (the one that is not a closed loop) from path.
+	 */
+	void DetachBadContour();
 	/**
 	 * Separate closed loop from path.
 	 * @param RepeatedJunctionIndex - Index of start (and end) of loop in list of junctions.
@@ -182,6 +187,19 @@ private:
 	 * @param RootForDetaching - Separate root node for detaching.
 	 */
 	void DetachFinishedContour(const int32 RepeatedJunctionIndex, const TArray<FVector2f>& InitialVertices, const TSharedContourNode RootForDetaching);
+
+	/**
+	 * Find start of contour that is detached, remove it from list of junctions.
+	 * @param RepeatedJunctionIndex - Index of start (and end) of loop in list of junctions.
+	 * @return Index in path of first (and last) vertex of loop.
+	 */
+	int32 FindStartOfDetachedContour(const int32 RepeatedJunctionIndex);
+	/**
+	 * Remove separated contour from path.
+	 * @param JunctionIndexInContour - Index in path of first (and last) vertex of loop.
+	 */
+	void RemoveDetachedContourFromPath(const int32 JunctionIndexInContour);
+
 	/**
 	 * Add vertex to path
 	 * @param bForceJunction - Needed for separating last loop, it has no junctions so any other vertex has to be treated as one.

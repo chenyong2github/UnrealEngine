@@ -9,6 +9,7 @@
 #include "Containers/Queue.h"
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
+#include "Rendering/LidarPointCloudRenderBuffers.h"
 
 DECLARE_CYCLE_STAT(TEXT("Node Streaming"), STAT_NodeStreaming, STATGROUP_LidarPointCloud);
 
@@ -86,7 +87,10 @@ FLidarPointCloudOctreeNode::FLidarPointCloudOctreeNode(FLidarPointCloudOctree* T
 	, LocationInParent(LocationInParent)
 	, Center(Center)
 	, bVisibilityDirty(false)
+	, bInUse(false)
 	, NumVisiblePoints(0)
+	, DataCache(nullptr)
+	, bRenderDataDirty(true)
 	, bHasDataPending(false)
 	, bCanReleaseData(true)
 {
@@ -102,6 +106,18 @@ FLidarPointCloudOctreeNode::~FLidarPointCloudOctreeNode()
 	{
 		delete Children[i];
 		Children[i] = nullptr;
+	}
+
+	if (DataCache)
+	{
+		FLidarPointCloudRenderBuffer* Tmp = DataCache;
+		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
+			{
+				Tmp->ReleaseResource();
+				delete Tmp;
+			});
+
+		DataCache = nullptr;
 	}
 }
 
@@ -134,6 +150,38 @@ FLidarPointCloudPoint* FLidarPointCloudOctreeNode::GetPersistentData() const
 	mutable_this->bCanReleaseData = false;
 
 	return BulkData.GetData();
+}
+
+bool FLidarPointCloudOctreeNode::BuildDataCache()
+{
+	// Only inlcude nodes with available data
+	if (HasData() && GetNumVisiblePoints())
+	{
+		if (!DataCache)
+		{
+			DataCache = new FLidarPointCloudRenderBuffer();
+			bRenderDataDirty = true;
+		}
+
+		if (bRenderDataDirty)
+		{
+			DataCache->Resize(GetNumVisiblePoints() * 5);
+
+			uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * 20, RLM_WriteOnly);
+			for (FLidarPointCloudPoint* Data = GetData(), *DataEnd = Data + GetNumVisiblePoints(); Data != DataEnd; ++Data)
+			{
+				FMemory::Memcpy(StructuredBuffer, Data, 20);
+				StructuredBuffer += 20;
+			}
+			RHIUnlockVertexBuffer(DataCache->Buffer);
+
+			bRenderDataDirty = false;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 FBox FLidarPointCloudOctreeNode::GetBounds(const FLidarPointCloudOctree* Tree) const
@@ -336,6 +384,8 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, cons
 
 		// Update the BulkData with the new array
 		BulkData.CopyFromArray(AllocatedPoints);
+
+		bRenderDataDirty = true;
 	}
 
 	AddPointCount(Tree, NumPointsAdded);
@@ -527,6 +577,8 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 
 		// Update the BulkData with the new array
 		BulkData.CopyFromArray(AllocatedPoints);
+
+		bRenderDataDirty = true;
 	}
 
 	AddPointCount(Tree, NumPointsAdded);
@@ -544,6 +596,7 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudOctree* Tree, FLid
 void FLidarPointCloudOctreeNode::Empty(bool bRecursive)
 {
 	BulkData.RemoveBulkData();
+	bRenderDataDirty = true;
 
 	if (bRecursive)
 	{
@@ -590,14 +643,24 @@ int64 FLidarPointCloudOctreeNode::GetAllocatedSize(bool bRecursive, bool bInclud
 
 void FLidarPointCloudOctreeNode::ReleaseData(bool bForce)
 {
-	// Ignore request, if the node cannot be released
-	if (!bCanReleaseData && !bForce)
+	// Check if the data can be released
+	if (bCanReleaseData || bForce)
 	{
-		return;
+		bHasDataPending = false;
+		BulkData.ReleaseData();
 	}
 
-	bHasDataPending = false;
-	BulkData.ReleaseData();
+	if (DataCache)
+	{
+		FLidarPointCloudRenderBuffer* Tmp = DataCache;
+		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
+			{
+				Tmp->ReleaseResource();
+				delete Tmp;
+			});
+
+		DataCache = nullptr;
+	}
 }
 
 void FLidarPointCloudOctreeNode::AddPointCount(FLidarPointCloudOctree* Tree, int32 PointCount /*= INT32_MIN*/)
@@ -616,6 +679,7 @@ void FLidarPointCloudOctreeNode::SortVisiblePoints()
 		return A.bVisible > B.bVisible;
 	});
 	bCanReleaseData = false;
+	bRenderDataDirty = true;
 }
 
 //////////////////////////////////////////////////////////// FLidarPointCloudOctree
@@ -1133,6 +1197,7 @@ void FLidarPointCloudOctree::SetVisibilityOfPointsInSphere(const bool& bNewVisib
 
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, NODE_IN_BOX);
 }
@@ -1179,6 +1244,7 @@ void FLidarPointCloudOctree::SetVisibilityOfPointsInBox(const bool& bNewVisibili
 
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, NODE_IN_BOX);
 }
@@ -1217,6 +1283,7 @@ void FLidarPointCloudOctree::SetVisibilityOfFirstPointByRay(const bool& bNewVisi
 
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
+			CurrentNode->bRenderDataDirty = true;
 
 			if (bPointProcessed)
 			{
@@ -1258,6 +1325,7 @@ void FLidarPointCloudOctree::SetVisibilityOfPointsByRay(const bool& bNewVisibili
 
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
+			CurrentNode->bRenderDataDirty = true;
 
 			for (FLidarPointCloudOctreeNode*& Child : CurrentNode->Children)
 			{
@@ -1279,6 +1347,7 @@ void FLidarPointCloudOctree::HideAll()
 
 			CurrentNode->NumVisiblePoints = 0;
 			CurrentNode->bVisibilityDirty = false;
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, true);
 }
@@ -1295,69 +1364,86 @@ void FLidarPointCloudOctree::UnhideAll()
 
 			CurrentNode->NumVisiblePoints = CurrentNode->GetNumPoints();
 			CurrentNode->bVisibilityDirty = false;
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, true);
 }
 
 void FLidarPointCloudOctree::ExecuteActionOnAllPoints(TFunction<void(FLidarPointCloudPoint*)> Action, const bool& bVisibleOnly)
 {
-	PROCESS_ALL({ Action(Point); });
+	PROCESS_ALL_EX({ Action(Point); }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ExecuteActionOnPointsInSphere(TFunction<void(FLidarPointCloudPoint*)> Action, const FSphere& Sphere, const bool& bVisibleOnly)
 {
-	PROCESS_IN_SPHERE({ Action(Point); });
+	PROCESS_IN_SPHERE_EX({ Action(Point); }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ExecuteActionOnPointsInBox(TFunction<void(FLidarPointCloudPoint*)> Action, const FBox& Box, const bool& bVisibleOnly)
 {
-	PROCESS_IN_BOX({ Action(Point); });
+	PROCESS_IN_BOX_EX({ Action(Point); }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ExecuteActionOnFirstPointByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
 {
-	if (FLidarPointCloudPoint* Point = RaycastSingle(Ray, Radius, bVisibleOnly))
-	{
+	PROCESS_BY_RAY({
 		Action(Point);
-	}
+		CurrentNode->bRenderDataDirty = true;
+		return;
+	});
 }
 
 void FLidarPointCloudOctree::ExecuteActionOnPointsByRay(TFunction<void(FLidarPointCloudPoint*)> Action, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
 {
-	PROCESS_BY_RAY({ Action(Point); });
+	PROCESS_BY_RAY_EX({ Action(Point); }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ApplyColorToAllPoints(const FColor& NewColor, const bool& bVisibleOnly)
 {
-	PROCESS_ALL({ Point->Color = NewColor; });
+	PROCESS_ALL_EX({ Point->Color = NewColor; }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ApplyColorToPointsInSphere(const FColor& NewColor, const FSphere& Sphere, const bool& bVisibleOnly)
 {
-	PROCESS_IN_SPHERE({ Point->Color = NewColor; });
+	PROCESS_IN_SPHERE_EX({ Point->Color = NewColor; }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ApplyColorToPointsInBox(const FColor& NewColor, const FBox& Box, const bool& bVisibleOnly)
 {
-	PROCESS_IN_BOX({ Point->Color = NewColor; });
+	PROCESS_IN_BOX_EX({ Point->Color = NewColor; }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::ApplyColorToFirstPointByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
 {
-	if (FLidarPointCloudPoint* Point = RaycastSingle(Ray, Radius, bVisibleOnly))
-	{
+	PROCESS_BY_RAY({
 		Point->Color = NewColor;
-	}
+		CurrentNode->bRenderDataDirty = true;
+		return;
+	});
 }
 
 void FLidarPointCloudOctree::ApplyColorToPointsByRay(const FColor& NewColor, const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly)
 {
-	PROCESS_BY_RAY({ Point->Color = NewColor; });
+	PROCESS_BY_RAY_EX({ Point->Color = NewColor; }, { CurrentNode->bRenderDataDirty = true; });
 }
 
 void FLidarPointCloudOctree::MarkPointVisibilityDirty()
 {
-	ITERATE_NODES({ CurrentNode->bVisibilityDirty = true; }, true);
+	ITERATE_NODES(
+	{
+		CurrentNode->bVisibilityDirty = true;
+		CurrentNode->bRenderDataDirty = true;
+	}, true);
+}
+
+void FLidarPointCloudOctree::MarkRenderDataDirty()
+{
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, true);
+}
+
+void FLidarPointCloudOctree::MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum)
+{
+	ITERATE_NODES({ CurrentNode->bRenderDataDirty = true; }, NODE_IN_FRUSTUM);
 }
 
 void FLidarPointCloudOctree::Initialize(const FVector& InExtent)
@@ -1520,6 +1606,8 @@ void FLidarPointCloudOctree::RemovePoints(TArray<FLidarPointCloudPoint*, T>& Poi
 
 			// Sort points to speed up rendering
 			CurrentNode->SortVisiblePoints();
+
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, true);
 
@@ -1608,6 +1696,8 @@ void FLidarPointCloudOctree::RemoveHiddenPoints()
 			// Set visibility data
 			CurrentNode->NumVisiblePoints = CurrentNode->GetNumPoints();
 			CurrentNode->bVisibilityDirty = false;
+
+			CurrentNode->bRenderDataDirty = true;
 		}
 	}, true);
 
@@ -1621,6 +1711,8 @@ void FLidarPointCloudOctree::ResetNormals()
 		{
 			Point->Normal.Reset();
 		}
+		
+		CurrentNode->bRenderDataDirty = true;
 	}, true);
 }
 
@@ -1636,6 +1728,8 @@ void FLidarPointCloudOctree::CalculateNormals(FThreadSafeBool* bCancelled, int32
 		{
 			(*Point)->Normal.Reset();
 		}
+
+		MarkRenderDataDirty();
 	}
 	else
 	{
@@ -1721,13 +1815,19 @@ void FLidarPointCloudOctree::QueueNode(FLidarPointCloudOctreeNode* Node, float L
 		Node->BulkDataLifetime = Lifetime;
 	}
 
+	// Mark the node as being in use
+	if (!Node->bInUse)
+	{
+		Node->bInUse = true;
+		NodesInUse.Add(Node);
+	}
+
 	// No need to do anything, if the node already has data loaded or loading
 	if (Node->HasData() || Node->bHasDataPending)
 	{
 		return;
 	}
 
-	NodesInUse.Add(Node);
 	QueuedNodes.Enqueue(Node);
 	Node->bHasDataPending = true;
 }
@@ -1774,6 +1874,7 @@ void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
 		if (Node->BulkDataLifetime < CurrentTime)
 		{
 			Node->ReleaseData();
+			Node->bInUse = false;
 			NodesInUse.RemoveAtSwap(i--, 1, false);
 		}
 	}
@@ -1819,6 +1920,8 @@ void FLidarPointCloudOctree::RefreshAllocatedSize()
 void FLidarPointCloudOctree::RemovePoint_Internal(FLidarPointCloudOctreeNode* Node, int32 Index)
 {
 	Node->AddPointCount(this, -1);
+
+	Node->bRenderDataDirty = true;
 
 	// Make a copy of the data
 	TArray<FLidarPointCloudPoint> AllocatedPoints;
@@ -2000,7 +2103,9 @@ void FLidarPointCloudOctree::Serialize(FArchive& Ar)
 FLidarPointCloudTraversalOctreeNode::FLidarPointCloudTraversalOctreeNode()
 	: DataNode(nullptr)
 	, Parent(nullptr)
+	, bFullyContained(false)
 {
+
 }
 
 void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset)

@@ -19,8 +19,6 @@
 
 //////////////////////////////////////////////////////////// Base Buffer
 
-TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
-TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudNormalBuffer;
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
 
@@ -113,6 +111,27 @@ void FLidarPointCloudRenderBuffer::ReleaseRHI()
 
 //////////////////////////////////////////////////////////// User Data
 
+FLidarPointCloudBatchElementUserData::FLidarPointCloudBatchElementUserData()
+	: SelectionColor(FVector::OneVector)
+	, IndexDivisor(4)
+	, SpriteSize(0)
+	, bUseLODColoration(false)
+	, NumClippingVolumes(0)
+	, bStartClipped(false)
+{
+	for (int32 i = 0; i < 16; ++i)
+	{
+		ClippingVolume[i] = FMatrix(FPlane(FVector::ZeroVector, 0),
+									FPlane(FVector::ForwardVector, FLT_MAX),
+									FPlane(FVector::RightVector, FLT_MAX),
+									FPlane(FVector::UpVector, FLT_MAX));
+	}
+
+#if WITH_EDITOR
+	SelectionColor = FVector(GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(true));
+#endif
+}
+
 void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<int32, FLinearColor>& InClassificationColors)
 {
 	for (int32 i = 0; i < 32; ++i)
@@ -127,15 +146,12 @@ void FLidarPointCloudBatchElementUserData::SetClassificationColors(const TMap<in
 void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterMap& ParameterMap)
 {
 	BINDPARAM(DataBuffer);
-	BINDPARAM(NormalBuffer);
 	BINDPARAM(bEditorView);
+	BINDPARAM(SelectionColor);
 	BINDPARAM(IndexDivisor);
-	BINDPARAM(FirstElementIndex);
-	BINDPARAM(FirstNormalIndex);
 	BINDPARAM(LocationOffset);
-	BINDPARAM(VDMultiplier);
-	BINDPARAM(SizeOffset);
-	BINDPARAM(RootCellSize);
+	BINDPARAM(VirtualDepth);
+	BINDPARAM(SpriteSize);
 	BINDPARAM(bUseLODColoration);
 	BINDPARAM(SpriteSizeMultiplier);
 	BINDPARAM(ViewRightVector);
@@ -166,15 +182,12 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	FLidarPointCloudBatchElementUserData* UserData = (FLidarPointCloudBatchElementUserData*)BatchElement.UserData;
 
 	SETSRVPARAM(DataBuffer);
-	SETSRVPARAM(NormalBuffer);
 	SETPARAM(bEditorView);
+	SETPARAM(SelectionColor);
 	SETPARAM(IndexDivisor);
-	SETPARAM(FirstElementIndex);
-	SETPARAM(FirstNormalIndex);
 	SETPARAM(LocationOffset);
-	SETPARAM(VDMultiplier);
-	SETPARAM(SizeOffset);
-	SETPARAM(RootCellSize);
+	SETPARAM(VirtualDepth);
+	SETPARAM(SpriteSize);
 	SETPARAM(bUseLODColoration);
 	SETPARAM(SpriteSizeMultiplier);
 	SETPARAM(ViewRightVector);

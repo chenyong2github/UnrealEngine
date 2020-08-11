@@ -8,17 +8,17 @@
 #include "Containers/List.h"
 
 
-class FData;
-
 class FContourList final : public TDoubleLinkedList<FContour>
 {
 public:
 	FContourList();
+	FContourList(const FContourList& Other);
 
 	/**
-	 * Initialize Countours
+	 * Initialize Countours.
+	 * @param Data - Needed to add vertices for split corners.
 	 */
-	void Initialize();
+	void Initialize(const TSharedRef<class FData>& Data);
 
 	/**
 	 * Create contour.

@@ -33,6 +33,7 @@ namespace DatasmithNavisworks
 
 		public bool USE_COMPONENTS = false;
 		public bool CREATE_INSTANCES_FOR_EMPTY_GEOMETRY = false; // Should we bother instantiating empty geometry(might want for debugging or metadata)?
+		public bool bUseClipbox = false; // This is disabled for now(can be useful for debugging, though)
 	};
 
 	[Plugin("DatasmithNavisworksExporter.Ribbon", "EpicGames", 
@@ -719,7 +720,10 @@ namespace DatasmithNavisworks
 
 					ItemFilterParameters ItemFilterParams = new ItemFilterParameters();
 
-					ExtractClipBox(ActiveDocument, ItemFilterParams);
+					if (ExportParameters.bUseClipbox)
+					{
+						ExtractClipBox(ActiveDocument, ItemFilterParams);
+					}
 
 					// TODO: right-handed Z-up - this is how gatehouse looks like but NW allows to setup orientation
 					FDatasmithFacadeElement.SetCoordinateSystemType(FDatasmithFacadeElement.ECoordinateSystemType.RightHandedZup);
@@ -793,7 +797,7 @@ namespace DatasmithNavisworks
 							{
 								NodeContext Context = new NodeContext(SceneContext);
 								SceneItem SceneItem = new SceneItem(null, State.CurrentPartition);
-								CollectNodes(Context, SceneItem, out SceneContext.RootNode, ProgressBar);
+								CollectNodes(Context, SceneItem, out SceneContext.RootNode, out bool _, ProgressBar);
 								if (ProgressBar.IsCanceled)
 								{
 									return 0;
@@ -942,23 +946,6 @@ namespace DatasmithNavisworks
 							}
 						}
 
-						{
-							EventInfo("Reading Node Paths");
-							ProgressBar.BeginSubOperation(0.01, "Reading Node Paths");
-							try
-							{
-								ReadNodePaths(SceneContext, ProgressBar);
-								if (ProgressBar.IsCanceled)
-								{
-									return 0;
-								}
-								EventInfo("Done - Reading Node Paths");
-							}
-							finally
-							{
-								ProgressBar.EndSubOperation();
-							}
-						}
 						{
 							EventInfo("Reading Metadata");
 							ProgressBar.BeginSubOperation(0.2, "Reading Metadata");
@@ -1956,7 +1943,7 @@ namespace DatasmithNavisworks
 
 				SceneItem Item = Node.SceneItem;
 
-				if (SceneContext.ItemComPathForPath.TryGetValue(Item.Path, out InwOaPath ComPath))
+				if (GetSceneItemComPath(SceneContext, Item, out InwOaPath ComPath))
 				{
 					GuiProperties GuiProperties = new GuiProperties();
 					ExtractProperties(SceneContext, ComPath, GuiProperties);
@@ -1971,32 +1958,28 @@ namespace DatasmithNavisworks
 			}
 		}
 
-		[MethodImpl(MethodImplOptions.NoInlining)]
-		private static void ReadNodePaths(SceneContext SceneContext, Progress ProgressBar)
+		private static bool GetSceneItemComPath(SceneContext SceneContext, SceneItem Item, out InwOaPath ComPath)
 		{
-			// InwOaPath is needed to read Item "gui properties"(metadata)
-			// We don't have direct way to get InwOaPath3 for each Item in the scene tree
-			// This is how it's done - for each Com Node API has a way to iterate node instances, returning InwOaPath for each instance
-			int NodeIndex = 0;
-			int NodeCount = SceneContext.NavisworksInstancesCollection.NavisworksInstancesForComNode.Count;
-			foreach (NavisworksNodeInstances InstancesForNode in SceneContext.NavisworksInstancesCollection.NavisworksInstancesForComNode.Values)
+			if (SceneContext.ItemComPathForPath.TryGetValue(Item.Path, out ComPath))
 			{
-				ProgressBar.Update(Math.Min(1, (double) NodeIndex++ / NodeCount));
+				return true;
+			}
+			ReadPathsForSceneItemComNodeInstances(SceneContext, Item);
+			return SceneContext.ItemComPathForPath.TryGetValue(Item.Path, out ComPath);
+		}
 
-				if (ProgressBar.IsCanceled)
-				{
-					return;
-				}
-
-				InwOaPath3 NwOaPath = (InwOaPath3)SceneContext.State.GetFirstInstanceOfNode(InstancesForNode.SceneItem.ComNode);
-				while (NwOaPath!=null)
-				{
-					SceneItemPath SceneItemPath = new SceneItemPath(NwOaPath);
-					SceneContext.ItemComPathForPath[SceneItemPath] = NwOaPath;
-					NwOaPath = (InwOaPath3)NwOaPath.GetNextInstance();
-				}
-
-				NodeIndex++;
+		// InwOaPath is needed to read Item "gui properties"(metadata) and retrieve IsHidden value on ModelItem
+		// We don't have direct way to get InwOaPath3 for each Item in the scene tree
+		// Each Com node(InwOaNode) can have a number on instances withing navisworks scene hierarchy 
+		// This instance corresponds to a 'scene item' and identified by 'path'(InwOaPath in Com API)
+		private static void ReadPathsForSceneItemComNodeInstances(SceneContext SceneContext, SceneItem SceneItem)
+		{
+			InwOaPath3 NwOaPath = (InwOaPath3) SceneContext.State.GetFirstInstanceOfNode(SceneItem.ComNode);
+			while (NwOaPath != null)
+			{
+				SceneItemPath SceneItemPath = new SceneItemPath(NwOaPath);
+				SceneContext.ItemComPathForPath[SceneItemPath] = NwOaPath;
+				NwOaPath = (InwOaPath3) NwOaPath.GetNextInstance();
 			}
 		}
 
@@ -2250,7 +2233,18 @@ namespace DatasmithNavisworks
 					// name - is property identity
 					// UserName is what displayed in Navisworks UI - on Properties tabs and in Find Items window. UserName for different properties in one Tab can match 
 					// In Navisworks search is done by property identity(name). When two properties have same UseName Find Items will display identical names in the 'Property' list
-					Attribute.SetProperty(Property.UserName, Property.value);
+
+					string PropertyName = Property.UserName;
+					string PropertyValue = null;
+					try 
+					{
+						PropertyValue = Property.value?.ToString();
+					}
+					catch(COMException)
+					{
+						// 'value' COM field can be missing, raising exception on access
+					}
+					Attribute.SetProperty(PropertyName, PropertyValue);
 				}
 
 				// Without this Navisworks COM api collection can be released by .NET runtime too soon making collection items deallocated too(implementation detail of NW COM api)
@@ -2888,10 +2882,11 @@ namespace DatasmithNavisworks
 		};
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
-		private bool CollectNodes(NodeContext Context, SceneItem Item, out Node Node, Progress ProgressBar)
+		private bool CollectNodes(NodeContext Context, SceneItem Item, out Node Node, out bool bIsVisible, Progress ProgressBar)
 		{
 			Info($"Node {Item.IndexInParentChildren}: {Item.ComNode.UserName}", Context.Level);
 			Node = new Node();
+			bIsVisible = false;
 
 			if (ProgressBar.IsCanceled)
 			{
@@ -2900,12 +2895,30 @@ namespace DatasmithNavisworks
 
 			Node.SceneItem = Item;
 
-			if (Item.ComNode.IsOverrideHide)
+			if (Item.ComNode.IsOverrideHide) // Test Hidden on  COM node
 			{
+				Info($"!IsOverrideHide", Context.Level);
 				// skipping entire hierarchy for hidden nodes
 				Context.SceneContext.HiddenNodeCount++;
 				return true;
 			}
+
+			if (!GetSceneItemComPath(Context.SceneContext, Item, out InwOaPath ComPath))
+			{
+				Debug.Assert(false); // This seems like impossible situation(that com node instance won't have instance path)
+				return true;
+			}
+
+			ModelItem ModelItem = Autodesk.Navisworks.Api.ComApi.ComApiBridge.ToModelItem(ComPath);
+			if (ModelItem.IsHidden) // Test Hidden on COM node Instance
+			{
+				Info($"!IsHidden", Context.Level);
+				// skipping entire hierarchy for hidden nodes
+				Context.SceneContext.HiddenNodeCount++;
+				return true;
+			}
+
+			bIsVisible = true;
 
 			if (Context.SceneContext.ItemFilterParams.bHasClipBox && !Item.BoundingBox.Intersects(Context.SceneContext.ItemFilterParams.ClipBox))
 			{
@@ -2969,17 +2982,22 @@ namespace DatasmithNavisworks
 				if (NwOaNode is InwOaGroup Group)
 				{
 					Info($"# Children ({Group.Children().Count})", Context.Level);
-					int ChildIndex = 0;
+					int ChildIndex = 0; // Index of child to identify Item path correctly
 					foreach (InwOaNode Child in Group.Children())
 					{
 						NodeContext ChildContext = new NodeContext(Context);
 						SceneItem ChildItem = new SceneItem(Item, Child, ChildIndex);
 
-						if (!CollectNodes(ChildContext, ChildItem, out Node ChildNode, ProgressBar))
+						if (!CollectNodes(ChildContext, ChildItem, out Node ChildNode, out bool bIsChildVisible, ProgressBar))
 						{
 							return false;
 						}
-						Node.Children.Add(ChildNode);
+
+						if (bIsChildVisible)
+						{
+							Node.Children.Add(ChildNode);
+						}
+
 						ChildIndex++;
 					}
 				}
@@ -3006,7 +3024,7 @@ namespace DatasmithNavisworks
 					}
 				}
 
-				public void SetProperty(string Name, object Value)
+				public void SetProperty(string Name, string Value)
 				{
 					string NameBase = Name;
 
@@ -3018,7 +3036,7 @@ namespace DatasmithNavisworks
 						Index++;
 					}
 
-					Properties.Add(Name, Value.ToString());
+					Properties.Add(Name, Value);
 				}
 			}
 

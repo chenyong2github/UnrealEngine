@@ -59,13 +59,21 @@ private:
 	/** Marks the node for visibility recalculation next time it's necessary */
 	bool bVisibilityDirty;
 
+	/** Marks the node as being used for rendering */
+	bool bInUse;
+
 	/** Stores the number of visible points */
-	int32 NumVisiblePoints;
+	uint32 NumVisiblePoints;
 
 	FCriticalSection MapLock;
 
 	/** Used for streaming the data from disk */
 	FLidarPointCloudBulkData BulkData;
+
+	/** Holds render data for this node */
+	class FLidarPointCloudRenderBuffer* DataCache;
+
+	bool bRenderDataDirty;
 
 	/** Used to keep track, which data is available for rendering */
 	TAtomic<bool> bHasDataPending;
@@ -89,11 +97,16 @@ public:
 	/** Returns a pointer to the point data and prevents it from being released */
 	FLidarPointCloudPoint* GetPersistentData() const;
 
+	/** Returns a pointer to the point data */
+	FORCEINLINE FLidarPointCloudRenderBuffer* GetDataCache() { return DataCache; }
+
+	bool BuildDataCache();
+
 	/** Returns the sum of grid and padding points allocated to this node. */
-	FORCEINLINE int32 GetNumPoints() const { return (int32)BulkData.GetElementCount(); }
+	FORCEINLINE int64 GetNumPoints() const { return BulkData.GetElementCount(); }
 
 	/** Returns the sum of visible grid and padding points allocated to this node. */
-	int32 GetNumVisiblePoints() const { return NumVisiblePoints; }
+	uint32 GetNumVisiblePoints() const { return NumVisiblePoints; }
 
 	/** Calculates and returns the bounds of this node */
 	FBox GetBounds(const FLidarPointCloudOctree* Tree) const;
@@ -380,6 +393,12 @@ public:
 	 */
 	void MarkPointVisibilityDirty();
 
+	/** Marks render data of all nodes as dirty. */
+	void MarkRenderDataDirty();
+
+	/** Marks render data of all nodes within the given frustum as dirty. */
+	void MarkRenderDataInFrustumDirty(const FConvexVolume& Frustum);
+
 	/** Initializes the Octree properties. */
 	void Initialize(const FVector& InExtent);
 
@@ -510,6 +529,8 @@ struct FLidarPointCloudTraversalOctreeNode
 
 	/** Holds true if the node has been selected for rendering. */
 	bool bSelected;
+
+	bool bFullyContained;
 
 	FLidarPointCloudTraversalOctreeNode();
 

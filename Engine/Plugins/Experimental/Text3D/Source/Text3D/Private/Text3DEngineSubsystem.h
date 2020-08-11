@@ -46,9 +46,9 @@ public:
 
 	uint32 GetTypefaceFontDataHash();
 	TSharedPtr<int32> GetCacheCounter();
-	TSharedPtr<int32> GetMeshesCacheCounter(float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	TSharedPtr<int32> GetMeshesCacheCounter(bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
 
-	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
 	TSharedContourNode GetGlyphContours(uint32 GlyphIndex);
 
 	UPROPERTY()
