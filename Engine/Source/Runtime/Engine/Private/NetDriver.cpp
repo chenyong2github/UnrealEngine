@@ -5483,9 +5483,11 @@ void UNetDriver::CleanupWorldForSeamlessTravel()
 
 				// This is currently necessary because the actor iterator used in the seamless travel handler 
 				// skips over AWorldSettings actors for an unknown reason.
-				if (Level->GetWorldSettings())
+				AWorldSettings* WorldSettings = Level->GetWorldSettings(false);
+
+				if (WorldSettings != nullptr)
 				{
-					NotifyActorLevelUnloaded(Level->GetWorldSettings());
+					NotifyActorLevelUnloaded(WorldSettings);
 				}
 			}
 		}
