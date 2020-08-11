@@ -48,7 +48,6 @@ namespace Metasound
 		}
 
 	private:
-		float DefaultFrequency;
 		FOperatorFactory Factory;
 	};
 }

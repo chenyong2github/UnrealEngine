@@ -11,6 +11,8 @@ namespace Audio
 	struct IDecoderInput;
 }
 
+class USoundWave;
+
 namespace Metasound
 {
 	// Forward declare ReadRef
@@ -21,13 +23,14 @@ namespace Metasound
 	{
 		TArray<uint8> CompressedBytes;
 		friend class FWaveDecoderInput;
+
 	public:
 		FWave() = default;
 
 		// For testing only.
-		FWave(const TArray<uint8>& InBytes) 
-			: CompressedBytes(InBytes) 
-		{}
+		FWave(const TArray<uint8>& InBytes);
+		
+		FWave(USoundWave* InWave);
 
 		using FDecoderInputPtr = TSharedPtr<Audio::IDecoderInput,ESPMode::ThreadSafe>;
 
