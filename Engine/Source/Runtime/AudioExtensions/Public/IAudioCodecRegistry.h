@@ -28,7 +28,7 @@ namespace Audio
 		virtual FCodecPtr FindCodecByName(FName InName, int32 InVersion = INDEX_NONE) const = 0;
 
 		// Find a codec given a decoders input interface
-		virtual FCodecPtr FindCodecByFromParsingInput(IDecoderInput* InObject) const = 0;
+		virtual FCodecPtr FindCodecByParsingInput(IDecoderInput* InObject) const = 0;
 
 		// Find codec by finding by family name.  (Version can be INDEX_NONE and give the latest version).
 		virtual FCodecPtr FindCodecByFamilyName(FName InFamilyName, int32 InVersion = INDEX_NONE) const = 0;

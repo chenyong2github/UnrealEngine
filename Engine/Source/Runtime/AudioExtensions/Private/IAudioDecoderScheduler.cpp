@@ -69,7 +69,7 @@ namespace Audio
 					// fall-through.
 					case eCreatingDecoder:
 					{
-						ICodec* pCodec = ICodecRegistry::Get().FindCodecByFromParsingInput(
+						ICodec* pCodec = ICodecRegistry::Get().FindCodecByParsingInput(
 							StartArgs.InputObject.Get());
 
 						if( !pCodec )

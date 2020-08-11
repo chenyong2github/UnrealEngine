@@ -139,7 +139,7 @@ namespace Metasound
 		FWave::FDecoderInputPtr Input = FWave::CreateDecoderInput(Wave);
 		if (Input)
 		{
-			ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByFromParsingInput(Input.Get());
+			ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
 			if (Codec)
 			{
 				// V1, Ask for an output buffer the size of a frame.

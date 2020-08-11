@@ -187,7 +187,7 @@ namespace Audio
 			return nullptr;
 		}
 		
-		virtual ICodecRegistry::FCodecPtr FindCodecByFromParsingInput(
+		virtual ICodecRegistry::FCodecPtr FindCodecByParsingInput(
 			IDecoderInput* InObject) const override
 		{
 			if( !audio_ensure(InObject))
