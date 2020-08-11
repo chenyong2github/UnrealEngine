@@ -99,9 +99,22 @@ FNiagaraDataSet::FNiagaraDataSet()
 
 FNiagaraDataSet::~FNiagaraDataSet()
 {
+	CompiledData.Reset();
+
 // 	int32 CurrBytes = RenderDataFloat.NumBytes + RenderDataInt.NumBytes;
 // 	DEC_MEMORY_STAT_BY(STAT_NiagaraVBMemory, CurrBytes);
-	ReleaseBuffers();
+	if (Data.Num() > 0)
+	{
+		for (FNiagaraDataBuffer* Buffer : Data)
+		{
+			Buffer->Destroy();
+		}
+		Data.Empty();
+	}
+
+	check(GPUFreeIDs.Buffer.IsValid() == false);
+
+	GPUNumAllocatedIDs = 0;
 }
 
 void FNiagaraDataSet::Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData)
@@ -159,26 +172,6 @@ void FNiagaraDataSet::ResetBuffersInternal()
 	//Ensure we have a valid current buffer
 	BeginSimulate();
 	EndSimulate();
-}
-
-void FNiagaraDataSet::ReleaseBuffers()
-{
-	CheckCorrectThread();
-	if (Data.Num() > 0)
-	{
-		for (FNiagaraDataBuffer* Buffer : Data)
-		{
-			Buffer->Destroy();
-		}
-		Data.Empty();
-	}
-
-	if (GPUFreeIDs.Buffer)
-	{
-		GPUFreeIDs.Release();
-	}
-
-	GPUNumAllocatedIDs = 0;
 }
 
 FNiagaraDataBuffer& FNiagaraDataSet::BeginSimulate(bool bResetDestinationData)
