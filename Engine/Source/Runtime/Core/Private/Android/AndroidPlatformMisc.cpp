@@ -1144,7 +1144,8 @@ protected:
 		if (FPlatformAtomics::InterlockedIncrement(&handling_fatal_signal) != 1)
 		{
 			FPlatformProcess::SleepNoStats(60.0f);
-			exit(0);
+			// exit immediately, crash malloc can cause deadlocks when attempting to clean up static objects via exit().
+			_exit(1);
 		}
 	}
 
@@ -1153,6 +1154,9 @@ protected:
 		EnterFatalCrash();
 		FSignalHandler<FFatalSignalHandler>::ForwardSignal(Signal, Info, Context);
 		RestorePreviousTargetSignalHandlers();
+
+		// re-raise the signal for the benefit of the previous handler.
+		raise(Signal);
 	}
 
 	static void HandleTargetSignal(int Signal, siginfo* Info, void* Context)
@@ -1196,7 +1200,8 @@ protected:
 
 		for (int32 i = 0; i < NumTargetSignals; ++i)
 		{
-			sigaction(TargetSignals[i], &Action, &PrevActions[i]);
+			int result = sigaction(TargetSignals[i], &Action, &PrevActions[i]);
+			UE_CLOG(result != 0, LogAndroid, Error, TEXT("sigaction(%d) failed to set: %d, errno = %x "), i, result, errno);
 		}
 		PreviousSignalHandlersValid = true;
 	}
@@ -1207,7 +1212,8 @@ protected:
 		{
 			for (int32 i = 0; i < NumTargetSignals; ++i)
 			{
-				sigaction(TargetSignals[i], &PrevActions[i], NULL);
+				int result = sigaction(TargetSignals[i], &PrevActions[i], NULL);
+				UE_CLOG(result != 0, LogAndroid, Error, TEXT("sigaction(%d) failed to set prev action: %d, errno = %x "), i, result, errno);
 			}
 			PreviousSignalHandlersValid = false;
 		}
@@ -1245,42 +1251,29 @@ bool FAndroidMisc::IsInSignalHandler()
 #endif
 }
 
-void FAndroidMisc::TriggerNonFatalCrashHandler(ECrashContextType InType, const FString& Message)
+void FAndroidMisc::TriggerCrashHandler(ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack)
 {
-	check(InType == ECrashContextType::Ensure);
+	if (InType != ECrashContextType::Crash)
+	{
+		// we dont flush logs during a fatal signal, malloccrash can cause us to deadlock.
+		if (GLog)
+		{
+			GLog->PanicFlushThreadedLogs();
+			GLog->Flush();
+		}
+		if (GWarn)
+		{
+			GWarn->Flush();
+		}
+		if (GError)
+		{
+			GError->Flush();
+		}
+	}
 
-	if (GLog)
-	{
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
-	}
-	if (GWarn)
-	{
-		GWarn->Flush();
-	}
-	if (GError)
-	{
-		GError->Flush();
-	}
+	FAndroidCrashContext CrashContext(InType, InErrorMessage);
 
-	FAndroidCrashContext CrashContext(InType, *Message);
-
-	CrashContext.CaptureCrashInfo();
-	if (GCrashHandlerPointer)
-	{
-		GCrashHandlerPointer(CrashContext);
-	}
-	else
-	{
-		// call default one
-		DefaultCrashHandler(CrashContext);
-	}
-}
-
-void FAndroidMisc::TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack)
-{
-	FAndroidCrashContext CrashContext(ECrashContextType::Crash, InErrorMessage);
-	if(OverrideCallstack)
+	if (OverrideCallstack)
 	{
 		CrashContext.SetOverrideCallstack(OverrideCallstack);
 	}
