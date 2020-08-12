@@ -199,6 +199,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 		ColorGamut = 0;
 	}
 
+	static int32 GetMaxRefreshRate();
+
     // added these for now because Crashlytics doesn't properly break up different callstacks all ending in UE_LOG(LogXXX, Fatal, ...)
     static FORCENOINLINE CA_NO_RETURN void GPUAssert();
     static FORCENOINLINE CA_NO_RETURN void MetalAssert();

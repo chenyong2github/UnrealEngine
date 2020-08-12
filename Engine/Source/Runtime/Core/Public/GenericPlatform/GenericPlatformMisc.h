@@ -1454,6 +1454,14 @@ public:
 	{
 	}
 
+	/**
+	 * retrieves the maximum refresh rate supported by the platform
+	 */
+	static int32 GetMaxRefreshRate()
+	{
+		return 60;
+	}
+	
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen
