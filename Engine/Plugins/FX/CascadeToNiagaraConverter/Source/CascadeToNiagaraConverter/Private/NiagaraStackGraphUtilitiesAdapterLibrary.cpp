@@ -276,7 +276,7 @@ UNiagaraMeshRendererProperties* UFXConverterUtilitiesLibrary::CreateMeshRenderer
 UNiagaraDataInterfaceCurve* UFXConverterUtilitiesLibrary::CreateFloatCurveDI(TArray<FRichCurveKeyBP> Keys)
 {
 	UNiagaraDataInterfaceCurve* DI_Curve = NewObject<UNiagaraDataInterfaceCurve>();
-	const TArray<FRichCurveKey> BaseKeys = TArray<FRichCurveKey>(Keys);
+	const TArray<FRichCurveKey> BaseKeys = FRichCurveKeyBP::KeysToBase(Keys);
 	DI_Curve->Curve.SetKeys(BaseKeys);
 	return DI_Curve;
 }
@@ -284,8 +284,8 @@ UNiagaraDataInterfaceCurve* UFXConverterUtilitiesLibrary::CreateFloatCurveDI(TAr
 UNiagaraDataInterfaceVector2DCurve* UFXConverterUtilitiesLibrary::CreateVec2CurveDI(TArray<FRichCurveKeyBP> X_Keys, TArray<FRichCurveKeyBP> Y_Keys)
 {
 	UNiagaraDataInterfaceVector2DCurve* DI_Curve = NewObject<UNiagaraDataInterfaceVector2DCurve>();
-	const TArray<FRichCurveKey> X_BaseKeys = TArray<FRichCurveKey>(X_Keys);
-	const TArray<FRichCurveKey> Y_BaseKeys = TArray<FRichCurveKey>(Y_Keys);
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
 	DI_Curve->XCurve.SetKeys(X_BaseKeys);
 	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
 	return DI_Curve;
@@ -298,9 +298,9 @@ UNiagaraDataInterfaceVectorCurve* UFXConverterUtilitiesLibrary::CreateVec3CurveD
 	)
 {
 	UNiagaraDataInterfaceVectorCurve* DI_Curve = NewObject<UNiagaraDataInterfaceVectorCurve>();
-	const TArray<FRichCurveKey> X_BaseKeys = TArray<FRichCurveKey>(X_Keys);
-	const TArray<FRichCurveKey> Y_BaseKeys = TArray<FRichCurveKey>(Y_Keys);
-	const TArray<FRichCurveKey> Z_BaseKeys = TArray<FRichCurveKey>(Z_Keys);
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
+	const TArray<FRichCurveKey> Z_BaseKeys = FRichCurveKeyBP::KeysToBase(Z_Keys);
 	DI_Curve->XCurve.SetKeys(X_BaseKeys);
 	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
 	DI_Curve->ZCurve.SetKeys(Z_BaseKeys);
@@ -315,10 +315,10 @@ UNiagaraDataInterfaceVector4Curve* UFXConverterUtilitiesLibrary::CreateVec4Curve
 	)
 {
 	UNiagaraDataInterfaceVector4Curve* DI_Curve = NewObject<UNiagaraDataInterfaceVector4Curve>();
-	const TArray<FRichCurveKey> X_BaseKeys = TArray<FRichCurveKey>(X_Keys);
-	const TArray<FRichCurveKey> Y_BaseKeys = TArray<FRichCurveKey>(Y_Keys);
-	const TArray<FRichCurveKey> Z_BaseKeys = TArray<FRichCurveKey>(Z_Keys);
-	const TArray<FRichCurveKey> W_BaseKeys = TArray<FRichCurveKey>(W_Keys);
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
+	const TArray<FRichCurveKey> Z_BaseKeys = FRichCurveKeyBP::KeysToBase(Z_Keys);
+	const TArray<FRichCurveKey> W_BaseKeys = FRichCurveKeyBP::KeysToBase(W_Keys);
 	DI_Curve->XCurve.SetKeys(X_BaseKeys);
 	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
 	DI_Curve->ZCurve.SetKeys(Z_BaseKeys);
@@ -1388,4 +1388,16 @@ void UNiagaraScriptConversionContextInput::Init(
 	ClipboardFunctionInput = InClipboardFunctionInput;
 	InputType = InInputType;
 	TypeDefinition = InTypeDefinition;
+}
+
+
+TArray<FRichCurveKey> FRichCurveKeyBP::KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs)
+{
+	TArray<FRichCurveKey> Keys;
+	Keys.AddUninitialized(InKeyBPs.Num());
+	for (int i = 0; i < InKeyBPs.Num(); ++i)
+	{
+		Keys[i] = InKeyBPs[i].ToBase();
+	}
+	return Keys;
 }
