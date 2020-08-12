@@ -942,7 +942,7 @@ bool FDynamicMeshUVPacker::StackPack()
 		}
 
 		MaxWidth = FMathd::Max(IslandBounds.Width(), MaxWidth);
-		MaxHeight = FMathd::Max(IslandBounds.Width(), MaxHeight);
+		MaxHeight = FMathd::Max(IslandBounds.Height(), MaxHeight);
 	}
 
 	// figure out uniform scale that will make them all fit
