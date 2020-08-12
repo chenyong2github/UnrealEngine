@@ -144,6 +144,11 @@ FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FHashedMate
 	return !operator==(Lhs, Rhs);
 }
 
+FORCEINLINE uint32 GetTypeHash(const FHashedMaterialParameterInfo& Value)
+{
+	return HashCombine(HashCombine(GetTypeHash(Value.Name), Value.Index), (uint32)Value.Association);
+}
+
 USTRUCT()
 struct ENGINE_API FMaterialLayersFunctions
 {

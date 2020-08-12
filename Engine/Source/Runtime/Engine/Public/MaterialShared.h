@@ -479,33 +479,21 @@ public:
 class FUniformParameterOverrides
 {
 public:
-	void SetScalarOverride(int32 Index, float Value, bool bOverride);
-	void SetVectorOverride(int32 Index, const FLinearColor& Value, bool bOverride);
+	void SetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride);
+	void SetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride);
 
-	bool GetScalarOverride(int32 Index, float& OutValue) const;
-	bool GetVectorOverride(int32 Index, FLinearColor& OutValue) const;
+	bool GetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const;
+	bool GetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
 
-	void SetTextureOverride(EMaterialTextureParameterType Type, int32 Index, UTexture* Texture);
-	UTexture* GetTextureOverride_GameThread(EMaterialTextureParameterType Type, int32 Index) const;
-	UTexture* GetTextureOverride_RenderThread(EMaterialTextureParameterType Type, int32 Index) const;
+	void SetTextureOverride(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, UTexture* Texture);
+	UTexture* GetTextureOverride_GameThread(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const;
+	UTexture* GetTextureOverride_RenderThread(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const;
 
 private:
-	struct FScalarOverride
-	{
-		float Value;
-		bool bOverride;
-	};
-
-	struct FVectorOverride
-	{
-		FLinearColor Value;
-		bool bOverride;
-	};
-
-	TArray<FScalarOverride> ScalarOverrides;
-	TArray<FVectorOverride> VectorOverrides;
-	TArray<UTexture*> GameThreadTextureOverides[NumMaterialTextureParameterTypes];
-	TArray<UTexture*> RenderThreadTextureOverrides[NumMaterialTextureParameterTypes];
+	TMap<FHashedMaterialParameterInfo, float> ScalarOverrides;
+	TMap<FHashedMaterialParameterInfo, FLinearColor> VectorOverrides;
+	TMap<FHashedMaterialParameterInfo, UTexture*> GameThreadTextureOverides[NumMaterialTextureParameterTypes];
+	TMap<FHashedMaterialParameterInfo, UTexture*> RenderThreadTextureOverrides[NumMaterialTextureParameterTypes];
 };
 
 /** Stores all uniform expressions for a material generated from a material translation. */
