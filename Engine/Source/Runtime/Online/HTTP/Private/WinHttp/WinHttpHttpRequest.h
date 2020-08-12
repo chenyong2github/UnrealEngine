@@ -5,7 +5,7 @@
 #if WITH_WINHTTP
 
 #include "CoreMinimal.h"
-#include "Interfaces/IHttpRequest.h"
+#include "GenericPlatform/HttpRequestImpl.h"
 #include "Interfaces/IHttpResponse.h"
 
 class FRequestPayload;
@@ -15,7 +15,7 @@ class IWinHttpConnection;
 using FStringKeyValueMap = TMap<FString, FString>;
 
 class FWinHttpHttpRequest
-	: public IHttpRequest
+	: public FHttpRequestImpl
 {
 public:
 	FWinHttpHttpRequest();
@@ -43,10 +43,6 @@ public:
 	virtual void SetHeader(const FString& HeaderName, const FString& HeaderValue) override;
 	virtual void AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue) override;
 	virtual bool ProcessRequest() override;
-	virtual FHttpRequestCompleteDelegate& OnProcessRequestComplete() override;
-	virtual FHttpRequestProgressDelegate& OnRequestProgress() override;
-	virtual FHttpRequestHeaderReceivedDelegate& OnHeaderReceived() override;
-	virtual FHttpRequestWillRetryDelegate& OnRequestWillRetry() override;
 	virtual void CancelRequest() override;
 	virtual EHttpRequestStatus::Type GetStatus() const override;
 	virtual const FHttpResponsePtr GetResponse() const override;
@@ -90,18 +86,6 @@ private:
 
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type State = EHttpRequestStatus::NotStarted;
-
-	/** Delegate that will get called once request completes or on any error */
-	FHttpRequestCompleteDelegate RequestCompleteDelegate;
-
-	/** Delegate that will get called once per tick with bytes downloaded so far */
-	FHttpRequestProgressDelegate RequestProgressDelegate;
-
-	/** Delegate that will get called for each new header received */
-	FHttpRequestHeaderReceivedDelegate HeaderReceivedDelegate;
-	
-	/** Delegate that will get called when request will be retried */
-	FHttpRequestWillRetryDelegate RequestWillRetryDelegate;
 
 	/** */
 	TSharedPtr<IWinHttpConnection, ESPMode::ThreadSafe> Connection;
