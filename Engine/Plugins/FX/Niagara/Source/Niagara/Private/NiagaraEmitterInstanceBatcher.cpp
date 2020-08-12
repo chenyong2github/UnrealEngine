@@ -176,12 +176,13 @@ void NiagaraEmitterInstanceBatcher::InstanceDeallocated_RenderThread(const FNiag
 		FNiagaraGPUSystemTick& Tick = Ticks_RT[iTick];
 		if (Tick.SystemInstanceID == InstanceID)
 		{
+			ensure(NumTicksThatRequireDistanceFieldData >= (Tick.bRequiresDistanceFieldData ? 1u : 0u));
+			ensure(NumTicksThatRequireDepthBuffer >= (Tick.bRequiresDepthBuffer ? 1u : 0u));
+			ensure(NumTicksThatRequireEarlyViewData >= (Tick.bRequiresEarlyViewData ? 1u : 0u));
+
 			NumTicksThatRequireDistanceFieldData -= Tick.bRequiresDistanceFieldData ? 1 : 0;
 			NumTicksThatRequireDepthBuffer -= Tick.bRequiresDepthBuffer ? 1 : 0;
 			NumTicksThatRequireEarlyViewData -= Tick.bRequiresEarlyViewData ? 1 : 0;
-			ensure(NumTicksThatRequireDistanceFieldData >= 0);
-			ensure(NumTicksThatRequireDepthBuffer >= 0);
-			ensure(NumTicksThatRequireEarlyViewData >= 0);
 
 			//-OPT: Since we can't RemoveAtSwap (due to ordering issues) if may be better to not remove and flag as dead
 			Tick.Destroy();
