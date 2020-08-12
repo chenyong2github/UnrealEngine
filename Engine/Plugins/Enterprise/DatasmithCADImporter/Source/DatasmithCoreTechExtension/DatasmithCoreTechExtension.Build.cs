@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
+					"EditorFramework",
 					"UnrealEd",
 					"CADLibrary",
 				}

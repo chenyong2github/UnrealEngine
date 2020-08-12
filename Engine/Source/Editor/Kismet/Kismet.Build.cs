@@ -36,6 +36,7 @@ public class Kismet : ModuleRules
 				"Json",
 				"Merge",
 				"MessageLog",
+				"EditorFramework",
 				"UnrealEd",
 				"GraphEditor",
 				"KismetWidgets",

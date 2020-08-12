@@ -30,7 +30,8 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
                     "AppFramework",
-                    "UnrealEd",
+					"EditorFramework",
+					"UnrealEd",
                     "Kismet",
                     "PlacementMode",
 					"SlateCore",

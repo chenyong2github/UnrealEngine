@@ -30,6 +30,7 @@ public class StaticMeshEditor : ModuleRules
                 "EditorStyle",
 				"RenderCore",
 				"RHI",
+				"EditorFramework",
 				"UnrealEd",
 				"TargetPlatform",
 				"RawMesh",

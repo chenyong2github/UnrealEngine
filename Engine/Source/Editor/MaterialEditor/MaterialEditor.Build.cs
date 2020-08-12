@@ -37,6 +37,7 @@ public class MaterialEditor : ModuleRules
 				"RHI",
                 "MaterialUtilities",
                 "PropertyEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"GraphEditor",
                 "AdvancedPreviewScene",

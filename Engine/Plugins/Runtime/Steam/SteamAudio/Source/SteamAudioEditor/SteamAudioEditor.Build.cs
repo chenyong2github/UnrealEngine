@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InputCore",
+					"EditorFramework",
 					"UnrealEd",
 					"LevelEditor",
 					"EditorStyle",

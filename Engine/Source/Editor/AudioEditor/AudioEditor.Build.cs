@@ -39,6 +39,7 @@ public class AudioEditor : ModuleRules
 				"AudioMixer",
 				"InputCore",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"Slate",
 				"SlateCore",
