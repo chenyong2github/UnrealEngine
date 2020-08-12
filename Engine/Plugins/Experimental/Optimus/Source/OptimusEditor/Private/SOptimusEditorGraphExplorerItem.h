@@ -39,4 +39,5 @@ public:
 
 private:
 	FNodeTextCache MenuDescriptionCache;
+	TWeakPtr<FOptimusEditor> OptimusEditor;
 };

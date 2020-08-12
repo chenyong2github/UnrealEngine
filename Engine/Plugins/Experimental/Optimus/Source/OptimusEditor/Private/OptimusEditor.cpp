@@ -37,8 +37,8 @@ const FName FOptimusEditor::PreviewTabId(TEXT("OptimusEditor_Preview"));
 const FName FOptimusEditor::PaletteTabId(TEXT("OptimusEditor_Palette"));
 const FName FOptimusEditor::ExplorerTabId(TEXT("OptimusEditor_Explorer"));
 const FName FOptimusEditor::GraphAreaTabId(TEXT("OptimusEditor_GraphArea"));
-const FName FOptimusEditor::NodeDetailsTabId(TEXT("OptimusEditor_NodeDetails"));
-const FName FOptimusEditor::PreviewDetailsTabId(TEXT("OptimusEditor_PreviewDetails"));
+const FName FOptimusEditor::PropertyDetailsTabId(TEXT("OptimusEditor_PropertyDetails"));
+const FName FOptimusEditor::PreviewSettingsTabId(TEXT("OptimusEditor_PreviewSettings"));
 const FName FOptimusEditor::OutputTabId(TEXT("OptimusEditor_Output"));
 
 
@@ -148,6 +148,24 @@ FText FOptimusEditor::GetGraphCollectionRootName() const
 UOptimusActionStack* FOptimusEditor::GetActionStack() const
 {
 	return DeformerObject->GetActionStack();
+}
+
+
+void FOptimusEditor::InspectObject(UObject* InObject)
+{
+	PropertyDetailsWidget->SetObject(InObject, /*bForceRefresh=*/true);
+
+	// Bring the node details tab into the open.
+	GetTabManager()->TryInvokeTab(PropertyDetailsTabId);
+}
+
+
+void FOptimusEditor::InspectObjects(const TArray<UObject*>& InObjects)
+{
+	PropertyDetailsWidget->SetObjects(InObjects, /*bForceRefresh=*/true);
+
+	// Bring the node details tab into the open.
+	GetTabManager()->TryInvokeTab(PropertyDetailsTabId);
 }
 
 
@@ -281,10 +299,10 @@ void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 		SelectedObjects.Add(DeformerObject);
 	}
 
-	NodeDetailsWidget->SetObjects(SelectedObjects, /*bForceRefresh=*/true);
+	PropertyDetailsWidget->SetObjects(SelectedObjects, /*bForceRefresh=*/true);
 
 	// Bring the node details tab into the open.
-	GetTabManager()->TryInvokeTab(NodeDetailsTabId);
+	GetTabManager()->TryInvokeTab(PropertyDetailsTabId);
 }
 
 
@@ -399,18 +417,18 @@ TSharedRef<SDockTab> FOptimusEditor::SpawnTab_GraphArea(const FSpawnTabArgs& Arg
 }
 
 
-TSharedRef<SDockTab> FOptimusEditor::SpawnTab_NodeDetails(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PropertyDetails(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
-		.Label(LOCTEXT("NodeSettings", "Node Settings"))
+		.Label(LOCTEXT("Settings", "Settings"))
 		[
-			NodeDetailsWidget.ToSharedRef()
+			PropertyDetailsWidget.ToSharedRef()
 		];
 }
 
 
-TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PreviewDetails(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FOptimusEditor::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SWidget> Widget = SNullWidget::NullWidget;
 
@@ -465,7 +483,7 @@ TSharedRef<FTabManager::FLayout> FOptimusEditor::CreatePaneLayout() const
 	// Pex = Node Palette/explorer
 	// Deets = Details panel
 
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v02")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_OptimusEditor_Layout_v03")
 		->AddArea(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
 			->Split(							// - Toolbar
@@ -503,9 +521,9 @@ TSharedRef<FTabManager::FLayout> FOptimusEditor::CreatePaneLayout() const
 				)
 				->Split(						// -- Details
 					FTabManager::NewStack()->SetSizeCoefficient(0.2f)
-					->AddTab(NodeDetailsTabId, ETabState::OpenedTab)
-					->AddTab(PreviewDetailsTabId, ETabState::OpenedTab)
-					->SetForegroundTab(NodeDetailsTabId)
+					->AddTab(PropertyDetailsTabId, ETabState::OpenedTab)
+					->AddTab(PreviewSettingsTabId, ETabState::OpenedTab)
+					->SetForegroundTab(PropertyDetailsTabId)
 				)
 			)
 		);
@@ -540,12 +558,12 @@ void FOptimusEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& In
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 
-	InTabManager->RegisterTabSpawner(NodeDetailsTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_NodeDetails))
+	InTabManager->RegisterTabSpawner(PropertyDetailsTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_PropertyDetails))
 		.SetDisplayName(LOCTEXT("NodeSettingsTab", "Node Settings"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	InTabManager->RegisterTabSpawner(PreviewDetailsTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_PreviewDetails))
+	InTabManager->RegisterTabSpawner(PreviewSettingsTabId, FOnSpawnTab::CreateSP(this, &FOptimusEditor::SpawnTab_PreviewSettings))
 		.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
@@ -565,8 +583,8 @@ void FOptimusEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& 
 	InTabManager->UnregisterTabSpawner(PaletteTabId);
 	InTabManager->UnregisterTabSpawner(ExplorerTabId);
 	InTabManager->UnregisterTabSpawner(GraphAreaTabId);
-	InTabManager->UnregisterTabSpawner(NodeDetailsTabId);
-	InTabManager->UnregisterTabSpawner(PreviewDetailsTabId);
+	InTabManager->UnregisterTabSpawner(PropertyDetailsTabId);
+	InTabManager->UnregisterTabSpawner(PreviewSettingsTabId);
 	InTabManager->UnregisterTabSpawner(OutputTabId);
 }
 
@@ -587,14 +605,11 @@ void FOptimusEditor::CreateWidgets()
 	GraphEditorWidget->SetViewLocation(FVector2D::ZeroVector, 1);
 
 	// -- The property details panel
-	// FIXME: Preview prop panel should be separate.
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	const FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::HideNameArea, true, this);
-	NodeDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	const FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::ObjectsUseNameArea, true, this);
+	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 
 	// TODO: See FMaterialEditor::CreateInternalWidgets for prop layout customization.
-
-
 }
 
 
@@ -637,79 +652,6 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 		// Graph Editor Commands
 		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::OnCreateComment)
-		);
-#endif
-
-#if 0
-		// Material specific commands
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().UseCurrentTexture,
-			FExecuteAction::CreateSP(this, &FOptimusEditor::OnUseCurrentTexture)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().ConvertObjects,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().ConvertToTextureObjects,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertTextures)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().ConvertToTextureSamples,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertTextures)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().ConvertToConstant,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnConvertObjects)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().StopPreviewNode,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnPreviewNode)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().StartPreviewNode,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnPreviewNode)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().EnableRealtimePreviewNode,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnToggleRealtimePreview)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().DisableRealtimePreviewNode,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnToggleRealtimePreview)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().SelectDownstreamNodes,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectDownstreamNodes)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().SelectUpstreamNodes,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnSelectUpstreamNodes)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().RemoveFromFavorites,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::RemoveSelectedExpressionFromFavorites)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().AddToFavorites,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::AddSelectedExpressionToFavorites)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().ForceRefreshPreviews,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnForceRefreshPreviews)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().CreateComponentMaskNode,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnCreateComponentMaskNode)
-		);
-
-		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().GoToDocumentation,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnGoToDocumentation),
-			FCanExecuteAction::CreateSP(this, &FMaterialEditor::CanGoToDocumentation)
-		);
-
-		GraphEditorCommands->MapAction(FMaterialEditorCommands::Get().PromoteToParameter,
-			FExecuteAction::CreateSP(this, &FMaterialEditor::OnPromoteToParameter),
-			FCanExecuteAction::CreateSP(this, &FMaterialEditor::OnCanPromoteToParameter)
 		);
 #endif
 
@@ -802,6 +744,7 @@ void FOptimusEditor::HandleGraphCollectionChanges(
 		break;
 
 	case EOptimusNodeGraphNotifyType::GraphIndexChanged:
+	case EOptimusNodeGraphNotifyType::GraphNameChanged:
 		RefreshEvent.Broadcast();
 		break;
 

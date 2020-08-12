@@ -178,8 +178,13 @@ FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(UOptimu
 	{
 		GraphPath = InGraph->GetGraphPath();
 
-		// Ensure the name is uniqe within our namespace.
-		NewGraphName = MakeUniqueObjectName(InGraph->GetOuter(), UOptimusNodeGraph::StaticClass(), InNewName);
+		// Ensure the name is unique within our namespace.
+		if (StaticFindObject(UOptimusNodeGraph::StaticClass(), InGraph->GetOuter(), *InNewName.ToString()) != nullptr)
+		{
+			InNewName = MakeUniqueObjectName(InGraph->GetOuter(), UOptimusNodeGraph::StaticClass(), InNewName);
+		}
+
+		NewGraphName = InNewName;
 		OldGraphName = InGraph->GetFName();
 
 		SetTitlef(TEXT("Rename graph"));

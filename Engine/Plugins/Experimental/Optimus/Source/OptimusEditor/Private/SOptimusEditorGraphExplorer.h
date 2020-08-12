@@ -65,11 +65,14 @@ private:
 
 	FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);
 	FReply OnCategoryDragged(const FText& InCategory, const FPointerEvent& MouseEvent);
-	void OnGlobalActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType);
+	void OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType);
+
 	void OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions);
 	TSharedPtr<SWidget> OnContextMenuOpening();
 	void OnCategoryNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit, TWeakPtr<struct FGraphActionNode> InAction);
-	bool CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const;
+	bool CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const;
+	bool CanRenameAction(TSharedPtr<FEdGraphSchemaAction> InAction) const;
+
 
 	FText OnGetSectionTitle(int32 InSectionID);
 	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
@@ -86,11 +89,11 @@ private:
 	template<typename SchemaActionType> 
 	SchemaActionType* SelectionAsType() const
 	{
-	    return static_cast<SchemaActionType*>(SelectionAsType(SchemaActionType::StaticGetTypeId()));
+	    return static_cast<SchemaActionType*>(GetFirstSelectedAction(SchemaActionType::StaticGetTypeId()).Get());
 	}
 
-	FEdGraphSchemaAction *SelectionAsType(
-		const FName &InTypeName
+	TSharedPtr<FEdGraphSchemaAction> GetFirstSelectedAction(
+		FName InTypeName
 		) const;
 
 	// Command functions

@@ -48,6 +48,14 @@ public:
 
 	UOptimusActionStack* GetActionStack() const;
 
+	/// @brief Set object to view in the details panel.
+	/// @param InObject  The object to view and edit in the details panel.
+	void InspectObject(UObject* InObject);
+
+	/// @brief Set a group of object to view in the details panel.
+	/// @param InObject  The objects to view and edit in the details panel.
+	void InspectObjects(const TArray<UObject *> &InObjects);
+
 	// IToolkit overrides
 	FName GetToolkitFName() const override;				
 	FText GetBaseToolkitName() const override;			
@@ -101,8 +109,8 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Explorer(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphArea(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_PreviewDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Output(const FSpawnTabArgs& Args);
 
 	TSharedRef<FTabManager::FLayout> CreatePaneLayout() const;
@@ -123,8 +131,8 @@ private:
 	static const FName PaletteTabId;
 	static const FName ExplorerTabId;
 	static const FName GraphAreaTabId;
-	static const FName NodeDetailsTabId;
-	static const FName PreviewDetailsTabId;
+	static const FName PropertyDetailsTabId;
+	static const FName PreviewSettingsTabId;
 	static const FName OutputTabId;
 
 	// -- Widgets
@@ -133,7 +141,7 @@ private:
 	TSharedPtr<SOptimusNodePalette> NodePaletteWidget;
 	TSharedPtr<SOptimusEditorGraphExplorer> GraphExplorerWidget;
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
-	TSharedPtr<IDetailsView> NodeDetailsWidget;
+	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<IDetailsView> PreviewDetailsWidget;
 
 	UOptimusDeformer* DeformerObject = nullptr;

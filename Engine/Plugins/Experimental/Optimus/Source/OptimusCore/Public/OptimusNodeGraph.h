@@ -9,6 +9,7 @@
 
 #include "OptimusNodeGraph.generated.h"
 
+class IOptimusNodeGraphCollectionOwner;
 class UOptimusActionStack;
 class UOptimusNode;
 class UOptimusNodeGraph;
@@ -33,6 +34,9 @@ class OPTIMUSCORE_API UOptimusNodeGraph
 
 public:
 	FString GetGraphPath() const;
+
+	/// Returns the graph collection that owns this particular graph.
+	IOptimusNodeGraphCollectionOwner *GetOwnerCollection() const;
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	EOptimusNodeGraphType GetGraphType() const { return GraphType; }
@@ -84,9 +88,6 @@ public:
 		UOptimusNodePin* InNodePin
 	);
 
-
-
-
 #endif
 
 	// Direct edit functions. Used by the actions.
@@ -122,8 +123,8 @@ public:
 		const UOptimusNodePin* InNodeOutputPin, 
 		const UOptimusNodePin* InNodeInputPin) const;
 
-	const TArray< UOptimusNode*>& GetAllNodes() const { return Nodes; }
-	const TArray< UOptimusNodeLink*>& GetAllLinks() const { return Links; }
+	const TArray<UOptimusNode*>& GetAllNodes() const { return Nodes; }
+	const TArray<UOptimusNodeLink*>& GetAllLinks() const { return Links; }
 
 	UOptimusActionStack* GetActionStack() const;
 	
@@ -138,8 +139,8 @@ protected:
 
 	void Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject *InSubject);
 
-	// The type of graph this represents.
-	UPROPERTY(BlueprintReadOnly, Category=Overview)
+	// The type of graph this represents. BlueprintReadOnly doesn't seem to work with inspectors :-/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Overview, meta=(EditCondition="false"))
 	EOptimusNodeGraphType GraphType;
 
 private:

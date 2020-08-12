@@ -11,6 +11,7 @@ enum class EOptimusNodeGraphNotifyType
 	GraphAdded,				/// A new graph has been added (Subject == Nothing)
 	GraphRemoved,			/// A graph has been removed (Subject == Nothing)
 	GraphIndexChanged,		/// A graph's index been changed (Subject == Nothing)
+	GraphNameChanged,		/// A graph's name has been changed (Subject == Nothing)
 
 	NodeAdded,				/// A new node has been added (Subject == UOptimusNode)
 	NodeRemoved,			/// A node has been removed (Subject == UOptimusNode)

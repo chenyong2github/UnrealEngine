@@ -21,6 +21,9 @@
 #include "Widgets/Input/SButton.h"
 #include "DetailLayoutBuilder.h"
 
+// Ick.
+#include "GraphEditor/Private/GraphActionNode.h"
+
 
 #define LOCTEXT_NAMESPACE "OptimusGraphExplorer"
 
@@ -181,7 +184,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 	    .OnCollectStaticSections(this, &SOptimusEditorGraphExplorer::CollectStaticSections)
 	    .OnActionDragged(this, &SOptimusEditorGraphExplorer::OnActionDragged)
 	    .OnCategoryDragged(this, &SOptimusEditorGraphExplorer::OnCategoryDragged)
-	    .OnActionSelected(this, &SOptimusEditorGraphExplorer::OnGlobalActionSelected)
+	    .OnActionSelected(this, &SOptimusEditorGraphExplorer::OnActionSelected)
 	    .OnActionDoubleClicked(this, &SOptimusEditorGraphExplorer::OnActionDoubleClicked)
 	    .OnContextMenuOpening(this, &SOptimusEditorGraphExplorer::OnContextMenuOpening)
 	    .OnCategoryTextCommitted(this, &SOptimusEditorGraphExplorer::OnCategoryNameCommitted)
@@ -321,10 +324,38 @@ FReply SOptimusEditorGraphExplorer::OnCategoryDragged(const FText& InCategory, c
 }
 
 
-void SOptimusEditorGraphExplorer::OnGlobalActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)
+void SOptimusEditorGraphExplorer::OnActionSelected(
+	const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, 
+	ESelectInfo::Type InSelectionType
+	)
 {
-}
+	if (!(InSelectionType == ESelectInfo::OnMouseClick || 
+		  InSelectionType == ESelectInfo::OnKeyPress || 
+		  InSelectionType == ESelectInfo::OnNavigation || 
+		  InActions.Num() == 0))
+	{
+		return;
+	}
 
+    TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	TSharedPtr<FEdGraphSchemaAction> Action(InActions.Num() > 0 ? InActions[0] : NULL);
+
+	if (!ensure(Editor) || !Action.IsValid())
+	{
+		return;
+	}
+
+	if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
+		UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+		if (NodeGraph)
+		{
+			Editor->InspectObject(NodeGraph);
+		}
+	}
+}
 
 void SOptimusEditorGraphExplorer::OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions)
 {
@@ -381,8 +412,43 @@ void SOptimusEditorGraphExplorer::OnCategoryNameCommitted(const FText& InNewText
 }
 
 
-bool SOptimusEditorGraphExplorer::CanRequestRenameOnActionNode(TWeakPtr<struct FGraphActionNode> InSelectedNode) const
+bool SOptimusEditorGraphExplorer::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const
 {
+	TSharedPtr<FGraphActionNode> SelectedNode = InSelectedNode.Pin();
+	if (SelectedNode)
+	{
+		if (SelectedNode->IsActionNode())
+		{
+			if (ensure(!SelectedNode->Actions.IsEmpty()))
+			{
+				return CanRenameAction(SelectedNode->Actions[0]);
+			}
+		}
+	}
+
+	return false;
+}
+
+
+bool SOptimusEditorGraphExplorer::CanRenameAction(TSharedPtr<FEdGraphSchemaAction> InAction) const
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (Editor.IsValid())
+	{
+		if (InAction->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph *>(InAction.Get());
+			UOptimusNodeGraph *NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+			if (NodeGraph)
+			{
+				// Only trigger graphs can be renamed.
+				return NodeGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger;
+			}
+		}
+	}
+
 	return false;
 }
 
@@ -604,21 +670,21 @@ bool SOptimusEditorGraphExplorer::IsShowingEmptySections() const
 }
 
 
-FEdGraphSchemaAction *SOptimusEditorGraphExplorer::SelectionAsType(
-	const FName& InTypeName
+TSharedPtr<FEdGraphSchemaAction> SOptimusEditorGraphExplorer::GetFirstSelectedAction(
+	FName InTypeName
 	) const
 {
 	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
 	GraphActionMenu->GetSelectedActions(SelectedActions);
 
 	TSharedPtr<FEdGraphSchemaAction> SelectedAction(SelectedActions.Num() > 0 ? SelectedActions[0] : NULL);
-	if (SelectedAction.IsValid() &&
-	    SelectedAction->GetTypeId() == InTypeName)
+	if (SelectedAction.IsValid() && 
+		(SelectedAction->GetTypeId() == InTypeName || InTypeName == NAME_None))
 	{
-		return SelectedActions[0].Get();
+		return SelectedActions[0];
 	}
 
-	return nullptr;
+	return TSharedPtr<FEdGraphSchemaAction>();
 }
 
 
@@ -738,13 +804,13 @@ bool SOptimusEditorGraphExplorer::CanDeleteEntry()
 
 void SOptimusEditorGraphExplorer::OnRenameEntry()
 {
-
+	
 }
 
 
 bool SOptimusEditorGraphExplorer::CanRenameEntry()
 {
-	return false;
+	return CanRenameAction(GetFirstSelectedAction(NAME_None));
 }
 
 

@@ -373,4 +373,43 @@ bool UOptimusDeformer::MoveGraph(
 }
 
 
+bool UOptimusDeformer::RenameGraph(UOptimusNodeGraph* InGraph, const FString& InNewName)
+{
+	// Not ours?
+	int32 GraphIndex = Graphs.IndexOfByKey(InGraph);
+	if (GraphIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	// Setup and Update graphs cannot be renamed.
+	if (InGraph->GetGraphType() == EOptimusNodeGraphType::Setup ||
+		InGraph->GetGraphType() == EOptimusNodeGraphType::Update)
+	{
+		return false;
+	}
+
+	// The Setup and Update graph names are reserved.
+	if (InNewName.Compare(SetupGraphName.ToString(), ESearchCase::IgnoreCase) == 0 ||
+		InNewName.Compare(UpdateGraphName.ToString(), ESearchCase::IgnoreCase) == 0)
+	{
+		return false;
+	}
+
+	// Do some verification on the name. Ideally we ought to be able to sink FOptimusNameValidator down
+	// to here but that would pull in editor dependencies.
+	if (!FName::IsValidXName(InNewName, TEXT("./")))
+	{
+		return false;
+	}
+
+	bool bSuccess = GetActionStack()->RunAction<FOptimusNodeGraphAction_RenameGraph>(InGraph, FName(*InNewName));
+	if (bSuccess)
+	{
+		Notify(EOptimusNodeGraphNotifyType::GraphNameChanged, InGraph);
+	}
+	return bSuccess;
+}
+
+
 #undef LOCTEXT_NAMESPACE

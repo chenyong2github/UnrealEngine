@@ -52,7 +52,7 @@ public:
 	UOptimusNodeGraph* ResolveGraphPath(const FString& InGraphPath) override;
 	UOptimusNode* ResolveNodePath(const FString& InNodePath) override;
 	UOptimusNodePin* ResolvePinPath(const FString& InPinPath) override;
-	const TArray<UOptimusNodeGraph*> &GetGraphs() override { return Graphs; }
+	const TArray<UOptimusNodeGraph*> &GetGraphs() const override { return Graphs; }
 	UOptimusNodeGraph* CreateGraph(
 	    EOptimusNodeGraphType InType,
 	    FName InName,
@@ -68,6 +68,12 @@ public:
 	bool MoveGraph(
 	    UOptimusNodeGraph* InGraph,
 	    int32 InInsertBefore) override;
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool RenameGraph(
+	    UOptimusNodeGraph* InGraph,
+	    const FString& InNewName) override;
+
 
 public:
 

@@ -51,7 +51,7 @@ public:
 	virtual UOptimusNodePin* ResolvePinPath(const FString& InPinPath) = 0;
 
 	/// Returns all immediately owned node graphs.
-	virtual const TArray<UOptimusNodeGraph*> &GetGraphs() = 0;
+	virtual const TArray<UOptimusNodeGraph*> &GetGraphs() const = 0;
 
 	/// Create a new graph of a given type, with an optional name. The name may be changed to 
 	/// fit into the namespace. Only setup and trigger graphs can currently be created directly,
@@ -100,4 +100,13 @@ public:
 	virtual bool MoveGraph(
 	    UOptimusNodeGraph* InGraph,
 		int32 InInsertBefore) = 0;
+
+	/// Rename the given graph, subject to validation of the name.
+	/// @param InGraph The graph to rename, owned by this collection.
+	/// @param InNewName The new name to give the graph.
+	/// @return true if the graph was successfully renamed.
+	virtual bool RenameGraph(
+		UOptimusNodeGraph *InGraph,
+		const FString &InNewName
+		) = 0;
 };

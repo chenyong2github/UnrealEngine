@@ -2,8 +2,13 @@
 
 #include "SOptimusEditorGraphExplorerItem.h"
 
+#include "OptimusActionStack.h"
 #include "OptimusEditor.h"
 #include "OptimusEditorGraphSchema.h"
+#include "OptimusNameValidator.h"
+
+#include "IOptimusNodeGraphCollectionOwner.h"
+#include "OptimusNodeGraph.h"
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
@@ -15,6 +20,7 @@ void SOptimusEditorGraphEplorerItem::Construct(
 {
 	TSharedPtr<FEdGraphSchemaAction> GraphAction = InCreateData->Action;
 	ActionPtr = InCreateData->Action;
+	OptimusEditor = InOptimusEditor;
 
 	TWeakPtr<FEdGraphSchemaAction> WeakGraphAction = GraphAction;
 	const bool bIsReadOnlyCreate = InCreateData->bIsReadOnly;
@@ -91,14 +97,76 @@ FText SOptimusEditorGraphEplorerItem::GetDisplayText() const
 }
 
 
-bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(const FText& InNewText, FText& OutErrorMessage)
+bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
+	const FText& InNewText, 
+	FText& OutErrorMessage
+	)
 {
-	return false;
+	TSharedPtr<FEdGraphSchemaAction> Action = ActionPtr.Pin();
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+
+	if (ensure(Action) && ensure(Editor))
+	{
+		FString NameStr = InNewText.ToString();
+
+		FName OriginalName;
+
+		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Graph *GraphAction = static_cast<FOptimusSchemaAction_Graph *>(Action.Get());
+			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			if (ensure(NodeGraph))
+			{
+				OriginalName = NodeGraph->GetFName();
+			}
+		}
+
+		TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FOptimusNameValidator(Editor->GetGraphCollectionRoot(), OriginalName));
+
+		EValidatorResult ValidatorResult = NameValidator->IsValid(NameStr);
+		switch (ValidatorResult)
+		{
+		case EValidatorResult::Ok:
+		case EValidatorResult::ExistingName:
+			// These are fine, don't need to surface to the user, the rename can 'proceed' even if the name is the existing one
+			break;
+		default:
+			OutErrorMessage = INameValidatorInterface::GetErrorText(NameStr, ValidatorResult);
+			break;
+		}
+
+		return OutErrorMessage.IsEmpty();
+	}
+	else
+	{
+		return false;
+	}
 }
 
 
-void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
+void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(
+	const FText& InNewText, 
+	ETextCommit::Type InTextCommit
+	)
 {
+	TSharedPtr<FEdGraphSchemaAction> Action = ActionPtr.Pin();
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	
+	if (ensure(Action) && ensure(Editor))
+	{
+		FString NameStr = InNewText.ToString();
+
+		FName OriginalName;
+
+		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
+			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+
+			if (ensure(NodeGraph))
+			{
+				NodeGraph->GetOwnerCollection()->RenameGraph(NodeGraph, NameStr);
+			}
+		}
+	}
 }
-
-

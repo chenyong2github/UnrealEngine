@@ -22,6 +22,12 @@ FString UOptimusNodeGraph::GetGraphPath() const
 }
 
 
+IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetOwnerCollection() const
+{
+	return Cast<IOptimusNodeGraphCollectionOwner>(GetOuter());
+}
+
+
 int32 UOptimusNodeGraph::GetGraphIndex() const
 {
 	ensure(GetOuter()->IsA<UOptimusDeformer>());
