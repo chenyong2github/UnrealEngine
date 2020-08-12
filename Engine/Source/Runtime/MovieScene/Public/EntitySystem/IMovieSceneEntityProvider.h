@@ -17,7 +17,9 @@ class UMovieSceneSection;
 class UMovieSceneEntitySystemLinker;
 
 struct FMovieSceneTimeTransform;
-struct FMovieSceneEntityComponentField;
+struct FMovieSceneEntityComponentFieldBuilder;
+struct FMovieSceneEvaluationFieldEntityMetaData;
+struct FMovieSceneEvaluationFieldSharedEntityMetaData;
 
 
 namespace UE
@@ -53,21 +55,34 @@ private:
 
 struct FEntityImportSequenceParams
 {
+	FEntityImportSequenceParams()
+		: HierarchicalBias(0)
+		, DefaultCompletionMode(EMovieSceneCompletionMode::KeepState)
+		, bPreRoll(false)
+		, bPostRoll(false)
+	{}
+
+	int32 HierarchicalBias;
+
 	FInstanceHandle InstanceHandle;
 	FInterrogationChannel InterrogationChannel;
 
-	EMovieSceneCompletionMode DefaultCompletionMode = EMovieSceneCompletionMode::KeepState;
+	EMovieSceneCompletionMode DefaultCompletionMode;
 
-	int32 HierarchicalBias = 0;
+	bool bPreRoll : 1;
+	bool bPostRoll : 1;
 };
 
 struct FEntityImportParams
 {
-	FGuid ObjectBindingID;
+	const FMovieSceneEvaluationFieldEntityMetaData* EntityMetaData;
+	const FMovieSceneEvaluationFieldSharedEntityMetaData* SharedMetaData;
 
 	uint32 EntityID = 0;
 
 	FEntityImportSequenceParams Sequence;
+
+	MOVIESCENE_API FGuid GetObjectBindingID() const;
 };
 
 } // namespace MovieScene
@@ -98,9 +113,9 @@ public:
 	/**
 	 * Populate an evaluation field with this provider's entities
 	 */
-	bool PopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+	bool PopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 	{
-		return PopulateEvaluationFieldImpl(EffectiveRange, OutField);
+		return PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder);
 	}
 
 
@@ -113,5 +128,5 @@ private:
 	virtual void InterrogateEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) { ImportEntityImpl(EntityLinker, Params, OutImportedEntity); }
 
 	/** Optional user-implementation function for populating an evaluation entity field */
-	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* Field) { return false; }
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) { return false; }
 };

@@ -240,6 +240,11 @@ public:
 		FComponentTypeID ImportedEntity;
 		FComponentTypeID Master;
 
+		FComponentTypeID FixedTime;
+
+		FComponentTypeID SectionPreRoll;
+		FComponentTypeID PreRoll;
+
 		FComponentTypeID Finished;
 
 		FComponentTypeID Ignored;

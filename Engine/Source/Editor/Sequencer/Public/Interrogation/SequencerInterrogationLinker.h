@@ -92,7 +92,7 @@ private:
 	struct FImportedEntityKey
 	{
 		UE::MovieScene::FInterrogationChannel InterrogationChannel;
-		FMovieSceneEvaluationFieldEntityPtr Entity;
+		FMovieSceneEvaluationFieldEntityKey Entity;
 
 		friend bool operator==(FImportedEntityKey A, FImportedEntityKey B)
 		{
@@ -108,12 +108,12 @@ private:
 		}
 	};
 
-	void InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityPtr& Entity);
+	void InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityQuery& Query);
 
 private:
 
 	/** Scratch buffer used for generating entities for interrogation times */
-	TSet<FMovieSceneEvaluationFieldEntityPtr> EntitiesScratch;
+	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
 	/** Entity component field containing all the entity owners relevant at specific times */
 	FMovieSceneEntityComponentField EntityComponentField;

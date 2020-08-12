@@ -7,6 +7,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
+#include "Algo/IndexOf.h"
 
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
@@ -14,43 +15,146 @@
 
 #include "MovieSceneSequence.h"
 
-FArchive& operator<<(FArchive& Ar, FMovieSceneEvaluationFieldEntityPtr& Entity)
-{
-	return Ar << Entity.EntityOwner << Entity.EntityID;
-}
 
-bool FMovieSceneEvaluationFieldEntityTree::IsEmpty() const
-{
-	return SerializedData.IsEmpty();
-}
+FMovieSceneEntityComponentFieldBuilder::FMovieSceneEntityComponentFieldBuilder(FMovieSceneEntityComponentField* InField)
+	: Field(InField)
+	, SharedMetaDataIndex(Field->SharedMetaData.Emplace())
+{}
 
-void FMovieSceneEvaluationFieldEntityTree::Populate(const TRange<FFrameNumber>& EffectiveRange, UObject* Owner, uint32 EntityID)
+FMovieSceneEntityComponentFieldBuilder::~FMovieSceneEntityComponentFieldBuilder()
 {
-	SerializedData.AddUnique(EffectiveRange, FMovieSceneEvaluationFieldEntityPtr{ Owner, EntityID });
-}
-
-void FMovieSceneEvaluationFieldEntityTree::ExtractAtTime(FFrameNumber InTime, TRange<FFrameNumber>& OutRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const
-{
-	FMovieSceneEvaluationTreeRangeIterator Iterator = SerializedData.IterateFromTime(InTime);
-	check(Iterator);
-
-	OutRange = Iterator.Range();
-	for (FMovieSceneEvaluationFieldEntityPtr Ptr : SerializedData.GetAllData(Iterator.Node()))
+	const bool bContainsValidEntities = Algo::AnyOf(KeyToFieldIndex, [](FKeyToIndex In) { return In.FieldIndex != INDEX_NONE; });
+	if (!bContainsValidEntities)
 	{
-		OutPtrs.Add(Ptr);
+		if (ensureMsgf(Field->SharedMetaData.Num() == SharedMetaDataIndex+1, TEXT("Additional shared meta-data has been added since this builder was constructed, recursive builders are not supported")))
+		{
+			Field->SharedMetaData.RemoveAt(SharedMetaDataIndex, 1, false);
+		}
 	}
 }
 
-void FMovieSceneEvaluationFieldEntityTree::Sweep(const TRange<FFrameNumber>& InRange, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutPtrs) const
+FMovieSceneEvaluationFieldSharedEntityMetaData& FMovieSceneEntityComponentFieldBuilder::GetSharedMetaData()
 {
-	FMovieSceneEvaluationTreeRangeIterator Iterator = SerializedData.IterateFromLowerBound(InRange.GetLowerBound());
+	return Field->SharedMetaData[SharedMetaDataIndex];
+}
+
+int32 FMovieSceneEntityComponentFieldBuilder::FindOrAddEntity(UObject* EntityOwner, uint32 EntityID)
+{
+	FMovieSceneEvaluationFieldEntityKey Key = { EntityOwner, EntityID };
+
+	int32 LocalIndex = Algo::IndexOfBy(KeyToFieldIndex, Key, &FKeyToIndex::Key);
+	if (LocalIndex != INDEX_NONE)
+	{
+		return LocalIndex;
+	}
+
+	return KeyToFieldIndex.Add(FKeyToIndex{ Key, INDEX_NONE });
+}
+
+int32 FMovieSceneEntityComponentFieldBuilder::AddMetaData(const FMovieSceneEvaluationFieldEntityMetaData& InMetaData)
+{
+	if (InMetaData.IsRedundant())
+	{
+		return INDEX_NONE;
+	}
+
+	int32 LocalIndex = Algo::IndexOfBy(MetaDataToFieldIndex, InMetaData, &FMetaDataToIndex::MetaData);
+	if (LocalIndex == INDEX_NONE)
+	{
+		LocalIndex = MetaDataToFieldIndex.Add(FMetaDataToIndex{ InMetaData, INDEX_NONE });
+	}
+
+	return LocalIndex;
+}
+
+void FMovieSceneEntityComponentFieldBuilder::AddPersistentEntity(const TRange<FFrameNumber>& Range, UObject* EntityOwner, uint32 EntityID, int32 LocalMetaDataIndex)
+{
+	AddPersistentEntity(Range, FindOrAddEntity(EntityOwner, EntityID), LocalMetaDataIndex);
+}
+
+void FMovieSceneEntityComponentFieldBuilder::AddPersistentEntity(const TRange<FFrameNumber>& Range, int32 LocalIndex, int32 LocalMetaDataIndex)
+{
+	FMovieSceneEvaluationFieldEntityTree::FEntityAndMetaDataIndex Data = {
+		LocalEntityIndexToFieldIndex(LocalIndex),
+		LocalMetaDataIndexToFieldIndex(LocalMetaDataIndex)
+	};
+	Field->PersistentEntityTree.SerializedData.AddUnique(Range, Data);
+}
+
+void FMovieSceneEntityComponentFieldBuilder::AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, UObject* EntityOwner, uint32 EntityID, int32 LocalMetaDataIndex)
+{
+	AddOneShotEntity(OneShotRange, FindOrAddEntity(EntityOwner, EntityID), LocalMetaDataIndex);
+}
+
+void FMovieSceneEntityComponentFieldBuilder::AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, int32 LocalIndex, int32 LocalMetaDataIndex)
+{
+	FMovieSceneEvaluationFieldEntityTree::FEntityAndMetaDataIndex Data = {
+		LocalEntityIndexToFieldIndex(LocalIndex),
+		LocalMetaDataIndexToFieldIndex(LocalMetaDataIndex)
+	};
+
+	Field->OneShotEntityTree.SerializedData.AddUnique(OneShotRange, Data);
+}
+
+int32 FMovieSceneEntityComponentFieldBuilder::LocalEntityIndexToFieldIndex(int32 LocalIndex)
+{
+	checkf(KeyToFieldIndex.IsValidIndex(LocalIndex), TEXT("Invalid local entity index specified"));
+
+	FKeyToIndex& KeyToIndex = KeyToFieldIndex[LocalIndex];
+	if (KeyToIndex.FieldIndex == INDEX_NONE)
+	{
+		KeyToIndex.FieldIndex = Field->Entities.Emplace(FMovieSceneEvaluationFieldEntity{ KeyToIndex.Key, SharedMetaDataIndex });
+	}
+
+	return KeyToIndex.FieldIndex;
+}
+
+int32 FMovieSceneEntityComponentFieldBuilder::LocalMetaDataIndexToFieldIndex(int32 LocalIndex)
+{
+	if (LocalIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	checkf(MetaDataToFieldIndex.IsValidIndex(LocalIndex), TEXT("Invalid local meta-data index specified"));
+
+	FMetaDataToIndex& MetaDataToIndex = MetaDataToFieldIndex[LocalIndex];
+	if (MetaDataToIndex.FieldIndex == INDEX_NONE)
+	{
+		MetaDataToIndex.FieldIndex = Field->EntityMetaData.Emplace(MetaDataToIndex.MetaData);
+	}
+
+	return MetaDataToIndex.FieldIndex;
+}
+
+void FMovieSceneEntityComponentField::QueryPersistentEntities(FFrameNumber QueryTime, TRange<FFrameNumber>& OutRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const
+{
+	FMovieSceneEvaluationTreeRangeIterator Iterator = PersistentEntityTree.SerializedData.IterateFromTime(QueryTime);
 	check(Iterator);
 
-	for ( ; Iterator && InRange.Overlaps(Iterator.Range()); ++Iterator )
+	OutRange = Iterator.Range();
+	for (FMovieSceneEvaluationFieldEntityTree::FEntityAndMetaDataIndex Pair : PersistentEntityTree.SerializedData.GetAllData(Iterator.Node()))
 	{
-		for (FMovieSceneEvaluationFieldEntityPtr EntityHandle : SerializedData.GetAllData(Iterator.Node()))
+		OutEntities.Add(FMovieSceneEvaluationFieldEntityQuery{
+			GetEntity(Pair.EntityIndex),
+			Pair.MetaDataIndex
+		});
+	}
+}
+
+void FMovieSceneEntityComponentField::QueryOneShotEntities(const TRange<FFrameNumber>& QueryRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const
+{
+	FMovieSceneEvaluationTreeRangeIterator Iterator = OneShotEntityTree.SerializedData.IterateFromLowerBound(QueryRange.GetLowerBound());
+	check(Iterator);
+
+	for ( ; Iterator && QueryRange.Overlaps(Iterator.Range()); ++Iterator )
+	{
+		for (FMovieSceneEvaluationFieldEntityTree::FEntityAndMetaDataIndex Pair : OneShotEntityTree.SerializedData.GetAllData(Iterator.Node()))
 		{
-			OutPtrs.Add(EntityHandle);
+			OutEntities.Add(FMovieSceneEvaluationFieldEntityQuery{
+				GetEntity(Pair.EntityIndex),
+				Pair.MetaDataIndex,
+			});
 		}
 	}
 }
@@ -107,11 +211,6 @@ TRange<int32> FMovieSceneEvaluationField::OverlapRange(const TRange<FFrameNumber
 	}
 
 	return Length > 0 ? TRange<int32>(StartIndex, StartIndex + Length) : TRange<int32>::Empty();
-}
-
-bool FMovieSceneEntityComponentField::IsEmpty() const
-{
-	return Entities.IsEmpty() && OneShotEntities.IsEmpty();
 }
 
 void FMovieSceneEvaluationField::Invalidate(const TRange<FFrameNumber>& Range)

@@ -60,7 +60,7 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 
 	FMovieSceneEventTriggerData TriggerData = {
 		Event.Ptrs,
-		Params.ObjectBindingID,
+		Params.GetObjectBindingID(),
 		ThisInstance.GetSequenceID(),
 		Context.GetTime() * Context.GetSequenceToRootTransform()
 	};
@@ -71,8 +71,8 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 	EntityLinker->EntityManager.MimicStructureChanged();
 }
 
-bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
-	OutField->OneShotEntities.Populate(EffectiveRange, this, NAME_None);
+	OutFieldBuilder->AddOneShotEntity(EffectiveRange, this, 0, OutFieldBuilder->AddMetaData(InMetaData));
 	return true;
 }
