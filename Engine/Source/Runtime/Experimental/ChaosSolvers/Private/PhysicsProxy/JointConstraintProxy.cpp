@@ -42,11 +42,58 @@ EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
 }
 
 
+
+/**/
+template< class CONSTRAINT_TYPE>
+void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
+{
+}
+
+/**/
+template< class CONSTRAINT_TYPE>
+void TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState()
+{
+}
+
+
 template<>
 EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
 {
 	return EPhysicsProxyType::JointConstraintType;
 }
+
+/**/
+template<>
+void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
+{
+	if (Constraint != nullptr)
+	{
+		if (Handle != nullptr)
+		{
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Buffer->bIsBroken = Handle->IsConstraintEnabled();
+			Buffer->Force = Handle->GetLinearImpulse();
+			Buffer->Torque = Handle->GetAngularImpulse();
+		}
+	}
+}
+
+/**/
+template<>
+void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState()
+{
+	if (Constraint != nullptr)
+	{
+		if (Handle != nullptr)
+		{
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
+			Constraint->GetOutputData().Force = Buffer->Force;
+			Constraint->GetOutputData().Torque = Buffer->Torque;
+		}
+	}
+}
+
 
 
 template < >
@@ -344,39 +391,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 			}
 
 			DirtyFlagsBuffer.Clear();
-		}
-	}
-}
-
-
-/**/
-template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
-{
-	if (Constraint != nullptr)
-	{
-		if (Handle != nullptr)
-		{
-			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
-			Buffer->bIsBroken = Handle->IsConstraintEnabled();
-			Buffer->Force = Handle->GetLinearImpulse();
-			Buffer->Torque = Handle->GetAngularImpulse();
-		}
-	}
-}
-
-/**/
-template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState()
-{
-	if (Constraint != nullptr)
-	{
-		if (Handle != nullptr)
-		{
-			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
-			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
-			Constraint->GetOutputData().Force = Buffer->Force;
-			Constraint->GetOutputData().Torque = Buffer->Torque;
 		}
 	}
 }
