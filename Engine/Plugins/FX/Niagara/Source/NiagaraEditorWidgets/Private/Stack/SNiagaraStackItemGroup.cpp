@@ -20,44 +20,64 @@ void SNiagaraStackItemGroup::Construct(const FArguments& InArgs, UNiagaraStackIt
 	StackEntryItem = Group;
 	StackViewModel = InStackViewModel;
 
+	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
+
+	// Name
+	RowBox->AddSlot()
+	.VAlign(VAlign_Center)
+	.Padding(2, 0, 0, 0)
+	[
+		SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel)
+		.NameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
+	];
+
+	// Delete group button
+	RowBox->AddSlot()
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.IsFocusable(false)
+		.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
+		.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
+		.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)
+		.IsEnabled(this, &SNiagaraStackItemGroup::GetDeleteButtonIsEnabled)
+		.Visibility(this, &SNiagaraStackItemGroup::GetDeleteButtonVisibility)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+		]
+	];
+
+	// Enabled button
+	if (Group->SupportsChangeEnabled())
+	{
+		RowBox->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		.Padding(0, 0, 0, 0)
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &SNiagaraStackItemGroup::CheckEnabledStatus)
+			.OnCheckStateChanged(this, &SNiagaraStackItemGroup::OnCheckStateChanged)
+			.IsEnabled(this, &SNiagaraStackItemGroup::GetEnabledCheckBoxEnabled)
+		];
+	}
+
+	// Add button
+	RowBox->AddSlot()
+	.AutoWidth()
+	.HAlign(HAlign_Right)
+	.Padding(2, 0, 0, 0)
+	[
+		ConstructAddButton()
+	];
+
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		// Name
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(2, 0, 0, 0)
-		[
-			SNew(SNiagaraStackDisplayName, InGroup, *InStackViewModel)
-			.NameStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.GroupText")
-		]
-		// Delete group button
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.IsFocusable(false)
-			.ForegroundColor(FNiagaraEditorWidgetsStyle::Get().GetColor("NiagaraEditor.Stack.ForegroundColor"))
-			.ToolTipText(this, &SNiagaraStackItemGroup::GetDeleteButtonToolTip)
-			.OnClicked(this, &SNiagaraStackItemGroup::DeleteClicked)
-			.IsEnabled(this, &SNiagaraStackItemGroup::GetDeleteButtonIsEnabled)
-			.Visibility(this, &SNiagaraStackItemGroup::GetDeleteButtonVisibility)
-			.Content()
-			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
-			]
-		]
-		// Add button
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Right)
-		.Padding(2, 0, 0, 0)
-		[
-			ConstructAddButton()
-		]
+		RowBox
 	];
 }
 
@@ -93,6 +113,21 @@ FReply SNiagaraStackItemGroup::DeleteClicked()
 {
 	Group->Delete();
 	return FReply::Handled();
+}
+
+void SNiagaraStackItemGroup::OnCheckStateChanged(ECheckBoxState InCheckState)
+{
+	Group->SetIsEnabled(InCheckState == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SNiagaraStackItemGroup::CheckEnabledStatus() const
+{
+	return Group->GetIsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool SNiagaraStackItemGroup::GetEnabledCheckBoxEnabled() const
+{
+	return Group->GetOwnerIsEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE

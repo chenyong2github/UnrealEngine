@@ -27,6 +27,10 @@ private:
 
 	FReply DeleteClicked();
 
+	void OnCheckStateChanged(ECheckBoxState InCheckState);
+	ECheckBoxState CheckEnabledStatus() const;
+	bool GetEnabledCheckBoxEnabled() const;
+
 private:
 	UNiagaraStackItemGroup* Group;
 };
