@@ -30,6 +30,15 @@ enum MediaTextureOutputFormat
 	MTOF_MAX,
 };
 
+UENUM()
+enum MediaTextureOrientation
+{
+	MTORI_Original					UMETA(DisplayName = "Original (as decoded)"),
+	MTORI_CW90						UMETA(DisplayName = "Clockwise 90deg"),
+	MTORI_CW180						UMETA(DisplayName = "Clockwise 180deg"),
+	MTORI_CW270						UMETA(DisplayName = "Clockwise 270deg"),
+};
+
 /**
  * Implements a texture asset for rendering video tracks from UMediaPlayer assets.
  */
@@ -69,6 +78,14 @@ class MEDIAASSETS_API UMediaTexture
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MediaTexture", meta = (DisplayName = "Output format (new style)"))
 	TEnumAsByte<enum MediaTextureOutputFormat> OutputFormat;
+
+	/** Current aspect ratio */
+	UPROPERTY(Transient, TextExportTransient, SkipSerialization, BlueprintReadOnly, Category = "MediaTexture", meta = (DisplayName = "Current frame's aspect ratio"))
+	float CurrentAspectRatio;
+
+	/** Current media orientation */
+	UPROPERTY(Transient, TextExportTransient, SkipSerialization, BlueprintReadOnly, Category = "MediaTexture", meta = (DisplayName = "Current frame's orientation"))
+	TEnumAsByte<enum MediaTextureOrientation> CurrentOrientation;
 
 public:
 
@@ -149,6 +166,18 @@ public:
 
 #endif
 
+	/**
+	 * Get current aspect ratio of presented frame.
+	 * @return Aspect ratio of current frame
+	 */
+	float GetCurrentAspectRatio() const;
+
+	/**
+	 * Get current orientation of presented frame.
+	 * @return Orientation of current frame
+	 */
+	MediaTextureOrientation GetCurrentOrientation() const;
+
 public:
 
 	//~ UTexture interface.
@@ -185,6 +214,9 @@ protected:
 
 	/** Update the video sample queue, if necessary. */
 	void UpdateQueue();
+
+	/** Update sample info */
+	void UpdateSampleInfo(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample);
 
 protected:
 

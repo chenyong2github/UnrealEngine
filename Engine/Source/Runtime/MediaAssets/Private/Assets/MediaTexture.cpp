@@ -65,6 +65,8 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, NumMips(1)
 	, NewStyleOutput(false)
 	, OutputFormat(MTOF_Default)
+	, CurrentAspectRatio(0.0f)
+	, CurrentOrientation(MTORI_Original)
 	, DefaultGuid(FGuid::NewGuid())
 	, Dimensions(FIntPoint::ZeroValue)
 	, Size(0)
@@ -358,6 +360,8 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 					return;
 				}
 
+				UpdateSampleInfo(Sample);
+
 				RenderParams.TextureSample = Sample;
 
 				RenderParams.Rate = CurrentPlayerPtr->GetRate();
@@ -377,15 +381,27 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 				//
 				// Old style: pass queue along and dequeue only at render time
 				//
+				TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+				if (SampleQueue->Peek(Sample))
+				{
+					UpdateSampleInfo(Sample);
+				}
+
 				RenderParams.SampleSource = SampleQueue;
 
 				RenderParams.Rate = CurrentPlayerPtr->GetRate();
 				RenderParams.Time = CurrentPlayerPtr->GetTime();
 			}
 		}
-		else if (!AutoClear)
+		else 
 		{
-			return; // retain last frame
+			CurrentAspectRatio = 0.0f;
+			CurrentOrientation = MTORI_Original;
+
+			if (!AutoClear)
+			{
+				return; // retain last frame
+			}
 		}
 	}
 	else if (!AutoClear && (CurrentGuid == PreviousGuid))
@@ -413,6 +429,18 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 		});
 }
 
+void UMediaTexture::UpdateSampleInfo(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> & Sample)
+{
+	CurrentAspectRatio = (float)Sample->GetAspectRatio();
+	switch (Sample->GetOrientation())
+	{
+		case EMediaOrientation::Original: CurrentOrientation = MTORI_Original; break;
+		case EMediaOrientation::CW90: CurrentOrientation = MTORI_CW90; break;
+		case EMediaOrientation::CW180: CurrentOrientation = MTORI_CW180; break;
+		case EMediaOrientation::CW270: CurrentOrientation = MTORI_CW270; break;
+		default: CurrentOrientation = MTORI_Original; break;
+	}
+}
 
 void UMediaTexture::UpdateQueue()
 {
@@ -443,3 +471,12 @@ int32 UMediaTexture::GetAvailableSampleCount() const
 	return SampleQueue->Num();
 }
 
+float UMediaTexture::GetCurrentAspectRatio() const
+{
+	return CurrentAspectRatio;
+}
+
+MediaTextureOrientation UMediaTexture::GetCurrentOrientation() const
+{
+	return CurrentOrientation;
+}
