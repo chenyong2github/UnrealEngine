@@ -29,6 +29,7 @@ struct FNiagaraScriptHighlight;
 class FNiagaraClipboard;
 class UNiagaraScratchPadViewModel;
 class FHlslNiagaraCompiler;
+class FNiagaraComponentBroker;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -218,6 +219,8 @@ private:
 	TSharedPtr<FNiagaraScriptMergeManager> ScriptMergeManager;
 
 	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
+
+	TSharedPtr<FNiagaraComponentBroker> NiagaraComponentBroker;
 
 	TMap<const UScriptStruct*, FOnCreateMovieSceneTrackForParameter> TypeToParameterTrackCreatorMap;
 
