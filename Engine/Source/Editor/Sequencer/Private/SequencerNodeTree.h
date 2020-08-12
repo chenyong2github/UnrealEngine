@@ -8,6 +8,7 @@
 #include "Tree/CurveEditorTree.h"
 #include "DisplayNodes/SequencerDisplayNode.h"
 #include "SectionHandle.h"
+#include "MovieSceneSequence.h"
 
 class FSequencer;
 class FCurveEditor;
@@ -288,6 +289,12 @@ private:
 	 */
 	bool KeyAreaHasCurves(const FSequencerSectionKeyAreaNode& KeyAreaNode) const;
 
+	/**
+	 * Destroys all nodes contained within this tree.
+	 * @note: Does not broadcast update notifications
+	 */
+	void DestroyAllNodes();
+
 public:
 	int32 GetTotalDisplayNodeCount() const { return DisplayNodeCount; }
 	int32 GetFilteredDisplayNodeCount() const { return FilteredNodes.Num(); }
@@ -329,6 +336,8 @@ private:
 	
 	/** Level based track filtering */
 	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
+
+	TWeakObjectPtr<UMovieSceneSequence> WeakCurrentSequence;
 
 	/** The total number of DisplayNodes in the tree, both displayed and hidden */
 	uint32 DisplayNodeCount;

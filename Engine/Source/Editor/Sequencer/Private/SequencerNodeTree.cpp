@@ -327,7 +327,14 @@ void FSequencerNodeTree::Update()
 	SectionToHandle.Empty();
 	HoveredNode = nullptr;
 
-	UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+	UMovieSceneSequence* CurrentSequence = Sequencer.GetFocusedMovieSceneSequence();
+	if (WeakCurrentSequence != CurrentSequence)
+	{
+		DestroyAllNodes();
+		WeakCurrentSequence = CurrentSequence;
+	}
+
+	UMovieScene* MovieScene = CurrentSequence->GetMovieScene();
 	RefreshNodes(MovieScene);
 
 	// Re-filter the tree after updating 
@@ -1355,13 +1362,54 @@ TArray< TSharedRef<FSequencerDisplayNode> > FSequencerNodeTree::GetAllNodes() co
 
 void FSequencerNodeTree::UpdateCurveEditorTree()
 {
-	FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get();
+	FCurveEditor*     CurveEditor     = Sequencer.GetCurveEditor().Get();
+	FCurveEditorTree* CurveEditorTree = CurveEditor->GetTree();
 
 	// Guard against multiple broadcasts here and defer them until the end of this function
-	FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditor->GetTree()->ScopedEventGuard();
+	FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditorTree->ScopedEventGuard();
+
+	// Remove any curve editor tree items which are now parented incorrectly - we remove invalid entries before adding new ones below
+	// to ensure that we do not add new tree items as children of stale tree items
+	for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
+	{
+		TSharedPtr<FSequencerDisplayNode> Node = It->Key.Pin();
+
+		bool bIsStillRelevant = Node.IsValid() && Node->TreeSerialNumber == SerialNumber && Node->IsVisible();
+		if (bIsStillRelevant)
+		{
+			// It's possible that the item was removed by a previous iteration of this loop, so we have to handle that case here
+			TSharedPtr<FSequencerDisplayNode> Parent = Node->GetParent();
+			FCurveEditorTreeItemID CachedParentID = Parent ? CurveEditorTreeItemIDs.FindRef(Parent) : FCurveEditorTreeItemID::Invalid();
+
+			const FCurveEditorTreeItem* TreeItem = CurveEditorTree->FindItem(It->Value);
+
+			bIsStillRelevant = TreeItem && TreeItem->GetParentID() == CachedParentID;
+		}
+
+		// Remove this item and all its children if it is no longer relevant, or it needs reparenting
+		if (!bIsStillRelevant)
+		{
+			CurveEditor->RemoveTreeItem(It->Value);
+			It.RemoveCurrent();
+		}
+	}
+
+	// Do a second pass to remove any items that were removed recursively above
+	for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
+	{
+		if (CurveEditorTree->FindItem(It->Value) == nullptr)
+		{
+			It.RemoveCurrent();
+		}
+	}
 
 	auto Traverse_AddToCurveEditor = [this, CurveEditor](FSequencerDisplayNode& InNode)
 	{
+		if (!InNode.IsVisible())
+		{
+			return true;
+		}
+
 		if (InNode.GetType() == ESequencerNode::Track)
 		{
 			// Track nodes with top level key area's must be added
@@ -1382,16 +1430,7 @@ void FSequencerNodeTree::UpdateCurveEditorTree()
 	static const bool bIncludeThisNode = false;
 	RootNode->Traverse_ChildFirst(Traverse_AddToCurveEditor, bIncludeThisNode);
 
-	// Remove no longer valid elements from the curve editor tree
-	for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
-	{
-		TSharedPtr<FSequencerDisplayNode> Node = It->Key.Pin();
-		if (!Node.IsValid() || Node->TreeSerialNumber != SerialNumber || !Node->IsVisible())
-		{
-			CurveEditor->RemoveTreeItem(It->Value);
-			It.RemoveCurrent();
-		}
-	}
+	CurveEditorTreeItemIDs.Compact();
 }
 
 bool FSequencerNodeTree::KeyAreaHasCurves(const FSequencerSectionKeyAreaNode& KeyAreaNode) const
@@ -1446,4 +1485,30 @@ void FSequencerNodeTree::UnpinAllNodes()
 		InNode.Unpin();
 		return true;
 	}, bIncludeRootNode);
+}
+
+void FSequencerNodeTree::DestroyAllNodes()
+{
+	for (TSharedRef<FSequencerDisplayNode> RootChild : CopyTemp(RootNode->GetChildNodes()))
+	{
+		RootChild->SetParent(nullptr);
+	}
+
+	ObjectBindingToNode.Empty();
+	TrackToNode.Empty();
+	FolderToNode.Empty();
+	SectionToHandle.Empty();
+	FilteredNodes.Empty();
+	HoveredNode = nullptr;
+
+	if (FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get())
+	{
+		FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditor->GetTree()->ScopedEventGuard();
+
+		for (auto It = CurveEditorTreeItemIDs.CreateIterator(); It; ++It)
+		{
+			CurveEditor->RemoveTreeItem(It->Value);
+		}
+	}
+	CurveEditorTreeItemIDs.Empty();
 }
