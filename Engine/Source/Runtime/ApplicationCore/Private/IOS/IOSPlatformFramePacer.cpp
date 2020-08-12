@@ -26,6 +26,7 @@ namespace IOSDisplayConstants
 {
     @public
 	FEvent *FramePacerEvent;
+	int EnablePresentPacing;
 }
 
 -(void)run:(id)param;
@@ -64,7 +65,7 @@ namespace IOSDisplayConstants
 #if UE4_HAS_IOS10
 	if ([displayLink respondsToSelector : @selector(preferredFramesPerSecond)] == YES)
 	{
-		displayLink.preferredFramesPerSecond = FIOSPlatformRHIFramePacer::GetMaxRefreshRate() / FIOSPlatformRHIFramePacer::FrameInterval;
+		displayLink.preferredFramesPerSecond = EnablePresentPacing ? 0 : (FIOSPlatformRHIFramePacer::GetMaxRefreshRate() / FIOSPlatformRHIFramePacer::FrameInterval);
 	}
 	else
 #endif
@@ -90,6 +91,13 @@ namespace IOSDisplayConstants
 		return;
 	};
 
+	static IConsoleVariable* PresentPacingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ios.PresentPacing"));
+	EnablePresentPacing = 0;
+	if (PresentPacingCVar != nullptr)
+	{
+		EnablePresentPacing = PresentPacingCVar->GetInt();
+	}
+	
 	{
 		FScopeLock Lock(&HandlersMutex);
 		CADisplayLink* displayLink = (CADisplayLink*)param;
@@ -127,13 +135,13 @@ namespace IOSDisplayConstants
 				
 				if (displayLinkParam.preferredFramesPerSecond > 0)
 				{
-					displayLinkParam.preferredFramesPerSecond = MaxRefreshRate / FIOSPlatformRHIFramePacer::FrameInterval;
+					displayLinkParam.preferredFramesPerSecond = EnablePresentPacing ? 0 : (MaxRefreshRate / FIOSPlatformRHIFramePacer::FrameInterval);
 				}
 				else
 #endif
 				{
 #if UE4_TARGET_PRE_IOS10
-					displayLinkParam.frameInterval = FIOSPlatformRHIFramePacer::FrameInterval;
+					displayLinkParam.frameInterval = EnablePresentPacing ? 0 : FIOSPlatformRHIFramePacer::FrameInterval;
 #endif
 				}
 

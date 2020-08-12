@@ -22,7 +22,7 @@ extern int32 GMetalNonBlockingPresent;
 extern float GMetalPresentFramePacing;
 
 #if PLATFORM_IOS
-int32 GEnablePresentPacing = 0;
+static int32 GEnablePresentPacing = 0;
 static FAutoConsoleVariableRef CVarMetalEnablePresentPacing(
 	   TEXT("ios.PresentPacing"),
 	   GEnablePresentPacing,
@@ -438,12 +438,12 @@ void FMetalViewport::Present(FMetalCommandQueue& CommandQueue, bool bLockToVsync
 	
 	if (!Block)
 	{
-#if !PLATFORM_MAC
-		uint32 FramePace = FPlatformRHIFramePacer::GetFramePace();
-		float MinPresentDuration = FramePace ? (1.0f / (float)FramePace) : 0.0f;
-#endif
 		Block = Block_copy(^(uint32 InDisplayID, double OutputSeconds, double OutputDuration)
 		{
+#if !PLATFORM_MAC
+			uint32 FramePace = FPlatformRHIFramePacer::GetFramePace();
+			float MinPresentDuration = FramePace ? (1.0f / (float)FramePace) : 0.0f;
+#endif
 			bool bIsInLiveResize = false;
 #if PLATFORM_MAC
 			bIsInLiveResize = View.inLiveResize;
