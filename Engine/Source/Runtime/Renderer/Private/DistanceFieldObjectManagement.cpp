@@ -551,8 +551,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 
 				if (NumDFObjectUploads > 0)
 				{
-					DistanceFieldSceneData.UploadDataBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("DFObjectDataUploadBuffer"));
-					DistanceFieldSceneData.UploadBoundsBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("DFObjectBoundsUploadBuffer"));
+					DistanceFieldSceneData.UploadDistanceFieldDataBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("DFObjectDataUploadBuffer"));
+					DistanceFieldSceneData.UploadDistanceFieldBoundsBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("DFObjectBoundsUploadBuffer"));
 
 					const TArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
 
@@ -575,8 +575,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 										DFUpdateCS.Lock();
 									}
 
-									FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadDataBuffer.Add_GetRef(Index);
-									FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadBoundsBuffer.Add_GetRef(Index);
+									FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadDistanceFieldDataBuffer.Add_GetRef(Index);
+									FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadDistanceFieldBoundsBuffer.Add_GetRef(Index);
 
 									if (RangeCount > 1)
 									{
@@ -721,8 +721,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 						RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBufferUAVs, 2);
 					}
 
-					DistanceFieldSceneData.UploadDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
-					DistanceFieldSceneData.UploadBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
+					DistanceFieldSceneData.UploadDistanceFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
+					DistanceFieldSceneData.UploadDistanceFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
 					RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBufferUAVs, 2);
 				}
@@ -828,8 +828,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 
 				if (NumHeighFieldObjectUploads > 0)
 				{
-					DistanceFieldSceneData.UploadDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("HeighFieldObjectDataUploadBuffer"));
-					DistanceFieldSceneData.UploadBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
+					DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("HeighFieldObjectDataUploadBuffer"));
+					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
 
 					for (int32 Index : DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers)
 					{
@@ -837,8 +837,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 						{
 							FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Index];
 
-							FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadDataBuffer.Add_GetRef(Index);
-							FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadBoundsBuffer.Add_GetRef(Index);
+							FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadHeightFieldDataBuffer.Add_GetRef(Index);
+							FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Add_GetRef(Index);
 
 							UTexture2D* HeightNormalTexture;
 							UTexture2D* DiffuseColorTexture;
@@ -908,8 +908,8 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRHICom
 						RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, ObjectBuffers->Bounds.UAV);
 					}
 
-					DistanceFieldSceneData.UploadDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
-					DistanceFieldSceneData.UploadBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
+					DistanceFieldSceneData.UploadHeightFieldDataBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Data, false);
+					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.ResourceUploadTo(RHICmdList, ObjectBuffers->Bounds, false);
 
 					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Data.UAV);
 					RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, ObjectBuffers->Bounds.UAV);

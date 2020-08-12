@@ -217,7 +217,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 		{
 			FLumenCubeMapTree NullCubeMapTree;
 
-			LumenSceneData.UploadBuffer.Init(NumCubeMapTreeUploads, FLumenCubeMapTreeGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadBuffer"));
+			LumenSceneData.UploadCubeMapTreeBuffer.Init(NumCubeMapTreeUploads, FLumenCubeMapTreeGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadCubeMapTreeBuffer"));
 
 			for (int32 Index : LumenSceneData.CubeMapTreeIndicesToUpdateInBuffer)
 			{
@@ -225,7 +225,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				{
 					const FLumenCubeMapTree& CubeMapTree = LumenSceneData.CubeMapTrees.IsAllocated(Index) ? LumenSceneData.CubeMapTrees[Index] : NullCubeMapTree;
 
-					FVector4* Data = (FVector4*) LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4* Data = (FVector4*) LumenSceneData.UploadCubeMapTreeBuffer.Add_GetRef(Index);
 					FLumenCubeMapTreeGPUData::FillData(CubeMapTree, Data);
 				}
 			}
@@ -239,7 +239,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.CubeMapTreeBuffer.UAV);
 			}
 
-			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapTreeBuffer, false);
+			LumenSceneData.UploadCubeMapTreeBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapTreeBuffer, false);
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CubeMapTreeBuffer.UAV);
 		}
@@ -260,15 +260,15 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 		{
 			FLumenCubeMap NullCubeMap;
 
-			LumenSceneData.UploadBuffer.Init(NumCubeMapUploads, FLumenCubeMapGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadBuffer"));
-
+			LumenSceneData.UploadCubeMapBuffer.Init(NumCubeMapUploads, FLumenCubeMapGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadCubeMapBuffer"));
+			
 			for (int32 Index : LumenSceneData.CubeMapIndicesToUpdateInBuffer)
 			{
 				if (Index < LumenSceneData.CubeMaps.Num())
 				{
 					const FLumenCubeMap& CubeMap = LumenSceneData.CubeMaps.IsAllocated(Index) ? LumenSceneData.CubeMaps[Index] : NullCubeMap;
 
-					FVector4* Data = (FVector4*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4* Data = (FVector4*)LumenSceneData.UploadCubeMapBuffer.Add_GetRef(Index);
 					FLumenCubeMapGPUData::FillData(CubeMap, Data);
 				}
 			}
@@ -282,7 +282,7 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.CubeMapBuffer.UAV);
 			}
 
-			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapBuffer, false);
+			LumenSceneData.UploadCubeMapBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CubeMapBuffer, false);
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CubeMapBuffer.UAV);
 		}

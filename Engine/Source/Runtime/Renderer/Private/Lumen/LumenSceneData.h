@@ -214,6 +214,8 @@ public:
 	int32 Generation;
 
 	FScatterUploadBuffer UploadBuffer;
+	FScatterUploadBuffer UploadCubeMapTreeBuffer;
+	FScatterUploadBuffer UploadCubeMapBuffer;
 	FScatterUploadBuffer ByteBufferUploadBuffer;
 
 	TArray<int32> CardIndicesToUpdateInBuffer;

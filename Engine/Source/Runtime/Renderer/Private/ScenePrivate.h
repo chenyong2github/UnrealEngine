@@ -1892,8 +1892,11 @@ public:
 	class FDistanceFieldObjectBuffers* ObjectBuffers;
 	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
 
-	FScatterUploadBuffer UploadDataBuffer;
-	FScatterUploadBuffer UploadBoundsBuffer;
+	FScatterUploadBuffer UploadHeightFieldDataBuffer;
+	FScatterUploadBuffer UploadHeightFieldBoundsBuffer;
+	FScatterUploadBuffer UploadDistanceFieldDataBuffer;
+	FScatterUploadBuffer UploadDistanceFieldBoundsBuffer;
+	
 	TArray<int32> IndicesToUpdateInObjectBuffers;
 	TArray<int32> IndicesToUpdateInHeightFieldObjectBuffers;
 
