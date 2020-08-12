@@ -1510,7 +1510,7 @@ public:
 		if (CVarTAAAlgorithm.GetValueOnRenderThread())
 		{
 			*OutSceneColorHalfResTexture = nullptr;
-			*OutSceneColorHalfResViewRect; // TODO.
+			//*OutSceneColorHalfResViewRect; // TODO.
 
 			return AddGen5MainTemporalAAPasses(
 				GraphBuilder,
