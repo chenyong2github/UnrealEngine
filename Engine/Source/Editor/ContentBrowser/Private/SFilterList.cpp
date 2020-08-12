@@ -183,13 +183,13 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
- 			.Padding(0)
-			.BorderImage(this, &SFilter::GetFilterBorderBackground)
+ 			.Padding(1.0f)
+			.BorderImage(FAppStyle::Get().GetBrush("ContentBrowser.FilterBackground"))
  			[
 				SAssignNew( ToggleButtonPtr, SFilterCheckBox )
-				.Style(FEditorStyle::Get(), "ContentBrowser.FilterButton")
+				.Style(FAppStyle::Get(), "ContentBrowser.FilterButton")
 				.ToolTipText(FilterToolTip)
-				.Padding(this, &SFilter::GetFilterNamePadding)
+				.Padding(0.0f)
 				.IsChecked(this, &SFilter::IsChecked)
 				.OnCheckStateChanged(this, &SFilter::FilterToggled)
 				.OnGetMenuContent(this, &SFilter::GetRightClickMenuContent)
@@ -197,7 +197,6 @@ public:
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
-					.Padding(2.0f)
 					.AutoWidth()
 					[
 						SNew(SImage)
@@ -205,12 +204,12 @@ public:
 						.ColorAndOpacity(this, &SFilter::GetFilterImageColorAndOpacity)
 					]
 					+SHorizontalBox::Slot()
-					.Padding(2.0f)
+					.Padding(TAttribute<FMargin>(this, &SFilter::GetFilterNamePadding))
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
 						.Text(this, &SFilter::GetFilterName)
-						//.ColorAndOpacity(this, &SFilter::GetFilterTextColorAndOpacity);
+						.IsEnabled_Lambda([this] {return bEnabled;})
 					]
 				]
 			]
@@ -421,21 +420,18 @@ private:
 	/** Handler to determine the color of the checkbox when it is checked */
 	FSlateColor GetFilterImageColorAndOpacity() const
 	{
-		return bEnabled ? FilterColor : FilterColor.Desaturate(.4f);
+		return bEnabled ? FilterColor : FAppStyle::Get().GetSlateColor("Colors.Recessed");
 	}
 
-	const FSlateBrush* GetFilterBorderBackground() const
+	EVisibility GetFilterOverlayVisibility() const
 	{
-		static const FName Unchecked("ContentBrowser.FilterBackgroundUnchecked");
-		static const FName Checked("ContentBrowser.FilterBackgroundChecked");
-
-		return FAppStyle::Get().GetBrush(bEnabled ? Checked : Unchecked);
+		return bEnabled ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
 	}
 
 	/** Handler to determine the padding of the checkbox text when it is pressed */
 	FMargin GetFilterNamePadding() const
 	{
-		return ToggleButtonPtr->IsPressed() ? FMargin(3,2,4,0) : FMargin(3,1,4,1);
+		return ToggleButtonPtr->IsPressed() ? FMargin(4,2,4,0) : FMargin(4,1,4,1);
 	}
 
 

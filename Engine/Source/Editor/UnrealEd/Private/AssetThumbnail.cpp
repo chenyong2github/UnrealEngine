@@ -137,8 +137,6 @@ public:
 					.Font(GetTextFont())
 					.Justification(ETextJustify::Center)
 					.ColorAndOpacity(FEditorStyle::GetColor(Style, ".ColorAndOpacity"))
-					.ShadowOffset(FEditorStyle::GetVector(Style, ".ShadowOffset"))
-					.ShadowColorAndOpacity( FEditorStyle::GetColor(Style, ".ShadowColorAndOpacity"))
 					.HighlightText(HighlightedText)
 				]
 
@@ -224,8 +222,6 @@ public:
 						.Text(GetLabelText())
 						.Font(GetHintTextFont())
 						.ColorAndOpacity(FEditorStyle::GetColor(Style, ".HintColorAndOpacity"))
-						.ShadowOffset(FEditorStyle::GetVector(Style, ".HintShadowOffset"))
-						.ShadowColorAndOpacity(FEditorStyle::GetColor(Style, ".HintShadowColorAndOpacity"))
 						.HighlightText(HighlightedText)
 					]
 				];

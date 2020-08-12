@@ -2355,19 +2355,6 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 		);
 
 		Section.AddMenuEntry(
-			"DockCollections",
-			LOCTEXT("DockCollectionsOptions", "Dock Collections"),
-			LOCTEXT("DockCollectionsOptionToolTip", "Dock the collections view under the path view?"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SAssetView::ToggleDockCollections),
-				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleDockCollectionsAllowed),
-				FIsActionChecked::CreateSP(this, &SAssetView::HasDockedCollections)
-			),
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		Section.AddMenuEntry(
 			"FilterRecursively",
 			LOCTEXT("FilterRecursivelyOption", "Filter Recursively"),
 			LOCTEXT("FilterRecursivelyOptionToolTip", "Should filters apply recursively in the view?"),

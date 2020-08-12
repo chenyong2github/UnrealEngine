@@ -330,14 +330,8 @@ private:
 	/** Gets the visibility state of the asset tree */
 	EVisibility GetSourcesViewVisibility() const;
 
-	/** Gets the brush used to on the sources toggle button */
-	const FSlateBrush* GetSourcesToggleImage() const;
-
 	/** Handler for clicking the tree expand/collapse button */
 	FReply SourcesViewExpandClicked();
-
-	/** Gets the visibility of the path expander button */
-	EVisibility GetPathExpanderVisibility() const;
 
 	/** Gets the visibility of the source switch button */
 	EVisibility GetSourcesSwitcherVisibility() const;
@@ -519,6 +513,8 @@ private:
 	SSplitter::ESizeRule GetFavoritesAreaSizeRule() const;
 	SSplitter::ESizeRule GetPathAreaSizeRule() const;
 	SSplitter::ESizeRule GetCollectionsAreaSizeRule() const;
+
+	float GetSearchBoxFillWidth() const;
 private:
 
 	/** The tab that contains this browser */
