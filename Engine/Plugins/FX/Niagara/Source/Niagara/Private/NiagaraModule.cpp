@@ -726,9 +726,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			Obj = AssetRef.TryLoad();
 		}
+		
+		bool bRedirectorFollowed = false;
 		if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Obj))
 		{
 			Obj = Redirector->DestinationObject;
+			bRedirectorFollowed = true;
 		}
 
 		if (Obj != nullptr)
@@ -740,7 +743,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			{
 				FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
 			}
-			if (Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
 			}
@@ -761,9 +764,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			Obj = AssetRef.TryLoad();
 		}
+		
+		bool bRedirectorFollowed = false;
 		if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Obj))
 		{
 			Obj = Redirector->DestinationObject;
+			bRedirectorFollowed = true;
 		}
 
 		if (Obj != nullptr)
@@ -776,7 +782,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
 			}
 
-			if (Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
 			}
