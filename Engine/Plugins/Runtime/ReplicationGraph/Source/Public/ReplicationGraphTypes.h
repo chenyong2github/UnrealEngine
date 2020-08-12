@@ -12,6 +12,7 @@
 #include "UObject/UObjectHash.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/NetConnection.h"
+#include "ReplicationGraphTypes.generated.h"
 
 class AActor;
 class AController;
@@ -369,15 +370,23 @@ REPLICATIONGRAPH_API void PreAllocateRepList(int32 ListSize, int32 NumLists);
 // --------------------------------------------------------------------------------------------------------------------------------------------
 
 /** Per-Class actor data about how the actor replicates */
+USTRUCT()
 struct FClassReplicationInfo
 {
-	FClassReplicationInfo() { }
+	GENERATED_BODY()
+
+	UPROPERTY()
 	float DistancePriorityScale = 1.f;
+	UPROPERTY()
 	float StarvationPriorityScale = 1.f;
+	UPROPERTY()
 	float AccumulatedNetPriorityBias = 0.f;
 	
+	UPROPERTY()
 	uint16 ReplicationPeriodFrame = 1;
+	UPROPERTY()
 	uint16 FastPath_ReplicationPeriodFrame = 1;
+	UPROPERTY()
 	uint16 ActorChannelFrameTimeout = 4;
 
 	TFunction<bool(AActor*)> FastSharedReplicationFunc = nullptr;
@@ -430,7 +439,9 @@ struct FClassReplicationInfo
 
 private:
 
+	UPROPERTY()
 	float CullDistance = 0.0f;
+	UPROPERTY()
 	float CullDistanceSquared = 0.f;
 
 };
