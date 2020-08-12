@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"StaticMeshEditor",
+					"EditorFramework",
 					"UnrealEd",
 					"ViewportInteraction",
 					"DataprepCore",
