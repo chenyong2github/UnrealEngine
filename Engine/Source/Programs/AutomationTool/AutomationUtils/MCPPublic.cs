@@ -355,15 +355,21 @@ namespace EpicGames.MCP.Automation
 			}
 			else if (TargetPlatform == MCPPlatform.XboxOneGDK)
 			{
-				return UnrealTargetPlatform.Parse("XboxOneGDK");
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("XboxOneGDK", out ReturnValue);
+				return ReturnValue;
 			}
 			else if (TargetPlatform == MCPPlatform.XSX)
 			{
-				return UnrealTargetPlatform.Parse("XSX");
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("XSX", out ReturnValue);
+				return ReturnValue;
 			}
 			else if (TargetPlatform == MCPPlatform.PS5)
 			{
-				return UnrealTargetPlatform.Parse("PS5");
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("PS5", out ReturnValue);
+				return ReturnValue;
 			}
 			throw new AutomationException("Platform {0} is not properly supported by the MCP backend yet", TargetPlatform);
         }
