@@ -70,6 +70,7 @@
 #include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "CascadeToNiagaraConverterModule.h"
+#include "Curves/RichCurve.h"
 
 
 TMap<FGuid, TSharedPtr<FNiagaraEmitterHandleViewModel>> UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap;
