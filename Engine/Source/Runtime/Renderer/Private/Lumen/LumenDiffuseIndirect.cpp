@@ -784,10 +784,12 @@ void UpdateHistory(
 
 bool ShouldRenderLumenDiffuseGI(EShaderPlatform ShaderPlatform, const FSceneViewFamily& ViewFamily)
 {
-	// TODO(Guillaume): why does this ignore the rest?...
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+
 	return GAllowLumenScene
 		&& DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& ViewFamily.EngineShowFlags.LumenDiffuseIndirect;
+		&& ViewFamily.EngineShowFlags.LumenDiffuseIndirect
+		&& CVar->GetValueOnRenderThread() != 0;
 }
 
 bool FDeferredShadingSceneRenderer::ShouldRenderLumenDiffuseGI(const FViewInfo& View) const
