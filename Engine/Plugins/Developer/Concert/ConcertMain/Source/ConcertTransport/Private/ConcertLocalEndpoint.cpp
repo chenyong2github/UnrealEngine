@@ -290,7 +290,7 @@ FConcertRemoteEndpointPtr FConcertLocalEndpoint::FindRemoteEndpoint(const FMessa
 
 bool FConcertLocalEndpoint::HandleTick(float DeltaTime)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertLocalEndpoint_HandleTick);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertLocalEndpoint_HandleTick2);
 
 	const FDateTime UtcNow = FDateTime::UtcNow();
 
