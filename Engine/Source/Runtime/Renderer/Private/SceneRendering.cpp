@@ -3707,6 +3707,15 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 	View->InitRHIResources();
 }
 
+extern CORE_API bool GRenderThreadPollingOn;
+
+static bool GForceSceneRenderTaskWakeup = false;
+static FAutoConsoleVariableRef CVarRenderThreadPollPeriodMs(
+	TEXT("TaskGraph.ForceSceneRenderTaskWakeup"),
+	GForceSceneRenderTaskWakeup,
+	TEXT("If true and RT polling is on, wakes up the RT explicitly after FDrawSceneCommand is submitted. This avoids delays and improves perf.")
+);
+
 void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily* ViewFamily)
 {
 	check(Canvas);
@@ -3814,6 +3823,13 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 				RenderViewFamily_RenderThread(RHICmdList, SceneRenderer);
 				FlushPendingDeleteRHIResources_RenderThread();
 			});
+
+		// Force kick the RT if we've got RT polling on.
+		// This saves us having to wait until the polling period before the scene draw starts executing.
+		if (GForceSceneRenderTaskWakeup && GRenderThreadPollingOn)
+		{
+			FTaskGraphInterface::Get().WakeNamedThread(ENamedThreads::GetRenderThread());
+		}
 	}
 }
 

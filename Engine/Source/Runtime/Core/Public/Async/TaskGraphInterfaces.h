@@ -410,6 +410,8 @@ public:
 	**/
 	virtual void AddShutdownCallback(TFunction<void()>& Callback) = 0;
 
+	virtual void WakeNamedThread(ENamedThreads::Type ThreadToWake) = 0;
+
 	/**
 	*	A (slow) function to call a function on every known thread, both named and workers
 	*	@param	Callback - function to call prior to shutting down the taskgraph
