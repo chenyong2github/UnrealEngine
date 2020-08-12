@@ -5789,6 +5789,12 @@ void UNetDriver::ProcessRemoteFunction(
 	FFrame* Stack,
 	class UObject* SubObject)
 {
+	if (Actor->IsActorBeingDestroyed())
+	{
+		UE_LOG(LogNet, Warning, TEXT("UNetDriver::ProcessRemoteFunction: Remote function %s called from actor %s while actor is being destroyed. Function will not be processed."), *Function->GetName(), *Actor->GetName());
+		return;
+	}
+
 #if !UE_BUILD_SHIPPING
 	SCOPE_CYCLE_COUNTER(STAT_NetProcessRemoteFunc);
 	SCOPE_CYCLE_UOBJECT(Function, Function);
