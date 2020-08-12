@@ -41,6 +41,7 @@ void UMoviePipelineOutputSetting::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
 FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJob) const 
 {
 	FTextBuilder TextBuilder;
@@ -67,6 +68,7 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 	
 	return TextBuilder.ToText();
 }
+#endif
 
 void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {

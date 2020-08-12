@@ -195,15 +195,19 @@ bool FEXRImageWriteTask::WriteToDisk()
 			// which moves the tellp location. So file length is stored in advance for later use. The output file needs to be
 			// created after the header information is filled.
 			Imf::OutputFile ImfFile(OutputFile, Header);
+#if WITH_EDITOR
 			try
+#endif
 			{
 				ImfFile.setFrameBuffer(FrameBuffer);
 				ImfFile.writePixels(Height);
 			}
+#if WITH_EDITOR
 			catch (const IEX_NAMESPACE::BaseExc& Exception)
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Caught exception: %s"), Exception.message().c_str());
 			}
+#endif
 		}
 		
 		// Now that the scope has closed for the Imf::OutputFile, now we can write the data to disk.

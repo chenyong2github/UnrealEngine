@@ -115,7 +115,9 @@ protected:
 	// UMoviePipelineRenderPass API
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
 	virtual void TeardownImpl() override;
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Lit", "Deferred Rendering"); }
+#endif
 	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) override;
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) override;
 	// ~UMoviePipelineRenderPass
@@ -149,7 +151,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("Unlit");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Unlit", "Deferred Rendering (Unlit)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -167,7 +171,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("DetailLightingOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_DetailLighting", "Deferred Rendering (Detail Lighting)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -186,7 +192,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("LightingOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_LightingOnly", "Deferred Rendering (Lighting Only)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -205,7 +213,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("ReflectionsOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_ReflectionsOnly", "Deferred Rendering (Reflections Only)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -225,7 +235,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("PathTracer");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_PathTracer", "Deferred Rendering (Path Tracer)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);

@@ -136,6 +136,7 @@ void UMoviePipelineVideoOutputBase::FinalizeImpl()
 	AllWriters.Empty();
 }
 
+#if WITH_EDITOR
 FText UMoviePipelineVideoOutputBase::GetFooterText(UMoviePipelineExecutorJob* InJob) const
 {
 	if (!IsAudioSupported())
@@ -145,3 +146,4 @@ FText UMoviePipelineVideoOutputBase::GetFooterText(UMoviePipelineExecutorJob* In
 
 	return FText();
 }
+#endif

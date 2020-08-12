@@ -14,11 +14,11 @@
 #include "Misc/PackageName.h"
 #include "Misc/FileHelper.h"
 #include "UObject/UObjectHash.h"
-#include "ObjectTools.h"
 #include "MoviePipelinePythonHostExecutor.h"
 
 #if WITH_EDITOR
 //#include "Editor.h"
+#include "ObjectTools.h"
 #endif
 
 void FMovieRenderPipelineCoreModule::InitializeCommandLineMovieRender()
