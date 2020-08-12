@@ -7,7 +7,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/NetworkGuid.h"
 #include "Misc/NetworkVersion.h"
-#include "Net/Core/Misc/PacketTraits.h"
+#include "Net/Common/Packets/PacketTraits.h"
 #include "IPAddress.h"
 #include "Serialization/BitReader.h"
 #include "ReplayTypes.generated.h"
