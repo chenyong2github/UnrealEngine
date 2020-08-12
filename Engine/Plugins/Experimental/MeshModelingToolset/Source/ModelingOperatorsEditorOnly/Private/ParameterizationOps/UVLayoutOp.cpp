@@ -10,6 +10,8 @@
 
 #include "Selections/MeshConnectedComponents.h"
 
+#include "Parameterization/MeshUVPacking.h"
+
 
 void FUVLayoutOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;
@@ -119,8 +121,7 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 	{
 		return;
 	}
-	bool bDiscardAttributes = false;
-	ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
+	ResultMesh->Copy(*OriginalMesh, true, true, true, true);
 
 	if (!ensureMsgf(ResultMesh->HasAttributes(), TEXT("Attributes not found on mesh? Conversion should always create them, so this operator should not need to do so.")))
 	{
@@ -134,95 +135,57 @@ void FUVLayoutOp::CalculateResult(FProgressCancel* Progress)
 
 
 	int UVLayerInput = 0, UVLayerOutput = 0;
-	ResultMesh->Attributes()->GetUVLayer(UVLayerInput)->SplitBowties();
+	FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerInput);
+	
+
+	bool bWillRepackIslands = (UVLayoutMode != EUVLayoutOpLayoutModes::TransformOnly);
+
+	// split bowties so that we can process islands independently
+	if (bWillRepackIslands || bAlwaysSplitBowties)
+	{
+		UVLayer->SplitBowties();
+	}
 
 	if (Progress && Progress->Cancelled())
 	{
 		return;
 	}
 
-	if (!bSeparateUVIslands)
+	FDynamicMeshUVPacker Packer(UVLayer);
+	Packer.TextureResolution = this->TextureResolution;
+	Packer.GutterSize = this->GutterSize;
+	Packer.bAllowFlips = this->bAllowFlips;
+
+	if (UVLayoutMode == EUVLayoutOpLayoutModes::RepackToUnitRect)
 	{
-		// The FLayoutUV class doesn't let us access the charts so this code path just finds them directly
-
-		FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerOutput);
-		FMeshConnectedComponents UVComponents(ResultMesh.Get());
-		UVComponents.FindConnectedTriangles([&UVLayer](int32 Triangle0, int32 Triangle1) {
-			return UVLayer->AreTrianglesConnected(Triangle0, Triangle1);
-		});
-		TArray<FAxisAlignedBox2f> ComponentBounds; ComponentBounds.SetNum(UVComponents.Num());
-		TArray<int32> ElToComponent; ElToComponent.SetNum(UVLayer->ElementCount());
-		for (int32 ComponentIdx = 0; ComponentIdx < UVComponents.Num(); ComponentIdx++)
+		if (Packer.StandardPack() == false)
 		{
-			FMeshConnectedComponents::FComponent& Component = UVComponents.GetComponent(ComponentIdx);
-			FAxisAlignedBox2f& BoundsUV = ComponentBounds[ComponentIdx];
-			BoundsUV = FAxisAlignedBox2f::Empty();
-
-			for (int TID : Component.Indices)
-			{
-				if (UVLayer->IsSetTriangle(TID))
-				{
-					FIndex3i TriEls = UVLayer->GetTriangle(TID);
-					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
-					{
-						int ElID = TriEls[SubIdx];
-						BoundsUV.Contain(UVLayer->GetElement(ElID));
-						ElToComponent[ElID] = ComponentIdx;
-					}
-				}
-			}
-		}
-		float MaxDim = 0;
-		for (FAxisAlignedBox2f& BoundsUV : ComponentBounds)
-		{
-			MaxDim = FMath::Max(MaxDim, BoundsUV.MaxDim());
-		}
-		float Scale = 1;
-		if (MaxDim >= FLT_MIN)
-		{
-			Scale = 1.0 / MaxDim;
-		}
-
-		Scale *= UVScaleFactor; // apply global scale factor
-		for (int ElID : UVLayer->ElementIndicesItr())
-		{
-			UVLayer->SetElement(ElID, (UVLayer->GetElement(ElID) - ComponentBounds[ElToComponent[ElID]].Min) * Scale);
+			// failed... what to do?
+			return;
 		}
 	}
-	else
+	else if (UVLayoutMode == EUVLayoutOpLayoutModes::StackInUnitRect)
 	{
-		// use FLayoutUV to do the layout
-
-		FCompactDynamicMeshWithAttributesLayoutView MeshView(ResultMesh.Get(), UVLayerInput, UVLayerOutput);
-		FLayoutUV LayoutUV(MeshView);
-		FOverlappingCorners Overlaps = OverlappingCornersFromUVs(ResultMesh.Get(), UVLayerInput);
-		if (Progress && Progress->Cancelled())
+		if (Packer.StackPack() == false)
 		{
+			// failed... what to do?
 			return;
-		}
-
-		LayoutUV.FindCharts(Overlaps);
-		if (Progress && Progress->Cancelled())
-		{
-			return;
-		}
-
-		LayoutUV.FindBestPacking(TextureResolution);
-		if (Progress && Progress->Cancelled())
-		{
-			return;
-		}
-
-		LayoutUV.CommitPackedUVs();
-
-		// Add global scaling as a postprocess
-		if (UVScaleFactor != 1.0)
-		{
-			FDynamicMeshUVOverlay* UVLayer = ResultMesh->Attributes()->GetUVLayer(UVLayerOutput);
-			for (int ElID : UVLayer->ElementIndicesItr())
-			{
-				UVLayer->SetElement(ElID, UVLayer->GetElement(ElID) * UVScaleFactor);
-			}
 		}
 	}
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	if (UVScaleFactor != 1.0 || UVTranslation != FVector2f::Zero() )
+	{
+		for (int ElementID : UVLayer->ElementIndicesItr())
+		{
+			FVector2f UV = UVLayer->GetElement(ElementID);
+			UV = (UV * UVScaleFactor) + UVTranslation;
+			UVLayer->SetElement(ElementID, UV);
+		}
+	}
+
 }
