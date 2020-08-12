@@ -24,6 +24,8 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* I
 	check(Constraint!=nullptr);
 	Constraint->SetProxy(this);
 	JointSettingsBuffer = Constraint->GetJointSettings();
+	OutputBuffer = Chaos::FMultiBufferFactory< FOutputData >::CreateBuffer(Chaos::EMultiBufferMode::Double);
+
 }
 
 
@@ -347,6 +349,39 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 }
 
 
+/**/
+template < >
+void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults() 
+{
+	if (Constraint != nullptr)
+	{
+		if (Handle != nullptr)
+		{
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Buffer->bIsBroken = Handle->IsConstraintEnabled();
+			Buffer->Force = Handle->GetLinearImpulse();
+			Buffer->Torque = Handle->GetAngularImpulse();
+		}
+	}
+}
+
+/**/
+template < >
+void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState()
+{
+	if (Constraint != nullptr)
+	{
+		if (Handle != nullptr)
+		{
+			FOutputData* Buffer = OutputBuffer->AccessProducerBuffer();
+			Constraint->GetOutputData().bIsBroken = Buffer->bIsBroken;
+			Constraint->GetOutputData().Force = Buffer->Force;
+			Constraint->GetOutputData().Torque = Buffer->Torque;
+		}
+	}
+}
+
+
 template < >
 template < class Trait >
 void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* RBDSolver)
@@ -361,6 +396,8 @@ template class TJointConstraintProxy< Chaos::FJointConstraint >;
 template void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();\
+template void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState();\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
 
 #include "Chaos/EvolutionTraits.inl"

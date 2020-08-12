@@ -77,6 +77,11 @@ namespace Chaos
 		return ConstraintContainer->GetConstraintBatch(ConstraintIndex);
 	}
 
+	bool FPBDJointConstraintHandle::IsConstraintEnabled() const
+	{
+		return ConstraintContainer->IsConstraintEnabled(ConstraintIndex);
+	}
+
 	FVec3 FPBDJointConstraintHandle::GetLinearImpulse() const
 	{
 		return ConstraintContainer->GetConstraintLinearImpulse(ConstraintIndex);

@@ -940,19 +940,45 @@ FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InCon
 
 }
 
-void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinForce,FVector& OutAngForce)
+void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef, FVector& OutLinForce, FVector& OutAngForce)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutLinForce = FVector::ZeroVector;
+	OutAngForce = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutLinForce = Constraint->GetOutputData().Force;
+			OutAngForce = Constraint->GetOutputData().Torque;
+		}
+	}
 }
 
 void FChaosEngineInterface::GetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinVelocity)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutLinVelocity = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutLinVelocity = Constraint->GetLinearDriveVelocityTarget();
+		}
+	}
 }
 
 void FChaosEngineInterface::GetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutAngVelocity)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutAngVelocity = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutAngVelocity = Constraint->GetAngularDriveVelocityTarget();
+		}
+	}
 }
 
 float FChaosEngineInterface::GetCurrentSwing1(const FPhysicsConstraintHandle& InConstraintRef)
@@ -1119,8 +1145,14 @@ void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InCon
 
 bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
-	return true;
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			return Constraint->GetOutputData().bIsBroken;
+		}
+	}
+	return false;
 }
 
 // @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
