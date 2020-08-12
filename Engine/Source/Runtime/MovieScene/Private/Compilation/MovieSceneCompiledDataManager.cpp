@@ -700,6 +700,7 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 			if (SubSequence)
 			{
 				FTrackGatherParameters SubSectionGatherParams = Params.CreateForSubData(*SubData, SubSequenceEntry.SequenceID);
+				SubSectionGatherParams.Flags |= SubSequenceEntry.Flags;
 				SubSectionGatherParams.SetClampRange(SubSequenceIt.Range());
 
 				// Access the sub entry data after compilation
@@ -1185,6 +1186,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 			// Iterate into the sub sequence
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
+			SubParams.Flags |= Entry.Flags;
 
 			RootPath->Push(SubData->DeterministicSequenceID);
 			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);
