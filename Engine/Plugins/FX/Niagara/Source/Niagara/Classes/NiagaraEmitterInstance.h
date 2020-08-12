@@ -78,6 +78,8 @@ public:
 	/** Potentially reads back data from the GPU which will introduce a stall and should only be used for debug purposes. */
 	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
 #endif
+	
+	bool GetBoundRendererValue_GT(const FNiagaraVariableBase& InBaseVar, const FNiagaraVariableBase& InSubVar, void* OutValueData) const;
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
@@ -139,6 +141,10 @@ public:
 
 	bool HasTicked() const { return TickCount > 0;  }
 
+	const FNiagaraParameterStore& GetRendererBoundVariables() const { return RendererBindings; }
+	FNiagaraParameterStore& GetRendererBoundVariables() { return RendererBindings; }
+
+
 private:
 	void CheckForErrors();
 
@@ -164,6 +170,7 @@ private:
 	FNiagaraParameterDirectBinding<int32> UpdateExecCountBinding;
 
 	TSharedPtr<const FNiagaraEmitterCompiledData> CachedEmitterCompiledData;
+	FNiagaraParameterStore RendererBindings;
 
 	TUniquePtr<FEventInstanceData> EventInstanceData;
 

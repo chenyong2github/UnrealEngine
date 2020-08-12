@@ -418,7 +418,7 @@ void UNiagaraDataInterfaceCamera::GetFeedback(UNiagaraSystem* Asset, UNiagaraCom
 		{
 			for (const auto& Info : Script->GetVMExecutableData().DataInterfaceInfo)
 			{
-				if (Info.GetDefaultDataInterface()->GetClass() == GetClass())
+				if (Info.MatchesClass(GetClass()))
 				{
 					for (const auto& Func : Info.RegisteredFunctions)
 					{

@@ -877,10 +877,11 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 			}
 
 			// or are required by the renderer
-			if (CompileData->RequiredRendererVariables.Contains(Var))
+			// Commenting this out for now as we explicitly add these to the preserve list
+			/*if (CompileData->RequiredRendererVariables.Contains(Var))
 			{
 				return false;
-			}
+			}*/
 
 			// or are special?
 			if (Var == SYS_PARAM_PARTICLES_UNIQUE_ID)
@@ -910,6 +911,7 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 				}
 			}
 
+			//UE_LOG(LogNiagaraEditor, Warning, TEXT("Trimming variable %s"), *Var.GetName().ToString())
 			return true;
 		}));
 	}
@@ -5642,6 +5644,18 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		Source = CastChecked<UNiagaraScriptSource>(FunctionNode->FunctionScript->GetSource());
 		check(Source->GetOutermost() == GetTransientPackage());
 	}
+	else if (Signature.bRequiresExecPin)
+	{
+		if (CallInputs.Num() == 0 || Schema->PinToTypeDefinition(CallInputs[0]) != FNiagaraTypeDefinition::GetParameterMapDef())
+		{
+			Error(LOCTEXT("FunctionCallInvalidSignatureExecIn", "The first input pin must be a parameter map pin because the signature RequiresExecPin!"), FunctionNode, nullptr);
+		}
+		if (CallOutputs.Num() == 0 || Schema->PinToTypeDefinition(CallOutputs[0]) != FNiagaraTypeDefinition::GetParameterMapDef())
+		{
+			Error(LOCTEXT("FunctionCallInvalidSignatureExecOut", "The first output pin must be a parameter map pin because the signature RequiresExecPin!"), FunctionNode, nullptr);
+		}
+	}
+
 	UNiagaraNodeCustomHlsl* CustomFunctionHlsl = Cast<UNiagaraNodeCustomHlsl>(FunctionNode);
 	if (CustomFunctionHlsl != nullptr)
 	{
@@ -6116,6 +6130,23 @@ void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterface
 	{
 		Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceGPUMissing", "Function call \"{0}\" does not work on GPU sims."), FText::FromName(InMatchingSignature.Name)), CurNode, nullptr);
 	}
+
+	if (InMatchingSignature.ModuleUsageBitmask != 0 && !UNiagaraScript::IsSupportedUsageContextForBitmask(InMatchingSignature.ModuleUsageBitmask, TranslationStages[ActiveStageIdx].ScriptUsage))
+	{
+		FString AllowedContexts;
+		TArray<ENiagaraScriptUsage> Usages = UNiagaraScript::GetSupportedUsageContextsForBitmask(InMatchingSignature.ModuleUsageBitmask);
+		for (ENiagaraScriptUsage Usage : Usages)
+		{
+			if (AllowedContexts.Len() > 0)
+			{
+				AllowedContexts.Append(TEXT(", "));
+			}
+			UEnum* EnumClass = StaticEnum<ENiagaraScriptUsage>();
+			check(EnumClass != nullptr);
+			AllowedContexts.Append(EnumClass->GetNameByValue((int64)Usage).ToString());
+		}
+		Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceWrongContext", "Function call \"{0}\" is not allowed for this stack context. Allowed: {1}"), FText::FromName(InMatchingSignature.Name), FText::FromString(AllowedContexts)), CurNode, nullptr);
+	}
 	
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("HandleDataInterfaceCall %d %s %s %s"), ActiveStageIdx, *InMatchingSignature.Name.ToString(), InMatchingSignature.bWriteFunction ? TEXT("true") : TEXT("False"), *Info.Name.ToString());
 
@@ -6472,13 +6503,21 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		}
 		else
 		{
-			int32 OwnerIdx = Inputs[0];
-			if (OwnerIdx < 0 || OwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
+
+			// Usually the DataInterface is the zeroth entry in the signature inputs, unless we are using the exec pin, in which case it is at index 1.
+			int32 DataInterfaceOwnerIdx = Inputs[0]; 
+			if (InSignature.bRequiresExecPin)
+			{
+				ensure(Inputs.IsValidIndex(1));
+				DataInterfaceOwnerIdx = Inputs[1]; 
+			}
+
+			if (DataInterfaceOwnerIdx < 0 || DataInterfaceOwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
 			{
 				Error(LOCTEXT("FunctionCallDataInterfaceMissingRegistration", "Function call signature does not match to a registered DataInterface. Valid DataInterfaces should be wired into a DataInterface function call."), nullptr, nullptr);
 				return;
 			}
-			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
+			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[DataInterfaceOwnerIdx];
 
 			// Double-check to make sure that the signature matches those specified by the data 
 			// interface. It could be that the existing node has been removed and the graph
@@ -6510,6 +6549,11 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 					HandleDataInterfaceCall(Info, DataInterfaceFunctions[FoundMatch]);
 				}
 
+				if (DataInterfaceFunctions[FoundMatch].bRequiresExecPin)
+				{
+					OutSignature.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("InExecPin")), 0);
+					OutSignature.Outputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("OutExecPin")), 0);
+				}
 				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 				{
 					//This interface requires per instance data via a user ptr so place the index as the first input.
@@ -6694,6 +6738,11 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 	{
 		SigStr += TEXT("_Func_");
 	}
+	if (Sig.bRequiresExecPin)
+	{
+		SigStr += TEXT("_UEImpureCall_"); // Let the cross compiler know that we intend to keep this.
+	}
+
 	for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
 	{
 		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT(""));

@@ -324,6 +324,11 @@ public:
 	/** Sets the world transform */
 	FORCEINLINE void SetWorldTransform(const FTransform& InTransform) { WorldTransform = InTransform; }
 
+	int32 GetSystemInstanceIndex() const 
+	{
+		return SystemInstanceIndex;
+	}
+
 private:
 	void DestroyDataInterfaceInstanceData();
 
