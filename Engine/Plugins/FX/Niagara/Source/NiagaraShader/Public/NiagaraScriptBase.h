@@ -11,6 +11,9 @@ struct NIAGARASHADER_API FSimulationStageMetaData
 {
 	GENERATED_USTRUCT_BODY()
 public:
+	/** User simulation stage name. */
+	UPROPERTY()
+	FName SimulationStageName;
 
 	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
 	UPROPERTY()

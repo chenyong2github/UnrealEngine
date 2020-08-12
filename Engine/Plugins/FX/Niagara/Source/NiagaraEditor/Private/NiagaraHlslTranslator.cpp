@@ -1171,6 +1171,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 					// Set up the compile output for the shader stages so that we can properly execute at runtime.
 					FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
+					SimulationStageMetaData.SimulationStageName = InCompileData->StageNames.IsValidIndex(SimStageIndex) ? InCompileData->StageNames[SimStageIndex] : FName();
 					SimulationStageMetaData.bSpawnOnly = bSpawnOnly;
 					SimulationStageMetaData.IterationSource = IterationSrc;
 					SimulationStageMetaData.MinStage = TranslationStages[Index].SimulationStageIndexMin;

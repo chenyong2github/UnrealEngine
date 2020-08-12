@@ -202,22 +202,22 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 						if (Shader.IsValid())
 						{
 							FColor DisplayColor = FColor(196, 196, 196);
-							FString IterationSource = TEXT("Particles");
+							FString StageName = TEXT("Particles");
 							int32 MinStage = 0;
 							int32 MaxStage = 1;
 
 							const int32 ShaderStage = iPermutation - 1;
 							if (SimulationStageMetaData.IsValidIndex(ShaderStage))
 							{
-								if (!SimulationStageMetaData[ShaderStage].IterationSource.IsNone())
+								if (!SimulationStageMetaData[ShaderStage].SimulationStageName.IsNone())
 								{
-									IterationSource = SimulationStageMetaData[ShaderStage].IterationSource.ToString();
+									StageName = SimulationStageMetaData[ShaderStage].SimulationStageName.ToString();
 								}
 								MinStage = SimulationStageMetaData[ShaderStage].MinStage;
 								MaxStage = SimulationStageMetaData[ShaderStage].MaxStage;
 							}
 
-							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU Stage(%d - %d) Source(%s) = %u"), MinStage, MaxStage, *IterationSource, Shader->GetNumInstructions()), Font, DisplayColor);
+							Canvas->DrawShadowedString(CurrentX + 20.0f, CurrentY, *FString::Printf(TEXT("GPU StageName(%s) Stages(%d - %d) = %u"), *StageName, MinStage, MaxStage, Shader->GetNumInstructions()), Font, DisplayColor);
 							CurrentY += FontHeight;
 						}
 					}

@@ -1533,26 +1533,18 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		return;
 	}
 
-	/*UE_LOG(LogNiagara, Log, TEXT("Niagara Gpu Sim - % s - NumInstances: % u - StageNumber : % u"), Context->GetDebugSimName(),
-		TotalNumInstances,
-		SimulationStageIndex);
-		*/
-
-	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("Niagara Gpu Sim - %s - NumInstances: %u - StageNumber: %u - NumInstructions %u"),
+	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraGPUSimulationCS, TEXT("NiagaraGpuSim(%s) NumInstances(%u) Stage(%s %u) NumInstructions(%u)"),
 		Context->GetDebugSimName(),
 		TotalNumInstances,
+		Context->GetSimStageMetaData(SimulationStageIndex) ? *Context->GetSimStageMetaData(SimulationStageIndex)->SimulationStageName.ToString() : TEXT("Particles"),
 		SimulationStageIndex,
 		Shader->GetNumInstructions()
 	);
 
-	//UE_LOG(LogNiagara, Warning, TEXT("Run"));
-	
 	const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies = Instance->DataInterfaceProxies;
 	check(Instance->SimStageData[SimulationStageIndex].Source && Instance->SimStageData[SimulationStageIndex].Destination);
 	FNiagaraDataBuffer& DestinationData = *Instance->SimStageData[SimulationStageIndex].Destination;
 	FNiagaraDataBuffer& CurrentData = *Instance->SimStageData[SimulationStageIndex].Source;
-
-	//UE_LOG(LogScript, Warning, TEXT("Run [%d] TotalInstances %d  src:%p dest:%p"), SimulationStageIndex, TotalNumInstances, Instance->SimStageData[SimulationStageIndex].Source, Instance->SimStageData[SimulationStageIndex].Destination);
 
 	int32 InstancesToSpawnThisFrame = DestinationData.GetNumSpawnedInstances();
 	DestinationData.SetIDAcquireTag(FNiagaraComputeExecutionContext::TickCounter);
@@ -1645,9 +1637,6 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	}
 
 	SetConstantBuffers(RHICmdList, Shader, Tick, Instance);
-
-	//UE_LOG(LogNiagara, Log, TEXT("Num Instance : %d | Num Group : %d | Spawned Istance : %d | Start Instance : %d | Num Indices : %d | Stage Index : %d"), 
-		//TotalNumInstances, NumThreadGroups, InstancesToSpawnThisFrame, UpdateStartInstance, Context->NumIndicesPerInstance, SimulationStageIndex);
 
 	// Dispatch, if anything needs to be done
 	if (TotalNumInstances)
