@@ -13,8 +13,6 @@ class FQosDatacenterStats;
 class FTimerManager;
 class IAnalyticsProvider;
 struct FIcmpEchoResult;
-struct FIcmpTarget;
-struct FIcmpEchoManyCompleteResult;
 enum class EQosResponseType : uint8;
 
 /**
@@ -42,7 +40,6 @@ DECLARE_DELEGATE_OneParam(FOnQosPingEvalComplete, EQosCompletionResult /** Resul
  * @param DatacenterInstances The per-datacenter ping information
  */
 DECLARE_DELEGATE_TwoParams(FOnQosSearchComplete, EQosCompletionResult /** Result */, const TArray<FDatacenterQosInstance>& /** DatacenterInstances */);
-
 
 /**
  * Evaluates QoS metrics to determine the best datacenter under current conditions
@@ -84,32 +81,15 @@ public:
 
 	void SetWorld(UWorld* InWorld);
 
-	bool IsCanceled() const { return bCancelOperation; }
-
 protected:
 
 	/**
 	 * Use the udp ping code to ping known servers
 	 *
 	 * @param InParams parameters defining the request
-	 * @param InQosSearchCompleteDelegate delegate to fire when all regions have completed their tests
+	 * @param InCompletionDelegate delegate to fire when all regions have completed their tests
 	 */
-	bool PingRegionServers(const FQosParams& InParams, const FOnQosSearchComplete& InQosSearchCompleteDelegate);
-
-private:
-
-	void ResetDatacenterPingResults();
-
-	static TArray<FIcmpTarget>& PopulatePingRequestList(TArray<FIcmpTarget>& OutTargets,
-		const TArray<FDatacenterQosInstance>& Datacenters, int32 NumTestsPerRegion);
-
-	static TArray<FIcmpTarget>& PopulatePingRequestList(TArray<FIcmpTarget>& OutTargets,
-		const FQosDatacenterInfo& DatacenterDefinition, int32 NumTestsPerRegion);
-
-	static FDatacenterQosInstance *const FindDatacenterByAddress(TArray<FDatacenterQosInstance>& Datacenters,
-		const FString& ServerAddress, int32 ServerPort);
-
-	void OnEchoManyCompleted(FIcmpEchoManyCompleteResult FinalResult, int32 NumTestsPerRegion, const FOnQosSearchComplete& InQosSearchCompleteDelegate);
+	void PingRegionServers(const FQosParams& InParams, const FOnQosSearchComplete& InCompletionDelegate);
 
 private:
 
@@ -135,6 +115,8 @@ private:
 	 * @return true if all ping requests have completed (new method)
 	 */
 	bool AreAllRegionsComplete();
+
+	void OnPingResultComplete(const FString& RegionId, int32 NumTests, const FIcmpEchoResult& Result);
 
 	/**
 	 * Take all found ping results and process them before consumption at higher levels
