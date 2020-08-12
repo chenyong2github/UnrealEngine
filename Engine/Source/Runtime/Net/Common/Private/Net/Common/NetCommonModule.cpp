@@ -3,12 +3,11 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "Net/Core/Misc/NetCoreLog.h"
 
-DEFINE_LOG_CATEGORY(LogNetCore);
+// Force export
+#include "Net/Common/Packets/PacketTraits.h"
 
-
-class FNetCoreModule : public IModuleInterface
+class FNetCommonModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override
@@ -26,4 +25,4 @@ public:
 };
 
 
-IMPLEMENT_MODULE(FNetCoreModule, NetCore);
+IMPLEMENT_MODULE(FNetCommonModule, NetCommon);

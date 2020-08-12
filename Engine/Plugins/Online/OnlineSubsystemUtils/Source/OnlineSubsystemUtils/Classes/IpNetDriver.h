@@ -90,13 +90,13 @@ public:
 	{
 		FReceivedPacketView PacketView;
 
-		PacketView.Data = MakeArrayView(Data, CountBytesRef);
+		PacketView.DataView = {Data, CountBytesRef, ECountUnits::Bytes};
 		PacketView.Address = Address;
 		PacketView.Error = SE_NO_ERROR;
 
 		UNetConnection* ReturnVal = ProcessConnectionlessPacket(PacketView, { Data, MAX_PACKET_SIZE } );
 
-		CountBytesRef = PacketView.Data.Num();
+		CountBytesRef = PacketView.DataView.NumBytes();
 
 		return ReturnVal;
 	}

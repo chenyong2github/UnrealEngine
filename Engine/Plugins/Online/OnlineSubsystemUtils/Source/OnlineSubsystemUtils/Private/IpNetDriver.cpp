@@ -244,7 +244,7 @@ private:
 		}
 		else
 		{
-			OutPacket.Data = MakeArrayView(CurrentPacket.Data);
+			OutPacket.DataView = {CurrentPacket.Data.GetData(), CurrentPacket.Data.Num(), ECountUnits::Bytes};
 			OutPacket.Error = CurrentPacket.Error;
 			OutPacket.Address = CurrentPacket.Address;
 			bRecvSuccess = CurrentPacket.bRecvSuccess;
@@ -1151,6 +1151,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 	for (FPacketIterator It(this); It; ++It)
 	{
 		FReceivedPacketView ReceivedPacket;
+		FInPacketTraits& ReceivedTraits = ReceivedPacket.Traits;
 		bool bOk = It.GetCurrentPacket(ReceivedPacket);
 		const TSharedRef<const FInternetAddr> FromAddr = ReceivedPacket.Address.ToSharedRef();
 		UNetConnection* Connection = nullptr;
@@ -1159,13 +1160,13 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 		if (bOk)
 		{
 			// Immediately stop processing (continuing to next receive), for empty packets (usually a DDoS)
-			if (ReceivedPacket.Data.Num() == 0)
+			if (ReceivedPacket.DataView.NumBits() == 0)
 			{
 				DDoS.IncBadPacketCounter();
 				continue;
 			}
 
-			FPacketAudit::NotifyLowLevelReceive((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
+			FPacketAudit::NotifyLowLevelReceive((uint8*)ReceivedPacket.DataView.GetData(), ReceivedPacket.DataView.NumBytes());
 		}
 		else
 		{
@@ -1252,8 +1253,6 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 		}
 
-		bool bRecentlyDisconnectedClient = false;
-
 		if (Connection == nullptr)
 		{
 			UNetConnection** Result = MappedClientConnections.Find(FromAddr);
@@ -1268,7 +1267,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 				}
 				else
 				{
-					bRecentlyDisconnectedClient = true;
+					ReceivedTraits.bFromRecentlyDisconnected = true;
 				}
 			}
 			check(Connection == nullptr || CastChecked<UIpConnection>(Connection)->RemoteAddr->CompareEndpoints(*FromAddr));
@@ -1304,7 +1303,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 			}
 			else
 			{
-				bRecentlyDisconnectedClient ? DDoS.IncDisconnPacketCounter() : DDoS.IncNonConnPacketCounter();
+				ReceivedTraits.bFromRecentlyDisconnected ? DDoS.IncDisconnPacketCounter() : DDoS.IncNonConnPacketCounter();
 
 				if (LogPortUnreach && !DDoS.CheckLogRestrictions())
 				{
@@ -1330,7 +1329,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					}
 
 
-					bRecentlyDisconnectedClient ? DDoS.IncDisconnPacketCounter() : DDoS.IncNonConnPacketCounter();
+					ReceivedTraits.bFromRecentlyDisconnected ? DDoS.IncDisconnPacketCounter() : DDoS.IncNonConnPacketCounter();
 
 					DDoS.CondCheckNonConnQuotasAndLimits();
 				}
@@ -1346,7 +1345,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					FPacketBufferView WorkingBuffer = It.GetWorkingBuffer();
 
 					Connection = ProcessConnectionlessPacket(ReceivedPacket, WorkingBuffer);
-					bIgnorePacket = ReceivedPacket.Data.Num() == 0;
+					bIgnorePacket = ReceivedPacket.DataView.NumBytes() == 0;
 				}
 				else
 				{
@@ -1368,7 +1367,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 					It.GetCurrentPacketTimestamp(Connection);
 				}
 
-				Connection->ReceivedRawPacket((uint8*)ReceivedPacket.Data.GetData(), ReceivedPacket.Data.Num());
+				Connection->ReceivedRawPacket((uint8*)ReceivedPacket.DataView.GetData(), ReceivedPacket.DataView.NumBytes());
 			}
 		}
 	}
@@ -1403,10 +1402,9 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 	{
 		StatelessConnect = StatelessConnectComponent.Pin();
 
-		const ProcessedPacket HandlerResult = ConnectionlessHandler->IncomingConnectionless(Address,
-																		(uint8*)PacketRef.Data.GetData(), PacketRef.Data.Num());
+		EIncomingResult Result = ConnectionlessHandler->IncomingConnectionless(PacketRef);
 
-		if (!HandlerResult.bError)
+		if (Result == EIncomingResult::Success)
 		{
 			bPassedChallenge = StatelessConnect->HasPassedChallenge(Address, bRestartedHandshake);
 
@@ -1475,16 +1473,22 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 				}
 
 
-				int32 NewCountBytes = FMath::DivideAndRoundUp(HandlerResult.CountBits, 8);
+				int32 NewCountBytes = PacketRef.DataView.NumBytes();
+				uint8* WorkingData = WorkingBuffer.Buffer.GetData();
 
 				if (NewCountBytes > 0)
 				{
-					FMemory::Memcpy(WorkingBuffer.Buffer.GetData(), HandlerResult.Data, NewCountBytes);
+					const uint8* NewData = PacketRef.DataView.GetData();
+
+					if (NewData != WorkingData)
+					{
+						FMemory::Memcpy(WorkingData, NewData, NewCountBytes);
+					}
 
 					bIgnorePacket = false;
 				}
 
-				PacketRef.Data = MakeArrayView(WorkingBuffer.Buffer.GetData(), NewCountBytes);
+				PacketRef.DataView = {WorkingData, NewCountBytes, ECountUnits::Bytes};
 			}
 		}
 	}
@@ -1551,7 +1555,7 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 
 	if (bIgnorePacket)
 	{
-		PacketRef.Data = MakeArrayView(PacketRef.Data.GetData(), 0);
+		PacketRef.DataView = {PacketRef.DataView.GetData(), 0, ECountUnits::Bits};
 	}
 
 	return ReturnVal;

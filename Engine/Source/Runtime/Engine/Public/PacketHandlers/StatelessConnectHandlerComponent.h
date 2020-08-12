@@ -192,11 +192,7 @@ protected:
 
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) override;
 
-	virtual void IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet) override;
-
-	virtual void OutgoingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitWriter& Packet, FOutPacketTraits& Traits) override
-	{
-	}
+	virtual void IncomingConnectionless(FIncomingPacketRef PacketRef) override;
 
 	virtual bool CanReadUnaligned() const override
 	{

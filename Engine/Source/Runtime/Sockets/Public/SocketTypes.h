@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Net/Common/Packets/PacketView.h"
 
 // Forward declarations
 class FInternetAddr;
@@ -45,70 +46,6 @@ enum ESocketConnectionState
 	SCS_Connected,
 	/** Indicates that the end point refused the connection or couldn't be reached */
 	SCS_ConnectionError
-};
-
-/** All supported error types by the engine, mapped from platform specific values */
-enum ESocketErrors
-{
-	SE_NO_ERROR,
-	SE_EINTR,
-	SE_EBADF,
-	SE_EACCES,
-	SE_EFAULT,
-	SE_EINVAL,
-	SE_EMFILE,
-	SE_EWOULDBLOCK,
-	SE_EINPROGRESS,
-	SE_EALREADY,
-	SE_ENOTSOCK,
-	SE_EDESTADDRREQ,
-	SE_EMSGSIZE,
-	SE_EPROTOTYPE,
-	SE_ENOPROTOOPT,
-	SE_EPROTONOSUPPORT,
-	SE_ESOCKTNOSUPPORT,
-	SE_EOPNOTSUPP,
-	SE_EPFNOSUPPORT,
-	SE_EAFNOSUPPORT,
-	SE_EADDRINUSE,
-	SE_EADDRNOTAVAIL,
-	SE_ENETDOWN,
-	SE_ENETUNREACH,
-	SE_ENETRESET,
-	SE_ECONNABORTED,
-	SE_ECONNRESET,
-	SE_ENOBUFS,
-	SE_EISCONN,
-	SE_ENOTCONN,
-	SE_ESHUTDOWN,
-	SE_ETOOMANYREFS,
-	SE_ETIMEDOUT,
-	SE_ECONNREFUSED,
-	SE_ELOOP,
-	SE_ENAMETOOLONG,
-	SE_EHOSTDOWN,
-	SE_EHOSTUNREACH,
-	SE_ENOTEMPTY,
-	SE_EPROCLIM,
-	SE_EUSERS,
-	SE_EDQUOT,
-	SE_ESTALE,
-	SE_EREMOTE,
-	SE_EDISCON,
-	SE_SYSNOTREADY,
-	SE_VERNOTSUPPORTED,
-	SE_NOTINITIALISED,
-	SE_HOST_NOT_FOUND,
-	SE_TRY_AGAIN,
-	SE_NO_RECOVERY,
-	SE_NO_DATA,
-	SE_UDP_ERR_PORT_UNREACH,
-	SE_ADDRFAMILY,
-	SE_SYSTEM,
-	SE_NODEV,
-
-	// this is a special error which means to lookup the most recent error (via GetLastErrorCode())
-	SE_GET_LAST_ERROR_CODE,
 };
 
 
@@ -184,47 +121,6 @@ enum class ESocketShutdownMode
 	ReadWrite
 };
 
-
-/**
- * Represents a view of a buffer for storing packets. Buffer contents may be modified, but the allocation can not be resized.
- * Should only be stored as a local variable within functions that handle received packets.
- */
-struct FPacketBufferView
-{
-	/** View of the packet buffer, with Num() representing allocated size. Internal buffer data can be modified, but not view/size. */
-	const TArrayView<uint8>		Buffer;
-
-
-	FPacketBufferView(uint8* InData, int32 MaxBufferSize)
-		: Buffer(MakeArrayView<uint8>(InData, MaxBufferSize))
-	{
-	}
-};
-
-/**
- * Represents a view of a received packet, which may be modified to update Data it points to and Data size, as a packet is processed.
- * Should only be stored as a local variable within functions that handle received packets.
- */
-struct FReceivedPacketView
-{
-	/** View of packet data, with Num() representing BytesRead - can reassign to point elsewhere, but don't use to modify packet data */
-	TArrayView<const uint8>		Data;
-
-	/** Receive address for the packet */
-	TSharedPtr<FInternetAddr>	Address;
-
-	/** Error if receiving a packet failed */
-	ESocketErrors				Error;
-};
-
-/**
- * Stores a platform-specific timestamp for a packet. Can be translated for local use by ISocketSubsystem::TranslatePacketTimestamp.
- */
-struct FPacketTimestamp
-{
-	/** The internal platform specific timestamp (does NOT correspond to FPlatformTime::Seconds, may use a different clock source). */
-	FTimespan	Timestamp;
-};
 
 
 
@@ -338,7 +234,7 @@ public:
 
 		FRecvData& CurData = Packets.Get()[PacketIdx];
 
-		OutPacket.Data = MakeArrayView(CurData.Data, *CurData.BytesReadPtr);
+		OutPacket.DataView = {CurData.Data, (int32)*CurData.BytesReadPtr, ECountUnits::Bytes};
 		OutPacket.Address = CurData.Source;
 		OutPacket.Error = ESocketErrors::SE_NO_ERROR;
 	}

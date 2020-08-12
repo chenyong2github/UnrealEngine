@@ -8,9 +8,12 @@ public class Sockets : ModuleRules
 	{
 		PrivateIncludePaths.Add("Runtime/Sockets/Private");
 
+		PublicIncludePathModuleNames.Add("NetCommon");
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"NetCommon"
 			});
 
 		PublicDefinitions.Add("SOCKETS_PACKAGE=1");
