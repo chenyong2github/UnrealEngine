@@ -4788,54 +4788,59 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 			}
 		}
 	}
-	else 
+	else
 	{
-		for(int32 ActorIdx = 0; ActorIdx < Actors.Num(); ActorIdx++)
+		TSet<AActor*> AlignActors;
+		for (AActor* RootActor : Actors)
 		{
-			AActor* Actor = Actors[ActorIdx];
-
-			if(Actor)
+			if (RootActor)
 			{
-
 				// Don't allow moving the viewport cameras to actors in invisible levels
-				if(!FLevelUtils::IsLevelVisible(Actor->GetLevel()))
+				if (!FLevelUtils::IsLevelVisible(RootActor->GetLevel()))
 				{
-					InvisLevelActors.Add(Actor);
+					InvisLevelActors.Add(RootActor);
 					continue;
 				}
 
-				const bool bActorIsEmitter = (Cast<AEmitter>(Actor) != NULL);
-
-				if(bActorIsEmitter && bCustomCameraAlignEmitter)
+				AlignActors.Empty(AlignActors.Num());
+				AlignActors.Add(RootActor);
+				RootActor->EditorGetUnderlyingActors(AlignActors);
+				for (AActor* AlignActor : AlignActors)
 				{
-					const FVector DefaultExtent(CustomCameraAlignEmitterDistance, CustomCameraAlignEmitterDistance, CustomCameraAlignEmitterDistance);
-					const FBox DefaultSizeBox(Actor->GetActorLocation() - DefaultExtent, Actor->GetActorLocation() + DefaultExtent);
-					BoundingBox += DefaultSizeBox;
-				}
-				else if (USceneComponent* RootComponent = Actor->GetRootComponent())
-				{
-					TArray<USceneComponent*> SceneComponents;
-					RootComponent->GetChildrenComponents(true, SceneComponents);
-					SceneComponents.Add(RootComponent);
+					const bool bActorIsEmitter = (Cast<AEmitter>(AlignActor) != NULL);
 
-					for (USceneComponent* SceneComponent : SceneComponents)
+					if (bActorIsEmitter && bCustomCameraAlignEmitter)
 					{
-						UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SceneComponent);
-						if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
-						{
-							// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-							const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+						const FVector DefaultExtent(CustomCameraAlignEmitterDistance, CustomCameraAlignEmitterDistance, CustomCameraAlignEmitterDistance);
+						const FBox DefaultSizeBox(AlignActor->GetActorLocation() - DefaultExtent, AlignActor->GetActorLocation() + DefaultExtent);
+						BoundingBox += DefaultSizeBox;
+					}
+					else if (USceneComponent* RootComponent = AlignActor->GetRootComponent())
+					{
+						TArray<USceneComponent*> SceneComponents;
+						RootComponent->GetChildrenComponents(true, SceneComponents);
+						SceneComponents.Add(RootComponent);
 
-							if(!bIgnore)
+						for (USceneComponent* SceneComponent : SceneComponents)
+						{
+							UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SceneComponent);
+
+							if (PrimitiveComponent && PrimitiveComponent->IsRegistered())
 							{
-								FBox LocalBox(ForceInit);
-								if (GLevelEditorModeTools().ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, LocalBox))
+								// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
+								const bool bIgnore = SceneComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
+
+								if (!bIgnore)
 								{
-									BoundingBox += LocalBox;
-								}
-								else
-								{
-									BoundingBox += PrimitiveComponent->Bounds.GetBox();
+									FBox LocalBox(ForceInit);
+									if (GLevelEditorModeTools().ComputeBoundingBoxForViewportFocus(AlignActor, PrimitiveComponent, LocalBox))
+									{
+										BoundingBox += LocalBox;
+									}
+									else
+									{
+										BoundingBox += PrimitiveComponent->Bounds.GetBox();
+									}
 								}
 							}
 						}
@@ -4847,7 +4852,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 
 	MoveViewportCamerasToBox(BoundingBox, bActiveViewportOnly);
 
-	// Warn the user with a suppressable dialog if they attempted to zoom to actors that are in an invisible level
+	// Warn the user with a supressable dialog if they attempted to zoom to actors that are in an invisible level
 	if ( InvisLevelActors.Num() > 0 )
 	{
 		FString InvisLevelActorString;
