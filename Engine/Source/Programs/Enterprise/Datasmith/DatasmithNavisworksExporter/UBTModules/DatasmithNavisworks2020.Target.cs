@@ -3,6 +3,7 @@
 using UnrealBuildTool;
 using System.IO;
 
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithNavisworksBaseTarget : TargetRules
 {
 	public DatasmithNavisworksBaseTarget(TargetInfo Target)

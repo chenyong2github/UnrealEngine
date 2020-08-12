@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System;
 using System.IO;
 
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithRhinoBaseTarget : TargetRules
 {
 	private const string RhinoExporterPath = @"$(EngineDir)\Source\Programs\Enterprise\Datasmith\DatasmithRhinoExporter";
