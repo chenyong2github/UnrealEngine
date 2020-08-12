@@ -100,7 +100,7 @@ public:
 	/** Get whether this file can be checked out */
 	virtual bool CanCheckout() const = 0;
 
-	/** Get whether this file is checked out */
+	/** Get whether this file is checked out by the current user*/
 	virtual bool IsCheckedOut() const = 0;
 
 	/** Get whether this file is checked out by someone else in the current branch */
