@@ -726,6 +726,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			Obj = AssetRef.TryLoad();
 		}
+		if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Obj))
+		{
+			Obj = Redirector->DestinationObject;
+		}
 
 		if (Obj != nullptr)
 		{
@@ -756,6 +760,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		if (Obj == nullptr)
 		{
 			Obj = AssetRef.TryLoad();
+		}
+		if (UObjectRedirector* Redirector = Cast<UObjectRedirector>(Obj))
+		{
+			Obj = Redirector->DestinationObject;
 		}
 
 		if (Obj != nullptr)
