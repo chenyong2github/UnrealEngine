@@ -16,6 +16,7 @@
 #include "Math/Vector.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Android/AndroidStats.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <android/asset_manager.h>
@@ -2028,6 +2029,11 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_RouteServiceIntent(JNIEnv* je
 			FJavaWrapper::OnRouteServiceIntentDelegate.Broadcast(Action, Payload);
 		}, TStatId(), NULL, ENamedThreads::GameThread);
 	}
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChangedListener(JNIEnv* jenv, jobject thiz, jint status)
+{
+	FAndroidStats::OnThermalStatusChanged(status);
 }
 
 class FAndroidEmbeddedExec : public FSelfRegisteringExec
