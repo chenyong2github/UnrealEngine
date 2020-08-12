@@ -394,14 +394,11 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 		{
 			SplineComponent = Source->FindComponentByClass<USplineComponent>();
 		}
-		else
+		else if (USceneComponent* AttachComp = SystemInstance->GetAttachComponent())
 		{
-			if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+			if (AActor* Owner = AttachComp->GetAttachmentRootActor())
 			{
-				if (AActor* Owner = SimComp->GetAttachmentRootActor())
-				{
-					SplineComponent = Owner->FindComponentByClass<USplineComponent>();
-				}
+				SplineComponent = Owner->FindComponentByClass<USplineComponent>();
 			}
 		}
 		InstData->Component = SplineComponent;

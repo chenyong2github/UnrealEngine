@@ -181,6 +181,8 @@ public:
 	void RegisterWithScalabilityManager();
 	void UnregisterWithScalabilityManager();
 
+	void PostSystemTick_GameThread();
+
 	public:
 
 	virtual void SetComponentTickEnabled(bool bEnabled) override;
@@ -586,6 +588,9 @@ private:
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
 	int32 ScalabilityManagerHandle;
+
+	float ForceUpdateTransformTime;
+	FBox CurrLocalBounds;
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

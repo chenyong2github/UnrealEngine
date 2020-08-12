@@ -646,7 +646,7 @@ bool FNDIFieldSystemData::Init(UNiagaraDataInterfaceFieldSystem* Interface, FNia
 	{
 		Interface->ExtractSourceComponent(SystemInstance);
 
-		const FTransform WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld();
+		const FTransform WorldTransform = SystemInstance->GetWorldTransform();
 
 		FieldSystemBuffer = new FNDIFieldSystemBuffer();
 		FieldSystemBuffer->Initialize(Interface->FieldSystems, Interface->SourceComponents,
@@ -847,33 +847,26 @@ void UNiagaraDataInterfaceFieldSystem::ExtractSourceComponent(FNiagaraSystemInst
 			SourceComponent = SourceActor->FindComponentByClass<UFieldSystemComponent>();
 		}
 	}
-	else
+	else if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 	{
-		if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+		// First try to find the source component up the attach hierarchy
+		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
-			if (UFieldSystemComponent* ParentComp = Cast<UFieldSystemComponent>(SimComp->GetAttachParent()))
+			UFieldSystemComponent* SourceComp = Cast<UFieldSystemComponent>(Curr);
+			if (SourceComp && SourceComp->FieldSystem)
 			{
-				SourceComponent = ParentComp;
+				SourceComponent = SourceComp;
+				break;
 			}
-			else if (UFieldSystemComponent* OuterComp = SimComp->GetTypedOuter<UFieldSystemComponent>())
+		}
+
+		if (!SourceComponent.IsValid())
+		{
+			// Fall back on the outer chain to find the component
+			if (UFieldSystemComponent* OuterComp = AttachComponent->GetTypedOuter<UFieldSystemComponent>())
 			{
 				SourceComponent = OuterComp;
-			}
-			else
-			{
-				TArray<USceneComponent*> SceneComponents;
-				SimComp->GetParentComponents(SceneComponents);
-
-				for (USceneComponent* ActorComp : SceneComponents)
-				{
-					UFieldSystemComponent* SourceComp = Cast<UFieldSystemComponent>(ActorComp);
-					if (SourceComp && SourceComp->FieldSystem)
-					{
-						SourceComponent = SourceComp;
-						break;
-					}
-				}
-			}
+			}			
 		}
 	}
 	if (BlueprintSource)
