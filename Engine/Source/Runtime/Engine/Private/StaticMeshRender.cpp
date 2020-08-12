@@ -2184,13 +2184,8 @@ float FStaticMeshSceneProxy::GetScreenSize( int32 LODIndex ) const
  */
 int32 FStaticMeshSceneProxy::GetLOD(const FSceneView* View) const 
 {
-#if STATICMESH_ENABLE_DEBUG_RENDERING
-	const TCHAR* StaticMeshName = StaticMesh ? *StaticMesh->GetName() : TEXT("None");
-#else
-	const TCHAR* StaticMeshName = TEXT("Unknown");
-#endif
-
-	if (ensureMsgf(RenderData, TEXT("StaticMesh [%s] missing RenderData."), StaticMeshName))
+	if (ensureMsgf(RenderData, TEXT("StaticMesh [%s] missing RenderData."),
+		(STATICMESH_ENABLE_DEBUG_RENDERING && StaticMesh) ? *StaticMesh->GetName() : TEXT("None")))
 	{
 		int32 CVarForcedLODLevel = GetCVarForceLOD();
 
@@ -2221,13 +2216,8 @@ FLODMask FStaticMeshSceneProxy::GetLODMask(const FSceneView* View) const
 {
 	FLODMask Result;
 
-#if STATICMESH_ENABLE_DEBUG_RENDERING
-	const TCHAR* StaticMeshName = StaticMesh ? *StaticMesh->GetName() : TEXT("None");
-#else
-	const TCHAR* StaticMeshName = TEXT("Unknown");
-#endif
-
-	if (!ensureMsgf(RenderData, TEXT("StaticMesh [%s] missing RenderData."), StaticMeshName))
+	if (!ensureMsgf(RenderData, TEXT("StaticMesh [%s] missing RenderData."),
+		(STATICMESH_ENABLE_DEBUG_RENDERING && StaticMesh) ? *StaticMesh->GetName() : TEXT("None")))
 	{
 		Result.SetLOD(0);
 	}
