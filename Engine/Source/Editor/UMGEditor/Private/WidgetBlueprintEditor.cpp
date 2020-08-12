@@ -997,10 +997,6 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 					LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
 				}
 			}
-			else
-			{
-				LatestWidgetTree->SetFlags(RF_ArchetypeObject);
-			}
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.
