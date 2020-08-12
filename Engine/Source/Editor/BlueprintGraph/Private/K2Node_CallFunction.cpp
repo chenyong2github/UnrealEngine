@@ -2055,21 +2055,14 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 		const FString EnumParamName = GetAllExecParams(Function);
 		MessageLog.Warning(*FText::Format(LOCTEXT("EnumToExecExpansionFailedFmt", "Unable to find enum parameter with name '{0}' to expand for @@"), FText::FromString(EnumParamName)).ToString(), this);
 	}
-
-	const UClass* BlueprintClass = Blueprint->ParentClass;
-	bool bIsEditorOnlyBlueprintBaseClass = !BlueprintClass || IsEditorOnlyObject(BlueprintClass);
-	if (	!(	GetOutermost()->HasAnyPackageFlags(PKG_UncookedOnly|PKG_EditorOnly) ||
-				bIsEditorOnlyBlueprintBaseClass ) &&
-				Function->GetOutermost()->HasAllPackagesFlags(PKG_UncookedOnly))
-	{
-		MessageLog.Error(*LOCTEXT("UncookedOnlyError", "Attempting to call uncooked only function @@ in runtime blueprint").ToString(), this);
-	}
 	
 	// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
 	// Also check for functions wrapped in WITH_EDITOR 
 	if (Function && Blueprint &&
 		(IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly)))
 	{	
+		const UClass* BlueprintClass = Blueprint->ParentClass;
+		bool bIsEditorOnlyBlueprintBaseClass = !BlueprintClass || IsEditorOnlyObject(BlueprintClass);
 		if (!bIsEditorOnlyBlueprintBaseClass)
 		{
 			FString const FunctName = Function->GetName();
