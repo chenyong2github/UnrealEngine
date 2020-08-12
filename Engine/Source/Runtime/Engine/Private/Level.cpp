@@ -28,7 +28,6 @@ Level.cpp: Level-related functions
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyPortFlags.h"
-#include "UObject/LinkerLoad.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/NavigationObjectBase.h"
@@ -63,7 +62,6 @@ Level.cpp: Level-related functions
 #include "Algo/Copy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ObjectTrace.h"
-#include "Algo/Transform.h"
 
 DEFINE_LOG_CATEGORY(LogLevel);
 
@@ -696,9 +694,11 @@ void ULevel::PostLoad()
 		{
 			if (bInstanced)
 			{
-				FName ActorPackageFName = FName(*ActorPackageName);
-				FName InstancedName = FLinkerInstancingContext::GenerateInstancedName(ActorPackageFName, LevelPackage->GetFName());
-				InstancePackageNames.Add(InstancedName.ToString());
+				const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
+				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorShortPackageName);
+				InstancePackageNames.Add(InstancedName);
+
+				InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
 			}
 		}
 
@@ -2154,46 +2154,27 @@ void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 	}
 }
 
-namespace LevelUtil
+TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
 {
-	TArray<FString> GetOnDiskPackagesInPackagePath(const FString& InFolder)
+	TArray<FString> ActorPackageNames;
+	UWorld* World = GetTypedOuter<UWorld>();
+	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName());
+	if (!ExternalActorsPath.IsEmpty())
 	{
-		TArray<FString> PackageNames;
-		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(InFolder), [&PackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 			{
 				if (!bIsDirectory)
 				{
 					FString Filename(FilenameOrDirectory);
 					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
 					{
-						PackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
+						ActorPackageNames.Add(FPackageName::FilenameToLongPackageName(Filename));
 					}
 				}
 				return true;
 			});
-		return PackageNames;
 	}
-}
-
-TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
-{
-	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->GetName());
-	if (!ExternalActorsPath.IsEmpty())
-	{
-		return LevelUtil::GetOnDiskPackagesInPackagePath(ExternalActorsPath);
-	}
-	return TArray<FString>();
-}
-
-TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& InPackageLoadName)
-{
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(InPackageLoadName);
-	if (!ExternalActorsPath.IsEmpty())
-	{
-		return LevelUtil::GetOnDiskPackagesInPackagePath(ExternalActorsPath);
-	}
-	return TArray<FString>();
+	return ActorPackageNames;
 }
 
 TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
@@ -2238,17 +2219,6 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 	// We can't use the Package->FileName here because it might be a duplicated a package
 	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
 	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
-}
-
-TArray<FDynamicPackageImport> ULevel::GetLevelDynamicPackageImports(const FLinkerLoad& Linker)
-{
-	TArray<FDynamicPackageImport> DynamicImports;
-	TArray<FString> ActorPackageNames = ULevel::GetOnDiskExternalActorPackages(Linker.GetLongPackageLoadName().ToString());
-	Algo::Transform(ActorPackageNames, DynamicImports, [](const FString& ActorPackageName)
-		{
-			return FDynamicPackageImport(FName(*ActorPackageName));
-		});
-	return DynamicImports;
 }
 
 UPackage* ULevel::CreateActorPackage(UPackage* InLevelPackage, const FGuid& InGuid)
