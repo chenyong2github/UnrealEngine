@@ -102,7 +102,7 @@ struct FSimulationSpaceSettings
 	float AngularVelocityAlpha;
 
 	// An additional linear drag (on top of the EtherDrag that can be set on the physics asset)
-	FVector ExternalLinearEtherDrag;
+	float ExternalLinearEtherDrag;
 };
 
 export uniform int32 SizeofFSimulationSpaceSettings()
