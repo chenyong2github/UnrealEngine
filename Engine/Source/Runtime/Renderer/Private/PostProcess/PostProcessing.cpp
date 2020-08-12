@@ -24,7 +24,7 @@
 #include "PostProcess/PostProcessBokehDOF.h"
 #include "PostProcess/PostProcessCombineLUTs.h"
 #include "PostProcess/PostProcessDeviceEncodingOnly.h"
-#include "PostProcess/PostProcessTemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 #include "PostProcess/PostProcessMotionBlur.h"
 #include "PostProcess/PostProcessDOF.h"
 #include "PostProcess/PostProcessUpscale.h"

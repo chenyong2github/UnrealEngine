@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTemporalAA.h: Post process MotionBlur implementation.
-=============================================================================*/
-
 #pragma once
 
 #include "ScreenPass.h"

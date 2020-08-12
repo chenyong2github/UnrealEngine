@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessTemporalAA.usf: Temporal AA
-=============================================================================*/
-
-#include "Common.ush"
-#include "Random.ush"
-#include "EyeAdaptationCommon.ush"
-#include "TextureSampling.ush"
+#include "../Common.ush"
+#include "../Random.ush"
+#include "../EyeAdaptationCommon.ush"
+#include "../TextureSampling.ush"
 
 //------------------------------------------------------- COMPILER CONFIG
 
@@ -458,10 +454,10 @@ SamplerState SceneVelocityBufferSampler;
 
 Texture2D<uint2> StencilTexture;
 
-Texture2D HistoryBuffer0;
-Texture2D HistoryBuffer1;
-SamplerState HistoryBuffer0Sampler;
-SamplerState HistoryBuffer1Sampler;
+Texture2D HistoryBuffer_0;
+Texture2D HistoryBuffer_1;
+SamplerState HistoryBufferSampler_0;
+SamplerState HistoryBufferSampler_1;
 float4 HistoryBufferSize;
 float4 HistoryBufferUVMinMax;
 
@@ -469,7 +465,7 @@ float4 OutputViewportSize;
 float4 OutputViewportRect;
 
 #if COMPUTESHADER
-RWTexture2D<float4> OutComputeTex0;
+RWTexture2D<float4> OutComputeTex_0;
 
 #if TAA_DOWNSAMPLE 
 // This shader permutation outputs half resolution image in addition to main full-res one.
@@ -479,7 +475,7 @@ groupshared float4 GroupSharedDownsampleArray[THREADGROUP_SIZEX*THREADGROUP_SIZE
 #endif // TAA_DOWNSAMPLE
 
 #if HISTORY_RENDER_TARGETS == 2
-	RWTexture2D<float4> OutComputeTex1;
+	RWTexture2D<float4> OutComputeTex_1;
 #endif // HISTORY_RENDER_TARGETS == 2
 #endif
 
@@ -1765,7 +1761,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 				}
 			}
 
-			RawHistory0 += HistoryBuffer0.SampleLevel(HistoryBuffer0Sampler, SampleUV, 0) * Samples.Weight[i];
+			RawHistory0 += HistoryBuffer_0.SampleLevel(HistoryBufferSampler_0, SampleUV, 0) * Samples.Weight[i];
 		}
 		RawHistory0 *= Samples.FinalMultiplier;
 	}
@@ -1781,7 +1777,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 
 		float2 HistoryBufferUV = HistoryScreenPosition * ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.zw;
 
-		RawHistory0 = HistoryBuffer0.SampleLevel(HistoryBuffer0Sampler, HistoryBufferUV, 0);
+		RawHistory0 = HistoryBuffer_0.SampleLevel(HistoryBufferSampler_0, HistoryBufferUV, 0);
 	}
 	#endif
 
@@ -1794,7 +1790,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 
 		float2 HistoryBufferUV = HistoryScreenPosition * ScreenPosToHistoryBufferUV.xy + ScreenPosToHistoryBufferUV.zw;
 
-		RawHistory1 = HistoryBuffer1.SampleLevel(HistoryBuffer1Sampler, HistoryBufferUV, 0);
+		RawHistory1 = HistoryBuffer_1.SampleLevel(HistoryBufferSampler_1, HistoryBufferUV, 0);
 	}
 	#endif
 	
@@ -2256,11 +2252,10 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		// Clamping by MaxHalfFloat is a workaround for UE-84306.
-		OutComputeTex0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
+		OutComputeTex_0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
 
 		#if HISTORY_RENDER_TARGETS == 2
-			OutComputeTex1[PixelPos] = OutColor1;
+			OutComputeTex_1[PixelPos] = OutColor1;
 		#endif
 	}
 
