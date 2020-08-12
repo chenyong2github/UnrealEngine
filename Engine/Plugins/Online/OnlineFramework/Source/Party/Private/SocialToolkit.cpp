@@ -7,6 +7,7 @@
 #include "User/SocialUser.h"
 #include "User/SocialUserList.h"
 #include "Chat/SocialChatManager.h"
+#include "Stats/Stats.h"
 
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
@@ -1141,6 +1142,7 @@ void USocialToolkit::Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPrese
 
 bool USocialToolkit::Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialToolkit_Debug_HandleRandomizeUserPresenceTick);
 	Debug_ChangeRandomUserPresence(NumRandomUser);
 	return true;
 }

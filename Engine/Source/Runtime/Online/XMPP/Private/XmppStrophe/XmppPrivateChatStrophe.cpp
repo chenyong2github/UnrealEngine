@@ -8,6 +8,7 @@
 #include "XmppLog.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_STROPHE
 
@@ -101,6 +102,8 @@ bool FXmppPrivateChatStrophe::SendChat(const FXmppUserJid& RecipientId, const FS
 
 bool FXmppPrivateChatStrophe::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppPrivateChatStrophe_Tick);
+
 	while (!IncomingChatMessages.IsEmpty())
 	{
 		TUniquePtr<FXmppChatMessage> ChatMessage;

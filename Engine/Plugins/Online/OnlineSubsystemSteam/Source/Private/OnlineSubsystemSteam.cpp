@@ -10,6 +10,7 @@
 #include "Serialization/BufferArchive.h"
 #include "Interfaces/IPluginManager.h"
 #include "SocketSubsystem.h"
+#include "Stats/Stats.h"
 
 #include "IPAddress.h"
 #include "OnlineSubsystemSteamPrivate.h"
@@ -385,6 +386,8 @@ void FOnlineSubsystemSteam::QueueAsyncOutgoingItem(FOnlineAsyncItem* AsyncItem)
 
 bool FOnlineSubsystemSteam::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemSteam_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

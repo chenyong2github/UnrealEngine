@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MagicLeapContactsPlugin.h"
+#include "Stats/Stats.h"
 
 using namespace MagicLeap;
 
@@ -35,6 +36,8 @@ void FMagicLeapContactsPlugin::ShutdownModule()
 
 bool FMagicLeapContactsPlugin::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapContactsPlugin_Tick);
+
 #if WITH_MLSDK
 	if (PendingRequests.Num() > 0)
 	{

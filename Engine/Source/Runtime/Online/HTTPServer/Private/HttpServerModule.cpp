@@ -3,6 +3,7 @@
 #include "HttpServerModule.h"
 #include "HttpListener.h"
 #include "Modules/ModuleManager.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogHttpServerModule);
 
@@ -118,6 +119,7 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port)
 
 bool FHttpServerModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpServerModule_Tick);
 	check(Singleton == this);
 
 	if (bHttpListenersEnabled)

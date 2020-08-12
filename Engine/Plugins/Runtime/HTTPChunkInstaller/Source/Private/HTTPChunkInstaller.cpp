@@ -21,6 +21,7 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
+#include "Stats/Stats.h"
 
 #define LOCTEXT_NAMESPACE "HTTPChunkInstaller"
 
@@ -392,6 +393,8 @@ public:
 	/** Used to check that async tasks have completed and can be completed */
 	virtual void Tick(float DeltaTime)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineTitleFileHttp_Tick);
+
 		TArray<int32> ItemsToRemove;
 		ItemsToRemove.Reserve(AsyncLocalReads.Num());
 

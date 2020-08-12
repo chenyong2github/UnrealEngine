@@ -14,6 +14,7 @@
 #include "XmppStrophe/StropheError.h"
 #include "XmppLog.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_STROPHE
 
@@ -190,6 +191,8 @@ IXmppPubSubPtr FXmppConnectionStrophe::PubSub()
 
 bool FXmppConnectionStrophe::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppConnectionStrophe_Tick);
+
 	// Logout if we've been requested to from the XMPP Thread
 	if (RequestLogout)
 	{

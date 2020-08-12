@@ -9,6 +9,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
+#include "Stats/Stats.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -63,6 +64,8 @@ void FProxyGenerationProcessor::AddProxyJob(FGuid InJobGuid, FMergeCompleteData*
 
 bool FProxyGenerationProcessor::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FProxyGenerationProcessor_Tick);
+
 	FScopeLock Lock(&StateLock);
 	for (const auto& Entry : ToProcessJobDataMap)
 	{

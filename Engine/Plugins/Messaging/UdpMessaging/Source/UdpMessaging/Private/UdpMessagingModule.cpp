@@ -10,6 +10,7 @@
 #include "Misc/App.h"
 #include "Containers/Ticker.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Stats/Stats.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -627,6 +628,7 @@ private:
 		uint32 CheckNumber = 1;
 		AutoRepairHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakTransport = WeakBridgeTransport, LastTime = FDateTime::UtcNow(), CheckDelay, CheckNumber](float DeltaTime) mutable
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FUdpMessagingModule_AutoRepair);
 			bool bContinue = true;
 			FDateTime UtcNow = FDateTime::UtcNow();
 			if (LastTime + (CheckDelay * CheckNumber) <= UtcNow)

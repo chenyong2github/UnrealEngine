@@ -2,6 +2,7 @@
 
 #include "OnlineSubsystemGameCircle.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Stats/Stats.h"
 #include <jni.h>
 
 FOnlineSubsystemGameCircle::FOnlineSubsystemGameCircle(FName InInstanceName)
@@ -113,6 +114,8 @@ bool FOnlineSubsystemGameCircle::Init()
 
 bool FOnlineSubsystemGameCircle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemGameCircle_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

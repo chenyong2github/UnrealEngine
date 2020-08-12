@@ -5,6 +5,7 @@
 #include "Containers/Ticker.h"
 #include "Misc/PackageName.h"
 #include "Features/IModularFeatures.h"
+#include "Stats/Stats.h"
 
 void UContentBrowserDataSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -530,6 +531,7 @@ void UContentBrowserDataSubsystem::HandleDataSourceUnregistered(const FName& Typ
 
 void UContentBrowserDataSubsystem::Tick(const float InDeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UContentBrowserDataSubsystem_Tick);
 	for (const auto& AvailableDataSourcePair : AvailableDataSources)
 	{
 		AvailableDataSourcePair.Value->Tick(InDeltaTime);

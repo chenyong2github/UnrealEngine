@@ -4,6 +4,7 @@
 #include "User/SocialUser.h"
 #include "SocialToolkit.h"
 #include "Party/PartyMember.h"
+#include "Stats/Stats.h"
 
 #include "Containers/Ticker.h"
 #include "SocialSettings.h"
@@ -496,6 +497,7 @@ struct FUserSortData
 
 bool FSocialUserList::HandleAutoUpdateList(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSocialUserList_HandleAutoUpdateList);
 	UpdateListInternal();
 	return true;
 }

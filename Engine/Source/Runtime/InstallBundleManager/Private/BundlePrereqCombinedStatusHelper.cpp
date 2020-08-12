@@ -3,6 +3,7 @@
 #include "BundlePrereqCombinedStatusHelper.h"
 #include "Containers/Ticker.h"
 #include "InstallBundleManagerPrivatePCH.h"
+#include "Stats/Stats.h"
 
 FBundlePrereqCombinedStatusHelper::FBundlePrereqCombinedStatusHelper()
 {
@@ -267,6 +268,7 @@ float FBundlePrereqCombinedStatusHelper::GetCombinedProgressPercent() const
 
 bool FBundlePrereqCombinedStatusHelper::Tick(float dt)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FBundlePrereqCombinedStatusHelper_Tick);
 	UpdateBundleCache();
 	UpdateCombinedStatus();
 	

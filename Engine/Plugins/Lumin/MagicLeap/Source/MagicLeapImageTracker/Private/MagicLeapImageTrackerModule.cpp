@@ -2,6 +2,7 @@
 
 #include "MagicLeapImageTrackerModule.h"
 #include "MagicLeapImageTrackerRunnable.h"
+#include "Stats/Stats.h"
 
 FMagicLeapImageTrackerModule::FMagicLeapImageTrackerModule()
 : Runnable(nullptr)
@@ -48,6 +49,8 @@ void FMagicLeapImageTrackerModule::DestroyEntityTracker()
 
 bool FMagicLeapImageTrackerModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapImageTrackerModule_Tick);
+
 	if (!Runnable->IsRunning()) return true;
 
 	FMagicLeapImageTrackerTask CompletedTask;

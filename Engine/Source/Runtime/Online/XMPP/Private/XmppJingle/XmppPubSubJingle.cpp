@@ -5,6 +5,7 @@
 #include "XmppLog.h"
 #include "Misc/ScopeLock.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -147,6 +148,7 @@ FXmppPubSubJingle::~FXmppPubSubJingle()
 
 bool FXmppPubSubJingle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppPubSubJingle_Tick);
 	while (!ResultOpQueue.IsEmpty())
 	{
 		FXmppPubSubOpResult* ResultOp = NULL;

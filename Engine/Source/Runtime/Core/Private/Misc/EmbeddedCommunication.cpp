@@ -15,6 +15,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/FeedbackContext.h"
+#include "Stats/Stats.h"
 
 TMap<FName, FEmbeddedDelegates::FEmbeddedCommunicationParamsDelegate> FEmbeddedDelegates::NativeToEmbeddedDelegateMap;
 TMap<FName, FEmbeddedDelegates::FEmbeddedCommunicationParamsDelegate> FEmbeddedDelegates::EmbeddedToNativeDelegateMap;
@@ -338,6 +339,8 @@ void FEmbeddedCommunication::WakeGameThread()
 
 bool FEmbeddedCommunication::TickGameThread(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEmbeddedCommunication_TickGameThread);
+
 #if BUILD_EMBEDDED_APP
 	bool bEnableTickMultipleFunctors = false;
 	GConfig->GetBool(TEXT("EmbeddedCommunication"), TEXT("bEnableTickMultipleFunctors"), bEnableTickMultipleFunctors, GEngineIni);

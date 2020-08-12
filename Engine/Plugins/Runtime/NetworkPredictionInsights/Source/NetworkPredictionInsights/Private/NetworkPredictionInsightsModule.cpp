@@ -14,6 +14,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Trace/StoreService.h"
 #include "Trace/StoreClient.h"
+#include "Stats/Stats.h"
 
 #include "UI/SNPWindow.h"
 #include "UI/NetworkPredictionInsightsManager.h"
@@ -44,6 +45,7 @@ void FNetworkPredictionInsightsModule::StartupModule()
 #if !(WITH_EDITOR)
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("NetworkPredictionInsights"), 0.0f, [&UnrealInsightsModule](float DeltaTime)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FNetworkPredictionInsightsModule_Tick);
 		auto SessionPtr = UnrealInsightsModule.GetAnalysisSession();
 		if (SessionPtr.IsValid())
 		{

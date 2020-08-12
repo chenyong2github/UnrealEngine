@@ -16,6 +16,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "Containers/Ticker.h"
 #include "Engine/LocalPlayer.h"
+#include "Stats/Stats.h"
 
 static bool IsTencentPlatform()
 {
@@ -194,6 +195,7 @@ bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& Session
 				FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 					[AsWeakPtr, SessionId, SessionOwnerId, LocalUserPlatformId, OnAttemptComplete, this](float)
 					{
+						QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_FindSessionAttempt);
 						if (AsWeakPtr.IsValid())
 						{
 							if (ForcePlatformSessionFindFailure != 0)
@@ -509,6 +511,7 @@ void FPartyPlatformSessionMonitor::CreateSession(const FUniqueNetIdRepl& LocalUs
 			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 				[AsWeakPtr, SessionSettings, LocalUserPlatformId, this] (float)
 				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_CreateSessionAttempt);
 					if (AsWeakPtr.IsValid())
 					{
 						if (ForcePlatformSessionCreationFailure != 0)
@@ -631,6 +634,7 @@ void FPartyPlatformSessionMonitor::JoinSession(const FOnlineSessionSearchResult&
 		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 			[AsWeakPtr, SearchResultCopy, LocalUserPlatformId, this] (float)
 			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_JoinSessionAttempt);
 				if (AsWeakPtr.IsValid())
 				{
 					if (ForcePlatformSessionCreationFailure != 0)
@@ -1058,6 +1062,8 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 
 bool FPartyPlatformSessionMonitor::HandleRetryEstablishingSession(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionMonitor_HandleRetryEstablishingSession);
+
 	RetryTickerHandle.Reset();
 	
 	// Do a full re-evaluation of our target session, since things may have changed substantially since the last attempt
@@ -1085,7 +1091,7 @@ void FPartyPlatformSessionMonitor::ProcessJoinFailure()
 
 bool FPartyPlatformSessionMonitor::HandleQueuedSessionUpdate(float)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialParty_HandleQueuedSessionUpdate);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionMonitor_HandleQueuedSessionUpdate);
 	bHasQueuedSessionUpdate = false;
 
 	if (ShutdownState == EMonitorShutdownState::None && DoesLocalUserOwnPlatformSession())

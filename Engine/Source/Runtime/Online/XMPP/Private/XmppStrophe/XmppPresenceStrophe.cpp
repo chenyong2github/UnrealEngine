@@ -6,6 +6,7 @@
 #include "XmppStrophe/StropheStanzaConstants.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_STROPHE
 
@@ -221,6 +222,8 @@ void FXmppPresenceStrophe::GetRosterMembers(TArray<FXmppUserJid>& Members)
 
 bool FXmppPresenceStrophe::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppPresenceStrophe_Tick);
+
 	while (!IncomingPresenceUpdates.IsEmpty())
 	{
 		TUniquePtr<FXmppUserPresence> PresencePtr;

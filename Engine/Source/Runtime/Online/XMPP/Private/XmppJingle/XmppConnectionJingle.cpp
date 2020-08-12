@@ -176,6 +176,7 @@ public:
 				// allow xmpp pump to process
 				const int32 DefaultTimeoutMs = 100;
 				XmppThread->ProcessMessages(DefaultTimeoutMs);
+
 			}
 
 			// If the loop is not exiting, sleep to control the desired tick rate.
@@ -476,6 +477,8 @@ IXmppChatPtr FXmppConnectionJingle::PrivateChat()
 
 bool FXmppConnectionJingle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppConnectionJingle_Tick);
+
 	EXmppLoginStatus::Type LocalLastLoginState, LocalLoginState;
 	{
 		FScopeLock Lock(&LoginStateLock);

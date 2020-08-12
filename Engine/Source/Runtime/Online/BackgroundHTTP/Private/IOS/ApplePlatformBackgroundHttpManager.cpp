@@ -12,6 +12,8 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeRWLock.h"
 
+#include "Stats/Stats.h"
+
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 
 #include "PlatformBackgroundHttp.h"
@@ -820,6 +822,8 @@ void FApplePlatformBackgroundHttpManager::OnSession_SessionDidFinishAllEvents(NS
 
 bool FApplePlatformBackgroundHttpManager::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FApplePlatformBackgroundHttpManager_Tick);
+
     ensureAlwaysMsgf(IsInGameThread(), TEXT("Called from un-expected thread! Potential error in an implementation of background downloads!"));
     
     TickRequests(DeltaTime);

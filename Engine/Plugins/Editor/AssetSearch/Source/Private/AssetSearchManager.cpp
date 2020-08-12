@@ -38,6 +38,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialInstance.h"
 #include "ISearchProvider.h"
+#include "Stats/Stats.h"
 
 #include "Indexers/GenericObjectIndexer.h"
 #include "Indexers/DataTableIndexer.h"
@@ -694,6 +695,8 @@ void FAssetSearchManager::AddOrUpdateAsset(const FAssetData& InAssetData, const 
 
 bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAssetSearchManager_Tick);
+
 	check(IsInGameThread());
 
 	UpdateScanningAssets();

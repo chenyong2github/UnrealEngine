@@ -6,6 +6,7 @@
 #include "OnlineExternalUIGoogleCommon.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CommandLine.h"
+#include "Stats/Stats.h"
 
 #define GOOGLE_CLIENTAUTH_ID TEXT("ClientId")
 #define GOOGLE_SERVERAUTH_ID TEXT("ServerClientId")
@@ -93,6 +94,8 @@ FOnlineSubsystemGoogleCommon::FGoogleConfigurationDelegate& FOnlineSubsystemGoog
 
 bool FOnlineSubsystemGoogleCommon::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemGoogleCommon_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

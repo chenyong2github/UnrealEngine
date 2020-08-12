@@ -3,6 +3,7 @@
 #include "MagicLeapConnectionsPlugin.h"
 #include "MagicLeapHandle.h"
 #include "Async/Async.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapConnections);
 
@@ -33,6 +34,8 @@ void FMagicLeapConnectionsPlugin::ShutdownModule()
 
 bool FMagicLeapConnectionsPlugin::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapConnectionsPlugin_Tick);
+
 	(void)DeltaTime;
 	if (!bEnabled)
 	{

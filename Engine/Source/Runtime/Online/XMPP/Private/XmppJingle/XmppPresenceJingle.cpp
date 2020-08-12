@@ -6,6 +6,7 @@
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "XmppMultiUserChat.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -541,6 +542,8 @@ void FXmppPresenceJingle::GetRosterMembers(TArray<FXmppUserJid>& Members)
 
 bool FXmppPresenceJingle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppPresenceJingle_Tick);
+
 	while (!RosterUpdates.IsEmpty())
 	{
 		FString UserId;

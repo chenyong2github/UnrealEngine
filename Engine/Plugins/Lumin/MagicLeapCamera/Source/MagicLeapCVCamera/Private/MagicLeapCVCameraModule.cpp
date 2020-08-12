@@ -3,6 +3,7 @@
 #include "MagicLeapCVCameraModule.h"
 #include "Async/Async.h"
 #include "Lumin/CAPIShims/LuminAPI.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapCVCamera);
 
@@ -40,6 +41,8 @@ void FMagicLeapCVCameraModule::ShutdownModule()
 
 bool FMagicLeapCVCameraModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapCVCameraModule_Tick);
+
 	MinCameraRunTimer -= DeltaTime;
 	FCVCameraTask CompletedTask;
 	if (Runnable->TryGetCompletedTask(CompletedTask))

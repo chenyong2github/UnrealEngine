@@ -12,6 +12,7 @@
 #include "Misc/CoreDelegates.h"
 #include "InstallBundleManagerInterface.h"
 #include "InstallBundleUtils.h"
+#include "Stats/Stats.h"
 
 #include "OnlineHotfixManager.h"
 
@@ -622,6 +623,7 @@ void UUpdateManager::SetUpdateState(EUpdateState NewState)
 
 bool UUpdateManager::Tick(float InDeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_UUpdateManager_Tick);
 	if (CurrentUpdateState == EUpdateState::WaitingOnInitialLoad)
 	{
 		WorstNumFilesPendingLoadViewed = FMath::Max(GetNumAsyncPackages(), WorstNumFilesPendingLoadViewed);

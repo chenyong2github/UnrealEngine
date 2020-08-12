@@ -7,6 +7,7 @@
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -1309,6 +1310,7 @@ bool FXmppMultiUserChatJingle::GetLastMessages(const FXmppRoomId& RoomId, int32 
 
 bool FXmppMultiUserChatJingle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppMultiUserChatJingle_Tick);
 	while (!ResultOpQueue.IsEmpty())
 	{
 		FXmppChatRoomOpResult* ResultOp = nullptr;
