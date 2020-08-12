@@ -196,6 +196,11 @@ static FAutoConsoleVariableRef CRayTracingParallelMeshBatchSize(
 	TEXT("Batch size for ray tracing materials parallel jobs."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance(
+	TEXT("r.RayTracing.DynamicGeometryLastRenderTimeUpdateDistance"),
+	5000.0f,
+	TEXT("Dynamic geometries within this distance will have their LastRenderTime updated, so that visibility based ticking (like skeletal mesh) can work when the component is not directly visible in the view (but reflected)."));
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	TEXT("r.Test.ForceBlackVelocityBuffer"), 0,
@@ -717,6 +722,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		*ReferenceView.RayTracingMeshResourceCollector
 	};
 
+	float CurrentWorldTime = ReferenceView.Family->CurrentWorldTime;
+
 	struct FRelevantPrimitive
 	{
 		FRHIRayTracingGeometry* RayTracingGeometryRHI = nullptr;
@@ -948,7 +955,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			}
 
 			const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
-			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
+			FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
 
 			FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 			RayTracingInstances.Reset();
@@ -1024,6 +1031,17 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
 						}
+					}
+				}
+
+				if (CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread() > 0.0f)
+				{
+					if (FVector::Distance(SceneProxy->GetActorPosition(), ReferenceView.ViewMatrices.GetViewOrigin()) < CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread())
+					{
+						// Update LastRenderTime for components so that visibility based ticking (like skeletal meshes) can get updated
+						// We are only doing this for dynamic geometries now
+						SceneInfo->LastRenderTime = CurrentWorldTime;
+						SceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
 					}
 				}
 			}
