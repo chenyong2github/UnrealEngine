@@ -3765,7 +3765,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 
 	Names.Sort();
 
-	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")));
+	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
 	DrawViewer.AddColumn(TEXT("Name"));
 	DrawViewer.CycleRow();
 
