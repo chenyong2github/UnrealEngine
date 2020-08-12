@@ -47,11 +47,11 @@
 			<statString>exclusive/gamethread/eventwait/* gamethreadtime</statString>
 		</graph>
 
-    <graph title="Gamethread Physics" showAverages="1" stacked="1" maxy="0" maxHierarchyDepth="3" hideStatPrefix="exclusive/gamethread/">
-      <statString>exclusive/gamethread/eventwait/EndPhysics exclusive/gamethread/Physics exclusive/gamethread/vehicle*</statString>
-    </graph>
+		<graph title="Gamethread Physics" showAverages="1" stacked="1" maxy="0" maxHierarchyDepth="3" hideStatPrefix="exclusive/gamethread/">
+		  <statString>exclusive/gamethread/eventwait/EndPhysics exclusive/gamethread/Physics exclusive/gamethread/vehicle*</statString>
+		</graph>
 
-    <graph title="Gamethread Breakdown Giant" hideStatPrefix="exclusive/Gamethread/" stacked="1" mainStat="gamethreadtime" ignoreStats="exclusive/Gamethread/EventWait*" smooth="0"  maxy="100" legendAverageThreshold="0.1" width="40000" height="1000">
+		<graph title="Gamethread Breakdown Giant" hideStatPrefix="exclusive/Gamethread/" stacked="1" mainStat="gamethreadtime" ignoreStats="exclusive/Gamethread/EventWait*" smooth="0"  maxy="100" legendAverageThreshold="0.1" width="40000" height="1000">
 			<statString>exclusive/gamethread/* gamethreadtime</statString>
 		</graph>
     
@@ -101,6 +101,10 @@
 
 		<graph title="CSV Profiler" showAverages="1" hideStatPrefix="CSVProfiler/" stacked="1" mainStat="frametime" maxy="0">
 			<statString>CSVProfiler/Num*</statString>
+		</graph>
+		
+		<graph title="Android Thermals" showAverages="1" hideStatPrefix="AndroidCPU/" stacked="1" mainStat="frametime" maxy="100">
+			<statString>AndroidCPU/CPUTemp AndroidCPU/ThermalStatus</statString>
 		</graph>
 
 	</graphGroup>
