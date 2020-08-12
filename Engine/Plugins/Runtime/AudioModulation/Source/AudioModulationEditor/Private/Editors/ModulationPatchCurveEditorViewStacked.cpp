@@ -137,11 +137,6 @@ const FText& FModPatchCurveEditorModel::GetAxesDescriptor() const
 	return AxesDescriptor;
 }
 
-const FText& FModPatchCurveEditorModel::GetInputDisplayName() const
-{
-	return InputAxisName;
-}
-
 bool FModPatchCurveEditorModel::GetIsBypassed() const
 {
 	if (Patch.IsValid())
