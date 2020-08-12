@@ -395,10 +395,8 @@ namespace ChaosTest {
 			RESET_PQ(Box);
 			{
 				INVARIANT_XR_START(Box);
-				INVARIANT_VW_START(Box);
 				Collisions.ApplyPushOut(Dt, { Collisions.GetConstraintHandle(0) }, TSet<const TGeometryParticleHandle<T, 3>*>(), 0, 1);
 				INVARIANT_XR_END(Box);
-				INVARIANT_VW_END(Box);
 			}
 		}
 
