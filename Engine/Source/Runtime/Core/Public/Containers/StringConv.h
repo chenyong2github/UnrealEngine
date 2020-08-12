@@ -208,7 +208,10 @@ public:
 	static int32 Utf8FromCodepoint(uint32 Codepoint, BufferType OutputIterator, uint32 OutputIteratorByteSizeRemaining)
 	{
 		// Ensure we have at least one character in size to write
-		checkSlow(OutputIteratorByteSizeRemaining >= sizeof(ANSICHAR));
+		if (OutputIteratorByteSizeRemaining < sizeof(ANSICHAR))
+		{
+			return 0;
+		}
 
 		const BufferType OutputIteratorStartPosition = OutputIterator;
 
@@ -233,10 +236,6 @@ public:
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6)         | 128 | 64);
 				*(OutputIterator++) = (ANSICHAR) (Codepoint       & 0x3F) | 128;
 			}
-			else
-			{
-				*(OutputIterator++) = (ANSICHAR)UNICODE_BOGUS_CHAR_CODEPOINT;
-			}
 		}
 		else if (Codepoint < 0x10000)
 		{
@@ -245,10 +244,6 @@ public:
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 12)        | 128 | 64 | 32);
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6) & 0x3F) | 128;
 				*(OutputIterator++) = (ANSICHAR) (Codepoint       & 0x3F) | 128;
-			}
-			else
-			{
-				*(OutputIterator++) = (ANSICHAR)UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
 		}
 		else
@@ -259,10 +254,6 @@ public:
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 12) & 0x3F) | 128;
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6 ) & 0x3F) | 128;
 				*(OutputIterator++) = (ANSICHAR) (Codepoint        & 0x3F) | 128;
-			}
-			else
-			{
-				*(OutputIterator++) = (ANSICHAR)UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
 		}
 
@@ -757,7 +748,10 @@ public:
 	static int32 Utf16FromCodepoint(uint32 Codepoint, BufferType OutputIterator, uint32 OutputIteratorNumRemaining)
 	{
 		// Ensure we have at least one character in size to write
-		checkSlow(OutputIteratorNumRemaining >= 1);
+		if (OutputIteratorNumRemaining < 1)
+		{
+			return 0;
+		}
 
 		const BufferType OutputIteratorStartPosition = OutputIterator;
 
@@ -782,11 +776,6 @@ public:
 
 				*(OutputIterator++) = (ToType)HighSurrogate;
 				*(OutputIterator++) = (ToType)LowSurrogate;
-			}
-			else
-			{
-				// If we don't have space, write a bogus character instead (we should have space for it)
-				*(OutputIterator++) = UNICODE_BOGUS_CHAR_CODEPOINT;
 			}
 		}
 		else if (Codepoint > StringConv::ENCODED_SURROGATE_END_CODEPOINT)
