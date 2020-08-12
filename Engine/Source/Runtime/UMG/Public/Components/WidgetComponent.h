@@ -609,6 +609,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category=UserInterface, meta=(ClampMin=1.0f, ClampMax=180.0f))
 	float CylinderArcAngle;
 
+	UPROPERTY(EditAnywhere, Category = UserInterface)
+	ETickMode TickMode;
+
 	/** The slate window that contains the user widget content */
 	TSharedPtr<class SVirtualWindow> SlateWindow;
 
@@ -638,8 +641,6 @@ private:
 	void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
 	/** Set to true after a draw of an empty component.*/
 	bool bRenderCleared;
-
-	ETickMode TickMode;
 	bool bOnWidgetVisibilityChangedRegistered;
 };
 
