@@ -1791,6 +1791,16 @@ void FSceneRenderTargets::FinishRenderingTranslucency(FRHICommandList& RHICmdLis
 	// This is a nop on purpose for consistency's sake
 }
 
+FIntRect FSceneRenderTargets::GetSeparateTranslucencyViewRect(const FViewInfo& View) const
+{
+	FIntRect ViewRect;
+	ViewRect.Min.X = View.ViewRect.Min.X * SeparateTranslucencyScale;
+	ViewRect.Min.Y = View.ViewRect.Min.Y * SeparateTranslucencyScale;
+	ViewRect.Max.X = View.ViewRect.Max.X * SeparateTranslucencyScale;
+	ViewRect.Max.Y = View.ViewRect.Max.Y * SeparateTranslucencyScale;
+	return ViewRect;
+}
+
 void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer& Renderer, bool bFirstTimeThisFrame)
 {
 	check(RHICmdList.IsOutsideRenderPass());
@@ -1860,7 +1870,8 @@ void FSceneRenderTargets::BeginRenderingSeparateTranslucency(FRHICommandList& RH
 	}
 	else
 	{
-		RHICmdList.SetViewport(View.ViewRect.Min.X * SeparateTranslucencyScale, View.ViewRect.Min.Y * SeparateTranslucencyScale, 0.0f, View.ViewRect.Max.X * SeparateTranslucencyScale, View.ViewRect.Max.Y * SeparateTranslucencyScale, 1.0f);
+		FIntRect ViewRect = GetSeparateTranslucencyViewRect(View);
+		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 	}
 }
 
@@ -1894,6 +1905,8 @@ void FSceneRenderTargets::ResolveSeparateTranslucency(FRHICommandList& RHICmdLis
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucency)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucency)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
 	RHICmdList.CopyToResolveTarget((*SeparateTranslucencyDepth)->GetRenderTargetItem().TargetableTexture, (*SeparateTranslucencyDepth)->GetRenderTargetItem().ShaderResourceTexture, SeparateResolveRect);
 
+	GVisualizeTexture.SetCheckPoint(RHICmdList, *SeparateTranslucency);
+	GVisualizeTexture.SetCheckPoint(RHICmdList, *SeparateTranslucencyDepth);
 	bSeparateTranslucencyPass = false;
 }
 

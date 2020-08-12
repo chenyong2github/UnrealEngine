@@ -148,6 +148,7 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FComposeSeparateTranslucencyPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, SeparateTranslucencyBilinearUVMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucency)
@@ -174,13 +175,22 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 
 	FRDGTextureRef NewSceneColor = GraphBuilder.CreateTexture(SceneColorDesc, TEXT("SceneColor"));
 
+	const FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get_FrameConstantsOnly();
+
+	FIntRect SeparateTranslucencyRect = SceneContext.GetSeparateTranslucencyViewRect(View);
+	bool bScaleSeparateTranslucency = SeparateTranslucencyRect != View.ViewRect;
+
 	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.X = (SeparateTranslucencyRect.Min.X + 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.Y = (SeparateTranslucencyRect.Min.Y + 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.Z = (SeparateTranslucencyRect.Max.X - 0.5f) / float(SeparateTranslucency->Desc.Extent.X);
+	PassParameters->SeparateTranslucencyBilinearUVMinMax.W = (SeparateTranslucencyRect.Max.Y - 0.5f) / float(SeparateTranslucency->Desc.Extent.Y);
 	PassParameters->SceneColor = SceneColor;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->SeparateTranslucency = SeparateTranslucency;
-	PassParameters->SeparateTranslucencySampler = TStaticSamplerState<SF_Point>::GetRHI();
+	PassParameters->SeparateTranslucencySampler = bScaleSeparateTranslucency ? TStaticSamplerState<SF_Bilinear>::GetRHI()  : TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->SeparateModulation = SeparateModulation;
-	PassParameters->SeparateModulationSampler = TStaticSamplerState<SF_Point>::GetRHI();
+	PassParameters->SeparateModulationSampler = PassParameters->SeparateTranslucencySampler;
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(NewSceneColor, ERenderTargetLoadAction::ENoAction);
 
@@ -188,7 +198,10 @@ FRDGTextureRef AddSeparateTranslucencyCompositionPass(FRDGBuilder& GraphBuilder,
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
 		View.ShaderMap,
-		RDG_EVENT_NAME("ComposeSeparateTranslucency %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+		RDG_EVENT_NAME(
+			"ComposeSeparateTranslucency%s %dx%d",
+			bScaleSeparateTranslucency ? TEXT(" Rescale") : TEXT(""),
+			View.ViewRect.Width(), View.ViewRect.Height()),
 		PixelShader,
 		PassParameters,
 		View.ViewRect);

@@ -139,12 +139,16 @@ float4 CocModelParameters;
 float2 DepthBlurParameters;
 float2 DOFBufferUVMax;
 
+float4 SeparateTranslucencyBilinearUVMinMax;
+
 Texture2D BokehLUT;
 
 Texture2D SceneColorInput;
 Texture2D SceneDepthTexture;
 Texture2D SceneSeparateCoc;
+
 Texture2D SceneSeparateTranslucency;
+SamplerState SceneSeparateTranslucencySampler;
 
 float4 ConvolutionInputSize;
 
@@ -1071,7 +1075,9 @@ void RecombineMainCS(
 	// Compose separate translucency.
 	if (1)
 	{
-		float4 SeparateTranslucencyColor = SceneSeparateTranslucency.SampleLevel(GlobalPointClampedSampler, InputParameters.SceneBufferUV, 0);
+		float2 SeparateTranslucencyBufferUV = clamp(InputParameters.SceneBufferUV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);
+
+		float4 SeparateTranslucencyColor = SceneSeparateTranslucency.SampleLevel(SceneSeparateTranslucencySampler, SeparateTranslucencyBufferUV, 0);
 		float SeparateTranslucency = SeparateTranslucencyColor.a;
 		SeparateTranslucencyColor.a = 1 - SeparateTranslucencyColor.a;
 
