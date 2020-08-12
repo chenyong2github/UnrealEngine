@@ -599,9 +599,9 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, SharedLayerName(TEXT("WidgetComponentScreenLayer"))
 	, LayerZOrder(-100)
 	, GeometryMode(EWidgetGeometryMode::Plane)
-	, CylinderArcAngle( 180.0f )
-    , bRenderCleared(false)
+	, CylinderArcAngle(180.0f)
 	, TickMode(ETickMode::Enabled)
+    , bRenderCleared(false)
 	, bOnWidgetVisibilityChangedRegistered(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
