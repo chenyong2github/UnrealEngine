@@ -3119,25 +3119,26 @@ static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
 	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
 	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
 {
-	UObject*& Object = ScriptObjects.FindOrAdd(GlobalImportIndex);
-	if (!Object)
+	UObject** Object = &ScriptObjects.FindOrAdd(GlobalImportIndex);
+	if (!*Object)
 	{
 		const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(GlobalImportIndex);
 		check(Entry);
 		if (Entry->OuterIndex.IsNull())
 		{
-			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
+			*Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
 		}
 		else
 		{
 			UObject* Outer = GFindExistingScriptImport(Entry->OuterIndex, ScriptObjects, ScriptObjectEntriesMap);
+			Object = &ScriptObjects.FindChecked(GlobalImportIndex);
 			if (Outer)
 			{
-				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
+				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
 			}
 		}
 	}
-	return Object;
+	return *Object;
 }
 
 UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(FPackageObjectIndex GlobalImportIndex)
