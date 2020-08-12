@@ -112,7 +112,11 @@ FNiagaraDataSet::~FNiagaraDataSet()
 		Data.Empty();
 	}
 
-	check(GPUFreeIDs.Buffer.IsValid() == false);
+	if (GPUFreeIDs.Buffer)
+	{
+		check(IsInRenderingThread());
+		GPUFreeIDs.Release();
+	}
 
 	GPUNumAllocatedIDs = 0;
 }
