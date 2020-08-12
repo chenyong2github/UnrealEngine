@@ -580,10 +580,12 @@ void SMoviePipelineQueuePanel::OnSaveAsAsset()
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
 	UPackage* NewPackage = CreatePackage(nullptr, *PackageName);
-	UMoviePipelineQueue* DuplicateQueue = NewObject<UMoviePipelineQueue>(NewPackage, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional, CurrentQueue);
+	UMoviePipelineQueue* DuplicateQueue = DuplicateObject<UMoviePipelineQueue>(CurrentQueue, NewPackage, *NewAssetName);
 
 	if (DuplicateQueue)
 	{
+		DuplicateQueue->SetFlags(RF_Public | RF_Standalone | RF_Transactional);
+
 		FAssetRegistryModule::AssetCreated(DuplicateQueue);
 
 		FEditorFileUtils::EPromptReturnCode PromptReturnCode = FEditorFileUtils::PromptForCheckoutAndSave({ NewPackage }, false, false);
