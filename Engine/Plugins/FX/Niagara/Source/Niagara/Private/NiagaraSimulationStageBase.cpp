@@ -16,6 +16,7 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	InVisitor->UpdatePOD(TEXT("Iterations"), Iterations);
 	InVisitor->UpdatePOD(TEXT("IterationSource"), (int32)IterationSource);
 	InVisitor->UpdatePOD(TEXT("bSpawnOnly"), bSpawnOnly ? 1 : 0);
+	InVisitor->UpdatePOD(TEXT("bPartialParticleUpdate"), bPartialParticleUpdate ? 1 : 0);
 	InVisitor->UpdateString(TEXT("DataInterface"), DataInterface.BoundVariable.GetName().ToString());
 	InVisitor->UpdateString(TEXT("SimulationStageName"), SimulationStageName.ToString());
 	return true;
@@ -43,6 +44,10 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 		bNeedsRecompile = true;
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bSpawnOnly) && Emitter)
+	{
+		bNeedsRecompile = true;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bPartialParticleUpdate) && Emitter)
 	{
 		bNeedsRecompile = true;
 	}

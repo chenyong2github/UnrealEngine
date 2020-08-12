@@ -49,6 +49,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Emitter Reset Only", Tooltip = "When enabled the stage will only run on the first tick after the emitter is reset, only valid for data interface iteration stages", EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	uint32 bSpawnOnly : 1;
 
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Partial Particle Update", Tooltip = "When enabled we will not output all particle variables to improve performance where possible.  This option is hazardous if you are reading data from other particles.", EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	uint32 bPartialParticleUpdate : 1;
+
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	FNiagaraVariableDataInterfaceBinding DataInterface;
 
