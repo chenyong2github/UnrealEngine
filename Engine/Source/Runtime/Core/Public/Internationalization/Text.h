@@ -4,6 +4,7 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformAtomics.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
@@ -56,6 +57,33 @@ namespace ETextComparisonLevel
 		Quinary		// Identical
 	};
 }
+
+enum class ETextIdenticalModeFlags : uint8
+{
+	/** No special behavior */
+	None = 0,
+
+	/**
+	 * Deep compare the text data.
+	 *
+	 * When set, two pieces of generated text (eg, from FText::Format, FText::AsNumber, FText::AsDate, FText::ToUpper, etc) 
+	 * will test their internal data to see if they contain identical inputs (so would produce an identical output).
+	 *
+	 * When clear, no two separate pieces of generated text will ever compare as identical!
+	 */
+	DeepCompare = 1<<0,
+
+	/**
+	 * Compare invariant data lexically.
+	 *
+	 * When set, two pieces of invariant text (eg, from FText::AsCultureInvariant, FText::FromString, FText::FromName, or INVTEXT)
+	 * will compare their display string data lexically to see if they are identical.
+	 *
+	 * When clear, no two separate pieces of invariant text will ever compare as identical!
+	 */
+	LexicalCompareInvariants = 1<<1,
+};
+ENUM_CLASS_FLAGS(ETextIdenticalModeFlags);
 
 enum class ETextPluralType : uint8
 {
@@ -285,6 +313,11 @@ public:
 	bool IsValid() const;
 
 	/**
+	 * Check whether this instance is considered identical to the other instance, based on the comparison flags provided.
+	 */
+	bool IdenticalTo(const FTextFormat& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
+
+	/**
 	 * Get the source text that we're holding.
 	 * If we're holding a string then we'll construct a new text.
 	 */
@@ -470,10 +503,12 @@ public:
 	/**
 	 * Check to see if this FText is identical to the other FText
 	 * 
-	 * Note:	This doesn't compare the text, but only checks that the internal string pointers have the same target (which makes it very fast!)
-	 *			If you actually want to perform a lexical comparison, then you need to use EqualTo instead
+	 * @note This function defaults to only testing that the internal data has the same target (which makes it very fast!), rather than performing any deep or lexical analysis.
+	 *       The ETextIdenticalModeFlags can modify this default behavior. See the comments on those flag options for more information.
+	 *
+	 * @note If you actually want to perform a full lexical comparison, then you need to use EqualTo instead.
 	 */
-	bool IdenticalTo( const FText& Other ) const;
+	bool IdenticalTo( const FText& Other, const ETextIdenticalModeFlags CompareModeFlags = ETextIdenticalModeFlags::None ) const;
 
 	class CORE_API FSortPredicate
 	{
@@ -819,6 +854,8 @@ public:
 	}
 
 	friend void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value);
+
+	bool IdenticalTo(const FFormatArgumentValue& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
 
 	FString ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource) const;
 	void ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource, FString& OutResult) const;

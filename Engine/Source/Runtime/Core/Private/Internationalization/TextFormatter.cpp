@@ -359,6 +359,11 @@ public:
 	}
 
 	/**
+	 * Check whether this instance is considered identical to the other instance, based on the comparison flags provided.
+	 */
+	bool IdenticalTo(const FTextFormatData& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
+
+	/**
 	 * Validate the format pattern is valid based on the rules of the given culture (or null to use the current language).
 	 * @return true if the pattern is valid, or false if not (false may also fill in OutValidationErrors).
 	 */
@@ -576,6 +581,11 @@ bool FTextFormat::IsValid() const
 	return TextFormatData->IsValid();
 }
 
+bool FTextFormat::IdenticalTo(const FTextFormat& Other, const ETextIdenticalModeFlags CompareModeFlags) const
+{
+	return TextFormatData->IdenticalTo(*Other.TextFormatData, CompareModeFlags);
+}
+
 FText FTextFormat::GetSourceText() const
 {
 	return TextFormatData->GetSourceText();
@@ -621,6 +631,30 @@ FTextFormatData::FTextFormatData(FString&& InString, FTextFormatPatternDefinitio
 	, SourceExpression(MoveTemp(InString))
 {
 	Compile_NoLock();
+}
+
+bool FTextFormatData::IdenticalTo(const FTextFormatData& Other, const ETextIdenticalModeFlags CompareModeFlags) const
+{
+	if (SourceType == Other.SourceType)
+	{
+		switch (SourceType)
+		{
+		case ESourceType::Text:
+			return SourceText.IdenticalTo(Other.SourceText, CompareModeFlags);
+
+		case ESourceType::String:
+			if (EnumHasAnyFlags(CompareModeFlags, ETextIdenticalModeFlags::LexicalCompareInvariants))
+			{
+				return SourceExpression.Equals(Other.SourceExpression, ESearchCase::CaseSensitive);
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 bool FTextFormatData::IsValid_NoLock() const
