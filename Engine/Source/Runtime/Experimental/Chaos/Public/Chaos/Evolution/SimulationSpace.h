@@ -54,7 +54,7 @@ namespace Chaos
 			, AngularAccelerationAlpha(1)
 			, LinearVelocityAlpha(1)
 			, AngularVelocityAlpha(1)
-			, ExternalLinearEtherDrag(0)
+			, ExternalLinearEtherDrag(FVec3(0))
 		{
 		}
 
@@ -82,8 +82,8 @@ namespace Chaos
 		// How much of the simulation frame's angular velocity to pass onto the particles (angular ether drag)
 		FReal AngularVelocityAlpha;
 
-		// An additional linear drag (on top of the EtherDrag that can be set on the physics asset)
-		FReal ExternalLinearEtherDrag;
+		// An additional linear drag on top of the EtherDrag that can be set on the physics asset. Vector in simulation local space.
+		FVec3 ExternalLinearEtherDrag;
 	};
 
 }
