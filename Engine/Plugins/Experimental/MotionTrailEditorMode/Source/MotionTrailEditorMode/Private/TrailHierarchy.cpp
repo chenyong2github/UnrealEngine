@@ -5,6 +5,7 @@
 #include "TrajectoryDrawInfo.h"
 #include "Containers/Queue.h"
 #include "CanvasItem.h"
+#include "CanvasTypes.h"
 
 void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
