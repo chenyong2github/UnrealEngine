@@ -95,7 +95,7 @@ class UVolumetricCloudComponent : public USceneComponent
 	/**
 	 * The shadow tracing distance in kilometers.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "1.0", UIMax = "50", ClampMin = "1.0", SliderExponent = 3.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", AdvancedDisplay, meta = (UIMin = "0.1", UIMax = "50", ClampMin = "0.01", SliderExponent = 3.0))
 	float ShadowTracingDistance;
 
 protected:

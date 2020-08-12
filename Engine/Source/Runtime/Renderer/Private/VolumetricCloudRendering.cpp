@@ -42,7 +42,7 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudDistanceToSampleMaxCount(
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarVolumetricCloudViewRaySampleMaxCount(
-	TEXT("r.VolumetricCloud.ViewRaySampleCountMax"), 768,
+	TEXT("r.VolumetricCloud.ViewRaySampleMaxCount"), 768,
 	TEXT("The maximum number of samples taken while ray marching view primary rays."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
