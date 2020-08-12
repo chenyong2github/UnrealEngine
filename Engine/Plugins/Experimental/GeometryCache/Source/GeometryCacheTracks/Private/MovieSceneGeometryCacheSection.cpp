@@ -46,8 +46,15 @@ void UMovieSceneGeometryCacheSection::PostLoad()
 {
 	Super::PostLoad();
 
-	FFrameRate DisplayRate = GetTypedOuter<UMovieScene>()->GetDisplayRate();
-	FFrameRate TickResolution = GetTypedOuter<UMovieScene>()->GetTickResolution();
+	UMovieScene* MovieSceneOuter = GetTypedOuter<UMovieScene>();
+
+	if (!MovieSceneOuter)
+	{
+		return;
+	}
+
+	FFrameRate DisplayRate = MovieSceneOuter->GetDisplayRate();
+	FFrameRate TickResolution = MovieSceneOuter->GetTickResolution();
 
 	if (Params.StartOffset_DEPRECATED != GeometryCacheDeprecatedMagicNumber)
 	{
