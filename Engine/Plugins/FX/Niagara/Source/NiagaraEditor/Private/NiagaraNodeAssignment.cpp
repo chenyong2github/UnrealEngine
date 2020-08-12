@@ -348,7 +348,7 @@ void UNiagaraNodeAssignment::CollectCreateNewActions(ENiagaraScriptUsage InUsage
 			FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 
 			TSharedRef<FNiagaraMenuAction> CreateNewAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
-				Category, TypeText, TooltipDesc,
+				FullCategory, TypeText, TooltipDesc,
 				0, FText(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, NewParameter, VarDefaultValue)));
 			OutCreateNewActions.Add(CreateNewAction);
