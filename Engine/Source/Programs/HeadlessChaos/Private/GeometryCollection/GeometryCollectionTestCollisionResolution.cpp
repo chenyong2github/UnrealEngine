@@ -332,7 +332,7 @@ namespace GeometryCollectionTest
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z) - 10.f, KINDA_SMALL_NUMBER);
 			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().X) < 0.001); // No deflection
 			EXPECT_TRUE(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Y) < 0.001); // No deflection
-			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 1.1f); // ball fell
+			EXPECT_LT(Collection->DynamicCollection->Transform[0].GetTranslation().Z, 2.1f); // ball fell
 		}
 	}
 
