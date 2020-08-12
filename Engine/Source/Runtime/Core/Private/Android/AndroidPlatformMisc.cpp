@@ -183,7 +183,7 @@ static void InitCpuThermalSensor()
 		}
 	}
 
-	UE_LOG(LogAndroid, Display, TEXT("No CPU thermal sensor were detected. Please override sensor file manually using android.CPUThermalSensorFilePath CVar."));
+	UE_LOG(LogAndroid, Display, TEXT("No CPU thermal sensor was detected. To manually override the sensor path set android.CPUThermalSensorFilePath CVar."));
 }
 
 void FAndroidMisc::RequestExit( bool Force )
