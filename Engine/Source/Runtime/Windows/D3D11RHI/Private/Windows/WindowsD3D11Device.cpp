@@ -2151,6 +2151,7 @@ bool FD3D11DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 		//  We might want to work around some DXGI badness here.
 		const DXGI_FORMAT DisplayFormats[] = {DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM};
 		DXGI_FORMAT Format = DisplayFormats[0];
+		bool bFoundValidResult = false;
 		uint32 NumModes = 0;	
 
 		for (DXGI_FORMAT CurrentFormat : DisplayFormats)
@@ -2180,13 +2181,36 @@ bool FD3D11DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 					return false;
 				}
 			}
-			else if(NumModes)
+			else
 			{
-				Format = CurrentFormat;
-				break;
+				bFoundValidResult = true;
+				if (NumModes)
+				{
+					Format = CurrentFormat;
+					break;
+				}
 			}
 		}
 
+		// If we couldn't iterate any formats for this output, it might be dead in the driver and there's nothing we can do here except move on.
+		if (!bFoundValidResult)
+		{
+			// Grab diagnostic information from the output, if at all possible.
+			DXGI_OUTPUT_DESC OutputDesc;
+			FMemory::Memzero(OutputDesc);
+			HRESULT OutputDescRes = Output->GetDesc(&OutputDesc);
+
+			UE_LOG(LogD3D11RHI, Warning,
+				TEXT("RHIGetAvailableResolutions could not get any display modes from output %i (D:%i) (Res:'%s'(0x%08X)"),
+				CurrentOutput,
+				OutputDesc.AttachedToDesktop,
+				*GetD3D11ErrorString(OutputDescRes, GetDevice()), OutputDescRes);
+
+			++CurrentOutput;
+			continue;
+		}
+
+		// It's still invalid to "succeed" and be given no modes.
 		checkf(NumModes > 0, TEXT("No display modes found for DXGI_FORMAT_R8G8B8A8_UNORM or DXGI_FORMAT_B8G8R8A8_UNORM formats!"));
 
 		DXGI_MODE_DESC* ModeList = new DXGI_MODE_DESC[ NumModes ];
