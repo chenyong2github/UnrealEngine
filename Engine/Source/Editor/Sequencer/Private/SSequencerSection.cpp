@@ -6,6 +6,7 @@
 #include "SequencerSelectionPreview.h"
 #include "SequencerSettings.h"
 #include "Editor.h"
+#include "ScopedTransaction.h"
 #include "Sequencer.h"
 #include "SequencerSectionPainter.h"
 #include "MovieSceneSequence.h"
