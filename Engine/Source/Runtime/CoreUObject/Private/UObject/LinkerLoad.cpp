@@ -759,13 +759,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 				Status = FixupImportMap();
 			}
 
-			// Inject additional imports to the import map to resolve during loading
-			if (Status == LINKER_Loaded)
-			{
-				SCOPED_LOADTIMER(LinkerLoad_InjectDynamicImports);
-				Status = InjectDynamicImports();
-			}
-
 			// Populate the linker instancing context for instance loading if needed.
 			if (Status == LINKER_Loaded)
 			{
@@ -869,7 +862,6 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 , bHasSerializedPreloadDependencies(false)
 , bHasFixedUpImportMap(false)
 , bHasPopulatedInstancingContext(false)
-, bHasInjectedDynamicImports(false)
 , bFixupExportMapDone(false)
 , bHasFoundExistingExports(false)
 , bHasFinishedInitialization(false)
@@ -898,14 +890,10 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const TCHAR* InFilename, uint32 InL
 
 #if WITH_EDITOR
 	// Check if the linker is instanced @todo: pass through a load flag?
-	FString PackageName;
-	if (FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName))
+	FName PackageNameToLoad = *FPackageName::FilenameToLongPackageName(InFilename);
+	if (LinkerRoot->GetFName() != PackageNameToLoad)
 	{
-		LongPackageLoadName = *PackageName;
-		if (LinkerRoot->GetFName() != LongPackageLoadName)
-		{
-			InstancingContext.AddMapping(LongPackageLoadName, LinkerRoot->GetFName());
-		}
+		InstancingContext.AddMapping(PackageNameToLoad, LinkerRoot->GetFName());
 	}
 #endif
 }
@@ -1414,11 +1402,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		{
 			NewPackageFlags |= PKG_PlayInEditor;
 		}
-		// Preserve the Dynamic import flag
-		if (LinkerRootPackage->HasAnyPackageFlags(PKG_DynamicImports))
-		{
-			NewPackageFlags |= PKG_DynamicImports;
-		}
 
 		// Propagate package flags
 		LinkerRootPackage->SetPackageFlagsTo(NewPackageFlags);
@@ -1781,6 +1764,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 		if (IsContextInstanced())
 		{
 			TSet<FName> InstancingPackageName;
+			FString LinkerPackageName = LinkerRoot->GetName();
 
 			// Add import package we should instantiate since object in this instanced linker are outered to them
 			for (const FObjectExport& Export : ExportMap)
@@ -1822,7 +1806,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 			// add remapping for all the packages that should be instantiated along with this one
 			for (const FName& InstancingName : InstancingPackageName)
 			{
-				AddAutomaticInstancingMapping(InstancingName);
+				FName& InstancedName = InstancingContext.Mapping.FindOrAdd(InstancingName);
+				// if there's isn't already a remapping for that package, create one
+				if (InstancedName.IsNone())
+				{
+					InstancedName = *FString::Printf(TEXT("%s_InstanceOf_%s"), *InstancingName.ToString(), *LinkerPackageName);
+				}
 			}
 		}
 #endif
@@ -1830,58 +1819,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 		bHasPopulatedInstancingContext = true;
 	}
 	return IsTimeLimitExceeded(TEXT("populating instancing context")) ? LINKER_TimedOut : LINKER_Loaded;
-}
-
-FLinkerLoad::ELinkerStatus FLinkerLoad::InjectDynamicImports()
-{
-	if (!bHasInjectedDynamicImports)
-	{
-#if WITH_EDITOR
-		if (LinkerRoot->HasAnyPackageFlags(PKG_DynamicImports))
-		{
-			for (const FDynamicImportCallback& Resolver : GetDynamicImportResolver())
-			{
-				TArray<FDynamicPackageImport> NewImports = Resolver(*this);
-				for (const FDynamicPackageImport& DynamicImport : NewImports)
-				{
-					AddDynamicPackageImport(DynamicImport);
-				}
-			}
-		}
-#endif
-		bHasInjectedDynamicImports = true;
-	}
-	return IsTimeLimitExceeded(TEXT("populating instancing context")) ? LINKER_TimedOut : LINKER_Loaded;
-}
-
-void FLinkerLoad::AddDynamicPackageImport(const FDynamicPackageImport& DynamicImport)
-{
-	// add the dynamic package import
-	FObjectImport NewImport;
-	NewImport.ObjectName = DynamicImport.GetPackageName();
-	NewImport.OuterIndex = FPackageIndex();
-	NewImport.ClassPackage = NAME_CoreUObject;
-	NewImport.ClassName = NAME_Package;
-#if WITH_EDITOR
-	NewImport.PackageName = NAME_None;
-#endif
-	ImportMap.Emplace(MoveTemp(NewImport));
-
-	// if the load is instanced also add a remapping for it
-	if (IsContextInstanced())
-	{
-		AddAutomaticInstancingMapping(DynamicImport.GetPackageName());
-	}
-}
-
-void FLinkerLoad::AddAutomaticInstancingMapping(FName InPackageLoadName)
-{
-	FName& InstancedName = InstancingContext.Mapping.FindOrAdd(InPackageLoadName);
-	// if there's isn't already a remapping for that package, create one
-	if (InstancedName.IsNone())
-	{
-		InstancedName = FLinkerInstancingContext::GenerateInstancedName(InPackageLoadName, LinkerRoot->GetFName());
-	}
 }
 
 /**
@@ -2579,17 +2516,16 @@ void FLinkerLoad::Verify()
 	{
 		if (!bHaveImportsBeenVerified)
 		{
-			int32 ImportCount = ImportMap.Num();
 #if WITH_EDITOR
 			TOptional<FScopedSlowTask> SlowTask;
 			if (ShouldCreateThrottledSlowTask())
 			{
 				static const FText LoadingImportsText = NSLOCTEXT("Core", "LinkerLoad_Imports", "Loading Imports");
-				SlowTask.Emplace(ImportCount, LoadingImportsText);
+				SlowTask.Emplace(Summary.ImportCount, LoadingImportsText);
 			}
 #endif
 			// Validate all imports and map them to their remote linkers.
-			for (int32 ImportIndex = 0; ImportIndex < ImportCount; ++ImportIndex)
+			for (int32 ImportIndex = 0; ImportIndex < Summary.ImportCount; ImportIndex++)
 			{
 				FObjectImport& Import = ImportMap[ImportIndex];
 
@@ -5936,16 +5872,6 @@ FName FLinkerLoad::InstancingContextRemap(FName ObjectName) const
 	return InstancingContext.Remap(ObjectName);
 #else
 	return ObjectName;
-#endif
-}
-
-const TArray<FDynamicImportCallback>& FLinkerLoad::GetDynamicImportResolver() const
-{
-#if WITH_EDITOR
-	return InstancingContext.DynamicImportResolvers;
-#else
-	static TArray<FDynamicImportCallback> DummyDynamicImportCallbacks;
-	return DummyDynamicImportCallbacks;
 #endif
 }
 
