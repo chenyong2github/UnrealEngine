@@ -1407,13 +1407,20 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	}
 
-	// Copy parent scratch pad scripts.
+	// Copy scratch pad scripts.
 	ParentScratchPadScripts.Empty();
+	ScratchPadScripts.Empty();
 
 	for (UNiagaraScript* MergedParentScratchPadScript : MergedEmitter->ParentScratchPadScripts)
 	{
 		ReouterMergedObject(this, MergedParentScratchPadScript);
 		ParentScratchPadScripts.Add(MergedParentScratchPadScript);
+	}
+
+	for (UNiagaraScript* MergedScratchPadScript : MergedEmitter->ScratchPadScripts)
+	{
+		ReouterMergedObject(this, MergedScratchPadScript);
+		ScratchPadScripts.Add(MergedScratchPadScript);
 	}
 
 	SetEditorData(MergedEmitter->GetEditorData());
