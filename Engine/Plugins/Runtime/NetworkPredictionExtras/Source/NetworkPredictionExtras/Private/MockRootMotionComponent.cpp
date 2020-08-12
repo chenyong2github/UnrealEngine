@@ -108,18 +108,24 @@ void UMockRootMotionComponent::ProduceInput(const int32 SimTimeMS, FMockRootMoti
 	*Cmd = PendingInputCmd;
 }
 
-void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState)
+void UMockRootMotionComponent::RestoreFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState)
 {
 	npCheckSlow(UpdatedComponent);
-	npCheckSlow(AnimInstance);
 
-	
 	// Update component transform
 	FTransform Transform(SyncState->Rotation.Quaternion(), SyncState->Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
-
 	UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
+}
 
-	// Update animation state (pose) - make sure it matches SyncState.
+void UMockRootMotionComponent::FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState)
+{
+	npCheckSlow(AnimInstance);
+	npCheckSlow(RootMotionSourceDataAsset);
+
+	RestoreFrame(SyncState, AuxState);
+
+	// Update animation state (pose) - make sure it matches SyncState. 
+	// This only needs to be done in FinalizeFrame because the pose does not directly affect the simulation
 	RootMotionSourceDataAsset->FinalizePose(SyncState, AnimInstance);
 }
 

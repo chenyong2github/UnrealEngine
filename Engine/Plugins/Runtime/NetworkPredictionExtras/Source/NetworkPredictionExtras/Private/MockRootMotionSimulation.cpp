@@ -58,7 +58,7 @@ void FMockRootMotionSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 	}
 
 	// Component has to be put in the right place first
-	// FIXME: this has to happen outside of the ::SimulationTick for group reocncniliation to be correct
+	// FIXME: this has to happen outside of the ::SimulationTick for group reconciliation to be correct
 	// (E.g if another sim ticked before us, our PrimitiveComponent will not be in the right spot (our Sync state transform)
 	FTransform StartingTransform(LocalSync.Rotation, LocalSync.Location, UpdatedComponent->GetComponentTransform().GetScale3D());
 	UpdatedComponent->SetWorldTransform(StartingTransform, false, nullptr, ETeleportType::TeleportPhysics);

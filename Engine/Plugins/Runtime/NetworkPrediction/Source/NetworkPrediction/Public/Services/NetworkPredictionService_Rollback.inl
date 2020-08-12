@@ -309,12 +309,14 @@ public:
 				LocalFrameData.SyncState = ClientRecvData.SyncState;
 				LocalFrameData.AuxState = ClientRecvData.AuxState;
 
+				TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
+
+				FNetworkPredictionDriver<ModelDef>::RestoreFrame(Instance.Info.Driver, LocalFrameData.SyncState.Get(), LocalFrameData.AuxState.Get());
+
 				// Do rollback
 				const int32 EndFrame = TickState->PendingFrame;
 				for (int32 Frame = LocalFrame; Frame < EndFrame; ++Frame)
 				{
-					TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
-
 					const int32 InputFrame = Frame;
 					const int32 OutputFrame = Frame+1;
 

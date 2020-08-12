@@ -151,9 +151,6 @@ void FFlyingMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 
 	const FQuat OutputQuat = Output.Sync->Rotation.Quaternion();
 
-	// After the rotation is known, we need to sync our driver to this state. This is unfortunate and probably not best for perf, but since the Driver owned
-	// primitive component is ultimately what does our scene queries, we have no choice: we must get the primitive component in the state we say it should be in.
-	PreSimSync(*Output.Sync);
 
 	const FVector LocalSpaceMovementInput = Output.Sync->Rotation.RotateVector( Input.Cmd->MovementInput );
 	   	
@@ -249,16 +246,4 @@ void FFlyingMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 void FFlyingMovementSimulation::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {	
 
-}
-
-void FFlyingMovementSimulation::PreSimSync(const FFlyingMovementSyncState& SyncState)
-{
-	// Does checking equality make any sense here? This is unfortunate
-	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FFlyingMovementSimulation::ROTATOR_TOLERANCE) == false)
-	{
-		FTransform Transform(SyncState.Rotation.Quaternion(), SyncState.Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
-		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
-
-		UpdatedComponent->ComponentVelocity = SyncState.Velocity;
-	}
 }

@@ -61,8 +61,10 @@ struct TMockParameterPack
 
 	bool operator==(const TMockParameterPack<InlineSize> &Other) const
 	{
-		return Data.Num() == Other.Data.Num() && FMemory::Memcmp(Data.GetData(), Other.Data.GetData(), Data.Num());
+		return Data.Num() == Other.Data.Num() && FMemory::Memcmp(Data.GetData(), Other.Data.GetData(), Data.Num()) == 0;
 	}
+
+	bool operator!=(const TMockParameterPack<InlineSize> &Other) const { return !(*this == Other); }
 };
 
 
@@ -197,10 +199,12 @@ struct FMockRootMotionSyncState
 	{
 		const float TransformErrorTolerance = 1.f;
 
-		return	!Location.Equals(AuthorityState.Location, TransformErrorTolerance) ||
+		const bool bShouldReconcile =	!Location.Equals(AuthorityState.Location, TransformErrorTolerance) ||
 				RootMotionSourceID != AuthorityState.RootMotionSourceID || 
 				!FMath::IsNearlyZero(PlayPosition - AuthorityState.PlayPosition) || 
 				!FMath::IsNearlyZero(PlayRate - AuthorityState.PlayRate);
+
+		return bShouldReconcile;
 	}
 };
 
@@ -222,7 +226,7 @@ struct FMockRootMotionAuxState
 
 	bool ShouldReconcile(const FMockRootMotionAuxState& AuthorityState) const
 	{
-		return this->Parameters == AuthorityState.Parameters;
+		return this->Parameters != AuthorityState.Parameters;
 	}
 
 	void Interpolate(const FMockRootMotionAuxState* From, const FMockRootMotionAuxState* To, float PCT)
