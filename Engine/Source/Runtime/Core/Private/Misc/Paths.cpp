@@ -219,6 +219,11 @@ FString FPaths::EngineDefaultLayoutDir()
 	return FPaths::EngineConfigDir() + TEXT("Layouts/");
 }
 
+FString FPaths::EngineProjectLayoutDir()
+{
+	return FPaths::ProjectConfigDir() + TEXT("Layouts/");
+}
+
 FString FPaths::EngineUserLayoutDir()
 {
 	return FPaths::EngineEditorSettingsDir() + TEXT("Layouts/");

@@ -54,16 +54,8 @@ public:
 		Remove
 	};
 
-	enum class ELayoutsType
-	{
-		Engine,
-		User
-	};
-
 	/** Get LayoutsDirectory path */
-	static FString CreateAndGetDefaultLayoutDirInternal();
-
-	static FString CreateAndGetUserLayoutDirInternal();
+	static FString CreateAndGetDefaultLayoutDirInternal(const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	static TArray<FString> GetIniFilesInFolderInternal(const FString& InStringDirectory);
 
@@ -74,7 +66,8 @@ public:
 	static FText GetDisplayTextInternal(const FString& InString);
 	static FText GetTooltipTextInternal(const FText& InDisplayName, const FString& InLayoutFilePath, const FText& InLayoutName);
 
-	static void DisplayLayoutsInternal(FToolMenuSection& InSection, const TArray<FString>& InLayoutIniFileNames, const FString& InLayoutsDirectory, const ELayoutsMenu InLayoutsMenu, const ELayoutsType InLayoutsType);
+	static void DisplayLayoutsInternal(FToolMenuSection& InSection, const TArray<FString>& InLayoutIniFileNames, const FString& InLayoutsDirectory, const ELayoutsMenu InLayoutsMenu,
+		const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * GetOriginalEditorLayoutIniFilePathInternal() and GetDuplicatedEditorLayoutIniFilePathInternal() are used because sometimes the layout saved is not the same than the one loaded, even
@@ -92,46 +85,28 @@ public:
 
 	static bool IsLayoutCheckedInternal(const FString& InLayoutFullPath, const bool bCheckTempFileToo);
 
-	static void MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const bool bDisplayDefaultLayouts, const ELayoutsMenu InLayoutsMenu);
+	static FText GetProjectLayoutSectionName();
 
-	// All can be read
-	/**
-	 * Checks if the selected layout can be read (e.g., when loading layouts).
-	 * @param	InLayoutIndex  Index from the selected layout.
-	 * @return true if the selected layout can be read.
-	 */
-	static bool CanChooseLayoutWhenReadInternal(const int32 InLayoutIndex);
-	/**
-	 * Checks if the selected user-created layout can be read (e.g., when loading user layouts).
-	 * @param	InLayoutIndex  Index from the selected user-created layout.
-	 * @return true if the selected user-created layout can be read.
-	 */
-	static bool CanChooseUserLayoutWhenReadInternal(const int32 InLayoutIndex);
-	// Only the layouts created by the user can be modified
-	/**
-	 * Checks if the selected layout can be modified (e.g., when overriding or removing layouts).
-	 * @param	InLayoutIndex  Index from the selected layout.
-	 * @return true if the selected layout can be modified/removed.
-	 */
-	static bool CanChooseLayoutWhenWriteInternal(const int32 InLayoutIndex);
-	/**
-	 * Checks if the selected user-created layout can be modified (e.g., when overriding or removing user layouts).
-	 * @param	InLayoutIndex  Index from the selected user-created layout.
-	 * @return true if the selected user-created layout can be modified/removed.
-	 */
-	static bool CanChooseUserLayoutWhenWriteInternal(const int32 InLayoutIndex);
+	static void MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const ELayoutsMenu InLayoutsMenu);
+
+	/** Checks and returns whether the selected layout can be read (e.g., when loading layouts). */
+	static bool CanChooseLayoutWhenReadInternal();
+
+	/** Checks and returns whether the selected layout can be modified (e.g., when overriding or removing layouts). */
+	static bool CanChooseLayoutWhenWriteInternal(const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	static void SaveLayoutWithoutRemovingTempLayoutFiles();
 
 	/**
-	 * It simply check whether PIE, SIE, or any Asset Editor is opened, and ask the user whether he wanna continue closing them or cancel the Editor layout load
+	 * It simply checks whether PIE, SIE, or any Asset Editor is opened, and ask the user whether he wanna continue closing them or cancel the Editor layout load
 	 * @return Whether we should continue loading the layout
 	 */
 	static bool CheckAskUserToClosePIESIE(const FText& InitialMessage);
 
 	static FText GenerateLocalizedTextForFile(const FText& InText);
 
-	static void SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustBeSavedInDefaultDirectory, const FText& InWhatIsThis, const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields);
+	static void SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustBeSavedInDefaultDirectory, const FText& InWhatIsThis,
+		const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields);
 
 	static int32 GetNumberLayoutFiles(const FString& InLayoutsDirectory);
 };
@@ -141,10 +116,15 @@ public:
 /* FPrivateLayoutsMenu public functions
  *****************************************************************************/
 
-FString FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal()
+FString FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
 	// Get LayoutsDirectory path
-	const FString LayoutsDirectory = FPaths::EngineDefaultLayoutDir();
+	const FString LayoutsDirectory = (
+		InLayoutsType == FLayoutsMenu::ELayoutsType::Engine ? FPaths::EngineDefaultLayoutDir() :
+		InLayoutsType == FLayoutsMenu::ELayoutsType::Project ? FPaths::EngineProjectLayoutDir() :
+		InLayoutsType == FLayoutsMenu::ELayoutsType::User ? FPaths::EngineUserLayoutDir() :
+		TEXT(""));
+	checkf(LayoutsDirectory.Len() > 0, TEXT("LayoutsDirectory.Len() was 0 with LayoutType = %d"), int32(InLayoutsType));
 	// If the directory does not exist, create it (but it will not have saved Layouts inside)
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (!PlatformFile.DirectoryExists(*LayoutsDirectory))
@@ -153,20 +133,6 @@ FString FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal()
 	}
 	// Return result
 	return LayoutsDirectory;
-}
-
-FString FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal()
-{
-	// Get UserLayoutsDirectory path
-	const FString UserLayoutsDirectory = FPaths::EngineUserLayoutDir();
-	// If the directory does not exist, create it (but it will not have saved Layouts inside)
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	if (!PlatformFile.DirectoryExists(*UserLayoutsDirectory))
-	{
-		PlatformFile.CreateDirectory(*UserLayoutsDirectory);
-	}
-	// Return result
-	return UserLayoutsDirectory;
 }
 
 TArray<FString> FPrivateLayoutsMenu::GetIniFilesInFolderInternal(const FString& InStringDirectory)
@@ -384,12 +350,14 @@ FText FPrivateLayoutsMenu::GetTooltipTextInternal(const FText& InDisplayName, co
 	return Tooltip;
 }
 
-void FPrivateLayoutsMenu::DisplayLayoutsInternal(FToolMenuSection& InSection, const TArray<FString>& InLayoutIniFileNames, const FString& InLayoutsDirectory, const ELayoutsMenu InLayoutsMenu, const ELayoutsType InLayoutsType)
+void FPrivateLayoutsMenu::DisplayLayoutsInternal(FToolMenuSection& InSection, const TArray<FString>& InLayoutIniFileNames, const FString& InLayoutsDirectory,
+	const ELayoutsMenu InLayoutsMenu, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
 	// If there are Layout ini files, read them
 	for (int32 LayoutIndex = 0; LayoutIndex < InLayoutIniFileNames.Num(); ++LayoutIndex)
 	{
-		const FString LayoutFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::Combine(InLayoutsDirectory, InLayoutIniFileNames[LayoutIndex]));
+		const FString LayoutFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
+			*FPaths::Combine(InLayoutsDirectory, InLayoutIniFileNames[LayoutIndex]));
 		// Make sure it is a layout file
 		GConfig->UnloadFile(LayoutFilePath); // We must re-read it to avoid the Editor to use a previously cached name and description
 		if (FLayoutSaveRestore::IsValidConfig(LayoutFilePath))
@@ -403,45 +371,27 @@ void FPrivateLayoutsMenu::DisplayLayoutsInternal(FToolMenuSection& InSection, co
 
 			// Create UI action here that calls the necessary code in FLayoutsMenuLoad, Save, or Remove 
 			FUIAction UIAction;
-			if (InLayoutsMenu == ELayoutsMenu::Load && InLayoutsType == ELayoutsType::Engine)
+			if (InLayoutsMenu == ELayoutsMenu::Load)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuLoad::LoadLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuLoad::CanLoadChooseLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsLayoutChecked, LayoutIndex));
+				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuLoad::LoadLayout, LayoutIndex, InLayoutsType),
+					FCanExecuteAction::CreateStatic(&FLayoutsMenuLoad::CanLoadChooseLayout, LayoutIndex, InLayoutsType),
+					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
 			}
-			else if (InLayoutsMenu == ELayoutsMenu::Load && InLayoutsType == ELayoutsType::User)
+			else if (InLayoutsMenu == ELayoutsMenu::Save)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuLoad::LoadUserLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuLoad::CanLoadChooseUserLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsUserLayoutChecked, LayoutIndex));
+				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuSave::OverrideLayout, LayoutIndex, InLayoutsType),
+					FCanExecuteAction::CreateStatic(&FLayoutsMenuSave::CanSaveChooseLayout, LayoutIndex, InLayoutsType),
+					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
 			}
-			else if (InLayoutsMenu == ELayoutsMenu::Save && InLayoutsType == ELayoutsType::Engine)
+			else if (InLayoutsMenu == ELayoutsMenu::Remove)
 			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuSave::OverrideLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuSave::CanSaveChooseLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsLayoutChecked, LayoutIndex));
-			}
-			else if (InLayoutsMenu == ELayoutsMenu::Save && InLayoutsType == ELayoutsType::User)
-			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuSave::OverrideUserLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuSave::CanSaveChooseUserLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsUserLayoutChecked, LayoutIndex));
-			}
-			else if (InLayoutsMenu == ELayoutsMenu::Remove && InLayoutsType == ELayoutsType::Engine)
-			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuRemove::CanRemoveChooseLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsLayoutChecked, LayoutIndex));
-			}
-			else if (InLayoutsMenu == ELayoutsMenu::Remove && InLayoutsType == ELayoutsType::User)
-			{
-				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveUserLayout, LayoutIndex),
-					FCanExecuteAction::CreateStatic(&FLayoutsMenuRemove::CanRemoveChooseUserLayout, LayoutIndex),
-					FIsActionChecked::CreateStatic(&FLayoutsMenuBase::IsUserLayoutChecked, LayoutIndex));
+				UIAction = FUIAction(FExecuteAction::CreateStatic(&FLayoutsMenuRemove::RemoveLayout, LayoutIndex, InLayoutsType),
+					FCanExecuteAction::CreateStatic(&FLayoutsMenuRemove::CanRemoveChooseLayout, InLayoutsType),
+					FIsActionChecked::CreateStatic(&FLayoutsMenu::IsLayoutChecked, LayoutIndex, InLayoutsType));
 			}
 			else
 			{
-				ensure(false);
+				ensureMsgf(false, TEXT("InLayoutsMenu = %d."), int32(InLayoutsMenu));
 			}
 			// Run desired action
 			InSection.AddMenuEntry(NAME_None, DisplayName, Tooltip, FSlateIcon(), FToolUIActionChoice(UIAction));
@@ -530,53 +480,49 @@ bool FPrivateLayoutsMenu::IsLayoutCheckedInternal(const FString& InLayoutFullPat
 	}
 }
 
-void FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const bool bDisplayDefaultLayouts, const ELayoutsMenu InLayoutsMenu)
+FText FPrivateLayoutsMenu::GetProjectLayoutSectionName()
+{
+	const FString ProjectDir = FPaths::ProjectDir(); // "../../../QAGame/"
+	const FString ProjectDirName = FPaths::GetBaseFilename(FPaths::GetPath(ProjectDir)); // "QAGame"
+	return FText::Format(LOCTEXT("ProjectLayoutsHeader", "{0} Layouts"), FText::FromString(ProjectDirName));
+}
+
+void FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(UToolMenu* InToolMenu, const ELayoutsMenu InLayoutsMenu)
 {
 #if !PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
 	// Update GEditorLayoutIni file. Otherwise, we could not track the changes the user did since the layout was loaded
 	FLayoutsMenuSave::SaveLayout();
 #endif
-	// UE Default Layouts
-	if (bDisplayDefaultLayouts)
+
+	// Display (if load-only) engine/project layouts and (always)  user layouts
+	const TArray<FLayoutsMenu::ELayoutsType> LayoutSectionTypes = InLayoutsMenu == ELayoutsMenu::Load
+		? TArray<FLayoutsMenu::ELayoutsType>({FLayoutsMenu::ELayoutsType::Engine, FLayoutsMenu::ELayoutsType::Project, FLayoutsMenu::ELayoutsType::User})
+		: /*InLayoutsMenu == ELayoutsMenu::Save|Remove ? */ TArray<FLayoutsMenu::ELayoutsType>({FLayoutsMenu::ELayoutsType::User});
+	for (const FLayoutsMenu::ELayoutsType LayoutSectionType : LayoutSectionTypes)
 	{
-		FToolMenuSection& Section = InToolMenu->AddSection("DefaultLayouts", LOCTEXT("DefaultLayoutsHeading", "Default Layouts"));
-		// Get LayoutsDirectory path
-		const FString LayoutsDirectory = CreateAndGetDefaultLayoutDirInternal();
+		FToolMenuSection& Section = (
+			LayoutSectionType == FLayoutsMenu::ELayoutsType::Engine ? InToolMenu->AddSection("DefaultLayouts", LOCTEXT("DefaultLayoutsHeading", "Default Layouts")) :
+			LayoutSectionType == FLayoutsMenu::ELayoutsType::Project ? InToolMenu->AddSection("ProjectDefaultLayouts", GetProjectLayoutSectionName()) :
+			/*LayoutSectionType == FLayoutsMenu::ELayoutsType::User ?*/ InToolMenu->AddSection("UserDefaultLayouts", LOCTEXT("UserDefaultLayoutsHeading", "User Layouts")));
+		// (Create if it does not exist and) Get LayoutsDirectory path
+		const FString LayoutsDirectory = CreateAndGetDefaultLayoutDirInternal(LayoutSectionType);
 		// Get Layout init files
 		const TArray<FString> LayoutIniFileNames = GetIniFilesInFolderInternal(LayoutsDirectory);
 		// If there are user Layout ini files, read and display them
-		DisplayLayoutsInternal(Section, LayoutIniFileNames, LayoutsDirectory, InLayoutsMenu, ELayoutsType::Engine);
-	}
-	// User Layouts
-	{
-		FToolMenuSection& Section = InToolMenu->AddSection("UserDefaultLayouts", LOCTEXT("UserDefaultLayoutsHeading", "User Layouts"));
-		// (Create if it does not exist and) Get UserLayoutsDirectory path
-		const FString UserLayoutsDirectory = CreateAndGetUserLayoutDirInternal();
-		// Get User Layout init files
-		const TArray<FString> UserLayoutIniFileNames = GetIniFilesInFolderInternal(UserLayoutsDirectory);
-		// If there are user Layout ini files, read and display them
-		DisplayLayoutsInternal(Section, UserLayoutIniFileNames, UserLayoutsDirectory, InLayoutsMenu, ELayoutsType::User);
+		DisplayLayoutsInternal(Section, LayoutIniFileNames, LayoutsDirectory, InLayoutsMenu, LayoutSectionType);
 	}
 }
 
-bool FPrivateLayoutsMenu::CanChooseLayoutWhenReadInternal(const int32 InLayoutIndex)
+bool FPrivateLayoutsMenu::CanChooseLayoutWhenReadInternal()
 {
+	// All can be read
 	return true;
 }
 
-bool FPrivateLayoutsMenu::CanChooseUserLayoutWhenReadInternal(const int32 InLayoutIndex)
+bool FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
-	return true;
-}
-
-bool FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(const int32 InLayoutIndex)
-{
-	return false;
-}
-
-bool FPrivateLayoutsMenu::CanChooseUserLayoutWhenWriteInternal(const int32 InLayoutIndex)
-{
-	return true;
+	// Only the layouts created by the user can be modified
+	return (InLayoutsType == FLayoutsMenu::ELayoutsType::User);
 }
 
 void FPrivateLayoutsMenu::SaveLayoutWithoutRemovingTempLayoutFiles()
@@ -654,7 +600,8 @@ FText FPrivateLayoutsMenu::GenerateLocalizedTextForFile(const FText& InText)
 	}
 }
 
-void FPrivateLayoutsMenu::SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustBeSavedInDefaultDirectory, const FText& InWhatIsThis, const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields)
+void FPrivateLayoutsMenu::SaveExportLayoutCommon(const FString& InDefaultDirectory, const bool bMustBeSavedInDefaultDirectory, const FText& InWhatIsThis,
+	const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields)
 {
 	// Export/SaveAs the user-selected layout configuration files and load one of them
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -786,8 +733,7 @@ int32 FPrivateLayoutsMenu::GetNumberLayoutFiles(const FString& InLayoutsDirector
 void FLayoutsMenuLoad::MakeLoadLayoutsMenu(UToolMenu* InToolMenu)
 {
 	// MakeLoadLayoutsMenu
-	const bool bDisplayDefaultLayouts = true;
-	FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, bDisplayDefaultLayouts, FPrivateLayoutsMenu::ELayoutsMenu::Load);
+	FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, FPrivateLayoutsMenu::ELayoutsMenu::Load);
 
 	// Additional sections
 	if (GetDefault<UEditorStyleSettings>()->bEnableUserEditorLayoutManagement)
@@ -795,7 +741,7 @@ void FLayoutsMenuLoad::MakeLoadLayoutsMenu(UToolMenu* InToolMenu)
 		FToolMenuSection& Section = InToolMenu->FindOrAddSection("UserDefaultLayouts");
 
 		// Separator
-		if (FLayoutsMenuBase::IsThereUserLayouts())
+		if (FLayoutsMenu::IsThereUserLayouts())
 		{
 			Section.AddSeparator("AdditionalSectionsSeparator");
 		}
@@ -807,13 +753,9 @@ void FLayoutsMenuLoad::MakeLoadLayoutsMenu(UToolMenu* InToolMenu)
 	}
 }
 
-bool FLayoutsMenuLoad::CanLoadChooseLayout(const int32 InLayoutIndex)
+bool FLayoutsMenuLoad::CanLoadChooseLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
-	return !FLayoutsMenuBase::IsLayoutChecked(InLayoutIndex) && FPrivateLayoutsMenu::CanChooseLayoutWhenReadInternal(InLayoutIndex);
-}
-bool FLayoutsMenuLoad::CanLoadChooseUserLayout(const int32 InLayoutIndex)
-{
-	return !FLayoutsMenuBase::IsUserLayoutChecked(InLayoutIndex) && FPrivateLayoutsMenu::CanChooseUserLayoutWhenReadInternal(InLayoutIndex);
+	return !FLayoutsMenu::IsLayoutChecked(InLayoutIndex, InLayoutsType) && FPrivateLayoutsMenu::CanChooseLayoutWhenReadInternal();
 }
 
 void FLayoutsMenuLoad::ReloadCurrentLayout()
@@ -892,16 +834,10 @@ void FLayoutsMenuLoad::LoadLayout(const FString& InLayoutPath)
 	}
 }
 
-void FLayoutsMenuLoad::LoadLayout(const int32 InLayoutIndex)
+void FLayoutsMenuLoad::LoadLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
 	// Replace main layout with desired one, reset layout & restart Editor
-	LoadLayout(FLayoutsMenuBase::GetLayout(InLayoutIndex));
-}
-
-void FLayoutsMenuLoad::LoadUserLayout(const int32 InLayoutIndex)
-{
-	// Replace main layout with desired one, reset layout & restart Editor
-	LoadLayout(FLayoutsMenuBase::GetUserLayout(InLayoutIndex));
+	LoadLayout(FLayoutsMenu::GetLayout(InLayoutIndex, InLayoutsType));
 }
 
 void FLayoutsMenuLoad::ImportLayout()
@@ -928,7 +864,7 @@ void FLayoutsMenuLoad::ImportLayout()
 		if (bWereFilesSelected && LayoutFilePaths.Num() > 0)
 		{
 			// (Create if it does not exist and) Get UserLayoutsDirectory path
-			const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
+			const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(FLayoutsMenu::ELayoutsType::User);
 			// Iterate over selected layout ini files
 			FString FirstGoodLayoutFile = "";
 			const FText TrySaveLayoutOrWarnInternalText = LOCTEXT("ImportLayoutText", "importing the layout");
@@ -995,15 +931,14 @@ void FLayoutsMenuSave::MakeSaveLayoutsMenu(UToolMenu* InToolMenu)
 	if (GetDefault<UEditorStyleSettings>()->bEnableUserEditorLayoutManagement)
 	{
 		// MakeOverrideLayoutsMenu
-		const bool bDisplayDefaultLayouts = false;
-		FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, bDisplayDefaultLayouts, FPrivateLayoutsMenu::ELayoutsMenu::Save);
+		FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, FPrivateLayoutsMenu::ELayoutsMenu::Save);
 
 		// Additional sections
 		{
 			FToolMenuSection& Section = InToolMenu->FindOrAddSection("UserDefaultLayouts");
 
 			// Separator
-			if (FLayoutsMenuBase::IsThereUserLayouts())
+			if (FLayoutsMenu::IsThereUserLayouts())
 			{
 				Section.AddSeparator("AdditionalSectionsSeparator");
 			}
@@ -1021,36 +956,29 @@ void FLayoutsMenuSave::MakeSaveLayoutsMenu(UToolMenu* InToolMenu)
 	}
 }
 
-bool FLayoutsMenuSave::CanSaveChooseLayout(const int32 InLayoutIndex)
+bool FLayoutsMenuSave::CanSaveChooseLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
-	return !FLayoutsMenuBase::IsLayoutChecked(InLayoutIndex) && FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutIndex);
-}
-bool FLayoutsMenuSave::CanSaveChooseUserLayout(const int32 InLayoutIndex)
-{
-	return !FLayoutsMenuBase::IsUserLayoutChecked(InLayoutIndex) && FPrivateLayoutsMenu::CanChooseUserLayoutWhenWriteInternal(InLayoutIndex);
+	return !FLayoutsMenu::IsLayoutChecked(InLayoutIndex, InLayoutsType) && FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutsType);
 }
 
-void FLayoutsMenuSave::OverrideLayout(const int32 InLayoutIndex)
+void FLayoutsMenuSave::OverrideLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
 	// Default layouts should never be modified, so this function should never be called
-	UE_LOG(LogLayoutsMenu, Fatal, TEXT("Default layouts should never be modified, so this function should never be called."));
-}
+	checkf(InLayoutsType == FLayoutsMenu::ELayoutsType::User, TEXT("Default layouts should never be modified, so this function should never be called."));
 
-void FLayoutsMenuSave::OverrideUserLayout(const int32 InLayoutIndex)
-{
-	// (Create if it does not exist and) Get UserLayoutsDirectory path
-	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
-	// Get User Layout init files
-	const TArray<FString> UserLayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(UserLayoutsDirectory);
-	const FString DesiredUserLayoutFullPath = FPaths::Combine(FPaths::GetPath(UserLayoutsDirectory), UserLayoutIniFileNames[InLayoutIndex]);
+	// (Create if it does not exist and) Get LayoutsDirectory path
+	const FString LayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(InLayoutsType);
+	// Get Layout init files
+	const TArray<FString> LayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(LayoutsDirectory);
+	const FString DesiredLayoutFullPath = FPaths::Combine(FPaths::GetPath(LayoutsDirectory), LayoutIniFileNames[InLayoutIndex]);
 	// Are you sure you want to do this?
-	if (!FSaveLayoutDialogUtils::OverrideLayoutDialog(UserLayoutIniFileNames[InLayoutIndex]))
+	if (!FSaveLayoutDialogUtils::OverrideLayoutDialog(LayoutIniFileNames[InLayoutIndex]))
 	{
 		return;
 	}
 	// Target and source files
 	const FString& SourceFilePath = GEditorLayoutIni;
-	const FString& TargetFilePath = DesiredUserLayoutFullPath;
+	const FString& TargetFilePath = DesiredLayoutFullPath;
 	// Update GEditorLayoutIni file
 	SaveLayout();
 	// Replace desired layout with current one
@@ -1079,7 +1007,7 @@ void FLayoutsMenuSave::SaveLayoutAs()
 	// Update GEditorLayoutIni file
 	SaveLayout();
 	// Copy GEditorLayoutIni into desired file
-	const FString DefaultDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
+	const FString DefaultDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(FLayoutsMenu::ELayoutsType::User);
 	const bool bMustBeSavedInDefaultDirectory = true;
 	const bool bShouldAskBeforeCleaningLayoutNameAndDescriptionFields = false;
 	FPrivateLayoutsMenu::SaveExportLayoutCommon(DefaultDirectory, bMustBeSavedInDefaultDirectory, LOCTEXT("SaveLayoutText", "saving the layout"),
@@ -1108,15 +1036,14 @@ void FLayoutsMenuRemove::MakeRemoveLayoutsMenu(UToolMenu* InToolMenu)
 	if (GetDefault<UEditorStyleSettings>()->bEnableUserEditorLayoutManagement)
 	{
 		// MakeRemoveLayoutsMenu
-		const bool bDisplayDefaultLayouts = false;
-		FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, bDisplayDefaultLayouts, FPrivateLayoutsMenu::ELayoutsMenu::Remove);
+		FPrivateLayoutsMenu::MakeXLayoutsMenuInternal(InToolMenu, FPrivateLayoutsMenu::ELayoutsMenu::Remove);
 
 		// Additional sections
 		{
 			FToolMenuSection& Section = InToolMenu->FindOrAddSection("UserDefaultLayouts");
 
 			// Separator
-			if (FLayoutsMenuBase::IsThereUserLayouts())
+			if (FLayoutsMenu::IsThereUserLayouts())
 			{
 				Section.AddSeparator("AdditionalSectionsSeparator");
 			}
@@ -1127,30 +1054,23 @@ void FLayoutsMenuRemove::MakeRemoveLayoutsMenu(UToolMenu* InToolMenu)
 	}
 }
 
-bool FLayoutsMenuRemove::CanRemoveChooseLayout(const int32 InLayoutIndex)
+bool FLayoutsMenuRemove::CanRemoveChooseLayout(const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
-	return FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutIndex);
-}
-bool FLayoutsMenuRemove::CanRemoveChooseUserLayout(const int32 InLayoutIndex)
-{
-	return FPrivateLayoutsMenu::CanChooseUserLayoutWhenWriteInternal(InLayoutIndex);
+	return FPrivateLayoutsMenu::CanChooseLayoutWhenWriteInternal(InLayoutsType);
 }
 
-void FLayoutsMenuRemove::RemoveLayout(const int32 InLayoutIndex)
+void FLayoutsMenuRemove::RemoveLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType)
 {
 	// Default layouts should never be modified, so this function should never be called
-	UE_LOG(LogLayoutsMenu, Fatal, TEXT("Default layouts should never be modified, so this function should never be called."));
-}
+	checkf(InLayoutsType == FLayoutsMenu::ELayoutsType::User, TEXT("Default layouts should never be modified, so this function should never be called."));
 
-void FLayoutsMenuRemove::RemoveUserLayout(const int32 InLayoutIndex)
-{
-	// (Create if it does not exist and) Get UserLayoutsDirectory path
-	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
-	// Get User Layout init files
-	const TArray<FString> UserLayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(UserLayoutsDirectory);
-	const FString DesiredUserLayoutFullPath = FPaths::Combine(FPaths::GetPath(UserLayoutsDirectory), UserLayoutIniFileNames[InLayoutIndex]);
+	// (Create if it does not exist and) Get LayoutsDirectory path
+	const FString LayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(InLayoutsType);
+	// Get Layout init files
+	const TArray<FString> LayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(LayoutsDirectory);
+	const FString DesiredLayoutFullPath = FPaths::Combine(FPaths::GetPath(LayoutsDirectory), LayoutIniFileNames[InLayoutIndex]);
 	// Are you sure you want to do this?
-	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(UserLayoutIniFileNames[InLayoutIndex]));
+	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(LayoutIniFileNames[InLayoutIndex]));
 	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg",
 		"Are you sure you want to permanently delete the layout profile \"{0}\"? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("RemoveUILayout_Title", "Remove UI Layout \"{0}\"?"), TextFileNameToRemove);
@@ -1159,13 +1079,13 @@ void FLayoutsMenuRemove::RemoveUserLayout(const int32 InLayoutIndex)
 		return;
 	}
 	// Remove layout
-	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*DesiredUserLayoutFullPath);
+	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*DesiredLayoutFullPath);
 }
 
 void FLayoutsMenuRemove::RemoveUserLayouts()
 {
 	// (Create if it does not exist and) Get UserLayoutsDirectory path
-	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
+	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(FLayoutsMenu::ELayoutsType::User);
 	// Count how many layout files exist
 	const int32 NumberUserLayoutFiles = FPrivateLayoutsMenu::GetNumberLayoutFiles(UserLayoutsDirectory);
 	// If files to remove, warn user and remove them all
@@ -1205,56 +1125,35 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 
 
 
-/* FLayoutsMenuBase public functions
+/* FLayoutsMenu public functions
  *****************************************************************************/
 
-FString FLayoutsMenuBase::GetLayout(const int32 InLayoutIndex)
+FString FLayoutsMenu::GetLayout(const int32 InLayoutIndex, const ELayoutsType InLayoutsType)
 {
-	// Get LayoutsDirectory path, layout init files, and desired layout path
-	const FString LayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal();
+	// (Create if it does not exist and) Get LayoutsDirectory path, layout init files, and desired layout path
+	const FString LayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(InLayoutsType);
 	const TArray<FString> LayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(LayoutsDirectory);
 	const FString DesiredLayoutFullPath = FPaths::Combine(FPaths::GetPath(LayoutsDirectory), LayoutIniFileNames[InLayoutIndex]);
 	// Return full path
 	return DesiredLayoutFullPath;
 }
 
-FString FLayoutsMenuBase::GetUserLayout(const int32 InLayoutIndex)
-{
-	// (Create if it does not exist and) Get UserLayoutsDirectory path, user layout init files, and desired user layout path
-	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
-	const TArray<FString> UserLayoutIniFileNames = FPrivateLayoutsMenu::GetIniFilesInFolderInternal(UserLayoutsDirectory);
-	const FString DesiredUserLayoutFullPath = FPaths::Combine(FPaths::GetPath(UserLayoutsDirectory), UserLayoutIniFileNames[InLayoutIndex]);
-	// Return full path
-	return DesiredUserLayoutFullPath;
-}
-
-bool FLayoutsMenuBase::IsThereUserLayouts()
+bool FLayoutsMenu::IsThereUserLayouts()
 {
 	// (Create if it does not exist and) Get UserLayoutsDirectory path
-	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetUserLayoutDirInternal();
+	const FString UserLayoutsDirectory = FPrivateLayoutsMenu::CreateAndGetDefaultLayoutDirInternal(ELayoutsType::User);
 	// At least 1 user layout file?
 	return FPrivateLayoutsMenu::GetNumberLayoutFiles(UserLayoutsDirectory) > 0;
 }
 
-bool FLayoutsMenuBase::IsLayoutChecked(const int32 InLayoutIndex)
+bool FLayoutsMenu::IsLayoutChecked(const int32 InLayoutIndex, const ELayoutsType InLayoutsType)
 {
 #if PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
 	return false;
 #else
 	// Check if the desired layout file matches the one currently loaded
 	const bool bCheckTempFileToo = true;
-	return FPrivateLayoutsMenu::IsLayoutCheckedInternal(GetLayout(InLayoutIndex), bCheckTempFileToo);
-#endif
-}
-
-bool FLayoutsMenuBase::IsUserLayoutChecked(const int32 InLayoutIndex)
-{
-#if PLATFORM_MAC // On Mac, each time a key is pressed, all menus are re-generated, stalling the Editor given that SaveLayout is slow on Mac because it does not caches as in Windows.
-	return false;
-#else
-	// Check if the desired layout file matches the one currently loaded
-	const bool bCheckTempFileToo = true;
-	return FPrivateLayoutsMenu::IsLayoutCheckedInternal(GetUserLayout(InLayoutIndex), bCheckTempFileToo);
+	return FPrivateLayoutsMenu::IsLayoutCheckedInternal(GetLayout(InLayoutIndex, InLayoutsType), bCheckTempFileToo);
 #endif
 }
 
