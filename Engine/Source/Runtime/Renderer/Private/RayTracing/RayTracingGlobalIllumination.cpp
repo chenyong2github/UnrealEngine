@@ -314,6 +314,7 @@ RENDERER_API void SetupLightParameters(
 		}
 		};
 
+		LightParameters->Color[LightParameters->Count] *= Light.LightSceneInfo->Proxy->GetIndirectLightingScale();
 		LightParameters->Count++;
 	}
 }
