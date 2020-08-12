@@ -26,6 +26,7 @@
 	<buildGradleAdditions>
 		<insert>
 			dependencies.implementation(name: 'aar', ext: 'aar')
+			dependencies.implementation(name: 'memoryadvice-release', ext: 'aar')
 		</insert>
 	</buildGradleAdditions>
 	
