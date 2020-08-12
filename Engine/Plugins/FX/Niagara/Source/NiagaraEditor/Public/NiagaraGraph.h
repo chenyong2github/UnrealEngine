@@ -386,6 +386,9 @@ class UNiagaraGraph : public UEdGraph
 
 	static FName StandardizeName(FName Name, ENiagaraScriptUsage Usage, bool bIsGet, bool bIsSet);
 
+	/** Helper to get a map of variables to all input/output pins with the same name. */
+	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> NIAGARAEDITOR_API CollectVarsToInOutPinsMap() const;
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
@@ -404,9 +407,6 @@ private:
 
 	/** When a new variable is added to the VariableToScriptVariableMap, generate appropriate scope and usage. */
 	void GenerateMetaDataForScriptVariable(UNiagaraScriptVariable* InScriptVariable) const;
-
-	/** Helper to get a map of variables to all input/output pins with the same name. */
-	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> CollectVarsToInOutPinsMap() const;
 
 	/**
 	 * Set the usage of a script variable depending on input/output pins with same name.
