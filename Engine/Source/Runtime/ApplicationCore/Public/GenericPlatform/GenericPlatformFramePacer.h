@@ -28,7 +28,7 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
 	
 	/**
 	 * The pace we are running at (30 = 30fps, 0 = unpaced)
-	 * The generic implementation returns a result based on rhi.SyncInterval assuming a 60Hz native refresh rate.
+	 * The generic implementation returns a result based on rhi.SyncInterval assuming a native refresh rate from GetMaxRefreshRate.
 	 */
 	static int32 GetFramePace();
 
@@ -47,7 +47,7 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
 
 protected:
 	/**
-	 * The generic implementation returns a result based on rhi.SyncInterval assuming a 60Hz native refresh rate.
+	 * The generic implementation returns a result based on rhi.SyncInterval assuming a  native refresh rate from GetMaxRefreshRate.
 	 */
 	static int32 GetFramePaceFromSyncInterval();
 
@@ -57,4 +57,10 @@ protected:
 	 * @return the pace we will run at.
 	 */
 	static int32 SetFramePaceToSyncInterval(int32 FramePace);
+
+	/**
+	 * queries the max refresh rate of the system, assumes 60Hz by default
+	 */
+	static uint32 GetMaxRefreshRate() { return 60; }
+
 };
