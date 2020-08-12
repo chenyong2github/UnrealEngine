@@ -465,6 +465,21 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 
 	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
 	OnSyncBodies(Accessor);
+
+
+	//
+	// @todo(chaos) : Add Dirty Constraints Support
+	//
+	// This is temporary constraint code until the DirtyParticleBuffer
+	// can be updated to support constraints. In summary : The 
+	// FDirtyPropertiesManager is going to be updated to support a 
+	// FDirtySet that is specific to a TConstraintProperties class.
+	//
+	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy())
+	{
+		Proxy->PullFromPhysicsState();
+	}
+
 }
 
 
