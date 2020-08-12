@@ -922,6 +922,9 @@ public:
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
 
+	/** A map from primitive ID to a boolean is distance culled */
+	FSceneBitArray DistanceCullingPrimitiveMap;
+
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
 	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
 
