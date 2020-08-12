@@ -96,6 +96,8 @@ namespace Chaos
 		//void SetUserData(void* InUserData);
 		//void* GetUserData() const
 
+		void SetLinearPositionDriveEnabled( TVector<bool,3> Enabled);
+		
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, LinearPositionDriveXEnabled, EJointConstraintFlags::LinearDrive, JointSettings.bLinearPositionDriveEnabled[0]);
 		//void SetLinearPositionDriveXEnabled(bool InLinearPositionDriveXEnabled);
 		//bool GetLinearPositionDriveXEnabled() const
@@ -111,6 +113,8 @@ namespace Chaos
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, LinearDrivePositionTarget, EJointConstraintFlags::LinearDrive, JointSettings.LinearDrivePositionTarget);
 		//void SetLinearDrivePositionTarget(FVec3 InLinearDrivePositionTarget);
 		//FVec3 GetLinearDrivePositionTarget() const
+
+		void SetLinearVelocityDriveEnabled(TVector<bool,3> Enabled);
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, LinearVelocityDriveXEnabled, EJointConstraintFlags::LinearDrive, JointSettings.bLinearVelocityDriveEnabled[0]);
 		//void SetLinearVelocityDriveXEnabled(bool InLinearVelocityDriveXEnabled);
