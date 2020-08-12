@@ -334,7 +334,7 @@ void ContentBrowserUtils::CopyFilePathsToClipboard(const TArray<FContentBrowserI
 		FString ItemFilename;
 		if (Item.GetItemPhysicalPath(ItemFilename) && FPaths::FileExists(ItemFilename))
 		{
-			ClipboardText += ItemFilename;
+			ClipboardText += FPaths::ConvertRelativePathToFull(ItemFilename);
 		}
 		else
 		{
