@@ -440,7 +440,7 @@ void FVivoxVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& Playe
 	LoginSession.PlayerName = PlayerName;
 	LoginSession.AccountName = AccountName;
 	LoginSession.UserUri = UserUri;
-	LoginSession.State = FLoginSession::EState::LoggedOut;
+	LoginSession.State = FLoginSession::EState::LoggingIn;
 
 	OnVoiceChatLoginCompleteDelegate = Delegate;
 
@@ -455,8 +455,6 @@ void FVivoxVoiceChatUser::Login(FPlatformUserId PlatformId, const FString& Playe
 		TriggerCompletionDelegate(OnVoiceChatLoginCompleteDelegate, PlayerName, Result);
 		return;
 	}
-
-	LoginSession.State = FLoginSession::EState::LoggingIn;
 }
 
 void FVivoxVoiceChatUser::Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate)
@@ -1921,6 +1919,19 @@ bool FVivoxVoiceChat::Initialize()
 	return IsInitialized();
 }
 
+void FVivoxVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Delegate)
+{
+	const bool bResult = Initialize();
+	const FVoiceChatResult Result = bResult ? FVoiceChatResult::CreateSuccess() : FVoiceChatResult(EVoiceChatResult::ImplementationError);
+	if (Delegate.IsBound())
+	{
+		AsyncTask(ENamedThreads::GameThread, [Delegate, Result]()
+		{
+			Delegate.Execute(Result);
+		});
+	}
+}
+
 bool FVivoxVoiceChat::Uninitialize()
 {
 	if (IsInitialized())
@@ -1933,6 +1944,19 @@ bool FVivoxVoiceChat::Uninitialize()
 	}
 
 	return true;
+}
+
+void FVivoxVoiceChat::Uninitialize(const FOnVoiceChatUninitializeCompleteDelegate& Delegate)
+{
+	const bool bResult = Uninitialize();
+	const FVoiceChatResult Result = bResult ? FVoiceChatResult::CreateSuccess() : FVoiceChatResult(EVoiceChatResult::ImplementationError);
+	if (Delegate.IsBound())
+	{
+		AsyncTask(ENamedThreads::GameThread, [Delegate, Result]()
+		{
+			Delegate.Execute(Result);
+		});
+	}
 }
 
 bool FVivoxVoiceChat::IsInitialized() const
@@ -3157,6 +3181,22 @@ void FVivoxVoiceChat::RegisterVoiceChatUser(FVivoxVoiceChatUser* User)
 
 void FVivoxVoiceChat::UnregisterVoiceChatUser(FVivoxVoiceChatUser* User)
 {
-	FScopeLock Lock(&VoiceChatUsersCriticalSection);
-	VoiceChatUsers.Remove(User);
+	if (User)
+	{
+		if (IsInitialized()
+			&& IsConnected()
+			&& User->IsLoggedIn())
+		{
+			User->Logout(FOnVoiceChatLogoutCompleteDelegate::CreateLambda([](const FString& PlayerName, const FVoiceChatResult& Result)
+			{
+				if (!Result.IsSuccess())
+				{
+					UE_LOG(LogVivoxVoiceChat, Warning, TEXT("UnregisterVoiceChatUser PlayerName=[%s] Logout %s"), *PlayerName, *LexToString(Result))
+				}
+			}));
+		}
+
+		FScopeLock Lock(&VoiceChatUsersCriticalSection);
+		VoiceChatUsers.Remove(User);
+	}
 }
