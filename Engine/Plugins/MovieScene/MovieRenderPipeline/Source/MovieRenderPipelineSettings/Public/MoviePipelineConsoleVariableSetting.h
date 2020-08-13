@@ -38,8 +38,11 @@ protected:
 			return;
 		}
 
-		PreviousConsoleVariableValues.Reset();
-		PreviousConsoleVariableValues.SetNumZeroed(ConsoleVariables.Num());
+		if (bOverrideValues)
+		{
+			PreviousConsoleVariableValues.Reset();
+			PreviousConsoleVariableValues.SetNumZeroed(ConsoleVariables.Num());
+		}
 
 		int32 Index = 0;
 		for(const TPair<FString, float>& KVP : ConsoleVariables)
