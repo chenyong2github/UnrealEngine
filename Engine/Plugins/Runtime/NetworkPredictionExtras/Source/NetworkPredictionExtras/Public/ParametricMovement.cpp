@@ -165,7 +165,7 @@ void UParametricMovementComponent::ProduceInput(const int32 DeltaTimeMS, FParame
 	PendingPlayRate.Reset();
 }
 
-void UParametricMovementComponent::FinalizeFrame(const FParametricSyncState* SyncState, const FParametricAuxState* AuxState)
+void UParametricMovementComponent::RestoreFrame(const FParametricSyncState* SyncState, const FParametricAuxState* AuxState)
 {
 	FTransform NewTransform;
 	ParametricMotion.MapTimeToTransform(SyncState->Position, NewTransform);
@@ -174,6 +174,11 @@ void UParametricMovementComponent::FinalizeFrame(const FParametricSyncState* Syn
 
 	check(UpdatedComponent);
 	UpdatedComponent->SetWorldTransform(NewTransform, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void UParametricMovementComponent::FinalizeFrame(const FParametricSyncState* SyncState, const FParametricAuxState* AuxState)
+{
+	RestoreFrame(SyncState, AuxState);
 }
 
 void UParametricMovementComponent::EnableInterpolationMode(bool bValue)

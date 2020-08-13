@@ -129,11 +129,6 @@ public:
 	/** Main update function */
 	NETWORKPREDICTIONEXTRAS_API void SimulationTick(const FNetSimTimeStep& TimeStep, const TNetSimInput<FlyingMovementStateTypes>& Input, const TNetSimOutput<FlyingMovementStateTypes>& Output);
 
-	// Called prior to running the sim to make sure to make sure the collision component is in the right place. 
-	// This is unfortunate and not good, but is needed to ensure our collision and world position have not been moved out from under us.
-	// Refactoring primitive component movement to allow the sim to do all collision queries outside of the component code would be ideal.
-	void PreSimSync(const FFlyingMovementSyncState& SyncState);
-
 	// Callbacks
 	void OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 

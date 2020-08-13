@@ -32,6 +32,7 @@ public:
 
 	void InitializeSimulationState(FMockRootMotionSyncState* SyncState, FMockRootMotionAuxState* AuxState);
 	void ProduceInput(const int32 SimTimeMS, FMockRootMotionInputCmd* Cmd);
+	void RestoreFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState);
 	void FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState);
 	
 	// Callable by controlling client only. Queues root motion source to be played. By UAnimMontage in RootMotionSourceDataAsset.
