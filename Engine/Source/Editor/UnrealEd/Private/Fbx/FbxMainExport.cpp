@@ -86,7 +86,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Interrogation/SequencerInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 
 #if WITH_PHYSX
@@ -3046,7 +3046,7 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
-	USequencerInterrogationLinker* Interrogator = NewObject<USequencerInterrogationLinker>(GetTransientPackage());
+	UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
 
 	for (TWeakObjectPtr<UMovieScene3DTransformTrack> WeakTransformTrack : TransformTracks)
 	{

@@ -32,8 +32,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Editor/SceneOutliner/Private/SSocketChooser.h"
 #include "SComponentChooser.h"
-#include "Interrogation/SequencerInterrogationLinker.h"
-#include "Interrogation/SequencerInterrogatedPropertyInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 #include "ISequencerModule.h"
 #include "MovieSceneTracksComponentTypes.h"
@@ -101,7 +101,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 		else
 		{
 			// No custom callback... we need to run the blender system on our property.
-			USequencerInterrogationLinker* Interrogator = NewObject<USequencerInterrogationLinker>(GetTransientPackage());
+			UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
 
 			TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator->EntityManager);
 
@@ -114,7 +114,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 
 			const FMovieSceneEntityID EntityID = Interrogator->FindEntityFromOwner(InterrogationChannel, SectionToKey, 0);
 
-			USequencerInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<USequencerInterrogatedPropertyInstantiatorSystem>();
+			UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
 			if (ensure(System) && EntityID)  // EntityID can be invalid here if we are keying a section that is currently empty
 			{

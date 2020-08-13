@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Interrogation/SequencerInterrogationLinker.h"
-#include "Interrogation/SequencerInterrogatedPropertyInstantiator.h"
-
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
@@ -12,14 +10,14 @@
 
 
 
-USequencerInterrogationLinker::USequencerInterrogationLinker(const FObjectInitializer& ObjInit)
+UMovieSceneInterrogationLinker::UMovieSceneInterrogationLinker(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	SystemContext = UE::MovieScene::EEntitySystemContext::Interrogation;
 	NextChannel = UE::MovieScene::FInterrogationChannel::First();
 }
 
-void USequencerInterrogationLinker::Reset()
+void UMovieSceneInterrogationLinker::Reset()
 {
 	using namespace UE::MovieScene;
 
@@ -34,7 +32,7 @@ void USequencerInterrogationLinker::Reset()
 	Super::Reset();
 }
 
-void USequencerInterrogationLinker::ImportTrack(UMovieSceneTrack* Track)
+void UMovieSceneInterrogationLinker::ImportTrack(UMovieSceneTrack* Track)
 {
 	using namespace UE::MovieScene;
 
@@ -72,7 +70,7 @@ void USequencerInterrogationLinker::ImportTrack(UMovieSceneTrack* Track)
 	}
 }
 
-UE::MovieScene::FInterrogationChannel USequencerInterrogationLinker::AddInterrogation(FFrameTime Time)
+UE::MovieScene::FInterrogationChannel UMovieSceneInterrogationLinker::AddInterrogation(FFrameTime Time)
 {
 	using namespace UE::MovieScene;
 
@@ -113,7 +111,7 @@ UE::MovieScene::FInterrogationChannel USequencerInterrogationLinker::AddInterrog
 	return Channel;
 }
 
-void USequencerInterrogationLinker::InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityQuery& Query)
+void UMovieSceneInterrogationLinker::InterrogateEntity(const UE::MovieScene::FEntityImportSequenceParams& ImportParams, UE::MovieScene::FInterrogationChannel InterrogationChannel, const FMovieSceneEvaluationFieldEntityQuery& Query)
 {
 	using namespace UE::MovieScene;
 
@@ -148,7 +146,7 @@ void USequencerInterrogationLinker::InterrogateEntity(const UE::MovieScene::FEnt
 	}
 }
 
-void USequencerInterrogationLinker::Update()
+void UMovieSceneInterrogationLinker::Update()
 {
 	using namespace UE::MovieScene;
 
@@ -170,7 +168,7 @@ void USequencerInterrogationLinker::Update()
 	EntityManager.IncrementSystemSerial();
 }
 
-UE::MovieScene::FMovieSceneEntityID USequencerInterrogationLinker::FindEntityFromOwner(UE::MovieScene::FInterrogationChannel InterrogationChannel, UObject* Owner, uint32 EntityID) const
+UE::MovieScene::FMovieSceneEntityID UMovieSceneInterrogationLinker::FindEntityFromOwner(UE::MovieScene::FInterrogationChannel InterrogationChannel, UObject* Owner, uint32 EntityID) const
 {
 	using namespace UE::MovieScene;
 
@@ -178,7 +176,7 @@ UE::MovieScene::FMovieSceneEntityID USequencerInterrogationLinker::FindEntityFro
 	return ImportedEntities.FindRef(Key);
 }
 
-UE::MovieScene::FMovieSceneEntityID USequencerInterrogationLinker::FindEntityFromOwner(FFrameTime InterrogationTime, UObject* Owner, uint32 EntityID) const
+UE::MovieScene::FMovieSceneEntityID UMovieSceneInterrogationLinker::FindEntityFromOwner(FFrameTime InterrogationTime, UObject* Owner, uint32 EntityID) const
 {
 	using namespace UE::MovieScene;
 

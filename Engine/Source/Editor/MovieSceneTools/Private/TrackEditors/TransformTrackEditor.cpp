@@ -28,8 +28,8 @@
 #include "SequencerUtilities.h"
 #include "MovieSceneToolHelpers.h"
 
-#include "Interrogation/SequencerInterrogationLinker.h"
-#include "Interrogation/SequencerInterrogatedPropertyInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 #include "MovieSceneTracksComponentTypes.h"
 
@@ -864,7 +864,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 	using namespace UE::MovieScene;
 	using namespace UE::Sequencer;
 
-	USequencerInterrogationLinker* Interrogator = NewObject<USequencerInterrogationLinker>(GetTransientPackage());
+	UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
 
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator->EntityManager);
 
@@ -894,7 +894,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 		}
 	}
 
-	USequencerInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<USequencerInterrogatedPropertyInstantiatorSystem>();
+	UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
 	if (ensure(System && ValidEntities.Num() != 0))
 	{
