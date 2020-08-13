@@ -14,7 +14,7 @@ class FRHICommandListImmediate;
 typedef TSharedPtr<FCanvas, ESPMode::ThreadSafe> FCanvasPtr;
 
 /** Widget wrapper that paints the debug canvas */
-class SDebugCanvas : public SLeafWidget
+class ENGINE_API SDebugCanvas : public SLeafWidget
 {
 	SLATE_BEGIN_ARGS(SDebugCanvas)
 	{
