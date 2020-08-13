@@ -341,7 +341,7 @@ public:
  * Separate from UGameEngine because it may have much different functionality than desired for an instance of a game itself.
  */
 UCLASS(config=Engine, transient)
-class UNREALED_API UEditorEngine : public UEngine, public FGCObject
+class UNREALED_API UEditorEngine : public UEngine
 {
 public:
 	GENERATED_BODY()
@@ -3242,15 +3242,6 @@ private:
 
 	/** Delegate handle for game viewport close requests in PIE sessions. */
 	FDelegateHandle ViewportCloseRequestedDelegateHandle;
-
-public:
-	// FGCObject Interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return "EditorEngine";
-	}
-	// ~FGCObject Interface
 
 public:
 	/**

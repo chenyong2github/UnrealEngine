@@ -1294,6 +1294,12 @@ void UEditorEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 		Collector.AddReferencedObject( This->ActorFactories[ Index ], This );
 	}
 
+	// If we're in a PIE session, ensure we keep the current settings object alive.
+	if (This->PlayInEditorSessionInfo.IsSet() && This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings)
+	{
+		Collector.AddReferencedObject(This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, This);
+	}
+
 	Super::AddReferencedObjects( This, Collector );
 }
 
@@ -7746,14 +7752,5 @@ bool UEditorEngine::GetPreviewPlatformName(FName& PlatformGroupName, FName& Vani
 
 	return false;
 }
-
-void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	if (PlayInEditorSessionInfo.IsSet())
-	{
-		Collector.AddReferencedObject(PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, this);
-	}
-}
-
 
 #undef LOCTEXT_NAMESPACE 
