@@ -57,12 +57,6 @@ void FMockRootMotionSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 		return;
 	}
 
-	// Component has to be put in the right place first
-	// FIXME: this has to happen outside of the ::SimulationTick for group reconciliation to be correct
-	// (E.g if another sim ticked before us, our PrimitiveComponent will not be in the right spot (our Sync state transform)
-	FTransform StartingTransform(LocalSync.Rotation, LocalSync.Location, UpdatedComponent->GetComponentTransform().GetScale3D());
-	UpdatedComponent->SetWorldTransform(StartingTransform, false, nullptr, ETeleportType::TeleportPhysics);
-
 	// Call into root motion source map to actually update the root motino state
 	FTransform LocalDeltaTransform = this->SourceMap->StepRootMotion(TimeStep, &LocalSync, Output.Sync, LocalAuxPtr);
 
