@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "0.1",
 	"FriendlyName": "Network Prediction Extras",
-	"Description": "Non essential classes for Network Prediction. Samples, test maps, etc intended to help developers start using the system. Not intended to be usesd directly in a shipping product.",
+	"Description": "Non essential classes for Network Prediction. Samples, test maps, etc intended to help developers start using the system. Not intended to be used directly in a shipping product.",
 	"Category": "Gameplay",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
