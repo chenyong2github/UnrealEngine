@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
                     "GeometryCollectionCore", 
                     "GeometryCollectionSimulationCore",
 	                "ChaosSolverEngine",
+					"NetCore",
                     "IntelISPC"
                 }
                 );
