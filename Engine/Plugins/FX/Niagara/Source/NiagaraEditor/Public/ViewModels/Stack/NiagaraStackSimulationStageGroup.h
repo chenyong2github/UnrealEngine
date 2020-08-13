@@ -73,6 +73,10 @@ public:
 
 	virtual bool CanDrag() const override { return true; }
 
+	virtual bool GetIsEnabled() const override;
+	virtual void SetIsEnabled(bool bEnabled) override;
+	virtual bool SupportsChangeEnabled() const override { return true; }
+
 protected:
 	virtual void FinalizeInternal() override;
 

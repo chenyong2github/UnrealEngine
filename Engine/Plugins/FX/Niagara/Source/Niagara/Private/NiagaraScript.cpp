@@ -482,7 +482,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			for (UNiagaraSimulationStageBase* Base : Emitter->GetSimulationStages())
 			{
 				// bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
-				if (Base)
+				if (Base && Base->bEnabled)
 				{
 					Base->AppendCompileHash(&Visitor);
 				}

@@ -5,13 +5,59 @@
 #include "NiagaraSystem.h"
 #include "NiagaraScriptSourceBase.h"
 
+bool UNiagaraSimulationStageBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+#if WITH_EDITORONLY_DATA
+	const int32 Index = InVisitor->Values.AddDefaulted();
+	InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *GetClass()->GetName(), *GetName());
+#endif
+	InVisitor->UpdatePOD(TEXT("Enabled"), bEnabled ? 1 : 0);
+	return true;
+}
+
+#if WITH_EDITOR
+void UNiagaraSimulationStageBase::SetEnabled(bool bInEnabled)
+{
+	if (bEnabled != bInEnabled)
+	{
+		bEnabled = bInEnabled;
+		RequestRecompile();
+	}
+}
+
+void UNiagaraSimulationStageBase::RequestRecompile()
+{
+	UNiagaraEmitter* Emitter = Cast< UNiagaraEmitter>(GetOuter());
+	if (Emitter)
+	{
+		UNiagaraScriptSourceBase* GraphSource = Emitter->UpdateScriptProps.Script->GetSource();
+		if (GraphSource != nullptr)
+		{
+			GraphSource->MarkNotSynchronized(TEXT("SimulationStage changed."));
+		}
+
+		UNiagaraSystem::RequestCompileForEmitter(Emitter);
+	}
+}
+
+void UNiagaraSimulationStageBase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FName PropertyName;
+	if (PropertyChangedEvent.Property)
+	{
+		PropertyName = PropertyChangedEvent.Property->GetFName();
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageBase, bEnabled))
+	{
+		RequestRecompile();
+	}
+}
+#endif
 
 bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const 
 {
-#if WITH_EDITORONLY_DATA
-	int32 Index = InVisitor->Values.AddDefaulted();
-	InVisitor->Values[Index].Object = FString::Printf(TEXT("Class: \"%s\"  Name: \"%s\""), *GetClass()->GetName(), *GetName());
-#endif
+	Super::AppendCompileHash(InVisitor);
 
 	InVisitor->UpdatePOD(TEXT("Iterations"), Iterations);
 	InVisitor->UpdatePOD(TEXT("IterationSource"), (int32)IterationSource);
@@ -21,6 +67,7 @@ bool UNiagaraSimulationStageGeneric::AppendCompileHash(FNiagaraCompileHashVisito
 	InVisitor->UpdateString(TEXT("SimulationStageName"), SimulationStageName.ToString());
 	return true;
 }
+
 #if WITH_EDITOR
 void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) 
 {
@@ -32,45 +79,35 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 		PropertyName = PropertyChangedEvent.Property->GetFName();
 	}
 
-	UNiagaraEmitter* Emitter = Cast< UNiagaraEmitter>(GetOuter());
-
 	bool bNeedsRecompile = false;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations) && Emitter)
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, Iterations))
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, IterationSource) && Emitter)
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, IterationSource))
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bSpawnOnly) && Emitter)
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bSpawnOnly))
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bPartialParticleUpdate) && Emitter)
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, bPartialParticleUpdate))
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, DataInterface) && Emitter)
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, DataInterface))
 	{
 		bNeedsRecompile = true;
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, SimulationStageName) && Emitter)
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSimulationStageGeneric, SimulationStageName))
 	{
 		bNeedsRecompile = true;
 	}
 
-#if WITH_EDITORONLY_DATA
 	if (bNeedsRecompile)
 	{
-		UNiagaraScriptSourceBase* GraphSource = Emitter->UpdateScriptProps.Script->GetSource();
-		if (GraphSource != nullptr)
-		{
-			GraphSource->MarkNotSynchronized(TEXT("SimulationStageGeneric changed."));
-		}
-
-		UNiagaraSystem::RequestCompileForEmitter(Emitter);
+		RequestRecompile();
 	}
-#endif
 }
 #endif
