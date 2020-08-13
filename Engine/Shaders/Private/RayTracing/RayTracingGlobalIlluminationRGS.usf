@@ -158,6 +158,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 			uint RayFlags = 0;
 			const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 			const bool bEnableSkyLightContribution = true;
+			const bool bIgnoreTranslucentMaterials = false;
 
 #if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
@@ -170,7 +171,8 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				InstanceInclusionMask,
 				Ray,
 				RayCone,
-				bEnableSkyLightContribution);
+				bEnableSkyLightContribution,
+				bIgnoreTranslucentMaterials);
 
 			// Environment hit
 			if (Payload.IsMiss())

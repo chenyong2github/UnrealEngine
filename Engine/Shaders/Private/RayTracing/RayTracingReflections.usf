@@ -195,6 +195,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_TRANSLUCENT;
 	FRayCone RayCone = (FRayCone)0;
 	bool bEnableSkyLightContribution = true;
+	bool bIgnoreTranslucentMaterials = false;
 
 	FMaterialClosestHitPayload TransmPayload = TraceMaterialRay(
 		TLAS,
@@ -202,7 +203,8 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 		InstanceInclusionMask,
 		TransmissionRay,
 		RayCone,
-		bEnableSkyLightContribution);
+		bEnableSkyLightContribution,
+		bIgnoreTranslucentMaterials);
 
 	const uint HitCountMax = 32;
 	uint HitCount = 0;
@@ -230,7 +232,8 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 			RAY_TRACING_MASK_TRANSLUCENT,
 			TransmissionRay,
 			RayCone,
-			bEnableSkyLightContribution);
+			bEnableSkyLightContribution,
+			bIgnoreTranslucentMaterials);
 
 		bIsHit = TransmPayload.IsHit();
 	}

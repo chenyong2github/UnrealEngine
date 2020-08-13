@@ -272,6 +272,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 			uint RayFlags = 0;
 			const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 			const bool bEnableSkyLightContribution = true;
+			const bool bIgnoreTranslucentMaterials = false;
 
 #if !ENABLE_TWO_SIDED_GEOMETRY
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
@@ -303,7 +304,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 				InstanceInclusionMask,
 				Ray,
 				RayCone,
-				bEnableSkyLightContribution);
+				bEnableSkyLightContribution,
+				bIgnoreTranslucentMaterials);
 
 			// TODO: impossible based on formulation
 			if (Payload.HitT > MaxRayDistanceForGI) return;
