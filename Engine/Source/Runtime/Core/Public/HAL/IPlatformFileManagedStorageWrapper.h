@@ -595,11 +595,13 @@ private:
 
 class CORE_API FManagedStoragePlatformFile : public IPlatformFile
 {
+private:
 	IPlatformFile* LowerLevel;
+
 public:
 	static const TCHAR* GetTypeName()
 	{
-		return TEXT("ManagedStorageFile");
+		return TEXT("ManagedStoragePlatformFile");
 	}
 
 	FManagedStoragePlatformFile() = delete;
@@ -630,7 +632,7 @@ public:
 		return bResult;
 	}
 
-	IPlatformFile* GetLowerLevel() override
+	virtual IPlatformFile* GetLowerLevel() override
 	{
 		return LowerLevel;
 	}
