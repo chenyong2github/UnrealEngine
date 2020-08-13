@@ -267,40 +267,48 @@ void AChaosCacheManager::BeginPlay()
 				case ECacheMode::Play:
 				{
 					UChaosCache*    PlayCache = CacheCollection->FindCache(Observed.CacheName);
-					FCacheUserToken Token     = PlayCache->BeginPlayback();
-
-					if(Token.IsOpen() && CurrAdapter->ValidForPlayback(Comp, PlayCache))
+					
+					if(PlayCache)
 					{
-						SolverData->PlaybackIndices.Add(Index);
-						SolverData->PlaybackTickRecords.AddDefaulted();
-						SolverData->PlaybackTickRecords.Last().SetSpaceTransform(Comp->GetComponentToWorld());
-						Observed.Cache = PlayCache;
-						Observed.TickRecord.SetSpaceTransform(Comp->GetComponentToWorld());
-						OpenPlaybackCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
-						CurrAdapter->InitializeForPlayback(Comp, Observed.Cache);
+						FCacheUserToken Token = PlayCache->BeginPlayback();
+
+						if(Token.IsOpen() && CurrAdapter->ValidForPlayback(Comp, PlayCache))
+						{
+							SolverData->PlaybackIndices.Add(Index);
+							SolverData->PlaybackTickRecords.AddDefaulted();
+							SolverData->PlaybackTickRecords.Last().SetSpaceTransform(Comp->GetComponentToWorld());
+							Observed.Cache = PlayCache;
+							Observed.TickRecord.SetSpaceTransform(Comp->GetComponentToWorld());
+							OpenPlaybackCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
+							CurrAdapter->InitializeForPlayback(Comp, Observed.Cache);
+						}
+						else
+						{
+							if(Token.IsOpen())
+							{
+								UE_LOG(LogChaosCache,
+									   Warning,
+									   TEXT("Failed playback for component %s, Selected cache adapter unable to handle the cache (the cache is incompatible)"),
+									   *Comp->GetPathName());
+
+								// The cache session was valid so make sure to end it
+								PlayCache->EndPlayback(Token);
+							}
+							else    // Already open for record somewhere
+							{
+								UE_LOG(LogChaosCache,
+									   Warning,
+									   TEXT("Failed playback for component %s using cache %s, cache already open for record"),
+									   *Comp->GetName(),
+									   *PlayCache->GetPathName());
+							}
+
+							++NumFailedPlaybackEntries;
+						}
 					}
 					else
 					{
-						if(Token.IsOpen())
-						{
-							UE_LOG(LogChaosCache,
-								   Warning,
-								   TEXT("Failed playback for component %s, Selected cache adapter unable to handle the cache (the cache is incompatible)"),
-								   *Comp->GetPathName());
-
-							// The cache session was valid so make sure to end it
-							PlayCache->EndPlayback(Token);
-						}
-						else    // Already open for record somewhere
-						{
-							UE_LOG(LogChaosCache,
-								   Warning,
-								   TEXT("Failed playback for component %s using cache %s, cache already open for record"),
-								   *Comp->GetName(),
-								   *PlayCache->GetPathName());
-						}
-
-						++NumFailedPlaybackEntries;
+						UE_LOG(LogChaosCache, Log, TEXT("Skipping playback for component %s, no available cache."), *Comp->GetName());
 					}
 
 					break;
