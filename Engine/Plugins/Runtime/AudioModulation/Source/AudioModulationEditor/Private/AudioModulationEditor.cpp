@@ -132,9 +132,9 @@ void FAudioModulationEditorModule::StartupModule()
 void FAudioModulationEditorModule::RegisterCustomPropertyLayouts()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationOutputTransform",
+	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationTransform",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
-			&FSoundModulationOutputTransformLayoutCustomization::MakeInstance));
+			&FSoundModulationTransformLayoutCustomization::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationParameterSettings",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
 			&FSoundModulationParameterSettingsLayoutCustomization::MakeInstance));

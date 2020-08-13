@@ -9,35 +9,8 @@
 #include "SoundModulationTransform.generated.h"
 
 
-USTRUCT(BlueprintType)
-struct FSoundModulationInputTransform
-{
-	GENERATED_USTRUCT_BODY()
-
-	FSoundModulationInputTransform();
-
-	/** Minimum value to clamp the input to prior to transforming via linear interpolation. */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Input Min", UIMin = "0", UIMax = "1"))
-	float InputMin;
-
-	/** Maximum value to clamp the input to prior to transforming via linear interpolation. */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Input Max", UIMin = "0", UIMax = "1"))
-	float InputMax;
-
-	/** Minimum value to scale the output to. */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Min", UIMin = "0", UIMax = "1"))
-	float OutputMin;
-
-	/** Maximum value to scale the output to. */
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite, meta = (DisplayName = "Output Max", UIMin = "0", UIMax = "1"))
-	float OutputMax;
-
-	/** Applies transform to provided value */
-	void Apply(float& OutValue) const;
-};
-
 UENUM()
-enum class ESoundModulatorOutputCurve : uint8
+enum class ESoundModulatorCurve : uint8
 {
 	// Expressions
 	Linear		UMETA(DisplayName = "Linear"),
@@ -57,21 +30,13 @@ enum class ESoundModulatorOutputCurve : uint8
 };
 
 USTRUCT(BlueprintType)
-struct AUDIOMODULATION_API FSoundModulationOutputTransform
+struct AUDIOMODULATION_API FSoundModulationTransform
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Minimum value to clamp the input to. */
-	UPROPERTY()
-	float InputMin = 0.0f;
-
-	/** Maximum value to clamp the input to. */
-	UPROPERTY()
-	float InputMax = 1.0f;
-
 	/** The curve to apply when transforming the output. */
-	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Transform Curve"))
-	ESoundModulatorOutputCurve Curve = ESoundModulatorOutputCurve::Linear;
+	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Curve Type"))
+	ESoundModulatorCurve Curve = ESoundModulatorCurve::Linear;
 
 	/** When curve set to log, exponential or exponential inverse, value is factor 'b' in following equations with output 'y' and input 'x':
 	 *  Exponential: y = x * 10^-b(1-x)
@@ -89,17 +54,6 @@ struct AUDIOMODULATION_API FSoundModulationOutputTransform
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "Asset"), Category = Curve, BlueprintReadWrite)
 	UCurveFloat* CurveShared = nullptr;
 
-	/** Minimum value to clamp output to. */
-	UPROPERTY()
-	float OutputMin = 0.0f;
-
-	/** Maximum value to clamp output to. */
-	UPROPERTY()
-	float OutputMax = 1.0f;
-
 	/** Applies transform to provided value */
 	void Apply(float& OutValue) const;
-
-private:
-	void EvaluateCurve(float& Value) const;
 };
