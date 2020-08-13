@@ -548,10 +548,24 @@ EIoStoreResolveResult FFileIoStore::Resolve(FIoRequestImpl* Request)
 				}
 				else
 				{
-					ResolvedRequest.Request->IoBuffer.SetSize(ResolvedRequest.ResolvedSize);
+					LLM_SCOPE(ELLMTag::FileSystem);
+					TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
+					ResolvedRequest.Request->IoBuffer = FIoBuffer(ResolvedRequest.ResolvedSize);
 				}
 
-				ReadBlocks(*Reader, ResolvedRequest);
+				FFileIoStoreReadRequestList CustomRequests;
+				if (PlatformImpl.CreateCustomRequests(Reader->GetContainerFile(), ResolvedRequest, CustomRequests))
+				{
+					{
+						FScopeLock Lock(&PendingRequestsCritical);
+						PendingRequests.Append(CustomRequests);
+					}
+					OnNewPendingRequestsAdded();
+				}
+				else
+				{
+					ReadBlocks(*Reader, ResolvedRequest);
+				}
 			}
 
 			return IoStoreResolveResult_OK;
@@ -692,16 +706,6 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 	}
 }
 
-void FFileIoStore::AllocMemoryForRequest(FIoRequestImpl* Request)
-{
-	LLM_SCOPE(ELLMTag::FileSystem);
-	if (!Request->IoBuffer.Data())
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
-		Request->IoBuffer = FIoBuffer(Request->IoBuffer.DataSize());
-	}
-}
-
 void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* CompressedBlock)
 {
 	if (CompressedBlock->RawBlocksCount > 1)
@@ -712,8 +716,8 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	else
 	{
 		FFileIoStoreReadRequest* RawBlock = CompressedBlock->SingleRawBlock;
-		check(RawBlock->RefCount > 0);
-		if (--RawBlock->RefCount == 0)
+		check(RawBlock->CompressedBlocksRefCount > 0);
+		if (--RawBlock->CompressedBlocksRefCount == 0)
 		{
 			check(RawBlock->Buffer);
 			FreeBuffer(*RawBlock->Buffer);
@@ -753,16 +757,18 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		while (PlatformImpl.StartRequests(RequestQueue));
 	}
 
-	FFileIoStoreReadRequest* CompletedRequest = PlatformImpl.GetCompletedRequests();
+	FFileIoStoreReadRequestList CompletedRequests;
+	PlatformImpl.GetCompletedRequests(CompletedRequests);
+	FFileIoStoreReadRequest* CompletedRequest = CompletedRequests.GetHead();
 	while (CompletedRequest)
 	{
-		++CompletedRequests;
+		++CompletedRequestsCount;
 
 		FFileIoStoreReadRequest* NextRequest = CompletedRequest->Next;
 
 		TRACE_COUNTER_ADD(IoDispatcherTotalBytesRead, CompletedRequest->Size);
 
-		if (CompletedRequest->bIsRawBlock)
+		if (!CompletedRequest->ImmediateScatter.Request)
 		{
 			check(CompletedRequest->Buffer);
 			EIoDispatcherPriority Priority = CompletedRequest->Priority;
@@ -802,8 +808,8 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 						CopySize -= CompletedBlockEndOffset - CompressedBlockRawEndOffset;
 					}
 					FMemory::Memcpy(Dst, Src, CopySize);
-					check(CompletedRequest->RefCount > 0);
-					--CompletedRequest->RefCount;
+					check(CompletedRequest->CompressedBlocksRefCount > 0);
+					--CompletedRequest->CompressedBlocksRefCount;
 				}
 
 				check(CompressedBlock->UnfinishedRawBlocksCount > 0);
@@ -822,7 +828,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 					CompressedBlock->Next = nullptr;
 				}
 			}
-			if (CompletedRequest->RefCount == 0)
+			if (CompletedRequest->CompressedBlocksRefCount == 0)
 			{
 				FreeBuffer(*CompletedRequest->Buffer);
 				delete CompletedRequest;
@@ -830,22 +836,25 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		}
 		else
 		{
+			TRACE_COUNTER_ADD(IoDispatcherTotalBytesScattered, CompletedRequest->ImmediateScatter.Size);
+
 			check(!CompletedRequest->Buffer);
-			check(CompletedRequest->DirectToRequest);
-			FIoRequestImpl* CompletedIoDispatcherRequest = CompletedRequest->DirectToRequest;
+			FIoRequestImpl* CompletedIoDispatcherRequest = CompletedRequest->ImmediateScatter.Request;
 			delete CompletedRequest;
-			check(CompletedIoDispatcherRequest->UnfinishedReadsCount == 1);
-			CompletedIoDispatcherRequest->UnfinishedReadsCount = 0;
-			if (!CompletedRequestsTail)
+			check(CompletedIoDispatcherRequest->UnfinishedReadsCount > 0);
+			if (--CompletedIoDispatcherRequest->UnfinishedReadsCount == 0)
 			{
-				CompletedRequestsHead = CompletedRequestsTail = CompletedIoDispatcherRequest;
+				if (!CompletedRequestsTail)
+				{
+					CompletedRequestsHead = CompletedRequestsTail = CompletedIoDispatcherRequest;
+				}
+				else
+				{
+					CompletedRequestsTail->NextRequest = CompletedIoDispatcherRequest;
+					CompletedRequestsTail = CompletedIoDispatcherRequest;
+				}
+				CompletedRequestsTail->NextRequest = nullptr;
 			}
-			else
-			{
-				CompletedRequestsTail->NextRequest = CompletedIoDispatcherRequest;
-				CompletedRequestsTail = CompletedIoDispatcherRequest;
-			}
-			CompletedRequestsTail->NextRequest = nullptr;
 		}
 		
 		CompletedRequest = NextRequest;
@@ -873,10 +882,6 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		if (!BlockToDecompress->CompressionContext)
 		{
 			break;
-		}
-		for (FFileIoStoreBlockScatter& Scatter : BlockToDecompress->ScatterList)
-		{
-			AllocMemoryForRequest(Scatter.Request);
 		}
 		// Scatter block asynchronous when the block is compressed, encrypted or signed
 		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
@@ -973,8 +978,7 @@ void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoSto
 	int32 RequestBeginBlockIndex = int32(ResolvedRequest.ResolvedOffset / CompressionBlockSize);
 	int32 RequestEndBlockIndex = int32((RequestEndOffset - 1) / CompressionBlockSize);
 
-	FFileIoStoreReadRequest* NewBlocksHead = nullptr;
-	FFileIoStoreReadRequest* NewBlocksTail = nullptr;
+	FFileIoStoreReadRequestList NewBlocks;
 
 	uint64 RequestStartOffsetInBlock = ResolvedRequest.ResolvedOffset - RequestBeginBlockIndex * CompressionBlockSize;
 	uint64 RequestRemainingBytes = ResolvedRequest.ResolvedSize;
@@ -1021,7 +1025,6 @@ void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoSto
 				if (!RawBlock)
 				{
 					RawBlock = new FFileIoStoreReadRequest();
-					RawBlock->bIsRawBlock = true;
 					BlockMaps.RawBlocksMap.Add(RawBlockKey, RawBlock);
 
 					RawBlock->Key = RawBlockKey;
@@ -1031,22 +1034,14 @@ void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoSto
 					RawBlock->Offset = RawBlockIndex * ReadBufferSize;
 					uint64 ReadSize = FMath::Min(ContainerFile.FileSize, RawBlock->Offset + ReadBufferSize) - RawBlock->Offset;
 					RawBlock->Size = ReadSize;
-					if (!NewBlocksTail)
-					{
-						NewBlocksHead = NewBlocksTail = RawBlock;
-					}
-					else
-					{
-						NewBlocksTail->Next = RawBlock;
-						NewBlocksTail = RawBlock;
-					}
+					NewBlocks.Add(RawBlock);
 				}
 				if (RawBlockCount == 1)
 				{
 					CompressedBlock->SingleRawBlock = RawBlock;
 				}
 				RawBlock->CompressedBlocks.Add(CompressedBlock);
-				++RawBlock->RefCount;
+				++RawBlock->CompressedBlocksRefCount;
 				++CompressedBlock->UnfinishedRawBlocksCount;
 			}
 		}
@@ -1067,19 +1062,11 @@ void FFileIoStore::ReadBlocks(const FFileIoStoreReader& Reader, const FFileIoSto
 		RequestStartOffsetInBlock = 0;
 	}
 
-	if (NewBlocksHead)
+	if (!NewBlocks.IsEmpty())
 	{
 		{
 			FScopeLock Lock(&PendingRequestsCritical);
-			if (!PendingRequestsTail)
-			{
-				PendingRequestsHead = NewBlocksHead;
-			}
-			else
-			{
-				PendingRequestsTail->Next = NewBlocksHead;
-			}
-			PendingRequestsTail = NewBlocksTail;
+			PendingRequests.Append(NewBlocks);
 		}
 		OnNewPendingRequestsAdded();
 	}
@@ -1112,8 +1099,8 @@ void FFileIoStore::ProcessIncomingRequests()
 	FFileIoStoreReadRequest* RequestToSchedule = nullptr;
 	{
 		FScopeLock Lock(&PendingRequestsCritical);
-		RequestToSchedule = PendingRequestsHead;
-		PendingRequestsHead = PendingRequestsTail = nullptr;
+		RequestToSchedule = PendingRequests.GetHead();
+		PendingRequests.Clear();
 	}
 
 	while (RequestToSchedule)
@@ -1121,7 +1108,7 @@ void FFileIoStore::ProcessIncomingRequests()
 		FFileIoStoreReadRequest* NextRequest = RequestToSchedule->Next;
 		RequestToSchedule->Next = nullptr;
 		RequestQueue.Push(*RequestToSchedule);
-		++SubmittedRequests;
+		++SubmittedRequestsCount;
 
 		RequestToSchedule = NextRequest;
 	}
