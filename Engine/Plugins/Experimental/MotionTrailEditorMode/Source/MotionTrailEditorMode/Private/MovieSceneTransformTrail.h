@@ -223,5 +223,5 @@ private:
 	FGuid LastTransformTrackSig;
 	TWeakObjectPtr<class UMovieScene3DTransformTrack> WeakTrack;
 	TWeakPtr<class ISequencer> WeakSequencer;
-	class USequencerInterrogationLinker* InterrogationLinker;
+	class UMovieSceneInterrogationLinker* InterrogationLinker;
 };
