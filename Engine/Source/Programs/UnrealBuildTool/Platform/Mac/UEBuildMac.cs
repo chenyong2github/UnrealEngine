@@ -167,6 +167,8 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("FORCE_ANSI_ALLOCATOR=1");
 			}
 
+			Target.GlobalDefinitions.Add("GL_SILENCE_DEPRECATION=1");
+
 			bool IsBuildMachine = Environment.GetEnvironmentVariable("IsBuildMachine") == "1";
 
 			// If the user explicitly provided an option for dSYM's then do that. If they did not, then we want one for shipping builds or if we're a build machine
