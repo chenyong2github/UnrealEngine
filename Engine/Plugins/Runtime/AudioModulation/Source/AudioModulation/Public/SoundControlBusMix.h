@@ -16,23 +16,23 @@ class USoundControlBusBase;
 
 
 USTRUCT(BlueprintType)
-struct FSoundControlBusMixChannel
+struct FSoundControlBusMixStage
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundControlBusMixChannel();
-	FSoundControlBusMixChannel(USoundControlBusBase* InBus, const float TargetValue);
+	FSoundControlBusMixStage();
+	FSoundControlBusMixStage(USoundControlBusBase* InBus, const float TargetValue);
 
-	/* Bus controlled by channel. */
-	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
+	/* Bus controlled by stage. */
+	UPROPERTY(EditAnywhere, Category = Stage, BlueprintReadWrite)
 	USoundControlBusBase* Bus;
 
 	/* Value mix is set to. */
-	UPROPERTY(EditAnywhere, Category = Channel, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, Category = Stage, BlueprintReadWrite)
 	FSoundModulationValue Value;
 };
 
-UCLASS(config = Engine, autoexpandcategories = (Channel, Mix), editinlinenew, BlueprintType, MinimalAPI)
+UCLASS(config = Engine, autoexpandcategories = (Stage, Mix), editinlinenew, BlueprintType, MinimalAPI)
 class USoundControlBusMix : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -81,7 +81,7 @@ public:
 
 #endif // WITH_EDITOR
 
-	/* Array of channels controlled by mix. */
+	/* Array of stages controlled by mix. */
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadOnly)
-	TArray<FSoundControlBusMixChannel> Channels;
+	TArray<FSoundControlBusMixStage> MixStages;
 };

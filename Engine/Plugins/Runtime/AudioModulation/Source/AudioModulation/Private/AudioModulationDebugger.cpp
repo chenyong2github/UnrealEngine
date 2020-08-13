@@ -213,10 +213,10 @@ namespace AudioModulation
 
 					float Target = Bus.DefaultValue;
 					float Value = Bus.DefaultValue;
-					if (const FControlBusMixChannelDebugInfo* Channel = BusMix.Channels.Find(Bus.Id))
+					if (const FControlBusMixStageDebugInfo* Stage = BusMix.Stages.Find(Bus.Id))
 					{
-						Target = Channel->TargetValue;
-						Value  = Channel->CurrentValue;
+						Target = Stage->TargetValue;
+						Value  = Stage->CurrentValue;
 					}
 
 					if (Target != Value)
@@ -353,12 +353,12 @@ namespace AudioModulation
 			FControlBusMixDebugInfo DebugInfo;
 			DebugInfo.Name = Proxy->GetName();
 			DebugInfo.RefCount = Proxy->GetRefCount();
-			for (const TPair<FBusId, FModulatorBusMixChannelProxy>& Channel : Proxy->Channels)
+			for (const TPair<FBusId, FModulatorBusMixStageProxy>& Stage : Proxy->Stages)
 			{
-				FControlBusMixChannelDebugInfo ChannelDebugInfo;
-				ChannelDebugInfo.CurrentValue = Channel.Value.Value.GetCurrentValue();
-				ChannelDebugInfo.TargetValue = Channel.Value.Value.TargetValue;
-				DebugInfo.Channels.Add(Channel.Key, ChannelDebugInfo);
+				FControlBusMixStageDebugInfo StageDebugInfo;
+				StageDebugInfo.CurrentValue = Stage.Value.Value.GetCurrentValue();
+				StageDebugInfo.TargetValue = Stage.Value.Value.TargetValue;
+				DebugInfo.Stages.Add(Stage.Key, StageDebugInfo);
 			}
 			RefreshedFilteredMixes.Add(DebugInfo);
 		}
