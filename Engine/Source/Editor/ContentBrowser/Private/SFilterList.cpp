@@ -801,6 +801,7 @@ void SFilterList::DisableFiltersThatHideItems(TArrayView<const FContentBrowserIt
 						{
 							// This is a frontend filter and at least one asset did not pass.
 							Filter->SetEnabled(false, false);
+							SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false);
 							ExecuteOnFilteChanged = true;
 						}
 					}
