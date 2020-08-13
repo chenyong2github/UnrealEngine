@@ -49,4 +49,21 @@ namespace Chaos
 	}
 
 
+	void FJointConstraint::SetLinearPositionDriveEnabled(TVector<bool,3> Enabled)
+	{
+		SetLinearPositionDriveXEnabled(Enabled.X);
+		SetLinearPositionDriveYEnabled(Enabled.Y);
+		SetLinearPositionDriveZEnabled(Enabled.Z);
+	}
+
+
+	void FJointConstraint::SetLinearVelocityDriveEnabled(TVector<bool,3> Enabled)
+	{
+		SetLinearVelocityDriveXEnabled(Enabled.X);
+		SetLinearVelocityDriveYEnabled(Enabled.Y);
+		SetLinearVelocityDriveZEnabled(Enabled.Z);
+	}
+
+
+
 } // Chaos

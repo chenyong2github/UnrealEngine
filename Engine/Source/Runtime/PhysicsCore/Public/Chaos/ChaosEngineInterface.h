@@ -231,6 +231,7 @@ public:
 	FPhysicsConstraintReference_Chaos() : Constraint(nullptr) {};
 
 	bool IsValid() const;
+	Chaos::FJointConstraint* operator()() { return Constraint;  }
 
 	Chaos::FJointConstraint* Constraint;
 };
