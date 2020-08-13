@@ -238,7 +238,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 				"ImportAsset",
 				FText::Format(LOCTEXT("ImportAsset", "Import to {0}..."), FText::FromName(FirstSelectedPath)),
 				LOCTEXT("ImportAssetTooltip_NewAsset", "Imports an asset from file to this folder."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.ImportIcon"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import"),
 				FUIAction(
 					FExecuteAction::CreateStatic(&FNewAssetContextMenu::ExecuteImportAsset, InOnImportAssetRequested, FirstSelectedPath),
 					CanExecuteAssetActionsDelegate

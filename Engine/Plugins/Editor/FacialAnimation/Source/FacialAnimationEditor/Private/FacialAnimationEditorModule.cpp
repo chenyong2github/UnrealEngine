@@ -58,7 +58,7 @@ void FFacialAnimationEditorModule::StartupModule()
 		{
 			const TSharedRef<SDockTab> Tab =
 				SNew(SDockTab)
-				.Icon(FEditorStyle::GetBrush("ContentBrowser.ImportIcon"))
+				.Icon(FAppStyle::Get().GetBrush("Icons.Import"))
 				.TabRole(ETabRole::NomadTab);
 
 			Tab->SetContent(SNew(SFacialAnimationBulkImporter));
@@ -74,7 +74,7 @@ void FFacialAnimationEditorModule::StartupModule()
 			.SetDisplayName(LOCTEXT("FacialAnimationBulkImporterTabTitle", "Facial Anim Importer"))
 			.SetTooltipText(LOCTEXT("FacialAnimationBulkImporterTooltipText", "Open the Facial Animation Bulk Importer tab."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsMiscCategory())
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.ImportIcon"));
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons..Import"));
 
 		// register for when persona is loaded
 		OnModulesChangedDelegate = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FFacialAnimationEditorModule::HandleModulesChanged);

@@ -24,7 +24,7 @@ void FAppStyle::SetAppStyleSetName(const FName& InName)
 	AppStyleName = InName;
 }
 
-const FName& FAppStyle::GetAppStyleSetName()
+const FName FAppStyle::GetAppStyleSetName()
 {
 	return AppStyleName;
 }

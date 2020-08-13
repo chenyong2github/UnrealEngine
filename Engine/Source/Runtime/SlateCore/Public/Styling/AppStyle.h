@@ -27,7 +27,7 @@ public:
 
 	static const ISlateStyle& Get();
 	
-	static const FName& GetAppStyleSetName();
+	static const FName GetAppStyleSetName();
 	static void SetAppStyleSetName(const FName& InName);
 
 	static void SetAppStyleSet(const ISlateStyle& InStyle);

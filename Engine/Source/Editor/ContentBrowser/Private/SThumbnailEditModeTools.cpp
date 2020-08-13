@@ -43,14 +43,14 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 
 		// Primitive tools
 		+SHorizontalBox::Slot()
-		.AutoWidth()
 		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
 		.Padding(1)
 		[
 			SNew(SButton)
 			.Visibility(this, &SThumbnailEditModeTools::GetPrimitiveToolsVisibility)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SThumbnailEditModeTools::ChangePrimitive)
 			.ToolTipText(LOCTEXT("CyclePrimitiveThumbnailShapes", "Cycle through primitive shape for this thumbnail"))
 			.Content()
@@ -61,17 +61,19 @@ void SThumbnailEditModeTools::Construct( const FArguments& InArgs, const TShared
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Top)
+		.Padding(1)
 		[
 			SNew(SButton)
 			.Visibility(this, &SThumbnailEditModeTools::GetPrimitiveToolsResetToDefaultVisibility)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.OnClicked(this, &SThumbnailEditModeTools::ResetToDefault)
 			.ToolTipText(LOCTEXT("ResetThumbnailToDefault", "Resets thumbnail to the default"))
 			.Content()
 			[
 				SNew(SImage)
 				.Image(FEditorStyle::GetBrush("ContentBrowser.ResetPrimitiveToDefault"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 	];
