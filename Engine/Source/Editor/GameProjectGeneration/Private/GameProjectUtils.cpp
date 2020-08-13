@@ -1919,6 +1919,25 @@ FString GameProjectUtils::GetTemplateDefsFilename()
 	return TEXT("TemplateDefs.ini");
 }
 
+FString GameProjectUtils::GetIncludePathForFile(const FString& InFullFilePath, const FString& ModuleRootPath)
+{
+	FString RelativeHeaderPath = FPaths::ChangeExtension(InFullFilePath, "h");
+
+	const FString PublicString = ModuleRootPath / "Public" / "";
+	if (RelativeHeaderPath.StartsWith(PublicString))
+	{
+		return RelativeHeaderPath.RightChop(PublicString.Len());
+	}
+
+	const FString PrivateString = ModuleRootPath / "Private" / "";
+	if (RelativeHeaderPath.StartsWith(PrivateString))
+	{
+		return RelativeHeaderPath.RightChop(PrivateString.Len());
+	}
+	
+	return RelativeHeaderPath.RightChop(ModuleRootPath.Len());
+}
+
 bool GameProjectUtils::NameContainsOnlyLegalCharacters(const FString& TestName, FString& OutIllegalCharacters)
 {
 	bool bContainsIllegalCharacters = false;
@@ -3051,7 +3070,8 @@ FString GameProjectUtils::MakeIncludeList(const TArray<FString>& InList)
 
 	for ( auto ListIt = InList.CreateConstIterator(); ListIt; ++ListIt )
 	{
-		ReturnString += FString::Printf( TEXT("#include \"%s\"") LINE_TERMINATOR, **ListIt);
+		ReturnString += FString::Printf(IncludePathFormatString, **ListIt);
+		ReturnString += LINE_TERMINATOR;
 	}
 
 	return ReturnString;
@@ -3171,7 +3191,7 @@ bool GameProjectUtils::GenerateClassHeaderFile(const FString& NewHeaderFileName,
 	FString BaseClassIncludePath;
 	if(ParentClassInfo.GetIncludePath(BaseClassIncludePath))
 	{
-		BaseClassIncludeDirective = FString::Printf(TEXT("#include \"%s\""), *BaseClassIncludePath);
+		BaseClassIncludeDirective = FString::Printf(IncludePathFormatString, *BaseClassIncludePath);
 	}
 
 	FString ModuleAPIMacro;
@@ -3320,17 +3340,6 @@ bool GameProjectUtils::GenerateClassCPPFile(const FString& NewCPPFileName, const
 		return false;
 	}
 
-	FString AdditionalIncludesStr;
-	for (int32 IncludeIdx = 0; IncludeIdx < AdditionalIncludes.Num(); ++IncludeIdx)
-	{
-		if (IncludeIdx > 0)
-		{
-			AdditionalIncludesStr += LINE_TERMINATOR;
-		}
-
-		AdditionalIncludesStr += FString::Printf(TEXT("#include \"%s\""), *AdditionalIncludes[IncludeIdx]);
-	}
-
 	FString PropertyOverridesStr;
 	for ( int32 OverrideIdx = 0; OverrideIdx < PropertyOverrides.Num(); ++OverrideIdx )
 	{
@@ -3350,7 +3359,7 @@ bool GameProjectUtils::GenerateClassCPPFile(const FString& NewCPPFileName, const
 		const FString ModuleIncludePath = DetermineModuleIncludePath(ModuleInfo, NewCPPFileName);
 		if (ModuleIncludePath.Len() > 0)
 		{
-			PchIncludeDirective = FString::Printf(TEXT("#include \"%s\""), *ModuleIncludePath);
+			PchIncludeDirective = FString::Printf(IncludePathFormatString, *ModuleIncludePath);
 		}
 	}
 
@@ -3370,10 +3379,24 @@ bool GameProjectUtils::GenerateClassCPPFile(const FString& NewCPPFileName, const
 	FinalOutput = FinalOutput.Replace(TEXT("%MODULE_NAME%"), *ModuleInfo.ModuleName, ESearchCase::CaseSensitive);
 	FinalOutput = FinalOutput.Replace(TEXT("%PCH_INCLUDE_DIRECTIVE%"), *PchIncludeDirective, ESearchCase::CaseSensitive);
 
+	// Fixup the header file include for this cpp file
+	{
+		const FString RelativeHeaderIncludePath = GetIncludePathForFile(NewCPPFileName, ModuleInfo.ModuleSourcePath);
+
+		// First make sure we remove any potentially incorrect, legacy paths generated from some version of #include "%UNPREFIXED_CLASS_NAME%.h"
+		// This didn't take into account potential subfolders for the created class
+		const FString LegacyHeaderInclude = FString::Printf(IncludePathFormatString, *FPaths::GetCleanFilename(RelativeHeaderIncludePath));
+		FinalOutput = FinalOutput.Replace(*LegacyHeaderInclude, TEXT(""), ESearchCase::CaseSensitive);
+
+		// Now add the correct include directive which may include a subfolder.
+		const FString HeaderIncludeDirective = FString::Printf(IncludePathFormatString, *RelativeHeaderIncludePath);
+		FinalOutput = FinalOutput.Replace(TEXT("%MY_HEADER_INCLUDE_DIRECTIVE%"), *HeaderIncludeDirective, ESearchCase::CaseSensitive);
+	}
+
 	// Special case where where the wildcard ends with a new line
 	const bool bLeadingTab = false;
 	const bool bTrailingNewLine = true;
-	FinalOutput = ReplaceWildcard(FinalOutput, TEXT("%ADDITIONAL_INCLUDE_DIRECTIVES%"), *AdditionalIncludesStr, bLeadingTab, bTrailingNewLine);
+	FinalOutput = ReplaceWildcard(FinalOutput, TEXT("%ADDITIONAL_INCLUDE_DIRECTIVES%"), *MakeIncludeList(AdditionalIncludes), bLeadingTab, bTrailingNewLine);
 	FinalOutput = ReplaceWildcard(FinalOutput, TEXT("%EVENTUAL_CONSTRUCTOR_DEFINITION%"), *EventualConstructorDefinition, bLeadingTab, bTrailingNewLine);
 	FinalOutput = ReplaceWildcard(FinalOutput, TEXT("%ADDITIONAL_MEMBER_DEFINITIONS%"), *AdditionalMemberDefinitions, bLeadingTab, bTrailingNewLine);
 
