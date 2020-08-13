@@ -3141,11 +3141,11 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer = ProjectedShadowInitializers[ShadowIndex];
 				const bool bCopyLightFromVirtual = bCopyFallbackFromVirtual && !ProjectedShadowInitializer.bOnePassPointLightShadow;
 
-			// Modify resolution if using virtual shadow maps
+				// Modify resolution if using virtual shadow maps
 				if( bNeedsVirtualShadowMap )
-			{
+				{
 					MaxDesiredResolution = FVirtualShadowMap::PageSize;
-			}
+				}
 
 				// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability
 				// Use the max resolution if the desired resolution is larger than that
@@ -3281,8 +3281,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						};
 
 						const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
-
-						const FMatrix FaceProjection = FPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
 
 						ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix = FReversedZPerspectiveMatrix(PI / 4.0f, 1, 1, 1, LightProxy.GetRadius());
 
@@ -4873,9 +4871,7 @@ void FSceneRenderer::AllocateOnePassPointLightDepthTargets(FRHICommandListImmedi
 				ProjectedShadowInfo->bAllocated = true;
 				ProjectedShadowInfo->RenderTargets.CopyReferencesFromRenderTargets(ShadowMapCubemap.RenderTargets);
 				
-				// Set up a single depth view for one pass cubemap rendering
 				ProjectedShadowInfo->SetupShadowDepthView(RHICmdList, this);
-
 				ShadowMapCubemap.Shadows.Add(ProjectedShadowInfo);
 			}
 		}

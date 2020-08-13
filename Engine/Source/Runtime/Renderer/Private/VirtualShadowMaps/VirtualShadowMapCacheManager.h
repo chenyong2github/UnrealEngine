@@ -72,6 +72,14 @@ public:
 };
 
 
+struct FVirtualShadowMapHZBMetadata
+{
+	FViewMatrices ViewMatrices;
+	FIntRect	  ViewRect;
+	uint32		  TargetLayerIndex = INDEX_NONE;
+	uint32		  FrameNumber = 0;
+};
+
 class FVirtualShadowMapArrayCacheManager
 {
 public:
@@ -121,4 +129,10 @@ public:
 	TRefCountPtr<FPooledRDGBuffer>		AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback *GPUBufferReadback = nullptr;
+
+	// HZB of physical pages from previous frame
+	TRefCountPtr<IPooledRenderTarget>			HZBPhysical = nullptr;
+	TRefCountPtr<FPooledRDGBuffer>				HZBPageTable = nullptr;
+	uint32										HZBFrameNumber = 0;
+	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
 };

@@ -2365,14 +2365,6 @@ public:
 	{}
 };
 
-struct FVirtualShadowMapPrevHZB
-{
-	FViewMatrices ViewMatrices;
-	FIntRect	  ViewRect;
-	uint32		  TargetLayerIndex = INDEX_NONE;
-	uint32		  FrameNumber = 0;
-};
-
 #if WITH_EDITOR
 class FPixelInspectorData
 {
@@ -2657,9 +2649,6 @@ public:
 
 	/** Map from light id to the cached shadowmap data for that light. */
 	TMap<int32, FCachedShadowMapData> CachedShadowMaps;
-
-	/** Map from light id to previous virtual shadow map HZB info. */
-	TMap< int32, FVirtualShadowMapPrevHZB > PrevVirtualShadowMapHZBs;
 
 	TRefCountPtr<IPooledRenderTarget> PreShadowCacheDepthZ;
 

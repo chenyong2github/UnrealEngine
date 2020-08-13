@@ -41,6 +41,7 @@
 #include "GPUScene.h"
 #include "SceneTextureReductions.h"
 #include "RendererModule.h"
+#include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 
 DECLARE_GPU_DRAWCALL_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
@@ -1837,18 +1838,16 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 	if (SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0 ||
 		SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0)
 	{
-		static TRefCountPtr<IPooledRenderTarget>	HZBPhysical = nullptr;
-		static TRefCountPtr<FPooledRDGBuffer>		HZBPageTable = nullptr;
-		static uint32								HZBFrameNumber = 0;
-
 		if( CVarNaniteShadowsUseHZB.GetValueOnRenderThread() )
 		{
-			VirtualShadowMapArray.HZBPhysical	= HZBPhysical;
-			VirtualShadowMapArray.HZBPageTable	= HZBPageTable;
+			VirtualShadowMapArray.HZBPhysical	= Scene->VirtualShadowMapArrayCacheManager->HZBPhysical;
+			VirtualShadowMapArray.HZBPageTable	= Scene->VirtualShadowMapArrayCacheManager->HZBPageTable;
 		}
 
-		uint32 CachedFrameNumber = HZBFrameNumber++;
-
+		FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
+		const uint32 CachedFrameNumber = CacheManager->HZBFrameNumber;
+		const uint32 CurrentFrameNumber = ++CacheManager->HZBFrameNumber;
+		
 		FRDGBuilder GraphBuilder(RHICmdList);
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Render Virtual Shadow Maps");
@@ -1869,6 +1868,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 				&GraphBuilder,
 				bUpdateStreaming,
 				Scene = Scene,
+				CacheManager = CacheManager,
+				CurrentFrameNumber,
 				CachedFrameNumber
 			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
 			{
@@ -1900,10 +1901,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 							Params.TargetLayerIndex = Clipmap->GetVirtualShadowMap(ClipmapLevelIndex)->ID;
 							Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
 
-							// TODO: Clean this up
+							// TODO: Clean this up - could be stored in a single structure for the whole clipmap
+							int32 AbsoluteClipmapLevel = Clipmap->GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
 							int32 HZBKey = Clipmap->GetLightSceneInfo().Id;
-							HZBKey += Clipmap->GetClipmapLevel(ClipmapLevelIndex) << 26;
-							FVirtualShadowMapPrevHZB& PrevHZB = Scene->PrevVirtualShadowMapHZBs.FindOrAdd(HZBKey);
+							FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
 							if (PrevHZB.FrameNumber == CachedFrameNumber)
 							{
 								Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
@@ -1916,7 +1917,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 							}
 
 							PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
-							PrevHZB.FrameNumber = HZBFrameNumber;
+							PrevHZB.FrameNumber = CurrentFrameNumber;
 							PrevHZB.ViewMatrices = Params.ViewMatrices;
 
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
@@ -1926,13 +1927,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					}
 				}
 
-				for (int32 VirtualShadowMapIndex = 0; VirtualShadowMapIndex < SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num(); ++VirtualShadowMapIndex)
+				for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
 				{
-					FProjectedShadowInfo *ProjectedShadowInfo = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows[VirtualShadowMapIndex];
-					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane)
+					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->VirtualShadowMap)
 					{
-						ensure(ProjectedShadowInfo->VirtualShadowMap);
-						
 						Nanite::FPackedViewParams Params;
 						Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
 						Params.ViewRect = ProjectedShadowInfo->GetViewRectForView();
@@ -1944,9 +1942,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						Params.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
 
 						int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id;
-						HZBKey += ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex << 28;
-						FVirtualShadowMapPrevHZB& PrevHZB = Scene->PrevVirtualShadowMapHZBs.FindOrAdd( HZBKey );
-
+						HZBKey += FMath::Max(0, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex) << 28;
+						FVirtualShadowMapHZBMetadata& PrevHZB = CacheManager->HZBMetadata.FindOrAdd(HZBKey);
 						if( PrevHZB.FrameNumber == CachedFrameNumber )
 						{
 							Params.PrevTargetLayerIndex = PrevHZB.TargetLayerIndex;
@@ -1959,7 +1956,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						}
 						
 						PrevHZB.TargetLayerIndex = Params.TargetLayerIndex;
-						PrevHZB.FrameNumber = HZBFrameNumber;
+						PrevHZB.FrameNumber = CurrentFrameNumber;
 						PrevHZB.ViewMatrices = Params.ViewMatrices;
 
 						Nanite::FPackedView View = Nanite::CreatePackedView(Params);
@@ -1967,6 +1964,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 						VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMap->ID] = 1;
 					}
 				}
+
 				if (VirtualShadowViews.Num() > 0)
 				{
 					// Update page state for all virtual shadow maps included in this call, it is a bit crap but...
@@ -2043,8 +2041,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		}
 		GraphBuilder.Execute();
 
-		HZBPhysical		= VirtualShadowMapArray.HZBPhysical;
-		HZBPageTable	= VirtualShadowMapArray.PageTable;
+		Scene->VirtualShadowMapArrayCacheManager->HZBPhysical  = VirtualShadowMapArray.HZBPhysical;
+		Scene->VirtualShadowMapArrayCacheManager->HZBPageTable = VirtualShadowMapArray.PageTable;
 
 		//GVisualizeTexture.SetCheckPoint(RHICmdList, VirtualShadowMapArray.PhysicalPagePool);
 	}
