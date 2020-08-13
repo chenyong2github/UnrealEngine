@@ -36,7 +36,7 @@ class UNetDriver;
  *
  * Partially based on the Datagram Transport Layer Security protocol.
  */
-class StatelessConnectHandlerComponent : public HandlerComponent
+class ENGINE_API StatelessConnectHandlerComponent : public HandlerComponent
 {
 public:
 	/**
