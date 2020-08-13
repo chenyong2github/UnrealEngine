@@ -87,6 +87,8 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	LightData.SpecularScale = DeferredLightUniforms.SpecularScale;
 	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
 	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
+	LightData.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
+	LightData.bContactShadowSubsurfaceFalloff = DeferredLightUniforms.ContactShadowSubsurfaceFalloff != 0;
 	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
 	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
 	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
@@ -294,6 +296,7 @@ void DeferredLightPixelMain(
 	HairScreenSpaceData.GBuffer.CustomData = float4(HairDualScatteringRoughnessOverride, 0, Sample.Backlit, 0);
 	HairScreenSpaceData.GBuffer.IndirectIrradiance = 0;
 	HairScreenSpaceData.GBuffer.PrecomputedShadowFactors = 1;
+	HairScreenSpaceData.GBuffer.PerObjectGBufferData = 0;
 
 	const float3 WorldPosition = mul(float4(ScreenPosition * HairScreenSpaceData.GBuffer.Depth, HairScreenSpaceData.GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 	const float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);

@@ -330,6 +330,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	LpvBiasMultiplier = 1.0f;
 	bCastStaticShadow = true;
 	bCastVolumetricTranslucentShadow = false;
+	bCastContactShadow = true;
 	IndirectLightingCacheQuality = ILCQ_Point;
 	bSelectable = true;
 	bFillCollisionUnderneathForNavmesh = false;

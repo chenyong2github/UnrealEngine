@@ -94,7 +94,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		SingleCaptureIndex,
         bOutputVelocity,
 		Proxy->GetCustomPrimitiveData(),
-		Proxy->CastsDynamicShadow()));
+		Proxy->CastsContactShadow()));
 }
 
 void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)

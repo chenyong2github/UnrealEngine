@@ -521,6 +521,7 @@ public:
 	inline float GetLpvBiasMultiplier() const { return LpvBiasMultiplier; }
 	inline EIndirectLightingCacheQuality GetIndirectLightingCacheQuality() const { return IndirectLightingCacheQuality; }
 	inline bool CastsVolumetricTranslucentShadow() const { return bCastVolumetricTranslucentShadow; }
+	inline bool CastsContactShadow() const { return bCastContactShadow; }
 	inline bool CastsCapsuleDirectShadow() const { return bCastCapsuleDirectShadow; }
 	inline bool CastsDynamicIndirectShadow() const { return bCastsDynamicIndirectShadow; }
 	inline float GetDynamicIndirectShadowMinVisibility() const { return DynamicIndirectShadowMinVisibility; }
@@ -850,6 +851,9 @@ protected:
 	 * But have artifacts when used on highly opaque surfaces.
 	 */
 	uint8 bCastVolumetricTranslucentShadow : 1;
+
+	/** Whether the object should cast a contact shadow */
+	uint8 bCastContactShadow : 1;
 
 	/** Whether the primitive should use capsules for direct shadowing, if present.  Forces inset shadows. */
 	uint8 bCastCapsuleDirectShadow : 1;
