@@ -293,26 +293,6 @@ bool FWinHttpHttpRequest::ProcessRequest()
 	return true;
 }
 
-FHttpRequestCompleteDelegate& FWinHttpHttpRequest::OnProcessRequestComplete()
-{
-	return RequestCompleteDelegate;
-}
-
-FHttpRequestProgressDelegate& FWinHttpHttpRequest::OnRequestProgress()
-{
-	return RequestProgressDelegate;
-}
-
-FHttpRequestHeaderReceivedDelegate& FWinHttpHttpRequest::OnHeaderReceived()
-{
-	return HeaderReceivedDelegate;
-}
-
-FHttpRequestWillRetryDelegate& FWinHttpHttpRequest::OnRequestWillRetry()
-{
-	return RequestWillRetryDelegate;
-}
-
 void FWinHttpHttpRequest::CancelRequest()
 {
 	UE_LOG(LogHttp, Log, TEXT("FWinHttpHttpRequest::CancelRequest() FWinHttpHttpRequest=[%p]"), this);
