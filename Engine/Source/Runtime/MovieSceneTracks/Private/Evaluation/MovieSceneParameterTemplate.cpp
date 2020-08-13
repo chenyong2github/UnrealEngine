@@ -2,6 +2,7 @@
 
 #include "Evaluation/MovieSceneParameterTemplate.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
+#include "Components/DecalComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 
@@ -146,14 +147,41 @@ struct FComponentMaterialAccessor : FDefaultMaterialAccessor
 
 	UMaterialInterface* GetMaterialForObject(UObject& Object) const
 	{
-		UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(&Object);
-		return Component ? Component->GetMaterial(MaterialIndex) : nullptr;
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(&Object))
+		{
+			return PrimitiveComponent->GetMaterial(MaterialIndex);
+		}
+		else if (UDecalComponent* DecalComponent = Cast<UDecalComponent>(&Object))
+		{
+			return DecalComponent->GetDecalMaterial();
+		}
+		return nullptr;
 	}
 
 	void SetMaterialForObject(UObject& Object, UMaterialInterface& Material) const
 	{
-		UPrimitiveComponent* Component = CastChecked<UPrimitiveComponent>(&Object);
-		Component->SetMaterial(MaterialIndex, &Material);
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(&Object))
+		{
+			PrimitiveComponent->SetMaterial(MaterialIndex, &Material);
+		}
+		else if (UDecalComponent* DecalComponent = Cast<UDecalComponent>(&Object))
+		{
+			DecalComponent->SetDecalMaterial(&Material);
+		}
+	}
+
+	UMaterialInstanceDynamic* CreateMaterialInstanceDynamic(UObject& Object, UMaterialInterface& Material, FName UniqueDynamicName)
+	{
+		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(&Object))
+		{
+			return UMaterialInstanceDynamic::Create(&Material, &Object, UniqueDynamicName );
+		}
+		else if (UDecalComponent* DecalComponent = Cast<UDecalComponent>(&Object))
+		{
+			return DecalComponent->CreateDynamicMaterialInstance();
+		}
+
+		return nullptr;
 	}
 
 	int32 MaterialIndex;
