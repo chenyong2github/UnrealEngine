@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
-#include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystem.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
-#include "MovieSceneTracksComponentTypes.h"
-#include "Tracks/MovieScene3DTransformTrack.h"
 #include "MovieSceneTimeHelpers.h"
-
+#include "MovieSceneTrack.h"
 
 
 UMovieSceneInterrogationLinker::UMovieSceneInterrogationLinker(const FObjectInitializer& ObjInit)
