@@ -16,7 +16,6 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #endif // WITH_EDITOR
 
-
 #define LOCTEXT_NAMESPACE "AudioModulation"
 
 
@@ -25,24 +24,15 @@ FSoundControlBusMixStage::FSoundControlBusMixStage()
 {
 }
 
-FSoundControlBusMixStage::FSoundControlBusMixStage(USoundControlBusBase* InBus, const float TargetValue)
+FSoundControlBusMixStage::FSoundControlBusMixStage(USoundControlBus* InBus, const float TargetValue)
 	: Bus(InBus)
 {
-	if (Bus)
-	{
-		Value.TargetValue = FMath::Clamp(TargetValue, Bus->GetMin(), Bus->GetMax());
-	}
-	else
-	{
-		Value.TargetValue = FMath::Clamp(TargetValue, 0.0f, 1.0f);
-	}
+	Value.TargetValue = FMath::Clamp(TargetValue, 0.0f, 1.0f);
 }
 
 USoundControlBusMix::USoundControlBusMix(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_EDITORONLY_DATA
 	, ProfileIndex(0)
-#endif // WITH_EDITORONLY_DATA
 {
 }
 
@@ -66,8 +56,6 @@ void USoundControlBusMix::BeginDestroy()
 		}
 	}
 }
-
-#if WITH_EDITOR
 
 void USoundControlBusMix::ActivateMix()
 {
@@ -95,7 +83,9 @@ void USoundControlBusMix::DeactivateAllMixes()
 
 void USoundControlBusMix::LoadMixFromProfile()
 {
-	if (AudioModulation::FProfileSerializer::Deserialize(ProfileIndex, *this))
+	const bool bSucceeded = AudioModulation::FProfileSerializer::Deserialize(ProfileIndex, *this);
+#if WITH_EDITOR
+	if (bSucceeded)
 	{
 		FNotificationInfo Info(FText::Format(
 			LOCTEXT("SoundControlBusMix_LoadSucceeded", "'Control Bus Mix '{0}' profile {1} loaded successfully."),
@@ -107,8 +97,10 @@ void USoundControlBusMix::LoadMixFromProfile()
 		Info.bUseThrobber = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
+#endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 void USoundControlBusMix::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
 	OnPropertyChanged(InPropertyChangedEvent.Property, InPropertyChangedEvent.ChangeType);
@@ -127,13 +119,13 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 	{
 		if (InChangeType == EPropertyChangeType::Interactive || InChangeType == EPropertyChangeType::ValueSet)
 		{
-			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue))
+			if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue))
 			{
 				for (FSoundControlBusMixStage& Stage : MixStages)
 				{
 					if (Stage.Bus)
 					{
-						Stage.Value.TargetValue = FMath::Clamp(Stage.Value.TargetValue, Stage.Bus->GetMin(), Stage.Bus->GetMax());
+						Stage.Value.TargetValue = FMath::Clamp(Stage.Value.TargetValue, 0.0f, 1.0f);
 					}
 				}
 			}
@@ -145,10 +137,13 @@ void USoundControlBusMix::OnPropertyChanged(FProperty* Property, EPropertyChange
 		OutModSystem.UpdateMix(*this);
 	});
 }
+#endif // WITH_EDITOR
 
 void USoundControlBusMix::SaveMixToProfile()
 {
-	if (AudioModulation::FProfileSerializer::Serialize(*this, ProfileIndex))
+	const bool bSucceeded = AudioModulation::FProfileSerializer::Serialize(*this, ProfileIndex);
+#if WITH_EDITOR
+	if (bSucceeded)
 	{
 		FNotificationInfo Info(FText::Format(
 			LOCTEXT("SoundControlBusMix_SaveSucceeded", "'Control Bus Mix '{0}' profile {1} saved successfully."),
@@ -160,6 +155,7 @@ void USoundControlBusMix::SaveMixToProfile()
 		Info.bUseThrobber = true;
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
+#endif // WITH_EDITOR
 }
 
 void USoundControlBusMix::SoloMix()
@@ -169,6 +165,5 @@ void USoundControlBusMix::SoloMix()
 		OutModSystem.SoloBusMix(*this);
 	});
 }
-#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE // AudioModulation

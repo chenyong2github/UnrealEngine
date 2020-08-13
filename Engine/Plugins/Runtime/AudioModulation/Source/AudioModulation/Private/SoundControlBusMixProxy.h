@@ -27,8 +27,9 @@ namespace AudioModulation
 		FModulatorBusMixStageSettings(const FSoundControlBusMixStage& InStage);
 
 		FString Address;
-		uint32 ClassId;
-		FSoundModulationValue Value;
+		uint32 ParamClassId = INDEX_NONE;
+		uint32 ParamId = INDEX_NONE;
+		FSoundModulationMixValue Value;
 		FControlBusSettings BusSettings;
 	};
 
@@ -47,8 +48,9 @@ namespace AudioModulation
 		FModulatorBusMixStageProxy(const FModulatorBusMixStageSettings& InSettings, FAudioModulationSystem& OutModSystem);
 
 		FString Address;
-		uint32 ClassId;
-		FSoundModulationValue Value;
+		uint32 ParamClassId = INDEX_NONE;
+		uint32 ParamId = INDEX_NONE;
+		FSoundModulationMixValue Value;
 		FBusHandle BusHandle;
 	};
 
@@ -72,8 +74,8 @@ namespace AudioModulation
 		void Reset();
 
 		void SetEnabled(const FModulatorBusMixSettings& InSettings);
-		void SetMix(const TArray<FModulatorBusMixStageSettings>& InStages);
-		void SetMixByFilter(const FString& InAddressFilter, uint32 InFilterClassId, const FSoundModulationValue& InValue);
+		void SetMix(const TArray<FModulatorBusMixStageSettings>& InStages, float InFadeTime);
+		void SetMixByFilter(const FString& InAddressFilter, uint32 InParamClassId, uint32 InParamId, float InValue, float InFadeTime);
 		void SetStopping();
 
 		void Update(const double Elapsed, FBusProxyMap& ProxyMap);

@@ -112,8 +112,8 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 
 	ChildBuilder.AddProperty(BusHandle);
 
-	TSharedRef<IPropertyHandle> LinearValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue)).ToSharedRef();
-	TSharedRef<IPropertyHandle> UnitValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetUnitValue)).ToSharedRef();
+	TSharedRef<IPropertyHandle> LinearValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue)).ToSharedRef();
+	TSharedRef<IPropertyHandle> UnitValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetUnitValue)).ToSharedRef();
 
 	// When editor opens, set unit value in case bus unit has changed while editor was closed.
 	AudioModulationEditorUtils::HandleConvertLinearToUnit(BusHandle, LinearValueHandle, UnitValueHandle);
@@ -204,10 +204,10 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 		return EVisibility::Visible;
 	}));
 
-	TSharedRef<IPropertyHandle> AttackTimeHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime)).ToSharedRef();
+	TSharedRef<IPropertyHandle> AttackTimeHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, AttackTime)).ToSharedRef();
 	ChildBuilder.AddProperty(AttackTimeHandle);
 
-	TSharedRef<IPropertyHandle> ReleaseTimeHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime)).ToSharedRef();
+	TSharedRef<IPropertyHandle> ReleaseTimeHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, ReleaseTime)).ToSharedRef();
 	ChildBuilder.AddProperty(ReleaseTimeHandle);
 }
 #undef LOCTEXT_NAMESPACE // SoundModulationFloat
