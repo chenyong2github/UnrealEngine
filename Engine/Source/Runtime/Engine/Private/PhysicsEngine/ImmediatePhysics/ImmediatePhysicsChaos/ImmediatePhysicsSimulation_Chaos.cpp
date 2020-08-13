@@ -637,7 +637,7 @@ namespace ImmediatePhysics_Chaos
 		Implementation->SimulationSpace.AngularVelocity = AngularVel;
 	}
 
-	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha, const FReal ExternalLinearEtherDrag)
+	void FSimulation::SetSimulationSpaceSettings(const FReal MasterAlpha, const FVector& ExternalLinearEtherDrag)
 	{
 		using namespace Chaos;
 

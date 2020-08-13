@@ -27,6 +27,13 @@ enum class ESimulationSpace : uint8
 };
 
 
+/**
+ * Settings for the system which passes motion of the simulation's space
+ * into the simulation. This allows the simulation to pass a 
+ * fraction of the world space motion onto the bodies which allows Bone-Space
+ * and Component-Space simulations to react to world-space movement in a
+ * controllable way.
+ */
 USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 {
@@ -42,7 +49,7 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float VelocityScaleZ;
 
-	// A clamp on the effective simulation-space velocity that is passed to the solver
+	// A clamp on the effective simulation-space velocity that is passed to the solver.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxLinearVelocity;
 
@@ -58,21 +65,17 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxAngularAcceleration;
 
-	// Can be used to simulate freefall
+	// Additional linear drag applied to every body in addition to linear drag in the physics asset.
+	// Can be used, when combined with ExternalLinearVelocity, to add a temporary wind-blown effect without
+	// having to tune linear drag on all the bodies in the physics asset. Vector is in simulation local space.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
-	float Freefall;
+	FVector ExternalLinearDrag;
 
-	// Additional linear drag applied to every body (in addition to linear drag in the physics asset).
-	// Useful when combined with ExternalLinearVelocity to add a temporart wind-blown effect without
-	// having to set up the physics asset with linear drag.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
-	float ExternalLinearDrag;
-
-	// Additional velocity to pass into the solver - for wind etc
+	// Additional velocity that is added to the component velocity. Could be used for a wind effect. Vector is in world space.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FVector ExternalLinearVelocity;
 
-	// Additional angular velocity to pass into the solver
+	// Additional angular velocity that is added to the component angular velocity. Vector is in world space.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FVector ExternalAngularVelocity;
 };
@@ -144,13 +147,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FVector	ComponentAppliedLinearAccClamp;
 
-	/** 
-	 * Settings for the system which passes motion of the simulations space
-	 * into the simulation. This allows the simulation to pass some fraction
-	 * of the world space motion onto the bodies.
+	/**
+	 * Settings for the system which passes motion of the simulation's space
+	 * into the simulation. This allows the simulation to pass a
+	 * fraction of the world space motion onto the bodies which allows Bone-Space
+	 * and Component-Space simulations to react to world-space movement in a
+	 * controllable way.
 	 * This system is a superset of the functionality provided by ComponentLinearAccScale,
 	 * ComponentLinearVelScale, and ComponentAppliedLinearAccClamp. In general
-	 * you would not have both systems enabled.
+	 * you should not have both systems enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	FSimSpaceSettings SimSpaceSettings;
