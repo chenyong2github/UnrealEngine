@@ -56,14 +56,6 @@ public:
 	/* Handles any outgoing packets */
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) override;
 
-	virtual void IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet) override
-	{
-	}
-
-	virtual void OutgoingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitWriter& Packet, FOutPacketTraits& Traits) override
-	{
-	}
-
 	virtual int32 GetReservedPacketBits() const override
 	{
 		return 0;
