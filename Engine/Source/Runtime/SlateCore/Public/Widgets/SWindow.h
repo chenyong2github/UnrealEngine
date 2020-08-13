@@ -339,9 +339,9 @@ public:
 	 */
 	void SetTitle( const FText& InTitle )
 	{
+		Title = InTitle;
 		if (NativeWindow.IsValid())
 		{
-			Title = InTitle;
 			NativeWindow->SetText( *InTitle.ToString() );
 		}
 	}
