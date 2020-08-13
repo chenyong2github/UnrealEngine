@@ -261,8 +261,8 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 		static const TCHAR* FormatBounds = TEXT(R"(
 			void {FunctionName}(out int Out_Width, out int Out_Height)
 			{			
-				unsigned int BufferWidth = 0U;
-				unsigned int BufferHeight = 0U;
+				uint BufferWidth = 0U;
+				uint BufferHeight = 0U;
 				RW{Output}.GetDimensions(BufferWidth, BufferHeight);
 
 				Out_Width = (int) BufferWidth;
