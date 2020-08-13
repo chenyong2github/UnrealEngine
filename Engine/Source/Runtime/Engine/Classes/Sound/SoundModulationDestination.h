@@ -47,8 +47,6 @@ namespace Audio
 			FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
 			FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
 
-			FORCEINLINE bool GetHasProcessed() const;
-
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
@@ -102,6 +100,13 @@ namespace Audio
 			{
 				check(bIsBuffered);
 				return OutputBuffer;
+			}
+
+			/** Returns whether or not the destination has requested to 
+			  * process the control or not. */
+			FORCEINLINE bool GetHasProcessed() const
+			{
+				return bHasProcessed != 0;
 			}
 
 			/** Returns sample value last reported by modulator. Returns value in unit space, unless 
