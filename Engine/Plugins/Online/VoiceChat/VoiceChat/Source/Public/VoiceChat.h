@@ -84,6 +84,8 @@ inline FString LexToString(const FVoiceChatDeviceInfo& DeviceInfo)
 	return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DeviceInfo.DisplayName, *DeviceInfo.Id);
 }
 
+DECLARE_DELEGATE_OneParam(FOnVoiceChatInitializeCompleteDelegate, const FVoiceChatResult& /* Result */);
+DECLARE_DELEGATE_OneParam(FOnVoiceChatUninitializeCompleteDelegate, const FVoiceChatResult& /* Result */);
 DECLARE_DELEGATE_OneParam(FOnVoiceChatConnectCompleteDelegate, const FVoiceChatResult& /* Result */);
 DECLARE_DELEGATE_OneParam(FOnVoiceChatDisconnectCompleteDelegate, const FVoiceChatResult& /* Result */);
 DECLARE_DELEGATE_TwoParams(FOnVoiceChatLoginCompleteDelegate, const FString& /* PlayerName */, const FVoiceChatResult& /* Result */);
@@ -627,14 +629,24 @@ public:
 	}
 
 	/**
-	 * Initialize VoiceChat
+	 * Initialize VoiceChat synchronously
 	 */
 	virtual bool Initialize() = 0;
 
 	/**
-	 * Uninitialize VoiceChat
+	 * Initialize VoiceChat asynchronously
+	 */
+	virtual void Initialize(const FOnVoiceChatInitializeCompleteDelegate& Delegate) = 0;
+
+	/**
+	 * Uninitialize VoiceChat synchronously
 	 */
 	virtual bool Uninitialize() = 0;
+
+	/**
+	 * Uninitialize VoiceChat asynchronously
+	 */
+	virtual void Uninitialize(const FOnVoiceChatUninitializeCompleteDelegate& Delegate) = 0;
 
 	/**
 	 * Is voice chat initialized?
