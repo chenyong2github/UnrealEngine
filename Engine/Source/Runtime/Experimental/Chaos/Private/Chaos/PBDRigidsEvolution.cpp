@@ -175,7 +175,7 @@ namespace Chaos
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, bExternalReady(false)
 		, bIsSingleThreaded(InIsSingleThreaded)
-		, LatestExternalTimeConsumed(0)
+		, LatestExternalTimestampConsumed(-1)
 		, NumIterations(InNumIterations)
 		, NumPushOutIterations(InNumPushOutIterations)
 		, SpatialCollectionFactory(new FDefaultCollectionFactory())
@@ -440,7 +440,7 @@ namespace Chaos
 		{
 			ApplyParticlePendingData(PendingData, *InternalAcceleration, false);
 		}
-		InternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
+		InternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
 		InternalAccelerationQueue.Reset();
 	}
 
@@ -467,8 +467,8 @@ namespace Chaos
 		//other queues are no longer needed since we've flushed all operations and now have a pristine structure
 		InternalAccelerationQueue.Reset();
 
-		AsyncInternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
-		AsyncExternalAcceleration->SetSyncTime(LatestExternalTimeConsumed);
+		AsyncInternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
+		AsyncExternalAcceleration->SetSyncTimestamp(LatestExternalTimestampConsumed);
 	}
 
 	//TODO: make static and _External suffix
@@ -476,13 +476,14 @@ namespace Chaos
 	void TPBDRigidsEvolutionBase<Traits>::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration, FPendingSpatialDataQueue& ExternalQueue)
 	{
 		//update structure with any pending operations. Note that we must keep those operations around in case next structure still hasn't consumed them (async mode)
-		const FReal SyncTime = Acceleration.GetSyncTime();
+		const int32 SyncTimestamp = Acceleration.GetSyncTimestamp();
 		for (int32 Idx = ExternalQueue.PendingData.Num() - 1; Idx >=0; --Idx)
 		{
 			const FPendingSpatialData& SpatialData = ExternalQueue.PendingData[Idx];
-			if(SpatialData.SyncTime > SyncTime)
+			if(SpatialData.SyncTimestamp > SyncTimestamp)
 			{
 				//operation still pending so update structure
+				//note: do we care about roll over? if game ticks at 60fps we'd get 385+ days
 				if(SpatialData.bDelete)
 				{
 					Acceleration.RemoveElementFrom(SpatialData.AccelerationHandle,SpatialData.SpatialIdx);

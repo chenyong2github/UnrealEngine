@@ -14,11 +14,11 @@ struct FPendingSpatialData
 {
 	TAccelerationStructureHandle<FReal, 3> AccelerationHandle;
 	FSpatialAccelerationIdx SpatialIdx;
-	FReal SyncTime;	//indicates the time associated with latest change. Only relevant for external queue
+	int32 SyncTimestamp;	//indicates the inputs timestamp associated with latest change. Only relevant for external queue
 	bool bDelete;
 
 	FPendingSpatialData()
-	: SyncTime(0)
+	: SyncTimestamp(0)
 	, bDelete(false)
 	{}
 

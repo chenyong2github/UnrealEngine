@@ -241,7 +241,7 @@ class CHAOS_API ISpatialAcceleration
 public:
 
 	ISpatialAcceleration(SpatialAccelerationType InType = ESpatialAcceleration::Unknown)
-		: Type(InType), SyncTime(0), AsyncTimeSlicingComplete(true)
+		: Type(InType), SyncTimestamp(0), AsyncTimeSlicingComplete(true)
 	{
 	}
 	virtual ~ISpatialAcceleration() = default;
@@ -320,15 +320,15 @@ public:
 	}
 
 	/** This is the time the acceleration structure is synced up with. */
-	FReal GetSyncTime()
+	int32 GetSyncTimestamp()
 	{
-		return SyncTime;
+		return SyncTimestamp;
 	}
 
 	/** Call this whenever updating the acceleration structure for a new sync point */
-	void SetSyncTime(FReal InTime)
+	void SetSyncTimestamp(int32 InTimestamp)
 	{
-		SyncTime = InTime;
+		SyncTimestamp = InTimestamp;
 	}
 
 protected:
@@ -336,7 +336,7 @@ protected:
 
 private:
 	SpatialAccelerationType Type;
-	FReal SyncTime;	//The point in time the acceleration structure is in sync with. As GT moves forward in time, more becomes out of date
+	int32 SyncTimestamp;	//The set of inputs the acceleration structure is in sync with. GT moves forward in time and enqueues inputs
 	bool AsyncTimeSlicingComplete;
 };
 

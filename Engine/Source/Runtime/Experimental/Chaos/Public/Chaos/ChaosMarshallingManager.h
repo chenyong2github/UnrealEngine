@@ -303,8 +303,11 @@ public:
 	/** Frees the callback push data back into the pool. Internal thread should call this when callback will no longer be used with this specific data*/
 	void FreeCallbackData_Internal(FSimCallbackHandlePT* Callback);
 
-	/** Returns the amount of external time consumed. Note the simulation may be pending, but any data associated with the interval up to this point has been passed */
-	FReal GetExternalTimeConsumed_External() const { return SimTime; }
+	/** Returns the timestamp associated with inputs consumed. Note the simulation may be pending, but any data associated with timestamp <= returned value has been passed */
+	int32 GetExternalTimestampConsumed_External() const { return InternalTimestamp; }
+
+	/** Returns the timestamp associated with inputs enqueued. */
+	int32 GetExternalTimestamp_External() const { return ExternalTimestamp; }
 
 	/** Returns the amount of external time pushed so far. Any external commands or events should be associated with this time */
 	FReal GetExternalTime_External() const { return ExternalTime; }
@@ -314,7 +317,9 @@ public:
 	
 private:
 	FReal ExternalTime;	//the global time external thread is currently at
+	int32 ExternalTimestamp; //the global timestamp external thread is currently at (1 per frame)
 	FReal SimTime;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
+	int32 InternalTimestamp;	//the global timestamp the sim is at (consumes 1 or more frames per internal tick)
 	FPushPhysicsData* ProducerData;
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs

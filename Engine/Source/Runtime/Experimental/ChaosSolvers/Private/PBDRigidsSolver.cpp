@@ -601,9 +601,9 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::SetExternalTimeConsumed_External(const FReal Time)
+	void TPBDRigidsSolver<Traits>::SetExternalTimestampConsumed_External(const int32 Timestamp)
 	{
-		MEvolution->LatestExternalTimeConsumed = Time;
+		MEvolution->LatestExternalTimestampConsumed = Timestamp;
 	}
 
 	template <typename Traits>
