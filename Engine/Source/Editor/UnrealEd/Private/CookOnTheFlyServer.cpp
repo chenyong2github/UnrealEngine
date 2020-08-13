@@ -1850,6 +1850,7 @@ public:
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	bool							bCookAgainstFixedBase = false;
+	bool							bDlcLoadMainAssetRegistry = false;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -2496,6 +2497,11 @@ bool UCookOnTheFlyServer::IsCookingDLC() const
 bool UCookOnTheFlyServer::IsCookingAgainstFixedBase() const
 {
 	return IsCookingDLC() && CookByTheBookOptions && CookByTheBookOptions->bCookAgainstFixedBase;
+}
+
+bool UCookOnTheFlyServer::ShouldPopulateFullAssetRegistry() const
+{
+	return !IsCookingDLC() || (CookByTheBookOptions && CookByTheBookOptions->bDlcLoadMainAssetRegistry);
 }
 
 FString UCookOnTheFlyServer::GetBaseDirectoryForDLC() const
@@ -6060,7 +6066,16 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 		if (!bCanDelayAssetregistryProcessing)
 		{
 			TArray<FString> ScanPaths;
-			if (GConfig->GetArray(TEXT("AssetRegistry"), TEXT("PathsToScanForCook"), ScanPaths, GEngineIni) > 0 && !AssetRegistry->IsLoadingAssets())
+			if (ShouldPopulateFullAssetRegistry())
+			{
+				GConfig->GetArray(TEXT("AssetRegistry"), TEXT("PathsToScanForCook"), ScanPaths, GEngineIni);
+			}
+			else if (IsCookingDLC())
+			{
+				ScanPaths.Add(FString::Printf(TEXT("/%s/"), *CookByTheBookOptions->DlcName));
+			}
+
+			if (ScanPaths.Num() > 0 && !AssetRegistry->IsLoadingAssets())
 			{
 				AssetRegistry->ScanPathsSynchronous(ScanPaths);
 			}
@@ -7540,7 +7555,12 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
+	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
+
+	// if we are going to change the state of dlc, we need to clean out our package filename cache (the generated filename cache is dependent on this key). This has to happen later on, but we want to set the DLC State earlier.
+	const bool bDlcStateChanged = CookByTheBookOptions->DlcName != DLCName;
+	CookByTheBookOptions->DlcName = DLCName;
 
 	GenerateAssetRegistry();
 
@@ -7708,11 +7728,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		DiscoverPlatformSpecificNeverCookPackages(TargetPlatforms, UBTPlatformStrings);
 	}
 
-	if ( CookByTheBookOptions->DlcName != DLCName )
+	if (bDlcStateChanged)
 	{
-		// we are going to change the state of dlc we need to clean out our package filename cache (the generated filename cache is dependent on this key)
-		CookByTheBookOptions->DlcName = DLCName;
-
+		// If we changed the DLC State earlier on, we must clear out the package name cache
 		TermSandbox();
 	}
 

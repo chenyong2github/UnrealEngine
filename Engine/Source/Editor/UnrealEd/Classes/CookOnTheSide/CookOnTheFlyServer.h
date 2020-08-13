@@ -73,6 +73,7 @@ enum class ECookByTheBookOptions
 	PackageStore =						0x00004000, // Cook package header information into a global package store
 	SkipSoftReferences =				0x00008000, // Don't follow soft references when cooking. Usually not viable for a real cook and the results probably wont load properly, but can be useful for debugging
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
+	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 };
 ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 
@@ -880,6 +881,11 @@ private:
 	* Returns true if we're cooking against a fixed release version
 	*/
 	bool IsCookingAgainstFixedBase() const;
+
+	/**
+	* Returns whether or not we should populate the Asset Registry using the main game content
+	*/
+	bool ShouldPopulateFullAssetRegistry() const;
 
 	/**
 	* GetBaseDirectoryForDLC
