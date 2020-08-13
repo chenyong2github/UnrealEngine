@@ -127,7 +127,7 @@ void MainCS(
 	#endif
 
 	float2 ScreenVelocity = ScreenPos - PrevScreenPos;
-	taa_half OutputPixelVelocity = taa_half(length(ScreenVelocity * OutputInfo_ViewportSize));
+	taa_half OutputPixelVelocity = taa_half(length(ScreenVelocity * HistoryInfo_ViewportSize));
 	
 	// Fetch wehther the pixel is responsive AA or not.
 	bool bIsResponsiveAAPixel = false;
@@ -153,7 +153,6 @@ void MainCS(
 	ISOLATE
 	{
 		taa_half InputToHistoryFactor = taa_half(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
-		taa_half InputToOutputFactor = taa_half(OutputInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
 	
 		// Vector in pixel between pixel K -> O.
 		taa_half2 dKO = taa_half2(PPCo - PPCk);
@@ -370,7 +369,7 @@ void MainCS(
 			PrevHistoryRejectionWeight = taa_half(0.0);
 		}
 
-		taa_half DesiredCurrentContribution = max(Histeresis * InputPixelAlignement, taa_half(0.0)); // * Pow2(InputToOutputFactor);
+		taa_half DesiredCurrentContribution = max(Histeresis * InputPixelAlignement, taa_half(0.0));
 
 		// Determine whether the the prediction based rejection was confident enough.
 		taa_half RejectionConfidentEnough = taa_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
@@ -667,50 +666,14 @@ void MainCS(
 
 		// Output final scene color
 		{
-			BRANCH
-			if (HistoryInfo_ViewportSize.x == OutputInfo_ViewportSize.x)
-			{
-				taa_half3 OutputColor = FinalOutputColor;
+			taa_half3 OutputColor = FinalOutputColor;
 				
-				OutputColor = -min(-OutputColor, taa_half(0.0));
-				OutputColor = min(OutputColor, taa_half(Max10BitsFloat));
+			OutputColor = -min(-OutputColor, taa_half(0.0));
+			OutputColor = min(OutputColor, taa_half(Max10BitsFloat));
 
-				if (bIsValidhistoryPixel)
-				{
-					SceneColorOutput[LocalHistoryPixelPos] = OutputColor;
-				}
-			}
-			else
+			if (bIsValidhistoryPixel)
 			{
-				taa_half HdrWeight = HdrWeight4(FinalOutputColor);
-
-				SharedArray0[LocalGroupThreadIndex] = taa_half4(FinalOutputColor, 1.0) * (HdrWeight * FinalOutputValidity);
-
-				GroupMemoryBarrierWithGroupSync();
-
-				taa_half3 OutputColor = FinalOutputColor * (FinalOutputValidity * HdrWeight);
-				taa_half OutputWeight = FinalOutputValidity * HdrWeight;
-
-				UNROLL
-				for (uint i = 1; i < 4; i++)
-				{
-					uint ButterflySwap = i;
-
-					taa_half4 RawLDS = SharedArray0[LocalGroupThreadIndex ^ ButterflySwap];
-
-					OutputColor += RawLDS.rgb;
-					OutputWeight += RawLDS.a;
-				}
-
-				OutputColor *= SafeRcp(OutputWeight);
-				
-				OutputColor = -min(-OutputColor, taa_half(0.0));
-				OutputColor = min(OutputColor, taa_half(Max10BitsFloat));
-
-				if (all(LocalHistoryPixelPos % 2 == 0) && bIsValidhistoryPixel)
-				{
-					SceneColorOutput[LocalHistoryPixelPos / 2] = OutputColor;
-				}
+				SceneColorOutput[LocalHistoryPixelPos] = OutputColor;
 			}
 		}
 	}

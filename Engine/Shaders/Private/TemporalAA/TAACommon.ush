@@ -139,21 +139,6 @@ float2 RejectionInfo_UVViewportSizeInverse;
 float2 RejectionInfo_UVViewportBilinearMin;
 float2 RejectionInfo_UVViewportBilinearMax;
 
-float2 OutputInfo_Extent;
-float2 OutputInfo_ExtentInverse;
-float2 OutputInfo_ScreenPosToViewportScale;
-float2 OutputInfo_ScreenPosToViewportBias;
-uint2  OutputInfo_ViewportMin;
-uint2  OutputInfo_ViewportMax;
-float2 OutputInfo_ViewportSize;
-float2 OutputInfo_ViewportSizeInverse;
-float2 OutputInfo_UVViewportMin;
-float2 OutputInfo_UVViewportMax;
-float2 OutputInfo_UVViewportSize;
-float2 OutputInfo_UVViewportSizeInverse;
-float2 OutputInfo_UVViewportBilinearMin;
-float2 OutputInfo_UVViewportBilinearMax;
-
 float2 HistoryInfo_Extent;
 float2 HistoryInfo_ExtentInverse;
 float2 HistoryInfo_ScreenPosToViewportScale;
