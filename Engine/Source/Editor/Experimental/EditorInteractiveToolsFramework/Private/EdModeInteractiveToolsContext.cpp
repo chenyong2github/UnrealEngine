@@ -798,7 +798,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	{
 		if (ToolManager->HasAnyActiveTool())
 		{
-			if (ToolManager->HasActiveTool(EToolSide::Mouse) && ToolManager->CanCancelActiveTool(EToolSide::Mouse))
+			if (ToolManager->HasActiveTool(EToolSide::Mouse))
 			{
 				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 			}
