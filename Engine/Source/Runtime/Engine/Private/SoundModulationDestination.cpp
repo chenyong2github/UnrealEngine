@@ -92,6 +92,11 @@ namespace Audio
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
 
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.LinearFunction(&NewTargetLinear, 1);
+		}
+
 		FScopeLock Lock(&SettingsCritSection);
 		{
 			bIsActive = Handle.IsValid();
@@ -139,22 +144,17 @@ namespace Audio
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
 
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.LinearFunction(&NewTargetLinear, 1);
+		}
+
 		FScopeLock Lock(&SettingsCritSection);
 		{
 			bIsActive = Handle.IsValid();
 			if (bIsActive)
 			{
 				Handle.GetValue(NewTargetLinear);
-			}
-		}
-
-		// If not active, ensure default value is converted
-		// that NewTargetLinear was set to is linearized
-		if (!bIsActive)
-		{
-			if (Parameter.bRequiresConversion)
-			{
-				Parameter.LinearFunction(&NewTargetLinear, 1);
 			}
 		}
 
