@@ -13,6 +13,7 @@ DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 namespace Metasound
 {
 	REGISTER_METASOUND_DATATYPE(FWave, "Primitive:Wave");
+	REGISTER_METASOUND_DATATYPE(FWaveAsset, "Primitive:WaveAsset", ::Metasound::ELiteralArgType::UObjectProxy, USoundWave)
 }
 
 class FMetasoundEngineModule : public IMetasoundEngineModule

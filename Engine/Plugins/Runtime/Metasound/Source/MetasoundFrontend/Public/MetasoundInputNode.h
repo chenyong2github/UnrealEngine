@@ -139,10 +139,10 @@ namespace Metasound
 
 			}
 
-			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FDataTypeLiteralParam InParam, const FOperatorSettings& InSettings)
+			explicit TInputNode(const FString& InNodeDescription, const FString& InVertexName, FDataTypeLiteralParam&& InParam, const FOperatorSettings& InSettings)
 				: NodeDescription(InNodeDescription)
 				, VertexName(InVertexName)
-				, Factory(InParam, InSettings)
+				, Factory(MoveTemp(InParam), InSettings)
 			{
 				FOutputDataVertex OutputVertex = MakeOutputDataVertex<DataType>(VertexName, FText::GetEmpty());
 				FDataVertexKey OutputVertexKey = MakeDataVertexKey(OutputVertex);

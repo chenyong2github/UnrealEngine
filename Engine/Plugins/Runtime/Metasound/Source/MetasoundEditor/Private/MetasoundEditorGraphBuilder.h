@@ -27,6 +27,8 @@ namespace Metasound
 			static const FName PinPrimitiveFloat;
 			static const FName PinPrimitiveInteger;
 			static const FName PinPrimitiveString;
+			static const FName PinPrimitiveUObject;
+			static const FName PinPrimitiveUObjectArray;
 
 			// Adds a node to the editor graph that corresponds to the provided node handle.
 			static UEdGraphNode* AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode = true);

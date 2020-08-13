@@ -4,6 +4,8 @@
 
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "IAudioProxyInitializer.h"
+#include "Sound/SoundWave.h"
 
 // Forward declares
 namespace Audio
@@ -38,5 +40,32 @@ namespace Metasound
 		static FDecoderInputPtr CreateDecoderInput(
 			const FWaveReadRef& InWaveRef);
 	};
+	// Metasound datatype that holds onto a weak ptr. Mostly used as a placeholder until we have a proper proxy type.
+	class FWaveAsset
+	{
+	private:
+		TWeakObjectPtr<USoundWave> SoundWave;
+	public:
+
+		FWaveAsset() = default;
+
+		FWaveAsset(const Audio::IProxyData& InInitData)
+		{
+			const FSoundWaveProxy& SoundWaveProxy = InInitData.GetAs<FSoundWaveProxy>();
+			SoundWave = SoundWaveProxy.SoundWavePtr;
+		}
+
+		USoundWave* GetSoundWave()
+		{
+			return SoundWave.Get();
+		}
+
+		const USoundWave* GetSoundWave() const
+		{
+			return SoundWave.Get();
+		}
+	};
+
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWave, METASOUNDENGINE_API, 0x0ddba11, FWaveTypeInfo, FWaveReadRef, FWaveWriteRef)
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveAsset, METASOUNDENGINE_API, 0x0ddba42, FWaveAssetTypeInfo, FWaveAssetReadRef, FWaveAssetWriteRef)
 }

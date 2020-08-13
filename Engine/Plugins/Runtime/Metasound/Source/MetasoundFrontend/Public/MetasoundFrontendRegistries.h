@@ -6,14 +6,59 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundOperatorInterface.h"
+#include "IAudioProxyInitializer.h"
 
-typedef TUniqueFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FInputNodeConstructorParams&)> FInputNodeConstructorCallback;
+typedef TUniqueFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FInputNodeConstructorCallback;
 typedef TUniqueFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstrutorParams&)> FOutputNodeConstructorCallback;
+
+// This function is used to create a proxy from a datatype's base uclass.
+typedef TUniqueFunction<Audio::IProxyDataPtr(UObject*)> FProxyGetterCallback;
 
 typedef TUniqueFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FNodeGetterCallback;
 
 namespace Metasound
 {
+	// Various elements that we pass to the frontend registry based on templated type traits.
+	struct FDataTypeRegistryInfo
+	{
+		// The name of the data type itself.
+		FName DataTypeName;
+
+		// What type we should default to using for literals.
+		ELiteralArgType PreferredLiteralType;
+
+		// These bools signify what basic
+		// UProperty primitives we can use to describe this data type as a literal in a document.
+		bool bIsBoolParsable;
+		bool bIsIntParsable;
+		bool bIsFloatParsable;
+		bool bIsStringParsable;
+
+		// these are used for using UObjects, or arrays of UObjects.
+		bool bIsProxyParsable;
+		bool bIsProxyArrayParsable;
+
+		// If this datatype was registered with a specific UClass to use to filter with, that will be used here:
+		UClass* ProxyGeneratorClass;
+
+		// This indicates the type can only be constructed with FOperatorSettings and no other args.
+		// TODO: these can be consolidated to a single bool, since FDataTypeLiteralParam automatically falls back to not using the settings.
+		bool bIsConstructableWithSettings;
+		bool bIsDefaultConstructible;
+
+		FDataTypeRegistryInfo()
+			: bIsBoolParsable(false)
+			, bIsIntParsable(false)
+			, bIsFloatParsable(false)
+			, bIsStringParsable(false)
+			, bIsProxyParsable(false)
+			, bIsProxyArrayParsable(false)
+			, ProxyGeneratorClass(nullptr)
+			, bIsConstructableWithSettings(false)
+			, bIsDefaultConstructible(false)
+		{}
+	};
+
 	namespace Frontend
 	{
 		struct METASOUNDFRONTEND_API FNodeRegistryKey
@@ -51,14 +96,19 @@ namespace Metasound
 			}
 		};
 	}
-}
 
-/*
-static uint32 METASOUNDGRAPHCORE_API GetTypeHash(const Metasound::Frontend::FNodeRegistryKey& InKey)
-{
-	return InKey.NodeHash;
+	struct FDataTypeConstructorCallbacks
+	{
+		// This constructs a TInputNode<> with the corresponding datatype.
+		FInputNodeConstructorCallback InputNodeConstructor;
+
+		// This constructs a TOutputNode<> with the corresponding datatype.
+		FOutputNodeConstructorCallback OutputNodeConstructor;
+
+		// For datatypes that use a UObject literal or a UObject literal array, this lambda generates a literal from the corresponding UObject.
+		FProxyGetterCallback ProxyConstructor;
+	};
 }
-*/
 
 /**
  * Singleton registry for all types and nodes.
@@ -79,18 +129,24 @@ public:
 
 	TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
 
-	TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, const Metasound::FInputNodeConstructorParams& InParams);
+	TUniquePtr<Metasound::INode> ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams);
 	TUniquePtr<Metasound::INode> ConstructOutputNode(const FName& InOutputType, const Metasound::FOutputNodeConstrutorParams& InParams);
+
+	Metasound::FDataTypeLiteralParam GenerateLiteralForUObject(const FName& InDataType, UObject* InObject);
+	Metasound::FDataTypeLiteralParam GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray);
 
 	TUniquePtr<Metasound::INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData);
 
 	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
 	Metasound::ELiteralArgType GetDesiredLiteralTypeForDataType(FName InDataType) const;
 
+	UClass* GetLiteralUClassForDataType(FName InDataType) const;
+
+
 	// Get whether we can build a literal of this specific type for InDataType.
 	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const;
 
-	bool RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, FInputNodeConstructorCallback&& InputNodeConstructor, FOutputNodeConstructorCallback&& OutputNodeConstructor);
+	bool RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, ::Metasound::FDataTypeConstructorCallbacks&& InCallbacks);
 	bool RegisterExternalNode(FNodeGetterCallback&& InCallback);
 
 	// Return any data types that can be used as a metasound input type or output type.
@@ -120,8 +176,8 @@ private:
 
 	struct FDataTypeRegistryElement
 	{
-		FInputNodeConstructorCallback InputNodeConstructor;
-		FOutputNodeConstructorCallback  OutputNodeConstructor;
+		Metasound::FDataTypeConstructorCallbacks Callbacks;
+
 		Metasound::FDataTypeRegistryInfo Info;
 	};
 

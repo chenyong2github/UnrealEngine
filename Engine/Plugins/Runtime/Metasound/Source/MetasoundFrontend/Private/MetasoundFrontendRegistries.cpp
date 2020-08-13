@@ -84,11 +84,11 @@ TMap<FMetasoundFrontendRegistryContainer::FNodeRegistryKey, FMetasoundFrontendRe
 	return ExternalNodeRegistry;
 }
 
-TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructInputNode(const FName& InInputType, const Metasound::FInputNodeConstructorParams& InParams)
+TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams)
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InInputType), TEXT("Couldn't find data type %s!"), *InInputType.ToString()))
 	{
-		return DataTypeRegistry[InInputType].InputNodeConstructor(InParams);
+		return DataTypeRegistry[InInputType].Callbacks.InputNodeConstructor(MoveTemp(InParams));
 	}
 	else
 	{
@@ -100,11 +100,55 @@ TUniquePtr<Metasound::INode> FMetasoundFrontendRegistryContainer::ConstructOutpu
 {
 	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InOutputType), TEXT("Couldn't find data type %s!"), *InOutputType.ToString()))
 	{
-		return DataTypeRegistry[InOutputType].OutputNodeConstructor(InParams);
+		return DataTypeRegistry[InOutputType].Callbacks.OutputNodeConstructor(InParams);
 	}
 	else
 	{
 		return nullptr;
+	}
+}
+
+Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLiteralForUObject(const FName& InDataType, UObject* InObject)
+{
+	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
+	{
+		 Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.ProxyConstructor(InObject);
+		 if (ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!")))
+		 {
+			 return Metasound::FDataTypeLiteralParam(MoveTemp(ProxyPtr));
+		 }
+		 else
+		 {
+			 return Metasound::FDataTypeLiteralParam();
+		 }
+	}
+	else
+	{
+		return Metasound::FDataTypeLiteralParam();
+	}
+}
+
+Metasound::FDataTypeLiteralParam FMetasoundFrontendRegistryContainer::GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray)
+{
+	if (ensureAlwaysMsgf(DataTypeRegistry.Contains(InDataType), TEXT("Couldn't find data type %s!"), *InDataType.ToString()))
+	{
+		TArray<Audio::IProxyDataPtr> ProxyArray;
+
+		for (UObject* InObject : InObjectArray)
+		{
+			if (InObject)
+			{
+				Audio::IProxyDataPtr ProxyPtr = DataTypeRegistry[InDataType].Callbacks.ProxyConstructor(InObject);
+				ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy!"));
+				ProxyArray.Add(MoveTemp(ProxyPtr));
+			}
+		}
+
+		return Metasound::FDataTypeLiteralParam(MoveTemp(ProxyArray));
+	}
+	else
+	{
+		return Metasound::FDataTypeLiteralParam();
 	}
 }
 
@@ -169,6 +213,19 @@ Metasound::ELiteralArgType FMetasoundFrontendRegistryContainer::GetDesiredLitera
 	}
 }
 
+UClass* FMetasoundFrontendRegistryContainer::GetLiteralUClassForDataType(FName InDataType) const
+{
+	if (!DataTypeRegistry.Contains(InDataType))
+	{
+		ensureAlwaysMsgf(false, TEXT("couldn't find DataType %s in the registry."), *InDataType.ToString());
+		return nullptr;
+	}
+	else
+	{
+		return DataTypeRegistry[InDataType].Info.ProxyGeneratorClass;
+	}
+}
+
 bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const
 {
 	if (!DataTypeRegistry.Contains(InDataType))
@@ -197,6 +254,14 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 		{
 			return DataTypeInfo.Info.bIsStringParsable;
 		}
+		case Metasound::ELiteralArgType::UObjectProxy:
+		{
+			return DataTypeInfo.Info.bIsProxyParsable;
+		}
+		case Metasound::ELiteralArgType::UObjectProxyArray:
+		{
+			return DataTypeInfo.Info.bIsProxyArrayParsable;
+		}
 		case Metasound::ELiteralArgType::None:
 		{
 			return DataTypeInfo.Info.bIsConstructableWithSettings || DataTypeInfo.Info.bIsDefaultConstructible;
@@ -209,7 +274,7 @@ bool FMetasoundFrontendRegistryContainer::DoesDataTypeSupportLiteralType(FName I
 	}
 }
 
-bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, FInputNodeConstructorCallback&& InputNodeConstructor, FOutputNodeConstructorCallback&& OutputNodeConstructor)
+bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, ::Metasound::FDataTypeConstructorCallbacks&& InCallbacks)
 {
 	if (!ensureAlwaysMsgf(!DataTypeRegistry.Contains(InDataInfo.DataTypeName), TEXT("Name collision when trying to register Metasound Data Type %s! Make sure that you created a unique name for your data type, and that REGISTER_METASOUND_DATATYPE isn't called in a public header."), *InDataInfo.DataTypeName.ToString()))
 	{
@@ -218,7 +283,7 @@ bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FD
 	}
 	else
 	{
-		FDataTypeRegistryElement InElement = { MoveTemp(InputNodeConstructor), MoveTemp(OutputNodeConstructor), InDataInfo };
+		FDataTypeRegistryElement InElement = { MoveTemp(InCallbacks), InDataInfo };
 		DataTypeRegistry.Add(InDataInfo.DataTypeName, MoveTemp(InElement));
 		UE_LOG(LogTemp, Display, TEXT("Registered Metasound Datatype %s."), *InDataInfo.DataTypeName.ToString());
 		return true;

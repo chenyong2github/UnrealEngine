@@ -20,6 +20,8 @@
 		static constexpr bool bIsBoolParsable = TTestIfDataTypeCtorIsImplemented<DataType, bool>::Value; \
 		static constexpr bool bIsIntParsable = TTestIfDataTypeCtorIsImplemented<DataType, int32>::Value; \
 		static constexpr bool bIsFloatParsable = TTestIfDataTypeCtorIsImplemented<DataType, float>::Value; \
+		static constexpr bool bIsProxyParsable =  TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
+		static constexpr bool bIsProxyArrayParsable =  TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
 		static constexpr bool bIsConstructableWithSettings = TTestIfDataTypeDefaultCtorIsImplemented<DataType>::Value; \
 		static constexpr bool bCanUseDefaultConstructor = TIsConstructible<DataType>::Value; \
 		static constexpr bool bIsValidSpecialization = true; \
@@ -91,6 +93,8 @@ namespace Metasound
 		static constexpr bool bIsBoolParsable = false;
 		static constexpr bool bIsIntParsable = false;
 		static constexpr bool bIsFloatParsable = false;
+		static constexpr bool bIsProxyParsable = false;
+		static constexpr bool bIsProxyArrayParsable = false;
 		static constexpr bool bIsConstructableWithSettings = false;
 		static constexpr bool bCanUseDefaultConstructor = false;
 		static constexpr bool bIsValidSpecialization = false;
@@ -451,43 +455,9 @@ namespace Metasound
 		Integer,
 		Float,
 		String,
+		UObjectProxy,
+		UObjectProxyArray,
 		None, // If this is set, we will invoke TType(const FOperatorSettings&) If that constructor exists, or the default constructor if not.
 		Invalid,
 	};
-
-	// Various elements that we pass to the frontend registry based on templated type traits.
-	struct FDataTypeRegistryInfo
-	{
-		// The name of the data type itself.
-		FName DataTypeName;
-
-		// What type we should default to using for literals.
-		ELiteralArgType PreferredLiteralType;
-
-		// These bools signify what basic
-		// UProperty primitives we can use to describe this data type as a literal in a document.
-		bool bIsBoolParsable;
-		bool bIsIntParsable;
-		bool bIsFloatParsable;
-		bool bIsStringParsable;
-
-		// This indicates the type can only be constructed with FOperatorSettings and no other args.
-		// TODO: these can be consolidated to a single bool, since FDataTypeLiteralParam automatically falls back to not using the settings.
-		bool bIsConstructableWithSettings;
-		bool bIsDefaultConstructible;
-
-		FDataTypeRegistryInfo()
-			: bIsBoolParsable(false)
-			, bIsIntParsable(false)
-			, bIsFloatParsable(false)
-			, bIsStringParsable(false)
-			, bIsConstructableWithSettings(false)
-			, bIsDefaultConstructible(false)
-		{}
-	};
 }
-
-struct FMyRandomDataType
-{
-	explicit FMyRandomDataType(bool bInValue);
-};

@@ -18,9 +18,9 @@ namespace Metasound
 			return FMetasoundFrontendRegistryContainer::Get()->GetExternalNodeRegistry();
 		}
 
-		TUniquePtr<INode> ConstructInputNode(const FName& InInputType, const FInputNodeConstructorParams& InParams)
+		TUniquePtr<INode> ConstructInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams)
 		{
-			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InInputType, InParams);
+			return FMetasoundFrontendRegistryContainer::Get()->ConstructInputNode(InInputType, MoveTemp(InParams));
 		}
 
 		TUniquePtr<INode> ConstructOutputNode(const FName& InOutputType, const FOutputNodeConstrutorParams& InParams)
@@ -40,6 +40,8 @@ namespace Metasound
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
 			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray.Empty();
 		}
 
 		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, int32 InValue)
@@ -49,6 +51,8 @@ namespace Metasound
 			OutDescription.AsInteger = InValue;
 			OutDescription.AsFloat = 0.0f;
 			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray.Empty();
 		}
 
 		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, float InValue)
@@ -58,6 +62,8 @@ namespace Metasound
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = InValue;
 			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray.Empty();
 		}
 
 		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const FString& InValue)
@@ -67,6 +73,31 @@ namespace Metasound
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
 			OutDescription.AsString = InValue;
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray.Empty();
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, UObject* InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::UObject;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = InValue;
+			OutDescription.AsUObjectArray.Empty();
+
+		}
+
+		void SetLiteralDescription(FMetasoundLiteralDescription& OutDescription, const TArray<UObject*>& InValue)
+		{
+			OutDescription.LiteralType = EMetasoundLiteralType::UObjectArray;
+			OutDescription.AsBool = false;
+			OutDescription.AsInteger = 0;
+			OutDescription.AsFloat = 0.0f;
+			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray = InValue;
 		}
 
 		void ClearLiteralDescription(FMetasoundLiteralDescription& OutDescription)
@@ -76,6 +107,8 @@ namespace Metasound
 			OutDescription.AsInteger = 0;
 			OutDescription.AsFloat = 0.0f;
 			OutDescription.AsString.Empty();
+			OutDescription.AsUObject = nullptr;
+			OutDescription.AsUObjectArray.Empty();
 		}
 
 		FDataTypeLiteralParam GetLiteralParamForDataType(FName InDataType, const FMetasoundLiteralDescription& InDescription)
@@ -133,6 +166,28 @@ namespace Metasound
 						return FDataTypeLiteralParam(InDescription.AsString);
 					}
 				}
+				case EMetasoundLiteralType::UObject:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxy))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return Registry->GenerateLiteralForUObject(InDataType, InDescription.AsUObject);
+					}
+				}
+				case EMetasoundLiteralType::UObjectArray:
+				{
+					if (!Registry->DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxyArray))
+					{
+						return FDataTypeLiteralParam::InvalidParam();
+					}
+					else
+					{
+						return Registry->GenerateLiteralForUObjectArray(InDataType, InDescription.AsUObjectArray);
+					}
+				}
 				case EMetasoundLiteralType::Invalid:
 				default:
 				{
@@ -152,9 +207,13 @@ namespace Metasound
 			case EMetasoundLiteralType::Float:
 				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Float);
 			case EMetasoundLiteralType::Integer:
-				return DoesDataTypeSupportLiteralType(InDataType, EMetasoundLiteralType::Integer);
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::Integer);
 			case EMetasoundLiteralType::String:
-				return DoesDataTypeSupportLiteralType(InDataType, EMetasoundLiteralType::String);
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::String);
+			case EMetasoundLiteralType::UObject:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxy);
+			case EMetasoundLiteralType::UObjectArray:
+				return DoesDataTypeSupportLiteralType(InDataType, ELiteralArgType::UObjectProxyArray);
 			case EMetasoundLiteralType::Invalid:
 			default:
 				return false;
@@ -190,6 +249,8 @@ namespace Metasound
 				{
 					return FDataTypeLiteralParam(InDescription.AsString);
 				}
+				case EMetasoundLiteralType::UObject:
+				case EMetasoundLiteralType::UObjectArray:
 				case EMetasoundLiteralType::None:
 				case EMetasoundLiteralType::Invalid:
 				default:
@@ -223,6 +284,8 @@ namespace Metasound
 				{
 					return FDataTypeLiteralParam(FString());
 				}
+				case Metasound::ELiteralArgType::UObjectProxy:
+				case Metasound::ELiteralArgType::UObjectProxyArray:
 				case Metasound::ELiteralArgType::None:
 				{
 					return FDataTypeLiteralParam();

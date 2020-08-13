@@ -5,7 +5,7 @@
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Modules/ModuleInterface.h"
-#include "MetasoundDataReference.h"
+#include "MetasoundFrontendRegistries.h"
 #include "Templates/Function.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMetasoundEditor, Log, All);

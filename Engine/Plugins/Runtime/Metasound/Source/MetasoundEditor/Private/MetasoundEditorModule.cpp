@@ -133,12 +133,24 @@ namespace Metasound
 						}
 						break;
 
+						case ELiteralArgType::UObjectProxy:
+						{
+							PinType = FGraphBuilder::PinPrimitiveUObject;
+						}
+						break;
+
+						case ELiteralArgType::UObjectProxyArray:
+						{
+							PinType = FGraphBuilder::PinPrimitiveUObjectArray;
+						}
+						break;
+
 						// Register atypical primitives
 						default:
 						case ELiteralArgType::None:
 						case ELiteralArgType::Invalid:
 						{
-							static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 5, "Possible missing binding of pin category to primitive type");
+							static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 7, "Possible missing binding of pin category to primitive type");
 						}
 						break;
 					}

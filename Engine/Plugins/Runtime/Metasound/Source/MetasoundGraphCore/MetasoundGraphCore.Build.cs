@@ -11,17 +11,12 @@ namespace UnrealBuildTool.Rules
 		{
             //OptimizeCode = CodeOptimization.Never;
 
-            PrivateDependencyModuleNames.AddRange(
-				new string[] {
-                    "AudioExtensions"
-                }
-			);
-
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
-					"SignalProcessing"
-                }
+					"SignalProcessing",
+					"AudioExtensions"
+				}
             );
 		}
 	}

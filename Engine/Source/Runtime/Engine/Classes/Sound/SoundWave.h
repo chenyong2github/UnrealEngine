@@ -20,6 +20,7 @@
 #include "AudioCompressionSettings.h"
 #include "PerPlatformProperties.h"
 #include "ContentStreaming.h"
+#include "IAudioProxyInitializer.h"
 #include "SoundWave.generated.h"
 
 class ITargetPlatform;
@@ -302,10 +303,26 @@ struct ISoundWaveClient
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
 
+class FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
+{
+	IMPL_AUDIOPROXY_CLASS(FSoundWaveProxy)
+
+public:
+	// For now, this is just a weak object pointer.
+	// However, in the future this should be a thread-safe handle to whatever data is needed for this wave.
+	TWeakObjectPtr<USoundWave> SoundWavePtr;
+
+	FSoundWaveProxy(USoundWave* InWave)
+		: SoundWavePtr(InWave)
+	{
+	}
+};
+
 UCLASS(hidecategories=Object, editinlinenew, BlueprintType)
-class ENGINE_API USoundWave : public USoundBase
+class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
 {
 	GENERATED_UCLASS_BODY()
+
 public:
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
 	UPROPERTY(EditAnywhere, Category="Format|Quality", meta=(DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
@@ -725,12 +742,16 @@ public:
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
 	//~ End USoundBase Interface.
 
+	//~Begin IAudioProxyDataFactory Interface.
+	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	//~ End IAudioProxyDataFactory Interface.
+
 	// Called  when the procedural sound wave begins on the render thread. Only used in the audio mixer and when bProcedural is true.
 	virtual void OnBeginGenerate() {}
 
 	// Called when the procedural sound wave is done generating on the render thread. Only used in the audio mixer and when bProcedural is true..
 	virtual void OnEndGenerate() {};
-
+	
 	void AddPlayingSource(const FSoundWaveClientPtr& Source);
 	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
 

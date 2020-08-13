@@ -10,6 +10,7 @@
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
+#include "MetasoundFrontendRegistries.h"
 
 
 static int32 MetasoundUndoRollLimitCvar = 128;
@@ -201,6 +202,42 @@ namespace Metasound
 			{
 				ensureAlwaysMsgf(false, TEXT("Tried to get Class Description for unknown node %s!"), *InInfo.NodeName);
 				return FMetasoundClassDescription();
+			}
+		}
+
+		EMetasoundLiteralType GetMetasoundLiteralType(Metasound::ELiteralArgType InLiteralType)
+		{
+			switch (InLiteralType)
+			{
+				case Metasound::ELiteralArgType::Boolean:
+				{
+					return EMetasoundLiteralType::Bool;
+				}
+				case Metasound::ELiteralArgType::Integer:
+				{
+					return EMetasoundLiteralType::Integer;
+				}
+				case Metasound::ELiteralArgType::Float:
+				{
+					return EMetasoundLiteralType::Float;
+				}
+				case Metasound::ELiteralArgType::String:
+				{
+					return EMetasoundLiteralType::String;
+				}
+				case Metasound::ELiteralArgType::UObjectProxy:
+				{
+					return EMetasoundLiteralType::UObject;
+				}
+				case Metasound::ELiteralArgType::UObjectProxyArray:
+				{
+					return EMetasoundLiteralType::UObjectArray;
+				}
+				case Metasound::ELiteralArgType::None:
+				default:
+				{
+					return EMetasoundLiteralType::None;
+				}
 			}
 		}
 
@@ -1763,6 +1800,21 @@ namespace Metasound
 			}
 		}
 
+		UClass* FGraphHandle::GetSupportedClassForInput(const FString& InInputName)
+		{
+			FName DataType;
+			if (GetDataTypeForInput(InInputName, DataType))
+			{
+				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+				return Registry->GetLiteralUClassForDataType(DataType);
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+
 		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, bool bInValue)
 		{
 			FName DataType;
@@ -1820,6 +1872,42 @@ namespace Metasound
 			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
 			{
 				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::String), TEXT("Tried to set Data Type %s to an unsupported literal type (String)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, InValue);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, UObject* InValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::UObjectProxy), TEXT("Tried to set Data Type %s to an unsupported literal type (String)")))
+				{
+					return false;
+				}
+
+				SetLiteralDescription(*Literal, InValue);
+				return true;
+			}
+
+			return false;
+		
+		
+		}
+
+		bool FGraphHandle::SetInputToLiteral(const FString& InInputName, TArray<UObject*> InValue)
+		{
+			FName DataType;
+			if (FMetasoundLiteralDescription* Literal = GetLiteralDescriptionForInput(InInputName, DataType))
+			{
+				if (!ensureAlwaysMsgf(DoesDataTypeSupportLiteralType(DataType, ELiteralArgType::UObjectProxyArray), TEXT("Tried to set Data Type %s to an unsupported literal type (String)")))
 				{
 					return false;
 				}
@@ -2248,7 +2336,7 @@ namespace Metasound
 								UE_LOG(LogTemp, Display, TEXT("Data Type %s supports the following literal types:"), *InputDescription.TypeName.ToString());
 
 								FDataTypeRegistryInfo DataTypeInfo;
-
+								
 								// this shouldn't hit at all, because this should be a registered data type.
 								ensure(GetTraitsForDataType(InputDescription.TypeName, DataTypeInfo));
 
@@ -2272,6 +2360,18 @@ namespace Metasound
 									UE_LOG(LogTemp, Display, TEXT("    String"));
 								}
 
+								if (DataTypeInfo.bIsProxyParsable)
+								{
+									check(DataTypeInfo.ProxyGeneratorClass);
+									UE_LOG(LogTemp, Display, TEXT("    U%s*"), *DataTypeInfo.ProxyGeneratorClass->GetName());
+								}
+
+								if (DataTypeInfo.bIsProxyArrayParsable)
+								{
+									check(DataTypeInfo.ProxyGeneratorClass);
+									UE_LOG(LogTemp, Display, TEXT("    TArray<U%s*>"), *DataTypeInfo.ProxyGeneratorClass->GetName());
+								}
+
 								return nullptr;
 							}
 
@@ -2280,10 +2380,10 @@ namespace Metasound
 								InputDescription.Name,
 								InputDescription.Name,
 								InSettings,
-								LiteralParam
+								MoveTemp(LiteralParam)
 							};
 
-							INodePtr InputNode = ConstructInputNode(InputDescription.TypeName, InitParams);
+							INodePtr InputNode = ConstructInputNode(InputDescription.TypeName, MoveTemp(InitParams));
 							if (!ensureAlwaysMsgf(InputNode.IsValid(), TEXT("Failed to construct a valid input node for Data Type %s!"), *InputDescription.TypeName.ToString()))
 							{
 								return nullptr;
@@ -2372,7 +2472,7 @@ namespace Metasound
 
 								if (LiteralParam.IsValid())
 								{
-									InitData.ParamMap.Add(StaticParamTuple.Key, LiteralParam);
+									InitData.ParamMap.Add(StaticParamTuple.Key, MoveTemp(LiteralParam));
 								}
 							}
 

@@ -10,6 +10,8 @@
 #include "IDetailGroup.h"
 #include "Layout/Visibility.h"
 #include "MetasoundFrontendDataLayout.h"
+#include "MetasoundFrontend.h"
+#include "MetasoundFrontendRegistries.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
 #include "PropertyEditorDelegates.h"
@@ -17,7 +19,7 @@
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/Text/STextBlock.h"
-
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -49,9 +51,19 @@ namespace Metasound
 				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsString));
 			}
 
+			case EMetasoundLiteralType::UObject:
+			{
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObject));
+			}
+
+			case EMetasoundLiteralType::UObjectArray:
+			{
+				return StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObjectArray));
+			}
+
 			case EMetasoundLiteralType::None:
 			default:
-				static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 5, "Possible missing case coverage for EMetasoundLiteralType");
+				static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 7, "Possible missing case coverage for EMetasoundLiteralType");
 				return TSharedPtr<IPropertyHandle>();
 			}
 		}
@@ -87,42 +99,156 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 {
 	TSharedRef<IPropertyHandle> TypeEnumHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, LiteralType)).ToSharedRef();
 
+
+	FName OwningDataTypeName;
+	UClass* OwningDataTypeClass = nullptr;
+	EMetasoundLiteralType PreferredLiteralType = EMetasoundLiteralType::None;
+
+	// Grab the preferred uclass for the owning data type.
+	TSharedPtr<IPropertyHandle> InputDescription = StructPropertyHandle->GetParentHandle();
+
+	// TODO: Ensure that StructPropertyHandle is an FMetasoundInputDescription.
+	if (InputDescription)
+	{
+		TSharedPtr<IPropertyHandle> DataTypeNameHandle = InputDescription->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundInputDescription, TypeName));
+		if (DataTypeNameHandle)
+		{
+			
+			DataTypeNameHandle->GetValue(OwningDataTypeName);
+
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			OwningDataTypeClass = Registry->GetLiteralUClassForDataType(OwningDataTypeName);
+			PreferredLiteralType = Metasound::Frontend::GetMetasoundLiteralType(Registry->GetDesiredLiteralTypeForDataType(OwningDataTypeName));
+		}
+	}
+
+	
+
 	struct FTypeEditorInfo
 	{
 		EMetasoundLiteralType LiteralType;
+		TSharedRef<IPropertyHandle> TypeEnumHandle;
 		TSharedPtr<IPropertyHandle> PropertyHandle;
 		FText DisplayName;
+		UClass* OwningDataTypeUClass;
+
+		TSharedRef<SWidget> CreatePropertyValueWidget(bool bDisplayDefaultPropertyButtons = true) const
+		{
+			if (LiteralType == EMetasoundLiteralType::UObject)
+			{
+				auto ValidateAsset = [CachedDataTypeUClass = OwningDataTypeUClass](const UObject* InObject, FText& OutReason)  -> bool
+				{
+					UClass* SelectedObjectClass = InObject->GetClass();
+					return CachedDataTypeUClass && SelectedObjectClass && SelectedObjectClass->IsChildOf(CachedDataTypeUClass);
+				};
+
+				auto CommitAsset = [CachedLiteralType = LiteralType, CachedPropertyHandle = PropertyHandle, CachedEnumHandle = TypeEnumHandle, CachedDataTypeUClass = OwningDataTypeUClass](const FAssetData& InAssetData) -> void
+				{
+					// if we've hit this code, the presumption is that the datatype for this parameter has already defined a corresponding UClass that can be used to set it.
+					ensureAlways(CachedDataTypeUClass && CachedDataTypeUClass != UObject::StaticClass());
+
+					UObject* InObject = InAssetData.GetAsset();
+					CachedPropertyHandle->SetValue(InObject);
+
+					// If this asset selector was set to no asset, clear out the literal description.
+					if (InObject)
+					{
+						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundLiteralType::UObject));
+					}
+					else
+					{
+						CachedEnumHandle->SetValue(static_cast<uint8>(EMetasoundLiteralType::None));
+					}
+				};
+
+				auto GetAssetPath = [CachedPropertyHandle = PropertyHandle]() -> FString
+				{
+					UObject* Obj = nullptr;
+					CachedPropertyHandle->GetValue(Obj);
+					return  Obj != nullptr ? Obj->GetPathName() : FString();
+				};
+
+				// TODO: get the UFactory corresponding to this datatype's UClass.
+				TArray<UFactory*> FactoriesToUse;
+
+				return SNew(SObjectPropertyEntryBox)
+					.ObjectPath_Lambda(GetAssetPath)
+					.AllowedClass(OwningDataTypeUClass)
+					// .OnShouldSetAsset_Lambda(ValidateAsset)
+					.OnObjectChanged_Lambda(CommitAsset)
+					.AllowClear(false)
+					.DisplayUseSelected(true)
+					.DisplayBrowse(true)
+					.DisplayThumbnail(true)
+					.NewAssetFactories(FactoriesToUse);
+			}
+			else if (LiteralType == EMetasoundLiteralType::UObjectArray)
+			{
+				// TODO: Implement.
+				return SNullWidget::NullWidget;
+			}
+			else
+			{
+				return PropertyHandle->CreatePropertyValueWidget();
+			}
+		}
 	};
 
-	static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 5, "Possible missing property descriptor for literal customization display");
+	static_assert(static_cast<int32>(EMetasoundLiteralType::Invalid) == 7, "Possible missing property descriptor for literal customization display");
 	const TArray<FTypeEditorInfo> TypePropertyInfo =
 	{
 		FTypeEditorInfo
 		{
 			EMetasoundLiteralType::Bool,
+			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsBool)),
-			LOCTEXT("Metasound_LiteralDisplayNameBool", "Bool")
+			LOCTEXT("Metasound_LiteralDisplayNameBool", "Bool"),
+			nullptr
 		},
 
 		FTypeEditorInfo
 		{
 			EMetasoundLiteralType::Integer,
+			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsInteger)),
-			LOCTEXT("Metasound_LiteralDisplayNameInteger", "Int32")
+			LOCTEXT("Metasound_LiteralDisplayNameInteger", "Int32"),
+			nullptr
 		},
 
 		FTypeEditorInfo
 		{
 			EMetasoundLiteralType::Float,
+			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsFloat)),
-			LOCTEXT("Metasound_LiteralDisplayNameFloat", "Float")
+			LOCTEXT("Metasound_LiteralDisplayNameFloat", "Float"),
+			nullptr
 		},
 
 		FTypeEditorInfo
 		{
 			EMetasoundLiteralType::String,
+			TypeEnumHandle,
 			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsString)),
-			LOCTEXT("Metasound_LiteralDisplayNameString", "String")
+			LOCTEXT("Metasound_LiteralDisplayNameString", "String"),
+			nullptr
+		},
+
+		FTypeEditorInfo
+		{
+			EMetasoundLiteralType::UObject,
+			TypeEnumHandle,
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObject)),
+			LOCTEXT("Metasound_LiteralDisplayNameUObject", "UObject"),
+			OwningDataTypeClass
+		},
+
+		FTypeEditorInfo
+		{
+			EMetasoundLiteralType::UObjectArray,
+			TypeEnumHandle,
+			StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundLiteralDescription, AsUObjectArray)),
+			LOCTEXT("Metasound_LiteralDisplayNameUObjectArray", "UObjectArray"),
+			OwningDataTypeClass
 		},
 	};
 
@@ -161,12 +287,12 @@ void FMetasoundLiteralDescriptionDetailCustomization::CustomizeChildren(TSharedR
 					.Padding(1.0f, 0.0f, 0.0f, 0.0f)
 					.VAlign(VAlign_Center)
 					[
-						Info.PropertyHandle->CreatePropertyValueWidget()
+						Info.CreatePropertyValueWidget()
 					]
 			]
-			.Visibility(TAttribute<EVisibility>::Create([TypeEnumHandle, LiteralType = Info.LiteralType]()
+			.Visibility(TAttribute<EVisibility>::Create([PreferredLiteralType, LiteralType = Info.LiteralType]()
 			{
-				const bool bIsLiteralActive = Metasound::Editor::IsLiteralTypeActive(TypeEnumHandle, LiteralType);
+				const bool bIsLiteralActive = LiteralType == PreferredLiteralType;
 				return bIsLiteralActive ? EVisibility::Visible : EVisibility::Hidden;
 			}));
 	}

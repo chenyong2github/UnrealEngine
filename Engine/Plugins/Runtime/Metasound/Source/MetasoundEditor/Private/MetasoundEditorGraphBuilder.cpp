@@ -10,6 +10,7 @@
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendRegistries.h"
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "Templates/Tuple.h"
@@ -22,10 +23,12 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		const FName FGraphBuilder::PinPrimitiveBoolean = "Boolean";
-		const FName FGraphBuilder::PinPrimitiveFloat = "Float";
-		const FName FGraphBuilder::PinPrimitiveInteger = "Int";
-		const FName FGraphBuilder::PinPrimitiveString = "String";
+		const FName FGraphBuilder::PinPrimitiveBoolean = TEXT("Boolean");
+		const FName FGraphBuilder::PinPrimitiveFloat = TEXT("Float");
+		const FName FGraphBuilder::PinPrimitiveInteger = TEXT("Int");
+		const FName FGraphBuilder::PinPrimitiveString = TEXT("String");
+		const FName FGraphBuilder::PinPrimitiveUObject = TEXT("UObject");
+		const FName FGraphBuilder::PinPrimitiveUObjectArray = TEXT("UObjectArray");
 
 		UEdGraphNode* FGraphBuilder::AddNode(UObject& InMetasound, const FVector2D& Location, Frontend::FNodeHandle& InNodeHandle, bool bInSelectNewNode)
 		{
@@ -185,11 +188,34 @@ namespace Metasound
 				}
 				break;
 
+				case ELiteralArgType::UObjectProxy:
+				{
+					UClass* ClassToUse = FMetasoundFrontendRegistryContainer::Get()->GetLiteralUClassForDataType(InTypeName);
+					if (ClassToUse)
+					{
+						GraphHandle.SetInputToLiteral(InName, ClassToUse->ClassDefaultObject);
+					}
+				}
+				break;
+
+				case ELiteralArgType::UObjectProxyArray:
+				{
+					UClass* ClassToUse = FMetasoundFrontendRegistryContainer::Get()->GetLiteralUClassForDataType(InTypeName);
+					if (ClassToUse)
+					{
+						TArray<UObject*> ObjectArray;
+						ObjectArray.Add(ClassToUse->ClassDefaultObject);
+						GraphHandle.SetInputToLiteral(InName, ObjectArray);
+					}
+					GraphHandle.SetInputToLiteral(InName, FString(TEXT("")));
+				}
+				break;
+
 				case ELiteralArgType::Invalid:
 				case ELiteralArgType::None:
 				default:
 				{
-					static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 5, "Possible missing ELiteralArgType case coverage");
+					static_assert(static_cast<int32>(ELiteralArgType::Invalid) == 7, "Possible missing ELiteralArgType case coverage");
 				}
 				break;
 			}

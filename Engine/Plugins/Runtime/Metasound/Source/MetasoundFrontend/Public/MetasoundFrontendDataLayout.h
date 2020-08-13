@@ -31,6 +31,8 @@ enum class EMetasoundLiteralType : uint8
 	Float,
 	Integer,
 	String,
+	UObject,
+	UObjectArray,
 	Invalid UMETA(Hidden)
 };
 
@@ -69,8 +71,6 @@ struct FMetasoundLiteralDescription
 {
 	GENERATED_BODY()
 
-	// HACK: Once we make a property inspector for these we should hide them.
-
 	// The actual type of this literal.
 	UPROPERTY(EditAnywhere, Category = Customized)
 	EMetasoundLiteralType LiteralType;
@@ -86,6 +86,12 @@ struct FMetasoundLiteralDescription
 
 	UPROPERTY(EditAnywhere, Category = Customized)
 	FString AsString;
+
+	UPROPERTY(EditAnywhere, Category = Customized)
+	UObject* AsUObject = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Customized)
+	TArray<UObject*> AsUObjectArray;
 };
 
 USTRUCT()

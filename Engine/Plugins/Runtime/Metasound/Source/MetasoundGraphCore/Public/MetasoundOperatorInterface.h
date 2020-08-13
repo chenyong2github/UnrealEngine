@@ -7,6 +7,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundOperatorSettings.h"
+#include "IAudioProxyInitializer.h"
 
 namespace Metasound
 {
@@ -143,15 +144,18 @@ namespace Metasound
 	 */
 	struct FDataTypeLiteralParam
 	{
+		FDataTypeLiteralParam(const FDataTypeLiteralParam& Other) = delete;
+		FDataTypeLiteralParam(FDataTypeLiteralParam&& Other) = default;
+
 		ELiteralArgType ConstructorArgType;
-		TVariant<bool, int, float, FString> ConstructorArg;
+		TVariant<bool, int, float, FString, Audio::IProxyDataPtr, TArray<Audio::IProxyDataPtr>> ConstructorArg;
 
 		// builds an invalid FDataTypeLiteralParam.
 		static FDataTypeLiteralParam InvalidParam()
 		{
 			FDataTypeLiteralParam InitParam;
 			InitParam.ConstructorArgType = ELiteralArgType::Invalid;
-			return InitParam;
+			return MoveTemp(InitParam);
 		}
 
 		bool IsValid() const
@@ -187,6 +191,18 @@ namespace Metasound
 			ConstructorArg.Set<FString>(InString);
 		}
 
+		FDataTypeLiteralParam(Audio::IProxyDataPtr&& InProxy)
+			: ConstructorArgType(ELiteralArgType::UObjectProxy)
+		{
+			ConstructorArg.Set<Audio::IProxyDataPtr>(MoveTemp(InProxy));
+		}
+
+		FDataTypeLiteralParam(TArray<Audio::IProxyDataPtr>&& InProxyArray)
+			: ConstructorArgType(ELiteralArgType::UObjectProxyArray)
+		{
+			ConstructorArg.Set<TArray<Audio::IProxyDataPtr>>(MoveTemp(InProxyArray));
+		}
+
 		template<typename DataType>
 		bool IsCompatibleWithType()
 		{
@@ -207,6 +223,14 @@ namespace Metasound
 				case ELiteralArgType::String:
 				{
 					return TTestIfDataTypeCtorIsImplemented<DataType, const FString&>::Value;
+				}
+				case ELiteralArgType::UObjectProxy:
+				{
+					return TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value;
+				}
+				case ELiteralArgType::UObjectProxyArray:
+				{
+					return TTestIfDataTypeCtorIsImplemented<DataType, const TArray<Audio::IProxyDataPtr>&>::Value;
 				}
 				case ELiteralArgType::None:
 				{
@@ -239,6 +263,59 @@ namespace Metasound
 		// 1: If there's a constructor that can take the literal type and FOperatorSettings, we use that.
 		// 2: Otherwise, if there's a constructor that just takes the literal type, we'll use that.
 		// 3: If neither constructor exists, we crash. Ideally this has already been caught by the static assert in the REGISTER_METASOUND_DATATYPE macro.
+
+		template<typename DataType, typename TEnableIf<
+			TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&, const FOperatorSettings&>::Value
+			, bool >::Type = true >
+			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings)
+		{
+			check(ConstructorArgType == ELiteralArgType::UObjectProxyArray);
+			const TArray<Audio::IProxyDataPtr>& ProxyArrayToParse = ConstructorArg.Get<TArray<Audio::IProxyDataPtr>>();
+			return DataType(ProxyArrayToParse, WithOperatorSettings);
+		}
+
+		template<typename DataType, typename TEnableIf<
+			TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&>::Value && !TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&, const FOperatorSettings&>::Value
+			, bool >::Type = true >
+			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings)
+		{
+			check(ConstructorArgType == ELiteralArgType::UObjectProxyArray);
+			const TArray<Audio::IProxyDataPtr>& ProxyArrayToParse = ConstructorArg.Get<TArray<Audio::IProxyDataPtr>>();
+			return DataType(ProxyArrayToParse);
+		}
+
+		template<typename DataType>
+		DataType ParseAsAudioProxyArray(...)
+		{
+			return InvalidConstructor<DataType>();
+		}
+
+		template<typename DataType, typename TEnableIf<
+			TIsConstructible<DataType, const Audio::IProxyData&, const FOperatorSettings&>::Value
+			, bool >::Type = true >
+		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings)
+		{
+			check(ConstructorArgType == ELiteralArgType::UObjectProxy);
+			const Audio::IProxyDataPtr& ProxyToParse = ConstructorArg.Get<Audio::IProxyDataPtr>();
+			return DataType(ProxyToParse, WithOperatorSettings);
+		}
+
+		template<typename DataType, typename TEnableIf<
+			TIsConstructible<DataType, const Audio::IProxyData&>::Value && !TIsConstructible<DataType, const Audio::IProxyData&, const FOperatorSettings&>::Value
+			, bool >::Type = true >
+		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings)
+		{
+			check(ConstructorArgType == ELiteralArgType::UObjectProxy);
+			const Audio::IProxyDataPtr& ProxyToParse = ConstructorArg.Get<Audio::IProxyDataPtr>();
+			check(ProxyToParse.IsValid());
+			return DataType(*ProxyToParse);
+		}
+
+		template<typename DataType>
+		DataType ParseAsAudioProxy(...)
+		{
+			return InvalidConstructor<DataType>();
+		}
 
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, const FString&, const FOperatorSettings&>::Value
@@ -392,6 +469,14 @@ namespace Metasound
 				case ELiteralArgType::String:
 				{
 					return ParseAsString<DataType>(WithOperatorSettings);
+				}
+				case ELiteralArgType::UObjectProxy:
+				{
+					return ParseAsAudioProxy<DataType>(WithOperatorSettings);
+				}
+				case ELiteralArgType::UObjectProxyArray:
+				{
+					return ParseAsAudioProxyArray<DataType>(WithOperatorSettings);
 				}
 				case ELiteralArgType::None:
 				{

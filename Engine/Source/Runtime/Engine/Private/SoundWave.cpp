@@ -2166,6 +2166,11 @@ bool USoundWave::HasCookedAmplitudeEnvelopeData() const
 	return CookedEnvelopeTimeData.Num() > 0;
 }
 
+TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	return TUniquePtr<Audio::IProxyData>(new FSoundWaveProxy(this));
+}
+
 void USoundWave::AddPlayingSource(const FSoundWaveClientPtr& Source)
 {
 	check(Source);
