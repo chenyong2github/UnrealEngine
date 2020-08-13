@@ -5954,9 +5954,14 @@ bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
 void UStaticMesh::GetMeshId(FString& OutMeshId)
 {
 #if WITH_EDITORONLY_DATA
+	OutMeshId.Reset();
+	if (ComplexCollisionMesh && ComplexCollisionMesh->RenderData)
+	{
+		OutMeshId = ComplexCollisionMesh->RenderData->DerivedDataKey;
+	}
 	if (RenderData)
 	{
-		OutMeshId = RenderData->DerivedDataKey;
+		OutMeshId.Append(RenderData->DerivedDataKey);
 	}
 #endif
 }
