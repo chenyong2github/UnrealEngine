@@ -728,6 +728,7 @@ public:
 	virtual void SetLocalTime(FFrameTime Time, ESnapTimeMode SnapTimeMode = ESnapTimeMode::STM_None) override;
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
+	virtual void RequestInvalidateCachedData() override { bNeedsInvalidateCachedData = true; }
 	virtual void RequestEvaluate() override { bNeedsEvaluate = true; }
 	virtual void ForceEvaluate() override;
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
@@ -1349,7 +1350,11 @@ private:
 	/** Event contexts retrieved from the above attribute once per frame */
 	TArray<TWeakObjectPtr<UObject>> CachedEventContexts;
 
+	/** When true, sequence will be forcefully evaluated on the next tick */
 	bool bNeedsEvaluate;
+
+	/** When true, cached data will be invalidated on the next tick */
+	bool bNeedsInvalidateCachedData;
 
 	FAcquiredResources AcquiredResources;
 
