@@ -46,7 +46,7 @@ class FDataprepEditorOutlinerMode : public FActorMode
 {
 public:
 	FDataprepEditorOutlinerMode(SSceneOutliner* InSceneOutliner, TWeakPtr<FDataprepEditor> InDataprepEditor, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr)
-		: FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
+		: FActorMode(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay, true, true))
 		, DataprepEditorPtr(InDataprepEditor)
 	{}
 
