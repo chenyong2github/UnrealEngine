@@ -353,11 +353,22 @@ public:
 	UPROPERTY()
 	int32 ClientCap;
 	
-	/** Object that manages "cheat" commands.  Not instantiated in shipping builds. */
+	/**
+	 * Object that manages "cheat" commands.
+	 *
+	 * By default:
+	 *   - Debug and Development builds will force it to be instantiated (@see APlayerController::EnableCheats).
+	 *   - Test and Shipping builds will only instantiate it if the authoritative game mode allows cheats (@see AGameModeBase::AllowCheats).
+	 * 
+	 * This behavior can be changed either by overriding APlayerController::EnableCheats or AGameModeBase::AllowCheats.
+	 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="Cheat Manager")
 	UCheatManager* CheatManager;
 	
-	/** Class of my CheatManager.  The Cheat Manager is not created in shipping builds */
+	/**
+	 * Class of my CheatManager.
+	 * @see CheatManager for more information about when it will be instantiated.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Cheat Manager")
 	TSubclassOf<UCheatManager> CheatClass;
 
