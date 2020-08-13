@@ -7,7 +7,7 @@
 class FActorPickingMode : public FActorMode
 {
 public:
-	FActorPickingMode(SSceneOutliner* InSceneOutliner, bool bInHideComponents, FOnSceneOutlinerItemPicked OnItemPickedDelegate, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+	FActorPickingMode(const FActorModeParams& Params, FOnSceneOutlinerItemPicked OnItemPickedDelegate);
 
 	virtual ~FActorPickingMode() {};
 public:

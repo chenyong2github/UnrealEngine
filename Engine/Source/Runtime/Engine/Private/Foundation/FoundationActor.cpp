@@ -631,6 +631,14 @@ void AFoundationActor::Commit()
 	FoundationSubsystem->CommitFoundation(this);
 }
 
+void AFoundationActor::Discard()
+{
+	UFoundationSubsystem* FoundationSubsystem = GetFoundationSubsystem();
+	check(FoundationSubsystem);
+	const bool bDiscardEdits = true;
+	FoundationSubsystem->CommitFoundation(this, bDiscardEdits);
+}
+
 void AFoundationActor::SaveAs()
 {
 	UFoundationSubsystem* FoundationSubsystem = GetFoundationSubsystem();

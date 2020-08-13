@@ -58,7 +58,12 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const FSceneO
 
 	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SSceneOutliner* Outliner)
 		{
-			return new FActorPickingMode(Outliner, true, OnItemPicked, SpecifiedWorld);
+			FActorModeParams Params;
+			Params.SceneOutliner = Outliner;
+			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
+			Params.bHideComponents = true;
+			Params.bHideFoundationHierarchy = true;
+			return new FActorPickingMode(Params, OnItemPicked);
 		});
 
 	
@@ -88,7 +93,12 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const FSc
 
 	FCreateSceneOutlinerMode ModeFactory = FCreateSceneOutlinerMode::CreateLambda([&OnItemPicked, &SpecifiedWorld](SSceneOutliner* Outliner)
 		{
-			return new FActorPickingMode(Outliner, false, OnItemPicked, SpecifiedWorld);
+			FActorModeParams Params;
+			Params.SceneOutliner = Outliner;
+			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
+			Params.bHideComponents = false;
+			Params.bHideFoundationHierarchy = true;
+			return new FActorPickingMode(Params, OnItemPicked);
 		});
 
 	FSceneOutlinerInitializationOptions InitOptions(InInitOptions);

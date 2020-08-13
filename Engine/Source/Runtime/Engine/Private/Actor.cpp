@@ -4590,9 +4590,15 @@ bool AActor::IsSelectionChild() const
 		return true;
 	}
 
-	if (AActor* AttachParent = GetAttachParentActor())
+	const AActor* AttachParent = GetAttachParentActor();
+	while (AttachParent != nullptr)
 	{
-		return AttachParent->IsSelectionParentOfAttachedActors();
+		if (AttachParent->IsSelectionParentOfAttachedActors())
+		{
+			return true;
+		}
+
+		AttachParent = AttachParent->GetAttachParentActor();
 	}
 
 	return false;
@@ -4605,12 +4611,15 @@ AActor* AActor::GetSelectionParent() const
 		return GetParentActor();
 	}
 
-	if (AActor* AttachParent = GetAttachParentActor())
+	AActor* AttachParent = GetAttachParentActor();
+	while (AttachParent != nullptr)
 	{
 		if (AttachParent->IsSelectionParentOfAttachedActors())
 		{
 			return AttachParent;
 		}
+
+		AttachParent = AttachParent->GetAttachParentActor();
 	}
 
 	return nullptr;
@@ -4659,11 +4668,17 @@ void AActor::PushSelectionToProxies()
 
 	if (IsSelectionParentOfAttachedActors())
 	{
-		ForEachAttachedActors([](AActor* AttachedActor)
+		TFunction<bool(AActor*)> PushAllChildrenToProxies = [&PushAllChildrenToProxies](AActor* AttachedActor)
 		{
 			AttachedActor->PushSelectionToProxies();
+			if (!AttachedActor->IsSelectionParentOfAttachedActors())
+			{
+				AttachedActor->ForEachAttachedActors(PushAllChildrenToProxies);
+			}
 			return true;
-		});
+		};
+
+		ForEachAttachedActors(PushAllChildrenToProxies);
 	}
 }
 

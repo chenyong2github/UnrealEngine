@@ -17,6 +17,7 @@
 #include "ISceneOutlinerMode.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
+#include "Foundation/FoundationActor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
@@ -111,6 +112,17 @@ private:
 	FText GetDisplayText() const
 	{
 		const AActor* Actor = ActorPtr.Get();
+		if (const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor))
+		{
+			if (FoundationActor->IsDirty())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("ActorLabel"), FText::FromString(Actor->GetActorLabel()));
+				Args.Add(TEXT("EditTag"), LOCTEXT("EditingFoundationLabel", "*"));
+				return FText::Format(LOCTEXT("FoundationDisplay", "{ActorLabel}{EditTag}"), Args);
+			}
+		}
+
 		return Actor ? FText::FromString(Actor->GetActorLabel()) : LOCTEXT("ActorLabelForMissingActor", "(Deleted Actor)");
 	}
 
@@ -233,13 +245,28 @@ private:
 
 	FSlateColor GetForegroundColor() const
 	{
+		AActor* Actor = ActorPtr.Get();
+
+		// Color foundations differently if they are being edited
+		if (const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor))
+		{
+			if (FoundationActor->IsEditing() && !FoundationActor->IsSelected())
+			{
+				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
+			}
+			else
+			{
+				return FSlateColor::UseForeground();
+			}
+		}
+
+
 		auto TreeItem = TreeItemPtr.Pin();
 		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItem))
 		{
 			return BaseColor.GetValue();
 		}
 
-		AActor* Actor = ActorPtr.Get();
 		if (!Actor)
 		{
 			// Deleted actor!

@@ -19,20 +19,11 @@ public:
 	AFoundationActor* GetFoundationActor() const;
 
 #if WITH_EDITOR
-	virtual void BeginDestroy() override;
-	virtual void SetLoadedLevel(ULevel* Level) override;
 	virtual bool ShowInLevelCollection() const override { return false; }
 	FBox GetBounds() const;
 #endif
 	
 protected:
-
-#if WITH_EDITOR
-	void OnLevelAddedToWorld(ULevel* Level, UWorld* InWorld);
-	void OnLevelRemovedFromWorld(ULevel* Level, UWorld* InWorld);
-	void OnLoadedActorAddedToLevel(AActor& InActor);
-#endif
-
 	static ULevelStreamingFoundationInstance* LoadInstance(AFoundationActor* FoundationActor);
 	static void UnloadInstance(ULevelStreamingFoundationInstance* LevelStreaming);
 

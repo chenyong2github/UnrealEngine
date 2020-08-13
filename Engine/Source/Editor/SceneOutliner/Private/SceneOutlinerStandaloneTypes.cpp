@@ -13,7 +13,7 @@
 uint32 FSceneOutlinerTreeItemType::NextUniqueID = 0;
 const FSceneOutlinerTreeItemType ISceneOutlinerTreeItem::Type;
 
-const FLinearColor FSceneOutlinerCommonLabelData::DarkColor(0.3f, 0.3f, 0.3f);
+const FLinearColor FSceneOutlinerCommonLabelData::DarkColor(0.15f, 0.15f, 0.15f);
 
 TOptional<FLinearColor> FSceneOutlinerCommonLabelData::GetForegroundColor(const ISceneOutlinerTreeItem& TreeItem) const
 {

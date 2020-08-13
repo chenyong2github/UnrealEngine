@@ -5,8 +5,8 @@
 #include "Editor.h"
 #include "ActorTreeItem.h"
 
-FActorModeInteractive::FActorModeInteractive(SSceneOutliner* InSceneOutliner, bool bInHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
-	: FActorMode(InSceneOutliner, bInHideComponents, InSpecifiedWorldToDisplay)
+FActorModeInteractive::FActorModeInteractive(const FActorModeParams& Params)
+	: FActorMode(Params)
 {
 	USelection::SelectionChangedEvent.AddRaw(this, &FActorModeInteractive::OnLevelSelectionChanged);
 	USelection::SelectObjectEvent.AddRaw(this, &FActorModeInteractive::OnLevelSelectionChanged);

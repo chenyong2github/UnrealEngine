@@ -60,7 +60,7 @@ public:
 	bool CanEditFoundation(const AFoundationActor* FoundationActor, FText* OutReason = nullptr) const;
 	bool CanCommitFoundation(const AFoundationActor* FoundationActor, FText* OutReason = nullptr) const;
 	void EditFoundation(AFoundationActor* FoundationActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);
-	void CommitFoundation(AFoundationActor* FoundationActor);
+	void CommitFoundation(AFoundationActor* FoundationActor, bool bDiscardEdits = false);
 	void SaveFoundationAs(AFoundationActor* FoundationActor);
 	bool IsEditingFoundationDirty(const AFoundationActor* FoundationActor) const;
 	bool IsEditingFoundation(const AFoundationActor* FoundationActor) const { return GetFoundationEdit(FoundationActor) != nullptr; }
@@ -81,12 +81,15 @@ public:
 	bool SetCurrent(AFoundationActor* FoundationActor) const;
 	bool IsCurrent(const AFoundationActor* FoundationActor) const;
 	AFoundationActor* CreateFoundationFrom(const TArray<AActor*>& ActorsToMove, UWorld* TemplateWorld = nullptr);
+	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
 	bool MoveActorsTo(AFoundationActor* FoundationActor, const TArray<AActor*>& ActorsToMove);
 
 	bool CanMoveActorToLevel(const AActor* Actor) const;
 	void DiscardEdits();
 	void OnActorDeleted(AActor* Actor);
 	ULevel* GetFoundationLevel(const AFoundationActor* FoundationActor) const;
+
+	AFoundationActor* GetParentFoundation(const AActor* Actor) const;
 #endif
 
 private:
@@ -95,7 +98,7 @@ private:
 	void UnloadFoundation(const FFoundationID& FoundationID);
 	void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor * LevelActor)> Operation) const;
 	void ForEachFoundationAncestors(AActor* Actor, TFunctionRef<bool(AFoundationActor*)> Operation) const;
-	AFoundationActor* GetOwningFoundation(ULevel* Level) const;
+	AFoundationActor* GetOwningFoundation(const ULevel* Level) const;
 	FFoundationID ComputeFoundationID(AFoundationActor* FoundationActor) const;
 #if WITH_EDITOR
 	void CommitChildrenFoundations(AFoundationActor* FoundationActor);

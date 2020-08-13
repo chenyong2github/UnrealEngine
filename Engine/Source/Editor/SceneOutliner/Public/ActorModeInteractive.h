@@ -7,7 +7,7 @@
 class FActorModeInteractive : public FActorMode
 {
 public:
-	FActorModeInteractive(SSceneOutliner* InSceneOutliner, bool bHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+	FActorModeInteractive(const FActorModeParams& Params);
 	virtual ~FActorModeInteractive();
 
 	virtual bool IsInteractive() const override { return true; }

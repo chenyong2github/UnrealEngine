@@ -367,7 +367,7 @@ void UFoundationSubsystem::ForEachFoundationAncestors(AActor* Actor, TFunctionRe
 	} while (ParentFoundation != nullptr && Operation(ParentFoundation));
 }
 
-AFoundationActor* UFoundationSubsystem::GetOwningFoundation(ULevel* Level) const
+AFoundationActor* UFoundationSubsystem::GetOwningFoundation(const ULevel* Level) const
 {
 	if (ULevelStreaming* BaseLevelStreaming = FLevelUtils::FindStreamingLevel(Level))
 	{
@@ -538,23 +538,28 @@ bool UFoundationSubsystem::IsCurrent(const AFoundationActor* FoundationActor) co
 	return false;
 }
 
+bool UFoundationSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const
+{
+	check(DestinationLevel);
+
+	const bool bWarnAboutReferences = true;
+	const bool bWarnAboutRenaming = true;
+	const bool bMoveAllOrFail = true;
+	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToRemove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
+	{
+		UE_LOG(LogFoundation, Warning, TEXT("Failed to move actors out of foundation because not all actors could be moved"));
+		return false;
+	}
+	return true;
+}
+
 bool UFoundationSubsystem::MoveActorsTo(AFoundationActor* FoundationActor, const TArray<AActor*>& ActorsToMove)
 {
 	check(IsEditingFoundation(FoundationActor));
 	ULevel* FoundationLevel = GetFoundationLevel(FoundationActor);
 	check(FoundationLevel);
 
-	const bool bWarnAboutReferences = true;
-	const bool bWarnAboutRenaming = true;
-	const bool bMoveAllOrFail = true;
-
-	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToMove, FoundationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
-	{
-		UE_LOG(LogFoundation, Warning, TEXT("Failed to move actors to foundation because not all actors could be moved"));
-		return false;
-	}
-
-	return true;
+	return MoveActorsToLevel(ActorsToMove, FoundationLevel);
 }
 
 AFoundationActor* UFoundationSubsystem::CreateFoundationFrom(const TArray<AActor*>& ActorsToMove, UWorld* TemplateWorld)
@@ -679,7 +684,7 @@ UFoundationSubsystem::FLevelsToRemoveScope::~FLevelsToRemoveScope()
 		double StartTime = FPlatformTime::Seconds();
 		const bool bClearSelection = false;
 		// No need to clear the whole editor selection since actor of this level will be removed from the selection by: UEditorEngine::OnLevelRemovedFromWorld
-		EditorLevelUtils::RemoveLevelsFromWorld(Levels, bClearSelection, bResetTrans);
+		EditorLevelUtils::RemoveLevelsFromWorld(Levels, bClearSelection, true);
 		double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 		UE_LOG(LogFoundation, Log, TEXT("Unloaded %s levels in %s seconds"), *FText::AsNumber(Levels.Num()).ToString(), *FText::AsNumber(ElapsedTime).ToString());
 	}
@@ -1014,7 +1019,8 @@ void UFoundationSubsystem::EditFoundation(AFoundationActor* FoundationActor, TWe
 			{
 				check(!IsFoundationEditDirty(FoundationEdit));
 				check(FoundationToCommit == nullptr);
-				FoundationToCommit = Foundation;
+				FoundationToCommit = FoundationEdit->LevelStreaming->GetFoundationActor();
+				check(FoundationToCommit != nullptr);
 				return false;
 			}
 			return true;
@@ -1078,7 +1084,7 @@ void UFoundationSubsystem::CommitChildrenFoundations(AFoundationActor* Foundatio
 	});
 }
 
-void UFoundationSubsystem::CommitFoundation(AFoundationActor* FoundationActor)
+void UFoundationSubsystem::CommitFoundation(AFoundationActor* FoundationActor, bool bDiscardEdits)
 {
 	check(CanCommitFoundation(FoundationActor));
 
@@ -1088,7 +1094,7 @@ void UFoundationSubsystem::CommitFoundation(AFoundationActor* FoundationActor)
 	check(EditingWorld);
 			
 	bool bChangesCommitted = false;
-	if (IsFoundationEditDirty(FoundationEdit))
+	if (IsFoundationEditDirty(FoundationEdit) && !bDiscardEdits)
 	{
 		const bool bPromptUserToSave = true;
 		const bool bSaveMapPackages = true;
@@ -1192,6 +1198,13 @@ void UFoundationSubsystem::SaveFoundationAs(AFoundationActor* FoundationActor)
 	GEditor->SelectActor(FoundationActor, true, true);
 }
 
+AFoundationActor* UFoundationSubsystem::GetParentFoundation(const AActor* Actor) const
+{
+	check(Actor);
+	const ULevel* OwningLevel = Actor->GetLevel();
+	check(OwningLevel);
+	return GetOwningFoundation(OwningLevel);
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE

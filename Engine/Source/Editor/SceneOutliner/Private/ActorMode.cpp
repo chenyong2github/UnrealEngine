@@ -14,6 +14,7 @@
 #include "FolderTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "WorldTreeItem.h"
+#include "Foundation/FoundationEditorInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorMode"
 
@@ -66,11 +67,16 @@ namespace SceneOutliner
 	}
 }
 
-FActorMode::FActorMode(SSceneOutliner* InSceneOutliner, bool bInHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
-	: ISceneOutlinerMode(InSceneOutliner)
-	, bHideComponents(bInHideComponents)
-	, SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
+FActorMode::FActorMode(const FActorModeParams& Params)
+	: ISceneOutlinerMode(Params.SceneOutliner)
+	, bHideComponents(Params.bHideComponents)
+	, bHideFoundationHierarchy(Params.bHideFoundationHierarchy)
+	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
 {
+	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
+		{
+			return IsActorDisplayable(Actor);
+		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 FActorMode::~FActorMode()
@@ -83,8 +89,9 @@ FActorMode::~FActorMode()
 
 TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
 {
-	TUniquePtr<FActorHierarchy> ActorHierarchy = FActorHierarchy::Create(this, RepresentingWorld, [this](const AActor* InActor) {return IsActorDisplayable(InActor); });
+	TUniquePtr<FActorHierarchy> ActorHierarchy = FActorHierarchy::Create(this, RepresentingWorld);
 	ActorHierarchy->SetShowingComponents(!bHideComponents);
+	ActorHierarchy->SetShowingFoundations(!bHideFoundationHierarchy);
 
 	return ActorHierarchy;
 }
@@ -267,18 +274,18 @@ bool FActorMode::IsActorDisplayable(const AActor* Actor) const
 {
 	static const FName SequencerActorTag(TEXT("SequencerActor"));
 
-	return Actor && 
+	return Actor &&
 		!SceneOutliner->GetSharedData().bOnlyShowFolders && 												// Don't show actors if we're only showing folders
 		Actor->IsEditable() &&															// Only show actors that are allowed to be selected and drawn in editor
 		Actor->IsListedInSceneOutliner() &&
 		((Actor->GetWorld()->IsPlayInEditor() || !Actor->HasAnyFlags(RF_Transient)) ||
-			(SceneOutliner->GetSharedData().bShowTransient && Actor->HasAnyFlags(RF_Transient)) ||			// Don't show transient actors in non-play worlds
+		(SceneOutliner->GetSharedData().bShowTransient && Actor->HasAnyFlags(RF_Transient)) ||			// Don't show transient actors in non-play worlds
 			(Actor->ActorHasTag(SequencerActorTag))) &&
 		!Actor->IsTemplate() &&															// Should never happen, but we never want CDOs displayed
 		!FActorEditorUtils::IsABuilderBrush(Actor) &&									// Don't show the builder brush
 		!Actor->IsA(AWorldSettings::StaticClass()) &&									// Don't show the WorldSettings actor, even though it is technically editable
 		!Actor->IsPendingKill() &&														// We don't want to show actors that are about to go away
-		FLevelUtils::IsLevelVisible(Actor->GetLevel());								// Only show Actors whose level is visible
+		FLevelUtils::IsLevelVisible(Actor->GetLevel());									// Only show Actors whose level is visible
 }
 
 void FActorMode::OnFilterTextChanged(const FText& InFilterText)

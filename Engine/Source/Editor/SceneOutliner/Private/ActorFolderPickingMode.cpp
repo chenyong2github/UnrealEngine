@@ -7,7 +7,7 @@
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActoFolderPickingMode"
 
 FActorFolderPickingMode::FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
-	: FActorMode(InSceneOutliner, true, InSpecifiedWorldToDisplay)
+	: FActorMode(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay))
 	, OnItemPicked(InOnItemPicked)
 {
 	Rebuild();

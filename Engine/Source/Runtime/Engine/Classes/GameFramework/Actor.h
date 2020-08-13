@@ -3623,7 +3623,6 @@ private:
 
 	friend UWorld;
 	friend class FFoliageHelper;
-	friend class ULevelStreamingFoundationInstance;
 };
 
 struct FSetActorGuid

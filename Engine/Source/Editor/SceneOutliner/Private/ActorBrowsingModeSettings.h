@@ -29,7 +29,11 @@ class UActorBrowsingModeSettings
 	UPROPERTY(config)
 	uint32 bShowOnlySelectedActors : 1;
 
-	/** True when the Scene Outliner is only displaying Actor Components*/
+	/** True when the Scene Outliner is not displaying Actor Components*/
 	UPROPERTY(config)
 	uint32 bHideActorComponents : 1;
+
+	/** True when the Scene Outliner is not displaying foundations */
+	UPROPERTY(config)
+	uint32 bHideFoundationHierarchy : 1;
 };

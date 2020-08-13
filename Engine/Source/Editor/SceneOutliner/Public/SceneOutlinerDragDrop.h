@@ -21,10 +21,10 @@ enum class ESceneOutlinerDropCompatibility : uint8
 	CompatibleMultipleAttach,
 	IncompatibleMultipleAttach,
 	CompatibleDetach,
-	CompatibleMultipleDetach
+	CompatibleMultipleDetach,
 };
 
-/** Consilidated drag/drop with parsing functions for the scene outliner */
+/** Consolidated drag/drop with parsing functions for the scene outliner */
 struct FSceneOutlinerDragDropPayload
 {
 	/** Default constructor, resulting in unset contents */

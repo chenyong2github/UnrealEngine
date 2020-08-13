@@ -21,12 +21,6 @@ ULevelStreamingFoundationInstance::ULevelStreamingFoundationInstance(const FObje
 {
 #if WITH_EDITOR
 	SetShouldBeVisibleInEditor(true);
-
-	if (!IsTemplate() && !GetWorld()->IsPlayInEditor())
-	{
-		FWorldDelegates::LevelAddedToWorld.AddUObject(this, &ULevelStreamingFoundationInstance::OnLevelAddedToWorld);
-		FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ULevelStreamingFoundationInstance::OnLevelRemovedFromWorld);
-	}
 #endif
 }
 
@@ -41,55 +35,10 @@ AFoundationActor* ULevelStreamingFoundationInstance::GetFoundationActor() const
 }
 
 #if WITH_EDITOR
-void ULevelStreamingFoundationInstance::BeginDestroy()
-{
-	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
-	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
-	Super::BeginDestroy();
-}
-
-void ULevelStreamingFoundationInstance::SetLoadedLevel(ULevel* Level)
-{
-	Super::SetLoadedLevel(Level);
-
-	if (Level)
-	{
-		for (AActor* LevelActor : Level->Actors)
-		{
-			if (LevelActor)
-			{
-				FSetActorHiddenInSceneOutliner Hide(LevelActor);
-			}
-		}
-	}
-}
-
 FBox ULevelStreamingFoundationInstance::GetBounds() const
 {
 	check(GetLoadedLevel());
 	return ALevelBounds::CalculateLevelBounds(GetLoadedLevel());
-}
-
-void ULevelStreamingFoundationInstance::OnLoadedActorAddedToLevel(AActor& InActor)
-{
-	FSetActorHiddenInSceneOutliner Hide(&InActor);
-}
-
-void ULevelStreamingFoundationInstance::OnLevelRemovedFromWorld(ULevel* Level, UWorld* InWorld)
-{
-	if (Level && (Level == LoadedLevel))
-	{
-		Level->OnLoadedActorAddedToLevelEvent.RemoveAll(this);
-	}
-}
-
-void ULevelStreamingFoundationInstance::OnLevelAddedToWorld(ULevel* Level, UWorld* InWorld)
-{
-	if (Level == LoadedLevel)
-	{
-		check(Level->GetWorld() == InWorld);
-		Level->OnLoadedActorAddedToLevelEvent.AddUObject(this, &ULevelStreamingFoundationInstance::OnLoadedActorAddedToLevel);
-	}
 }
 #endif
 

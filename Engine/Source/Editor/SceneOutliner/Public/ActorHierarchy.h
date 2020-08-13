@@ -10,7 +10,7 @@ class FActorHierarchy : public ISceneOutlinerHierarchy
 public:
 	virtual ~FActorHierarchy();
 
-	static TUniquePtr<FActorHierarchy> Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World, TFunction<bool(const AActor*)> InIsActorDisplayableCallback);
+	static TUniquePtr<FActorHierarchy> Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World);
 
 	/** Find all direct children of a tree item in an existing item map, if any exist. */
 	virtual void FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildItems) const override;
@@ -25,6 +25,7 @@ public:
 	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
 
 	void SetShowingComponents(bool bInShowingComponents) { bShowingComponents = bInShowingComponents; }
+	void SetShowingFoundations(bool bInShowingFoundations) { bShowingFoundations = bInShowingFoundations; }
 private:
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
@@ -62,14 +63,11 @@ private:
 	void FullRefreshEvent();
 
 	bool bShowingComponents = false;
+	bool bShowingFoundations = false;
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
-
-	/** Used to determine if an actor can be displayed in the outliner */
-	TFunction<bool(const AActor*)> IsActorDisplayableCallback;
-
 private:
-	FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds, TFunction<bool(const AActor*)> InIsActorDisplayableCallback);
+	FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
 
 	FActorHierarchy(const FActorHierarchy&) = delete;
 	FActorHierarchy& operator=(const FActorHierarchy&) = delete;

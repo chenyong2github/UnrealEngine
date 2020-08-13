@@ -40,7 +40,7 @@ AFoundationEditorInstanceActor* AFoundationEditorInstanceActor::Create(AFoundati
 	
 	for (AActor* LevelActor : LoadedLevel->Actors)
 	{
-		if (LevelActor && !LevelActor->IsChildActor() && LevelActor != InstanceActor)
+		if (LevelActor && LevelActor->GetAttachParentActor() == nullptr && !LevelActor->IsChildActor() && LevelActor != InstanceActor)
 		{
 			LevelActor->AttachToActor(InstanceActor, FAttachmentTransformRules::KeepWorldTransform);
 		}

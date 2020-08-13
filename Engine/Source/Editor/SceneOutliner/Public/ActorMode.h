@@ -19,6 +19,23 @@ namespace SceneOutliner
 	};
 }
 
+struct SCENEOUTLINER_API FActorModeParams
+{
+	FActorModeParams() {}
+
+	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideFoundationHierarchy = true)
+		: SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
+		, SceneOutliner(InSceneOutliner)
+		, bHideComponents(bInHideComponents)
+		, bHideFoundationHierarchy(bInHideFoundationHierarchy)
+	{}
+
+	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
+	SSceneOutliner* SceneOutliner;
+	bool bHideComponents;
+	bool bHideFoundationHierarchy;
+};
+
 class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
 {
 public:
@@ -27,7 +44,7 @@ public:
 		enum Type { World = 0, Folder = 10, Actor = 20 };
 	};
 	
-	FActorMode(SSceneOutliner* InSceneOutliner, bool bHideComponents, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
+	FActorMode(const FActorModeParams& Params);
 	virtual ~FActorMode();
 
 	virtual void Rebuild() override;
@@ -55,6 +72,8 @@ protected:
 protected:
 	// Should the hide components filter be enabled
 	bool bHideComponents;
+	// Are foundations being hidden
+	bool bHideFoundationHierarchy;
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	/** The world which the user manually selected */

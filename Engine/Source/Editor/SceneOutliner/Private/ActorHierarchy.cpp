@@ -13,10 +13,12 @@
 #include "LevelUtils.h"
 #include "GameFramework/WorldSettings.h"
 #include "EditorActorFolders.h"
+#include "Foundation/FoundationActor.h"
+#include "Foundation/FoundationSubsystem.h"
 
-TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World, TFunction<bool(const AActor*)> InIsActorDisplayable)
+TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
-	FActorHierarchy* Hierarchy = new FActorHierarchy(Mode, World, InIsActorDisplayable);
+	FActorHierarchy* Hierarchy = new FActorHierarchy(Mode, World);
 		
 	GEngine->OnLevelActorAdded().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorAdded);
 	GEngine->OnLevelActorDeleted().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorDeleted);
@@ -36,10 +38,9 @@ TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, co
 	return TUniquePtr<FActorHierarchy>(Hierarchy);
 }
 
-FActorHierarchy::FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World, TFunction<bool(const AActor*)> InIsActorDisplayable)
+FActorHierarchy::FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 	: ISceneOutlinerHierarchy(Mode)
 	, RepresentingWorld(World)
-	, IsActorDisplayableCallback(InIsActorDisplayable)
 {
 }
 
@@ -70,6 +71,10 @@ FActorHierarchy::~FActorHierarchy()
 
 void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const
 {
+	UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
+
+	check(!bShowingFoundations || FoundationSubsystem);
+
 	if (const FWorldTreeItem* WorldTreeItem = Item.CastTo<FWorldTreeItem>())
 	{
 		// All actors in the world are children of the world
@@ -105,23 +110,37 @@ void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMa
 	}
 	else if (const FActorTreeItem* ActorTreeItem = Item.CastTo<FActorTreeItem>())
 	{
-		// All attached actors are children of this actor
-		TArray<AActor*> AttachedActors;
-		ActorTreeItem->Actor->GetAttachedActors(AttachedActors);
-		for (const AActor* AttachedActor : AttachedActors)
+		if (AFoundationActor* FoundationActor = Cast<AFoundationActor>(ActorTreeItem->Actor))
 		{
-			if (const FSceneOutlinerTreeItemPtr* AttachedActorItem = Items.Find(AttachedActor))
-			{
-				OutChildren.Add(*AttachedActorItem);
-			}
-		}
-		if (bShowingComponents)
-		{
-			for (const UActorComponent* Component : ActorTreeItem->Actor->GetComponents())
-			{
-				if (const FSceneOutlinerTreeItemPtr* ComponentItem = Items.Find(Component))
+			FoundationSubsystem->ForEachActorInFoundation(FoundationActor, [&OutChildren, &Items](AActor* Actor)
 				{
-					OutChildren.Add(*ComponentItem);
+					if (const FSceneOutlinerTreeItemPtr* ContainedActorItem = Items.Find(Actor))
+					{
+						OutChildren.Add(*ContainedActorItem);
+					}
+					return true;
+				});
+		}
+		else
+		{
+			// All attached actors are children of this actor
+			TArray<AActor*> AttachedActors;
+			ActorTreeItem->Actor->GetAttachedActors(AttachedActors);
+			for (const AActor* AttachedActor : AttachedActors)
+			{
+				if (const FSceneOutlinerTreeItemPtr* AttachedActorItem = Items.Find(AttachedActor))
+				{
+					OutChildren.Add(*AttachedActorItem);
+				}
+			}
+			if (bShowingComponents)
+			{
+				for (const UActorComponent* Component : ActorTreeItem->Actor->GetComponents())
+				{
+					if (const FSceneOutlinerTreeItemPtr* ComponentItem = Items.Find(Component))
+					{
+						OutChildren.Add(*ComponentItem);
+					}
 				}
 			}
 		}
@@ -153,23 +172,50 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 	}
 	else if (const FActorTreeItem* ActorTreeItem = Item.CastTo<FActorTreeItem>())
 	{
-		if (ActorTreeItem->Actor.IsValid())
+		if (AActor* Actor = ActorTreeItem->Actor.Get())
 		{
-			if (const AActor* ParentActor = ActorTreeItem->Actor->GetAttachParentActor())
+			if (const AActor* ParentActor = Actor->GetAttachParentActor())
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
 				{
 					return *ParentItem;
 				}
 			}
-			else if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
+			else if (Mode->ShouldShowFolders() && !Actor->GetFolderPath().IsNone())
 			{
-				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetFolderPath()))
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(Actor->GetFolderPath()))
 				{
 					return *ParentItem;
 				}
+				else
+				{
+					return nullptr;
+				}
 			}
-			else if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
+
+			if (const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>())
+			{
+				if (const AFoundationActor* OwningFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+				{
+					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor);
+					const bool bIsAnEditingFoundation = FoundationActor ? FoundationActor->IsEditing() : false;
+					// Parent this to a foundation if the parent foundation is being edited or if this is a sub foundation which is being edited
+					if (bShowingFoundations || (OwningFoundation->IsEditing() || bIsAnEditingFoundation))
+					{
+						if (const FSceneOutlinerTreeItemPtr* OwningFoundationItem = Items.Find(OwningFoundation))
+						{
+							return *OwningFoundationItem;
+						}
+						else
+						{
+							return nullptr;
+						}
+					}
+				}
+			}
+
+			// Default to the world
+			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorTreeItem->Actor->GetWorld()))
 			{
 				return *ParentItem;
 			}
@@ -233,18 +279,31 @@ void FActorHierarchy::CreateComponentItems(const AActor* Actor, TArray<FSceneOut
 
 void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
+	check(World);
+
+	const UFoundationSubsystem* FoundationSubsystem = World->GetSubsystem<UFoundationSubsystem>();
 	// Create all actor items
 	for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
 	{
-		if (IsActorDisplayableCallback(*ActorIt))
+		AActor* Actor = *ActorIt;
+		// If we are not showing foundations, foundation sub actor items should not be created unless they belong to a foundation which is being edited
+		if (FoundationSubsystem)
 		{
-			if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FActorTreeItem>(*ActorIt))
-			{
-				OutItems.Add(ActorItem);
-
-				// Create all component items
-				CreateComponentItems(*ActorIt, OutItems);
+			if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+		{
+				if (!bShowingFoundations && !ParentFoundation->IsEditing())
+				{
+					continue;
+				}
 			}
+		}
+
+		if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FActorTreeItem>(Actor))
+		{
+			OutItems.Add(ActorItem);
+
+			// Create all component items
+			CreateComponentItems(Actor, OutItems);
 		}
 	}
 
@@ -283,13 +342,31 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 	}
 	else if (const FActorTreeItem* ParentActorItem = Item->CastTo<FActorTreeItem>())
 	{
-		const AActor* ParentActor = ParentActorItem->Actor.Get();
+		AActor* ParentActor = ParentActorItem->Actor.Get();
+		check(ParentActor->GetWorld() == RepresentingWorld);
 
-		if (IsActorDisplayableCallback(ParentActor))
+		CreateComponentItems(ParentActor, OutChildren);
+
+		TArray<AActor*> ChildActors;
+
+		if (const AFoundationActor* FoundationParentActor = Cast<AFoundationActor>(ParentActor))
 		{
-			CreateComponentItems(ParentActor, OutChildren);
+			const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
+			check(FoundationSubsystem);
 
-			TArray<AActor*> ChildActors;
+			FoundationSubsystem->ForEachActorInFoundation(FoundationParentActor, [this, FoundationParentActor, FoundationSubsystem, &ChildActors](AActor* SubActor)
+				{
+					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(SubActor);
+					const bool bIsAnEditingFoundation = FoundationActor ? FoundationSubsystem->IsEditingFoundation(FoundationActor) : false;
+					if (bShowingFoundations || (FoundationSubsystem->IsEditingFoundation(FoundationParentActor) || bIsAnEditingFoundation))
+					{
+						ChildActors.Add(SubActor);
+					}
+					return true;
+				});
+		}
+		else
+		{
 			TFunction<bool(AActor*)> GetAttachedActors = [&ChildActors, &GetAttachedActors](AActor* Child)
 			{
 				ChildActors.Add(Child);
@@ -301,18 +378,18 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 
 			// Grab all direct/indirect children of an actor
 			ParentActor->ForEachAttachedActors(GetAttachedActors);
+		}
 
-			for (auto ChildActor : ChildActors)
+		for (auto ChildActor : ChildActors)
+		{
+			if (FSceneOutlinerTreeItemPtr ChildActorItem = Mode->CreateItemFor<FActorTreeItem>(ChildActor))
 			{
-				if (FSceneOutlinerTreeItemPtr ChildActorItem = Mode->CreateItemFor<FActorTreeItem>(ChildActor))
-				{
-					OutChildren.Add(ChildActorItem);
+				OutChildren.Add(ChildActorItem);
 
-					CreateComponentItems(ChildActor, OutChildren);
-				}
+				CreateComponentItems(ChildActor, OutChildren);
 			}
 		}
-	}
+		}
 	else if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
 	{
 		check(Mode->ShouldShowFolders());
@@ -338,24 +415,37 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 	}
 	else if (const FActorTreeItem* ActorTreeItem = Item->CastTo<FActorTreeItem>())
 	{
-		if (ActorTreeItem->Actor.IsValid())
+		if (const AActor* Actor = ActorTreeItem->Actor.Get())
 		{
-			AActor* ParentActor = ActorTreeItem->Actor->GetAttachParentActor();
-			if (ParentActor)
+			if (AActor* ParentActor = Actor->GetAttachParentActor())
 			{
 				return Mode->CreateItemFor<FActorTreeItem>(ParentActor, true);
 			}
-			// if this item does not belong to a folder (or folders are disabled)
-			else if (!Mode->ShouldShowFolders() || ActorTreeItem->Actor->GetFolderPath().IsNone())
-			{
-				UWorld* OwningWorld = ActorTreeItem->Actor->GetWorld();
-				check(OwningWorld);
-				return Mode->CreateItemFor<FWorldTreeItem>(OwningWorld, true);
-			}
-			else
+			
+			// if this item belongs in a folder
+			if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
 			{
 				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorTreeItem->Actor->GetFolderPath(), ActorTreeItem->Actor->GetWorld()), true);
 			}
+
+			// If item belongs to a foundation
+			if (const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>())
+			{
+				if (AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+				{
+					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor);
+					const bool bIsAnEditingFoundation = FoundationActor ? FoundationActor->IsEditing() : false;
+					if (bShowingFoundations || (ParentFoundation->IsEditing() || bIsAnEditingFoundation))
+					{
+						return Mode->CreateItemFor<FActorTreeItem>(ParentFoundation, true);
+					}
+				}
+			}
+
+			// Default to the world
+			UWorld* OwningWorld = ActorTreeItem->Actor->GetWorld();
+			check(OwningWorld);
+			return Mode->CreateItemFor<FWorldTreeItem>(OwningWorld, true);
 		}
 	}
 	else if (const FComponentTreeItem* ComponentTreeItem = Item->CastTo<FComponentTreeItem>())
@@ -394,7 +484,7 @@ void FActorHierarchy::FullRefreshEvent()
 
 void FActorHierarchy::OnLevelActorAdded(AActor* InActor)
 {
-	if (InActor && RepresentingWorld.Get() == InActor->GetWorld() && IsActorDisplayableCallback(InActor))
+	if (InActor && RepresentingWorld.Get() == InActor->GetWorld())
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;

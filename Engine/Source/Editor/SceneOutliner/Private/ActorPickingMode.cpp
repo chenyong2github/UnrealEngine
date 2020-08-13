@@ -4,8 +4,8 @@
 #include "SSceneOutliner.h"
 #include "ActorTreeItem.h"
 
-FActorPickingMode::FActorPickingMode(SSceneOutliner* InSceneOutliner, bool bInHideComponents, FOnSceneOutlinerItemPicked OnItemPickedDelegate, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
-	: FActorMode(InSceneOutliner, bInHideComponents, InSpecifiedWorldToDisplay)
+FActorPickingMode::FActorPickingMode(const FActorModeParams& Params, FOnSceneOutlinerItemPicked OnItemPickedDelegate)
+	: FActorMode(Params)
 	, OnItemPicked(OnItemPickedDelegate)
 {
 }
