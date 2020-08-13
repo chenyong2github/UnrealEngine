@@ -308,6 +308,8 @@ public:
 	enum class EFeatureFlag {
 		AllowShutdownOnClose = 0,	//!< Allow player to be shutdown right after 'close' event is received from it
 		UsePlaybackTimingV2,		//!< Use v2 playback timing and AV sync
+		UseRealtimeWithVideoOnly,	//!< Use realtime rather then game deltatime to control video playback if no audio is present
+		AlwaysPullNewestVideoFrame,	//!< Mediaframework will not gate video frame output with its own timing, but assumes "ASAP" as output time for every sample
 	};
 	
 	virtual bool GetPlayerFeatureFlag(EFeatureFlag /*flag*/) const
