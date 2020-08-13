@@ -689,6 +689,27 @@ enum class ENiagaraScriptUsage : uint8
 	SystemUpdateScript,
 };
 
+/** Defines common bit masks for script usage */
+namespace ENiagaraScriptUsageMask
+{
+	enum Type
+	{
+		System =
+			(1 << int32(ENiagaraScriptUsage::SystemSpawnScript)) |
+			(1 << int32(ENiagaraScriptUsage::SystemUpdateScript)),
+		Emitter =
+			(1 << int32(ENiagaraScriptUsage::EmitterSpawnScript)) |
+			(1 << int32(ENiagaraScriptUsage::EmitterUpdateScript)),
+		Particle =
+			(1 << int32(ENiagaraScriptUsage::ParticleSpawnScript)) |
+			(1 << int32(ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)) |
+			(1 << int32(ENiagaraScriptUsage::ParticleUpdateScript)) |
+			(1 << int32(ENiagaraScriptUsage::ParticleEventScript)) |
+			(1 << int32(ENiagaraScriptUsage::ParticleSimulationStageScript)) |
+			(1 << int32(ENiagaraScriptUsage::ParticleGPUComputeScript)),
+	};
+}
+
 /** Defines different usages for a niagara script. */
 UENUM()
 enum class ENiagaraCompileUsageStaticSwitch : uint8

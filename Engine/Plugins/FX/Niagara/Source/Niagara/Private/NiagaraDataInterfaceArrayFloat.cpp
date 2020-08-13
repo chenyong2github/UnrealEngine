@@ -79,40 +79,40 @@ UNiagaraDataInterfaceArrayFloat::UNiagaraDataInterfaceArrayFloat(FObjectInitiali
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<float, UNiagaraDataInterfaceArrayFloat>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<float, UNiagaraDataInterfaceArrayFloat>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat2::UNiagaraDataInterfaceArrayFloat2(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector2D, UNiagaraDataInterfaceArrayFloat2>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector2D, UNiagaraDataInterfaceArrayFloat2>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat3::UNiagaraDataInterfaceArrayFloat3(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector, UNiagaraDataInterfaceArrayFloat3>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector, UNiagaraDataInterfaceArrayFloat3>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat4::UNiagaraDataInterfaceArrayFloat4(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector4, UNiagaraDataInterfaceArrayFloat4>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector4, UNiagaraDataInterfaceArrayFloat4>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayColor::UNiagaraDataInterfaceArrayColor(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FLinearColor, UNiagaraDataInterfaceArrayColor>(Proxy, ColorData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FLinearColor, UNiagaraDataInterfaceArrayColor>(this, ColorData));
 }
 
 UNiagaraDataInterfaceArrayQuat::UNiagaraDataInterfaceArrayQuat(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FQuat, UNiagaraDataInterfaceArrayQuat>(Proxy, QuatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FQuat, UNiagaraDataInterfaceArrayQuat>(this, QuatData));
 }

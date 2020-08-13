@@ -29,7 +29,7 @@ UNiagaraDataInterfaceArrayInt32::UNiagaraDataInterfaceArrayInt32(FObjectInitiali
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(Proxy, IntData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(this, IntData));
 }
 
 UNiagaraDataInterfaceArrayBool::UNiagaraDataInterfaceArrayBool(FObjectInitializer const& ObjectInitializer)
@@ -38,5 +38,5 @@ UNiagaraDataInterfaceArrayBool::UNiagaraDataInterfaceArrayBool(FObjectInitialize
 	static_assert(sizeof(bool) == sizeof(uint8), "Bool != 1 byte this will mean the GPU array does not match in size");
 
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<bool, UNiagaraDataInterfaceArrayBool>(Proxy, BoolData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<bool, UNiagaraDataInterfaceArrayBool>(this, BoolData));
 }

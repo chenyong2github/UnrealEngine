@@ -130,13 +130,7 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 {
 	Super::GetFunctions(OutFunctions);
 
-	int32 EmitterSystemOnlyBitmask = 0;
-	TArray<ENiagaraScriptUsage> EmitterSystemOnlyUsages;
-	for (int32 i = (int32)ENiagaraScriptUsage::EmitterSpawnScript; i <= (int32)ENiagaraScriptUsage::SystemUpdateScript; i++)
-	{
-		EmitterSystemOnlyUsages.Add((ENiagaraScriptUsage)i);
-	}
-	EmitterSystemOnlyBitmask = UNiagaraScript::MakeSupportedUsageContextBitmask(EmitterSystemOnlyUsages);
+	const int32 EmitterSystemOnlyBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
 
 	{
 		FNiagaraFunctionSignature Sig;
