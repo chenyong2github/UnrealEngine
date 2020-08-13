@@ -1,5 +1,7 @@
 #include "WorldPartition/HLOD/HLODBuilder.h"
 
+#if WITH_EDITOR
+
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -259,3 +261,5 @@ void FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName 
 		}
 	}
 }
+
+#endif
