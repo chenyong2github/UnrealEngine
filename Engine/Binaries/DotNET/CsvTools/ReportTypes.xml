@@ -98,6 +98,7 @@
 			<graph title="Log Counts" budget="0" />
 			<graph title="CSV Profiler" budget="0" />
 			<graph title="CSV Profiler" budget="0" />
+			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
 		</reporttype>
 
@@ -151,6 +152,7 @@
 			<graph title="Animation Budget" budget="3.0" />
 			<graph title="Log Counts" budget="0" />
 			<graph title="CSV Profiler" budget="0" />
+			<graph title="Android Memory" budget="0" />
 			<graph title="Android Thermals" budget="0" />
 		</reporttype>
 
