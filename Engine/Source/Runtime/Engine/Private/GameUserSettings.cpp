@@ -28,7 +28,7 @@ enum EGameUserSettingsVersion
 
 
 UGameUserSettings::UGameUserSettings(const FObjectInitializer& ObjectInitializer)
-:	Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	// this will only call the base version of SetToDefaults but some constructors may rely on it being set
 	SetToDefaults();
@@ -77,32 +77,39 @@ void UGameUserSettings::SetScreenResolution(FIntPoint Resolution)
 	}
 }
 
+static EWindowMode::Type GetPlatformFullscreenMode(int InFullscreenMode)
+{
+	EWindowMode::Type Mode = EWindowMode::ConvertIntToWindowMode(InFullscreenMode);
+
+	return (!FPlatformProperties::SupportsWindowedMode()) ? EWindowMode::Fullscreen : Mode;
+}
+
 EWindowMode::Type UGameUserSettings::GetFullscreenMode() const
 {
-	return EWindowMode::ConvertIntToWindowMode(FullscreenMode);
+	return GetPlatformFullscreenMode(FullscreenMode);
 }
 
 EWindowMode::Type UGameUserSettings::GetLastConfirmedFullscreenMode() const
 {
-	return EWindowMode::ConvertIntToWindowMode(LastConfirmedFullscreenMode);
+	return GetPlatformFullscreenMode(LastConfirmedFullscreenMode);
 }
 
-void UGameUserSettings::SetFullscreenMode( EWindowMode::Type InFullscreenMode )
+void UGameUserSettings::SetFullscreenMode(EWindowMode::Type InFullscreenMode)
 {
 	if (FullscreenMode != InFullscreenMode)
 	{
 		switch (InFullscreenMode)
 		{
-			case EWindowMode::Fullscreen:
-				FullscreenMode = 0;
-				break;
-			case EWindowMode::WindowedFullscreen:
-				FullscreenMode = 1;
-				break;
-			case EWindowMode::Windowed:
-			default:
-				FullscreenMode = 2;
-				break;
+		case EWindowMode::Fullscreen:
+			FullscreenMode = 0;
+			break;
+		case EWindowMode::WindowedFullscreen:
+			FullscreenMode = 1;
+			break;
+		case EWindowMode::Windowed:
+		default:
+			FullscreenMode = 2;
+			break;
 		}
 
 		UpdateResolutionQuality();
@@ -114,7 +121,7 @@ EWindowMode::Type UGameUserSettings::GetPreferredFullscreenMode() const
 	return PreferredFullscreenMode == 0 ? EWindowMode::Fullscreen : EWindowMode::WindowedFullscreen;
 }
 
-void UGameUserSettings::SetVSyncEnabled( bool bEnable )
+void UGameUserSettings::SetVSyncEnabled(bool bEnable)
 {
 	bUseVSync = bEnable;
 }
@@ -137,7 +144,7 @@ bool UGameUserSettings::IsDynamicResolutionEnabled() const
 bool UGameUserSettings::IsScreenResolutionDirty() const
 {
 	bool bIsDirty = false;
-	if ( GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame )
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame)
 	{
 		bIsDirty = (ResolutionSizeX != GSystemResolution.ResX || ResolutionSizeY != GSystemResolution.ResY) ? true : false;
 	}
@@ -159,7 +166,7 @@ bool UGameUserSettings::IsFullscreenModeDirty() const
 bool UGameUserSettings::IsVSyncDirty() const
 {
 	bool bIsDirty = false;
-	if ( GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame )
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->ViewportFrame)
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
 		bIsDirty = (bUseVSync != (CVar->GetValueOnGameThread() != 0));
@@ -351,30 +358,30 @@ void UGameUserSettings::SetPreferredFullscreenMode(int32 Mode)
 void UGameUserSettings::ValidateSettings()
 {
 	// Should we wipe all user settings?
-	if ( !IsVersionValid() )
+	if (!IsVersionValid())
 	{
 		// First try loading the settings, if they haven't been loaded before.
 		LoadSettings(true);
 
 		// If it still an old version, delete the user settings file and reload defaults.
-		if ( !IsVersionValid() )
+		if (!IsVersionValid())
 		{
 			// Force reset if there aren't any default .ini settings.
 			SetToDefaults();
 			static const auto CVarVSync = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
-			SetVSyncEnabled(CVarVSync->GetValueOnGameThread() != 0 );
+			SetVSyncEnabled(CVarVSync->GetValueOnGameThread() != 0);
 
 			if (GEngine)
 			{
 				SetDynamicResolutionEnabled(GEngine->GetDynamicResolutionUserSetting());
 			}
 
-			IFileManager::Get().Delete( *GGameUserSettingsIni );
+			IFileManager::Get().Delete(*GGameUserSettingsIni);
 			LoadSettings(true);
 		}
 	}
 
-	if ( ResolutionSizeX <= 0 || ResolutionSizeY <= 0 )
+	if (ResolutionSizeX <= 0 || ResolutionSizeY <= 0)
 	{
 		SetScreenResolution(FIntPoint(GSystemResolution.ResX, GSystemResolution.ResY));
 
@@ -465,7 +472,7 @@ void UGameUserSettings::ApplyNonResolutionSettings()
 	}
 #endif
 
-	bool bEnableHDR = ( IsHDRAllowed() && bUseHDRDisplayOutput && !bWithEditor );
+	bool bEnableHDR = (IsHDRAllowed() && bUseHDRDisplayOutput && !bWithEditor);
 
 	EnableHDRDisplayOutput(bEnableHDR, HDRDisplayOutputNits);
 
@@ -506,9 +513,9 @@ void UGameUserSettings::LoadSettings(bool bForceReload/*=false*/)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(GameUserSettings_LoadSettings);
 
-	if ( bForceReload )
+	if (bForceReload)
 	{
-		LoadConfigIni( bForceReload );
+		LoadConfigIni(bForceReload);
 	}
 	LoadConfig(GetClass(), *GGameUserSettingsIni);
 
@@ -546,7 +553,7 @@ void UGameUserSettings::SaveSettings()
 	SaveConfig(CPF_Config, *GGameUserSettingsIni);
 }
 
-void UGameUserSettings::LoadConfigIni( bool bForceReload/*=false*/ )
+void UGameUserSettings::LoadConfigIni(bool bForceReload/*=false*/)
 {
 	// Load .ini, allowing merging
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, bForceReload, false, true, *FConfigCacheIni::GetGameUserSettingsDir());
@@ -563,13 +570,13 @@ void UGameUserSettings::PreloadResolutionSettings()
 
 	GConfig->GetString(*ScriptEngineCategory, TEXT("GameUserSettingsClassName"), GameUserSettingsCategory, GEngineIni);
 
-	int32 ResolutionX = GetDefaultResolution().X; 
+	int32 ResolutionX = GetDefaultResolution().X;
 	int32 ResolutionY = GetDefaultResolution().Y;
 	EWindowMode::Type WindowMode = GetDefaultWindowMode();
 	bool bUseDesktopResolution = false;
 	bool bUseHDR = FPlatformMisc::UseHDRByDefault();
 
-	int32 Version=0;
+	int32 Version = 0;
 	if (GConfig->GetInt(*GameUserSettingsCategory, TEXT("Version"), Version, GGameUserSettingsIni) && Version == UE_GAMEUSERSETTINGS_VERSION)
 	{
 		GConfig->GetBool(*GameUserSettingsCategory, TEXT("bUseDesktopResolution"), bUseDesktopResolution, GGameUserSettingsIni);
@@ -597,7 +604,7 @@ void UGameUserSettings::PreloadResolutionSettings()
 	}
 
 #if !PLATFORM_MANAGES_HDR_SETTING
-	if ( IsHDRAllowed() )
+	if (IsHDRAllowed())
 	{
 		// Set the user-preference HDR switch
 		static auto CVarHDROutputEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.EnableHDROutput"));
@@ -620,7 +627,7 @@ FIntPoint UGameUserSettings::GetDefaultResolution()
 
 FIntPoint UGameUserSettings::GetDefaultWindowPosition()
 {
-	return FIntPoint(-1,-1);
+	return FIntPoint(-1, -1);
 }
 
 EWindowMode::Type UGameUserSettings::GetDefaultWindowMode()
@@ -649,7 +656,7 @@ int32 UGameUserSettings::GetFramePace()
 
 void UGameUserSettings::ResetToCurrentSettings()
 {
-	if ( GEngine && GEngine->GameViewport && GEngine->GameViewport->GetWindow().IsValid() )
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->GetWindow().IsValid())
 	{
 		//handle the fullscreen setting
 		SetFullscreenMode(GetWindowModeType(GEngine->GameViewport->GetWindow()->GetWindowMode()));
@@ -659,7 +666,7 @@ void UGameUserSettings::ResetToCurrentSettings()
 
 		// Set the current VSync state
 		static const auto CVarVSync = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VSync"));
-		SetVSyncEnabled(CVarVSync->GetValueOnGameThread() != 0 );
+		SetVSyncEnabled(CVarVSync->GetValueOnGameThread() != 0);
 
 		// Set the current dynamic resolution state
 		SetDynamicResolutionEnabled(GEngine->GetDynamicResolutionUserSetting());
@@ -720,7 +727,7 @@ float UGameUserSettings::GetFrameRateLimit() const
 
 void UGameUserSettings::SetOverallScalabilityLevel(int32 Value)
 {
-	ScalabilityQuality.SetFromSingleQualityLevel(Value);	
+	ScalabilityQuality.SetFromSingleQualityLevel(Value);
 }
 
 int32 UGameUserSettings::GetOverallScalabilityLevel() const
