@@ -407,7 +407,11 @@ UNetReplicationGraphConnection* UReplicationGraph::CreateClientConnectionManager
 	UNetReplicationGraphConnection* NewConnectionManager = NewObject<UNetReplicationGraphConnection>(this, ReplicationConnectionManagerClass.Get());
 
 	// Give it an ID
-	NewConnectionManager->ConnectionId = Connections.Num() + PendingConnections.Num();
+	const int32 NewConnectionNum = Connections.Num() + PendingConnections.Num();
+	NewConnectionManager->ConnectionOrderNum = NewConnectionNum;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NewConnectionManager->ConnectionId = NewConnectionNum;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Initialize it with us
 	NewConnectionManager->InitForGraph(this);
@@ -421,11 +425,40 @@ UNetReplicationGraphConnection* UReplicationGraph::CreateClientConnectionManager
 	return NewConnectionManager;
 }
 
+UNetReplicationGraphConnection* UReplicationGraph::FixGraphConnectionList(TArray<UNetReplicationGraphConnection*>& OutList, int32& ConnectionNum, UNetConnection* RemovedNetConnection)
+{
+	UNetReplicationGraphConnection* RemovedGraphConnection(nullptr);
+
+	for (int32 Index = 0; Index < OutList.Num(); ++Index)
+	{
+		UNetReplicationGraphConnection* CurrentGraphConnection = OutList[Index];
+		if (CurrentGraphConnection->NetConnection != RemovedNetConnection)
+		{
+			// Fix the ConnectionOrderNum
+			const int32 NewConnectionNum = ConnectionNum++;
+			CurrentGraphConnection->ConnectionOrderNum = NewConnectionNum;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			CurrentGraphConnection->ConnectionId = NewConnectionNum;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+		else
+		{
+			// Found the connection to remove
+			ensureMsgf(RemovedGraphConnection==nullptr, TEXT("Found multiple GraphConnections for the same NetConnection: %s.  PreviousGraphConnection(%i): %s | CurrentGraphConnection(%i): %s"),
+				*RemovedNetConnection->Describe(), 
+				RemovedGraphConnection->ConnectionOrderNum, *RemovedGraphConnection->GetName(),
+				CurrentGraphConnection->ConnectionOrderNum, *CurrentGraphConnection->GetName());
+			RemovedGraphConnection = CurrentGraphConnection;
+
+			OutList.RemoveAtSwap(Index--, 1, false);
+		}
+	}
+
+	return RemovedGraphConnection;
+}
+
 void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 {
-	int32 ConnectionId = 0;
-	bool bFound = false;
-
 	// Children do not have a connection manager, do not attempt to remove it here.
 	// Default behavior never calls this function with child connections anyways, so this is really only here for protection.
 	if (NetConnection->GetUChildConnection() != nullptr)
@@ -434,32 +467,24 @@ void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 		return;
 	}
 
-	// Remove the RepGraphConnection associated with this NetConnection. Also update ConnectionIds to stay compact.
-	auto UpdateList = [&](TArray<UNetReplicationGraphConnection*> List)
+	int32 ConnectionNum = 0;
+
+	UNetReplicationGraphConnection* ActiveGraphConnectionRemoved = FixGraphConnectionList(Connections, ConnectionNum, NetConnection);
+	UNetReplicationGraphConnection* PendingGraphConnectionRemoved = FixGraphConnectionList(PendingConnections, ConnectionNum, NetConnection);
+
+	if (ActiveGraphConnectionRemoved)
 	{
-		for (int32 idx=0; idx < Connections.Num(); ++idx)
-		{
-			UNetReplicationGraphConnection* ConnectionManager = Connections[idx];
-			repCheck(ConnectionManager);
+		ActiveGraphConnectionRemoved->TearDown();
+		ensure(PendingGraphConnectionRemoved == nullptr);
+	}
 
-			if (ConnectionManager->NetConnection == NetConnection)
-			{
-				ensure(!bFound);
-				ConnectionManager->TearDown();
-				Connections.RemoveAtSwap(idx, 1, false);
-				bFound = true;
-			}
-			else
-			{
-				ConnectionManager->ConnectionId = ConnectionId++;
-			}
-		}
-	};
+	if (PendingGraphConnectionRemoved)
+	{
+		PendingGraphConnectionRemoved->TearDown();
+		ensure(ActiveGraphConnectionRemoved == nullptr);
+	}
 
-	UpdateList(Connections);
-	UpdateList(PendingConnections);
-
-	if (!bFound)
+	if (!ActiveGraphConnectionRemoved && !PendingGraphConnectionRemoved)
 	{
 		// At least one list should have found the connection
 		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::RemoveClientConnection could not find connection in Connection (%d) or PendingConnections (%d) lists"), *GetNameSafe(NetConnection), Connections.Num(), PendingConnections.Num());
