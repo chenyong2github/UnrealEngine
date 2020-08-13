@@ -2028,6 +2028,11 @@ JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChanged
 	FAndroidStats::OnThermalStatusChanged(status);
 }
 
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint status)
+{
+	FAndroidStats::OnMemoryWarningChanged(status);
+}
+
 class FAndroidEmbeddedExec : public FSelfRegisteringExec
 {
 public:

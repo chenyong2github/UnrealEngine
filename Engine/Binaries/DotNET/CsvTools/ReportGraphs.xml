@@ -103,6 +103,10 @@
 			<statString>CSVProfiler/Num*</statString>
 		</graph>
 		
+		<graph title="Android Memory" showAverages="1" hideStatPrefix="AndroidMemory/" stacked="1" mainStat="MemoryFreeMB" maxy="0">
+			<statString>AndroidMemory/MemoryWarningState</statString>
+		</graph>		
+
 		<graph title="Android Thermals" showAverages="1" hideStatPrefix="AndroidCPU/" stacked="1" mainStat="frametime" maxy="100">
 			<statString>AndroidCPU/CPUTemp AndroidCPU/ThermalStatus</statString>
 		</graph>

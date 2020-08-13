@@ -9,6 +9,7 @@
 
 DECLARE_STATS_GROUP(TEXT("Android CPU stats"), STATGROUP_AndroidCPU, STATCAT_Advanced);
 CSV_DEFINE_CATEGORY(AndroidCPU, true);
+CSV_DEFINE_CATEGORY(AndroidMemory, true);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Frequency Groups"), STAT_NumFreqGroups, STATGROUP_AndroidCPU);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Freq Group 0 : Max frequency"), STAT_FreqGroup0MaxFrequency, STATGROUP_AndroidCPU);
@@ -38,10 +39,7 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 1 : highest core utilization %"), ST
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 2 : highest core utilization %"), STAT_FreqGroup2MaxUtilization, STATGROUP_AndroidCPU);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Freq Group 3 : highest core utilization %"), STAT_FreqGroup3MaxUtilization, STATGROUP_AndroidCPU);
 
-CSV_DEFINE_STAT(AndroidCPU, CPUTemp);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("CPU Temperature"), STAT_CPUTemp, STATGROUP_AndroidCPU);
-
-CSV_DEFINE_STAT(AndroidCPU, ThermalStatus);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Thermal Status"), STAT_ThermalStatus, STATGROUP_AndroidCPU);
 
 static float GAndroidCPUStatsUpdateRate = 0.100;
@@ -54,19 +52,30 @@ static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 
 #if CSV_PROFILER
 static int GThermalStatus = 0;
+static int GMemoryWarningStatus = 0;
 
 void FAndroidStats::OnThermalStatusChanged(int status)
 {
 	GThermalStatus = status;
 }
 
+void FAndroidStats::OnMemoryWarningChanged(int status)
+{
+	GMemoryWarningStatus = status;
+}
+
 static void UpdateCSVProfiler(float CPUTemp)
 {
-	CSV_CUSTOM_STAT_DEFINED(CPUTemp, CPUTemp, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT_DEFINED(ThermalStatus, GThermalStatus, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(AndroidCPU, CPUTemp, CPUTemp, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(AndroidCPU, ThermalStatus, GThermalStatus, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(AndroidMemory, MemoryWarningState, GMemoryWarningStatus, ECsvCustomStatOp::Set);
 }
 #else
 void FAndroidStats::OnThermalStatusChanged(int status)
+{
+}
+
+void FAndroidStats::OnMemoryWarningChanged(int status)
 {
 }
 #endif
