@@ -192,6 +192,7 @@ namespace ObjectTools
 		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
 		{
 			const UTransactor* Transactor = GEditor ? GEditor->Trans : nullptr;
+			bool bIsGatheringPackageRef = InObject->IsA<UPackage>();
 
 			// Get the cluster of objects that are going to be deleted
 			TArray<UObject*> ObjectsToDelete;
@@ -200,10 +201,12 @@ namespace ObjectTools
 			TSet<UObject*> InternalReferences;
 			// The old behavior of GatherObjectReferencersForDeletion will find anything that prevents 
 			// InObject from being garbage collected, including internal sub objects.
+			// it does make an exception with very specific package metadata case.
 			for (UObject* ObjectToDelete : ObjectsToDelete)
 			{
-				if (ObjectToDelete->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS) ||
-					ObjectToDelete->HasAnyInternalFlags(EInternalObjectFlags::GarbageCollectionKeepFlags))
+				if ((ObjectToDelete->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS) ||
+					ObjectToDelete->HasAnyInternalFlags(EInternalObjectFlags::GarbageCollectionKeepFlags)) &&
+					(bIsGatheringPackageRef && !ObjectToDelete->IsA<UMetaData>()))
 				{
 					InternalReferences.Add(ObjectToDelete);
 					bOutIsReferenced = true;
