@@ -23,7 +23,7 @@
 #include "Net/Core/Trace/Config.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
-#include "Net/Core/Misc/PacketTraits.h"
+#include "Net/Common/Packets/PacketTraits.h"
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 
