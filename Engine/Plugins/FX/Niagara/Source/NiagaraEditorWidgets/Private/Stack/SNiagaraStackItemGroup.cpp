@@ -8,7 +8,8 @@
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "Widgets/SBoxPanel.h"
-	#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroup"
