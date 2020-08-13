@@ -1874,7 +1874,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 	}
 
 	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate through interrogation
-	if (TransformTracks.Num() > 1 || TransformTracks[0].Get()->GetAllSections().Num() > 1)
+	if (TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
 	{
 		ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
 
