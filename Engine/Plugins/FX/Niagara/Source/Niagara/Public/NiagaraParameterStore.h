@@ -123,8 +123,25 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariableBase(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
 	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableBase& InVariable, int32 InOffset) : FNiagaraVariableBase(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
 
+	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
+	void PostSerialize(const FArchive& Ar);
+#endif
+
 	UPROPERTY()
 	int32 Offset;
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraVariableWithOffset> : public TStructOpsTypeTraitsBase2<FNiagaraVariableWithOffset>
+{
+	enum
+	{
+		WithSerializer = true,
+#if WITH_EDITORONLY_DATA
+		WithPostSerialize = true,
+#endif
+	};
 };
 
 /** Base storage class for Niagara parameter values. */
