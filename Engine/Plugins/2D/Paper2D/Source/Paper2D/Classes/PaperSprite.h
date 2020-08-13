@@ -104,11 +104,11 @@ protected:
 
 	// The material to use on a sprite instance if not overridden (this is the default material when only one is being used, and is the translucent/masked material for Diced render geometry, slot 0)
 	UPROPERTY(Category=Sprite, EditAnywhere, BlueprintReadOnly)
-	TSoftObjectPtr<UMaterialInterface> DefaultMaterial;
+	UMaterialInterface* DefaultMaterial;
 
 	// The alternate material to use on a sprite instance if not overridden (this is only used for Diced render geometry, and will be the opaque material in that case, slot 1)
 	UPROPERTY(Category=Rendering, EditAnywhere, BlueprintReadOnly)
-	TSoftObjectPtr<UMaterialInterface> AlternateMaterial;
+	UMaterialInterface* AlternateMaterial;
 
 	// List of sockets on this sprite
 	UPROPERTY(Category=Sprite, EditAnywhere)
@@ -299,10 +299,10 @@ public:
 	void GetBakedAdditionalSourceTextures(FAdditionalSpriteTextureArray& OutTextureList) const;
 
 	// Return the default material for this sprite
-	UMaterialInterface* GetDefaultMaterial() const;
+	UMaterialInterface* GetDefaultMaterial() const { return DefaultMaterial; }
 
 	// Return the alternate material for this sprite
-	UMaterialInterface* GetAlternateMaterial() const;
+	UMaterialInterface* GetAlternateMaterial() const { return AlternateMaterial; }
 
 	// Returns either the default material (index 0) or alternate material (index 1)
 	UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
