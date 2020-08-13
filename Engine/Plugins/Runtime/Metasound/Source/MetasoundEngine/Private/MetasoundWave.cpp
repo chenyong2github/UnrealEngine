@@ -62,7 +62,7 @@ namespace Metasound
 		FScopedBulkDataLock BdLock(Raw);
 		if (const void* RawPtr = BdLock.LockReadOnly())
 		{
-			IEncoderInput::FFormat Format { InWave->NumChannels, InWave->GetSampleRateForCurrentPlatform(), EBitRepresentation::Int16_Interleaved };
+			IEncoderInput::FFormat Format { static_cast<uint32>(InWave->NumChannels), static_cast<uint32>(InWave->GetSampleRateForCurrentPlatform()), EBitRepresentation::Int16_Interleaved };
 			TUniquePtr<IEncoderInput> Input = IEncoderInput::Create(
 				MakeArrayView(static_cast<const int16*>(RawPtr), Raw.GetBulkDataSize() / sizeof(int16)),
 				Format
