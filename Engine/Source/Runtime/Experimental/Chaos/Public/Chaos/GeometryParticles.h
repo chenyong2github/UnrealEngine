@@ -691,6 +691,12 @@ public:
 			return nullptr;
 		}
 
+
+		FORCEINLINE TArray<TRotation<T, d>>& AllR() { return MR; }
+		FORCEINLINE TArray<TAABB<T, d>>& AllLocalBounds() { return MLocalBounds; }
+		FORCEINLINE TArray<TAABB<T, d>>& AllWorldSpaceInflatedBounds() { return MWorldSpaceInflatedBounds; }
+		FORCEINLINE TArray<bool>& AllHasBounds() { return MHasBounds; }
+
 	protected:
 		EParticleType MParticleType;
 
