@@ -223,52 +223,6 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 	}
 
 	PropertyPath = FPropertyNode::CreatePropertyPath(this->AsShared())->ToString();
-
-	{
-		// Populate name aliases acceptable for searching / filtering
-		FText DisplayName = GetDisplayName();
-		const FString& DisplayNameStr = DisplayName.ToString();
-		AcceptableNames.Add(DisplayNameStr);
-
-		// For containers, check if base class metadata in parent includes 'TitleProperty', add corresponding value to filter names if so.
-		static const FName TitlePropertyFName = FName(TEXT("TitleProperty"));
-		if (ParentNode && ParentNode->GetProperty())
-		{
-			const FString& TitleProperty = ParentNode->GetProperty()->GetMetaData(TitlePropertyFName);
-			if (!TitleProperty.IsEmpty())
-			{
-				if (TSharedPtr<FPropertyNode> TitlePropertyNode = FindChildPropertyNode(*TitleProperty, true))
-				{
-					FString TitlePropertyValue;
-					if (TitlePropertyNode->GetPropertyValueString(TitlePropertyValue, true /*bAllowAlternateDisplayValue*/) != FPropertyAccess::Result::Fail)
-					{
-						AcceptableNames.Add(TitlePropertyValue);
-					}
-
-					auto ReplaceTitlePropertyName = [this, TitlePropertyValue](TSharedPtr<FPropertyNode> ChildNode) mutable
-					{
-						AcceptableNames.Remove(TitlePropertyValue);
-
-						FString ChildNodeValue;
-						if (ChildNode->GetPropertyValueString(ChildNodeValue, true /*bAllowAlternateDisplayValue*/) != FPropertyAccess::Result::Fail)
-						{
-							AcceptableNames.Add(ChildNodeValue);
-							TitlePropertyValue = ChildNodeValue;
-						}
-					};
-
-					TitlePropertyNode->OnPropertyValueChanged().AddLambda(ReplaceTitlePropertyName, TitlePropertyNode);
-				}
-			}
-		}
-
-		// Get the basic name as well of the property
-		FProperty* TheProperty = GetProperty();
-		if (TheProperty && (TheProperty->GetName() != DisplayNameStr))
-		{
-			AcceptableNames.Add(TheProperty->GetName());
-		}
-	}
 }
 
 /**
@@ -2097,6 +2051,37 @@ void FPropertyNode::FilterNodes( const TArray<FString>& InFilterStrings, const b
 	{
 		//if filtering, default to NOT-seen
 		bool bPassedFilter = false;	//assuming that we aren't filtered
+
+		// Populate name aliases acceptable for searching / filtering
+		FText DisplayName = GetDisplayName();
+		const FString& DisplayNameStr = DisplayName.ToString();
+		TArray <FString> AcceptableNames;
+		AcceptableNames.Add(DisplayNameStr);
+
+		// For containers, check if base class metadata in parent includes 'TitleProperty', add corresponding value to filter names if so.
+		static const FName TitlePropertyFName = FName(TEXT("TitleProperty"));
+		if (ParentNode && ParentNode->GetProperty())
+		{
+			const FString& TitleProperty = ParentNode->GetProperty()->GetMetaData(TitlePropertyFName);
+			if (!TitleProperty.IsEmpty())
+			{
+				if (TSharedPtr<FPropertyNode> TitlePropertyNode = FindChildPropertyNode(*TitleProperty, true))
+				{
+					FString TitlePropertyValue;
+					if (TitlePropertyNode->GetPropertyValueString(TitlePropertyValue, true /*bAllowAlternateDisplayValue*/) != FPropertyAccess::Result::Fail)
+					{
+						AcceptableNames.Add(TitlePropertyValue);
+					}
+				}
+			}
+		}
+
+		// Get the basic name as well of the property
+		FProperty* TheProperty = GetProperty();
+		if (TheProperty && (TheProperty->GetName() != DisplayNameStr))
+		{
+			AcceptableNames.Add(TheProperty->GetName());
+		}
 
 		bPassedFilter = IsFilterAcceptable(AcceptableNames, InFilterStrings);
 
