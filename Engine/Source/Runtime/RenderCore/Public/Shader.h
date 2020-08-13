@@ -32,6 +32,7 @@ class FMaterialShaderType;
 class FNiagaraShaderType;
 class FOpenColorIOShaderType;
 class FMeshMaterialShaderType;
+class FComputeKernelShaderType;
 class FShader;
 class FShaderMapBase;
 class FShaderPipelineType;
@@ -978,6 +979,7 @@ public:
 		MeshMaterial,
 		Niagara,
 		OCIO,
+		ComputeKernel,
 		NumShaderTypes,
 	};
 
@@ -1090,6 +1092,14 @@ public:
 	FORCEINLINE FOpenColorIOShaderType* GetOpenColorIOShaderType()
 	{
 		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::OCIO) ? reinterpret_cast<FOpenColorIOShaderType*>(this) : nullptr;
+	}
+	FORCEINLINE const FComputeKernelShaderType* GetComputeKernelShaderType() const
+	{
+		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::ComputeKernel) ? reinterpret_cast<const FComputeKernelShaderType*>(this) : nullptr;
+	}
+	FORCEINLINE FComputeKernelShaderType* GetComputeKernelShaderType()
+	{
+		return (ShaderTypeForDynamicCast == EShaderTypeForDynamicCast::ComputeKernel) ? reinterpret_cast<FComputeKernelShaderType*>(this) : nullptr;
 	}
 
 	inline EShaderTypeForDynamicCast GetTypeForDynamicCast() const
