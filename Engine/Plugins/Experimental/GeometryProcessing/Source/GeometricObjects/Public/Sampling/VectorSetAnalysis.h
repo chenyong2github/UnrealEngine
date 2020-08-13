@@ -3,21 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "VectorTypes.h"
 
 
 /**
- * FVectorSetAnalysis computes various analyses of a set of input Vectors (currently mainly clustering.
+ * TVectorSetAnalysis3 computes various analyses of a set of input Vectors (currently mainly clustering.
  */
-class FVectorSetAnalysis
+template<typename RealType>
+class TVectorSetAnalysis3
 {
 public:
 	//
 	// Input data
 	//
 
-	TArray<FVector3d> Vectors;
+	TArray<FVector3<RealType>> Vectors;
 	TArray<int32> VectorIDs;
 	bool bNormalized = false;
 
@@ -26,7 +26,7 @@ public:
 	//
 
 	/** Set of vectors that represent centers of clusters */
-	TArray<FVector3d> ClusterVectors;
+	TArray<FVector3<RealType>> ClusterVectors;
 	/** Mapping from Vector index to ClusterVectors index */
 	TArray<int32> VectorToClusterMap;
 
@@ -37,7 +37,7 @@ public:
 	 * @param bIsNormalizedHint indicate whether vectors are normalized
 	 */
 	template<typename EnumerableIDType>
-	void Initialize(EnumerableIDType EnumerableIDs, TFunctionRef<FVector3d(int32)> GetVectorFunc, int32 NumVectorsHint = 0, bool bIsNormalizedHint = false)
+	void Initialize(EnumerableIDType EnumerableIDs, TFunctionRef<FVector3<RealType>(int32)> GetVectorFunc, int32 NumVectorsHint = 0, bool bIsNormalizedHint = false)
 	{
 		Vectors.Reserve(NumVectorsHint);
 		VectorIDs.Reserve(NumVectorsHint);
@@ -59,14 +59,14 @@ public:
 
 	/**
 	 * Run simple greedy clustering algorithm on input ClusterVectors.
-	 * Done in a single pass over vectors, each successive Vector is either grouped with one of the 
+	 * Done in a single pass over vectors, each successive Vector is either grouped with one of the
 	 * existing clusters if it's direction is within AngleToleranceDeg, or creates a new cluster.
 	 */
-	inline void GreedyClusterVectors(double AngleToleranceDeg)
+	inline void GreedyClusterVectors(RealType AngleToleranceDeg)
 	{
 		check(bNormalized);		// otherwise code below is incorrect
 
-		double DotTolerance = FMathd::Cos(AngleToleranceDeg * FMathd::DegToRad);
+		RealType DotTolerance = TMathUtil<RealType>::Cos(AngleToleranceDeg * TMathUtil<RealType>::DegToRad);
 
 		int32 N = NumVectors(), M = 0;
 		VectorToClusterMap.SetNum(N);
@@ -98,3 +98,6 @@ public:
 
 
 };
+
+typedef TVectorSetAnalysis3<float> FVectorSetAnalysis3f;
+typedef TVectorSetAnalysis3<double> FVectorSetAnalysis3d;
