@@ -30,21 +30,18 @@ public:
 
 	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
 
-	void InitializeSimulationState(FMockRootMotionSyncState* SyncState, void* AuxState);
+	void InitializeSimulationState(FMockRootMotionSyncState* SyncState, FMockRootMotionAuxState* AuxState);
 	void ProduceInput(const int32 SimTimeMS, FMockRootMotionInputCmd* Cmd);
-	void FinalizeFrame(const FMockRootMotionSyncState* SyncState, const void* AuxState);
-
-	// Callable by controlling client only. Queues root motion source to be played. By index into RootMotionSourceDataAsset.
-	UFUNCTION(BlueprintCallable, Category=Input)
-	void Input_PlayRootMotionBySourceID(int32 ID);
-
+	void FinalizeFrame(const FMockRootMotionSyncState* SyncState, const FMockRootMotionAuxState* AuxState);
+	
 	// Callable by controlling client only. Queues root motion source to be played. By UAnimMontage in RootMotionSourceDataAsset.
 	UFUNCTION(BlueprintCallable, Category=Input)
 	void Input_PlayRootMotionByMontage(UAnimMontage* Montage);
 
-	// Callable by controlling client only. Queues root motion source to be played. By UAnimMontage in RootMotionSourceDataAsset.
+	// Callable by controlling client only. Queues root motion source to be played. By UCurveVector in RootMotionSourceDataAsset.
+	// Scale is an optional scaler for the curve
 	UFUNCTION(BlueprintCallable, Category=Input)
-	void Input_PlayRootMotionByCurve(UCurveVector* CurveVector);
+	void Input_PlayRootMotionByCurve(UCurveVector* CurveVector, FVector Scale = FVector(1.f));
 
 	// Callable by authority. Plays "out of band" animation: e.g, directly sets the RootMotionSourceID on the sync state, rather than the pending InputCmd.
 	// This is analogous to outside code teleporting the actor (outside of the core simulation function)
