@@ -37,7 +37,6 @@ TPBDLongRangeConstraintsBase<T, d>::TPBDLongRangeConstraintsBase(
 
 template<class T, int d>
 TArray<TArray<uint32>> TPBDLongRangeConstraintsBase<T, d>::ComputeIslands(
-    const TDynamicParticles<T, d>& InParticles,
     const TMap<int32, TSet<uint32>>& PointToNeighbors,
     const TArray<uint32>& KinematicParticles)
 {
@@ -129,7 +128,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclidianConstraints(
 	}
 
 	// Compute the islands of kinematic particles
-	const TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, PointToNeighbors, KinematicParticles);
+	const TArray<TArray<uint32>> IslandElements = ComputeIslands(PointToNeighbors, KinematicParticles);
 	int32 NumTotalIslandElements = 0;
 	for(const auto& Elements : IslandElements)
 		NumTotalIslandElements += Elements.Num();
@@ -206,7 +205,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
 			KinematicParticles.Add(i);
 		}
 	}
-	TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, PointToNeighbors, KinematicParticles);
+	TArray<TArray<uint32>> IslandElements = ComputeIslands(PointToNeighbors, KinematicParticles);
 	// Store distances for all adjacent vertices
 	TMap<TVector<uint32, 2>, T> Distances;
 	for (const uint32 i : UsedIndices)
