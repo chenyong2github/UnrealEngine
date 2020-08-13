@@ -1569,10 +1569,6 @@ void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData 
 	else if (Event.Type == FSceneOutlinerHierarchyChangedData::Moved)
 	{
 		FSceneOutlinerTreeItemPtr* Item = Event.Item ? &Event.Item : TreeItemMap.Find(Event.ItemID);
-		if (!Item)
-		{
-			Item = PendingTreeItemMap.Find(Event.ItemID);
-		}
 
 		if (Item)
 		{
