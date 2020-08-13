@@ -204,6 +204,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		return;
 	}
 
+	if (IsTemplate())
+	{
+		return;
+	}
+
 	check(InWorld);
 	World = InWorld;
 	InstanceTransform = InTransform;
@@ -216,7 +221,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 #if WITH_EDITOR
 	bool bEditorOnly = !World->IsPlayInEditor();
-	if (bEditorOnly && !IsRunningCommandlet())
+	if (bEditorOnly)
 	{
 		if (!EditorHash)
 		{
@@ -227,7 +232,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		EditorHash->Initialize();
 
-		LayerSubSystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		if (!IsRunningCommandlet())
+		{
+			LayerSubSystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+		}
 
 		if (IsMainWorldPartition())
 		{
@@ -293,25 +301,28 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			}
 		}
 
-		if (bEditorOnly && !IsRunningCommandlet())
+		if (bEditorOnly)
 		{
-			CreateLayers(AllLayersNames);
-
 			for (const auto& Pair : Actors)
 			{
 				HashActorDesc(Pair.Value.Get());
 			}
 
-			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
-
-			// When loading a subworld, load all actors
-			if (!IsMainWorldPartition())
+			if (!IsRunningCommandlet())
 			{
-				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+				CreateLayers(AllLayersNames);
+
+				// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
+				UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
+
+				// When loading a subworld, load all actors
+				if (!IsMainWorldPartition())
 				{
-					UpdateLoadingEditorCell(Cell, true);
-				});
+					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+					{
+						UpdateLoadingEditorCell(Cell, true);
+					});
+				}
 			}
 		}
 	}
@@ -410,7 +421,7 @@ bool UWorldPartition::IsMainWorldPartition() const
 #if WITH_EDITOR
 void UWorldPartition::RegisterDelegates()
 {
-	if (GEditor && !IsTemplate() && !IsRunningCommandlet())
+	if (GEditor && !IsTemplate())
 	{
 		GEditor->OnActorMoving().AddUObject(this, &UWorldPartition::OnActorMoving);
 		GEditor->OnActorMoved().AddUObject(this, &UWorldPartition::OnActorMoving);
@@ -447,7 +458,7 @@ void UWorldPartition::RegisterDelegates()
 
 void UWorldPartition::UnregisterDelegates()
 {
-	if (GEditor && !IsTemplate() && !IsRunningCommandlet())
+	if (GEditor && !IsTemplate())
 	{
 		if (LayerSubSystem)
 		{
@@ -778,7 +789,7 @@ void UWorldPartition::LoadCells(const TArray<UWorldPartitionEditorCell*>& CellsT
 
 	for (UWorldPartitionEditorCell* Cell : CellsToLoad)
 	{
-		SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
+		SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num(), FText::Format(LOCTEXT("LoadingActors", "Loading actors {0}/{1}"), (int32)SlowTask.CompletedWork, NumActorsToLoad));
 		UpdateLoadingEditorCell(Cell, true);
 	}
 }
@@ -796,6 +807,7 @@ void UWorldPartition::UnloadCells(const TArray<UWorldPartitionEditorCell*>& Cell
 
 	for (UWorldPartitionEditorCell* Cell: CellsToUnload)
 	{
+		SlowTask.EnterProgressFrame(Cell->LoadedActors.Num(), FText::Format(LOCTEXT("UnloadingActors", "Unloading actors {0}/{1}"), (int32)SlowTask.CompletedWork, NumActorsToUnload));
 		SlowTask.EnterProgressFrame(Cell->LoadedActors.Num());
 		UpdateLoadingEditorCell(Cell, false);
 	}
