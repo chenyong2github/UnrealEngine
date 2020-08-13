@@ -187,18 +187,7 @@ namespace Chaos
 
 			
 			const T PreDist = FMath::Sqrt(PrevDist2);
-			const FVec3 ClosestVecAB = (ClosestBInA - ClosestA);
-			const T NormalLength = ClosestVecAB.Size();
-			if (NormalLength > std::numeric_limits<T>::min())
-			{
-				OutNormal = ClosestVecAB / NormalLength;	//Note1: should we just use PreDist2? //Note2: we can just use -V.GetUnsafeNormal() here instead if it improves accuracy
-			}
-			else
-			{
-				// Sometimes we don't progress and have a lot of error in distance, this is a fallback in case
-				// we wind up here and actual distance is 0.
-				OutNormal = -V.GetUnsafeNormal();
-			}
+			OutNormal = -V.GetUnsafeNormal();
 
 			T Penetration = ThicknessA + ThicknessB - PreDist;
 			if (!bNegativePenetrationAllowed)
@@ -600,7 +589,8 @@ namespace Chaos
 				
 				const TVec3<T> ClosestBInA = StartPoint + ClosestB;
 				const T InGJKPreDist = FMath::Sqrt(InGJKPreDist2);
-				OutNormal = (ClosestBInA - ClosestA).GetUnsafeNormal();	//question: should we just use InGJKPreDist2?
+				OutNormal = V.GetUnsafeNormal();
+
 				const T Penetration = FMath::Clamp<T>(ThicknessA + ThicknessB - InGJKPreDist, 0, TNumericLimits<T>::Max());
 				const TVector<T, 3> ClosestLocal = ClosestB - OutNormal * ThicknessB;
 
