@@ -10,6 +10,7 @@
 #include "OnlineSessionInterfaceOculus.h"
 #include "OnlineUserCloudOculus.h"
 #include "OnlineVoiceOculus.h"
+#include "Stats/Stats.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
@@ -151,6 +152,8 @@ IOnlineTournamentPtr FOnlineSubsystemOculus::GetTournamentInterface() const
 
 bool FOnlineSubsystemOculus::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemOculus_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

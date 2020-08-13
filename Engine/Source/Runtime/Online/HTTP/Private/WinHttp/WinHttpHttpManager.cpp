@@ -7,6 +7,7 @@
 #include "WinHttp/Support/WinHttpTypes.h"
 #include "Http.h"
 #include "Misc/CoreDelegates.h"
+#include "Stats/Stats.h"
 
 namespace
 {
@@ -93,6 +94,7 @@ void FWinHttpHttpManager::QuerySessionForUrl(const FString& /*UnusedUrl*/, FWinH
 	FTicker::GetCoreTicker().AddTicker(TEXT("FWinHttpHttpManager.QuerySessionForUrl"), 0.0,
 		[LambdaDelegate = MoveTemp(Delegate)](float DeltaTime) -> bool
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FWinHttpHttpManager_QuerySessionForUrlLambda);
 			FWinHttpSession* SessionPtr = nullptr;
 			if (FWinHttpHttpManager* HttpManager = GetManager())
 			{

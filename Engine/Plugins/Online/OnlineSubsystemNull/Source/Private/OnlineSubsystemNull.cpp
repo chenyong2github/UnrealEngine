@@ -12,6 +12,7 @@
 #include "OnlineStoreV2InterfaceNull.h"
 #include "OnlinePurchaseInterfaceNull.h"
 #include "OnlineMessageSanitizerNull.h"
+#include "Stats/Stats.h"
 
 FThreadSafeCounter FOnlineSubsystemNull::TaskCounter;
 
@@ -157,6 +158,8 @@ IMessageSanitizerPtr FOnlineSubsystemNull::GetMessageSanitizer(int32 LocalUserNu
 
 bool FOnlineSubsystemNull::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemNull_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

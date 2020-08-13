@@ -5,6 +5,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "OnlineSubsystemAmazonModule.h"
 #include "OnlineIdentityAmazon.h"
+#include "Stats/Stats.h"
 
 // FOnlineSubsystemAmazonModule
 IMPLEMENT_MODULE(FOnlineSubsystemAmazonModule, OnlineSubsystemAmazon);
@@ -72,6 +73,8 @@ IOnlineIdentityPtr FOnlineSubsystemAmazon::GetIdentityInterface() const
 
 bool FOnlineSubsystemAmazon::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemAmazon_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

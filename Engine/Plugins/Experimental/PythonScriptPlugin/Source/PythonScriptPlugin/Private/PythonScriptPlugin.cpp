@@ -27,6 +27,7 @@
 #include "Containers/Ticker.h"
 #include "Features/IModularFeatures.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Stats/Stats.h"
 
 #if WITH_EDITOR
 #include "EditorSupportDelegates.h"
@@ -762,6 +763,7 @@ void FPythonScriptPlugin::InitializePython()
 		// Initialize the tick handler
 		TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float DeltaTime)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FPythonScriptPlugin_Tick);
 			Tick(DeltaTime);
 			return true;
 		}));
@@ -957,6 +959,8 @@ void FPythonScriptPlugin::RequestStubCodeGeneration()
 	ModuleDelayedHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 		[this](float DeltaTime)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FPythonScriptPlugin_ModuleDelayed);
+
 			// Once ticked, the delegate will be removed so reset the handle to indicate that it isn't set.
 			ModuleDelayedHandle.Reset();
 

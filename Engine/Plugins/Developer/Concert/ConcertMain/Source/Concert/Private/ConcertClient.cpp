@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/AsyncTaskNotification.h"
 #include "HAL/FileManager.h"
+#include "Stats/Stats.h"
 
 #include "Runtime/Launch/Resources/Version.h"
 
@@ -51,7 +52,9 @@ public:
 
 		AutoConnectionNotification = MakeAutoConnectNotification();
 
-		AutoConnectionTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertAutoConnect"), 1, [this](float) {
+		AutoConnectionTickHandle = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertAutoConnect"), 1, [this](float)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertAutoConnection_Tick);
 			Tick();
 			return true;
 		});
@@ -345,7 +348,9 @@ public:
 
 		ConnectionTasks[0]->Execute();
 
-		ConnectionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertPendingConnection"), 0.1f, [this](float) {
+		ConnectionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ConcertPendingConnection"), 0.1f, [this](float)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertPendingConnection_Tick);
 			Tick();
 			return true;
 		});
@@ -750,6 +755,7 @@ void FConcertClient::StartDiscovery()
 		ClientAdminEndpoint->RegisterEventHandler<FConcertAdmin_ServerDiscoveredEvent>(this, &FConcertClient::HandleServerDiscoveryEvent);
 
 		DiscoveryTick = FTicker::GetCoreTicker().AddTicker(TEXT("Discovery"), 1, [this](float DeltaSeconds) {
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertClient_Discovery_Tick);
 			const FDateTime UtcNow = FDateTime::UtcNow();
 			SendDiscoverServersEvent();
 			TimeoutDiscovery(UtcNow);

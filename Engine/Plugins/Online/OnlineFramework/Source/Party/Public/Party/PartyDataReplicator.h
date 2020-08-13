@@ -6,6 +6,7 @@
 #include "UObject/GCObject.h"
 #include "Containers/Ticker.h"
 #include "Interfaces/OnlinePartyInterface.h"
+#include "Stats/Stats.h"
 
 /** Util exclusively for use by TPartyDataReplicator to circumvent circular include header issues (we can't include SocialParty.h or PartyMember.h here) */
 class FPartyDataReplicatorHelper
@@ -112,6 +113,8 @@ private:
 
 	bool DeferredHandleReplicateChanges(float)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_TPartyDataReplicator_DeferredHandleReplicateChanges);
+
 		UpdateTickerHandle.Reset();
 
 		FOnlinePartyData OnlinePartyData;

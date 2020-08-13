@@ -3,6 +3,7 @@
 #include "MagicLeapHandMeshingModule.h"
 #include "GameFramework/Actor.h"
 #include "EngineUtils.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapHandMeshing);
 
@@ -21,6 +22,7 @@ void FMagicLeapHandMeshingModule::ShutdownModule()
 
 bool FMagicLeapHandMeshingModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapHandMeshingModule_Tick);
 	MeshTracker.Update();
 	return true;
 }

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HoloLensWebSocket.h"
+#include "Stats/Stats.h"
 
 #if WITH_WEBSOCKETS
 
@@ -165,6 +166,8 @@ void FHoloLensWebSocket::Send(const void* Utf8Data, SIZE_T Size, bool bIsBinary)
 
 bool FHoloLensWebSocket::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHoloLensWebSocket_Tick);
+
 	if (ConnectAction != nullptr)
 	{
 		switch (ConnectAction->Status)

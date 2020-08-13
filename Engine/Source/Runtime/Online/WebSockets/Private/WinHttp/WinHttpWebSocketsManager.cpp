@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "HttpModule.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 void FWinHttpWebSocketsManager::InitWebSockets(TArrayView<const FString> Protocols)
 {
@@ -45,6 +46,7 @@ TSharedRef<IWebSocket> FWinHttpWebSocketsManager::CreateWebSocket(const FString&
 
 bool FWinHttpWebSocketsManager::GameThreadTick(float /*DeltaTime*/)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FWinHttpWebSocketsManager_GameThreadTick);
 	for (TArray<TWeakPtr<FWinHttpWebSocket>>::TIterator It = ActiveWebSockets.CreateIterator(); It; ++It)
 	{
 		if (TSharedPtr<FWinHttpWebSocket> StrongWebSocket = It->Pin())

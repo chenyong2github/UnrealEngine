@@ -5,6 +5,7 @@
 #include "XmppJingle/XmppConnectionJingle.h"
 #include "XmppPresence.h"
 #include "XmppLog.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_JINGLE
 
@@ -266,6 +267,7 @@ bool FXmppChatJingle::SendChat(const FXmppUserJid& RecipientId, const FString& M
 
 bool FXmppChatJingle::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppChatJingle_Tick);
 	while (!ReceivedChatQueue.IsEmpty())
 	{
 		FXmppChatMessage* ChatMessage = NULL;

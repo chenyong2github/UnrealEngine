@@ -9,6 +9,7 @@
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Containers/Ticker.h"
+#include "Stats/Stats.h"
 
 class FConcertLocalEndpointKeepAliveRunnable : public FRunnable
 {
@@ -289,6 +290,8 @@ FConcertRemoteEndpointPtr FConcertLocalEndpoint::FindRemoteEndpoint(const FMessa
 
 bool FConcertLocalEndpoint::HandleTick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertLocalEndpoint_HandleTick);
+
 	const FDateTime UtcNow = FDateTime::UtcNow();
 
 	// Flush the task graph to grab any pending messages

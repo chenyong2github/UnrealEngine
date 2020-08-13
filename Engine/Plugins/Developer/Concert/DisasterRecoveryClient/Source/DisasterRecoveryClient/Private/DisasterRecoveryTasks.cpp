@@ -7,6 +7,7 @@
 #include "IConcertSyncClient.h"
 #include "IDisasterRecoveryClientModule.h"
 #include "Containers/Ticker.h"
+#include "Stats/Stats.h"
 #include "ConcertActivityStream.h"
 #include "DisasterRecoverySessionInfo.h"
 
@@ -46,6 +47,8 @@ void FDisasterRecoveryTaskExecutor::Enqueue(TSharedPtr<FDisasterRecoveryTask> Ta
 
 bool FDisasterRecoveryTaskExecutor::Tick(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDisasterRecoveryTaskExecutor_Tick);
+
 	if (Tasks.Num())
 	{
 		if (!Tasks[0].Value) // Not started?

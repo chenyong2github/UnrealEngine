@@ -2,6 +2,7 @@
 
 #include "OnlineMessageSanitizerNull.h"
 #include "Containers/Ticker.h"
+#include "Stats/Stats.h"
 
 FMessageSanitizerNull::FMessageSanitizerNull()
 	: RequestId(0)
@@ -23,6 +24,7 @@ void FMessageSanitizerNull::SanitizeDisplayName(const FString& DisplayName, cons
 
 	FDelegateHandle TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayName, CompletionDelegate, ThisRequest](float) -> bool
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMessageSanitizerNull_SanitizeDisplayName);
 		FString CleanString;
 		PerformSanitize(DisplayName, CleanString);
 		CompletionDelegate.ExecuteIfBound(true, CleanString);
@@ -41,6 +43,7 @@ void FMessageSanitizerNull::SanitizeDisplayNames(const TArray<FString>& DisplayN
 
 	FDelegateHandle TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, DisplayNames, CompletionDelegate, ThisRequest](float) -> bool
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMessageSanitizerNull_SanitizeDisplayNames);
 		TArray<FString> OutStrings;
 		for (const FString& String : DisplayNames)
 		{
