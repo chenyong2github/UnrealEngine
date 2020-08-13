@@ -471,18 +471,21 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				EventContext.Parameters.UnbindFromSourceStores();
 			}
 
-			const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
-			EventInstanceData->EventHandlingInfo.Reset();
-			EventInstanceData->EventHandlingInfo.SetNum(NumEventHandlers);
-			for (int32 i = 0; i < NumEventHandlers; i++)
+			if (CachedEmitter)
 			{
-				const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
-				FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
-				Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
-				Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
-				Info.SpawnCounts.Reset();
-				Info.TotalSpawnCount = 0;
-				Info.EventData = nullptr;
+				const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
+				EventInstanceData->EventHandlingInfo.Reset();
+				EventInstanceData->EventHandlingInfo.SetNum(NumEventHandlers);
+				for (int32 i = 0; i < NumEventHandlers; i++)
+				{
+					const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
+					Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
+					Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
+					Info.SpawnCounts.Reset();
+					Info.TotalSpawnCount = 0;
+					Info.EventData = nullptr;
+				}
 			}
 		}
 

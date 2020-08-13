@@ -381,7 +381,7 @@ void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNi
 	}
 	else if (bIsRootUnaliasedEmitterValue || bIsAliasedEmitterValue)
 	{
-		if (bIsRootUnaliasedEmitterValue)
+		if (bIsRootUnaliasedEmitterValue && InEmitter)
 		{
 			TMap<FString, FString> Aliases;
 			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
