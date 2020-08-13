@@ -32,7 +32,9 @@ public:
 		return sizeof(*this);
 	}
 
+#if WITH_EDITORONLY_DATA
 	const FMemoryImageString& GetFriendlyName() const { return FriendlyName; }
+#endif
 };
 
 class FComputeKernelShaderMapContent : public FShaderMapContent
@@ -87,7 +89,9 @@ public:
 
 	bool IsValid() { return false; }
 
+#if WITH_EDITORONLY_DATA
 	const FMemoryImageString& GetFriendlyName() const { return GetContent()->FriendlyName; }
+#endif
 
 	void Compile(
 		EShaderPlatform ShaderPlatform,

@@ -72,7 +72,9 @@ void FComputeKernelShaderMap::Compile(
 #endif  
 
 	FComputeKernelShaderMapContent* NewContent = new FComputeKernelShaderMapContent(ShaderPlatform);
+#if WITH_EDITORONLY_DATA
 	NewContent->FriendlyName = KernelResource->GetFriendlyName();
+#endif
 	NewContent->ShaderMapId = ShaderMapId;
 	AssignContent(NewContent);
 	
@@ -116,5 +118,5 @@ void FComputeKernelShaderMap::Compile(
 			CurrentShaderMapId
 			);
 	}
-	/**/
+	**/
 }
