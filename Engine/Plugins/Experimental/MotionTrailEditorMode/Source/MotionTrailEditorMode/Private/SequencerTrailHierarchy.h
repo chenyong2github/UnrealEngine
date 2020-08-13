@@ -4,6 +4,8 @@
 
 #include "TrailHierarchy.h"
 
+#include "ISequencer.h"
+
 class ISequencer;
 
 class FSequencerTrailHierarchy : public FTrailHierarchy

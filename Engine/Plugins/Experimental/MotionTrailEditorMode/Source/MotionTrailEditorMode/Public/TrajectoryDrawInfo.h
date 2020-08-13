@@ -6,8 +6,14 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 #include "Math/Color.h"
+#include "Math/Range.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
 
-class FTrail;
+#include "SceneView.h"
+#include "UnrealClient.h"
+
+class FTrail;  
 struct FTrailHierarchyNode;
 class FMapTrajectoryCache;
 class FTrajectoryCache;
