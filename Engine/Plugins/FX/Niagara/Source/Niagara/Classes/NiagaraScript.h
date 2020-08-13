@@ -524,7 +524,6 @@ public:
 	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask);
 	static NIAGARA_API bool IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext);
 #endif
-	static NIAGARA_API int32 MakeSupportedUsageContextBitmask(const TArray<ENiagaraScriptUsage>& InUsagesAllowed);
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;

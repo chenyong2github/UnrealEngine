@@ -66,6 +66,10 @@ public:
 	/** ReadWrite lock to ensure safe access to the underlying array. */
 	FRWLock ArrayRWGuard;
 
+	/** When greater than 0 sets the maximum number of elements the array can hold, only relevant when using operations that modify the array size. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Array", meta=(ClampMin="0"))
+	int32 MaxElements;
+
 protected:
 	TUniquePtr<INiagaraDataInterfaceArrayImpl> Impl;
 };

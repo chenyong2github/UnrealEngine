@@ -2482,16 +2482,6 @@ bool UNiagaraScript::IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmas
 
 #endif
 
-int32 UNiagaraScript::MakeSupportedUsageContextBitmask(const TArray<ENiagaraScriptUsage>& InUsagesAllowed)
-{
-	int32 Mask = 0;
-	for (ENiagaraScriptUsage Usage : InUsagesAllowed)
-	{
-		Mask |= 1 << (int32) Usage;
-	}
-	return Mask;
-}
-
 bool UNiagaraScript::CanBeRunOnGpu()const
 {
 
