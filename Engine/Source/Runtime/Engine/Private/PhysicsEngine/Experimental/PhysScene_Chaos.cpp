@@ -374,7 +374,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 )
 	: Super(InSolverActor ? InSolverActor->GetWorld() : nullptr
 #if CHAOS_CHECKED
-		DebugName
+		, DebugName
 #endif
 	)
 	, PhysicsReplication(nullptr)
