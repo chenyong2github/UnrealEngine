@@ -562,7 +562,7 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 
 	UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset();
 
-	if(PhysScene == nullptr || PhysicsAsset == nullptr || SkeletalMesh == nullptr)
+	if(PhysScene == nullptr || PhysicsAsset == nullptr || SkeletalMesh == nullptr || !ShouldCreatePhysicsState())
 	{
 		return;
 	}
@@ -1828,7 +1828,7 @@ void USkeletalMeshComponent::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset, bool
 
 			// Initialize new Physics Asset
 			UWorld* World = GetWorld();
-			if(World && World->GetPhysicsScene() != nullptr && ShouldCreatePhysicsState())
+			if(World && World->GetPhysicsScene() != nullptr)
 			{
 			//	UE_LOG(LogSkeletalMesh, Warning, TEXT("Creating Physics State (%s : %s)"), *GetNameSafe(GetOuter()),  *GetName());			
 				InitArticulated(World->GetPhysicsScene());
