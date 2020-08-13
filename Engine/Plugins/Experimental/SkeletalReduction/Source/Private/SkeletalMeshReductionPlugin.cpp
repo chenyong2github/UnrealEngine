@@ -1068,6 +1068,13 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 
 	Mesh.Empty();
 
+	float PercentNMEdges = FMath::FloorToInt(10000.f * Simplifier.FractionNonManifoldEdges())/100.f;
+	FString PrettyPercentNMEdges = FString::SanitizeFloat(PercentNMEdges);
+
+	if (PercentNMEdges != 0.f)
+	{ 
+		UE_LOG(LogSkeletalMeshReduction, Log, TEXT("%s-percent of edges are shared by more than two triangles, these may cause problems."),  *PrettyPercentNMEdges);
+	}
 	// Add additional control parameters to the simplifier.
 
 	{
