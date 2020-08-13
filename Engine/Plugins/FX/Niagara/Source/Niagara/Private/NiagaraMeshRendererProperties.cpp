@@ -286,6 +286,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 	{
 		ParticleMesh->ConditionalPostLoad();
 		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+		ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
 	}
 #endif
 	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
@@ -384,6 +385,7 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 	if (GIsEditor && (ParticleMesh != nullptr))
 	{
 		ParticleMesh->GetOnMeshChanged().RemoveAll(this);
+		ParticleMesh->OnPostMeshBuild().RemoveAll(this);
 	}
 #endif
 }
@@ -398,6 +400,7 @@ void UNiagaraMeshRendererProperties::PreEditChange(class FProperty* PropertyThat
 		if (ParticleMesh != nullptr)
 		{
 			ParticleMesh->GetOnMeshChanged().RemoveAll(this);
+			ParticleMesh->OnPostMeshBuild().RemoveAll(this);
 		}
 	}
 }
@@ -413,6 +416,7 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 		// We only need to check material usage as we will invalidate any renderers later on
 		CheckMaterialUsage();
 		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+		ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -429,6 +433,11 @@ void UNiagaraMeshRendererProperties::OnMeshChanged()
 	}
 
 	CheckMaterialUsage();
+}
+
+void UNiagaraMeshRendererProperties::OnMeshPostBuild(UStaticMesh*)
+{
+	OnMeshChanged();
 }
 
 void UNiagaraMeshRendererProperties::CheckMaterialUsage()
