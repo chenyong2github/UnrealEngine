@@ -171,12 +171,13 @@ public partial class Project : CommandUtils
 		EncryptionAndSigning.CryptoSettings CryptoSettings,
 		string EncryptionKeyGuid,
 		string PatchSourceContentPath,
-		bool bGenerateDiffPatch)
+		bool bGenerateDiffPatch,
+		bool bIsDLC)
 	{
 		StringBuilder CmdLine = new StringBuilder();
 		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
 		CmdLine.AppendFormat("-ContainerName={0}", ContainerName);
-		if (!String.IsNullOrEmpty(PatchSourceContentPath))
+		if (!bIsDLC && !String.IsNullOrEmpty(PatchSourceContentPath))
 		{
 			CmdLine.AppendFormat(" -PatchSource={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath));
 		}
@@ -2406,7 +2407,8 @@ public partial class Project : CommandUtils
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
 							ContainerPatchSourcePath,
-							bGenerateDiffPatch));
+							bGenerateDiffPatch,
+							Params.HasDLCName));
 					}
 
 					Commands.Add(GetUnrealPakArguments(
