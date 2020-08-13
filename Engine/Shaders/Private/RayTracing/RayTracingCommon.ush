@@ -165,7 +165,9 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 										// Unpacked  Packed
 										// offset    bytes
 	// float FMinimalPayload::HitT		// 0         4       32bits
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone RayCone;					// 4         8       64bits
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	float3 Radiance;					// 8         6       48bits
 	float3 WorldNormal;					// 24        6       48bits
 	float3 BaseColor;					// 36        6       48bits
@@ -204,7 +206,13 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetIgnoreTranslucentMaterials() { Flags |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT; }
 	bool IsIgnoreTranslucentMaterials() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
 	
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+	FRayCone GetRayCone() { return RayCone; }
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
+#else // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+	FRayCone GetRayCone() { return (FRayCone)0; }
+	void SetRayCone(FRayCone NewRayCone) {}
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 };
 
 // WorldNormal is the vector towards which the ray position will be offseted.
@@ -259,7 +267,9 @@ RayDesc CreatePrimaryRay(float2 UV)
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone RayCone;                                    // 8  bytes
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	uint RadianceAndNormal[3];                           // 12 bytes
 	uint BaseColorAndOpacity[2];                         // 8  bytes
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
@@ -278,7 +288,13 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	void SetIgnoreTranslucentMaterials() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT << 24; }
 	bool IsIgnoreTranslucentMaterials() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 24) & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
 
-	void SetRayCone(FRayCone InRayCone) { RayCone = InRayCone; }
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+	FRayCone GetRayCone() { return RayCone; }
+	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
+#else // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
+	FRayCone GetRayCone() { return (FRayCone)0; }
+	void SetRayCone(FRayCone NewRayCone) {}
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 
 	void SetRadiance(in float3 InRadiance)
 	{
@@ -370,7 +386,9 @@ FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayloa
 {
 	FPackedMaterialClosestHitPayload Output = (FPackedMaterialClosestHitPayload)0;
 	Output.HitT = Input.HitT;
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.RayCone = RayCone; 
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.RadianceAndNormal[0]  = f32tof16(Input.Radiance.x);
 	Output.RadianceAndNormal[0] |= f32tof16(Input.Radiance.y) << 16;
 	Output.RadianceAndNormal[1]  = f32tof16(Input.Radiance.z);
@@ -407,7 +425,9 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
 
 	Output.HitT = Input.HitT;
+#if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.RayCone = Input.RayCone; 
+#endif // USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	Output.Radiance           = Input.GetRadiance();
 	Output.WorldNormal        = Input.GetWorldNormal();
 	Output.BaseColor          = Input.GetBaseColor();
@@ -529,7 +549,7 @@ void TraceMaterialRayPacked(
 		Ray,
 		Payload);
 
-	RayCone = Payload.RayCone;
+	RayCone = Payload.GetRayCone();
 }
 
 FMaterialClosestHitPayload TraceMaterialRay(
@@ -579,7 +599,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 
 	FMaterialClosestHitPayload Payload = UnpackRayTracingPayload(PackedPayload, Ray);
 
-	RayCone = Payload.RayCone;
+	RayCone = Payload.GetRayCone();
 
 	return Payload;
 }
