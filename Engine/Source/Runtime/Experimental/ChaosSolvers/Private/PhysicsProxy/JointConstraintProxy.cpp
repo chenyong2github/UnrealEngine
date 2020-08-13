@@ -119,6 +119,18 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 	}
 }
 
+template < >
+template < class Trait >
+void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+{
+	if (Handle)
+	{
+		auto& JointConstraints = InSolver->GetJointConstraints();
+		JointConstraints.RemoveConstraint(Handle->GetConstraintIndex());
+	}
+}
+
+
 
 template < >
 template < class Trait >
@@ -396,12 +408,6 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 }
 
 
-template < >
-template < class Trait >
-void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* RBDSolver)
-{
-	// @todo(chaos) : Implement
-}
 
 
 template class TJointConstraintProxy< Chaos::FJointConstraint >;
