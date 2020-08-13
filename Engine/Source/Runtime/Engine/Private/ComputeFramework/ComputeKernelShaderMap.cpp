@@ -4,8 +4,7 @@
 #include "ShaderCompiler.h"
 #include "ComputeFramework/ComputeKernelShaderType.h"
 #include "ComputeFramework/ComputeKernelResource.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(ComputeKernel, Log, All);
+#include "ComputeFramework/ComputeKernel.h"
 
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelShaderMapId);

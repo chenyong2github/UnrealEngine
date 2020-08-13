@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComputeFramework/ComputeKernelFromText.h"
+#include "ComputeFramework/ComputeKernel.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeExit.h"
 
 #include "Internationalization/Regex.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(ComputeKernel, Log, All);
 
 UComputeKernelFromText::UComputeKernelFromText()
 {
