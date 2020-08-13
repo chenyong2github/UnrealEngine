@@ -760,7 +760,7 @@ protected:
 	bool bIsSingleThreaded;
 
 public:
-	FReal LatestExternalTimeConsumed;	//The latest external time we consumed inputs from. Needed for synchronizing different DTs
+	int32 LatestExternalTimestampConsumed;	//The latest external timestamp we consumed inputs from. Needed for synchronizing different DTs
 
 protected:
 
