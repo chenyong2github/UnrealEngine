@@ -163,6 +163,45 @@ bool FMovieSceneRootEvaluationTemplateInstance::HasEverUpdated() const
 	return false;
 }
 
+const FMovieSceneSequenceHierarchy* FMovieSceneRootEvaluationTemplateInstance::GetHierarchy() const
+{
+	return CompiledDataManager->FindHierarchy(GetCompiledDataID());
+}
+
+void FMovieSceneRootEvaluationTemplateInstance::GetSequenceParentage(const UE::MovieScene::FInstanceHandle InstanceHandle, TArray<UE::MovieScene::FInstanceHandle>& OutParentHandles) const
+{
+	using namespace UE::MovieScene;
+
+	if (!ensure(EntitySystemLinker))
+	{
+		return;
+	}
+
+	// Get the root instance so we can find all necessary sub-instances from it.
+	const FInstanceRegistry* InstanceRegistry = EntitySystemLinker->GetInstanceRegistry();
+
+	check(InstanceHandle.IsValid());
+	const FSequenceInstance& Instance = InstanceRegistry->GetInstance(InstanceHandle);
+
+	checkf(Instance.GetRootInstanceHandle() == RootInstanceHandle, TEXT("The provided instance handle relates to a different root sequence."));
+	const FSequenceInstance& RootInstance = InstanceRegistry->GetInstance(RootInstanceHandle);
+
+	// Find the hierarchy node for the provided instance, and walk up from there to populate the output array.
+	const FMovieSceneSequenceHierarchy* Hierarchy = GetHierarchy();
+	if (!ensure(Hierarchy))
+	{
+		return;
+	}
+
+	const FMovieSceneSequenceHierarchyNode* HierarchyNode = Hierarchy->FindNode(Instance.GetSequenceID());
+	while (HierarchyNode && HierarchyNode->ParentID.IsValid())
+	{
+		const FInstanceHandle ParentHandle = RootInstance.FindSubInstance(HierarchyNode->ParentID);
+		OutParentHandles.Add(ParentHandle);
+		HierarchyNode = Hierarchy->FindNode(HierarchyNode->ParentID);
+	}
+}
+
 UE::MovieScene::FSequenceInstance* FMovieSceneRootEvaluationTemplateInstance::FindInstance(FMovieSceneSequenceID SequenceID)
 {
 	using namespace UE::MovieScene;
