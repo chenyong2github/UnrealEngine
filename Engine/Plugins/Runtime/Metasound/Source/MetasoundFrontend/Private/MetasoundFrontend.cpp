@@ -2475,7 +2475,8 @@ namespace Metasound
 			/** NOTE: In the future- we should split steps 1-4 above, and 5 below. GraphToBuild and the node map can be cached on the graph handle. */
 
 			// Step 5: Invoke Operator Builder
-			FOperatorBuilder Builder(InSettings);
+			FOperatorBuilder Builder(InSettings, FOperatorBuilderSettings::GetDefaultSettings());
+
 			return Builder.BuildGraphOperator(GraphToBuild, OutBuildErrors);
 		}
 

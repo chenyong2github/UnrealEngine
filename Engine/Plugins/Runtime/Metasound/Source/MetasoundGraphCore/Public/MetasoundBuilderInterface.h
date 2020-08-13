@@ -23,6 +23,12 @@ namespace Metasound
 			/** Returns a human readable error description. */
 			virtual const FText& GetErrorDescription() const = 0;
 
+			/** Returns an array of destinations associated with the error. */
+			virtual const TArray<FInputDataDestination>& GetDestinations() const = 0;
+			
+			/** Returns an array of sources associated with the error. */
+			virtual const TArray<FOutputDataSource>& GetSources() const = 0;
+
 			/** Returns an array of Nodes associated with the error. */
 			virtual const TArray<const INode*>& GetNodes() const = 0;
 

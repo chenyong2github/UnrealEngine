@@ -220,7 +220,7 @@ ISoundGeneratorPtr USynthComponentMetasoundExample::CreateSoundGenerator(const F
 	TUniquePtr<FSynthComponentMetasoundExampleGraph> ExampleGraph = CreateSynthComponentMetasoundExampleGraph();
 
 	FOperatorSettings Settings(InParams.SampleRate, InParams.NumFramesPerCallback);
-	FOperatorBuilder Builder(Settings);
+	FOperatorBuilder Builder(Settings, FOperatorBuilderSettings::GetDefaultSettings());
 
 	TArray<IOperatorBuilder::FBuildErrorPtr> Errors;
 	FOperatorUniquePtr Operator = Builder.BuildGraphOperator(*ExampleGraph->Graph, Errors);

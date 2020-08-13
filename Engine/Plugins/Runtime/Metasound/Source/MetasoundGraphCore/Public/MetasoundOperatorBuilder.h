@@ -9,17 +9,116 @@
 
 namespace Metasound
 {
+	/** EOperatorBuildNodePruning expresses the desired pruning behavior during
+	 * the node pruning step.  
+	 *
+	 * Some nodes are unreachable in the graph either by traversing from the
+	 * input nodes to from the output nodes. Because they are not dependent, 
+	 * they have no impact on the produced output and can be pruned without 
+	 * causing any change to the declared behavior of the graph.
+	 */
+	enum class EOperatorBuilderNodePruning : uint8
+	{
+		/** Do not prune any nodes. */
+		None, 
+
+		/** Prune nodes which cannot be reached from the output nodes. */
+		PruneNodesWithoutOutputDependency, 
+
+		/** Prune nodes which cannot be reached from the input nodes. */
+		PruneNodesWithoutInputDependency, 
+
+		/** Prune nodes which cannot be reached from the input nodes or output nodes. */
+		PruneNodesWithoutExternalDependency, 
+	};
+
+	/** FOperatorBuilderSettings
+	 *
+	 * Settings for building IGraphs into IOperators.
+	 */
+	struct METASOUNDGRAPHCORE_API FOperatorBuilderSettings
+	{
+		/** Desired node pruning behavior. */
+		EOperatorBuilderNodePruning PruningMode = EOperatorBuilderNodePruning::None;
+
+		/** If true, the IGraph will be analyzed to detect cycles. Errors will be
+		 * generated if a cycle is detected in the graph.
+		 */
+		bool bValidateNoCyclesInGraph = true;
+
+		/** If true, the inputs to each node in the IGraph will be analyzed to
+		 * detect duplicate inputs connected to an individual vertex on a given 
+		 * node.  Errors will be generated if duplicates are detected. */
+		bool bValidateNoDuplicateInputs = true;
+
+		/** If true, each FDataEdge in the IGraph will be validated by checking
+		 * that the corresponding INodes contain matching FDataVertex information
+		 * as described by the FDataEdge. Errors will be generated if 
+		 * inconsistencies are detected.
+		 */
+		bool bValidateVerticesExist = true;
+
+		/** If true, each FDataEdge in the IGraph will be validated by checking
+		 * that the FInputDataSource and FOutputDataDestination data types are
+		 * equal. Errors will be generated if unequal data types are detected.
+		 */
+		bool bValidateEdgeDataTypesMatch = true;
+
+		/** If true, the builder will return an invalid IOperator if any errors
+		 * are detected. If false, the builder will return an invalid IOperator
+		 * only if fatal errors are detected.
+		 */
+		bool bFailOnAnyError = false;
+
+		/** Return the default settings for the current build environment. */
+		static FOperatorBuilderSettings GetDefaultSettings();
+
+		/** Return the default settings for a debug build environment. */
+		static FOperatorBuilderSettings GetDefaultDebugSettings();
+
+		/** Return the default settings for a development build environment. */
+		static FOperatorBuilderSettings GetDefaultDevelopementSettings();
+
+		/** Return the default settings for a test build environment. */
+		static FOperatorBuilderSettings GetDefaultTestSettings();
+
+		/** Return the default settings for a shipping build environment. */
+		static FOperatorBuilderSettings GetDefaultShippingSettings();
+	};
+
+	// Forward declare.
+	class FDirectedGraphAlgoAdapter;
+
+	/** FOperatorBuilder builds an IOperator from an IGraph. */
 	class METASOUNDGRAPHCORE_API FOperatorBuilder : public IOperatorBuilder
 	{
 		public:
-			FOperatorBuilder(const FOperatorSettings& InSettings);
+
+			/** FOperatorBuilder constructor.
+			 *
+			 * @param InOperatorSettings - Settings to be passed to all operators
+			 *                             on creation.
+			 * @param InBuilderSettings  - Settings to configure builder options.
+			 */
+			FOperatorBuilder(const FOperatorSettings& InOperatorSettings, const FOperatorBuilderSettings& InBuilderSettings);
 
 			virtual ~FOperatorBuilder();
 
+			/** Create an IOperator from an IGraph.
+			 *
+			 * @param InGraph   - The graph containing input, output and edge information.
+			 * @param OutErrors - An array of build errors that will be populated 
+			 *                    with any issues encountered during the build process.
+			 *
+			 * @return A TUniquePtr to an IOperator. If the processes was unsuccessful, 
+			 *         the returned pointer will contain a nullptr and be invalid.
+			 */
 			virtual TUniquePtr<IOperator> BuildGraphOperator(const IGraph& InGraph, TArray<FBuildErrorPtr>& OutErrors) override;
 			
 
 		private:
+			// Collection of existing inputs and outputs associated with a given
+			// IOperator.
 			struct FOperatorDataReferences
 			{
 				FOperatorDataReferences()
@@ -35,23 +134,83 @@ namespace Metasound
 				FDataReferenceCollection Inputs;
 				FDataReferenceCollection Outputs;
 			};
+
 			using FNodeEdgeMultiMap = TMultiMap<const INode*, const FDataEdge*>;
-			using FNodeDataReferenceMap = TMap<INode*, FOperatorDataReferences>;
+			using FNodeDataReferenceMap = TMap<const INode*, FOperatorDataReferences>;
 			using FOperatorPtr = TUniquePtr<IOperator>;
 
-			bool GroupInputEdges(const TArray<FDataEdge>& InEdges, FNodeEdgeMultiMap& OutNodeInputs, TArray<FBuildErrorPtr>& OutErrors) const;
+			// Handles build status of current build operation.
+			struct FBuildStatus
+			{
+				// Enumeration of build status states. 
+				//
+				// Note: plain enum used here instead of enum class so that implicit 
+				// conversion to int32 can be utilized. It is assumed that the 
+				// build status int32 values increase as the build status deteriorates.
+				// Build statuses are merged by taking the maximum int32 value of
+				// the EStatus. 
+				enum EStatus 
+				{
+					// No error has been encountered.
+					NoError = 0,
+					
+					// A non fatal error has been encountered.
+					NonFatalError = 1,
 
-			bool TopologicalSort(const IGraph& InGraph, TArray<INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+					// A fatal error has been encountered.
+					FatalError = 2
+				};
 
-			bool GatherInputDataReferences(const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection, TArray<FBuildErrorPtr>& OutErrors) const;
+				FBuildStatus() = default;
 
-			bool GatherGraphDataReferences(const IGraph& InGraph, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs, TArray<FBuildErrorPtr>& OutErrors) const;
+				FBuildStatus(FBuildStatus::EStatus InStatus)
+				:	Value(InStatus)
+				{
+				}
 
-			bool CreateOperators(const TArray<INode*>& InSortedNodes, FNodeEdgeMultiMap& InNodeInputEdges, TArray<FOperatorPtr>& OutOperators, FNodeDataReferenceMap& OutDataReferences, TArray<FBuildErrorPtr>& OutErrors);
+				// Merge build statuses by taking the maximum of EStatus.
+				FBuildStatus& operator |= (FBuildStatus RHS)
+				{
+					Value = Value > RHS.Value ? Value : RHS.Value;
+					return *this;
+				}
 
+				operator EStatus() const
+				{
+					return Value;
+				}
+
+				private:
+
+				EStatus Value = NoError;
+			};
+
+			// Perform topological sort using depth first algorithm.
+			FBuildStatus DepthFirstTopologicalSort(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Perform topological sort using kahns algorithm.
+			FBuildStatus KahnsTopologicalSort(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& OutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Prune unreachable nodes from InOutNodes
+			FBuildStatus PruneNodes(const FDirectedGraphAlgoAdapter& InAdapter, TArray<const INode*>& InOutNodes, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Get all input data references for a given node.
+			FBuildStatus GatherInputDataReferences(const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, const FNodeDataReferenceMap& InDataReferenceMap, FDataReferenceCollection& OutCollection, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Get all input/output data references for a given graph.
+			FBuildStatus GatherGraphDataReferences(const IGraph& InGraph, FNodeDataReferenceMap& InNodeDataReferences, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Call the operator factories for the nodes
+			FBuildStatus CreateOperators(const IGraph& InGraph, const TArray<const INode*>& InSortedNodes, TArray<FOperatorPtr>& OutOperators, FNodeDataReferenceMap& OutDataReferences, TArray<FBuildErrorPtr>& OutErrors) const;
+
+			// Create the final graph operator from the individual operators.
 			TUniquePtr<IOperator> CreateGraphOperator(const IGraph& InGraph, TArray<FOperatorPtr>& InOperators, FNodeDataReferenceMap& InNodeDataReferences, TArray<FBuildErrorPtr>& OutErrors) const;
 
 			FOperatorSettings OperatorSettings;
+
+			FOperatorBuilderSettings BuilderSettings;
+
+			FBuildStatus MaxBuildStatusErrorLevel;
 	};
 }
 

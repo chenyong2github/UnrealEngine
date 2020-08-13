@@ -30,6 +30,18 @@ namespace Metasound
 		return ErrorDescription;
 	}
 
+	/** Returns an array of destinations associated with the error. */
+	const TArray<FInputDataDestination>& FBuildErrorBase::GetDestinations() const
+	{
+		return Destinations;
+	}
+	
+	/** Returns an array of sources associated with the error. */
+	const TArray<FOutputDataSource>& FBuildErrorBase::GetSources() const
+	{
+		return Sources;
+	}
+
 	/** Returns an array of Nodes associated with the error. */
 	const TArray<const INode*>& FBuildErrorBase::GetNodes() const 
 	{
@@ -40,6 +52,26 @@ namespace Metasound
 	const TArray<FDataEdge>& FBuildErrorBase::GetEdges() const
 	{
 		return Edges;
+	}
+
+	void FBuildErrorBase::AddInputDataDestination(const FInputDataDestination& InDestination)
+	{
+		Destinations.Add(InDestination);
+	}
+
+	void FBuildErrorBase::AddInputDataDestinations(TArrayView<const FInputDataDestination> InDestinations)
+	{
+		Destinations.Append(InDestinations.GetData(), InDestinations.Num());
+	}
+
+	void FBuildErrorBase::AddOutputDataSource(const FOutputDataSource& InSource)
+	{
+		Sources.Add(InSource);
+	}
+
+	void FBuildErrorBase::AddOutputDataSources(TArrayView<const FOutputDataSource> InSources)
+	{
+		Sources.Append(InSources.GetData(), InSources.Num());
 	}
 
 	void FBuildErrorBase::AddEdge(const FDataEdge& InEdge)
@@ -62,12 +94,50 @@ namespace Metasound
 		Nodes.Append(InNodes.GetData(), InNodes.Num());
 	}
 
-	const FName FDanglingEdgeError::ErrorType = FName(TEXT("MetasoundDanglingEdge"));
+	const FName FDanglingVertexError::ErrorType = FName(TEXT("MetasoundDanglingVertex"));
 
-	FDanglingEdgeError::FDanglingEdgeError(const FDataEdge& InEdge)
-	:	FBuildErrorBase(ErrorType, LOCTEXT("DanglingEdgeError", "Edge is not connected"))
+	FDanglingVertexError::FDanglingVertexError()
+	:	FBuildErrorBase(ErrorType, LOCTEXT("DanglingVertexError", "Edge is not connected"))
+	{}
+
+	FDanglingVertexError::FDanglingVertexError(const FInputDataDestination& InDestination)
+	:	FDanglingVertexError()
+	{
+		AddInputDataDestination(InDestination);
+	}
+
+	FDanglingVertexError::FDanglingVertexError(const FOutputDataSource& InSource)
+	:	FDanglingVertexError()
+	{
+		AddOutputDataSource(InSource);
+	}
+
+	FDanglingVertexError::FDanglingVertexError(const FDataEdge& InEdge)
+	:	FDanglingVertexError()
 	{
 		AddEdge(InEdge);
+	}
+
+	const FName FMissingVertexError::ErrorType = FName(TEXT("MetasoundMissingVertex"));
+
+	FMissingVertexError::FMissingVertexError(const FInputDataDestination& InDest)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingVertexError", "Node is missing a vertex"))
+	{
+		AddInputDataDestination(InDest);
+	}
+
+	FMissingVertexError::FMissingVertexError(const FOutputDataSource& InSource)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingVertexError", "Node is missing a vertex"))
+	{
+		AddOutputDataSource(InSource);
+	}
+
+	const FName FDuplicateInputError::ErrorType = FName(TEXT("MetasoundDuplicateInput"));
+
+	FDuplicateInputError::FDuplicateInputError(const TArrayView<FDataEdge> InEdges)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("DuplicateInputError", "Node has duplicate connections to input"))
+	{
+		AddEdges(InEdges);
 	}
 
 	const FName FGraphCycleError::ErrorType = FName(TEXT("MetasoundGraphCycleError"));
@@ -77,6 +147,17 @@ namespace Metasound
 	{
 		AddNodes(InNodes);
 		AddEdges(InEdges);
+	}
+
+	const FName FNodePrunedError::ErrorType = FName(TEXT("MetasoundNodePrunedError"));
+
+	FNodePrunedError::FNodePrunedError(const INode* InNode)
+	:	FBuildErrorBase(ErrorType, LOCTEXT("NodePrunedError", "Unreachable node pruned from graph."))
+	{
+		if (ensure(nullptr != InNode))
+		{
+			AddNode(*InNode);
+		}
 	}
 
 	const FName FInternalError::ErrorType = FName(TEXT("MetasoundInternalError"));
@@ -102,17 +183,8 @@ namespace Metasound
 	
 	FMissingInputDataReferenceError::FMissingInputDataReferenceError(const FInputDataDestination& InInputDataDestination)
 	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingInputDataReferenceError", "Missing input data reference."))
-	,	InputDataDestination(InInputDataDestination)
 	{
-		if (nullptr != InInputDataDestination.Node)
-		{
-			AddNode(*InInputDataDestination.Node);
-		}
-	}
-
-	const FInputDataDestination& FMissingInputDataReferenceError::GetInputDataDestination() const
-	{
-		return InputDataDestination;
+		AddInputDataDestination(InInputDataDestination);
 	}
 
 
@@ -120,17 +192,8 @@ namespace Metasound
 	
 	FMissingOutputDataReferenceError::FMissingOutputDataReferenceError(const FOutputDataSource& InOutputDataSource)
 	:	FBuildErrorBase(ErrorType, LOCTEXT("MissingOutputDataReferenceError", "Missing output data reference."))
-	,	OutputDataSource(InOutputDataSource)
 	{
-		if (nullptr != InOutputDataSource.Node)
-		{
-			AddNode(*InOutputDataSource.Node);
-		}
-	}
-
-	const FOutputDataSource& FMissingOutputDataReferenceError::GetOutputDataSource() const
-	{
-		return OutputDataSource;
+		AddOutputDataSource(InOutputDataSource);
 	}
 
 	const FName FInvalidConnectionDataTypeError::ErrorType = FName(TEXT("MetasoundInvalidConnectionDataTypeError"));

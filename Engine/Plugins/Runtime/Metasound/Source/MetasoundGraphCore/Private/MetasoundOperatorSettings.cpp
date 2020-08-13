@@ -47,7 +47,7 @@ namespace Metasound
 	{
 		using namespace MetasoundOperatorSettingsPrivate;
 
-		if (ensureMsgf(InTargetBlockRate > MinimumTargetBlockRate, TEXT("Invalid block rate %f. Defaulting to %f"), InTargetBlockRate, MinimumTargetBlockRate))
+		if (ensureMsgf(InTargetBlockRate >= MinimumTargetBlockRate, TEXT("Invalid block rate %f. Defaulting to %f"), InTargetBlockRate, MinimumTargetBlockRate))
 		{
 			TargetBlockRate = InTargetBlockRate;
 		}

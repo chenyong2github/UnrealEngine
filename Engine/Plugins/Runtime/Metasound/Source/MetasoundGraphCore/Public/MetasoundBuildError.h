@@ -29,13 +29,27 @@ namespace Metasound
 			/** Returns a human readable error description. */
 			virtual const FText& GetErrorDescription() const override;
 
+			/** Returns an array of destinations associated with the error. */
+			virtual const TArray<FInputDataDestination>& GetDestinations() const override;
+			
+			/** Returns an array of sources associated with the error. */
+			virtual const TArray<FOutputDataSource>& GetSources() const override;
+
 			/** Returns an array of edges associated with the error. */
 			virtual const TArray<FDataEdge>& GetEdges() const override;
 
 			/** Returns an array of Nodes associated with the error. */
 			virtual const TArray<const INode*>& GetNodes() const override;
 
+
 		protected:
+			// Add input destinations to be associated with error.
+			void AddInputDataDestination(const FInputDataDestination& InInputDataDestination);
+			void AddInputDataDestinations(TArrayView<const FInputDataDestination> InInputDataDestinations);
+
+			// Add input destinations to be associated with error.
+			void AddOutputDataSource(const FOutputDataSource& InOutputDataSource);
+			void AddOutputDataSources(TArrayView<const FOutputDataSource> InOutputDataSources);
 
 			// Add edges to be associated with error.
 			void AddEdge(const FDataEdge& InEdge);
@@ -52,20 +66,62 @@ namespace Metasound
 
 			TArray<const INode*> Nodes;
 			TArray<FDataEdge> Edges;
+			TArray<FInputDataDestination> Destinations;
+			TArray<FOutputDataSource> Sources;
 	};
 
-	/** FDanglingEdgeError
+	/** FDanglingVertexError
 	 *
-	 * Caused by FDataEdges pointing to invalid nodes.
+	 * Caused by FDataEdges, FInputDataDestinations or FOutputDataSources 
+	 * pointing to null nodes.
 	 */
-	class METASOUNDGRAPHCORE_API FDanglingEdgeError : public FBuildErrorBase
+	class METASOUNDGRAPHCORE_API FDanglingVertexError : public FBuildErrorBase
 	{
 		public:
 			static const FName ErrorType;
 
-			FDanglingEdgeError(const FDataEdge& InEdge);
+			FDanglingVertexError(const FInputDataDestination& InDest);
+			FDanglingVertexError(const FOutputDataSource& InSource);
+			FDanglingVertexError(const FDataEdge& InEdge);
 
-			virtual ~FDanglingEdgeError() = default;
+			virtual ~FDanglingVertexError() = default;
+		protected:
+
+			FDanglingVertexError();
+
+		private:
+	};
+
+	/** FMissingVertexError
+	 *
+	 * Caused by a referenced FDataVertex which does not exist on a node.
+	 */
+	class METASOUNDGRAPHCORE_API FMissingVertexError : public FBuildErrorBase
+	{
+		public:
+			static const FName ErrorType;
+
+			FMissingVertexError(const FInputDataDestination& InDestination);
+			FMissingVertexError(const FOutputDataSource& InSource);
+
+			virtual ~FMissingVertexError() = default;
+
+		private:
+	};
+
+
+	/** FDuplicateInputError
+	 *
+	 * Caused by multiple FDataEdges pointing same FInputDataDestination
+	 */
+	class METASOUNDGRAPHCORE_API FDuplicateInputError : public FBuildErrorBase
+	{
+		public:
+			static const FName ErrorType;
+
+			FDuplicateInputError(const TArrayView<FDataEdge> InEdges);
+
+			virtual ~FDuplicateInputError() = default;
 
 		private:
 	};
@@ -82,6 +138,23 @@ namespace Metasound
 			FGraphCycleError(TArrayView<INode const* const> InNodes, const TArray<FDataEdge>& InEdges);
 
 			virtual ~FGraphCycleError() = default;
+
+		private:
+	};
+
+	/** FNodePrunedError
+	 *
+	 * Caused by nodes which are in the graph but unreachable from the graph's
+	 * inputs and/or outputs.
+	 */
+	class METASOUNDGRAPHCORE_API FNodePrunedError : public FBuildErrorBase
+	{
+		public:
+			static const FName ErrorType;
+
+			FNodePrunedError(const INode* InNode);
+
+			virtual ~FNodePrunedError() = default;
 
 		private:
 	};
@@ -121,11 +194,6 @@ namespace Metasound
 			FMissingInputDataReferenceError(const FInputDataDestination& InInputDataDestination);
 
 			virtual ~FMissingInputDataReferenceError() = default;
-
-			const FInputDataDestination& GetInputDataDestination() const;
-
-		private:
-			FInputDataDestination InputDataDestination;
 	};
 
 	/** FMissingOutputDataReferenceError
@@ -143,10 +211,6 @@ namespace Metasound
 
 			virtual ~FMissingOutputDataReferenceError() = default;
 
-			const FOutputDataSource& GetOutputDataSource() const;
-
-		private:
-			FOutputDataSource OutputDataSource;
 	};
 
 	/** FInvalidConnectionDataTypeError
