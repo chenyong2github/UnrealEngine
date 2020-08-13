@@ -81,6 +81,12 @@ namespace Chaos
 			return bIsActive;
 		}
 
+		FORCEINLINE FReal InvM(int32 index) const
+		{
+			return InvMs[index];
+		}
+
+
 		FJointSolverGaussSeidel();
 
 		void Init(
