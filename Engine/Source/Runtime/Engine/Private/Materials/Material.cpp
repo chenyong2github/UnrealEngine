@@ -373,7 +373,7 @@ public:
 		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
 		if(MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
 		{
-			static FHashedName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
+			static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
 			if (ParameterInfo.Name == NameSubsurfaceProfile)
 			{
 				const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
