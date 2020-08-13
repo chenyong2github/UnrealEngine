@@ -641,6 +641,21 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 	Collector.AddReferencedObject(AnimSeq->CompressedData.CurveCompressionCodec);
 }
 
+int32 UAnimSequence::Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
+int32 UAnimSequence::Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
+int32 UAnimSequence::Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
 int32 UAnimSequence::GetUncompressedRawSize() const
 {
 	int32 BoneRawSize = ((sizeof(FVector) + sizeof(FQuat) + sizeof(FVector)) * RawAnimationData.Num() * NumFrames);

@@ -541,9 +541,9 @@ public:
 	void Stub_AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const int32> ValueKeys) {}
 	void Stub_AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const FString> ValueKeys) {}
 	
-	int32 Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const { return 0; }
-	int32 Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const { return 0; }
-	int32 Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const { return 0; }
+	int32 Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const;
+	int32 Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const;
+	int32 Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const;
 	
 	FName Stub_GetBoneFloatAttributeName(const FName& BoneName, int32 AttributeIndex) const { return FName(); }
 	FName Stub_GetBoneIntegerAttributeName(const FName& BoneName, int32 AttributeIndex) const { return FName(); }
