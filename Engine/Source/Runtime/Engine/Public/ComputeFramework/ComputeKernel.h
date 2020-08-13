@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
-#include "ComputeFramework\ComputeKernelResource.h"
+#include "ComputeFramework/ComputeKernelResource.h"
 
 #include "ComputeKernel.generated.h"
 
