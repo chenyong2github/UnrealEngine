@@ -584,17 +584,17 @@ FReply FSceneViewport::OnMouseButtonUp( const FGeometry& InGeometry, const FPoin
 		if (bCursorVisible)
 		{
 			bReleaseMouseCapture = true;
-			UE_LOG(LogViewport, Log, TEXT("Releasing Mouse Capture; Cursor is visible"));
+			UE_LOG(LogViewport, Verbose, TEXT("Releasing Mouse Capture; Cursor is visible"));
 		}
 		else if (ViewportClient->GetMouseCaptureMode() == EMouseCaptureMode::CaptureDuringMouseDown)
 		{
 			bReleaseMouseCapture = true;
-			UE_LOG(LogViewport, Log, TEXT("Releasing Mouse Capture; EMouseCaptureMode::CaptureDuringMouseDown - Mouse Button Released"));
+			UE_LOG(LogViewport, Verbose, TEXT("Releasing Mouse Capture; EMouseCaptureMode::CaptureDuringMouseDown - Mouse Button Released"));
 		}
 		else if (ViewportClient->GetMouseCaptureMode() == EMouseCaptureMode::CaptureDuringRightMouseDown && InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 		{
 			bReleaseMouseCapture = true;
-			UE_LOG(LogViewport, Log, TEXT("Releasing Mouse Capture; EMouseCaptureMode::CaptureDuringRightMouseDown - Right Mouse Button Released"));
+			UE_LOG(LogViewport, Verbose, TEXT("Releasing Mouse Capture; EMouseCaptureMode::CaptureDuringRightMouseDown - Right Mouse Button Released"));
 		}
 		else
 		{
