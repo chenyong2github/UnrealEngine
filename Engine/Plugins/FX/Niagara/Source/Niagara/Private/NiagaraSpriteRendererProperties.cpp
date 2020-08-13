@@ -46,6 +46,7 @@ UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
 	, bSortOnlyWhenTranslucent(true)
+	, bGpuLowLatencyTranslucency(true)
 	, MinFacingCameraBlendDistance(0.0f)
 	, MaxFacingCameraBlendDistance(0.0f)
 #if WITH_EDITORONLY_DATA
