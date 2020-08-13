@@ -19,9 +19,9 @@ class AWorldPartitionHLOD;
 UENUM()
 enum class EHLODLevelType : uint8
 {
-	Instancing = 0	UMETA(DisplayName = "Use instancing"),
-	MeshMerge = 1	UMETA(DisplayName = "Generate merged mesh"),
-	MeshProxy = 2	UMETA(DisplayName = "Generate proxy mesh")
+	Instancing = 0		UMETA(DisplayName = "Use instancing"),
+	MeshMerge = 1		UMETA(DisplayName = "Generate merged mesh"),
+	MeshSimplify = 2	UMETA(DisplayName = "Generate simplified mesh")
 };
 
 USTRUCT()
@@ -36,10 +36,10 @@ struct FHLODLevelSettings
 	UPROPERTY(EditAnywhere, Category=HLOD, meta = (editcondition = "LevelType == EHLODLevelType::MeshMerge", ShowOnlyInnerProperties))
 	FMeshMergingSettings MergeSetting;
 
-	UPROPERTY(EditAnywhere, Category=HLOD, meta = (editcondition = "LevelType == EHLODLevelType::MeshProxy", ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (editcondition = "LevelType == EHLODLevelType::MeshSimplify", ShowOnlyInnerProperties))
 	FMeshProxySettings ProxySetting;
 
-	UPROPERTY(EditAnywhere, Category=HLOD, meta = (editcondition = "LevelType == EHLODLevelType::MeshMerge || LevelType == EHLODLevelType::MeshProxy", ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category=HLOD, meta = (editcondition = "LevelType == EHLODLevelType::MeshMerge || LevelType == EHLODLevelType::MeshSimplify", ShowOnlyInnerProperties))
 	TSoftObjectPtr<UMaterial> FlattenMaterial;
 
 	UPROPERTY(EditAnywhere, Category=HLOD)
@@ -64,13 +64,6 @@ public:
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
 	static bool ShouldIncludeInHLOD(AActor* InActor);
 	static bool ShouldIncludeInHLOD(UPrimitiveComponent* InComponent, int32 InLevelIndex);
-
-private:
-	int32 BuildHLOD(UWorldPartition* InWorldPartition, FName InCellName, const TArray<AActor*>& InSubActors);
-
-	int32 BuildHLOD_Instancing(int32 iLevel, UWorldPartition* InWorldPartition, FName InCellName, const TArray<AActor*>& InSubActors) const;
-	int32 BuildHLOD_MeshMerge(int32 iLevel, UWorldPartition* InWorldPartition, FName InCellName, const TArray<AActor*>& InSubActors) const;
-	int32 BuildHLOD_MeshProxy(int32 iLevel, UWorldPartition* InWorldPartition, FName InCellName, const TArray<AActor*>& InSubActors) const;
 #endif
 
 

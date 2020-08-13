@@ -470,6 +470,9 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 
 	check(!StreamingGrids.Num());
 
+	// Build a map of Actor GUID -> HLODActor GUID once instead of having to recompute for every streaming grid we create
+	CacheHLODParents();
+
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
 	for (int32 i = 0; i < AllGrids.Num(); i++)

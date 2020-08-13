@@ -20,7 +20,7 @@ void SWorldPartitionEditor::Construct(const FArguments& InArgs)
 
 	OnBrowseWorld(InArgs._InWorld);
 
-	FWorldBrowserModule& WorldBrowserModule = FModuleManager::GetModuleChecked<FWorldBrowserModule>("WorldBrowser");
+	FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
 	WorldBrowserModule.OnBrowseWorld.AddSP(this, &SWorldPartitionEditor::OnBrowseWorld);
 }
 
