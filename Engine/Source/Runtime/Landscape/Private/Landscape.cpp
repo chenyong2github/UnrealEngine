@@ -2507,6 +2507,15 @@ void ALandscapeProxy::PostLoad()
 		if (Comp)
 		{
 			Comp->UpdateRejectNavmeshUnderneath();
+
+			// Store the layer combination in the MaterialInstanceConstantMap
+			if (UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false))
+			{
+				if(UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent))
+				{
+					MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
+				}
+			}
 		}
 	}
 

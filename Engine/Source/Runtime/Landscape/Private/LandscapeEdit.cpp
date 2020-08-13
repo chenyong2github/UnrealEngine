@@ -756,16 +756,6 @@ void ULandscapeComponent::FixupWeightmaps()
 			}
 
 			RemoveInvalidWeightmaps();
-
-			// Store the layer combination in the MaterialInstanceConstantMap
-			if (GetMaterialInstance(0, false) != nullptr)
-			{
-				UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(GetMaterialInstance(0, false)->Parent);
-				if (CombinationMaterialInstance)
-				{
-					Proxy->MaterialInstanceConstantMap.Add(*GetLayerAllocationKey(WeightmapLayerAllocations, CombinationMaterialInstance->Parent), CombinationMaterialInstance);
-				}
-			}
 		}
 	}
 }
