@@ -205,7 +205,7 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 
 	void SetIgnoreTranslucentMaterials() { Flags |= RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT; }
 	bool IsIgnoreTranslucentMaterials() { return (Flags & RAY_TRACING_PAYLOAD_FLAG_IGNORE_TRANSLUCENT) != 0; }
-	
+
 #if USE_RAYTRACED_TEXTURE_RAYCONE_LOD
 	FRayCone GetRayCone() { return RayCone; }
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
