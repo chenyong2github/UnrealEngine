@@ -339,6 +339,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsRTIndexFromVS : 1;
 	uint32 bSupportsWaveOperations : 1; // Whether HLSL SM6 shader wave intrinsics are supported
 	uint32 bRequiresExplicit128bitRT : 1;
+	uint32 bSupportsGen5TemporalAA : 1;
 
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
@@ -539,6 +540,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetRequiresExplicit128bitRT(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bRequiresExplicit128bitRT;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGen5TemporalAA(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsGen5TemporalAA;
 	}
 
 private:
