@@ -530,17 +530,6 @@ void ULandscapeHeightfieldCollisionComponent::OnDestroyPhysicsState()
 {
 	Super::OnDestroyPhysicsState();
 	
-#if WITH_EDITOR && WITH_CHAOS
-	// If we're in an editor world we will never simulate but we require up to date SQ for the tools
-	// #BGTODO consider a more automatic way to have scenes update when they aren't simulating to avoid this explicit flush
-	if(!GetWorld()->IsGameWorld())
-	{
-		FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
-		check(PhysScene);
-		PhysScene->Flush_AssumesLocked();
-	}
-#endif
-
 #if WITH_CHAOS
 	if (FPhysScene_Chaos* PhysScene = GetWorld()->GetPhysicsScene())
 	{
