@@ -72,7 +72,7 @@ namespace ImmediatePhysics_Chaos
 
 		void SetSimulationSpaceSettings(
 			const FReal MasterAlpha, 
-			const FReal ExternalLinearEtherDrag);
+			const FVector& ExternalLinearEtherDrag);
 
 
 		/** Set new iteration counts. A negative value with leave that iteration count unchanged */
