@@ -2554,10 +2554,10 @@ public:
 
 	/** If sky light bRealTimeCaptureEnabled is true, used to render the sky env map (sky, sky dome mesh or clouds). */
 	TRefCountPtr<IPooledRenderTarget> CapturedSkyRenderTarget;	// Needs to be a IPooledRenderTarget because it must be created before the View uniform buffer is created.
-	/** If sky light bRealTimeCaptureEnabled is true, use to store the result of the sky env map GGX specular convolution. */
-	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget;
-	/** If the real time sky capture is time sliced, this stores the currently processed/generated sky env map.*/
-	TRefCountPtr<IPooledRenderTarget> ProcessedSkyRenderTarget;
+	/** These store the result of the sky env map GGX specular convolution. */
+	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget[2];
+	/** The index of the ConvolvedSkyRenderTarget to use when rendering meshes. -1 when not initialised. */
+	int32 ConvolvedSkyRenderTargetReadyIndex;
 
 	/** True if no real time reflection capture has been entirely processed. We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
 	bool bRealTimeSlicedReflectionCaptureFirstFrame;
