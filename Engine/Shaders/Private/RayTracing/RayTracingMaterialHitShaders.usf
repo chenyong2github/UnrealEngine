@@ -211,10 +211,15 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	FVertexFactoryInterpolantsVSToDS PerVertexInterpolants[3];
-	float4 PerVertexClipSpacePositions[3]; // Used to fake SvPosition
+	FVertexFactoryInterpolantsVSToDS Interpolated = (FVertexFactoryInterpolantsVSToDS)0;
+
 	float3 WorldPositions[3];
 	float2 TexCoords[3];
+
+	float3 Weights = float3(
+		1 - Attributes.Barycentrics.x - Attributes.Barycentrics.y,
+		Attributes.Barycentrics.x,
+		Attributes.Barycentrics.y);
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -224,28 +229,15 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
 		float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPositionExcludingWPO.xyz, TangentToLocal);
-		
-		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
-		float4 WorldPosition = WorldPositionExcludingWPO + float4(GetMaterialWorldPositionOffset(VertexParameters), 0.0f);
-		
-		PerVertexInterpolants[i] = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-		TexCoords[i] = VertexFactoryGetTextureCoordinateDS(PerVertexInterpolants[i]);
 
-		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
-		PerVertexClipSpacePositions[i] = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);
+		FVertexFactoryInterpolantsVSToDS PerVertexInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
+		Interpolated = VertexFactoryInterpolate(Interpolated, 1.0, PerVertexInterpolants, Weights[i]);
+
+		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
+		TexCoords[i] = VertexFactoryGetTextureCoordinateDS(PerVertexInterpolants);
 	}
-	
-	FVertexFactoryInterpolantsVSToDS Interpolated = 
-		VertexFactoryInterpolate(
-			VertexFactoryInterpolate(
-				PerVertexInterpolants[0], 1 - Attributes.Barycentrics.x - Attributes.Barycentrics.y,
-				PerVertexInterpolants[1], Attributes.Barycentrics.x),
-			1.0f,
-			PerVertexInterpolants[2], Attributes.Barycentrics.y);
-	
+
 	Interpolants = VertexFactoryAssignInterpolants(Interpolated);
-	
-	float4 ClipSpacePosition = PerVertexClipSpacePositions[0] * (1 - Attributes.Barycentrics.x - Attributes.Barycentrics.y) + PerVertexClipSpacePositions[1] * Attributes.Barycentrics.x + PerVertexClipSpacePositions[2] * Attributes.Barycentrics.y;
 
 #if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_TESSELLATION
 	float2 TA = TexCoords[1] - TexCoords[0]; 
