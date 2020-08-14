@@ -301,7 +301,7 @@ struct FNiagaraComputeExecutionContext
 
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
 	void SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender);
-	FNiagaraDataBuffer* GetDataToRender(bool bIsTranslucent) const { return bIsTranslucent && TranslucentDataToRender ? TranslucentDataToRender : DataToRender; }
+	FNiagaraDataBuffer* GetDataToRender(bool bIsLowLatencyTranslucent) const { return bIsLowLatencyTranslucent && TranslucentDataToRender ? TranslucentDataToRender : DataToRender; }
 
 	struct 
 	{
