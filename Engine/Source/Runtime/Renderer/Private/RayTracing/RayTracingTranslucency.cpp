@@ -26,7 +26,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingTranslucency(
 	TEXT("-1: Value driven by postprocess volume (default) \n")
 	TEXT(" 0: ray tracing translucency off (use raster) \n")
 	TEXT(" 1: ray tracing translucency enabled"),
-	ECVF_RenderThreadSafe);
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static float GRayTracingTranslucencyMaxRoughness = -1;
 static FAutoConsoleVariableRef CVarRayTracingTranslucencyMaxRoughness(

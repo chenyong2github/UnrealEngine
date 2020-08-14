@@ -63,7 +63,7 @@ static FAutoConsoleVariableRef CVarRayTracingOcclusion(
 	GRayTracingShadows,
 	TEXT("0: use traditional rasterized shadow map\n")
 	TEXT("1: use ray tracing shadows (default)"),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
 static int32 GShadowRayTracingSamplesPerPixel = 1;

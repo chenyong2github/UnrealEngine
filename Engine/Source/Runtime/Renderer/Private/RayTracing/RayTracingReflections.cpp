@@ -31,7 +31,7 @@ static FAutoConsoleVariableRef CVarReflectionsMethod(
 	TEXT("-1: Value driven by postprocess volume (default) \n")
 	TEXT("0: use traditional rasterized SSR\n")
 	TEXT("1: use ray traced reflections\n"),
-	ECVF_RenderThreadSafe
+	ECVF_RenderThreadSafe | ECVF_Scalability
 );
 
 static TAutoConsoleVariable<float> CVarReflectionScreenPercentage(

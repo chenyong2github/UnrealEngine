@@ -33,7 +33,8 @@ static int32 GRayTracingSkyLight = -1;
 static FAutoConsoleVariableRef CVarRayTracingSkyLight(
 	TEXT("r.RayTracing.SkyLight"),
 	GRayTracingSkyLight,
-	TEXT("Enables ray tracing SkyLight (default = 0)")
+	TEXT("Enables ray tracing SkyLight (default = 0)"),
+	ECVF_Scalability
 );
 
 static int32 GRayTracingSkyLightSamplesPerPixel = -1;
