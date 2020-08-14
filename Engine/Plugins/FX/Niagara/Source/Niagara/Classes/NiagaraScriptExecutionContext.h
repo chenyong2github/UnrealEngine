@@ -414,6 +414,7 @@ struct FNiagaraSimStageData
 	uint32 DestinationCountOffset = 0;
 	uint32 SourceNumInstances = 0;
 	uint32 DestinationNumInstances = 0;
+	const FSimulationStageMetaData* StageMetaData = nullptr;
 };
 
 struct FNiagaraComputeInstanceData

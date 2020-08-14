@@ -1153,7 +1153,9 @@ void FNiagaraShader::BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>&
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
 	DefaultSimulationStageIndexParam.Bind(ParameterMap, TEXT("DefaultSimulationStageIndex"));
 	SimulationStageIndexParam.Bind(ParameterMap, TEXT("SimulationStageIndex"));
-	IterationInterfaceCount.Bind(ParameterMap, TEXT("IterationInterfaceCount"));
+
+	SimulationStageIterationInfoParam.Bind(ParameterMap, TEXT("SimulationStageIterationInfo"));
+	SimulationStageNormalizedIterationIndexParam.Bind(ParameterMap, TEXT("SimulationStageNormalizedIterationIndex"));
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
