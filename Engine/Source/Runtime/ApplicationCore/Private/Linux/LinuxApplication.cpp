@@ -186,6 +186,13 @@ bool FLinuxApplication::IsCursorDirectlyOverSlateWindow() const
 
 TSharedPtr<FGenericWindow> FLinuxApplication::GetWindowUnderCursor()
 {
+	// If we are drag and dropping the current window under the cursor will always be the DnD window
+	// fallback to the SlateApplication finding the top most in DnD situations
+	if (CurrentUnderCursorWindow.IsValid() && CurrentUnderCursorWindow->IsDragAndDropWindow())
+	{
+		return nullptr;
+	}
+
 	return CurrentUnderCursorWindow;
 }
 
