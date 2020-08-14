@@ -1308,7 +1308,6 @@ RENDERCORE_API void RenderUtilsInit()
 			}
 			else
 			{
-#if !UE_BUILD_SHIPPING
 				// If user preference exists in game settings file, the bRayTracingEnabled will be set based on its value.
 				// Otherwise the current value is preserved.
 				if (GConfig->GetBool(TEXT("RayTracing"), TEXT("r.RayTracing.EnableInGame"), GUseRayTracing, GGameUserSettingsIni))
@@ -1323,7 +1322,6 @@ RENDERCORE_API void RenderUtilsInit()
 
 					UE_LOG(LogRendererCore, Log, TEXT("Ray tracing is enabled for the game. Reason: r.RayTracing=1 and r.RayTracing.EnableInGame is not present (default true)."));
 				}
-#endif // !UE_BUILD_SHIPPING
 			}
 
 			// Sanity check: skin cache is *required* for ray tracing.
