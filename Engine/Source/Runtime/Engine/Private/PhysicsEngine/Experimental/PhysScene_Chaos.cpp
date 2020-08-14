@@ -1391,6 +1391,14 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 
 	TArray<FPhysicsActorHandle, TInlineAllocator<64>>TeleportActorsPool;
 	TArray<IPhysicsProxyBase*, TInlineAllocator<64>> ProxiesToDirty;
+
+	struct BodyInstanceScalePair
+	{
+		FBodyInstance* BodyInstance;
+		FVector Scale;
+	};
+	TQueue<BodyInstanceScalePair, EQueueMode::Mpsc> BodiesUpdatingScale;
+
 	
 	// Count max number of bodies to determine actor pool size.
 	{
@@ -1498,11 +1506,11 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 								const FVector& MeshScale3D = CurrentLocalToWorld.GetScale3D();
 								if (MeshScale3D.IsUniform())
 								{
-									BodyInst->UpdateBodyScale(BoneTransform.GetScale3D());
+									BodiesUpdatingScale.Enqueue(BodyInstanceScalePair({ BodyInst, BoneTransform.GetScale3D() }));
 								}
 								else
 								{
-									BodyInst->UpdateBodyScale(MeshScale3D);
+									BodiesUpdatingScale.Enqueue(BodyInstanceScalePair({ BodyInst, MeshScale3D }));
 								}
 							}
 						}
@@ -1511,6 +1519,16 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 			}
 		});
 	}
+
+	// Process bodies updating scale
+	BodyInstanceScalePair BodyScalePair;
+	while(BodiesUpdatingScale.Dequeue(BodyScalePair))
+	{
+		// TODO: Add optional arg to prevent UpdateBodyScale from updating acceleration structure.
+		// We already do this below. May not actually matter.
+		BodyScalePair.BodyInstance->UpdateBodyScale(BodyScalePair.Scale);
+	}
+
 
 	UpdateActorsInAccelerationStructure(TeleportActorsPool);
 
