@@ -193,14 +193,14 @@ namespace Audio
 						InitParams.SourceBusDuration = WaveInstance->WaveData->GetDuration();
 					}
 				}
-
-				// Toggle muting the source if sending only to output bus.
-				// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
-				InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
-				DynamicBusSendInfos.Reset();
-
-				InitBusSends(WaveInstance, InitParams);
 			}
+
+			// Toggle muting the source if sending only to output bus.
+			// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
+			InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
+			DynamicBusSendInfos.Reset();
+
+			InitBusSends(WaveInstance, InitParams);
 
 			// Don't set up any submixing if we're set to output to bus only
 			if (!InitParams.bOutputToBusOnly)
