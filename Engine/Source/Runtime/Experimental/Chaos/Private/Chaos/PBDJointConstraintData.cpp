@@ -9,6 +9,7 @@ namespace Chaos
 		: Proxy(nullptr)
 		, JointParticles({ nullptr,nullptr })
 		, JointTransforms({ FTransform::Identity, FTransform::Identity })
+		, UserData(nullptr)
 	{
 	}
 

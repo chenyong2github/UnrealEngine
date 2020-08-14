@@ -31,6 +31,7 @@
 #include "ChaosCheck.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBDJointConstraintData.h"
 
 #include "Async/ParallelFor.h"
 #include "Collision/CollisionConversions.h"
@@ -515,11 +516,21 @@ struct FScopedSceneLock_Chaos
 		LockScene();
 	}
 
-	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const * InHandle, EPhysicsInterfaceScopedLockType InLockType)
+	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const * InConstraintHandle, EPhysicsInterfaceScopedLockType InLockType)
 		: Scene(nullptr)
 		, LockType(InLockType)
 	{
-		UE_LOG(LogPhysics, Warning, TEXT("Constraint instance attempted scene lock, Constraints currently unimplemented"));
+		if (InConstraintHandle)
+		{
+			Scene = GetSceneForActor(InConstraintHandle);
+		}
+#if CHAOS_CHECKED
+		if (!Scene)
+		{
+			UE_LOG(LogPhysics, Warning, TEXT("Failed to find Scene for constraint. Skipping lock"));
+		}
+#endif
+		LockScene();
 	}
 
 	FScopedSceneLock_Chaos(USkeletalMeshComponent* InSkelMeshComp, EPhysicsInterfaceScopedLockType InLockType)
@@ -601,6 +612,18 @@ private:
 			return ActorInstance->GetPhysicsScene();
 		}
 
+		return nullptr;
+	}
+
+	FPhysScene_Chaos* GetSceneForActor(FPhysicsConstraintHandle const* InConstraintHandle)
+	{		
+		FConstraintInstanceBase* ConstraintInstance = (InConstraintHandle && InConstraintHandle->IsValid()) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>((*InConstraintHandle)->GetUserData()) : nullptr;
+
+		if( ConstraintInstance )
+		{
+				return ConstraintInstance->GetPhysicsScene();
+		}
+	
 		return nullptr;
 	}
 
