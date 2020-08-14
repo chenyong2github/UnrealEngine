@@ -2097,7 +2097,7 @@ namespace Metasound
 					}
 				}
 
-				if (!ensureAlwaysMsgf(IndexOfDependencyToRemove >= 0,
+				if (!ensureAlwaysMsgf(IndexOfDependencyInDocument >= 0,
 					TEXT("Couldn't find node class %s in the list of dependencies for this document, but found it in the nodes list. This likely means that the underlying class description is corrupted.)"), *NodeClassName))
 				{
 					return false;

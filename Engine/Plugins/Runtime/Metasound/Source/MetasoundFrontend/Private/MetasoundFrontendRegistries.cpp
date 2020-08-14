@@ -317,13 +317,13 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallba
 
 	for (auto& InputTuple : Inputs)
 	{
-		HashCombine(NodeHash, FCrc::StrCrc32(*InputTuple.Value.VertexName));
+		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*InputTuple.Value.VertexName));
 		InputTypes.Add(InputTuple.Value.DataReferenceTypeName);
 	}
 
 	for (auto& OutputTuple : Outputs)
 	{
-		HashCombine(NodeHash, FCrc::StrCrc32(*OutputTuple.Value.VertexName));
+		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*OutputTuple.Value.VertexName));
 		OutputTypes.Add(OutputTuple.Value.DataReferenceTypeName);
 	}
 

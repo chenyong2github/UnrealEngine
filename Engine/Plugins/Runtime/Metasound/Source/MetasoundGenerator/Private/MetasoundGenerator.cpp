@@ -69,23 +69,20 @@ namespace Metasound
 		// Single channel version:
 		NumChannels = 1;
 
-		if (NumChannels > 0)
+		// All buffers have same number of frames, so only need to query
+		// first buffer to know number of frames.
+
+		// Multichannel version:
+		//NumFramesPerExecute = GraphOutputAudioRef->GetBuffers()[0]->Num();
+		// single channel version:
+		NumFramesPerExecute = GraphOutputAudioRef->Num();
+
+		NumSamplesPerExecute = NumFramesPerExecute * NumChannels;
+
+		if (NumSamplesPerExecute > 0)
 		{
-			// All buffers have same number of frames, so only need to query
-			// first buffer to know number of frames.
-			
-			// Multichannel version:
-			//NumFramesPerExecute = GraphOutputAudioRef->GetBuffers()[0]->Num();
-			// single channel version:
-			NumFramesPerExecute = GraphOutputAudioRef->Num();
-
-			NumSamplesPerExecute = NumFramesPerExecute * NumChannels;
-
-			if (NumSamplesPerExecute > 0)
-			{
-				// Preallocate interleaved buffer as it is necessary for any audio generation calls.
-				InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
-			}
+			// Preallocate interleaved buffer as it is necessary for any audio generation calls.
+			InterleavedAudioBuffer.AddUninitialized(NumSamplesPerExecute);
 		}
 	}
 
