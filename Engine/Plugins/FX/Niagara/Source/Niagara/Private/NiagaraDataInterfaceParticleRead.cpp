@@ -1391,31 +1391,33 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 				const auto ValueData = FNiagaraDataSetAccessor<T>::CreateReader(EmitterInstance->GetData(), AttributeToRead);
 				const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
 
-
-				bWriteDummyData = false;
-
-				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+				if (IDData.IsValid() && ValueData.IsValid())
 				{
-					FNiagaraID ParticleID = Params.GetID();
-					bool bValid = false;
-					T Value = Default;
+					bWriteDummyData = false;
 
-					if (ParticleID.Index >= 0 && ParticleID.Index < IDTable.Num())
+					for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 					{
-						int32 ParticleIndex = IDTable[ParticleID.Index];
-						if (ParticleIndex >= 0 && ParticleIndex < NumSourceInstances)
+						FNiagaraID ParticleID = Params.GetID();
+						bool bValid = false;
+						T Value = Default;
+
+						if (ParticleID.Index >= 0 && ParticleID.Index < IDTable.Num())
 						{
-							FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
-							if (ActualID == ParticleID)
+							int32 ParticleIndex = IDTable[ParticleID.Index];
+							if (ParticleIndex >= 0 && ParticleIndex < NumSourceInstances)
 							{
-								Value = ValueData.GetSafe(ParticleIndex, Default);
-								bValid = true;
+								FNiagaraID ActualID = IDData.GetSafe(ParticleIndex, NIAGARA_INVALID_ID);
+								if (ActualID == ParticleID)
+								{
+									Value = ValueData.GetSafe(ParticleIndex, Default);
+									bValid = true;
+								}
 							}
 						}
-					}
 
-					Params.SetValid(bValid);
-					Params.SetValue(Value);
+						Params.SetValid(bValid);
+						Params.SetValue(Value);
+					}
 				}
 			}
 		}
@@ -1515,29 +1517,29 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 		const FNiagaraDataBuffer* CurrentData = EmitterInstance->GetData().GetCurrentData();//TODO: We should really be grabbing these during instance data tick and adding a read ref. Releasing that on PostTick.
 		if (CurrentData && CurrentData->GetNumInstances() > 0 && EmitterInstance->GetGPUContext() == nullptr)
 		{
-			const TArray<int32>& IDTable = CurrentData->GetIDTable();
 			int32 NumSourceInstances = (int32)CurrentData->GetNumInstances();
 
 			const auto ValueData = FNiagaraDataSetAccessor<T>::CreateReader(EmitterInstance->GetData(), AttributeToRead);
-			const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
-
-
-			bWriteDummyData = false;
-
-			for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+			
+			if (ValueData.IsValid())
 			{
-				int32 ParticleIndex = Params.GetIndex();
+				bWriteDummyData = false;
 
-				T Value = Default;
-				bool bValid = false;
-				if (ParticleIndex >= 0 && ParticleIndex < NumSourceInstances)
+				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 				{
-					Value = ValueData.GetSafe(ParticleIndex, Default);
-					bValid = true;					
-				}
+					int32 ParticleIndex = Params.GetIndex();
 
-				Params.SetValid(bValid);
-				Params.SetValue(Value);
+					T Value = Default;
+					bool bValid = false;
+					if (ParticleIndex >= 0 && ParticleIndex < NumSourceInstances)
+					{
+						Value = ValueData.GetSafe(ParticleIndex, Default);
+						bValid = true;					
+					}
+
+					Params.SetValid(bValid);
+					Params.SetValue(Value);
+				}
 			}
 		}
 	}
