@@ -54,6 +54,7 @@ public class SlateReflector : ModuleRules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"EditorFramework",
 					"PropertyEditor",
 					"UnrealEd",
                 }

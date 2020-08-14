@@ -60,6 +60,7 @@ public class VirtualCamera : ModuleRules
 			PublicDependencyModuleNames.Add("SlateCore");
 			PublicDependencyModuleNames.Add("TakeRecorder");
 			PrivateDependencyModuleNames.Add("LevelEditor");
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

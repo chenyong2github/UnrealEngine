@@ -16,6 +16,7 @@ public class ComponentVisualizers : ModuleRules
 				"Engine",
 				"Slate",
                 "SlateCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
                 "PropertyEditor",

@@ -10,6 +10,7 @@ public class OculusEditor : ModuleRules
 			new string[] {
 				"Projects",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
 				"CoreUObject",

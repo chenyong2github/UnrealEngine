@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"CinematicCamera",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"EditorStyle",
 					"Engine",
 					"MaterialEditor",

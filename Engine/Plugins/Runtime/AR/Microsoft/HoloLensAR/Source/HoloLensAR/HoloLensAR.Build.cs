@@ -34,6 +34,7 @@ public class HoloLensAR : ModuleRules
 			
 		if (Target.bBuildEditor == true)
 		{
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
         if (Target.Platform == UnrealTargetPlatform.Win64)

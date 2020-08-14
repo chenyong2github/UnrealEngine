@@ -25,6 +25,7 @@ public class ApexDestruction : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
                     "UnrealEd"
                 }
             );

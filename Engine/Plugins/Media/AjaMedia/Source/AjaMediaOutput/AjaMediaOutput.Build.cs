@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"AJA",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"Engine",
 					"MovieSceneCapture",
 					"RenderCore",

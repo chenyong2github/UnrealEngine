@@ -23,6 +23,7 @@ public class StructViewer : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
                 "Settings",
             }

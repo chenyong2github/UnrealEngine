@@ -52,6 +52,7 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"InputCore",
 
 				"MeshUtilities",		// tangents calculation
+				"EditorFramework",
 				"UnrealEd",
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  

@@ -23,6 +23,7 @@ public class MeshProcessingLibrary : ModuleRules
 				"Slate",
 				"SlateCore",
 				"StaticMeshDescription",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

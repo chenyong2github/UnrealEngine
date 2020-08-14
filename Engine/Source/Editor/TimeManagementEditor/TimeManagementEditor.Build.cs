@@ -16,6 +16,7 @@ public class TimeManagementEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"EditorStyle",
 				"Engine",
 				"InputCore",

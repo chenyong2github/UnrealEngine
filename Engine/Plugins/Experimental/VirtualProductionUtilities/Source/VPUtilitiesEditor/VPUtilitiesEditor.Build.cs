@@ -23,6 +23,7 @@ public class VPUtilitiesEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"EditorFramework",
 				"EditorStyle",
 				"Engine",
 				"GameplayTags",

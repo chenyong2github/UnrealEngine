@@ -20,6 +20,7 @@ public class RigVMDeveloper : ModuleRules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
+					"EditorFramework",
                     "UnrealEd",
                 }
             );

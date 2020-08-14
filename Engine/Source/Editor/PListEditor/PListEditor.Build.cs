@@ -15,6 +15,7 @@ public class PListEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 				"DesktopPlatform",
 				"XmlParser",

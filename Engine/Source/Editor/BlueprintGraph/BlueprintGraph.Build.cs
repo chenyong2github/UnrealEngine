@@ -32,6 +32,7 @@ public class BlueprintGraph : ModuleRules
 			new string[] {
 				"EditorStyle",
                 "KismetCompiler",
+				"EditorFramework",
 				"UnrealEd",
                 "GraphEditor",
 				"SlateCore",

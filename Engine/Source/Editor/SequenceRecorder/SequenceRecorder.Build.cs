@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"InputCore",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"EditorStyle",
 					"Projects",

@@ -12,6 +12,7 @@ public class ActorSequenceEditor : ModuleRules
 				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"InputCore",
 				"Kismet",

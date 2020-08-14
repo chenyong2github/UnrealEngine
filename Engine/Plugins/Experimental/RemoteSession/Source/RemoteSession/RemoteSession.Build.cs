@@ -51,6 +51,7 @@ public class RemoteSession : ModuleRules
 		if (Target.bBuildEditor == true)
 		{
 			//reference the module "MyModule"
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

@@ -44,6 +44,7 @@ public class UMGEditor : ModuleRules
 				"InputCore",
 				"Engine",
 				"AssetTools",
+				"EditorFramework",
 				"UnrealEd", // for Asset Editor Subsystem
 				"KismetWidgets",
 				"KismetCompiler",

@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 					"Sequencer",
 					"Slate",
 					"TimeManagement",
+					"EditorFramework",
 					"UnrealEd",
 					"WorkspaceMenuStructure",
 				}

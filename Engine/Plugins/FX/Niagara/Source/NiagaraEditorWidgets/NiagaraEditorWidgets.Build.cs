@@ -20,6 +20,7 @@ public class NiagaraEditorWidgets : ModuleRules
 			"Slate",
 			"SlateCore",
 			"InputCore",
+			"EditorFramework",
 			"UnrealEd",
 			"GraphEditor",
 			"EditorStyle",

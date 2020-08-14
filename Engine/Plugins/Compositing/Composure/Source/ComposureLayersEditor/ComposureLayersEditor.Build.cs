@@ -35,6 +35,7 @@ public class ComposureLayersEditor : ModuleRules
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

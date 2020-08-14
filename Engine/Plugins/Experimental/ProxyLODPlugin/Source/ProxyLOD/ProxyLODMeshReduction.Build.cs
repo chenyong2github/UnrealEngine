@@ -57,6 +57,7 @@ namespace UnrealBuildTool.Rules
 				{
                     "Core",
                     "CoreUObject",
+					"EditorFramework",
                     "Engine",
                     "UnrealEd",
 					// ... add private dependencies that you statically link with here ...

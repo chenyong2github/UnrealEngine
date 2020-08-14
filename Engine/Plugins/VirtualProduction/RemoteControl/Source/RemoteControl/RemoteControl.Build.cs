@@ -24,6 +24,7 @@ public class RemoteControl : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"EditorFramework",
 					"UnrealEd",
 				}
 			);

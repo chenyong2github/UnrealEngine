@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "ControlRig",
 					"ControlRigDeveloper",
+					"EditorFramework",
                     "UnrealEd",
                 }
             );

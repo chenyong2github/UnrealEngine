@@ -29,6 +29,7 @@ public class TranslationEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
                 "GraphEditor",
 				"SourceControl",

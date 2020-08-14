@@ -54,6 +54,7 @@ namespace UnrealBuildTool.Rules
 						"DerivedDataCache",
 						"OpenColorIOLib",
 						"TargetPlatform",
+						"EditorFramework",
 						"UnrealEd"
 					});
 			}

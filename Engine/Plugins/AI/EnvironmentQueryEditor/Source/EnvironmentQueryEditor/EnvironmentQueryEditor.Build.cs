@@ -36,6 +36,7 @@ public class EnvironmentQueryEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd", 
 				"MessageLog", 
 				"GraphEditor",

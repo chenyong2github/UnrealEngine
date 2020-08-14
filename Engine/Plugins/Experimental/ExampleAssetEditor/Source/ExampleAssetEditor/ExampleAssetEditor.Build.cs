@@ -39,6 +39,7 @@ public class ExampleAssetEditor : ModuleRules
 			{
 				"Projects",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
 				"CoreUObject",

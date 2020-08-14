@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DataprepCore",
 					"DesktopPlatform",
+					"EditorFramework",
 					"EditorStyle",
 					"EditorWidgets",
 					"EditorWidgets",

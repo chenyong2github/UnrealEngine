@@ -11,6 +11,7 @@ public class SmartSnapping : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"SlateCore",
 				"Slate",

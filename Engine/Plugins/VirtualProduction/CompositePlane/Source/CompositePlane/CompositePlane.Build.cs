@@ -22,6 +22,7 @@ public class CompositePlane : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+						"EditorFramework",
                         "UnrealEd",
                         "PlacementMode",
                 }

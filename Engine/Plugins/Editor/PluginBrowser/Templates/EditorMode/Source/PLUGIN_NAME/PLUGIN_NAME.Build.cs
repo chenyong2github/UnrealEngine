@@ -39,6 +39,7 @@ public class PLUGIN_NAME : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
 				// ... add private dependencies that you statically link with here ...	

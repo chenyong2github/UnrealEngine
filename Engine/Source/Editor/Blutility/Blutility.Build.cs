@@ -24,6 +24,7 @@ public class Blutility : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 				"Kismet",
 				"AssetRegistry",

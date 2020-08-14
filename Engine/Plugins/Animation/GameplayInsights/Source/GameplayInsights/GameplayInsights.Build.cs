@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"AnimationBlueprintEditor",
 					"Persona",
+					"EditorFramework",
 					"UnrealEd",
   					"GameplayInsightsEditor",
 					"EditorWidgets",

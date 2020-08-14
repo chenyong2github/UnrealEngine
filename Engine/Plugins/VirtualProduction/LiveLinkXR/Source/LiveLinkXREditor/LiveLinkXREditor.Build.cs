@@ -20,6 +20,7 @@ public class LiveLinkXREditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"UnrealEd",
 				"Engine",
 				"Projects",

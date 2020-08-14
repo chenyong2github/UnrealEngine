@@ -57,6 +57,7 @@ namespace UnrealBuildTool.Rules
 						"EditorStyle",
 						"EngineSettings",
 						"Sequencer",
+						"EditorFramework",
 						"UnrealEd",
 						"ViewportInteraction",
 						"LevelEditor",

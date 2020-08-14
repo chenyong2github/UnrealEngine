@@ -22,6 +22,7 @@ public class ApexDestructionEditor : ModuleRules
                 "Slate",
                 "SlateCore",
                 "EditorStyle",
+				"EditorFramework",
                 "UnrealEd",
                 "DesktopPlatform",
                 "AssetRegistry",

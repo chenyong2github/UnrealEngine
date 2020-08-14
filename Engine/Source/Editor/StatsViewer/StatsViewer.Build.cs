@@ -17,6 +17,7 @@ public class StatsViewer : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"RHI",
+				"EditorFramework",
 				"UnrealEd",
 				"Landscape"
 			}

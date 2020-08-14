@@ -16,6 +16,7 @@ public class SkeletonEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
                 "UnrealEd",
                 "Persona",
                 "AnimGraph",

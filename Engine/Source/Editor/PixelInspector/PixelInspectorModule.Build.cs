@@ -39,6 +39,7 @@ public class PixelInspectorModule : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
                     "UnrealEd",
     				"SlateCore",
     				"Slate",

@@ -12,6 +12,7 @@ public class CurveTableEditor : ModuleRules
 			new string[] {
 				"Core", 
 				"CoreUObject", 
+				"EditorFramework",
 				"Engine", 
 				"InputCore",
 				"Slate",

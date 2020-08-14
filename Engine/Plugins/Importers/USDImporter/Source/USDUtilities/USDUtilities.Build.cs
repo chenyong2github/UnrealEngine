@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DesktopPlatform",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"InputCore",
 					"SlateCore",

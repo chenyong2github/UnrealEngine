@@ -15,6 +15,7 @@ public class PaperSpriteSheetImporter : ModuleRules
 				"SlateCore",
 				"Engine",
 				"Paper2D",
+				"EditorFramework",
 				"UnrealEd",
 				"Paper2DEditor",
 				"AssetTools",

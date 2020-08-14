@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"Slate",
 					"SlateCore",
+					"EditorFramework",
 					"UnrealEd",
 					"ApplicationCore"
 				}

@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
                     "CoreUObject",
+					"EditorFramework",
                     "Engine",
 					"KismetCompiler",
                     "UnrealEd",

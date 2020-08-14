@@ -60,6 +60,7 @@ public class VCamCore : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("LevelEditor");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}

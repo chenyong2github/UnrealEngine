@@ -20,6 +20,7 @@ public class GeometryCacheAbcFile : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"EditorFramework",
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",

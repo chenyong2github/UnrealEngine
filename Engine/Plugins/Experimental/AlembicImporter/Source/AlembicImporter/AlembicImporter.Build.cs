@@ -15,6 +15,7 @@ public class AlembicImporter : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
                 "MainFrame",
                 "PropertyEditor",

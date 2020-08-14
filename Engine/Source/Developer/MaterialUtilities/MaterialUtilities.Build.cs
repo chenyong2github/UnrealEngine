@@ -11,6 +11,7 @@ public class MaterialUtilities : ModuleRules
 			new string [] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"RenderCore",
                 "Renderer",

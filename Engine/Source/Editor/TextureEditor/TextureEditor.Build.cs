@@ -42,6 +42,7 @@ public class TextureEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
                 "PropertyEditor"
             }

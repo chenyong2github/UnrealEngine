@@ -11,6 +11,7 @@ public class TakeRecorderSources : ModuleRules
                 "CinematicCamera",
                 "Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"LevelSequence",
                 "LevelSequenceEditor",

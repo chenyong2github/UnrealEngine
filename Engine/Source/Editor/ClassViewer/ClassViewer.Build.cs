@@ -25,6 +25,7 @@ public class ClassViewer : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 				"PropertyEditor",
                 "Settings",

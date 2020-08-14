@@ -16,6 +16,7 @@ public class ChaosClothEditor : ModuleRules
                 "Slate",
                 "Persona",
                 "ChaosCloth",
+				"EditorFramework",
                 "UnrealEd",
                 "Engine"
             }

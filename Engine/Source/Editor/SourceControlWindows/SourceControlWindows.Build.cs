@@ -17,6 +17,7 @@ public class SourceControlWindows : ModuleRules
                 "EditorStyle",
 				"SourceControl", 
 				"AssetTools",
+				"EditorFramework",
                 "UnrealEd"			// We need this dependency here because we use PackageTools.
 			}
 		);

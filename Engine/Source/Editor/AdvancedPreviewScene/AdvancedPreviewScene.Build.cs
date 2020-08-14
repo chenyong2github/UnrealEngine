@@ -21,6 +21,7 @@ public class AdvancedPreviewScene : ModuleRules
                 "Slate",
                 "SlateCore",
                 "EditorStyle",
+				"EditorFramework",
                 "UnrealEd",
             }
         );

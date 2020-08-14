@@ -28,6 +28,7 @@ public class LuminPlatformEditor : ModuleRules
 				"RenderCore",
 				"MaterialShaderQualitySettings",
 				"AudioSettingsEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"PropertyPath",
 			}

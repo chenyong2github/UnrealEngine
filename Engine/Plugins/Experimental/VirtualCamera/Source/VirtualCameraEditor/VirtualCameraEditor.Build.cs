@@ -13,6 +13,7 @@ public class VirtualCameraEditor : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"EditorStyle",
 				"Engine",
 				"LevelEditor",

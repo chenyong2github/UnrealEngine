@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"SettingsEditor",
 					"Slate",
 					"SlateCore",
+					"EditorFramework",
 					"UnrealEd",
 					"MoviePlayer",
 					"NavigationSystem",

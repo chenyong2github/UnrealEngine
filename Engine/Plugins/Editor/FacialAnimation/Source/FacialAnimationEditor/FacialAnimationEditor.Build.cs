@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "SlateCore",
                     "Slate",
 					"EditorStyle",
+					"EditorFramework",
 					"UnrealEd",
                     "AudioEditor",
                     "WorkspaceMenuStructure",

@@ -10,6 +10,7 @@ public class TimedDataMonitorEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"EditorStyle",
 				"InputCore",

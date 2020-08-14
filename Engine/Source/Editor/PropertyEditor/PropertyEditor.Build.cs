@@ -8,6 +8,7 @@ public class PropertyEditor : ModuleRules
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"EditorFramework",
 				"UnrealEd",
                 "ActorPickerMode",
                 "SceneDepthPickerMode",

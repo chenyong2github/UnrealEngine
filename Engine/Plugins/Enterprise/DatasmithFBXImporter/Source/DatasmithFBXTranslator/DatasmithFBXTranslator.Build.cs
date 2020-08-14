@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DatasmithCore",
+					"EditorFramework",
 					"Engine",
 					"LevelSequence",
 					"MeshDescription",

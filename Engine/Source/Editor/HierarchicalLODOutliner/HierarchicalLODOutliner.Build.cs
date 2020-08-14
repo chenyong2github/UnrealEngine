@@ -42,6 +42,7 @@ public class HierarchicalLODOutliner : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
                     "UnrealEd",
     				"SlateCore",
     				"Slate",

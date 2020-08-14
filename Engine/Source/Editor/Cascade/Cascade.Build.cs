@@ -30,6 +30,7 @@ public class Cascade : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"DistCurveEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"RHI",
 				"PhysicsCore"

@@ -49,6 +49,7 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"MovieSceneCaptureDialog",
                 "MovieSceneCapture",
                 "LevelSequence",
+				"EditorFramework",
                 "UnrealEd",
                 "WorkspaceMenuStructure",
 				"EditorStyle",

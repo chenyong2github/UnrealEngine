@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DesktopPlatform",
+					"EditorFramework",
 					"EditorStyle",
 					"EditorScriptingUtilities",
 					"Engine",

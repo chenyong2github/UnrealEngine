@@ -40,6 +40,7 @@ public class MovieSceneTracks : ModuleRules
 			);
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
                     "UnrealEd"
                 }
             );

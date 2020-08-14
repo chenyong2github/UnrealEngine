@@ -29,6 +29,7 @@ public class AssetSearch : ModuleRules
 				"GameplayTags",
 				"DerivedDataCache",
 				"WorkspaceMenuStructure",
+				"EditorFramework",
 				"UnrealEd",
 				"Json",
 				"AssetRegistry",

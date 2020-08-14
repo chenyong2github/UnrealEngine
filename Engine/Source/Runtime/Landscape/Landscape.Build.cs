@@ -62,6 +62,7 @@ public class Landscape : ModuleRules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"EditorFramework",
 					"UnrealEd",
 					"MaterialUtilities", 
 					"SlateCore",

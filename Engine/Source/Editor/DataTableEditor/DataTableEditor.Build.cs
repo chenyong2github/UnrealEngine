@@ -19,6 +19,7 @@ public class DataTableEditor : ModuleRules
 				"SlateCore",
                 "EditorStyle",
                 "PropertyEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"Json"
 			}

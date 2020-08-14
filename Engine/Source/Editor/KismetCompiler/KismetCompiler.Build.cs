@@ -12,6 +12,7 @@ public class KismetCompiler : ModuleRules
 				"CoreUObject",
 				"Engine",
                 "InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"MovieScene",
 				//"MovieSceneTools",

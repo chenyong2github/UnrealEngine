@@ -39,6 +39,7 @@ public class HDRIBackdrop : ModuleRules
 				"Projects",
 				"Slate",
 				"SlateCore",
+				"EditorFramework",
 				"UnrealEd",
                 "PlacementMode",
 				// ... add private dependencies that you statically link with here ...	

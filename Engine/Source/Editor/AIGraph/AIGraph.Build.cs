@@ -35,6 +35,7 @@ public class AIGraph : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd", 
 				"MessageLog", 
 				"GraphEditor",

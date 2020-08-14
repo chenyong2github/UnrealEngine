@@ -22,6 +22,7 @@ public class GitSourceControl : ModuleRules
 		{
 			// needed to enable/disable this via experimental settings
 			PrivateDependencyModuleNames.Add("CoreUObject");
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 	}

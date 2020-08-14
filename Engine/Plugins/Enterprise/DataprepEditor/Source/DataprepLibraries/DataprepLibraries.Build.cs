@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DataprepCore",
 					"DatasmithContent",
+					"EditorFramework",
 					"EditorScriptingUtilities",
 					"EditorStyle",
 					"Engine",

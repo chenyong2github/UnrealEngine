@@ -11,6 +11,7 @@ public class DataChartsEditor : ModuleRules
             {
 				"Core",
                 "CoreUObject",
+				"EditorFramework",
                 "Engine",
                 "Projects",
                 "Slate",

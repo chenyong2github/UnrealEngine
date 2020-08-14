@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "TimeManagement",
+					"EditorFramework",
                     "UnrealEd",
                     "GeometryCacheTracks",
                     "GeometryCache"

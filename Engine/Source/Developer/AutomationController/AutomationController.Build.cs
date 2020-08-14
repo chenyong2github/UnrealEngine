@@ -33,6 +33,7 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.AddRange(
                     new string[] {
+						"EditorFramework",
                         "UnrealEd",
                         "Engine", // Needed for UWorld/GWorld to find current level
 				    }

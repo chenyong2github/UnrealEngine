@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor)
 			{
+				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 

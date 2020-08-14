@@ -21,6 +21,7 @@ public class SoundCueTemplatesEditor : ModuleRules
             new string[]
             {
                 "CoreUObject",
+				"EditorFramework",
                 "EditorStyle",
                 "Engine",
                 "UnrealEd",

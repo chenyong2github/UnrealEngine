@@ -17,6 +17,7 @@ public class NewLevelDialog : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

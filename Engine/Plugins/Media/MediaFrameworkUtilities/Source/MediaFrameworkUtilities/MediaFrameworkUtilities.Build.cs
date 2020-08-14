@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
+						"EditorFramework",
                         "MediaPlayerEditor",
                         "Slate",
 						"SlateCore",

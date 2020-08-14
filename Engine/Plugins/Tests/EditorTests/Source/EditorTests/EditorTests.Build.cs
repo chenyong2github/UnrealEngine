@@ -58,6 +58,7 @@ public class EditorTests : ModuleRules
 				"GraphEditor",
 				"DirectoryWatcher",
 				"Projects",
+				"EditorFramework",
 				"UnrealEd",
 				"AudioEditor",
 				"AnimGraphRuntime",

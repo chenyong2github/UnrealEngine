@@ -29,6 +29,7 @@ public class FontEditor : ModuleRules
 			new string[] {
 				"DesktopPlatform",
 				"MainFrame",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

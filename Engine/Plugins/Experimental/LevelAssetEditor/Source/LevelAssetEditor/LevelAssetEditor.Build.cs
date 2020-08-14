@@ -39,6 +39,7 @@ public class LevelAssetEditor : ModuleRules
 			{
 				"Projects",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
 				"CoreUObject",

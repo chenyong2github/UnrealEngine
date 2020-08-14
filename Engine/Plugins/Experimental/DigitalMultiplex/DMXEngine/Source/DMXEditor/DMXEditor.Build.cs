@@ -27,6 +27,7 @@ public class DMXEditor : ModuleRules
 				"AssetTools",
 				"CoreUObject",
 				"Kismet",
+				"EditorFramework",
 				"UnrealEd",
 				"EditorStyle",
 				"PropertyEditor",

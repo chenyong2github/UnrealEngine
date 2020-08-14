@@ -36,6 +36,7 @@ public class PLUGIN_NAME : ModuleRules
 			{
 				"Projects",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
 				"CoreUObject",

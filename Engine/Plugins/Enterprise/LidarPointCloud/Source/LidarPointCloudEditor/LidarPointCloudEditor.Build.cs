@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
                 "Engine",
                 "Slate",
                 "SlateCore",
+				"EditorFramework",
                 "UnrealEd",
                 "EditorStyle",
                 "KismetWidgets",

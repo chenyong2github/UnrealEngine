@@ -10,6 +10,7 @@ public class TakesCore : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

@@ -24,6 +24,7 @@ public class ProjectTargetPlatformEditor : ModuleRules
 				"TargetPlatform",
 				"DesktopPlatform",
 				"Settings",
+				"EditorFramework",
 				"UnrealEd",
 				"Projects",
 			}

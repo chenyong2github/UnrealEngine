@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowser",
 					"ContentBrowserData",
 					"MainFrame",
+					"EditorFramework",
 					"UnrealEd",
 					"SourceControl",
 					"ToolMenus",

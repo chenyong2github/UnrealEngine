@@ -25,6 +25,7 @@ public class MeshUtilities : ModuleRules
 				"Slate",
 				"MaterialUtilities",
 				"MeshBoneReduction",
+				"EditorFramework",
 				"UnrealEd",
 				"RHI",
 				"HierarchicalLODUtilities",

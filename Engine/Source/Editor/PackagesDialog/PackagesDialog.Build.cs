@@ -12,6 +12,7 @@ public class PackagesDialog : ModuleRules
 			new string[] {
 				"Core", 
 				"CoreUObject", 
+				"EditorFramework",
 				"Engine", 
                 "InputCore",
 				"Slate", 

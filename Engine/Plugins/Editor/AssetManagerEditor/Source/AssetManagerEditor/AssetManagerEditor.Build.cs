@@ -27,6 +27,7 @@ public class AssetManagerEditor : ModuleRules
 				"SlateCore",
                 "ApplicationCore",
                 "InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"AssetRegistry",
 				"Json",

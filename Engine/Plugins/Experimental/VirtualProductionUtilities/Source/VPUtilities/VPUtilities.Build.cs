@@ -38,6 +38,7 @@ public class VPUtilities : ModuleRules
 				new string[]
 				{
 					"Blutility",
+					"EditorFramework",
 					"LevelEditor",
 					"UnrealEd",
 					"ViewportInteraction",

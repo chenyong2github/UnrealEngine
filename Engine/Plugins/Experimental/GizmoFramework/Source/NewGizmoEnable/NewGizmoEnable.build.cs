@@ -37,6 +37,7 @@ public class NewGizmoEnable : ModuleRules
 			{
 				"CoreUObject",
 				"ToolMenus",
+				"EditorFramework",
 				"UnrealEd",
 				"GizmoEdMode",
 				"Slate",

@@ -27,6 +27,7 @@ public class MatineeToLevelSequence : ModuleRules
                 "Slate",
                 "SlateCore",
                 "ToolMenus",
+				"EditorFramework",
                 "UnrealEd",
 				"TimeManagement",
                 "TemplateSequence",

@@ -15,6 +15,7 @@ public class Layers : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd",
 				"SceneOutliner",
 			}

@@ -31,6 +31,7 @@ public class RemoteSessionEditor : ModuleRules
 			{
 				"AssetRegistry",
 				"CoreUObject",
+				"EditorFramework",
 				"EditorStyle",
 				"Engine",
 				"LevelEditor",

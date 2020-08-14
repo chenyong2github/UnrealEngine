@@ -60,6 +60,7 @@ public class ResonanceAudio : ModuleRules
 
         if (Target.bBuildEditor == true)
         {
+			PrivateDependencyModuleNames.Add("EditorFramework");
             PrivateDependencyModuleNames.Add("UnrealEd");
             PrivateDependencyModuleNames.Add("Landscape");
         }

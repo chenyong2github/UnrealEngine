@@ -28,6 +28,7 @@ public class DMXBlueprintGraph : ModuleRules
                 "CoreUObject",
 				"Kismet",
                 "KismetCompiler",
+				"EditorFramework",
                 "UnrealEd",
                 "EditorStyle",
                 "PropertyEditor",

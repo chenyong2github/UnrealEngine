@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "InputCore",
+					"EditorFramework",
                     "UnrealEd",
                     "RHI",
                     "AudioEditor",

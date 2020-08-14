@@ -46,6 +46,7 @@ namespace UnrealBuildTool.Rules
 				DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 				PrivateIncludePathModuleNames.Add("NaniteBuilder");
 
+				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 

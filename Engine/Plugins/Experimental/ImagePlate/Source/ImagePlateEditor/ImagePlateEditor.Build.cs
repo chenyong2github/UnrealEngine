@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"EditorStyle",
 					"Engine",
 					"ImagePlate",

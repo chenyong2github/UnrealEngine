@@ -20,6 +20,7 @@ public class HoloLensPlatformEditor : ModuleRules
 				"SharedSettingsWidgets",
 				"AppFramework",
 				"DesktopWidgets",
+				"EditorFramework",
 				"UnrealEd",
 				"SourceControl",
 				"WindowsTargetPlatform", // For ECompilerVersion

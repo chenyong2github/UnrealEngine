@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"PropertyEditor",
 					"SlateCore",
+					"EditorFramework",
 					"UnrealEd"
 				}
 			);

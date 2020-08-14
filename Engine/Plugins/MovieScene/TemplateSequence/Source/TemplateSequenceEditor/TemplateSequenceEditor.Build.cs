@@ -13,6 +13,7 @@ public class TemplateSequenceEditor : ModuleRules
 				"CinematicCamera",
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"InputCore",
 				"Kismet",

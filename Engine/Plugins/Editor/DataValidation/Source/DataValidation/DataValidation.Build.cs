@@ -21,6 +21,7 @@ public class DataValidation : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"AssetRegistry",
 				"Json",

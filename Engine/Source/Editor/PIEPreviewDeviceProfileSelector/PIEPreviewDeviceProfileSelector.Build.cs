@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
                     "ApplicationCore",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"EditorStyle"
                 }

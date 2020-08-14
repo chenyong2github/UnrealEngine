@@ -77,6 +77,7 @@ public class MovieSceneTools : ModuleRules
                 "Settings",
 				"SceneOutliner",
                 "MainFrame",
+				"EditorFramework",
                 "UnrealEd",
                 "Analytics",
             }

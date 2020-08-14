@@ -60,6 +60,7 @@ public class SteamVREditor : ModuleRules
 			{
 				"Projects",
 				"InputCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
 				"CoreUObject",

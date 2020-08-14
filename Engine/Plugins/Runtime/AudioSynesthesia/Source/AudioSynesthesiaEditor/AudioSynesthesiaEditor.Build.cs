@@ -15,6 +15,7 @@ public class AudioSynesthesiaEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"AudioSynesthesia",
 				"AudioAnalyzer",

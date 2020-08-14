@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"CollectionManager",
 					"ContentBrowser",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"EditorStyle",
 					"EditorWidgets",

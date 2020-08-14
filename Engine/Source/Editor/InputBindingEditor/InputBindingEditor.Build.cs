@@ -17,6 +17,7 @@ public class InputBindingEditor : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"PropertyEditor",
 				"Settings",

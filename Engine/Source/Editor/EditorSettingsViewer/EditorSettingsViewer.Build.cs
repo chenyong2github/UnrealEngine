@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"CoreUObject",
 					"CurveEditor",
+					"EditorFramework",
 					"Engine",
 					"GraphEditor",
 					"InputBindingEditor",

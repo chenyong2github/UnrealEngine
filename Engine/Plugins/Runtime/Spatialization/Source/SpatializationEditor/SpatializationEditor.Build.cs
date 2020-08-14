@@ -22,6 +22,7 @@ public class SpatializationEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"AudioMixer",
                 "LevelEditor",

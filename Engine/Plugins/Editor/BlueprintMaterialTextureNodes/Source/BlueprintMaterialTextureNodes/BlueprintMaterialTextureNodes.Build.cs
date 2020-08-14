@@ -44,6 +44,7 @@ public class BlueprintMaterialTextureNodes : ModuleRules
 			new string[]
 			{
                 "CoreUObject",
+				"EditorFramework",
                 "UnrealEd",
                 "Engine",
                 "PropertyEditor",

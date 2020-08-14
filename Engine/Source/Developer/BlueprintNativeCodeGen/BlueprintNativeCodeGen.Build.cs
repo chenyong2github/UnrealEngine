@@ -17,6 +17,7 @@ public class BlueprintNativeCodeGen : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "DesktopPlatform",
+				"EditorFramework",
                 "UnrealEd",
                 "InputCore",
                 "SlateCore",

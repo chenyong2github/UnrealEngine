@@ -21,6 +21,7 @@ public class LocalizationCommandletExecution : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"EditorFramework",
                 "UnrealEd",
 				"EditorStyle",
 				"Engine",

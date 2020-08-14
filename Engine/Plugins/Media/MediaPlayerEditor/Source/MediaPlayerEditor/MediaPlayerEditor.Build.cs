@@ -52,6 +52,7 @@ public class MediaPlayerEditor : ModuleRules
 				"RenderCore",
 				"RHI",
 				"TextureEditor",
+				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
 			});

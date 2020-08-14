@@ -21,6 +21,7 @@ public class PythonAutomationTest : ModuleRules
              new string[] {
 		            "Core",
 	                "CoreUObject",
+					"EditorFramework",
                     "Engine",
                     "UnrealEd",
                     "PythonScriptPlugin",

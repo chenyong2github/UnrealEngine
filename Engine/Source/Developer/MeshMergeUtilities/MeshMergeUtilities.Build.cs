@@ -11,6 +11,7 @@ public class MeshMergeUtilities : ModuleRules
 			new string [] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"RenderCore",
                 "Renderer",

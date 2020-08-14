@@ -13,6 +13,7 @@ public class TimecodeSynchronizerEditor : ModuleRules
 				"AssetTools",
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"EditorStyle",
 				"InputCore",

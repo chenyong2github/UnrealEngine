@@ -11,6 +11,7 @@ public class DisplayClusterEditor : ModuleRules
 			"Core",
 			"CoreUObject",
 			"DisplayCluster",
+			"EditorFramework",
 			"Engine",
 			"UnrealEd"
 		});

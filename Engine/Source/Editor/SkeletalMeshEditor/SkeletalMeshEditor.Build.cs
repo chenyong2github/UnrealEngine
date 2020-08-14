@@ -21,6 +21,7 @@ public class SkeletalMeshEditor : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
                 "UnrealEd",
                 "SkeletonEditor",
                 "Kismet",

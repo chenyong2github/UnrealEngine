@@ -28,6 +28,7 @@ public class MovieSceneCaptureDialog : ModuleRules
 				"SessionServices",
 				"Slate",
 				"SlateCore",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

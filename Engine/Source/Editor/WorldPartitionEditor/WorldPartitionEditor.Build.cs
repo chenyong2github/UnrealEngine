@@ -19,6 +19,7 @@ public class WorldPartitionEditor : ModuleRules
             new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"EditorStyle",
 				"Engine",
 				"InputCore",

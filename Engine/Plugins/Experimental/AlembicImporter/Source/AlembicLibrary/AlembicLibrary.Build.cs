@@ -32,6 +32,7 @@ public class AlembicLibrary : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
+				"EditorFramework",
                 "UnrealEd",
                 "MeshDescription",
 				"StaticMeshDescription",

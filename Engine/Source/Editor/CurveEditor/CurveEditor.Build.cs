@@ -11,6 +11,7 @@ public class CurveEditor : ModuleRules
                 "ApplicationCore",
                 "Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"EditorStyle",
 				"InputCore",

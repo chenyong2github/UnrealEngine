@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"JsonUtilities",
+					"EditorFramework",
 					"UnrealEd",
 					"InputCore",
 					"SlateCore",

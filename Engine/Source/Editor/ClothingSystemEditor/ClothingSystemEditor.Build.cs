@@ -29,6 +29,7 @@ public class ClothingSystemEditor : ModuleRules
                 "ClothingSystemRuntimeCommon",
                 "ClothingSystemRuntimeNv",
                 "ContentBrowser",
+				"EditorFramework",
                 "UnrealEd",
                 "SlateCore",
                 "Slate",

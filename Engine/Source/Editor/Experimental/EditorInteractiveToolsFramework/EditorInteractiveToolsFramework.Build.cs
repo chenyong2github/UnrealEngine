@@ -40,6 +40,7 @@ public class EditorInteractiveToolsFramework : ModuleRules
                 "Slate",
                 "SlateCore",
                 "InputCore",
+				"EditorFramework",
 				"UnrealEd",
                 "ContentBrowser",
                 "LevelEditor",

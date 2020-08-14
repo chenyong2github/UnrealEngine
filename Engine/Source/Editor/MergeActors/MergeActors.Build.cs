@@ -38,6 +38,7 @@ public class MergeActors : ModuleRules
 				"Slate",
 				"SlateCore",
                 "EditorStyle",
+				"EditorFramework",
 				"UnrealEd"
             }
 		);

@@ -22,6 +22,7 @@ public class FoundationEditor : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
+				"EditorFramework",
 				"UnrealEd",
 				"LevelEditor",
 				"ToolMenus",

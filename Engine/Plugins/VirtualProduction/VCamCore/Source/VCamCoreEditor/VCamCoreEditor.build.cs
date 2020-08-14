@@ -21,6 +21,7 @@ public class VCamCoreEditor : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"Slate",
 				"SlateCore",

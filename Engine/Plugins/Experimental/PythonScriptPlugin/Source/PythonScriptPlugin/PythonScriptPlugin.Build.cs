@@ -45,6 +45,7 @@ namespace UnrealBuildTool.Rules
 						"DesktopPlatform",
 						"EditorStyle",
 						"LevelEditor",
+						"EditorFramework",
 						"UnrealEd",
 						"EditorSubsystem",
 						"BlueprintGraph",

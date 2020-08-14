@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "MessageLog",
+					"EditorFramework",
                     "UnrealEd",
                     "Slate",
                     "SlateCore",

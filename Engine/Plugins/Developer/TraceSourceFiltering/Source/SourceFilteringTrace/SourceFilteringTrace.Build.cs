@@ -23,6 +23,7 @@ public class SourceFilteringTrace : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"EditorFramework",
 					"UnrealEd"
 				}
 			);

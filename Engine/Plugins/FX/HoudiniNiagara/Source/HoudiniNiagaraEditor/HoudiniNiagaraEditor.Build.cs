@@ -50,6 +50,7 @@ public class HoudiniNiagaraEditor : ModuleRules
                 "NiagaraVertexFactories",
                 "RenderCore",
                 "HoudiniNiagara",
+				"EditorFramework",
                 "UnrealEd",
 				"EditorStyle",
 			}

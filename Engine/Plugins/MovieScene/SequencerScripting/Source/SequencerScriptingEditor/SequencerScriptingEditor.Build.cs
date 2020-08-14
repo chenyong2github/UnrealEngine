@@ -46,6 +46,7 @@ public class SequencerScriptingEditor : ModuleRules
 				"SlateCore",
                 "MovieSceneCapture",
                 "LevelSequence",
+				"EditorFramework",
                 "UnrealEd",
             }
 		);

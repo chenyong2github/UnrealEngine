@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"KismetCompiler",
 					"GraphEditor",
 					"MainFrame",
+					"EditorFramework",
 					"UnrealEd",
                     "EditorWidgets",
 				}

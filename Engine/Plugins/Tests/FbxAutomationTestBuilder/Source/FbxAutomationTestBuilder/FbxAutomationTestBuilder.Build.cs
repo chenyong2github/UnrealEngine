@@ -33,6 +33,7 @@ public class FbxAutomationTestBuilder : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
                     "UnrealEd",
     				"SlateCore",
     				"Slate",

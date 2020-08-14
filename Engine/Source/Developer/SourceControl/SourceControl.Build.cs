@@ -30,6 +30,7 @@ public class SourceControl : ModuleRules
         {
 			PrivateDependencyModuleNames.AddRange(
                 new string[] {
+					"EditorFramework",
 					"Engine",
 					"UnrealEd",
 				}

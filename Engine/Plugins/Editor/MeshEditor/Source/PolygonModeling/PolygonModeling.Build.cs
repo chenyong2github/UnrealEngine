@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"Engine",
 					"InputCore",
+					"EditorFramework",
 					"UnrealEd",
                     "SceneOutliner",
                     "EditableMesh",

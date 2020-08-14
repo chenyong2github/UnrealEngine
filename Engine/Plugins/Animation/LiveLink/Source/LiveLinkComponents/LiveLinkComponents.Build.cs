@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Slate",
 					"SlateCore",
+					"EditorFramework",
 					"UnrealEd",
 				});
 			}

@@ -13,6 +13,7 @@ public class SpriterImporter : ModuleRules
 				"Engine",
 				"Json",
 				"Paper2D",
+				"EditorFramework",
 				"UnrealEd",
 				"Paper2DEditor"
 			});

@@ -14,6 +14,7 @@ public class LandmassEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 				"LevelEditor",
 				"UnrealEd"

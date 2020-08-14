@@ -94,6 +94,7 @@ namespace UnrealBuildTool.Rules
             if (Target.bBuildEditor == true)
             {
                 // @todo api: Only public because of WITH_EDITOR and UNREALED_API
+				PublicDependencyModuleNames.Add("EditorFramework");
                 PublicDependencyModuleNames.Add("UnrealEd");
                 CircularlyReferencedDependentModules.Add("UnrealEd");
             }

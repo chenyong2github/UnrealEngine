@@ -18,6 +18,7 @@ public class WindowsMixedRealityPlatformEditor : ModuleRules
 				"EditorWidgets",
 				"DesktopWidgets",
 				"PropertyEditor",
+				"EditorFramework",
                 "UnrealEd",
                 "SharedSettingsWidgets",
 				"WindowsMixedRealityRuntimeSettings",

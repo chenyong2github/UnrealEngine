@@ -23,6 +23,7 @@ public class LocalizationDashboard : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"EditorFramework",
                 "UnrealEd",
                 "EditorStyle",
 				"DesktopPlatform",

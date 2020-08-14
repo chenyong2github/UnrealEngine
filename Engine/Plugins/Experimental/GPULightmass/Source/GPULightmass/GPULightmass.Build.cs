@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
 					"Renderer",
 					"RHI",
 					"Projects",
+					"EditorFramework",
 					"UnrealEd",
 					"SlateCore",
 					"Slate",

@@ -23,6 +23,7 @@ public class FunctionalTestingEditor : ModuleRules
         PrivateDependencyModuleNames.AddRange(
              new string[] {
                 "Engine",
+				"EditorFramework",
                 "UnrealEd",
                 "LevelEditor",
                 "SessionFrontend",

@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
                     "EditorStyle",
                     "InputCore",
+					"EditorFramework",
                     "UnrealEd",
                     "MainFrame",
                     "MeshDescription",

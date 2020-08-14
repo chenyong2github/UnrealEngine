@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"TakesCore",
 					"TakeRecorder",
 					"TargetPlatform",
+					"EditorFramework",
 					"UnrealEd",
                 }
 			); 

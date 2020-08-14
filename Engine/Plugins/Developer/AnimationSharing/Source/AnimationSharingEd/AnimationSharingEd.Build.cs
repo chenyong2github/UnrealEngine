@@ -13,6 +13,7 @@ public class AnimationSharingEd : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"EditorFramework",
                 "UnrealEd",
                 "AssetTools",
                 "AnimationSharing",

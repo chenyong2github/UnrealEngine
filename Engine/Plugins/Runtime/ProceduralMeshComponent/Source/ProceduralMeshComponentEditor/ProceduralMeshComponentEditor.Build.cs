@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
                     "Engine",
+					"EditorFramework",
                     "UnrealEd",
                     "PropertyEditor",
                     "RenderCore",

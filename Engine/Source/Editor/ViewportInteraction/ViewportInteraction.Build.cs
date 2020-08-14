@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
                     "InputCore",
+					"EditorFramework",
                     "UnrealEd",
                     "Slate",
                     "SlateCore",

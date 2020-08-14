@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
 
             if (Target.Type == TargetType.Editor)
             {
+				PublicDependencyModuleNames.Add("EditorFramework");
                 PublicDependencyModuleNames.Add("UnrealEd");
             }
 

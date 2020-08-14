@@ -74,6 +74,7 @@ public class NiagaraEditor : ModuleRules
                 "Engine",
                 "NiagaraCore",
                 "Niagara",
+				"EditorFramework",
                 "UnrealEd",
             }
         );

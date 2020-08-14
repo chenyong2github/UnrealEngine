@@ -18,6 +18,7 @@ public class HierarchicalLODUtilities : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
 			{
+				"EditorFramework",
 				"Engine",
 				"MeshDescription",
 				"StaticMeshDescription",

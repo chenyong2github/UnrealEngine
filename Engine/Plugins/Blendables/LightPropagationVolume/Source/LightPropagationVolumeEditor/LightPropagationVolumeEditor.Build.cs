@@ -18,6 +18,7 @@ public class LightPropagationVolumeEditor : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
+				"EditorFramework",
 				"UnrealEd",
 			}
         );

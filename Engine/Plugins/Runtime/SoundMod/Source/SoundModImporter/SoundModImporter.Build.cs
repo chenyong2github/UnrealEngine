@@ -14,6 +14,7 @@ public class SoundModImporter : ModuleRules
 				"SlateCore",
                 "Slate",
 				"SoundMod",
+				"EditorFramework",
 				"UnrealEd",
 				"ToolMenus",
 			});

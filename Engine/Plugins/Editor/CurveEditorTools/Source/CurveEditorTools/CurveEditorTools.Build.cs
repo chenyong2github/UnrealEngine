@@ -22,6 +22,7 @@ public class CurveEditorTools : ModuleRules
 				"Slate",
 				"EditorStyle",
 				"SequencerWidgets",
+				"EditorFramework",
 				"UnrealEd",
 				"CoreUObject",
 				"AudioMixer",

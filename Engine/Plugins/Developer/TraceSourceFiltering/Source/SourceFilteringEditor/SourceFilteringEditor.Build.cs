@@ -38,6 +38,7 @@ public class SourceFilteringEditor : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"EditorFramework",
 					"UnrealEd",                 
 				}
 			);

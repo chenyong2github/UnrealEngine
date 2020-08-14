@@ -28,6 +28,7 @@ public class CommonMenuExtensions : ModuleRules
 				"EditorStyle",
 				"Engine",
 				"MessageLog",
+				"EditorFramework",
 				"UnrealEd", 
 				"RenderCore",
 				"EngineSettings",

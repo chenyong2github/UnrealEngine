@@ -21,6 +21,7 @@ public class CryptoKeys : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 				"CryptoKeysOpenSSL",
 				"Slate",

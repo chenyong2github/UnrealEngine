@@ -50,6 +50,7 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                     "Slate",
                     "SlateCore",
+					"EditorFramework",
                     "UnrealEd",
                     "AudioEditor",
                     "LevelEditor",

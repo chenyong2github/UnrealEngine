@@ -44,6 +44,7 @@ public class DisplayClusterProjection : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
+			PrivateDependencyModuleNames.Add("EditorFramework");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 

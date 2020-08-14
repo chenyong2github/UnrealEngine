@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 					"LiveStreamAnimation",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"UnrealEd",
 					"AssetTools",
 					"LiveLinkInterface",

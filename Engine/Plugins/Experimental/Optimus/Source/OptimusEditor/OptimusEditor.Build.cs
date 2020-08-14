@@ -28,6 +28,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"GraphEditor",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"AssetTools",
 					"AdvancedPreviewScene",

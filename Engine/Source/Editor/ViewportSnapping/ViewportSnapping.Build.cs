@@ -12,6 +12,7 @@ public class ViewportSnapping : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"EditorFramework",
 				"Engine",
 // 				"RenderCore",
 // 				"RHI",

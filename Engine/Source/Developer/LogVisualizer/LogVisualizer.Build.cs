@@ -32,6 +32,7 @@ public class LogVisualizer : ModuleRules
 				"SlateCore",
 				"EditorStyle",
 				"Engine",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"ConcertTransport",
 					"DesktopPlatform",
 					"Json",
+					"EditorFramework",
 					"UnrealEd",
 					"EditorStyle",
 					"InputCore",

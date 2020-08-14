@@ -23,6 +23,7 @@ public class OutputLog : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
+						"EditorFramework",
                         "UnrealEd"
 				}
 			);

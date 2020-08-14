@@ -12,6 +12,7 @@ namespace UnrealBuildTool.Rules
 					"AjaMediaOutput",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"EditorStyle",
 					"MediaAssets",
 					"MediaIOCore",

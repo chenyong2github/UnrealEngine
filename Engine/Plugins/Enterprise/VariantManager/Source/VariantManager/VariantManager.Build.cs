@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"EditorFramework",
 					"UnrealEd",
 					"PropertyPath",  // For how we handle captured properties
 					"VariantManagerContent"  // Data classes are in here

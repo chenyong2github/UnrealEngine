@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDependencyModuleNames.AddRange(
 					new string[] {
+						"EditorFramework",
 						"UnrealEd",
 						"BlueprintGraph"
 					}

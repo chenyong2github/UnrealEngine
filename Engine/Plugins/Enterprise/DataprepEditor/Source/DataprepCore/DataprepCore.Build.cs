@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"BlueprintGraph",
 					"Core",
 					"CoreUObject",
+					"EditorFramework",
 					"EditorScriptingUtilities",
 					"EditorStyle",
 					"EditorWidgets",

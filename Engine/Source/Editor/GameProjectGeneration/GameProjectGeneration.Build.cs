@@ -42,6 +42,7 @@ public class GameProjectGeneration : ModuleRules
 				"EditorStyle",
 				"SourceControl",
  				"TargetPlatform",
+				"EditorFramework",
 				"UnrealEd",
 				"DesktopPlatform",
 				"LauncherPlatform",

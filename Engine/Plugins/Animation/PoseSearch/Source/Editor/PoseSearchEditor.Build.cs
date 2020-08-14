@@ -17,6 +17,7 @@ public class PoseSearchEditor : ModuleRules
 				"Engine",
 				"PoseSearch",
 				"ToolMenus",
+				"EditorFramework",
 				"UnrealEd",
 			}
 		);

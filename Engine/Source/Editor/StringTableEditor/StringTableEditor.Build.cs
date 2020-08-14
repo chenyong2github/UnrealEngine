@@ -17,6 +17,7 @@ public class StringTableEditor : ModuleRules
                 "SlateCore",
                 "EditorStyle",
                 "DesktopPlatform",
+				"EditorFramework",
                 "UnrealEd",
             });
 

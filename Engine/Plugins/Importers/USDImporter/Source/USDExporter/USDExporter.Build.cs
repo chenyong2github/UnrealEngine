@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"JsonUtilities",
+					"EditorFramework",
 					"UnrealEd",
 					"InputCore",
 					"SlateCore",

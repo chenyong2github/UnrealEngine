@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InputCore",
+					"EditorFramework",
 					"UnrealEd",
 					"AssetTools",
 					"ScriptPlugin",
