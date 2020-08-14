@@ -30,6 +30,7 @@ private:
 	void OnSlateUserInteraction(double CurrSlateInteractionTime);
 	void OnEnterPIE(const bool /*bIsSimulating*/);
 	void OnExitPIE(const bool /*bIsSimulating*/);
+	void OnUserLoginChanged(bool, int32, int32);
 
 	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession(const FDateTime& StartupTimeUtc, uint32 OutOfProcessMonitorProcessId);
 	static FString GetUserActivityString();

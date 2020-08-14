@@ -14,6 +14,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/FileManager.h"
 #include "IAnalyticsProviderET.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
@@ -112,6 +113,7 @@ void FEditorSessionSummaryWriter::Initialize()
 		FCoreDelegates::OnHandleSystemError.AddRaw(this, &FEditorSessionSummaryWriter::OnCrashing); // WARNING: Don't assume this function is only called from game thread.
 		FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FEditorSessionSummaryWriter::OnTerminate); // WARNING: Don't assume this function is only called from game thread.
 		FCoreDelegates::IsVanillaProductChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnVanillaStateChanged);
+		FCoreDelegates::OnUserLoginChangedEvent.AddRaw(this, &FEditorSessionSummaryWriter::OnUserLoginChanged);
 		FEditorDelegates::PreBeginPIE.AddRaw(this, &FEditorSessionSummaryWriter::OnEnterPIE);
 		FEditorDelegates::EndPIE.AddRaw(this, &FEditorSessionSummaryWriter::OnExitPIE);
 		FUserActivityTracking::OnActivityChanged.AddRaw(this, &FEditorSessionSummaryWriter::OnUserActivity);
@@ -237,6 +239,8 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 		return;
 	}
 
+	CurrentSession->SessionTickCount++;
+
 	const double CurrentTimeSecs = FPlatformTime::Seconds();
 
 	// If the Editor process CPU usage is high enough, this count as an activity.
@@ -311,6 +315,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 		FUserActivityTracking::OnActivityChanged.RemoveAll(this);
 		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
 		FSlateApplication::Get().GetLastUserInteractionTimeUpdateEvent().RemoveAll(this);
+		FCoreDelegates::OnUserLoginChangedEvent.RemoveAll(this);
 		FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 
 		CurrentSession->bWasShutdown = true;
@@ -331,7 +336,7 @@ void FEditorSessionSummaryWriter::Shutdown()
 	bShutdown = true;
 }
 
-TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSession(const FDateTime& StartupTimeUtc, uint32 OutOfProcessMonitorProcessId)
+TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSession(const FDateTime& StartupTimeUtc, uint32 CrashReportClientProcessId)
 {
 	check(FEngineAnalytics::IsAvailable()); // The function assumes the caller checked it before calling.
 
@@ -356,9 +361,22 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->AppVersion = AnalyticProvider.GetAppVersion();
 	Session->UserId = AnalyticProvider.GetUserID();
 
+	FString ProjectName = FApp::GetProjectName();
+	if (ProjectName.Len() && ProjectSettings.ProjectName.Len())
+	{
+		if (ProjectSettings.ProjectName != ProjectName)
+		{
+			ProjectName = ProjectName / ProjectSettings.ProjectName; // The project names don't match, report both.
+		}
+	}
+	else if (ProjectName.IsEmpty())
+	{
+		ProjectName = ProjectSettings.ProjectName;
+	}
+
 	Session->PlatformProcessID = FPlatformProcess::GetCurrentProcessId();
-	Session->MonitorProcessID = OutOfProcessMonitorProcessId;
-	Session->ProjectName = ProjectSettings.ProjectName.Len() ? ProjectSettings.ProjectName : FApp::GetProjectName();
+	Session->MonitorProcessID = CrashReportClientProcessId;
+	Session->ProjectName = ProjectName;
 	Session->ProjectID = ProjectSettings.ProjectID.ToString(EGuidFormats::DigitsWithHyphens);
 	Session->ProjectDescription = ProjectSettings.Description;
 	Session->ProjectVersion = ProjectSettings.ProjectVersion;
@@ -369,6 +387,21 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->CurrentUserActivity = GetUserActivityString();
 	Session->bIsVanilla = GEngine && GEngine->IsVanillaProduct();
+
+	// TODO: Add a function later on to PlatfomCrashContext to check existance of CRC. This is only used on windows at the moment to categorize cases where CRC fails to report the exit code (only supported on Windows).
+#if PLATFORM_WINDOWS
+	// If the monitor process (CRC) did not launch, check if the executable is present. (Few people seems to delete it or not build it)
+	if (Session->MonitorProcessID == 0)
+	{
+		const FString EngineDir = FPlatformMisc::EngineDir();
+
+		// Find the path to crash reporter binary. Avoid creating FStrings.
+		FString CrcPathRel = EngineDir / TEXT("Binaries") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("CrashReportClientEditor.exe");
+		FString CrcPathDev = EngineDir / TEXT("Binaries") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("CrashReportClientEditor-Win64-Development.exe");
+
+		Session->bIsCrcExeMissing = !IFileManager::Get().FileExists(*CrcPathRel) && !IFileManager::Get().FileExists(*CrcPathDev);
+	}
+#endif
 
 	FString OSMajor;
 	FString OSMinor;
@@ -426,7 +459,6 @@ void FEditorSessionSummaryWriter::OnCrashing()
 		UpdateEditorIdleTime(CurrTimeSecs, /*bSaveSession*/false);
 		UpdateSessionDuration(CurrTimeSecs);
 		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Crashed, FDateTime::UtcNow());
-		CurrentSession->bCrashed = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
 
 		if (GIsGPUCrashed)
 		{
@@ -434,8 +466,8 @@ void FEditorSessionSummaryWriter::OnCrashing()
 			CurrentSession->bGPUCrashed = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
 		}
 
-		// At last, try to save the session. It may fail, but the locklessly logged events above will carry the most important information.
-		TrySaveCurrentSession(FDateTime::UtcNow(), FPlatformTime::Seconds());
+		// NOTE: Don't explicitely Shutdown(), it is expected to be called on game thread to prevent unregistering delegate from a random thread.
+		// NOTE: Don't call TrySaveCurrentSession(), not all fields are atomic and saving could write a corrupted version if the field is written at the same time.
 	}
 }
 
@@ -449,12 +481,9 @@ void FEditorSessionSummaryWriter::OnTerminate()
 		UpdateEditorIdleTime(CurrTimeSecs, /*bSaveSession*/false);
 		UpdateSessionDuration(CurrTimeSecs);
 		CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::Terminated, FDateTime::UtcNow());
-		CurrentSession->bIsTerminating = true; // Not atomic and not strictly required, the logged event will cover for it, but for debugging this is easier when looking in the registry directly.
-
-		// At last, try to save the session. It may fail, but the locklessly logged events above will carry the most important information.
-		TrySaveCurrentSession(FDateTime::UtcNow(), FPlatformTime::Seconds());
 
 		// NOTE: Don't explicitely Shutdown(), it is expected to be called on game thread to prevent unregistering delegate from a random thread.
+		// NOTE: Don't call TrySaveCurrentSession(), not all fields are atomic and saving could write a corrupted version if the field is written at the same time.
 	}
 }
 
@@ -476,6 +505,24 @@ void FEditorSessionSummaryWriter::OnUserActivity(const FUserActivity& UserActivi
 	}
 }
 
+void FEditorSessionSummaryWriter::OnUserLoginChanged(bool bLoggingIn, int32, int32)
+{
+	if (!bLoggingIn)
+	{
+		CurrentSession->bIsUserLoggingOut = true;
+
+		double CurrTimeSecs = FPlatformTime::Seconds();
+		FDateTime CurrTimeUtc = FDateTime::UtcNow();
+		if (!TrySaveCurrentSession(CurrTimeUtc, CurrTimeSecs)) // If the save fails (because the lock was already taken)
+		{
+			UpdateUserIdleTime(CurrTimeSecs, /*bReset*/false);
+			UpdateEditorIdleTime(CurrTimeSecs, /*bReset*/false);
+			UpdateSessionDuration(CurrTimeSecs);
+			CurrentSession->LogEvent(FEditorAnalyticsSession::EEventType::LogOut, FDateTime::UtcNow()); // Use the lockless mechanism. It doesn't save everything, but it carries the critical information.
+		}
+	}
+}
+
 FString FEditorSessionSummaryWriter::GetUserActivityString()
 {
 	const FUserActivity& UserActivity = FUserActivityTracking::GetUserActivity();
@@ -490,6 +537,8 @@ FString FEditorSessionSummaryWriter::GetUserActivityString()
 
 void FEditorSessionSummaryWriter::OnSlateUserInteraction(double CurrSlateInteractionTime)
 {
+	CurrentSession->UserInteractionCount++;
+
 	// User input 'reset' the idle timers.
 	double CurrTimeSecs = FPlatformTime::Seconds();
 	bool bSave = UpdateUserIdleTime(CurrTimeSecs, /*bReset*/true);

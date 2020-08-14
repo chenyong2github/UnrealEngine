@@ -23,7 +23,7 @@ public:
 	void Tick(float DeltaTime);
 	void Shutdown();
 
-	void SetMonitorDiagnosticLogs(TMap<uint32, FString>&& Logs);
+	void SetMonitorDiagnosticLogs(TMap<uint32, TTuple<FString, FDateTime>>&& Logs);
 
 private:
 	/** Send any stored Sessions. */
@@ -35,5 +35,5 @@ private:
 	IAnalyticsProviderET& AnalyticsProvider;
 	FString Sender;
 	uint32 CurrentSessionProcessId;
-	TMap<uint32, FString> MonitorMiniLogs; // Maps Monitor Process ID/Monitor Log
+	TMap<uint32, TTuple<FString,FDateTime>> MonitorMiniLogs; // Maps Monitor Process ID/Monitor Log
 };
