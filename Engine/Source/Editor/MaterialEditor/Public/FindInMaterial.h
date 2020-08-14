@@ -98,6 +98,9 @@ protected:
 	/** Called when user clicks on a new result */
 	void OnTreeSelectionChanged(FSearchResult Item, ESelectInfo::Type SelectInfo);
 
+	/** Called when user double clicks on a new result */
+	void OnTreeSelectionDoubleClick(FSearchResult Item);
+
 	/** Called when a new row is being generated */
 	TSharedRef<ITableRow> OnGenerateRow(FSearchResult InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
