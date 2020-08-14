@@ -81,9 +81,12 @@ void FModPatchCurveEditorModel::Refresh(EModPatchOutputEditorCurveSource InSourc
 	SupportedViews = ViewId;
 
 	ShortDisplayName = LOCTEXT("ModulationCurveDisplayTitle_BusUnset", "Bus (Unset)");
-	if (const USoundControlBus* Bus = Input->GetBus())
+	if (ensure(Input))
 	{
-		ShortDisplayName = FText::FromString(Input->GetBus()->GetName());
+		if (const USoundControlBus* Bus = Input->GetBus())
+		{
+			ShortDisplayName = FText::FromString(Input->GetBus()->GetName());
+		}
 	}
 
 	bKeyDrawEnabled = false;
