@@ -739,7 +739,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::RebuildEdgeLinkLists(EdgePtrArr
 }
 
 
-void SkeletalSimplifier::FSimplifierMeshManager::VisitEdges(TFunction<void(SimpVertType*, SimpVertType*, int32)> EdgeVisitor)
+void SkeletalSimplifier::FSimplifierMeshManager::VisitEdges(TFunctionRef<void(SimpVertType*, SimpVertType*, int32)> EdgeVisitor)
 {
 
 	TArray< SimpVertType*, TInlineAllocator<64> > adjVerts;
@@ -749,7 +749,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::VisitEdges(TFunction<void(SimpV
 		return;
 	}
 
-	// clear the mark2 flags. We use these to determine if we have visted a vert group.
+	// clear the mark2 flags. We use these to determine if we have visited a vert group.
 	for (int32 i = 0; i < NumSrcVerts; ++i)
 	{
 		SimpVertType* v0 = &VertArray[i];
@@ -1857,31 +1857,18 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::CountDegenerateEdges() const
 float  SkeletalSimplifier::FSimplifierMeshManager::FractionNonManifoldEdges(bool bLockNonManifoldEdges)
 {
 
-	int32 NumNonManifoldEdges = 0;
-	int32 EdgeCount = 0;
+	FNonManifoldEdgeCounter NonManifoldEdgeCounter;
+	NonManifoldEdgeCounter.EdgeCount = 0;
+	NonManifoldEdgeCounter.NumNonManifoldEdges = 0;
+	NonManifoldEdgeCounter.bLockNonManifoldEdges = bLockNonManifoldEdges;
 
-	auto NonManifoldEdgeCounter = [&NumNonManifoldEdges, &EdgeCount, bLockNonManifoldEdges](SimpVertType* v0, SimpVertType* v1, int32 AdjFaceCount)->void
-	{
-		EdgeCount++;
-		if (AdjFaceCount > 2)
-		{
-			NumNonManifoldEdges++;
-
-			if (bLockNonManifoldEdges)
-			{ 
-				// lock these verts.
-				v0->EnableFlagsGroup(SIMP_LOCKED);
-				v1->EnableFlagsGroup(SIMP_LOCKED);
-			}
-		}
-	};
 
 	VisitEdges(NonManifoldEdgeCounter);
 
 	float FractionBadEdges =  0.f;
-	if (EdgeCount != 0)
+	if (NonManifoldEdgeCounter.EdgeCount != 0)
 	{ 
-		FractionBadEdges = float(NumNonManifoldEdges) / EdgeCount;
+		FractionBadEdges = float(NonManifoldEdgeCounter.NumNonManifoldEdges) / NonManifoldEdgeCounter.EdgeCount;
 	}
 
 	return FractionBadEdges;
