@@ -9,6 +9,7 @@ namespace Chaos
 	class TPBDShapeConstraints : public TPBDShapeConstraintsBase<T, d>
 	{
 		typedef TPBDShapeConstraintsBase<T, d> Base;
+		using Base::MParticleOffset;
 
 	public:
 
