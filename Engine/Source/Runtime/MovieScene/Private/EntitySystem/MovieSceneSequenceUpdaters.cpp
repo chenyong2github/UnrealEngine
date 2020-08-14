@@ -461,6 +461,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				Params.HierarchicalBias = SubData->HierarchicalBias;
 				Params.bPreRoll  = bIsPreRoll;
 				Params.bPostRoll = bIsPostRoll;
+				Params.bHasHierarchicalEasing = SubData->bHasHierarchicalEasing;
 
 				if (bGatherEntities)
 				{
