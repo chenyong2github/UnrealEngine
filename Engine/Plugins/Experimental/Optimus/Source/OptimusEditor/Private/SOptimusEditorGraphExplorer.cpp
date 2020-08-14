@@ -477,7 +477,7 @@ FText SOptimusEditorGraphExplorer::OnGetSectionTitle(int32 InSectionID)
 
 TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID)
 {
-	FText AddNewText;
+	FText AddNewTooltipText;
 
 	switch (EOptimusSchemaItemGroup(InSectionID))
 	{
@@ -486,15 +486,15 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		break;
 
 	case EOptimusSchemaItemGroup::Graphs:
-		AddNewText = LOCTEXT("AddNewGraph", "New Graph");
+		AddNewTooltipText = LOCTEXT("AddNewGraphHelp", "Create a new Setup or Trigger graph");
 		break;
 
 	case EOptimusSchemaItemGroup::Buffers:
-		AddNewText = LOCTEXT("AddNewBuffer", "New Buffer");
+		AddNewTooltipText = LOCTEXT("AddNewBufferHelp", "Create a new workbuffer resource");
 		break;
 
 	case EOptimusSchemaItemGroup::Variables:
-		AddNewText = LOCTEXT("AddNewVariable", "Variable");
+		AddNewTooltipText = LOCTEXT("AddNewVariableHelp", "Create a new externally visible variable");
 		break;
 	}
 
@@ -531,30 +531,14 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		    .ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
 		    .ContentPadding(FMargin(2, 0))
 			.OnGetMenuContent_Lambda([AddMenuWidget]() { return AddMenuWidget.ToSharedRef(); })
-			.HasDownArrow(true)
+			.HasDownArrow(false)
 		    .HAlign(HAlign_Center)
 		    .VAlign(VAlign_Center)
 			.ButtonContent()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(0, 1))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(FMargin(2, 0, 0, 0))
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-					.Text(AddNewText)
-					.Visibility(this, &SOptimusEditorGraphExplorer::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
-					.ShadowOffset(FVector2D(1, 1))
-				]
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("Plus"))
+				.ToolTipText(AddNewTooltipText)
 			];
 	}
 	else
@@ -568,48 +552,10 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		    .HAlign(HAlign_Center)
 		    .VAlign(VAlign_Center)
 		    [
-				SNew(SHorizontalBox) 
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(0, 1))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
-				] 
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				.Padding(FMargin(2, 0, 0, 0))
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-					.Text(AddNewText)
-					.Visibility(this, &SOptimusEditorGraphExplorer::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
-					.ShadowOffset(FVector2D(1, 1))
-				]
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("Plus"))
+		        .ToolTipText(AddNewTooltipText)
 			];
-	}
-}
-
-
-EVisibility SOptimusEditorGraphExplorer::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget, int32 InSectionID) const
-{
-	bool ShowText = RowWidget.Pin()->IsHovered();
-	/*
-	if (InSectionID == NodeSectionID::FUNCTION && FunctionSectionButton.IsValid() && FunctionSectionButton->IsOpen())
-	{
-		ShowText = true;
-	}
-	*/
-
-	// If the row is currently hovered, or a menu is being displayed for a button, keep the button expanded.
-	if (ShowText)
-	{
-		return EVisibility::SelfHitTestInvisible;
-	}
-	else
-	{
-		return EVisibility::Collapsed;
 	}
 }
 

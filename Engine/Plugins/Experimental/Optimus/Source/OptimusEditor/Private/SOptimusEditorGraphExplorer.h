@@ -76,7 +76,6 @@ private:
 
 	FText OnGetSectionTitle(int32 InSectionID);
 	TSharedRef<SWidget> OnGetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
-	EVisibility OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget, int32 InSectionID) const;
 
 	FReply OnAddButtonClickedOnSection(int32 InSectionID);
 	bool CanAddNewElementToSection(int32 InSectionID) const;
