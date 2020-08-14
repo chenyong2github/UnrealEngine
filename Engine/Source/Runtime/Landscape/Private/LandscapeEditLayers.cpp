@@ -1277,7 +1277,7 @@ typedef FLandscapeLayersRender_RenderThread<FLandscapeLayersWeightmapShaderParam
 
 #if WITH_EDITOR
 
-struct FLandscapeIsTextureFullyStreamedIn
+struct FLandscapeIsTextureReady
 {
 	bool operator()(UTexture2D* InTexture, bool bInWaitForStreaming)
 	{
@@ -1285,7 +1285,6 @@ struct FLandscapeIsTextureFullyStreamedIn
 		InTexture->bForceMiplevelsToBeResident = true;
 		if (bInWaitForStreaming)
 		{
-			FTextureCompilingManager::Get().FinishCompilation({InTexture});
 			InTexture->WaitForStreaming();
 		}
 		return !InTexture->IsDefaultTexture() && InTexture->IsFullyStreamedIn();
@@ -1668,8 +1667,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 				FMemory::Memcpy(Mip0Data, ExistingMip0Data.GetData(), ExistingMip0Data.Num());
 				DefaultLayerHeightmap->Source.UnlockMip(0);
 
-				DefaultLayerHeightmap->BeginCachePlatformData();
-				DefaultLayerHeightmap->ClearAllCachedCookedPlatformData();
+				DefaultLayerHeightmap->UpdateResource();
 			}
 
 			// Weightmaps
@@ -1748,8 +1746,7 @@ void ALandscape::CopyOldDataToDefaultLayer(ALandscapeProxy* InProxy)
 
 					ProcessedWeightmaps.Add(ComponentWeightmap, NewTextureData);
 
-					NewLayerWeightmapTexture->BeginCachePlatformData();
-					NewLayerWeightmapTexture->ClearAllCachedCookedPlatformData();
+					NewLayerWeightmapTexture->UpdateResource();
 				}
 			}
 		}
@@ -2671,10 +2668,10 @@ bool ALandscape::PrepareLayersBrushTextureResources(bool bInWaitForStreaming, bo
 	}
 
 	bool bReady = true;
-	FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
+	FLandscapeIsTextureReady IsTextureReady;
 	for (UTexture2D* Texture : StreamableTextures)
 	{
-		bReady &= IsTextureFullyStreamedIn(Texture, bInWaitForStreaming);
+		bReady &= IsTextureReady(Texture, bInWaitForStreaming);
 	}
 
 	return bReady;
@@ -2694,38 +2691,22 @@ bool ALandscape::PrepareLayersHeightmapTextureResources(bool bInWaitForStreaming
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
+		FLandscapeIsTextureReady IsTextureReady;
 				
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
 			UTexture2D* ComponentHeightmap = Component->GetHeightmap();
 
-			IsReady &= IsTextureFullyStreamedIn(ComponentHeightmap, bInWaitForStreaming);
+			IsReady &= IsTextureReady(ComponentHeightmap, bInWaitForStreaming);
 
 			for (const FLandscapeLayer& Layer : LandscapeLayers)
 			{
 				FLandscapeLayerComponentData* ComponentLayerData = Component->GetLayerData(Layer.Guid);
 
 				IsReady &= ComponentLayerData != nullptr;
-
 				if (ComponentLayerData != nullptr)
 				{
-					UTexture2D* LayerHeightmap = ComponentLayerData->HeightmapData.Texture;
-
-					if ((LayerHeightmap->IsAsyncCacheComplete() || bInWaitForStreaming) && LayerHeightmap->Resource == nullptr)
-					{
-						LayerHeightmap->FinishCachePlatformData();
-
-						LayerHeightmap->Resource = LayerHeightmap->CreateResource();
-
-						if (LayerHeightmap->Resource != nullptr)
-						{
-							BeginInitResource(LayerHeightmap->Resource);
-						}
-					}
-
-					IsReady &= IsTextureFullyStreamedIn(LayerHeightmap, bInWaitForStreaming);
-					IsReady &= bInWaitForStreaming || (LayerHeightmap->Resource != nullptr && LayerHeightmap->Resource->IsInitialized());
+					IsReady &= IsTextureReady(ComponentLayerData->HeightmapData.Texture, bInWaitForStreaming);
 				}
 			}
 		}
@@ -3544,20 +3525,19 @@ void ALandscape::ReallocateLayersWeightmaps(const TArray<ULandscapeComponent*>& 
 	}
 
 	// Realloc the weightmap so it will create proper texture (if needed) and will set the allocations information
-	TArray<UTexture2D*> NewCreatedTextures;
+	TArray<UTexture*> NewCreatedTextures;
 
 	for (ULandscapeComponent* Component : InLandscapeComponents)
 	{
-		Component->ReallocateWeightmaps(nullptr, false, false, true, false, nullptr, &NewCreatedTextures);
+		Component->ReallocateWeightmaps(nullptr, false, false, false, nullptr, &NewCreatedTextures);
 	}
 
 	// TODO: correctly only recreate what is required instead of everything..
 	//GDisableAutomaticTextureMaterialUpdateDependencies = true;
 
-	for (UTexture2D* Texture : NewCreatedTextures)
+	FTextureCompilingManager::Get().FinishCompilation(NewCreatedTextures);
+	for (UTexture* Texture : NewCreatedTextures)
 	{
-		Texture->FinishCachePlatformData();
-		Texture->PostEditChange();
 		Texture->bForceMiplevelsToBeResident = true;
 		Texture->WaitForStreaming();
 	}
@@ -3688,14 +3668,14 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 
 	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		FLandscapeIsTextureFullyStreamedIn IsTextureFullyStreamedIn;
+		FLandscapeIsTextureReady IsTextureReady;
 		for (const FLandscapeLayer& Layer : LandscapeLayers)
 		{
 			for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 			{
 				for (UTexture2D* ComponentWeightmap : Component->GetWeightmapTextures())
 				{
-					if (!IsTextureFullyStreamedIn(ComponentWeightmap, bInWaitForStreaming))
+					if (!IsTextureReady(ComponentWeightmap, bInWaitForStreaming))
 					{
 						IsReady = false;
 						break;
@@ -3710,20 +3690,7 @@ bool ALandscape::PrepareLayersWeightmapTextureResources(bool bInWaitForStreaming
 				{
 					for (UTexture2D* LayerWeightmap : ComponentLayerData->WeightmapData.Textures)
 					{
-						if ((LayerWeightmap->IsAsyncCacheComplete() || bInWaitForStreaming) && LayerWeightmap->Resource == nullptr)
-						{
-							LayerWeightmap->FinishCachePlatformData();
-
-							LayerWeightmap->Resource = LayerWeightmap->CreateResource();
-
-							if (LayerWeightmap->Resource != nullptr)
-							{
-								BeginInitResource(LayerWeightmap->Resource);
-							}
-						}
-
-						IsReady &= IsTextureFullyStreamedIn(LayerWeightmap, bInWaitForStreaming);
-						IsReady &= bInWaitForStreaming || (LayerWeightmap->Resource != nullptr && LayerWeightmap->Resource->IsInitialized());
+						IsReady &= IsTextureReady(LayerWeightmap, bInWaitForStreaming);
 					}
 				}
 			}
@@ -5363,15 +5330,6 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 		check(ComponentsUsingHeightmap != nullptr);
 
 		Component->AddDefaultLayerData(InLayerGuid, *ComponentsUsingHeightmap, CreatedHeightmapTextures);
-	}
-
-	// Finish caching
-	for (TPair<UTexture2D*, UTexture2D*> Pair : CreatedHeightmapTextures)
-	{
-		if (Pair.Value != nullptr && !Pair.Value->IsAsyncCacheComplete())
-		{
-			Pair.Value->FinishCachePlatformData();
-		}
 	}
 }
 #endif

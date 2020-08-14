@@ -22,6 +22,7 @@ LandscapeEditInterface.cpp: Landscape editing interface
 #include "LandscapeRender.h"
 #include "ComponentReregisterContext.h"
 #include "Algo/Transform.h"
+#include "TextureCompiler.h"
 
 // Channel remapping
 extern const size_t ChannelOffsets[4] = {STRUCT_OFFSET(FColor,R), STRUCT_OFFSET(FColor,G), STRUCT_OFFSET(FColor,B), STRUCT_OFFSET(FColor,A)};
@@ -5663,7 +5664,6 @@ void FLandscapeEditDataInterface::GetXYOffsetDataFast(const int32 X1, const int3
 FLandscapeTextureDataInfo::FLandscapeTextureDataInfo(UTexture2D* InTexture, bool bShouldDirtyPackage)
 :	Texture(InTexture)
 {
-	check(InTexture->IsAsyncCacheComplete());
 	MipInfo.AddZeroed(Texture->Source.GetNumMips());
 	Texture->SetFlags(RF_Transactional);
 	Texture->TemporarilyDisableStreaming();
@@ -5681,6 +5681,9 @@ bool FLandscapeTextureDataInfo::UpdateTextureData()
 		DataSize = sizeof(uint8);
 	}
 
+	// Only wait once
+	bool bNeedToFinishCompilation = true;
+
 	for (int32 i = 0; i < MipInfo.Num(); i++)
 	{
 		if (MipInfo[i].MipData && MipInfo[i].MipUpdateRegions.Num() > 0)
@@ -5690,6 +5693,13 @@ bool FLandscapeTextureDataInfo::UpdateTextureData()
 				bNeedToWaitForUpdate = true;
 				// Cannot update regions on compressed textures so we will update the whole texture below.
 				break;
+			}
+
+			if (bNeedToFinishCompilation)
+			{
+				// Need to make sure we have a valid Resource
+				FTextureCompilingManager::Get().FinishCompilation({ Texture });
+				bNeedToFinishCompilation = false;
 			}
 
 			const uint32 SrcSizeX = (Texture->Source.GetSizeX()) >> i;

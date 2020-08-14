@@ -1823,8 +1823,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 
 			NewLayerHeightmap->Source.UnlockMip(0);
 
-			NewLayerHeightmap->BeginCachePlatformData();
-			NewLayerHeightmap->ClearAllCachedCookedPlatformData();
+			NewLayerHeightmap->UpdateResource();
 		}
 
 		NewData.HeightmapData.Texture = *LayerHeightmap;

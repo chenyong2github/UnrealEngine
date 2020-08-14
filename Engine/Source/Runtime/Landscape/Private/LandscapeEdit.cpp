@@ -3065,8 +3065,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 		// Retrigger a caching of the platform data as we wrote again in the textures
 		for (UTexture2D* Texture : LayersTextures)
 		{
-			Texture->ClearAllCachedCookedPlatformData();
-			Texture->BeginCachePlatformData();
+			Texture->UpdateResource();
 		}
 
 		LandscapeActor->RequestLayersContentUpdateForceAll();
@@ -4257,11 +4256,11 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		FLandscapeEditDataInterface LandscapeEdit(this);
 		for (ULandscapeComponent* Component : TargetSelectedComponents)
 		{
-			Component->ReallocateWeightmaps(&LandscapeEdit, false, true, false, true, LandscapeProxy);
+			Component->ReallocateWeightmaps(&LandscapeEdit, false, true, true, LandscapeProxy);
 			Component->ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
 			{
 				FScopedSetLandscapeEditingLayer Scope(Landscape, LayerGuid);
-				Component->ReallocateWeightmaps(&LandscapeEdit, true, true, false, true, LandscapeProxy);
+				Component->ReallocateWeightmaps(&LandscapeEdit, true, true, true, LandscapeProxy);
 			});
 			Landscape->RequestLayersContentUpdateForceAll();
 		}
@@ -4359,6 +4358,8 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 		// Create the new heightmap texture
 		NewHeightmapTexture = DstProxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8);
 		ULandscapeComponent::CreateEmptyTextureMips(NewHeightmapTexture, true);
+		NewHeightmapTexture->PostEditChange();
+
 		Comp->HeightmapScaleBias = NewHeightmapScaleBias;
 		Comp->SetHeightmap(NewHeightmapTexture);
 
@@ -4378,8 +4379,6 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 
 	// We disable automatic material update context, to manage it manually if we have a custom update context specified
 	GDisableAutomaticTextureMaterialUpdateDependencies = (InOutUpdateContext != nullptr);
-
-	NewHeightmapTexture->PostEditChange();
 
 	if (InOutUpdateContext != nullptr)
 	{
@@ -5364,7 +5363,7 @@ void ULandscapeInfo::ClearSelectedRegion(bool bIsComponentwise /*= true*/)
 	}
 }
 
-void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InInitPlatformDataAsync, bool InForceReallocate, ALandscapeProxy* InTargetProxy, TArray<UTexture2D*>* OutNewCreatedTextures)
+void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* DataInterface, bool InCanUseEditingWeightmap, bool InSaveToTransactionBuffer, bool InForceReallocate, ALandscapeProxy* InTargetProxy, TArray<UTexture*>* OutNewCreatedTextures)
 {
 	int32 NeededNewChannels = 0;
 	ALandscapeProxy* TargetProxy = InTargetProxy ? InTargetProxy : GetLandscapeProxy();
@@ -5548,15 +5547,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			// Alloc dummy mips
 			CreateEmptyTextureMips(CurrentWeightmapTexture, true);
 
-			if (InInitPlatformDataAsync)
-			{
-				CurrentWeightmapTexture->BeginCachePlatformData();
-				CurrentWeightmapTexture->ClearAllCachedCookedPlatformData();
-			}
-			else
-			{
-				CurrentWeightmapTexture->PostEditChange();
-			}
+			CurrentWeightmapTexture->PostEditChange();
 
 			if (OutNewCreatedTextures != nullptr)
 			{
