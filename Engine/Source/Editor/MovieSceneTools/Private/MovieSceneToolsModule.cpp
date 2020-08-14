@@ -72,8 +72,13 @@
 
 #include "MovieSceneEventUtils.h"
 
+#include "EntitySystem/MovieSceneEntityManager.h"
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
+
+#if !IS_MONOLITHIC
+	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
+#endif
 
 void FMovieSceneToolsModule::StartupModule()
 {
