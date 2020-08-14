@@ -227,6 +227,7 @@ void FActorRepList::Release()
 
 void FActorRepListRefView::RequestNewList(int32 NewSize, bool CopyExistingContent)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(RepList_RequestNewList);
 	FActorRepList* NewList = &GActorListAllocator.RequestList(NewSize > 0 ? NewSize : InitialListSize);
 	if (CopyExistingContent)
 	{
