@@ -18,7 +18,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8CCB-1FDD-82E0-71B66692BD9B")
+#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8DDB-1FDD-82E0-71B66692BD9B")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32

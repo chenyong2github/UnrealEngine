@@ -1501,6 +1501,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
 
+	Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
+	Nanite::GStreamingManager.BeginAsyncUpdate(RHICmdList);
+
 	check(RHICmdList.IsOutsideRenderPass());
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
@@ -1619,8 +1622,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Find the visible primitives.
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
-	Nanite::GStreamingManager.Update(RHICmdList);	// Must happen before Lumen / Probe, so newly loaded meshes have data
 
 	bool bDoInitViewAftersPrepass = false;
 	{
@@ -1945,6 +1946,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	Nanite::ListStatFilters(this);
+
+	Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);	// Must happen before any Nanite rendering in the frame
 
 	// The Z-prepass
 

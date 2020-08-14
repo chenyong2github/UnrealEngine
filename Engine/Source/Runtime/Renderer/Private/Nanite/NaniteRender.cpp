@@ -2799,6 +2799,8 @@ void CullRasterizeInner(
 	LLM_SCOPE(ELLMTag::Nanite);
 	RDG_EVENT_SCOPE( GraphBuilder, "Nanite::CullRasterize" );
 
+	check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
+
 	// TODO: if we need this emulation feature by going through the view we can probably pass in the shader map as part of the context and get it out of the view at context-creation time
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 

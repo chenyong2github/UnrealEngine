@@ -30,7 +30,7 @@
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
 
-#define CLUSTER_PAGE_GPU_SIZE_BITS				18														// must match define in NaniteDataDecode.ush
+#define CLUSTER_PAGE_GPU_SIZE_BITS				17														// must match define in NaniteDataDecode.ush
 #define CLUSTER_PAGE_GPU_SIZE					( 1 << CLUSTER_PAGE_GPU_SIZE_BITS )						// must match define in NaniteDataDecode.ush
 #define CLUSTER_PAGE_DISK_SIZE					( CLUSTER_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_BITS				11														// must match define in NaniteDataDecode.ush

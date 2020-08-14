@@ -71,11 +71,18 @@ struct FRootPageInfo
 
 struct FPendingPage
 {
-#if WITH_EDITOR == 0
-	IFileCacheHandle*		Handle;
-	IMemoryReadStreamRef	ReadStream;
-	FGraphEventArray		CompletionEvents;
+#if !WITH_EDITOR
+	uint8*					MemoryPtr;
+	FIoRequest				Request;
+	FIoBatch				Batch;
+	bool					bFreeBatchWhenDone;		// Should the batch be freed once this request has been processed?
+
+	// Legacy compatibility
+	// Delete when we can rely on IoStore
+	IAsyncReadFileHandle*	AsyncHandle;
+	IAsyncReadRequest*		AsyncRequest;
 #endif
+
 	uint32					GPUPageIndex;
 	FPageKey				InstallKey;
 #if !UE_BUILD_SHIPPING
@@ -85,6 +92,15 @@ struct FPendingPage
 
 class FRequestsHashTable;
 class FStreamingPageUploader;
+
+struct FAsyncState
+{
+	FRHIGPUBufferReadback*	LatestReadbackBuffer		= nullptr;
+	const uint32*			LatestReadbackBufferPtr		= nullptr;
+	uint32					NumReadyPages				= 0;
+	bool					bUpdateActive				= false;
+	bool					bBuffersTransitionedToWrite = false;
+};
 
 /*
  * Streaming manager for Nanite.
@@ -101,17 +117,19 @@ public:
 	void	Add( FResources* Resources );
 	void	Remove( FResources* Resources );
 
-	ENGINE_API void	Update( FRHICommandListImmediate& RHICmdList );				// Called once per frame before any Nanite rendering has occurred.
-	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);	// Called once per frame after the last request has been added.
+	ENGINE_API void BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList);			// Called once per frame before any Nanite rendering has occurred. Must be called before EndUpdate.
+	ENGINE_API void EndAsyncUpdate(FRHICommandListImmediate& RHICmdList);			// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
+	ENGINE_API bool IsAsyncUpdateInProgress();
+	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 	
 
-	TRefCountPtr< FPooledRDGBuffer >&	GetStreamingRequestsBuffer() { return StreamingRequestsBuffer; }
+	TRefCountPtr< FPooledRDGBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
 
-	FRHIShaderResourceView*		GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
-	FRHIShaderResourceView*		GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
-	FRHIShaderResourceView*		GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
-	
+	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetClusterPageHeadersSRV() const	{ return ClusterPageHeaders.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
 private:
+	friend class FStreamingUpdateTask;
 	struct FHeapBuffer
 	{
 		int32					TotalUpload = 0;
@@ -168,9 +186,15 @@ private:
 	TArray< FFixupChunk >					StreamingPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
 
 	TArray< FPendingPage >					PendingPages;
+#if !WITH_EDITOR
+	TArray< uint8 >							PendingPageStagingMemory;
+#endif
 
 	FRequestsHashTable*						RequestsHashTable;
 	FStreamingPageUploader*					PageUploader;
+
+	FGraphEventArray						AsyncTaskEvents;
+	FAsyncState								AsyncState;
 
 	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
 	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages );
@@ -185,7 +209,11 @@ private:
 
 	// Returns whether any work was done and page/hierarchy buffers were transitioned to compute writable state
 	bool ProcessNewResources( FRHICommandListImmediate& RHICmdList );
-	bool ProcessPendingPages( FRHICommandListImmediate& RHICmdList );
+	
+	uint32 DetermineReadyPages();
+	void InstallReadyPages( uint32 NumReadyPages );
+
+	void AsyncUpdate();
 
 #if DO_CHECK
 	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );

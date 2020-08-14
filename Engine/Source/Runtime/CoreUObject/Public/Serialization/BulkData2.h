@@ -224,10 +224,9 @@ public:
 	void ForceBulkDataResident(); // Is closer to MakeSureBulkDataIsLoaded in the old system but kept the name due to existing use
 	FOwnedBulkDataPtr* StealFileMapping();
 
+	FIoChunkId CreateChunkId() const;
 private:
 	friend FBulkDataAllocation;
-
-	FIoChunkId CreateChunkId() const;
 
 	void SetRuntimeBulkDataFlags(uint32 BulkDataFlagsToSet);
 	void ClearRuntimeBulkDataFlags(uint32 BulkDataFlagsToClear);

@@ -613,7 +613,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		}	
 
 		Nanite::GGlobalResources.Update(RHICmdList);
-		Nanite::GStreamingManager.Update(RHICmdList);
+		Nanite::GStreamingManager.BeginAsyncUpdate(RHICmdList);
+		Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);
 
 		GEngine->GetPreRenderDelegate().Broadcast();
 

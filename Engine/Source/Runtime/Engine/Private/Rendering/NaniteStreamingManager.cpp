@@ -13,26 +13,35 @@
 #include "Logging/LogMacros.h"
 #include "Async/ParallelFor.h"
 
-#define MAX_STREAMING_PAGES_BITS		11u
-#define MAX_STREAMING_PAGES				(1u << MAX_STREAMING_PAGES_BITS)
+#define MAX_STREAMING_PAGES_BITS			12u
+#define MAX_STREAMING_PAGES					(1u << MAX_STREAMING_PAGES_BITS)
 
-#define MIN_ROOT_PAGES_CAPACITY			2048u
+#define MIN_ROOT_PAGES_CAPACITY				2048u
 
-#define MAX_PENDING_PAGES				32u
-#define MAX_INSTALLS_PER_UPDATE			16u
+#define MAX_PENDING_PAGES					128u
+#define MAX_INSTALLS_PER_UPDATE				128u
 
-#define MAX_REQUESTS_HASH_TABLE_SIZE	(MAX_STREAMING_REQUESTS << 1)
-#define MAX_REQUESTS_HASH_TABLE_MASK	(MAX_REQUESTS_HASH_TABLE_SIZE - 1)
-#define INVALID_HASH_ENTRY				0xFFFFFFFFu
+#define MAX_LEGACY_REQUESTS_PER_UPDATE		32u		// Legacy IO requests are slow and cause lots of bubbles, so we NEED to limit them.
 
-#define INVALID_RUNTIME_RESOURCE_ID		0xFFFFFFFFu
-#define INVALID_PAGE_INDEX				0xFFFFFFFFu
+#define MAX_REQUESTS_HASH_TABLE_SIZE		(MAX_STREAMING_REQUESTS << 1)
+#define MAX_REQUESTS_HASH_TABLE_MASK		(MAX_REQUESTS_HASH_TABLE_SIZE - 1)
+#define INVALID_HASH_ENTRY					0xFFFFFFFFu
+
+#define INVALID_RUNTIME_RESOURCE_ID			0xFFFFFFFFu
+#define INVALID_PAGE_INDEX					0xFFFFFFFFu
 
 float GNaniteStreamingBandwidthLimit = -1.0f;
 static FAutoConsoleVariableRef CVarNaniteStreamingBandwidthLimit(
 	TEXT( "r.Nanite.StreamingBandwidthLimit" ),
 	GNaniteStreamingBandwidthLimit,
 	TEXT( "Streaming bandwidth limit in megabytes per second. Negatives values are interpreted as unlimited. " )
+);
+
+int32 GNaniteAsyncStreaming = 1;
+static FAutoConsoleVariableRef CVarNaniteAsyncStreaming(
+	TEXT( "r.Nanite.AsyncStreaming" ),
+	GNaniteAsyncStreaming,
+	TEXT( "Perform most of the Nanite streaming on an asynchronous worker thread instead of the rendering thread." )
 );
 
 DECLARE_CYCLE_STAT( TEXT("StreamingManager_Update"),STAT_NaniteStreamingManagerUpdate,	STATGROUP_Nanite );
@@ -44,7 +53,6 @@ DECLARE_DWORD_COUNTER_STAT(		TEXT("UniqueStreamingRequests"),	STAT_NaniteUniqueS
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("TotalPages"),					STAT_NaniteTotalPages,						STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("RegisteredStreamingPages"),	STAT_NaniteRegisteredStreamingPages,		STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("InstalledPages"),				STAT_NaniteInstalledPages,					STATGROUP_Nanite );
-DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("PendingPages"),				STAT_NanitePendingPages,					STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("RootPages"),					STAT_NaniteRootPages,						STATGROUP_Nanite );
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteStreaming, Log, All);
@@ -321,6 +329,14 @@ FStreamingManager::FStreamingManager() :
 	StreamingPageFixupChunks.SetNumUninitialized( MaxStreamingPages );
 
 	PendingPages.SetNum( MaxPendingPages );
+
+#if !WITH_EDITOR
+	PendingPageStagingMemory.SetNumUninitialized( MAX_PENDING_PAGES * CLUSTER_PAGE_DISK_SIZE );
+	for (int32 i = 0; i < PendingPages.Num(); i++)
+	{
+		PendingPages[i].MemoryPtr = PendingPageStagingMemory.GetData() + i * CLUSTER_PAGE_DISK_SIZE;
+	}
+#endif
 
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
@@ -677,80 +693,23 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 	}
 }
 
-bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdList )
+void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 {
 	LLM_SCOPE(ELLMTag::Nanite);
-	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
-	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::ProcessPendingPages);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::CopyReadyPages);
 
-	uint32 NumReadyPages = 0;
-	uint32 StartPendingPageIndex = ( NextPendingPageIndex + MaxPendingPages - NumPendingPages ) % MaxPendingPages;
+	if (NumReadyPages == 0)
+		return;
 
-#if !UE_BUILD_SHIPPING
-	uint64 UpdateTick = FPlatformTime::Cycles64();
-	uint64 DeltaTick = PrevUpdateTick ? UpdateTick - PrevUpdateTick : 0;
-	uint32 SimulatedBytesRemaining = FPlatformTime::ToSeconds64( DeltaTick ) * GNaniteStreamingBandwidthLimit * 1048576.0;
-	PrevUpdateTick = UpdateTick;
-#endif
-
-	// Check how many pages are ready
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CheckReadyPages);
-
-		for( uint32 i = 0; i < NumPendingPages; i++ )
-		{
-			uint32 PendingPageIndex = ( StartPendingPageIndex + i ) % MaxPendingPages;
-			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
-			bool bIsReady = true;
-
-#if WITH_EDITOR == 0
-			for( FGraphEventRef& EventRef : PendingPage.CompletionEvents )
-			{
-				if( !EventRef->IsComplete() )
-				{
-					bIsReady = false;
-					break;
-				}
-			}
-
-			if( !bIsReady )
-				break;
-
-			PendingPage.CompletionEvents.Empty();
-#endif
-
-#if !UE_BUILD_SHIPPING
-			if( GNaniteStreamingBandwidthLimit >= 0.0 )
-			{
-				uint32 SimulatedBytesRead = FMath::Min( PendingPage.BytesLeftToStream, SimulatedBytesRemaining );
-				PendingPage.BytesLeftToStream -= SimulatedBytesRead;
-				SimulatedBytesRemaining -= SimulatedBytesRead;
-				if( PendingPage.BytesLeftToStream > 0 )
-					break;
-			}
-#endif
-
-			NumReadyPages++;
-
-			if( NumReadyPages >= MAX_INSTALLS_PER_UPDATE )
-				break;
-		}
-	}
-	
-	if( NumReadyPages == 0 )
-		return false;
+	const uint32 StartPendingPageIndex = ( NextPendingPageIndex + MaxPendingPages - NumPendingPages ) % MaxPendingPages;
 
 	struct FUploadTask
 	{
 		FPendingPage* PendingPage = nullptr;
 		uint8* Dst = nullptr;
-#if WITH_EDITOR
-		const uint8* ReadPtr = nullptr;
-#else
-		uint32 ReadOffset = 0;
-#endif
-		uint32 ReadSize = 0;
-		FFixupChunk::FHeader Header;
+		
+		const uint8* Src = nullptr;
+		uint32 SrcSize = 0;
 	};
 
 #if WITH_EDITOR
@@ -762,12 +721,6 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 
 	// Install ready pages
 	{
-		PageUploader->Init(MAX_INSTALLS_PER_UPDATE, MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE);	//TODO: proper max size
-		ClusterFixupUploadBuffer.Init(MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
-
-		ClusterPageHeaders.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
-		Hierarchy.UploadBuffer.Init(2 * MAX_INSTALLS_PER_UPDATE  * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
-
 		// Batched page install:
 		// GPU uploads are unordered, so we need to make sure we have no overlapping writes.
 		// For actual page uploads, we only upload the last page that ends up on a given GPU page.
@@ -900,24 +853,23 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 
 				FFixupChunk* FixupChunk = &StreamingPageFixupChunks[PendingPage.GPUPageIndex];
 				FMemory::Memcpy(FixupChunk, Ptr, FixupChunkSize);
-				UploadTask.ReadPtr = Ptr + FixupChunkSize;
+				UploadTask.Src = Ptr + FixupChunkSize;
 #else
 				// Read header of FixupChunk so the length can be calculated
 				FFixupChunk* FixupChunk = &StreamingPageFixupChunks[ PendingPage.GPUPageIndex ];
 
-				PendingPage.ReadStream->CopyTo( FixupChunk, 0, sizeof( FFixupChunk::Header ) );
+				FMemory::Memcpy(FixupChunk, PendingPage.MemoryPtr, sizeof(FFixupChunk::Header));
 				uint32 FixupChunkSize = FixupChunk->GetSize();
 
 				// Read the rest of FixupChunk
-				PendingPage.ReadStream->CopyTo( FixupChunk->Data, sizeof( FFixupChunk::Header ), FixupChunkSize - sizeof( FFixupChunk::Header ) );
-				UploadTask.ReadOffset = FixupChunkSize;
+				FMemory::Memcpy(FixupChunk->Data, PendingPage.MemoryPtr + sizeof(FFixupChunk::Header), FixupChunkSize - sizeof(FFixupChunk::Header));
+				UploadTask.Src = PendingPage.MemoryPtr + FixupChunkSize;
 #endif
 
-			
+				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
+				UploadTask.SrcSize = DataSize;
 				UploadTask.PendingPage = &PendingPage;
-				UploadTask.ReadSize = PageStreamingState.BulkSize - FixupChunkSize;
-				UploadTask.Header = FixupChunk->Header;
-				UploadTask.Dst = PageUploader->Add_GetRef(UploadTask.ReadSize, PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
+				UploadTask.Dst = PageUploader->Add_GetRef(DataSize, PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS);
 
 				// Update page headers
 				uint32 NumPageClusters = FixupChunk->Header.NumClusters;
@@ -934,29 +886,48 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 	}
 
 	// Upload pages
-	ParallelFor(NumReadyPages, [&UploadTasks](int32 i)
+	ParallelFor(UploadTasks.Num(), [&UploadTasks](int32 i)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(CopyPageTask);
 		const FUploadTask& Task = UploadTasks[i];
-		
-		// Read GPU data
-#if WITH_EDITOR
-		if (Task.Dst)
-		{
-			FMemory::Memcpy(Task.Dst, Task.ReadPtr, Task.ReadSize);
-		}
-#else
-		if (Task.Dst)
-		{
-			Task.PendingPage->ReadStream->CopyTo(Task.Dst, Task.ReadOffset, Task.ReadSize);
-		}
+		check(Task.Dst);
 
-		// Clean up IO handles
-		Task.PendingPage->ReadStream.SafeRelease();
-		delete Task.PendingPage->Handle;
-		Task.PendingPage->Handle = nullptr;
+		FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
+
+#if !WITH_EDITOR
+		if (Task.PendingPage->AsyncRequest)
+		{
+			check(Task.PendingPage->AsyncRequest->PollCompletion());	
+			delete Task.PendingPage->AsyncRequest;
+			delete Task.PendingPage->AsyncHandle;
+			Task.PendingPage->AsyncRequest = nullptr;
+			Task.PendingPage->AsyncHandle = nullptr;
+		}
+		else
+		{
+			check(Task.PendingPage->Request.Status().IsCompleted());
+			FMemory::Memcpy(Task.Dst, Task.Src, Task.SrcSize);
+		}
 #endif
 	});
+
+#if !WITH_EDITOR
+	// Free any completed batches
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FreeBatches);
+		FIoDispatcher* IODispatcher = FBulkDataBase::GetIoDispatcher();
+		for (FUploadTask& Task : UploadTasks)
+		{
+			FPendingPage& PendingPage = *Task.PendingPage;
+
+			if (PendingPage.bFreeBatchWhenDone)
+			{
+				check(PendingPage.Batch.IsValid());	
+				IODispatcher->FreeBatch(PendingPage.Batch);
+			}
+		}
+	}
+#endif
 
 #if WITH_EDITOR
 	// Unlock BulkData
@@ -967,33 +938,6 @@ bool FStreamingManager::ProcessPendingPages( FRHICommandListImmediate& RHICmdLis
 		BulkData.Unlock();
 	}
 #endif
-	
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
-
-		{
-			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
-		}
-		
-		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
-
-		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
-		Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
-
-		// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
-		{
-			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV };
-			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
-		}
-		ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
-	}
-
-
-	NumPendingPages -= NumReadyPages;
-	DEC_DWORD_STAT_BY( STAT_NanitePendingPages, NumReadyPages );
-
-	return true;
 }
 
 #if DO_CHECK
@@ -1129,47 +1073,128 @@ bool FStreamingManager::ProcessNewResources( FRHICommandListImmediate& RHICmdLis
 	return true;
 }
 
-void FStreamingManager::Update( FRHICommandListImmediate& RHICmdList )
-{	
-	LLM_SCOPE(ELLMTag::Nanite);
-	SCOPED_NAMED_EVENT( STAT_NaniteStreamingManagerUpdate, FColor::Red );
-	SCOPE_CYCLE_COUNTER( STAT_NaniteStreamingManagerUpdate );
-	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::Update);
-	SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
+struct FStreamingUpdateParameters
+{
+	FStreamingManager* StreamingManager = nullptr;
+};
 
-	if( !StreamingRequestsBuffer.IsValid() )
+class FStreamingUpdateTask
+{
+public:
+	explicit FStreamingUpdateTask(const FStreamingUpdateParameters& InParams) : Parameters(InParams) {}
+
+	FStreamingUpdateParameters Parameters;
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		Parameters.StreamingManager->AsyncUpdate();
+	}
+
+	static ESubsequentsMode::Type	GetSubsequentsMode()	{ return ESubsequentsMode::TrackSubsequents; }
+	ENamedThreads::Type				GetDesiredThread()		{ return ENamedThreads::AnyNormalThreadNormalTask; }
+	FORCEINLINE TStatId				GetStatId() const		{ return TStatId(); }
+};
+
+uint32 FStreamingManager::DetermineReadyPages()
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::DetermineReadyPages);
+
+	const uint32 StartPendingPageIndex = (NextPendingPageIndex + MaxPendingPages - NumPendingPages) % MaxPendingPages;
+	uint32 NumReadyPages = 0;
+	
+#if !UE_BUILD_SHIPPING
+	uint64 UpdateTick = FPlatformTime::Cycles64();
+	uint64 DeltaTick = PrevUpdateTick ? UpdateTick - PrevUpdateTick : 0;
+	PrevUpdateTick = UpdateTick;
+#endif
+
+	// Check how many pages are ready
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CheckReadyPages);
+
+		for( uint32 i = 0; i < NumPendingPages && NumReadyPages < MAX_INSTALLS_PER_UPDATE; i++ )
+		{
+			uint32 PendingPageIndex = ( StartPendingPageIndex + i ) % MaxPendingPages;
+			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
+			
+#if WITH_EDITOR == 0
+			if (PendingPage.AsyncRequest)
+			{
+				if (!PendingPage.AsyncRequest->PollCompletion())
+					break;
+			}
+			else
+			{
+				if (!PendingPage.Request.Status().IsCompleted())
+					break;
+			}
+#endif
+
+#if !UE_BUILD_SHIPPING
+			if( GNaniteStreamingBandwidthLimit >= 0.0 )
+			{
+				uint32 SimulatedBytesRemaining = FPlatformTime::ToSeconds64(DeltaTick) * GNaniteStreamingBandwidthLimit * 1048576.0;
+				uint32 SimulatedBytesRead = FMath::Min( PendingPage.BytesLeftToStream, SimulatedBytesRemaining );
+				PendingPage.BytesLeftToStream -= SimulatedBytesRead;
+				SimulatedBytesRemaining -= SimulatedBytesRead;
+				if( PendingPage.BytesLeftToStream > 0 )
+					break;
+			}
+#endif
+
+			NumReadyPages++;
+		}
+	}
+	
+	return NumReadyPages;
+}
+
+void FStreamingManager::BeginAsyncUpdate(FRHICommandListImmediate& RHICmdList)
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::BeginAsyncUpdate);
+	
+	check(!AsyncState.bUpdateActive);
+	AsyncState = FAsyncState {};
+	AsyncState.bUpdateActive = true;
+
+	if (!StreamingRequestsBuffer.IsValid())
 	{
 		// Init and clear StreamingRequestsBuffer.
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-		FRDGBuilder GraphBuilder( RHICmdList );
+		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(4, 3 * MAX_STREAMING_REQUESTS);
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
-		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer( Desc, TEXT( "StreamingRequests" ) );	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
-		AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( StreamingRequestsBufferRef, PF_R32_UINT ), 0 );
-		GraphBuilder.QueueBufferExtraction( StreamingRequestsBufferRef, &StreamingRequestsBuffer);
+		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("StreamingRequests"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef, PF_R32_UINT), 0);
+		GraphBuilder.QueueBufferExtraction(StreamingRequestsBufferRef, &StreamingRequestsBuffer);
 		GraphBuilder.Execute();
 	}
 
-	bool bBuffersTransitionedToWrite = false;
+	AsyncState.bBuffersTransitionedToWrite = ProcessNewResources(RHICmdList);
 
-	bBuffersTransitionedToWrite |= ProcessNewResources( RHICmdList  );
+	AsyncState.NumReadyPages = DetermineReadyPages();
+	if (AsyncState.NumReadyPages > 0)
+	{
+		// Prepare buffers for upload
+		PageUploader->Init(MAX_INSTALLS_PER_UPDATE, MAX_INSTALLS_PER_UPDATE * CLUSTER_PAGE_DISK_SIZE);
+		ClusterFixupUploadBuffer.Init(MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
 
-#if WITH_EDITOR == 0
-	bBuffersTransitionedToWrite |= ProcessPendingPages( RHICmdList );
-#endif
+		ClusterPageHeaders.UploadBuffer.Init(MAX_INSTALLS_PER_UPDATE, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
+		Hierarchy.UploadBuffer.Init(2 * MAX_INSTALLS_PER_UPDATE * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
+	}
 
-	// Process readback
-	FRHIGPUBufferReadback* LatestReadbackBuffer = nullptr;
-	
+	// Find latest most recent ready readback buffer
 	{
 		// Find latest buffer that is ready
-		uint32 Index = ( ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending ) % MaxStreamingReadbackBuffers;
-		while( ReadbackBuffersNumPending > 0 )
+		uint32 Index = (ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending) % MaxStreamingReadbackBuffers;
+		while (ReadbackBuffersNumPending > 0)
 		{
-			if( StreamingRequestReadbackBuffers[ Index ]->IsReady() )	//TODO: process all buffers or just the latest?
+			if (StreamingRequestReadbackBuffers[Index]->IsReady())	//TODO: process all buffers or just the latest?
 			{
 				ReadbackBuffersNumPending--;
-				LatestReadbackBuffer = StreamingRequestReadbackBuffers[ Index ];
+				AsyncState.LatestReadbackBuffer = StreamingRequestReadbackBuffers[Index];
 			}
 			else
 			{
@@ -1177,247 +1202,414 @@ void FStreamingManager::Update( FRHICommandListImmediate& RHICmdList )
 			}
 		}
 	}
-	
+
+	// Lock buffer
+	if (AsyncState.LatestReadbackBuffer)
+	{
+		AsyncState.LatestReadbackBufferPtr = (const uint32*)AsyncState.LatestReadbackBuffer->Lock(MAX_STREAMING_REQUESTS * sizeof(uint32) * 3);
+	}
+
+	// Start async processing
+	FStreamingUpdateParameters Parameters;
+	Parameters.StreamingManager = this;
+
+	check(AsyncTaskEvents.IsEmpty());
+	if (GNaniteAsyncStreaming)
+	{
+		AsyncTaskEvents.Add(TGraphTask<FStreamingUpdateTask>::CreateTask().ConstructAndDispatchWhenReady(Parameters));
+	}
+	else
+	{
+		AsyncUpdate();
+	}
+}
+
+void FStreamingManager::AsyncUpdate()
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+	SCOPED_NAMED_EVENT(FStreamingManager_AsyncUpdate, FColor::Cyan);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::AsyncUpdate);
+
+	check(AsyncState.bUpdateActive);
+	InstallReadyPages(AsyncState.NumReadyPages);
+
+	if (!AsyncState.LatestReadbackBuffer)
+		return;
+
 	auto StreamingPriorityPredicate = []( const FStreamingRequest& A, const FStreamingRequest& B ) { return A.Priority > B.Priority; };
 
 	PrioritizedRequestsHeap.Empty( MAX_STREAMING_REQUESTS );
 
-	if( LatestReadbackBuffer )
+	uint32 NumLegacyRequestsIssued = 0;
+
+	struct FIORequestTask
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ProcessReadback);
-		const uint32* BufferPtr = (const uint32*) LatestReadbackBuffer->Lock( MAX_STREAMING_REQUESTS * sizeof( uint32 ) * 3 );
-		uint32 NumStreamingRequests = FMath::Min( BufferPtr[ 0 ], MAX_STREAMING_REQUESTS - 1u );	// First request is reserved for counter
+		FByteBulkData*	BulkData;
+		FPendingPage*	PendingPage;
+		uint32			BulkOffset;
+		uint32			BulkSize;
+	};
+	TArray<FIORequestTask> RequestTasks;
 
-		if( NumStreamingRequests > 0 )
+	FIoDispatcher* IODispatcher = FBulkDataBase::GetIoDispatcher();
+
+	
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessReadback);
+	const uint32* BufferPtr = AsyncState.LatestReadbackBufferPtr;
+	uint32 NumStreamingRequests = FMath::Min( BufferPtr[ 0 ], MAX_STREAMING_REQUESTS - 1u );	// First request is reserved for counter
+
+	if( NumStreamingRequests > 0 )
+	{
+		// Update priorities
+		FGPUStreamingRequest* StreamingRequestsPtr = ( ( FGPUStreamingRequest* ) BufferPtr + 1 );
+
 		{
-			// Update priorities
-			FGPUStreamingRequest* StreamingRequestsPtr = ( ( FGPUStreamingRequest* ) BufferPtr + 1 );
-
+			TRACE_CPUPROFILER_EVENT_SCOPE(DeduplicateRequests);
+			RequestsHashTable->Clear();
+			for( uint32 Index = 0; Index < NumStreamingRequests; Index++ )
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(DeduplicateRequests);
-				RequestsHashTable->Clear();
-				for( uint32 Index = 0; Index < NumStreamingRequests; Index++ )
-				{
-					const FGPUStreamingRequest& GPURequest = StreamingRequestsPtr[ Index ];
-					uint32 NumPages = GPURequest.PageIndex_NumPages & MAX_GROUP_PARTS_MASK;
-					uint32 PageStartIndex = GPURequest.PageIndex_NumPages >> MAX_GROUP_PARTS_BITS;
+				const FGPUStreamingRequest& GPURequest = StreamingRequestsPtr[ Index ];
+				uint32 NumPages = GPURequest.PageIndex_NumPages & MAX_GROUP_PARTS_MASK;
+				uint32 PageStartIndex = GPURequest.PageIndex_NumPages >> MAX_GROUP_PARTS_BITS;
 					
-					FStreamingRequest Request;
-					Request.Key.RuntimeResourceID = GPURequest.RuntimeResourceID;
-					Request.Priority = GPURequest.Priority;
-					for (uint32 i = 0; i < NumPages; i++)
+				FStreamingRequest Request;
+				Request.Key.RuntimeResourceID = GPURequest.RuntimeResourceID;
+				Request.Priority = GPURequest.Priority;
+				for (uint32 i = 0; i < NumPages; i++)
+				{
+					Request.Key.PageIndex = PageStartIndex + i;
+					check(!IsRootPage(Request.Key.PageIndex));
+					RequestsHashTable->AddRequest(Request);
+				}
+			}
+		}
+
+		uint32 NumUniqueStreamingRequests = RequestsHashTable->GetNumElements();
+		INC_DWORD_STAT_BY( STAT_NaniteStreamingRequests, NumStreamingRequests );
+		INC_DWORD_STAT_BY( STAT_NaniteUniqueStreamingRequests, NumUniqueStreamingRequests );
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePriorities);
+
+			struct FPrioritizedStreamingPage
+			{
+				FStreamingPageInfo* Page;
+				uint32 Priority;
+			};
+
+			TArray< FPrioritizedStreamingPage > UpdatedPages;
+			for(uint32 UniqueRequestIndex = 0; UniqueRequestIndex < NumUniqueStreamingRequests; UniqueRequestIndex++)
+			{
+				const FStreamingRequest& Request = RequestsHashTable->GetElement(UniqueRequestIndex);
+				FStreamingPageInfo** StreamingPage = RegisteredStreamingPagesMap.Find( Request.Key );
+				if( StreamingPage )
+				{
+					// Update index and move to front of LRU.
+					(*StreamingPage)->LatestUpdateIndex = NextUpdateIndex;
+					UpdatedPages.Push( { *StreamingPage, Request.Priority } );
+				}
+				else
+				{
+					// Page isn't there. Is the resource still here?
+					FResources** Resources = RuntimeResourceMap.Find( Request.Key.RuntimeResourceID );
+					if( Resources )
 					{
-						Request.Key.PageIndex = PageStartIndex + i;
-						check(!IsRootPage(Request.Key.PageIndex));
-						RequestsHashTable->AddRequest(Request);
+						// ResourcesID is valid, so add request to the queue
+						PrioritizedRequestsHeap.Push( Request );
 					}
 				}
 			}
 
-			uint32 NumUniqueStreamingRequests = RequestsHashTable->GetNumElements();
-
-			INC_DWORD_STAT_BY( STAT_NaniteStreamingRequests, NumStreamingRequests );
-			INC_DWORD_STAT_BY( STAT_NaniteUniqueStreamingRequests, NumUniqueStreamingRequests );
+			PrioritizedRequestsHeap.Heapify( StreamingPriorityPredicate );
 
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePriorities);
+				TRACE_CPUPROFILER_EVENT_SCOPE(PrioritySort);
+				UpdatedPages.Sort( []( const FPrioritizedStreamingPage& A, const FPrioritizedStreamingPage& B ) { return A.Priority < B.Priority; } );
+			}
 
-				struct FPrioritizedStreamingPage
-				{
-					FStreamingPageInfo* Page;
-					uint32 Priority;
-				};
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLRU);
 
-				TArray< FPrioritizedStreamingPage > UpdatedPages;
-				for(uint32 UniqueRequestIndex = 0; UniqueRequestIndex < NumUniqueStreamingRequests; UniqueRequestIndex++)
+				for( const FPrioritizedStreamingPage& PrioritizedPage : UpdatedPages )
 				{
-					const FStreamingRequest& Request = RequestsHashTable->GetElement(UniqueRequestIndex);
-					FStreamingPageInfo** StreamingPage = RegisteredStreamingPagesMap.Find( Request.Key );
-					if( StreamingPage )
+					FStreamingPageInfo* Page = PrioritizedPage.Page;
+
+					// Unlink
+					FStreamingPageInfo* OldNext = Page->Next;
+					FStreamingPageInfo* OldPrev = Page->Prev;
+					OldNext->Prev = OldPrev;
+					OldPrev->Next = OldNext;
+
+					// Insert at the front of the LRU
+					Page->Prev = &StreamingPageLRU;
+					Page->Next = StreamingPageLRU.Next;
+					StreamingPageLRU.Next->Prev = Page;
+					StreamingPageLRU.Next = Page;
+				}
+			}
+		}
+	}
+
+#if DO_CHECK
+	VerifyPageLRU( StreamingPageLRU, NumRegisteredStreamingPages, true );
+#endif
+			
+	uint32 MaxSelectedPages = MaxPendingPages - NumPendingPages;
+	if( PrioritizedRequestsHeap.Num() > 0 )
+	{
+		TArray< FPageKey > SelectedPages;
+		TSet< FPageKey > SelectedPagesSet;
+			
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SelectStreamingPages);
+
+			if(MaxSelectedPages > 0)
+			{
+				// Add low priority pages based on prioritized requests
+				while( (uint32)SelectedPages.Num() < MaxSelectedPages && PrioritizedRequestsHeap.Num() > 0 )
+				{
+					FStreamingRequest SelectedRequest;
+					PrioritizedRequestsHeap.HeapPop( SelectedRequest, StreamingPriorityPredicate, false );
+					FResources** Resources = RuntimeResourceMap.Find( SelectedRequest.Key.RuntimeResourceID );
+					check( Resources != nullptr );
+
+					SelectStreamingPages( *Resources, SelectedPages, SelectedPagesSet, SelectedRequest.Key.RuntimeResourceID, SelectedRequest.Key.PageIndex, MaxSelectedPages );
+				}
+				check( (uint32)SelectedPages.Num() <= MaxSelectedPages );
+			}
+		}
+
+		if( SelectedPages.Num() > 0 )
+		{
+			// Collect all pending registration dependencies so we are not going to remove them.
+			TSet< FPageKey > RegistrationDependencyPages;
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(CollectDependencyPages);
+				for (const FPageKey& SelectedKey : SelectedPages)
+				{
+					FResources** Resources = RuntimeResourceMap.Find(SelectedKey.RuntimeResourceID);
+					check(Resources != nullptr);
+
+					CollectDependencyPages(*Resources, RegistrationDependencyPages, SelectedKey);	// Mark all dependencies as unremovable.
+				}
+			}
+
+			FIoBatch Batch;
+			FPendingPage* LastPendingPage = nullptr;
+				
+			// Register Pages
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(RegisterPages);
+
+				for( const FPageKey& SelectedKey : SelectedPages )
+				{
+					FPendingPage& PendingPage = PendingPages[ NextPendingPageIndex ];
+
+					FStreamingPageInfo** FreePage = nullptr;
+						
+					check(NumRegisteredStreamingPages <= MaxStreamingPages);
+					if( NumRegisteredStreamingPages == MaxStreamingPages )
 					{
-						// Update index and move to front of LRU.
-						(*StreamingPage)->LatestUpdateIndex = NextUpdateIndex;
-						UpdatedPages.Push( { *StreamingPage, Request.Priority } );
+						// No space. Free a page!
+						FStreamingPageInfo* StreamingPage = StreamingPageLRU.Prev;
+						while( StreamingPage != &StreamingPageLRU )
+						{
+							FStreamingPageInfo* PrevStreamingPage = StreamingPage->Prev;
+
+							// Only remove leaf nodes. Make sure to never delete a node that was added this frame or is a dependency for a pending page registration.
+							FPageKey FreeKey = PrevStreamingPage->RegisteredKey;
+							if( PrevStreamingPage->RefCount == 0 && ( PrevStreamingPage->LatestUpdateIndex < NextUpdateIndex ) && RegistrationDependencyPages.Find( FreeKey ) == nullptr )
+							{
+								FreePage = RegisteredStreamingPagesMap.Find( FreeKey );
+								check( FreePage != nullptr );
+								check( (*FreePage)->RegisteredKey == FreeKey );
+								break;
+							}
+							StreamingPage = PrevStreamingPage;
+						}
+
+						if (!FreePage)	// Couldn't free a page. Abort.
+							break;
+					}
+
+					FResources** Resources = RuntimeResourceMap.Find(SelectedKey.RuntimeResourceID);
+					check(Resources);
+					FByteBulkData& BulkData = (*Resources)->StreamableClusterPages;
+
+#if WITH_EDITOR
+					bool bLegacyRequest = false;
+#else
+					bool bLegacyRequest = !BulkData.IsUsingIODispatcher();
+					if (bLegacyRequest)
+					{
+						if (NumLegacyRequestsIssued == MAX_LEGACY_REQUESTS_PER_UPDATE)
+							break;
+					}
+#endif
+
+					if (FreePage)
+						UnregisterPage((*FreePage)->RegisteredKey);
+
+					const FPageStreamingState& PageStreamingState = ( *Resources )->PageStreamingStates[ SelectedKey.PageIndex ];
+					check( !IsRootPage( SelectedKey.PageIndex ) );
+
+#if !WITH_EDITOR
+					PendingPage.bFreeBatchWhenDone = false;
+					if (!bLegacyRequest)
+					{
+						// Use IODispatcher when available
+						if (!LastPendingPage)
+						{
+							// First request creates the batch
+							Batch = IODispatcher->NewBatch();
+						}
+							
+						LastPendingPage = &PendingPage;
+						FIoChunkId ChunkID = BulkData.CreateChunkId();
+						FIoReadOptions ReadOptions;
+						ReadOptions.SetRange(PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
+						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
+						PendingPage.Request = Batch.Read(ChunkID, ReadOptions);
+						PendingPage.AsyncHandle = nullptr;
+						PendingPage.AsyncRequest = nullptr;
 					}
 					else
 					{
-						// Page isn't there. Is the resource still here?
-						FResources** Resources = RuntimeResourceMap.Find( Request.Key.RuntimeResourceID );
-						if( Resources )
-						{
-							// ResourcesID is valid, so add request to the queue
-							PrioritizedRequestsHeap.Push( Request );
-						}
+						// Compatibility path without IODispatcher
+						// Perform actual requests on workers to mitigate stalls
+						FIORequestTask& Task = RequestTasks.AddDefaulted_GetRef();
+						Task.BulkData = &BulkData;
+						Task.PendingPage = &PendingPage;
+						Task.BulkOffset = PageStreamingState.BulkOffset;
+						Task.BulkSize = PageStreamingState.BulkSize;
 					}
-				}
-
-				PrioritizedRequestsHeap.Heapify( StreamingPriorityPredicate );
-
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(PrioritySort);
-					UpdatedPages.Sort( []( const FPrioritizedStreamingPage& A, const FPrioritizedStreamingPage& B ) { return A.Priority < B.Priority; } );
-				}
-
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLRU);
-
-					for( const FPrioritizedStreamingPage& PrioritizedPage : UpdatedPages )
-					{
-						FStreamingPageInfo* Page = PrioritizedPage.Page;
-
-						// Unlink
-						FStreamingPageInfo* OldNext = Page->Next;
-						FStreamingPageInfo* OldPrev = Page->Prev;
-						OldNext->Prev = OldPrev;
-						OldPrev->Next = OldNext;
-
-						// Insert at the front of the LRU
-						Page->Prev = &StreamingPageLRU;
-						Page->Next = StreamingPageLRU.Next;
-						StreamingPageLRU.Next->Prev = Page;
-						StreamingPageLRU.Next = Page;
-					}
-				}
-			}
-		}
-		LatestReadbackBuffer->Unlock();
-
-#if DO_CHECK
-		VerifyPageLRU( StreamingPageLRU, NumRegisteredStreamingPages, true );
-#endif
-			
-		uint32 MaxSelectedPages = MaxPendingPages - NumPendingPages;
-		if( PrioritizedRequestsHeap.Num() > 0 )
-		{
-			TArray< FPageKey > SelectedPages;
-			TSet< FPageKey > SelectedPagesSet;
-			
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(SelectStreamingPages);
-
-				if(MaxSelectedPages > 0)
-				{
-					// Add low priority pages based on prioritized requests
-					while( (uint32)SelectedPages.Num() < MaxSelectedPages && PrioritizedRequestsHeap.Num() > 0 )
-					{
-						FStreamingRequest SelectedRequest;
-						PrioritizedRequestsHeap.HeapPop( SelectedRequest, StreamingPriorityPredicate, false );
-						FResources** Resources = RuntimeResourceMap.Find( SelectedRequest.Key.RuntimeResourceID );
-						check( Resources != nullptr );
-
-						SelectStreamingPages( *Resources, SelectedPages, SelectedPagesSet, SelectedRequest.Key.RuntimeResourceID, SelectedRequest.Key.PageIndex, MaxSelectedPages );
-					}
-					check( (uint32)SelectedPages.Num() <= MaxSelectedPages );
-				}
-			}
-
-			if( SelectedPages.Num() > 0 )
-			{
-				// Collect all pending registration dependencies so we are not going to remove them.
-				TSet< FPageKey > RegistrationDependencyPages;
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(CollectDependencyPages);
-					for (const FPageKey& SelectedKey : SelectedPages)
-					{
-						FResources** Resources = RuntimeResourceMap.Find(SelectedKey.RuntimeResourceID);
-						check(Resources != nullptr);
-
-						CollectDependencyPages(*Resources, RegistrationDependencyPages, SelectedKey);	// Mark all dependencies as unremovable.
-					}
-				}
-				
-
-				// Register Pages
-				{
-					TRACE_CPUPROFILER_EVENT_SCOPE(RegisterPages);
-					for( const FPageKey& SelectedKey : SelectedPages )
-					{
-						FPendingPage& PendingPage = PendingPages[ NextPendingPageIndex ];
-
-						if( NumRegisteredStreamingPages >= MaxStreamingPages )
-						{
-							// No space. Free a page!
-							FStreamingPageInfo* StreamingPage = StreamingPageLRU.Prev;
-							while( StreamingPage != &StreamingPageLRU )
-							{
-								FStreamingPageInfo* PrevStreamingPage = StreamingPage->Prev;
-
-								// Only remove leaf nodes. Make sure to never delete a node that was added this frame or is a dependency for a pending page registration.
-								FPageKey FreeKey = PrevStreamingPage->RegisteredKey;
-								if( PrevStreamingPage->RefCount == 0 && ( PrevStreamingPage->LatestUpdateIndex < NextUpdateIndex ) && RegistrationDependencyPages.Find( FreeKey ) == nullptr )
-								{
-									FStreamingPageInfo** Page = RegisteredStreamingPagesMap.Find( FreeKey );
-									check( Page != nullptr );
-									UnregisterPage( FreeKey );
-									break;
-								}
-								StreamingPage = PrevStreamingPage;
-							}
-						}
-
-						if( NumRegisteredStreamingPages >= MaxStreamingPages )
-							break;
-
-						FResources** Resources = RuntimeResourceMap.Find( SelectedKey.RuntimeResourceID );
-						check( Resources );
-						FByteBulkData& BulkData = ( *Resources )->StreamableClusterPages;
-						const FPageStreamingState& PageStreamingState = ( *Resources )->PageStreamingStates[ SelectedKey.PageIndex ];
-						check( !IsRootPage( SelectedKey.PageIndex ) );
-
-#if WITH_EDITOR == 0
-						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(StartAsyncIO);
-							// Start async IO
-							PendingPage.Handle = IFileCacheHandle::CreateFileCacheHandle(BulkData.OpenAsyncReadHandle());
-							PendingPage.ReadStream = PendingPage.Handle->ReadData( PendingPage.CompletionEvents, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Normal );
-							if(PendingPage.ReadStream == nullptr)
-							{
-								// IO can fail. Retry next frame if it does. We can't just proceed to the next request as it might depend on this one.
-								UE_LOG(LogNaniteStreaming, Warning, TEXT("IFileCache.ReadData failed for %s"), *BulkData.GetFilename());
-								delete PendingPage.Handle;
-								PendingPage.Handle = nullptr;
-								break;
-							}
-							check(PendingPage.ReadStream != nullptr);
-						}
 #endif
 
-						// Grab a free page
-						check(StreamingPageInfoFreeList != nullptr);
-						FStreamingPageInfo* Page = StreamingPageInfoFreeList;
-						StreamingPageInfoFreeList = StreamingPageInfoFreeList->Next;
+					// Grab a free page
+					check(StreamingPageInfoFreeList != nullptr);
+					FStreamingPageInfo* Page = StreamingPageInfoFreeList;
+					StreamingPageInfoFreeList = StreamingPageInfoFreeList->Next;
 
+					PendingPage.InstallKey = SelectedKey;
+					PendingPage.GPUPageIndex = Page->GPUPageIndex;
 
-						PendingPage.InstallKey = SelectedKey;
-						PendingPage.GPUPageIndex = Page->GPUPageIndex;
-
-						NextPendingPageIndex = ( NextPendingPageIndex + 1 ) % MaxPendingPages;
-						NumPendingPages++;
-						INC_DWORD_STAT( STAT_NanitePendingPages );
+					NextPendingPageIndex = ( NextPendingPageIndex + 1 ) % MaxPendingPages;
+					NumPendingPages++;
 
 #if !UE_BUILD_SHIPPING
-						PendingPage.BytesLeftToStream = PageStreamingState.BulkSize;
+					PendingPage.BytesLeftToStream = PageStreamingState.BulkSize;
 #endif
 
-						RegisterStreamingPage( Page, SelectedKey );
-					}
+					RegisterStreamingPage( Page, SelectedKey );
+
+					if (bLegacyRequest)
+						NumLegacyRequestsIssued++;
+
 				}
 			}
+
+#if !WITH_EDITOR
+			if (LastPendingPage)
+			{
+				// Issue batch
+				// Requests are processed in submission order, so once the last request has been processed it is safe to free the batch.
+				// Last request in batch owns it and is responsible for freeing it.
+				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
+				Batch.Issue();
+				LastPendingPage->Batch = Batch;
+				LastPendingPage->bFreeBatchWhenDone = true;
+			}
+#endif
 		}
 	}
 
-#if WITH_EDITOR
-	bBuffersTransitionedToWrite |= ProcessPendingPages( RHICmdList );	// Process streaming requests immediately in editor
+#if !WITH_EDITOR
+	// Legacy compatibility path
+	// Delete this when we can rely on IOStore always being enabled
+	if (!RequestTasks.IsEmpty())
+	{
+		ParallelFor(RequestTasks.Num(), [&RequestTasks](int32 i)
+		{
+			FIORequestTask& Task = RequestTasks[i];
+			TRACE_CPUPROFILER_EVENT_SCOPE(Nanite_RequestTask);
+			Task.PendingPage->AsyncHandle = Task.BulkData->OpenAsyncReadHandle();
+			Task.PendingPage->AsyncRequest = Task.PendingPage->AsyncHandle->ReadRequest(Task.BulkOffset, Task.BulkSize, AIOP_Normal, nullptr, Task.PendingPage->MemoryPtr);
+		});
+	}
 #endif
 
+	// Issue warning if we end up taking the legacy path
+	if (NumLegacyRequestsIssued > 0)
+	{
+		static bool bHasWarned = false;
+		if(!bHasWarned)
+		{
+			UE_LOG(LogNaniteStreaming, Warning, TEXT(	"PERFORMANCE WARNING: Nanite is issuing IO requests using the legacy IO path. Expect slower streaming and higher CPU overhead. "
+														"To avoid this penalty make sure iostore is enabled, it is supported by the platform, and that resources are built with -iostore."));
+			bHasWarned = true;
+		}
+	}
+}
+
+void FStreamingManager::EndAsyncUpdate(FRHICommandListImmediate& RHICmdList)
+{
+	LLM_SCOPE(ELLMTag::Nanite);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::EndAsyncUpdate);
+	
+	check(AsyncState.bUpdateActive);
+
+	// Wait for async processing to finish
+	if (GNaniteAsyncStreaming)
+	{
+		check(!AsyncTaskEvents.IsEmpty());
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(AsyncTaskEvents, ENamedThreads::GetRenderThread_Local());
+	}
+	
+	AsyncTaskEvents.Empty();
+
+	// Unlock readback buffer
+	if(AsyncState.LatestReadbackBuffer)
+	{
+		AsyncState.LatestReadbackBuffer->Unlock();
+	}
+
+	// Issue GPU copy operations
+	if(AsyncState.NumReadyPages > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
+		SCOPED_GPU_STAT(RHICmdList, NaniteStreaming);
+
+		{
+			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV, Hierarchy.DataBuffer.UAV };
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+		}
+
+		PageUploader->ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer);
+
+		ClusterPageHeaders.UploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageHeaders.DataBuffer, false);
+		Hierarchy.UploadBuffer.ResourceUploadTo(RHICmdList, Hierarchy.DataBuffer, false);
+
+		// NOTE: We need an additional barrier here to make sure pages are finished uploading before fixups can be applied.
+		{
+			FRHIUnorderedAccessView* UAVs[] = { ClusterPageData.DataBuffer.UAV };
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs));
+		}
+		ClusterFixupUploadBuffer.ResourceUploadTo(RHICmdList, ClusterPageData.DataBuffer, false);
+		
+		NumPendingPages -= AsyncState.NumReadyPages;
+		AsyncState.bBuffersTransitionedToWrite |= true;
+	}
+
 	// Transition resource back to read
-	if( bBuffersTransitionedToWrite )
+	if(AsyncState.bBuffersTransitionedToWrite)
 	{
 		FRHIUnorderedAccessView* UAVs[] = { Hierarchy.DataBuffer.UAV , ClusterPageData.DataBuffer.UAV, ClusterPageHeaders.DataBuffer.UAV };
 		RHICmdList.TransitionResources( EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, UAVs, UE_ARRAY_COUNT(UAVs) );
+		AsyncState.bBuffersTransitionedToWrite = false;
 	}
 
 	NextUpdateIndex++;
+	AsyncState.bUpdateActive = false;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FReadbackPassParameters, )
@@ -1469,6 +1661,11 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 
 	ReadbackBuffersWriteIndex = ( ReadbackBuffersWriteIndex + 1u ) % MaxStreamingReadbackBuffers;
 	ReadbackBuffersNumPending = FMath::Min( ReadbackBuffersNumPending + 1u, MaxStreamingReadbackBuffers );
+}
+
+ENGINE_API bool FStreamingManager::IsAsyncUpdateInProgress()
+{
+	return AsyncState.bUpdateActive;
 }
 
 TGlobalResource< FStreamingManager > GStreamingManager;
