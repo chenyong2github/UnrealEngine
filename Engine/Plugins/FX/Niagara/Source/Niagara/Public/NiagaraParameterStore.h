@@ -414,7 +414,21 @@ public:
 			if (Parameter.IsDataInterface())
 			{
 				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
-				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
+				UNiagaraDataInterface* DestDataInterface = DestStore.DataInterfaces[DestIndex];
+				if (DestDataInterface == nullptr)
+				{
+					if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
+					{
+						UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *DestStore.Owner->GetPathName());
+						DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner, Parameter.GetType().GetClass());
+						DestStore.DataInterfaces[DestIndex] = DestDataInterface;
+					}
+					else
+					{
+						return;
+					}
+				}
+				DataInterfaces[SrcIndex]->CopyTo(DestDataInterface);
 				DestStore.OnInterfaceChange();
 			}
 			else if (Parameter.IsUObject())
