@@ -287,7 +287,7 @@ struct FGenericPhysicsModelDef : FNetworkPredictionModelDef
 	NP_MODEL_BODY();
 
 	using PhysicsState = FNetworkPredictionPhysicsState;
-	using Driver = UPrimitiveComponent; // this is required for interpolation mode to work, see FNetworkPredictionPhysicsState::FinalizeInterpolatedPhysics. Would like to not require it one day.
+	using Driver = UPrimitiveComponent;
 
 	static const TCHAR* GetName() { return TEXT("Generic Physics Actor"); }
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::Physics; }
