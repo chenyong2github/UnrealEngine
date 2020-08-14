@@ -182,6 +182,28 @@ FDetailWidgetRow& FDetailPropertyRow::CustomWidget( bool bShowChildren )
 	return *CustomPropertyWidget;
 }
 
+FDetailWidgetDecl& FDetailPropertyRow::CustomNameWidget(bool bShowChildren)
+{
+	if (CustomPropertyWidget.IsValid())
+	{
+		bShowCustomPropertyChildren = bShowChildren;
+		return CustomPropertyWidget->NameContent();
+	}
+
+	return CustomWidget(bShowChildren).NameContent();
+}
+
+FDetailWidgetDecl& FDetailPropertyRow::CustomValueWidget(bool bShowChildren)
+{
+	if (CustomPropertyWidget.IsValid())
+	{
+		bShowCustomPropertyChildren = bShowChildren;
+		return CustomPropertyWidget->ValueContent();
+	}
+
+	return CustomWidget(bShowChildren).ValueContent();
+}
+
 TSharedPtr<FAssetThumbnailPool> FDetailPropertyRow::GetThumbnailPool() const
 {
 	TSharedPtr<FDetailCategoryImpl> ParentCategoryPinned = ParentCategory.Pin();
