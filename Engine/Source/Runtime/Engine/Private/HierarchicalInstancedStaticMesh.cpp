@@ -150,6 +150,8 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Occlusion Culled Instances"), STAT_OcclusionCul
 DECLARE_DWORD_COUNTER_STAT(TEXT("Traversals"),STAT_FoliageTraversals,STATGROUP_Foliage);
 DECLARE_MEMORY_STAT(TEXT("Instance Buffers"),STAT_FoliageInstanceBuffers,STATGROUP_Foliage);
 
+extern int32 GRenderNaniteMeshes;
+
 static void FoliageCVarSinkFunction()
 {
 	static float CachedFoliageDensityScale = 1.0f;
@@ -3019,7 +3021,11 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		
 		bool bIsGrass = !PerInstanceSMData.Num();
 
-		if (GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		// TODO: Abstract with a common helper
+		if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
+			//GRHISupportsAtomicUInt64 &&
+			GRenderNaniteMeshes != 0 &&
+			GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}

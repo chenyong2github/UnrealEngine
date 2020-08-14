@@ -1494,7 +1494,11 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
 
-		if (GRenderNaniteMeshes != 0 && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+		// TODO: Abstract with a common helper
+		if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
+			//GRHISupportsAtomicUInt64 &&
+			GRenderNaniteMeshes != 0 &&
+			GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
 		{
 			return ::new Nanite::FSceneProxy(this);
 		}

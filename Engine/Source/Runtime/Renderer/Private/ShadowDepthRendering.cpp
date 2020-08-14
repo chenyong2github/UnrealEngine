@@ -130,6 +130,8 @@ namespace Nanite
 	extern FString GetFilterNameForLight(const FLightSceneProxy* LightProxy);
 }
 
+extern bool IsNaniteEnabled();
+
 // Multiply PackedView.LODScale by return value when rendering Nanite shadows
 static float ComputeNaniteShadowsLODScaleFactor()
 {
@@ -1512,6 +1514,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 	bool bCanUseParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 		GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread();
 
+	const bool bNaniteEnabled = IsNaniteEnabled() && ViewFamily.EngineShowFlags.NaniteMeshes;
+
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
 		const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.ShadowMapAtlases[AtlasIndex];
@@ -1708,7 +1712,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 			CurrentLightForDrawEvent = NULL;
 		}
 
-		if (ViewFamily.EngineShowFlags.NaniteMeshes && CVarNaniteShadows.GetValueOnRenderThread())
+		if (bNaniteEnabled && CVarNaniteShadows.GetValueOnRenderThread())
 		{
 			FRDGBuilder GraphBuilder( RHICmdList );
 
@@ -1835,10 +1839,13 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 #endif
 	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
-	if (SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0 ||
-		SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0)
+	const bool bHasVSMShadows = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0;
+	const bool bHasVSMClipMaps = SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0;
+	const bool bNaniteEnabled = IsNaniteEnabled() && ViewFamily.EngineShowFlags.NaniteMeshes;
+
+	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
-		if( CVarNaniteShadowsUseHZB.GetValueOnRenderThread() )
+		if (CVarNaniteShadowsUseHZB.GetValueOnRenderThread())
 		{
 			VirtualShadowMapArray.HZBPhysical	= Scene->VirtualShadowMapArrayCacheManager->HZBPhysical;
 			VirtualShadowMapArray.HZBPageTable	= Scene->VirtualShadowMapArrayCacheManager->HZBPageTable;
@@ -2121,8 +2128,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			RHICmdList.EndRenderPass();
 		}
 
-		if (CVarNaniteShadows.GetValueOnRenderThread() &&
-			ViewFamily.EngineShowFlags.NaniteMeshes &&
+		if (bNaniteEnabled &&
+			CVarNaniteShadows.GetValueOnRenderThread() &&
 			ProjectedShadowInfo->bNaniteGeometry &&
 			ProjectedShadowInfo->CacheMode != SDCM_MovablePrimitivesOnly		// See note in RenderShadowDepthMapAtlases
 			)

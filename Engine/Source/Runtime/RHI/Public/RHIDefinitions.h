@@ -335,6 +335,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsByteBufferComputeShaders : 1;
 	uint32 bSupportsPrimitiveShaders : 1;
 	uint32 bSupportsUInt64ImageAtomics : 1;
+	uint32 bSupportsNanite : 1;
 	uint32 bSupportsLumenGI : 1;
 	uint32 bSupportsTemporalHistoryUpscale : 1;
 	uint32 bSupportsRTIndexFromVS : 1;
@@ -557,6 +558,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsUInt64ImageAtomics(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsUInt64ImageAtomics;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsNanite(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsNanite;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsLumenGI(const FStaticShaderPlatform Platform)

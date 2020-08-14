@@ -13,11 +13,6 @@ class FVirtualShadowMapArray;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNanite, Warning, All);
 
-inline bool DoesPlatformSupportNanite(EShaderPlatform Platform)
-{
-	return Platform == SP_PCD3D_SM5;
-}
-
 static constexpr uint32 NANITE_MAX_MATERIALS = 64;
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS = 12;														// must match define in NaniteDataDecode.ush
 static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	= ( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 );	// must match define in NaniteDataDecode.ush

@@ -2175,7 +2175,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 
 			RHICmdList.EndRenderPass();
 
-			if (bAnyNaniteMeshes)
+			if (DoesPlatformSupportNanite(ShaderPlatform) && bAnyNaniteMeshes)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(NaniteMeshPass);
 				QUICK_SCOPE_CYCLE_COUNTER(NaniteMeshPass);

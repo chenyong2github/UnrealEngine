@@ -1047,9 +1047,11 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.TargetMipLevel = 0;
 	NaniteView.TargetNumMipLevels = 0;
 	NaniteView.TargetPrevLayerIndex	= 0;
-	#else // !NANITE_USE_VIEW_UNIFORM_BUFFER
+
+#else // !NANITE_USE_VIEW_UNIFORM_BUFFER
+
 #if NANITE_MULTI_VIEW
-	FPackedNaniteView PackedView = InViews[ ViewIndex ];
+	FPackedNaniteView PackedView = InViews[ViewIndex];
 #else // !NANITE_MULTI_VIEW
 	FPackedNaniteView PackedView = InViews[0];
 #endif // NANITE_MULTI_VIEW
@@ -1085,5 +1087,6 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.TargetPrevLayerIndex			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.w;
 
 #endif // NANITE_USE_VIEW_UNIFORM_BUFFER
+
 	return NaniteView;
 }

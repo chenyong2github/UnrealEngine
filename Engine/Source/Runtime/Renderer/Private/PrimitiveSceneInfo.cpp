@@ -587,95 +587,99 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfos)
+	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
+	if (bNaniteEnabled)
 	{
-		FPrimitiveSceneProxy* Proxy = PrimitiveSceneInfo->Proxy;
-
-		if (Proxy->IsNaniteMesh())
+		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfos)
 		{
-			Nanite::FSceneProxyBase* NaniteSceneProxy = static_cast<Nanite::FSceneProxyBase*>(Proxy);
+			FPrimitiveSceneProxy* Proxy = PrimitiveSceneInfo->Proxy;
 
-			const TArray<Nanite::FSceneProxyBase::FMaterialSection>& MaterialSections = NaniteSceneProxy->GetMaterialSections();
-
-			for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+			if (Proxy->IsNaniteMesh())
 			{
-				check(PrimitiveSceneInfo->NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
-				check(PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].Num() == 0);
+				Nanite::FSceneProxyBase* NaniteSceneProxy = static_cast<Nanite::FSceneProxyBase*>(Proxy);
 
-				PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].SetNum(MaterialSections.Num());
-			}
+				const TArray<Nanite::FSceneProxyBase::FMaterialSection>& MaterialSections = NaniteSceneProxy->GetMaterialSections();
+
+				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+				{
+					check(PrimitiveSceneInfo->NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
+					check(PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].Num() == 0);
+
+					PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex].SetNum(MaterialSections.Num());
+				}
 
 #if WITH_EDITOR
-			check(PrimitiveSceneInfo->NaniteHitProxyIds.Num() == 0);
-			PrimitiveSceneInfo->NaniteHitProxyIds.SetNum(MaterialSections.Num());
+				check(PrimitiveSceneInfo->NaniteHitProxyIds.Num() == 0);
+				PrimitiveSceneInfo->NaniteHitProxyIds.SetNum(MaterialSections.Num());
 #endif
 
-			for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
-			{
-				for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+				for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
 				{
-					PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex][SectionIndex] = INDEX_NONE;
-				}
-			}
-
-#if WITH_EDITOR
-			for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
-			{
-				if (MaterialSections[SectionIndex].HitProxy)
-				{
-					PrimitiveSceneInfo->NaniteHitProxyIds[SectionIndex] = MaterialSections[SectionIndex].HitProxy->Id.GetColor().DWColor();
-				}
-				else
-				{
-					// TODO: Is this valid? SME seems to have null proxies, but normal editor doesn't
-					PrimitiveSceneInfo->NaniteHitProxyIds[SectionIndex] = INDEX_NONE;
-				}
-			}
-#endif
-
-			for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
-			{
-				FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteDrawCommandLock[MeshPass], Scene->NaniteDrawCommands[MeshPass]);
-
-				FMeshPassProcessor* NaniteMeshProcessor = nullptr;
-				switch (MeshPass)
-				{
-				case ENaniteMeshPass::BasePass:
-					NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
-					break;
-
-				case ENaniteMeshPass::LumenCardCapture:
-					NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
-					break;
-
-				default:
-					check(false);
-				}
-				check(NaniteMeshProcessor);
-
-				int32 StaticMeshesCount = PrimitiveSceneInfo->StaticMeshes.Num();
-				for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount; ++MeshIndex)
-				{
-					FStaticMeshBatchRelevance& MeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-					FStaticMeshBatch& Mesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
-
-					if (MeshRelevance.bSupportsNaniteRendering)
+					for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
 					{
-						uint64 BatchElementMask = ~0ull;
-						NaniteMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, Proxy);
-
-						FNaniteCommandInfo CommandInfo = NaniteDrawListContext.GetCommandInfoAndReset();
-						PrimitiveSceneInfo->NaniteCommandInfos[MeshPass].Add(CommandInfo);
-						const uint32 MaterialDepthId = CommandInfo.GetMaterialId();
-
-						const uint32 SectionIndex = Mesh.SegmentIndex;
-						check(SectionIndex < uint32(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass].Num()));
-						check(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == INDEX_NONE || PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == MaterialDepthId);
-						PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] = MaterialDepthId;
+						PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPassIndex][SectionIndex] = INDEX_NONE;
 					}
 				}
 
-				NaniteMeshProcessor->~FMeshPassProcessor();
+#if WITH_EDITOR
+				for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+				{
+					if (MaterialSections[SectionIndex].HitProxy)
+					{
+						PrimitiveSceneInfo->NaniteHitProxyIds[SectionIndex] = MaterialSections[SectionIndex].HitProxy->Id.GetColor().DWColor();
+					}
+					else
+					{
+						// TODO: Is this valid? SME seems to have null proxies, but normal editor doesn't
+						PrimitiveSceneInfo->NaniteHitProxyIds[SectionIndex] = INDEX_NONE;
+					}
+				}
+#endif
+
+				for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
+				{
+					FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteDrawCommandLock[MeshPass], Scene->NaniteDrawCommands[MeshPass]);
+
+					FMeshPassProcessor* NaniteMeshProcessor = nullptr;
+					switch (MeshPass)
+					{
+					case ENaniteMeshPass::BasePass:
+						NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
+						break;
+
+					case ENaniteMeshPass::LumenCardCapture:
+						NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext); // TODO: Should skip if !DoesPlatformSupportLumenGI()
+						break;
+
+					default:
+						check(false);
+					}
+					check(NaniteMeshProcessor);
+
+					int32 StaticMeshesCount = PrimitiveSceneInfo->StaticMeshes.Num();
+					for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount; ++MeshIndex)
+					{
+						FStaticMeshBatchRelevance& MeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
+						FStaticMeshBatch& Mesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
+
+						if (MeshRelevance.bSupportsNaniteRendering)
+						{
+							uint64 BatchElementMask = ~0ull;
+							NaniteMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, Proxy);
+
+							FNaniteCommandInfo CommandInfo = NaniteDrawListContext.GetCommandInfoAndReset();
+							PrimitiveSceneInfo->NaniteCommandInfos[MeshPass].Add(CommandInfo);
+							const uint32 MaterialDepthId = CommandInfo.GetMaterialId();
+
+							const uint32 SectionIndex = Mesh.SegmentIndex;
+							check(SectionIndex < uint32(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass].Num()));
+							check(PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == INDEX_NONE || PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] == MaterialDepthId);
+							PrimitiveSceneInfo->NaniteMaterialIds[MeshPass][SectionIndex] = MaterialDepthId;
+						}
+					}
+
+					NaniteMeshProcessor->~FMeshPassProcessor();
+				}
 			}
 		}
 	}

@@ -77,6 +77,12 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 
 void FResources::InitResources()
 {
+	// TODO: Should remove bulk data from built data if platform cannot run Nanite in any capacity
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
 	{
 		// Skip resources that have their render data stripped
@@ -93,6 +99,12 @@ void FResources::InitResources()
 
 void FResources::ReleaseResources()
 {
+	// TODO: Should remove bulk data from built data if platform cannot run Nanite in any capacity
+	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		return;
+	}
+
 	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
 	{
 		return;
@@ -128,8 +140,7 @@ class FVertexFactory : public ::FVertexFactory
 	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
 
 public:
-	FVertexFactory(ERHIFeatureLevel::Type FeatureLevel)
-		: ::FVertexFactory(FeatureLevel)
+	FVertexFactory(ERHIFeatureLevel::Type FeatureLevel) : ::FVertexFactory(FeatureLevel)
 	{
 	}
 
@@ -150,9 +161,12 @@ public:
 
 		SetDeclaration(GFilterVertexDeclaration.VertexDeclarationRHI);
 	}
+
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 	{
-		bool bShouldCompile = Parameters.ShaderType->GetFrequency() == SF_Pixel &&
+		bool bShouldCompile = 
+			DoesPlatformSupportNanite(Parameters.Platform) &&
+			Parameters.ShaderType->GetFrequency() == SF_Pixel &&
 			RHISupportsComputeShaders(Parameters.Platform) &&
 			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
 			Parameters.MaterialParameters.BlendMode == BLEND_Opaque;
@@ -197,7 +211,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	LLM_SCOPE(ELLMTag::Nanite);
 
 	// Nanite requires GPUScene
-	check(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
+	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
+	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
 	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
 
@@ -403,6 +418,7 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance( const FSceneView* View ) 
 }
 
 #if WITH_EDITOR
+
 HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies)
 {
 	LLM_SCOPE(ELLMTag::Nanite);
@@ -423,6 +439,7 @@ HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<
 	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
 	return nullptr;
 }
+
 #endif
 
 FSceneProxy::FMeshInfo::FMeshInfo(const UStaticMeshComponent* InComponent)
@@ -773,40 +790,47 @@ uint32 FSceneProxy::GetMemoryFootprint() const
 
 void FGlobalResources::InitRHI()
 {
-	LLM_SCOPE(ELLMTag::Nanite);
-
-	VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
-	VertexFactory->InitResource();
+	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		LLM_SCOPE(ELLMTag::Nanite);
+		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
+		VertexFactory->InitResource();
+	}
 }
 
 void FGlobalResources::ReleaseRHI()
 {
-	LLM_SCOPE(ELLMTag::Nanite);
+	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
+	{
+		LLM_SCOPE(ELLMTag::Nanite);
 
-	MainPassBuffers.NodesBuffer.SafeRelease();
-	PostPassBuffers.NodesBuffer.SafeRelease();
+		MainPassBuffers.NodesBuffer.SafeRelease();
+		PostPassBuffers.NodesBuffer.SafeRelease();
 
-	MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
-	PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
+		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
+		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 
-	MainPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
-	PostPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
+		MainPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
+		PostPassBuffers.StatsCandidateClustersArgsBuffer.SafeRelease();
 
-	StatsBuffer.SafeRelease();
+		StatsBuffer.SafeRelease();
 
 #if NANITE_USE_SCRATCH_BUFFERS
-	ScratchVisibleClustersBuffer.SafeRelease();
+		ScratchVisibleClustersBuffer.SafeRelease();
 
-	MainPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
-	PostPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
+		MainPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
+		PostPassBuffers.ScratchCandidateClustersBuffer.SafeRelease();
 #endif
 
-	delete VertexFactory;
-	VertexFactory = nullptr;
+		delete VertexFactory;
+		VertexFactory = nullptr;
+	}
 }
 
 void FGlobalResources::Update(FRHICommandListImmediate& RHICmdList)
 {
+	check(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
+
 #if NANITE_USE_SCRATCH_BUFFERS
 	// Any buffer may be released from the pool, so check each individually not just one of them.
 	if (!ScratchVisibleClustersBuffer.IsValid() ||
@@ -875,3 +899,18 @@ uint32 FGlobalResources::GetMaxNodes()
 TGlobalResource< FGlobalResources > GGlobalResources;
 
 } // namespace Nanite
+
+bool DoesPlatformSupportNanite(EShaderPlatform Platform)
+{
+	// Make sure the current platform has DDPI definitions.
+	static const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
+
+	// GPUScene is required for Nanite
+	static const bool bSupportGPUScene = FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform);
+
+	// Nanite specific check
+	static const bool bSupportNanite = FDataDrivenShaderPlatformInfo::GetSupportsNanite(Platform);
+
+	static const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
+	return bFullCheck;
+}

@@ -830,9 +830,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 	for (FViewInfo& View : Views)
 	{
-		FRDGTexture* FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB);
-		FRDGTexture* ClosestHZBTexture = GraphBuilder.TryRegisterExternalTexture(View.ClosestHZB);
-
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
 		int32 DenoiseMode = CVarDiffuseIndirectDenoiser.GetValueOnRenderThread();

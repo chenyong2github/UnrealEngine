@@ -217,6 +217,13 @@ namespace Nanite
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
 
+inline bool IsNaniteEnabled()
+{
+	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
+	static bool bNaniteSupported = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
+	return bNaniteSupported /*&& GRHISupportsAtomicUInt64*/ && EnableNaniteCVar->GetInt() > 0;
+}
+
 DECLARE_CYCLE_STAT(TEXT("PostInitViews FlushDel"), STAT_PostInitViews_FlushDel, STATGROUP_InitViews);
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
@@ -503,7 +510,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		FSceneViewState* ViewState = View.ViewState;
 		const FPerViewPipelineState& ViewPipelineState = *ViewPipelineStates[ViewIndex];
 
-		if (ViewPipelineState.bClosestHZB || ViewPipelineState.bFurthestHZB)
+		if (ViewPipelineState.bFurthestHZB)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("BuildHZB(ViewId=%d)", ViewIndex));
 
@@ -516,7 +523,6 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 				FRDGTextureRef ClosestHZBTexture = nullptr;
 				FRDGTextureRef FurthestHZBTexture = nullptr;
 
-				check(ViewPipelineState.bFurthestHZB == true);
 				BuildHZB(
 					GraphBuilder,
 					SceneTextures.SceneDepthBuffer,
@@ -1452,12 +1458,10 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 	// Family pipeline state
 	{
-		// TODO
-		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, true);
+		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, IsNaniteEnabled()); // TODO: Should this respect ViewFamily.EngineShowFlags.NaniteMeshes?
 
 		static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
-		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion,
-			ICVarHZBOcc->GetInt() != 0);	
+		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion, ICVarHZBOcc->GetInt() != 0);	
 	}
 
 	CommitIndirectLightingState();
@@ -1476,6 +1480,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 			ViewPipelineState.Set(&FPerViewPipelineState::bFurthestHZB,
 				FamilyPipelineState[&FFamilyPipelineState::bHZBOcclusion] ||
 				FamilyPipelineState[&FFamilyPipelineState::bNanite] ||
+				ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy] ||
 				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
 				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
 				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::HybridLumenSSR ||
@@ -1499,10 +1504,15 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
+	static const bool bNaniteEnabled = IsNaniteEnabled() && ViewFamily.EngineShowFlags.NaniteMeshes;
+
 	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList, true);
 
-	Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
-	Nanite::GStreamingManager.BeginAsyncUpdate(RHICmdList);
+	if (bNaniteEnabled)
+	{
+		Nanite::GGlobalResources.Update(RHICmdList); // Needed to managed scratch buffers for Nanite.
+		Nanite::GStreamingManager.BeginAsyncUpdate(RHICmdList);
+	}
 
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -1567,6 +1577,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		return;
 	}
+
 	SCOPED_DRAW_EVENT(RHICmdList, Scene);
 
 	// Anything rendered inside Render() which isn't accounted for will fall into this stat
@@ -1595,9 +1606,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
 
-	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
-	const bool bShouldRenderNanite = ViewFamily.EngineShowFlags.NaniteMeshes && EnableNaniteCVar->GetInt() > 0;
-
 	// Nanite materials do not currently support most debug view modes.
 	const bool bShouldApplyNaniteMaterials
 		 = !ViewFamily.EngineShowFlags.ShaderComplexity
@@ -1606,14 +1614,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		&& !ViewFamily.EngineShowFlags.LightMapDensity;
 
 	// Use readonly depth in the base pass if we have a full depth prepass
-	const bool bAllowReadonlyDepthBasePass = EarlyZPassMode == DDM_AllOpaque
+	const bool bAllowReadOnlyDepthBasePass = EarlyZPassMode == DDM_AllOpaque
 		&& !ViewFamily.EngineShowFlags.ShaderComplexity
 		&& !ViewFamily.UseDebugViewPS()
 		&& !bIsWireframe
 		&& !ViewFamily.EngineShowFlags.LightMapDensity;
 
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess = 
-		bAllowReadonlyDepthBasePass
+		bAllowReadOnlyDepthBasePass
 		? FExclusiveDepthStencil::DepthRead_StencilWrite 
 		: FExclusiveDepthStencil::DepthWrite_StencilWrite;
 
@@ -1945,9 +1953,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
-	Nanite::ListStatFilters(this);
-
-	Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);	// Must happen before any Nanite rendering in the frame
+	if (bNaniteEnabled)
+	{
+		Nanite::ListStatFilters(this);
+		Nanite::GStreamingManager.EndAsyncUpdate(RHICmdList);	// Must happen before any Nanite rendering in the frame
+	}
 
 	// The Z-prepass
 
@@ -1979,11 +1989,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
-	NaniteRasterResults.AddDefaulted(Views.Num());
-
-	if (bShouldRenderNanite && Views.Num() > 0)
+	if (bNaniteEnabled && Views.Num() > 0)
 	{
 		LLM_SCOPE(ELLMTag::Nanite);
+
+		NaniteRasterResults.AddDefaulted(Views.Num());
+
 		//TODO Brian - removing for link error.  renderer doesn't / probably shouldn't depend on engine module.
 		//SCOPED_GPU_STAT(RHICmdList, NaniteRaster);
 
@@ -2155,7 +2166,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
 	// Early occlusion queries
-	const bool bOcclusionBeforeBasePass = !FamilyPipelineState->bNanite && ((EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));	//HACK: build HZB after Nanite like before
+	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && ((EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || (EarlyZPassMode == EDepthDrawingMode::DDM_AllOpaque));
 
 	if (bOcclusionBeforeBasePass)
 	{
@@ -2186,7 +2197,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Early Shadow depth rendering
 	if (bOcclusionBeforeBasePass)
 	{
-		AllocateVirtualShadowMaps(false);
+		if (bNaniteEnabled)
+		{
+			AllocateVirtualShadowMaps(false);
+		}
+
 		RenderShadowDepthMaps(RHICmdList);
 		ServiceLocalQueue();
 	}
@@ -2279,7 +2294,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DBuffer);
 
 		// e.g. DBuffer deferred decals
-		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{	
 			FViewInfo& View = Views[ViewIndex];
 
@@ -2298,7 +2313,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			// Disable Nanite Pre Pass to prevent DBuffer decal rendering on Nanite meshes.
 			// Enable once all platforms support pre pass depth output.
-			if (bShouldRenderNanite && 0)
+			if (bNaniteEnabled && 0) // TODO: Nanite dbuffer decal support
 			{
 				Nanite::DrawPrePass(
 					RHICmdList,
@@ -2324,14 +2339,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bRenderDeferredLighting)
 	{
 		bool bShouldAllocateDeferredShadingPathRenderTargets = false;
-		const char* str = SceneContext.ScreenSpaceAO ? "Allocated" : "Unallocated"; //ScreenSpaceAO is determining factor of detecting render target allocation
-		for(int Index = 0; Index < (NumTranslucentVolumeRenderTargetSets * Views.Num()); ++Index)
+		const TCHAR* Str = SceneContext.ScreenSpaceAO ? TEXT("Allocated") : TEXT("Unallocated"); // ScreenSpaceAO is determining factor of detecting render target allocation
+		for (int32 Index = 0; Index < (NumTranslucentVolumeRenderTargetSets * Views.Num()); ++Index)
 		{
-			if(!SceneContext.TranslucencyLightingVolumeAmbient[Index] || !SceneContext.TranslucencyLightingVolumeDirectional[Index])
+			if (!SceneContext.TranslucencyLightingVolumeAmbient[Index] || !SceneContext.TranslucencyLightingVolumeDirectional[Index])
 			{
 				
-				ensureMsgf(SceneContext.TranslucencyLightingVolumeAmbient[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeAmbient", Index, str);
-				ensureMsgf(SceneContext.TranslucencyLightingVolumeDirectional[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeDirectional", Index, str);
+				ensureMsgf(SceneContext.TranslucencyLightingVolumeAmbient[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeAmbient", Index, Str);
+				ensureMsgf(SceneContext.TranslucencyLightingVolumeDirectional[Index], TEXT("%s%d is unallocated, Deferred Render Targets would be detected as: %s"), "TranslucencyLightingVolumeDirectional", Index, Str);
 				bShouldAllocateDeferredShadingPathRenderTargets = true;
 				break;
 			}
@@ -2489,7 +2504,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.FinishGBufferPassAndResolve(RHICmdList, BasePassDepthStencilAccess);
 	}
 
-	if (bShouldRenderNanite && bShouldApplyNaniteMaterials)
+	if (bNaniteEnabled && bShouldApplyNaniteMaterials)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
@@ -2497,7 +2512,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	if (!bAllowReadonlyDepthBasePass)
+	if (!bAllowReadOnlyDepthBasePass)
 	{
 		SceneContext.ResolveSceneDepthTexture(RHICmdList, FResolveRect(0, 0, FamilySize.X, FamilySize.Y));
 	}
@@ -2564,7 +2579,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Shadow and fog after base pass
 	if (!bOcclusionBeforeBasePass)
 	{
-		AllocateVirtualShadowMaps(true);
+		if (bNaniteEnabled)
+		{
+			AllocateVirtualShadowMaps(true);
+		}
+
 		RenderShadowDepthMaps(RHICmdList);
 
 		checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -2580,6 +2599,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	// End shadow and fog after base pass
 
+	if (bNaniteEnabled)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("VolumetricFog_VSMStats_NaniteStreaming"));
 
@@ -2597,11 +2617,17 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
 		GraphBuilder.Execute();
-	}
 
-	if (Scene->VirtualShadowMapArrayCacheManager)
+		if (Scene->VirtualShadowMapArrayCacheManager)
+		{
+			Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(VirtualShadowMapArray, RHICmdList);
+		}
+	}
+	else if (!bOcclusionBeforeBasePass)
 	{
-		Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(VirtualShadowMapArray, RHICmdList);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("VolumetricFog"));
+		ComputeVolumetricFog(GraphBuilder);
+		GraphBuilder.Execute();
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -3287,7 +3313,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];
-   				const Nanite::FRasterResults* NaniteResults = bShouldRenderNanite ? &NaniteRasterResults[ViewIndex] : nullptr;
+   				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
@@ -3299,7 +3325,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];
-				const Nanite::FRasterResults* NaniteResults = bShouldRenderNanite ? &NaniteRasterResults[ViewIndex] : nullptr;
+				const Nanite::FRasterResults* NaniteResults = bNaniteEnabled ? &NaniteRasterResults[ViewIndex] : nullptr;
 
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);

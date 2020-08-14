@@ -39,10 +39,12 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSelectionOutlinePS, "/Engine/Private/PostProcessSelectionOutline.usf", "MainPS", SF_Pixel);
 } //! namespace
 
-FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults *NaniteRasterResults)
+FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneDepth.IsValid());
+
+	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform); // TODO: Respect r.Nanite
 
 	RDG_EVENT_SCOPE(GraphBuilder, "EditorSelectionOutlines");
 
@@ -89,7 +91,10 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		const FScreenPassTextureViewport SceneColorViewport(Inputs.SceneColor);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FNaniteSelectionOutlineParameters>();
-		Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+		if (bNaniteEnabled)
+		{
+			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, PassParameters);
+		}
 
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 			DepthStencilTexture,
@@ -101,7 +106,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			RDG_EVENT_NAME("OutlineDepth %dx%d", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[&View, SceneColorViewport, DepthStencilTexture, NaniteRasterResults, PassParameters, bNaniteEnabled](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(SceneColorViewport.Rect.Min.X, SceneColorViewport.Rect.Min.Y, 0.0f, SceneColorViewport.Rect.Max.X, SceneColorViewport.Rect.Max.Y, 1.0f);
 
@@ -113,7 +118,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 			}
 
 			// Render Nanite mesh outlines after regular mesh outline, but before borders
-			if (NaniteRasterResults)
+			if (bNaniteEnabled)
 			{
 				Nanite::DrawEditorSelection(RHICmdList, View, SceneColorViewport.Rect, *PassParameters);
 			}

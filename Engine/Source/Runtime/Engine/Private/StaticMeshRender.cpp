@@ -103,6 +103,7 @@ static void RecreateGlobalRenderState(IConsoleVariable* Var)
 	FGlobalComponentRecreateRenderStateContext Context;
 }
 
+// TODO: Should move this outside of SM, since Nanite can be used for multiple primitive types
 int32 GRenderNaniteMeshes = 1;
 FAutoConsoleVariableRef CVarRenderNaniteMeshes(
 	TEXT("r.Nanite"),
@@ -2339,7 +2340,11 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	if (GRenderNaniteMeshes != 0 && GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
+	// TODO: Abstract with a common helper
+	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform) &&
+		//GRHISupportsAtomicUInt64 &&
+		GRenderNaniteMeshes != 0 &&
+		GetStaticMesh()->RenderData->NaniteResources.PageStreamingStates.Num())
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 		return ::new Nanite::FSceneProxy(this);

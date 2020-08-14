@@ -181,6 +181,8 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 		// for any primitives that update on consecutive frames.
 		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
+		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
+
 		const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 
 		if (GGPUSceneUploadEveryFrame || Scene.GPUScene.bUpdateAllPrimitives)
@@ -233,9 +235,12 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 		const int32 NumPrimitiveDataUploads = Scene.GPUScene.PrimitivesToUpdate.Num();
 
-		for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+		if (bNaniteEnabled)
 		{
-			Scene.MaterialTables[NaniteMeshPassIndex].Begin(RHICmdList, Scene.Primitives.Num(), NumPrimitiveDataUploads);
+			for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+			{
+				Scene.MaterialTables[NaniteMeshPassIndex].Begin(RHICmdList, Scene.Primitives.Num(), NumPrimitiveDataUploads);
+			}
 		}
 
 		int32 NumLightmapDataUploads = 0;
@@ -248,7 +253,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 		if (NumPrimitiveDataUploads > 0)
 		{
-			auto ProcessPrimitiveFn = [&Scene, &NumLightmapDataUploads, &NumInstanceDataUploads](int32 PrimitiveIndex, bool bThreaded)
+			auto ProcessPrimitiveFn = [&Scene, &NumLightmapDataUploads, &NumInstanceDataUploads, bNaniteEnabled](int32 PrimitiveIndex, bool bThreaded)
 			{
 				// PrimitivesToUpdate may contain a stale out of bounds index, as we don't remove update request on primitive removal from scene.
 				if (PrimitiveIndex < Scene.PrimitiveSceneProxies.Num())
@@ -299,7 +304,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 					}
 
 					// Update Nanite material tables associated with this primitive index.
-					if (PrimitiveSceneProxy->IsNaniteMesh())
+					if (bNaniteEnabled && PrimitiveSceneProxy->IsNaniteMesh())
 					{
 						const Nanite::FSceneProxyBase* NaniteSceneProxy = static_cast<const Nanite::FSceneProxyBase*>(PrimitiveSceneProxy);
 
@@ -427,9 +432,12 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 		Scene.GPUScene.PrimitivesMarkedToUpdate.Init(false, Scene.GPUScene.PrimitivesMarkedToUpdate.Num());
 
-		for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+		if (bNaniteEnabled)
 		{
-			Scene.MaterialTables[NaniteMeshPassIndex].Finish(RHICmdList);
+			for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+			{
+				Scene.MaterialTables[NaniteMeshPassIndex].Finish(RHICmdList);
+			}
 		}
 
 		// Make sure instance buffer always has valid or properly reset entries.
