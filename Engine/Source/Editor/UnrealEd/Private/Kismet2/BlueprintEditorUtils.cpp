@@ -703,8 +703,12 @@ void FBlueprintEditorUtils::PreloadConstructionScript(UBlueprint* Blueprint)
 
 void FBlueprintEditorUtils::PreloadConstructionScript(USimpleConstructionScript* SimpleConstructionScript)
 {
-	FLinkerLoad* TargetLinker = SimpleConstructionScript ? SimpleConstructionScript->GetLinker() : nullptr;
-	if (TargetLinker)
+	if (!SimpleConstructionScript)
+	{
+		return;
+	}
+
+	if (FLinkerLoad* TargetLinker = SimpleConstructionScript->GetLinker())
 	{
 		TargetLinker->Preload(SimpleConstructionScript);
 
@@ -720,14 +724,11 @@ void FBlueprintEditorUtils::PreloadConstructionScript(USimpleConstructionScript*
 		}
 	}
 
-	if (SimpleConstructionScript)
+	for (USCS_Node* SCSNode : SimpleConstructionScript->GetAllNodes())
 	{
-		for (USCS_Node* SCSNode : SimpleConstructionScript->GetAllNodes())
+		if (SCSNode)
 		{
-			if (SCSNode)
-			{
-				SCSNode->ValidateGuid();
-			}
+			SCSNode->ValidateGuid();
 		}
 	}
 }
