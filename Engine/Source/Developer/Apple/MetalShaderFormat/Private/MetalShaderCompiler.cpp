@@ -2343,7 +2343,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			}
 			else
 			{
-				ensureMsgf(VersionEnum > 3, TEXT("Metal shader version should be Metal v2.1 or higher"));	
 				MinOSVersion = TEXT("-mmacosx-version-min=10.13");
 			}
 			break;
