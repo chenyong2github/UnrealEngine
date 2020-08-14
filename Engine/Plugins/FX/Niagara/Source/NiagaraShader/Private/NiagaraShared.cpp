@@ -162,6 +162,11 @@ bool FNiagaraShaderScript::IsShaderMapComplete() const
 		return false;
 	}
 
+	if (FNiagaraShaderMap::GetShaderMapBeingCompiled(this) != nullptr)
+	{
+		return false;
+	}
+
 	for (int i=0; i < GetNumPermutations(); ++i)
 	{
 		if (GameThreadShaderMap->GetShader<FNiagaraShader>(i).IsNull())
