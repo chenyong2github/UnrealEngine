@@ -4,7 +4,8 @@
 #include "CoreMinimal.h"
 #include "EngineDefines.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
-#include "PhysicsEngine/ConstraintInstance.h"
+
+struct FConstraintInstanceBase;
 
 class FPhysicsUserData_Chaos
 {
