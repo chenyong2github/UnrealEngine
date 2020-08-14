@@ -666,7 +666,14 @@ public:
 			RayTracingGeometryRHI = RHICreateRayTracingGeometry(Initializer);
 			if (Initializer.OfflineData == nullptr)
 			{
+				// If offline data is not available, then acceleration structure must be built at run-time.
 				FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructure(RayTracingGeometryRHI);
+			}
+			else
+			{
+				// Offline data ownership is transferred to the RHI, which discards it after use.
+				// It is no longer valid to use it after this point.
+				Initializer.OfflineData = nullptr;
 			}
 		}
 	}
