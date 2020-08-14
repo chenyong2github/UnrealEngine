@@ -9,6 +9,7 @@
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
 	, HierarchicalBias(0)
+	, bHasHierarchicalEasing(false)
 {}
 
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSection& InSubSection)
