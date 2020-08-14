@@ -318,7 +318,18 @@ void FWinHttpHttpRequest::CancelRequest()
 	}
 	else if (State == EHttpRequestStatus::NotStarted)
 	{
-		FinishRequest();
+		if (!IsInGameThread())
+		{
+			// Always finish on the game thread
+			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
+			{
+				StrongThis->FinishRequest();
+			});
+		}
+		else
+		{
+			FinishRequest();
+		}
 	}
 }
 
@@ -337,7 +348,7 @@ void FWinHttpHttpRequest::Tick(float DeltaSeconds)
 	if (Connection.IsValid())
 	{
 		Connection->PumpMessages();
-		// Connection is not gaurenteed to be valid anymore here, be sure to check again if it gets used again below
+		// Connection is not guaranteed to be valid anymore here, be sure to check again if it gets used again below
 	}
 }
 
@@ -419,10 +430,10 @@ void FWinHttpHttpRequest::FinishRequest()
 		}
 		Connection.Reset();
 	}
-	
+
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 	FHttpModule::Get().GetHttpManager().RemoveRequest(KeepAlive);
-	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid()); 
+	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid());
 }
 
 #endif // WITH_WINHTTP
