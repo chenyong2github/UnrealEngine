@@ -101,9 +101,9 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, FMemoryImageMaterialParameterInfo& Ref)
 	{
-		FName Name = ScriptNameToName(Ref.Name);
-		Ar << Name << Ref.Association << Ref.Index;
-		Ref.Name = NameToScriptName(Name);
+		FName RefName = ScriptNameToName(Ref.Name);
+		Ar << RefName << Ref.Association << Ref.Index;
+		Ref.Name = NameToScriptName(RefName);
 		return Ar;
 	}
 
