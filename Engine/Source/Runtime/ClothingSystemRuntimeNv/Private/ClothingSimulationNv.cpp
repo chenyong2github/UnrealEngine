@@ -39,8 +39,7 @@ DECLARE_CYCLE_STAT(TEXT("Update Anim Drive"), STAT_NvClothUpdateAnimDrive, STATG
 //=============================================================================
 
 FClothingSimulationContextNv::FClothingSimulationContextNv()
-	: PredictedLod(0)
-	, WindAdaption(0.0f)
+	: WindAdaption(0.0f)
 {
 }
 
@@ -54,14 +53,6 @@ void FClothingSimulationContextNv::Fill(const USkeletalMeshComponent* InComponen
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 
 	FClothingSimulationContextCommon::Fill(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
-
-	PredictedLod = InComponent->PredictedLODLevel;
-}
-
-void FClothingSimulationContextNv::FillRefToLocals(const USkeletalMeshComponent* InComponent)
-{
-	FClothingSimulationContextCommon::RefToLocals.Reset();
-	InComponent->GetCurrentRefToLocalMatrices(FClothingSimulationContextCommon::RefToLocals, InComponent->PredictedLODLevel);
 }
 
 void FClothingSimulationContextNv::FillWorldGravity(const USkeletalMeshComponent* InComponent)

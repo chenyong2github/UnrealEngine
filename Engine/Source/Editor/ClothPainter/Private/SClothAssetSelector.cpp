@@ -674,6 +674,11 @@ private:
 
 					// Set the flag
 					Mask->bEnabled = bNewEnableState;
+					
+					if(UClothingAssetCommon* Asset = InItem->ClothingAsset.Get())
+					{
+						Asset->ApplyParameterMasks();
+					}
 				}
 			}
 		}

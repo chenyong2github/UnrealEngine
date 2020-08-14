@@ -7,7 +7,7 @@
 #include "ChaosClothingSimulationInteractor.generated.h"
 
 // Command signature for handling synced command buffer
-DECLARE_DELEGATE_TwoParams(ChaosClothInteractorCommand, Chaos::ClothingSimulation*, Chaos::ClothingSimulationContext*)
+DECLARE_DELEGATE_TwoParams(ChaosClothInteractorCommand, Chaos::FClothingSimulation*, FClothingSimulationContextCommon*)
 
 UCLASS(BlueprintType)
 class CHAOSCLOTH_API UChaosClothingSimulationInteractor : public UClothingSimulationInteractor

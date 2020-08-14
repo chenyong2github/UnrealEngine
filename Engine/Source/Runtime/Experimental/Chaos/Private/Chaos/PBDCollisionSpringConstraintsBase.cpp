@@ -54,9 +54,11 @@ class FMeshBuildDataProvider
 
 template<class T, int d>
 PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
-    const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness)
+    const TPBDActiveView<TPBDParticles<T, d>>& ParticlesActiveView,  const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness)
     : MDynamicGroupIds(DynamicGroupIds), MPerGroupThicknesses(PerGroupThicknesses), MStiffness(Stiffness)
 {
+	const TDynamicParticles<T, d>& Particles = ParticlesActiveView.GetItems();
+
 	if (!Elements.Num())
 		return;
 #if PLATFORM_DESKTOP && PLATFORM_64BITS
@@ -69,53 +71,56 @@ PBDCollisionSpringConstraintsBase<T, d>::PBDCollisionSpringConstraintsBase(
 	const T Height = MaxThickness + MaxThickness;
 
 	TkDOPTree<const FMeshBuildDataProvider, uint32> DopTree;
-	TArray<FkDOPBuildCollisionTriangle<uint32>> BuildTraingleArray;
+	TArray<FkDOPBuildCollisionTriangle<uint32>> BuildTriangleArray;
 	for (int32 i = 0; i < Elements.Num(); ++i)
 	{
 		const auto& Elem = Elements[i];
-		BuildTraingleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, InParticles.X(Elem[0]), InParticles.X(Elem[1]), InParticles.X(Elem[2])));
+		BuildTriangleArray.Add(FkDOPBuildCollisionTriangle<uint32>(i, Particles.X(Elem[0]), Particles.X(Elem[1]), Particles.X(Elem[2])));
 	}
-	DopTree.Build(BuildTraingleArray);
+	DopTree.Build(BuildTriangleArray);
 	FMeshBuildDataProvider DopDataProvider(DopTree);
 	FCriticalSection CriticalSection;
-	PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
-		FkHitResult Result;
-		const auto& Start = InParticles.X(Index);
-		const auto End = Start + InParticles.V(Index) * Dt + InParticles.V(Index).GetSafeNormal() * Height;
-		FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
-		FVector4 End4(End.X, End.Y, End.Z, 0);
-		TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> ray(Start4, End4, true, DopDataProvider, &Result);
-		if (DopTree.LineCheck(ray))
+
+	ParticlesActiveView.ParallelFor(
+		[this, &Elements, &DisabledCollisionElements, &CriticalSection, Dt, Height, &DopDataProvider, &DopTree](TPBDParticles<T, d>& Particles, int32 Index)
 		{
-			const auto& Elem = Elements[Result.Item];
-			if (DisabledCollisionElements.Contains({Index, Elem[0]}) || DisabledCollisionElements.Contains({Index, Elem[1]}) || DisabledCollisionElements.Contains({Index, Elem[2]}))
-				return;
-			TVector<T, 3> Bary;
-			TVector<T, d> P10 = InParticles.X(Elem[1]) - InParticles.X(Elem[0]);
-			TVector<T, d> P20 = InParticles.X(Elem[2]) - InParticles.X(Elem[0]);
-			TVector<T, d> PP0 = InParticles.X(Index) - InParticles.X(Elem[0]);
-			T Size10 = P10.SizeSquared();
-			T Size20 = P20.SizeSquared();
-			T ProjSides = TVector<T, d>::DotProduct(P10, P20);
-			T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
-			T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
-			T Denom = Size10 * Size20 - ProjSides * ProjSides;
-			Bary.Y = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
-			Bary.Z = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
-			Bary.X = 1.0f - Bary.Z - Bary.Y;
-			// TODO(mlentine): In theory this shouldn't happen as this means no collision but I'm not positive that the collision check is always correct.
-			//if (Bary.Y < 0 || Bary.Z < 0 || Bary.X < 0) return;
-			// TODO(mlentine): Incorporate history
-			TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20);
-			Normal.Normalize();
-			Normal = TVector<T, d>::DotProduct(Normal, PP0) > 0 ? Normal : -Normal;
-			CriticalSection.Lock();
-			MConstraints.Add({Index, Elem[0], Elem[1], Elem[2]});
-			MBarys.Add(Bary);
-			MNormals.Add(Normal);
-			CriticalSection.Unlock();
-		}
-	});
+			FkHitResult Result;
+			const auto& Start = Particles.X(Index);
+			const auto End = Start + Particles.V(Index) * Dt + Particles.V(Index).GetSafeNormal() * Height;
+			FVector4 Start4(Start.X, Start.Y, Start.Z, 0);
+			FVector4 End4(End.X, End.Y, End.Z, 0);
+			TkDOPLineCollisionCheck<const FMeshBuildDataProvider, uint32> Ray(Start4, End4, true, DopDataProvider, &Result);
+			if (DopTree.LineCheck(Ray))
+			{
+				const auto& Elem = Elements[Result.Item];
+				if (DisabledCollisionElements.Contains({Index, Elem[0]}) || DisabledCollisionElements.Contains({Index, Elem[1]}) || DisabledCollisionElements.Contains({Index, Elem[2]}))
+					return;
+				TVector<T, 3> Bary;
+				TVector<T, d> P10 = Particles.X(Elem[1]) - Particles.X(Elem[0]);
+				TVector<T, d> P20 = Particles.X(Elem[2]) - Particles.X(Elem[0]);
+				TVector<T, d> PP0 = Particles.X(Index) - Particles.X(Elem[0]);
+				T Size10 = P10.SizeSquared();
+				T Size20 = P20.SizeSquared();
+				T ProjSides = TVector<T, d>::DotProduct(P10, P20);
+				T ProjP1 = TVector<T, d>::DotProduct(PP0, P10);
+				T ProjP2 = TVector<T, d>::DotProduct(PP0, P20);
+				T Denom = Size10 * Size20 - ProjSides * ProjSides;
+				Bary.Y = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
+				Bary.Z = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
+				Bary.X = 1.0f - Bary.Z - Bary.Y;
+				// TODO(mlentine): In theory this shouldn't happen as this means no collision but I'm not positive that the collision check is always correct.
+				//if (Bary.Y < 0 || Bary.Z < 0 || Bary.X < 0) return;
+				// TODO(mlentine): Incorporate history
+				TVector<T, d> Normal = TVector<T, d>::CrossProduct(P10, P20);
+				Normal.Normalize();
+				Normal = TVector<T, d>::DotProduct(Normal, PP0) > 0 ? Normal : -Normal;
+				CriticalSection.Lock();
+				MConstraints.Add({Index, Elem[0], Elem[1], Elem[2]});
+				MBarys.Add(Bary);
+				MNormals.Add(Normal);
+				CriticalSection.Unlock();
+			}
+		});
 #endif
 }
 

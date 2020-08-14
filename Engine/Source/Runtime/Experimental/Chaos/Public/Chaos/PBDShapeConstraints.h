@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Array.h"
-#include "Chaos/Map.h"
-#include "Chaos/PBDParticles.h"
 #include "Chaos/PBDShapeConstraintsBase.h"
 
 namespace Chaos
@@ -15,11 +12,17 @@ namespace Chaos
 
 	public:
 
-		TPBDShapeConstraints(const TDynamicParticles<T, d>& InParticles, uint32 InParticleIndexOffset, uint32 InParticleCount, const TArray<TVector<float, 3>>& TargetPositions, const T Stiffness = (T)1)
-			: Base(InParticles, TargetPositions, Stiffness), ParticleIndexOffset(InParticleIndexOffset), ParticleCount(InParticleCount)
+		TPBDShapeConstraints(
+			int32 InParticleOffset,
+			int32 InParticleCount,
+			const TArray<TVector<T, 3>>& StartPositions,
+			const TArray<TVector<T, 3>>& TargetPositions,
+			const T Stiffness = (T)1.
+		)
+			: Base(InParticleOffset, InParticleCount, StartPositions, TargetPositions, Stiffness)
 		{
 		}
-		virtual ~TPBDShapeConstraints() {}
+		virtual ~TPBDShapeConstraints() override {}
 
 		void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const
 		{
@@ -31,14 +34,10 @@ namespace Chaos
 
 		void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const
 		{
-			for (uint32 Index = ParticleIndexOffset; Index < ParticleIndexOffset + ParticleCount; Index++)
+			for (int32 Index = MParticleOffset; Index < MParticleOffset + MTargetPositions.Num(); Index++)
 			{
 				Apply(InParticles, Dt, Index);
 			}
 		}
-
-	private:
-		uint32 ParticleIndexOffset;
-		uint32 ParticleCount;
 	};
 }
