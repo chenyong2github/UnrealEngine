@@ -532,9 +532,8 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 	FMoviePipelineFormatArgs FinalFormatArgs;
 	FStringFormatNamedArguments Overrides;
 	Overrides.Add(TEXT("version"), TEXT("{version}")); // Force the Version string to stay as {version} so we can substring based on it later.
-	FMoviePipelineFrameOutputState DummyOutputState;
 
-	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, DummyOutputState, Overrides, FinalPath, FinalFormatArgs);
+	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, Overrides, FinalPath, FinalFormatArgs);
 	FinalPath = FPaths::ConvertRelativePathToFull(FinalPath);
 	FPaths::NormalizeFilename(FinalPath);
 
