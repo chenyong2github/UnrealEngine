@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 					"AJA",
 					"Core",
 					"CoreUObject",
-					"EditorFramework",
 					"Engine",
 					"MovieSceneCapture",
 					"RenderCore",
@@ -38,6 +37,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor == true)
 			{
+				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 		}
