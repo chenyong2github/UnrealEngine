@@ -19,6 +19,7 @@ class UAssetUserData;
 class UNetConnection;
 class UNavigationSystemConfig;
 class UWorldPartitionStreamingPolicy;
+class UAISystemBase;
 
 UENUM()
 enum EVisibilityAggressiveness
@@ -454,10 +455,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, config, Category = World, meta=(DisplayName = "DEPRECATED_bEnableNavigationSystem"))
 	uint8 bEnableNavigationSystem:1;
 
-public:
 	/** if set to false AI system will not get created. Use it to disable all AI-related activity on a map */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, config, Category=AI, AdvancedDisplay)
 	uint8 bEnableAISystem:1;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
+	TSoftClassPtr<UAISystemBase> AISystemClass;
 
 	/** 
 	 * Enables tools for composing a tiled world. 
@@ -791,6 +795,9 @@ public:
 
 	/** @return whether given world is configured to host any NavigationSystem */
 	bool IsNavigationSystemEnabled() const;
+
+	/** @return whether given world is configured to host an AISystem */
+	bool IsAISystemEnabled() const { return bEnableAISystem; }
 
 	/**
 	 * Called from GameStateBase, calls BeginPlay on all actors

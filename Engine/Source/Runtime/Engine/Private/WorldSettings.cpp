@@ -77,6 +77,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NavigationSystemConfig = nullptr;
 	bEnableAISystem = true;
+	AISystemClass = UAISystemBase::GetAISystemClassName();
 	bEnableWorldComposition = false;
 	bEnableWorldOriginRebasing = false;
 #if WITH_EDITORONLY_DATA
@@ -644,6 +645,8 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 
 void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	UWorld* World = GetWorld();
+
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if (PropertyThatChanged)
 	{
@@ -667,18 +670,28 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	LightmassSettings.EnvironmentIntensity = FMath::Max(LightmassSettings.EnvironmentIntensity, 0.0f);
 
 #if WITH_EDITOR
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FLightmassWorldInfoSettings, VolumetricLightmapDetailCellSize))
+	const FName PropName = PropertyChangedEvent.GetPropertyName();
+	if (PropName == GET_MEMBER_NAME_CHECKED(FLightmassWorldInfoSettings, VolumetricLightmapDetailCellSize))
 	{
 		FStaticLightingSystemInterface::OnLightmassImportanceVolumeModified.Broadcast();
 	}
+	else if (PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableAISystem)
+		|| PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, AISystemClass))
+	{
+		if (World)
+		{
+			World->CreateAISystem();
+		}
+	}
+
 #endif
 
 	// Ensure texture size is power of two between 512 and 4096.
 	PackedLightAndShadowMapTextureSize = FMath::Clamp<uint32>( FMath::RoundUpToPowerOfTwo( PackedLightAndShadowMapTextureSize ), 512, 4096 );
 
-	if (PropertyThatChanged != nullptr && GetWorld() != nullptr && GetWorld()->Scene)
+	if (PropertyThatChanged != nullptr && World != nullptr && World->Scene)
 	{
-		GetWorld()->Scene->UpdateSceneSettings(this);
+		World->Scene->UpdateSceneSettings(this);
 	}
 
 	for (UAssetUserData* Datum : AssetUserData)
@@ -958,7 +971,7 @@ void AWorldSettings::UpdateBookmarkClass()
 
 FSoftClassPath AWorldSettings::GetAISystemClassName() const
 {
-	return bEnableAISystem ? UAISystemBase::GetAISystemClassName() : FSoftClassPath();
+	return bEnableAISystem ? AISystemClass.Get() : FSoftClassPath();
 }
 
 void AWorldSettings::RewindForReplay()

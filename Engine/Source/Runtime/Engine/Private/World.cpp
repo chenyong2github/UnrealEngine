@@ -1273,7 +1273,7 @@ UAISystemBase* UWorld::CreateAISystem()
 	{
 		const FName AIModuleName = UAISystemBase::GetAISystemModuleName();
 		const AWorldSettings* WorldSettings = PersistentLevel->GetWorldSettings(false);
-		if (AIModuleName.IsNone() == false && WorldSettings && WorldSettings->bEnableAISystem)
+		if (AIModuleName.IsNone() == false && WorldSettings && WorldSettings->IsAISystemEnabled())
 		{
 			IAISystemModule* AISystemModule = FModuleManager::LoadModulePtr<IAISystemModule>(AIModuleName);
 			if (AISystemModule)
@@ -1475,7 +1475,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 			{
 				FNavigationSystem::AddNavigationSystemToWorld(*this, FNavigationSystemRunMode::InvalidMode, WorldSettings->GetNavigationSystemConfig(), /*bInitializeForWorld=*/false);
 			}
-			if (IVS.bCreateAISystem && WorldSettings->bEnableAISystem)
+			if (IVS.bCreateAISystem && WorldSettings->IsAISystemEnabled())
 			{
 				CreateAISystem();
 			}
