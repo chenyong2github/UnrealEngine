@@ -248,7 +248,7 @@ FNiagaraDynamicDataBase::~FNiagaraDynamicDataBase()
 	}
 }
 
-FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsTranslucent)const
+FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsLowLatencyTranslucent)const
 {
 	FNiagaraDataBuffer* Ret = nullptr;
 
@@ -258,7 +258,7 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsTra
 	}
 	else
 	{
-		Ret = Data.GPUExecContext->GetDataToRender(bIsTranslucent);
+		Ret = Data.GPUExecContext->GetDataToRender(bIsLowLatencyTranslucent);
 	}
 
 	checkSlow(Ret == nullptr || Ret->IsBeingRead());
