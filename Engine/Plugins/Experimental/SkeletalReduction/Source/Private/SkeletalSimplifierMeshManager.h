@@ -91,7 +91,7 @@ namespace SkeletalSimplifier
 		void        FlagEdges(const TFunction<bool(const SimpVertType*, const SimpVertType*)> IsDifferent, const ESimpElementFlags Flag);
 
 		// Visit each edge group, and call EdgeVisitor(VertexA, VertexB, NumAdjacentFaces)
-		void        VisitEdges(TFunction<void(SimpVertType*, SimpVertType*, int32)> EdgeVisitor);
+		void        VisitEdges(TFunctionRef<void(SimpVertType*, SimpVertType*, int32)> EdgeVisitor);
 
 		// Change the attributes on a given simplifier vert.
 		void UpdateVertexAttributes(SimpVertType& Vertex, const MeshVertType& AttributeVert)
@@ -516,6 +516,31 @@ namespace SkeletalSimplifier
 				ID = InID;
 				SrcVert = SV;
 			}
+		};
+
+		// struct used with VistEdges when counting nonmanifold edges.
+		struct FNonManifoldEdgeCounter
+		{
+			int32 EdgeCount;
+			int32 NumNonManifoldEdges;
+			bool bLockNonManifoldEdges;
+
+			void operator()(SimpVertType* v0, SimpVertType* v1, int32 AdjFaceCount)
+			{
+				EdgeCount++;
+				if (AdjFaceCount > 2)
+				{
+					NumNonManifoldEdges++;
+
+					if (bLockNonManifoldEdges)
+					{
+						// lock these verts.
+						v0->EnableFlagsGroup(SIMP_LOCKED);
+						v1->EnableFlagsGroup(SIMP_LOCKED);
+					}
+				}
+			}
+
 		};
 
 	};
