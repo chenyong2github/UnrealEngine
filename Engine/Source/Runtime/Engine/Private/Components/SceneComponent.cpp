@@ -3336,9 +3336,13 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		// Call on all attached children
-		for (USceneComponent* ChildComponent : GetAttachChildren())
+		TArray<USceneComponent*> AttachChildrenCopy(GetAttachChildren());
+		for (USceneComponent* ChildComponent : AttachChildrenCopy)
 		{
-			ChildComponent->PostEditComponentMove(bFinished);
+			if (ChildComponent)
+			{
+				ChildComponent->PostEditComponentMove(bFinished);
+			}
 		}
 	}
 }
