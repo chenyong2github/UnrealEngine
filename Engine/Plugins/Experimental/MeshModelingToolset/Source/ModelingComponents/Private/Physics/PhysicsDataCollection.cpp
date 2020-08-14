@@ -17,7 +17,7 @@ void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Comp
 	SourceComponent = StaticMeshComponent;
 	BodySetup = StaticMesh->BodySetup;
 
-	ExternalScale3D == FVector(1, 1, 1);
+	ExternalScale3D = FVector(1.f, 1.f, 1.f);
 
 	if (bInitializeAggGeom)
 	{
