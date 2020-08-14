@@ -25,7 +25,7 @@ namespace EditorAnalyticsDefs
 	//   Version 1_0 : Used from creation up to 4.25.0 release (included).
 	//   Version 1_1 : To avoid public API changes in 4.25.1, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
 	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
-	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut for 4.26.0.
+	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
@@ -100,6 +100,7 @@ namespace EditorAnalyticsDefs
 	static const FString IsInEnterpriseStoreKey(TEXT("IsInEnterprise"));
 	static const FString IsInVRModeStoreKey(TEXT("IsInVRMode"));
 	static const FString IsCrcExeMissingStoreKey(TEXT("IsCrcExeMissing"));
+	static const FString IsLowDriveSpaceStoreKey(TEXT("IsLowDriveSpace"));
 }
 
 // Utilities for writing to stored values
@@ -363,6 +364,7 @@ namespace EditorAnalyticsUtils
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
 		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
+		Session.bIsLowDriveSpace = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 		Session.bIsCrcExeMissing = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsCrcExeMissingStoreKey);
 
 		// Analyze the logged events and update corresponding fields in the session.
@@ -529,6 +531,7 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::IsInPIEStoreKey,          EditorAnalyticsUtils::BoolToStoredString(bIsInPIE)    },
 			{EditorAnalyticsDefs::IsInEnterpriseStoreKey,   EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise)},
 			{EditorAnalyticsDefs::IsInVRModeStoreKey,       EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
+			{EditorAnalyticsDefs::IsLowDriveSpaceStoreKey,  EditorAnalyticsUtils::BoolToStoredString(bIsLowDriveSpace)},
 		};
 
 		if (ExitCode.IsSet())
@@ -626,6 +629,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsCrcExeMissingStoreKey);
 
 	// Delete the log files.
