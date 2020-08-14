@@ -259,15 +259,15 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 
 	if (Scene
 		&& Scene->SkyLight
-		&& (Scene->SkyLight->ProcessedTexture || (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTarget))
+		&& (Scene->SkyLight->ProcessedTexture || (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTargetReadyIndex >= 0))
 		&& bApplySkyLight)
 	{
 		const FSkyLightSceneProxy& SkyLight = *Scene->SkyLight;
 
-		if (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTarget)
+		if (Scene->SkyLight->bRealTimeCaptureEnabled && Scene->ConvolvedSkyRenderTargetReadyIndex >= 0)
 		{
 			// Cannot blend with this capture mode as of today.
-			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
+			SkyLightTextureResource = Scene->ConvolvedSkyRenderTarget[Scene->ConvolvedSkyRenderTargetReadyIndex]->GetRenderTargetItem().ShaderResourceTexture;
 		}
 		else if (Scene->SkyLight->ProcessedTexture)
 		{
