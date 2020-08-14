@@ -10,6 +10,7 @@ namespace Chaos
 	{
 		typedef TPBDShapeConstraintsBase<T, d> Base;
 		using Base::MParticleOffset;
+		using Base::MTargetPositions;
 
 	public:
 
