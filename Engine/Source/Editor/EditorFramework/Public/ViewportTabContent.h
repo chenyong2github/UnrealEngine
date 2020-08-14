@@ -15,7 +15,7 @@ class SDockTab;
 class FEditorViewportLayout;
 class IEditorViewportLayoutEntity;
 
-class UNREALED_API FViewportTabContent
+class EDITORFRAMEWORK_API FViewportTabContent
 {
 public:
 	virtual ~FViewportTabContent() {}
