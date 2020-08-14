@@ -1973,6 +1973,30 @@ static void CycleDebugCategory(UWorld* InWorld)
 	TargetInfo->DebugCategoryIndex = (TargetInfo->DebugCategoryIndex+1) % TargetInfo->DebugCategories.Num();
 }
 
+static void SetDebugCategory(const TArray<FString>& Args, UWorld* InWorld)
+{
+	if (Args.Num() < 1)
+	{
+		ABILITY_LOG(Error, TEXT("Missing category name parameter. Usage: AbilitySystem.Debug.SetCategory <CategoryName>"))
+		return;
+	}
+
+	FASCDebugTargetInfo* TargetInfo = GetDebugTargetInfo(InWorld);
+	check(TargetInfo);
+
+	for (int32 CategoryIndex = 0; CategoryIndex < TargetInfo->DebugCategories.Num(); ++CategoryIndex)
+	{
+		const FString CategoryString = TargetInfo->DebugCategories[CategoryIndex].ToString();
+		if (CategoryString.Equals(Args[0], ESearchCase::IgnoreCase))
+		{
+			TargetInfo->DebugCategoryIndex = CategoryIndex;
+			return;
+		}
+	}
+
+	ABILITY_LOG(Error, TEXT("Unable to match category name parameter [%s]. Usage: AbilitySystem.Debug.SetCategory <CategoryName>"), *Args[0]);
+}
+
 UAbilitySystemComponent* GetDebugTarget(FASCDebugTargetInfo* Info)
 {
 	// Return target if we already have one
@@ -2059,9 +2083,15 @@ FAutoConsoleCommandWithWorld AbilitySystemPrevDebugTargetCmd(
 
 FAutoConsoleCommandWithWorld AbilitySystemDebugNextCategoryCmd(
 	TEXT("AbilitySystem.Debug.NextCategory"),
-	TEXT("Targets previous AbilitySystemComponent in ShowDebug AbilitySystem"),
+	TEXT("Switches to the next ShowDebug AbilitySystem category"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(CycleDebugCategory)
 	);
+
+FAutoConsoleCommandWithWorldAndArgs AbilitySystemDebugSetCategoryCmd(
+	TEXT("AbilitySystem.Debug.SetCategory"),
+	TEXT("Sets the ShowDebug AbilitySystem category. Usage: AbilitySystem.Debug.SetCategory <CategoryName>"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(SetDebugCategory)
+);
 
 void UAbilitySystemComponent::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
 {
@@ -2070,7 +2100,18 @@ void UAbilitySystemComponent::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const 
 		UWorld* World = HUD->GetWorld();
 		FASCDebugTargetInfo* TargetInfo = GetDebugTargetInfo(World);
 	
-		if (UAbilitySystemComponent* ASC = GetDebugTarget(TargetInfo))
+		UAbilitySystemComponent* ASC = nullptr;
+
+		if (UAbilitySystemGlobals::Get().bUseDebugTargetFromHud)
+		{
+			ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(HUD->GetCurrentDebugTargetActor());
+		}
+		else
+		{
+			ASC = GetDebugTarget(TargetInfo);
+		}
+
+		if (ASC)
 		{
 			TArray<FName> LocalDisplayNames;
 			LocalDisplayNames.Add( TargetInfo->DebugCategories[ TargetInfo->DebugCategoryIndex ] );

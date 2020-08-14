@@ -20,6 +20,8 @@ UAbilitySystemGlobals::UAbilitySystemGlobals(const FObjectInitializer& ObjectIni
 {
 	AbilitySystemGlobalsClassName = FSoftClassPath(TEXT("/Script/GameplayAbilities.AbilitySystemGlobals"));
 
+	bUseDebugTargetFromHud = false;
+
 	PredictTargetGameplayEffects = true;
 
 	MinimalReplicationTagCountBits = 5;

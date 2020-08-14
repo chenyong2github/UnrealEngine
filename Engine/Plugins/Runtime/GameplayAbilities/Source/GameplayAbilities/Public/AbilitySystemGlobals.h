@@ -168,6 +168,10 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** Global place to accumulate debug strings for ability system component. Used when we fill up client side debug string immediately, and then wait for server to send server strings */
 	TArray<FString>	AbilitySystemDebugStrings;
 
+	/** Set to true if you want the "ShowDebug AbilitySystem" cheat to use the hud's debug target instead of the ability system's debug target. */
+	UPROPERTY(config)
+	bool bUseDebugTargetFromHud;
+
 	/** Helper functions for applying global scaling to various ability system tasks. This isn't meant to be a shipping feature, but to help with debugging and interation via cvar AbilitySystem.GlobalAbilityScale */
 	static void NonShipping_ApplyGlobalAbilityScaler_Rate(float& Rate);
 	static void NonShipping_ApplyGlobalAbilityScaler_Duration(float& Duration);
