@@ -6,6 +6,7 @@
 
 UTemplateSequenceSection::UTemplateSequenceSection()
 {
+	SetBlendType(EMovieSceneBlendType::Absolute);
 }
 
 void UTemplateSequenceSection::OnDilated(float DilationFactor, FFrameNumber Origin)
@@ -40,4 +41,6 @@ void UTemplateSequenceSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 		.AddConditional(FBuiltInComponentTypes::Get()->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
 		.Add(FTemplateSequenceComponentTypes::Get()->TemplateSequence, ComponentData)
 	);
+
+	BuildDefaultSubSectionComponents(EntityLinker, Params, OutImportedEntity);
 }
