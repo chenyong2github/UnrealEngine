@@ -8,10 +8,9 @@
 #include "SphereTypes.h"
 #include "OrientedBoxTypes.h"
 #include "CapsuleTypes.h"
-#include "VectorSetAnalysis.h"
+#include "Sampling/VectorSetAnalysis.h"
 #include "DynamicMesh3.h"
 #include "MeshQueries.h"
-
 #include "FitCapsule3.h"
 
 namespace UE
@@ -151,7 +150,7 @@ namespace UE
 			}
 
 			// cluster normals
-			FVectorSetAnalysis Vectors;
+			FVectorSetAnalysis3d Vectors;
 			Vectors.Initialize(Mesh.TriangleIndicesItr(),
 				[&](int32 TriangleID) { return Mesh.GetTriNormal(TriangleID); },
 				Mesh.TriangleCount(), true);
