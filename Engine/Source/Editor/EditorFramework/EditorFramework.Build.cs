@@ -21,7 +21,6 @@ public class EditorFramework : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorStyle",
-				"EditorSubsystem",
 				"Engine",
 				"InputCore",
 				"RenderCore",

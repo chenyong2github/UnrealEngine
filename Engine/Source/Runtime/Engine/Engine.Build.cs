@@ -329,7 +329,6 @@ public class Engine : ModuleRules
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"EditorFramework",
 					"UnrealEd",
 					"Kismet"
 				}
