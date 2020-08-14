@@ -118,6 +118,15 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static int Engine_ExecutionCount;
 	static int GGPUExecIndex;
 
+	int3 SimulationStageIterationInfo;							// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
+	float SimulationStageNormalizedIterationIndex;
+
+	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
+	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x; }
+	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.y; }
+	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.z; }
+	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
+
 	static uint GSpawnStartInstance;
 	uint SpawnedInstances;
 	uint UpdateStartInstance;
@@ -463,8 +472,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		int DefaultSimulationStageIndex;
 		int SimulationStageIndex;
 	#endif
-
-	int IterationInterfaceCount;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
