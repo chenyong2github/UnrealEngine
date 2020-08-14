@@ -105,7 +105,8 @@ void FShaderMapBase::UnfreezeContent()
 {
 	if (Content && FrozenContentSize > 0u)
 	{
-		void* UnfrozenMemory = FMemory::Malloc(ContentTypeLayout.Size, ContentTypeLayout.Alignment);
+		// Invoke 'operator new' rather than malloc, as unfrozen memory is expected to be allocate via 'new'
+		void* UnfrozenMemory = ::operator new(ContentTypeLayout.Size);
 
 		FMemoryUnfreezeContent Context;
 		Context.PrevPointerTable = PointerTable;
