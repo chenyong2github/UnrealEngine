@@ -181,7 +181,6 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 					SNew(STextBlock)
 					.Text( this, &SAssetDialog::GetNameErrorLabelText )
 					.ToolTipText(this, &SAssetDialog::GetNameErrorLabelText)
-					.TextStyle( FEditorStyle::Get(), "AssetDialog.ErrorLabelFont" )
 				]
 			]
 		];

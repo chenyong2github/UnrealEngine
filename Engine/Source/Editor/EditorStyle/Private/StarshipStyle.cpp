@@ -7570,8 +7570,7 @@ void FStarshipEditorStyle::FStyle::SetupAutomationStyles()
 
 	// Asset Dialog
 	{
-		Set("AssetDialog.ErrorLabelBorder", new FSlateColorBrush(FLinearColor(0.2, 0, 0)));
-		Set("AssetDialog.ErrorLabelFont", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Regular", 10)));
+		Set("AssetDialog.ErrorLabelBorder", new FSlateColorBrush(FStyleColors::AccentRed));
 	}
 }
 
