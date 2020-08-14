@@ -783,24 +783,26 @@ void MovieSceneToolHelpers::MovieSceneTranslatorLogOutput(FMovieSceneTranslator 
 	}
 }
 
-static FGuid GetHandleToObject(UObject* InObject, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID)
+static FGuid GetHandleToObject(UObject* InObject, UMovieSceneSequence* InSequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID)
 {
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
 	// Attempt to resolve the object through the movie scene instance first, 
 	FGuid PropertyOwnerGuid = FGuid();
-	if (InObject != nullptr && !InMovieScene->IsReadOnly())
+	if (InObject != nullptr && !MovieScene->IsReadOnly())
 	{
 		FGuid ObjectGuid = Player->FindObjectId(*InObject, TemplateID);
 		if (ObjectGuid.IsValid())
 		{
 			// Check here for spawnable otherwise spawnables get recreated as possessables, which doesn't make sense
-			FMovieSceneSpawnable* Spawnable = InMovieScene->FindSpawnable(ObjectGuid);
+			FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectGuid);
 			if (Spawnable)
 			{
 				PropertyOwnerGuid = ObjectGuid;
 			}
 			else
 			{
-				FMovieScenePossessable* Possessable = InMovieScene->FindPossessable(ObjectGuid);
+				FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectGuid);
 				if (Possessable)
 				{
 					PropertyOwnerGuid = ObjectGuid;
@@ -808,11 +810,22 @@ static FGuid GetHandleToObject(UObject* InObject, UMovieScene* InMovieScene, IMo
 			}
 		}
 	}
+
+	if (PropertyOwnerGuid.IsValid())
+	{
+		return PropertyOwnerGuid;
+	}
+
+	// Otherwise, create a possessable for this object. Note this will handle creating the parent possessables if this is a component.
+	PropertyOwnerGuid = InSequence->CreatePossessable(InObject);
+	
 	return PropertyOwnerGuid;
 }
 
-bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID)
+bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieSceneSequence* InSequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID)
 {
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
 	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
 	const UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetDefault<UMovieSceneUserImportFBXSettings>();
 
@@ -845,7 +858,7 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 				continue;
 			}
 		
-			FGuid PropertyOwnerGuid = GetHandleToObject(PropertyOwner,InMovieScene, Player, TemplateID);
+			FGuid PropertyOwnerGuid = GetHandleToObject(PropertyOwner, InSequence, Player, TemplateID);
 			if (!PropertyOwnerGuid.IsValid())
 			{
 				continue;
@@ -856,11 +869,11 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 				continue;
 			}
 
-			UMovieSceneFloatTrack* FloatTrack = InMovieScene->FindTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid, *FbxSetting.PropertyPath.PropertyName);
+			UMovieSceneFloatTrack* FloatTrack = MovieScene->FindTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid, *FbxSetting.PropertyPath.PropertyName);
 			if (!FloatTrack)
 			{
-				InMovieScene->Modify();
-				FloatTrack = InMovieScene->AddTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid);
+				MovieScene->Modify();
+				FloatTrack = MovieScene->AddTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid);
 				FloatTrack->SetPropertyNameAndPath(*FbxSetting.PropertyPath.PropertyName, *FbxSetting.PropertyPath.PropertyName);
 			}
 
@@ -1040,8 +1053,10 @@ void ImportTransformChannel(const FRichCurve& Source, FMovieSceneFloatChannel* D
 	}
 }
 
-bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieScene* InMovieScene)
+bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieSceneSequence* InSequence)
 {
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
 	const UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetDefault<UMovieSceneUserImportFBXSettings>();
 
 	// Look for transforms explicitly
@@ -1052,11 +1067,11 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	const bool bUseSequencerCurve = true;
 	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve);
 
- 	UMovieScene3DTransformTrack* TransformTrack = InMovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding); 
+ 	UMovieScene3DTransformTrack* TransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding); 
 	if (!TransformTrack)
 	{
-		InMovieScene->Modify();
-		TransformTrack = InMovieScene->AddTrack<UMovieScene3DTransformTrack>(ObjectBinding);
+		MovieScene->Modify();
+		TransformTrack = MovieScene->AddTrack<UMovieScene3DTransformTrack>(ObjectBinding);
 	}
 	TransformTrack->Modify();
 
@@ -1107,7 +1122,7 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	return true;
 }
 
-bool MovieSceneToolHelpers::ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, FGuid ObjectBinding)
+bool MovieSceneToolHelpers::ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieSceneSequence* InSequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, FGuid ObjectBinding)
 {
 	// Look for animated float properties
 	TArray<FString> AnimatedPropertyNames;
@@ -1115,10 +1130,10 @@ bool MovieSceneToolHelpers::ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI
 		
 	for (auto AnimatedPropertyName : AnimatedPropertyNames)
 	{
-		ImportFBXProperty(NodeName, AnimatedPropertyName, ObjectBinding, CurveAPI, InMovieScene, Player, TemplateID);
+		ImportFBXProperty(NodeName, AnimatedPropertyName, ObjectBinding, CurveAPI, InSequence, Player, TemplateID);
 	}
 	
-	ImportFBXTransform(NodeName, ObjectBinding, CurveAPI, InMovieScene);
+	ImportFBXTransform(NodeName, ObjectBinding, CurveAPI, InSequence);
 
 	return true;
 }
@@ -1253,8 +1268,10 @@ FString MovieSceneToolHelpers::GetCameraName(FbxCamera* InCamera)
 }
 
 
-void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bNotifySlate)
+void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bNotifySlate)
 {
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
 	for (auto InObjectBinding : InObjectBindingMap)
 	{
 		TArrayView<TWeakObjectPtr<>> BoundObjects = Player->FindBoundObjects(InObjectBinding.Key,TemplateID);
@@ -1337,14 +1354,14 @@ void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxIm
 
 				// Set the default value of the current focal length or field of view section
 				//FGuid PropertyOwnerGuid = Player->GetHandleToObject(CameraComponent);
-				FGuid PropertyOwnerGuid = GetHandleToObject(CameraComponent, InMovieScene, Player, TemplateID);
+				FGuid PropertyOwnerGuid = GetHandleToObject(CameraComponent, InSequence, Player, TemplateID);
 
 				if (!PropertyOwnerGuid.IsValid())
 				{
 					continue;
 				}
 
-				UMovieSceneFloatTrack* FloatTrack = InMovieScene->FindTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid, TrackName);
+				UMovieSceneFloatTrack* FloatTrack = MovieScene->FindTrack<UMovieSceneFloatTrack>(PropertyOwnerGuid, TrackName);
 				if (FloatTrack)
 				{
 					FloatTrack->Modify();
@@ -1371,8 +1388,10 @@ void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxIm
 	}
 }
 
-void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene, ISequencer& InSequencer,  TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bCreateCameras)
+void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSequence, ISequencer& InSequencer,  TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bCreateCameras)
 {
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+
 	if (bCreateCameras)
 	{
 		TArray<FbxCamera*> AllCameras;
@@ -1460,7 +1479,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 		}
 	}
 	
-	MovieSceneToolHelpers::ImportFBXCameraToExisting(FbxImporter, InMovieScene, &InSequencer, InSequencer.GetFocusedTemplateID(), InObjectBindingMap, bMatchByNameOnly, true);
+	MovieSceneToolHelpers::ImportFBXCameraToExisting(FbxImporter, InSequence, &InSequencer, InSequencer.GetFocusedTemplateID(), InObjectBindingMap, bMatchByNameOnly, true);
 }
 
 FGuid FindCameraGuid(FbxCamera* Camera, TMap<FGuid, FString>& InObjectBindingMap)
@@ -1539,7 +1558,7 @@ class SMovieSceneImportFBXSettings : public SCompoundWidget, public FGCObject
 {
 	SLATE_BEGIN_ARGS(SMovieSceneImportFBXSettings) {}
 		SLATE_ARGUMENT(FString, ImportFilename)
-		SLATE_ARGUMENT(UMovieScene*, MovieScene)
+		SLATE_ARGUMENT(UMovieSceneSequence*, Sequence)
 		SLATE_ARGUMENT(ISequencer*, Sequencer)
 	SLATE_END_ARGS()
 
@@ -1581,7 +1600,7 @@ class SMovieSceneImportFBXSettings : public SCompoundWidget, public FGCObject
 		];
 
 		ImportFilename = InArgs._ImportFilename;
-		MovieScene = InArgs._MovieScene;
+		Sequence = InArgs._Sequence;
 		Sequencer = InArgs._Sequencer;
 
 		UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXSettings>();
@@ -1590,7 +1609,7 @@ class SMovieSceneImportFBXSettings : public SCompoundWidget, public FGCObject
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
 	{
-		Collector.AddReferencedObject(MovieScene);
+		Collector.AddReferencedObject(Sequence);
 	}
 
 	void SetObjectBindingMap(const TMap<FGuid, FString>& InObjectBindingMap)
@@ -1611,7 +1630,7 @@ private:
 		UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXSettings>();
 		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::FBX, FPaths::GetPath( ImportFilename ) ); // Save path as default for next time.
 
-		if (!MovieScene || MovieScene->IsReadOnly())
+		if (!Sequence || !Sequence->GetMovieScene() || Sequence->GetMovieScene()->IsReadOnly())
 		{
 			return FReply::Unhandled();
 		}
@@ -1627,10 +1646,10 @@ private:
 
 		const bool bMatchByNameOnly = ImportFBXSettings->bMatchByNameOnly;
 		// Import static cameras first
-		ImportFBXCamera(FbxImporter, MovieScene, *Sequencer, ObjectBindingMap, bMatchByNameOnly, bCreateCameras.IsSet() ? bCreateCameras.GetValue() : ImportFBXSettings->bCreateCameras);
+		ImportFBXCamera(FbxImporter, Sequence, *Sequencer, ObjectBindingMap, bMatchByNameOnly, bCreateCameras.IsSet() ? bCreateCameras.GetValue() : ImportFBXSettings->bCreateCameras);
 
 		UWorld* World = Cast<UWorld>(Sequencer->GetPlaybackContext());
-		bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Sequencer, Sequencer->GetFocusedTemplateID(), ObjectBindingMap, ImportFBXSettings, InOutParams);
+		bool bValid = MovieSceneToolHelpers::ImportFBXIfReady(World, Sequence, Sequencer, Sequencer->GetFocusedTemplateID(), ObjectBindingMap, ImportFBXSettings, InOutParams);
 	
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 
@@ -1646,7 +1665,7 @@ private:
 
 	TSharedPtr<IDetailsView> DetailView;
 	FString ImportFilename;
-	UMovieScene* MovieScene;
+	UMovieSceneSequence* Sequence;
 	ISequencer* Sequencer;
 	TMap<FGuid, FString> ObjectBindingMap;
 	TOptional<bool> bCreateCameras;
@@ -1679,9 +1698,11 @@ bool MovieSceneToolHelpers::ReadyFBXForImport(const FString&  ImportFilename, UM
 }
 
 
-bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
+bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieSceneSequence* Sequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& ObjectBindingMap, UMovieSceneUserImportFBXSettings* ImportFBXSettings,
 	const FFBXInOutParameters& InParams)
 {
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
 	UMovieSceneUserImportFBXSettings* CurrentImportFBXSettings = GetMutableDefault<UMovieSceneUserImportFBXSettings>();
 	TArray<uint8> OriginalSettings;
 	FObjectWriter(CurrentImportFBXSettings, OriginalSettings);
@@ -1719,7 +1740,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 		{
 			if (FCString::Strcmp(*It.Value().ToUpper(), *NodeName.ToUpper()) == 0)
 			{
-				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, TemplateID, It.Key());
+				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, Sequence, Player, TemplateID, It.Key());
 
 				ObjectBindingMap.Remove(It.Key());
 				AllNodeNames.RemoveAt(NodeIndex);
@@ -1752,7 +1773,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 			auto It = ObjectBindingMap.CreateConstIterator();
 			if (It)
 			{
-				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, MovieScene, Player, TemplateID, It.Key());
+				MovieSceneToolHelpers::ImportFBXNode(NodeName, CurveAPI, Sequence, Player, TemplateID, It.Key());
 
 				UE_LOG(LogMovieScene, Warning, TEXT("Fbx Import: Failed to find any matching node for (%s). Defaulting to first available (%s)."), *NodeName, *It.Value());
 				ObjectBindingMap.Remove(It.Key());
@@ -1780,7 +1801,7 @@ bool MovieSceneToolHelpers::ImportFBXIfReady(UWorld* World, UMovieScene* MovieSc
 	return true;
 }
 
-bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieScene* InMovieScene, ISequencer& InSequencer, const TMap<FGuid, FString>& InObjectBindingMap, TOptional<bool> bCreateCameras)
+bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieSceneSequence* InSequence, ISequencer& InSequencer, const TMap<FGuid, FString>& InObjectBindingMap, TOptional<bool> bCreateCameras)
 {
 	TArray<FString> OpenFilenames;
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
@@ -1823,7 +1844,7 @@ bool MovieSceneToolHelpers::ImportFBXWithDialog(UMovieScene* InMovieScene, ISequ
 
 	TSharedRef<SMovieSceneImportFBXSettings> DialogWidget = SNew(SMovieSceneImportFBXSettings)
 		.ImportFilename(OpenFilenames[0])
-		.MovieScene(InMovieScene)
+		.Sequence(InSequence)
 		.Sequencer(&InSequencer);
 	DialogWidget->SetObjectBindingMap(InObjectBindingMap);
 	DialogWidget->SetCreateCameras(bCreateCameras);
