@@ -6,6 +6,7 @@
 #include "MovieSceneTrack.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
 #include "Evaluation/MovieSceneEvaluationTemplate.h"
 #include "Misc/FrameRate.h"
 #include "Logging/MessageLog.h"
@@ -413,3 +414,22 @@ FFrameNumber UMovieSceneSubSection::MapTimeToSectionFrame(FFrameTime InPosition)
 	FFrameNumber LocalPosition = ((InPosition - Parameters.StartFrameOffset) * Parameters.TimeScale).GetFrame();
 	return LocalPosition;
 }
+
+void UMovieSceneSubSection::BuildDefaultSubSectionComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) const
+{
+	using namespace UE::MovieScene;
+
+	if (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0)
+	{
+		FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+		FInstanceRegistry* InstanceRegistry = EntityLinker->GetInstanceRegistry();
+
+		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(Params.Sequence.InstanceHandle);
+		const FMovieSceneSequenceID SubSequenceID = GetSequenceID();
+
+		OutImportedEntity->AddBuilder(
+			FEntityBuilder()
+				.AddConditional(Components->HierarchicalEasingProvider, SubSequenceID, SubSequenceID.IsValid()));
+	}
+}
+

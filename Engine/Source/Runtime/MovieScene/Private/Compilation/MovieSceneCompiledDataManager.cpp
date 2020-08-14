@@ -122,6 +122,7 @@ struct FGatherParameters
 		, LocalClampRange(RootClampRange)
 		, Flags(ESectionEvaluationFlags::None)
 		, HierarchicalBias(0)
+		, bHasHierarchicalEasing(false)
 	{}
 
 	FGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID) const
@@ -164,6 +165,9 @@ struct FGatherParameters
 
 	/** Current accumulated hierarchical bias */
 	int16 HierarchicalBias;
+
+	/** Whether the current sequence is receiving hierarchical easing from some parent sequence */
+	bool bHasHierarchicalEasing;
 };
 
 /** Parameter structure used for gathering entities for a given time or range */
@@ -1147,6 +1151,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, NewSubData.PlayRange.Value);
 		NewSubData.RootToSequenceTransform = NewSubData.RootToSequenceTransform * Params.RootToSequenceTransform;
 		NewSubData.HierarchicalBias        = Params.HierarchicalBias + NewSubData.HierarchicalBias;
+		NewSubData.bHasHierarchicalEasing  = Params.bHasHierarchicalEasing || NewSubData.bHasHierarchicalEasing;
 
 		// Add the sub data to the root hierarchy
 		InOutHierarchy->Add(NewSubData, InnerSequenceID, ParentSequenceID);

@@ -199,6 +199,12 @@ public:
 	// An FEasingComponentData for computing easing curves
 	TComponentTypeID<FEasingComponentData> Easing;
 
+	// An index associated to hierarchical easing for the owning sub-sequence
+	TComponentTypeID<uint16> HierarchicalEasingChannel;
+
+	// The sub-sequence ID that should receive ease in/out as a whole
+	TComponentTypeID<FMovieSceneSequenceID> HierarchicalEasingProvider;
+
 	// A float representing the evaluated easing weight
 	TComponentTypeID<float> WeightAndEasingResult;
 

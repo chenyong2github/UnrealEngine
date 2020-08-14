@@ -58,6 +58,7 @@ struct FEntityImportSequenceParams
 	FEntityImportSequenceParams()
 		: HierarchicalBias(0)
 		, DefaultCompletionMode(EMovieSceneCompletionMode::KeepState)
+		, bHasHierarchicalEasing(false)
 		, bPreRoll(false)
 		, bPostRoll(false)
 	{}
@@ -69,6 +70,7 @@ struct FEntityImportSequenceParams
 
 	EMovieSceneCompletionMode DefaultCompletionMode;
 
+	bool bHasHierarchicalEasing : 1;
 	bool bPreRoll : 1;
 	bool bPostRoll : 1;
 };
