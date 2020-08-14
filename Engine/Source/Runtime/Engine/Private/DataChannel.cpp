@@ -987,7 +987,7 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 	// Add any export bunches
 	// Replay connections will manage export bunches separately.
-	if (!Connection->IsReplay())
+	if (!Connection->IsInternalAck())
 	{
 		AppendExportBunches( OutgoingBunches );
 	}
