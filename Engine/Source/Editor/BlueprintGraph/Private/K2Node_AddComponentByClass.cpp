@@ -209,9 +209,9 @@ void UK2Node_AddComponentByClass::ExpandNode(class FKismetCompilerContext& Compi
 	//////////////////////////////////////////////////////////////////////////
 	// create 'set var' nodes
 
-	UEdGraphPin* LastAssignmentThen = FKismetCompilerUtilities::GenerateAssignmentNodes(CompilerContext, SourceGraph, CallAddComponentByClassNode, this, CallAddComponentByClassResult, ClassToSpawn);
+	UEdGraphPin* LastThen = FKismetCompilerUtilities::GenerateAssignmentNodes(CompilerContext, SourceGraph, CallAddComponentByClassNode, this, CallAddComponentByClassResult, ClassToSpawn);
 
-	if (LastAssignmentThen != CallAddComponentByClassNode->GetThenPin())
+	if (LastThen != CallAddComponentByClassNode->GetThenPin())
 	{
 		UEdGraphPin* CallAddComponentByClassDeferredFinishPin = CallAddComponentByClassNode->FindPinChecked(FK2Node_AddComponentByClassHelper::DeferredFinishPinName);
 		CallAddComponentByClassDeferredFinishPin->DefaultValue = TEXT("true");
@@ -220,11 +220,8 @@ void UK2Node_AddComponentByClass::ExpandNode(class FKismetCompilerContext& Compi
 		CallRegisterComponentNode->SetFromFunction(AActor::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(AActor, FinishAddComponent)));
 		CallRegisterComponentNode->AllocateDefaultPins();
 
-		// Get last 'then' of assignments
-		UEdGraphPin* LastThen = CallRegisterComponentNode->GetThenPin();
-
 		// Links execution from last assignment to 'RegisterComponent '
-		LastAssignmentThen->MakeLinkTo(CallRegisterComponentNode->GetExecPin());
+		LastThen->MakeLinkTo(CallRegisterComponentNode->GetExecPin());
 
 		// Link the pins to RegisterComponent node
 		UEdGraphPin* CallRegisterComponentByClassOwnerPin = K2Schema->FindSelfPin(*CallRegisterComponentNode, EGPD_Input);
@@ -242,9 +239,11 @@ void UK2Node_AddComponentByClass::ExpandNode(class FKismetCompilerContext& Compi
 
 		CallRegisterComponentByClassComponentPin->MakeLinkTo(CallAddComponentByClassResult);
 
-		// Move 'then' connection from AddComponent node to the last 'then'
-		CompilerContext.MovePinLinksToIntermediate(*SpawnNodeThen, *LastThen);
+		LastThen = CallRegisterComponentNode->GetThenPin();
 	}
+
+	// Move 'then' connection from AddComponent node to the last 'then'
+	CompilerContext.MovePinLinksToIntermediate(*SpawnNodeThen, *LastThen);
 
 	// Break any links to the expanded node
 	BreakAllNodeLinks();
