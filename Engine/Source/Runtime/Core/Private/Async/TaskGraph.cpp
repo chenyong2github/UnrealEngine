@@ -668,10 +668,10 @@ public:
 			ProcessingTasks.Start(StatName);
 		}
 #endif
-		const bool bIsRenderThread = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::ActualRenderingThread);
+		const bool bIsRenderThreadMainQueue = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::ActualRenderingThread) && (QueueIndex == 0);
 		while (!Queue(QueueIndex).QuitForReturn)
 		{
-			const bool bIsRenderThreadAndPolling = bIsRenderThread && (GRenderThreadPollPeriodMs >= 0);
+			const bool bIsRenderThreadAndPolling = bIsRenderThreadMainQueue && (GRenderThreadPollPeriodMs >= 0);
 			const bool bStallQueueAllowStall = bAllowStall && !bIsRenderThreadAndPolling;
 			FBaseGraphTask* Task = Queue(QueueIndex).StallQueue.Pop(0, bStallQueueAllowStall);
 			TestRandomizedThreads();
@@ -688,7 +688,7 @@ public:
 				{
 					{
 						FScopeCycleCounter Scope(StallStatId);
-						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThread ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
+						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThreadAndPolling ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
 							return ProcessedTasks;
