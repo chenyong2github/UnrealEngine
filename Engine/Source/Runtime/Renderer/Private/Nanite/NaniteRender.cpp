@@ -1185,9 +1185,15 @@ class FEmitCubemapShadowVS : public FNaniteShader
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FNaniteShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
-		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		
+		if (PermutationVector.Get<FUseGeometryShader>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToGeometryShader);
+		}
 	}
 
 	using FParameters = FEmitCubemapShadowParameters;

@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
 
-Texture2D< uint > DepthBuffer;
+Texture2D<uint> DepthBuffer;
 
 int2 SourceOffset;
 float ViewToClip22;
