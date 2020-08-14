@@ -379,7 +379,7 @@ namespace AutomationTool
 						}
 						else
 						{
-							Log.TraceWarning("Skip copying file {0} because it doesn't exist.", SourceName);
+							Log.TraceInformation("Skip copying file {0} because it doesn't exist.", SourceName);
 						}
 					}
 					Retry = !File.Exists(TargetName);
