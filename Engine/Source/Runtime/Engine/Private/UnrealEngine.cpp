@@ -2131,6 +2131,18 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			WaitTime = FMath::Max( 1.f / MaxTickRate - DeltaRealTime, 0.f );
 		}
 
+		bool bMaxTickRateHandled = false;
+		TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
+
+		for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
+		{
+			if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
+			{
+				bMaxTickRateHandled = true;
+				break;
+			}
+		}
+
 		// Enforce maximum framerate and smooth framerate by waiting.
 		double ActualWaitTime = 0.f;
 		if( WaitTime > 0 )
@@ -2143,18 +2155,6 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 			SCOPE_CYCLE_COUNTER(STAT_GameTickWaitTime);
 			SCOPE_CYCLE_COUNTER(STAT_GameIdleTime);
-
-			bool bMaxTickRateHandled = false;
-			TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
-
-			for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
-			{
-				if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
-				{
-					bMaxTickRateHandled = true;
-					break;
-				}
-			}
 
 			if (!bMaxTickRateHandled)
 			{
