@@ -7689,6 +7689,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		const bool bAlphaSort = FParse::Param( Cmd, TEXT("ALPHASORT") );
 		const bool bCountSort = FParse::Param( Cmd, TEXT("COUNTSORT") );
 		const bool bCSV = FParse::Param(Cmd, TEXT("CSV"));
+		const bool bShowFullClassName = FParse::Param(Cmd, TEXT("FULLCLASSNAME"));
 
 		if( Objects.Num() )
 		{
@@ -7810,7 +7811,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				if (bCSV)
 				{
 					Ar.Logf(TEXT(", %s, %i, %f, %f, %f, %f, %f, %f, %f, %f"),
-						*List[i].Class->GetName(),
+						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,
@@ -7825,7 +7826,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				else
 				{
 					Ar.Logf(TEXT(" %100s %8i %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f %15.2f %15.2f"),
-						*List[i].Class->GetName(),
+						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,
