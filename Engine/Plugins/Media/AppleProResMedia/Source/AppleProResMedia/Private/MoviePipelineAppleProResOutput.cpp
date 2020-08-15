@@ -86,6 +86,7 @@ void UMoviePipelineAppleProResOutput::Finalize_EncodeThread(MovieRenderPipeline:
 	CodecWriter->Writer->Finalize();
 }
 
+#if WITH_EDITOR
 FText UMoviePipelineAppleProResOutput::GetDisplayText() const
 {
 	// When it's called from the CDO it's in the drop down menu so they haven't selected a setting yet.
@@ -103,3 +104,4 @@ FText UMoviePipelineAppleProResOutput::GetDisplayText() const
 		return NSLOCTEXT("MovieRenderPipeline", "AppleProRes_DisplayName10Bit", "Apple ProRes [10bit]");
 	}
 }
+#endif

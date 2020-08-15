@@ -31,7 +31,9 @@ protected:
 	// ~UMoviePipelineVideoOutputBase Interface
 
 	// UMoviePipelineOutputBase Interface
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "AvidDNx_DisplayName", "Avid DNx [8bit]"); }
+#endif
 	// ~UMoviePipelineOutputBase Interface
 
 public:
