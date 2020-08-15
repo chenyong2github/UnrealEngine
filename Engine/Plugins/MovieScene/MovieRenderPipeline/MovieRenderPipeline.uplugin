@@ -28,8 +28,9 @@
 	"Modules": [
 		{
 			"Name": "MovieRenderPipelineCore",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Mac", "Win32", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineSettings",
