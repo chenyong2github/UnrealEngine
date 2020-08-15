@@ -523,7 +523,7 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize))
+		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize) && SystemInstanceIndex != INDEX_NONE)
 		{
 			DeferredResetMode = InResetMode;
 		}
