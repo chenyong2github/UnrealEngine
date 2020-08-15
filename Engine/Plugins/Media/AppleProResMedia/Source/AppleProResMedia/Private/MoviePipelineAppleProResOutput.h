@@ -34,7 +34,9 @@ protected:
 	// ~UMoviePipelineVideoOutputBase Interface
 
 	// UMoviePipelineOutputBase Interface
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override;
+#endif
 	virtual bool IsAlphaSupportedImpl() const override
 	{
 		bool bSupportedCodec = Codec == EAppleProResEncoderCodec::ProRes_4444 || Codec == EAppleProResEncoderCodec::ProRes_4444XQ;
