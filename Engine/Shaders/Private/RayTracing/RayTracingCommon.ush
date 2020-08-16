@@ -19,6 +19,51 @@
 #include "/Platform/Private/RayTracing.ush"
 #endif // OVERRIDE_RAYTRACING_USH
 
+// Certain DXR system value intrinsics are explicitly disallowed in Unreal Engine entirely.
+// Supported cross-platform system value intrinsics:
+//                                  RayGen   Intersection   AnyHit  ClosestHit  Miss  Callable
+// uint3 DispatchRaysIndex()          YES         -           -          -        -       -
+// uint3 DispatchRaysDimensions()     YES         -           -          -        -       -
+// float3 WorldRayOrigin()             -         YES*        YES        YES      YES      -
+// float3 WorldRayDirection()          -         YES*        YES        YES      YES      -
+// float RayTMin()                     -          -           -          -        -       -
+// float RayTCurrent()                 -         YES*        YES        YES      YES      -
+// float RayFlags()                    -          -           -          -        -       -
+// uint InstanceIndex()                -         YES*        YES        YES       -       -
+// uint InstanceID()                   -         YES*        YES        YES       -       -
+// uint GeometryIndex()                -          -           -          -        -       -
+// uint PrimitiveIndex()               -         YES*        YES        YES       -       -
+// float3 ObjectRayOrigin()            -          -           -          -        -       -
+// float3 ObjectRayDirection()         -          -           -          -        -       -
+// float3x4 ObjectToWorld3x4()         -          -           -          -        -       -
+// float4x3 ObjectToWorld4x3()         -          -           -          -        -       -
+// float3x4 WorldToObject3x4()         -          -           -          -        -       -
+// float4x3 WorldToObject4x3()         -          -           -          -        -       -
+// uint HitKind()                      -          -          YES        YES       -       -
+// * NOTE: Intersection shaders are only supported in DXR.
+
+#define ALLOW_ALL_DXR_INTRINSICS 1
+
+#if !ALLOW_ALL_DXR_INTRINSICS
+#if !RAYGENSHADER
+// These intrinsics are allowed by DXR in all shader types, but we only support them in RayGen.
+// If values are required, they must be explicitly passed through the payload structure.
+#define DispatchRaysIndex()      DispatchRaysIndex_is_only_supported_in_raygen_shaders
+#define DispatchRaysDimensions() DispatchRaysDimensions_is_only_supported_in_raygen_shaders
+#endif // !RAYGENSHADER
+
+// These DXR intrinsics are disallowed for better cross-platform compatibility and performance.
+#define RayTMin()                RayTMin_is_not_supported
+#define RayFlags()               RayFlags_is_not_supported
+#define GeometryIndex()          GeometryIndex_is_not_supported
+#define ObjectRayOrigin()        ObjectRayOrigin_is_not_supported
+#define ObjectRayDirection()     ObjectRayDirection_is_not_supported
+#define ObjectToWorld3x4()       ObjectToWorld3x4_is_not_supported
+#define ObjectToWorld4x3()       ObjectToWorld4x3_is_not_supported
+#define WorldToObject3x4()       WorldToObject3x4_is_not_supported
+#define WorldToObject4x3()       WorldToObject4x3_is_not_supported
+#endif // !ALLOW_ALL_DXR_INTRINSICS
+
 // Define generic wrappers for ray tracing shader entry points, if not already overriden
 
 #ifndef RAY_TRACING_ENTRY_RAYGEN
@@ -275,9 +320,12 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint MetallicAndSpecularAndRoughness;                // 4  bytes
 	uint IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask;    // 4  bytes
 	uint PackedIndirectIrradiance[2];                    // 8  bytes
-	uint PackedCustomData;                               // 4  bytes
-	uint WorldTangentAndAnisotropy[2];					 // 8  bytes
-	                                                     // 60 bytes total
+	uint PackedCustomData;                               // 4  bytes -- HitGroup IN: pixel coords (16 bit packed), OUT: material custom data
+	uint WorldTangentAndAnisotropy[2];                   // 8  bytes
+	                                                     // 52 to 60 bytes total
+
+	void SetPixelCoordInCustomData(uint2 PixelCoord) { PackedCustomData = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
+	uint2 GetPixelCoordFromCustomData() { return uint2(PackedCustomData & 0xFFFF, PackedCustomData >> 16); }
 
 	void SetMinimalPayloadMode() { IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask |= RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD << 24; }
 	bool IsMinimalPayloadMode() { return ((IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 24) & RAY_TRACING_PAYLOAD_FLAG_MINIMAL_PAYLOAD) != 0; }
@@ -467,6 +515,7 @@ void TraceVisibilityRayPacked(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
+	in uint2 PixelCoord,
 	in RayDesc Ray)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
@@ -476,6 +525,8 @@ void TraceVisibilityRayPacked(
 	// By enabling minimal payload mode all other payload information is ignored, meaning these functions need no payload inputs
 	PackedPayload.SetMinimalPayloadMode();
 	PackedPayload.HitT = 0;
+
+	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
 
 	// Trace the ray
 
@@ -494,11 +545,13 @@ FMinimalPayload TraceVisibilityRay(
 	in RaytracingAccelerationStructure TLAS,
 	in uint RayFlags,
 	in uint InstanceInclusionMask,
+	in uint2 PixelCoord,
 	in RayDesc Ray)
 {
 	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 	PackedPayload.SetIgnoreTranslucentMaterials();
-	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, Ray);
+
+	TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, PixelCoord, Ray);
 
 	// Unpack the payload
 
@@ -520,6 +573,7 @@ void TraceMaterialRayPacked(
 	in RayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
+	in uint2 PixelCoord,
 	in bool bEnableSkyLightContribution)
 {
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_MATERIAL;
@@ -529,12 +583,14 @@ void TraceMaterialRayPacked(
 	// Set payload inputs
 
 	Payload.SetRayCone(RayCone);
+	Payload.SetPixelCoordInCustomData(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{
 		// Enable Sky Light contribution in the payload if requested
 		Payload.SetEnableSkyLightContribution();
 	}
+
 
 	// Trace the ray
 
@@ -559,6 +615,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	in RayDesc Ray,
 	// Payload Inputs
 	inout FRayCone RayCone,
+	in uint2 PixelCoord,
 	in bool bEnableSkyLightContribution,
 	in bool bIgnoreTranslucentMaterials)
 {
@@ -571,6 +628,7 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	// Set payload inputs
 
 	PackedPayload.SetRayCone(RayCone);
+	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
 
 	if (bEnableSkyLightContribution)
 	{
@@ -582,6 +640,10 @@ FMaterialClosestHitPayload TraceMaterialRay(
 	{
 		PackedPayload.SetIgnoreTranslucentMaterials();
 	}
+
+#if RAYGENSHADER
+	PackedPayload.SetPixelCoordInCustomData(DispatchRaysIndex().xy);
+#endif // RAYGENSHADER
 
 	// Trace the ray
 

@@ -187,7 +187,7 @@ void FixSampleDirectionIfNeeded(float3 SmoothSurfaceNormal, inout float3 SampleD
 }
 
 // Volume rendering ala emission-absorption model along an arbitrary ray
-float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, inout float3 OutRadiance)
+float Transmit(in RayDesc TransmissionRay, in uint2 PixelCoord, inout RandomSequence RandSequence, inout float3 OutRadiance)
 {
 	float Transmission = 1.0;
 
@@ -203,6 +203,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 		InstanceInclusionMask,
 		TransmissionRay,
 		RayCone,
+		PixelCoord,
 		bEnableSkyLightContribution,
 		bIgnoreTranslucentMaterials);
 
@@ -232,6 +233,7 @@ float Transmit(in RayDesc TransmissionRay, inout RandomSequence RandSequence, in
 			RAY_TRACING_MASK_TRANSLUCENT,
 			TransmissionRay,
 			RayCone,
+			PixelCoord,
 			bEnableSkyLightContribution,
 			bIgnoreTranslucentMaterials);
 
@@ -690,6 +692,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						InstanceInclusionMask,
 						TopLayerRay,
 						RayCone,
+						PixelCoord,
 						bEnableSkyLightContribution);
 
 					// Trace separate ray for translucent objects
@@ -700,7 +703,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 						RayDesc TransmissionRay = TopLayerRay;
 						TransmissionRay.TMin = 0.01;
 						TransmissionRay.TMax = PackedPayload.HitT;
-						Transmission = Transmit(TransmissionRay, RandSequence, TopLayerRadiance);
+						Transmission = Transmit(TransmissionRay, PixelCoord, RandSequence, TopLayerRadiance);
 					}
 
 					float3 RayHitWorldPos = TopLayerRay.Origin + PackedPayload.HitT * TopLayerRay.Direction;
@@ -1057,7 +1060,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 			TransmissionRay.TMax = length(WorldPosition - View.WorldCameraOrigin);
 			float3 Inscattering = 0.0;
 			RandomSequence RandSequence;
-			float Transmission = Transmit(TransmissionRay, RandSequence, Inscattering);
+			float Transmission = Transmit(TransmissionRay, PixelCoord, RandSequence, Inscattering);
 			//#dxr_todo: add Inscattering support (this is emission only so far)
 			//#dxr_todo: depending on if there is a translucency pass the component might already be attenuated. Check for double contribution
 			ReflectedColor.rgb *= Transmission;

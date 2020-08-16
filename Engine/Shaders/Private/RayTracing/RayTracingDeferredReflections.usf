@@ -155,6 +155,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 		PackedPayload.SetEnableSkyLightContribution();
+		PackedPayload.SetPixelCoordInCustomData(PixelPos);
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,

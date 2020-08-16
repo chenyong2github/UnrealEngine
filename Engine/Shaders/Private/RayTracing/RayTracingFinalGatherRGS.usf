@@ -154,6 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
+			PixelCoord,
 			Ray);
 
 		// No hit indicates successful next-event connection
