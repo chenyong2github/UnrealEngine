@@ -46,7 +46,15 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 #if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
 #endif
-	
+
+	// Use the same clearcoat approximation as SSR: simply blend base and clear coat roughness
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		const float ClearCoat = GBuffer.CustomData.x;
+		const float ClearCoatRoughness = GBuffer.CustomData.y;
+		GBuffer.Roughness = lerp(GBuffer.Roughness, ClearCoatRoughness, ClearCoat);
+	}
+
 	float2 E = Rand1SPPDenoiserInput(PixelPos);
 	
 	const bool bOutputForDenoiser = true; // #todo: pass this in via constants when denoiser is on
