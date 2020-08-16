@@ -47,6 +47,8 @@ private:
 			&& Texture->PlatformData->Mips[0].SizeX == AllowedIESProfileWidth() 
 			//#dxr_todo: UE-70840 anisotropy in IES files is ignored so far (to support that, we should not store one IES profile per row but use more than one row per profile in that case)
 			&& Texture->PlatformData->Mips[0].SizeY == 1
+			// #dxr_todo: Workaround for UE-94371, where BulkData.GetCopy() may cause a memory stomp if it's larger than allocated space.
+			&& ensure(Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == AllowedIESProfileWidth() * sizeof(FFloat16) * 4)
 			)
 		{
 			return true;
@@ -63,4 +65,4 @@ private:
 	}
 };
 
-#endif
+#endif // RHI_RAYTRACING
