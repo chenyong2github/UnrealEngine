@@ -37,6 +37,7 @@ import { TestGate } from './tests/test-gate'
 import { EdgeInitialCl } from './tests/edge-initial-cl'
 import { TestReconsider } from './tests/test-reconsider'
 import { TestEdgeReconsider } from './tests/test-edge-reconsider'
+import { TestTerminal } from './tests/test-terminal'
 
 import { CrossBotTest, CrossBotTest2 } from './tests/cross-bot'
 
@@ -146,6 +147,7 @@ async function go() {
 		new TestEdgeReconsider(p4), // 30
 
 		new BlockAssets(p4),
+		new TestTerminal(p4),
 
 		// these two must be consecutive
 		new CrossBotTest(p4), 
@@ -178,7 +180,7 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const tests = /*/[availableTests[31]]/*/availableTests/**/
+	const tests = /*/[availableTests[10]]/*/availableTests/**/
 
 	//
 	///////////////////////
