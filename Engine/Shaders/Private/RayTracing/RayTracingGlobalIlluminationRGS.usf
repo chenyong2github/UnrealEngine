@@ -171,6 +171,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				InstanceInclusionMask,
 				Ray,
 				RayCone,
+				PixelCoord,
 				bEnableSkyLightContribution,
 				bIgnoreTranslucentMaterials);
 
@@ -257,6 +258,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 						TLAS,
 						NeeRayFlags,
 						NeeInstanceInclusionMask,
+						PixelCoord,
 						LightRay);
 
 					// No hit indicates successful next-event connection
