@@ -334,7 +334,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[0], TEXT("ConvolvedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
 		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, CapturedSkyRenderTarget, TEXT("CapturedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
 	}
-	if (bTimeSlicedRealTimeCapture && (!ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid() || CubeResolutionInvalidated))
+	if (bTimeSlicedRealTimeCapture && (CubeResolutionInvalidated || !ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid()))
 	{
 		// Additional allocation for time slicing
 		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[1], TEXT("ConvolvedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
