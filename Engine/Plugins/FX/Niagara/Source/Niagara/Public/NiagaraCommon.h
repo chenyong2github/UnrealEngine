@@ -730,8 +730,10 @@ enum class ENiagaraCompileUsageStaticSwitch : uint8
 UENUM()
 enum class ENiagaraScriptContextStaticSwitch : uint8
 {
-	/** The script is called in a system or emitter context. */
-	SystemOrEmitter,
+	/** The script is called in a system context. */
+	System,
+    /** The script is called in a emitter context. */
+    Emitter,
 	/** The script is called in a particle context. */
 	Particle,
 };
