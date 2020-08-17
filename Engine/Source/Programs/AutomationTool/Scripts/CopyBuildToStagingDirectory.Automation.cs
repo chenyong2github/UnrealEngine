@@ -2493,6 +2493,8 @@ public partial class Project : CommandUtils
 				}
 			}
 
+			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
+
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
 
