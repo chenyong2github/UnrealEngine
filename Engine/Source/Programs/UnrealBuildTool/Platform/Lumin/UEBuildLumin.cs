@@ -336,7 +336,7 @@ namespace UnrealBuildTool
 			return "Lumin";
 		}
 
-		protected override string GetRequiredSDKString()
+		public override string GetRequiredSDKString()
 		{
 			return SDKVersionHelper.GetRequiredSDKString();
 		}
