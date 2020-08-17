@@ -1058,11 +1058,12 @@ void UGameplayAbility::ApplyAbilityTagsToGameplayEffectSpec(FGameplayEffectSpec&
 	FGameplayTagContainer& CapturedSourceTags = Spec.CapturedSourceTags.GetSpecTags();
 
 	CapturedSourceTags.AppendTags(AbilityTags);
-	CapturedSourceTags.AppendTags(AbilitySpec->DynamicAbilityTags);
 
 	// Allow the source object of the ability to propagate tags along as well
 	if (AbilitySpec)
 	{
+		CapturedSourceTags.AppendTags(AbilitySpec->DynamicAbilityTags);
+
 		const IGameplayTagAssetInterface* SourceObjAsTagInterface = Cast<IGameplayTagAssetInterface>(AbilitySpec->SourceObject);
 		if (SourceObjAsTagInterface)
 		{
