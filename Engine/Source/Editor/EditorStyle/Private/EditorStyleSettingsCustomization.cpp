@@ -54,6 +54,6 @@ void FEditorStyleSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& D
 
 	TArray<UObject*> Objects = { &UStyleColorTable::Get() };
 
-	ColorCategory.AddExternalObjectProperty(Objects, "ColorList");
+	ColorCategory.AddExternalObjectProperty(Objects, "Colors", EPropertyLocation::Advanced);
 }
 
