@@ -91,6 +91,11 @@ namespace UnrealBuildTool
 			return SDK.HasRequiredSDKsInstalled();
 		}
 
+		public override string GetRequiredSDKString()
+		{
+			return SDK.GetRequiredSDKString();
+		}
+
 		public override void ResetTarget(TargetRules Target)
 		{
 			ValidateTarget(Target);
@@ -463,7 +468,7 @@ namespace UnrealBuildTool
 			return "Android";
 		}
 
-		protected override string GetRequiredSDKString()
+		public override string GetRequiredSDKString()
 		{
 			return "-23";
 		}
