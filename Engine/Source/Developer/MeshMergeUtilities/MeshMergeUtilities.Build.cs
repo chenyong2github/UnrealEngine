@@ -22,7 +22,6 @@ public class MeshMergeUtilities : ModuleRules
                 "SlateCore",
                 "Slate",
                 "StaticMeshEditor",
-                "SkeletalMeshEditor",
                 "MaterialBaking",
                 "MeshUtilitiesCommon",
 				"ToolMenus",
@@ -42,6 +41,8 @@ public class MeshMergeUtilities : ModuleRules
                "HierarchicalLODUtilities",
                "MeshUtilities",
                "MeshReductionInterface",
+			   "SkeletalMeshEditor",
+			   "Persona",
           }
         );
 
