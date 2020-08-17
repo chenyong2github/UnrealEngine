@@ -93,7 +93,13 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	
 	UMoviePipelineExecutorJob* CurrentJob = Queue->GetJobs()[CurrentPipelineIndex];
 
-	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, TargetPipelineClass.Get() ? TargetPipelineClass : UMoviePipeline::StaticClass());
+	UClass* MoviePipelineClass = TargetPipelineClass.Get();
+	if (MoviePipelineClass == nullptr)
+	{
+		MoviePipelineClass = UMoviePipeline::StaticClass();
+	}
+
+	ActiveMoviePipeline = NewObject<UMoviePipeline>(NewWorld, MoviePipelineClass);
 
 	// We allow users to set a multi-frame delay before we actually run the Initialization function and start thinking.
 	// This solves cases where there are engine systems that need to finish loading before we do anything.
