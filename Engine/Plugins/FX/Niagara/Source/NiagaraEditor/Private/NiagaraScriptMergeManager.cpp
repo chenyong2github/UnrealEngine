@@ -206,6 +206,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 
 	FString UniqueEmitterName = InOwningEmitter.GetUniqueEmitterName();
 
+	// Collect explicit overrides set via parameter map set nodes.
 	TSet<FString> AliasedInputsAdded;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*FunctionCallNode);
 	if (OverrideNode != nullptr)
@@ -227,6 +228,53 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 		}
 	}
 
+	// If we have a valid function script collect up the default values of the rapid iteration parameters so that default values in the parameter store
+	// can be ignored since they're not actually overrides.  This is usually not an issue due to the PreparateRapidIterationParameters call in the emitter
+	// editor, but modifications to modules can cause inconsistency here in the emitter.
+	TArray<FNiagaraVariable> RapidIterationInputDefaultValues;
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	if (InFunctionCallNode.FunctionScript != nullptr)
+	{
+		TSet<const UEdGraphPin*> HiddenPins;
+		FCompileConstantResolver Resolver(&InOwningEmitter);
+		TArray<const UEdGraphPin*> FunctionInputPins;
+		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, HiddenPins, Resolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
+
+		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
+		{
+			FNiagaraVariable FunctionInputVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputPin);
+			if (FunctionInputVariable.IsValid() && FNiagaraStackGraphUtilities::IsRapidIterationType(FunctionInputVariable.GetType()))
+			{
+				UEdGraphPin* FunctionInputDefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(FunctionInputPin->PinName, OwningScript->GetUsage());
+				if (FunctionInputDefaultPin != nullptr)
+				{
+					// Try to get the default value from the default pin.
+					FNiagaraVariable FunctionInputDefaultVariable = NiagaraSchema->PinToNiagaraVariable(FunctionInputDefaultPin);
+					if (FunctionInputDefaultVariable.GetData() != nullptr)
+					{
+						FunctionInputVariable.SetData(FunctionInputDefaultVariable.GetData());
+					}
+				}
+
+				if (FunctionInputVariable.GetData() == nullptr)
+				{
+					// If the pin didn't have a default value then use the type default.
+					FNiagaraEditorUtilities::ResetVariableToDefaultValue(FunctionInputVariable);
+				}
+
+				if (FunctionInputVariable.GetData() != nullptr)
+				{
+					FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(FunctionInputVariable.GetName()), &InFunctionCallNode);
+					FNiagaraVariable FunctionInputRapidIterationParameter =
+						FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, OwningScript->GetUsage(), AliasedFunctionInputHandle.GetParameterHandleString(), FunctionInputVariable.GetType());
+					FunctionInputRapidIterationParameter.SetData(FunctionInputVariable.GetData());
+					RapidIterationInputDefaultValues.Add(FunctionInputRapidIterationParameter);
+				}
+			}
+		}
+	}
+
+	// Collect rapid iteration parameters which aren't at the function default values.
 	FString RapidIterationParameterNamePrefix = TEXT("Constants." + UniqueEmitterName + ".");
 	TArray<FNiagaraVariable> RapidIterationParameters;
 	OwningScript->RapidIterationParameters.GetParameters(RapidIterationParameters);
@@ -250,7 +298,23 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 
 			if (AliasedInputsAdded.Contains(AliasedInputHandle.GetParameterHandleString().ToString()) == false)
 			{
-				InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(*OwningScript.Get(), *FunctionCallNode.Get(), AliasedInputHandle.GetName().ToString(), RapidIterationParameter));
+				// Check if the input is at the current default and if so it can be skipped.
+				bool bMatchesDefault = false;
+				FNiagaraVariable* RapidIterationInputDefaultValue = RapidIterationInputDefaultValues.FindByPredicate([RapidIterationParameter](const FNiagaraVariable& DefaultValue) 
+					{ return DefaultValue.GetName() == RapidIterationParameter.GetName() && DefaultValue.GetType() == RapidIterationParameter.GetType(); });
+				if (RapidIterationInputDefaultValue != nullptr)
+				{
+					const uint8* CurrentValueData = OwningScript->RapidIterationParameters.GetParameterData(RapidIterationParameter);
+					if (CurrentValueData != nullptr)
+					{
+						bMatchesDefault = FMemory::Memcmp(CurrentValueData, RapidIterationInputDefaultValue->GetData(), RapidIterationParameter.GetSizeInBytes()) == 0;
+					}
+				}
+
+				if (bMatchesDefault == false)
+				{
+					InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(*OwningScript.Get(), *FunctionCallNode.Get(), AliasedInputHandle.GetName().ToString(), RapidIterationParameter));
+				}
 			}
 		}
 	}
@@ -705,6 +769,14 @@ TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraEmitterMergeAdapter::GetScri
 			}
 		}
 		break;
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		for (TSharedPtr<FNiagaraSimulationStageMergeAdapter> SimulationStage : SimulationStages)
+		{
+			if (SimulationStage->GetUsageId() == ScriptUsageId)
+			{
+				return SimulationStage->GetSimulationStageStack();
+			}
+		}
 	default:
 		checkf(false, TEXT("Unsupported usage"));
 	}
@@ -1219,7 +1291,8 @@ bool FNiagaraScriptMergeManager::IsMergeableScriptUsage(ENiagaraScriptUsage Scri
 		ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript ||
 		ScriptUsage == ENiagaraScriptUsage::ParticleSpawnScript ||
 		ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript ||
-		ScriptUsage == ENiagaraScriptUsage::ParticleEventScript;
+		ScriptUsage == ENiagaraScriptUsage::ParticleEventScript ||
+		ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript;
 }
 
 bool FNiagaraScriptMergeManager::HasBaseModule(const UNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId)
