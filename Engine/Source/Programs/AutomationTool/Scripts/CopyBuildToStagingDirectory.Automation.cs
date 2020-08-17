@@ -2985,10 +2985,10 @@ public partial class Project : CommandUtils
 			}
 
 			const string OptionalBulkDataFileExtension = ".uptnl";
-			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>();
+			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
-			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>();
+			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (ChunkDefinition Chunk in ChunkDefinitions)
 			{
 				foreach (string FileName in Chunk.Manifest)
@@ -3003,7 +3003,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>();
+			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (ChunkDefinition Chunk in ChunkDefinitions)
 			{
 				ChunkNameToDefinition.Add(Chunk.ChunkName, Chunk);
