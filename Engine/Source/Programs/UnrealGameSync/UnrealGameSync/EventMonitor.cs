@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -37,6 +38,7 @@ namespace UnrealGameSync
 
 	class LatestData
 	{
+		public int Version { get; set; } = 1;
 		public long LastEventId { get; set; }
 		public long LastCommentId { get; set; }
 		public long LastBuildId { get; set; }
@@ -139,6 +141,59 @@ namespace UnrealGameSync
 		Mixed,
 	}
 
+	public enum UgsUserVote
+	{
+		None,
+		CompileSuccess,
+		CompileFailure,
+		Good,
+		Bad
+	}
+
+	class GetUserDataResponseV2
+	{
+		public string User { get; set; }
+		public long? SyncTime { get; set; }
+		public UgsUserVote? Vote { get; set; }
+		public string Comment { get; set; }
+		public bool Investigating { get; set; }
+		public bool Starred { get; set; }
+	}
+
+	class GetBadgeDataResponseV2
+	{
+		public string Name { get; set; }
+		public string Url { get; set; }
+		public BadgeResult State { get; set; }
+	}
+
+	class GetMetadataResponseV2
+	{
+		public int Change { get; set; }
+		public string Project { get; set; }
+		public List<GetUserDataResponseV2> Users { get; set; }
+		public List<GetBadgeDataResponseV2> Badges { get; set; }
+	}
+
+	class GetMetadataListResponseV2
+	{
+		public long SequenceNumber { get; set; }
+		public List<GetMetadataResponseV2> Items { get; set; }
+	}
+
+	class UpdateMetadataRequestV2
+	{
+		public string Stream { get; set; }
+		public int Change { get; set; }
+		public string Project { get; set; }
+		public string UserName { get; set; }
+		public bool? Synced { get; set; }
+		public string Vote { get; set; }
+		public bool? Investigating { get; set; }
+		public bool? Starred { get; set; }
+		public string Comment { get; set; }
+	}
+
 	class EventSummary
 	{
 		public int ChangeNumber;
@@ -154,6 +209,7 @@ namespace UnrealGameSync
 	class EventMonitor : IDisposable
 	{
 		string ApiUrl;
+		int ApiVersion;
 		string Project;
 		string CurrentUserName;
 		Thread WorkerThread;
@@ -163,7 +219,7 @@ namespace UnrealGameSync
 		ConcurrentQueue<CommentData> OutgoingComments = new ConcurrentQueue<CommentData>();
 		ConcurrentQueue<CommentData> IncomingComments = new ConcurrentQueue<CommentData>();
 		ConcurrentQueue<BadgeData> IncomingBadges = new ConcurrentQueue<BadgeData>();
-		Dictionary<int, EventSummary> ChangeNumberToSummary = new Dictionary<int, EventSummary>();
+		SortedDictionary<int, EventSummary> ChangeNumberToSummary = new SortedDictionary<int, EventSummary>();
 		Dictionary<string, EventData> UserNameToLastSyncEvent = new Dictionary<string, EventData>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, BadgeData> BadgeNameToLatestData = new Dictionary<string, BadgeData>();
 		BoundedLogWriter LogWriter;
@@ -173,6 +229,15 @@ namespace UnrealGameSync
 		List<EventData> InvestigationEvents = new List<EventData>();
 		List<EventData> ActiveInvestigations = new List<EventData>();
 
+		// MetadataV2
+		string MetadataStream;
+		string MetadataProject;
+		long IncomingMetadataId;
+		ConcurrentQueue<GetMetadataResponseV2> IncomingMetadata = new ConcurrentQueue<GetMetadataResponseV2>();
+		int MinChange;
+		int NewMinChange;
+		long MetadataSequenceNumber;
+
 		public event Action OnUpdatesReady;
 
 		public EventMonitor(string InApiUrl, string InProject, string InCurrentUserName, string InLogFileName)
@@ -181,6 +246,21 @@ namespace UnrealGameSync
 			Project = InProject;
 			CurrentUserName = InCurrentUserName;
 			LatestIds = new LatestData { LastBuildId = 0, LastCommentId = 0, LastEventId = 0 };
+
+			MetadataStream = Project.ToLowerInvariant().TrimEnd('/');
+			if (MetadataStream.StartsWith("//", StringComparison.Ordinal))
+			{
+				int NextIdx = MetadataStream.IndexOf('/', 2);
+				if (NextIdx != -1)
+				{
+					NextIdx = MetadataStream.IndexOf('/', NextIdx + 1);
+					if (NextIdx != -1)
+					{
+						MetadataProject = MetadataStream.Substring(NextIdx + 1);
+						MetadataStream = MetadataStream.Substring(0, NextIdx);
+					}
+				}
+			}
 
 			LogWriter = new BoundedLogWriter(InLogFileName);
 			if(ApiUrl == null)
@@ -224,6 +304,31 @@ namespace UnrealGameSync
 			// Build a lookup for all the change numbers
 			FilterChangeNumbers = new HashSet<int>(ChangeNumbers);
 
+			// Figure out the minimum changelist number to fetch
+			int PrevNewMinChange = NewMinChange;
+			if (ChangeNumbers.Any())
+			{
+				NewMinChange = ChangeNumbers.Min(x => x);
+			}
+			else
+			{
+				NewMinChange = 0;
+			}
+
+			// Remove any changes which are no longer relevant
+			if (ApiVersion == 2)
+			{
+				while (ChangeNumberToSummary.Count > 0)
+				{
+					int FirstChange = ChangeNumberToSummary.Keys.First();
+					if (FirstChange >= NewMinChange)
+					{
+						break;
+					}
+					ChangeNumberToSummary.Remove(FirstChange);
+				}
+			}
+
 			// Clear out the list of active users for each review we have
 			UserNameToLastSyncEvent.Clear();
 			foreach(EventSummary Summary in ChangeNumberToSummary.Values)
@@ -242,6 +347,12 @@ namespace UnrealGameSync
 
 			// Clear the list of active investigations, since this depends on the changes we're showing
 			ActiveInvestigations = null;
+
+			// Trigger an update if there's something to do
+			if (NewMinChange < PrevNewMinChange || (NewMinChange != 0 && PrevNewMinChange == 0))
+			{
+				RefreshEvent.Set();
+			}
 		}
 
 		protected EventSummary FindOrAddSummary(int ChangeNumber)
@@ -264,6 +375,12 @@ namespace UnrealGameSync
 
 		public void ApplyUpdates()
 		{
+			GetMetadataResponseV2 Metadata;
+			while (IncomingMetadata.TryDequeue(out Metadata))
+			{
+				ConvertMetadataToEvents(Metadata);
+			}
+
 			EventData Event;
 			while(IncomingEvents.TryDequeue(out Event))
 			{
@@ -403,6 +520,89 @@ namespace UnrealGameSync
 			return true;
 		}
 
+		static EventType? GetEventTypeFromVote(UgsUserVote? State)
+		{
+			if (State != null)
+			{
+				switch (State.Value)
+				{
+					case UgsUserVote.CompileSuccess:
+						return EventType.Compiles;
+					case UgsUserVote.CompileFailure:
+						return EventType.DoesNotCompile;
+					case UgsUserVote.Good:
+						return EventType.Good;
+					case UgsUserVote.Bad:
+						return EventType.Bad;
+				}
+			}
+			return null;
+		}
+
+		void ConvertMetadataToEvents(GetMetadataResponseV2 Metadata)
+		{
+			EventSummary Summary;
+			if (ChangeNumberToSummary.TryGetValue(Metadata.Change, out Summary))
+			{
+				foreach (string CurrentUser in Summary.CurrentUsers)
+				{
+					UserNameToLastSyncEvent.Remove(CurrentUser);
+				}
+				ChangeNumberToSummary.Remove(Metadata.Change);
+			}
+
+			if (Metadata.Badges != null)
+			{
+				foreach (GetBadgeDataResponseV2 BadgeData in Metadata.Badges)
+				{
+					BadgeData Badge = new BadgeData();
+					Badge.ChangeNumber = Metadata.Change;
+					Badge.BuildType = BadgeData.Name;
+					Badge.Result = BadgeData.State;
+					Badge.Url = BadgeData.Url;
+					Badge.Project = Metadata.Project;
+					IncomingBadges.Enqueue(Badge);
+				}
+			}
+
+			if (Metadata.Users != null)
+			{
+				foreach (GetUserDataResponseV2 UserData in Metadata.Users)
+				{
+					if (UserData.SyncTime != null)
+					{
+						EventData Event = new EventData { Id = UserData.SyncTime.Value, Change = Metadata.Change, Project = Metadata.Project, UserName = UserData.User, Type = EventType.Syncing };
+						IncomingEvents.Enqueue(Event);
+					}
+
+					EventType? Type = GetEventTypeFromVote(UserData.Vote);
+					if (Type != null)
+					{
+						EventData Event = new EventData { Id = ++IncomingMetadataId, Change = Metadata.Change, Project = Metadata.Project, UserName = UserData.User, Type = Type.Value };
+						IncomingEvents.Enqueue(Event);
+					}
+
+					if (UserData.Investigating)
+					{
+						EventData Event = new EventData { Id = ++IncomingMetadataId, Change = Metadata.Change, Project = Metadata.Project, UserName = UserData.User, Type = EventType.Starred };
+						IncomingEvents.Enqueue(Event);
+					}
+
+					if (UserData.Starred)
+					{
+						EventData Event = new EventData { Id = ++IncomingMetadataId, Change = Metadata.Change, Project = Metadata.Project, UserName = UserData.User, Type = EventType.Starred };
+						IncomingEvents.Enqueue(Event);
+					}
+
+					if (UserData.Comment != null)
+					{
+						CommentData Comment = new CommentData { Id = ++IncomingMetadataId, ChangeNumber = Metadata.Change, Project = Metadata.Project, UserName = UserData.User, Text = UserData.Comment };
+						IncomingComments.Enqueue(Comment);
+					}
+				}
+			}
+		}
+
 		static ReviewVerdict GetVerdict(IEnumerable<EventData> Events, IEnumerable<BadgeData> Badges)
 		{
 			int NumPositiveReviews = Events.Count(x => x.Type == EventType.Good);
@@ -447,7 +647,7 @@ namespace UnrealGameSync
 
 		void ApplyFilteredUpdate(EventData Event)
 		{
-			if(Event.Type == EventType.Syncing && FilterChangeNumbers.Contains(Event.Change))
+			if(Event.Type == EventType.Syncing && FilterChangeNumbers.Contains(Event.Change) && !String.IsNullOrEmpty(Event.UserName))
 			{
 				// Update the active users list for this change
 				EventData LastSync;
@@ -504,7 +704,7 @@ namespace UnrealGameSync
 					ReadEventsFromBackend(bUpdateThrottledRequests);
 
 					// Send a notification that we're ready to update
-					if((IncomingEvents.Count > 0 || IncomingBadges.Count > 0 || IncomingComments.Count > 0) && OnUpdatesReady != null)
+					if((IncomingMetadata.Count > 0 || IncomingEvents.Count > 0 || IncomingBadges.Count > 0 || IncomingComments.Count > 0) && OnUpdatesReady != null)
 					{
 						OnUpdatesReady();
 					}
@@ -521,7 +721,14 @@ namespace UnrealGameSync
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
 				LogWriter.WriteLine("Posting event... ({0}, {1}, {2})", Event.Change, Event.UserName, Event.Type);
-				RESTApi.POST(ApiUrl, "event", new JavaScriptSerializer().Serialize(Event));
+				if (ApiVersion == 2)
+				{
+					SendMetadataUpdateUpdateV2(Event.Change, Event.Project, Event.UserName, Event.Type, null);
+				}
+				else
+				{
+					RESTApi.POST(ApiUrl, "event", new JavaScriptSerializer().Serialize(Event));
+				}
 				return true;
 			}
 			catch(Exception Ex)
@@ -537,7 +744,14 @@ namespace UnrealGameSync
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
 				LogWriter.WriteLine("Posting comment... ({0}, {1}, {2}, {3})", Comment.ChangeNumber, Comment.UserName, Comment.Text, Comment.Project);
-				RESTApi.POST(ApiUrl, "comment", new JavaScriptSerializer().Serialize(Comment));
+				if (ApiVersion == 2)
+				{
+					SendMetadataUpdateUpdateV2(Comment.ChangeNumber, Comment.Project, Comment.UserName, null, Comment.Text);
+				}
+				else
+				{
+					RESTApi.POST(ApiUrl, "comment", new JavaScriptSerializer().Serialize(Comment));
+				}
 				LogWriter.WriteLine("Done in {0}ms.", Timer.ElapsedMilliseconds);
 				return true;
 			}
@@ -546,6 +760,55 @@ namespace UnrealGameSync
 				LogWriter.WriteException(Ex, "Failed with exception.");
 				return false;
 			}
+		}
+
+		void SendMetadataUpdateUpdateV2(int Change, string Project, string UserName, EventType? Event, string Comment)
+		{
+			UpdateMetadataRequestV2 Update = new UpdateMetadataRequestV2();
+			Update.Stream = MetadataStream;
+			Update.Project = MetadataProject;
+			Update.Change = Change;
+			Update.UserName = UserName;
+
+			if (Event != null)
+			{
+				switch (Event)
+				{
+					case EventType.Syncing:
+						Update.Synced = true;
+						break;
+					case EventType.Compiles:
+						Update.Vote = nameof(UgsUserVote.CompileSuccess);
+						break;
+					case EventType.DoesNotCompile:
+						Update.Vote = nameof(UgsUserVote.CompileFailure);
+						break;
+					case EventType.Good:
+						Update.Vote = nameof(UgsUserVote.Good);
+						break;
+					case EventType.Bad:
+						Update.Vote = nameof(UgsUserVote.Bad);
+						break;
+					case EventType.Unknown:
+						Update.Vote = nameof(UgsUserVote.None);
+						break;
+					case EventType.Starred:
+						Update.Starred = true;
+						break;
+					case EventType.Unstarred:
+						Update.Starred = false;
+						break;
+					case EventType.Investigating:
+						Update.Investigating = true;
+						break;
+					case EventType.Resolved:
+						Update.Investigating = false;
+						break;
+				}
+			}
+			Update.Comment = Comment;
+
+			RESTApi.POST(ApiUrl, "metadata", new JavaScriptSerializer().Serialize(Update));
 		}
 
 		bool ReadEventsFromBackend(bool bFireThrottledRequests)
@@ -558,47 +821,89 @@ namespace UnrealGameSync
 				//////////////
 				/// Initial Ids 
 				//////////////
-				if (LatestIds.LastBuildId == 0 && LatestIds.LastCommentId == 0 && LatestIds.LastEventId == 0)
+				if (ApiVersion == 0)
 				{
 					LatestData InitialIds = RESTApi.GET<LatestData>(ApiUrl, "latest", string.Format("project={0}", Project));
+					ApiVersion = (InitialIds.Version == 0)? 1 : InitialIds.Version;
 					LatestIds.LastBuildId = InitialIds.LastBuildId;
 					LatestIds.LastCommentId = InitialIds.LastCommentId;
 					LatestIds.LastEventId = InitialIds.LastEventId;
 				}
 
-				//////////////
-				/// Bulids
-				//////////////
-				List<BadgeData> Builds = RESTApi.GET<List<BadgeData>>(ApiUrl, "build", string.Format("project={0}", Project), string.Format("lastbuildid={0}", LatestIds.LastBuildId));
-				foreach (BadgeData Build in Builds)
+				if (ApiVersion == 2)
 				{
-					IncomingBadges.Enqueue(Build);
-					LatestIds.LastBuildId = Math.Max(LatestIds.LastBuildId, Build.Id);
-				}
-
-				//////////////////////////
-				/// Throttled Requests
-				//////////////////////////
-				if (bFireThrottledRequests)
-				{
-					//////////////
-					/// Reviews 
-					//////////////
-					List<EventData> Events = RESTApi.GET<List<EventData>>(ApiUrl, "event", string.Format("project={0}", Project), string.Format("lasteventid={0}", LatestIds.LastEventId));
-					foreach (EventData Review in Events)
+					int NewMinChangeCopy = NewMinChange;
+					if (NewMinChangeCopy != 0)
 					{
-						IncomingEvents.Enqueue(Review);
-						LatestIds.LastEventId = Math.Max(LatestIds.LastEventId, Review.Id);
+						// If the range of changes has decreased, update the MinChange value before we fetch anything
+						MinChange = Math.Max(MinChange, NewMinChangeCopy);
+
+						// Get the first part of the query
+						string CommonArgs = String.Format("stream={0}", MetadataStream);
+						if (MetadataProject != null)
+						{
+							CommonArgs += String.Format("&project={0}", MetadataProject);
+						}
+
+						// Fetch any updates in the current range of changes
+						if (MinChange != 0)
+						{
+							GetMetadataListResponseV2 NewEventList = RESTApi.GET<GetMetadataListResponseV2>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&sequence={2}", CommonArgs, MinChange, MetadataSequenceNumber));
+							foreach (GetMetadataResponseV2 NewEvent in NewEventList.Items)
+							{
+								IncomingMetadata.Enqueue(NewEvent);
+							}
+							MetadataSequenceNumber = Math.Max(NewEventList.SequenceNumber, MetadataSequenceNumber);
+						}
+
+						// Fetch any new changes
+						if (NewMinChangeCopy < MinChange)
+						{
+							List<GetMetadataResponseV2> NewEvents = RESTApi.GET<List<GetMetadataResponseV2>>(ApiUrl, "metadata", String.Format("{0}&minchange={1}&maxchange={2}", CommonArgs, NewMinChangeCopy, NewMinChange));
+							foreach (GetMetadataResponseV2 NewEvent in NewEvents)
+							{
+								IncomingMetadata.Enqueue(NewEvent);
+							}
+							MinChange = NewMinChangeCopy;
+						}
+					}
+				}
+				else
+				{
+					//////////////
+					/// Bulids
+					//////////////
+					List<BadgeData> Builds = RESTApi.GET<List<BadgeData>>(ApiUrl, "build", string.Format("project={0}", Project), string.Format("lastbuildid={0}", LatestIds.LastBuildId));
+					foreach (BadgeData Build in Builds)
+					{
+						IncomingBadges.Enqueue(Build);
+						LatestIds.LastBuildId = Math.Max(LatestIds.LastBuildId, Build.Id);
 					}
 
-					//////////////
-					/// Comments 
-					//////////////
-					List<CommentData> Comments = RESTApi.GET<List<CommentData>>(ApiUrl, "comment", string.Format("project={0}", Project), string.Format("lastcommentid={0}", LatestIds.LastCommentId));
-					foreach (CommentData Comment in Comments)
+					//////////////////////////
+					/// Throttled Requests
+					//////////////////////////
+					if (bFireThrottledRequests)
 					{
-						IncomingComments.Enqueue(Comment);
-						LatestIds.LastCommentId = Math.Max(LatestIds.LastCommentId, Comment.Id);
+						//////////////
+						/// Reviews 
+						//////////////
+						List<EventData> Events = RESTApi.GET<List<EventData>>(ApiUrl, "event", string.Format("project={0}", Project), string.Format("lasteventid={0}", LatestIds.LastEventId));
+						foreach (EventData Review in Events)
+						{
+							IncomingEvents.Enqueue(Review);
+							LatestIds.LastEventId = Math.Max(LatestIds.LastEventId, Review.Id);
+						}
+
+						//////////////
+						/// Comments 
+						//////////////
+						List<CommentData> Comments = RESTApi.GET<List<CommentData>>(ApiUrl, "comment", string.Format("project={0}", Project), string.Format("lastcommentid={0}", LatestIds.LastCommentId));
+						foreach (CommentData Comment in Comments)
+						{
+							IncomingComments.Enqueue(Comment);
+							LatestIds.LastCommentId = Math.Max(LatestIds.LastCommentId, Comment.Id);
+						}
 					}
 				}
 

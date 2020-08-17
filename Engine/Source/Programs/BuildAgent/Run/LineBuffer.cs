@@ -75,7 +75,7 @@ namespace BuildAgent.Run
 					NextLines.Add(ReadLine());
 				}
 				NextLine = NextLines[Offset];
-				return true;
+				return NextLine != null;
 			}
 			else if (Offset >= -HistoryCount)
 			{

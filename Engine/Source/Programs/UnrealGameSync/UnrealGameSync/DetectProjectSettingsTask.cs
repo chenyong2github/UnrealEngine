@@ -298,6 +298,17 @@ namespace UnrealGameSync
 			LocalConfigFiles = new List<KeyValuePair<string, DateTime>>();
 			LatestProjectConfigFile = PerforceMonitor.ReadProjectConfigFile(PerforceClient, BranchClientPath, NewSelectedClientFileName, CacheFolder, LocalConfigFiles, Log);
 
+			// Run any event hooks
+			if (DeploymentSettings.OnDetectProjectSettings != null)
+			{
+				string Message;
+				if (!DeploymentSettings.OnDetectProjectSettings(this, Log, out Message))
+				{
+					ErrorMessage = Message;
+					return false;
+				}
+			}
+
 			// Succeed!
 			ErrorMessage = null;
 			return true;

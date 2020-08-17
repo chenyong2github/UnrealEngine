@@ -290,6 +290,7 @@ namespace UnrealGameSync
 		public bool bEditorArgumentsPrompt;
 
 		// Notification settings
+		public List<string> NotifyProjects;
 		public int NotifyUnassignedMinutes;
 		public int NotifyUnacknowledgedMinutes;
 		public int NotifyUnresolvedMinutes;
@@ -335,13 +336,10 @@ namespace UnrealGameSync
 			return Projects;
 		}
 
-		public UserSettings(string InFileName)
+		public UserSettings(string InFileName, TextWriter Log)
 		{
 			FileName = InFileName;
-			if(File.Exists(FileName))
-			{
-				ConfigFile.Load(FileName);
-			}
+			ConfigFile.TryLoad(FileName, Log);
 
 			// General settings
 			Version = (UserSettingsVersion)ConfigFile.GetValue("General.Version", (int)UserSettingsVersion.Initial);
@@ -458,6 +456,7 @@ namespace UnrealGameSync
 			ScheduleProjects = ReadProjectList("Schedule.Projects", "Schedule.ProjectFileNames");
 
 			// Notification settings
+			NotifyProjects = ConfigFile.GetValues("Notifications.NotifyProjects", new string[0]).ToList();
 			NotifyUnassignedMinutes = ConfigFile.GetValue("Notifications.NotifyUnassignedMinutes", -1);
 			NotifyUnacknowledgedMinutes = ConfigFile.GetValue("Notifications.NotifyUnacknowledgedMinutes", -1);
 			NotifyUnresolvedMinutes = ConfigFile.GetValue("Notifications.NotifyUnresolvedMinutes", -1);
@@ -754,6 +753,10 @@ namespace UnrealGameSync
 			// Notification settings
 			ConfigSection NotificationSection = ConfigFile.FindOrAddSection("Notifications");
 			NotificationSection.Clear();
+			if (NotifyProjects.Count > 0)
+			{
+				NotificationSection.SetValues("NotifyProjects", NotifyProjects.ToArray());
+			}
 			if (NotifyUnassignedMinutes != -1)
 			{
 				NotificationSection.SetValue("NotifyUnassignedMinutes", NotifyUnassignedMinutes);

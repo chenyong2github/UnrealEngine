@@ -468,7 +468,12 @@ namespace UnrealBuildTool
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
-			ActionHistory History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType, TargetDescriptor.Architecture);
+
+			ActionHistory History = new ActionHistory();
+			if(TargetDescriptor.ProjectFile != null)
+			{
+				History.Mount(TargetDescriptor.ProjectFile.Directory);
+			}
 
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
 			{

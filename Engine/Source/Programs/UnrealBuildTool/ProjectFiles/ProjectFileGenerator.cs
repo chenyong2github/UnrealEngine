@@ -1853,6 +1853,7 @@ namespace UnrealBuildTool
 							// Create the target
 							UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, false, bUsePrecompiled);
 
+							AddTargetForIntellisense(Target);
 							// Generate a compile environment for each module in the binary
 							CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
 							foreach(UEBuildBinary Binary in Target.Binaries)
@@ -1888,6 +1889,11 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+		}
+
+		protected virtual void AddTargetForIntellisense(UEBuildTarget Target)
+		{
+			
 		}
 
 
