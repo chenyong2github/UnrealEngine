@@ -245,127 +245,6 @@ static NSVG_INLINE float nsvg__maxf(float a, float b) { return a > b ? a : b; }
 #define NSVG_XML_CONTENT 2
 #define NSVG_XML_MAX_ATTRIBS 256
 
-static void nsvg__parseContent(char* s,
-	void (*contentCb)(void* ud, const char* s),
-	void* ud)
-{
-	// Trim start white spaces
-	while (*s && nsvg__isspace(*s)) s++;
-	if (!*s) return;
-
-	if (contentCb)
-		(*contentCb)(ud, s);
-}
-
-static void nsvg__parseElement(char* s,
-	void (*startelCb)(void* ud, const char* el, const char** attr),
-	void (*endelCb)(void* ud, const char* el),
-	void* ud)
-{
-	const char* attr[NSVG_XML_MAX_ATTRIBS];
-	int nattr = 0;
-	char* tagname;
-	int start = 0;
-	int end = 0;
-	char quote;
-
-	// Skip white space after the '<'
-	while (*s && nsvg__isspace(*s)) s++;
-
-	// Check if the tag is end tag
-	if (*s == '/') {
-		s++;
-		end = 1;
-	}
-	else {
-		start = 1;
-	}
-
-	// Skip comments, data and preprocessor stuff.
-	if (!*s || *s == '?' || *s == '!')
-		return;
-
-	// Get tag name
-	tagname = s;
-	while (*s && !nsvg__isspace(*s)) s++;
-	if (*s) { *s++ = '\0'; }
-
-	// Get attribs
-	while (!end && *s && nattr < NSVG_XML_MAX_ATTRIBS - 3) {
-		char* name = NULL;
-		char* value = NULL;
-
-		// Skip white space before the attrib name
-		while (*s && nsvg__isspace(*s)) s++;
-		if (!*s) break;
-		if (*s == '/') {
-			end = 1;
-			break;
-		}
-		name = s;
-		// Find end of the attrib name.
-		while (*s && !nsvg__isspace(*s) && *s != '=') s++;
-		if (*s) { *s++ = '\0'; }
-		// Skip until the beginning of the value.
-		while (*s && *s != '\"' && *s != '\'') s++;
-		if (!*s) break;
-		quote = *s;
-		s++;
-		// Store value and find the end of it.
-		value = s;
-		while (*s && *s != quote) s++;
-		if (*s) { *s++ = '\0'; }
-
-		// Store only well formed attributes
-		if (name && value) {
-			attr[nattr++] = name;
-			attr[nattr++] = value;
-		}
-	}
-
-	// List terminator
-	attr[nattr++] = 0;
-	attr[nattr++] = 0;
-
-	// Call callbacks.
-	if (start && startelCb)
-		(*startelCb)(ud, tagname, attr);
-	if (end && endelCb)
-		(*endelCb)(ud, tagname);
-}
-
-int nsvg__parseXML(char* input,
-	void (*startelCb)(void* ud, const char* el, const char** attr),
-	void (*endelCb)(void* ud, const char* el),
-	void (*contentCb)(void* ud, const char* s),
-	void* ud)
-{
-	char* s = input;
-	char* mark = s;
-	int state = NSVG_XML_CONTENT;
-	while (*s) {
-		if (*s == '<' && state == NSVG_XML_CONTENT) {
-			// Start of a tag
-			*s++ = '\0';
-			nsvg__parseContent(mark, contentCb, ud);
-			mark = s;
-			state = NSVG_XML_TAG;
-		}
-		else if (*s == '>' && state == NSVG_XML_TAG) {
-			// Start of a content or new tag.
-			*s++ = '\0';
-			nsvg__parseElement(mark, startelCb, endelCb, ud);
-			mark = s;
-			state = NSVG_XML_CONTENT;
-		}
-		else {
-			s++;
-		}
-	}
-
-	return 1;
-}
-
 
 /* Simple SVG parser. */
 
@@ -471,10 +350,182 @@ typedef struct NSVGparser
 	float viewMinx, viewMiny, viewWidth, viewHeight;
 	int alignX, alignY, alignType;
 	float dpi;
-	char pathFlag;
-	char defsFlag;
-	char styleFlag;
+	bool pathFlag;
+	bool defsFlag;
+	bool styleFlag;
+	bool parsedDefs;
 } NSVGparser;
+
+static void nsvg__parseContent(char* s,
+	void (*contentCb)(NSVGparser* p, const char* s),
+	NSVGparser* p)
+{
+	// Trim start white spaces
+	while (*s && nsvg__isspace(*s)) s++;
+	if (!*s) return;
+
+	if (contentCb)
+		(*contentCb)(p, s);
+}
+
+static void nsvg__parseElement(char* s,
+	void (*startelCb)(NSVGparser* p, const char* el, const char** attr),
+	void (*endelCb)(NSVGparser* p, const char* el),
+	NSVGparser* p)
+{
+	const char* attr[NSVG_XML_MAX_ATTRIBS];
+	int nattr = 0;
+	char* tagname;
+	int start = 0;
+	int end = 0;
+	char quote;
+
+	// Skip white space after the '<'
+	while (*s && nsvg__isspace(*s)) s++;
+
+	// Check if the tag is end tag
+	if (*s == '/') {
+		s++;
+		end = 1;
+	}
+	else {
+		start = 1;
+	}
+
+	// Skip comments, data and preprocessor stuff.
+	if (!*s || *s == '?' || *s == '!')
+		return;
+
+	// Get tag name
+	tagname = s;
+	while (*s && !nsvg__isspace(*s)) s++;
+	if (*s) { *s++ = '\0'; }
+
+	// Get attribs
+	while (!end && *s && nattr < NSVG_XML_MAX_ATTRIBS - 3) {
+		char* name = NULL;
+		char* value = NULL;
+
+		// Skip white space before the attrib name
+		while (*s && nsvg__isspace(*s)) s++;
+		if (!*s) break;
+		if (*s == '/') {
+			end = 1;
+			break;
+		}
+		name = s;
+		// Find end of the attrib name.
+		while (*s && !nsvg__isspace(*s) && *s != '=') s++;
+		if (*s) { *s++ = '\0'; }
+		// Skip until the beginning of the value.
+		while (*s && *s != '\"' && *s != '\'') s++;
+		if (!*s) break;
+		quote = *s;
+		s++;
+		// Store value and find the end of it.
+		value = s;
+		while (*s && *s != quote) s++;
+		if (*s) { *s++ = '\0'; }
+
+		// Store only well formed attributes
+		if (name && value) {
+			attr[nattr++] = name;
+			attr[nattr++] = value;
+		}
+	}
+
+	// List terminator
+	attr[nattr++] = 0;
+	attr[nattr++] = 0;
+
+	// Call callbacks.
+	if (start && startelCb)
+		(*startelCb)(p, tagname, attr);
+	if (end && endelCb)
+		(*endelCb)(p, tagname);
+}
+
+int nsvg__parseDefs(char* input,
+	void (*startelCb)(NSVGparser* p, const char* el, const char** attr),
+	void (*endelCb)(NSVGparser* p, const char* el),
+	void (*contentCb)(NSVGparser* p, const char* s),
+	NSVGparser* p)
+{
+	char* defsTag = strstr(input, "<defs");
+	if (defsTag)
+	{
+		char* defsBuf = (char*)malloc(strlen(defsTag)+1);
+		strcpy(defsBuf, defsTag);
+
+		char* s = defsBuf;
+		char* mark = s;
+		int state = NSVG_XML_CONTENT;
+		while (p->parsedDefs == false)
+		{
+			if (*s == '<' && state == NSVG_XML_CONTENT)
+			{
+				// Start of a tag
+				*s++ = '\0';
+				nsvg__parseContent(mark, contentCb, p);
+				mark = s;
+				state = NSVG_XML_TAG;
+			}
+			else if (*s == '>' && state == NSVG_XML_TAG)
+			{
+				// Start of a content or new tag.
+				*s++ = '\0';
+				nsvg__parseElement(mark, startelCb, endelCb, p);
+				mark = s;
+				state = NSVG_XML_CONTENT;
+			}
+			else
+			{
+				s++;
+			}
+		}
+
+		free(defsBuf);
+	}
+	return 1;
+}
+
+int nsvg__parseXML(char* input,
+	void (*startelCb)(NSVGparser* p, const char* el, const char** attr),
+	void (*endelCb)(NSVGparser* p, const char* el),
+	void (*contentCb)(NSVGparser* p, const char* s),
+	NSVGparser* p)
+{
+
+	// Defs have to be parsed first in nanosvg for them to be found later. 
+	// Note this basically parses the file twice in the worst case but a larger refactor would be needed to fix this
+	nsvg__parseDefs(input, startelCb, endelCb, contentCb, p);
+
+	char* s = input;
+	char* mark = s;
+	int state = NSVG_XML_CONTENT;
+	while (*s) {
+		if (*s == '<' && state == NSVG_XML_CONTENT) {
+			// Start of a tag
+			*s++ = '\0';
+			nsvg__parseContent(mark, contentCb, p);
+			mark = s;
+			state = NSVG_XML_TAG;
+		}
+		else if (*s == '>' && state == NSVG_XML_TAG) {
+			// Start of a content or new tag.
+			*s++ = '\0';
+			nsvg__parseElement(mark, startelCb, endelCb, p);
+			mark = s;
+			state = NSVG_XML_CONTENT;
+		}
+		else {
+			s++;
+		}
+	}
+
+	return 1;
+}
+
 
 static void nsvg__xformIdentity(float* t)
 {
@@ -2768,23 +2819,25 @@ static void nsvg__parseGradientStop(NSVGparser* p, const char** attr)
 	stop->offset = curAttr->stopOffset;
 }
 
-static void nsvg__startElement(void* ud, const char* el, const char** attr)
+static void nsvg__startElement(NSVGparser* p, const char* el, const char** attr)
 {
-	NSVGparser* p = (NSVGparser*)ud;
-
-	if (p->defsFlag) {
-		// Skip everything but gradients and styles in defs
-		if (strcmp(el, "linearGradient") == 0) {
-			nsvg__parseGradient(p, attr, NSVG_PAINT_LINEAR_GRADIENT);
-		}
-		else if (strcmp(el, "radialGradient") == 0) {
-			nsvg__parseGradient(p, attr, NSVG_PAINT_RADIAL_GRADIENT);
-		}
-		else if (strcmp(el, "stop") == 0) {
-			nsvg__parseGradientStop(p, attr);
-		}
-		else if (strcmp(el, "style") == 0) {
-			p->styleFlag = 1;
+	if (p->defsFlag)
+	{
+		if(!p->parsedDefs)
+		{
+			// Skip everything but gradients and styles in defs
+			if (strcmp(el, "linearGradient") == 0) {
+				nsvg__parseGradient(p, attr, NSVG_PAINT_LINEAR_GRADIENT);
+			}
+			else if (strcmp(el, "radialGradient") == 0) {
+				nsvg__parseGradient(p, attr, NSVG_PAINT_RADIAL_GRADIENT);
+			}
+			else if (strcmp(el, "stop") == 0) {
+				nsvg__parseGradientStop(p, attr);
+			}
+			else if (strcmp(el, "style") == 0) {
+				p->styleFlag = 1;
+			}
 		}
 		return;
 	}
@@ -2850,10 +2903,8 @@ static void nsvg__startElement(void* ud, const char* el, const char** attr)
 	}
 }
 
-static void nsvg__endElement(void* ud, const char* el)
+static void nsvg__endElement(NSVGparser* p, const char* el)
 {
-	NSVGparser* p = (NSVGparser*)ud;
-
 	if (strcmp(el, "g") == 0) {
 		nsvg__popAttr(p);
 	}
@@ -2862,6 +2913,7 @@ static void nsvg__endElement(void* ud, const char* el)
 	}
 	else if (strcmp(el, "defs") == 0) {
 		p->defsFlag = 0;
+		p->parsedDefs = true;
 	}
 	else if (strcmp(el, "style") == 0) {
 		p->styleFlag = 0;
@@ -2884,9 +2936,8 @@ static char* nsvg__strndup(const char* s, size_t n)
 	return (char*)memcpy(result, s, len);
 }
 
-static void nsvg__content(void* ud, const char* s)
+static void nsvg__content(NSVGparser* p, const char* s)
 {
-	NSVGparser* p = (NSVGparser*)ud;
 	if (p->styleFlag) {
 
 		int state = 0;
