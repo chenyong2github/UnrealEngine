@@ -6,16 +6,27 @@
 
 UMoviePipelineExecutorBase* UMoviePipelineQueueEngineSubsystem::RenderQueueWithExecutor(TSubclassOf<UMoviePipelineExecutorBase> InExecutorType)
 {
+	RenderQueueWithExecutorInstance(NewObject<UMoviePipelineExecutorBase>(this, InExecutorType));
+	return ActiveExecutor;
+}
+
+void UMoviePipelineQueueEngineSubsystem::RenderQueueWithExecutorInstance(UMoviePipelineExecutorBase* InExecutor)
+{
 	if(!ensureMsgf(!IsRendering(), TEXT("RenderQueueWithExecutor cannot be called while already rendering!")))
 	{
-		return nullptr;
+		FFrame::KismetExecutionMessage(TEXT("Render already in progress."), ELogVerbosity::Error);
+		return;
 	}
-		
-	ActiveExecutor = NewObject<UMoviePipelineExecutorBase>(this, InExecutorType);
-	ActiveExecutor->SetMoviePipelineClass(UMoviePipeline::StaticClass());
+
+	if (!ActiveExecutor)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Invalid executor supplied."), ELogVerbosity::Error);
+		return;
+	}
+
+	ActiveExecutor = InExecutor;
 	ActiveExecutor->OnExecutorFinished().AddUObject(this, &UMoviePipelineQueueEngineSubsystem::OnExecutorFinished);
 	ActiveExecutor->Execute(GetQueue());
-	return ActiveExecutor;
 }
 
 void UMoviePipelineQueueEngineSubsystem::OnExecutorFinished(UMoviePipelineExecutorBase* InPipelineExecutor, bool bSuccess)
