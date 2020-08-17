@@ -392,6 +392,7 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 			SystemSimulations[TG].Remove(System);
 		}
 	}
+	ComponentPool->RemoveComponentsBySystem(System);
 }
 
 void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr)
