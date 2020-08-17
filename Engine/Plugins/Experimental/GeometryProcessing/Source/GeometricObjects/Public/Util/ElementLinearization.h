@@ -178,6 +178,18 @@ public:
 		YVector[i] = Value.Y;
 		ZVector[i] = Value.Z;
 	}
+
+	FVector3<RealType> Get(int32 i)
+	{
+		return FVector3<RealType>(XVector[i], YVector[i], ZVector[i]);
+	}
+
+	void Set(int32 i, const FVector3<RealType>& Value)
+	{
+		XVector[i] = Value.X;
+		YVector[i] = Value.Y;
+		ZVector[i] = Value.Z;
+	}
 };
 
 

@@ -24,42 +24,6 @@ THIRD_PARTY_INCLUDES_END
 
 
 
-//
-// Extension of TSparseMatrixAssembler suitable for eigen sparse matrix
-//
-class FEigenSparseMatrixAssembler : public UE::Solvers::TSparseMatrixAssembler<double>
-{
-public:
-	typedef FSparseMatrixD::Scalar    ScalarT;
-	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
-
-	TUniquePtr<FSparseMatrixD> Matrix;
-	std::vector<MatrixTripletT> EntryTriplets;
-
-	FEigenSparseMatrixAssembler(int32 RowsI, int32 ColsJ)
-	{
-		Matrix = MakeUnique<FSparseMatrixD>(RowsI, ColsJ);
-
-		ReserveEntriesFunc = [this](int32 NumElements)
-		{
-			EntryTriplets.reserve(NumElements);
-		};
-
-		AddEntryFunc = [this](int32 i, int32 j, double Value)
-		{
-			EntryTriplets.push_back(MatrixTripletT(i, j, Value));
-		};
-	}
-
-	void ExtractResult(FSparseMatrixD& Result)
-	{
-		Matrix->setFromTriplets(EntryTriplets.begin(), EntryTriplets.end());
-		Matrix->makeCompressed();
-
-		Result.swap(*Matrix);
-	}
-};
-
 
 
 void ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
