@@ -8,7 +8,7 @@
 ## 2) lib-specific build steps
 ## 3) Check files were updated
 
-ENABLE_CHECKOUT_FILES="0"
+ENABLE_CHECKOUT_FILES="1"
 
 ##
 # Common library constants
