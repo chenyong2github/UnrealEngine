@@ -83,6 +83,11 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(BeginGroupUVGenerateTool, "GroupUnwrap", "Stat the PolyGroup UV Unwrap Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginMeshSelectionTool, "Select", "Start the Mesh Selection Tool", EUserInterfaceActionType::Button, FInputChord());
 
+	UI_COMMAND(BeginPhysicsInspectorTool, "PhysInspect", "Inspect Physics Geometry for selected Meshes", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginSetCollisionGeometryTool, "MeshToCollision", "Convert selected Meshes to Collision Geometry", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginEditCollisionGeometryTool, "EditPhys", "Edit Collision Geometry for selected Mesh", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginExtractCollisionGeometryTool, "CollisionToMesh", "Convert Collision Geometry to a Mesh", EUserInterfaceActionType::Button, FInputChord());
+
 	UI_COMMAND(BeginMeshInspectorTool, "Inspector", "Start the Mesh Inspector Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginWeldEdgesTool, "Weld Edges", "Start the Weld Edges Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPolyGroupsTool, "PolyGroups", "Start the PolyGroups Tool", EUserInterfaceActionType::Button, FInputChord());

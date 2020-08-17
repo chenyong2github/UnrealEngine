@@ -9,7 +9,7 @@
 /**
  * TInteractiveToolCommands implementation for this module that provides standard Editor hotkey support
  */
-class FModelingToolsManagerCommands : public TCommands<FModelingToolsManagerCommands>
+class MODELINGTOOLSEDITORMODE_API FModelingToolsManagerCommands : public TCommands<FModelingToolsManagerCommands>
 {
 public:
 	FModelingToolsManagerCommands();
@@ -73,6 +73,11 @@ public:
 	TSharedPtr<FUICommandInfo> BeginBspConversionTool;
 	TSharedPtr<FUICommandInfo> BeginMeshToVolumeTool;
 	TSharedPtr<FUICommandInfo> BeginVolumeToMeshTool;
+
+	TSharedPtr<FUICommandInfo> BeginPhysicsInspectorTool;
+	TSharedPtr<FUICommandInfo> BeginSetCollisionGeometryTool;
+	TSharedPtr<FUICommandInfo> BeginEditCollisionGeometryTool;
+	TSharedPtr<FUICommandInfo> BeginExtractCollisionGeometryTool;
 
 	TSharedPtr<FUICommandInfo> BeginMeshInspectorTool;
 	TSharedPtr<FUICommandInfo> BeginGlobalUVGenerateTool;
