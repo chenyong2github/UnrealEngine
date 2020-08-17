@@ -813,11 +813,26 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 	return Cells.Num();
 }
 
-int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const FVector& Position, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
+int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
 {
-	for (const FSpatialHashStreamingGrid& StreamingGrid: StreamingGrids)
+	if (Sources.Num() == 0)
 	{
-		GetStreamingCells(Position, StreamingGrid, Cells);
+		// Get always loaded cells
+		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		{
+			GetAlwaysLoadedStreamingCells(StreamingGrid, Cells);
+		}
+	}
+	else
+	{
+		// Get cells based on streaming sources
+		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		{
+			for (const FWorldPartitionStreamingSource& Source : Sources)
+			{
+				GetStreamingCells(Source.Location, StreamingGrid, Cells);
+			}
+		}
 	}
 
 	return Cells.Num();
@@ -835,6 +850,19 @@ void UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const FVector& Positio
 			Cells.Add(Cell);
 		}
 	});
+}
+
+void UWorldPartitionRuntimeSpatialHash::GetAlwaysLoadedStreamingCells(const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
+{
+	if (StreamingGrid.GridLevels.Num() > 0)
+	{
+		const int32 TopLevel = StreamingGrid.GridLevels.Num() - 1;
+		check(StreamingGrid.GridLevels[TopLevel].GridCells.Num() == 1);
+		if (UWorldPartitionRuntimeSpatialHashCell* Cell = StreamingGrid.GridLevels[TopLevel].GridCells[0])
+		{
+			Cells.Add(Cell);
+		}
+	}
 }
 
 void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByDistance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells)

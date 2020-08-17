@@ -99,12 +99,13 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			return;
 		}
 
-		// Get cells to load/unload
-		for (const FWorldPartitionStreamingSource& Source : StreamingSources)
+		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
+		if (WorldPartition->IsInitialized())
 		{
-			WorldPartition->RuntimeHash->GetStreamingCells(Source.Location, StreamingCells);
+			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, StreamingCells);
 		}
 
+		// Determine cells to load/unload
 		TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = StreamingCells.Difference(LoadedCells);
 		TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = LoadedCells.Difference(StreamingCells);
 

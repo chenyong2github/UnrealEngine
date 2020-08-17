@@ -24,7 +24,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 	// Streaming interface
 	virtual int32 GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells) const { return 0; }
-	virtual int32 GetStreamingCells(const FVector& Position, TSet<const UWorldPartitionRuntimeCell*>& Cells) const { return 0; };
+	virtual int32 GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const { return 0; };
 	virtual void SortStreamingCellsByDistance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells) {}
 
 	/* Returns desired footprint that ShowDebugInfo should take relative to given Canvas size (the value can exceed the given size).
