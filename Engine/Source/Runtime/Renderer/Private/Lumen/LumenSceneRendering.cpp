@@ -13,6 +13,7 @@
 #include "MeshPassProcessor.inl"
 #include "MeshCardRepresentation.h"
 #include "GPUScene.h"
+#include "Rendering/NaniteResources.h"
 #include "Nanite/NaniteRender.h"
 #include "PixelShaderUtils.h"
 #include "LumenCubeMapTree.h"
