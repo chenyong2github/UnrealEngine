@@ -802,7 +802,7 @@ namespace RuntimeVirtualTexture
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("VirtualTextureCopyToOutput"),
 			Parameters,
-			ERDGPassFlags::Copy,
+			ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
 			[InputTexture, OutputTexture, CopyInfo](FRHICommandList& RHICmdList)
 			{
 				InputTexture->MarkResourceAsUsed();
