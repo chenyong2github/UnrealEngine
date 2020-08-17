@@ -1045,7 +1045,8 @@ public:
 				Barriers.RemoveAt(Barriers.Num() - 1);
 				return -1;
 			}
-		}?
+		}
+
 		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
 
 		D3D12_RESOURCE_BARRIER* Barrier = nullptr;
