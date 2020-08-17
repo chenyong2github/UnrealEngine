@@ -49,8 +49,6 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "EditorBuildUtils.h"
 #include "AudioDevice.h"
-#include "EditorWorldExtension.h"
-#include "ViewportWorldInteraction.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "ImageWriteQueue.h"
 #include "DebugViewModeHelpers.h"
@@ -1547,24 +1545,6 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 		}
 	}
 
-	// Allow the viewport interaction to override any previously set mouse cursor
-	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
-	if (WorldInteraction != nullptr)
-	{
-		if (WorldInteraction->ShouldForceCursor())
-		{
-			MouseCursor = EMouseCursor::Crosshairs;
-			SetRequiredCursor(false, true);
-			UpdateRequiredCursorVisibility();
-		}
-		else if (WorldInteraction->ShouldSuppressExistingCursor())
-		{
-			MouseCursor = EMouseCursor::None;
-			SetRequiredCursor(false, false);
-			UpdateRequiredCursorVisibility();
-		}
-	}
-
 	CachedMouseX = X;
 	CachedMouseY = Y;
 
@@ -2679,12 +2659,6 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 
 	// Let the current mode have a look at the input before reacting to it.
 	if (ModeTools->InputKey(this, Viewport, Key, Event))
-	{
-		return true;
-	}
-
-	UEditorWorldExtensionCollection& EditorWorldExtensionCollection = *GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( GetWorld() );
-	if( EditorWorldExtensionCollection.InputKey(this, Viewport, Key, Event))
 	{
 		return true;
 	}

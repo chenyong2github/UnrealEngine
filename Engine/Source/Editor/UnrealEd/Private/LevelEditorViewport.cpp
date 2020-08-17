@@ -76,6 +76,8 @@
 #include "ActorGroupingUtils.h"
 #include "EditorWorldExtension.h"
 #include "VREditorMode.h"
+#include "EditorWorldExtension.h"
+#include "ViewportWorldInteraction.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Engine/VolumeTexture.h"
 #include "Materials/MaterialExpressionDivide.h"
@@ -2860,6 +2862,12 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	bUserIsControllingAtmosphericLight0 = false;	// Disable all atmospheric light controls
 	bUserIsControllingAtmosphericLight1 = false;
 
+	UEditorWorldExtensionCollection& EditorWorldExtensionCollection = *GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld());
+	if (EditorWorldExtensionCollection.InputKey(this, Viewport, Key, Event))
+	{
+		return true;
+	}
+
 	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
 
 	// Handle input for the player height preview mode. 
@@ -4396,6 +4404,24 @@ void FLevelEditorViewportClient::ApplyDeltaToActor( AActor* InActor, const FVect
 EMouseCursor::Type FLevelEditorViewportClient::GetCursor(FViewport* InViewport,int32 X,int32 Y)
 {
 	EMouseCursor::Type CursorType = FEditorViewportClient::GetCursor(InViewport,X,Y);
+
+	// Allow the viewport interaction to override any previously set mouse cursor
+	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
+	if (WorldInteraction != nullptr)
+	{
+		if (WorldInteraction->ShouldForceCursor())
+		{
+			CursorType = EMouseCursor::Crosshairs;
+			SetRequiredCursor(false, true);
+			UpdateRequiredCursorVisibility();
+		}
+		else if (WorldInteraction->ShouldSuppressExistingCursor())
+		{
+			CursorType = EMouseCursor::None;
+			SetRequiredCursor(false, false);
+			UpdateRequiredCursorVisibility();
+		}
+	}
 
 	// Don't select widget axes by mouse over while they're being controlled by a mouse drag.
 	if( InViewport->IsCursorVisible() && !bWidgetAxisControlledByDrag)
