@@ -101,7 +101,8 @@ void FSimpleElementCollector::DrawSprite(
 	float UL,
 	float V,
 	float VL,
-	uint8 BlendMode
+	uint8 BlendMode,
+	float OpacityMaskRefVal
 	)
 {
 	FBatchedElements& Elements = DepthPriorityGroup == SDPG_World ? BatchedElements : TopBatchedElements;
@@ -117,7 +118,8 @@ void FSimpleElementCollector::DrawSprite(
 		UL,
 		V,
 		VL,
-		BlendMode
+		BlendMode,
+		OpacityMaskRefVal
 		);
 }
 

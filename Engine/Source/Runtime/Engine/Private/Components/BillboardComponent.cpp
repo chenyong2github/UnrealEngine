@@ -61,6 +61,8 @@ public:
 		// Calculate the scale factor for the sprite.
 		float Scale = InComponent->GetComponentTransform().GetMaximumAxisScale();
 
+		OpacityMaskRefVal = InComponent->OpacityMaskRefVal;
+
 		if(InComponent->Sprite)
 		{
 			Texture = InComponent->Sprite;
@@ -188,8 +190,11 @@ public:
 					FLinearColor LevelColorToUse = IsSelected() ? ColorToUse : (FLinearColor)GetLevelColor();
 					FLinearColor PropertyColorToUse = GetPropertyColor();
 
+					ColorToUse.A = 1.0f;
+
 					const FLinearColor& SpriteColor = View->Family->EngineShowFlags.LevelColoration ? LevelColorToUse :
 						( (View->Family->EngineShowFlags.PropertyColoration) ? PropertyColorToUse : ColorToUse );
+
 
 					Collector.GetPDI(ViewIndex)->DrawSprite(
 						Origin,
@@ -198,7 +203,9 @@ public:
 						TextureResource,
 						SpriteColor,
 						GetDepthPriorityGroup(View),
-						U,UL,V,VL
+						U,UL,V,VL,
+						SE_BLEND_Masked,
+						OpacityMaskRefVal
 						);
 				}
 			}
@@ -251,6 +258,7 @@ private:
 	float UL;
 	const float V;
 	float VL;
+	float OpacityMaskRefVal;
 	FLinearColor Color;
 	const uint32 bIsScreenSizeScaled : 1;
 	uint32 bIsActorLocked : 1;
@@ -292,6 +300,7 @@ UBillboardComponent::UBillboardComponent(const FObjectInitializer& ObjectInitial
 	V = 0;
 	UL = 0;
 	VL = 0;
+	OpacityMaskRefVal = .5f;
 	bHiddenInGame = true;
 	SetGenerateOverlapEvents(false);
 	bUseEditorCompositing = true;
@@ -391,6 +400,12 @@ void UBillboardComponent::SetSpriteAndUV(UTexture2D* NewSprite, int32 NewU, int3
 	V = NewV;
 	VL = NewVL;
 	SetSprite(NewSprite);
+}
+
+void UBillboardComponent::SetOpacityMaskRefVal(float RefVal)
+{
+	OpacityMaskRefVal = RefVal;
+	MarkRenderStateDirty();
 }
 
 #if WITH_EDITORONLY_DATA

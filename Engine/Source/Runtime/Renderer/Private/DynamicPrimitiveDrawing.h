@@ -33,8 +33,10 @@ public:
 		float UL,
 		float V,
 		float VL,
-		uint8 BlendMode = SE_BLEND_Masked
+		uint8 BlendMode = SE_BLEND_Masked,
+		float OpacityMaskRefVal = .5f
 		) override;
+
 	virtual void DrawLine(
 		const FVector& Start,
 		const FVector& End,

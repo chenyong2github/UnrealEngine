@@ -312,7 +312,8 @@ void FBatchedElements::AddSprite(
 	float UL,
 	float V,
 	float VL,
-	uint8 BlendMode
+	uint8 BlendMode,
+	float OpacityMaskRefVal
 	)
 {
 	check(Texture);
@@ -328,6 +329,7 @@ void FBatchedElements::AddSprite(
 	Sprite->UL = UL == 0.f ? Texture->GetSizeX() : UL;
 	Sprite->V = V;
 	Sprite->VL = VL == 0.f ? Texture->GetSizeY() : VL;
+	Sprite->OpacityMaskRefVal = OpacityMaskRefVal;
 	Sprite->BlendMode = BlendMode;
 }
 
@@ -430,10 +432,9 @@ static void SetHitTestingBlendState(FRHICommandList& RHICmdList, FGraphicsPipeli
 	}
 }
 
-/** Global alpha ref test value for rendering masked batched elements */
-float GBatchedElementAlphaRefVal = 128.f;
 /** Global smoothing width for rendering batched elements with distance field blend modes */
 float GBatchedElementSmoothWidth = 4;
+
 
 FAutoConsoleVariableRef CVarWellCanvasDistanceFieldSmoothWidth(TEXT("Canvas.DistanceFieldSmoothness"), GBatchedElementSmoothWidth, TEXT("Global sharpness of distance field fonts/shapes rendered by canvas."), ECVF_Default);
 
@@ -458,7 +459,8 @@ void FBatchedElements::PrepareShaders(
 	bool bHitTesting,
 	float Gamma,
 	const FDepthFieldGlowInfo* GlowInfo,
-	const FSceneView* View
+	const FSceneView* View,
+	float OpacityMaskRefVal
 	) const
 {
 	// used to mask individual channels and desaturate
@@ -568,7 +570,7 @@ void FBatchedElements::PrepareShaders(
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
-					MaskedPixelShader->SetParameters(RHICmdList, Texture, Gamma, GBatchedElementAlphaRefVal / 255.0f, BlendMode);
+					MaskedPixelShader->SetParameters(RHICmdList, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 				else
 				{
@@ -578,7 +580,7 @@ void FBatchedElements::PrepareShaders(
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 					MaskedPixelShader->SetEditorCompositingParameters(RHICmdList, View);
-					MaskedPixelShader->SetParameters(RHICmdList, Texture, Gamma, GBatchedElementAlphaRefVal / 255.0f, BlendMode);
+					MaskedPixelShader->SetParameters(RHICmdList, Texture, Gamma, OpacityMaskRefVal, BlendMode);
 				}
 			}
 			// render distance field elements
@@ -588,7 +590,7 @@ void FBatchedElements::PrepareShaders(
 				BlendMode == SE_BLEND_TranslucentDistanceField	||
 				BlendMode == SE_BLEND_TranslucentDistanceFieldShadowed)
 			{
-				float AlphaRefVal = GBatchedElementAlphaRefVal;
+				float AlphaRefVal = OpacityMaskRefVal;
 				if (BlendMode == SE_BLEND_TranslucentDistanceField ||
 					BlendMode == SE_BLEND_TranslucentDistanceFieldShadowed)
 				{
@@ -621,7 +623,7 @@ void FBatchedElements::PrepareShaders(
 					RHICmdList, 
 					Texture,
 					Gamma,
-					AlphaRefVal / 255.0f,
+					AlphaRefVal,
 					GBatchedElementSmoothWidth,
 					EnableShadow,
 					ShadowDirection,
@@ -1102,6 +1104,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 				const FTexture* CurrentTexture = Sprites[0].Texture;
 				ESimpleElementBlendMode CurrentBlendMode = (ESimpleElementBlendMode)Sprites[0].BlendMode;
 				int32 BatchStartIndex = 0;
+				float CurrentOpacityMask = Sprites[0].OpacityMaskRefVal;
 
 				// Start loop at 1, since we've already started the first batch with the first sprite in the list
 				for (int32 SpriteIndex = 1; SpriteIndex < ValidSpriteCount + 1; SpriteIndex++)
@@ -1109,12 +1112,13 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					// Need to flush the current batch once we hit the end of the list, or if state of this sprite doesn't match current batch
 					if (SpriteIndex == ValidSpriteCount ||
 						CurrentTexture != Sprites[SpriteIndex].Texture ||
-						CurrentBlendMode != Sprites[SpriteIndex].BlendMode)
+						CurrentBlendMode != Sprites[SpriteIndex].BlendMode ||
+						CurrentOpacityMask != Sprites[SpriteIndex].OpacityMaskRefVal)
 					{
 						const int32 SpriteNum = SpriteIndex - BatchStartIndex;
 						const int32 BaseVertex = BatchStartIndex * 6;
 						const int32 PrimCount = SpriteNum * 2;
-						PrepareShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, CurrentBlendMode, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, CurrentTexture, bHitTesting, Gamma, NULL, &View);
+						PrepareShaders(RHICmdList, GraphicsPSOInit, FeatureLevel, CurrentBlendMode, Transform, bNeedToSwitchVerticalAxis, BatchedElementParameters, CurrentTexture, bHitTesting, Gamma, NULL, &View, CurrentOpacityMask);
 						RHICmdList.SetStencilRef(StencilRef);
 						RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 						RHICmdList.DrawPrimitive(BaseVertex, PrimCount, 1);
@@ -1125,6 +1129,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 							BatchStartIndex = SpriteIndex;
 							CurrentTexture = Sprites[SpriteIndex].Texture;
 							CurrentBlendMode = (ESimpleElementBlendMode)Sprites[SpriteIndex].BlendMode;
+							CurrentOpacityMask = Sprites[SpriteIndex].OpacityMaskRefVal;
 						}
 					}
 				}

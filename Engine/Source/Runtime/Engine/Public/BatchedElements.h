@@ -190,7 +190,8 @@ public:
 		float UL,
 		float V,
 		float VL,
-		uint8 BlendMode = SE_BLEND_Masked
+		uint8 BlendMode = SE_BLEND_Masked,
+		float OpacityMaskRefVal = .5f
 		);
 
 	/** 
@@ -304,6 +305,7 @@ private:
 		float UL;
 		float V;
 		float VL;
+		float OpacityMaskRefVal;
 		uint8 BlendMode;
 	};
 	/** This array is sorted during draw-calls */
@@ -370,8 +372,9 @@ private:
 		const FTexture* Texture,
 		bool bHitTesting,
 		float Gamma,
-		const FDepthFieldGlowInfo* GlowInfo = NULL,
-		const FSceneView* View = NULL
+		const FDepthFieldGlowInfo* GlowInfo = nullptr,
+		const FSceneView* View = nullptr,
+		float OpacityMaskRefVal = .5f
 		) const;
 
 	/** if false then prevent the use of HDR encoded shaders. */

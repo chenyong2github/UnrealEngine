@@ -1866,7 +1866,8 @@ public:
 		float UL,
 		float V,
 		float VL,
-		uint8 BlendMode = 1 /*SE_BLEND_Masked*/
+		uint8 BlendMode = 1, /*SE_BLEND_Masked*/
+		float OpacityMaskRefVal = .5f
 		) = 0;
 
 	virtual void DrawLine(
@@ -1972,8 +1973,9 @@ public:
 		float UL,
 		float V,
 		float VL,
-		uint8 BlendMode = SE_BLEND_Masked
-		) override;
+		uint8 BlendMode = SE_BLEND_Masked,
+		float OpacityMaskRevVal = .5f
+	) override;
 
 	virtual void DrawLine(
 		const FVector& Start,

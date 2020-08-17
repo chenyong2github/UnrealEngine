@@ -41,6 +41,10 @@ class ENGINE_API UBillboardComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sprite)
 	float VL;
 
+	/** The billboard is not rendered where texture opacity < OpacityMaskRefVal */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Sprite)
+	float OpacityMaskRefVal;
+
 #if WITH_EDITORONLY_DATA
 	/** Sprite category that the component belongs to. Value serves as a key into the localization file. */
 	UPROPERTY()
@@ -66,6 +70,9 @@ class ENGINE_API UBillboardComponent : public UPrimitiveComponent
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Sprite")
 	virtual void SetSpriteAndUV(class UTexture2D* NewSprite, int32 NewU, int32 NewUL, int32 NewV, int32 NewVL);
 
+	/** Changed the opacity masked used by this component */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Sprite")
+	void SetOpacityMaskRefVal(float RefVal);
 
 	//~ Begin UPrimitiveComponent Interface
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;

@@ -86,7 +86,8 @@ inline void FViewElementPDI::DrawSprite(
 	float UL,
 	float V,
 	float VL,
-	uint8 BlendMode
+	uint8 BlendMode,
+	float OpacityMaskRefVal
 	)
 {
 	FBatchedElements &Elements = GetElements(DepthPriorityGroup);
@@ -98,8 +99,9 @@ inline void FViewElementPDI::DrawSprite(
 		Sprite,
 		Color,
 		CurrentHitProxy ? CurrentHitProxy->Id : FHitProxyId(),
-		U,UL,V,VL,
-		BlendMode
+		U, UL, V, VL,
+		BlendMode,
+		OpacityMaskRefVal
 	);
 }
 
