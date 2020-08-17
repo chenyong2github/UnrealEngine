@@ -13,12 +13,6 @@ UMovieSceneEventSectionBase::FFixupPayloadParameterNameEvent UMovieSceneEventSec
 UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint;
 UMovieSceneEventSectionBase::FPostDuplicateEvent UMovieSceneEventSectionBase::PostDuplicateSectionEvent;
 
-UMovieSceneEventSectionBase::UMovieSceneEventSectionBase(const FObjectInitializer& ObjInit)
-	: Super(ObjInit)
-{
-	bDataUpgradeRequired = true;
-}
-
 void UMovieSceneEventSectionBase::OnPostCompile(UBlueprint* Blueprint)
 {
 	if (Blueprint->GeneratedClass)
@@ -64,6 +58,8 @@ void UMovieSceneEventSectionBase::OnPostCompile(UBlueprint* Blueprint)
 
 void UMovieSceneEventSectionBase::PostDuplicate(bool bDuplicateForPIE)
 {
+	Super::PostDuplicate(bDuplicateForPIE);
+
 	PostDuplicateSectionEvent.Execute(this);
 }
 
@@ -83,13 +79,20 @@ void UMovieSceneEventSectionBase::AttemptUpgrade()
 
 #endif
 
+
+UMovieSceneEventSectionBase::UMovieSceneEventSectionBase(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	bDataUpgradeRequired = true;
+}
+
 void UMovieSceneEventSectionBase::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
 
 	Super::Serialize(Ar);
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 
 	if (Ar.IsLoading())
 	{
