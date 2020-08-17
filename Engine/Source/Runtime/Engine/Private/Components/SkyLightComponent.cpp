@@ -80,7 +80,7 @@ FAutoConsoleVariableRef CVarSkylightIntensityMultiplier(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-int32 GSkylightRealTimeReflectionCapture = 0;
+int32 GSkylightRealTimeReflectionCapture = 1;
 FAutoConsoleVariableRef CVarSkylightRealTimeReflectionCapture(
 	TEXT("r.SkyLight.RealTimeReflectionCapture"),
 	GSkylightRealTimeReflectionCapture,
