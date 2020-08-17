@@ -23,9 +23,10 @@ public:
 	virtual TArrayView<FMovieSceneEvent> GetAllEntryPoints() { return TArrayView<FMovieSceneEvent>(); }
 
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 #if WITH_EDITOR
+
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	MOVIESCENETRACKS_API void AttemptUpgrade();
 
