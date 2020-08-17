@@ -196,10 +196,13 @@ void FGroupTopologyDeformer::CalculateROI(const TArray<int>& HandleGroups, const
 		{
 			for (int32 tid : Mesh->VtxTrianglesItr(vid))
 			{
-				FIndex3i NormalTri = Normals->GetTriangle(tid);
-				ModifiedOverlayNormals.Add(NormalTri.A);
-				ModifiedOverlayNormals.Add(NormalTri.B);
-				ModifiedOverlayNormals.Add(NormalTri.C);
+				if (Normals->IsSetTriangle(tid))
+				{
+					FIndex3i NormalTri = Normals->GetTriangle(tid);
+					ModifiedOverlayNormals.Add(NormalTri.A);
+					ModifiedOverlayNormals.Add(NormalTri.B);
+					ModifiedOverlayNormals.Add(NormalTri.C);
+				}
 			}
 		}
 	}
