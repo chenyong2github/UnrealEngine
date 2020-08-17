@@ -26,6 +26,9 @@
 #include "EditorLevelUtils.h"
 #include "Foundation/IFoundationEditorModule.h"
 #include "HAL/PlatformTime.h"
+#include "Engine/Selection.h"
+#include "Engine/LevelBounds.h"
+#include "Foundation/FoundationEditorInstanceActor.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -645,6 +648,71 @@ AFoundationActor* UFoundationSubsystem::CreateFoundationFrom(const TArray<AActor
 	CommitFoundation(NewFoundationActor);
 
 	return NewFoundationActor;
+}
+
+bool UFoundationSubsystem::BreakFoundation(AFoundationActor* FoundationActor, uint32 Levels)
+{
+	if (Levels > 0)
+	{
+		// Can only break the top level foundation
+		check(FoundationActor->GetLevel() == GetWorld()->GetCurrentLevel());
+
+		// need to ensure that FoundationActor has been streamed in fully
+		GEngine->BlockTillLevelStreamingCompleted(FoundationActor->GetWorld());
+
+		TArray<AActor*> ActorsToMove;
+		ForEachActorInFoundation(FoundationActor, [this, &ActorsToMove](AActor* Actor)
+			{
+				// Skip some actor types
+				if (!Actor->IsA<ALevelBounds>() && !Actor->IsA<ABrush>() && !Actor->IsA<AWorldSettings>() && !Actor->IsA<AFoundationEditorInstanceActor>())
+				{
+					if (CanMoveActorToLevel(Actor))
+					{
+						FSetActorHiddenInSceneOutliner Show(Actor, false);
+						Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+						ActorsToMove.Add(Actor);
+					}
+				}
+
+				return true;
+			});
+
+		ULevel* DestinationLevel = GetWorld()->GetCurrentLevel();
+		check(DestinationLevel);
+
+		const bool bWarnAboutReferences = true;
+		const bool bWarnAboutRenaming = true;
+		const bool bMoveAllOrFail = true;
+		if (!EditorLevelUtils::MoveActorsToLevel(ActorsToMove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
+		{
+			UE_LOG(LogFoundation, Warning, TEXT("Failed to break foundation because not all actors could be moved"));
+			return false;
+		}
+
+		// Destroy the old foundation instance actor
+		GetWorld()->DestroyActor(FoundationActor);
+	
+		// Break up any sub foundations if more levels are requested
+		if (Levels > 1)
+		{
+			TArray<AFoundationActor*> Children;
+			for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+			{
+				AActor* Actor = Cast<AActor>(*It);
+				if (AFoundationActor* ChildFoundation = Cast<AFoundationActor>(Actor))
+				{
+					Children.Add(ChildFoundation);
+				}
+			}
+
+			for (auto& Child : Children)
+			{
+				BreakFoundation(Child, Levels - 1);
+			}
+		}
+	}
+
+	return true;
 }
 
 ULevel* UFoundationSubsystem::GetFoundationLevel(const AFoundationActor* FoundationActor) const

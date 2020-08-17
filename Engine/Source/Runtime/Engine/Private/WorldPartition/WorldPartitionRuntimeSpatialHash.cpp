@@ -327,24 +327,37 @@ public:
 
 #if WITH_EDITOR
 
-static FSquare2DGridHelper GetPartitionnedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<UWorldPartition::FActorCluster>& GridActors)
+static FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<UWorldPartition::FActorCluster>& GridActors)
 {
-	UE_SCOPED_TIMER(TEXT("GetPartitionnedActors"), LogWorldPartitionRuntimeSpatialHash, Log);
+	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash, Log);
 
-	// Compute Grid Origin and Size based on world bounds
+	// Default grid to a minimum of 1 level and 1 cell, for always loaded actors
 	const int32 GridCellSize = Grid.CellSize;
-	const FVector GridOrigin = WorldBounds.GetCenter();
-	int32 GridSize = 2.f * FMath::CeilToFloat(WorldBounds.GetExtent().GetMax() / GridCellSize);
-	if (!FMath::IsPowerOfTwo(GridSize))
+	FVector GridOrigin = FVector::ZeroVector;
+	int32 GridSize = 1;
+	int32 GridLevelCount = 1;
+	
+	// If World bounds is valid, compute Grid's origin, size and level count based on it
+	const float WorldBoundsMaxExtent = WorldBounds.IsValid ? WorldBounds.GetExtent().GetMax() : 0.f;
+	if (WorldBoundsMaxExtent > 0.f)
 	{
-		GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(GridSize)));
+		GridOrigin = WorldBounds.GetCenter();
+		GridSize = 2.f * FMath::CeilToFloat(WorldBoundsMaxExtent / GridCellSize);
+		if (!FMath::IsPowerOfTwo(GridSize))
+		{
+			GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(GridSize)));
+		}
+		GridLevelCount = FMath::Log2(GridSize) + 1;
 	}
-	const int32 GridLevelCount = FMath::Log2(GridSize) + 1;
+	else
+	{
+		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Invalid world bounds, grid partitioning will use a runtime grid with 1 cell."));
+	}
 
 	//
 	// Create the hierarchical grids for the game
 	//	
-	FSquare2DGridHelper PartitionnedActors(GridLevelCount, GridOrigin, GridCellSize, GridSize);
+	FSquare2DGridHelper PartitionedActors(GridLevelCount, GridOrigin, GridCellSize, GridSize);
 
 	for (const UWorldPartition::FActorCluster& ActorCluster : GridActors)
 	{
@@ -369,9 +382,9 @@ static FSquare2DGridHelper GetPartitionnedActors(const UWorldPartition* WorldPar
 				check(ActorCluster.Actors.Num() == 1);
 				const FGuid& ActorGuid = *ActorCluster.Actors.CreateConstIterator();
 				const FWorldPartitionActorDesc& ActorDesc = *WorldPartition->GetActorDesc(ActorGuid);
-				if (PartitionnedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
+				if (PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
 				{
-					PartitionnedActors.GetLowestLevel().GetCell(CellCoords).Actors.Add(ActorGuid);
+					PartitionedActors.GetLowestLevel().GetCell(CellCoords).Actors.Add(ActorGuid);
 				}
 				else
 				{
@@ -383,9 +396,9 @@ static FSquare2DGridHelper GetPartitionnedActors(const UWorldPartition* WorldPar
 			case EActorGridPlacement::Bounds:
 			{
 				const FBox ActorClusterBounds = WorldPartition->GetActorClusterBounds(ActorCluster);
-				if (!PartitionnedActors.GetLowestLevel().ForEachIntersectingCells(ActorClusterBounds, [&](const FIntVector2& Coords)
+				if (!PartitionedActors.GetLowestLevel().ForEachIntersectingCells(ActorClusterBounds, [&](const FIntVector2& Coords)
 				{
-					PartitionnedActors.GetLowestLevel().GetCell(Coords).Actors.Append(ActorCluster.Actors);
+					PartitionedActors.GetLowestLevel().GetCell(Coords).Actors.Append(ActorCluster.Actors);
 				}))
 				{
 					GridPlacement = EActorGridPlacement::AlwaysLoaded;
@@ -400,7 +413,7 @@ static FSquare2DGridHelper GetPartitionnedActors(const UWorldPartition* WorldPar
 			
 		if (GridPlacement == EActorGridPlacement::AlwaysLoaded)
 		{
-			PartitionnedActors.GetAlwaysLoadedCell().Actors.Append(ActorCluster.Actors);
+			PartitionedActors.GetAlwaysLoadedCell().Actors.Append(ActorCluster.Actors);
 		}
 
 		if (!LogWorldPartitionRuntimeSpatialHash.IsSuppressed(ELogVerbosity::Verbose))
@@ -429,9 +442,9 @@ static FSquare2DGridHelper GetPartitionnedActors(const UWorldPartition* WorldPar
 	}
 
 	// Perform actor promotion
-	PartitionnedActors.PerformActorsPromotion();
+	PartitionedActors.PerformActorsPromotion();
 	
-	return PartitionnedActors;
+	return PartitionedActors;
 }
 #endif
 
@@ -504,8 +517,8 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	for (int32 GridIndex=0; GridIndex < AllGrids.Num(); GridIndex++)
 	{
 		const FSpatialHashRuntimeGrid& Grid = AllGrids[GridIndex];
-		const FSquare2DGridHelper PartionnedActors = GetPartitionnedActors(WorldPartition, WorldBounds, Grid, GridActors[GridIndex]);
-		if (!CreateStreamingGrid(Grid, PartionnedActors, Mode, StreamingPolicy))
+		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, Grid, GridActors[GridIndex]);
+		if (!CreateStreamingGrid(Grid, PartionedActors, Mode, StreamingPolicy))
 		{
 			return false;
 		}
@@ -539,26 +552,26 @@ void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionnedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy)
+bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid);
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	check(FMath::IsPowerOfTwo(PartionnedActors.GridSize));
+	check(FMath::IsPowerOfTwo(PartionedActors.GridSize));
 	FSpatialHashStreamingGrid& CurrentStreamingGrid = StreamingGrids.AddDefaulted_GetRef();
 	CurrentStreamingGrid.GridName = RuntimeGrid.GridName;
-	CurrentStreamingGrid.Origin = PartionnedActors.Origin;
-	CurrentStreamingGrid.CellSize = PartionnedActors.CellSize;
-	CurrentStreamingGrid.GridSize = PartionnedActors.GridSize;
+	CurrentStreamingGrid.Origin = PartionedActors.Origin;
+	CurrentStreamingGrid.CellSize = PartionedActors.CellSize;
+	CurrentStreamingGrid.GridSize = PartionedActors.GridSize;
 	CurrentStreamingGrid.LoadingRange = RuntimeGrid.LoadingRange;
 	CurrentStreamingGrid.DebugColor = RuntimeGrid.DebugColor;
 
 	// Move actors into the final streaming grids
-	CurrentStreamingGrid.GridLevels.Reserve(PartionnedActors.Levels.Num());
+	CurrentStreamingGrid.GridLevels.Reserve(PartionedActors.Levels.Num());
 
 	int32 Level = INDEX_NONE;
-	for (const FSquare2DGridHelper::FGridLevel& TempLevel : PartionnedActors.Levels)
+	for (const FSquare2DGridHelper::FGridLevel& TempLevel : PartionedActors.Levels)
 	{
 		Level++;
 
@@ -576,7 +589,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				continue;
 			}
 
-			const bool bIsCellAlwaysLoaded = &TempCell == &PartionnedActors.GetAlwaysLoadedCell();
+			const bool bIsCellAlwaysLoaded = &TempCell == &PartionedActors.GetAlwaysLoadedCell();
 
 			const int32 CellCoordX = CellIndex % TempLevel.GridSize;
 			const int32 CellCoordY = CellIndex / TempLevel.GridSize;
@@ -720,15 +733,15 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD()
 	for (int32 GridIndex = 0; GridIndex < Grids.Num(); GridIndex++)
 	{
 		const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
-		const FSquare2DGridHelper PartionnedActors = GetPartitionnedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
+		const FSquare2DGridHelper PartionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, GridActors[GridIndex]);
 
-		PartionnedActors.ForEachCells([PartionnedActors, RuntimeGrid, WorldPartition, this](const FIntVector& CellCoord)
+		PartionedActors.ForEachCells([PartionedActors, RuntimeGrid, WorldPartition, this](const FIntVector& CellCoord)
 		{
-			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartionnedActors.GetCell(CellCoord);
+			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartionedActors.GetCell(CellCoord);
 			if (GridCell.Actors.Num() != 0)
 			{
 				FBox2D CellBounds;
-				PartionnedActors.GetCellBounds(CellCoord, CellBounds);
+				PartionedActors.GetCellBounds(CellCoord, CellBounds);
 
 				FName CellName = GetCellName(RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y);
 				UHLODLayer::GenerateHLODForCell(WorldPartition, CellName, GridCell.Actors);

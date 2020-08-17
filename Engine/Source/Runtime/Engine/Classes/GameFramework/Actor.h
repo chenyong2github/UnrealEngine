@@ -3623,6 +3623,7 @@ private:
 
 	friend UWorld;
 	friend class FFoliageHelper;
+	friend class UFoundationSubsystem;
 };
 
 struct FSetActorGuid

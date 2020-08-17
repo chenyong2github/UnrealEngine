@@ -15,21 +15,8 @@ void FActorRegistry::GetLevelActors(const FName& LevelPath, TArray<FAssetData>& 
 	FString LevelPathStr = LevelPath.ToString();
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	
-	// if we haven't finish scanning, do a synchronous scan to ensure we have the relevant data.
-	// @note: -game client do not automatically scan for assets
-	// @note: this won't work if external dynamic actors aren't under a directory of the level name.
-	//if (AssetRegistry.IsLoadingAssets() || !GIsEditor)
-	{
-		FString MountPoint, PackagePath, ShortName;
-		if (FPackageName::SplitLongPackageName(LevelPath.ToString(), MountPoint, PackagePath, ShortName))
-		{
-			FString LevelActorsLocation = FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, *ShortName);
-
-			TArray<FString> PackagePaths;
-			PackagePaths.Add(LevelActorsLocation);
-			AssetRegistry.ScanPathsSynchronous(PackagePaths);
-		}
-	}
+	// Do a synchronous scan of the level external actors path.
+	AssetRegistry.ScanPathsSynchronous({ULevel::GetExternalActorsPath(LevelPath.ToString())});
 
 	static const FName NAME_LevelPackage(TEXT("LevelPackage"));
 	FARFilter Filter;

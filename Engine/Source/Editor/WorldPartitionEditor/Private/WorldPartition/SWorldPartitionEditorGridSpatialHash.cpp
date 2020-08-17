@@ -34,14 +34,25 @@ SWorldPartitionEditorGridSpatialHash::~SWorldPartitionEditorGridSpatialHash()
 
 void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 {
-	if (InArgs._InWorld)
-	{
-		bShowActors = !InArgs._InWorld->PersistentLevel->GetWorldSettings()->GetWorldImage();
-	}
-
 	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
 
 	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+
+	bShowActors = true;
+	if (UObject* WorldImage = EditorSpatialHash->WorldImage.TryLoad())
+	{
+		if (UTexture2D* WorldImageTexture = Cast<UTexture2D>(WorldImage))
+		{
+			WorldImageBrush.SetImageSize(FVector2D(WorldImageTexture->GetSizeX(), WorldImageTexture->GetSizeY()));
+			WorldImageBrush.SetResourceObject(WorldImageTexture);
+			bShowActors = false;
+		}
+		if (UMaterialInterface* WorldImageMaterial = Cast<UMaterialInterface>(WorldImage))
+		{
+			WorldImageBrush.SetResourceObject(WorldImageMaterial);
+			bShowActors = false;
+		}
+	}
 
 	Trans = FVector2D(0, 0);
 	Scale = 0.00133333332;
@@ -88,27 +99,24 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	}
 
 	// Draw world image if any
-	if (const FSlateBrush* WorldImage = World->PersistentLevel->GetWorldSettings()->GetWorldImage())
+	if (WorldImageBrush.HasUObject())
 	{
-		if (WorldImage->HasUObject())
-		{
-			const FVector2D& WorldImageTopLeftW = EditorSpatialHash->WorldImageTopLeftW;
-			const FVector2D& WorldImageBottomRightW = EditorSpatialHash->WorldImageBottomRightW;
+		const FVector2D& WorldImageTopLeftW = EditorSpatialHash->WorldImageTopLeftW;
+		const FVector2D& WorldImageBottomRightW = EditorSpatialHash->WorldImageBottomRightW;
 
-			FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
-				WorldToScreen.TransformPoint(WorldImageTopLeftW),
-				WorldToScreen.TransformPoint(WorldImageBottomRightW) - WorldToScreen.TransformPoint(WorldImageTopLeftW)
-			);
+		FPaintGeometry WorldImageGeometry = AllottedGeometry.ToPaintGeometry(
+			WorldToScreen.TransformPoint(WorldImageTopLeftW),
+			WorldToScreen.TransformPoint(WorldImageBottomRightW) - WorldToScreen.TransformPoint(WorldImageTopLeftW)
+		);
 
-			FSlateDrawElement::MakeRotatedBox(
-				OutDrawElements,
-				++LayerId,
-				WorldImageGeometry,
-				WorldImage,
-				ESlateDrawEffect::None,
-				FMath::DegreesToRadians(90.0f)
-			);
-		}
+		FSlateDrawElement::MakeRotatedBox(
+			OutDrawElements,
+			++LayerId,
+			WorldImageGeometry,
+			&WorldImageBrush,
+			ESlateDrawEffect::None,
+			FMath::DegreesToRadians(0.0f)
+		);
 	}
 
 	{

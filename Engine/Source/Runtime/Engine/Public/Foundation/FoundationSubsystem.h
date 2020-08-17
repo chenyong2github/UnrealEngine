@@ -83,6 +83,7 @@ public:
 	AFoundationActor* CreateFoundationFrom(const TArray<AActor*>& ActorsToMove, UWorld* TemplateWorld = nullptr);
 	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
 	bool MoveActorsTo(AFoundationActor* FoundationActor, const TArray<AActor*>& ActorsToMove);
+	bool BreakFoundation(AFoundationActor* FoundationActor, uint32 Levels = 1);
 
 	bool CanMoveActorToLevel(const AActor* Actor) const;
 	void DiscardEdits();

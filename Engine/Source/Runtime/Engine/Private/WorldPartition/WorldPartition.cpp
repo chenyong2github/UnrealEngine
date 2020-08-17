@@ -442,7 +442,7 @@ void UWorldPartition::RegisterDelegates()
 			OnLayersChangedHandle = LayerSubSystem->OnLayersChanged().AddLambda([this](const ELayersAction::Type Action, const TWeakObjectPtr<ULayer>& ChangedLayer, const FName& ChangedProperty)
 			{
 				static FName NAME_bShouldLoadActors(TEXT("bShouldLoadActors"));
-				if ((Action != ELayersAction::Add) || (ChangedProperty == NAME_bShouldLoadActors))
+				if (ChangedProperty == NAME_bShouldLoadActors)
 				{
 					RefreshLoadedCells();
 				}
@@ -1156,6 +1156,8 @@ UWorldPartitionStreamingPolicy* UWorldPartition::GetStreamingPolicy() const
 void UWorldPartition::Tick(float DeltaSeconds)
 {
 #if WITH_EDITOR
+	EditorHash->Tick(DeltaSeconds);
+
 	if (bForceGarbageCollection)
 	{
 		GEngine->ForceGarbageCollection(bForceGarbageCollectionPurge);

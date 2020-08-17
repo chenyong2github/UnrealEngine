@@ -26,6 +26,7 @@
 #include "ClassViewerFilter.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/ScopeExit.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 IMPLEMENT_MODULE( FFoundationEditorModule, FoundationEditor );
 
@@ -389,6 +390,84 @@ namespace FoundationMenuUtils
 		}
 	}
 
+	void CreateBreakSubMenu(UToolMenu* Menu, AFoundationActor* ContextFoundation)
+	{
+		static int32 BreakLevels = 1;
+
+		check(ContextFoundation);
+
+		if (UFoundationSubsystem* FoundationSubsystem = ContextFoundation->GetWorld()->GetSubsystem<UFoundationSubsystem>())
+		{
+			FToolMenuSection& Section = Menu->AddSection(NAME_None, LOCTEXT("FoundationBreakSection", "Break Foundation"));
+			TSharedRef<SWidget> MenuWidget =
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					[
+						SNew(SNumericEntryBox<int32>)
+						.MinValue(1)
+						.Value_Lambda([]() { return BreakLevels; })
+						.OnValueChanged_Lambda([](int32 InValue) { BreakLevels = InValue; })
+						.LabelPadding(0)
+						.Label()
+						[
+							SNumericEntryBox<int32>::BuildLabel(LOCTEXT("BreakLevelsLabel", "Levels"), FLinearColor::White, SNumericEntryBox<int32>::BlueLabelBackgroundColor)
+						]
+					]
+				]
+
+				+SVerticalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.Padding(0, 5, 0, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.OnClicked_Lambda([ContextFoundation, FoundationSubsystem]() {FoundationSubsystem->BreakFoundation(ContextFoundation, BreakLevels); return FReply::Handled(); })
+					.Text(LOCTEXT("BreakFoundations_BreakFoundationButton", "Break Foundation"))
+				];
+
+			Section.AddEntry(FToolMenuEntry::InitWidget("SetBreakLevels", MenuWidget, FText::GetEmpty(), false));
+		}
+	}
+
+	void CreateBreakMenu(UToolMenu* Menu, AActor* ContextActor)
+	{
+		check(ContextActor);
+
+		if (UFoundationSubsystem* FoundationSubsystem = ContextActor->GetWorld()->GetSubsystem<UFoundationSubsystem>())
+		{
+			AFoundationActor* ContextFoundation = nullptr;
+
+			// Find the top level foundation
+			FoundationSubsystem->ForEachFoundationAncestorsAndSelf(ContextActor, [FoundationSubsystem, ContextActor, &ContextFoundation](AFoundationActor* Ancestor)
+				{
+					if (Ancestor->GetLevel() == ContextActor->GetWorld()->GetCurrentLevel())
+					{
+						ContextFoundation = Ancestor;
+						return false;
+					}
+					return true;
+				});
+
+			if (ContextFoundation && !ContextFoundation->IsEditing())
+			{
+				FToolMenuSection& Section = CreateFoundationSection(Menu);
+
+				Section.AddSubMenu(
+					"BreakFoundations",
+					LOCTEXT("BreakFoundations", "Break..."),
+					TAttribute<FText>(),
+					FNewToolMenuDelegate::CreateStatic(&CreateBreakSubMenu, ContextFoundation)
+				);
+			}
+		}
+	}
+
 	class FFoundationClassFilter : public IClassViewerFilter
 	{
 	public:
@@ -553,6 +632,7 @@ void FFoundationEditorModule::ExtendContextMenu()
 						FoundationMenuUtils::CreateEditMenu(ToolMenu, ContextActor);
 						FoundationMenuUtils::CreateCommitMenu(ToolMenu, ContextActor);
 						FoundationMenuUtils::CreateSaveAsMenu(ToolMenu, ContextActor);
+						FoundationMenuUtils::CreateBreakMenu(ToolMenu, ContextActor);
 					}
 
 					FoundationMenuUtils::CreateSetCurrentMenu(ToolMenu, ContextActor);

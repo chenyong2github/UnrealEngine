@@ -11,6 +11,7 @@
 UWorldPartitionEditorSpatialHash::UWorldPartitionEditorSpatialHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
+	, bBoundsDirty(false)
 	, AlwaysLoadedCell(nullptr)
 #endif
 {}
@@ -32,6 +33,36 @@ void UWorldPartitionEditorSpatialHash::SetDefaultValues()
 FName UWorldPartitionEditorSpatialHash::GetWorldPartitionEditorName()
 {
 	return TEXT("SpatialHash");
+}
+
+void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
+{
+	if (bBoundsDirty)
+	{
+		FBox NewBounds(ForceInit);
+		ForEachCell([&](UWorldPartitionEditorCell* Cell) { NewBounds += Cell->Bounds; });
+
+		const int32 OldLevel = GetLevelForBox(Bounds);
+		const int32 NewLevel = GetLevelForBox(NewBounds);
+		check(NewLevel <= OldLevel);
+
+		if (NewLevel < OldLevel)
+		{
+			for (int32 Level=NewLevel+1; Level<=OldLevel; Level++)
+			{
+				ForEachIntersectingCells(Bounds, Level, [&](const FCellCoord& CellCoord)
+				{
+					if (HashNodes.Contains(CellCoord))
+					{
+						HashNodes.Remove(CellCoord);
+					}
+				});
+			}
+		}
+
+		Bounds = NewBounds;
+		bBoundsDirty = false;
+	}
 }
 
 void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InActorDesc)
@@ -93,7 +124,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 		int32 NewLevel = GetLevelForBox(Bounds);
 		check(NewLevel >= CurrentLevel);
 
-		if (NewLevel != CurrentLevel)
+		if (NewLevel > CurrentLevel)
 		{
 			ForEachIntersectingCells(Bounds, CurrentLevel, [&](const FCellCoord& CellCoord)
 			{
@@ -146,15 +177,10 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 
 					HashNodes.Remove(LevelCellCoord);
 				}
+
+				bBoundsDirty = true;
 			}
 		});
-
-		//@todo: cleanup empty higher levels
-		/*Bounds.Init();
-		ForEachCell([&](UWorldPartitionEditorCell* Cell)
-		{
-			Bounds += Cell->Bounds;
-		});*/		
 	}
 }
 

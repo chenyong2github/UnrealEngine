@@ -17,4 +17,7 @@ public:
 	void Construct(const FArguments& InArgs);
 	
 	int32 PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
+
+private:
+	FSlateBrush WorldImageBrush;
 };

@@ -178,6 +178,7 @@ public:
 	virtual void Initialize() override;
 	virtual void SetDefaultValues() override;
 	virtual FName GetWorldPartitionEditorName() override;
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void HashActor(FWorldPartitionActorDesc* InActorDesc) override;
 	virtual void UnhashActor(FWorldPartitionActorDesc* InActorDesc) override;
 	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation) override;
@@ -202,11 +203,15 @@ private:
 	TSet<UWorldPartitionEditorCell*> Cells;
 	
 	FBox Bounds;
+	bool bBoundsDirty;
 	
 	UPROPERTY(Transient)
 	UWorldPartitionEditorCell* AlwaysLoadedCell;
 
 public:
+	UPROPERTY(Config, meta = (AllowedClasses = "Texture2D, MaterialInterface"))
+	FSoftObjectPath WorldImage;
+
 	UPROPERTY(Config)
 	FVector2D WorldImageTopLeftW;
 

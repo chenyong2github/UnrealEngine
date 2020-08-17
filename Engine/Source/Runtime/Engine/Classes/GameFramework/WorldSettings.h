@@ -821,8 +821,6 @@ public:
 	int32 GetNumHierarchicalLODLevels() const;
 	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
 	void ResetHierarchicalLODSetup();
-
-	virtual const struct FSlateBrush* GetWorldImage() const { return nullptr; }
 #endif // WITH EDITOR
 
 	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }

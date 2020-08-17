@@ -994,6 +994,14 @@ public:
 	ENGINE_API TArray<UPackage*> GetLoadedExternalActorPackages() const;
 
 	/**
+	 * Get the folder containing the external actors for this level path
+	 * @param InLevelPackageName The package name to get the external actors path of
+	 * @param InPackageShortName Optional short name to use instead of the package short name
+	 * @return the folder
+	 */
+	static ENGINE_API FString GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName = FString());
+
+	/**
 	 * Get the folder containing the external actors for this level
 	 * @param InLevelPackage The package to get the external actors path of
 	 * @param InPackageShortName Optional short name to use instead of the package short name
