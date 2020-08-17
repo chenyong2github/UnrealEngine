@@ -38,6 +38,7 @@
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
 #include "HAL/FileManager.h"
+#include "Misc/CoreDelegates.h"
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
 #endif
