@@ -214,7 +214,9 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 		TileImageTask->PixelData = MoveTemp(QuantizedPixelData);
 		ImageWriteQueue->Enqueue(MoveTemp(TileImageTask));
 		
+#if WITH_EDITOR
 		GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, Payload->bRequireTransparentOutput);
+#endif
 	}
 }
 

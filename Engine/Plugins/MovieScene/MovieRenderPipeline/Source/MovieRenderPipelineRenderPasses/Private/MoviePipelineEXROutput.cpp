@@ -423,5 +423,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 
 	ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
 
+#if WITH_EDITOR
 	GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bOutputAlpha);
+#endif
 }
