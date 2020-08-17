@@ -591,6 +591,11 @@ void UNiagaraComponentPool::PooledComponentDestroyed(UNiagaraComponent* Componen
 	Component->PoolingMethod = ENCPoolMethod::None;
 }
 
+void UNiagaraComponentPool::RemoveComponentsBySystem(UNiagaraSystem* System)
+{
+	WorldParticleSystemPools.Remove(System);
+}
+
 void UNiagaraComponentPool::Dump()
 {
 #if ENABLE_NC_POOL_DEBUGGING
