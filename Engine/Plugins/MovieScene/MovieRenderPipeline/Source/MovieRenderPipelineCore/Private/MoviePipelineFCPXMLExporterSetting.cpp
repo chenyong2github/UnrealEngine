@@ -18,6 +18,8 @@
 void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 {
 #if WITH_EDITOR
+	bHasFinishedExporting = true;
+
 	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// Use our file name format on the end of the shared common directory.
@@ -87,7 +89,6 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 #else
 	UE_LOG(LogMovieRenderPipeline, Error, TEXT("Final Cut Pro XML writing only supported in editor."));
 #endif
-	bHasFinishedExporting = true;
 }
 
 bool UMoviePipelineFCPXMLExporter::EnsureWritableFile()
