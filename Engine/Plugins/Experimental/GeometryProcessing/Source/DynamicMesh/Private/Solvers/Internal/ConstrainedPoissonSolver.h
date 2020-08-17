@@ -96,6 +96,42 @@ public:
 		UpdateSolverWithContraints();
 	}
 
+
+	// Updates the diagonal weights matrix.
+	void SetConstraintWeights(const TMap<int32, UE::Solvers::FPositionConstraint>& ConstraintMap)
+	{
+		typedef FSparseMatrixD::Scalar    ScalarT;
+		typedef Eigen::Triplet<ScalarT>   MatrixTripletT;
+
+		ClearWeights();
+
+		std::vector<MatrixTripletT> MatrixTripleList;
+		MatrixTripleList.reserve(ConstraintMap.Num());
+
+		for (const auto& ConstraintPair : ConstraintMap)
+		{
+			const int32 i = ConstraintPair.Key; // row id
+			double Weight = ConstraintPair.Value.Weight;
+
+			checkSlow(i < SymmetricMatrixPtr->cols());
+
+			// the soft constrained system uses the square of the weight.
+			Weight *= Weight;
+
+			//const int32 i = ToIndex[VertId];
+			MatrixTripleList.push_back(MatrixTripletT(i, i, Weight));
+
+		}
+
+		// Construct matrix with weights on the diagonal for the constrained verts ( and zero everywhere else)
+		WeightsSqrdMatrix.setFromTriplets(MatrixTripleList.begin(), MatrixTripleList.end());
+		WeightsSqrdMatrix.makeCompressed();
+
+		// The solver matrix will have to be updated and re-factored
+		UpdateSolverWithContraints();
+	}
+
+
 	// Updates the positional source term
 	void SetContraintPositions(const TMap<int32, UE::Solvers::FPositionConstraint>& PositionMap)
 	{

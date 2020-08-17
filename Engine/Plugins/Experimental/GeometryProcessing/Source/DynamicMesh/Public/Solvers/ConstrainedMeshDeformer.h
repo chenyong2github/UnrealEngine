@@ -56,5 +56,18 @@ namespace UE
 		*/
 		TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshDeformer(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
 
+
+		/**
+		 * Construct a Mesh Deformer object for the given mesh that uses Biharmonic Laplacian Mesh Deformation to solve
+		 * for the deformed vertex positions.
+		 * 
+		 * Similar to ConstructConstrainedMeshDeformer() however (1) a Voronoi-Area Weighted Clamped Cotangent Laplacian 
+		 * is always used and (2) the boundary positions are included in the system. This allows for the solution of
+		 * deformation problems where the boundary also moves, however it also means that constraints should be added
+		 * for all boundary vertices or the deformation may be unstable. 
+		 *
+		 */
+		TUniquePtr<UE::Solvers::IConstrainedLaplacianMeshSolver> DYNAMICMESH_API ConstructSoftMeshDeformer(const FDynamicMesh3& DynamicMesh);
+
 	}
 }
