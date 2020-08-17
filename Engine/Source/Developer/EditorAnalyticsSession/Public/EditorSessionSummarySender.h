@@ -4,8 +4,10 @@
 
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
+#include "Misc/DateTime.h"
 #include "Misc/Optional.h"
 #include "Containers/Map.h"
+#include "Templates/Tuple.h"
 
 struct FEditorAnalyticsSession;
 class IAnalyticsProviderET;
