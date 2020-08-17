@@ -864,9 +864,10 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 	using namespace UE::MovieScene;
 	using namespace UE::Sequencer;
 
-	UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
+	FSystemInterrogator Interrogator;
+	Interrogator.TrackImportedEntities(true);
 
-	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator->EntityManager);
+	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
 	TSet<UMovieSceneTrack*> TracksToInterrogate;
 	for (const FKeySectionOperation& Operation : SectionsToKey)
@@ -876,16 +877,17 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 			TracksToInterrogate.Add(Track);
 		}
 	}
-	Interrogator->ImportTracks(TracksToInterrogate.Array());
 
-	const FInterrogationChannel InterrogationChannel = Interrogator->AddInterrogation(KeyTime);
+	// Don't care about the object binding ID for now
+	Interrogator.ImportTracks(TracksToInterrogate.Array(), FGuid(), FInterrogationChannel::Default());
+	Interrogator.AddInterrogation(KeyTime);
 
-	Interrogator->Update();
+	Interrogator.Update();
 
 	TArray<FMovieSceneEntityID> EntitiesPerSection, ValidEntities;
 	for (const FKeySectionOperation& Operation : SectionsToKey)
 	{
-		FMovieSceneEntityID EntityID = Interrogator->FindEntityFromOwner(InterrogationChannel, Operation.Section->GetSectionObject(), 0);
+		FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(FInterrogationKey::Default(), Operation.Section->GetSectionObject(), 0);
 
 		EntitiesPerSection.Add(EntityID);
 		if (EntityID)
@@ -894,7 +896,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 		}
 	}
 
-	UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
+	UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator.GetLinker()->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
 	if (ensure(System && ValidEntities.Num() != 0))
 	{

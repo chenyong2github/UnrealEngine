@@ -11,6 +11,7 @@
 #include "Evaluation/MovieSceneTrackIdentifier.h"
 #include "Evaluation/MovieSceneEvaluationTree.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "MovieSceneEvaluationField.generated.h"
 
 struct FFrameNumber;
@@ -102,11 +103,14 @@ struct FMovieSceneEvaluationFieldEntityMetaData
 
 	friend bool operator==(const FMovieSceneEvaluationFieldEntityMetaData& A, const FMovieSceneEvaluationFieldEntityMetaData& B)
 	{
-		return A.ForcedTime == B.ForcedTime && A.Flags == B.Flags && A.bEvaluateInSequencePreRoll == B.bEvaluateInSequencePreRoll && A.bEvaluateInSequencePostRoll == B.bEvaluateInSequencePostRoll;
+		return A.ForcedTime == B.ForcedTime && A.InterrogationChannel == B.InterrogationChannel && A.Flags == B.Flags && A.bEvaluateInSequencePreRoll == B.bEvaluateInSequencePreRoll && A.bEvaluateInSequencePostRoll == B.bEvaluateInSequencePostRoll;
 	}
 
 	UPROPERTY()
 	FFrameNumber ForcedTime;
+
+	/** Never serialized */
+	UE::MovieScene::FInterrogationChannel InterrogationChannel;
 
 	UPROPERTY()
 	ESectionEvaluationFlags Flags;
