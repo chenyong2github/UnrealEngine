@@ -343,7 +343,7 @@ const FString& GetDevelopmentAssetRegistryFilename()
  */
 void LogCookerMessage( const FString& MessageText, EMessageSeverity::Type Severity)
 {
-	FMessageLog MessageLog("CookResults");
+	FMessageLog MessageLog("LogCook");
 
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity);
 
@@ -646,7 +646,6 @@ bool UCookOnTheFlyServer::BroadcastFileserverPresence( const FGuid &InstanceId )
 		if ((NetworkFileServer == NULL || !NetworkFileServer->IsItReadyToAcceptConnections() || !NetworkFileServer->GetAddressList(AddressList)))
 		{
 			LogCookerMessage( FString(TEXT("Failed to create network file server")), EMessageSeverity::Error );
-			UE_LOG(LogCook, Error, TEXT("Failed to create network file server"));
 			continue;
 		}
 
@@ -844,7 +843,6 @@ void UCookOnTheFlyServer::GetDependentPackages( const TSet<FName>& RootPackages,
 					FText::FromString(PackageDependencyString), OutReason);
 
 				LogCookerMessage(FailMessage.ToString(), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("%s"), *( FailMessage.ToString() ));
 				continue;
 			}
 			else if (FPackageName::IsScriptPackage(PackageDependencyString) || FPackageName::IsMemoryPackage(PackageDependencyString))
@@ -2107,7 +2105,6 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 		if ((!IsCookOnTheFlyMode()) || (!IsCookingInEditor()))
 		{
 			LogCookerMessage(FString::Printf(TEXT("Error loading %s!"), *FileName), EMessageSeverity::Error);
-			UE_LOG(LogCook, Error, TEXT("Error loading %s!"), *FileName);
 		}
 	}
 	GOutputCookingWarnings = false;
@@ -3457,7 +3454,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 				if (FullFilename.Len() >= FPlatformMisc::GetMaxPathLength())
 				{
 					LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename), EMessageSeverity::Error);
-					UE_LOG(LogCook, Error, TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename);
 					Result = ESavePackageResult::Error;
 				}
 				else
@@ -5030,7 +5026,6 @@ void UCookOnTheFlyServer::GenerateLongPackageNames(TArray<FName>& FilesInPath)
 			else
 			{
 				LogCookerMessage(FString::Printf(TEXT("Unable to generate long package name for %s because %s"), *FileInPath, *FailureReason), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("Unable to generate long package name for %s because %s"), *FileInPath, *FailureReason);
 			}
 		}
 	}
@@ -5213,7 +5208,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			if (FPackageName::SearchForPackageOnDisk(CurrEntry, NULL, &OutFilename) == false)
 			{
 				LogCookerMessage( FString::Printf(TEXT("Unable to find package for map %s."), *CurrEntry), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("Unable to find package for map %s."), *CurrEntry);
 			}
 			else
 			{
@@ -6853,7 +6847,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	if (FilesInPath.Num() == 0)
 	{
 		LogCookerMessage(FString::Printf(TEXT("No files found to cook.")), EMessageSeverity::Warning);
-		UE_LOG(LogCook, Warning, TEXT("No files found."));
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) || 
@@ -6889,7 +6882,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		{
 			const FString FileName = FileFName.ToString();
 			LogCookerMessage( FString::Printf(TEXT("Unable to find package for cooking %s"), *FileName), EMessageSeverity::Warning );
-			UE_LOG(LogCook, Warning, TEXT("Unable to find package for cooking %s"), *FileName)
 		}	
 	}
 
