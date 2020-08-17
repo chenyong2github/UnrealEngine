@@ -273,8 +273,7 @@ namespace AutomationTool.DeviceReservation
 					});
 				}
 				catch (WebException WebEx)
-				{
-					Utils.Log(String.Format("WebException on reservation request: {0} : {1}", WebEx.Message, WebEx.Status));
+				{					
 
 					if (RetryCount == RetryMax)
 					{
@@ -292,6 +291,16 @@ namespace AutomationTool.DeviceReservation
 					else if ((WebEx.Response as HttpWebResponse).StatusCode == HttpStatusCode.Conflict)
 					{
 						Message = String.Format("No devices currently available, {0}", RetryMessage);
+					}
+					else
+					{
+						using (HttpWebResponse Response = (HttpWebResponse)WebEx.Response)
+						{
+							using (StreamReader Reader = new StreamReader(Response.GetResponseStream()))
+							{
+								Message = String.Format("WebException on reservation request: {0} : {1} : {2}", WebEx.Message, WebEx.Status, Reader.ReadToEnd());
+							}
+						}						
 					}
 
 					Console.WriteLine(Message);
