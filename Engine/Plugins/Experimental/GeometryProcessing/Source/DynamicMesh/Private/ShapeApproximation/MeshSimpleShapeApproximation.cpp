@@ -9,7 +9,7 @@
 //#include "DynamicMeshAABBTree3.h"
 
 #include "ShapeApproximation/ShapeDetection3.h"
-
+#include "MeshQueries.h"
 #include "Operations/MeshConvexHull.h"
 #include "Operations/MeshProjectionHull.h"
 
