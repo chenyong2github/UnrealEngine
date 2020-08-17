@@ -774,3 +774,11 @@ void FRHICommandDiscardRenderTargets::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(RHIDiscardRenderTargets);
 	INTERNAL_DECORATOR(RHIDiscardRenderTargets)(Depth, Stencil, ColorBitMask);
 }
+
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+void FRHICommandBackBufferWaitTrackingBeginFrame::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(FRHICommandBackBufferWaitTrackingBeginFrame);
+	INTERNAL_DECORATOR(RHIBackBufferWaitTrackingBeginFrame)(FrameToken);
+}
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING

@@ -16,7 +16,7 @@ void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3
 	check(CommandListData);
 	if (Before != After)
 	{
-		int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource->GetResource(), Before, After, Subresource);
+		int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource, Before, After, Subresource);
 		CommandListData->CurrentOwningContext->numBarriers += NumAdded;
 
 		pResource->UpdateResidency(*this);
@@ -152,6 +152,27 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Close()
 	}
 }
 
+void FD3D12CommandListHandle::FD3D12CommandListData::FlushResourceBarriers()
+{
+#if DEBUG_RESOURCE_STATES
+	// Keep track of all the resource barriers that have been submitted to the current command list.
+	const TArray<D3D12_RESOURCE_BARRIER>& Barriers = ResourceBarrierBatcher.GetBarriers();
+	if (Barriers.Num())
+	{
+		ResourceBarriers.Append(Barriers.GetData(), Barriers.Num());
+	}
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	const TArray<D3D12_RESOURCE_BARRIER>& BackBufferBarriers = ResourceBarrierBatcher.GetBackBufferBarriers();
+	if (BackBufferBarriers.Num())
+	{
+		ResourceBarriers.Append(BackBufferBarriers.GetData(), BackBufferBarriers.Num());
+	}
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+#endif // #if DEBUG_RESOURCE_STATES
+
+	ResourceBarrierBatcher.Flush(GetParentDevice(), CommandList, FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit());
+}
+
 void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime)
 {
 	VERIFYD3D12RESULT(CommandList->Reset(CommandAllocator, nullptr));
@@ -176,6 +197,9 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocato
 
 	// If this fails then some previous resource barriers were never submitted.
 	check(ResourceBarrierBatcher.GetBarriers().Num() == 0);
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	check(ResourceBarrierBatcher.GetBackBufferBarriers().Num() == 0);
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 #if DEBUG_RESOURCE_STATES
 	ResourceBarriers.Reset();

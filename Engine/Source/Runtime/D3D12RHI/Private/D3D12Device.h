@@ -12,6 +12,7 @@ class FD3D12DynamicRHI;
 class FD3D12BasicRayTracingPipeline;
 class FD3D12RayTracingDescriptorHeapCache;
 class FD3D12RayTracingPipelineCache;
+class FD3D12TimedIntervalQueryTracker;
 
 class FD3D12Device : public FD3D12SingleNodeGPUObject, public FNoncopyable, public FD3D12AdapterChild
 {
@@ -108,6 +109,9 @@ public:
 	inline FD3D12FastAllocator& GetDefaultFastAllocator() { return DefaultFastAllocator; }
 	inline FD3D12TextureAllocatorPool& GetTextureAllocator() { return TextureAllocator; }
 	inline FD3D12ResidencyManager& GetResidencyManager() { return ResidencyManager; }
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	inline FD3D12TimedIntervalQueryTracker*	GetBackBufferWriteBarrierTracker() { return BackBufferWriteBarrierTracker; }
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 	TArray<FD3D12CommandListHandle> PendingCommandLists;
 
@@ -191,6 +195,9 @@ protected:
 	FD3D12RayTracingDescriptorHeapCache* RayTracingDescriptorHeapCache = nullptr;
 	void DestroyRayTracingDescriptorCache();
 #endif
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	FD3D12TimedIntervalQueryTracker* BackBufferWriteBarrierTracker = nullptr;
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 };
 
 template <typename TDesc> 
