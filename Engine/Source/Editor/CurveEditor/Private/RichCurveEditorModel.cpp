@@ -27,7 +27,7 @@ void RefineCurvePoints(const FRichCurve& RichCurve, double TimeThreshold, float 
 		{
 			bool bSegmentIsLinear = true;
 
-			TTuple<double, double> Evaluated[UE_ARRAY_COUNT(InterpTimes)];
+			TTuple<double, double> Evaluated[UE_ARRAY_COUNT(InterpTimes)] = { TTuple<double, double>(0, 0) };
 
 			for (int32 InterpIndex = 0; InterpIndex < UE_ARRAY_COUNT(InterpTimes); ++InterpIndex)
 			{
