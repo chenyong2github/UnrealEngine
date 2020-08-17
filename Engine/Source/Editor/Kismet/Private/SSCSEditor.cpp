@@ -833,7 +833,7 @@ FSCSEditorTreeNodePtrType FSCSEditorTreeNode::FactoryNodeFromComponent(UActorCom
 	bool bComponentIsInAnInstance = false;
 
 	AActor* Owner = InComponent->GetOwner();
-	if ((Owner != nullptr) && !Owner->HasAllFlags(RF_ClassDefaultObject))
+	if ((Owner != nullptr) && !Owner->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
 		bComponentIsInAnInstance = true;
 	}
@@ -1302,7 +1302,7 @@ FSCSEditorTreeNodeComponent::FSCSEditorTreeNodeComponent(UActorComponent* InComp
 	AActor* Owner = InComponentTemplate->GetOwner();
 	if (Owner != nullptr)
 	{
-		ensureMsgf(Owner->HasAllFlags(RF_ClassDefaultObject), TEXT("Use a different node class for instanced components"));
+		ensureMsgf(Owner->HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject), TEXT("Use a different node class for instanced components"));
 	}
 }
 
