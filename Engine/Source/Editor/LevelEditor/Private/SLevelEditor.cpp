@@ -57,6 +57,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "SourceCodeNavigation.h"
+#include "TypedElementRegistry.h"
 
 static const FName MainFrameModuleName("MainFrame");
 static const FName LevelEditorModuleName("LevelEditor");
@@ -210,6 +211,12 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 
 void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TSharedRef<SWindow>& OwnerWindow )
 {
+	SelectedElements = UTypedElementRegistry::GetInstance()->CreateElementList();
+
+	// Allow USelection to bridge to our selected element list
+	GUnrealEd->GetSelectedActors()->SetElementList(SelectedElements.Get());
+	GUnrealEd->GetSelectedComponents()->SetElementList(SelectedElements.Get());
+
 	// Bind the level editor tab's label to the currently loaded level name string in the main frame
 	OwnerTab->SetLabel( TAttribute<FText>( this, &SLevelEditor::GetTabTitle) );
 	OwnerTab->SetTabLabelSuffix(TAttribute<FText>(this, &SLevelEditor::GetTabSuffix));
@@ -312,6 +319,14 @@ SLevelEditor::~SLevelEditor()
 
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModesChanged().RemoveAll(this);
 	}
+
+	// Clear USelection from using our selected element list
+	if (GUnrealEd)
+	{
+		GUnrealEd->GetSelectedActors()->SetElementList(nullptr);
+		GUnrealEd->GetSelectedComponents()->SetElementList(nullptr);
+	}
+	SelectedElements.Reset();
 }
 
 FText SLevelEditor::GetTabTitle() const

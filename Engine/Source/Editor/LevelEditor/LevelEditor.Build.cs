@@ -58,6 +58,7 @@ public class LevelEditor : ModuleRules
 				"RHI",
 				"Projects",
 				"TargetPlatform",
+				"TypedElementFramework",
 				"EngineSettings",
 				"PropertyEditor",
 				"Kismet",

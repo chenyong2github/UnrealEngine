@@ -5,7 +5,7 @@
 #include "UObject/UObjectAnnotation.h"
 #include "GameFramework/Actor.h"
 
-#define UE_USE_ELEMENT_LIST_SELECTION (0)
+#define UE_USE_ELEMENT_LIST_SELECTION (1)
 
 #if UE_USE_ELEMENT_LIST_SELECTION
 #include "TypedElementList.h"
