@@ -436,12 +436,13 @@ FMovieSceneTransformTrail::FMovieSceneTransformTrail(const FLinearColor& InColor
 	, LastTransformTrackSig(InWeakTrack->GetSignature())
 	, WeakTrack(InWeakTrack)
 	, WeakSequencer(InSequencer)
-	, InterrogationLinker(NewObject<UMovieSceneInterrogationLinker>())
 {
 	DefaultTrailTool = MakeUnique<FDefaultMovieSceneTransformTrailTool>(this);
 	TrajectoryCache = MakeUnique<FArrayTrajectoryCache>(0.01, GetEffectiveTrackRange());
 	DrawInfo = MakeUnique<FCachedTrajectoryDrawInfo>(InColor, bInIsVisible, TrajectoryCache.Get());
-	InterrogationLinker->ImportTrack(WeakTrack.Get());
+
+	Interrogator = MakeUnique<UE::MovieScene::FSystemInterrogator>();
+	Interrogator->ImportTrack(WeakTrack.Get(), UE::MovieScene::FInterrogationChannel::Default());
 }
 
 ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InSceneContext)
@@ -498,19 +499,18 @@ ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InS
 	if (TempEvalTimes.EvalTimes.Num() > 0)
 	{
 		// TODO: re-populating the interrogator every frame is kind of inefficient
-		InterrogationLinker->ImportTrack(WeakTrack.Get());
+		Interrogator->ImportTrack(WeakTrack.Get(), UE::MovieScene::FInterrogationChannel::Default());
 
 		for (const double Time : TempEvalTimes.EvalTimes)
 		{
 			const FFrameTime TickTime = Time * Sequencer->GetFocusedTickResolution();
-			InterrogationLinker->AddInterrogation(TickTime);
+			Interrogator->AddInterrogation(TickTime);
 		}
 
-		InterrogationLinker->Update();
+		Interrogator->Update();
 
 		TArray<UE::MovieScene::FIntermediate3DTransform> TempLocalTransforms;
-		TempLocalTransforms.SetNum(TempEvalTimes.EvalTimes.Num());
-		InterrogationLinker->FindSystem<UMovieSceneComponentTransformSystem>()->Interrogate(TempLocalTransforms);
+		Interrogator->QueryLocalSpaceTransforms(UE::MovieScene::FInterrogationChannel::Default(), TempLocalTransforms);
 
 		for (int32 Idx = 0; Idx < TempEvalTimes.EvalTimes.Num(); Idx++)
 		{
@@ -520,7 +520,7 @@ ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InS
 			TrajectoryCache->Set(TempEvalTimes.EvalTimes[Idx] + KINDA_SMALL_NUMBER, TempWorldTransform);
 		}
 
-		InterrogationLinker->Reset();
+		Interrogator->Reset();
 	}
 
 	if (DefaultTrailTool->IsActive())
@@ -540,7 +540,6 @@ TMap<FString, FInteractiveTrailTool*> FMovieSceneTransformTrail::GetTools()
 
 void FMovieSceneTransformTrail::AddReferencedObjects(FReferenceCollector & Collector)
 {
-	Collector.AddReferencedObject(InterrogationLinker);
 	TArray<UObject*> ToolKeys = DefaultTrailTool->GetKeySceneComponents();
 	Collector.AddReferencedObjects(ToolKeys);
 }

@@ -66,7 +66,6 @@ struct FEntityImportSequenceParams
 	int32 HierarchicalBias;
 
 	FInstanceHandle InstanceHandle;
-	FInterrogationChannel InterrogationChannel;
 
 	EMovieSceneCompletionMode DefaultCompletionMode;
 
@@ -81,6 +80,8 @@ struct FEntityImportParams
 	const FMovieSceneEvaluationFieldSharedEntityMetaData* SharedMetaData;
 
 	uint32 EntityID = 0;
+
+	FInterrogationKey InterrogationKey;
 
 	FEntityImportSequenceParams Sequence;
 

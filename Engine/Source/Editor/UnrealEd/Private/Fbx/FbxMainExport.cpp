@@ -3046,13 +3046,13 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
-	UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
+	FSystemInterrogator Interrogator;
 
 	for (TWeakObjectPtr<UMovieScene3DTransformTrack> WeakTransformTrack : TransformTracks)
 	{
 		if (WeakTransformTrack.IsValid())
 		{
-			Interrogator->ImportTrack(WeakTransformTrack.Get());
+			Interrogator.ImportTrack(WeakTransformTrack.Get(), FInterrogationChannel::Default());
 		}
 	}
 
@@ -3063,19 +3063,13 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	for (int32 FrameNumber = StartFrame; FrameNumber < StartFrame + AnimationLength; ++FrameNumber)
 	{
 		const FFrameTime FrameTime = FFrameRate::TransformTime(FrameNumber, DisplayRate, TickResolution);
-		Interrogator->AddInterrogation(FrameTime);
+		Interrogator.AddInterrogation(FrameTime);
 	}
 
-	Interrogator->Update();
+	Interrogator.Update();
 
 	TArray<UE::MovieScene::FIntermediate3DTransform> Transforms;
-	Transforms.SetNum(AnimationLength);
-
-	UMovieSceneComponentTransformSystem* TransformSystem = Interrogator->FindSystem<UMovieSceneComponentTransformSystem>();
-	if (ensure(TransformSystem))
-	{
-		TransformSystem->Interrogate(Transforms);
-	}
+	Interrogator.QueryLocalSpaceTransforms(FInterrogationChannel::Default(), Transforms);
 
 	ensure(Transforms.Num() == AnimationLength);
 

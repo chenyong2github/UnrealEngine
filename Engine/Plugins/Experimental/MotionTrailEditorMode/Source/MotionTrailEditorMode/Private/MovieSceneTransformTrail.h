@@ -9,6 +9,7 @@
 #include "BaseGizmos/TransformProxy.h"
 
 #include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 #include "UObject/GCObject.h"
 
@@ -223,5 +224,5 @@ private:
 	FGuid LastTransformTrackSig;
 	TWeakObjectPtr<class UMovieScene3DTransformTrack> WeakTrack;
 	TWeakPtr<class ISequencer> WeakSequencer;
-	class UMovieSceneInterrogationLinker* InterrogationLinker;
+	TUniquePtr<UE::MovieScene::FSystemInterrogator> Interrogator;
 };
