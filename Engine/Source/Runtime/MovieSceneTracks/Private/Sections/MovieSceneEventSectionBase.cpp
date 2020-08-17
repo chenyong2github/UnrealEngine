@@ -83,7 +83,9 @@ void UMovieSceneEventSectionBase::AttemptUpgrade()
 UMovieSceneEventSectionBase::UMovieSceneEventSectionBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+#if WITH_EDITOR
 	bDataUpgradeRequired = true;
+#endif
 }
 
 void UMovieSceneEventSectionBase::Serialize(FArchive& Ar)
