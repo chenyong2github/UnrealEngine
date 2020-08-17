@@ -21,7 +21,7 @@ LIB_NAME="IntelTBB"
 #  ${DROP_TO_LIBROOT}/$LIBFILES[0])
 DROP_TO_LIBROOT=../..
 # Drops from the location of LIBROOT to Engine/Source/ThirdParrty
-DROP_TO_THIRDPARTY=../..
+DROP_TO_THIRDPARTY=../../..
 # Drops to location of TP binaries
 DROP_TO_THIRDPARTY_BINARIES=${DROP_TO_THIRDPARTY}/../../Binaries/ThirdParty
 
