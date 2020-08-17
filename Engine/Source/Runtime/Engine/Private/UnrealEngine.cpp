@@ -104,6 +104,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "EngineAnalytics.h"
+#include "Elements/EngineElements.h"
 #include "TickTaskManagerInterface.h"
 #include "Net/NetworkProfiler.h"
 #include "ProfilingDebugging/MallocProfiler.h"
@@ -1482,6 +1483,9 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	}
 
 	EngineLoop = InEngineLoop;
+
+	// Elements.
+	RegisterEngineElements();
 
 	// Subsystems.
 	FURL::StaticInit();

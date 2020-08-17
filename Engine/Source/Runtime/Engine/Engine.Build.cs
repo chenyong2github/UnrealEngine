@@ -97,6 +97,12 @@ public class Engine : ModuleRules
             }
 		);
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"TypedElementFramework",
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AnimationCore",
@@ -105,6 +111,8 @@ public class Engine : ModuleRules
 				"Landscape",
 				"UMG",
 				"Projects",
+				"TypedElementFramework",
+				"TypedElementInterfaces",
 				"MaterialShaderQualitySettings",
 				"CinematicCamera",
 				"Analytics",

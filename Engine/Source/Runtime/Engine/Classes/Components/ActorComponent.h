@@ -15,6 +15,7 @@
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/StructOnScope.h"
+#include "TypedElementHandle.h"
 #include "ComponentInstanceDataCache.h"
 #include "ActorComponent.generated.h"
 
@@ -534,6 +535,13 @@ private:
 
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
 	ENetMode InternalGetNetMode() const;
+
+public:
+	TTypedElementOwner<struct FComponentElementData> CreateComponentElement() const;
+	void DestroyComponentElement(TTypedElementOwner<struct FComponentElementData>& InOutComponentElement) const;
+#if WITH_EDITOR
+	FTypedElementHandle AcquireEditorElementHandle(const bool bAllowCreate = true) const;
+#endif
 
 protected:
 	/** Return true if this component is in a state where it can be activated normally. */

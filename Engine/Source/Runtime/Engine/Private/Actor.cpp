@@ -4,6 +4,9 @@
 #include "EngineDefines.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
+#include "TypedElementRegistry.h"
+#include "TypedElementOwnerStore.h"
+#include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/DamageType.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"
@@ -64,6 +67,7 @@ FMakeNoiseDelegate AActor::MakeNoiseDelegate = FMakeNoiseDelegate::CreateStatic(
 
 #if WITH_EDITOR
 FUObjectAnnotationSparseBool GSelectedActorAnnotation;
+TTypedElementOwnerStore<FActorElementData, const AActor*> GActorElementOwnerStore;
 #endif
 
 #if !UE_BUILD_SHIPPING
@@ -220,6 +224,47 @@ void AActor::InitializeDefaults()
 	GridPlacement = EActorGridPlacement::Bounds;
 }
 
+TTypedElementOwner<FActorElementData> AActor::CreateActorElement() const
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+	TTypedElementOwner<FActorElementData> ActorElement;
+	if (ensureMsgf(Registry, TEXT("Typed element was requested for '%s' before the registry was available! This usually means that NewObject was used instead of CreateDefaultSubobject during CDO construction."), *GetPathName()))
+	{
+		ActorElement = Registry->CreateElement<FActorElementData>(NAME_Actor);
+		ActorElement.GetDataChecked().Actor = const_cast<AActor*>(this);
+	}
+
+	return ActorElement;
+}
+
+void AActor::DestroyActorElement(TTypedElementOwner<FActorElementData>& InOutActorElement) const
+{
+	if (InOutActorElement)
+	{
+		checkf(InOutActorElement.GetDataChecked().Actor == this, TEXT("Actor element was not for this actor instance! %s"), *GetPathName());
+		UTypedElementRegistry::GetInstance()->DestroyElement(InOutActorElement);
+	}
+}
+
+#if WITH_EDITOR
+FTypedElementHandle AActor::AcquireEditorElementHandle(const bool bAllowCreate) const
+{
+	if (TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.FindElementOwner(this))
+	{
+		return EditorElementScopedAccess->AcquireHandle();
+	}
+
+	if (bAllowCreate)
+	{
+		TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.RegisterElementOwner(this, CreateActorElement());
+		return EditorElementScopedAccess->AcquireHandle();
+	}
+
+	return FTypedElementHandle();
+}
+#endif
+
 void FActorTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	if (Target && !Target->IsPendingKillOrUnreachable())
@@ -372,6 +417,14 @@ void AActor::ResetOwnedComponents()
 void AActor::PostInitProperties()
 {
 	Super::PostInitProperties();
+
+#if WITH_EDITOR
+	if (GIsEditor && !HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		GActorElementOwnerStore.RegisterElementOwner(this, CreateActorElement());
+	}
+#endif	// WITH_EDITOR
+
 	RemoteRole = (bReplicates ? ROLE_SimulatedProxy : ROLE_None);
 
 	// Make sure the OwnedComponents list correct.  
@@ -776,6 +829,13 @@ void AActor::BeginDestroy()
 		}
 	}
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
+
+#if WITH_EDITOR
+	if (TTypedElementOwner<FActorElementData> EditorElement = GActorElementOwnerStore.UnregisterElementOwner(this))
+	{
+		DestroyActorElement(EditorElement);
+	}
+#endif	// WITH_EDITOR
 
 	Super::BeginDestroy();
 }
