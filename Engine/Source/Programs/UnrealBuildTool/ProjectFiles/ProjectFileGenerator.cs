@@ -2223,6 +2223,25 @@ namespace UnrealBuildTool
 			GameProjects = new List<ProjectFile>();
 			ProgramProjects = new Dictionary<FileReference, ProjectFile>();
 
+			// Separate the .target.cs files that are platform extension specializations, per target name. These will be added alongside their base target.cs
+			Dictionary<string,List<FileReference>> AllSubTargetFilesPerTarget = new Dictionary<string, List<FileReference>>();
+			HashSet<FileReference> AllSubTargetFiles = new HashSet<FileReference>();
+			foreach( FileReference TargetFilePath in AllTargetFiles )
+			{
+				string[] TargetPathSplit = TargetFilePath.GetFileNameWithoutAnyExtensions().Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
+				if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
+				{
+					string TargetName = TargetPathSplit.First();
+					if (!AllSubTargetFilesPerTarget.ContainsKey(TargetName))
+					{
+						AllSubTargetFilesPerTarget.Add(TargetName, new List<FileReference>() );
+					}
+
+					AllSubTargetFilesPerTarget[TargetName].Add(TargetFilePath);
+					AllSubTargetFiles.Add(TargetFilePath);
+				}
+			}
+
 			// Get some standard directories
 			//DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
 			DirectoryReference EnterpriseSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EnterpriseSourceDirectory, "Programs");
@@ -2230,7 +2249,7 @@ namespace UnrealBuildTool
 			// Keep a cache of the default editor target for each project so that we don't have to interrogate the configs for each target
 			Dictionary<string, string> DefaultProjectEditorTargetCache = new Dictionary<string, string>();
 
-			foreach( FileReference TargetFilePath in AllTargetFiles )
+			foreach( FileReference TargetFilePath in AllTargetFiles.Except(AllSubTargetFiles) )
 			{
 				string TargetName = TargetFilePath.GetFileNameWithoutAnyExtensions();		// Remove both ".cs" and ".Target"
 
@@ -2267,13 +2286,6 @@ namespace UnrealBuildTool
 					}
 				}
 				
-				// skip target rules that are platform extension or platform group specializations
-				string[] TargetPathSplit = TargetFilePath.GetFileNameWithoutAnyExtensions().Split(new char[]{'_'}, StringSplitOptions.RemoveEmptyEntries );
-				if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last()) ) )
-				{
-					WantProjectFileForTarget = false;
-				}
-
 				if (WantProjectFileForTarget)
 				{
 					RulesAssembly RulesAssembly;
@@ -2492,6 +2504,13 @@ namespace UnrealBuildTool
 
 					// Make sure the *.Target.cs file is in the project.
 					ProjectFile.AddFileToProject(TargetFilePath, BaseFolder);
+
+					// Add all matching *_<platform>.Target.cs to the same folder
+					if (AllSubTargetFilesPerTarget.ContainsKey(TargetName))
+					{
+						ProjectFile.AddFilesToProject( AllSubTargetFilesPerTarget[TargetName], BaseFolder );
+					}
+
 
 					Log.TraceVerbose("Generating target {0} for {1}", TargetRulesObject.Type.ToString(), ProjectFilePath);
 				}
