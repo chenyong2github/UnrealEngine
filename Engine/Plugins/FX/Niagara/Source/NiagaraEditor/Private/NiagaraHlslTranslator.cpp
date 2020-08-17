@@ -5,14 +5,11 @@
 #include "NiagaraGraph.h"
 #include "NiagaraScriptSource.h"
 #include "EdGraphUtilities.h"
-#include "UObject/UObjectHash.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeIf.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraNodeReadDataSet.h"
-#include "NiagaraNodeWriteDataSet.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeParameterMapFor.h"
@@ -20,16 +17,11 @@
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeConvert.h"
 #include "EdGraphSchema_Niagara.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/IShaderFormat.h"
-#include "ShaderFormatVectorVM.h"
 #include "NiagaraConstants.h"
-#include "NiagaraSystem.h"
 #include "NiagaraNodeEmitter.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraNodeReroute.h"
 #include "NiagaraSimulationStageBase.h"
 
 #include "NiagaraFunctionLibrary.h"
@@ -46,7 +38,6 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraEditorTickables.h"
 #include "ShaderCore.h"
-#include "NiagaraShaderCompilationManager.h"
 
 #include "NiagaraEditorSettings.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -4529,13 +4520,9 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 	{
 		ENiagaraScriptUsage Usage = TranslationStages[ActiveStageIdx].ScriptUsage;
 		FNiagaraInt32 EnumValue;
-		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
+		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript || Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
 		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::System;
-		}
-		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Emitter;
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::SystemOrEmitter;
 		}
 		else
 		{
