@@ -13,7 +13,7 @@
 	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Installed": false,
-	"EnabledByDefault": true,
+	"EnabledByDefault": false,
 	"Plugins": [
 		{
 			"Name": "EditorScriptingUtilities",
