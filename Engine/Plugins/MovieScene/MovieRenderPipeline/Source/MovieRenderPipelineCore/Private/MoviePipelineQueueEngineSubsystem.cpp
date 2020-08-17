@@ -18,7 +18,7 @@ void UMoviePipelineQueueEngineSubsystem::RenderQueueWithExecutorInstance(UMovieP
 		return;
 	}
 
-	if (!ActiveExecutor)
+	if (!InExecutor)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Invalid executor supplied."), ELogVerbosity::Error);
 		return;
