@@ -38,8 +38,6 @@ struct FDeferredLightData
 	float4 ShadowMapChannelMask;
 	/** Whether ContactShadowLength is in World Space or in Screen Space. */
 	bool ContactShadowLengthInWS;
-	/** Whether to apply exponential falloff to contact shadows on subsurface materials, similar to the shadow maps path */
-	bool bContactShadowSubsurfaceFalloff;
 	/** Whether to use inverse squared falloff. */
 	bool bInverseSquared;
 	/** Whether this is a light with radial attenuation, aka point or spot light. */
@@ -217,9 +215,8 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 		{
 			float ContactShadowOcclusion = bHitCastContactShadow ? 1.0 : LightData.ContactShadowNonShadowCastingIntensity;
 
-			bool bSubsurfaceFalloff = LightData.bContactShadowSubsurfaceFalloff;
 			BRANCH
-			if ( ContactShadowOcclusion > 0.0 && IsSubsurfaceModel( GBuffer.ShadingModelID ) && bSubsurfaceFalloff )
+			if ( ContactShadowOcclusion > 0.0 && IsSubsurfaceModel( GBuffer.ShadingModelID ) )
 			{
 				// Reduce the intensity of the shadow similar to the subsurface approximation used by the shadow maps path
 				// Note that this is imperfect as we don't really have the "nearest occluder to the light", but this should at least
@@ -244,10 +241,9 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 					Shadow.TransmissionShadow *= ContactShadow;
 				}
 			}
-			else if ( !bSubsurfaceFalloff )
+			else
 			{
-				// If not using subsurface falloff function, ad hoc brighten the transmission shadows
-				Shadow.TransmissionShadow *= ContactShadow * 0.5 + 0.5;
+				Shadow.TransmissionShadow *= ContactShadow;
 			}
 		}
 		
