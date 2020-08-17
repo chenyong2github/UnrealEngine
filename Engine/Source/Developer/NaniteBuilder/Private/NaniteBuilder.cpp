@@ -18,7 +18,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8DDB-1FDD-82E0-71B66692BD9B")
+#define NANITE_DERIVEDDATA_VER TEXT("7BF57A45-8DDB-2FED-92F0-81B66692B205")
 
 #define USE_IMPLICIT_TANGENT_SPACE		1	// must match define in ExportGBuffer.usf
 #define CONSTRAINED_CLUSTER_CACHE_SIZE	32
@@ -1054,17 +1054,17 @@ static void CalculateEncodingInfos(TArray<FEncodingInfo>& EncodingInfos, const T
 struct FVariableVertex
 {
 	const float*	Data;
-	uint32			Size;
+	uint32			SizeInBytes;
 
 	bool operator==( FVariableVertex Other ) const
 	{
-		return 0 == FMemory::Memcmp( &Data, &Other.Data, Size );
+		return 0 == FMemory::Memcmp( Data, Other.Data, SizeInBytes );
 	}
 };
 
 FORCEINLINE uint32 GetTypeHash( FVariableVertex Vert )
 {
-	return CityHash32( (const char*)Vert.Data, Vert.Size );
+	return CityHash32( (const char*)Vert.Data, Vert.SizeInBytes );
 }
 
 static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FTriCluster& Cluster, const Nanite::FMeshlet& Meshlet, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords,
@@ -1085,7 +1085,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const Nanite::FT
 	{
 		FVariableVertex Vertex;
 		Vertex.Data = &Meshlet.Verts[ VertexIndex * Meshlet.GetVertSize() ];
-		Vertex.Size = Meshlet.GetVertSize();
+		Vertex.SizeInBytes = Meshlet.GetVertSize() * sizeof(float);
 
 		uint32* VertexPtr = UniqueVertices.Find(Vertex);
 
