@@ -702,7 +702,7 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 					GEditor->SelectComponent(ComponentToSelect, true, false);
 
 					// Make sure the selection changed event fires so the SCS trees can update their selection
-					ComponentSelection->MarkBatchDirty();
+					ComponentSelection->ForceBatchDirty();
 					ComponentSelection->EndBatchSelectOperation(true);
 
 					// Notify the level editor of the new component selection

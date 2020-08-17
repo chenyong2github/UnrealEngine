@@ -3,39 +3,43 @@
 #include "AssetEditorModeManager.h"
 #include "Engine/Selection.h"
 #include "PreviewScene.h"
+#include "TypedElementRegistry.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
 
 FAssetEditorModeManager::FAssetEditorModeManager()
 	: PreviewScene(nullptr)
+	, SelectedElements(UTypedElementRegistry::GetInstance()->CreateElementList())
 {
-	ActorSet = NewObject<USelection>();
-	ActorSet->SetFlags(RF_Transactional);
+	ActorSet = USelection::CreateActorSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
+	ActorSet->SetElementList(SelectedElements.Get());
 	ActorSet->AddToRoot();
-	ActorSet->Initialize(nullptr);
 
-	ObjectSet = NewObject<USelection>();
-	ObjectSet->SetFlags(RF_Transactional);
+	ObjectSet = USelection::CreateObjectSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
 	ObjectSet->AddToRoot();
-	ObjectSet->Initialize(nullptr);
 
-	ComponentSet = NewObject<USelection>();
-	ComponentSet->SetFlags(RF_Transactional);
+	ComponentSet = USelection::CreateComponentSelection(nullptr, GetTransientPackage(), NAME_None, RF_Transactional);
+	ComponentSet->SetElementList(SelectedElements.Get());
 	ComponentSet->AddToRoot();
-	ComponentSet->Initialize(nullptr);
 }
 
 FAssetEditorModeManager::~FAssetEditorModeManager()
 {
 	SetPreviewScene(nullptr);
 
+	ActorSet->SetElementList(nullptr);
 	ActorSet->RemoveFromRoot();
 	ActorSet = nullptr;
+
 	ObjectSet->RemoveFromRoot();
 	ObjectSet = nullptr;
+
+	ComponentSet->SetElementList(nullptr);
 	ComponentSet->RemoveFromRoot();
 	ComponentSet = nullptr;
+
+	SelectedElements.Reset();
 }
 
 USelection* FAssetEditorModeManager::GetSelectedActors() const

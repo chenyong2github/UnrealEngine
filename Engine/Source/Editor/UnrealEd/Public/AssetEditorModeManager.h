@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorModeManager.h"
+#include "TypedElementListPtr.h"
 
 class FPreviewScene;
 
@@ -31,4 +32,5 @@ protected:
 	class USelection* ObjectSet;
 	class USelection* ComponentSet;
 	class FPreviewScene* PreviewScene;
+	FTypedElementListPtr SelectedElements;
 };

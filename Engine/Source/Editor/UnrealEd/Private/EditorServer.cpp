@@ -1396,7 +1396,7 @@ void UEditorEngine::PostUndo(bool)
 		OldSelectedComponents.Empty();
 
 		// We want to broadcast the component SelectionChangedEvent even if the selection didn't actually change
-		ComponentSelection->MarkBatchDirty();
+		ComponentSelection->ForceBatchDirty();
 		ComponentSelection->EndBatchSelectOperation();
 	}
 
@@ -4265,7 +4265,7 @@ void UEditorEngine::ExecuteCommandForAllLevelModels( UWorld* InWorld, FSelectCom
 		UModel* Model = (*Iterator)->Model;
 		InSelectCommand.ExecuteIfBound( Model );
 	}
-	USelection::SelectionChangedEvent.Broadcast(NULL);
+	USelection::NoteUnknownSelectionChanged();
 }
 
 void UEditorEngine::ExecuteCommandForAllLevelModels( UWorld* InWorld, FSelectInWorldCommand InSelectCommand, const FText& TransDesription )
@@ -4276,7 +4276,7 @@ void UEditorEngine::ExecuteCommandForAllLevelModels( UWorld* InWorld, FSelectInW
 		UModel* Model = (*Iterator)->Model;
 		InSelectCommand.ExecuteIfBound( InWorld, Model );
 	}
-	USelection::SelectionChangedEvent.Broadcast(NULL);
+	USelection::NoteUnknownSelectionChanged();
 }
 
 void UEditorEngine::FlagModifyAllSelectedSurfacesInLevels( UWorld* InWorld )
@@ -4336,7 +4336,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 			else if (FParse::Command(&Str,TEXT("TEXTURE")))
 			{
 				polySelectMatchingMaterial( InWorld, false );
-				USelection::SelectionChangedEvent.Broadcast(NULL);
+				USelection::NoteUnknownSelectionChanged();
 			}
 			else if (FParse::Command(&Str,TEXT("RESOLUTION")))
 			{
@@ -4348,7 +4348,7 @@ bool UEditorEngine::Exec_Poly( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 				{
 					polySelectMatchingResolution(InWorld, false);
 				}
-				USelection::SelectionChangedEvent.Broadcast(NULL);
+				USelection::NoteUnknownSelectionChanged();
 			}
 			
 			return true;

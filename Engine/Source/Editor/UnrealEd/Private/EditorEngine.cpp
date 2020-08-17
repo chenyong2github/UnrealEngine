@@ -284,19 +284,15 @@ static void OnObjectSelected(UObject* Object)
 
 static void PrivateInitSelectedSets()
 {
-	PrivateGetSelectedActors() = NewObject<USelection>(GetTransientPackage(), TEXT("SelectedActors"), RF_Transactional);
+	PrivateGetSelectedActors() = USelection::CreateActorSelection(&GSelectedActorAnnotation, GetTransientPackage(), TEXT("SelectedActors"), RF_Transactional);
 	PrivateGetSelectedActors()->AddToRoot();
-	PrivateGetSelectedActors()->Initialize(&GSelectedActorAnnotation);
-
 	PrivateGetSelectedActors()->SelectObjectEvent.AddStatic(&OnObjectSelected);
 
-	PrivateGetSelectedComponents() = NewObject<USelection>(GetTransientPackage(), TEXT("SelectedComponents"), RF_Transactional);
+	PrivateGetSelectedComponents() = USelection::CreateComponentSelection(&GSelectedComponentAnnotation, GetTransientPackage(), TEXT("SelectedComponents"), RF_Transactional);
 	PrivateGetSelectedComponents()->AddToRoot();
-	PrivateGetSelectedComponents()->Initialize(&GSelectedComponentAnnotation);
 
-	PrivateGetSelectedObjects() = NewObject<USelection>(GetTransientPackage(), TEXT("SelectedObjects"), RF_Transactional);
+	PrivateGetSelectedObjects() = USelection::CreateObjectSelection(&GSelectedObjectAnnotation, GetTransientPackage(), TEXT("SelectedObjects"), RF_Transactional);
 	PrivateGetSelectedObjects()->AddToRoot();
-	PrivateGetSelectedObjects()->Initialize(&GSelectedObjectAnnotation);
 }
 
 static void PrivateDestroySelectedSets()
@@ -304,8 +300,10 @@ static void PrivateDestroySelectedSets()
 #if 0
 	PrivateGetSelectedActors()->RemoveFromRoot();
 	PrivateGetSelectedActors() = NULL;
+
 	PrivateGetSelectedComponents()->RemoveFromRoot();
 	PrivateGetSelectedComponents() = NULL;
+
 	PrivateGetSelectedObjects()->RemoveFromRoot();
 	PrivateGetSelectedObjects() = NULL;
 #endif

@@ -9,12 +9,121 @@
 #include "Components/ActorComponent.h"
 #include "Selection.generated.h"
 
+class FTypedElementList;
+
+namespace Selection_Private
+{
+
+class ISelectionStoreSink
+{
+public:
+	virtual ~ISelectionStoreSink() = default;
+
+	/**
+	 * Called when the given object is selected within the underlying store.
+	 */
+	virtual void OnObjectSelected(UObject* InObject, const bool bNotify) = 0;
+
+	/**
+	 * Called when the given object is deselected within the underlying store.
+	 */
+	virtual void OnObjectDeselected(UObject* InObject, const bool bNotify) = 0;
+
+	/**
+	 * Called when the the underlying store changes in an unknown way.
+	 */
+	virtual void OnSelectedChanged(const bool bSyncState, const bool bNotify) = 0;
+};
+
+class ISelectionStore
+{
+public:
+	virtual ~ISelectionStore() = default;
+
+	/**
+	 * Set the notification sink instance for this store.
+	 */
+	virtual void SetSink(ISelectionStoreSink* InSink) = 0;
+
+	/**
+	 * Set the element list instance for this store.
+	 * @note Does nothing if element list stores aren't enabled. Asserts for non-element list stores if they are!
+	 */
+	virtual void SetElementList(FTypedElementList* InElementList) = 0;
+
+	/**
+	 * Get the number of objects within the underlying store.
+	 * This is the total number of objects within the store (for use as an upper limit of GetObjectAtIndex),
+	 * however not all of those objects may be valid so it should not be used as a public selection count.
+	 */
+	virtual int32 GetNumObjects() const = 0;
+
+	/**
+	 * Get the object at the internal index of the underlying store.
+	 * This object may be null, both in cases where the underlying store is using weak references, 
+	 * and also in the case that the object does not match the type managed by the underlying store.
+	 */
+	virtual UObject* GetObjectAtIndex(const int32 InIndex) const = 0;
+
+	/**
+	 * Test to see whether the given object is valid to be added to the underlying store.
+	 */
+	virtual bool IsValidObjectToSelect(const UObject* InObject) const = 0;
+
+	/**
+	 * Test to see whether the given object is currently in the underlying store.
+	 */
+	virtual bool IsObjectSelected(const UObject* InObject) const = 0;
+
+	/**
+	 * Add the given object to the underlying store.
+	 */
+	virtual void SelectObject(UObject* InObject) = 0;
+
+	/**
+	 * Remove the given object from the underlying store.
+	 */
+	virtual void DeselectObject(UObject* InObject) = 0;
+
+	/**
+	 * Remove any objects that match the predicate from the underlying store.
+	 */
+	virtual int32 DeselectObjects(TFunctionRef<bool(UObject*)> InPredicate) = 0;
+
+	/**
+	 * Called to begin a batch selection.
+	 */
+	virtual void BeginBatchSelection() = 0;
+
+	/**
+	 * Called to end a batch selection.
+	 */
+	virtual void EndBatchSelection(const bool InNotify) = 0;
+
+	/**
+	 * Are we currently batch selecting?
+	 */
+	virtual bool IsBatchSelecting() const = 0;
+
+	/**
+	 * Forcibly mark this batch as being dirty.
+	 */
+	virtual void ForceBatchDirty() = 0;
+
+	/**
+	 * Manually invoke a selection changed notification.
+	 */
+	virtual void NoteSelectionChanged() = 0;
+};
+
+} // namespace Selection_Private
+
 /**
- * Manages selections of objects.  Used in the editor for selecting
- * objects in the various browser windows.
+ * Manages selections of objects.
+ * Used in the editor for selecting objects in the various browser windows.
  */
 UCLASS(transient)
-class UNREALED_API USelection : public UObject
+class UNREALED_API USelection : public UObject, public Selection_Private::ISelectionStoreSink
 {
 	GENERATED_BODY()
 
@@ -47,15 +156,18 @@ private:
 		}
 	};
 
-	typedef TArray<TWeakObjectPtr<UObject> >	ObjectArray;
-	typedef TSet<FSelectedClassInfo>	ClassArray;
+	typedef TSet<FSelectedClassInfo> ClassArray;
 
 	template<typename SelectionFilter>
 	friend class TSelectionIterator;
 
 public:
+	static USelection* CreateObjectSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+	static USelection* CreateActorSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+	static USelection* CreateComponentSelection(FUObjectAnnotationSparseBool* InSelectionAnnotation, UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+
 	/** Params: UObject* NewSelection */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, UObject*);
+	DECLARE_EVENT_OneParam(USelection, FOnSelectionChanged, UObject*);
 
 	/** Called when selection in editor has changed */
 	static FOnSelectionChanged SelectionChangedEvent;
@@ -64,14 +176,20 @@ public:
 	/** Called to deselect everything */
 	static FSimpleMulticastDelegate SelectNoneEvent;
 
-	/** Initializes the selection set with an annotation used to quickly look up selection state */
-	void Initialize(FUObjectAnnotationSparseBool* InSelectionAnnotation);
-
 	typedef ClassArray::TIterator TClassIterator;
 	typedef ClassArray::TConstIterator TClassConstIterator;
 
 	TClassIterator			ClassItor()				{ return TClassIterator( SelectedClasses ); }
 	TClassConstIterator		ClassConstItor() const	{ return TClassConstIterator( SelectedClasses ); }
+
+	/**
+	 * Set the element list instance for this selection set.
+	 * @note Does nothing if element list stores aren't enabled. Asserts for non-element list stores if they are!
+	 */
+	void SetElementList(FTypedElementList* InElementList)
+	{
+		SelectionStore->SetElementList(InElementList);
+	}
 
 	/**
 	 * Returns the number of objects in the selection set.  This function is used by clients in
@@ -83,7 +201,7 @@ public:
 	 */
 	int32 Num() const
 	{
-		return SelectedObjects.Num();
+		return SelectionStore->GetNumObjects();
 	}
 
 	/**
@@ -91,7 +209,7 @@ public:
 	 */
 	UObject* GetSelectedObject(const int32 InIndex)
 	{
-		return (SelectedObjects.IsValidIndex(InIndex) && SelectedObjects[InIndex].IsValid() ? SelectedObjects[InIndex].Get() : nullptr);
+		return SelectionStore->GetObjectAtIndex(InIndex);
 	}
 
 	/**
@@ -99,7 +217,7 @@ public:
 	 */
 	const UObject* GetSelectedObject(const int32 InIndex) const
 	{
-		return (SelectedObjects.IsValidIndex(InIndex) && SelectedObjects[InIndex].IsValid() ? SelectedObjects[InIndex].Get() : nullptr);
+		return SelectionStore->GetObjectAtIndex(InIndex);
 	}
 
 	/**
@@ -107,7 +225,7 @@ public:
 	 */
 	void BeginBatchSelectOperation()
 	{
-		SelectionMutex++;
+		SelectionStore->BeginBatchSelection();
 	}
 
 	/**
@@ -116,17 +234,7 @@ public:
 	 */
 	void EndBatchSelectOperation(bool bNotify = true)
 	{
-		if ( --SelectionMutex == 0 )
-		{
-			const bool bSelectionChanged = bIsBatchDirty;
-			bIsBatchDirty = false;
-
-			if ( bSelectionChanged && bNotify )
-			{
-				// new version - includes which selection set was modified
-				USelection::SelectionChangedEvent.Broadcast(this);
-			}
-		}
+		SelectionStore->EndBatchSelection(bNotify);
 	}
 
 	/**
@@ -134,7 +242,7 @@ public:
 	 */
 	bool IsBatchSelecting() const
 	{
-		return SelectionMutex != 0;
+		return SelectionStore->IsBatchSelecting();
 	}
 
 	/**
@@ -176,7 +284,18 @@ public:
 	/**
 	 * If batch selection is active, sets flag indicating something actually changed.
 	 */
-	void MarkBatchDirty();
+	void ForceBatchDirty();
+
+	/**
+	 * Manually invoke a selection changed notification for this set.
+	 */
+	void NoteSelectionChanged();
+
+	/**
+	 * Manually invoke a selection changed notification for no specific set.
+	 * @note Legacy BSP code only!
+	 */
+	static void NoteUnknownSelectionChanged();
 
 	/**
 	 * Returns the first selected object of the specified class.
@@ -189,7 +308,7 @@ public:
 	UObject* GetTop(UClass* InClass, UClass* RequiredInterface=nullptr, bool bArchetypesOnly=false)
 	{
 		check( InClass );
-		for( int32 i=0; i<SelectedObjects.Num(); ++i )
+		for( int32 i=0; i<Num(); ++i )
 		{
 			UObject* SelectedObject = GetSelectedObject(i);
 			if (SelectedObject)
@@ -230,7 +349,7 @@ public:
 	UObject* GetBottom(UClass* InClass)
 	{
 		check( InClass );
-		for( int32 i = SelectedObjects.Num()-1 ; i > -1 ; --i )
+		for( int32 i = Num()-1 ; i > -1 ; --i )
 		{
 			UObject* SelectedObject = GetSelectedObject(i);
 			if( SelectedObject && SelectedObject->IsA(InClass) )
@@ -280,16 +399,7 @@ public:
 	template< class T >
 	int32 CountSelections( bool bIgnorePendingKill=false )
 	{
-		int32 Count = 0;
-		for( int32 i=0; i<SelectedObjects.Num(); ++i )
-		{
-			UObject* SelectedObject = GetSelectedObject(i);
-			if( SelectedObject && SelectedObject->IsA(T::StaticClass()) && !(bIgnorePendingKill && SelectedObject->IsPendingKill()) )
-			{
-				++Count;
-			}
-		}
-		return Count;
+		return CountSelections(T::StaticClass(), bIgnorePendingKill);
 	}
 
 	/**
@@ -298,7 +408,7 @@ public:
 	int32 CountSelections(UClass *ClassToCount, bool bIgnorePendingKill=false)
 	{
 		int32 Count = 0;
-		for( int32 i=0; i<SelectedObjects.Num(); ++i )
+		for( int32 i=0; i<Num(); ++i )
 		{
 			UObject* SelectedObject = GetSelectedObject(i);
 			if( SelectedObject && SelectedObject->IsA(ClassToCount) && !(bIgnorePendingKill && SelectedObject->IsPendingKill()) )
@@ -332,49 +442,63 @@ public:
 	template< class T > 
 	int32 GetSelectedObjects(TArray<T*> &OutSelectedObjects)
 	{
-		OutSelectedObjects.Empty();
-		for ( int32 Idx = 0 ; Idx < SelectedObjects.Num() ; ++Idx )
+		OutSelectedObjects.Empty(Num());
+		for (int32 Idx = 0; Idx < Num(); ++Idx)
 		{
 			UObject* SelectedObject = GetSelectedObject(Idx);
-			if ( SelectedObject && SelectedObject->IsA(T::StaticClass()) )
+			if (SelectedObject && SelectedObject->IsA(T::StaticClass()))
 			{
-				OutSelectedObjects.Add( (T*)SelectedObject );
+				OutSelectedObjects.Add((T*)SelectedObject);
 			}
 		}
 		return OutSelectedObjects.Num();
 	}
-	int32 GetSelectedObjects( ObjectArray& out_SelectedObjects )
+
+	int32 GetSelectedObjects( TArray<TWeakObjectPtr<UObject>>& OutSelectedObjects )
 	{
-		out_SelectedObjects = SelectedObjects;
-		return SelectedObjects.Num();
+		OutSelectedObjects.Empty(Num());
+		for (int32 Idx = 0; Idx < Num(); ++Idx)
+		{
+			UObject* SelectedObject = GetSelectedObject(Idx);
+			if (SelectedObject)
+			{
+				OutSelectedObjects.Add(SelectedObject);
+			}
+		}
+		return OutSelectedObjects.Num();
 	}
 
 	int32 GetSelectedObjects(UClass *FilterClass, TArray<UObject*> &OutSelectedObjects)
 	{
-		OutSelectedObjects.Empty();
-		for ( int32 Idx = 0 ; Idx < SelectedObjects.Num() ; ++Idx )
+		OutSelectedObjects.Empty(Num());
+		for (int32 Idx = 0; Idx < Num(); ++Idx)
 		{
 			UObject* SelectedObject = GetSelectedObject(Idx);
-			if ( SelectedObject && SelectedObject->IsA(FilterClass) )
+			if (SelectedObject && SelectedObject->IsA(FilterClass))
 			{
-				OutSelectedObjects.Add( SelectedObject );
+				OutSelectedObjects.Add(SelectedObject);
 			}
 		}
 		return OutSelectedObjects.Num();
 	}
 
 protected:
-	/** List of selected objects, ordered as they were selected. */
-	ObjectArray	SelectedObjects;
+	/** Initializes the selection set with an annotation used to quickly look up selection state */
+	void Initialize(FUObjectAnnotationSparseBool* InSelectionAnnotation, TSharedRef<Selection_Private::ISelectionStore>&& InSelectionStore);
+
+	//~ ISelectionStoreSink interface
+	virtual void OnObjectSelected(UObject* InObject, const bool bNotify) override;
+	virtual void OnObjectDeselected(UObject* InObject, const bool bNotify) override;
+	virtual void OnSelectedChanged(const bool bSyncState, const bool bNotify) override;
+	
+	/** Sync the state of the underlying selection store to the annotation and classes data */
+	void SyncSelectedState();
+
+	/** Store of selected objects. */
+	TSharedPtr<Selection_Private::ISelectionStore> SelectionStore = nullptr;
 
 	/** Tracks the most recently selected actor classes.  Used for UnrealEd menus. */
-	ClassArray	SelectedClasses;
-
-	/** Tracks the number of active selection operations.  Allows batched selection operations to only send one notification at the end of the batch */
-	int32			SelectionMutex = 0;
-
-	/** Tracks whether the selection set changed during a batch selection operation */
-	bool		bIsBatchDirty = false;
+	ClassArray SelectedClasses;
 	
 	/** Selection annotation for fast lookup */
 	FUObjectAnnotationSparseBool* SelectionAnnotation = nullptr;
@@ -480,7 +604,7 @@ private:
 
 	bool IsIndexValid() const
 	{
-		return Selection.SelectedObjects.IsValidIndex( Index );
+		return Index >= 0 && Index < Selection.Num();
 	}
 
 	USelection&	Selection;

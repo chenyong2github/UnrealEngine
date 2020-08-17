@@ -372,7 +372,7 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	if (bNotify)
 	{
 		USelection* Selection = bComponentSelectionChanged ? GetSelectedComponents() : GetSelectedActors();
-		USelection::SelectionChangedEvent.Broadcast(Selection);
+		Selection->NoteSelectionChanged();
 	}
 	
 	if (!bComponentSelectionChanged)
