@@ -45,6 +45,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bShowCombinedKeyframes = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
+	ReduceKeysTolerance = KINDA_SMALL_NUMBER;
 	bDeleteKeysWhenTrimming = true;
 	bDisableSectionsAfterBaking = true;
 	bCleanPlaybackMode = true;
@@ -560,6 +561,20 @@ void USequencerSettings::SetShowChannelColors(bool InbShowChannelColors)
 	if (bShowChannelColors != InbShowChannelColors)
 	{
 		bShowChannelColors = InbShowChannelColors;
+		SaveConfig();
+	}
+}
+
+float USequencerSettings::GetReduceKeysTolerance() const
+{
+	return ReduceKeysTolerance;
+}
+
+void USequencerSettings::SetReduceKeysTolerance(float InReduceKeysTolerance)
+{
+	if (ReduceKeysTolerance != InReduceKeysTolerance)
+	{
+		ReduceKeysTolerance = InReduceKeysTolerance;
 		SaveConfig();
 	}
 }
