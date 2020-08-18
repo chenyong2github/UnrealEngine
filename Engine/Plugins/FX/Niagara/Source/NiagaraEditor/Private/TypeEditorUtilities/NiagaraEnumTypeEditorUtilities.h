@@ -20,4 +20,5 @@ public:
 	virtual bool CanSetValueFromDisplayName() const override;
 	virtual bool SetValueFromDisplayName(const FText& TextValue, FNiagaraVariable& Variable) const override;
 	virtual FText GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const override;
+	virtual FText GetStackDisplayText(FNiagaraVariable& Variable) const override;
 };
