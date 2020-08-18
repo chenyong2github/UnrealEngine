@@ -19,9 +19,9 @@
 
 void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 {
-#if WITH_EDITOR
 	bHasFinishedExporting = true;
 
+#if WITH_EDITOR
 	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 
 	// Use our file name format on the end of the shared common directory.
