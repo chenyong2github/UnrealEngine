@@ -16,15 +16,11 @@
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraRenderer.h"
-#include "Misc/CoreDelegates.h"
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "Scalability.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 

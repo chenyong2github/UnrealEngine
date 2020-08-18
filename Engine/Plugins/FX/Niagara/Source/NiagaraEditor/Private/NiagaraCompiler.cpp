@@ -6,27 +6,21 @@
 #include "NiagaraGraph.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraComponent.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/IShaderFormat.h"
 #include "ShaderFormatVectorVM.h"
-#include "NiagaraConstants.h"
 #include "NiagaraSystem.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraFunctionLibrary.h"
-#include "NiagaraScriptSource.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraDataInterfaceStaticMesh.h"
-#include "NiagaraDataInterfaceCurlNoise.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeOutput.h"
 #include "ShaderCore.h"
 #include "EdGraphSchema_Niagara.h"
+#include "EdGraphUtilities.h"
 #include "Misc/FileHelper.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
@@ -34,7 +28,6 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
 #include "Serialization/MemoryReader.h"
-#include "HAL/ThreadSafeBool.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
@@ -143,7 +136,6 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 	{
 		return;
 	}
-	UPackage* OwningPackage = InGraph->GetOutermost();
 
 	TArray<UNiagaraNode*> Nodes;
 	InGraph->GetNodesOfClass(Nodes);
@@ -725,8 +717,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 				{
 					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
 					{
-						const int32 OrigCount = BasePtr->EmitterData[i]->RequiredRendererVariables.Num();
-
 						BasePtr->EmitterData[i]->RequiredRendererVariables.AddUnique(BoundAttribute);
 					}
 				}
@@ -911,8 +901,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_CompileScript);
-
-	double StartTime = FPlatformTime::Seconds();
 
 	check(InCompileRequest != NULL);
 	const FNiagaraCompileRequestData* CompileRequest = (const FNiagaraCompileRequestData*)InCompileRequest;

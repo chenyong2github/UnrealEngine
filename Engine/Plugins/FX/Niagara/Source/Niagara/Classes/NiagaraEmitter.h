@@ -7,7 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "NiagaraScript.h"
-#include "NiagaraCollision.h"
+#include "NiagaraMessageDataBase.h"
 #include "INiagaraMergeManager.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraDataSetAccessor.h"

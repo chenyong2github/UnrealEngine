@@ -15,7 +15,6 @@
 #include "GameFramework/PlayerController.h"
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
-#include "Algo/RemoveIf.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
