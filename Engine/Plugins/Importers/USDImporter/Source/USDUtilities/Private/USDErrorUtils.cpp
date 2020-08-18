@@ -3,13 +3,15 @@
 #include "USDErrorUtils.h"
 
 #include "IMessageLogListing.h"
-#include "MessageLogModule.h"
 #include "Math/NumericLimits.h"
+#include "MessageLogModule.h"
+#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
+
+#include "USDLog.h"
 
 #if USE_USD_SDK
 
-#include "USDLog.h"
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
@@ -174,7 +176,7 @@ void FUsdLogManager::LogMessage( const TSharedRef< FTokenizedMessage >& Message 
 			bMessageProcessed = true;
 		}
 	}
-	
+
 	if ( !bMessageProcessed )
 	{
 		if ( Message->GetSeverity() == EMessageSeverity::CriticalError || Message->GetSeverity() == EMessageSeverity::Error )
