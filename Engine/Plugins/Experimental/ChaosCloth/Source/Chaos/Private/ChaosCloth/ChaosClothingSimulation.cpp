@@ -385,7 +385,7 @@ void FClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool
 	{
 		for (const FClothingSimulationCollider* const Collider : Cloth->GetColliders())
 		{
-			OutCollisions.Append(Collider->GetCollisionData());
+			OutCollisions.Append(Collider->GetCollisionData(Solver.Get(), Cloth.Get()));
 		}
 	}
 

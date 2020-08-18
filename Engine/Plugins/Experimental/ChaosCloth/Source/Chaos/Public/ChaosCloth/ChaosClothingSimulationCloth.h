@@ -143,6 +143,7 @@ namespace Chaos
 			FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<float>>& InWeightMaps);
 
 			void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
+			void Remove(FClothingSimulationSolver* Solver);
 
 			void Enable(FClothingSimulationSolver* Solver, bool bEnable) const;
 

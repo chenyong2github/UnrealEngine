@@ -261,6 +261,11 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 }
 
+void FClothingSimulationCloth::FLODData::Remove(FClothingSimulationSolver* Solver)
+{
+	SolverData.Remove(Solver);
+}
+
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
 {
 	check(Solver);
@@ -461,9 +466,11 @@ void FClothingSimulationCloth::RemoveColliders()
 void FClothingSimulationCloth::Add(FClothingSimulationSolver* Solver)
 {
 	check(Solver);
+
+	// Can't add a cloth twice to the same solver
 	check(!LODIndices.Find(Solver));
 
-	// Reset LODIndex
+	// Initialize LODIndex
 	int32& LODIndex = LODIndices.Add(Solver);
 	LODIndex = INDEX_NONE;
 
@@ -482,8 +489,12 @@ void FClothingSimulationCloth::Add(FClothingSimulationSolver* Solver)
 
 void FClothingSimulationCloth::Remove(FClothingSimulationSolver* Solver)
 {
-	// Remove LODIndex from map
+	// Remove solver from maps
 	LODIndices.Remove(Solver);
+	for (FLODData& LODDatum: LODData)
+	{
+		LODDatum.Remove(Solver);
+	}
 
 	// Remove Colliders
 	for (FClothingSimulationCollider* Collider : Colliders)
@@ -494,12 +505,12 @@ void FClothingSimulationCloth::Remove(FClothingSimulationSolver* Solver)
 
 int32 FClothingSimulationCloth::GetNumParticles(int32 InLODIndex) const
 {
-	return (LODData.IsValidIndex(InLODIndex)) ? LODData[InLODIndex].NumParticles : 0;
+	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].NumParticles : 0;
 }
 
 int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solver, int32 InLODIndex) const
 {
-	return (LODData.IsValidIndex(InLODIndex)) ? LODData[InLODIndex].SolverData.FindChecked(Solver).Offset : 0;
+	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].SolverData.FindChecked(Solver).Offset : 0;
 }
 
 TVector<float, 3> FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solver) const

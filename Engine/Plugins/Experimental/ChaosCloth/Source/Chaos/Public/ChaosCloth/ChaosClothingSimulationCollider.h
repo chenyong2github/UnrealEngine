@@ -34,7 +34,7 @@ namespace Chaos
 		int32 GetNumGeometries() const { int32 NumGeometries = 0; for (const FLODData& LODDatum : LODData) { NumGeometries += LODDatum.NumGeometries; } return NumGeometries; }
 
 		// Return source (untransformed) collision data for global, dynamic and active LODs.
-		FClothCollisionData GetCollisionData() const;
+		FClothCollisionData GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const;
 
 		// ---- Animatable property setters ----
 		// Set dynamic collision data, will only get updated when used as a Solver Collider TODO: Subclass collider?
@@ -43,7 +43,7 @@ namespace Chaos
 
 		// ---- Cloth/Solver interface ----
 		void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
-		void Remove(FClothingSimulationSolver* /*Solver*/, FClothingSimulationCloth* /*Cloth*/ = nullptr) {}
+		void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
 
 		void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
 		// ---- End of the Cloth/Solver interface ----
@@ -62,12 +62,17 @@ namespace Chaos
 	private:
 		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<int32>& UsedBoneIndices);
 
+		int32 GetNumGeometries(int32 InLODIndex) const;
+		int32 GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InLODIndex) const;
+
 	private:
+		typedef TPair<const FClothingSimulationSolver*, const FClothingSimulationCloth*> FSolverClothPair;
+
 		struct FLODData
 		{
 			FClothCollisionData ClothCollisionData;
 			int32 NumGeometries;  // Number of collision bodies
-			TMap<TPair<const FClothingSimulationSolver*, const FClothingSimulationCloth*>, int32> Offsets;  // Solver particle offset
+			TMap<FSolverClothPair, int32> Offsets;  // Solver particle offset
 
 			FLODData() : NumGeometries(0) {}
 
@@ -76,6 +81,7 @@ namespace Chaos
 				FClothingSimulationCloth* Cloth,
 				const FClothCollisionData& InClothCollisionData,
 				const TArray<int32>& UsedBoneIndices = TArray<int32>());
+			void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
 			void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, const FClothingSimulationContextCommon* Context);
 
@@ -97,6 +103,6 @@ namespace Chaos
 
 		// Collision primitives
 		TArray<FLODData> LODData;  // Actual LODs start at LODStart
-		int32 LODIndex;  // TODO: Have map of LODIndex per solver
+		TMap<FSolverClothPair, int32> LODIndices;
 	};
 } // namespace Chaos
