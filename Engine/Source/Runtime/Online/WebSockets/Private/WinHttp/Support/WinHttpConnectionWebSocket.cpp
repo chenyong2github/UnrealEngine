@@ -280,10 +280,18 @@ bool FWinHttpConnectionWebSocket::CloseConnection(const uint16 Code, const FStri
 		return false;
 	}
 
-	const FTCHARToUTF8 Converter(*Reason, Reason.Len());
-	
-	PVOID Utf8Reason = const_cast<ANSICHAR*>(Converter.Get());
-	DWORD Utf8ReasonLength = Converter.Length();
+	PVOID Utf8Reason = nullptr;
+	DWORD Utf8ReasonLength = 0;
+
+	// Only convert if we have a reason
+	TOptional<FTCHARToUTF8> Converter;
+	if (!Reason.IsEmpty())
+	{
+		Converter.Emplace(*Reason, Reason.Len());
+		Utf8Reason = const_cast<ANSICHAR*>(Converter->Get());
+		Utf8ReasonLength = Converter->Length();
+	}
+
 	const DWORD ErrorCode = WinHttpWebSocketShutdown(WebSocketHandle.Get(), Code, Utf8Reason, Utf8ReasonLength);
 	if (ErrorCode != NO_ERROR && ErrorCode != ERROR_IO_PENDING)
 	{
