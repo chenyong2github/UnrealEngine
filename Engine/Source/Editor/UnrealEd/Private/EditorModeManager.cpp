@@ -10,7 +10,6 @@
 #include "LevelEditorViewport.h"
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
-#include "Engine/BookMark.h"
 #include "EditorSupportDelegates.h"
 #include "EdMode.h"
 #include "Toolkits/IToolkitHost.h"
@@ -21,7 +20,6 @@
 #include "Editor/EditorEngine.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Bookmarks/IBookmarkTypeTools.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "EditorStyleSet.h"
@@ -1553,62 +1551,6 @@ FWidget::EWidgetMode FEditorModeTools::GetWidgetMode() const
 	}
 
 	return WidgetMode;
-}
-
-bool FEditorModeTools::GetShowFriendlyVariableNames()
-{
-	return GetDefault<UEditorStyleSettings>()->bShowFriendlyNames;
-}
-
-const uint32 FEditorModeTools::GetMaxNumberOfBookmarks(FEditorViewportClient* InViewportClient)
-{
-	return IBookmarkTypeTools::Get().GetMaxNumberOfBookmarks(InViewportClient);
-}
-
-void FEditorModeTools::CompactBookmarks(FEditorViewportClient* InViewportClient)
-{
-	IBookmarkTypeTools::Get().CompactBookmarks(InViewportClient);
-}
-
-/**
- * Sets a bookmark in the levelinfo file, allocating it if necessary.
- */
-void FEditorModeTools::SetBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient )
-{
-	IBookmarkTypeTools::Get().CreateOrSetBookmark(InIndex, InViewportClient);
-}
-
-/**
- * Checks to see if a bookmark exists at a given index
- */
-
-bool FEditorModeTools::CheckBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient )
-{
-	return IBookmarkTypeTools::Get().CheckBookmark(InIndex, InViewportClient);
-}
-
-/**
- * Retrieves a bookmark from the list.
- */
-void FEditorModeTools::JumpToBookmark(uint32 InIndex, TSharedPtr<FBookmarkBaseJumpToSettings> InSettings, FEditorViewportClient* InViewportClient)
-{
-	IBookmarkTypeTools::Get().JumpToBookmark(InIndex, InSettings, InViewportClient);
-}
-
-/**
- * Clears a bookmark
- */
-void FEditorModeTools::ClearBookmark( uint32 InIndex, FEditorViewportClient* InViewportClient )
-{
-	IBookmarkTypeTools::Get().ClearBookmark(InIndex, InViewportClient);
-}
-
-/**
-* Clears all book marks
-*/
-void FEditorModeTools::ClearAllBookmarks( FEditorViewportClient* InViewportClient )
-{
-	IBookmarkTypeTools::Get().ClearAllBookmarks(InViewportClient);
 }
 
 void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )
