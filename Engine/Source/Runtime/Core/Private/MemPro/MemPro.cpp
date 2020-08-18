@@ -3568,6 +3568,8 @@ namespace MemPro
 				FString Filename = FString::Printf(TEXT("%s/MemPro_%s.mempro_dump"), *Directory, *FileDate.ToString());
 				FPaths::NormalizeFilename(Filename);
 
+				Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*Filename); //@EPIC: Fix bad path for locally compiled and cooked builds
+
 				Platform::MemCpy(p_filename, max_length, TCHAR_TO_ANSI(*Filename), (int)(strlen(TCHAR_TO_ANSI(*Filename)) + 1));
 			#else
 				Platform::MemCpy(p_filename, max_length, MEMPRO_WRITE_DUMP, (int)(strlen(MEMPRO_WRITE_DUMP) + 1));
