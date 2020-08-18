@@ -2981,14 +2981,28 @@ void UViewportWorldInteraction::CycleTransformGizmoCoordinateSpace()
 
 void UViewportWorldInteraction::SetTransformGizmoCoordinateSpace( const ECoordSystem NewCoordSystem )
 {
+	// If we are trying to enter world space but are aligning to actors, turn off aligning to actors
+	if (NewCoordSystem == COORD_World && AreAligningToActors())
+	{
+		if (HasCandidatesSelected())
+		{
+			SetSelectionAsCandidates();
+		}
+		GUnrealEd->Exec(GetWorld(), TEXT("VI.EnableGuides 0"));
+	}
+
 	GetModeTools().SetCoordSystem( NewCoordSystem );
 }
 
 ECoordSystem UViewportWorldInteraction::GetTransformGizmoCoordinateSpace() const
 {
+	if (AreAligningToActors())
+	{
+		return COORD_Local;
+	}
+
 	const bool bGetRawValue = false;
-	const ECoordSystem CurrentCoordSystem = GetModeTools().GetCoordSystem( bGetRawValue );
-	return CurrentCoordSystem;
+	return GetModeTools().GetCoordSystem(bGetRawValue);
 }
 
 float UViewportWorldInteraction::GetMaxScale()
@@ -3067,7 +3081,7 @@ void UViewportWorldInteraction::DestroyActors()
 	}
 }
 
-bool UViewportWorldInteraction::AreAligningToActors()
+bool UViewportWorldInteraction::AreAligningToActors() const
 {
 	return (VI::ActorSnap->GetInt() == 1) ? true : false;
 }

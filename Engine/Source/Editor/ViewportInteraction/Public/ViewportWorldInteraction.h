@@ -330,7 +330,7 @@ public:
 	void AllowWorldMovement( bool bAllow );
 
 	/** For other systems to check if the Viewport World Interaction system is currently aligning transformables to actors*/
-	bool AreAligningToActors();
+	bool AreAligningToActors() const;
 	/** For other systems to check if the Viewport World Interaction system currently has candidate actors selected */
 	bool HasCandidatesSelected();
 	/** If there are no currently selected candidates, use the currently selected actors as candidates. Otherwise, reset the candidates */
