@@ -8333,11 +8333,11 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const
 {
 	SCOPE_TIMER(GetAllPackageFilenamesFromAssetRegistry);
-	FArrayReader SerializedAssetData;
-	if (FFileHelper::LoadFileToArray(SerializedAssetData, *AssetRegistryPath))
+	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*AssetRegistryPath));
+	if (Reader)
 	{
 		FAssetRegistryState TempState;
-		TempState.Serialize(SerializedAssetData, FAssetRegistrySerializationOptions());
+		TempState.Serialize(*Reader.Get(), FAssetRegistrySerializationOptions());
 
 		const TMap<FName, const FAssetData*>& RegistryDataMap = TempState.GetObjectPathToAssetDataMap();
 
