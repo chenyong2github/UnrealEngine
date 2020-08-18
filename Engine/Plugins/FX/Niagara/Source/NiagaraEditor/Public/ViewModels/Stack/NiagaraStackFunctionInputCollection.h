@@ -40,6 +40,8 @@ public:
 
 	void SetValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
+	void GetChildInputs(TArray<UNiagaraStackFunctionInput*>& OutResult) const;
+
 protected:
 	virtual void FinalizeInternal() override;
 
