@@ -8614,26 +8614,26 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		{
 			FVector V = FVector::ZeroVector;
 			bParseSucceeded = FDefaultValueHelper::ParseVector(StrValue, V);
-			Property->CopyCompleteValue(DirectValue, &V);
+			Property->CopySingleValue(DirectValue, &V);
 		}
 		else if (StructProperty->Struct == RotatorStruct)
 		{
 			FRotator R = FRotator::ZeroRotator;
 			bParseSucceeded = FDefaultValueHelper::ParseRotator(StrValue, R);
-			Property->CopyCompleteValue(DirectValue, &R);
+			Property->CopySingleValue(DirectValue, &R);
 		}
 		else if (StructProperty->Struct == TransformStruct)
 		{
 			FTransform T = FTransform::Identity;
 			bParseSucceeded = T.InitFromString(StrValue);
-			Property->CopyCompleteValue(DirectValue, &T);
+			Property->CopySingleValue(DirectValue, &T);
 		}
 		else if (StructProperty->Struct == LinearColorStruct)
 		{
 			FLinearColor Color;
 			// Color form: "(R=%f,G=%f,B=%f,A=%f)"
 			bParseSucceeded = Color.InitFromString(StrValue);
-			Property->CopyCompleteValue(DirectValue, &Color);
+			Property->CopySingleValue(DirectValue, &Color);
 		}
 		else if (StructProperty->Struct)
 		{
@@ -8673,25 +8673,25 @@ bool FBlueprintEditorUtils::PropertyValueToString_Direct(const FProperty* Proper
 		if (StructProperty->Struct == VectorStruct)
 		{
 			FVector Vector;
-			Property->CopyCompleteValue(&Vector, DirectValue);
+			Property->CopySingleValue(&Vector, DirectValue);
 			OutForm = FString::Printf(TEXT("%f,%f,%f"), Vector.X, Vector.Y, Vector.Z);
 		}
 		else if (StructProperty->Struct == RotatorStruct)
 		{
 			FRotator Rotator;
-			Property->CopyCompleteValue(&Rotator, DirectValue);
+			Property->CopySingleValue(&Rotator, DirectValue);
 			OutForm = FString::Printf(TEXT("%f,%f,%f"), Rotator.Pitch, Rotator.Yaw, Rotator.Roll);
 		}
 		else if (StructProperty->Struct == TransformStruct)
 		{
 			FTransform Transform;
-			Property->CopyCompleteValue(&Transform, DirectValue);
+			Property->CopySingleValue(&Transform, DirectValue);
 			OutForm = Transform.ToString();
 		}
 		else if (StructProperty->Struct == LinearColorStruct)
 		{
 			FLinearColor Color;
-			Property->CopyCompleteValue(&Color, DirectValue);
+			Property->CopySingleValue(&Color, DirectValue);
 			OutForm = Color.ToString();
 		}
 	}
