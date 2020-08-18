@@ -326,12 +326,11 @@ bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEve
 			// If we don't have an endpoint but do have legacy graph or node guids, we do the manual upgrade
 			if (!Endpoint && EntryPoint.GraphGuid_DEPRECATED.IsValid())
 			{
-				UEdGraph* const* GraphPtr = Algo::FindBy(SequenceDirectorBP->UbergraphPages, EntryPoint.GraphGuid_DEPRECATED, &UEdGraph::GraphGuid);
-				if (GraphPtr)
+				if (EntryPoint.NodeGuid_DEPRECATED.IsValid())
 				{
-					if (EntryPoint.NodeGuid_DEPRECATED.IsValid())
+					if (UEdGraph* const* GraphPtr = Algo::FindBy(SequenceDirectorBP->UbergraphPages, EntryPoint.GraphGuid_DEPRECATED, &UEdGraph::GraphGuid))
 					{
-						UEdGraphNode* const* NodePtr = Algo::FindBy((*GraphPtr)->Nodes, EntryPoint.NodeGuid_DEPRECATED, &UEdGraphNode::NodeGuid);
+						UEdGraphNode* const* NodePtr  = Algo::FindBy((*GraphPtr)->Nodes, EntryPoint.NodeGuid_DEPRECATED, &UEdGraphNode::NodeGuid);
 						if (NodePtr)
 						{
 							UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(*NodePtr);
@@ -342,28 +341,28 @@ bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEve
 							}
 						}
 					}
-					// If the node guid is invalid, this must be a function graph on the BP
-					else
+				}
+				// If the node guid is invalid, this must be a function graph on the BP
+				else if (UEdGraph* const* GraphPtr = Algo::FindBy(SequenceDirectorBP->FunctionGraphs, EntryPoint.GraphGuid_DEPRECATED, &UEdGraph::GraphGuid))
+				{
+					UEdGraphNode* const* NodePtr = Algo::FindByPredicate((*GraphPtr)->Nodes, [](UEdGraphNode* InNode){ return InNode && InNode->IsA<UK2Node_FunctionEntry>(); });
+					if (NodePtr)
 					{
-						UEdGraphNode* const* NodePtr = Algo::FindByPredicate((*GraphPtr)->Nodes, [](UEdGraphNode* InNode){ return InNode && InNode->IsA<UK2Node_FunctionEntry>(); });
-						if (NodePtr)
-						{
-							UK2Node_FunctionEntry* FunctionEntry = CastChecked<UK2Node_FunctionEntry>(*NodePtr);
-							FunctionEntry->OnUserDefinedPinRenamed().AddUObject(Section, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
-							EntryPoint.WeakEndpoint = Endpoint = FunctionEntry;
-						}
+						UK2Node_FunctionEntry* FunctionEntry = CastChecked<UK2Node_FunctionEntry>(*NodePtr);
+						FunctionEntry->OnUserDefinedPinRenamed().AddUObject(Section, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
+						EntryPoint.WeakEndpoint = Endpoint = FunctionEntry;
 					}
+				}
 
-					if (Endpoint)
+				if (Endpoint)
+				{
+					// Discover its bound object pin name from the node
+					for (UEdGraphPin* Pin : Endpoint->Pins)
 					{
-						// Discover its bound object pin name from the node
-						for (UEdGraphPin* Pin : Endpoint->Pins)
+						if (Pin->Direction == EGPD_Output && (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) )
 						{
-							if (Pin->Direction == EGPD_Output && (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) )
-							{
-								EntryPoint.BoundObjectPinName = Pin->PinName;
-								break;
-							}
+							EntryPoint.BoundObjectPinName = Pin->PinName;
+							break;
 						}
 					}
 				}
