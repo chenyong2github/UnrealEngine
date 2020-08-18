@@ -136,10 +136,17 @@ static char AndroidCpuThermalSensorFileBuf[256] = "";
 static void OverrideCpuThermalSensorFileFromCVar(IConsoleVariable* Var)
 {
 	FString Override = CVarAndroidCPUThermalSensorFilePath.GetValueOnAnyThread();
-	if (Override.Len() < UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf))
+	const int32 Len = Override.Len();
+	if (Len == 0)
+	{
+		return;
+	}
+
+	if (Len < UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf))
 	{
 		FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, TCHAR_TO_ANSI(*Override));
 		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), AndroidCpuThermalSensorFileBuf);
+		return;
 	}
 
 	UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath is too long, max path is `%u`"), UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf));
@@ -153,13 +160,14 @@ static void InitCpuThermalSensor()
 	uint32 Counter = 0;
 	while (true)
 	{
-		char Buf[256];
+		char Buf[256] = "";
 		sprintf(Buf, "/sys/devices/virtual/thermal/thermal_zone%u/type", Counter);
 		if (FILE* File = fopen(Buf, "r"))
 		{
 			fgets(Buf, UE_ARRAY_COUNT(Buf), File);
 			fclose(File);
 			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), Buf, Counter);
+			*Buf = 0;
 			++Counter;
 		}
 		else
