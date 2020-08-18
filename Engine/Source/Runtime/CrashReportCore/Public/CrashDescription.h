@@ -422,6 +422,11 @@ struct FPrimaryCrashProperties
 	FCrashPropertyXmlNode Threads;
 
 	/**
+	 *	Optional additional data for platform properties
+	 */
+	FCrashPropertyXmlNode PlatformPropertiesExtras;
+
+	/**
 	 * Whether it was an OOM or not
 	 */
 	bool bIsOOM;
