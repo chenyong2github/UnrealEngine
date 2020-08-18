@@ -60,7 +60,7 @@ void FAnimNode_PoseHandler::RebuildPoseList(const FBoneContainer& InBoneContaine
 		for (int32 PoseIndex = 0; PoseIndex < PoseNames.Num(); ++PoseIndex)
 		{
 			const FSmartName& PoseName = PoseNames[PoseIndex];
-			if (ensure(LUTIndex.IsValidIndex(PoseName.UID)) && LUTIndex[PoseName.UID] != MAX_uint16)
+			if (ensureMsgf(LUTIndex.IsValidIndex(PoseName.UID), TEXT("Invalid PoseName in %s"), *GetPathNameSafe(InPoseAsset)) && LUTIndex[PoseName.UID] != MAX_uint16)
 			{
 				// we keep pose index as that is the fastest way to search when extracting pose asset
 				PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseName.UID, 0.f));
