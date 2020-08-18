@@ -32,6 +32,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "ISequencerChannelInterface.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "SKeyEditInterface.h"
