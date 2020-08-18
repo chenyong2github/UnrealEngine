@@ -1862,6 +1862,27 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 #endif
 }
 
+void UNiagaraScript::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
+	{
+		ScriptResource->QueueForRelease(ReleasedByRT);
+	}
+	else
+	{
+		ReleasedByRT = true;
+	}
+}
+
+bool UNiagaraScript::IsReadyForFinishDestroy()
+{
+	const bool bIsReady = Super::IsReadyForFinishDestroy();
+
+	return bIsReady && ReleasedByRT;
+}
+
 bool UNiagaraScript::IsEditorOnly() const
 {
 #if WITH_EDITOR

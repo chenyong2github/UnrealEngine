@@ -600,6 +600,7 @@ public:
 		, ShaderPlatform(SP_NumPlatforms)
 		, bLoadedCookedShaderMapId(false)
 		, bLoadedFromCookedMaterial(false)
+		, bQueuedForRelease(false)
 	{}
 
 	/**
@@ -692,6 +693,8 @@ public:
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
 	NIAGARASHADER_API void SetRenderingThreadShaderMap(FNiagaraShaderMap* InShaderMap);
 	void SetRenderThreadCachedData(const FNiagaraShaderMapCachedData& CachedData);
+
+	NIAGARASHADER_API void QueueForRelease(FThreadSafeBool& Fence);
 
 	void AddCompileId(uint32 Id) 
 	{
@@ -850,6 +853,7 @@ private:
 
 	uint32 bLoadedCookedShaderMapId : 1;
 	uint32 bLoadedFromCookedMaterial : 1;
+	uint32 bQueuedForRelease : 1;
 
 	int32 NumPermutations = 0;
 	TArray<TPair<int32, int32>> ShaderStageToPermutation;
