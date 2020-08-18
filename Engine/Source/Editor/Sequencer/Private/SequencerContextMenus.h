@@ -8,6 +8,7 @@
 #include "SequencerClipboardReconciler.h"
 #include "ScopedTransaction.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Curves/RealCurve.h"
 
 struct FEasingAreaHandle;
 class FMenuBuilder;
@@ -64,11 +65,17 @@ private:
 
 	void ReduceKeys();
 
+	void SetInterpTangentMode(ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode);
+
 	bool IsTrimmable() const;
 
 	bool CanAutoSize() const;
 
 	bool CanReduceKeys() const;
+
+	bool CanSetInterpTangentMode() const;
+
+	bool IsInterpTangentModeSelected(ERichCurveInterpMode InterpMode, ERichCurveTangentMode TangentMode) const;
 
 	void ToggleSectionActive();
 

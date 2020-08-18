@@ -279,6 +279,11 @@ public:
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
+	/** @return The tolerance to use when reducing keys */
+	float GetReduceKeysTolerance() const;
+	/** Set the tolerance to use when reducing keys */
+	void SetReduceKeysTolerance(float InReduceKeysTolerance);
+
 	/** @return true if deleting keys that fall beyond the section range when trimming */
 	bool GetDeleteKeysWhenTrimming() const;
 	/** Set whether to delete keys that fall beyond the section range when trimming */
@@ -494,6 +499,10 @@ protected:
 	/** Enable or disable displaying channel bar colors for vector properties. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** The tolerance to use when reducing keys */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	float ReduceKeysTolerance;
 
 	/** Enable or disable deleting keys that fall beyond the section range when trimming. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
