@@ -6524,7 +6524,9 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 				}
 			}
 
-			const bool bActorSelected = ActorSelection->IsSelected( RuntimeObject );
+			AActor* Actor = Cast<AActor>(RuntimeObject);
+			const bool bActorSelected = Actor ? ActorSelection->IsSelected(Actor) : false;
+						
 			UActorComponent* ActorComponent = Cast<UActorComponent>(RuntimeObject);
 			const bool bComponentSelected = ActorComponent ? GEditor->GetSelectedComponents()->IsSelected(ActorComponent) : false;
 
