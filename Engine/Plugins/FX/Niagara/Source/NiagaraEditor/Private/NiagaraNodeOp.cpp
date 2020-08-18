@@ -5,6 +5,7 @@
 #include "GraphEditorSettings.h"
 
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraCustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeOp"
 
