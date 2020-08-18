@@ -1717,7 +1717,7 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 		{
 			if (bIsScript)
 			{
-				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script package '%s'. Editor only?"),
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (0x%llX): Missing import script package '%s'. Editor only?"),
 					*Package->Name.ToString(),
 					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
@@ -1731,14 +1731,14 @@ static FPackageObjectIndex FindAndVerifyGlobalImport(
 		{
 			if (bIsScript)
 			{
-				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import script object '%s'. Editor only?"),
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (0x%llX): Missing import script object '%s'. Editor only?"),
 					*Package->Name.ToString(),
 					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
 			}
 			else if (!DLCPrefix.Len() || FullName.StartsWith(DLCPrefix))
 			{
-				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (%d): Missing import object '%s' due to missing public export. Editor only?"),
+				UE_LOG(LogIoStore, Display, TEXT("For package '%s' (0x%llX): Missing import object '%s' due to missing public export. Editor only?"),
 					*Package->Name.ToString(),
 					Package->GlobalPackageId.ValueForDebugging(),
 					*FullName);
@@ -1920,7 +1920,7 @@ static bool ConformLocalizedPackage(
 		LocalizedPackage.ExportCount;
 
 	UE_CLOG(SourcePackage.ExportCount != LocalizedPackage.ExportCount, LogIoStore, Verbose,
-		TEXT("For culture '%s': Localized package '%s' (%d) for source package '%s' (%d)  - Has ExportCount %d vs. %d"),
+		TEXT("For culture '%s': Localized package '%s' (0x%llX) for source package '%s' (0x%llX)  - Has ExportCount %d vs. %d"),
 			*LocalizedPackage.Region,
 			*LocalizedPackage.Name.ToString(),
 			LocalizedPackage.GlobalPackageId.ValueForDebugging(),
@@ -2000,7 +2000,7 @@ static bool ConformLocalizedPackage(
 		if (!LocalizedExportStr || !SourceExportStr)
 		{
 			UE_LOG(LogIoStore, Error,
-				TEXT("Culture '%s': Localized package '%s' (%d) for source package '%s' (%d) - Has some bad data from an earlier phase."),
+				TEXT("Culture '%s': Localized package '%s' (0x%llX) for source package '%s' (0x%llX) - Has some bad data from an earlier phase."),
 				*LocalizedPackage.Region,
 				*LocalizedPackage.Name.ToString(),
 				LocalizedPackage.GlobalPackageId.ValueForDebugging(),
@@ -2074,7 +2074,7 @@ static bool ConformLocalizedPackage(
 		if (FailReason.Len() > 0)
 		{
 			UE_LOG(LogIoStore, Warning,
-				TEXT("Culture '%s': Localized package '%s' (%d) for '%s' (%d) - %s"),
+				TEXT("Culture '%s': Localized package '%s' (0x%llX) for '%s' (0x%llX) - %s"),
 				*LocalizedPackage.Region,
 				*LocalizedPackage.Name.ToString(),
 				LocalizedPackage.GlobalPackageId.ValueForDebugging(),
@@ -2150,7 +2150,7 @@ static void AddPreloadDependencies(
 							SourceToLocalizedPackageMap.MultiFind(Export->Package, LocalizedPackages);
 							for (FPackage* LocalizedPackage : LocalizedPackages)
 							{
-								UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized preload dependency '%s' in '%s'"),
+								UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (0x%llX): Adding localized preload dependency '%s' in '%s'"),
 									*Package->Name.ToString(),
 									Package->GlobalPackageId.ValueForDebugging(),
 									*Export->ObjectName.ToString(),
@@ -2502,20 +2502,26 @@ void FinalizePackageStoreContainerHeader(FContainerTargetSpec& ContainerTarget)
 	PackageStoreArchive.Serialize(StoreDataArchive.GetData(), StoreDataArchive.TotalSize());
 }
 
-static void SerializeInitialLoad(
+static void FinalizeInitialLoadMeta(
 	FNameMapBuilder& GlobalNameMapBuilder,
 	const FGlobalScriptObjects& GlobalScriptImports,
 	FArchive& InitialLoadArchive)
 {
-	IOSTORE_CPU_SCOPE(SerializeInitialLoad);
+	IOSTORE_CPU_SCOPE(FinalizeInitialLoad);
 	UE_LOG(LogIoStore, Display, TEXT("Finalizing initial load..."));
 
 	int32 NumScriptObjects = GlobalScriptImports.Num();
 	InitialLoadArchive << NumScriptObjects; 
 
-	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalScriptImports)
+	TArray<FScriptObjectData> ScriptObjects;
+	GlobalScriptImports.GenerateValueArray(ScriptObjects );
+	Algo::Sort(ScriptObjects, [](const FScriptObjectData& A, const FScriptObjectData& B)
 	{
-		const FScriptObjectData& ImportData = Pair.Value;
+		return A.FullName < B.FullName;
+	});
+
+	for (const FScriptObjectData& ImportData : ScriptObjects)
+	{
 		GlobalNameMapBuilder.MarkNameAsReferenced(ImportData.ObjectName);
 		FScriptObjectEntry Entry;
 		Entry.ObjectName = GlobalNameMapBuilder.MapName(ImportData.ObjectName).ToUnresolvedMinimalName();
@@ -2876,7 +2882,6 @@ static void FindScriptObjectsRecursive(
 };
 
 static void CreateGlobalScriptObjects(
-	FNameMapBuilder& NameMapBuilder,
 	FGlobalPackageData& GlobalPackageData,
 	const ITargetPlatform* TargetPlatform)
 {
@@ -2919,11 +2924,6 @@ static void CreateGlobalScriptObjects(
 		{
 			FindScriptObjectsRecursive(GlobalPackageData, GlobalImportIndex, InnerObject, TargetPlatform, ExcludedObjectMarks);
 		}
-	}
-
-	for (const TPair<FPackageObjectIndex, FScriptObjectData>& Pair : GlobalPackageData.ScriptObjects)
-	{
-		NameMapBuilder.MarkNameAsReferenced(Pair.Value.ObjectName);
 	}
 }
 
@@ -3101,7 +3101,7 @@ static void ProcessLocalizedPackages(
 		if (Package->Name == Package->SourcePackageName)
 		{
 			UE_LOG(LogIoStore, Error,
-				TEXT("For culture '%s': Localized package '%s' (%d) should have a package name different from source name."),
+				TEXT("For culture '%s': Localized package '%s' (0x%llX) should have a package name different from source name."),
 				*Package->Region,
 				*Package->Name.ToString(),
 				Package->GlobalPackageId.ValueForDebugging())
@@ -3113,7 +3113,7 @@ static void ProcessLocalizedPackages(
 		{
 			// no update or verification required
 			UE_LOG(LogIoStore, Verbose,
-				TEXT("For culture '%s': Localized package '%s' (%d) is unique and does not override a source package."),
+				TEXT("For culture '%s': Localized package '%s' (0x%llX) is unique and does not override a source package."),
 				*Package->Region,
 				*Package->Name.ToString(),
 				Package->GlobalPackageId.ValueForDebugging());
@@ -3128,7 +3128,7 @@ static void ProcessLocalizedPackages(
 
 		if (Package->bIsLocalizedAndConformed)
 		{
-			UE_LOG(LogIoStore, Verbose, TEXT("For culture '%s': Adding conformed localized package '%s' (%d) for '%s' (%d). ")
+			UE_LOG(LogIoStore, Verbose, TEXT("For culture '%s': Adding conformed localized package '%s' (0x%llX) for '%s' (0x%llX). ")
 				TEXT("When loading the source package, it will be remapped to this localized package."),
 				*Package->Region,
 				*Package->Name.ToString(),
@@ -3141,7 +3141,7 @@ static void ProcessLocalizedPackages(
 		else
 		{
 			UE_LOG(LogIoStore, Display,
-				TEXT("For culture '%s': Localized package '%s' (%d) does not conform to source package '%s' (%d) due to mismatching public exports. ")
+				TEXT("For culture '%s': Localized package '%s' (0x%llX) does not conform to source package '%s' (0x%llX) due to mismatching public exports. ")
 				TEXT("When loading the source package, it will never be remapped to this localized package."),
 				*Package->Region,
 				*Package->Name.ToString(),
@@ -3163,7 +3163,7 @@ static void ProcessLocalizedPackages(
 			OutSourceToLocalizedPackageMap.MultiFind(ImportedPackage, LocalizedPackages);
 			for (FPackage* LocalizedPackage : LocalizedPackages)
 			{
-				UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (%d): Adding localized imported package '%s' (%d)"),
+				UE_LOG(LogIoStore, Verbose, TEXT("For package '%s' (0x%llX): Adding localized imported package '%s' (0x%llX)"),
 					*Package->Name.ToString(),
 					Package->GlobalPackageId.ValueForDebugging(),
 					*LocalizedPackage->Name.ToString(),
@@ -3192,7 +3192,7 @@ static void ProcessLocalizedPackages(
 
 							const FExportObjectData& SourceExportData = *GlobalPackageData.FindPublicExport(*SourceGlobalImportIndex);
 							UE_LOG(LogIoStore, Verbose,
-								TEXT("For package '%s' (%d): Remap localized import %s to source import %s (in a conformed localized package)"),
+								TEXT("For package '%s' (0x%llX): Remap localized import %s to source import %s (in a conformed localized package)"),
 								*Package->Name.ToString(),
 								Package->GlobalPackageId.ValueForDebugging(),
 								*Export->FullName,
@@ -3201,7 +3201,7 @@ static void ProcessLocalizedPackages(
 						else
 						{
 							UE_LOG(LogIoStore, Verbose,
-								TEXT("For package '%s' (%d): Skip remap for localized import %s")
+								TEXT("For package '%s' (0x%llX): Skip remap for localized import %s")
 								TEXT(", either there is no source package or the localized package did not conform to it."),
 								*Package->Name.ToString(),
 								Package->GlobalPackageId.ValueForDebugging(),
@@ -3669,7 +3669,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	FExportGraph ExportGraph(PackageAssetData.ObjectExports.Num(), PackageAssetData.PreloadDependencies.Num());
 	GlobalPackageData.Reserve(PackageAssetData.ObjectExports.Num());
 
-	CreateGlobalScriptObjects(GlobalNameMapBuilder, GlobalPackageData, Arguments.TargetPlatform);
+	CreateGlobalScriptObjects(GlobalPackageData, Arguments.TargetPlatform);
 	CreateGlobalImportsAndExports(Arguments, Packages, PackageIdMap, PackageAssetData, GlobalPackageData, ExportGraph);
 
 	// Mapped import and exports are required before processing localization, and preload/postload arcs
@@ -3739,18 +3739,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			const FNameMapBuilder& NameMapBuilder = *ContainerTarget->NameMapBuilder;
 			SaveNameBatch(ContainerTarget->LocalNameMapBuilder.GetNameMap(), ContainerTarget->Header.Names, ContainerTarget->Header.NameHashes);
 		}
-	}
-
-	FLargeMemoryWriter InitialLoadArchive(0, true);
-
-	{
-		IOSTORE_CPU_SCOPE(SerializeGlobalMetaData);
-		UE_LOG(LogIoStore, Display, TEXT("Serializing global meta data"));
-
-		SerializeInitialLoad(
-			GlobalNameMapBuilder,
-			GlobalPackageData.ScriptObjects,
-			InitialLoadArchive);
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Calculating hashes"));
@@ -4036,9 +4024,19 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FPlatformProcess::ReturnSynchEventToPool(TaskStartedEvent);
 	}
 
+	uint64 InitialLoadSize = 0;
 	if (GlobalIoStoreWriter)
 	{
-		UE_LOG(LogIoStore, Display, TEXT("Saving initial load meta data to container file"));
+		FLargeMemoryWriter InitialLoadArchive(0, true);
+		FinalizeInitialLoadMeta(
+			GlobalNameMapBuilder,
+			GlobalPackageData.ScriptObjects,
+			InitialLoadArchive);
+
+		InitialLoadSize = InitialLoadArchive.Tell();
+
+		UE_LOG(LogIoStore, Display, TEXT("Serializing global meta data"));
+		IOSTORE_CPU_SCOPE(SerializeInitialLoadMeta);
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("LoaderInitialLoadMeta");
 		const FIoStatus Status = GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta), FIoBuffer(FIoBuffer::Wrap, InitialLoadArchive.GetData(), InitialLoadArchive.TotalSize()), WriteOptions);
@@ -4060,6 +4058,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		TArray<uint8> Hashes;
 		SaveNameBatch(GlobalNameMapBuilder.GetNameMap(), /* out */ Names, /* out */ Hashes);
 
+		InitialLoadSize += Names.Num() + Hashes.Num();
 		GlobalNamesMB = Names.Num() >> 20;
 		GlobalNameHashesMB = Hashes.Num() >> 20;
 
@@ -4207,7 +4206,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	uint64 ImportedPackagesCount = 0;
 	uint64 NoImportedPackagesCount = 0;
 	uint64 PublicExportsCount = 0;
-	uint64 InitialLoadSize = InitialLoadArchive.Tell();
 	uint64 TotalExternalArcCount = 0;
 	uint64 NameMapCount = 0;
 
