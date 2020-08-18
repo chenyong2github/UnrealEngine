@@ -45,6 +45,8 @@ public:
 protected:
 	FRuntimeVirtualTextureComponentDetailsCustomization();
 
+	/** Returns true if SetBounds button is enabled */
+	bool IsSetBoundsEnabled() const;
 	/** Callback for Set Bounds button */
 	FReply SetBounds();
 
