@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/ThreadSafeBool.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "NiagaraCommon.h"
@@ -557,6 +558,9 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 	virtual bool IsEditorOnly() const override;
+
+	virtual NIAGARA_API void BeginDestroy() override;
+	virtual NIAGARA_API bool IsReadyForFinishDestroy() override;
 	//~ End UObject interface
 
 	//~ Begin UNiagaraScriptBase interface
@@ -765,4 +769,6 @@ private:
 
 	static UNiagaraDataInterface* CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner);
 
+	/** Flag used to guarantee that the RT isn't accessing the FNiagaraScriptResource before cleanup. */
+	FThreadSafeBool ReleasedByRT;
 };
