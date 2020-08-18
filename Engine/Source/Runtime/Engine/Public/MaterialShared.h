@@ -1262,6 +1262,9 @@ private:
 	 * No ref counting needed as these are removed on destruction of the shader map.
 	 */
 	static TArray<FMaterialShaderMap*> AllMaterialShaderMaps;
+
+	/** Guards access to AllMaterialShaderMaps, which can be written to from an async loading thread. */
+	static FCriticalSection AllMaterialShaderMapsGuard;
 #endif
 
 #if ALLOW_SHADERMAP_DEBUG_DATA
