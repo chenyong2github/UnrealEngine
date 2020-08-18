@@ -152,9 +152,8 @@ FVirtualShadowMapArray::FVirtualShadowMapArray()
 	uint32 HPageFlagOffset = 0;
 	for (uint32 Level = 0; Level < FVirtualShadowMap::MaxMipLevels - 1; ++Level)
 	{
-		uint32 NumHLevels = FVirtualShadowMap::MaxMipLevels - Level - 1U;
 		CommonParameters.HPageFlagLevelOffsets[Level] = HPageFlagOffset;
-		HPageFlagOffset += CommonParameters.LevelOffsets[FVirtualShadowMap::MaxMipLevels - 1] - CommonParameters.LevelOffsets[Level + 1];
+		HPageFlagOffset += CommonParameters.PageTableSize - CommonParameters.LevelOffsets[Level + 1];
 	}
 	// The last mip level is 1x1 and thus does not have any H levels possible.
 	CommonParameters.HPageFlagLevelOffsets[FVirtualShadowMap::MaxMipLevels - 1] = 0;

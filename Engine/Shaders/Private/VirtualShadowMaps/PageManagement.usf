@@ -521,15 +521,21 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 		InterlockedMax(PageRectBoundsOut[PageBoundIndex].z, PX);
 		InterlockedMax(PageRectBoundsOut[PageBoundIndex].w, PY);
 
-		// Loop over H flag levels:
-		uint NumHLevels = VSM_MAX_MIP_LEVELS - MipLevel - 1U;
+		// Loop over H flag levels, this builds a mip pyramid over _each_ mip level in the page table
+		// the 0-th level in this hiearchy is the page table mip level itself.
+		uint MaxHLevel = VSM_MAX_MIP_LEVELS - MipLevel;
 		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> MipLevel;
-		for (uint HMipLevel = 0; HMipLevel < NumHLevels; ++HMipLevel)
+		// Note: starting from 1 as level 0 is the ordinary flag mip level
+		for (uint HMipLevel = 1U; HMipLevel < MaxHLevel; ++HMipLevel)
 		{
 			HLevelSizePages >>= 1U;
 			PX >>= 1U;
 			PY >>= 1U;
-			uint HPageFlagOffset = ShadowMapID * HPageTableSize + HPageFlagLevelOffsets[MipLevel] + CalcLevelOffsets(HMipLevel + MipLevel + 1U) - CalcLevelOffsets(MipLevel + 1U) + PY * HLevelSizePages + PX;
+			uint HPageFlagOffset = ShadowMapID * HPageTableSize 
+				+ HPageFlagLevelOffsets[MipLevel] 
+				+ CalcLevelOffsets(HMipLevel + MipLevel) 
+				- CalcLevelOffsets(MipLevel + 1U) 
+				+ PY * HLevelSizePages + PX;
 
 			uint PreviousValue = 0;
 			InterlockedOr(OutHPageFlags[HPageFlagOffset], Flag, PreviousValue);

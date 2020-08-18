@@ -232,14 +232,16 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 		// Root level size in pages
 		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> (MipLevel + HMipLevel);
 		
-		int HPageFlagOffset = ShadowMapID * HPageTableSize + HPageFlagLevelOffsets[MipLevel];
-		HPageFlagOffset -= CalcLevelOffsets( MipLevel + 1U );
+		int HPageLevelOffset = ShadowMapID * HPageTableSize + HPageFlagLevelOffsets[MipLevel]
+			+ CalcLevelOffsets( HMipLevel + MipLevel)
+			- CalcLevelOffsets( MipLevel + 1U );
 
 		for( uint y = RectPages.y; y <= RectPages.w; y++ )
 		{
 			for( uint x = RectPages.x; x <= RectPages.z; x++ )
 			{
-				if( (HPageFlags[ HPageFlagOffset + CalcLevelOffsets(HMipLevel + MipLevel) + y * HLevelSizePages + x ] & FlagMask) != 0 )
+				int HPageFlagOffset = HPageLevelOffset + y * HLevelSizePages + x;
+				if( (HPageFlags[ HPageFlagOffset ] & FlagMask) != 0 )
 				{
 					return true;
 				}
