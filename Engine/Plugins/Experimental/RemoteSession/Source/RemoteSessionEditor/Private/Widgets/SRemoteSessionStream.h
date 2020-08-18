@@ -23,7 +23,6 @@ struct FCanDeleteAssetResult;
 class FMenuBuilder;
 class FWidgetRenderer;
 class IDetailsView;
-class ILevelViewport;
 class SImage;
 class SSplitter;
 class SVirtualWindow;
@@ -153,7 +152,6 @@ private:
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;
 	TSharedPtr<SVirtualWindow> VirtualWindow;
 	FWidgetRenderer* WidgetRenderer;
-	TWeakPtr<ILevelViewport> ActiveLevelViewport;
 	FVector2D WidgetSize;
 
 	bool bIsStreaming;

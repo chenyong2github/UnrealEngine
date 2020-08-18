@@ -23,7 +23,6 @@
 #include "EditorSupportDelegates.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "IDetailsView.h"
-#include "ILevelViewport.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
