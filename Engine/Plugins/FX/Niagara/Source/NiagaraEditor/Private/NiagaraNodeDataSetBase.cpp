@@ -5,6 +5,7 @@
 #include "INiagaraCompiler.h"
 #include "NiagaraEvents.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraCustomVersion.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraNodeDataSetBase"
 

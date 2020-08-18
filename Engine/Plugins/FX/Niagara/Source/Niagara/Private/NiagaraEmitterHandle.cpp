@@ -5,10 +5,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraCommon.h"
-#include "NiagaraDataInterface.h"
-#include "NiagaraModule.h"
-
-#include "Modules/ModuleManager.h"
+#include "NiagaraCustomVersion.h"
 
 const FNiagaraEmitterHandle FNiagaraEmitterHandle::InvalidHandle;
 
