@@ -36,8 +36,9 @@ void FAnimBlueprintNodeOptionalPinManager::GetRecordDefaults(FProperty* TestProp
 	const bool bOptional_HideByDefault = TestProperty->HasMetaData(Schema->NAME_PinHiddenByDefault);
 	const bool bNeverShow = TestProperty->HasMetaData(Schema->NAME_NeverAsPin);
 	const bool bPropertyIsCustomized = TestProperty->HasMetaData(Schema->NAME_CustomizeProperty);
+	const bool bCanTreatPropertyAsOptional = CanTreatPropertyAsOptional(TestProperty);
 
-	Record.bCanToggleVisibility = bOptional_ShowByDefault || bOptional_HideByDefault;
+	Record.bCanToggleVisibility = bCanTreatPropertyAsOptional && (bOptional_ShowByDefault || bOptional_HideByDefault);
 	Record.bShowPin = bAlwaysShow || bOptional_ShowByDefault;
 	Record.bPropertyIsCustomized = bPropertyIsCustomized;
 }
