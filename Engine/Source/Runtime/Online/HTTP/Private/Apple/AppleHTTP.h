@@ -106,6 +106,9 @@ private:
 	/** BYTE array payload to use with the request. Typically for a POST */
 	mutable TArray<uint8> RequestPayload;
 
+	/** BYTE array for content which we now own */
+	TArray<uint8> ContentData;
+
 	/** Current status of request being processed */
 	EHttpRequestStatus::Type CompletionStatus;
 
