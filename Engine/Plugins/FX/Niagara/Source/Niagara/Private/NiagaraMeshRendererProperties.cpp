@@ -411,12 +411,23 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 	SubImageSize.Y = FMath::Max<float>(SubImageSize.Y, 1.f);
 
 	static FName ParticleMeshName(TEXT("ParticleMesh"));
-	if (ParticleMesh && PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == ParticleMeshName)
+
+	if (ParticleMesh)
 	{
-		// We only need to check material usage as we will invalidate any renderers later on
-		CheckMaterialUsage();
-		ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
-		ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+		const bool IsRedirect = PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected;
+		if (IsRedirect)
+		{
+			// Do this in case the redirected property is not ParticleMesh (we have no way of knowing b/c the property is nullptr)
+			ParticleMesh->GetOnMeshChanged().RemoveAll(this);
+			ParticleMesh->OnPostMeshBuild().RemoveAll(this);
+		}
+		if (IsRedirect || (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == ParticleMeshName))
+		{
+			// We only need to check material usage as we will invalidate any renderers later on
+			CheckMaterialUsage();
+			ParticleMesh->GetOnMeshChanged().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshChanged);
+			ParticleMesh->OnPostMeshBuild().AddUObject(this, &UNiagaraMeshRendererProperties::OnMeshPostBuild);
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
