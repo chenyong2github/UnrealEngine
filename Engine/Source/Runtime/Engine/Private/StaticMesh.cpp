@@ -5840,10 +5840,16 @@ static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int
 
 bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData)
 {
+	bool bInCheckComplexCollisionMesh = true;
+	return GetPhysicsTriMeshDataCheckComplex(CollisionData, bInUseAllTriData, bInCheckComplexCollisionMesh);
+}
+
+bool UStaticMesh::GetPhysicsTriMeshDataCheckComplex(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData, bool bInCheckComplexCollisionMesh)
+{
 #if WITH_EDITORONLY_DATA
-	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
-		return ComplexCollisionMesh->GetPhysicsTriMeshData(CollisionData, bInUseAllTriData);
+		return ComplexCollisionMesh->GetPhysicsTriMeshDataCheckComplex(CollisionData, bInUseAllTriData, false); // Only one level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
 	// the static mesh needs to be tagged for CPUAccess in order to access TriMeshData in runtime mode : 
@@ -5909,12 +5915,18 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	return CollisionData->Vertices.Num() > 0 && CollisionData->Indices.Num() > 0;
 }
 
-bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const 
+bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
+{
+	bool bInCheckComplexCollisionMesh = true;
+	return ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, bInCheckComplexCollisionMesh);
+}
+
+bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, bool bInCheckComplexCollisionMesh) const
 {
 #if WITH_EDITORONLY_DATA
-	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
-		return ComplexCollisionMesh->ContainsPhysicsTriMeshData(bInUseAllTriData);
+		return ComplexCollisionMesh->ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, false); // One level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
 	// without editor data, we can't selectively generate a physics mesh for a given LOD index (we're missing access to GetSectionInfoMap()) so force bInUseAllTriData in order to use LOD index 0
