@@ -584,7 +584,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		FUIAction(FExecuteAction::CreateSP(this, &SFoliageEdit::OnSelectInvalidInstances)),
 		NAME_None,
 		LOCTEXT("FoliageSelectInvalid", "Invalid"),
-		LOCTEXT("FoliageSelectInvalidTooltip", "Select Invalid Foligae Instances"),
+		LOCTEXT("FoliageSelectInvalidTooltip", "Select Invalid Foliage Instances"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SelectInvalid")
 		);
 
