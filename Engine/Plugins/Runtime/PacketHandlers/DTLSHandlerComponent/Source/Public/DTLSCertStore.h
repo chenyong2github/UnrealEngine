@@ -21,18 +21,21 @@ public:
 	/**
 	 * Create a new certificate
 	 *
+	 * @Param Lifetime time in seconds until expiration of certificate
+	 *
 	 * @return shared pointer to certificate, valid if creation succeeded
 	 */
-	TSharedPtr<FDTLSCertificate> CreateCert();
+	TSharedPtr<FDTLSCertificate> CreateCert(const FTimespan& Lifetime);
 
 	/**
 	 * Create a new certificate and store internally
 	 *
+	 * @Param Lifetime time in seconds until expiration of certificate
 	 * @Param Identifier name to use when storing certificate for later use
 	 *
 	 * @return shared pointer to certificate, valid if creation succeeded
 	 */
-	TSharedPtr<FDTLSCertificate> CreateCert(const FString& Identifier);
+	TSharedPtr<FDTLSCertificate> CreateCert(const FTimespan& Lifetime, const FString& Identifier);
 
 	/**
 	 * Retrieve a certificate using unique identifier

@@ -12,7 +12,7 @@ public class DTLSHandlerComponent : ModuleRules
 			{
 				"Core",
                 "CoreUObject",
-		"NetCore",
+				"NetCore",
                 "PacketHandler",
                 "Engine",
                 "SSL",
