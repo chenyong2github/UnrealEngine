@@ -203,6 +203,16 @@ void UEditMeshPolygonsTool::Setup()
 	ExtrudeProperties->WatchProperty(ExtrudeProperties->Direction,
 									 [this](EPolyEditExtrudeDirection){ RestartExtrude(); });
 
+	InsetProperties = NewObject<UPolyEditInsetProperties>();
+	InsetProperties->RestoreProperties(this);
+	AddToolPropertySource(InsetProperties);
+	SetToolPropertySourceEnabled(InsetProperties, false);
+
+	OutsetProperties = NewObject<UPolyEditOutsetProperties>();
+	OutsetProperties->RestoreProperties(this);
+	AddToolPropertySource(OutsetProperties);
+	SetToolPropertySourceEnabled(OutsetProperties, false);
+
 	CutProperties = NewObject<UPolyEditCutProperties>();
 	CutProperties->RestoreProperties(this);
 	AddToolPropertySource(CutProperties);
@@ -226,6 +236,7 @@ void UEditMeshPolygonsTool::Setup()
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	ExtrudeProperties->SaveProperties(this);
+	InsetProperties->SaveProperties(this);
 	CutProperties->SaveProperties(this);
 	SetUVProperties->SaveProperties(this);
 
@@ -751,8 +762,13 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		}
 		else if (CurrentToolMode == ECurrentToolMode::InsetSelection || CurrentToolMode == ECurrentToolMode::OutsetSelection)
 		{
-			double Sign = (CurrentToolMode == ECurrentToolMode::OutsetSelection) ? -1.0 : 1.0;
-			EditPreview->UpdateInsetType(Sign * CurveDistMechanic->CurrentDistance);
+			bool bOutset = (CurrentToolMode == ECurrentToolMode::OutsetSelection);
+			double Sign = bOutset ? -1.0 : 1.0;
+			bool bReproject = (bOutset) ? false : InsetProperties->bReproject;
+			double Softness = (bOutset) ? OutsetProperties->Softness : InsetProperties->Softness;
+			bool bBoundaryOnly = (bOutset) ? OutsetProperties->bBoundaryOnly : InsetProperties->bBoundaryOnly;
+			double AreaCorrection = (bOutset) ? OutsetProperties->AreaScale : InsetProperties->AreaScale;
+			EditPreview->UpdateInsetType(Sign* CurveDistMechanic->CurrentDistance, bReproject, Softness, AreaCorrection, bBoundaryOnly);
 		}
 		else if (CurrentToolMode == ECurrentToolMode::SetUVs)
 		{
@@ -1042,6 +1058,9 @@ void UEditMeshPolygonsTool::BeginInset(bool bOutset)
 	Loops.Loops[0].GetVertices(LoopVertices);
 	CurveDistMechanic->InitializePolyLoop(LoopVertices, FTransform3d::Identity());
 	CurrentToolMode = (bOutset) ? ECurrentToolMode::OutsetSelection : ECurrentToolMode::InsetSelection;
+
+	SetToolPropertySourceEnabled((bOutset) ? 
+		(UInteractiveToolPropertySet*)OutsetProperties : (UInteractiveToolPropertySet*)InsetProperties, true);
 }
 
 
@@ -1056,6 +1075,11 @@ void UEditMeshPolygonsTool::ApplyInset(bool bOutset)
 	Inset.UVScaleFactor = UVScaleFactor;
 	Inset.Triangles = ActiveTriangleSelection;
 	Inset.InsetDistance = (bOutset) ? -CurveDistMechanic->CurrentDistance : CurveDistMechanic->CurrentDistance;
+	Inset.bReproject = (bOutset) ? false : InsetProperties->bReproject;
+	Inset.Softness = (bOutset) ? OutsetProperties->Softness : InsetProperties->Softness;
+	Inset.bSolveRegionInteriors = (bOutset) ? (!OutsetProperties->bBoundaryOnly) : (!InsetProperties->bBoundaryOnly);
+	Inset.AreaCorrection = (bOutset) ? OutsetProperties->AreaScale : InsetProperties->AreaScale;
+
 	Inset.ChangeTracker = MakeUnique<FDynamicMeshChangeTracker>(Mesh);
 	Inset.ChangeTracker->BeginChange();
 	Inset.Apply();
@@ -1069,6 +1093,9 @@ void UEditMeshPolygonsTool::ApplyInset(bool bOutset)
 
 	CurveDistMechanic = nullptr;
 	CurrentToolMode = ECurrentToolMode::TransformSelection;
+
+	SetToolPropertySourceEnabled((bOutset) ?
+		(UInteractiveToolPropertySet*)OutsetProperties : (UInteractiveToolPropertySet*)InsetProperties, false);
 }
 
 
@@ -1984,6 +2011,8 @@ void UEditMeshPolygonsTool::CancelMeshEditChange()
 
 	// hide properties that might be visible
 	SetToolPropertySourceEnabled(ExtrudeProperties, false);
+	SetToolPropertySourceEnabled(InsetProperties, false);
+	SetToolPropertySourceEnabled(OutsetProperties, false);
 	SetToolPropertySourceEnabled(CutProperties, false);
 	SetToolPropertySourceEnabled(SetUVProperties, false);
 

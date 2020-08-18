@@ -7,7 +7,10 @@
 #include "DynamicMeshChangeTracker.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Distance/DistLine3Line3.h"
-
+#include "DynamicSubmesh3.h"
+#include "Solvers/ConstrainedMeshDeformer.h"
+#include "DynamicMeshAABBTree3.h"
+#include "MeshTransforms.h"
 
 FInsetMeshRegion::FInsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 {
@@ -78,6 +81,20 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 		return false;
 	}
 
+	// make copy of separated submesh for deformation
+	// (could we defer this copy until we know we need it?)
+	FDynamicSubmesh3 SubmeshCalc(Mesh, Region.InitialTriangles, (int)EMeshComponents::None, false);
+	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
+	bool bHaveInteriorVerts = false;
+	for (int32 vid : Submesh.VertexIndicesItr())
+	{
+		if (Submesh.IsBoundaryVertex(vid) == false)
+		{
+			bHaveInteriorVerts = true;
+			break;
+		}
+	}
+
 	// inset vertices
 	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
 	{
@@ -119,6 +136,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			Mesh->SetVertex(LoopPair.InnerVertices[vi], NewPos);
 		}
 
+
 	};
 
 	// stitch each loop
@@ -126,6 +144,8 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 	Region.InsetLoops.SetNum(NumInitialLoops);
 	Region.StitchTriangles.SetNum(NumInitialLoops);
 	Region.StitchPolygonIDs.SetNum(NumInitialLoops);
+	TArray<TArray<FIndex2i>> QuadLoops;
+	QuadLoops.Reserve(NumInitialLoops);
 	int32 LoopIndex = 0;
 	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
 	{
@@ -172,17 +192,135 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 		StitchResult.GetAllTriangles(Region.StitchTriangles[LoopIndex]);
 		Region.StitchPolygonIDs[LoopIndex] = NewGroupIDs;
 
-		// for each polygon we created in stitch, set UVs and normals
-		// TODO copied from FExtrudeMesh, doesn't really make sense in this context...
-		if (Mesh->HasAttributes())
+		QuadLoops.Add(MoveTemp(StitchResult.NewQuads));
+
+		Region.BaseLoops[LoopIndex].InitializeFromVertices(Mesh, BaseLoopV);
+		Region.InsetLoops[LoopIndex].InitializeFromVertices(Mesh, InsetLoopV);
+		LoopIndex++;
+	}
+
+	// if we have interior vertices or just want to try to resolve foldovers we
+	// do a Laplacian solve using the inset positions determined geometrically
+	// as weighted soft constraints.
+	if ( (bHaveInteriorVerts || Softness > 0.0) && bSolveRegionInteriors )
+	{
+		bool bReprojectInset = bReproject;
+		bool bReprojectInterior = bReproject;
+		bool bSolveBoundary = (Softness > 0.0);
+
+		// Build AABBTree for initial surface so that we can reproject onto it.
+		// (conceivably this could be cached during interactive operations, also not
+		//  necessary if we are not projecting!)
+		FDynamicMesh3 ProjectSurface(Submesh);
+		FDynamicMeshAABBTree3 Projection(&ProjectSurface, bReproject);
+
+		// if we are reprojecting, do inset border immediately so that the measurements below
+		// use the projected values
+		if (bReprojectInset)
 		{
+			for (const FEdgeLoop& Loop : Region.InsetLoops)
+			{
+				for (int32 BaseVID : Loop.Vertices)
+				{
+					int32 SubmeshVID = SubmeshCalc.MapVertexToSubmesh(BaseVID);
+					Mesh->SetVertex(BaseVID, Projection.FindNearestPoint(Mesh->GetVertex(BaseVID)));
+				}
+			}
+		}
+
+		// compute area of inserted quad-strip border
+		double TotalBorderQuadArea = 0;
+		int32 NumLoops = LoopPairs.Num();
+		for (int32 li = 0; li < NumLoops; ++li)
+		{
+			int32 NumQuads = QuadLoops[li].Num();
+			for (int32 k = 0; k < NumQuads; k++)
+			{
+				TotalBorderQuadArea += Mesh->GetTriArea(QuadLoops[li][k].A);
+				TotalBorderQuadArea += Mesh->GetTriArea(QuadLoops[li][k].B);
+			}
+		}
+
+		// Figure how much area chnaged by subtracting area of quad-strip from original area.
+		// (quad-strip area seems implausibly high at larger distances, ie becomes larger than initial area. Possibly due to sawtooth-shaped profile
+		//  of non-planar quads - measure each quad in planar projection?)
+		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(Submesh);
+		double InitialArea = VolArea.Y;
+		double TargetArea = FMathd::Max(0, InitialArea - TotalBorderQuadArea);
+		double AreaRatio = TargetArea / InitialArea;
+		double LinearAreaScale = FMathd::Max(0.1, FMathd::Sqrt(AreaRatio));
+
+		// compute deformation
+		TUniquePtr<UE::Solvers::IConstrainedLaplacianMeshSolver> Solver = UE::MeshDeformation::ConstructSoftMeshDeformer(Submesh);
+
+		// configure area correction based on scaling parameter
+		double AreaCorrectT = FMathd::Clamp(AreaCorrection, 0.0, 1.0);
+		LinearAreaScale = (1 - AreaCorrectT) * 1.0 + (AreaCorrectT)*LinearAreaScale;
+		Solver->UpdateLaplacianScale(LinearAreaScale);
+		
+		// Want to convert [0,1] softness parameter to a per-boundary-vertex Weight. 
+		// Trying to use Vertex Count and Scaling factor to normalize for scale
+		// (really should scale mesh down to consistent size, but this is messy due to mapping back to Mesh)
+		// Laplacian scale above also impacts this...and perhaps we should only be counting boundary vertices??
+		double UnitScalingMeasure = FMathd::Max(0.01, FMathd::Sqrt(VolArea.Y / 6.0));
+		double NonlinearT = FMathd::Pow(Softness, 2.0);
+		double ScaledPower = (NonlinearT / 50.0) * (double)Submesh.VertexCount() * UnitScalingMeasure;
+		double Weight = (ScaledPower < FMathf::ZeroTolerance) ? 100.0 : (1.0 / ScaledPower);
+
+		// add constraints on all the boundary vertices
+		for (const FEdgeLoop& Loop : Region.InsetLoops)
+		{
+			for (int32 BaseVID : Loop.Vertices)
+			{
+				int32 SubmeshVID = SubmeshCalc.MapVertexToSubmesh(BaseVID);
+				FVector3d CurPosition = Mesh->GetVertex(BaseVID);
+				Solver->AddConstraint(SubmeshVID, Weight, CurPosition, bSolveBoundary == false);
+			}
+		}
+
+		// solve for deformed (and possibly reprojected) positions and update mesh
+		TArray<FVector3d> DeformedPositions;
+		if (Solver->Deform(DeformedPositions))
+		{
+			for (int32 SubmeshVID : Submesh.VertexIndicesItr())
+			{
+				if (bSolveBoundary || Solver->IsConstrained(SubmeshVID) == false)
+				{
+					int32 BaseVID = SubmeshCalc.MapVertexToBaseMesh(SubmeshVID);
+
+					FVector3d SolvePosition = DeformedPositions[SubmeshVID];
+					if (bReprojectInterior)
+					{
+						SolvePosition = Projection.FindNearestPoint(SolvePosition);
+					}
+
+					Mesh->SetVertex(BaseVID, SolvePosition);
+				}
+			}
+		}
+	}
+
+
+	// calculate UVs/etc
+	if (Mesh->HasAttributes())
+	{
+		int32 NumLoops = LoopPairs.Num();
+		for ( int32 li = 0; li < NumLoops; ++li)
+		{
+			FDynamicMeshEditor::FLoopPairSet& LoopPair = LoopPairs[li];
+			TArray<int32>& BaseLoopV = LoopPair.OuterVertices;
+			TArray<int32>& InsetLoopV = LoopPair.InnerVertices;
+
+			// for each polygon we created in stitch, set UVs and normals
+			// TODO copied from FExtrudeMesh, doesn't really make sense in this context...
 			float AccumUVTranslation = 0;
 			FFrame3d FirstProjectFrame;
 			FVector3d FrameUp;
 
-			for (int32 k = 0; k < NumNewQuads; k++)
+			int32 NumQuads = QuadLoops[li].Num();
+			for (int32 k = 0; k < NumQuads; k++)
 			{
-				FVector3f Normal = Editor.ComputeAndSetQuadNormal(StitchResult.NewQuads[k], true);
+				FVector3f Normal = Editor.ComputeAndSetQuadNormal( QuadLoops[li][k], true);
 
 				// align axis 0 of projection frame to first edge, then for further edges,
 				// rotate around 'up' axis to keep normal aligned and frame horizontal
@@ -209,13 +347,9 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 
 				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)
 				float TranslateU = UVScaleFactor * AccumUVTranslation;
-				Editor.SetQuadUVsFromProjection(StitchResult.NewQuads[k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
+				Editor.SetQuadUVsFromProjection(QuadLoops[li][k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
 			}
 		}
-
-		Region.BaseLoops[LoopIndex].InitializeFromVertices(Mesh, BaseLoopV);
-		Region.InsetLoops[LoopIndex].InitializeFromVertices(Mesh, InsetLoopV);
-		LoopIndex++;
 	}
 
 	return true;
