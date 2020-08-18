@@ -1695,6 +1695,8 @@ protected:
 
 	bool bMaySendProperties;
 
+	bool bSkipServerReplicateActors = false;
+	
 	/** Stream of random numbers to be used by this instance of UNetDriver */
 	FRandomStream UpdateDelayRandomStream;
 

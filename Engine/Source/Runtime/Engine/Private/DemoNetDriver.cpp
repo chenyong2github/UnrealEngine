@@ -642,6 +642,7 @@ void UDemoNetDriver::InitDefaults()
 	bIsWaitingForStream = false;
 	MaxArchiveReadPos = 0;
 	bNeverApplyNetworkEmulationSettings = true;
+	bSkipServerReplicateActors = true;
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
