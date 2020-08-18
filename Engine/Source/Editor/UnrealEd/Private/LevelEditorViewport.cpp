@@ -102,67 +102,6 @@ TSet<FViewportHoverTarget> FLevelEditorViewportClient::HoveredObjects;
 
 IMPLEMENT_HIT_PROXY( HLevelSocketProxy, HHitProxy );
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	FViewportCursorLocation
-//	Contains information about a mouse cursor position within a viewport, transformed into the correct
-//	coordinate system for the viewport.
-//
-///////////////////////////////////////////////////////////////////////////////////////////////////
-FViewportCursorLocation::FViewportCursorLocation( const FSceneView* View, FEditorViewportClient* InViewportClient, int32 X, int32 Y )
-	:	Origin(ForceInit), Direction(ForceInit), CursorPos(X, Y)
-{
-
-	FVector4 ScreenPos = View->PixelToScreen(X, Y, 0);
-
-	const FMatrix InvViewMatrix = View->ViewMatrices.GetInvViewMatrix();
-	const FMatrix InvProjMatrix = View->ViewMatrices.GetInvProjectionMatrix();
-
-	const float ScreenX = ScreenPos.X;
-	const float ScreenY = ScreenPos.Y;
-
-	ViewportClient = InViewportClient;
-
-	if ( ViewportClient->IsPerspective() )
-	{
-		Origin = View->ViewMatrices.GetViewOrigin();
-		Direction = InvViewMatrix.TransformVector(FVector(InvProjMatrix.TransformFVector4(FVector4(ScreenX * GNearClippingPlane,ScreenY * GNearClippingPlane,0.0f,GNearClippingPlane)))).GetSafeNormal();
-	}
-	else
-	{
-		Origin = InvViewMatrix.TransformFVector4(InvProjMatrix.TransformFVector4(FVector4(ScreenX,ScreenY,0.5f,1.0f)));
-		Direction = InvViewMatrix.TransformVector(FVector(0,0,1)).GetSafeNormal();
-	}
-}
-
-FViewportCursorLocation::~FViewportCursorLocation()
-{
-}
-
-ELevelViewportType FViewportCursorLocation::GetViewportType() const
-{
-	return ViewportClient->GetViewportType();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//	FViewportClick::FViewportClick - Calculates useful information about a click for the below ClickXXX functions to use.
-//
-///////////////////////////////////////////////////////////////////////////////////////////////////
-FViewportClick::FViewportClick(const FSceneView* View,FEditorViewportClient* ViewportClient,FKey InKey,EInputEvent InEvent,int32 X,int32 Y)
-	:	FViewportCursorLocation(View, ViewportClient, X, Y)
-	,	Key(InKey), Event(InEvent)
-{
-	ControlDown = ViewportClient->IsCtrlPressed();
-	ShiftDown = ViewportClient->IsShiftPressed();
-	AltDown = ViewportClient->IsAltPressed();
-}
-
-FViewportClick::~FViewportClick()
-{
-}
-
 /** Helper function to compute a new location that is snapped to the origin plane given the users cursor location and camera angle */
 static FVector4 AttemptToSnapLocationToOriginPlane( const FViewportCursorLocation& Cursor, FVector4 Location )
 {
