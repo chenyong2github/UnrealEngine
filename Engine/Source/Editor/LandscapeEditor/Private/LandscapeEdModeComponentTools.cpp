@@ -619,7 +619,7 @@ public:
 
 			ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
 
-			bool bHasLandscapeLayersContent = Landscape->HasLayersContent();
+			bool bHasLandscapeLayersContent = Landscape && Landscape->HasLayersContent();
 
 			if (bHasLandscapeLayersContent)
 			{
@@ -769,7 +769,10 @@ public:
 				}
 			}
 
-			GEngine->BroadcastOnActorMoved(Landscape);
+			if (Landscape)
+			{
+				GEngine->BroadcastOnActorMoved(Landscape);
+			}
 		}
 	}
 
