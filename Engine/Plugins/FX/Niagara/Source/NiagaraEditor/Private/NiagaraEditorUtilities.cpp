@@ -16,7 +16,6 @@
 #include "NiagaraScript.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraOverviewNode.h"
-#include "EdGraphUtilities.h"
 #include "NiagaraConstants.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -30,17 +29,14 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
 #include "EdGraphSchema_Niagara.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
 #include "EdGraph/EdGraphPin.h"
-#include "NiagaraNodeWriteDataSet.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "NiagaraNodeStaticSwitch.h"
-#include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
 #include "NiagaraStackEditorData.h"
@@ -49,8 +45,8 @@
 #include "ContentBrowserModule.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "NiagaraCustomVersion.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Framework/Commands/GenericCommands.h"
 #include "UObject/TextProperty.h"
 #include "Editor/EditorEngine.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -1378,27 +1374,11 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			}
 		}
 
-		// Check if library script
-		if (InFilter.bIncludeNonLibraryScripts == false)
+		// Check script visibility
+		ENiagaraScriptLibraryVisibility ScriptVisibility = GetScriptAssetVisibility(FilteredScriptAssets[i]);
+		if (ScriptVisibility == ENiagaraScriptLibraryVisibility::Hidden || (InFilter.bIncludeNonLibraryScripts == false && ScriptVisibility != ENiagaraScriptLibraryVisibility::Library))
 		{
-			bool bScriptIsLibrary = true;
-			bool bFoundLibScriptTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bScriptIsLibrary);
-
-			if (bFoundLibScriptTag == false)
-			{
-				if (FilteredScriptAssets[i].IsAssetLoaded())
-				{
-					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
-					if (Script != nullptr)
-					{
-						bScriptIsLibrary = Script->bExposeToLibrary;
-					}
-				}
-			}
-			if (bScriptIsLibrary == false)
-			{
-				continue;
-			}
+			continue;
 		}
 
 		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);
@@ -1474,10 +1454,12 @@ const FNiagaraEmitterHandle* FNiagaraEditorUtilities::GetEmitterHandleForEmitter
 		[&Emitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance() == &Emitter; });
 }
 
-bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
+ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibility(const FAssetData& ScriptAssetData)
 {
-	bool bIsInLibrary;
-	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bIsInLibrary);
+	FString Value;
+	bool bIsLibraryTagFound = ScriptAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, LibraryVisibility), Value);
+
+	ENiagaraScriptLibraryVisibility ScriptVisibility = ENiagaraScriptLibraryVisibility::Invalid;
 	if (bIsLibraryTagFound == false)
 	{
 		if (ScriptAssetData.IsAssetLoaded())
@@ -1485,15 +1467,30 @@ bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAss
 			UNiagaraScript* Script = static_cast<UNiagaraScript*>(ScriptAssetData.GetAsset());
 			if (Script != nullptr)
 			{
-				bIsInLibrary = Script->bExposeToLibrary;
+				ScriptVisibility = Script->LibraryVisibility;
 			}
 		}
-		else
-		{
-			bIsInLibrary = false;
-		}
 	}
-	return bIsInLibrary;
+	else
+	{
+		UEnum* VisibilityEnum = StaticEnum<ENiagaraScriptLibraryVisibility>();
+		int32 Index = VisibilityEnum->GetIndexByNameString(Value);
+		ScriptVisibility = (ENiagaraScriptLibraryVisibility) VisibilityEnum->GetValueByIndex(Index == INDEX_NONE ? 0 : Index);
+	}
+	
+	if (ScriptVisibility == ENiagaraScriptLibraryVisibility::Invalid)
+	{
+		// Check the deprecated tag value as a fallback. If even that property cannot be found the asset must be pretty old and should just be exposed as that was the default in the beginning.
+		bool bIsExposed = false;
+		bIsLibraryTagFound = ScriptAssetData.GetTagValue(FName("bExposeToLibrary"), bIsExposed);
+		ScriptVisibility = !bIsLibraryTagFound || bIsExposed ? ENiagaraScriptLibraryVisibility::Library : ENiagaraScriptLibraryVisibility::Unexposed;
+	}
+	return ScriptVisibility;
+}
+
+bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
+{
+	return GetScriptAssetVisibility(ScriptAssetData) == ENiagaraScriptLibraryVisibility::Library;
 }
 
 NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bool bIsInLibrary)

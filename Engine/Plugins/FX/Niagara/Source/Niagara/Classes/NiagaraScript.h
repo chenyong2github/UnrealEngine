@@ -12,11 +12,8 @@
 #include "NiagaraShader.h"
 #include "NiagaraParameters.h"
 #include "NiagaraDataSet.h"
-#include "NiagaraShared.h"
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraScriptHighlight.h"
-#include "NiagaraCustomVersion.h"
-#include "NiagaraMessageDataBase.h"
 
 #include "NiagaraScript.generated.h"
 
@@ -62,6 +59,21 @@ enum class ENiagaraModuleDependencyScriptConstraint : uint8
 	AllScripts
 };
 
+UENUM()
+enum class ENiagaraScriptLibraryVisibility : uint8
+{
+	Invalid = 0 UMETA(Hidden),
+	
+	/** The script is not visible by default to the user, but can be made visible by disabling the "Library only" filter option. */
+	Unexposed UMETA(DisplayName = "Unexposed"),
+
+	/** The script is exposed to the asset library and always visible to the user. */
+	Library UMETA(DisplayName = "Exposed"),
+
+	/** The script is never visible to the user. This is useful to "soft deprecate" assets that should not be shown to a user, but should also not generate errors for existing usages. */
+	Hidden UMETA(DisplayName = "Hidden")
+};
+
 USTRUCT()
 struct FNiagaraModuleDependency
 {
@@ -75,7 +87,7 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	ENiagaraModuleDependencyType Type; // e.g. PreDependency
 
-	/** Specifies constraints related to the source script a modules provising a depency. */
+	/** Specifies constraints related to the source script a modules provides as dependency. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	ENiagaraModuleDependencyScriptConstraint ScriptConstraint;
 	
@@ -422,9 +434,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true))
 	FText ExperimentalMessage;
 
-	/* If this script is exposed to the library. */
+	/* Deprecated, use LibraryVisibility instead. */
+	UPROPERTY(AssetRegistrySearchable, meta = (DeprecatedProperty))
+	uint32 bExposeToLibrary_DEPRECATED : 1;
+	
+	/* Defines if this script is visible to the user when searching for modules to add to an emitter.  */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
-	uint32 bExposeToLibrary : 1;
+	ENiagaraScriptLibraryVisibility LibraryVisibility;
 #endif
 
 	/** Contains all of the top-level values that are iterated on in the UI. These are usually "Module" variables in the graph. They don't necessarily have to be in the order that they are expected in the uniform table.*/

@@ -202,6 +202,8 @@ namespace FNiagaraEditorUtilities
 	 */
 	const FNiagaraEmitterHandle* GetEmitterHandleForEmitter(UNiagaraSystem& System, UNiagaraEmitter& Emitter);
 
+	NIAGARAEDITOR_API ENiagaraScriptLibraryVisibility GetScriptAssetVisibility(const FAssetData& ScriptAssetData);
+
 	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
 
 	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);

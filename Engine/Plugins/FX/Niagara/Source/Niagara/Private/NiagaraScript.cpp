@@ -305,6 +305,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, UsageIndex_DEPRECATED(0)
 	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSimulationStageScript))
+	, LibraryVisibility(ENiagaraScriptLibraryVisibility::Unexposed)
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
 #endif
 {
@@ -1091,7 +1092,6 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
-	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
@@ -1175,9 +1175,10 @@ void UNiagaraScript::PostLoad()
 			InvalidateCompileResults(RebuildReason);
 		}
 
-		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty)
+		// Convert visibility of old assets
+		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty || (NiagaraVer < FNiagaraCustomVersion::AddLibraryVisibilityProperty && bExposeToLibrary_DEPRECATED))
 		{
-			bExposeToLibrary = true;
+			LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
 		}
 	}
 #endif

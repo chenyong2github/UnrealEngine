@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCommon.h"
-#include "NiagaraDataSet.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraComponent.h"
 #include "NiagaraConstants.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
-#include "UObject/Linker.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraWorldManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);

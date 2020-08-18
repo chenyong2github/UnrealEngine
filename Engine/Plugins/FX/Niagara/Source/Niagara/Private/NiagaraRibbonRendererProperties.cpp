@@ -4,12 +4,12 @@
 #include "NiagaraRendererRibbons.h"
 #include "NiagaraConstants.h"
 #include "NiagaraBoundsCalculatorHelper.h"
+#include "NiagaraCustomVersion.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
-#include "Styling/SlateBrush.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
