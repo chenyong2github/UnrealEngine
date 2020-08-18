@@ -227,7 +227,7 @@ void FPatchCheck::OnCheckForPatchComplete(const FUniqueNetId& UniqueId, EUserPri
 			}
 			else if (PrivilegeResult & (uint32)IOnlineIdentity::EPrivilegeResults::GenericFailure)
 			{
-#if (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_SWITCH)
+#if (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_SWITCH) // #JANUS-PlatformDefReview: Online
 				// Skip console backend failures
 				Result = EPatchCheckResult::NoPatchRequired;
 #else
