@@ -581,19 +581,31 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 	// Should we remove input instead of relying on replicated state in that case?
 	if (Controller && Controller->IsLocalController() && PVehicle)
 	{
-		if (bReverseAsBrake && PVehicle->HasTransmission())
+		if (PVehicle->HasTransmission())
 		{
-			// for reverse as state we want to automatically shift between reverse and first gear
-			// we only shift between reverse and first if the car is slow enough.
-			if (FMath::Abs(GetForwardSpeed()) < WrongDirectionThreshold)	
+			if (bReverseAsBrake)
 			{
-				if (RawBrakeInput > KINDA_SMALL_NUMBER && PVehicle->GetTransmission().GetCurrentGear() >= 0 && PVehicle->GetTransmission().GetTargetGear() >= 0)
+				//for reverse as state we want to automatically shift between reverse and first gear
+				if (FMath::Abs(GetForwardSpeed()) < WrongDirectionThreshold)	//we only shift between reverse and first if the car is slow enough.
 				{
-					SetTargetGear(-1, false);
+					if (RawBrakeInput > KINDA_SMALL_NUMBER && PVehicle->GetTransmission().GetCurrentGear() >= 0 && PVehicle->GetTransmission().GetTargetGear() >= 0)
+					{
+						SetTargetGear(-1, false);
+					}
+					else if (RawThrottleInput > KINDA_SMALL_NUMBER && PVehicle->GetTransmission().GetCurrentGear() <= 0 && PVehicle->GetTransmission().GetTargetGear() <= 0)
+					{
+						SetTargetGear(1, false);
+					}
 				}
-				else if (RawThrottleInput > KINDA_SMALL_NUMBER && PVehicle->GetTransmission().GetCurrentGear() <= 0 && PVehicle->GetTransmission().GetTargetGear() <= 0)
+			}
+			else
+			{
+				if (PVehicle->GetTransmission().Setup().TransmissionType == ETransmissionType::Automatic
+					&& RawThrottleInput > KINDA_SMALL_NUMBER
+					&& PVehicle->GetTransmission().GetCurrentGear() == 0
+					&& PVehicle->GetTransmission().GetTargetGear() == 0)
 				{
-					SetTargetGear(1, false);
+					SetTargetGear(1, true);
 				}
 			}
 		}
