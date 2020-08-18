@@ -7,8 +7,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 
-
-
 static const TArray<FString>& GetDataDrivenIniFilenames()
 {
 	static bool bHasSearchedForFiles = false;
@@ -20,7 +18,17 @@ static const TArray<FString>& GetDataDrivenIniFilenames()
 
 		// look for the special files in any congfig subdirectories
 		IFileManager::Get().FindFilesRecursive(DataDrivenIniFilenames, *FPaths::EngineConfigDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false);
-		IFileManager::Get().FindFilesRecursive(DataDrivenIniFilenames, *FPaths::EnginePlatformExtensionsDir(), TEXT("DataDrivenPlatformInfo.ini"), true, false, false);
+		// manually look through the platform directories - we can't use GetExtensionDirs(), since that function uses the results of this function 
+		TArray<FString> PlatformDirs;
+		IFileManager::Get().FindFiles(PlatformDirs, *FPaths::Combine(FPaths::EnginePlatformExtensionsDir(), TEXT("*")), false, true);
+		for (const FString& PlatformDir : PlatformDirs)
+		{
+			FString IniPath = FPaths::Combine(FPaths::EnginePlatformExtensionsDir(), PlatformDir, TEXT("Config/DataDrivenPlatformInfo.ini"));
+			if (IFileManager::Get().FileExists(*IniPath))
+			{
+				DataDrivenIniFilenames.Add(IniPath);
+			}
+		}
 	}
 
 	return DataDrivenIniFilenames;
@@ -45,6 +53,7 @@ bool FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(int32 Index, FConfig
 	if (FFileHelper::LoadFileToString(IniContents, *IniFilenames[Index]))
 	{
 		IniFile.ProcessInputFileContents(IniContents);
+
 
 		// platform extension paths are different (engine/platforms/platform/config, not engine/config/platform)
 		if (IniFilenames[Index].StartsWith(FPaths::EnginePlatformExtensionsDir()))
