@@ -14,6 +14,7 @@
 #include "Engine/TimecodeProvider.h"
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
+#include "UObject/UObjectBaseUtility.h"
 
 DEFINE_LOG_CATEGORY(AnimationSerialization);
 
@@ -60,6 +61,8 @@ void UMovieSceneAnimationTrackRecorder::CreateAnimationAssetAndSequence(const AA
 		AnimSequence = TakesUtils::MakeNewAsset<UAnimSequence>(AnimationDirectory.Path, AnimationAssetName);
 		if (AnimSequence.IsValid())
 		{
+			AnimSequence.Get()->MarkPackageDirty();
+
 			FAssetRegistryModule::AssetCreated(AnimSequence.Get());
 
 			// Assign the skeleton we're recording to the newly created Animation Sequence.
