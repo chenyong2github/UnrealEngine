@@ -89,6 +89,7 @@ class FConvolveSpecularFaceCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MipIndex)
 		SHADER_PARAMETER(uint32, NumMips)
+		SHADER_PARAMETER(int32, CubeFaceOffset)
 		SHADER_PARAMETER(int32, CubeFace)
 		SHADER_PARAMETER(int32, FaceThreadGroupSize)
 		SHADER_PARAMETER(FIntPoint, ValidDispatchCoord)
@@ -535,7 +536,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						// Setup the depth buffer
 						if (bUseDepthBuffer)
 						{
-							FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2DDesc(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, SceneContext.GetDefaultDepthClear(), TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_NoFastClear, false);
+							FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2DDesc(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, SceneContext.GetDefaultDepthClear(), 
+								TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false);
 							CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("CubeDepthTexture"));
 							RenderTargetPassParameter->RenderTargets.DepthStencil = FDepthStencilBinding(CubeDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
 						}
@@ -757,8 +759,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 
 
-	auto RenderCubeFaces_SpecularConvolution = [&](uint32 CubeMipStart, uint32 CubeMipEnd, TRefCountPtr<IPooledRenderTarget>& DstRenderTarget, TRefCountPtr<IPooledRenderTarget>& SrcRenderTarget)
+	auto RenderCubeFaces_SpecularConvolution = [&](uint32 CubeMipStart, uint32 CubeMipEnd, uint32 FaceStart, uint32 FaceCount, TRefCountPtr<IPooledRenderTarget>& DstRenderTarget, TRefCountPtr<IPooledRenderTarget>& SrcRenderTarget)
 	{
+		check((FaceStart + FaceCount) <= 6);
 		FRDGBuilder GraphBuilder(RHICmdList);// , RDG_EVENT_NAME("ConvolveSpecular"));
 		FRDGTextureRef RDGSrcRenderTarget = GraphBuilder.RegisterExternalTexture(SrcRenderTarget, TEXT("CapturedSkyRenderTarget"));
 		FRDGTextureRef RDGDstRenderTarget = GraphBuilder.RegisterExternalTexture(DstRenderTarget, TEXT("CapturedSkyRenderTarget"));
@@ -775,6 +778,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			PassParameters->MipIndex = MipIndex;
 			PassParameters->NumMips = CubeMipCount;
 			PassParameters->CubeFace = 0; // unused
+			PassParameters->CubeFaceOffset = int(FaceStart);
 			PassParameters->ValidDispatchCoord = FIntPoint(MipResolution, MipResolution);
 			PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
@@ -787,7 +791,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			PassParameters->FaceThreadGroupSize = NumGroups.X * FConvolveSpecularFaceCS::ThreadGroupSize;
 
 			// We are going to dispatch once for all faces 
-			NumGroups.X *= 6;
+			NumGroups.X *= FaceCount;
 
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Convolve"), ComputeShader, PassParameters, NumGroups);
 		}
@@ -852,7 +856,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		RenderCubeFaces_GenCubeMips(1, LastMipLevel, CapturedSkyRenderTarget);
 
 		// 0.80ms total (0.30ms for mip0, 0.20ms for mip1+2, 0.30ms for remaining mips)
-		RenderCubeFaces_SpecularConvolution(0, LastMipLevel, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex], CapturedSkyRenderTarget);
+		RenderCubeFaces_SpecularConvolution(0, LastMipLevel, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex], CapturedSkyRenderTarget);
 
 		// 0.015ms
 		RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]);
@@ -876,43 +880,94 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		// On the first frame, we always fully initialise the convolution so ConvolvedSkyRenderTargetReadyIndex should alreayd be valid.
 		check(ConvolvedSkyRenderTargetReadyIndex >= 0 && ConvolvedSkyRenderTargetReadyIndex <= 1);
 		const int32 ConvolvedSkyRenderTargetWorkIndex = 1 - ConvolvedSkyRenderTargetReadyIndex;
+		const int32 TimeSliceCount = 12;
+
+#define DEBUG_TIME_SLICE 0
+#if DEBUG_TIME_SLICE
+		RealTimeSlicedReflectionCaptureState = 0;
+		for(int i=0; i<TimeSliceCount; ++i)
+		{
+#endif 
 
 		if (RealTimeSlicedReflectionCaptureState == 0)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, RenderSky);
 			RenderCubeFaces_SkyCloud(true, false, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 1)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, RenderCloud);
 			RenderCubeFaces_SkyCloud(false, true, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 2)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, GenCubeMips);
 			RenderCubeFaces_GenCubeMips(1, LastMipLevel, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 3)
 		{
-			RenderCubeFaces_SpecularConvolution(0, 0, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face01);
+			RenderCubeFaces_SpecularConvolution(0, 0, 0, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 0, 1
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 4)
 		{
-			if (LastMipLevel >= 2)
-			{
-				RenderCubeFaces_SpecularConvolution(1, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
-			}
-			else if (LastMipLevel >= 1)
-			{
-				RenderCubeFaces_SpecularConvolution(1, 1, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
-			}
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face23);
+			RenderCubeFaces_SpecularConvolution(0, 0, 2, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 2, 3
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 5)
 		{
-			if (LastMipLevel >= 3)
-			{
-				RenderCubeFaces_SpecularConvolution(3, LastMipLevel, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
-			}
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face45);
+			RenderCubeFaces_SpecularConvolution(0, 0, 4, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 4, 5
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 6)
 		{
+			if (LastMipLevel >= 1)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip1);
+				RenderCubeFaces_SpecularConvolution(1, 1, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 7)
+		{
+			if (LastMipLevel >= 2)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip2);
+				RenderCubeFaces_SpecularConvolution(2, 2, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 8)
+		{
+			if (LastMipLevel >= 3)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip3);
+				RenderCubeFaces_SpecularConvolution(3, 3, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 9)
+		{
+			if (LastMipLevel >= 5)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip45);
+				RenderCubeFaces_SpecularConvolution(4, 5, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+			else if (LastMipLevel >= 4)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip4);
+				RenderCubeFaces_SpecularConvolution(4, 4, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 10)
+		{
+			if (LastMipLevel >= 6)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip6Etc);
+				RenderCubeFaces_SpecularConvolution(6, LastMipLevel, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 11)
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, DiffuseIrradiance);
+
 			// Update the sky irradiance SH buffer.
 			RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex]);
 
@@ -921,7 +976,11 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		}
 
 		RealTimeSlicedReflectionCaptureState++;
-		RealTimeSlicedReflectionCaptureState = RealTimeSlicedReflectionCaptureState == 7 ? 0 : RealTimeSlicedReflectionCaptureState;
+		RealTimeSlicedReflectionCaptureState = RealTimeSlicedReflectionCaptureState == TimeSliceCount ? 0 : RealTimeSlicedReflectionCaptureState;
+
+#if DEBUG_TIME_SLICE
+		}
+#endif
 	}
 }
 
