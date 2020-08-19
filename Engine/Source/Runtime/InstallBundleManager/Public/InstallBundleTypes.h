@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumRange.h"
 
+#if !defined(WITH_PLATFORM_INSTALL_BUNDLE_SOURCE) // TODO: This shouldn't be a FORT define in engine
+	#define WITH_PLATFORM_INSTALL_BUNDLE_SOURCE 0
+#endif
+
 enum class EInstallBundleSourceType : int
 {
 	Bulk,
 	BuildPatchServices,
-	PlayGo,
-	IntelligentDelivery,
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
+	Platform,
+#endif // WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 	GameCustom,
 	Count,
 };
