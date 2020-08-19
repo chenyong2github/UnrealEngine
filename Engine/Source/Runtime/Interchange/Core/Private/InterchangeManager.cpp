@@ -127,7 +127,7 @@ void Interchange::FImportAsyncHelper::CleanUp()
 
 void Interchange::SanitizeInvalidChar(FString& String)
 {
-	const TCHAR* InvalidChar = *FString(INVALID_OBJECTNAME_CHARACTERS);
+	const TCHAR* InvalidChar = INVALID_OBJECTPATH_CHARACTERS;
 	while (*InvalidChar)
 	{
 		String.ReplaceCharInline(*InvalidChar, TCHAR('_'), ESearchCase::CaseSensitive);
@@ -224,9 +224,9 @@ bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterch
 	TaskData.ImportType = Interchange::EImportType::ImportType_Asset;
 	TaskData.ReimportObject = ImportAssetParameters.ReimportAsset;
 	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper = CreateAsyncHelper(TaskData);
-	check(WeakAsyncHelper.IsValid());
 	TSharedPtr<Interchange::FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
-		
+	check(AsyncHelper.IsValid());
+
 	FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
 	if(!Notification.IsValid())
 	{

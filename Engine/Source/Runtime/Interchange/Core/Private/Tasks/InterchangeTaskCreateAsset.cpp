@@ -21,9 +21,9 @@
 
 namespace Interchange_InternalImplementation
 {
-	void InternalGetPackageName(TSharedPtr<Interchange::FImportAsyncHelper> AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const Interchange::FBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
+	void InternalGetPackageName(const Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const Interchange::FBaseNode* Node, FString& OutPackageName, FString& OutAssetName)
 	{
-		const UInterchangeSourceData* SourceData = AsyncHelper->SourceDatas[SourceIndex];
+		const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 		check(SourceData);
 		FString NodeDisplayName = Node->GetDisplayLabel().ToString();
 		const FString BaseFileName = FPaths::GetBaseFilename(SourceData->GetFilename());
@@ -63,7 +63,7 @@ void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, 
 	}
 	else
 	{
-		Interchange_InternalImplementation::InternalGetPackageName(AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+		Interchange_InternalImplementation::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
 		if (Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
 		{
@@ -96,24 +96,28 @@ void Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, 
 	// Make sure the destination package is loaded
 	Pkg->FullyLoad();
 
+	FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
 	AsyncHelper->CreatedPackages.Add(PackageName, Pkg);
 }
 
 void Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	check(WeakAsyncHelper.IsValid());
 	TSharedPtr<Interchange::FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
+	check(WeakAsyncHelper.IsValid());
 
 	FString PackageName;
 	FString AssetName;
-	Interchange_InternalImplementation::InternalGetPackageName(AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
+	Interchange_InternalImplementation::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 	if (AsyncHelper->TaskData.ReimportObject)
 	{
 		UPackage* Pkg = AsyncHelper->TaskData.ReimportObject->GetPackage();
 		PackageName = Pkg->GetPathName();
 	}
 
+	FScopeLock Lock(&AsyncHelper->CreatedPackagesLock);
 	UPackage** PkgPtr = AsyncHelper->CreatedPackages.Find(PackageName);
+	Lock.Unlock();
+
 	if (!PkgPtr || !(*PkgPtr))
 	{
 		const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetNoPackageErrorMsg", "Cannot create asset named '{1}', package '{0}'was not created properly."), FText::FromString(PackageName), FText::FromString(AssetName));

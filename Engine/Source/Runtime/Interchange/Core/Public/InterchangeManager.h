@@ -87,6 +87,7 @@ namespace Interchange
 		FGraphEventRef CompletionTask;
 
 		//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
+		FCriticalSection CreatedPackagesLock;
 		TMap<FString, UPackage*> CreatedPackages;
 
 		struct FImportedAssetInfo

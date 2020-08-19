@@ -37,7 +37,7 @@ public:
 		check(Factory);
 	}
 
-	FORCEINLINE ENamedThreads::Type GetDesiredThread()
+	ENamedThreads::Type GetDesiredThread()
 	{
 		if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
 		{
@@ -46,12 +46,13 @@ public:
 		}
 		return ENamedThreads::GameThread;
 	}
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+
+	static ESubsequentsMode::Type GetSubsequentsMode()
 	{
 		return ESubsequentsMode::TrackSubsequents;
 	}
 
-	FORCEINLINE TStatId GetStatId() const
+	TStatId GetStatId() const
 	{
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreatePackage, STATGROUP_TaskGraphTasks);
 	}
@@ -67,6 +68,7 @@ private:
 	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
 	const FBaseNode* Node;
 	UInterchangeFactoryBase* Factory;
+
 public:
 	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
 		: PackageBasePath(InPackageBasePath)
@@ -79,16 +81,17 @@ public:
 		check(Factory);
 	}
 
-	FORCEINLINE ENamedThreads::Type GetDesiredThread()
+	ENamedThreads::Type GetDesiredThread()
 	{
 		return Factory->CanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
 	}
-	static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
+
+	static ESubsequentsMode::Type GetSubsequentsMode()
 	{
 		return ESubsequentsMode::TrackSubsequents;
 	}
 
-	FORCEINLINE TStatId GetStatId() const
+	TStatId GetStatId() const
 	{
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskCreateAsset, STATGROUP_TaskGraphTasks);
 	}
