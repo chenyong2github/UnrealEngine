@@ -18,6 +18,7 @@
 #include "Launcher/LauncherVerifyProfileTask.h"
 #include "PlatformInfo.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Profiles/LauncherProfile.h"
 
 
 #define LOCTEXT_NAMESPACE "LauncherWorker"
@@ -260,7 +261,60 @@ static void AddDeviceToLaunchCommand(const FString& DeviceId, TSharedPtr<ITarget
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("vulkan")))
 	{
-		RoleCommands += TEXT(" -vulkan");
+		FName Variant = DeviceProxy->GetTargetDeviceVariant(DeviceId);
+		FString Platform = DeviceProxy->GetTargetPlatformName(Variant);
+
+		bool bCookedVulkan = false;
+		bool bCheckTargetedRHIs = false;
+		TArray<FString> TargetedShaderFormats;
+
+		if (Platform.StartsWith(TEXT("Windows")))
+		{
+			FConfigFile WindowsEngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(WindowsEngineSettings, TEXT("Engine"), true, TEXT("Windows"));
+
+			bCheckTargetedRHIs = true;
+			WindowsEngineSettings.GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats);
+		}
+		else if (Platform.StartsWith(TEXT("Linux")))
+		{
+			FConfigFile LinuxEngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(LinuxEngineSettings, TEXT("Engine"), true, TEXT("Linux"));
+
+			bCheckTargetedRHIs = true;
+			LinuxEngineSettings.GetArray(TEXT("/Script/LinuxTargetPlatform.LinuxTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats);
+		}
+		else if (Platform.StartsWith(TEXT("Android")))
+		{
+			FConfigFile AndroidEngineSettings;
+			FConfigCacheIni::LoadLocalIniFile(AndroidEngineSettings, TEXT("Engine"), true, TEXT("Android"));
+
+			bool bAndroidSupportsVulkan, bAndroidSupportsVulkanSM5;
+			AndroidEngineSettings.GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkan"), bAndroidSupportsVulkan);
+			AndroidEngineSettings.GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkanSM5"), bAndroidSupportsVulkanSM5);
+			bCookedVulkan = bAndroidSupportsVulkan || bAndroidSupportsVulkanSM5;
+			bCheckTargetedRHIs = false;
+		}
+
+		if (bCheckTargetedRHIs)
+		{
+			for (const FString& ShaderFormat : TargetedShaderFormats)
+			{
+				if (ShaderFormat.StartsWith(TEXT("SF_VULKAN_")))
+				{
+					bCookedVulkan = true;
+				}
+			}
+		}
+
+		if (bCookedVulkan)
+		{
+			RoleCommands += TEXT(" -vulkan");
+		}
+		else
+		{
+			UE_LOG(LogLauncherProfile, Warning, TEXT("The editor is running on Vulkan, but Vulkan is not enabled for launch platform '%s'. Launching process with the default RHI."), *Platform);
+		}
 	}
 }
 
