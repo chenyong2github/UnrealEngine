@@ -1405,6 +1405,9 @@ public:
 	LAYOUT_FIELD(FShaderParameter, SunColorVignetteIntensity);
 	LAYOUT_FIELD(FShaderParameter, VignetteColor);
 	LAYOUT_FIELD(FShaderParameter, BloomColor);
+	LAYOUT_FIELD(FShaderParameter, BloomDirtMaskTint);
+	LAYOUT_FIELD(FShaderResourceParameter, BloomDirtMaskTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, BloomDirtMaskSampler);
 
 	FPostProcessSunMergePS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
@@ -1413,6 +1416,9 @@ public:
 		SunColorVignetteIntensity.Bind(Initializer.ParameterMap, TEXT("SunColorVignetteIntensity"));
 		VignetteColor.Bind(Initializer.ParameterMap, TEXT("VignetteColor"));
 		BloomColor.Bind(Initializer.ParameterMap, TEXT("BloomColor"));
+		BloomDirtMaskTint.Bind(Initializer.ParameterMap, TEXT("BloomDirtMaskTint"));
+		BloomDirtMaskTexture.Bind(Initializer.ParameterMap, TEXT("BloomDirtMaskTexture"));
+		BloomDirtMaskSampler.Bind(Initializer.ParameterMap, TEXT("BloomDirtMaskSampler"));
 	}
 
 	void SetPS(const FRenderingCompositePassContext& Context)
@@ -1431,6 +1437,12 @@ public:
 
 		// Scaling Bloom1 by extra factor to match filter area difference between PC default and mobile.
 		SetShaderValue(Context.RHICmdList, ShaderRHI, BloomColor, Context.View.FinalPostProcessSettings.Bloom1Tint * Context.View.FinalPostProcessSettings.BloomIntensity * 0.5);
+
+		SetShaderValue(Context.RHICmdList, ShaderRHI, BloomDirtMaskTint, Context.View.FinalPostProcessSettings.BloomDirtMaskTint * Context.View.FinalPostProcessSettings.BloomDirtMaskIntensity);
+
+		FRHITexture* BloomDirtMaskTextureRHI = Context.View.FinalPostProcessSettings.BloomDirtMask != nullptr ? Context.View.FinalPostProcessSettings.BloomDirtMask->Resource->TextureRHI : GBlackTexture->TextureRHI;
+
+		SetTextureParameter(Context.RHICmdList, ShaderRHI, BloomDirtMaskTexture, BloomDirtMaskSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), BloomDirtMaskTextureRHI);
 	}
 };
 
