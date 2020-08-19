@@ -65,11 +65,20 @@ public:
 };
 
 // Useful data for both the page mapping shader and the projection shader
+// as well as cached shadow maps
 struct FVirtualShadowMapProjectionShaderData
 {
+	/**
+	 * Transform from shadow-pre-translated world space to shadow view space, example use: (WorldSpacePos + ShadowPreViewTranslation) * TranslatedWorldToShadowViewMatrix
+	 * TODO: Why don't we call it a rotation and store in a 3x3? Does it ever have translation in?
+	 */
 	FMatrix TranslatedWorldToShadowViewMatrix;
 	FMatrix ShadowViewToClipMatrix;
 	FMatrix TranslatedWorldToShadowUvNormalMatrix;
+	/**
+	 * Translation from world space to shadow space (add before transform by TranslatedWorldToShadowViewMatrix).
+	 */
+	FVector4 ShadowPreViewTranslation;
 	uint32 VirtualShadowMapId;
 	
 	// These could be per-light (first/count), but convenient here and not much overhead
@@ -83,8 +92,9 @@ struct FVirtualShadowMapProjectionShaderData
 	// Seems the FMatrix forces 16-byte alignment
 	float Padding[2];
 };
+static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 
-FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FViewInfo& View, const FProjectedShadowInfo* ShadowInfo);
+FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo);
 
 FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 
@@ -184,4 +194,7 @@ public:
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
 	TRefCountPtr<FPooledRDGBuffer>		PageRectBounds;
+
+
+	TRefCountPtr<FPooledRDGBuffer>		ShadowMapProjectionDataBuffer;
 };

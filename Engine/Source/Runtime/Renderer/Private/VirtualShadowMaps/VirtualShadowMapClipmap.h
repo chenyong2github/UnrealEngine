@@ -52,7 +52,6 @@ public:
 	}
 
 	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(
-		const FViewMatrices& CameraViewMatrices,
 		int32 ClipmapIndex) const;
 
 private:

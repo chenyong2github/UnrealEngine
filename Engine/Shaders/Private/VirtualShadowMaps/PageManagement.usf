@@ -210,7 +210,9 @@ struct FScreenPixelData
 	float DeviceZ;
 	float SceneDepth;
 	float3 ViewPosition;
-	float3 TranslatedWorldPosition;
+	
+	// Note: Actual world position (not pre-translated)
+	float3 WorldPosition;
 
 	// NOTE: This data is only valid when executing after the base pass (bPostBasePass is true)
 	FGBufferData GBufferData;
@@ -256,7 +258,9 @@ FScreenPixelData GetScreenPixelData(uint2 PixelPos, float DeviceZ)
 	Data.ViewPosition = ViewH.xyz / ViewH.w;
 
 	float4 TranslatedWorldH = mul(Data.ClipPosition, View.ClipToTranslatedWorld);
-	Data.TranslatedWorldPosition = TranslatedWorldH.xyz / TranslatedWorldH.w;
+	float3 TranslatedWorldPosition = TranslatedWorldH.xyz / TranslatedWorldH.w;
+	// Subtract the view pre-translation to get back to world space
+	Data.WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
 	if (bPostBasePass != 0)
 	{
@@ -287,7 +291,8 @@ uint GetMipLevel(uint VirtualShadowMapId, FScreenPixelData Pixel)
 		float RadiusWorld = DepthScale * RadiusScreen;
 
 		// NOTE: Virtual shadow maps are currently always the same size in each axis (VSM_VIRTUAL_MAX_RESOLUTION_XY), so ShadowProj._m00 == ShadowProj._m11
-		float4 ShadowViewPosition = mul(float4(Pixel.TranslatedWorldPosition, 1.0f), ShadowMapProjectionData[VirtualShadowMapId].TranslatedWorldToShadowViewMatrix);
+		float3 ShadowViewTranslatedWorldPosition = Pixel.WorldPosition + ShadowMapProjectionData[VirtualShadowMapId].ShadowPreViewTranslation;
+		float4 ShadowViewPosition = mul(float4(ShadowViewTranslatedWorldPosition, 1.0f), ShadowMapProjectionData[VirtualShadowMapId].TranslatedWorldToShadowViewMatrix);
 		float4 RadiusClipH = mul(float4(RadiusWorld, 0.0f, ShadowViewPosition.z, 1.0f), ShadowMapProjectionData[VirtualShadowMapId].ShadowViewToClipMatrix);
 		float RadiusClip = abs(RadiusClipH.x / RadiusClipH.w);
 		Footprint = RadiusClip * float(2 * VSM_VIRTUAL_MAX_RESOLUTION_XY);
@@ -304,7 +309,7 @@ uint CalcPageOffsetFromUVMip(uint VirtualShadowMapId, float2 ShadowUv, uint MipL
 
 void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel)
 {
-	FShadowPosition ShadowPosition = TranslatedWorldToShadow(ShadowMapProjectionData[VirtualShadowMapId], Pixel.TranslatedWorldPosition);
+	FShadowPosition ShadowPosition = WorldToShadow(ShadowMapProjectionData[VirtualShadowMapId], Pixel.WorldPosition);
 
 	// Check overlap vs the shadow map space
 	// NOTE: XY test not really needed anymore with the precise cone test in the caller, but we'll leave it for the moment
@@ -442,7 +447,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
 			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
 
-			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - (Pixel.TranslatedWorldPosition - View.PreViewTranslation));
+			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - Pixel.WorldPosition);
 			// Also do precise cone test, since froxels are pretty coarse at times.
 			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
 			{

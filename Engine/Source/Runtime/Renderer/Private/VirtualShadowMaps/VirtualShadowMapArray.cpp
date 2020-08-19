@@ -95,7 +95,7 @@ FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(
 	return TranslatedWorldToShadowUv.GetTransposed().Inverse();
 }
 
-FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FViewInfo& View, const FProjectedShadowInfo* ShadowInfo)
+FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo)
 {
 	check(ShadowInfo->HasVirtualShadowMap());
 
@@ -112,6 +112,7 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 		check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
 	}
 
+	// TODO: Probably safer to use float max etc?
 	float MinSceneDepth = -HALF_WORLD_MAX;
 	float MaxSceneDepth = HALF_WORLD_MAX;
 	if (ShadowInfo->bDirectionalLight)
@@ -120,17 +121,14 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 		MaxSceneDepth = ShadowInfo->CascadeSettings.UnfadedSplitFar;
 	}
 
-	FMatrix TranslatedWorldToShadowView =
-		FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) *
-		ShadowInfo->TranslatedWorldToView;
-
 	FMatrix ViewToClip = ShadowInfo->ViewToClip;
 	uint32 VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
 		
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = TranslatedWorldToShadowView;
+	Data.TranslatedWorldToShadowViewMatrix = ShadowInfo->TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = ViewToClip;
-	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(TranslatedWorldToShadowView, ViewToClip);
+	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
+	Data.ShadowPreViewTranslation = FVector4(ShadowInfo->PreShadowTranslation, 666.0f);
 	Data.VirtualShadowMapId = VirtualShadowMapId;
 	Data.MinSceneDepth = MinSceneDepth;
 	Data.MaxSceneDepth = MaxSceneDepth;
@@ -699,44 +697,46 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 		TArray<uint32, SceneRenderingAllocator> ForceTopMipVisible;
 		ForceTopMipVisible.AddDefaulted(ShadowMaps.Num());
 
+
+		// Store shadow map projection data for each virtual shadow map
+		TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
+		ShadowMapProjectionData.AddDefaulted(ShadowMaps.Num());
+
+		// Gather directional light virtual shadow maps
+		TArray<uint32, SceneRenderingAllocator> DirectionalLightSmInds;
+		for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
+		{
+			for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
+			{
+				for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
+				{
+					uint32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
+					ShadowMapProjectionData[ID] = Clipmap->GetProjectionShaderData(ClipmapLevel);
+					DirectionalLightSmInds.Add(ID);
+				}
+			}
+
+			for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
+			{
+				if (ProjectedShadowInfo->HasVirtualShadowMap())
+				{
+					uint32 ID = ProjectedShadowInfo->VirtualShadowMap->ID;
+					ShadowMapProjectionData[ID] = GetVirtualShadowMapProjectionShaderData(ProjectedShadowInfo);
+					ForceTopMipVisible[ID] = ProjectedShadowInfo->bForceTopMipVisible ? 1 : 0;
+
+					if (ProjectedShadowInfo->bDirectionalLight)
+					{
+						DirectionalLightSmInds.Add(ID);
+					}
+				}
+			}
+		}
+		FRDGBufferRef ShadowMapProjectionDataRDG = CreateStructuredBuffer(GraphBuilder, TEXT("ShadowMapProjectionData"), ShadowMapProjectionData);
+
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			const FViewInfo &View = Views[ViewIndex];
 			const Nanite::FRasterResults &NaniteRasterResult = NaniteRasterResults[ViewIndex];
-
-			// Store shadow map projection data for each virtual shadow map
-			TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-			ShadowMapProjectionData.AddDefaulted(ShadowMaps.Num());
-			
-			// Gather directional light virtual shadow maps
-			TArray<uint32, SceneRenderingAllocator> DirectionalLightSmInds;
-			for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
-			{
-				for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
-				{
-					for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
-					{
-						uint32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
-						ShadowMapProjectionData[ID] = Clipmap->GetProjectionShaderData(View.ViewMatrices, ClipmapLevel);
-						DirectionalLightSmInds.Add(ID);
-					}
-				}
-
-				for (FProjectedShadowInfo *ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
-				{
-					if (ProjectedShadowInfo->HasVirtualShadowMap())
-					{
-						uint32 ID = ProjectedShadowInfo->VirtualShadowMap->ID;
-						ShadowMapProjectionData[ID] = GetVirtualShadowMapProjectionShaderData(View, ProjectedShadowInfo);
-						ForceTopMipVisible[ID] = ProjectedShadowInfo->bForceTopMipVisible ? 1 : 0;
-
-						if (ProjectedShadowInfo->bDirectionalLight)
-						{
-							DirectionalLightSmInds.Add(ID);
-						}
-					}
-				}
-			}
 
 			// This view contained no local lights (that were stored in the light grid), and no directional lights, so nothing to do.
 			if (View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num() + DirectionalLightSmInds.Num() == 0)
@@ -746,7 +746,6 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 
 			// Build light-index-in-light-grid => virtual-shadow-map-index remap, must be built for each view since they have different sub-sets of lights
 			// TODO: change this engine behaviour and instead upload lights once and for all, such that all indexes can refer to the same light set.
-			// TODO: in the mean time this could likely merge with the above loop over all visibile lights
 			TArray<uint32, SceneRenderingAllocator> VirtualShadowMapIdRemap = DirectionalLightSmInds;
 			// Note: the remap for the local lights is stored after the directional lights, such that this array is always non-empty...
 			VirtualShadowMapIdRemap.AddDefaulted(View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num());
@@ -778,8 +777,6 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 			
 			// Project Pixels onto SMs
 			{
-				FRDGBufferRef ShadowMapProjectionDataRDG = CreateStructuredBuffer(GraphBuilder, TEXT("ShadowMapProjectionData"), ShadowMapProjectionData);
-
 				FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteRasterResult.VisBuffer64 != nullptr && !bPostBasePass);			
 
@@ -957,6 +954,7 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 		GraphBuilder.QueueBufferExtraction( HPageFlagsRDG,			&HPageFlags );
 		GraphBuilder.QueueBufferExtraction( PageTableRDG,			&PageTable );
 		GraphBuilder.QueueBufferExtraction( AllocatedPagesOffsetRDG,&AllocatedPagesOffset );
+		GraphBuilder.QueueBufferExtraction( ShadowMapProjectionDataRDG, &ShadowMapProjectionDataBuffer);
 		
 		// Extract page count & other stuff...
 		if (StatsBufferRDG)

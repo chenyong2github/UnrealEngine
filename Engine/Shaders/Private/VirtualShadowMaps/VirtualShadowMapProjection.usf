@@ -299,7 +299,7 @@ void VirtualShadowMapProjectionPS(
 
 	FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ProjectionDataIndex];
 
-	FShadowPosition ShadowPosition = TranslatedWorldToShadow(ProjectionData, TranslatedWorldPosition);
+	FShadowPosition ShadowPosition = WorldToShadow(ProjectionData, TranslatedWorldPosition - View.PreViewTranslation);
 	
 	// TODO: SampleVirtualSmLevel for clipmap
 	FVirtualSmSample SmSample;

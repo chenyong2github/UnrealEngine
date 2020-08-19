@@ -223,7 +223,6 @@ static void RenderVirtualShadowMapProjectionCommon(
 }
 
 static void GetVirtualShadowMapProjectionData(
-	const FViewInfo& View,
 	FProjectedShadowInfo** ShadowInfo,
 	uint32 ShadowInfoCount,
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& OutShadowMapProjectionData)
@@ -235,18 +234,17 @@ static void GetVirtualShadowMapProjectionData(
 		OutShadowMapProjectionData.AddDefaulted(ShadowInfoCount);
 		for (uint32 CascadeIndex = 0; CascadeIndex < ShadowInfoCount; ++CascadeIndex)
 		{
-			OutShadowMapProjectionData[CascadeIndex] = GetVirtualShadowMapProjectionShaderData(View, ShadowInfo[CascadeIndex]);
+			OutShadowMapProjectionData[CascadeIndex] = GetVirtualShadowMapProjectionShaderData(ShadowInfo[CascadeIndex]);
 		}
 	}
 	else
 	{
 		// Single projection data
-		OutShadowMapProjectionData.Add(GetVirtualShadowMapProjectionShaderData(View, ShadowInfo[0]));
+		OutShadowMapProjectionData.Add(GetVirtualShadowMapProjectionShaderData(ShadowInfo[0]));
 	}
 }
 
 static void GetVirtualShadowMapProjectionData(
-	const FViewInfo& View,
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& OutShadowMapProjectionData)
 {	
@@ -257,7 +255,7 @@ static void GetVirtualShadowMapProjectionData(
 	OutShadowMapProjectionData.AddDefaulted(ClipmapLevelCount);
 	for (int32 ClipmapLevel = 0; ClipmapLevel < ClipmapLevelCount; ++ClipmapLevel)
 	{
-		OutShadowMapProjectionData[ClipmapLevel] = Clipmap->GetProjectionShaderData(View.ViewMatrices, ClipmapLevel);
+		OutShadowMapProjectionData[ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 	}
 }
 
@@ -271,7 +269,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	FRDGTextureRef SignalTexture)
 {
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(View, ShadowInfo, ShadowInfoCount, ShadowMapProjectionData);
+	GetVirtualShadowMapProjectionData(ShadowInfo, ShadowInfoCount, ShadowMapProjectionData);
 
 	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
 	RenderVirtualShadowMapProjectionCommon(
@@ -294,7 +292,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	FRDGTextureRef SignalTexture)
 {
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(View, Clipmap, ShadowMapProjectionData);
+	GetVirtualShadowMapProjectionData(Clipmap, ShadowMapProjectionData);
 
 	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
 	RenderVirtualShadowMapProjectionCommon(
@@ -320,7 +318,7 @@ void RenderVirtualShadowMapProjection(
 	bool bProjectingForForwardShading)
 {
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(View, ShadowInfo, ShadowInfoCount, ShadowMapProjectionData);
+	GetVirtualShadowMapProjectionData(ShadowInfo, ShadowInfoCount, ShadowMapProjectionData);
 
 	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
 	// Blend state should not vary per cascade
@@ -346,7 +344,7 @@ void RenderVirtualShadowMapProjection(
 	bool bProjectingForForwardShading)
 {
 	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(View, Clipmap, ShadowMapProjectionData);
+	GetVirtualShadowMapProjectionData(Clipmap, ShadowMapProjectionData);
 
 	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
 	

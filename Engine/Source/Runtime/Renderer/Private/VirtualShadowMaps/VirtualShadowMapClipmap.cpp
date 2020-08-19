@@ -164,19 +164,16 @@ FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) cons
 	return FViewMatrices(Initializer);
 }
 
-FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionShaderData(const FViewMatrices& CameraViewMatrices, int32 ClipmapIndex) const
+FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionShaderData(int32 ClipmapIndex) const
 {
 	check(ClipmapIndex >= 0 && ClipmapIndex < LevelData.Num());
 	const FLevelData& Level = LevelData[ClipmapIndex];
 
-	FMatrix TranslatedWorldToShadowView =
-		FTranslationMatrix(-Level.WorldCenter - CameraViewMatrices.GetPreViewTranslation()) *
-		TranslatedWorldToView;
-
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = TranslatedWorldToShadowView;
+	Data.TranslatedWorldToShadowViewMatrix = TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = Level.ViewToClip;
-	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(TranslatedWorldToShadowView, Level.ViewToClip);
+	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(TranslatedWorldToView, Level.ViewToClip);
+	Data.ShadowPreViewTranslation = FVector4(-Level.WorldCenter, 666.0f);
 	Data.VirtualShadowMapId = Level.VirtualShadowMap->ID;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
