@@ -230,7 +230,7 @@ void UNiagaraRendererProperties::PostInitProperties()
 #endif
 }
 
-void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode)
+void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
 	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
 	if (SrcEmitter)
@@ -241,5 +241,12 @@ void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourc
 		{
 			((FNiagaraVariableAttributeBinding*)Binding)->CacheValues(SrcEmitter, InSourceMode);
 		}
+
+#if WITH_EDITORONLY_DATA
+		if (bFromPropertyEdit)
+		{
+			FNiagaraSystemUpdateContext Context(SrcEmitter, true);
+		}
+#endif
 	}
 }

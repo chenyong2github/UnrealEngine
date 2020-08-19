@@ -128,9 +128,8 @@ void UNiagaraComponentRendererProperties::PostLoad()
 }
 
 
-void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode)
+void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
-	Super::UpdateSourceModeDerivates(InSourceMode);
 	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
 	if (SrcEmitter)
 	{
@@ -141,6 +140,7 @@ void UNiagaraComponentRendererProperties::UpdateSourceModeDerivates(ENiagaraRend
 		}
 	}
 
+	Super::UpdateSourceModeDerivates(InSourceMode);
 }
 
 void UNiagaraComponentRendererProperties::PostInitProperties()
