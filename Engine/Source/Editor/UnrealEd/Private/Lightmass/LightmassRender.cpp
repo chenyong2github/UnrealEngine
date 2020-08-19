@@ -822,6 +822,14 @@ public:
 		}
 	}
 
+	virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override
+	{
+		if (const FMaterialResource* Resource = MaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel))
+		{
+			Resource->GetStaticParameterSet(Platform, OutSet);
+		}
+	}
+
 private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
