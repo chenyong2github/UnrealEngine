@@ -139,7 +139,10 @@ int32 FObjectSelectionStore::DeselectObjects(TFunctionRef<bool(UObject*)> InPred
 			SelectedObjects.RemoveAt(Index);
 			if (SelectedObject)
 			{
-				Sink->OnObjectDeselected(SelectedObject, /*bNotify*/false);
+				if (Sink)
+				{
+					Sink->OnObjectDeselected(SelectedObject, /*bNotify*/false);
+				}
 				++RemovedCount;
 			}
 		}
