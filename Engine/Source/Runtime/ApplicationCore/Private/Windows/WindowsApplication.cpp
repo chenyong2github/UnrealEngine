@@ -1277,9 +1277,16 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 						}
 
 						int64 WaitTime = TimeToVSync - (Period * FrameAdjustMultiplier);
+						if (WaitTime == Period)
+						{
+							// this can happen when TimeToVSync is negative and a multiple of Period. 
+							// It means that the Vsync is about to happen in the next 1 ms.
+							// In this case, we wait 0 instead of waiting for the next Vsync after that one
+							WaitTime = 0;
+						}
 
 						check(WaitTime >= 0);
-						check(WaitTime < Period);
+						check(WaitTime < Period); 
 
 						// Wait for the indicated time using a waitable timer as it 
 						// is more accurate than a simple sleep.
