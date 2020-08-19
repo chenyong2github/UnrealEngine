@@ -1016,6 +1016,18 @@ public:
 	bool OverlapTest(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr) const;
 
 	/**
+	 *  Test if the bodyinstance overlaps with the specified shape at the specified position/rotation
+	 *  Note: This function is not thread safe. Make sure you obtain the physics scene read lock before calling it
+	 *
+	 *  @param  Position		Position to place the shape at before testing
+	 *  @param  Rotation		Rotation to apply to the shape before testing
+	 *	@param	CollisionShape	Shape to test against
+	 *  @param  OutMTD			The minimum translation direction needed to push the shape out of this BodyInstance. (Optional)
+	 *  @return true if the geometry associated with this body instance overlaps the query shape at the specified location/rotation
+	 */
+	bool OverlapTest_AssumesLocked(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD = nullptr) const;
+
+	/**
 	 *  Test if the bodyinstance overlaps with the specified body instances
 	 *
 	 *  @param  Position		Position to place our shapes at before testing (shapes of this BodyInstance)
