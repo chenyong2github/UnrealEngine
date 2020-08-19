@@ -232,7 +232,7 @@ FBoneWeights FBoneWeights::Blend(
 	checkSlow(Algo::IsSorted(InB.BoneWeights, WeightSortPredicate));
 
 	// Both empty?
-	if (InA.BoneWeights.Num() == 0 && InA.BoneWeights.Num() == 0)
+	if (InA.BoneWeights.Num() == 0 && InB.BoneWeights.Num() == 0)
 	{
 		return {};
 	}

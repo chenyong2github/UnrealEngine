@@ -430,6 +430,28 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBoneWeightsTestBlend, "System.AnimationCore.Bo
 bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 {
 	{
+		const TCHAR* Name = TEXT("FBoneWeights::Blend[Both Empty]");
+		auto BWA = CreateWeights({});
+		auto BWB = CreateWeights({});
+
+		auto BW = FBoneWeights::Blend(BWA, BWB, 0.5f);
+		UTEST_EQUAL(Name, BW.Num(), 0);
+	}
+	{
+		const TCHAR* Name = TEXT("FBoneWeights::Blend[One Empty]");
+		auto BW0 = CreateWeights({});
+		auto BW1 = CreateWeights({{0, 0.6f}});
+		auto BW2 = CreateWeights({ {1, 0.5f}, {2, 0.25f} });
+
+		auto BWA = FBoneWeights::Blend(BW0, BW1, 0.5f);
+		UTEST_EQUAL(Name, BWA.Num(), 1);
+
+		auto BWB = FBoneWeights::Blend(BW2, BW0, 0.5f);
+		UTEST_EQUAL(Name, BWB.Num(), 2);
+	}
+
+		
+	{
 		const TCHAR* Name = TEXT("FBoneWeights::Blend[One Each, Disjoint]");
 
 		auto BW1 = CreateWeights({ {0, 0.6f} });
