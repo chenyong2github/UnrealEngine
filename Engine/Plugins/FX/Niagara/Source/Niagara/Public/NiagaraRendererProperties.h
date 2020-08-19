@@ -178,7 +178,7 @@ protected:
 	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
 
 	virtual void PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode);
-	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode);
+	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false);
 
 	// Copy of variables in the attribute binding, updated when GetBoundAttributes() is called.
 	TArray<FNiagaraVariable> CurrentBoundAttributes;

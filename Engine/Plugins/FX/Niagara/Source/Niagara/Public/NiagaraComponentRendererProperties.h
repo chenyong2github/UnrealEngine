@@ -112,7 +112,7 @@ public:
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
 protected:
-	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode) override;
+	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 
 private:
 	static TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> ComponentRendererPropertiesToDeferredInit;

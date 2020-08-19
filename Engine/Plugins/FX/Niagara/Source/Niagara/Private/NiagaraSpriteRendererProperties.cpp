@@ -354,12 +354,14 @@ void UNiagaraSpriteRendererProperties::PostEditChangeProperty(struct FPropertyCh
 	// If changing the source mode, we may need to update many of our values.
 	if (PropertyChangedEvent.GetPropertyName() == TEXT("SourceMode"))
 	{
-		UpdateSourceModeDerivates(SourceMode);
+		UpdateSourceModeDerivates(SourceMode, true);
 	}
-	FStructProperty* StructProp = CastField< FStructProperty>(PropertyChangedEvent.Property);
-	if (StructProp && StructProp->Struct == FNiagaraVariableAttributeBinding::StaticStruct())
+	else if (FStructProperty* StructProp = CastField<FStructProperty>(PropertyChangedEvent.Property))
 	{
-		UpdateSourceModeDerivates(SourceMode);
+		if (StructProp->Struct == FNiagaraVariableAttributeBinding::StaticStruct())
+		{
+			UpdateSourceModeDerivates(SourceMode, true);
+		}
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
