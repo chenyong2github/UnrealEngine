@@ -1168,80 +1168,84 @@ void AccumulateSquareKernel(
 	if (KernelConfig.bUnroll)
 	{
 		UNROLL for (int x = -KernelRadius; x <= KernelRadius; x++)
-		UNROLL for (int y = -KernelRadius; y <= KernelRadius; y++)
 		{
-			const bool bIsKernelCenterSample = x == 0 && y == 0;
-
-			if (bIsKernelCenterSample && !KernelConfig.bSampleKernelCenter) continue;
-
-			float2 SampleOffset = float2(x, y);
-			if (KernelConfig.SampleSet == SAMPLE_SET_3X3_SOBEK2018)
+			UNROLL for (int y = -KernelRadius; y <= KernelRadius; y++)
 			{
-				SampleOffset = mul(float2x2(float2(2, -1), float2(1, 2)), SampleOffset);
-			}
+				const bool bIsKernelCenterSample = x == 0 && y == 0;
+
+				if (bIsKernelCenterSample && !KernelConfig.bSampleKernelCenter) continue;
+
+				float2 SampleOffset = float2(x, y);
+				if (KernelConfig.SampleSet == SAMPLE_SET_3X3_SOBEK2018)
+				{
+					SampleOffset = mul(float2x2(float2(2, -1), float2(1, 2)), SampleOffset);
+				}
 			
-			float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
+				float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
 		
-			float KernelWeight = 1;
-			if (KernelConfig.SampleSet == SAMPLE_SET_5X5_WAVELET)
-			{
-				KernelWeight = 
-					kWaveletFilterWeights5x5[abs(x)] *
-					kWaveletFilterWeights5x5[abs(y)] *
-					rcp(kWaveletFilterWeights5x5[0] * kWaveletFilterWeights5x5[0]);
-			}
+				float KernelWeight = 1;
+				if (KernelConfig.SampleSet == SAMPLE_SET_5X5_WAVELET)
+				{
+					KernelWeight = 
+						kWaveletFilterWeights5x5[abs(x)] *
+						kWaveletFilterWeights5x5[abs(y)] *
+						rcp(kWaveletFilterWeights5x5[0] * kWaveletFilterWeights5x5[0]);
+				}
 
-			SampleAndAccumulateMultiplexedSignals(
-				KernelConfig,
-				SignalBuffer0,
-				SignalBuffer1,
-				SignalBuffer2,
-				SignalBuffer3,
-				/* inout */ UncompressedAccumulators,
-				/* inout */ CompressedAccumulators,
-				SampleBufferUV,
-				KernelWeight,
-				/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
+				SampleAndAccumulateMultiplexedSignals(
+					KernelConfig,
+					SignalBuffer0,
+					SignalBuffer1,
+					SignalBuffer2,
+					SignalBuffer3,
+					/* inout */ UncompressedAccumulators,
+					/* inout */ CompressedAccumulators,
+					SampleBufferUV,
+					KernelWeight,
+					/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
+			}
 		}
 	}
 	else
 	{
-		// TODO(Denoiser): lattency hiding of this is terrible.
+		// TODO(Denoiser): latency hiding of this is terrible.
 		LOOP for (int x = -KernelRadius; x <= KernelRadius; x++)
-		LOOP for (int y = -KernelRadius; y <= KernelRadius; y++)
 		{
-			const bool bIsKernelCenterSample = x == 0 && y == 0;
-
-			if (bIsKernelCenterSample && !KernelConfig.bSampleKernelCenter) continue;
-
-			float2 SampleOffset = float2(x, y);
-			if (KernelConfig.SampleSet == SAMPLE_SET_3X3_SOBEK2018)
+			LOOP for (int y = -KernelRadius; y <= KernelRadius; y++)
 			{
-				SampleOffset = mul(float2x2(float2(2, -1), float2(1, 2)), SampleOffset);
-			}
+				const bool bIsKernelCenterSample = x == 0 && y == 0;
+
+				if (bIsKernelCenterSample && !KernelConfig.bSampleKernelCenter) continue;
+
+				float2 SampleOffset = float2(x, y);
+				if (KernelConfig.SampleSet == SAMPLE_SET_3X3_SOBEK2018)
+				{
+					SampleOffset = mul(float2x2(float2(2, -1), float2(1, 2)), SampleOffset);
+				}
 			
-			float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
+				float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
 		
-			float KernelWeight = 1;
-			if (KernelConfig.SampleSet == SAMPLE_SET_5X5_WAVELET)
-			{
-				KernelWeight = 
-					kWaveletFilterWeights5x5[abs(x)] *
-					kWaveletFilterWeights5x5[abs(y)] *
-					rcp(kWaveletFilterWeights5x5[0] * kWaveletFilterWeights5x5[0]);
-			}
+				float KernelWeight = 1;
+				if (KernelConfig.SampleSet == SAMPLE_SET_5X5_WAVELET)
+				{
+					KernelWeight = 
+						kWaveletFilterWeights5x5[abs(x)] *
+						kWaveletFilterWeights5x5[abs(y)] *
+						rcp(kWaveletFilterWeights5x5[0] * kWaveletFilterWeights5x5[0]);
+				}
 
-			SampleAndAccumulateMultiplexedSignals(
-				KernelConfig,
-				SignalBuffer0,
-				SignalBuffer1,
-				SignalBuffer2,
-				SignalBuffer3,
-				/* inout */ UncompressedAccumulators,
-				/* inout */ CompressedAccumulators,
-				SampleBufferUV,
-				KernelWeight,
-				/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
+				SampleAndAccumulateMultiplexedSignals(
+					KernelConfig,
+					SignalBuffer0,
+					SignalBuffer1,
+					SignalBuffer2,
+					SignalBuffer3,
+					/* inout */ UncompressedAccumulators,
+					/* inout */ CompressedAccumulators,
+					SampleBufferUV,
+					KernelWeight,
+					/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
+			}
 		}
 	}
 } // AccumulateSquareKernel()

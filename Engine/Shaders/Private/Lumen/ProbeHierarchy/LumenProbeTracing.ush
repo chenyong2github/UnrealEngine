@@ -47,8 +47,8 @@ void SetupDispatchParameters(const uint InterleavingConfig, uint HierarchyLevelI
 
 	const uint RayCountPerFace = HierarchyLevel.SuperSampling * HierarchyLevel.SuperSampling * HierarchyLevel.Resolution * HierarchyLevel.Resolution;
 
-	const uint ProbePerWave = max(1, PROBE_TRACING_LANE_COUNT / RayCountPerFace);
-	const uint WavePerFace = max(1, RayCountPerFace / PROBE_TRACING_LANE_COUNT);
+	const uint ProbePerWave = max(1u, PROBE_TRACING_LANE_COUNT / RayCountPerFace);
+	const uint WavePerFace = max(1u, RayCountPerFace / PROBE_TRACING_LANE_COUNT);
 
 	if (InterleavingConfig == PROBE_TRACING_INTERLEAVING)
 	{
