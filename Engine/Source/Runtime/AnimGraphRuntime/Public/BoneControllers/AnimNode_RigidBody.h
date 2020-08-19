@@ -255,6 +255,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	float WorldSpaceMinimumScale;
 
+	/**
+		If the node is not evaluated for this amount of time (seconds), either because a lower LOD was in use for a while or the component was
+		not visible, reset the simulation to the default pose on the next evaluation. Set to 0 to disable time-based reset.
+	*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	float EvaluationResetTime;
+
 private:
 	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
@@ -310,6 +317,9 @@ private:
 	void UpdateWorldObjects(const FTransform& SpaceTransform);
 
 private:
+
+	float WorldTimeSeconds;
+	float LastEvalTimeSeconds;
 
 	float AccumulatedDeltaTime;
 	float AnimPhysicsMinDeltaTime;
@@ -394,9 +404,6 @@ private:
 	FCollisionQueryParams QueryParams;
 
 	FPhysScene* PhysScene;
-
-	// Evaluation counter, to detect when we haven't be evaluated in a while.
-	FGraphTraversalCounter EvalCounter;
 
 	// Used by CollectWorldObjects and UpdateWorldGeometry in Task Thread
 	// Typically, World should never be accessed off the Game Thread.
