@@ -59,27 +59,13 @@ void SPerPlatformPropertiesWidget::ConstructChildren()
 		TMultiMap<FName, FName> GroupToPlatform;
 						
 		// Create mapping from platform to platform groups and remove postfixes and invalid platform names
-		const TArray<FString> Filters = { TEXT("NoEditor"), TEXT("Client"), TEXT("Server") };
 		for (const FName& PlatformName : VanillaPlatformNameArray)
 		{
-			const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName);
-			FString PlatformNameString = PlatformName.ToString();
-			for ( const FString& Filter : Filters)
-			{
-				const int32 Position = PlatformNameString.Find(Filter);
-				if (Position != INDEX_NONE)
-				{
-					PlatformNameString.RemoveAt(Position, Filter.Len());
-					break;
-				}
-			}
-
-			// Add filtered name if it isn't already set, and also add to group mapping
-			const FName FilteredName = FName(*PlatformNameString);				
-			if (PlatformNameString.Len() && !PlatformOverrides.Contains(FilteredName))
+			// Add platform name if it isn't already set, and also add to group mapping
+			if (!PlatformOverrides.Contains(PlatformName))
 			{	
-				BasePlatformNameArray.AddUnique(FilteredName);
-				GroupToPlatform.AddUnique(PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName, FilteredName);
+				BasePlatformNameArray.AddUnique(PlatformName);
+				GroupToPlatform.AddUnique(PlatformInfo::FindPlatformInfo(PlatformName)->DataDrivenPlatformInfo->PlatformGroupName, PlatformName);
 			}
 		}
 

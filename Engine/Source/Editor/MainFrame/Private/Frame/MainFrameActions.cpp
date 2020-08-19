@@ -418,8 +418,8 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 	}
 	else
 	{
-		OptionalParams += TEXT(" -targetplatform=");
-		OptionalParams += *PlatformInfo->Name.ToString();
+		OptionalParams += TEXT(" -platform=");
+		OptionalParams += *PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString;
 	}
 
 	OptionalParams += GetCookingOptionalParams();

@@ -363,7 +363,7 @@ static void PrepForTurnkeyReport(FString& Command, FString& BaseCommandline, FSt
 
 static FString ConvertToDDPIPlatform(const FString& Platform)
 {
-	FString  New = Platform.Replace(TEXT("NoEditor"), TEXT("")).Replace(TEXT("Client"), TEXT("")).Replace(TEXT("Server"), TEXT(""));
+	FString  New = Platform.Replace(TEXT("Client"), TEXT("")).Replace(TEXT("Server"), TEXT(""));
 	if (New == TEXT("Win64"))
 	{
 		New = TEXT("Windows");

@@ -506,8 +506,8 @@ void FMainMenu::RegisterFileProjectMenu()
 
 		if (RunningTargetPlatform != nullptr)
 		{
-			const FName CookedPlatformName = *(RunningTargetPlatform->PlatformName() + TEXT("NoEditor"));
-			const FText CookedPlatformText = FText::FromString(RunningTargetPlatform->PlatformName());
+			const FName CookedPlatformName = RunningTargetPlatform->GetTargetPlatformInfo().VanillaInfo->Name;
+			const FText CookedPlatformText = FText::FromString(CookedPlatformName.ToString());
 
 			FUIAction Action(
 				FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContent, CookedPlatformName),

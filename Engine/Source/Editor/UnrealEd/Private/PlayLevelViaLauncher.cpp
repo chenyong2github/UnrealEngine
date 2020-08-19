@@ -456,20 +456,14 @@ void UEditorEngine::HandleStageStarted(const FString& InStage, TWeakPtr<SNotific
 	if (InStage.Contains(TEXT("Cooking")) || InStage.Contains(TEXT("Cook Task")))
 	{
 		FString PlatformName = LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@")));
-		if (PlatformName.Contains(TEXT("NoEditor")))
-		{
-			PlatformName = PlatformName.Left(PlatformName.Find(TEXT("NoEditor")));
-		}
+		PlatformName = PlatformInfo::FindPlatformInfo(*PlatformName)->VanillaInfo->Name.ToString();
 		Arguments.Add(TEXT("PlatformName"), FText::FromString(PlatformName));
 		NotificationText = FText::Format(LOCTEXT("LauncherTaskProcessingNotification", "Processing Assets for {PlatformName}..."), Arguments);
 	}
 	else if (InStage.Contains(TEXT("Build Task")))
 	{
 		FString PlatformName = LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@")));
-		if (PlatformName.Contains(TEXT("NoEditor")))
-		{
-			PlatformName = PlatformName.Left(PlatformName.Find(TEXT("NoEditor")));
-		}
+		PlatformName = PlatformInfo::FindPlatformInfo(*PlatformName)->VanillaInfo->Name.ToString();
 		Arguments.Add(TEXT("PlatformName"), FText::FromString(PlatformName));
 		if (!LauncherSessionInfo->bPlayUsingLauncherBuild)
 		{

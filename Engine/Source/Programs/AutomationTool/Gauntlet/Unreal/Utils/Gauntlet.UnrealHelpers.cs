@@ -121,22 +121,14 @@ namespace Gauntlet
 
 				if (ProcessType == UnrealTargetRole.Client)
 				{
-					if (UsesSharedBuildType)
-					{
-						Platform += "NoEditor";
-					}
-					else
+					if (!UsesSharedBuildType)
 					{
 						Platform += "Client";
 					}
 				}
 				else if (ProcessType == UnrealTargetRole.Server)
 				{
-					if (UsesSharedBuildType)
-					{
-						Platform += "NoEditor";
-					}
-					else
+					if (!UsesSharedBuildType)
 					{
 						Platform += "Server";
 					}

@@ -19,7 +19,7 @@ int32 UNativeCodeGenCommandlet::Main(const FString& Params)
 
 	if (Platforms.Num() == 0)
 	{
-		UE_LOG(LogNativeCodeGenCommandletCommandlet, Warning, TEXT("Missing platforms argument, should be -run=NativeCodeGen platform1 platform2, eg -run=NativeCodeGen windowsnoeditor"));
+		UE_LOG(LogNativeCodeGenCommandletCommandlet, Warning, TEXT("Missing platforms argument, should be -run=NativeCodeGen platform1 platform2, eg -run=NativeCodeGen windows"));
 		return 0;
 	}
 
