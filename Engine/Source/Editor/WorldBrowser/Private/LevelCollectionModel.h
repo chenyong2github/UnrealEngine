@@ -251,6 +251,9 @@ public:
 	/** @return	whether at least one actor is selected */
 	bool AreActorsSelected() const;
 
+	/** @return whether any of the currently selected levels can be converted to the specified actor bExternal packaging */
+	bool CanConvertAnyLevelToExternalActors(bool bExternal) const;
+
 	/** @return whether moving the selected actors to the selected level is a valid action */
 	bool IsValidMoveActorsToLevel() const;
 
@@ -414,6 +417,9 @@ protected:
 
 	/** Removes the Actors in the selected Levels from the viewport's existing selection */
 	void DeselectActors_Executed();
+
+	/** Set level `Use External Actors` to bExternal  */
+	void ConvertLevelToExternalActors_Executed(bool bExternal);
 
 	/** Toggles selected levels to a visible state in the viewports */
 	void ShowSelectedLevels_Executed();

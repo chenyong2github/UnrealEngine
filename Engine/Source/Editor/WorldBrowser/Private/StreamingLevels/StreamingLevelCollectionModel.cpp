@@ -349,6 +349,9 @@ void FStreamingLevelCollectionModel::BuildHierarchyMenu(FMenuBuilder& InMenuBuil
 			InMenuBuilder.AddMenuEntry( Commands.MoveFoliageToSelected );
 		}
 
+		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToExternalActors);
+		InMenuBuilder.AddMenuEntry(Commands.ConvertLevelToInternalActors);
+
 		if (AreAnyLevelsSelected() && !(IsOneLevelSelected() && SelectedLevelsList[0]->IsPersistent()))
 		{
 			InMenuBuilder.AddMenuEntry( Commands.SelectStreamingVolumes );
