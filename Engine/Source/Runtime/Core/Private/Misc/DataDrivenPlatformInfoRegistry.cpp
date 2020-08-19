@@ -229,7 +229,7 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetString(IniFile, TEXT("XLargeIconPath"), Info.IconPaths.XLargePath);
 	if (Info.IconPaths.XLargePath == TEXT(""))
 	{
-		Info.IconPaths.XLargePath = Info.IconPaths.XLargePath;
+		Info.IconPaths.XLargePath = Info.IconPaths.LargePath;
 	}
 
 	FString PlatformString = PlatformName.ToString();
