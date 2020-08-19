@@ -2388,6 +2388,7 @@ bool UMaterial::GetTextureParameterValue_New(const FHashedMaterialParameterInfo&
 	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
+		OutValue = nullptr;
 		return false;
 	}
 	OutValue = CachedExpressionData.Parameters.TextureValues[Index];
@@ -2490,6 +2491,7 @@ bool UMaterial::GetRuntimeVirtualTextureParameterValue_New(const FHashedMaterial
 	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
+		OutValue = nullptr;
 		return false;
 	}
 	OutValue = CachedExpressionData.Parameters.RuntimeVirtualTextureValues[Index];
@@ -2606,6 +2608,8 @@ bool UMaterial::GetFontParameterValue_New(const FHashedMaterialParameterInfo& Pa
 	const int32 Index = CachedExpressionData.Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo, bOveriddenOnly);
 	if (Index == INDEX_NONE)
 	{
+		OutFontValue = nullptr;
+		OutFontPage = INDEX_NONE;
 		return false;
 	}
 	OutFontValue = CachedExpressionData.Parameters.FontValues[Index];
