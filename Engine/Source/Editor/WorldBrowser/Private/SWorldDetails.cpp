@@ -73,7 +73,7 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 		WorldDetailsView = PropertyModule.CreateDetailView(Args);
 		ChildSlot
 		[
-			SNew(SVerticalBox)
+			SAssignNew(VerticalBox, SVerticalBox)
 
 			// Inspect level box
 			+SVerticalBox::Slot()
@@ -162,18 +162,6 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 					DetailsView.ToSharedRef()
 				]
 			]
-
-			// World details
-			+SVerticalBox::Slot()
-			.FillHeight(1.f)
-			.Padding(0,4,0,0)
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
-				[
-					WorldDetailsView.ToSharedRef()
-				]
-			]
 		];
 
 		WorldModel->RegisterDetailsCustomization(PropertyModule, DetailsView);
@@ -201,6 +189,12 @@ void SWorldDetails::OnSelectionChanged()
 
 	DetailsView->SetObjects(TileProperties, true);
 
+	if (VerticalBoxBorder.IsValid())
+	{
+		VerticalBox->RemoveSlot(VerticalBoxBorder->AsShared());
+		VerticalBoxBorder.Reset();
+	}
+
 	if (SelectedLevels.Num() == 0 || SelectedLevels.Num() > 1)
 	{
 		// Clear ComboBox selection in case we have multiple selection
@@ -211,7 +205,23 @@ void SWorldDetails::OnSelectionChanged()
 	{
 		SubLevelsComboBox->SetSelectedItem(SelectedLevels[0]);
 		ULevel* LevelObject = SelectedLevels[0]->GetLevelObject();
-		WorldDetailsView->SetObject(Cast<UObject>(LevelObject ? LevelObject->GetLevelPartition() : nullptr));
+		UObject* LevelPartition = Cast<UObject>(LevelObject ? LevelObject->GetLevelPartition() : nullptr);
+
+		if (LevelPartition)
+		{
+			VerticalBox->AddSlot()
+				.FillHeight(1.f)
+				.Padding(0,4,0,0)
+				[
+					SAssignNew(VerticalBoxBorder, SBorder)
+					.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+					[
+						WorldDetailsView.ToSharedRef()
+					]
+				];
+		}
+
+		WorldDetailsView->SetObject(LevelPartition);
 	}
 
 	bUpdatingSelection = false;
