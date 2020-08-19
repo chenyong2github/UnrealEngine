@@ -869,6 +869,7 @@ protected:
 			const FName ComponentCollisionProfileName = Component->BodyInstance.GetCollisionProfileName();
 			const FName ComponentArchetypeCollisionProfileName = ComponentArchetype->BodyInstance.GetCollisionProfileName();
 			const bool bIsArchetypeUsingCustomCollisionProfile = ComponentArchetypeCollisionProfileName == UCollisionProfile::CustomCollisionProfileName;
+			const bool bIsCollisionProfileDifferentFromArchetype = ComponentCollisionProfileName != ComponentArchetypeCollisionProfileName;
 
 			// Initialize a new struct instance that matches the archetype (represents the default struct value inherited by the component template).
 			FStructOnScope BodyInstanceToCompare(FBodyInstance::StaticStruct());
@@ -876,7 +877,7 @@ protected:
 
 			// If the component template's collision profile setting differs from the default value (or is custom), set it using the API to load the modified collision profile.
 			bool bResetCollisionProfileAtRuntime = false;
-			if (ComponentCollisionProfileName != ComponentArchetypeCollisionProfileName || bIsArchetypeUsingCustomCollisionProfile)
+			if (bIsCollisionProfileDifferentFromArchetype || bIsArchetypeUsingCustomCollisionProfile)
 			{
 				// This will initialize the struct's default value in the same manner as will occur at runtime, so we don't emit redundant initialization code to the ctor.
 				((FBodyInstance*)BodyInstanceToCompare.GetStructMemory())->SetCollisionProfileName(ComponentCollisionProfileName);
@@ -893,7 +894,17 @@ protected:
 			// we've emitted the code above to initialize the remainder of the BodyInstance struct value. It's ok to emit this call last for any non-custom collision profile overrides as well.
 			if (bResetCollisionProfileAtRuntime)
 			{
-				Context.AddLine(FString::Printf(TEXT("%s->SetCollisionProfileName(FName(TEXT(\"%s\")));"), *VariableName, *ComponentCollisionProfileName.ToString().ReplaceCharWithEscapedChar()));
+				if (bIsCollisionProfileDifferentFromArchetype)
+				{
+					Context.AddLine(FString::Printf(TEXT("%s->SetCollisionProfileName(FName(TEXT(\"%s\")));"), *VariableName, *ComponentCollisionProfileName.ToString().ReplaceCharWithEscapedChar()));
+				}
+				else
+				{
+					// In this case, the archetype and the instance are both using a custom profile, so SetCollisionProfileName() would return
+					// without doing anything since the profile name already matches the current setting. To get around that, we emit a direct
+					// call to LoadProfileData() instead to initialize transient values from the custom profile data emitted to the ctor above.
+					Context.AddLine(FString::Printf(TEXT("%s.LoadProfileData(false);"), *PathToMember));
+				}
 			}
 		}
 		else
