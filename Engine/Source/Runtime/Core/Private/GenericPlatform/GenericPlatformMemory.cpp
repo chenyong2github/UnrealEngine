@@ -480,3 +480,8 @@ bool FGenericPlatformMemory::GetLLMAllocFunctions(void*(*&OutAllocFunction)(size
 {
 	return false;
 }
+
+TArray<typename FGenericPlatformMemoryStats::FPlatformSpecificStat> FGenericPlatformMemoryStats::GetPlatformSpecificStats() const
+{
+	return TArray<FPlatformSpecificStat>();
+}

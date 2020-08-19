@@ -90,11 +90,7 @@ void FHealthSnapshot::CaptureMemoryStats()
 		}
 	}
 
-#if PLATFORM_PS4
-	// New memory system doesn't have fixed sized Garlic and Onion pools, so "size" values are 0.
-	GarlicMemoryMB.Used = MemoryStats.Garlic * InvToMb;
-	OnionMemoryMB.Used = MemoryStats.Onion * InvToMb;
-#endif //PLATFORM_PS4
+	PlatformMemoryStats = MemoryStats.GetPlatformSpecificStats();
 
 	if (FPlatformProperties::SupportsTextureStreaming() && IStreamingManager::Get().IsTextureStreamingEnabled())
 	{
@@ -218,10 +214,10 @@ void FHealthSnapshot::DumpStats(FOutputDevice& Ar, FName CategoryName)
 }
 #endif
 
-#if PLATFORM_PS4
-	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Garlic: Used %.2f MB"), GarlicMemoryMB.Used);
-	Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("Onion: Used %.2f MB"), OnionMemoryMB.Used);
-#endif //PLATFORM_PS4
+	for (int32 StatIdx = 0; StatIdx < PlatformMemoryStats.Num(); ++StatIdx)
+	{
+		Ar.CategorizedLogf(CategoryName, ELogVerbosity::Log, TEXT("%s: Used %.2f MB"), PlatformMemoryStats[StatIdx].Name, PlatformMemoryStats[StatIdx].Value / (1024.f * 1024.f));
+	}
 }
 
 UHealthSnapshotBlueprintLibrary::UHealthSnapshotBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
