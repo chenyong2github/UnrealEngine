@@ -22,6 +22,8 @@ namespace Audio
 			LowShelf,
 			HighShelf,
 			AllPass,
+			ButterworthLowPass,
+			ButterworthHighPass
 		};
 	}
 
