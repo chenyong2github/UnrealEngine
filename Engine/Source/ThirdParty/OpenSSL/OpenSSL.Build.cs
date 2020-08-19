@@ -11,7 +11,7 @@ public class OpenSSL : ModuleRules
 
 		string OpenSSL101sPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1_0_1s");
 		string OpenSSL111Path = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1");
-		string OpenSSL111dPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
+		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
 
 		string PlatformSubdir = Target.Platform.ToString();
 		string ConfigFolder = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
@@ -46,8 +46,8 @@ public class OpenSSL : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			string platform = "/Linux/" + Target.Architecture;
-			string IncludePath = OpenSSL111dPath + "/include" + platform;
-			string LibraryPath = OpenSSL111dPath + "/lib" + platform;
+			string IncludePath = OpenSSL111cPath + "/include" + platform;
+			string LibraryPath = OpenSSL111cPath + "/lib" + platform;
 
 			PublicIncludePaths.Add(IncludePath);
 			PublicAdditionalLibraries.Add(LibraryPath + "/libssl.a");

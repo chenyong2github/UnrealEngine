@@ -140,7 +140,8 @@ struct NIAGARA_API FNiagaraConstants
 	static FText GetAttributeDescription(const FNiagaraVariable& InVar);
 	static FString GetAttributeDefaultValue(const FNiagaraVariable& InVar);
 	static FNiagaraVariable GetAttributeWithDefaultValue(const FNiagaraVariable& InAttribute);
-	static FNiagaraVariable GetAttributeAsDataSetKey(const FNiagaraVariable& InAttribute);
+	static FNiagaraVariable GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InAttribute);
+	static FNiagaraVariable GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InAttribute);
 	static FNiagaraVariableAttributeBinding GetAttributeDefaultBinding(const FNiagaraVariable& InAttribute);
 
 	static bool IsNiagaraConstant(const FNiagaraVariable& InVar);

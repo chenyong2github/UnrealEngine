@@ -62,7 +62,7 @@ namespace MetadataTool
 					try
 					{
 						Dictionary<string, object> Response;
-						using (StreamReader ResponseReader = new StreamReader(WebEx.Response.GetResponseStream(), Encoding.Default))
+						using (StreamReader ResponseReader = new StreamReader(WebEx.Response.GetResponseStream(), Encoding.UTF8))
 						{
 							string ResponseContent = ResponseReader.ReadToEnd();
 							Response = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(ResponseContent);

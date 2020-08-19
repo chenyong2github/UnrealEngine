@@ -118,6 +118,7 @@ public:
 		ParticleToWorldTransforms.SetNumUninitialized(NumTransforms);
 	}
 
+	float SolverDt;
 	int32 BaseIndex;
 	int32 NumParticlesAdded;
 	TArray<bool> DisabledStates;
@@ -136,8 +137,6 @@ public:
 	TManagedArray<FVector> InertiaTensor;
 
 	TManagedArray<int32> ClusterId;
-
-
 
 	bool IsObjectDynamic;
 	bool IsObjectLoading;

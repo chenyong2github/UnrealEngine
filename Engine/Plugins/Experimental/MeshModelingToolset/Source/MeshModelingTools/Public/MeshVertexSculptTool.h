@@ -61,6 +61,12 @@ enum class EMeshVertexSculptBrushType : uint8
 	/** Move vertices parallel to the view plane  */
 	Move UMETA(DisplayName = "Move"),
 
+	/** Grab Brush, fall-off alters the influence of the grab */
+	PullKelvin UMETA(DisplayName = "Kelvin Grab"),
+
+	/** Grab Brush that may generate cusps, fall-off alters the influence of the grab */
+	PullSharpKelvin UMETA(DisplayName = "Sharp Kelvin Grab"),
+
 	/** Smooth mesh vertices  */
 	Smooth UMETA(DisplayName = "Smooth"),
 
@@ -79,8 +85,14 @@ enum class EMeshVertexSculptBrushType : uint8
 	/** Displace vertices along their vertex normals */
 	Inflate UMETA(DisplayName = "Inflate"),
 
+	/** Scale Brush will inflate or pinch radially from the center of the brush */
+	ScaleKelvin UMETA(DisplayName = "Kelvin Scale"),
+
 	/** Move vertices towards the center of the brush (Ctrl to push away)*/
 	Pinch UMETA(DisplayName = "Pinch"),
+
+	/** Twist Brush moves vertices in the plane perpendicular to the local mesh normal */
+	TwistKelvin UMETA(DisplayName = "Kelvin Twist"),
 
 	/** Move vertices towards the average plane of the brush stamp region */
 	Flatten UMETA(DisplayName = "Flatten"),

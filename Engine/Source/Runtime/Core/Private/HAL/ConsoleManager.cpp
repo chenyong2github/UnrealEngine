@@ -2315,6 +2315,12 @@ static TAutoConsoleVariable<int32> CVarContactShadows(
 	TEXT(" 1: enabled.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarContactShadowsNonShadowCastingIntensity(
+	TEXT("r.ContactShadows.NonShadowCastingIntensity"),
+	0.0f,
+	TEXT("Intensity of contact shadows from objects with cast contact shadows disabled. Usually 0 (off).\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarAllowStaticLighting(
 	TEXT("r.AllowStaticLighting"),

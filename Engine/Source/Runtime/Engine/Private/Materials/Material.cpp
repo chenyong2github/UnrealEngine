@@ -373,7 +373,7 @@ public:
 		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
 		if(MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
 		{
-			static FHashedName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
+			static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
 			if (ParameterInfo.Name == NameSubsurfaceProfile)
 			{
 				const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
@@ -1213,7 +1213,7 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 					if (Texture != NULL && Texture == InTextureToOverride)
 					{
 						// Override this texture!
-						Resource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, ParameterIndex, OverrideTexture);
+						Resource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, Parameter.ParameterInfo, OverrideTexture);
 						bShouldRecacheMaterialExpressions = true;
 					}
 				}
@@ -1234,6 +1234,8 @@ void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInf
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
 	if (Resource)
 	{
+		Resource->TransientOverrides.SetVectorOverride(ParameterInfo, Value, bOverride);
+
 		const TArrayView<const FMaterialVectorParameterInfo> Parameters = Resource->GetUniformVectorParameterExpressions();
 		bool bShouldRecacheMaterialExpressions = false;
 		// Iterate over each of the material's vector expressions.
@@ -1242,7 +1244,6 @@ void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInf
 			const FMaterialVectorParameterInfo& Parameter = Parameters[i];
 			if (Parameter.ParameterInfo == ParameterInfo)
 			{
-				Resource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
 				bShouldRecacheMaterialExpressions = true;
 			}
 		}
@@ -1261,6 +1262,8 @@ void UMaterial::OverrideScalarParameterDefault(const FHashedMaterialParameterInf
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
 	if (Resource)
 	{
+		Resource->TransientOverrides.SetScalarOverride(ParameterInfo, Value, bOverride);
+
 		const TArrayView<const FMaterialScalarParameterInfo> Parameters = Resource->GetUniformScalarParameterExpressions();
 		bool bShouldRecacheMaterialExpressions = false;
 		// Iterate over each of the material's vector expressions.
@@ -1269,7 +1272,6 @@ void UMaterial::OverrideScalarParameterDefault(const FHashedMaterialParameterInf
 			const FMaterialScalarParameterInfo& Parameter = Parameters[i];
 			if (Parameter.ParameterInfo == ParameterInfo)
 			{
-				Resource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
 				bShouldRecacheMaterialExpressions = true;
 			}
 		}
@@ -3091,7 +3093,7 @@ void UMaterial::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, T
 	ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
 	TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
-	GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform);
+	GetQualityLevelUsageForCooking(QualityLevelsUsed, ShaderPlatform);
 
 	const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
 	bool bNeedDefaultQuality = false;
@@ -3375,7 +3377,7 @@ void UMaterial::BackwardsCompatibilityInputConversion()
 #endif // WITH_EDITOR
 }
 
-void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform)
+void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)
 {
 	OutQualityLevelsUsed = CachedExpressionData.QualityLevelsUsed;
 	if (OutQualityLevelsUsed.Num() == 0)
@@ -3388,7 +3390,7 @@ void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQual
 		for (int32 Quality = 0; Quality < EMaterialQualityLevel::Num; ++Quality)
 		{
 			const FMaterialQualityOverrides& QualityOverrides = MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality);
-			if (QualityOverrides.bDiscardQualityDuringCook)
+			if (bCooking && QualityOverrides.bDiscardQualityDuringCook)
 			{
 				OutQualityLevelsUsed[Quality] = false;
 			}

@@ -181,6 +181,12 @@ FText FNiagaraEditorVector2TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
+FText FNiagaraEditorVector2TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector2D Value = Variable.GetValue<FVector2D>();
+	return FText::Format(FText::FromString("({0}, {1})"), Value.X, Value.Y);
+}
+
 class SNiagaraVector3ParameterEditor : public SNiagaraVectorParameterEditorBase
 {
 public:
@@ -257,6 +263,12 @@ FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
+FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector Value = Variable.GetValue<FVector>();
+	return FText::Format(FText::FromString("({0}, {1}, {2})"), Value.X, Value.Y, Value.Z);
+}
+
 class SNiagaraVector4ParameterEditor : public SNiagaraVectorParameterEditorBase
 {
 public:
@@ -331,6 +343,12 @@ bool FNiagaraEditorVector4TypeUtilities::SetValueFromPinDefaultString(const FStr
 FText FNiagaraEditorVector4TypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
 {
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
+
+FText FNiagaraEditorVector4TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector4 Value = Variable.GetValue<FVector4>();
+	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
 class SNiagaraQuatParameterEditor : public SNiagaraVectorParameterEditorBase
@@ -436,6 +454,12 @@ bool FNiagaraEditorQuatTypeUtilities::SetValueFromPinDefaultString(const FString
 FText FNiagaraEditorQuatTypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
 {
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
+
+FText FNiagaraEditorQuatTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FQuat Value = Variable.GetValue<FQuat>();
+	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
 void FNiagaraEditorQuatTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVariable& Variable) const

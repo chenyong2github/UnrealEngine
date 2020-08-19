@@ -35,5 +35,10 @@ public class MovieRenderPipelineCore : ModuleRules
 				"OpenColorIO",
 			}
 		);
+
+		if (Target.bBuildEditor == true)
+        {
+			PublicDependencyModuleNames.Add("MovieSceneTools");
+        }
 	}
 }

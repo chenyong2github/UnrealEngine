@@ -6,6 +6,7 @@
 #include "Interfaces/IHttpRequest.h"
 #include "Runtime/Online/HTTP/Private/IHttpThreadedRequest.h"
 #include "Containers/Ticker.h"
+#include "Containers/Queue.h"
 #include "HttpPackage.h"
 
 class FHttpThread;
@@ -75,6 +76,13 @@ public:
 	 * @return false if no longer needs ticking
 	 */
 	bool Tick(float DeltaSeconds) override;
+
+	/**
+	 * Tick called during Flush
+	 *
+	 * @param DeltaSeconds - time in seconds since the last tick
+	 */
+	virtual void FlushTick(float DeltaSeconds);
 
 	/** 
 	 * Add a http request to be executed on the http thread
@@ -157,6 +165,13 @@ public:
 	 */
 	virtual void UpdateConfigs();
 
+	/**
+	 * Add task to be ran on the game thread next tick
+	 *
+	 * @param Task The task to be ran next tick
+	 */
+	void AddGameThreadTask(TFunction<void()>&& Task);
+
 protected:
 	/** 
 	 * Create HTTP thread object
@@ -174,6 +189,9 @@ protected:
 
 	/** This method will be called to generate a CorrelationId on all requests being sent if one is not already set */
 	TFunction<FString()> CorrelationIdMethod;
+
+	/** Queue of tasks to run on the game thread */
+	TQueue<TFunction<void()>, EQueueMode::Mpsc> GameThreadQueue;
 
 PACKAGE_SCOPE:
 

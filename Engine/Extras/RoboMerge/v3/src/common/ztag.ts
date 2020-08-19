@@ -6,7 +6,7 @@ const colors = require('colors')
 colors.enable()
 colors.setTheme(require('colors/themes/generic-logging.js'))
 
-const FIELD_RE = /^\.\.\. ([a-z][a-zA-Z]*)(\d*) (.*)/
+const FIELD_RE = /^\.\.\. ([a-zA-Z]*)(\d*) (.*)/
 
 type ZtagProperties = {[key: string]: string | number}[]
 

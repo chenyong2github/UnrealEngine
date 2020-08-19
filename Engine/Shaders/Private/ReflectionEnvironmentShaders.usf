@@ -314,6 +314,7 @@ void DownsamplePS_Mobile(
 }
 
 #ifdef USE_COMPUTE
+int CubeFaceOffset;
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void FilterCS(uint3 ThreadId : SV_DispatchThreadID)
 {
@@ -322,7 +323,7 @@ void FilterCS(uint3 ThreadId : SV_DispatchThreadID)
 	{
 		return;
 	}
-	const int SelectedCubeFace = int(ThreadId.x) / FaceThreadGroupSize;
+	const int SelectedCubeFace = CubeFaceOffset + int(ThreadId.x) / FaceThreadGroupSize;
 	float2 ScaledUVs = ((float2(FaceCoord) + 0.5f) / float2(ValidDispatchCoord)) * 2.0f - 1.0f;
 	float4 OutColor;
 #else // USE_COMPUTE

@@ -74,7 +74,7 @@ public class MeshModelingTools : ModuleRules
 				"Engine",
 				"ModelingOperators",
 				"InputCore",
-
+				"PhysicsCore"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

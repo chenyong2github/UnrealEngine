@@ -69,8 +69,9 @@ public:
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), ModuleScript->bExposeToLibrary);
-		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ModuleScript->Description, *ModuleScript->GetPathName(), ModuleScript->bExposeToLibrary);
+		bool bIsInLibrary = ModuleScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), bIsInLibrary);
+		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ModuleScript->Description, *ModuleScript->GetPathName(), bIsInLibrary);
 		FText Keywords = ModuleScript->Keywords;
 
 		return MakeShareable(new FScriptGroupAddAction(Category, DisplayName, Description, Keywords, FNiagaraVariable(), false, FAssetData(), ModuleScript, false, false));

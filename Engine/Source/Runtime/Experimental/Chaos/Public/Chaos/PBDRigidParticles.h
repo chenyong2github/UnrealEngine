@@ -172,6 +172,11 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		Ar << MP << MQ << MPreV << MPreW;
 	}
 
+	FORCEINLINE TArray<TVector<T, d>>& AllP() { return MP; }
+	FORCEINLINE TArray<TRotation<T, d>>& AllQ() { return MQ; }
+	FORCEINLINE TArray<TVector<T, d>>& AllPreV() { return MPreV; }
+	FORCEINLINE TArray<TVector<T, d>>& AllPreW() { return MPreW; }
+
   private:
 	TArrayCollectionArray<TVector<T, d>> MP;
 	TArrayCollectionArray<TRotation<T, d>> MQ;

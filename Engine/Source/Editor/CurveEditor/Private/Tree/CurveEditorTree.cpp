@@ -113,6 +113,7 @@ FScopedCurveEditorTreeEventGuard::~FScopedCurveEditorTreeEventGuard()
 	{
 		if (Tree->Events.OnItemsChanged.SerialNumber != CachedItemSerialNumber)
 		{
+			Tree->Compact();
 			Tree->Events.OnItemsChanged.Broadcast();
 		}
 
@@ -235,6 +236,12 @@ void FCurveEditorTree::RemoveChildrenRecursive(TArray<FCurveEditorTreeItemID>&& 
 			}
 		}
 	}
+}
+
+void FCurveEditorTree::Compact()
+{
+	Items.Compact();
+	ChildItemIDs.Compact();
 }
 
 bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)

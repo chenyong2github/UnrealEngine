@@ -88,24 +88,8 @@ const FGeometrySet3& FGroupTopologySelector::GetGeometrySet()
 	return GeometrySet;
 }
 
-
-void FGroupTopologySelector::UpdateEnableFlags(bool bFaceHits, bool bEdgeHits, bool bCornerHits)
-{
-	bEnableFaceHits = bFaceHits;
-	bEnableEdgeHits = bEdgeHits;
-	bEnableCornerHits = bCornerHits;
-}
-
-void FGroupTopologySelector::UpdateSelectionModeFlags(bool bPreferAlignedElementIn, bool bSelectDownRayIn, bool bIgnoreOcclusionIn)
-{
-	bPreferAlignedElement = bPreferAlignedElementIn;
-	bSelectDownRay = bSelectDownRayIn;
-	bIgnoreOcclusion = bIgnoreOcclusionIn;
-}
-
-
-bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopologySelection& ResultOut,
-	FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut)
+bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Settings, const FRay3d& Ray,
+	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut)
 {
 	// These get used for finding intersections with triangles and corners/edges, repectively.
 	FDynamicMeshAABBTree3* Spatial = GetSpatial();
@@ -129,25 +113,25 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 	}
 	
 	// Deal with corner hits first (and edges that project to a corner)
-	if (bEnableCornerHits || (bEnableEdgeHits && bPreferAlignedElement))
+	if (Settings.bEnableCornerHits || (Settings.bEnableEdgeHits && Settings.bPreferProjectedElement))
 	{
-		if (DoCornerBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
+		if (DoCornerBasedSelection(Settings, Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
 		{
 			return true;
 		}
 	}
 
 	// If corner selection didn't yield results, try edge selection
-	if (bEnableEdgeHits || (bEnableFaceHits && bPreferAlignedElement))
+	if (Settings.bEnableEdgeHits || (Settings.bEnableFaceHits && Settings.bPreferProjectedElement))
 	{
-		if (DoEdgeBasedSelection(Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
+		if (DoEdgeBasedSelection(Settings, Ray, Spatial, TopoSpatial, ResultOut, SelectedPositionOut, EdgeSegmentIdOut))
 		{
 			return true;
 		}
 	}
 
 	// If we still haven't found a selection, go ahead and select the face that we found earlier
-	if (bEnableFaceHits && bActuallyHitSurface)
+	if (Settings.bEnableFaceHits && bActuallyHitSurface)
 	{
 		ResultOut.SelectedGroupIDs.Add(Topology->GetGroupID(HitTriangleID));
 		SelectedPositionOut = TriangleHitPos;
@@ -157,7 +141,8 @@ bool FGroupTopologySelector::FindSelectedElement(const FRay3d& Ray, FGroupTopolo
 	return false;
 }
 
-bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
+bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Settings,
+	const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
 	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const
 {
 	// These will store our results, depending on whether we select all along the ray or not.
@@ -169,7 +154,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 
 	// Start by getting the closest element
 	const FGeometrySet3::FNearest* ClosestElement = nullptr;
-	if (!bSelectDownRay)
+	if (!Settings.bSelectDownRay)
 	{
 		if (TopoSpatial.FindNearestPointToRay(Ray, SingleElement, PointsWithinToleranceTest))
 		{
@@ -200,7 +185,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 	}
 
 	// Also bail if the closest element is not visible.
-	if (!bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
+	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
 	{
 		return false;
 	}
@@ -213,7 +198,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 	// orthographic view, we need to see that they lie on a ray with view ray direction and closest corner origin, whereas in
 	// perspective, they would need to lie on a ray from camer through closest corner (which will differ due to tolerance).
 	// Because the "select down ray" behavior is only useful in orthographic viewports in the first place, we do it that way.
-	if (bSelectDownRay)
+	if (Settings.bSelectDownRay)
 	{
 		DownRayElements.Add(ClosestElement->ID);
 		for (const FGeometrySet3::FNearest& Element : ElementsWithinTolerance)
@@ -234,7 +219,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 	}
 
 	// Try to select edges that project to corners.
-	if (bPreferAlignedElement && bEnableEdgeHits)
+	if (Settings.bPreferProjectedElement && Settings.bEnableEdgeHits)
 	{
 		TSet<int32> AddedTopologyEdges;
 
@@ -266,7 +251,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 		}
 
 		// If relevant, get all the other colinear edges
-		if (bSelectDownRay && AddedTopologyEdges.Num() > 0)
+		if (Settings.bSelectDownRay && AddedTopologyEdges.Num() > 0)
 		{
 			for (int i = 1; i < DownRayElements.Num(); ++i) // skip 0 because it is closest and done
 			{
@@ -301,9 +286,9 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 	}//end selecting projected edges
 
 	// If getting projected edges didn't work out, go ahead and add the corners.
-	if (bEnableCornerHits)
+	if (Settings.bEnableCornerHits)
 	{
-		if (bSelectDownRay)
+		if (Settings.bSelectDownRay)
 		{
 			for (int32 Id : DownRayElements)
 			{
@@ -320,7 +305,8 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FRay3d& Ray, FDynamicM
 	return false;
 }
 
-bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
+bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Settings, const FRay3d& Ray,
+	FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
 	FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32* EdgeSegmentIdOut) const
 {
 	// These will store our results, depending on whether we select all along the ray or not.
@@ -332,7 +318,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 
 	// Start by getting the closest element
 	const FGeometrySet3::FNearest* ClosestElement = nullptr;
-	if (!bSelectDownRay)
+	if (!Settings.bSelectDownRay)
 	{
 		if (TopoSpatial.FindNearestCurveToRay(Ray, SingleElement, PointsWithinToleranceTest))
 		{
@@ -363,7 +349,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 	}
 
 	// Also bail if the closest element is not visible.
-	if (!bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
+	if (!Settings.bIgnoreOcclusion && IsOccluded(*ClosestElement, Ray.Origin, Spatial))
 	{
 		return false;
 	}
@@ -374,7 +360,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 	// If we have other edges, we need to filter them to only those that project onto the closest element. This would be done
 	// differently for perspective cameras vs orthographic projection, but since the behavior is only useful in ortho mode,
 	// we do it that way.
-	if (bSelectDownRay)
+	if (Settings.bSelectDownRay)
 	{
 		// Closest element is a given
 		DownRayElements.Add(FIndex2i(ClosestElement->ID, ClosestElement->PolySegmentIdx));
@@ -405,7 +391,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 	}
 
 	// Try to select faces that project to the closest edge
-	if (bPreferAlignedElement && bEnableFaceHits)
+	if (Settings.bPreferProjectedElement && Settings.bEnableFaceHits)
 	{
 		TSet<int32> AddedGroups;
 
@@ -451,7 +437,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 		}
 
 		// If relevant, get all the other coplanar faces
-		if (bSelectDownRay && AddedGroups.Num() > 0)
+		if (Settings.bSelectDownRay && AddedGroups.Num() > 0)
 		{
 			for (int i = 1; i < DownRayElements.Num(); ++i) // skip 0 because it is closest and done
 			{
@@ -491,9 +477,9 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMes
 	}
 
 	// If we didn't end up selecting projected faces, and we have edges to select, select them
-	if (bEnableEdgeHits)
+	if (Settings.bEnableEdgeHits)
 	{
-		if (bSelectDownRay)
+		if (Settings.bSelectDownRay)
 		{
 			for (const FIndex2i ElementTuple : DownRayElements)
 			{

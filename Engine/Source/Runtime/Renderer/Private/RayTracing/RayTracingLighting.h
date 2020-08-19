@@ -15,6 +15,8 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER(uint32, Count)
 	SHADER_PARAMETER(float, IESLightProfileInvCount)
+	SHADER_PARAMETER(uint32, CellCount)
+	SHADER_PARAMETER(float, CellScale)
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
@@ -31,6 +33,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, IESLightProfileTexture)
 	SHADER_PARAMETER_SRV(Texture2D, SSProfilesTexture)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint4>, LightDataBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>, LightIndices)
+	SHADER_PARAMETER_SRV(StructuredBuffer<uint4>, LightCullingVolume)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // Must match struct definition in RayTacedLightingCommon.ush
@@ -64,16 +68,9 @@ struct FRTLightingData
 
 static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size.");
 
-void SetupRaytracingLightDataPacked(
+FRayTracingLightData CreateRayTracingLightData(
+	FRHICommandListImmediate& RHICmdList,
 	const TSparseArray<FLightSceneInfoCompact>& Lights,
-	const FViewInfo& View,
-	FRaytracingLightDataPacked* LightData,
-	TResourceArray<FRTLightingData>& LightDataArray);
-
-TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer(
-	const TSparseArray<FLightSceneInfoCompact>& Lights,
-	const class FViewInfo& View, EUniformBufferUsage Usage,
-	FStructuredBufferRHIRef& OutLightDataBuffer,
-	FShaderResourceViewRHIRef& OutLightDataSRV);
+	const FViewInfo& View, EUniformBufferUsage Usage);
 
 #endif

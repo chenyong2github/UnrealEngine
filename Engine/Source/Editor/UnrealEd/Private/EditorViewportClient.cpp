@@ -1040,7 +1040,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(1, 0, 0, 0),
 					FPlane(0, -1, 0, 0),
 					FPlane(0, 0, -1, 0),
-					FPlane(0, 0, -ViewInitOptions.ViewOrigin.Z, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoXZ)
 			{
@@ -1048,7 +1048,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(1, 0, 0, 0),
 					FPlane(0, 0, -1, 0),
 					FPlane(0, 1, 0, 0),
-					FPlane(0, 0, -ViewInitOptions.ViewOrigin.Y, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoYZ)
 			{
@@ -1056,7 +1056,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(0, 0, 1, 0),
 					FPlane(1, 0, 0, 0),
 					FPlane(0, 1, 0, 0),
-					FPlane(0, 0, ViewInitOptions.ViewOrigin.X, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoNegativeXY)
 			{
@@ -1064,7 +1064,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(-1, 0, 0, 0),
 					FPlane(0, -1, 0, 0),
 					FPlane(0, 0, 1, 0),
-					FPlane(0, 0, -ViewInitOptions.ViewOrigin.Z, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoNegativeXZ)
 			{
@@ -1072,7 +1072,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(-1, 0, 0, 0),
 					FPlane(0, 0, 1, 0),
 					FPlane(0, 1, 0, 0),
-					FPlane(0, 0, -ViewInitOptions.ViewOrigin.Y, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoNegativeYZ)
 			{
@@ -1080,7 +1080,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(0, 0, -1, 0),
 					FPlane(-1, 0, 0, 0),
 					FPlane(0, 1, 0, 0),
-					FPlane(0, 0, ViewInitOptions.ViewOrigin.X, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else if (EffectiveViewportType == LVT_OrthoFreelook)
 			{
@@ -1088,7 +1088,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 					FPlane(0, 0, 1, 0),
 					FPlane(1, 0, 0, 0),
 					FPlane(0, 1, 0, 0),
-					FPlane(0, 0, ViewInitOptions.ViewOrigin.X, 1));
+					FPlane(0, 0, 0, 1));
 			}
 			else
 			{

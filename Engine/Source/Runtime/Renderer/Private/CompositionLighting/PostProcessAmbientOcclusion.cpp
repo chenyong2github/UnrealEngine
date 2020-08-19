@@ -2539,7 +2539,7 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingC
 
 		Context.RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 		ComputeShader->SetParametersCS(Context.RHICmdList, Context, OutputTexSize, InputTexSize, bCameraCut, InputHistory,
-			bCameraCut ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity, DestRenderTarget0.UAV, DestRenderTarget1.UAV, DestRenderTarget2.UAV);
+			bCameraCut || !SceneContext.SceneVelocity.IsValid() ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity, DestRenderTarget0.UAV, DestRenderTarget1.UAV, DestRenderTarget2.UAV);
 
 		DispatchComputeShader(Context.RHICmdList, ComputeShader, GroupSizeX, GroupSizeY, 1);
 		ComputeShader->UnsetParameters(Context.RHICmdList);
@@ -2585,7 +2585,7 @@ void FRCPassPostProcessAmbientOcclusion_GTAO_TemporalFilter::Process(FRenderingC
 
 			VertexShader->SetParameters(Context);
 			PixelShader->SetParametersPS(Context, OutputTexSize, InputTexSize, bCameraCut, InputHistory,
-				bCameraCut ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity);
+				bCameraCut || !SceneContext.SceneVelocity.IsValid() ? GSystemTextures.BlackDummy : SceneContext.SceneVelocity);
 
 			DrawRectangle(
 				Context.RHICmdList,

@@ -5,7 +5,7 @@
 #include "SoundControlBusProxy.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 #include "Templates/Function.h"
 
 
@@ -20,10 +20,10 @@ namespace AudioModulation
 	struct FModulationInputSettings
 	{
 		const FControlBusSettings BusSettings;
-		const FSoundModulationInputTransform Transform;
+		const FSoundModulationTransform Transform;
 		const uint8 bSampleAndHold : 1;
 
-		FModulationInputSettings(const FSoundModulationInputBase& InInput)
+		FModulationInputSettings(const FSoundControlModulationInput& InInput)
 			: BusSettings(FControlBusSettings(InInput.GetBusChecked()))
 			, Transform(InInput.Transform)
 			, bSampleAndHold(InInput.bSampleAndHold)
@@ -40,7 +40,7 @@ namespace AudioModulation
 
 		FBusHandle BusHandle;
 
-		FSoundModulationInputTransform Transform;
+		FSoundModulationTransform Transform;
 		bool bSampleAndHold = false;
 	};
 
@@ -48,7 +48,7 @@ namespace AudioModulation
 	struct FModulationOutputProxy
 	{
 		FModulationOutputProxy() = default;
-		FModulationOutputProxy(FSoundModulationOutputTransform InTransform, float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction);
+		FModulationOutputProxy(float InDefaultValue, const Audio::FModulationMixFunction& InMixFunction);
 
 		/** Whether patch has been initialized or not */
 		bool bInitialized = false;
@@ -61,21 +61,14 @@ namespace AudioModulation
 
 		/** Default value if no inputs are provided */
 		float DefaultValue = 1.0f;
-
-		/** Final transform before passing to output */
-		FSoundModulationOutputTransform Transform;
 	};
 
 	struct FModulationPatchSettings : public TModulatorBase<FPatchId>
 	{
-		float DefaultInputValue = 1.0f;
 		float DefaultOutputValue = 1.0f;
 
 		TArray<FModulationInputSettings> InputSettings;
 		bool bBypass = true;
-
-		/** Final transform before passing to output */
-		FSoundModulationOutputTransform Transform;
 
 		/** Function used to mix patch inputs together */
 		Audio::FModulationMixFunction MixFunction;
@@ -84,17 +77,11 @@ namespace AudioModulation
 
 		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch)
 			: bBypass(InPatch.bBypass)
-			, Transform(InPatch.Transform)
 		{
-			if (InPatch.InputParameter)
-			{
-				DefaultInputValue = InPatch.InputParameter->Settings.ValueLinear;
-				MixFunction = InPatch.InputParameter->GetMixFunction();
-			}
-
 			if (InPatch.OutputParameter)
 			{
 				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueLinear;
+				MixFunction = InPatch.OutputParameter->GetMixFunction();
 			}
 
 			for (const FSoundControlModulationInput& Input : InPatch.Inputs)
@@ -106,36 +93,13 @@ namespace AudioModulation
 			}
 		}
 
-		FModulationPatchSettings(const FSoundModulationPatchBase& InPatch)
-			: DefaultInputValue(InPatch.GetDefaultInputValue())
-			, bBypass(InPatch.bBypass)
-			, Transform(InPatch.GetOutputChecked().Transform)
-			, MixFunction(InPatch.GetMixFunction())
-		{
-			TArray<const FSoundModulationInputBase*> Inputs = InPatch.GetInputs();
-			for (const FSoundModulationInputBase* Input : Inputs)
-			{
-				if (Input && Input->GetBus())
-				{
-					InputSettings.Emplace(*Input);
-				}
-			}
-		}
-
 		FModulationPatchSettings(const USoundModulationPatch& InPatch)
 			: TModulatorBase<FPatchId>(InPatch.GetName(), InPatch.GetUniqueID())
 			, bBypass(InPatch.PatchSettings.bBypass)
-			, Transform(InPatch.PatchSettings.Transform)
 		{
-			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.InputParameter)
+			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.OutputParameter)
 			{
 				MixFunction = Parameter->GetMixFunction();
-			}
-
-			DefaultInputValue = 1.0f;
-			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.InputParameter)
-			{
-				DefaultInputValue = Parameter->Settings.ValueLinear;
 			}
 
 			for (const FSoundControlModulationInput& Input : InPatch.PatchSettings.Inputs)
@@ -167,8 +131,8 @@ namespace AudioModulation
 		void Init(const FModulationPatchSettings& InSettings, FAudioModulationSystem& InModSystem);
 
 	private:
-		/** Default value of patch (Value mixed when inputs are provided or not, regardless of active state)*/
-		float DefaultInputValue = 1.0f;
+		/** Default value of patch */
+		float DefaultValue = 1.0f;
 
 		/** Current value of the patch */
 		float Value = 1.0f;

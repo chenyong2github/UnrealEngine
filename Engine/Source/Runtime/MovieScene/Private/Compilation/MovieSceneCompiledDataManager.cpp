@@ -122,6 +122,7 @@ struct FGatherParameters
 		, LocalClampRange(RootClampRange)
 		, Flags(ESectionEvaluationFlags::None)
 		, HierarchicalBias(0)
+		, bHasHierarchicalEasing(false)
 	{}
 
 	FGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID) const
@@ -164,6 +165,9 @@ struct FGatherParameters
 
 	/** Current accumulated hierarchical bias */
 	int16 HierarchicalBias;
+
+	/** Whether the current sequence is receiving hierarchical easing from some parent sequence */
+	bool bHasHierarchicalEasing;
 };
 
 /** Parameter structure used for gathering entities for a given time or range */
@@ -700,6 +704,7 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 			if (SubSequence)
 			{
 				FTrackGatherParameters SubSectionGatherParams = Params.CreateForSubData(*SubData, SubSequenceEntry.SequenceID);
+				SubSectionGatherParams.Flags |= SubSequenceEntry.Flags;
 				SubSectionGatherParams.SetClampRange(SubSequenceIt.Range());
 
 				// Access the sub entry data after compilation
@@ -970,6 +975,13 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	// Step 1 - Handle any entity producers that exist within the field
 	if (OutCompilerData->EntityField)
 	{
+		FMovieSceneEntityComponentFieldBuilder FieldBuilder(OutCompilerData->EntityField);
+
+		if (ObjectBinding)
+		{
+			FieldBuilder.GetSharedMetaData().ObjectBindingID = ObjectBinding->GetObjectGuid();
+		}
+
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 		{
 			IMovieSceneEntityProvider* EntityProvider = Cast<IMovieSceneEntityProvider>(Entry.Section);
@@ -982,15 +994,20 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, Entry.Range);
 			if (!EffectiveRange.IsEmpty())
 			{
-				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, OutCompilerData->EntityField))
-				{
-					OutCompilerData->EntityField->Entities.Populate(EffectiveRange, Entry.Section, 0);
-				}
-			}
+				FMovieSceneEvaluationFieldEntityMetaData MetaData;
 
-			if (ObjectBinding)
-			{
-				OutCompilerData->EntityField->EntityOwnerToObjectBinding.Add(Entry.Section, ObjectBinding->GetObjectGuid());
+				MetaData.ForcedTime = Entry.ForcedTime;
+				MetaData.Flags      = Entry.Flags;
+				MetaData.bEvaluateInSequencePreRoll  = Track->EvalOptions.bEvaluateInPreroll;
+				MetaData.bEvaluateInSequencePostRoll = Track->EvalOptions.bEvaluateInPostroll;
+
+				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, MetaData, &FieldBuilder))
+				{
+					const int32 EntityIndex   = FieldBuilder.FindOrAddEntity(Entry.Section, 0);
+					const int32 MetaDataIndex = FieldBuilder.AddMetaData(MetaData);
+
+					FieldBuilder.AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+				}
 			}
 		}
 	}
@@ -1134,6 +1151,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, NewSubData.PlayRange.Value);
 		NewSubData.RootToSequenceTransform = NewSubData.RootToSequenceTransform * Params.RootToSequenceTransform;
 		NewSubData.HierarchicalBias        = Params.HierarchicalBias + NewSubData.HierarchicalBias;
+		NewSubData.bHasHierarchicalEasing  = Params.bHasHierarchicalEasing || NewSubData.bHasHierarchicalEasing;
 
 		// Add the sub data to the root hierarchy
 		InOutHierarchy->Add(NewSubData, InnerSequenceID, ParentSequenceID);
@@ -1173,6 +1191,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 			// Iterate into the sub sequence
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
+			SubParams.Flags |= Entry.Flags;
 
 			RootPath->Push(SubData->DeterministicSequenceID);
 			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);

@@ -28,6 +28,8 @@
 #include "SequencerUtilities.h"
 #include "MovieSceneToolHelpers.h"
 
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 #include "MovieSceneTracksComponentTypes.h"
 
@@ -862,13 +864,30 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 	using namespace UE::MovieScene;
 	using namespace UE::Sequencer;
 
-	FMovieSceneSequenceID SequenceID = GetSequencer()->GetFocusedTemplateID();
-	const FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = GetSequencer()->GetEvaluationTemplate();
+	FSystemInterrogator Interrogator;
+	Interrogator.TrackImportedEntities(true);
+
+	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
+
+	TSet<UMovieSceneTrack*> TracksToInterrogate;
+	for (const FKeySectionOperation& Operation : SectionsToKey)
+	{
+		if (UMovieSceneTrack* Track = Operation.Section->GetSectionObject()->GetTypedOuter<UMovieSceneTrack>())
+		{
+			TracksToInterrogate.Add(Track);
+		}
+	}
+
+	// Don't care about the object binding ID for now
+	Interrogator.ImportTracks(TracksToInterrogate.Array(), FGuid(), FInterrogationChannel::Default());
+	Interrogator.AddInterrogation(KeyTime);
+
+	Interrogator.Update();
 
 	TArray<FMovieSceneEntityID> EntitiesPerSection, ValidEntities;
 	for (const FKeySectionOperation& Operation : SectionsToKey)
 	{
-		FMovieSceneEntityID EntityID = EvaluationTemplate.FindEntityFromOwner(Operation.Section->GetSectionObject(), 0, SequenceID);
+		FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(FInterrogationKey::Default(), Operation.Section->GetSectionObject(), 0);
 
 		EntitiesPerSection.Add(EntityID);
 		if (EntityID)
@@ -877,17 +896,15 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 		}
 	}
 
-	UMovieSceneEntitySystemLinker*        EntityLinker = EvaluationTemplate.GetEntitySystemLinker();
-	UMovieScenePropertyInstantiatorSystem* System = EntityLinker ? EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>() : nullptr;
+	UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator.GetLinker()->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
-	if (System && ValidEntities.Num() != 0)
+	if (ensure(System && ValidEntities.Num() != 0))
 	{
-		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
-
 		USceneComponent* Component = MovieSceneHelpers::SceneComponentFromRuntimeObject(ObjectToKey);
 
 		FDecompositionQuery Query;
 		Query.Entities = ValidEntities;
+		Query.bConvertFromSourceEntityIDs = false;
 		Query.Object   = Component;
 
 		FIntermediate3DTransform CurrentValue(Component->GetRelativeLocation(), Component->GetRelativeRotation(), Component->GetRelativeScale3D());

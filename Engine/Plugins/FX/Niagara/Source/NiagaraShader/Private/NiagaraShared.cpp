@@ -162,6 +162,11 @@ bool FNiagaraShaderScript::IsShaderMapComplete() const
 		return false;
 	}
 
+	if (FNiagaraShaderMap::GetShaderMapBeingCompiled(this) != nullptr)
+	{
+		return false;
+	}
+
 	for (int i=0; i < GetNumPermutations(); ++i)
 	{
 		if (GameThreadShaderMap->GetShader<FNiagaraShader>(i).IsNull())
@@ -272,12 +277,15 @@ void FNiagaraShaderScript::ReleaseShaderMap()
 	{
 		GameThreadShaderMap = nullptr;
 
-		FNiagaraShaderScript* Script = this;
-		ENQUEUE_RENDER_COMMAND(ReleaseShaderMap)(
-			[Script](FRHICommandListImmediate& RHICmdList)
-			{
-				Script->SetRenderingThreadShaderMap(nullptr);
-			});
+		if (!bQueuedForRelease)
+		{
+			FNiagaraShaderScript* Script = this;
+			ENQUEUE_RENDER_COMMAND(ReleaseShaderMap)(
+				[Script](FRHICommandListImmediate& RHICmdList)
+				{
+					Script->SetRenderingThreadShaderMap(nullptr);
+				});
+		}
 
 		UpdateCachedData_All();
 	}
@@ -416,6 +424,21 @@ void FNiagaraShaderScript::SetRenderThreadCachedData(const FNiagaraShaderMapCach
 	CachedData_RenderThread = CachedData;
 }
 
+void FNiagaraShaderScript::QueueForRelease(FThreadSafeBool& Fence)
+{
+	check(!bQueuedForRelease);
+
+	bQueuedForRelease = true;
+	Fence = false;
+	FThreadSafeBool* Released = &Fence;
+
+	ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
+		[Released](FRHICommandListImmediate& RHICmdList)
+		{
+			*Released = true;
+		});
+}
+
 void FNiagaraShaderScript::UpdateCachedData_All()
 {
 	UpdateCachedData_PreCompile();
@@ -499,15 +522,13 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 	{
 		CachedData_RenderThread = MoveTemp(CachedData);
 	}
-	else
+	else if (!bQueuedForRelease)
 	{
-		ENQUEUE_RENDER_COMMAND(UpdateCachedData)
-		(
-			[Script_RT=this, CachedData_RT=CachedData](FRHICommandListImmediate& RHICmdList)
-			{
-				Script_RT->SetRenderThreadCachedData(CachedData_RT);
-			}
-		);
+		ENQUEUE_RENDER_COMMAND(UpdateCachedData)(
+				[Script_RT = this, CachedData_RT = CachedData](FRHICommandListImmediate& RHICmdList)
+				{
+					Script_RT->SetRenderThreadCachedData(CachedData_RT);
+				});
 	}
 }
 
@@ -605,13 +626,16 @@ bool FNiagaraShaderScript::CacheShaders(const FNiagaraShaderMapId& ShaderMapId, 
 
 	UpdateCachedData_PostCompile();
 
-	FNiagaraShaderScript* Script = this;
-	FNiagaraShaderMap* LoadedShaderMap = GameThreadShaderMap;
-	ENQUEUE_RENDER_COMMAND(FSetShaderMapOnScriptResources)(
-		[Script, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
-		{
-			Script->SetRenderingThreadShaderMap(LoadedShaderMap);
-		});
+	if (!bQueuedForRelease)
+	{
+		FNiagaraShaderScript* Script = this;
+		FNiagaraShaderMap* LoadedShaderMap = GameThreadShaderMap;
+		ENQUEUE_RENDER_COMMAND(FSetShaderMapOnScriptResources)(
+			[Script, LoadedShaderMap](FRHICommandListImmediate& RHICmdList)
+			{
+				Script->SetRenderingThreadShaderMap(LoadedShaderMap);
+			});
+	}
 
 	return bSucceeded;
 }

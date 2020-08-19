@@ -79,6 +79,16 @@ namespace MediaTextureSampleFormat
 	 MEDIA_API const TCHAR* EnumToString(const EMediaTextureSampleFormat InSampleFormat);
 };
 
+
+enum class EMediaOrientation
+{
+	Original = 0,
+	CW90,
+	CW180,
+	CW270
+};
+
+
 /**
  * Interface for media texture samples.
  *
@@ -212,9 +222,33 @@ public:
 	virtual bool IsOutputSrgb() const = 0;
 
 	/**
+	 * Get image orientation vs. physically returned image data
+	 *
+	 * @return Image orientation
+	 */
+	virtual EMediaOrientation GetOrientation() const
+	{
+		return EMediaOrientation::Original;
+	}
+
+	/**
+	 * Get pixel aspect ratio
+	 *
+	 * @return Pixel aspect ratio
+	 */
+	virtual double GetAspectRatio() const
+	{
+		FIntPoint OutputDim = GetOutputDim();
+		return (double)OutputDim.X / (double)OutputDim.Y;
+	}
+
+	/**
 	 * Get the ScaleRotation (2x2 matrix) for the sample.
 	 *
 	 * @return FLinearColor with xy = row 0 (dotted with U), zw = row 1 (dotted with V)
+	 *
+	 * @note For use with "external image" style output only. Use GetOrientation() otherwise
+	 *
 	 */
 	virtual FLinearColor GetScaleRotation() const
 	{
@@ -225,6 +259,9 @@ public:
 	 * Get the Offset applied after ScaleRotation for the sample.
 	 *
 	 * @return FLinearColor with xy = offset, zw must be zero
+	 *
+	 * @note For use with "external image" style output only
+	 *
 	 */
 	virtual FLinearColor GetOffset() const
 	{

@@ -15,7 +15,6 @@
 #include "GameFramework/PlayerController.h"
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
-#include "Algo/RemoveIf.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -95,13 +94,20 @@ static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
 	ECVF_Default
 );
 
-FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
+FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
+	USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 	: SystemInstanceIndex(INDEX_NONE)
-	, Component(InComponent)
+	, World(&InWorld)
+	, Asset(&InAsset)
+	, OverrideParameters(InOverrideParameters)
+	, AttachComponent(InAttachComponent)
 	, PrereqComponent(nullptr)
-	, TickBehavior(InComponent ? InComponent->GetTickBehavior() : ENiagaraTickBehavior::UsePrereqs)
+	, TickBehavior(InTickBehavior)
 	, Age(0.0f)
+	, LastRenderTime(0.0f)
 	, TickCount(0)
+	, LODDistance(0.0f)
+	, MaxLODDistance(FLT_MAX)
 	, CurrentFrameIndex(1)
 	, ParametersValid(false)
 	, bSolo(false)
@@ -109,11 +115,11 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	, bPendingSpawn(false)
 	, bPaused(false)
 	, bDataInterfacesHaveTickPrereqs(false)
-	, bIsTransformDirty(true)
 	, bNeedsFinalize(false)
 	, bDataInterfacesInitialized(false)
 	, bAlreadyBound(false)
 	, bLODDistanceIsValid(false)
+	, bPooled(bInPooled)
 	, bAsyncWorkInProgress(false)
 	, CachedDeltaSeconds(0.0f)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
@@ -124,29 +130,25 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UNiagaraComponent* InComponent)
 	ID = IDCounter.IncrementExchange();
 
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
-	InstanceParameters.SetOwner(Component);
-
-	LODDistance = 0.0f;
-
-	if (Component)
+	if (InAttachComponent)
 	{
-		UWorld* World = Component->GetWorld();
-		if (World && World->Scene)
+		InstanceParameters.SetOwner(InAttachComponent);
+	}
+
+	if (World->Scene)
+	{
+		FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
+		if (FXSystemInterface)
 		{
-			FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
-			if (FXSystemInterface)
-			{
-				Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
-			}
-			FeatureLevel = World->FeatureLevel;
+			Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
 		}
+		FeatureLevel = World->FeatureLevel;
+	}
 		
-		// In some cases the system may have already stated that you should ignore dependencies and tick as early as possible.
-		ENiagaraTickBehavior SystemTickBehavior = TickBehavior;
-		if (!Component->GetAsset()->bRequireCurrentFrameData)
-		{
-			TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
-		}
+	// In some cases the system may have already stated that you should ignore dependencies and tick as early as possible.		
+	if (!InAsset.bRequireCurrentFrameData)
+	{
+		TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
 	}
 }
 
@@ -214,10 +216,6 @@ void FNiagaraSystemInstance::Init(bool bInForceSolo)
 {
 	// We warn if async is not complete here as we should never wait
 	WaitForAsyncTickAndFinalize(true);
-	if (!ensureMsgf(Component != nullptr, TEXT("SystemInstance Component is nullptr during Init")))
-	{
-		return;
-	}
 
 	bForceSolo = bInForceSolo;
 	ActualExecutionState = ENiagaraExecutionState::Inactive;
@@ -481,7 +479,7 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 	if (bInSolo)
 	{
 		TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSoloSim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
-		NewSoloSim->Init(System, Component->GetWorld(), true, TG_MAX);
+		NewSoloSim->Init(System, World, true, TG_MAX);
 
 		NewSoloSim->TransferInstance(SystemSimulation.Get(), this);	
 
@@ -506,7 +504,15 @@ void FNiagaraSystemInstance::SetSolo(bool bInSolo)
 
 void FNiagaraSystemInstance::UpdatePrereqs()
 {
-	PrereqComponent = Component != nullptr ? Component->GetAttachParent() : nullptr;
+	PrereqComponent = AttachComponent.Get();
+
+	// This is to maintain legacy behavior (and perf benefit) of ticking in PrePhysics with unattached UNiagaraComponents that have no DI prereqs
+	// NOTE: This means that the system likely ticks with frame-behind transform if the component is moved, but likely doesn't manifest as an issue with local-space emitters
+	// TODO: Is there a better way to detect being able to tick early for these perf wins by default, even when not using a NiagaraComponent?
+	if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(PrereqComponent))
+	{
+		PrereqComponent = NiagaraComponent->GetAttachParent();
+	}
 }
 
 void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
@@ -516,7 +522,7 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 	UNiagaraSystem* System = GetSystem();
 	if (System && System->IsValid() && IsReadyToRun())
 	{
-		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize))
+		if (GNiagaraAllowDeferredReset && (bAsyncWorkInProgress || bNeedsFinalize) && SystemInstanceIndex != INDEX_NONE)
 		{
 			DeferredResetMode = InResetMode;
 		}
@@ -526,10 +532,7 @@ void FNiagaraSystemInstance::Activate(EResetMode InResetMode)
 			WaitForAsyncTickAndFinalize();
 
 			DeferredResetMode = EResetMode::None;
-			if (Component != nullptr)
-			{
-				Reset(InResetMode);
-			}
+			Reset(InResetMode);			
 		}
 	}
 	else
@@ -561,9 +564,10 @@ void FNiagaraSystemInstance::Deactivate(bool bImmediate)
 	}
 }
 
-bool FNiagaraSystemInstance::AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation)
+bool FNiagaraSystemInstance::AllocateSystemInstance(TUniquePtr<FNiagaraSystemInstance>& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
+	FNiagaraUserRedirectionParameterStore* InOverrideParameters, USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 {
-	OutSystemInstanceAllocation = MakeUnique<FNiagaraSystemInstance>(InComponent);
+	OutSystemInstanceAllocation = MakeUnique<FNiagaraSystemInstance>(InWorld, InAsset, InOverrideParameters, InAttachComponent, InTickBehavior, bInPooled);
 	return true;
 }
 
@@ -597,7 +601,10 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		FNiagaraWorldManager* WorldManager = SystemInstanceAllocation->GetWorldManager();
 		check(WorldManager != nullptr);
 
-		SystemInstanceAllocation->Component = nullptr;
+		// Make sure we abandon any external interface at this point
+		SystemInstanceAllocation->OverrideParameters = nullptr;
+		SystemInstanceAllocation->PrereqComponent = nullptr;
+		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 
 		WorldManager->DestroySystemInstance(SystemInstanceAllocation);
 		check(SystemInstanceAllocation == nullptr);
@@ -639,7 +646,7 @@ void FNiagaraSystemInstance::Complete()
 
 	DestroyDataInterfaceInstanceData();
 
-	if (!Component || Component->PoolingMethod == ENCPoolMethod::None)
+	if (!bPooled)
 	{
 		UnbindParameters(true);
 	}
@@ -654,17 +661,12 @@ void FNiagaraSystemInstance::Complete()
 #if WITH_EDITOR
 		OnCompleteDelegate.Broadcast(this);
 #endif
-
-		if (Component)
-		{
-			// Note: This call may destroy this instance of FNiagaraSystemInstance, so don't use bNotifyOnCompletion after it!
-			Component->OnSystemComplete();
-		}
 	}
 }
 
-void FNiagaraSystemInstance::OnPooledReuse()
+void FNiagaraSystemInstance::OnPooledReuse(UWorld& NewWorld)
 {
+	World = &NewWorld;
 	for (auto&& Emitter : Emitters)
 	{
 		Emitter->OnPooledReuse();
@@ -717,12 +719,8 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 
 	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize();
-	if (Component == nullptr)
-	{
-		return;
-	}
 
-	Component->SetLastRenderTime(Component->GetWorld()->GetTimeSeconds());
+	LastRenderTime = World->GetTimeSeconds();
 
 	SetPaused(false);
 
@@ -810,13 +808,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 				TickCount = 0;
 			}
 		}
-
-		if (Component)
-		{
-			// This system may not tick again immediately so we mark the render state dirty here so that
-			// the renderers will be reset this frame.
-			Component->MarkRenderDynamicDataDirty();
-		}
 	}
 	else
 	{
@@ -843,20 +834,20 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	// Note: We do not need to update our bounds here as they are still valid
 
 	UNiagaraSystem* System = GetSystem();
-	if (System == nullptr || Component == nullptr || IsDisabled())
+	if (System == nullptr || IsDisabled())
 	{
 		return;
 	}
 
 #if WITH_EDITOR
-	if (Component->GetWorld() != nullptr && Component->GetWorld()->WorldType == EWorldType::Editor)
+	check(World);
+	if (OverrideParameters && World->WorldType == EWorldType::Editor)
 	{
-		Component->GetOverrideParameters().Tick();
+		OverrideParameters->Tick();
 	}
 #endif
 
 	bool bAllReadyToRun = IsReadyToRun();
-
 	if (!bAllReadyToRun)
 	{
 		return;
@@ -865,7 +856,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
 		return;
 	}
 
@@ -904,7 +895,7 @@ void FNiagaraSystemInstance::AdvanceSimulation(int32 TickCountToSimulate, float 
 		{
 			//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
 			//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-			ComponentTick(TickDeltaSeconds, nullptr);
+			ManualTick(TickDeltaSeconds, nullptr);
 		}
 		SetSolo(bWasSolo);
 	}
@@ -931,7 +922,7 @@ bool FNiagaraSystemInstance::IsReadyToRun() const
 	return bAllReadyToRun;
 }
 
-bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const UNiagaraComponent& Component)
+bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiagaraUserRedirectionParameterStore* OverrideParameters)
 {
 	if (FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
@@ -941,15 +932,18 @@ bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const UNiag
 		}
 
 		const TArray<FName>& UserDINamesReadInSystemScripts = System.GetUserDINamesReadInSystemScripts();
-		if (UserDINamesReadInSystemScripts.Num() > 0)
+		if (OverrideParameters != nullptr && UserDINamesReadInSystemScripts.Num() > 0)
 		{
 			TArray<FNiagaraVariable> OverrideParameterVariables;
-			Component.GetOverrideParameters().GetParameters(OverrideParameterVariables);
+			OverrideParameters->GetParameters(OverrideParameterVariables);
 			for (const FNiagaraVariable& OverrideParameterVariable : OverrideParameterVariables)
 			{
 				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
 				{
-					return true;
+					if (UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
+					{
+						return true;
+					}
 				}
 			}
 		}
@@ -973,15 +967,12 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	Age = 0;
 	TickCount = 0;
-	bIsTransformDirty = true;
-	TimeSinceLastForceUpdateTransform = 0.0f;
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
-
 	bAlreadyBound = false;
 
 	UNiagaraSystem* System = GetSystem();
-	if (System == nullptr || Component == nullptr)
+	if (System == nullptr)
 	{
 		return;
 	}
@@ -991,7 +982,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 	ActualExecutionState = ENiagaraExecutionState::Inactive;
 
 	bool bAllReadyToRun = IsReadyToRun();
-
 	if (!bAllReadyToRun)
 	{
 		return;
@@ -1000,18 +990,18 @@ void FNiagaraSystemInstance::ReInitInternal()
 	if (!System->IsValid())
 	{
 		SetRequestedExecutionState(ENiagaraExecutionState::Disabled);
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *Component->GetFullName());
+		UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara System due to invalid asset! System(%s) Component(%s)"), *System->GetName(), *GetFullNameSafe(AttachComponent.Get()));
 		return;
 	}
 
 	/** Do we need to run in solo mode? */
-	bSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*System, *Component);
+	bSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*System, OverrideParameters);
 	if (bSolo)
 	{
 		if (!SystemSimulation.IsValid())
 		{
 			SystemSimulation = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
-			SystemSimulation->Init(System, Component->GetWorld(), true, TG_MAX);
+			SystemSimulation->Init(System, World, true, TG_MAX);
 		}
 	}
 	else
@@ -1033,9 +1023,6 @@ void FNiagaraSystemInstance::ReInitInternal()
 
 	TickInstanceParameters_GameThread(0.01f);
 	TickInstanceParameters_Concurrent();
-
-	//Invalidate the component render state so we recreate the scene proxy and the renderers.
-	Component->MarkRenderStateDirty();
 
 #if WITH_EDITOR
 	//UE_LOG(LogNiagara, Log, TEXT("OnResetInternal %p"), this);
@@ -1122,23 +1109,21 @@ void FNiagaraSystemInstance::Cleanup()
 
 void FNiagaraSystemInstance::BindParameters()
 {
-	if (!Component)
+	if (OverrideParameters != nullptr)
 	{
-		return;
-	}
+		if (!bAlreadyBound)
+		{
+			// NOTE: We don't rebind if it's already bound to improve reset times.
+			OverrideParameters->Bind(&InstanceParameters);
+		}
 
-	if (!bAlreadyBound)
-	{
-		// NOTE: We don't rebind if it's already bound to improve reset times.
-		Component->GetOverrideParameters().Bind(&InstanceParameters); 
-	}
-
-	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
-	{
-		// If this simulation is solo than we can bind the instance parameters to the system simulation contexts so that
-		// the system and emitter scripts use the per-instance data interfaces.
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
-		Component->GetOverrideParameters().Bind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
+		if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
+		{
+			// If this simulation is solo than we can bind the instance parameters to the system simulation contexts so that
+			// the system and emitter scripts use the per-instance data interfaces.
+			OverrideParameters->Bind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
+			OverrideParameters->Bind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
+		}
 	}
 
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
@@ -1151,21 +1136,18 @@ void FNiagaraSystemInstance::BindParameters()
 
 void FNiagaraSystemInstance::UnbindParameters(bool bFromComplete)
 {
-	if (Component && !bFromComplete)
+	if (OverrideParameters != nullptr)
 	{
-		// NOTE: We don't unbind this on complete to improve reset times.
-		Component->GetOverrideParameters().Unbind(&InstanceParameters);
-	}
-
-	if (SystemSimulation.IsValid())
-	{
-		if (SystemSimulation->GetIsSolo())
+		if (!bFromComplete)
 		{
-			if (Component)
-			{
-				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
-				Component->GetOverrideParameters().Unbind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
-			}
+			// NOTE: We don't unbind this on complete to improve reset times.
+			OverrideParameters->Unbind(&InstanceParameters);
+		}
+
+		if (SystemSimulation.IsValid() && SystemSimulation->GetIsSolo())
+		{
+			OverrideParameters->Unbind(&SystemSimulation->GetSpawnExecutionContext()->Parameters);
+			OverrideParameters->Unbind(&SystemSimulation->GetUpdateExecutionContext()->Parameters);
 		}
 	}
 
@@ -1178,7 +1160,8 @@ void FNiagaraSystemInstance::UnbindParameters(bool bFromComplete)
 
 FNiagaraWorldManager* FNiagaraSystemInstance::GetWorldManager()const
 {
-	return Component ? FNiagaraWorldManager::Get(Component->GetWorld()) : nullptr; 
+	check(World);
+	return FNiagaraWorldManager::Get(World);
 }
 
 bool FNiagaraSystemInstance::RequiresDistanceFieldData() const
@@ -1260,9 +1243,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 {
 	bDataInterfacesHaveTickPrereqs = false;
 
-	// If either the System or the component is invalid, it is possible that our cached data interfaces
-	// are now bogus and could point to invalid memory. Only the UNiagaraComponent or UNiagaraSystem
-	// can hold onto GC references to the DataInterfaces.
+	// If the System is invalid, it is possible that our cached data interfaces are now bogus and could point to invalid memory.
+	// Only the UNiagaraComponent or UNiagaraSystem can hold onto GC references to the DataInterfaces.
 	if (GetSystem() == nullptr || IsDisabled())
 	{
 		return;
@@ -1271,13 +1253,11 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	// Wait for any async operations, can complete the system
 	WaitForAsyncTickAndFinalize(true);
 
-	if (Component == nullptr)
+	if (OverrideParameters != nullptr)
 	{
-		return;
+		OverrideParameters->Tick();
 	}
 
-	Component->GetOverrideParameters().Tick();
-	
 	//-TODO: Validate that any queued ticks have been executed
 	DestroyDataInterfaceInstanceData();
 
@@ -1392,10 +1372,8 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			bDataInterfacesInitialized &= bResult;
 			if (!bResult)
 			{
-				UE_LOG(LogNiagara, Error, TEXT("Error initializing data interface \"%s\" for system. %u | %s"), *Interface->GetPathName(), Component, *Component->GetAsset()->GetName());
+				UE_LOG(LogNiagara, Error, TEXT("Error initializing data interface \"%s\" for system. %s"), *Interface->GetPathName(), Asset.IsValid() ? *Asset->GetName() : TEXT("nullptr"));
 			}		
-
-			
 		}
 		else
 		{
@@ -1407,7 +1385,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	if (!bDataInterfacesInitialized && (!IsComplete() && !IsPendingSpawn()))
 	{
 		//Some error initializing the data interfaces so disable until we're explicitly reinitialized.
-		UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %u | %s"), Component, *Component->GetAsset()->GetName());
+		UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %s"), Asset.IsValid() ? *Asset->GetName() : TEXT("nullptr"));
 		Complete();
 		return;
 	}
@@ -1424,7 +1402,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 		if (!bSuccess)
 		{
 			//Some error initializing the per instance function tables.
-			UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %u | %s"), Component, *Component->GetAsset()->GetName());
+			UE_LOG(LogNiagara, Error, TEXT("Error initializing data interfaces. Completing system. %s"), Asset.IsValid() ? *Asset->GetName() : TEXT("nullptr"));
 			Complete();
 			return;
 		}
@@ -1433,7 +1411,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
 {
-	if (!GetSystem() || !Component || IsDisabled())
+	if (!GetSystem() || IsDisabled())
 	{
 		return;
 	}
@@ -1472,14 +1450,6 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 
 float FNiagaraSystemInstance::GetLODDistance()
 {
-	check(Component);
-#if WITH_EDITOR
-	if (Component->bEnablePreviewLODDistance)
-	{
-		return Component->PreviewLODDistance;
-	}
-#endif
-
 	//In most cases this will have been set externally by the scalability manager.
 	if (bLODDistanceIsValid)
 	{
@@ -1489,14 +1459,13 @@ float FNiagaraSystemInstance::GetLODDistance()
 	constexpr float DefaultLODDistance = 0.0f;
 
 	FNiagaraWorldManager* WorldManager = GetWorldManager();
-	if ( WorldManager == nullptr )
+	if (WorldManager == nullptr)
 	{
 		return DefaultLODDistance;
 	}
 	
-	UWorld* World = Component->GetWorld();
 	check(World);
-	const FVector EffectLocation = Component->GetComponentLocation();
+	const FVector EffectLocation = WorldTransform.GetLocation();
 	LODDistance = DefaultLODDistance;
 
 	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads
@@ -1600,7 +1569,14 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 			break;
 
 		case ENiagaraTickBehavior::UseComponentTickGroup:
-			NewTickGroup = FMath::Clamp((ETickingGroup)Component->PrimaryComponentTick.TickGroup, NiagaraFirstTickGroup, NiagaraLastTickGroup);
+			if (USceneComponent* Component = AttachComponent.Get())
+			{
+				NewTickGroup = FMath::Clamp((ETickingGroup)Component->PrimaryComponentTick.TickGroup, NiagaraFirstTickGroup, NiagaraLastTickGroup);
+			}
+			else
+			{
+				NewTickGroup = NiagaraFirstTickGroup;
+			}
 			break;
 
 		case ENiagaraTickBehavior::ForceTickFirst:
@@ -1620,22 +1596,26 @@ ETickingGroup FNiagaraSystemInstance::CalculateTickGroup() const
 
 void FNiagaraSystemInstance::SetTickBehavior(ENiagaraTickBehavior NewTickBehavior)
 {
-	TickBehavior = NewTickBehavior;
+	UNiagaraSystem* System = GetSystem();
+	if (!System || System->bRequireCurrentFrameData)
+	{
+		TickBehavior = NewTickBehavior;
+	}
+	else
+	{
+		// Tick as soon as possible
+		TickBehavior = ENiagaraTickBehavior::ForceTickFirst;
+	}
 }
 
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
-	static const auto EffectsQualityLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
-
-	if (!Component)
+	// If we're associated with a scene component, update our cached transform (otherwise, assume it was previously set externally)
+	if (AttachComponent.IsValid())
 	{
-		return;
+		WorldTransform = AttachComponent->GetComponentToWorld();
 	}
-
-	const int EffectsQualityLevel = EffectsQualityLevelCVar->GetInt();
-
-	const FTransform& ComponentTransform = Component->GetComponentTransform();
-	const bool TransformMatches = GatheredInstanceParameters.ComponentTrans.Equals(ComponentTransform);
+	const bool TransformMatches = GatheredInstanceParameters.ComponentTrans.Equals(WorldTransform);
 	if (TransformMatches)
 	{
 		// we want to update the transforms one more time than the buffer count because even if the transform buffers didn't change,
@@ -1644,7 +1624,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	}
 	else
 	{
-		GatheredInstanceParameters.ComponentTrans = ComponentTransform;
+		GatheredInstanceParameters.ComponentTrans = WorldTransform;
 		GatheredInstanceParameters.TransformMatchCount = 0;
 	}
 
@@ -1653,16 +1633,9 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	GatheredInstanceParameters.NumAlive = 0;
 
 	//Bias the LastRenderTime slightly to account for any delay as it's written by the RT.
-	if (const UWorld* World = Component->GetWorld())
-	{
-		GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
-		GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;
-	}
-	else
-	{
-		GatheredInstanceParameters.TimeSeconds = Age;
-		GatheredInstanceParameters.RealTimeSeconds = Age;
-	}
+	check(World);
+	GatheredInstanceParameters.TimeSeconds = World->TimeSeconds;
+	GatheredInstanceParameters.RealTimeSeconds = World->RealTimeSeconds;	
 
 	// flip our buffered parameters
 	FlipParameterBuffers();
@@ -1690,12 +1663,15 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	FNiagaraSystemParameters& CurrentSystemParameters = SystemParameters[ParameterIndex];
 	CurrentSystemParameters.EngineSystemAge = Age;
 	CurrentSystemParameters.EngineTickCount = TickCount;
-	CurrentSystemParameters.EngineTimeSinceRendered = FMath::Max(0.0f, GatheredInstanceParameters.TimeSeconds - Component->GetLastRenderTime() - GLastRenderTimeSafetyBias);
+	CurrentSystemParameters.EngineTimeSinceRendered = FMath::Max(0.0f, GatheredInstanceParameters.TimeSeconds - LastRenderTime - GLastRenderTimeSafetyBias);
 	CurrentSystemParameters.EngineExecutionState = static_cast<uint32>(RequestedExecutionState);
 	CurrentSystemParameters.EngineLodDistance = GetLODDistance();
 	CurrentSystemParameters.EngineLodDistanceFraction = CurrentSystemParameters.EngineLodDistance / MaxLODDistance;
 
-	Component->GetOverrideParameters().Tick();
+	if (OverrideParameters)
+	{
+		OverrideParameters->Tick();
+	}
 }
 
 void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
@@ -1821,10 +1797,6 @@ bool FNiagaraSystemInstance::UsesCollection(const UNiagaraParameterCollection* C
 void FNiagaraSystemInstance::InitEmitters()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInitEmitters);
-	if (Component)
-	{
-		Component->MarkRenderStateDirty();
-	}
 
 	bHasGPUEmitters = false;
 
@@ -1872,7 +1844,7 @@ void FNiagaraSystemInstance::InitEmitters()
 	ResetParameters();
 }
 
-void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
+void FNiagaraSystemInstance::ManualTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemInst_ComponentTickGT);
@@ -1888,7 +1860,6 @@ void FNiagaraSystemInstance::ComponentTick(float DeltaSeconds, const FGraphEvent
 	check(SystemSim.IsValid());
 	check(IsInGameThread());
 	check(bSolo);
-	check(Component);
 
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
 
@@ -1917,7 +1888,7 @@ void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
 		if ( bDoWarning && (FPlatformTime::Cycles64() > WarnCycles) )
 		{
 			bDoWarning = false;
-			UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has stalled GT for %g seconds and is not complete, this may result in a deadlock. Component(%s) System(%s)"), WarnSeconds, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
+			UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has stalled GT for %g seconds and is not complete, this may result in a deadlock. Component(%s) System(%s)"), WarnSeconds, *GetFullNameSafe(AttachComponent.Get()), *GetFullNameSafe(GetSystem()));
 		}
 	}
 
@@ -1925,7 +1896,7 @@ void FNiagaraSystemInstance::WaitForAsyncTickDoNotFinalize(bool bEnsureComplete)
 	if (StallTimeMS > GWaitForAsyncStallWarnThresholdMS)
 	{
 		//-TODO: This should be put back to a warning once EngineTests no longer cause it show up.  The reason it's triggered is because we pause in latent actions right after a TG running Niagara sims.
-		UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms. Component(%s) System(%s)"), StallTimeMS, *GetFullNameSafe(Component), *GetFullNameSafe(GetSystem()));
+		UE_LOG(LogNiagara, Log, TEXT("Niagara Effect stalled GT for %g ms. Component(%s) System(%s)"), StallTimeMS, *GetFullNameSafe(AttachComponent.Get()), *GetFullNameSafe(GetSystem()));
 	}
 }
 
@@ -2010,7 +1981,7 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	GPUParamIncludeInterpolation = false;
 	UNiagaraSystem* System = GetSystem();
 
-	if (IsComplete() || System == nullptr || Component == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
+	if (IsComplete() || System == nullptr || CachedDeltaSeconds < SMALL_NUMBER)
 	{
 		bAsyncWorkInProgress = false;
 		return;
@@ -2097,20 +2068,14 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	else
 	{
 		FBox NewLocalBounds(EForceInit::ForceInit);
-		for ( const auto& Emitter : Emitters )
+		for (const auto& Emitter : Emitters)
 		{
 			NewLocalBounds += Emitter->GetBounds();
 		}
 
-		if ( NewLocalBounds.IsValid )
+		if (NewLocalBounds.IsValid)
 		{
-			TimeSinceLastForceUpdateTransform += CachedDeltaSeconds;
-			if ((TimeSinceLastForceUpdateTransform > Component->MaxTimeBeforeForceUpdateTransform) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Min) || !LocalBounds.IsInsideOrOn(NewLocalBounds.Max))
-			{
-				bIsTransformDirty = true;
-				LocalBounds = NewLocalBounds.ExpandBy(NewLocalBounds.GetExtent() * GNiagaraBoundsExpandByPercent);
-				TimeSinceLastForceUpdateTransform = 0.0f;
-			}
+			LocalBounds = NewLocalBounds.ExpandBy(NewLocalBounds.GetExtent() * GNiagaraBoundsExpandByPercent);				
 		}
 		else
 		{
@@ -2137,6 +2102,8 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 	{
 		return;
 	}
+
+	USceneComponent* Component = AttachComponent.Get();
 	if (!Component)
 	{
 		// we can't attach the components anywhere, so just discard them
@@ -2309,26 +2276,16 @@ bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 			//Post tick our interfaces.
 			TickDataInterfaces(CachedDeltaSeconds, true);
 
-			if (Component)
+			ProcessComponentRendererTasks();
+
+			//Enqueue a GPU tick for this sim if we have to do this from the GameThread.
+			//If we're batching our tick passing we may still need to enqueue here if not called from the regular finalize task. The caller will tell us with bEnqueueGPUTickIfNeeded.
+			FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
+			check(Sim);
+			ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
+			if (Mode == ENiagaraGPUTickHandlingMode::GameThread || (Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched && bEnqueueGPUTickIfNeeded))
 			{
-				if ( bIsTransformDirty )
-				{
-					bIsTransformDirty = false;
-					Component->UpdateComponentToWorld();
-				}
-				Component->MarkRenderDynamicDataDirty();
-
-				ProcessComponentRendererTasks();
-
-				//Enqueue a GPU tick for this sim if we have to do this from the GameThread.
-				//If we're batching our tick passing we may still need to enqueue here if not called from the regular finalize task. The caller will tell us with bEnqueueGPUTickIfNeeded.
-				FNiagaraSystemSimulation* Sim = SystemSimulation.Get();
-				check(Sim);
-				ENiagaraGPUTickHandlingMode Mode = Sim->GetGPUTickHandlingMode();
-				if (Mode == ENiagaraGPUTickHandlingMode::GameThread || (Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched && bEnqueueGPUTickIfNeeded))
-				{
-					GenerateAndSubmitGPUTick();
-				}
+				GenerateAndSubmitGPUTick();
 			}
 		}
 
@@ -2338,6 +2295,11 @@ bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 			DeferredResetMode = EResetMode::None;
 
 			Reset(ResetMode);
+		}
+
+		if (OnPostTickDelegate.IsBound())
+		{
+			OnPostTickDelegate.Execute();
 		}
 
 		return true;
@@ -2391,17 +2353,14 @@ void FNiagaraSystemInstance::InitGPUTick(FNiagaraGPUSystemTick& OutTick)
 #if WITH_EDITOR
 void FNiagaraSystemInstance::RaiseNeedsUIResync()
 {
-	AsyncTask(
-		ENamedThreads::GameThread,
-		[WeakComponent = TWeakObjectPtr<UNiagaraComponent>(Component)]() mutable
-	{
-		UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
-		if (NiagaraComponent != nullptr )
-		{
-			NiagaraComponent->OnSynchronizedWithAssetParameters().Broadcast();
-		}
-	}
-	);
+	bNeedsUIResync = true;
+}
+
+bool FNiagaraSystemInstance::HandleNeedsUIResync()
+{
+	bool bRet = bNeedsUIResync;
+	bNeedsUIResync = false;
+	return bRet;
 }
 #endif
 
@@ -2457,18 +2416,6 @@ TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> FNiagaraSystemInstance:
 	return nullptr;
 }
 
-UNiagaraSystem* FNiagaraSystemInstance::GetSystem()const
-{
-	if (Component)
-	{
-		return Component->GetAsset();
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
 TConstArrayView<int32> FNiagaraSystemInstance::GetEmitterExecutionOrder() const
 {
 	if (SystemSimulation != nullptr)
@@ -2520,12 +2467,13 @@ const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
 {
 	if(CrashReporterTag.IsEmpty())
 	{
-		UNiagaraSystem* Sys = Component ? Component->GetAsset() : nullptr;
-		USceneComponent* AttachParent = Component ? Component->GetAttachParent() : nullptr;
+		UNiagaraSystem* Sys = GetSystem();
+		UNiagaraComponent* Component = Cast<UNiagaraComponent>(AttachComponent.Get());
+		USceneComponent* AttachParent = Component ? Component->GetAttachParent() : AttachComponent.Get();
 
-		const FString& CompName = Component ? Component->GetFullName() : TEXT("nullptr");
-		const FString& AssetName = Sys ? Sys->GetFullName() : TEXT("nullptr");
-		const FString& AttachName = AttachParent ? AttachParent->GetFullName() : TEXT("nullptr");
+		const FString& CompName = GetFullNameSafe(Component);
+		const FString& AssetName = GetFullNameSafe(Sys);
+		const FString& AttachName = GetFullNameSafe(AttachParent);
 
 		CrashReporterTag = FString::Printf(TEXT("SystemInstance | System: %s | bSolo: %s | Component: %s | AttachedTo: %s |"), *AssetName, IsSolo() ? TEXT("true") : TEXT("false"), *CompName, *AttachName);
 	}

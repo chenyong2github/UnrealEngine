@@ -5,6 +5,7 @@
 #import "OnlineStoreKitHelper.h"
 #import "OnlineAppStoreUtils.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Stats/Stats.h"
 
 FOnlineSubsystemIOS::FOnlineSubsystemIOS(FName InInstanceName)
 	: FOnlineSubsystemImpl(IOS_SUBSYSTEM, InInstanceName)
@@ -240,6 +241,8 @@ FAppStoreUtils* FOnlineSubsystemIOS::GetAppStoreUtils()
 
 bool FOnlineSubsystemIOS::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlineSubsystemIOS_Tick);
+
 	if (!FOnlineSubsystemImpl::Tick(DeltaTime))
 	{
 		return false;

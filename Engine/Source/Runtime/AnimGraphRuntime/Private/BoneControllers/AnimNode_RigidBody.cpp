@@ -56,8 +56,9 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinVel(TEXT("p.RigidBodyNod
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngVel(TEXT("p.RigidBodyNode.Space.MaxAngularVelocity"), RBAN_SimSpaceOverride.MaxAngularVelocity, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinAcc(TEXT("p.RigidBodyNode.Space.MaxLinearAcceleration"), RBAN_SimSpaceOverride.MaxLinearAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngAcc(TEXT("p.RigidBodyNode.Space.MaxAngularAcceleration"), RBAN_SimSpaceOverride.MaxAngularAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
-FAutoConsoleVariableRef CVarRigidBodyNodeSpaceFreefall(TEXT("p.RigidBodyNode.Space.Freefall"), RBAN_SimSpaceOverride.Freefall, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
-FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDrag(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag"), RBAN_SimSpaceOverride.ExternalLinearDrag, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragX(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.X"), RBAN_SimSpaceOverride.ExternalLinearDragV.X, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragY(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Y"), RBAN_SimSpaceOverride.ExternalLinearDragV.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragZ(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Z"), RBAN_SimSpaceOverride.ExternalLinearDragV.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityX(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.X"), RBAN_SimSpaceOverride.ExternalLinearVelocity.X, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityY(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Y"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Z"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
@@ -70,11 +71,22 @@ FSimSpaceSettings::FSimSpaceSettings()
 	, MaxAngularVelocity(10000)
 	, MaxLinearAcceleration(10000)
 	, MaxAngularAcceleration(10000)
-	, Freefall(0)
-	, ExternalLinearDrag(0)
+	, ExternalLinearDrag_DEPRECATED(0)
+	, ExternalLinearDragV(FVector::ZeroVector)
 	, ExternalLinearVelocity(FVector::ZeroVector)
 	, ExternalAngularVelocity(FVector::ZeroVector)
 {
+}
+
+void FSimSpaceSettings::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (ExternalLinearDrag_DEPRECATED != 0.0f)
+		{
+			ExternalLinearDragV = FVector(ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED);
+		}
+	}
 }
 
 
@@ -330,7 +342,6 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 	{
 		SpaceLinearVel = Settings.ExternalLinearVelocity;
 		SpaceAngularVel = Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = Settings.Freefall * WorldSpaceGravity;
 		return;
 	}
 
@@ -350,7 +361,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 		SpaceLinearVel = CompLinVel.GetClampedToMaxSize(Settings.MaxLinearVelocity) + Settings.ExternalLinearVelocity;
 		SpaceAngularVel = CompAngVel.GetClampedToMaxSize(Settings.MaxAngularVelocity) + Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = CompLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration) + Settings.Freefall * WorldSpaceGravity;
+		SpaceLinearAcc = CompLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration);
 		SpaceAngularAcc = CompAngAcc.GetClampedToMaxSize(Settings.MaxAngularAcceleration);
 		return;
 	}
@@ -391,7 +402,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 		SpaceLinearVel = NetLinVel.GetClampedToMaxSize(Settings.MaxLinearVelocity) + Settings.ExternalLinearVelocity;
 		SpaceAngularVel = NetAngVel.GetClampedToMaxSize(Settings.MaxAngularVelocity) + Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = NetLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration) + Settings.Freefall * WorldSpaceGravity;
+		SpaceLinearAcc = NetLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration);
 		SpaceAngularAcc = NetAngAcc.GetClampedToMaxSize(Settings.MaxAngularAcceleration);
 		return;
 	}
@@ -702,7 +713,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 			PhysicsSimulation->SetSimulationSpaceSettings(
 				UseSimSpaceSettings->MasterAlpha, 
-				UseSimSpaceSettings->ExternalLinearDrag);
+				UseSimSpaceSettings->ExternalLinearDragV);
 
 			PhysicsSimulation->SetSolverIterations(
 				SolverIterations.FixedTimeStep,

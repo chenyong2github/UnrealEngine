@@ -81,18 +81,17 @@ void UMoviePipelineBlueprintLibrary::GetOverallOutputFrames(const UMoviePipeline
 	}
 }
 
-FText UMoviePipelineBlueprintLibrary::GetCurrentSegmentName(UMoviePipeline* InMoviePipeline)
+void UMoviePipelineBlueprintLibrary::GetCurrentSegmentName(UMoviePipeline* InMoviePipeline, FText& OutOuterName, FText& OutInnerName)
 {
 	if (InMoviePipeline)
 	{
 		int32 ShotIndex = InMoviePipeline->GetCurrentShotIndex();
 		if (ShotIndex < InMoviePipeline->GetActiveShotList().Num())
 		{
-			return FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->InnerName);
+			OutOuterName = FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->OuterName);
+			OutInnerName = FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->InnerName);
 		}
 	}
-
-	return FText();
 }
 
 FDateTime UMoviePipelineBlueprintLibrary::GetJobInitializationTime(const UMoviePipeline* InMoviePipeline)
@@ -533,9 +532,8 @@ int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline*
 	FMoviePipelineFormatArgs FinalFormatArgs;
 	FStringFormatNamedArguments Overrides;
 	Overrides.Add(TEXT("version"), TEXT("{version}")); // Force the Version string to stay as {version} so we can substring based on it later.
-	FMoviePipelineFrameOutputState DummyOutputState;
 
-	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, DummyOutputState, Overrides, FinalPath, FinalFormatArgs);
+	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, Overrides, FinalPath, FinalFormatArgs);
 	FinalPath = FPaths::ConvertRelativePathToFull(FinalPath);
 	FPaths::NormalizeFilename(FinalPath);
 

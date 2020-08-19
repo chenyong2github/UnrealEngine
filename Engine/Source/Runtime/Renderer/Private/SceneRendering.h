@@ -689,11 +689,11 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FTemporalAAHistory
 {
 	// Number of render target in the history.
-	static constexpr uint32 kRenderTargetCount = 2;
+	static constexpr uint32 kRenderTargetCount = 4;
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in RT[0].
-	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
@@ -726,7 +726,7 @@ struct FScreenSpaceDenoiserHistory
 	FIntRect Scissor;
 
 	// Render target specific to the history.
-	TRefCountPtr<IPooledRenderTarget> RT[RTCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, RTCount> RT;
 
 	// The texture for tile classification.
 	TRefCountPtr<IPooledRenderTarget> TileClassification;
@@ -755,9 +755,9 @@ struct FGTAOTAAHistory
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in RT[0].
-	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
-	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
-	TRefCountPtr<IPooledRenderTarget> Velocity[kRenderTargetCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> Depth;
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> Velocity;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
@@ -894,6 +894,24 @@ struct FRayTracingMeshBatchWorkItem
 	FPrimitiveSceneProxy* SceneProxy;
 	uint32 InstanceIndex;
 };
+
+/** Convenience struct for all lighting data used by ray tracing effects using RayTracingLightingCommon.ush */
+struct FRayTracingLightData
+{
+	/** Uniform buffer with all lighting data */
+	TUniformBufferRef<FRaytracingLightDataPacked>	UniformBuffer;
+
+	/** Structured buffer containing all light data */
+	FStructuredBufferRHIRef							LightBuffer;
+	FShaderResourceViewRHIRef						LightBufferSRV;
+
+	/** Buffer of light indices reference by the culling volume */
+	FRWBuffer										LightIndices;
+
+	/** Camera-centered volume used to cull lights to cells */
+	FStructuredBufferRHIRef							LightCullVolume;
+	FShaderResourceViewRHIRef						LightCullVolumeSRV;
+};
 #endif
 
 /** A FSceneView with additional state used by the scene renderer. */
@@ -921,6 +939,9 @@ public:
 
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
+
+	/** A map from primitive ID to a boolean is distance culled */
+	FSceneBitArray DistanceCullingPrimitiveMap;
 
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
 	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
@@ -1232,9 +1253,7 @@ public:
 	// Common resources used for lighting in ray tracing effects
 	TRefCountPtr<IPooledRenderTarget>				RayTracingSubSurfaceProfileTexture;
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
-	FStructuredBufferRHIRef							RayTracingLightingDataBuffer;
-	TUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightingDataUniformBuffer;
-	FShaderResourceViewRHIRef						RayTracingLightingDataSRV;
+	FRayTracingLightData							RayTracingLightData;
 
 #endif // RHI_RAYTRACING
 

@@ -62,6 +62,7 @@
 #include "ToolMenus.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "LevelEditorModesActions.h"
+#include "PlatformInfo.h"
 
 static TAutoConsoleVariable<int32> CVarAllowMatineeActors(
 	TEXT("Matinee.AllowMatineeActors"),
@@ -1364,33 +1365,14 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FText GetPreviewModeText()
 			{
-				EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderPlatformName);
-
-				switch (ShaderPlatform)
-				{
-					case SP_VULKAN_ES3_1_ANDROID:
-					{						
-						return LOCTEXT("PreviewModeES31_Vulkan_Text", "Vulkan Preview");
-					}
-				}
-
-				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
-				{
-					case ERHIFeatureLevel::ES3_1:
-					{
-						return LOCTEXT("PreviewModeES3_1_Text", "ES3.1 Preview");
-					}
-					default:
-					{
-						return LOCTEXT("PreviewModeGeneric", "Preview Mode");
-					}
-				}
+				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewShaderFormatName);
+				return Item ? Item->IconText : FText();
 			}
 
 			static FText GetPreviewModeTooltip()
 			{
-				EShaderPlatform PreviewShaderPlatform = GEditor->PreviewPlatform.PreviewShaderPlatformName != NAME_None ?
-					ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderPlatformName) :
+				EShaderPlatform PreviewShaderPlatform = GEditor->PreviewPlatform.PreviewShaderFormatName != NAME_None ?
+					ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderFormatName) :
 					GetFeatureLevelShaderPlatform(GEditor->PreviewPlatform.PreviewFeatureLevel);
 
 				EShaderPlatform MaxRHIFeatureLevelPlatform = GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel);
@@ -1411,30 +1393,17 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FSlateIcon GetPreviewModeIcon()
 			{
-				EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderPlatformName);
+				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewShaderFormatName);
+				if(Item)
+				{
+					return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);
+				}
+
+				EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(GEditor->PreviewPlatform.PreviewShaderFormatName);
 
 				if (ShaderPlatform == SP_NumPlatforms)
 				{
 					ShaderPlatform = GetFeatureLevelShaderPlatform(GEditor->PreviewPlatform.PreviewFeatureLevel);
-				}
-				switch (ShaderPlatform)
-				{
-					case SP_OPENGL_ES3_1_ANDROID:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES31.Enabled" : "LevelEditor.PreviewMode.AndroidES31.Disabled");
-					}
-					case SP_VULKAN_ES3_1_ANDROID:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidVulkan.Enabled" : "LevelEditor.PreviewMode.AndroidVulkan.Disabled");
-					}
-					case SP_METAL:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.iOS.Enabled" : "LevelEditor.PreviewMode.iOS.Disabled");
-					}
-					case SP_VULKAN_PCES3_1:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
-					}
 				}
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
 				{
@@ -1918,35 +1887,10 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 	// SM5
 	Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_SM5);
 
-	// Android
-	bool bAndroidBuildForES31 = false;
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bBuildForES31"), bAndroidBuildForES31, GEngineIni);
-	if (bAndroidBuildForES31)
+	// Preview platforms discovered from ITargetPlatforms.
+	for (auto It = FLevelEditorCommands::Get().PreviewPlatformOverrides.CreateConstIterator(); It; ++It)
 	{
-		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidGLES31);
-	}
-
-	bool bAndroidSupportsVulkan = false;
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsVulkan"), bAndroidSupportsVulkan, GEngineIni);
-	if (bAndroidSupportsVulkan)
-	{
-		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanES31);
-	}
-
-	bool bAndroidSupportsMobileVulkanSM5 = false;
-	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bSupportsAndroidVulkanSM5"), bAndroidSupportsVulkan, GEngineIni);
-	if (bAndroidSupportsMobileVulkanSM5)
-	{
-		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_AndroidVulkanSM5);
-	}
-
-
-	// iOS
-	bool bIOSSupportsMetal = false;
-	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bSupportsMetal"), bIOSSupportsMetal, GEngineIni);
-	if (bIOSSupportsMetal)
-	{
-		Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_IOSMetalES31);
+		Section.AddMenuEntry(It.Value());
 	}
 
 #undef LOCTEXT_NAMESPACE

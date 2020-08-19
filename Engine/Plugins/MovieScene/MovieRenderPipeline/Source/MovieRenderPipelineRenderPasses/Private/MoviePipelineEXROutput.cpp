@@ -195,15 +195,19 @@ bool FEXRImageWriteTask::WriteToDisk()
 			// which moves the tellp location. So file length is stored in advance for later use. The output file needs to be
 			// created after the header information is filled.
 			Imf::OutputFile ImfFile(OutputFile, Header);
+#if WITH_EDITOR
 			try
+#endif
 			{
 				ImfFile.setFrameBuffer(FrameBuffer);
 				ImfFile.writePixels(Height);
 			}
+#if WITH_EDITOR
 			catch (const IEX_NAMESPACE::BaseExc& Exception)
 			{
 				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Caught exception: %s"), Exception.message().c_str());
 			}
+#endif
 		}
 		
 		// Now that the scope has closed for the Imf::OutputFile, now we can write the data to disk.
@@ -363,9 +367,11 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	// We need to resolve the filename format string. We combine the folder and file name into one long string first
 	FString FinalFilePath;
 	FMoviePipelineFormatArgs FinalFormatArgs;
-
+	FString FinalImageSequenceFileName;
+	FString ClipName;
+	const TCHAR* Extension = TEXT("exr");
 	{
-		FString FileNameFormatString = OutputDirectory / OutputSettings->FileNameFormat;
+		FString FileNameFormatString = OutputSettings->FileNameFormat;
 
 		// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 		// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
@@ -377,10 +383,19 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 		// Create specific data that needs to override 
 		FStringFormatNamedArguments FormatOverrides;
 		FormatOverrides.Add(TEXT("render_pass"), TEXT("")); // Render Passes are included inside the exr file by named layers.
-		FormatOverrides.Add(TEXT("ext"), TEXT("exr"));
+		FormatOverrides.Add(TEXT("ext"), Extension);
 
 		// This resolves the filename format and gathers metadata from the settings at the same time.
-		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs);
+		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalImageSequenceFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState, -InMergedOutputFrame->FrameOutputState.ShotOutputFrameNumber);
+
+		FString FilePathFormatString = OutputDirectory / FileNameFormatString;
+		GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+
+		// Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
+		UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
+		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+		ClipName.RemoveFromEnd(Extension);
+		ClipName.RemoveFromEnd(".");
 	}
 
 	TUniquePtr<FEXRImageWriteTask> MultiLayerImageTask = MakeUnique<FEXRImageWriteTask>();
@@ -407,4 +422,8 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	}
 
 	ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
+
+#if WITH_EDITOR
+	GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bOutputAlpha);
+#endif
 }

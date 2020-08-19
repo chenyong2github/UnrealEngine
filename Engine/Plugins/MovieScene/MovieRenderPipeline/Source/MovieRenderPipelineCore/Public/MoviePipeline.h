@@ -4,6 +4,9 @@
 #include "UObject/Object.h"
 #include "Engine/EngineCustomTimeStep.h"
 #include "MovieRenderPipelineDataTypes.h"
+#if WITH_EDITOR
+#include "MovieSceneExportMetadata.h"
+#endif
 #include "MovieSceneTimeController.h"
 #include "Async/Future.h"
 #include "MoviePipeline.generated.h"
@@ -123,8 +126,15 @@ public:
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
 	EMovieRenderPipelineState GetPipelineState() const { return PipelineState; }
 
+#if WITH_EDITOR
+	const FMovieSceneExportMetadata& GetOutputMetadata() const { return OutputMetadata; }
+#endif
+
 	FDateTime GetInitializationTime() const { return InitializationTime; }
 public:
+#if WITH_EDITOR
+	void AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha);
+#endif
 	void AddOutputFuture(TFuture<bool>&& OutputFuture);
 
 	void ProcessOutstandingFinishedFrames();
@@ -142,13 +152,16 @@ public:
 	/**
 	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
 	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
-	* @param	InOutputState		The output state for frame information.
 	* @param	InFormatOverrides	A series of Key/Value pairs to override particular format keys. Useful for things that
 	*								change based on the caller such as filename extensions.
-	* @return OutFinalPath			The final filepath based on a combination of the format string, the format overrides, and the current output state.
-	* @return OutFinalFormatArgs	The format arguments that were actually used to fill the format string (including file metadata)
+	* @return	OutFinalPath			The final filepath based on a combination of the format string, the format overrides, and the current output state.
+	* @return	OutFinalFormatArgs	The format arguments that were actually used to fill the format string (including file metadata)
+	*
+	* @param	InOutputState		(optional) The output state for frame information.
+	* @param	InFrameNumberOffset	(optional) Frame offset of the frame we want the filename for, if not the current frame
+	*								as specified in InOutputState
 	*/
-	void ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs) const;
+	void ResolveFilenameFormatArguments(const FString& InFormatString, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState=nullptr, const int32 InFrameNumberOffset=0) const;
 
 protected:
 	/**
@@ -389,10 +402,19 @@ public:
 	/** A debug image sequence writer in the event they want to dump every sample generated on its own. */
 	IImageWriteQueue* ImageWriteQueue;
 
+	/** Optional widget for feedback during render */
+	UPROPERTY(Transient)
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
+
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
 	UMoviePipelineExecutorJob* CurrentJob;
+
+#if WITH_EDITOR
+	/** Keep track of clips we've exported, for building FCPXML and other project files */
+	FMovieSceneExportMetadata OutputMetadata;
+#endif
 
 	TArray<TFuture<bool>> OutputFutures;
 	FMovieSceneChanges SequenceChanges;

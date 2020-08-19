@@ -18,14 +18,26 @@ class NIAGARA_API UNiagaraSimulationStageBase : public UNiagaraMergeable
 	GENERATED_BODY()
 
 public:
+	UNiagaraSimulationStageBase()
+	{
+		bEnabled = true;
+	}
+
 	UPROPERTY()
 	UNiagaraScript* Script;
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FName SimulationStageName;
 
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const { return true; }
+	UPROPERTY()
+	uint32 bEnabled : 1;
 
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+#if WITH_EDITOR
+	void SetEnabled(bool bEnabled);
+	void RequestRecompile();
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
 
 UCLASS(meta = (DisplayName = "Generic Simulation Stage"))
@@ -48,6 +60,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Emitter Reset Only", Tooltip = "When enabled the stage will only run on the first tick after the emitter is reset, only valid for data interface iteration stages", EditCondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	uint32 bSpawnOnly : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (DisplayName = "Partial Particle Update", Tooltip = "When enabled we will not output all particle variables to improve performance where possible.  This option is hazardous if you are reading data from other particles.", EditCondition = "IterationSource == ENiagaraIterationSource::Particles"))
+	uint32 bPartialParticleUpdate : 1;
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage", meta = (editcondition = "IterationSource == ENiagaraIterationSource::DataInterface"))
 	FNiagaraVariableDataInterfaceBinding DataInterface;

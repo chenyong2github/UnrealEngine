@@ -234,6 +234,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS);
 		Attributes.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED);
 		Attributes.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG);
+		Attributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONID);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONTWIST);
@@ -250,39 +251,40 @@ void FNiagaraConstants::Init()
 
 	if (AttrDataSetKeyMap.Num() == 0)
 	{
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_POSITION, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_POSITION));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_VELOCITY, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_VELOCITY));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_COLOR, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_COLOR));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_ROTATION, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SPRITE_ROTATION));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_NORMALIZED_AGE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_NORMALIZED_AGE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_SIZE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SPRITE_SIZE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_FACING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SPRITE_FACING));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SCALE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_SCALE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIFETIME, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIFETIME));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_MESH_ORIENTATION));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_CAMERA_OFFSET));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_UV_SCALE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_MATERIAL_RANDOM));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_ENABLED));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_RADIUS));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_EXPONENT));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_VISIBILITY_TAG));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONID, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONID));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONWIDTH));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONFACING));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONLINKORDER));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_POSITION, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_POSITION));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_VELOCITY, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_VELOCITY));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_COLOR, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_COLOR));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_ROTATION, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SPRITE_ROTATION));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_NORMALIZED_AGE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_NORMALIZED_AGE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_SIZE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SPRITE_SIZE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_FACING, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SPRITE_FACING));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_SCALE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_SCALE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIFETIME, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIFETIME));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MESH_ORIENTATION));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_CAMERA_OFFSET, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_CAMERA_OFFSET));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_UV_SCALE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_MATERIAL_RANDOM));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_ENABLED, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_ENABLED));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_RADIUS, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_RADIUS));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_EXPONENT, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_EXPONENT));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_VISIBILITY_TAG));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONID, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONID));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONWIDTH));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONFACING));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONLINKORDER));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE));
 	}
 
 	if (AttrDefaultsStrMap.Num() == 0)
@@ -406,6 +408,11 @@ void FNiagaraConstants::Init()
 		Var.SetValue<float>(0.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, Var);
 
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, TEXT("true"));
+		Var = SYS_PARAM_PARTICLES_COMPONENTS_ENABLED;
+		Var.SetValue<bool>(true);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, Var);
+
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, TEXT("0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONID;
 		Var.SetValue<FNiagaraID>(FNiagaraID());
@@ -480,6 +487,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_LIGHT_VOLUMETRIC_SCATTERING, LOCTEXT("LightVolumetricScatteringParamDesc", "Used to drive the volumetric scattering intensity of the light when using a Light renderer."));
 		AttrDescStrMap.Add(SYS_PARAM_INSTANCE_ALIVE, LOCTEXT("AliveParamDesc", "Used to determine whether or not this particle instance is still valid or if it can be deleted."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_VISIBILITY_TAG, LOCTEXT("VisibilityTag", "Used for selecting renderers to use when rendering this particle. Without this, the particle will render in all renderers"));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED, LOCTEXT("ComponentRenderEnabledParamDesc", "Used to check if component rendering should be enabled on a per-particle basis. Without this, the each particle will spawn a component."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, LOCTEXT("RibbonIDDesc", "Sets the ribbon id for a particle. Particles with the same ribbon id will be connected into a ribbon."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, LOCTEXT("RibbonWidthDesc", "Sets the ribbon width for a particle, in UE4 units."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
@@ -651,7 +659,7 @@ FNiagaraVariable FNiagaraConstants::GetAttributeWithDefaultValue(const FNiagaraV
 	return FNiagaraVariable();
 }
 
-FNiagaraVariable FNiagaraConstants::GetAttributeAsDataSetKey(const FNiagaraVariable& InVar)
+FNiagaraVariable FNiagaraConstants::GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InVar)
 {
 	FNiagaraVariable OutVar = InVar;
 	FString DataSetName = InVar.GetName().ToString();
@@ -660,6 +668,14 @@ FNiagaraVariable FNiagaraConstants::GetAttributeAsDataSetKey(const FNiagaraVaria
 	return OutVar;
 }
 
+FNiagaraVariable FNiagaraConstants::GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InVar)
+{
+	FNiagaraVariable OutVar = InVar;
+	FString DataSetName = InVar.GetName().ToString();
+	DataSetName.RemoveFromStart(TEXT("Emitter."));
+	OutVar.SetName(*DataSetName);
+	return OutVar;
+}
 FNiagaraVariableAttributeBinding FNiagaraConstants::GetAttributeDefaultBinding(const FNiagaraVariable& InVar)
 {
 	if (AttrDefaultsValueMap.Num() == 0)
@@ -668,15 +684,8 @@ FNiagaraVariableAttributeBinding FNiagaraConstants::GetAttributeDefaultBinding(c
 	}
 
 	FNiagaraVariableAttributeBinding Binding;
-	Binding.BoundVariable = InVar;
-	Binding.DataSetVariable = InVar;
 	const FNiagaraVariable* FoundVar = AttrDataSetKeyMap.Find(InVar);
-	if (FoundVar)
-	{
-		Binding.DataSetVariable = *FoundVar;
-	}
-
-	Binding.DefaultValueIfNonExistent = GetAttributeWithDefaultValue(InVar);
+	Binding.Setup(InVar, FoundVar ? *FoundVar : InVar, GetAttributeWithDefaultValue(InVar));
 	return Binding;
 }
 

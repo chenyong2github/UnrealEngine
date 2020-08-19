@@ -3,6 +3,7 @@
 #include "OnlinePurchaseIOS.h"
 #include "OnlineError.h"
 #include "OnlineSubsystemIOS.h"
+#include "Stats/Stats.h"
 #import "OnlineStoreKitHelper.h"
 
 /** Take successful transactions and route them through deferred pipeline */
@@ -394,6 +395,7 @@ void FOnlinePurchaseIOS::OnTransactionDeferred(const FStoreKitTransactionData& T
 		TWeakPtr<FOnlinePurchaseIOS, ESPMode::ThreadSafe> WeakThis(AsShared());
 		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WeakThis, TransactionData](float) -> bool
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FOnlinePurchaseIOS_TestDeferredTransactions);
 			FOnlinePurchaseIOSPtr StrongThis = WeakThis.Pin();
 			if (StrongThis.IsValid())
 			{

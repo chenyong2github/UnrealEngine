@@ -1737,7 +1737,8 @@ static bool BlueprintActionFilterImpl::IsHiddenInNonEditorBlueprint(FBlueprintAc
 	if (Function)
 	{
 		const bool bIsEditorOnlyFunction = IsEditorOnlyObject(Function) || Function->HasAnyFunctionFlags(FUNC_EditorOnly);
-		
+		const bool bIsUncookedOnlyFunction = Function->GetOutermost()->HasAnyPackageFlags(PKG_UncookedOnly);
+
 		if (bIsEditorOnlyFunction)
 		{
 			for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
@@ -1745,6 +1746,17 @@ static bool BlueprintActionFilterImpl::IsHiddenInNonEditorBlueprint(FBlueprintAc
 				const UClass* BlueprintClass = Blueprint->ParentClass;
 				const bool bIsEditorBlueprintClass = (BlueprintClass != nullptr) && IsEditorOnlyObject(BlueprintClass);
 				bVisible &= bIsEditorBlueprintClass;
+			}
+		}
+
+		if (bIsUncookedOnlyFunction)
+		{
+			for (const UBlueprint* Blueprint : Filter.Context.Blueprints)
+			{
+				const UClass* BlueprintClass = Blueprint->ParentClass;
+				const bool bIsEditorBlueprintClass = (BlueprintClass != nullptr) && IsEditorOnlyObject(BlueprintClass);
+				const bool bIsUncookedBlueprintClass = (BlueprintClass != nullptr) && BlueprintClass->GetOutermost()->HasAnyPackageFlags(PKG_UncookedOnly);
+				bVisible &= (bIsEditorBlueprintClass || bIsUncookedBlueprintClass);
 			}
 		}
 	}

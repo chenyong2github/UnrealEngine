@@ -38,6 +38,10 @@
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
 #include "HAL/FileManager.h"
+#include "Misc/CoreDelegates.h"
+#if WITH_EDITOR
+#include "MovieSceneExportMetadata.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -158,6 +162,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	// Disable some user settings that conflict with our need to mutate the data.
 	{
+#if WITH_EDITORONLY_DATA
 		// Movie Scene Read Only
 		SequenceChanges.bSequenceReadOnly = TargetSequence->GetMovieScene()->IsReadOnly();
 		TargetSequence->GetMovieScene()->SetReadOnly(false);
@@ -165,7 +170,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		// Playback Range locked
 		SequenceChanges.bSequencePlaybackRangeLocked = TargetSequence->GetMovieScene()->IsPlaybackRangeLocked();
 		TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
-
+#endif
 		// Force Frame-locked evaluation off on the sequence. We control time and will respect that, but need it off for subsampling.
 		SequenceChanges.EvaluationType = TargetSequence->GetMovieScene()->GetEvaluationType();
 		TargetSequence->GetMovieScene()->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
@@ -209,6 +214,19 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	// for anything we can't fix that might be an issue - extending sections, etc. This should be const as this
 	// validation should re-use what was used in the UI.
 	ValidateSequenceAndSettings();
+
+#if WITH_EDITOR
+	// Next, initialize the output metadata with the shot list data we just built
+	OutputMetadata.Shots.Empty(ActiveShotList.Num());
+	for (UMoviePipelineExecutorShot* Shot : ActiveShotList)
+	{
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
+
+		FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots.AddDefaulted_GetRef();
+		ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
+		ShotMetadata.HandleFrames = OutputSettings->HandleFrameCount;
+	}
+#endif
 
 	// Finally, we're going to create a Level Sequence Actor in the world that has its settings configured by us.
 	// Because this callback is at the end of startup (and before tick) we should be able to spawn the actor
@@ -284,8 +302,10 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 
 	TargetSequence->GetMovieScene()->SetEvaluationType(SequenceChanges.EvaluationType);
 	TargetSequence->GetMovieScene()->SetPlaybackRange(SequenceChanges.PlaybackRange);
+#if WITH_EDITORONLY_DATA
 	TargetSequence->GetMovieScene()->SetReadOnly(SequenceChanges.bSequenceReadOnly);
 	TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(SequenceChanges.bSequencePlaybackRangeLocked);
+#endif
 	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
 	{
 		Package->SetDirtyFlag(SequenceChanges.bSequencePackageDirty);
@@ -297,8 +317,9 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		if (ModifiedSegment.MovieScene.IsValid())
 		{
 			ModifiedSegment.MovieScene->SetPlaybackRange(ModifiedSegment.MovieScenePlaybackRange);
+#if WITH_EDITORONLY_DATA
 			ModifiedSegment.MovieScene->SetReadOnly(ModifiedSegment.bMovieSceneReadOnly);
-			
+#endif
 			if(UPackage* Package = ModifiedSegment.MovieScene->GetTypedOuter<UPackage>())
 			{
 				Package->SetDirtyFlag(ModifiedSegment.bMovieScenePackageDirty);
@@ -482,6 +503,7 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			}
 
 			TeardownAudioRendering();
+			LevelSequenceActor->GetSequencePlayer()->Stop();
 			RestoreTargetSequenceToOriginalState();
 
 			if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
@@ -753,14 +775,16 @@ void UMoviePipeline::InitializeLevelSequenceActor()
 		LevelSequenceActor = GetWorld()->SpawnActor<ALevelSequenceActor>();
 		check(LevelSequenceActor);
 	}
-
-	// Use our duplicated sequence
-	LevelSequenceActor->SetSequence(TargetSequence);
-
+	
 	// Enforce settings.
 	LevelSequenceActor->PlaybackSettings.LoopCount.Value = 0;
 	LevelSequenceActor->PlaybackSettings.bAutoPlay = false;
 	LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
+	LevelSequenceActor->PlaybackSettings.bRestoreState = true;
+
+	// Use our duplicated sequence
+	LevelSequenceActor->SetSequence(TargetSequence);
+
 	LevelSequenceActor->GetSequencePlayer()->SetTimeController(CustomSequenceTimeController);
 	LevelSequenceActor->GetSequencePlayer()->Stop();
 
@@ -810,15 +834,18 @@ void UMoviePipeline::BuildShotListFromSequence()
 			else
 			{
 				ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
+#if WITH_EDITORONLY_DATA
 				ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
-
+#endif
 				if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
 				{
 					ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
 				}
 
+#if WITH_EDITORONLY_DATA
 				// Unlock the playback range and readonly flags so we can modify the scene.
 				InnerMovieScene->SetReadOnly(false);
+#endif
 			}
 		}
 
@@ -1155,10 +1182,15 @@ bool UMoviePipeline::DebugFrameStepPreTick()
 
 void UMoviePipeline::LoadDebugWidget()
 {
-	FSoftClassPath DebugWidgetClassRef(TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"));
-	if (UClass* DebugWidgetClass = DebugWidgetClassRef.TryLoadClass<UMovieRenderDebugWidget>())
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClassToUse = DebugWidgetClass;
+	if (DebugWidgetClassToUse.Get() == nullptr)
 	{
-		DebugWidget = CreateWidget<UMovieRenderDebugWidget>(GetWorld(), DebugWidgetClass);
+		DebugWidgetClassToUse = LoadClass<UMovieRenderDebugWidget>(nullptr, TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"), nullptr, LOAD_None, nullptr);
+	}
+
+	if (DebugWidgetClassToUse.Get() != nullptr)
+	{
+		DebugWidget = CreateWidget<UMovieRenderDebugWidget>(GetWorld(), DebugWidgetClassToUse.Get());
 		if (DebugWidget)
 		{
 			DebugWidget->OnInitializedForPipeline(this);
@@ -1288,7 +1320,7 @@ static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
 	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
 }
 
-void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs) const
+void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState, const int32 InFrameNumberOffset) const
 {
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
@@ -1296,20 +1328,24 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// Gather all the variables
 	OutFinalFormatArgs = FMoviePipelineFormatArgs();
 	OutFinalFormatArgs.InJob = CurrentJob;
-	OutFinalFormatArgs.FileMetadata = InOutputState.FileMetadata;
 
 	// From Settings
 	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
 	bool bForceRelativeFrameNumbers = false;
-	if (InFormatString.Contains(TEXT("{frame")) && InOutputState.TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
+	if (InFormatString.Contains(TEXT("{frame")) && InOutputState && InOutputState->TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers."));
 		bForceRelativeFrameNumbers = true;
 	}
+
 	// From Output State
-	InOutputState.GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset, bForceRelativeFrameNumbers);
+	if (InOutputState)
+	{
+		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
+	}
 
 	// And from ourself
 	{

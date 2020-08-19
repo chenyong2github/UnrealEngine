@@ -278,7 +278,7 @@ FInstanceHandle FSequenceInstance::FindSubInstance(FMovieSceneSequenceID SubSequ
 
 FMovieSceneEntityID FSequenceInstance::FindEntity(UObject* Owner, uint32 EntityID) const
 {
-	return Ledger.FindImportedEntity(FMovieSceneEvaluationFieldEntityPtr{ Owner, EntityID });
+	return Ledger.FindImportedEntity(FMovieSceneEvaluationFieldEntityKey{ Owner, EntityID });
 }
 
 } // namespace MovieScene

@@ -537,9 +537,6 @@ void UEditorEngine::EndPlayMap()
 
 		PlaySettingsConfig->PostEditChange();
 		PlaySettingsConfig->SaveConfig();
-
-		// Now that we're shutting down, we'll no longer need the instance of the EditorPlaySettings.
-		PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings->RemoveFromRoot();
 	}
 	PlayInEditorSessionInfo.Reset();
 
@@ -834,10 +831,9 @@ void UEditorEngine::RequestPlaySession(const FRequestPlaySessionParams& InParams
 	// Now we duplicate their Editor Play Settings so that we can mutate it as part of startup
 	// to help rule out invalid configuration combinations.
 	FObjectDuplicationParameters DuplicationParams(PlaySessionRequest->EditorPlaySettings, GetTransientPackage());
+	// Kept alive by AddReferencedObjects
 	PlaySessionRequest->EditorPlaySettings = CastChecked<ULevelEditorPlaySettings>(StaticDuplicateObjectEx(DuplicationParams));
 
-	// Add the duplicated object to the root, as it's fairly likely an in-process startup will GC it.
-	PlaySessionRequest->EditorPlaySettings->AddToRoot();
 
 	// ToDo: Allow the CDO for the Game Instance to modify the settings after we copy them
 	// so that they can validate user settings before attempting a launch.

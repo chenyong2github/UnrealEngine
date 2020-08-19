@@ -17,6 +17,7 @@ namespace AutomationTool
 	[Help("Removes folders in an automation report directory that are older than a certain time.")]
 	[Help("ReportDir=<Directory>", "Path to the root report directory")]
 	[Help("Days=<N>", "Number of days to keep reports for")]
+	[Help("Depth=<N>", "How many subdirectories deep to clean, defaults to 0 (top level cleaning).")]
 	class CleanAutomationReports : BuildCommand
 	{
 		/// <summary>
@@ -24,60 +25,80 @@ namespace AutomationTool
 		/// </summary>
 		public override void ExecuteBuild()
 		{
-			string ReportDir = ParseParamValue("ReportDir", null);
-			if (ReportDir == null)
-			{
-				throw new AutomationException("Missing -ReportDir parameter");
-			}
-
-			string Days = ParseParamValue("Days", null);
-			if (Days == null)
-			{
-				throw new AutomationException("Missing -Days parameter");
-			}
+			string ReportDir = ParseRequiredStringParam("ReportDir");
+			string Days = ParseRequiredStringParam("Days");
 
 			double DaysValue;
-			if (!Double.TryParse(Days, out DaysValue))
+			if(!Double.TryParse(Days, out DaysValue))
 			{
 				throw new AutomationException("'{0}' is not a valid value for the -Days parameter", Days);
 			}
 
-			DateTime RetainTime = DateTime.UtcNow - TimeSpan.FromDays(DaysValue);
+			string Depth = ParseOptionalStringParam("Depth");
+			int TargetDepth;
+			if (!int.TryParse(Depth, out TargetDepth))
+			{
+				TargetDepth = 0;
+			}
 
-			// Enumerate all the build directories
-			CommandUtils.LogInformation("Scanning {0}...", ReportDir);
-			int NumFolders = 0;
-			List<DirectoryInfo> FoldersToDelete = new List<DirectoryInfo>();
-			foreach (DirectoryInfo BuildDirectory in new DirectoryInfo(ReportDir).EnumerateDirectories())
+			DirectoryInfo ReportDirInfo = new DirectoryInfo(ReportDir);
+			if (!ReportDirInfo.Exists)
+			{
+				throw new AutomationException("Report directory '{0}' does not exists.", ReportDirInfo.FullName);
+			}
+
+			DateTime RetainTime = DateTime.UtcNow - TimeSpan.FromDays(DaysValue);
+			List<DirectoryInfo> DirectoriesToDelete = new List<DirectoryInfo>();
+			int DirsScanned = CleanDirectories(ReportDirInfo, RetainTime, DirectoriesToDelete, TargetDepth);
+
+			// Delete old folders.
+			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", DirsScanned, DirectoriesToDelete.Count);
+			for(int Idx = 0; Idx < DirectoriesToDelete.Count; Idx++)
 			{
 				try
 				{
-					if(!BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.LastWriteTimeUtc > RetainTime))
-					{
-						FoldersToDelete.Add(BuildDirectory);
-					}
-					NumFolders++;
+					CommandUtils.LogInformation("[{0}/{1}] Deleting {2}...", Idx + 1, DirectoriesToDelete.Count, DirectoriesToDelete[Idx].FullName);
+					DirectoriesToDelete[Idx].Delete(true);
 				}
 				catch(Exception Ex)
 				{
-					CommandUtils.LogWarning("Unable to enumerate {0}: {1}", BuildDirectory.FullName, Ex.ToString());
+					CommandUtils.LogWarning("Failed to delete folder; will try one file at a time: {0}", Ex);
+					CommandUtils.DeleteDirectory_NoExceptions(true, DirectoriesToDelete[Idx].FullName);
 				}
 			}
-			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", NumFolders, FoldersToDelete.Count);
+		}
 
-			// Delete them all
-			for (int Idx = 0; Idx < FoldersToDelete.Count; Idx++)
+		private int CleanDirectories(DirectoryInfo Directory, DateTime RetainTime, List<DirectoryInfo> DirectoriesToDelete, int TargetDepth, int CurrentDepth = 0)
+		{
+			// Go deeper if we need to.
+			if(TargetDepth > CurrentDepth)
 			{
-				try
+				int DirsFound = 0;
+				foreach(DirectoryInfo SubDirectory in Directory.EnumerateDirectories())
 				{
-					CommandUtils.LogInformation("[{0}/{1}] Deleting {2}...", Idx + 1, FoldersToDelete.Count, FoldersToDelete[Idx].FullName);
-					FoldersToDelete[Idx].Delete(true);
+					DirsFound += CleanDirectories(SubDirectory, RetainTime, DirectoriesToDelete, TargetDepth, CurrentDepth + 1);
 				}
-				catch (Exception Ex)
+				return DirsFound;
+			}
+			else
+			{
+				CommandUtils.LogInformation("Scanning {0}...", Directory);
+				IEnumerable<DirectoryInfo> DirsToScan = Directory.EnumerateDirectories();
+				foreach(DirectoryInfo BuildDirectory in DirsToScan)
 				{
-					CommandUtils.LogWarning("Failed to delete folder; will try one file at a time: {0}", Ex);
-					CommandUtils.DeleteDirectory_NoExceptions(true, FoldersToDelete[Idx].FullName);
+					try
+					{
+						if(!BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.LastWriteTimeUtc > RetainTime))
+						{
+							DirectoriesToDelete.Add(BuildDirectory);
+						}
+					}
+					catch(Exception Ex)
+					{
+						CommandUtils.LogWarning("Unable to enumerate {0}: {1}", BuildDirectory.FullName, Ex.ToString());
+					}
 				}
+				return DirsToScan.Count();
 			}
 		}
 	}

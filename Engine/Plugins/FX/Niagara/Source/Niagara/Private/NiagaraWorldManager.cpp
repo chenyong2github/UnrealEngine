@@ -392,6 +392,7 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 			SystemSimulations[TG].Remove(System);
 		}
 	}
+	ComponentPool->RemoveComponentsBySystem(System);
 }
 
 void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr)
@@ -588,24 +589,40 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		// - Instances that were spawned and we need to ensure the async tick is complete
 		if (SimulationsWithPostActorWork.Num() > 0)
 		{
-			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+			for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i )
 			{
-				const auto& Simulation = SimulationsWithPostActorWork[i];
-				if (Simulation->IsValid())
+				if (!SimulationsWithPostActorWork[i]->IsValid())
 				{
-					Simulation->WaitForSystemTickComplete();
-					Simulation->UpdateTickGroups_GameThread();
+					SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
+					--i;
+				}
+				else
+				{
+					SimulationsWithPostActorWork[i]->WaitForSystemTickComplete();
 				}
 			}
 
-			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+			for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i)
 			{
-				const auto& Simulation = SimulationsWithPostActorWork[i];
+				if (!SimulationsWithPostActorWork[i]->IsValid())
+				{
+					SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
+					--i;
+				}
+				else
+				{
+					SimulationsWithPostActorWork[i]->UpdateTickGroups_GameThread();
+				}
+			}
+
+			for (const auto& Simulation : SimulationsWithPostActorWork)
+			{
 				if (Simulation->IsValid())
 				{
 					Simulation->Spawn_GameThread(DeltaSeconds, true);
 				}
 			}
+
 			SimulationsWithPostActorWork.Reset();
 		}
 	}
@@ -614,6 +631,18 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		SimulationsWithPostActorWork.Reset();
 
 		// Resolve tick groups for pending spawn instances
+		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+		{
+			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
+			{
+				FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
+				if (Sim->IsValid())
+				{
+					Sim->WaitForSystemTickComplete();
+				}
+			}
+		}
+
 		for (int TG=0; TG < NiagaraNumTickGroups; ++TG)
 		{
 			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
@@ -626,7 +655,6 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 			}
 		}
 
-		// Execute spawn game thread
 		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 		{
 			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])

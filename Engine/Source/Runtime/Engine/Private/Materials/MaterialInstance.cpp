@@ -188,7 +188,7 @@ bool FMaterialInstanceResource::GetScalarValue(
 {
 	checkSlow(IsInParallelRenderingThread());
 
-	static FHashedName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
+	static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
 	if (ParameterInfo.Name == NameSubsurfaceProfile)
 	{
 		check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
@@ -1355,39 +1355,39 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 				case EMaterialTextureParameterType::Standard2D:
 					if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					else if (TextureType & MCT_TextureVirtual)
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires non-virtual texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires non-virtual texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
 				case EMaterialTextureParameterType::Cube:
 					if (!(TextureType & MCT_TextureCube))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Cube texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Cube texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
 				case EMaterialTextureParameterType::Array2D:
 					if (!(TextureType & MCT_Texture2DArray))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required texture array"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required texture array"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
 				case EMaterialTextureParameterType::Volume:
 					if (!(TextureType & MCT_VolumeTexture))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Volume texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Volume texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
 				case EMaterialTextureParameterType::Virtual:
 					if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					else if (!(TextureType & MCT_TextureVirtual))
 					{
-						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires virtual texture"), *MaterialName, *TextureInfo.ParameterName, *Texture->GetName());
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires virtual texture"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
 				default:
@@ -1472,7 +1472,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 				if (Texture != NULL && Texture == InTextureToOverride)
 				{
 					// Override this texture!
-					SourceMaterialResource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, i, OverrideTexture);
+					SourceMaterialResource->TransientOverrides.SetTextureOverride((EMaterialTextureParameterType)TypeIndex, Parameter.ParameterInfo, OverrideTexture);
 					bShouldRecacheMaterialExpressions = true;
 				}
 			}
@@ -1495,14 +1495,14 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialPara
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
 		if (SourceMaterialResource)
 		{
-			const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
+			SourceMaterialResource->TransientOverrides.SetVectorOverride(ParameterInfo, Value, bOverride);
 
+			const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
 			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
 				const FMaterialVectorParameterInfo& Parameter = Parameters[i];
 				if (Parameter.ParameterInfo == ParameterInfo)
 				{
-					SourceMaterialResource->TransientOverrides.SetVectorOverride(i, Value, bOverride);
 					bShouldRecacheMaterialExpressions = true;
 				}
 			}
@@ -1525,14 +1525,14 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FHashedMaterialPara
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
 		if (SourceMaterialResource)
 		{
-			const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
+			SourceMaterialResource->TransientOverrides.SetScalarOverride(ParameterInfo, Value, bOverride);
 
+			const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
 			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
 				const FMaterialScalarParameterInfo& Parameter = Parameters[i];
 				if (Parameter.ParameterInfo == ParameterInfo)
 				{
-					SourceMaterialResource->TransientOverrides.SetScalarOverride(i, Value, bOverride);
 					bShouldRecacheMaterialExpressions = true;
 				}
 			}
@@ -1670,7 +1670,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 				if (!ParameterValue)
 				{
 					ParameterValue = new(ScalarParameterValues)FScalarParameterValue;
-					ParameterValue->ParameterInfo = Parameter.GetParameterInfo();
+					ParameterValue->ParameterInfo = FMaterialParameterInfo(Parameter.ParameterInfo);
 				}
 
 				ParameterValue->ParameterValue = Value;
@@ -1692,7 +1692,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 				if (!ParameterValue)
 				{
 					ParameterValue = new(VectorParameterValues)FVectorParameterValue;
-					ParameterValue->ParameterInfo = Parameter.GetParameterInfo();
+					ParameterValue->ParameterInfo = FMaterialParameterInfo(Parameter.ParameterInfo);
 				}
 
 				ParameterValue->ParameterValue = Value;
@@ -2810,7 +2810,7 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 		UMaterial* BaseMaterial = GetMaterial();
 
 		TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> > QualityLevelsUsed;
-		BaseMaterial->GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform);
+		BaseMaterial->GetQualityLevelUsageForCooking(QualityLevelsUsed, ShaderPlatform);
 
 		const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
 		bool bNeedDefaultQuality = false;
@@ -4841,7 +4841,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					for (const FMaterialScalarParameterInfo& Parameter : ScalarExpressions)
 					{
 						FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
-						ParameterValue->ParameterInfo.Name = *Parameter.ParameterName;
+						ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
 						Parameter.GetDefaultValue(ParameterValue->ParameterValue);
 					}
 
@@ -4850,7 +4850,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					for (const FMaterialVectorParameterInfo& Parameter : VectorExpressions)
 					{
 						FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;
-						ParameterValue->ParameterInfo.Name = *Parameter.ParameterName;
+						ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
 						Parameter.GetDefaultValue(ParameterValue->ParameterValue);
 					}
 
@@ -4862,7 +4862,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 							if (!Parameter.ParameterInfo.Name.IsNone())
 							{
 								FTextureParameterValue* ParameterValue = new(TextureParameterValues) FTextureParameterValue;
-								ParameterValue->ParameterInfo.Name = *Parameter.ParameterName;
+								ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
 								Parameter.GetGameThreadTextureValue(AsMaterial, *MaterialResource, ParameterValue->ParameterValue);
 							}
 						}

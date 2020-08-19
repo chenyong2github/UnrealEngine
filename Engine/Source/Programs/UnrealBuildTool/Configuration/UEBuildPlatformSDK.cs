@@ -90,7 +90,7 @@ namespace UnrealBuildTool
 		/// Returns SDK string as required by the platform
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		protected virtual string GetRequiredSDKString()
+		public virtual string GetRequiredSDKString()
 		{
 			return "";
 		}

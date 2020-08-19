@@ -82,6 +82,7 @@ import android.os.SystemClock;
 import android.os.Looper;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.PowerManager;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -156,6 +157,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.games.Games;
+import com.google.android.apps.internal.games.memoryadvice.MemoryAdvisor;
 
 import com.google.android.gms.plus.Plus;
 
@@ -512,6 +514,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public static final int ANDROID_BUILD_VERSION = android.os.Build.VERSION.SDK_INT;
 	
 	private StoreHelper IapStoreHelper;
+	
+	private MemoryAdvisor MemAdvisor;
+	private static final int MemoryAdvisorPollDelayMs = 100;
+	private static final int ProcessMemoryInfoPollDelayMs = 10000;
+	private long LastMemoryInfoPollTime;
+	private MemoryAdvisor.MemoryState MemState = MemoryAdvisor.MemoryState.OK;
 
 //$${gameActivityClassAdditions}$$
 
@@ -2352,39 +2360,77 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			Logger.SuppressLogs();
 		}
+		
+		MemAdvisor = new MemoryAdvisor(this);
+		LastMemoryInfoPollTime = System.currentTimeMillis();
 
 		// update memory stats every 10 seconds
 		memoryRunnable = new Runnable() {
 			@Override
 			public void run()
 			{
-				int ProcessMemory = 0;
-
-				ActivityManager activityManager = (ActivityManager)_activity.getSystemService(Context.ACTIVITY_SERVICE);
-				int pid = android.os.Process.myPid();
-				int pids[] = new int[] { pid };
-				android.os.Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(pids);
-				if (memoryInfo.length > 0)
+				JSONObject Advice = MemAdvisor.getAdvice();
+				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);				
+				if (CurrentMemoryState != MemState)
 				{
-					ProcessMemory = memoryInfo[0].dalvikPss + memoryInfo[0].nativePss + memoryInfo[0].otherPss;
-
-					if (Build.VERSION.SDK_INT >= 23)
+					switch (CurrentMemoryState)
 					{
-						Map<String, String> memstats = memoryInfo[0].getMemoryStats();
-						if (memstats.containsKey("summary.total-pss"))
+						case UNKNOWN:
+							Log.warn("Cannot determine memory state");
+							nativeOnMemoryWarningChanged(_activity, -1);
+							break;
+						case OK:
+							nativeOnMemoryWarningChanged(_activity, 0);
+							break;
+						case APPROACHING_LIMIT:
+							Log.warn("Approaching memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							nativeOnMemoryWarningChanged(_activity, 1);
+							break;
+						case CRITICAL:
+							Log.warn("Critical memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							nativeOnMemoryWarningChanged(_activity, 2);
+							break;
+					}
+					
+					MemState = CurrentMemoryState;
+				}
+				
+				int ProcessMemory = 0;
+				
+				long CurrentTimeMs = System.currentTimeMillis();
+				if (CurrentTimeMs - LastMemoryInfoPollTime >= ProcessMemoryInfoPollDelayMs)
+				{
+					ActivityManager activityManager = (ActivityManager)_activity.getSystemService(Context.ACTIVITY_SERVICE);
+					int pid = android.os.Process.myPid();
+					int pids[] = new int[] { pid };
+					android.os.Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(pids);
+					if (memoryInfo.length > 0)
+					{
+						ProcessMemory = memoryInfo[0].dalvikPss + memoryInfo[0].nativePss + memoryInfo[0].otherPss;
+
+						if (Build.VERSION.SDK_INT >= 23)
 						{
-							ProcessMemory = Integer.parseInt(memstats.get("summary.total-pss"));
+							Map<String, String> memstats = memoryInfo[0].getMemoryStats();
+							if (memstats.containsKey("summary.total-pss"))
+							{
+								ProcessMemory = Integer.parseInt(memstats.get("summary.total-pss"));
+							}
 						}
 					}
+					Log.debug("Used memory: " + ProcessMemory + " ("+FindLineFromStatus("VmRSS:")+")");
+					LastMemoryInfoPollTime = CurrentTimeMs;
 				}
-				Log.debug("Used memory: " + ProcessMemory + " ("+FindLineFromStatus("VmRSS:")+")");
-
+				
 				synchronized(_activity)
 				{
-					_activity.UsedMemory = ProcessMemory;
+					if (ProcessMemory > 0)
+					{
+						_activity.UsedMemory = ProcessMemory;
+					}
+					
 					if (_activity.memoryHandler != null)
 					{
-						_activity.memoryHandler.postDelayed(this, 10000);
+						_activity.memoryHandler.postDelayed(this, _activity.MemoryAdvisorPollDelayMs);
 					}
 				}
 			}
@@ -3103,6 +3149,19 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 //$${gameActivityAfterMainViewCreatedAdditions}$$
 
 		clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+		
+		if (Build.VERSION.SDK_INT >= 29)
+		{
+			PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+			powerManager.addThermalStatusListener(getMainExecutor(), new PowerManager.OnThermalStatusChangedListener() {
+				@Override 
+				public void onThermalStatusChanged(int status) 
+				{
+					Log.debug("=== Thermal status changed to " + status);
+					nativeOnThermalStatusChangedListener(null, status);
+				}
+			});
+		}
 
 //$${gameActivityOnCreateAdditions}$$
 //$${gameActivityOnCreateFinalAdditions}$$
@@ -6312,6 +6371,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		
 	public native void nativeOnInitialDownloadStarted();
 	public native void nativeOnInitialDownloadCompleted();
+	
+	public native void nativeOnThermalStatusChangedListener(GameActivity activity, int status);
+	public native void nativeOnMemoryWarningChanged(GameActivity activity, int status);
 
 	static
 	{

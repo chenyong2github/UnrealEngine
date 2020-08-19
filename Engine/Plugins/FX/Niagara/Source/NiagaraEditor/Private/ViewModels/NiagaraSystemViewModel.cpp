@@ -27,6 +27,7 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
+#include "EdGraphUtilities.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 
 #include "Editor.h"

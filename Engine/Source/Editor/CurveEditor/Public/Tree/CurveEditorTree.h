@@ -455,6 +455,11 @@ public:
 		return FScopedCurveEditorTreeEventGuard(this);
 	}
 
+	/**
+	 * Compact the memory used by this tree (does not modify any meaningful state)
+	 */
+	void Compact();
+
 private:
 
 	// Recursively removes children without removing them from the parent (assuming the parent is also being removed)

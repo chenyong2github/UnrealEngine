@@ -16,6 +16,7 @@
 #include "OnlineSubsystemUtils.h"
 #include "Containers/Ticker.h"
 #include "Engine/LocalPlayer.h"
+#include "Stats/Stats.h"
 
 static bool IsTencentPlatform()
 {
@@ -105,10 +106,14 @@ static FAutoConsoleVariableRef CVar_EstablishSessionRetryDelay(
 //////////////////////////////////////////////////////////////////////////
 bool FPartyPlatformSessionManager::DoesOssNeedPartySession(FName OssName)
 {
+#ifdef OSS_PARTY_PLATFORM_SESSION_REQUIRED
+	return OSS_PARTY_PLATFORM_SESSION_REQUIRED;
+#else
 	const bool bIsPS4 = OssName.IsEqual(PS4_SUBSYSTEM);
 	const bool bIsXB1 = OssName.IsEqual(LIVE_SUBSYSTEM);
 	const bool bIsTencent = OssName.IsEqual(TENCENT_SUBSYSTEM);
 	return bIsPS4 || bIsXB1 || bIsTencent;
+#endif
 }
 
 TSharedRef<FPartyPlatformSessionManager> FPartyPlatformSessionManager::Create(USocialManager& InSocialManager)
@@ -194,6 +199,7 @@ bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& Session
 				FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 					[AsWeakPtr, SessionId, SessionOwnerId, LocalUserPlatformId, OnAttemptComplete, this](float)
 					{
+						QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_FindSessionAttempt);
 						if (AsWeakPtr.IsValid())
 						{
 							if (ForcePlatformSessionFindFailure != 0)
@@ -509,6 +515,7 @@ void FPartyPlatformSessionMonitor::CreateSession(const FUniqueNetIdRepl& LocalUs
 			FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 				[AsWeakPtr, SessionSettings, LocalUserPlatformId, this] (float)
 				{
+					QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_CreateSessionAttempt);
 					if (AsWeakPtr.IsValid())
 					{
 						if (ForcePlatformSessionCreationFailure != 0)
@@ -631,6 +638,7 @@ void FPartyPlatformSessionMonitor::JoinSession(const FOnlineSessionSearchResult&
 		FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
 			[AsWeakPtr, SearchResultCopy, LocalUserPlatformId, this] (float)
 			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionManager_JoinSessionAttempt);
 				if (AsWeakPtr.IsValid())
 				{
 					if (ForcePlatformSessionCreationFailure != 0)
@@ -1058,6 +1066,8 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 
 bool FPartyPlatformSessionMonitor::HandleRetryEstablishingSession(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionMonitor_HandleRetryEstablishingSession);
+
 	RetryTickerHandle.Reset();
 	
 	// Do a full re-evaluation of our target session, since things may have changed substantially since the last attempt
@@ -1085,7 +1095,7 @@ void FPartyPlatformSessionMonitor::ProcessJoinFailure()
 
 bool FPartyPlatformSessionMonitor::HandleQueuedSessionUpdate(float)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialParty_HandleQueuedSessionUpdate);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPartyPlatformSessionMonitor_HandleQueuedSessionUpdate);
 	bHasQueuedSessionUpdate = false;
 
 	if (ShutdownState == EMonitorShutdownState::None && DoesLocalUserOwnPlatformSession())

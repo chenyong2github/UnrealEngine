@@ -171,12 +171,13 @@ public partial class Project : CommandUtils
 		EncryptionAndSigning.CryptoSettings CryptoSettings,
 		string EncryptionKeyGuid,
 		string PatchSourceContentPath,
-		bool bGenerateDiffPatch)
+		bool bGenerateDiffPatch,
+		bool bIsDLC)
 	{
 		StringBuilder CmdLine = new StringBuilder();
 		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
 		CmdLine.AppendFormat("-ContainerName={0}", ContainerName);
-		if (!String.IsNullOrEmpty(PatchSourceContentPath))
+		if (!bIsDLC && !String.IsNullOrEmpty(PatchSourceContentPath))
 		{
 			CmdLine.AppendFormat(" -PatchSource={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath));
 		}
@@ -2406,7 +2407,8 @@ public partial class Project : CommandUtils
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
 							ContainerPatchSourcePath,
-							bGenerateDiffPatch));
+							bGenerateDiffPatch,
+							Params.HasDLCName));
 					}
 
 					Commands.Add(GetUnrealPakArguments(
@@ -2490,6 +2492,8 @@ public partial class Project : CommandUtils
 					AdditionalArgs += String.Format(" -sign");
 				}
 			}
+
+			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
@@ -2949,6 +2953,7 @@ public partial class Project : CommandUtils
 
 			var ChunkListFilename = GetChunkPakManifestListFilename(Params, SC);
 			List<string> ChunkList = new List<string>(ReadAllLines(ChunkListFilename));
+			Log.TraceInformation("Reading chunk list file {0} which contains {1} entries", ChunkListFilename, ChunkList.Count);
 
 			for (int Index = 0; Index < ChunkList.Count; ++Index)
 			{
@@ -2981,6 +2986,7 @@ public partial class Project : CommandUtils
 					}
 				}
 				CD.Manifest = ReadPakChunkManifest(ChunkManifestFilename);
+				Log.TraceInformation("Reading chunk manifest {0} which contains {1} entries", ChunkManifestFilename, CD.Manifest.Count);
 				ChunkDefinitions.Add(CD);
 			}
 

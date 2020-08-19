@@ -62,8 +62,8 @@ namespace ENamedThreads
 }
 
 // RenderingThread.cpp sets these values if needed
-CORE_API TAtomic<bool> GDoRenderThreadWakeupTrigger(true);	// Accessed by any thread, modified by GT/RT.
-CORE_API int32 GRenderThreadPollPeriodMs = -1;				// Accessed/Modified by RT only.
+CORE_API bool GRenderThreadPollingOn = false;	// Access/Modify on GT only. This value is set on the GT before actual state is changed on the RT.
+CORE_API int32 GRenderThreadPollPeriodMs = -1;	// Access/Modify on RT only.
 
 static int32 GIgnoreThreadToDoGatherOn = 0;
 static FAutoConsoleVariableRef CVarIgnoreThreadToDoGatherOn(
@@ -501,10 +501,8 @@ public:
 		return false;
 	}
 
-	virtual void WakeUp()
-	{
-		check(0);
-	}
+	virtual void WakeUp(int32 QueueIndex = 0) = 0;
+
 	/** 
 	 *Return true if this thread is processing tasks. This is only a "guess" if you ask for a thread other than yourself because that can change before the function returns.
 	 *@param QueueIndex, Queue to request quit from
@@ -670,10 +668,11 @@ public:
 			ProcessingTasks.Start(StatName);
 		}
 #endif
-		const bool bIsRenderThread = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::GetRenderThread());
+		const bool bIsRenderThreadMainQueue = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::ActualRenderingThread) && (QueueIndex == 0);
 		while (!Queue(QueueIndex).QuitForReturn)
 		{
-			const bool bStallQueueAllowStall = bAllowStall && (!bIsRenderThread || GDoRenderThreadWakeupTrigger);
+			const bool bIsRenderThreadAndPolling = bIsRenderThreadMainQueue && (GRenderThreadPollPeriodMs >= 0);
+			const bool bStallQueueAllowStall = bAllowStall && !bIsRenderThreadAndPolling;
 			FBaseGraphTask* Task = Queue(QueueIndex).StallQueue.Pop(0, bStallQueueAllowStall);
 			TestRandomizedThreads();
 			if (!Task)
@@ -689,7 +688,7 @@ public:
 				{
 					{
 						FScopeCycleCounter Scope(StallStatId);
-						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThread ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
+						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThreadAndPolling ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
 							return ProcessedTasks;
@@ -763,20 +762,15 @@ public:
 		TestRandomizedThreads();
 		checkThreadGraph(Task && Queue(QueueIndex).StallRestartEvent); // make sure we are started up
 
-		const bool bExecuteOnRenderThread = (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::GetRenderThread());
-
 		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->ThreadToExecuteOn) ? 0 : 1;
 		int32 ThreadToStart = Queue(QueueIndex).StallQueue.Push(Task, PriIndex);
 
 		if (ThreadToStart >= 0)
 		{
 			checkThreadGraph(ThreadToStart == 0);
-			if (!bExecuteOnRenderThread || GDoRenderThreadWakeupTrigger)
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
-				TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
-				Queue(QueueIndex).StallRestartEvent->Trigger();
-			}
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
+			TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_EnqueueFromOtherThread_Trigger);
+			Queue(QueueIndex).StallRestartEvent->Trigger();
 			return true;
 		}
 		return false;
@@ -785,6 +779,13 @@ public:
 	virtual bool IsProcessingTasks(int32 QueueIndex) override
 	{
 		return !!Queue(QueueIndex).RecursionGuard;
+	}
+
+	virtual void WakeUp(int32 QueueIndex) override
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_Wakeup_Trigger);
+		TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_Wakeup_Trigger);
+		Queue(QueueIndex).StallRestartEvent->Trigger();
 	}
 
 private:
@@ -923,7 +924,7 @@ public:
 		Queue.StallRestartEvent->Trigger();
 	}
 
-	virtual void WakeUp() final override
+	virtual void WakeUp(int32 QueueIndex = 0) final override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_TaskGraph_Wakeup_Trigger);
 		TASKGRAPH_SCOPE_CYCLE_COUNTER(1, STAT_TaskGraph_Wakeup_Trigger);
@@ -1584,6 +1585,14 @@ public:
 		ShutdownCallbacks.Emplace(Callback);
 	}
 
+	virtual void WakeNamedThread(ENamedThreads::Type ThreadToWake) override
+	{
+		const ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(ThreadToWake);
+		if (ThreadIndex < NumNamedThreads)
+		{
+			Thread(ThreadIndex).WakeUp(ENamedThreads::GetQueueIndex(ThreadToWake));
+		}
+	}
 
 	// Scheduling utilities
 

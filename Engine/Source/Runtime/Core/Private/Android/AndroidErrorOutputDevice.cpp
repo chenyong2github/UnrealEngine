@@ -7,6 +7,7 @@
 #include "HAL/PlatformMisc.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "CoreGlobals.h"
+#include "Misc/CoreDelegates.h"
 
 FAndroidErrorOutputDevice::FAndroidErrorOutputDevice()
 {
@@ -15,6 +16,21 @@ FAndroidErrorOutputDevice::FAndroidErrorOutputDevice()
 void FAndroidErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type Verbosity, const class FName& Category )
 {
 	FPlatformMisc::LowLevelOutputDebugString(*FOutputDeviceHelper::FormatLogLine(Verbosity, Category, Msg, GPrintLogTimes));
+
+	static int32 CallCount = 0;
+	int32 NewCallCount = FPlatformAtomics::InterlockedIncrement(&CallCount);
+	if(GIsCriticalError == 0 && NewCallCount == 1)
+	{
+		// First appError.
+		GIsCriticalError = 1;
+
+		FCString::Strncpy(GErrorExceptionDescription, Msg, UE_ARRAY_COUNT(GErrorExceptionDescription));
+	}
+	else
+	{
+		UE_LOG(LogAndroid, Error, TEXT("Error reentered: %s"), Msg);
+	}
+
 	if (GIsGuarded)
 	{
 		UE_DEBUG_BREAK();
@@ -49,4 +65,7 @@ void FAndroidErrorOutputDevice::HandleError()
 #endif
 	
 	GLog->PanicFlushThreadedLogs();
+
+	FCoreDelegates::OnHandleSystemError.Broadcast();
+	FCoreDelegates::OnShutdownAfterError.Broadcast();
 }

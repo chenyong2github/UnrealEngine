@@ -196,41 +196,22 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 
 	if ( ensure(InWidgetTree) )
 	{
-		if (!HasAnyFlags(RF_NeedPostLoad) && ensure(InWidgetTree->HasAnyFlags(RF_ArchetypeObject)))
-		{
-			FObjectInstancingGraph ObjectInstancingGraph;
-			WidgetTree = NewObject<UWidgetTree>(this, InWidgetTree->GetClass(), TEXT("WidgetTree"), RF_Transactional, InWidgetTree, false, &ObjectInstancingGraph);
-			WidgetTree->SetFlags(RF_Transient | RF_DuplicateTransient);
+		FObjectInstancingGraph ObjectInstancingGraph;
+		WidgetTree = NewObject<UWidgetTree>(this, InWidgetTree->GetClass(), TEXT("WidgetTree"), RF_Transactional, InWidgetTree, false, &ObjectInstancingGraph);
+		WidgetTree->SetFlags(RF_Transient | RF_DuplicateTransient);
 
-			// After using the widget tree as a template, we need to loop over the instanced sub-objects and
-			// initialize any UserWidgets, so that they can repeat the process for their children.
-			ObjectInstancingGraph.ForEachObjectInstance([this](UObject* Instanced) {
-				if (UUserWidget* InstancedSubUserWidget = Cast<UUserWidget>(Instanced))
-				{
-				#if WITH_EDITOR
-					InstancedSubUserWidget->SetDesignerFlags(GetDesignerFlags());
-				#endif
-					InstancedSubUserWidget->SetPlayerContext(GetPlayerContext());
-					InstancedSubUserWidget->Initialize();
-				}
-			});
-		}
-		else
-		{
-			// This shouldn't happen any more, but keeping it around for a bit as a fallback.  Everything should just follow the path above.
-
-			FObjectDuplicationParameters Parameters(InWidgetTree, this);
-
-			// Set to be transient and strip public flags
-			Parameters.FlagMask = Parameters.FlagMask & ~( RF_Public | RF_DefaultSubObject );
-			Parameters.DuplicateMode = EDuplicateMode::Normal;
-
-			// After cloning, only apply transient and duplicate transient to the widget tree, otherwise
-			// when we migrate objects editinlinenew properties they'll inherit transient/duptransient and fail
-			// to be saved.
-			WidgetTree = Cast<UWidgetTree>(StaticDuplicateObjectEx(Parameters));
-			WidgetTree->SetFlags(RF_Transient | RF_DuplicateTransient);
-		}
+		// After using the widget tree as a template, we need to loop over the instanced sub-objects and
+		// initialize any UserWidgets, so that they can repeat the process for their children.
+		ObjectInstancingGraph.ForEachObjectInstance([this](UObject* Instanced) {
+			if (UUserWidget* InstancedSubUserWidget = Cast<UUserWidget>(Instanced))
+			{
+#if WITH_EDITOR
+				InstancedSubUserWidget->SetDesignerFlags(GetDesignerFlags());
+#endif
+				InstancedSubUserWidget->SetPlayerContext(GetPlayerContext());
+				InstancedSubUserWidget->Initialize();
+			}
+		});
 	}
 }
 
@@ -443,12 +424,17 @@ void UUserWidget::TearDownAnimations()
 {
 	for (UUMGSequencePlayer* Player : ActiveSequencePlayers)
 	{
-		Player->TearDown();
+		if (Player)
+		{
+			Player->TearDown();
+		}
 	}
+
 	for (UUMGSequencePlayer* Player : StoppedSequencePlayers)
 	{
 		Player->TearDown();
 	}
+
 	ActiveSequencePlayers.Empty();
 	StoppedSequencePlayers.Empty();
 }
@@ -720,8 +706,7 @@ UWidget* UUserWidget::GetWidgetHandle(TSharedRef<SWidget> InWidget)
 TSharedRef<SWidget> UUserWidget::RebuildWidget()
 {
 	check(!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject));
-	check(WidgetTree);
-
+	
 	// In the event this widget is replaced in memory by the blueprint compiler update
 	// the widget won't be properly initialized, so we ensure it's initialized and initialize
 	// it if it hasn't been.
@@ -774,8 +759,8 @@ void UUserWidget::OnWidgetRebuilt()
 
 		if (bCanCallPreConstruct)
 		{
-		NativePreConstruct();
-	}
+			NativePreConstruct();
+		}
 	}
 #endif
 }
@@ -1014,6 +999,13 @@ bool UUserWidget::GetIsVisible() const
 	return FullScreenWidget.IsValid();
 }
 
+void UUserWidget::SetVisibility(ESlateVisibility InVisibility)
+{
+	Super::SetVisibility(InVisibility);
+	OnNativeVisibilityChanged.Broadcast(InVisibility);
+	OnVisibilityChanged.Broadcast(InVisibility);
+}
+
 bool UUserWidget::IsInViewport() const
 {
 	return FullScreenWidget.IsValid();
@@ -1198,7 +1190,7 @@ void UUserWidget::SetDesignerFlags(EWidgetDesignFlags NewFlags)
 	if (WidgetTree)
 	{
 		if (WidgetTree->RootWidget)
-	{
+		{
 			WidgetTree->RootWidget->SetDesignerFlags(NewFlags);
 		}
 	}

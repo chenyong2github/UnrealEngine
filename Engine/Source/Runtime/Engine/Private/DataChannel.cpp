@@ -283,7 +283,7 @@ void UChannel::Serialize(FArchive& Ar)
 	}
 }
 
-void UChannel::ReceivedAcks()
+bool UChannel::ReceivedAcks(EChannelCloseReason& OutCloseReason)
 {
 	check(Connection->Channels[ChIndex]==this);
 
@@ -348,12 +348,33 @@ void UChannel::ReceivedAcks()
 		NumOutRec--;
 	}
 
-	// If a close has been acknowledged in sequence, we're done.
-	if( bCleanup || (OpenTemporary && OpenAcked) )
+	if (OpenTemporary && OpenAcked)
 	{
+		// If this was a temporary channel we can close it now as we do not expect the other side to immediately close the temporary channel
 		UE_LOG(LogNetDormancy, Verbose, TEXT("ReceivedAcks: Cleaning up after close acked. CloseReason: %s %s"), LexToString(CloseReason), *Describe());		
 
 		check(!OutRec);
+		ConditionalCleanUp(false, CloseReason);
+	}
+	else if (bCleanup)
+	{
+		// If a close has been acknowledged in sequence, we're done.
+		// We leave it to the caller to cleanup non-temporary channels since we want to process incoming data on the channel contained in the same packet.
+		UE_LOG(LogNetDormancy, Verbose, TEXT("ReceivedAcks: Channel queued for cleaning up after close acked. CloseReason: %s %s"), LexToString(CloseReason), *Describe());		
+
+		check(!OutRec);
+		OutCloseReason = CloseReason;
+		return true;
+	}
+
+	return false;
+}
+
+void UChannel::ReceivedAcks()
+{
+	EChannelCloseReason CloseReason;
+	if (ReceivedAcks(CloseReason))
+	{
 		ConditionalCleanUp(false, CloseReason);
 	}
 }
@@ -987,7 +1008,7 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 
 	// Add any export bunches
 	// Replay connections will manage export bunches separately.
-	if (!Connection->IsReplay())
+	if (!Connection->IsInternalAck())
 	{
 		AppendExportBunches( OutgoingBunches );
 	}

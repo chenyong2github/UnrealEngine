@@ -73,8 +73,13 @@
 
 #include "MovieSceneEventUtils.h"
 
+#include "EntitySystem/MovieSceneEntityManager.h"
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
+
+#if !IS_MONOLITHIC
+	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
+#endif
 
 void FMovieSceneToolsModule::StartupModule()
 {
@@ -163,6 +168,7 @@ void FMovieSceneToolsModule::StartupModule()
 
 	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
+	UMovieSceneEventSectionBase::PostDuplicateSectionEvent.BindStatic(PostDuplicateEventSection);
 
 	auto OnObjectsReplaced = [](const TMap<UObject*, UObject*>& ReplacedObjects)
 	{
@@ -200,6 +206,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 {
 	UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.Remove(FixupPayloadParameterNameHandle);
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint = UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint();
+	UMovieSceneEventSectionBase::PostDuplicateSectionEvent = UMovieSceneEventSectionBase::FPostDuplicateEvent();
 
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
@@ -270,13 +277,35 @@ void FMovieSceneToolsModule::ShutdownModule()
 	}
 }
 
-bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section, UBlueprint* Blueprint)
+void FMovieSceneToolsModule::PostDuplicateEventSection(UMovieSceneEventSectionBase* Section)
 {
+	UMovieSceneSequence*       Sequence           = Section->GetTypedOuter<UMovieSceneSequence>();
+	FMovieSceneSequenceEditor* SequenceEditor     = FMovieSceneSequenceEditor::Find(Sequence);
+	UBlueprint*                SequenceDirectorBP = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
+
+	if (SequenceDirectorBP)
+	{
+		// Always bind the event section onto the blueprint to ensure that we get another chance to upgrade when the BP compiles if this try wasn't successful
+		FMovieSceneEventUtils::BindEventSectionToBlueprint(Section, SequenceDirectorBP);
+	}
+}
+
+bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section)
+{
+	UMovieSceneSequence*       Sequence           = Section->GetTypedOuter<UMovieSceneSequence>();
+	FMovieSceneSequenceEditor* SequenceEditor     = FMovieSceneSequenceEditor::Find(Sequence);
+	UBlueprint*                SequenceDirectorBP = SequenceEditor ? SequenceEditor->FindDirectorBlueprint(Sequence) : nullptr;
+
+	if (!SequenceDirectorBP)
+	{
+		return true;
+	}
+
 	// Always bind the event section onto the blueprint to ensure that we get another chance to upgrade when the BP compiles if this try wasn't successful
-	FMovieSceneEventUtils::BindEventSectionToBlueprint(Section, Blueprint);
+	FMovieSceneEventUtils::BindEventSectionToBlueprint(Section, SequenceDirectorBP);
 
 	// We can't do this upgrade if we any of the function graphs are RF_NeedLoad
-	for (UEdGraph* EdGraph : Blueprint->FunctionGraphs)
+	for (UEdGraph* EdGraph : SequenceDirectorBP->FunctionGraphs)
 	{
 		if (EdGraph->HasAnyFlags(RF_NeedLoad))
 		{
@@ -287,29 +316,72 @@ bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEve
 	// All the function graphs have been loaded, which means this is a good time to perform legacy data upgrade
 	for (FMovieSceneEvent& EntryPoint : Section->GetAllEntryPoints())
 	{
-		if (UK2Node_FunctionEntry* LegacyFunctionEntry = Cast<UK2Node_FunctionEntry>(EntryPoint.FunctionEntry_DEPRECATED.Get()))
-		{
-			EntryPoint.GraphGuid = LegacyFunctionEntry->GetGraph()->GraphGuid;
-		}
-
-		UK2Node* Endpoint = FMovieSceneEventUtils::FindEndpoint(&EntryPoint, Section, Blueprint);
+		UK2Node* Endpoint = CastChecked<UK2Node>(EntryPoint.WeakEndpoint.Get(), ECastCheckedType::NullAllowed);
 		if (!Endpoint)
 		{
-			continue;
-		}
-
-		// Discover its bound object pin name from the node
-		for (UEdGraphPin* Pin : Endpoint->Pins)
-		{
-			if (Pin->Direction == EGPD_Output && (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) )
+			if (UK2Node_FunctionEntry* LegacyFunctionEntry = Cast<UK2Node_FunctionEntry>(EntryPoint.FunctionEntry_DEPRECATED.Get()))
 			{
-				EntryPoint.BoundObjectPinName = Pin->PinName;
-				break;
+				EntryPoint.WeakEndpoint = Endpoint = LegacyFunctionEntry;
+			}
+
+			// If we don't have an endpoint but do have legacy graph or node guids, we do the manual upgrade
+			if (!Endpoint && EntryPoint.GraphGuid_DEPRECATED.IsValid())
+			{
+				if (EntryPoint.NodeGuid_DEPRECATED.IsValid())
+				{
+					if (UEdGraph* const* GraphPtr = Algo::FindBy(SequenceDirectorBP->UbergraphPages, EntryPoint.GraphGuid_DEPRECATED, &UEdGraph::GraphGuid))
+					{
+						UEdGraphNode* const* NodePtr  = Algo::FindBy((*GraphPtr)->Nodes, EntryPoint.NodeGuid_DEPRECATED, &UEdGraphNode::NodeGuid);
+						if (NodePtr)
+						{
+							UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(*NodePtr);
+							if (ensureMsgf(CustomEvent, TEXT("Encountered an event entry point node that is bound to something other than a custom event")))
+							{
+								CustomEvent->OnUserDefinedPinRenamed().AddUObject(Section, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
+								EntryPoint.WeakEndpoint = Endpoint = CustomEvent;
+							}
+						}
+					}
+				}
+				// If the node guid is invalid, this must be a function graph on the BP
+				else if (UEdGraph* const* GraphPtr = Algo::FindBy(SequenceDirectorBP->FunctionGraphs, EntryPoint.GraphGuid_DEPRECATED, &UEdGraph::GraphGuid))
+				{
+					UEdGraphNode* const* NodePtr = Algo::FindByPredicate((*GraphPtr)->Nodes, [](UEdGraphNode* InNode){ return InNode && InNode->IsA<UK2Node_FunctionEntry>(); });
+					if (NodePtr)
+					{
+						UK2Node_FunctionEntry* FunctionEntry = CastChecked<UK2Node_FunctionEntry>(*NodePtr);
+						FunctionEntry->OnUserDefinedPinRenamed().AddUObject(Section, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
+						EntryPoint.WeakEndpoint = Endpoint = FunctionEntry;
+					}
+				}
+
+				if (Endpoint)
+				{
+					// Discover its bound object pin name from the node
+					for (UEdGraphPin* Pin : Endpoint->Pins)
+					{
+						if (Pin->Direction == EGPD_Output && (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Interface) )
+						{
+							EntryPoint.BoundObjectPinName = Pin->PinName;
+							break;
+						}
+					}
+				}
 			}
 		}
 
 		// Set the compiled function name so that any immediate PostCompile steps find the correct function name
-		EntryPoint.CompiledFunctionName = Endpoint->GetGraph()->GetFName();
+		if (Endpoint)
+		{
+			EntryPoint.CompiledFunctionName = Endpoint->GetGraph()->GetFName();
+		}
+	}
+
+	// If the BP has already been compiled (eg regenerate on load) we must perform PostCompile fixup immediately since
+	// We will not have had a chance to generate function entries. In this case we just bind directly to the already compiled functions.
+	if (SequenceDirectorBP->bHasBeenRegenerated)
+	{
+		Section->OnPostCompile(SequenceDirectorBP);
 	}
 
 	return true;
@@ -319,18 +391,9 @@ void FMovieSceneToolsModule::FixupPayloadParameterNameForSection(UMovieSceneEven
 {
 	check(Section && InNode);
 
-	UEdGraph* Graph = InNode->GetGraph();
-
-	const bool bCheckNodeGuid = InNode->IsA<UK2Node_CustomEvent>();
-
 	for (FMovieSceneEvent& EntryPoint : Section->GetAllEntryPoints())
 	{
-		if (EntryPoint.GraphGuid != Graph->GraphGuid)
-		{
-			continue;
-		}
-
-		if (bCheckNodeGuid && EntryPoint.NodeGuid != InNode->NodeGuid)
+		if (EntryPoint.WeakEndpoint.Get() != InNode)
 		{
 			continue;
 		}

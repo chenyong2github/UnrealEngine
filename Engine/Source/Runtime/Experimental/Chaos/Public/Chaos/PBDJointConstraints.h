@@ -36,6 +36,7 @@ namespace Chaos
 		int32 GetConstraintColor() const;
 		int32 GetConstraintBatch() const;
 
+		bool IsConstraintEnabled() const;
 		FVec3 GetLinearImpulse() const;
 		FVec3 GetAngularImpulse() const;
 

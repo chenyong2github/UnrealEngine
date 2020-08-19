@@ -106,7 +106,7 @@ void FSpriteDetailsCustomization::BuildSpriteSection(IDetailCategoryBuilder& Spr
 	SpriteCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, SourceDimension));
 	BuildTextureSection(SpriteCategory, DetailLayout);
 
-	SpriteCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, GetDefaultMaterial()));
+	SpriteCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, DefaultMaterial));
 	SpriteCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, PixelsPerUnrealUnit));
 
 	// Show/hide the experimental atlas group support based on whether or not it is enabled
@@ -178,7 +178,7 @@ void FSpriteDetailsCustomization::BuildRenderingSection(IDetailCategoryBuilder& 
 
 	// Show the alternate material, but only when the mode is Diced
 	TAttribute<EVisibility> ShowWhenModeIsDiced = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FSpriteDetailsCustomization::PolygonModeMatches, RenderGeometryTypeProperty, ESpritePolygonMode::Diced));
-	TSharedPtr<IPropertyHandle> AlternateMaterialProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, GetAlternateMaterial()));
+	TSharedPtr<IPropertyHandle> AlternateMaterialProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, AlternateMaterial));
 	RenderingCategory.AddProperty(AlternateMaterialProperty)
 		.Visibility(ShowWhenModeIsDiced);
 
@@ -298,7 +298,7 @@ void FSpriteDetailsCustomization::BuildCollisionSection(IDetailCategoryBuilder& 
 void FSpriteDetailsCustomization::BuildTextureSection(IDetailCategoryBuilder& SpriteCategory, IDetailLayoutBuilder& DetailLayout)
 {
 	// Grab information about the material
-	TSharedPtr<IPropertyHandle> DefaultMaterialProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, GetDefaultMaterial()));
+	TSharedPtr<IPropertyHandle> DefaultMaterialProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UPaperSprite, DefaultMaterial));
 
 	FText SourceTextureOverrideLabel;
 	if (DefaultMaterialProperty.IsValid())

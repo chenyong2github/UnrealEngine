@@ -399,8 +399,11 @@ UPaperSprite::UPaperSprite(const FObjectInitializer& ObjectInitializer)
 
 	PixelsPerUnrealUnit = 2.56f;
 
-	DefaultMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Paper2D/MaskedUnlitSpriteMaterial.MaskedUnlitSpriteMaterial")));
-	AlternateMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Paper2D/OpaqueUnlitSpriteMaterial.OpaqueUnlitSpriteMaterial")));
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaskedMaterialRef(TEXT("/Paper2D/MaskedUnlitSpriteMaterial"));
+	DefaultMaterial = MaskedMaterialRef.Object;
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> OpaqueMaterialRef(TEXT("/Paper2D/OpaqueUnlitSpriteMaterial"));
+	AlternateMaterial = OpaqueMaterialRef.Object;
 }
 
 #if WITH_EDITOR
@@ -1920,16 +1923,6 @@ UTexture2D* UPaperSprite::GetBakedTexture() const
 void UPaperSprite::GetBakedAdditionalSourceTextures(FAdditionalSpriteTextureArray& OutTextureList) const
 {
 	OutTextureList = AdditionalSourceTextures;
-}
-
-UMaterialInterface* UPaperSprite::GetDefaultMaterial() const
-{
-	return DefaultMaterial.LoadSynchronous();
-}
-
-UMaterialInterface* UPaperSprite::GetAlternateMaterial() const
-{
-	return AlternateMaterial.LoadSynchronous();
 }
 
 UMaterialInterface* UPaperSprite::GetMaterial(int32 MaterialIndex) const

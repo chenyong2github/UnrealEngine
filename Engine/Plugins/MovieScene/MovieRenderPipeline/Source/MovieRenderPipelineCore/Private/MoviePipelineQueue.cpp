@@ -83,6 +83,7 @@ void UMoviePipelineQueue::CopyFrom(UMoviePipelineQueue* InQueue)
 	QueueSerialNumber++;
 }
 
+#if WITH_EDITOR
 void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -98,6 +99,7 @@ void UMoviePipelineExecutorJob::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	// fields that don't change often but do need to be per job.
 	SaveConfig();
 }
+#endif
 
 void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
 {

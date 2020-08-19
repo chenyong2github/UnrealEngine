@@ -50,10 +50,14 @@ public:
 	bool GetShouldUseActorRenderedFlag() const { return bShouldUseActorRenderedFlag; };
 
 	void SetShouldUseActorRenderedFlag(bool value) { bShouldUseActorRenderedFlag = value; };
-private:
+
+protected:
+
 	// UActorComponent interface
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+private:
 
 	// USkeletalMeshComponent interface
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;

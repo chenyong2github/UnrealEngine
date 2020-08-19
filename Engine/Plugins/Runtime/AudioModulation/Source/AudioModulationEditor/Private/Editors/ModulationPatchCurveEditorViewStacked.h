@@ -10,12 +10,16 @@
 #include "Views/SCurveEditorViewStacked.h"
 #include "Views/SInteractiveCurveEditorView.h"
 
+#include "ModulationPatchCurveEditorViewStacked.generated.h"
 
 // Forward Declarations
 class UCurveFloat;
+class USoundModulationParameter;
 class USoundModulationPatch;
+struct FSoundControlModulationInput;
 
 
+UENUM()
 enum class EModPatchOutputEditorCurveSource : uint8
 {
 	Custom,
@@ -133,24 +137,28 @@ public:
 class FModPatchCurveEditorModel : public FRichCurveEditorModelRaw
 {
 public:
-
 	static ECurveEditorViewID ViewId;
 
-	FModPatchCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModPatchOutputEditorCurveSource InSource, UCurveFloat* SharedCurve);
+	FModPatchCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModPatchOutputEditorCurveSource InSource, int32 InInputIndex);
 
+	const FText& GetAxesDescriptor() const;
 	bool GetIsBypassed() const;
+	USoundModulationParameter* GetPatchInputParameter() const;
+	const USoundModulationPatch* GetPatch() const;
+	EModPatchOutputEditorCurveSource GetSource() const;
+	void Refresh(EModPatchOutputEditorCurveSource InSource, int32 InInputIndex);
 
 	virtual bool IsReadOnly() const override;
-
 	virtual FLinearColor GetColor() const override;
-	EModPatchOutputEditorCurveSource GetSource() const;
-
-	const USoundModulationPatch* GetPatch() const;
 
 private:
 
 	TWeakObjectPtr<USoundModulationPatch> Patch;
-	EModPatchOutputEditorCurveSource Source;
+	int32 InputIndex = -1;
+	EModPatchOutputEditorCurveSource Source = EModPatchOutputEditorCurveSource::Unset;
+
+	FText InputAxisName;
+	FText AxesDescriptor;
 };
 
 class SModulationPatchEditorViewStacked : public SCurveEditorViewStacked

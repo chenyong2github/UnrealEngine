@@ -85,7 +85,7 @@ struct FNiagaraDataSetReaderFloat
 		check(ElementIndex < FNiagaraDataSetAccessorTypeInfo<TType>::NumElements);
 		if (!bSupportsHalf || bIsFloat)
 		{
-			float MaxValue = FLT_MIN;
+			float MaxValue = -FLT_MAX;
 			for (int i = 0; i < NumInstances; ++i)
 			{
 				MaxValue = FMath::Max(MaxValue, reinterpret_cast<const float*>(ComponentData[ElementIndex])[i]);
@@ -110,7 +110,7 @@ struct FNiagaraDataSetReaderFloat
 		if (!bSupportsHalf || bIsFloat)
 		{
 			float MinValue = FLT_MAX;
-			float MaxValue = FLT_MIN;
+			float MaxValue = -FLT_MAX;
 			for (int i = 0; i < NumInstances; ++i)
 			{
 				MinValue = FMath::Min(MinValue, reinterpret_cast<const float*>(ComponentData[ElementIndex])[i]);

@@ -1047,8 +1047,11 @@ void FD3D12Adapter::SubmitGapRecorderTimestamps()
 	}
 	else
 	{
-		GGapRecorderActiveOnBeginFrame = false;
-		Device->GetCommandListManager().SetShouldTrackCmdListTime(false);
+		if (GGapRecorderActiveOnBeginFrame)
+		{
+			GGapRecorderActiveOnBeginFrame = false;
+			Device->GetCommandListManager().SetShouldTrackCmdListTime(false);
+		}
 	}
 }
 #endif

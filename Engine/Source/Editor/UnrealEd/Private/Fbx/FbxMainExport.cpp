@@ -88,7 +88,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Interrogation/SequencerInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 
 #if WITH_PHYSX
@@ -1863,8 +1863,34 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
-	const bool bSkip3DTransformTrack = SkeletalMeshComp && GetExportOptions()->MapSkeletalMotionToRoot;
+	bool bSkip3DTransformTrack = SkeletalMeshComp && GetExportOptions()->MapSkeletalMotionToRoot;
 
+	TArray<TWeakObjectPtr<UMovieScene3DTransformTrack> > TransformTracks;
+	for ( const FMovieSceneBinding& MovieSceneBinding : MovieScene->GetBindings() )
+	{
+		for ( TWeakObjectPtr<UObject> RuntimeObject : MovieScenePlayer->FindBoundObjects(MovieSceneBinding.GetObjectGuid(), InSequenceID) )
+		{
+			if (RuntimeObject.IsValid() && ((RuntimeObject == Actor) || (RuntimeObject == BoundObject)))
+			{
+				for (UMovieSceneTrack* Track : MovieSceneBinding.GetTracks())
+				{
+					if (Track->IsA(UMovieScene3DTransformTrack::StaticClass()))
+					{
+						TransformTracks.Add(Cast<UMovieScene3DTransformTrack>(Track));
+					}
+				}
+			}
+		}
+	}
+
+	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate through interrogation
+	if (TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
+	{
+		ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
+
+		bSkip3DTransformTrack = true;
+	}
+	
 	// Look for the tracks that we currently support
 	bool bExportedAnimTrack = false; // Only export the anim track once since the evaluation is already blended
 	for (UMovieSceneTrack* Track : Tracks)
@@ -2842,13 +2868,6 @@ void FFbxExporter::ExportChannelToFbxCurve(FbxAnimCurve& InFbxCurve, const FMovi
 
 void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, UMovieScene3DTransformTrack& TransformTrack, UObject* BoundObject, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
-	//if more than one section, we use baked version of all sections.
-	if (TransformTrack.GetAllSections().Num() > 1)
-	{
-		ExportLevelSequenceInterrogated3DTransformTrack(FbxNode, MovieScenePlayer, InSequenceID, TransformTrack, BoundObject, InPlaybackRange, RootToLocalTransform);
-		return;
-	}
-
 	// TODO: Support more than one section?
 	UMovieScene3DTransformSection* TransformSection = TransformTrack.GetAllSections().Num() > 0
 		? Cast<UMovieScene3DTransformSection>(TransformTrack.GetAllSections()[0])
@@ -2982,11 +3001,22 @@ void FFbxExporter::ExportLevelSequence3DTransformTrack(FbxNode* FbxNode, IMovieS
 	}
 }
 
-void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxNode, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, UMovieScene3DTransformTrack& TransformTrack, UObject* BoundObject, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
+void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxNode, IMovieScenePlayer* MovieScenePlayer, FMovieSceneSequenceIDRef InSequenceID, TArray<TWeakObjectPtr<UMovieScene3DTransformTrack> > TransformTracks, UObject* BoundObject, const TRange<FFrameNumber>& InPlaybackRange, const FMovieSceneSequenceTransform& RootToLocalTransform)
 {
 	using namespace UE::MovieScene;
 
-	if (TransformTrack.GetAllSections().Num() <= 0)
+	UMovieScene3DTransformTrack* TransformTrack = nullptr;
+	int32 NumSections = 0;
+	for (TWeakObjectPtr<UMovieScene3DTransformTrack> WeakTransformTrack : TransformTracks)
+	{
+		if (WeakTransformTrack.IsValid())
+		{
+			TransformTrack = WeakTransformTrack.Get();
+			NumSections += TransformTrack->GetAllSections().Num();
+		}
+	}
+
+	if (NumSections <= 0 || !TransformTrack)
 	{
 		return;
 	}
@@ -3002,11 +3032,11 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	if (!FbxNode)
 	{
-		FbxNode = CreateNode(TransformTrack.GetDisplayName().ToString());
+		FbxNode = CreateNode(TransformTrack->GetDisplayName().ToString());
 	}
 
-	FFrameRate TickResolution = TransformTrack.GetTypedOuter<UMovieScene>()->GetTickResolution();
-	FFrameRate DisplayRate = TransformTrack.GetTypedOuter<UMovieScene>()->GetDisplayRate();
+	FFrameRate TickResolution = TransformTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FFrameRate DisplayRate = TransformTrack->GetTypedOuter<UMovieScene>()->GetDisplayRate();
 
 	FbxAnimCurveNode* TranslationNode = FbxNode->LclTranslation.GetCurveNode(BaseLayer, true);
 	FbxAnimCurveNode* RotationNode = FbxNode->LclRotation.GetCurveNode(BaseLayer, true);
@@ -3053,9 +3083,15 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 
 	FMovieSceneTimeTransform LocatToRootTransform = RootToLocalTransform.InverseLinearOnly();
 
-	USequencerInterrogationLinker* Interrogator = NewObject<USequencerInterrogationLinker>(GetTransientPackage());
+	FSystemInterrogator Interrogator;
 
-	Interrogator->ImportTrack(&TransformTrack);
+	for (TWeakObjectPtr<UMovieScene3DTransformTrack> WeakTransformTrack : TransformTracks)
+	{
+		if (WeakTransformTrack.IsValid())
+		{
+			Interrogator.ImportTrack(WeakTransformTrack.Get(), FInterrogationChannel::Default());
+		}
+	}
 
 	int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 StartFrame      = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange) * RootToLocalTransform.InverseLinearOnly()), TickResolution, DisplayRate).RoundToFrame().Value;
@@ -3064,19 +3100,13 @@ void FFbxExporter::ExportLevelSequenceInterrogated3DTransformTrack(FbxNode* FbxN
 	for (int32 FrameNumber = StartFrame; FrameNumber < StartFrame + AnimationLength; ++FrameNumber)
 	{
 		const FFrameTime FrameTime = FFrameRate::TransformTime(FrameNumber, DisplayRate, TickResolution);
-		Interrogator->AddInterrogation(FrameTime);
+		Interrogator.AddInterrogation(FrameTime);
 	}
 
-	Interrogator->Update();
+	Interrogator.Update();
 
 	TArray<UE::MovieScene::FIntermediate3DTransform> Transforms;
-	Transforms.SetNum(AnimationLength);
-
-	UMovieSceneComponentTransformSystem* TransformSystem = Interrogator->FindSystem<UMovieSceneComponentTransformSystem>();
-	if (ensure(TransformSystem))
-	{
-		TransformSystem->Interrogate(Transforms);
-	}
+	Interrogator.QueryLocalSpaceTransforms(FInterrogationChannel::Default(), Transforms);
 
 	ensure(Transforms.Num() == AnimationLength);
 

@@ -53,6 +53,16 @@ public:
 	virtual void OnBeforeFork() override;
 	//~ End FHttpManager Interface
 
+	/**
+	 * Handle the application preparing to suspend
+	 */
+	virtual void HandleApplicationSuspending();
+
+	/**
+	 * Handle the application preparing to suspend
+	 */
+	virtual void HandleApplicationResuming();
+
 protected:
 	FWinHttpSession* FindOrCreateSession(const uint32 SecurityProtocols);
 

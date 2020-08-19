@@ -274,6 +274,7 @@ RAY_TRACING_ENTRY_RAYGEN(RectLightRGS)
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
+			PixelCoord,
 			Ray);
 
 		if (MinimalPayload.IsHit())

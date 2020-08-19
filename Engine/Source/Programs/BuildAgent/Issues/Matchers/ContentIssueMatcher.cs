@@ -17,7 +17,7 @@ namespace BuildAgent.Issues.Matchers
 		public override bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<Issue> Issues)
 		{
 			HashSet<string> FileNames = new HashSet<string>();
-			foreach(Match Match in Regex.Matches(Diagnostic.Message, @"^\s*Log[a-zA-Z0-9]+:\s+(?:Error:|Warning:)\s+((?:[a-zA-Z]:)?[^:]+(?:.uasset|.umap)):\s*(.*)"))
+			foreach(Match Match in Regex.Matches(Diagnostic.Message, @"^\s*[a-zA-Z0-9]+:\s+(?:Error:|Warning:)\s+(?:\[AssetLog\] )?((?:[a-zA-Z]:)?[^:]+(?:.uasset|.umap)):\s*(.*)"))
 			{
 				FileNames.Add(GetNormalizedFileName(Match.Groups[1].Value, JobStep.BaseDirectory));
 			}

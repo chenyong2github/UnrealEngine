@@ -282,6 +282,9 @@ if ((Condition)) \
 #define UE_ASYNC_PACKAGE_CLOG_VERBOSE(Condition, Verbosity, PackageDesc, LogDesc, Format, ...)
 #endif
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
+
 TRACE_DECLARE_INT_COUNTER(PendingBundleIoRequests, TEXT("AsyncLoading/PendingBundleIoRequests"));
 
 struct FAsyncPackage2;
@@ -3119,25 +3122,26 @@ static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
 	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
 	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
 {
-	UObject*& Object = ScriptObjects.FindOrAdd(GlobalImportIndex);
-	if (!Object)
+	UObject** Object = &ScriptObjects.FindOrAdd(GlobalImportIndex);
+	if (!*Object)
 	{
 		const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(GlobalImportIndex);
 		check(Entry);
 		if (Entry->OuterIndex.IsNull())
 		{
-			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
+			*Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
 		}
 		else
 		{
 			UObject* Outer = GFindExistingScriptImport(Entry->OuterIndex, ScriptObjects, ScriptObjectEntriesMap);
+			Object = &ScriptObjects.FindChecked(GlobalImportIndex);
 			if (Outer)
 			{
-				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
+				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
 			}
 		}
 	}
-	return Object;
+	return *Object;
 }
 
 UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(FPackageObjectIndex GlobalImportIndex)
@@ -3975,6 +3979,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 
 EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadObjectsGameThread);
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_DeferredPostLoad);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 
@@ -4024,6 +4029,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 						{
 							TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
+							FScopeCycleCounterUObject ConstructorScope(Object, GET_STATID(STAT_FAsyncPackage_PostLoadObjectsGameThread));
 							Object->ConditionalPostLoad();
 						}
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
@@ -4395,6 +4401,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				bool bSafeToDelete = false;
 				if (Package->HasClusterObjects())
 				{
+					SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateClustersGameThread);
 					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
 					if (Package->AreAllDependenciesFullyLoaded(VisistedPackages))
 					{
@@ -4455,6 +4462,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 	//TRACE_INT_VALUE(QueuedPackagesCounter, QueuedPackagesCounter);
 	//TRACE_INT_VALUE(GraphNodeCount, GraphAllocator.TotalNodeCount);
 	//TRACE_INT_VALUE(GraphArcCount, GraphAllocator.TotalArcCount);
@@ -5641,6 +5649,13 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 
 EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AsyncLoadingTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncLoading);
+
+	CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
+
 	TickAsyncLoadingFromGameThread(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
@@ -5651,6 +5666,8 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 	{
 		// Flushing async loading while loading is suspend will result in infinite stall
 		UE_CLOG(bSuspendRequested, LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended"));
+
+		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
 		if (RequestId != INDEX_NONE && !ContainsRequestID(RequestId))
 		{
@@ -5692,11 +5709,13 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 
 EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGameThread(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessLoadingUntilComplete);
 	if (!IsAsyncLoading())
 	{
 		return EAsyncPackageState::Complete;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessLoadingUntilComplete);
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
 	// Flushing async loading while loading is suspend will result in infinite stall
 	UE_CLOG(bSuspendRequested, LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended"));

@@ -919,12 +919,8 @@ namespace BuildAgent.Workspace.Common
 					Client.Root = WorkspaceDir.FullName;
 					Client.Type = "partitioned";
 
-					PerforceResponse Response = Perforce.CreateClient(Client);
-					if(!Response.Succeeded)
-					{
-						Perforce.DeleteClient(DeleteClientOptions.None, ClientName);
-						Perforce.CreateClient(Client).RequireSuccess();
-					}
+					Perforce.DeleteClient(DeleteClientOptions.None, ClientName);
+					Perforce.CreateClient(Client).RequireSuccess();
 
 					Status.SetProgress("({0:0.0}s)", Timer.Elapsed.TotalSeconds);
 				}

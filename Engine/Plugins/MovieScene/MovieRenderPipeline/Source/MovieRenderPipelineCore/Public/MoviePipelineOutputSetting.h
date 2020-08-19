@@ -17,11 +17,11 @@ public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "OutputSettingDisplayName", "Output"); }
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
+	virtual bool CanBeDisabled() const override { return false; }
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
 	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
-	virtual bool CanBeDisabled() const override { return false; }
 
 	// UObject Interface
 	virtual void PostLoad() override;

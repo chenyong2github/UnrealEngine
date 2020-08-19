@@ -95,6 +95,10 @@ public:
 
 	MOVIESCENE_API FMovieSceneEntitySystemRunner& GetEntitySystemRunner();
 
+	MOVIESCENE_API const FMovieSceneSequenceHierarchy* GetHierarchy() const;
+
+	MOVIESCENE_API void GetSequenceParentage(const UE::MovieScene::FInstanceHandle InstanceHandle, TArray<UE::MovieScene::FInstanceHandle>& OutParentHandles) const;
+
 	MOVIESCENE_API UE::MovieScene::FSequenceInstance* FindInstance(FMovieSceneSequenceID SequenceID);
 
 	MOVIESCENE_API const UE::MovieScene::FSequenceInstance* FindInstance(FMovieSceneSequenceID SequenceID) const;

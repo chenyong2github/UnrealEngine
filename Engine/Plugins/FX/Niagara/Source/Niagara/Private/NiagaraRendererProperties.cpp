@@ -3,6 +3,8 @@
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraConstants.h"
+#include "NiagaraEmitter.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Styling/SlateIconFinder.h"
 
@@ -74,6 +76,14 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 	return Offset != INDEX_NONE;
 }
 
+
+bool FNiagaraRendererLayout::SetVariableFromBinding(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableAttributeBinding& VariableBinding, int32 VFVarOffset)
+{
+	if (VariableBinding.IsParticleBinding())
+		return SetVariable(CompiledData, VariableBinding.GetDataSetBindableVariable(), VFVarOffset);
+	return false;
+}
+
 void FNiagaraRendererLayout::Finalize()
 {
 	ENQUEUE_RENDER_COMMAND(NiagaraFinalizeLayout)
@@ -88,16 +98,26 @@ void FNiagaraRendererLayout::Finalize()
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
+{
+	if (InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace))
+	{
+		return true;
+	}
+	return false;
+}
+
 const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 {
 	CurrentBoundAttributes.Reset();
 
 	for (const FNiagaraVariableAttributeBinding* AttributeBinding : AttributeBindings)
 	{
-		if (AttributeBinding->BoundVariable.IsValid())
+		if (AttributeBinding->GetParamMapBindableVariable().IsValid())
 		{
-			CurrentBoundAttributes.Add(AttributeBinding->BoundVariable);
+			CurrentBoundAttributes.Add(AttributeBinding->GetParamMapBindableVariable());
 		}
+		/*
 		else if (AttributeBinding->DataSetVariable.IsValid())
 		{
 			CurrentBoundAttributes.Add(AttributeBinding->DataSetVariable);
@@ -105,7 +125,7 @@ const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 		else
 		{
 			CurrentBoundAttributes.Add(AttributeBinding->DefaultValueIfNonExistent);
-		}
+		}*/
 	}
 
 	return CurrentBoundAttributes;
@@ -147,7 +167,7 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 
 	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 	{
-		const FNiagaraVariable& Var = Binding->DataSetVariable;
+		const FNiagaraVariable& Var = Binding->GetDataSetBindableVariable();
 
 		const int32 VariableIndex = CompiledDataSetData->Variables.IndexOfByKey(Var);
 		if ( VariableIndex != INDEX_NONE )
@@ -184,4 +204,42 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 bool UNiagaraRendererProperties::NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform)const
 {
 	return bIsEnabled && Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName());
+}
+
+void UNiagaraRendererProperties::PostLoadBindings(ENiagaraRendererSourceDataMode InSourceMode)
+{
+	
+	for (int32 i = 0; i < AttributeBindings.Num(); i++)
+	{
+		FNiagaraVariableAttributeBinding* Binding = const_cast<FNiagaraVariableAttributeBinding*>(AttributeBindings[i]);
+		Binding->PostLoad(InSourceMode);
+	}
+
+	UpdateSourceModeDerivates(InSourceMode);
+
+}
+
+void UNiagaraRendererProperties::PostInitProperties()
+{
+	Super::PostInitProperties();
+#if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
+	{
+		SetFlags(RF_Transactional);
+	}
+#endif
+}
+
+void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode)
+{
+	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (SrcEmitter)
+	{
+		//TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
+		//GetBindingsArray(AttributeBindings);
+		for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
+		{
+			((FNiagaraVariableAttributeBinding*)Binding)->CacheValues(SrcEmitter, InSourceMode);
+		}
+	}
 }

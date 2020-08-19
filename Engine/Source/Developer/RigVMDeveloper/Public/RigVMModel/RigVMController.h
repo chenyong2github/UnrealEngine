@@ -381,6 +381,9 @@ public:
 	int32 DetachLinksFromPinObjects();
 	int32 ReattachLinksToPinObjects();
 
+	// Removes nodes which went stale.
+	void RemoveStaleNodes();
+
 #if WITH_EDITOR
 	void RepopulatePinsOnNode(URigVMNode* InNode);
 #endif

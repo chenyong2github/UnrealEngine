@@ -516,6 +516,7 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 				uint32 Mask = 0x1;
 				uint32 VisBits = 0;
 				uint32 FadingBits = 0;
+				uint32 DistanceCulledBits = 0;
 				for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
 				{
 					int32 Index = WordIndex * NumBitsPerDWORD + BitSubIndex;
@@ -554,8 +555,15 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 						}
 					}
 
-					if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
-						(DistanceSquared < MinDrawDistanceSq) ||
+					bool bDistanceCulled = DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) || (DistanceSquared < MinDrawDistanceSq);
+
+					// Store distane culled primitives so it can correctly culled when collecting RT primitives
+					if (bDistanceCulled)
+					{
+						DistanceCulledBits |= Mask;
+					}
+
+					if (bDistanceCulled ||
 						(UseCustomCulling && !View.CustomVisibilityQuery->IsVisible(VisibilityId, FBoxSphereBounds(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, Bounds.BoxSphereBounds.SphereRadius))) ||
 						(bAlsoUseSphereTest && View.ViewFrustum.IntersectSphere(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius) == false) ||
 						(bUseFastIntersect ? IntersectBox8Plane(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, PermutedPlanePtr) : View.ViewFrustum.IntersectBox(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent)) == false)
@@ -594,6 +602,11 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 				{
 					check(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
 					View.PrimitiveVisibilityMap.GetData()[WordIndex] = VisBits;
+				}
+				if (DistanceCulledBits)
+				{
+					check(!View.DistanceCullingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+					View.DistanceCullingPrimitiveMap.GetData()[WordIndex] = DistanceCulledBits;
 				}
 			}
 		},
@@ -3647,7 +3660,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 
 	Names.Sort();
 
-	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")));
+	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
 	DrawViewer.AddColumn(TEXT("Name"));
 	DrawViewer.CycleRow();
 
@@ -3734,6 +3747,7 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		View.StaticMeshFadeOutDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.StaticMeshFadeInDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
+		View.DistanceCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
 		View.VisibleLightInfos.Empty(Scene->Lights.GetMaxIndex());
 
 		// The dirty list allocation must take into account the max possible size because when GILCUpdatePrimTaskEnabled is true,

@@ -10,6 +10,7 @@
 #include "Installer/InstallerAnalytics.h"
 #include "Common/HttpManager.h"
 #include "Common/FileSystem.h"
+#include "Stats/Stats.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDownloadService, Warning, All);
 DEFINE_LOG_CATEGORY(LogDownloadService);
@@ -373,6 +374,8 @@ namespace BuildPatchServices
 
 	bool FDownloadService::Tick(float DeltaTime)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDownloadService_Tick);
+
 		ProcessCancelRequests();
 
 		ProcessNewRequests();

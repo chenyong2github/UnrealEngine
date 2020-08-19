@@ -386,11 +386,16 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 
 			URLStr.FindLastChar(':', LastColonIdx);
 
+			auto IsAlnumChecked = [](const FString& Str, int32 Idx) -> bool
+				{
+					return Str.IsValidIndex(Idx) && FChar::IsAlnum(Str[Idx]);
+				};
+
 			bool bIsHostnameWithDot = DotIdx > 0 &&
 				// MapExtIdx includes the dot - .umap - other extensions don't
-				(DotIdx != MapExtIdx || FChar::IsAlnum(URLStr[DotIdx+MapExtLen])) &&
-				((DotIdx + 1) != SaveExtIdx || FChar::IsAlnum(URLStr[DotIdx+SaveExtLen+1])) &&
-				((DotIdx + 1) != DemoExtIdx || FChar::IsAlnum(URLStr[DotIdx+4+1]));
+				(DotIdx != MapExtIdx || IsAlnumChecked(URLStr, DotIdx+MapExtLen)) &&
+				((DotIdx + 1) != SaveExtIdx || IsAlnumChecked(URLStr, DotIdx+SaveExtLen+1)) &&
+				((DotIdx + 1) != DemoExtIdx || IsAlnumChecked(URLStr, DotIdx+4+1));
 
 
 			// Square bracket indicates an IPv6 address, but IPv6 addresses can contain dots also

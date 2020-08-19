@@ -395,12 +395,6 @@ public:
 	const FProperty*	GetProperty() const { return Property.Get(); }
 
 	/**
-	 * Returns acceptable names / aliases for filtering.
-	 */
-	TArray<FString>& GetAcceptableNames() { return AcceptableNames; }
-	const TArray<FString>& GetAcceptableNames() const { return AcceptableNames; }
-
-	/**
 	 * Accessor functions for internals
 	 */
 	const int32 GetArrayOffset() const { return ArrayOffset; }
@@ -1058,9 +1052,6 @@ protected:
 
 	/** The property being displayed/edited. */
 	TWeakFieldPtr<FProperty> Property;
-
-	/** Aliases that are used in string-based filtering. */
-	TArray <FString> AcceptableNames;
 
 	/** Offset to the property data within either a fixed array or a dynamic array */
 	int32 ArrayOffset;

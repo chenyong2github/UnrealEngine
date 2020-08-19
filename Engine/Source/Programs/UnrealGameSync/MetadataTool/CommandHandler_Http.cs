@@ -104,7 +104,7 @@ namespace MetadataTool
 			// Read the response
 			HttpWebResponse Response = (HttpWebResponse)Request.GetResponse();
 			Console.WriteLine("Response: {0} ({1})", (int)Response.StatusCode, Response.StatusDescription);
-			using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.Default))
+			using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.UTF8))
 			{
 				string ResponseContent = ResponseReader.ReadToEnd();
 				if (!String.IsNullOrEmpty(ResponseContent))

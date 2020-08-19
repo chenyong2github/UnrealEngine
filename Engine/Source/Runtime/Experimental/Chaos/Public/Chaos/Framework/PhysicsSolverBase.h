@@ -193,8 +193,8 @@ namespace Chaos
 			//make sure any GT state is pushed into necessary buffer
 			PushPhysicsState(InDt);
 
-			SetExternalTimeConsumed_External(MarshallingManager.GetExternalTimeConsumed_External());
 			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InDt);
+			SetExternalTimestampConsumed_External(MarshallingManager.GetExternalTimestampConsumed_External());
 
 			if(PushData.Num())	//only kick off sim if enough dt passed
 			{
@@ -306,7 +306,7 @@ namespace Chaos
 		virtual void AdvanceSolverBy(const FReal Dt) = 0;
 		virtual void PushPhysicsState(const FReal Dt) = 0;
 		virtual void ProcessPushedData_Internal(const TArray<FPushPhysicsData*>& PushDataArray) = 0;
-		virtual void SetExternalTimeConsumed_External(const FReal Time) = 0;
+		virtual void SetExternalTimestampConsumed_External(const int32 Timestamp) = 0;
 
 #if CHAOS_CHECKED
 		FName DebugName;

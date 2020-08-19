@@ -61,6 +61,15 @@ namespace
 			Test.AddError( FString::Printf( TEXT("\"%s\" contains parameters (%s) but expected parameters (%s)."), *(Pattern.ToString()), *(ActualParametersString), *(ExpectedParametersString) ) );
 		}
 	}
+
+	void TestIdentical(FTextTest& Test, const FText& One, const FText& Two, const ETextIdenticalModeFlags CompareFlags, const bool bExpectedResult, const int32 TestLine)
+	{
+		const bool bActualResult = One.IdenticalTo(Two, CompareFlags);
+		if (bActualResult != bExpectedResult)
+		{
+			Test.AddError(FString::Printf(TEXT("FText(\"%s\").IdenticalTo(FText(\"%s\")) on line %d produced %s when it was expected to produce %s."), *One.ToString(), *Two.ToString(), TestLine, *LexToString(bActualResult), *LexToString(bExpectedResult)));
+		}
+	}
 }
 
 
@@ -76,6 +85,53 @@ bool FTextTest::RunTest (const FString& Parameters)
 	FText ArgText2 = INVTEXT("Arg2");
 	FText ArgText3 = INVTEXT("Arg3");
 
+#define TEST( A, B, CompareFlags, Expected ) TestIdentical(*this, A, B, CompareFlags, Expected, __LINE__)
+
+	{
+		const int32 TestNumber1 = 10;
+		const int32 TestNumber2 = 20;
+		const FDateTime TestDateTime = FDateTime(1991, 6, 21, 9, 30);
+		const FText TestIdenticalStr1 = LOCTEXT("TestIdenticalStr1", "Str1");
+		const FText TestIdenticalStr2 = LOCTEXT("TestIdenticalStr2", "Str2");
+
+		TEST(TestIdenticalStr1, TestIdenticalStr1, ETextIdenticalModeFlags::None, true);
+		TEST(TestIdenticalStr1, TestIdenticalStr2, ETextIdenticalModeFlags::None, false);
+		TEST(TestIdenticalStr1, TestIdenticalStr1, ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants, true);
+		TEST(TestIdenticalStr1, TestIdenticalStr2, ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants, false);
+
+		TEST(FText::AsCultureInvariant(TEXT("Wooble")), FText::AsCultureInvariant(TEXT("Wooble")), ETextIdenticalModeFlags::None, false);
+		TEST(FText::FromString(TEXT("Wooble")), FText::FromString(TEXT("Wooble")), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsCultureInvariant(TEXT("Wooble")), FText::AsCultureInvariant(TEXT("Wooble")), ETextIdenticalModeFlags::LexicalCompareInvariants, true);
+		TEST(FText::FromString(TEXT("Wooble")), FText::FromString(TEXT("Wooble")), ETextIdenticalModeFlags::LexicalCompareInvariants, true);
+		TEST(FText::AsCultureInvariant(TEXT("Wooble")), FText::AsCultureInvariant(TEXT("Wooble2")), ETextIdenticalModeFlags::LexicalCompareInvariants, false);
+		TEST(FText::FromString(TEXT("Wooble")), FText::FromString(TEXT("Wooble2")), ETextIdenticalModeFlags::LexicalCompareInvariants, false);
+
+		TEST(FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), ETextIdenticalModeFlags::None, false);
+		TEST(FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants, true);
+		TEST(FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText1), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants, false);
+		TEST(FText::Format(LOCTEXT("TestIdenticalPattern", "This takes an arg {0}"), ArgText0), FText::Format(LOCTEXT("TestIdenticalPattern2", "This takes an arg {0}!"), ArgText0), ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants, false);
+
+		TEST(FText::AsDate(TestDateTime), FText::AsDate(TestDateTime), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsDate(TestDateTime), FText::AsDate(TestDateTime), ETextIdenticalModeFlags::DeepCompare, true);
+		TEST(FText::AsTime(TestDateTime), FText::AsTime(TestDateTime), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsTime(TestDateTime), FText::AsTime(TestDateTime), ETextIdenticalModeFlags::DeepCompare, true);
+		TEST(FText::AsDateTime(TestDateTime), FText::AsDateTime(TestDateTime), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsDateTime(TestDateTime), FText::AsDateTime(TestDateTime), ETextIdenticalModeFlags::DeepCompare, true);
+
+		TEST(FText::AsNumber(TestNumber1), FText::AsNumber(TestNumber1), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsNumber(TestNumber1), FText::AsNumber(TestNumber1), ETextIdenticalModeFlags::DeepCompare, true);
+		TEST(FText::AsNumber(TestNumber1), FText::AsNumber(TestNumber2), ETextIdenticalModeFlags::None, false);
+		TEST(FText::AsNumber(TestNumber1), FText::AsNumber(TestNumber2), ETextIdenticalModeFlags::DeepCompare, false);
+
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr1.ToUpper(), ETextIdenticalModeFlags::None, false);
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr1.ToUpper(), ETextIdenticalModeFlags::DeepCompare, true);
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr1.ToLower(), ETextIdenticalModeFlags::None, false);
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr1.ToLower(), ETextIdenticalModeFlags::DeepCompare, false);
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr2.ToUpper(), ETextIdenticalModeFlags::None, false);
+		TEST(TestIdenticalStr1.ToUpper(), TestIdenticalStr2.ToUpper(), ETextIdenticalModeFlags::DeepCompare, false);
+	}
+
+#undef TEST
 #define TEST( Desc, A, B ) if( !A.EqualTo(B) ) AddError(FString::Printf(TEXT("%s - A=%s B=%s"),*Desc,*A.ToString(),*B.ToString()))
 	
 	FText TestText;

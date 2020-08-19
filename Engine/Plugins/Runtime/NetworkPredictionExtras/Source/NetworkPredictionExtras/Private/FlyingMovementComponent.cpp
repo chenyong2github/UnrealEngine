@@ -135,15 +135,19 @@ void UFlyingMovementComponent::ProduceInput(const int32 DeltaTimeMS, FFlyingMove
 	ProduceInputDelegate.ExecuteIfBound(DeltaTimeMS, *Cmd);
 }
 
+void UFlyingMovementComponent::RestoreFrame(const FFlyingMovementSyncState* SyncState, const FFlyingMovementAuxState* AuxState)
+{
+	FTransform Transform(SyncState->Rotation.Quaternion(), SyncState->Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
+	UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
+	UpdatedComponent->ComponentVelocity = SyncState->Velocity;
+}
+
 void UFlyingMovementComponent::FinalizeFrame(const FFlyingMovementSyncState* SyncState, const FFlyingMovementAuxState* AuxState)
 {
-	// Does checking equality make any sense here? This is unfortunate
+	// The component will often be in the "right place" already on FinalizeFrame, so a comparison check makes sense before setting it.
 	if (UpdatedComponent->GetComponentLocation().Equals(SyncState->Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState->Rotation, FFlyingMovementSimulation::ROTATOR_TOLERANCE) == false)
 	{
-		FTransform Transform(SyncState->Rotation.Quaternion(), SyncState->Location, UpdatedComponent->GetComponentTransform().GetScale3D() );
-		UpdatedComponent->SetWorldTransform(Transform, false, nullptr, ETeleportType::TeleportPhysics);
-
-		UpdatedComponent->ComponentVelocity = SyncState->Velocity;
+		RestoreFrame(SyncState, AuxState);
 	}
 }
 

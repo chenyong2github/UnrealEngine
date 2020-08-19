@@ -204,6 +204,7 @@ namespace Chaos
 
 			if (SweptConstraint.Manifold.Phi > 0.0f)
 			{
+				SweptConstraint.TimeOfImpact = 1.f;
 				return;
 			}
 

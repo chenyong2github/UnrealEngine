@@ -7,6 +7,7 @@
 #include "WinHttp/Support/WinHttpTypes.h"
 #include "Http.h"
 #include "Misc/CoreDelegates.h"
+#include "Stats/Stats.h"
 
 namespace
 {
@@ -49,8 +50,14 @@ FWinHttpHttpManager::FWinHttpHttpManager()
 	{
 		if (FWinHttpHttpManager* const Manager = FWinHttpHttpManager::GetManager())
 		{
-			Manager->Flush(false);
-			Manager->ActiveSessions.Reset();
+			Manager->HandleApplicationSuspending();
+		}
+	});
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddLambda([]()
+	{
+		if (FWinHttpHttpManager* const Manager = FWinHttpHttpManager::GetManager())
+		{
+			Manager->HandleApplicationResuming();
 		}
 	});
 }
@@ -70,24 +77,33 @@ void FWinHttpHttpManager::OnBeforeFork()
 	ActiveSessions.Reset();
 }
 
+void FWinHttpHttpManager::HandleApplicationSuspending()
+{
+	Flush(false);
+	ActiveSessions.Reset();
+}
+
+void FWinHttpHttpManager::HandleApplicationResuming()
+{
+	// No-op
+}
+
 void FWinHttpHttpManager::QuerySessionForUrl(const FString& /*UnusedUrl*/, FWinHttpQuerySessionComplete&& Delegate)
 {
 	// Pretend to be async here so applications properly react on platforms where this is actually async
-	FTicker::GetCoreTicker().AddTicker(TEXT("FWinHttpHttpManager.QuerySessionForUrl"), 0.0,
-		[LambdaDelegate = MoveTemp(Delegate)](float DeltaTime) -> bool
+	AddGameThreadTask([LambdaDelegate = MoveTemp(Delegate)]()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FWinHttpHttpManager_QuerySessionForUrlLambda);
+
+		FWinHttpSession* SessionPtr = nullptr;
+		if (FWinHttpHttpManager* HttpManager = GetManager())
 		{
-			FWinHttpSession* SessionPtr = nullptr;
-			if (FWinHttpHttpManager* HttpManager = GetManager())
-			{
-				const uint32 DefaultProtocolFlags = GetPlatformProtocolFlags();
-				SessionPtr = HttpManager->FindOrCreateSession(DefaultProtocolFlags);
-			}
+			const uint32 DefaultProtocolFlags = GetPlatformProtocolFlags();
+			SessionPtr = HttpManager->FindOrCreateSession(DefaultProtocolFlags);
+		}
 
-			LambdaDelegate.ExecuteIfBound(SessionPtr);
-
-			const constexpr bool bTickAgain = false;
-			return bTickAgain;
-		});
+		LambdaDelegate.ExecuteIfBound(SessionPtr);
+	});
 }
 
 bool FWinHttpHttpManager::ValidateRequestCertificates(IWinHttpConnection& Connection)
@@ -108,6 +124,8 @@ void FWinHttpHttpManager::ReleaseRequestResources(IWinHttpConnection& Connection
 
 FWinHttpSession* FWinHttpHttpManager::FindOrCreateSession(const uint32 SecurityProtocols)
 {
+	check(IsInGameThread());
+
 	TUniquePtr<FWinHttpSession>* SessionPtrPtr = ActiveSessions.Find(SecurityProtocols);
 
 	FWinHttpSession* SessionPtr = SessionPtrPtr ? SessionPtrPtr->Get() : nullptr;

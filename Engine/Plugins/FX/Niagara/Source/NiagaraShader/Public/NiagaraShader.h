@@ -119,7 +119,10 @@ public:
 	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
 	LAYOUT_FIELD(FShaderParameter, DefaultSimulationStageIndexParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIndexParam);
-	LAYOUT_FIELD(FShaderParameter, IterationInterfaceCount);
+
+	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
+	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);
 	LAYOUT_ARRAY(FRWShaderParameter, EventIntUAVParams, MAX_CONCURRENT_EVENT_DATASETS);

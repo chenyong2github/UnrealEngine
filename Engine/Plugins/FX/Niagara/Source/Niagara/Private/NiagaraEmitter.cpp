@@ -584,7 +584,13 @@ void UNiagaraEmitter::PostLoad()
 	ResolveScalabilitySettings();
 
 #if !UE_BUILD_SHIPPING
-	DebugSimName = GetFullName();
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(GetName());
 #endif
 }
 
@@ -1298,6 +1304,41 @@ bool UNiagaraEmitter::UsesCollection(const class UNiagaraParameterCollection* Co
 	return false;
 }
 
+
+bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const
+{
+	if (SpawnScriptProps.Script)
+		return SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+	return false;
+}
+bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace);
+	}
+	return false;
+}
+bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainSystemAttribute(InVar);
+	}
+	return false;
+}
+bool UNiagaraEmitter::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainUserVariable(InVar);
+	}
+	return false;
+}
+
 FString UNiagaraEmitter::GetUniqueEmitterName()const
 {
 	return UniqueEmitterName;
@@ -1407,13 +1448,20 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	}
 
-	// Copy parent scratch pad scripts.
+	// Copy scratch pad scripts.
 	ParentScratchPadScripts.Empty();
+	ScratchPadScripts.Empty();
 
 	for (UNiagaraScript* MergedParentScratchPadScript : MergedEmitter->ParentScratchPadScripts)
 	{
 		ReouterMergedObject(this, MergedParentScratchPadScript);
 		ParentScratchPadScripts.Add(MergedParentScratchPadScript);
+	}
+
+	for (UNiagaraScript* MergedScratchPadScript : MergedEmitter->ScratchPadScripts)
+	{
+		ReouterMergedObject(this, MergedScratchPadScript);
+		ScratchPadScripts.Add(MergedScratchPadScript);
 	}
 
 	SetEditorData(MergedEmitter->GetEditorData());
@@ -1436,6 +1484,14 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		// due to compilation, in cases where the package should be marked dirty an previous modify would have already done this.
 		Script->Modify(false);
 		Script->SyncAliases(RenameMap);
+	}
+
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer)
+		{
+			Renderer->RenameEmitter(*InOldName, this);
+		}
 	}
 }
 #endif

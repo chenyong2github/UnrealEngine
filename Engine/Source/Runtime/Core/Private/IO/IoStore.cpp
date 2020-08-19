@@ -154,6 +154,7 @@ struct FChunkBlock
 	uint64 Size = 0;
 	uint64 CompressedSize = 0;
 	uint64 UncompressedSize = 0;
+	FName CompressionMethod = NAME_None;
 };
 
 struct FIoStoreWriteQueueEntry
@@ -166,7 +167,6 @@ struct FIoStoreWriteQueueEntry
 	TArray<FChunkBlock> ChunkBlocks;
 	FIoWriteOptions Options;
 	FGraphEventRef CreateChunkBlocksTask = FGraphEventRef();
-	FName CompressionMethod = NAME_None;
 };
 
 class FIoStoreWriteQueue
@@ -622,17 +622,10 @@ private:
 				OffsetLength.SetLength(Entry->ChunkSize);
 
 				FIoStoreTocEntryMeta ChunkMeta { Entry->ChunkHash, FIoStoreTocEntryMetaFlags::None };
-				if (Entry->CompressionMethod != NAME_None)
-				{
-					ChunkMeta.Flags |= FIoStoreTocEntryMetaFlags::Compressed;
-				}
 				if (Entry->Options.bIsMemoryMapped)
 				{
 					ChunkMeta.Flags |= FIoStoreTocEntryMetaFlags::MemoryMapped;
 				}
-
-				const bool bAdded = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, ChunkMeta);
-				check(bAdded);
 
 				for (const FChunkBlock& ChunkBlock : Entry->ChunkBlocks)
 				{
@@ -642,7 +635,12 @@ private:
 					BlockEntry.SetOffset(FileOffset + ChunkBlock.Offset);
 					BlockEntry.SetCompressedSize(uint32(ChunkBlock.CompressedSize));
 					BlockEntry.SetUncompressedSize(uint32(ChunkBlock.UncompressedSize));
-					BlockEntry.SetCompressionMethodIndex(Toc.AddCompressionMethodEntry(Entry->CompressionMethod));
+					BlockEntry.SetCompressionMethodIndex(Toc.AddCompressionMethodEntry(ChunkBlock.CompressionMethod));
+
+					if (!ChunkBlock.CompressionMethod.IsNone())
+					{
+						ChunkMeta.Flags |= FIoStoreTocEntryMetaFlags::Compressed;
+					}
 
 					if (ContainerSettings.IsSigned())
 					{
@@ -650,6 +648,9 @@ private:
 						FSHA1::HashBuffer(Entry->ChunkBuffer.Data() + ChunkBlock.Offset, ChunkBlock.Size, Signature.Hash);
 					}
 				}
+
+				const bool bAdded = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, ChunkMeta);
+				check(bAdded);
 
 				ContainerFileHandle->Write(Entry->ChunkBuffer.Data(), Entry->ChunkBuffer.DataSize());
 				UncompressedFileOffset += Align(Entry->ChunkSize, Settings.CompressionBlockSize);
@@ -679,7 +680,6 @@ private:
 		auto CreateUncompressedBlocks = [](FIoStoreWriteQueueEntry* UncompressedEntry, const uint64 BlockSize) -> void
 		{
 			UncompressedEntry->ChunkBlocks.Empty();
-			UncompressedEntry->CompressionMethod = NAME_None;
 
 			FIoBuffer& ChunkBuffer = UncompressedEntry->ChunkBuffer;
 
@@ -705,7 +705,7 @@ private:
 			{
 				const uint64 UncompressedBlockSize = FMath::Min<uint64>(RemainingSize, BlockSize);
 				const uint64 RawBlockSize = Align(UncompressedBlockSize, FAES::AESBlockSize);
-				UncompressedEntry->ChunkBlocks.Add(FChunkBlock { UncompressedOffset, RawBlockSize, UncompressedBlockSize, UncompressedBlockSize });
+				UncompressedEntry->ChunkBlocks.Add(FChunkBlock { UncompressedOffset, RawBlockSize, UncompressedBlockSize, UncompressedBlockSize, NAME_None });
 				RemainingSize -= UncompressedBlockSize;
 				UncompressedOffset += RawBlockSize;
 			}
@@ -729,8 +729,9 @@ private:
 				TUniquePtr<uint8[]>& CompressedBlock = CompressedBlocks.AddDefaulted_GetRef();
 				CompressedBlock = MakeUnique<uint8[]>(CompressedBlockSize);
 
+				FName CompressionMethod = WriterSettings.CompressionMethod;
 				const bool bCompressed = FCompression::CompressMemory(
-					WriterSettings.CompressionMethod,
+					CompressionMethod,
 					CompressedBlock.Get(),
 					CompressedBlockSize,
 					UncompressedBlock,
@@ -738,6 +739,13 @@ private:
 
 				check(bCompressed);
 				check(CompressedBlockSize > 0);
+
+				if (CompressedBlockSize >= UncompressedBlockSize)
+				{
+					memcpy(CompressedBlock.Get(), UncompressedBlock, UncompressedBlockSize);
+					CompressedBlockSize = UncompressedBlockSize;
+					CompressionMethod = NAME_None;
+				}
 
 				// Always align each compressed block to AES block size but store the compressed block size in the TOC
 				uint64 AlignedCompressedBlockSize = CompressedBlockSize;
@@ -756,7 +764,7 @@ private:
 					CompressedBlock.Reset(AlignedBlock.Release());
 				}
 
-				Entry->ChunkBlocks.Add(FChunkBlock { BlockOffset, AlignedCompressedBlockSize, uint64(CompressedBlockSize), uint64(UncompressedBlockSize) });
+				Entry->ChunkBlocks.Add(FChunkBlock { BlockOffset, AlignedCompressedBlockSize, uint64(CompressedBlockSize), uint64(UncompressedBlockSize), CompressionMethod });
 
 				BytesToProcess		-= UncompressedBlockSize;
 				BlockOffset			+= AlignedCompressedBlockSize;
@@ -764,28 +772,18 @@ private:
 			}
 
 			const uint64 CompressedSize = BlockOffset;
-			float PercentLess = ((float)CompressedSize / (Entry->ChunkBuffer.DataSize() / 100.f));
-			const bool bNotEnoughCompression = PercentLess > 90.f;
+			
+			Entry->ChunkBuffer = FIoBuffer(CompressedSize);
+			
+			uint8* CompressedChunkBuffer = Entry->ChunkBuffer.Data();
+			FMemory::Memzero(CompressedChunkBuffer, CompressedSize); 
 
-			if (bNotEnoughCompression)
+			for (int32 BlockIndex = 0; BlockIndex < CompressedBlocks.Num(); ++BlockIndex)
 			{
-				CreateUncompressedBlocks(Entry, WriterSettings.CompressionBlockSize);
-			}
-			else
-			{
-				Entry->ChunkBuffer = FIoBuffer(CompressedSize);
-				Entry->CompressionMethod = WriterSettings.CompressionMethod;
-
-				uint8* CompressedChunkBuffer = Entry->ChunkBuffer.Data();
-				FMemory::Memzero(CompressedChunkBuffer, CompressedSize); 
-
-				for (int32 BlockIndex = 0; BlockIndex < CompressedBlocks.Num(); ++BlockIndex)
-				{
-					TUniquePtr<uint8[]>& CompressedBlock = CompressedBlocks[BlockIndex];
-					const FChunkBlock& ChunkBlock = Entry->ChunkBlocks[BlockIndex];
-					FMemory::Memcpy(CompressedChunkBuffer, CompressedBlock.Get(), ChunkBlock.Size);
-					CompressedChunkBuffer += ChunkBlock.Size;
-				}
+				TUniquePtr<uint8[]>& CompressedBlock = CompressedBlocks[BlockIndex];
+				const FChunkBlock& ChunkBlock = Entry->ChunkBlocks[BlockIndex];
+				FMemory::Memcpy(CompressedChunkBuffer, CompressedBlock.Get(), ChunkBlock.Size);
+				CompressedChunkBuffer += ChunkBlock.Size;
 			}
 		}
 		else

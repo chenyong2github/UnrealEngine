@@ -56,7 +56,7 @@ namespace
 		float  Origin[3];
 		uint32 PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 		float  Direction[3];
-		uint32 DebugSortKey;
+		float  Validity; // Only technically need 8 bits, the rest could be repurposed
 	};
 
 	struct FRayIntersectionBookmark
@@ -262,8 +262,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.SceneTextures           = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
-	CommonParameters.LightDataPacked         = View.RayTracingLightingDataUniformBuffer;
-	CommonParameters.LightDataBuffer         = View.RayTracingLightingDataSRV;
+	CommonParameters.LightDataPacked         = View.RayTracingLightData.UniformBuffer;
+	CommonParameters.LightDataBuffer         = View.RayTracingLightData.LightBufferSRV;
 	CommonParameters.SSProfilesTexture       = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
 	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();

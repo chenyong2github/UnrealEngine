@@ -739,6 +739,111 @@ void SkeletalSimplifier::FSimplifierMeshManager::RebuildEdgeLinkLists(EdgePtrArr
 }
 
 
+void SkeletalSimplifier::FSimplifierMeshManager::VisitEdges(TFunctionRef<void(SimpVertType*, SimpVertType*, int32)> EdgeVisitor)
+{
+
+	TArray< SimpVertType*, TInlineAllocator<64> > adjVerts;
+	if (NumSrcVerts == 0 || NumSrcTris == 0)
+	{
+		//Avoid trying to compute an empty mesh
+		return;
+	}
+
+	// clear the mark2 flags. We use these to determine if we have visited a vert group.
+	for (int32 i = 0; i < NumSrcVerts; ++i)
+	{
+		SimpVertType* v0 = &VertArray[i];
+		v0->DisableFlags(SIMP_MARK2);
+	}
+
+	for (int i = 0; i < NumSrcVerts; i++)
+	{
+
+		SimpVertType* v0 = &VertArray[i];
+		checkSlow(v0 != NULL);
+		check(v0->adjTris.Num() > 0);
+
+		// we have already visited this vertex group
+		if (v0->TestFlags(SIMP_MARK2))
+		{
+			continue;
+		}
+
+		if (v0->TestFlags(SIMP_REMOVED))
+		{
+			continue;
+		}
+
+		//Find all the verts that are adjacent to any vert in this group.
+		adjVerts.Reset();
+		SimpVertType* v0Smallest = v0;
+		{
+			SimpVertType* v = v0;
+			do {
+				for (TriIterator triIter = v->adjTris.Begin(); triIter != v->adjTris.End(); ++triIter)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						SimpVertType* TriVert = (*triIter)->verts[j];
+						if (TriVert != v)
+						{
+							adjVerts.AddUnique(TriVert);
+						}
+					}
+				}
+				v = v->next;
+				if (v0Smallest > v)
+				{
+					v0Smallest = v;
+				}
+			} while (v != v0);
+		}
+
+		for (SimpVertType* v1 : adjVerts)
+		{
+			// visit edges that are incoming to this vertex group
+			// note, we may end up visiting a few edges twice.
+			if (v0Smallest < v1)
+			{
+
+				// set if this edge is boundary
+				// find faces that share v0 and v1
+				v0->EnableAdjTriFlagsGroup(SIMP_MARK1);
+				v1->DisableAdjTriFlagsGroup(SIMP_MARK1);
+
+				int32 AdjFaceCount = 0;
+				SimpVertType* vert = v0;
+				do
+				{
+					for (TriIterator j = vert->adjTris.Begin(); j != vert->adjTris.End(); ++j)
+					{
+						SimpTriType* tri = *j;
+						AdjFaceCount += tri->TestFlags(SIMP_MARK1) ? 0 : 1;
+					}
+					vert = vert->next;
+				} while (vert != v0);
+
+				// reset v0-group flag.
+				v0->DisableAdjTriFlagsGroup(SIMP_MARK1);
+
+				// process this edge.
+				EdgeVisitor(v0, v1, AdjFaceCount);
+			}
+		}
+
+		// visited this vert and all the incoming edges.
+		v0->EnableFlagsGroup(SIMP_MARK2);
+	}
+
+	for (int32 i = 0; i < NumSrcVerts; ++i)
+	{
+		SimpVertType* v0 = &VertArray[i];
+		v0->DisableFlags(SIMP_MARK2);
+	}
+}
+
+
+//[TODO]  convert this to use the VisitEdges method.
 void SkeletalSimplifier::FSimplifierMeshManager::FlagBoundary(const ESimpElementFlags Flag)
 { 
 
@@ -756,6 +861,7 @@ void SkeletalSimplifier::FSimplifierMeshManager::FlagBoundary(const ESimpElement
 		checkSlow(v0 != NULL);
 		check(v0->adjTris.Num() > 0);
 
+		// not sure if this test is valid.  
 		if (v0->TestFlags(Flag))
 		{
 			// we must have visited this vert already in a vert group
@@ -1747,3 +1853,148 @@ int32 SkeletalSimplifier::FSimplifierMeshManager::CountDegenerateEdges() const
 
 	return DegenerateCount;
 }
+
+#if 0
+// disabled because static analysis insists that NonManifoldEdgeCounter.EdgeCount != 0 is always false.
+float  SkeletalSimplifier::FSimplifierMeshManager::FractionNonManifoldEdges(bool bLockNonManifoldEdges)
+{
+
+	FNonManifoldEdgeCounter NonManifoldEdgeCounter;
+	NonManifoldEdgeCounter.EdgeCount = 0;
+	NonManifoldEdgeCounter.NumNonManifoldEdges = 0;
+	NonManifoldEdgeCounter.bLockNonManifoldEdges = bLockNonManifoldEdges;
+
+
+	VisitEdges(NonManifoldEdgeCounter);
+
+	float FractionBadEdges =  0.f;
+	if (NonManifoldEdgeCounter.EdgeCount != 0)
+	{ 
+		FractionBadEdges = float(NonManifoldEdgeCounter.NumNonManifoldEdges) / NonManifoldEdgeCounter.EdgeCount;
+	}
+
+	return FractionBadEdges;
+}
+#else
+
+float SkeletalSimplifier::FSimplifierMeshManager::FractionNonManifoldEdges(bool bLockNonManifoldEdges)
+{
+
+	int32 NumVisitedEdges = 0;
+	int32 NumNonManifoldEdges = 0;
+
+	TArray< SimpVertType*, TInlineAllocator<64> > adjVerts;
+	if (NumSrcVerts == 0 || NumSrcTris == 0)
+	{
+		//Avoid trying to compute an empty mesh
+		return 0.f;
+	}
+
+	// clear the mark2 flags. We use these to determine if we have visited a vert group.
+	for (int32 i = 0; i < NumSrcVerts; ++i)
+	{
+		SimpVertType* v0 = &VertArray[i];
+		v0->DisableFlags(SIMP_MARK2);
+	}
+
+	for (int i = 0; i < NumSrcVerts; i++)
+	{
+
+		SimpVertType* v0 = &VertArray[i];
+		checkSlow(v0 != NULL);
+		check(v0->adjTris.Num() > 0);
+
+		// we have already visited this vertex group
+		if (v0->TestFlags(SIMP_MARK2))
+		{
+			continue;
+		}
+
+		if (v0->TestFlags(SIMP_REMOVED))
+		{
+			continue;
+		}
+
+		//Find all the verts that are adjacent to any vert in this group.
+		adjVerts.Reset();
+		SimpVertType* v0Smallest = v0;
+		{
+			SimpVertType* v = v0;
+			do {
+				for (TriIterator triIter = v->adjTris.Begin(); triIter != v->adjTris.End(); ++triIter)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						SimpVertType* TriVert = (*triIter)->verts[j];
+						if (TriVert != v)
+						{
+							adjVerts.AddUnique(TriVert);
+						}
+					}
+				}
+				v = v->next;
+				if (v0Smallest > v)
+				{
+					v0Smallest = v;
+				}
+			} while (v != v0);
+		}
+
+		for (SimpVertType* v1 : adjVerts)
+		{
+			// visit edges that are incoming to this vertex group
+			// note, we may end up visiting a few edges twice.
+			if (v0Smallest < v1)
+			{
+
+				// set if this edge is boundary
+				// find faces that share v0 and v1
+				v0->EnableAdjTriFlagsGroup(SIMP_MARK1);
+				v1->DisableAdjTriFlagsGroup(SIMP_MARK1);
+
+				int32 AdjFaceCount = 0;
+				SimpVertType* vert = v0;
+				do
+				{
+					for (TriIterator j = vert->adjTris.Begin(); j != vert->adjTris.End(); ++j)
+					{
+						SimpTriType* tri = *j;
+						AdjFaceCount += tri->TestFlags(SIMP_MARK1) ? 0 : 1;
+					}
+					vert = vert->next;
+				} while (vert != v0);
+
+				// reset v0-group flag.
+				v0->DisableAdjTriFlagsGroup(SIMP_MARK1);
+
+				// process this edge.
+				{
+					NumVisitedEdges++;
+					if (AdjFaceCount > 2)
+					{
+						NumNonManifoldEdges++;
+						if (bLockNonManifoldEdges)
+						{
+							// lock these verts.
+							v0->EnableFlagsGroup(SIMP_LOCKED);
+							v1->EnableFlagsGroup(SIMP_LOCKED);
+						}
+					}
+				}
+			}
+		}
+
+		// visited this vert and all the incoming edges.
+		v0->EnableFlagsGroup(SIMP_MARK2);
+	}
+
+	for (int32 i = 0; i < NumSrcVerts; ++i)
+	{
+		SimpVertType* v0 = &VertArray[i];
+		v0->DisableFlags(SIMP_MARK2);
+	}
+
+	return float(NumNonManifoldEdges) / (float(NumVisitedEdges) +0.01f);
+}
+
+#endif

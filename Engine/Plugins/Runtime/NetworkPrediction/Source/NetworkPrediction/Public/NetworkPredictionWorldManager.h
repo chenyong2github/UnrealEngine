@@ -58,6 +58,7 @@ public:
 		TModelDataStore<ModelDef>* DataStore = Services.GetDataStore<ModelDef>();
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.FindOrAdd(ID);
 		InstanceData.Info = ModelInfo;
+		InstanceData.TraceID = ID.GetTraceID();
 		InstanceData.CueDispatcher->Driver = ModelInfo.Driver; // Awkward: we should convert Cues to a service so this isn't needed.
 	}
 

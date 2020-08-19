@@ -597,27 +597,13 @@ void FNiagaraSystemSimulation::Destroy()
 	{
 		FNiagaraSystemInstance* Inst = SystemInstances.Last();
 		check(Inst);
-		if (ensure(Inst->GetComponent()))//Currently we have no cases whre there shouldn't be a component but maybe in future.
-		{
-			Inst->GetComponent()->DeactivateImmediate();
-		}
-		else
-		{
-			Inst->Deactivate(true);
-		}
+		Inst->Deactivate(true);		
 	}
 	while (PendingSystemInstances.Num())
 	{
 		FNiagaraSystemInstance* Inst = PendingSystemInstances.Last();
 		check(Inst);
-		if (ensure(Inst->GetComponent()))//Currently we have no cases whre there shouldn't be a component but maybe in future.
-		{
-			Inst->GetComponent()->DeactivateImmediate();
-		}
-		else
-		{
-			Inst->Deactivate(true);
-		}
+		Inst->Deactivate(true);		
 	}
 	SystemInstances.Empty();
 	PendingSystemInstances.Empty();
@@ -1693,6 +1679,9 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 						UE_LOG(LogNiagara, Log, TEXT("Skipping DataSetToEmitterEventParameters because EventIdx is out-of-bounds. %d of %d"), EventIdx, DataSetToEmitterEventParameters[EmitterIdx].Num());
 					}
 				}
+
+				DataSetToEmitterRendererParameters[EmitterIdx].DataSetToParameterStore(EmitterInst.GetRendererBoundVariables(), Context.DataSet, SystemIndex);
+
 			}
 		}
 	}
@@ -1984,6 +1973,7 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 		DataSetToEmitterUpdateParameters.SetNum(EmitterCount);
 		DataSetToEmitterEventParameters.SetNum(EmitterCount);
 		DataSetToEmitterGPUParameters.SetNum(EmitterCount);
+		DataSetToEmitterRendererParameters.SetNum(EmitterCount);
 
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterCount; ++EmitterIdx)
 		{
@@ -2004,6 +1994,8 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 			{
 				DataSetToEmitterGPUParameters[EmitterIdx].Init(MainDataSet, GPUContext->CombinedParamStore);
 			}
+
+			DataSetToEmitterRendererParameters[EmitterIdx].Init(MainDataSet, EmitterInst.GetRendererBoundVariables());
 
 			TArrayView<FNiagaraScriptExecutionContext> EventContexts = EmitterInst.GetEventExecutionContexts();
 			const int32 EventCount = EventContexts.Num();

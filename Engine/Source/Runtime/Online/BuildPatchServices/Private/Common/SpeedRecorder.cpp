@@ -6,6 +6,7 @@
 #include "Containers/Queue.h"
 #include "Math/UnitConversion.h"
 #include "Common/StatsCollector.h"
+#include "Stats/Stats.h"
 
 namespace BuildPatchServices
 {
@@ -166,6 +167,8 @@ namespace BuildPatchServices
 
 	bool FSpeedRecorder::Tick(float DeltaTime)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSpeedRecorder_Tick);
+
 		// Pull in queued records.
 		const int32 StartIdx = Records.Num();
 		do { Records.AddUninitialized(); }

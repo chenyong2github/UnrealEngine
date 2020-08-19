@@ -82,7 +82,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
 		const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, GlossyReflections==1);
+		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, ReflectionMaxRoughness, GlossyReflections==1);
 		RayBuffer[DispatchThreadId] = ReflectionRay; // Store the ray to be used in shading phase
 	}	
 	#else
@@ -105,8 +105,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		FRayIntersectionBookmark Bookmark = (FRayIntersectionBookmark)0;
 
 		FGBufferData GBuffer = GetGBufferDataFromSceneTexturesLoad(PixelPos);
-		float RoughnessFade = GetRoughnessFade(GBuffer.Roughness, ReflectionMaxRoughness);
-		bool bIsValidPixel = RoughnessFade > 0;
+		bool bIsValidPixel = ReflectionRay.Validity > 0;
 		if (bIsValidPixel)
 		{
 			TraceDeferredMaterialGatherRay(TLAS,
@@ -155,6 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 		PackedPayload.SetEnableSkyLightContribution();
+		PackedPayload.SetPixelCoordInCustomData(PixelPos);
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
@@ -196,7 +196,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 				ResultColor.rgb);
 
 			ResultColor.rgb *= View.PreExposure;
-			ResultColor.a = 1;
+			ResultColor.a = ReflectionRay.Validity;
 
 			ResultDistance = PackedPayload.HitT;
 		}

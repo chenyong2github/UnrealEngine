@@ -538,6 +538,7 @@ FSequencer::FSequencer()
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
 	, bNeedsEvaluate(false)
+	, bNeedsInvalidateCachedData(false)
 	, bHasPreAnimatedInfo(false)
 {
 	Selection.GetOnOutlinerNodeSelectionChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
@@ -612,6 +613,12 @@ void FSequencer::Tick(float InDeltaTime)
 	{
 		const int32 SequencerRefCount = AsShared().GetSharedReferenceCount() - 1;
 		ensureAlwaysMsgf(SequencerRefCount == 1, TEXT("Multiple persistent shared references detected for Sequencer. There should only be one persistent authoritative reference. Found %d additional references which will result in FSequencer not being released correctly."), SequencerRefCount - 1);
+	}
+
+	if (bNeedsInvalidateCachedData)
+	{
+		InvalidateCachedData();
+		bNeedsInvalidateCachedData = false;
 	}
 
 	// Ensure the time bases for our playback position are kept up to date with the root sequence
@@ -2107,7 +2114,7 @@ void FSequencer::BakeTransform()
 					CameraComponent->GetAdditiveOffset(AdditiveOffset, AdditiveFOVOffset);
 
 					FTransform Transform(Actor->GetActorRotation(), Actor->GetActorLocation());
-					FTransform TransformWithAdditiveOffset = Transform * AdditiveOffset;
+					FTransform TransformWithAdditiveOffset = AdditiveOffset * Transform;
 					FVector LocalTranslation = TransformWithAdditiveOffset.GetTranslation();
 					FRotator LocalRotation = TransformWithAdditiveOffset.GetRotation().Rotator();
 
@@ -11363,8 +11370,6 @@ void FSequencer::RebindPossessableReferences()
 
 void FSequencer::ImportFBX()
 {
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
 	TMap<FGuid, FString> ObjectBindingNameMap;
 
 	TArray<TSharedRef<FSequencerObjectBindingNode>> RootObjectBindingNodes;
@@ -11377,13 +11382,11 @@ void FSequencer::ImportFBX()
 		ObjectBindingNameMap.Add(ObjectBinding, RootObjectBindingNode.Get().GetDisplayName().ToString());
 	}
 
-	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>());
+	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>());
 }
 
 void FSequencer::ImportFBXOntoSelectedNodes()
 {
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
 	// The object binding and names to match when importing from fbx
 	TMap<FGuid, FString> ObjectBindingNameMap;
 
@@ -11399,7 +11402,7 @@ void FSequencer::ImportFBXOntoSelectedNodes()
 		}
 	}
 
-	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>(false));
+	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>(false));
 }
 
 void FSequencer::ExportFBX()

@@ -6,13 +6,16 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/ActorComponent.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsHandleComponent.generated.h"
 
+#if PHYSICS_INTERFACE_PHYSX
 namespace physx
 {
 	class PxD6Joint;
 	class PxRigidDynamic;
 }
+#endif
 
 /**
  *	Utility object for moving physics objects around.
@@ -68,10 +71,22 @@ class ENGINE_API UPhysicsHandleComponent : public UActorComponent
 
 
 protected:
+
+#if PHYSICS_INTERFACE_PHYSX
 	/** Pointer to PhysX joint used by the handle*/
 	physx::PxD6Joint* HandleData;
 	/** Pointer to kinematic actor jointed to grabbed object */
 	physx::PxRigidDynamic* KinActorData;
+#elif WITH_CHAOS
+	FTransform PreviousTransform;
+	bool bPendingConstraint;
+
+	FPhysicsUserData PhysicsUserData;
+	FConstraintInstanceBase ConstraintInstance;
+	FPhysicsActorHandle GrabbedHandle;
+	FPhysicsActorHandle KinematicHandle;
+	FPhysicsConstraintHandle ConstraintHandle;
+#endif
 
 	//~ Begin UActorComponent Interface.
 	virtual void OnUnregister() override;

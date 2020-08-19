@@ -159,7 +159,7 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		// Create a full absolute path
 		FMoviePipelineFormatArgs FinalFormatArgs;
 		FString FinalFilePath;
-		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, Segment.OutputState, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs);
+		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs, &Segment.OutputState);
 
 		// Remove the .{ext} string added by resolving the name format. Works for all the other types, but incompatible with our API.
 		if (FinalFilePath.EndsWith(TEXT(".{ext}")))

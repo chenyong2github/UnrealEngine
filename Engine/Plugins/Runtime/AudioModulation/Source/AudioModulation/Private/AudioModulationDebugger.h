@@ -8,7 +8,7 @@
 #include "SoundControlBus.h"
 #include "SoundControlBusMix.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulatorLFO.h"
+#include "SoundModulationGeneratorLFO.h"
 
 
 namespace AudioModulation
@@ -16,7 +16,7 @@ namespace AudioModulation
 	// Forward Declarations
 	struct FReferencedProxies;
 
-	struct FControlBusMixChannelDebugInfo
+	struct FControlBusMixStageDebugInfo
 	{
 		float TargetValue;
 		float CurrentValue;
@@ -28,7 +28,7 @@ namespace AudioModulation
 		uint32 Id;
 		uint32 RefCount;
 
-		TMap<uint32, FControlBusMixChannelDebugInfo> Channels;
+		TMap<uint32, FControlBusMixStageDebugInfo> Stages;
 	};
 
 	struct FControlBusDebugInfo
@@ -38,7 +38,6 @@ namespace AudioModulation
 		float LFOValue;
 		float MixValue;
 		float Value;
-		FVector2D Range;
 		uint32 Id;
 		uint32 RefCount;
 	};

@@ -65,7 +65,6 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
 	static uint GRandomSeedOffset = 0;
-	static bool GStageWritesAlive = false;
 	
 	const static uint GSpawnPhase = 0;
 	const static uint GUpdatePhase = 1;
@@ -118,6 +117,15 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 
 	static int Engine_ExecutionCount;
 	static int GGPUExecIndex;
+
+	int3 SimulationStageIterationInfo;							// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
+	float SimulationStageNormalizedIterationIndex;
+
+	// Note: These are referenced from an asset that passes back the data to the user (see SimulationStageIterationInfo)
+	int SimulationStage_GetInstanceCount() { return SimulationStageIterationInfo.x; }
+	int SimulationStage_GetIterationIndex() { return SimulationStageIterationInfo.y; }
+	int SimulationStage_GetNumIterations() { return SimulationStageIterationInfo.z; }
+	float SimulationStage_GetNormalizedIterationIndex() { return SimulationStageNormalizedIterationIndex; }
 
 	static uint GSpawnStartInstance;
 	uint SpawnedInstances;
@@ -376,7 +384,7 @@ int rand_int(int x)
 	// Going through the float function also give us a better distribution than using modulo 
 	// to get an integer range.
 	// This will not include the upper range as rand_float returns [0, max), not [0, max].
-	return rand_float(x.x);
+	return (int) rand_float(x.x);
 }
 
 // Explicit deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
@@ -464,8 +472,6 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		int DefaultSimulationStageIndex;
 		int SimulationStageIndex;
 	#endif
-
-	int IterationInterfaceCount;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
@@ -672,6 +678,30 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	float InputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
 		return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+
+	/* ---------------------------------------------------------------------
+	 * InputData from RW buffer
+	 * ---------------------------------------------------------------------
+	 */
+	float RWInputDataFloat(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputFloat[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+
+	int RWInputDataInt(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+	
+	bool RWInputDataBool(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
+	}
+
+	float RWInputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
 	}
 
 	/* ---------------------------------------------------------------------

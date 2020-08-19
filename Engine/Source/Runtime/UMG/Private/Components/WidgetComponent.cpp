@@ -599,8 +599,10 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, SharedLayerName(TEXT("WidgetComponentScreenLayer"))
 	, LayerZOrder(-100)
 	, GeometryMode(EWidgetGeometryMode::Plane)
-	, CylinderArcAngle( 180.0f )
+	, CylinderArcAngle(180.0f)
+	, TickMode(ETickMode::Enabled)
     , bRenderCleared(false)
+	, bOnWidgetVisibilityChangedRegistered(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
@@ -898,13 +900,68 @@ EVisibility UWidgetComponent::ConvertWindowVisibilityToVisibility(EWindowVisibil
 	}	
 }
 
+void UWidgetComponent::OnWidgetVisibilityChanged(ESlateVisibility InVisibility)
+{
+	ensure(TickMode == ETickMode::Automatic);
+	ensure(Widget);
+	ensure(bOnWidgetVisibilityChangedRegistered);
+
+	if (InVisibility != ESlateVisibility::Collapsed && InVisibility != ESlateVisibility::Hidden)
+	{
+		SetComponentTickEnabled(true);
+		if (bOnWidgetVisibilityChangedRegistered)
+		{
+			Widget->OnNativeVisibilityChanged.RemoveAll(this);
+			bOnWidgetVisibilityChangedRegistered = false;
+		}			
+	}
+}
+
 void UWidgetComponent::SetWindowVisibility(EWindowVisibility InVisibility)
 {
+	ensure(TickMode == ETickMode::Automatic);
+	ensure(Widget);
+	ensure(bOnWidgetVisibilityChangedRegistered);
+
 	WindowVisibility = InVisibility;
  	if (SlateWindow.IsValid())
  	{		
  		SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
  	}
+
+	if (IsWidgetVisible())
+	{
+		SetComponentTickEnabled(TickMode != ETickMode::Disabled);
+		if (bOnWidgetVisibilityChangedRegistered)
+		{
+			if (Widget)
+			{
+				Widget->OnNativeVisibilityChanged.RemoveAll(this);
+			}
+			bOnWidgetVisibilityChangedRegistered = false;
+		}
+	}
+}
+
+void UWidgetComponent::SetTickMode(ETickMode InTickMode)
+{
+	TickMode = InTickMode;
+	SetComponentTickEnabled(InTickMode != ETickMode::Disabled);
+}
+
+bool UWidgetComponent::IsWidgetVisible() const
+{	
+	if (!SlateWindow.IsValid() || !SlateWindow->GetVisibility().IsVisible())
+	{
+		return false;
+	}	
+	
+	if (Widget)
+	{
+		return Widget->IsVisible();
+	}
+
+	return SlateWidget.IsValid() && SlateWidget->GetVisibility().IsVisible();
 }
 
 bool UWidgetComponent::CanReceiveHardwareInput() const
@@ -1066,6 +1123,18 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 			// We will enter here if the WidgetClass is empty and we already renderered an empty widget. No need to continue.
 			return;	
 		}
+		
+		if (Widget && TickMode == ETickMode::Automatic && !IsWidgetVisible())
+		{
+			SetComponentTickEnabled(false);
+			if (!bOnWidgetVisibilityChangedRegistered)
+			{
+				Widget->OnNativeVisibilityChanged.AddUObject(this, &UWidgetComponent::OnWidgetVisibilityChanged);
+				bOnWidgetVisibilityChangedRegistered = true;
+			}
+			return;
+		}
+		ensure(TickMode != ETickMode::Disabled);
 
 	    if ( Space != EWidgetSpace::Screen )
 	    {
@@ -1429,6 +1498,7 @@ void UWidgetComponent::InitWidget()
 		if ( WidgetClass && Widget == nullptr && World && !World->bIsTearingDown)
 		{
 			Widget = CreateWidget(GetWorld(), WidgetClass);
+			SetTickMode(TickMode);
 		}
 		
 #if WITH_EDITOR
@@ -1476,6 +1546,11 @@ ULocalPlayer* UWidgetComponent::GetOwnerPlayer() const
 	return nullptr;
 }
 
+UUserWidget* UWidgetComponent::GetWidget() const
+{
+	return Widget;
+}
+
 void UWidgetComponent::SetWidget(UUserWidget* InWidget)
 {
 	if (InWidget != nullptr)
@@ -1518,14 +1593,16 @@ void UWidgetComponent::UpdateWidget()
 	{
 		if ( Space != EWidgetSpace::Screen )
 		{
+			// Look for a UMG widget set
 			TSharedPtr<SWidget> NewSlateWidget;
 			if (Widget)
 			{
 				NewSlateWidget = Widget->TakeWidget();
 			}
 
+			// Create the SlateWindow if it doesn't exists
 			bool bNeededNewWindow = false;
-			if ( !SlateWindow.IsValid() )
+			if (!SlateWindow.IsValid())
 			{
 				UpdateMaterialInstance();
 
@@ -1539,10 +1616,13 @@ void UWidgetComponent::UpdateWidget()
 
 			SlateWindow->Resize(CurrentDrawSize);
 
+			// Add the UMG or SlateWidget to the Component
 			bool bWidgetChanged = false;
-			if ( NewSlateWidget.IsValid() )
+			
+			// We Get here if we have a UMG Widget
+			if (NewSlateWidget.IsValid())
 			{
-				if ( NewSlateWidget != CurrentSlateWidget || bNeededNewWindow )
+				if (NewSlateWidget != CurrentSlateWidget || bNeededNewWindow)
 				{
 					CurrentSlateWidget = NewSlateWidget;
 					SlateWindow->SetContent(NewSlateWidget.ToSharedRef());
@@ -1550,9 +1630,10 @@ void UWidgetComponent::UpdateWidget()
 					bWidgetChanged = true;
 				}
 			}
-			else if ( SlateWidget.IsValid() )
+			// If we don't have one, we look for a Slate Widget
+			else if (SlateWidget.IsValid())
 			{
-				if ( SlateWidget != CurrentSlateWidget || bNeededNewWindow )
+				if (SlateWidget != CurrentSlateWidget || bNeededNewWindow)
 				{
 					CurrentSlateWidget = SlateWidget;
 					SlateWindow->SetContent(SlateWidget.ToSharedRef());
@@ -1568,12 +1649,13 @@ void UWidgetComponent::UpdateWidget()
 					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
-				SlateWindow->SetContent( SNullWidget::NullWidget );
+				SlateWindow->SetContent(SNullWidget::NullWidget);
 			}
-
+		
 			if (bNeededNewWindow || bWidgetChanged)
 			{
 				MarkRenderStateDirty();
+				SetComponentTickEnabled(true);
 			}
 		}
 		else

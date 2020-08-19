@@ -334,7 +334,7 @@ namespace CSVStats
             {
 				localTotal += (double)samples[i];
             }
-			return (float)(total / (double)(maxSample - minSample));
+			return (float)(localTotal / (double)(maxSample - minSample));
 		}
 
 		public void ComputeAverageAndTotal(int minSample = 0, int maxSample = -1)

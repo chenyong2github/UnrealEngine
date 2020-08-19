@@ -182,7 +182,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 	if (Parameters.GetInterfacesDirty())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
-		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim) && SimTarget == ENiagaraSimTarget::CPUSim)//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
 			const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
@@ -796,7 +796,6 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, DataToRender(nullptr)
 {
 	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
@@ -829,6 +828,29 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 		Context->ResetInternal(B);
 	}
 	);
+}
+
+void FNiagaraComputeExecutionContext::BakeVariableNamesForIterationLookup()
+{
+	// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
+			// iteration interface.
+	TArray<FNiagaraVariable> Params;
+	CombinedParamStore.GetParameters(Params);
+	for (FNiagaraVariable& Var : Params)
+	{
+		if (!Var.IsDataInterface())
+			continue;
+
+		UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
+		if (DI)
+		{
+			FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
+			if (Proxy)
+			{
+				Proxy->SourceDIName = Var.GetName();
+			}
+		}
+	}
 }
 
 void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
@@ -926,25 +948,7 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 				}
 			}
 
-			// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
-			// iteration interface.
-			TArray<FNiagaraVariable> Params;
-			CombinedParamStore.GetParameters(Params);
-			for (FNiagaraVariable& Var : Params)
-			{
-				if (!Var.IsDataInterface())
-					continue;
-
-				UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
-				if (DI)
-				{
-					FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
-					if (Proxy)
-					{
-						Proxy->SourceDIName = Var.GetName();
-					}
-				}
-			}
+			
 		}
 	}
 
@@ -1129,10 +1133,32 @@ void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InData
 
 	DataToRender = InDataToRender;
 
-
 	if (DataToRender)
 	{
 		DataToRender->AddReadRef();
+	}
+
+	// This call the DataToRender should be equal to the TranslucentDataToRender so we can release the read ref
+	if (TranslucentDataToRender)
+	{
+		ensure((DataToRender == nullptr) || (DataToRender == TranslucentDataToRender));
+		TranslucentDataToRender->ReleaseReadRef();
+		TranslucentDataToRender = nullptr;
+	}
+}
+
+void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender)
+{
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->ReleaseReadRef();
+	}
+
+	TranslucentDataToRender = InTranslucentDataToRender;
+
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->AddReadRef();
 	}
 }
 

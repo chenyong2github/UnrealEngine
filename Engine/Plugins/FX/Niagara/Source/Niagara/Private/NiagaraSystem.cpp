@@ -1144,7 +1144,8 @@ void UNiagaraSystem::UpdateDITickFlags()
 		{
 			for (FNiagaraScriptDataInterfaceCompileInfo& Info : Script->GetVMExecutableData().DataInterfaceInfo)
 			{
-				if (Info.GetDefaultDataInterface()->HasPostSimulateTick())
+				UNiagaraDataInterface* DefaultDataInterface = Info.GetDefaultDataInterface();
+				if (DefaultDataInterface && DefaultDataInterface->HasPostSimulateTick())
 				{
 					bHasDIsWithPostSimulateTick |= true;
 				}
@@ -1213,6 +1214,24 @@ bool UNiagaraSystem::IsValidInternal() const
 	}
 
 	return true;
+}
+
+
+bool UNiagaraSystem::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+{
+	if (SystemSpawnScript)
+		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVarWithUniqueNameNamespace);
+	return false;
+}
+bool UNiagaraSystem::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
+{
+	if (SystemSpawnScript)
+		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVar);
+	return false;
+}
+bool UNiagaraSystem::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
+{
+	return ExposedParameters.IndexOf(InVar) != INDEX_NONE;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2150,10 +2169,19 @@ void UNiagaraSystem::OnQualityLevelChanged()
 		}
 	}
 
-	FNiagaraSystemUpdateContext UpdateCtx;
-	UpdateCtx.SetDestroyOnAdd(true);
-	UpdateCtx.SetOnlyActive(true);
-	UpdateCtx.Add(this, true);
+	// Update components
+	{
+		FNiagaraSystemUpdateContext UpdateCtx;
+		UpdateCtx.SetDestroyOnAdd(true);
+		UpdateCtx.SetOnlyActive(true);
+		UpdateCtx.Add(this, true);
+	}
+
+	// Re-prime the component pool
+	if (PoolPrimeSize > 0 && MaxPoolSize > 0)
+	{
+		FNiagaraWorldManager::PrimePoolForAllWorlds(this);
+	}
 }
 
 const FString& UNiagaraSystem::GetCrashReporterTag()const

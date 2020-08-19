@@ -20,6 +20,7 @@ class UAnimInstance;
 class UBehaviorTree;
 class UBlackboardComponent;
 class UNavigationPath;
+class UPathFollowingComponent;
 
 UCLASS(meta=(ScriptName="AIHelperLibrary"))
 class AIMODULE_API UAIBlueprintHelperLibrary : public UBlueprintFunctionLibrary
@@ -76,11 +77,18 @@ class AIMODULE_API UAIBlueprintHelperLibrary : public UBlueprintFunctionLibrary
 
 	/** Return the path index the given controller is currently at. Returns INDEX_NONE if no path. */
 	UFUNCTION(BlueprintPure, Category = "AI", meta = (UnsafeDuringActorConstruction = "true"))
-	static int32 GetCurrentPathIndex(AController* Controller);
+	static int32 GetCurrentPathIndex(const AController* Controller);
+
+	/** Return the path index of the next nav link for the current path of the given controller. Returns INDEX_NONE if no path or no incoming nav link. */
+	UFUNCTION(BlueprintPure, Category = "AI", meta = (UnsafeDuringActorConstruction = "true"))
+	static int32 GetNextNavLinkIndex(const AController* Controller);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
 	static void SimpleMoveToActor(AController* Controller, const AActor* Goal);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
 	static void SimpleMoveToLocation(AController* Controller, const FVector& Goal);
+
+private:
+	static UPathFollowingComponent* GetPathComp(const AController* Controller);
 };

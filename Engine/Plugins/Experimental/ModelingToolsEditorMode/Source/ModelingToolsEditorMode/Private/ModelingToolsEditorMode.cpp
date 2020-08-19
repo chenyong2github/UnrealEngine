@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorMode.h"
+#include "InteractiveTool.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "Framework/Commands/UICommandList.h"
@@ -63,6 +64,11 @@
 #include "ParameterizeMeshTool.h"
 #include "MeshTangentsTool.h"
 #include "ProjectToTargetTool.h"
+
+#include "Physics/PhysicsInspectorTool.h"
+#include "Physics/SetCollisionGeometryTool.h"
+#include "Physics/ExtractCollisionGeometryTool.h"
+//#include "Physics/EditCollisionGeometryTool.h"
 
 #include "EditorModeManager.h"
 
@@ -453,7 +459,18 @@ void FModelingToolsEditorMode::Enter()
 			FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->CanCompleteActiveTool(); }),
 			EUIActionRepeatMode::RepeatDisabled
 		);
-
+		CommandList->MapAction(
+		    ToolManagerCommands.CancelOrCompleteActiveTool,
+		    FExecuteAction::CreateLambda([this]() {
+				const EToolShutdownType ShutdownType = ToolsContext->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
+				ToolsContext->EndTool(ShutdownType);
+			}),
+		    FCanExecuteAction::CreateLambda([this]() {
+			    return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();
+		    }),
+		    FGetActionCheckState(),
+		    FIsActionButtonVisible::CreateLambda([this]() { return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();}),
+		    EUIActionRepeatMode::RepeatDisabled);
 	}
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
@@ -694,6 +711,19 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginPolyGroupsTool, TEXT("ConvertToPolygonsTool"), NewObject<UConvertToPolygonsToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginAttributeEditorTool, TEXT("AttributeEditorTool"), NewObject<UAttributeEditorToolBuilder>());
 
+
+	// Physics Tools
+
+	RegisterToolFunc(ToolManagerCommands.BeginPhysicsInspectorTool, TEXT("PhysicsInspectorTool"), NewObject<UPhysicsInspectorToolBuilder>());
+	RegisterToolFunc(ToolManagerCommands.BeginSetCollisionGeometryTool, TEXT("SetCollisionGeoTool"), NewObject<USetCollisionGeometryToolBuilder>());
+	//RegisterToolFunc(ToolManagerCommands.BeginEditCollisionGeometryTool, TEXT("EditCollisionGeoTool"), NewObject<UEditCollisionGeometryToolBuilder>());
+
+	auto ExtractCollisionGeoToolBuilder = NewObject<UExtractCollisionGeometryToolBuilder>();
+	ExtractCollisionGeoToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginExtractCollisionGeometryTool, TEXT("ExtractCollisionGeoTool"), ExtractCollisionGeoToolBuilder);
+
+
+
 	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("DynaSculptTool"));
 
 	// register modeling mode hotkeys
@@ -734,6 +764,7 @@ void FModelingToolsEditorMode::Exit()
 		const TSharedRef<FUICommandList>& ToolkitCommandList = Toolkit->GetToolkitCommands();
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.AcceptActiveTool);
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.CancelActiveTool);
+		ToolkitCommandList->UnmapAction(ToolManagerCommands.CancelOrCompleteActiveTool);
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.CompleteActiveTool);
 
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());

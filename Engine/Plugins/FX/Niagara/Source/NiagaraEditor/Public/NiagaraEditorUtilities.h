@@ -146,6 +146,8 @@ namespace FNiagaraEditorUtilities
 
 	FText GetVariableTypeCategory(const FNiagaraVariable& Variable);
 
+	FText GetTypeDefinitionCategory(const FNiagaraTypeDefinition& TypeDefinition);
+
 	void MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects);
 
 	void ResolveNumerics(UNiagaraGraph* SourceGraph, bool bForceParametersToResolveNumerics, TArray<FNiagaraVariable>& ChangedNumericParams);
@@ -199,6 +201,8 @@ namespace FNiagaraEditorUtilities
 	 * @returns The emitter handle for the supplied emitter, or nullptr if the emitter isn't owned by this system.
 	 */
 	const FNiagaraEmitterHandle* GetEmitterHandleForEmitter(UNiagaraSystem& System, UNiagaraEmitter& Emitter);
+
+	NIAGARAEDITOR_API ENiagaraScriptLibraryVisibility GetScriptAssetVisibility(const FAssetData& ScriptAssetData);
 
 	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
 
@@ -293,7 +297,7 @@ namespace FNiagaraEditorUtilities
 
 	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
-	FString GetNamespacelessVariableNameString(const FName& InVarName);
+	FString NIAGARAEDITOR_API GetNamespacelessVariableNameString(const FName& InVarName);
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 

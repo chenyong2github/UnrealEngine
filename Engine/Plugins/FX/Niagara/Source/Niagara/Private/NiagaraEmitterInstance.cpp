@@ -15,6 +15,7 @@
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraComponentSettings.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num Custom Events"), STAT_NiagaraNumCustomEvents, STATGROUP_Niagara);
 
@@ -84,6 +85,14 @@ static FAutoConsoleVariableRef CVarMaxNiagaraGPUParticlesSpawnPerFrame(
 	TEXT("fx.MaxNiagaraGPUParticlesSpawnPerFrame"),
 	GMaxNiagaraGPUParticlesSpawnPerFrame,
 	TEXT("The max number of GPU particles we expect to spawn in a single frame.\n"),
+	ECVF_Default
+);
+
+static int32 GNiagaraUseSuppressEmitterList = 0;
+static FAutoConsoleVariableRef CVarNiagaraUseEmitterSupressList(
+	TEXT("fx.Niagara.UseEmitterSuppressList"),
+	GNiagaraUseSuppressEmitterList,
+	TEXT("When an emitter is activated we will check the surpession list."),
 	ECVF_Default
 );
 
@@ -217,11 +226,32 @@ void FNiagaraEmitterInstance::Dump()const
 
 bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 {
-	const FNiagaraEmitterHandle& EmitterHandle = GetEmitterHandle();
-	return EmitterHandle.GetIsEnabled() &&
-		CachedEmitter->IsAllowedByScalability() &&
-		// TODO: fall back to CPU sim instead once we have scalability functionality to do so
-		(CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim || (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
+	if (!GetEmitterHandle().GetIsEnabled()
+		|| !CachedEmitter->IsAllowedByScalability())
+	{
+		return false;
+	}
+
+	if (GNiagaraUseSuppressEmitterList != 0)
+	{
+		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
+		{
+			FNiagaraEmitterNameSettingsRef Ref;
+			if (const UNiagaraSystem* ParentSystem = ParentSystemInstance->GetSystem())
+			{
+				Ref.SystemName = ParentSystem->GetFName();
+			}
+			Ref.EmitterName = CachedEmitter->GetUniqueEmitterName();
+			if (ComponentSettings->SuppressEmitterList.Contains(Ref))
+			{
+				return false;
+			}
+		}
+	}
+
+	// TODO: fall back to CPU sim instead once we have scalability functionality to do so
+	return (CachedEmitter->SimTarget != ENiagaraSimTarget::GPUComputeSim
+		|| (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform())));
 }
 
 void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID InSystemInstanceID)
@@ -425,6 +455,13 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 		ScriptDefinedDataInterfaceParameters.Bind(&UpdateExecContext.Parameters);
 		UpdateExecContext.Parameters.UnbindFromSourceStores();
 
+		if (GPUExecContext)
+		{
+			SystemScriptDefinedDataInterfaceParameters.Bind(&GPUExecContext->CombinedParamStore);
+			ScriptDefinedDataInterfaceParameters.Bind(&GPUExecContext->CombinedParamStore);
+			GPUExecContext->CombinedParamStore.UnbindFromSourceStores();
+		}
+
 		if (EventInstanceData.IsValid())
 		{
 			for (FNiagaraScriptExecutionContext& EventContext : EventInstanceData->EventExecContexts)
@@ -448,7 +485,38 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				Info.EventData = nullptr;
 			}
 		}
+
+
+		// We may need to populate bindings that will be used in rendering
+		bool bAnyRendererBindingsAdded = false;
+		for (UNiagaraRendererProperties* Props : CachedEmitter->GetRenderers())
+		{
+			if (Props && Props->bIsEnabled)
+			{
+				bAnyRendererBindingsAdded |= Props->PopulateRequiredBindings(RendererBindings);
+			}
+		}
+
+		if (bAnyRendererBindingsAdded)
+		{
+			if (ParentSystemInstance)
+				ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
+
+			SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
+			ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
+
+			if (GPUExecContext && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				GPUExecContext->CombinedParamStore.Bind(&RendererBindings);
+			}
+		}
 	}	
+
+	if (GPUExecContext)
+	{
+		GPUExecContext->BakeVariableNamesForIterationLookup();
+	}
+
 
 	MaxInstanceCount = CachedEmitter->GetMaxInstanceCount();
 	ParticleDataSet->SetMaxInstanceCount(MaxInstanceCount);
@@ -724,14 +792,29 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
-			SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-			UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+			// I don't think we need to bind the spawn parameters any more as this is purely bound to the GPU store
+			//SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+			//UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
+			InstanceParams.Bind(&GPUExecContext->CombinedParamStore);
+#if WITH_EDITORONLY_DATA
+			CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Bind(&SpawnExecContext.Parameters);
+			CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Bind(&UpdateExecContext.Parameters);
 
 			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
 			{
 				CachedEmitter->GetSimulationStages()[i]->Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
 			}
+#endif
 		}
+	}
+
+	//if (bAnyRendererBindingsAdded)
+	{
+		if (ParentSystemInstance)
+			ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
+
+		//SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
+		//ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 	}
 }
 
@@ -1857,6 +1940,43 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	INC_DWORD_STAT_BY(STAT_NiagaraNumParticles, Data.GetCurrentDataChecked().GetNumInstances());
 }
 
+bool FNiagaraEmitterInstance::GetBoundRendererValue_GT(const FNiagaraVariableBase& InBaseVar, const FNiagaraVariableBase& InSubVar, void* OutValueData) const
+{
+	
+	if (InBaseVar.IsDataInterface())
+	{
+		UNiagaraDataInterface* UObj = RendererBindings.GetDataInterface(InBaseVar);
+		if (UObj && InSubVar.GetName() == NAME_None)
+		{
+			UNiagaraDataInterface** Var = (UNiagaraDataInterface**)OutValueData;
+			*Var = UObj;
+			return true;
+		}
+		else if (UObj && UObj->CanExposeVariables())
+		{
+			void* PerInstanceData = ParentSystemInstance->FindDataInterfaceInstanceData(UObj);
+			return UObj->GetExposedVariableValue(InSubVar, PerInstanceData, ParentSystemInstance, OutValueData);
+		}
+	}
+	else if (InBaseVar.IsUObject())
+	{
+		UObject* UObj = RendererBindings.GetUObject(InBaseVar);
+		UObject** Var = (UObject**)OutValueData;
+		*Var = UObj;
+		return true;
+	}
+	else
+	{
+		const uint8* Data = RendererBindings.GetParameterData(InBaseVar);
+		if (Data && InBaseVar.GetSizeInBytes() != 0)
+		{
+			memcpy(OutValueData, Data, InBaseVar.GetSizeInBytes());
+			return true;
+		}
+	}
+	return false;
+}
+
 /** Calculate total number of spawned particles from events; these all come from event handler script with the SpawnedParticles execution mode
  *  We get the counts ahead of event processing time so we only have to allocate new particles once
  *  TODO: augment for multiple spawning event scripts
@@ -1905,10 +2025,11 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 		UE_LOG(LogNiagara, Log, TEXT("Emitter \"%s\" change state N O O O O O "), *GetEmitterHandle().GetName().ToString());
 	}*/
 	if (ensureMsgf(InState >= ENiagaraExecutionState::Active && InState < ENiagaraExecutionState::Num, 
-					TEXT("Setting invalid emitter execution state! %d\nEmitter=%s\nComponent=%s"),
+					TEXT("Setting invalid emitter execution state! %d\nEmitter=%s\nSystem=%s\nComponent=%s"),
 					(int32)InState,
-					*CachedEmitter->GetFullName(),
-					ParentSystemInstance && ParentSystemInstance->GetComponent() ? *ParentSystemInstance->GetComponent()->GetFullName() : TEXT("nullptr"))
+					*GetFullNameSafe(CachedEmitter),
+					*GetFullNameSafe(ParentSystemInstance ? ParentSystemInstance->GetSystem() : nullptr),
+					*GetFullNameSafe(ParentSystemInstance ? ParentSystemInstance->GetAttachComponent() : nullptr))
 		)
 	{
 		//We can't move out of disabled without a proper reinit.
@@ -1927,17 +2048,13 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 
 bool FNiagaraEmitterInstance::FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance();
-	if (SystemInstance)
+	if (FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance())
 	{
-		UNiagaraComponent* Component = SystemInstance->GetComponent();
-		if (Component)
+		if (FNiagaraUserRedirectionParameterStore* OverrideParameters = SystemInstance->GetOverrideParameters())
 		{
-			UObject* Obj = Component->GetOverrideParameters().GetUObject(InBinding.Parameter);
-			if (Obj)
+			if (UObject* Obj = OverrideParameters->GetUObject(InBinding.Parameter))
 			{
-				UMaterialInterface* Material = Cast<UMaterialInterface>(Obj);
-				if (Material)
+				if (UMaterialInterface* Material = Cast<UMaterialInterface>(Obj))
 				{
 					OutMaterials.Add(Material);
 					return true;

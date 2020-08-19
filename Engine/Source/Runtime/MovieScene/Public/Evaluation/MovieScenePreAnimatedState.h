@@ -68,7 +68,7 @@ namespace MovieSceneImpl
 {
 	struct FNull
 	{
-		FNull Get() const { return *this; }
+		FNull Get(bool) const { return *this; }
 	};
 
 	template<typename TokenType> struct TProducerType;

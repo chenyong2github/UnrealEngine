@@ -129,7 +129,10 @@ public:
 	virtual bool CanStopTicking() const { return !bPendingDormancy; }
 
 	// General channel functions.
-	/** Handle an acknowledgment on this channel. */
+	/** Handle an acknowledgment on this channel, returns true if the channel should be closed and fills in the OutCloseReason leaving it to the caller to cleanup the channel. Note: Temporary channels might be closed/cleaned-up by this call. */
+	bool ReceivedAcks(EChannelCloseReason& OutCloseReason);
+
+	/** Handle an acknowledgment on this channel. Note: Channel might be closed/cleaned-up by this call. */
 	void ReceivedAcks();
 	
 	/** Process a properly-sequenced bunch. */

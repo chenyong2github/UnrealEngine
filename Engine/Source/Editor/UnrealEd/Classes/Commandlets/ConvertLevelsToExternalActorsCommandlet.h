@@ -22,11 +22,14 @@ protected:
 	ULevel* LoadLevel(const FString& LevelToLoad) const;
 	void GetSubLevelsToConvert(ULevel* MainLevel, TSet<ULevel*>& SubLevels, bool bRecursive);
 
+	bool CheckExternalActors(const FString& Level, bool bRepair);
+
 	bool UseSourceControl() const { return SourceControlProvider != nullptr; }
 	ISourceControlProvider& GetSourceControlProvider() { check(UseSourceControl()); return *SourceControlProvider; }
 	bool AddPackageToSourceControl(UPackage* Package);
 	bool CheckoutPackage(UPackage* Package);
 	bool SavePackage(UPackage* Package);
+	bool DeleteFile(const FString& Filename);
 
 protected:
 	ISourceControlProvider* SourceControlProvider;

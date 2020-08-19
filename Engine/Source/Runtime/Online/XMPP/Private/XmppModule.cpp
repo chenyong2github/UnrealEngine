@@ -4,6 +4,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "Stats/Stats.h"
 #include "XmppMessages.h"
 #include "XmppPubSub.h"
 #include "XmppLog.h"
@@ -770,6 +771,7 @@ void FXmppModule::RemoveConnection(const FString& UserId)
 
 bool FXmppModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppModule_Tick);
 	ProcessPendingRemovals();
 	return true;
 }

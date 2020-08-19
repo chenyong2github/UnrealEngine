@@ -163,46 +163,35 @@ UK2Node* FMovieSceneEventUtils::FindEndpoint(FMovieSceneEvent* EntryPoint, UMovi
 	check(OwnerBlueprint);
 	check(EntryPoint);
 
-	if (EntryPoint->WeakCachedEndpoint.IsStale())
+	if (EntryPoint->WeakEndpoint.IsStale())
+	{
+		return nullptr;
+	}
+	if (UK2Node* Node = Cast<UK2Node>(EntryPoint->WeakEndpoint.Get()))
+	{
+		return Node;
+	}
+
+	if (!EntryPoint->GraphGuid_DEPRECATED.IsValid())
 	{
 		return nullptr;
 	}
 
-	UK2Node* CachedEndpoint = CastChecked<UK2Node>(EntryPoint->WeakCachedEndpoint.Get(), ECastCheckedType::NullAllowed);
-	if (CachedEndpoint)
-	{
-		if (FBlueprintEditorUtils::FindBlueprintForNode(CachedEndpoint) == OwnerBlueprint)
-		{
-			return CachedEndpoint;
-		}
-
-		CachedEndpoint->OnUserDefinedPinRenamed().RemoveAll(EventSection);
-		EntryPoint->WeakCachedEndpoint = nullptr;
-		return nullptr;
-	}
-
-	// The cached entry point is either null or stale
-	EntryPoint->WeakCachedEndpoint = nullptr;
-	if (!EntryPoint->GraphGuid.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (EntryPoint->NodeGuid.IsValid())
+	if (EntryPoint->NodeGuid_DEPRECATED.IsValid())
 	{
 		for (UEdGraph* Graph : OwnerBlueprint->UbergraphPages)
 		{
-			if (Graph->GraphGuid == EntryPoint->GraphGuid)
+			if (Graph->GraphGuid == EntryPoint->GraphGuid_DEPRECATED)
 			{
 				for (UEdGraphNode* Node : Graph->Nodes)
 				{
-					if (Node->NodeGuid == EntryPoint->NodeGuid)
+					if (Node->NodeGuid == EntryPoint->NodeGuid_DEPRECATED)
 					{
 						UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(Node);
 						if (ensureMsgf(CustomEvent, TEXT("Encountered an event entry point node that is bound to something other than a custom event")))
 						{
 							CustomEvent->OnUserDefinedPinRenamed().AddUObject(EventSection, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
-							EntryPoint->WeakCachedEndpoint = CustomEvent;
+							EntryPoint->WeakEndpoint = CustomEvent;
 							return CustomEvent;
 						}
 					}
@@ -213,14 +202,14 @@ UK2Node* FMovieSceneEventUtils::FindEndpoint(FMovieSceneEvent* EntryPoint, UMovi
 	// If the node guid is invalid, this must be a function graph on the BP
 	else for (UEdGraph* Graph : OwnerBlueprint->FunctionGraphs)
 	{
-		if (Graph->GraphGuid == EntryPoint->GraphGuid)
+		if (Graph->GraphGuid == EntryPoint->GraphGuid_DEPRECATED)
 		{
 			for (UEdGraphNode* Node : Graph->Nodes)
 			{
 				if (UK2Node_FunctionEntry* FunctionEntry = Cast<UK2Node_FunctionEntry>(Node))
 				{
 					FunctionEntry->OnUserDefinedPinRenamed().AddUObject(EventSection, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
-					EntryPoint->WeakCachedEndpoint = FunctionEntry;
+					EntryPoint->WeakEndpoint = FunctionEntry;
 					return FunctionEntry;
 				}
 			}
@@ -252,7 +241,7 @@ void FMovieSceneEventUtils::SetEndpoint(FMovieSceneEvent* EntryPoint, UMovieScen
 {
 	check(EntryPoint);
 
-	UK2Node* ExistingEndpoint = CastChecked<UK2Node>(EntryPoint->WeakCachedEndpoint.Get(), ECastCheckedType::NullAllowed);
+	UK2Node* ExistingEndpoint = CastChecked<UK2Node>(EntryPoint->WeakEndpoint.Get(), ECastCheckedType::NullAllowed);
 	if (ExistingEndpoint)
 	{
 		ExistingEndpoint->OnUserDefinedPinRenamed().RemoveAll(EventSection);
@@ -265,16 +254,6 @@ void FMovieSceneEventUtils::SetEndpoint(FMovieSceneEvent* EntryPoint, UMovieScen
 
 		checkf(bIsFunction || bIsCustomEvent, TEXT("Only functions and custom events are supported as event endpoints"));
 
-		EntryPoint->GraphGuid = InNewEndpoint->GetGraph()->GraphGuid;
-
-		if (bIsCustomEvent)
-		{
-			EntryPoint->NodeGuid = InNewEndpoint->NodeGuid;
-		}
-		else
-		{
-			EntryPoint->NodeGuid = FGuid();
-		}
 
 		if (BoundObjectPin)
 		{
@@ -286,15 +265,12 @@ void FMovieSceneEventUtils::SetEndpoint(FMovieSceneEvent* EntryPoint, UMovieScen
 		}
 
 		InNewEndpoint->OnUserDefinedPinRenamed().AddUObject(EventSection, &UMovieSceneEventSectionBase::OnUserDefinedPinRenamed);
-		EntryPoint->WeakCachedEndpoint = InNewEndpoint;
+		EntryPoint->WeakEndpoint = InNewEndpoint;
 	}
 	else
 	{
-		EntryPoint->NodeGuid = FGuid();
-		EntryPoint->GraphGuid = FGuid();
+		EntryPoint->WeakEndpoint = nullptr;
 		EntryPoint->BoundObjectPinName = NAME_None;
-
-		EntryPoint->WeakCachedEndpoint = nullptr;
 	}
 }
 

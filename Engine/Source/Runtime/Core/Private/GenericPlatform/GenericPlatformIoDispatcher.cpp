@@ -87,7 +87,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 
 	uint8* Dest;
-	if (NextRequest->bIsRawBlock)
+	if (!NextRequest->ImmediateScatter.Request)
 	{
 		NextRequest->Buffer = BufferAllocator.AllocBuffer();
 		if (!NextRequest->Buffer)
@@ -98,8 +98,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 	else
 	{
-		check(NextRequest->DirectToRequest);
-		Dest = NextRequest->DirectToRequest->IoBuffer.Data();
+		Dest = NextRequest->ImmediateScatter.Request->IoBuffer.Data() + NextRequest->ImmediateScatter.DstOffset;
 	}
 	
 	RequestQueue.Pop(*NextRequest);
@@ -133,28 +132,15 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 	{
 		FScopeLock _(&CompletedRequestsCritical);
-		if (!CompletedRequestsHead)
-		{
-			CompletedRequestsHead = CompletedRequestsTail = NextRequest;
-		}
-		else
-		{
-			CompletedRequestsTail->Next = NextRequest;
-			CompletedRequestsTail = NextRequest;
-		}
-		CompletedRequestsTail->Next = nullptr;
+		CompletedRequests.Add(NextRequest);
 	}
 	EventQueue.DispatcherNotify();
 	return true;
 }
 
-FFileIoStoreReadRequest* FGenericFileIoStoreImpl::GetCompletedRequests()
+void FGenericFileIoStoreImpl::GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests)
 {
-	FFileIoStoreReadRequest* Result;
-	{
-		FScopeLock _(&CompletedRequestsCritical);
-		Result = CompletedRequestsHead;
-		CompletedRequestsHead = CompletedRequestsTail = nullptr;
-	}
-	return Result;
+	FScopeLock _(&CompletedRequestsCritical);
+	OutRequests.Append(CompletedRequests);
+	CompletedRequests.Clear();
 }

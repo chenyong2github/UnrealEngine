@@ -903,11 +903,11 @@ void USplineComponent::SetRotationAtSplinePoint(int32 PointIndex, const FRotator
 	}
 }
 
-void USplineComponent::SetScaleAtSplinePoint(int32 PointIndex, float InScaleY, float InScaleZ, bool bUpdateSpline /*= true*/)
+void USplineComponent::SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline /*= true*/)
 {
 	if (SplineCurves.Rotation.Points.IsValidIndex(PointIndex))
 	{
-		SplineCurves.Scale.Points[PointIndex].OutVal = FVector(1.0f, InScaleY, InScaleZ);
+		SplineCurves.Scale.Points[PointIndex].OutVal = InScaleVector;
 
 		if (bUpdateSpline)
 		{

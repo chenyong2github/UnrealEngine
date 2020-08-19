@@ -296,10 +296,14 @@ public:
 	void AddPackageToOpenLog(const TCHAR* Filename)
 	{
 		CriticalSection.Lock();
-		FString Text = FString::Printf(TEXT("\"%s\" %llu\n"), Filename, OpenOrder);
-		for (auto File = LogOutput.CreateIterator(); File; ++File)
+		if (FilenameAccessMap.Find(Filename) == nullptr)
 		{
-			(*File)->Write((uint8*)StringCast<ANSICHAR>(*Text).Get(), Text.Len());
+			FilenameAccessMap.Emplace(Filename, ++OpenOrder);
+			FString Text = FString::Printf(TEXT("\"%s\" %llu\n"), Filename, OpenOrder);
+			for (auto File = LogOutput.CreateIterator(); File; ++File)
+			{
+				(*File)->Write((uint8*)StringCast<ANSICHAR>(*Text).Get(), Text.Len());
+			}
 		}
 		CriticalSection.Unlock();
 	}

@@ -23,7 +23,7 @@
 #include "Net/Core/Trace/Config.h"
 #include "ReplicationDriver.h"
 #include "Analytics/EngineNetAnalytics.h"
-#include "Net/Core/Misc/PacketTraits.h"
+#include "Net/Common/Packets/PacketTraits.h"
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
 
@@ -231,6 +231,13 @@ struct FDelayedIncomingPacket
 };
 
 #endif //#if DO_ENABLE_NET_TEST
+
+struct FChannelCloseInfo
+{
+	uint32 Id;
+	EChannelCloseReason CloseReason;
+};
+typedef TArray<FChannelCloseInfo, TInlineAllocator<8>> FChannelsToClose;
 
 /** Record of channels with data written into each outgoing packet. */
 struct FWrittenChannelsRecord
@@ -1370,7 +1377,7 @@ private:
 	bool ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload);
 
 	/** Packet was acknowledged as delivered */
-	void ReceivedAck(int32 AckPacketId);
+	void ReceivedAck(int32 AckPacketId, FChannelsToClose& OutChannelsToClose);
 
 	/** Calculate the average jitter while adding the new packet's jitter value */
 	void ProcessJitter(uint32 PacketJitterClockTimeMS);

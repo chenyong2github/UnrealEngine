@@ -1788,6 +1788,44 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	{
 		OnTreeFinished();
 	}
+
+#if DO_ENSURE
+	// Adding code to track an problem earlier that is happening by RequestExecution from a decorator that has lower priority.
+	// The idea here is to try to rule out that the tick leaves the behavior tree is a bad state with lower priority decorators(AuxNodes).
+	static bool bWarnOnce = false;
+	if (!bWarnOnce)
+	{
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
+		{
+			const FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+			if (!InstanceInfo.ActiveNode)
+			{
+				break;
+			}
+
+			const uint16 ActiveExecutionIdx = InstanceInfo.ActiveNode->GetExecutionIndex();
+			for (const UBTAuxiliaryNode* ActiveAuxNode : InstanceInfo.GetActiveAuxNodes())
+			{
+				if (ActiveAuxNode->GetExecutionIndex() >= ActiveExecutionIdx)
+				{
+					FString ErrorMsg(FString::Printf(TEXT("%s: leaving the tick of behavior tree with a lower priority active node %s, Current Tasks : "),
+						ANSI_TO_TCHAR(__FUNCTION__),
+						*UBehaviorTreeTypes::DescribeNodeHelper(ActiveAuxNode)));
+
+					for (int32 ParentInstanceIndex = 0; ParentInstanceIndex <= InstanceIndex; ++ParentInstanceIndex)
+					{
+						ErrorMsg += *UBehaviorTreeTypes::DescribeNodeHelper(InstanceStack[ParentInstanceIndex].ActiveNode);
+						ErrorMsg += TEXT("\\");
+					}
+
+					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
+					bWarnOnce = true;
+					break;
+				}
+			}
+		}
+	}
+#endif // DO_ENSURE
 }
 
 void UBehaviorTreeComponent::RollbackSearchChanges()

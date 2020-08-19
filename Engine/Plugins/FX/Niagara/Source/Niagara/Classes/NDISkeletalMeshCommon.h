@@ -38,8 +38,8 @@ struct FSkeletalMeshAccessorHelper
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE void Init(FNDISkeletalMesh_InstanceData* InstData)
 	{
-		Comp = Cast<USkeletalMeshComponent>(InstData->Component.Get());
-		Mesh = InstData->Mesh;
+		Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
+		Mesh = InstData->SkeletalMesh.Get();
 		LODData = InstData->CachedLODData;
 		SkinWeightBuffer = InstData->GetSkinWeights();
 		IndexBuffer = LODData ? LODData->MultiSizeIndexContainer.GetIndexBuffer() : nullptr;
@@ -470,14 +470,14 @@ struct TAreaWeightingModeBinder
 			}
 			else if (InstData->SamplingRegionIndices.Num() == 1)
 			{
-				const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->Mesh->GetSamplingInfo();
+				const FSkeletalMeshSamplingInfo& SamplingInfo = InstData->SkeletalMesh->GetSamplingInfo();
 				const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(InstData->SamplingRegionIndices[0]);
 				bAreaWeighting = Region.bSupportUniformlyDistributedSampling;
 			}
 			else
 			{
 				int32 LODIndex = InstData->GetLODIndex();
-				bAreaWeighting = InstData->Mesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling;
+				bAreaWeighting = InstData->SkeletalMesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling;
 			}
 		}
 
@@ -555,7 +555,7 @@ struct TSkinningModeBinder
 	{
 		FNDISkeletalMesh_InstanceData* InstData = (FNDISkeletalMesh_InstanceData*)InstanceData;
 		UNiagaraDataInterfaceSkeletalMesh* MeshInterface = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Interface);
-		USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->Component.Get());
+		USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 		if (MeshInterface->SkinningMode == ENDISkeletalMesh_SkinningMode::None || !Component) // Can't skin if we have no component.
 		{
 			NextBinder::template Bind<ParamTypes..., FSkinnedPositionAccessorHelper<TNDISkelMesh_SkinningModeNone>>(Interface, BindingInfo, InstanceData, OutFunc);

@@ -11,6 +11,9 @@ struct NIAGARASHADER_API FSimulationStageMetaData
 {
 	GENERATED_USTRUCT_BODY()
 public:
+	/** User simulation stage name. */
+	UPROPERTY()
+	FName SimulationStageName;
 
 	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
 	UPROPERTY()
@@ -23,6 +26,10 @@ public:
 	/** Do we write to particles this stage? */
 	UPROPERTY()
 	uint32 bWritesParticles : 1;
+
+	/** When enabled the simulation stage does not write all variables out, so we are reading / writing to the same buffer. */
+	UPROPERTY()
+	uint32 bPartialParticleUpdate : 1;
 
 	/** DataInterfaces that we write to in this stage.*/
 	UPROPERTY()

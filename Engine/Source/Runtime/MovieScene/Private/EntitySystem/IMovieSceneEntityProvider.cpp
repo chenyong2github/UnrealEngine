@@ -13,6 +13,11 @@ namespace UE
 namespace MovieScene
 {
 
+FGuid FEntityImportParams::GetObjectBindingID() const
+{
+	return SharedMetaData ? SharedMetaData->ObjectBindingID : FGuid();
+}
+
 FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Params, FEntityManager* EntityManager)
 {
 	using namespace MovieScene;

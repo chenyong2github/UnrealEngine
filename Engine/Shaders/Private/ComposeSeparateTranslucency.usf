@@ -22,7 +22,9 @@ void MainPS(
 	
 	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, BufferUV, 0);
 
+
 	float2 SeparateTranslucencyBufferUV = clamp(BufferUV, SeparateTranslucencyBilinearUVMinMax.xy, SeparateTranslucencyBilinearUVMinMax.zw);
+
 
 	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, SeparateTranslucencyBufferUV, 0);
 	float4 SeparateModulationSample = SeparateModulation.SampleLevel(SeparateModulationSampler, SeparateTranslucencyBufferUV, 0);

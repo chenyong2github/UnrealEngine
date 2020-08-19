@@ -9,6 +9,7 @@ namespace Chaos
 		: Proxy(nullptr)
 		, JointParticles({ nullptr,nullptr })
 		, JointTransforms({ FTransform::Identity, FTransform::Identity })
+		, UserData(nullptr)
 	{
 	}
 
@@ -47,6 +48,23 @@ namespace Chaos
 		JointTransforms[0] = InJointParticles[0];
 		JointTransforms[1] = InJointParticles[1];
 	}
+
+
+	void FJointConstraint::SetLinearPositionDriveEnabled(TVector<bool,3> Enabled)
+	{
+		SetLinearPositionDriveXEnabled(Enabled.X);
+		SetLinearPositionDriveYEnabled(Enabled.Y);
+		SetLinearPositionDriveZEnabled(Enabled.Z);
+	}
+
+
+	void FJointConstraint::SetLinearVelocityDriveEnabled(TVector<bool,3> Enabled)
+	{
+		SetLinearVelocityDriveXEnabled(Enabled.X);
+		SetLinearVelocityDriveYEnabled(Enabled.Y);
+		SetLinearVelocityDriveZEnabled(Enabled.Z);
+	}
+
 
 
 } // Chaos

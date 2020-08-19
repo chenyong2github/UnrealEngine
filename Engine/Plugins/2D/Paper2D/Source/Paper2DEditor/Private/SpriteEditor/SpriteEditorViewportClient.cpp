@@ -151,8 +151,8 @@ void FSpriteEditorViewportClient::UpdateSourceTextureSpriteFromSprite(UPaperSpri
 			FSpriteAssetInitParameters SpriteReinitParams;
 
 			SpriteReinitParams.SetTextureAndFill(SourceSprite->GetSourceTexture());
-			SpriteReinitParams.DefaultMaterialOverride = SourceSprite->GetDefaultMaterial();
-			SpriteReinitParams.AlternateMaterialOverride = SourceSprite->GetAlternateMaterial();
+			SpriteReinitParams.DefaultMaterialOverride = SourceSprite->DefaultMaterial;
+			SpriteReinitParams.AlternateMaterialOverride = SourceSprite->AlternateMaterial;
 			SpriteReinitParams.SetPixelsPerUnrealUnit(SourceSprite->PixelsPerUnrealUnit);
 			TargetSprite->InitializeSprite(SpriteReinitParams);
 

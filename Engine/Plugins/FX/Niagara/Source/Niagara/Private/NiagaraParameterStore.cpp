@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraParameterStore.h"
-#include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraComponent.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraParameterCollection.h"
 #include "NiagaraStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Parameter store bind"), STAT_NiagaraParameterStoreBind, STATGROUP_Niagara);
@@ -104,6 +103,29 @@ struct FNiagaraVariableSearch
 		return FindInternal(Compare, Variables, Ref, Start, Num, CheckIndex);
 	}
 };
+
+bool FNiagaraVariableWithOffset::Serialize(FArchive& Ar)
+{
+	FNiagaraVariableBase::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (!Ar.IsLoading() || NiagaraVersion >= FNiagaraCustomVersion::VariablesUseTypeDefRegistry)
+	{
+		Ar << Offset;
+		return true;
+	}
+
+	return false;
+}
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraVariableWithOffset::PostSerialize(const FArchive& Ar)
+{
+	FNiagaraVariableBase::PostSerialize(Ar);
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -698,7 +720,6 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 			{
 				if (DataInterfaces.Num() <= SrcIndex)
 				{
-					int32 OriginalNum = DataInterfaces.Num();
 					int32 NewNum = SrcIndex - DataInterfaces.Num() + 1;
 					DataInterfaces.AddZeroed(NewNum);
 					UE_LOG(LogNiagara, Warning, TEXT("Missing data interfaces! Had to add %d data interface entries to ParameterStore on %s"), NewNum , Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));
@@ -717,7 +738,6 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 			{
 				if (UObjects.Num() <= SrcIndex)
 				{
-					int32 OriginalNum = UObjects.Num();
 					int32 NewNum = SrcIndex - UObjects.Num() + 1;
 					UObjects.AddZeroed(NewNum);
 					UE_LOG(LogNiagara, Warning, TEXT("Missing UObject interfaces! Had to add %d UObject entries for %s on %s"), NewNum , *Parameter.GetName().ToString(), Owner != nullptr ? *Owner->GetPathName() : TEXT("Unknown owner"));

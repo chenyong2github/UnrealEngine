@@ -62,6 +62,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
+#include "CustomResourcePool.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -1904,6 +1905,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			
 			GRenderTargetPool.TickPoolElements();
 			FRDGBuilder::TickPoolElements();
+			ICustomResourcePool::TickPoolElements();
 		});
 	}
 

@@ -116,23 +116,18 @@ protected:
 
 struct FNDIStaticMesh_InstanceData
 {
-	FNDIStaticMesh_InstanceData() : Mesh(nullptr) {}
+	/** Cached ptr to StaticMeshComponent we sample from, when found. Otherwise, the SceneComponent to use to transform the Default or Preview mesh. */
+	TWeakObjectPtr<USceneComponent> SceneComponent;
 
-	 //Cached ptr to component we sample from. 
-	TWeakObjectPtr<USceneComponent> SafeComponent_GT;
+	/** Cached ptr to the mesh so that we can make sure that we haven't been deleted. */
+	TWeakObjectPtr<UStaticMesh> StaticMesh;
 
-	// Cached ptr to the mesh so that we can make sure that we haven't been deleted.
-	TWeakObjectPtr<UStaticMesh> SafeMesh_GT;
-
-	//Cached ptr to actual mesh we sample from. 
-	UStaticMesh* Mesh;
-
-	//Cached ComponentToWorld.
+	/** Cached ComponentToWorld. (Falls back to WorldTransform of the system instance) */
 	FMatrix Transform;
-	//InverseTranspose of above for transforming normals/tangents.
+	/** InverseTranspose of above for transforming normals/tangents. */
 	FMatrix TransformInverseTransposed;
 
-	//Cached ComponentToWorld from previous tick.
+	/** Cached ComponentToWorld from previous tick. */
 	FMatrix PrevTransform;
 
 	/** Time separating Transform and PrevTransform. */
@@ -142,6 +137,12 @@ struct FNDIStaticMesh_InstanceData
 	FVector PhysicsVelocity;
 	/** True if velocity should not be calculated via the transforms, but rather read the physics data from the mesh component */
 	uint32 bUsePhysicsVelocity : 1;
+
+	/** True if SceneComponent was valid on initialization (used to track invalidation of the component on tick) */
+	uint32 bComponentValid : 1;
+	
+	/** True if StaticMesh was valid on initialization (used to track invalidation of the mesh on tick) */
+	uint32 bMeshValid : 1;
 
 	/** True if the mesh allows CPU access. Use to reset the instance in the editor*/
 	uint32 bMeshAllowsCpuAccess : 1;
@@ -175,11 +176,7 @@ struct FNDIStaticMesh_InstanceData
 	/** Filter sockets followed by unfiltered sockets */
 	TArray<uint16> FilteredAndUnfilteredSockets;
 
-	FORCEINLINE UStaticMesh* GetActualMesh()const { return Mesh; }
 	FORCEINLINE bool UsesCpuUniformlyDistributedSampling() const { return bIsCpuUniformlyDistributedSampling; }
-	FORCEINLINE bool MeshHasPositions()const { return Mesh && Mesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer.GetNumVertices() > 0; }
-	FORCEINLINE bool MeshHasVerts()const { return Mesh && Mesh->RenderData->LODResources[0].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0; }
-	FORCEINLINE bool MeshHasColors()const { return Mesh && Mesh->RenderData->LODResources[0].VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0; }
 
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceStaticMesh* Interface)const;
 
@@ -194,6 +191,8 @@ struct FNDIStaticMesh_InstanceData
 
 	FORCEINLINE const FStaticMeshLODResources* GetCurrentFirstLOD()
 	{
+		UStaticMesh* Mesh = StaticMesh.Get();
+		check(Mesh); // sanity - should have been checked for GC earlier
 		return Mesh->RenderData->GetCurrentFirstLOD(MinLOD);
 	}
 };
@@ -305,7 +304,7 @@ public:
 	static const FString NumSocketsAndFilteredName;
 
 public:
-	TWeakObjectPtr<UStaticMesh> GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, class FNiagaraSystemInstance* SystemInstance = nullptr);
+	UStaticMesh* GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, class FNiagaraSystemInstance* SystemInstance = nullptr);
 
 	void IsValid(FVectorVMContext& Context);
 

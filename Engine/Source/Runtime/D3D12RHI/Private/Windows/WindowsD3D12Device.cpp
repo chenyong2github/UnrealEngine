@@ -890,6 +890,7 @@ bool FD3D12DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 		HResult = Output->GetDisplayModeList(Format, 0, &NumModes, nullptr);
 		if (HResult == DXGI_ERROR_NOT_FOUND)
 		{
+			++CurrentOutput;
 			continue;
 		}
 		else if (HResult == DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)

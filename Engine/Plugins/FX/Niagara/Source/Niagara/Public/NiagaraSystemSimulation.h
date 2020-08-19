@@ -329,11 +329,6 @@ protected:
 		TUniquePtr<FNiagaraScriptExecutionContextBase>& ExecContext,
 		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
 
-	/** Should we push the system sim tick off the game thread. */
-	FORCEINLINE bool ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context);
-	/** Should we push the system instance ticks off the game thread. */
-	FORCEINLINE bool ShouldTickInstancesAsync(const FNiagaraSystemSimulationTickContext& Context);
-
 	void AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context);
 	void FlushTickBatch(FNiagaraSystemSimulationTickContext& Context);
 
@@ -380,6 +375,8 @@ protected:
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
 	/** Binding to push system attributes into each emitter gpu parameters. */
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterGPUParameters;
+	/** Binding to push system attributes into each emitter renderer parameters. */
+	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterRendererParameters;
 
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */

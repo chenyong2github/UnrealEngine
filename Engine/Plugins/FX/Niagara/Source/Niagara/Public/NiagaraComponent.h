@@ -29,6 +29,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 
 #define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
 
+USTRUCT()
+struct FNiagaraMaterialOverride
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	class UMaterialInterface* Material;
+
+	UPROPERTY()
+	uint32 MaterialSubIndex;
+
+	UPROPERTY()
+	UNiagaraRendererProperties* EmitterRendererProperty;
+};
+
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
 * @see ANiagaraActor
@@ -122,6 +137,7 @@ private:
 	UPROPERTY()
 	uint32 bRenderingEnabled : 1;
 
+
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnRegister() override;
@@ -131,6 +147,8 @@ protected:
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
+
+	void UpdateEmitterMaterials();
 public:
 	/**
 	* True if we should automatically attach to AutoAttachParent when activated, and detach from our parent when completed.
@@ -156,6 +174,10 @@ public:
 	UPROPERTY()
 	float MaxTimeBeforeForceUpdateTransform;
 
+
+	UPROPERTY(transient, duplicatetransient)
+	TArray<FNiagaraMaterialOverride> EmitterMaterials;
+
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
@@ -180,6 +202,8 @@ public:
 	bool ShouldPreCull();
 	void RegisterWithScalabilityManager();
 	void UnregisterWithScalabilityManager();
+
+	void PostSystemTick_GameThread();
 
 	public:
 
@@ -586,6 +610,9 @@ private:
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
 	int32 ScalabilityManagerHandle;
+
+	float ForceUpdateTransformTime;
+	FBox CurrLocalBounds;
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

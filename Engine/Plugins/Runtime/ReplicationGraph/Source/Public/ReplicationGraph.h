@@ -991,6 +991,10 @@ protected:
 
 private:
 
+	UNetReplicationGraphConnection* FixGraphConnectionList(TArray<UNetReplicationGraphConnection*>& OutList, int32& ConnectionId, UNetConnection* RemovedNetConnection);
+
+private:
+
 	/** Whether or not a connection was saturated during an update. */
 	bool bWasConnectionSaturated = false;
 
@@ -1071,7 +1075,11 @@ public:
 
 	bool bEnableDebugging;
 
+	/** Index of the connection in the global list. Will be reassigned when any client disconnects so it is a key that can be referenced only during a single tick */
+	int32 ConnectionOrderNum;
+
 	// ID that is assigned by the replication graph. Will be reassigned/compacted as clients disconnect. Useful for spacing out connection operations. E.g., not stable but always compact.
+	UE_DEPRECATED(4.26, "This variable was renamed to ConnectionOrderNum to better reflect that it is not persistent and should not be considered an ID.")
 	int32 ConnectionId; 
 
 	UPROPERTY()

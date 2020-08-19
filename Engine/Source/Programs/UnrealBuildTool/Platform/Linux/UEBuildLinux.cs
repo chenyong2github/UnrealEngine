@@ -179,6 +179,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns SDK string as required by the platform
+		/// </summary>
+		/// <returns>Valid SDK string</returns>
+		public override string GetRequiredSDKString()
+		{
+			return SDK.GetRequiredSDKString();
+		}
+
+		/// <summary>
 		/// Find the default architecture for the given project
 		/// </summary>
 		public override string GetDefaultArchitecture(FileReference ProjectFile)
@@ -704,7 +713,7 @@ namespace UnrealBuildTool
 		/// Returns SDK string as required by the platform
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		protected override string GetRequiredSDKString()
+		public override string GetRequiredSDKString()
 		{
 			return ExpectedSDKVersion;
 		}

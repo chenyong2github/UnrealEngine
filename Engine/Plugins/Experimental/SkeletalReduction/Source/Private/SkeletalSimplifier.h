@@ -198,6 +198,11 @@ namespace SkeletalSimplifier
 		int					GetNumTris() const { return MeshManager.ReducedNumTris; }
 
 		/**
+		*  The fraction of non-manifold edges (edges with more than 2 adjacent tris).
+		*/
+		float               FractionNonManifoldEdges() { return MeshManager.FractionNonManifoldEdges(); }
+
+		/**
 		* Export a copy of the simplified mesh.
 		*
 		* @param Verts                 - pointer to an array to populate.  Should be least GetNumVerts() in size

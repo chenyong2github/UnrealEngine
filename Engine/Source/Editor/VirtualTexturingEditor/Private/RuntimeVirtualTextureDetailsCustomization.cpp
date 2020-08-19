@@ -216,6 +216,7 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.ContentPadding(2)
 		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds)
+		.IsEnabled(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsSetBoundsEnabled)
 	];
 
 	// VirtualTextureBuild buttons.
@@ -283,11 +284,20 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 	];
 }
 
+bool FRuntimeVirtualTextureComponentDetailsCustomization::IsSetBoundsEnabled() const
+{
+	return RuntimeVirtualTextureComponent->GetVirtualTexture() != nullptr;
+}
+
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
 {
-	const FScopedTransaction Transaction(LOCTEXT("Transaction_SetBounds", "Set RuntimeVirtualTextureComponent Bounds"));
-	RuntimeVirtualTexture::SetBounds(RuntimeVirtualTextureComponent);
-	return FReply::Handled();
+	if (RuntimeVirtualTextureComponent->GetVirtualTexture() != nullptr)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Transaction_SetBounds", "Set RuntimeVirtualTextureComponent Bounds"));
+		RuntimeVirtualTexture::SetBounds(RuntimeVirtualTextureComponent);
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()

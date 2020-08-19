@@ -75,6 +75,8 @@ void UControlRigBlueprint::InitializeModelIfRequired()
 			return true;
 		});
 
+		Controller->RemoveStaleNodes();
+
 		for (int32 i = 0; i < UbergraphPages.Num(); ++i)
 		{
 			if (UControlRigGraph* Graph = Cast<UControlRigGraph>(UbergraphPages[i]))

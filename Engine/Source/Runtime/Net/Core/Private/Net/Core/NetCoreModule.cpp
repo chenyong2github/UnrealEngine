@@ -5,9 +5,6 @@
 #include "Modules/ModuleManager.h"
 #include "Net/Core/Misc/NetCoreLog.h"
 
-// Force export
-#include "Net/Core/Misc/PacketTraits.h"
-
 DEFINE_LOG_CATEGORY(LogNetCore);
 
 

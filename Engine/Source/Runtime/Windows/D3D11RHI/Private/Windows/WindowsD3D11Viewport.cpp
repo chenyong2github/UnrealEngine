@@ -59,7 +59,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 
 	// Create a backbuffer/swapchain for each viewport
 	TRefCountPtr<IDXGIDevice> DXGIDevice;
-	VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->QueryInterface(IID_IDXGIDevice, (void**)DXGIDevice.GetInitReference()), D3DRHI->GetDevice());
+	VERIFYD3D11RESULT_EX( D3DRHI->GetDevice()->QueryInterface(IID_PPV_ARGS(DXGIDevice.GetInitReference())), D3DRHI->GetDevice() );
 
 	{
 		GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -67,9 +67,9 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 		IDXGIFactory1* Factory1 = D3DRHI->GetFactory();
 		TRefCountPtr<IDXGIFactory5> Factory5;
 
-		if(GD3D11UseAllowTearing)
+		if (GD3D11UseAllowTearing)
 		{
-			if (S_OK == Factory1->QueryInterface(__uuidof(IDXGIFactory5), (void**)Factory5.GetInitReference()))
+			if (S_OK == Factory1->QueryInterface(IID_PPV_ARGS(Factory5.GetInitReference())))
 			{
 				UINT AllowTearing = 0;
 				if (S_OK == Factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &AllowTearing, sizeof(UINT)) && AllowTearing != 0)
@@ -90,7 +90,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	if (bForcedFullscreenDisplay || GRHISupportsHDROutput)
 	{
 		TRefCountPtr<IDXGIAdapter> DXGIAdapter;
-		DXGIDevice->GetAdapter((IDXGIAdapter**)DXGIAdapter.GetInitReference());
+		DXGIDevice->GetAdapter(DXGIAdapter.GetInitReference());
 
 		if (S_OK != DXGIAdapter->EnumOutputs(DisplayIndex, ForcedFullscreenOutput.GetInitReference()))
 		{
@@ -176,12 +176,19 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			IDXGISwapChain1* SwapChain1 = nullptr;
 			IDXGIFactory2* Factory2 = (IDXGIFactory2*)D3DRHI->GetFactory();
 
-			if(!FAILED(Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1)))
+			HRESULT CreateSwapChainForHwndResult = Factory2->CreateSwapChainForHwnd(D3DRHI->GetDevice(), WindowHandle, &SwapChainDesc, &FSSwapChainDesc, nullptr, &SwapChain1);
+			if(SUCCEEDED(CreateSwapChainForHwndResult))
 			{
-				SwapChain1->QueryInterface(__uuidof(IDXGISwapChain1), (void**)SwapChain.GetInitReference());
+				SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain.GetInitReference()));
 
 				// See if we are running on a HDR monitor 
 				CheckHDRMonitorStatus();
+			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Warning, TEXT("CreateSwapChainForHwnd failed with result '%s' (0x%08X), falling back to legacy CreateSwapChain."),
+					*GetD3D11ErrorString(CreateSwapChainForHwndResult, D3DRHI->GetDevice()),
+					CreateSwapChainForHwndResult);
 			}
 		}
 
@@ -205,7 +212,20 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			// DXGI_SWAP_EFFECT_DISCARD / DXGI_SWAP_EFFECT_SEQUENTIAL
 			SwapChainDesc.SwapEffect = GSwapEffect;
 			SwapChainDesc.Flags = GSwapChainFlags;
-			VERIFYD3D11RESULT_EX(D3DRHI->GetFactory()->CreateSwapChain(DXGIDevice, &SwapChainDesc, SwapChain.GetInitReference()), D3DRHI->GetDevice());
+
+			HRESULT CreateSwapChainResult = D3DRHI->GetFactory()->CreateSwapChain(D3DRHI->GetDevice(), &SwapChainDesc, SwapChain.GetInitReference());
+			if (CreateSwapChainResult == E_INVALIDARG)
+			{
+				const TCHAR* D3DFormatString = GetD3D11TextureFormatString(SwapChainDesc.BufferDesc.Format);
+
+				UE_LOG(LogD3D11RHI, Error,
+					TEXT("CreateSwapChain invalid arguments: \n")
+					TEXT(" Size:%ix%i Format:%s(0x%08X) \n")
+					TEXT(" Windowed:%i SwapEffect:%i Flags: 0x%08X"),
+					SwapChainDesc.BufferDesc.Width, SwapChainDesc.BufferDesc.Height, D3DFormatString, SwapChainDesc.BufferDesc.Format,
+					SwapChainDesc.Windowed, SwapChainDesc.SwapEffect, SwapChainDesc.Flags);
+			}
+			VERIFYD3D11RESULT_EX(CreateSwapChainResult, D3DRHI->GetDevice());
 		}
 
 		// Set the DXGI message hook to not change the window behind our back.

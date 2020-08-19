@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Containers/Ticker.h"
 #include "Templates/Sorting.h"
+#include "Stats/Stats.h"
 
 namespace GranularNetworkMemoryTrackingPrivate
 {
@@ -165,6 +166,8 @@ namespace GranularNetworkMemoryTrackingPrivate
 
 		static bool OnTick(float DeltaTime)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FNetworkMemoryTrackingScopeStack_OnTick);
+
 			TUniquePtr<FNetworkMemoryTrackingScopeStack>& ScopeStack = Get();
 			ScopeStack->TopLevelScopes.KeySort(TLess<FString>());
 

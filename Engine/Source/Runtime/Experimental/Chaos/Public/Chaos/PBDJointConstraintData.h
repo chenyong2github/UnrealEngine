@@ -96,6 +96,8 @@ namespace Chaos
 		//void SetUserData(void* InUserData);
 		//void* GetUserData() const
 
+		void SetLinearPositionDriveEnabled( TVector<bool,3> Enabled);
+		
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, LinearPositionDriveXEnabled, EJointConstraintFlags::LinearDrive, JointSettings.bLinearPositionDriveEnabled[0]);
 		//void SetLinearPositionDriveXEnabled(bool InLinearPositionDriveXEnabled);
 		//bool GetLinearPositionDriveXEnabled() const
@@ -111,6 +113,8 @@ namespace Chaos
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, LinearDrivePositionTarget, EJointConstraintFlags::LinearDrive, JointSettings.LinearDrivePositionTarget);
 		//void SetLinearDrivePositionTarget(FVec3 InLinearDrivePositionTarget);
 		//FVec3 GetLinearDrivePositionTarget() const
+
+		void SetLinearVelocityDriveEnabled(TVector<bool,3> Enabled);
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, LinearVelocityDriveXEnabled, EJointConstraintFlags::LinearDrive, JointSettings.bLinearVelocityDriveEnabled[0]);
 		//void SetLinearVelocityDriveXEnabled(bool InLinearVelocityDriveXEnabled);
@@ -290,6 +294,14 @@ namespace Chaos
 		//void SetAngularSwingRestitution(FReal InAngularSwingRestitution);
 		//FReal GetAngularSwingRestitution() const
 
+		struct FOutputData
+		{
+			// Output properties
+			bool bIsBroken = false;
+			FVector Force = FVector(0);
+			FVector Torque = FVector(0);
+		};
+		FOutputData& GetOutputData() { return Output; }
 
 	protected:
 		class IPhysicsProxyBase* Proxy;
@@ -301,6 +313,7 @@ namespace Chaos
 		FParticlePair JointParticles;
 		FTransformPair JointTransforms;
 		void* UserData;
+		FOutputData Output;
 
 	};
 

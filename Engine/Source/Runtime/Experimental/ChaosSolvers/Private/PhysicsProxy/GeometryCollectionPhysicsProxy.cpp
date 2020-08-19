@@ -71,18 +71,12 @@ FGeometryCollectionResults::FGeometryCollectionResults()
 
 void FGeometryCollectionResults::Reset()
 {
+	SolverDt = 0.0f;
 	BaseIndex = 0;
 	NumParticlesAdded = 0;
 	DisabledStates.SetNum(0);
-	//Transforms.Resize(0);
 	GlobalTransforms.SetNum(0);
-	//RigidBodyIds.Resize(0);
 	ParticleToWorldTransforms.SetNum(0);
-	//Level.Resize(0);
-	//Parent.Resize(0);
-	//Children.Resize(0);
-	//SimulationType.Resize(0);
-	//StatusFlags.Resize(0);
 	IsObjectDynamic = false;
 	IsObjectLoading = false;
 	WorldBounds = FBoxSphereBounds(ForceInit);
@@ -1415,6 +1409,7 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 
 	IsObjectDynamic = false;
 	FGeometryCollectionResults& TargetResults = *PhysToGameInterchange.AccessProducerBuffer();
+	TargetResults.SolverDt = GetSolver<FSolver>()->GetLastDt();
 
 	int32 NumTransformGroupElements = PhysicsThreadCollection.NumElements(FGeometryCollection::TransformGroup);
 	if (TargetResults.NumTransformGroup() != NumTransformGroupElements)
@@ -1470,6 +1465,10 @@ void TGeometryCollectionPhysicsProxy<Traits>::BufferPhysicsResults()
 					TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Dynamic;
 					break;
 				}
+			}
+			else
+			{
+				TargetResults.DynamicState[TransformGroupIndex] = (int)EObjectStateTypeEnum::Chaos_Object_Sleeping;
 			}
 
 			// Update the transform and parent hierarchy of the active rigid bodies. Active bodies can be either
@@ -1640,6 +1639,8 @@ void TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState()
 
 	FGeometryDynamicCollection& DynamicCollection = GameThreadCollection;
 
+	TManagedArray<FVector>* LinearVelocity = DynamicCollection.FindAttributeTyped<FVector>("LinearVelocity", FTransformCollection::TransformGroup);
+
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
 	const int32 NumTransforms = DynamicCollection.Transform.Num();
@@ -1654,6 +1655,20 @@ void TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState()
 				const FTransform& ParticleToWorld = TargetResults.ParticleToWorldTransforms[TransformGroupIndex];
 
 				DynamicCollection.Transform[TransformGroupIndex] = LocalTransform;
+
+				Chaos::TGeometryParticle<Chaos::FReal, 3>* GTParticle = GTParticles[TransformGroupIndex].Get();
+
+				if(LinearVelocity)
+				{
+					TManagedArray<FVector>* AngularVelocity = DynamicCollection.FindAttributeTyped<FVector>("AngularVelocity", FTransformCollection::TransformGroup);
+					check(AngularVelocity);
+					FVector DiffX = ParticleToWorld.GetTranslation() - GTParticle->X();
+					FVector DiffR = (ParticleToWorld.GetRotation().Euler() - GTParticle->R().Euler()) * (PI / 180.0f);
+
+					(*LinearVelocity)[TransformGroupIndex] = DiffX / TargetResults.SolverDt;
+					(*AngularVelocity)[TransformGroupIndex] = DiffR / TargetResults.SolverDt;
+				}
+
 				GTParticles[TransformGroupIndex]->SetX(ParticleToWorld.GetTranslation());
 				GTParticles[TransformGroupIndex]->SetR(ParticleToWorld.GetRotation());
 			}

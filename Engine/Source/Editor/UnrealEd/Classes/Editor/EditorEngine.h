@@ -278,9 +278,9 @@ struct FPreviewPlatformInfo
 	,	bPreviewFeatureLevelActive(false)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderPlatformName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
 	:	PreviewFeatureLevel(InFeatureLevel)
-	,	PreviewShaderPlatformName(InPreviewShaderPlatformName)
+	,	PreviewShaderFormatName(InPreviewShaderFormatName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
 	{}
 
@@ -288,7 +288,7 @@ struct FPreviewPlatformInfo
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	
 	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
-	FName PreviewShaderPlatformName;
+	FName PreviewShaderFormatName;
 
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
@@ -296,15 +296,15 @@ struct FPreviewPlatformInfo
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderPlatformName == Other.PreviewShaderPlatformName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderFormatName == Other.PreviewShaderFormatName;
 	}
 
 	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		if (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive)
+		if (PreviewShaderFormatName != NAME_None && bPreviewFeatureLevelActive)
 		{
-			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderPlatformName);
+			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderFormatName);
 			if (TargetPlatform)
 			{
 				return FName(*TargetPlatform->IniPlatformName());
@@ -341,7 +341,7 @@ public:
  * Separate from UGameEngine because it may have much different functionality than desired for an instance of a game itself.
  */
 UCLASS(config=Engine, transient)
-class UNREALED_API UEditorEngine : public UEngine, public FGCObject
+class UNREALED_API UEditorEngine : public UEngine
 {
 public:
 	GENERATED_BODY()
@@ -3242,15 +3242,6 @@ private:
 
 	/** Delegate handle for game viewport close requests in PIE sessions. */
 	FDelegateHandle ViewportCloseRequestedDelegateHandle;
-
-public:
-	// FGCObject Interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return "EditorEngine";
-	}
-	// ~FGCObject Interface
 
 public:
 	/**

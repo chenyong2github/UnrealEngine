@@ -141,6 +141,9 @@ public:
 	/** Notification that the component is being destroyed but has relevance to the component pool. */
 	void PooledComponentDestroyed(UNiagaraComponent* Component);
 
+	/** Remove any components that are using this system. */
+	void RemoveComponentsBySystem(UNiagaraSystem* System);
+
 	/** Dumps the current state of the pool to the log. */
 	void Dump();
 };

@@ -228,9 +228,13 @@ public:
 class PHYSICSCORE_API FPhysicsConstraintReference_Chaos
 {
 public:
-	FPhysicsConstraintReference_Chaos() : Constraint(nullptr) {};
+	FPhysicsConstraintReference_Chaos() { Reset(); }
+	void Reset() { Constraint = nullptr; }
 
 	bool IsValid() const;
+
+	Chaos::FJointConstraint* operator->() { return Constraint; }
+	const Chaos::FJointConstraint* operator->() const { return Constraint; }
 
 	Chaos::FJointConstraint* Constraint;
 };

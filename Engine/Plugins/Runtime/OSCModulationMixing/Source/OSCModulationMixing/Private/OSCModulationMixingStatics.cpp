@@ -28,7 +28,7 @@ UOSCModulationMixingStatics::UOSCModulationMixingStatics(const FObjectInitialize
 {
 }
 
-void UOSCModulationMixingStatics::CopyChannelsToOSCBundle(UObject* WorldContextObject, const FOSCAddress& InPathAddress, const TArray<FSoundControlBusMixChannel>& InChannels, FOSCBundle& OutBundle)
+void UOSCModulationMixingStatics::CopyStagesToOSCBundle(UObject* WorldContextObject, const FOSCAddress& InPathAddress, const TArray<FSoundControlBusMixStage>& InStages, FOSCBundle& OutBundle)
 {
 	FOSCMessage RequestMessage;
 	RequestMessage.SetAddress(OSCModulation::Addresses::MixLoad);
@@ -38,22 +38,22 @@ void UOSCModulationMixingStatics::CopyChannelsToOSCBundle(UObject* WorldContextO
 	Message.SetAddress(InPathAddress);
 	UOSCManager::AddMessageToBundle(Message, OutBundle);
 
-	for (const FSoundControlBusMixChannel& Channel : InChannels)
+	for (const FSoundControlBusMixStage& Stage : InStages)
 	{
-		if (Channel.Bus)
+		if (Stage.Bus)
 		{
-			FOSCMessage ChannelMessage;
-			ChannelMessage.SetAddress(UOSCManager::OSCAddressFromObjectPath(Channel.Bus));
+			FOSCMessage StageMessage;
+			StageMessage.SetAddress(UOSCManager::OSCAddressFromObjectPath(Stage.Bus));
 
-			UOSCManager::AddFloat(ChannelMessage, Channel.Value.AttackTime);
-			UOSCManager::AddFloat(ChannelMessage, Channel.Value.ReleaseTime);
-			UOSCManager::AddFloat(ChannelMessage, Channel.Value.TargetValue);
+			UOSCManager::AddFloat(StageMessage, Stage.Value.AttackTime);
+			UOSCManager::AddFloat(StageMessage, Stage.Value.ReleaseTime);
+			UOSCManager::AddFloat(StageMessage, Stage.Value.TargetValue);
 
-			UClass* BusClass = Channel.Bus->GetClass();
+			UClass* BusClass = Stage.Bus->GetClass();
 			const FString ClassName = BusClass ? BusClass->GetName() : FString();
-			UOSCManager::AddString(ChannelMessage, ClassName);
+			UOSCManager::AddString(StageMessage, ClassName);
 
-			UOSCManager::AddMessageToBundle(ChannelMessage, OutBundle);
+			UOSCManager::AddMessageToBundle(StageMessage, OutBundle);
 		}
 	}
 }
@@ -65,7 +65,7 @@ void UOSCModulationMixingStatics::CopyMixToOSCBundle(UObject* WorldContextObject
 		return;
 	}
 
-	CopyChannelsToOSCBundle(WorldContextObject, UOSCManager::OSCAddressFromObjectPath(InMix), InMix->Channels, OutBundle);
+	CopyStagesToOSCBundle(WorldContextObject, UOSCManager::OSCAddressFromObjectPath(InMix), InMix->MixStages, OutBundle);
 }
 
 FOSCAddress UOSCModulationMixingStatics::GetProfileLoadPath()
@@ -115,9 +115,9 @@ void UOSCModulationMixingStatics::RequestMix(UObject* WorldContextObject, UOSCCl
 	}
 }
 
-TArray<FSoundModulationValue> UOSCModulationMixingStatics::OSCBundleToChannelValues(UObject* WorldContextObject, const FOSCBundle& InBundle, FOSCAddress& OutMixPath, TArray<FOSCAddress>& OutBusPaths, TArray<FString>& OutBusClassNames)
+TArray<FSoundModulationMixValue> UOSCModulationMixingStatics::OSCBundleToStageValues(UObject* WorldContextObject, const FOSCBundle& InBundle, FOSCAddress& OutMixPath, TArray<FOSCAddress>& OutBusPaths, TArray<FString>& OutBusClassNames)
 {
-	TArray<FSoundModulationValue> ChannelArray;
+	TArray<FSoundModulationMixValue> StageArray;
 	OutBusPaths.Reset();
 
 	const TArray<FOSCMessage> Messages = UOSCManager::GetMessagesFromBundle(InBundle);
@@ -129,7 +129,7 @@ TArray<FSoundModulationValue> UOSCModulationMixingStatics::OSCBundleToChannelVal
 
 			for (int32 i = 2; i < Messages.Num(); ++i)
 			{
-				FSoundModulationValue Value;
+				FSoundModulationMixValue Value;
 				UOSCManager::GetFloat(Messages[i], 0, Value.AttackTime);
 				UOSCManager::GetFloat(Messages[i], 1, Value.ReleaseTime);
 				UOSCManager::GetFloat(Messages[i], 2, Value.TargetValue);
@@ -139,12 +139,12 @@ TArray<FSoundModulationValue> UOSCModulationMixingStatics::OSCBundleToChannelVal
 				OutBusClassNames.Add(BusClass);
 
 				OutBusPaths.Add(UOSCManager::GetOSCMessageAddress(Messages[i]));
-				ChannelArray.Add(Value);
+				StageArray.Add(Value);
 			}
-			return ChannelArray;
+			return StageArray;
 		}
 	}
 
 	OutMixPath = FOSCAddress();
-	return ChannelArray;
+	return StageArray;
 }

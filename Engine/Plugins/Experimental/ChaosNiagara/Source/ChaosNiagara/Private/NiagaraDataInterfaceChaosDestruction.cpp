@@ -448,18 +448,15 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 #if INCLUDE_CHAOS
 		if (SystemInstance)
 		{
-			if (UNiagaraComponent* NiagaraComponent = SystemInstance->GetComponent())
+			if (UWorld* World = SystemInstance->GetWorld())
 			{
-				if (UWorld* World = NiagaraComponent->GetWorld())
-				{
-					int32 NewIdx = Solvers.Add(FSolverData());
+				int32 NewIdx = Solvers.Add(FSolverData());
 
-					FSolverData& SolverData = Solvers[NewIdx];
-					SolverData.PhysScene = World->GetPhysicsScene();
-					SolverData.Solver = SolverData.PhysScene->GetSolver();
+				FSolverData& SolverData = Solvers[NewIdx];
+				SolverData.PhysScene = World->GetPhysicsScene();
+				SolverData.Solver = SolverData.PhysScene->GetSolver();
 
-					RegisterWithSolverEventManager(SolverData.Solver);
-				}
+				RegisterWithSolverEventManager(SolverData.Solver);
 			}
 		}
 #endif

@@ -68,7 +68,7 @@ struct FSequenceUpdater_Hierarchical : ISequenceUpdater
 
 private:
 
-	TRange<FFrameNumber> UpdateEntitiesForSequence(const FMovieSceneEntityComponentField* ComponentField, FFrameTime SequenceTime, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutEntities);
+	TRange<FFrameNumber> UpdateEntitiesForSequence(const FMovieSceneEntityComponentField* ComponentField, FFrameTime SequenceTime, FMovieSceneEvaluationFieldEntitySet& OutEntities);
 
 	FInstanceHandle GetOrCreateSequenceInstance(IMovieScenePlayer* InPlayer, FInstanceRegistry* InstanceRegistry, FInstanceHandle RootInstanceHandle, FMovieSceneSequenceID SequenceID);
 
@@ -200,14 +200,14 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 
 	const FMovieSceneEntityComponentField* ComponentField = InPlayer->GetEvaluationTemplate().GetCompiledDataManager()->FindEntityComponentField(CompiledDataID);
 
-	TSet<FMovieSceneEvaluationFieldEntityPtr> EntitiesScratch;
+	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
 	const bool bOutsideCachedRange = !CachedEntityRange.Contains(Context.GetTime().FrameNumber);
 	if (bOutsideCachedRange)
 	{
 		if (ComponentField)
 		{
-			ComponentField->Entities.ExtractAtTime(Context.GetTime().FrameNumber, CachedEntityRange, EntitiesScratch);
+			ComponentField->QueryPersistentEntities(Context.GetTime().FrameNumber, CachedEntityRange, EntitiesScratch);
 		}
 		else
 		{
@@ -226,7 +226,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 	if (ComponentField)
 	{
 		EntitiesScratch.Reset();
-		ComponentField->OneShotEntities.Sweep(Context.GetFrameNumberRange(), EntitiesScratch);
+		ComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
 
 		FEntityImportSequenceParams Params;
 		Params.InstanceHandle = InstanceHandle;
@@ -362,7 +362,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 	UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
 
-	TSet<FMovieSceneEvaluationFieldEntityPtr> EntitiesScratch;
+	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
 	// ------------------------------------------------------------------------------------------------
 	// Handle the root sequence entities first
@@ -390,7 +390,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		if (RootComponentField)
 		{
 			EntitiesScratch.Reset();
-			RootComponentField->OneShotEntities.Sweep(Context.GetFrameNumberRange(), EntitiesScratch);
+			RootComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
 
 			FEntityImportSequenceParams Params;
 			Params.InstanceHandle = InstanceHandle;
@@ -435,6 +435,17 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				SubContext.ReportOuterSectionRanges(SubData->PreRollRange.Value, SubData->PostRollRange.Value);
 				SubContext.SetHierarchicalBias(SubData->HierarchicalBias);
 
+
+				const bool bWasPreRoll  = SubSequenceInstance.GetContext().IsPreRoll();
+				const bool bWasPostRoll = SubSequenceInstance.GetContext().IsPostRoll();
+				const bool bIsPreRoll   = SubContext.IsPreRoll();
+				const bool bIsPostRoll  = SubContext.IsPostRoll();
+
+				if (bWasPreRoll != bIsPreRoll || bWasPostRoll != bIsPostRoll)
+				{
+					SubSequenceInstance.Ledger.UnlinkEverything(Linker);
+				}
+
 				SubSequenceInstance.SetContext(SubContext);
 				SubSequenceInstance.SetFinished(false);
 
@@ -448,6 +459,9 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				Params.InstanceHandle = SubSequenceHandle;
 				Params.DefaultCompletionMode = SubSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = SubData->HierarchicalBias;
+				Params.bPreRoll  = bIsPreRoll;
+				Params.bPostRoll = bIsPostRoll;
+				Params.bHasHierarchicalEasing = SubData->bHasHierarchicalEasing;
 
 				if (bGatherEntities)
 				{
@@ -465,7 +479,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				if (SubComponentField)
 				{
 					EntitiesScratch.Reset();
-					SubComponentField->OneShotEntities.Sweep(SubContext.GetFrameNumberRange(), EntitiesScratch);
+					SubComponentField->QueryOneShotEntities(SubContext.GetFrameNumberRange(), EntitiesScratch);
 					SubSequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, SubComponentField, EntitiesScratch);
 				}
 			}
@@ -525,14 +539,14 @@ void FSequenceUpdater_Hierarchical::InvalidateCachedData(UMovieSceneEntitySystem
 
 
 
-TRange<FFrameNumber> FSequenceUpdater_Hierarchical::UpdateEntitiesForSequence(const FMovieSceneEntityComponentField* ComponentField, FFrameTime SequenceTime, TSet<FMovieSceneEvaluationFieldEntityPtr>& OutEntities)
+TRange<FFrameNumber> FSequenceUpdater_Hierarchical::UpdateEntitiesForSequence(const FMovieSceneEntityComponentField* ComponentField, FFrameTime SequenceTime, FMovieSceneEvaluationFieldEntitySet& OutEntities)
 {
 	TRange<FFrameNumber> CachedRange = TRange<FFrameNumber>::All();
 
 	if (ComponentField)
 	{
 		// Extract all the entities for the current time
-		ComponentField->Entities.ExtractAtTime(SequenceTime.FrameNumber, CachedRange, OutEntities);
+		ComponentField->QueryPersistentEntities(SequenceTime.FrameNumber, CachedRange, OutEntities);
 	}
 
 	return CachedRange;

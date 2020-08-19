@@ -304,6 +304,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 				InstanceInclusionMask,
 				Ray,
 				RayCone,
+				PixelCoord,
 				bEnableSkyLightContribution,
 				bIgnoreTranslucentMaterials);
 
@@ -371,6 +372,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 						TLAS,
 						NeeRayFlags,
 						NeeInstanceInclusionMask,
+						PixelCoord,
 						LightRay);
 
 					// No hit indicates successful next-event connection

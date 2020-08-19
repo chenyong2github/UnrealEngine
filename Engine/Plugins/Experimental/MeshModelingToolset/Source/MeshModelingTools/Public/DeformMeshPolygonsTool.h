@@ -228,6 +228,7 @@ protected:
 	void PrecomputeTopology();
 
 	FGroupTopologySelector TopoSelector;
+	FGroupTopologySelector::FSelectionSettings GetTopoSelectorSettings();
 	
 	//
 	// data for current drag

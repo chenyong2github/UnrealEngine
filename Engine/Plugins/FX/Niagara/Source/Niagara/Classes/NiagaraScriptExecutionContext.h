@@ -293,13 +293,15 @@ struct FNiagaraComputeExecutionContext
 	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
 
 	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages);
+	void BakeVariableNamesForIterationLookup();
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
 	void PostTick();
 
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
-	FNiagaraDataBuffer* GetDataToRender()const { return DataToRender; }
+	void SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender);
+	FNiagaraDataBuffer* GetDataToRender(bool bIsLowLatencyTranslucent) const { return bIsLowLatencyTranslucent && TranslucentDataToRender ? TranslucentDataToRender : DataToRender; }
 
 	struct 
 	{
@@ -345,8 +347,11 @@ public:
 
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
 
-	//Most current buffer that can be used for rendering.
-	FNiagaraDataBuffer* DataToRender;
+	// Most current buffer that can be used for rendering.
+	FNiagaraDataBuffer* DataToRender = nullptr;
+
+	// Optional buffer which can be used to render translucent data with no latency (i.e. this frames data)
+	FNiagaraDataBuffer* TranslucentDataToRender = nullptr;
 
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
@@ -402,11 +407,14 @@ struct FNiagaraDataInterfaceInstanceData
 
 struct FNiagaraSimStageData
 {
-	FNiagaraDataBuffer* Source;
-	FNiagaraDataBuffer* Destination;
-	FNiagaraDataInterfaceProxy* AlternateIterationSource;
-	uint32 SourceCountOffset;
-	uint32 DestinationCountOffset;
+	FNiagaraDataBuffer* Source = nullptr;
+	FNiagaraDataBuffer* Destination = nullptr;
+	FNiagaraDataInterfaceProxy* AlternateIterationSource = nullptr;
+	uint32 SourceCountOffset = 0;
+	uint32 DestinationCountOffset = 0;
+	uint32 SourceNumInstances = 0;
+	uint32 DestinationNumInstances = 0;
+	const FSimulationStageMetaData* StageMetaData = nullptr;
 };
 
 struct FNiagaraComputeInstanceData

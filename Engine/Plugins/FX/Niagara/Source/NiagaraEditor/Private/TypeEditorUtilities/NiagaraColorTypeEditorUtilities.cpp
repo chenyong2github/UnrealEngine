@@ -235,3 +235,9 @@ FText FNiagaraEditorColorTypeUtilities::GetSearchTextFromValue(const FNiagaraVar
 {
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
+
+FText FNiagaraEditorColorTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FLinearColor Value = Variable.GetValue<FLinearColor>();
+	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.R, Value.G, Value.B, Value.A);
+}

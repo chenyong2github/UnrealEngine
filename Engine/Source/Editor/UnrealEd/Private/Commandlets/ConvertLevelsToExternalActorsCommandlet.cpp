@@ -12,12 +12,15 @@
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
 #include "UObject/UObjectHash.h"
+#include "AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Algo/Sort.h"
+#include "Algo/Unique.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogConvertLevelsToExternalActorsCommandlet, All, All);
 
@@ -56,6 +59,92 @@ void UConvertLevelsToExternalActorsCommandlet::GetSubLevelsToConvert(ULevel* Mai
 			}
 		}
 	}
+}
+
+bool UConvertLevelsToExternalActorsCommandlet::CheckExternalActors(const FString& Level, bool bRepair)
+{
+	const FString LevelExternalPathActors = ULevel::GetExternalActorsPath(Level);
+
+	// Gather duplicated actor files.
+	TMultiMap<FName, FName> DuplicatedActorFiles;
+	{
+		TMap<FName, FName> ActorFiles;
+
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnAssetAdded().AddLambda([&ActorFiles](const FAssetData& AssetData)
+		{
+			check(!ActorFiles.Contains(AssetData.ObjectPath));
+			ActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);
+		});
+
+		AssetRegistry.OnAssetUpdated().AddLambda([&ActorFiles, &DuplicatedActorFiles](const FAssetData& AssetData)
+		{
+			FName ExistingPackageName;
+			if (ActorFiles.RemoveAndCopyValue(AssetData.ObjectPath, ExistingPackageName))
+			{
+				DuplicatedActorFiles.Add(AssetData.ObjectPath, ExistingPackageName);
+			}
+
+			DuplicatedActorFiles.Add(AssetData.ObjectPath, AssetData.PackageName);			
+		});
+
+		AssetRegistry.ScanPathsSynchronous({LevelExternalPathActors});
+	}
+
+	if (DuplicatedActorFiles.Num())
+	{
+		// Gather unique keys from the duplicated map.
+		// Note: TMultiMap::GenerateKeyArray will return duplicated keys, clean that.
+		TArray<FName> DuplicatedActorFilesKeys;
+		DuplicatedActorFiles.GenerateKeyArray(DuplicatedActorFilesKeys);
+		DuplicatedActorFilesKeys.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+		int32 EndIndex = Algo::Unique(DuplicatedActorFilesKeys);
+		DuplicatedActorFilesKeys.RemoveAt(EndIndex, DuplicatedActorFilesKeys.Num() - EndIndex);
+
+		// Report or delete duplicated entries, keeping the latest one
+		for (const FName& DuplicatedActorFileKey : DuplicatedActorFilesKeys)
+		{
+			TArray<FName> DuplicatedActorFilesPaths;
+			DuplicatedActorFiles.MultiFind(DuplicatedActorFileKey, DuplicatedActorFilesPaths);
+			check(DuplicatedActorFilesPaths.Num() > 1);
+
+			FDateTime MostRecentStamp;
+			int32 MostRecentIndex = INDEX_NONE;
+
+			for (int32 i=0; i<DuplicatedActorFilesPaths.Num(); i++)
+			{
+				FString Filename = FPackageName::LongPackageNameToFilename(DuplicatedActorFilesPaths[i].ToString(), FPackageName::GetAssetPackageExtension());
+				FDateTime FileTimeStamp = IFileManager::Get().GetTimeStamp(*Filename);
+
+				if ((MostRecentIndex == INDEX_NONE) || (FileTimeStamp > MostRecentStamp))
+				{
+					MostRecentIndex = i;
+					MostRecentStamp = FileTimeStamp;
+				}
+			}
+
+			check(MostRecentIndex != INDEX_NONE);
+
+			for (int32 i=0; i<DuplicatedActorFilesPaths.Num(); i++)
+			{
+				if (i != MostRecentIndex)
+				{
+					FString Filename = FPackageName::LongPackageNameToFilename(DuplicatedActorFilesPaths[i].ToString(), FPackageName::GetAssetPackageExtension());
+
+					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Warning, TEXT("Found duplicated actor file %s"), *Filename);
+
+					if (bRepair)
+					{
+						DeleteFile(Filename);
+					}
+				}
+			}
+		}
+
+		return bRepair;
+	}
+
+	return true;
 }
 
 bool UConvertLevelsToExternalActorsCommandlet::AddPackageToSourceControl(UPackage* Package)
@@ -139,6 +228,75 @@ bool UConvertLevelsToExternalActorsCommandlet::CheckoutPackage(UPackage* Package
 	return true;
 }
 
+bool UConvertLevelsToExternalActorsCommandlet::DeleteFile(const FString& Filename)
+{
+	if (!UseSourceControl())
+	{
+		if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*Filename, false) ||
+			!IPlatformFile::GetPlatformPhysical().DeleteFile(*Filename))
+		{
+			UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error deleting %s"), *Filename);
+			return false;
+		}
+	}
+	else 
+	{
+		FSourceControlStatePtr SourceControlState = GetSourceControlProvider().GetState(Filename, EStateCacheUsage::ForceUpdate);
+
+		if (SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
+		{
+			FString OtherCheckedOutUser;
+			if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
+			{
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Overwriting package %s already checked out by %s, will not submit"), *Filename, *OtherCheckedOutUser);
+				return false;
+			}
+			else if (!SourceControlState->IsCurrent())
+			{
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Overwriting package %s (not at head revision), will not submit"), *Filename);
+				return false;
+			}
+			else if (SourceControlState->IsAdded())
+			{
+				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
+				{
+					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
+					return false;
+				}
+			}
+			else
+			{
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Log, TEXT("Deleting package %s from source control"), *Filename);
+
+				if (SourceControlState->IsCheckedOut())
+				{
+					if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
+					{
+						UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
+						return false;
+					}
+				}
+
+				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FDelete>(), Filename) != ECommandResult::Succeeded)
+				{
+					UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error deleting package %s from source control"), *Filename);
+					return false;
+				}
+			}
+		}
+		else
+		{
+			if (!IFileManager::Get().Delete(*Filename, false, true))
+			{
+				UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error deleting package %s locally"), *Filename);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 int32 UConvertLevelsToExternalActorsCommandlet::Main(const FString& Params)
 {
 	FAutoScopedDurationTimer ConversionTimer;
@@ -157,14 +315,22 @@ int32 UConvertLevelsToExternalActorsCommandlet::Main(const FString& Params)
 	bool bConvertSubLevel = Switches.Contains(TEXT("convertsublevels"));
 	bool bRecursiveSubLevel = Switches.Contains(TEXT("recursive"));
 	bool bConvertToExternal = !Switches.Contains(TEXT("internal"));
+	bool bRepairActorFiles = Switches.Contains(TEXT("repair"));
 
 	FScopedSourceControl SourceControl;
 	SourceControlProvider = bNoSourceControl ? nullptr : &ISourceControlModule::Get().GetProvider();
 
-	// This will convert imcomplete package name to a fully qualifed path
+	// This will convert incomplete package name to a fully qualifed path
 	if (!FPackageName::SearchForPackageOnDisk(Tokens[0], &Tokens[0]))
 	{
 		UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Unknown level '%s'"), *Tokens[0]);
+		return 1;
+	}
+
+	// Check external actors consistency for this level
+	if (!CheckExternalActors(Tokens[0], bRepairActorFiles))
+	{
+		UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("External actor files inconsistency"));
 		return 1;
 	}
 

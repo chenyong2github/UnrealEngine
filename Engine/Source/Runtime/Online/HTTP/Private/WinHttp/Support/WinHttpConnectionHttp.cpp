@@ -423,7 +423,17 @@ bool FWinHttpConnectionHttp::SetHeaders(const TMap<FString, FString>& Headers)
 		if (!WinHttpAddRequestHeaders(RequestHandle.Get(), TCHAR_TO_WCHAR(*HeaderBuffer), HeadersLength, Flags))
 		{
 			const DWORD ErrorCode = GetLastError();
+
+			// Attempted to set an empty header value - This normally deletes an existing header by the same name, but one did not exist.
+			if (HeaderPair.Value.IsEmpty() && ErrorCode == ERROR_WINHTTP_HEADER_NOT_FOUND)
+			{
+				UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Ignoring request to clear header as it was not set. HeaderKey=[%s]"), this, *HeaderPair.Key);
+				continue;
+			}
+
 			FWinHttpErrorHelper::LogWinHttpAddRequestHeadersFailure(ErrorCode);
+
+			UE_LOG(LogWinHttp, Warning, TEXT("WinHttp Http[%p]: Failed to add header to request. Header=[%s]"), this, *HeaderBuffer);
 			return false;
 		}
 	}
@@ -465,7 +475,17 @@ bool FWinHttpConnectionHttp::SetHeader(const FString& Key, const FString& Value)
 	if (!WinHttpAddRequestHeaders(RequestHandle.Get(), TCHAR_TO_WCHAR(*HeaderBuffer), HeaderLength, Flags))
 	{
 		const DWORD ErrorCode = GetLastError();
+
+		// Attempted to set an empty header value - This normally deletes an existing header by the same name, but one did not exist.
+		if (Value.IsEmpty() && ErrorCode == ERROR_WINHTTP_HEADER_NOT_FOUND)
+		{
+			UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Ignoring request to clear header as it was not set. HeaderKey=[%s]"), this, *Key);
+			return true;
+		}
+
 		FWinHttpErrorHelper::LogWinHttpAddRequestHeadersFailure(ErrorCode);
+
+		UE_LOG(LogWinHttp, Warning, TEXT("WinHttp Http[%p]: Failed to add header to request. Header=[%s]"), this, *HeaderBuffer);
 		return false;
 	}
 

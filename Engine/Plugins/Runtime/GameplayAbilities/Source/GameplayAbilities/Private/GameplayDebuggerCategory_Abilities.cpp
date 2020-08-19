@@ -168,10 +168,11 @@ void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, F
 		OwnerTags.Reset();
 		AbilityComp->GetOwnedGameplayTags(OwnerTags);
 
-		TArray<FString> OwnerTagsStr = OwnerTags.ToStringsMaxLen(1024);
+		TArray<FString> OwnerTagsStrArray = OwnerTags.ToStringsMaxLen(1024);
+		FString OwnerTagsStr = OwnerTagsStrArray.Num() > 0 ? OwnerTagsStrArray[0] : TEXT("");
 		FString WrappedOwnerTagsStr;
-		const FString& OwnerTagsStrRef = WrapStringAccordingToViewport(*OwnerTagsStr.GetData(), WrappedOwnerTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnerTagsStr : *OwnerTagsStr.GetData();
 
+		const FString& OwnerTagsStrRef = WrapStringAccordingToViewport(OwnerTagsStr, WrappedOwnerTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnerTagsStr : OwnerTagsStr;
 		CanvasContext.Printf(TEXT("Local Tags: \n{cyan}%s"), *OwnerTagsStrRef);
 	}
 

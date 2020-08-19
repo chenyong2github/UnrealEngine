@@ -10,6 +10,7 @@
 #include "DynamicBufferAllocator.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraGPUSortInfo.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sort Particles"), STAT_NiagaraSortParticles, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Global Float Alloc - All"), STAT_NiagaraAllocateGlobalFloatAll, STATGROUP_Niagara);
@@ -247,7 +248,7 @@ FNiagaraDynamicDataBase::~FNiagaraDynamicDataBase()
 	}
 }
 
-FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
+FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsLowLatencyTranslucent)const
 {
 	FNiagaraDataBuffer* Ret = nullptr;
 
@@ -257,7 +258,7 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender()const
 	}
 	else
 	{
-		Ret = Data.GPUExecContext->GetDataToRender();
+		Ret = Data.GPUExecContext->GetDataToRender(bIsLowLatencyTranslucent);
 	}
 
 	checkSlow(Ret == nullptr || Ret->IsBeingRead());
@@ -281,17 +282,38 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 #endif
 }
 
-void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
+void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	//Get our list of valid base materials. Fall back to default material if they're not valid.
 	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
+	bool bCreateMidsForUsedMaterials = InProps->NeedsMIDsForMaterials();
+
+	uint32 Index = 0;
 	for (UMaterialInterface*& Mat : BaseMaterials_GT)
 	{
 		if (!IsMaterialValid(Mat))
 		{
 			Mat = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
-		BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
+		else if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
+		{
+			const UNiagaraComponent* Comp = InComponent;
+			for (const FNiagaraMaterialOverride& Override : Comp->EmitterMaterials)
+			{
+				if (Override.EmitterRendererProperty == InProps)
+				{
+					if (Index == Override.MaterialSubIndex)
+					{
+						Mat = Override.Material;
+						continue;
+					}					
+				}
+			}
+		}
+
+		Index ++;
+		if (Mat)
+			BaseMaterialRelevance_GT |= Mat->GetRelevance_Concurrent(FeatureLevel);
 	}
 }
 
@@ -380,6 +402,85 @@ struct FParticleOrderAsUint
 		
 	FORCEINLINE operator uint32() const { return OrderAsUint; }
 };
+
+void FNiagaraRenderer::ProcessMaterialParameterBindings(TConstArrayView< FNiagaraMaterialAttributeBinding > InMaterialParameterBindings, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const
+{
+	if (InMaterialParameterBindings.Num() == 0 || !InEmitter)
+		return;
+
+	FNiagaraSystemInstance* SystemInstance = InEmitter->GetParentSystemInstance();
+	if (SystemInstance)
+	{
+		auto SystemSim = SystemInstance->GetSystemSimulation();
+
+		if (SystemSim.IsValid())
+		{
+			for (UMaterialInterface* Mat : InMaterials)
+			{
+				UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(Mat);
+				if (MatDyn)
+				{
+					for (const FNiagaraMaterialAttributeBinding& Binding : InMaterialParameterBindings)
+					{
+
+						if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec4Def() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetVec4Def()))
+						{
+							FLinearColor Var(1.0f, 1.0f, 1.0f, 1.0f);
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							MatDyn->SetVectorParameterValue(Binding.MaterialParameterName, Var);
+						}
+						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetColorDef() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetColorDef()))
+						{
+							FLinearColor Var(1.0f, 1.0f, 1.0f, 1.0f);
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							MatDyn->SetVectorParameterValue(Binding.MaterialParameterName, Var);
+						}
+						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec3Def() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetVec3Def()))
+						{
+							FLinearColor Var(1.0f, 1.0f, 1.0f, 1.0f);
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							MatDyn->SetVectorParameterValue(Binding.MaterialParameterName, Var);
+						}
+						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec2Def() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetVec2Def()))
+						{
+							FLinearColor Var(1.0f, 1.0f, 1.0f, 1.0f);
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							MatDyn->SetVectorParameterValue(Binding.MaterialParameterName, Var);
+						}
+						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetFloatDef() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetFloatDef()))
+						{
+							float Var = 1.0f;
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							MatDyn->SetScalarParameterValue(Binding.MaterialParameterName, Var);
+						}
+						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetUObjectDef() ||
+							Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetUTextureDef() ||
+							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetUTextureDef()))
+						{
+							UObject* Var = nullptr;
+							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
+							if (Var)
+							{
+								UTexture* Tex = Cast<UTexture>(Var);
+								if (Tex && Tex->Resource != nullptr)
+								{
+									MatDyn->SetTextureParameterValue(Binding.MaterialParameterName, Tex);
+									continue;
+								}
+
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
 void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FNiagaraRendererVariableInfo& SortVariable, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices)
 {

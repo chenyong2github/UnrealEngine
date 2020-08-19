@@ -16,15 +16,11 @@
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraRibbonRendererProperties.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraRenderer.h"
-#include "Misc/CoreDelegates.h"
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "Scalability.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -427,6 +423,7 @@ UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
 
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
+UClass* FNiagaraTypeDefinition::UTextureClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -457,6 +454,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -470,16 +468,19 @@ TSet<UStruct*> FNiagaraTypeDefinition::BoolStructs;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::CollisionEventDef;
 
 
-TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredTypes;
+FNiagaraTypeRegistry::RegisteredTypesArray FNiagaraTypeRegistry::RegisteredTypes;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredParamTypes;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredPayloadTypes;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredUserDefinedTypes;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
+TMap<uint32, int32> FNiagaraTypeRegistry::RegisteredTypeIndexMap;
+FRWLock FNiagaraTypeRegistry::RegisteredTypesLock;
 
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
-	return GetStruct()->IsChildOf(UNiagaraDataInterface::StaticClass());
+	UStruct* ClassStruct = GetStruct();
+	return ClassStruct ? ClassStruct->IsChildOf(UNiagaraDataInterface::StaticClass()) : false;
 }
 
 void FNiagaraTypeDefinition::Init()
@@ -507,6 +508,7 @@ void FNiagaraTypeDefinition::Init()
 
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
+	FNiagaraTypeDefinition::UTextureClass = UTexture::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -528,6 +530,7 @@ void FNiagaraTypeDefinition::Init()
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
+	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -703,6 +706,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
+	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);
@@ -736,7 +742,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			{
 				FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
 			}
-			if (Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+
+			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
 			}
@@ -747,7 +756,6 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
 		}
 	}
-
 
 	for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
 	{
@@ -768,7 +776,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 				FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
 			}
 
-			if (Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
 			}
@@ -778,10 +788,6 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload enum: %s"), *AssetRef.ToString());
 		}
 	}
-
-	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, true);
-
-	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 }
 #endif
 
@@ -987,6 +993,97 @@ void INiagaraModule::ProcessShaderCompilationQueue()
 	checkf(OnProcessQueue.IsBound(), TEXT("Can not process shader queue.  Delegate was never set."));
 	return OnProcessQueue.Execute();
 }
+
+const FNiagaraTypeDefinition& FNiagaraTypeDefinitionHandle::Resolve() const
+{
+	const auto& RegisteredTypes = FNiagaraTypeRegistry::GetRegisteredTypes();
+
+	if (RegisteredTypes.IsValidIndex(RegisteredTypeIndex))
+	{
+		return RegisteredTypes[RegisteredTypeIndex];
+	}
+
+	static FNiagaraTypeDefinition Dummy;
+	return Dummy;
+}
+
+int32 FNiagaraTypeDefinitionHandle::Register(const FNiagaraTypeDefinition& TypeDef) const
+{
+	if (!TypeDef.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	return FNiagaraTypeRegistry::RegisterIndexed(TypeDef);
+}
+
+FArchive& operator<<(FArchive& Ar, FNiagaraTypeDefinitionHandle& Handle)
+{
+	UScriptStruct* TypeDefStruct = FNiagaraTypeDefinition::StaticStruct();
+
+	if (Ar.IsSaving())
+	{
+		FNiagaraTypeDefinition TypeDef = *Handle;
+		TypeDefStruct->SerializeItem(Ar, &TypeDef, nullptr);
+	}
+	else if (Ar.IsLoading())
+	{
+		FNiagaraTypeDefinition TypeDef;
+		TypeDefStruct->SerializeItem(Ar, &TypeDef, nullptr);
+		Handle = FNiagaraTypeDefinitionHandle(TypeDef);
+	}
+
+	return Ar;
+}
+
+bool FNiagaraVariableBase::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (!Ar.IsLoading() || NiagaraVersion >= FNiagaraCustomVersion::VariablesUseTypeDefRegistry)
+	{
+		Ar << Name;
+		Ar << TypeDefHandle;
+		return true;
+	}
+
+	return false;
+}
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraVariableBase::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading() && Ar.CustomVer(FNiagaraCustomVersion::GUID) < FNiagaraCustomVersion::VariablesUseTypeDefRegistry)
+	{
+		TypeDefHandle = FNiagaraTypeDefinitionHandle(TypeDef_DEPRECATED);
+	}
+}
+#endif
+
+bool FNiagaraVariable::Serialize(FArchive& Ar)
+{
+	FNiagaraVariableBase::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	const int32 NiagaraVersion = Ar.CustomVer(FNiagaraCustomVersion::GUID);
+
+	if (!Ar.IsLoading() || NiagaraVersion >= FNiagaraCustomVersion::VariablesUseTypeDefRegistry)
+	{
+		Ar << VarData;
+		return true;
+	}
+
+	// loading legacy data
+	return false;
+}
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraVariable::PostSerialize(const FArchive& Ar)
+{
+	FNiagaraVariableBase::PostSerialize(Ar);
+}
+#endif
 
 #if WITH_EDITOR
 const TArray<FNiagaraVariable>& FNiagaraGlobalParameters::GetVariables()

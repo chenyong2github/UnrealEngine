@@ -31,6 +31,8 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
+
+	UTextureRenderTarget2D* TargetTexture = nullptr;
 };
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
@@ -48,12 +50,13 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 
 	void BeginSimulate();
 	void EndSimulate();
+	void* DebugTargetTexture = nullptr;
 };
 
 struct FNiagaraDataInterfaceProxyGrid2DCollectionProxy : public FNiagaraDataInterfaceProxyRW
 {
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy() {}
-
+	
 	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
@@ -79,6 +82,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	FNiagaraUserParameterBinding RenderTargetUserParameter;
 
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
+	uint8 bCreateRenderTarget : 1;
+
 	virtual void PostInitProperties() override;
 	
 	//~ UNiagaraDataInterface interface
@@ -98,6 +104,11 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FGrid2DCollectionRWInstanceData_GameThread); }
 	virtual bool HasPreSimulateTick() const override { return true; }
+
+	virtual bool CanExposeVariables() const override { return true;}
+	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
+	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
+
 	//~ UNiagaraDataInterface interface END
 
 	// Fills a texture render target 2d with the current data from the simulation
@@ -128,11 +139,18 @@ public:
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
 	//~ UNiagaraDataInterface interface END
 
+	static FNiagaraVariableBase ExposedRTVar;
+
 	TMap<FNiagaraSystemInstanceID, FGrid2DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
+
+	UPROPERTY(Transient)
+	TMap< uint64, UTextureRenderTarget2D*> ManagedRenderTargets;
 	
 };

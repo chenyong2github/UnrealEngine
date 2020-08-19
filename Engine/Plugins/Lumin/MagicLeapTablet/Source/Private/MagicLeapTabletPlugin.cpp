@@ -6,6 +6,7 @@
 #include "MagicLeapHandle.h"
 #include "MagicLeapMath.h"
 #include "MagicLeap/Private/MagicLeapHMD.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapTablet);
 
@@ -51,6 +52,8 @@ void FMagicLeapTabletPlugin::DestroyEntityTracker()
 
 bool FMagicLeapTabletPlugin::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapTabletPlugin_Tick);
+
 	FPendingCallbackData PendingCallbackData;
 	while (PendingCallbacks.Dequeue(PendingCallbackData))
 	{

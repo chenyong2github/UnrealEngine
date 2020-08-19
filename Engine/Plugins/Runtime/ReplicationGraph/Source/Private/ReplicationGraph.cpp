@@ -420,7 +420,11 @@ UNetReplicationGraphConnection* UReplicationGraph::CreateClientConnectionManager
 	UNetReplicationGraphConnection* NewConnectionManager = NewObject<UNetReplicationGraphConnection>(this, ReplicationConnectionManagerClass.Get());
 
 	// Give it an ID
-	NewConnectionManager->ConnectionId = Connections.Num() + PendingConnections.Num();
+	const int32 NewConnectionNum = Connections.Num() + PendingConnections.Num();
+	NewConnectionManager->ConnectionOrderNum = NewConnectionNum;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NewConnectionManager->ConnectionId = NewConnectionNum;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Initialize it with us
 	NewConnectionManager->InitForGraph(this);
@@ -434,11 +438,40 @@ UNetReplicationGraphConnection* UReplicationGraph::CreateClientConnectionManager
 	return NewConnectionManager;
 }
 
+UNetReplicationGraphConnection* UReplicationGraph::FixGraphConnectionList(TArray<UNetReplicationGraphConnection*>& OutList, int32& ConnectionNum, UNetConnection* RemovedNetConnection)
+{
+	UNetReplicationGraphConnection* RemovedGraphConnection(nullptr);
+
+	for (int32 Index = 0; Index < OutList.Num(); ++Index)
+	{
+		UNetReplicationGraphConnection* CurrentGraphConnection = OutList[Index];
+		if (CurrentGraphConnection->NetConnection != RemovedNetConnection)
+		{
+			// Fix the ConnectionOrderNum
+			const int32 NewConnectionNum = ConnectionNum++;
+			CurrentGraphConnection->ConnectionOrderNum = NewConnectionNum;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			CurrentGraphConnection->ConnectionId = NewConnectionNum;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+		else
+		{
+			// Found the connection to remove
+			ensureMsgf(RemovedGraphConnection==nullptr, TEXT("Found multiple GraphConnections for the same NetConnection: %s.  PreviousGraphConnection(%i): %s | CurrentGraphConnection(%i): %s"),
+				*RemovedNetConnection->Describe(), 
+				RemovedGraphConnection->ConnectionOrderNum, *RemovedGraphConnection->GetName(),
+				CurrentGraphConnection->ConnectionOrderNum, *CurrentGraphConnection->GetName());
+			RemovedGraphConnection = CurrentGraphConnection;
+
+			OutList.RemoveAtSwap(Index--, 1, false);
+		}
+	}
+
+	return RemovedGraphConnection;
+}
+
 void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 {
-	int32 ConnectionId = 0;
-	bool bFound = false;
-
 	// Children do not have a connection manager, do not attempt to remove it here.
 	// Default behavior never calls this function with child connections anyways, so this is really only here for protection.
 	if (NetConnection->GetUChildConnection() != nullptr)
@@ -447,32 +480,24 @@ void UReplicationGraph::RemoveClientConnection(UNetConnection* NetConnection)
 		return;
 	}
 
-	// Remove the RepGraphConnection associated with this NetConnection. Also update ConnectionIds to stay compact.
-	auto UpdateList = [&](TArray<UNetReplicationGraphConnection*> List)
+	int32 ConnectionNum = 0;
+
+	UNetReplicationGraphConnection* ActiveGraphConnectionRemoved = FixGraphConnectionList(Connections, ConnectionNum, NetConnection);
+	UNetReplicationGraphConnection* PendingGraphConnectionRemoved = FixGraphConnectionList(PendingConnections, ConnectionNum, NetConnection);
+
+	if (ActiveGraphConnectionRemoved)
 	{
-		for (int32 idx=0; idx < Connections.Num(); ++idx)
-		{
-			UNetReplicationGraphConnection* ConnectionManager = Connections[idx];
-			repCheck(ConnectionManager);
+		ActiveGraphConnectionRemoved->TearDown();
+		ensure(PendingGraphConnectionRemoved == nullptr);
+	}
 
-			if (ConnectionManager->NetConnection == NetConnection)
-			{
-				ensure(!bFound);
-				ConnectionManager->TearDown();
-				Connections.RemoveAtSwap(idx, 1, false);
-				bFound = true;
-			}
-			else
-			{
-				ConnectionManager->ConnectionId = ConnectionId++;
-			}
-		}
-	};
+	if (PendingGraphConnectionRemoved)
+	{
+		PendingGraphConnectionRemoved->TearDown();
+		ensure(ActiveGraphConnectionRemoved == nullptr);
+	}
 
-	UpdateList(Connections);
-	UpdateList(PendingConnections);
-
-	if (!bFound)
+	if (!ActiveGraphConnectionRemoved && !PendingGraphConnectionRemoved)
 	{
 		// At least one list should have found the connection
 		UE_LOG(LogReplicationGraph, Warning, TEXT("UReplicationGraph::RemoveClientConnection could not find connection in Connection (%d) or PendingConnections (%d) lists"), *GetNameSafe(NetConnection), Connections.Num(), PendingConnections.Num());
@@ -1149,7 +1174,6 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 
 		const float MaxDistanceScaling = PrioritizationConstants.MaxDistanceScaling;
 		const uint32 MaxFramesSinceLastRep = PrioritizationConstants.MaxFramesSinceLastRep;
-		const int32 TotalNumOfConnections = 1 + NetConnection->Children.Num();
 
 		for (FActorRepListRawView& List : GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default))
 		{
@@ -1213,7 +1237,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 				if (GlobalData.Settings.DistancePriorityScale > 0.f)
 				{
 					float SmallestDistanceSq = TNumericLimits<float>::Max();
-					int32 ConnectionsThatSkipActor = 0;
+					int32 ViewersThatSkipActor = 0;
 					
 					for (const FNetViewer& CurViewer : Viewers)
 					{
@@ -1223,13 +1247,13 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 						// Figure out if we should be skipping this actor
 						if (bDoDistanceCull && ConnectionData.GetCullDistanceSquared() > 0.f && DistSq > ConnectionData.GetCullDistanceSquared())
 						{
-							++ConnectionsThatSkipActor;
+							++ViewersThatSkipActor;
 							continue;
 						}
 					}
 
 					// If no one is near this actor, skip it.
-					if (ConnectionsThatSkipActor >= TotalNumOfConnections)
+					if (ViewersThatSkipActor >= Viewers.Num())
 					{
 						DO_REPGRAPH_DETAILS(PrioritizedReplicationList.GetNextSkippedDebugDetails(Actor)->DistanceCulled = FMath::Sqrt(SmallestDistanceSq));
 
@@ -3840,6 +3864,8 @@ bool ContainsReverse(const FActorRepListRefView& List, FActorRepListType Actor)
 
 void UReplicationGraphNode_ConnectionDormancyNode::NotifyActorDormancyFlush(FActorRepListType Actor)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyActorDormancyFlush);
+
 	FNewReplicatedActorInfo ActorInfo(Actor);
 
 	// Dormancy is flushed so we need to make sure this actor is on this connection specific node.
@@ -3872,7 +3898,7 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyActorDormancyFlush(FAct
 		if (RemoveList)
 		{
 			RemoveList->ReplicationActorList.PrepareForWrite();
-			RemoveList->ReplicationActorList.Remove(Actor);
+			RemoveList->ReplicationActorList.RemoveFast(Actor);
 		}
 	}
 }
@@ -3905,6 +3931,8 @@ void UReplicationGraphNode_ConnectionDormancyNode::OnClientVisibleLevelNameAdd(F
 
 bool UReplicationGraphNode_ConnectionDormancyNode::NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool WarnIfNotFound)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyRemoveNetworkActor);
+
 	// Remove from active list by calling super
 	if (Super::RemoveNetworkActorFast(ActorInfo))
 	{
@@ -3952,12 +3980,15 @@ void UReplicationGraphNode_DormancyNode::NotifyResetAllNetworkActors()
 
 void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
-	Super::NotifyAddNetworkActor(ActorInfo);
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_AddDormantActor);
 	
+	Super::NotifyAddNetworkActor(ActorInfo);
+
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0 && ConnectionNodes.Num() > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: AddDormantActor %s on %s. Adding to %d connection nodes."), *ActorInfo.Actor->GetPathName(), *GetName(), ConnectionNodes.Num());
 	
 	for (auto& MapIt : ConnectionNodes)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyAddNetworkActor);
 		UReplicationGraphNode_ConnectionDormancyNode* Node = MapIt.Value;
 		Node->NotifyAddNetworkActor(ActorInfo);
 	}
@@ -3968,6 +3999,8 @@ void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedAct
 
 void UReplicationGraphNode_DormancyNode::RemoveDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_RemoveDormantActor);
+
 	UE_CLOG(CVar_RepGraph_LogActorRemove>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_DormancyNode::RemoveDormantActor %s on %s. (%d connection nodes). ChildNodes: %d"), *GetNameSafe(ActorInfo.Actor), *GetPathName(), ConnectionNodes.Num(), AllChildNodes.Num());
 
 	Super::RemoveNetworkActorFast(ActorInfo);
@@ -4034,7 +4067,7 @@ UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode
 
 void UReplicationGraphNode_DormancyNode::OnActorDormancyFlush(FActorRepListType Actor, FGlobalActorReplicationInfo& GlobalInfo)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_OnActorDormancyFlush);
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_OnActorDormancyFlush);
 
 	if (CVar_RepGraph_Verify)
 	{

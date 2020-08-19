@@ -82,16 +82,13 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	FTransform LocalToWorld = FTransform::Identity;
 	if (FNiagaraSystemInstance* SystemInstance = Emitter->GetParentSystemInstance())
 	{
-		if (UNiagaraComponent* Component = SystemInstance->GetComponent())
-		{
-			LocalToWorld = Component->GetComponentToWorld();
-		}
+		LocalToWorld = SystemInstance->GetWorldTransform();
 	}
 
-	const FLinearColor DefaultColor = Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>();
+	const FLinearColor DefaultColor = Properties->ColorBinding.GetDefaultValue<FLinearColor>();
 	const FVector DefaultPos = bLocalSpace ? FVector::ZeroVector : LocalToWorld.GetLocation();
-	const float DefaultRadius = Properties->RadiusBinding.DefaultValueIfNonExistent.GetValue<float>();
-	const float DefaultScattering = Properties->VolumetricScatteringBinding.DefaultValueIfNonExistent.GetValue<float>();
+	const float DefaultRadius = Properties->RadiusBinding.GetDefaultValue<float>();
+	const float DefaultScattering = Properties->VolumetricScatteringBinding.GetDefaultValue<float>();
 	const FNiagaraBool DefaultEnabled(true);
 
 	for (uint32 ParticleIndex = 0; ParticleIndex < DataToRender->GetNumInstances(); ParticleIndex++)

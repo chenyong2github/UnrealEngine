@@ -852,7 +852,7 @@ private:
 	FMediaTimeStamp CurrentFrameAudioTimeStamp;
 
 	/** Estimation for next frame's video timestamp (used when no audio present or active in stream) */
-	FMediaTimeStamp NextEstVideoTimeAtFrameStart;
+	FMediaTimeStampSample NextEstVideoTimeAtFrameStart;
 
 	/** Set if sinks are to be flushed at the request of the player. **/
 	TAtomic<bool>	bIsSinkFlushPending;

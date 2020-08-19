@@ -178,8 +178,8 @@ public:
 	 * @param	Location		Location of the new actor.
 	 * @return	The created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	static AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (KeyWords = "Transient"))
+	static AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Create an actor and place it in the world editor. Can be created from a Blueprint or a Class.
@@ -188,8 +188,8 @@ public:
 	 * @param	Location		Location of the new actor.
 	 * @return	The created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass"))
-	static AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator);
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass", KeyWords = "Transient"))
+	static AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
@@ -208,6 +208,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static UWorld* GetGameWorld();
+	
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static TArray<UWorld*> GetPIEWorlds(bool bIncludeDedicatedServer);
 
 public:
 	/**

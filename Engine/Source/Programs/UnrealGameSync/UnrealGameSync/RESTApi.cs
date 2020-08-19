@@ -12,6 +12,19 @@ using System.Web.Script.Serialization;
 
 namespace UnrealGameSync
 {
+	class RestException : Exception
+	{
+		public RestException(string Method, string Uri, Exception InnerException)
+			: base(String.Format("Error executing {0} {1}", Method, Uri), InnerException)
+		{
+		}
+
+		public override string ToString()
+		{
+			return String.Format("{0}\n\n{1}", Message, InnerException.ToString());
+		}
+	}
+
 	public static class RESTApi
 	{
 		private static string SendRequestInternal(string URI, string Resource, string Method, string RequestBody = null, params string[] QueryParams)
@@ -30,17 +43,17 @@ namespace UnrealGameSync
 					}
 				}
 			}
+
 			HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(TargetURI.ToString());
 			Request.ContentType = "application/json";
 			Request.Method = Method;
-
 
 			// Add json to request body
 			if (!string.IsNullOrEmpty(RequestBody))
 			{
 				if (Method == "POST" || Method == "PUT")
 				{
-					byte[] bytes = Encoding.ASCII.GetBytes(RequestBody);
+					byte[] bytes = Encoding.UTF8.GetBytes(RequestBody);
 					using (Stream RequestStream = Request.GetRequestStream())
 					{
 						RequestStream.Write(bytes, 0, bytes.Length);
@@ -49,28 +62,19 @@ namespace UnrealGameSync
 			}
 			try
 			{
-				WebResponse Repsonse = Request.GetResponse();
-				string ResponseContent = null;
-				using (StreamReader ResponseReader = new System.IO.StreamReader(Repsonse.GetResponseStream(), Encoding.Default))
+				using (WebResponse Response = Request.GetResponse())
 				{
-					ResponseContent = ResponseReader.ReadToEnd();
-				}
-				return ResponseContent;
-			}
-			catch (WebException ex)
-			{
-				if (ex.Response != null)
-				{
-					throw new Exception(string.Format("Request returned status: {0}, message: {1}", ((HttpWebResponse)ex.Response).StatusCode, ex.Message));
-				}
-				else
-				{
-					throw new Exception(string.Format("Request returned message: {0}", ex.InnerException.Message));
+					string ResponseContent;
+					using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.UTF8))
+					{
+						ResponseContent = ResponseReader.ReadToEnd();
+					}
+					return ResponseContent;
 				}
 			}
-			catch (Exception ex)
+			catch (Exception Ex)
 			{
-				throw new Exception(string.Format("Couldn't complete the request, error: {0}", ex.Message));
+				throw new RestException(Method, Request.RequestUri.ToString(), Ex);
 			}
 		}
 
@@ -86,7 +90,7 @@ namespace UnrealGameSync
 
 		public static T GET<T>(string URI, string Resource, params string[] QueryParams)
 		{
-			return new JavaScriptSerializer().Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
+			return new JavaScriptSerializer { MaxJsonLength = 86753090 }.Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
 		}
 
 		public static string PUT<T>(string URI, string Resource, T Object, params string[] QueryParams)

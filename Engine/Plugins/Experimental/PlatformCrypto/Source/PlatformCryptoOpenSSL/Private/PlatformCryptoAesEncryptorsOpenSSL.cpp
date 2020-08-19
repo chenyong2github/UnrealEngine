@@ -59,15 +59,19 @@ int32 FPlatformCryptoEncryptor_AES_Base_OpenSSL::GetCipherInitializationVectorSi
 
 EPlatformCryptoResult FPlatformCryptoEncryptor_AES_Base_OpenSSL::GenerateAuthTag(const TArrayView<uint8> OutAuthTag, int32& OutAuthTagBytesWritten) const
 {
+	OutAuthTagBytesWritten = 0;
+
 	if (State != EEncryptorState::Finalized)
 	{
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoEncryptor_AES_Base_OpenSSL::GenerateAuthTag: Invalid state. Was %s, but should be Finalized"), LexToString(State));
 		return EPlatformCryptoResult::Failure;
 	}
 
-	if (OutAuthTag.Num() < GetCipherAuthTagSizeBytes())
+	const int32 AuthTagSizeBytes = GetCipherAuthTagSizeBytes();
+
+	if (OutAuthTag.Num() < AuthTagSizeBytes)
 	{
-		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::GenerateAuthTag: Invalid AuthTag Size. TagSize=[%d] Expected=[%d]"), OutAuthTag.Num(), GetCipherAuthTagSizeBytes());
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::GenerateAuthTag: Invalid AuthTag Size. TagSize=[%d] Expected=[%d]"), OutAuthTag.Num(), AuthTagSizeBytes);
 		return EPlatformCryptoResult::Failure;
 	}
 
@@ -77,6 +81,8 @@ EPlatformCryptoResult FPlatformCryptoEncryptor_AES_Base_OpenSSL::GenerateAuthTag
 		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::GenerateAuthTag: EVP_CIPHER_CTX_ctrl failed. Result=[%d]"), GenerateAuthTagResult);
 		return EPlatformCryptoResult::Failure;
 	}
+
+	OutAuthTagBytesWritten = AuthTagSizeBytes;
 
 	return EPlatformCryptoResult::Success;
 }
@@ -285,7 +291,7 @@ int32 FPlatformCryptoEncryptor_AES_256_GCM_OpenSSL::GetUpdateBufferSizeBytes(con
 
 int32 FPlatformCryptoEncryptor_AES_256_GCM_OpenSSL::GetFinalizeBufferSizeBytes() const
 {
-	return 0;
+	return GetCipherBlockSizeBytes();
 }
 
 // Undef what we defined above

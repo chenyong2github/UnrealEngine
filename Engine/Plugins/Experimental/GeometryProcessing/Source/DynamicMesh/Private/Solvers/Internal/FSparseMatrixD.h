@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Util/ElementLinearization.h"   // TVector3Arrays
 
+#include "Solvers/MatrixInterfaces.h"
+#include "Solvers/LaplacianMatrixAssembly.h"
 
 // According to http://eigen.tuxfamily.org/index.php?title=Main_Page 
 // SimplicialCholesky, AMD ordering, and constrained_cg are disabled.
@@ -32,6 +34,45 @@ THIRD_PARTY_INCLUDES_END
 //     Also, to change everything to float / double just change the scalar type here
 
 typedef Eigen::SparseMatrix<double, Eigen::ColMajor>  FSparseMatrixD;
+
+
+
+
+//
+// Extension of TSparseMatrixAssembler suitable for eigen sparse matrix
+//
+class FEigenSparseMatrixAssembler : public UE::Solvers::TSparseMatrixAssembler<double>
+{
+public:
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	TUniquePtr<FSparseMatrixD> Matrix;
+	std::vector<MatrixTripletT> EntryTriplets;
+
+	FEigenSparseMatrixAssembler(int32 RowsI, int32 ColsJ)
+	{
+		Matrix = MakeUnique<FSparseMatrixD>(RowsI, ColsJ);
+
+		ReserveEntriesFunc = [this](int32 NumElements)
+		{
+			EntryTriplets.reserve(NumElements);
+		};
+
+		AddEntryFunc = [this](int32 i, int32 j, double Value)
+		{
+			EntryTriplets.push_back(MatrixTripletT(i, j, Value));
+		};
+	}
+
+	void ExtractResult(FSparseMatrixD& Result)
+	{
+		Matrix->setFromTriplets(EntryTriplets.begin(), EntryTriplets.end());
+		Matrix->makeCompressed();
+
+		Result.swap(*Matrix);
+	}
+};
 
 
 

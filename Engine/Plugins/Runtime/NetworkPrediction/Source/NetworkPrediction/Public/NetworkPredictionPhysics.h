@@ -212,16 +212,16 @@ struct NETWORKPREDICTION_API FNetworkPredictionPhysicsState
 		PrimitiveComponent->MoveComponent(MoveBy, UnrealTransform.GetRotation(), false, nullptr, MOVECOMP_SkipPhysicsMove);
 	}
 
-	static void PostResimulate(UPrimitiveComponent* Driver)
+	static void PostResimulate(UPrimitiveComponent* PrimitiveComponent, const FBodyInstance* BodyInstance)
 	{
-		npCheckSlow(Driver);
+		MarshalPhysicsToComponent(PrimitiveComponent, BodyInstance);
 
 		// We need to force a marshal of physics data -> PrimitiveComponent in cases where a sleeping object was asleep before and after a correction,
 		// but waking up and calling SyncComponentToRBPhysics() is causing some bad particle data to feed back into physics. This is probably not the right
 		// way. Disabling for now to avoid the asserts but will cause the sleeping object-not-updated bug to reappear.
 		
-		//Driver->WakeAllRigidBodies();
-		//Driver->SyncComponentToRBPhysics();
+		//PrimitiveComponent->WakeAllRigidBodies();
+		//PrimitiveComponent->SyncComponentToRBPhysics();
 		//npEnsureSlow(ActorHandle->R().IsNormalized());
 	}
 
@@ -287,7 +287,7 @@ struct FGenericPhysicsModelDef : FNetworkPredictionModelDef
 	NP_MODEL_BODY();
 
 	using PhysicsState = FNetworkPredictionPhysicsState;
-	using Driver = UPrimitiveComponent; // this is required for interpolation mode to work, see FNetworkPredictionPhysicsState::FinalizeInterpolatedPhysics. Would like to not require it one day.
+	using Driver = UPrimitiveComponent;
 
 	static const TCHAR* GetName() { return TEXT("Generic Physics Actor"); }
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::Physics; }

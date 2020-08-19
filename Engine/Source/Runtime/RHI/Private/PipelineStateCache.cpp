@@ -265,7 +265,7 @@ public:
 		int32 Index = 0;
 		for (FRHIRayTracingShader* Shader : Initializer.GetHitGroupTable())
 		{
-			HitGroupShaderMap.Add(Shader, Index++);
+			HitGroupShaderMap.Add(Shader->GetHash(), Index++);
 		}
 	}
 
@@ -304,7 +304,7 @@ public:
 	uint64 HitsAcrossFrames = 0;
 	uint64 LastFrameHit = 0;
 
-	TMap<FRHIRayTracingShader*, int32> HitGroupShaderMap;
+	TMap<FSHAHash, int32> HitGroupShaderMap;
 
 #if PIPELINESTATECACHE_VERIFYTHREADSAFE
 	FThreadSafeCounter InUseCount;
@@ -324,7 +324,7 @@ RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPi
 int32 FindRayTracingHitGroupIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* HitGroupShader, bool bRequired)
 {
 #if RHI_RAYTRACING
-	if (int32* FoundIndex = Pipeline->HitGroupShaderMap.Find(HitGroupShader))
+	if (int32* FoundIndex = Pipeline->HitGroupShaderMap.Find(HitGroupShader->GetHash()))
 	{
 		return *FoundIndex;
 	}
@@ -1161,7 +1161,10 @@ public:
 
 	ENamedThreads::Type GetDesiredThread()
 	{
-		return bBackgroundTask ? ENamedThreads::AnyBackgroundThreadNormalTask : CPrio_FCompilePipelineStateTask.Get();
+		// NOTE: RT PSO compilation internally spawns high-priority shader compilation tasks and waits on them.
+		// FCompileRayTracingPipelineStateTask itself must run at lower priority to prevent deadlocks when
+		// there are multiple RTPSO tasks that all wait on compilation via WaitUntilTasksComplete().
+		return bBackgroundTask ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::AnyNormalThreadNormalTask;
 	}
 
 private:

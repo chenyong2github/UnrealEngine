@@ -2130,6 +2130,18 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 			WaitTime = FMath::Max( 1.f / MaxTickRate - DeltaRealTime, 0.f );
 		}
 
+		bool bMaxTickRateHandled = false;
+		TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
+
+		for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
+		{
+			if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
+			{
+				bMaxTickRateHandled = true;
+				break;
+			}
+		}
+
 		// Enforce maximum framerate and smooth framerate by waiting.
 		double ActualWaitTime = 0.f;
 		if( WaitTime > 0 )
@@ -2142,18 +2154,6 @@ void UEngine::UpdateTimeAndHandleMaxTickRate()
 
 			SCOPE_CYCLE_COUNTER(STAT_GameTickWaitTime);
 			SCOPE_CYCLE_COUNTER(STAT_GameIdleTime);
-
-			bool bMaxTickRateHandled = false;
-			TArray<IMaxTickRateHandlerModule*> MaxTickRateHandlerModules = IModularFeatures::Get().GetModularFeatureImplementations<IMaxTickRateHandlerModule>(IMaxTickRateHandlerModule::GetModularFeatureName());
-
-			for (IMaxTickRateHandlerModule* MaxTickRateHandler : MaxTickRateHandlerModules)
-			{
-				if (MaxTickRateHandler->HandleMaxTickRate(MaxTickRate))
-				{
-					bMaxTickRateHandled = true;
-					break;
-				}
-			}
 
 			if (!bMaxTickRateHandled)
 			{
@@ -7693,6 +7693,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		const bool bAlphaSort = FParse::Param( Cmd, TEXT("ALPHASORT") );
 		const bool bCountSort = FParse::Param( Cmd, TEXT("COUNTSORT") );
 		const bool bCSV = FParse::Param(Cmd, TEXT("CSV"));
+		const bool bShowFullClassName = FParse::Param(Cmd, TEXT("FULLCLASSNAME"));
 
 		if( Objects.Num() )
 		{
@@ -7814,7 +7815,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				if (bCSV)
 				{
 					Ar.Logf(TEXT(", %s, %i, %f, %f, %f, %f, %f, %f, %f, %f"),
-						*List[i].Class->GetName(),
+						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,
@@ -7829,7 +7830,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				else
 				{
 					Ar.Logf(TEXT(" %100s %8i %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f %15.2f %15.2f"),
-						*List[i].Class->GetName(),
+						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,

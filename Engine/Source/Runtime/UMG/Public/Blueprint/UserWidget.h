@@ -196,6 +196,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConstructEvent);
 
 DECLARE_DYNAMIC_DELEGATE( FOnInputAction );
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVisibilityChangedEvent, ESlateVisibility, InVisibility);
+
 /**
  * The user widget is extensible by users through the WidgetBlueprint.
  */
@@ -308,6 +310,9 @@ public:
 	/*  */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance", meta=( DeprecatedFunction, DeprecationMessage="Use IsInViewport instead" ))
 	bool GetIsVisible() const;
+
+	/** Sets the visibility of the widget. */
+	virtual void SetVisibility(ESlateVisibility InVisibility) override;
 
 	/* @return true if the widget was added to the viewport using AddToViewport. */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance")
@@ -1137,6 +1142,12 @@ public:
 
 	UPROPERTY()
 	FGetSlateColor ForegroundColorDelegate;
+
+	/** Called when the visibility has changed */
+	UPROPERTY(BlueprintAssignable, Category = "Appearance|Event")
+	FOnVisibilityChangedEvent OnVisibilityChanged;
+	DECLARE_EVENT_OneParam(UUserWidget, FNativeOnVisibilityChangedEvent, ESlateVisibility);
+	FNativeOnVisibilityChangedEvent OnNativeVisibilityChanged;
 
 	/** The padding area around the content. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")

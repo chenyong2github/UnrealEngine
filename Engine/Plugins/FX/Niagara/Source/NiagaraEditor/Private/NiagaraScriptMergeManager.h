@@ -33,13 +33,12 @@ class FNiagaraStackFunctionInputOverrideMergeAdapter
 {
 public:
 	FNiagaraStackFunctionInputOverrideMergeAdapter(
-		FString InUniqueEmitterName, 
+		const UNiagaraEmitter& InOwningEmitter, 
 		UNiagaraScript& InOwningScript, 
 		UNiagaraNodeFunctionCall& InOwningFunctionCallNode, 
 		UEdGraphPin& InOverridePin);
 
 	FNiagaraStackFunctionInputOverrideMergeAdapter(
-		FString InUniqueEmitterName,
 		UNiagaraScript& InOwningScript,
 		UNiagaraNodeFunctionCall& InOwningFunctionCallNode,
 		FString InInputName,
@@ -64,7 +63,6 @@ public:
 	TOptional<FString> GetStaticSwitchValue() const;
 
 private:
-	FString UniqueEmitterName;
 	TWeakObjectPtr<UNiagaraScript> OwningScript;
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> OwningFunctionCallNode;
 	FString InputName;
@@ -87,21 +85,23 @@ private:
 class FNiagaraStackFunctionMergeAdapter
 {
 public:
-	FNiagaraStackFunctionMergeAdapter(FString InUniqueEmitterName, UNiagaraScript& InOwningScript, UNiagaraNodeFunctionCall& InFunctionCallNode, int32 InStackIndex);
+	FNiagaraStackFunctionMergeAdapter(const UNiagaraEmitter& InOwningEmitter, UNiagaraScript& InOwningScript, UNiagaraNodeFunctionCall& InFunctionCallNode,	int32 InStackIndex);
 
 	UNiagaraNodeFunctionCall* GetFunctionCallNode() const;
 
 	int32 GetStackIndex() const;
+
+	int32 GetScratchPadScriptIndex() const;
 
 	const TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>>& GetInputOverrides() const;
 
 	TSharedPtr<FNiagaraStackFunctionInputOverrideMergeAdapter> GetInputOverrideByInputName(FString InputName) const;
 
 private:
-	FString UniqueEmitterName;
 	TWeakObjectPtr<UNiagaraScript> OwningScript;
 	TWeakObjectPtr<UNiagaraNodeFunctionCall> FunctionCallNode;
 	int32 StackIndex;
+	int32 ScratchPadScriptIndex;
 
 	TArray<TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter>> InputOverrides;
 };
@@ -109,7 +109,7 @@ private:
 class FNiagaraScriptStackMergeAdapter
 {
 public:
-	FNiagaraScriptStackMergeAdapter(UNiagaraNodeOutput& InOutputNode, UNiagaraScript& InScript, FString InUniqueEmitterName);
+	FNiagaraScriptStackMergeAdapter(const UNiagaraEmitter& InOwningEmitter, UNiagaraNodeOutput& InOutputNode, UNiagaraScript& InScript);
 
 	UNiagaraNodeOutput* GetOutputNode() const;
 	UNiagaraNodeInput* GetInputNode() const;
@@ -402,30 +402,52 @@ public:
 private:
 	TOptional<bool> DoFunctionInputOverridesMatch(TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> BaseFunctionInputAdapter, TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OtherFunctionInputAdapter) const;
 
-	FApplyDiffResults ApplyScriptStackDiff(TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter, const FNiagaraScriptStackDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
+	void CopyInstanceScratchPadScripts(UNiagaraEmitter& MergedInstance, const UNiagaraEmitter& SourceInstance, TMap<UNiagaraScript*, UNiagaraScript*>& OutSourceToMergedScratchPadScriptMap) const;
 
-	FApplyDiffResults ApplyEventHandlerDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
+	FApplyDiffResults ApplyScriptStackDiff(
+		TSharedRef<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter,
+		const TMap<UNiagaraScript*, UNiagaraScript*>& SourceToMergedScratchPadScriptMap, 
+		const FNiagaraScriptStackDiffResults& DiffResults,
+		const bool bNoParentAtLastMerge) const;
 
-	FApplyDiffResults ApplySimulationStageDiff(TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
+	FApplyDiffResults ApplyEventHandlerDiff(
+		TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter,
+		const TMap<UNiagaraScript*, UNiagaraScript*>& SourceToMergedScratchPadScriptMap,
+		const FNiagaraEmitterDiffResults& DiffResults,
+		const bool bNoParentAtLastMerge) const;
+
+	FApplyDiffResults ApplySimulationStageDiff(
+		TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter,
+		const TMap<UNiagaraScript*, UNiagaraScript*>& SourceToMergedScratchPadScriptMap,
+		const FNiagaraEmitterDiffResults& DiffResults,
+		const bool bNoParentAtLastMerge) const;
 
 	FApplyDiffResults ApplyRendererDiff(UNiagaraEmitter& BaseEmitter, const FNiagaraEmitterDiffResults& DiffResults, const bool bNoParentAtLastMerge) const;
 
 	FApplyDiffResults ApplyStackEntryDisplayNameDiffs(UNiagaraEmitter& Emitter, const FNiagaraEmitterDiffResults& DiffResults) const;
 
-	FApplyDiffResults AddModule(FString UniqueEmitterName, UNiagaraScript& OwningScript, UNiagaraNodeOutput& TargetOutputNode, TSharedRef<FNiagaraStackFunctionMergeAdapter> AddModule) const;
+	FApplyDiffResults AddModule(
+		FString UniqueEmitterName,
+		UNiagaraScript& OwningScript,
+		UNiagaraNodeOutput& TargetOutputNode,
+		const TMap<UNiagaraScript*, UNiagaraScript*>& SourceToMergedScratchPadScriptMap,
+		TSharedRef<FNiagaraStackFunctionMergeAdapter> AddModule) const;
 
 	FApplyDiffResults RemoveInputOverride(UNiagaraScript& OwningScript, TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OverrideToRemove) const;
 
-	FApplyDiffResults AddInputOverride(FString UniqueEmitterName, UNiagaraScript& OwningScript, UNiagaraNodeFunctionCall& TargetFunctionCall, TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OverrideToAdd) const;
+	FApplyDiffResults AddInputOverride(
+		FString UniqueEmitterName,
+		UNiagaraScript& OwningScript,
+		UNiagaraNodeFunctionCall& TargetFunctionCall,
+		const TMap<UNiagaraScript*, UNiagaraScript*>& SourceToMergedScratchPadScriptMap,
+		TSharedRef<FNiagaraStackFunctionInputOverrideMergeAdapter> OverrideToAdd) const;
 
-private:
 	TSharedRef<FNiagaraEmitterMergeAdapter> GetEmitterMergeAdapterUsingCache(const UNiagaraEmitter& Emitter);
 
 	TSharedRef<FNiagaraEmitterMergeAdapter> GetEmitterMergeAdapterUsingCache(UNiagaraEmitter& Emitter);
 
 	void DiffChangeIds(const TMap<FGuid, FGuid>& InSourceChangeIds, const TMap<FGuid, FGuid>& InLastMergedChangeIds, const TMap<FGuid, FGuid>& InInstanceChangeIds, TMap<FGuid, FGuid>& OutChangeIdsToKeepOnInstance) const;
 	FApplyDiffResults ResolveChangeIds(TSharedRef<FNiagaraEmitterMergeAdapter> MergedInstanceAdapter, UNiagaraEmitter& OriginalEmitterInstance, const TMap<FGuid, FGuid>& ChangeIdsThatNeedToBeReset) const;
-
 
 private:
 	struct FCachedMergeAdapter

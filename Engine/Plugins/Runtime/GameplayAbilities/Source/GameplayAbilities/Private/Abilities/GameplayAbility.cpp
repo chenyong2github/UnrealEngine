@@ -539,7 +539,7 @@ void UGameplayAbility::CancelAbility(const FGameplayAbilitySpecHandle Handle, co
 		}
 
 		// Replicate the the server/client if needed
-		if (bReplicateCancelAbility && ActorInfo)
+		if (bReplicateCancelAbility && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 		{
 			ActorInfo->AbilitySystemComponent->ReplicateEndOrCancelAbility(Handle, ActivationInfo, this, true);
 		}
@@ -1056,18 +1056,22 @@ FGameplayEffectSpecHandle UGameplayAbility::MakeOutgoingGameplayEffectSpec(const
 
 void UGameplayAbility::ApplyAbilityTagsToGameplayEffectSpec(FGameplayEffectSpec& Spec, FGameplayAbilitySpec* AbilitySpec) const
 {
-	Spec.CapturedSourceTags.GetSpecTags().AppendTags(AbilityTags);
+	FGameplayTagContainer& CapturedSourceTags = Spec.CapturedSourceTags.GetSpecTags();
+
+	CapturedSourceTags.AppendTags(AbilityTags);
 
 	// Allow the source object of the ability to propagate tags along as well
 	if (AbilitySpec)
 	{
+		CapturedSourceTags.AppendTags(AbilitySpec->DynamicAbilityTags);
+
 		const IGameplayTagAssetInterface* SourceObjAsTagInterface = Cast<IGameplayTagAssetInterface>(AbilitySpec->SourceObject);
 		if (SourceObjAsTagInterface)
 		{
 			FGameplayTagContainer SourceObjTags;
 			SourceObjAsTagInterface->GetOwnedGameplayTags(SourceObjTags);
 
-			Spec.CapturedSourceTags.GetSpecTags().AppendTags(SourceObjTags);
+			CapturedSourceTags.AppendTags(SourceObjTags);
 		}
 
 		// Copy SetByCallerMagnitudes 

@@ -45,7 +45,7 @@ static FString GetD3D11DeviceHungErrorString(HRESULT ErrorCode)
 	return ErrorCodeText;
 }
 
-static FString GetD3D11ErrorString(HRESULT ErrorCode, ID3D11Device* Device)
+FString GetD3D11ErrorString(HRESULT ErrorCode, ID3D11Device* Device)
 {
 	FString ErrorCodeText;
 

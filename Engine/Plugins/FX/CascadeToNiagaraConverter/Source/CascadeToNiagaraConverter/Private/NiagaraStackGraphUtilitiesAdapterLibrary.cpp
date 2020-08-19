@@ -51,6 +51,7 @@
 #include "NiagaraDataInterfaceVector4Curve.h"
 #include "NiagaraMessages.h"
 #include "NiagaraTypes.h"
+#include "Math/InterpCurvePoint.h"
 
 #include "Distributions/DistributionFloatConstant.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
@@ -69,6 +70,7 @@
 #include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "CascadeToNiagaraConverterModule.h"
+#include "Curves/RichCurve.h"
 
 
 TMap<FGuid, TSharedPtr<FNiagaraEmitterHandleViewModel>> UFXConverterUtilitiesLibrary::GuidToNiagaraEmitterHandleViewModelMap;
@@ -158,7 +160,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateLinkedValueInput(GetTransientPackage(), FName(), InputTypeName, false, false, FName(ParameterNameString));
 	const FNiagaraTypeDefinition& TargetTypeDef = UNiagaraClipboardEditorScriptingUtilities::GetRegisteredTypeDefinitionByName(InputTypeName);
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, TargetTypeDef);
+	Input->Init(NewInput, InputType, TargetTypeDef); 
 	return Input;
 }
 
@@ -167,7 +169,16 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateFloatLocalValueInput(GetTransientPackage(), FName(), false, false, Value);
 	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetFloatDef();
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, TargetTypeDef);
+	Input->Init(NewInput, ENiagaraScriptInputType::Float, TargetTypeDef);
+	return Input;
+}
+
+UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScriptInputVec2(FVector2D Value)
+{
+	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateVec2LocalValueInput(GetTransientPackage(), FName(), false, false, Value);
+	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetVec2Def();
+	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
+	Input->Init(NewInput, ENiagaraScriptInputType::Vec2, TargetTypeDef);
 	return Input;
 }
 
@@ -176,7 +187,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateVec3LocalValueInput(GetTransientPackage(), FName(), false, false, Value);
 	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetVec3Def();
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, TargetTypeDef);
+	Input->Init(NewInput, ENiagaraScriptInputType::Vec3, TargetTypeDef);
 	return Input;
 }
 
@@ -186,7 +197,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	if (NewInput != nullptr)
 	{
 		UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-		Input->Init(NewInput, NewInput->GetTypeDef());
+		Input->Init(NewInput, ENiagaraScriptInputType::Struct, NewInput->GetTypeDef());
 		return Input;
 	}
 	return nullptr;
@@ -198,7 +209,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	if (NewInput != nullptr)
 	{
 		UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-		Input->Init(NewInput, NewInput->GetTypeDef());
+		Input->Init(NewInput, ENiagaraScriptInputType::Enum, NewInput->GetTypeDef());
 		return Input;
 	}
 	return nullptr;
@@ -209,7 +220,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	UNiagaraClipboardFunctionInput* NewInput = UNiagaraClipboardEditorScriptingUtilities::CreateIntLocalValueInput(GetTransientPackage(), FName(), false, false, Value);
 	const FNiagaraTypeDefinition& TargetTypeDef = FNiagaraTypeDefinition::GetIntDef();
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, TargetTypeDef);
+	Input->Init(NewInput, ENiagaraScriptInputType::Int, TargetTypeDef);
 	return Input;
 }
 
@@ -229,7 +240,8 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	NewInput->Dynamic->Inputs = DynamicInputScriptContext->GetClipboardFunctionInputs();
 	const FNiagaraTypeDefinition& TargetTypeDef = UNiagaraClipboardEditorScriptingUtilities::GetRegisteredTypeDefinitionByName(InputTypeName);
 	UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-	Input->Init(NewInput, TargetTypeDef);
+	Input->Init(NewInput, InputType, TargetTypeDef);
+	Input->StackMessages = DynamicInputScriptContext->GetStackMessages();
 	return Input;
 }
 
@@ -245,7 +257,7 @@ UNiagaraScriptConversionContextInput* UFXConverterUtilitiesLibrary::CreateScript
 	if (NewInput != nullptr)
 	{
 		UNiagaraScriptConversionContextInput* Input = NewObject<UNiagaraScriptConversionContextInput>();
-		Input->Init(NewInput, NewInput->GetTypeDef());
+		Input->Init(NewInput, ENiagaraScriptInputType::DataInterface, NewInput->GetTypeDef());
 		return Input;
 	}
 	return nullptr;
@@ -261,24 +273,57 @@ UNiagaraMeshRendererProperties* UFXConverterUtilitiesLibrary::CreateMeshRenderer
 	return NewObject<UNiagaraMeshRendererProperties>();
 }
 
-UNiagaraDataInterfaceCurve* UFXConverterUtilitiesLibrary::CreateFloatCurveDI()
+UNiagaraDataInterfaceCurve* UFXConverterUtilitiesLibrary::CreateFloatCurveDI(TArray<FRichCurveKeyBP> Keys)
 {
-	return NewObject<UNiagaraDataInterfaceCurve>();
+	UNiagaraDataInterfaceCurve* DI_Curve = NewObject<UNiagaraDataInterfaceCurve>();
+	const TArray<FRichCurveKey> BaseKeys = FRichCurveKeyBP::KeysToBase(Keys);
+	DI_Curve->Curve.SetKeys(BaseKeys);
+	return DI_Curve;
 }
 
-UNiagaraDataInterfaceVector2DCurve* UFXConverterUtilitiesLibrary::CreateVec2CurveDI()
+UNiagaraDataInterfaceVector2DCurve* UFXConverterUtilitiesLibrary::CreateVec2CurveDI(TArray<FRichCurveKeyBP> X_Keys, TArray<FRichCurveKeyBP> Y_Keys)
 {
-	return NewObject<UNiagaraDataInterfaceVector2DCurve>();
+	UNiagaraDataInterfaceVector2DCurve* DI_Curve = NewObject<UNiagaraDataInterfaceVector2DCurve>();
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
+	DI_Curve->XCurve.SetKeys(X_BaseKeys);
+	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
+	return DI_Curve;
 }
 
-UNiagaraDataInterfaceVectorCurve* UFXConverterUtilitiesLibrary::CreateVec3CurveDI()
+UNiagaraDataInterfaceVectorCurve* UFXConverterUtilitiesLibrary::CreateVec3CurveDI(
+	TArray<FRichCurveKeyBP> X_Keys,
+	TArray<FRichCurveKeyBP> Y_Keys,
+	TArray<FRichCurveKeyBP> Z_Keys
+	)
 {
-	return NewObject<UNiagaraDataInterfaceVectorCurve>();
+	UNiagaraDataInterfaceVectorCurve* DI_Curve = NewObject<UNiagaraDataInterfaceVectorCurve>();
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
+	const TArray<FRichCurveKey> Z_BaseKeys = FRichCurveKeyBP::KeysToBase(Z_Keys);
+	DI_Curve->XCurve.SetKeys(X_BaseKeys);
+	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
+	DI_Curve->ZCurve.SetKeys(Z_BaseKeys);
+	return DI_Curve;
 }
 
-UNiagaraDataInterfaceVector4Curve* UFXConverterUtilitiesLibrary::CreateVec4CurveDI()
+UNiagaraDataInterfaceVector4Curve* UFXConverterUtilitiesLibrary::CreateVec4CurveDI(
+	TArray<FRichCurveKeyBP> X_Keys,
+	TArray<FRichCurveKeyBP> Y_Keys,
+	TArray<FRichCurveKeyBP> Z_Keys,
+	TArray<FRichCurveKeyBP> W_Keys
+	)
 {
-	return NewObject<UNiagaraDataInterfaceVector4Curve>();
+	UNiagaraDataInterfaceVector4Curve* DI_Curve = NewObject<UNiagaraDataInterfaceVector4Curve>();
+	const TArray<FRichCurveKey> X_BaseKeys = FRichCurveKeyBP::KeysToBase(X_Keys);
+	const TArray<FRichCurveKey> Y_BaseKeys = FRichCurveKeyBP::KeysToBase(Y_Keys);
+	const TArray<FRichCurveKey> Z_BaseKeys = FRichCurveKeyBP::KeysToBase(Z_Keys);
+	const TArray<FRichCurveKey> W_BaseKeys = FRichCurveKeyBP::KeysToBase(W_Keys);
+	DI_Curve->XCurve.SetKeys(X_BaseKeys);
+	DI_Curve->YCurve.SetKeys(Y_BaseKeys);
+	DI_Curve->ZCurve.SetKeys(Z_BaseKeys);
+	DI_Curve->WCurve.SetKeys(W_BaseKeys);
+	return DI_Curve;
 }
 
 UNiagaraSystemConversionContext* UFXConverterUtilitiesLibrary::CreateSystemConversionContext(UNiagaraSystem* InSystem)
@@ -297,139 +342,10 @@ UNiagaraSystemConversionContext* UFXConverterUtilitiesLibrary::CreateSystemConve
 	return SystemConversionContext;
 }
 
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSpawnClass()
+void UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataGpuProps(UParticleModuleTypeDataGpu* ParticleModule)
 {
-	return UParticleModuleSpawn::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleRequiredClass()
-{
-	return UParticleModuleRequired::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleColorClass()
-{
-	return UParticleModuleColor::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleColorOverLifeClass()
-{
-	return UParticleModuleColorOverLife::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleLifetimeClass()
-{
-	return UParticleModuleLifetime::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSizeClass()
-{
-	return UParticleModuleSize::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleVelocityClass()
-{
-	return UParticleModuleVelocity::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataGPUClass()
-{
-	return UParticleModuleTypeDataGpu::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataMeshClass()
-{
-	return UParticleModuleTypeDataMesh::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleConstantAccelerationClass()
-{
-	return UParticleModuleAccelerationConstant::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleLocationPrimitiveSphereClass()
-{
-	return UParticleModuleLocationPrimitiveSphere::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleMeshRotationClass()
-{
-	return UParticleModuleMeshRotation::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleCollisionClass()
-{
-	return UParticleModuleCollision::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSizeScaleBySpeedClass()
-{
-	return UParticleModuleSizeScaleBySpeed::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleVectorFieldLocalClass()
-{
-	return UParticleModuleVectorFieldLocal::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleVectorFieldRotationRateClass()
-{
-	return UParticleModuleVectorFieldRotationRate::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleOrbitClass()
-{
-	return UParticleModuleOrbit::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSizeMultipleLifeClass()
-{
-	return UParticleModuleSizeMultiplyLife::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleColorScaleOverLifeClass()
-{
-	return UParticleModuleColorScaleOverLife::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleRotationClass()
-{
-	return UParticleModuleRotation::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleRotationRateClass()
-{
-	return UParticleModuleRotationRate::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSubUVClass()
-{
-	return UParticleModuleSubUV::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleCameraOffsetClass()
-{
-	return UParticleModuleCameraOffset::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleSubUVMovieClass()
-{
-	return UParticleModuleSubUVMovie::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleParameterDynamicClass()
-{
-	return UParticleModuleParameterDynamic::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleAccelerationDragClass()
-{
-	return UParticleModuleAccelerationDrag::StaticClass();
-}
-
-UClass* UFXConverterUtilitiesLibrary::GetParticleModuleAccelerationClass()
-{
-	return UParticleModuleAcceleration::StaticClass();
+	// empty impl, method arg taking UParticleModuleTypeDataGpu exposes this UObject type to python scripting reflection
+	return;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleTypeDataMeshProps(
@@ -554,7 +470,8 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleRequiredProps(
 	, float& OutMaxFacingCameraBlendDistance
 	, UTexture2D*& OutCutoutTexture
 	, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
-	, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode)
+	, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode
+	, float& OutAlphaThreshold)
 {
 	OutMaterialInterface = ParticleModuleRequired->Material;
 	OutScreenAlignment = ParticleModuleRequired->ScreenAlignment;
@@ -569,6 +486,7 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleRequiredProps(
 	OutCutoutTexture = ParticleModuleRequired->CutoutTexture;
 	OutBoundingMode = ParticleModuleRequired->BoundingMode;
 	OutOpacitySourceMode = ParticleModuleRequired->OpacitySourceMode;
+	OutAlphaThreshold = ParticleModuleRequired->AlphaThreshold;
 }
 
 void UFXConverterUtilitiesLibrary::GetParticleModuleColorProps(UParticleModuleColor* ParticleModule, UDistribution*& OutStartColor, UDistribution*& OutStartAlpha, bool& bOutClampAlpha)
@@ -715,12 +633,12 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleOrbitProps(
 	OutRotationRateOptions = ParticleModule->RotationRateOptions;
 }
 
-void UFXConverterUtilitiesLibrary::GetParticleModuleSizeMultipleLifeProps(
+void UFXConverterUtilitiesLibrary::GetParticleModuleSizeMultiplyLifeProps(
 	UParticleModuleSizeMultiplyLife* ParticleModule
 	, UDistribution*& OutLifeMultiplier
-	, int32& OutMultiplyX
-	, int32& OutMultiplyY
-	, int32& OutMultiplyZ)
+	, bool& OutMultiplyX
+	, bool& OutMultiplyY
+	, bool& OutMultiplyZ)
 {
 	OutLifeMultiplier = ParticleModule->LifeMultiplier.Distribution;
 	OutMultiplyX = ParticleModule->MultiplyX;
@@ -806,6 +724,173 @@ void UFXConverterUtilitiesLibrary::GetParticleModuleAccelerationProps(UParticleM
 {
 	OutAcceleration = ParticleModule->Acceleration.Distribution;
 	bOutApplyOwnerScale = ParticleModule->bApplyOwnerScale;
+}
+
+void UFXConverterUtilitiesLibrary::GetDistributionMinMaxValues(
+	  UDistribution* Distribution
+	, bool& bOutSuccess
+	, FVector& OutMinValue
+	, FVector& OutMaxValue)
+{
+	if (Distribution->IsA<UDistributionFloatConstant>())
+	{	
+		float DistributionValue = 0.0f;
+		GetFloatDistributionConstValues(static_cast<UDistributionFloatConstant*>(Distribution), DistributionValue);
+		bOutSuccess = true;
+		OutMinValue = FVector(DistributionValue, 0.0, 0.0);
+		OutMaxValue = FVector(DistributionValue, 0.0, 0.0);
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionVectorConstant>())
+	{
+		FVector DistributionValue = FVector(0.0f);
+		GetVectorDistributionConstValues(static_cast<UDistributionVectorConstant*>(Distribution), DistributionValue);
+		bOutSuccess = true;
+		OutMinValue = DistributionValue;
+		OutMaxValue = DistributionValue;
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionFloatConstantCurve>())
+	{
+		UDistributionFloatConstantCurve* FloatCurveDistribution = static_cast<UDistributionFloatConstantCurve*>(Distribution);
+		if (FloatCurveDistribution->ConstantCurve.Points.Num() == 0)
+		{
+			bOutSuccess = false;
+			return;
+		}
+
+		float MinValue = FloatCurveDistribution->ConstantCurve.Points[0].OutVal;
+		float MaxValue = FloatCurveDistribution->ConstantCurve.Points[0].OutVal;
+
+		if (FloatCurveDistribution->ConstantCurve.Points.Num() > 1)
+		{ 
+			for (int i = 1; i < FloatCurveDistribution->ConstantCurve.Points.Num(); ++i)
+			{
+				const float& OutVal = FloatCurveDistribution->ConstantCurve.Points[i].OutVal;
+				MinValue = OutVal < MinValue ? OutVal : MinValue;
+				MaxValue = OutVal > MaxValue ? OutVal : MaxValue;
+			}
+		}
+
+		bOutSuccess = true;
+		OutMinValue = FVector(MinValue, 0.0, 0.0);
+		OutMaxValue = FVector(MaxValue, 0.0, 0.0);
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionVectorConstantCurve>())
+	{
+		UDistributionVectorConstantCurve* VectorCurveDistribution = static_cast<UDistributionVectorConstantCurve*>(Distribution);
+		if (VectorCurveDistribution->ConstantCurve.Points.Num() == 0)
+		{
+			bOutSuccess = false;
+			return;
+		}
+
+		OutMinValue = VectorCurveDistribution->ConstantCurve.Points[0].OutVal;
+		OutMaxValue = VectorCurveDistribution->ConstantCurve.Points[0].OutVal;
+
+		if (VectorCurveDistribution->ConstantCurve.Points.Num() > 1)
+		{
+			for (int i = 1; i < VectorCurveDistribution->ConstantCurve.Points.Num(); ++i)
+			{
+				const FVector& OutVal = VectorCurveDistribution->ConstantCurve.Points[i].OutVal;
+				OutMinValue = OutVal.ComponentMin(OutMinValue);
+				OutMaxValue = OutVal.ComponentMax(OutMaxValue);
+			}
+		}
+
+		bOutSuccess = true;
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionFloatUniform>())
+	{
+		float DistributionValueMin = 0.0f;
+		float DistributionValueMax = 0.0f;
+		GetFloatDistributionUniformValues(static_cast<UDistributionFloatUniform*>(Distribution), DistributionValueMin, DistributionValueMax);
+		bOutSuccess = true;
+		OutMinValue = FVector(DistributionValueMin, 0.0, 0.0);
+		OutMaxValue = FVector(DistributionValueMax, 0.0, 0.0);
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionVectorUniform>())
+	{
+		GetVectorDistributionUniformValues(static_cast<UDistributionVectorUniform*>(Distribution), OutMinValue, OutMaxValue);
+		bOutSuccess = true;
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionFloatUniformCurve>())
+	{
+		UDistributionFloatUniformCurve* FloatCurveDistribution = static_cast<UDistributionFloatUniformCurve*>(Distribution);
+		if (FloatCurveDistribution->ConstantCurve.Points.Num() == 0)
+		{
+			bOutSuccess = false;
+			return;
+		}
+
+		float MinValue = FloatCurveDistribution->ConstantCurve.Points[0].OutVal.X;
+		float MaxValue = FloatCurveDistribution->ConstantCurve.Points[0].OutVal.Y;
+
+		if (FloatCurveDistribution->ConstantCurve.Points.Num() > 1)
+		{
+			for (int i = 1; i < FloatCurveDistribution->ConstantCurve.Points.Num(); ++i)
+			{
+				const FVector2D& OutVal = FloatCurveDistribution->ConstantCurve.Points[i].OutVal;
+				MinValue = OutVal.X < MinValue ? OutVal.X : MinValue;
+				MaxValue = OutVal.Y > MaxValue ? OutVal.Y : MaxValue;
+			}
+		}
+
+		bOutSuccess = true;
+		OutMinValue = FVector(MinValue, 0.0, 0.0);
+		OutMaxValue = FVector(MaxValue, 0.0, 0.0);
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionVectorUniformCurve>())
+	{
+		UDistributionVectorUniformCurve* VectorCurveDistribution = static_cast<UDistributionVectorUniformCurve*>(Distribution);
+		if (VectorCurveDistribution->ConstantCurve.Points.Num() == 0)
+		{
+			bOutSuccess = false;
+			return;
+		}
+			
+		OutMinValue = VectorCurveDistribution->ConstantCurve.Points[0].OutVal.v1;
+		OutMaxValue = VectorCurveDistribution->ConstantCurve.Points[0].OutVal.v2;
+
+		if (VectorCurveDistribution->ConstantCurve.Points.Num() > 1)
+		{
+			for (int i = 1; i < VectorCurveDistribution->ConstantCurve.Points.Num(); ++i)
+			{
+				const FTwoVectors& OutVal = VectorCurveDistribution->ConstantCurve.Points[i].OutVal;
+				OutMinValue = OutVal.v1.ComponentMin(OutMinValue);
+				OutMaxValue = OutVal.v2.ComponentMax(OutMaxValue);
+			}
+		}
+
+		bOutSuccess = true;
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionFloatParameterBase>())
+	{
+		bOutSuccess = false;
+		return;
+	}
+
+	else if (Distribution->IsA<UDistributionVectorParameterBase>())
+	{
+		bOutSuccess = false;
+		return;
+	}
+
+	bOutSuccess = false;
 }
 
 void UFXConverterUtilitiesLibrary::GetDistributionType(
@@ -938,83 +1023,46 @@ void UFXConverterUtilitiesLibrary::GetVectorDistributionParameterValues(UDistrib
 	OutMaxOutput = Distribution->MaxOutput;
 }
 
-void UFXConverterUtilitiesLibrary::CopyCascadeFloatCurveToNiagaraCurveDI(UNiagaraDataInterfaceCurve* CurveDI, FInterpCurveFloat InterpCurveFloat)
+TArray<FRichCurveKeyBP> UFXConverterUtilitiesLibrary::KeysFromInterpCurveFloat(FInterpCurveFloat Curve)
 {
-	TArray<FRichCurveKey> NewRichCurveKeys;
-	for(FInterpCurvePoint<float> Point : InterpCurveFloat.Points)
-	{ 
-		NewRichCurveKeys.Emplace(FRichCurveKey(Point));
+	TArray<FRichCurveKeyBP> Keys;
+	for (const FInterpCurvePoint<float>& Point : Curve.Points)
+	{
+		Keys.Emplace(FRichCurveKey(Point));
 	}
-	FRichCurve NewRichCurve = FRichCurve();
-	NewRichCurve.SetKeys(NewRichCurveKeys);
-	CurveDI->Curve = NewRichCurve;
+	return Keys;
 }
 
-void UFXConverterUtilitiesLibrary::CopyCascadeVectorCurveToNiagaraCurveDI(UNiagaraDataInterfaceVectorCurve* CurveDI, FInterpCurveVector InterpCurveVector)
+TArray<FRichCurveKeyBP> UFXConverterUtilitiesLibrary::KeysFromInterpCurveVector(FInterpCurveVector Curve, int32 ComponentIdx)
 {
-	TArray<FRichCurveKey> NewRichCurveKeys_X;
-	TArray<FRichCurveKey> NewRichCurveKeys_Y;
-	TArray<FRichCurveKey> NewRichCurveKeys_Z;
-	for (FInterpCurvePoint<FVector> Point : InterpCurveVector.Points)
+	TArray<FRichCurveKeyBP> Keys;
+	for (const FInterpCurvePoint<FVector>& Point : Curve.Points)
 	{
-		NewRichCurveKeys_X.Emplace(FRichCurveKey(Point, 0));
-		NewRichCurveKeys_Y.Emplace(FRichCurveKey(Point, 1));
-		NewRichCurveKeys_Z.Emplace(FRichCurveKey(Point, 2));
+		Keys.Emplace(FRichCurveKey(Point, ComponentIdx));
 	}
-	FRichCurve NewRichCurve_X = FRichCurve();
-	FRichCurve NewRichCurve_Y = FRichCurve();
-	FRichCurve NewRichCurve_Z = FRichCurve();
-	NewRichCurve_X.SetKeys(NewRichCurveKeys_X);
-	NewRichCurve_Y.SetKeys(NewRichCurveKeys_Y);
-	NewRichCurve_Z.SetKeys(NewRichCurveKeys_Z);
-	CurveDI->XCurve = NewRichCurve_X;
-	CurveDI->YCurve = NewRichCurve_Y;
-	CurveDI->ZCurve = NewRichCurve_Z;
+	return Keys;
 }
 
-void UFXConverterUtilitiesLibrary::CopyCascadeVector2DCurveToNiagaraCurveDI(UNiagaraDataInterfaceVector2DCurve* CurveDI, FInterpCurveVector2D InterpCurveVector2D)
+TArray<FRichCurveKeyBP> UFXConverterUtilitiesLibrary::KeysFromInterpCurveVector2D(FInterpCurveVector2D Curve, int32 ComponentIdx)
 {
-	TArray<FRichCurveKey> NewRichCurveKeys_X;
-	TArray<FRichCurveKey> NewRichCurveKeys_Y;
-	for (FInterpCurvePoint<FVector2D> Point : InterpCurveVector2D.Points)
+	TArray<FRichCurveKeyBP> Keys;
+	for (const FInterpCurvePoint<FVector2D>& Point : Curve.Points)
 	{
-		NewRichCurveKeys_X.Emplace(FRichCurveKey(Point, 0));
-		NewRichCurveKeys_Y.Emplace(FRichCurveKey(Point, 1));
+		Keys.Emplace(FRichCurveKey(Point, ComponentIdx));
 	}
-	FRichCurve NewRichCurve_X = FRichCurve();
-	FRichCurve NewRichCurve_Y = FRichCurve();
-	NewRichCurve_X.SetKeys(NewRichCurveKeys_X);
-	NewRichCurve_Y.SetKeys(NewRichCurveKeys_Y);
-	CurveDI->XCurve = NewRichCurve_X;
-	CurveDI->YCurve = NewRichCurve_Y;
+	return Keys;
 }
 
-void UFXConverterUtilitiesLibrary::CopyCascadeTwoVectorCurveToNiagaraCurveDI(UNiagaraDataInterfaceVector4Curve* CurveDI, FInterpCurveTwoVectors InterpCurveTwoVectors)
+TArray<FRichCurveKeyBP> UFXConverterUtilitiesLibrary::KeysFromInterpCurveTwoVectors(FInterpCurveTwoVectors Curve, int32 ComponentIdx)
 {
-	TArray<FRichCurveKey> NewRichCurveKeys_X;
-	TArray<FRichCurveKey> NewRichCurveKeys_Y;
-	TArray<FRichCurveKey> NewRichCurveKeys_Z;
-	TArray<FRichCurveKey> NewRichCurveKeys_W;
-	for (FInterpCurvePoint<FTwoVectors> Point : InterpCurveTwoVectors.Points)
+	TArray<FRichCurveKeyBP> Keys;
+	for (const FInterpCurvePoint<FTwoVectors>& Point : Curve.Points)
 	{
-		NewRichCurveKeys_X.Emplace(FRichCurveKey(Point, 0));
-		NewRichCurveKeys_Y.Emplace(FRichCurveKey(Point, 1));
-		NewRichCurveKeys_Z.Emplace(FRichCurveKey(Point, 2));
-		NewRichCurveKeys_W.Emplace(FRichCurveKey(Point, 3));
+		Keys.Emplace(FRichCurveKey(Point, ComponentIdx));
 	}
-	FRichCurve NewRichCurve_X = FRichCurve();
-	FRichCurve NewRichCurve_Y = FRichCurve();
-	FRichCurve NewRichCurve_Z = FRichCurve();
-	FRichCurve NewRichCurve_W = FRichCurve();
-	NewRichCurve_X.SetKeys(NewRichCurveKeys_X);
-	NewRichCurve_Y.SetKeys(NewRichCurveKeys_Y);
-	NewRichCurve_Z.SetKeys(NewRichCurveKeys_Z);
-	NewRichCurve_W.SetKeys(NewRichCurveKeys_W);
-	CurveDI->XCurve = NewRichCurve_X;
-	CurveDI->YCurve = NewRichCurve_Y;
-	CurveDI->ZCurve = NewRichCurve_Z;
-	CurveDI->WCurve = NewRichCurve_W;
+	return Keys;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraSystemConversionContext																			  /////
@@ -1074,7 +1122,7 @@ void UNiagaraEmitterConversionContext::AddModuleScript(UNiagaraScriptConversionC
 void UNiagaraEmitterConversionContext::SetParameterDirectly(FString ParameterNameString, UNiagaraScriptConversionContextInput* ParameterInput, EScriptExecutionCategory TargetExecutionCategory)
 {
 	const FName ParameterName = FName(ParameterNameString);
-	const FNiagaraVariable TargetVariable = FNiagaraVariable(ParameterInput->TargetTypeDefinition, ParameterName);
+	const FNiagaraVariable TargetVariable = FNiagaraVariable(ParameterInput->TypeDefinition, ParameterName);
 	const TArray<FNiagaraVariable> InVariables = {TargetVariable};
 	const TArray<FString> InVariableDefaults = {FString()};
 	UNiagaraClipboardFunction* Assignment = UNiagaraClipboardFunction::CreateAssignmentFunction(this, "SetParameter", InVariables, InVariableDefaults);
@@ -1154,23 +1202,20 @@ void UNiagaraEmitterConversionContext::Finalize()
 			continue;
 		}
 
-		UNiagaraStackItemGroup* const* StackItemGroup = GetStackItemGroupForScriptExecutionCategory(ExecutionCategory);
-		if (StackItemGroup == nullptr)
+		UNiagaraStackItemGroup* const* StackItemGroupPtr = GetStackItemGroupForScriptExecutionCategory(ExecutionCategory);
+		if (StackItemGroupPtr == nullptr)
 		{
 			return;
 		}
-
-		TArray<UNiagaraStackEntry*> TargetStackEntryArr;
-		TargetStackEntryArr.Add(*StackItemGroup);
 
 		for(const int32 Idx : ParameterSetIndices.Indices)
 		{ 
 			UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
 			ClipboardContent->Functions.Add(StagedParameterSets[Idx]);
 
-			FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
 			FText PasteWarning = FText();
-			FNiagaraStackClipboardUtilities::PasteSelection(TargetStackEntryArr, PasteWarning);
+			UNiagaraStackItemGroup* StackItemGroup = *StackItemGroupPtr;
+			StackItemGroup->Paste(ClipboardContent, PasteWarning);
 
 			if (PasteWarning.IsEmpty() == false)
 			{
@@ -1194,7 +1239,7 @@ void UNiagaraEmitterConversionContext::Finalize()
 		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
 		UNiagaraScript* NiagaraScript = StagedScriptContext->GetScript();
 
-		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript); //@todo(ng) proper name here
+		UNiagaraClipboardFunction* ClipboardFunction = UNiagaraClipboardFunction::CreateScriptFunction(ClipboardContent, "Function", NiagaraScript);
 		ClipboardFunction->Inputs = StagedScriptContext->GetClipboardFunctionInputs();
 		ClipboardContent->Functions.Add(ClipboardFunction);
 
@@ -1237,11 +1282,14 @@ void UNiagaraEmitterConversionContext::Finalize()
 	}
 
 	
-	UNiagaraStackItemGroup* const* RendererStackItemGroup = StackItemGroups.FindByPredicate([](const UNiagaraStackItemGroup* EmitterItemGroup) {
+	UNiagaraStackItemGroup* const* RendererStackItemGroupPtr = StackItemGroups.FindByPredicate([](const UNiagaraStackItemGroup* EmitterItemGroup) {
 		return EmitterItemGroup->GetExecutionCategoryName() == UNiagaraStackEntry::FExecutionCategoryNames::Render
 			&& EmitterItemGroup->GetExecutionSubcategoryName() == UNiagaraStackEntry::FExecutionSubcategoryNames::Render; });
-	TArray<UNiagaraStackEntry*> TargetRendererStackEntryArr;
-	TargetRendererStackEntryArr.Add(*RendererStackItemGroup);
+
+	if (RendererStackItemGroupPtr == nullptr)
+	{
+		return;
+	}
 
 	// Add the staged renderer properties
 	for (auto It = RendererNameToStagedRendererPropertiesMap.CreateIterator(); It; ++It)
@@ -1250,9 +1298,10 @@ void UNiagaraEmitterConversionContext::Finalize()
 
 		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
 		ClipboardContent->Renderers.Add(NewRendererProperties);
-		FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
+
 		FText PasteWarning = FText();
-		FNiagaraStackClipboardUtilities::PasteSelection(TargetRendererStackEntryArr, PasteWarning);
+		UNiagaraStackItemGroup* RendererStackItemGroup = *RendererStackItemGroupPtr;
+		RendererStackItemGroup->Paste(ClipboardContent, PasteWarning);
 		if (PasteWarning.IsEmpty() == false)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("%s"), *PasteWarning.ToString());
@@ -1275,142 +1324,80 @@ void UNiagaraEmitterConversionContext::Finalize()
 void UNiagaraScriptConversionContext::Init(const FAssetData& InNiagaraScriptAssetData)
 {
 	Script = static_cast<UNiagaraScript*>(InNiagaraScriptAssetData.GetAsset());
+	if (Script == nullptr)
+	{
+		Log("Failed to create script! AssetData path was invalid!: " + InNiagaraScriptAssetData.PackagePath.ToString(), ENiagaraMessageSeverity::Error);
+		return;
+	}
 	bEnabled = true;
-	// @todo(ng) build id table
-	//static_cast<UNiagaraScriptSource*>(GetScript()->GetSource())->NodeGraph->FindInputNodes()
+
+	// Gather the inputs to this script and add them to the lookup table for validating UNiagaraScriptConversionContextInputs that are set.
+	TArray<UNiagaraNodeInput*> InputNodes;
+
+	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> VarToPinsMap = static_cast<UNiagaraScriptSource*>(Script->GetSource())->NodeGraph->CollectVarsToInOutPinsMap();
+	for (auto It = VarToPinsMap.CreateConstIterator(); It; ++It)
+	{
+		if (It->Value.OutputPins.Num() > 0)
+		{
+			const FNiagaraVariable& Var = It->Key;
+			InputNameToTypeDefMap.Add(FNiagaraEditorUtilities::GetNamespacelessVariableNameString(Var.GetName()), Var.GetType());
+		}
+	}
 }
 
 bool UNiagaraScriptConversionContext::SetParameter(FString ParameterName, UNiagaraScriptConversionContextInput* ParameterInput, bool bInHasEditCondition /*= false*/, bool bInEditConditionValue /* = false*/)
 {
-	//@todo(ng) assert on ParameterInput.TypeDefinition
+	if (ParameterInput->ClipboardFunctionInput == nullptr)
+	{
+		return false;
+	}
+	
+	const FNiagaraTypeDefinition* InputTypeDef = InputNameToTypeDefMap.Find(ParameterName);
+	if (InputTypeDef == nullptr)
+	{
+		Log("Failed to set parameter " + ParameterName + ": Could not find input with this name!", ENiagaraMessageSeverity::Error);
+		return false;
+	}
+	else if (ParameterInput->TypeDefinition != *InputTypeDef)
+	{
+		Log("Failed to set parameter " + ParameterName + ": Input types did not match! /n Tried to set: " + ParameterInput->TypeDefinition.GetName() + " | Input type was: " + InputTypeDef->GetName(), ENiagaraMessageSeverity::Error);
+		return false;
+	}
+
 	ParameterInput->ClipboardFunctionInput->bHasEditCondition = bInHasEditCondition;
 	ParameterInput->ClipboardFunctionInput->bEditConditionValue = bInEditConditionValue;
 	ParameterInput->ClipboardFunctionInput->InputName = FName(*ParameterName);
 	FunctionInputs.Add(ParameterInput->ClipboardFunctionInput);
+	StackMessages.Append(ParameterInput->StackMessages);
 	return true;
 }
 
 void UNiagaraScriptConversionContext::Log(FString Message, ENiagaraMessageSeverity Severity, bool bIsVerbose /* = false*/)
-{
+{	
 	StackMessages.Add(FGenericConverterMessage(Message, Severity, bIsVerbose));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UNiagaraScriptConversionContextInput																	  /////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void UNiagaraScriptConversionContextInput::Init(UNiagaraClipboardFunctionInput* InClipboardFunctionInput, const FNiagaraTypeDefinition& InTargetTypeDefinition)
+void UNiagaraScriptConversionContextInput::Init(
+	  UNiagaraClipboardFunctionInput* InClipboardFunctionInput
+	, const ENiagaraScriptInputType InInputType
+	, const FNiagaraTypeDefinition& InTypeDefinition)
 {
 	ClipboardFunctionInput = InClipboardFunctionInput;
-	TargetTypeDefinition = InTargetTypeDefinition;
+	InputType = InInputType;
+	TypeDefinition = InTypeDefinition;
 }
 
-bool UNiagaraScriptConversionContextInput::TryGetValueRangeFloat(float& OutMinValue, float& OutMaxValue)
+
+TArray<FRichCurveKey> FRichCurveKeyBP::KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs)
 {
-	if (ClipboardFunctionInput == nullptr)
+	TArray<FRichCurveKey> Keys;
+	Keys.AddUninitialized(InKeyBPs.Num());
+	for (int i = 0; i < InKeyBPs.Num(); ++i)
 	{
-		return false;
+		Keys[i] = InKeyBPs[i].ToBase();
 	}
-	
-	switch (ClipboardFunctionInput->ValueMode) {
-	case ENiagaraClipboardFunctionInputValueMode::Data:
-		if (ClipboardFunctionInput->Data != nullptr)
-		{
-			if (ClipboardFunctionInput->Data->IsA<UNiagaraDataInterfaceCurve>())
-			{
-				UNiagaraDataInterfaceCurve* CurveDI = Cast<UNiagaraDataInterfaceCurve>(ClipboardFunctionInput->Data);
-				CurveDI->Curve.GetValueRange(OutMinValue, OutMaxValue);
-				return true;
-			}
-		}
-	case ENiagaraClipboardFunctionInputValueMode::Local:
-		if (ClipboardFunctionInput->GetTypeDef() == FNiagaraTypeDefinition::GetFloatDef())
-		{
-			memcpy(&OutMaxValue, ClipboardFunctionInput->Local.GetData(), sizeof(float));
-			memcpy(&OutMinValue, ClipboardFunctionInput->Local.GetData(), sizeof(float));
-			return true;
-		}
-	default:
-		return false;
-	}
-	return false;
-}
-
-bool UNiagaraScriptConversionContextInput::TryGetValueRangeVector(FVector& OutMinValue, FVector& OutMaxValue)
-{
-	if (ClipboardFunctionInput == nullptr)
-	{
-		return false;
-	}
-
-	switch (ClipboardFunctionInput->ValueMode) {
-	case ENiagaraClipboardFunctionInputValueMode::Data:
-		if (ClipboardFunctionInput->Data != nullptr)
-		{
-			if (ClipboardFunctionInput->Data->IsA<UNiagaraDataInterfaceVectorCurve>())
-			{
-				UNiagaraDataInterfaceVectorCurve* CurveDI = Cast<UNiagaraDataInterfaceVectorCurve>(ClipboardFunctionInput->Data);
-
-				OutMaxValue = FVector(INT32_MIN);
-				OutMinValue = FVector(INT32_MAX);
-				float MinX, MaxX, MinY, MaxY, MinZ, MaxZ;
-				CurveDI->XCurve.GetValueRange(MinX, MaxX);
-				CurveDI->YCurve.GetValueRange(MinY, MaxY);
-				CurveDI->ZCurve.GetValueRange(MinZ, MaxZ);
-				OutMaxValue = OutMaxValue.ComponentMax(FVector(MaxX, MaxY, MaxZ));
-				OutMinValue = OutMinValue.ComponentMin(FVector(MinX, MinY, MinZ));
-				return true;
-			}
-		}
-	case ENiagaraClipboardFunctionInputValueMode::Local:
-		if (ClipboardFunctionInput->GetTypeDef() == FNiagaraTypeDefinition::GetVec3Def())
-		{
-			memcpy(&OutMaxValue, ClipboardFunctionInput->Local.GetData(), sizeof(FVector));
-			memcpy(&OutMinValue, ClipboardFunctionInput->Local.GetData(), sizeof(FVector));
-			return true;
-		}
-	default:
-		return false;
-	}
-	return false;
-}
-
-bool UNiagaraScriptConversionContextInput::ValueIsAlwaysEqual(TArray<float> ConstValues)
-{
-	float MinFloat, MaxFloat = 0.0f; 
-	if (TryGetValueRangeFloat(MinFloat, MaxFloat))
-	{
-		if (MinFloat != MaxFloat)
-		{
-			return false;
-		}
-		
-		for (const float& ConstValue : ConstValues)
-		{
-			if (ConstValue == MinFloat)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	FVector MinVector, MaxVector = FVector(0.0f);
-	if (TryGetValueRangeVector(MinVector, MaxVector))
-	{
-		if (MinVector != MaxVector)
-		{
-			return false;
-		}
-
-		for (const float& ConstValue : ConstValues)
-		{
-			if (FVector(ConstValue) == MinVector)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	return false;
+	return Keys;
 }

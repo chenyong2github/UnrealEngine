@@ -349,7 +349,7 @@ void UEditorLevelLibrary::EditorInvalidateViewports()
 
 namespace InternalEditorLevelLibrary
 {
-	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation)
+	AActor* SpawnActor(const TCHAR* MessageName, UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient = false)
 	{
 		if (!EditorScriptingUtils::CheckIfInEditorAndPIE())
 		{
@@ -379,7 +379,17 @@ namespace InternalEditorLevelLibrary
 		GEditor->ClickLocation = Location;
 		GEditor->ClickPlane = FPlane(Location, FVector::UpVector);
 
-		const EObjectFlags NewObjectFlags = RF_Transactional;
+		EObjectFlags NewObjectFlags = RF_NoFlags;
+
+		if (bTransient)
+		{
+			NewObjectFlags |= RF_Transient;
+		}
+		else
+		{
+			NewObjectFlags |= RF_Transactional;
+		}
+
 		UActorFactory* FactoryToUse = nullptr;
 		bool bSelectActors = true;
 		TArray<AActor*> Actors = FLevelEditorViewportClient::TryPlacingActorFromObject(DesiredLevel, ObjToUse, bSelectActors, NewObjectFlags, FactoryToUse);
@@ -402,7 +412,7 @@ namespace InternalEditorLevelLibrary
 	}
 }
 
-AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation)
+AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Location, FRotator Rotation, bool bTransient)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -417,10 +427,10 @@ AActor* UEditorLevelLibrary::SpawnActorFromObject(UObject* ObjToUse, FVector Loc
 		return nullptr;
 	}
 
-	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromObject"), ObjToUse, Location, Rotation);
+	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromObject"), ObjToUse, Location, Rotation, bTransient);
 }
 
-AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation)
+AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation, bool bTransient)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
@@ -435,7 +445,7 @@ AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> Actor
 		return nullptr;
 	}
 
-	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation);
+	return InternalEditorLevelLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation, bTransient);
 }
 
 bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
@@ -496,6 +506,28 @@ UWorld* UEditorLevelLibrary::GetGameWorld()
 	return InternalEditorLevelLibrary::GetGameWorld();
 }
 
+TArray<UWorld*> UEditorLevelLibrary::GetPIEWorlds(bool bIncludeDedicatedServer)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	TArray<UWorld*> PIEWorlds;
+
+	if (GEditor)
+	{
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				if (bIncludeDedicatedServer || !WorldContext.RunAsDedicated)
+				{
+					PIEWorlds.Add(WorldContext.World());
+				}
+			}
+		}
+	}
+
+	return PIEWorlds;
+}
 
 /**
  *

@@ -13,6 +13,7 @@
 #include "SequencerSettings.h"
 #include "AssetRegistryModule.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Stats/Stats.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraSystem.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
@@ -74,6 +75,7 @@
 #include "NiagaraEditorCommands.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraComponentBroker.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -847,6 +849,11 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance));
 
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraMaterialAttributeBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMaterialAttributeBindingCustomization::MakeInstance));
+
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
@@ -862,6 +869,9 @@ void FNiagaraEditorModule::StartupModule()
 		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorModule::ReinitializeStyle));
 
 	FNiagaraEditorCommands::Register();
+
+	NiagaraComponentBroker = MakeShareable(new FNiagaraComponentBroker);
+	FComponentAssetBrokerage::RegisterBroker(NiagaraComponentBroker, UNiagaraComponent::StaticClass(), true, true);
 
 	TSharedPtr<FNiagaraScriptGraphPanelPinFactory> GraphPanelPinFactory = MakeShareable(new FNiagaraScriptGraphPanelPinFactory());
 
@@ -1089,6 +1099,11 @@ void FNiagaraEditorModule::ShutdownModule()
 
 	UnregisterSettings();
 
+	if (UObjectInitialized())
+	{
+		FComponentAssetBrokerage::UnregisterBroker(NiagaraComponentBroker);
+	}
+
 	ISequencerModule* SequencerModule = FModuleManager::GetModulePtr<ISequencerModule>("Sequencer");
 	if (SequencerModule != nullptr)
 	{
@@ -1179,9 +1194,11 @@ FNiagaraEditorModule& FNiagaraEditorModule::Get()
 	return FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 }
 
-void FNiagaraEditorModule::OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings)
+void FNiagaraEditorModule::OnNiagaraSettingsChangedEvent(const FName& PropertyName, const UNiagaraSettings* Settings)
 {
-	if (PropertyName == "AdditionalParameterTypes" || PropertyName == "AdditionalPayloadTypes")
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalParameterTypes)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalPayloadTypes)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraSettings, AdditionalParameterEnums))
 	{
 		FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry();
 	}
@@ -1414,18 +1431,21 @@ void FNiagaraEditorModule::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FNiagaraEditorModule::OnPreGarbageCollection()
 {
-	// For commandlets like GenerateDistillFileSetsCommandlet, they just load the package and do some hierarchy navigation within it 
-	// tracking sub-assets, then they garbage collect. Since nothing is holding onto the system at the root level, it will be summarily
-	// killed and any of references will also be killed. To thwart this for now, we are forcing the compilations to complete BEFORE
-	// garbage collection kicks in. To do otherwise for now has too many loose ends (a system may be left around after the level has been
-	// unloaded, leaving behind weird external references, etc). This should be revisited when more time is available (i.e. not days before a 
-	// release is due to go out).
-	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+	if (IsRunningCommandlet())
 	{
-		UNiagaraSystem* System = *It;
-		if (System && System->HasOutstandingCompilationRequests())
+		// For commandlets like GenerateDistillFileSetsCommandlet, they just load the package and do some hierarchy navigation within it 
+		// tracking sub-assets, then they garbage collect. Since nothing is holding onto the system at the root level, it will be summarily
+		// killed and any of references will also be killed. To thwart this for now, we are forcing the compilations to complete BEFORE
+		// garbage collection kicks in. To do otherwise for now has too many loose ends (a system may be left around after the level has been
+		// unloaded, leaving behind weird external references, etc). This should be revisited when more time is available (i.e. not days before a 
+		// release is due to go out).
+		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
 		{
-			System->WaitForCompilationComplete();
+			UNiagaraSystem* System = *It;
+			if (System && System->HasOutstandingCompilationRequests())
+			{
+				System->WaitForCompilationComplete();
+			}
 		}
 	}
 }
@@ -1480,6 +1500,7 @@ void FNiagaraEditorModule::EnqueueObjectForDeferredDestructionInternal(FDeferred
 
 bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FNiagaraEditorModule_DeferredDestructObjects);
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
 }

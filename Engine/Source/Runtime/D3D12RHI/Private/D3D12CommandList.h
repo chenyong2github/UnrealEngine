@@ -170,19 +170,7 @@ private:
 			CurrentCommandAllocator->SetSyncPoint(SyncPoint);
 		}
 
-		void FlushResourceBarriers()
-		{
-#if DEBUG_RESOURCE_STATES
-			// Keep track of all the resource barriers that have been submitted to the current command list.
-			const TArray<D3D12_RESOURCE_BARRIER>& Barriers = ResourceBarrierBatcher.GetBarriers();
-			if (Barriers.Num())
-			{
-				ResourceBarriers.Append(Barriers.GetData(), Barriers.Num());
-			}
-#endif
-
-			ResourceBarrierBatcher.Flush(CommandList);
-		}
+		void FlushResourceBarriers();
 
 		uint32 AddRef() const
 		{
