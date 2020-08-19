@@ -3635,6 +3635,16 @@ bool FBodyInstance::OverlapTest(const FVector& Position, const FQuat& Rotation, 
 	return bHasOverlap;
 }
 
+bool FBodyInstance::OverlapTest_AssumesLocked(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD /*= nullptr*/) const
+{
+	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
+	SCOPE_CYCLE_COUNTER(STAT_Collision_FBodyInstance_OverlapTest);
+
+	FTransform GeomTransform(Rotation, Position);
+	bool bHasOverlap = FPhysicsInterface::Overlap_Geom(this, CollisionShape, Rotation, GeomTransform, OutMTD);
+	return bHasOverlap;
+}
+
 FTransform RootSpaceToWeldedSpace(const FBodyInstance* BI, const FTransform& RootTM)
 {
 	if (BI->WeldParent)
