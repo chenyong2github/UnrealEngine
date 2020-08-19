@@ -69,6 +69,7 @@ public class LevelEditor : ModuleRules
 				"CommonMenuExtensions",
 				"ToolMenus",
 				"EnvironmentLightingViewer",
+				"DesktopPlatform",
 			}
 		);
 
