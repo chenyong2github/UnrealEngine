@@ -726,7 +726,7 @@ void FVulkanDynamicRHI::InitInstance()
 
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
 
-		GUseTexture3DBulkDataRHI = true;
+		GUseTexture3DBulkDataRHI = false;
 
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
