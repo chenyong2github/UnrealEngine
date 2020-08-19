@@ -56,7 +56,7 @@ namespace
 		float  Origin[3];
 		uint32 PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 		float  Direction[3];
-		uint32 DebugSortKey;
+		float  Validity; // Only technically need 8 bits, the rest could be repurposed
 	};
 
 	struct FRayIntersectionBookmark
