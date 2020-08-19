@@ -203,10 +203,10 @@ IMPLEMENT_GLOBAL_SHADER(FLumenRoughReflectionsPS, "/Engine/Private/Lumen/LumenRe
 
 bool ShouldRenderLumenReflections(const FViewInfo& View)
 {
-	const FScene* Scene = (const FScene*) View.Family->Scene;
+	const FScene* Scene = (const FScene*) View.Family->Scene; // -V595
 	if (Scene)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData; // -V595
 
 		return GAllowLumenScene
 			&& DoesPlatformSupportLumenGI(View.GetShaderPlatform())
