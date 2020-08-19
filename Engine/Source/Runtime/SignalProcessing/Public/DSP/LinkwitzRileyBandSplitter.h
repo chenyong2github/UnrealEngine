@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -5,7 +7,7 @@
 #include "DSP/VariablePoleFilter.h"
 #include "DSP/BufferVectorOperations.h"
 
-#define  MAX_BUFFER_SIZE 16384 // 8 channels * 2048 samples
+#define  MAX_BUFFER_SIZE 8192 // 8 channels * 1024 samples
 
 namespace Audio
 {
