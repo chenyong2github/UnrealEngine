@@ -1616,7 +1616,7 @@ void TGeometryCollectionPhysicsProxy<Traits>::FlipBuffer()
 
 // Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 template <typename Traits>
-void TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState()
+bool TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	/**
 	 * CONTEXT: GAMETHREAD (Read Locked)
@@ -1631,7 +1631,7 @@ void TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState()
 	const FGeometryCollectionResults* TargetResultPtr = PhysToGameInterchange.GetConsumerBuffer();
 	if(!TargetResultPtr)
 	{
-		return;
+		return false;
 	}
 
 	// Remove const-ness as we're going to do the ExchangeArrays() thing.
@@ -1685,6 +1685,8 @@ void TGeometryCollectionPhysicsProxy<Traits>::PullFromPhysicsState()
 			CacheSyncFunc(TargetResults);
 		}
 	}
+
+	return true;	//todo: consider pending delete
 }
 
 //==============================================================================

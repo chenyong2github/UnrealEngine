@@ -356,7 +356,7 @@ void FChaosScene::StartFrame()
 #endif
 }
 
-void FChaosScene::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
+void FChaosScene::OnSyncBodies(int32 SyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
 	using namespace Chaos;
 	//simple implementation that pulls data over. Used for unit testing, engine has its own version of this
@@ -364,7 +364,7 @@ void FChaosScene::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Acc
 
 	for(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
 	{
-		Proxy->PullFromPhysicsState();
+		Proxy->PullFromPhysicsState(SyncTimestamp);
 	}
 
 	for(IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies)
@@ -372,7 +372,7 @@ void FChaosScene::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Acc
 		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 		{
 			FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-			GCProxy->PullFromPhysicsState();
+			GCProxy->PullFromPhysicsState(SyncTimestamp);
 		} else
 		{
 			ensure(false); // Unhandled physics only particle proxy!
@@ -445,11 +445,9 @@ template <typename TSolver>
 void FChaosScene::SyncBodies(TSolver* Solver)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
-
+	const int32 SolverSyncTimestamp = Solver->GetMarshallingManager().GetExternalTimestampConsumed_External();
 	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
-	OnSyncBodies(Accessor);
-
-
+	OnSyncBodies(SolverSyncTimestamp, Accessor);
 	//
 	// @todo(chaos) : Add Dirty Constraints Support
 	//
@@ -460,9 +458,8 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 	//
 	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy())
 	{
-		Proxy->PullFromPhysicsState();
+		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
 	}
-
 }
 
 

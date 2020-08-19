@@ -1154,7 +1154,8 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 
 	FActorCreationParams ActorParams;
 	ActorParams.InitialTM = Transform;
-	ActorParams.BodyInstance = Instance;
+	ActorParams.bSimulatePhysics = Instance->ShouldInstanceSimulatingPhysics();
+	ActorParams.bStartAwake = Instance->bStartAwake;
 #if USE_BODYINSTANCE_DEBUG_NAMES
 	ActorParams.DebugName = Instance->CharDebugName.IsValid() ? Instance->CharDebugName->GetData() : nullptr;
 #endif

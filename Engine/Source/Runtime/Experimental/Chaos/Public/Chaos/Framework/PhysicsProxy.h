@@ -131,10 +131,14 @@ public:
 	 * from the game thread when it cannot sync to the physics thread. The simulation is very likely to be running
 	 * when this happens so never read any physics thread data here!
 	 *
+	 * SyncTimestamp indicates which inputs the solver used to generate these results. Proxy can stomp results if needed
+	 * For example of particle has been deleted, or a position was set manually by game thread, the proxy ignores the solver results
+	 * Returns true if the data was pulled. If false is returned the proxy's particle pointer may be dangling so do not read from it. Skip sync entirely
+	 *
 	 * Note: A read lock will have been acquired for this - so the physics thread won't force a buffer flip while this
 	 * sync is ongoing
 	 */
-	void PullFromPhysicsState() { static_cast<Concrete*>(this)->PullFromPhysicsState(); }
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp) { return static_cast<Concrete*>(this)->PullFromPhysicsState(SolverSyncTimestamp); }
 
 	/**
 	 * CONTEXT: GAMETHREAD
