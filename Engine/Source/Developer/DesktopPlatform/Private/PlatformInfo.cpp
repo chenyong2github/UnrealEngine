@@ -14,6 +14,7 @@ namespace PlatformInfo
 {
 	TArray<FName> AllPlatformGroupNames;
 	TArray<FName> AllVanillaPlatformNames;
+	TMap<FName, FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
 
 namespace
 {
@@ -180,6 +181,39 @@ void ParseDataDrivenPlatformInfo(const TCHAR* Name, const FConfigSection& Sectio
 		AutoSDKPath, PlatformInfo::EPlatformSDKStatus::Unknown, TutorialPath, bIsEnabled, BinariesDirectoryName, IniPlatformName, bUsesHostCompiler, bUATClosesAfterLaunch, bIsConfidential, UBTTargetID, PlatformGroupName, PlatformSubMenu, bTargetPlatformCanUseCrashReporter);
 }
 
+void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSection& Section)
+{
+	// Early-out if enabled cvar is specified and not set
+	TArray<FString> Tokens;
+	GetSectionString(Section, FName("EnabledCVar")).ParseIntoArray(Tokens, TEXT(":"));
+	if (Tokens.Num() == 5)
+	{
+		// now load a local version of the ini hierarchy
+		FConfigFile LocalIni;
+		FConfigCacheIni::LoadLocalIniFile(LocalIni, *Tokens[1], true, *Tokens[2]);
+
+		// and get the enabled cvar's value
+		bool bEnabled = false;
+		LocalIni.GetBool(*Tokens[3], *Tokens[4], bEnabled);
+		if (!bEnabled)
+		{
+			return;
+		}
+	}
+
+	FName ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
+	
+	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(ShaderFormat);
+
+	Item.ActiveIconPath = GetSectionString(Section, FName("ActiveIconPath"));
+	Item.ActiveIconName = *GetSectionString(Section, FName("ActiveIconName"));
+	Item.InactiveIconPath = GetSectionString(Section, FName("InactiveIconPath"));
+	Item.InactiveIconName = *GetSectionString(Section, FName("InactiveIconName"));
+	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuText")), Item.MenuText);
+	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuTooltip")), Item.MenuTooltip);
+	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("IconText")), Item.IconText);
+}
+
 void LoadDataDrivenPlatforms()
 {
 	// look for the standard DataDriven ini files
@@ -191,13 +225,19 @@ void LoadDataDrivenPlatforms()
 
 		FDataDrivenPlatformInfoRegistry::LoadDataDrivenIniFile(Index, IniFile, PlatformName);
 
-		// now walk over the file, looking for ShaderPlatformInfo sections
+		// now walk over the file, looking for PlatformInfo or PreviewPlatform sections
 		for (auto Section : IniFile)
 		{
 			if (Section.Key.StartsWith(TEXT("PlatformInfo ")))
 			{
 				const FString& SectionName = Section.Key;
 				ParseDataDrivenPlatformInfo(*SectionName.Mid(13), Section.Value);
+			}
+
+			if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
+			{
+				const FString& SectionName = Section.Key;
+				ParseDataDrivenPreviewPlatform(*SectionName.Mid(16), Section.Value);
 			}
 		}
 	}
@@ -339,6 +379,11 @@ const TArray<FName>& GetAllPlatformGroupNames()
 const TArray<FName>& GetAllVanillaPlatformNames()
 {
 	return PlatformInfo::AllVanillaPlatformNames;
+}
+
+const TMap<FName, FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems()
+{
+	return PlatformInfo::PreviewPlatformMenuItems;
 }
 
 } // namespace PlatformInfo
