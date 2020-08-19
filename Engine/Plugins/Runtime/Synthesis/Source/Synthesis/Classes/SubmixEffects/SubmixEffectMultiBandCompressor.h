@@ -6,7 +6,7 @@
 #include "Sound/SoundEffectSubmix.h"
 #include "DSP/LinkwitzRileyBandSplitter.h"
 #include "SubmixEffects/AudioMixerSubmixEffectDynamicsProcessor.h"
-#include "SubmixEffectMultibandCompressor.generated.h"
+#include "SubmixEffectMultiBandCompressor.generated.h"
 
 USTRUCT(BlueprintType)
 struct FDynamicsBandSettings
