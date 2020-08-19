@@ -117,7 +117,7 @@ private:
 			if (FoundationActor->IsDirty())
 			{
 				FFormatNamedArguments Args;
-				Args.Add(TEXT("ActorLabel"), FText::FromString(Actor->GetActorLabel()));
+				Args.Add(TEXT("ActorLabel"), FText::FromString(FoundationActor->GetActorLabel()));
 				Args.Add(TEXT("EditTag"), LOCTEXT("EditingFoundationLabel", "*"));
 				return FText::Format(LOCTEXT("FoundationDisplay", "{ActorLabel}{EditTag}"), Args);
 			}
