@@ -163,12 +163,12 @@ FBasicMathExpressionEvaluator::FBasicMathExpressionEvaluator()
 	Grammar.DefinePreUnaryOperator<FPlus>();
 	Grammar.DefinePreUnaryOperator<FMinus>();
 	Grammar.DefinePreUnaryOperator<FSquareRoot>();
-	Grammar.DefineBinaryOperator<FPlus>(5);
-	Grammar.DefineBinaryOperator<FMinus>(5);
-	Grammar.DefineBinaryOperator<FStar>(4);
-	Grammar.DefineBinaryOperator<FForwardSlash>(4);
-	Grammar.DefineBinaryOperator<FPercent>(4);
-	Grammar.DefineBinaryOperator<FPower>(4);;
+	Grammar.DefineBinaryOperator<FPlus>(5, EAssociativity::LeftToRight);
+	Grammar.DefineBinaryOperator<FMinus>(5, EAssociativity::LeftToRight);
+	Grammar.DefineBinaryOperator<FStar>(4, EAssociativity::LeftToRight);
+	Grammar.DefineBinaryOperator<FForwardSlash>(4, EAssociativity::LeftToRight);
+	Grammar.DefineBinaryOperator<FPercent>(4, EAssociativity::LeftToRight);
+	Grammar.DefineBinaryOperator<FPower>(3);
 
 	JumpTable.MapPreUnary<FPlus>([](double N)			{ return N; });
 	JumpTable.MapPreUnary<FMinus>([](double N)			{ return -N; });
@@ -306,7 +306,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBasicMathExpressionEvaluatorTest, "System.Core
 // Evaluates valid math expressions.
 bool FBasicMathExpressionEvaluatorTest::RunTest(const FString& Parameters)
 {
-	TestTrue(TEXT("Valid expression, '+2', evaluated incorrectly."), TestExpression(this, TEXT("+1"), 1));
+	TestTrue(TEXT("Valid expression, '+1', evaluated incorrectly."), TestExpression(this, TEXT("+1"), 1));
 	TestTrue(TEXT("Valid expression, '-20', evaluated incorrectly."), TestExpression(this, TEXT("-20"), -20));
 	TestTrue(TEXT("Valid expression, '-+-2', evaluated incorrectly."), TestExpression(this, TEXT("-+-2"), 2));
 	TestTrue(TEXT("Valid expression, '1 + 2', evaluated incorrectly."), TestExpression(this, TEXT("1 + 2"), 3));
@@ -314,8 +314,11 @@ bool FBasicMathExpressionEvaluatorTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Valid expression, '1+2*3*4+1', evaluated incorrectly."), TestExpression(this, TEXT("1+2*3*4+1"), 1 + 2 * 3 * 4 + 1));
 	TestTrue(TEXT("Valid expression, '1*2+3', evaluated incorrectly."), TestExpression(this, TEXT("1*2+3"), 1 * 2 + 3));
 	TestTrue(TEXT("Valid expression, '1+2*3*4+1', evaluated incorrectly."), TestExpression(this, TEXT("1+2*3*4+1"), 1 + 2 * 3 * 4 + 1));
+	TestTrue(TEXT("Valid expression, '8-4+3', evaluated incorrectly."), TestExpression(this, TEXT("8-4+3"), 8 - 4 + 3));
 	
 	TestTrue(TEXT("Valid expression, '2^2', evaluated incorrectly."), TestExpression(this, TEXT("2^2"), 4));
+	TestTrue(TEXT("Valid expression, '2^(2*3)', evaluated incorrectly."), TestExpression(this, TEXT("2^(2*3)"), 64));
+	TestTrue(TEXT("Valid expression, '2^2*3', evaluated incorrectly."), TestExpression(this, TEXT("2^2*3"), 12));
 	TestTrue(TEXT("Valid expression, 'sqrt(4)', evaluated incorrectly."), TestExpression(this, TEXT("sqrt(4)"), 2));
 	TestTrue(TEXT("Valid expression, '4*sqrt(4)+10', evaluated incorrectly."), TestExpression(this, TEXT("4*sqrt(4)+10"), 18));
 	TestTrue(TEXT("Valid expression, '8%6', evaluated incorrectly."), TestExpression(this, TEXT("8%6"), 2));
@@ -339,6 +342,7 @@ bool FBasicMathExpressionEvaluatorGroupedExpressionsTest::RunTest(const FString&
 	TestTrue(TEXT("Valid grouped expression, '(1+2)*3*4+1', evaluated incorrectly."), TestExpression(this, TEXT("(1+2)*3*4+1"), (1 + 2) * 3 * 4 + 1));
 	TestTrue(TEXT("Valid grouped expression, '(1+2)*3*(4+1)', evaluated incorrectly."), TestExpression(this, TEXT("(1+2)*3*(4+1)"), (1 + 2) * 3 * (4 + 1)));
 	TestTrue(TEXT("Valid grouped expression, '((1+2) / (3+1) + 2) * 3', evaluated incorrectly."), TestExpression(this, TEXT("((1+2) / (3+1) + 2) * 3"), ((1.0 + 2) / (3 + 1) + 2) * 3));
+	TestTrue(TEXT("Valid grouped expression, '8 / 2 * (2 + 2)', evaluated incorrectly."), TestExpression(this, TEXT("8 / 2 * (2 + 2)"), 8 / 2 * (2 + 2)));
 
 	return true;
 }
