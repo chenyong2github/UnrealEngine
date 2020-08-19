@@ -2467,8 +2467,6 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			}
 		}
 
-		check((ShaderMap && Materials) || ProcessIt.Key() == GlobalShaderMapId);
-
 		if (ShaderMap && Materials)
 		{
 			TArray<FString> Errors;
@@ -2609,6 +2607,26 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				CompilationResults.Empty();
 				ProcessIt.RemoveCurrent();
 			}
+		}
+		else
+		{
+			// CompileID doesn't match GlobalShaderMapId, and doesn't match any currently compiling materials...this is a fatal error
+			UE_LOG(LogShaderCompilers, Error, TEXT("CompileResults: NumJobsQueued %d, FinishedJobs.Num %d, FinalizeJobIndex %d, bAllJobsSucceeded %d"),
+				CompileResults.NumJobsQueued, CompileResults.FinishedJobs.Num(), CompileResults.FinalizeJobIndex, (int32)CompileResults.bAllJobsSucceeded)
+			UE_LOG(LogShaderCompilers, Error, TEXT("ShaderMap: %s"), ShaderMap ? ShaderMap->GetFriendlyName() : TEXT("nullptr"));
+			if (Materials)
+			{
+				UE_LOG(LogShaderCompilers, Error, TEXT("Materials: %d"), Materials->Num());
+				for (FMaterial* Material : *Materials)
+				{
+					UE_LOG(LogShaderCompilers, Error, TEXT("  Material: %s"), Material ? *Material->GetFriendlyName() : TEXT("nullptr"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogShaderCompilers, Error, TEXT("Materials: nullptr"));
+			}
+			UE_LOG(LogShaderCompilers, Fatal, TEXT("Missing ShaderMap/Material for CompileID %d"), ProcessIt.Key());
 		}
 	}
 
