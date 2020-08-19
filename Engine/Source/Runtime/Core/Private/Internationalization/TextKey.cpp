@@ -2,9 +2,8 @@
 
 #include "Internationalization/TextKey.h"
 #include "Containers/Map.h"
-#include "Containers/StringConv.h"
 #include "Containers/ContainerAllocationPolicies.h"
-#include "Misc/Crc.h"
+#include "Hash/CityHash.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
@@ -115,7 +114,7 @@ private:
 		FKeyData(const TCHAR* InStr, const int32 InStrLen)
 			: Str(InStr)
 			, StrLen(InStrLen)
-			, StrHash(FCrc::StrCrc32(Str)) // Note: This hash gets serialized so *DO NOT* change it
+			, StrHash(TextKeyUtil::HashString(InStr, InStrLen)) // Note: This hash gets serialized so *DO NOT* change it without fixing the serialization to discard the old hash method
 		{
 		}
 
@@ -266,6 +265,12 @@ bool LoadKeyString(FArchive& Ar, FInlineStringBuffer& OutStrBuffer)
 	return true;
 }
 
+uint32 HashString(const FTCHARToUTF16& InStr)
+{
+	const uint64 StrHash = CityHash64((const char*)InStr.Get(), InStr.Length() * sizeof(UTF16CHAR));
+	return GetTypeHash(StrHash);
+}
+
 }
 
 FTextKey::FTextKey()
@@ -309,7 +314,29 @@ FTextKey::FTextKey(FString&& InStr)
 	}
 }
 
-void FTextKey::Serialize(FArchive& Ar)
+void FTextKey::SerializeAsString(FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		TextKeyUtil::FInlineStringBuffer StrBuffer;
+		TextKeyUtil::LoadKeyString(Ar, StrBuffer);
+
+		if (StrBuffer.Num() <= 1)
+		{
+			Reset();
+		}
+		else
+		{
+			FTextKeyState::GetState().FindOrAdd(StrBuffer.GetData(), StrBuffer.Num() - 1, StrPtr, StrHash);
+		}
+	}
+	else
+	{
+		TextKeyUtil::SaveKeyString(Ar, StrPtr);
+	}
+}
+
+void FTextKey::SerializeWithHash(FArchive& Ar)
 {
 	if (Ar.IsLoading())
 	{
@@ -335,10 +362,13 @@ void FTextKey::Serialize(FArchive& Ar)
 	}
 }
 
-void FTextKey::SerializeAsString(FArchive& Ar)
+void FTextKey::SerializeDiscardHash(FArchive& Ar)
 {
 	if (Ar.IsLoading())
 	{
+		uint32 DiscardedHash = 0;
+		Ar << DiscardedHash;
+
 		TextKeyUtil::FInlineStringBuffer StrBuffer;
 		TextKeyUtil::LoadKeyString(Ar, StrBuffer);
 
@@ -353,7 +383,115 @@ void FTextKey::SerializeAsString(FArchive& Ar)
 	}
 	else
 	{
+		Ar << StrHash;
+
 		TextKeyUtil::SaveKeyString(Ar, StrPtr);
+	}
+}
+
+void FTextKey::SerializeAsString(FStructuredArchiveSlot Slot)
+{
+	if (Slot.GetArchiveState().IsTextFormat())
+	{
+		if (Slot.GetUnderlyingArchive().IsLoading())
+		{
+			FString TmpStr;
+			Slot << TmpStr;
+
+			if (TmpStr.IsEmpty())
+			{
+				Reset();
+			}
+			else
+			{
+				FTextKeyState::GetState().FindOrAdd(MoveTemp(TmpStr), StrPtr, StrHash);
+			}
+		}
+		else
+		{
+			FString TmpStr = StrPtr;
+			Slot << TmpStr;
+		}
+	}
+	else
+	{
+		Slot.EnterStream(); // Let the slot know that we will custom serialize
+		SerializeAsString(Slot.GetUnderlyingArchive());
+	}
+}
+
+void FTextKey::SerializeWithHash(FStructuredArchiveSlot Slot)
+{
+	if (Slot.GetArchiveState().IsTextFormat())
+	{
+		FStructuredArchiveRecord Record = Slot.EnterRecord();
+
+		if (Slot.GetUnderlyingArchive().IsLoading())
+		{
+			Record << SA_VALUE(TEXT("Hash"), StrHash);
+
+			FString TmpStr;
+			Record << SA_VALUE(TEXT("Str"), TmpStr);
+
+			if (TmpStr.IsEmpty())
+			{
+				Reset();
+			}
+			else
+			{
+				FTextKeyState::GetState().FindOrAdd(*TmpStr, TmpStr.Len(), StrHash, StrPtr);
+			}
+		}
+		else
+		{
+			Record << SA_VALUE(TEXT("Hash"), StrHash);
+
+			FString TmpStr = StrPtr;
+			Record << SA_VALUE(TEXT("Str"), TmpStr);
+		}
+	}
+	else
+	{
+		Slot.EnterStream(); // Let the slot know that we will custom serialize
+		SerializeWithHash(Slot.GetUnderlyingArchive());
+	}
+}
+
+void FTextKey::SerializeDiscardHash(FStructuredArchiveSlot Slot)
+{
+	if (Slot.GetArchiveState().IsTextFormat())
+	{
+		FStructuredArchiveRecord Record = Slot.EnterRecord();
+
+		if (Slot.GetUnderlyingArchive().IsLoading())
+		{
+			uint32 DiscardedHash = 0;
+			Record << SA_VALUE(TEXT("Hash"), DiscardedHash);
+
+			FString TmpStr;
+			Record << SA_VALUE(TEXT("Str"), TmpStr);
+
+			if (TmpStr.IsEmpty())
+			{
+				Reset();
+			}
+			else
+			{
+				FTextKeyState::GetState().FindOrAdd(MoveTemp(TmpStr), StrPtr, StrHash);
+			}
+		}
+		else
+		{
+			Record << SA_VALUE(TEXT("Hash"), StrHash);
+
+			FString TmpStr = StrPtr;
+			Record << SA_VALUE(TEXT("Str"), TmpStr);
+		}
+	}
+	else
+	{
+		Slot.EnterStream(); // Let the slot know that we will custom serialize
+		SerializeDiscardHash(Slot.GetUnderlyingArchive());
 	}
 }
 
