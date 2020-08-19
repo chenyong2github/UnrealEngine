@@ -456,6 +456,10 @@ void LumenCardLightingCombinePS(
 	out float4 OutColor : SV_Target0)
 {   
 	float3 Radiosity = Texture2DSampleLevel(RadiosityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz;
+
+	// Secure again strange values, as we are writing it to a persistent atlas with a feedback loop
+	Radiosity = max(MakeFinite(Radiosity), float3(0.0f, 0.0f, 0.0f));
+
 	OutColor = float4(Radiosity, 0);
 }
 

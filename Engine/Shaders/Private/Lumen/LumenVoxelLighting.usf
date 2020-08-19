@@ -797,6 +797,8 @@ void CardVoxelizePS(
 				float CardInterpolateDepthVisibilityRadius = VoxelSize.x;
 
 #if CUBE_MAP_TREE
+				// #lumen_todo: TEMP hack, remove after atlas mip-map out of bounds bug is fixed
+				InterpolateRadius = 0.0f;
 
 				float3 Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius);
 
@@ -1061,6 +1063,9 @@ void VoxelVisBufferShadingCS(
 			float3 InterpolatePosition = RayStart + RayDirection * TraceMeshSDFResult.HitDistance;
 			float InterpolateRadius = ConeStartRadius;
 			float CardInterpolateDepthVisibilityRadius = GridVoxelSize.x;
+
+			// #lumen_todo: TEMP hack, remove after atlas mip-map out of bounds bug is fixed
+			InterpolateRadius = 0.0f;
 
 			Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius);
 			Transparency = 0;
