@@ -1312,7 +1312,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 		{
 			if (InGraphPin->Direction == EGPD_Input)
 			{
-				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType);
+				UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(InGraphPin->GetOwningNode());
+				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType, Blueprint);
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
