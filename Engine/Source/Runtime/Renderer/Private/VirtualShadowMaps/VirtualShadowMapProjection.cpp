@@ -58,20 +58,20 @@ class FVirtualShadowMapProjectionPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionPS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionPS, FGlobalShader);
-public:		
+	
 	class FOutputTypeDim : SHADER_PERMUTATION_ENUM_CLASS("OUTPUT_TYPE", EVirtualShadowMapProjectionOutputType);
 	using FPermutationDomain = TShaderPermutationDomain<FOutputTypeDim>;
 
 	using FParameters = FVirtualShadowMapProjectionParameters;
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionPS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjectionPS", SF_Pixel);
@@ -90,15 +90,15 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 		
 	using FParameters = FVirtualShadowMapProjectionCompositeParameters;
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Required right now due to where the shader function lives, but not actually used
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapCompositePS", SF_Pixel);
