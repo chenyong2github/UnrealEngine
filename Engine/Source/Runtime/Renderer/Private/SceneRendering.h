@@ -896,6 +896,24 @@ struct FRayTracingMeshBatchWorkItem
 	FPrimitiveSceneProxy* SceneProxy;
 	uint32 InstanceIndex;
 };
+
+/** Convenience struct for all lighting data used by ray tracing effects using RayTracingLightingCommon.ush */
+struct FRayTracingLightData
+{
+	/** Uniform buffer with all lighting data */
+	TUniformBufferRef<FRaytracingLightDataPacked>	UniformBuffer;
+
+	/** Structured buffer containing all light data */
+	FStructuredBufferRHIRef							LightBuffer;
+	FShaderResourceViewRHIRef						LightBufferSRV;
+
+	/** Buffer of light indices reference by the culling volume */
+	FRWBuffer										LightIndices;
+
+	/** Camera-centered volume used to cull lights to cells */
+	FStructuredBufferRHIRef							LightCullVolume;
+	FShaderResourceViewRHIRef						LightCullVolumeSRV;
+};
 #endif
 
 /** A FSceneView with additional state used by the scene renderer. */
@@ -1244,9 +1262,7 @@ public:
 	// Common resources used for lighting in ray tracing effects
 	TRefCountPtr<IPooledRenderTarget>				RayTracingSubSurfaceProfileTexture;
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
-	FStructuredBufferRHIRef							RayTracingLightingDataBuffer;
-	TUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightingDataUniformBuffer;
-	FShaderResourceViewRHIRef						RayTracingLightingDataSRV;
+	FRayTracingLightData							RayTracingLightData;
 
 #endif // RHI_RAYTRACING
 

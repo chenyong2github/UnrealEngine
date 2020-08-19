@@ -262,8 +262,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.SceneTextures           = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
-	CommonParameters.LightDataPacked         = View.RayTracingLightingDataUniformBuffer;
-	CommonParameters.LightDataBuffer         = View.RayTracingLightingDataSRV;
+	CommonParameters.LightDataPacked         = View.RayTracingLightData.UniformBuffer;
+	CommonParameters.LightDataBuffer         = View.RayTracingLightData.LightBufferSRV;
 	CommonParameters.SSProfilesTexture       = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
 	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();
