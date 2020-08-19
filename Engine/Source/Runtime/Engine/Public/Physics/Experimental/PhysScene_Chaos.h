@@ -262,7 +262,7 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-	virtual void OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
+	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
 
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)

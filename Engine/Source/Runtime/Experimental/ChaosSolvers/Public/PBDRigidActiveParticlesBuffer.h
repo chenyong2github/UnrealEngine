@@ -32,8 +32,6 @@ namespace Chaos
 
 		void CaptureSolverData(FPBDRigidsSolver* Solver);
 
-		void RemoveDirtyParticleFromConsumerBuffer(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy);
-
 		void ReadLock();
 		void ReadUnlock();
 		void WriteLock();

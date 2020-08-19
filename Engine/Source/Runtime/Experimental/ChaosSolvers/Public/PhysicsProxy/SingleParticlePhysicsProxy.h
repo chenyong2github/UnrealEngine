@@ -138,7 +138,7 @@ public:
 	void BufferPhysicsResults();
 
 	/**/
-	void PullFromPhysicsState();
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	/**/
 	bool IsDirty();
@@ -185,7 +185,7 @@ template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState();
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::IsDirty();
@@ -216,7 +216,7 @@ template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState();
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::IsDirty();
@@ -239,7 +239,7 @@ template< >
 CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhysicsResults();
 
 template< >
-CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState();
+CHAOSSOLVERS_API bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 template< >
 bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::IsDirty();
