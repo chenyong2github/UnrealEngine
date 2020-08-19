@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "DSP/LinkwitzRileyBandSplitter.h"
 #include "DSP/BufferVectorOperations.h"
 
