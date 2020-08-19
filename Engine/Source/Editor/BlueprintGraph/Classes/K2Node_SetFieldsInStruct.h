@@ -48,7 +48,7 @@ protected:
 	struct FSetFieldsInStructPinManager : public FMakeStructPinManager
 	{
 	public:
-		FSetFieldsInStructPinManager(const uint8* InSampleStructMemory) : FMakeStructPinManager(InSampleStructMemory) 
+		FSetFieldsInStructPinManager(const uint8* InSampleStructMemory, UBlueprint* BP) : FMakeStructPinManager(InSampleStructMemory, BP)
 		{}
 
 		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override;
