@@ -2098,11 +2098,16 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 
 	if (InAssetData.IsAssetLoaded())
 	{
-		UObject*    AssetObject = InAssetData.GetAsset();
-		UBlueprint* Blueprint   = Handler->RetrieveBlueprint(AssetObject);
-		if (Blueprint)
+		if (UObject* AssetObject = InAssetData.GetAsset())
 		{
-			AddOrUpdateBlueprintSearchMetadata(Blueprint);
+			if (ensureMsgf(AssetObject->IsA(AssetClass), TEXT("AssetClass (%s) matched handler, but does not match actual object type (%s) for asset: %s."), *AssetClass->GetName(), *AssetObject->GetClass()->GetName(), *AssetObject->GetPathName()))
+			{
+				UBlueprint* Blueprint = Handler->RetrieveBlueprint(AssetObject);
+				if (Blueprint)
+				{
+					AddOrUpdateBlueprintSearchMetadata(Blueprint);
+				}
+			}
 		}
 	}
 	else if (Handler->AssetContainsBlueprint(InAssetData))
