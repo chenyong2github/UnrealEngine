@@ -146,7 +146,7 @@ inline const TCHAR* LexToString(const EOnJoinSessionCompleteResult::Type Value)
 	case EOnJoinSessionCompleteResult::SessionDoesNotExist:
 		return TEXT("SessionDoesNotExist");
 	case EOnJoinSessionCompleteResult::CouldNotRetrieveAddress:
-		return TEXT("CouldNotretrieveAddress");
+		return TEXT("CouldNotRetrieveAddress");
 	case EOnJoinSessionCompleteResult::AlreadyInSession:
 		return TEXT("AlreadyInSession");
 	case EOnJoinSessionCompleteResult::UnknownError:
