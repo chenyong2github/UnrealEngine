@@ -217,8 +217,8 @@ private:
 
 	static int SequenceNum;
 
-	static const SIZE_T SendDataSize = UDPPing::SizePacked;
-	static const SIZE_T RecvDataSize = UDPPing::SizePacked;
+	static const SIZE_T SendDataSize;
+	static const SIZE_T RecvDataSize;
 
 	static const FTimespan RecvWaitTime;
 	static const FTimespan SendWaitTime;
@@ -260,6 +260,9 @@ private:
 // ----------------------------------------------------------------------------
 // UDPEchoMany implementation
 // ----------------------------------------------------------------------------
+
+const SIZE_T FUdpPingWorker::SendDataSize = UDPPing::SizePacked;
+const SIZE_T FUdpPingWorker::RecvDataSize = UDPPing::SizePacked;
 
 const FTimespan FUdpPingWorker::RecvWaitTime = FTimespan::FromMilliseconds(0.25);
 const FTimespan FUdpPingWorker::SendWaitTime = FTimespan::FromMilliseconds(0.25);
