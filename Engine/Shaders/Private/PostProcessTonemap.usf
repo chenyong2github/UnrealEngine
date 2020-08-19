@@ -497,9 +497,8 @@ float4 TonemapCommonPS(
 
 	#if USE_GAMMA_ONLY
 
-		#if FEATURE_LEVEL >= FEATURE_LEVEL_ES3_1 // On mobile ExposureScale applied in base pass PS
-			SceneColor.rgb *= ExposureScale;
-		#endif
+		SceneColor.rgb *= ExposureScale;
+
 		OutColor.rgb = pow(SceneColor.rgb, InverseGamma.x);
 
 	#else 
@@ -524,10 +523,6 @@ float4 TonemapCommonPS(
 
 			//float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse; 
 
-			float2 DirtLensUV = ConvertScreenViewportSpaceToLensViewportSpace(ScreenPos) * float2(1.0f, -1.0f);
-
-			float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtLensUV * .5f + .5f).rgb * BloomDirtMaskTint.rgb;
-
 #if DEBUG_TONEMAPPER
 			if (all(DebugTile == int2(-1, -1)))
 			{
@@ -543,7 +538,16 @@ float4 TonemapCommonPS(
 			}
 #endif //DEBUG_TONEMAPPER
 
-			LinearColor += CombinedBloom.rgb * (ColorScale1.rgb + BloomDirtMaskColor); 
+			#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
+				// Support sunshaft and vignette for mobile, and we have applied the BloomIntensity and the BloomDirtMask at the sun merge pass.
+				LinearColor = LinearColor.rgb * CombinedBloom.a + CombinedBloom.rgb;
+			#else
+				float2 DirtLensUV = ConvertScreenViewportSpaceToLensViewportSpace(ScreenPos) * float2(1.0f, -1.0f);
+
+				float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtLensUV * .5f + .5f).rgb * BloomDirtMaskTint.rgb;
+
+				LinearColor += CombinedBloom.rgb * (ColorScale1.rgb + BloomDirtMaskColor); 
+			#endif
 		#endif
 
 		#if NO_EYEADAPTATION_EXPOSURE_FIX == 1
