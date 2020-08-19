@@ -235,7 +235,7 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 
 		if (LocalizedStringArrayOffset != INDEX_NONE)
 		{
-			if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized)
+			if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized_CRC32)
 			{
 				const int64 CurrentFileOffset = Archive.Tell();
 				Archive.Seek(LocalizedStringArrayOffset);
@@ -261,7 +261,7 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 	}
 
 	// Read entries count
-	if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized)
+	if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized_CRC32)
 	{
 		uint32 EntriesCount;
 		Archive << EntriesCount;
@@ -272,18 +272,27 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 	uint32 NamespaceCount;
 	Archive << NamespaceCount;
 
+	auto SerializeTextKey = [&VersionNumber, &Archive](FTextKey& InOutTextKey)
+	{
+		if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized_CityHash64_UTF16)
+		{
+			InOutTextKey.SerializeWithHash(Archive);
+		}
+		else if (VersionNumber == FTextLocalizationResourceVersion::ELocResVersion::Optimized_CRC32)
+		{
+			InOutTextKey.SerializeDiscardHash(Archive);
+		}
+		else
+		{
+			InOutTextKey.SerializeAsString(Archive);
+		}
+	};
+
 	for (uint32 i = 0; i < NamespaceCount; ++i)
 	{
 		// Read namespace
 		FTextKey Namespace;
-		if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized)
-		{
-			Archive << Namespace;
-		}
-		else
-		{
-			Namespace.SerializeAsString(Archive);
-		}
+		SerializeTextKey(Namespace);
 
 		// Read key count
 		uint32 KeyCount;
@@ -293,14 +302,7 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 		{
 			// Read key
 			FTextKey Key;
-			if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized)
-			{
-				Archive << Key;
-			}
-			else
-			{
-				Key.SerializeAsString(Archive);
-			}
+			SerializeTextKey(Key);
 
 			FEntry NewEntry;
 			NewEntry.LocResID = LocResID;
@@ -435,7 +437,7 @@ bool FTextLocalizationResource::SaveToArchive(FArchive& Archive, const FTextKey&
 
 		// Write namespace.
 		FTextKey NamespaceTmp = Namespace;
-		Archive << NamespaceTmp;
+		NamespaceTmp.SerializeWithHash(Archive);
 
 		// Write keys count
 		uint32 KeyCount = KeysTable.Num();
@@ -450,7 +452,7 @@ bool FTextLocalizationResource::SaveToArchive(FArchive& Archive, const FTextKey&
 
 			// Write key.
 			FTextKey KeyTmp = Key;
-			Archive << KeyTmp;
+			KeyTmp.SerializeWithHash(Archive);
 
 			// Write string entry.
 			uint32 SourceStringHash = Value->SourceStringHash;
