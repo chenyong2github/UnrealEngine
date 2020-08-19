@@ -309,9 +309,13 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			bUseLumenProbeHierarchy = CVarLumenProbeHierarchy.GetValueOnRenderThread() != 0;
 		}
 		
-		if (bUseLumenProbeHierarchy)
+		if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 		{
-			// NOP
+			if (ViewFamily.EngineShowFlags.VisualizeLumenIndirectDiffuse)
+			{
+				// SSGI can only give reasonable results with direct lighting onscreen
+				bEnableSSGI = false;
+			}
 		}
 		else if (bEnableSSGI && DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled)
 		{

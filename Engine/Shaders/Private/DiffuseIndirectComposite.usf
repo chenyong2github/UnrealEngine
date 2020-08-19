@@ -208,7 +208,7 @@ void MainPS(
 			#endif
 		}
 
-		float3 DiffuseColor = GBuffer.DiffuseColor;
+		float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 		float3 SpecularColor = GBuffer.SpecularColor;
 
 		if (bVisualizeDiffuseIndirect)
