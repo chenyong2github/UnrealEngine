@@ -139,8 +139,8 @@ protected:
 
 	void Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject *InSubject);
 
-	// The type of graph this represents. BlueprintReadOnly doesn't seem to work with inspectors :-/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Overview, meta=(EditCondition="false"))
+	// The type of graph this represents. 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Overview)
 	EOptimusNodeGraphType GraphType;
 
 private:
