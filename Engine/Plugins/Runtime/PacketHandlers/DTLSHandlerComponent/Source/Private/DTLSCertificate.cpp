@@ -41,7 +41,7 @@ void FDTLSCertificate::FreeCertificate()
 	Fingerprint.Reset();
 }
 
-bool FDTLSCertificate::GenerateCertificate()
+bool FDTLSCertificate::GenerateCertificate(const FTimespan& Lifetime)
 {
 	bool bSuccess = false;
 
@@ -91,7 +91,7 @@ bool FDTLSCertificate::GenerateCertificate()
 	ASN1_INTEGER_free(SerialNumber);
 
 	X509_gmtime_adj(X509_get_notBefore(Certificate), 0);
-	X509_gmtime_adj(X509_get_notAfter(Certificate), 31536000L);
+	X509_gmtime_adj(X509_get_notAfter(Certificate), (long)Lifetime.GetTotalSeconds());
 
 	X509_set_pubkey(Certificate, PKey);
 

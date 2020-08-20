@@ -15,6 +15,8 @@ namespace DTLSContext
 {
 	static const char* CipherListPSK = "PSK-AES256-GCM-SHA384";
 	static const char* CipherListCert = "HIGH";
+
+	TAutoConsoleVariable<int32> CVarCertLifetime(TEXT("DTLS.CertLifetime"), 4 * 60 * 60, TEXT("Lifetime to set on generated certificates, in seconds."));
 }
 
 const TCHAR* LexToString(EDTLSContextType ContextType)
@@ -307,7 +309,7 @@ FDTLSContext::~FDTLSContext()
 
 bool FDTLSContext::Initialize(const int32 MaxPacketSize, const FString& CertId, FDTLSHandlerComponent* Handler)
 {
-	SSLContext = SSL_CTX_new(DTLS_method());
+	SSLContext = SSL_CTX_new(DTLSv1_2_method());
 	if (!SSLContext)
 	{
 		UE_LOG(LogDTLSHandler, Error, TEXT("Failed to create SSL context."));
@@ -350,7 +352,11 @@ bool FDTLSContext::Initialize(const int32 MaxPacketSize, const FString& CertId, 
 		else
 		{
 			UE_LOG(LogDTLSHandler, Warning, TEXT("Empty certificate identifier"));
-			Cert = FDTLSCertStore::Get().CreateCert();
+
+			FTimespan Lifetime;
+			Lifetime.FromSeconds(DTLSContext::CVarCertLifetime.GetValueOnAnyThread());
+
+			Cert = FDTLSCertStore::Get().CreateCert(Lifetime);
 		}
 
 		if (Cert.IsValid())

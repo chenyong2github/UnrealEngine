@@ -21,10 +21,10 @@ FDTLSCertStore& FDTLSCertStore::Get()
 	return *Instance.Get();
 }
 
-TSharedPtr<FDTLSCertificate> FDTLSCertStore::CreateCert()
+TSharedPtr<FDTLSCertificate> FDTLSCertStore::CreateCert(const FTimespan& Lifetime)
 {
 	TSharedRef<FDTLSCertificate> Cert = MakeShared<FDTLSCertificate>();
-	if (Cert->GenerateCertificate())
+	if (Cert->GenerateCertificate(Lifetime))
 	{
 		return Cert;
 	}
@@ -33,9 +33,9 @@ TSharedPtr<FDTLSCertificate> FDTLSCertStore::CreateCert()
 	return nullptr;
 }
 
-TSharedPtr<FDTLSCertificate> FDTLSCertStore::CreateCert(const FString& Identifier)
+TSharedPtr<FDTLSCertificate> FDTLSCertStore::CreateCert(const FTimespan& Lifetime, const FString& Identifier)
 {
-	TSharedPtr<FDTLSCertificate> Cert = CreateCert();
+	TSharedPtr<FDTLSCertificate> Cert = CreateCert(Lifetime);
 	if (Cert.IsValid() && !Identifier.IsEmpty())
 	{
 		CertMap.Emplace(Identifier, Cert);
