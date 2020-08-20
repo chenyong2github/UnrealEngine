@@ -28,6 +28,26 @@ FHttpRequestWillRetryDelegate& FHttpRequestImpl::OnRequestWillRetry()
 	return OnRequestWillRetryDelegate;
 }
 
+void FHttpRequestImpl::SetTimeout(float InTimeoutSecs)
+{
+	TimeoutSecs = InTimeoutSecs;
+}
+
+void FHttpRequestImpl::ClearTimeout()
+{
+	TimeoutSecs.Reset();
+}
+
+TOptional<float> FHttpRequestImpl::GetTimeout() const
+{
+	return TimeoutSecs;
+}
+
+float FHttpRequestImpl::GetTimeoutOrDefault() const
+{
+	return GetTimeout().Get(FHttpModule::Get().GetHttpTimeout());
+}
+
 void FHttpRequestImpl::BroadcastResponseHeadersReceived()
 {
 	if (OnHeaderReceived().IsBound())
