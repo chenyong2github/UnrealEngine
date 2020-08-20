@@ -10,6 +10,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
+#include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PerParticleGravity.h"
@@ -23,6 +24,7 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "PhysicsProxy/JointConstraintProxy.h"
+#include "PhysicsProxy/SuspensionConstraintProxy.h"
 #include "SolverEventFilters.h"
 #include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
@@ -114,6 +116,7 @@ namespace Chaos
 		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
 		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
 		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
+		typedef TPBDConstraintIslandRule<FPBDSuspensionConstraints> FSuspensionConstraintsRule;
 
 		using FJointConstraints = FPBDJointConstraints;
 		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
@@ -135,6 +138,9 @@ namespace Chaos
 
 		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
 		bool UnregisterObject(Chaos::FJointConstraint* GTConstraint);
+
+		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
+		bool UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
 		bool IsSimulating() const;
 
@@ -297,8 +303,8 @@ namespace Chaos
 		FJointConstraints& GetJointConstraints() { return JointConstraints; }
 		const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
 
-		FJointConstraintRule& GetJointConstraintsRule() { return JointConstraintRule; }
-		const FJointConstraintRule& GetJointConstraintsRule() const { return JointConstraintRule; }
+		FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
+		const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
 
 		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
@@ -310,7 +316,9 @@ namespace Chaos
 		void AddParticleToProxy(const Chaos::TGeometryParticleHandle<float, 3>* Particle, IPhysicsProxyBase* Proxy)
 		{
 			if (!MParticleToProxy.Find(Particle))
+			{
 				MParticleToProxy.Add(Particle, TSet<IPhysicsProxyBase*>());
+			}
 			MParticleToProxy[Particle].Add(Proxy); 
 		}
 		
@@ -449,7 +457,8 @@ namespace Chaos
 		TArray< FSkeletalMeshPhysicsProxy* > SkeletalMeshPhysicsProxies; // dep
 		TArray< FStaticMeshPhysicsProxy* > StaticMeshPhysicsProxies; // dep
 		TArray< TGeometryCollectionPhysicsProxy<Traits>* > GeometryCollectionPhysicsProxies;
-		TArray< FJointConstraintPhysicsProxy*> JointConstraintPhysicsProxies;
+		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies;
+		TArray< FSuspensionConstraintPhysicsProxy* > SuspensionConstraintPhysicsProxies;
 		bool bUseCollisionResimCache;
 
 		//
@@ -457,6 +466,9 @@ namespace Chaos
 		//
 		FPBDJointConstraints JointConstraints;
 		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
+
+		FPBDSuspensionConstraints SuspensionConstraints;
+		TPBDConstraintIslandRule<FPBDSuspensionConstraints> SuspensionConstraintRule;
 
 		TUniquePtr<FPerSolverFieldSystem> PerSolverField;
 

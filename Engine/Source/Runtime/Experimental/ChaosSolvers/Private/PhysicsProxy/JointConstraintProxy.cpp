@@ -108,7 +108,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		if (Constraint != nullptr)
 		{
-			auto Particles = Constraint->GetJointParticles();
+			auto Particles = Constraint->GetParticles();
 			if (Particles[0] && Particles[0]->Handle())
 			{
 				if (Particles[1] && Particles[1]->Handle())
@@ -268,7 +268,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 			FConstraintData& ConstraintSettings = Handle->GetSettings();
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{
-				auto Particles = Constraint->GetJointParticles();
+				auto Particles = Constraint->GetParticles();
 
 				// Three pieces of state to update on the physics thread. 
 				// .. Mask on the particle array

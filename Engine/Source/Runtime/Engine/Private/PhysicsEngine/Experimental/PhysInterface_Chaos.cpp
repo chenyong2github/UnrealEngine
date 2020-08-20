@@ -252,9 +252,9 @@ Chaos::EJointMotionType ConvertMotionType(ELinearConstraintMotion InEngineType)
 
 void FPhysInterface_Chaos::SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			switch (InAxis)
 			{
@@ -292,9 +292,9 @@ Chaos::EJointMotionType ConvertMotionType(EAngularConstraintMotion InEngineType)
 
 void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			switch (InAxis)
 			{
@@ -318,9 +318,9 @@ void FPhysInterface_Chaos::SetAngularMotionLimitType_AssumesLocked(const FPhysic
 
 void FPhysInterface_Chaos::UpdateLinearLimitParams_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLimit, float InAverageMass, const FLinearConstraint& InParams)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearLimit(InLimit); 
 
@@ -336,9 +336,9 @@ void FPhysInterface_Chaos::UpdateLinearLimitParams_AssumesLocked(const FPhysicsC
 
 void FPhysInterface_Chaos::UpdateConeLimitParams_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InAverageMass, const FConeConstraint& InParams)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
 			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(InParams.Swing1LimitDegrees);
@@ -357,9 +357,9 @@ void FPhysInterface_Chaos::UpdateConeLimitParams_AssumesLocked(const FPhysicsCon
 
 void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InAverageMass, const FTwistConstraint& InParams)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
 			Limit[(int32)Chaos::EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(InParams.TwistLimitDegrees);
@@ -378,9 +378,9 @@ void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsCo
 
 void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InDriveParams)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetLinearPositionDriveXEnabled(false);
 			Constraint->SetLinearPositionDriveYEnabled(false);
@@ -417,9 +417,9 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 
 void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FAngularDriveConstraint& InDriveParams)
 {
-	if (InConstraintRef.IsValid())
+	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
-		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Constraint->SetAngularSLerpPositionDriveEnabled(false);
 			Constraint->SetAngularTwistPositionDriveEnabled(false);
@@ -617,11 +617,15 @@ private:
 
 	FPhysScene_Chaos* GetSceneForActor(FPhysicsConstraintHandle const* InConstraintHandle)
 	{		
-		FConstraintInstanceBase* ConstraintInstance = (InConstraintHandle && InConstraintHandle->IsValid()) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>((*InConstraintHandle)->GetUserData()) : nullptr;
-
-		if( ConstraintInstance )
+		if (InConstraintHandle && InConstraintHandle->IsValid() && InConstraintHandle->Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 		{
+			Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintHandle->Constraint);
+
+			FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr;
+			if (ConstraintInstance)
+			{
 				return ConstraintInstance->GetPhysicsScene();
+			}
 		}
 	
 		return nullptr;
@@ -1298,3 +1302,4 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(Chaos::TMa
 }
 
 #endif
+

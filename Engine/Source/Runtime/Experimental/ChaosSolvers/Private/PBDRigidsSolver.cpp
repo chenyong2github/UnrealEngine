@@ -238,11 +238,13 @@ namespace Chaos
 		, MCurrentLock(new FCriticalSection())
 		, bUseCollisionResimCache(false)
 		, JointConstraintRule(JointConstraints)
+		, SuspensionConstraintRule(SuspensionConstraints)
 		, PerSolverField(nullptr)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
 		MEvolution->AddConstraintRule(&JointConstraintRule);
+		MEvolution->AddConstraintRule(&SuspensionConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
 			[this](const Chaos::TGeometryParticleHandle<float, 3>* OldParticle, const Chaos::TGeometryParticleHandle<float, 3>* NewParticle) {
@@ -507,7 +509,41 @@ namespace Chaos
 				delete JointProxy;
 			});
 
-		return NumRemoved==1;
+		return NumRemoved == 1;
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::RegisterObject(Chaos::FSuspensionConstraint* GTConstraint)
+	{
+		FSuspensionConstraintPhysicsProxy* SuspensionProxy = new FSuspensionConstraintPhysicsProxy(GTConstraint, nullptr);
+		SuspensionProxy->SetSolver(this);
+
+		SuspensionConstraintPhysicsProxies.AddUnique(SuspensionProxy);
+		AddDirtyProxy(SuspensionProxy);
+	}
+
+	template <typename Traits>
+	bool TPBDRigidsSolver<Traits>::UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint)
+	{
+		FSuspensionConstraintPhysicsProxy* SuspensionProxy = GTConstraint->GetProxy<FSuspensionConstraintPhysicsProxy>();
+		check(SuspensionProxy);
+
+		SuspensionProxy->SetSolver(static_cast<TPBDRigidsSolver<Traits>*>(nullptr));
+		RemoveDirtyProxy(SuspensionProxy);
+
+		int32 NumRemoved = SuspensionConstraintPhysicsProxies.Remove(SuspensionProxy);
+		GTConstraint->SetProxy(static_cast<FSuspensionConstraintPhysicsProxy*>(nullptr));
+
+		FParticlesType* InParticles = &GetParticles();
+
+		// Finish registration on the physics thread...
+		EnqueueCommandImmediate([InParticles, SuspensionProxy, this]()
+			{
+				SuspensionProxy->DestroyOnPhysicsThread(this);
+				delete SuspensionProxy;
+			});
+
+		return NumRemoved == 1;
 	}
 
 	template <typename Traits>
@@ -532,6 +568,9 @@ namespace Chaos
 			if (Obj->IsSimulating())
 				return true;
 		for (FJointConstraintPhysicsProxy* Obj : JointConstraintPhysicsProxies)
+			if (Obj->IsSimulating())
+				return true;
+		for (FSuspensionConstraintPhysicsProxy* Obj : SuspensionConstraintPhysicsProxies)
 			if (Obj->IsSimulating())
 				return true;
 		return false;
@@ -666,6 +705,13 @@ namespace Chaos
 				Proxy->PushStateOnGameThread(this);
 				break;
 			}
+			case EPhysicsProxyType::SuspensionConstraintType:
+			{
+				auto Proxy = static_cast<FSuspensionConstraintPhysicsProxy*>(Dirty.Proxy);
+				Proxy->PushStateOnGameThread(this);
+				break;
+			}
+
 			default:
 			ensure(0 && TEXT("Unknown proxy type in physics solver."));
 			}
@@ -757,6 +803,7 @@ namespace Chaos
 				break;
 			}
 			case EPhysicsProxyType::JointConstraintType:
+			case EPhysicsProxyType::SuspensionConstraintType:
 			{
 				// Pass until after all bodies are created. 
 				break;
@@ -789,6 +836,21 @@ namespace Chaos
 				Dirty.Proxy->ResetDirtyIdx();
 				break;
 			}
+
+			case EPhysicsProxyType::SuspensionConstraintType:
+			{
+				auto SuspensionProxy = static_cast<FSuspensionConstraintPhysicsProxy*>(Dirty.Proxy);
+				const bool bIsNew = !SuspensionProxy->IsInitialized();
+				if (bIsNew)
+				{
+					SuspensionProxy->InitializeOnPhysicsThread(this);
+					SuspensionProxy->SetInitialized();
+				}
+				SuspensionProxy->PushStateOnPhysicsThread(this);
+				Dirty.Proxy->ResetDirtyIdx();
+				break;
+			}
+
 			}
 		});
 
@@ -1114,3 +1176,4 @@ namespace Chaos
 #undef EVOLUTION_TRAIT
 
 }; // namespace Chaos
+
