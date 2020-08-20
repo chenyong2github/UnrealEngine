@@ -44,7 +44,7 @@ public:
 	/*
 	 * Ask user a FBX file path for a particular LOD
 	 */
-	static FString PickSkinWeightFBXPath(int32 LODIndex);
+	static FString PickSkinWeightFBXPath(int32 LODIndex, USkeletalMesh* SkeletalMesh);
 private:
 	FSkinWeightsUtilities() {}
 };
