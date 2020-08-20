@@ -236,8 +236,6 @@ bool FApp::IsUnattended() // @todo clang: Workaround for missing symbol export
 }
 #endif
 
-#if HAVE_RUNTIME_THREADING_SWITCHES
-
 #if PLATFORM_LUMIN
 #define MIN_CORE_COUNT 2
 #else
@@ -247,7 +245,7 @@ bool FApp::IsUnattended() // @todo clang: Workaround for missing symbol export
 bool FApp::ShouldUseThreadingForPerformance()
 {
 	static bool OnlyOneThread = 
-		FParse::Param(FCommandLine::Get(), TEXT("ONETHREAD")) ||
+		FParse::Param(FCommandLine::Get(), TEXT("onethread")) ||
 		FParse::Param(FCommandLine::Get(), TEXT("noperfthreads")) ||
 		IsRunningDedicatedServer() ||
 		!FPlatformProcess::SupportsMultithreading() ||
@@ -258,8 +256,6 @@ bool FApp::ShouldUseThreadingForPerformance()
 	return !OnlyOneThread || bForceUsePerfThreads;
 }
 #undef MIN_CORE_COUNT
-
-#endif // HAVE_RUNTIME_THREADING_SWITCHES
 
 FTimecode FApp::GetTimecode()
 {
