@@ -32,43 +32,134 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Editor/SceneOutliner/Private/SSocketChooser.h"
 #include "SComponentChooser.h"
+#include "Interrogation/SequencerInterrogationLinker.h"
+#include "Interrogation/SequencerInterrogatedPropertyInstantiator.h"
+#include "Systems/MovieScenePropertyInstantiator.h"
+#include "ISequencerModule.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 #define LOCTEXT_NAMESPACE "BuiltInChannelEditors"
 
 
 FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* SectionToKey, const TMovieSceneExternalValue<float>& ExternalValue, FFrameNumber InTime, ISequencer& Sequencer, const FGuid& InObjectBindingID, FTrackInstancePropertyBindings* PropertyBindings)
 {
-	TOptional<float> Value;
-	float CurrentValue = 0.0f, CurrentWeight = 1.0f;
-	if ((ExternalValue.OnGetExternalValue && InObjectBindingID.IsValid()))
+	using namespace UE::MovieScene;
+
+	const FMovieSceneSequenceID SequenceID = Sequencer.GetFocusedTemplateID();
+
+	// Find the first bound object so we can get the current property channel value on it.
+	UObject* FirstBoundObject = nullptr;
+	TOptional<float> CurrentBoundObjectValue;
+	if (InObjectBindingID.IsValid())
 	{
-		for (TWeakObjectPtr<> WeakObject : Sequencer.FindBoundObjects(InObjectBindingID, Sequencer.GetFocusedTemplateID()))
+		for (TWeakObjectPtr<> WeakObject : Sequencer.FindBoundObjects(InObjectBindingID, SequenceID))
 		{
 			if (UObject* Object = WeakObject.Get())
 			{
-				Value = ExternalValue.OnGetExternalValue(*Object, PropertyBindings);
-				if (Value.IsSet() && ExternalValue.OnGetCurrentValueAndWeight && SectionToKey)
+				FirstBoundObject = Object;
+
+				if (ExternalValue.OnGetExternalValue)
 				{
-					CurrentValue = Value.Get(0.0f);
-					ExternalValue.OnGetCurrentValueAndWeight(Object, SectionToKey, InTime, Sequencer.GetFocusedTickResolution(), Sequencer.GetEvaluationTemplate(),CurrentValue,CurrentWeight);
+					CurrentBoundObjectValue = ExternalValue.OnGetExternalValue(*Object, PropertyBindings);
 				}
+
 				break;
 			}
 		}
 	}
 
+	// If we got the current property channel value on the object, let's get the current evaluated property channel value at the given time (which is the value that the
+	// object *would* be at if we scrubbed here and let the sequence evaluation do its thing). This will help us figure out the difference between the current object value
+	// and the evaluated sequencer value: we will compute a new value for the channel so that a new sequence evaluation would come out at the "desired" value, which is
+	// what the current object value.
 	float NewValue = Channel->GetDefault().Get(0.f);
-	bool bWasEvaluated = Channel->Evaluate(InTime, NewValue);
-	if (Value.IsSet()) //need to get the diff between Value(Global) and CurrentValue and apply that to the local
+
+	if (CurrentBoundObjectValue.IsSet() && SectionToKey)
 	{
-		if (bWasEvaluated)
+		if (ExternalValue.OnGetCurrentValueAndWeight)
 		{
-			float CurrentGlobalValue = Value.GetValue();
-			NewValue = (Value.Get(0.0f) - CurrentValue) * CurrentWeight + NewValue;
+			// We have a custom callback that can provide us with the evaluated value of this channel.
+			float CurrentValue = CurrentBoundObjectValue.Get(0.0f);
+			float CurrentWeight = 1.0f;
+			FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = Sequencer.GetEvaluationTemplate();
+			ExternalValue.OnGetCurrentValueAndWeight(FirstBoundObject, SectionToKey, InTime, Sequencer.GetFocusedTickResolution(), EvaluationTemplate, CurrentValue, CurrentWeight);
+
+			bool bWasEvaluated = Channel->Evaluate(InTime, NewValue);
+			if (CurrentBoundObjectValue.IsSet()) //need to get the diff between Value(Global) and CurrentValue and apply that to the local
+			{
+				if (bWasEvaluated)
+				{
+					float CurrentGlobalValue = CurrentBoundObjectValue.GetValue();
+					NewValue = (CurrentBoundObjectValue.Get(0.0f) - CurrentValue) * CurrentWeight + NewValue;
+				}
+				else //Nothing set (key or default) on channel so use external value
+				{
+					NewValue = CurrentBoundObjectValue.Get(0.0f);
+				}
+			}
 		}
-		else //Nothing set (key or default) on channel so use external value
+		else
 		{
-			NewValue = Value.Get(0.0f);
+			// No custom callback... we need to run the blender system on our property.
+			USequencerInterrogationLinker* Interrogator = NewObject<USequencerInterrogationLinker>(GetTransientPackage());
+
+			TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator->EntityManager);
+
+			UMovieSceneTrack* TrackToKey = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
+			Interrogator->ImportTrack(TrackToKey);
+
+			const FInterrogationChannel InterrogationChannel = Interrogator->AddInterrogation(InTime);
+
+			Interrogator->Update();
+
+			const FMovieSceneEntityID EntityID = Interrogator->FindEntityFromOwner(InterrogationChannel, SectionToKey, 0);
+
+			USequencerInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<USequencerInterrogatedPropertyInstantiatorSystem>();
+
+			if (ensure(System) && EntityID)  // EntityID can be invalid here if we are keying a section that is currently empty
+			{
+				const FMovieSceneChannelProxy& SectionChannelProxy = SectionToKey->GetChannelProxy();
+				const FName ChannelTypeName = Channel->StaticStruct()->GetFName();
+				int32 ChannelIndex = SectionChannelProxy.FindIndex(ChannelTypeName, Channel);
+
+				FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+				// Find the property definition based on the property tag that our section entity has.
+				int32 BoundPropertyDefinitionIndex = INDEX_NONE;
+				TArrayView<const FPropertyDefinition> PropertyDefinitions = BuiltInComponents->PropertyRegistry.GetProperties();
+				for (int32 Index = 0; Index < PropertyDefinitions.Num(); ++Index)
+				{
+					const FPropertyDefinition& PropertyDefinition = PropertyDefinitions[Index];
+					if (Interrogator->EntityManager.HasComponent(EntityID, PropertyDefinition.PropertyType))
+					{
+						BoundPropertyDefinitionIndex = Index;
+						break;
+					}
+				}
+
+				if (ensure(ChannelIndex != INDEX_NONE && BoundPropertyDefinitionIndex != INDEX_NONE))
+				{
+					const FPropertyDefinition& BoundPropertyDefinition = PropertyDefinitions[BoundPropertyDefinitionIndex];
+
+					check(FirstBoundObject != nullptr);
+					if (Interrogator->EntityManager.HasComponent(EntityID, BuiltInComponents->SceneComponentBinding))
+					{
+						FirstBoundObject = MovieSceneHelpers::SceneComponentFromRuntimeObject(FirstBoundObject);
+						check(FirstBoundObject != nullptr);
+					}
+
+					FDecompositionQuery Query;
+					Query.Entities = MakeArrayView(&EntityID, 1);
+					Query.bConvertFromSourceEntityIDs = false;
+					Query.Object = FirstBoundObject;
+
+					FIntermediate3DTransform InTransformData;
+
+					TRecompositionResult<float> RecomposeResult = System->RecomposeBlendFloatChannel(BoundPropertyDefinition, ChannelIndex, Query, CurrentBoundObjectValue.Get(0.f));
+
+					NewValue = RecomposeResult.Values[0];
+				}
+			}
 		}
 	}
 
