@@ -668,7 +668,7 @@ public:
 			ProcessingTasks.Start(StatName);
 		}
 #endif
-		const bool bIsRenderThread = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::GetRenderThread());
+		const bool bIsRenderThread = (ENamedThreads::GetThreadIndex(ThreadId) == ENamedThreads::ActualRenderingThread);
 		while (!Queue(QueueIndex).QuitForReturn)
 		{
 			const bool bIsRenderThreadAndPolling = bIsRenderThread && (GRenderThreadPollPeriodMs >= 0);
