@@ -7,11 +7,10 @@
 
 
 
-
 /**
  * Contains metadata and flags, which provide information on the traits of a packet - what it contains and how to process it.
  */
-struct NETCORE_API FOutPacketTraits
+struct FOutPacketTraits
 {
 	/** Flags - may trigger modification of packet and traits */
 
@@ -41,6 +40,28 @@ struct NETCORE_API FOutPacketTraits
 		, NumBunchBits(0)
 		, bIsKeepAlive(false)
 		, bIsCompressed(false)
+	{
+	}
+};
+
+/**
+ * Contains metadata and flags, which provide information on the traits of a packet - what it contains and how to process it.
+ */
+struct FInPacketTraits
+{
+	/** Traits */
+
+	/** This packet is not associated with a connection */
+	bool bConnectionlessPacket;
+
+	/** This is a connectionless packet, from a recently disconnected connection. */
+	bool bFromRecentlyDisconnected;
+
+
+	/** Default constructor */
+	FInPacketTraits()
+		: bConnectionlessPacket(false)
+		, bFromRecentlyDisconnected(false)
 	{
 	}
 };

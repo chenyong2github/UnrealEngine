@@ -949,8 +949,11 @@ void StatelessConnectHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTr
 	Packet = MoveTemp(NewPacket);
 }
 
-void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<const FInternetAddr>& Address, FBitReader& Packet)
+void StatelessConnectHandlerComponent::IncomingConnectionless(FIncomingPacketRef PacketRef)
 {
+	FBitReader& Packet = PacketRef.Packet;
+	const TSharedPtr<const FInternetAddr> Address = PacketRef.Address;
+
 	if (MagicHeader.Num() > 0)
 	{
 		// Don't bother with the expense of verifying the magic header here.
@@ -1067,11 +1070,11 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 		UE_LOG(LogHandshake, Log, TEXT("IncomingConnectionless: Error reading handshake bit from packet."));
 	}
 #endif
-	else if (!Packet.IsError())
+	// Late packets from recently disconnected clients may incorrectly trigger this code path, so detect and exclude those packets
+	else if (!Packet.IsError() && !PacketRef.Traits.bFromRecentlyDisconnected)
 	{
-		// This means the packet was fine but not a handshake packet - an existing client
-		// might suddenly be communicating on a different address. If we get them to resend their cookie,
-		// we can update the connection's info with their new address.
+		// The packet was fine but not a handshake packet - an existing client might suddenly be communicating on a different address.
+		// If we get them to resend their cookie, we can update the connection's info with their new address.
 		SendRestartHandshakeRequest(Address);
 	}
 }
