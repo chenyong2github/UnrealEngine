@@ -96,7 +96,7 @@ void FHttpConnection::TransferState(EHttpConnectionState CurrentState, EHttpConn
 void FHttpConnection::BeginRead(float DeltaTime)
 {
 	// Wait should always return true if the connection is valid
-	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::Zero()))
+	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, FTimespan::FromMilliseconds(6)))
 	{
 		Destroy();
 		return;
