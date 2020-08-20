@@ -143,8 +143,6 @@ void FHttpManager::Flush(bool bShutdown)
 
 	if (bShutdown)
 	{
-		GameThreadQueue.Empty();
-
 		if (Requests.Num())
 		{
 			UE_LOG(LogHttp, Display, TEXT("Http module shutting down, but needs to wait on %d outstanding Http requests:"), Requests.Num());
