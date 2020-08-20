@@ -634,6 +634,7 @@ size_t FCurlHttpRequest::DebugCallback(CURL * Handle, curl_infotype DebugInfoTyp
 				DebugText.ReplaceInline(TEXT("\n"), TEXT(""), ESearchCase::CaseSensitive);
 				DebugText.ReplaceInline(TEXT("\r"), TEXT(""), ESearchCase::CaseSensitive);
 				UE_LOG(LogHttp, VeryVerbose, TEXT("%p: '%s'"), this, *DebugText);
+				const FScopeLock CacheLock(&InfoMessageCacheCriticalSection);
 				if (InfoMessageCache.Num() > 0)
 				{
 					InfoMessageCache[LeastRecentlyCachedInfoMessageIndex] = MoveTemp(DebugText);
@@ -739,6 +740,27 @@ bool FCurlHttpRequest::SetupRequest()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_SetupRequest);
 	check(EasyHandle);
 
+	// Disabled http request processing
+	if (!FHttpModule::Get().IsHttpEnabled())
+	{
+		UE_LOG(LogHttp, Verbose, TEXT("Http disabled. Skipping request. url=%s"), *GetURL());
+		return false;
+	}
+	// Prevent overlapped requests using the same instance
+	else if (CompletionStatus == EHttpRequestStatus::Processing)
+	{
+		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. Still processing last request."));
+		return false;
+	}
+	// Nothing to do without a valid URL
+	else if (URL.IsEmpty())
+	{
+		UE_LOG(LogHttp, Log, TEXT("Cannot process HTTP request: URL is empty"));
+		return false;
+	}
+
+	// set up request
+
 	if (!RequestPayload.IsValid())
 	{
 		RequestPayload = MakeUnique<FRequestPayloadInMemory>(TArray<uint8>());
@@ -759,26 +781,6 @@ bool FCurlHttpRequest::SetupRequest()
 	UE_LOG(LogHttp, Verbose, TEXT("%p: Verb='%s'"), this, *Verb);
 	UE_LOG(LogHttp, Verbose, TEXT("%p: Custom headers are %s"), this, Headers.Num() ? TEXT("present") : TEXT("NOT present"));
 	UE_LOG(LogHttp, Verbose, TEXT("%p: Payload size=%d"), this, RequestPayload->GetContentLength());
-
-	// set up URL
-	// Disabled http request processing
-	if (!FHttpModule::Get().IsHttpEnabled())
-	{
-		UE_LOG(LogHttp, Verbose, TEXT("Http disabled. Skipping request. url=%s"), *GetURL());
-		return false;
-	}
-	// Prevent overlapped requests using the same instance
-	else if (CompletionStatus == EHttpRequestStatus::Processing)
-	{
-		UE_LOG(LogHttp, Warning, TEXT("ProcessRequest failed. Still processing last request."));
-		return false;
-	}
-	// Nothing to do without a valid URL
-	else if (URL.IsEmpty())
-	{
-		UE_LOG(LogHttp, Log, TEXT("Cannot process HTTP request: URL is empty"));
-		return false;
-	}
 
 	if (GetHeader(TEXT("User-Agent")).IsEmpty())
 	{
@@ -968,12 +970,6 @@ bool FCurlHttpRequest::ProcessRequest()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_ProcessRequest);
 	check(EasyHandle);
 
-	// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
-	for (FString& Line : InfoMessageCache)
-	{
-		Line.Reset();
-	}
-
 	bool bStarted = false;
 	if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(URL))
 	{
@@ -985,6 +981,13 @@ bool FCurlHttpRequest::ProcessRequest()
 	}
 	else
 	{
+		// Clear the info cache log so we don't output messages from previous requests when reusing/retrying a request
+		const FScopeLock CacheLock(&InfoMessageCacheCriticalSection);
+		for (FString& Line : InfoMessageCache)
+		{
+			Line.Reset();
+		}
+
 		bStarted = true;
 	}
 
@@ -992,8 +995,21 @@ bool FCurlHttpRequest::ProcessRequest()
 	{
 		// No response since connection failed
 		Response = nullptr;
-		// Cleanup and call delegate
-		FinishedRequest();
+
+		if (!IsInGameThread())
+		{
+			// Always finish on the game thread
+			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FCurlHttpRequest>(AsShared())]()
+			{
+				StrongThis->FinishedRequest();
+			});
+			return true;
+		}
+		else
+		{
+			// Cleanup and call delegate
+			FinishedRequest();
+		}
 	}
 	else
 	{
@@ -1066,15 +1082,28 @@ void FCurlHttpRequest::TickThreadedRequest(float DeltaSeconds)
 
 void FCurlHttpRequest::CancelRequest()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_CancelRequest); 
-	
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_CancelRequest);
+
+	if (bCanceled)
+	{
+		return;
+	}
+
 	bCanceled = true;
 	UE_LOG(LogHttp, Verbose, TEXT("%p: HTTP request canceled.  URL=%s"), this, *GetURL());
-	
+
 	FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
 	if (HttpManager.IsValidRequest(this))
 	{
 		HttpManager.CancelThreadedRequest(SharedThis(this));
+	}
+	else if (!IsInGameThread())
+	{
+		// Always finish on the game thread
+		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FCurlHttpRequest>(AsShared())]()
+		{
+			StrongThis->FinishedRequest();
+		});
 	}
 	else
 	{
@@ -1261,6 +1290,7 @@ void FCurlHttpRequest::FinishedRequest()
 
 		if (!bCanceled)
 		{
+			const FScopeLock CacheLock(&InfoMessageCacheCriticalSection);
 			for (int32 i = 0; i < InfoMessageCache.Num(); ++i)
 			{
 				if (InfoMessageCache[(LeastRecentlyCachedInfoMessageIndex + i) % InfoMessageCache.Num()].Len() > 0)

@@ -391,6 +391,8 @@ private:
 	static const constexpr int32 NumberOfInfoMessagesToCache = 50;
 	/** Index of least recently cached message */
 	int32 LeastRecentlyCachedInfoMessageIndex;
+	/** Critical section for accessing InfoMessageCache */
+	FCriticalSection InfoMessageCacheCriticalSection;
 	/** Cache of info messages from libcurl */
 	TArray<FString, TFixedAllocator<NumberOfInfoMessagesToCache>> InfoMessageCache;
 };

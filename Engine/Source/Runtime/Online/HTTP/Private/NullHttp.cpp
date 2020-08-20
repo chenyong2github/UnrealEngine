@@ -131,7 +131,17 @@ bool FNullHttpRequest::ProcessRequest()
 
 void FNullHttpRequest::CancelRequest()
 {
-	FinishedRequest();
+	if (!IsInGameThread())
+	{
+		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FNullHttpRequest>(AsShared())]()
+		{
+			StrongThis->FinishedRequest();
+		});
+	}
+	else
+	{
+		FinishedRequest();
+	}
 }
 
 EHttpRequestStatus::Type FNullHttpRequest::GetStatus() const

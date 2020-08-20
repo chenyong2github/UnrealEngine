@@ -120,6 +120,14 @@ void FHttpManager::UpdateConfigs()
 	// empty
 }
 
+void FHttpManager::AddGameThreadTask(TFunction<void()>&& Task)
+{
+	if (Task)
+	{
+		GameThreadQueue.Enqueue(MoveTemp(Task));
+	}
+}
+
 FHttpThread* FHttpManager::CreateHttpThread()
 {
 	return new FHttpThread();
@@ -135,6 +143,8 @@ void FHttpManager::Flush(bool bShutdown)
 
 	if (bShutdown)
 	{
+		GameThreadQueue.Empty();
+
 		if (Requests.Num())
 		{
 			UE_LOG(LogHttp, Display, TEXT("Http module shutting down, but needs to wait on %d outstanding Http requests:"), Requests.Num());
@@ -203,6 +213,14 @@ void FHttpManager::Flush(bool bShutdown)
 bool FHttpManager::Tick(float DeltaSeconds)
 {
     QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpManager_Tick);
+
+	// Run GameThread tasks
+	TFunction<void()> Task = nullptr;
+	while (GameThreadQueue.Dequeue(Task))
+	{
+		check(Task);
+		Task();
+	}
 
 	FScopeLock ScopeLock(&RequestLock);
 
