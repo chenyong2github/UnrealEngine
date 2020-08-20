@@ -289,6 +289,8 @@ void FD3D12CommandContext::RHISetGlobalUniformBuffers(const FUniformBufferStatic
 
 void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
+	SCOPE_CYCLE_COUNTER(STAT_D3D12CopyToStagingBufferTime);
+
 	FD3D12StagingBuffer* StagingBuffer = FD3D12DynamicRHI::ResourceCast(StagingBufferRHI);
 	check(StagingBuffer);
 	ensureMsgf(!StagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
