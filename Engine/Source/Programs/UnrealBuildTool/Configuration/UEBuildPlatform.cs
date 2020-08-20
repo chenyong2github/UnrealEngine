@@ -829,5 +829,22 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Receipt">Receipt for the target being deployed</param>
 		public abstract void Deploy(TargetReceipt Receipt);
+	};
+
+	/// <summary>
+	/// Platform utils exposed for other modules
+	/// </summary>
+	public abstract class UEBuildPlatformUtils
+	{
+		/// <summary>
+		/// Checks if platform is part of a given platform group
+		/// </summary>
+		/// <param name="Platform">The platform to check</param>
+		/// <param name="PlatformGroup">The platform group to check</param>
+		/// <returns>True if platform is part of a platform group</returns>
+		public static bool IsPlatformInGroup(UnrealTargetPlatform Platform, UnrealPlatformGroup PlatformGroup)
+		{
+			return UEBuildPlatform.IsPlatformInGroup(Platform, PlatformGroup);
+		}
 	}
 }
