@@ -146,32 +146,24 @@ namespace Audio
 							}
 						}
 					}
-					// If the source channels are 2 but the bus is 1 channel, we need to down-mix
-					else if (NumSourceChannels == 2 && NumChannels == 1)
+					// If the source channels is greater than num channels
+					else if (NumSourceChannels > NumChannels)
 					{
-						int32 SourceSampleIndex = 0;
-						for (int32 BusSampleIndex = 0; BusSampleIndex < NumOutputFrames; ++BusSampleIndex)
-						{
-							// Downmix the stereo source to mono before summing to bus
-							float SourceSample = 0.0f;
-							for (int32 SourceChannel = 0; SourceChannel < 2; ++SourceChannel)
-							{
-								SourceSample += SourceBufferPtr[SourceSampleIndex++];
-							}
+						check(NumChannels == 1 || NumChannels == 2);
+						Audio::AlignedFloatBuffer ChannelMap;
+						SourceManager->Get2DChannelMap(AudioBusSend.SourceId, NumChannels, ChannelMap);
 
-							SourceSample *= 0.5f;
-							SourceSample *= AudioBusSend.SendLevel;
-
-							BusDataBufferPtr[BusSampleIndex] += SourceSample;
-						}
+						Audio::AlignedFloatBuffer DownmixedBuffer;
+						DownmixedBuffer.AddUninitialized(NumOutputFrames * NumChannels);
+						Audio::DownmixBuffer(NumSourceChannels, NumChannels, SourceBufferPtr, DownmixedBuffer.GetData(), NumOutputFrames, ChannelMap.GetData());
+						Audio::MixInBufferFast(DownmixedBuffer.GetData(), BusDataBufferPtr, NumOutputFrames, AudioBusSend.SendLevel);
 					}
 					// If they're the same channels, just mix it in
 					else
 					{
-						for (int32 SampleIndex = 0; SampleIndex < NumSourceSamples; ++SampleIndex)
-						{
-							BusDataBufferPtr[SampleIndex] += (AudioBusSend.SendLevel * SourceBufferPtr[SampleIndex]);
-						}
+						check(NumSourceChannels == NumChannels);
+
+						Audio::MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
 					}
 
 					// Push the mixed data to the patch splitter

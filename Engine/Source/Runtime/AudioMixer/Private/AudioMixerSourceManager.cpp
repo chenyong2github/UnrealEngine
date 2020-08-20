@@ -824,39 +824,40 @@ namespace Audio
 					}
 				}
 
-				// Iterate through source's bus sends and add this source to the bus send list
-				// Note: buses can also send their audio to other buses.
-				for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
+			}
+
+			// Iterate through source's bus sends and add this source to the bus send list
+			// Note: buses can also send their audio to other buses.
+			for (int32 BusSendType = 0; BusSendType < (int32)EBusSendType::Count; ++BusSendType)
+			{
+				for (const FInitAudioBusSend& AudioBusSend : InitParams.AudioBusSends[BusSendType])
 				{
-					for (const FInitAudioBusSend& AudioBusSend : InitParams.AudioBusSends[BusSendType])
+					// New struct to map which source (SourceId) is sending to the bus
+					FAudioBusSend NewAudioBusSend;
+					NewAudioBusSend.SourceId = SourceId;
+					NewAudioBusSend.SendLevel = AudioBusSend.SendLevel;
+
+					// Get existing BusId and add the send, or create new bus registration
+					TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusSend.AudioBusId);
+					if (AudioBusPtr.IsValid())
 					{
-						// New struct to map which source (SourceId) is sending to the bus
-						FAudioBusSend NewAudioBusSend;
-						NewAudioBusSend.SourceId = SourceId;
-						NewAudioBusSend.SendLevel = AudioBusSend.SendLevel;
-
-						// Get existing BusId and add the send, or create new bus registration
-						TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(AudioBusSend.AudioBusId);
-						if (AudioBusPtr.IsValid())
-						{
-							AudioBusPtr->AddSend((EBusSendType)BusSendType, NewAudioBusSend);
-						}
-						else
-						{
-							// If the bus is not registered, make a new entry. This will default to an automatic audio bus until explicitly made manual later.
-							TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, InitParams.NumInputChannels));
-
-							// Add a send to it. This will not have a bus instance id (i.e. won't output audio), but 
-							// we register the send anyway in the event that this bus does play, we'll know to send this
-							// source's audio to it.
-							NewAudioBus->AddSend((EBusSendType)BusSendType, NewAudioBusSend);
-
-							AudioBuses.Add(AudioBusSend.AudioBusId, NewAudioBus);
-						}
-
-						// Store on this source, which buses its sending its audio to
-						SourceInfo.AudioBusSends[BusSendType].Add(AudioBusSend.AudioBusId);
+						AudioBusPtr->AddSend((EBusSendType)BusSendType, NewAudioBusSend);
 					}
+					else
+					{
+						// If the bus is not registered, make a new entry. This will default to an automatic audio bus until explicitly made manual later.
+						TSharedPtr<FMixerAudioBus> NewAudioBus(new FMixerAudioBus(this, true, InitParams.NumInputChannels));
+
+						// Add a send to it. This will not have a bus instance id (i.e. won't output audio), but 
+						// we register the send anyway in the event that this bus does play, we'll know to send this
+						// source's audio to it.
+						NewAudioBus->AddSend((EBusSendType)BusSendType, NewAudioBusSend);
+
+						AudioBuses.Add(AudioBusSend.AudioBusId, NewAudioBus);
+					}
+
+					// Store on this source, which buses its sending its audio to
+					SourceInfo.AudioBusSends[BusSendType].Add(AudioBusSend.AudioBusId);
 				}
 			}
 
@@ -2361,6 +2362,14 @@ namespace Audio
 				SourceSubmixOutputBuffer.MixOutput(InSendLevel, InSubmixSendStage, OutWetBuffer);
 			}
 		}
+	}
+
+	void FMixerSourceManager::Get2DChannelMap(const int32 SourceId, int32 InNumOutputChannels, Audio::AlignedFloatBuffer& OutChannelMap)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+
+		const FSourceInfo& SourceInfo = SourceInfos[SourceId];
+		MixerDevice->Get2DChannelMap(SourceInfo.bIsVorbis, SourceInfo.NumInputChannels, InNumOutputChannels, SourceInfo.bIsCenterChannelOnly, OutChannelMap);
 	}
 
 	const ISoundfieldAudioPacket* FMixerSourceManager::GetEncodedOutput(const int32 SourceId, const FSoundfieldEncodingKey& InKey) const
