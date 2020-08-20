@@ -5,6 +5,7 @@
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
+#include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"
 #include "Chaos/PBDRigidSpringConstraints.h"
 
@@ -59,12 +60,14 @@ namespace Chaos
 	template class TPBDConstraintGraphRuleImpl<FPBDCollisionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
 	template class TPBDConstraintGraphRuleImpl<TPBDPositionConstraints<float, 3>>;
+	template class TPBDConstraintGraphRuleImpl<FPBDSuspensionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<TPBDRigidDynamicSpringConstraints<float, 3>>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidSpringConstraints>;
 
 	template class TPBDConstraintColorRule<FPBDCollisionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
 	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;
+	template class TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
 	template class TPBDConstraintIslandRule<TPBDRigidDynamicSpringConstraints<float, 3>>;
 	template class TPBDConstraintIslandRule<FPBDRigidSpringConstraints>;
 }
