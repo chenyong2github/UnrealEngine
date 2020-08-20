@@ -1003,6 +1003,7 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 								// This should never be nullptr with simulation stages
 								const FSimulationStageMetaData* StageMetaData = ExecContext->GetSimStageMetaData(SimulationStageIndex);
 								check(StageMetaData);
+								InstanceData.SimStageData[SimulationStageIndex].StageMetaData = StageMetaData;
 
 								// No particle data will be written we read only, i.e. scattering particles into a grid
 								if (!StageMetaData->bWritesParticles)
@@ -1665,14 +1666,26 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageIndexParam, SimulationStageIndex);					// 0, except if several stages are defined
 
 	const uint32 ShaderThreadGroupSize = FNiagaraShader::GetGroupSize(ShaderPlatform);
-	if (IterationInterface)
 	{
-		SetShaderValue(RHICmdList, ComputeShader, Shader->IterationInterfaceCount, TotalNumInstances);
-	}
-	else
-	{
-		const int32 DefaultIterationCount = -1;
-		SetShaderValue(RHICmdList, ComputeShader, Shader->IterationInterfaceCount, DefaultIterationCount);
+		// Packed data where X = Instance Count, Y = Iteration Index, Z = Num Iterations
+		int32 SimulationStageIterationInfo[3] = { -1, 0, 0 };
+		float SimulationStageNormalizedIterationIndex = 0.0f;
+
+		if (IterationInterface)
+		{
+			SimulationStageIterationInfo[0] = TotalNumInstances;
+			if (const FSimulationStageMetaData* StageMetaData = Instance->SimStageData[SimulationStageIndex].StageMetaData)
+			{
+				const int32 NumStages = StageMetaData->MaxStage - StageMetaData->MinStage;
+				ensure((int32(SimulationStageIndex) >= StageMetaData->MinStage) && (int32(SimulationStageIndex) < StageMetaData->MaxStage));
+				SimulationStageIterationInfo[1] = SimulationStageIndex - StageMetaData->MinStage;
+				SimulationStageIterationInfo[2] = NumStages;
+				SimulationStageNormalizedIterationIndex = NumStages > 1 ? float(SimulationStageIterationInfo[1]) / float(SimulationStageIterationInfo[2] - 1) : 1.0f;
+			}
+		}
+		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageIterationInfoParam, SimulationStageIterationInfo);
+		SetShaderValue(RHICmdList, ComputeShader, Shader->SimulationStageNormalizedIterationIndexParam, SimulationStageNormalizedIterationIndex);
+
 	}
 
 	uint32 NumThreadGroups = 1;
