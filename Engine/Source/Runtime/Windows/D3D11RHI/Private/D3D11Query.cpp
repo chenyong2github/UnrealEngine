@@ -292,6 +292,7 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 	HRESULT Result;
 	SAFE_GET_QUERY_DATA
 
+
 	// Isn't the query finished yet, and can we wait for it?
 	if ( Result == S_FALSE && bWait )
 	{
@@ -316,13 +317,15 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 			float DeltaTime = FPlatformTime::Seconds() - StartTime;
 			if(DeltaTime > TimeoutWarningLimit)
 			{
+				HRESULT DeviceRemovedReason = Direct3DDevice->GetDeviceRemovedReason();
 				TimeoutWarningLimit += 5.0;
-				UE_LOG(LogD3D11RHI, Log, TEXT("GetQueryData is taking a very long time (%.1f s)"), DeltaTime);
+				UE_LOG(LogD3D11RHI, Log, TEXT("GetQueryData is taking a very long time (%.1f s) (%08x)"), DeltaTime, (uint32)DeviceRemovedReason);
 			}
 
 			if(DeltaTime > TimeoutValue)
 			{
-				UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (%.1f s) (ErrorCode %08x)"), TimeoutValue, (uint32)Result);
+				HRESULT DeviceRemovedReason = Direct3DDevice->GetDeviceRemovedReason();
+				UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (%.1f s) (ErrorCode %08x) (%08x)"), TimeoutValue, (uint32)Result, (uint32)DeviceRemovedReason);
 				if(FAILED(Result))
 				{
 					VERIFYD3D11RESULT_EX(Result, Direct3DDevice);
