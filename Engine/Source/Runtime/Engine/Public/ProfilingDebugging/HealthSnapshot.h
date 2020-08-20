@@ -140,13 +140,10 @@ public:
 	FMemoryStat<float> StreamingMemoryMB;
 	// System level info
 	FMemoryStat<float> PhysicalMemoryMB;
-#if PLATFORM_PS4
-	FMemoryStat<float> GarlicMemoryMB;
-	FMemoryStat<float> OnionMemoryMB;
-#endif //PLATFORM_PS4
 	float LLMTotalMemoryMB;
 	FMmaStat<uint64> PhysicalMemory; // more detailed physical memory stats obtained more frequently
 	FMmaStat<uint64> VirtualMemory;
+	TArray<typename FPlatformMemoryStats::FPlatformSpecificStat> PlatformMemoryStats;
 
 	/** Performance data */
 	double MeasuredPerfTime; // Duration of time the following performance values came from
