@@ -284,7 +284,7 @@ bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalM
 		}
 		else
 		{
-			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex);
+			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex, SkeletalMesh);
 			if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
 			{
 				bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name);
@@ -351,7 +351,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	return bBuildSuccess;
 }
 
-FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex)
+FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex, USkeletalMesh* SkeletalMesh)
 {
 	FString PickedFileName("");
 
@@ -364,11 +364,27 @@ FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex)
 	bool bOpen = false;
 	if (DesktopPlatform)
 	{
+		// Try and retrieve the path containing the original skeletal mesh source data, and set it as default path for the file dialog
+		UFbxSkeletalMeshImportData* ImportData = SkeletalMesh ? Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->AssetImportData) : nullptr;
+		FString DefaultPath;
+		FString TempString;
+		if (ImportData)
+		{
+			ImportData->GetImportContentFilename(DefaultPath, TempString);
+			DefaultPath = FPaths::GetPath(DefaultPath);
+		}
+		
+		// Otherwise resort back to last FBX directory
+		if(!FPaths::DirectoryExists(DefaultPath))
+		{
+			DefaultPath = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX);
+		}		
+		
 		const FString DialogTitle = TEXT("Pick FBX file containing Skin Weight data for LOD ") + FString::FormatAsNumber(LODIndex);
 		bOpen = DesktopPlatform->OpenFileDialog(
 			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
 			DialogTitle,
-			*FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX),
+			*DefaultPath,
 			TEXT(""),
 			*ExtensionStr,
 			EFileDialogFlags::None,
