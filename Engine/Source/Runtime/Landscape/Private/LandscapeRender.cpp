@@ -975,7 +975,7 @@ void FLandscapeRenderSystem::FetchHeightmapLODBiases()
 		FLandscapeComponentSceneProxy* SceneProxy = SceneProxies[EntityIndex];
 		if (SceneProxy)
 		{
-			if (SceneProxy->HeightmapTexture)
+			if (SceneProxy->HeightmapTexture && SceneProxy->HeightmapTexture->Resource != nullptr)
 			{
 				float SectionLODBias = ((FTexture2DResource*)SceneProxy->HeightmapTexture->Resource)->GetCurrentFirstMip();
 				SectionLODBiases[EntityIndex] = SectionLODBias;
