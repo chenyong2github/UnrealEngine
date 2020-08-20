@@ -378,6 +378,9 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 				CollapsedTextCache = TypeUtilityValue->GetStackDisplayText(Var);
 			}
 			break;
+		case EValueMode::Data:
+				CollapsedTextCache = FText::Format(FText::FromString("[{0}]"), InputValues.DataObject.IsValid() ? InputValues.DataObject->GetClass()->GetDisplayNameText() : FText::FromString("?"));
+				break;
 		case EValueMode::Dynamic:
 			if (InputValues.DynamicNode->FunctionScript != nullptr)
 			{
