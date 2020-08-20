@@ -472,6 +472,7 @@ class FSetupMeshSDFScatterInstancesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, NumClipmaps)
+		SHADER_PARAMETER(uint32, OutermostClipmapIndex)
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldMin, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
@@ -887,6 +888,7 @@ void InjectCardsWithRasterizerScatter(
 
 			PassParameters->LumenCardScene = LumenSceneData.UniformBuffer;
 			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->OutermostClipmapIndex = ClipmapsToUpdate.Num() - 1;
 			PassParameters->NumClipmaps = ClipmapsToUpdate.Num();
 			PassParameters->GridResolution = VoxelGridResolution;
 

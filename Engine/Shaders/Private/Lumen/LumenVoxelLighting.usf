@@ -229,6 +229,7 @@ void AddComputeScatterQuadsForIntersectingObject(uint ObjectIndex, float3 WorldO
 
 float MeshSDFRadiusThreshold;
 float MeshSDFScreenSizeThreshold;
+uint OutermostClipmapIndex;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void SetupMeshSDFScatterInstancesCS(
@@ -245,8 +246,7 @@ void SetupMeshSDFScatterInstancesCS(
 		
 		float BoundsRadius = length(WorldObjectExtent);
 
-		uint OutermostClipmap = NumClipmaps - 1;
-		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter[OutermostClipmap].xyz, ClipmapWorldExtent[OutermostClipmap].xyz, WorldObjectCenter, WorldObjectExtent);
+		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(ClipmapWorldCenter[OutermostClipmapIndex].xyz, ClipmapWorldExtent[OutermostClipmapIndex].xyz, WorldObjectCenter, WorldObjectExtent);
 		float DistanceToView = length(View.WorldCameraOrigin - WorldObjectCenter);
 
 		if (DistanceSq < 0.01f
