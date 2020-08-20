@@ -970,11 +970,11 @@ namespace AutomationTool
 					int SlashIdx = LabelCategoryName.IndexOf('/');
 					if (SlashIdx != -1)
 					{
-						Label = new Label(LabelCategoryName.Substring(0, SlashIdx), LabelCategoryName.Substring(SlashIdx + 1));
+						Label = new Label(LabelCategoryName.Substring(SlashIdx + 1), LabelCategoryName.Substring(0, SlashIdx), null, null, LabelChange.Current);
 					}
 					else
 					{
-						Label = new Label("Other", LabelCategoryName);
+						Label = new Label(LabelCategoryName, "Other", null, null, LabelChange.Current);
 					}
 
 					// Find all the included nodes
@@ -1059,16 +1059,26 @@ namespace AutomationTool
 		/// <param name="Element">Xml element to read the definition from</param>
 		void ReadLabel(ScriptElement Element)
 		{
-			string Name;
-			if (EvaluateCondition(Element) && TryReadObjectName(Element, out Name))
+			if (EvaluateCondition(Element))
 			{
+				string Name = ReadAttribute(Element, "Name");
+				if (!String.IsNullOrEmpty(Name))
+				{
+					ValidateName(Element, Name);
+				}
+
 				string Category = ReadAttribute(Element, "Category");
 
 				string[] RequiredNames = ReadListAttribute(Element, "Requires");
 				string[] IncludedNames = ReadListAttribute(Element, "Include");
 				string[] ExcludedNames = ReadListAttribute(Element, "Exclude");
 
-				Label NewLabel = new Label(Category, Name);
+				string UgsBadge = ReadAttribute(Element, "UgsBadge");
+				string UgsProject = ReadAttribute(Element, "UgsProject");
+
+				LabelChange Change = ReadEnumAttribute<LabelChange>(Element, "Change", LabelChange.Current);
+
+				Label NewLabel = new Label(Name, Category, UgsBadge, UgsProject, Change);
 				foreach (Node ReferencedNode in ResolveReferences(Element, RequiredNames))
 				{
 					NewLabel.RequiredNodes.Add(ReferencedNode);
