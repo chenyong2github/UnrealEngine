@@ -38,7 +38,6 @@ namespace AudioModulation
 		float LFOValue;
 		float MixValue;
 		float Value;
-		FVector2D Range;
 		uint32 Id;
 		uint32 RefCount;
 	};

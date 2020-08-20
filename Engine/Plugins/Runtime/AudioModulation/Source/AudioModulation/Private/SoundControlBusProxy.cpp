@@ -19,7 +19,6 @@ namespace AudioModulation
 		, LFOValue(1.0f)
 		, MixValue(NAN)
 		, bBypass(false)
-		, Range(0.0f, 1.0f)
 	{
 	}
 
@@ -50,11 +49,6 @@ namespace AudioModulation
 		return LFOValue;
 	}
 
-	FVector2D FControlBusProxy::GetRange() const
-	{
-		return Range;
-	}
-
 	float FControlBusProxy::GetMixValue() const
 	{
 		return MixValue;
@@ -63,7 +57,7 @@ namespace AudioModulation
 	float FControlBusProxy::GetValue() const
 	{
 		const float DefaultMixed = Mix(DefaultValue);
-		return FMath::Clamp(DefaultMixed * LFOValue, Range.X, Range.Y);
+		return FMath::Clamp(DefaultMixed * LFOValue, 0.0f, 1.0f);
 	}
 
 	void FControlBusProxy::Init(const FControlBusSettings& InSettings)
@@ -73,14 +67,8 @@ namespace AudioModulation
 		LFOValue = 1.0f;
 		MixValue = NAN;
 		MixFunction = InSettings.MixFunction;
-		Range = FVector2D(InSettings.Min, InSettings.Max);
-		if (InSettings.Min > InSettings.Max)
-		{
-			Range.X = InSettings.Max;
-			Range.Y = InSettings.Min;
-		}
 
-		DefaultValue = FMath::Clamp(InSettings.DefaultValue, Range.X, Range.Y);
+		DefaultValue = FMath::Clamp(InSettings.DefaultValue, 0.0f, 1.0f);
 		bBypass = InSettings.bBypass;
 
 		TArray<FLFOHandle> NewHandles;

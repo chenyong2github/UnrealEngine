@@ -31,6 +31,8 @@ namespace AudioModulation
 		virtual Audio::FModulationParameter GetParameter(FName InParamName);
 		virtual void Initialize(const FAudioPluginInitializationParams& InitializationParams) override;
 
+		virtual void OnAuditionEnd() override;
+
 #if !UE_BUILD_SHIPPING
 		virtual bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) override;
 		virtual int32 OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) override;

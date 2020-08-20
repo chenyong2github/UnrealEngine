@@ -115,9 +115,9 @@ namespace AudioModulation
 				if (Stage.Bus)
 				{
 					FConfigSection& ConfigSection = ConfigFile.Add(Stage.Bus->GetPathName());
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.AttackTime)));
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.ReleaseTime)));
-					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.TargetValue)));
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, AttackTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.AttackTime)));
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, ReleaseTime), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.ReleaseTime)));
+					ConfigSection.Add(GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue), FConfigValue(FString::Printf(TEXT("%f"), Stage.Value.TargetValue)));
 				}
 			}
 			ConfigFile.Dirty = true;
@@ -159,9 +159,9 @@ namespace AudioModulation
 					FString PathName = Stage.Bus->GetPathName();
 					if (FConfigSection* ConfigSection = ConfigFile->Find(PathName))
 					{
-						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime), Stage.Value.AttackTime);
-						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Stage.Value.ReleaseTime);
-						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Stage.Value.TargetValue);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, AttackTime), Stage.Value.AttackTime);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, ReleaseTime), Stage.Value.ReleaseTime);
+						StageValueToFloat(*ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue), Stage.Value.TargetValue);
 						SectionsProcessed.Emplace(MoveTemp(PathName));
 						bMarkDirty = true;
 					}
@@ -184,14 +184,14 @@ namespace AudioModulation
 				{
 					const FConfigSection& ConfigSection = ConfigFile->FindChecked(SectionName);
 					UObject* BusObj = FSoftObjectPath(SectionName).TryLoad();
-					if (USoundControlBusBase* Bus = Cast<USoundControlBusBase>(BusObj))
+					if (USoundControlBus* Bus = Cast<USoundControlBus>(BusObj))
 					{
 						FSoundControlBusMixStage Stage;
 						Stage.Bus = Bus;
 
-						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, AttackTime),  Stage.Value.AttackTime);
-						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, ReleaseTime), Stage.Value.ReleaseTime);
-						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationValue, TargetValue), Stage.Value.TargetValue);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, AttackTime),  Stage.Value.AttackTime);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, ReleaseTime), Stage.Value.ReleaseTime);
+						StageValueToFloat(ConfigSection, GET_MEMBER_NAME_CHECKED(FSoundModulationMixValue, TargetValue), Stage.Value.TargetValue);
 
 						Stages.Emplace(MoveTemp(Stage));
 
