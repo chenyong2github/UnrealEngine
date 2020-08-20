@@ -362,38 +362,40 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.SubImageBlendMode = bSubImageBlend;
 	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 
-	ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
-	ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
-
-	const int32 FacingOffset = PerViewUniformParameters.FacingDataOffset;
-	if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
 	{
-		ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
-	}
+		ENiagaraSpriteFacingMode ActualFacingMode = FacingMode;
+		ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
 
-	const int32 AlignmentOffset = PerViewUniformParameters.AlignmentDataOffset;
-	if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
-	{
-		ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
-	}
+		const int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? PerViewUniformParameters.FacingDataOffset : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
+		if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
+		{
+			ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
+		}
 
-	if (ActualFacingMode == ENiagaraSpriteFacingMode::FaceCameraDistanceBlend)
-	{
-		float DistanceBlendMinSq = MinFacingCameraBlendDistance * MinFacingCameraBlendDistance;
-		float DistanceBlendMaxSq = MaxFacingCameraBlendDistance * MaxFacingCameraBlendDistance;
-		float InvBlendRange = 1.0f / FMath::Max(DistanceBlendMaxSq - DistanceBlendMinSq, 1.0f);
-		float BlendScaledMinDistance = DistanceBlendMinSq * InvBlendRange;
+		const int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? PerViewUniformParameters.AlignmentDataOffset : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
+		if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
+		{
+			ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
+		}
 
-		PerViewUniformParameters.CameraFacingBlend.X = 1.0f;
-		PerViewUniformParameters.CameraFacingBlend.Y = InvBlendRange;
-		PerViewUniformParameters.CameraFacingBlend.Z = BlendScaledMinDistance;
-	}
+		if (ActualFacingMode == ENiagaraSpriteFacingMode::FaceCameraDistanceBlend)
+		{
+			float DistanceBlendMinSq = MinFacingCameraBlendDistance * MinFacingCameraBlendDistance;
+			float DistanceBlendMaxSq = MaxFacingCameraBlendDistance * MaxFacingCameraBlendDistance;
+			float InvBlendRange = 1.0f / FMath::Max(DistanceBlendMaxSq - DistanceBlendMinSq, 1.0f);
+			float BlendScaledMinDistance = DistanceBlendMinSq * InvBlendRange;
 
-	if (ActualAlignmentMode == ENiagaraSpriteAlignment::VelocityAligned)
-	{
-		// velocity aligned
-		PerViewUniformParameters.RotationScale = 0.0f;
-		PerViewUniformParameters.TangentSelector = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
+			PerViewUniformParameters.CameraFacingBlend.X = 1.0f;
+			PerViewUniformParameters.CameraFacingBlend.Y = InvBlendRange;
+			PerViewUniformParameters.CameraFacingBlend.Z = BlendScaledMinDistance;
+		}
+
+		if (ActualAlignmentMode == ENiagaraSpriteAlignment::VelocityAligned)
+		{
+			// velocity aligned
+			PerViewUniformParameters.RotationScale = 0.0f;
+			PerViewUniformParameters.TangentSelector = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
+		}
 	}
 
 	return FNiagaraSpriteUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
@@ -571,20 +573,22 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	ENiagaraSpriteAlignment ActualAlignmentMode = Alignment;
 
 	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
-	const int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset() : INDEX_NONE;
-	if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector)
 	{
-		ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
-	}
+		const int32 FacingOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Facing].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Facing];
+		if (FacingOffset == -1 && FacingMode == ENiagaraSpriteFacingMode::CustomFacingVector )
+		{
+			ActualFacingMode = ENiagaraSpriteFacingMode::FaceCamera;
+		}
 
-	const int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset(): INDEX_NONE;
-	if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
-	{
-		ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
-	}
+		const int32 AlignmentOffset = SourceMode == ENiagaraRendererSourceDataMode::Particles ? VFVariables[ENiagaraSpriteVFLayout::Alignment].GetGPUOffset() : VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Alignment];
+		if (AlignmentOffset == -1 && ActualAlignmentMode == ENiagaraSpriteAlignment::CustomAlignment)
+		{
+			ActualAlignmentMode = ENiagaraSpriteAlignment::Unaligned;
+		}
 
-	CollectorResources.VertexFactory.SetAlignmentMode((uint32)ActualAlignmentMode);
-	CollectorResources.VertexFactory.SetFacingMode((uint32)FacingMode);
+		CollectorResources.VertexFactory.SetAlignmentMode((uint32)ActualAlignmentMode);
+		CollectorResources.VertexFactory.SetFacingMode((uint32)FacingMode);
+	}
 	CollectorResources.VertexFactory.SetParticleFactoryType(NVFT_Sprite);
 	CollectorResources.VertexFactory.InitResource();
 	CollectorResources.VertexFactory.SetSpriteUniformBuffer(CollectorResources.UniformBuffer);
