@@ -982,6 +982,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	FIntPoint OutputExtent;
 	FIntRect OutputRect;
+	if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 	{
 		OutputRect.Min = FIntPoint(0, 0);
 		OutputRect.Max = View.GetSecondaryViewRectSize();
@@ -992,6 +993,12 @@ static void AddGen5MainTemporalAAPasses(
 		OutputExtent = FIntPoint(
 			FMath::Max(InputExtent.X, QuantizedPrimaryUpscaleViewSize.X),
 			FMath::Max(InputExtent.Y, QuantizedPrimaryUpscaleViewSize.Y));
+	}
+	else
+	{
+		OutputRect.Min = FIntPoint(0, 0);
+		OutputRect.Max = View.ViewRect.Size();
+		OutputExtent = InputExtent;
 	}
 
 	FIntPoint HistoryExtent;
