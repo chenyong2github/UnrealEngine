@@ -238,7 +238,7 @@ int32 FVideoEncoder::Encode(const webrtc::VideoFrame& Frame, const webrtc::Codec
 
 		if (HWEncoderDetails.LastFramerate != int(Fps))
 		{
-			if (FMath::Abs(HWEncoderDetails.LastFramerate - Fps) > 5 || PixelStreamer.GetVerbosity() >= ELogVerbosity::Verbose)
+			if (FMath::Abs(HWEncoderDetails.LastFramerate - Fps) > 5 || UE_GET_LOG_VERBOSITY(PixelStreamer) >= ELogVerbosity::Verbose)
 			{
 				UE_LOG(PixelStreamer, Log, TEXT("Quality prioritization: QP %d, FPS %.0f"), HWEncoderDetails.LastAvgQP, Fps);
 			}
