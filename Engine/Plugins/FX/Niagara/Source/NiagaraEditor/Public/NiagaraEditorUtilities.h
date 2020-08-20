@@ -146,6 +146,8 @@ namespace FNiagaraEditorUtilities
 
 	FText GetVariableTypeCategory(const FNiagaraVariable& Variable);
 
+	FText GetTypeDefinitionCategory(const FNiagaraTypeDefinition& TypeDefinition);
+
 	void MarkDependentCompilableAssetsDirty(TArray<UObject*> InObjects);
 
 	void ResolveNumerics(UNiagaraGraph* SourceGraph, bool bForceParametersToResolveNumerics, TArray<FNiagaraVariable>& ChangedNumericParams);
