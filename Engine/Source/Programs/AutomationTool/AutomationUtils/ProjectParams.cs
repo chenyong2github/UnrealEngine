@@ -2463,10 +2463,20 @@ namespace AutomationTool
 		private Dictionary<UnrealTargetPlatform, FileReference> ProjectExePaths;
 
 		/// <summary>
+		/// Override for the computed based on release version path
+		/// </summary>
+		public string BasedOnReleaseVersionPathOverride = null;
+
+		/// <summary>
 		/// Get the path to the directory of the version we are basing a diff or a patch on.  
 		/// </summary>				
 		public String GetBasedOnReleaseVersionPath(DeploymentContext SC, bool bIsClientOnly)
 		{
+			if (!string.IsNullOrEmpty(BasedOnReleaseVersionPathOverride))
+			{
+				return BasedOnReleaseVersionPathOverride;
+			}
+
 			String BasePath = BasedOnReleaseVersionBasePath;
 			String Platform = SC.StageTargetPlatform.GetCookPlatform(SC.DedicatedServer, bIsClientOnly);
 			if (String.IsNullOrEmpty(BasePath))
