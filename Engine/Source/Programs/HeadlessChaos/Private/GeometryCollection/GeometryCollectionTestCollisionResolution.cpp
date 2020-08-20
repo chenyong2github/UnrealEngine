@@ -52,13 +52,17 @@ namespace GeometryCollectionTest
 	{
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
+		const FReal Radius = 100.0f; // cm
 
 		TGeometryCollectionWrapper<Traits>* Collection = nullptr;
 		{
-			FVector GlobalTranslation(0, 0, 10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
+			
+			FVector GlobalTranslation(0, 0, Radius + 10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			Params.RootTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity, FTransform::Identity };
+			FVector Scale(Radius);
+			Params.GeomTransform.SetScale3D(Scale); // Sphere radius
 			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], 1); // is a child of index one
 			EXPECT_TRUE(Collection->DynamicCollection->MassToLocal[0].Equals(FTransform::Identity)); // we are not testing MassToLocal in this test
@@ -70,7 +74,7 @@ namespace GeometryCollectionTest
 		UnitTest.AddSimulationObject(Floor);
 
 		UnitTest.Initialize();
-		for (int i = 0; i < 10000; i++)
+		for (int i = 0; i < 1000; i++)
 		{
 			UnitTest.Advance();
 		}
@@ -81,10 +85,10 @@ namespace GeometryCollectionTest
 			EXPECT_TRUE(UnitTest.Solver->GetParticles().GetGeometryCollectionParticles().CollisionParticles(0)!=nullptr);
 			EXPECT_TRUE(Collection->DynamicCollection->Simplicials[0]->Size() == UnitTest.Solver->GetParticles().GetGeometryCollectionParticles().CollisionParticles(0)->Size());
 			EXPECT_TRUE(Collection->DynamicCollection->Simplicials[0]->Size() != 0);
-			int32 Size = Collection->DynamicCollection->Simplicials[0]->Size();
 
-			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z) - 10.f, KINDA_SMALL_NUMBER);
-			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - 1.0), 0.1); // ball settles close to 1.0
+			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z - (Radius + 10.f)), KINDA_SMALL_NUMBER);
+			// ball settles within 10% of radius (The ball will sink deeper than expected due to contact position averaging within CullDistance)
+			EXPECT_LT(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Z - Radius), Radius * 0.1f); 
 		}
 	}
 
@@ -343,7 +347,8 @@ namespace GeometryCollectionTest
 		CreationParameters Params; 
 		Params.EnableClustering = false;
 
-		FVector Scale(1.f);
+		FReal Radius = 100.0f;
+		FVector Scale(Radius);
 		Params.GeomTransform.SetScale3D(Scale); // Sphere radius
 		Params.EnableClustering = false;
 
@@ -351,7 +356,7 @@ namespace GeometryCollectionTest
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
-		Params.RootTransform =FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
+		Params.RootTransform =FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 2.0f * Radius + 1.0));
 		TGeometryCollectionWrapper<Traits>* SimplicialSphereCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(SimplicialSphereCollection);
 
@@ -376,7 +381,7 @@ namespace GeometryCollectionTest
 		}
 
 		UnitTest.Initialize();
-		EXPECT_EQ(SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z, ImplicitSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z + 3);
+		EXPECT_EQ(SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z, ImplicitSphereCollection->DynamicCollection->Transform[0].GetTranslation().Z + 2.0f * Radius + 1.0f);
 
 		const FVector FirstX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
 		FVector PrevX = FirstX;
@@ -395,7 +400,7 @@ namespace GeometryCollectionTest
 			// We expect the simplical sphere to drop by 0.1 in Z and come to rest
 			// on top of the implicit sphere.
 			const FVector& CurrX = SimplicialSphereCollection->DynamicCollection->Transform[0].GetTranslation();
-			EXPECT_LE(FMath::Abs(CurrX.Z - 2.0f), 0.1);
+			EXPECT_LE(FMath::Abs(CurrX.Z - 2.0f * Radius), 0.1 * Radius);
 		}
 	}
 
@@ -410,8 +415,8 @@ namespace GeometryCollectionTest
 
 		CreationParameters Params;
 		Params.EnableClustering = false;
-
-		FVector Scale(1.f, 1.f, 1.f);
+		FReal Length = 100.0f;
+		FVector Scale(Length, Length, Length);
 		Params.GeomTransform.SetScale3D(Scale); // Box dimensions
 		Params.EnableClustering = false;
 
@@ -420,7 +425,7 @@ namespace GeometryCollectionTest
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
-		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, 3.0));
+		Params.RootTransform = FTransform(FQuat::MakeFromEuler(FVector(0)), FVector(0, 0, Length + 2.0f));
 		TGeometryCollectionWrapper<Traits>* BoxCollection0 =
 			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(BoxCollection0);
@@ -454,7 +459,7 @@ namespace GeometryCollectionTest
 		UnitTest.Initialize();
 		EXPECT_EQ(
 			BoxCollection0->DynamicCollection->Transform[0].GetTranslation().Z,
-			BoxCollection1->DynamicCollection->Transform[0].GetTranslation().Z + 3);
+			BoxCollection1->DynamicCollection->Transform[0].GetTranslation().Z + Length + 2.0f);
 
 		const FVector FirstX = BoxCollection0->DynamicCollection->Transform[0].GetTranslation();
 		FVector PrevX = FirstX;
@@ -471,10 +476,10 @@ namespace GeometryCollectionTest
 		}
 
 		{
-			// We expect the simplical sphere to drop by 0.1 in Z and come to rest
-			// on top of the implicit sphere.
+			// We expect the simplical cube to drop in Z direction and come to rest
+			// on top of the implicit cube.
 			const FVector& CurrX = BoxCollection0->DynamicCollection->Transform[0].GetTranslation();
-			EXPECT_LE(CurrX.Z - 2.0, 0.2); // Relative large fudge factor accounts for aliasing?
+			EXPECT_LE(FMath::Abs(CurrX.Z - Length), 0.2 * Length); // Relative large fudge factor accounts for spatial aliasing and contact location averaging.
 		}
 	}
 
@@ -487,15 +492,19 @@ namespace GeometryCollectionTest
 		using Traits = TypeParam;
 		TFramework<Traits> UnitTest;
 
+		FReal  Scale = 100.0f;
+
 		TGeometryCollectionWrapper<Traits>* Collection = nullptr;
 		{
-			FVector GlobalTranslation(0, 0, 10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
+			FVector GlobalTranslation(0, 0, Scale + 10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 			CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic; Params.EnableClustering = false;
 			Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Tetrahedron; Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation);
+			FVector TetraHedronScale(Scale);
+			Params.GeomTransform.SetScale3D(TetraHedronScale); // Tetrahedron dimensions
 			Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 			EXPECT_EQ(Collection->DynamicCollection->Parent[0], -1); // is a child of index one
-			EXPECT_NEAR((Collection->DynamicCollection->MassToLocal[0].GetTranslation()-FVector(0,0,10)).Size(),0,KINDA_SMALL_NUMBER);
+			EXPECT_NEAR((Collection->DynamicCollection->MassToLocal[0].GetTranslation()-FVector(0,0,Scale + 10)).Size(),0,KINDA_SMALL_NUMBER);
 
 			UnitTest.AddSimulationObject(Collection);
 		}
@@ -510,11 +519,11 @@ namespace GeometryCollectionTest
 			UnitTest.Advance();
 		}
 		{
-			// validate the ball collides and moved away from the static ball
+			// validate the tetahedron collides and moved away from the static floor
 			EXPECT_EQ(Collection->RestCollection->Transform[0].GetTranslation().Z, 0.f);
 			EXPECT_NEAR(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().X), 0.f, 0.01);
 			EXPECT_NEAR(FMath::Abs(Collection->DynamicCollection->Transform[0].GetTranslation().Y), 0.f, 0.01);
-			EXPECT_NEAR(Collection->DynamicCollection->Transform[0].GetTranslation().Z, -9.f, 0.1);
+			EXPECT_NEAR(Collection->DynamicCollection->Transform[0].GetTranslation().Z, -10.f, 0.1);
 		}
 	}
 
