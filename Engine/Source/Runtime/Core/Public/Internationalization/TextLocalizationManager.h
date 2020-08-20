@@ -144,6 +144,11 @@ public:
 	 *	Returns true if found and sets the out parameters. Otherwise, returns false.
 	 */
 	bool FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FString& OutNamespace, FString& OutKey);
+
+	/**	Finds the namespace and key associated with the specified display string.
+	 *	Returns true if found and sets the out parameters. Otherwise, returns false.
+	 */
+	bool FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey);
 	
 	/**
 	 * Attempts to find a local revision history for the given display string.

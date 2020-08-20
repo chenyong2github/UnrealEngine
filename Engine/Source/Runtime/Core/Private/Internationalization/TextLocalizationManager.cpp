@@ -792,9 +792,26 @@ bool FTextLocalizationManager::FindNamespaceAndKeyFromDisplayString(const FTextD
 	{
 		OutNamespace = NamespaceKeyEntry->GetNamespace().GetChars();
 		OutKey = NamespaceKeyEntry->GetKey().GetChars();
+		return true;
 	}
 
-	return NamespaceKeyEntry != nullptr;
+	return false;
+}
+
+bool FTextLocalizationManager::FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey)
+{
+	FScopeLock ScopeLock(&SynchronizationObject);
+
+	const FTextId* NamespaceKeyEntry = NamespaceKeyLookupTable.Find(InDisplayString);
+
+	if (NamespaceKeyEntry)
+	{
+		OutNamespace = NamespaceKeyEntry->GetNamespace();
+		OutKey = NamespaceKeyEntry->GetKey();
+		return true;
+	}
+
+	return false;
 }
 
 uint16 FTextLocalizationManager::GetLocalRevisionForDisplayString(const FTextDisplayStringRef& InDisplayString)

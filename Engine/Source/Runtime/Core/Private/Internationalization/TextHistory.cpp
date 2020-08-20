@@ -791,11 +791,12 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 		// We will definitely need to do a rebuild later
 		Revision = 0;
 
-		FString Namespace;
-		FString Key;
+		FTextKey Namespace;
+		Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
 
-		Record << SA_VALUE(TEXT("Namespace"), Namespace);
-		Record << SA_VALUE(TEXT("Key"), Key);
+		FTextKey Key;
+		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
+
 		Record << SA_VALUE(TEXT("SourceString"), SourceString);
 
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -806,8 +807,9 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 			const FString PackageNamespace = TextNamespaceUtil::GetPackageNamespace(BaseArchive);
 			if (!PackageNamespace.IsEmpty())
 			{
-				const FString FullNamespace = TextNamespaceUtil::BuildFullNamespace(Namespace, PackageNamespace);
-				if (!Namespace.Equals(FullNamespace, ESearchCase::CaseSensitive))
+				const FString NamespaceStr = Namespace.GetChars();
+				const FString FullNamespace = TextNamespaceUtil::BuildFullNamespace(NamespaceStr, PackageNamespace);
+				if (!NamespaceStr.Equals(FullNamespace, ESearchCase::CaseSensitive))
 				{
 					// We may assign a new key when loading if we don't have the correct package namespace in order to avoid identity conflicts when instancing (which duplicates without any special flags)
 					// This can happen if an asset was duplicated (and keeps the same keys) but later both assets are instanced into the same world (causing them to both take the worlds package id, and conflict with each other)
@@ -821,7 +823,7 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 		if (!GIsEditor)
 		{
 			// Strip the package localization ID to match how text works at runtime (properties do this when saving during cook)
-			TextNamespaceUtil::StripPackageNamespaceInline(Namespace);
+			Namespace = TextNamespaceUtil::StripPackageNamespace(Namespace.GetChars());
 		}
 #endif // WITH_EDITOR
 
@@ -832,14 +834,14 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 	{
 		check(InOutDisplayString.IsValid());
 
-		FString Namespace;
-		FString Key;
+		FTextKey Namespace;
+		FTextKey Key;
 		const bool bFoundNamespaceAndKey = FTextLocalizationManager::Get().FindNamespaceAndKeyFromDisplayString(InOutDisplayString.ToSharedRef(), Namespace, Key);
 
 		if (BaseArchive.IsCooking())
 		{
 			// We strip the package localization off the serialized text for a cooked game, as they're not used at runtime
-			TextNamespaceUtil::StripPackageNamespaceInline(Namespace);
+			Namespace = TextNamespaceUtil::StripPackageNamespace(Namespace.GetChars());
 		}
 		else
 		{
@@ -850,8 +852,9 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 				const FString PackageNamespace = TextNamespaceUtil::GetPackageNamespace(BaseArchive);
 				if (!PackageNamespace.IsEmpty())
 				{
-					const FString FullNamespace = TextNamespaceUtil::BuildFullNamespace(Namespace, PackageNamespace);
-					if (!Namespace.Equals(FullNamespace, ESearchCase::CaseSensitive))
+					const FString NamespaceStr = Namespace.GetChars();
+					const FString FullNamespace = TextNamespaceUtil::BuildFullNamespace(NamespaceStr, PackageNamespace);
+					if (!NamespaceStr.Equals(FullNamespace, ESearchCase::CaseSensitive))
 					{
 						// We may assign a new key when saving if we don't have the correct package namespace in order to avoid identity conflicts when instancing (which duplicates without any special flags)
 						// This can happen if an asset was duplicated (and keeps the same keys) but later both assets are instanced into the same world (causing them to both take the worlds package id, and conflict with each other)
@@ -863,23 +866,23 @@ void FTextHistory_Base::SerializeForDisplayString(FStructuredArchive::FRecord Re
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
 			// If this has no key, give it a GUID for a key
-			if (!bFoundNamespaceAndKey && GIsEditor && (BaseArchive.IsPersistent() && !BaseArchive.HasAnyPortFlags(PPF_Duplicate)))
+			if (GIsEditor && !bFoundNamespaceAndKey && (BaseArchive.IsPersistent() && !BaseArchive.HasAnyPortFlags(PPF_Duplicate)))
 			{
 				Key = FGuid::NewGuid().ToString();
 				if (!FTextLocalizationManager::Get().AddDisplayString(InOutDisplayString.ToSharedRef(), Namespace, Key))
 				{
 					// Could not add display string, reset namespace and key.
-					Namespace.Empty();
-					Key.Empty();
+					Namespace.Reset();
+					Key.Reset();
 				}
 			}
 		}
 
 		// Serialize the Namespace
-		Record << SA_VALUE(TEXT("Namespace"), Namespace);
+		Namespace.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Namespace"))));
 
 		// Serialize the Key
-		Record << SA_VALUE(TEXT("Key"), Key);
+		Key.SerializeAsString(Record.EnterField(SA_FIELD_NAME(TEXT("Key"))));
 
 		// Serialize the SourceString
 		Record << SA_VALUE(TEXT("SourceString"), SourceString);
