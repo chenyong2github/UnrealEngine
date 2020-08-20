@@ -165,3 +165,8 @@ FText FNiagaraEditorEnumTypeUtilities::GetSearchTextFromValue(const FNiagaraVari
 	const int32 EnumNameIndex = Enum->GetIndexByValue(AllocatedVariable.GetValue<int32>());
 	return Enum->GetDisplayNameTextByIndex(EnumNameIndex);
 }
+
+FText FNiagaraEditorEnumTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	return Variable.GetType().GetEnum()->GetDisplayNameTextByIndex(Variable.GetValue<int32>());
+}

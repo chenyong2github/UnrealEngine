@@ -442,6 +442,11 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FText Keywords;
 
+	/** The format for the text to display in the stack if the value is collapsed.
+	 *  This supports formatting placeholders for the function inputs, for example "myfunc({0}, {1})" will be converted to "myfunc(1.23, Particles.Position)". */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "Usage == ENiagaraScriptUsage::DynamicInput"))
+	FText CollapsedViewFormat;
+
 	UPROPERTY(EditAnywhere, Category = Script)
 	TArray<FNiagaraScriptHighlight> Highlights;
 

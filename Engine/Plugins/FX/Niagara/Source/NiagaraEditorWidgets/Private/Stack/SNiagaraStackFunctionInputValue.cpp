@@ -391,6 +391,14 @@ FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const
 {
 	if (FunctionInput->GetDynamicInputNode() != nullptr)
 	{
+		if (!FunctionInput->GetIsExpanded())
+		{
+			FText CollapsedText = FunctionInput->GetCollapsedStateText();
+			if (!CollapsedText.IsEmptyOrWhitespace())
+			{
+				return CollapsedText;
+			}
+		}
 		return FText::FromString(FName::NameToDisplayString(FunctionInput->GetDynamicInputNode()->GetFunctionName(), false));
 	}
 	else

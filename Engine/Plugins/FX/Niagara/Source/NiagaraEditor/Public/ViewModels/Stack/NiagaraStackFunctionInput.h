@@ -111,6 +111,9 @@ public:
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetValueToolTip() const;
 
+	/** Gets the tooltip that should be shown for the value of this input. */
+	FText GetCollapsedStateText() const;
+
 	/** Gets the path of parameter handles from the owning module to the function call which owns this input. */
 	const TArray<FNiagaraParameterHandle>& GetInputParameterHandlePath() const;
 
@@ -338,6 +341,8 @@ private:
 	/** Handles the message manager refreshing messages. */
 	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
+	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
+
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
 		call, it may be an input to a dynamic input function call which is owned by the module. */
@@ -405,6 +410,9 @@ private:
 
 	/** A tooltip to show for the value of this input. */
 	mutable TOptional<FText> ValueToolTipCache;
+
+	/** Text to display on a collapsed node. */
+	mutable TOptional<FText> CollapsedTextCache;
 
 	mutable TOptional<bool> bIsScratchDynamicInputCache;
 
