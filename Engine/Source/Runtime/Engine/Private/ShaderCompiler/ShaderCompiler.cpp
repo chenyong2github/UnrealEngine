@@ -4819,9 +4819,24 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		{
 			SlowTask.EnterProgressFrame(50);
 
+			// Load from the override global shaders first, this allows us to hot reload in cooked / pak builds
+			TArray<uint8> GlobalShaderData;
+			const bool bAllowOverrideGlobalShaders = !WITH_EDITOR && !UE_BUILD_SHIPPING;
+			if (bAllowOverrideGlobalShaders)
+			{
+				FString OverrideGlobalShaderCacheFilename = GetGlobalShaderCacheOverrideFilename(Platform);
+				FPaths::MakeStandardFilename(OverrideGlobalShaderCacheFilename);
+				bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *OverrideGlobalShaderCacheFilename, FILEREAD_Silent);
+			}
+
 			// is the data already loaded?
-			int64 PreloadedSize;
-			void* PreloadedData = GGlobalShaderPreLoadFile.TakeOwnershipOfLoadedData(&PreloadedSize);
+			int64 PreloadedSize = 0;
+			void* PreloadedData = nullptr;
+			if (!bLoadedFromCacheFile)
+			{
+				PreloadedData = GGlobalShaderPreLoadFile.TakeOwnershipOfLoadedData(&PreloadedSize);
+			}
+
 			if (PreloadedData != nullptr)
 			{
 				FLargeMemoryReader MemoryReader((uint8*)PreloadedData, PreloadedSize, ELargeMemoryReaderFlags::TakeOwnership);
@@ -4829,17 +4844,6 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			}
 			else
 			{
-				TArray<uint8> GlobalShaderData;
-
-				// Load from the override global shaders first, this allows us to hot reload in cooked / pak builds
-				const bool bAllowOverrideGlobalShaders = !WITH_EDITOR && !UE_BUILD_SHIPPING;
-				if (bAllowOverrideGlobalShaders)
-				{
-					FString OverrideGlobalShaderCacheFilename = GetGlobalShaderCacheOverrideFilename(Platform);
-					FPaths::MakeStandardFilename(OverrideGlobalShaderCacheFilename);
-					bLoadedFromCacheFile = FFileHelper::LoadFileToArray(GlobalShaderData, *OverrideGlobalShaderCacheFilename, FILEREAD_Silent);
-				}
-
 				FString GlobalShaderCacheFilename = FPaths::GetRelativePathToRoot() / GetGlobalShaderCacheFilename(Platform);
 				FPaths::MakeStandardFilename(GlobalShaderCacheFilename);
 				if (!bLoadedFromCacheFile)
