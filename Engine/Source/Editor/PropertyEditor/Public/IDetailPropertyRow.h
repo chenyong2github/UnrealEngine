@@ -9,6 +9,8 @@
 #include "PropertyHandle.h"
 
 class FDetailWidgetRow;
+class FDetailWidgetDecl;
+
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsResetToDefaultVisible, TSharedPtr<IPropertyHandle> /* PropertyHandle */);
 DECLARE_DELEGATE_OneParam(FResetToDefaultHandler, TSharedPtr<IPropertyHandle> /* PropertyHandle*/);
@@ -184,10 +186,26 @@ public:
 	virtual void GetDefaultWidgets( TSharedPtr<SWidget>& OutNameWidget, TSharedPtr<SWidget>& OutValueWidget, FDetailWidgetRow& Row, bool bAddWidgetDecoration = false ) = 0;
 
 	/**
-	 * Overrides the property widget
+	 * Overrides the property widget. Destroys any existing custom property widgets.
 	 *
 	 * @param bShowChildren	Whether or not to still show any children of this property
 	 * @return a row for the property that custom widgets can be added to
 	 */
 	virtual FDetailWidgetRow& CustomWidget( bool bShowChildren = false ) = 0;
+
+	/**
+	 * Overrides the name widget, creates new custom widget if necessary.
+	 *
+	 * @param bShowChildren	Whether or not to still show any children of this property
+	 * @return a name for the property that custom widgets can be added to
+	 */
+	virtual FDetailWidgetDecl& CustomNameWidget(bool bShowChildren = false) = 0;
+
+	/**
+	 * Overrides the value widget, creates new custom widget if necessary.
+	 *
+	 * @param bShowChildren	Whether or not to still show any children of this property
+	 * @return a value for the property that custom widgets can be added to
+	 */
+	virtual FDetailWidgetDecl& CustomValueWidget(bool bShowChildren = false) = 0;
 };

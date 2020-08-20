@@ -560,6 +560,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 // END ASSET
 
 // PROPERTY ----------------------------------------------
+	bool bisPaddedProperty = false;
 	if (StackParameterData->StackDataType == EStackDataType::Property)
 	{
 
@@ -810,32 +811,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					}
 			}
 		}
-		else if (!CompMaskParam)
-		{
-			FNodeWidgets StoredNodeWidgets = Node.CreateNodeWidgets();
-			TSharedRef<SWidget> StoredRightSideWidget = StoredNodeWidgets.ValueWidget.ToSharedRef();
-			FDetailWidgetRow& CustomWidget = Row.CustomWidget();
-			CustomWidget
-			.FilterString(NameOverride)
-			.NameContent()
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(NameOverride)
-					.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				]
-			]
-			.ValueContent()
-			[
-				StoredRightSideWidget
-			];
-
-		}
-		else
+		else if (CompMaskParam)
 		{
 			TSharedPtr<IPropertyHandle> RMaskProperty = StackParameterData->ParameterNode->CreatePropertyHandle()->GetChildHandle("R");
 			TSharedPtr<IPropertyHandle> GMaskProperty = StackParameterData->ParameterNode->CreatePropertyHandle()->GetChildHandle("G");
@@ -918,6 +894,25 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 				]	
 			];
 		}
+		else
+		{
+			FDetailWidgetDecl& CustomNameWidget = Row.CustomNameWidget();
+
+			CustomNameWidget
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(NameOverride)
+					.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
+					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				]
+			];
+
+			bisPaddedProperty = true;
+		}
 
 		FNodeWidgets NodeWidgets = Node.CreateNodeWidgets();
 		LeftSideWidget = NodeWidgets.NameWidget.ToSharedRef();
@@ -945,6 +940,7 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 // END PROPERTY CHILD
 
 // FINAL WRAPPER
+	float ValuePadding = bisPaddedProperty ? 20.0f : 0.0f;
 	if (StackParameterData->StackDataType == EStackDataType::Stack)
 	{
 		TSharedPtr<SHorizontalBox> FinalStack;
@@ -1038,8 +1034,8 @@ void SMaterialLayersFunctionsInstanceTreeItem::Construct(const FArguments& InArg
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
-						.MaxWidth(350.0f)
-						.Padding(FMargin(5.0f, 2.0f, 0.0f, 2.0f))
+						.MaxWidth(350.0f - ValuePadding)
+						.Padding(FMargin(5.0f, 2.0f, ValuePadding, 2.0f))
 						[
 							RightSideWidget
 						]
@@ -2097,6 +2093,7 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 	// END ASSET
 
 	// PROPERTY ----------------------------------------------
+	bool bisPaddedProperty = false;
 	if (StackParameterData->StackDataType == EStackDataType::Property)
 	{
 
@@ -2309,32 +2306,7 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 				}
 			}
 		}
-		else if (!CompMaskParam)
-		{
-			FNodeWidgets StoredNodeWidgets = Node.CreateNodeWidgets();
-			TSharedRef<SWidget> StoredRightSideWidget = StoredNodeWidgets.ValueWidget.ToSharedRef();
-			FDetailWidgetRow& CustomWidget = Row.CustomWidget();
-			CustomWidget
-				.FilterString(NameOverride)
-				.NameContent()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(NameOverride)
-						.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
-						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					]
-				]
-				.ValueContent()
-				[
-					StoredRightSideWidget
-				];
-
-		}
-		else
+		else if (CompMaskParam)
 		{
 			TSharedPtr<IPropertyHandle> RMaskProperty = StackParameterData->ParameterNode->CreatePropertyHandle()->GetChildHandle("R");
 			TSharedPtr<IPropertyHandle> GMaskProperty = StackParameterData->ParameterNode->CreatePropertyHandle()->GetChildHandle("G");
@@ -2417,6 +2389,25 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 				]
 				];
 		}
+		else
+		{
+			FDetailWidgetDecl& CustomNameWidget = Row.CustomNameWidget();
+
+			CustomNameWidget
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(NameOverride)
+					.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(StackParameterData->Parameter, MaterialEditorInstance))
+					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				]
+			];
+
+			bisPaddedProperty = true;
+		}
 
 		FNodeWidgets NodeWidgets = Node.CreateNodeWidgets();
 		LeftSideWidget = NodeWidgets.NameWidget.ToSharedRef();
@@ -2435,6 +2426,7 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 
 	// FINAL WRAPPER
 
+	float ValuePadding = bisPaddedProperty ? 20.0f : 0.0f;
 	LeftSideWidget->SetEnabled(false);
 	RightSideWidget->SetEnabled(false);
 	if (StackParameterData->StackDataType == EStackDataType::Stack)
@@ -2519,8 +2511,8 @@ void SMaterialLayersFunctionsMaterialTreeItem::Construct(const FArguments& InArg
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
-						.MaxWidth(350.0f)
-						.Padding(FMargin(5.0f, 2.0f, 0.0f, 2.0f))
+						.MaxWidth(350.0f - ValuePadding)
+						.Padding(FMargin(5.0f, 2.0f, ValuePadding, 2.0f))
 						[
 							RightSideWidget
 						]
