@@ -4,7 +4,7 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/IConsoleManager.h"
 #include "Stats/Stats.h"
-
+#include <atomic>
 
 
 DEFINE_LOG_CATEGORY(LogLockFreeList);
@@ -205,16 +205,29 @@ private:
 	FLockFreePointerListLIFORoot<PLATFORM_CACHE_LINE_SIZE> GlobalFreeListBundles;
 };
 
-static LockFreeLinkAllocator_TLSCache GLockFreeLinkAllocator;
+LockFreeLinkAllocator_TLSCache& GetLockFreeLinkAllocator_TLSCache()
+{
+	static std::atomic<LockFreeLinkAllocator_TLSCache*> TheAllocator;
+
+	LockFreeLinkAllocator_TLSCache* LocalAllocator = TheAllocator.load(std::memory_order_acquire);
+	if (!LocalAllocator)
+	{
+		static LockFreeLinkAllocator_TLSCache Instance;
+		LocalAllocator = &Instance;
+		TheAllocator.store(LocalAllocator, std::memory_order_release);
+	}
+
+	return *LocalAllocator;
+}
 
 void FLockFreeLinkPolicy::FreeLockFreeLink(FLockFreeLinkPolicy::TLinkPtr Item)
 {
-	GLockFreeLinkAllocator.Push(Item);
+	GetLockFreeLinkAllocator_TLSCache().Push(Item);
 }
 
 FLockFreeLinkPolicy::TLinkPtr FLockFreeLinkPolicy::AllocLockFreeLink() TSAN_SAFE
 {
-	FLockFreeLinkPolicy::TLinkPtr Result = GLockFreeLinkAllocator.Pop();
+	FLockFreeLinkPolicy::TLinkPtr Result = GetLockFreeLinkAllocator_TLSCache().Pop();
 	// this can only really be a mem stomp
 	checkLockFreePointerList(Result && !FLockFreeLinkPolicy::DerefLink(Result)->DoubleNext.GetPtr() && !FLockFreeLinkPolicy::DerefLink(Result)->Payload && !FLockFreeLinkPolicy::DerefLink(Result)->SingleNext);
 	return Result;
