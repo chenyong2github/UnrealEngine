@@ -11,6 +11,7 @@
 #include "GizmoEdMode.generated.h"
 
 class UTransformGizmo;
+class UInteractiveGizmo;
 class UInteractiveGizmoManager;
 
 UCLASS()
@@ -45,7 +46,7 @@ private:
 	IAssetEditorGizmoFactory* LastFactory = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TArray<UInteractiveGizmo*> InteractiveGizmos;
 
 	FDelegateHandle WidgetModeChangedHandle;
 };
