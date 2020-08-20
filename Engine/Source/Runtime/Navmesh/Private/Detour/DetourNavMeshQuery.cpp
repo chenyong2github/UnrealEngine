@@ -1289,13 +1289,6 @@ int dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qmi
 		const float* tbmax = tile->header->bmax;
 		const float qfac = tile->header->bvQuantFactor;
 		
-//@UE4 BEGIN
-		// There used to be an empty node at the end of the array, if found skip it.
-		const dtBVNode* last = &tile->bvTree[tile->header->bvNodeCount - 1];
-		if (last->i == 0 && (last->bmin[0] | last->bmin[1] | last->bmin[2] | last->bmax[0] | last->bmax[1] | last->bmax[2]) == 0)
-			end--;
-//@UE4 END
-
 		// Calculate quantized box
 		unsigned short bmin[3], bmax[3];
 		// dtClamp query box to world box.

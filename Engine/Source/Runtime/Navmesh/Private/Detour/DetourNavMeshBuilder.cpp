@@ -469,9 +469,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	const int detailMeshesSize = dtAlign4(sizeof(dtPolyDetail)*params->polyCount);
 	const int detailVertsSize = dtAlign4(sizeof(float)*3*uniqueDetailVertCount);
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*detailTriCount);
-//@UE4 BEGIN
-	const int bvTreeSize = params->buildBvTree ? dtAlign4(sizeof(dtBVNode) * (params->polyCount * 2 - 1)) : 0;
-//@UE4 END
+	const int bvTreeSize = params->buildBvTree ? dtAlign4(sizeof(dtBVNode)*params->polyCount*2) : 0;
 	const int offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection)*storedOffMeshConCount);
 
 	//@UE4 BEGIN
@@ -546,9 +544,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	header->walkableRadius = params->walkableRadius;
 	header->walkableClimb = params->walkableClimb;
 	header->offMeshConCount = storedOffMeshConCount;
-//@UE4 BEGIN this used to be polyCount*2, which leaves null bvtree node at the end which may result duplicate polygon being returned by some queries.
-	header->bvNodeCount = params->buildBvTree ? (header->polyCount * 2 - 1) : 0;
-//@UE4 END
+	header->bvNodeCount = params->buildBvTree ? params->polyCount*2 : 0;
 
 	//@UE4 BEGIN
 #if WITH_NAVMESH_SEGMENT_LINKS
@@ -727,11 +723,9 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	// Store and create BVtree.
 	if (params->buildBvTree)
 	{
-//@UE4 BEGIN
 		createBVTree(params->verts, params->vertCount, params->polys, params->polyCount, nvp,
 					 navDMeshes, navDVerts, navDTris, params->bmin,
-					 params->cs, params->ch, header->bvNodeCount, navBvtree);
-//@UE4 END
+					 params->cs, params->ch, params->polyCount*2, navBvtree);
 	}
 	
 	// Store Off-Mesh connections.
