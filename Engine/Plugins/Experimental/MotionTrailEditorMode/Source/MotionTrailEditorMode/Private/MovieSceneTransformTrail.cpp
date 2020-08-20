@@ -9,7 +9,7 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Interrogation/SequencerInterrogationLinker.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 #include "MovieSceneSequence.h"
 
@@ -436,7 +436,7 @@ FMovieSceneTransformTrail::FMovieSceneTransformTrail(const FLinearColor& InColor
 	, LastTransformTrackSig(InWeakTrack->GetSignature())
 	, WeakTrack(InWeakTrack)
 	, WeakSequencer(InSequencer)
-	, InterrogationLinker(NewObject<USequencerInterrogationLinker>())
+	, InterrogationLinker(NewObject<UMovieSceneInterrogationLinker>())
 {
 	DefaultTrailTool = MakeUnique<FDefaultMovieSceneTransformTrailTool>(this);
 	TrajectoryCache = MakeUnique<FArrayTrajectoryCache>(0.01, GetEffectiveTrackRange());

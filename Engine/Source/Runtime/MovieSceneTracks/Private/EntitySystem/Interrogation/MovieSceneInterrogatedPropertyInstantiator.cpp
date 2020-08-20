@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Interrogation/SequencerInterrogatedPropertyInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
@@ -11,7 +11,7 @@
 #include "Algo/Find.h"
 
 
-USequencerInterrogatedPropertyInstantiatorSystem::USequencerInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit)
+UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	using namespace UE::MovieScene;
@@ -22,7 +22,7 @@ USequencerInterrogatedPropertyInstantiatorSystem::USequencerInterrogatedProperty
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
-				this, &USequencerInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource);
+				this, &UMovieSceneInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource);
 
 	RelevantComponent = BuiltInComponents->Interrogation.InputChannel;
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -34,12 +34,12 @@ USequencerInterrogatedPropertyInstantiatorSystem::USequencerInterrogatedProperty
 	CleanFastPathMask.Set(BuiltInComponents->Interrogation.OutputChannel);
 }
 
-bool USequencerInterrogatedPropertyInstantiatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
+bool UMovieSceneInterrogatedPropertyInstantiatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
 {
 	return true;
 }
 
-UE::MovieScene::FPropertyRecomposerPropertyInfo USequencerInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
+UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieSceneInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
 {
 	using namespace UE::MovieScene;
 
@@ -50,7 +50,7 @@ UE::MovieScene::FPropertyRecomposerPropertyInfo USequencerInterrogatedPropertyIn
 	return FPropertyRecomposerPropertyInfo::Invalid();
 }
 
-USequencerInterrogatedPropertyInstantiatorSystem::FFloatRecompositionResult USequencerInterrogatedPropertyInstantiatorSystem::RecomposeBlendFloatChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, float InCurrentValue)
+UMovieSceneInterrogatedPropertyInstantiatorSystem::FFloatRecompositionResult UMovieSceneInterrogatedPropertyInstantiatorSystem::RecomposeBlendFloatChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, float InCurrentValue)
 {
 	using namespace UE::MovieScene;
 
@@ -88,7 +88,7 @@ USequencerInterrogatedPropertyInstantiatorSystem::FFloatRecompositionResult USeq
 }
 
 
-bool USequencerInterrogatedPropertyInstantiatorSystem::PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const
+bool UMovieSceneInterrogatedPropertyInstantiatorSystem::PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const
 {
 	using namespace UE::MovieScene;
 
@@ -113,7 +113,7 @@ bool USequencerInterrogatedPropertyInstantiatorSystem::PropertySupportsFastPath(
 	return true;
 }
 
-UClass* USequencerInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(TArrayView<const FMovieSceneEntityID> Inputs) const
+UClass* UMovieSceneInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(TArrayView<const FMovieSceneEntityID> Inputs) const
 {
 	using namespace UE::MovieScene;
 
@@ -133,14 +133,14 @@ UClass* USequencerInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(TA
 	return BlenderClass;
 }
 
-void USequencerInterrogatedPropertyInstantiatorSystem::InitializeOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::InitializeOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	using namespace UE::MovieScene;
 
 	UpdateOutput(InterrogationChannel, Inputs, Output, Aggregate);
 }
 
-void USequencerInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	using namespace UE::MovieScene;
 
@@ -247,7 +247,7 @@ void USequencerInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSce
 	}
 }
 
-void USequencerInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	if (Output->BlendChannel != INVALID_BLEND_CHANNEL)
 	{
@@ -259,7 +259,7 @@ void USequencerInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieSc
 	}
 }
 
-void USequencerInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
 

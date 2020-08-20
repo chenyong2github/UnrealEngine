@@ -8,13 +8,13 @@
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieSceneOverlappingEntityTracker.h"
 
-#include "SequencerInterrogatedPropertyInstantiator.generated.h"
+#include "MovieSceneInterrogatedPropertyInstantiator.generated.h"
 
 class UMovieSceneBlenderSystem;
 
 /** Class responsible for resolving all property types registered with FBuiltInComponentTypes::PropertyRegistry */
 UCLASS()
-class SEQUENCER_API USequencerInterrogatedPropertyInstantiatorSystem
+class MOVIESCENETRACKS_API UMovieSceneInterrogatedPropertyInstantiatorSystem
 	: public UMovieSceneEntityInstantiatorSystem
 {
 public:
@@ -24,7 +24,7 @@ public:
 
 	GENERATED_BODY()
 
-	USequencerInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
+	UMovieSceneInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Recompose a value from the constituent parts specified in InQuery, taking into accounts the wieghtings of the specific channel defined by ChannelCompositeIndex.
@@ -97,13 +97,13 @@ private:
 };
 
 template<typename PropertyType, typename OperationalType>
-UE::MovieScene::TRecompositionResult<PropertyType> USequencerInterrogatedPropertyInstantiatorSystem::RecomposeBlendFinal(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const PropertyType& InCurrentValue)
+UE::MovieScene::TRecompositionResult<PropertyType> UMovieSceneInterrogatedPropertyInstantiatorSystem::RecomposeBlendFinal(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const PropertyType& InCurrentValue)
 {
 	return RecomposerImpl.RecomposeBlendFinal<PropertyType, OperationalType>(Components, InQuery, InCurrentValue);
 }
 
 template<typename PropertyType, typename OperationalType>
-UE::MovieScene::TRecompositionResult<OperationalType> USequencerInterrogatedPropertyInstantiatorSystem::RecomposeBlendOperational(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const OperationalType& InCurrentValue)
+UE::MovieScene::TRecompositionResult<OperationalType> UMovieSceneInterrogatedPropertyInstantiatorSystem::RecomposeBlendOperational(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const OperationalType& InCurrentValue)
 {
 	return RecomposerImpl.RecomposeBlendOperational<PropertyType, OperationalType>(Components, InQuery, InCurrentValue);
 }

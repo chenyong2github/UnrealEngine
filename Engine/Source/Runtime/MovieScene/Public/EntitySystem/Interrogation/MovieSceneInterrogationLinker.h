@@ -7,7 +7,7 @@
 #include "UObject/ObjectKey.h"
 #include "IMovieScenePlayer.h"
 
-#include "SequencerInterrogationLinker.generated.h"
+#include "MovieSceneInterrogationLinker.generated.h"
 
 class UMovieSceneTrack;
 
@@ -29,12 +29,12 @@ class UMovieSceneTrack;
  *    Linker->FindSystem<UMyTrackSystem>()->Interrogate(OutData);
  */
 UCLASS()
-class SEQUENCER_API USequencerInterrogationLinker : public UMovieSceneEntitySystemLinker
+class MOVIESCENE_API UMovieSceneInterrogationLinker : public UMovieSceneEntitySystemLinker
 {
 public:
 	GENERATED_BODY()
 
-	USequencerInterrogationLinker(const FObjectInitializer& ObjInit);
+	UMovieSceneInterrogationLinker(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Import a track into this linker. This will add the track to the linker's evaluation field and
