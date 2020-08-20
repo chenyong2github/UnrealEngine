@@ -1341,6 +1341,7 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 				}
 			}
 
+#if WITH_CHAOS
 			if(GEnableKinematicDeferralStartPhysicsCondition)
 			{
 				if (World && (World->TickGroup == ETickingGroup::TG_StartPhysics))
@@ -1348,6 +1349,7 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
 				}
 			}
+#endif
 		}
 
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), Teleport, false, AllowDeferral);

@@ -187,7 +187,9 @@ public:
 
 	static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
+#if WITH_CHAOS
 	virtual float OnStartFrame(float InDeltaTime) override;
+#endif
 
 	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
 	void ListAwakeRigidBodies(bool bIncludeKinematic);
@@ -262,7 +264,9 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
+#if WITH_CHAOS
 	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
+#endif
 
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)
