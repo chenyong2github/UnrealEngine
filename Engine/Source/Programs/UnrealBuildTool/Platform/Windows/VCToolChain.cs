@@ -1748,6 +1748,9 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Allow the toolchain to adjust/process the link arguments
+			ModifyFinalLinkArguments(LinkEnvironment, Arguments, bBuildImportLibraryOnly );
+
 			// Create a response file for the linker, unless we're generating IntelliSense data
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
@@ -1803,6 +1806,11 @@ namespace UnrealBuildTool
 			Log.TraceVerbose("     Command: " + LinkAction.CommandArguments);
 
 			return OutputFile;
+		}
+
+		protected virtual void ModifyFinalLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments, bool bBuildImportLibraryOnly)
+		{
+			
 		}
 
 		private void ExportObjectFilePaths(LinkEnvironment LinkEnvironment, string FileName, VCEnvironment EnvVars)
