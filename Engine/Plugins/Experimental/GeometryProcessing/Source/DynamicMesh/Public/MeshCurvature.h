@@ -44,3 +44,33 @@ namespace UE
 
 	}
 }
+
+
+/**
+ * FMeshVertexCurvatureCache calculates and stores various per-vertex Curvature types
+ * for a Mesh, as well as some statistics for those values.
+ */
+class DYNAMICMESH_API FMeshVertexCurvatureCache
+{
+public:
+
+	struct FVertexCurvature
+	{
+		double Mean = 0;
+		double Gaussian = 0;
+		double MaxPrincipal = 0;
+		double MinPrincipal = 0;
+	};
+
+	TArray<FVertexCurvature> Curvatures;
+
+	FInterval1d MeanRange;
+	FInterval1d GaussianRange;
+	FInterval1d MaxPrincipalRange;
+	FInterval1d MinPrincipalRange;
+
+	int32 Num() const { return Curvatures.Num(); }
+	const FVertexCurvature& operator[](int32 Index) const { return Curvatures[Index]; }
+
+	void BuildAll(const FDynamicMesh3& Mesh);
+};
