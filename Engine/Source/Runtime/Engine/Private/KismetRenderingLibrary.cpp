@@ -538,6 +538,10 @@ UTexture2D* UKismetRenderingLibrary::ImportBufferAsTexture2D(UObject* WorldConte
 
 void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UCanvas*& Canvas, FVector2D& Size, FDrawToRenderTargetContext& Context)
 {
+	Canvas = NULL;
+	Size = FVector2D(0, 0);
+	Context = FDrawToRenderTargetContext();
+	
 	if (!FApp::CanEverRender())
 	{
 		// Returning early to avoid warnings about missing resources that are expected when CanEverRender is false.
@@ -545,10 +549,6 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 	}
 
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-
-	Canvas = NULL;
-	Size = FVector2D(0, 0);
-	Context = FDrawToRenderTargetContext();
 
 	if (!World)
 	{
