@@ -988,10 +988,12 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 		ToolMenus->RegisterMenu(CommonRootMenuName);
 	}
 
+	bool bDidRegisterGraphSchemaMenu = false;
 	const FName EdGraphSchemaContextMenuName = UEdGraphSchema::GetContextMenuName(UEdGraphSchema::StaticClass());
 	if (!ToolMenus->IsMenuRegistered(EdGraphSchemaContextMenuName))
 	{
 		ToolMenus->RegisterMenu(EdGraphSchemaContextMenuName);
+		bDidRegisterGraphSchemaMenu = true;
 	}
 
 	// Menus for subclasses of EdGraphSchema
@@ -1024,6 +1026,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 	}
 
 	// Now register node menus, which will belong to their schemas
+	bool bDidRegisterNodeMenu = false;
 	if (Context->Node)
 	{
 		for (UClass* CurrentClass = Context->Node->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphNode::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
@@ -1042,6 +1045,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 				}
 
 				ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
+				bDidRegisterNodeMenu = true;
 			}
 
 			if (CheckParentName == NAME_None)
@@ -1052,6 +1056,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 	}
 
 	// Now that all the possible sections have been registered, we can add the dynamic section for the custom schema node actions to override
+	if (bDidRegisterGraphSchemaMenu)
 	{
 		UToolMenu* Menu = ToolMenus->FindMenu(EdGraphSchemaContextMenuName);
 
@@ -1078,7 +1083,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 		Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
 	}
 
-	if (Context->Node)
+	if (bDidRegisterNodeMenu)
 	{
 		UToolMenu* Menu = ToolMenus->FindMenu(GetNodeContextMenuName(Context->Node->GetClass()));
 		 
