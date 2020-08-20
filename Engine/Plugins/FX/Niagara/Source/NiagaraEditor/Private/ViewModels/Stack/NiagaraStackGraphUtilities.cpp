@@ -3,7 +3,6 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraParameterMapHistory.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
-#include "NiagaraSystemScriptViewModel.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeOutput.h"
@@ -33,6 +32,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "AssetRegistryModule.h"
+#include "EdGraphUtilities.h"
 #include "ObjectTools.h"
 #include "NiagaraMessageManager.h"
 

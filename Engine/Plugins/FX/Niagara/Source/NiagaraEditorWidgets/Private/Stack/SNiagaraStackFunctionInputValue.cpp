@@ -20,7 +20,6 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IStructureDetailsView.h"
@@ -571,8 +570,9 @@ void SNiagaraStackFunctionInputValue::CollectAllActions(FGraphActionListBuilderB
 		FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 		for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 		{
-			const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), DynamicInputScript->bExposeToLibrary);
-			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), DynamicInputScript->bExposeToLibrary);
+			bool bIsInLibrary = DynamicInputScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+			const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
+			const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
 			TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateSP(this, &SNiagaraStackFunctionInputValue::DynamicInputScriptSelected, DynamicInputScript)));
 
@@ -868,8 +868,9 @@ void SNiagaraStackFunctionInputValue::CollectDynamicInputActionsForReassign(FGra
 	FunctionInput->GetAvailableDynamicInputs(DynamicInputScripts, bLibraryOnly == false);
 	for (UNiagaraScript* DynamicInputScript : DynamicInputScripts)
 	{
-		const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), DynamicInputScript->bExposeToLibrary);
-		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), DynamicInputScript->bExposeToLibrary);
+		bool bIsInLibrary = DynamicInputScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		const FText DynamicInputText = FNiagaraEditorUtilities::FormatScriptName(DynamicInputScript->GetFName(), bIsInLibrary);
+		const FText Tooltip = FNiagaraEditorUtilities::FormatScriptDescription(DynamicInputScript->Description, *DynamicInputScript->GetPathName(), bIsInLibrary);
 		TSharedPtr<FNiagaraMenuAction> DynamicInputAction(new FNiagaraMenuAction(CategoryName, DynamicInputText, Tooltip, 0, DynamicInputScript->Keywords,
 			FNiagaraMenuAction::FOnExecuteStackAction::CreateStatic(&ReassignDynamicInputScript, FunctionInput, DynamicInputScript)));
 		DynamicInputActions.AddAction(DynamicInputAction);
