@@ -4518,11 +4518,15 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 	}
 	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
 	{
-		ENiagaraScriptUsage Usage = TranslationStages[ActiveStageIdx].ScriptUsage;
+		ENiagaraScriptUsage Usage = GetCurrentUsage();
 		FNiagaraInt32 EnumValue;
-		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript || Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
+		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
 		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::SystemOrEmitter;
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::System;
+		}
+		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Emitter;
 		}
 		else
 		{
