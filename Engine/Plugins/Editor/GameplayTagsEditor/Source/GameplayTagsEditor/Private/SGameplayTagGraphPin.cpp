@@ -138,7 +138,7 @@ void SGameplayTagGraphPin::RefreshTagList()
 		TagString += TEXT(")");
 	}
 	FString CurrentDefaultValue = GraphPinObj->GetDefaultAsString();
-	if (CurrentDefaultValue.IsEmpty())
+	if (CurrentDefaultValue.IsEmpty() || CurrentDefaultValue == TEXT("(TagName=\"\")"))
 	{
 		CurrentDefaultValue = FString(TEXT(""));
 	}
