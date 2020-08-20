@@ -1129,7 +1129,7 @@ void MainCS(
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
-			float CurrentSampleCount = OutputSamples.Array[MultiplexId].SampleCount;
+			float CurrentSampleCount = RefSamples.Array[MultiplexId].SampleCount;
 			float NewSampleCount = min(CurrentSampleCount, TARGETED_SAMPLE_COUNT);
 
 			OutputSamples.Array[MultiplexId] = MulSignal(OutputSamples.Array[MultiplexId], CurrentSampleCount > 0 ? NewSampleCount / CurrentSampleCount : 0);
