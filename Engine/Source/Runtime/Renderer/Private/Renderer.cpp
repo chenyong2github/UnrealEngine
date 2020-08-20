@@ -33,7 +33,7 @@
 #include "VisualizeTexturePresent.h"
 #include "ScreenSpaceDenoise.h"
 #include "VT/VirtualTextureSystem.h"
-#include "PostProcess/PostProcessTemporalAA.h"
+#include "PostProcess/TemporalAA.h"
 DEFINE_LOG_CATEGORY(LogRenderer);
 
 IMPLEMENT_MODULE(FRendererModule, Renderer);
