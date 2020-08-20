@@ -40,6 +40,7 @@ FCriticalSection FMaterialShaderMap::GIdToMaterialShaderMapCS;
 TMap<FMaterialShaderMapId,FMaterialShaderMap*> FMaterialShaderMap::GIdToMaterialShaderMap[SP_NumPlatforms];
 #if ALLOW_SHADERMAP_DEBUG_DATA
 TArray<FMaterialShaderMap*> FMaterialShaderMap::AllMaterialShaderMaps;
+FCriticalSection FMaterialShaderMap::AllMaterialShaderMapsGuard;
 #endif
 
 /** 
@@ -1004,6 +1005,7 @@ TRefCountPtr<FMaterialShaderMap> FMaterialShaderMap::FindId(const FMaterialShade
 /** Flushes the given shader types from any loaded FMaterialShaderMap's. */
 void FMaterialShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& VFTypesToFlush)
 {
+	FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
 	for (int32 ShaderMapIndex = 0; ShaderMapIndex < AllMaterialShaderMaps.Num(); ShaderMapIndex++)
 	{
 		FMaterialShaderMap* CurrentShaderMap = AllMaterialShaderMaps[ShaderMapIndex];
@@ -1028,6 +1030,7 @@ void FMaterialShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderType
 void FMaterialShaderMap::GetAllOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes)
 {
 #if ALLOW_SHADERMAP_DEBUG_DATA
+	FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
 	for (const FMaterialShaderMap* ShaderMap : AllMaterialShaderMaps)
 	{
 		ShaderMap->GetOutdatedTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
@@ -2325,8 +2328,11 @@ FMaterialShaderMap::FMaterialShaderMap() :
 {
 	checkSlow(IsInGameThread() || IsAsyncLoading());
 #if ALLOW_SHADERMAP_DEBUG_DATA
-	AllMaterialShaderMaps.Add(this);
 	CompileTime = 0.f;
+	{
+		FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
+		AllMaterialShaderMaps.Add(this);
+	}
 #endif
 }
 
@@ -2345,7 +2351,10 @@ FMaterialShaderMap::~FMaterialShaderMap()
 		}
 		GShaderCompilerStats->RegisterCookedShaders(GetShaderNum(), CompileTime, GetShaderPlatform(), Path, GetDebugDescription());
 	}
-	AllMaterialShaderMaps.RemoveSwap(this);
+	{
+		FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
+		AllMaterialShaderMaps.RemoveSwap(this);
+	}
 #endif
 }
 
@@ -2600,6 +2609,7 @@ void DumpMaterialStats(EShaderPlatform Platform)
 	TSet<FString> MaterialNames;
 
 	// Look at in-memory shader use.
+	FScopeLock AllMatSMAccess(&FMaterialShaderMap::AllMaterialShaderMapsGuard);
 	for (int32 ShaderMapIndex = 0; ShaderMapIndex < FMaterialShaderMap::AllMaterialShaderMaps.Num(); ShaderMapIndex++)
 	{
 		FMaterialShaderMap* MaterialShaderMap = FMaterialShaderMap::AllMaterialShaderMaps[ShaderMapIndex];
