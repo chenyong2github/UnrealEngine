@@ -21,6 +21,9 @@ USequencerInterrogatedPropertyInstantiatorSystem::USequencerInterrogatedProperty
 
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
+				this, &USequencerInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource);
+
 	RelevantComponent = BuiltInComponents->Interrogation.InputChannel;
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -35,6 +38,55 @@ bool USequencerInterrogatedPropertyInstantiatorSystem::IsRelevantImpl(UMovieScen
 {
 	return true;
 }
+
+UE::MovieScene::FPropertyRecomposerPropertyInfo USequencerInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
+{
+	using namespace UE::MovieScene;
+
+	if (const FPropertyInfo* Property = PropertyTracker.FindOutput(EntityID))
+	{
+		return FPropertyRecomposerPropertyInfo { Property->BlendChannel, Property->Blender.Get(), Property->PropertyEntityID };
+	}
+	return FPropertyRecomposerPropertyInfo::Invalid();
+}
+
+USequencerInterrogatedPropertyInstantiatorSystem::FFloatRecompositionResult USequencerInterrogatedPropertyInstantiatorSystem::RecomposeBlendFloatChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, float InCurrentValue)
+{
+	using namespace UE::MovieScene;
+
+	FFloatRecompositionResult Result(InCurrentValue, InQuery.Entities.Num());
+
+	if (InQuery.Entities.Num() == 0)
+	{
+		return Result;
+	}
+
+	const FPropertyInfo* Property = PropertyTracker.FindOutput(InQuery.Entities[0]);
+	if (!Property || Property->BlendChannel == INVALID_BLEND_CHANNEL)
+	{
+		return Result;
+	}
+
+	UMovieSceneBlenderSystem* Blender = Property->Blender.Get();
+	if (!Blender)
+	{
+		return Result;
+	}
+
+	FFloatDecompositionParams Params;
+	Params.Query = InQuery;
+	Params.PropertyEntityID = Property->PropertyEntityID;
+	Params.DecomposeBlendChannel = Property->BlendChannel;
+	Params.PropertyTag = PropertyDefinition.PropertyType;
+
+	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
+	check(Composites.IsValidIndex(ChannelCompositeIndex));
+
+	PropertyDefinition.Handler->RecomposeBlendChannel(PropertyDefinition, Composites[ChannelCompositeIndex], Params, Blender, InCurrentValue, Result.Values);
+
+	return Result;
+}
+
 
 bool USequencerInterrogatedPropertyInstantiatorSystem::PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const
 {

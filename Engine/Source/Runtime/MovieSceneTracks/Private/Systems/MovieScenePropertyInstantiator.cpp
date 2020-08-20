@@ -18,6 +18,9 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
+				this, &UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource);
+
 	SystemExclusionContext = EEntitySystemContext::Interrogation;
 	RelevantComponent = BuiltInComponents->PropertyBinding;
 	if (HasAnyFlags(RF_ClassDefaultObject))
@@ -628,23 +631,24 @@ int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCu
 	return NewPropertyIndex;
 }
 
-const UMovieScenePropertyInstantiatorSystem::FObjectPropertyInfo* UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
+UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
 {
 	using namespace UE::MovieScene;
 
 	TComponentPtr<const FMovieScenePropertyBinding> PropertyBinding = Linker->EntityManager.ReadComponent(EntityID, BuiltInComponents->PropertyBinding);
 	if (!PropertyBinding)
 	{
-		return nullptr;
+		return FPropertyRecomposerPropertyInfo::Invalid();
 	}
 
 	TTuple<UObject*, FName> Key = MakeTuple(Object, PropertyBinding->PropertyPath);
 	if (const int32* PropertyIndex = ObjectPropertyToResolvedIndex.Find(Key))
 	{
-		return &ResolvedProperties[*PropertyIndex];
+		const FObjectPropertyInfo& PropertyInfo = ResolvedProperties[*PropertyIndex];
+		return FPropertyRecomposerPropertyInfo { PropertyInfo.BlendChannel, PropertyInfo.Blender.Get(), PropertyInfo.PropertyEntityID };
 	}
 
-	return nullptr;
+	return FPropertyRecomposerPropertyInfo::Invalid();
 }
 
 void UMovieScenePropertyInstantiatorSystem::AssignInitialValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
