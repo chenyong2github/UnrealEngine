@@ -111,7 +111,7 @@ void TMovieSceneSavedTokens<TokenType>::OnPreAnimated(ECapturePreAnimatedState C
 		return;
 	}
 
-	auto ResolvedPayload = Payload.Get();
+	auto ResolvedPayload = Payload.Get(true);
 
 	// Attempt to locate an existing animated state token for this type ID
 	int32 TokenIndex = AllAnimatedTypeIDs.IndexOfByKey(InAnimTypeID);
@@ -207,7 +207,7 @@ void TMovieSceneSavedTokens<TokenType>::CopyFrom(TMovieSceneSavedTokens& OtherTo
 template<typename TokenType>
 void TMovieSceneSavedTokens<TokenType>::Restore(IMovieScenePlayer& Player)
 {
-	auto ResolvedPayload = Payload.Get();
+	auto ResolvedPayload = Payload.Get(true);
 
 	// Restore in reverse
 	for (int32 Index = PreAnimatedTokens.Num() - 1; Index >= 0; --Index)
@@ -221,7 +221,7 @@ void TMovieSceneSavedTokens<TokenType>::Restore(IMovieScenePlayer& Player)
 template<typename TokenType>
 void TMovieSceneSavedTokens<TokenType>::Restore(IMovieScenePlayer& Player, TFunctionRef<bool(FMovieSceneAnimTypeID)> InFilter)
 {
-	auto ResolvedPayload = Payload.Get();
+	auto ResolvedPayload = Payload.Get(true);
 	
 	for (int32 TokenIndex = AllAnimatedTypeIDs.Num() - 1; TokenIndex >= 0; --TokenIndex)
 	{
@@ -269,7 +269,7 @@ bool TMovieSceneSavedTokens<TokenType>::RestoreEntity(IMovieScenePlayer& Player,
 		}
 	}
 
-	auto ResolvedPayload = Payload.Get();
+	auto ResolvedPayload = Payload.Get(true);
 	for (int32 TokenIndex = AllAnimatedTypeIDs.Num() - 1; TokenIndex >= 0; --TokenIndex)
 	{
 		FMovieSceneAnimTypeID ThisTokenID = AllAnimatedTypeIDs[TokenIndex];
