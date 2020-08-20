@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraEffectType.h"
-#include "NiagaraModule.h"
 #include "NiagaraCommon.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraSystem.h"
 
 //In an effort to cut the impact of runtime perf tracking, I limit the number of fames we actually sample on.
