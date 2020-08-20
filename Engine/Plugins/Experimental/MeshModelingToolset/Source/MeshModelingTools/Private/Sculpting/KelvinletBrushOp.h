@@ -7,7 +7,7 @@
 #include "Deformers/Kelvinlets.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
-
+#include "Async/ParallelFor.h"
 #include "KelvinletBrushOp.generated.h"
 
 
