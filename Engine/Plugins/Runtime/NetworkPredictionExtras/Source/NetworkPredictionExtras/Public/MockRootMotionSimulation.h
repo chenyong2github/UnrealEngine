@@ -11,6 +11,62 @@
 
 class UAnimInstance;
 
+// Very crude parameter pack for root motion parameters. The idea being each root motion source can have source-defined
+// parameters. This version just works on a block of memory without safety or optimizations (NetSerialize does not quantize anything)
+template<int32 InlineSize=128>
+struct TMockParameterPack
+{
+	TArray<uint8, TInlineAllocator<128>> Data;
+
+	void NetSerialize(const FNetSerializeParams& P)
+	{
+		npCheckf(Data.Num() <= 255, TEXT("Parameter size too big %d"), Data.Num());
+		
+		if(P.Ar.IsSaving())
+		{	
+			uint8 Size = Data.Num();
+			P.Ar << Size;
+			P.Ar.Serialize(Data.GetData(), Data.Num());
+		}
+		else
+		{
+			uint8 Size = 0;
+			P.Ar << Size;
+			Data.SetNumUninitialized(Size, false);
+			P.Ar.Serialize(Data.GetData(), Size);
+		}
+	}
+
+	void ToString(FAnsiStringBuilderBase& Out) const
+	{
+		Out.Appendf("ParameterPack Size: %d", Data.Num());
+	}
+
+	template<typename T>
+	void SetByType(const T* RawData)
+	{
+		Data.SetNumUninitialized(sizeof(T), false);
+		FMemory::Memcpy(Data.GetData(), RawData, sizeof(T));
+	}
+
+	template<typename T>
+	const T* GetByType() const
+	{
+		if (npEnsureMsgf(Data.Num() == sizeof(T), TEXT("Parameter size %d does not match Type size: %d"), Data.Num(), sizeof(T)))
+		{
+			return (T*)Data.GetData();
+		}
+		return nullptr;
+	}
+
+	bool operator==(const TMockParameterPack<InlineSize> &Other) const
+	{
+		return Data.Num() == Other.Data.Num() && FMemory::Memcmp(Data.GetData(), Other.Data.GetData(), Data.Num());
+	}
+};
+
+
+
 // This is an initial prototype of root motion in the Network Prediction system. It is meant to flesh out some ideas before 
 // settling on a final design for the future of root motion. In other words, we do not expect the code here in NetworkPredictionExtas
 // to be used directly in shipping systems.
@@ -39,16 +95,22 @@ struct FMockRootMotionInputCmd
 	int32	PlaySourceID = INDEX_NONE;	// Which RootMotionSourceID to trigger
 	int32	PlayCount = 0;				// Counter - to allow back to back playing of same anim
 
+	TMockParameterPack<> Parameters;
+
 	void NetSerialize(const FNetSerializeParams& P)
 	{
 		P.Ar << PlaySourceID;
 		P.Ar << PlayCount;
+
+		Parameters.NetSerialize(P);
 	}
 
 	void ToString(FAnsiStringBuilderBase& Out) const
 	{
 		Out.Appendf("PlaySourceID: %d\n", PlaySourceID);
 		Out.Appendf("PlayCount: %d\n", PlayCount);
+
+		Parameters.ToString(Out);
 	}
 };
 
@@ -142,13 +204,40 @@ struct FMockRootMotionSyncState
 	}
 };
 
+// The aux state should hold state that does not frequently change. It is otherwise the same as sync state.
+// (note that optimizations for sparse aux storage are not complete yet)
+struct FMockRootMotionAuxState
+{
+	TMockParameterPack<> Parameters;
+
+	void NetSerialize(const FNetSerializeParams& P)
+	{
+		Parameters.NetSerialize(P);
+	}
+
+	void ToString(FAnsiStringBuilderBase& Out) const
+	{
+		Parameters.ToString(Out);
+	}
+
+	bool ShouldReconcile(const FMockRootMotionAuxState& AuthorityState) const
+	{
+		return this->Parameters == AuthorityState.Parameters;
+	}
+
+	void Interpolate(const FMockRootMotionAuxState* From, const FMockRootMotionAuxState* To, float PCT)
+	{
+		this->Parameters = To->Parameters;
+	}
+};
+
 // This is the interface into "things that actually provide root motion"
 class IMockRootMotionSourceMap
 {
 public:
 
 	// Advance the root motion state by the given TimeStep
-	virtual FTransform StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out) = 0;
+	virtual FTransform StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux) = 0;
 
 	// Push the Sync state to the AnimInstance
 	//	this is debatable - the simulation code doesn't need to call this, its really the concern of the driver (UMockRootMotionComponent)
@@ -157,7 +246,7 @@ public:
 };
 
 // This just defines the state types that the simulation uses
-using MockRootMotionStateTypes = TNetworkPredictionStateTypes<FMockRootMotionInputCmd, FMockRootMotionSyncState, void>;
+using MockRootMotionStateTypes = TNetworkPredictionStateTypes<FMockRootMotionInputCmd, FMockRootMotionSyncState, FMockRootMotionAuxState>;
 
 // The actual NetworkPrediction simulation code that implements root motion movement
 //	(root motion evaluation itself is done via IMockRootMotionSourceMap but the actual 'how to move thing given a delta' is done here)

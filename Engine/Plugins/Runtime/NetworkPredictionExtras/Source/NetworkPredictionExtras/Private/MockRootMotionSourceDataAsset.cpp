@@ -9,6 +9,8 @@
 #include "Animation/AnimCompositeBase.h"
 #include "Animation/AnimInstance.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogMockRootMotionSourceDataAsset, Log, All);
+
 int32 UMockRootMotionSourceDataAsset::FindRootMotionSourceID(UAnimMontage* Montage)
 {
 	return Montages.Montages.Find(Montage);
@@ -31,7 +33,7 @@ bool UMockRootMotionSourceDataAsset::IsValidSourceID(int32 RootMotionSourceID) c
 	return Montages.Montages.IsValidIndex(RootMotionSourceID);
 }
 
-FTransform UMockRootMotionSourceDataAsset::StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out)
+FTransform UMockRootMotionSourceDataAsset::StepRootMotion(const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux)
 {
 	npCheckSlow(In);
 	npCheckSlow(In->RootMotionSourceID != INDEX_NONE);
@@ -39,14 +41,14 @@ FTransform UMockRootMotionSourceDataAsset::StepRootMotion(const FNetSimTimeStep&
 	// Map ID to montage or curves and call the _Imply function.
 	if (Montages.Montages.IsValidIndex(In->RootMotionSourceID))
 	{
-		return StepRootMotion_Impl(Montages.Montages[In->RootMotionSourceID], TimeStep, In, Out);
+		return StepRootMotion_Montage(Montages.Montages[In->RootMotionSourceID], TimeStep, In, Out, Aux);
 	}
 	else
 	{
 		const int32 CurveIdx = In->RootMotionSourceID - Montages.Montages.Num();
 		if (Curves.Curves.IsValidIndex(CurveIdx))
 		{
-			return StepRootMotion_Impl(Curves.Curves[CurveIdx], TimeStep, In, Out);
+			return StepRootMotion_Curve(Curves.Curves[CurveIdx], TimeStep, In, Out, Aux);
 		}
 		else
 		{
@@ -57,11 +59,12 @@ FTransform UMockRootMotionSourceDataAsset::StepRootMotion(const FNetSimTimeStep&
 	return FTransform::Identity;
 }
 
-FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Impl(UCurveVector* Curve, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out)
+FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Curve(UCurveVector* Curve, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux)
 {
 	npCheckSlow(Curve);
 	npCheckSlow(In);
 	npCheckSlow(Out);
+	npCheckSlow(Aux);
 
 	float MinPosition = 0.f;
 	float MaxPosition = 0.f;
@@ -86,9 +89,16 @@ FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Impl(UCurveVector* Cur
 
 	FVector DeltaV = (End - Start);
 	
-	// Arbitrary scale so that we can use normalized curves for now. See comments about parameterization in the header:
-	// It would be nice to set this statically (in the data sset) OR dynamically (when playing the RootMotion)
-	DeltaV *= 100.f;
+	// Allow Aux parameters to scale the translation from the curve
+	// Note that just shoving an FVector in here feels too fragile. We want a more formal binding of root motion source -> parameters
+	if (const FVector* Scale = Aux->Parameters.GetByType<FVector>())
+	{
+		DeltaV *= *Scale;
+	}
+	else
+	{
+		UE_LOG(LogMockRootMotionSourceDataAsset, Warning, TEXT("Invalid Aux parameters when evaluating curve motion. Size: %d"), Aux->Parameters.Data.Num());
+	}
 	
 	FTransform DeltaTrans = FTransform::Identity;
 	DeltaTrans.SetTranslation(DeltaV);
@@ -96,11 +106,12 @@ FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Impl(UCurveVector* Cur
 	return DeltaTrans;
 }
 
-FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Impl(UAnimMontage* Montage, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out)
+FTransform UMockRootMotionSourceDataAsset::StepRootMotion_Montage(UAnimMontage* Montage, const FNetSimTimeStep& TimeStep, const FMockRootMotionSyncState* In, FMockRootMotionSyncState* Out, const FMockRootMotionAuxState* Aux)
 {
 	npCheckSlow(Montage);
 	npCheckSlow(In);
 	npCheckSlow(Out);
+	npCheckSlow(Aux);
 
 	const float MinPosition = 0.f;
 	const float MaxPosition = Montage->GetPlayLength();
