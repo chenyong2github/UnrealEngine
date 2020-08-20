@@ -1184,7 +1184,7 @@ bool FText::GetHistoricNumericData(FHistoricTextNumericData& OutHistoricNumericD
 	return TextData->GetTextHistory().GetHistoricNumericData(*this, OutHistoricNumericData);
 }
 
-bool FText::IdenticalTo( const FText& Other ) const
+bool FText::IdenticalTo( const FText& Other, const ETextIdenticalModeFlags CompareModeFlags ) const
 {
 	// If both instances point to the same data, then both instances are considered identical.
 	if (TextData == Other.TextData)
@@ -1195,9 +1195,36 @@ bool FText::IdenticalTo( const FText& Other ) const
 	// If both instances point to the same localized string, then both instances are considered identical.
 	// This is fast as it skips a lexical compare, however it can also return false for two instances that have identical strings, but in different pointers.
 	// For instance, this method will return false for two FText objects created from FText::FromString("Wooble") as they each have unique (or null), non-shared instances.
-	FTextDisplayStringPtr DisplayStringPtr = TextData->GetLocalizedString();
-	FTextDisplayStringPtr OtherDisplayStringPtr = Other.TextData->GetLocalizedString();
-	return DisplayStringPtr && OtherDisplayStringPtr && DisplayStringPtr == OtherDisplayStringPtr;
+	{
+		FTextDisplayStringPtr DisplayStringPtr = TextData->GetLocalizedString();
+		FTextDisplayStringPtr OtherDisplayStringPtr = Other.TextData->GetLocalizedString();
+		if (DisplayStringPtr && OtherDisplayStringPtr && DisplayStringPtr == OtherDisplayStringPtr)
+		{
+			return true;
+		}
+	}
+
+	if (EnumHasAnyFlags(CompareModeFlags, ETextIdenticalModeFlags::DeepCompare))
+	{
+		const FTextHistory& ThisTextHistory = TextData->GetTextHistory();
+		const FTextHistory& OtherTextHistory = Other.TextData->GetTextHistory();
+		if (ThisTextHistory.GetType() == OtherTextHistory.GetType() && ThisTextHistory.IdenticalTo(OtherTextHistory, CompareModeFlags))
+		{
+			return true;
+		}
+	}
+
+	if (EnumHasAnyFlags(CompareModeFlags, ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		const bool bThisIsInvariant = (Flags & (ETextFlag::CultureInvariant | ETextFlag::InitializedFromString)) != 0;
+		const bool bOtherIsInvariant = (Other.Flags & (ETextFlag::CultureInvariant | ETextFlag::InitializedFromString)) != 0;
+		if (bThisIsInvariant && bOtherIsInvariant && ToString().Equals(Other.ToString(), ESearchCase::CaseSensitive))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
@@ -1239,6 +1266,32 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value)
 			break;
 		}
 	}
+}
+
+bool FFormatArgumentValue::IdenticalTo(const FFormatArgumentValue& Other, const ETextIdenticalModeFlags CompareModeFlags) const
+{
+	if (Type == Other.Type)
+	{
+		switch (Type)
+		{
+		case EFormatArgumentType::Int:
+			return IntValue == Other.IntValue;
+		case EFormatArgumentType::UInt:
+			return UIntValue == Other.UIntValue;
+		case EFormatArgumentType::Float:
+			return FloatValue == Other.FloatValue;
+		case EFormatArgumentType::Double:
+			return DoubleValue == Other.DoubleValue;
+		case EFormatArgumentType::Text:
+			return GetTextValue().IdenticalTo(Other.GetTextValue(), CompareModeFlags);
+		case EFormatArgumentType::Gender:
+			return GetGenderValue() == Other.GetGenderValue();
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 FString FFormatArgumentValue::ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource) const
