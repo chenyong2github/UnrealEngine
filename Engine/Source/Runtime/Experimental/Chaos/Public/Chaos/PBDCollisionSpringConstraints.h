@@ -17,8 +17,8 @@ class TPBDCollisionSpringConstraints : public PBDCollisionSpringConstraintsBase<
 	using Base::MConstraints;
 
   public:
-	TPBDCollisionSpringConstraints(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness = (T)1.0)
-	    : Base(InParticles, Elements, DisabledCollisionElements, DynamicGroupIds, PerGroupThicknesses, Dt, Stiffness) {}
+	TPBDCollisionSpringConstraints(const TPBDActiveView<TPBDParticles<T, d>>& ParticlesActiveView, const TArray<TVector<int32, 3>>& Elements, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const TArray<uint32>& DynamicGroupIds, const TArray<T>& PerGroupThicknesses, const T Dt, const T Stiffness = (T)1.0)
+	    : Base(ParticlesActiveView, Elements, DisabledCollisionElements, DynamicGroupIds, PerGroupThicknesses, Dt, Stiffness) {}
 	virtual ~TPBDCollisionSpringConstraints() {}
 
 	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 InConstraintIndex) const

@@ -33,7 +33,7 @@ protected:
 	float SetWindFromComponent(const USkeletalMeshComponent* Component);
 
 public:
-	// World space bone transforms of the owning component
+	// Component space bone transforms of the owning component
 	TArray<FTransform> BoneTransforms;
 
 	// Ref to local matrices from the owning component (for skinning fixed verts)
@@ -56,6 +56,9 @@ public:
 
 	// Scale for the max distance constraints of the simulation mesh
 	float MaxDistanceScale;
+
+	// The predicted LOD of the skeletal mesh component running the simulation
+	int32 PredictedLod;
 };
 
 // Base simulation to fill in common data for the base context

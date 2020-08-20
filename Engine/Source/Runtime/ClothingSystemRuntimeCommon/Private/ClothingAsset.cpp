@@ -1052,6 +1052,17 @@ void UClothingAssetCommon::PostUpdateAllAssets()
 
 void UClothingAssetCommon::InvalidateCachedData()
 {
+#if WITH_CHAOS_CLOTHING
+	ForEachInteractorUsingClothing([](UClothingSimulationInteractor* InInteractor)
+	{
+		if (InInteractor)
+		{
+			InInteractor->ClothConfigUpdated();
+		}
+	});
+#endif  // #if WITH_CHAOS_CLOTHING
+
+	// TODO: This mass calculation isn't used by Chaos, check what can be stripped out
 	for(FClothLODDataCommon& CurrentLodData : LodData)
 	{
 		// Recalculate inverse masses for the physical mesh particles

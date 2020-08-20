@@ -8,7 +8,7 @@
 
 IClothingSimulation* UChaosClothingSimulationFactory::CreateSimulation()
 {
-	IClothingSimulation* Simulation = new Chaos::ClothingSimulation();
+	IClothingSimulation* Simulation = new Chaos::FClothingSimulation();
 	return Simulation;
 }
 
