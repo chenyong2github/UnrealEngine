@@ -9,6 +9,8 @@ IMPLEMENT_MODULE( FAnimSharingModule, AnimationSharing);
 
 TMap<const UWorld*, UAnimationSharingManager*> FAnimSharingModule::WorldAnimSharingManagers;
 
+FOnAnimationSharingManagerCreated FAnimSharingModule::OnAnimationSharingManagerCreated;
+
 void FAnimSharingModule::StartupModule()
 {
 	FWorldDelegates::OnPostWorldCleanup.AddStatic(&FAnimSharingModule::OnWorldCleanup);
@@ -36,6 +38,8 @@ bool FAnimSharingModule::CreateAnimationSharingManager(UWorld* InWorld, const UA
 		UAnimationSharingManager* Manager = NewObject<UAnimationSharingManager>(InWorld);
 		Manager->Initialise(Setup);
 		WorldAnimSharingManagers.Add(InWorld, Manager);
+		
+		OnAnimationSharingManagerCreated.Broadcast(Manager, InWorld);
 
 		return true;
 	}
