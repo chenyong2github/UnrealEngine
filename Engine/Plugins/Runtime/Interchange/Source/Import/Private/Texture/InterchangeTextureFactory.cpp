@@ -152,6 +152,13 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		);
 		Texture2D->CompressionSettings = Image.CompressionSettings;
 		Texture2D->SRGB = Image.SRGB;
+		
+		//If the MipGenSettings was set by the translator, we must apply it before the build
+		if (Image.MipGenSettings.IsSet())
+		{
+			// if the source has mips we keep the mips by default, unless the user changes that
+			Texture2D->MipGenSettings = Image.MipGenSettings.GetValue();
+		}
 
 		//The re-import change only the source data and will not apply any custom attribute to the asset.
 		if(!ExistingAsset)

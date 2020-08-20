@@ -15,13 +15,6 @@
 #include "TextureNode.h"
 
 
-//////////////////////////////////////////////////////////////////////////
-// PCX helper local function
-
-namespace EXRParserHelper
-{
-} //EXRParserHelper namespace end
-
 bool UInterchangeEXRTranslator::CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 {
 	FString Extension = FPaths::GetExtension(InSourceData->GetFilename());

@@ -16,6 +16,7 @@ namespace Interchange
 		int32 SizeX = 0;
 		int32 SizeY = 0;
 		bool SRGB = true;
+		TOptional<TextureMipGenSettings> MipGenSettings;
 
 		void Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB);
 		void Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);
