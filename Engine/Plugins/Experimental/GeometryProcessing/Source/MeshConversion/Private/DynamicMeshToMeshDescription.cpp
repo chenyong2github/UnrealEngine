@@ -488,7 +488,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 			TriVertInstances[j] = NewInstanceID;
 
 			FVector TriVertNormal = FVector::UpVector;
-			if (NormalTri[j] >= 0 && NormalOverlay->IsElement(NormalTri[j]))
+			if (NormalOverlay && NormalOverlay->IsElement(NormalTri[j]))
 			{
 				TriVertNormal = (FVector)NormalOverlay->GetElement(NormalTri[j]);
 			}
