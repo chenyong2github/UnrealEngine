@@ -910,6 +910,10 @@ protected:
 			if( CurrentDelta != 0 )
 			{
 				ValueToCommit = FMath::GridSnap((double)ValueToCommit, (double)CurrentDelta); // snap numeric point value to nearest Delta
+				if (CachedExternalValue != ValueToCommit)
+				{
+					IntermediateDragFractionalValue = 0.0;
+				}
 			}
 		}		
 
@@ -1045,7 +1049,6 @@ private:
 		else
 		{
 			NumericType TmpValue = CurrentValue + IntermediateDragFractionalValue;
-			IntermediateDragFractionalValue = 0.0;
 			return TmpValue;
 		}
 	}
