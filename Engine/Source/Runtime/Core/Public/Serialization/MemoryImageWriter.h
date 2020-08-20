@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "Serialization/MemoryLayout.h"
 
+struct FMinimalName;
+struct FScriptName;
 class FMemoryImage;
 class FMemoryImageSection;
 class FPointerTableBase;
@@ -39,6 +41,8 @@ public:
 	uint32 WriteMemoryImagePointerSizedBytes(uint64 PointerValue);
 	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
 	uint32 WriteFName(const FName& Name);
+	uint32 WriteFMinimalName(const FMinimalName& Name);
+	uint32 WriteFScriptName(const FScriptName& Name);
 
 	template<typename T>
 	void WriteObjectArray(const T* Object, uint32 NumArray)

@@ -3210,9 +3210,30 @@ uint8** FNameDebugVisualizer::GetBlocks()
 	return ((FNamePool*)(NamePoolData))->GetBlocksForDebugVisualizer();
 }
 
+FString FScriptName::ToString() const
+{
+	return ScriptNameToName(*this).ToString();
+}
+
 void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&)
 {
 	Writer.WriteFName(Object);
+}
+
+uint32 Freeze::IntrinsicAppendHash(const FName* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
+{
+	const uint32 SizeFromFields = LayoutParams.WithCasePreservingFName() ? sizeof(FScriptName) : sizeof(FMinimalName);
+	return Freeze::AppendHashForNameAndSize(TypeDesc.Name, SizeFromFields, Hasher);
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMinimalName& Object, const FTypeLayoutDesc&)
+{
+	Writer.WriteFMinimalName(Object);
+}
+
+void Freeze::IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FScriptName& Object, const FTypeLayoutDesc&)
+{
+	Writer.WriteFScriptName(Object);
 }
 
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
