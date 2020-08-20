@@ -318,6 +318,9 @@ private:
 	/** Returns the template defs ini filename */
 	static FString GetTemplateDefsFilename();
 
+	/** Returns the include header path for a given fully specified, normalized file path */
+	static FString GetIncludePathForFile(const FString& InFullFilePath, const FString& ModuleRootPath);
+
 	/** Checks the name for an underscore and the existence of XB1 XDK */
 	static bool NameContainsUnderscoreAndXB1Installed(const FString& TestName);
 
@@ -523,4 +526,6 @@ private:
 
 	// Whether we should use AudioMixer for all platforms:
 	static bool bUseAudioMixerForAllPlatforms;
+
+	constexpr static const TCHAR IncludePathFormatString[] = TEXT("#include \"%s\"");
 };
