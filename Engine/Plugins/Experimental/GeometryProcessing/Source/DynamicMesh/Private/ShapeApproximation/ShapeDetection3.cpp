@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "Sampling/VectorSetAnalysis.h"
 #include "DynamicMesh3.h"
