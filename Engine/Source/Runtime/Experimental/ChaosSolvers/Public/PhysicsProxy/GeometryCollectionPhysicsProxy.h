@@ -191,6 +191,11 @@ public:
 		return PhysicsThreadCollection;
 	}
 
+	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>& GetExternalParticles()
+	{
+		return GTParticles;
+	}
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.

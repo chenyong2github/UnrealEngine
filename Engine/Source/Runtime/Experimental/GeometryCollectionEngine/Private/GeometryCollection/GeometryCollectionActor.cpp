@@ -41,6 +41,8 @@ AGeometryCollectionActor::AGeometryCollectionActor(const FObjectInitializer& Obj
 
 	PrimaryActorTick.bCanEverTick = true;
 	SetActorTickEnabled(true);
+
+	bReplicates = true;
 }
 
 
