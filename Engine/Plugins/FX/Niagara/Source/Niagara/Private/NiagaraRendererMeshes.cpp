@@ -768,7 +768,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 		if (SimTarget == ENiagaraSimTarget::CPUSim)
 		{
-			FVector4 InstancePos = GetInstancePosition(InstanceIndex);
+			FVector4 InstancePos = bHasPosition ? GetInstancePosition(InstanceIndex) : FVector4(0,0,0,0);
 			
 			FVector4 Transform1 = FVector4(1.0f, 0.0f, 0.0f, InstancePos.X);
 			FVector4 Transform2 = FVector4(0.0f, 1.0f, 0.0f, InstancePos.Y);
