@@ -183,18 +183,47 @@ void FMeshVertexCurvatureCache::BuildAll(const FDynamicMesh3& Mesh)
 	});
 
 
-	MeanRange = FInterval1d::Empty();
-	GaussianRange = FInterval1d::Empty();
-	MaxPrincipalRange = FInterval1d::Empty();
-	MinPrincipalRange = FInterval1d::Empty();
+	TSampleSetStatisticBuilder<double> CurvatureStats(4);
+
+	// count valid vertices
+	int32 NumCount = 0;
 	for (int32 k = 0; k < NumVertices; ++k)
 	{
 		if (IsValidFlag[k])
 		{
-			MeanRange.Contain(Curvatures[k].Mean);
-			GaussianRange.Contain(Curvatures[k].Gaussian);
-			MaxPrincipalRange.Contain(Curvatures[k].MaxPrincipal);
-			MinPrincipalRange.Contain(Curvatures[k].MinPrincipal);
+			NumCount++;
 		}
 	}
+
+	CurvatureStats.Begin_FixedCount(NumCount);
+
+	for (int32 Pass = 0; Pass < 2; ++Pass)
+	{
+		if (Pass == 1)
+		{
+			CurvatureStats.StartSecondPass_FixedCount();
+		}
+
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			if (IsValidFlag[k])
+			{
+				CurvatureStats.AccumulateValue_FixedCount(0, FMathd::Abs(Curvatures[k].Mean));
+				CurvatureStats.AccumulateValue_FixedCount(1, FMathd::Abs(Curvatures[k].Gaussian));
+				CurvatureStats.AccumulateValue_FixedCount(2, FMathd::Abs(Curvatures[k].MaxPrincipal));
+				CurvatureStats.AccumulateValue_FixedCount(3, FMathd::Abs(Curvatures[k].MinPrincipal));
+			}
+		}
+
+		if (Pass == 1)
+		{
+			CurvatureStats.CompleteSecondPass_FixedCount();
+		}
+	}
+
+	MeanStats = CurvatureStats[0];
+	GaussianStats = CurvatureStats[1];
+	MaxPrincipalStats = CurvatureStats[2];
+	MinPrincipalStats = CurvatureStats[3];
+
 }

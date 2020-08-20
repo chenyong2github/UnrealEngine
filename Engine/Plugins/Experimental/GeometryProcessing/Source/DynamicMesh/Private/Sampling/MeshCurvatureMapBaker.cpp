@@ -99,36 +99,25 @@ void FMeshCurvatureMapBaker::Bake_Single()
 		}
 	};
 
-	FInterval1d CurvatureRange = Cache.MeanRange;
+	FSampleSetStatisticsd CurvatureStats = Cache.MeanStats;
 	switch (UseCurvatureType)
 	{
 	default:
 	case ECurvatureType::Mean:
-		CurvatureRange = Cache.MeanRange;
+		CurvatureStats = Cache.MeanStats;
 		break;
 	case ECurvatureType::Gaussian:
-		CurvatureRange = Cache.GaussianRange;
+		CurvatureStats = Cache.GaussianStats;
 		break;
 	case ECurvatureType::MaxPrincipal:
-		CurvatureRange = Cache.MaxPrincipalRange;
+		CurvatureStats = Cache.MaxPrincipalStats;
 		break;
 	case ECurvatureType::MinPrincipal:
-		CurvatureRange = Cache.MinPrincipalRange;
+		CurvatureStats = Cache.MinPrincipalStats;
 		break;
 	}
 
-	double ClampMax = CurvatureRange.MaxAbsExtrema();
-	if (UseClampMode == EClampMode::Positive)
-	{
-		ClampMax = FMathd::Abs(CurvatureRange.Max);
-	} 
-	else if (UseClampMode == EClampMode::Negative)
-	{
-		ClampMax = FMathd::Abs(CurvatureRange.Min);
-	}
-
-
-	ClampMax *= RangeScale;
+	double ClampMax = RangeScale * (CurvatureStats.Mean + CurvatureStats.StandardDeviation);
 	double MinClamp = MinRangeScale * ClampMax;
 	FInterval1d ClampRange(MinClamp, ClampMax);
 
