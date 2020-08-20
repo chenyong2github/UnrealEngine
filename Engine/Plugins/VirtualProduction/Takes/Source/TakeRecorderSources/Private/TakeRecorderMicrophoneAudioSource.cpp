@@ -20,6 +20,7 @@
 #include "Misc/PackageName.h"
 #include "AssetData.h"
 #include "AssetRegistryModule.h"
+#include "UObject/UObjectBaseUtility.h"
 
 UTakeRecorderMicrophoneAudioSourceSettings::UTakeRecorderMicrophoneAudioSourceSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -169,6 +170,8 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 
 	for (auto RecordedSoundWave : RecordedSoundWaves)
 	{
+		RecordedSoundWave->MarkPackageDirty();
+		
 		FAssetRegistryModule::AssetCreated(RecordedSoundWave);
 	}
 
