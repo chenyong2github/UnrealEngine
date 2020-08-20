@@ -34,5 +34,11 @@ public class MovieRenderPipelineCore : ModuleRules
                 "ImageWriteQueue", // For debug tile writing
             }
         );
+
+		if (Target.bBuildEditor == true)
+        {
+			PublicDependencyModuleNames.Add("MovieSceneTools");
+        }
+
 	}
 }

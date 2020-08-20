@@ -384,6 +384,36 @@ void UMoviePipeline::RenderFrame()
 	SetProgressWidgetVisible(true);
 }
 
+#if WITH_EDITOR
+void UMoviePipeline::AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha)
+{
+	if (FrameOutputState.ShotIndex < 0 || FrameOutputState.ShotIndex >= ActiveShotList.Num())
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("ShotIndex %d out of range"), FrameOutputState.ShotIndex);
+		return;
+	}
+
+	FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots[FrameOutputState.ShotIndex];
+	FMovieSceneExportMetadataClip& ClipMetadata = ShotMetadata.Clips.FindOrAdd(ClipName).FindOrAdd(Extension.ToUpper());
+
+	if (!ClipMetadata.IsValid())
+	{
+		ClipMetadata.FileName = ImageSequenceFileName;
+		ClipMetadata.bHasAlpha = bHasAlpha;
+	}
+
+	if (FrameOutputState.OutputFrameNumber < ClipMetadata.StartFrame)
+	{
+		ClipMetadata.StartFrame = FrameOutputState.OutputFrameNumber;
+	}
+
+	if (FrameOutputState.OutputFrameNumber > ClipMetadata.EndFrame)
+	{
+		ClipMetadata.EndFrame = FrameOutputState.OutputFrameNumber;
+	}
+}
+#endif
+
 void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
 {
 	OutputFutures.Add(MoveTemp(OutputFuture));

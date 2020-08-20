@@ -38,6 +38,9 @@
 #include "MoviePipelineCameraSetting.h"
 #include "MoviePipelineQueue.h"
 #include "HAL/FileManager.h"
+#if WITH_EDITOR
+#include "MovieSceneExportMetadata.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -210,6 +213,19 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	// for anything we can't fix that might be an issue - extending sections, etc. This should be const as this
 	// validation should re-use what was used in the UI.
 	ValidateSequenceAndSettings();
+
+#if WITH_EDITOR
+	// Next, initialize the output metadata with the shot list data we just built
+	OutputMetadata.Shots.Empty(ActiveShotList.Num());
+	for (UMoviePipelineExecutorShot* Shot : ActiveShotList)
+	{
+		UMoviePipelineOutputSetting* OutputSettings = FindOrAddSetting<UMoviePipelineOutputSetting>(Shot);
+
+		FMovieSceneExportMetadataShot& ShotMetadata = OutputMetadata.Shots.AddDefaulted_GetRef();
+		ShotMetadata.MovieSceneShotSection = Cast<UMovieSceneCinematicShotSection>(Shot->OuterPathKey.TryLoad());
+		ShotMetadata.HandleFrames = OutputSettings->HandleFrameCount;
+	}
+#endif
 
 	// Finally, we're going to create a Level Sequence Actor in the world that has its settings configured by us.
 	// Because this callback is at the end of startup (and before tick) we should be able to spawn the actor
@@ -1298,7 +1314,7 @@ static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
 	return bIsFreeSpace && (bOverwriteExisting || IFileManager::Get().FileSize(InFilename) == -1);
 }
 
-void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FMoviePipelineFrameOutputState& InOutputState, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs) const
+void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatString, const FStringFormatNamedArguments& InFormatOverrides, FString& OutFinalPath, FMoviePipelineFormatArgs& OutFinalFormatArgs, const FMoviePipelineFrameOutputState* InOutputState, const int32 InFrameNumberOffset) const
 {
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
 	check(OutputSettings);
@@ -1306,20 +1322,24 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	// Gather all the variables
 	OutFinalFormatArgs = FMoviePipelineFormatArgs();
 	OutFinalFormatArgs.InJob = CurrentJob;
-	OutFinalFormatArgs.FileMetadata = InOutputState.FileMetadata;
 
 	// From Settings
 	GetPipelineMasterConfig()->GetFormatArguments(OutFinalFormatArgs, true);
 
 	// Ensure they used relative frame numbers in the output so they get the right number of output frames.
 	bool bForceRelativeFrameNumbers = false;
-	if (InFormatString.Contains(TEXT("{frame")) && InOutputState.TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
+	if (InFormatString.Contains(TEXT("{frame")) && InOutputState && InOutputState->TimeData.IsTimeDilated() && !InFormatString.Contains(TEXT("_rel}")))
 	{
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Time Dilation was used but output format does not use relative time, forcing relative numbers."));
 		bForceRelativeFrameNumbers = true;
 	}
+
 	// From Output State
-	InOutputState.GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset, bForceRelativeFrameNumbers);
+	if (InOutputState)
+	{
+		OutFinalFormatArgs.FileMetadata = InOutputState->FileMetadata;
+		InOutputState->GetFilenameFormatArguments(OutFinalFormatArgs, OutputSettings->ZeroPadFrameNumbers, OutputSettings->FrameNumberOffset + InFrameNumberOffset, bForceRelativeFrameNumbers);
+	}
 
 	// And from ourself
 	{
