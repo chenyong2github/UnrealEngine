@@ -11,6 +11,7 @@
 #include "DynamicMesh3.h"
 #include "BaseTools/SingleClickTool.h"
 #include "Properties/MeshMaterialProperties.h"
+#include "Drawing/UVLayoutPreview.h"
 
 #include "UVLayoutTool.generated.h"
 
@@ -37,6 +38,14 @@ public:
 
 
 
+UENUM()
+enum class EUVLayoutType
+{
+	Transform,
+	Stack,
+	Repack
+};
+
 
 
 /**
@@ -50,32 +59,31 @@ class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutToolProperties : public UInteract
 public:
 	UUVLayoutToolProperties();
 
-	/** Separate UV charts so that they do not overlap and have unique texels, or stack all the charts together */
+	/** Type of transformation to apply to input UV islands */
 	UPROPERTY(EditAnywhere, Category = UVLayout)
-	bool bSeparateUVIslands = true;
+	EUVLayoutType LayoutType = EUVLayoutType::Repack;
 
 	/** Expected resolution of output textures; controls spacing left between charts */
-	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096", EditCondition = "bSeparateUVIslands"))
+	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096"))
 	int TextureResolution = 1024;
 
-	UPROPERTY(EditAnywhere, Category = UVLayout)
+	/** Apply this uniform scaling to the UVs after any layout recalculation */
+	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "0.1", UIMax = "5.0", ClampPin = "0.0001", ClampMax = "10000") )
 	float UVScaleFactor = 1;
+
+	/** Apply this 2D translation to the UVs after any layout recalculation, and after scaling */
+	UPROPERTY(EditAnywhere, Category = UVLayout)
+	FVector2D UVTranslate = FVector2D(0,0);
+
+	/** Allow the packer to flip the orientation of UV islands if it save space. May cause problems for downstream operations, not recommended. */
+	UPROPERTY(EditAnywhere, Category = UVLayout, AdvancedDisplay)
+	bool bAllowFlips = false;
+
 };
 
 
 
 
-/**
- * Advanced properties
- */
-UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutAdvancedProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UUVLayoutAdvancedProperties();
-};
 
 
 /**
@@ -125,19 +133,12 @@ public:
 	virtual bool HasAccept() const override;
 	virtual bool CanAccept() const override;
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-#endif
-
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 protected:
 
 	UPROPERTY()
 	UUVLayoutToolProperties* BasicProperties;
-
-	UPROPERTY()
-	UUVLayoutAdvancedProperties* AdvancedProperties;
 
 	UPROPERTY()
 	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
@@ -154,7 +155,15 @@ protected:
 	FViewCameraState CameraState;
 
 	void UpdateNumPreviews();
+
 	void UpdateVisualization();
 
+	void OnPreviewMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Compute);
+
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
+
+
+protected:
+	UPROPERTY()
+	UUVLayoutPreview* UVLayoutView = nullptr;
 };

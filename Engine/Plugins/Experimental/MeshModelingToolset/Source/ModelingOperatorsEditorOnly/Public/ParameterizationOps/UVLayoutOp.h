@@ -7,6 +7,13 @@
 #include "ModelingOperators.h"
 
 
+enum class EUVLayoutOpLayoutModes
+{
+	TransformOnly = 0,
+	RepackToUnitRect = 1,
+	StackInUnitRect = 2
+};
+
 
 class MODELINGOPERATORSEDITORONLY_API FUVLayoutOp : public FDynamicMeshOperator
 {
@@ -16,10 +23,14 @@ public:
 	// inputs
 	TSharedPtr<FDynamicMesh3> OriginalMesh;
 
-	bool bSeparateUVIslands = true;
-	int TextureResolution = 128;
-	float UVScaleFactor = 1.0;
+	EUVLayoutOpLayoutModes UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
 
+	int TextureResolution = 128;
+	bool bAllowFlips = false;
+	bool bAlwaysSplitBowties = true;
+	float UVScaleFactor = 1.0;
+	float GutterSize = 1.0;
+	FVector2f UVTranslation = FVector2f::Zero();
 
 	void SetTransform(const FTransform& Transform);
 
