@@ -55,6 +55,11 @@ namespace Audio
 		return *this;
 	}
 
+	bool FModulationDestination::GetHasProcessed() const
+	{
+		return bHasProcessed != 0;
+	}
+
 	void FModulationDestination::Init(FDeviceId InDeviceId, bool bInIsBuffered, bool bInValueLinear)
 	{
 		DeviceId = InDeviceId;
@@ -89,6 +94,7 @@ namespace Audio
 	{
 		checkf(bIsBuffered, TEXT("Cannot call this 'ProcessControl' overload with 'bIsBuffered' set to 'false'."));
 
+		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
 
@@ -141,6 +147,7 @@ namespace Audio
 
 	bool FModulationDestination::ProcessControl(float InValueUnitBase, int32 InNumSamples)
 	{
+		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
 
