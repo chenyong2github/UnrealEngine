@@ -203,6 +203,8 @@ namespace Chaos
 			MSolver->GetSolverTime() += MDeltaTime;
 			MSolver->GetCurrentFrame()++;
 			MSolver->PostTickDebugDraw();
+
+			MSolver->CompleteSceneSimulation();
 		}
 
 	protected:
@@ -903,6 +905,20 @@ namespace Chaos
 
 			ProcessSinglePushedData_Internal(*PushData);
 			MarshallingManager.FreeData_Internal(PushData);
+		}
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::CompleteSceneSimulation()
+	{
+		LLM_SCOPE(ELLMTag::Chaos);
+		SCOPE_CYCLE_COUNTER(STAT_BufferPhysicsResults);
+
+		if(HasActiveParticles())
+		{
+			GetDirtyParticlesBuffer()->CaptureSolverData(this);
+			BufferPhysicsResults();
+			FlipBuffers();
 		}
 	}
 

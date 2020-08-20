@@ -262,6 +262,9 @@ namespace Chaos
 		void FlipBuffers();
 
 		/**/
+		void CompleteSceneSimulation();
+
+		/**/
 		void UpdateGameThreadStructures();
 
 
