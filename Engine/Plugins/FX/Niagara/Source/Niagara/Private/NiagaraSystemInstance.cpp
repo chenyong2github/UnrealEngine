@@ -1611,15 +1611,11 @@ void FNiagaraSystemInstance::SetTickBehavior(ENiagaraTickBehavior NewTickBehavio
 
 void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSeconds)
 {
-	static const auto EffectsQualityLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("sg.EffectsQuality"));
-
 	// If we're associated with a scene component, update our cached transform (otherwise, assume it was previously set externally)
 	if (AttachComponent.IsValid())
 	{
 		WorldTransform = AttachComponent->GetComponentToWorld();
 	}
-
-	const int EffectsQualityLevel = EffectsQualityLevelCVar->GetInt();
 	const bool TransformMatches = GatheredInstanceParameters.ComponentTrans.Equals(WorldTransform);
 	if (TransformMatches)
 	{

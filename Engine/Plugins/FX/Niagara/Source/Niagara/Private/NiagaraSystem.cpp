@@ -2169,10 +2169,19 @@ void UNiagaraSystem::OnQualityLevelChanged()
 		}
 	}
 
-	FNiagaraSystemUpdateContext UpdateCtx;
-	UpdateCtx.SetDestroyOnAdd(true);
-	UpdateCtx.SetOnlyActive(true);
-	UpdateCtx.Add(this, true);
+	// Update components
+	{
+		FNiagaraSystemUpdateContext UpdateCtx;
+		UpdateCtx.SetDestroyOnAdd(true);
+		UpdateCtx.SetOnlyActive(true);
+		UpdateCtx.Add(this, true);
+	}
+
+	// Re-prime the component pool
+	if (PoolPrimeSize > 0 && MaxPoolSize > 0)
+	{
+		FNiagaraWorldManager::PrimePoolForAllWorlds(this);
+	}
 }
 
 const FString& UNiagaraSystem::GetCrashReporterTag()const
