@@ -141,7 +141,7 @@ public:
 
 	FVector2i GetCoords(int64 LinearIndex) const
 	{
-		checkSlow(LinearIndex >= 0 && LinearIndex < Num());
+		checkSlow(LinearIndex >= 0);
 		return FVector2i((int32)(LinearIndex % (int64)DimensionX), (int32)(LinearIndex / (int64)DimensionX));
 	}
 	int64 GetIndex(int32 X, int32 Y) const
