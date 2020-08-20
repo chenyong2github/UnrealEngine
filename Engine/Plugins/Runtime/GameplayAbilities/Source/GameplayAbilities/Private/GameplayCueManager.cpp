@@ -1408,7 +1408,7 @@ void UGameplayCueManager::FlushPendingCues()
 				{
 					if (bHasAuthority)
 					{
-						PendingCue.OwningComponent->ForceReplication();
+						RepInterface->ForceReplication();
 						if (PendingCue.GameplayCueTags.Num() > 1)
 						{
 							RepInterface->Call_InvokeGameplayCuesExecuted_WithParams(FGameplayTagContainer::CreateFromArray(PendingCue.GameplayCueTags), PendingCue.PredictionKey, PendingCue.CueParameters);
