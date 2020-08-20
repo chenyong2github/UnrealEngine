@@ -40,6 +40,12 @@ public:
 	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
 	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
 
+	struct FOutputData {
+		bool bIsBroken = false;
+		FVector Force = FVector(0);
+		FVector Torque = FVector(0);
+	};
+
 	TJointConstraintProxy() = delete;
 	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
 	virtual ~TJointConstraintProxy();
@@ -112,7 +118,7 @@ public:
 	//
 
 	/**/
-	void FlipBuffer() { }
+	void FlipBuffer() { OutputBuffer->FlipProducer(); }
 
 	template <typename Traits>
 	void PushToPhysicsState(Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution) {}
@@ -121,18 +127,22 @@ public:
 	void ClearAccumulatedData() {}
 
 	/**/
-	void BufferPhysicsResults() {}
+	void BufferPhysicsResults();
 
 	/**/
-	void PullFromPhysicsState() {}
+	void PullFromPhysicsState();
 
 	/**/
 	bool IsDirty() { return Constraint->IsDirty(); }
 	
 private:
 
+	// Input Buffer
 	FConstraintData JointSettingsBuffer;
 	FJointConstraintDirtyFlags DirtyFlagsBuffer;
+
+	// Output Buffer
+	TUniquePtr<Chaos::IBufferResource<FOutputData>> OutputBuffer;
 
 	CONSTRAINT_TYPE* Constraint;
 	FConstraintHandle* Handle;
