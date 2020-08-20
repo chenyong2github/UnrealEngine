@@ -273,7 +273,9 @@ public:
 
 	// IVoiceChat Interface
 	virtual bool Initialize() override;
+	virtual void Initialize(const FOnVoiceChatInitializeCompleteDelegate& Delegate) override;
 	virtual bool Uninitialize() override;
+	virtual void Uninitialize(const FOnVoiceChatUninitializeCompleteDelegate& Delegate) override;
 	virtual bool IsInitialized() const override;
 	virtual void Connect(const FOnVoiceChatConnectCompleteDelegate& Delegate) override;
 	virtual void Disconnect(const FOnVoiceChatDisconnectCompleteDelegate& Delegate) override;
