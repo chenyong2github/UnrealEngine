@@ -156,6 +156,15 @@ namespace UnrealBuildTool
 		public abstract SDKStatus HasRequiredSDKsInstalled();
 
 		/// <summary>
+		/// Returns SDK string as required by the platform
+		/// </summary>
+		/// <returns>Valid SDK string</returns>
+		public virtual string GetRequiredSDKString()
+		{
+			return "";
+		}
+
+		/// <summary>
 		/// Whether this platform requires specific Visual Studio version.
 		/// </summary>
 		public virtual VCProjectFileFormat GetRequiredVisualStudioVersion()
