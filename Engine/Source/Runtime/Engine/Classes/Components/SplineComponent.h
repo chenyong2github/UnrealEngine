@@ -328,7 +328,7 @@ public:
 
 	/** Update the spline tangents and SplineReparamTable */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void UpdateSpline();
+	virtual void UpdateSpline();
 
 	/** Get location along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
