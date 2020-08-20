@@ -3864,6 +3864,8 @@ bool ContainsReverse(const FActorRepListRefView& List, FActorRepListType Actor)
 
 void UReplicationGraphNode_ConnectionDormancyNode::NotifyActorDormancyFlush(FActorRepListType Actor)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyActorDormancyFlush);
+
 	FNewReplicatedActorInfo ActorInfo(Actor);
 
 	// Dormancy is flushed so we need to make sure this actor is on this connection specific node.
@@ -3896,7 +3898,7 @@ void UReplicationGraphNode_ConnectionDormancyNode::NotifyActorDormancyFlush(FAct
 		if (RemoveList)
 		{
 			RemoveList->ReplicationActorList.PrepareForWrite();
-			RemoveList->ReplicationActorList.Remove(Actor);
+			RemoveList->ReplicationActorList.RemoveFast(Actor);
 		}
 	}
 }
@@ -3929,6 +3931,8 @@ void UReplicationGraphNode_ConnectionDormancyNode::OnClientVisibleLevelNameAdd(F
 
 bool UReplicationGraphNode_ConnectionDormancyNode::NotifyRemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo, bool WarnIfNotFound)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyRemoveNetworkActor);
+
 	// Remove from active list by calling super
 	if (Super::RemoveNetworkActorFast(ActorInfo))
 	{
@@ -3976,12 +3980,15 @@ void UReplicationGraphNode_DormancyNode::NotifyResetAllNetworkActors()
 
 void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
-	Super::NotifyAddNetworkActor(ActorInfo);
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_AddDormantActor);
 	
+	Super::NotifyAddNetworkActor(ActorInfo);
+
 	UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0 && ConnectionNodes.Num() > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: AddDormantActor %s on %s. Adding to %d connection nodes."), *ActorInfo.Actor->GetPathName(), *GetName(), ConnectionNodes.Num());
 	
 	for (auto& MapIt : ConnectionNodes)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(ConnectionDormancyNode_NotifyAddNetworkActor);
 		UReplicationGraphNode_ConnectionDormancyNode* Node = MapIt.Value;
 		Node->NotifyAddNetworkActor(ActorInfo);
 	}
@@ -3992,6 +3999,8 @@ void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedAct
 
 void UReplicationGraphNode_DormancyNode::RemoveDormantActor(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& ActorRepInfo)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_RemoveDormantActor);
+
 	UE_CLOG(CVar_RepGraph_LogActorRemove>0, LogReplicationGraph, Display, TEXT("UReplicationGraphNode_DormancyNode::RemoveDormantActor %s on %s. (%d connection nodes). ChildNodes: %d"), *GetNameSafe(ActorInfo.Actor), *GetPathName(), ConnectionNodes.Num(), AllChildNodes.Num());
 
 	Super::RemoveNetworkActorFast(ActorInfo);
@@ -4058,7 +4067,7 @@ UReplicationGraphNode_ConnectionDormancyNode* UReplicationGraphNode_DormancyNode
 
 void UReplicationGraphNode_DormancyNode::OnActorDormancyFlush(FActorRepListType Actor, FGlobalActorReplicationInfo& GlobalInfo)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_DormancyNode_OnActorDormancyFlush);
+	QUICK_SCOPE_CYCLE_COUNTER(DormancyNode_OnActorDormancyFlush);
 
 	if (CVar_RepGraph_Verify)
 	{
