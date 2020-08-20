@@ -33,7 +33,7 @@ struct FNiagaraDynamicDataBase
 	FNiagaraDynamicDataBase(FNiagaraDynamicDataBase& Other) = delete;
 	FNiagaraDynamicDataBase& operator=(const FNiagaraDynamicDataBase& Other) = delete;
 
-	FNiagaraDataBuffer* GetParticleDataToRender(bool bIsTranslucent = false) const;
+	FNiagaraDataBuffer* GetParticleDataToRender(bool bIsLowLatencyTranslucent = false) const;
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 	FORCEINLINE FMaterialRelevance GetMaterialRelevance() const { return MaterialRelevance; }
 
