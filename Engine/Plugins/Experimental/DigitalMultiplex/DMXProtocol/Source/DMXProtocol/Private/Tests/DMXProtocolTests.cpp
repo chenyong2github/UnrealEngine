@@ -39,11 +39,18 @@ public:
 	virtual uint16 GetMinUniverseID() const override { return 0; }
 	virtual uint16 GetMaxUniverses() const override { return 1; }
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const {}
-	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override { return OnUniverseInputUpdateEvent; }
-	virtual FOnUniverseOutputSentEvent& GetOnOutputSentEvent() override
-	{
-		return OnUniverseOutputSentEvent;
-	}
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
+	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseOutputBufferUpdated, FOnUniverseOutputBufferUpdated);
+	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() override { return OnUniverseOutputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketReceived, FOnPacketReceived);
+	virtual FOnPacketReceived& GetOnPacketReceived() override { return OnPacketReceived; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketSent, FOnPacketSent);
+	virtual FOnPacketSent& GetOnPacketSent() override { return OnPacketSent; }
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXProtocolRDM implementation
@@ -62,8 +69,12 @@ public:
 private:
 	FName ProtocolName;
 	TSharedPtr<FJsonObject> Settings;
-	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
-	FOnUniverseOutputSentEvent OnUniverseOutputSentEvent;
+
+	FOnUniverseInputBufferUpdated OnUniverseInputBufferUpdated;
+	FOnUniverseOutputBufferUpdated OnUniverseOutputBufferUpdated;
+	FOnPacketReceived OnPacketReceived;
+	FOnPacketSent OnPacketSent;
+
 };
 
 
@@ -261,8 +272,8 @@ bool FDMXProtocolTransportTest::RunTest(const FString& Parameters)
 	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	DMXProtocol->AddUniverse(UniverseSettings);
 
-	IDMXProtocol::FOnUniverseInputUpdateEvent& InputUpdateEvent = DMXProtocol->GetOnUniverseInputUpdate();
-	InputUpdateEvent.AddStatic(DMXProtocolTransportTestHelper::ReceiveFragment);
+	IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = DMXProtocol->GetOnUniverseInputBufferUpdated();
+	OnUniverseInputBufferUpdated.AddStatic(DMXProtocolTransportTestHelper::ReceiveFragment);
 
 	for (PacketIndex = 0; PacketIndex < PacketCount; PacketIndex++)
 	{
@@ -374,8 +385,8 @@ bool FDMXProtocolPacketTest::RunTest(const FString& Parameters)
 	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->AddUniverse(UniverseSettings);
 
-	IDMXProtocol::FOnUniverseInputUpdateEvent& InputUpdateEvent = DMXProtocol->GetOnUniverseInputUpdate();
-	InputUpdateEvent.AddStatic(DMXProtocolPacketTestHelper::ReceiveFragment);
+	IDMXProtocol::FOnUniverseInputBufferUpdated& OnUniverseInputBufferUpdated = DMXProtocol->GetOnUniverseInputBufferUpdated();
+	OnUniverseInputBufferUpdated.AddStatic(DMXProtocolPacketTestHelper::ReceiveFragment);
 
 	for (PacketIndex = 0; PacketIndex < PacketCount; PacketIndex++)
 	{

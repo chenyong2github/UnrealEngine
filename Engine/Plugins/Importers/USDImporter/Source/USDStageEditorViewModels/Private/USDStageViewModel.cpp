@@ -9,11 +9,13 @@
 #include "USDStageImportContext.h"
 #include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
+#include "USDStageModule.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "Engine/World.h"
 #include "Misc/Paths.h"
 #include "ScopedTransaction.h"
 #include "UObject/GCObjectScopeGuard.h"
@@ -65,21 +67,17 @@ void FUsdStageViewModel::NewStage( const TCHAR* FilePath )
 
 void FUsdStageViewModel::OpenStage( const TCHAR* FilePath )
 {
-	FScopedTransaction Transaction(FText::Format(
-		LOCTEXT("OpenStageTransaction", "Open USD stage '{0}'"),
-		FText::FromString( FilePath )
-	));
+	if ( !UsdStageActor.IsValid() )
+	{
+		IUsdStageModule& UsdStageModule = FModuleManager::GetModuleChecked< IUsdStageModule >( TEXT("USDStage") );
+		UsdStageActor = &UsdStageModule.GetUsdStageActor( GWorld );
+	}
 
-	UsdUtils::StartMonitoringErrors();
-
-	check( UsdStageActor.IsValid() );
 	UsdStageActor->Modify();
 
 	UsdStageActor->RootLayer.FilePath = FilePath;
 	FPropertyChangedEvent RootLayerPropertyChangedEvent( FindFieldChecked< FProperty >( UsdStageActor->GetClass(), FName("RootLayer") ) );
 	UsdStageActor->PostEditChangeProperty( RootLayerPropertyChangedEvent );
-
-	UsdUtils::ShowErrorsAndStopMonitoring( FText::Format( LOCTEXT("USDOpenError", "Encountered some errors opening USD file at path '{0}!\nCheck the Output Log for details."), FText::FromString( FilePath ) ) );
 }
 
 void FUsdStageViewModel::ReloadStage()
@@ -113,7 +111,7 @@ void FUsdStageViewModel::ReloadStage()
 		const pxr::UsdEditTarget& EditTarget = UsdStage->GetEditTarget();
 		if ( !EditTarget.IsValid() || EditTarget.IsNull() )
 		{
-			UsdStage->SetEditTarget( UsdStage->GetRootLayer() );
+			UsdStage->SetEditTarget( UsdStage->GetEditTargetForLocalLayer( UsdStage->GetRootLayer() ) );
 		}
 	}
 #endif // #if USE_USD_SDK

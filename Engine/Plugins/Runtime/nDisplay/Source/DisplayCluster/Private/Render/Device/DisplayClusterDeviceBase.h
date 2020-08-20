@@ -19,6 +19,8 @@ class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
 class FSceneView;
 
+struct DISPLAYCLUSTER_API FDisplayClusterConfigViewport;
+
 /**
  * Abstract render device
  */
@@ -47,8 +49,11 @@ public:
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) override;
 	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const override;
-	virtual bool GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const override;
 
+	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewIdx) const override;
+
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IStereoRendering
@@ -134,7 +139,7 @@ protected:
 	uint32 DecodeViewIndex(const enum EStereoscopicPass StereoPassType) const;
 
 	// Adds a new viewport with specified parameters and projection policy object
-	void AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio = 1.f, bool IsRTT = false);
+	void AddViewport(const FDisplayClusterConfigViewport& CfgViewport, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy);
 	// Performs copying of render target data to the back buffer
 	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const;
 	// Factory method to instantiate an output presentation class implementation

@@ -16,6 +16,14 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"RenderCore",
+					"RHI",
+				}
+			);
+
 			// For managing direct function entry nodes for FunctionCallers
 			// Necessary when in the editor as the functions may get recompiled/renamed/deleted
 			// and tracking them just by name would not work

@@ -148,7 +148,7 @@ bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 		}
 	}
 
-	// Increase Sequence
+	// Increase Sequence ID
 	SequenceID++;
 
 	return true;
@@ -167,8 +167,18 @@ bool FDMXBuffer::SetDMXBuffer(const uint8* InBuffer, uint32 InSize)
 		return false;
 	}
 
-	// Increase Sequence
+	// Increase Sequence ID
 	SequenceID++;
 
 	return true;
+}
+
+void FDMXBuffer::ZeroDMXBuffer()
+{
+	FScopeLock BufferLock(&BufferCritSec);
+
+	FMemory::Memset(DMXData.GetData(), 0, DMX_UNIVERSE_SIZE);
+
+	// Increase Sequence ID
+	SequenceID++;
 }

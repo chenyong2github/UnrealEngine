@@ -18,7 +18,14 @@ class IDMXProtocolSender
 	, public FSingleThreadRunnable 
 {
 public:
+	IDMXProtocolSender()
+		: SendingRefreshRate(0)
+	{}
+
 	virtual bool EnqueueOutboundPackage(FDMXPacketPtr Packet) = 0;
+
+protected:
+	TAtomic<int32> SendingRefreshRate;
 };
 
 class IDMXProtocolReceiver

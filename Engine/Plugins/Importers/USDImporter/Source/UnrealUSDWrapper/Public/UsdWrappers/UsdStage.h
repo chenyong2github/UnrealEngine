@@ -27,6 +27,7 @@ namespace UE
 	class FSdfLayer;
 	class FSdfPath;
 	class FUsdPrim;
+	class FUsdStage;
 
 	namespace Internal
 	{
@@ -63,8 +64,9 @@ namespace UE
 
 	// Wrapped pxr::UsdStage functions, refer to the USD SDK documentation
 	public:
-		UE::FSdfLayer GetRootLayer() const;
-		UE::FSdfLayer GetSessionLayer() const;
+		FSdfLayer GetRootLayer() const;
+		FSdfLayer GetSessionLayer() const;
+		bool HasLocalLayer( const FSdfLayer& Layer ) const;
 
 		FUsdPrim GetPseudoRoot() const;
 		FUsdPrim GetDefaultPrim() const;
@@ -72,11 +74,16 @@ namespace UE
 
 		bool IsEditTargetValid() const;
 		void SetEditTarget( const FSdfLayer& Layer );
+		FSdfLayer GetEditTarget() const;
 
 		double GetStartTimeCode() const;
 		double GetEndTimeCode() const;
 		void SetStartTimeCode( double TimeCode );
 		void SetEndTimeCode( double TimeCode );
+		double GetTimeCodesPerSecond() const;
+		void SetTimeCodesPerSecond( double TimeCodesPerSecond );
+		double GetFramesPerSecond() const;
+		void SetFramesPerSecond( double FramesPerSecond );
 
 		void SetDefaultPrim( const FUsdPrim& Prim );
 		FUsdPrim DefinePrim( const FSdfPath& Path, const TCHAR* TypeName = TEXT("") );

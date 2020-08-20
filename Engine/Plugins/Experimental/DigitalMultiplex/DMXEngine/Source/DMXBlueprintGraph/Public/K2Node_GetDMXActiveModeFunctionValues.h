@@ -69,7 +69,7 @@ public:
 	UDMXEntityFixturePatch* GetFixturePatchFromPin() const;
 
 	UEdGraphPin* GetInputDMXFixturePatchPin() const;
-	UEdGraphPin* GetInputDMXProtocolPin() const;
+	//UEdGraphPin* GetInputDMXProtocolPin() const;
 	UEdGraphPin* GetOutputFunctionsMapPin() const;
 	UEdGraphPin* GetOutputIsSuccessPin() const;
 	UEdGraphPin* GetThenPin() const;
@@ -92,7 +92,7 @@ private:
 
 public:
 	static const FName InputDMXFixturePatchPinName;
-	static const FName InputDMXProtocolPinName;
+	//static const FName InputDMXProtocolPinName;
 
 	static const FName OutputFunctionsMapPinName;
 	static const FName OutputIsSuccessPinName;

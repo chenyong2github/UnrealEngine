@@ -275,6 +275,13 @@ public:
 	// Destructor
 	virtual ~FSCSEditorTreeNode() {}
 
+	/**
+	 * Ends the 'Create + enter initial name' transaction of this node. The creation of a node is 'ongoing' as long as the initial name of
+	 * the node is in edition mode. When the text is not in edit mode anymore, the ongoing create transaction ends and the node
+	 * is considered fully created.
+	 */
+	void CloseOngoingCreateTransaction();
+
 protected:
 	// Called when this node is being removed via a RemoveChild call
 	virtual void RemoveMeAsChild() {}

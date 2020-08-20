@@ -14,6 +14,11 @@
 
 #include "Managers/DMXProtocolUniverseManager.h"
 
+#include "DMXStats.h"
+
+// Stats
+DECLARE_CYCLE_STAT(TEXT("Art-Net Packages Enqueue To Send"), STAT_ArtNetPackagesEnqueueToSend, STATGROUP_DMX);
+
 using namespace ArtNet;
 
 FDMXProtocolArtNet::FDMXProtocolArtNet(const FName& InProtocolName, const FJsonObject& InSettings)
@@ -64,8 +69,8 @@ bool FDMXProtocolArtNet::IsEnabled() const
 
 TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolArtNet::AddUniverse(const FJsonObject& InSettings)
 {
-	checkf(InSettings.HasField(TEXT("UniverseID")), TEXT("DMXProtocol UniverseID is not valid"));
-	uint32 UniverseID = InSettings.GetNumberField(TEXT("UniverseID"));
+	checkf(InSettings.HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol UniverseID is not valid"));
+	uint32 UniverseID = InSettings.GetNumberField(DMXJsonFieldNames::DMXUniverseID);
 	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(UniverseID);
 	if (Universe.IsValid())
 	{
@@ -74,6 +79,7 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolArtNet::AddUni
 	}
 
 	Universe = MakeShared<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
+
 	return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
 }
 
@@ -82,10 +88,20 @@ void FDMXProtocolArtNet::CollectUniverses(const TArray<FDMXUniverse>& Universes)
 	for (const FDMXUniverse& Universe : Universes)
 	{
 		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
-		UniverseSettings.SetNumberField(TEXT("PortID"), 0); // For now use port 0 for ArtNet
-		UniverseSettings.SetNumberField(TEXT("IpAddress"), GetUniverseAddr(Universe.UnicastIpAddress));
-		UniverseSettings.SetNumberField(TEXT("EthernetPort"), ARTNET_PORT);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, Universe.UniverseNumber);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXPortID, 0); // For now use port 0 for ArtNet
+		TArray<TSharedPtr<FJsonValue>> IpAddresses;
+		for (FString IpAddress : Universe.UnicastIpAddresses)
+		{
+			IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddr(IpAddress)));
+		}
+		// Broadcast only ?
+		if (IpAddresses.Num() == 0)
+		{
+			IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddr("")));
+		}
+		UniverseSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ARTNET_PORT);
 		if (UniverseManager->GetAllUniverses().Contains(Universe.UniverseNumber))
 		{
 			UpdateUniverse(Universe.UniverseNumber, UniverseSettings);
@@ -101,8 +117,8 @@ void FDMXProtocolArtNet::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonOb
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXPortID, 0.0);
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, InUniverseID);
 	OutSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ARTNET_PORT);
-	OutSettings.SetNumberField(DMXJsonFieldNames::DMXIpAddress, GetUniverseAddr(FString()));		// Broadcast IP address
-
+	const TArray<TSharedPtr<FJsonValue>> IpAddresses = { MakeShared<FJsonValueNumber>(GetUniverseAddr(FString())) };
+	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
 
@@ -180,16 +196,16 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 	ReleaseNetworkInterface();
 
 	BroadcastAddr = SocketSubsystem->CreateInternetAddr();
-	
+
 	BroadcastAddr->SetBroadcastAddress();
 	BroadcastAddr->SetPort(ARTNET_PORT);
 	BroadcastEndpoint = FIPv4Endpoint(BroadcastAddr);
 
-    FSocket* NewBroadcastSocket = FUdpSocketBuilder(TEXT("UDPArtNetBroadcastSocket"))
-        .AsNonBlocking()
-        .AsReusable()
-        .WithBroadcast()
-        .BoundToEndpoint(SenderEndpoint);
+	FSocket* NewBroadcastSocket = FUdpSocketBuilder(TEXT("UDPArtNetBroadcastSocket"))
+		.AsNonBlocking()
+		.AsReusable()
+		.WithBroadcast()
+		.BoundToEndpoint(SenderEndpoint);
 
 
 	if (NewBroadcastSocket == nullptr)
@@ -291,6 +307,17 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXFragment(uint16 InUniverseID, const ID
 	}
 
 	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetPortID(), Universe->GetOutputDMXBuffer());
+	
+	if (Result == EDMXSendResult::Success)
+	{
+		const FDMXBufferPtr& OutputBuffer = Universe->GetOutputDMXBuffer();
+		check(OutputBuffer.IsValid());
+
+		OutputBuffer->AccessDMXData([this, FinalSendUniverseID](TArray<uint8>& Buffer) {
+				OnUniverseOutputBufferUpdated.Broadcast(ProtocolName, FinalSendUniverseID, Buffer);
+			});
+	}
+
 	return Result;
 }
 
@@ -320,7 +347,7 @@ bool FDMXProtocolArtNet::Tick(float DeltaTime)
 	return true;
 }
 
-EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const TSharedPtr<FDMXBuffer>& DMXBuffer) const
+EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 PortID, const FDMXBufferPtr& DMXBuffer) const
 {
 	// Init Packager
 	FDMXProtocolPackager Packager;
@@ -329,16 +356,16 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 	FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
 	bool bBufferSizeIsWrong = false;
 	DMXBuffer->AccessDMXData([&ArtNetDMXPacket, &bBufferSizeIsWrong](TArray<uint8>& InData)
+	{
+		if (InData.Num() == ARTNET_DMX_LENGTH)
 		{
-			if (InData.Num() == ARTNET_DMX_LENGTH)
-			{
-				FMemory::Memcpy(ArtNetDMXPacket.Data, InData.GetData(), ARTNET_DMX_LENGTH);
-			}
-			else
-			{
-				bBufferSizeIsWrong = true;
-			}
-		});
+			FMemory::Memcpy(ArtNetDMXPacket.Data, InData.GetData(), ARTNET_DMX_LENGTH);
+		}
+		else
+		{
+			bBufferSizeIsWrong = true;
+		}
+	});
 
 	if (bBufferSizeIsWrong)
 	{
@@ -353,7 +380,9 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 	// Sending
 	FJsonObject PacketSettings;
 	PacketSettings.SetNumberField(TEXT("UniverseID"), UniverseID);
-	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, UniverseID, Packager.GetBuffer());
+
+	const TArray<uint8>& Buffer = Packager.GetBuffer();
+	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, UniverseID, Buffer);
 	if (!GetSenderInterface())
 	{
 		return EDMXSendResult::ErrorEnqueuePackage;
@@ -363,6 +392,9 @@ EDMXSendResult FDMXProtocolArtNet::SendDMXInternal(uint16 UniverseID, uint8 Port
 	{
 		return EDMXSendResult::ErrorEnqueuePackage;
 	}
+
+	// Stats
+	SCOPE_CYCLE_COUNTER(STAT_ArtNetPackagesEnqueueToSend);
 
 	return EDMXSendResult::Success;
 }
@@ -566,7 +598,7 @@ bool FDMXProtocolArtNet::HandlePool(const FArrayReaderPtr& Buffer)
 	return true;
 }
 
-bool FDMXProtocolArtNet::HandleReplyPacket(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleReplyPacket(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << PacketReply;
 
@@ -574,63 +606,68 @@ bool FDMXProtocolArtNet::HandleReplyPacket(const FArrayReaderPtr & Buffer)
 	return false;
 }
 
-bool FDMXProtocolArtNet::HandleDataPacket(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleDataPacket(const FArrayReaderPtr& Buffer)
 {
 	// ArtNet DMX packet
 	FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
 	*Buffer << ArtNetDMXPacket;
 
-	// Write data to input DMX buffer universe if exists
-	TSharedPtr<FDMXProtocolUniverseArtNet, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(ArtNetDMXPacket.Universe);
+	// Write data to input DMX buffer universe if exists, otherwise creates a default universe
+	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = GetUniverseByIdCreateDefault(ArtNetDMXPacket.Universe);
 
 	bool bSetDataSuccessful = false;
 	if (Universe.IsValid() && Universe->GetInputDMXBuffer().IsValid())
 	{
 		Universe->GetInputDMXBuffer()->AccessDMXData([this, &ArtNetDMXPacket, &Universe, &bSetDataSuccessful](TArray<uint8>& InData)
+		{
+			// Make sure we copy same amount of data
+			if (InData.Num() == ARTNET_DMX_LENGTH)
 			{
-				// Make sure we copy same amount of data
-				if (InData.Num() == ARTNET_DMX_LENGTH)
-				{
-					Universe->GetInputDMXBuffer()->SetDMXBuffer(ArtNetDMXPacket.Data, ARTNET_DMX_LENGTH);
-					OnUniverseInputUpdateEvent.Broadcast(GetProtocolName(), ArtNetDMXPacket.Universe, InData);
-					bSetDataSuccessful = true;
-				}
-				else
-				{
-					UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong. Expected size: %d. Current: %d")
-						, NetworkErrorMessagePrefix
-						, ARTNET_DMX_LENGTH
-						, InData.Num());
-					bSetDataSuccessful = false;
-				}
-			});
+				Universe->GetInputDMXBuffer()->SetDMXBuffer(ArtNetDMXPacket.Data, ARTNET_DMX_LENGTH);
+				OnUniverseInputBufferUpdated.Broadcast(GetProtocolName(), ArtNetDMXPacket.Universe, InData);
+				bSetDataSuccessful = true;
+			}
+			else
+			{
+				UE_LOG_DMXPROTOCOL(Error, TEXT("%s: Size of incoming DMX buffer is wrong. Expected size: %d. Current: %d")
+					, NetworkErrorMessagePrefix
+					, ARTNET_DMX_LENGTH
+					, InData.Num());
+				bSetDataSuccessful = false;
+			}
+		});
+
+		if (bSetDataSuccessful)
+		{
+			OnPacketReceived.Broadcast(ProtocolName, Universe->GetUniverseID(), *Buffer);
+		}
 	}
-	
+
 	return bSetDataSuccessful;
 }
 
-bool FDMXProtocolArtNet::HandleTodRequest(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleTodRequest(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << IncomingTodRequest;
 
 	return true;
 }
 
-bool FDMXProtocolArtNet::HandleTodData(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleTodData(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << IncomingTodData;
 
 	return true;
 }
 
-bool FDMXProtocolArtNet::HandleTodControl(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleTodControl(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << IncomingTodControl;
 
 	return true;
 }
 
-bool FDMXProtocolArtNet::HandleRdm(const FArrayReaderPtr & Buffer)
+bool FDMXProtocolArtNet::HandleRdm(const FArrayReaderPtr& Buffer)
 {
 	*Buffer << IncomingRDM;
 

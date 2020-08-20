@@ -205,22 +205,16 @@ bool FUsdLayerViewModel::CanEditLayer() const
 
 bool FUsdLayerViewModel::EditLayer()
 {
-#if USE_USD_SDK
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::SdfLayerRefPtr Layer( GetLayer() );
-	if ( !Layer || !CanEditLayer() )
+	UE::FSdfLayer Layer( GetLayer() );
+	if ( !UsdStage || !Layer || !CanEditLayer() )
 	{
 		return false;
 	}
 
-	pxr::UsdStageRefPtr( UsdStage )->SetEditTarget( Layer );
+	UsdStage.SetEditTarget( Layer );
 	RefreshData();
 
 	return true;
-#else
-	return false;
-#endif // #if USE_USD_SDK
 }
 
 void FUsdLayerViewModel::AddSubLayer( const TCHAR* SubLayerIdentifier )

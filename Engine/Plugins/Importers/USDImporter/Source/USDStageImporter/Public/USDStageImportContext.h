@@ -46,6 +46,10 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	UPROPERTY()
 	TMap<FString, UObject*> PrimPathsToAssets;
 
+	/** Keep track of the parent imported package so that we have something valid to return to upstream code that calls the import factories */
+	UPROPERTY()
+	UPackage* ImportedPackage;
+
 	UE::FUsdStage Stage;
 
 	/** Object flags to apply to newly imported objects */
@@ -69,7 +73,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 public:
 	FUsdStageImportContext();
 
-	bool Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport = false);
+	bool Init(const FString& InName, const FString& InFilePath, EObjectFlags InFlags, bool bInIsAutomated, bool bIsReimport = false, bool bAllowActorImport = true);
 
 	void AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage);
 	void DisplayErrorMessages(bool bAutomated);

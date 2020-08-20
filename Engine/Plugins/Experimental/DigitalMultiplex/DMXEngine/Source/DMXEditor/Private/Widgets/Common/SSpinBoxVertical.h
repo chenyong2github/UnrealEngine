@@ -7,6 +7,7 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Brushes/SlateColorBrush.h"
 #include "Input/CursorReply.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
@@ -24,6 +25,7 @@
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
@@ -228,27 +230,27 @@ public:
 		.Padding( InArgs._ContentPadding )
 		[
 			SNew(SBox)
-			.HeightOverride(100)
+			.HeightOverride(150)
 			.WidthOverride(25)
 			[
 				SNew(SVerticalBox)
-
 				+ SVerticalBox::Slot()
 			
 				.AutoHeight()
-				.Padding( TextMargin )
-				.HAlign(HAlign_Fill) 
+				.Padding(0, 70, 0, 70 )
+				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SHorizontalBox)
 
 					+SHorizontalBox::Slot()
 					.AutoWidth()
-					.HAlign(HAlign_Fill)
+					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					[
 						SAssignNew(TextBlock, STextBlock)
 						.Font(InArgs._Font)
+						.ColorAndOpacity(FSlateColor(FColor::FromHex("d5d6d8")))
 						.Text( this, &SSpinBoxVertical<NumericType>::GetValueAsText )
 						.MinDesiredWidth( this, &SSpinBoxVertical<NumericType>::GetTextMinDesiredWidth )
 						.Justification(InArgs._Justification)
@@ -257,20 +259,21 @@ public:
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding( TextMargin )
-				.HAlign(HAlign_Fill) 
+				.Padding(0, -28, 0, 0)
+				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center) 
 				[
 					SNew(SHorizontalBox)
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
-					.HAlign(HAlign_Fill)
+					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					[
 						SAssignNew(EditableText, SEditableText)
 						.Visibility( EVisibility::Collapsed )
 						.Font(InArgs._Font)
+						.ColorAndOpacity(FSlateColor(FColor::FromHex("d5d6d8")))
 						.SelectAllTextWhenFocused( true )
 						.Text( this, &SSpinBoxVertical<NumericType>::GetValueAsText )
 						.OnIsTypedCharValid(this, &SSpinBoxVertical<NumericType>::IsCharacterValid)
@@ -285,17 +288,7 @@ public:
 						.ContextMenuExtender( InArgs._ContextMenuExtender )
 					]
 				]
-
-				+SVerticalBox::Slot()
-				.FillHeight(1.0f)
-				.HAlign(HAlign_Fill) 
-				.VAlign(VAlign_Bottom) 
-				[
-					SNew(SImage)
-					.Image( &InArgs._Style->ArrowsImage )
-					.ColorAndOpacity( FSlateColor::UseForeground())
-				]
-			]
+			]	
 		];
 	}
 	
@@ -316,6 +309,7 @@ public:
 		const bool bEnabled = ShouldBeEnabled( bParentEnabled );
 		const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
+		FLinearColor BackColor = FLinearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			BackgroundLayer,
@@ -323,7 +317,7 @@ public:
 			BackgroundImage,
 			//FEditorStyle::GetBrush("TextBlock.HighlightShape"),
 			DrawEffects,
-			BackgroundImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+			BackColor
 			);
 
 		const int32 FilledLayer = BackgroundLayer + 1;
@@ -361,9 +355,9 @@ public:
 					OutDrawElements,
 					FilledLayer,
 					AllottedGeometry.ToPaintGeometry(FVector2D(0, AllottedGeometry.GetLocalSize().Y), FillSize),
-					FEditorStyle::GetBrush("TextBlock.HighlightShape"),
-					DrawEffects
-					//llImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+					FillImage, //FEditorStyle::GetBrush("TextBlock.HighlightShape"),
+					DrawEffects,
+					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
 					);
 			}
 		}

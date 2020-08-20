@@ -3,30 +3,44 @@
 #include "EditorInputProcessor.h"
 
 // Macro to avoid repeated code in broadcasting delegates out with timestamps
+// Also broadcasts to delegates bound to AnyKey
 #define BROADCAST_REGISTERED_KEY_DELEGATES(StoreVariable, EventVariable, DelegateType) \
-	if (TInputDelegateStore<DelegateType>::DelegateArrayType* DelegateArray = StoreVariable.FindDelegateArray(EventVariable.GetKey())) \
-    { \
-    	const double EvaluationTime = FPlatformTime::Seconds(); \
-    	for (TTimestampedDelegateStore<DelegateType>& DelegateEntry : *DelegateArray) \
-    	{ \
+{ \
+	const double EvaluationTime = FPlatformTime::Seconds(); \
+    if (TInputDelegateStore<DelegateType>::DelegateArrayType* SpecificKeyDelegates = StoreVariable.FindDelegateArray(EventVariable.GetKey())) \
+	{ \
+		for (TTimestampedDelegateStore<DelegateType>& DelegateEntry : *SpecificKeyDelegates) \
+		{ \
     		float DeltaTime; \
     		const DelegateType& Delegate = DelegateEntry.GetDelegate(EvaluationTime, DeltaTime); \
     		bool bSuccess = Delegate.ExecuteIfBound(DeltaTime, EventVariable); \
-    	} \
-    }
+		} \
+	} \
+	if (TInputDelegateStore<DelegateType>::DelegateArrayType* AnyKeyDelegates = StoreVariable.FindDelegateArray(EKeys::AnyKey)) \
+	{ \
+		for (TTimestampedDelegateStore<DelegateType>& DelegateEntry : *AnyKeyDelegates) \
+		{ \
+			float DeltaTime; \
+    		const DelegateType& Delegate = DelegateEntry.GetDelegate(EvaluationTime, DeltaTime); \
+    		bool bSuccess = Delegate.ExecuteIfBound(DeltaTime, EventVariable); \
+		} \
+	} \
+}
 
 // Macro to avoid repeated code in broadcasting delegates out with timestamps
 #define BROADCAST_REGISTERED_POINTER_DELEGATES(StoreVariable, EventVariable, DelegateType) \
+{ \
 	if (TInputDelegateStore<DelegateType>::DelegateArrayType* DelegateArray = StoreVariable.FindDelegateArray(EventVariable.GetEffectingButton())) \
-    { \
-    	const double EvaluationTime = FPlatformTime::Seconds(); \
-    	for (TTimestampedDelegateStore<DelegateType>& DelegateEntry : *DelegateArray) \
-    	{ \
+	{ \
+		const double EvaluationTime = FPlatformTime::Seconds(); \
+		for (TTimestampedDelegateStore<DelegateType>& DelegateEntry : *DelegateArray) \
+		{ \
     		float DeltaTime; \
     		const DelegateType& Delegate = DelegateEntry.GetDelegate(EvaluationTime, DeltaTime); \
     		bool bSuccess = Delegate.ExecuteIfBound(DeltaTime, EventVariable); \
-    	} \
-    }
+		} \
+	} \
+}
 
 void FEditorInputProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {

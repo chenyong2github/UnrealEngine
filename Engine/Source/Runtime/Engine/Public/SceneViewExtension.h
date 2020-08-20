@@ -7,6 +7,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
+#include "RendererInterface.h"
 
 /**
  *  SCENE VIEW EXTENSIONS
@@ -79,9 +81,29 @@ class FSceneView;
 class FSceneViewFamily;
 struct FMinimalViewInfo;
 struct FSceneViewProjectionData;
+class FRDGBuilder;
+struct FPostProcessingInputs;
+struct FPostProcessMaterialInputs;
+struct FScreenPassTexture;
+
+
+/** This is used to add more flexibility to Post Processing, so that users can subscribe to any after Post Porocessing Pass events. */
+FUNC_DECLARE_DELEGATE(FAfterPassCallbackDelegate, FScreenPassTexture /*ReturnSceneColor*/, FRDGBuilder& /*GraphBuilder*/, const FSceneView& /*View*/, const FPostProcessMaterialInputs& /*Inputs*/)
+using FAfterPassCallbackDelegateArray = TArray<FAfterPassCallbackDelegate, SceneRenderingAllocator>;
 
 class ISceneViewExtension
 {
+public:
+
+	enum class EPostProcessingPass : uint32
+	{
+		MotionBlur,
+		Tonemap,
+		FXAA,
+		VisualizeDepthOfField,
+		MAX
+	};
+
 public:
 	virtual ~ISceneViewExtension() {}
 
@@ -124,6 +146,16 @@ public:
 	 * Called right after Base Pass rendering finished
 	 */
 	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
+
+	/**
+	 * Called right before Post Processing rendering begins
+	 */
+	virtual void PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs) {};
+
+	/**
+	* This will be called at the beginning of post processing to make sure that each view extension gets a chance to subscribe to an after pass event.
+	*/
+	virtual void SubscribeToPostProcessingPass(EPostProcessingPass Pass, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled) {};
 
 	/**
 	 * Allows to render content after the 3D content scene, useful for debugging

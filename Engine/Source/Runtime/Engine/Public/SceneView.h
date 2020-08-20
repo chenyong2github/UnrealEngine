@@ -936,6 +936,12 @@ public:
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
 
+	/** Allow cross GPU transfer for this view */
+	bool bAllowCrossGPUTransfer;
+
+	/** Use custom GPUmask */
+	bool bOverrideGPUMask;
+
 	/** The GPU nodes on which to render this view. */
 	FRHIGPUMask GPUMask;
 

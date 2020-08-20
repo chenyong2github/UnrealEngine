@@ -120,3 +120,42 @@ UUsdPrimTwin* UUsdPrimTwin::Find( const FString& InPrimPath )
 
 	return nullptr;
 }
+
+UUsdPrimTwin* UUsdPrimTwin::Find( const USceneComponent* InSceneComponent )
+{
+	if ( SceneComponent == InSceneComponent )
+	{
+		return this;
+	}
+
+	for ( const TPair< FString, UUsdPrimTwin* >& Child : Children )
+	{
+		UUsdPrimTwin* FoundPrimTwin = Child.Value->Find( InSceneComponent );
+		if ( FoundPrimTwin )
+		{
+			return FoundPrimTwin;
+		}
+	}
+
+	return nullptr;
+}
+
+USceneComponent* UUsdPrimTwin::GetSceneComponent()
+{
+	if ( SceneComponent.IsValid() )
+	{
+		return SceneComponent.Get();
+	}
+
+	if ( SpawnedActor.IsValid() )
+	{
+		return SpawnedActor->GetRootComponent();
+	}
+
+	return nullptr;
+}
+
+const USceneComponent* UUsdPrimTwin::GetSceneComponent() const
+{
+	return static_cast< const USceneComponent* >( const_cast< UUsdPrimTwin* >( this )->GetSceneComponent() );
+}

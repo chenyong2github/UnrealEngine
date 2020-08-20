@@ -74,6 +74,7 @@ UText3DComponent::UText3DComponent() :
 	}
 
 	Text = LOCTEXT("DefaultText", "Text");
+	bOutline = false;
 	Extrude = 5.0f;
 	Bevel = 0.0f;
 	BevelType = EText3DBevelType::Convex;
@@ -93,49 +94,27 @@ UText3DComponent::UText3DComponent() :
 
 	bPendingBuild = false;
 	bFreezeBuild = false;
-
-#if WITH_EDITOR
-	bInitialized = false;
-#endif
 }
 
 void UText3DComponent::OnRegister()
 {
 	Super::OnRegister();
-
-#if WITH_EDITOR
-	if (bInitialized)
-	{
-		return;
-	}
-
-	bInitialized = true;
-#endif
-
 	BuildTextMesh();
+}
+
+void UText3DComponent::OnUnregister()
+{
+	ClearTextMesh();
+	Super::OnUnregister();
 }
 
 #if WITH_EDITOR
 void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
+	
 	const FName Name = PropertyChangedEvent.GetPropertyName();
-	if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Text))
-	{
-		BuildTextMesh();
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Font) ||
-			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Extrude) ||
-			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, Bevel) ||
-			Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments))
-	{
-		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
-		{
-			BuildTextMesh(true);
-		}
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType))
+	if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType))
 	{
 		switch (BevelType)
 		{
@@ -159,28 +138,6 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 			break;
 		}
 		}
-
-		BuildTextMesh(true);
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, FrontMaterial))
-	{
-		UpdateMaterial(EText3DGroupType::Front, FrontMaterial);
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BackMaterial))
-	{
-		UpdateMaterial(EText3DGroupType::Back, BackMaterial);
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, ExtrudeMaterial))
-	{
-		UpdateMaterial(EText3DGroupType::Extrude, ExtrudeMaterial);
-	}
-	else if (Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelMaterial))
-	{
-		UpdateMaterial(EText3DGroupType::Bevel, BevelMaterial);
-	}
-	else
-	{
-		UpdateTransforms();
 	}
 }
 #endif
@@ -199,6 +156,15 @@ void UText3DComponent::SetFont(UFont* const InFont)
 	if (Font != InFont)
 	{
 		Font = InFont;
+		Rebuild();
+	}
+}
+
+void UText3DComponent::SetOutline(const bool bValue)
+{
+	if (bOutline != bValue)
+	{
+		bOutline = bValue;
 		Rebuild();
 	}
 }
@@ -440,18 +406,22 @@ int32 UText3DComponent::GetGlyphCount()
 
 USceneComponent* UText3DComponent::GetGlyphKerningComponent(int32 Index)
 {
-	return TextRoot->GetChildComponent(Index);
-}
-
-UStaticMeshComponent* UText3DComponent::GetGlyphMeshComponent(int32 Index)
-{
-	USceneComponent* KerningComponent = TextRoot->GetChildComponent(Index);
-	if (!KerningComponent)
+	if (Index < 0 || Index >= CharacterKernings.Num())
 	{
 		return nullptr;
 	}
 
-	return Cast<UStaticMeshComponent>(KerningComponent->GetChildComponent(0));
+	return CharacterKernings[Index];
+}
+
+UStaticMeshComponent* UText3DComponent::GetGlyphMeshComponent(int32 Index)
+{
+	if (Index < 0 || Index >= CharacterMeshes.Num())
+	{
+		return nullptr;
+	}
+
+	return CharacterMeshes[Index];
 }
 
 void UText3DComponent::Rebuild()
@@ -586,25 +556,38 @@ void UText3DComponent::UpdateTransforms()
 	}
 }
 
+void UText3DComponent::ClearTextMesh()
+{
+	CachedCounterReferences.Reset();
+
+	for (UStaticMeshComponent* MeshComponent : CharacterMeshes)
+	{
+		if (MeshComponent)
+		{
+			MeshComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			MeshComponent->SetStaticMesh(nullptr);
+			MeshComponent->DestroyComponent();
+		}
+	}
+	CharacterMeshes.Reset();
+
+	for (USceneComponent* KerningComponent : CharacterKernings)
+	{
+		if (KerningComponent)
+		{
+			KerningComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			KerningComponent->DestroyComponent();
+		}
+	}
+	CharacterKernings.Reset();
+}
+
 void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 {
 	bPendingBuild = false;
-	ShapedText->Reset();
-	CachedCounterReferences.Reset();
 	CheckBevel();
 
-	TArray<USceneComponent*> KerningComponents = TextRoot->GetAttachChildren();
-	for (USceneComponent* KerningComponent : KerningComponents)
-	{
-		TArray<USceneComponent*> GlyphComponents = KerningComponent->GetAttachChildren();
-		for (USceneComponent* GlyphComponent : GlyphComponents)
-		{
-			GlyphComponent->DestroyComponent();
-		}
-
-		KerningComponent->DestroyComponent();
-	}
-
+	ClearTextMesh();
 	if (!Font)
 	{
 		return;
@@ -620,14 +603,17 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 	}
 
 	CachedCounterReferences.Add(CachedFontData.GetCacheCounter());
-	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(Extrude, Bevel, BevelType, BevelSegments));
+	CachedCounterReferences.Add(CachedFontData.GetMeshesCacheCounter(bOutline, Extrude, Bevel, BevelType, BevelSegments));
 
+	ShapedText->Reset();
 	ShapedText->LineHeight = Face->size->metrics.height * FontInverseScale;
 	ShapedText->FontAscender = Face->size->metrics.ascender * FontInverseScale;
 	ShapedText->FontDescender = Face->size->metrics.descender * FontInverseScale;
 	FTextShaper::Get()->ShapeBidirectionalText(Face, Text.ToString(), ShapedText->Lines);
 	
 	CalculateTextWidth();
+	TextRoot->SetRelativeScale3D(GetTextScale());
+
 
 	int32 GlyphIndex = 0;
 	for (int32 LineIndex = 0; LineIndex < ShapedText->Lines.Num(); LineIndex++)
@@ -646,7 +632,7 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 				continue;
 			}
 
-			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, Extrude, Bevel, BevelType, BevelSegments);
+			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, bOutline, Extrude, Bevel, BevelType, BevelSegments);
 			if (!CachedMesh)
 			{
 				continue;
@@ -655,21 +641,23 @@ void UText3DComponent::BuildTextMesh(const bool bCleanCache)
 			int32 GlyphId = GlyphIndex++;
 
 			FString CharachterKerningName = FString::Printf(TEXT("CharachterKerning%d"), GlyphId);
-			USceneComponent* CharachterKerningComponent = NewObject<USceneComponent>(TextRoot, FName(*CharachterKerningName));
+			USceneComponent* CharachterKerningComponent = NewObject<USceneComponent>(this, FName(*CharachterKerningName));
+
 #if WITH_EDITOR
 			CharachterKerningComponent->SetIsVisualizationComponent(true);
 #endif
-			CharachterKerningComponent->RegisterComponent();
 			CharachterKerningComponent->AttachToComponent(TextRoot, FAttachmentTransformRules::KeepRelativeTransform);
+			CharachterKerningComponent->RegisterComponent();
+			CharacterKernings.Add(CharachterKerningComponent);
 
 			FString StatichMeshComponentName = FString::Printf(TEXT("StaticMeshComponent%d"), GlyphId);
-			UStaticMeshComponent* StaticMeshComponent = NewObject<UStaticMeshComponent>(CharachterKerningComponent, FName(*StatichMeshComponentName));
+			UStaticMeshComponent* StaticMeshComponent = NewObject<UStaticMeshComponent>(this, FName(*StatichMeshComponentName));
 #if WITH_EDITOR
 			StaticMeshComponent->SetIsVisualizationComponent(true);
 #endif
-			StaticMeshComponent->RegisterComponent();
-
 			StaticMeshComponent->SetStaticMesh(CachedMesh);
+			StaticMeshComponent->RegisterComponent();
+			CharacterMeshes.Add(StaticMeshComponent);
 
 			GetOwner()->AddInstanceComponent(StaticMeshComponent);
 			StaticMeshComponent->AttachToComponent(CharachterKerningComponent, FAttachmentTransformRules::KeepRelativeTransform);
@@ -712,19 +700,8 @@ float UText3DComponent::MaxBevel() const
 void UText3DComponent::UpdateMaterial(const EText3DGroupType Type, UMaterialInterface* Material)
 {
 	int32 Index = static_cast<int32>(Type);
-	for (USceneComponent* GlyphRootComponent : TextRoot->GetAttachChildren())
+	for (UStaticMeshComponent* StaticMeshComponent : CharacterMeshes)
 	{
-		if (GlyphRootComponent->GetNumChildrenComponents() == 0)
-		{
-			continue;
-		}
-
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(GlyphRootComponent->GetChildComponent(0));
-		if (!StaticMeshComponent)
-		{
-			continue;
-		}
-
 		StaticMeshComponent->SetMaterial(Index, Material);
 	}
 }

@@ -10,6 +10,7 @@
 UGeometryCacheAbcFileComponent::UGeometryCacheAbcFileComponent(const FObjectInitializer& ObjectInitializer)
 {
 	AbcSettings = ObjectInitializer.CreateDefaultSubobject<UAbcImportSettings>(this, TEXT("AbcSettings"));
+	NormalGenerationSettings.bForceOneSmoothingGroupPerObject = true;
 }
 
 #if WITH_EDITOR
@@ -56,8 +57,9 @@ void UGeometryCacheAbcFileComponent::ReloadAbcFile()
 	AbcSettings->SamplingSettings = SamplingSettings;
 	AbcSettings->MaterialSettings = MaterialSettings;
 	AbcSettings->ConversionSettings = ConversionSettings;
+	AbcSettings->NormalGenerationSettings = NormalGenerationSettings;
 
-	bool bIsValid = AbcFileTrack->SetSourceFile(AlembicFilePath.FilePath, AbcSettings);
+	bool bIsValid = AbcFileTrack->SetSourceFile(AlembicFilePath.FilePath, AbcSettings, GetAnimationTime(), bLooping);
 	if (bIsValid)
 	{
 		// Update the SamplingSettings for the UI since the start/end frames may have changed

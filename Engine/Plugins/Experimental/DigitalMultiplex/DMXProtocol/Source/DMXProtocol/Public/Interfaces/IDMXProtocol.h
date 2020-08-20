@@ -141,6 +141,15 @@ public:
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const = 0;
 
 	/**
+	 * Getting Universe from the Protocol Universe Manager.
+	 * Creates a default new universe if the universe doesn't exist
+	 *
+	 * @param  InUniverseId unique number of universe
+	 * @return Return the pointer to the universe.
+	 */
+	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseByIdCreateDefault(uint32 InUniverseId);
+
+	/**
 	 * Get current amount of universes in the Map
 	 * @return Return amount of universes in the Map
 	 */
@@ -191,21 +200,34 @@ public:
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const = 0;
 
 	/**
-	 * Called on input universe.
-	 * Parameters represent: Protocol Name, UniverseID and Buffer
+	 * Called on when a Universe Input Buffer was updated
+	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& InputBuffer
 	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseInputUpdateEvent, FName, uint16, const TArray<uint8>&);
-	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() = 0;
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseInputBufferUpdated, FName, uint16, const TArray<uint8>&);
+	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() = 0;
 
 	/**
-	 * Called on output universe
-	 * Parameters represent: Protocol Name, UniverseID and Buffer
+	 * Called on when a Universe Output Buffer was updated
+	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& OutputBuffer
 	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseOutputSentEvent, FName, uint16, const TArray<uint8>&);
-	virtual FOnUniverseOutputSentEvent& GetOnOutputSentEvent() = 0;
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseOutputBufferUpdated, FName, uint16, const TArray<uint8>&);
+	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() = 0;
+
+	/**
+	 * Called when a packet was Received
+	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& Packet
+	 */
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnPacketReceived, FName, uint16, const TArray<uint8>&);
+	virtual FOnPacketReceived& GetOnPacketReceived() = 0;
+
+	/**
+	 * Called when a packet was sent
+	 * Event Parameters: FName Protocol Name, uint16 UniverseID, const TArray<uint8>& Packet
+	 */
+	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnPacketSent, FName, uint16, const TArray<uint8>&);
+	virtual FOnPacketSent& GetOnPacketSent() = 0;
 
 public:
 	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;
 };
-
 

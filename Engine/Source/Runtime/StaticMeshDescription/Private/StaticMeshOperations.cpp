@@ -721,6 +721,13 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 
 	//Triangles
 	int32 TriangleCount = SourceRawMesh.WedgeIndices.Num() / 3;
+
+	// Reserve enough memory to avoid as much as possible reallocations
+	DestinationMeshDescription.ReserveNewVertexInstances(SourceRawMesh.WedgeIndices.Num());
+	DestinationMeshDescription.ReserveNewTriangles(TriangleCount);
+	DestinationMeshDescription.ReserveNewPolygons(TriangleCount);
+	DestinationMeshDescription.ReserveNewEdges(TriangleCount * 2);
+
 	for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 	{
 		int32 VerticeIndexBase = TriangleIndex * 3;

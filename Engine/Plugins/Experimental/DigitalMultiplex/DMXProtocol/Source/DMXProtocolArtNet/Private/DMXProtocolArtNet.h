@@ -47,11 +47,18 @@ public:
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
 	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
-	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override { return OnUniverseInputUpdateEvent; }
-	virtual FOnUniverseOutputSentEvent& GetOnOutputSentEvent() override
-	{
-		return OnUniverseOutputSentEvent;
-	}
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
+	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseOutputBufferUpdated, FOnUniverseOutputBufferUpdated);
+	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() override { return OnUniverseOutputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketReceived, FOnPacketReceived);
+	virtual FOnPacketReceived& GetOnPacketReceived() override { return OnPacketReceived; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketSent, FOnPacketSent);
+	virtual FOnPacketSent& GetOnPacketSent() override	{ return OnPacketSent;	}
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXNetworkInterface implementation
@@ -106,7 +113,7 @@ public:
 	bool TransmitRDM(uint32 InUniverseID, const TArray<uint8>& Data);
 
 private:
-	EDMXSendResult SendDMXInternal(uint16 InUniverseID, uint8 InPort, const TSharedPtr<FDMXBuffer>& DMXBuffer) const;
+	EDMXSendResult SendDMXInternal(uint16 InUniverseID, uint8 InPort, const FDMXBufferPtr& DMXBuffer) const;
 
 	//~ Only the factory makes instances
 	FDMXProtocolArtNet() = delete;
@@ -158,8 +165,10 @@ private:
 	FDMXProtocolArtNetTodControl IncomingTodControl;
 	FDMXProtocolArtNetRDM IncomingRDM;
 
-	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
-	FOnUniverseOutputSentEvent OnUniverseOutputSentEvent;
+	FOnUniverseInputBufferUpdated OnUniverseInputBufferUpdated;
+	FOnUniverseOutputBufferUpdated OnUniverseOutputBufferUpdated;
+	FOnPacketReceived OnPacketReceived;
+	FOnPacketSent OnPacketSent;
 
 	/** Mutex protecting access to the sockets. */
 	mutable FCriticalSection SocketsCS;

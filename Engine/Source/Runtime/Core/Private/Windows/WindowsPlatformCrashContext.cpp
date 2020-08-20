@@ -1153,7 +1153,7 @@ public:
 
 	void RegisterUnhandledExceptionHandler()
 	{
-#if !PLATFORM_SEH_EXCEPTIONS_DISABLED && !NOINITCRASHREPORTER && WITH_EDITOR // Just registered for the Editor in 4.25.x to avoid changing other apps behavior.
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED && !NOINITCRASHREPORTER
 		::SetUnhandledExceptionFilter(EngineUnhandledExceptionFilter);
 #endif
 	}
@@ -1429,14 +1429,14 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  *   - If an exception handler/filter triggers another exception, the new inner exception is handled recursively. If the code is not robust, it may retrigger that inner exception over and over.
  *     This eventually stops with a stack overflow, at which point the OS terminates the program and the original exception is lost.
  *
- * When an exception occurs, Windows executes following steps:
+ * Usually, when an exception occurs, Windows executes following steps (see below for unusual cases):
  *     1- Invoke the vectored exception handlers registered with AddVectoredExceptionHandler(), if any.
  *         - In general, this is too soon to handle an exception because local structured exception handlers did not execute yet and many exceptions are handled there.
  *         - If a registered vectored exception handler returns EXCEPTION_CONTINUE_EXECUTION, the vectored continue handler(s), are invoked next (see number 4 below)
  *         - If a registered vectored exception handler returns EXCEPTION_CONTINUE_SEARCH, the OS skip this one and continue iterating the list of vectored exception handlers.
  *         - If a registered vectored exception handler returns EXCEPTION_EXECUTE_HANDLER, in my tests, this was equivalent to returning EXCEPTION_CONTINUE_SEARCH.
  *         - If no vectored exception handlers are registered or all registered one return EXCEPTION_CONTINUE_SEARCH, the structured exception handlers (__try/__except) are executed next.
-  *        - At this stage, be careful when returning EXCEPTION_CONTINUE_EXECUTION. For example, continuing after an access violation would retrigger the exception immediatedly.
+ *         - At this stage, be careful when returning EXCEPTION_CONTINUE_EXECUTION. For example, continuing after an access violation would retrigger the exception immediatedly.
  *     2- If the exception wasn't handled by a vectored exception handler, invoke the structured exception handlers (the __try/__except clauses)
  *         - That let the code manage exceptions more locally, for the Engine, we want that to run first.
  *         - When the filter expression in __except(filterExpression) { block } clause returns EXCEPTION_EXECUTE_HANDLER, the 'block' is executed, the code continue after the block. The exception is considered handled.
@@ -1454,6 +1454,11 @@ LONG WINAPI UnhandledStaticInitException(LPEXCEPTION_POINTERS ExceptionInfo)
  *         - The handler can short cut other continue handlers by returning EXCEPTION_CONTINUE_EXECUTION which resume the code immediatedly.
  *         - In my tests, if a vectored continue handler returns EXCEPTION_EXECUTE_HANDLER, this is equivalent to returning EXCEPTION_CONTINUE_SEARCH.
  *         - By default, if no handlers are registered or all registered handler(s) returned EXCEPTION_CONTINUE_SEARCH, the program resumes execution at the point of the exception.
+ *
+ * Inside a Windows OS callback, different behavior than the one described above was observed.
+ *    1- For example, crashing while handling WM_NCCALCSIZE in AppWndProc callback lead to a different flow. Even thought the exception is reported on the main
+ *       thread, the main thread structured exception handler isn't called before the unhandled execution filter is executed.
+ *    2- Exceptions raised in a device driver callbacks likely not respond to SEH in the usual way either. (To be confirmed)
  *
  * The engine hooks itself in the unhandled exception filter. This is the best place to be as it runs after structured exception handlers and
  * it can be easily overriden externally (because there can only be one) to do something else.
@@ -1518,7 +1523,10 @@ FORCENOINLINE void ReportEnsureInner(const TCHAR* ErrorMessage, int NumStackFram
 	__try
 #endif
 	{
-		::RaiseException(1, 0, 0, nullptr);
+		// Provide a rather unique/easily recongnizable exception code. It seems SEH can be disabled at runtime in kernel driver callback depending on the dispatch level. If UE fires
+		// an ensure during such callback, the hope is that the application crashes and reports this recongnizable exception code as the exit code, so that we can detect it in the analytics.
+		DWORD EnsureExceptionCode = ECrashExitCodes::UnhandledEnsure;
+		::RaiseException(EnsureExceptionCode, 0, 0, nullptr);
 	}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except (ReportEnsureUsingCrashReportClient( GetExceptionInformation(), NumStackFramesToIgnore, ErrorMessage, IsInteractiveEnsureMode() ? EErrorReportUI::ShowDialog : EErrorReportUI::ReportInUnattendedMode))

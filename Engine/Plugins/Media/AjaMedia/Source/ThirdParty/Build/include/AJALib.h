@@ -172,6 +172,8 @@ namespace AJA
 		int32_t GetNumSupportedFormat() const;
 		VideoFormatDescriptor GetSupportedFormat(int32_t InIndex) const;
 		static VideoFormatDescriptor GetVideoFormat(FAJAVideoFormat InVideoFormatIndex);
+		static std::string VideoFormatToString(FAJAVideoFormat InVideoFormatIndex);
+		static bool VideoFormatToString(FAJAVideoFormat InVideoFormatIndex, char* OutCStr, uint32_t MaxLen);
 
 	private:
 		Private::VideoFormatsScanner* Formats;
@@ -183,7 +185,7 @@ namespace AJA
 	{
 		AJADeviceOptions(uint32_t InChannelIndex)
 			: DeviceIndex(InChannelIndex)
-			, bWantMultiFormatMode(false)
+			, bWantMultiFormatMode(true)
 		{}
 
 		uint32_t DeviceIndex;
@@ -231,6 +233,7 @@ namespace AJA
 		bool WaitForSync() const;
 		bool GetTimecode(FTimecode& OutTimecode) const;
 		bool GetSyncCount(uint32_t& OutCount) const;
+		bool GetVideoFormat(FAJAVideoFormat& OutVideoFormat);
 
 	private:
 		Private::SyncChannel* Channel;

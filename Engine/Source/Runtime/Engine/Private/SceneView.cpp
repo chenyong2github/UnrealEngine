@@ -659,6 +659,8 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
 	, StereoIPD(InitOptions.StereoIPD)
+	, bAllowCrossGPUTransfer(true)
+	, bOverrideGPUMask(false)
 	, GPUMask(FRHIGPUMask::GPU0())
 	, bRenderFirstInstanceOnly(false)
 	, DiffuseOverrideParameter(FVector4(0,0,0,1))
@@ -1913,7 +1915,6 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if (!Family->EngineShowFlags.ToneCurve)
 	{
 		FinalPostProcessSettings.ToneCurveAmount = 0;
-		FinalPostProcessSettings.ExpandGamut = 0;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -128,9 +128,15 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMes
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetDeltaTime::name)
 	{
+		// Get delta (float)
 		float DeltaSeconds = 0.0f;
 		GetDeltaTime(DeltaSeconds);
-		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds);
+
+		// Convert to hex string
+		const FString StrDeltaSeconds = FDisplayClusterTypesConverter::template ToHexString(DeltaSeconds);
+
+		// Send the response
+		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, StrDeltaSeconds);
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetFrameTime::name)

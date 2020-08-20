@@ -25,6 +25,7 @@ public class TakeRecorder : ModuleRules
 				"MovieSceneTools",
 				"PropertyEditor",
 				"TakesCore",
+				"TakeMovieScene",
 				"TimeManagement",
 				"Settings",
 				"Slate",

@@ -5,14 +5,19 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/Guid.h"
+#include "Curves/RichCurve.h"
+#include "Containers/UnrealString.h"
 #include "IMovieSceneTools.h"
 
 struct FAssetData;
 
 class UK2Node;
 class UBlueprint;
+class UMovieScene;
 class UMovieSceneSection;
 class UMovieSceneEventSectionBase;
+class IMovieSceneToolsTrackImporter;
 
 class IMovieSceneToolsTakeData
 {
@@ -45,6 +50,12 @@ public:
 	bool GatherTakes(const UMovieSceneSection* Section, TArray<FAssetData>& AssetData, uint32& OutCurrentTakeNumber);
 	bool GetTakeNumber(const UMovieSceneSection* Section, FAssetData AssetData, uint32& OutTakeNumber);
 	bool SetTakeNumber(const UMovieSceneSection* Section, uint32 InTakeNumber);
+
+	void RegisterTrackImporter(IMovieSceneToolsTrackImporter*);
+	void UnregisterTrackImporter(IMovieSceneToolsTrackImporter*);
+
+	bool ImportAnimatedProperty(const FString& InPropertyName, const FRichCurve& InCurve, FGuid InBinding, UMovieScene* InMovieScene);
+	bool ImportStringProperty(const FString& InPropertyName, const FString& InPropertyValue, FGuid InBinding, UMovieScene* InMovieScene);
 
 private:
 
@@ -99,4 +110,5 @@ private:
 	FDelegateHandle OnObjectsReplacedHandle;
 
 	TArray<IMovieSceneToolsTakeData*> TakeDatas;
+	TArray<IMovieSceneToolsTrackImporter*> TrackImporters;
 };

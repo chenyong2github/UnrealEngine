@@ -69,7 +69,7 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 
 	if(	!IsCancelled() && SelectedMeshes.Num() > 0)
 	{
-		FDatasmithTessellationOptions TessellationSettings( ChordTolerance, MaxEdgeLength, NormalTolerance );
+		FDatasmithRetessellationOptions TessellationSettings( ChordTolerance, MaxEdgeLength, NormalTolerance);
 
 		TSharedPtr<FDataprepWorkReporter> Task = CreateTask( LOCTEXT( "LogCADLibrary_Tessellating", "Tessellating meshes ..." ), (float)SelectedMeshes.Num() );
 

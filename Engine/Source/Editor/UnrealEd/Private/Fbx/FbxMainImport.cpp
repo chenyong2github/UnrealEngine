@@ -1125,7 +1125,7 @@ void FFbxImporter::FixMaterialClashName()
 	}
 }
 
-void FFbxImporter::EnsureNodeNameAreValid()
+void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 {
 	const bool bKeepNamespace = GetDefault<UEditorPerProjectUserSettings>()->bKeepFbxNamespace;
 
@@ -1159,7 +1159,8 @@ void FFbxImporter::EnsureNodeNameAreValid()
 				Node->SetName(TCHAR_TO_UTF8(*NodeName));
 			}
 		}
-		if (AllNodeName.Contains(NodeName))
+		// Do not allow node to be named same as filename as this creates problems later on (reimport)
+		if (AllNodeName.Contains(NodeName) || 0 == NodeName.Compare(BaseFilename, ESearchCase::IgnoreCase))
 		{
 			FString UniqueNodeName;
 			do
@@ -1261,7 +1262,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 	// Import the scene.
 	bStatus = Importer->Import(Scene);
 
-	EnsureNodeNameAreValid();
+	const bool bRemovePath = true;
+	EnsureNodeNameAreValid(FPaths::GetBaseFilename(Filename, bRemovePath));
 
 	//Make sure we don't have name clash for materials
 	if (bPreventMaterialNameClash)

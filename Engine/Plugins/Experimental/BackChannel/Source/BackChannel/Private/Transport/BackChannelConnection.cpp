@@ -280,7 +280,7 @@ bool FBackChannelConnection::Listen(const int16 Port)
 	return NewSocket != nullptr;
 }
 
-bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(TSharedRef<IBackChannelConnection>)> InDelegate)
+bool FBackChannelConnection::WaitForConnection(double InTimeout, TFunction<bool(TSharedRef<IBackChannelSocketConnection>)> InDelegate)
 {
 	FScopeLock Lock(&SocketMutex);
 

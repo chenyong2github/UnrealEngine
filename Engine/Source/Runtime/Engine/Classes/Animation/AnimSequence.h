@@ -535,6 +535,26 @@ public:
 
 	// End Transform related functions 
 
+	// Begin Bone custom attribute function
+
+	void Stub_AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const float> ValueKeys) {}
+	void Stub_AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const int32> ValueKeys) {}
+	void Stub_AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const FString> ValueKeys) {}
+	
+	int32 Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const;
+	int32 Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const;
+	int32 Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const;
+	
+	FName Stub_GetBoneFloatAttributeName(const FName& BoneName, int32 AttributeIndex) const { return FName(); }
+	FName Stub_GetBoneIntegerAttributeName(const FName& BoneName, int32 AttributeIndex) const { return FName(); }
+	FName Stub_GetBoneStringAttributeName(const FName& BoneName, int32 AttributeIndex) const { return FName(); }
+	
+	float Stub_EvaluateBoneFloatAttribute(const FName& BoneName, const FName& AttributeName, float Time) const { return 0; }
+	int32 Stub_EvaluateBoneIntegerAttribute(const FName& BoneName, const FName& AttributeName, float Time) const { return 0; }
+	FString Stub_EvaluateBoneStringAttribute(const FName& BoneName, const FName& AttributeName, float Time) const { return FString(); }
+
+	// End Bone custom attribute function
+
 	// Begin Memory related functions
 
 	/** @return	estimate uncompressed raw size. This is *not* the real raw size. 

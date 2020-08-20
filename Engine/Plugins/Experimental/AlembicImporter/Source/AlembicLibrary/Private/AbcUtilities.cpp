@@ -7,9 +7,9 @@
 #include "GeometryCache.h"
 #include "Materials/Material.h"
 
-void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeometryCacheMeshData& OutMeshData)
+void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeometryCacheMeshData& OutMeshData, int32 ConcurrencyIndex)
 {
-	AbcFile.ReadFrame(FrameIndex, EFrameReadFlags::ApplyMatrix, 0);
+	AbcFile.ReadFrame(FrameIndex, EFrameReadFlags::ApplyMatrix, ConcurrencyIndex);
 
 	FGeometryCacheMeshData MeshData;
 	int32 PreviousNumVertices = 0;
@@ -19,7 +19,7 @@ void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeome
 
 	OutMeshData = MoveTemp(MeshData);
 
-	AbcFile.CleanupFrameData(0);
+	AbcFile.CleanupFrameData(ConcurrencyIndex);
 }
 
 void FAbcUtilities::SetupGeometryCacheMaterials(FAbcFile& AbcFile, UGeometryCache* GeometryCache, UObject* Package)

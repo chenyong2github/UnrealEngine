@@ -27,8 +27,17 @@ bool UStaticMeshExporterUsd::IsUsdAvailable()
 UStaticMeshExporterUsd::UStaticMeshExporterUsd()
 {
 #if USE_USD_SDK
-	FormatExtension.Append( { TEXT("usd"), TEXT("usda") } );
-	FormatDescription.Append( {TEXT("USD File"), TEXT("USD File") } );
+	for ( const FString& Extension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
+	{
+		// USDZ is not supported for writing for now
+		if ( Extension.Equals( TEXT( "usdz" ) ) )
+		{
+			continue;
+		}
+
+		FormatExtension.Add( Extension );
+		FormatDescription.Add( TEXT( "USD file" ) );
+	}
 	SupportedClass = UStaticMesh::StaticClass();
 	bText = false;
 #endif // #if USE_USD_SDK
@@ -50,22 +59,14 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 		FString RootPrimPath = ( TEXT("/") + StaticMesh->GetName() );
 
 		UE::FUsdPrim RootPrim = UsdStage.DefinePrim( UE::FSdfPath( *RootPrimPath ) );
-
 		if ( !RootPrim )
 		{
 			return false;
 		}
 
-		FString MeshPrimPath = FPaths::Combine( RootPrimPath, StaticMesh->GetName() );
+		UsdStage.SetDefaultPrim( RootPrim );
 
-		UE::FUsdPrim UsdGeomMesh = UsdStage.DefinePrim( UE::FSdfPath( *MeshPrimPath ), TEXT("Mesh") );
-
-		if ( UsdGeomMesh )
-		{
-			UsdStage.SetDefaultPrim( RootPrim );
-
-			UnrealToUsd::ConvertStaticMesh( StaticMesh, UsdGeomMesh );
-		}
+		UnrealToUsd::ConvertStaticMesh( StaticMesh, RootPrim );
 
 		UsdStage.GetRootLayer().Save();
 	}

@@ -19,7 +19,7 @@ public:
 	using FUsdGeomXformableTranslator::FUsdGeomXformableTranslator;
 
 	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
-	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return CollapsingType == FUsdSchemaTranslator::ECollapsingType::Components && Context->bAllowCollapsing; }
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return CollapsingType == FUsdSchemaTranslator::ECollapsingType::Components; }
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return false; }
 };
 

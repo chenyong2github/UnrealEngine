@@ -6,36 +6,45 @@
 #include "Misc/ConfigCacheIni.h"
 #include "RemoteSessionUtils.h"
 
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionFrameBufferChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
+
+// FRemoteSessionFrameBufferChannel is deprecated. Please use FRemoteSessionImageChannel.
+// FRemoteSessionFrameBufferChannelFactoryWorker was created for backward compatibility with older app
+
+class FRemoteSessionFrameBufferChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
 {
-	TSharedPtr<FRemoteSessionImageChannel> Channel = MakeShared<FRemoteSessionImageChannel>(InMode, InConnection);
-
-	if (InMode == ERemoteSessionChannelMode::Write)
+public:
+	TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection) const
 	{
-		TSharedPtr<FRemoteSessionFrameBufferImageProvider> ImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(Channel->GetImageSender());
+		TSharedPtr<FRemoteSessionImageChannel> Channel = MakeShared<FRemoteSessionImageChannel>(InMode, InConnection);
 
+		if (InMode == ERemoteSessionChannelMode::Write)
 		{
-			int32 Quality = 85;
-			int32 Framerate = 30;
-			GConfig->GetInt(TEXT("RemoteSession"), TEXT("Quality"), Quality, GEngineIni);
-			GConfig->GetInt(TEXT("RemoteSession"), TEXT("Framerate"), Framerate, GEngineIni);
+			TSharedPtr<FRemoteSessionFrameBufferImageProvider> ImageProvider = MakeShared<FRemoteSessionFrameBufferImageProvider>(Channel->GetImageSender());
 
-			ImageProvider->SetCaptureFrameRate(Framerate);
-			Channel->SetCompressQuality(Quality);
-		}
-
-		{
-			TWeakPtr<SWindow> InputWindow;
-			TWeakPtr<FSceneViewport> SceneViewport;
-			FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
-
-			if (TSharedPtr<FSceneViewport> SceneViewPortPinned = SceneViewport.Pin())
 			{
-				ImageProvider->SetCaptureViewport(SceneViewPortPinned.ToSharedRef());
-			}
-		}
+				const URemoteSessionSettings* Settings = URemoteSessionSettings::StaticClass()->GetDefaultObject<URemoteSessionSettings>();
 
-		Channel->SetImageProvider(ImageProvider);
+				ImageProvider->SetCaptureFrameRate(Settings->ImageQuality);
+				Channel->SetCompressQuality(Settings->FrameRate);
+			}
+
+			{
+				TWeakPtr<SWindow> InputWindow;
+				TWeakPtr<FSceneViewport> SceneViewport;
+				FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
+
+				if (TSharedPtr<FSceneViewport> SceneViewPortPinned = SceneViewport.Pin())
+				{
+					ImageProvider->SetCaptureViewport(SceneViewPortPinned.ToSharedRef());
+				}
+			}
+
+			Channel->SetImageProvider(ImageProvider);
+		}
+		return Channel;
 	}
-	return Channel;
-}
+};
+
+REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
+//REGISTER_CHANNEL_FACTORY(FRemoteSessionFrameBufferChannel_DEPRECATED, FRemoteSessionFrameBufferChannelFactoryWorker, ERemoteSessionChannelMode::Write);
+

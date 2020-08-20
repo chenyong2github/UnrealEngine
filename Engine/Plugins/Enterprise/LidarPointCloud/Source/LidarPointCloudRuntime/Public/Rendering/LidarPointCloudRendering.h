@@ -13,19 +13,30 @@ struct FLidarPointCloudSceneProxyWrapper
 	FLidarPointCloudSceneProxyWrapper(ILidarPointCloudSceneProxy* Proxy) : Proxy(Proxy) {}
 };
 
+struct FLidarPointCloudProxyUpdateDataNode
+{
+	uint8 VirtualDepth;
+	int64 NumVisiblePoints;
+	struct FLidarPointCloudOctreeNode* DataNode;
+
+	FLidarPointCloudProxyUpdateDataNode() : FLidarPointCloudProxyUpdateDataNode(0, 0, nullptr) {}
+	FLidarPointCloudProxyUpdateDataNode(uint8 VirtualDepth, int64 NumVisiblePoints, FLidarPointCloudOctreeNode* DataNode)
+		: VirtualDepth(VirtualDepth)
+		, NumVisiblePoints(NumVisiblePoints)
+		, DataNode(DataNode)
+	{
+	}
+};
+
 /** Used to pass data to RT to update the proxy's render data */
 struct FLidarPointCloudProxyUpdateData
 {
 	TWeakPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper;
 
-	/** Index of the first element within the structured buffer */
-	int32 FirstElementIndex;
-
 	/** Number of elements within the structured buffer related to this proxy */
 	int32 NumElements;
 
-	/** Contains the current global point budget */
-	int32 PointBudget;
+	TArray<FLidarPointCloudProxyUpdateDataNode> SelectedNodes;
 
 	float VDMultiplier;
 	float RootCellSize;
@@ -34,6 +45,8 @@ struct FLidarPointCloudProxyUpdateData
 	/** Stores bounds of selected nodes, used for debugging */
 	TArray<FBox> Bounds;
 #endif
+
+	TArray<const class ALidarClippingVolume*> ClippingVolumes;
 
 	FLidarPointCloudProxyUpdateData();
 };

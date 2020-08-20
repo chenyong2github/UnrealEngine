@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "FixedFrameRateCustomTimeStep.h"
+#include "GenlockedCustomTimeStep.h"
 
 #include "MediaIOCoreDefinitions.h"
 
@@ -18,7 +18,7 @@ namespace BlackmagicCustomTimeStepHelpers
  * Control the Engine TimeStep via the Blackmagic Design card.
  */
 UCLASS(Blueprintable, editinlinenew, meta=(DisplayName="Blackmagic SDI Input", MediaIOCustomLayout="Blackmagic"))
-class BLACKMAGICMEDIA_API UBlackmagicCustomTimeStep : public UFixedFrameRateCustomTimeStep
+class BLACKMAGICMEDIA_API UBlackmagicCustomTimeStep : public UGenlockedCustomTimeStep
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,11 +30,16 @@ public:
 	virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override;
 	virtual FFrameRate GetFixedFrameRate() const override;
 
+	//~ UGenlockedCustomTimeStep interface
+	virtual uint32 GetLastSyncCountDelta() const override;
+	virtual bool IsLastSyncDataValid() const override;
+	virtual FFrameRate GetSyncRate() const override;
+	virtual bool WaitForSync() override;
+
 	//~ UObject interface
 	virtual void BeginDestroy() override;
 
 private:
-	void WaitForSync() const;
 	void ReleaseResources();
 
 public:

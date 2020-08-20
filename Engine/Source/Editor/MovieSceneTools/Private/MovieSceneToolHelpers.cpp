@@ -826,6 +826,18 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 
+	const int32 ChannelIndex = 0;
+	const int32 CompositeIndex = 0;
+	FRichCurve Source;
+	const bool bNegative = false;
+	CurveAPI.GetCurveDataForSequencer(NodeName, AnimatedPropertyName, ChannelIndex, CompositeIndex, Source, bNegative);
+
+	// First, see if any of the custom importers can import this named property
+	if (FMovieSceneToolsModule::Get().ImportAnimatedProperty(AnimatedPropertyName, Source, ObjectBinding, MovieScene))
+	{
+		return true;
+	}
+
 	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
 	const UMovieSceneUserImportFBXSettings* ImportFBXSettings = GetDefault<UMovieSceneUserImportFBXSettings>();
 
@@ -897,12 +909,6 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 				{
 					FloatSection->SetRange(TRange<FFrameNumber>::All());
 				}
-
-				const int32 ChannelIndex = 0;
-				const int32 CompositeIndex = 0;
-				FRichCurve Source;
-				const bool bNegative = false;
-				CurveAPI.GetCurveDataForSequencer(NodeName, AnimatedPropertyName, ChannelIndex, CompositeIndex, Source, bNegative);
 
 				FMovieSceneFloatChannel* Channel = FloatSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0);
 				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
@@ -1134,6 +1140,15 @@ bool MovieSceneToolHelpers::ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI
 	}
 	
 	ImportFBXTransform(NodeName, ObjectBinding, CurveAPI, InSequence);
+
+	// Custom static string properties
+	TArray<TPair<FString, FString> > CustomPropertyPairs;
+	CurveAPI.GetCustomStringPropertyArray(NodeName, CustomPropertyPairs);
+
+	for (TPair<FString, FString>& CustomProperty : CustomPropertyPairs)
+	{
+		FMovieSceneToolsModule::Get().ImportStringProperty(CustomProperty.Key, CustomProperty.Value, ObjectBinding, InSequence->GetMovieScene());
+	}
 
 	return true;
 }

@@ -2797,6 +2797,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 
 	FGeometry WidgetUnderCursorGeometry = HitResult.WidgetArranged.Geometry;
 	
+	FScopedTransaction DragAndDropTransaction(LOCTEXT("Designer_DragAddDrop", "Drag and Drop Widget"));
 	TArray<UWidget*> DragDropPreviewWidgets;
 	DetermineDragDropPreviewWidgets(DragDropPreviewWidgets, DragDropEvent, TargetTree);
 
@@ -2882,12 +2883,12 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 			DragOperation->SetCursorOverride(EMouseCursor::SlashedCircle);
 
 			// Cancel the transaction even if it's not a preview, since we can't do anything
-			Transaction.Cancel();
+			DragAndDropTransaction.Cancel();
 		}
 
 		if (bIsPreview)
 		{
-			Transaction.Cancel();
+			DragAndDropTransaction.Cancel();
 		}
 
 		// Remove widgets tracked by the 'DropPreviews' set. We don't consider them to be transient at this point because they have been inserted into the widget tree hierarchy.
@@ -3129,7 +3130,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 
 		if (bIsPreview || !bWidgetMoved)
 		{
-			Transaction.Cancel();
+			DragAndDropTransaction.Cancel();
 		}
 	}
 

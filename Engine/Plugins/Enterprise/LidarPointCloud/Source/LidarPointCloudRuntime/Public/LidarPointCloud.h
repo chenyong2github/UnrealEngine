@@ -14,6 +14,7 @@
 #include "Engine/LatentActionManager.h"
 #include "ConvexVolume.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
+#include "GameFramework/Volume.h"
 #include "LidarPointCloud.generated.h"
 
 class ALidarPointCloudActor;
@@ -94,12 +95,27 @@ private:
 
 public:
 	/**
-	 * Determines the accuracy (in cm) of the collision for this point cloud.
+	 * Determines the maximum error (in cm) of the collision for this point cloud.
 	 * NOTE: Lower values will require more time to build.
 	 * Rebuild collision for the changes to take effect.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision")
-	float CollisionAccuracy;
+	float MaxCollisionError;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use MaxCollisionError instead."))
+	float CollisionAccuracy_DEPRECATED;
+
+	/** Higher values will generally result in more accurate calculations, at the expense of time */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normals", meta = (ClampMin = "1", ClampMax = "100", DisplayName = "Quality"))
+	int32 NormalsQuality;
+
+	/**
+	 * Higher values are less susceptible to noise, but will most likely lose finer details, especially around hard edges.
+	 * Lower values retain more detail, at the expense of time.
+	 * NOTE: setting this too low will cause visual artifacts and geometry holes in noisier datasets.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normals", meta = (ClampMin = "0.0", DisplayName = "Noise Tolerance"))
+	float NormalsNoiseTolerance;
 
 	/** Holds pointer to the Import Settings used for the import. */
 	TSharedPtr<struct FLidarPointCloudImportSettings> ImportSettings;
@@ -131,9 +147,9 @@ private:
 	UPROPERTY()
 	TArray<uint8> ClassificationsImported;
 
-	/** Used for async building */
+	/** Used for async processing */
 	FThreadSafeBool bAsyncCancelled;
-	FCriticalSection ImportLock;
+	FCriticalSection ProcessingLock;
 
 	/** Notification we hold on to, that indicates status and progress. */
 	FLidarPointCloudNotification Notification;
@@ -171,7 +187,10 @@ public:
 	int32 GetNumLODs() const { return Octree.GetNumLODs(); }
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
-	int32 GetNumPoints() const { return Octree.GetNumPoints(); }
+	int64 GetNumPoints() const { return Octree.GetNumPoints(); }
+
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	int64 GetNumVisiblePoints() const { return Octree.GetNumVisiblePoints(); }
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	int32 GetNumNodes() const { return Octree.GetNumNodes(); }
@@ -185,6 +204,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	FBox GetBounds() const { return Octree.GetBounds().ShiftBy(LocationOffset.ToVector()); }
+	FDoubleBox GetPreciseBounds(bool bUseOriginalCoordinates) const { return FDoubleBox(Octree.GetBounds()).ShiftBy(bUseOriginalCoordinates ? OriginalCoordinates : LocationOffset); }
 
 	/** Returns the Cloud's offset from the 0,0,0 coordinate */
 	FDoubleVector GetLocationOffset() const { return LocationOffset; }
@@ -202,25 +222,61 @@ public:
 
 	TArray<uint8> GetClassificationsImported() { return ClassificationsImported; }
 
+	/** Returns true if there are any points within the given sphere. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool HasPointsInSphere(FVector Center, float Radius, bool bVisibleOnly) const
+	{
+		return HasPointsInSphere(FSphere(Center, Radius), bVisibleOnly);
+	}
+	bool HasPointsInSphere(const FSphere& Sphere, bool bVisibleOnly) const
+	{
+		return Octree.HasPointsInSphere(FSphere(Sphere.Center - LocationOffset.ToVector(), Sphere.W), bVisibleOnly);
+	}
+
+	/** Returns true if there are any points within the given box. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool HasPointsInBox(FVector Center, FVector Extent, bool bVisibleOnly) const
+	{
+		return HasPointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly);
+	}
+	bool HasPointsInBox(const FBox& Box, bool bVisibleOnly) const
+	{
+		return Octree.HasPointsInBox(Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly);
+	}
+
+	/** Returns true if there are any points hit by the given ray. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool HasPointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) const
+	{
+		return HasPointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly);
+	}
+	bool HasPointsByRay(const FLidarPointCloudRay& Ray, float Radius, bool bVisibleOnly) const
+	{
+		return Octree.HasPointsByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly);
+	}
+
 	/** Populates the given array with points from the tree */
-	TArray<FLidarPointCloudPoint*> GetPoints(int64 StartIndex = 0, int64 Count = -1);
-	void GetPoints(TArray<FLidarPointCloudPoint*>& Points, int64 StartIndex = 0, int64 Count = -1) { Octree.GetPoints(Points, StartIndex, Count); }
+	template <typename T>
+	void GetPoints(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1) { Octree.GetPoints(Points, StartIndex, Count); }
 
 	/** Populates the array with the list of points within the given sphere. */
-	void GetPointsInSphere(TArray<FLidarPointCloudPoint*>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly)
+	template <typename T>
+	void GetPointsInSphere(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly)
 	{
 		Sphere.Center -= LocationOffset.ToVector();
 		Octree.GetPointsInSphere(SelectedPoints, Sphere, bVisibleOnly);
 	}
 
 	/** Populates the array with the list of points within the given box. */
-	void GetPointsInBox(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBox(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
+	template <typename T>
+	void GetPointsInBox(TArray<FLidarPointCloudPoint*, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly) { Octree.GetPointsInBox(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
 	/**
 	 * Populates the array with the list of points within the given frustum.
 	 * Frustum is assumed to include the LocationOffset of the asset
 	 */
 	void GetPointsInFrustum(TArray<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly) { Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly); }
+	void GetPointsInFrustum(TArray64<FLidarPointCloudPoint*>& SelectedPoints, const FConvexVolume& Frustum, const bool& bVisibleOnly) { Octree.GetPointsInFrustum(SelectedPoints, Frustum, bVisibleOnly); }
 
 	/**
 	 * Returns an array with copies of points from the tree
@@ -228,7 +284,8 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsAsCopies(bool bReturnWorldSpace, int32 StartIndex = 0, int32 Count = -1) const;
-	void GetPointsAsCopies(TArray<FLidarPointCloudPoint>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const
+	template <typename T>
+	void GetPointsAsCopies(TArray<FLidarPointCloudPoint, T>& Points, bool bReturnWorldSpace, int64 StartIndex = 0, int64 Count = -1) const
 	{
 		FTransform LocalToWorld(LocationOffset.ToVector());
 		Octree.GetPointsAsCopies(Points, bReturnWorldSpace ? &LocalToWorld : nullptr, StartIndex, Count);
@@ -240,7 +297,8 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsInSphereAsCopies(FVector Center, float Radius, bool bVisibleOnly, bool bReturnWorldSpace);
-	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace)
+	template <typename T>
+	void GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, FSphere Sphere, const bool& bVisibleOnly, bool bReturnWorldSpace) const
 	{
 		FTransform LocalToWorld(LocationOffset.ToVector());
 		Sphere.Center -= LocationOffset.ToVector();
@@ -253,7 +311,8 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	TArray<FLidarPointCloudPoint> GetPointsInBoxAsCopies(FVector Center, FVector Extent, bool bVisibleOnly, bool bReturnWorldSpace);
-	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace)
+	template <typename T>
+	void GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint, T>& SelectedPoints, const FBox& Box, const bool& bVisibleOnly, bool bReturnWorldSpace) const
 	{
 		FTransform LocalToWorld(LocationOffset.ToVector());
 		Octree.GetPointsInBoxAsCopies(SelectedPoints, Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly, bReturnWorldSpace ? &LocalToWorld : nullptr);
@@ -375,10 +434,11 @@ public:
 	 * Warning: Will erase all currently held data!
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
-	void Initialize(const FBox& NewBounds)
+	void Initialize(const FBox& NewBounds) { Initialize(FDoubleBox(NewBounds)); }
+	void Initialize(const FDoubleBox& NewBounds)
 	{
 		LocationOffset = OriginalCoordinates = NewBounds.GetCenter();
-		Octree.Initialize(NewBounds.GetExtent());
+		Octree.Initialize(NewBounds.GetExtent().ToVector());
 	}
 
 	/** Builds collision mesh for the cloud, using current collision settings */
@@ -484,7 +544,13 @@ public:
 		FScopeLock Lock(&Octree.DataLock);
 		RemovePoints_NoLock(Points);
 	}
-	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*>& Points)
+	void RemovePoints(TArray64<FLidarPointCloudPoint*>& Points)
+	{
+		FScopeLock Lock(&Octree.DataLock);
+		RemovePoints_NoLock(Points);
+	}
+	template <typename T>
+	void RemovePoints_NoLock(TArray<FLidarPointCloudPoint*, T>& Points)
 	{
 		Octree.RemovePoints(Points);
 	}
@@ -503,6 +569,11 @@ public:
 	void RemovePointsInBox(FVector Center, FVector Extent, bool bVisibleOnly) { RemovePointsInBox(FBox(Center - Extent, Center + Extent), bVisibleOnly); }
 	void RemovePointsInBox(const FBox& Box, const bool& bVisibleOnly) { Octree.RemovePointsInBox(Box.ShiftBy(-LocationOffset.ToVector()), bVisibleOnly); }
 
+	/** Removes the first point hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void RemoveFirstPointByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemoveFirstPointByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
+	void RemoveFirstPointByRay(const FLidarPointCloudRay& Ray, const float& Radius, bool bVisibleOnly) { Octree.RemoveFirstPointByRay(Ray.ShiftBy(-LocationOffset.ToVector()), Radius, bVisibleOnly); }
+
 	/** Removes all points hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void RemovePointsByRay(FVector Origin, FVector Direction, float Radius, bool bVisibleOnly) { RemovePointsByRay(FLidarPointCloudRay(Origin, Direction), Radius, bVisibleOnly); }
@@ -516,17 +587,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	bool SetData(const TArray<FLidarPointCloudPoint>& Points) { return SetData(Points.GetData(), Points.Num()); }
 	bool SetData(TArray<FLidarPointCloudPoint*>& Points) { return SetData(Points.GetData(), Points.Num()); }
+	bool SetData(const TArray64<FLidarPointCloudPoint>& Points) { return SetData(Points.GetData(), Points.Num()); }
+	bool SetData(TArray64<FLidarPointCloudPoint*>& Points) { return SetData(Points.GetData(), Points.Num()); }
 	template<typename T>
 	bool SetData(T Points, const int64& Count, TFunction<void(float)> ProgressCallback = TFunction<void(float)>());
 
 	/** Merges this point cloud with the ones provided */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void Merge(TArray<ULidarPointCloud*> PointCloudsToMerge) { Merge(PointCloudsToMerge, nullptr); }
-	void Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunction<void(float)> ProgressCallback);
+	void Merge(TArray<ULidarPointCloud*> PointCloudsToMerge, TFunction<void(void)> ProgressCallback);
 
 	/** Merges this point cloud with the one provided */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void MergeSingle(ULidarPointCloud* PointCloudToMerge) { Merge(TArray<ULidarPointCloud*>({ PointCloudToMerge })); }
+
+	/** Calculates Normals for this point cloud */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (Latent, LatentInfo = "LatentInfo"))
+	void CalculateNormals(FLatentActionInfo LatentInfo);
+
+	/**
+	 * Calculates Normals for the provided points
+	 * If a nullptr is passed as Points, the calculation will be executed on the whole cloud.
+	 */
+	void CalculateNormals(TArray64<FLidarPointCloudPoint*>* Points, TFunction<void(void)> CompletionCallback);
 
 	//~ Begin Interface_CollisionDataProvider Interface
 	virtual bool GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
@@ -535,26 +618,6 @@ public:
 	//~ End Interface_CollisionDataProvider Interface
 
 	UBodySetup* GetBodySetup();
-
-	//~ Begin Deprecated
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Use SetLocationOffset() instead"))
-	void ShiftPointsBy(FVector Offset, bool bRefreshPointsBounds) { SetLocationOffset(LocationOffset + Offset); }
-
-	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Use GetBounds() instead"))
-	FBox GetPointsBounds() const { return GetBounds(); }
-
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
-	void SetVisibilityOfPointsInSphereAsync(bool bNewVisibility, FVector Center, float Radius) { SetVisibilityOfPointsInSphere(bNewVisibility, FSphere(Center, Radius)); }
-
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
-	void SetVisibilityOfPointsInBoxAsync(bool bNewVisibility, FVector Center, FVector Extent) { SetVisibilityOfPointsInBox(bNewVisibility, FBox(Center - Extent, Center + Extent)); }
-
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
-	void SetVisibilityOfPointsByRayAsync(bool bNewVisibility, FVector Origin, FVector Direction, float Radius) { SetVisibilityOfPointsByRay(bNewVisibility, FLidarPointCloudRay(Origin, Direction), Radius); }
-
-	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (DeprecatedFunction, DeprecationMessage = "Async methods are no longer provided out-of-the box"))
-	void ResetVisibilityAsync() { UnhideAll(); }
-	//~ End Deprecated
 
 public:
 	/** Aligns provided clouds based on the relative offset between their Original Coordinates. Retains overall centering of the group. */
@@ -576,14 +639,19 @@ public:
 	 */
 	template<typename T>
 	static ULidarPointCloud* CreateFromData(T Points, const int64& Count, const FLidarPointCloudAsyncParameters& AsyncParameters);
-	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
-	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
-	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
-	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
+	template <typename T>
+	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint, T>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
+	template <typename T>
+	static ULidarPointCloud* CreateFromData(const TArray<FLidarPointCloudPoint, T>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
+	template <typename T>
+	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*, T>& Points, const bool& bUseAsync) { return CreateFromData(Points.GetData(), Points.Num(), FLidarPointCloudAsyncParameters(bUseAsync)); }
+	template <typename T>
+	static ULidarPointCloud* CreateFromData(TArray<FLidarPointCloudPoint*, T>& Points, const FLidarPointCloudAsyncParameters& AsyncParameters) { return CreateFromData(Points.GetData(), Points.Num(), AsyncParameters); }
 
 	/** Returns bounds fitting the given list of points */
+	template <typename T>
+	static FBox CalculateBoundsFromPoints(T& Points) { return CalculateBoundsFromPoints(Points.GetData(), Points.Num()); }
 	static FBox CalculateBoundsFromPoints(const FLidarPointCloudPoint* Points, const int64& Count);
-	static FBox CalculateBoundsFromPoints(const TArray<FLidarPointCloudPoint>& Points) { return CalculateBoundsFromPoints(Points.GetData(), Points.Num()); }
 	static FBox CalculateBoundsFromPoints(FLidarPointCloudPoint** Points, const int64& Count);
 
 private:
@@ -658,6 +726,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	static void AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign) { ULidarPointCloud::AlignClouds(PointCloudsToAlign); }
 
+	/** Returns true if there are any points within the given sphere. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static bool ArePointsInSphere(UObject* WorldContextObject, FVector Center, float Radius, bool bVisibleOnly);
+
+	/** Returns true if there are any points within the given box. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static bool ArePointsInBox(UObject* WorldContextObject, FVector Center, FVector Extent, bool bVisibleOnly);
+
+	/** Returns true if there are any points hit by the given ray. */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static bool ArePointsByRay(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+
+	/** Returns an array with copies of points within the given sphere */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void GetPointsInSphereAsCopies(UObject* WorldContextObject, TArray<FLidarPointCloudPoint>& SelectedPoints, FVector Center, float Radius, bool bVisibleOnly);
+
+	/** Returns an array with copies of points within the given box */
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void GetPointsInBoxAsCopies(UObject* WorldContextObject, TArray<FLidarPointCloudPoint>& SelectedPoints, FVector Center, FVector Extent, const bool& bVisibleOnly);
+
 	/** Does a collision trace along the given line and returns the first blocking hit encountered. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject", DisplayName = "LineTraceForLidarPointCloud", Keywords = "raycast"))
 	static bool LineTraceSingle(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, FLidarPointCloudTraceHit& Hit);
@@ -665,4 +753,84 @@ public:
 	/** Does a collision trace along the given line and returns all hits encountered up to and including the first blocking hit. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject", DisplayName = "LineTraceMultiForLidarPointCloud", Keywords = "raycast"))
 	static bool LineTraceMulti(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly, TArray<FLidarPointCloudTraceHit>& Hits);
+
+	/** Sets visibility of points within the given sphere. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void SetVisibilityOfPointsInSphere(UObject* WorldContextObject, bool bNewVisibility, FVector Center, float Radius);
+
+	/** Sets visibility of points within the given box. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void SetVisibilityOfPointsInBox(UObject* WorldContextObject, bool bNewVisibility, FVector Center, FVector Extent);
+
+	/** Sets visibility of the first point hit by the given ray. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void SetVisibilityOfFirstPointByRay(UObject* WorldContextObject, bool bNewVisibility, FVector Origin, FVector Direction, float Radius);
+
+	/** Sets visibility of points hit by the given ray. */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void SetVisibilityOfPointsByRay(UObject* WorldContextObject, bool bNewVisibility, FVector Origin, FVector Direction, float Radius);
+
+	/** Applies the given color to all points within the sphere */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void ApplyColorToPointsInSphere(UObject* WorldContextObject, FColor NewColor, FVector Center, float Radius, bool bVisibleOnly);
+
+	/** Applies the given color to all points within the box */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void ApplyColorToPointsInBox(UObject* WorldContextObject, FColor NewColor, FVector Center, FVector Extent, bool bVisibleOnly);
+
+	/** Applies the given color to the first point hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void ApplyColorToFirstPointByRay(UObject* WorldContextObject, FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+
+	/** Applies the given color to all points hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void ApplyColorToPointsByRay(UObject* WorldContextObject, FColor NewColor, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+
+	/** Removes all points within the given sphere  */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void RemovePointsInSphere(UObject* WorldContextObject, FVector Center, float Radius, bool bVisibleOnly);
+
+	/** Removes all points within the given box */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void RemovePointsInBox(UObject* WorldContextObject, FVector Center, FVector Extent, bool bVisibleOnly);
+
+	/** Removes the first point hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void RemoveFirstPointByRay(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+
+	/** Removes all points hit by the given ray */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
+	static void RemovePointsByRay(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+};
+
+UENUM(BlueprintType)
+enum class ELidarClippingVolumeMode : uint8
+{
+	/** This will clip all points inside the volume */
+	ClipInside,
+	/** This will clip all points outside of the volume */
+	ClipOutside,
+};
+
+UCLASS(hidecategories = (Collision, Brush, Attachment, Physics, Volume, BrushBuilder), MinimalAPI)
+class ALidarClippingVolume : public AVolume
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
+	bool bEnabled;
+
+	/** Affects how this volume affects points */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
+	ELidarClippingVolumeMode Mode;
+
+	/**
+	 * Determines the processing order of the nodes, in case they overlap.
+	 * Higher values take priority over lower ones.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Clipping Volume")
+	int32 Priority;
+
+	ALidarClippingVolume();
 };

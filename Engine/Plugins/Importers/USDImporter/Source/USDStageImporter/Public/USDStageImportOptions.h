@@ -52,75 +52,60 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Geometry"))
 	bool bImportGeometry;
 
+	/** Whether to try importing UAnimSequence skeletal animation assets for each encountered UsdSkelAnimQuery */
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (EditCondition = bImportGeometry, DisplayName = "Skeletal Animations"))
+	bool bImportSkeletalAnimations;
+
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Materials & Textures"))
 	bool bImportMaterials;
-
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Lights", EditCondition=bImportActors))
-	bool bImportLights;
-
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Cameras", EditCondition=bImportActors))
-	bool bImportCameras;
-
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Animations", EditCondition=bImportActors))
-	bool bImportAnimations;
-
-	/** Whether or not to import custom properties and set their unreal equivalent on spawned actors */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "DataToImport", meta = (DisplayName = "Custom Properties", EditCondition=bImportActors))
-	bool bImportProperties;
 
 
 
 	/** Only import prims with these specific purposes from the USD file */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "ImportSettings", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
 	int32 PurposesToImport;
 
 	/** Time to evaluate the USD Stage for import */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "ImportSettings", meta = (DisplayName = "Time"))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (DisplayName = "Time"))
 	float ImportTime;
 
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "ImportSettings", meta = (ClampMin = 0.001f, ClampMax = 1000.0f, DisplayName = "Meters per unit"))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = (ClampMin = 0.001f, ClampMax = 1000.0f, DisplayName = "Meters per unit"))
 	float MetersPerUnit;
 
 
 
 	/**
-	 * If checked, To enforce unique asset paths, all assets will be created in directories that match with their prim path
-	 * e.g a USD path /root/myassets/myprim_mesh will generate the path in the game directory "/Game/myassets/" with a mesh asset called "myprim_mesh" within that path.
+	 * If enabled, whenever two different prims import into identical assets, only one of those assets will be kept and reused.
 	 */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "AssetCollision")
-	bool bGenerateUniquePathPerUSDPrim;
-
-	/**
-	 * This setting determines what to do if more than one USD prim is found with the same name.  If this setting is true a unique name will be generated and a unique asset will be imported
-	 * If this is false, the first asset found is generated. Assets will be reused when spawning actors into the world.
-	 */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "AssetCollision", meta=(EditCondition=bImportGeometry))
-	bool bGenerateUniqueMeshes;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, config, Category = "AssetCollision")
-	EMaterialSearchLocation MaterialSearchLocation;
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Collision", meta=(EditCondition=bImportGeometry))
+	bool bReuseIdenticalAssets;
 
 	/** What should happen when imported actors and components try to overwrite existing actors and components */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "AssetCollision", meta=(EditCondition=bImportActors))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Collision", meta=(EditCondition=bImportActors))
 	EReplaceActorPolicy ExistingActorPolicy;
 
 	/** What should happen when imported assets try to overwrite existing assets */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "AssetCollision")
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Collision")
 	EReplaceAssetPolicy ExistingAssetPolicy;
 
 
 
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "PostProcess", meta=(EditCondition=bImportGeometry))
-	bool bApplyWorldTransformToGeometry;
-
-	/** If checked, all actors generated will have a world space transform and will not have any attachment hierarchy */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "PostProcess", meta=(EditCondition=bImportActors))
-	bool bFlattenHierarchy;
+	/**
+	 * When enabled, assets will be imported into a content folder structure according to their prim path. When disabled,
+	 * assets are imported into content folders according to asset type (e.g. 'Materials', 'StaticMeshes', etc).
+	 */
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Processing")
+	bool bPrimPathFolderStructure;
 
 	/** Attempt to combine assets and components whenever possible */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "PostProcess", meta=(DisplayName="Collapse assets and components"))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "Processing", meta=(DisplayName="Collapse assets and components"))
 	bool bCollapse;
 
+	/** When true, if a prim has a "LOD" variant set with variants named "LOD0", "LOD1", etc. where each contains a UsdGeomMesh, the importer will attempt to parse the meshes as separate LODs of a single UStaticMesh. When false, only the selected variant will be parsed as LOD0 of the UStaticMesh.  */
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category="Processing", meta=(DisplayName="Interpret LOD variant sets", EditCondition=bImportGeometry) )
+	bool bInterpretLODs;
+
 public:
+	void EnableActorImport(bool bEnable);
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 };

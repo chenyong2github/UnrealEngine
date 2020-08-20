@@ -168,6 +168,7 @@ private:
 	*  Reduce the skeletal mesh
 	*  @param SrcLODModel       - Input mesh for simplification
 	*  @param OutLODModel       - The result of simplification
+	*  @param SkeletalMeshName  - Name of the skeletal mesh
 	*  @param Bounds            - The bounds of the source geometry - can be used in computing simplification error threshold
 	*  @param RefSkeleton       - The reference skeleton
 	*  @param Settings          - Settings that control the reduction
@@ -177,6 +178,7 @@ private:
 	*/
 	bool ReduceSkeletalLODModel( const FSkeletalMeshLODModel& SrcLODModel,
 		                         FSkeletalMeshLODModel& OutLODModel,
+								 const FString& SkeletalMeshName,
 		                         const FBoxSphereBounds& Bounds,
 		                         const FReferenceSkeleton& RefSkeleton,
 		                         FSkeletalMeshOptimizationSettings Settings,
@@ -207,13 +209,15 @@ private:
 
 	/**
 	* Generate a SkeletalMeshLODModel from a SkinnedSkeletalMesh and ReferenceSkeleton
+	* @param SkeletalMeshName - Name of the skeletal mesh
 	* @param MaxBonesPerVert - Maximum number of bones per vert in the resulting LODModel.
 	* @param SrcLODModel     - Reference model - provided in case some closest per-vertex data needs to be transfered (e.g. alternate weights) 
 	* @param SkinnedMesh     - the source mesh
 	* @param RefSkeleton    - reference skeleton
 	* @param NewModel       - resulting MeshLODModel
 	*/
-	void ConvertToFSkeletalMeshLODModel( const int32 MaxBonesPerVert,
+	void ConvertToFSkeletalMeshLODModel( const FString& SkeletalMeshName,
+		                                 const int32 MaxBonesPerVert,
 		                                 const FSkeletalMeshLODModel& SrcLODModel,
 		                                 const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 		                                 const FReferenceSkeleton& RefSkeleton,
@@ -1571,11 +1575,12 @@ void  FQuadricSkeletalMeshReduction::AddSourceModelInfluences( const FSkeletalMe
 
 
 
-void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 MaxBonesPerVertex,
+void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FString& SkeletalMeshName,
+	                                                                const int32 MaxBonesPerVertex,
 	                                                                const FSkeletalMeshLODModel& SrcLODModel,
 	                                                                const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 	                                                                const FReferenceSkeleton& RefSkeleton,
-	                                                                FSkeletalMeshLODModel& NewModel,	
+	                                                                FSkeletalMeshLODModel& NewModel,
 																	const bool bReducingSourceModel) const
 {
 	// We might be re-using this model - so clear it.
@@ -1622,6 +1627,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 
 	MeshUtilities.BuildSkeletalMesh(
 		NewModel,
+		SkeletalMeshName,
 		RefSkeleton,
 		SkeletalMeshData.Influences,
 		SkeletalMeshData.Wedges,
@@ -1647,7 +1653,8 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const int32 
 }
 
 bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshLODModel& SrcModel,
-	                                                        FSkeletalMeshLODModel& OutSkeletalMeshLODModel,
+														    FSkeletalMeshLODModel& OutSkeletalMeshLODModel,
+														    const FString& SkeletalMeshName,
 	                                                        const FBoxSphereBounds& Bounds,
 	                                                        const FReferenceSkeleton& RefSkeleton,
 	                                                        FSkeletalMeshOptimizationSettings Settings,
@@ -1733,7 +1740,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 		// Convert to SkeletalMeshLODModel. 
 
-		ConvertToFSkeletalMeshLODModel(Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel);
+		ConvertToFSkeletalMeshLODModel(SkeletalMeshName, Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel);
 
 		// We may need to do additional simplification if the user specified a hard number limit for verts and
 		// the internal chunking during conversion split some verts.
@@ -2049,7 +2056,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	// Reduce LOD model with SrcMesh if src mesh has more then 1 triangle
-	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
+	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.RefSkeleton, Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
 	{
 		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
 		check(ReducedLODInfoPtr);

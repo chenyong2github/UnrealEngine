@@ -354,6 +354,11 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 							return false;
 						}
 
+						if (FilteredTextureElements[TextureIndex]->GetTextureMode() == EDatasmithTextureMode::Ies)
+						{
+							return true;
+						}
+
 						return DatasmithTextureImporter.GetTextureData(FilteredTextureElements[TextureIndex], AsyncData[TextureIndex].TextureData, AsyncData[TextureIndex].Extension);
 					}
 				);
@@ -1320,6 +1325,8 @@ void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& Import
 {
 	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
 	ImportContext.FilteredScene = FDatasmithSceneFactory::DuplicateScene( ImportContext.Scene.ToSharedRef() );
+
+	FDatasmithSceneUtils::CleanUpScene(ImportContext.FilteredScene.ToSharedRef(), false);
 
 	// Filter meshes to import by consulting the AssetRegistry to see if that asset already exist
 	// or if it changed at all, if deemed identical filter the mesh out of the current import

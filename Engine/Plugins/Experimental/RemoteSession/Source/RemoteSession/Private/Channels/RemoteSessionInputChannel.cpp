@@ -8,12 +8,33 @@
 #include "RemoteSessionUtils.h"
 
 
+class FRemoteSessionInputChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
+{
+public:
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection) const override
+	{
+		TSharedPtr<FRemoteSessionInputChannel> Channel = MakeShared<FRemoteSessionInputChannel>(InMode, InConnection);
+		if (InMode == ERemoteSessionChannelMode::Read)
+		{
+			TWeakPtr<SWindow> InputWindow;
+			TWeakPtr<FSceneViewport> SceneViewport;
+			FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
+
+			Channel->SetPlaybackWindow(InputWindow, SceneViewport);
+		}
+
+		return Channel;
+	}
+};
+
+REGISTER_CHANNEL_FACTORY(FRemoteSessionInputChannel, FRemoteSessionInputChannelFactoryWorker, ERemoteSessionChannelMode::Read);
+
 namespace RemoteSessionVars
 {
 	static FAutoConsoleVariable BlockLocalInput(TEXT("Remote.BlockLocalInput"), 0, TEXT("Don't accept local input when a host is connected"));
 };
 
-FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection)
+FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection)
 	: IRemoteSessionChannel(InRole, InConnection)
 {
 
@@ -39,8 +60,8 @@ FRemoteSessionInputChannel::FRemoteSessionInputChannel(ERemoteSessionChannelMode
 
 		PlaybackHandler = MakeShared<FRecordingMessageHandler>(DefaultHandler);
 		
-		auto Delegate = FBackChannelDispatchDelegate::FDelegate::CreateRaw(this, &FRemoteSessionInputChannel::OnRemoteMessage);
-		MessageCallbackHandle = Connection->AddMessageHandler(TEXT("/MessageHandler/"), Delegate);
+		auto Delegate = FBackChannelRouteDelegate::FDelegate::CreateRaw(this, &FRemoteSessionInputChannel::OnRemoteMessage);
+		MessageCallbackHandle = Connection->AddRouteDelegate(TEXT("/MessageHandler/"), Delegate);
 
 		FSlateApplication::Get().GetPlatformApplication()->SetMessageHandler(PlaybackHandler.ToSharedRef());
 	}
@@ -51,7 +72,7 @@ FRemoteSessionInputChannel::~FRemoteSessionInputChannel()
 	if (Role == ERemoteSessionChannelMode::Read)
 	{
 		// Remove the callback so it doesn't call back on an invalid this
-		Connection->RemoveMessageHandler(TEXT("/MessageHandler/"), MessageCallbackHandle);
+		Connection->RemoveRouteDelegate(TEXT("/MessageHandler/"), MessageCallbackHandle);
 		MessageCallbackHandle.Reset();
 	}
 
@@ -134,36 +155,22 @@ void FRemoteSessionInputChannel::RecordMessage(const TCHAR* MsgName, const TArra
 	{
 		// send as blobs
 		FString Path = FString::Printf(TEXT("/MessageHandler/%s"), MsgName);
-		FBackChannelOSCMessage Msg(*Path);
 
-		Msg.Write(Data);
+		TBackChannelSharedPtr<IBackChannelPacket> Packet = Connection->CreatePacket();
+		Packet->SetPath(*Path);
+		Packet->Write(TEXT("Data"), Data);
 
-		Connection->SendPacket(Msg);
+		Connection->SendPacket(Packet);
 	}
 }
 
-void FRemoteSessionInputChannel::OnRemoteMessage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch)
+void FRemoteSessionInputChannel::OnRemoteMessage(IBackChannelPacket& Message)
 {
-	FString MessageName = Message.GetAddress();
+	FString MessageName = Message.GetPath();
 	MessageName.RemoveFromStart(TEXT("/MessageHandler/"));
 
 	TArray<uint8> MsgData;
-	Message << MsgData;
+	Message.Read(TEXT("Data"), MsgData);
 	
 	PlaybackHandler->PlayMessage(*MessageName, MoveTemp(MsgData));
-}
-
-TSharedPtr<IRemoteSessionChannel> FRemoteSessionInputChannelFactoryWorker::Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const
-{
-	TSharedPtr<FRemoteSessionInputChannel> Channel = MakeShared<FRemoteSessionInputChannel>(InMode, InConnection);
-	if (InMode == ERemoteSessionChannelMode::Read)
-	{
-		TWeakPtr<SWindow> InputWindow;
-		TWeakPtr<FSceneViewport> SceneViewport;
-		FRemoteSessionUtils::FindSceneViewport(InputWindow, SceneViewport);
-
-		Channel->SetPlaybackWindow(InputWindow, SceneViewport);
-	}
-
-	return Channel;
 }

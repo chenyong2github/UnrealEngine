@@ -17,6 +17,7 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 
 		WindowsPlatform.ModuleDefinitionFile = "Programs/Enterprise/Datasmith/DatasmithMaxExporter/DatasmithMaxExporter.def";
+		WindowsPlatform.bStrictConformanceMode = false;
 
 		bBuildDeveloperTools = false;
 		bUseMallocProfiler = false;

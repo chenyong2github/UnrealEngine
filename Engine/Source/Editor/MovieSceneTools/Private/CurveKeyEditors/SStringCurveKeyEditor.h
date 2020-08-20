@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "SequencerKeyEditor.h"
-#include "Sections/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 
 struct FMovieSceneStringChannel;
 

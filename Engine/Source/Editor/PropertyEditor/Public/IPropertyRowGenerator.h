@@ -5,6 +5,7 @@
 #include "PropertyEditorModule.h"
 
 class IDetailTreeNode;
+class FStructOnScope;
 
 struct FPropertyRowGeneratorArgs
 {
@@ -12,6 +13,8 @@ struct FPropertyRowGeneratorArgs
 		: NotifyHook(nullptr)
 		, DefaultsOnlyVisibility(EEditDefaultsOnlyNodeVisibility::Show)
 		, bAllowMultipleTopLevelObjects(false)
+		, bShouldShowHiddenProperties(false)
+		, bAllowEditingClassDefaultObjects(true)
 	{}
 
 	/** Notify hook to call when properties are changed */
@@ -20,7 +23,14 @@ struct FPropertyRowGeneratorArgs
 	/** Controls how CPF_DisableEditOnInstance nodes will be treated */
 	EEditDefaultsOnlyNodeVisibility DefaultsOnlyVisibility;
 
+	/** Whether the root node should contain multiple objects. */
 	bool bAllowMultipleTopLevelObjects;
+
+	/** Whether the generator should generate hidden properties. */
+	bool bShouldShowHiddenProperties;
+
+	/** Whether the generator should allow editing CDOs. */
+	bool bAllowEditingClassDefaultObjects;
 };
 
 class IPropertyRowGenerator
@@ -34,6 +44,19 @@ public:
 	 * @param InObjects	The list of objects to generate rows from.  Note unless FPropertyRowGeneratorArgs.bAllowMultipleTopLevelObjects is set to true, the properties used will be the common base class of all passed in objects
 	 */
 	virtual void SetObjects(const TArray<UObject*>& InObjects) = 0;
+
+	/**
+	 * Sets the structure that should be used to generate rows
+	 *
+	 * @param InStruct The structure used to generate rows from.
+	 */
+	virtual void SetStructure(const TSharedPtr<FStructOnScope>& InStruct) = 0;
+
+	/**
+	 * Get the list of objects that were used to generate detail tree nodes
+	 * @return A list of weak pointers to this generator's objects.
+	 */
+	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const = 0;
 
 	/**
 	 * Delegate called when rows have been refreshed.  This delegate should always be bound to something because once this is called, none of the rows previously generated can be trusted

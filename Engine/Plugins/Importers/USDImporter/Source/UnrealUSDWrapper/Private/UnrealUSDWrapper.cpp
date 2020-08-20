@@ -29,6 +29,7 @@
 #include "pxr/usd/ar/defaultResolver.h"
 #include "pxr/usd/ar/defineResolver.h"
 #include "pxr/usd/kind/registry.h"
+#include "pxr/usd/sdf/fileFormat.h"
 #include "pxr/usd/sdf/schema.h"
 #include "pxr/usd/usd/attribute.h"
 #include "pxr/usd/usd/common.h"
@@ -47,6 +48,7 @@
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/light.h"
 #include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/usd/usdShade/tokens.h"
 #include "pxr/usd/usdUtils/stageCache.h"
 
 #include "USDIncludesEnd.h"
@@ -70,21 +72,45 @@ static TUsdStore< UsdGeomXformCache > XFormCache;
 
 namespace UnrealIdentifiers
 {
-	/**
-	 * Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
-	 * named LOD0, LOD1, LOD2, etc
-	 */
-	static const TfToken LOD("LOD");
-
 	static const TfToken AssetPath("unrealAssetPath");
 
 	static const TfToken ActorClass("unrealActorClass");
 
 	static const TfToken PropertyPath("unrealPropertyPath");
 
-	static const TfToken MaterialRelationship("material:binding");
+	/**
+	 * Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
+	 * named LOD0, LOD1, LOD2, etc
+	 */
+	const TfToken LOD("LOD");
 
-	const TfToken MaterialAssignments = TfToken("unrealMaterials");
+	const TfToken MaterialAssignments = TfToken("unrealMaterials"); // DEPRECATED in favor of MaterialAssignment
+	const TfToken MaterialAssignment = TfToken("unrealMaterial");
+
+	const TfToken DiffuseColor = TfToken("diffuseColor");
+	const TfToken EmissiveColor = TfToken("emissiveColor");
+	const TfToken Metallic = TfToken("metallic");
+	const TfToken Roughness = TfToken("roughness");
+	const TfToken Opacity = TfToken("opacity");
+	const TfToken Normal = TfToken("normal");
+	const TfToken Specular = TfToken("specular");
+	const TfToken Anisotropy = TfToken("anisotropy");
+	const TfToken Tangent = TfToken("tangent");
+	const TfToken SubsurfaceColor = TfToken("subsurfaceColor");
+	const TfToken AmbientOcclusion = TfToken("ambientOcclusion");
+
+	const TfToken Surface = TfToken("surface");
+	const TfToken St = TfToken("st");
+	const TfToken Varname = TfToken("varname");
+	const TfToken Result = TfToken("result");
+	const TfToken File = TfToken("file");
+	const TfToken Fallback = TfToken("fallback");
+	const TfToken R = TfToken("r");
+	const TfToken RGB = TfToken("rgb");
+
+	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
+	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
+	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
 }
 
 void Log(const char* Format, ...)
@@ -815,7 +841,11 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		}
 
 		MaterialNames.AddDefaulted(FaceSubsets.size());
-		FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
+		FaceMaterialIndices.AddUninitialized(FaceVertexCounts.size());
+		for ( int32& FaceMaterialIndex : FaceMaterialIndices )
+		{
+			FaceMaterialIndex = INDEX_NONE; // Signal "no material assigned", so that we can fill in those spots with DisplayColor materials, if any
+		}
 
 		int MaterialIndex = 0;
 		for (const auto &Subset : FaceSubsets)
@@ -858,7 +888,11 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		return MakeTuple( MaterialNames, FaceMaterialIndices );
 	}
 
-	FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
+	FaceMaterialIndices.AddUninitialized( FaceVertexCounts.size() );
+	for ( int32& FaceMaterialIndex : FaceMaterialIndices )
+	{
+		FaceMaterialIndex = INDEX_NONE; // Signal "no material assigned", so that we can fill in those spots with DisplayColor materials, if any
+	}
 
 	// Figure out a zero based material index for each face.  The mapping is FaceMaterialIndices[FaceIndex] = MaterialIndex;
 	// This is done by walking the face sets and for each face set getting the number number of unique groups of faces in the set
@@ -871,7 +905,7 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 	//MaterialNames.Resize(FaceSets)
 	{
 		// No face sets, find a relationship that defines the material
-		UsdRelationship Relationship = Prim.GetRelationship(UnrealIdentifiers::MaterialRelationship);
+		UsdRelationship Relationship = Prim.GetRelationship(UsdShadeTokens->materialBinding);
 		if (Relationship)
 		{
 			SdfPathVector Targets;
@@ -1021,6 +1055,30 @@ double UnrealUSDWrapper::GetDefaultTimeCode()
 }
 #endif // USE_USD_SDK
 
+TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
+{
+	TArray<FString> Result;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	std::set<std::string> Extensions = pxr::SdfFileFormat::FindAllFileFormatExtensions();
+	for ( const std::string& Ext : Extensions )
+	{
+		// Ignore formats that don't target "usd"
+		pxr::SdfFileFormatConstPtr Format = pxr::SdfFileFormat::FindByExtension(Ext, pxr::UsdUsdFileFormatTokens->Target);
+		if ( Format == nullptr )
+		{
+			continue;
+		}
+
+		Result.Emplace( ANSI_TO_TCHAR( Ext.c_str() ) );
+	}
+#endif // #if USE_USD_SDK
+
+	return Result;
+}
+
 UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
 {
 #if USE_USD_SDK
@@ -1029,6 +1087,7 @@ UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoa
 	if ( bUseStageCache )
 	{
 		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
+
 		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
 	}
 	else
@@ -1065,6 +1124,8 @@ TArray< UE::FUsdStage > UnrealUSDWrapper::GetAllStagesFromCache()
 	TArray< UE::FUsdStage > StagesInCache;
 
 #if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
 	for ( const pxr::UsdStageRefPtr& StageInCache : pxr::UsdUtilsStageCache::Get().GetAllStages() )
 	{
 		StagesInCache.Emplace( StageInCache );

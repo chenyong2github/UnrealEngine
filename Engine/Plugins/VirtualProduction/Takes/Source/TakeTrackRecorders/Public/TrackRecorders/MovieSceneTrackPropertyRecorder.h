@@ -190,66 +190,65 @@ public:
 		{
 			return;
 		}
-
+		
 		FTrackRecorderSettings TrackRecorderSettings = OwningTakeRecorderSource->GetTrackRecorderSettings();
+			
+		// The section can be removed if this is a spawnable since the spawnable template should have the same default values
+		bool bRemoveSection = true;
 
-		// If any channel has more than 1 key, the track cannot be removed
-		FMovieSceneChannelProxy& ChannelProxy = InSection->GetChannelProxy();
-		for (const FMovieSceneChannelEntry& Entry : InSection->GetChannelProxy().GetAllEntries())
+		bool bExclude = FTrackRecorderSettings::IsExcludePropertyTrack(InObjectToRecord, Binding.GetPropertyPath(), TrackRecorderSettings.DefaultTracks);
+		if (!bExclude)
 		{
-			TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
-
-			for (int32 Index = 0; Index < Channels.Num(); ++Index)
+			// If any channel has more than 1 key, the track cannot be removed
+			FMovieSceneChannelProxy& ChannelProxy = InSection->GetChannelProxy();
+			for (const FMovieSceneChannelEntry& Entry : InSection->GetChannelProxy().GetAllEntries())
 			{
-				if (Channels[Index]->GetNumKeys() > 1)
+				TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
+
+				for (int32 Index = 0; Index < Channels.Num(); ++Index)
 				{
-					return;
+					if (Channels[Index]->GetNumKeys() > 1)
+					{
+						return;
+					}
+				}
+			}
+
+			// Assumes each channel is left with 1 or no keys, so the keys can be removed and the default value set
+			PropertyType DefaultValue = GetDefaultValue(InSection);
+
+			// Reset channels
+			for (const FMovieSceneChannelEntry& Entry : InSection->GetChannelProxy().GetAllEntries())
+			{
+				TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
+
+				for (int32 Index = 0; Index < Channels.Num(); ++Index)
+				{
+					Channels[Index]->Reset();
+				}
+			}
+
+			SetDefaultValue(InSection, DefaultValue);
+
+			// If recording to a possessable, this section can only be removed if the CDO value is the same and it's not on the whitelist of default property tracks
+			if (TrackRecorderSettings.bRecordToPossessable)
+			{
+				bRemoveSection = false;
+
+				UObject* DefaultObject = InObjectToRecord->GetClass()->GetDefaultObject();
+				if (DefaultObject && Binding.GetCurrentValue<PropertyType>(*DefaultObject) == DefaultValue)
+				{
+					bRemoveSection = true;
+				}
+
+				if (bRemoveSection && FTrackRecorderSettings::IsDefaultPropertyTrack(InObjectToRecord, Binding.GetPropertyPath(), TrackRecorderSettings.DefaultTracks))
+				{
+					bRemoveSection = false;
 				}
 			}
 		}
 
-		// Assumes each channel is left with 1 or no keys, so the keys can be removed and the default value set
-		PropertyType DefaultValue = GetDefaultValue(InSection);
-
-		// Reset channels
-		for (const FMovieSceneChannelEntry& Entry : InSection->GetChannelProxy().GetAllEntries())
-		{
-			TArrayView<FMovieSceneChannel* const> Channels = Entry.GetChannels();
-
-			for (int32 Index = 0; Index < Channels.Num(); ++Index)
-			{
-				Channels[Index]->Reset();
-			}
-		}
-
-		SetDefaultValue(InSection, DefaultValue);
-
-		// The section can be removed if this is a spawnable since the spawnable template should have the same default values
-		bool bRemoveSection = true;
-
-		// If recording to a possessable, this section can only be removed if the CDO value is the same and it's not on the whitelist of default property tracks
-		if (TrackRecorderSettings.bRecordToPossessable)
-		{
-			bRemoveSection = false;
-
-			UObject* DefaultObject = InObjectToRecord->GetClass()->GetDefaultObject();
-			if (DefaultObject && Binding.GetCurrentValue<PropertyType>(*DefaultObject) == DefaultValue)
-			{
-				bRemoveSection = true;
-			}
-
-			if (bRemoveSection && FTrackRecorderSettings::IsDefaultPropertyTrack(InObjectToRecord, Binding.GetPropertyPath(), TrackRecorderSettings.DefaultTracks))
-			{
-				bRemoveSection = false;
-			}
-		}
-
-		if (!bRemoveSection && FTrackRecorderSettings::IsExcludePropertyTrack(InObjectToRecord, Binding.GetPropertyPath(), TrackRecorderSettings.DefaultTracks))
-		{
-			bRemoveSection = true;
-		}
-
-		if (bRemoveSection)
+		if (bRemoveSection || bExclude)
 		{
 			UMovieSceneTrack* MovieSceneTrack = CastChecked<UMovieSceneTrack>(InSection->GetOuter());
 			UMovieScene* MovieScene = CastChecked<UMovieScene>(MovieSceneTrack->GetOuter());

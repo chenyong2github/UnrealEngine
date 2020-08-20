@@ -78,7 +78,8 @@ public:
 
 bool FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const UE::FUsdPrim& GeomPrim, int32 LODIndex)
 {
-	return UsdToUnreal::ConvertGeomMesh( UE::FUsdTyped( GeomPrim ), *MeshDescription );
+	UsdUtils::FUsdPrimMaterialAssignmentInfo MaterialInfo;
+	return UsdToUnreal::ConvertGeomMesh( UE::FUsdTyped( GeomPrim ), *MeshDescription, MaterialInfo );
 }
 
 void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)

@@ -164,3 +164,13 @@ public:
 private:
 	TArray< FString > UpdatedFiles;
 };
+
+class FPerforceChangeStatusWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceChangeStatusWorker() {}
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};

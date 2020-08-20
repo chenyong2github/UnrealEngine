@@ -16,6 +16,8 @@ class FMenuBuilder;
 class FNotifyHook;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
+class IDetailCategoryBuilder;
+class IPropertyHandle;
 
 namespace ETransformField
 {
@@ -33,6 +35,7 @@ class FComponentTransformDetails : public TSharedFromThis<FComponentTransformDet
 {
 public:
 	FComponentTransformDetails( const TArray< TWeakObjectPtr<UObject> >& InSelectedObjects, const FSelectedActorInfo& InSelectedActorInfo, IDetailLayoutBuilder& DetailBuilder );
+	~FComponentTransformDetails();
 
 	/**
 	 * Caches the representation of the actor transform for the user input boxes                   
@@ -235,6 +238,13 @@ private:
 	/** Cache a single unit to display all location components in */
 	void CacheCommonLocationUnits();
 
+	/** Generate a property handle from a property name. */
+	TSharedPtr<IPropertyHandle> GeneratePropertyHandle(FName PropertyName, IDetailChildrenBuilder& ChildrenBuilder);
+	/** Update the outer objects of the property handles generated from this transform. */
+	void UpdatePropertyHandlesObjects(const TArray<UObject*> NewSceneComponents);
+
+	/** Delegate called when the OnObjectsReplaced is broadcast by the engine. */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 private:
 	/** A vector where it may optionally be unset */
 	struct FOptionalVector
@@ -300,4 +310,8 @@ private:
 	bool bIsSliderTransaction;
 	/** Bitmask to indicate which fields should be hidden (if any) */
 	uint8 HiddenFieldMask;
+	/** Holds this transform's property handles. */
+	TArray< TSharedPtr< IPropertyHandle> > PropertyHandles;
+	/** Holds the property handles' outer objects. Used to update the handles' objects when the actor construction script runs. */
+	TArray< TWeakObjectPtr<UObject> > CachedHandlesObjects;
 };

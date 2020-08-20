@@ -17,12 +17,12 @@
 #define LOCTEXT_NAMESPACE "CoreTechRetessellateAction"
 
 
-bool UCoreTechBlueprintLibrary::RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, FText& FailureReason)
+bool UCoreTechBlueprintLibrary::RetessellateStaticMesh(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, FText& FailureReason)
 {
 	return RetessellateStaticMeshWithNotification(StaticMesh, TessellationSettings, true, FailureReason);
 }
 
-bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithTessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason)
+bool UCoreTechBlueprintLibrary::RetessellateStaticMeshWithNotification(UStaticMesh* StaticMesh, const FDatasmithRetessellationOptions& TessellationSettings, bool bApplyChanges, FText& FailureReason)
 {
 	bool bTessellationOutcome = false;
 

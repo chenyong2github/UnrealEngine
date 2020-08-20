@@ -59,8 +59,51 @@ public:
 		: FDMXCustomization(InDMXEditorPtr)
 	{}
 
+	virtual ~FDMXControllersDetails() override 
+	{
+		DetailBuilder = nullptr;
+	} ;
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+private:
+	/** Generates communication mode options based on select protocol */
+	void GenerateCommunicationModeOptions();
+	
+	/** Returns communication mode label */
+	FText GetCommunicationModeLabel() const;
+
+	/** Communication mode change event */
+	void OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo);
+
+	/** Protocol change event */
+	void OnProtocolChanged();
+
+	/** communication mode widget generate event */
+	TSharedRef<SWidget> OnCommunicationModeGenerateWidget(const TSharedPtr<EDMXCommunicationTypes> InMode) const;
+
+	/** Detail layout build for refresh panel */
+	IDetailLayoutBuilder* DetailBuilder;
+
+	/** Device protocol property handle */
+	TSharedPtr<IPropertyHandle> ProtocolHandle;
+	
+	/** Selected device protocol name */
+	FDMXProtocolName ProtocolName;
+	
+	/** Communication mode enums for custom combobox */
+	TArray<TSharedPtr<EDMXCommunicationTypes>> CommunicationModeOptions;
+
+	/** Communication mode property handle */
+	TSharedPtr<IPropertyHandle> CommunicationModeHandle;
+
+	/** Active communication mode */
+	EDMXCommunicationTypes ActiveCommunicationMode;
+
+	/** Communication mode labels for custom combobox */
+	TMap<EDMXCommunicationTypes, FString> CommunicationModeLabels;
+
+	/** Communication mode widgets for custom combobox */
+	TMap<EDMXCommunicationTypes, TSharedRef<SWidget>> CommunicationModeWidgets;
 };
 
 /** Base class for Fixture Types' Modes, Functions and Sub Functions customizations */
@@ -90,16 +133,19 @@ protected:
 	/** Changes the function name on the fixture properties */
 	void SetFunctionName(const FString& NewName);
 
+	void BuildFunctionNameWidget(IDetailChildrenBuilder& InStructBuilder, FText& NewPropertyLabel, FText& ToolTip);
+
 protected:
 	TArray<UDMXEntityFixtureType*> SelectedFixtures;
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
 	FName NamePropertyName;
 
 	TWeakPtr<FDMXEditor> DMXEditorPtr;
+	FText ExistingNameError;
 
 private:
 	TSharedPtr<SEditableTextBox> NameEditableTextBox;
-	FText ExistingNameError;
+
 };
 
 /** Details customization for Fixture Modes */
@@ -114,13 +160,11 @@ public:
 
 	void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override;
 
+	EVisibility CheckPixelMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType);
 protected:
 	//~ FDMXFixtureTypeFunctionsDetails interface
 	virtual void GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError) override;
 	virtual TArray<FString> GetExistingNames() const override;
-
-private:
-	TSharedPtr<IPropertyHandle> AutoChannelSpanHandle;
 };
 
 /** Details customization for Fixture Mode Functions */
@@ -194,6 +238,9 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
+	/** Called when the bAutoAssignAddress Property changed */
+	void OnAutoAssignAddressChanged();
+
 	/** Fill the ActiveModeOptions array with the modes for the selected patches */
 	void GenerateActiveModeOptions();
 	
@@ -211,6 +258,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> ParentFixtureTypeHandle;
 	TSharedPtr<IPropertyHandle> ActiveModeHandle;
+	TSharedPtr<IPropertyHandle> AutoAssignAddressHandle;
 };
 
 /**  Customization for any property that should be displayed as a dropdown of options from a FName array */
@@ -376,6 +424,26 @@ private:
 	static const FName NAME_DMXLibrary;
 
 	TSharedPtr<IPropertyHandle> StructHandle;
+};
+
+class FDMXPixelsDistributionCustomization
+	: public IPropertyTypeCustomization
+{
+public:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+
+protected:
+	FSlateColor GetButtonColorAndOpacity(int32 GridIndexX, int32 GridIndexY);
+	FReply OnGridButtonClicked(int32 GridIndexX, int32 GridIndexY);
+
+private:
+	static const uint8 DistributionGridNumXPanels = 4;
+	static const uint8 DistributionGridNumYPanels = 4;
+
+	TSharedPtr<IPropertyHandle> PropertyHandle;
 };
 
 struct FDMXCustomizationFactory

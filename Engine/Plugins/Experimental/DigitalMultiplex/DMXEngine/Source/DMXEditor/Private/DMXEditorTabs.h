@@ -16,9 +16,6 @@ struct FDMXEditorTabs
 	/**	The tab id for the dmx fixture patch tab */
 	static const FName DMXFixturePatchEditorTabId;
 
-	/**	The tab id for the dmx monitor tab */
-	static const FName DMXInputConsoleEditorTabId;
-
 	/**	The tab id for the dmx output console tab */
 	static const FName DMXOutputConsoleEditorTabId;
 

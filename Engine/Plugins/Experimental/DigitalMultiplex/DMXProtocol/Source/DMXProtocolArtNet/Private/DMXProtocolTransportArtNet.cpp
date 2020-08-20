@@ -2,8 +2,11 @@
 
 #include "DMXProtocolTransportArtNet.h"
 #include "DMXProtocolArtNet.h"
+#include "DMXProtocolSettings.h"
 #include "Managers/DMXProtocolUniverseManager.h"
 #include "DMXProtocolUniverseArtNet.h"
+#include "DMXProtocolConstants.h"
+#include "DMXStats.h"
 
 #include "Common/UdpSocketSender.h"
 #include "HAL/Event.h"
@@ -15,10 +18,11 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
-static FTimespan CalculateWaitTime()
-{
-	return FTimespan::FromMilliseconds(10);
-}
+// Stats
+DECLARE_CYCLE_STAT(TEXT("Art-Net Packages Sent"), STAT_ArtNetPackagesSent, STATGROUP_DMX);
+DECLARE_CYCLE_STAT(TEXT("Art-Net Packages Recieved"), STAT_ArtNetPackagesRecieved, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Packages Sent Total"), STAT_ArtNetPackagesSentTotal, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Packages Recieved Total"), STAT_ArtNetPackagesRecievedTotal, STATGROUP_DMX);
 
 FDMXProtocolSenderArtNet::FDMXProtocolSenderArtNet(FSocket& InSocket, FDMXProtocolArtNet* InProtocol)
 	: LastSentPackage(-1)
@@ -26,6 +30,8 @@ FDMXProtocolSenderArtNet::FDMXProtocolSenderArtNet(FSocket& InSocket, FDMXProtoc
 	, BroadcastSocket(&InSocket)
 	, Protocol(InProtocol)
 {
+	SendingRefreshRate = DMX_MAX_REFRESH_RATE;
+
 	WorkEvent = MakeShareable(FPlatformProcess::GetSynchEventFromPool(), [](FEvent* EventToDelete)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(EventToDelete);
@@ -57,11 +63,20 @@ bool FDMXProtocolSenderArtNet::Init()
 
 uint32 FDMXProtocolSenderArtNet::Run()
 {
-	while (StopTaskCounter.GetValue() == 0)
+	while (WorkEvent->Wait() && StopTaskCounter.GetValue() == 0)
 	{
-		if (WorkEvent->Wait(CalculateWaitTime()))
+		// Send all packages instantly if the refresh rate is 0
+		if (SendingRefreshRate <= 0)
 		{
 			ConsumeOutboundPackages();
+		}
+		// Otherwise, wait by value in refresh rate
+		else
+		{
+			ConsumeOutboundPackages();
+
+			// Sleep by the amount which is set in refresh rate
+			FPlatformProcess::SleepNoStats(1.f / SendingRefreshRate);
 		}
 	}
 
@@ -95,32 +110,41 @@ FSingleThreadRunnable* FDMXProtocolSenderArtNet::GetSingleThreadInterface()
 
 bool FDMXProtocolSenderArtNet::EnqueueOutboundPackage(FDMXPacketPtr Packet)
 {
+	check(IsInGameThread());
+
 	if (StopTaskCounter.GetValue())
 	{
 		return false;
 	}
 
-	if (!OutboundPackages.Enqueue(Packet))
 	{
-		return false;
+		FScopeLock ScopeLock(&PacketsCS);
+		OutboundPackages.Add(Packet->UniverseID, Packet);
+	}
+
+	// Update refresh rate before triget update loop
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	if (ProtocolSettings != nullptr && ProtocolSettings->IsValidLowLevel())
+	{
+		SendingRefreshRate = ProtocolSettings->SendingRefreshRate;
 	}
 
 	WorkEvent->Trigger();
 
-	auto& OutputEvent = Protocol->GetOnOutputSentEvent();
-	if (OutputEvent.IsBound())
-	{
-		OutputEvent.Broadcast(DMX_PROTOCOLNAME_ARTNET, Packet->UniverseID, Packet->Data);
-	}
+	FDMXProtocolArtNet::FOnPacketSent& OnPacketSent = Protocol->GetOnPacketSent();
+	OnPacketSent.Broadcast(DMX_PROTOCOLNAME_ARTNET, Packet->UniverseID, Packet->Data);
 
 	return true;
 }
 
 void FDMXProtocolSenderArtNet::ConsumeOutboundPackages()
 {
-	FDMXPacketPtr Packet;
-	while (OutboundPackages.Dequeue(Packet))
+	FScopeLock ScopeLock(&PacketsCS);
+
+	// Send all packet from the Map
+	for (const TPair<uint32, FDMXPacketPtr>& PacketPair : OutboundPackages)
 	{
+		const FDMXPacketPtr& Packet = PacketPair.Value;
 		if (Packet.IsValid())
 		{
 			++LastSentPackage;
@@ -132,19 +156,37 @@ void FDMXProtocolSenderArtNet::ConsumeOutboundPackages()
 					if (InternetAddr.IsValid())
 					{
 						InternetAddr->SetPort(Universe->GetPort());
-						InternetAddr->SetIp(Universe->GetIpAddress());
-						bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *InternetAddr);
-
-						if (!bIsSent)
+						for (uint32 IpAddress : Universe->GetIpAddresses())
 						{
-							ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
-							UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"), (uint8)RecvFromError);
+							InternetAddr->SetIp(IpAddress);
+							bool bIsSent = BroadcastSocket->SendTo(Packet->Data.GetData(), Packet->Data.Num(), BytesSent, *InternetAddr);
+
+							if (!bIsSent)
+							{
+								ESocketErrors RecvFromError = SocketSubsystem->GetLastErrorCode();
+								UE_LOG_DMXPROTOCOL(Error, TEXT("Error sending %d"), (uint8)RecvFromError);
+							}
+							else
+							{
+								// Stats
+								SCOPE_CYCLE_COUNTER(STAT_ArtNetPackagesSent);
+								INC_DWORD_STAT(STAT_ArtNetPackagesSentTotal);
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+
+	// Nothing to send, then stop ticking
+	if (OutboundPackages.Num() == 0)
+	{
+		WorkEvent->Reset();
+	}
+
+	// clear all packages
+	OutboundPackages.Empty();
 }
 
 FDMXProtocolReceiverArtNet::FDMXProtocolReceiverArtNet(FSocket& InSocket, FDMXProtocolArtNet* InProtocol, const FTimespan& InWaitTime)
@@ -235,6 +277,10 @@ void FDMXProtocolReceiverArtNet::Update(const FTimespan& SocketWaitTime)
 		{
             Reader->RemoveAt(Read, Reader->Num() - Read, false);
 			DMXDataReceiveDelegate.ExecuteIfBound(Reader);
+
+			// Stats
+			SCOPE_CYCLE_COUNTER(STAT_ArtNetPackagesRecieved);
+			INC_DWORD_STAT(STAT_ArtNetPackagesRecievedTotal);
 		}
 	}
 }

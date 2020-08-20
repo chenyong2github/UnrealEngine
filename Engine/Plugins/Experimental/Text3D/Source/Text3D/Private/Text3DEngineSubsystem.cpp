@@ -159,7 +159,7 @@ void FCachedFontData::LoadFreeTypeFace()
 	const FTypefaceEntry& Typeface = CompositeFont->DefaultTypeface.Fonts[0];
 	const FFontFaceDataConstPtr FaceData = Typeface.Font.GetFontFaceData();
 
-	if (FaceData->HasData() && FaceData->GetData().Num() > 0)
+	if (FaceData.IsValid() && FaceData->HasData() && FaceData->GetData().Num() > 0)
 	{
 		Data = FaceData->GetData();
 		FT_New_Memory_Face(FText3DModule::GetFreeTypeLibrary(), Data.GetData(), Data.Num(), 0, &FreeTypeFace);
@@ -187,9 +187,10 @@ TSharedPtr<int32> FCachedFontData::GetCacheCounter()
 	return CacheCounter;
 }
 
-TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
+TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
 {
 	uint32 HashParameters = 0;
+	HashParameters = HashCombine(HashParameters, GetTypeHash(bOutline));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Extrude));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Bevel));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(BevelType));
@@ -199,9 +200,10 @@ TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(float Extrude, float Be
 	return CachedMeshes.GetCacheCounter();
 }
 
-UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
+UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
 {
 	uint32 HashParameters = 0;
+	HashParameters = HashCombine(HashParameters, GetTypeHash(bOutline));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Extrude));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Bevel));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(BevelType));
@@ -227,7 +229,7 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, float Extrude, flo
 		return nullptr;
 	}
 
-	MeshCreator.CreateMeshes(Root, Extrude, Bevel, BevelType, BevelSegments);
+	MeshCreator.CreateMeshes(Root, bOutline, Extrude, Bevel, BevelType, BevelSegments);
 	MeshCreator.SetFrontAndBevelTextureCoordinates(Bevel);
 	MeshCreator.MirrorGroups(Extrude);
 

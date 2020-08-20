@@ -20,6 +20,7 @@ public class RemoteSession : ModuleRules
 			{
 				"Core",
 				"MediaIOCore",
+				"BackChannel",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
@@ -33,7 +34,6 @@ public class RemoteSession : ModuleRules
 				"SlateCore",
 				"InputDevice",
 				"InputCore",
-				"BackChannel",
 				"RHI",
 				"Renderer",
 				"RenderCore",

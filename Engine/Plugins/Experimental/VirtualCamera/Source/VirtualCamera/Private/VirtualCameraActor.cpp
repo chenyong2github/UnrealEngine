@@ -3,6 +3,7 @@
 #include "VirtualCameraActor.h"
 
 #include "CineCameraComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameInstance.h"
@@ -185,22 +186,28 @@ AVirtualCameraActor::AVirtualCameraActor(const FObjectInitializer& ObjectInitial
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>("DefaultSceneRoot");
 	SetRootComponent(DefaultSceneRoot);
 
-	SceneOffset = CreateDefaultSubobject<USceneComponent>("SceneOffset");
-	SceneOffset->SetupAttachment(DefaultSceneRoot);
-
-	CameraOffset = CreateDefaultSubobject<USceneComponent>("CameraOffset");
-	CameraOffset->SetupAttachment(SceneOffset);
-
-	RecordingCamera = CreateDefaultSubobject<UCineCameraComponent>("Recording Camera");
-	RecordingCamera->SetupAttachment(CameraOffset);
 	StreamedCamera = CreateDefaultSubobject<UCineCameraComponent>("Streamed Camera");
-	StreamedCamera->SetupAttachment(CameraOffset);
+	StreamedCamera->SetupAttachment(DefaultSceneRoot);
+	
+	SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>("Scene Capture");
+	SceneCaptureComponent->SetupAttachment(StreamedCamera);
+	SceneCaptureComponent->bCaptureEveryFrame = 0;
+	SceneCaptureComponent->bCaptureOnMovement = 0;
 
 	MovementComponent = CreateDefaultSubobject<UVirtualCameraMovement>("Movement Component");
 	MediaOutput = CreateDefaultSubobject<URemoteSessionMediaOutput>("Media Output");
 	CameraScreenWidget = CreateDefaultSubobject<UVPFullScreenUserWidget>("Camera UMG");
 	CameraScreenWidget->SetDisplayTypes(EVPWidgetDisplayType::PostProcess, EVPWidgetDisplayType::Viewport, EVPWidgetDisplayType::PostProcess);
 	CameraScreenWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
+
+	if (GEngine)
+	{
+		UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>();
+		if (SubSystem && !SubSystem->GetVirtualCameraController())
+		{
+			SubSystem->SetVirtualCameraController(this);
+		}
+	}
 }
 
 AVirtualCameraActor::AVirtualCameraActor(FVTableHelper& Helper)
@@ -245,11 +252,6 @@ void AVirtualCameraActor::SetSaveSettingsOnStopStreaming_Implementation(bool bSh
 	bSaveSettingsOnStopStreaming = bShouldSave;
 }
 
-void AVirtualCameraActor::SetRelativeTransform_Implementation(const FTransform& InControllerTransform)
-{
-	SetRelativeTransformInternal(InControllerTransform);
-}
-
 FTransform AVirtualCameraActor::GetRelativeTransform_Implementation() const
 {
 	return StreamedCamera->GetRelativeTransform();
@@ -257,20 +259,20 @@ FTransform AVirtualCameraActor::GetRelativeTransform_Implementation() const
 
 void AVirtualCameraActor::AddBlendableToCamera_Implementation(const TScriptInterface<IBlendableInterface>& InBlendableToAdd, float InWeight)
 {
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 	CineCamera->PostProcessSettings.AddBlendable(InBlendableToAdd, InWeight);
 }
 
 void AVirtualCameraActor::SetFocusDistance_Implementation(float InFocusDistanceCentimeters)
 {
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 	CineCamera->FocusSettings.ManualFocusDistance = InFocusDistanceCentimeters;
 	CineCamera->FocusSettings.FocusOffset = 0.0f;
 }
 
 void AVirtualCameraActor::SetTrackedActorForFocus_Implementation(AActor* InActorToTrack, const FVector& InTrackingPointOffset)
 {
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 	CineCamera->FocusSettings.TrackingFocusSettings.ActorToTrack = InActorToTrack;
 	CineCamera->FocusSettings.TrackingFocusSettings.RelativeOffset = InTrackingPointOffset;
 }
@@ -279,7 +281,7 @@ void AVirtualCameraActor::SetFocusMethod_Implementation(EVirtualCameraFocusMetho
 {
 	FocusMethod = InNewFocusMethod;
 
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 
 	switch (InNewFocusMethod)
 	{
@@ -308,7 +310,7 @@ EVirtualCameraFocusMethod AVirtualCameraActor::GetFocusMethod_Implementation() c
 
 void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocusVisualization)
 {
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 	if (CineCamera->FocusSettings.FocusMethod == ECameraFocusMethod::DoNotOverride)
 	{
 		UE_LOG(LogVirtualCamera, Warning, TEXT("Camera focus mode is currently set to none, cannot display focus plane!"))
@@ -329,7 +331,7 @@ FVector2D AVirtualCameraActor::GetReticlePosition_Implementation() const
 
 void AVirtualCameraActor::UpdateHyperfocalDistance_Implementation()
 {
-	UCineCameraComponent* CineCamera = GetActiveCameraComponentInternal();
+	UCineCameraComponent* CineCamera = StreamedCamera;
 
 	//avoid division by zero
 	if (CineCamera->CurrentAperture == 0.0f)
@@ -391,24 +393,6 @@ void AVirtualCameraActor::Tick(float DeltaSeconds)
 
 	FMinimalViewInfo ViewInfo;
 	CalcCamera(DeltaSeconds, ViewInfo);
-
-	ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-	FLiveLinkSubjectFrameData SubjectData;
-	const bool bHasValidData = LiveLinkClient.EvaluateFrame_AnyThread(LiveLinkSubject.Subject, LiveLinkSubject.Role, SubjectData);
-	if (bHasValidData)
-	{
-		const FLiveLinkTransformFrameData& TransformFrameData = *SubjectData.FrameData.Cast<FLiveLinkTransformFrameData>();
-		FVirtualCameraTransform CameraTransform = FVirtualCameraTransform{TransformFrameData.Transform};
-
-		// execute delegates that want to manipulate camera transform before it is set onto the root
-		if (OnPreSetVirtualCameraTransform.IsBound())
-		{
-			FEditorScriptExecutionGuard ScriptGuard;
-			CameraTransform = OnPreSetVirtualCameraTransform.Execute(CameraTransform);
-		}
-
-		SetRelativeTransformInternal(CameraTransform.Transform);
-	}
 
 	if (FocusMethod == EVirtualCameraFocusMethod::Auto)
 	{
@@ -628,14 +612,9 @@ UCineCameraComponent* AVirtualCameraActor::GetStreamedCameraComponent_Implementa
 	return StreamedCamera;
 }
 
-UCineCameraComponent* AVirtualCameraActor::GetRecordingCameraComponent_Implementation() const
+USceneCaptureComponent2D * AVirtualCameraActor::GetSceneCaptureComponent_Implementation() const
 {
-	return RecordingCamera;
-}
-
-UCineCameraComponent* AVirtualCameraActor::GetActiveCameraComponent_Implementation() const
-{
-	return GetActiveCameraComponentInternal();
+	return SceneCaptureComponent;
 }
 
 ULevelSequencePlaybackController* AVirtualCameraActor::GetSequenceController_Implementation() const
@@ -873,18 +852,6 @@ void AVirtualCameraActor::LoadSettings()
 	}
 
 	PresetIndex = FVirtualCameraSettingsPreset::NextIndex;
-}
-
-UCineCameraComponent* AVirtualCameraActor::GetActiveCameraComponentInternal() const
-{
-	return StreamedCamera;
-}
-
-void AVirtualCameraActor::SetRelativeTransformInternal(const FTransform& InRelativeTransform)
-{
-	MovementComponent->SetLocalTransform(InRelativeTransform);
-	const FTransform ModifiedTransform = MovementComponent->GetTransform();
-	SceneOffset->SetRelativeTransform(ModifiedTransform);
 }
 
 void AVirtualCameraActor::UpdateAutoFocus()

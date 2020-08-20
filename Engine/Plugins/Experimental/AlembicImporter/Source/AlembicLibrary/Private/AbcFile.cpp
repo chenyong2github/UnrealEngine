@@ -472,6 +472,16 @@ const int32 FAbcFile::GetMaxFrameIndex() const
 	return MaxFrameIndex;
 }
 
+const int32 FAbcFile::GetStartFrameIndex() const
+{
+	return StartFrameIndex;
+}
+
+const int32 FAbcFile::GetEndFrameIndex() const
+{
+	return EndFrameIndex;
+}
+
 const UAbcImportSettings* FAbcFile::GetImportSettings() const 
 {
 	return ImportSettings;

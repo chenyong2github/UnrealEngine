@@ -46,10 +46,32 @@ bool FDatasmithExporterManager::bEngineInitialized = false;
 
 bool FDatasmithExporterManager::Initialize()
 {
+	return Initialize(FInitOptions{});
+}
+
+bool FDatasmithExporterManager::Initialize(const FInitOptions& InitOptions)
+{
 #if IS_PROGRAM
 	if (!bEngineInitialized)
 	{
-		bEngineInitialized = GEngineLoop.PreInit( TEXT("-SaveToUserDir -logcmds=\"Global None\"") ) == 0;
+		FString CmdLine;
+
+		if (InitOptions.bEnableMessaging)
+		{
+			CmdLine += TEXT(" -Messaging");
+		}
+
+		if (InitOptions.bSaveLogToUserDir)
+		{
+			CmdLine += TEXT(" -SaveToUserDir");
+		}
+
+		if (InitOptions.bSuppressLogs)
+		{
+			CmdLine += TEXT(" -logcmds=\"Global None\"");
+		}
+		int32 PreInitResult = GEngineLoop.PreInit(*CmdLine);
+		bEngineInitialized = PreInitResult == 0;
 
 		// Make sure all UObject classes are registered and default properties have been initialized
 		ProcessNewlyLoadedUObjects();
@@ -61,10 +83,14 @@ bool FDatasmithExporterManager::Initialize()
 		{
 			// Make sure Logger is set on the right thread
 			GLog->SetCurrentThreadAsMasterThread();
-			// Clean up existing output devices
-			GLog->TearDown();
-			// Add Datasmith output device
-			GLog->AddOutputDevice(new FDatasmithExportOutputDevice());
+
+			if (InitOptions.bSuppressLogs)
+			{
+ 				// Clean up existing output devices
+ 				GLog->TearDown();
+ 				// Add Datasmith output device
+ 				GLog->AddOutputDevice(new FDatasmithExportOutputDevice());
+			}
 		}
 
 		bEngineInitialized = true;

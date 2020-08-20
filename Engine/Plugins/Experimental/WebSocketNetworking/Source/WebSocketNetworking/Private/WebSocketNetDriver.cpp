@@ -71,9 +71,9 @@ bool UWebSocketNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& Conn
 	UWebSocketConnection* Connection = (UWebSocketConnection*)ServerConnection;
 	Connection->SetWebSocket(WebSocket);
 
-	FWebSocketPacketRecievedCallBack CallBack;
+	FWebSocketPacketReceivedCallBack CallBack;
 	CallBack.BindUObject(Connection, &UWebSocketConnection::ReceivedRawPacket);
-	WebSocket->SetRecieveCallBack(CallBack);
+	WebSocket->SetReceiveCallBack(CallBack);
 
 	FWebSocketInfoCallBack  ConnectedCallBack;
 	ConnectedCallBack.BindUObject(this, &UWebSocketNetDriver::OnWebSocketServerConnected);
@@ -208,7 +208,7 @@ UWebSocketConnection* UWebSocketNetDriver::GetServerConnection()
 	return (UWebSocketConnection*)ServerConnection;
 }
 
-void UWebSocketNetDriver::OnWebSocketClientConnected(FWebSocket* ClientWebSocket)
+void UWebSocketNetDriver::OnWebSocketClientConnected(INetworkingWebSocket* ClientWebSocket)
 {
 	// Determine if allowing for client/server connections
 	const bool bAcceptingConnection = Notify->NotifyAcceptingConnection() == EAcceptConnection::Accept;
@@ -230,7 +230,7 @@ void UWebSocketNetDriver::OnWebSocketClientConnected(FWebSocket* ClientWebSocket
 
 		AddClientConnection(Connection);
 
-		FWebSocketPacketRecievedCallBack CallBack;
+		FWebSocketPacketReceivedCallBack CallBack;
 		CallBack.BindUObject(Connection, &UWebSocketConnection::ReceivedRawPacket);
 		if (ConnectionlessHandler.IsValid() && StatelessConnectComponent.IsValid())
 		{
@@ -248,7 +248,7 @@ void UWebSocketNetDriver::OnWebSocketClientConnected(FWebSocket* ClientWebSocket
 					TEXT("Invalid ConnectionlessHandler (%i) or StatelessConnectComponent (%i); can't accept connections."),
 					(int32)(ConnectionlessHandler.IsValid()), (int32)(StatelessConnectComponent.IsValid()));
 		}
-		ClientWebSocket->SetRecieveCallBack(CallBack);
+		ClientWebSocket->SetReceiveCallBack(CallBack);
 
 		UE_LOG(LogWebSocketNetworking, Log, TEXT(" WebSocket server running on %s Accepted Connection from %s "), *WebSocketServer->Info(),*ClientWebSocket->RemoteEndPoint(true));
 	}

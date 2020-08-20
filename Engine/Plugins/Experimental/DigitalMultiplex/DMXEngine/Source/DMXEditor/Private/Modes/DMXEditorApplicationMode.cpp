@@ -6,6 +6,7 @@
 #include "DMXEditorTabs.h"
 #include "Tabs/DMXEditorTabFactories.h"
 
+
 #define LOCTEXT_NAMESPACE "DMXEditorApplicationMode"
 
 const FName FDMXEditorApplicationMode::DefaultsMode(TEXT("DefaultsName"));
@@ -31,8 +32,6 @@ FDMXEditorDefaultApplicationMode::FDMXEditorDefaultApplicationMode(TSharedPtr<FD
 	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorControllersSummoner>(InDMXEditor));
 	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorFixtureTypesSummoner>(InDMXEditor));
 	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorFixturePatchSummoner>(InDMXEditor));
-	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorInputConsoleSummoner>(InDMXEditor));
-	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorOutputConsoleSummoner>(InDMXEditor));
 
 	// 2. REGISATER TAB LAYOUT
 	TabLayout = FTabManager::NewLayout("Standalone_SimpleAssetEditor_Layout_v5")
@@ -52,8 +51,6 @@ FDMXEditorDefaultApplicationMode::FDMXEditorDefaultApplicationMode(TSharedPtr<FD
 				->AddTab(FDMXEditorTabs::DMXControllersId, ETabState::OpenedTab)
 				->AddTab(FDMXEditorTabs::DMXFixtureTypesEditorTabId, ETabState::OpenedTab)
 				->AddTab(FDMXEditorTabs::DMXFixturePatchEditorTabId, ETabState::OpenedTab)
-				->AddTab(FDMXEditorTabs::DMXInputConsoleEditorTabId, ETabState::OpenedTab)
-				->AddTab(FDMXEditorTabs::DMXOutputConsoleEditorTabId, ETabState::OpenedTab)
 				->SetForegroundTab(FDMXEditorTabs::DMXControllersId)
 			)
 		);

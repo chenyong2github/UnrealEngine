@@ -5,8 +5,9 @@
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsEditorToolkit.h"
 #include "VariantManager.h"
-#include "VariantManagerEditorCommands.h"
 #include "VariantManagerContentEditorModule.h"
+#include "VariantManagerEditorCommands.h"
+#include "VariantManagerStyle.h"
 
 #include "Editor.h"
 #include "Framework/Docking/TabManager.h"
@@ -27,6 +28,8 @@ public:
 	virtual void StartupModule() override
 	{
 		FVariantManagerEditorCommands::Register();
+
+		FVariantManagerStyle::Initialize();
 
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
@@ -60,6 +63,8 @@ public:
 		UnregisterTabSpawner( LevelEditorModule.GetLevelEditorTabManager() );
 
 		FVariantManagerUtils::UnregisterForHotReload();
+
+		FVariantManagerStyle::Shutdown();
 
 		FVariantManagerEditorCommands::Unregister();
 	}
@@ -105,6 +110,7 @@ public:
 		return SNew(SDockTab)
 			.Label(LOCTEXT("VariantManagerMainTitle", "VariantManager"))
 			.TabColorScale( FLevelVariantSetsEditorToolkit::GetWorldCentricTabColorScaleStatic() )
+			.ContentPadding(FMargin(0))
 			.TabRole(ETabRole::PanelTab);
 	}
 

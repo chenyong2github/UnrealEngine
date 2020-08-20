@@ -286,7 +286,7 @@ struct FOutputDeviceFile::FCategoryInclusionInternal
  * @param InFilename		Filename to use, can be NULL
  * @param bInDisableBackup	If true, existing files will not be backed up
  */
-FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBackup, bool bInAppendIfExists)
+FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBackup, bool bInAppendIfExists, bool bCreateWriterLazily)
 : AsyncWriter(nullptr)
 , WriterArchive(nullptr)
 , AppendIfExists(bInAppendIfExists)
@@ -302,6 +302,11 @@ FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBa
 	else
 	{
 		Filename[0]	= 0;
+	}
+
+	if (!bCreateWriterLazily) // Should the file created/opened immediately?
+	{
+		CreateWriter();
 	}
 }
 

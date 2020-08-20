@@ -12,6 +12,7 @@ class UTexture2D;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class ISceneViewExtension;
+class IBackChannelPacket;
 
 class REMOTESESSION_API FRemoteSessionARCameraChannel :
 	public IRemoteSessionChannel,
@@ -19,7 +20,7 @@ class REMOTESESSION_API FRemoteSessionARCameraChannel :
 {
 public:
 
-	FRemoteSessionARCameraChannel(ERemoteSessionChannelMode InRole, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection);
+	FRemoteSessionARCameraChannel(ERemoteSessionChannelMode InRole, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection);
 
 	~FRemoteSessionARCameraChannel();
 
@@ -40,7 +41,7 @@ protected:
 	void QueueARCameraImage();
 
 	/** Handles data coming from the client */
-	void ReceiveARCameraImage(FBackChannelOSCMessage& Message, FBackChannelOSCDispatch& Dispatch);
+	void ReceiveARCameraImage(IBackChannelPacket& Message);
 
 	/** Updates the next texture to be rendered */
 	void UpdateRenderingTexture();
@@ -89,7 +90,7 @@ private:
 
 	TSharedPtr<ISceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
 
-	TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> Connection;
+	TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> Connection;
 	ERemoteSessionChannelMode Role;
 
 	/** So we can manage callback lifetimes properly */
@@ -99,6 +100,5 @@ private:
 class REMOTESESSION_API FRemoteSessionARCameraChannelFactoryWorker : public IRemoteSessionChannelFactoryWorker
 {
 public:
-	virtual const TCHAR* GetType() const override { return FRemoteSessionARCameraChannel::StaticType(); }
-	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<FBackChannelOSCConnection, ESPMode::ThreadSafe> InConnection) const override;
+	virtual TSharedPtr<IRemoteSessionChannel> Construct(ERemoteSessionChannelMode InMode, TSharedPtr<IBackChannelConnection, ESPMode::ThreadSafe> InConnection) const override;
 };

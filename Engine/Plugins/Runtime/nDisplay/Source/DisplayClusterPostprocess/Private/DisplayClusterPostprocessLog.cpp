@@ -5,3 +5,5 @@
 
 DEFINE_LOG_CATEGORY(LogDisplayClusterPostprocess);
 DEFINE_LOG_CATEGORY(LogDisplayClusterPostprocessOutputRemap);
+DEFINE_LOG_CATEGORY(LogDisplayClusterPostprocessTextureShare);
+DEFINE_LOG_CATEGORY(LogDisplayClusterPostprocessD3D12CrossGPU);

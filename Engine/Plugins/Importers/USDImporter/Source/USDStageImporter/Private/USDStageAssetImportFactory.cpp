@@ -35,9 +35,10 @@ UUsdStageAssetImportFactory::UUsdStageAssetImportFactory(const FObjectInitialize
 	bEditorImport = true;
 	bText = false;
 
-	Formats.Add(TEXT("usd;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usda;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usdc;Universal Scene Descriptor files"));
+	for ( const FString& Extension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
+	{
+		Formats.Add(FString::Printf(TEXT("%s; Universal Scene Descriptor files"), *Extension));
+	}
 }
 
 bool UUsdStageAssetImportFactory::DoesSupportClass(UClass* Class)
@@ -54,7 +55,9 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 {
 	UObject* ImportedObject = nullptr;
 
-	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport()))
+	const bool bIsReimport = false;
+	const bool bAllowActorImport = false;
+	if (ImportContext.Init(InName.ToString(), Filename, Flags, IsAutomatedImport(), bIsReimport, bAllowActorImport))
 	{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport( this, InClass, InParent, InName, Parms );
 
@@ -66,7 +69,7 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 
 		ImportContext.DisplayErrorMessages(ImportContext.bIsAutomated);
 
-		ImportedObject = ImportContext.SceneActor;
+		ImportedObject = ImportContext.ImportedPackage ? Cast<UObject>(ImportContext.ImportedPackage) : Cast<UObject>(ImportContext.SceneActor);
 	}
 	else
 	{
@@ -78,11 +81,14 @@ UObject* UUsdStageAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject
 
 bool UUsdStageAssetImportFactory::FactoryCanImport(const FString& Filename)
 {
-	const FString Extension = FPaths::GetExtension(Filename);
+	const FString Extension = FPaths::GetExtension( Filename );
 
-	if (Extension == TEXT("usd") || Extension == TEXT("usda") || Extension == TEXT("usdc"))
+	for ( const FString& SupportedExtension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
 	{
-		return true;
+		if ( SupportedExtension.Equals( Extension, ESearchCase::IgnoreCase ) )
+		{
+			return true;
+		}
 	}
 
 	return false;

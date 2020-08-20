@@ -9,6 +9,45 @@
 class UToolMenu;
 
 /**
+ * Static helper functions for populating the "Layouts" menu.
+ */
+class FLayoutsMenu
+{
+public:
+	enum class ELayoutsType
+	{
+		Engine,
+		Project,
+		User
+	};
+
+	/**
+	 * Static
+	 * Get the full (engine, project, or user) layout file path.
+	 * Helper function for LoadLayoutI, SaveLayoutI, and RemoveLayoutI.
+	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
+	 */
+	static FString GetLayout(const int32 InLayoutIndex, const ELayoutsType InLayoutsType);
+
+	/**
+	 * Static
+	 * Checks whether there are user-created layouts.
+	 * @return true if there is at least a layout in the user layouts directory.
+	 */
+	static bool IsThereUserLayouts();
+
+	/**
+	 * Static
+	 * Checks which (engine, project, or user) layout entry should be checked.
+	 * @param InLayoutIndex Index from the selected layout.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
+	 * @return true if the menu entry should be checked.
+	 */
+	static bool IsLayoutChecked(const int32 InLayoutIndex, const ELayoutsType InLayoutsType);
+};
+
+/**
  * Static load-related helper functions for populating the "Layouts" menu.
  */
 class FLayoutsMenuLoad
@@ -22,19 +61,12 @@ public:
 
 	/**
 	 * Static
-	 * Checks if the load menu can choose the selected layout to load it.
-	 * @param	InLayoutIndex  Index from the selected layout.
+	 * Checks if the load menu can choose the selected (engine, project, or user) layout to load it.
+	 * @param InLayoutIndex Index from the selected layout.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 * @return true if the selected layout can be read.
 	 */
-	static bool CanLoadChooseLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Checks if the load menu can choose the selected user-created layout to load it.
-	 * @param	InLayoutIndex  Index from the selected user-created layout.
-	 * @return true if the selected user-created layout can be read.
-	 */
-	static bool CanLoadChooseUserLayout(const int32 InLayoutIndex);
+	static bool CanLoadChooseLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
@@ -52,17 +84,11 @@ public:
 
 	/**
 	 * Static
-	 * Load the visual layout state of the editor from an existing layout profile ini file, that was previously created by the UE developers.
+	 * Load the visual layout state of the editor from an existing (engine, project, or user-based) layout profile ini file.
 	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 */
-	static void LoadLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Load the visual layout state of the editor from an existing layout profile ini file, that was previously created by the user.
-	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
-	 */
-	static void LoadUserLayout(const int32 InLayoutIndex);
+	static void LoadLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
@@ -86,33 +112,20 @@ public:
 
 	/**
 	 * Static
-	 * Checks if the save menu can choose the selected layout to modify it.
-	 * @param	InLayoutIndex  Index from the selected layout.
+	 * Checks if the save menu can choose the selected (engine, project, or user-based) layout to modify it.
+	 * @param InLayoutIndex Index from the selected layout.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 * @return true if the selected layout can be modified/removed.
 	 */
-	static bool CanSaveChooseLayout(const int32 InLayoutIndex);
+	static bool CanSaveChooseLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
-	 * Checks if the save menu can choose the selected user-created layout to modify it.
-	 * @param	InLayoutIndex  Index from the selected user-created layout.
-	 * @return true if the selected user-created layout can be modified/removed.
-	 */
-	static bool CanSaveChooseUserLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Override the visual layout state of the editor in an existing layout profile ini file, that was previously created by the UE developers.
+	 * Override the visual layout state of the editor in an existing (engine, project, or user-based) layout profile ini file.
 	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 */
-	static void OverrideLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Override the visual layout state of the editor in an existing layout profile ini file, that was previously created by the user.
-	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
-	 */
-	static void OverrideUserLayout(const int32 InLayoutIndex);
+	static void OverrideLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
@@ -149,85 +162,25 @@ public:
 
 	/**
 	 * Static
-	 * Checks if the remove menu can choose the selected layout to remove it.
-	 * @param	InLayoutIndex  Index from the selected layout.
+	 * Checks if the remove menu can choose the selected (engine, project, or user-based) layout to remove it.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 * @return true if the selected layout can be modified/removed.
 	 */
-	static bool CanRemoveChooseLayout(const int32 InLayoutIndex);
+	static bool CanRemoveChooseLayout(const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
-	 * Checks if the remove menu can choose the selected user-created layout to remove it.
-	 * @param	InLayoutIndex  Index from the selected user-created layout.
-	 * @return true if the selected user-created layout can be modified/removed.
-	 */
-	static bool CanRemoveChooseUserLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Remove an existing layout profile ini file, that was previously created by the UE developers.
+	 * Remove an existing (engine, project, or user-based) layout profile ini file.
 	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
+	 * @param InLayoutsType ELayoutsType associated with the desired type of layout (engine, project, or user-based).
 	 */
-	static void RemoveLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Remove an existing layout profile ini file, that was previously created by the UE developers.
-	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
-	 */
-	static void RemoveUserLayout(const int32 InLayoutIndex);
+	static void RemoveLayout(const int32 InLayoutIndex, const FLayoutsMenu::ELayoutsType InLayoutsType);
 
 	/**
 	 * Static
 	 * Remove all the layout customizations created by the user.
 	 */
 	static void RemoveUserLayouts();
-};
-
-/**
- * Static helper functions for populating the "Layouts" menu.
- */
-class FLayoutsMenuBase
-{
-public:
-	/**
-	 * Static
-	 * Get the full layout file path.
-	 * Helper function for LoadLayoutI, SaveLayoutI, and RemoveLayoutI.
-	 * @param InLayoutIndex Index associated with the desired layout profile ini file to be read/written.
-	 */
-	static FString GetLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Get the full user-created layout file path.
-	 * Helper function for LoadUserLayoutI, SaveUserLayoutI, and RemoveUserLayoutI.
-	 * @param InLayoutIndex Index associated with the desired user-created layout profile ini file to be read/written.
-	 */
-	static FString GetUserLayout(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Checks whether there are user-created layouts.
-	 * @return true if there is at least a layout in the user layouts directory.
-	 */
-	static bool IsThereUserLayouts();
-
-	/**
-	 * Static
-	 * Checks which layout entry should be checked.
-	 * @param	InLayoutIndex  Index from the selected layout.
-	 * @return true if the menu entry should be checked.
-	 */
-	static bool IsLayoutChecked(const int32 InLayoutIndex);
-
-	/**
-	 * Static
-	 * Checks which user layout entry should be checked.
-	 * @param	InLayoutIndex  Index from the selected layout.
-	 * @return true if the menu entry should be checked.
-	 */
-	static bool IsUserLayoutChecked(const int32 InLayoutIndex);
 };
 
 #endif
