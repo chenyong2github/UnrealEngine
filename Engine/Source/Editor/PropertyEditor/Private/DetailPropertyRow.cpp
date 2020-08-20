@@ -182,26 +182,14 @@ FDetailWidgetRow& FDetailPropertyRow::CustomWidget( bool bShowChildren )
 	return *CustomPropertyWidget;
 }
 
-FDetailWidgetDecl& FDetailPropertyRow::CustomNameWidget(bool bShowChildren)
+FDetailWidgetDecl* FDetailPropertyRow::CustomNameWidget()
 {
-	if (CustomPropertyWidget.IsValid())
-	{
-		bShowCustomPropertyChildren = bShowChildren;
-		return CustomPropertyWidget->NameContent();
-	}
-
-	return CustomWidget(bShowChildren).NameContent();
+	return CustomPropertyWidget.IsValid() ? &CustomPropertyWidget->NameContent() : nullptr;
 }
 
-FDetailWidgetDecl& FDetailPropertyRow::CustomValueWidget(bool bShowChildren)
+FDetailWidgetDecl* FDetailPropertyRow::CustomValueWidget()
 {
-	if (CustomPropertyWidget.IsValid())
-	{
-		bShowCustomPropertyChildren = bShowChildren;
-		return CustomPropertyWidget->ValueContent();
-	}
-
-	return CustomWidget(bShowChildren).ValueContent();
+	return CustomPropertyWidget.IsValid() ? &CustomPropertyWidget->ValueContent() : nullptr;
 }
 
 TSharedPtr<FAssetThumbnailPool> FDetailPropertyRow::GetThumbnailPool() const

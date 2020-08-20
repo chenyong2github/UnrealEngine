@@ -194,18 +194,16 @@ public:
 	virtual FDetailWidgetRow& CustomWidget( bool bShowChildren = false ) = 0;
 
 	/**
-	 * Overrides the name widget, creates new custom widget if necessary.
+	 * Gives a non-owning pointer to name widget on existing custom property widget if it exists.
 	 *
-	 * @param bShowChildren	Whether or not to still show any children of this property
-	 * @return a name for the property that custom widgets can be added to
+	 * @return	Pointer to name widget if custom property widget already exists, nullptr otherwise
 	 */
-	virtual FDetailWidgetDecl& CustomNameWidget(bool bShowChildren = false) = 0;
+	virtual FDetailWidgetDecl* CustomNameWidget() = 0;
 
 	/**
-	 * Overrides the value widget, creates new custom widget if necessary.
+	 * Gives a non-owning pointer to value widget on existing custom property widget if it exists.
 	 *
-	 * @param bShowChildren	Whether or not to still show any children of this property
-	 * @return a value for the property that custom widgets can be added to
+	 * @return	Pointer to value widget if custom property widget already exists, nullptr otherwise
 	 */
-	virtual FDetailWidgetDecl& CustomValueWidget(bool bShowChildren = false) = 0;
+	virtual FDetailWidgetDecl* CustomValueWidget() = 0;
 };
