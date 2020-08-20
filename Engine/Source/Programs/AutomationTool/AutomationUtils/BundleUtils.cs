@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 using AutomationTool;
 using UnrealBuildTool;
@@ -97,6 +98,24 @@ namespace AutomationUtils.Automation
 
 			// Use OrderBy and not Sort because OrderBy is stable
 			Bundles = Bundles.OrderBy(Bundle => Bundle.Order).ToList();
+		}
+
+		public static TPlatformBundleSettings MatchBundleSettings<TPlatformBundleSettings>(
+		String FileName, List<TPlatformBundleSettings> InstallBundles) where TPlatformBundleSettings : BundleSettings
+		{
+			// Try to find a matching chunk regex
+			foreach (var Bundle in InstallBundles)
+			{
+				foreach (string RegexString in Bundle.FileRegex)
+				{
+					if (Regex.Match(FileName, RegexString, RegexOptions.IgnoreCase).Success)
+					{
+						return Bundle;
+					}
+				}
+			}
+
+			return null;
 		}
 	}
 }
