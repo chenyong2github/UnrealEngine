@@ -103,7 +103,7 @@ namespace UnrealGameSync
 
 			// Update the list of project names
 			Issues = NewIssues;
-			ProjectNames = NewIssues.Select(x => x.Project).Distinct().OrderBy(x => x).ToList();
+			ProjectNames = NewIssues.SelectMany(x => x.Projects).Distinct().OrderBy(x => x).ToList();
 			UpdateIssueList();
 
 			BackgroundThread = null;
@@ -146,7 +146,7 @@ namespace UnrealGameSync
 			IssueListView.BeginUpdate();
 			foreach(IssueData Issue in Issues)
 			{
-				if(FilterProjectName == null || Issue.Project == FilterProjectName)
+				if(FilterProjectName == null || Issue.Projects.Contains(FilterProjectName))
 				{
 					for(;;)
 					{
@@ -202,7 +202,7 @@ namespace UnrealGameSync
 		void IssueList_UpdateItem(ListViewItem Item, IssueData Issue, DateTime Midnight)
 		{
 			Item.SubItems[IdHeader.Index].Text = Issue.Id.ToString();
-			Item.SubItems[ProjectHeader.Index].Text = Issue.Project;
+			Item.SubItems[ProjectHeader.Index].Text = String.Join(", ", Issue.Projects);
 			Item.SubItems[CreatedHeader.Index].Text = FormatIssueDateTime(Issue.CreatedAt.ToLocalTime(), Midnight);
 			Item.SubItems[ResolvedHeader.Index].Text = Issue.ResolvedAt.HasValue ? FormatIssueDateTime(Issue.ResolvedAt.Value.ToLocalTime(), Midnight) : "Unresolved";
 			Item.SubItems[OwnerHeader.Index].Text = (Issue.Owner == null) ? "-" : Utility.FormatUserName(Issue.Owner);

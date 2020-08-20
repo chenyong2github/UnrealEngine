@@ -30,7 +30,7 @@ namespace MetadataServer.Connectors
 				Connection.Open();
 				using (MySqlCommand Command = new MySqlCommand("WITH user_votes AS (SELECT UserVotes.Id, UserVotes.Changelist FROM ugs_db.UserVotes " +
 																 "INNER JOIN ugs_db.Projects ON Projects.Id = UserVotes.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 432) " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY Changelist ORDER BY Changelist DESC LIMIT 100) " +
 																 "SELECT * FROM user_votes ORDER BY user_votes.Changelist ASC LIMIT 1", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
@@ -46,7 +46,7 @@ namespace MetadataServer.Connectors
 				
 				using (MySqlCommand Command = new MySqlCommand("WITH comments AS (SELECT Comments.Id, Comments.ChangeNumber FROM ugs_db.Comments " +
 																 "INNER JOIN ugs_db.Projects ON Projects.Id = Comments.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 432) " +
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 100) " +
 																 "SELECT * FROM comments ORDER BY comments.ChangeNumber ASC LIMIT 1", Connection))
 				{
 					Command.Parameters.AddWithValue("@param1", ProjectLikeString);
@@ -61,7 +61,7 @@ namespace MetadataServer.Connectors
 				}
 				using (MySqlCommand Command = new MySqlCommand("WITH badges AS (SELECT Badges.Id, Badges.ChangeNumber FROM ugs_db.Badges " +
 																 "INNER JOIN ugs_db.Projects ON Projects.Id = Badges.ProjectId " +
-																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 432) " + 
+																 "WHERE Projects.Name LIKE @param1 GROUP BY ChangeNumber ORDER BY ChangeNumber DESC LIMIT 100) " + 
 																 "SELECT * FROM badges ORDER BY badges.ChangeNumber ASC LIMIT 1", Connection))
 				{
 					//Command.Parameters.AddWithValue("@param1", ProjectId);

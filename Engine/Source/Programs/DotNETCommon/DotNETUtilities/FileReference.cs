@@ -135,7 +135,24 @@ namespace Tools.DotNETCommon
 		/// <returns>A new directory object representing the directory containing this object</returns>
 		public DirectoryReference Directory
 		{
-			get { return DirectoryReference.GetParentDirectory(this); }
+			get
+			{
+				int ParentLength = FullName.LastIndexOf(Path.DirectorySeparatorChar);
+
+				if (ParentLength == 2 && FullName[1] == ':')
+				{
+					// windows root detected (C:)
+					ParentLength++;
+				}
+
+				if (ParentLength == 0 && FullName[0] == Path.DirectorySeparatorChar)
+				{
+					// nix style root (/) detected
+					ParentLength = 1;
+				}
+
+				return new DirectoryReference(FullName.Substring(0, ParentLength), DirectoryReference.Sanitize.None);
+			}
 		}
 
 		/// <summary>

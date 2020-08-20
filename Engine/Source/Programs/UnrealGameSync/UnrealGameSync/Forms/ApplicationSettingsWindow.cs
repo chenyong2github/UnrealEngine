@@ -53,6 +53,7 @@ namespace UnrealGameSync
 		string InitialDepotPath;
 		bool bInitialUnstable;
 		int InitialAutomationPortNumber;
+		ProtocolHandlerState InitialProtocolHandlerState;
 
 		bool? bRestartUnstable;
 
@@ -68,6 +69,7 @@ namespace UnrealGameSync
 			bInitialUnstable = bUnstable;
 
 			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
+			InitialProtocolHandlerState = ProtocolHandlerUtils.GetState();
 
 			this.AutomaticallyRunAtStartupCheckBox.Checked = IsAutomaticallyRunAtStartup();
 			this.KeepInTrayCheckBox.Checked = Settings.bKeepInTray;
@@ -99,6 +101,19 @@ namespace UnrealGameSync
 				this.EnableAutomationCheckBox.Checked = false;
 				this.AutomationPortTextBox.Enabled = false;
 				this.AutomationPortTextBox.Text = AutomationServer.DefaultPortNumber.ToString();
+			}
+
+			if(InitialProtocolHandlerState == ProtocolHandlerState.Installed)
+			{
+				this.EnableProtocolHandlerCheckBox.CheckState = CheckState.Checked;
+			}
+			else if (InitialProtocolHandlerState == ProtocolHandlerState.NotInstalled)
+			{
+				this.EnableProtocolHandlerCheckBox.CheckState = CheckState.Unchecked;
+			}
+			else
+			{
+				this.EnableProtocolHandlerCheckBox.CheckState = CheckState.Indeterminate;
 			}
 		}
 
@@ -193,6 +208,21 @@ namespace UnrealGameSync
 				Settings.SyncOptions.NumThreads = (int)ParallelSyncThreadsSpinner.Value;
 				Settings.bKeepInTray = KeepInTrayCheckBox.Checked;
 				Settings.Save();
+			}
+
+			if (EnableProtocolHandlerCheckBox.CheckState == CheckState.Checked)
+			{
+				if (InitialProtocolHandlerState != ProtocolHandlerState.Installed)
+				{
+					ProtocolHandlerUtils.Install();
+				}
+			}
+			else if (EnableProtocolHandlerCheckBox.CheckState == CheckState.Unchecked)
+			{
+				if (InitialProtocolHandlerState != ProtocolHandlerState.NotInstalled)
+				{
+					ProtocolHandlerUtils.Uninstall();
+				}
 			}
 
 			DialogResult = DialogResult.OK;

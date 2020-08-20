@@ -6,6 +6,7 @@ using System.Text;
 using System.IO;
 using Tools.DotNETCommon;
 using System.Diagnostics;
+using System.Linq;
 
 namespace UnrealBuildTool
 {
@@ -39,6 +40,8 @@ namespace UnrealBuildTool
 		private bool bBuildingForDotNetCore;
 		private string FrameworkExecutableExtension;
 		private string FrameworkLibraryExtension = ".dll";
+
+		private readonly List<BuildTarget> BuildTargets = new List<BuildTarget>();
 
 		/// <summary>
 		/// Includes all files in the generated workspace.
@@ -280,18 +283,90 @@ namespace UnrealBuildTool
 			WriteTasksFile(ProjectData);
 			WriteLaunchFile(ProjectData);
 			WriteWorkspaceIgnoreFile(Projects);
-			WriteCppPropertiesFile(VSCodeDir, false, ProjectData);
-			WriteWorkspaceFile(ProjectData);
-			//WriteProjectDataFile(ProjectData);
+			WriteCppPropertiesFile(VSCodeDir, ProjectData);
+			WriteWorkspaceFile();
 
 			if (bForeignProject && bIncludeEngineSource)
 			{
 				// for installed builds we need to write the cpp properties file under the installed engine as well for intellisense to work
 				DirectoryReference Ue4CodeDirectory = DirectoryReference.Combine(UnrealBuildTool.RootDirectory, ".vscode");
-				WriteCppPropertiesFile(Ue4CodeDirectory, true, ProjectData);
+				WriteCppPropertiesFile(Ue4CodeDirectory, ProjectData);
 			}
 
 			return true;
+		}
+		private class BuildTarget
+		{
+			public readonly string Name;
+			public readonly TargetType Type;
+			public readonly UnrealTargetPlatform Platform;
+			public readonly UnrealTargetConfiguration Configuration;
+			public readonly Dictionary<DirectoryReference, string> ModuleCommandLines;
+
+			public BuildTarget(string InName, TargetType InType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, Dictionary<DirectoryReference, string> InModulesCommandLines)
+			{
+				Name = InName;
+				Type = InType;
+				Platform = InPlatform;
+				Configuration = InConfiguration;
+				ModuleCommandLines = InModulesCommandLines;
+			}
+
+			public override string ToString()
+			{
+				return Name.ToString() + " " + Type.ToString();
+			}
+		}
+
+		protected override void AddTargetForIntellisense(UEBuildTarget Target)
+		{
+			base.AddTargetForIntellisense(Target);
+
+			// we do not need to keep track of which binary the invocation belongs to, only which target, as such we join all binaries into a single set
+			Dictionary<DirectoryReference, string> ModuleDirectoryToCompileCommand = new Dictionary<DirectoryReference, string>();
+
+			// Generate a compile environment for each module in the binary
+			CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
+			foreach (UEBuildBinary Binary in Target.Binaries)
+			{
+				CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
+				foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
+				{
+					CppCompileEnvironment ModuleCompileEnvironment = Module.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment);
+
+					List<FileReference> ForceIncludePaths = new List<FileReference>(ModuleCompileEnvironment.ForceIncludeFiles.Select(x => x.Location));
+					if (ModuleCompileEnvironment.PrecompiledHeaderIncludeFilename != null)
+					{
+						ForceIncludePaths.Add(ModuleCompileEnvironment.PrecompiledHeaderIncludeFilename);
+					}
+
+					StringBuilder CommandBuilder = new StringBuilder();
+					// Technically the command should include the compiler to use, but we only generate these for intellisense and thus the compiler is not needed
+					// And resolving the compiler when it would not be used is a waste of effort.
+					//CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
+
+					foreach (FileReference ForceIncludeFile in ForceIncludePaths)
+					{
+						CommandBuilder.AppendFormat(" -include \"{0}\"", ForceIncludeFile.FullName);
+					}
+					foreach (string Definition in ModuleCompileEnvironment.Definitions)
+					{
+						CommandBuilder.AppendFormat(" -D\"{0}\"", Definition);
+					}
+					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.UserIncludePaths)
+					{
+						CommandBuilder.AppendFormat(" -I\"{0}\"", IncludePath);
+					}
+					foreach (DirectoryReference IncludePath in ModuleCompileEnvironment.SystemIncludePaths)
+					{
+						CommandBuilder.AppendFormat(" -I\"{0}\"", IncludePath);
+					}
+
+					ModuleDirectoryToCompileCommand.Add(Module.ModuleDirectory, CommandBuilder.ToString());
+				}
+			}
+
+			BuildTargets.Add(new BuildTarget(Target.TargetName, Target.TargetType, Target.Platform, Target.Configuration, ModuleDirectoryToCompileCommand));
 		}
 
 		private class ProjectData
@@ -326,7 +401,6 @@ namespace UnrealBuildTool
 				public string Name;
 				public TargetType Type;
 				public List<BuildProduct> BuildProducts = new List<BuildProduct>();
-				public List<string> Defines = new List<string>();
 
 				public Target(Project InParentProject, string InName, TargetType InType)
 				{
@@ -346,7 +420,6 @@ namespace UnrealBuildTool
 				public string Name;
 				public ProjectFile SourceProject;
 				public List<Target> Targets = new List<Target>();
-				public List<string> IncludePaths;
 
 				public override string ToString()
 				{
@@ -357,9 +430,8 @@ namespace UnrealBuildTool
 			public List<Project> NativeProjects = new List<Project>();
 			public List<Project> CSharpProjects = new List<Project>();
 			public List<Project> AllProjects = new List<Project>();
-			public List<string> CombinedIncludePaths = new List<string>();
-			public List<string> CombinedPreprocessorDefinitions = new List<string>();
 		}
+
 
 		private ProjectData GatherProjectData(List<ProjectFile> InProjects, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
@@ -411,53 +483,6 @@ namespace UnrealBuildTool
 									}
 								}
 							}
-						}
-
-						NewTarget.Defines.AddRange(Target.TargetRules.GlobalDefinitions);
-					}
-
-					NewProject.IncludePaths = new List<string>();
-					
-					List<string> RawIncludes = new List<string>(Project.IntelliSenseIncludeSearchPaths);
-					RawIncludes.AddRange(Project.IntelliSenseSystemIncludeSearchPaths);
-
-					if (HostPlatform == UnrealTargetPlatform.Win64)
-					{
-						RawIncludes.AddRange(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, WindowsPlatform.GetDefaultCompiler(null), null).Trim(';').Split(';'));
-					}
-					else
-					{
-						RawIncludes.Add("/usr/include");
-						RawIncludes.Add("/usr/local/include");
-					}
-
-					foreach (string IncludePath in RawIncludes)
-					{
-						DirectoryReference AbsPath = DirectoryReference.Combine(Project.ProjectFilePath.Directory, IncludePath);
-						if (DirectoryReference.Exists(AbsPath))
-						{
-							string Processed = MakeUnquotedPathString(AbsPath, EPathType.Absolute);
-							if (!NewProject.IncludePaths.Contains(Processed))
-							{
-								NewProject.IncludePaths.Add(Processed);
-							}
-
-							if (!ProjectData.CombinedIncludePaths.Contains(Processed))
-							{
-								ProjectData.CombinedIncludePaths.Add(Processed);
-							}
-							
-						}
-					}
-
-					foreach (string Definition in Project.IntelliSensePreprocessorDefinitions)
-					{
-						string Processed = Definition.Replace("\"", "\\\"");
-						// removing trailing spaces on preprocessor definitions as these can be added as empty defines confusing vscode
-						Processed = Processed.TrimEnd(' ');
-						if (!ProjectData.CombinedPreprocessorDefinitions.Contains(Processed))
-						{
-							ProjectData.CombinedPreprocessorDefinitions.Add(Processed);
 						}
 					}
 
@@ -532,73 +557,7 @@ namespace UnrealBuildTool
 			return ProjectData;
 		}
 
-		private void WriteProjectDataFile(ProjectData ProjectData)
-		{
-			JsonFile OutFile = new JsonFile();
-
-			OutFile.BeginRootObject();
-			OutFile.BeginArray("Projects");
-
-			foreach (ProjectData.Project Project in ProjectData.AllProjects)
-			{
-				foreach (ProjectData.Target Target in Project.Targets)
-				{
-					OutFile.BeginObject();
-					{
-						OutFile.AddField("Name", Project.Name);
-						OutFile.AddField("Type", Target.Type.ToString());
-
-						if (Project.SourceProject is VCSharpProjectFile)
-						{
-							OutFile.AddField("ProjectFile", MakePathString(Project.SourceProject.ProjectFilePath));
-						}
-						else
-						{
-							OutFile.BeginArray("IncludePaths");
-							{
-								foreach (string IncludePath in Project.IncludePaths)
-								{
-									OutFile.AddUnnamedField(IncludePath);
-								}
-							}
-							OutFile.EndArray();
-						}
-
-						OutFile.BeginArray("Defines");
-						{
-							foreach (string Define in Target.Defines)
-							{
-								OutFile.AddUnnamedField(Define);
-							}
-						}
-						OutFile.EndArray();
-
-						OutFile.BeginArray("BuildProducts");
-						{
-							foreach (ProjectData.BuildProduct BuildProduct in Target.BuildProducts)
-							{
-								OutFile.BeginObject();
-								{
-									OutFile.AddField("Platform", BuildProduct.Platform.ToString());
-									OutFile.AddField("Config", BuildProduct.Config.ToString());
-									OutFile.AddField("OutputFile", MakePathString(BuildProduct.OutputFile));
-									OutFile.AddField("OutputType", BuildProduct.OutputType.ToString());
-								}
-								OutFile.EndObject();
-							}
-						}
-						OutFile.EndArray();
-					}
-					OutFile.EndObject();
-				}
-			}
-
-			OutFile.EndArray();
-			OutFile.EndRootObject();
-			OutFile.Write(FileReference.Combine(VSCodeDir, "unreal.json"));
-		}
-
-		private void WriteCppPropertiesFile(DirectoryReference OutputDirectory, bool RewriteIncludePaths, ProjectData Projects)
+		private void WriteCppPropertiesFile(DirectoryReference OutputDirectory, ProjectData Projects)
 		{
 			DirectoryReference.CreateDirectory(OutputDirectory);
 
@@ -608,61 +567,97 @@ namespace UnrealBuildTool
 			{
 				OutFile.BeginArray("configurations");
 				{
-					OutFile.BeginObject();
+					foreach (ProjectData.Project Project in Projects.AllProjects)
 					{
-						OutFile.AddField("name", "UnrealEngine");
-
-						OutFile.BeginArray("includePath");
+						foreach (ProjectData.Target ProjectTarget in Project.Targets)
 						{
-							if (!RewriteIncludePaths)
+							BuildTarget BuildTarget = BuildTargets.FirstOrDefault(Target => Target.Name == ProjectTarget.Name);
+
+							// we do not generate intellisense for every target, as that just causes a lot of redundancy, as such we will not find a mapping for a lot of the targets
+							if (BuildTarget == null)
+								continue;
+
+							OutFile.BeginObject();
+
+							string Name = string.Format("{0} {1} {2} {3} ({4})", ProjectTarget.Name, ProjectTarget.Type, BuildTarget.Platform, BuildTarget.Configuration, Project.Name);
+							OutFile.AddField("name", Name);
+
+							if (HostPlatform == UnrealTargetPlatform.Win64)
 							{
-								foreach (var Path in Projects.CombinedIncludePaths)
-								{
-									OutFile.AddUnnamedField(Path);
-								}
+								OutFile.AddField("intelliSenseMode", "msvc-x64");
 							}
 							else
 							{
-								OutFile.AddUnnamedField("${workspaceFolder}/**");
+								OutFile.AddField("intelliSenseMode", "clang-x64");
 							}
-						}
-						OutFile.EndArray();
 
-						if (HostPlatform == UnrealTargetPlatform.Win64)
-						{
-							OutFile.AddField("intelliSenseMode", "msvc-x64");
-						}
-						else
-						{
-							OutFile.AddField("intelliSenseMode", "clang-x64");
-						}
-
-						if (HostPlatform == UnrealTargetPlatform.Mac)
-						{
-							OutFile.BeginArray("macFrameworkPath");
+							if (HostPlatform == UnrealTargetPlatform.Mac)
 							{
-								OutFile.AddUnnamedField("/System/Library/Frameworks");
-								OutFile.AddUnnamedField("/Library/Frameworks");
+								OutFile.BeginArray("macFrameworkPath");
+								{
+									OutFile.AddUnnamedField("/System/Library/Frameworks");
+									OutFile.AddUnnamedField("/Library/Frameworks");
+								}
+								OutFile.EndArray();
 							}
-							OutFile.EndArray();
-						}
 
-						OutFile.BeginArray("defines");
-						{
-							foreach (string Definition in Projects.CombinedPreprocessorDefinitions)
-							{
-								OutFile.AddUnnamedField(Definition);
-							}
+							FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", Project.Name));
+							WriteCompileCommands(CompileCommands, Project.SourceProject.SourceFiles,BuildTarget.ModuleCommandLines);
+							OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
+
+							OutFile.EndObject();
 						}
-						OutFile.EndArray();
 					}
-					OutFile.EndObject();
 				}
 				OutFile.EndArray();
 			}
 			OutFile.EndRootObject();
 
 			OutFile.Write(FileReference.Combine(OutputDirectory, "c_cpp_properties.json"));
+		}
+
+		private void WriteCompileCommands(FileReference CompileCommandsFile, List<ProjectFile.SourceFile> SourceFiles, Dictionary<DirectoryReference, string> ModuleCommandLines)
+		{
+			// this creates a compileCommands.json
+			// see VsCode Docs - https://code.visualstudio.com/docs/cpp/c-cpp-properties-schema-reference (compileCommands attribute)
+			// and the clang format description https://clang.llvm.org/docs/JSONCompilationDatabase.html
+
+			using (JsonWriter Writer = new JsonWriter(CompileCommandsFile))
+			{
+				Writer.WriteArrayStart();
+
+				Dictionary<DirectoryReference, string> DirectoryToIntellisenseCompilerCommand = ModuleCommandLines;
+
+				foreach (ProjectFile.SourceFile File in SourceFiles.OrderBy(x => x.Reference.FullName))
+				{
+					DirectoryReference Directory = File.Reference.Directory;
+					string CompilerCommand;
+					if (!DirectoryToIntellisenseCompilerCommand.TryGetValue(Directory, out CompilerCommand))
+					{
+						for (DirectoryReference ParentDir = Directory; ParentDir != null && ParentDir != UnrealBuildTool.RootDirectory; ParentDir = ParentDir.ParentDirectory)
+						{
+							if (DirectoryToIntellisenseCompilerCommand.TryGetValue(ParentDir, out CompilerCommand))
+							{
+								break;
+							}
+						}
+						DirectoryToIntellisenseCompilerCommand[Directory] = CompilerCommand;
+					}
+
+					if (CompilerCommand == null)
+					{
+						// no compiler command associated with the file, will happen for any file that is not a C++ file and is not an error
+						continue;
+					}
+					
+					Writer.WriteObjectStart();
+					Writer.WriteValue("file", MakePathString(File.Reference, bInAbsolute: true, bForceSkipQuotes: true));
+					Writer.WriteValue("command", CompilerCommand);
+					Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
+					Writer.WriteObjectEnd();
+				}
+				Writer.WriteArrayEnd();
+			}
 		}
 
 		private void WriteNativeTask(ProjectData.Project InProject, JsonFile OutFile)
@@ -678,7 +673,6 @@ namespace UnrealBuildTool
 						string Command = BaseCommand == "Rebuild" ? "Build" : BaseCommand;
 						string TaskName = String.Format("{0} {1} {2} {3}", Target.Name, BuildProduct.Platform.ToString(), BuildProduct.Config, BaseCommand);
 						string CleanTaskName = String.Format("{0} {1} {2} {3}", Target.Name, BuildProduct.Platform.ToString(), BuildProduct.Config, "Clean");
-						//List<string> ExtraParams = new List<string>();
 
 						OutFile.BeginObject();
 						{
@@ -885,25 +879,12 @@ namespace UnrealBuildTool
 			OutFile.Write(FileReference.Combine(VSCodeDir, "tasks.json"));
 		}
 		
-		public string EscapePath(string InputPath)
-		{
-			string Result = InputPath;
-			if (Result.Contains(" "))
-			{
-				Result = "\"" + Result + "\"";
-			}
-			return Result;
-		}
-
 		private FileReference GetExecutableFilename(ProjectFile Project, ProjectTarget Target, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration)
 		{
 			TargetRules TargetRulesObject = Target.TargetRules;
 			FileReference TargetFilePath = Target.TargetFilePath;
 			string TargetName = TargetFilePath == null ? Project.ProjectFilePath.GetFileNameWithoutExtension() : TargetFilePath.GetFileNameWithoutAnyExtensions();
 			string UBTPlatformName = Platform.ToString();
-			//string UBTConfigurationName = Configuration.ToString();
-
-			//string ProjectName = Project.ProjectFilePath.GetFileNameWithoutExtension();
 
 			// Setup output path
 			UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
@@ -1186,11 +1167,6 @@ namespace UnrealBuildTool
 			OutFile.Write(FileReference.Combine(VSCodeDir, "launch.json"));
 		}
 
-		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms)
-		{
-			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
-		}
-
 		private void WriteWorkspaceIgnoreFile(List<ProjectFile> Projects)
 		{
 			List<string> PathsToExclude = new List<string>();
@@ -1250,7 +1226,7 @@ namespace UnrealBuildTool
 			}
 		}
 		
-		private void WriteWorkspaceFile(ProjectData ProjectData)
+		private void WriteWorkspaceFile()
 		{
 			JsonFile WorkspaceFile = new JsonFile();
 
@@ -1284,6 +1260,7 @@ namespace UnrealBuildTool
 
 			WorkspaceFile.BeginObject("settings");
 			{
+				// disable autodetect for typescript files to workaround slowdown in vscode as a result of parsing all files
 				WorkspaceFile.AddField("typescript.tsc.autoDetect", "off");
 			}
 			WorkspaceFile.EndObject();

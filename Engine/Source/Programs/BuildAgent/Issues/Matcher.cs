@@ -213,7 +213,13 @@ namespace BuildAgent.Issues
 		protected string GetNormalizedFileName(string FileName, string BaseDirectory)
 		{
 			string NormalizedFileName = FileName.Replace('\\', '/');
-			if (!String.IsNullOrEmpty(BaseDirectory))
+
+			const string StandardEnginePrefix = "../../../";
+			if (NormalizedFileName.StartsWith(StandardEnginePrefix))
+			{
+				NormalizedFileName = NormalizedFileName.Substring(StandardEnginePrefix.Length);
+			}
+			else if (!String.IsNullOrEmpty(BaseDirectory))
 			{
 				// Normalize the expected base directory for errors in this build, and attempt to strip it from the file name
 				string NormalizedBaseDirectory = BaseDirectory;

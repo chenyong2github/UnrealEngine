@@ -321,7 +321,11 @@ namespace UnrealGameSync
 				components.Dispose();
 			}
 
-			IssueMonitor.Release();
+			if (IssueMonitor != null)
+			{
+				IssueMonitor.Release();
+				IssueMonitor = null;
+			}
 
 			base.Dispose(disposing);
 		}
@@ -494,7 +498,8 @@ namespace UnrealGameSync
 		{
 			UpdateSummaryTextIfChanged(SummaryTextBox, Issue.Summary.ToString());
 
-			BuildLinkLabel.Text = (Issue.Builds.Count > 0) ? Issue.Builds[0].JobName : "Unknown";
+			IssueBuildData FirstFailingBuild = Issue.Builds.FirstOrDefault(x => x.ErrorUrl != null);
+			BuildLinkLabel.Text = (FirstFailingBuild != null)? FirstFailingBuild.JobName : "Unknown";
 
 			StringBuilder Status = new StringBuilder();
 			if(IssueMonitor.HasPendingUpdate())
@@ -1045,8 +1050,15 @@ namespace UnrealGameSync
 
 				Window = new IssueDetailsWindow(IssueMonitor, Issue, Diagnostics, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
 				Window.Owner = Owner;
-				Window.StartPosition = FormStartPosition.Manual;
-				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
+				if (Owner.Visible && Owner.WindowState != FormWindowState.Minimized)
+				{
+					Window.StartPosition = FormStartPosition.Manual;
+					Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
+				}
+				else
+				{
+					Window.StartPosition = FormStartPosition.CenterScreen;
+				}
 				Window.Show();
 
 				ExistingWindows.Add(Window);
@@ -1054,6 +1066,7 @@ namespace UnrealGameSync
 			}
 			else
 			{
+				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
 				Window.Activate();
 			}
 		}
