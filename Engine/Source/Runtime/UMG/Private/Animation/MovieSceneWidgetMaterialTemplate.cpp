@@ -43,6 +43,11 @@ struct FWidgetMaterialAccessor : FDefaultMaterialAccessor
 		}
 	}
 
+	UMaterialInstanceDynamic* CreateMaterialInstanceDynamic(UObject& Object, UMaterialInterface& Material, FName UniqueDynamicName)
+	{
+		return UMaterialInstanceDynamic::Create(&Material, &Object, UniqueDynamicName );
+	}
+
 	FMovieSceneAnimTypeID AnimTypeID;
 	TArray<FName> BrushPropertyNamePath;
 };
