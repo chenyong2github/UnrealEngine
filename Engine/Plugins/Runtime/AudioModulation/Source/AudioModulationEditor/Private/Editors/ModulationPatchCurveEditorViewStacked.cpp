@@ -8,10 +8,12 @@
 #include "CurveModel.h"
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IAudioModulation.h"
 #include "SCurveEditorPanel.h"
 #include "Sound/SoundModulationDestination.h"
 #include "SoundControlBus.h"
+#include "SoundModulationParameter.h"
 #include "SoundModulationPatch.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -30,83 +32,114 @@ namespace PatchCurveViewUtils
 } // namespace PatchCurveViewUtils
 
 
-
-FModPatchCurveEditorModel::FModPatchCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModPatchOutputEditorCurveSource InSource, UCurveFloat* InSharedCurve)
+FModPatchCurveEditorModel::FModPatchCurveEditorModel(FRichCurve& InRichCurve, UObject* InOwner, EModPatchOutputEditorCurveSource InSource, int32 InInputIndex)
 	: FRichCurveEditorModelRaw(&InRichCurve, InOwner)
 	, Patch(CastChecked<USoundModulationPatch>(InOwner))
+	, InputIndex(InInputIndex)
 	, Source(InSource)
 {
 	check(InOwner);
+	Refresh(InSource, InInputIndex);
+}
 
-	FText InputAxisName = LOCTEXT("ModulationCurveDisplayName_Linear", "Linear");
+void FModPatchCurveEditorModel::Refresh(EModPatchOutputEditorCurveSource InSource, int32 InInputIndex)
+{
+	InputAxisName = LOCTEXT("ModulationCurveDisplayTitle_Linear", "Linear");
 	FText OutputAxisName = InputAxisName;
-	if (Patch.IsValid())
+
+	FSoundControlModulationInput* Input = nullptr;
+	Source = EModPatchOutputEditorCurveSource::Unset;
+	InputIndex = -1;
+
+	if (Patch.IsValid() && InInputIndex >= 0 && InInputIndex < Patch->PatchSettings.Inputs.Num())
 	{
-		if (Patch->PatchSettings.InputParameter)
+		InputIndex = InInputIndex;
+		Source = InSource;
+
+		static const FText AxisNameFormat = LOCTEXT("ModulationCurveDisplayTitle_AxisNameFormat", "{0} ({1})");
+
+		Input = &Patch->PatchSettings.Inputs[InInputIndex];
+		if (const USoundControlBus* Bus = Input->GetBus())
 		{
-			InputAxisName = Patch->PatchSettings.InputParameter->Settings.UnitDisplayName;
+			if (USoundModulationParameter* Parameter = Bus->Parameter)
+			{
+				InputAxisName = FText::Format(AxisNameFormat, FText::FromString(Parameter->GetName()), Parameter->Settings.UnitDisplayName);
+			}
 		}
 
-		if (Patch->PatchSettings.OutputParameter)
+		if (USoundModulationParameter* Parameter = Patch->PatchSettings.OutputParameter)
 		{
-			OutputAxisName = Patch->PatchSettings.OutputParameter->Settings.UnitDisplayName;
+			OutputAxisName = FText::Format(AxisNameFormat, FText::FromString(Parameter->GetName()), Parameter->Settings.UnitDisplayName);
 		}
 	}
 
-	const FText ShortNameBase = FText::Format(LOCTEXT("ModulationCurveDisplayName_Axis", "X = {0}, Y = {1}"), InputAxisName, OutputAxisName);
+	AxesDescriptor = FText::Format(LOCTEXT("ModulationCurveDisplayTitle_AxesFormat", "X = {0}, Y = {1}"), InputAxisName, OutputAxisName);
 
 	bKeyDrawEnabled = true;
-	Color			= UAudioModulationStyle::GetControlBusColor();
-	IntentionName	= TEXT("AudioControlValue");
-	SupportedViews	= ViewId;
+	Color = UAudioModulationStyle::GetControlBusColor();
+	IntentionName = TEXT("AudioControlValue");
+	SupportedViews = ViewId;
+
+	ShortDisplayName = LOCTEXT("ModulationCurveDisplayTitle_BusUnset", "Bus (Unset)");
+	if (const USoundControlBus* Bus = Input->GetBus())
+	{
+		ShortDisplayName = FText::FromString(Input->GetBus()->GetName());
+	}
+
+	bKeyDrawEnabled = false;
 
 	const bool bIsBypassed = GetIsBypassed();
 	if (bIsBypassed)
 	{
-		SetShortDisplayName(FText::Format(LOCTEXT("ModulationCurveDisabledDisplayName", "{0} (Bypassed)"), ShortNameBase));
-		bKeyDrawEnabled = false;
+		LongDisplayName = FText::Format(LOCTEXT("ModulationCurveDisplay_BypassedNameFormat", "{0} (Bypassed)"), ShortDisplayName);
 	}
 	else
 	{
-		switch (Source)
+		UEnum* Enum = StaticEnum<EModPatchOutputEditorCurveSource>();
+		check(Enum);
+
+		FString EnumValueName = Enum->GetValueAsString(Source);
+		int32 DelimIndex = -1;
+		EnumValueName.FindLastChar(':', DelimIndex);
+		if (DelimIndex > 0 && DelimIndex < EnumValueName.Len() - 1)
 		{
-			case EModPatchOutputEditorCurveSource::Shared:
-			{
-				check(InSharedCurve);
-				FText CurveNameText = FText::FromString(InSharedCurve->GetName());
-				SetShortDisplayName(FText::Format(LOCTEXT("ModulationSharedDisplayName", "{0} [Shared ({1})]"), ShortNameBase, CurveNameText));
-			}
-			break;
-
-			case EModPatchOutputEditorCurveSource::Custom:
-			{
-				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveDisplayName", "{0} [Custom]"), ShortNameBase);
-			}
-			break;
-
-			case EModPatchOutputEditorCurveSource::Expression:
-			{
-				bKeyDrawEnabled = false;
-				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveExpressionDisplayName", "{0} [Expression]"), ShortNameBase);
-			}
-			break;
-
-			case EModPatchOutputEditorCurveSource::Unset:
-			default:
-			{
-				bKeyDrawEnabled = false;
-				ShortDisplayName = FText::Format(LOCTEXT("ModulationOutputCurveUnsetDisplayName", "{0} [Shared (Unset)]"), ShortNameBase);
-			}
-			break;
+			EnumValueName.RightChopInline(DelimIndex + 1);
 		}
+
+		FText CurveSourceText = FText::FromString(EnumValueName);
+
+		if (Source == EModPatchOutputEditorCurveSource::Custom)
+		{
+			bKeyDrawEnabled = true;
+		}
+		else if (Source == EModPatchOutputEditorCurveSource::Shared)
+		{
+			check(Input);
+			UCurveFloat* SharedCurve = Input->Transform.CurveShared;
+			check(SharedCurve);
+			CurveSourceText = FText::Format(LOCTEXT("ModulationCurveDisplayTitle_SharedNameFormat", "Shared, {0}"), FText::FromString(SharedCurve->GetName()));
+			bKeyDrawEnabled = true;
+		}
+
+		LongDisplayName = FText::Format(LOCTEXT("ModulationCurveDisplayTitle_NameFormat", "{0}: {1} ({2})"), FText::AsNumber(InInputIndex), ShortDisplayName, CurveSourceText);
 	}
 }
 
 FLinearColor FModPatchCurveEditorModel::GetColor() const
 {
-	return !GetIsBypassed() && (Source == EModPatchOutputEditorCurveSource::Custom || Source == EModPatchOutputEditorCurveSource::Expression)
+	return !GetIsBypassed() && (Source == EModPatchOutputEditorCurveSource::Custom)
 		? Color
-		: Color.Desaturate(0.45f);
+		: Color.Desaturate(0.35f);
+}
+
+const FText& FModPatchCurveEditorModel::GetAxesDescriptor() const
+{
+	return AxesDescriptor;
+}
+
+const FText& FModPatchCurveEditorModel::GetInputDisplayName() const
+{
+	return InputAxisName;
 }
 
 bool FModPatchCurveEditorModel::GetIsBypassed() const
@@ -122,6 +155,19 @@ bool FModPatchCurveEditorModel::GetIsBypassed() const
 EModPatchOutputEditorCurveSource FModPatchCurveEditorModel::GetSource() const
 {
 	return Source;
+}
+
+USoundModulationParameter* FModPatchCurveEditorModel::GetPatchInputParameter() const
+{
+	if (Patch.IsValid() && InputIndex >= 0 && InputIndex < Patch->PatchSettings.Inputs.Num())
+	{
+		if (const USoundControlBus* Bus = Patch->PatchSettings.Inputs[InputIndex].GetBus())
+		{
+			return Bus->Parameter;
+		}
+	}
+
+	return nullptr;
 }
 
 const USoundModulationPatch* FModPatchCurveEditorModel::GetPatch() const
@@ -140,8 +186,8 @@ void SModulationPatchEditorViewStacked::Construct(const FArguments& InArgs, TWea
 {
 	SCurveEditorViewStacked::Construct(InArgs, InCurveEditor);
 
-	StackedHeight = 250.0;
-	StackedPadding = 28.0f;
+	StackedHeight = 300.0f;
+	StackedPadding = 60.0f;
 }
 
 void SModulationPatchEditorViewStacked::PaintView(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -173,7 +219,7 @@ void SModulationPatchEditorViewStacked::DrawLabels(const FGeometry& AllottedGeom
 
 	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("FontAwesome.11");
 	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
-	const FCurveEditorScreenSpaceV ViewSpace = GetViewSpace();
+	const FCurveEditorScreenSpace ViewSpace = GetViewSpace();
 
 	// Draw the curve labels for each view
 	for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
@@ -185,7 +231,7 @@ void SModulationPatchEditorViewStacked::DrawLabels(const FGeometry& AllottedGeom
 		}
 
 		const int32  CurveIndexFromBottom = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
-		const double PaddingToBottomOfView = (CurveIndexFromBottom + 1)*ValueSpacePadding;
+		const double PaddingToBottomOfView = (CurveIndexFromBottom + 1) * ValueSpacePadding;
 
 		const float PixelBottom = ViewSpace.ValueToScreen(CurveIndexFromBottom + PaddingToBottomOfView);
 		const float PixelTop = ViewSpace.ValueToScreen(CurveIndexFromBottom + PaddingToBottomOfView + 1.0);
@@ -195,16 +241,32 @@ void SModulationPatchEditorViewStacked::DrawLabels(const FGeometry& AllottedGeom
 			continue;
 		}
 
-		const FText Label = Curve->GetLongDisplayName();
+		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-		const FVector2D Position(CurveViewConstants::CurveLabelOffsetX * 1.5f, PixelTop + CurveViewConstants::CurveLabelOffsetY * 3.0f);
+		// Render label
+		FText Label = Curve->GetLongDisplayName();
 
-		const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Position));
-		const FPaintGeometry LabelDropshadowGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Position + FVector2D(2, 2)));
+		static const float LabelOffsetX = 15.0f;
+		static const float LabelOffsetY = 35.0f;
+		FVector2D LabelPosition(LabelOffsetX, PixelTop - LabelOffsetY);
+		FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(LabelPosition));
+		const FVector2D LabelSize = FontMeasure->Measure(Label, FontInfo);
 
-		// Drop shadow
-		FSlateDrawElement::MakeText(OutDrawElements, LabelLayerId, LabelDropshadowGeometry, Label, FontInfo, DrawEffects, FLinearColor::Black.CopyWithNewOpacity(0.80f));
 		FSlateDrawElement::MakeText(OutDrawElements, LabelLayerId + 1, LabelGeometry, Label, FontInfo, DrawEffects, Curve->GetColor());
+
+		// Render axes descriptor
+		FText Descriptor = static_cast<FModPatchCurveEditorModel*>(Curve)->GetAxesDescriptor();
+
+		const FVector2D DescriptorSize = FontMeasure->Measure(Descriptor, FontInfo);
+
+		static const float LabelBufferX = 20.0f; // Keeps label and axes descriptor visually separated
+		static const float GutterBufferX = 20.0f; // Accounts for potential scroll bar
+		const float ViewWidth = ViewSpace.GetPhysicalWidth();
+		const float FloatingDescriptorX = ViewWidth - DescriptorSize.X;
+		LabelPosition = FVector2D(FMath::Max(LabelSize.X + LabelBufferX, FloatingDescriptorX - GutterBufferX), PixelTop - LabelOffsetY);
+		LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(LabelPosition));
+
+		FSlateDrawElement::MakeText(OutDrawElements, LabelLayerId + 1, LabelGeometry, Descriptor, FontInfo, DrawEffects, Curve->GetColor());
 	}
 }
 
@@ -244,20 +306,17 @@ void SModulationPatchEditorViewStacked::DrawViewGrids(const FGeometry& AllottedG
 
 		if (const FModPatchCurveEditorModel* EditorModel = static_cast<const FModPatchCurveEditorModel*>(DrawInfo.GetCurveModel()))
 		{
-			if (const USoundModulationPatch* Patch = EditorModel->GetPatch())
+			if (USoundModulationParameter* InputParameter = EditorModel->GetPatchInputParameter())
 			{
 				for (int32 i = 0; i < CurveModelGridLabelsX.Num(); ++i)
 				{
 					FText& Label = CurveModelGridLabelsX[i];
-					if (USoundModulationParameter* InputParameter = Patch->PatchSettings.InputParameter)
-					{
-						PatchCurveViewUtils::FormatLabel(*InputParameter, DrawInfo.LabelFormat, Label);
-					}
+					PatchCurveViewUtils::FormatLabel(*InputParameter, DrawInfo.LabelFormat, Label);
 				}
 			}
 		}
 
-		const int32  Index = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
+		const int32 Index = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
 		double Padding = (Index + 1) * ValueSpacePadding;
 		DrawInfo.SetLowerValue(Index + Padding);
 
