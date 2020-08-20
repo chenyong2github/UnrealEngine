@@ -128,7 +128,6 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 						if (UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodySetupIdx])
 						{
 
-							if (BodySetup->PhysicsType == PhysType_Default)
 							{
 								BodyInstanceWheel->SetInstanceSimulatePhysics(false);
 							}
