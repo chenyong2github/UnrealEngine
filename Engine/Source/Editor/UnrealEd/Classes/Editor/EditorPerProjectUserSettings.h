@@ -161,7 +161,11 @@ public:
 	UPROPERTY(config)
 	int32 PreviewFeatureLevel;
 
-	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
+	/** The platform name to preview, or NAME_None if there is no preview platform */
+	UPROPERTY(config)
+	FName PreviewPlatformName;
+
+	/** The shader platform to preview, or NAME_None if there is no preview platform */
 	UPROPERTY(config)
 	FName PreviewShaderFormatName;
 

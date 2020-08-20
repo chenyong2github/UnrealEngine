@@ -275,18 +275,24 @@ struct FPreviewPlatformInfo
 {
 	FPreviewPlatformInfo()
 	:	PreviewFeatureLevel(ERHIFeatureLevel::SM5)
+	,	PreviewPlatformName(NAME_None)
+	,	PreviewShaderFormatName(NAME_None)
 	,	bPreviewFeatureLevelActive(false)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
 	:	PreviewFeatureLevel(InFeatureLevel)
+	,	PreviewPlatformName(InPreviewPlatformName)
 	,	PreviewShaderFormatName(InPreviewShaderFormatName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
 	{}
 
 	/** The feature level we should use when loading or creating a new world */
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
-	
+
+	/** The the platform to preview, or NAME_None if there is no preview platform */
+	FName PreviewPlatformName;
+
 	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
 	FName PreviewShaderFormatName;
 
@@ -296,21 +302,13 @@ struct FPreviewPlatformInfo
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderFormatName == Other.PreviewShaderFormatName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName;
 	}
 
-	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
+	/** Return platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		if (PreviewShaderFormatName != NAME_None && bPreviewFeatureLevelActive)
-		{
-			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderFormatName);
-			if (TargetPlatform)
-			{
-				return FName(*TargetPlatform->IniPlatformName());
-			}
-		}
-		return NAME_None;
+		return bPreviewFeatureLevelActive ? PreviewPlatformName : NAME_None;
 	}
 
 	/** returns the preview feature level if active, or GMaxRHIFeatureLevel otherwise */
