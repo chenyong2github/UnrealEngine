@@ -313,7 +313,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bIsConsole: 1;
 	uint32 bIsAndroidOpenGLES: 1;
 
-	uint32 bSupportsDrawIndirect: 1;
 	uint32 bSupportsMobileMultiView: 1;
 	uint32 bSupportsVolumeTextureCompression: 1;
 	uint32 bSupportsDistanceFields: 1; // used for DFShadows and DFAO - since they had the same checks
@@ -415,11 +414,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetIsAndroidOpenGLES(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bIsAndroidOpenGLES;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsDrawIndirect(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsDrawIndirect;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMobileMultiView(const FStaticShaderPlatform Platform)
