@@ -19,14 +19,27 @@ struct FAudioParticleData
 	float StartTime = 1;
 };
 
+struct FPersistentAudioParticleData
+{
+	int32 AudioHandle = 0;
+
+	/** The update callback is executed in PerInstanceTickPostSimulate, which runs on the game thread */
+	TFunction<void(struct FAudioPlayerInterface_InstanceData*,UAudioComponent*,FNiagaraSystemInstance*)> UpdateCallback;
+};
+
 struct FAudioPlayerInterface_InstanceData
 {
 	/** We use a lock-free queue here because multiple threads might try to push data to it at the same time. */
-	TQueue<FAudioParticleData, EQueueMode::Mpsc> GatheredData;
+	TQueue<FAudioParticleData, EQueueMode::Mpsc> PlayAudioQueue;
+	TQueue<FPersistentAudioParticleData, EQueueMode::Mpsc> PersistentAudioActionQueue;
+	FThreadSafeCounter HandleCount;
+
+	TSortedMap<int32, TWeakObjectPtr<UAudioComponent>> PersistentAudioMapping;
 
 	TWeakObjectPtr<USoundBase> SoundToPlay;
 	TWeakObjectPtr<USoundAttenuation> Attenuation;
 	TWeakObjectPtr<USoundConcurrency> Concurrency;
+	TArray<FName> ParameterNames;
 
 	int32 MaxPlaysPerTick = 0;
 };
@@ -49,6 +62,10 @@ public:
 	/** Optional sound concurrency setting to use */
 	UPROPERTY(EditAnywhere, Category = "Audio")
 	USoundConcurrency* Concurrency;
+	
+	/** A set of parameter names that can be referenced via index when setting sound cue parameters on persistent audio */
+	UPROPERTY(EditAnywhere, Category = "Parameters")
+	TArray<FName> ParameterNames;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio", meta = (InlineEditConditionToggle))
     bool bLimitPlaysPerTick;
@@ -79,11 +96,29 @@ public:
 	virtual bool HasPostSimulateTick() const override { return true; }
 	//UNiagaraDataInterface Interface
 
-	virtual void StoreData(FVectorVMContext& Context);
+	virtual void PlayOneShotAudio(FVectorVMContext& Context);
+	virtual void PlayPersistentAudio(FVectorVMContext& Context);
+	virtual void SetParameterBool(FVectorVMContext& Context);
+	virtual void SetParameterInteger(FVectorVMContext& Context);
+	virtual void SetParameterFloat(FVectorVMContext& Context);
+	virtual void UpdateVolume(FVectorVMContext& Context);
+	virtual void UpdatePitch(FVectorVMContext& Context);
+	virtual void UpdateLocation(FVectorVMContext& Context);
+	virtual void UpdateRotation(FVectorVMContext& Context);
+	virtual void SetPausedState(FVectorVMContext& Context);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	
 private:
 	static const FName PlayAudioName;
+	static const FName PlayPersistentAudioName;
+	static const FName SetPersistentAudioVolumeName;
+	static const FName SetPersistentAudioPitchName;
+	static const FName SetPersistentAudioLocationName;
+	static const FName SetPersistentAudioRotationName;
+	static const FName SetPersistentAudioBoolParamName;
+	static const FName SetPersistentAudioIntegerParamName;
+	static const FName SetPersistentAudioFloatParamName;
+	static const FName PausePersistentAudioName;
 };
