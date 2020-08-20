@@ -10,6 +10,7 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
+class UCineCameraComponent;
 struct FPostProcessSettings;
 
 /**
@@ -173,6 +174,15 @@ public:
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
 
 	/**
+	* Get updated cinecamera post processing
+	*
+	* @param deltaSeconds - frame deltaSeconds
+	* @param CineCamera - Cinecamera to get PP from
+	*
+	*/
+	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) = 0;
+
+	/**
 	* Assigns camera to a specified viewport. If InViewportId is empty, all viewports will be assigned to a new camera. Empty camera ID means default active camera.
 	*
 	* @param InCameraId   - ID of a camera (see [camera] in the nDisplay config file
@@ -203,6 +213,23 @@ public:
 	* @param OutBufferRatio - Current buffer ratio (1 - same as viewport size, 0.25 - is 0.25 width and height of viewport size)
 	*/
 	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const = 0;
+
+	/**
+	* Returns projection policy interface of a viewport
+	*
+	* @param InViewportID        - ID of a viewport
+	* @param OutProjectionPolicy - Projection policy interface
+	*/
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) = 0;
+
+	/**
+	* Returns context data of a viewport
+	*
+	* @param InViewportID        - ID of a viewport
+	* @param ViewIndex           - eye view index
+	* @param OutViewContext      - Context data
+	*/
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) = 0;
 
 	/**
 	* Configuration of interpupillary (interocular) distance

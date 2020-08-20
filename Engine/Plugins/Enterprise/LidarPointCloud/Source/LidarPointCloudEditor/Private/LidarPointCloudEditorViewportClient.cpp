@@ -259,10 +259,12 @@ void FLidarPointCloudEditorViewportClient::DrawCanvas(FViewport& InViewport, FSc
 			FIntPoint SelectionCurrentLocation;
 			Viewport->GetMousePos(SelectionCurrentLocation);
 
-			float X = FMath::Min(SelectionStartLocation.X, SelectionCurrentLocation.X);
-			float Y = FMath::Min(SelectionStartLocation.Y, SelectionCurrentLocation.Y);
-			float SizeX = FMath::Max(SelectionStartLocation.X, SelectionCurrentLocation.X) - X;
-			float SizeY = FMath::Max(SelectionStartLocation.Y, SelectionCurrentLocation.Y) - Y;
+			const float InvScale = 1.0f / Viewport->GetClient()->GetDPIScale();
+
+			const float X = FMath::Min(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale;
+			const float Y = FMath::Min(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale;
+			const float SizeX = FMath::Max(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale - X;
+			const float SizeY = FMath::Max(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale - Y;
 
 			FLinearColor SelectionColor = GetDefault<UEditorStyleSettings>()->SelectionColor;
 			SelectionColor.A = 0.35f;

@@ -16,7 +16,7 @@
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Widgets/Layout/SPopup.h"
 #include "Widgets/Layout/SWindowTitleBarArea.h"
-#include "DebugCanvas.h"
+#include "Slate/DebugCanvas.h"
 #include "Types/InvisibleToWidgetReflectorMetaData.h"
 #include "Framework/Application/SlateApplication.h"
 

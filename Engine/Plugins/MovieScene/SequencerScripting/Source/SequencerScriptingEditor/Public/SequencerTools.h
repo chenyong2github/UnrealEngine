@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
+#include "Channels/MovieSceneEvent.h"
 #include "SequencerBindingProxy.h"
 #include "SequencerScriptingRange.h"
 #include "SequencerTools.generated.h"
@@ -13,11 +14,13 @@
 class UFbxExportOption;
 class UAnimSequence;
 class UPoseAsset;
+class UMovieSceneEventSectionBase;
+class UK2Node_CustomEvent;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
 
 USTRUCT(BlueprintType)
-struct FSequencerBoundObjects
+struct SEQUENCERSCRIPTINGEDITOR_API FSequencerBoundObjects
 {
 	GENERATED_BODY()
 
@@ -34,6 +37,24 @@ struct FSequencerBoundObjects
 
 	UPROPERTY(BlueprintReadWrite, Category=Binding)
 	TArray<UObject*> BoundObjects;
+};
+
+/** Wrapper around result of quick binding for event track in sequencer. */
+USTRUCT(BlueprintType)
+struct FSequencerQuickBindingResult
+{
+	GENERATED_BODY()
+
+	FSequencerQuickBindingResult() : EventEndpoint(nullptr) {}
+
+	/** Actual endpoint wrapped by this structure.  */
+	UPROPERTY()
+	UK2Node_CustomEvent* EventEndpoint;
+
+	/** Names of the payload variables of the event. */
+	UPROPERTY(BlueprintReadOnly, Category = Data)
+	TArray<FString> PayloadNames;
+
 };
 
 /** 
@@ -121,5 +142,36 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
 	static bool ImportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString&  InImportFilename);
+
+public:
+	/**
+	 * Create an event from a previously created blueprint endpoint and a payload. The resulting event should be added only
+	 * to a channel of the section that was given as a parameter.
+	 * @param InSequence Main level sequence that holds the event track and to which the resulting event should be added.
+	 * @param InSection Section of the event track of the main sequence.
+	 * @param InEndpoint Previously created endpoint.
+	 * @param InPayload Values passed as payload to event, count must match the numbers of payload variable names in @InEndpoint.
+	 * @return The created movie event.
+	 * @see CreateQuickBinding
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static FMovieSceneEvent CreateEvent(UMovieSceneSequence* InSequence, UMovieSceneEventSectionBase* InSection, const FSequencerQuickBindingResult& InEndpoint, const TArray<FString>& InPayload);
+
+	/**
+	 * Check if an endpoint is valid and can be used to create movie scene event.
+	 * @param InEndpoint Endpoint to check.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static bool IsEventEndpointValid(const FSequencerQuickBindingResult& InEndpoint);
+
+	/**
+	 * Create a quick binding to an actor's member method to be used in an event sequence.
+	 * @param InActor Actor that will be bound
+	 * @param InFunctionName Name of the method, as it is displayed in the Blueprint Editor. eg. "Set Actor Scale 3D"
+	 * @param bCallInEditor Should the event be callable in editor.
+	 * @return The created binding.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static FSequencerQuickBindingResult CreateQuickBinding(UMovieSceneSequence* InSequence, UObject* InObject, const FString& InFunctionName, bool bCallInEditor);
 
 };

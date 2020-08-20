@@ -7,11 +7,15 @@
 #include "DMXProtocolConstants.h"
 
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
+#include "Customizations/DMXEntityFixtureTypeFixtureSettingsDetails.h"
+#include "Customizations/DMXEntityFixtureTypeModesDetails.h"
+#include "Customizations/DMXEntityFixtureTypeModePropertiesDetails.h"
+#include "Customizations/DMXEntityFixtureTypeFunctionsDetails.h"
+#include "Customizations/DMXEntityFixtureTypeFunctionPropertiesDetails.h"
 
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityController.h"
-#include "Library/DMXEntityFader.h"
 
 #include "Game/DMXComponent.h"
 
@@ -79,22 +83,16 @@ void SDMXEntityInspector::Tick(const FGeometry& AllottedGeometry, const double I
 	}
 }
 
-void SDMXEntityInspector::ShowDetailsForSingleEntity(UObject* Object)
+void SDMXEntityInspector::ShowDetailsForSingleEntity(UDMXEntity* Entity)
 {
-	TArray<UObject*> PropertyObjects;
-
-	if (Object != NULL)
-	{
-		PropertyObjects.Add(Object);
-	}
-
-	ShowDetailsForEntities(PropertyObjects);
+	check(Entity);
+	ShowDetailsForEntities(TArray<UDMXEntity*>{ Entity });
 }
 
-void SDMXEntityInspector::ShowDetailsForEntities(const TArray<UObject*>& PropertyObjects)
+void SDMXEntityInspector::ShowDetailsForEntities(const TArray<UDMXEntity*>& Entities)
 {
 	// Refresh is being deferred until the next tick, this prevents batch operations from bombarding the details view with calls to refresh
-	RefreshPropertyObjects = PropertyObjects;
+	RefreshPropertyObjects = TArray<UObject*>(Entities);
 	bRefreshOnTick = true;
 }
 
@@ -118,7 +116,7 @@ TSharedRef<SWidget> SDMXEntityInspector::MakeEditingWidget(const TArray<UObject*
 
 	InnerEditingWidget->AddSlot()
 	.FillHeight( 0.9f )
-	.VAlign( VAlign_Top )
+	.VAlign( VAlign_Fill )
 	[
 		SNew( SBox )
 		[
@@ -147,29 +145,38 @@ void SDMXEntityInspectorControllers::Construct(const FArguments& InArgs)
 	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityController::StaticClass(), ControllersDetails);
 }
 
-void SDMXEntityInspectorFixturePatches::Construct(const FArguments& InArgs)
+void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs, EDMXFixtureTypeLayout Layout)
 {
 	SDMXEntityInspector::Construct(SDMXEntityInspector::FArguments()
 		.DMXEditor(InArgs._DMXEditor)
 		.OnFinishedChangingProperties(InArgs._OnFinishedChangingProperties)
 	);
 
-	// Register customization for UOBJECT
-	FOnGetDetailCustomizationInstance FixtureTypesDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixturePatchesDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixturePatch::StaticClass(), FixtureTypesDetails);
-}
+	// Register details customizations Fixture Type UOBJECT
+	FOnGetDetailCustomizationInstance FixtureTypeDetails;
+	switch (Layout)
+	{
+	case EDMXFixtureTypeLayout::FixtureSettings:
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFixtureSettingsDetails>, InArgs._DMXEditor);
+		break;
+	case EDMXFixtureTypeLayout::Modes:
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeModesDetails>, InArgs._DMXEditor);
+		break;
+	case EDMXFixtureTypeLayout::ModeProperties:
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeModePropertiesDetails>, InArgs._DMXEditor);
+		break;
+	case EDMXFixtureTypeLayout::Functions:
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFunctionsDetails>, InArgs._DMXEditor);
+		break;
+	case EDMXFixtureTypeLayout::FunctionProperties:
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFunctionPropertiesDetails>, InArgs._DMXEditor);
+		break;
+	default:
+		check(0); // Unhandled layout
+		return;
+	}
+	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixtureType::StaticClass(), FixtureTypeDetails);
 
-void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs)
-{
-	SDMXEntityInspector::Construct(SDMXEntityInspector::FArguments()
-		.DMXEditor(InArgs._DMXEditor)
-		.OnFinishedChangingProperties(InArgs._OnFinishedChangingProperties)
-	);
-
-	// Register generic customization for Fixture Type UOBJECT, just to keep its categories in order
-	FOnGetDetailCustomizationInstance FixtureTypesDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXCustomization>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixtureType::StaticClass(), FixtureTypesDetails);
-	
 	// Register customization for Fixture Mode USTRUCT
 	FOnGetPropertyTypeCustomizationInstance FixtureModeDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureModeDetails>, InArgs._DMXEditor);
 	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureMode::StaticStruct()->GetFName(), FixtureModeDetails);
@@ -177,22 +184,10 @@ void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs)
 	// Register customization for Fixture Function USTRUCT
 	FOnGetPropertyTypeCustomizationInstance FixtureFunctionDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureFunctionDetails>, InArgs._DMXEditor);
 	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureFunction::StaticStruct()->GetFName(), FixtureFunctionDetails);
-	
+
 	// Register customization for Fixture Sub Function USTRUCT
 	FOnGetPropertyTypeCustomizationInstance FixtureSubFunctionDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureSubFunctionDetails>, InArgs._DMXEditor);
 	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureSubFunction::StaticStruct()->GetFName(), FixtureSubFunctionDetails);
-}
-
-void SDMXEntityInspectorFaders::Construct(const FArguments& InArgs)
-{
-	SDMXEntityInspector::Construct(SDMXEntityInspector::FArguments()
-		.DMXEditor(InArgs._DMXEditor)
-		.OnFinishedChangingProperties(InArgs._OnFinishedChangingProperties)
-	);
-
-	// Register customization for UOBJECT
-	FOnGetDetailCustomizationInstance UniverseManagerDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXCustomization>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFader::StaticClass(), UniverseManagerDetails);
 }
 
 #undef LOCTEXT_NAMESPACE

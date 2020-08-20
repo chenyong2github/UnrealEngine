@@ -16,6 +16,7 @@ class GEOMETRYCACHEABCFILE_API UGeometryCacheTrackAbcFile : public UGeometryCach
 	GENERATED_BODY()
 
 	UGeometryCacheTrackAbcFile();
+	virtual ~UGeometryCacheTrackAbcFile();
 
 public:
 
@@ -26,7 +27,7 @@ public:
 	virtual const FGeometryCacheTrackSampleInfo& GetSampleInfo(float Time, const bool bLooping) override;
 	//~ End UGeometryCacheTrack Interface.
 
-	bool SetSourceFile(const FString& FilePath, class UAbcImportSettings* AbcSettings);
+	bool SetSourceFile(const FString& FilePath, class UAbcImportSettings* AbcSettings, float InitialTime = 0.f, bool bIsLooping = true);
 	const FString& GetSourceFile() const { return SourceFile; }
 
 	const int32 FindSampleIndexFromTime(const float Time, const bool bLooping) const;
@@ -36,6 +37,8 @@ public:
 	bool GetMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData);
 
 	void SetupGeometryCacheMaterials(class UGeometryCache* GeometryCache);
+
+	FAbcFile& GetAbcFile();
 
 private:
 	void Reset();
@@ -47,8 +50,5 @@ private:
 	TUniquePtr<FAbcFile> AbcFile;
 	FString SourceFile;
 
-	FCriticalSection CriticalSection;
-
 	int32 EndFrameIndex;
-	int32 LastSampledIndex;
 };

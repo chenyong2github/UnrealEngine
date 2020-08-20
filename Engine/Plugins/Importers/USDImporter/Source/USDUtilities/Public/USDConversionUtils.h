@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -24,6 +24,8 @@ PXR_NAMESPACE_OPEN_SCOPE
 	class UsdAttribute;
 	class UsdPrim;
 	class UsdTimeCode;
+	class UsdGeomPrimvar;
+	class UsdGeomMesh;
 
 	class UsdStage;
 	template< typename T > class TfRefPtr;
@@ -53,6 +55,24 @@ namespace UsdUtils
 		return Object;
 	}
 
+	/** Case sensitive hashing function for TMap */
+	template <typename ValueType>
+	struct FCaseSensitiveStringMapFuncs : BaseKeyFuncs<ValueType, FString, /*bInAllowDuplicateKeys*/false>
+	{
+		static FORCEINLINE const FString& GetSetKey( const TPair<FString, ValueType>& Element )
+		{
+			return Element.Key;
+		}
+		static FORCEINLINE bool Matches( const FString& A, const FString& B )
+		{
+			return A.Equals( B, ESearchCase::CaseSensitive );
+		}
+		static FORCEINLINE uint32 GetKeyHash( const FString& Key )
+		{
+			return FCrc::StrCrc32<TCHAR>( *Key );
+		}
+	};
+
 #if USE_USD_SDK
 	template< typename ValueType >
 	USDUTILITIES_API ValueType GetUsdValue( const pxr::UsdAttribute& Attribute, pxr::UsdTimeCode TimeCode );
@@ -71,6 +91,34 @@ namespace UsdUtils
 
 	USDUTILITIES_API TUsdStore< pxr::TfToken > GetUVSetName( int32 UVChannelIndex );
 
+	/**
+	 * Heuristic to try and guess what UV index we should assign this primvar to.
+	 * We need something like this because one material may use st0, and another st_0 (both meaning the same thing),
+	 * but a mesh that binds both materials may interpret these as targeting completely different UV sets
+	 * @param PrimvarName - Name of the primvar that should be used as UV set
+	 * @return UV index that should be used for this primvar
+	 */
+	USDUTILITIES_API int32 GetPrimvarUVIndex( FString PrimvarName );
+
+	/**
+	 * Gets the names of the primvars that should be used as UV sets, per index, for this mesh.
+	 * (e.g. first item of array is primvar for UV set 0, second for UV set 1, etc).
+	 * This overload will only return primvars with 'texcoord2f' role.	 *
+	 * @param UsdMesh - Mesh that contains primvars that can be used as texture coordinates.
+	 * @return Array where each index gives the primvar that should be used for that UV index
+	 */
+	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh );
+
+	/**
+	 * Gets the names of the primvars that should be used as UV sets, per index, for this mesh.
+	 * (e.g. first item of array is primvar for UV set 0, second for UV set 1, etc).
+	 * This overload will only return primvars with 'texcoord2f' role.	 *
+	 * @param UsdMesh - Mesh that contains primvars that can be used as texture coordinates.
+	 * @param MaterialToPrimvarsUVSetNames - Maps from a material prim path, to pairs indicating which primvar names are used as 'st' coordinates, and which UVIndex the imported material will sample from (e.g. ["st0", 0], ["myUvSet2", 2], etc). These are supposed to be the materials used by the mesh, and we do this because it helps identify which primvars are valid/used as texture coordinates, as the user may have these named as 'myUvSet2' and still expect it to work
+	 * @return Array where each index gives the primvar that should be used for that UV index
+	 */
+	USDUTILITIES_API TArray< TUsdStore< pxr::UsdGeomPrimvar > > GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames );
+
 	USDUTILITIES_API bool IsAnimated( const pxr::UsdPrim& Prim );
 
 	/**
@@ -87,5 +135,8 @@ namespace UsdUtils
 	USDUTILITIES_API TArray< UE::FUsdPrim > GetAllPrimsOfType( const UE::FUsdPrim& StartPrim, const TCHAR* SchemaName, TFunction< bool( const UE::FUsdPrim& ) > PruneChildren );
 
 	USDUTILITIES_API bool IsAnimated( const UE::FUsdPrim& Prim );
+
+	/** Returns the time code for non-timesampled values. Usually a quiet NaN. */
+	USDUTILITIES_API double GetDefaultTimeCode();
 }
 

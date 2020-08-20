@@ -17,27 +17,31 @@ public:
 	/**
 	 * CreateMeshes
 	 * @param Root - Tree of contours.
+	 * @param bOutline - Front face has outline and is not filled.
 	 * @param Extrude - Orthogonal (to front cap) offset value.
 	 * @param Bevel - Bevel value (bevel happens before extrude).
 	 * @param Type - Defines shape of beveled part.
 	 * @param BevelSegments - Segments count.
 	 */
-	void CreateMeshes(const TSharedContourNode Root, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
+	void CreateMeshes(const TSharedContourNode& Root, const bool bOutline, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments);
 	void SetFrontAndBevelTextureCoordinates(const float Bevel);
 	void MirrorGroups(const float Extrude);
 	void BuildMesh(UStaticMesh* StaticMesh, class UMaterial* DefaultMaterial);
 
 private:
-	TSharedRef<class FData> Data;
+	constexpr static float OutlineExpand = 0.5f;
+
 	TSharedPtr<class FText3DGlyph> Glyph;
+	TSharedRef<class FData> Data;
 	TSharedPtr<class FContourList> Contours;
 
 
 	/**
 	 * Create 'Front' part of glyph.
 	 * @param Root - Tree root.
+	 * @param bOutline - Front face has outline and is not filled.
 	 */
-	void CreateFrontMesh(const TSharedContourNode Root);
+	void CreateFrontMesh(const TSharedContourNode& Root, const bool bOutline);
 	/**
 	 * Create 'Bevel' part of glyph (actually half of it, will be mirrored later).
 	 * @param Bevel - Bevel value (bevel happens before extrude).
@@ -49,6 +53,7 @@ private:
 	 * Create 'Extrude' part of glyph.
 	 * @param Extrude - Extrude value.
 	 * @param Bevel - Bevel value (bevel happens before extrude).
+	 * @param Type - Defines shape of beveled part.
 	 */
 	void CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type);
 
@@ -60,13 +65,20 @@ private:
 	 * @param Node - Tree node.
 	 * @param VertexCount - Pointer to counter.
 	 */
-	void AddToVertexCount(const TSharedContourNode Node, int32* const VertexCount);
+	void AddToVertexCount(const TSharedContourNode& Node, int32& OutVertexCount);
 	/**
 	 * Triangulate solid region with holes and convert contours to old format.
 	 * @param Node - Tree node.
 	 * @param VertexIndex - Pointer to last used vertex index.
+	 * @param bOutline - Front face has outline and is not filled.
 	 */
-	void TriangulateAndConvert(const TSharedContourNode Node, int32* const VertexIndex);
+	void TriangulateAndConvert(const TSharedContourNode& Node, int32& OutVertexIndex, const bool bOutline);
+
+	void MakeOutline();
+
+	void BevelLinearWithSegments(const float Extrude, const float Expand, const int32 BevelSegments, const FVector2D Normal);
+	void BevelCurve(const float Angle, const int32 BevelSegments, TFunction<FVector2D(const float CurrentCos, const float CurrentSin, const float NextCos, const float Next)> ComputeOffset);
+	void BevelWithSteps(const float Bevel, const int32 Steps, const int32 BevelSegments);
 
 	/**
 	 * Bevel one segment.
@@ -78,19 +90,10 @@ private:
 	 */
 	void BevelLinear(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd, const bool bSmooth);
 
-	void BevelLinearWithSegments(const float Extrude, const float Expand, const int32 BevelSegments, const FVector2D Normal);
-	void BevelCurve(const float Angle, const int32 BevelSegments, TFunction<FVector2D(const float CurrentCos, const float CurrentSin, const float NextCos, const float Next)> ComputeOffset);
-	void BevelWithSteps(const float Bevel, const int32 Steps, const int32 BevelSegments);
-
 	/**
 	 * Duplicate contour vertices (used to make sharp angle between bevel steps)
 	 */
 	void DuplicateContourVertices();
-
-	/**
-	 * Prepare for beveling (is executed before each step).
-	 */
-	void Reset(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd);
 
 	/**
 	 * Continue with trivial bevel till FData::Expand.
@@ -101,31 +104,31 @@ private:
 	 * Clear PathPrev and PathNext.
 	 * @param Point - Point which paths should be cleared.
 	 */
-	void EmptyPaths(const FPartPtr Point) const;
+	void EmptyPaths(const FPartPtr& Point) const;
 
 	/**
 	 * Same as previous function but does not cover the intersection-case.
 	 * @param Point - Point that should be expanded.
 	 * @param TextureCoordinates - Texcture coordinates of added vertices.
 	 */
-	void ExpandPoint(const FPartPtr Point, const FVector2D TextureCoordinates = FVector2D(0.f, 0.f));
+	void ExpandPoint(const FPartPtr& Point, const FVector2D TextureCoordinates = FVector2D(0.f, 0.f));
 	/**
 	 * Common code for expanding, vertices are added uninitialized.
 	 * @param Point - Expanded point.
 	 */
-	void ExpandPointWithoutAddingVertices(const FPartPtr Point) const;
+	void ExpandPointWithoutAddingVertices(const FPartPtr& Point) const;
 
 	/**
 	 * Add vertex for smooth point.
 	 * @param Point - Expanded point.
 	 * @param TextureCoordinates - Texture coordinates of added vertex.
 	 */
-	void AddVertexSmooth(const FPartConstPtr Point, const FVector2D TextureCoordinates);
+	void AddVertexSmooth(const FPartConstPtr& Point, const FVector2D TextureCoordinates);
 	/**
 	 * Add vertex for sharp point.
 	 * @param Point - Expanded point.
 	 * @param Edge - Edge from which TangentX and TangentZ will be assigned.
 	 * @param TextureCoordinates - Texture coordinates of added vertex.
 	 */
-	void AddVertexSharp(const FPartConstPtr Point, const FPartConstPtr Edge, const FVector2D TextureCoordinates);
+	void AddVertexSharp(const FPartConstPtr& Point, const FPartConstPtr& Edge, const FVector2D TextureCoordinates);
 };

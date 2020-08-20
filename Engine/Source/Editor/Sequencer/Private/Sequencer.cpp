@@ -5027,9 +5027,16 @@ void FSequencer::OnMarkBeginDrag()
 
 void FSequencer::OnMarkEndDrag()
 {
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* OwnerMovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
+	if (OwnerMovieScene)
+	{
+		OwnerMovieScene->SortMarkedFrames();
+	}
 	GEditor->EndTransaction();
 }
-	
+
+
 
 FString FSequencer::GetFrameTimeText() const
 {
@@ -5522,6 +5529,13 @@ void FSequencer::PostUndo(bool bSuccess)
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::Unknown );
 	SynchronizeSequencerSelectionWithExternalSelection();
 	OnNodeGroupsCollectionChanged();
+
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* OwnerMovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
+	if (OwnerMovieScene)
+	{
+		OwnerMovieScene->SortMarkedFrames();
+	}
 
 	OnActivateSequenceEvent.Broadcast(ActiveTemplateIDs.Top());
 }

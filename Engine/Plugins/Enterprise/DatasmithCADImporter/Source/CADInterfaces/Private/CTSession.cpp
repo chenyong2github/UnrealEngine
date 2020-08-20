@@ -51,7 +51,8 @@ namespace CADLibrary
 		CT_TESS_DATA_TYPE VertexType = CT_TESS_DOUBLE;
 		CT_TESS_DATA_TYPE NormalType = CT_TESS_FLOAT;
 		CT_TESS_DATA_TYPE UVType = CT_TESS_DOUBLE;
-		CTKIO_ChangeTesselationParameters(ImportParams.ChordTolerance, ImportParams.MaxEdgeLength, ImportParams.MaxNormalAngle, CT_FALSE, VertexType, NormalType, UVType);
+		static CT_LOGICAL bHighQuality = CT_TRUE;
+		CTKIO_ChangeTesselationParameters(ImportParams.ChordTolerance, ImportParams.MaxEdgeLength, ImportParams.MaxNormalAngle, bHighQuality, VertexType, NormalType, UVType);
 	}
 
 } // namespace CADLibrary

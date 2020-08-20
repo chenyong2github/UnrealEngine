@@ -2,58 +2,30 @@
 
 
 #include "ContourList.h"
-#include "Data.h"
 #include "Part.h"
-#include "GlyphLoader.h"
+#include "Data.h"
 
 #include "Math/UnrealMathUtility.h"
+
 
 FContourList::FContourList()
 {
 }
 
-FContour& FContourList::Add()
+FContourList::FContourList(const FContourList& Other)
 {
-	AddTail(FContour());
-	return GetTail()->GetValue();
-}
-
-void FContourList::Remove(const FContour& Contour)
-{
-	// Search with comparing pointers
-	for (TDoubleLinkedList<FContour>::TDoubleLinkedListNode* Node = GetHead(); Node; Node = Node->GetNextNode())
-	{
-		if (&Node->GetValue() == &Contour)
+	for (const FContour& OtherContour : Other)
 		{
-			RemoveNode(Node);
-			break;
-		}
+		FContour& Contour = Add();
+		Contour.CopyFrom(OtherContour);
 	}
 }
 
-void FContourList::Reset()
+void FContourList::Initialize(const TSharedRef<FData>& Data)
 {
 	for (FContour& Contour : *this)
 	{
-		for (const FPartPtr& Part : Contour)
-		{
-			Part->ResetDoneExpand();
-			Part->ResetInitialPosition();
-		}
-	}
-}
-
-void FContourList::Initialize()
-{
-	for (FContour& Contour : *this)
-	{
-		for (int32 Index = 0; Index < Contour.Num(); Index++)
-		{
-			FPartPtr Point = Contour[Index];
-
-			Point->Prev = Contour[Contour.GetPrev(Index)];
-			Point->Next = Contour[Contour.GetNext(Index)];
-		}
+		Contour.SetNeighbours();
 
 		for (FPartPtr Edge : Contour)
 		{
@@ -95,6 +67,12 @@ void FContourList::Initialize()
 					Curr->Position = CornerPosition + Curr->TangentX * Offset;
 					Added->Position = CornerPosition - Prev->TangentX * Offset;
 
+					Data->AddVertices(1);
+					const int32 VertexID = Data->AddVertex(Added->Position, { 1.f, 0.f }, { -1.f, 0.f, 0.f });
+
+					Added->PathPrev.Add(VertexID);
+					Added->PathNext.Add(VertexID);
+
 					Added->ComputeTangentX();
 
 					Added->ComputeSmooth();
@@ -107,6 +85,36 @@ void FContourList::Initialize()
 		{
 			Point->ComputeNormal();
 			Point->ResetInitialPosition();
+		}
+	}
+}
+
+FContour& FContourList::Add()
+{
+	AddTail(FContour());
+	return GetTail()->GetValue();
+}
+
+void FContourList::Remove(const FContour& Contour)
+{
+	// Search with comparing pointers
+	for (TDoubleLinkedList<FContour>::TDoubleLinkedListNode* Node = GetHead(); Node; Node = Node->GetNextNode())
+	{
+		if (&Node->GetValue() == &Contour)
+		{
+			RemoveNode(Node);
+			break;
+		}
+	}
+}
+
+void FContourList::Reset()
+{
+	for (FContour& Contour : *this)
+	{
+		for (const FPartPtr Part : Contour)
+		{
+			Part->ResetDoneExpand();
 		}
 	}
 }

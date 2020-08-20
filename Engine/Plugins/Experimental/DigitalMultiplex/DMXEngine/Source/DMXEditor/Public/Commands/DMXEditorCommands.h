@@ -18,13 +18,22 @@ public:
 	virtual void RegisterCommands() override;
 	//~ End TCommands implementation
 
-	// Go to node documentation
+	// Documentation related
 	TSharedPtr< FUICommandInfo > GoToDocumentation;
 
-	// Create entites
+	// Entity Editor related
 	TSharedPtr< FUICommandInfo > AddNewEntityController;
 	TSharedPtr< FUICommandInfo > AddNewEntityFixtureType;
 	TSharedPtr< FUICommandInfo > AddNewEntityFixturePatch;
+	
+	TSharedPtr< FUICommandInfo > AddNewFixtureTypeMode;
+	TSharedPtr< FUICommandInfo > AddNewModeFunction;
+
+	// Level Editor Tool Bar related
+	TSharedPtr<FUICommandInfo> OpenChannelsMonitor;
+	TSharedPtr<FUICommandInfo> OpenActivityMonitor;
+	TSharedPtr<FUICommandInfo> OpenOutputConsole;
+
 };
 
 class DMXEDITOR_API FDMXEditorCommands

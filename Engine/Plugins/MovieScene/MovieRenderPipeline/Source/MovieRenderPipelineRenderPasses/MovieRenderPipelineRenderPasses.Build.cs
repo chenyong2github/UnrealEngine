@@ -18,15 +18,17 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"AudioMixer",
 				"UEOpenExr", // Needed for multilayer EXRs
 				"UEOpenExrRTTI", // Needed for EXR metadata
-				"ImageWrapper",
+				"ImageWrapper",				
 			}
 		);
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"MovieRenderPipelineCore",
+				"Renderer",
 				"RenderCore",
-                "RHI",
+				"RHI",
+				"OpenColorIO",
 			}
         );
 

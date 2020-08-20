@@ -47,6 +47,8 @@ public class SequencerScriptingEditor : ModuleRules
                 "MovieSceneCapture",
                 "LevelSequence",
                 "UnrealEd",
+                "Sequencer",
+                "BlueprintGraph"
             }
 		);
 

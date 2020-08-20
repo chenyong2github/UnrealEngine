@@ -536,9 +536,6 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	const bool bIsBlueprintBase = CheckIfBlueprintBase(InUnloadedClassData);
 	const bool bPassesBlueprintBaseFilter = !InInitOptions.bIsBlueprintBaseOnly || bIsBlueprintBase;
 
-	// unloaded blueprints cannot be editor-only
-	const bool bPassesEditorClassFilter = !InInitOptions.bEditorClassesOnly;
-
 	// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
 	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
 	static const FString UserDeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameUserDeveloperDir());
@@ -608,8 +605,8 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	}
 
 	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter
-		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter
-		&& bPassesCustomFilter && (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
+		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesCustomFilter 
+		&& (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
 
 	return bPassesFilter;
 }

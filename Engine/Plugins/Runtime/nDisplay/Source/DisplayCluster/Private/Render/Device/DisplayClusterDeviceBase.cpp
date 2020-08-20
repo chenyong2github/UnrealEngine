@@ -26,6 +26,9 @@
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
 
+#include "ITextureShare.h"
+#include "ITextureShareItem.h"
+
 #include <utility>
 
 
@@ -104,7 +107,7 @@ bool FDisplayClusterDeviceBase::Initialize()
 				TSharedPtr<IDisplayClusterProjectionPolicy> ProjPolicy = ProjPolicyFactory->Create(CfgViewportProjection.Type, RHIName, CfgViewport.Id);
 				if (ProjPolicy.IsValid())
 				{
-					AddViewport(CfgViewport.Id, CfgViewport.Loc, CfgViewport.Size, ProjPolicy, CfgViewport.CameraId, CfgViewport.BufferRatio, CfgViewport.IsRTT);
+					AddViewport(CfgViewport, ProjPolicy);
 				}
 				else
 				{
@@ -272,6 +275,42 @@ bool FDisplayClusterDeviceBase::GetViewportRect(const FString& InViewportID, FIn
 	return true;
 }
 
+bool FDisplayClusterDeviceBase::GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy)
+{
+	// Ok, we have a request for a particular viewport. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Request data if found
+	if (DesiredViewport)
+	{
+		OutProjectionPolicy = DesiredViewport->GetProjectionPolicy();
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterDeviceBase::GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext)
+{
+	// Ok, we have a request for a particular viewport context. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Request data if found
+	if (DesiredViewport)
+	{
+		OutViewContext = DesiredViewport->GetContext(ViewIndex);
+		return true;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterDeviceBase::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
 {
 	// Ok, we have a request for a particular viewport. Let's find it.
@@ -310,18 +349,15 @@ bool FDisplayClusterDeviceBase::GetBufferRatio(const FString& InViewportID, floa
 	return true;
 }
 
-bool FDisplayClusterDeviceBase::GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const
+const FDisplayClusterRenderViewport* FDisplayClusterDeviceBase::GetRenderViewport(int32 ViewIdx) const
 {
 	if (ViewIdx < 0 || ViewIdx >= RenderViewports.Num())
 	{
-		return false;
+		return nullptr;
 	}
 
-	OutBufferRatio = RenderViewports[ViewIdx].GetBufferRatio();
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has buffer ratio %f"), *RenderViewports[ViewIdx].GetId(), OutBufferRatio);
-	return true;
+	return &(RenderViewports[ViewIdx]);
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRendering
@@ -470,6 +506,18 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	ViewContext.WorldToMeters = WorldToMeters;
 
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
+
+	//Build Prj matrix
+	FMatrix PrjMatrix = FMatrix::Identity;
+	if (bIsSceneOpen)
+	{
+		if (!Viewport.GetProjectionPolicy()->GetProjectionMatrix(ViewIndex, PrjMatrix))
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Got invalid projection matrix: Viewport %s(%d), ViewIdx: %d"), *Viewport.GetId(), CurrentViewportIndex, int(ViewIndex));
+		}
+	}
+
+	ViewContext.ProjectionMatrix = PrjMatrix;
 }
 
 FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
@@ -483,16 +531,7 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 	FDisplayClusterRenderViewport& Viewport = RenderViewports[CurrentViewportIndex];
 	FDisplayClusterRenderViewContext& ViewContext = Viewport.GetContext(ViewIndex);
 
-	FMatrix PrjMatrix = FMatrix::Identity;
-	if (bIsSceneOpen)
-	{
-		if (!Viewport.GetProjectionPolicy()->GetProjectionMatrix(ViewIndex, PrjMatrix))
-		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Got invalid projection matrix: Viewport %s(%d), ViewIdx: %d"), *Viewport.GetId(), CurrentViewportIndex, int(ViewIndex));
-		}
-	}
-
-	return PrjMatrix;
+	return ViewContext.ProjectionMatrix;
 }
 
 void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
@@ -518,7 +557,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		// PP round 2: post-process for each eye frame before warp&blend
 		PerformPostProcessFrameBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
 		// PP round 3: post-process for the whole render target before warp&blend
-		PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture);
+		PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 	}
 
 	// Perform warp&blend
@@ -546,7 +585,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		// PP round 5: post-process for each eye frame after warp&blend
 		PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
 		// PP round 6: post-process for the whole render target after warp&blend
-		PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture);
+		PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 	}
 
 	// Finally, copy the render target texture to the back buffer
@@ -590,7 +629,6 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 	return DecodedViewIndex;
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRenderTargetManager
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -603,6 +641,72 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	{
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
+
+		// Postprocess op: PerformUpdateViewport()
+		//@todo move to right place
+		{
+			// Get list of local postprocess (assigned to this cluster node)
+			TArray<FDisplayClusterConfigPostprocess> LocalPostprocess = DisplayClusterHelpers::config::GetLocalPostprocess();
+			TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> Postprocess = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
+			
+			// Initialize all local Postprocess
+			for (const FDisplayClusterConfigPostprocess& CfgPostprocess : LocalPostprocess)
+			{
+				if (Postprocess.Contains(CfgPostprocess.Type))
+				{
+					Postprocess[CfgPostprocess.Type].Operation->PerformUpdateViewport(MainViewport, RenderViewports);
+				}
+			}
+		}
+
+		// Create texture share for render viewports by config line flag
+		//@todo move to right place. add on\off
+		{
+			// Share viewports to external apps
+			for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
+			{
+				if (RenderViewports[ViewportIndex].IsShared())
+				{
+					static ITextureShare& TextureShareAPI = ITextureShare::Get();
+
+					//@todo: add custom sync setup
+					FTextureShareSyncPolicy SyncPolicy;
+
+					FString ShareName = RenderViewports[ViewportIndex].GetId();
+					EStereoscopicPass PassType = GetViewPassForIndex(IsStereoEnabled(), ViewportIndex);
+
+					// Create shared resource for external app
+					if (!TextureShareAPI.CreateShare(ShareName, SyncPolicy, ETextureShareProcess::Server))
+					{
+						UE_LOG(LogDisplayClusterRender, Error, TEXT("Failed create viewport share '%s'"), *ShareName);
+					}
+					else
+					{
+						// Find viewport stereoscopic pass
+						int ResourceViewportIndex = RenderViewports.Num() - 1;
+
+						// Initialize render callbacks
+						TSharedPtr<ITextureShareItem> ShareItem;
+						if (TextureShareAPI.GetShare(ShareName, ShareItem))
+						{
+							if(TextureShareAPI.LinkSceneContextToShare(ShareItem, PassType, true))
+							{
+							// Map viewport rect to stereoscopic pass
+							TextureShareAPI.SetBackbufferRect(PassType, &RenderViewports[ViewportIndex].GetArea());
+
+							// Begin share session
+							ShareItem->BeginSession();
+							}
+							else
+							{
+								TextureShareAPI.ReleaseShare(ShareName);
+								UE_LOG(LogDisplayClusterRender, Error, TEXT("failed link scene conext for share '%s'"), *ShareName);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -756,9 +860,11 @@ uint32 FDisplayClusterDeviceBase::DecodeViewIndex(const enum EStereoscopicPass S
 	return DecodedViewIndex;
 }
 
-void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio /* = 1.f */, bool IsRTT /*= false*/)
+void FDisplayClusterDeviceBase::AddViewport(const FDisplayClusterConfigViewport& CfgViewport, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy)
 {
 	FScopeLock lock(&InternalsSyncScope);
+
+	const FString& InViewportId = CfgViewport.Id;
 
 	// Check viewport ID
 	if (InViewportId.IsEmpty())
@@ -781,12 +887,12 @@ void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const F
 	}
 
 	// Initialize the viewport
-	if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
+	if (InProjPolicy->HandleAddViewport(CfgViewport.Size, ViewsAmountPerViewport))
 	{
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
 
-		FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
-		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId, InBufferRatio, IsRTT);
+		FIntRect ViewportArea = FIntRect(CfgViewport.Loc, CfgViewport.Loc + CfgViewport.Size);
+		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, CfgViewport.CameraId, CfgViewport.BufferRatio, CfgViewport.bAllowCrossGPUTransfer, CfgViewport.GPUIndex, CfgViewport.bIsRTT, CfgViewport.bIsShared);
 		
 		// Store viewport instance
 		RenderViewports.Add(NewViewport);

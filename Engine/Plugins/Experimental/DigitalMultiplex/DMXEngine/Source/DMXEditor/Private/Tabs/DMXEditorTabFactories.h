@@ -63,30 +63,4 @@ public:
 	}
 };
 
-struct FDMXEditorInputConsoleSummoner : public FWorkflowTabFactory
-{
-public:
-	FDMXEditorInputConsoleSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp);
-
-	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-
-	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override
-	{
-		return LOCTEXT("DMXInputConsoleTab", "Monitor");
-	}
-};
-
-struct FDMXEditorOutputConsoleSummoner : public FWorkflowTabFactory
-{
-public:
-	FDMXEditorOutputConsoleSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp);
-
-	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-
-	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override
-	{
-		return LOCTEXT("DMXOutputConsoleTab", "Output Console");
-	}
-};
-
 #undef LOCTEXT_NAMESPACE

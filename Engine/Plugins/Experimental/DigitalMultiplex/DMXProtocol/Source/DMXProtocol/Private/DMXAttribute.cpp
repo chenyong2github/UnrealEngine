@@ -6,7 +6,6 @@
 
 #include "Modules/ModuleManager.h"
 
-
 IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXAttributeName)
 
 IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXAttributeName)
@@ -63,19 +62,19 @@ FDMXAttributeName::FDMXAttributeName(const FDMXAttribute& InAttribute)
 	Name = InAttribute.Name;
 }
 
-FDMXAttributeName::FDMXAttributeName(const FName& AttributeName)
+FDMXAttributeName::FDMXAttributeName(const FName& NameAttribute)
 {
 	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
 	for (const FDMXAttribute& SettingsAttribute : DMXSettings->Attributes)
 	{
-		if (SettingsAttribute.Name.IsEqual(AttributeName))
+		if (SettingsAttribute.Name.IsEqual(NameAttribute))
 		{
 			Name = SettingsAttribute.Name;
 			return;
 		}
 	}
 
-	Name = FDMXNameListItem::None;
+	Name = FDMXNameListItem::None;	
 }
 
 void FDMXAttributeName::SetFromName(const FName& InName)
@@ -102,4 +101,26 @@ const FDMXAttribute& FDMXAttributeName::GetAttribute() const
 	}
 
 	return FailureAttribute;
+}
+
+FString UDMXAttributeNameConversions::Conv_DMXAttributeToString(const FDMXAttributeName& InAttribute)
+{
+	return InAttribute.GetName().ToString();
+}
+
+FName UDMXAttributeNameConversions::Conv_DMXAttributeToName(const FDMXAttributeName& InAttribute)
+{
+	return InAttribute.GetName();
+}
+
+TArray<FString> FDMXAttribute::GetKeywords() const
+{
+	TArray<FString> CleanedKeywords;
+	Keywords.ParseIntoArray(CleanedKeywords, TEXT(","));
+	for (FString& CleanKeyword : CleanedKeywords)
+	{
+		CleanKeyword.TrimStartAndEndInline();
+	}
+
+	return CleanedKeywords;
 }

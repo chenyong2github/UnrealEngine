@@ -185,11 +185,20 @@ protected:
 	 *
 	 * @param Subscriptions The subscriptions to filter.
 	 * @param Context The message context to filter by.
-	 * @param Sender The message sender (may be nullptr if the sender has no subscriptions).
 	 * @param OutRecipients Will hold the collection of recipients.
 	 */
 	void FilterSubscriptions(
 		TArray<TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe>>& Subscriptions,
+		const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
+		TArray<TSharedPtr<IMessageReceiver, ESPMode::ThreadSafe>>& OutRecipients);
+
+	/**
+	 * Filters recipients from the given message context to gather actual recipients.
+	 *
+	 * @param Context The message context to filter by.
+	 * @param OutRecipients Will hold the collection of recipients.
+	 */
+	void FilterRecipients(
 		const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context,
 		TArray<TSharedPtr<IMessageReceiver, ESPMode::ThreadSafe>>& OutRecipients);
 

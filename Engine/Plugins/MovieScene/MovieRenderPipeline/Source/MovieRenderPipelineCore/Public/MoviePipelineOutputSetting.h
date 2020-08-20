@@ -4,6 +4,7 @@
 #include "MoviePipelineSetting.h"
 #include "Engine/EngineTypes.h"
 #include "Misc/FrameRate.h"
+#include "MoviePipelineColorSetting.h"
 #include "MoviePipelineOutputSetting.generated.h"
 
 UCLASS(Blueprintable)
@@ -101,8 +102,4 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "File Output")
 	int32 FrameNumberOffset;
-	
-	/** If true the Filmic Tone Curve will not be applied. Disabling this will allow you to export linear data for EXRs. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Misc")
-	bool bDisableToneCurve;
 };

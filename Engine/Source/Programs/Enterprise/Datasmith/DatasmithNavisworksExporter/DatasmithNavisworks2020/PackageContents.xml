@@ -1,8 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" AppVersion="0.0.1" ProductCode="" upgradeCode="" HelpFile="./Contents/Help.htm" Icon="./Contents/icon.bmp">
-    <CompanyDetails Name="Epic Games, www.epicgames.com"/>
-    <Components Description="2020">
-    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw17" SeriesMax="Nw17" />
-        <ComponentEntry AppName="Datasmith Exporter for Autodesk® Navisworks®" AppType="ManagedPlugin" Version="0.0.1" ModuleName="./DatasmithNavisworks2020.dll" />
-    </Components>
-</ApplicationPackage>

@@ -14,6 +14,10 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"Plugins": [
+		{
+			"Name": "WebSocketNetworking",
+			"Enabled": true
+		}
 	],
 	"Modules": [
 		{
@@ -24,6 +28,17 @@
 		{
 			"Name": "WebRemoteControl",
 			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Mac",
+				"Win32",
+				"Win64",
+				"Linux"
+			]
+		},
+		{
+			"Name": "RemoteControlUI",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	]

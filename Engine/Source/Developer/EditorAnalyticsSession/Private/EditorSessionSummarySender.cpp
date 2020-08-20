@@ -58,7 +58,7 @@ void FEditorSessionSummarySender::Shutdown()
 	SendStoredSessions(/*bForceSendCurrentSession*/true);
 }
 
-void FEditorSessionSummarySender::SetMonitorDiagnosticLogs(TMap<uint32, FString>&& Logs)
+void FEditorSessionSummarySender::SetMonitorDiagnosticLogs(TMap<uint32, TTuple<FString, FDateTime>>&& Logs)
 {
 	MonitorMiniLogs = Logs;
 }
@@ -186,6 +186,8 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("TotalEditorInactivitySecs"), Session.TotalEditorInactivitySeconds);
 	AnalyticsAttributes.Emplace(TEXT("CurrentUserActivity"), Session.CurrentUserActivity);
 	AnalyticsAttributes.Emplace(TEXT("AverageFPS"), Session.AverageFPS);
+	AnalyticsAttributes.Emplace(TEXT("SessionTickCount"), Session.SessionTickCount);
+	AnalyticsAttributes.Emplace(TEXT("UserInteractionCount"), Session.UserInteractionCount);
 	AnalyticsAttributes.Emplace(TEXT("Plugins"), PluginsString);
 	AnalyticsAttributes.Emplace(TEXT("DesktopGPUAdapter"), Session.DesktopGPUAdapter);
 	AnalyticsAttributes.Emplace(TEXT("RenderingGPUAdapter"), Session.RenderingGPUAdapter);
@@ -207,10 +209,12 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	AnalyticsAttributes.Emplace(TEXT("WasDebugged"), Session.bWasEverDebugger);
 	AnalyticsAttributes.Emplace(TEXT("IsVanilla"), Session.bIsVanilla);
 	AnalyticsAttributes.Emplace(TEXT("WasShutdown"), Session.bWasShutdown);
+	AnalyticsAttributes.Emplace(TEXT("IsUserLoggingOut"), Session.bIsUserLoggingOut);
 	AnalyticsAttributes.Emplace(TEXT("IsInPIE"), Session.bIsInPIE);
 	AnalyticsAttributes.Emplace(TEXT("IsInEnterprise"), Session.bIsInEnterprise);
 	AnalyticsAttributes.Emplace(TEXT("IsInVRMode"), Session.bIsInVRMode);
 	AnalyticsAttributes.Emplace(TEXT("IsLowDriveSpace"), Session.bIsLowDriveSpace);
+	AnalyticsAttributes.Emplace(TEXT("IsCrcMissing"), Session.bIsCrcExeMissing);
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 	AnalyticsAttributes.Emplace(TEXT("MonitorPid"), Session.MonitorProcessID); // For out-of-process monitoring, if this is 0, this will mean CRC failed to launch or crashed very early.
 
@@ -235,9 +239,10 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 	if (bShouldAttachMonitorLog && !Session.bWasEverDebugger)
 	{
 		// Check if a monitor log is available. (Set by CrashReportClientEditor before sending the summary events).
-		if (const FString* MonitorLog = MonitorMiniLogs.Find(Session.MonitorProcessID))
+		if (const TTuple<FString, FDateTime>* MonitorLog = MonitorMiniLogs.Find(Session.MonitorProcessID))
 		{
-			AnalyticsAttributes.Emplace(TEXT("MonitorLog"), *MonitorLog);
+			AnalyticsAttributes.Emplace(TEXT("MonitorLog"), MonitorLog->Get<0>()); // CRC diagnostic mini-log.
+			AnalyticsAttributes.Emplace(TEXT("MonitorTimestamp"), MonitorLog->Get<1>().ToIso8601()); // Last time CRC timestamped the diagnostic mini-log, i.e. the approximative CRC death time.
 
 			// If no monitor exception code is set, check in the log if one exists. The exception may have occurred before the session was created or
 			// the out of process might not have been able to acquire the session lock.
@@ -245,7 +250,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 			{
 				// Find the first entry in the log that match an exception reported like: "CRC/Crash:-1073741819"
 				FRegexPattern CrashPattern(TEXT(R"(CRC\/Crash:([-0-9]+).*)")); // Need help with regex? Try https://regex101.com/
-				FRegexMatcher CrashMatcher(CrashPattern, *MonitorLog);
+				FRegexMatcher CrashMatcher(CrashPattern, MonitorLog->Get<0>());
 				if (CrashMatcher.FindNext())
 				{
 					AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), CrashMatcher.GetCaptureGroup(1)); // Report the first exception code found in the log.
@@ -255,7 +260,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 				{
 					// Check for 'CRC/Error'. Those are errors reported in log and the interesting one are the failed 'check()'. Normally CRC doesn't output errors.
 					FRegexPattern ErrorPattern(TEXT(R"(CRC\/Error)")); // Need help with regex? Try https://regex101.com/
-					FRegexMatcher ErrorMatcher(ErrorPattern, *MonitorLog);
+					FRegexMatcher ErrorMatcher(ErrorPattern, MonitorLog->Get<0>());
 					if (ErrorMatcher.FindNext())
 					{
 						AnalyticsAttributes.Emplace(TEXT("MonitorExceptCode"), static_cast<int32>(ECrashExitCodes::OutOfProcessReporterCheckFailed));

@@ -14,12 +14,20 @@
 #include "FbxImporter.h"
 #include "MovieSceneToolsUserSettings.h"
 #include "MovieSceneToolHelpers.h"
+#include "MovieSceneEventUtils.h"
+#include "MovieSceneSequenceEditor.h"
+#include "Sections/MovieSceneEventSectionBase.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequenceBase.h"
 #include "ScopedTransaction.h"
+
+#include "K2Node_CustomEvent.h"
+#include "BlueprintFunctionNodeSpawner.h"
+#include "BlueprintActionMenuItem.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
@@ -461,6 +469,140 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 }
 
 
+FMovieSceneEvent USequencerToolsFunctionLibrary::CreateEvent(UMovieSceneSequence* InSequence, UMovieSceneEventSectionBase* InSection, const FSequencerQuickBindingResult& InEndpoint, const TArray<FString>& InPayload)
+{
+	FMovieSceneEvent Event;
+
+	if (InEndpoint.EventEndpoint == nullptr)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Invalid endpoint, event will not be initialized"), ELogVerbosity::Warning);
+		return Event;
+	}
+
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+	FGuid ObjectBindingID;
+	MovieScene->FindTrackBinding(*InSection->GetTypedOuter<UMovieSceneTrack>(), ObjectBindingID);
+	UClass* BoundObjectPinClass = nullptr;
+	if (FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBindingID))
+	{
+		BoundObjectPinClass = const_cast<UClass*>(Possessable->GetPossessedObjectClass());
+	}
+	else if (FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID))
+	{
+		BoundObjectPinClass = Spawnable->GetObjectTemplate()->GetClass();
+	}
+
+	InSection->Modify();
+	FMovieSceneEventUtils::BindEventSectionToBlueprint(InSection, InEndpoint.EventEndpoint->GetBlueprint());
+
+	UEdGraphPin* BoundObjectPin = FMovieSceneEventUtils::FindBoundObjectPin(InEndpoint.EventEndpoint, BoundObjectPinClass);
+	FMovieSceneEventUtils::SetEndpoint(&Event, InSection, InEndpoint.EventEndpoint, BoundObjectPin);
+
+	if (InEndpoint.PayloadNames.Num() != InPayload.Num())
+	{
+		const FString Message = FString::Printf(TEXT("Wrong number of payload values, expecting %i got %i"), InEndpoint.PayloadNames.Num(), InPayload.Num());
+		FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Warning);
+		return Event;
+	}
+
+	for (int32 Index = 0; Index < InEndpoint.PayloadNames.Num(); Index++)
+	{
+		const FName PayloadName = FName(InEndpoint.PayloadNames[Index]);
+		if (!Event.PayloadVariables.Contains(PayloadName))
+		{
+			Event.PayloadVariables.Add(PayloadName);
+			Event.PayloadVariables[PayloadName].Value = InPayload[Index];
+		}
+	}
+
+	return Event;
+}
+
+
+bool USequencerToolsFunctionLibrary::IsEventEndpointValid(const FSequencerQuickBindingResult& InEndpoint)
+{
+	return InEndpoint.EventEndpoint != nullptr;
+}
+
+
+FSequencerQuickBindingResult USequencerToolsFunctionLibrary::CreateQuickBinding(UMovieSceneSequence* InSequence, UObject* InObject, const FString& InFunctionName, bool bCallInEditor)
+{
+	FSequencerQuickBindingResult Result;
+
+	FMovieSceneSequenceEditor* SequenceEditor = FMovieSceneSequenceEditor::Find(InSequence);
+	if (!SequenceEditor)
+	{
+		return Result;
+	}
+
+	UBlueprint* Blueprint = SequenceEditor->GetOrCreateDirectorBlueprint(InSequence);
+	if (!Blueprint)
+	{
+		return Result;
+	}
+
+	UMovieScene* MovieScene = InSequence->GetMovieScene();
+	
+	FMovieSceneEventEndpointParameters Params;
+	Params.SanitizedObjectName = InObject->GetName();
+	Params.SanitizedEventName = InFunctionName;
+	Params.BoundObjectPinClass = InObject->GetClass();
+	UFunction* Function = InObject->GetClass()->FindFunctionByName(FName(InFunctionName));
+	if (Function == nullptr)
+	{
+		const FString Message = FString::Printf(TEXT("Cannot find function %s in class %s"), *(InFunctionName), *(InObject->GetClass()->GetName()));
+		FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Warning);
+		return Result;
+	}
+
+	UBlueprintFunctionNodeSpawner* BlueprintFunctionNodeSpawner = UBlueprintFunctionNodeSpawner::Create(Function);
+	FBlueprintActionMenuItem Action(BlueprintFunctionNodeSpawner);
+
+	UK2Node_CustomEvent* NewEventEndpoint = FMovieSceneEventUtils::CreateUserFacingEvent(Blueprint, Params);
+	NewEventEndpoint->bCallInEditor = bCallInEditor;
+	Result.EventEndpoint = NewEventEndpoint;
+
+	UEdGraphPin* ThenPin = NewEventEndpoint->FindPin(UEdGraphSchema_K2::PN_Then, EGPD_Output);
+	UEdGraphPin* BoundObjectPin = FMovieSceneEventUtils::FindBoundObjectPin(NewEventEndpoint, Params.BoundObjectPinClass);
+
+	FVector2D NodePosition(NewEventEndpoint->NodePosX + 400.f, NewEventEndpoint->NodePosY);
+	UEdGraphNode* NewNode = Action.PerformAction(NewEventEndpoint->GetGraph(), BoundObjectPin ? BoundObjectPin : ThenPin, NodePosition);
+
+	if (NewNode == nullptr)
+	{
+		const FString Message = FString::Printf(TEXT("Failed creating blueprint event node for function %s"), *InFunctionName);
+		FFrame::KismetExecutionMessage(*Message, ELogVerbosity::Warning);
+		return Result;
+	}
+
+	// Link execution pins
+	UEdGraphPin* ExecPin = NewNode->FindPin(UEdGraphSchema_K2::PN_Execute, EGPD_Input);
+	if (ensure(ThenPin && ExecPin))
+	{
+		ThenPin->MakeLinkTo(ExecPin);
+	}
+
+	// Link payload parameters' pins
+	UK2Node_EditablePinBase* EditableNode = Cast<UK2Node_EditablePinBase>(NewEventEndpoint);
+	if (EditableNode)
+	{
+		for (UEdGraphPin* PayloadPin : NewNode->Pins)
+		{
+			if (PayloadPin != BoundObjectPin && PayloadPin->Direction == EGPD_Input && PayloadPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec && PayloadPin->LinkedTo.Num() == 0)
+			{
+				Result.PayloadNames.Add(PayloadPin->PinName.ToString());
+
+				UEdGraphPin* NewPin = EditableNode->CreateUserDefinedPin(PayloadPin->PinName, PayloadPin->PinType, EGPD_Output);
+				if (NewNode != NewEventEndpoint && NewPin)
+				{
+					NewPin->MakeLinkTo(PayloadPin);
+				}
+			}
+		}
+	}
+
+	return Result;
+}
 
 
 #undef LOCTEXT_NAMESPACE // "SequencerTools"

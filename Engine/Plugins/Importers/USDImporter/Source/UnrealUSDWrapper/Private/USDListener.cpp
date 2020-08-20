@@ -182,6 +182,16 @@ void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& No
 		{
 			bool bResync = false;
 
+			// If the layer reloaded, anything could have happened, so we must resync from the layer down
+			const std::vector<const SdfChangeList::Entry*>& Changes = PathToUpdateIt.base()->second;
+			for ( const SdfChangeList::Entry* Change : Changes )
+			{
+				if ( Change && Change->flags.didReloadContent )
+				{
+					bResync = true;
+				}
+			}
+
 			if ( PathToUpdateIt->GetAbsoluteRootOrPrimPath() == pxr::SdfPath::AbsoluteRootPath() )
 			{
 				pxr::TfTokenVector ChangedFields = PathToUpdateIt.GetChangedFields();
@@ -222,6 +232,7 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 
 	TArray< FString > LayersNames;
 
+	FScopedUsdAllocs UsdAllocs;
 	[&](const pxr::SdfLayerChangeListVec& ChangeVec)
 	{
 		// Check to see if any layer reloaded. If so, rebuild all of our animations as a single layer changing
@@ -250,6 +261,7 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 		}
 	}( Notice.GetChangeListVec() );
 
+	FScopedUnrealAllocs UnrealAllocs;
 	OnLayersChanged.Broadcast( LayersNames );
 }
 #endif // #if USE_USD_SDK

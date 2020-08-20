@@ -1,10 +1,12 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "Input/Events.h"
+#include "VCamModifier.h"
+
 
 #include "EditorInputTypes.generated.h"
 
@@ -67,13 +69,10 @@ struct TInputDelegateStore
 		}
 	}
 
+	// Find the delegates for the specific key
 	DelegateArrayType* FindDelegateArray(const FKey InKey)
 	{
-		if (DelegateArrayType* DelegateArray = DelegateMap.Find(InKey))
-		{
-			return DelegateArray;
-		}
-		return nullptr;
+		return DelegateMap.Find(InKey);
 	}
 };
 
@@ -82,14 +81,33 @@ USTRUCT()
 struct FModifierStackEntry
 {
 	GENERATED_BODY()
-	
-    UPROPERTY()
+
+	// Identifier for this modifier in the stack
+    UPROPERTY(EditAnywhere, Category="Modifier")
     FName Name;
 
-	UPROPERTY()
-    UVCamModifier* Modifier; // GC by UVCamCoreSubsystem::AddReferencedObjects
+	// Controls whether the modifier actually gets applied
+	UPROPERTY(EditAnywhere, Category="Modifier")
+	bool bEnabled = true;
 
-	FModifierStackEntry() = default;
+	// The current generated modifier instance
+	UPROPERTY(EditAnywhere, Instanced, Category="Modifier")
+    UVCamModifier* GeneratedModifier = nullptr;
 	
-	FModifierStackEntry(const FName& InName, const TSubclassOf<UVCamModifier> InModifierClass);
+	FModifierStackEntry() = default;
+
+	// If ModifierClass is provided then you must also supply a valid outer for the generated modifier
+	FModifierStackEntry(const FName& InName, const TSubclassOf<UVCamModifier> InModifierClass, UObject* InOuter)
+		: Name(InName)
+	{
+		if (InModifierClass)
+		{
+			GeneratedModifier = NewObject<UVCamModifier>(InOuter, InModifierClass.Get());
+		}
+	};
+
+	bool operator==(const FModifierStackEntry& Other) const
+	{
+		return this->Name.IsEqual(Other.Name) && this->bEnabled == Other.bEnabled && this->GeneratedModifier == Other.GeneratedModifier;
+	};
 };

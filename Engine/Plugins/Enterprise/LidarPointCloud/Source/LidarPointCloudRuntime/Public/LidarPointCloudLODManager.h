@@ -39,6 +39,7 @@ struct FLidarPointCloudNodeSelectionParams
 	int32 MinDepth;
 	int32 MaxDepth;
 	float BoundsScale;
+	const TArray<const ALidarClippingVolume*>* ClippingVolumes;
 };
 
 /**  
@@ -74,6 +75,9 @@ class FLidarPointCloudLODManager : public FTickableGameObject
 	/** Stores cumulative time, elapsed from the creation of the manager. Used to determine nodes' lifetime. */
 	float Time;
 
+	/** Stores the number of points in visible frustum during last frame */
+	FThreadSafeCounter64 NumPointsInFrustum;
+
 public:
 	/** Used for node size sorting and node selection. */
 	struct FNodeSizeData
@@ -83,6 +87,8 @@ public:
 		int32 ProxyIndex;
 		FNodeSizeData(FLidarPointCloudTraversalOctreeNode* Node, const float& Size, const int32& ProxyIndex) : Node(Node), Size(Size), ProxyIndex(ProxyIndex) {}
 	};
+
+	FLidarPointCloudLODManager();
 
 	virtual void Tick(float DeltaTime) override;
 
@@ -100,9 +106,14 @@ private:
 	 * - Resizes the global IndexBuffer and StructuredBuffer to fit the required GlobalPointBudget
 	 * - Iterates over all registered proxies and selects the best set of nodes within the point budget
 	 * - Generates the data for the StructuredBuffer and passes it to the Render Thread for an update
+	 *
+	 * Returns the number of points in visible frustum
 	 */
-	void ProcessLOD(const TArray<FRegisteredProxy>& RegisteredProxies, const float CurrentTime);
+	int64 ProcessLOD(const TArray<FRegisteredProxy>& RegisteredProxies, const float CurrentTime, const uint32 PointBudget, const TArray<const ALidarClippingVolume*>& ClippingVolumes);
 
 	/** Called to prepare the proxies for processing */
 	void PrepareProxies();
+
+	/** Compiles a list of all clipping volumes affecting any of the registered proxies */
+	TArray<const ALidarClippingVolume*> GetClippingVolumes() const;
 };

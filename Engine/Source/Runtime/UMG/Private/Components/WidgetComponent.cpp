@@ -1242,6 +1242,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 		return;
 	}
 
+	if ( !WidgetRenderer )
+	{
+		return;
+	}
+
 	const int32 MaxAllowedDrawSize = GetMax2DTextureDimension();
 	if ( DrawSize.X <= 0 || DrawSize.Y <= 0 || DrawSize.X > MaxAllowedDrawSize || DrawSize.Y > MaxAllowedDrawSize )
 	{

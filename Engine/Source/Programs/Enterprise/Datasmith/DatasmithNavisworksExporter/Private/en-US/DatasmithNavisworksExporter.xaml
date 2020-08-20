@@ -11,17 +11,19 @@
     xmlns:local="clr-namespace:Autodesk.Navisworks.Gui.Roamer.AIRLook;assembly=navisworks.gui.roamer">
     <!-- END STANDARD SECTION DO NOT EDIT -->
 
-   <RibbonTab Id="ID_DatasmithTab" Title="Unreal Datasmith" KeyTip="D1">
-      <RibbonPanel x:Uid="RibbonPanel_1">
-         <RibbonPanelSource x:Uid="RibbonPanelSource_RibbonPanel_1" KeyTip="D1" Title="Datasmith export">
-            <local:NWRibbonButton x:Uid="Button_Export" Id="ID_Button_Export" 
-                Size="Large" 
-                ShowText="True"
-                Orientation="Vertical"/>
-
-         </RibbonPanelSource>
-      </RibbonPanel>
-   </RibbonTab>
+	<RibbonTab Id="ID_DatasmithTab" Title="Unreal Datasmith" KeyTip="D1">
+		<RibbonPanel x:Uid="RibbonPanel_1">
+			<RibbonPanelSource x:Uid="RibbonPanelSource_RibbonPanel_1" KeyTip="D1" Title="Datasmith export">
+				<local:NWRibbonButton x:Uid="Button_Export" Id="ID_Button_Export" 
+				                      Size="Large" 
+				                      Image="../DatasmithIcon32.png" 
+				                      LargeImage="../DatasmithIcon32.png" 
+				                      ShowText="True" 
+				                      Orientation="Vertical" 
+				                      />
+			</RibbonPanelSource>
+		</RibbonPanel>
+	</RibbonTab>
 
 <!-- BEGIN STANDARD SECTION DO NOT EDIT -->
 </RibbonControl>

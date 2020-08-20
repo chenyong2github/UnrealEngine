@@ -29,6 +29,9 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include "SceneViewExtension.h"
+#include "OpenColorIODisplayExtension.h"
+
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);
@@ -71,7 +74,6 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 	ViewFamily.bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	ViewFamily.ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
-
 
 	// View is added as a child of the ViewFamily. 
 	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, /*InOut*/ InOutSampleState);
@@ -121,6 +123,33 @@ void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipeli
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
 			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
 		}
+	}
+
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions();
+
+	// OCIO Scene View Extension is a special case and won't be registered like other view extensions.
+	if (InSampleState.OCIOConfiguration && InSampleState.OCIOConfiguration->bIsEnabled)
+	{
+		FOpenColorIODisplayConfiguration* OCIOConfigNew = const_cast<FMoviePipelineRenderPassMetrics&>(InSampleState).OCIOConfiguration;
+		FOpenColorIODisplayConfiguration& OCIOConfigCurrent = OCIOSceneViewExtension->GetDisplayConfiguration();
+
+		// We only need to set this once per render sequence.
+		if (OCIOConfigNew->ColorConfiguration.ConfigurationSource && OCIOConfigNew->ColorConfiguration.ConfigurationSource != OCIOConfigCurrent.ColorConfiguration.ConfigurationSource)
+		{
+			OCIOSceneViewExtension->SetDisplayConfiguration(*OCIOConfigNew);
+		}
+
+		ViewFamily.ViewExtensions.Add(OCIOSceneViewExtension.ToSharedRef());
+	}
+
+	for (auto ViewExt : ViewFamily.ViewExtensions)
+	{
+		ViewExt->SetupViewFamily(ViewFamily);
+	}
+
+	for (int ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ViewExt++)
+	{
+		ViewFamily.ViewExtensions[ViewExt]->SetupView(ViewFamily, *View);
 	}
 
 	// Anti Aliasing
@@ -363,6 +392,11 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
+	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
+	// We use this render target to render to via a display extension that utilizes Display Gamma
+	// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
+	TileRenderTarget->TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
+
 	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
@@ -370,9 +404,13 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	{
 		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
 	}
-
+	
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
 	AccumulatorPool = MakeShared<FAccumulatorPool, ESPMode::ThreadSafe>(6);
+
+	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
+	// One Extension per sequence, since each sequence has its own OCIO settings.
+	OCIOSceneViewExtension = FSceneViewExtensions::NewExtension<FOpenColorIODisplayExtension>();
 }
 
 void UMoviePipelineImagePassBase::TeardownImpl()
@@ -397,6 +435,9 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
+
+	OCIOSceneViewExtension.Reset();
+	OCIOSceneViewExtension = nullptr;
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();

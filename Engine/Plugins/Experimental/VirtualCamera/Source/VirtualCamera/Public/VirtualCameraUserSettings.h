@@ -42,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Display Film Leader"))
 	bool bDisplayFilmLeader = true;
 
+	/** Whether to teleport to the home bookmark when VCam starts */
+	UPROPERTY(EditAnywhere, config, Category = "VirtualCamera", meta = (DisplayName = "Teleport To Home On Start"))
+	bool bTeleportOnStart = true;
+
 	/** Get FocusInterpSpeed variable */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	float GetFocusInterpSpeed();
@@ -89,5 +93,13 @@ public:
 	/** Set bDisplayFilmLeader variable */
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	void SetShouldDisplayFilmLeader(const bool bInDisplayFilmLeader);
+
+	/** Get bTeleportOnStart variable */
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	bool GetTeleportOnStart();
+
+	/** Set bTeleportOnStart variable */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	void SetTeleportOnStart(const bool bInTeleportOnStart);
 
 };

@@ -18,6 +18,9 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace UE
 {
+	class FSdfPath;
+	class FUsdPrim;
+
 	namespace Internal
 	{
 		class FUsdAttributeImpl;
@@ -60,6 +63,11 @@ namespace UE
 		FName GetName() const;
 		FName GetBaseName() const;
 		FName GetTypeName() const;
+
+		bool ValueMightBeTimeVarying() const;
+
+		FSdfPath GetPath() const;
+		FUsdPrim GetPrim() const;
 
 	private:
 		TUniquePtr< Internal::FUsdAttributeImpl > Impl;

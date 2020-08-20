@@ -5,6 +5,7 @@
 #include "DMXEditorLog.h"
 
 #include "DMXProtocolTypes.h"
+#include "DMXEditorStyle.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntity.h"
 #include "Library/DMXEntityController.h"
@@ -26,8 +27,10 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 #include "ScopedTransaction.h"
-
+#include "DMXProtocolSACN/Private/DMXProtocolSACNConstants.h"
+#include "DMXProtocolArtNet/Private/DMXProtocolArtNetConstants.h"
 #define LOCTEXT_NAMESPACE "DMXCustomizeDetails"
 
 static void CollectChildPropertiesRecursive(TSharedPtr<IPropertyHandle> Node, TArray<TSharedPtr<IPropertyHandle>>& OutProperties)
@@ -140,8 +143,168 @@ void FDMXControllersDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout
 {
 	FDMXCustomization::CustomizeDetails(DetailLayout);
 
+	// Store detailLayout to force refresh the panel when protocol changed
+	DetailBuilder = &DetailLayout;
+
 	// Hide Universes for Controllers because the user should set them by range.
 	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, Universes), UDMXEntityUniverseManaged::StaticClass());
+	
+	// Hide device protocol to move it to top
+	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol), UDMXEntityUniverseManaged::StaticClass());
+	
+	// Hide communication mode to have custom combo box
+	DetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode), UDMXEntityController::StaticClass());
+	
+	// Get and check device protocol property
+	ProtocolHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityUniverseManaged, DeviceProtocol), UDMXEntityUniverseManaged::StaticClass());
+	check(ProtocolHandle.IsValid());
+	check(ProtocolHandle->IsValidHandle());
+
+	// Get and check communication mode property
+	CommunicationModeHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode));
+	check(CommunicationModeHandle.IsValid());
+	check(CommunicationModeHandle->IsValidHandle());
+	
+	// Add list of communication modes and labels to a map
+	CommunicationModeLabels.Add(EDMXCommunicationTypes::Broadcast, FString("Broadcast"));
+	CommunicationModeLabels.Add(EDMXCommunicationTypes::Unicast, FString("Unicast"));
+	CommunicationModeLabels.Add(EDMXCommunicationTypes::Multicast, FString("Multicast"));
+	
+	// Create widget for each communication mode
+	CommunicationModeWidgets.Add(EDMXCommunicationTypes::Broadcast, 
+		SNew(STextBlock)
+		.Text(FText::FromString(CommunicationModeLabels[EDMXCommunicationTypes::Broadcast])));
+
+	CommunicationModeWidgets.Add(EDMXCommunicationTypes::Unicast, 
+		SNew(STextBlock)
+		.Text(FText::FromString(CommunicationModeLabels[EDMXCommunicationTypes::Unicast])));
+
+	CommunicationModeWidgets.Add(EDMXCommunicationTypes::Multicast, 
+		SNew(STextBlock)
+		.Text(FText::FromString(CommunicationModeLabels[EDMXCommunicationTypes::Multicast])));
+	
+	// Set communication modes based on selected protocol
+	GenerateCommunicationModeOptions();
+	
+	// Device protocol change event
+	FSimpleDelegate OnProtocolChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXControllersDetails::OnProtocolChanged);
+	ProtocolHandle->SetOnPropertyValueChanged(OnProtocolChangedDelegate);
+	
+	// Device protocol
+	DetailLayout.EditCategory("DMX")
+		.AddProperty(ProtocolHandle);
+	
+	// Communication mode custom combo box
+	DetailLayout.EditCategory("DMX")
+		.AddCustomRow(LOCTEXT("CommunicationMode", "Communication Mode"))
+		.NameContent()
+		[
+			CommunicationModeHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			SNew(SComboBox<TSharedPtr<EDMXCommunicationTypes>>)
+			.OptionsSource(&CommunicationModeOptions)
+			.OnGenerateWidget(this, &FDMXControllersDetails::OnCommunicationModeGenerateWidget)
+			.OnSelectionChanged(this, &FDMXControllersDetails::OnCommunicationModeChanged)
+			.InitiallySelectedItem(MakeShared<EDMXCommunicationTypes>(ActiveCommunicationMode))
+			[
+				SNew(STextBlock)
+				.Text(this, &FDMXControllersDetails::GetCommunicationModeLabel)
+			]
+		];
+}
+
+void FDMXControllersDetails::GenerateCommunicationModeOptions()
+{
+	// Protocol name might be empty
+	TArray<const void*> RawData;
+	ProtocolHandle->AccessRawData(RawData);
+	for (const void* NamePtr : RawData)
+	{
+		if (NamePtr != nullptr)
+		{
+			const FDMXProtocolName* ProtocolNamePtr = reinterpret_cast<const FDMXProtocolName*>(NamePtr);
+			ProtocolName = *ProtocolNamePtr;
+		}
+	}
+
+	// Sets current activbe communication mode
+	uint8 CommunicationModeValue = static_cast<uint8>(EDMXCommunicationTypes::Unicast);
+	if (CommunicationModeHandle->GetValue(CommunicationModeValue) == FPropertyAccess::Success)
+	{
+		ActiveCommunicationMode = static_cast<EDMXCommunicationTypes>(CommunicationModeValue);
+	}
+	else 
+	{
+		ActiveCommunicationMode = EDMXCommunicationTypes::Unicast;
+	}
+
+	// Set communication modes base on selected device protocol
+	CommunicationModeOptions.Empty();
+	TMap < FName, TArray<EDMXCommunicationTypes> > CommunicationModes = {};
+	for (FName& PossibleProtocolName : FDMXProtocolName::GetPossibleValues())
+	{
+		if (PossibleProtocolName.ToString() == DMX_PROTOCOLNAME_SACN)
+		{
+			CommunicationModes.Add(PossibleProtocolName,
+				{
+					EDMXCommunicationTypes::Unicast,
+					EDMXCommunicationTypes::Multicast
+				});
+
+		}
+		else if (PossibleProtocolName.ToString() == DMX_PROTOCOLNAME_ARTNET)
+		{
+			CommunicationModes.Add(PossibleProtocolName,
+				{
+					EDMXCommunicationTypes::Unicast,
+					EDMXCommunicationTypes::Broadcast
+				});
+		}
+	}
+	
+	for (EDMXCommunicationTypes& CommunicationMode : CommunicationModes[ProtocolName.GetName()])
+	{
+		CommunicationModeOptions.Add(MakeShared<EDMXCommunicationTypes>(CommunicationMode));
+	}
+	
+	if (!CommunicationModes[ProtocolName.GetName()].Contains(ActiveCommunicationMode))
+	{
+		ActiveCommunicationMode = EDMXCommunicationTypes::Unicast;
+	}
+	
+	// Sets communication mode property value
+	CommunicationModeHandle->SetValue(static_cast<uint8>(ActiveCommunicationMode));
+}
+
+TSharedRef<SWidget> FDMXControllersDetails::OnCommunicationModeGenerateWidget(const TSharedPtr<EDMXCommunicationTypes> InMode) const
+{
+	return CommunicationModeWidgets[*InMode];
+}
+
+FText FDMXControllersDetails::GetCommunicationModeLabel() const
+{
+	uint8 CommunicationModeValue = static_cast<uint8>(EDMXCommunicationTypes::Unicast);
+	if (CommunicationModeHandle->GetValue(CommunicationModeValue) == FPropertyAccess::Success)
+	{
+		return FText::FromString(CommunicationModeLabels[static_cast<EDMXCommunicationTypes>(CommunicationModeValue)]);
+	}
+	return FText();
+}
+
+void FDMXControllersDetails::OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo)
+{
+	if (InSelectedMode)
+	{
+		CommunicationModeHandle->SetValue(static_cast<uint8>(*InSelectedMode));
+	}
+}
+
+void FDMXControllersDetails::OnProtocolChanged()
+{
+	// Force refreshes the panel to get communication mode updated
+	DetailBuilder->ForceRefreshDetails();
 }
 
 FDMXFixtureTypeFunctionsDetails::FDMXFixtureTypeFunctionsDetails(TWeakPtr<FDMXEditor> InDMXEditorPtr)
@@ -172,6 +335,28 @@ void FDMXFixtureTypeFunctionsDetails::CustomizeHeader(TSharedRef<IPropertyHandle
 		];
 }
 
+void FDMXFixtureTypeFunctionsDetails::BuildFunctionNameWidget(IDetailChildrenBuilder& InStructBuilder, FText& NewPropertyLabel, FText& ToolTip)
+{
+	InStructBuilder
+		.AddCustomRow(LOCTEXT("FunctionNameWidget", "FunctionNameWidget"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(NewPropertyLabel)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		.MaxDesiredWidth(250.0f)
+		[
+			SAssignNew(NameEditableTextBox, SEditableTextBox)
+			.Text(this, &FDMXFixtureTypeFunctionsDetails::OnGetFunctionName)
+			.ToolTipText(ToolTip)
+			.OnTextChanged(this, &FDMXFixtureTypeFunctionsDetails::OnFunctionNameChanged)
+			.OnTextCommitted(this, &FDMXFixtureTypeFunctionsDetails::OnFunctionNameCommitted)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		];
+}
+
 void FDMXFixtureTypeFunctionsDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils)
 {
 	// Retrieve structure's child properties
@@ -194,34 +379,18 @@ void FDMXFixtureTypeFunctionsDetails::CustomizeChildren(TSharedRef<IPropertyHand
 
 	NamePropertyHandle = PropertyHandles[NamePropertyName];
 
-	for (const auto& Itt : PropertyHandles)
+	for (const TPair<FName, TSharedPtr<IPropertyHandle>>& PropertyHandlePair : PropertyHandles)
 	{
+
 		// Never show default name property, we will show custom editable text instead
-		if (Itt.Key != NamePropertyName)
+		if (PropertyHandlePair.Key != NamePropertyName)
 		{
-			AddProperty(InStructBuilder, Itt.Key, Itt.Value.ToSharedRef());
+			AddProperty(InStructBuilder, PropertyHandlePair.Key, PropertyHandlePair.Value.ToSharedRef());
 		}
-		else if (Itt.Key == NamePropertyName)
+		else if (PropertyHandlePair.Key == NamePropertyName)
 		{
 			// Add custom name widget
-			InStructBuilder
-				.AddCustomRow(LOCTEXT("FunctionNameWidget", "FunctionNameWidget"))
-				.NameContent()
-				[
-					SNew(STextBlock)
-					.Text(NewPropertyLabel)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-				.ValueContent()
-				.MaxDesiredWidth(250.0f)
-				[
-					SAssignNew(NameEditableTextBox, SEditableTextBox)
-					.Text(this, &FDMXFixtureTypeFunctionsDetails::OnGetFunctionName)
-					.ToolTipText(ToolTip)
-					.OnTextChanged(this, &FDMXFixtureTypeFunctionsDetails::OnFunctionNameChanged)
-					.OnTextCommitted(this, &FDMXFixtureTypeFunctionsDetails::OnFunctionNameCommitted)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				];
+			BuildFunctionNameWidget(InStructBuilder, NewPropertyLabel, ToolTip);
 		}
 	}
 }
@@ -290,10 +459,70 @@ void FDMXFixtureTypeFunctionsDetails::SetFunctionName(const FString& NewName)
 
 void FDMXFixtureModeDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils)
 {
-	FDMXFixtureTypeFunctionsDetails::CustomizeChildren(InStructPropertyHandle, InStructBuilder, InStructCustomizationUtils);
+	FText NewPropertyLabel;
+	FText ToolTip;
+	GetCustomNameFieldSettings(NewPropertyLabel, NamePropertyName, ToolTip, ExistingNameError);
 
-	AutoChannelSpanHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan));
-	check(AutoChannelSpanHandle);
+	uint32 NumChildren;
+	InStructPropertyHandle->GetNumChildren(NumChildren);
+
+	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		TSharedRef<IPropertyHandle> ChildHandle = InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
+		if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions))
+		{
+			continue;
+		}
+		
+		if (ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig))
+		{
+			continue;
+		}
+		
+		if (ChildHandle->GetProperty()->GetFName() == NamePropertyName)
+		{
+			NamePropertyHandle = ChildHandle;
+			BuildFunctionNameWidget(InStructBuilder, NewPropertyLabel, ToolTip);
+			continue;
+		}
+
+		InStructBuilder.AddProperty(ChildHandle);
+	}
+
+	TArray<UObject*> Outers;
+	InStructPropertyHandle->GetOuterObjects(Outers);
+
+	if (Outers.Num() == 1 && Outers[0]->IsA<UDMXEntityFixtureType>())
+	{
+		UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Outers[0]);
+
+		TSharedPtr<IPropertyHandle> PixelMatrixConfigProperty = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, PixelMatrixConfig));
+		// Retrieve structure's child properties
+		PixelMatrixConfigProperty->GetNumChildren(NumChildren);
+
+		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+		{
+			TSharedRef<IPropertyHandle> ChildHandle = PixelMatrixConfigProperty->GetChildHandle(ChildIndex).ToSharedRef();
+			IDetailPropertyRow& Row = InStructBuilder.AddProperty(ChildHandle);
+			Row.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXFixtureModeDetails::CheckPixelMatrix, ChildHandle, TWeakObjectPtr<UDMXEntityFixtureType>(FixtureType))));
+		}
+
+		TSharedPtr<IPropertyHandle> FunctionsHandle = InStructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions));
+		check(FunctionsHandle.IsValid() && FunctionsHandle->IsValidHandle());
+		FunctionsHandle->MarkHiddenByCustomization();
+	}
+}
+
+EVisibility FDMXFixtureModeDetails::CheckPixelMatrix(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UDMXEntityFixtureType> FixtureType)
+{
+	if (FixtureType.IsValid())
+	{
+		if (FixtureType->bPixelFunctionsEnabled)
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Collapsed;
 }
 
 void FDMXFixtureModeDetails::GetCustomNameFieldSettings(FText& OutNewPropertyLabel, FName& OutNamePropertyName, FText& OutToolTip, FText& OutExistingNameError)
@@ -311,7 +540,7 @@ TArray<FString> FDMXFixtureModeDetails::GetExistingNames() const
 	{
 		if (Fixture == nullptr)
 		{
-			continue; 
+			continue;
 		}
 
 		for (const FDMXFixtureMode& Mode : Fixture->Modes)
@@ -404,7 +633,7 @@ void FDMXFixtureFunctionDetails::AddChannelInputFields(IDetailChildrenBuilder& I
 			[
 				CreateChannelField(2, SNumericEntryBox<uint8>::GreenLabelBackgroundColor)
 			]
-			
+
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			.VAlign(VAlign_Fill)
@@ -483,9 +712,9 @@ EVisibility FDMXFixtureFunctionDetails::GetChannelInputVisibility(uint8 Channel)
 	if (DataTypeHandle->GetValueData(DataTypePtr) == FPropertyAccess::Success)
 	{
 		EDMXFixtureSignalFormat* DataType = (EDMXFixtureSignalFormat*)DataTypePtr;
-		if ( (*DataType >= EDMXFixtureSignalFormat::E32Bit && Channel <= 4)
+		if ((*DataType >= EDMXFixtureSignalFormat::E32Bit && Channel <= 4)
 			|| (*DataType >= EDMXFixtureSignalFormat::E24Bit && Channel <= 3)
-			|| (*DataType >= EDMXFixtureSignalFormat::E16Bit && Channel <= 2) )
+			|| (*DataType >= EDMXFixtureSignalFormat::E16Bit && Channel <= 2))
 		{
 			return EVisibility::Visible;
 		}
@@ -600,9 +829,17 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 {
 	FDMXCustomization::CustomizeDetails(DetailLayout);
 
+	// Bind to auto assign address changes to assign channels when it gets enabled
+	AutoAssignAddressHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, bAutoAssignAddress));
+	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
+	
+	FSimpleDelegate OnAutoAssignAddressChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXFixturePatchesDetails::OnAutoAssignAddressChanged);
+	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
+
 	// Make a Fixture Types dropdown for the Fixture Type template property
 	ParentFixtureTypeHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ParentFixtureTypeTemplate));
-	check(ParentFixtureTypeHandle->IsValidHandle());
+	check(ParentFixtureTypeHandle.IsValid() && ParentFixtureTypeHandle->IsValidHandle());
+
 	DetailLayout.EditDefaultProperty(ParentFixtureTypeHandle)->CustomWidget(false)
 		.NameContent()
 		[
@@ -660,6 +897,23 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 				.Font(DetailLayout.GetDetailFont())
 			]
 		];
+}
+
+void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
+{
+	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
+
+	TArray<UObject*> OuterObjects;
+	AutoAssignAddressHandle->GetOuterObjects(OuterObjects);
+
+	TArray<UDMXEntityFixturePatch*> FixturePatches;
+	for (UObject* Object : OuterObjects)
+	{
+		UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
+		FixturePatches.Add(Patch);
+	}
+
+	FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
 }
 
 void FDMXFixturePatchesDetails::GenerateActiveModeOptions()
@@ -817,12 +1071,12 @@ void FDMXEntityReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 	}
 
 	// Add the properties
-	for (const auto& Itt : PropertyHandles)
+	for (const TPair<FName, TSharedPtr<IPropertyHandle>>& PropertyHandlePair : PropertyHandles)
 	{
-		if ((Itt.Key == NAME_DMXLibrary && GetDisplayLibrary())
-			|| (Itt.Key != NAME_DMXLibrary && Itt.Key != "EntityId")) // EntityId is private, so GET_MEMBER... won't work
+		if ((PropertyHandlePair.Key == NAME_DMXLibrary && GetDisplayLibrary())
+			|| (PropertyHandlePair.Key != NAME_DMXLibrary && PropertyHandlePair.Key != "EntityId")) // EntityId is private, so GET_MEMBER... won't work
 		{
-			InChildBuilder.AddProperty(Itt.Value.ToSharedRef());
+			InChildBuilder.AddProperty(PropertyHandlePair.Value.ToSharedRef());
 		}
 	}
 
@@ -839,8 +1093,7 @@ void FDMXEntityReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 		.MaxDesiredWidth(400.0f)
 		[
 			CreateEntityPickerWidget(InPropertyHandle)
-		]
-		;
+		];
 }
 
 bool FDMXEntityReferenceCustomization::GetDisplayLibrary() const
@@ -868,8 +1121,7 @@ TSharedRef<SWidget> FDMXEntityReferenceCustomization::CreateEntityPickerWidget(T
 		.OnEntitySelected(this, &FDMXEntityReferenceCustomization::OnEntitySelected)
 		.EntityTypeFilter(this, &FDMXEntityReferenceCustomization::GetEntityType)
 		.DMXLibrary(this, &FDMXEntityReferenceCustomization::GetDMXLibrary)
-		.IsEnabled(this, &FDMXEntityReferenceCustomization::GetPickerEnabled)
-		;
+		.IsEnabled(this, &FDMXEntityReferenceCustomization::GetPickerEnabled);
 }
 
 FText FDMXEntityReferenceCustomization::GetPickerPropertyLabel() const
@@ -907,7 +1159,7 @@ bool FDMXEntityReferenceCustomization::GetEntityIsMultipleValues() const
 	StructHandle->AccessRawData(RawData);
 	if (RawData[0] == nullptr)
 	{
-		return true; 
+		return true;
 	}
 
 	bool bFirstEntitySet = false;
@@ -953,7 +1205,7 @@ TSubclassOf<UDMXEntity> FDMXEntityReferenceCustomization::GetEntityType() const
 	StructHandle->AccessRawData(RawData);
 	if (RawData[0] == nullptr)
 	{
-		return nullptr; 
+		return nullptr;
 	}
 
 	const TSubclassOf<UDMXEntity> FirstEntityType = reinterpret_cast<FDMXEntityReference*>(RawData[0])->GetEntityType();
@@ -980,6 +1232,81 @@ TWeakObjectPtr<UDMXLibrary> FDMXEntityReferenceCustomization::GetDMXLibrary() co
 		return Cast<UDMXLibrary>(Object);
 	}
 	return nullptr;
+}
+
+void FDMXPixelsDistributionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	PropertyHandle = InPropertyHandle;
+
+	TSharedRef<SUniformGridPanel> DistributionGridPanel = SNew(SUniformGridPanel).SlotPadding(FMargin(1.f));;
+
+	for (int32 XIndex = 0; XIndex < DistributionGridNumXPanels; ++XIndex)
+	{
+		for (int32 YIndex = 0; YIndex < DistributionGridNumYPanels; ++YIndex)
+		{
+			FString BrushPath = FString::Printf(TEXT("DMXEditor.PixelMapping.DistributionGrid.%d.%d"), XIndex, YIndex);
+
+			TSharedPtr<SButton> Button = SNew(SButton)
+				.ButtonColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FDMXPixelsDistributionCustomization::GetButtonColorAndOpacity, XIndex, YIndex)))
+				.OnClicked(FOnClicked::CreateSP(this, &FDMXPixelsDistributionCustomization::OnGridButtonClicked, XIndex, YIndex))
+				[
+					SNew(SImage)
+					.Image(FDMXEditorStyle::Get().GetBrush(*BrushPath))
+				]
+				;
+
+				DistributionGridPanel->AddSlot(XIndex, YIndex)
+				[
+					Button.ToSharedRef()
+				];
+		}
+	}
+
+	InHeaderRow
+		.NameContent()
+		[
+			InPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MinDesiredWidth(200.0f)
+		.MaxDesiredWidth(400.0f)
+		[
+			DistributionGridPanel
+		];
+}
+
+FReply FDMXPixelsDistributionCustomization::OnGridButtonClicked(int32 GridIndexX, int32 GridIndexY)
+{
+	if (PropertyHandle.IsValid())
+	{
+		uint8 ChoosenDistribution = (GridIndexX * DistributionGridNumXPanels + GridIndexY);
+		PropertyHandle->SetValue(ChoosenDistribution);
+	}
+
+	return FReply::Handled();
+}
+
+
+FSlateColor FDMXPixelsDistributionCustomization::GetButtonColorAndOpacity(int32 GridIndexX, int32 GridIndexY)
+{
+	if (PropertyHandle.IsValid())
+	{
+		uint8 CurrentDistribution = 0;
+		if (PropertyHandle->GetValue(CurrentDistribution) == FPropertyAccess::Result::Success)
+		{
+			if (CurrentDistribution == (GridIndexX * DistributionGridNumXPanels + GridIndexY))
+			{
+				return FLinearColor(0.2f, 0.2f, 0.2f, 1.f);
+			}
+		}
+	}
+
+	return FLinearColor::Transparent;
+}
+
+
+void FDMXPixelsDistributionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
 }
 
 #undef LOCTEXT_NAMESPACE

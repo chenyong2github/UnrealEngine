@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using UnrealBuildTool;
+
+public class DMXPixelMappingBlueprintGraph : ModuleRules
+{
+	public DMXPixelMappingBlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"BlueprintGraph",
+			});
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Core",
+				"CoreUObject",
+				"KismetCompiler",
+				"BlueprintGraph",
+				"EditorStyle",
+				"Engine",
+				"Slate",
+				"SlateCore",
+				"InputCore",
+				"GraphEditor",
+				"UnrealEd",
+				"DMXPixelMappingRuntime",
+			}
+		);
+	}
+}

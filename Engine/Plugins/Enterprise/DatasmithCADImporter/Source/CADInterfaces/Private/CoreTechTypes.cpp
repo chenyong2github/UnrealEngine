@@ -195,8 +195,8 @@ namespace CADLibrary
 		}
 
 		// Apply retrieved tessellation parameters to CoreTech tessellation engine
-		static CT_LOGICAL high_quality = CT_FALSE;
-		Result = CTKIO_ChangeTesselationParameters(ImportParams.ChordTolerance / ImportParams.ScaleFactor, MaxEdgeLength_modelUnit, ImportParams.MaxNormalAngle, high_quality, VertexType, NormalType, UVType);
+		static CT_LOGICAL bHighQuality = CT_TRUE;
+		Result = CTKIO_ChangeTesselationParameters(ImportParams.ChordTolerance / ImportParams.ScaleFactor, MaxEdgeLength_modelUnit, ImportParams.MaxNormalAngle, bHighQuality, VertexType, NormalType, UVType);
 
 		return Result;
 	}

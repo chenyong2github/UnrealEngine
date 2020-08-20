@@ -89,7 +89,7 @@ public:
 
 /**
  * Settings for the media profile in the editor or standalone.
- * @note For cook games always use the startup media profile
+ * @note Cooked games don't use this media profile setting.
  */
 UCLASS(config=EditorPerProjectUserSettings)
 class MEDIAFRAMEWORKUTILITIES_API UMediaProfileEditorSettings

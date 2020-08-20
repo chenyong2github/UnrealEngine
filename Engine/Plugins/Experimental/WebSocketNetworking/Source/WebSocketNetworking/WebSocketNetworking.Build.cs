@@ -6,12 +6,18 @@ namespace UnrealBuildTool.Rules
 	{
 		public WebSocketNetworking(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+                {
+					"Engine"
+                }
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
 					"CoreUObject",
 					"NetCore",
-					"Engine",
 					"EngineSettings",
 					"ImageCore",
 					"Sockets",

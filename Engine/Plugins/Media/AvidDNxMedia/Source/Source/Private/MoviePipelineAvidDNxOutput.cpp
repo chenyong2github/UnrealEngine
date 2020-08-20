@@ -48,7 +48,7 @@ void UMoviePipelineAvidDNxOutput::WriteFrame_EncodeThread(MovieRenderPipeline::I
 	FAvidWriter* CodecWriter = static_cast<FAvidWriter*>(InWriter);
 	
 	// Quantize our 16 bit float data to 8 bit and apply sRGB
-	TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 8);
+	TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 8, nullptr, InWriter->bConvertToSrgb);
 	 
 	const void* Data = nullptr;
 	int64 DataSize;

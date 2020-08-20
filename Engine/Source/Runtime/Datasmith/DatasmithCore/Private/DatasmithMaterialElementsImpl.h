@@ -199,8 +199,8 @@ public:
 	virtual IDatasmithExpressionInput& GetNormal() override { return Normal; }
 	virtual const IDatasmithExpressionInput& GetNormal() const override { return Normal; }
 
-	virtual IDatasmithExpressionInput& GetFlatness() override { return Normal; }
-	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Normal; }
+	virtual IDatasmithExpressionInput& GetFlatness() override { return Flatness; }
+	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Flatness; }
 
 	virtual int32 GetInputCount() const override { return 2; }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? &Normal : &Flatness; }

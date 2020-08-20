@@ -261,7 +261,7 @@ public:
 	TSet<FFrameNumber> GetVerticalFrames() const;
 
 	/** @return The set of marked frames */
-	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const;
+	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const override;
 
 	TArray<FMovieSceneMarkedFrame> GetGlobalMarkedFrames() const;
 	void InvalidateGlobalMarkedFramesCache() { bGlobalMarkedFramesCached = false; }

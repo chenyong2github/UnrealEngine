@@ -7,7 +7,7 @@
 
 // Datasmith SDK classes.
 class FDatasmithMesh;
-
+class IDatasmithMeshElement;
 
 class DATASMITHFACADE_API FDatasmithFacadeMesh :
 	public FDatasmithFacadeElement
@@ -15,8 +15,7 @@ class DATASMITHFACADE_API FDatasmithFacadeMesh :
 public:
 
 	FDatasmithFacadeMesh(
-		const TCHAR* InElementName, // Datasmith element name
-		const TCHAR* InElementLabel // Datasmith element label
+		const TCHAR* InElementName
 	);
 
 	virtual ~FDatasmithFacadeMesh() {}
@@ -71,24 +70,11 @@ public:
 	// Return the number of triangles in the Datasmith static mesh.
 	int GetTriangleCount() const;
 
-	// Add a metadata string property to the Datasmith static mesh.
-	virtual void AddMetadataString(
-		const TCHAR* InPropertyName, // property name
-		const TCHAR* InPropertyValue // property value
-	);
-
 #ifdef SWIG_FACADE
 protected:
 #endif
 
-	// Return the built Datasmith static mesh asset.
-	TSharedPtr<FDatasmithMesh> GetAsset() const;
-
-	// Return the Datasmith static mesh element.
-	TSharedPtr<IDatasmithMeshElement> GetMeshElement() const;
-
-	// Build the Datasmith static mesh asset.
-	virtual void BuildAsset() override;
+	TSharedRef<IDatasmithMeshElement> GetDatasmithMeshElement() const;
 
 	// Build and export the Datasmith static mesh asset.
 	// This must be done before building a Datasmith static mesh element.
@@ -98,7 +84,7 @@ protected:
 
 	// Build a Datasmith static mesh element and add it to the Datasmith scene.
 	virtual void BuildScene(
-		TSharedRef<IDatasmithScene> IOSceneRef // Datasmith scene
+		FDatasmithFacadeScene& SceneRef // Datasmith scene
 	) override;
 
 private:
@@ -113,6 +99,9 @@ private:
 	};
 
 private:
+
+	// Build the Datasmith static mesh asset.
+	TSharedPtr<FDatasmithMesh> GenerateDatasmithMesh();
 
 	// Mesh vertex points.
 	TArray<FVector> VertexPointArray;
@@ -132,13 +121,4 @@ private:
 
 	// Dictionary of material names utilized by the mesh indexed by material IDs.
 	TMap<int, FString> MaterialNameMap;
-
-	// Array of Datasmith metadata properties.
-	TArray<TSharedPtr<IDatasmithKeyValueProperty>> MetadataPropertyArray;
-
-	// Datasmith static mesh.
-	TSharedPtr<FDatasmithMesh> MeshPtr;
-
-	// Datasmith static mesh element.
-	TSharedPtr<IDatasmithMeshElement> MeshElementPtr;
 };

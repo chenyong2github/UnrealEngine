@@ -2,6 +2,9 @@
 
 #include "UsdWrappers/UsdAttribute.h"
 
+#include "UsdWrappers/SdfPath.h"
+#include "UsdWrappers/UsdPrim.h"
+
 #include "USDMemory.h"
 
 #if USE_USD_SDK
@@ -164,6 +167,33 @@ namespace UE
 		return FName( ANSI_TO_TCHAR( Impl->PxrUsdAttribute.Get().GetTypeName().GetAsToken().GetString().c_str() ) );
 #else
 		return FName();
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdAttribute::ValueMightBeTimeVarying() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdAttribute.Get().ValueMightBeTimeVarying();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	FSdfPath FUsdAttribute::GetPath() const
+	{
+#if USE_USD_SDK
+		return FSdfPath( Impl->PxrUsdAttribute.Get().GetPath() );
+#else
+		return FSdfPath();
+#endif // #if USE_USD_SDK
+	}
+
+	FUsdPrim FUsdAttribute::GetPrim() const
+	{
+#if USE_USD_SDK
+		return FUsdPrim( Impl->PxrUsdAttribute.Get().GetPrim() );
+#else
+		return FUsdPrim();
 #endif // #if USE_USD_SDK
 	}
 }

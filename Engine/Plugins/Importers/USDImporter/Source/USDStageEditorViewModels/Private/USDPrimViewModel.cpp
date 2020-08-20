@@ -73,6 +73,8 @@ TArray< FUsdPrimViewModelRef >& FUsdPrimViewModel::UpdateChildren()
 
 	if ( NumUsdChildren != NumUnrealChildren )
 	{
+		FScopedUnrealAllocs UnrealAllocs;
+
 		Children.Reset();
 		bNeedsRefresh = true;
 	}
@@ -84,6 +86,8 @@ TArray< FUsdPrimViewModelRef >& FUsdPrimViewModel::UpdateChildren()
 		{
 			if ( !Children.IsValidIndex( ChildIndex ) || Children[ ChildIndex ]->UsdPrim.GetPrimPath().GetString() != UsdToUnreal::ConvertPath( Child.GetPrimPath() ) )
 			{
+				FScopedUnrealAllocs UnrealAllocs;
+
 				Children.Reset();
 				bNeedsRefresh = true;
 				break;

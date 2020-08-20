@@ -854,6 +854,11 @@ FSCSEditorTreeNodePtrType FSCSEditorTreeNode::FactoryNodeFromComponent(UActorCom
 	return MakeShareable(new FSCSEditorTreeNodeComponent(InComponent));
 }
 
+void FSCSEditorTreeNode::CloseOngoingCreateTransaction()
+{
+	OngoingCreateTransaction.Reset();
+}
+
 FSCSEditorTreeNodePtrType FSCSEditorTreeNode::FindChild(const USCS_Node* InSCSNode, bool bRecursiveSearch, uint32* OutDepth) const
 {
 	FSCSEditorTreeNodePtrType Result;
@@ -974,7 +979,7 @@ void FSCSEditorTreeNode::OnRequestRename(TUniquePtr<FScopedTransaction> InOngoin
 void FSCSEditorTreeNode::OnCompleteRename(const FText& InNewName)
 {
 	// If a 'create + give initial name' transaction exists, end it, the object is expected to have its initial name.
-	OngoingCreateTransaction.Reset();
+	CloseOngoingCreateTransaction();
 }
 
 UObject* FSCSEditorTreeNode::GetOrCreateEditableObjectForBlueprint(UBlueprint* InBlueprint) const
@@ -1605,7 +1610,7 @@ void FSCSEditorTreeNodeRootActor::OnCompleteRename(const FText& InNewName)
 	}
 
 	// Not expected to reach here with an ongoing create transaction, but if it does, end it.
-	OngoingCreateTransaction.Reset();
+	CloseOngoingCreateTransaction();
 }
 
 void FSCSEditorTreeNodeRootActor::AddChild(FSCSEditorTreeNodePtrType InChildNodePtr)
@@ -1767,14 +1772,17 @@ void SSCS_RowWidget::Construct( const FArguments& InArgs, TSharedPtr<SSCSEditor>
 
 SSCS_RowWidget::~SSCS_RowWidget()
 {
-	// Clear delegate when widget goes away
-	//Ask SCSEditor if Node is still active, if it isn't it might have been collected so we can't do anything to it
 	TSharedPtr<SSCSEditor> Editor = SCSEditor.Pin();
 	if(Editor.IsValid())
 	{
+		// Ensure to end any owned ongoing transaction if the node is still in 'editing initial name' mode when deleted.
+		GetNode()->CloseOngoingCreateTransaction();
+
+		// Ask SCSEditor if Node is still active, if it isn't it might have been collected so we can't do anything to it
 		USCS_Node* SCS_Node = GetNode()->GetSCSNode();
 		if(SCS_Node != NULL && Editor->IsNodeInSimpleConstructionScript(SCS_Node))
 		{
+			// Clear the delegate when widget goes away
 			SCS_Node->SetOnNameChanged(FSCSNodeNameChanged());
 		}
 	}

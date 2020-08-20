@@ -1648,6 +1648,18 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 
+#if WITH_EDITOR // WM_QUERYENDSESSION was added for Editor analytics purpose to detect when the Editor dies unexpectedly because it gets killed by a logoff/shutdown.
+		case WM_QUERYENDSESSION:
+			{
+				// NOTE: If an application or something 'blocks' the shutdown, the message may not be received. For example, the command 'shutdown /r' used from a remote desktop session
+				//       cmd shell shows a popup for about 30 seconds and WM_QUERYENDSESSION is not received while 'shutdown /r /t 0' works fine because it has no timeout and no popup.
+				if (lParam == 0 || (lParam & ENDSESSION_LOGOFF) == ENDSESSION_LOGOFF) // Shutdown/Reboot/Logoff
+				{
+					FCoreDelegates::OnUserLoginChangedEvent.Broadcast(false, 0, 0);
+				}
+				return DefWindowProc(hwnd, msg, wParam, lParam);
+			}
+#endif
 		case WM_SYSCOMMAND:
 			{
 				switch( wParam & 0xfff0 )

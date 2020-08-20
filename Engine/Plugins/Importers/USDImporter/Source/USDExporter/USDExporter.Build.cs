@@ -22,21 +22,22 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"JsonUtilities",
-					"UnrealEd",
-					"InputCore",
-					"SlateCore",
-                    "PropertyEditor",
-					"Slate",
                     "EditorStyle",
-                    "RawMesh",
                     "GeometryCache",
+					"InputCore",
+					"JsonUtilities",
+					"MaterialBaking", // So that we can use some of the export option properties
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
+                    "PropertyEditor",
 					"PythonScriptPlugin",
+                    "RawMesh",
                     "RenderCore",
                     "RHI",
+					"Slate",
+					"SlateCore",
+					"UnrealEd",
 					"USDUtilities",
                 }
 				);

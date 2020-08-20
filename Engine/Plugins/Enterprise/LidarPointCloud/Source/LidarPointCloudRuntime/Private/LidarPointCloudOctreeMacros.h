@@ -2,12 +2,13 @@
 
 #pragma once
 
-#define FOR(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetPersistentData(), * DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
-#define FOR_RO(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetData(), * DataEnd = ElemName + Node->GetNumPoints(); ElemName != DataEnd; ++ElemName)
+#define FOR(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetPersistentData(), *DataEnd##ElemName = ElemName + Node->GetNumPoints(); ElemName != DataEnd##ElemName; ++ElemName)
+#define FOR_RO(ElemName, Node) for(FLidarPointCloudPoint* ElemName = Node->GetData(), *DataEnd##ElemName = ElemName + Node->GetNumPoints(); ElemName != DataEnd##ElemName; ++ElemName)
 
 #define IS_VIS_CHECK_REQUIRED (bVisibleOnly && CurrentNode->NumVisiblePoints < CurrentNode->GetNumPoints())
 
-#define NODE_IN_BOX (Box.Intersect(Child->GetBounds(this)))
+#define NODE_IN_BOX_EXTERN(Octree) (Box.Intersect(Child->GetBounds(Octree)))
+#define NODE_IN_BOX NODE_IN_BOX_EXTERN(this)
 #define NODE_IN_FRUSTUM (Frustum.IntersectBox(Child->Center, SharedData[Child->Depth].Extent))
 
 #define ITERATE_NODES_BODY(Action, NodeTest, Const) \
@@ -57,23 +58,25 @@
 	}\
 }
 
-#define PROCESS_IN_SPHERE_BODY(Action, Mode) \
+#define PROCESS_IN_SPHERE_BODY_EXTERN(Octree, Action, Mode) \
 {\
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
-		const bool bNodeFullyContained = CurrentNode->GetSphereBounds(this).IsInside(Sphere);\
+		const bool bNodeFullyContained = CurrentNode->GetSphereBounds(Octree).IsInside(Sphere);\
 		PROCESS_BODY(Action, POINT_IN_SPHERE, Mode) \
 	}\
 }
+#define PROCESS_IN_SPHERE_BODY(Action, Mode) PROCESS_IN_SPHERE_BODY_EXTERN(this, Action, Mode)
 
-#define PROCESS_IN_BOX_BODY(Action, Mode) \
+#define PROCESS_IN_BOX_BODY_EXTERN(Octree, Action, Mode) \
 {\
 	if (!bVisibleOnly || CurrentNode->NumVisiblePoints > 0)\
 	{\
-		const bool bNodeFullyContained = Box.IsInsideOrOn(CurrentNode->Center - SharedData[CurrentNode->Depth].Extent) && Box.IsInsideOrOn(CurrentNode->Center + SharedData[CurrentNode->Depth].Extent);\
+		const bool bNodeFullyContained = Box.IsInsideOrOn(CurrentNode->Center - Octree->SharedData[CurrentNode->Depth].Extent) && Box.IsInsideOrOn(CurrentNode->Center + Octree->SharedData[CurrentNode->Depth].Extent);\
 		PROCESS_BODY(Action, POINT_IN_BOX, Mode) \
 	}\
 }
+#define PROCESS_IN_BOX_BODY(Action, Mode) PROCESS_IN_BOX_BODY_EXTERN(this, Action, Mode)
 
 #define PROCESS_IN_FRUSTUM_BODY(Action, Mode) \
 {\
@@ -102,37 +105,36 @@
 	}\
 }
 
-#define PROCESS_IN_SPHERE(Action) \
+#define PROCESS_IN_SPHERE_COMMON(Action) \
 {\
 	/* Build a box to quickly filter out the points - (IsInsideOrOn vs comparing DistSquared) */\
 	const FBox Box(Sphere.Center - FVector(Sphere.W), Sphere.Center + FVector(Sphere.W));\
 	const float RadiusSq = Sphere.W * Sphere.W;\
-	ITERATE_NODES(PROCESS_IN_SPHERE_BODY(Action,), NODE_IN_BOX) \
+	Action\
 }
-#define PROCESS_IN_SPHERE_CONST(Action) \
-{\
-	/* Build a box to quickly filter out the points - (IsInsideOrOn vs comparing DistSquared) */\
-	const FBox Box(Sphere.Center - FVector(Sphere.W), Sphere.Center + FVector(Sphere.W));\
-	const float RadiusSq = Sphere.W * Sphere.W;\
-	ITERATE_NODES_CONST(PROCESS_IN_SPHERE_BODY(Action, _RO), NODE_IN_BOX) \
-}
+#define PROCESS_IN_SPHERE(Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES(PROCESS_IN_SPHERE_BODY(Action,), NODE_IN_BOX)) }
+#define PROCESS_IN_SPHERE_EX(Action, NodeAction) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES({PROCESS_IN_SPHERE_BODY(Action,)} {NodeAction}, NODE_IN_BOX)) }
+#define PROCESS_IN_SPHERE_CONST(Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES_CONST(PROCESS_IN_SPHERE_BODY(Action, _RO), NODE_IN_BOX)) }
+#define PROCESS_IN_SPHERE_EXTERN(Octree, Action) { PROCESS_IN_SPHERE_COMMON(ITERATE_NODES(PROCESS_IN_SPHERE_BODY_EXTERN(Octree, Action,), NODE_IN_BOX_EXTERN(Octree))) }
+
 
 #define PROCESS_ALL(Action) { ITERATE_NODES(PROCESS_ALL_BODY(Action,), true) }
+#define PROCESS_ALL_EX(Action, NodeAction) { ITERATE_NODES({PROCESS_ALL_BODY(Action,)} {NodeAction}, true) }
 #define PROCESS_ALL_CONST(Action) { ITERATE_NODES_CONST(PROCESS_ALL_BODY(Action, _RO), true) }
 
 #define PROCESS_IN_BOX(Action) { ITERATE_NODES(PROCESS_IN_BOX_BODY(Action,), NODE_IN_BOX) }
+#define PROCESS_IN_BOX_EX(Action, NodeAction) { ITERATE_NODES({PROCESS_IN_BOX_BODY(Action,)} {NodeAction}, NODE_IN_BOX) }
 #define PROCESS_IN_BOX_CONST(Action) { ITERATE_NODES_CONST(PROCESS_IN_BOX_BODY(Action, _RO), NODE_IN_BOX) }
+#define PROCESS_IN_BOX_EXTERN(Octree, Action) { ITERATE_NODES(PROCESS_IN_BOX_BODY_EXTERN(Octree, Action,), NODE_IN_BOX_EXTERN(Octree)) }
 
 #define PROCESS_IN_FRUSTUM(Action) { ITERATE_NODES(PROCESS_IN_FRUSTUM_BODY(Action,), NODE_IN_FRUSTUM) }
 #define PROCESS_IN_FRUSTUM_CONST(Action) { ITERATE_NODES_CONST(PROCESS_IN_FRUSTUM_BODY(Action, _RO), NODE_IN_FRUSTUM) }
 
-#define PROCESS_BY_RAY(Action)\
+#define PROCESS_BY_RAY_COMMON(Action)\
 {\
 	const float RadiusSq = Radius * Radius;\
-	ITERATE_NODES(PROCESS_BY_RAY_BODY(Action,), false)\
+	Action \
 }
-#define PROCESS_BY_RAY_CONST(Action)\
-{\
-	const float RadiusSq = Radius * Radius; \
-	ITERATE_NODES_CONST(PROCESS_BY_RAY_BODY(Action, _RO), false)\
-}
+#define PROCESS_BY_RAY(Action) { PROCESS_BY_RAY_COMMON(ITERATE_NODES(PROCESS_BY_RAY_BODY(Action,), false)) }
+#define PROCESS_BY_RAY_EX(Action, NodeAction) { PROCESS_BY_RAY_COMMON(ITERATE_NODES({PROCESS_BY_RAY_BODY(Action,)} {NodeAction}, false)) }
+#define PROCESS_BY_RAY_CONST(Action) { PROCESS_BY_RAY_COMMON(ITERATE_NODES_CONST(PROCESS_BY_RAY_BODY(Action, _RO), false)) }

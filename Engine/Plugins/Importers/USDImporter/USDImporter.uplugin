@@ -46,14 +46,14 @@
 			"LoadingPhase": "Default"
 		},
 		{
-            "Name": "USDStageEditor",
-            "Type": "Editor",
-            "LoadingPhase": "Default"
-        },
+			"Name": "USDStageEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
 		{
-            "Name": "USDImporter",
-            "Type": "Editor",
-            "LoadingPhase": "Default"
+			"Name": "USDImporter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDStageImporter",
@@ -75,6 +75,11 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
+		{
+			"Name": "GeometryCacheUSD",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
 	],
 	"Plugins": [
 		{
@@ -87,6 +92,10 @@
 		},
 		{
 			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSequenceEditor",
 			"Enabled": true
 		},
 		{

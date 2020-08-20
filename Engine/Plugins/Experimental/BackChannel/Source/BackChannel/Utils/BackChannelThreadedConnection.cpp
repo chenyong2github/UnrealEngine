@@ -21,7 +21,7 @@ bool FBackChannelThreadedListener::IsRunning() const
 	return bIsRunning;
 }
 
-void FBackChannelThreadedListener::Start(TSharedRef<IBackChannelConnection> InConnection, FBackChannelListenerDelegate InDelegate)
+void FBackChannelThreadedListener::Start(TSharedRef<IBackChannelSocketConnection> InConnection, FBackChannelListenerDelegate InDelegate)
 {
 	Connection = InConnection;
 	Delegate = InDelegate;
@@ -38,7 +38,7 @@ uint32 FBackChannelThreadedListener::Run()
 	{
 		FScopeLock RunningLock(&RunningCS);
 
-		Connection->WaitForConnection(1, [this](TSharedRef<IBackChannelConnection> NewConnection) {
+		Connection->WaitForConnection(1, [this](TSharedRef<IBackChannelSocketConnection> NewConnection) {
 			return Delegate.Execute(NewConnection);
 		});
 	}

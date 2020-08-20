@@ -42,7 +42,7 @@ void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent
 		if ( UCineCameraComponent* CameraComponent = Cast< UCineCameraComponent >( ChildComponent ) )
 		{
 			FScopedUsdAllocs UsdAllocs;
-			UsdToUnreal::ConvertGeomCamera( Schema.GetPrim().GetStage(), pxr::UsdGeomCamera( Schema ), *CameraComponent, Context->Time );
+			UsdToUnreal::ConvertGeomCamera( Context->Stage, pxr::UsdGeomCamera( GetPrim() ), *CameraComponent, Context->Time );
 		}
 	}
 }

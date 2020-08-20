@@ -21,6 +21,8 @@
 
 DEFINE_LOG_CATEGORY(SubSequenceSerialization);
 
+TArray<TPair<FQualifiedFrameTime, FTimecode> > UTakeRecorderSources::RecordedTimes;
+
 UTakeRecorderSources::UTakeRecorderSources(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, SourcesSerialNumber(0)
@@ -462,6 +464,7 @@ void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManif
 	// sub-sequences, etc.
 	CachedManifestSerializer = InManifestSerializer;
 	CachedLevelSequence = InSequence;
+	RecordedTimes.Empty();
 
 	PreRecordSources(Sources);
 
@@ -488,13 +491,24 @@ FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence,
 
 	if (bTimeIncremented) //only record if time incremented, may not with timecode providers with low frame rates
 	{
-		for (auto Source : Sources)
+		for (int32 SourceIndex = 0; SourceIndex < Sources.Num(); ++SourceIndex)
 		{
-			if (Source->bEnabled)
+			if (Sources[SourceIndex]->bEnabled)
 			{
-				Source->TickRecording(SourceFrameTime);
+				Sources[SourceIndex]->TickRecording(SourceFrameTime);
 			}
 		}
+	}
+
+	{
+		const FFrameNumber StartFrameNumber = StartRecordingTimecodeSource.ToFrameNumber(TargetLevelSequenceDisplayRate);
+		FFrameTime StartTime = FFrameRate::TransformTime(FFrameTime(StartFrameNumber), TargetLevelSequenceDisplayRate, TargetLevelSequenceTickResolution);
+		const FFrameTime CurrentFrameTimeSinceStart = TargetLevelSequenceTickResolution.AsFrameTime(TimeSinceRecordingStarted);
+		FQualifiedFrameTime CurrentFrameTime = FQualifiedFrameTime(StartTime + CurrentFrameTimeSinceStart, TargetLevelSequenceTickResolution);
+
+		FFrameTime KeyTime = FFrameRate::TransformTime(CurrentFrameTime.Time, TargetLevelSequenceTickResolution, TargetLevelSequenceDisplayRate);
+		FTimecode Timecode = FTimecode::FromFrameNumber(KeyTime.FrameNumber, TargetLevelSequenceDisplayRate);
+		RecordedTimes.Add(TPair<FQualifiedFrameTime, FTimecode>(FrameTime, Timecode));
 	}
 
 	//Time in seconds since recording started. Used when there is no Timecode Sync (e.g. in case it get's lost or dropped).

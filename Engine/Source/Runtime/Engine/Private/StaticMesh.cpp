@@ -5312,11 +5312,13 @@ void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescri
 		MeshDescriptions.Emplace(&StaticMeshDescription->GetMeshDescription());
 	}
 
-	BuildFromMeshDescriptions(MeshDescriptions, bBuildSimpleCollision);
+	FBuildMeshDescriptionsParams Params;
+	Params.bBuildSimpleCollision = bBuildSimpleCollision;
+	BuildFromMeshDescriptions(MeshDescriptions, Params);
 }
 
 
-bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, bool bBuildSimpleCollision)
+bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, const FBuildMeshDescriptionsParams& Params)
 {
 	// Set up
 
@@ -5336,6 +5338,10 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 		ReleaseResourcesFence.Wait();
 	}
 
+#if WITH_EDITOR
+	SetNumSourceModels(MeshDescriptions.Num());
+#endif
+
 	RenderData = MakeUnique<FStaticMeshRenderData>();
 	RenderData->AllocateLODResources(MeshDescriptions.Num());
 
@@ -5346,9 +5352,14 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	{
 #if WITH_EDITOR
 		// Editor builds cache the mesh description so that it can be preserved during map reloads etc
-		SetNumSourceModels(MeshDescriptions.Num());
-		CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
-		CommitMeshDescription(LODIndex);
+		if (Params.bCommitMeshDescription)
+		{
+			CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
+			FCommitMeshDescriptionParams CommitParams;
+			CommitParams.bMarkPackageDirty = Params.bMarkPackageDirty;
+			CommitParams.bUseHashAsGuid = Params.bUseHashAsGuid;
+			CommitMeshDescription(LODIndex, CommitParams);
+		}
 #endif
 		check(MeshDescriptionPtr != nullptr);
 		FStaticMeshLODResources& LODResources = RenderData->LODResources[LODIndex];
@@ -5405,7 +5416,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	check(BodySetup);
 	BodySetup->InvalidatePhysicsData();
 
-	if (bBuildSimpleCollision)
+	if (Params.bBuildSimpleCollision)
 	{
 		FKBoxElem BoxElem;
 		BoxElem.Center = RenderData->Bounds.Origin;

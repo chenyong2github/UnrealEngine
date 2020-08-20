@@ -228,8 +228,7 @@ void FCodeProjectEditor::InitCodeEditor(const EToolkitMode::Type Mode, const TSh
 	FCodeProjectEditorCommands::Register();
 
 	// Initialize the asset editor and spawn nothing (dummy layout)
-	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
-	InitAssetEditor(Mode, InitToolkitHost, CodeEditorAppName, DummyLayout, /*bCreateDefaultStandaloneMenu=*/ true, /*bCreateDefaultToolbar=*/ true, CodeProject);
+	InitAssetEditor(Mode, InitToolkitHost, CodeEditorAppName, FTabManager::FLayout::NullLayout, /*bCreateDefaultStandaloneMenu=*/ true, /*bCreateDefaultToolbar=*/ true, CodeProject);
 
 	BindCommands();
 

@@ -9,29 +9,44 @@
 #include "DMXEditorStyle.h"
 #include "DMXProtocolTypes.h"
 #include "DMXAttribute.h"
+#include "Commands/DMXEditorCommands.h"
 #include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
 #include "Sequencer/DMXLibraryTrackEditor.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 #include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
+#include "Widgets/Monitors/SDMXActivityMonitor.h"
+#include "Widgets/Monitors/SDMXChannelsMonitor.h"
+#include "Widgets/OutputConsole/SDMXOutputConsole.h"
 
+#include "Templates/SharedPointer.h"
+#include "LevelEditor.h"
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ISequencerModule.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Docking/SDockTab.h"
 
-const FName FDMXEditorModule::DMXEditorAppIdentifier(TEXT("DMXEditorApp"));
-EAssetTypeCategories::Type FDMXEditorModule::DMXEditorAssetCategory;
-
-const FName FDMXEditorModule::ModuleName = TEXT("DMXEditor");
 
 #define LOCTEXT_NAMESPACE "DMXEditorModule"
 
+const FName FDMXEditorModule::DMXEditorAppIdentifier(TEXT("DMXEditorApp"));
+
+const FName FDMXEditorTabNames::ChannelsMonitorTabName(TEXT("ChannelsMonitorTabName"));
+const FName FDMXEditorTabNames::ActivityMonitorTabName( TEXT("ActivityMonitorTabName") );
+const FName FDMXEditorTabNames::OutputConsoleTabName( TEXT("OutputConsoleTabName") );
+
+EAssetTypeCategories::Type FDMXEditorModule::DMXEditorAssetCategory;
+
 void FDMXEditorModule::StartupModule()
 {
-    static const FName AssetRegistryName(TEXT("AssetRegistry"));
-    static const FName AssetToolsModuleame(TEXT("AssetTools"));
+    static const FName AssetRegistryName( TEXT("AssetRegistry") );
+    static const FName AssetToolsModuleame( TEXT("AssetTools") );
+	static const FName LevelEditorName( TEXT("LevelEditor") );
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -57,6 +72,49 @@ void FDMXEditorModule::StartupModule()
 	DMXLibraryTrackCreateHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FDMXLibraryTrackEditor::CreateTrackEditor));
 
 	PropertyModule.NotifyCustomizationModuleChanged();
+
+	// Set up the Level Editor DMX button menu
+	FDMXEditorCommands::Register();
+
+	DMXMonitorCommands = MakeShared<FUICommandList>();
+	DMXMonitorCommands->MapAction(
+		FDMXEditorCommands::Get().OpenChannelsMonitor,
+		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenChannelsMonitor),
+		FCanExecuteAction()
+		);
+	DMXMonitorCommands->MapAction(
+		FDMXEditorCommands::Get().OpenActivityMonitor,
+		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenActivityMonitor),
+		FCanExecuteAction()
+	);
+	DMXMonitorCommands->MapAction(
+		FDMXEditorCommands::Get().OpenOutputConsole,
+		FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole),
+		FCanExecuteAction()
+	);
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
+
+	TSharedPtr<FExtender> ToolbarExtender = MakeShared<FExtender>();
+	ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, 
+		DMXMonitorCommands,
+		FToolBarExtensionDelegate::CreateRaw(this, &FDMXEditorModule::AddToolbarExtension));
+	
+	LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FDMXEditorTabNames::ChannelsMonitorTabName,
+		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnChannelsMonitorTab))
+		.SetDisplayName(LOCTEXT("ChannelsMonitorTabTitle", "DMX Channel Monitor"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FDMXEditorTabNames::ActivityMonitorTabName,
+		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnActivityMonitorTab))
+		.SetDisplayName(LOCTEXT("ActivityMonitorTabTitle", "DMX Activity Monitor"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FDMXEditorTabNames::OutputConsoleTabName,
+		FOnSpawnTab::CreateRaw(this, &FDMXEditorModule::OnSpawnOutputConsoleTab))
+		.SetDisplayName(LOCTEXT("OutputConsoleTabTitle", "DMX Output Console"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
 }
 
 void FDMXEditorModule::ShutdownModule()
@@ -106,6 +164,8 @@ void FDMXEditorModule::ShutdownModule()
 		ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 		SequencerModule.UnRegisterTrackEditor(DMXLibraryTrackCreateHandle);
 	}
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FDMXEditorTabNames::ActivityMonitorTabName);
+
 }
 
 void FDMXEditorModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
@@ -137,6 +197,7 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>));
 	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>));
 	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
+	RegisterCustomPropertyTypeLayout("EDMXPixelsDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelsDistributionCustomization>));
 
 	// Customizations for the Entity Reference types
 	RegisterCustomPropertyTypeLayout(FDMXEntityControllerRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
@@ -145,20 +206,21 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	
 	// DMXLibrary TakeRecorder AddAllPatchesButton customization
 	RegisterCustomPropertyTypeLayout(FAddAllPatchesButton::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryRecorderAddAllPatchesButtonCustomization>));
+
 }
 
 void FDMXEditorModule::RegisterObjectCustomizations()
 {}
 
-void FDMXEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
+void FDMXEditorModule::RegisterAssetTypeAction(IAssetTools& InOutAssetTools, TSharedRef<IAssetTypeActions> Action)
 {
-	AssetTools.RegisterAssetTypeActions(Action);
+	InOutAssetTools.RegisterAssetTypeActions(Action);
 	CreatedAssetTypeActions.Add(Action);
 }
 
 FDMXEditorModule& FDMXEditorModule::Get()
 {
-	return FModuleManager::GetModuleChecked<FDMXEditorModule>(ModuleName);
+	return FModuleManager::GetModuleChecked<FDMXEditorModule>("DMXEditor");
 }
 
 TSharedRef<FDMXEditor> FDMXEditorModule::CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UDMXLibrary * DMXLibrary)
@@ -167,6 +229,102 @@ TSharedRef<FDMXEditor> FDMXEditorModule::CreateEditor(const EToolkitMode::Type M
 	DMXEditor->InitEditor(Mode, InitToolkitHost, DMXLibrary);
 
 	return DMXEditor;
+}
+
+void FDMXEditorModule::AddToolbarExtension(FToolBarBuilder& InOutBuilder)
+{
+	InOutBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateRaw(this, &FDMXEditorModule::GenerateMonitorsMenu, SharedDMXEditorCommands),
+		LOCTEXT("InputInfo_Label", "DMX"),
+		LOCTEXT("InputInfo_ToolTip", "DMX Tools"),
+		FSlateIcon(FDMXEditorStyle::GetStyleSetName(), "DMXEditor.InputInfoAction")
+		);
+}
+
+TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommandList> InCommands)
+{
+	FMenuBuilder MenuBuilder(true, InCommands);
+	FUIAction OpenChannelsMonitor(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenChannelsMonitor));
+	FUIAction OpenActivityMonitor(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenActivityMonitor));
+	FUIAction OpenOutputConsole(FExecuteAction::CreateRaw(this, &FDMXEditorModule::OnOpenOutputConsole));
+
+
+	MenuBuilder.BeginSection("CustomMenu", TAttribute<FText>(FText::FromString("DMX")));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("LevelEditorMenu_OpenChannelsMonitor", "Open DMX Channel Monitor"), 
+			LOCTEXT("LevelEditorMenu_ChannelsMonitorToolTip", "Monitor for all DMX Channels in a Universe"),
+			FSlateIcon(), OpenChannelsMonitor);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("LevelEditorMenu_OpenActivityMonitor", "Open DMX Activity Monitor"), 
+			LOCTEXT("LevelEditorMenu_ActivityMonitorToolTip", "Monitor for all DMX activity in a range of Universes"),
+			FSlateIcon(), OpenActivityMonitor);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("LevelEditorMenu_OpenOutputChannels", "Open DMX Output Console"), 
+			LOCTEXT("LevelEditorMenu_OutputConsoleTooltip", "Console to generate and output DMX Signals"),
+			FSlateIcon(), OpenOutputConsole);
+
+	MenuBuilder.EndSection();
+
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SDockTab> FDMXEditorModule::OnSpawnActivityMonitorTab(const FSpawnTabArgs& InSpawnTabArgs)
+{
+	UniverseMonitorTab = SNew(SDMXActivityMonitor);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("ActivityMonitorTitle", "DMX Activity Monitor"))
+		.OnTabClosed( SDockTab::FOnTabClosedCallback::CreateSP(UniverseMonitorTab.ToSharedRef(), &SDMXActivityMonitor::CancelAsyncTasks))
+		.TabRole(ETabRole::NomadTab)
+		[
+			UniverseMonitorTab.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FDMXEditorModule::OnSpawnChannelsMonitorTab(const FSpawnTabArgs& InSpawnTabArgs)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("ChannelsMonitorTitle", "DMX Channel Monitor"))
+		.TabRole(ETabRole::NomadTab)
+		[
+			SAssignNew(ChannelsMonitorTab, SDMXChannelsMonitor)
+		];
+}
+
+TSharedRef<SDockTab> FDMXEditorModule::OnSpawnOutputConsoleTab(const FSpawnTabArgs& InSpawnTabArgs)
+{
+	OutputConsoleTab = SNew(SDMXOutputConsole);
+
+	return SNew(SDockTab)
+		.OnTabClosed(SDockTab::FOnTabClosedCallback::CreateSP(OutputConsoleTab.ToSharedRef(), &SDMXOutputConsole::HandleCloseParentTab))
+		.Label(LOCTEXT("OutputConsoleTitle", "DMX Output Console"))
+		.TabRole(ETabRole::NomadTab)
+		[
+			OutputConsoleTab.ToSharedRef()
+		];
+}
+
+void FDMXEditorModule::OnOpenChannelsMonitor()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FDMXEditorTabNames::ChannelsMonitorTabName);
+}
+
+void FDMXEditorModule::OnOpenActivityMonitor()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FDMXEditorTabNames::ActivityMonitorTabName);
+}
+
+void FDMXEditorModule::OnOpenOutputConsole()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(FDMXEditorTabNames::OutputConsoleTabName);
+
+	check(OutputConsoleTab.IsValid());
+	OutputConsoleTab->RestoreConsole();	
 }
 
 IMPLEMENT_MODULE(FDMXEditorModule, DMXEditor)

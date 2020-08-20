@@ -16,6 +16,7 @@ namespace MovieRenderPipeline
 	{
 		FString FileName;
 		FMoviePipelineFormatArgs FormatArgs;
+		bool bConvertToSrgb;
 	};
 }
 

@@ -222,62 +222,6 @@ UMaterialExpressionFunctionOutput* FDatasmithMaterialExpressions::FindOrAddOutpu
 	return CreateMaterialExpression< UMaterialExpressionFunctionOutput >( Func );
 }
 
-UTextureLightProfile* FDatasmithMaterialExpressions::CreateDatasmithIES(const FString& Filename, UPackage* Package, EObjectFlags ObjectFlags)
-{
-	UTextureLightProfile* UnrealIES = nullptr;
-
-	if (Filename.IsEmpty() || !FPaths::FileExists(Filename))
-	{
-		FText DialogTitle = FText::FromString( TEXT("Cannot find ies light") );
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Filename), &DialogTitle);
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Unable to find ies file %s"), *Filename);
-
-		return nullptr;
-	}
-
-	FString Extension = FPaths::GetExtension(Filename).ToLower();
-	FString TextureName = FPaths::GetBaseFilename(Filename) + TEXT("_IES");
-	TextureName = ObjectTools::SanitizeObjectName(TextureName);
-
-	// try opening from absolute path
-	TArray<uint8> TextureData;
-	if (!(FFileHelper::LoadFileToArray(TextureData, *Filename) && TextureData.Num() > 0))
-	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Unable to find Texture file %s"), *Filename);
-		return nullptr;
-	}
-	else
-	{
-		UTextureFactory* TextureFact = NewObject<UTextureFactory>();
-		TextureFact->AddToRoot();
-		TextureFact->SuppressImportOverwriteDialog();
-
-		TextureFact->LODGroup = TEXTUREGROUP_IESLightProfile;
-		TextureFact->CompressionSettings = TC_HDR;
-
-		const uint8* PtrTexture = TextureData.GetData();
-
-		UPackage* LightPackage = CreatePackage( nullptr, *FPaths::Combine( Package->GetName(), TextureName ) );
-		LightPackage->FullyLoad();
-
-		UnrealIES = (UTextureLightProfile*)TextureFact->FactoryCreateBinary(UTextureLightProfile::StaticClass(), LightPackage, *TextureName, ObjectFlags, nullptr, *Extension, PtrTexture,
-																		PtrTexture + TextureData.Num(), GWarn);
-		if (UnrealIES != nullptr)
-		{
-			UnrealIES->AssetImportData->Update(Filename);
-
-			// Notify the asset registry
-			FAssetRegistryModule::AssetCreated(UnrealIES);
-
-			UnrealIES->MarkPackageDirty();
-		}
-
-		TextureFact->RemoveFromRoot();
-	}
-
-	return UnrealIES;
-}
-
 void FDatasmithMaterialExpressions::GetSamplersRecursive(UMaterialExpression* Expression, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
 {
 	if (Expression == nullptr)

@@ -16,6 +16,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 		GpuCrashed,
 		Terminated,
 		Shutdown,
+		LogOut,
 	};
 
 	FString SessionId;
@@ -34,8 +35,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
 	TOptional<int32> MonitorExceptCode; // Set by CrashReportClientEditor if an exception is caught by monitoring the Editor. This is to detect if CRC crashes itself.
 
-	FDateTime StartupTimestamp;
-	FDateTime Timestamp;
+	FDateTime StartupTimestamp; // Wall time (UTC) when the session started.
+	FDateTime Timestamp; // Wall time (UTC) when the session was ended.
 	volatile int32 SessionDuration = 0; // The session duration in seconds, computed using FPlatformTime::Seconds() rather than Timestamp - StartupTimestamp which can be affected by daylight saving.
 	volatile int32 IdleSeconds = 0; // Can be updated from concurrent threads.
 	volatile int32 Idle1Min = 0;
@@ -45,6 +46,9 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
 	float AverageFPS;
+
+	uint64 SessionTickCount = 0; // Number of time the analytic session was ticked. Zero is the interesting value. If the Editor is hang during boot, some users may be prompt to kill it.
+	uint32 UserInteractionCount = 0; // Number of slate user interactions. Zero is the interesting value. If the Editor UI hang at start up, some users may be prompt to kill it.
 
 	FString DesktopGPUAdapter;
 	FString RenderingGPUAdapter;
@@ -72,10 +76,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsVanilla : 1;
 	bool bIsTerminating : 1;
 	bool bWasShutdown : 1;
+	bool bIsUserLoggingOut: 1; // Also cover shutdown/reboot as logging out is part of the process. Logging out currently end up as an abnormal termination.
 	bool bIsInPIE : 1;
 	bool bIsInEnterprise : 1;
 	bool bIsInVRMode : 1;
 	bool bIsLowDriveSpace : 1;
+	bool bIsCrcExeMissing: 1; // CrashReportClient executable is missing? To explain with MonitorProcessID would be zero.
 
 	FEditorAnalyticsSession();
 

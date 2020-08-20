@@ -12,6 +12,8 @@
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "UObject/UObjectIterator.h"
+#include "Customizations/K2Node_CastPatchToTypeCustomization.h"
+#include "K2Node_CastPatchToType.h"
 
 #define LOCTEXT_NAMESPACE "DMXBlueprintGraphModule"
 
@@ -55,6 +57,9 @@ void FDMXBlueprintGraphModule::ShutdownModule()
 void FDMXBlueprintGraphModule::RegisterObjectCustomizations()
 {
 	RegisterCustomClassLayout(UK2Node_GetDMXActiveModeFunctionValues::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_GetDMXActiveModeFunctionValuesCustomization::MakeInstance));
+
+	RegisterCustomClassLayout(UK2Node_CastPatchToType::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_CastPatchToTypeCustomization::MakeInstance));
+
 }
 
 void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate)

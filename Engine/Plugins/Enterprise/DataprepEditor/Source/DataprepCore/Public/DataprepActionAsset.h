@@ -333,6 +333,10 @@ public:
 	UPROPERTY(Transient)
 	bool bExecutionInterrupted;
 
+	UPROPERTY()
+	bool bIsEnabled;
+
+
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }
 	void SetLabel( const TCHAR* InLabel ) { Modify(); Label = InLabel ? InLabel : TEXT(""); }

@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Engine/TimecodeProvider.h"
-
+#include "GenlockedTimecodeProvider.h"
 #include "AjaMediaSource.h"
 #include "AjaDeviceProvider.h"
 #include "MediaIOCoreDefinitions.h"
@@ -23,13 +22,13 @@ class UEngine;
  * When the signal is lost in the editor (not in PIE), the TimecodeProvider will try to re-synchronize every second.
  */
 UCLASS(Blueprintable, editinlinenew, meta=(DisplayName="AJA SDI Input", MediaIOCustomLayout="AJA"))
-class AJAMEDIA_API UAjaTimecodeProvider : public UTimecodeProvider, public FTickableGameObject
+class AJAMEDIA_API UAjaTimecodeProvider : public UGenlockedTimecodeProvider, public FTickableGameObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ UTimecodeProvider interface
-	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
+	virtual bool FetchTimecode(FQualifiedFrameTime& OutFrameTime) override;
 	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const override { return State; }
 	virtual bool Initialize(class UEngine* InEngine) override;
 	virtual void Shutdown(class UEngine* InEngine) override;

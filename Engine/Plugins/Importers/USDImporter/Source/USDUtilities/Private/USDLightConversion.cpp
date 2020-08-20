@@ -128,7 +128,7 @@ bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::U
 
 	if ( !Cubemap )
 	{
-		Cubemap = Cast< UTextureCube >( UsdUtils::CreateTexture( DomeLight.GetTextureFileAttr() ) );
+		Cubemap = Cast< UTextureCube >( UsdUtils::CreateTexture( DomeLight.GetTextureFileAttr(), UsdToUnreal::ConvertPath(DomeLight.GetPrim().GetPath()) ) );
 
 		if ( Cubemap )
 		{

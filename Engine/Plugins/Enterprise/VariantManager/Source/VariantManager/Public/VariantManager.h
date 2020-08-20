@@ -115,7 +115,7 @@ public:
 	void CanAddActorsToVariant(const TArray<TWeakObjectPtr<AActor>>& InActors, const UVariant* InVariant, TArray<TWeakObjectPtr<AActor>>& OutActorsWeCanAdd);
 	void CanAddActorsToVariant(const TArray<UObject*>& InActors, const UVariant* InVariant, TArray<UObject*>& OutActorsWeCanAdd);
 
-	TSharedPtr<SVariantManager> GetVariantManagerWidget() const;
+	TSharedPtr<SVariantManager> GetVariantManagerWidget();
 
 	ULevelVariantSets* GetCurrentLevelVariantSets()
 	{

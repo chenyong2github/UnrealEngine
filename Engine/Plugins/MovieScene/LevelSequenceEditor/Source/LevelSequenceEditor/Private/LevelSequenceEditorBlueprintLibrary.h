@@ -4,6 +4,7 @@
 
 #include "Misc/QualifiedFrameTime.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "MovieSceneObjectBindingID.h"
 #include "LevelSequenceEditorBlueprintLibrary.generated.h"
 
 class ISequencer;
@@ -13,7 +14,7 @@ class UMovieSceneSection;
 class UMovieSceneTrack;
 
 UCLASS()
-class ULevelSequenceEditorBlueprintLibrary : public UBlueprintFunctionLibrary
+class LEVELSEQUENCEEDITOR_API ULevelSequenceEditorBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 public:
 
@@ -108,6 +109,9 @@ public:
 	static void EmptySelection();
 
 public:
+	/** Get the object bound to the given binding ID with the current level sequence editor */
+	UFUNCTION(BlueprintPure, Category="Level Sequence Editor")
+	static TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
 
 	/** Check whether the current level sequence and its descendants are locked for editing. */
 	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")

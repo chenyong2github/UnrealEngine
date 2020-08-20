@@ -37,11 +37,17 @@ public:
 	TSharedPtr< FUICommandInfo > RemoveCollision;
 
 	TSharedPtr< FUICommandInfo > EditMode;
+
+	TSharedPtr< FUICommandInfo > InvertSelection;
+
 	TSharedPtr< FUICommandInfo > HideSelected;
 	TSharedPtr< FUICommandInfo > UnhideAll;
 
 	TSharedPtr< FUICommandInfo > DeleteSelected;
 	TSharedPtr< FUICommandInfo > DeleteHidden;
+
+	TSharedPtr< FUICommandInfo > CalculateNormals;
+	TSharedPtr< FUICommandInfo > CalculateNormalsSelection;
 
 	TSharedPtr< FUICommandInfo > Extract;
 	TSharedPtr< FUICommandInfo > ExtractCopy;

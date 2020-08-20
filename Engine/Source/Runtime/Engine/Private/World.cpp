@@ -1055,7 +1055,8 @@ void UWorld::PostLoad()
 			const FString ShortPackageName = FPackageName::GetLongPackageAssetName(GetOutermost()->GetName());
 			if (GetName() != ShortPackageName)
 			{
-				Rename(*ShortPackageName, NULL, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+				// Do not go through UWorld::Rename as we do not want to go through map build data/external actors or hlod renaming in post load
+				UObject::Rename(*ShortPackageName, NULL, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
 			}
 
 			// Worlds are assets so they need RF_Public and RF_Standalone (for the editor)

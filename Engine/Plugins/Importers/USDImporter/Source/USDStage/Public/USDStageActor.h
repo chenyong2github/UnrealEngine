@@ -11,6 +11,7 @@
 #include "USDListener.h"
 #include "USDMemory.h"
 #include "USDPrimTwin.h"
+#include "USDSkeletalDataConversion.h"
 
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdPrim.h"
@@ -37,7 +38,7 @@ class AUsdStageActor : public AActor
 	friend class FUsdLevelSequenceHelperImpl;
 
 public:
-	UPROPERTY(EditAnywhere, Category = "USD", meta = (FilePathFilter = "usd files (*.usd; *.usda; *.usdc)|*.usd; *.usda; *.usdc"))
+	UPROPERTY(EditAnywhere, Category = "USD")
 	FFilePath RootLayer;
 
 	UPROPERTY(EditAnywhere, Category = "USD")
@@ -61,20 +62,20 @@ private:
 	UPROPERTY(EditAnywhere, Category = "USD")
 	float Time;
 
-	UPROPERTY(EditAnywhere, Category = "USD")
-	float StartTimeCode;
+	UPROPERTY()
+	float StartTimeCode_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "USD")
-	float EndTimeCode;
+	UPROPERTY()
+	float EndTimeCode_DEPRECATED;
 
-	UPROPERTY(VisibleAnywhere, Category = "USD")
-	float TimeCodesPerSecond;
+	UPROPERTY()
+	float TimeCodesPerSecond_DEPRECATED;
 
 	UPROPERTY(VisibleAnywhere, Category = "USD", Transient)
 	ULevelSequence* LevelSequence;
 
 	UPROPERTY(Transient)
-	TMap<FString, ULevelSequence*> SubLayerLevelSequencesByIdentifier;
+	TMap<FString, ULevelSequence*> LevelSequencesByIdentifier;
 
 public:
 	DECLARE_EVENT_OneParam( AUsdStageActor, FOnActorLoaded, AUsdStageActor* );
@@ -151,6 +152,9 @@ private:
 	/** Map of USD Prim Paths to UE assets */
 	UPROPERTY(Transient)
 	TMap< FString, UObject* > PrimPathsToAssets;
+
+	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */
+	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
 public:
 	USDSTAGE_API UE::FUsdStage& GetUsdStage();

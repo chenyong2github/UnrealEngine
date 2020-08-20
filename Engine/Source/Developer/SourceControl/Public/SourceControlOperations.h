@@ -186,14 +186,24 @@ public:
 		return LOCTEXT("SourceControl_Sync", "Syncing file(s) from source control...");
 	}
 
-	void SetRevision( int32 InRevisionNumber )
+	UE_DEPRECATED(4.26, "FSync::SetRevisionNumber(int32) has been deprecated. Please update to Fsync::SetRevision(const FString&).")
+	void SetRevisionNumber(int32 InRevisionNumber)
 	{
-		RevisionNumber = InRevisionNumber;
+		SetRevision(FString::Printf(TEXT("%d"), InRevisionNumber));
+	}
+	void SetRevision( const FString& InRevision )
+	{
+		Revision = InRevision;
+	}
+
+	const FString& GetRevision() const
+	{
+		return Revision;
 	}
 
 protected:
 	/** Revision to sync to */
-	int32 RevisionNumber;
+	FString Revision;
 };
 
 /**

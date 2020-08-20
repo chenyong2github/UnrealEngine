@@ -188,6 +188,24 @@ void ULevelSequenceEditorBlueprintLibrary::SetSequencer(TSharedRef<ISequencer> I
 {
 	CurrentSequencer = TWeakPtr<ISequencer>(InSequencer);
 }
+	
+TArray<UObject*> ULevelSequenceEditorBlueprintLibrary::GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding)
+{
+	TArray<UObject*> BoundObjects;
+	if (CurrentSequencer.IsValid())
+	{
+		for (TWeakObjectPtr<> WeakObject : CurrentSequencer.Pin()->FindBoundObjects(ObjectBinding.GetGuid(), CurrentSequencer.Pin()->GetFocusedTemplateID()))
+		{
+			if (WeakObject.IsValid())
+			{
+				BoundObjects.Add(WeakObject.Get());
+			}
+		}
+
+	}
+	return BoundObjects;
+}
+
 
 bool ULevelSequenceEditorBlueprintLibrary::IsLevelSequenceLocked()
 {

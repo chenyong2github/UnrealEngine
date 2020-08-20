@@ -6,8 +6,10 @@
 #include "StereoRendering.h"
 
 
+struct FDisplayClusterRenderViewContext;
 class FDisplayClusterViewportArea;
 class IDisplayClusterProjectionPolicy;
+class FDisplayClusterRenderViewport;
 class UWorld;
 
 
@@ -90,15 +92,9 @@ public:
 	* @param Rect           - a rectangle that describes location and size of the viewport
 	*/
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) = 0;
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) = 0;
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) = 0;
 
-	/**
-	* Sets buffer ratio
-	*
-	* @param InViewportID  - viewport ID to change buffer ratio
-	* @param InBufferRatio - buffer ratio
-	*
-	* @return - true if succeeded
-	*/
 	virtual bool SetBufferRatio(const FString& InViewportID, float  InBufferRatio) = 0;
 
 	/**
@@ -112,12 +108,12 @@ public:
 	virtual bool GetBufferRatio(const FString& InViewportID, float& OutBufferRatio) const = 0;
 
 	/**
-	* Returns current buffer ratio
+	* Returns current viewport info
 	*
-	* @param ViewIdx        - viewport index to change buffer ratio
-	* @param OutBufferRatio - buffer ratio
+	* @param ViewIdx        - viewport index
 	*
-	* @return - true if succeeded
+	* @return - ptr to viewport info
 	*/
-	virtual bool GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const = 0;
+	virtual const FDisplayClusterRenderViewport* GetRenderViewport(int32 ViewIdx) const = 0;
+
 };

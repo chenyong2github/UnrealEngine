@@ -21,9 +21,9 @@ public:
 	TSharedPtr<FUICommandInfo> AddVariantSetCommand;
 	TSharedPtr<FUICommandInfo> AddSelectedActorsCommand;
 	TSharedPtr<FUICommandInfo> SwitchOnSelectedVariantCommand;
-	TSharedPtr<FUICommandInfo> CreateThumbnailVariantCommand;
-	TSharedPtr<FUICommandInfo> LoadThumbnailVariantCommand;
-	TSharedPtr<FUICommandInfo> ClearThumbnailVariantCommand;
+	TSharedPtr<FUICommandInfo> CreateThumbnailCommand;
+	TSharedPtr<FUICommandInfo> LoadThumbnailCommand;
+	TSharedPtr<FUICommandInfo> ClearThumbnailCommand;
 	TSharedPtr<FUICommandInfo> AddPropertyCaptures;
 	TSharedPtr<FUICommandInfo> AddFunction;
 	TSharedPtr<FUICommandInfo> RebindActorDisabled;

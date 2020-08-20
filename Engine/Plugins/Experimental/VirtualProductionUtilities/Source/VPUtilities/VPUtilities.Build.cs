@@ -12,6 +12,7 @@ public class VPUtilities : ModuleRules
 			new string[]
 			{
 				"CinematicCamera",
+				"Composure",
 				"Core",
 				"CoreUObject",
 				"Engine",
@@ -25,6 +26,7 @@ public class VPUtilities : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ApplicationCore",
 				"RenderCore",
 				"RHI",
 				"Slate",

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXEditorUtils.h"
+#include "DMXRuntimeUtils.h"
 #include "Library/DMXLibrary.h"
-#include "Library/DMXEntityFader.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -79,38 +79,6 @@ protected:
 };
 
 
-bool FDMXEditorUtils::GetNameAndIndexFromString(const FString& InString, FString& OutName, int32& OutIndex)
-{
-	OutName = InString.TrimEnd();
-
-	// If there's an index at the end of the name, erase it
-	int32 DigitIndex = OutName.Len();
-	while (DigitIndex > 0 && OutName[DigitIndex - 1] >= '0' && OutName[DigitIndex - 1] <= '9')
-	{
-		--DigitIndex;
-	}
-
-	bool bHadIndex = false;
-	if (DigitIndex < OutName.Len() && DigitIndex > -1)
-	{
-		OutIndex = FCString::Atoi(*OutName.RightChop(DigitIndex));
-		OutName = OutName.Left(DigitIndex);
-		bHadIndex = true;
-	}
-	else
-	{
-		OutIndex = 0;
-	}
-
-	if (OutName.EndsWith(TEXT("_")))
-	{
-		OutName = OutName.LeftChop(1);
-	}
-	OutName.TrimEnd();
-
-	return bHadIndex;
-}
-
 FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)
 {
 	if (!InBaseName.IsEmpty() && !InExistingNames.Contains(InBaseName))
@@ -129,7 +97,7 @@ FString FDMXEditorUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InE
 	{
 		// If there's an index at the end of the name, erase it
 		int32 Index = 0;
-		GetNameAndIndexFromString(InBaseName, BaseName, Index);
+		FDMXRuntimeUtils::GetNameAndIndexFromString(InBaseName, BaseName, Index);
 	}
 
 	int32 Count = 1;
@@ -319,17 +287,6 @@ bool FDMXEditorUtils::ValidateEntityName(const FString& NewEntityName, const UDM
 		OutReason = FText::GetEmpty();
 		return true;
 	}
-}
-
-UDMXEntityFader* FDMXEditorUtils::CreateFaderTemplate(const UDMXLibrary* InLibrary)
-{
-	FString BaseName(TEXT(""));
-	FString EntityName = FindUniqueEntityName(InLibrary, UDMXEntityFader::StaticClass(), BaseName);
-
-	UDMXEntityFader* OutputConsoleFaderTemplate = NewObject<UDMXEntityFader>(GetTransientPackage(), UDMXEntityFader::StaticClass(), NAME_None, RF_Transient);
-	OutputConsoleFaderTemplate->SetName(EntityName);
-
-	return OutputConsoleFaderTemplate;
 }
 
 void FDMXEditorUtils::RenameEntity(UDMXLibrary* InLibrary, UDMXEntity* InEntity, const FString& NewName)
@@ -616,6 +573,189 @@ FText FDMXEditorUtils::GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass
 			LOCTEXT("EntityTypeName_NotImplemented", "{0}|plural(one=Entity, other=Entities)"),
 			bPlural ? 2 : 1
 		);
+	}
+}
+
+void FDMXEditorUtils::AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParentFixtureType)
+{
+	if (ChangedParentFixtureType)
+	{
+		UDMXLibrary* Library = ChangedParentFixtureType->GetParentLibrary();
+		check(Library);
+
+		TArray<UDMXEntityFixturePatch*> FixturePatches;
+		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&FixturePatches, ChangedParentFixtureType](UDMXEntityFixturePatch* Patch)
+			{
+				if (Patch->ParentFixtureTypeTemplate == ChangedParentFixtureType)
+				{
+					FixturePatches.Add(Patch);
+				}
+			});
+
+		AutoAssignedAddresses(FixturePatches);
+	}
+}
+
+
+void FDMXEditorUtils::AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches)
+{
+	if (ChangedFixturePatches.Num() == 0)
+	{
+		return;
+	}
+
+	// Auto assign Patches from multiple Libraries is not supported
+	UDMXLibrary* Library = ChangedFixturePatches[0]->GetParentLibrary();
+	for (UDMXEntityFixturePatch* Patch : ChangedFixturePatches)
+	{
+		check(Patch->GetParentLibrary() == Library);
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("SetAutoAssignChannelTransaction", "Set Auto Assign Channel"));
+
+	check(Library);
+	TArray<UDMXEntityFixturePatch*> AllFixturePatches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+
+	// Only care about those that have auto assign addresses set
+	TArray<UDMXEntityFixturePatch*> PatchesToAutoAssign = ChangedFixturePatches;
+	PatchesToAutoAssign.RemoveAll([](UDMXEntityFixturePatch* Patch) {
+		return !Patch->bAutoAssignAddress;
+		});
+
+	// Do not compare against patches that need be auto assigned
+	AllFixturePatches.RemoveAll([PatchesToAutoAssign](UDMXEntityFixturePatch* Patch) {
+		return PatchesToAutoAssign.Contains(Patch);
+		});
+
+	// Sort by universe id and starting address
+	AllFixturePatches.Sort([](const UDMXEntityFixturePatch& Patch, const UDMXEntityFixturePatch& Other) {
+		return
+			Patch.UniverseID < Other.UniverseID ||
+			(Patch.UniverseID == Other.UniverseID && Patch.GetStartingChannel() <= Other.GetStartingChannel());
+		});
+		
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> Patch : PatchesToAutoAssign)
+	{		
+		if (!Patch.IsValid())
+		{
+			continue;
+		}
+		check(Patch->GetParentLibrary() == Library);
+
+		Patch->Modify();
+
+		int32 UniverseID = Patch->UniverseID;
+
+		// Find the first patch in the universe that does not need be auto assigned
+		int32 IndexOfFirstOtherInUniverse =
+			AllFixturePatches.IndexOfByPredicate([Patch, PatchesToAutoAssign, UniverseID](UDMXEntityFixturePatch* Other) {
+				return Other->UniverseID == UniverseID;
+			});
+
+		if (IndexOfFirstOtherInUniverse == INDEX_NONE)
+		{
+			if (PatchesToAutoAssign.Num() > 0)
+			{
+				PatchesToAutoAssign[0]->AutoStartingAddress = 1;
+				AllFixturePatches.Add(PatchesToAutoAssign[0]);
+			}
+
+			continue;
+		}
+		
+		// Find the last patch in the universe that does not need be auto assigned
+		int32 IndexOfLastOtherInUniverse =
+			AllFixturePatches.FindLastByPredicate([Patch, PatchesToAutoAssign, UniverseID](UDMXEntityFixturePatch* Other) {
+				return Other->UniverseID == UniverseID;
+			});
+
+		bool bAssigned = false;
+		
+		int32 PrevEnd = 1;
+		for (int32 IdxOther = IndexOfFirstOtherInUniverse; IdxOther <= IndexOfLastOtherInUniverse; IdxOther++)
+		{
+			int32 NextStart = AllFixturePatches[IdxOther]->GetStartingChannel();
+			int32 UnoccupiedSpan = NextStart - PrevEnd;
+
+			if (UnoccupiedSpan >= Patch->GetChannelSpan())
+			{
+				Patch->AutoStartingAddress = PrevEnd;
+				bAssigned = true;
+
+				AllFixturePatches.Insert(Patch.Get(), IdxOther);
+				break;
+			}
+
+			PrevEnd = NextStart + AllFixturePatches[IdxOther]->GetChannelSpan();
+
+			if (IdxOther == IndexOfLastOtherInUniverse && 
+				DMX_UNIVERSE_SIZE - PrevEnd > Patch->GetChannelSpan())
+			{
+				Patch->AutoStartingAddress = PrevEnd; 
+				bAssigned = true;
+
+				if (AllFixturePatches.IsValidIndex(IdxOther + 1))
+				{
+					AllFixturePatches.Insert(Patch.Get(), IdxOther + 1);
+				}
+				else
+				{
+					AllFixturePatches.Add(Patch.Get());
+				}
+				break;
+			}
+		}
+
+		if (!bAssigned)
+		{
+			Patch->AutoStartingAddress = 1;
+
+			AllFixturePatches.Insert(Patch.Get(), IndexOfFirstOtherInUniverse);
+		}
+	}
+}
+
+void FDMXEditorUtils::UpdatePatchColors(UDMXLibrary* Library)
+{
+	check(Library);
+
+	TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	for (UDMXEntityFixturePatch* Patch : Patches)
+	{
+		if (Patch->EditorColor == FLinearColor(1.0f, 0.0f, 1.0f))
+		{
+			FLinearColor NewColor;
+
+			UDMXEntityFixturePatch** ColoredPatchOfSameType = Patches.FindByPredicate([&](const UDMXEntityFixturePatch* Other) {
+				return Other != Patch &&
+					Other->ParentFixtureTypeTemplate == Patch->ParentFixtureTypeTemplate &&
+					Other->EditorColor != FLinearColor::White;
+				});
+
+			if (ColoredPatchOfSameType)
+			{
+				NewColor = (*ColoredPatchOfSameType)->EditorColor;
+			}
+			else
+			{
+				NewColor = FLinearColor::MakeRandomColor();
+
+				// Avoid dominant red values for a bit more of a professional feel
+				if (NewColor.R > 0.6f)
+				{
+					NewColor.R = FMath::Abs(NewColor.R - 1.0f);
+				}
+			}
+
+			Patch->Modify();
+
+			FProperty* ColorProperty = FindFProperty<FProperty>(UDMXEntityFixturePatch::StaticClass(), GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, EditorColor));
+			Patch->PreEditChange(ColorProperty);
+
+			Patch->EditorColor = NewColor;
+
+			Patch->PostEditChange();
+		}
 	}
 }
 
