@@ -186,7 +186,9 @@ FConstraintInstanceBase::FConstraintInstanceBase()
 void FConstraintInstanceBase::Reset()
 {
 	ConstraintIndex = 0;
+#if WITH_CHAOS
 	ConstraintHandle.Reset();
+#endif
 	PhysScene = nullptr;
 }
 
