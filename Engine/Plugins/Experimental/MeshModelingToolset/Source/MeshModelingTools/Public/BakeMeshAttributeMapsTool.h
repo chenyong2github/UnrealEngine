@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Templates/PimplPtr.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
-#include "Sampling/MeshSurfaceSampler.h"
 #include "Image/ImageDimensions.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
 
@@ -19,7 +18,7 @@ class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 class UTexture2D;
 template<typename RealType> class TMeshTangents;
-
+class FMeshImageBakingCache;
 
 /**
  *
@@ -34,6 +33,20 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+};
+
+
+
+UENUM()
+enum class EBakeMapType
+{
+	TangentSpaceNormalMap,
+	AmbientOcclusion,
+	Curvature,
+	Texture2DImage,
+	NormalImage,
+	FaceNormalImage,
+	PositionImage
 };
 
 
@@ -60,16 +73,26 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolProperties : public UInter
 
 public:
 
-	/** Control whether to compute/show Normal Map */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
-	bool bNormalMap = true;
-
-	/** Control whether to compute/show Ambient Occlusion Map */
-	UPROPERTY(EditAnywhere, Category = MapSettings)
-	bool bAmbientOcclusionMap = true;
+	EBakeMapType MapType = EBakeMapType::TangentSpaceNormalMap;
 
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
+
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (GetOptions = GetUVLayerNamesFunc))
+	FString UVLayer;
+
+	UFUNCTION()
+	TArray<FString> GetUVLayerNamesFunc();
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVLayerNamesList;
+
+	UPROPERTY(EditAnywhere, Category = MapSettings)
+	bool bUseWorldSpace = false;
+
+	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
+	UTexture2D* Result;
+
 };
 
 
@@ -79,8 +102,6 @@ class MESHMODELINGTOOLS_API UBakedNormalMapToolProperties : public UInteractiveT
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(VisibleAnywhere, Category = NormalMap, meta = (TransientToolProperty))
-	UTexture2D* Result;
 
 };
 
@@ -92,7 +113,7 @@ class MESHMODELINGTOOLS_API UBakedOcclusionMapToolProperties : public UInteracti
 public:
 	/** Number of AO rays */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
-	int32 OcclusionRays = 128;
+	int32 OcclusionRays = 16;
 
 	/** Maximum AO distance (0 = infinity) */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "99999999.0"))
@@ -109,10 +130,6 @@ public:
 	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
 	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
 	float BiasAngle = 15.0;
-
-	UPROPERTY(VisibleAnywhere, Category = OcclusionMap, meta = (TransientToolProperty))
-	UTexture2D* Result;
-
 };
 
 
@@ -123,11 +140,84 @@ class MESHMODELINGTOOLS_API UBakedOcclusionMapVisualizationProperties : public U
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Category = Visualization, meta = (UIMin = "0.0", UIMax = "1.0"))
-	float BaseGrayLevel = 0.7;
+	float BaseGrayLevel = 1.0;
 
 	/** AO Multiplier in visualization (does not affect output) */
 	UPROPERTY(EditAnywhere, Category = Visualization, meta = (UIMin = "0.0", UIMax = "1.0"))
 	float OcclusionMultiplier = 1.0;
+};
+
+
+
+UENUM()
+enum class EBakedCurvatureTypeMode
+{
+	MeanAverage,
+	Gaussian,
+	Max,
+	Min
+};
+
+UENUM()
+enum class EBakedCurvatureColorMode
+{
+	Grayscale,
+	RedBlue,
+	RedGreenBlue
+};
+
+UENUM()
+enum class EBakedCurvatureClampMode
+{
+	None,
+	Positive,
+	Negative
+};
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UBakedCurvatureMapToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	EBakedCurvatureTypeMode CurvatureType = EBakedCurvatureTypeMode::MeanAverage;
+
+	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	EBakedCurvatureColorMode ColorMode = EBakedCurvatureColorMode::Grayscale;
+
+	UPROPERTY(EditAnywhere, Category = CurvatureMap, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.001", ClampMax = "100.0"))
+	float RangeMultiplier = 1.0;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = CurvatureMap, meta = (UIMin = "0.0", UIMax = "1.0"))
+	float MinRangeMultiplier = 0.0;
+
+	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	EBakedCurvatureClampMode Clamping = EBakedCurvatureClampMode::None;
+
+	/** Whether or not to apply Gaussian Blur to computed Map */
+	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	bool bGaussianBlur = false;
+
+	/** Pixel Radius of Gaussian Blur Kernel */
+	UPROPERTY(EditAnywhere, Category = CurvatureMap, meta = (UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	float BlurRadius = 2.25;
+};
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UBakedTexture2DImageProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = Texture2D, meta = (TransientToolProperty))
+	UTexture2D* SourceTexture;
+
+	UPROPERTY(EditAnywhere, Category = Texture2D)
+	int32 UVLayer = 0;
 };
 
 
@@ -152,7 +242,7 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override;
+	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 
 protected:
@@ -169,6 +259,12 @@ protected:
 	UBakedOcclusionMapToolProperties* OcclusionMapProps;
 
 	UPROPERTY()
+	UBakedCurvatureMapToolProperties* CurvatureMapProps;
+
+	UPROPERTY()
+	UBakedTexture2DImageProperties* Texture2DProps;
+
+	UPROPERTY()
 	UBakedOcclusionMapVisualizationProperties* VisualizationProps;
 
 
@@ -178,24 +274,43 @@ protected:
 
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
 
+	UPROPERTY()
+	UMaterialInstanceDynamic* PreviewMaterial;
+
 	TSharedPtr<FMeshDescription> BaseMeshDescription;
 	TSharedPtr<TMeshTangents<double>> BaseMeshTangents;
 	FDynamicMesh3 BaseMesh;
 	FDynamicMeshAABBTree3 BaseSpatial;
 
-	FDynamicMesh3 DetailMesh;
-	FDynamicMeshAABBTree3 DetailSpatial;
+	bool bIsBakeToSelf = false;
 
-	void InvalidateOcclusion();
-	void InvalidateNormals();
+	TSharedPtr<FDynamicMesh3> DetailMesh;
+	TSharedPtr<FDynamicMeshAABBTree3> DetailSpatial;
+	int32 DetailMeshTimestamp = 0;
+	void UpdateDetailMesh();
+	bool bDetailMeshValid = false;
 
 	bool bResultValid;
 	void UpdateResult();
 
+	void UpdateOnModeChange();
 	void UpdateVisualization();
 
-	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewMaterial;
+	TPimplPtr<FMeshImageBakingCache> BakeCache;
+	struct FBakeCacheSettings
+	{
+		FImageDimensions Dimensions;
+		int32 UVLayer;
+		int32 DetailTimestamp;
+
+		bool operator==(const FBakeCacheSettings& Other) const
+		{
+			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && DetailTimestamp == Other.DetailTimestamp;
+		}
+	};
+	FBakeCacheSettings CachedBakeCacheSettings;
+
+
 
 	struct FNormalMapSettings
 	{
@@ -209,6 +324,10 @@ protected:
 	FNormalMapSettings CachedNormalMapSettings;
 	UPROPERTY()
 	UTexture2D* CachedNormalMap;
+
+	void UpdateResult_Normal();
+
+
 
 	struct FOcclusionMapSettings
 	{
@@ -227,11 +346,83 @@ protected:
 	UPROPERTY()
 	UTexture2D* CachedOcclusionMap;
 
+	void UpdateResult_Occlusion();
+
+
+
+	struct FCurvatureMapSettings
+	{
+		FImageDimensions Dimensions;
+		int32 RayCount = 1;
+		int32 CurvatureType = 0;
+		float RangeMultiplier = 1.0;
+		float MinRangeMultiplier = 0.0;
+		int32 ColorMode = 0;
+		int32 ClampMode = 0;
+		float MaxDistance = 1.0;
+		float BlurRadius = 1.0;
+
+		bool operator==(const FCurvatureMapSettings& Other) const
+		{
+			return Dimensions == Other.Dimensions && RayCount == Other.RayCount && CurvatureType == Other.CurvatureType && RangeMultiplier == Other.RangeMultiplier && MinRangeMultiplier == Other.MinRangeMultiplier && ColorMode == Other.ColorMode && ClampMode == Other.ClampMode && MaxDistance == Other.MaxDistance && BlurRadius == Other.BlurRadius;
+		}
+	};
+	FCurvatureMapSettings CachedCurvatureMapSettings;
+	UPROPERTY()
+	UTexture2D* CachedCurvatureMap;
+
+	void UpdateResult_Curvature();
+
+
+
+
+	struct FMeshPropertyMapSettings
+	{
+		FImageDimensions Dimensions;
+		int32 PropertyTypeIndex;
+
+		bool operator==(const FMeshPropertyMapSettings& Other) const
+		{
+			return Dimensions == Other.Dimensions && PropertyTypeIndex == Other.PropertyTypeIndex;
+		}
+	};
+	FMeshPropertyMapSettings CachedMeshPropertyMapSettings;
+	UPROPERTY()
+	UTexture2D* CachedMeshPropertyMap;
+
+	void UpdateResult_MeshProperty();
+
+
+
+
+	struct FTexture2DImageSettings
+	{
+		FImageDimensions Dimensions;
+		int32 UVLayer = 0;
+
+		bool operator==(const FTexture2DImageSettings& Other) const
+		{
+			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer;
+		}
+	};
+	FTexture2DImageSettings CachedTexture2DImageSettings;
+	UPROPERTY()
+	UTexture2D* CachedTexture2DImageMap;
+
+	void UpdateResult_Texture2DImage();
+
+
+
+	// empty maps are shown when nothing is computed
+
 	UPROPERTY()
 	UTexture2D* EmptyNormalMap;
 
 	UPROPERTY()
-	UTexture2D* EmptyOcclusionMap;
+	UTexture2D* EmptyColorMapBlack;
+
+	UPROPERTY()
+	UTexture2D* EmptyColorMapWhite;
 
 	void InitializeEmptyMaps();
 

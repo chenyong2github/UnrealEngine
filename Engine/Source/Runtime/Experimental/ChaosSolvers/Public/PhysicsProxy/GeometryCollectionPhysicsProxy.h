@@ -129,7 +129,7 @@ public:
 	 * Pulls data out of the PhysToGameInterchange and updates \c GTDynamicCollection. 
 	 * Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 	 */
-	void PullFromPhysicsState();
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	bool IsDirty() { return false; }
 

@@ -69,12 +69,14 @@ FPrimitiveSceneProxy* UPaperTileMapComponent::CreateSceneProxy()
 
 void UPaperTileMapComponent::PostInitProperties()
 {
-	TileMap = NewObject<UPaperTileMap>(this);
+	EObjectFlags Flags = HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ? 
+		GetMaskedFlags(RF_PropagateToSubObjects) : RF_NoFlags;
+	// In a post GFastPathUniqueNameGeneration world we have to provide a stable name
+	// for all archetypes, here I'm using PaperTileMap_0 to match old content:
+	TileMap = NewObject<UPaperTileMap>(this, TEXT("PaperTileMap_0"), Flags);
+
 	TileMap->SetFlags(RF_Transactional);
-	if (HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
-	{
-		TileMap->SetFlags(GetMaskedFlags(RF_PropagateToSubObjects));
-	}
+
 	Super::PostInitProperties();
 }
 

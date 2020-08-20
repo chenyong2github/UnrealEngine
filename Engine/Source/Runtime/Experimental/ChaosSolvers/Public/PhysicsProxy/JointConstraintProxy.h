@@ -130,7 +130,7 @@ public:
 	void BufferPhysicsResults();
 
 	/**/
-	void CHAOSSOLVERS_API PullFromPhysicsState();
+	bool CHAOSSOLVERS_API PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	/**/
 	bool IsDirty() { return Constraint->IsDirty(); }
@@ -165,7 +165,7 @@ public:
 
 template<> CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
 template<> CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();
-template<> CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState();
+template<> CHAOSSOLVERS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
 typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;

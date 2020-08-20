@@ -51,7 +51,7 @@ void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
 
 /**/
 template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState()
+bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 }
 
@@ -80,7 +80,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 
 /**/
 template<>
-void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState()
+bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	if (Constraint != nullptr)
 	{
@@ -92,6 +92,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState()
 			Constraint->GetOutputData().Torque = Buffer->Torque;
 		}
 	}
+
+	return true;	//todo: consider timestamp
 }
 
 

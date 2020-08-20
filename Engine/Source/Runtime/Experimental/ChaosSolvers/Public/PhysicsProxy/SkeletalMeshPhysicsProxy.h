@@ -145,7 +145,7 @@ public:
 	void ClearAccumulatedData() {}
 	void BufferPhysicsResults();
 	void FlipBuffer();
-	void PullFromPhysicsState();
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 	bool IsDirty() { return false; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::SkeletalMeshType; }
 	/** ----------------------- */

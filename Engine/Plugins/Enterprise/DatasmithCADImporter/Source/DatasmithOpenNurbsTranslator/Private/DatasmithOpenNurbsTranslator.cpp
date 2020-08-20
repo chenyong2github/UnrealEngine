@@ -890,7 +890,7 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 		// Note that in OpenNurbs, Alpha means Transparency, whereas it is usually an Opacity.
 		// Hence the (255 - Transparency) where an opacity is expected
 		FColor Color((uint8) Diffuse.Red(), (uint8) Diffuse.Green(), (uint8) Diffuse.Blue(), (uint8) (255 - Transparency));
-		FLinearColor LinearColor = FLinearColor::FromPow22Color(Color);
+		FLinearColor LinearColor = FLinearColor::FromSRGBColor(Color);
 
 		FString MaterialLabel(OpenNurbsMaterial.Name().Array());
 		if (MaterialLabel.IsEmpty())
@@ -2250,7 +2250,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FOpenNurbsTranslatorImpl::GetDefaultMa
 	Material->SetLabel(TEXT("Default"));
 
 	FColor Color(250, 250, 250, 255);
-	FLinearColor LinearColor = FLinearColor::FromPow22Color(Color);
+	FLinearColor LinearColor = FLinearColor::FromSRGBColor(Color);
 
 	IDatasmithMaterialExpressionColor* ColorExpression = Material->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Diffuse Color"));

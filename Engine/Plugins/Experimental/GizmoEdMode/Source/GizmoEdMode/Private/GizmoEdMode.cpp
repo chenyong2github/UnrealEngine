@@ -49,7 +49,7 @@ void UGizmoEdMode::RecreateGizmo()
 	{
 		if (Factory->CanBuildGizmoForSelection(GetModeManager()))
 		{
-			TransformGizmo = Factory->BuildGizmoForSelection(GetModeManager(), ToolsContext->GizmoManager);
+			InteractiveGizmos = Factory->BuildGizmoForSelection(GetModeManager(), ToolsContext->GizmoManager);
 			LastFactory = &(*Factory);
 			return;
 		}
@@ -59,11 +59,13 @@ void UGizmoEdMode::RecreateGizmo()
 void UGizmoEdMode::DestroyGizmo()
 {
 	LastFactory = nullptr;
-	if ( TransformGizmo )
+
+	for (UInteractiveGizmo *Gizmo : InteractiveGizmos)
 	{
-		ToolsContext->GizmoManager->DestroyGizmo(TransformGizmo);
-		TransformGizmo = nullptr;
+		ToolsContext->GizmoManager->DestroyGizmo(Gizmo);
 	}
+
+	InteractiveGizmos.Empty();
 }
 
 void UGizmoEdMode::Enter()
@@ -95,7 +97,7 @@ void UGizmoEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	if ( LastFactory )
 	{
 		LastFactory->ConfigureGridSnapping(GetDefault<ULevelEditorViewportSettings>()->GridEnabled,
-		                                   GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled, TransformGizmo);
+		                                   GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled, InteractiveGizmos);
 	}
 }
 

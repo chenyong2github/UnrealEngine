@@ -13,7 +13,7 @@ class GIZMOEDMODE_API UDefaultAssetEditorGizmoFactory : public UObject, public I
 public:
 	//IAssetEditorGizmoFactory interface
 	virtual bool CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const override;
-	virtual UTransformGizmo* BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const override;
+	virtual TArray<UInteractiveGizmo*> BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const override;
 	virtual EAssetEditorGizmoFactoryPriority GetPriority() const override { return EAssetEditorGizmoFactoryPriority::Default; }
-	virtual void ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, UTransformGizmo* Gizmo) const override;
+	virtual void ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, const TArray<UInteractiveGizmo*>& Gizmos) const override;
 };

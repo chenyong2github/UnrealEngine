@@ -9,7 +9,7 @@
 
 #include "AssetEditorGizmoFactory.generated.h"
 
-class UTransformGizmo;
+class UInteractiveGizmo;
 class UInteractiveGizmoManager;
 
 UENUM()
@@ -31,7 +31,7 @@ class GIZMOEDMODE_API IAssetEditorGizmoFactory
 	GENERATED_BODY()
 public:
 	virtual bool CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const = 0;
-	virtual UTransformGizmo* BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const = 0;
+	virtual TArray<UInteractiveGizmo*> BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const = 0;
 	virtual EAssetEditorGizmoFactoryPriority GetPriority() const { return EAssetEditorGizmoFactoryPriority::Normal; }
-	virtual void ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, UTransformGizmo* Gizmo) const = 0;
+	virtual void ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, const TArray<UInteractiveGizmo*>& Gizmos) const = 0;
 };

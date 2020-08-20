@@ -34,7 +34,7 @@ class UK2Node_MakeStruct : public UK2Node_StructMemberSet
 	BLUEPRINTGRAPH_API static bool CanBeMade(const UScriptStruct* Struct, bool bForInternalUse = false);
 	
 	/** Can this struct be used as a split pin */
-	BLUEPRINTGRAPH_API static bool CanBeSplit(const UScriptStruct* Struct);
+	BLUEPRINTGRAPH_API static bool CanBeSplit(const UScriptStruct* Struct, UBlueprint* InBP);
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -66,8 +66,9 @@ protected:
 	struct FMakeStructPinManager : public FStructOperationOptionalPinManager
 	{
 		const uint8* const SampleStructMemory;
+		UBlueprint* OwningBP;
 	public:
-		FMakeStructPinManager(const uint8* InSampleStructMemory);
+		FMakeStructPinManager(const uint8* InSampleStructMemory, UBlueprint* InOwningBP);
 
 		bool HasAdvancedPins() const { return bHasAdvancedPins; }
 	protected:

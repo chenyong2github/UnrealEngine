@@ -340,6 +340,9 @@ namespace Chaos
 		// remove the proxy from the invalidation list
 		RemoveDirtyProxy(GTParticle->GetProxy());
 
+		// mark proxy timestamp so we avoid trying to pull from sim after deletion
+		GTParticle->GetProxy()->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+
 		// Null out the particle's proxy pointer
 		GTParticle->SetProxy(nullptr);
 
@@ -404,11 +407,6 @@ namespace Chaos
 			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
-				
-				// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
-				// if this particle was deleted after buffering results. 
-				//todo: remove the need for this
-				GetDirtyParticlesBuffer()->RemoveDirtyParticleFromConsumerBuffer(Proxy);
 
 				Handle = Proxy->GetHandle();
 				delete Proxy;
@@ -970,6 +968,7 @@ namespace Chaos
 		ActiveGC.Reserve(GeometryCollectionPhysicsProxies.Num());
 
 		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		const int32 SolverSyncTimestamp = MarshallingManager.GetExternalTimestampConsumed_External();
 		for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& DirtyParticle : DirtyParticles)
 		{
 			if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
@@ -981,13 +980,13 @@ namespace Chaos
 						switch (DirtyParticle.GetParticleType())
 						{
 						case Chaos::EParticleType::Rigid:
-							((FRigidParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState();
+							((FRigidParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState(SolverSyncTimestamp);
 							break;
 						case Chaos::EParticleType::Kinematic:
-							((FKinematicGeometryParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState();
+							((FKinematicGeometryParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState(SolverSyncTimestamp);
 							break;
 						case Chaos::EParticleType::Static:
-							((FGeometryParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState();
+							((FGeometryParticlePhysicsProxy*)(Proxy))->PullFromPhysicsState(SolverSyncTimestamp);
 							break;
 						case Chaos::EParticleType::GeometryCollection:
 							ActiveGC.AddUnique((TGeometryCollectionPhysicsProxy<Traits>*)(Proxy));
@@ -1005,12 +1004,12 @@ namespace Chaos
 
 		for (auto* GCProxy : ActiveGC)
 		{
-			GCProxy->PullFromPhysicsState();
+			GCProxy->PullFromPhysicsState(SolverSyncTimestamp);
 		}
 
 		for (FJointConstraintPhysicsProxy* Proxy : JointConstraintPhysicsProxies)
 		{
-			Proxy->PullFromPhysicsState();
+			Proxy->PullFromPhysicsState(SolverSyncTimestamp);
 		}
 
 	}

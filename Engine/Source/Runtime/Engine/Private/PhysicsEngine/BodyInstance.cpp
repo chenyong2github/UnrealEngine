@@ -1154,7 +1154,8 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 
 	FActorCreationParams ActorParams;
 	ActorParams.InitialTM = Transform;
-	ActorParams.BodyInstance = Instance;
+	ActorParams.bSimulatePhysics = Instance->ShouldInstanceSimulatingPhysics();
+	ActorParams.bStartAwake = Instance->bStartAwake;
 #if USE_BODYINSTANCE_DEBUG_NAMES
 	ActorParams.DebugName = Instance->CharDebugName.IsValid() ? Instance->CharDebugName->GetData() : nullptr;
 #endif
@@ -3631,6 +3632,16 @@ bool FBodyInstance::OverlapTest(const FVector& Position, const FQuat& Rotation, 
 		bHasOverlap = FPhysicsInterface::Overlap_Geom(this, CollisionShape, Rotation, GeomTransform, OutMTD);
 	});
 
+	return bHasOverlap;
+}
+
+bool FBodyInstance::OverlapTest_AssumesLocked(const FVector& Position, const FQuat& Rotation, const struct FCollisionShape& CollisionShape, FMTDResult* OutMTD /*= nullptr*/) const
+{
+	SCOPE_CYCLE_COUNTER(STAT_Collision_SceneQueryTotal);
+	SCOPE_CYCLE_COUNTER(STAT_Collision_FBodyInstance_OverlapTest);
+
+	FTransform GeomTransform(Rotation, Position);
+	bool bHasOverlap = FPhysicsInterface::Overlap_Geom(this, CollisionShape, Rotation, GeomTransform, OutMTD);
 	return bHasOverlap;
 }
 

@@ -12,7 +12,7 @@ bool UDefaultAssetEditorGizmoFactory::CanBuildGizmoForSelection(FEditorModeTools
 	return true;
 }
 
-UTransformGizmo* UDefaultAssetEditorGizmoFactory::BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const
+TArray<UInteractiveGizmo*> UDefaultAssetEditorGizmoFactory::BuildGizmoForSelection(FEditorModeTools* ModeTools, UInteractiveGizmoManager* GizmoManager) const
 {
 	ETransformGizmoSubElements Elements  = ETransformGizmoSubElements::None;
 	bool bUseContextCoordinateSystem = true;
@@ -50,15 +50,25 @@ UTransformGizmo* UDefaultAssetEditorGizmoFactory::BuildGizmoForSelection(FEditor
 	}
 	TransformGizmo->SetActiveTarget( TransformProxy );
 	TransformGizmo->SetVisibility(SelectedActors.Num() > 0);
-	return TransformGizmo;
+
+	TArray<UInteractiveGizmo*> Gizmos;
+
+	Gizmos.Add(TransformGizmo);
+
+	return Gizmos;
 }
 
-void UDefaultAssetEditorGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, UTransformGizmo* Gizmo) const
+void UDefaultAssetEditorGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, bool bRotGridEnabled, const TArray<UInteractiveGizmo*>& Gizmos) const
 {
-	if ( Gizmo )
+	for (auto& Gizmo : Gizmos)
 	{
-		Gizmo->bSnapToWorldGrid = bGridEnabled;
-		Gizmo->bSnapToWorldRotGrid = bRotGridEnabled;
+		UTransformGizmo* TransformGizmo = Cast<UTransformGizmo>(Gizmo);
+
+		if (TransformGizmo)
+		{
+			TransformGizmo->bSnapToWorldGrid = bGridEnabled;
+			TransformGizmo->bSnapToWorldRotGrid = bRotGridEnabled;
+		}
 	}
 
 }

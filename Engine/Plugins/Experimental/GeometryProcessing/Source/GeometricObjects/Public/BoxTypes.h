@@ -41,6 +41,11 @@ struct TInterval1
 		return Max - Min;
 	}
 
+	RealType MaxAbsExtrema() const
+	{
+		return TMathUtil<RealType>::Max(TMathUtil<RealType>::Abs(Min), TMathUtil<RealType>::Abs(Max));
+	}
+
 	void Contain(const RealType& V)
 	{
 		if (V < Min)

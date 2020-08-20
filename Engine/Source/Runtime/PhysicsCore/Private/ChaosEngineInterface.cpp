@@ -1301,9 +1301,9 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		Chaos::TPBDRigidParticle<float,3>* RigidHandle = Chaos::TPBDRigidParticle<float,3>::CreateParticle().Release(); //todo: should BodyInstance use a unique ptr to manage this memory?
 		Handle = RigidHandle;
 		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
-		if(InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
+		if(InParams.bSimulatePhysics)
 		{
-			if(InParams.BodyInstance->bStartAwake)
+			if(InParams.bStartAwake)
 			{
 				RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 			} else

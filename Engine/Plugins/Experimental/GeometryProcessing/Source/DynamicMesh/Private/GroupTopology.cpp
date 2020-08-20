@@ -136,6 +136,16 @@ bool FGroupTopology::RebuildTopology()
 }
 
 
+void FGroupTopology::RetargetOnClonedMesh(const FDynamicMesh3* NewMesh)
+{
+	Mesh = NewMesh;
+	for (FGroupEdge& Edge : Edges)
+	{
+		Edge.Span.Mesh = NewMesh;
+	}
+}
+
+
 bool FGroupTopology::IsCornerVertex(int VertexID) const
 {
 	FIndex3i UniqueGroups;
