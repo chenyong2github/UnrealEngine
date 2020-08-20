@@ -1374,40 +1374,60 @@ void UNiagaraDataInterfaceSkeletalMesh::ProvidePerInstanceDataForRenderThread(vo
 
 USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData)
 {
-	FoundSkelComp = nullptr;
-	SceneComponent = nullptr;
-	USkeletalMesh* Mesh = nullptr;
+	// Helper to scour an actor (or its parents) for a valid skeletal mesh component
+	auto FindActorSkelMeshComponent = [](AActor* Actor, bool bRecurseParents = false) -> USkeletalMeshComponent* {
+		if (ASkeletalMeshActor* SkelMeshActor = Cast<ASkeletalMeshActor>(Actor))
+		{
+			USkeletalMeshComponent* Comp = SkelMeshActor->GetSkeletalMeshComponent();
+			if (Comp && !Comp->IsPendingKill())
+			{
+				return Comp;
+			}
+		}
+
+		// Fall back on any valid component on the actor
+		while (Actor)
+		{
+			for (UActorComponent* ActorComp : Actor->GetComponents())
+			{
+				USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(ActorComp);
+				if (Comp && !Comp->IsPendingKill() && Comp->SkeletalMesh != nullptr)
+				{
+					return Comp;
+				}
+			}
+
+			if (bRecurseParents)
+			{
+				Actor = Actor->GetParentActor();
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		return nullptr;
+	};
+
 	if (MeshUserParameter.Parameter.IsValid() && InstData && SystemInstance != nullptr)
 	{
-		if (UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), MeshUserParameter.Parameter))
-		{
-			InstData->CachedUserParam = UserParamObject;
+		// Initialize the binding and retrieve the object. If a valid object is bound, we'll try and retrieve the SkelMesh component from it.
+		// If it's not valid yet, we'll reset and do this again when/if a valid object is set on the binding
+		UObject* UserParamObject = InstData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), MeshUserParameter.Parameter);
+		InstData->CachedUserParam = UserParamObject;
+		if (UserParamObject)
+		{			
 			if (USkeletalMeshComponent* UserSkelMeshComp = Cast<USkeletalMeshComponent>(UserParamObject))
 			{
-				FoundSkelComp = UserSkelMeshComp;
-				Mesh = FoundSkelComp->SkeletalMesh;
-			}
-			else if (ASkeletalMeshActor* UserSkelMeshActor = Cast<ASkeletalMeshActor>(UserParamObject))
-			{
-				FoundSkelComp = UserSkelMeshActor->GetSkeletalMeshComponent();
-				Mesh = FoundSkelComp->SkeletalMesh;
+				if (!UserSkelMeshComp->IsPendingKill())
+				{
+					FoundSkelComp = UserSkelMeshComp;
+				}
 			}
 			else if (AActor* Actor = Cast<AActor>(UserParamObject))
 			{
-				for (UActorComponent* ActorComp : Actor->GetComponents())
-				{
-					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
-					if (SourceComp)
-					{
-						USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
-						if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
-						{
-							Mesh = PossibleMesh;
-							FoundSkelComp = SourceComp;
-							break;
-						}
-					}
-				}
+				FoundSkelComp = FindActorSkelMeshComponent(Actor);
 			}
 			else
 			{
@@ -1420,36 +1440,16 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		}
 		else
 		{
-			//WARNING - We have a valid user param but the object set is null.
+			// The binding exists, but no object is bound. Not warning here in case the user knows what they're doing.
 		}
 	}
-	else if (SourceComponent)
+	else if (SourceComponent && !SourceComponent->IsPendingKill())
 	{
-		Mesh = SourceComponent->SkeletalMesh;
 		FoundSkelComp = SourceComponent;
 	}
 	else if (Source)
 	{
-		ASkeletalMeshActor* MeshActor = Cast<ASkeletalMeshActor>(Source);
-		USkeletalMeshComponent* SourceComp = nullptr;
-		if (MeshActor != nullptr)
-		{
-			SourceComp = MeshActor->GetSkeletalMeshComponent();
-		}
-		else
-		{
-			SourceComp = Source->FindComponentByClass<USkeletalMeshComponent>();
-		}
-
-		if (SourceComp)
-		{
-			Mesh = SourceComp->SkeletalMesh;
-			FoundSkelComp = SourceComp;
-		}
-		else
-		{
-			SceneComponent = Source->GetRootComponent();
-		}
+		FoundSkelComp = FindActorSkelMeshComponent(Source);
 	}
 	else if (SystemInstance != nullptr)
 	{
@@ -1458,58 +1458,41 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			// First, try to find the mesh component up the attachment hierarchy
 			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 			{
-				if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(Curr))
+				USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(Curr);
+				if (ParentComp && !ParentComp->IsPendingKill())
 				{
 					FoundSkelComp = ParentComp;
-					Mesh = ParentComp->SkeletalMesh;
 					break;
 				}
 			}
 			
-			if (!Mesh)
+			if (!FoundSkelComp)
 			{
 				// Next, try to find one in our outer chain
-				if (USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>())
+				USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>();
+				if (OuterComp && !OuterComp->IsPendingKill())
 				{
 					FoundSkelComp = OuterComp;
-					Mesh = OuterComp->SkeletalMesh;
 				}
-				else if (AActor* Owner = AttachComponent->GetAttachmentRootActor())
+				else if (AActor* Actor = AttachComponent->GetAttachmentRootActor())
 				{
 					// Final fall-back, look for any mesh component on our root actor or any of its parents
-					while (Owner && !Mesh)
-					{
-						for (UActorComponent* ActorComp : Owner->GetComponents())
-						{
-							USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
-							if (SourceComp)
-							{
-								FoundSkelComp = SourceComp;
-								USkeletalMesh* PossibleMesh = SourceComp->SkeletalMesh;
-								if (PossibleMesh != nullptr/* && PossibleMesh->bAllowCPUAccess*/)
-								{
-									Mesh = PossibleMesh;
-									break;
-								}
-							}
-						}
-
-						Owner = Owner->GetParentActor();
-					}
+					FoundSkelComp = FindActorSkelMeshComponent(Actor, true);
 				}
 			}
 		}
 	}
 
+	USkeletalMesh* Mesh = nullptr;
 	if (FoundSkelComp)
 	{
+		Mesh = FoundSkelComp->SkeletalMesh;
 		SceneComponent = FoundSkelComp;
 	}
-
 #if WITH_EDITORONLY_DATA
-	// Don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
-	if (!Mesh && !FoundSkelComp && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
+	else if (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld())
 	{
+		// NOTE: We don't fall back on the preview mesh if we have a valid skeletal mesh component referenced
 		Mesh = PreviewMesh;		
 	}
 #endif
@@ -1526,6 +1509,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	// Initialize members
 	SceneComponent = nullptr;
 	CachedAttachParent = nullptr;
+	CachedUserParam = nullptr;
 	SkeletalMesh = nullptr;
 	Transform = FMatrix::Identity;
 	TransformInverseTransposed = FMatrix::Identity;
@@ -1851,24 +1835,42 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance) const
 {
+	// Reset if the scene component we've cached has been invalidated
 	USceneComponent* Comp = SceneComponent.Get();
 	if (bComponentValid && !Comp)
 	{
-		// The component we were bound to is no longer valid so we have to trigger a reset.
 		return true;
 	}
 
+	// Reset if any mesh was bound on init, but is now invalidated
 	USkeletalMesh* SkelMesh = SkeletalMesh.Get();
 	if (bMeshValid && !SkelMesh)
 	{
-		// The mesh we were bound to is no longer valid so we have to trigger a reset.
-		// TODO: Handle clearing the mesh gracefully.
 		return true;
 	}
 
-	// Detect and reset on any attachment change.
-	if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+	if (Interface->MeshUserParameter.Parameter.IsValid())
 	{
+		// Reset if the user object ptr has been changed to look at a new object
+		if (UserParamBinding.GetValue() != CachedUserParam)
+		{
+			return true;
+		}
+	}		
+	else if (Interface->SourceComponent)
+	{
+		// Reset if the source component changed (or there wasn't one and now there is)
+		if (Interface->SourceComponent != Comp)
+		{
+			return true;
+		}
+	}
+	else if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+	{
+		// Reset if we detect any attachment change.
+		// TODO: This check is not really comprehensive. What we really need to know is if the mesh we cached comes from a skeletal mesh component in our
+		// attachment hierarchy, and if that hierarchy has changed in the chain between the system instance's attach component and the cached component,
+		// therefore potentially invalidating the cached component and mesh as our best choice.
 		if (CachedAttachParent != AttachComponent->GetAttachParent())
 		{
 			// The scene component our system instance was associated with has changed attachment, so we need to reinit
@@ -1886,26 +1888,10 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 		}
 	}
 
+	// Reset if the skeletal mesh on the cached skeletal mesh component changed.
 	if (USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(Comp))
 	{
-		if (!SkelComp->SkeletalMesh)//TODO: Handle clearing the mesh gracefully.
-		{
-			return true;
-		}
-
-		// If the user ptr has been changed to look at a new mesh component. TODO: Handle more gracefully.
-		if (Interface->MeshUserParameter.Parameter.IsValid())
-		{
-			UObject* NewUserParam = UserParamBinding.GetValue();
-			if (CachedUserParam != NewUserParam)
-			{
-				return true;
-			}
-		}
-		
-		// Handle the case where they've procedurally swapped out the skeletal mesh from
-		// the one we previously cached data for.
-		if (SkelComp->SkeletalMesh != SkelMesh && SkelMesh != nullptr)
+		if (SkelComp->SkeletalMesh != SkelMesh)
 		{
 			if (SkinningData.SkinningData.IsValid())
 			{
@@ -1915,11 +1901,11 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 		}
 	}
 
+	// Reset if any parameters changed on the data interface
 	if (Interface->ChangeId != ChangeId)
 	{
 		return true;
 	}
-
 	
 	return false;
 }
