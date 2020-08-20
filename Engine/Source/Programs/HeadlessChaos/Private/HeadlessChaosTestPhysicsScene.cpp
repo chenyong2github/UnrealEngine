@@ -14,6 +14,7 @@
 #include "Chaos/ChaosScene.h"
 #include "SQAccelerator.h"
 #include "CollisionQueryFilterCallbackCore.h"
+#include "BodyInstanceCore.h"
 
 
 namespace ChaosTest {
@@ -477,6 +478,102 @@ namespace ChaosTest {
 
 		}
 		
+	}
+
+	GTEST_TEST(EngineInterface,RemoveDelayed)
+	{
+		for(int Delay = 0; Delay < 4; ++Delay)
+		{
+			FChaosScene Scene(nullptr);
+			Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+			Scene.GetSolver()->SetEnabled(true);
+			Scene.GetSolver()->GetMarshallingManager().SetTickDelay_External(Delay);
+
+			FActorCreationParams Params;
+			Params.Scene = &Scene;
+
+			Params.bSimulatePhysics = true;	//simulate so that sync body is triggered
+			Params.bStartAwake = true;
+
+			TGeometryParticle<FReal,3>* Particle = nullptr;
+			FChaosEngineInterface::CreateActor(Params,Particle);
+			EXPECT_NE(Particle,nullptr);
+
+			{
+				auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+				Particle->SetGeometry(MoveTemp(Sphere));
+				auto Simulated = static_cast<TKinematicGeometryParticle<FReal,3>*>(Particle);
+				Simulated->SetV(FVec3(0,0,-1));
+			}
+
+
+			//make second simulating particle that we don't delete. Needed to trigger a sync
+			//this is because some data is cleaned up on GT immediately
+			TGeometryParticle<FReal,3>* Particle2 = nullptr;
+			FChaosEngineInterface::CreateActor(Params,Particle2);	
+			EXPECT_NE(Particle2,nullptr);
+			{
+				auto Sphere = MakeUnique<TSphere<FReal,3>>(FVec3(0),3);
+				Particle2->SetGeometry(MoveTemp(Sphere));
+				auto Simulated = static_cast<TKinematicGeometryParticle<FReal,3>*>(Particle2);
+				Simulated->SetV(FVec3(0,-1,0));
+			}
+
+			//create actor
+			TArray<TGeometryParticle<FReal,3>*> Particles ={Particle, Particle2};
+			Scene.AddActorsToScene_AssumesLocked(Particles);
+
+			//tick until it's being synced from sim
+			for(int Repeat = 0; Repeat < Delay; ++Repeat)
+			{
+				{
+					FVec3 Grav(0,0,0);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+				}
+			}
+
+			//x starts at 0
+			EXPECT_NEAR(Particle->X()[2],0, 1e-4);
+			EXPECT_NEAR(Particle2->X()[1],0, 1e-4);
+
+			//tick solver and see new position synced from sim
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle->X()[2],-1, 1e-4);
+				EXPECT_NEAR(Particle2->X()[1],-1, 1e-4);
+			}
+
+			//tick solver and delete in between solver finishing and sync
+			{
+				FVec3 Grav(0,0,0);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.StartFrame();
+
+				//delete particle
+				FChaosEngineInterface::ReleaseActor(Particle,&Scene);
+
+				Scene.EndFrame();
+				EXPECT_NEAR(Particle2->X()[1],-2, 1e-4);	//other particle keeps moving
+			}
+
+
+			//tick again and don't crash
+			for(int Repeat = 0; Repeat < Delay + 1; ++Repeat)
+			{
+				{
+					FVec3 Grav(0,0,0);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.StartFrame();
+					Scene.EndFrame();
+					EXPECT_NEAR(Particle2->X()[1],-3 - Repeat, 1e-4);	//other particle keeps moving
+				}
+			}
+		}
 	}
 
 	GTEST_TEST(EngineInterface, SimRoundTrip)

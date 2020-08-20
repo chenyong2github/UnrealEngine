@@ -387,6 +387,7 @@ namespace Chaos
 			}
 		}
 
+		/*
 		template<typename ParticleType>
 		void PullFromPhysicsState(Chaos::TGeometryParticleHandle<float, 3>* Handle)
 		{
@@ -397,7 +398,7 @@ namespace Chaos
 					((ParticleType*)(Proxy))->PullFromPhysicsState();
 				}
 			}
-		}
+		}*/
 
 		template<typename ParticleType>
 		void BufferPhysicsResults(Chaos::TGeometryParticleHandle<float, 3>* Handle)

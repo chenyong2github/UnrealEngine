@@ -20,14 +20,6 @@ namespace Chaos
 		WriteUnlock();
 	}
 
-	void FPBDRigidDirtyParticlesBuffer::RemoveDirtyParticleFromConsumerBuffer(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy)
-	{
-		WriteLock();
-		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->DirtyGameThreadParticles;
-		ActiveGameThreadParticles.RemoveSingleSwap(Proxy);
-		WriteUnlock();
-	}
-
 	void FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
 		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->DirtyGameThreadParticles;

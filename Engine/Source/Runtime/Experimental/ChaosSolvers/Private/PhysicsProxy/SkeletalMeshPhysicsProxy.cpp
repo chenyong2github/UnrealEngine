@@ -461,12 +461,13 @@ void FSkeletalMeshPhysicsProxy::FlipBuffer()
 	OutputBuffers.Flip();
 }
 
-void FSkeletalMeshPhysicsProxy::PullFromPhysicsState()
+bool FSkeletalMeshPhysicsProxy::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	// GAME THREAD
 	// @todo(ccaulfield): this needs to update the Component-Space pose in BoneHierarchy and update non-simulated children
 
 	CurrentOutputConsumerBuffer = &OutputBuffers.GetGameDataForRead();
+	return true;
 }
 
 void FSkeletalMeshPhysicsProxy::CaptureInputs(const float Dt, const FInputFunc& InputFunc)

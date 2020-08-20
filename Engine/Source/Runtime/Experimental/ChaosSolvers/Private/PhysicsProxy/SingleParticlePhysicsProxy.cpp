@@ -149,9 +149,10 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float
 
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState()
+bool FSingleParticlePhysicsProxy<Chaos::TGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TGeometryParticle
+	return true;
 }
 
 template< >
@@ -201,9 +202,10 @@ CHAOSSOLVERS_API void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParti
 }
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState()
+bool FSingleParticlePhysicsProxy<Chaos::TKinematicGeometryParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TKinematicGeometryParticle
+	return true;
 }
 
 template< >
@@ -267,10 +269,11 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::BufferPhys
 }
 
 template< >
-void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState()
+bool FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
-	if (Particle)
+	const bool bSync = SyncTimestamp <= SolverSyncTimestamp;
+	if (bSync && Particle)
 	{
 		const Chaos::TPBDRigidParticleData<float, 3>* Buffer = BufferedData->GetConsumerBuffer();
 		Particle->SetX(Buffer->X, false);
@@ -285,6 +288,7 @@ void FSingleParticlePhysicsProxy<Chaos::TPBDRigidParticle<float, 3>>::PullFromPh
 			Particle->SetObjectState(Buffer->MObjectState, true, /*bInvalidate=*/false);
 		}
 	}
+	return bSync;
 }
 
 template< >

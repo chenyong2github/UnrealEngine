@@ -14,11 +14,12 @@ struct FActorCreationParams
 {
 	FActorCreationParams()
 		: Scene(nullptr)
-		, BodyInstance(nullptr)
 		, InitialTM(FTransform::Identity)
 		, bStatic(false)
 		, bQueryOnly(false)
 		, bEnableGravity(false)
+		, bSimulatePhysics(false)
+		, bStartAwake(true)
 		, DebugName(nullptr)
 	{}
 
@@ -27,11 +28,12 @@ struct FActorCreationParams
 #else
 	FPhysScene* Scene;
 #endif
-	FBodyInstanceCore* BodyInstance;
 	FTransform InitialTM;
 	bool bStatic;
 	bool bQueryOnly;
 	bool bEnableGravity;
+	bool bSimulatePhysics;
+	bool bStartAwake;
 	char* DebugName;
 };
 

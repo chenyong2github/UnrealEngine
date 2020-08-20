@@ -362,11 +362,13 @@ void FStaticMeshPhysicsProxy::FlipBuffer()
 	Results.Flip();
 }
 
-void FStaticMeshPhysicsProxy::PullFromPhysicsState()
+bool FStaticMeshPhysicsProxy::PullFromPhysicsState(const int32 SolverSyncTimestamp)
 {
 	if(Parameters.ObjectType == EObjectStateTypeEnum::Chaos_Object_Dynamic && Parameters.bSimulating && SyncDynamicTransformFunc)
 	{
 		// Send transform to update callable
 		SyncDynamicTransformFunc(Results.GetGameDataForRead());
 	}
+
+	return true;
 }
