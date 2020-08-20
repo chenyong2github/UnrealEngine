@@ -235,7 +235,7 @@ struct FDelayedIncomingPacket
 
 struct FChannelCloseInfo
 {
-	int32 Id;
+	uint32 Id;
 	EChannelCloseReason CloseReason;
 };
 typedef TArray<FChannelCloseInfo, TInlineAllocator<8>> FChannelsToClose;
