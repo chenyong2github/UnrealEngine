@@ -18,14 +18,26 @@ class NIAGARA_API UNiagaraSimulationStageBase : public UNiagaraMergeable
 	GENERATED_BODY()
 
 public:
+	UNiagaraSimulationStageBase()
+	{
+		bEnabled = true;
+	}
+
 	UPROPERTY()
 	UNiagaraScript* Script;
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Stage")
 	FName SimulationStageName;
 
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const { return true; }
+	UPROPERTY()
+	uint32 bEnabled : 1;
 
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+#if WITH_EDITOR
+	void SetEnabled(bool bEnabled);
+	void RequestRecompile();
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
 
 UCLASS(meta = (DisplayName = "Generic Simulation Stage"))
