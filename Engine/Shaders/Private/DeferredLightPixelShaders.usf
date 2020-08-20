@@ -88,7 +88,6 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	LightData.ContactShadowLength = abs(DeferredLightUniforms.ContactShadowLength);
 	LightData.ContactShadowLengthInWS = DeferredLightUniforms.ContactShadowLength < 0.0f;
 	LightData.ContactShadowNonShadowCastingIntensity = DeferredLightUniforms.ContactShadowNonShadowCastingIntensity;
-	LightData.bContactShadowSubsurfaceFalloff = DeferredLightUniforms.ContactShadowSubsurfaceFalloff != 0;
 	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
 	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
 	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
