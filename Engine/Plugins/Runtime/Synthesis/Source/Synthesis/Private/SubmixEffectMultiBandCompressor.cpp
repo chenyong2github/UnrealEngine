@@ -1,6 +1,6 @@
 // Copyright 1998-2020 Epic Games, Inc. All Rights Reserved.
 
-#include "SubmixEffects/SubmixEffectMultibandCompressor.h"
+#include "SubmixEffects/SubmixEffectMultiBandCompressor.h"
 #include "DSP/BufferVectorOperations.h"
 
 void FSubmixEffectMultibandCompressor::Init(const FSoundEffectSubmixInitData& InitData)
