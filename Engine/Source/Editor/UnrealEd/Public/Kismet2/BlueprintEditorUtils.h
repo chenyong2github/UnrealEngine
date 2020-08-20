@@ -1264,16 +1264,28 @@ public:
 	/** Indicates if the variable is used on any graphs in this Blueprint*/
 	static bool IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope = nullptr);
 
-	/** Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property */
+	/** 
+	 * Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property 
+	 * NOTE: This function does not work correctly with static arrays.
+	 */
 	static bool PropertyValueFromString(const FProperty* Property, const FString& StrValue, uint8* Container, UObject* OwningObject = nullptr);
 
-	/** Copies the value from the passed in string into a property. DirectValue is the raw memory address of the property value */
+	/** 
+	 * Copies the value from the passed in string into a property. DirectValue is the raw memory address of the property value 
+	 * NOTE: This function does not work correctly with static arrays.
+	 */
 	static bool PropertyValueFromString_Direct(const FProperty* Property, const FString& StrValue, uint8* DirectValue, UObject* OwningObject = nullptr);
 
-	/** Copies the value from a property into the string OutForm. ContainerMem points to the Struct or Class containing Property */
+	/** 
+	 * Copies the value from a property into the string OutForm. ContainerMem points to the Struct or Class containing Property 
+	 * NOTE: This function does not work correctly with static arrays.
+	 */
 	static bool PropertyValueToString(const FProperty* Property, const uint8* Container, FString& OutForm, UObject* OwningObject = nullptr);
 
-	/** Copies the value from a property into the string OutForm. DirectValue is the raw memory address of the property value */
+	/** 
+	 * Copies the value from a property into the string OutForm. DirectValue is the raw memory address of the property value 
+	 * NOTE: This function does not work correctly with static arrays.
+	 */
 	static bool PropertyValueToString_Direct(const FProperty* Property, const uint8* DirectValue, FString& OutForm, UObject* OwningObject = nullptr);
 
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
