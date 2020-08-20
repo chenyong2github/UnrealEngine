@@ -121,12 +121,12 @@ namespace Chaos
 		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
 
 		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
-		ensure(SpatialData.SyncTime <= MarshallingManager.GetExternalTimeConsumed_External() || !SpatialData.bDelete);
+		ensure(SpatialData.SyncTimestamp <= MarshallingManager.GetExternalTimestampConsumed_External() || !SpatialData.bDelete);
 
 		SpatialData.bDelete = bDelete;
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
 		SpatialData.AccelerationHandle = AccelerationHandle;
-		SpatialData.SyncTime = MarshallingManager.GetExternalTime_External();
+		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
 	}
 
 	//////////////////////////////////////////////////////////////////////////

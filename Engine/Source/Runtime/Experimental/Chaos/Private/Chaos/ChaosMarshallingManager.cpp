@@ -10,7 +10,9 @@ FAutoConsoleVariableRef CVarSimDelay(TEXT("p.simDelay"),SimDelay,TEXT(""));
 
 FChaosMarshallingManager::FChaosMarshallingManager()
 : ExternalTime(0)
+, ExternalTimestamp(0)
 , SimTime(0)
+, InternalTimestamp(-1)
 , ProducerData(nullptr)
 , Delay(SimDelay)
 {
@@ -40,6 +42,7 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT)
 	ExternalQueue.Insert(ProducerData,0);
 
 	ExternalTime += ExternalDT;
+	++ExternalTimestamp;
 	PrepareExternalQueue();
 }
 
@@ -61,6 +64,7 @@ TArray<FPushPhysicsData*> FChaosMarshallingManager::StepInternalTime_External(FR
 			{
 				FPushPhysicsData* PushData = ExternalQueue.Pop(/*bAllowShrinking=*/false);
 				PushDataUpToEnd.Add(PushData);
+				++InternalTimestamp;
 			}
 			else
 			{

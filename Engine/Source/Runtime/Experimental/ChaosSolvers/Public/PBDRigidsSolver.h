@@ -414,7 +414,7 @@ namespace Chaos
 		/**/
 		virtual void AdvanceSolverBy(const FReal DeltaTime) override;
 		virtual void PushPhysicsState(const FReal DeltaTime) override;
-		virtual void SetExternalTimeConsumed_External(const FReal Time) override;
+		virtual void SetExternalTimestampConsumed_External(const int32 Timestamp) override;
 
 		//
 		// Solver Data
