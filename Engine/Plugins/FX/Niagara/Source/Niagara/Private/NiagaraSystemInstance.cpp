@@ -2173,18 +2173,27 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentRendererSpawning);
 			
+			AActor* OwnerActor = ComponentRenderPool.OwnerActor.Get();
+			if (OwnerActor == nullptr)
+			{
+				OwnerActor = Component->GetOwner();
+				if (OwnerActor == nullptr)
+				{
+					OwnerActor = World->SpawnActor<AActor>();
+					OwnerActor->SetFlags(RF_Transient);
+					ComponentRenderPool.OwnerActor = OwnerActor;
+				}
+			}
+
 			// if we don't have a pooled component we create a new one from the template
-			SceneComponent = DuplicateObject<USceneComponent>(UpdateTask.TemplateObject.Get(), Component);
+			SceneComponent = DuplicateObject<USceneComponent>(UpdateTask.TemplateObject.Get(), OwnerActor);
 			SceneComponent->ClearFlags(RF_ArchetypeObject);
 			SceneComponent->SetFlags(RF_Transient);
 #if WITH_EDITORONLY_DATA
 			SceneComponent->bVisualizeComponent = UpdateTask.bVisualizeComponents;
 #endif
 			SceneComponent->SetupAttachment(Component);
-			if (Component->GetOwner())
-			{
-				SceneComponent->RegisterComponent();
-			}
+			SceneComponent->RegisterComponent();
 			SceneComponent->AddTickPrerequisiteComponent(Component);
 			NewEntry = FNiagaraComponentRenderPoolEntry();
 			NewEntry.Component = SceneComponent;
@@ -2253,6 +2262,12 @@ void FNiagaraSystemInstance::ResetComponentRenderPool()
 		}
 	}
 	ComponentRenderPool.PoolsByTemplate.Empty();
+
+	if (AActor* OwnerActor = ComponentRenderPool.OwnerActor.Get())
+	{
+		ComponentRenderPool.OwnerActor.Reset();
+		OwnerActor->Destroy();
+	}
 }
 
 bool FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded)
