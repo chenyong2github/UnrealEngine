@@ -66,42 +66,93 @@ enum class EComplexFilterMode : uint8
 ENUM_CLASS_FLAGS(EComplexFilterMode);
 
 
+
+/**
+ * A numeric identifier used to represent a specific 'channel' within an interrogation linker.
+ * Interrogation channels are used to identify groupings of tracks or entities that relate to the same output (eg: a property on an object; a master track etc).
+ * See FInterrogationKey for a combination of a channel with a specific interrogation index (or time)
+ */
 struct FInterrogationChannel
 {
-	static constexpr uint32 INVALID_CHANNEL = ~0u;
+	/**
+	 * Default construction to an invalid channel
+	 */
+	FInterrogationChannel()
+		: Value(INDEX_NONE)
+	{}
 
-	FInterrogationChannel() : Value(INVALID_CHANNEL) {}
-
+	/**
+	 * Get the next channel after this one
+	 */
 	FInterrogationChannel operator++()
 	{
-		check( Value != (INVALID_CHANNEL-1) );
+		check( Value != INDEX_NONE );
 		return FInterrogationChannel(++Value);
 	}
 
+	/**
+	 * Check whether this channel is valid
+	 */
 	explicit operator bool() const
 	{
 		return IsValid();
 	}
 
+	/**
+	 * Check whether this channel is valid
+	 */
 	bool IsValid() const
 	{
-		return Value != INVALID_CHANNEL;
+		return Value != INDEX_NONE;
 	}
 
-	uint32 AsIndex() const
+	/**
+	 * Get the underlying numeric representation of this channel
+	 */
+	int32 AsIndex() const
 	{
-		check(Value != INVALID_CHANNEL);
+		check(Value != INDEX_NONE);
 		return Value;
 	}
 
-	static FInterrogationChannel First()
+	/**
+	 * A default interrogation channel that can be used when interrogation is only operating on a single set of tracks
+	 */
+	static FInterrogationChannel Default()
 	{
 		return FInterrogationChannel(0);
 	}
 
+	/**
+	 * Retrieve the first allocatable channel when dealing with multiple groupings of tracks
+	 */
+	static FInterrogationChannel First()
+	{
+		return FInterrogationChannel(1);
+	}
+
+	/**
+	 * Make a channel from an index known to already relate to a valid channel
+	 */
+	static FInterrogationChannel FromIndex(int32 InIndex)
+	{
+		return FInterrogationChannel(InIndex);
+	}
+
+	/**
+	 * Retrieve the last allocatable channel when dealing with multiple groupings of tracks
+	 */
 	static FInterrogationChannel Last()
 	{
-		return FInterrogationChannel(INVALID_CHANNEL);
+		return FInterrogationChannel(MAX_int32);
+	}
+
+	/**
+	 * An invalid channel. Should only be used for comparison.
+	 */
+	static FInterrogationChannel Invalid()
+	{
+		return FInterrogationChannel(INDEX_NONE);
 	}
 
 	friend uint32 GetTypeHash(FInterrogationChannel In)
@@ -119,12 +170,65 @@ struct FInterrogationChannel
 		return A.Value != B.Value;
 	}
 
+	friend bool operator<(FInterrogationChannel A, FInterrogationChannel B)
+	{
+		return A.Value < B.Value;
+	}
+
 private:
 
-	explicit FInterrogationChannel(uint32 InValue) : Value(InValue) {}
+	explicit FInterrogationChannel(int32 InValue) : Value(InValue) {}
 
-	uint32 Value;
+	int32 Value;
 };
+
+
+/**
+ * A key that uniquely identifies a specific interrogation time with a group of entities allocated within a channel
+ */
+struct FInterrogationKey
+{
+	/** The channel that the entities are allocated within */
+	FInterrogationChannel Channel;
+
+	/** The index of the interrogation (see FSystemInterrogator::InterrogateTime, and FSystemInterrogator::InterrogationData) */
+	int32 InterrogationIndex;
+
+	FInterrogationKey()
+		: InterrogationIndex(-1)
+	{}
+
+	FInterrogationKey(FInterrogationChannel InChannel, int32 InInterrogationIndex)
+		: Channel(InChannel)
+		, InterrogationIndex(InInterrogationIndex)
+	{}
+
+	bool IsValid() const
+	{
+		return Channel.IsValid() && InterrogationIndex != INDEX_NONE;
+	}
+
+	friend uint32 GetTypeHash(const FInterrogationKey& In)
+	{
+		return GetTypeHash(In.Channel) ^ In.InterrogationIndex;
+	}
+
+	friend bool operator==(const FInterrogationKey& A, const FInterrogationKey& B)
+	{
+		return A.Channel == B.Channel && A.InterrogationIndex == B.InterrogationIndex;
+	}
+
+	friend bool operator!=(const FInterrogationKey& A, const FInterrogationKey& B)
+	{
+		return A.Channel != B.Channel || A.InterrogationIndex != B.InterrogationIndex;
+	}
+
+	static FInterrogationKey Default(int32 InInterrogationIndex = 0)
+	{
+		return FInterrogationKey(FInterrogationChannel::Default(), InInterrogationIndex);
+	}
+};
+
 
 struct MOVIESCENE_API FEntityComponentFilter
 {

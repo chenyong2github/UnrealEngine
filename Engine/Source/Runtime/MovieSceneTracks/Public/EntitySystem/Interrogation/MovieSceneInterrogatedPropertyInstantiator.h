@@ -73,9 +73,9 @@ public:
 	};
 
 	// TOverlappingEntityTracker handler interface
-	void InitializeOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
-	void UpdateOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
-	void DestroyOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	void InitializeOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	void UpdateOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	void DestroyOutput(UE::MovieScene::FInterrogationKey Key, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
 
 private:
 
@@ -90,7 +90,7 @@ private:
 
 	static constexpr uint16 INVALID_BLEND_CHANNEL = uint16(-1);
 
-	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FInterrogationChannel, FPropertyInfo> PropertyTracker;
+	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FInterrogationKey, FPropertyInfo> PropertyTracker;
 	UE::MovieScene::FComponentMask CleanFastPathMask;
 	UE::MovieScene::FBuiltInComponentTypes* BuiltInComponents;
 	UE::MovieScene::FPropertyRecomposerImpl RecomposerImpl;

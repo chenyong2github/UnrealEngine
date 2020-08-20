@@ -24,14 +24,14 @@ UMovieSceneInterrogatedPropertyInstantiatorSystem::UMovieSceneInterrogatedProper
 	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
 				this, &UMovieSceneInterrogatedPropertyInstantiatorSystem::FindPropertyFromSource);
 
-	RelevantComponent = BuiltInComponents->Interrogation.InputChannel;
+	RelevantComponent = BuiltInComponents->Interrogation.InputKey;
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentProducer(GetClass(), BuiltInComponents->BlendChannelInput);
 		DefineComponentProducer(GetClass(), BuiltInComponents->SymbolicTags.CreatesEntities);
 	}
 
-	CleanFastPathMask.Set(BuiltInComponents->Interrogation.OutputChannel);
+	CleanFastPathMask.Set(BuiltInComponents->Interrogation.OutputKey);
 }
 
 bool UMovieSceneInterrogatedPropertyInstantiatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
@@ -133,14 +133,14 @@ UClass* UMovieSceneInterrogatedPropertyInstantiatorSystem::ResolveBlenderClass(T
 	return BlenderClass;
 }
 
-void UMovieSceneInterrogatedPropertyInstantiatorSystem::InitializeOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::InitializeOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	using namespace UE::MovieScene;
 
-	UpdateOutput(InterrogationChannel, Inputs, Output, Aggregate);
+	UpdateOutput(Key, Inputs, Output, Aggregate);
 }
 
-void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	using namespace UE::MovieScene;
 
@@ -148,7 +148,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 
 	if (PropertySupportsFastPath(Inputs, Output))
 	{
-		Linker->EntityManager.AddComponent(Inputs[0], BuiltInComponents->Interrogation.OutputChannel, InterrogationChannel);
+		Linker->EntityManager.AddComponent(Inputs[0], BuiltInComponents->Interrogation.OutputKey, Key);
 		return;
 	}
 
@@ -202,7 +202,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 
 		// Never seen this property before
 		FMovieSceneEntityID NewEntityID = FEntityBuilder()
-		.Add(BuiltInComponents->Interrogation.OutputChannel, InterrogationChannel)
+		.Add(BuiltInComponents->Interrogation.OutputKey, Key)
 		.Add(BuiltInComponents->BlendChannelOutput, Output->BlendChannel)
 		.AddTagConditional(BuiltInComponents->Tags.MigratedFromFastPath, Output->PropertyEntityID.IsValid())
 		.AddTag(BuiltInComponents->Tags.NeedsLink)
@@ -247,7 +247,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 	}
 }
 
-void UMovieSceneInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieScene::FInterrogationChannel InterrogationChannel, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
+void UMovieSceneInterrogatedPropertyInstantiatorSystem::DestroyOutput(UE::MovieScene::FInterrogationKey Key, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate)
 {
 	if (Output->BlendChannel != INVALID_BLEND_CHANNEL)
 	{
@@ -266,7 +266,7 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequ
 	{
 		TArrayView<const FPropertyDefinition> AllProperties = BuiltInComponents->PropertyRegistry.GetProperties();
 
-		auto LinkCallback =  [this, AllProperties](const FEntityAllocation* Allocation, TRead<FInterrogationChannel> InterrogationChannelAccessor)
+		auto LinkCallback =  [this, AllProperties](const FEntityAllocation* Allocation, TRead<FInterrogationKey> InterrogationChannelAccessor)
 		{
 			const int32 PropertyDefinitionIndex = Algo::IndexOfByPredicate(AllProperties, [=](const FPropertyDefinition& InDefinition){ return Allocation->HasComponent(InDefinition.PropertyType); });
 			if (PropertyDefinitionIndex != INDEX_NONE)
@@ -285,12 +285,12 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequ
 
 		// Visit newly or re-linked entities
 		FEntityTaskBuilder()
-		.Read(BuiltInComponents->Interrogation.InputChannel)
+		.Read(BuiltInComponents->Interrogation.InputKey)
 		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.Iterate_PerAllocation(&Linker->EntityManager, LinkCallback);
 
 		FEntityTaskBuilder()
-		.FilterAll({ BuiltInComponents->Interrogation.InputChannel, BuiltInComponents->Tags.NeedsUnlink })
+		.FilterAll({ BuiltInComponents->Interrogation.InputKey, BuiltInComponents->Tags.NeedsUnlink })
 		.Iterate_PerAllocation(&Linker->EntityManager, UnlinkCallback);
 	}
 

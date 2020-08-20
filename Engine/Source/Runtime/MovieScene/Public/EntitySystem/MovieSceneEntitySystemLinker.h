@@ -108,10 +108,26 @@ public:
 
 	TSharedRef<bool> CaptureGlobalState();
 
+
+	/**
+	 * Retrieve this linker's context, specifying what kinds of systems should be allowed or disallowed
+	 */
 	UE::MovieScene::EEntitySystemContext GetSystemContext() const
 	{
 		return SystemContext;
 	}
+
+
+	/**
+	 * Set the system context for this linker allowing some systems to be excluded based on the context.
+	 *
+	 * @param InSystemContext    The new system context for this linker
+	 */
+	void SetSystemContext(UE::MovieScene::EEntitySystemContext InSystemContext)
+	{
+		SystemContext = InSystemContext;
+	}
+
 
 	/**
 	 * Completely reset this linker back to its default state, abandoning all systems and destroying all entities

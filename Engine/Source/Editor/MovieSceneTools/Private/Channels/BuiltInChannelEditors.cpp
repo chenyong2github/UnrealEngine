@@ -101,20 +101,20 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 		else
 		{
 			// No custom callback... we need to run the blender system on our property.
-			UMovieSceneInterrogationLinker* Interrogator = NewObject<UMovieSceneInterrogationLinker>(GetTransientPackage());
+			FSystemInterrogator Interrogator;
+			Interrogator.TrackImportedEntities(true);
 
-			TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator->EntityManager);
+			TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
 			UMovieSceneTrack* TrackToKey = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-			Interrogator->ImportTrack(TrackToKey);
 
-			const FInterrogationChannel InterrogationChannel = Interrogator->AddInterrogation(InTime);
+			Interrogator.ImportTrack(TrackToKey, FInterrogationChannel::Default());
+			Interrogator.AddInterrogation(InTime);
+			Interrogator.Update();
 
-			Interrogator->Update();
+			const FMovieSceneEntityID EntityID = Interrogator.FindEntityFromOwner(FInterrogationKey::Default(), SectionToKey, 0);
 
-			const FMovieSceneEntityID EntityID = Interrogator->FindEntityFromOwner(InterrogationChannel, SectionToKey, 0);
-
-			UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
+			UMovieSceneInterrogatedPropertyInstantiatorSystem* System = Interrogator.GetLinker()->FindSystem<UMovieSceneInterrogatedPropertyInstantiatorSystem>();
 
 			if (ensure(System) && EntityID)  // EntityID can be invalid here if we are keying a section that is currently empty
 			{
@@ -130,7 +130,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 				for (int32 Index = 0; Index < PropertyDefinitions.Num(); ++Index)
 				{
 					const FPropertyDefinition& PropertyDefinition = PropertyDefinitions[Index];
-					if (Interrogator->EntityManager.HasComponent(EntityID, PropertyDefinition.PropertyType))
+					if (Interrogator.GetLinker()->EntityManager.HasComponent(EntityID, PropertyDefinition.PropertyType))
 					{
 						BoundPropertyDefinitionIndex = Index;
 						break;
@@ -142,7 +142,7 @@ FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* 
 					const FPropertyDefinition& BoundPropertyDefinition = PropertyDefinitions[BoundPropertyDefinitionIndex];
 
 					check(FirstBoundObject != nullptr);
-					if (Interrogator->EntityManager.HasComponent(EntityID, BuiltInComponents->SceneComponentBinding))
+					if (Interrogator.GetLinker()->EntityManager.HasComponent(EntityID, BuiltInComponents->SceneComponentBinding))
 					{
 						FirstBoundObject = MovieSceneHelpers::SceneComponentFromRuntimeObject(FirstBoundObject);
 						check(FirstBoundObject != nullptr);

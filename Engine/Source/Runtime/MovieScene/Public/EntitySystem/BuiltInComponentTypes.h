@@ -259,8 +259,8 @@ public:
 
 	struct
 	{
-		TComponentTypeID<FInterrogationChannel> InputChannel;
-		TComponentTypeID<FInterrogationChannel> OutputChannel;
+		TComponentTypeID<FInterrogationKey> InputKey;
+		TComponentTypeID<FInterrogationKey> OutputKey;
 	} Interrogation;
 
 	struct
