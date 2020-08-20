@@ -48,23 +48,25 @@ private:
 class PRELOADSCREEN_API FPreLoadSlateWidgetRenderer
 {
 public:
-    FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindowWindow, FSlateRenderer* InRenderer);
+	FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindowWindow, FSlateRenderer* InRenderer);
 
-    void DrawWindow(float DeltaTime);
+	void DrawWindow(float DeltaTime);
+
+	SWindow* GetMainWindow_GameThread() const { return MainWindow; }
 
 private:
-    /** The actual window content will be drawn to */
-    /** Note: This is raw as we SWindows registered with SlateApplication are not thread safe */
-    SWindow* MainWindow;
+	/** The actual window content will be drawn to */
+	/** Note: This is raw as we SWindows registered with SlateApplication are not thread safe */
+	SWindow* MainWindow;
 
-    /** Virtual window that we render to instead of the main slate window (for thread safety).  Shares only the same backbuffer as the main window */
-    TSharedRef<SVirtualWindow> VirtualRenderWindow;
+	/** Virtual window that we render to instead of the main slate window (for thread safety).  Shares only the same backbuffer as the main window */
+	TSharedRef<SVirtualWindow> VirtualRenderWindow;
 
-    TSharedPtr<FHittestGrid> HittestGrid;
+	TSharedPtr<FHittestGrid> HittestGrid;
 
-    FSlateRenderer* SlateRenderer;
+	FSlateRenderer* SlateRenderer;
 
-    FViewportRHIRef ViewportRHI;
+	FViewportRHIRef ViewportRHI;
 };
 
 
@@ -92,6 +94,9 @@ public:
     bool IsSlateMainLoopRunning_AnyThread() const;
 
 private:
+	/** Notified when a SWindow is being destroyed */
+	void HandleWindowBeingDestroyed(const SWindow& WindowBeingDestroyed);
+
 	/** The main loop to be run from the Slate thread */
 	void RunMainLoop_SlateThread();
 
