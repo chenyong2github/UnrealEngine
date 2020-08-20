@@ -1259,7 +1259,8 @@ bool FMaterialResource::IsPersistent() const { return true; }
 
 FGuid FMaterialResource::GetMaterialId() const
 {
-	return Material->StateId;
+	// It's possible for Material to become null due to AddReferencedObjects
+	return Material ? Material->StateId : FGuid();
 }
 
 ETranslucencyLightingMode FMaterialResource::GetTranslucencyLightingMode() const { return (ETranslucencyLightingMode)Material->TranslucencyLightingMode; }
