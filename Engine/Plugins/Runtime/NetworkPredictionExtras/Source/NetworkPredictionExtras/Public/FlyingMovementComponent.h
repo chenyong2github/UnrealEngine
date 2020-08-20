@@ -41,6 +41,9 @@ public:
 	// Get latest local input prior to simulation step
 	void ProduceInput(const int32 DeltaTimeMS, FFlyingMovementInputCmd* Cmd);
 
+	// Restore a previous frame prior to resimulating
+	void RestoreFrame(const FFlyingMovementSyncState* SyncState, const FFlyingMovementAuxState* AuxState);
+
 	// Take output for simulation
 	void FinalizeFrame(const FFlyingMovementSyncState* SyncState, const FFlyingMovementAuxState* AuxState);
 
