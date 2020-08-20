@@ -403,22 +403,8 @@ FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool Dott
 	constexpr FAsciiSet DottedTokenChars = RegularTokenChars + '.' + '/' + SUBOBJECT_DELIMITER_CHAR;
 	FAsciiSet CurrentTokenChars = DottedNames ? DottedTokenChars : RegularTokenChars;
 
-	const TCHAR* It = Str;
-	while (true)
-	{
-		// Include allowed ASCII characters
-		It = FAsciiSet::Skip(It, CurrentTokenChars);
-
-		if (*It <= 255)
-		{
-			return FStringView(Str, It - Str);
-		}
-		else
-		{
-			// Include wide characters
-			for (++It; *It > 255; ++It);
-		}
-	} 
+	const TCHAR* TokenEnd = FAsciiSet::Skip(Str, CurrentTokenChars);
+	return FStringView(Str, TokenEnd - Str);
 }
 
 //

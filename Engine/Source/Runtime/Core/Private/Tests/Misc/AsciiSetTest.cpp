@@ -13,6 +13,17 @@ bool TAsciiSetTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Contains"), Whitespaces.Contains(' '));
 	TestTrue(TEXT("Contains"), Whitespaces.Contains('\n'));
 	TestFalse(TEXT("Contains"), Whitespaces.Contains('a'));
+	TestFalse(TEXT("Contains no extended ASCII"), Whitespaces.Contains('\x80'));
+	TestFalse(TEXT("Contains no extended ASCII"), Whitespaces.Contains('\xA0'));
+	TestFalse(TEXT("Contains no extended ASCII"), Whitespaces.Contains('\xFF'));
+	
+	constexpr FAsciiSet Aa("Aa");
+	uint32 ANum = 0;
+	for (char32_t C = 0; C < 512; ++C)
+	{
+		ANum += Aa.Contains(C);
+	}
+	TestEqual("Contains no wide", ANum, 2u);
 
 	constexpr FAsciiSet NonWhitespaces = ~Whitespaces;
 	uint32 WhitespaceNum = 0;
@@ -25,6 +36,8 @@ bool TAsciiSetTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("Skip"), FAsciiSet::Skip(TEXT("  \t\tHello world!"), Whitespaces), TEXT("Hello world!"));
 	TestEqual(TEXT("Skip"), FAsciiSet::Skip(TEXT("Hello world!"), Whitespaces), TEXT("Hello world!"));
+	TestEqual(TEXT("Skip to extended ASCII"), FAsciiSet::Skip(" " "\xA0" " abc", Whitespaces), "\xA0" " abc");
+	TestEqual(TEXT("Skip to wide"), FAsciiSet::Skip(TEXT(" 变 abc"), Whitespaces), TEXT("变 abc"));
 	TestEqual(TEXT("AdvanceToFirst"),	*FAsciiSet::FindFirstOrEnd("NonWhitespace\t \nNonWhitespace", Whitespaces), '\t');
 	TestEqual(TEXT("AdvanceToLast"),	*FAsciiSet::FindLastOrEnd("NonWhitespace\t \nNonWhitespace", Whitespaces), '\n');
 	TestEqual(TEXT("AdvanceToLast"),	*FAsciiSet::FindLastOrEnd("NonWhitespace\t NonWhitespace\n", Whitespaces), '\n');
