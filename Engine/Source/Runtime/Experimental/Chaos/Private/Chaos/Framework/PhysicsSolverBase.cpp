@@ -127,6 +127,11 @@ namespace Chaos
 		SpatialData.SpatialIdx = Particle->SpatialIdx();
 		SpatialData.AccelerationHandle = AccelerationHandle;
 		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
+
+		if(IPhysicsProxyBase* Proxy = Particle->GetProxy())
+		{
+			Proxy->SetSyncTimestamp(SpatialData.SyncTimestamp);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
