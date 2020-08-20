@@ -13,6 +13,7 @@
 #include "SequencerSettings.h"
 #include "AssetRegistryModule.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Stats/Stats.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraSystem.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
@@ -1493,6 +1494,7 @@ void FNiagaraEditorModule::EnqueueObjectForDeferredDestructionInternal(FDeferred
 
 bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FNiagaraEditorModule_DeferredDestructObjects);
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
 }

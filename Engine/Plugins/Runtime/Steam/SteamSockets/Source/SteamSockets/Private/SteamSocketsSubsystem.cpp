@@ -14,6 +14,7 @@
 #include "OnlineSubsystemSteam.h"
 #include "OnlineSubsystemNames.h"
 #include "SteamSocketsTypes.h"
+#include "Stats/Stats.h"
 
 // Log Category for The API Debugger
 DEFINE_LOG_CATEGORY_STATIC(LogSteamSocketsAPI, Log, All);
@@ -501,6 +502,8 @@ void FSteamSocketsSubsystem::DumpSocketInformationMap() const
 
 bool FSteamSocketsSubsystem::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSteamSocketsSubsystem_Tick);
+
 	// Handle all of our updates from the Steam API callbacks
 	if (SteamEventManager.IsValid())
 	{

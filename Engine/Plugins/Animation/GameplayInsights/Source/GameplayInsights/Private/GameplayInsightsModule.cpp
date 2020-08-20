@@ -15,6 +15,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Trace/StoreService.h"
 #include "Trace/StoreClient.h"
+#include "Stats/Stats.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
@@ -35,6 +36,8 @@ void FGameplayInsightsModule::StartupModule()
 
 	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("GameplayInsights"), 0.0f, [this](float DeltaTime)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FGameplayInsightsModule_TickVisualizers);
+
 		GameplayTimingViewExtender.TickVisualizers(DeltaTime);
 		return true;
 	});

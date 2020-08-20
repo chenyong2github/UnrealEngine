@@ -6,6 +6,7 @@
 #include "Scratchpad/ConcertScratchpad.h"
 
 #include "Containers/Ticker.h"
+#include "Stats/Stats.h"
 #include "UObject/StructOnScope.h"
 
 const FName ConcertServerMessageIdName("ConcertMessageId");
@@ -45,7 +46,9 @@ void FConcertServerSession::Startup()
 		ServerSessionEndpoint->RegisterRequestHandler<FConcertSession_CustomRequest, FConcertSession_CustomResponse>(this, &FConcertServerSession::HandleCustomRequest);
 
 		// Setup the session tick
-		SessionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ServerSession"), 0, [this](float DeltaSeconds) {
+		SessionTick = FTicker::GetCoreTicker().AddTicker(TEXT("ServerSession"), 0, [this](float DeltaSeconds)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FConcertServerSession_Tick);
 			TickConnections(DeltaSeconds);
 			return true;
 		});

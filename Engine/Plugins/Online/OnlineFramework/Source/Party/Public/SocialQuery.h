@@ -6,6 +6,7 @@
 #include "OnlineSubsystem.h"
 #include "SocialToolkit.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Stats/Stats.h"
 
 DECLARE_DELEGATE_TwoParams(FOnQueryCompleted, FName, const TSharedRef<class FSocialQueryBase>&);
 
@@ -89,6 +90,7 @@ public:
 
 	bool HandleExecuteQueries(float)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSocialQueryManager_HandleExecuteQueries);
 		// Execute all pending queries
 		TArray<TArray<TSharedRef<FSocialQueryBase>>> AllQueries;
 		CurrentQueriesById.GenerateValueArray(AllQueries);

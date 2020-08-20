@@ -5,6 +5,7 @@
 #include "OculusAudioSourceSettings.h"
 #include "OculusAudioContextManager.h"
 #include "IOculusAudioPlugin.h"
+#include "Stats/Stats.h"
 
 
 float dbToLinear(float db)
@@ -165,6 +166,7 @@ void OculusAudioSpatializationAudioMixer::ProcessAudio(const FAudioPluginSourceI
 
 bool OculusAudioSpatializationAudioMixer::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_OculusAudioSpatializationAudioMixer_Tick);
 	if (ContextLock.TryLock())
 	{
 		if (Context != nullptr)

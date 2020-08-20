@@ -2,6 +2,7 @@
 #include "OculusAudioDllManager.h"
 #include "Misc/Paths.h"
 #include "OculusAudioSettings.h"
+#include "Stats/Stats.h"
 
 
 // forward decleration should match OAP_Globals
@@ -178,6 +179,8 @@ void FOculusAudioLibraryManager::ReleaseDll()
 
 bool FOculusAudioLibraryManager::UpdatePluginContext(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FOculusAudioLibraryManager_UpdatePluginContext);
+
 	ovrAudioContext Context = GetPluginContext();
 	ovrResult Result = OVRA_CALL(ovrAudio_UpdateRoomModel)(Context, 1.0f);
 	check(Result == ovrSuccess || Result == ovrError_AudioUninitialized);

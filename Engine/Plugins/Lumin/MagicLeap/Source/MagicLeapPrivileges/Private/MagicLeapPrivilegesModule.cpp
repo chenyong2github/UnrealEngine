@@ -3,6 +3,7 @@
 #include "MagicLeapPrivilegesModule.h"
 #include "MagicLeapPrivilegeUtils.h"
 #include "Engine/Engine.h"
+#include "Stats/Stats.h"
 
 using namespace MagicLeap;
 
@@ -44,6 +45,8 @@ void FMagicLeapPrivilegesModule::ShutdownModule()
 
 bool FMagicLeapPrivilegesModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapPrivilegesModule_Tick);
+
 #if WITH_MLSDK
 	auto CopyPendingAsyncRequests(PendingAsyncRequests);
 

@@ -11,7 +11,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"
 #include "Misc/QualifiedFrameTime.h"
-
+#include "Stats/Stats.h"
 
 /** The algo for Calibration and TimeCorrection will use those data for their examples and comments. */
 // EvaluationTime == 50.
@@ -399,6 +399,8 @@ void FTimedDataMonitorCalibration::CalibrateWithTimecode(const FTimedDataMonitor
 
 bool FTimedDataMonitorCalibration::RunCalibrateWithTimecode_CheckForReset(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FTimedDataMonitorCalibration_RunCalibrateWithTimecode_CheckForReset);
+
 	if (CalibrationParameters.bUseStandardDeviation && CalibrationParameters.bResetStatisticsBeforeUsingStandardDeviation)
 	{
 		GEngine->GetEngineSubsystem<UTimedDataMonitorSubsystem>()->ResetAllBufferStats();
@@ -417,6 +419,8 @@ bool FTimedDataMonitorCalibration::RunCalibrateWithTimecode_CheckForReset(float)
 
 bool FTimedDataMonitorCalibration::RunCalibrateWithTimecode(float)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FTimedDataMonitorCalibration_RunCalibrateWithTimecode);
+
 	FTimedDataMonitorCalibrationResult Result = CalibrateWithTimecode(CalibrationParameters);
 	bool bCallcallback = true;
 	if (Result.ReturnCode == ETimedDataMonitorCalibrationReturnCode::Retry_IncreaseBufferSize
