@@ -9,7 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
 #include "SoundControlBusProxy.h"
-#include "SoundModulatorLFO.h"
+#include "SoundModulationGeneratorLFO.h"
 
 USoundControlBusBase::USoundControlBusBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
