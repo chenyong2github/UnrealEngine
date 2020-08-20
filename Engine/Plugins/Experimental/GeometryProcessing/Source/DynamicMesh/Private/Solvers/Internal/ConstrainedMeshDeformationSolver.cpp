@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstrainedMeshDeformationSolver.h"
+#include "Solvers/LaplacianMatrixAssembly.h"
 #include "LaplacianOperators.h"
-
 #include "MatrixSolver.h"
 #include "ConstrainedPoissonSolver.h"
 
@@ -130,8 +130,14 @@ void FConstrainedMeshDeformationSolver::AddConstraint(const int32 VtxId, const d
 		bConstraintPositionsDirty = true;
 		bConstraintWeightsDirty = true;
 
+		FConstraintPosition NewConstraint;
+		NewConstraint.ElementID = VtxId;
+		NewConstraint.ConstraintIndex = Index;
+		NewConstraint.Position = Pos;
+		NewConstraint.Weight = Weight;
+		NewConstraint.bPostFix = bPostFix;
 
-		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, NewConstraint));
 		ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
 	}
 }
@@ -152,12 +158,14 @@ bool FConstrainedMeshDeformationSolver::UpdateConstraintPosition(const int32 Vtx
 
 	if (Index != FDynamicMesh3::InvalidID && Index < InternalVertexCount)
 	{
-		bConstraintPositionsDirty = true;
-
-		// Add should over-write any existing value for this key
-		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
-
-		Result = ConstraintWeightMap.Contains(VtxId);
+		FConstraintPosition* Found = ConstraintPositionMap.Find(Index);
+		if (ensure(Found != nullptr))
+		{
+			Found->Position = Pos;
+			Found->bPostFix = bPostFix;
+			bConstraintPositionsDirty = true;
+			Result = true;
+		}
 	}
 	return Result;
 }
@@ -334,4 +342,156 @@ bool FConstrainedMeshDeformationSolver::SetTolerance(double Tol)
 		return true;
 	}
 	return false;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+FSoftMeshDeformationSolver::FSoftMeshDeformationSolver(const FDynamicMesh3& DynamicMesh)
+{
+	EMatrixSolverType MatrixSolverType = EMatrixSolverType::LU;
+
+	typedef FSparseMatrixD::Scalar  ScalarT;
+	typedef Eigen::Triplet<ScalarT> MatrixTripletT;
+
+	// compute linearization so we can store constraints at linearized indices
+	VtxLinearization.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VtxLinearization.ToId();
+	const TArray<int32>& ToIndex = VtxLinearization.ToIndex();
+	const int32 NumVerts = VtxLinearization.NumVerts();
+
+	FEigenSparseMatrixAssembler LaplacianAssembler(NumVerts, NumVerts);
+
+	UE::MeshDeformation::ConstructFullCotangentLaplacian<double>(DynamicMesh, VtxLinearization, LaplacianAssembler,
+		UE::MeshDeformation::ECotangentWeightMode::ClampedMagnitude,
+		UE::MeshDeformation::ECotangentAreaMode::VoronoiArea);
+
+	FSparseMatrixD CotangentLaplacian;
+	LaplacianAssembler.ExtractResult(CotangentLaplacian);
+
+	checkSlow(CotangentLaplacian.rows() == CotangentLaplacian.cols());
+
+	TUniquePtr<FSparseMatrixD> LTLPtr(new FSparseMatrixD(CotangentLaplacian.rows(), CotangentLaplacian.cols()));
+	FSparseMatrixD& LTLMatrix = *(LTLPtr);
+
+	// Construct the Biharmonic system matrix
+	// Note that if Laplacian was symmetric (eg if uniform/etc) then LTLMatrix = CotangentLaplacian * CotangentLaplacian
+	LTLMatrix = CotangentLaplacian.transpose() * CotangentLaplacian;
+	ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
+}
+
+FSoftMeshDeformationSolver::~FSoftMeshDeformationSolver()
+{
+}
+
+
+
+void FSoftMeshDeformationSolver::UpdateSolverConstraints()
+{
+	if (bConstraintWeightsDirty)
+	{
+		ConstrainedSolver->SetConstraintWeights(ConstraintMap);
+		bConstraintWeightsDirty = false;
+	}
+
+	if (bConstraintPositionsDirty)
+	{
+		ConstrainedSolver->SetContraintPositions(ConstraintMap);
+		bConstraintPositionsDirty = false;
+	}
+}
+
+
+
+void FSoftMeshDeformationSolver::AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Position, const bool bPostFix)
+{
+	if (ensure(VtxLinearization.IsValidId(VtxId)) == false) return;
+	int32 Index = VtxLinearization.GetIndex(VtxId);
+
+	FPositionConstraint NewConstraint;
+	NewConstraint.ElementID = VtxId;
+	NewConstraint.ConstraintIndex = Index;
+	NewConstraint.Position = Position;
+	NewConstraint.Weight = Weight;
+	NewConstraint.bPostFix = bPostFix;
+
+	ConstraintMap.Add(Index, NewConstraint);
+
+	bConstraintPositionsDirty = true;
+	bConstraintWeightsDirty = true;
+}
+
+
+bool FSoftMeshDeformationSolver::UpdateConstraintPosition(const int32 VtxId, const FVector3d& NewPosition, const bool bPostFix)
+{
+	if (ensure(VtxLinearization.IsValidId(VtxId)) == false) return false;
+	int32 Index = VtxLinearization.GetIndex(VtxId);
+
+	FPositionConstraint* Found = ConstraintMap.Find(Index);
+	if (ensure(Found != nullptr))
+	{
+		Found->Position = NewPosition;
+		Found->bPostFix = bPostFix;
+		bConstraintPositionsDirty = true;
+		return true;
+	}
+	return false;
+}
+
+
+bool FSoftMeshDeformationSolver::UpdateConstraintWeight(const int32 VtxId, const double NewWeight)
+{
+	if (ensure(VtxLinearization.IsValidId(VtxId)) == false) return false;
+	int32 Index = VtxLinearization.GetIndex(VtxId);
+
+	FPositionConstraint* Found = ConstraintMap.Find(Index);
+	if (ensure(Found != nullptr))
+	{
+		Found->Weight = NewWeight;
+		bConstraintWeightsDirty = true;
+		return true;
+	}
+	return false;
+}
+
+
+bool FSoftMeshDeformationSolver::IsConstrained(const int32 VtxId) const
+{
+	if (VtxLinearization.IsValidId(VtxId) == false) return false;
+	int32 Index = VtxLinearization.GetIndex(VtxId);
+	return ConstraintMap.Contains(Index);
+}
+
+
+void FSoftMeshDeformationSolver::ClearConstraints()
+{
+	ConstraintMap.Empty();
+	bConstraintPositionsDirty = true;
+	bConstraintWeightsDirty = true;
+}
+
+
+
+void FSoftMeshDeformationSolver::UpdateLaplacianScale(double UniformScale)
+{
+	LaplacianScale = UniformScale;
+}
+
+bool FSoftMeshDeformationSolver::HasLaplacianScale() const
+{
+	return LaplacianScale != 1.0;
+}
+
+double FSoftMeshDeformationSolver::GetLaplacianScale(int32 Index) const
+{
+	return LaplacianScale;
 }

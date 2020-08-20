@@ -52,7 +52,18 @@ namespace UE
 		};
 
 
+		/**
+		 * Extension of IConstrainedMeshSolver that supports manipulating the underlying Laplacian vectors
+		 * used in Laplacian-based Deformation Solvers.
+		 */
+		class DYNAMICMESH_API IConstrainedLaplacianMeshSolver : public IConstrainedMeshSolver
+		{
+		public:
+			virtual ~IConstrainedLaplacianMeshSolver() {}
 
+			// Update global scale applied to Laplacian vectors before solve.
+			virtual void UpdateLaplacianScale(double UniformScale) = 0;
+		};
 
 
 		/**
