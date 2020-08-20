@@ -395,9 +395,6 @@ namespace VulkanRHI
 
 	void FResourceHeapManager::ProcessPendingUBFreesNoLock(bool bForce)
 	{
-		// this keeps an frame number of the first frame when we can expect to delete things, updated in the loop if any pending allocations are left
-		static uint32 GFrameNumberRenderThread_WhenWeCanDelete = 0;
-
 		if (UNLIKELY(bForce))
 		{
 			int32 NumAlloc = UBAllocations.PendingFree.Num();
@@ -407,33 +404,23 @@ namespace VulkanRHI
 				delete Alloc.Allocation;
 			}
 			UBAllocations.PendingFree.Empty();
-
-			// invalidate the value
-			GFrameNumberRenderThread_WhenWeCanDelete = 0;
 		}
 		else
 		{
-			if (LIKELY(GFrameNumberRenderThread < GFrameNumberRenderThread_WhenWeCanDelete))
-			{
-				// too early
-				return;
-			}
 
-			// making use of the fact that we always add to the end of the array, so allocations are sorted by frame ascending
-			int32 OldestFrameToKeep = GFrameNumberRenderThread - VulkanRHI::NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS;
+			const uint64 FrameNumber = GFrameNumberRenderThread;
 			int32 NumAlloc = UBAllocations.PendingFree.Num();
 			int32 Index = 0;
 			for (; Index < NumAlloc; ++Index)
 			{
 				FUBPendingFree& Alloc = UBAllocations.PendingFree[Index];
-				if (LIKELY(Alloc.Frame < OldestFrameToKeep))
+				uint64 FreeFrame = Alloc.Frame + NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS;
+				if (LIKELY(FreeFrame < FrameNumber))
 				{
 					delete Alloc.Allocation;
 				}
 				else
 				{
-					// calculate when we will be able to delete the oldest allocation
-					GFrameNumberRenderThread_WhenWeCanDelete = Alloc.Frame + VulkanRHI::NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS + 1;
 					break;
 				}
 			}
