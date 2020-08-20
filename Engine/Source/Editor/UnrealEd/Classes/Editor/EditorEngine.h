@@ -278,9 +278,9 @@ struct FPreviewPlatformInfo
 	,	bPreviewFeatureLevelActive(false)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderPlatformName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
 	:	PreviewFeatureLevel(InFeatureLevel)
-	,	PreviewShaderPlatformName(InPreviewShaderPlatformName)
+	,	PreviewShaderFormatName(InPreviewShaderFormatName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
 	{}
 
@@ -288,7 +288,7 @@ struct FPreviewPlatformInfo
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	
 	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
-	FName PreviewShaderPlatformName;
+	FName PreviewShaderFormatName;
 
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
@@ -296,15 +296,15 @@ struct FPreviewPlatformInfo
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderPlatformName == Other.PreviewShaderPlatformName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewShaderFormatName == Other.PreviewShaderFormatName;
 	}
 
 	/** Convert platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
 	FName GetEffectivePreviewPlatformName() const
 	{
-		if (PreviewShaderPlatformName != NAME_None && bPreviewFeatureLevelActive)
+		if (PreviewShaderFormatName != NAME_None && bPreviewFeatureLevelActive)
 		{
-			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderPlatformName);
+			ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), PreviewShaderFormatName);
 			if (TargetPlatform)
 			{
 				return FName(*TargetPlatform->IniPlatformName());
