@@ -183,6 +183,7 @@ type EdgeOptionFields = {
 
 	disallowSkip: boolean
 	incognitoMode: boolean
+	terminal: boolean // changes go along terminal edges but no further
 
 	excludeAuthors: string[]
 }
@@ -271,9 +272,10 @@ export abstract class FunctionalTest {
 	}
 
 	protected makeBranchDef(stream: string, to: string[], forceAll?: boolean): RobomergeBranchSpec {
+		const name = this.fullBranchName(stream)
 		return {
 			streamDepot: this.testName,
-			name: this.fullBranchName(stream),
+			name, aliases: [name + '_alias'],
 			streamName: stream,
 			flowsTo: to.map(str => this.fullBranchName(str)),
 			forceAll: !!forceAll
@@ -725,7 +727,7 @@ export abstract class FunctionalTest {
 			const status = branchState.getStatusMessage()
 			if (status) {
 				if (dump) {
-					this.verbose(`${node} status: ${status} (active: ${branchState.isActive()})`)
+					this.verbose(`${node} status: ${status} (active: ${branchState.isActive()} - ${branchState.getStatusMessage()})`)
 				}
 				return false
 			}
