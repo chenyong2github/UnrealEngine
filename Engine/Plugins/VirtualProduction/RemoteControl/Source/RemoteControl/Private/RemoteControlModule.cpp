@@ -23,6 +23,7 @@ namespace RemoteControlUtil
 	const FName NAME_DeprecatedFunction(TEXT("DeprecatedFunction"));
 	const FName NAME_BlueprintGetter(TEXT("BlueprintGetter"));
 	const FName NAME_BlueprintSetter(TEXT("BlueprintSetter"));
+	const FName NAME_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
 
 	bool CompareFunctionName(const FString& FunctionName, const FString& ScriptName)
 	{
@@ -65,9 +66,11 @@ namespace RemoteControlUtil
 			// it doesn't have exposed getter/setter that should be used instead
 #if WITH_EDITOR
 			(!InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintGetter) || !InProperty->HasMetaData(RemoteControlUtil::NAME_BlueprintSetter)) &&
+			// it isn't private or protected, except if AllowPrivateAccess is true
+			(!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) || InProperty->GetBoolMetaData(RemoteControlUtil::NAME_AllowPrivateAccess)) &&
 #endif
-			// it isn't private or protected
-			!InProperty->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate) &&
+			// it isn't blueprint private
+			!InProperty->HasAnyPropertyFlags(CPF_DisableEditOnInstance) &&
 			// and it's either blueprint visible if in game or editable if in editor and it isn't read only if the access type is write
 			(bObjectInGamePackage ?
 				InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible) && (InAccessType == ERCAccess::READ_ACCESS || !InProperty->HasAnyPropertyFlags(CPF_BlueprintReadOnly)) :
