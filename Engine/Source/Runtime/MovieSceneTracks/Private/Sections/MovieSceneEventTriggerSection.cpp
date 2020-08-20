@@ -80,7 +80,7 @@ void UMovieSceneEventTriggerSection::ImportEntityImpl(UMovieSceneEntitySystemLin
 
 	FMovieSceneEventTriggerData TriggerData = {
 		Events[EventIndex].Ptrs,
-		Params.ObjectBindingID,
+		Params.GetObjectBindingID(),
 		ThisInstance.GetSequenceID(),
 		Times[EventIndex] * Context.GetSequenceToRootTransform()
 	};
@@ -91,15 +91,17 @@ void UMovieSceneEventTriggerSection::ImportEntityImpl(UMovieSceneEntitySystemLin
 	EntityLinker->EntityManager.MimicStructureChanged();
 }
 
-bool UMovieSceneEventTriggerSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+bool UMovieSceneEventTriggerSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+
 	TArrayView<const FFrameNumber> Times = EventChannel.GetData().GetTimes();
 	for (int32 Index = 0; Index < Times.Num(); ++Index)
 	{
 		if (EffectiveRange.Contains(Times[Index]))
 		{
 			TRange<FFrameNumber> Range(Times[Index]);
-			OutField->OneShotEntities.Populate(Range, this, Index);
+			OutFieldBuilder->AddOneShotEntity(Range, this, Index, MetaDataIndex);
 		}
 	}
 

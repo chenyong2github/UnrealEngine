@@ -96,6 +96,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.ImportedEntity          = ComponentRegistry->NewTag(TEXT("Imported Entity"));
 	Tags.Finished                = ComponentRegistry->NewTag(TEXT("Finished Evaluating"));
 	Tags.Ignored                 = ComponentRegistry->NewTag(TEXT("Ignored"));
+	Tags.FixedTime               = ComponentRegistry->NewTag(TEXT("Fixed Time"));
+	Tags.PreRoll                 = ComponentRegistry->NewTag(TEXT("Pre Roll"));
+	Tags.SectionPreRoll          = ComponentRegistry->NewTag(TEXT("Section Pre Roll"));
 
 	SymbolicTags.CreatesEntities = ComponentRegistry->NewTag(TEXT(" ~~ SYMBOLIC~~ Creates Entities"));
 
@@ -111,6 +114,13 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AbsoluteBlend, Tags.AbsoluteBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.RelativeBlend, Tags.RelativeBlend);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.AdditiveBlend, Tags.AdditiveBlend);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.FixedTime,     Tags.FixedTime);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.PreRoll,       Tags.PreRoll);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.SectionPreRoll,Tags.SectionPreRoll);
+
+	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Tags.SectionPreRoll,Tags.PreRoll);
+
+	ComponentRegistry->Factories.DuplicateChildComponent(EvalTime);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(InstanceHandle);
 	ComponentRegistry->Factories.DuplicateChildComponent(PropertyBinding);

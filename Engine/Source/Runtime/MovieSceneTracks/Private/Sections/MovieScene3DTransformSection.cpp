@@ -419,9 +419,11 @@ void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 		? BuiltInComponentTypes->SceneComponentBinding
 		: BuiltInComponentTypes->GenericObjectBinding;
 
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
 	auto BaseBuilder = FEntityBuilder()
 		.Add(BuiltInComponentTypes->PropertyBinding, Track->GetPropertyBinding())
-		.AddConditional(ObjectBinding,               Params.ObjectBindingID, Params.ObjectBindingID.IsValid());
+		.AddConditional(ObjectBinding,               ObjectBindingID, ObjectBindingID.IsValid());
 
 	BuildEntity(BaseBuilder, EntityLinker, Params, OutImportedEntity);
 }

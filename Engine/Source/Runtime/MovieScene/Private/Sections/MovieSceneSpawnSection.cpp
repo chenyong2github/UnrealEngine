@@ -27,18 +27,24 @@ void UMovieSceneSpawnSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 {
 	using namespace UE::MovieScene;
 
-	UMovieScene* ParentMovieScene = GetTypedOuter<UMovieScene>();
-	if (!ParentMovieScene || !ParentMovieScene->FindPossessable(Params.ObjectBindingID))
-	{
-		OutImportedEntity->AddBuilder(
-			FEntityBuilder()
-			.Add(FBuiltInComponentTypes::Get()->SpawnableBinding, Params.ObjectBindingID)
-		);
-	}
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(FBuiltInComponentTypes::Get()->SpawnableBinding, Params.GetObjectBindingID())
+	);
 }
 
-bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
+	FGuid ObjectBindingID = OutFieldBuilder->GetSharedMetaData().ObjectBindingID;
+
+	UMovieScene* ParentMovieScene = GetTypedOuter<UMovieScene>();
+	if (ParentMovieScene->FindPossessable(ObjectBindingID))
+	{
+		return true;
+	}
+
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+
 	// Only add the valid section ranges to the tree
 	TArrayView<const FFrameNumber> Times  = BoolCurve.GetTimes();
 	TArrayView<const bool>         Values = BoolCurve.GetValues();
@@ -48,10 +54,12 @@ bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNum
 		if (BoolCurve.GetDefault().Get(false))
 		{
 			// Add the whole section range
-			OutField->Entities.Populate(EffectiveRange, this, 0);
+			OutFieldBuilder->AddPersistentEntity(EffectiveRange, this, 0, MetaDataIndex);
 		}
 		return true;
 	}
+
+	const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, 0);
 
 	TRangeBound<FFrameNumber> StartBound = EffectiveRange.GetLowerBound();
 
@@ -71,7 +79,8 @@ bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNum
 			if (bIsSpawned)
 			{
 				// Add the last range to the tree
-				OutField->Entities.Populate(TRange<FFrameNumber>(StartBound, TRangeBound<FFrameNumber>::Exclusive(Times[Index])), this, 0);
+				TRange<FFrameNumber> Range(StartBound, TRangeBound<FFrameNumber>::Exclusive(Times[Index]));
+				OutFieldBuilder->AddPersistentEntity(Range, EntityIndex, MetaDataIndex);
 			}
 
 			bIsSpawned = Values[Index];
@@ -86,7 +95,7 @@ bool UMovieSceneSpawnSection::PopulateEvaluationFieldImpl(const TRange<FFrameNum
 	TRange<FFrameNumber> TailRange(StartBound, EffectiveRange.GetUpperBound());
 	if (!TailRange.IsEmpty() && bIsSpawned)
 	{
-		OutField->Entities.Populate(TailRange, this, 0);
+		OutFieldBuilder->AddPersistentEntity(TailRange, EntityIndex, MetaDataIndex);
 	}
 
 	return true;
