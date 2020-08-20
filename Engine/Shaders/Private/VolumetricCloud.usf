@@ -1130,7 +1130,7 @@ void MainPS(
 	// This is the default depth when no cloud has been intersected. 
 	// It is better to limit depth to a close distance instead of max float to smooth out cloud edges when intersecting opaque meshes.
 	// No visual issues have been noticed with reprojection+TAA so far.
-	const float NoCloudDepth = TMax * CENTIMETER_TO_KILOMETER;
+	const float NoCloudDepth = TMax;
 
 	const float tAP = tAPWeightsSum==0.0f ? NoCloudDepth : tAPWeightedSum / max(0.0000000001f, tAPWeightsSum);
 	float3 AbsoluteWorldPosition = RayOrigin + tAP * Raydir;
@@ -1190,7 +1190,7 @@ void MainPS(
 	OutColor1 = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
 	if (RenderVolumetricCloudParameters.IntersectWithOpaque > 0)
 	{
-		OutColor1 = (GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
+		OutColor1 = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
 
 #if 0
