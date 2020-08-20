@@ -88,7 +88,7 @@ public:
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
 	TSharedPtr<FUICommandInfo> CompleteActiveTool;
-
+	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 
 	/**
 	 * Initialize commands

@@ -2,6 +2,7 @@
 
 #include "ModelingToolsManagerActions.h"
 #include "EditorStyleSet.h"
+#include "InputCoreTypes.h"
 #include "ModelingToolsEditorModeStyle.h"
 
 #define LOCTEXT_NAMESPACE "ModelingToolsManagerCommands"
@@ -94,6 +95,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(AcceptActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CancelActiveTool, "Cancel", "Cancel the active tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CompleteActiveTool, "Complete", "Complete the active tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CancelOrCompleteActiveTool, "Cancel or Complete", "Cancel or complete the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Escape));
 }
 
 

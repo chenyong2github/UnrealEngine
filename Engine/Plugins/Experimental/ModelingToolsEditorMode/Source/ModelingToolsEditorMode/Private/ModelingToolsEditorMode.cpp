@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelingToolsEditorMode.h"
+#include "InteractiveTool.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "Framework/Commands/UICommandList.h"
@@ -453,7 +454,18 @@ void FModelingToolsEditorMode::Enter()
 			FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->CanCompleteActiveTool(); }),
 			EUIActionRepeatMode::RepeatDisabled
 		);
-
+		CommandList->MapAction(
+		    ToolManagerCommands.CancelOrCompleteActiveTool,
+		    FExecuteAction::CreateLambda([this]() {
+				const EToolShutdownType ShutdownType = ToolsContext->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
+				ToolsContext->EndTool(ShutdownType);
+			}),
+		    FCanExecuteAction::CreateLambda([this]() {
+			    return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();
+		    }),
+		    FGetActionCheckState(),
+		    FIsActionButtonVisible::CreateLambda([this]() { return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();}),
+		    EUIActionRepeatMode::RepeatDisabled);
 	}
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
@@ -734,6 +746,7 @@ void FModelingToolsEditorMode::Exit()
 		const TSharedRef<FUICommandList>& ToolkitCommandList = Toolkit->GetToolkitCommands();
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.AcceptActiveTool);
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.CancelActiveTool);
+		ToolkitCommandList->UnmapAction(ToolManagerCommands.CancelOrCompleteActiveTool);
 		ToolkitCommandList->UnmapAction(ToolManagerCommands.CompleteActiveTool);
 
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
