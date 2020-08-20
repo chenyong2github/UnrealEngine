@@ -99,6 +99,26 @@ int32 UBlueprintMapLibrary::GenericMap_Length(const void* TargetMap, const FMapP
 	return 0;
 }
 
+bool UBlueprintMapLibrary::GenericMap_IsEmpty(const void* TargetMap, const FMapProperty* MapProperty)
+{
+	if (TargetMap)
+	{
+		FScriptMapHelper MapHelper(MapProperty, TargetMap);
+		return MapHelper.Num() == 0;
+	}
+	return true;
+}
+
+bool UBlueprintMapLibrary::GenericMap_IsNotEmpty(const void* TargetMap, const FMapProperty* MapProperty)
+{
+	if (TargetMap)
+	{
+		FScriptMapHelper MapHelper(MapProperty, TargetMap);
+		return MapHelper.Num() > 0;
+	}
+	return false;
+}
+
 void UBlueprintMapLibrary::GenericMap_Clear(const void* TargetMap, const FMapProperty* MapProperty)
 {
 	if(TargetMap)

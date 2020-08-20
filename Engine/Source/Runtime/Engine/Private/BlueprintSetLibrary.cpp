@@ -101,6 +101,29 @@ bool UBlueprintSetLibrary::GenericSet_Contains(const void* TargetSet, const FSet
 	return false;
 }
 
+bool UBlueprintSetLibrary::GenericSet_IsEmpty(const void* TargetSet, const FSetProperty* SetProperty)
+{
+	if (TargetSet)
+	{
+		FScriptSetHelper SetHelper(SetProperty, TargetSet);
+
+		return SetHelper.Num() == 0;
+	}
+
+	return true;
+}
+
+bool UBlueprintSetLibrary::GenericSet_IsNotEmpty(const void* TargetSet, const FSetProperty* SetProperty)
+{
+	if (TargetSet)
+	{
+		FScriptSetHelper SetHelper(SetProperty, TargetSet);
+
+		return SetHelper.Num() > 0;
+	}
+	return false;
+}
+
 void UBlueprintSetLibrary::GenericSet_Intersect(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult)
 {
 	if (SetA && SetB && SetResult)

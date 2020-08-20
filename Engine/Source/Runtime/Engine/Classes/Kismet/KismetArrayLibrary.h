@@ -122,6 +122,24 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Length", CompactNodeTitle = "LENGTH", ArrayParm = "TargetArray", Keywords = "num size count", BlueprintThreadSafe), Category="Utilities|Array")
 	static int32 Array_Length(const TArray<int32>& TargetArray);
 
+	/*
+	 *Check if the array is empty
+	 *
+	 *@param	TargetArray		The array to check
+	 *@return	A boolean indicating if the array is empty
+	*/
+	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Empty", CompactNodeTitle = "IS EMPTY", ArrayParm = "TargetArray", BlueprintThreadSafe), Category = "Utilities|Array")
+	static bool Array_IsEmpty(const TArray<int32>& TargetArray);
+
+	/*
+	 *Check if the array has any elements
+	 *
+	 *@param	TargetArray		The array to check
+	 *@return	A boolean indicating if the array has any elements
+	*/
+	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Not Empty", CompactNodeTitle = "IS NOT EMPTY", ArrayParm = "TargetArray", BlueprintThreadSafe), Category = "Utilities|Array")
+	static bool Array_IsNotEmpty(const TArray<int32>& TargetArray);
+
 
 	/* 
 	 *Get the last valid index into an array
@@ -222,6 +240,8 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	static void GenericArray_Clear(void* TargetArray, const FArrayProperty* ArrayProp);
 	static void GenericArray_Resize(void* TargetArray, const FArrayProperty* ArrayProp, int32 Size);
 	static int32 GenericArray_Length(const void* TargetArray, const FArrayProperty* ArrayProp);
+	static bool GenericArray_IsEmpty(const void* TargetArray, const FArrayProperty* ArrayProp);
+	static bool GenericArray_IsNotEmpty(const void* TargetArray, const FArrayProperty* ArrayProp);
 	static int32 GenericArray_LastIndex(const void* TargetArray, const FArrayProperty* ArrayProp);
 	static void GenericArray_Get(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, void* Item);
 	static void GenericArray_Set(void* TargetArray, const FArrayProperty* ArrayProp, int32 Index, const void* NewItem, bool bSizeToFit);
@@ -511,6 +531,40 @@ public:
 		P_FINISH;
 		P_NATIVE_BEGIN;
 		*(int32*)RESULT_PARAM = GenericArray_Length(ArrayAddr, ArrayProperty);
+		P_NATIVE_END;
+	}
+	
+	DECLARE_FUNCTION(execArray_IsEmpty)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
+		void* ArrayAddr = Stack.MostRecentPropertyAddress;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		*(bool*)RESULT_PARAM = GenericArray_IsEmpty(ArrayAddr, ArrayProperty);
+		P_NATIVE_END;
+	}
+	
+	DECLARE_FUNCTION(execArray_IsNotEmpty)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FArrayProperty>(nullptr);
+		void* ArrayAddr = Stack.MostRecentPropertyAddress;
+		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Stack.MostRecentProperty);
+		if (!ArrayProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		*(bool*)RESULT_PARAM = GenericArray_IsNotEmpty(ArrayAddr, ArrayProperty);
 		P_NATIVE_END;
 	}
 

@@ -360,6 +360,18 @@ public:
 		return TargetSet.Remove(Item) > 0;
 	}
 
+	template<typename T>
+	static bool Set_IsEmpty(const TSet<T>& TargetSet)
+	{
+		return TargetSet.Num() == 0;
+	}
+
+	template<typename T>
+	static bool Set_IsNotEmpty(const TSet<T>& TargetSet)
+	{
+		return TargetSet.Num() > 0;
+	}
+
 	template<typename T, typename U>
 	static void Set_RemoveItems(TSet<T>& TargetSet, const TArray<U>& Items)
 	{
@@ -466,6 +478,18 @@ public:
 		return TargetMap.Num();
 	}
 	
+	template<typename T, typename U>
+	static bool Map_IsEmpty(const TMap<T, U>& TargetMap)
+	{
+		return TargetMap.Num() == 0;
+	}
+
+	template<typename T, typename U>
+	static bool Map_IsNotEmpty(const TMap<T, U>& TargetMap)
+	{
+		return TargetMap.Num() > 0;
+	}
+
 	template<typename T, typename U>
 	static void Map_Clear(TMap<T, U>& TargetMap)
 	{

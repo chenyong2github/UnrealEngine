@@ -85,6 +85,24 @@ public:
 	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Length", CompactNodeTitle = "LENGTH", MapParam = "TargetMap", Keywords = "num size count", BlueprintThreadSafe), Category="Utilities|Map")
 	static int32 Map_Length(const TMap<int32, int32>& TargetMap);
 	
+	/**
+	 * Check if the map does not have any entires
+	 *
+	 * @param	TargetMap		The map to check
+	 * @return	A boolean indicating if the map has any entires
+	 */
+	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Empty", CompactNodeTitle = "IS EMPTY", MapParam = "TargetMap"), Category = "Utilities|Map")
+	static bool Map_IsEmpty(const TMap<int32, int32>& TargetMap);
+
+	/**
+	 * Check if the map has any entries
+	 *
+	 * @param	TargetMap		The map to check
+	 * @return	A boolean indicating if the map has any entires
+	 */
+	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Not Empty", CompactNodeTitle = "IS NOT EMPTY", MapParam = "TargetMap"), Category = "Utilities|Map")
+	static bool Map_IsNotEmpty(const TMap<int32, int32>& TargetMap);
+
 	/** 
 	 * Clears a map of all entries, resetting it to empty
 	 *
@@ -311,6 +329,42 @@ public:
 		P_NATIVE_END
 	}
 
+	DECLARE_FUNCTION(execMap_IsEmpty)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FMapProperty>(nullptr);
+		void* MapAddr = Stack.MostRecentPropertyAddress;
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
+		if (!MapProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		*(bool*)RESULT_PARAM = GenericMap_IsEmpty(MapAddr, MapProperty);
+		P_NATIVE_END
+	}
+
+	DECLARE_FUNCTION(execMap_IsNotEmpty)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FMapProperty>(nullptr);
+		void* MapAddr = Stack.MostRecentPropertyAddress;
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
+		if (!MapProperty)
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		*(bool*)RESULT_PARAM = GenericMap_IsNotEmpty(MapAddr, MapProperty);
+		P_NATIVE_END
+	}
+
 	DECLARE_FUNCTION(execMap_Clear)
 	{
 		Stack.MostRecentProperty = nullptr;
@@ -350,6 +404,8 @@ public:
 	static void GenericMap_Keys(const void* MapAddr, const FMapProperty* MapProperty, const void* ArrayAddr, const FArrayProperty* ArrayProperty);
 	static void GenericMap_Values(const void* MapAddr, const FMapProperty* MapProperty, const void* ArrayAddr, const FArrayProperty* ArrayProperty);
 	static int32 GenericMap_Length(const void* TargetMap, const FMapProperty* MapProperty);
+	static bool GenericMap_IsEmpty(const void* TargetMap, const FMapProperty* MapProperty);
+	static bool GenericMap_IsNotEmpty(const void* TargetMap, const FMapProperty* MapProperty);
 	static void GenericMap_Clear(const void* TargetMap, const FMapProperty* MapProperty);
 	static void GenericMap_SetMapPropertyByName(UObject* OwnerObject, FName MapPropertyName, const void* SrcMapAddr);
 };
