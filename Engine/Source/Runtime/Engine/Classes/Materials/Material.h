@@ -1442,8 +1442,14 @@ public:
 	* Or is required by the material quality setting overrides.
 	* @param	QualityLevelsUsed	output array of used quality levels.
 	* @param	ShaderPlatform	The shader platform to use for the quality settings.
+	* @param	bCooking		During cooking, certain quality levels may be discarded
 	*/
-	void GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform);
+	void GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking = false);
+	
+	inline void GetQualityLevelUsageForCooking(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform)
+	{
+		GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform, true);
+	}
 
 #if WITH_EDITOR
 	ENGINE_API void UpdateCachedExpressionData();
