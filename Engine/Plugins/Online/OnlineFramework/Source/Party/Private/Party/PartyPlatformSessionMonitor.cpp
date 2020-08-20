@@ -106,10 +106,14 @@ static FAutoConsoleVariableRef CVar_EstablishSessionRetryDelay(
 //////////////////////////////////////////////////////////////////////////
 bool FPartyPlatformSessionManager::DoesOssNeedPartySession(FName OssName)
 {
+#ifdef OSS_PARTY_PLATFORM_SESSION_REQUIRED
+	return OSS_PARTY_PLATFORM_SESSION_REQUIRED;
+#else
 	const bool bIsPS4 = OssName.IsEqual(PS4_SUBSYSTEM);
 	const bool bIsXB1 = OssName.IsEqual(LIVE_SUBSYSTEM);
 	const bool bIsTencent = OssName.IsEqual(TENCENT_SUBSYSTEM);
 	return bIsPS4 || bIsXB1 || bIsTencent;
+#endif
 }
 
 TSharedRef<FPartyPlatformSessionManager> FPartyPlatformSessionManager::Create(USocialManager& InSocialManager)
