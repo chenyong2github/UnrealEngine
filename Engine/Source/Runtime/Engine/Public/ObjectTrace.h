@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "TraceFilter.h"
 
 #include "ObjectTrace.generated.h"
 
@@ -67,7 +68,19 @@ struct FObjectTrace
 #define TRACE_OBJECT(Object) \
 	FObjectTrace::OutputObject(Object);
 
+#if TRACE_FILTERING_ENABLED
+
 #define TRACE_OBJECT_EVENT(Object, Event) \
+	if(CAN_TRACE_OBJECT(Object)) { UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event); }
+
+#else
+
+#define TRACE_OBJECT_EVENT(Object, Event) \
+	UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event);
+
+#endif
+	
+#define UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event) \
 	FObjectTrace::OutputObjectEvent(Object, TEXT(#Event));
 
 #define TRACE_WORLD(World) \
