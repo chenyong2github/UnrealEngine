@@ -1021,6 +1021,12 @@ void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
 
 void FNiagaraSystemViewModel::RefreshAll()
 {
+	if (GetSystem().HasOutstandingCompilationRequests() == false)
+	{
+		// Data changes which require full refreshes can cause stability problems when resetting the accompanying system, especially
+		// when used in conjunction with warm up.  This is a temporary fix for these crashes.
+		CompileSystem(false);
+	}
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ReinitializeSystem);
 	RefreshEmitterHandleViewModels();
 	RefreshSequencerTracks();
