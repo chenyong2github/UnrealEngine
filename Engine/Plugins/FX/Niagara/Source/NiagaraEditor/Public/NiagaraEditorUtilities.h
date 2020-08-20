@@ -293,7 +293,7 @@ namespace FNiagaraEditorUtilities
 
 	void GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData);
 
-	FString GetNamespacelessVariableNameString(const FName& InVarName);
+	FString NIAGARAEDITOR_API GetNamespacelessVariableNameString(const FName& InVarName);
 
 	void GetReferencingFunctionCallNodes(UNiagaraScript* Script, TArray<UNiagaraNodeFunctionCall*>& OutReferencingFunctionCallNodes);
 
