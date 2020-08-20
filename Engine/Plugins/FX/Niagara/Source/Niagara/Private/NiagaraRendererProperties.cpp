@@ -230,19 +230,36 @@ void UNiagaraRendererProperties::PostInitProperties()
 #endif
 }
 
+void UNiagaraRendererProperties::SetIsEnabled(bool bInIsEnabled)
+{
+	if (bIsEnabled != bInIsEnabled)
+	{
+#if WITH_EDITORONLY_DATA
+		// Changing the enabled state will add or remove its renderer binding data stored on the emitters RenderBindings
+		// parameter store, so we need to reset to clear any binding references or add new ones
+		if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+		{
+			FNiagaraSystemUpdateContext(SrcEmitter, true);
+		}
+#endif
+	}
+
+	bIsEnabled = bInIsEnabled;
+}
+
 void UNiagaraRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
 {
 	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
 	if (SrcEmitter)
 	{
-		//TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
-		//GetBindingsArray(AttributeBindings);
 		for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 		{
 			((FNiagaraVariableAttributeBinding*)Binding)->CacheValues(SrcEmitter, InSourceMode);
 		}
 
 #if WITH_EDITORONLY_DATA
+		// If we added or removed any valid bindings to a non-particle source during editing, we need to reset to prevent hazards and
+		// to ensure new ones get bound by the simulation
 		if (bFromPropertyEdit)
 		{
 			FNiagaraSystemUpdateContext Context(SrcEmitter, true);
