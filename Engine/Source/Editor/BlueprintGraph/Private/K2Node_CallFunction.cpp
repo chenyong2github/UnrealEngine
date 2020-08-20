@@ -2049,6 +2049,10 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 
 	const UClass* BlueprintClass = Blueprint ? Blueprint->ParentClass : nullptr;
 	const bool bIsEditorOnlyBlueprintBaseClass = !BlueprintClass || IsEditorOnlyObject(BlueprintClass);
+
+	// This error is disabled while we figure out how we can identify uncooked only
+	// blueprints that want to make use of uncooked only APIs:
+	#if 0
 	const bool bIsUncookedOnlyFunction = Function && Function->GetOutermost()->HasAllPackagesFlags(PKG_UncookedOnly);
 	if (	bIsUncookedOnlyFunction &&
 			// Only allow calls to uncooked only functions from editor only/uncooked only
@@ -2058,6 +2062,7 @@ void UK2Node_CallFunction::ValidateNodeDuringCompilation(class FCompilerResultsL
 	{
 		MessageLog.Error(*LOCTEXT("UncookedOnlyError", "Attempting to call uncooked only function @@ in runtime blueprint").ToString(), this);
 	}
+	#endif //0
 	
 	// Ensure that editor module BP exposed UFunctions can only be called in blueprints for which the base class is also part of an editor module
 	// Also check for functions wrapped in WITH_EDITOR 
