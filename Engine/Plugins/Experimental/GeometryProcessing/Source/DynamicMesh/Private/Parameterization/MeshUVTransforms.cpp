@@ -2,6 +2,7 @@
 
 
 #include "Parameterization/MeshUVTransforms.h"
+#include "Math/RandomStream.h"
 
 
 void UE::MeshUVTransforms::RecenterScale(FDynamicMeshUVOverlay* UVOverlay, const TArray<int32>& UVElementIDs,
@@ -90,4 +91,73 @@ void UE::MeshUVTransforms::FitToBox(FDynamicMeshUVOverlay* UVOverlay, const TArr
 void UE::MeshUVTransforms::FitToBox(FDynamicMeshUVOverlay* UVOverlay, const FAxisAlignedBox2d& Box, bool bUniformScale)
 {
 	FitToBox_Internal(UVOverlay, UVOverlay->ElementIndicesItr(), Box, bUniformScale);
+}
+
+
+
+
+
+void UE::MeshUVTransforms::MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay)
+{
+	FRandomStream Random(31337);
+
+	// return random 2D unit vector scaled by Jitterscale
+	auto GetRandomUVJitter = [&Random](float JitterScale)
+	{
+		FVector2f Result;
+		float Magnitude;
+		do {
+			Result.X = Random.GetFraction() * 2.0f - 1.0f;
+			Result.Y = Random.GetFraction() * 2.0f - 1.0f;
+			Magnitude = Result.SquaredLength();
+		} while (Magnitude > 1.0f || Magnitude < FMathf::ZeroTolerance);
+		Result.Normalize();
+		return JitterScale * Result;
+	};
+
+	const FDynamicMesh3* Mesh = UVOverlay->GetParentMesh();
+
+	// mapping from vertex ID to linear index, only defined for seam verts
+	TArray<int32> SeamVerticesMap;
+	SeamVerticesMap.Init(-1, Mesh->MaxVertexID());
+
+	// make linear index for all seam vertices
+	int32 SeamCounter = 0;
+	for (int32 vid : Mesh->VertexIndicesItr())
+	{
+		if (UVOverlay->IsSeamVertex(vid))
+		{
+			SeamVerticesMap[vid] = SeamCounter++;
+		}
+	}
+
+	// per-seam arrays for collecting unique element positions
+	TArray<TArray<FVector2f, TInlineAllocator<8>>> SeamUVPositions;
+	SeamUVPositions.SetNum(SeamCounter);
+
+	// for each element at a seam vertex, we ensure it has a unique position by
+	// adding random offsets.
+	for (int32 elemid : UVOverlay->ElementIndicesItr())
+	{
+		int32 ParentVtxID = UVOverlay->GetParentVertex(elemid);
+		int32 SeamListIndex = SeamVerticesMap[ParentVtxID];
+		if (SeamListIndex == -1)
+		{
+			continue;
+		}
+
+		// if current position exists, add increasing amounts of random offset until
+		// the position becomes unique
+		FVector2f UVPos = UVOverlay->GetElement(elemid);
+		int32 TryCounter = 0;
+		float JitterScale = 0.005;
+		while (SeamUVPositions[SeamListIndex].Contains(UVPos) && TryCounter++ < 25)
+		{
+			UVPos = UVOverlay->GetElement(elemid) + GetRandomUVJitter(JitterScale);
+			JitterScale *= 2.0;
+		}
+
+		SeamUVPositions[SeamListIndex].Add(UVPos);
+		UVOverlay->SetElement(elemid, UVPos);
+	}
 }

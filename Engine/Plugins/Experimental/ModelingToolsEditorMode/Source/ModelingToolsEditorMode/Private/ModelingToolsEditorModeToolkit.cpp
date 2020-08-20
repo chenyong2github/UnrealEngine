@@ -481,6 +481,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGlobalUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVSeamEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformUVIslandsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
 		ToolbarBuilder.AddSeparator();
@@ -621,6 +622,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGlobalUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGroupUVGenerateTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVProjectionTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginUVSeamEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformUVIslandsTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginUVLayoutTool);
 		ToolbarBuilder.AddSeparator();

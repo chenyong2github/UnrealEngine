@@ -8,8 +8,6 @@
 #include "DynamicMeshAttributeSet.h"
 
 
-struct FMeshDescription;
-
 enum class EParamOpUnwrapType
 {
 	MinStretch = 0,
@@ -22,7 +20,8 @@ enum class EParamOpUnwrapType
 enum class EParamOpIslandMode
 {
 	Auto = 0,
-	PolyGroups = 1
+	PolyGroups = 1,
+	UVIslands = 2
 };
 
 
@@ -36,7 +35,7 @@ public:
 	// 
 
 	// source mesh
-	TSharedPtr<FMeshDescription> InputMesh;
+	TSharedPtr<FDynamicMesh3> InputMesh;
 		
 	// UV generation parameters
 	float Stretch;
@@ -45,6 +44,9 @@ public:
 	// area scaling
 	bool bNormalizeAreas = true;
 	float AreaScaling = 1.0;
+
+	// UV layer
+	int32 UVLayer = 0;
 
 	// Atlas Packing parameters
 	int32 Height = 512;

@@ -14,7 +14,6 @@
 
 
 // predeclarations
-struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
@@ -79,7 +78,9 @@ enum class EUVIslandMode
 	/**  */
 	Auto = 0,
 	/** */
-	PolyGroups = 1
+	PolyGroups = 1,
+	/** */
+	ExistingUVs = 2
 };
 
 
@@ -105,7 +106,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolProperties : public U
 public:
 
 	//UPROPERTY(EditAnywhere, Category = Options)
-	UPROPERTY(meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
 	EUVIslandMode IslandMode = EUVIslandMode::PolyGroups;
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
@@ -188,6 +189,6 @@ protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-	TSharedPtr<FMeshDescription> InputMesh;
+	TSharedPtr<FDynamicMesh3> InputMesh;
 
 };
