@@ -1334,7 +1334,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 						if (bMonitoredSessionLoaded && TempCrashContext.UserSettings.bSendUnattendedBugReports)
 						{
 							// Check what the Editor knows about the exit. Was the proper handlers called and the flag(s) set in the summary event?
-							if (WasAbnormalShutdown(MonitoredSession))
+							if (WasAbnormalShutdown(MonitoredSession) && !MonitoredSession.bIsUserLoggingOut)
 							{
 								// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
 								HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
