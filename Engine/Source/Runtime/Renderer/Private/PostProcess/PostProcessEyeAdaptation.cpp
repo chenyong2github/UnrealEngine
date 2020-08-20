@@ -173,6 +173,12 @@ float GetAutoExposureCompensationFromSettings(const FViewInfo& View)
 	// This scales the average luminance AFTER it gets clamped, affecting the exposure value directly.
 	float AutoExposureBias = Settings.AutoExposureBias;
 
+	// Reset AutoExposureBias to 0.0f if it is used for mobile LDR, because we don't go through the postprocess eye adaptation pass. 
+	if (IsMobilePlatform(View.GetShaderPlatform()) && !IsMobileHDR())
+	{
+		AutoExposureBias = 0.0f;
+	}
+
 	return FMath::Pow(2.0f, AutoExposureBias);
 }
 
