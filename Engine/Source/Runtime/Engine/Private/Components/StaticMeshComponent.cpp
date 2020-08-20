@@ -2274,7 +2274,8 @@ TStructOnScope<FActorComponentInstanceData> UStaticMeshComponent::GetComponentIn
 	{
 		const FStaticMeshComponentLODInfo& LODInfo = LODData[LODIndex];
 
-		if ( LODInfo.OverrideVertexColors && LODInfo.OverrideVertexColors->GetNumVertices() > 0 && LODInfo.PaintedVertices.Num() > 0 )
+		// Note: we don't need to check LODInfo.PaintedVertices here since it's not always required.
+		if ( LODInfo.OverrideVertexColors && LODInfo.OverrideVertexColors->GetNumVertices() > 0 )
 		{
 			StaticMeshInstanceData->AddVertexColorData(LODInfo, LODIndex);
 		}
