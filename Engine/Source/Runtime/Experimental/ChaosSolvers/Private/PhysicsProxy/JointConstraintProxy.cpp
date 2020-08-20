@@ -350,8 +350,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 
 
 /**/
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults() 
+template< class CONSTRAINT_TYPE>
+void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults()
 {
 	if (Constraint != nullptr)
 	{
@@ -366,8 +366,8 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults()
 }
 
 /**/
-template < >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState()
+template< class CONSTRAINT_TYPE>
+void TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState()
 {
 	if (Constraint != nullptr)
 	{
@@ -396,8 +396,6 @@ template class TJointConstraintProxy< Chaos::FJointConstraint >;
 template void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState();\
 template void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
 
 #include "Chaos/EvolutionTraits.inl"
