@@ -541,7 +541,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Size of the file, or -1 if not specified
 		/// </summary>
-		public readonly int FileSize;
+		public readonly long FileSize;
 
 		/// <summary>
 		/// Digest of the file, or null if not specified
@@ -572,7 +572,7 @@ namespace AutomationTool
 		/// <param name="Digest">Digest of the file, or null if not specified</param>
 		/// <param name="Description">Description of the changelist</param>
 		/// <param name="Integrations">Integrations performed to the file</param>
-		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, int FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
+		public P4RevisionRecord(int RevisionNumber, int ChangeNumber, P4Action Action, string Type, DateTime DateTime, string UserName, string ClientName, long FileSize, string Digest, string Description, P4IntegrationRecord[] Integrations)
 		{
 			this.RevisionNumber = RevisionNumber;
 			this.ChangeNumber = ChangeNumber;
@@ -1112,7 +1112,7 @@ namespace AutomationTool
 					{
 						if(!GlobalCommandLine.P4)
 						{
-							LogWarning("Command {0} requires P4 functionality.", Command.Name);
+							LogInformation("Command {0} requires P4 functionality.", Command.Name);
 						}
 						bRequireP4 = true;
 
@@ -2188,6 +2188,18 @@ namespace AutomationTool
 		public void RevertAll(int CL, bool SpewIsVerbose = false)
 		{
 			LogP4("revert " + String.Format("-c {0} //...", CL), SpewIsVerbose: SpewIsVerbose);
+		}
+
+		/// <summary>
+		/// Submits the specified changelist.
+		/// </summary>
+		/// <param name="CL">Changelist to submit.</param>
+		/// <param name="Force">If true, the submit will be forced even if resolve is needed.</param>
+		/// <param name="RevertIfFail">If true, if the submit fails, revert the CL.</param>
+		public void Submit(int CL, bool Force = false, bool RevertIfFail = false)
+		{
+			int SubmittedCL;
+			Submit(CL, out SubmittedCL, Force, RevertIfFail);
 		}
 
 		/// <summary>
@@ -3412,31 +3424,36 @@ namespace AutomationTool
 					throw new AutomationException("Failed to retrieve p4 client info for user {0}. Unable to set up local environment", UserName);
 				}
 				
-				bool bAddClient = true;
-				// Filter the client out if the specified path is not under the client root
-				if (!String.IsNullOrEmpty(PathUnderClientRoot) && !String.IsNullOrEmpty(Info.RootPath))
-				{
-					var ClientRootPathWithSlash = Info.RootPath;
-					if (!ClientRootPathWithSlash.EndsWith("\\") && !ClientRootPathWithSlash.EndsWith("/"))
-					{
-						ClientRootPathWithSlash = CommandUtils.ConvertSeparators(PathSeparator.Default, ClientRootPathWithSlash + "/");
-					}
-					bAddClient = PathUnderClientRoot.StartsWith(ClientRootPathWithSlash, StringComparison.CurrentCultureIgnoreCase);
-				}
-
-				if (bAddClient)
+				if (IsValidClientForFile(Info, PathUnderClientRoot))
 				{
 					ClientList.Add(Info);
 				}
 			}
 			return ClientList.ToArray();
 		}
-        /// <summary>
-        /// Deletes a client.
-        /// </summary>
-        /// <param name="Name">Client name.</param>
-        /// <param name="Force">Forces the operation (-f)</param>
-        public void DeleteClient(string Name, bool Force = false, bool AllowSpew = true)
+
+		public bool IsValidClientForFile(P4ClientInfo Info, string PathUnderClientRoot)
+		{
+			// Filter the client out if the specified path is not under the client root
+			bool bAddClient = true;
+			if (!String.IsNullOrEmpty(PathUnderClientRoot) && !String.IsNullOrEmpty(Info.RootPath))
+			{
+				var ClientRootPathWithSlash = Info.RootPath;
+				if (!ClientRootPathWithSlash.EndsWith("\\") && !ClientRootPathWithSlash.EndsWith("/"))
+				{
+					ClientRootPathWithSlash = CommandUtils.ConvertSeparators(PathSeparator.Default, ClientRootPathWithSlash + "/");
+				}
+				bAddClient = PathUnderClientRoot.StartsWith(ClientRootPathWithSlash, StringComparison.CurrentCultureIgnoreCase);
+			}
+			return bAddClient;
+		}
+
+		/// <summary>
+		/// Deletes a client.
+		/// </summary>
+		/// <param name="Name">Client name.</param>
+		/// <param name="Force">Forces the operation (-f)</param>
+		public void DeleteClient(string Name, bool Force = false, bool AllowSpew = true)
         {
             LogP4(String.Format("client -d {0} {1}", (Force ? "-f" : ""), Name), WithClient: false, AllowSpew: AllowSpew);
         }
@@ -3577,7 +3594,7 @@ namespace AutomationTool
 		public List<int> StreamInterchanges(string StreamName, bool bReverse)
 		{
 			string Output;
-			if(!P4Output(out Output, String.Format("interchanges {0}-S {1}", bReverse? "-r " : "", StreamName), Input:null, AllowSpew:false))
+			if(!P4Output(out Output, String.Format("interchanges {0}-S {1} -F", bReverse? "-r " : "", StreamName), Input:null, AllowSpew:false))
 			{
 				throw new AutomationException("Couldn't get unintegrated stream changes from {0}", StreamName);
 			}
@@ -3745,7 +3762,7 @@ namespace AutomationTool
 					string Type = RawRecord["type" + RevisionSuffix];
 					string UserName = RawRecord["user" + RevisionSuffix];
 					string ClientName = RawRecord["client" + RevisionSuffix];
-					int FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? int.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
+					long FileSize = RawRecord.ContainsKey("fileSize" + RevisionSuffix)? long.Parse(RawRecord["fileSize" + RevisionSuffix]) : -1;
 					string Digest = RawRecord.ContainsKey("digest" + RevisionSuffix)? RawRecord["digest" + RevisionSuffix] : null;
 					string Description = RawRecord["desc" + RevisionSuffix];
 

@@ -51,6 +51,10 @@ namespace AutomationTool
 			Stopwatch SearchTimer = Stopwatch.StartNew();
 			List<FileReference> ProjectFiles = FindAutomationProjects(ScriptsForProjectFileName, AdditionalScriptsFolders);
 			Log.TraceLog("Found {0} project files in {1:0.000}s", ProjectFiles.Count, SearchTimer.Elapsed.TotalSeconds);
+			foreach(FileReference ProjectFile in ProjectFiles)
+			{
+				Log.TraceLog("  {0}", ProjectFile);
+			}
 
 			// Get the default properties for compiling the projects
 			Dictionary<string, string> MsBuildProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -91,7 +95,14 @@ namespace AutomationTool
 
 				if (OutputDirs.Add(OutputDir))
 				{
-					BuildProducts.UnionWith(DirectoryReference.EnumerateFiles(OutputDir));
+					if (DirectoryReference.Exists(OutputDir))
+					{
+						BuildProducts.UnionWith(DirectoryReference.EnumerateFiles(OutputDir));
+					}
+					else
+					{
+						Log.TraceLog("Output directory {0} does not exist; ignoring", OutputDir);
+					}
 				}
 			}
 
@@ -457,7 +468,7 @@ namespace AutomationTool
 				}
 
 				// Load the assembly into our app domain
-				CommandUtils.LogVerbose("Loading script DLL: {0}", AssemblyLocation);
+				CommandUtils.LogLog("Loading script DLL: {0}", AssemblyLocation);
 				try
 				{
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
