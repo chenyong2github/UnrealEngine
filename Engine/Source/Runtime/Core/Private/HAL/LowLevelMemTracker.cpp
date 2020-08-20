@@ -398,8 +398,8 @@ public:
 	void PushAssetTag(int64 Tag);
 	void PopAssetTag();
 #endif
-	void TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType);
-	void TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType AllocType);
+	void TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro = true);
+	void TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro = true);
 	void OnAllocMoved(const void* Dest, const void* Source, uint64& OutSize, int64& OutTag);
 
 	void TrackMemory(int64 Tag, int64 Amount);
@@ -475,8 +475,8 @@ protected:
 		void PopAssetTag();
 		int64 GetTopAssetTag();
 #endif
-		void TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType);
-		void TrackFree(const void* Ptr, int64 Tag, uint64 Size, bool bTrackedUntagged, ELLMTracker Tracker, ELLMAllocType AllocType);
+		void TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro = true);
+		void TrackFree(const void* Ptr, int64 Tag, uint64 Size, bool bTrackedUntagged, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro = true);
 		void IncrTag(int64 Tag, int64 Amount, bool bTrackUntagged);
 
 		void GetFrameStatTotals(
@@ -854,17 +854,17 @@ uint64 FLowLevelMemTracker::GetTotalTrackedMemory(ELLMTracker Tracker)
 	return GetTracker(Tracker)->GetTrackedMemoryOverFrames();
 }
 
-void FLowLevelMemTracker::OnLowLevelAlloc(ELLMTracker Tracker, const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMAllocType AllocType)
+void FLowLevelMemTracker::OnLowLevelAlloc(ELLMTracker Tracker, const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	if (bIsDisabled)
 	{
 		return;
 	}
 
-	GetTracker(Tracker)->TrackAllocation(Ptr, Size, DefaultTag, Tracker, AllocType);
+	GetTracker(Tracker)->TrackAllocation(Ptr, Size, DefaultTag, Tracker, AllocType, bTrackInMemPro);
 }
 
-void FLowLevelMemTracker::OnLowLevelFree(ELLMTracker Tracker, const void* Ptr, ELLMAllocType AllocType)
+void FLowLevelMemTracker::OnLowLevelFree(ELLMTracker Tracker, const void* Ptr, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	if (bIsDisabled)
 	{
@@ -873,7 +873,7 @@ void FLowLevelMemTracker::OnLowLevelFree(ELLMTracker Tracker, const void* Ptr, E
 
 	if (Ptr != nullptr)
 	{
-		GetTracker(Tracker)->TrackFree(Ptr, Tracker, AllocType);
+		GetTracker(Tracker)->TrackFree(Ptr, Tracker, AllocType, bTrackInMemPro);
 	}
 }
 
@@ -1353,7 +1353,7 @@ void FLLMTracker::PopAssetTag()
 }
 #endif
 
-void FLLMTracker::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType)
+void FLLMTracker::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	if (IsPaused(AllocType))
 	{
@@ -1366,7 +1366,7 @@ void FLLMTracker::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultT
 	FLLMThreadState* State = GetOrCreateState();
 	
 	// track on the thread state, and get the tag
-	State->TrackAllocation(Ptr, Size, DefaultTag, Tracker, AllocType);
+	State->TrackAllocation(Ptr, Size, DefaultTag, Tracker, AllocType, bTrackInMemPro);
 
 	// tracking a nullptr with a Size is allowed, but we don't need to remember it, since we can't free it ever
 	if (Ptr != nullptr)
@@ -1394,7 +1394,7 @@ void FLLMTracker::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultT
 	}
 }
 
-void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType AllocType)
+void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	if (IsPaused(AllocType))
 	{
@@ -1416,12 +1416,12 @@ void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType 
 	FLLMThreadState* State = GetOrCreateState();
 
 #if LLM_USE_ALLOC_INFO_STRUCT
-	State->TrackFree(Ptr, AllocInfo.Tag, Size, true, Tracker, AllocType);
+	State->TrackFree(Ptr, AllocInfo.Tag, Size, true, Tracker, AllocType, bTrackInMemPro);
 	#if LLM_ALLOW_ASSETS_TAGS
 		State->IncrTag(AllocInfo.AssetTag, 0 - Size, false);
 	#endif
 #else
-	State->TrackFree(Ptr, (int64)AllocInfo, Size, true, Tracker, AllocType);
+	State->TrackFree(Ptr, (int64)AllocInfo, Size, true, Tracker, AllocType, bTrackInMemPro);
 #endif
 }
 
@@ -1773,7 +1773,7 @@ int64 FLLMTracker::GetAllocTypeAmount(ELLMAllocType AllocType)
 	return AllocTypeAmounts[(int32)AllocType];
 }
 
-void FLLMTracker::FLLMThreadState::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType)
+void FLLMTracker::FLLMThreadState::TrackAllocation(const void* Ptr, uint64 Size, ELLMTag DefaultTag, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	FScopeLock Lock(&TagSection);
 
@@ -1794,14 +1794,14 @@ void FLLMTracker::FLLMThreadState::TrackAllocation(const void* Ptr, uint64 Size,
 	}
 	
 #if MEMPRO_ENABLED
-	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) && bTrackInMemPro )
 	{
 		MEMPRO_TRACK_ALLOC((void*)Ptr, (size_t)Size);
 	}
 #endif
 }
 
-void FLLMTracker::FLLMThreadState::TrackFree(const void* Ptr, int64 Tag, uint64 Size, bool bTrackedUntagged, ELLMTracker Tracker, ELLMAllocType AllocType)
+void FLLMTracker::FLLMThreadState::TrackFree(const void* Ptr, int64 Tag, uint64 Size, bool bTrackedUntagged, ELLMTracker Tracker, ELLMAllocType AllocType, bool bTrackInMemPro)
 {
 	FScopeLock Lock(&TagSection);
 
@@ -1815,7 +1815,7 @@ void FLLMTracker::FLLMThreadState::TrackFree(const void* Ptr, int64 Tag, uint64 
 	}
 
 #if MEMPRO_ENABLED
-	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) )
+	if (FMemProProfiler::IsTrackingTag( (ELLMTag)Tag) && bTrackInMemPro )
 	{
 		MEMPRO_TRACK_FREE((void*)Ptr);
 	}
