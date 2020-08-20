@@ -593,7 +593,7 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	}
 	FSimpleScopeSecondsCounter ScopedTimer(GTickFlushGameDriverTimeSeconds, bEnableTimer);
 
-	if ( IsServer() && ClientConnections.Num() > 0 && !ClientConnections[0]->IsReplay() )
+	if (IsServer() && ClientConnections.Num() > 0 && !bSkipServerReplicateActors)
 	{
 		// Update all clients.
 #if WITH_SERVER_CODE
