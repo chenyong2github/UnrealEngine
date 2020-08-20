@@ -15,6 +15,7 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	: Sequence(InSubSection.GetSequence())
 	, DeterministicSequenceID(InSubSection.GetSequenceID())
 	, HierarchicalBias(InSubSection.Parameters.HierarchicalBias)
+	, bHasHierarchicalEasing(false)
 #if WITH_EDITORONLY_DATA
 	, SectionPath(*InSubSection.GetPathNameInMovieScene())
 #endif
@@ -64,6 +65,10 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	{
 		PostRollRange = UE::MovieScene::MakeDiscreteRangeFromLower( TRangeBound<FFrameNumber>::FlipInclusion(SubSectionRange.GetUpperBound()), InSubSection.GetPostRollFrames() ) * RootToSequenceTransform.LinearTransform;
 	}
+
+	const bool bHasSubSectionEaseIn  = (InSubSection.Easing.GetEaseInDuration() > 0);
+	const bool bHasSubSectionEaseOut = (InSubSection.Easing.GetEaseOutDuration() > 0);
+	bHasHierarchicalEasing = (bHasSubSectionEaseIn || bHasSubSectionEaseOut);
 }
 
 UMovieSceneSequence* FMovieSceneSubSequenceData::GetSequence() const

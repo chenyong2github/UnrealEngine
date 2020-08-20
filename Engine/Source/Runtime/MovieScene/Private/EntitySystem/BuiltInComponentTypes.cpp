@@ -55,6 +55,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&WeightChannelFlags,      TEXT("Weight Channel Flags"));
 
 	ComponentRegistry->NewComponentType(&Easing,                  TEXT("Easing"));
+	ComponentRegistry->NewComponentType(&HierarchicalEasingChannel, TEXT("Hierarchical Easing Channel"));
+	ComponentRegistry->NewComponentType(&HierarchicalEasingProvider, TEXT("Hierarchical Easing Provider"));
 
 	ComponentRegistry->NewComponentType(&BlenderType,           TEXT("Blender System Type"));
 	ComponentRegistry->NewComponentType(&BlendChannelInput,     TEXT("Blend Channel Input"));
@@ -75,7 +77,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatResult[8],        TEXT("Float Result 8"));
 
 	ComponentRegistry->NewComponentType(&WeightResult,          TEXT("Weight Result"));
-	ComponentRegistry->NewComponentType(&WeightAndEasingResult, TEXT("Easing Result"));
+	ComponentRegistry->NewComponentType(&WeightAndEasingResult, TEXT("Weight/Easing Result"));
 
 	ComponentRegistry->NewComponentType(&TrackInstance,         TEXT("Track Instance"));
 	ComponentRegistry->NewComponentType(&TrackInstanceInput,    TEXT("Track Instance Input"));
@@ -168,17 +170,19 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	{
 		// Easing components should be duplicated to children
 		ComponentRegistry->Factories.DuplicateChildComponent(Easing);
+		ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalEasingChannel);
+		ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalEasingProvider);
 
-		// Easing components need a time and a result
+		// Easing needs a time to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, EvalTime);
 	}
 
 	// Weight channel relationships
 	{
-		// Easing components should be duplicated to children
+		// Weight channel components should be duplicated to children
 		ComponentRegistry->Factories.DuplicateChildComponent(WeightChannel);
 
-		// Easing components need a time
+		// Weight channel components need a time and result to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, EvalTime);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, WeightResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightChannelFlags);
@@ -187,6 +191,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	// Weight and easing result component relationship
 	{
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, WeightAndEasingResult);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(HierarchicalEasingChannel, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightAndEasingResult);
 	}
 
