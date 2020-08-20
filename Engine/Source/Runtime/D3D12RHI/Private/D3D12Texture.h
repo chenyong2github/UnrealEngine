@@ -261,6 +261,7 @@ public:
 		, Flags(InFlags)
 		, bCubemap(bInCubemap)
 		, bStreamable(!!(InFlags & TexCreate_Streamable))
+		, bMipOrderDescending(false)
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 		, RawTextureMemory(InRawTextureMemory)
 #endif
@@ -272,6 +273,9 @@ public:
 		else
 		{
 			TextureLayout = *InTextureLayout;
+#if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
+			bMipOrderDescending = InNumMips > 1u && TextureLayout.GetSubresourceOffset(0, 0, 0) > TextureLayout.GetSubresourceOffset(0, 1, 0);
+#endif
 		}
 	}
 
@@ -297,6 +301,8 @@ public:
 	bool IsCubemap() const { return bCubemap; }
 
 	bool IsStreamable() const { return bStreamable; }
+
+	bool IsLastMipFirst() const { return bMipOrderDescending; }
 
 	/** FRHITexture override.  See FRHITexture::GetNativeResource() */
 	virtual void* GetNativeResource() const override final
@@ -350,6 +356,9 @@ private:
 
 	/** Whether the texture has been created with flag TexCreate_Streamable */
 	const uint32 bStreamable : 1;
+
+	/** Whether mips are ordered from the last to the first in memory */
+	uint32 bMipOrderDescending : 1;
 
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	void* RawTextureMemory;
