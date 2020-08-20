@@ -55,7 +55,7 @@ public:
 
 	void InitializeInsetType(const FDynamicMesh3* SourceMesh, const TArray<int32>& Triangles,
 		const FTransform3d* MeshTransform = nullptr);
-	void UpdateInsetType(double NewOffset);
+	void UpdateInsetType(double NewOffset, bool bReproject = false, double Softness = 0.0, double AreaScaleT = 1.0, bool bBoundaryOnly = false);
 	void MakeInsetTypeTargetMesh(FDynamicMesh3& TargetMesh);
 
 	const FDynamicMesh3& GetInitialPatchMesh() const { return InitialEditPatch; }

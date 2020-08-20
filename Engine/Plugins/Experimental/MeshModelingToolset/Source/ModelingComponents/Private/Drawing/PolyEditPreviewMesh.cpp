@@ -210,7 +210,7 @@ void UPolyEditPreviewMesh::InitializeInsetType(const FDynamicMesh3* SourceMesh, 
 }
 
 
-void UPolyEditPreviewMesh::UpdateInsetType(double NewOffset)
+void UPolyEditPreviewMesh::UpdateInsetType(double NewOffset, bool bReproject, double Softness, double AreaScaleT, bool bBoundaryOnly)
 {
 	FDynamicMesh3 EditPatch(InitialEditPatch);
 	FInsetMeshRegion Inset(&EditPatch);
@@ -219,6 +219,10 @@ void UPolyEditPreviewMesh::UpdateInsetType(double NewOffset)
 		Inset.Triangles.Add(tid);
 	}
 	Inset.InsetDistance = NewOffset;
+	Inset.bReproject = bReproject;
+	Inset.Softness = Softness;
+	Inset.AreaCorrection = AreaScaleT;
+	Inset.bSolveRegionInteriors = !bBoundaryOnly;
 	Inset.Apply();
 
 	FMeshNormals::QuickRecomputeOverlayNormals(EditPatch);
