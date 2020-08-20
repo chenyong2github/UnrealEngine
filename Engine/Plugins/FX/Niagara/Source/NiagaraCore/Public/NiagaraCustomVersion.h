@@ -156,6 +156,8 @@ struct FNiagaraCustomVersion
 
 		RibbonRendererUVRefactor, // Refactor the options for UV settings on the ribbon renderer.
 
+		VariablesUseTypeDefRegistry, // Replace the TypeDefinition in VariableBase with an index into the type registry
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
