@@ -201,10 +201,14 @@ void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSection& Sec
 		}
 	}
 
-	FName ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
-	
-	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(ShaderFormat);
+	FName PlatformName = *GetSectionString(Section, FName("PlatformName"));
+	checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a PlatformName"), Name);
 
+	FName ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
+	checkf(ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), Name);
+
+	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(ShaderFormat);
+	Item.PlatformName = PlatformName;
 	Item.ActiveIconPath = GetSectionString(Section, FName("ActiveIconPath"));
 	Item.ActiveIconName = *GetSectionString(Section, FName("ActiveIconName"));
 	Item.InactiveIconPath = GetSectionString(Section, FName("InactiveIconPath"));
