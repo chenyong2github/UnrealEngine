@@ -82,7 +82,6 @@ public:
 	 */
 	void CopyPixel(int64 FromLinearIndex, int64 ToLinearIndex)
 	{
-		checkSlow(IsEditable());
 		Image[ToLinearIndex] = Image[FromLinearIndex];
 	}
 
