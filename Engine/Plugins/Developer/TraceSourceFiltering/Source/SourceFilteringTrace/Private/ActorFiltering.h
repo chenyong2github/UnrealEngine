@@ -36,13 +36,13 @@ public:
 
 	FORCEINLINE explicit operator bool() const
 	{
-		return CurrentActor != nullptr;
+		return CurrentActor != nullptr && CurrentIndex < EndIndex;
 	}
 
 	void operator++()
 	{
 		CurrentActor = nullptr;
-		while (++CurrentIndex < (EndIndex))
+		while (++CurrentIndex < EndIndex)
 		{
 			CurrentActor = Actors[CurrentIndex];
 			if (CurrentActor && !CurrentActor->IsPendingKill())
@@ -61,7 +61,7 @@ private:
 		}
 		else
 		{
-			EndIndex = StartIndex + InLength;
+			EndIndex = FMath::Min(StartIndex + InLength, (uint32)Actors.Num());
 		}
 
 		CurrentActor = nullptr;
