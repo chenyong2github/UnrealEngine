@@ -49,8 +49,14 @@ FWinHttpHttpManager::FWinHttpHttpManager()
 	{
 		if (FWinHttpHttpManager* const Manager = FWinHttpHttpManager::GetManager())
 		{
-			Manager->Flush(false);
-			Manager->ActiveSessions.Reset();
+			Manager->HandleApplicationSuspending();
+		}
+	});
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddLambda([]()
+	{
+		if (FWinHttpHttpManager* const Manager = FWinHttpHttpManager::GetManager())
+		{
+			Manager->HandleApplicationResuming();
 		}
 	});
 }
@@ -68,6 +74,17 @@ void FWinHttpHttpManager::OnBeforeFork()
 	// FHttpManager's OnBeforeFork will flush all active requests, so it will be safe to reset our active sessions
 	FHttpManager::OnBeforeFork();
 	ActiveSessions.Reset();
+}
+
+void FWinHttpHttpManager::HandleApplicationSuspending()
+{
+	Flush(false);
+	ActiveSessions.Reset();
+}
+
+void FWinHttpHttpManager::HandleApplicationResuming()
+{
+	// No-op
 }
 
 void FWinHttpHttpManager::QuerySessionForUrl(const FString& /*UnusedUrl*/, FWinHttpQuerySessionComplete&& Delegate)
@@ -108,6 +125,8 @@ void FWinHttpHttpManager::ReleaseRequestResources(IWinHttpConnection& Connection
 
 FWinHttpSession* FWinHttpHttpManager::FindOrCreateSession(const uint32 SecurityProtocols)
 {
+	check(IsInGameThread());
+
 	TUniquePtr<FWinHttpSession>* SessionPtrPtr = ActiveSessions.Find(SecurityProtocols);
 
 	FWinHttpSession* SessionPtr = SessionPtrPtr ? SessionPtrPtr->Get() : nullptr;
