@@ -79,14 +79,14 @@ bool UInterchangePCXTranslator::Translate(const UInterchangeSourceData* SourceDa
 	FName DisplayLabel = *FPaths::GetBaseFilename(Filename);
 	Interchange::FNodeUniqueID NodeUID(*Filename);
 	//PCX is creating a UTexture2D
-	Interchange::FTextureNode* TextureNode = new Interchange::FTextureNode(NodeUID, DisplayLabel, UTexture2D::StaticClass());
+	TUniquePtr<Interchange::FTextureNode> TextureNode = MakeUnique<Interchange::FTextureNode>(NodeUID, DisplayLabel, UTexture2D::StaticClass());
 	TextureNode->SetPayLoadKey(Filename);
 
 	//Test node change
  	//TextureNode->SetCustomLODGroup((uint8)TextureGroup::TEXTUREGROUP_WorldNormalMap);
  	//TextureNode->SetCustomCompressionSettings((uint8)TextureCompressionSettings::TC_Normalmap);
 
-	BaseNodeContainer.AddNode(static_cast<Interchange::FBaseNode*>(TextureNode));
+	BaseNodeContainer.AddNode(MoveTemp(TextureNode));
 	return true;
 }
 

@@ -37,9 +37,9 @@ public:
 	 * @note The node memory will be manage by the container after the add, the destructor of the container will free correctly all nodes
 	 *
 	 */
-	FNodeUniqueID AddNode(FBaseNode* Node)
+	FNodeUniqueID AddNode(TUniquePtr<FBaseNode> Node)
 	{
-		if (!Node)
+		if (!Node.IsValid())
 		{
 			return FBaseNode::InvalidNodeUID();
 		}
@@ -56,7 +56,7 @@ public:
 			return FBaseNode::InvalidNodeUID();
 		}
 		//Create a unique node pointer
-		Nodes.Add(NodeUniqueID, TUniquePtr<FBaseNode>(Node));
+		Nodes.Add(NodeUniqueID, MoveTemp(Node));
 		return NodeUniqueID;
 	}
 
