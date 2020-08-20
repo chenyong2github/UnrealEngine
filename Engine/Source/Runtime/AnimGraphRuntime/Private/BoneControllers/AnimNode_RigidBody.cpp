@@ -93,6 +93,8 @@ void FSimSpaceSettings::PostSerialize(const FArchive& Ar)
 FAnimNode_RigidBody::FAnimNode_RigidBody():
 	QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	WorldTimeSeconds = 0.0f;
+	LastEvalTimeSeconds = 0.0f;
 	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
@@ -128,6 +130,8 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	ComponentLinearVelScale = FVector::ZeroVector;
 	ComponentAppliedLinearAccClamp = FVector(10000,10000,10000);
 	bForceDisableCollisionBetweenConstraintBodies = false;
+
+	EvaluationResetTime = 0.01f;
 }
 
 FAnimNode_RigidBody::~FAnimNode_RigidBody()
@@ -427,31 +431,43 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		return;
 	}
 
-	// Update our eval counter, and decide whether we need to reset simulated bodies, if our anim instance hasn't updated in a while.
-	if(EvalCounter.HasEverBeenUpdated())
-	{
-		// Always propagate skip rate as it can go up and down between updates
-		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
-		if(!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter())  && bRBAN_EnableTimeBasedReset)
-		{
-			UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
-
-			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
-		}
-	}
-	EvalCounter.SynchronizeWith(Output.AnimInstanceProxy->GetEvaluationCounter());
-
 	const float DeltaSeconds = AccumulatedDeltaTime;
 	AccumulatedDeltaTime = 0.f;
 
 	if (bEnabled && PhysicsSimulation)	
 	{
+
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
-		if(!EvalCounter.HasEverBeenUpdated())
+
+		bool bFirstEvalSinceReset = !Output.AnimInstanceProxy->GetEvaluationCounter().HasEverBeenUpdated();
+
+		// First-frame initialization
+		if (bFirstEvalSinceReset)
 		{
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
+			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
+
+		// See if we need to reset physics because too much time passed since our last update (e.g., because we we off-screen for a while), 
+		// in which case the current sim state may be too far from the current anim pose. This is mostly a problem with world-space 
+		// simulation, whereas bone- and component-space sims can be fairly robust against missing updates.
+		// Don't do this on first frame or if time-based reset is disabled. 
+		if ((EvaluationResetTime > 0.0f) && !bFirstEvalSinceReset)
+		{
+			// NOTE: under normal conditions, when this anim node is being serviced at the usual rate (which may not be every frame
+			// if URO is enabled), we expect that WorldTimeSeconds == (LastEvalTimeSeconds + DeltaSeconds). DeltaSeconds is the 
+			// accumulated time since the last update, including frames dropped by URO, but not frames dropped because of
+			// being off-screen or LOD changes.
+			if (WorldTimeSeconds - (LastEvalTimeSeconds + DeltaSeconds) > EvaluationResetTime)
+			{
+				UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
+				ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
+			}
+		}
+
+		// Update the evaluation time to the current time
+		LastEvalTimeSeconds = WorldTimeSeconds;
 
 		// Disable simulation below minimum scale in world space mode. World space sim doesn't play nice with scale anyway - we do not scale joint offets or collision shapes.
 		if ((SimulationSpace == ESimulationSpace::WorldSpace) && (CompWorldSpaceTM.GetScale3D().SizeSquared() < WorldSpaceMinimumScale * WorldSpaceMinimumScale))
@@ -1246,8 +1262,12 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 	if (World)
 	{
 		WorldSpaceGravity = bOverrideWorldGravity ? OverrideWorldGravity : (MovementComp ? FVector(0.f, 0.f, MovementComp->GetGravityZ()) : FVector(0.f, 0.f, World->GetGravityZ()));
+
 		if(SKC)
 		{
+			// Store game time for use in parallel evaluation. This may be the totol time (inc pauses) or the time the game has been unpaused.
+			WorldTimeSeconds = SKC->PrimaryComponentTick.bTickEvenWhenPaused ? World->UnpausedTimeSeconds : World->TimeSeconds;
+
 			if (PhysicsSimulation && bEnableWorldGeometry)
 			{
 				UpdateWorldGeometry(*World, *SKC);
