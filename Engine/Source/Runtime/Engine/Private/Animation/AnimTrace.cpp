@@ -367,11 +367,11 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 		return;
 	}
 
-	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
-	TRACE_OBJECT(AnimInstance);
-
 	if(InTickRecord.SourceAsset)
 	{
+		UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
+		TRACE_OBJECT(AnimInstance);
+
 		TRACE_OBJECT(InTickRecord.SourceAsset);
 
 		float PlaybackTime = *InTickRecord.TimeAccumulator;
@@ -384,10 +384,10 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 		float BlendSpacePositionY = 0.0f;
 		const bool bIsBlendSpace = InTickRecord.SourceAsset->IsA<UBlendSpaceBase>();
 		if(bIsBlendSpace)
-	{
+		{
 			BlendSpacePositionX = InTickRecord.BlendSpace.BlendSpacePositionX;
 			BlendSpacePositionY = InTickRecord.BlendSpace.BlendSpacePositionY;
-	}
+		}
 
 		UE_TRACE_LOG(Animation, TickRecord, AnimationChannel)
 			<< TickRecord.Cycle(FPlatformTime::Cycles64())
@@ -544,11 +544,14 @@ void FAnimTrace::OutputSkeletalMeshComponent(const USkeletalMeshComponent* InCom
 
 void FAnimTrace::OutputSkeletalMeshFrame(const USkeletalMeshComponent* InComponent)
 {
-	TRACE_OBJECT(InComponent);
-	UE_TRACE_LOG(Animation, SkeletalMeshFrame, AnimationChannel)
-		<< SkeletalMeshFrame.Cycle(FPlatformTime::Cycles64())
-		<< SkeletalMeshFrame.ComponentId(FObjectTrace::GetObjectId(InComponent))
-		<< SkeletalMeshFrame.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(InComponent));
+	if (CAN_TRACE_OBJECT(InComponent))
+	{
+		TRACE_OBJECT(InComponent);
+		UE_TRACE_LOG(Animation, SkeletalMeshFrame, AnimationChannel)
+			<< SkeletalMeshFrame.Cycle(FPlatformTime::Cycles64())
+			<< SkeletalMeshFrame.ComponentId(FObjectTrace::GetObjectId(InComponent))
+			<< SkeletalMeshFrame.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(InComponent));
+	}
 }
 
 void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 InStartCycle, uint64 InEndCycle, uint8 InPhase)
@@ -559,12 +562,11 @@ void FAnimTrace::OutputAnimGraph(const FAnimationBaseContext& InContext, uint64 
 		return;
 	}
 
+	check(InContext.AnimInstanceProxy);
 	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
 	{
 		return;
 	}
-
-	check(InContext.AnimInstanceProxy);
 
 	const UAnimInstance* AnimInstance = Cast<UAnimInstance>(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 	const UAnimBlueprintGeneratedClass* BPClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass());
