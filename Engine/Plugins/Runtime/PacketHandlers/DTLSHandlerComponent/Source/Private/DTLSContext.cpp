@@ -309,7 +309,7 @@ FDTLSContext::~FDTLSContext()
 
 bool FDTLSContext::Initialize(const int32 MaxPacketSize, const FString& CertId, FDTLSHandlerComponent* Handler)
 {
-	SSLContext = SSL_CTX_new(DTLSv1_2_method());
+	SSLContext = SSL_CTX_new(DTLS_method());
 	if (!SSLContext)
 	{
 		UE_LOG(LogDTLSHandler, Error, TEXT("Failed to create SSL context."));
