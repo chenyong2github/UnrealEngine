@@ -632,23 +632,24 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			uint32 NumBufferIterations = 1;
 			if (Tick->NumInstancesWithSimStages > 0)
 			{
+				// Setup iteration source for stage 0
+				Instance.SimStageData[0].AlternateIterationSource = FindIterationInterface(&Instance, 0);
+
 				const uint32 NumStages = Instance.Context->MaxUpdateIterations;
 				if (NumStages > 1)
 				{
-					for (uint32 SimulationStageIndex = 0; SimulationStageIndex < NumStages; SimulationStageIndex++)
-					{
-						if (SimulationStageIndex != 0)
-						{
-							Instance.SimStageData[SimulationStageIndex].Source = Instance.SimStageData[SimulationStageIndex - 1].Source;
-							Instance.SimStageData[SimulationStageIndex].Destination = Instance.SimStageData[SimulationStageIndex - 1].Destination;
+					// Flip current / destination buffers so we read from the buffer we just wrote into on the next stage
+					Swap(CurrentData, DestinationData);
 
-							Instance.SimStageData[SimulationStageIndex].SourceCountOffset = Instance.SimStageData[SimulationStageIndex - 1].SourceCountOffset;
-							Instance.SimStageData[SimulationStageIndex].DestinationCountOffset = Instance.SimStageData[SimulationStageIndex - 1].DestinationCountOffset;
-						}
+					for (uint32 SimulationStageIndex=1; SimulationStageIndex < NumStages; SimulationStageIndex++)
+					{
+						Instance.SimStageData[SimulationStageIndex].Source = CurrentData;
+						Instance.SimStageData[SimulationStageIndex].SourceCountOffset = CurrentData->GetGPUInstanceCountBufferOffset();
+						Instance.SimStageData[SimulationStageIndex].Destination = DestinationData;
+						Instance.SimStageData[SimulationStageIndex].DestinationCountOffset = Instance.bUsesOldShaderStages ? DestinationData->GetGPUInstanceCountBufferOffset() : INDEX_NONE;
 
 						// Determine if the iteration is outputting to a custom data size
 						FNiagaraDataInterfaceProxy* IterationInterface = FindIterationInterface(&Instance, SimulationStageIndex);
-
 						Instance.SimStageData[SimulationStageIndex].AlternateIterationSource = IterationInterface;
 
 						if (IterationInterface && Context->SpawnStages.Num() > 0 &&
@@ -658,24 +659,38 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 							continue;
 						}
 
-						if (!IterationInterface && SimulationStageIndex != 0)
+						if (!Instance.bUsesOldShaderStages)
 						{
-							// Go ahead and grab the write buffer, which may be too small, so make sure to resize it.
-							Instance.SimStageData[SimulationStageIndex].Source = Context->MainDataSet->GetCurrentData();
-							DestinationData = &Context->MainDataSet->BeginSimulate(false);
-							Instance.SimStageData[SimulationStageIndex].Destination = DestinationData;
-							DestinationData->AllocateGPU(AllocatedInstances, GPUInstanceCounterManager, RHICmdList, FeatureLevel, Context->GetDebugSimName());
-							DestinationData->SetNumInstances(RequiredInstances);
-							Instance.SimStageData[SimulationStageIndex].SourceCountOffset = Instance.SimStageData[SimulationStageIndex].Source->GetGPUInstanceCountBufferOffset();
-							Instance.SimStageData[SimulationStageIndex].DestinationCountOffset = Instance.SimStageData[SimulationStageIndex].Destination->GetGPUInstanceCountBufferOffset();
-							
-							//UE_LOG(LogScript, Warning, TEXT("ResizeBuffersAndGatherResources [%d][%d] Run  ReqInst: %d Cur: %p Dest: %p "), Index, SimulationStageIndex, RequiredInstances, Instance.SimStageData[SimulationStageIndex].Source, Instance.SimStageData[SimulationStageIndex].Destination);
+							// This should never be nullptr with simulation stages
+							const FSimulationStageMetaData* StageMetaData = Context->GetSimStageMetaData(SimulationStageIndex);
+							check(StageMetaData);
 
-							// We don't actually write we just map out the buffers here. This toggles src and dest...
-							Context->MainDataSet->EndSimulate();
+							// No particle data will be written we read only, i.e. scattering particles into a grid
+							if (!StageMetaData->bWritesParticles)
+							{
+								continue;
+							}
+
+							// Particle counts are not changing and we can safely read / write to the same particle buffer
+							if (StageMetaData->bPartialParticleUpdate)
+							{
+								Instance.SimStageData[SimulationStageIndex].Destination = CurrentData;
+								Instance.SimStageData[SimulationStageIndex].DestinationCountOffset = INDEX_NONE;
+								continue;
+							}
 						}
 
+						// We need to allocate a new buffer as particle counts could be changing
+						ensure(CurrentData == Context->MainDataSet->GetCurrentData());
+						DestinationData = &Context->MainDataSet->BeginSimulate(false);
+						DestinationData->AllocateGPU(AllocatedInstances, GPUInstanceCounterManager, RHICmdList, FeatureLevel, Context->GetDebugSimName());
+						DestinationData->SetNumInstances(RequiredInstances);
+						Context->MainDataSet->EndSimulate();
 
+						Instance.SimStageData[SimulationStageIndex].Destination = DestinationData;
+						Instance.SimStageData[SimulationStageIndex].DestinationCountOffset = DestinationData->GetGPUInstanceCountBufferOffset();
+
+						Swap(CurrentData, DestinationData);
 					}
 				}
 			}

@@ -65,7 +65,6 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static uint GEmitterTickCounter;
 	static uint GSimStart;
 	static uint GRandomSeedOffset = 0;
-	static bool GStageWritesAlive = false;
 	
 	const static uint GSpawnPhase = 0;
 	const static uint GUpdatePhase = 1;
@@ -672,6 +671,30 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	float InputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
 	{
 		return InputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+
+	/* ---------------------------------------------------------------------
+	 * InputData from RW buffer
+	 * ---------------------------------------------------------------------
+	 */
+	float RWInputDataFloat(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputFloat[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+
+	int RWInputDataInt(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
+	}
+	
+	bool RWInputDataBool(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputInt[RegisterIdx*ComponentBufferSizeRead + InstanceIdx] == -1;
+	}
+
+	float RWInputDataHalf(int DataSetIndex, int RegisterIdx, int InstanceIdx)
+	{
+		return RWOutputHalf[RegisterIdx*ComponentBufferSizeRead + InstanceIdx];
 	}
 
 	/* ---------------------------------------------------------------------

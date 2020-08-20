@@ -520,6 +520,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 		if (SimStages && NumSimStageNodes)
 		{
 			SpawnOnlyPerStage.AddZeroed(NumSimStageNodes);
+			PartialParticleUpdatePerStage.AddZeroed(NumSimStageNodes);
 			NumIterationsPerStage.AddZeroed(NumSimStageNodes);
 			IterationSourcePerStage.AddZeroed(NumSimStageNodes);
 			StageGuids.AddDefaulted(NumSimStageNodes);
@@ -535,9 +536,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					NumIterationsPerStage[i] = GenericStage->Iterations;
 					IterationSourcePerStage[i] = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
 					SpawnOnlyPerStage[i] = GenericStage->bSpawnOnly;
+					PartialParticleUpdatePerStage[i] = GenericStage->bPartialParticleUpdate;
 					StageGuids[i] = GenericStage->Script->GetUsageId();
 					StageNames[i] = GenericStage->SimulationStageName;
-
 				}
 			}
 		}

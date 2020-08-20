@@ -114,6 +114,7 @@ public:
 	TArray<uint32> NumIterationsPerStage;
 	TArray<FName> IterationSourcePerStage;
 	TArray<bool> SpawnOnlyPerStage;
+	TArray<bool> PartialParticleUpdatePerStage;
 	TArray<FGuid> StageGuids;
 	TArray<FName> StageNames;
 
@@ -303,23 +304,30 @@ public:
 class NIAGARAEDITOR_API FHlslNiagaraTranslationStage
 {
 public:
-	FHlslNiagaraTranslationStage(ENiagaraScriptUsage InScriptUsage, FGuid InUsageId) : ScriptUsage(InScriptUsage), UsageId(InUsageId), OutputNode(nullptr), bInterpolatePreviousParams(false), bCopyPreviousParams(true), ChunkModeIndex((ENiagaraCodeChunkMode)-1), IterationSource(), bSpawnOnly(false), bUsesAlive(false){}
-
+	FHlslNiagaraTranslationStage(ENiagaraScriptUsage InScriptUsage, FGuid InUsageId)
+		: ScriptUsage(InScriptUsage)
+		, UsageId(InUsageId)
+	{
+	}
+		
 	ENiagaraScriptUsage ScriptUsage;
 	FGuid UsageId;
-	UNiagaraNodeOutput* OutputNode;
-	FString PassNamespace;
-	bool bInterpolatePreviousParams;
-	bool bCopyPreviousParams;
-	ENiagaraCodeChunkMode ChunkModeIndex;
+	UNiagaraNodeOutput* OutputNode = nullptr;
+	FString PassNamespace ;
+	bool bInterpolatePreviousParams = false;
+	bool bCopyPreviousParams = true;
+	ENiagaraCodeChunkMode ChunkModeIndex = (ENiagaraCodeChunkMode)-1;
 	FName IterationSource;
 	int32 SimulationStageIndexMin = -1;
 	int32 SimulationStageIndexMax = -1;
 	int32 NumIterationsThisStage = 1;
 	int32 SourceSimStage = -1;
-	bool bSpawnOnly;
-	bool bUsesAlive;
+	bool bSpawnOnly = false;
+	bool bUsesAlive = false;
 	bool bWritesAlive = false;
+	bool bWritesParticles = false;
+	bool bPartialParticleUpdate = false;
+	TArray<FNiagaraVariable> SetParticleAttributes;
 };
 
 class NIAGARAEDITOR_API FHlslNiagaraTranslator
