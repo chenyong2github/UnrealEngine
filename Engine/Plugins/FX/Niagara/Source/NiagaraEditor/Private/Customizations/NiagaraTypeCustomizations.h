@@ -7,6 +7,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "NiagaraCommon.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Layout/Visibility.h"
 
 #include "NiagaraTypeCustomizations.generated.h"
 
