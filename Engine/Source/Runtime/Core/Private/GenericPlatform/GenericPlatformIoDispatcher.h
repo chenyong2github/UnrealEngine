@@ -8,11 +8,7 @@
 #include "HAL/Runnable.h"
 #include "Containers/Map.h"
 #include "IO/IoDispatcher.h"
-
-struct FFileIoStoreReadRequest;
-class FFileIoStoreBufferAllocator;
-class FFileIoStoreBlockCache;
-class FFileIoStoreRequestQueue;
+#include "IO/IoDispatcherFileBackendTypes.h"
 
 class FGenericIoDispatcherEventQueue
 {
@@ -39,8 +35,12 @@ public:
 	FGenericFileIoStoreImpl(FGenericIoDispatcherEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache);
 	~FGenericFileIoStoreImpl();
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
+	bool CreateCustomRequests(const FFileIoStoreContainerFile& ContainerFile, const FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests)
+	{
+		return false;
+	}
 	bool StartRequests(FFileIoStoreRequestQueue& RequestQueue);
-	FFileIoStoreReadRequest* GetCompletedRequests();
+	void GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests);
 
 private:
 	FGenericIoDispatcherEventQueue& EventQueue;
@@ -48,7 +48,6 @@ private:
 	FFileIoStoreBlockCache& BlockCache;
 
 	FCriticalSection CompletedRequestsCritical;
-	FFileIoStoreReadRequest* CompletedRequestsHead = nullptr;
-	FFileIoStoreReadRequest* CompletedRequestsTail = nullptr;
+	FFileIoStoreReadRequestList CompletedRequests;
 };
 
