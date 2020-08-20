@@ -68,6 +68,12 @@ public:
 		FVulkanRenderPass* RenderPass = new FVulkanRenderPass(InDevice, RTLayout);
 		{
 			FScopeLock Lock(&RenderPassesCS);
+			FoundRenderPass = RenderPasses.Find(RenderPassHash);
+			if(FoundRenderPass)
+			{
+				delete RenderPass;
+				return *FoundRenderPass;
+			}
 			RenderPasses.Add(RenderPassHash, RenderPass);
 		}
 		return RenderPass;
