@@ -2114,7 +2114,7 @@ void FSequencer::BakeTransform()
 					CameraComponent->GetAdditiveOffset(AdditiveOffset, AdditiveFOVOffset);
 
 					FTransform Transform(Actor->GetActorRotation(), Actor->GetActorLocation());
-					FTransform TransformWithAdditiveOffset = Transform * AdditiveOffset;
+					FTransform TransformWithAdditiveOffset = AdditiveOffset * Transform;
 					FVector LocalTranslation = TransformWithAdditiveOffset.GetTranslation();
 					FRotator LocalRotation = TransformWithAdditiveOffset.GetRotation().Rotator();
 
