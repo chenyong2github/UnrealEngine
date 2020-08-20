@@ -2,7 +2,6 @@
 
 #include "TAACommon.ush"
 #include "../Random.ush"
-#include "../MonteCarlo.ush"
 
 
 //------------------------------------------------------- CONFIG
@@ -628,7 +627,7 @@ void MainCS(
 		{
 			// Stocastically round up or down using the hardware RWTexture2D truncation unit to take into precision
 			// loss due to pixel format encoding.
-			#if 1
+			#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
 			{
 				uint2 Random = Rand3DPCG16(int3(LocalHistoryPixelPos, View.StateFrameIndexMod8)).xy;
 				float2 E = Hammersley16(0, 1, Random);

@@ -4,6 +4,7 @@
 #include "../Random.ush"
 #include "../TextureSampling.ush"
 #include "../FastMath.ush"
+#include "../MonteCarlo.ush"
 
 
 //------------------------------------------------------- COMPILER CONFIG
@@ -21,6 +22,8 @@
 #else
 	#define CONFIG_COMPILE_FP16 0
 #endif
+
+#define CONFIG_ENABLE_STOCASTIC_QUANTIZATION 1
 
 
 //------------------------------------------------------- CONSTANTS
