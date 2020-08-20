@@ -120,7 +120,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 				{
 					int32 BodySetupIdx = PhysicsAsset->FindBodyIndex(WheelSetup.BoneName);
 
-					if (BodySetupIdx >= 0)
+					if (BodySetupIdx >= 0 && (BodySetupIdx < Mesh->Bodies.Num()))
 					{
 						FBodyInstance* BodyInstanceWheel = Mesh->Bodies[BodySetupIdx];
 						BodyInstanceWheel->SetResponseToAllChannels(ECR_Ignore);	//turn off collision for wheel automatically
