@@ -796,7 +796,6 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, DataToRender(nullptr)
 {
 	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
 }
@@ -1134,10 +1133,32 @@ void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InData
 
 	DataToRender = InDataToRender;
 
-
 	if (DataToRender)
 	{
 		DataToRender->AddReadRef();
+	}
+
+	// This call the DataToRender should be equal to the TranslucentDataToRender so we can release the read ref
+	if (TranslucentDataToRender)
+	{
+		ensure((DataToRender == nullptr) || (DataToRender == TranslucentDataToRender));
+		TranslucentDataToRender->ReleaseReadRef();
+		TranslucentDataToRender = nullptr;
+	}
+}
+
+void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender)
+{
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->ReleaseReadRef();
+	}
+
+	TranslucentDataToRender = InTranslucentDataToRender;
+
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->AddReadRef();
 	}
 }
 
