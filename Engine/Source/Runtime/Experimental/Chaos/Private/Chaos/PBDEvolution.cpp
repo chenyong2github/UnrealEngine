@@ -14,7 +14,6 @@
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
 
-
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Advance Time"), STAT_ChaosPBDVAdvanceTime, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping State Update"), STAT_ChaosPBDVelocityDampUpdateState, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Field Update Forces"), STAT_ChaosPBDVelocityFieldUpdateForces, STATGROUP_Chaos);
@@ -29,11 +28,11 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Collider Kinematic Update"), STAT_CollisionKi
 using namespace Chaos;
 
 template<class T, int d>
-void TPBDEvolution<T, d>::AddGroups(int32 Num)
+void TPBDEvolution<T, d>::AddGroups(int32 NumGroups)
 {
 	// Add elements
 	const uint32 Offset = TArrayCollection::Size();
-	TArrayCollection::AddElementsHelper(Num);
+	TArrayCollection::AddElementsHelper(NumGroups);
 
 	// Set defaults
 	for (uint32 GroupId = Offset; GroupId < TArrayCollection::Size(); ++GroupId)
@@ -43,16 +42,26 @@ void TPBDEvolution<T, d>::AddGroups(int32 Num)
 		MGroupSelfCollisionThicknesses[GroupId] = MSelfCollisionThickness;
 		MGroupCoefficientOfFrictions[GroupId] = MCoefficientOfFriction;
 		MGroupDampings[GroupId] = MDamping;
-		MGroupVelocityFields[GroupId] = MakeUnique<TVelocityField<float, 3>>();
 	}
+}
+
+template<class T, int d>
+void TPBDEvolution<T, d>::ResetGroups()
+{
+	TArrayCollection::ResizeHelper(0);
+	AddGroups(1);  // Add default group
 }
 
 template<class T, int d>
 TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryClothParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles,
     int32 NumIterations, T CollisionThickness, T SelfCollisionThickness, T CoefficientOfFriction, T Damping)
     : MParticles(MoveTemp(InParticles))
+	, MParticlesActiveView(MParticles)
 	, MCollisionParticles(MoveTemp(InGeometryParticles))
+	, MCollisionParticlesActiveView(MCollisionParticles)
 	, MCollisionTriangles(MoveTemp(CollisionTriangles))
+	, MConstraintInitsActiveView(MConstraintInits)
+	, MConstraintRulesActiveView(MConstraintRules)
 	, MNumIterations(NumIterations)
 	, MGravity(TVector<T, d>((T)0., (T)0., (T)-980.665))
 	, MCollisionThickness(CollisionThickness)
@@ -75,53 +84,110 @@ TPBDEvolution<T, d>::TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematic
 	MCollisionParticles.AddArray(&MCollided);
 	MCollisionParticles.AddArray(&MCollisionParticleGroupIds);
 
-	SetParticleUpdateFunction(
+	MParticleUpdate =  // TODO(Kriss.Gossart): this callable seems redundant, might be worth taking it off
 		[PBDUpdateRule = 
-			TPerParticlePBDUpdateFromDeltaPosition<float, 3>()](TPBDParticles<T, d>& MParticlesInput, const T Dt) 
+			TPerParticlePBDUpdateFromDeltaPosition<T, d>()](TPBDActiveView<TPBDParticles<T, d>>& ParticlesView, const T Dt) 
 			{
 				// Don't bother with threaded execution if we don't have enough work to make it worth while.
-				const bool NonParallelUpdate = MParticlesInput.Size() > 1000; // TODO: 1000 is a guess, tune this!
-				PhysicsParallelFor(MParticlesInput.Size(), [&](int32 Index) {
-					PBDUpdateRule.Apply(MParticlesInput, Dt, Index);
-				}, NonParallelUpdate);
-			});
+				const int32 MinParallelBatchSize = 1000; // TODO: 1000 is a guess, tune this!
+
+				ParticlesView.ParallelFor(
+					[PBDUpdateRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+					{
+						PBDUpdateRule.Apply(Particles, Dt, Index);
+					}, MinParallelBatchSize);
+			};
 }
 
 template<class T, int d>
-uint32 TPBDEvolution<T, d>::AddParticles(uint32 Num, uint32 GroupId)
+void TPBDEvolution<T, d>::ResetParticles()
 {
-	// Add new particles
-	const uint32 Offset = MParticles.Size();
-	MParticles.AddParticles(Num);
+	// Reset particles
+	MParticles.Resize(0);
+	MParticlesActiveView.Reset();
 
-	// Initialize the new particles' group ids
-	for (uint32 i = Offset; i < MParticles.Size(); ++i)
-	{
-		MParticleGroupIds[i] = GroupId;
-	}
-
-	// Resize group parameter arrays
-	const uint32 GroupSize = TArrayCollection::Size();
-	if (GroupId >= GroupSize)
-	{
-		AddGroups(GroupId + 1 - GroupSize);
-	}
-	return Offset;
+	// Reset particle groups
+	ResetGroups();
 }
 
 template<class T, int d>
-uint32 TPBDEvolution<T, d>::AddCollisionParticles(uint32 Num, uint32 GroupId)
+int32 TPBDEvolution<T, d>::AddParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate)
 {
-	// Add new particles
-	const uint32 Offset = MCollisionParticles.Size();
-	MCollisionParticles.AddParticles(Num);
-
-	// Initialize the new particles' group ids
-	for (uint32 i = Offset; i < MCollisionParticles.Size(); ++i)
+	if (NumParticles)
 	{
-		MCollisionParticleGroupIds[i] = GroupId;
+		const int32 Offset = (int32)MParticles.Size();
+
+		MParticles.AddParticles(NumParticles);
+
+		// Initialize the new particles' group ids
+		for (int32 i = Offset; i < (int32)MParticles.Size(); ++i)
+		{
+			MParticleGroupIds[i] = GroupId;
+		}
+
+		// Resize the group parameter arrays
+		const uint32 GroupSize = TArrayCollection::Size();
+		if (GroupId >= GroupSize)
+		{
+			AddGroups(GroupId + 1 - GroupSize);
+		}
+
+		// Add range
+		MParticlesActiveView.AddRange(NumParticles, bActivate);
+
+		return Offset;
 	}
-	return Offset;
+	return INDEX_NONE;
+}
+
+template<class T, int d>
+void TPBDEvolution<T, d>::ResetCollisionParticles(int32 NumParticles)
+{
+	MCollisionParticles.Resize(NumParticles);
+	MCollisionParticlesActiveView.Reset(NumParticles);
+}
+
+template<class T, int d>
+int32 TPBDEvolution<T, d>::AddCollisionParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate)
+{
+	if (NumParticles)
+	{
+		const int32 RangeOffset = (int32)MCollisionParticles.Size();
+
+		MCollisionParticles.AddParticles(NumParticles);
+
+		// Initialize the new particles' group ids
+		for (int32 i = RangeOffset; i < (int32)MCollisionParticles.Size(); ++i)
+		{
+			MCollisionParticleGroupIds[i] = GroupId;
+		}
+
+		// Add range
+		MCollisionParticlesActiveView.AddRange(NumParticles, bActivate);
+	
+		return RangeOffset;
+	}
+	return INDEX_NONE;
+}
+
+template<class T, int d>
+int32 TPBDEvolution<T, d>::AddConstraintInitRange(int32 NumConstraints, bool bActivate)
+{
+	// Add new constraint init functions
+	MConstraintInits.AddDefaulted(NumConstraints);
+
+	// Add range
+	return MConstraintInitsActiveView.AddRange(NumConstraints, bActivate);
+}
+
+template<class T, int d>
+int32 TPBDEvolution<T, d>::AddConstraintRuleRange(int32 NumConstraints, bool bActivate)
+{
+	// Add new constraint rule functions
+	MConstraintRules.AddDefaulted(NumConstraints);
+
+	// Add range
+	return MConstraintRulesActiveView.AddRange(NumConstraints, bActivate);
 }
 
 template<class T, int d>
@@ -136,70 +202,76 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityDampUpdateState);
-		DampVelocityRule.UpdatePositionBasedState(MParticles);
+		DampVelocityRule.UpdatePositionBasedState(MParticlesActiveView);
 	}	
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityFieldUpdateForces);
-		for (const TUniquePtr<FVelocityField>& VelocityField : MGroupVelocityFields)
+		for (const FVelocityField& VelocityField : MGroupVelocityFields)
 		{
-			VelocityField->UpdateForces(MParticles, Dt);
+			VelocityField.UpdateForces(MParticles, Dt);  // Update force per surface element
 		}
 	}	
 
-	// Don't bother with threaded execution if we don't have enough work to make it worth while.
-	const bool NonParallelUpdate = MParticles.Size() < 1000; // TODO: 1000 is a guess, tune this!
+	memset(MCollided.GetData(), 0, MCollided.Num() * sizeof(bool));
 
-	//PhysicsParallelFor(MCollisionParticles.Size(), [&](int32 Index) 
-	//{ MCollided[Index] = false; }, NonParallelUpdate);
-	//for(int32 i=0; i < MCollided.Num(); i++)
-	//	MCollided[i] = false;
-	memset(MCollided.GetData(), 0, MCollided.Num()*sizeof(bool));
+	// Don't bother with threaded execution if we don't have enough work to make it worth while.
+	const int32 MinParallelBatchSize = 1000; // TODO: 1000 is a guess, tune this!
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDPreIterationUpdates);
-		PhysicsParallelFor(MParticles.Size(), [&](int32 Index)
-		{
-			const uint32 ParticleGroupId = MParticleGroupIds[Index];
 
-			InitForceRule.Apply(MParticles, Dt, Index); // F = TV(0)
-			MGroupGravityForces[ParticleGroupId].Apply(MParticles, Dt, Index); // F += M * G
-			for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
+		MParticlesActiveView.ParallelFor(
+			[this, Dt, &InitForceRule, &EulerStepVelocityRule, &DampVelocityRule, &EulerStepRule](TPBDParticles<T, d>& Particles, int32 Index)
 			{
-				ForceRule(MParticles, Dt, Index); // F += M * A
-			}
+				const uint32 ParticleGroupId = MParticleGroupIds[Index];
+
+				InitForceRule.Apply(Particles, Dt, Index); // F = TV(0)
+				MGroupGravityForces[ParticleGroupId].Apply(Particles, Dt, Index); // F += M * G
+				for (TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& ForceRule : MForceRules)
+				{
+					ForceRule(Particles, Dt, Index); // F += M * A
+				}
 			
-			MGroupVelocityFields[ParticleGroupId]->Apply(MParticles, Dt, Index);
+				MGroupVelocityFields[ParticleGroupId].Apply(Particles, Dt, Index);
 
-			if (MKinematicUpdate)
-			{
-				MKinematicUpdate(MParticles, Dt, MTime + Dt, Index); // X = ...
-			}
-			EulerStepVelocityRule.Apply(MParticles, Dt, Index);
-			DampVelocityRule.Apply(MParticles, Dt, Index);
-			EulerStepRule.Apply(MParticles, Dt, Index);
-		}, NonParallelUpdate);
+				if (MKinematicUpdate)
+				{
+					MKinematicUpdate(Particles, Dt, MTime + Dt, Index); // X = ...
+				}
+				EulerStepVelocityRule.Apply(Particles, Dt, Index);
+				DampVelocityRule.Apply(Particles, Dt, Index);
+				EulerStepRule.Apply(Particles, Dt, Index);
+			}, MinParallelBatchSize);
 	}
 
 	if (MCollisionKinematicUpdate)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CollisionKinematicUpdate);
-		PhysicsParallelFor(MCollisionParticles.Size(), [&](int32 Index) {
-			MCollisionKinematicUpdate(MCollisionParticles, Dt, MTime + Dt, Index);
-		}, NonParallelUpdate);
+
+		MCollisionParticlesActiveView.SequentialFor(
+			[this, Dt](TKinematicGeometryClothParticles<T, d>& CollisionParticles, int32 Index)
+			{
+				MCollisionKinematicUpdate(CollisionParticles, Dt, MTime + Dt, Index);
+			});
 	}
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
-	TPBDCollisionSpringConstraints<T, d> SelfCollisionRule(MParticles, MCollisionTriangles, MDisabledCollisionElements, MParticleGroupIds, MGroupSelfCollisionThicknesses, Dt);
+	TPBDCollisionSpringConstraints<T, d> SelfCollisionRule(MParticlesActiveView, MCollisionTriangles, MDisabledCollisionElements, MParticleGroupIds, MGroupSelfCollisionThicknesses, Dt);
 #endif
 
-	for (TFunction<void()>& InitConstraintRule : MInitConstraintRules)
+	for (TFunction<void()>& ConstraintInit : MConstraintInits)
 	{
-		InitConstraintRule();  // Clear XPBD's Lambdas
+		ConstraintInit();  // Clear XPBD's Lambdas
 	}
 
 	// Do one extra collision pass at the start to decrease likelihood of cloth penetrating- TODO: Add option for more collision passed interleaved between constraints
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
-		CollisionRule.ApplyPerParticle(MParticles, Dt);
+		MParticlesActiveView.ParallelFor(
+			[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+			{
+				CollisionRule.Apply(Particles, Dt, Index);
+			});
 	}
 
 	for (int i = 0; i < MNumIterations; ++i)
@@ -217,17 +289,24 @@ void TPBDEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 #endif
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRule);
-			CollisionRule.ApplyPerParticle(MParticles, Dt);
+			MParticlesActiveView.ParallelFor(
+				[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+				{
+					CollisionRule.Apply(Particles, Dt, Index);
+				},MinParallelBatchSize);
 		}
 	}
 	check(MParticleUpdate);
-	MParticleUpdate(MParticles, Dt); // V = (P - X) / Dt; X = P;
+	MParticleUpdate(MParticlesActiveView, Dt); // V = (P - X) / Dt; X = P;
+
 	if (MCoefficientOfFriction > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDCollisionRuleFriction);
-		PhysicsParallelFor(MParticles.Size(), [&](int32 Index) {
-			CollisionRule.ApplyFriction(MParticles, Dt, Index);
-		}, NonParallelUpdate);
+		MParticlesActiveView.ParallelFor(
+			[&CollisionRule, Dt](TPBDParticles<T, d>& Particles, int32 Index)
+			{
+				CollisionRule.ApplyFriction(Particles, Dt, Index);
+			}, MinParallelBatchSize);
 	}
 
 	MTime += Dt;

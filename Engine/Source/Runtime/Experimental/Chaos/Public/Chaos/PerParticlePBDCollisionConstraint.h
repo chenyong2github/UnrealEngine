@@ -4,7 +4,7 @@
 #include "Chaos/PerParticleRule.h"
 #include "Chaos/Transform.h"
 
-#include <memory>
+#include "HAL/PlatformMath.h"
 
 namespace Chaos
 {
@@ -18,29 +18,36 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	};
 
   public:
-	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<uint32>& DynamicGroupIds, TArrayCollectionArray<uint32>& KinematicGroupIds, const TArray<T>& PerGroupThickness, const TArray<T>& PerGroupFriction)
+	TPerParticlePBDCollisionConstraint(const TKinematicGeometryParticlesImp<T, d, SimType>& InParticles, TArray<bool>& Collided, TArray<uint32>& DynamicGroupIds, TArray<uint32>& KinematicGroupIds, const TArray<T>& PerGroupThickness, const TArray<T>& PerGroupFriction)
 	    : bFastPositionBasedFriction(true), MParticles(InParticles), MCollided(Collided), MDynamicGroupIds(DynamicGroupIds), MKinematicGroupIds(KinematicGroupIds), MPerGroupThickness(PerGroupThickness), MPerGroupFriction(PerGroupFriction) {}
 	virtual ~TPerParticlePBDCollisionConstraint() {}
 
 	inline void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
 	{
 		if (InParticles.InvM(Index) == 0)
+		{
 			return;
+		}
+
+		const uint32 DynamicGroupId = MDynamicGroupIds[Index];  // Particle group Id
+		
 		for (uint32 i = 0; i < MParticles.Size(); ++i)
 		{
-			if (MDynamicGroupIds[Index] != MKinematicGroupIds[i])
+			const uint32 KinematicGroupId = MKinematicGroupIds[i];  // Collision group Id
+
+			if (KinematicGroupId != (uint32)INDEX_NONE && DynamicGroupId != KinematicGroupId)
 			{
-				continue; // Bail out if the collision groups doesn't match the particle group id
+				continue; // Bail out if the collision groups doesn't match the particle group id, or use INDEX_NONE (= global collision that affects all particle)
 			}
 			TVector<T, d> Normal;
 			TRigidTransform<T, d> Frame(MParticles.X(i), MParticles.R(i));
 			const T Phi = MParticles.Geometry(i)->PhiWithNormal(Frame.InverseTransformPosition(InParticles.P(Index)), Normal);
-			const T Thickness = MPerGroupThickness[MDynamicGroupIds[Index]];
+			const T Thickness = MPerGroupThickness[DynamicGroupId];
 			if (Phi < Thickness)
 			{
 				const TVector<T, d> NormalWorld = Frame.TransformVector(Normal);
 				InParticles.P(Index) += (-Phi + Thickness) * NormalWorld;
-				const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
+				const T CoefficientOfFriction = MPerGroupFriction[DynamicGroupId];
 				if (CoefficientOfFriction > 0)
 				{
 					const T MaximumFrictionCorrectionPerStep = 1.0f; // 1cm absolute maximum correction the friction force can provide
@@ -89,7 +96,7 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 			const TVector<T, d> VTBody = MVelocityConstraints[Index].Velocity - VNBody * MVelocityConstraints[Index].Normal;
 			const TVector<T, d> VTRelative = InParticles.V(Index) - VN * MVelocityConstraints[Index].Normal - VTBody;
 			const T VTRelativeSize = VTRelative.Size();
-			const T VNMax = FGenericPlatformMath::Max(VN, VNBody);
+			const T VNMax = FMath::Max(VN, VNBody);
 			const T VNDelta = VNMax - VN;
 			const T CoefficientOfFriction = MPerGroupFriction[MDynamicGroupIds[Index]];
 			check(CoefficientOfFriction > 0);
@@ -102,9 +109,9 @@ class TPerParticlePBDCollisionConstraint : public TPerParticleRule<T, d>
 	bool bFastPositionBasedFriction;
 	// TODO(mlentine): Need a bb hierarchy
 	const TKinematicGeometryParticlesImp<T, d, SimType>& MParticles;
-	TArrayCollectionArray<bool>& MCollided;
-	TArrayCollectionArray<uint32>& MDynamicGroupIds;
-	TArrayCollectionArray<uint32>& MKinematicGroupIds;
+	TArray<bool>& MCollided;
+	TArray<uint32>& MDynamicGroupIds;
+	TArray<uint32>& MKinematicGroupIds;
 	mutable TMap<int32, VelocityConstraint> MVelocityConstraints;
 	const TArray<T>& MPerGroupThickness;
 	const TArray<T>& MPerGroupFriction;

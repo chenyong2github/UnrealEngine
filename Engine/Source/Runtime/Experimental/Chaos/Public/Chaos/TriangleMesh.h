@@ -5,8 +5,7 @@
 #include "Chaos/Map.h"
 #include "Chaos/Particles.h"
 #include "Chaos/SegmentMesh.h"
-
-#include <unordered_set>
+#include "Containers/ContainersFwd.h"
 
 namespace Chaos
 {
@@ -37,7 +36,7 @@ namespace Chaos
 		 *
 		 * If this mesh is empty, the second index of the range will be negative.
 		 */
-		TPair<int32, int32> GetVertexRange() const;
+		TVector<int32, 2> GetVertexRange() const;
 
 		/** Returns the set of vertices used by triangles. */
 		TSet<int32> GetVertices() const;
@@ -52,8 +51,8 @@ namespace Chaos
 		 */
 		void ExpandVertexRange(const int32 StartIdx, const int32 EndIdx)
 		{
-			const TPair<int32, int32> CurrRange = GetVertexRange();
-			if (StartIdx <= CurrRange.Key && EndIdx >= CurrRange.Value)
+			const TVector<int32, 2> CurrRange = GetVertexRange();
+			if (StartIdx <= CurrRange[0] && EndIdx >= CurrRange[1])
 			{
 				MStartIdx = StartIdx;
 				MNumIndices = EndIdx - StartIdx + 1;
@@ -91,7 +90,7 @@ namespace Chaos
 		const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
 		const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
 
-		const TMap<int32, TArray<int32>>& GetPointToTriangleMap() const;
+		TConstArrayView<TArray<int32>> GetPointToTriangleMap() const;  // Return an array view using global indexation. Only elements starting at MStartIdx will be valid!
 		const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
 
 		TSet<int32> GetNRing(const int32 Element, const int32 N) const
@@ -137,25 +136,24 @@ namespace Chaos
 		/** The GetFaceNormals functions assume Counter Clockwise triangle windings in a Left Handed coordinate system
 			If this is not the case the returned face normals may be inverted
 		*/
-		TArray<TVector<T, 3>> GetFaceNormals(const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
-		void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TArrayView<const TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
-		/** Deprecated. Use TArrayView version. */
+		TArray<TVector<T, 3>> GetFaceNormals(const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
+		void GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError = true) const;
 		TArray<TVector<T, 3>> GetFaceNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true) const
 		{ return GetFaceNormals(InParticles.X(), ReturnEmptyOnError); }
 
-		TArray<TVector<T, 3>> GetPointNormals(const TArrayView<const TVector<T, 3>>& points, const bool bReturnEmptyOnError = false, const bool bUseGlobalArray = true);
-		void GetPointNormals(TArray<TVector<T, 3>>& PointNormals, const TArray<TVector<T, 3>>& FaceNormals, const bool ReturnEmptyOnError = false, const bool bUseGlobalArray = true);
+		TArray<TVector<T, 3>> GetPointNormals(const TConstArrayView<TVector<T, 3>>& points, const bool ReturnEmptyOnError = true);
+		TArray<TVector<T, 3>> GetPointNormals(const TParticles<T, 3>& InParticles, const bool ReturnEmptyOnError = true)
+		{ return GetPointNormals(InParticles.X(), ReturnEmptyOnError); }
+
+		void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray);
 		/** \brief Get per-point normals. 
 		 * This const version of this function requires \c GetPointToTriangleMap() 
 		 * to be called prior to invoking this function. 
 		 * @param bUseGlobalArray When true, fill the array from the StartIdx to StartIdx + NumIndices - 1 positions, otherwise fill the array from the 0 to NumIndices - 1 positions.
 		 */
-		void GetPointNormals(TArray<TVector<T, 3>>& PointNormals, const TArray<TVector<T, 3>>& FaceNormals, const bool bReturnEmptyOnError, const bool bUseGlobalArray) const;
-		/** Deprecated. Use TArrayView version. */
-		TArray<TVector<T, 3>> GetPointNormals(const TParticles<T, 3>& InParticles, const bool bReturnEmptyOnError = false, const bool bUseGlobalArray = true)
-		{ return GetPointNormals(InParticles.X(), bReturnEmptyOnError, bUseGlobalArray); }
+		void GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray) const;
 
-		static TTriangleMesh<T> GetConvexHullFromParticles(const TArrayView<const TVector<T, 3>>& points);
+		static TTriangleMesh<T> GetConvexHullFromParticles(const TConstArrayView<TVector<T, 3>>& points);
 		/** Deprecated. Use TArrayView version. */
 		static TTriangleMesh<T> GetConvexHullFromParticles(const TParticles<T, 3>& InParticles)
 		{ return GetConvexHullFromParticles(InParticles.X()); }
@@ -177,7 +175,7 @@ namespace Chaos
 		 */
 		TArray<T> GetCurvatureOnEdges(const TArray<TVector<T, 3>>& faceNormals);
 		/** @brief Helper that generates face normals on the fly. */
-		TArray<T> GetCurvatureOnEdges(const TArrayView<const TVector<T, 3>>& points);
+		TArray<T> GetCurvatureOnEdges(const TConstArrayView<TVector<T, 3>>& points);
 
 		/**
 		 * @ret The maximum curvature at points from connected edges, specified in radians.
@@ -186,7 +184,7 @@ namespace Chaos
 		 */
 		TArray<T> GetCurvatureOnPoints(const TArray<T>& edgeCurvatures);
 		/** @brief Helper that generates edge curvatures on the fly. */
-		TArray<T> GetCurvatureOnPoints(const TArrayView<const TVector<T, 3>>& points);
+		TArray<T> GetCurvatureOnPoints(const TConstArrayView<TVector<T, 3>>& points);
 
 		/**
 		 * Get the set of point indices that live on the boundary (an edge with only 1 
@@ -201,7 +199,7 @@ namespace Chaos
 		 */
 		TMap<int32, int32> FindCoincidentVertexRemappings(
 			const TArray<int32>& TestIndices,
-			const TArrayView<const TVector<T, 3>>& Points);
+			const TConstArrayView<TVector<T, 3>>& Points);
 
 		/**
 		 * @ret An array of vertex indices ordered from most important to least.
@@ -211,13 +209,13 @@ namespace Chaos
 		 * @param RestrictToLocalIndexRange - ignores points outside of the index range used by this mesh.
 		 */
 		TArray<int32> GetVertexImportanceOrdering(
-		    const TArrayView<const TVector<T, 3>>& Points,
+		    const TConstArrayView<TVector<T, 3>>& Points,
 		    const TArray<T>& PointCurvatures,
 		    TArray<int32>* CoincidentVertices = nullptr,
 		    const bool RestrictToLocalIndexRange = false);
 		/** @brief Helper that generates point curvatures on the fly. */
 		TArray<int32> GetVertexImportanceOrdering(
-		    const TArrayView<const TVector<T, 3>>& Points,
+		    const TConstArrayView<TVector<T, 3>>& Points,
 		    TArray<int32>* CoincidentVertices = nullptr,
 		    const bool RestrictToLocalIndexRange = false);
 
@@ -269,9 +267,16 @@ namespace Chaos
 			return LocalIdx;
 		}
 
+		int32 LocalToGlobal(int32 LocalIdx) const
+		{
+			const int32 GlobalIdx = LocalIdx + MStartIdx;
+			check(GlobalIdx >= MStartIdx && GlobalIdx < MStartIdx + MNumIndices);
+			return GlobalIdx;
+		}
+
 		TArray<TVector<int32, 3>> MElements;
 
-		mutable TMap<int32, TArray<int32>> MPointToTriangleMap;
+		mutable TArray<TArray<int32>> MPointToTriangleMap;  // !! Unlike the TArrayView returned by GetPointToTriangleMap, this array starts at 0 for the point of index MStartIdx. Use GlobalToLocal to access with a global index. Note that this array's content is always indexed in global index.
 		mutable TMap<int32, TSet<uint32>> MPointToNeighborsMap;
 
 		TSegmentMesh<T> MSegmentMesh;

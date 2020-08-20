@@ -125,6 +125,17 @@ void UChaosClothConfig::PostLoad()
 	}
 }
 
+float UChaosClothConfig::GetMassValue() const
+{
+	switch (MassMode)
+	{
+	default:
+	case EClothMassMode::Density: return Density;
+	case EClothMassMode::TotalMass: return TotalMass;
+	case EClothMassMode::UniformMass: return UniformMass;
+	}
+}
+
 UChaosClothSharedSimConfig::UChaosClothSharedSimConfig()
 {}
 

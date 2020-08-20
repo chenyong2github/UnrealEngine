@@ -76,10 +76,8 @@ void FClothPhysicalMeshData::ClearWeightMaps()
 	// Clear all weight maps (and reserve 4 slots)
 	WeightMaps.Empty(4);
 
-	// Max distances must be present, so fill to zero on clear so we still have valid mesh data.
-	AddWeightMap(EWeightMapTargetCommon::MaxDistance).Initialize(Vertices.Num());
-
 	// Add default (empty) optional maps, as these are always expected to be found
+	AddWeightMap(EWeightMapTargetCommon::MaxDistance);
 	AddWeightMap(EWeightMapTargetCommon::BackstopDistance);
 	AddWeightMap(EWeightMapTargetCommon::BackstopRadius);
 	AddWeightMap(EWeightMapTargetCommon::AnimDriveMultiplier);
