@@ -12,6 +12,7 @@ protected:
 	FString DumpDisasmFilename;
 	FString BatchBaseFilename;
 	FString DumpDebugInfoPath;
+	bool bEnable16BitTypes = false;
 	bool bDump = false;
 
 	TArray<FString> ExtraArguments;
@@ -20,12 +21,14 @@ public:
 	FDxcArguments(const FString& InEntryPoint, const TCHAR* InShaderProfile, const FString& InExports,
 		const FString& InDumpDebugInfoPath,	// Optional, empty when not dumping shader debug info
 		const FString& InBaseFilename,
+		bool bInEnable16BitTypes,
 		bool bKeepDebugInfo,
 		uint32 D3DCompileFlags, uint32 AutoBindingSpace = ~0u)
 		: ShaderProfile(InShaderProfile)
 		, EntryPoint(InEntryPoint)
 		, Exports(InExports)
 		, DumpDebugInfoPath(InDumpDebugInfoPath)
+		, bEnable16BitTypes(bInEnable16BitTypes)
 	{
 		BatchBaseFilename = FPaths::GetBaseFilename(InBaseFilename);
 
@@ -115,6 +118,11 @@ public:
 		{
 			D3DCompileFlags &= ~D3D10_SHADER_DEBUG;
 			bKeepDebugInfo = true;
+		}
+
+		if (bEnable16BitTypes)
+		{
+			ExtraArguments.Add(L"/enable-16bit-types");
 		}
 
 		checkf(D3DCompileFlags == 0, TEXT("Unhandled shader compiler flags 0x%x!"), D3DCompileFlags);
