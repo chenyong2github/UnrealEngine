@@ -17,6 +17,7 @@ enum class EIcmpResponseStatus
 	InternalError,
 	/** not implemented - used to indicate we haven't implemented ICMP ping on this platform */
 	NotImplemented,
+
 };
 
 struct FIcmpEchoResult
@@ -47,57 +48,6 @@ struct FIcmpEchoResult
 
 typedef TFunction<void(FIcmpEchoResult)> FIcmpEchoResultCallback;
 DECLARE_DELEGATE_OneParam(FIcmpEchoResultDelegate, FIcmpEchoResult);
-
-struct FIcmpTarget
-{
-	FString Address;
-	int32 Port;
-
-	FIcmpTarget()
-		: Port(0)
-	{}
-
-	FIcmpTarget(const FString& InAddress, int32 InPort)
-		: Address(InAddress)
-		, Port(InPort)
-	{}
-}; // struct FIcmpTarget
-
-struct FIcmpEchoManyResult
-{
-	FIcmpEchoResult EchoResult;
-	FIcmpTarget Target;
-
-	FIcmpEchoManyResult() = default;
-	FIcmpEchoManyResult(const FIcmpEchoResult& InEchoResult, const FIcmpTarget& InTarget)
-		: EchoResult(InEchoResult)
-		, Target(InTarget)
-	{}
-
-}; // struct FIcmpEchoManyResult
-
-enum class EIcmpEchoManyStatus : uint8
-{
-	Invalid,
-	Success,
-	Failure,
-	Canceled
-};
-
-struct FIcmpEchoManyCompleteResult
-{
-	TArray<FIcmpEchoManyResult> AllResults;
-	EIcmpEchoManyStatus Status;
-
-	FIcmpEchoManyCompleteResult()
-		: Status(EIcmpEchoManyStatus::Invalid)
-	{}
-
-}; // struct FIcmpEchoManyCompleteResult
-
-typedef TFunction<void(FIcmpEchoManyCompleteResult)> FIcmpEchoManyCompleteCallback;
-DECLARE_DELEGATE_OneParam(FIcmpEchoManyCompleteDelegate, FIcmpEchoManyCompleteResult);
-
 
 // Simple ping interface that sends an ICMP packet to the given address and returns timing info for the reply if reachable
 class ICMP_API FIcmp
@@ -173,42 +123,6 @@ public:
 			ResultDelegate.ExecuteIfBound(Result);
 		});
 	}
-
-	/** Send multiple ICMP echo packets and wait for replies.
-	 *
-	 * Creates a new thread in which name resolution and ping send/receive are handled for all
-	 * supplied target addresses.  These are non-blocking requests, sent and received on a single
-	 * network socket.
-	 *
-	 * The third argument is a callback function that will be invoked on the game thread after
-	 * all replies are received, timed out, or otherwise terminated (e.g. remote address could
-	 * not be resolved, host unreachable, send failed, etc.).  It passes a FIcmpEchoManyCompleteResult
-	 * instance, containing the overall completion status, and the ping results obtained so far
-	 * for all of the supplied targets.
-	 *
-	 * @param Targets the target addresses to ping
-	 * @param Timeout max time to wait for a replies
-	 * @param CompletionCallback callback function that is invoked when the final results are ready
-	 */
-	static void UDPEchoMany(const TArray<FIcmpTarget>& Targets, float Timeout, FIcmpEchoManyCompleteCallback CompletionCallback);
-
-	/** Send multiple ICMP echo packets and wait for replies.
-	 *
-	 * Creates a new thread in which name resolution and ping send/receive are handled for all
-	 * supplied target addresses.  These are non-blocking requests, sent and received on a single
-	 * network socket.
-	 *
-	 * The third argument is a callback function that will be invoked on the game thread after
-	 * all replies are received, timed out, or otherwise terminated (e.g. remote address could
-	 * not be resolved, host unreachable, send failed, etc.).  It passes a FIcmpEchoManyCompleteResult
-	 * instance, containing the overall completion status, and the ping results obtained so far
-	 * for all of the supplied targets.
-	 *
-	 * @param Targets the target addresses to ping
-	 * @param Timeout max time to wait for a replies
-	 * @param CompletionDelegate delegate that is invoked when the final results are ready
-	 */
-	static void UDPEchoMany(const TArray<FIcmpTarget>& Targets, float Timeout, FIcmpEchoManyCompleteDelegate CompletionDelegate);
 };
 
 
