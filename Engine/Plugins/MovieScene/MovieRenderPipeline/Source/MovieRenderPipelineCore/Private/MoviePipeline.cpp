@@ -158,6 +158,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	// Disable some user settings that conflict with our need to mutate the data.
 	{
+#if WITH_EDITORONLY_DATA
 		// Movie Scene Read Only
 		SequenceChanges.bSequenceReadOnly = TargetSequence->GetMovieScene()->IsReadOnly();
 		TargetSequence->GetMovieScene()->SetReadOnly(false);
@@ -165,7 +166,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 		// Playback Range locked
 		SequenceChanges.bSequencePlaybackRangeLocked = TargetSequence->GetMovieScene()->IsPlaybackRangeLocked();
 		TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
-
+#endif
 		// Force Frame-locked evaluation off on the sequence. We control time and will respect that, but need it off for subsampling.
 		SequenceChanges.EvaluationType = TargetSequence->GetMovieScene()->GetEvaluationType();
 		TargetSequence->GetMovieScene()->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
@@ -284,8 +285,10 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 
 	TargetSequence->GetMovieScene()->SetEvaluationType(SequenceChanges.EvaluationType);
 	TargetSequence->GetMovieScene()->SetPlaybackRange(SequenceChanges.PlaybackRange);
+#if WITH_EDITORONLY_DATA
 	TargetSequence->GetMovieScene()->SetReadOnly(SequenceChanges.bSequenceReadOnly);
 	TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(SequenceChanges.bSequencePlaybackRangeLocked);
+#endif
 	if(UPackage* Package = TargetSequence->GetMovieScene()->GetTypedOuter<UPackage>())
 	{
 		Package->SetDirtyFlag(SequenceChanges.bSequencePackageDirty);
@@ -297,8 +300,9 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 		if (ModifiedSegment.MovieScene.IsValid())
 		{
 			ModifiedSegment.MovieScene->SetPlaybackRange(ModifiedSegment.MovieScenePlaybackRange);
+#if WITH_EDITORONLY_DATA
 			ModifiedSegment.MovieScene->SetReadOnly(ModifiedSegment.bMovieSceneReadOnly);
-			
+#endif
 			if(UPackage* Package = ModifiedSegment.MovieScene->GetTypedOuter<UPackage>())
 			{
 				Package->SetDirtyFlag(ModifiedSegment.bMovieScenePackageDirty);
@@ -810,15 +814,18 @@ void UMoviePipeline::BuildShotListFromSequence()
 			else
 			{
 				ModifiedSegment.MovieScenePlaybackRange = InnerMovieScene->GetPlaybackRange();
+#if WITH_EDITORONLY_DATA
 				ModifiedSegment.bMovieSceneReadOnly = InnerMovieScene->IsReadOnly();
-
+#endif
 				if (UPackage* OwningPackage = InnerMovieScene->GetTypedOuter<UPackage>())
 				{
 					ModifiedSegment.bMovieScenePackageDirty = OwningPackage->IsDirty();
 				}
 
+#if WITH_EDITORONLY_DATA
 				// Unlock the playback range and readonly flags so we can modify the scene.
 				InnerMovieScene->SetReadOnly(false);
+#endif
 			}
 		}
 

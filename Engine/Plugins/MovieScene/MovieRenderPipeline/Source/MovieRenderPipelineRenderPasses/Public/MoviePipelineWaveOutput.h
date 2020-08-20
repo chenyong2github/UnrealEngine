@@ -17,7 +17,9 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineWaveOutput : public UMov
 	}
 
 public:
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "AudioSettingDisplayName", ".wav Audio"); }
+#endif
 
 protected:
 	virtual void BeginFinalizeImpl() override;

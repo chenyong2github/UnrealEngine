@@ -64,7 +64,9 @@ protected:
 	virtual bool HasFinishedProcessingImpl() override;
 	virtual void BeginFinalizeImpl() override;
 	virtual void FinalizeImpl() override;
+#if WITH_EDITOR
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
+#endif
 	// ~UMoviePipelineOutputBase Interface
 
 	// UMoviePipelineVideoOutputBase Interface

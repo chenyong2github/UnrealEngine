@@ -57,8 +57,9 @@ void UMoviePipelineInProcessExecutor::Start(const UMoviePipelineExecutorJob* InJ
 		}
 	}
 
-	UE_LOG(LogMovieRenderPipeline, Log, TEXT("About to load target map %s"), *InJob->Map.GetAssetPathName().ToString());
-	UGameplayStatics::OpenLevel(LastLoadedWorld, InJob->Map.GetAssetPathName(), true, MapOptions);
+	FString LevelPath = InJob->Map.GetLongPackageName();
+	UE_LOG(LogMovieRenderPipeline, Log, TEXT("About to load target map %s"), *LevelPath);
+	UGameplayStatics::OpenLevel(LastLoadedWorld, FName(*LevelPath), true, MapOptions);
 }
 
 void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
