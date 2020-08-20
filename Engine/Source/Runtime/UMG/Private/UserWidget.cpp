@@ -424,12 +424,17 @@ void UUserWidget::TearDownAnimations()
 {
 	for (UUMGSequencePlayer* Player : ActiveSequencePlayers)
 	{
-		Player->TearDown();
+		if (Player)
+		{
+			Player->TearDown();
+		}
 	}
+
 	for (UUMGSequencePlayer* Player : StoppedSequencePlayers)
 	{
 		Player->TearDown();
 	}
+
 	ActiveSequencePlayers.Empty();
 	StoppedSequencePlayers.Empty();
 }
