@@ -275,7 +275,9 @@ struct FRichCurveKeyBP : public FRichCurveKey
 		:FRichCurveKey(Other) 
 	{};
 
-	operator FRichCurveKey() const { return *this; };
+	FRichCurveKey ToBase() const { return FRichCurveKey(Time, Value, ArriveTangent, LeaveTangent, InterpMode); };
+
+	static TArray<FRichCurveKey> KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs);
 };
 
 
