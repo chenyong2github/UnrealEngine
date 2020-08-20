@@ -95,6 +95,8 @@ TWeakPtr<SNotificationItem> GameProjectUtils::WarningProjectNameNotification = N
 
 bool GameProjectUtils::bUseAudioMixerForAllPlatforms = false;
 
+constexpr const TCHAR GameProjectUtils::IncludePathFormatString[];
+
 struct FAudioDefaultPlatformSettings
 {
 	FString Name;
