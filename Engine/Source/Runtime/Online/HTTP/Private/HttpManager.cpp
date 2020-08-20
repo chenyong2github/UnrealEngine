@@ -171,7 +171,7 @@ void FHttpManager::Flush(bool bShutdown)
 				Request->CancelRequest();
 			}
 		}
-		Tick(AppTime - LastTime);
+		FlushTick(AppTime - LastTime);
 		LastTime = AppTime;
 		if (Requests.Num() > 0)
 		{
@@ -227,6 +227,11 @@ bool FHttpManager::Tick(float DeltaSeconds)
 	}
 	// keep ticking
 	return true;
+}
+
+void FHttpManager::FlushTick(float DeltaSeconds)
+{
+	Tick(DeltaSeconds);
 }
 
 void FHttpManager::AddRequest(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& Request)

@@ -76,6 +76,13 @@ public:
 	 */
 	bool Tick(float DeltaSeconds) override;
 
+	/**
+	 * Tick called during Flush
+	 *
+	 * @param DeltaSeconds - time in seconds since the last tick
+	 */
+	virtual void FlushTick(float DeltaSeconds);
+
 	/** 
 	 * Add a http request to be executed on the http thread
 	 *

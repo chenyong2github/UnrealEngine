@@ -263,7 +263,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, RequestData.Url, RequestData.Headers, RequestData.Payload);
 		if (!Connection.IsValid())
 		{
-			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
+			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Connection, failing request"));
 			StrongThis->FinishRequest();
 			return;
 		}
