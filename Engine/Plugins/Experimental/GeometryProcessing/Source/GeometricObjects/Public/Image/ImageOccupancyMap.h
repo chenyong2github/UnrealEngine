@@ -151,7 +151,7 @@ public:
 		TFunctionRef<float(const FVector2i& TexelOffset)> WeightFunction,
 		int32 FilterWidth,
 		TArray<TexelValueType>& PassBuffer
-	)
+	) const
 	{
 		int64 N = Dimensions.Num();
 		PassBuffer.SetNum(N);
