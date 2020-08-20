@@ -57,6 +57,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint32 GRHIDeviceRevision;
 	FString GRHIAdapterInternalDriverVersion;
 	FString GRHIAdapterUserDriverVersion;
+	FString GRHIName;
 
 	uint64 TotalPhysicalRAM;
 	int32 CPUPhysicalCores;
