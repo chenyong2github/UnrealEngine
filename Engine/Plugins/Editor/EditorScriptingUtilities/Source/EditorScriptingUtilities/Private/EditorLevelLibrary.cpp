@@ -506,6 +506,28 @@ UWorld* UEditorLevelLibrary::GetGameWorld()
 	return InternalEditorLevelLibrary::GetGameWorld();
 }
 
+TArray<UWorld*> UEditorLevelLibrary::GetPIEWorlds(bool bIncludeDedicatedServer)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	TArray<UWorld*> PIEWorlds;
+
+	if (GEditor)
+	{
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				if (bIncludeDedicatedServer || !WorldContext.RunAsDedicated)
+				{
+					PIEWorlds.Add(WorldContext.World());
+				}
+			}
+		}
+	}
+
+	return PIEWorlds;
+}
 
 /**
  *

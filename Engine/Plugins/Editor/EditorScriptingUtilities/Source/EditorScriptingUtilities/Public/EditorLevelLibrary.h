@@ -208,6 +208,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	static UWorld* GetGameWorld();
+	
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static TArray<UWorld*> GetPIEWorlds(bool bIncludeDedicatedServer);
 
 public:
 	/**
