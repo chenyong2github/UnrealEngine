@@ -210,6 +210,13 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 {
 	bool bWasChanged = false;
 
+	// The distance field query got a new output at some point, but there exists no custom version for it
+	if (FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::DistanceFieldName && FunctionSignature.Outputs.Num() == 2)
+	{
+		FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")));
+		bWasChanged = true;
+	}
+
 	// Early out for version matching
 	if (FunctionSignature.FunctionVersion == FNiagaraCollisionDIFunctionVersion::LatestVersion)
 	{
