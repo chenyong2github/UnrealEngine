@@ -904,7 +904,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 
 		FDecompositionQuery Query;
 		Query.Entities = ValidEntities;
-		Query.bConvertFromSourceEntityIDs = true;
+		Query.bConvertFromSourceEntityIDs = false;
 		Query.Object   = Component;
 
 		FIntermediate3DTransform CurrentValue(Component->GetRelativeLocation(), Component->GetRelativeRotation(), Component->GetRelativeScale3D());
