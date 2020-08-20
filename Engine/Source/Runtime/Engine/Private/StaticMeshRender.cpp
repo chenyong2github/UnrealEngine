@@ -117,11 +117,6 @@ static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshes(
 	1,
 	TEXT("Include static meshes in ray tracing effects (default = 1 (static meshes enabled in ray tracing))"));
 
-static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesExcludeImpostors(
-	TEXT("r.RayTracing.Geometry.StaticMeshes.ExcludeImpostors"),
-	0,
-	TEXT("Exclude impostor LOD for static meshes in ray tracing (default = 0)"));
-
 static TAutoConsoleVariable<int32> CVarRayTracingStaticMeshesWPO(
 	TEXT("r.RayTracing.Geometry.StaticMeshes.WPO"),
 	1,
@@ -1673,14 +1668,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	}
 
 	uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
-	uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
-
-	if (CVarRayTracingStaticMeshesExcludeImpostors.GetValueOnRenderThread() == 1)
-	{
-		uint32 MaxLOD = FMath::Max(RenderData->LODResources.Num() - 2, 0);
-		LODIndex = FMath::Min(LODIndex, MaxLOD);
-	}
-
+	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 
 	if (LODModel.GetNumVertices() <= 0)
