@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework//ComputeKernelShaderMap.h"
+#include "ComputeFramework/ComputeKernelShaderMap.h"
 
 struct FComputeKernelCompilationResults
 {
