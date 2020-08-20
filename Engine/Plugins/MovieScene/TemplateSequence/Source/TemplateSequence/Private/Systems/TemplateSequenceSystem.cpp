@@ -32,6 +32,8 @@ FTemplateSequenceComponentTypes::FTemplateSequenceComponentTypes()
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
 	ComponentRegistry->NewComponentType(&TemplateSequence, TEXT("Template Sequence"));
+
+	ComponentRegistry->Factories.DuplicateChildComponent(TemplateSequence);
 }
 
 } // namespace MovieScene
