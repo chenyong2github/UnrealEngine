@@ -285,6 +285,9 @@ public:
 	FORCEINLINE const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return DataInterfaces; }
 	FORCEINLINE const TArray<uint8>& GetParameterDataArray()const { return ParameterData; }
 
+	FORCEINLINE int32 Num() const {return SortedParameterOffsets.Num(); }
+	FORCEINLINE bool IsEmpty() const { return SortedParameterOffsets.Num() == 0; }
+
 	void SanityCheckData(bool bInitInterfaces = true);
 
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).

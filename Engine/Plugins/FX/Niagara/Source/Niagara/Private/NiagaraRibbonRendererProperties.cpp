@@ -72,10 +72,10 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	AttributeBindings.Add(&V1RangeOverrideBinding);
 }
 
-FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRenderer* UNiagaraRibbonRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererRibbons(FeatureLevel, this, Emitter);
-	NewRenderer->Initialize(this, Emitter);
+	NewRenderer->Initialize(this, Emitter, InComponent);
 	return NewRenderer;
 }
 
@@ -120,6 +120,8 @@ void UNiagaraRibbonRendererProperties::PostLoad()
 	}
 
 #endif
+
+	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
 }
 
 FNiagaraBoundsCalculator* UNiagaraRibbonRendererProperties::CreateBoundsCalculator()
@@ -174,7 +176,7 @@ void UNiagaraRibbonRendererProperties::InitCDOPropertiesAfterModuleStartup()
 
 void UNiagaraRibbonRendererProperties::InitBindings()
 {
-	if (PositionBinding.BoundVariable.GetName() == NAME_None)
+	if (!PositionBinding.IsValid())
 	{
 		PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
 		ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
@@ -201,62 +203,62 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 {
 	// Initialize accessors
 	bSortKeyDataSetAccessorIsAge = false;
-	SortKeyDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.DataSetVariable.GetName());
+	SortKeyDataSetAccessor.Init(CompiledData, RibbonLinkOrderBinding.GetDataSetBindableVariable().GetName());
 	if (!SortKeyDataSetAccessor.IsValid())
 	{
 		bSortKeyDataSetAccessorIsAge = true;
-		SortKeyDataSetAccessor.Init(CompiledData, NormalizedAgeBinding.DataSetVariable.GetName());
+		SortKeyDataSetAccessor.Init(CompiledData, NormalizedAgeBinding.GetDataSetBindableVariable().GetName());
 	}
 
-	PositionDataSetAccessor.Init(CompiledData, PositionBinding.DataSetVariable.GetName());
-	SizeDataSetAccessor.Init(CompiledData, RibbonWidthBinding.DataSetVariable.GetName());
-	TwistDataSetAccessor.Init(CompiledData, RibbonTwistBinding.DataSetVariable.GetName());
-	FacingDataSetAccessor.Init(CompiledData, RibbonFacingBinding.DataSetVariable.GetName());
+	PositionDataSetAccessor.Init(CompiledData, PositionBinding.GetDataSetBindableVariable().GetName());
+	SizeDataSetAccessor.Init(CompiledData, RibbonWidthBinding.GetDataSetBindableVariable().GetName());
+	TwistDataSetAccessor.Init(CompiledData, RibbonTwistBinding.GetDataSetBindableVariable().GetName());
+	FacingDataSetAccessor.Init(CompiledData, RibbonFacingBinding.GetDataSetBindableVariable().GetName());
 
-	MaterialParam0DataSetAccessor.Init(CompiledData, DynamicMaterialBinding.DataSetVariable.GetName());
-	MaterialParam1DataSetAccessor.Init(CompiledData, DynamicMaterial1Binding.DataSetVariable.GetName());
-	MaterialParam2DataSetAccessor.Init(CompiledData, DynamicMaterial2Binding.DataSetVariable.GetName());
-	MaterialParam3DataSetAccessor.Init(CompiledData, DynamicMaterial3Binding.DataSetVariable.GetName());
+	MaterialParam0DataSetAccessor.Init(CompiledData, DynamicMaterialBinding.GetDataSetBindableVariable().GetName());
+	MaterialParam1DataSetAccessor.Init(CompiledData, DynamicMaterial1Binding.GetDataSetBindableVariable().GetName());
+	MaterialParam2DataSetAccessor.Init(CompiledData, DynamicMaterial2Binding.GetDataSetBindableVariable().GetName());
+	MaterialParam3DataSetAccessor.Init(CompiledData, DynamicMaterial3Binding.GetDataSetBindableVariable().GetName());
 
 	FNiagaraDataSetAccessor<float> U0OverrideDataSetAccessor;
-	U0OverrideDataSetAccessor.Init(CompiledData, U0OverrideBinding.DataSetVariable.GetName());
+	U0OverrideDataSetAccessor.Init(CompiledData, U0OverrideBinding.GetDataSetBindableVariable().GetName());
 	U0OverrideIsBound = U0OverrideDataSetAccessor.IsValid();
 	FNiagaraDataSetAccessor<float> U1OverrideDataSetAccessor;
-	U1OverrideDataSetAccessor.Init(CompiledData, U1OverrideBinding.DataSetVariable.GetName());
+	U1OverrideDataSetAccessor.Init(CompiledData, U1OverrideBinding.GetDataSetBindableVariable().GetName());
 	U1OverrideIsBound = U1OverrideDataSetAccessor.IsValid();
 
-	if (RibbonIdBinding.DataSetVariable.GetType() == FNiagaraTypeDefinition::GetIDDef())
+	if (RibbonIdBinding.GetDataSetBindableVariable().GetType() == FNiagaraTypeDefinition::GetIDDef())
 	{
-		RibbonFullIDDataSetAccessor.Init(CompiledData, RibbonIdBinding.DataSetVariable.GetName());
+		RibbonFullIDDataSetAccessor.Init(CompiledData, RibbonIdBinding.GetDataSetBindableVariable().GetName());
 	}
 	else
 	{
-		RibbonIdDataSetAccessor.Init(CompiledData, RibbonIdBinding.DataSetVariable.GetName());
+		RibbonIdDataSetAccessor.Init(CompiledData, RibbonIdBinding.GetDataSetBindableVariable().GetName());
 	}
 
 	const bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
 
 	// Initialize layout
 	RendererLayout.Initialize(ENiagaraRibbonVFLayout::Num);
-	RendererLayout.SetVariable(CompiledData, PositionBinding.DataSetVariable, ENiagaraRibbonVFLayout::Position);
-	RendererLayout.SetVariable(CompiledData, VelocityBinding.DataSetVariable, ENiagaraRibbonVFLayout::Velocity);
-	RendererLayout.SetVariable(CompiledData, ColorBinding.DataSetVariable, ENiagaraRibbonVFLayout::Color);
-	RendererLayout.SetVariable(CompiledData, RibbonWidthBinding.DataSetVariable, ENiagaraRibbonVFLayout::Width);
-	RendererLayout.SetVariable(CompiledData, RibbonTwistBinding.DataSetVariable, ENiagaraRibbonVFLayout::Twist);
+	RendererLayout.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraRibbonVFLayout::Position);
+	RendererLayout.SetVariableFromBinding(CompiledData, VelocityBinding, ENiagaraRibbonVFLayout::Velocity);
+	RendererLayout.SetVariableFromBinding(CompiledData, ColorBinding, ENiagaraRibbonVFLayout::Color);
+	RendererLayout.SetVariableFromBinding(CompiledData, RibbonWidthBinding, ENiagaraRibbonVFLayout::Width);
+	RendererLayout.SetVariableFromBinding(CompiledData, RibbonTwistBinding, ENiagaraRibbonVFLayout::Twist);
 	if (bShouldDoFacing)
 	{
-		RendererLayout.SetVariable(CompiledData, RibbonFacingBinding.DataSetVariable, ENiagaraRibbonVFLayout::Facing);
+		RendererLayout.SetVariableFromBinding(CompiledData, RibbonFacingBinding, ENiagaraRibbonVFLayout::Facing);
 	}
-	RendererLayout.SetVariable(CompiledData, NormalizedAgeBinding.DataSetVariable, ENiagaraRibbonVFLayout::NormalizedAge);
-	RendererLayout.SetVariable(CompiledData, MaterialRandomBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialRandom);
-	RendererLayout.SetVariable(CompiledData, U0OverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::U0Override);
-	RendererLayout.SetVariable(CompiledData, V0RangeOverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::V0RangeOverride);
-	RendererLayout.SetVariable(CompiledData, U1OverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::U1Override);
-	RendererLayout.SetVariable(CompiledData, V1RangeOverrideBinding.DataSetVariable, ENiagaraRibbonVFLayout::V1RangeOverride);
-	MaterialParamValidMask  = RendererLayout.SetVariable(CompiledData, DynamicMaterialBinding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam0) ? 1 : 0;
-	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial1Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
-	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial2Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
-	MaterialParamValidMask |= RendererLayout.SetVariable(CompiledData, DynamicMaterial3Binding.DataSetVariable, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
+	RendererLayout.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraRibbonVFLayout::NormalizedAge);
+	RendererLayout.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraRibbonVFLayout::MaterialRandom);
+	RendererLayout.SetVariableFromBinding(CompiledData, U0OverrideBinding, ENiagaraRibbonVFLayout::U0Override);
+	RendererLayout.SetVariableFromBinding(CompiledData, V0RangeOverrideBinding, ENiagaraRibbonVFLayout::V0RangeOverride);
+	RendererLayout.SetVariableFromBinding(CompiledData, U1OverrideBinding, ENiagaraRibbonVFLayout::U1Override);
+	RendererLayout.SetVariableFromBinding(CompiledData, V1RangeOverrideBinding, ENiagaraRibbonVFLayout::V1RangeOverride);
+	MaterialParamValidMask  = RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterialBinding, ENiagaraRibbonVFLayout::MaterialParam0) ? 1 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial1Binding, ENiagaraRibbonVFLayout::MaterialParam1) ? 2 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial2Binding, ENiagaraRibbonVFLayout::MaterialParam2) ? 4 : 0;
+	MaterialParamValidMask |= RendererLayout.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraRibbonVFLayout::MaterialParam3) ? 8 : 0;
 	RendererLayout.Finalize();
 }
 

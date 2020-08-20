@@ -467,6 +467,10 @@ public:
 	bool UsesScript(const UNiagaraScript* Script)const;
 	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
 	bool UsesCollection(const class UNiagaraParameterCollection* Collection)const;
+	bool CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const;
+	bool CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const;
+	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const;
+	bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
 
 #if !UE_BUILD_SHIPPING
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }

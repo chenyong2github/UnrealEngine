@@ -381,6 +381,10 @@ public:
 
 	FSimpleMulticastDelegate& OnErrorsRefreshed();
 #endif
+	virtual bool CanExposeVariables() const { return false; }
+	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const {}
+	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const { return false; }
+
 
 	FNiagaraDataInterfaceProxy* GetProxy()
 	{

@@ -31,6 +31,14 @@ UNiagaraLightRendererProperties::UNiagaraLightRendererProperties()
 	AttributeBindings.Add(&VolumetricScatteringBinding);
 }
 
+
+void UNiagaraLightRendererProperties::PostLoad()
+{
+	Super::PostLoad();
+	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
+}
+
+
 void UNiagaraLightRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -43,7 +51,7 @@ void UNiagaraLightRendererProperties::PostInitProperties()
 			LightRendererPropertiesToDeferredInit.Add(this);
 			return;
 		}
-		else if (PositionBinding.BoundVariable.GetName() == NAME_None)
+		else if (!PositionBinding.IsValid())
 		{
 			PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
 			ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
@@ -70,7 +78,7 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	{
 		if (WeakLightRendererProperties.Get())
 		{
-			if (WeakLightRendererProperties->PositionBinding.BoundVariable.GetName() == NAME_None)
+			if (!WeakLightRendererProperties->PositionBinding.IsValid())
 			{
 				WeakLightRendererProperties->PositionBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_POSITION);
 				WeakLightRendererProperties->ColorBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_COLOR);
@@ -83,10 +91,10 @@ void UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup()
 	}
 }
 
-FNiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter)
+FNiagaraRenderer* UNiagaraLightRendererProperties::CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	FNiagaraRenderer* NewRenderer = new FNiagaraRendererLights(FeatureLevel, this, Emitter);
-	NewRenderer->Initialize(this, Emitter);
+	NewRenderer->Initialize(this, Emitter, InComponent);
 	return NewRenderer;
 }
 
@@ -98,12 +106,12 @@ void UNiagaraLightRendererProperties::GetUsedMaterials(const FNiagaraEmitterInst
 
 void UNiagaraLightRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
-	PositionDataSetAccessor.Init(CompiledData, PositionBinding.DataSetVariable.GetName());
-	ColorDataSetAccessor.Init(CompiledData, ColorBinding.DataSetVariable.GetName());
-	RadiusDataSetAccessor.Init(CompiledData, RadiusBinding.DataSetVariable.GetName());
-	ExponentDataSetAccessor.Init(CompiledData, LightExponentBinding.DataSetVariable.GetName());
-	ScatteringDataSetAccessor.Init(CompiledData, VolumetricScatteringBinding.DataSetVariable.GetName());
-	EnabledDataSetAccessor.Init(CompiledData, LightRenderingEnabledBinding.DataSetVariable.GetName());
+	PositionDataSetAccessor.Init(CompiledData, PositionBinding.GetDataSetBindableVariable().GetName());
+	ColorDataSetAccessor.Init(CompiledData, ColorBinding.GetDataSetBindableVariable().GetName());
+	RadiusDataSetAccessor.Init(CompiledData, RadiusBinding.GetDataSetBindableVariable().GetName());
+	ExponentDataSetAccessor.Init(CompiledData, LightExponentBinding.GetDataSetBindableVariable().GetName());
+	ScatteringDataSetAccessor.Init(CompiledData, VolumetricScatteringBinding.GetDataSetBindableVariable().GetName());
+	EnabledDataSetAccessor.Init(CompiledData, LightRenderingEnabledBinding.GetDataSetBindableVariable().GetName());
 }
 
 #if WITH_EDITORONLY_DATA

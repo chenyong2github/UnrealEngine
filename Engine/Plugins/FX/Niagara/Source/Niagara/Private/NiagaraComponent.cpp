@@ -26,6 +26,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraComponentSettings.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -218,7 +219,7 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 					FNiagaraRenderer* NewRenderer = nullptr;
 					if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 					{
-						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
+						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get(), Component);
 						bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
 					}
 					EmitterRenderers.Add(NewRenderer);
@@ -1625,11 +1626,76 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	return SystemBounds.TransformBy(LocalToWorld);
 }
 
+void UNiagaraComponent::UpdateEmitterMaterials()
+{
+	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
+	
+	if (SystemInstance)
+	{
+		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+		{
+			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
+			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+			{
+
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
+					{
+						TArray<UMaterialInterface*> UsedMaterials;
+						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+						bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
+
+						uint32 Index = 0;
+						for (UMaterialInterface*& Mat : UsedMaterials)
+						{
+							if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
+							{
+								bool bFoundMatch = false;
+								for (int32 i = 0; i < EmitterMaterials.Num(); i++)
+								{
+									if (EmitterMaterials[i].EmitterRendererProperty == Properties && EmitterMaterials[i].Material )
+									{
+										UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(EmitterMaterials[i].Material);
+										if (MatDyn && MatDyn->Parent == Mat)
+										{
+											bFoundMatch = true;
+											Mat = MatDyn;
+											NewEmitterMaterials.Add(EmitterMaterials[i]);
+											break;
+										}
+									}
+								}
+
+								if (!bFoundMatch)
+								{
+									UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
+									Mat = UMaterialInstanceDynamic::Create(Mat, this);
+									FNiagaraMaterialOverride Override;
+									Override.Material = Mat;
+									Override.EmitterRendererProperty = Properties;
+									Override.MaterialSubIndex = Index;
+
+									NewEmitterMaterials.Add(Override);
+								}
+							}
+							Index++;
+						}
+					}
+				);				
+			}
+		}
+	}
+
+	EmitterMaterials = NewEmitterMaterials;
+}
+
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+
+	UpdateEmitterMaterials();
 	
 	// The constructor will set up the System renderers from the component.
 	FNiagaraSceneProxy* Proxy = new FNiagaraSceneProxy(this);
@@ -1653,11 +1719,35 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 			Emitter->ForEachEnabledRenderer(
 				[&](UNiagaraRendererProperties* Properties)
 				{
-					Properties->GetUsedMaterials(&Sim.Get(), OutMaterials);
+
+					bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
+					TArray<UMaterialInterface*> Mats;
+					Properties->GetUsedMaterials(&Sim.Get(), Mats);
+
+					if (bCreateMidsForUsedMaterials)
+					{
+						for (const FNiagaraMaterialOverride& Override : EmitterMaterials)
+						{
+							if (Override.EmitterRendererProperty == Properties)
+							{
+								for (int32 i = 0; i < Mats.Num(); i++)
+								{
+									if (i == Override.MaterialSubIndex)
+									{
+										Mats[i] = Override.Material;
+										continue;
+									}
+								}
+							}
+						}
+					}
+
+					OutMaterials.Append(Mats);
 				}
 			);
 		}
 	}
+
 }
 
 void UNiagaraComponent::SetComponentTickEnabled(bool bEnabled)

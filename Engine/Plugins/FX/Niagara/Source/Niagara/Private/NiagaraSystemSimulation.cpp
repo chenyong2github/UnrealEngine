@@ -1679,6 +1679,9 @@ void FNiagaraSystemSimulation::TransferSystemSimResults(FNiagaraSystemSimulation
 						UE_LOG(LogNiagara, Log, TEXT("Skipping DataSetToEmitterEventParameters because EventIdx is out-of-bounds. %d of %d"), EventIdx, DataSetToEmitterEventParameters[EmitterIdx].Num());
 					}
 				}
+
+				DataSetToEmitterRendererParameters[EmitterIdx].DataSetToParameterStore(EmitterInst.GetRendererBoundVariables(), Context.DataSet, SystemIndex);
+
 			}
 		}
 	}
@@ -1970,6 +1973,7 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 		DataSetToEmitterUpdateParameters.SetNum(EmitterCount);
 		DataSetToEmitterEventParameters.SetNum(EmitterCount);
 		DataSetToEmitterGPUParameters.SetNum(EmitterCount);
+		DataSetToEmitterRendererParameters.SetNum(EmitterCount);
 
 		for (int32 EmitterIdx = 0; EmitterIdx < EmitterCount; ++EmitterIdx)
 		{
@@ -1990,6 +1994,8 @@ void FNiagaraSystemSimulation::InitParameterDataSetBindings(FNiagaraSystemInstan
 			{
 				DataSetToEmitterGPUParameters[EmitterIdx].Init(MainDataSet, GPUContext->CombinedParamStore);
 			}
+
+			DataSetToEmitterRendererParameters[EmitterIdx].Init(MainDataSet, EmitterInst.GetRendererBoundVariables());
 
 			TArrayView<FNiagaraScriptExecutionContext> EventContexts = EmitterInst.GetEventExecutionContexts();
 			const int32 EventCount = EventContexts.Num();

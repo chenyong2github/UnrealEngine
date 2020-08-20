@@ -113,7 +113,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	RendererVisTagOffset = INDEX_NONE;
 	int32 FloatOffset;
 	int32 HalfOffset;
-	if (Data.GetVariableComponentOffsets(Properties->RendererVisibilityTagBinding.DataSetVariable, FloatOffset, RendererVisTagOffset, HalfOffset))
+	if (Data.GetVariableComponentOffsets(Properties->RendererVisibilityTagBinding.GetDataSetBindableVariable(), FloatOffset, RendererVisTagOffset, HalfOffset))
 	{
 		// If the renderer visibility tag is bound, we have to do it in the culling pass		
 		bEnableCulling = true;
@@ -931,7 +931,7 @@ int FNiagaraRendererMeshes::GetDynamicDataSize()const
 	return Size;
 }
 
-bool FNiagaraRendererMeshes::IsMaterialValid(UMaterialInterface* Mat)const
+bool FNiagaraRendererMeshes::IsMaterialValid(const UMaterialInterface* Mat)const
 {
 	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraMeshParticles);
 }

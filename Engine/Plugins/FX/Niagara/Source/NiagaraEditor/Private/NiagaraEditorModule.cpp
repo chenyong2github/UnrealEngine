@@ -848,6 +848,11 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance));
 
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraMaterialAttributeBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMaterialAttributeBindingCustomization::MakeInstance));
+
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));

@@ -427,6 +427,7 @@ UScriptStruct* FNiagaraTypeDefinition::HalfVec4Struct;
 
 UClass* FNiagaraTypeDefinition::UObjectClass;
 UClass* FNiagaraTypeDefinition::UMaterialClass;
+UClass* FNiagaraTypeDefinition::UTextureClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
@@ -457,6 +458,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfVec4Def;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -479,7 +481,8 @@ TArray<FNiagaraTypeDefinition> FNiagaraTypeRegistry::RegisteredNumericTypes;
 
 bool FNiagaraTypeDefinition::IsDataInterface()const
 {
-	return GetStruct()->IsChildOf(UNiagaraDataInterface::StaticClass());
+	UStruct* ClassStruct = GetStruct();
+	return ClassStruct ? ClassStruct->IsChildOf(UNiagaraDataInterface::StaticClass()) : false;
 }
 
 void FNiagaraTypeDefinition::Init()
@@ -507,6 +510,7 @@ void FNiagaraTypeDefinition::Init()
 
 	FNiagaraTypeDefinition::UObjectClass = UObject::StaticClass();
 	FNiagaraTypeDefinition::UMaterialClass = UMaterialInterface::StaticClass();
+	FNiagaraTypeDefinition::UTextureClass = UTexture::StaticClass();
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
@@ -528,6 +532,7 @@ void FNiagaraTypeDefinition::Init()
 
 	UObjectDef = FNiagaraTypeDefinition(UObjectClass);
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
+	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -703,6 +708,8 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::Register(UObjectDef, true, false, false);
 	FNiagaraTypeRegistry::Register(UMaterialDef, true, false, false);
+	FNiagaraTypeRegistry::Register(UTextureDef, true, false, false);
+
 
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	check(Settings);

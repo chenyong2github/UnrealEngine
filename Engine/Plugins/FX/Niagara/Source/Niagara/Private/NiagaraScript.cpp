@@ -417,12 +417,29 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			{
 				Id.AdditionalDefines.Add(TEXT("TrimAttributes"));
 
+				TArray<FString> PreserveAttributes;
+				
 				// preserve the attributes that have been defined on the emitter directly
 				for (const FString& Attribute : Emitter->AttributesToPreserve)
 				{
 					const FString PreserveDefine = TEXT("PreserveAttribute=") + Attribute;
-					Id.AdditionalDefines.Add(PreserveDefine);
+					PreserveAttributes.AddUnique(PreserveDefine);
 				}
+
+				// Now preserve the attributes that have been defined on the renderers in use
+				for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+				{
+					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
+					{
+						const FString PreserveDefine = TEXT("PreserveAttribute=") + BoundAttribute.GetName().ToString();
+						PreserveAttributes.AddUnique(PreserveDefine);
+					}
+				}
+
+				// We sort the keys so that it doesn't matter what order they were defined in.
+				PreserveAttributes.Sort([](const FString& A, const FString& B) -> bool { return A < B; });
+
+				Id.AdditionalDefines.Append(PreserveAttributes);
 			}
 		}
 
@@ -2452,7 +2469,28 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(
 	}
 	return Supported;
 }
+
+bool UNiagaraScript::IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext)
+{
+	int32 TargetBit = (InModuleUsageBitmask >> (int32)InUsageContext) & 1;
+	if (TargetBit == 1)
+	{
+		return true;
+	}
+	return false;
+}
+
 #endif
+
+int32 UNiagaraScript::MakeSupportedUsageContextBitmask(const TArray<ENiagaraScriptUsage>& InUsagesAllowed)
+{
+	int32 Mask = 0;
+	for (ENiagaraScriptUsage Usage : InUsagesAllowed)
+	{
+		Mask |= 1 << (int32) Usage;
+	}
+	return Mask;
+}
 
 bool UNiagaraScript::CanBeRunOnGpu()const
 {

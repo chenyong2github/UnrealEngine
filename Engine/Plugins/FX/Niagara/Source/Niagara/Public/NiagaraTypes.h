@@ -348,6 +348,8 @@ enum class ENiagaraExecutionState : uint32
 	Num UMETA(Hidden)
 };
 
+
+
 USTRUCT()
 struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
 {
@@ -989,6 +991,7 @@ public:
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
+	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
 
 	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
 	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
@@ -1061,6 +1064,7 @@ private:
 	static FNiagaraTypeDefinition IDDef;
 	static FNiagaraTypeDefinition UObjectDef;
 	static FNiagaraTypeDefinition UMaterialDef;
+	static FNiagaraTypeDefinition UTextureDef;
 
 	static FNiagaraTypeDefinition HalfDef;
 	static FNiagaraTypeDefinition HalfVec2Def;
@@ -1085,6 +1089,7 @@ private:
 
 	static UClass* UObjectClass;
 	static UClass* UMaterialClass;
+	static UClass* UTextureClass;
 
 	static UEnum* SimulationTargetEnum;
 	static UEnum* ScriptUsageEnum;
@@ -1304,6 +1309,11 @@ struct FNiagaraVariableBase
 	FORCEINLINE bool IsInNameSpace(FString Namespace) const
 	{
 		return Name.ToString().StartsWith(Namespace + TEXT("."));
+	}
+
+	FORCEINLINE bool IsInNameSpace(const FName& Namespace) const
+	{
+		return Name.ToString().StartsWith(Namespace.ToString() + TEXT("."));
 	}
 
 protected:
