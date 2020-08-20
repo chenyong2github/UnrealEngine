@@ -53,6 +53,8 @@ void FHttpServerModule::StopAllListeners()
 	UE_LOG(LogHttpServerModule, Log,
 		TEXT("Stopping all listeners..."));
 
+	bHttpListenersEnabled = false;
+
 	for (const auto& Listener : Listeners)
 	{
 		if (Listener.Value->IsListening())
