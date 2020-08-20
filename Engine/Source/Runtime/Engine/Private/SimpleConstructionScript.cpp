@@ -132,7 +132,16 @@ void USimpleConstructionScript::PostLoad()
 {
 	Super::PostLoad();
 
+	// Get the BlueprintGeneratedClass that owns the SCS
+	const UClass* BPGeneratedClass = GetOwnerClass();
+
 #if WITH_EDITOR
+	// Skip fixup logic in the editor context if the owner class is already cooked.
+	if (BPGeneratedClass && BPGeneratedClass->bCooked)
+	{
+		return;
+	}
+
 	// Get the Blueprint that owns the SCS
 	UBlueprint* Blueprint = GetBlueprint();
 	if (!Blueprint)
@@ -234,8 +243,6 @@ void USimpleConstructionScript::PostLoad()
 	// way older, existing Blueprint actor instances won't start unexpectedly getting scaled.
 	if(GetLinkerUE4Version() < VER_UE4_BLUEPRINT_USE_SCS_ROOTCOMPONENT_SCALE)
 	{
-		// Get the BlueprintGeneratedClass that owns the SCS
-		UClass* BPGeneratedClass = GetOwnerClass();
 		if(BPGeneratedClass != nullptr)
 		{
 			// Get the Blueprint class default object
