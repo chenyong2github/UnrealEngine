@@ -51,9 +51,9 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudReflectionRaySampleMaxCoun
 	TEXT("The maximum number of samples taken while ray marching primary rays in reflections."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarVolumetricCloudIntersectWithOpaque(
-	TEXT("r.VolumetricCloud.IntersectWithOpaque"), 1,
-	TEXT("True if cloud will intersects with opaque and not be rendered behind opaques."),
+static TAutoConsoleVariable<int32> CVarVolumetricCloudOpaqueIntersectionMode(
+	TEXT("r.VolumetricCloud.OpaqueIntersectionMode"), 2,
+	TEXT("0: no intersection with opaque. 1: trace up to the far distance and interesect during composition (sharp transition, single layer). 2: trace up to the depth buffer and take into account HZB: softer but can have artefact at edges when flying in the cloud layer."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricCloudHighQualityAerialPerspective(
@@ -404,7 +404,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 //	SHADER_PARAMETER_STRUCT(FBlueNoise, BlueNoise)
 	SHADER_PARAMETER(FUintVector4, SubSetCoordToFullResolutionScaleBias)
 	SHADER_PARAMETER(uint32, NoiseFrameIndexModPattern)
-	SHADER_PARAMETER(int32, IntersectWithOpaque)
+	SHADER_PARAMETER(int32, OpaqueIntersectionMode)
 	SHADER_PARAMETER(uint32, VolumetricRenderTargetMode)
 	SHADER_PARAMETER(uint32, SampleCountDebugMode)
 	SHADER_PARAMETER(uint32, IsReflectionRendering)
@@ -1390,6 +1390,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		bShouldViewRenderVolumetricRenderTarget, CloudVolumeMaterialProxy, bIsReflectionRendering, bIsSkyRealTimeReflectionRendering, bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled,
 		&CloudInfo, SceneDepthZ, LightShadowShaderParams0, SubSetCoordToFullResolutionScaleBias, NoiseFrameIndexModPattern, OutputSizeInvSize, bSkipAerialPerspective](FRHICommandListImmediate& RHICmdList)
 		{
+			int32 VolumetricCloudOpaqueIntersectionMode = CVarVolumetricCloudOpaqueIntersectionMode.GetValueOnAnyThread();
+
 			FRenderVolumetricCloudGlobalParameters VolumetricCloudParams;
 			SetupDefaultRenderVolumetricCloudGlobalParameters(VolumetricCloudParams, CloudInfo, MainView);
 			VolumetricCloudParams.SceneDepthTexture = SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture;
@@ -1397,7 +1399,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			VolumetricCloudParams.CloudShadowTexture = RenderViewPassParameters->CloudShadowTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 			VolumetricCloudParams.SubSetCoordToFullResolutionScaleBias = SubSetCoordToFullResolutionScaleBias;
 			VolumetricCloudParams.NoiseFrameIndexModPattern = NoiseFrameIndexModPattern;
-			VolumetricCloudParams.IntersectWithOpaque = CVarVolumetricCloudIntersectWithOpaque.GetValueOnAnyThread();
+			VolumetricCloudParams.OpaqueIntersectionMode = bShouldViewRenderVolumetricRenderTarget ? VolumetricCloudOpaqueIntersectionMode : (VolumetricCloudOpaqueIntersectionMode > 0 ? 2 : 0);	// When tracing per pixel and not in the volumetric render target, we can alway intersect with depth
 			VolumetricCloudParams.IsReflectionRendering = bIsReflectionRendering ? 1 : 0;
 
 			if (bIsReflectionRendering)
@@ -1418,7 +1420,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			if (bIsSkyRealTimeReflectionRendering)
 			{
 				VolumetricCloudParams.FogStruct.ApplyVolumetricFog = 0;		// No valid camera froxel volume available.
-				VolumetricCloudParams.IntersectWithOpaque = 0;				// No depth buffer is available
+				VolumetricCloudParams.OpaqueIntersectionMode = 0;			// No depth buffer is available
 				VolumetricCloudParams.HasValidHZB = 0;						// No valid HZB is available
 			}
 

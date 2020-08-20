@@ -477,7 +477,7 @@ bool TraceClouds(
 	float3 DepthBufferWorldPos = SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0));
 	float TDepthBuffer = length(DepthBufferWorldPos - RayOrigin);
 
-	if (RenderVolumetricCloudParameters.IntersectWithOpaque > 0)
+	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2)
 	{
 		if (TDepthBuffer < TMin)
 		{
@@ -498,7 +498,8 @@ bool TraceClouds(
 				RenderVolumetricCloudParameters.HasValidHZB &&
 				(
 					// We are not conservatively being an opaque mesh (we are still going to trace around opaque mesh edges)
-					!ViewHierarchicalZBufferMinDepth(ScreenUVMinMax, CloudLayerFrontZDepth) ||
+					!ViewHierarchicalZBufferMinDepth(ScreenUVMinMax, CloudLayerFrontZDepth) 
+					||
 					// Under the cloud layer, at the intersection between opaque and to the cloud bottom layer, we do not want to see through opaque object.
 					// This is a bit arbitrary and assumes we are at the top of the planet but it helps a lot with quality.
 					((CloudLayerFrontPosition.z - DepthBufferPosition.z) < DistanceInFrontOfLayerCullingTracing && CloudLayerFrontPosition.z > DepthBufferPosition.z)
@@ -1188,7 +1189,7 @@ void MainPS(
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
 
 	OutColor1 = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
-	if (RenderVolumetricCloudParameters.IntersectWithOpaque > 0)
+	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
 		OutColor1 = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
