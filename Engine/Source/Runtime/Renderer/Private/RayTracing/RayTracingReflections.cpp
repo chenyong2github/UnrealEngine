@@ -619,8 +619,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 
 	CommonParameters.TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-	CommonParameters.LightDataPacked = View.RayTracingLightingDataUniformBuffer;
-	CommonParameters.LightDataBuffer = View.RayTracingLightingDataSRV;
+	CommonParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
+	CommonParameters.LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
 	CommonParameters.SceneTextures = SceneTextures;
 	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
