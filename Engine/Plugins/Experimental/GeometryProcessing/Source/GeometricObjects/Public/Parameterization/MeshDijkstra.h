@@ -104,6 +104,61 @@ public:
 	}
 
 
+
+	/**
+	 * Computes outwards from seed points to TargetPointID, or stop when all points are further than ComputeToMaxDistance from the seed
+	 * @param SeedPointsIn seed points defined as 2D vector tuples, will be interpreted as (seed_point_vertex_id, seed_distance)
+	 * @param TargetPointID
+	 * @param ComputeToMaxDistance target radius for parameterization, will not set UVs on points with graph-distance larger than this
+	 * @return true if TargetPointID was reached
+	 */
+	bool ComputeToTargetPoint(const TArray<FVector2d>& SeedPointsIn, int32 TargetPointID,  double ComputeToMaxDistanceIn = TNumericLimits<double>::Max())
+	{
+		SeedPoints = SeedPointsIn;
+		MaxGraphDistance = 0.0f;
+		MaxGraphDistancePointID = -1;
+
+		for (const FVector2d& SeedPoint : SeedPoints)
+		{
+			int32 PointID = (int32)SeedPoint.X;
+			if (Queue.Contains(PointID) == false)
+			{
+				FGraphNode* Node = GetNodeForPointSetID(PointID, true);
+				Node->GraphDistance = SeedPoint.Y;
+				Node->bFrozen = true;
+				Queue.Insert(PointID, Node->GraphDistance);
+			}
+		}
+
+		while (Queue.GetCount() > 0)
+		{
+			int32 NextID = Queue.Dequeue();
+			FGraphNode* Node = GetNodeForPointSetID(NextID, false);
+			check(Node != nullptr);
+
+			MaxGraphDistance = TMathUtil<double>::Max(Node->GraphDistance, MaxGraphDistance);
+			if (MaxGraphDistance > ComputeToMaxDistanceIn)
+			{
+				return false;
+			}
+
+			Node->bFrozen = true;
+			MaxGraphDistancePointID = Node->PointID;
+
+			if (Node->PointID == TargetPointID)
+			{
+				return true;
+			}
+
+			UpdateNeighboursSparse(Node);
+		}
+
+		return false;
+	}
+
+
+
+
 	/**
 	 * @return the maximum graph distance encountered during the computation
 	 */
@@ -157,6 +212,43 @@ public:
 	//	return true;
 	//}
 
+	/**
+	 * Find path from a point to the nearest seed point
+	 * @param PointID starting point, assumption is that we have computed dijkstra to this point
+	 * @param PathToSeedOut path is returned here, includes PointID and seed point as last element
+	 * @param MaxLength if PathToSeedOut grows beyond this length, we abort the search
+	 * @return true if valid path was found
+	 */
+	bool FindPathToNearestSeed(int32 PointID, TArray<int32>& PathToSeedOut, int32 MaxLength = 100000)
+	{
+		const FGraphNode* CurNode = GetNodeForPointSetID(PointID);
+		if (CurNode == nullptr || CurNode->bFrozen == false)
+		{
+			return false;
+		}
+
+		PathToSeedOut.Reset();
+		PathToSeedOut.Add(PointID);
+
+		int32 IterCount = 0;
+		while (IterCount++ < MaxLength)
+		{
+			if (CurNode->ParentPointID == -1)
+			{
+				return true;
+			}
+
+			PathToSeedOut.Add(CurNode->ParentPointID);
+
+			CurNode = GetNodeForPointSetID(CurNode->ParentPointID);
+			if (CurNode == nullptr || CurNode->bFrozen == false)
+			{
+				PathToSeedOut.Reset();
+				return false;
+			}
+		}
+		return true;
+	}
 
 private:
 

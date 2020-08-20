@@ -301,6 +301,12 @@ public:
 	const FDynamicMesh3* GetMesh() const;
 
 	/**
+	 * @return point to the current AABBTree used for preview spatial mesh, or nullptr if not available
+	 * @warning this has to return non-const because of current FDynamicMeshAABBTree3 API, but you should not modify this!
+	 */
+	FDynamicMeshAABBTree3* GetSpatial();
+
+	/**
 	 * @return the current preview FDynamicMesh, and replace with a new empty mesh
 	 */
 	TUniquePtr<FDynamicMesh3> ExtractPreviewMesh() const;
