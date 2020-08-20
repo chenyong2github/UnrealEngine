@@ -132,12 +132,14 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	LightData.SpecularScale = RayTracingLightData.SpecularScale;
 	LightData.RectLightBarnCosAngle = RayTracingLightData.RectLightBarnCosAngle;
 	LightData.RectLightBarnLength = RayTracingLightData.RectLightBarnLength;
-	LightData.ContactShadowLength = 0.0;
 	LightData.DistanceFadeMAD = RayTracingLightData.DistanceFadeMAD;
 
 	LightData.ShadowMapChannelMask = float4(0, 0, 0, 0);
 	LightData.ShadowedBits = 0; // Not lit dynamic shadows 
+	LightData.ContactShadowLength = 0.0;
 	LightData.ContactShadowLengthInWS = false;
+	LightData.ContactShadowNonShadowCastingIntensity = 0.0f;
+	LightData.bContactShadowSubsurfaceFalloff = false;
 
 	LightData.bRadialLight = (LightType != LIGHT_TYPE_DIRECTIONAL);
 	LightData.bSpotLight = (LightType == LIGHT_TYPE_SPOT);
