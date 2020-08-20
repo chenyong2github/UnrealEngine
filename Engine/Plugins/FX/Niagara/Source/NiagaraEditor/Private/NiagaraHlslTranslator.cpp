@@ -139,8 +139,8 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 			TRefCountPtr<FShaderCompilerEnvironment> CompilerEnvironment = new FShaderCompilerEnvironment();
 
 			FString ShaderCode = CompilableScript->GetVMExecutableData().LastHlslTranslationGPU;
-			// When not running in the editor, the shaders are created in-sync in the postload.
-			const bool bSynchronousCompile = !GIsEditor || GIsAutomationTesting;
+			// Shaders are created in-sync in the postload when running the automated tests.
+			const bool bSynchronousCompile = GIsAutomationTesting;
 
 			// Compile the shaders for the script.
 			NewShaderMap->Compile(ShaderScript, Item.ShaderMapId, CompilerEnvironment, NewCompilationOutput, Item.Platform, bSynchronousCompile, Item.bApply);
