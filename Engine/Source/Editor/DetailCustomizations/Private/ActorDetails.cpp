@@ -567,7 +567,7 @@ void FActorDetails::AddActorCategory( IDetailLayoutBuilder& DetailBuilder, const
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ActorPackagingMode", "Packaging Mode"))
-				.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Change the actor packaging mode. This will indicate if the actor is packaged alongside the its level or in an external package."))
+				.ToolTipText(LOCTEXT("ActorPackagingMode_ToolTip", "Change the actor packaging mode. This will indicate if the actor is packaged alongside its level or in an external package."))
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 			.ValueContent()
