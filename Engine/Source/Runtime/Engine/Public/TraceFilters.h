@@ -7,7 +7,7 @@
 #if TRACE_FILTERING_ENABLED
 
 /** AActor specific Trace filter, marks individual instances to not be traced out */
-struct FTraceActorFilter
+struct ENGINE_API FTraceActorFilter
 {
 	static void Initialize();
 	static void Destroy();
@@ -30,11 +30,15 @@ protected:
 	static FDelegateHandle WorldInitHandle;	
 };
 
+#define DISABLE_ENGINE_ACTOR_TRACE_FILTERING() \
+	FTraceActorFilter::Destroy()
+
 #define DISABLE_ENGINE_WORLD_TRACE_FILTERING() \
 	FTraceWorldFilter::Destroy()
 
 #else
 
+#define DISABLE_ENGINE_ACTOR_TRACE_FILTERING()	
 #define DISABLE_ENGINE_WORLD_TRACE_FILTERING() 
 
 #endif // TRACE_FILTERING_ENABLED
