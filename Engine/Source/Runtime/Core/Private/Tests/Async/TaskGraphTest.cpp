@@ -81,12 +81,12 @@ namespace OldTaskGraphTests
 								{
 									DoWork(&CompletionEvent, Counter, Cycles, -1);
 								},
-								TStatId{}, nullptr, ENamedThreads::GameThread
+								TStatId{}, nullptr, ENamedThreads::GameThread_Local
 							);
 						}
 					);
 					QueueTime = FPlatformTime::Seconds();
-					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+					FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread_Local);
 					EndTime = FPlatformTime::Seconds();
 				}
 			}
@@ -97,13 +97,13 @@ namespace OldTaskGraphTests
 			Tasks.Reserve(1000);
 			for (int32 Index = 0; Index < 1000; Index++)
 			{
-				Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, nullptr, ENamedThreads::GameThread));
+				Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, nullptr, ENamedThreads::GameThread_Local));
 			}
 			QueueTime = FPlatformTime::Seconds();
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(MoveTemp(Tasks), ENamedThreads::GameThread);
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(MoveTemp(Tasks), ENamedThreads::GameThread_Local);
 			EndTime = FPlatformTime::Seconds();
 		}
-		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 tasks, ordinary GT start"));
+		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 tasks, ordinary local GT start"));
 		{
 			StartTime = FPlatformTime::Seconds();
 			FGraphEventArray Tasks;
@@ -115,14 +115,14 @@ namespace OldTaskGraphTests
 					{
 						DoWork(&CompletionEvent, Counter, Cycles, 100);
 					},
-					TStatId{}, nullptr, ENamedThreads::GameThread
+					TStatId{}, nullptr, ENamedThreads::GameThread_Local
 				));
 			}
 			QueueTime = FPlatformTime::Seconds();
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(MoveTemp(Tasks), ENamedThreads::GameThread);
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(MoveTemp(Tasks), ENamedThreads::GameThread_Local);
 			EndTime = FPlatformTime::Seconds();
 		}
-		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 tasks, ordinary GT start, with work"));
+		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 tasks, ordinary local GT start, with work"));
 		{
 			StartTime = FPlatformTime::Seconds();
 			FGraphEventArray Tasks;
@@ -272,15 +272,15 @@ namespace OldTaskGraphTests
 						{
 							DoWork(&CompletionEvent, Counter, Cycles, -1);
 						},
-						TStatId{}, nullptr, ENamedThreads::GameThread
+						TStatId{}, nullptr, ENamedThreads::GameThread_Local
 					);
 				}
 			);
 			QueueTime = FPlatformTime::Seconds();
-			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread_Local);
 			EndTime = FPlatformTime::Seconds();
 		}
-		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 GT tasks, ParallelFor, no tracking (none needed)"));
+		PrintResult(StartTime, QueueTime, EndTime, Counter, Cycles, TEXT("1000 local GT tasks, ParallelFor, no tracking (none needed)"));
 
 		{
 			StartTime = FPlatformTime::Seconds();
