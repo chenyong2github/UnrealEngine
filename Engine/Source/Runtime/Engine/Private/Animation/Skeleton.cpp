@@ -1057,8 +1057,10 @@ void USkeleton::HandleSkeletonHierarchyChange()
 	for (int i = VirtualBones.Num() - 1; i >= 0; --i)
 	{
 		FVirtualBone& VB = VirtualBones[i];
-		if (ReferenceSkeleton.FindRawBoneIndex(VB.SourceBoneName) == INDEX_NONE ||
-			ReferenceSkeleton.FindRawBoneIndex(VB.TargetBoneName) == INDEX_NONE)
+
+		// Note: here virtual bones can have source bound to other virtual bones
+		if (ReferenceSkeleton.FindBoneIndex(VB.SourceBoneName) == INDEX_NONE ||
+			ReferenceSkeleton.FindBoneIndex(VB.TargetBoneName) == INDEX_NONE)
 		{
 			//Virtual Bone no longer valid
 			VirtualBones.RemoveAtSwap(i, 1, false);
