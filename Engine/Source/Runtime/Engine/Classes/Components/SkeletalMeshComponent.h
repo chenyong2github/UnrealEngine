@@ -1273,6 +1273,9 @@ public:
 	/** Get the current clothing simulation (read only) */
 	const IClothingSimulation* GetClothingSimulation() const;
 
+	/** Get the current clothing simulation context (read only) */
+	const IClothingSimulationContext* GetClothingSimulationContext() const;
+
 	/** Get the current interactor for a clothing simulation, if the current simulation supports runtime interaction. */
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
 	UClothingSimulationInteractor* GetClothingSimulationInteractor() const;

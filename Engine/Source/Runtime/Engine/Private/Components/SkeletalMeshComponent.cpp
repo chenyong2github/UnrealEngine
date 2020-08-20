@@ -215,7 +215,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 	bBindClothToMasterComponent = false;
 	bClothingSimulationSuspended = false;
-	
+
 #endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	MassMode_DEPRECATED = EClothMassMode::Density;
@@ -1904,6 +1904,11 @@ void USkeletalMeshComponent::EvaluatePostProcessMeshInstance(TArray<FTransform>&
 const IClothingSimulation* USkeletalMeshComponent::GetClothingSimulation() const
 {
 	return ClothingSimulation;
+}
+
+const IClothingSimulationContext* USkeletalMeshComponent::GetClothingSimulationContext() const
+{
+	return ClothingSimulationContext;
 }
 
 UClothingSimulationInteractor* USkeletalMeshComponent::GetClothingSimulationInteractor() const
