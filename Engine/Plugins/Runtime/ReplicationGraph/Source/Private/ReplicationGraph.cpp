@@ -893,8 +893,6 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	// For Each Connection
 	// -------------------------------------------------------
 	
-	FGatheredReplicationActorLists GatheredReplicationListsForConnection;
-
 	// Total number of children processed, added to all the connections later for stat tracking purposes.
 	int32 NumChildrenConnectionsProcessed = 0;
 
@@ -974,7 +972,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		// GATHER list of ReplicationLists for this connection
 		// --------------------------------------------------------------------------------------------------------------
 		
-		GatheredReplicationListsForConnection.Reset();
+		FGatheredReplicationActorLists GatheredReplicationListsForConnection;
 
 		TSet<FName> AllVisibleLevelNames;
 		ConnectionManager->GetClientVisibleLevelNames(AllVisibleLevelNames);
