@@ -1568,6 +1568,8 @@ public:
 	virtual void Clear() final override;
 	virtual bool Poll() const final override;
 
+	FVulkanCmdBuffer* GetCmdBuffer() const { return CmdBuffer; }
+
 protected:
 	FVulkanCmdBuffer*	CmdBuffer = nullptr;
 	uint64				FenceSignaledCounter = 0;
