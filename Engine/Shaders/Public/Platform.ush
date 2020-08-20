@@ -156,6 +156,12 @@
 #define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 0
 #endif
 
+#ifndef PLATFORM_SUPPORTS_REAL_TYPES
+#define PLATFORM_SUPPORTS_REAL_TYPES 0
+#elif FORCE_FLOATS
+#error Collision between FORCE_FLOATS and PLATFORM_SUPPORTS_REAL_TYPES
+#endif
+
 #ifndef COMPILER_SUPPORTS_BITFIELD_INTRINSICS
 #define COMPILER_SUPPORTS_BITFIELD_INTRINSICS 0
 #endif
@@ -176,7 +182,7 @@
 #define FORCE_FLOATS 0
 #endif
 
-#if (!(ES3_1_PROFILE || METAL_PROFILE) || FORCE_FLOATS)
+#if ((!(ES3_1_PROFILE || METAL_PROFILE)) && !PLATFORM_SUPPORTS_REAL_TYPES) || FORCE_FLOATS
 	// Always use floats when using the ES3/METAL compiler, because platforms not optimized for lower precision, 
 	// And we don't want potential side effects on other platforms
 	#define half float

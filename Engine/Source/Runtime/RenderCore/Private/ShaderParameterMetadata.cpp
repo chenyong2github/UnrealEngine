@@ -50,6 +50,41 @@ TMap<FHashedName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNam
 	return NameStructMap;
 }
 
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const
+{
+	switch (GetBaseType())
+	{
+	case UBMT_INT32:   Result = TEXT("int"); break;
+	case UBMT_UINT32:  Result = TEXT("uint"); break;
+	case UBMT_FLOAT32:
+		if (GetPrecision() == EShaderPrecisionModifier::Float || !SupportShaderPrecisionModifier(ShaderPlatform))
+		{
+			Result = TEXT("float");
+		}
+		else if (GetPrecision() == EShaderPrecisionModifier::Half)
+		{
+			Result = TEXT("half");
+		}
+		else if (GetPrecision() == EShaderPrecisionModifier::Fixed)
+		{
+			Result = TEXT("fixed");
+		}
+		break;
+	default:
+		UE_LOG(LogShaders, Fatal, TEXT("Unrecognized uniform buffer struct member base type."));
+	};
+
+	// Generate the type dimensions for vectors and matrices.
+	if (GetNumRows() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%ux%u"), *Result, GetNumRows(), GetNumColumns());
+	}
+	else if (GetNumColumns() > 1)
+	{
+		Result = FString::Printf(TEXT("%s%u"), *Result, GetNumColumns());
+	}
+}
+
 FShaderParametersMetadata* FindUniformBufferStructByName(const TCHAR* StructName)
 {
 	return FindUniformBufferStructByFName(FName(StructName, FNAME_Find));

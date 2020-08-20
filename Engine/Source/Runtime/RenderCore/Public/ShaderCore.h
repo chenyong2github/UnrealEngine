@@ -206,6 +206,8 @@ enum ECompilerFlags
 	// Use DirectX Shader Compiler (DXC) to compile all shaders, intended for compatibility testing.
 	CFLAG_ForceDXC,
 	CFLAG_SkipOptimizations,
+	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
+	CFLAG_AllowRealTypes,
 };
 
 enum class EShaderParameterType : uint8
