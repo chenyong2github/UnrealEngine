@@ -494,7 +494,7 @@ FText FNiagaraUserParameterBindingCustomization::GetTooltipText() const
 {
 	if (BaseSystem && TargetUserParameterBinding && TargetUserParameterBinding->Parameter.IsValid())
 	{
-		FText TooltipDesc = FText::Format(LOCTEXT("ParameterBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
+		FText TooltipDesc = FText::Format(LOCTEXT("UserParameterBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetUserParameterBinding->Parameter.GetName()));
 		return TooltipDesc;
 	}
 	return FText::FromString(TEXT("Missing"));
@@ -716,7 +716,7 @@ FText FNiagaraMaterialAttributeBindingCustomization::GetNiagaraTooltipText() con
 {
 	if (BaseSystem && TargetParameterBinding && TargetParameterBinding->NiagaraVariable.IsValid())
 	{
-		FText TooltipDesc = FText::Format(LOCTEXT("ParameterBindingTooltip", "Bound to the parameter \"{0}\""), MakeCurrentText(TargetParameterBinding->NiagaraVariable, TargetParameterBinding->NiagaraChildVariable));
+		FText TooltipDesc = FText::Format(LOCTEXT("MaterialAttributeBindingTooltip", "Bound to the parameter \"{0}\""), MakeCurrentText(TargetParameterBinding->NiagaraVariable, TargetParameterBinding->NiagaraChildVariable));
 		return TooltipDesc;
 	}
 	return FText::FromString(TEXT("Missing"));
@@ -1248,7 +1248,7 @@ FText FNiagaraDataInterfaceBindingCustomization::GetTooltipText() const
 {
 	if (BaseStage && TargetDataInterfaceBinding && TargetDataInterfaceBinding->BoundVariable.IsValid())
 	{
-		FText TooltipDesc = FText::Format(LOCTEXT("ParameterBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetDataInterfaceBinding->BoundVariable.GetName()));
+		FText TooltipDesc = FText::Format(LOCTEXT("DataInterfaceBindingTooltip", "Bound to the user parameter \"{0}\""), FText::FromName(TargetDataInterfaceBinding->BoundVariable.GetName()));
 		return TooltipDesc;
 	}
 	return FText::FromString(TEXT("Missing"));
