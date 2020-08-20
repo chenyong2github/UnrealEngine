@@ -264,7 +264,7 @@ bool UNiagaraDataInterfaceVelocityGrid::PerInstanceTick(void* PerInstanceData, F
 	bool RequireReset = false;
 	if (InstanceData)
 	{
-		InstanceData->WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld().ToMatrixWithScale();
+		InstanceData->WorldTransform = SystemInstance->GetWorldTransform().ToMatrixWithScale();
 
 		if (InstanceData->NeedResize)
 		{

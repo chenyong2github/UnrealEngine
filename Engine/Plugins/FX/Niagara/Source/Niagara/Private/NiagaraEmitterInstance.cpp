@@ -1905,10 +1905,11 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 		UE_LOG(LogNiagara, Log, TEXT("Emitter \"%s\" change state N O O O O O "), *GetEmitterHandle().GetName().ToString());
 	}*/
 	if (ensureMsgf(InState >= ENiagaraExecutionState::Active && InState < ENiagaraExecutionState::Num, 
-					TEXT("Setting invalid emitter execution state! %d\nEmitter=%s\nComponent=%s"),
+					TEXT("Setting invalid emitter execution state! %d\nEmitter=%s\nSystem=%s\nComponent=%s"),
 					(int32)InState,
-					*CachedEmitter->GetFullName(),
-					ParentSystemInstance && ParentSystemInstance->GetComponent() ? *ParentSystemInstance->GetComponent()->GetFullName() : TEXT("nullptr"))
+					*GetFullNameSafe(CachedEmitter),
+					*GetFullNameSafe(ParentSystemInstance ? ParentSystemInstance->GetSystem() : nullptr),
+					*GetFullNameSafe(ParentSystemInstance ? ParentSystemInstance->GetAttachComponent() : nullptr))
 		)
 	{
 		//We can't move out of disabled without a proper reinit.
@@ -1927,17 +1928,13 @@ void FNiagaraEmitterInstance::SetExecutionState(ENiagaraExecutionState InState)
 
 bool FNiagaraEmitterInstance::FindBinding(const FNiagaraUserParameterBinding& InBinding, TArray<UMaterialInterface*>& OutMaterials) const
 {
-	FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance();
-	if (SystemInstance)
+	if (FNiagaraSystemInstance* SystemInstance = GetParentSystemInstance())
 	{
-		UNiagaraComponent* Component = SystemInstance->GetComponent();
-		if (Component)
+		if (FNiagaraUserRedirectionParameterStore* OverrideParameters = SystemInstance->GetOverrideParameters())
 		{
-			UObject* Obj = Component->GetOverrideParameters().GetUObject(InBinding.Parameter);
-			if (Obj)
+			if (UObject* Obj = OverrideParameters->GetUObject(InBinding.Parameter))
 			{
-				UMaterialInterface* Material = Cast<UMaterialInterface>(Obj);
-				if (Material)
+				if (UMaterialInterface* Material = Cast<UMaterialInterface>(Obj))
 				{
 					OutMaterials.Add(Material);
 					return true;

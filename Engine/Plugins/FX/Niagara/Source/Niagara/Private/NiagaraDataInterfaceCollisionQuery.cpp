@@ -46,7 +46,7 @@ bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceD
 	PIData->SystemInstance = InSystemInstance;
 	if (InSystemInstance)
 	{
-		PIData->CollisionBatch.Init(InSystemInstance->GetId(), InSystemInstance->GetComponent()->GetWorld());
+		PIData->CollisionBatch.Init(InSystemInstance->GetId(), InSystemInstance->GetWorld());
 	}
 	return true;
 }

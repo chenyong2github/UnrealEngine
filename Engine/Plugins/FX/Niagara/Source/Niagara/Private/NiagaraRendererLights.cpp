@@ -82,10 +82,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererLights::GenerateDynamicData(const FNiag
 	FTransform LocalToWorld = FTransform::Identity;
 	if (FNiagaraSystemInstance* SystemInstance = Emitter->GetParentSystemInstance())
 	{
-		if (UNiagaraComponent* Component = SystemInstance->GetComponent())
-		{
-			LocalToWorld = Component->GetComponentToWorld();
-		}
+		LocalToWorld = SystemInstance->GetWorldTransform();
 	}
 
 	const FLinearColor DefaultColor = Properties->ColorBinding.DefaultValueIfNonExistent.GetValue<FLinearColor>();
