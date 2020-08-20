@@ -91,6 +91,7 @@ namespace EditorAnalyticsDefs
 	static const FString IsInPIEStoreKey(TEXT("IsInPIE"));
 	static const FString IsInEnterpriseStoreKey(TEXT("IsInEnterprise"));
 	static const FString IsInVRModeStoreKey(TEXT("IsInVRMode"));
+	static const FString IsLowDriveSpaceStoreKey(TEXT("IsLowDriveSpace"));
 }
 
 // Utilities for writing to stored values
@@ -349,6 +350,7 @@ namespace EditorAnalyticsUtils
 		Session.bIsInPIE = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 		Session.bIsInVRMode = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
 		Session.bIsInEnterprise = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
+		Session.bIsLowDriveSpace = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 
 		// Analyze the logged events and update corresponding fields in the session.
 		UpdateSessionFromLogAnalysis(Session);
@@ -508,6 +510,7 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::IsInPIEStoreKey,        EditorAnalyticsUtils::BoolToStoredString(bIsInPIE)    },
 			{EditorAnalyticsDefs::IsInEnterpriseStoreKey, EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise)},
 			{EditorAnalyticsDefs::IsInVRModeStoreKey,     EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
+			{EditorAnalyticsDefs::IsLowDriveSpaceStoreKey,  EditorAnalyticsUtils::BoolToStoredString(bIsLowDriveSpace)},
 		};
 
 		if (ExitCode.IsSet())
@@ -603,6 +606,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInPIEStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInEnterpriseStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 
 	// Delete the log files.
 	EditorAnalyticsUtils::DeleteLogEvents(*this);
