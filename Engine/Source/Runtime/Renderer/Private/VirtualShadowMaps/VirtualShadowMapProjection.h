@@ -21,8 +21,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	FRDGTextureRef SignalTexture);
 
 void RenderVirtualShadowMapProjectionForDenoising(
-	FProjectedShadowInfo** ShadowInfo,
-	uint32 ShadowInfoCount,
+	FProjectedShadowInfo* ShadowInfo,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
@@ -39,8 +38,7 @@ void RenderVirtualShadowMapProjection(
 	bool bProjectingForForwardShading);
 
 void RenderVirtualShadowMapProjection(
-	FProjectedShadowInfo** ShadowInfo,
-	uint32 ShadowInfoCount,
+	FProjectedShadowInfo* ShadowInfo,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,

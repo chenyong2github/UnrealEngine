@@ -98,6 +98,7 @@ FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(
 FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(const FProjectedShadowInfo* ShadowInfo)
 {
 	check(ShadowInfo->HasVirtualShadowMap());
+	check(ShadowInfo->CascadeSettings.ShadowSplitIndex == INDEX_NONE);		// We use clipmaps for virtual shadow maps, not cascades
 
 	// NOTE: Virtual shadow maps are never atlased, but verify our assumptions
 	{
@@ -112,46 +113,27 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 		check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
 	}
 
-	// TODO: Probably safer to use float max etc?
-	float MinSceneDepth = -HALF_WORLD_MAX;
-	float MaxSceneDepth = HALF_WORLD_MAX;
-	if (ShadowInfo->bDirectionalLight)
-	{
-		MinSceneDepth = ShadowInfo->CascadeSettings.UnfadedSplitNear;
-		MaxSceneDepth = ShadowInfo->CascadeSettings.UnfadedSplitFar;
-	}
-
 	FMatrix ViewToClip = ShadowInfo->ViewToClip;
-	uint32 VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
 		
 	FVirtualShadowMapProjectionShaderData Data;
 	Data.TranslatedWorldToShadowViewMatrix = ShadowInfo->TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = ViewToClip;
 	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
 	Data.ShadowPreViewTranslation = FVector4(ShadowInfo->PreShadowTranslation, 666.0f);
-	Data.VirtualShadowMapId = VirtualShadowMapId;
-	Data.MinSceneDepth = MinSceneDepth;
-	Data.MaxSceneDepth = MaxSceneDepth;
+	Data.VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
 
 	return Data;
 }
 
 FVirtualShadowMapArray::FVirtualShadowMapArray()
 {
-	uint32 Offset = 0;
-	for (uint32 Level = 0; Level < FVirtualShadowMap::MaxMipLevels; ++Level)
-	{
-		CommonParameters.LevelOffsets[Level] = Offset;
-		uint32 LevelPageDim = FVirtualShadowMap::Level0DimPagesXY >> Level;
-		Offset += LevelPageDim * LevelPageDim;
-	}
-	CommonParameters.PageTableSize = Offset;
+	CommonParameters.PageTableSize = FVirtualShadowMap::PageTableSize;		// TODO: Define
 
 	uint32 HPageFlagOffset = 0;
 	for (uint32 Level = 0; Level < FVirtualShadowMap::MaxMipLevels - 1; ++Level)
 	{
 		CommonParameters.HPageFlagLevelOffsets[Level] = HPageFlagOffset;
-		HPageFlagOffset += CommonParameters.PageTableSize - CommonParameters.LevelOffsets[Level + 1];
+		HPageFlagOffset += CommonParameters.PageTableSize - CalcVirtualShadowMapLevelOffsets(Level + 1, FVirtualShadowMap::Log2Level0DimPagesXY);
 	}
 	// The last mip level is 1x1 and thus does not have any H levels possible.
 	CommonParameters.HPageFlagLevelOffsets[FVirtualShadowMap::MaxMipLevels - 1] = 0;
@@ -308,7 +290,6 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, LodFootprintScale)
 		SHADER_PARAMETER(uint32, LodPixelCountThreshold)
-		SHADER_PARAMETER(int32, Clipmap)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "GeneratePageFlagsFromPixels", SF_Compute);
@@ -365,20 +346,6 @@ class FCreatePageMappingsCS : public FVirtualPageManagementShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCreatePageMappingsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "CreatePageMappings", SF_Compute);
-
-class FMarkFallbackPageFlagsCS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER( FMarkFallbackPageFlagsCS );
-	SHADER_USE_PARAMETER_STRUCT( FMarkFallbackPageFlagsCS, FVirtualPageManagementShader )
-
-	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualShadowMapCommonParameters, CommonParameters )
-		SHADER_PARAMETER(uint32, NumVirtualShadowMaps)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowMapHasFallback)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER( FMarkFallbackPageFlagsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "MarkFallbackPageFlags", SF_Compute );
 
 class FInitClearPhysicalPagesArgsCS : public FVirtualPageManagementShader
 {
@@ -677,24 +644,20 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 		FRDGBufferRef PageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("PageRectBounds"));
 		AddInitPageRectsPass(GraphBuilder, CommonParameters, PageRectBoundsRDG);
 
-		// Used to mark any shadow maps that require fallback page rendering as we go through the lights so we can force the top mip to be mapped later
-		TArray<uint32, SceneRenderingAllocator> ForceTopMipVisible;
-		ForceTopMipVisible.AddDefaulted(ShadowMaps.Num());
-
-
 		// Store shadow map projection data for each virtual shadow map
 		TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
 		ShadowMapProjectionData.AddDefaulted(ShadowMaps.Num());
 
 		// Gather directional light virtual shadow maps
-		TArray<uint32, SceneRenderingAllocator> DirectionalLightSmInds;
+		TArray<int32, SceneRenderingAllocator> DirectionalLightSmInds;
 		for (const FVisibleLightInfo& VisibleLightInfo : VisibleLightInfos)
 		{
 			for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
 			{
+				// NOTE: Shader assumes all levels from a given clipmap are contiguous in both the remap and projection arrays
 				for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
 				{
-					uint32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
+					int32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
 					ShadowMapProjectionData[ID] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 					DirectionalLightSmInds.Add(ID);
 				}
@@ -704,9 +667,8 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 			{
 				if (ProjectedShadowInfo->HasVirtualShadowMap())
 				{
-					uint32 ID = ProjectedShadowInfo->VirtualShadowMap->ID;
+					int32 ID = ProjectedShadowInfo->VirtualShadowMap->ID;
 					ShadowMapProjectionData[ID] = GetVirtualShadowMapProjectionShaderData(ProjectedShadowInfo);
-					ForceTopMipVisible[ID] = ProjectedShadowInfo->bForceTopMipVisible ? 1 : 0;
 
 					if (ProjectedShadowInfo->bDirectionalLight)
 					{
@@ -730,7 +692,7 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 
 			// Build light-index-in-light-grid => virtual-shadow-map-index remap, must be built for each view since they have different sub-sets of lights
 			// TODO: change this engine behaviour and instead upload lights once and for all, such that all indexes can refer to the same light set.
-			TArray<uint32, SceneRenderingAllocator> VirtualShadowMapIdRemap = DirectionalLightSmInds;
+			TArray<int32, SceneRenderingAllocator> VirtualShadowMapIdRemap = DirectionalLightSmInds;
 			// Note: the remap for the local lights is stored after the directional lights, such that this array is always non-empty...
 			VirtualShadowMapIdRemap.AddDefaulted(View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num());
 			for (int32 L = 0; L < View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num(); ++L)
@@ -791,8 +753,6 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 				PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
 				PassParameters->LodFootprintScale = LodFootprintScale;
 				PassParameters->LodPixelCountThreshold = LodPixelCountThreshold;
-				
-				PassParameters->Clipmap = FVirtualShadowMapClipmap::IsEnabled() ? 1 : 0;
 
 				auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
@@ -805,39 +765,6 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 					ComputeShader,
 					PassParameters,
 					FIntVector(GridSize.X, GridSize.Y, 1)
-				);
-			}
-		}
-
-		{
-			bool bAnyForceTopMipVisible = false;
-			for (uint32 bForceTopMipVisible : ForceTopMipVisible)
-			{
-				if (bForceTopMipVisible > 0)
-				{
-					bAnyForceTopMipVisible = true;
-					break;
-				}
-			}
-
-			if (bAnyForceTopMipVisible)
-			{
-				// TODO: Combine this with clearing of PageFlags to get rid of a pass?
-				FRDGBufferRef ShadowMapHasFallbackRDG = CreateStructuredBuffer( GraphBuilder, TEXT( "ShadowMapHasFallback" ), ForceTopMipVisible );
-
-				FMarkFallbackPageFlagsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkFallbackPageFlagsCS::FParameters >();
-				PassParameters->CommonParameters = CommonParameters;
-				PassParameters->NumVirtualShadowMaps = ForceTopMipVisible.Num();
-				PassParameters->ShadowMapHasFallback = GraphBuilder.CreateSRV(ShadowMapHasFallbackRDG);
-				PassParameters->OutPageRequestFlags = GraphBuilder.CreateUAV(PageRequestFlagsRDG);
-				auto ComputeShader = Views[0].ShaderMap->GetShader<FMarkFallbackPageFlagsCS>( );
-
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME( "MarkFallbackPages" ),
-					ComputeShader,
-					PassParameters,
-					FComputeShaderUtils::GetGroupCount( ForceTopMipVisible.Num(), 64 )
 				);
 			}
 		}

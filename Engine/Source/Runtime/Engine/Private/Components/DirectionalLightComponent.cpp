@@ -832,10 +832,8 @@ private:
 
 		// Determine start and end distances to the current cascade's split planes
 		// Presence of the ray traced cascade does not change depth ranges for the shadow-mapped cascades
-		const float UnfadedSplitNear = GetSplitDistance(View, ShadowSplitIndex, bPrecomputedLightingIsValid, bIsRayTracedCascade);
-		const float UnfadedSplitFar = GetSplitDistance(View, ShadowSplitIndex + 1, bPrecomputedLightingIsValid, bIsRayTracedCascade);
-		float SplitNear = UnfadedSplitNear;
-		float SplitFar = UnfadedSplitFar;
+		float SplitNear = GetSplitDistance(View, ShadowSplitIndex, bPrecomputedLightingIsValid, bIsRayTracedCascade);
+		float SplitFar = GetSplitDistance(View, ShadowSplitIndex + 1, bPrecomputedLightingIsValid, bIsRayTracedCascade);
 
 		float FadePlane = SplitFar;
 
@@ -884,8 +882,6 @@ private:
 			OutCascadeSettings->FadePlaneLength = SplitFar - FadePlane;
 			OutCascadeSettings->CascadeBiasDistribution = ShadowCascadeBiasDistribution;
 			OutCascadeSettings->ShadowSplitIndex = (int32)ShadowSplitIndex;
-			OutCascadeSettings->UnfadedSplitNear = UnfadedSplitNear;
-			OutCascadeSettings->UnfadedSplitFar = UnfadedSplitFar;
 		}
 
 		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);

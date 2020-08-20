@@ -11,13 +11,6 @@ VirtualShadowMapClipmap.cpp
 #include "VirtualShadowMapArray.h"
 #include "VirtualShadowMapCacheManager.h"
 
-static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmap(
-	TEXT( "r.Shadow.v.Clipmap" ),
-	0,
-	TEXT( "Enable clipmap for directional light virtual shadow maps instead of conventional cascades." ),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapResolutionLodBias(
 	TEXT( "r.Shadow.v.Clipmap.ResolutionLodBias" ),
 	3.0f,
@@ -31,11 +24,6 @@ static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapFirstLevel(
 	ECVF_RenderThreadSafe
 );
 
-
-bool FVirtualShadowMapClipmap::IsEnabled()
-{
-	return CVarVirtualShadowMapClipmap.GetValueOnRenderThread() != 0;
-}
 
 // "Virtual" clipmap level to clipmap radius
 static float GetLevelRadius(int32 Level)

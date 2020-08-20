@@ -1763,11 +1763,6 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 		check(RHICmdList.IsOutsideRenderPass());
 		check(!bProjectingForForwardShading);		// Not yet implemented/tested
 		check(Views.Num() == 1);					// TODO: Test multiview
-
-		// Right now we should only see one or the other type of virtual shadow map projection
-		// And currently only 1 clipmap (if present). Multi-view stuff TBD.
-		check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() < 2);
-		//check(VirtualShadowMaps.Num() == 0 || VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 0);
 		
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGTextureRef RDGScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskTexture, TEXT("ScreenShadowMaskTexture"));
@@ -1812,6 +1807,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 						// Project virtual shadow maps
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
+							check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 1);
 							RenderVirtualShadowMapProjectionForDenoising(
 								VisibleLightInfo.VirtualShadowMapClipmaps[0],
 								GraphBuilder,
@@ -1822,8 +1818,9 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 						}
 						else
 						{
+							check(VirtualShadowMaps.Num() == 1);
 							RenderVirtualShadowMapProjectionForDenoising(
-								VirtualShadowMaps.GetData(), VirtualShadowMaps.Num(),
+								VirtualShadowMaps[0],
 								GraphBuilder,
 								View,
 								VirtualShadowMapArray,
@@ -1858,6 +1855,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 					{
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
+							check(VisibleLightInfo.VirtualShadowMapClipmaps.Num() == 1);
 							RenderVirtualShadowMapProjection(
 								VisibleLightInfo.VirtualShadowMapClipmaps[0],
 								GraphBuilder,
@@ -1869,8 +1867,9 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 						}
 						else
 						{
+							check(VirtualShadowMaps.Num() == 1);
 							RenderVirtualShadowMapProjection(
-								VirtualShadowMaps.GetData(), VirtualShadowMaps.Num(),
+								VirtualShadowMaps[0],
 								GraphBuilder,
 								View,
 								VirtualShadowMapArray,

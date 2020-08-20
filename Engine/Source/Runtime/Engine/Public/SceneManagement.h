@@ -927,10 +927,6 @@ public:
 
 	/** Strength of depth bias across cascades. */
 	float CascadeBiasDistribution;
-	
-	// Near and far split as computed by the split distribution function without modifications for near and far planes.
-	float UnfadedSplitNear;
-	float UnfadedSplitFar;
 
 	FShadowCascadeSettings()
 		: SplitNear(0.0f)
@@ -942,8 +938,6 @@ public:
 		, bFarShadowCascade(false)
 		, ShadowSplitIndex(INDEX_NONE)
 		, CascadeBiasDistribution(1)
-		, UnfadedSplitNear(0.0f)
-		, UnfadedSplitFar(WORLD_MAX)
 	{
 	}
 };

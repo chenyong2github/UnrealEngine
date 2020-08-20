@@ -194,12 +194,11 @@ void GenerateIdentityMapping(uint3 PageAddressXY_LevelZ : SV_DispatchThreadID)
 
 Texture2D<UlongType> VisBuffer64;
 StructuredBuffer<FVirtualShadowMapProjectionShaderData> ShadowMapProjectionData;
-StructuredBuffer<uint> VirtualShadowMapIdRemap;
+StructuredBuffer<int> VirtualShadowMapIdRemap;
 uint NumDirectionalLightSmInds;
 uint bPostBasePass;
 float LodFootprintScale;
 uint LodPixelCountThreshold;
-int Clipmap;
 
 // Convenience to group up a bunch of data computed for a screen pixel
 struct FScreenPixelData
@@ -275,7 +274,7 @@ FScreenPixelData GetScreenPixelData(uint2 PixelPos)
 	return GetScreenPixelData(PixelPos, GetDeviceZFromPixel(PixelPos));
 }
 
-uint GetMipLevel(uint VirtualShadowMapId, FScreenPixelData Pixel)
+uint GetMipLevel(int VirtualShadowMapId, FScreenPixelData Pixel)
 {
 	float Footprint = float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 
@@ -390,47 +389,27 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	// Directional lights
 	if (NumDirectionalLightSmInds > 0)
 	{
-		if (Clipmap > 0)
+		// Mark one page per directional light. Lights can have varying numbers of clipmap levels allocated which
+		// will all be contiguous in the array, so we hop between them using the counts.
+		int ProjectionIndex = 0;
+		while (ProjectionIndex < NumDirectionalLightSmInds)
 		{
-			// Mark one page per directional light. Lights can have varying numbers of clipmap levels allocated
-			// so we hop between them using the counts.
-			int ProjectionIndex = 0;
-			while (ProjectionIndex < NumDirectionalLightSmInds)
+			int ClipmapStartId = VirtualShadowMapIdRemap[ProjectionIndex];
+
+			const int FirstClipmapLevel          = ShadowMapProjectionData[ClipmapStartId].ClipmapLevel;
+			const int ClipmapLevelCount          = ShadowMapProjectionData[ClipmapStartId].ClipmapLevelCount;
+			const float ClipmapResolutionLodBias = ShadowMapProjectionData[ClipmapStartId].ClipmapResolutionLodBias;
+
+			// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
+			// each level (to handle snapping). For now we maintain one per level.
+			int ClipmapLevel = CalcClipmapLevel(Pixel.ViewPosition, ClipmapResolutionLodBias);
+			int ClipmapIndex = max(0, ClipmapLevel - FirstClipmapLevel);
+			if (ClipmapIndex < ClipmapLevelCount)
 			{
-				// NOTE: We don't need the VirtualShadowMapIdRemap here since directional lights are
-				// put contiguously at the start of the array.
-				const int FirstClipmapLevel          = ShadowMapProjectionData[ProjectionIndex].ClipmapLevel;
-				const int ClipmapLevelCount          = ShadowMapProjectionData[ProjectionIndex].ClipmapLevelCount;
-				const float ClipmapResolutionLodBias = ShadowMapProjectionData[ProjectionIndex].ClipmapResolutionLodBias;
-
-				// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
-				// each level (to handle snapping). For now we maintain one per level.
-				int ClipmapLevel = CalcClipmapLevel(Pixel.ViewPosition, ClipmapResolutionLodBias);
-				int ClipmapIndex = max(0, ClipmapLevel - FirstClipmapLevel);				
-				if (ClipmapIndex < ClipmapLevelCount)
-				{
-					MarkPage(ShadowMapProjectionData[ProjectionIndex + ClipmapIndex].VirtualShadowMapId, 0, Pixel);
-				}
-
-				ProjectionIndex += max(1, ClipmapLevelCount);		// Just to ensure termination even with bad data
+				MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel);
 			}
-		}
-		else
-		{
-			LOOP
-			for (uint Index = 0; Index < NumDirectionalLightSmInds; ++Index)
-			{
-				uint VirtualShadowMapId = VirtualShadowMapIdRemap[Index];
 
-				float MinSmSceneDepth = ShadowMapProjectionData[VirtualShadowMapId].MinSceneDepth;
-				float MaxSmSceneDepth = ShadowMapProjectionData[VirtualShadowMapId].MaxSceneDepth;
-
-				if (Pixel.SceneDepth >= MinSmSceneDepth && Pixel.SceneDepth < MaxSmSceneDepth)
-				{
-					uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
-					MarkPage(VirtualShadowMapId, MipLevel, Pixel);
-				}
-			}
+			ProjectionIndex += max(1, ClipmapLevelCount);		// Max just to ensure termination even with bad data
 		}
 	}
 
@@ -455,7 +434,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			}
 
 			// The Virtual Shadow Remap stores directional lights first
-			uint VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
+			int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
 			if (VirtualShadowMapId != INDEX_NONE)
 			{
 				uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
@@ -537,7 +516,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 			PX >>= 1U;
 			PY >>= 1U;
 			uint HPageFlagOffset = ShadowMapID * HPageTableSize 
-				+ HPageFlagLevelOffsets[MipLevel] 
+				+ CalcHPageFlagLevelOffsets(MipLevel)
 				+ CalcLevelOffsets(HMipLevel + MipLevel) 
 				- CalcLevelOffsets(MipLevel + 1U) 
 				+ PY * HLevelSizePages + PX;
@@ -553,21 +532,6 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 		}
 	}
 }
-
-
-uint NumVirtualShadowMaps;
-StructuredBuffer<uint> ShadowMapHasFallback;
-
-[numthreads( 64, 1, 1 )]
-void MarkFallbackPageFlags( uint InIndex : SV_DispatchThreadID )
-{
-	uint VirtualShadowMapId = InIndex;
-	if( VirtualShadowMapId >= NumVirtualShadowMaps || ShadowMapHasFallback[VirtualShadowMapId] == 0 )
-		return;
-
-	OutPageRequestFlags[CalcPageTableLevelOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS-1)] = 1;
-}
-
 
 RWStructuredBuffer<uint> CoverageSummaryInOut;
 StructuredBuffer<uint> PageRequestFlags;

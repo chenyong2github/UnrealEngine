@@ -1125,7 +1125,7 @@ void FSceneRenderer::BeginOcclusionTests(FRHICommandListImmediate& RHICmdList, b
 								continue;
 							}
 
-							if (ProjectedShadowInfo.HasVirtualShadowMap() || ProjectedShadowInfo.VirtualShadowMapToCopyFrom != nullptr)
+							if (ProjectedShadowInfo.HasVirtualShadowMap())
 							{
 								// Skip virtual SMs (and their fallback maps), as they overlay the same light as physical SM and have their own culling
 								// methods anyway.

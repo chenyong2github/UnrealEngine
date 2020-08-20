@@ -61,7 +61,6 @@ StructuredBuffer<uint> PrevDynamicCasterPageFlags;
 
 
 // Set by common parameters
-uint LevelOffsets[VSM_MAX_MIP_LEVELS];
 uint HPageFlagLevelOffsets[VSM_MAX_MIP_LEVELS];
 
 // Size, in entries, of one page table (could be a constant?) Also probably better to stride this over Mip levels such that offsets are more POT(?)
@@ -98,18 +97,6 @@ uint CalcLevelDimsTexels(uint Level)
 
 uint CalcLevelOffsets(uint Level)
 {
-	// return LevelOffsets[Level];
-#if 0
-	uint Offset = 0;
-	for( uint i = 0; i < Level; i++ )
-	{
-		uint LevelPageDim = VSM_LEVEL0_DIM_PAGES_XY >> i;
-		Offset += LevelPageDim * LevelPageDim;
-	}
-	return Offset;
-#else
-	// Faster version of the loop above.
-
 	// VSM_LEVEL0_DIM_PAGES_XY is a power of two, so the footprint of each mip level MipSize_i=(VSM_LEVEL0_DIM_PAGES_XY>>i)^2 is also a power of two.
 	// The binary representation of a mip size is just a single bit: 1 << log2(MipSize_i) = (1 << (2 * (VSM_LOG2_LEVEL0_DIM_PAGES_XY - i))).
 	
@@ -132,7 +119,11 @@ uint CalcLevelOffsets(uint Level)
 #endif
 
 	return 0x55555555u & Mask;
-#endif
+}
+
+uint CalcHPageFlagLevelOffsets(uint Level)
+{
+	return HPageFlagLevelOffsets[Level];
 }
 
 /**
@@ -232,7 +223,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 		// Root level size in pages
 		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> (MipLevel + HMipLevel);
 		
-		int HPageLevelOffset = ShadowMapID * HPageTableSize + HPageFlagLevelOffsets[MipLevel]
+		int HPageLevelOffset = ShadowMapID * HPageTableSize + CalcHPageFlagLevelOffsets(MipLevel)
 			+ CalcLevelOffsets( HMipLevel + MipLevel)
 			- CalcLevelOffsets( MipLevel + 1U );
 

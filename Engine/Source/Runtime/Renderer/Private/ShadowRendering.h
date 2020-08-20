@@ -365,9 +365,6 @@ public:
 	/** Whether to render Nanite geometry into this shadow map. */
 	uint32 bNaniteGeometry : 1;
 
-	/** Whether top mip of virtual shadow map should be forced visible */
-	uint32 bForceTopMipVisible : 1;
-
 	/** Whether to include this shadow in the direct lighting shadow mask.
 	 * Currently this is used to disable projection of some low-resolution proxy shadow maps when using other high resolution virtual shadow maps
 	 * for direct lighting visibility. */
@@ -376,9 +373,6 @@ public:
 
 	/** */
 	FVirtualShadowMap *VirtualShadowMap;
-
-	/** Virtual shadow map to copy contents from */
-	FVirtualShadowMap *VirtualShadowMapToCopyFrom;
 
 	/** View projection matrices for each cubemap face, used by one pass point light shadows. */
 	TArray<FMatrix> OnePassShadowViewProjectionMatrices;

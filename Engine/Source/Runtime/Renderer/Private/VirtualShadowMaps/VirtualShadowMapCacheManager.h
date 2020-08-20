@@ -22,12 +22,12 @@ public:
 	bool IsValid() { return PrevVirtualShadowMapId != INDEX_NONE; }
 
 
-	void Update(uint32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
+	void Update(int32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
 		const FVector &SubjectWorldSpacePosition, bool bIsViewDependent, 
 		const FWholeSceneProjectedShadowInitializer &InCacheValidKey, 
 		FVector &SnappedSubjectWorldSpacePosition);
 
-	void UpdateClipmap(uint32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth);
+	void UpdateClipmap(int32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth);
 
 	/**
 	 * Returns the PrevVirtualShadowMapId if cached data is valid (bValidData), or INDEX_NONE otherwise. 
@@ -48,7 +48,7 @@ public:
 	FIntPoint PrevPageSpaceLocation = FIntPoint(0,0);
 
 	// Set to INDEX_NONE when cache data is invalidated by an external change, like movement.
-	uint32 PrevVirtualShadowMapId = INDEX_NONE;
+	int32 PrevVirtualShadowMapId = INDEX_NONE;
 
 	// Depth of the world-space origin of the shadow map in shadow maps space.
 	// Used to offset the depth of pages as they are copied when the light moves
@@ -58,7 +58,7 @@ public:
 	
 	// Aligned location in pages after update.
 	FIntPoint CurrentPageSpaceLocation = FIntPoint(0, 0);
-	uint32 CurrentVirtualShadowMapId = INDEX_NONE;
+	int32 CurrentVirtualShadowMapId = INDEX_NONE;
 	float CurrentShadowMapGlobalDepth = 0.0f;
 
 	// TODO: Potentially refactor this to decouple the cache key details

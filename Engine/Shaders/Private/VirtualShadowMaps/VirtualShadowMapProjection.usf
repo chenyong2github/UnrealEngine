@@ -24,7 +24,7 @@
 
 #define MIN_OCCLUDER_DISTANCE 1e-6f
 
-// One per cascade for directional lights
+// One per clipmap level for directional lights
 StructuredBuffer< FVirtualShadowMapProjectionShaderData > ShadowMapProjectionData;
 Texture2D< uint > PhysicalPagePool;
 
@@ -32,10 +32,6 @@ uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.us
 uint ProjectionCount;
 int DebugOutputType;
 float ContactShadowLength;
-
-// Could be per-directional-light parameters, but global is fine for now
-int Clipmap;
-
 
 // TODO: Share LOD visualization color logic between Debug.usf and here (and possibly Nanite debug)
 float3 IntToColor(uint Index)
@@ -211,26 +207,6 @@ float ComputeOccluderDistance(float4x4 ShadowViewToClip, float OccluderDepth, fl
 	return max(MIN_OCCLUDER_DISTANCE, Result);
 }
 
-// Returns negative number if pixel is not in *any* of the cascades
-int GetCascadeIndexForPixel(float Depth)
-{
-	// Determine which cascade we fall into
-	// NOTE: Since we are currently not using derivatives/filtered texture lookups there is no need to force this to remain
-	// consisent across the pixel quad.
-
-	// NOTE: Cascades are sorted in reverse order, so we'll greedily pick from the end of the list in case there is any overlap
-	int CascadeIndex;
-	for (CascadeIndex = ProjectionCount - 1; CascadeIndex >= 0; --CascadeIndex)
-	{
-		if (Depth >= ShadowMapProjectionData[CascadeIndex].MinSceneDepth &&
-			Depth < ShadowMapProjectionData[CascadeIndex].MaxSceneDepth)
-		{
-			break;
-		}
-	}
-	return CascadeIndex;
-}
-
 void VirtualShadowMapProjectionPS(
 	in float4 SvPosition : SV_Position,
 	out float4 OutputTarget : SV_Target
@@ -244,7 +220,6 @@ void VirtualShadowMapProjectionPS(
 	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0f));
 		
 	// TODO: Early out on sky, etc.
-	bool bClipmap = Clipmap > 0;
 	bool bInLightRegion = true;
 	int ProjectionDataIndex = 0;
 
@@ -261,22 +236,14 @@ void VirtualShadowMapProjectionPS(
 	}
 	else if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
-		if (bClipmap)
-		{
-			float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
+		float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 
-			const int FirstClipmapLevel = ShadowMapProjectionData[0].ClipmapLevel;
-			const int ClipmapLevelCount = ShadowMapProjectionData[0].ClipmapLevelCount;
-			const float ClipmapResolutionLodBias = ShadowMapProjectionData[0].ClipmapResolutionLodBias;
-			int ClipmapLevel = CalcClipmapLevel(ViewPosition, ClipmapResolutionLodBias);
-			ProjectionDataIndex = max(0, ClipmapLevel - FirstClipmapLevel);
-			bInLightRegion = (ProjectionDataIndex < ClipmapLevelCount);
-		}
-		else
-		{
-			ProjectionDataIndex = GetCascadeIndexForPixel(SceneDepth);
-			bInLightRegion = (ProjectionDataIndex >= 0);
-		}
+		const int FirstClipmapLevel = ShadowMapProjectionData[0].ClipmapLevel;
+		const int ClipmapLevelCount = ShadowMapProjectionData[0].ClipmapLevelCount;
+		const float ClipmapResolutionLodBias = ShadowMapProjectionData[0].ClipmapResolutionLodBias;
+		int ClipmapLevel = CalcClipmapLevel(ViewPosition, ClipmapResolutionLodBias);
+		ProjectionDataIndex = max(0, ClipmapLevel - FirstClipmapLevel);
+		bInLightRegion = (ProjectionDataIndex < ClipmapLevelCount);
 	}
 	if (!bInLightRegion)
 	{
@@ -298,12 +265,10 @@ void VirtualShadowMapProjectionPS(
 	// NOTE: Could skip most of the rest of the shader if contact shadows say we're shadowed, but likely to be small, incoherent branching
 
 	FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ProjectionDataIndex];
-
 	FShadowPosition ShadowPosition = WorldToShadow(ProjectionData, TranslatedWorldPosition - View.PreViewTranslation);
 	
-	// TODO: SampleVirtualSmLevel for clipmap
 	FVirtualSmSample SmSample;
-	if (bClipmap)
+	if (LightType == LIGHT_TYPE_DIRECTIONAL)
 	{
 		SmSample = SampleVirtualSmLevel(ProjectionData.VirtualShadowMapId, ShadowPosition.UV, 0);
 	}
@@ -389,16 +354,15 @@ void VirtualShadowMapProjectionPS(
 	// Output debug for "vis".
 	float3 Color = float3(0, 0, 0);
 
-	if (DebugOutputType == 1)		// Cascade/clipmap
+	if (DebugOutputType == 1)		// Clipmap level
 	{
-		int Index = bClipmap ? (ProjectionDataIndex) : (ProjectionCount - ProjectionDataIndex - 1);
-		Color = lerp(IntToColor(Index), OutputSignal.rrr, 0.4f);
+		Color = lerp(IntToColor(ProjectionDataIndex), OutputSignal.rrr, 0.4f);
 	}
-	else if (DebugOutputType == 2)			// Mip level/LOD
+	else if (DebugOutputType == 2)	// Mip level/LOD
 	{
 		Color = lerp(IntToColor(SmSample.MipLevel + 1), OutputSignal.rrr, 0.0f);
 	}
-	else if (DebugOutputType == 3)		// Invalid page
+	else if (DebugOutputType == 3)	// Invalid page
 	{
 		Color = SmSample.bValid ? (0.25f * OutputSignal.rrr) : float3(1, 0, 1);
 	}

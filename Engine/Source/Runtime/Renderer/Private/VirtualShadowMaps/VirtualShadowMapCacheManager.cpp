@@ -26,7 +26,7 @@ static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 );
 
 
-void FVirtualShadowMapCacheEntry::UpdateClipmap(uint32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth)
+void FVirtualShadowMapCacheEntry::UpdateClipmap(int32 VirtualShadowMapId, const FMatrix &WorldToLight, FIntPoint PageSpaceLocation, float GlobalDepth)
 {
 	// Swap previous frame data over.
 	PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
@@ -44,7 +44,7 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(uint32 VirtualShadowMapId, const
 	CurrentShadowMapGlobalDepth = GlobalDepth;
 }
 
-void FVirtualShadowMapCacheEntry::Update(uint32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
+void FVirtualShadowMapCacheEntry::Update(int32 VirtualShadowMapId, const FMatrix &ShadowPreTranslatedWorldToShadowClip, 
 	const FVector &SubjectWorldSpacePosition, bool bIsViewDependent, const FWholeSceneProjectedShadowInitializer &InCacheValidKey, 
 	FVector &SnappedSubjectWorldSpacePosition)
 {

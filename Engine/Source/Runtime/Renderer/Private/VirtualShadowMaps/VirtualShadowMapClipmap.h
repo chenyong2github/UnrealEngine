@@ -16,9 +16,6 @@ class FVirtualShadowMapArrayCacheManager;
 class FVirtualShadowMapClipmap : FRefCountedObject
 {
 public:	
-	// Use clipmap instead of cascades for virtual shadow maps
-	static bool IsEnabled();
-
 	FVirtualShadowMapClipmap(
 		FVirtualShadowMapArray& VirtualShadowMapArray,
 		FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,

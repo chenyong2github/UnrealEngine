@@ -242,13 +242,6 @@ FAutoConsoleVariableRef CVarUseOctreeForShadowCulling(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<int32> CVarCopyFallbackFromVirtual(
-	TEXT( "r.Shadow.v.CopyFallbackFromVSM" ),
-	1,
-	TEXT( "When enabled, Nanite part of fallback shadows are copied from the corresponding virtual shadow map instead of being rendered." ),
-	ECVF_RenderThreadSafe
-);
-
 CSV_DECLARE_CATEGORY_EXTERN(LightCount);
 
 #if !UE_BUILD_SHIPPING
@@ -493,10 +486,8 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bTransmission(false)
 	, bHairStrandsDeepShadow(false)
 	, bNaniteGeometry(true)
-	, bForceTopMipVisible(false)
 	, bIncludeInScreenSpaceShadowMask(true)
 	, VirtualShadowMap(nullptr)
-	, VirtualShadowMapToCopyFrom(nullptr)
 	, PerObjectShadowFadeStart(WORLD_MAX)
 	, InvPerObjectShadowFadeLength(0.0f)
 	, LightSceneInfo(0)
@@ -3042,8 +3033,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 	// TODO: Base this off of a light/editor parameter; for now just all spot lights get virtual shadow maps when the CVar is enabled
 	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
 	const bool bNeedsVirtualShadowMap = (EnableVirtualSMCVar->GetValueOnRenderThread() != 0 && LightSceneInfo->Proxy->GetLightType() == LightType_Spot);
-	const bool bCopyFallbackFromVirtual = bNeedsVirtualShadowMap && CVarCopyFallbackFromVirtual.GetValueOnRenderThread() != 0;
-
+	
 	// Try to create a whole-scene projected shadow initializer for the light.
 	TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> > ProjectedShadowInitializers;
 	if (LightSceneInfo->Proxy->GetWholeSceneProjectedShadowInitializer(ViewFamily, ProjectedShadowInitializers))
@@ -3139,20 +3129,13 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 			for (int32 ShadowIndex = 0, ShadowCount = ProjectedShadowInitializers.Num(); ShadowIndex < ShadowCount; ShadowIndex++)
 			{
 				FWholeSceneProjectedShadowInitializer& ProjectedShadowInitializer = ProjectedShadowInitializers[ShadowIndex];
-				const bool bCopyLightFromVirtual = bCopyFallbackFromVirtual && !ProjectedShadowInitializer.bOnePassPointLightShadow;
-
-				// Modify resolution if using virtual shadow maps
-				if( bNeedsVirtualShadowMap )
-				{
-					MaxDesiredResolution = FVirtualShadowMap::PageSize;
-				}
-
+				
 				// Round down to the nearest power of two so that resolution changes are always doubling or halving the resolution, which increases filtering stability
 				// Use the max resolution if the desired resolution is larger than that
 				// FMath::CeilLogTwo(MaxDesiredResolution + 1.0f) instead of FMath::CeilLogTwo(MaxDesiredResolution) because FMath::CeilLogTwo takes
 				// an uint32 as argument and this causes MaxDesiredResolution get truncated. For example, if MaxDesiredResolution is 256.1f,
 				// FMath::CeilLogTwo returns 8 but the next line of code expects a 9 to work correctly
-				int32 RoundedDesiredResolution = FMath::Max<int32>((1 << (FMath::CeilLogTwo(MaxDesiredResolution + 1.0f) - 1)) - (!bCopyLightFromVirtual ? ShadowBorder * 2 : 0), 1);
+				int32 RoundedDesiredResolution = FMath::Max<int32>((1 << (FMath::CeilLogTwo(MaxDesiredResolution + 1.0f) - 1)) - (ShadowBorder * 2), 1);
 				int32 SizeX = MaxDesiredResolution >= MaxShadowResolution ? MaxShadowResolution : RoundedDesiredResolution;
 				int32 SizeY = MaxDesiredResolution >= MaxShadowResolutionY ? MaxShadowResolutionY : RoundedDesiredResolution;
 
@@ -3169,8 +3152,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				SizeX = ShadowMapSize.X - ShadowBorder * 2;
 				SizeY = ShadowMapSize.Y - ShadowBorder * 2;
 
-
-				FVirtualShadowMap* VirtualShadowMapToCopyFrom = nullptr;
 				if (bNeedsVirtualShadowMap)
 				{
 					// Create the projected shadow info.
@@ -3179,11 +3160,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					ProjectedShadowInfo->VirtualShadowMap = VirtualShadowMapArray.Allocate();
-					if( bCopyLightFromVirtual )
-					{
-						ProjectedShadowInfo->bForceTopMipVisible = true;
-						VirtualShadowMapToCopyFrom = ProjectedShadowInfo->VirtualShadowMap;
-					}
 
 					// Rescale size to fit whole virtual SM but keeping aspect ratio
 					int32 VirtualSizeX = SizeX >= SizeY ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeX) / SizeY;
@@ -3249,12 +3225,8 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						false	// no RSM
 						);
 
-					ProjectedShadowInfo->VirtualShadowMapToCopyFrom = VirtualShadowMapToCopyFrom;
 					ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-
-					// When using virtual shadow maps, we don't project the fallback shadow map or else we'd get double shadowing
-					ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = !bNeedsVirtualShadowMap;
 
 					VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
@@ -3305,6 +3277,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							ProjectedShadowInfo->CasterFrustum.Planes.Add(FPlane(CubeDirections[FaceIndex], LightProxy.GetRadius()));
 						}
 						ProjectedShadowInfo->CasterFrustum.Init();
+					}
+
+					// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+					if (bNeedsVirtualShadowMap)
+					{
+						ProjectedShadowInfo->bNaniteGeometry = false;
 					}
 
 					bool bContainsNaniteSubjects = false;
@@ -4073,13 +4051,10 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 {
 	SCOPE_CYCLE_COUNTER(STAT_AddViewDependentWholeSceneShadowsForView);
 
-	// TODO: Sort out a fallback solution for clipmaps; for now we have no way to copy "matching" data so let it render separately for consistency
 	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.v.Enable"));
 	const bool bNeedsVirtualShadowMap = EnableVirtualSMCVar->GetValueOnRenderThread() != 0;
 	const bool bDirectionalLight        = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
-	const bool bVirtualShadowMapClipmap = bNeedsVirtualShadowMap && bDirectionalLight && FVirtualShadowMapClipmap::IsEnabled();	
-	const bool bCopyFallbackFromVirtual = bNeedsVirtualShadowMap && !bVirtualShadowMapClipmap && CVarCopyFallbackFromVirtual.GetValueOnRenderThread() != 0;
-
+	const bool bVirtualShadowMapClipmap = bNeedsVirtualShadowMap && bDirectionalLight;
 
 	// Allow each view to create a whole scene view dependent shadow
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -4105,7 +4080,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					break;
 				}
 			}
-		}		
+		}
 		
 		// If rendering in stereo mode we render shadow depths only for the left eye, but project for both eyes!
 		if (IStereoRendering::IsAPrimaryView(View))
@@ -4136,10 +4111,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 				if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
 				{
-					MaxShadowCascadeDistance = FMath::Max(MaxShadowCascadeDistance, ProjectedShadowInitializer.CascadeSettings.UnfadedSplitFar);
+					MaxShadowCascadeDistance = FMath::Max(MaxShadowCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
 
 					// Tack on a virtual SM alongside if enabled, the regular one is still there to take care of non-nanite geo.
-					FProjectedShadowInfo* ShadowMapInfoToCopyFrom = nullptr;
 					if( bNeedsVirtualShadowMap && !bVirtualShadowMapClipmap )
 					{
 						// Create the projected shadow info.
@@ -4149,13 +4123,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 						ProjectedShadowInfo->VirtualShadowMap = VirtualShadowMapArray.Allocate();
 						
-						if( bCopyFallbackFromVirtual )
-						{
-							ensure(ProjectedShadowInfo->VirtualShadowMap);
-							ProjectedShadowInfo->bForceTopMipVisible = true;
-							ShadowMapInfoToCopyFrom = ProjectedShadowInfo;
-						}
-
 						uint32 VirtualSMRes = FVirtualShadowMap::VirtualMaxResolutionXY;
 						TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry;
 						if (Scene->VirtualShadowMapArrayCacheManager)
@@ -4164,7 +4131,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						}
 						
 						ProjectedShadowInfo->VirtualShadowMap->VirtualShadowMapCacheEntry = VirtualSmCacheEntry;
-
 
 						// Set up projection as per normal
 						ProjectedShadowInfo->SetupWholeSceneProjection(
@@ -4194,20 +4160,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						// Modify resolution if using virtual shadow maps
 						FIntPoint ShadowBufferResolution;
 						FIntPoint ShadowBufferSnapResolution;
-						if (bNeedsVirtualShadowMap)
-						{
-							// TODO: when using caching ensure the viewport is correct (since it is no longer the full page size).
-							ShadowBufferResolution = FIntPoint( FVirtualShadowMap::PageSize, FVirtualShadowMap::PageSize );
-							ShadowBufferSnapResolution = ShadowBufferResolution;
-
-							if( bCopyFallbackFromVirtual )
-							{
-								// Force snapping to VSM resolution for consistency.
-								// If we don't do this and copy the data from VSM the shadow map and the projection will not match.
-								ShadowBufferSnapResolution = FIntPoint( FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY );
-						}
-						}
-						else
 						{
 							const int32 MaxCSMResolution = GetCachedScalabilityCVars().MaxCSMShadowResolution;
 							ShadowBufferResolution = FIntPoint(	FMath::Clamp( MaxCSMResolution, 1, (int32)GMaxShadowDepthBufferSizeX ) - ShadowBorder * 2,
@@ -4217,40 +4169,28 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						
 						// Create the projected shadow info.
 						FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-
-						// If caching is active, we should use the setup for that.
-						if (ShadowMapInfoToCopyFrom && ShadowMapInfoToCopyFrom->VirtualShadowMap->VirtualShadowMapCacheEntry)
-						{
-							*ProjectedShadowInfo = *ShadowMapInfoToCopyFrom;
-							ProjectedShadowInfo->ResolutionX = FVirtualShadowMap::PageSize;
-							ProjectedShadowInfo->ResolutionY = FVirtualShadowMap::PageSize;
-							ProjectedShadowInfo->BorderSize = ShadowBorder;
-							ProjectedShadowInfo->VirtualShadowMap = nullptr;
-							ProjectedShadowInfo->UpdateShaderDepthBias();
-						}
-						else
-						{
-							ProjectedShadowInfo->SetupWholeSceneProjection(
-								&LightSceneInfo,
-								&View,
-								ProjectedShadowInitializer,
-								ShadowBufferResolution.X,
-								ShadowBufferResolution.Y,
-								ShadowBufferSnapResolution.X,
-								ShadowBufferSnapResolution.Y,
-								ShadowBorder,
-								false	// no RSM
-							);
-						}
+						ProjectedShadowInfo->SetupWholeSceneProjection(
+							&LightSceneInfo,
+							&View,
+							ProjectedShadowInitializer,
+							ShadowBufferResolution.X,
+							ShadowBufferResolution.Y,
+							ShadowBufferSnapResolution.X,
+							ShadowBufferSnapResolution.Y,
+							ShadowBorder,
+							false	// no RSM
+						);
 						ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-						ProjectedShadowInfo->VirtualShadowMapToCopyFrom = ShadowMapInfoToCopyFrom ? ShadowMapInfoToCopyFrom->VirtualShadowMap : nullptr;
-
-						// When using virtual shadow maps, we don't project the fallback shadow map or else we'd get double shadowing
-						ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = !bNeedsVirtualShadowMap;
 
 						VisibleLightInfo.MemStackProjectedShadows.Add(ProjectedShadowInfo);
 						VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 						ShadowInfos.Add(ProjectedShadowInfo);
+
+						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+						if (bNeedsVirtualShadowMap)
+						{
+							ProjectedShadowInfo->bNaniteGeometry = false;
+						}
 
 						// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
 						if (!ProjectedShadowInfo->bRayTracedDistanceField)
@@ -4262,9 +4202,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 			}
 
 			if (bVirtualShadowMapClipmap && MaxShadowCascadeDistance > 0.0f)
-			{				
-				check(!bCopyFallbackFromVirtual);		// TODO: Support in some different form
-
+			{
 				FMatrix WorldToLight = FInverseRotationMatrix(LightSceneInfo.Proxy->GetDirection().GetSafeNormal().Rotation());
 
 				TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap = TSharedPtr<FVirtualShadowMapClipmap>(new FVirtualShadowMapClipmap(

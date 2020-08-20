@@ -1614,12 +1614,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
 				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
-
-				const bool bRender = ProjectedShadowInfo->VirtualShadowMapToCopyFrom == nullptr;	// Don't render non-Nanite to fallback maps. // TODO: Bail out at an earlier point
-				if (bRender)
-				{
-					ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, true);
-				}
+				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, true);
 			}
 		}
 
@@ -1687,11 +1682,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
 				}
 
-				const bool bRender = ProjectedShadowInfo->VirtualShadowMapToCopyFrom == nullptr;	// Don't render non-Nanite to fallback maps. // TODO: Bail out at an earlier point
-				if (bRender)
-				{
-					ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
-				}
+				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
 
 				if (!bForceSingleRenderPass)
 				{
@@ -1742,23 +1733,6 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 					const FIntRect AtlasViewRect = ProjectedShadowInfo->GetViewRectForView();
 
-					if( ProjectedShadowInfo->VirtualShadowMapToCopyFrom )
-					{
-						check(ProjectedShadowInfo->ResolutionX == FVirtualShadowMap::PageSize);
-						check(ProjectedShadowInfo->ResolutionY == FVirtualShadowMap::PageSize);
-
-						Nanite::EmitFallbackShadowMapFromVSM(
-							GraphBuilder,
-							VirtualShadowMapArray,
-							ProjectedShadowInfo->VirtualShadowMapToCopyFrom->ID,
-							ShadowMap,
-							AtlasViewRect,
-							ProjectedShadowInfo->ShadowDepthView->ViewMatrices.GetProjectionMatrix(),
-							ProjectedShadowInfo->GetShaderDepthBias(),
-							ProjectedShadowInfo->bDirectionalLight
-						);
-					}
-					else
 					{
 						// We render the Nanite geometry into a viewport-sized raster context, then emit into the right atlas location
 						FIntRect NaniteViewRect(FIntPoint(0, 0), AtlasViewRect.Size());
@@ -1808,7 +1782,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 							ProjectedShadowInfo->GetShaderDepthBias(),
 							ProjectedShadowInfo->bDirectionalLight
 						);
-					}	// don't copy from fallback
+					}
 				}
 			}
 
@@ -1845,7 +1819,9 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
-		if (CVarNaniteShadowsUseHZB.GetValueOnRenderThread())
+		bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
+
+		if (bUseHZB)
 		{
 			VirtualShadowMapArray.HZBPhysical	= Scene->VirtualShadowMapArrayCacheManager->HZBPhysical;
 			VirtualShadowMapArray.HZBPageTable	= Scene->VirtualShadowMapArrayCacheManager->HZBPageTable;
@@ -1936,7 +1912,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 				for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
 				{
-					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->VirtualShadowMap)
+					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->HasVirtualShadowMap())
 					{
 						Nanite::FPackedViewParams Params;
 						Params.ViewMatrices = ProjectedShadowInfo->ShadowDepthView->ViewMatrices;
@@ -2023,7 +1999,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			}
 
 
-			if( CVarNaniteShadowsUseHZB.GetValueOnRenderThread() )
+			if( bUseHZB )
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "BuildShadowHZB");
 
@@ -2179,7 +2155,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					{
 						FViewMatrices::FMinimalInitializer MatricesInitializer;
 						MatricesInitializer.ViewOrigin = -ProjectedShadowInfo->PreShadowTranslation;
-						MatricesInitializer.ViewRotationMatrix = FTranslationMatrix(-ProjectedShadowInfo->PreShadowTranslation) * ProjectedShadowInfo->OnePassShadowViewMatrices[CubemapFaceIndex];
+						MatricesInitializer.ViewRotationMatrix = ProjectedShadowInfo->OnePassShadowViewMatrices[CubemapFaceIndex];
 						MatricesInitializer.ProjectionMatrix = ProjectedShadowInfo->OnePassShadowFaceProjectionMatrix;
 						MatricesInitializer.ConstrainedViewRect = ShadowViewRect;
 

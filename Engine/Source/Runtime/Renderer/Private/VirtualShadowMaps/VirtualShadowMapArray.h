@@ -20,6 +20,14 @@ constexpr uint32 ILog2Const(uint32 n)
 	return (n > 1) ? 1 + ILog2Const(n / 2) : 0;
 }
 
+// See CalcLevelOffsets in PageAccessCommon.ush for some details on this logic
+constexpr uint32 CalcVirtualShadowMapLevelOffsets(uint32 Level, uint32 Log2Level0DimPagesXY)
+{
+	uint32 NumBits = Level << 1;
+	uint32 StartBit = (2U * Log2Level0DimPagesXY + 2U) - NumBits;
+	uint32 Mask = ((1U << NumBits) - 1U) << StartBit;
+	return 0x55555555U & Mask;
+}
 
 class FVirtualShadowMap
 {
@@ -43,6 +51,8 @@ public:
 	static constexpr uint32 Log2Level0DimPagesXY = ILog2Const(Level0DimPagesXY);
 	static constexpr uint32 MaxMipLevels = Log2Level0DimPagesXY + 1U;
 
+	static constexpr uint32 PageTableSize = CalcVirtualShadowMapLevelOffsets(MaxMipLevels, Log2Level0DimPagesXY);
+
 	static constexpr uint32 VirtualMaxResolutionXY = Level0DimPagesXY * PageSize;
 	
 	static constexpr uint32 PhysicalPageAddressBits = 16U;
@@ -50,17 +60,16 @@ public:
 	static constexpr uint32 MaxPhysicalTextureDimTexels = MaxPhysicalTextureDimPages * PageSize;
 
 	static constexpr uint32 RasterWindowPages = 4u;
-	
-	
+		
 	// Something large (we're using ints at the moment...)
 	// TODO: Fix this when tweaking data sizes of page table entries to e.g., 2x8 bits
-	static constexpr uint32 InvalidPhysicalPageAddress = 65535U; 
-
+	static constexpr uint32 InvalidPhysicalPageAddress = 65535U;
+	
 	FVirtualShadowMap(uint32 InID) : ID(InID)
 	{
 	}
 
-	uint32 ID = INDEX_NONE;
+	int32 ID = INDEX_NONE;
 	TSharedPtr<FVirtualShadowMapCacheEntry> VirtualShadowMapCacheEntry;
 };
 
@@ -79,18 +88,15 @@ struct FVirtualShadowMapProjectionShaderData
 	 * Translation from world space to shadow space (add before transform by TranslatedWorldToShadowViewMatrix).
 	 */
 	FVector4 ShadowPreViewTranslation;
-	uint32 VirtualShadowMapId;
+	int32 VirtualShadowMapId;
 	
 	// These could be per-light (first/count), but convenient here and not much overhead
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;
 	float ClipmapResolutionLodBias = 0.0f;
 
-	float MinSceneDepth = -HALF_WORLD_MAX;
-	float MaxSceneDepth =  HALF_WORLD_MAX;
-
 	// Seems the FMatrix forces 16-byte alignment
-	float Padding[2];
+	//float Padding[2];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 
@@ -99,7 +105,6 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(const FMatrix& TranslatedWorldToShadowView, const FMatrix& ViewToClip);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapCommonParameters, )
-	SHADER_PARAMETER_ARRAY(uint32, LevelOffsets, [FVirtualShadowMap::MaxMipLevels])
 	SHADER_PARAMETER_ARRAY(uint32, HPageFlagLevelOffsets, [FVirtualShadowMap::MaxMipLevels])
 	SHADER_PARAMETER(uint32, PageTableSize)
 	SHADER_PARAMETER(uint32, HPageTableSize)
