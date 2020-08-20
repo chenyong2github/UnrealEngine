@@ -45,6 +45,8 @@ private:
 
 	bool CanRaiseActionMenu() const;
 
+	static TSharedRef<SExpanderArrow> CreateCustomActionExpander(const struct FCustomExpanderData& ActionMenuData);
+
 	FReply RefreshClicked();
 
 	FReply OnModuleItemDrop(TSharedPtr<class FDragDropOperation> DragDropOperation);
