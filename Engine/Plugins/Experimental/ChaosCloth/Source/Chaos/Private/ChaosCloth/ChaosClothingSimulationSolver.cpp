@@ -11,7 +11,6 @@
 using namespace Chaos;
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update"), STAT_ChaosClothSolverUpdate, STATGROUP_ChaosCloth);
-DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Colliders"), STAT_ChaosClothSolverUpdateColliders, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Cloths"), STAT_ChaosClothSolverUpdateCloths, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Pre Solver Step"), STAT_ChaosClothSolverUpdatePreSolverStep, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Solver Update Solver Step"), STAT_ChaosClothSolverUpdateSolverStep, STATGROUP_ChaosCloth);
@@ -46,7 +45,6 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 	, NumSubsteps(ChaosClothingSimulationSolverDefault::NumSubsteps)
 	, CollisionParticlesOffset(0)
 	, CollisionParticlesSize(0)
-	, bAreCollisionParticlesDirty(false)
 	, Gravity(ChaosClothingSimulationSolverDefault::Gravity)
 	, WindVelocity(ChaosClothingSimulationSolverDefault::WindVelocity)
 	, WindFluidDensity(ChaosClothingSimulationSolverDefault::WindFluidDensity)
@@ -114,11 +112,8 @@ FClothingSimulationSolver::~FClothingSimulationSolver()
 
 void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& InCloths)
 {
-	// Reset solver collisions so that there is never any dynamic collision particles below cloth's own ones
-	Evolution->ResetCollisionParticles();
-
-	// Reset cloth particles and associated elements
-	ResetParticles();
+	// Remove old cloths
+	RemoveCloths();
 
 	// Update array
 	Cloths = MoveTemp(InCloths);
@@ -135,9 +130,8 @@ void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& In
 		Cloth->Update(this);
 	}
 
-	// Update solver collider's offset
+	// Update external collision's offset
 	CollisionParticlesOffset = Evolution->CollisionParticles().Size();
-	CollisionParticlesSize = 0;
 }
 
 void FClothingSimulationSolver::AddCloth(FClothingSimulationCloth* InCloth)
@@ -149,11 +143,11 @@ void FClothingSimulationSolver::AddCloth(FClothingSimulationCloth* InCloth)
 		return;
 	}
 
-	// Reset solver collisions so that there is never any dynamic collision particles below cloth's own ones
-	Evolution->ResetCollisionParticles(CollisionParticlesOffset);
-
 	// Add the cloth to the solver update array
 	Cloths.Emplace(InCloth);
+
+	// Reset external collisions so that there is never any external collision particles below cloth's ones
+	ResetCollisionParticles(CollisionParticlesOffset);
 
 	// Add the cloth's particles
 	InCloth->Add(this);
@@ -161,9 +155,8 @@ void FClothingSimulationSolver::AddCloth(FClothingSimulationCloth* InCloth)
 	// Set initial state
 	InCloth->Update(this);
 
-	// Update solver collider's offset
+	// Update external collision's offset
 	CollisionParticlesOffset = Evolution->CollisionParticles().Size();
-	CollisionParticlesSize = 0;
 }
 
 void FClothingSimulationSolver::RemoveCloth(FClothingSimulationCloth* InCloth)
@@ -173,17 +166,17 @@ void FClothingSimulationSolver::RemoveCloth(FClothingSimulationCloth* InCloth)
 		return;
 	}
 
-	// Reset solver collisions so that there is never any dynamic collision particles below cloth's own ones
-	Evolution->ResetCollisionParticles();
-
-	// Reset cloth particles and associated elements
-	ResetParticles();
-
 	// Remove reference to this solver
 	InCloth->Remove(this);
 
 	// Remove collider from array
 	Cloths.RemoveSwap(InCloth);
+
+	// Reset collisions so that there is never any external collision particles below the cloth's ones
+	ResetCollisionParticles();
+
+	// Reset cloth particles and associated elements
+	ResetParticles();
 
 	// Re-add the remaining cloths' particles
 	for (FClothingSimulationCloth* const Cloth : Cloths)
@@ -195,9 +188,8 @@ void FClothingSimulationSolver::RemoveCloth(FClothingSimulationCloth* InCloth)
 		Cloth->Update(this);
 	}
 
-	// Update solver collider's offset
+	// Update external collision's offset
 	CollisionParticlesOffset = Evolution->CollisionParticles().Size();
-	CollisionParticlesSize = 0;
 }
 
 void FClothingSimulationSolver::RemoveCloths()
@@ -210,14 +202,50 @@ void FClothingSimulationSolver::RemoveCloths()
 	Cloths.Reset();
 
 	// Reset solver collisions
-	Evolution->ResetCollisionParticles();
+	ResetCollisionParticles();
+
+	// Reset cloth particles and associated elements
+	ResetParticles();
+}
+
+void FClothingSimulationSolver::RefreshCloth(FClothingSimulationCloth* InCloth)
+{
+	if (Cloths.Find(InCloth) == INDEX_NONE)
+	{
+		return;
+	}
+
+	// TODO: Add different ways to refresh cloths without recreating everything (collisions, constraints, particles)
+	RefreshCloths();
+}
+
+void FClothingSimulationSolver::RefreshCloths()
+{
+	// Remove the cloths' & collisions' particles
+	for (FClothingSimulationCloth* const Cloth : Cloths)
+	{
+		// Remove any solver data held by the cloth 
+		Cloth->Remove(this);
+	}
+
+	// Reset collision particles
+	ResetCollisionParticles();
 
 	// Reset cloth particles and associated elements
 	ResetParticles();
 
+	// Re-add the cloths' & collisions' particles
+	for (FClothingSimulationCloth* const Cloth : Cloths)
+	{
+		// Re-Add the cloth's and collisions' particles
+		Cloth->Add(this);
+
+		// Set initial state
+		Cloth->Update(this);
+	}
+
 	// Update solver collider's offset
-	CollisionParticlesOffset = 0;
-	CollisionParticlesSize = 0;
+	CollisionParticlesOffset = Evolution->CollisionParticles().Size();
 }
 
 void FClothingSimulationSolver::ResetParticles()
@@ -286,60 +314,19 @@ const float* FClothingSimulationSolver::GetParticleInvMasses(int32 Offset) const
 	return &Evolution->Particles().InvM(Offset);
 }
 
-void FClothingSimulationSolver::SetColliders(TArray<FClothingSimulationCollider*>&& InColliders)
+void FClothingSimulationSolver::ResetCollisionParticles(int32 InCollisionParticlesOffset)
 {
-	// Update array
-	Colliders = MoveTemp(InColliders);
-
-	// Colliders have changed, must prevent from trying reusing the ranges
-	Evolution->ResetCollisionParticles(CollisionParticlesOffset);
-	CollisionParticlesSize = 0;
-}
-
-void FClothingSimulationSolver::AddCollider(FClothingSimulationCollider* InCollider)
-{
-	check(InCollider);
-
-	if (Colliders.Find(InCollider) != INDEX_NONE)
-	{
-		return;
-	}
-
-	// Add the collider to the solver update array
-	Colliders.Emplace(InCollider);
-}
-
-void FClothingSimulationSolver::RemoveCollider(FClothingSimulationCollider* InCollider)
-{
-	if (Colliders.Find(InCollider) == INDEX_NONE)
-	{
-		return;
-	}
-
-	// Remove collider from array
-	Colliders.RemoveSwap(InCollider);
-
-	// Colliders have changed, must prevent from trying reusing the ranges
-	Evolution->ResetCollisionParticles(CollisionParticlesOffset);
-	CollisionParticlesSize = 0;
-}
-
-void FClothingSimulationSolver::RemoveColliders()
-{
-	// Remove all colliders from array
-	Colliders.Reset();
-
-	// Colliders have changed, must prevent from trying reusing the ranges
-	Evolution->ResetCollisionParticles(CollisionParticlesOffset);
+	Evolution->ResetCollisionParticles(InCollisionParticlesOffset);
+	CollisionParticlesOffset = InCollisionParticlesOffset;
 	CollisionParticlesSize = 0;
 }
 
 int32 FClothingSimulationSolver::AddCollisionParticles(int32 NumCollisionParticles, uint32 GroupId, int32 RecycledOffset)
 {
-	// Try reusing the particle range so that solver collisions can be added/removed dynamically
+	// Try reusing the particle range
+	// This is used by external collisions so that they can be added/removed between every solver update.
 	// If it doesn't match then remove all ranges above the given offset to start again.
-	// This rely on the assumption that these ranges are added again in the same order
-	// by the solver at every update
+	// This rely on the assumption that these ranges are added again in the same update order.
 	if (RecycledOffset == CollisionParticlesOffset + CollisionParticlesSize)
 	{
 		CollisionParticlesSize += NumCollisionParticles;
@@ -375,9 +362,6 @@ int32 FClothingSimulationSolver::AddCollisionParticles(int32 NumCollisionParticl
 
 	// Always starts with particles disabled
 	EnableCollisionParticles(Offset, false);
-
-	// Any change in particle allocation should trigger an initial state update
-	bAreCollisionParticlesDirty = true;  // TODO: Dirtying collision initial state update only based on the number of particles is not bug proof, but hashing the collision geometries is a bit heavy handed too
 
 	return Offset;
 }
@@ -653,41 +637,15 @@ void FClothingSimulationSolver::Update(float InDeltaTime)
 	const float PrevDeltaTime = DeltaTime;
 	DeltaTime = DeltaTime + (InDeltaTime - DeltaTime) * DeltaTimeDecay;
 
-	// Update Solver Colliders
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateColliders);
-
-		// Reset collision particles, but leave cloth's own colliders
-		Evolution->ResetCollisionParticles(CollisionParticlesOffset);
-
-		// Add/re-add the solver's dynamic collider particles that can change at every update
-		for (FClothingSimulationCollider* const Collider : Colliders)
-		{
-			// Add the collider's particles
-			Collider->Add(this);
-
-			if (bAreCollisionParticlesDirty)
-			{
-				// Reset initial state that will become the previous state after the swap below
-				Collider->Update(this);
-			}
-		}
-		bAreCollisionParticlesDirty = false;
-
-		// Update colliders
-		Swap(OldCollisionTransforms, CollisionTransforms);
-
-		for (FClothingSimulationCollider* Collider: Colliders)
-		{
-			Collider->Update(this);
-		}
-	}
-
-	// Update Cloths
+	// Update Cloths and cloth colliders
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosClothSolverUpdateCloths);
 
+		Swap(OldCollisionTransforms, CollisionTransforms);
 		Swap(OldAnimationPositions, AnimationPositions);
+
+		// Clear external collisions so that they can be re-added
+		CollisionParticlesSize = 0;
 
 		for (FClothingSimulationCloth* Cloth : Cloths)
 		{

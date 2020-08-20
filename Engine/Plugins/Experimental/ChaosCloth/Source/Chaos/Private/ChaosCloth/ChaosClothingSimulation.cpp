@@ -91,11 +91,6 @@ void FClothingSimulation::Initialize()
 	// Create solver
 	Solver = MakeUnique<FClothingSimulationSolver>();
 
-	// Create external collision dynamic collider
-	Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(nullptr, nullptr, false, INDEX_NONE));
-	Colliders[0]->SetCollisionData(&ExternalCollisionData);
-	Solver->AddCollider(Colliders[0].Get());
-
 	ResetStats();
 }
 
@@ -168,6 +163,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		InOwnerComponent,
 		/*bInUseLODIndexOverride =*/ false,
 		/*InLODIndexOverride =*/ INDEX_NONE));
+
+	// Set the external collision data to get updated at every frame
+	Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);
 
 	// Create cloth node
 	AnimDriveSpringStiffness = ClothConfig->AnimDriveSpringStiffness;
@@ -465,26 +463,9 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 
 void FClothingSimulation::RefreshPhysicsAsset()
 {
-	// Reset stats
-	ResetStats();
+	// A collider update cannot be re-triggered for now, refresh all cloths from the solver instead
+	Solver->RefreshCloths();
 
-	// A collider update cannot be re-triggered for now, remove all cloths from the solver instead
-	Solver->RemoveCloths();
-
-	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
-	{
-		// Backup collider(s)
-		TArray<FClothingSimulationCollider*> ClothColliders = Cloth->GetColliders();
-
-		// Refresh collider
-		Cloth->SetColliders(MoveTemp(ClothColliders));
-
-		// Re-add cloth to the solver
-		Solver->AddCloth(Cloth.Get());
-
-		// Update stats
-		UpdateStats(Cloth.Get());
-	}
 	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("RefreshPhysicsAsset, all collisions have been re-added for all clothing assets"));
 }
 
@@ -1016,8 +997,8 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 			static const FLinearColor LODsColor(FColor::Silver);
 
 			const FLinearColor Color =
-				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::Global) ? GlobalColor :
-				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::Dynamic) ? DynamicColor : LODsColor;
+				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::LODless) ? GlobalColor :
+				(CollisionDataType == FClothingSimulationCollider::ECollisionDataType::External) ? DynamicColor : LODsColor;
 
 			const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
 
@@ -1084,14 +1065,10 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 	{
 		for (const FClothingSimulationCollider* const Collider : Cloth->GetColliders())
 		{
-			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::Global);
+			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::LODless);
+			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::External);
 			DrawCollision(Collider, Cloth, FClothingSimulationCollider::ECollisionDataType::LODs);
 		}
-	}
-	// Draw external collisions
-	for (const FClothingSimulationCollider* const Collider : Solver->GetColliders())
-	{
-		DrawCollision(Collider, nullptr, FClothingSimulationCollider::ECollisionDataType::Dynamic);
 	}
 }
 

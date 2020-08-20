@@ -395,71 +395,111 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 {
 	Mesh = InMesh;
 
-	// Backup all currently attached solvers
-	TArray<FClothingSimulationSolver*> Solvers;
-	LODIndices.GetKeys(Solvers);
-
-	// Remove this cloth from all solvers
-	for (FClothingSimulationSolver* const Solver : Solvers)
-	{
-		Solver->RemoveCloth(this);
-	}
-
 	// Reset LODs
 	const int32 NumLODs = Mesh ? Mesh->GetNumLODs() : 0;
-
 	LODData.Reset(NumLODs);
 	for (int32 Index = 0; Index < NumLODs; ++Index)
 	{
 		LODData.Emplace(Mesh->GetNumPoints(Index), Mesh->GetIndices(Index), Mesh->GetWeightMaps(Index));
 	}
 
-	// Re-add this cloth to existing solvers
+	// Iterate all known solvers
+	TArray<FClothingSimulationSolver*> Solvers;
+	LODIndices.GetKeys(Solvers);
 	for (FClothingSimulationSolver* const Solver : Solvers)
 	{
-		Solver->AddCloth(this);
+		// Refresh this cloth to recreate particles
+		Solver->RefreshCloth(this);
 	}
 }
 
 void FClothingSimulationCloth::SetColliders(TArray<FClothingSimulationCollider*>&& InColliders)
 {
+	// Empty the collider list, but keep the pointers around for the removal operation below
+	const TArray<FClothingSimulationCollider*> TempColliders = MoveTemp(Colliders);
+
+	// Replace with the new colliders
 	Colliders = InColliders;
 
-	// Backup all currently attached solvers
+	// Iterate all known solvers
 	TArray<FClothingSimulationSolver*> Solvers;
 	LODIndices.GetKeys(Solvers);
-
-	// Remove this cloth from all solvers
 	for (FClothingSimulationSolver* const Solver : Solvers)
 	{
-		Solver->RemoveCloth(this);
+		// Remove any held collider data related to this cloth simulation
+		for (FClothingSimulationCollider* const Collider : TempColliders)
+		{
+			Collider->Remove(Solver, this);
+		}
+
+		// Refresh this cloth to recreate collision particles
+		Solver->RefreshCloth(this);
+	}
+}
+
+void FClothingSimulationCloth::AddCollider(FClothingSimulationCollider* InCollider)
+{
+	check(InCollider);
+
+	if (Colliders.Find(InCollider) != INDEX_NONE)
+	{
+		return;
 	}
 
-	// Re-add this cloth to existing solvers
+	// Add the collider to the solver update array
+	Colliders.Emplace(InCollider);
+
+	// Iterate all known solvers
+	TArray<FClothingSimulationSolver*> Solvers;
+	LODIndices.GetKeys(Solvers);
 	for (FClothingSimulationSolver* const Solver : Solvers)
 	{
-		Solver->AddCloth(this);
+		// Refresh this cloth to recreate collision particles
+		Solver->RefreshCloth(this);
+	}
+}
+
+void FClothingSimulationCloth::RemoveCollider(FClothingSimulationCollider* InCollider)
+{
+	if (Colliders.Find(InCollider) == INDEX_NONE)
+	{
+		return;
+	}
+
+	// Remove collider from array
+	Colliders.RemoveSwap(InCollider);
+
+	// Iterate all known solvers
+	TArray<FClothingSimulationSolver*> Solvers;
+	LODIndices.GetKeys(Solvers);
+	for (FClothingSimulationSolver* const Solver : Solvers)
+	{
+		// Remove any held collider data related to this cloth simulation
+		InCollider->Remove(Solver, this);
+
+		// Refresh this cloth to recreate collision particles
+		Solver->RefreshCloth(this);
 	}
 }
 
 void FClothingSimulationCloth::RemoveColliders()
 {
-	Colliders.Reset();
+	// Empty the collider list, but keep the pointers around for the removal operation below
+	const TArray<FClothingSimulationCollider*> TempColliders = MoveTemp(Colliders);
 
-	// Backup all currently attached solvers
+	// Iterate all known solvers
 	TArray<FClothingSimulationSolver*> Solvers;
 	LODIndices.GetKeys(Solvers);
-
-	// Remove this cloth from all solvers
 	for (FClothingSimulationSolver* const Solver : Solvers)
 	{
-		Solver->RemoveCloth(this);
-	}
+		// Remove any held collider data related to this cloth simulation
+		for (FClothingSimulationCollider* const Collider : TempColliders)
+		{
+			Collider->Remove(Solver, this);
+		}
 
-	// Re-add this cloth to existing solvers
-	for (FClothingSimulationSolver* const Solver : Solvers)
-	{
-		Solver->AddCloth(this);
+		// Refresh this cloth to recreate collision particles
+		Solver->RefreshCloth(this);
 	}
 }
 
@@ -489,17 +529,17 @@ void FClothingSimulationCloth::Add(FClothingSimulationSolver* Solver)
 
 void FClothingSimulationCloth::Remove(FClothingSimulationSolver* Solver)
 {
+	// Remove Colliders
+	for (FClothingSimulationCollider* Collider : Colliders)
+	{
+		Collider->Remove(Solver, this);
+	}
+
 	// Remove solver from maps
 	LODIndices.Remove(Solver);
 	for (FLODData& LODDatum: LODData)
 	{
 		LODDatum.Remove(Solver);
-	}
-
-	// Remove Colliders
-	for (FClothingSimulationCollider* Collider : Colliders)
-	{
-		Collider->Remove(Solver, this);
 	}
 }
 

@@ -19,9 +19,9 @@ namespace Chaos
 	public:
 		enum class ECollisionDataType : int32
 		{
-			Global = 0,  // Global collision slot (physics collisions)
-			Dynamic,  // Dynamic collision slot (aka external collisions)
-			LODs,  // LODIndex based start slot (LODs collisions)
+			LODless = 0,  // Global LODless collision slot filled with physics collisions
+			External,  // External collision slot added/removed at every frame
+			LODs,  // LODIndex based start slot for LODs collisions
 		};
 
 		FClothingSimulationCollider(
@@ -33,20 +33,21 @@ namespace Chaos
 
 		int32 GetNumGeometries() const { int32 NumGeometries = 0; for (const FLODData& LODDatum : LODData) { NumGeometries += LODDatum.NumGeometries; } return NumGeometries; }
 
-		// Return source (untransformed) collision data for global, dynamic and active LODs.
+		// Return source (untransformed) collision data for LODless, external and active LODs.
 		FClothCollisionData GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const;
 
 		// ---- Animatable property setters ----
-		// Set dynamic collision data, will only get updated when used as a Solver Collider TODO: Subclass collider?
+		// Set external collision data, will only get updated when used as a Solver Collider TODO: Subclass collider?
 		void SetCollisionData(const FClothCollisionData* InCollisionData) { CollisionData = InCollisionData; }
 		// ---- End of the animatable property setters ----
 
-		// ---- Cloth/Solver interface ----
-		void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
-		void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
+		// ---- Cloth interface ----
+		void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
-		void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth = nullptr);
-		// ---- End of the Cloth/Solver interface ----
+		void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		void ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		// ---- End of the Cloth interface ----
 
 		// ---- Debugging and visualization functions ----
 		// Return currently LOD active collision particles translations, not thread safe, to use after solver update.

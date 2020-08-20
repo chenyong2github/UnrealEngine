@@ -78,9 +78,9 @@ namespace Chaos
 
 		const TArray<FClothingSimulationCollider*>& GetColliders() const { return Colliders; }
 		void SetColliders(TArray<FClothingSimulationCollider*>&& InColliders);
+		void AddCollider(FClothingSimulationCollider* InCollider);
+		void RemoveCollider(FClothingSimulationCollider* InCollider);
 		void RemoveColliders();
-		//void AddCollider(FClothingSimulationCollider* InCollider);  // TODO
-		//void RemoveCollider(FClothingSimulationCollider* InCollider);  // TODO
 		// ---- End of the Node property getters/setters
 
 		// ---- Debugging/visualization functions

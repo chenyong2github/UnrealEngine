@@ -24,6 +24,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	const TArray<int32>& UsedBoneIndices)
 {
 	check(Solver);
+	check(Cloth);
 
 	// Keep a list of all collisions
 	ClothCollisionData = InClothCollisionData;
@@ -55,10 +56,9 @@ void FClothingSimulationCollider::FLODData::Add(
 	const uint32 GroupId = Cloth ? Cloth->GetGroupId() : INDEX_NONE;
 
 	// The offset will be set to the first collision particle's index
-	// Try to reuse existing offsets when Add is called during the solver's collider update
+	// Try to reuse existing offsets when Add is called during the collider update (ie Offset isn't INDEX_NONE)
 	int32* const OffsetPtr = Offsets.Find(FSolverClothPair(Solver, Cloth));
 	const bool bIsNewCollider = !OffsetPtr;
-	check(!Cloth || bIsNewCollider);  // TODO: We need to be able to update cloth colliders too at some point, but this won't work as it is
 	int32& Offset = bIsNewCollider ? Offsets.Add(FSolverClothPair(Solver, Cloth)) : *OffsetPtr;
 	Offset = Solver->AddCollisionParticles(NumGeometries, GroupId, bIsNewCollider ? INDEX_NONE : Offset);
 
@@ -278,6 +278,7 @@ void FClothingSimulationCollider::FLODData::Remove(FClothingSimulationSolver* So
 void FClothingSimulationCollider::FLODData::Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, const FClothingSimulationContextCommon* Context)
 {
 	check(Solver);
+	check(Cloth);
 	if (NumGeometries)
 	{
 		const int32 Offset = Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
@@ -304,6 +305,7 @@ void FClothingSimulationCollider::FLODData::Update(FClothingSimulationSolver* So
 void FClothingSimulationCollider::FLODData::Enable(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, bool bEnable)
 {
 	check(Solver);
+	check(Cloth);
 	if (NumGeometries)
 	{
 		const int32 Offset = Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
@@ -314,6 +316,7 @@ void FClothingSimulationCollider::FLODData::Enable(FClothingSimulationSolver* So
 void FClothingSimulationCollider::FLODData::ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
 {
 	check(Solver);
+	check(Cloth);
 	if (NumGeometries)
 	{
 		const int32 Offset = Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
@@ -354,8 +357,8 @@ FClothingSimulationCollider::~FClothingSimulationCollider()
 FClothCollisionData FClothingSimulationCollider::GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const
 {
 	FClothCollisionData ClothCollisionData;
-	ClothCollisionData.Append(LODData[(int32)ECollisionDataType::Global].ClothCollisionData);
-	ClothCollisionData.Append(LODData[(int32)ECollisionDataType::Dynamic].ClothCollisionData);
+	ClothCollisionData.Append(LODData[(int32)ECollisionDataType::LODless].ClothCollisionData);
+	ClothCollisionData.Append(LODData[(int32)ECollisionDataType::External].ClothCollisionData);
 
 	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
 	if (LODIndex >= (int32)ECollisionDataType::LODs)
@@ -550,18 +553,20 @@ int32 FClothingSimulationCollider::GetNumGeometries(int32 InLODIndex) const
 
 int32 FClothingSimulationCollider::GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InLODIndex) const
 {
-	return LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].Offsets.FindChecked(FSolverClothPair(Solver, Cloth)) : INDEX_NONE;
+	const int32* const Offset = LODData.IsValidIndex(InLODIndex) ? LODData[InLODIndex].Offsets.Find(FSolverClothPair(Solver, Cloth)) : nullptr;
+	return Offset ? *Offset : INDEX_NONE;
 }
 
 void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
 {
 	check(Solver);
+	check(Cloth);
 
-	// Can't add a collider twice to the same solver/cloth pair unless it's a solver collider
-	check(!Cloth || !LODIndices.Find(FSolverClothPair(Solver, Cloth)));
+	// Can't add a collider twice to the same solver/cloth pair
+	check(!LODIndices.Find(FSolverClothPair(Solver, Cloth)));
 
 	// Initialize LODIndex
-	int32& LODIndex = LODIndices.FindOrAdd(FSolverClothPair(Solver, Cloth));
+	int32& LODIndex = LODIndices.Add(FSolverClothPair(Solver, Cloth));
 	LODIndex = INDEX_NONE;
 
 	// Create physics asset collisions, this will affect all LODs, so store it at index 0
@@ -569,10 +574,7 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 	TArray<int32> UsedBoneIndices;
 	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, UsedBoneIndices);
 
-	LODData[(int32)ECollisionDataType::Global].Add(Solver, Cloth, PhysicsAssetCollisionData, UsedBoneIndices);
-
-	// Create user collision data
-	LODData[(int32)ECollisionDataType::Dynamic].Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData());
+	LODData[(int32)ECollisionDataType::LODless].Add(Solver, Cloth, PhysicsAssetCollisionData, UsedBoneIndices);
 
 	// Create legacy asset LOD collisions
 	const int32 NumLODs = Asset ? Asset->LodData.Num() : 0;
@@ -609,14 +611,18 @@ void FClothingSimulationCollider::Remove(FClothingSimulationSolver* Solver, FClo
 void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
 {
 	check(Solver);
+	check(Cloth);
 
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothingSimulationColliderUpdate);
 
-	// Retrieve context (can be null when no skeletal mesh component is specified)
-	const FClothingSimulationContextCommon* const Context = SkeletalMeshComponent ? static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()) : nullptr;
+	// Add or re-add the external collision particles
+	const int32 ExternalCollisionNumGeometries = GetNumGeometries((int32)ECollisionDataType::External);
+	const int32 ExternalCollisionOffset = GetOffset(Solver, Cloth, (int32)ECollisionDataType::External);
+	LODData[(int32)ECollisionDataType::External].Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData());
 
 	// Update the collision transforms
 	// Note: All the LODs are updated at once, so that the previous transforms are always correct during LOD switching
+	const FClothingSimulationContextCommon* const Context = SkeletalMeshComponent ? static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()) : nullptr;
 	for (FLODData& LODDatum : LODData)
 	{
 		LODDatum.Update(Solver, Cloth, Context);
@@ -631,16 +637,27 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 		LODIndex = (int32)ECollisionDataType::LODs + INDEX_NONE;
 	}
 
-	// Enable/disable particle LOD
+	// Enable particle if the external collisions have changed
+	// TODO: Find a better way in case the same number but different collisions are being re-added (hash collision data? Provide user dirty function?)
+	if (ExternalCollisionNumGeometries != GetNumGeometries((int32)ECollisionDataType::External) ||
+		ExternalCollisionOffset != GetOffset(Solver, Cloth, (int32)ECollisionDataType::External))
+	{
+		// Enable non LOD collisions at first initialization
+		LODData[(int32)ECollisionDataType::External].Enable(Solver, Cloth, true);
+
+		// Update initial state for collisions
+		LODData[(int32)ECollisionDataType::External].ResetStartPose(Solver, Cloth);
+	}
+
 	if (LODIndex != PrevLODIndex)
 	{
-		if (PrevLODIndex == INDEX_NONE)
+		if (PrevLODIndex == INDEX_NONE)  // First run
 		{
 			// Enable non LOD collisions at first initialization
-			LODData[(int32)ECollisionDataType::Global].Enable(Solver, Cloth, true);
+			LODData[(int32)ECollisionDataType::LODless].Enable(Solver, Cloth, true);
 
 			// Update initial state for collisions
-			LODData[(int32)ECollisionDataType::Global].ResetStartPose(Solver, Cloth);
+			LODData[(int32)ECollisionDataType::LODless].ResetStartPose(Solver, Cloth);
 		}
 		else if (PrevLODIndex > 0)
 		{
@@ -661,9 +678,18 @@ void FClothingSimulationCollider::Update(FClothingSimulationSolver* Solver, FClo
 	}
 }
 
+void FClothingSimulationCollider::ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
+{
+	for (FLODData& LODDatum : LODData)
+	{
+		LODDatum.ResetStartPose(Solver, Cloth);
+	}
+}
+
 TConstArrayView<TVector<float, 3>> FClothingSimulationCollider::GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
 {
 	check(Solver);
+	check(Cloth);
 
 	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
 	const int32 Index = 
@@ -681,6 +707,7 @@ TConstArrayView<TVector<float, 3>> FClothingSimulationCollider::GetCollisionTran
 TConstArrayView<TRotation<float, 3>> FClothingSimulationCollider::GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
 {
 	check(Solver);
+	check(Cloth);
 
 	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
 	const int32 Index = 
@@ -698,6 +725,7 @@ TConstArrayView<TRotation<float, 3>> FClothingSimulationCollider::GetCollisionRo
 TConstArrayView<TUniquePtr<FImplicitObject>> FClothingSimulationCollider::GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
 {
 	check(Solver);
+	check(Cloth);
 
 	const int32 LODIndex = LODIndices.FindChecked(FSolverClothPair(Solver, Cloth));
 	const int32 Index = 

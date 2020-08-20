@@ -49,13 +49,10 @@ namespace Chaos
 		void RemoveCloth(FClothingSimulationCloth* InCloth);
 		void RemoveCloths();
 
-		void SetColliders(TArray<FClothingSimulationCollider*>&& InColliders);
-		void AddCollider(FClothingSimulationCollider* InCollider);
-		void RemoveCollider(FClothingSimulationCollider* InCollider);
-		void RemoveColliders();
+		void RefreshCloth(FClothingSimulationCloth* InCloth);
+		void RefreshCloths();
 
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
-		TConstArrayView<const FClothingSimulationCollider*> GetColliders() const { return Colliders; }
 
 		// Update solver properties before simulation
 		void Update(float InDeltaTime);
@@ -131,6 +128,7 @@ namespace Chaos
 
 	private:
 		void ResetParticles();
+		void ResetCollisionParticles(int32 InCollisionParticlesOffset = 0);
 		void ApplyPreSimulationTransforms();
 		float SetParticleMassPerArea(int32 Offset, int32 Size, const TTriangleMesh<float>& Mesh);
 		void ParticleMassUpdateDensity(const TTriangleMesh<float>& Mesh, float Density);
@@ -141,7 +139,6 @@ namespace Chaos
 
 		// Object arrays
 		TArray<FClothingSimulationCloth*> Cloths;
-		TArray<FClothingSimulationCollider*> Colliders;
 
 		// Simulation group attributes
 		TArrayCollectionArray<TRigidTransform<float, 3>> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
@@ -174,11 +171,6 @@ namespace Chaos
 		// Solver colliders offset
 		int32 CollisionParticlesOffset;  // Collision particle offset on the first solver/non cloth collider
 		int32 CollisionParticlesSize;  // Number of solver only colliders
-		bool bAreCollisionParticlesDirty;  // Whereas adding/re-add a solver collider has triggered a new particle allocation
-
-		// Active particle view
-		TArray<TPair<FClothingSimulationCloth*, TVector<uint32, 2>>> ClothsMap;
-		TArray<TPair<FClothingSimulationCollider*, TVector<uint32, 2>>> CollidersMap;
 
 		// Solver parameters
 		TVector<float, 3> Gravity;
