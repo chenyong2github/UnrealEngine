@@ -104,17 +104,13 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 
-	/** Field system. */
-	UPROPERTY(EditAnywhere, Category = "Source")
-		UFieldSystem* DefaultSource;
-
 	/** Blue print. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		UBlueprint* BlueprintSource;
+	UBlueprint* BlueprintSource;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		AActor* SourceActor;
+	AActor* SourceActor;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Field")
@@ -122,11 +118,11 @@ public:
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Field")
-		FVector MinBounds;
+	FVector MinBounds;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Field")
-		FVector MaxBounds;
+	FVector MaxBounds;
 
 	/** The source component from which to sample */
 	TArray<TWeakObjectPtr<class UFieldSystemComponent>> SourceComponents;
@@ -167,6 +163,42 @@ public:
 
 	/** Sample the field angular torque */
 	void SampleAngularTorque(FVectorVMContext& Context);
+
+	/** Sample the field dynamic state */
+	void SampleDynamicState(FVectorVMContext& Context);
+
+	/** Sample the field dynamic constraint */
+	void SampleDynamicConstraint(FVectorVMContext& Context);
+
+	/** Sample the field collision group */
+	void SampleCollisionGroup(FVectorVMContext& Context);
+
+	/** Sample the field activate disabled */
+	void SampleActivateDisabled(FVectorVMContext& Context);
+
+	/** Sample the field kill */
+	void SampleFieldKill(FVectorVMContext& Context);
+
+	/** Sample the field external cluster strain */
+	void SampleExternalClusterStrain(FVectorVMContext& Context);
+
+	/** Sample the field internal cluster strain */
+	void SampleInternalClusterStrain(FVectorVMContext& Context);
+
+	/** Sample the field distance threshold */
+	void SampleDisableThreshold(FVectorVMContext& Context);
+
+	/** Sample the field sleeping threshold */
+	void SampleSleepingThreshold(FVectorVMContext& Context);
+
+	/** Sample the field static position */
+	void SamplePositionStatic(FVectorVMContext& Context);
+
+	/** Sample the field animated position */
+	void SamplePositionAnimated(FVectorVMContext& Context);
+
+	/** Sample the field target position */
+	void SamplePositionTarget(FVectorVMContext& Context);
 
 	/** Get the field dimensions */
 	void GetFieldDimensions(FVectorVMContext& Context);
