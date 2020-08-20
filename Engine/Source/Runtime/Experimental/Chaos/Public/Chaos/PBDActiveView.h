@@ -3,6 +3,7 @@
 
 #include "Containers/Array.h"
 #include "Algo/BinarySearch.h"
+#include "Chaos/Framework/Parallel.h"
 
 namespace Chaos
 {
