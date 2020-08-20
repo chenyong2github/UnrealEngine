@@ -171,6 +171,7 @@ void SFindInMaterial::Construct(const FArguments& InArgs, TSharedPtr<FMaterialEd
 				.OnGenerateRow(this, &SFindInMaterial::OnGenerateRow)
 				.OnGetChildren(this, &SFindInMaterial::OnGetChildren)
 				.OnSelectionChanged(this, &SFindInMaterial::OnTreeSelectionChanged)
+				.OnMouseButtonDoubleClick(this, &SFindInMaterial::OnTreeSelectionDoubleClick)
 				.SelectionMode(ESelectionMode::Multi)
 			]
 		]
@@ -413,6 +414,14 @@ void SFindInMaterial::OnGetChildren(FSearchResult InItem, TArray< FSearchResult 
 }
 
 void SFindInMaterial::OnTreeSelectionChanged(FSearchResult Item, ESelectInfo::Type)
+{
+	if (Item.IsValid())
+	{
+		Item->OnClick(MaterialEditorPtr);
+	}
+}
+
+void SFindInMaterial::OnTreeSelectionDoubleClick(FSearchResult Item)
 {
 	if (Item.IsValid())
 	{
