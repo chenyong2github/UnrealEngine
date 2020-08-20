@@ -625,7 +625,7 @@ protected:
 	virtual void UpdateDecelerationData();
 
 	/** check if move is completed */
-	bool HasReachedDestination(const FVector& CurrentLocation) const;
+	virtual bool HasReachedDestination(const FVector& CurrentLocation) const;
 
 	/** check if segment is completed */
 	virtual bool HasReachedCurrentTarget(const FVector& CurrentLocation) const;
