@@ -28,8 +28,6 @@
 #include "Misc/Compression.h"
 #include "Misc/Fork.h"
 
-#include "HAL/PlatformFramePacer.h"
-
 #if CSV_PROFILER
 
 #define CSV_PROFILER_INLINE FORCEINLINE
@@ -2629,7 +2627,7 @@ void FCsvProfiler::BeginFrame()
 					}
 					if (SyncIntervalCVar && SyncIntervalCVar->GetInt() > 0)
 					{
-						TargetFPS = FMath::Min(TargetFPS, FPlatformRHIFramePacer::GetFramePace());
+						TargetFPS = FMath::Min(TargetFPS, 60 / SyncIntervalCVar->GetInt());
 					}
 					SetMetadata(TEXT("TargetFramerate"), *FString::FromInt(TargetFPS));
 
