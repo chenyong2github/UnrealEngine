@@ -404,6 +404,12 @@ namespace Chaos
 			if (InParticleType == Chaos::EParticleType::Rigid)
 			{
 				auto Proxy = (FRigidParticlePhysicsProxy*)InProxy;
+				
+				// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
+				// if this particle was deleted after buffering results. 
+				//todo: remove the need for this
+				GetDirtyParticlesBuffer()->RemoveDirtyParticleFromConsumerBuffer(Proxy);
+
 				Handle = Proxy->GetHandle();
 				delete Proxy;
 			}
@@ -429,10 +435,6 @@ namespace Chaos
 				{
 					RewindData->RemoveParticle(Handle->UniqueIdx());
 				}
-
-				// Remove game thread particle from ActiveGameThreadParticles so we won't crash when pulling physics state
-				// if this particle was deleted after buffering results. 
-				GetDirtyParticlesBuffer()->RemoveDirtyParticleFromConsumerBuffer(Handle->GTGeometryParticle());
   
 				MParticleToProxy.Remove(Handle);
   

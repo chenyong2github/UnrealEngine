@@ -358,42 +358,25 @@ void FChaosScene::StartFrame()
 
 void FChaosScene::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
+	using namespace Chaos;
 	//simple implementation that pulls data over. Used for unit testing, engine has its own version of this
-	const Chaos::FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
-	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
+	const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
 
-	for(Chaos::TGeometryParticle<float,3>* DirtyParticle : DirtyParticleBuffer->DirtyGameThreadParticles)
+	for(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
 	{
-		if(IPhysicsProxyBase* ProxyBase = DirtyParticle->GetProxy())
-		{
-			if(ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
-			{
-				FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> > * Proxy = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float,3> >*>(ProxyBase);
-				Proxy->PullFromPhysicsState();
-			}
-			else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
-			{
-				FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-				GCProxies.Add(Proxy);
-			}
-		}
+		Proxy->PullFromPhysicsState();
 	}
 
 	for(IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies)
 	{
 		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 		{
-			FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-			GCProxies.Add(Proxy);
+			FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+			GCProxy->PullFromPhysicsState();
 		} else
 		{
 			ensure(false); // Unhandled physics only particle proxy!
 		}
-	}
-
-	for(FGeometryCollectionPhysicsProxy* GCProxy : GCProxies)
-	{
-		GCProxy->PullFromPhysicsState();
 	}
 
 }

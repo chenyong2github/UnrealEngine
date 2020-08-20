@@ -2,6 +2,7 @@
 
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 namespace Chaos
 {
@@ -19,11 +20,11 @@ namespace Chaos
 		WriteUnlock();
 	}
 
-	void FPBDRigidDirtyParticlesBuffer::RemoveDirtyParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle)
+	void FPBDRigidDirtyParticlesBuffer::RemoveDirtyParticleFromConsumerBuffer(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy)
 	{
 		WriteLock();
 		auto& ActiveGameThreadParticles = SolverDataOut->GetConsumerBufferMutable()->DirtyGameThreadParticles;
-		ActiveGameThreadParticles.RemoveSingleSwap(Particle);
+		ActiveGameThreadParticles.RemoveSingleSwap(Proxy);
 		WriteUnlock();
 	}
 
@@ -33,24 +34,27 @@ namespace Chaos
 		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
 
 		ActiveGameThreadParticles.Empty();
-		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = 
-			Solver->GetParticles().GetDirtyParticlesView();
+		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = Solver->GetParticles().GetDirtyParticlesView();
 		for (auto& ActiveParticle : ActiveParticlesView)
 		{
-			if (ActiveParticle.Handle())
+			if (ActiveParticle.Handle())	//can this be null?
 			{
-				// Clustered particles don't have a game thread particle instance.
-				if (TGeometryParticle<float, 3>* Handle = ActiveParticle.Handle()->GTGeometryParticle())
+				if (const TSet<IPhysicsProxyBase*>* Proxies = Solver->GetProxies(ActiveParticle.Handle()))//can this be null?
 				{
-					ActiveGameThreadParticles.Add(Handle);
-				}
-				else if (const TSet<IPhysicsProxyBase*> * Proxies = Solver->GetProxies(ActiveParticle.Handle()))
-				{
-					for (IPhysicsProxyBase* Proxy : *Proxies)
+					for(IPhysicsProxyBase* Proxy : *Proxies)
 					{
-						if (Proxy != nullptr)
+						if(Proxy != nullptr)	//can this be null?
 						{
-							PhysicsParticleProxies.Add(Proxy);
+							if(Proxy->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+							{
+								ensure(Proxies->Num() == 1);	//single rigid should only have one proxy
+								ActiveGameThreadParticles.Add(static_cast<FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >*>(Proxy));
+							}
+							else
+							{
+								//must be a geometry collection
+								PhysicsParticleProxies.Add(Proxy);
+							}
 						}
 					}
 				}
