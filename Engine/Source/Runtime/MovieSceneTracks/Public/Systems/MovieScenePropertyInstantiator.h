@@ -155,6 +155,9 @@ private:
 	TSparseArray<FObjectPropertyInfo> ResolvedProperties;
 	TMultiMap<int32, FMovieSceneEntityID> Contributors;
 	TMultiMap<int32, FMovieSceneEntityID> NewContributors;
+
+	/** Reverse lookup from an entity to the index within ResolvedProperties that it animates.
+	 * @note: can contain INDEX_NONE for properties that have not resolved. */
 	TMap<FMovieSceneEntityID, int32> EntityToProperty;
 	TMap< TTuple<UObject*, FName>, int32 > ObjectPropertyToResolvedIndex;
 
