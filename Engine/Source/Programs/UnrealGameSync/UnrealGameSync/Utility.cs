@@ -8,12 +8,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
+using System.Linq;	
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
@@ -250,8 +248,7 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				JavaScriptSerializer Serializer = new JavaScriptSerializer();
-				Dictionary<string, object> RawObject = Serializer.Deserialize<Dictionary<string, object>>(Text);
+				Dictionary<string, object> RawObject = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
 
 				object Enterprise;
 				if(RawObject.TryGetValue("Enterprise", out Enterprise) && Enterprise is bool)

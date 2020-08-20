@@ -3,12 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
+using System.Net.Mime;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web.Script.Serialization;
+using System.Text.Json;
 
 namespace UnrealGameSync
 {
@@ -86,12 +84,12 @@ namespace UnrealGameSync
 
 		public static T GET<T>(string URI, string Resource, params string[] QueryParams)
 		{
-			return new JavaScriptSerializer().Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
+			return JsonSerializer.Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
 		}
 
 		public static string PUT<T>(string URI, string Resource, T Object, params string[] QueryParams)
 		{
-			return SendRequestInternal(URI, Resource, "PUT", new JavaScriptSerializer().Serialize(Object), QueryParams);
+			return SendRequestInternal(URI, Resource, "PUT", JsonSerializer.Serialize(Object), QueryParams);
 		}
 	}
 }

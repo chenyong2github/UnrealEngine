@@ -82,7 +82,7 @@ namespace UnrealGameSync
 		{
 			if(BackgroundThread != null)
 			{
-				BackgroundThread.Abort();
+				BackgroundThread.Interrupt();
 				BackgroundThread.Join();
 				BackgroundThread = null;
 

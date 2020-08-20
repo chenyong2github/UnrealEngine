@@ -3,15 +3,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
+using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 
 namespace UnrealGameSync
 {
@@ -521,7 +516,8 @@ namespace UnrealGameSync
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
 				LogWriter.WriteLine("Posting event... ({0}, {1}, {2})", Event.Change, Event.UserName, Event.Type);
-				RESTApi.POST(ApiUrl, "event", new JavaScriptSerializer().Serialize(Event));
+				
+				RESTApi.POST(ApiUrl, "event", JsonSerializer.Serialize(Event));
 				return true;
 			}
 			catch(Exception Ex)
@@ -537,7 +533,7 @@ namespace UnrealGameSync
 			{
 				Stopwatch Timer = Stopwatch.StartNew();
 				LogWriter.WriteLine("Posting comment... ({0}, {1}, {2}, {3})", Comment.ChangeNumber, Comment.UserName, Comment.Text, Comment.Project);
-				RESTApi.POST(ApiUrl, "comment", new JavaScriptSerializer().Serialize(Comment));
+				RESTApi.POST(ApiUrl, "comment", JsonSerializer.Serialize(Comment));
 				LogWriter.WriteLine("Done in {0}ms.", Timer.ElapsedMilliseconds);
 				return true;
 			}

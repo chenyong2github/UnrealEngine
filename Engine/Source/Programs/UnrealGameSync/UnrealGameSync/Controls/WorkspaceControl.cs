@@ -2,10 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.SqlClient;
-using System.Deployment.Application;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,14 +10,11 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
-using Microsoft.Win32;
 using System.Threading;
-using System.Drawing.Imaging;
-using System.Web.Script.Serialization;
 
 namespace UnrealGameSync
 {
@@ -1879,7 +1872,7 @@ namespace UnrealGameSync
 			}
 			else if (Workspace != null)
 			{
-				if (e.State.HasFlag(ListViewItemStates.Selected))
+				if (e.Item.Selected)
 				{
 					BuildList.DrawSelectedBackground(e.Graphics, e.Bounds);
 				}
@@ -2870,8 +2863,7 @@ namespace UnrealGameSync
 					try
 					{
 						string Text = File.ReadAllText(ReceiptFileName);
-						JavaScriptSerializer Serializer = new JavaScriptSerializer();
-						Dictionary<string, object> RawObject = Serializer.Deserialize<Dictionary<string, object>>(Text);
+						Dictionary<string, object> RawObject = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
 
 						object LaunchFileNameObject;
 						if (RawObject.TryGetValue("Launch", out LaunchFileNameObject))

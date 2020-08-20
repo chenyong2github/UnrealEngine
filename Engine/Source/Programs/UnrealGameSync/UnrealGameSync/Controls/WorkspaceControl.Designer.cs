@@ -83,8 +83,8 @@ namespace UnrealGameSync
 			this.BuildListContextMenu_ShowLocalTimes = new System.Windows.Forms.ToolStripMenuItem();
 			this.BuildListContextMenu_CustomTool_Start = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildListContextMenu_CustomTool_End = new System.Windows.Forms.ToolStripSeparator();
-			this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
 			this.BuildListContextMenu_ViewInSwarm = new System.Windows.Forms.ToolStripMenuItem();
+			this.BuildListContextMenu_MoreInfo = new System.Windows.Forms.ToolStripMenuItem();
 			this.NotifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
 			this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
 			this.BuildListToolTip = new System.Windows.Forms.ToolTip(this.components);
@@ -98,14 +98,14 @@ namespace UnrealGameSync
 			this.StatusLayoutPanel = new System.Windows.Forms.TableLayoutPanel();
 			this.StatusPanel = new UnrealGameSync.StatusPanel();
 			this.BuildList = new UnrealGameSync.BuildListControl();
-			this.IconColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.TypeColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.ChangeColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.TimeColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.AuthorColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.DescriptionColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.CISColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-			this.StatusColumn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+			this.IconColumn = new System.Windows.Forms.ColumnHeader();
+			this.TypeColumn = new System.Windows.Forms.ColumnHeader();
+			this.ChangeColumn = new System.Windows.Forms.ColumnHeader();
+			this.TimeColumn = new System.Windows.Forms.ColumnHeader();
+			this.AuthorColumn = new System.Windows.Forms.ColumnHeader();
+			this.DescriptionColumn = new System.Windows.Forms.ColumnHeader();
+			this.CISColumn = new System.Windows.Forms.ColumnHeader();
+			this.StatusColumn = new System.Windows.Forms.ColumnHeader();
 			this.panel1 = new System.Windows.Forms.Panel();
 			this.SyncLog = new UnrealGameSync.LogControl();
 			this.MoreToolsContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -185,7 +185,7 @@ namespace UnrealGameSync
             this.toolStripSeparator6,
             this.OptionsContextMenu_Diagnostics});
 			this.OptionsContextMenu.Name = "ToolsMenuStrip";
-			this.OptionsContextMenu.Size = new System.Drawing.Size(262, 314);
+			this.OptionsContextMenu.Size = new System.Drawing.Size(262, 292);
 			// 
 			// OptionsContextMenu_ApplicationSettings
 			// 
@@ -486,219 +486,219 @@ namespace UnrealGameSync
             this.BuildListContextMenu_ViewInSwarm,
             this.BuildListContextMenu_MoreInfo});
 			this.BuildListContextMenu.Name = "BuildListContextMenu";
-			this.BuildListContextMenu.Size = new System.Drawing.Size(200, 634);
+			this.BuildListContextMenu.Size = new System.Drawing.Size(199, 612);
 			// 
 			// BuildListContextMenu_LaunchEditor
 			// 
 			this.BuildListContextMenu_LaunchEditor.Name = "BuildListContextMenu_LaunchEditor";
-			this.BuildListContextMenu_LaunchEditor.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_LaunchEditor.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_LaunchEditor.Text = "Launch editor";
 			this.BuildListContextMenu_LaunchEditor.Click += new System.EventHandler(this.BuildListContextMenu_LaunchEditor_Click);
 			// 
 			// BuildListContextMenu_Sync
 			// 
 			this.BuildListContextMenu_Sync.Name = "BuildListContextMenu_Sync";
-			this.BuildListContextMenu_Sync.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Sync.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Sync.Text = "Sync";
 			this.BuildListContextMenu_Sync.Click += new System.EventHandler(this.BuildListContextMenu_Sync_Click);
 			// 
 			// BuildListContextMenu_SyncContentOnly
 			// 
 			this.BuildListContextMenu_SyncContentOnly.Name = "BuildListContextMenu_SyncContentOnly";
-			this.BuildListContextMenu_SyncContentOnly.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_SyncContentOnly.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_SyncContentOnly.Text = "Sync (Just Content)";
 			this.BuildListContextMenu_SyncContentOnly.Click += new System.EventHandler(this.BuildListContextMenu_SyncContentOnly_Click);
 			// 
 			// BuildListContextMenu_SyncOnlyThisChange
 			// 
 			this.BuildListContextMenu_SyncOnlyThisChange.Name = "BuildListContextMenu_SyncOnlyThisChange";
-			this.BuildListContextMenu_SyncOnlyThisChange.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_SyncOnlyThisChange.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_SyncOnlyThisChange.Text = "Sync (Just This Change)";
 			this.BuildListContextMenu_SyncOnlyThisChange.Click += new System.EventHandler(this.BuildListContextMenu_SyncOnlyThisChange_Click);
 			// 
 			// BuildListContextMenu_Build
 			// 
 			this.BuildListContextMenu_Build.Name = "BuildListContextMenu_Build";
-			this.BuildListContextMenu_Build.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Build.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Build.Text = "Build";
 			this.BuildListContextMenu_Build.Click += new System.EventHandler(this.BuildListContextMenu_Build_Click);
 			// 
 			// BuildListContextMenu_Rebuild
 			// 
 			this.BuildListContextMenu_Rebuild.Name = "BuildListContextMenu_Rebuild";
-			this.BuildListContextMenu_Rebuild.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Rebuild.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Rebuild.Text = "Rebuild";
 			this.BuildListContextMenu_Rebuild.Click += new System.EventHandler(this.BuildListContextMenu_Rebuild_Click);
 			// 
 			// BuildListContextMenu_GenerateProjectFiles
 			// 
 			this.BuildListContextMenu_GenerateProjectFiles.Name = "BuildListContextMenu_GenerateProjectFiles";
-			this.BuildListContextMenu_GenerateProjectFiles.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_GenerateProjectFiles.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_GenerateProjectFiles.Text = "Generate project files";
 			this.BuildListContextMenu_GenerateProjectFiles.Click += new System.EventHandler(this.BuildListContextMenu_GenerateProjectFiles_Click);
 			// 
 			// BuildListContextMenu_Cancel
 			// 
 			this.BuildListContextMenu_Cancel.Name = "BuildListContextMenu_Cancel";
-			this.BuildListContextMenu_Cancel.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Cancel.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Cancel.Text = "Cancel";
 			this.BuildListContextMenu_Cancel.Click += new System.EventHandler(this.BuildListContextMenu_CancelSync_Click);
 			// 
 			// BuildListContextMenu_OpenVisualStudio
 			// 
 			this.BuildListContextMenu_OpenVisualStudio.Name = "BuildListContextMenu_OpenVisualStudio";
-			this.BuildListContextMenu_OpenVisualStudio.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_OpenVisualStudio.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_OpenVisualStudio.Text = "Open in Visual Studio...";
 			this.BuildListContextMenu_OpenVisualStudio.Click += new System.EventHandler(this.BuildListContextMenu_OpenVisualStudio_Click);
 			// 
 			// BuildListContextMenu_Bisect_Separator
 			// 
 			this.BuildListContextMenu_Bisect_Separator.Name = "BuildListContextMenu_Bisect_Separator";
-			this.BuildListContextMenu_Bisect_Separator.Size = new System.Drawing.Size(196, 6);
+			this.BuildListContextMenu_Bisect_Separator.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_Bisect_Pass
 			// 
 			this.BuildListContextMenu_Bisect_Pass.Name = "BuildListContextMenu_Bisect_Pass";
-			this.BuildListContextMenu_Bisect_Pass.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Bisect_Pass.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Bisect_Pass.Text = "Bisect: Pass";
 			this.BuildListContextMenu_Bisect_Pass.Click += new System.EventHandler(this.BuildListContextMenu_Bisect_Pass_Click);
 			// 
 			// BuildListContextMenu_Bisect_Fail
 			// 
 			this.BuildListContextMenu_Bisect_Fail.Name = "BuildListContextMenu_Bisect_Fail";
-			this.BuildListContextMenu_Bisect_Fail.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Bisect_Fail.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Bisect_Fail.Text = "Bisect: Fail";
 			this.BuildListContextMenu_Bisect_Fail.Click += new System.EventHandler(this.BuildListContextMenu_Bisect_Fail_Click);
 			// 
 			// BuildListContextMenu_Bisect_Include
 			// 
 			this.BuildListContextMenu_Bisect_Include.Name = "BuildListContextMenu_Bisect_Include";
-			this.BuildListContextMenu_Bisect_Include.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Bisect_Include.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Bisect_Include.Text = "Bisect: Include";
 			this.BuildListContextMenu_Bisect_Include.Click += new System.EventHandler(this.BuildListContextMenu_Bisect_Include_Click);
 			// 
 			// BuildListContextMenu_Bisect_Exclude
 			// 
 			this.BuildListContextMenu_Bisect_Exclude.Name = "BuildListContextMenu_Bisect_Exclude";
-			this.BuildListContextMenu_Bisect_Exclude.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_Bisect_Exclude.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_Bisect_Exclude.Text = "Bisect: Exclude";
 			this.BuildListContextMenu_Bisect_Exclude.Click += new System.EventHandler(this.BuildListContextMenu_Bisect_Exclude_Click);
 			// 
 			// toolStripSeparator4
 			// 
 			this.toolStripSeparator4.Name = "toolStripSeparator4";
-			this.toolStripSeparator4.Size = new System.Drawing.Size(196, 6);
+			this.toolStripSeparator4.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_MarkGood
 			// 
 			this.BuildListContextMenu_MarkGood.Name = "BuildListContextMenu_MarkGood";
-			this.BuildListContextMenu_MarkGood.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_MarkGood.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_MarkGood.Text = "Mark as good";
 			this.BuildListContextMenu_MarkGood.Click += new System.EventHandler(this.BuildListContextMenu_MarkGood_Click);
 			// 
 			// BuildListContextMenu_MarkBad
 			// 
 			this.BuildListContextMenu_MarkBad.Name = "BuildListContextMenu_MarkBad";
-			this.BuildListContextMenu_MarkBad.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_MarkBad.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_MarkBad.Text = "Mark as bad";
 			this.BuildListContextMenu_MarkBad.Click += new System.EventHandler(this.BuildListContextMenu_MarkBad_Click);
 			// 
 			// BuildListContextMenu_WithdrawReview
 			// 
 			this.BuildListContextMenu_WithdrawReview.Name = "BuildListContextMenu_WithdrawReview";
-			this.BuildListContextMenu_WithdrawReview.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_WithdrawReview.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_WithdrawReview.Text = "Withdraw review";
 			this.BuildListContextMenu_WithdrawReview.Click += new System.EventHandler(this.BuildListContextMenu_WithdrawReview_Click);
 			// 
 			// BuildListContextMenu_LeaveComment
 			// 
 			this.BuildListContextMenu_LeaveComment.Name = "BuildListContextMenu_LeaveComment";
-			this.BuildListContextMenu_LeaveComment.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_LeaveComment.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_LeaveComment.Text = "Leave comment...";
 			this.BuildListContextMenu_LeaveComment.Click += new System.EventHandler(this.BuildListContextMenu_LeaveOrEditComment_Click);
 			// 
 			// BuildListContextMenu_EditComment
 			// 
 			this.BuildListContextMenu_EditComment.Name = "BuildListContextMenu_EditComment";
-			this.BuildListContextMenu_EditComment.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_EditComment.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_EditComment.Text = "Edit comment...";
 			this.BuildListContextMenu_EditComment.Click += new System.EventHandler(this.BuildListContextMenu_LeaveOrEditComment_Click);
 			// 
 			// BuildListContextMenu_StartInvestigating
 			// 
 			this.BuildListContextMenu_StartInvestigating.Name = "BuildListContextMenu_StartInvestigating";
-			this.BuildListContextMenu_StartInvestigating.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_StartInvestigating.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_StartInvestigating.Text = "Start investigating";
 			this.BuildListContextMenu_StartInvestigating.Click += new System.EventHandler(this.BuildListContextMenu_StartInvestigating_Click);
 			// 
 			// BuildListContextMenu_FinishInvestigating
 			// 
 			this.BuildListContextMenu_FinishInvestigating.Name = "BuildListContextMenu_FinishInvestigating";
-			this.BuildListContextMenu_FinishInvestigating.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_FinishInvestigating.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_FinishInvestigating.Text = "Finish investigating";
 			this.BuildListContextMenu_FinishInvestigating.Click += new System.EventHandler(this.BuildListContextMenu_FinishInvestigating_Click);
 			// 
 			// toolStripSeparator1
 			// 
 			this.toolStripSeparator1.Name = "toolStripSeparator1";
-			this.toolStripSeparator1.Size = new System.Drawing.Size(196, 6);
+			this.toolStripSeparator1.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_AddStar
 			// 
 			this.BuildListContextMenu_AddStar.Name = "BuildListContextMenu_AddStar";
-			this.BuildListContextMenu_AddStar.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_AddStar.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_AddStar.Text = "Add Star";
 			this.BuildListContextMenu_AddStar.Click += new System.EventHandler(this.BuildListContextMenu_AddStar_Click);
 			// 
 			// BuildListContextMenu_RemoveStar
 			// 
 			this.BuildListContextMenu_RemoveStar.Name = "BuildListContextMenu_RemoveStar";
-			this.BuildListContextMenu_RemoveStar.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_RemoveStar.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_RemoveStar.Text = "Remove Star";
 			this.BuildListContextMenu_RemoveStar.Click += new System.EventHandler(this.BuildListContextMenu_RemoveStar_Click);
 			// 
 			// BuildListContextMenu_TimeZoneSeparator
 			// 
 			this.BuildListContextMenu_TimeZoneSeparator.Name = "BuildListContextMenu_TimeZoneSeparator";
-			this.BuildListContextMenu_TimeZoneSeparator.Size = new System.Drawing.Size(196, 6);
+			this.BuildListContextMenu_TimeZoneSeparator.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_ShowServerTimes
 			// 
 			this.BuildListContextMenu_ShowServerTimes.Name = "BuildListContextMenu_ShowServerTimes";
-			this.BuildListContextMenu_ShowServerTimes.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_ShowServerTimes.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_ShowServerTimes.Text = "Show server times";
 			this.BuildListContextMenu_ShowServerTimes.Click += new System.EventHandler(this.BuildListContextMenu_ShowServerTimes_Click);
 			// 
 			// BuildListContextMenu_ShowLocalTimes
 			// 
 			this.BuildListContextMenu_ShowLocalTimes.Name = "BuildListContextMenu_ShowLocalTimes";
-			this.BuildListContextMenu_ShowLocalTimes.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_ShowLocalTimes.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_ShowLocalTimes.Text = "Show local times";
 			this.BuildListContextMenu_ShowLocalTimes.Click += new System.EventHandler(this.BuildListContextMenu_ShowLocalTimes_Click);
 			// 
 			// BuildListContextMenu_CustomTool_Start
 			// 
 			this.BuildListContextMenu_CustomTool_Start.Name = "BuildListContextMenu_CustomTool_Start";
-			this.BuildListContextMenu_CustomTool_Start.Size = new System.Drawing.Size(196, 6);
+			this.BuildListContextMenu_CustomTool_Start.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_CustomTool_End
 			// 
 			this.BuildListContextMenu_CustomTool_End.Name = "BuildListContextMenu_CustomTool_End";
-			this.BuildListContextMenu_CustomTool_End.Size = new System.Drawing.Size(196, 6);
-			// 
-			// BuildListContextMenu_MoreInfo
-			// 
-			this.BuildListContextMenu_MoreInfo.Name = "BuildListContextMenu_MoreInfo";
-			this.BuildListContextMenu_MoreInfo.Size = new System.Drawing.Size(199, 22);
-			this.BuildListContextMenu_MoreInfo.Text = "More Info...";
-			this.BuildListContextMenu_MoreInfo.Click += new System.EventHandler(this.BuildListContextMenu_MoreInfo_Click);
+			this.BuildListContextMenu_CustomTool_End.Size = new System.Drawing.Size(195, 6);
 			// 
 			// BuildListContextMenu_ViewInSwarm
 			// 
 			this.BuildListContextMenu_ViewInSwarm.Name = "BuildListContextMenu_ViewInSwarm";
-			this.BuildListContextMenu_ViewInSwarm.Size = new System.Drawing.Size(199, 22);
+			this.BuildListContextMenu_ViewInSwarm.Size = new System.Drawing.Size(198, 22);
 			this.BuildListContextMenu_ViewInSwarm.Text = "View in Swarm...";
 			this.BuildListContextMenu_ViewInSwarm.Click += new System.EventHandler(this.BuildListContextMenu_ViewInSwarm_Click);
+			// 
+			// BuildListContextMenu_MoreInfo
+			// 
+			this.BuildListContextMenu_MoreInfo.Name = "BuildListContextMenu_MoreInfo";
+			this.BuildListContextMenu_MoreInfo.Size = new System.Drawing.Size(198, 22);
+			this.BuildListContextMenu_MoreInfo.Text = "More Info...";
+			this.BuildListContextMenu_MoreInfo.Click += new System.EventHandler(this.BuildListContextMenu_MoreInfo_Click);
 			// 
 			// toolStripSeparator7
 			// 
@@ -760,7 +760,6 @@ namespace UnrealGameSync
 			// 
 			this.OptionsButton.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.OptionsButton.AutoSize = true;
-			this.OptionsButton.Image = global::UnrealGameSync.Properties.Resources.DropList;
 			this.OptionsButton.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
 			this.OptionsButton.Location = new System.Drawing.Point(1222, 13);
 			this.OptionsButton.Margin = new System.Windows.Forms.Padding(0);
@@ -775,7 +774,6 @@ namespace UnrealGameSync
 			// 
 			this.FilterButton.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.FilterButton.AutoSize = true;
-			this.FilterButton.Image = global::UnrealGameSync.Properties.Resources.DropList;
 			this.FilterButton.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
 			this.FilterButton.Location = new System.Drawing.Point(0, 13);
 			this.FilterButton.Margin = new System.Windows.Forms.Padding(0);
@@ -849,7 +847,7 @@ namespace UnrealGameSync
 			this.StatusPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(250)))), ((int)(((byte)(250)))), ((int)(((byte)(250)))));
 			this.StatusPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
 			this.StatusPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.StatusPanel.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.StatusPanel.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.StatusPanel.Location = new System.Drawing.Point(0, 0);
 			this.StatusPanel.Margin = new System.Windows.Forms.Padding(0, 0, 0, 3);
 			this.StatusPanel.Name = "StatusPanel";
@@ -870,6 +868,7 @@ namespace UnrealGameSync
 			this.BuildList.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.BuildList.FullRowSelect = true;
 			this.BuildList.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
+			this.BuildList.HideSelection = false;
 			this.BuildList.Location = new System.Drawing.Point(0, 148);
 			this.BuildList.Margin = new System.Windows.Forms.Padding(0);
 			this.BuildList.Name = "BuildList";
@@ -947,7 +946,7 @@ namespace UnrealGameSync
 			this.SyncLog.BackColor = System.Drawing.Color.White;
 			this.SyncLog.Cursor = System.Windows.Forms.Cursors.IBeam;
 			this.SyncLog.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.SyncLog.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.SyncLog.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.SyncLog.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(32)))), ((int)(((byte)(32)))));
 			this.SyncLog.Location = new System.Drawing.Point(0, 0);
 			this.SyncLog.Name = "SyncLog";
@@ -1210,7 +1209,10 @@ namespace UnrealGameSync
 			// 
 			this.EditorConfigWatcher.EnableRaisingEvents = true;
 			this.EditorConfigWatcher.Filter = "EditorPerProjectUserSettings.ini";
+			this.EditorConfigWatcher.IncludeSubdirectories = false;
+			this.EditorConfigWatcher.InternalBufferSize = 8192;
 			this.EditorConfigWatcher.NotifyFilter = System.IO.NotifyFilters.LastWrite;
+			this.EditorConfigWatcher.Path = "";
 			this.EditorConfigWatcher.SynchronizingObject = this;
 			this.EditorConfigWatcher.Changed += new System.IO.FileSystemEventHandler(this.EditorConfigWatcher_Changed);
 			this.EditorConfigWatcher.Created += new System.IO.FileSystemEventHandler(this.EditorConfigWatcher_Changed);
@@ -1223,7 +1225,7 @@ namespace UnrealGameSync
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
 			this.BackColor = System.Drawing.SystemColors.Control;
 			this.Controls.Add(this.tableLayoutPanel2);
-			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.Margin = new System.Windows.Forms.Padding(0);
 			this.Name = "WorkspaceControl";
 			this.Size = new System.Drawing.Size(1363, 752);

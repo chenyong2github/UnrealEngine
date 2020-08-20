@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Web;
-using System.Web.Script.Serialization;
 
 namespace UnrealGameSync
 {
@@ -110,7 +106,7 @@ namespace UnrealGameSync
 		/// <inheritdoc/>
 		public void SendEvent(string EventName, object Attributes)
 		{
-			string AttributesText = new JavaScriptSerializer().Serialize(Attributes);
+			string AttributesText = JsonSerializer.Serialize(Attributes);
 			if (AttributesText[0] != '{')
 			{
 				throw new Exception("Expected event data with named properties");
