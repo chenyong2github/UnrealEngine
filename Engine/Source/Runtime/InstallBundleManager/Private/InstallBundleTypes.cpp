@@ -12,8 +12,9 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 	{
 		TEXT("Bulk"),
 		TEXT("BuildPatchServices"),
-		TEXT("PlayGo"),
-		TEXT("IntelligentDelivery"),
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
+		TEXT("Platform"),
+#endif // WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 		TEXT("GameCustom"),
 	};
 
