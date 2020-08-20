@@ -308,15 +308,16 @@ const TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetPayload
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("PNG file [%s] contains data in an unsupported format"), *Filename);
 		return TOptional<Interchange::FImportImage>();
 	}
-	TOptional<Interchange::FImportImage> PayloadData = Interchange::FImportImage();
-	PayloadData.GetValue().Init2DWithParams(
+
+	Interchange::FImportImage PayloadData;
+	PayloadData.Init2DWithParams(
 		PngImageWrapper->GetWidth(),
 		PngImageWrapper->GetHeight(),
 		TextureFormat,
 		BitDepth < 16
 	);
 
-	if (PngImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetValue().RawData))
+	if (PngImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
 	{
 		bool bFillPNGZeroAlpha = true;
 		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
@@ -324,7 +325,7 @@ const TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetPayload
 		if (bFillPNGZeroAlpha)
 		{
 			// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
-			PNGParserHelper::FillZeroAlphaPNGData(PayloadData.GetValue().SizeX, PayloadData.GetValue().SizeY, PayloadData.GetValue().Format, PayloadData.GetValue().RawData.GetData());
+			PNGParserHelper::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, PayloadData.RawData.GetData());
 		}
 	}
 	else
@@ -332,5 +333,6 @@ const TOptional<Interchange::FImportImage> UInterchangePNGTranslator::GetPayload
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode PNG. [%s]"), *Filename);
 		return TOptional<Interchange::FImportImage>();
 	}
+
 	return PayloadData;
 }

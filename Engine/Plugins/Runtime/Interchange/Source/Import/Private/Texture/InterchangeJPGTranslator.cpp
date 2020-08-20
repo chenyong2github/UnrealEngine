@@ -129,16 +129,16 @@ const TOptional<Interchange::FImportImage> UInterchangeJPGTranslator::GetPayload
 		return TOptional<Interchange::FImportImage>();
 	}
 
-	TOptional<Interchange::FImportImage> PayloadData = Interchange::FImportImage();
+	Interchange::FImportImage PayloadData;
 
-	PayloadData.GetValue().Init2DWithParams(
+	PayloadData.Init2DWithParams(
 		JpegImageWrapper->GetWidth(),
 		JpegImageWrapper->GetHeight(),
 		TextureFormat,
 		BitDepth < 16
 	);
 
-	if (!JpegImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetValue().RawData))
+	if (!JpegImageWrapper->GetRaw(Format, BitDepth, PayloadData.RawData))
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
 		return TOptional<Interchange::FImportImage>();

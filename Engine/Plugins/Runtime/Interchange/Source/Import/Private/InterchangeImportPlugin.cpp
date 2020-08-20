@@ -9,6 +9,7 @@
 #include "Texture/InterchangeJPGTranslator.h"
 #include "Texture/InterchangePCXTranslator.h"
 #include "Texture/InterchangePNGTranslator.h"
+#include "Texture/InterchangePSDTranslator.h"
 #include "Texture/InterchangeTextureFactory.h"
 
 
@@ -36,6 +37,7 @@ void FInterchangeImportPlugin::StartupModule()
 	InterchangeManager.RegisterTranslator(UInterchangeJPGTranslator::StaticClass());
 	InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
 	InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
+	InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
 
 	//Register the factories
 	InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
