@@ -367,7 +367,7 @@ FString FFrameProProfiler::StartFrameProRecording(const FString& FilenameRoot, i
 
 	UE_LOG(LogFramePro, Log, TEXT("--- Start Recording To File: %s"), *OutputFilename);
 	
-	FramePro::StartRecording(OutputFilename, false, 100 * 1024 * 1024); // 100 MB file
+	FramePro::StartRecording(OutputFilename, FParse::Param(FCommandLine::Get(), TEXT("FrameproEnableContextSwitches")), 100 * 1024 * 1024); // 100 MB file
 	FramePro::SetConditionalScopeMinTimeInMicroseconds(MinScopeTime);
 
 	// Force this on, no events to record without it
