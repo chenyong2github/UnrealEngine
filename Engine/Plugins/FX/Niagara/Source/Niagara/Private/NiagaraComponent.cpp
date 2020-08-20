@@ -2058,10 +2058,10 @@ void UNiagaraComponent::PostLoad()
 
 				for (const FNiagaraVariableBase& Var : ToAddNonUser)
 				{
-					const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(Var);
+					const FNiagaraVariant FoundVar = InstanceParameterOverrides.FindRef(Var);
 					FNiagaraVariableBase UserVar = Var;
 					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
-					InstanceParameterOverrides.Add(UserVar) = *FoundVar;
+					InstanceParameterOverrides.Emplace(UserVar, FoundVar);
 				}
 
 				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
