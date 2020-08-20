@@ -74,7 +74,7 @@ public:
 	static void GetOverallOutputFrames(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
-	static FText GetCurrentSegmentName(UMoviePipeline* InMoviePipeline);
+	static void GetCurrentSegmentName(UMoviePipeline* InMoviePipeline, FText& OutOuterName, FText& OutInnerName);
 
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static void GetOverallSegmentCounts(const UMoviePipeline* InMoviePipeline, int32& OutCurrentIndex, int32& OutTotalCount);
