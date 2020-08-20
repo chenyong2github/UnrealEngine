@@ -917,18 +917,12 @@ static void AppendNumber(ANSICHAR* Dst, int32 Num)
 	Dst[NumChars] = 0;
 }
 
-class LockFreeLinkAllocator_TLSCache& GetLockFreeLinkAllocator_TLSCache();
-
 class FHashedNameRegistry
 {
 public:
 	static FHashedNameRegistry& Get()
 	{
-		static FHashedNameRegistry Instance = [](){
-			GetLockFreeLinkAllocator_TLSCache();
-			FPageAllocator::Get(); 
-			return FHashedNameRegistry();
-		}();
+		static FHashedNameRegistry Instance;
 		return Instance;
 	}
 
