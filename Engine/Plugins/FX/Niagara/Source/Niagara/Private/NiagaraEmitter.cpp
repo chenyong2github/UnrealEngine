@@ -584,7 +584,13 @@ void UNiagaraEmitter::PostLoad()
 	ResolveScalabilitySettings();
 
 #if !UE_BUILD_SHIPPING
-	DebugSimName = GetFullName();
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(GetName());
 #endif
 }
 
