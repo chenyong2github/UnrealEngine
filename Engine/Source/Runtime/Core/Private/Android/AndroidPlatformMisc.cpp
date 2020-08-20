@@ -84,6 +84,12 @@ static TAutoConsoleVariable<int32> CVarMaliMidgardIndexingBug(
 	ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<FString> CVarAndroidCPUThermalSensorFilePath(
+	TEXT("android.CPUThermalSensorFilePath"),
+	"",
+	TEXT("Overrides CPU Thermal sensor file path")
+);
+
 #if STATS || ENABLE_STATNAMEDEVENTS
 int32 FAndroidMisc::TraceMarkerFileDescriptor = -1;
 
@@ -124,6 +130,61 @@ extern void AndroidThunkCpp_ForceQuit();
 
 // From AndroidFile.cpp
 extern FString GFontPathBase;
+
+static char AndroidCpuThermalSensorFileBuf[256] = "";
+
+static void OverrideCpuThermalSensorFileFromCVar(IConsoleVariable* Var)
+{
+	FString Override = CVarAndroidCPUThermalSensorFilePath.GetValueOnAnyThread();
+	if (Override.Len() < UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf))
+	{
+		FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, TCHAR_TO_ANSI(*Override));
+		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), AndroidCpuThermalSensorFileBuf);
+	}
+
+	UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath is too long, max path is `%u`"), UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf));
+}
+
+static void InitCpuThermalSensor()
+{
+	OverrideCpuThermalSensorFileFromCVar(nullptr);
+	CVarAndroidCPUThermalSensorFilePath->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OverrideCpuThermalSensorFileFromCVar));
+
+	uint32 Counter = 0;
+	while (true)
+	{
+		char Buf[256];
+		sprintf(Buf, "/sys/devices/virtual/thermal/thermal_zone%u/type", Counter);
+		if (FILE* File = fopen(Buf, "r"))
+		{
+			fgets(Buf, UE_ARRAY_COUNT(Buf), File);
+			fclose(File);
+			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), Buf, Counter);
+			++Counter;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	TArray<FString> SensorLocations;
+	GConfig->GetArray(TEXT("ThermalSensors"), TEXT("SensorLocations"), SensorLocations, GEngineIni);
+
+	for (uint32 i = 0; i < SensorLocations.Num(); ++i)
+	{
+		const char* SensorFilePath = TCHAR_TO_ANSI(*SensorLocations[i]);
+		if (FILE* File = fopen(SensorFilePath, "r"))
+		{
+			FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, SensorFilePath);
+			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), AndroidCpuThermalSensorFileBuf);
+			fclose(File);
+			return;
+		}
+	}
+
+	UE_LOG(LogAndroid, Display, TEXT("No CPU thermal sensor were detected. Please override sensor file manually using android.CPUThermalSensorFilePath CVar."));
+}
 
 void FAndroidMisc::RequestExit( bool Force )
 {
@@ -453,6 +514,8 @@ void FAndroidMisc::PlatformInit()
 	AndroidOnBackgroundBinding = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddStatic(EnableJavaEventReceivers, false);
 	AndroidOnForegroundBinding = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddStatic(EnableJavaEventReceivers, true);
 #endif
+
+	InitCpuThermalSensor();
 }
 
 extern void AndroidThunkCpp_DismissSplashScreen();
@@ -2757,14 +2820,47 @@ uint32 FAndroidMisc::GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty Co
 
 	if (FILE* CoreFreqStateFile = fopen(QueryFile, "r"))
 	{
-		char curr_corefreq[32] = { 0 };
-		if( fgets(curr_corefreq, UE_ARRAY_COUNT(curr_corefreq), CoreFreqStateFile) != nullptr)
+		char CurrCoreFreq[32] = { 0 };
+		if( fgets(CurrCoreFreq, UE_ARRAY_COUNT(CurrCoreFreq), CoreFreqStateFile) != nullptr)
 		{
-			ReturnFrequency = atol(curr_corefreq);
+			ReturnFrequency = atol(CurrCoreFreq);
 		}
 		fclose(CoreFreqStateFile);
 	}
 	return ReturnFrequency;
+}
+
+float FAndroidMisc::GetCPUTemperature()
+{
+	float Temp = 0.0f;
+	if (*AndroidCpuThermalSensorFileBuf == 0)
+	{
+		return Temp;
+	}
+
+	if (FILE* Thermals = fopen(AndroidCpuThermalSensorFileBuf, "r"))
+	{
+		char Buf[256];
+		if (fgets(Buf, UE_ARRAY_COUNT(Buf), Thermals))
+		{
+			// sensor temp file can contain whitespace symbols at the end of the line, count length only for digit symbols
+			char* p = Buf;
+			uint32 Len = 0;
+			while (isdigit(*p))
+			{
+				++Len;
+				++p;
+			}
+
+			// Temperature is reported by different sensors in different ways, some report it as XXX, some - as XXXXX. Reduce it to standard XX.X
+			const uint32 StandardLen = 2;
+			const float Divider = pow(10.0f, (float)(Len - StandardLen));
+			Temp = (float)atol(Buf) / Divider;
+		}
+		fclose(Thermals);
+	}
+
+	return Temp;
 }
 
 bool FAndroidMisc::Expand16BitIndicesTo32BitOnLoad()
