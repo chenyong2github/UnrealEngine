@@ -994,6 +994,13 @@ bool UUserWidget::GetIsVisible() const
 	return FullScreenWidget.IsValid();
 }
 
+void UUserWidget::SetVisibility(ESlateVisibility InVisibility)
+{
+	Super::SetVisibility(InVisibility);
+	OnNativeVisibilityChanged.Broadcast(InVisibility);
+	OnVisibilityChanged.Broadcast(InVisibility);
+}
+
 bool UUserWidget::IsInViewport() const
 {
 	return FullScreenWidget.IsValid();
