@@ -106,7 +106,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAtLocation(const UObject*
 				if(PSC)
 				{
 #if WITH_EDITORONLY_DATA
-					PSC->bWaitForCompilationOnActivate = true;
+					PSC->bWaitForCompilationOnActivate = GIsAutomationTesting;
 #endif
 
 					if (!PSC->IsRegistered())
