@@ -79,6 +79,7 @@ using namespace Chaos;
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Simulate"), STAT_ChaosClothSimulate, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Animation Data"), STAT_ChaosClothGetAnimationData, STATGROUP_ChaosCloth);
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Get Simulation Data"), STAT_ChaosClothGetSimulationData, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collision Transforms"), STAT_ChaosClothUpdateCollisionTransforms, STATGROUP_ChaosCloth);
 
 // Default parameters, will be overwritten when cloth assets are loaded
@@ -1580,6 +1581,8 @@ void ClothingSimulation::GetSimulationData(
 	USkeletalMeshComponent* InOwnerComponent,
 	USkinnedMeshComponent* InOverrideComponent) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosClothGetSimulationData);
+
 	const int32 NumSimulatedCloth = IndexToRangeMap.Num();
 	if (OutData.Num() != NumSimulatedCloth)
 	{
