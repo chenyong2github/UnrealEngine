@@ -63,7 +63,7 @@ void FSlateOpenGLRenderingPolicy::ConditionalInitializeResources()
 
 		// Create a default texture.
 		check( WhiteTexture == NULL );
-		WhiteTexture = TextureManager->CreateColorTexture( TEXT("DefaultWhite"), FColor::White );
+		WhiteTexture = TextureManager->CreateColorTexture( TEXT("DefaultWhite"), FColor::White )->GetSlateResource();
 
 		bIsInitialized = true;
 	}
@@ -214,9 +214,13 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		{
 			ElementProgram.SetGammaValues(FVector2D(1.0f, 1.0f));
 		}
+		else
+		{
+			ElementProgram.SetGammaValues(FVector2D(1, 1 / 2.2f));
+		}
 
 		ElementProgram.SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );
-		ElementProgram.SetMarginUVs( RenderBatch.GetShaderParams().PixelParams );
+		ElementProgram.SetShaderParams(RenderBatch.GetShaderParams());
 		ElementProgram.SetDrawEffects( RenderBatch.GetDrawEffects() );
 
 		// Disable stenciling and depth testing by default
@@ -244,7 +248,7 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		}
 		else
 		{
-			ElementProgram.SetTexture( WhiteTexture->GetTypedResource(), GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE );
+			ElementProgram.SetTexture( ((FSlateOpenGLTexture*)WhiteTexture)->GetTypedResource(), GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE );
 		}
 
 		check( RenderBatch.GetNumIndices() > 0 );
