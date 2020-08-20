@@ -209,28 +209,6 @@ public:
 	virtual void AppendToHeader(const FString& HeaderName, const FString& AdditionalHeaderValue) = 0;
 
 	/**
-	 * Sets an optional timeout in seconds for this entire HTTP request to complete.
-	 * If set, this value overrides the default HTTP timeout set via FHttpModule::SetTimeout().
-	 *
-	 * @param InTimeoutSecs - Timeout for this HTTP request instance, in seconds
-	 */
-	virtual void SetTimeout(float InTimeoutSecs) = 0;
-
-	/**
-	 * Clears the optional timeout in seconds for this HTTP request, causing the default value
-	 * from FHttpModule::GetTimeout() to be used.
-	 */
-	virtual void ClearTimeout() = 0;
-
-	/**
-	 * Gets the optional timeout in seconds for this entire HTTP request to complete.
-	 * If valid, this value overrides the default HTTP timeout set via FHttpModule::SetTimeout().
-	 *
-	 * @return the timeout for this HTTP request instance, in seconds
-	 */
-	virtual TOptional<float> GetTimeout() const = 0;
-
-	/**
 	 * Called to begin processing the request.
 	 * OnProcessRequestComplete delegate is always called when the request completes or on error if it is bound.
 	 * A request can be re-used but not while still being processed.

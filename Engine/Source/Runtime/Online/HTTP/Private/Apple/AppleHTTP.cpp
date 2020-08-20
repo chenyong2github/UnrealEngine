@@ -284,20 +284,6 @@ void FAppleHttpRequest::SetVerb(const FString& Verb)
 	Request.HTTPMethod = Verb.GetNSString();
 }
 
-void FAppleHttpRequest::SetTimeout(float InTimeoutSecs)
-{
-	Request.timeoutInterval = InTimeoutSecs;
-}
-
-void FAppleHttpRequest::ClearTimeout()
-{
-	Request.timeoutInterval = FHttpModule::Get().GetHttpTimeout();
-}
-
-TOptional<float> FAppleHttpRequest::GetTimeout() const
-{
-	return TOptional<float>(Request.timeoutInterval);
-}
 
 bool FAppleHttpRequest::ProcessRequest()
 {
