@@ -1182,10 +1182,15 @@ bool UMoviePipeline::DebugFrameStepPreTick()
 
 void UMoviePipeline::LoadDebugWidget()
 {
-	FSoftClassPath DebugWidgetClassRef(TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"));
-	if (UClass* DebugWidgetClass = DebugWidgetClassRef.TryLoadClass<UMovieRenderDebugWidget>())
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClassToUse = DebugWidgetClass;
+	if (DebugWidgetClassToUse.Get() == nullptr)
 	{
-		DebugWidget = CreateWidget<UMovieRenderDebugWidget>(GetWorld(), DebugWidgetClass);
+		DebugWidgetClassToUse = LoadClass<UMovieRenderDebugWidget>(nullptr, TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"), nullptr, LOAD_None, nullptr);
+	}
+
+	if (DebugWidgetClassToUse.Get() != nullptr)
+	{
+		DebugWidget = CreateWidget<UMovieRenderDebugWidget>(GetWorld(), DebugWidgetClassToUse.Get());
 		if (DebugWidget)
 		{
 			DebugWidget->OnInitializedForPipeline(this);

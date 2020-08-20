@@ -14,6 +14,7 @@ class UMoviePipelineExecutorBase;
 class UMoviePipelineExecutorJob;
 class UMoviePipeline;
 class UMoviePipelineQueue;
+class UMovieRenderDebugWidget;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineExecutorFinishedNative, UMoviePipelineExecutorBase* /*PipelineExecutor*/, bool /*bSuccess*/);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineExecutorFinished, UMoviePipelineExecutorBase*, PipelineExecutor, bool, bSuccess);
@@ -320,6 +321,10 @@ private:
 	bool ProcessIncomingSocketData();
 
 public:
+	/** Optional widget for feedback during render */
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
+
 	/**
 	* Arbitrary data that can be associated with the executor. Not used by default implementations, nor read.
 	* This can be used to attach third party metadata such as job ids from remote farms.

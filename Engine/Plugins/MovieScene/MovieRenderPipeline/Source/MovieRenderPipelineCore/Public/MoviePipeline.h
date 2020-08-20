@@ -402,6 +402,10 @@ public:
 	/** A debug image sequence writer in the event they want to dump every sample generated on its own. */
 	IImageWriteQueue* ImageWriteQueue;
 
+	/** Optional widget for feedback during render */
+	UPROPERTY(Transient)
+	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClass;
+
 private:
 	/** Keep track of which job we're working on. This holds our Configuration + which shots we're supposed to render from it. */
 	UPROPERTY(Transient)
