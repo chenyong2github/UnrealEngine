@@ -1242,7 +1242,7 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 				FMediaTimeStamp VideoTimeStamp;
 				if (Player->GetSamples().PeekVideoSampleTime(VideoTimeStamp))
 				{
-					NextEstVideoTimeAtFrameStart = VideoTimeStamp;
+					NextEstVideoTimeAtFrameStart = FMediaTimeStampSample(VideoTimeStamp, FPlatformTime::Seconds());
 				}
 			}
 
@@ -1268,7 +1268,16 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 			// Move video frame start estimate forward if we have no audio timing to guide us
 			if (!bHaveActiveAudio && NextEstVideoTimeAtFrameStart.IsValid())
 			{
-				NextEstVideoTimeAtFrameStart.Time += DeltaTime * Rate;
+				if (Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UseRealtimeWithVideoOnly))
+				{
+					double NewBaseTime = FPlatformTime::Seconds();
+					NextEstVideoTimeAtFrameStart.TimeStamp.Time += (NewBaseTime - NextEstVideoTimeAtFrameStart.SampledAtTime) * Rate;
+					NextEstVideoTimeAtFrameStart.SampledAtTime = NewBaseTime;
+				}
+				else
+				{
+					NextEstVideoTimeAtFrameStart.TimeStamp.Time += DeltaTime * Rate;
+				}
 			}
 
 			if (bHaveActiveAudio)
@@ -1531,8 +1540,8 @@ bool FMediaPlayerFacade::GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp> & T
 		{
 			// Yes. Setup current time range & advance time estimation...
 
-			TimeRange = (Rate >= 0.0f) ? TRange<FMediaTimeStamp>(NextEstVideoTimeAtFrameStart, NextEstVideoTimeAtFrameStart + DeltaTime * Rate)
-									   : TRange<FMediaTimeStamp>(NextEstVideoTimeAtFrameStart + DeltaTime * Rate, NextEstVideoTimeAtFrameStart);
+			TimeRange = (Rate >= 0.0f) ? TRange<FMediaTimeStamp>(NextEstVideoTimeAtFrameStart.TimeStamp, NextEstVideoTimeAtFrameStart.TimeStamp + DeltaTime * Rate)
+									   : TRange<FMediaTimeStamp>(NextEstVideoTimeAtFrameStart.TimeStamp + DeltaTime * Rate, NextEstVideoTimeAtFrameStart.TimeStamp);
 		}
 	}
 
@@ -1739,45 +1748,14 @@ void FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, const TRang
 
 	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
 
-	switch (Samples.FetchBestVideoSampleForTimeRange(TimeRange, Sample, Player->GetControls().GetRate() < 0.0f))
+	if (!Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::AlwaysPullNewestVideoFrame))
 	{
-		case IMediaSamples::EFetchBestSampleResult::Ok:
+		//
+		// Normal playback with timing control provided by MediaFramework
+		//
+		switch (Samples.FetchBestVideoSampleForTimeRange(TimeRange, Sample, Player->GetControls().GetRate() < 0.0f))
 		{
-			// Enqueue the sample to render
-			// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
-			//  and pass it along to rendering outside the queue)
-			bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
-			check(bOk);
-
-			FScopeLock Lock(&LastTimeValuesCS);
-			LastVideoSampleProcessedTime.TimeStamp = FMediaTimeStamp(Sample->GetTime());
-			LastVideoSampleProcessedTime.SampledAtTime = FPlatformTime::Seconds();
-
-			//uint32 Frames = uint32(LastVideoSampleProcessedTime.TimeStamp.Time.GetTotalMilliseconds() / Sample->GetDuration().GetTotalMilliseconds() + 0.5);
-			//UE_LOG(LogMediaUtils, Display, TEXT("TIME: F=%d"), Frames % 30);
-			break;
-		}
-
-		case IMediaSamples::EFetchBestSampleResult::NoSample:
-			break;
-
-		case IMediaSamples::EFetchBestSampleResult::NotSupported:
-		{
-			//
-			// Fallback for players supporting V2 timing, but do not supply FetchBestVideoSampleForTimeRange() due to some
-			// custom implementation of IMediaSamples (here to ease adoption of the new timing code - eventually should go away)
-			//
-			const bool bReverse = (Player->GetControls().GetRate() < 0.0f);
-
-			// Find newest sample that satisfies the time range
-			// (the FetchXYZ() code does not work well with a lower range limit at all - we ask for a "up to" type range instead
-			//  and limit the other side of the range in code here to not change the older logic & possibly cause trouble in old code)
-			TRange<FMediaTimeStamp> TempRange = bReverse ? TRange<FMediaTimeStamp>::AtLeast(TimeRange.GetUpperBoundValue()) : TRange<FMediaTimeStamp>::AtMost(TimeRange.GetUpperBoundValue());
-			while (Samples.FetchVideo(TempRange, Sample))
-				;
-			if (Sample.IsValid() &&
-				((!bReverse && ((Sample->GetTime() + Sample->GetDuration()) > TimeRange.GetLowerBoundValue())) ||
-				(bReverse && ((Sample->GetTime() - Sample->GetDuration()) < TimeRange.GetLowerBoundValue()))))
+			case IMediaSamples::EFetchBestSampleResult::Ok:
 			{
 				// Enqueue the sample to render
 				// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
@@ -1786,12 +1764,71 @@ void FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, const TRang
 				check(bOk);
 
 				FScopeLock Lock(&LastTimeValuesCS);
-				LastVideoSampleProcessedTime.TimeStamp = Sample->GetTime();
+				LastVideoSampleProcessedTime.TimeStamp = FMediaTimeStamp(Sample->GetTime());
 				LastVideoSampleProcessedTime.SampledAtTime = FPlatformTime::Seconds();
+
+				//uint32 Frames = uint32(LastVideoSampleProcessedTime.TimeStamp.Time.GetTotalMilliseconds() / Sample->GetDuration().GetTotalMilliseconds() + 0.5);
+				//UE_LOG(LogMediaUtils, Display, TEXT("TIME: F=%d"), Frames % 30);
+				break;
 			}
-			break;
+
+			case IMediaSamples::EFetchBestSampleResult::NoSample:
+				break;
+
+			case IMediaSamples::EFetchBestSampleResult::NotSupported:
+			{
+				//
+				// Fallback for players supporting V2 timing, but do not supply FetchBestVideoSampleForTimeRange() due to some
+				// custom implementation of IMediaSamples (here to ease adoption of the new timing code - eventually should go away)
+				//
+				const bool bReverse = (Player->GetControls().GetRate() < 0.0f);
+
+				// Find newest sample that satisfies the time range
+				// (the FetchXYZ() code does not work well with a lower range limit at all - we ask for a "up to" type range instead
+				//  and limit the other side of the range in code here to not change the older logic & possibly cause trouble in old code)
+				TRange<FMediaTimeStamp> TempRange = bReverse ? TRange<FMediaTimeStamp>::AtLeast(TimeRange.GetUpperBoundValue()) : TRange<FMediaTimeStamp>::AtMost(TimeRange.GetUpperBoundValue());
+				while (Samples.FetchVideo(TempRange, Sample))
+					;
+				if (Sample.IsValid() &&
+					((!bReverse && ((Sample->GetTime() + Sample->GetDuration()) > TimeRange.GetLowerBoundValue())) ||
+					(bReverse && ((Sample->GetTime() - Sample->GetDuration()) < TimeRange.GetLowerBoundValue()))))
+				{
+					// Enqueue the sample to render
+					// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
+					//  and pass it along to rendering outside the queue)
+					bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
+					check(bOk);
+
+					FScopeLock Lock(&LastTimeValuesCS);
+					LastVideoSampleProcessedTime.TimeStamp = Sample->GetTime();
+					LastVideoSampleProcessedTime.SampledAtTime = FPlatformTime::Seconds();
+				}
+				break;
+			}
 		}
 	}
+	else
+	{
+		//
+		// Use newest video frame available at all times (no Mediaframework timing control)
+		//
+		TRange<FMediaTimeStamp> TempRange; // fully open range
+		while (Samples.FetchVideo(TempRange, Sample))
+			;
+		if (Sample.IsValid())
+		{
+			// Enqueue the sample to render
+			// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
+			//  and pass it along to rendering outside the queue)
+			bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
+			check(bOk);
+
+			FScopeLock Lock(&LastTimeValuesCS);
+			LastVideoSampleProcessedTime.TimeStamp = Sample->GetTime();
+			LastVideoSampleProcessedTime.SampledAtTime = FPlatformTime::Seconds();
+		}
+	}
+
 }
 
 
