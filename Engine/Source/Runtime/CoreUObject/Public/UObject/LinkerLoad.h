@@ -160,9 +160,6 @@ private:
 	/** The linker instancing context. */
 	FLinkerInstancingContext InstancingContext;
 
-	/* The package load name. Derived from FLinker::Filename. if not set, the package is loaded outside of a known mount. */
-	FName LongPackageLoadName;
-
 	// Helper function to access the InstancingContext IsInstanced, 
 	// returns false if WITH_EDITOR isn't defined.
 	bool IsContextInstanced() const;
@@ -171,22 +168,12 @@ private:
 	// return ObjectName directly  if WITH_EDITOR isn't defined.
 	FName InstancingContextRemap(FName ObjectName) const;
 
-	// Helper function to access the InstancingContext, 
-	// return an empty array from a function local static if WITH_EDITOR isn't defined.
-	const TArray<FDynamicImportCallback>& GetDynamicImportResolver() const;
-
 protected:
 
 	void SetLoader(FArchive* InLoader);
 	FArchive* GetLoader() const { return Loader; }
 
 public:
-
-	/** Return the long package load name as opposed to the linker root name which might be different. */
-	FName GetLongPackageLoadName() const
-	{
-		return LongPackageLoadName;
-	}
 
 	/** Access the underlying archive. Note that if this is a text archive, the loader will point to a generic text file, and not a binary archive as
 	  * in the past. General access to the underlying file format is discouraged and should only be done after checking that the linker package is what
@@ -318,10 +305,8 @@ private:
 	bool					bHasSerializedPreloadDependencies:1;
 	/** Whether we already fixed up import map.																				*/
 	bool					bHasFixedUpImportMap:1;
-	/** Whether we already populated the instancing context.																*/
+	/** Whether we already fixed up import map.																				*/
 	bool					bHasPopulatedInstancingContext:1;
-	/** Whether we already injected dynamic imports.																		*/
-	bool					bHasInjectedDynamicImports:1;
 	/** Used for ActiveClassRedirects functionality */
 	bool					bFixupExportMapDone:1;
 	/** Whether we already matched up existing exports.																		*/
@@ -998,11 +983,6 @@ private:
 	 */
 	ELinkerStatus PopulateInstancingContext();
 
-	/*
-	 * Resolve dynamic imports and inject them in the import table
-	*/
-	ELinkerStatus InjectDynamicImports();
-
 	/**
 	 * Serializes the export map.
 	 */
@@ -1027,19 +1007,6 @@ private:
 
 	/** For the given object and class info, find or create an associated import record. Used when loading text assets which only store object paths */
 	FPackageIndex FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName);
-
-	/**
-	 * Add a new dynamic package import to the regular import list
-	 * @param DynamicImport the package import to add
-	 */
-	void AddDynamicPackageImport(const FDynamicPackageImport& DynamicImport);
-
-	/**
-	 * Automatically generate an instanced name from the provided name
-	 * in this linker instancing context
-	 * @param InPackageLoadName package name to instance
-	 */
-	void AddAutomaticInstancingMapping(FName InPackageLoadName);
 
 public:
 	/**
