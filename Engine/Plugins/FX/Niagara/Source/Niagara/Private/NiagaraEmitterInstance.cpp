@@ -471,37 +471,32 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 				EventContext.Parameters.UnbindFromSourceStores();
 			}
 
-			if (CachedEmitter)
+			const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
+			EventInstanceData->EventHandlingInfo.Reset();
+			EventInstanceData->EventHandlingInfo.SetNum(NumEventHandlers);
+			for (int32 i = 0; i < NumEventHandlers; i++)
 			{
-				const int32 NumEventHandlers = CachedEmitter->GetEventHandlers().Num();
-				EventInstanceData->EventHandlingInfo.Reset();
-				EventInstanceData->EventHandlingInfo.SetNum(NumEventHandlers);
-				for (int32 i = 0; i < NumEventHandlers; i++)
-				{
-					const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
-					FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
-					Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
-					Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
-					Info.SpawnCounts.Reset();
-					Info.TotalSpawnCount = 0;
-					Info.EventData = nullptr;
-				}
+				const FNiagaraEventScriptProperties& EventHandlerProps = CachedEmitter->GetEventHandlers()[i];
+				FNiagaraEventHandlingInfo& Info = EventInstanceData->EventHandlingInfo[i];
+				Info.SourceEmitterGuid = EventHandlerProps.SourceEmitterID;
+				Info.SourceEmitterName = Info.SourceEmitterGuid.IsValid() ? *Info.SourceEmitterGuid.ToString() : CachedIDName;
+				Info.SpawnCounts.Reset();
+				Info.TotalSpawnCount = 0;
+				Info.EventData = nullptr;
 			}
 		}
 
 
 		// We may need to populate bindings that will be used in rendering
 		bool bAnyRendererBindingsAdded = false;
-		if (CachedEmitter)
+		for (UNiagaraRendererProperties* Props : CachedEmitter->GetRenderers())
 		{
-			for (UNiagaraRendererProperties* Props : CachedEmitter->GetRenderers())
+			if (Props && Props->bIsEnabled)
 			{
-				if (Props && Props->bIsEnabled)
-				{
-					bAnyRendererBindingsAdded |= Props->PopulateRequiredBindings(RendererBindings);
-				}
+				bAnyRendererBindingsAdded |= Props->PopulateRequiredBindings(RendererBindings);
 			}
 		}
+
 		if (bAnyRendererBindingsAdded)
 		{
 			if (ParentSystemInstance)
