@@ -602,7 +602,7 @@ struct FNetworkPredictionDriverBase
 	template<bool bEnable=HasPhysics()>
 	static typename TEnableIf<bEnable>::Type PostPhysicsResimulate(DriverType* Driver)
 	{
-		PhysicsState::PostResimulate(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver));
+		PhysicsState::PostResimulate(FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent(Driver), FNetworkPredictionDriver<ModelDef>::GetPhysicsBodyInstance(Driver));
 	}
 
 	template<bool bEnable=HasPhysics()>

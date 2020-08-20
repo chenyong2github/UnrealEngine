@@ -54,14 +54,6 @@ public:
 	using Simulation = FParametricMovementSimulation;
 	using Driver = UParametricMovementComponent;
 
-	/*
-	static void Interpolate(const TInterpolatorParameters<FParametricSyncState, FParametricAuxState>& Params)
-	{
-	Params.Out.Sync.Position = Params.From.Sync.Position + ((Params.To.Sync.Position - Params.From.Sync.Position) * Params.InterpolationPCT);
-	Params.Out.Sync.PlayRate = Params.From.Sync.PlayRate + ((Params.To.Sync.PlayRate - Params.From.Sync.PlayRate) * Params.InterpolationPCT);
-	}
-	*/
-
 	static const TCHAR* GetName() { return TEXT("Parametric"); }
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::PreKinematicMovers + 5; }
 };
