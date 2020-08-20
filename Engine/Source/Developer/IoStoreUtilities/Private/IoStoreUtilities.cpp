@@ -4434,17 +4434,7 @@ static bool ParsePakOrderFile(const TCHAR* FilePath, TMap<FName, uint64>& OutMap
 		}
 
 		uint64 Order = LineNumber;
-		FString OrderStr;
-		if (FParse::Token(OrderLinePtr, OrderStr, false))
-		{
-			if (!OrderStr.IsNumeric())
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Invalid line in order file '%s'."), *OrderLine);
-				return false;
-			}
-			Order = FCString::Atoi64(*OrderStr);
-		}
-
+		
 		FName PackageFName(MoveTemp(PackageName));
 		if (!OutMap.Contains(PackageFName))
 		{
