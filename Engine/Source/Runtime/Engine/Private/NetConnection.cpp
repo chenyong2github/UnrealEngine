@@ -1682,7 +1682,7 @@ int32 UNetConnection::IsNetReady( bool Saturate )
 void UNetConnection::ReadInput( float DeltaSeconds )
 {}
 
-void UNetConnection::ReceivedAck(int32 AckPacketId)
+void UNetConnection::ReceivedAck(int32 AckPacketId, FChannelsToClose& OutChannelsToClose)
 {
 	UE_LOG(LogNetTraffic, Verbose, TEXT("   Received ack %i"), AckPacketId);
 
@@ -1704,7 +1704,7 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 		PackageMap->ReceivedAck( AckPacketId );
 	}
 
-	auto AckChannelFunc = [this](int32 AckedPacketId, uint32 ChannelIndex)
+	auto AckChannelFunc = [this, &OutChannelsToClose](int32 AckedPacketId, uint32 ChannelIndex)
 	{
 		UChannel* const Channel = Channels[ChannelIndex];
 
@@ -1730,7 +1730,12 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 				}
 			}
 			Channel->ReceivedAck(AckedPacketId);
-			Channel->ReceivedAcks(); //warning: May destroy Channel.
+			EChannelCloseReason CloseReason;
+			if (Channel->ReceivedAcks(CloseReason))
+			{
+				const FChannelCloseInfo Info = {ChannelIndex, CloseReason};
+				OutChannelsToClose.Emplace(Info);
+			}	
 		}
 	};
 
@@ -2090,6 +2095,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		LastReceiveRealtime = CurrentReceiveTimeInS;
 	}
 
+	FChannelsToClose ChannelsToClose;
+
 	if (IsInternalAck())
 	{
 		++InPacketId;
@@ -2220,9 +2227,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 			return;
 		}
 
-
 		// Lambda to dispatch delivery notifications, 
-		auto HandlePacketNotification = [&Header, this](FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered)
+		auto HandlePacketNotification = [&Header, &ChannelsToClose, this](FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered)
 		{
 			// Increase LastNotifiedPacketId, this is a full packet Id
 			++LastNotifiedPacketId;
@@ -2238,7 +2244,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 			if (bDelivered)
 			{
-				ReceivedAck(LastNotifiedPacketId);
+				ReceivedAck(LastNotifiedPacketId, ChannelsToClose);
 			}
 			else
 			{
@@ -2781,8 +2787,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				UE_LOG( LogNetTraffic, Error, TEXT("Received corrupted packet data from client %s.  Disconnecting."), *LowLevelGetRemoteAddress() );
 				Close();
-				bSkipAck = true;
+				return;
 			}
+		}
+	}
+
+	// Close/clean-up channels pending close due to received acks.
+	for (FChannelCloseInfo& Info : ChannelsToClose)
+	{
+		if (UChannel* Channel = Channels[Info.Id])
+		{
+			Channel->ConditionalCleanUp(false, Info.CloseReason);
 		}
 	}
 
