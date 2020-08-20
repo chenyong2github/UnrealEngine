@@ -30,7 +30,7 @@ UMotionTrailEditorMode::UMotionTrailEditorMode()
 		FName(TEXT("MotionTrailEditorMode")),
 		LOCTEXT("ModeName", "Motion Trail Editor"),
 		FSlateIcon(),
-		true
+		false
 	);
 }
 
@@ -55,6 +55,7 @@ void UMotionTrailEditorMode::Enter()
 
 	OnSequencersChangedHandle = FLevelEditorSequencerIntegration::Get().GetOnSequencersChanged().AddLambda([this] {
 		TrailHierarchies.Reset();
+		TrailTools[DefaultToolName].Reset();
 		// TODO: kind of cheap for now, later should check with member TMap<ISequencer*, FTrailHierarchy*> TrackedSequencers
 		for (TWeakPtr<ISequencer> WeakSequencer : FLevelEditorSequencerIntegration::Get().GetSequencers())
 		{
