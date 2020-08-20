@@ -128,6 +128,12 @@ public:
 
 	virtual ~FGroupTopology() {}
 
+	/**
+	 * Keeps the structures of topology in place but points the mesh pointers to
+	 * a new cloned mesh. If the given mesh is not cloned, the topology will no
+	 * longer be consistent.
+	 */
+	void RetargetOnClonedMesh(const FDynamicMesh3* Mesh);
 
 	/**
 	 * Build the group topology graph.
