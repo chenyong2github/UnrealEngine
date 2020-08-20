@@ -25,7 +25,7 @@ struct FSequencerSelectionCurveFilter : FCurveEditorTreeFilter
 	 */
 	void Update(const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedNodes)
 	{
-		NodesToFilter.Reserve(SelectedNodes.Num());
+		NodesToFilter.Empty(SelectedNodes.Num());
 
 		for (const TSharedRef<FSequencerDisplayNode>& SelectedNode : SelectedNodes)
 		{
