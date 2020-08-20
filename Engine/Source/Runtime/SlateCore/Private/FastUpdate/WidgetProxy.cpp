@@ -30,7 +30,7 @@ FWidgetProxy::FWidgetProxy(SWidget& InWidget)
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements)
 {
-// Commenting this since it could be triggered in specific cases where Widgte->UpdateFlags is reset and the proxy is not in sync.
+// Commenting this since it could be triggered in specific cases where Widgte->UpdateFlags in reset but the Widget Proxy is still in the  update list
 //#if WITH_SLATE_DEBUGGING
 //	ensure(UpdateFlags == Widget->UpdateFlags);
 //#endif
