@@ -6,6 +6,8 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 {
 	public MovieRenderPipelineRenderPasses(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bEnableExceptions = true;
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
