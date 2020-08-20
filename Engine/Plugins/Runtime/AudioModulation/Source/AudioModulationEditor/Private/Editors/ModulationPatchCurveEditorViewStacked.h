@@ -148,8 +148,6 @@ public:
 	EModPatchOutputEditorCurveSource GetSource() const;
 	void Refresh(EModPatchOutputEditorCurveSource InSource, int32 InInputIndex);
 
-
-	virtual const FText& GetInputDisplayName() const override;
 	virtual bool IsReadOnly() const override;
 	virtual FLinearColor GetColor() const override;
 
