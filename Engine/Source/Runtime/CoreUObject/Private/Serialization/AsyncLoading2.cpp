@@ -4454,6 +4454,10 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	{
 		// We're not done until all packages have been deleted
 		Result = CompletedPackages.Num() ? EAsyncPackageState::PendingImports  : EAsyncPackageState::Complete;
+		if (Result == EAsyncPackageState::Complete && ThreadState.HasDeferredFrees())
+		{
+			ThreadState.ProcessDeferredFrees();
+		}
 	}
 
 	return Result;
