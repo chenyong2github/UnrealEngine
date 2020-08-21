@@ -169,6 +169,7 @@ public:
 	
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_BeginDefaults() { return Translator_BeginDefaults; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_CallID() { return Translator_CallID; }
 
 	FOnProcessQueue OnProcessQueue;
 
@@ -276,5 +277,6 @@ private:
 	static FNiagaraVariable ScriptContext;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
+	static FNiagaraVariable Translator_CallID;
 };
 

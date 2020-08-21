@@ -1032,6 +1032,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		return TranslateResults;
 	}
 
+	// The Call ID is changed every time a compiled node requests it, but we want to randomize it a bit from the start.
+	// Otherwise compilation units all start from the same ID (resulting in the same chain of generated randoms).
+	CurrentCallID = (int32)(GetTypeHash(CompileOptions.FullName) + GetTypeHash(CompileData->Source->NodeGraph->GraphGuid));
 
 	switch (CompileOptions.TargetUsage)
 	{
@@ -3802,6 +3805,14 @@ int32 FHlslNiagaraTranslator::GetParameter(const FNiagaraVariable& Parameter)
 			Error(FText::Format(LOCTEXT("InitializingDefaults", "Cannot have a {0} node if you are not tracing a default value from a Get node."), FText::FromName(Parameter.GetName())), nullptr, nullptr);
 			return INDEX_NONE;
 		}
+	}
+
+	if (Parameter == TRANSLATOR_PARAM_CALL_ID)
+	{
+		FNiagaraVariable CallIDValue = Parameter;
+		int32 CallID = GetUniqueCallerID();
+		CallIDValue.SetValue(CallID);
+		return GetConstant(CallIDValue);
 	}
 
 	int32 FuncParam = INDEX_NONE;

@@ -105,6 +105,7 @@ void FNiagaraConstants::Init()
 	if (TranslatorParameters.Num() == 0)
 	{
 		TranslatorParameters.Add(TRANSLATOR_PARAM_BEGIN_DEFAULTS);
+		TranslatorParameters.Add(TRANSLATOR_PARAM_CALL_ID);
 	}
 
 	if (SwitchParameters.Num() == 0)

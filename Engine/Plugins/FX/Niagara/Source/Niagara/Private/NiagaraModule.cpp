@@ -144,6 +144,7 @@ FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::ScriptContext;
 FNiagaraVariable INiagaraModule::DataInstance_Alive;
 FNiagaraVariable INiagaraModule::Translator_BeginDefaults;
+FNiagaraVariable INiagaraModule::Translator_CallID;
 
 void INiagaraModule::StartupModule()
 {
@@ -255,6 +256,7 @@ void INiagaraModule::StartupModule()
 	DataInstance_Alive = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive"));
 
 	Translator_BeginDefaults = FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("Begin Defaults"));
+	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
 
 	FNiagaraConstants::Init();
 	UNiagaraLightRendererProperties::InitCDOPropertiesAfterModuleStartup();
