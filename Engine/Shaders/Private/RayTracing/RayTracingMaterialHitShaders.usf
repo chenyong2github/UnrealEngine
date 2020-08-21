@@ -231,7 +231,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPositionExcludingWPO.xyz, TangentToLocal);
 
 		FVertexFactoryInterpolantsVSToDS PerVertexInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-		Interpolated = VertexFactoryInterpolate(Interpolated, 1.0, PerVertexInterpolants, Weights[i]);
+		Interpolated = VertexFactoryInterpolate(PerVertexInterpolants, Weights[i], Interpolated, 1.0);
 
 		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
 		TexCoords[i] = VertexFactoryGetTextureCoordinateDS(PerVertexInterpolants);
