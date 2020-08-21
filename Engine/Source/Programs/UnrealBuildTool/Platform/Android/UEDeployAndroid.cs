@@ -2223,16 +2223,21 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<!-- Application Definition -->");
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
+			bool bRequestedLegacyExternalStorage = false;
 			if (ExtraApplicationNodeTags != null)
 			{
 				foreach (string Line in ExtraApplicationNodeTags)
 				{
+					if (Line.Contains("requestLegacyExternalStorage"))
+					{
+						bRequestedLegacyExternalStorage = true;
+					}
 					Text.AppendLine("\t             " + Line);
 				}
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
 			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
-			if (!bIsForDistribution && SDKLevelInt >= 29 && !ExtraApplicationNodeTags.Contains("requestLegacyExternalStorage"))
+			if (!bIsForDistribution && SDKLevelInt >= 29 && !bRequestedLegacyExternalStorage)
 			{
 				// work around scoped storage for non-distribution for SDK 29; add to ExtraApplicationNodeTags if you need it for distribution
 				Text.AppendLine("\t				android:requestLegacyExternalStorage=\"true\"");
