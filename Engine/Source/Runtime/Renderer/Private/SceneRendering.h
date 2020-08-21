@@ -1247,6 +1247,9 @@ public:
 	// Material shaders are only available when using this pipeline.
 	FRayTracingPipelineState* RayTracingMaterialPipeline = nullptr;
 
+	// Pipeline state object to be used with deferred material processing.
+	FRayTracingPipelineState* RayTracingMaterialGatherPipeline = nullptr;
+
 	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;
 
