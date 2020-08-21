@@ -89,17 +89,23 @@ inline FString LexToString(const EVoiceChatResult Result)
 	switch (Result)
 	{
 	case EVoiceChatResult::Success: return TEXT("Success");
+	// Common State errors
 	case EVoiceChatResult::InvalidState: return TEXT("InvalidState");
 	case EVoiceChatResult::NotInitialized: return TEXT("NotInitialized");
 	case EVoiceChatResult::NotConnected: return TEXT("NotConnected");
 	case EVoiceChatResult::NotLoggedIn: return TEXT("NotLoggedIn");
+	case EVoiceChatResult::NotPermitted: return TEXT("NotPermitted");
+	case EVoiceChatResult::Throttled: return TEXT("Throttled");
+	// Common argument errors
 	case EVoiceChatResult::InvalidArgument: return TEXT("InvalidArgument");
 	case EVoiceChatResult::CredentialsInvalid: return TEXT("AccessTokenInvalid");
 	case EVoiceChatResult::CredentialsExpired: return TEXT("AccessTokenExpired");
+	// Common connection errors 
 	case EVoiceChatResult::ClientTimeout: return TEXT("ClientTimeout");
 	case EVoiceChatResult::ServerTimeout: return TEXT("ServerTimeout");
 	case EVoiceChatResult::DnsFailure: return TEXT("DnsFailure");
 	case EVoiceChatResult::ConnectionFailure: return TEXT("ConnectionFailure");
+	// Error does not map to any common categories
 	case EVoiceChatResult::ImplementationError: return TEXT("ImplementationError");
 	default:
 		checkNoEntry();
