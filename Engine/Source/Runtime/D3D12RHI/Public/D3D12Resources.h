@@ -1122,27 +1122,23 @@ class FD3D12StagingBuffer final : public FRHIStagingBuffer
 	friend class FD3D12DynamicRHI;
 
 public:
-	FD3D12StagingBuffer()
+	FD3D12StagingBuffer(FD3D12Device* InDevice)
 		: FRHIStagingBuffer()
-		, StagedRead(nullptr)
+		, ResourceLocation(InDevice)
 		, ShadowBufferSize(0)
 	{}
 	~FD3D12StagingBuffer() override;
 
 	void SafeRelease()
 	{
-		if (StagedRead)
-		{
-			StagedRead->Release();
-			StagedRead = nullptr;
-		}
+		ResourceLocation.Clear();
 	}
 
 	void* Lock(uint32 Offset, uint32 NumBytes) override;
 	void Unlock() override;
 
 private:
-	FD3D12Resource* StagedRead;
+	FD3D12ResourceLocation ResourceLocation;
 	uint32 ShadowBufferSize;
 };
 

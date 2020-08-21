@@ -159,7 +159,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	}
 	else
 	{
-		Device->GetDefaultBufferAllocator().AllocDefaultResource(InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, ResourceLocation, Alignment, CreateInfo.DebugName);
+		Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, ResourceLocation, Alignment, CreateInfo.DebugName);
 		check(ResourceLocation.GetSize() == Size);
 	}
 }

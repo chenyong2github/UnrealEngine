@@ -55,7 +55,8 @@ FGPUFenceRHIRef FD3D12DynamicRHI::RHICreateGPUFence(const FName& Name)
 
 FStagingBufferRHIRef FD3D12DynamicRHI::RHICreateStagingBuffer()
 {
-	return new FD3D12StagingBuffer();
+	// Don't know the device yet - will be decided at copy time (lazy creation)
+	return new FD3D12StagingBuffer(nullptr);
 }
 
 void* FD3D12DynamicRHI::RHILockStagingBuffer(FRHIStagingBuffer* StagingBufferRHI, FRHIGPUFence* Fence, uint32 Offset, uint32 SizeRHI)
@@ -524,6 +525,8 @@ void FD3D12CommandListManager::ExecuteCommandList(FD3D12CommandListHandle& hList
 
 uint64 FD3D12CommandListManager::ExecuteAndIncrementFence(FD3D12CommandListPayload& Payload, FD3D12Fence &Fence)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteCommandListAndIncrementFence);
+
 	FScopeLock Lock(&FenceCS);
 
 	// Execute, signal, and wait (if requested)
