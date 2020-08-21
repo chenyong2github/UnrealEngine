@@ -82,6 +82,9 @@ bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceDa
 
 const TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
+#if !WITH_EDITOR
+	return {};
+#else
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import DDS, bad source data."));
@@ -172,4 +175,5 @@ const TOptional<Interchange::FImportImage> UInterchangeDDSTranslator::GetPayload
 	}
 
 	return PayloadData;
+#endif
 }
