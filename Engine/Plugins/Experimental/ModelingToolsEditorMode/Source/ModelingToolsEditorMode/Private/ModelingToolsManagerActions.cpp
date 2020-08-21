@@ -43,6 +43,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 
 	UI_COMMAND(BeginSculptMeshTool, "Sculpt", "Start the Sculpt Mesh Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPolyEditTool, "PolyEdit", "Start the PolyEdit Tool", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BeginGroupEdgeInsertionTool, "GroupEdgeInsert", "Start the Group Edge Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginEdgeLoopInsertionTool, "EdgeLoopInsert", "Start the Edge Loop Insertion Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginTriEditTool, "TriEdit", "Start the Triangle Edit Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(BeginPolyDeformTool, "PolyDeform", "Start the PolyDeform Tool", EUserInterfaceActionType::Button, FInputChord());

@@ -178,7 +178,9 @@ void UEdgeLoopInsertionTool::SetupPreview()
 			Op->GetLoopEdgeLocations(PreviewEdges);
 			LatestOpTopologyResult = Op->ResultTopology;
 		}
-		else
+		});
+	Preview->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator*) {
+		if (!bLastComputeSucceeded)
 		{
 			// Don't show the broken preview, since we wouldn't accept it on click.
 			Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
@@ -201,6 +203,7 @@ void UEdgeLoopInsertionTool::Shutdown(EToolShutdownType ShutdownType)
 	Preview->Shutdown();
 	ComponentTarget->SetOwnerVisibility(true);
 	CurrentMesh.Reset();
+	CurrentTopology.Reset();
 	ExpireChanges();
 }
 
@@ -209,35 +212,35 @@ void UEdgeLoopInsertionTool::OnTick(float DeltaTime)
 	if (Preview)
 	{
 		Preview->Tick(DeltaTime);
-	}
 
-	if (bWaitingForInsertionCompletion && Preview->HaveValidResult())
-	{
-		if (bLastComputeSucceeded)
+		if (bWaitingForInsertionCompletion && Preview->HaveValidResult())
 		{
-			// Apply the insertion
-			GetToolManager()->BeginUndoTransaction(LOCTEXT("EdgeLoopInsertionTransactionName", "Edge Loop Insertion"));
+			if (bLastComputeSucceeded)
+			{
+				// Apply the insertion
+				GetToolManager()->BeginUndoTransaction(LOCTEXT("EdgeLoopInsertionTransactionName", "Edge Loop Insertion"));
 
-			GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, true), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
-			ComponentTarget->CommitMesh([this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
-				{
-					FDynamicMeshToMeshDescription Converter;
-					Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescription);
-				});
-			GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, false), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, true), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
+				ComponentTarget->CommitMesh([this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+					{
+						FDynamicMeshToMeshDescription Converter;
+						Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescription);
+					});
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FEdgeLoopInsertionChangeBookend>(CurrentChangeStamp, false), LOCTEXT("EdgeLoopInsertion", "Edge Loop Insertion"));
 
-			GetToolManager()->EndUndoTransaction();
-		
-			// Update current mesh and topology
-			CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh(), true, true, true, true);
-			*CurrentTopology = *LatestOpTopologyResult;
-			CurrentTopology->RetargetOnClonedMesh(CurrentMesh.Get());
-			MeshSpatial.Build();
-			TopologySelector.Invalidate(true, true);
+				GetToolManager()->EndUndoTransaction();
+
+				// Update current mesh and topology
+				CurrentMesh->Copy(*Preview->PreviewMesh->GetMesh(), true, true, true, true);
+				*CurrentTopology = *LatestOpTopologyResult;
+				CurrentTopology->RetargetOnClonedMesh(CurrentMesh.Get());
+				MeshSpatial.Build();
+				TopologySelector.Invalidate(true, true);
+			}
+
+			PreviewEdges.Reset();
+			bWaitingForInsertionCompletion = false;
 		}
-		
-		PreviewEdges.Reset();
-		bWaitingForInsertionCompletion = false;
 	}
 }
 
@@ -263,7 +266,7 @@ void UEdgeLoopInsertionTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	// Draw the preview edges
 	PreviewEdgeRenderer.BeginFrame(RenderAPI, RenderCameraState);
-	PreviewEdgeRenderer.SetTransform(Preview->PreviewMesh->GetTransform()); // TODO: Is this right?
+	PreviewEdgeRenderer.SetTransform(Preview->PreviewMesh->GetTransform());
 	for (TPair<FVector3d, FVector3d>& EdgeVerts : PreviewEdges)
 	{
 		PreviewEdgeRenderer.DrawLine(EdgeVerts.Key, EdgeVerts.Value);
@@ -494,13 +497,13 @@ void FEdgeLoopInsertionChangeBookend::Apply(UObject* Object)
 	if (!bBeforeChange)
 	{
 		UEdgeLoopInsertionTool* Tool = Cast<UEdgeLoopInsertionTool>(Object);
-		Tool->CurrentMesh.Reset();
+		Tool->CurrentMesh->Clear();
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(Tool->ComponentTarget->GetMesh(), *Tool->CurrentMesh);
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);
-		Tool->Preview->PreviewMesh->UpdatePreview(Tool->CurrentMesh.Get());
+		Tool->ClearPreview();
 	}
 }
 
@@ -515,7 +518,7 @@ void FEdgeLoopInsertionChangeBookend::Revert(UObject* Object)
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);
-		Tool->Preview->PreviewMesh->UpdatePreview(Tool->CurrentMesh.Get());
+		Tool->ClearPreview();
 	}
 }
 
