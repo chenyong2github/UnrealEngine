@@ -1007,7 +1007,7 @@ namespace Gauntlet
 			}
 
 			var Devices = TooFewTotalDevices.Concat(TooFewCurrentDevices);
-			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value) && !D.Platform.Value.ToString().StartsWith("XboxOne"));
+			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value) && (!D.Platform.Value.ToString().StartsWith("XboxOne")) && (D.Platform.Value.ToString() != "XSX") && (D.Platform.Value.ToString() != "PS5"));
 
 			// Request devices from the service if we need them
 			if (UseServiceDevices && !String.IsNullOrEmpty(DeviceURL) && UnsupportedPlatforms.Count() == 0 && (TooFewTotalDevices.Count() > 0 || TooFewCurrentDevices.Count() > 0))
